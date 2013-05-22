@@ -58,21 +58,21 @@ typedef struct bPagedBufferIterator
 
 /* Buffer Management */
 
-void pbufInit(struct bPagedBuffer *pbuf, int page_size);
-void pbufFree(struct bPagedBuffer *pbuf);
-void pbufCopy(struct bPagedBuffer *to, struct bPagedBuffer *from);
+void BLI_pbuf_init(struct bPagedBuffer *pbuf, int page_size);
+void BLI_pbuf_free(struct bPagedBuffer *pbuf);
+void BLI_pbuf_copy(struct bPagedBuffer *to, struct bPagedBuffer *from);
 
-void pbufSetPageSize(struct bPagedBuffer *pbuf, int new_page_size);
+void BLI_pbuf_set_page_size(struct bPagedBuffer *pbuf, int new_page_size);
 
 /* Layers */
 
-struct bPagedBufferLayerInfo *pbufLayerAdd(struct bPagedBuffer *pbuf, const char *name, int stride, const void *default_value);
-void pbufLayerRemove(struct bPagedBuffer *pbuf, struct bPagedBufferLayerInfo *layer);
+struct bPagedBufferLayerInfo *BLI_pbuf_layer_add(struct bPagedBuffer *pbuf, const char *name, int stride, const void *default_value);
+void BLI_pbuf_layer_remove(struct bPagedBuffer *pbuf, struct bPagedBufferLayerInfo *layer);
 
 
 /* Data Access */
-bPagedBufferIterator pbufSetElements(struct bPagedBuffer *pbuf, int totelem);
-bPagedBufferIterator pbufAppendElements(struct bPagedBuffer *pbuf, int num_elements);
+bPagedBufferIterator BLI_pbuf_set_elements(struct bPagedBuffer *pbuf, int totelem);
+bPagedBufferIterator BLI_pbuf_append_elements(struct bPagedBuffer *pbuf, int num_elements);
 
 typedef int (*bPagedBufferTestFunc)(struct bPagedBufferIterator *pit, void *userdata);
 /* must return -1 if the searched element has lower index than the iterator, 1 if it has higher index and 0 if it is found. */
@@ -80,11 +80,11 @@ typedef int (*bPagedBufferSearchFunction)(struct bPagedBufferIterator *pit, void
 /* must return 1 if a comes before b */
 typedef int (*bPagedBufferCompareFunction)(struct bPagedBufferIterator *a, struct bPagedBufferIterator *b);
 
-void pbufReset(struct bPagedBuffer *pbuf);
-void pbufFreeDeadPages(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata);
-void pbufCompress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata, struct bPagedBufferLayerInfo *origindex_layer);
+void BLI_pbuf_reset(struct bPagedBuffer *pbuf);
+void BLI_pbuf_free_dead_pages(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata);
+void BLI_pbuf_compress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata, struct bPagedBufferLayerInfo *origindex_layer);
 
-struct bPagedBufferIterator pbufGetElement(struct bPagedBuffer *pbuf, int index);
+struct bPagedBufferIterator BLI_pbuf_get_element(struct bPagedBuffer *pbuf, int index);
 
 /** Find an element using binary search
  * If a (partial) ordering is defined on the elements, this function can be used
@@ -94,11 +94,11 @@ struct bPagedBufferIterator pbufGetElement(struct bPagedBuffer *pbuf, int index)
  * \param start_index Lower bound for the search space (index >= start_index).
  * \param end_index Upper bound for the search space (index < end_index).
  */
-struct bPagedBufferIterator pbufBinarySearchElement(struct bPagedBuffer *pbuf, bPagedBufferSearchFunction testfunc, void *userdata, int start_index, int end_index);
+struct bPagedBufferIterator BLI_pbuf_binary_search_element(struct bPagedBuffer *pbuf, bPagedBufferSearchFunction testfunc, void *userdata, int start_index, int end_index);
 
 #if 0
 /* access functions for point cache */
-void pbufCacheMerge(struct bPagedBuffer *pbuf, int start, bPagedBufferCompareFunction cmpfunc);
+void BLI_pbuf_cache_merge(struct bPagedBuffer *pbuf, int start, bPagedBufferCompareFunction cmpfunc);
 #endif
 
 /* XXX these could be inlined for performance */

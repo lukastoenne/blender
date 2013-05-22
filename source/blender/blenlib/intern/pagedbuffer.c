@@ -121,7 +121,7 @@ static void update_layer_indices(bPagedBuffer *pbuf)
 	pbuf->totlayers = index;
 }
 
-void pbufInit(bPagedBuffer *pbuf, int page_size)
+void BLI_pbuf_init(bPagedBuffer *pbuf, int page_size)
 {
 	pbuf->page_size= page_size;
 	pbuf->pages= NULL;
@@ -132,7 +132,7 @@ void pbufInit(bPagedBuffer *pbuf, int page_size)
 	pbuf->totlayers = 0;
 }
 
-void pbufFree(bPagedBuffer *pbuf)
+void BLI_pbuf_free(bPagedBuffer *pbuf)
 {
 	bPagedBufferLayerInfo *layer, *layer_next;
 	
@@ -152,7 +152,7 @@ void pbufFree(bPagedBuffer *pbuf)
 	}
 }
 
-void pbufCopy(bPagedBuffer *to, bPagedBuffer *from)
+void BLI_pbuf_copy(bPagedBuffer *to, bPagedBuffer *from)
 {
 	bPagedBufferLayerInfo *layer;
 	int p, k;
@@ -191,7 +191,7 @@ static void update_totalloc(bPagedBuffer *pbuf)
 	}
 }
 
-void pbufSetPageSize(bPagedBuffer *pbuf, int new_page_size)
+void BLI_pbuf_set_page_size(bPagedBuffer *pbuf, int new_page_size)
 {
 	int new_totpages;
 	bPagedBufferPage *new_pages= NULL;
@@ -353,7 +353,7 @@ static void remove_all_page_layers(bPagedBuffer *pbuf)
 }
 #endif
 
-bPagedBufferLayerInfo *pbufLayerAdd(bPagedBuffer *pbuf, const char *name, int stride, const void *default_value)
+bPagedBufferLayerInfo *BLI_pbuf_layer_add(bPagedBuffer *pbuf, const char *name, int stride, const void *default_value)
 {
 	bPagedBufferLayerInfo *layer = MEM_callocN(sizeof(bPagedBufferLayerInfo), "paged buffer layer info");
 	
@@ -369,7 +369,7 @@ bPagedBufferLayerInfo *pbufLayerAdd(bPagedBuffer *pbuf, const char *name, int st
 	return layer;
 }
 
-void pbufLayerRemove(bPagedBuffer *pbuf, bPagedBufferLayerInfo *layer)
+void BLI_pbuf_layer_remove(bPagedBuffer *pbuf, bPagedBufferLayerInfo *layer)
 {
 	BLI_remlink(&pbuf->layers, layer);
 	update_layer_indices(pbuf);
@@ -383,7 +383,7 @@ void pbufLayerRemove(bPagedBuffer *pbuf, bPagedBufferLayerInfo *layer)
 /*					Data Access					*/
 /************************************************/
 
-bPagedBufferIterator pbufSetElements(bPagedBuffer *pbuf, int totelem)
+bPagedBufferIterator BLI_pbuf_set_elements(bPagedBuffer *pbuf, int totelem)
 {
 	bPagedBufferPage *page;
 	bPagedBufferLayerInfo *layer;
@@ -433,7 +433,7 @@ bPagedBufferIterator pbufSetElements(bPagedBuffer *pbuf, int totelem)
 	return pit_init(pbuf);
 }
 
-bPagedBufferIterator pbufAppendElements(bPagedBuffer *pbuf, int totappend)
+bPagedBufferIterator BLI_pbuf_append_elements(bPagedBuffer *pbuf, int totappend)
 {
 	int old_totelem = pbuf->totelem;
 	int new_totelem= pbuf->totelem + totappend;
@@ -467,7 +467,7 @@ bPagedBufferIterator pbufAppendElements(bPagedBuffer *pbuf, int totappend)
 	return pit_init_at(pbuf, old_totelem);
 }
 
-void pbufReset(bPagedBuffer *pbuf)
+void BLI_pbuf_reset(bPagedBuffer *pbuf)
 {
 	if (pbuf->pages) {
 		free_all_pages(pbuf);
@@ -478,7 +478,7 @@ void pbufReset(bPagedBuffer *pbuf)
 	pbuf->totelem = pbuf->totalloc = 0;
 }
 
-void pbufFreeDeadPages(bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata)
+void BLI_pbuf_free_dead_pages(bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata)
 {
 	bPagedBufferIterator pit;
 	int p, active;
@@ -503,7 +503,7 @@ void pbufFreeDeadPages(bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, 
 	update_totalloc(pbuf);
 }
 
-void pbufCompress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata, bPagedBufferLayerInfo *origindex_layer)
+void BLI_pbuf_compress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata, bPagedBufferLayerInfo *origindex_layer)
 {
 	bPagedBufferIterator pit;
 	int p;
@@ -606,7 +606,7 @@ void pbufCompress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc
 
 /**** Data Access ****/
 
-bPagedBufferIterator pbufGetElement(bPagedBuffer *pbuf, int index)
+bPagedBufferIterator BLI_pbuf_get_element(bPagedBuffer *pbuf, int index)
 {
 	bPagedBufferIterator pit;
 	int p = index / pbuf->page_size;
@@ -645,7 +645,7 @@ static void binary_search_page(bPagedBufferIterator *pit, bPagedBufferSearchFunc
 	pit->valid = 0;
 }
 
-bPagedBufferIterator pbufBinarySearchElement(bPagedBuffer *pbuf, bPagedBufferSearchFunction testfunc, void *userdata, int start_index, int end_index)
+bPagedBufferIterator BLI_pbuf_binary_search_element(bPagedBuffer *pbuf, bPagedBufferSearchFunction testfunc, void *userdata, int start_index, int end_index)
 {
 	bPagedBufferIterator pit;
 	int p, mid_p, start_p, end_p;
