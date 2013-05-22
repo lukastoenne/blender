@@ -81,6 +81,7 @@ set(SRC
 	intern/math_vector_inline.c
 	intern/md5.c
 	intern/noise.c
+	intern/pagedbuffer.c
 	intern/path_util.c
 	intern/polyfill2d.c
 	intern/quadric.c
@@ -149,6 +150,7 @@ set(SRC
 	BLI_memarena.h
 	BLI_mempool.h
 	BLI_noise.h
+	BLI_pagedbuffer.h
 	BLI_path_util.h
 	BLI_polyfill2d.h
 	BLI_quadric.h
