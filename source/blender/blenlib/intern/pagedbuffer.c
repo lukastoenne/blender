@@ -430,7 +430,7 @@ bPagedBufferIterator BLI_pbuf_set_elements(bPagedBuffer *pbuf, int totelem)
 	update_totalloc(pbuf);
 	
 	/* full buffer iterator */
-	return pit_init(pbuf);
+	return BLI_pbuf_iter_init(pbuf);
 }
 
 bPagedBufferIterator BLI_pbuf_append_elements(bPagedBuffer *pbuf, int totappend)
@@ -464,7 +464,7 @@ bPagedBufferIterator BLI_pbuf_append_elements(bPagedBuffer *pbuf, int totappend)
 	update_totalloc(pbuf);
 	
 	/* iterator over new elements */
-	return pit_init_at(pbuf, old_totelem);
+	return BLI_pbuf_iter_init_at(pbuf, old_totelem);
 }
 
 void BLI_pbuf_reset(bPagedBuffer *pbuf)
@@ -606,7 +606,7 @@ void BLI_pbuf_compress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetes
 
 /**** Iterator ****/
 
-bPagedBufferIterator pit_init(bPagedBuffer *pbuf)
+bPagedBufferIterator BLI_pbuf_iter_init(bPagedBuffer *pbuf)
 {
 	bPagedBufferIterator it;
 	it.page_size = pbuf->page_size;
@@ -633,7 +633,7 @@ bPagedBufferIterator pit_init(bPagedBuffer *pbuf)
 	return it;
 }
 
-bPagedBufferIterator pit_init_at(bPagedBuffer *pbuf, int index)
+bPagedBufferIterator BLI_pbuf_iter_init_at(bPagedBuffer *pbuf, int index)
 {
 	bPagedBufferIterator it;
 	it.page_size = pbuf->page_size;
@@ -653,7 +653,7 @@ bPagedBufferIterator pit_init_at(bPagedBuffer *pbuf, int index)
 	return it;
 }
 
-void pit_next(bPagedBufferIterator *it)
+void BLI_pbuf_iter_next(bPagedBufferIterator *it)
 {
 	/* Note: no it->valid test here, this must be done before advancing! */
 	++it->index;
@@ -677,7 +677,7 @@ void pit_next(bPagedBufferIterator *it)
 	}
 }
 
-void pit_prev(bPagedBufferIterator *it)
+void BLI_pbuf_iter_prev(bPagedBufferIterator *it)
 {
 	/* Note: no it->valid test here, this must be done before advancing! */
 	--it->index;
@@ -708,7 +708,7 @@ void pit_prev(bPagedBufferIterator *it)
  * are skipped (small delta).
  */
 
-void pit_forward(struct bPagedBufferIterator *it, int delta)
+void BLI_pbuf_iter_forward(struct bPagedBufferIterator *it, int delta)
 {
 	/* NB: no validity testing here for speed! (index < index_end) */
 	
@@ -726,7 +726,7 @@ void pit_forward(struct bPagedBufferIterator *it, int delta)
 	it->index += delta;
 }
 
-void pit_backward(struct bPagedBufferIterator *it, int delta)
+void BLI_pbuf_iter_backward(struct bPagedBufferIterator *it, int delta)
 {
 	/* NB: no validity testing here for speed! (index >= 0) */
 	
@@ -744,7 +744,7 @@ void pit_backward(struct bPagedBufferIterator *it, int delta)
 	it->index -= delta;
 }
 
-void pit_forward_to(struct bPagedBufferIterator *it, int index)
+void BLI_pbuf_iter_forward_to(struct bPagedBufferIterator *it, int index)
 {
 	/* NB: no validity testing here for speed! (index < index_end) */
 	
@@ -763,7 +763,7 @@ void pit_forward_to(struct bPagedBufferIterator *it, int index)
 	it->index = index;
 }
 
-void pit_backward_to(struct bPagedBufferIterator *it, int index)
+void BLI_pbuf_iter_backward_to(struct bPagedBufferIterator *it, int index)
 {
 	/* NB: no validity testing here for speed! (index >= 0) */
 	
@@ -782,12 +782,12 @@ void pit_backward_to(struct bPagedBufferIterator *it, int index)
 	it->index = index;
 }
 
-void pit_goto(struct bPagedBufferIterator *it, int index)
+void BLI_pbuf_iter_goto(struct bPagedBufferIterator *it, int index)
 {
 	if (index > it->index)
-		pit_forward_to(it, index);
+		BLI_pbuf_iter_forward_to(it, index);
 	else if (index < it->index)
-		pit_backward_to(it, index);
+		BLI_pbuf_iter_backward_to(it, index);
 }
 
 /**** Data Access ****/

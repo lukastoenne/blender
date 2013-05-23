@@ -110,15 +110,15 @@ void BLI_pbuf_compress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetes
 }
 
 /* XXX these could be inlined for performance */
-struct bPagedBufferIterator pit_init(struct bPagedBuffer *pbuf);
-struct bPagedBufferIterator pit_init_at(struct bPagedBuffer *pbuf, int index);
-void pit_next(struct bPagedBufferIterator *it);
-void pit_prev(struct bPagedBufferIterator *it);
-void pit_forward(struct bPagedBufferIterator *it, int delta);
-void pit_backward(struct bPagedBufferIterator *it, int delta);
-void pit_forward_to(struct bPagedBufferIterator *it, int index);
-void pit_backward_to(struct bPagedBufferIterator *it, int index);
-void pit_goto(struct bPagedBufferIterator *it, int index);
+struct bPagedBufferIterator BLI_pbuf_iter_init(struct bPagedBuffer *pbuf);
+struct bPagedBufferIterator BLI_pbuf_iter_init_at(struct bPagedBuffer *pbuf, int index);
+void BLI_pbuf_iter_next(struct bPagedBufferIterator *it);
+void BLI_pbuf_iter_prev(struct bPagedBufferIterator *it);
+void BLI_pbuf_iter_forward(struct bPagedBufferIterator *it, int delta);
+void BLI_pbuf_iter_backward(struct bPagedBufferIterator *it, int delta);
+void BLI_pbuf_iter_forward_to(struct bPagedBufferIterator *it, int index);
+void BLI_pbuf_iter_backward_to(struct bPagedBufferIterator *it, int index);
+void BLI_pbuf_iter_goto(struct bPagedBufferIterator *it, int index);
 
 #define PBUF_ITER_GET_POINTER(result, iter, layer, datatype) \
 	PBUF_GET_DATA_POINTER(result, iter.page, layer, datatype, iter.page_index)
