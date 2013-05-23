@@ -119,6 +119,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
+#include "DNA_pagedbuffer_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_property_types.h"
@@ -145,6 +146,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
+#include "BLI_pagedbuffer.h"
 #include "BLI_utildefines.h"
 #include "BLI_mempool.h"
 
@@ -1355,6 +1357,29 @@ static void write_defgroups(WriteData *wd, ListBase *defbase)
 
 	for (defgroup=defbase->first; defgroup; defgroup=defgroup->next)
 		writestruct(wd, DATA, "bDeformGroup", 1, defgroup);
+}
+
+static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
+{
+	bPagedBufferLayerInfo *layer;
+	bPagedBufferPage *page;
+	int p;
+	
+	for (layer=pbuf->layers.first; layer; layer=layer->next) {
+		writestruct(wd, DATA, "bPagedBufferLayerInfo", 1, layer);
+		writedata(wd, DATA, layer->stride, layer->default_value);
+	}
+	
+	/* write page structs */
+	writestruct(wd, DATA, "bPagedBufferPage", pbuf->totpages, pbuf->pages);
+	/* write page data */
+	for (p=0, page=pbuf->pages; p < pbuf->totpages; ++p, ++page) {
+		if (page->layers) {
+			writedata(wd, DATA, pbuf->totlayers * sizeof(void*), page->layers);
+			for (layer=pbuf->layers.first; layer; layer=layer->next)
+				writedata(wd, DATA, pbuf->page_size * layer->stride, page->layers[layer->layer]);
+		}
+	}
 }
 
 static void write_modifiers(WriteData *wd, ListBase *modbase)

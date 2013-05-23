@@ -82,6 +82,7 @@
 #include "DNA_object_fluidsim.h" // NT
 #include "DNA_object_types.h"
 #include "DNA_packedFile_types.h"
+#include "DNA_pagedbuffer_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_property_types.h"
 #include "DNA_rigidbody_types.h"
@@ -4238,6 +4239,30 @@ static void direct_link_latt(FileData *fd, Lattice *lt)
 	
 	lt->adt = newdataadr(fd, lt->adt);
 	direct_link_animdata(fd, lt->adt);
+}
+
+
+/* ************ READ PAGED BUFFER ***************** */
+
+static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
+{
+	bPagedBufferPage *page;
+	bPagedBufferLayerInfo *layer;
+	int p, k;
+	
+	link_list(fd, &pbuf->layers);
+	for (layer=pbuf->layers.first; layer; layer=layer->next) {
+		layer->default_value = newdataadr(fd, layer->default_value);
+	}
+	
+	pbuf->pages = newdataadr(fd, pbuf->pages);
+	for (p=0, page=pbuf->pages; p < pbuf->totpages; ++p, ++page) {
+		if (page->layers) {
+			page->layers = newdataadr(fd, page->layers);
+			for (k=0; k < pbuf->totlayers; ++k)
+				page->layers[k] = newdataadr(fd, page->layers[k]);
+		}
+	}
 }
 
 
