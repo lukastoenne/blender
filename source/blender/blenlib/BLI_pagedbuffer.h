@@ -30,6 +30,8 @@
  *  \brief Management and access functions for paged buffers.
  */
 
+#include <stdlib.h>
+
 #include "BLI_utildefines.h"
 
 #include "DNA_pagedbuffer_types.h"
@@ -41,19 +43,17 @@ struct bPagedBufferIterator;
 struct bPagedBufferPage;
 
 
-typedef struct bPagedBufferIterator
-{
-	int index;
-	short valid;
-	
-	/* constants */
-	int page_size;
-	int index_end;
+typedef struct bPagedBufferLayerType {
+	int size;							/* size in bytes of a single element */
+	int stride;							/* space in bytes which an element takes in the buffer */
+} bPagedBufferLayerType;
 
-	/* internals */
-	struct bPagedBufferPage *page;
-	int page_index;
-} bPagedBufferIterator;
+#define BLI_PBUF_DEF_LAYER_TYPE(ctype) \
+bPagedBufferLayerType BLI_pbuf_layer_type_#ctype = { sizeof(ctype), sizeof(ctype) };
+
+#define BLI_PBUF_DEF_LAYER_TYPE_ALIGNED(ctype, stride) \
+bPagedBufferLayerType BLI_pbuf_layer_type_#ctype = { sizeof(ctype), stride };
+
 
 
 /* Buffer Management */
@@ -71,6 +71,20 @@ void BLI_pbuf_layer_remove(struct bPagedBuffer *pbuf, struct bPagedBufferLayerIn
 
 
 /* Data Access */
+typedef struct bPagedBufferIterator
+{
+	int index;
+	bool valid;
+	
+	/* constants */
+	int page_size;
+	int index_end;
+
+	/* internals */
+	struct bPagedBufferPage *page;
+	int page_index;
+} bPagedBufferIterator;
+
 bPagedBufferIterator BLI_pbuf_set_elements(struct bPagedBuffer *pbuf, int totelem);
 bPagedBufferIterator BLI_pbuf_append_elements(struct bPagedBuffer *pbuf, int num_elements);
 
@@ -84,7 +98,30 @@ void BLI_pbuf_reset(struct bPagedBuffer *pbuf);
 void BLI_pbuf_free_dead_pages(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata);
 void BLI_pbuf_compress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetestfunc, void *userdata, struct bPagedBufferLayerInfo *origindex_layer);
 
-struct bPagedBufferIterator BLI_pbuf_get_element(struct bPagedBuffer *pbuf, int index);
+/* macros for fast, low-level access to raw data */
+
+#define PBUF_GET_DATA_POINTER(result, page_ptr, layer, datatype, page_index) \
+	result = (page_ptr)->layers ? ((datatype)*)((page_ptr)->layers[(layer)]) + (page_index) : NULL
+
+#define PBUF_GET_ELEMENT(result, pbuf, layer, datatype, index) \
+{ \
+	div_t result_p = div(index, pbuf->page_size); \
+	PBUF_GET_DATA_POINTER(result, (pbuf)->pages + result_p.quot, (layer), (datatype), (index) - result_p.rem * (pbuf)->page_size) \
+}
+
+/* XXX these could be inlined for performance */
+struct bPagedBufferIterator pit_init(struct bPagedBuffer *pbuf);
+struct bPagedBufferIterator pit_init_at(struct bPagedBuffer *pbuf, int index);
+void pit_next(struct bPagedBufferIterator *it);
+void pit_prev(struct bPagedBufferIterator *it);
+void pit_forward(struct bPagedBufferIterator *it, int delta);
+void pit_backward(struct bPagedBufferIterator *it, int delta);
+void pit_forward_to(struct bPagedBufferIterator *it, int index);
+void pit_backward_to(struct bPagedBufferIterator *it, int index);
+void pit_goto(struct bPagedBufferIterator *it, int index);
+
+#define PBUF_ITER_GET_POINTER(result, iter, layer, datatype) \
+	PBUF_GET_DATA_POINTER(result, iter.page, layer, datatype, iter.page_index)
 
 /** Find an element using binary search
  * If a (partial) ordering is defined on the elements, this function can be used
@@ -101,25 +138,7 @@ struct bPagedBufferIterator BLI_pbuf_binary_search_element(struct bPagedBuffer *
 void BLI_pbuf_cache_merge(struct bPagedBuffer *pbuf, int start, bPagedBufferCompareFunction cmpfunc);
 #endif
 
-/* XXX these could be inlined for performance */
-struct bPagedBufferIterator pit_init(struct bPagedBuffer *pbuf);
-struct bPagedBufferIterator pit_init_at(struct bPagedBuffer *pbuf, int index);
-void pit_next(struct bPagedBufferIterator *it);
-void pit_prev(struct bPagedBufferIterator *it);
-void pit_forward(struct bPagedBufferIterator *it, int delta);
-void pit_backward(struct bPagedBufferIterator *it, int delta);
-void pit_forward_to(struct bPagedBufferIterator *it, int index);
-void pit_backward_to(struct bPagedBufferIterator *it, int index);
-void pit_goto(struct bPagedBufferIterator *it, int index);
-
-
-/* macro for fast, low-level access to raw data */
-#define PBUF_GET_DATA_POINTER(iterator, datalayer, datatype) \
-((datatype*)((iterator)->page->layers[(datalayer)->layer]) + (iterator)->page_index)
-
-#define PBUF_GET_GENERIC_DATA_POINTER(iterator, datalayer) \
-(void*)((char*)((iterator)->page->layers[(datalayer)->layer]) + (iterator)->page_index * (datalayer)->stride)
-
+#if 0
 /* access functions for common data types */
 BLI_INLINE int pit_get_int(struct bPagedBufferIterator *it, struct bPagedBufferLayerInfo *layer)
 {
@@ -138,5 +157,6 @@ BLI_INLINE void pit_set_float(struct bPagedBufferIterator *it, struct bPagedBuff
 {
 	*PBUF_GET_DATA_POINTER(it, layer, float) = value;
 }
+#endif
 
 #endif

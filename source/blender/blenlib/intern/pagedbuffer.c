@@ -604,171 +604,6 @@ void BLI_pbuf_compress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetes
 	pbuf->totalloc = pbuf->totelem;
 }
 
-/**** Data Access ****/
-
-bPagedBufferIterator BLI_pbuf_get_element(bPagedBuffer *pbuf, int index)
-{
-	bPagedBufferIterator pit;
-	int p = index / pbuf->page_size;
-	
-	pit.page_size = pbuf->page_size;
-	pit.index_end = pbuf->totelem;
-	
-	pit.index = index;
-	pit.page = pbuf->pages + p;
-	pit.page_index = index - p * pbuf->page_size;
-	pit.valid = (index < pbuf->totelem && pit.page->layers != NULL);
-	
-	return pit;
-}
-
-static void binary_search_page(bPagedBufferIterator *pit, bPagedBufferSearchFunction testfunc, void *userdata, int page_start, int start_index, int end_index)
-{
-	int left= start_index, right= end_index, mid;
-	int result;
-	while (left <= right) {
-		pit->page_index = mid = (left + right) >> 1;
-		pit->index = page_start + mid;
-		result = testfunc(pit, userdata);
-		if (result == 0) {
-			pit->valid = 1;
-			return;
-		}
-		else if (result < 0) {
-			right = mid-1;
-		}
-		else {	/* result > 0 */
-			left = mid+1;
-		}
-	}
-	/* element not found */
-	pit->valid = 0;
-}
-
-bPagedBufferIterator BLI_pbuf_binary_search_element(bPagedBuffer *pbuf, bPagedBufferSearchFunction testfunc, void *userdata, int start_index, int end_index)
-{
-	bPagedBufferIterator pit;
-	int p, mid_p, start_p, end_p;
-	int result;
-	int page_size= pbuf->page_size;
-	int search_start, search_end;
-	
-	/* optimized binary search for paged buffers:
-	 * - first do a binary search on the page ranges by testing first and last elements on pages.
-	 * - when the page containing the element is found, do a binary search inside that page.
-	 */
-	
-	pit.page_size = pbuf->page_size;
-	pit.index_end = pbuf->totelem;
-	
-	if (start_index >= end_index) {
-		pit.valid = 0;
-		return pit;
-	}
-	
-	start_p = (int)(start_index / page_size);
-	end_p = (int)((end_index + page_size-1) / page_size);	/* rounding up */
-	do {
-		mid_p = (start_p + end_p) >> 1;
-		
-		/* find page less-or-equal mid_p that has data */
-		for (p=mid_p, pit.page=pbuf->pages+mid_p; p >= start_p; --p, --pit.page)
-			if (pit.page->layers)
-				break;
-		if (p >= start_p) {
-			/* check the first element of page p */
-			pit.page_index = 0;
-			pit.index = p*page_size;
-			if (pit.index < start_index) {
-				pit.page_index += start_index - pit.index;
-				pit.index = start_index;
-			}
-			search_start = pit.page_index+1;	/* page index search range for actual binary search */
-			
-			result = testfunc(&pit, userdata);
-			if (result == 0) {
-				pit.valid = 1;
-				return pit;
-			}
-			else if (result < 0) {
-				/* continue checking pages left of p */
-				end_p = p-1;
-				continue;
-			}
-			/* result > 0, check the last element of page p */
-			pit.page_index = page_size-1;
-			pit.index = (p+1)*page_size-1;
-			if (pit.index >= end_index) {
-				pit.page_index -= pit.index - (end_index-1);
-				pit.index = end_index-1;
-			}
-			search_end = pit.page_index-1;	/* page index search range for actual binary search */
-			
-			result = testfunc(&pit, userdata);
-			if (result == 0) {
-				pit.valid = 1;
-				return pit;
-			}
-			else if (result < 0) {
-				/* element must be on page p (excluding first and last element, we already tested those) */
-				binary_search_page(&pit, testfunc, userdata, p*page_size, search_start, search_end);
-				return pit;
-			}
-		}
-		/* still here? means element must be greater than mid_p's last */
-		/* find page greather than mid_p that has data */
-		for (p=mid_p+1, pit.page=pbuf->pages+mid_p+1; p < end_p; ++p, ++pit.page)
-			if (pit.page->layers)
-				break;
-		if (p < end_p) {
-			/* check the last element of page p */
-			pit.page_index = page_size-1;
-			pit.index = (p+1)*page_size-1;
-			if (pit.index >= end_index) {
-				pit.page_index -= pit.index - (end_index-1);
-				pit.index = end_index-1;
-			}
-			search_end = pit.page_index-1;	/* page index search range for actual binary search */
-			
-			result = testfunc(&pit, userdata);
-			if (result == 0) {
-				pit.valid = 1;
-				return pit;
-			}
-			else if (result > 0) {
-				/* continue checking pages right of p */
-				start_p = p+1;
-				continue;
-			}
-			/* result < 0, check the first element of page p */
-			pit.page_index = 0;
-			pit.index = p*page_size;
-			if (pit.index < start_index) {
-				pit.page_index += start_index - pit.index;
-				pit.index = start_index;
-			}
-			search_start = pit.page_index+1;	/* page index search range for actual binary search */
-			
-			result = testfunc(&pit, userdata);
-			if (result == 0) {
-				pit.valid = 1;
-				return pit;
-			}
-			else if (result > 0) {
-				/* element must be on page p (excluding first and last element, we already tested those) */
-				binary_search_page(&pit, testfunc, userdata, p*page_size, search_start, search_end);
-				return pit;
-			}
-		}
-		/* if we reach this point, it means that the element is on a dead page */
-		break;
-	} while (start_p <= end_p);
-	
-	/* element is on a dead page or out of range */
-	pit.valid = 0;
-	return pit;
-}
-
 /**** Iterator ****/
 
 bPagedBufferIterator pit_init(bPagedBuffer *pbuf)
@@ -786,7 +621,7 @@ bPagedBufferIterator pit_init(bPagedBuffer *pbuf)
 		while (it.index < it.index_end) {
 			if (it.page->layers) {
 				/* set to page start */
-				it.valid = 1;
+				it.valid = true;
 				return it;
 			}
 			it.index += it.page_size;
@@ -794,7 +629,7 @@ bPagedBufferIterator pit_init(bPagedBuffer *pbuf)
 			++it.page;
 		}
 	}
-	it.valid = 0;
+	it.valid = false;
 	return it;
 }
 
@@ -810,11 +645,11 @@ bPagedBufferIterator pit_init_at(bPagedBuffer *pbuf, int index)
 		it.page = pbuf->pages + p;
 		it.page_index = index - p*it.page_size;
 		if (it.page->layers) {
-			it.valid = 1;
+			it.valid = true;
 			return it;
 		}
 	}
-	it.valid = 0;
+	it.valid = false;
 	return it;
 }
 
@@ -824,7 +659,7 @@ void pit_next(bPagedBufferIterator *it)
 	++it->index;
 	++it->page_index;
 	if (it->index >= it->index_end) {
-		it->valid = 0;
+		it->valid = false;
 		return;
 	}
 	if (it->page_index >= it->page_size) {
@@ -835,7 +670,7 @@ void pit_next(bPagedBufferIterator *it)
 			++it->page;
 			it->index += it->page_size;
 			if (it->index >= it->index_end) {
-				it->valid = 0;
+				it->valid = false;
 				return;
 			}
 		}
@@ -848,7 +683,7 @@ void pit_prev(bPagedBufferIterator *it)
 	--it->index;
 	--it->page_index;
 	if (it->index < 0) {
-		it->valid = 0;
+		it->valid = false;
 		return;
 	}
 	if (it->page_index < 0) {
@@ -859,7 +694,7 @@ void pit_prev(bPagedBufferIterator *it)
 			--it->page;
 			it->index -= it->page_size;
 			if (it->index < 0) {
-				it->valid = 0;
+				it->valid = false;
 				return;
 			}
 		}
@@ -953,4 +788,153 @@ void pit_goto(struct bPagedBufferIterator *it, int index)
 		pit_forward_to(it, index);
 	else if (index < it->index)
 		pit_backward_to(it, index);
+}
+
+/**** Data Access ****/
+
+static void binary_search_page(bPagedBufferIterator *pit, bPagedBufferSearchFunction testfunc, void *userdata, int page_start, int start_index, int end_index)
+{
+	int left= start_index, right= end_index, mid;
+	int result;
+	while (left <= right) {
+		pit->page_index = mid = (left + right) >> 1;
+		pit->index = page_start + mid;
+		result = testfunc(pit, userdata);
+		if (result == 0) {
+			pit->valid = true;
+			return;
+		}
+		else if (result < 0) {
+			right = mid-1;
+		}
+		else {	/* result > 0 */
+			left = mid+1;
+		}
+	}
+	/* element not found */
+	pit->valid = false;
+}
+
+bPagedBufferIterator BLI_pbuf_binary_search_element(bPagedBuffer *pbuf, bPagedBufferSearchFunction testfunc, void *userdata, int start_index, int end_index)
+{
+	bPagedBufferIterator pit;
+	int p, mid_p, start_p, end_p;
+	int result;
+	int page_size= pbuf->page_size;
+	int search_start, search_end;
+	
+	/* optimized binary search for paged buffers:
+	 * - first do a binary search on the page ranges by testing first and last elements on pages.
+	 * - when the page containing the element is found, do a binary search inside that page.
+	 */
+	
+	pit.page_size = pbuf->page_size;
+	pit.index_end = pbuf->totelem;
+	
+	if (start_index >= end_index) {
+		pit.valid = false;
+		return pit;
+	}
+	
+	start_p = (int)(start_index / page_size);
+	end_p = (int)((end_index + page_size-1) / page_size);	/* rounding up */
+	do {
+		mid_p = (start_p + end_p) >> 1;
+		
+		/* find page less-or-equal mid_p that has data */
+		for (p=mid_p, pit.page=pbuf->pages+mid_p; p >= start_p; --p, --pit.page)
+			if (pit.page->layers)
+				break;
+		if (p >= start_p) {
+			/* check the first element of page p */
+			pit.page_index = 0;
+			pit.index = p*page_size;
+			if (pit.index < start_index) {
+				pit.page_index += start_index - pit.index;
+				pit.index = start_index;
+			}
+			search_start = pit.page_index+1;	/* page index search range for actual binary search */
+			
+			result = testfunc(&pit, userdata);
+			if (result == 0) {
+				pit.valid = true;
+				return pit;
+			}
+			else if (result < 0) {
+				/* continue checking pages left of p */
+				end_p = p-1;
+				continue;
+			}
+			/* result > 0, check the last element of page p */
+			pit.page_index = page_size-1;
+			pit.index = (p+1)*page_size-1;
+			if (pit.index >= end_index) {
+				pit.page_index -= pit.index - (end_index-1);
+				pit.index = end_index-1;
+			}
+			search_end = pit.page_index-1;	/* page index search range for actual binary search */
+			
+			result = testfunc(&pit, userdata);
+			if (result == 0) {
+				pit.valid = true;
+				return pit;
+			}
+			else if (result < 0) {
+				/* element must be on page p (excluding first and last element, we already tested those) */
+				binary_search_page(&pit, testfunc, userdata, p*page_size, search_start, search_end);
+				return pit;
+			}
+		}
+		/* still here? means element must be greater than mid_p's last */
+		/* find page greather than mid_p that has data */
+		for (p=mid_p+1, pit.page=pbuf->pages+mid_p+1; p < end_p; ++p, ++pit.page)
+			if (pit.page->layers)
+				break;
+		if (p < end_p) {
+			/* check the last element of page p */
+			pit.page_index = page_size-1;
+			pit.index = (p+1)*page_size-1;
+			if (pit.index >= end_index) {
+				pit.page_index -= pit.index - (end_index-1);
+				pit.index = end_index-1;
+			}
+			search_end = pit.page_index-1;	/* page index search range for actual binary search */
+			
+			result = testfunc(&pit, userdata);
+			if (result == 0) {
+				pit.valid = true;
+				return pit;
+			}
+			else if (result > 0) {
+				/* continue checking pages right of p */
+				start_p = p+1;
+				continue;
+			}
+			/* result < 0, check the first element of page p */
+			pit.page_index = 0;
+			pit.index = p*page_size;
+			if (pit.index < start_index) {
+				pit.page_index += start_index - pit.index;
+				pit.index = start_index;
+			}
+			search_start = pit.page_index+1;	/* page index search range for actual binary search */
+			
+			result = testfunc(&pit, userdata);
+			if (result == 0) {
+				pit.valid = true;
+				return pit;
+			}
+			else if (result > 0) {
+				/* element must be on page p (excluding first and last element, we already tested those) */
+				binary_search_page(&pit, testfunc, userdata, p*page_size, search_start, search_end);
+				return pit;
+			}
+		}
+		/* if we reach this point, it means that the element is on a dead page */
+		break;
+	} while (start_p <= end_p);
+	
+	/* element is on a dead page or out of range */
+	pit.valid = false;
+	return pit;
 }
