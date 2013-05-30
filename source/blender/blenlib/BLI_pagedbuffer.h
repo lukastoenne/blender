@@ -43,19 +43,6 @@ struct bPagedBufferIterator;
 struct bPagedBufferPage;
 
 
-typedef struct bPagedBufferLayerType {
-	int size;							/* size in bytes of a single element */
-	int stride;							/* space in bytes which an element takes in the buffer */
-} bPagedBufferLayerType;
-
-#define BLI_PBUF_DEF_LAYER_TYPE(ctype) \
-bPagedBufferLayerType BLI_pbuf_layer_type_#ctype = { sizeof(ctype), sizeof(ctype) };
-
-#define BLI_PBUF_DEF_LAYER_TYPE_ALIGNED(ctype, stride) \
-bPagedBufferLayerType BLI_pbuf_layer_type_#ctype = { sizeof(ctype), stride };
-
-
-
 /* Buffer Management */
 
 void BLI_pbuf_init(struct bPagedBuffer *pbuf, int page_size);
