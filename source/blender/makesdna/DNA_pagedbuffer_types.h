@@ -33,33 +33,21 @@
 
 #include "DNA_listBase.h"
 
-
-typedef struct bPagedBufferLayerInfo {
-	struct bPagedBufferLayerInfo *next, *prev;
-	struct bPagedBufferLayerInfo *new_layer;	/* temporary pointer after copy */
-	
-	char name[32];
-	
-	int layer;							/* layer index */
-	int stride;							/* size in bytes of a single element */
-	
-	/* default value when creating new elements */
-	void *default_value;
-} bPagedBufferLayerInfo;
-
 typedef struct bPagedBufferPage {
-	void **layers;				/* layer data */
+	void *data;				/* layer data */
 } bPagedBufferPage;
 
-typedef struct bPagedBuffer {
+typedef struct bPagedBufferLayer {
 	struct bPagedBufferPage *pages;		/* page list */
-	ListBase layers;					/* layer info list */
 	int page_size;						/* elements per page */
 	int totpages;						/* number of allocated pages */
-	int totlayers;						/* number of data layers */
-	int totelem;						/* number of added elements */
 	int totalloc;						/* actually allocated elements (dead pages not counted) */
-	int pad;
+} bPagedBufferLayer;
+
+typedef struct bPagedBuffer {
+	struct bPagedBufferLayer *layers;	/* layer list */
+	int totlayers;						/* number of layers */
+	int totelem;						/* number of elements in the buffer */
 } bPagedBuffer;
 
 #endif

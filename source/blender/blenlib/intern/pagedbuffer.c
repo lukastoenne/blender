@@ -34,7 +34,72 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#define PBUF_ALIGN_STRICT
 
+#define div_ceil(a, b) \
+	(1 + ((a) - 1) / (b))
+
+static int pbuf_layer_page_size_from_bytes(size_t page_bytes, size_t elem_bytes)
+{
+	div_t page_size = div(page_bytes, elem_size);
+	#ifdef PBUF_ALIGN_STRICT
+	BLI_assert(page_size.rem == 0);
+	#endif
+	return page_size.quot;
+}
+
+static bPagedBufferLayer *pbuf_layer_new(int totelem, size_t page_bytes, size_t elem_bytes)
+{
+	bPagedBufferLayer *layer = MEM_callocN(sizeof(bPagedBufferLayer), "paged buffer layer");
+	int p;
+	
+	layer->page_size = pbuf_layer_page_size_from_bytes(page_bytes, elem_bytes);
+	layer->totpages = div_ceil(totelem, layer->page_size);
+	layer->pages = MEM_callocN(sizeof(void *) * layer->totpages, "paged buffer page array");
+	for (p = 0; p < layer->totpages; ++p)
+		layer->pages[p] = MEM_mallocN(elem_bytes * layer->page_size, "paged buffer page");
+	
+	return layer;
+}
+
+static void pbuf_layer_free(bPagedBufferLayer *layer)
+{
+}
+
+static bPagedBufferLayer *pbuf_layer_copy(bPagedBufferLayer *layer)
+{
+}
+
+void BLI_pbuf_init(bPagedBuffer *pbuf)
+{
+	pbuf->layers = NULL;
+	pbuf->totlayers = 0;
+	pbuf->totelem = 0;
+}
+
+void BLI_pbuf_free(bPagedBuffer *pbuf)
+{
+	int l;
+	for (l = 0; l < pbuf->totlayers; ++l)
+		pbuf_layer_free(&pbuf->layers[l]);
+	pbuf->layers = NULL;
+	pbuf->totlayers = 0;
+	pbuf->totelem = 0;
+}
+
+void BLI_pbuf_copy(bPagedBuffer *to, bPagedBuffer *from)
+{
+	int l;
+	to->layers = MEM_dupallocN(from->layers);
+	for (l = 0; l < from->totlayers; ++l) {
+		to->layers[l] = pbuf_layer_copy(from->layers[l]);
+	}
+	to->totlayers = from->totlayers;
+	to->totelem = from->totelem;
+}
+
+
+#if 0
 /************************************************/
 /*				Buffer Management				*/
 /************************************************/
@@ -938,3 +1003,4 @@ bPagedBufferIterator BLI_pbuf_binary_search_element(bPagedBuffer *pbuf, bPagedBu
 	pit.valid = false;
 	return pit;
 }
+#endif

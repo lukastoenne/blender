@@ -1361,6 +1361,7 @@ static void write_defgroups(WriteData *wd, ListBase *defbase)
 
 static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
 {
+#if 0
 	bPagedBufferLayerInfo *layer;
 	bPagedBufferPage *page;
 	int p;
@@ -1380,6 +1381,7 @@ static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
 				writedata(wd, DATA, pbuf->page_size * layer->stride, page->layers[layer->layer]);
 		}
 	}
+#endif
 }
 
 static void write_modifiers(WriteData *wd, ListBase *modbase)

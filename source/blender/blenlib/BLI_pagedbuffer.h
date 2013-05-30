@@ -37,12 +37,11 @@
 #include "DNA_pagedbuffer_types.h"
 
 
-struct bPagedBuffer;
-struct bPagedBufferLayerInfo;
-struct bPagedBufferIterator;
-struct bPagedBufferPage;
 
 
+
+
+#if 0
 /* Buffer Management */
 
 void BLI_pbuf_init(struct bPagedBuffer *pbuf, int page_size);
@@ -168,5 +167,6 @@ void BLI_pbuf_cache_merge(struct bPagedBuffer *pbuf, int start, bPagedBufferComp
 
 PBUF_DEF_LAYER_TYPE(float)
 PBUF_DEF_LAYER_TYPE(int)
+#endif
 
 #endif

@@ -4246,6 +4246,7 @@ static void direct_link_latt(FileData *fd, Lattice *lt)
 
 static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 {
+#if 0
 	bPagedBufferPage *page;
 	bPagedBufferLayerInfo *layer;
 	int p, k;
@@ -4263,6 +4264,7 @@ static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 				page->layers[k] = newdataadr(fd, page->layers[k]);
 		}
 	}
+#endif
 }
 
 
