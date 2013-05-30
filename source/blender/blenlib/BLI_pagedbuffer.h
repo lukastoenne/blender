@@ -100,13 +100,33 @@ void BLI_pbuf_compress(struct bPagedBuffer *pbuf, bPagedBufferTestFunc removetes
 
 /* macros for fast, low-level access to raw data */
 
-#define PBUF_GET_DATA_POINTER(result, page_ptr, layer, datatype, page_index) \
-	result = (page_ptr)->layers ? ((datatype)*)((page_ptr)->layers[(layer)]) + (page_index) : NULL
+#define PBUF_DATA_PTR(page_ptr, layer_index, datatype, page_index) \
+	((page_ptr)->layers ? (datatype*) ((page_ptr)->layers[(layer_index)]) + (page_index) : NULL)
 
-#define PBUF_GET_ELEMENT(result, pbuf, layer, datatype, index) \
+void *dummyptr;
+
+#define PBUF_GET_DATA(result, page_ptr, layer_index, datatype, page_index, default_value) \
+	if ((page_ptr)->layers) \
+		result = ( (datatype*) ((page_ptr)->layers[(layer_index)]) )[(page_index)]; \
+	else \
+		result = (default_value);
+
+#define PBUF_SET_DATA(page_ptr, layer_index, datatype, page_index, value) \
+	if ((page_ptr)->layers) \
+		( (datatype*) ((page_ptr)->layers[(layer_index)]) )[(page_index)] = value;
+
+#define PBUF_GET_ELEMENT(result, pbuf, layer_index, datatype, elem_index, default_value) \
 { \
-	div_t result_p = div(index, pbuf->page_size); \
-	PBUF_GET_DATA_POINTER(result, (pbuf)->pages + result_p.quot, (layer), (datatype), (index) - result_p.rem * (pbuf)->page_size) \
+	int page_size = (pbuf)->page_size; \
+	div_t result_p = div((index), page_size); \
+	PBUF_GET_DATA(result, (pbuf)->pages + result_p.quot, (layer_index), datatype, (elem_index) - result_p.rem * page_size, default_value) \
+}
+
+#define PBUF_SET_ELEMENT(pbuf, layer_index, datatype, elem_index, value) \
+{ \
+	int page_size = (pbuf)->page_size; \
+	div_t result_p = div((index), page_size); \
+	PBUF_SET_DATA((pbuf)->pages + result_p.quot, (layer_index), datatype, (elem_index) - result_p.rem * page_size, value) \
 }
 
 /* XXX these could be inlined for performance */
@@ -120,8 +140,11 @@ void BLI_pbuf_iter_forward_to(struct bPagedBufferIterator *it, int index);
 void BLI_pbuf_iter_backward_to(struct bPagedBufferIterator *it, int index);
 void BLI_pbuf_iter_goto(struct bPagedBufferIterator *it, int index);
 
-#define PBUF_ITER_GET_POINTER(result, iter, layer, datatype) \
-	PBUF_GET_DATA_POINTER(result, iter.page, layer, datatype, iter.page_index)
+#define PBUF_ITER_GET_DATA(result, iter, layer_index, datatype, default_value) \
+	PBUF_GET_DATA(result, iter.page, layer_index, datatype, iter.page_index, default_value)
+
+#define PBUF_ITER_SET_DATA(iter, layer_index, datatype, value) \
+	PBUF_SET_DATA(iter.page, layer_index, datatype, iter.page_index, value)
 
 /** Find an element using binary search
  * If a (partial) ordering is defined on the elements, this function can be used
@@ -138,25 +161,25 @@ struct bPagedBufferIterator BLI_pbuf_binary_search_element(struct bPagedBuffer *
 void BLI_pbuf_cache_merge(struct bPagedBuffer *pbuf, int start, bPagedBufferCompareFunction cmpfunc);
 #endif
 
-#if 0
-/* access functions for common data types */
-BLI_INLINE int pit_get_int(struct bPagedBufferIterator *it, struct bPagedBufferLayerInfo *layer)
-{
-	return *PBUF_GET_DATA_POINTER(it, layer, int);
-}
-BLI_INLINE void pit_set_int(struct bPagedBufferIterator *it, struct bPagedBufferLayerInfo *layer, int value)
-{
-	*PBUF_GET_DATA_POINTER(it, layer, int) = value;
-}
+#define PBUF_DEF_LAYER_TYPE(ctype) \
+	BLI_INLINE ctype BLI_pbuf_get_##ctype(struct bPagedBuffer *pbuf, int layer_index, int index, ctype default_value) { \
+		ctype result; \
+		PBUF_GET_ELEMENT(result, pbuf, layer_index, ctype, index, default_value) \
+		return result; \
+	} \
+	BLI_INLINE void BLI_pbuf_set_##ctype(struct bPagedBuffer *pbuf, int layer_index, int index, ctype value) { \
+		PBUF_SET_ELEMENT(pbuf, layer_index, ctype, index, value) \
+	} \
+	BLI_INLINE ctype BLI_pbuf_iter_get_##ctype(struct bPagedBufferIterator iter, int layer_index, ctype default_value) { \
+		ctype result; \
+		PBUF_ITER_GET_DATA(result, iter, layer_index, ctype, default_value) \
+		return result; \
+	} \
+	BLI_INLINE void BLI_pbuf_iter_set_##ctype(struct bPagedBufferIterator iter, int layer_index, ctype value) { \
+		PBUF_ITER_SET_DATA(iter, layer_index, ctype, value) \
+	}
 
-BLI_INLINE int pit_get_float(struct bPagedBufferIterator *it, struct bPagedBufferLayerInfo *layer)
-{
-	return *PBUF_GET_DATA_POINTER(it, layer, float);
-}
-BLI_INLINE void pit_set_float(struct bPagedBufferIterator *it, struct bPagedBufferLayerInfo *layer, float value)
-{
-	*PBUF_GET_DATA_POINTER(it, layer, float) = value;
-}
-#endif
+PBUF_DEF_LAYER_TYPE(float)
+PBUF_DEF_LAYER_TYPE(int)
 
 #endif
