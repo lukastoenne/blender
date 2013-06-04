@@ -142,43 +142,19 @@ typedef struct NParticleMeshLocation {
 /* **************** */
 
 
+typedef struct bNodeInstanceMap {
+	/* XXX for now just a simple ListBase, might use a hash later on */
+	ListBase lb;
+} bNodeInstanceMap;
+
 typedef struct ParticleBuffer {
 	bPagedBuffer data;
 	
 	ListBase attributes;
-	/* map for standard attribute types.
-	 * XXX array size is arbitrary, just must be big enough for all attribute types.
-	 */
-	struct NParticleAttribute *standard_attribute[32];
-	struct NParticleAttribute *active_attribute;	/* selected attribute in UI */
-	
-	bNodePathMap node_path_map;
-	int next_source_id;
-	int pad;
 } ParticleBuffer;
-
-/* particle flags */
-enum NParParticleFlag {
-	NPAR_DEAD		= 1
-};
-
-/* size of NParticleSystem standard_attribute array */
-#define PAR_ATTR_TYPE_MAX	32
-
-/* particle nodetree types
- * used as bit flags for filtering, make sure these are powers of 2!
- */
-enum NParNodeTreeType {
-	PAR_NODETREE_ALL            = 0xFFFF,
-	PAR_NODETREE_SYSTEM         = 1,
-	PAR_NODETREE_EMITTER        = 2,
-	PAR_NODETREE_MODIFIER       = 4
-};
 
 
 typedef struct NParticleSource {
-	bNodeInstance base;
-	
 	int id;
 	int next_element_id;
 	NParticleRNG rng;
@@ -189,13 +165,5 @@ typedef struct NParticleSource {
 	float emit_carry;
 	int pad;
 } NParticleSource;
-
-/* particle node integrator modes */
-enum NParIntegratorMode {
-	PAR_INTEGRATE_EULER		= 0,
-	PAR_INTEGRATE_VERLET	= 1,
-	PAR_INTEGRATE_MIDPOINT	= 2,
-	PAR_INTEGRATE_RK4		= 3
-};
 
 #endif

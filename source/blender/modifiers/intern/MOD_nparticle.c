@@ -53,9 +53,8 @@
 
 #include "MOD_util.h"
 
-#include "GNO_blender.h"
 
-
+#if 0
 static void npar_system_initData(ModifierData *md) 
 {
 	NParticlesModifierData *pmd= (NParticlesModifierData*) md;
@@ -330,3 +329,4 @@ ModifierTypeInfo modifierType_NParticleEmitter = {
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     npar_modifier_foreachIDLink,
 };
+#endif
