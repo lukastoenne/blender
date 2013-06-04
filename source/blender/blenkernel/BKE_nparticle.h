@@ -29,6 +29,14 @@
  *  \ingroup bke
  */
 
+struct NParticleBuffer;
+
+struct NParticleBuffer *BKE_nparticle_buffer_new(void);
+void BKE_nparticle_buffer_free(struct NParticleBuffer *buf);
+struct NParticleBuffer *BKE_nparticle_buffer_copy(struct NParticleBuffer *buf);
+
+
+#if 0 /* old code */
 #include "BLI_math.h"
 #include "BLI_pagedbuffer.h"
 
@@ -44,7 +52,6 @@ struct NParticlesModifierData;
 struct NParticleDupliObject;
 
 
-#if 0 /* old code */
 BLI_INLINE int pit_get_particle_flag(struct NParticleSystem *psys, struct bPagedBufferIterator *it, NParticleFlagLayerType flag)
 {
 	return (((*PBUF_GET_DATA_POINTER(it, psys->standard_attribute[PAR_ATTR_TYPE_FLAG]->layer, NParticleFlagLayerType)) & flag) != 0);

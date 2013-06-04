@@ -288,5 +288,6 @@ void modifier_type_init(ModifierTypeInfo *types[])
 	INIT_TYPE(MeshCache);
 	INIT_TYPE(LaplacianDeform);
 	INIT_TYPE(Wireframe);
+	INIT_TYPE(NParticleBuffer);
 #undef INIT_TYPE
 }

@@ -147,11 +147,11 @@ typedef struct bNodeInstanceMap {
 	ListBase lb;
 } bNodeInstanceMap;
 
-typedef struct ParticleBuffer {
+typedef struct NParticleBuffer {
 	bPagedBuffer data;
 	
 	ListBase attributes;
-} ParticleBuffer;
+} NParticleBuffer;
 
 
 typedef struct NParticleSource {

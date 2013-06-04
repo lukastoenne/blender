@@ -30,7 +30,59 @@
  *  \ingroup modifiers
  */
 
+#include "DNA_modifier_types.h"
 
+#include "BKE_modifier.h"
+#include "BKE_nparticle.h"
+
+static void nparticle_buffer_initData(ModifierData *md) 
+{
+	NParticleBufferModifierData *pmd= (NParticleBufferModifierData *)md;
+	pmd->buffer = BKE_nparticle_buffer_new();
+}
+
+static void nparticle_buffer_freeData(ModifierData *md)
+{
+	NParticleBufferModifierData *pmd= (NParticleBufferModifierData *)md;
+	BKE_nparticle_buffer_free(pmd->buffer);
+	pmd->buffer = NULL;
+}
+
+static void nparticle_buffer_copyData(ModifierData *md, ModifierData *target)
+{
+	NParticleBufferModifierData *pmd= (NParticleBufferModifierData *)md;
+	NParticleBufferModifierData *tpmd= (NParticleBufferModifierData *)target;
+	tpmd->buffer = BKE_nparticle_buffer_copy(pmd->buffer);
+}
+
+ModifierTypeInfo modifierType_NParticleBuffer = {
+	/* name */              "Particles",
+	/* structName */        "NParticleBufferModifierData",
+	/* structSize */        sizeof(NParticleBufferModifierData),
+	/* type */              eModifierTypeType_NonGeometrical,
+	/* flags */             eModifierTypeFlag_Single	/* for now only allow single particle buffer for unambiguous access */
+                            | eModifierTypeFlag_UsesPointCache,
+
+	/* copyData */          nparticle_buffer_copyData,
+	/* deformVerts */       NULL,
+	/* deformVertsEM */     NULL,
+	/* deformMatrices */    NULL,
+	/* deformMatricesEM */  NULL,
+	/* applyModifier */     NULL,
+	/* applyModifierEM */   NULL,
+	/* initData */          nparticle_buffer_initData,
+	/* requiredDataMask */  NULL,
+	/* freeData */          nparticle_buffer_freeData,
+	/* isDisabled */        NULL,
+	/* updateDepgraph */    NULL,
+	/* dependsOnTime */     NULL,
+	/* dependsOnNormals */	NULL,
+	/* foreachObjectLink */ NULL,
+	/* foreachIDLink */     NULL,
+};
+
+
+#if 0
 #include <stddef.h>
 
 #include "MEM_guardedalloc.h"
@@ -54,7 +106,6 @@
 #include "MOD_util.h"
 
 
-#if 0
 static void npar_system_initData(ModifierData *md) 
 {
 	NParticlesModifierData *pmd= (NParticlesModifierData*) md;

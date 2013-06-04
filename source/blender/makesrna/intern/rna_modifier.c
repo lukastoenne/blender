@@ -244,6 +244,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_LaplacianDeformModifier;
 		case eModifierType_Wireframe:
 			return &RNA_WireframeModifier;
+		case eModifierType_NParticleBuffer:
+			return &RNA_NParticleBufferModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -3818,6 +3820,18 @@ static void rna_def_modifier_wireframe(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_nparticlebuffer(BlenderRNA *brna)
+{
+
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "NParticleBufferModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "NParticle Buffer Modifier", "Particles");
+	RNA_def_struct_sdna(srna, "NParticleBufferModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_PARTICLES);
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3930,6 +3944,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_meshcache(brna);
 	rna_def_modifier_laplaciandeform(brna);
 	rna_def_modifier_wireframe(brna);
+	rna_def_modifier_nparticlebuffer(brna);
 }
 
 #endif
