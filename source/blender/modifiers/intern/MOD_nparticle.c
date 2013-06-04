@@ -35,6 +35,9 @@
 #include "BKE_modifier.h"
 #include "BKE_nparticle.h"
 
+struct DerivedMesh;
+struct Object;
+
 static void nparticle_system_initData(ModifierData *md) 
 {
 	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
@@ -55,20 +58,29 @@ static void nparticle_system_copyData(ModifierData *md, ModifierData *target)
 	tpmd->buffer = BKE_nparticle_buffer_copy(pmd->buffer);
 }
 
+static struct DerivedMesh *nparticle_system_applyModifier(ModifierData *UNUSED(md), struct Object *UNUSED(ob),
+                                                          struct DerivedMesh *derivedData,
+                                                          ModifierApplyFlag UNUSED(flag))
+{
+	/*NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;*/
+	return derivedData;
+}
+
 ModifierTypeInfo modifierType_NParticleSystem = {
 	/* name */              "Particles",
 	/* structName */        "NParticleSystemModifierData",
 	/* structSize */        sizeof(NParticleSystemModifierData),
 	/* type */              eModifierTypeType_NonGeometrical,
-	/* flags */             eModifierTypeFlag_Single	/* for now only allow single particle buffer for unambiguous access */
-                            | eModifierTypeFlag_UsesPointCache,
+	/* flags */             eModifierTypeFlag_AcceptsMesh	/* for now only allow single particle buffer for unambiguous access */
+	                        | eModifierTypeFlag_Single
+	                        | eModifierTypeFlag_UsesPointCache,
 
 	/* copyData */          nparticle_system_copyData,
 	/* deformVerts */       NULL,
 	/* deformVertsEM */     NULL,
 	/* deformMatrices */    NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     NULL,
+	/* applyModifier */     nparticle_system_applyModifier,
 	/* applyModifierEM */   NULL,
 	/* initData */          nparticle_system_initData,
 	/* requiredDataMask */  NULL,

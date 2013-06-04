@@ -108,6 +108,7 @@ EnumPropertyItem modifier_type_items[] = {
 	{eModifierType_Smoke, "SMOKE", ICON_MOD_SMOKE, "Smoke", ""},
 	{eModifierType_Softbody, "SOFT_BODY", ICON_MOD_SOFT, "Soft Body", ""},
 	{eModifierType_Surface, "SURFACE", ICON_MOD_PHYSICS, "Surface", ""},
+	{eModifierType_NParticleSystem, "NPARTICLE_SYSTEM", ICON_MOD_PARTICLES, "Particles (new)", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
