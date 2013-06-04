@@ -73,6 +73,7 @@ set(SRC
 	intern/MOD_mirror.c
 	intern/MOD_multires.c
 	intern/MOD_none.c
+	intern/MOD_nparticle.c
 	intern/MOD_ocean.c
 	intern/MOD_particleinstance.c
 	intern/MOD_particlesystem.c

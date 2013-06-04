@@ -62,6 +62,4 @@ typedef struct bPagedBuffer {
 	int pad;
 } bPagedBuffer;
 
-#define MAX_PBUF_PROP_NAME             32
-
 #endif
