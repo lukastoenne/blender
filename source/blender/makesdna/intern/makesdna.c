@@ -136,6 +136,8 @@ static const char *includefiles[] = {
 	"DNA_rigidbody_types.h",
 	"DNA_freestyle_types.h",
 	"DNA_linestyle_types.h",
+	"DNA_pagedbuffer_types.h",
+	"DNA_nparticle_types.h",
 
 	/* empty string to indicate end of includefiles */
 	""
@@ -1287,4 +1289,6 @@ int main(int argc, char **argv)
 #include "DNA_rigidbody_types.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_pagedbuffer_types.h"
+#include "DNA_nparticle_types.h"
 /* end of list */
