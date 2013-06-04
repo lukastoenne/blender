@@ -1223,5 +1223,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "material_offset", text="Material Offset")
 
 
+    def NPARTICLE_SYSTEM(self, layout, ob, md):
+        pass
+
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)
