@@ -26,7 +26,39 @@
  *  \ingroup bke
  */
 
+#include "MEM_guardedalloc.h"
 
+#include "BLI_pagedbuffer.h"
+
+#include "DNA_nparticle_types.h"
+
+#include "BKE_nparticle.h"
+
+/* XXX TODO make this configurable */
+#define PAGE_BYTES 65536
+
+NParticleBuffer *BKE_nparticle_buffer_new(void)
+{
+	NParticleBuffer *buf = MEM_callocN(sizeof(NParticleBuffer), "nparticle buffer");
+	BLI_pbuf_init(&buf->data, PAGE_BYTES);
+	return buf;
+}
+
+void BKE_nparticle_buffer_free(NParticleBuffer *buf)
+{
+	BLI_pbuf_free(&buf->data);
+	MEM_freeN(buf);
+}
+
+NParticleBuffer *BKE_nparticle_buffer_copy(NParticleBuffer *buf)
+{
+	NParticleBuffer *nbuf = MEM_dupallocN(buf);
+	BLI_pbuf_copy(&nbuf->data, &buf->data);
+	return nbuf;
+}
+
+
+#if 0 /* old code */
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
@@ -65,7 +97,6 @@
 #include "RNA_access.h"
 
 
-#if 0 /* old code */
 struct bPagedBufferIterator pit_init_particles(struct NParticleSystem *psys)
 {
 	return pit_init(&psys->particles);

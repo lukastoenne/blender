@@ -35,44 +35,44 @@
 #include "BKE_modifier.h"
 #include "BKE_nparticle.h"
 
-static void nparticle_buffer_initData(ModifierData *md) 
+static void nparticle_system_initData(ModifierData *md) 
 {
-	NParticleBufferModifierData *pmd= (NParticleBufferModifierData *)md;
+	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
 	pmd->buffer = BKE_nparticle_buffer_new();
 }
 
-static void nparticle_buffer_freeData(ModifierData *md)
+static void nparticle_system_freeData(ModifierData *md)
 {
-	NParticleBufferModifierData *pmd= (NParticleBufferModifierData *)md;
+	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
 	BKE_nparticle_buffer_free(pmd->buffer);
 	pmd->buffer = NULL;
 }
 
-static void nparticle_buffer_copyData(ModifierData *md, ModifierData *target)
+static void nparticle_system_copyData(ModifierData *md, ModifierData *target)
 {
-	NParticleBufferModifierData *pmd= (NParticleBufferModifierData *)md;
-	NParticleBufferModifierData *tpmd= (NParticleBufferModifierData *)target;
+	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
+	NParticleSystemModifierData *tpmd= (NParticleSystemModifierData *)target;
 	tpmd->buffer = BKE_nparticle_buffer_copy(pmd->buffer);
 }
 
-ModifierTypeInfo modifierType_NParticleBuffer = {
+ModifierTypeInfo modifierType_NParticleSystem = {
 	/* name */              "Particles",
-	/* structName */        "NParticleBufferModifierData",
-	/* structSize */        sizeof(NParticleBufferModifierData),
+	/* structName */        "NParticleSystemModifierData",
+	/* structSize */        sizeof(NParticleSystemModifierData),
 	/* type */              eModifierTypeType_NonGeometrical,
 	/* flags */             eModifierTypeFlag_Single	/* for now only allow single particle buffer for unambiguous access */
                             | eModifierTypeFlag_UsesPointCache,
 
-	/* copyData */          nparticle_buffer_copyData,
+	/* copyData */          nparticle_system_copyData,
 	/* deformVerts */       NULL,
 	/* deformVertsEM */     NULL,
 	/* deformMatrices */    NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
-	/* initData */          nparticle_buffer_initData,
+	/* initData */          nparticle_system_initData,
 	/* requiredDataMask */  NULL,
-	/* freeData */          nparticle_buffer_freeData,
+	/* freeData */          nparticle_system_freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     NULL,

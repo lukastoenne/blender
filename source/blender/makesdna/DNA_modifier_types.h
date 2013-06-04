@@ -82,7 +82,7 @@ typedef enum ModifierType {
 	eModifierType_MeshCache         = 46,
 	eModifierType_LaplacianDeform   = 47,
 	eModifierType_Wireframe         = 48,
-	eModifierType_NParticleBuffer   = 49,
+	eModifierType_NParticleSystem   = 49,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1363,11 +1363,11 @@ enum {
 };
 
 /* nparticle modifier */
-typedef struct NParticleBufferModifierData {
+typedef struct NParticleSystemModifierData {
 	ModifierData modifier;
 	
 	struct NParticleBuffer *buffer;
-} NParticleBufferModifierData;
+} NParticleSystemModifierData;
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */
