@@ -38,16 +38,19 @@ typedef struct bPagedBufferPage {
 } bPagedBufferPage;
 
 typedef struct bPagedBufferLayer {
+	struct bPagedBufferLayer *next, *prev;
+	
 	struct bPagedBufferPage *pages;		/* page list */
+	int elem_bytes;						/* size of a single element in bytes */
 	int page_size;						/* elements per page */
 	int totpages;						/* number of allocated pages */
 	int totalloc;						/* actually allocated elements (dead pages not counted) */
 } bPagedBufferLayer;
 
 typedef struct bPagedBuffer {
-	struct bPagedBufferLayer *layers;	/* layer list */
-	int totlayers;						/* number of layers */
+	ListBase layers;					/* layer list */
 	int totelem;						/* number of elements in the buffer */
+	int page_bytes;						/* size of a page in bytes */
 } bPagedBuffer;
 
 #endif

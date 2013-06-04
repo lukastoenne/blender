@@ -34,7 +34,18 @@
 
 #include "BLI_utildefines.h"
 
-#include "DNA_pagedbuffer_types.h"
+struct bPagedBuffer;
+struct bPagedBufferLayer;
+
+void BLI_pbuf_init(struct bPagedBuffer *pbuf, size_t page_bytes);
+void BLI_pbuf_free(struct bPagedBuffer *pbuf);
+void BLI_pbuf_copy(struct bPagedBuffer *to, struct bPagedBuffer *from);
+
+struct bPagedBufferLayer *BLI_pbuf_layer_insert(struct bPagedBuffer *pbuf, size_t elem_bytes, int pos);
+void BLI_pbuf_layer_add(struct bPagedBuffer *pbuf, size_t elem_bytes);
+struct bPagedBufferLayer *BLI_pbuf_layer_copy(struct bPagedBuffer *pbuf, int pos, int insert_pos);
+void BLI_pbuf_layer_remove(struct bPagedBuffer *pbuf, int pos);
+void BLI_pbuf_layer_move(struct bPagedBuffer *pbuf, int from_pos, int to_pos);
 
 
 
