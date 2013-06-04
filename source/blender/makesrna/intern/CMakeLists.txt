@@ -66,9 +66,11 @@ set(DEFSRC
 	rna_movieclip.c
 	rna_nla.c
 	rna_nodetree.c
+	rna_nparticle.c
 	rna_object.c
 	rna_object_force.c
 	rna_packedfile.c
+	rna_pagedbuffer.c
 	rna_particle.c
 	rna_pose.c
 	rna_property.c
