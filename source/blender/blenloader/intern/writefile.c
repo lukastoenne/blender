@@ -1362,31 +1362,25 @@ static void write_defgroups(WriteData *wd, ListBase *defbase)
 
 static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
 {
-#if 0
-	bPagedBufferLayerInfo *layer;
-	bPagedBufferPage *page;
+	bPagedBufferLayer *layer;
 	int p;
 	
-	for (layer=pbuf->layers.first; layer; layer=layer->next) {
-		writestruct(wd, DATA, "bPagedBufferLayerInfo", 1, layer);
-		writedata(wd, DATA, layer->stride, layer->default_value);
-	}
-	
-	/* write page structs */
-	writestruct(wd, DATA, "bPagedBufferPage", pbuf->totpages, pbuf->pages);
-	/* write page data */
-	for (p=0, page=pbuf->pages; p < pbuf->totpages; ++p, ++page) {
-		if (page->layers) {
-			writedata(wd, DATA, pbuf->totlayers * sizeof(void*), page->layers);
-			for (layer=pbuf->layers.first; layer; layer=layer->next)
-				writedata(wd, DATA, pbuf->page_size * layer->stride, page->layers[layer->layer]);
+	for (layer = pbuf->layers.first; layer; layer = layer->next) {
+		writestruct(wd, DATA, "bPagedBufferLayer", 1, layer);
+		
+		if (layer->pages) {
+			writestruct(wd, DATA, "bPagedBufferPage", layer->totpages, layer->pages);
+			
+			for (p = 0; p < layer->totpages; ++p)
+				writedata(wd, DATA, pbuf->page_bytes, layer->pages[p].data);
 		}
 	}
-#endif
 }
 
 static void write_nparticle_buffer(WriteData *wd, NParticleBuffer *buffer)
 {
+	writestruct(wd, DATA, "NParticleBuffer", 1, buffer);
+	
 	write_pagedbuffer(wd, &buffer->data);
 }
 

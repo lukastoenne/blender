@@ -4247,25 +4247,15 @@ static void direct_link_latt(FileData *fd, Lattice *lt)
 
 static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 {
-#if 0
-	bPagedBufferPage *page;
-	bPagedBufferLayerInfo *layer;
-	int p, k;
+	bPagedBufferLayer *layer;
+	int p;
 	
 	link_list(fd, &pbuf->layers);
-	for (layer=pbuf->layers.first; layer; layer=layer->next) {
-		layer->default_value = newdataadr(fd, layer->default_value);
+	for (layer = pbuf->layers.first; layer; layer = layer->next) {
+		layer->pages = newdataadr(fd, layer->pages);
+		for (p = 0; p < layer->totpages; ++p)
+			layer->pages[p].data = newdataadr(fd, layer->pages[p].data);
 	}
-	
-	pbuf->pages = newdataadr(fd, pbuf->pages);
-	for (p=0, page=pbuf->pages; p < pbuf->totpages; ++p, ++page) {
-		if (page->layers) {
-			page->layers = newdataadr(fd, page->layers);
-			for (k=0; k < pbuf->totlayers; ++k)
-				page->layers[k] = newdataadr(fd, page->layers[k]);
-		}
-	}
-#endif
 }
 
 
@@ -4844,6 +4834,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 		}
 		else if (md->type == eModifierType_NParticleSystem) {
 			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
+			
+			pmd->buffer = newdataadr(fd, pmd->buffer);
 			direct_link_nparticle_buffer(fd, pmd->buffer);
 		}
 		else if (md->type == eModifierType_LaplacianDeform) {
