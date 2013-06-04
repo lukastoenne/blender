@@ -79,6 +79,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_nla_types.h"
 #include "DNA_node_types.h"
+#include "DNA_nparticle_types.h"
 #include "DNA_object_fluidsim.h" // NT
 #include "DNA_object_types.h"
 #include "DNA_packedFile_types.h"
@@ -4268,6 +4269,14 @@ static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 }
 
 
+/* ************ READ NPARTICLE BUFFER ***************** */
+
+static void direct_link_nparticle_buffer(FileData *fd, NParticleBuffer *buffer)
+{
+	direct_link_pagedbuffer(fd, &buffer->data);
+}
+
+
 /* ************ READ OBJECT ***************** */
 
 static void lib_link_modifiers__linkModifiers(void *userData, Object *ob,
@@ -4832,6 +4841,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			wmd->cmap_curve = newdataadr(fd, wmd->cmap_curve);
 			if (wmd->cmap_curve)
 				direct_link_curvemapping(fd, wmd->cmap_curve);
+		}
+		else if (md->type == eModifierType_NParticleSystem) {
+			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
+			direct_link_nparticle_buffer(fd, pmd->buffer);
 		}
 		else if (md->type == eModifierType_LaplacianDeform) {
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;

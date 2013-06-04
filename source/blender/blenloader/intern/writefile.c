@@ -117,6 +117,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
+#include "DNA_nparticle_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_pagedbuffer_types.h"
@@ -1384,6 +1385,11 @@ static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
 #endif
 }
 
+static void write_nparticle_buffer(WriteData *wd, NParticleBuffer *buffer)
+{
+	write_pagedbuffer(wd, &buffer->data);
+}
+
 static void write_modifiers(WriteData *wd, ListBase *modbase)
 {
 	ModifierData *md;
@@ -1500,6 +1506,10 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			if (wmd->cmap_curve)
 				write_curvemapping(wd, wmd->cmap_curve);
+		}
+		else if (md->type==eModifierType_NParticleSystem) {
+			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
+			write_nparticle_buffer(wd, pmd->buffer);
 		}
 		else if (md->type==eModifierType_LaplacianDeform) {
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData*) md;
