@@ -64,9 +64,9 @@ typedef enum eDepsNode_Type {
 
 /* "Colors" for use in depsgraph topology algorithms */
 typedef enum eDepsNode_Color {
-	DAG_WHITE = 0,
-	DAG_GRAY  = 1,
-	DAG_BLACK = 2
+	DEPSNODE_WHITE = 0,
+	DEPSNODE_GRAY  = 1,
+	DEPSNODE_BLACK = 2
 } eDepsNode_Color;
 
 /* Flags for Depsgraph Nodes */
