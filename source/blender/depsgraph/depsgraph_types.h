@@ -97,6 +97,24 @@ typedef struct GroupDepsNode {
 	
 } GroupDepsNode;
 
+/* Inner Nodes ========================= */
+
+/* Atomic Operation Callback */
+// FIXME: args to be passed to operation callbacks needs fleshing out...
+typedef void (*DEG_AtomicEvalOperation_Cb)(void *state);
+
+
+/* Atomic Operation Node - The smallest execution unit that can be performed */
+// Potential TODO's?
+//    - special flags to make it easier to test if operation is of a "certain" type
+//    - "name" derived from callback function used - for easier debugging? Maybe in header instead?
+typedef struct AtomicOperationDepsNode {
+	DepsNode nodedata;                /* standard node header */
+	
+	DEG_AtomicEvalOperation_Cb exec;  /* operation to perform */
+	PointerRNA ptr;                   /* for holding info about the type/nature of the data node operates on */
+} AtomicOperationDepsNode;
+
 /* ************************************* */
 /* Depsgraph */
 
