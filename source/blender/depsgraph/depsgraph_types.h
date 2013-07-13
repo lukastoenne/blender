@@ -30,35 +30,55 @@
 #define __DEPSGRAPH_TYPES_H__
 
 /* ************************************* */
-/* Nodes in Depsgraph */
+/* Base-Defines for Nodes in Depsgraph */
 
-/* Types of Nodes ---------------------- */
+/* All nodes in Despgraph are descended from this */
+struct DepsNode {
+	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
+	DepsNode *parent;           /* mainly for inner-nodes to see which outer/data node they came from */
+	
+	short type;                 /* (eDepsNode_Type) type of node */
+	char  color;                /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
+	
+	char  flag;                 /* (eDepsNode_Flag) dirty/visited tags */
+	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
+};
 
+
+/* Types of Nodes */
 typedef enum eDepsNode_Type {
 	/* Outer Types */
-	DEPSNODE_OUTER_TYPE_ID    = 0,        /* Datablock */
-	DEPSNODE_OUTER_TYPE_GROUP = 1,        /* ID Group */
-	DEPSNODE_OUTER_TYPE_OP    = 2,        /* Inter-datablock operation */
+	DEPSNODE_TYPE_OUTER_ID    = 0,        /* Datablock */
+	DEPSNODE_TYPE_OUTER_GROUP = 1,        /* ID Group */
+	DEPSNODE_TYPE_OUTER_OP    = 2,        /* Inter-datablock operation */
 	
 	/* Inner Types */
-	DEPSNODE_INNER_TYPE_ATOM  = 100,      /* Atomic Operation */
-	DEPSNODE_INNER_TYPE_COMBO = 101,      /* Optimised cluster of atomic operations - unexploded */
+	DEPSNODE_TYPE_INNER_ATOM  = 100,      /* Atomic Operation */
+	DEPSNODE_TYPE_INNER_COMBO = 101,      /* Optimised cluster of atomic operations - unexploded */
 } eDepsNode_Type;
 
-/* Base Node Type ---------------------- */
 
-/* All nodes are descended from this */
-struct DepsNode {
-	DepsNode *next, *prev;	/* "natural order" that nodes can live in */
-	DepsNode *parent;       /* node which "owns" this one */
+/* "Colors" for use in depsgraph topology algorithms */
+typedef enum eDepsNode_Color {
+	DAG_WHITE = 0,
+	DAG_GRAY  = 1,
+	DAG_BLACK = 2
+} eDepsNode_Color;
+
+/* Flags for Depsgraph Nodes */
+typedef enum eDepsNode_Flag {
+	/* node needs to be updated */
+	DEPSNODE_NEEDS_UPDATE       = (1 << 0),
 	
-	eDepsNode_Type type;    /* type of node */
+	/* node was directly modified, causing need for update */
+	/* XXX: intention is to make it easier to tell when we just need to take subgraphs */
+	DEPSNODE_DIRECTLY_MODIFIED  = (1 << 1),
 	
-	eDepsNode_Color color;  /* for internal algorithmic usage... */
-	short time;             /* for tracking whether node has been visited twice - cycle detection */
-	
-	short needs_update;     /* (bool) whether node is tagged for updating */
-};
+	/* node was visited/handled already in traversal... */
+	DEPSNODE_TEMP_TAG           = (1 << 2)
+} eDepsNode_Flag;
+
+/* ************************************* */
 
 
 /* ************************************* */
