@@ -89,7 +89,9 @@ struct Depsgraph {
 	ListBase nodes;		/*([DepsNode]) sorted set of top-level outer-nodes */
 	
 	size_t num_nodes;   /* total number of nodes present in the system */
-	int type;           /* type of Depsgraph - generic or specialised... */
+	int type;           /* type of Depsgraph - generic or specialised... */ // XXX: needed?
+	
+	void *instance_data; /* this is the datastore (a "context" object of sorts) where data referred to lives */
 };
 
 /* ************************************* */
