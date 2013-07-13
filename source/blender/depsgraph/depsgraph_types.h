@@ -24,6 +24,10 @@
  * ***** END GPL LICENSE BLOCK *****
  *
  * Datatypes for internal use in the Depsgraph
+ * 
+ * All of these datatypes are only really used within the "core" depsgraph.
+ * In particular, node types declared here form the structure of operations
+ * in the graph.
  */
 
 #ifndef __DEPSGRAPH_TYPES_H__
@@ -35,7 +39,7 @@
 /* All nodes in Despgraph are descended from this */
 struct DepsNode {
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
-	DepsNode *parent;           /* mainly for inner-nodes to see which outer/data node they came from */
+	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
 	short type;                 /* (eDepsNode_Type) type of node */
 	char  color;                /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
