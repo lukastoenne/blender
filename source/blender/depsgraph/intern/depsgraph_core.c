@@ -25,3 +25,31 @@
  *
  * Core routines for how the Depsgraph works
  */
+ 
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+
+#include "BKE_depsgraph.h"
+
+#include "depsgraph_types.h"
+
+/* ************************************************** */
+/* Low-Level Dependency Graph Traversal / Sorting / Validity + Integrity */
+
+
+/* ************************************************** */
+/* Node-Type Handling */
+
+
+/* ************************************************** */
+/* Public API */
+
+
+/* ************************************************** */
+/* Evaluation */
+
+
+/* ************************************************** */
