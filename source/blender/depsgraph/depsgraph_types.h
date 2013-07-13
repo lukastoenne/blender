@@ -79,7 +79,23 @@ typedef enum eDepsNode_Flag {
 } eDepsNode_Flag;
 
 /* ************************************* */
+/* "Generic" Node Types */
 
+/* Outer Nodes ========================= */
+
+/* Note about ID vs ID-Group Nodes:
+ * For simplicity, we could just merge ID and ID-Group types into a single
+ * type of node, since ID nodes are simply a special subcase of group nodes 
+ * where n = 1. However, that'd mean we'd end up incurring all the costs
+ * associated with groups, even when that might not be needed. Hopefully,
+ * operations code won't really find this too painful...
+ */
+
+/* "ID Group" Node */
+typedef struct GroupDepsNode {
+	DepsNode nodedata;  /* standard node header */
+	
+} GroupDepsNode;
 
 /* ************************************* */
 /* Depsgraph */
