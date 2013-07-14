@@ -47,10 +47,9 @@ struct DepsRelation {
 	/* relationship attributes */
 	const char *name;   /* label for debugging */
 	
-	int type;           /* (eDepsRelationType) */
-	int flag;           // XXX: needed?
+	int type;           /* (eDepsRelation_Type) */
+	int flag;           /* (eDepsRelation_Flag) */
 };
-
 
 /* Types of relationships between nodes 
  *
@@ -58,7 +57,7 @@ struct DepsRelation {
  * the graph, so that we can go without doing more extensive
  * data-level checks...
  */
-typedef enum eDepsRelationType {
+typedef enum eDepsRelation_Type {
 	/* reationship type unknown/irrelevant */
 	DEG_RELATION_UNKNOWN = 0,
 	
@@ -87,7 +86,17 @@ typedef enum eDepsRelationType {
 	
 	/* general datablock dependency */
 	DEG_RELATION_DATABLOCK,
-} eDepsRelationType;
+} eDepsRelation_Type;
+
+
+/* Settings/Tags on Relationship */
+typedef enum eDepsRelation_Flag {
+	/* "pending" tag is used whenever "to" node is still waiting on this relation to be valid */
+	DEG_RELATION_FLAG_PENDING    = (1 << 0),
+	
+	/* "touched" tag is used when filtering, to know which to collect */
+	DEG_RELATION_FLAG_TEMP_TAG   = (1 << 1)
+} eDepsRelation_Flag;
 
 /* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
@@ -97,10 +106,16 @@ struct DepsNode {
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
-	short type;                 /* (eDepsNode_Type) type of node */
-	char  color;                /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
+	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
+	ListBase outlinks;          /* (LinkData : DepsRelation) ndoes which depend on this one */
 	
-	char  flag;                 /* (eDepsNode_Flag) dirty/visited tags */
+	short nodetype;             /* (eDepsNode_Type) structural type of node */
+	short datatype;             /* (???) type of data/behaviour represented by node... */
+	
+	short  color;               /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
+	short  flag;                /* (eDepsNode_Flag) dirty/visited tags */
+	
+	size_t valency;             /* how many inlinks are we still waiting on before we can be evaluated... */
 	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
 };
 
@@ -180,7 +195,8 @@ typedef struct AtomicOperationDepsNode {
 
 /* Dependency Graph object */
 struct Depsgraph {
-	ListBase nodes;		/*([DepsNode]) sorted set of top-level outer-nodes */
+	ListBase nodes;		/* ([DepsNode]) sorted set of top-level outer-nodes */
+	ListBase relations; /* ([DepsRelation]) list of all relationships in the graph */
 	
 	size_t num_nodes;   /* total number of nodes present in the system */
 	int type;           /* type of Depsgraph - generic or specialised... */ // XXX: needed?
