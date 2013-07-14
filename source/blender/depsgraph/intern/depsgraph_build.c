@@ -58,11 +58,32 @@
 /* build depsgraph for specified scene - this is called recursively for sets... */
 static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 {
+	DepsNode *scene_node;
+	
+	/* init own node */
+	scene_node = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_ID, "Scene");
+	
 	/* build subgraph for set, and link this in... */
+	// XXX: depending on how this goes, that scene itself could probably store its
+	//      own little partial depsgraph?
 	if (scene->set) {
 		DepsNode *set_node = deg_build_scene_graph(graph, scene->set);
 		// TODO: link set to scene, especially our timesource...
 	}
+	
+	/* scene objects */
+	
+	/* scene's animation and drivers */
+	
+	/* world */
+	
+	/* compo nodes */
+	
+	/* sequencer */
+	// XXX...
+	
+	/* return node */
+	return scene_node;
 }
 
 /* ************************************************* */
@@ -72,7 +93,16 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 // XXX: assume that this is called from outside, given the current scene as the "main" scene 
 void DEG_graph_build_from_scene(Depsgraph *graph, Scene *scene)
 {
-	deg_build_scene_graph(graph, scene);
+	DepsNode *scene_node;
+	
+	/* build graph for scene (and set) */
+	scene_node = deg_build_scene_graph(graph, scene);
+	
+	/* hook this up to a "root" node as entrypoint to graph... */
+	graph->root_node = DEG_add_node(graph, DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	
+	DEG_add_relation(graph, graph->root_node, scene_node, 
+	                 DEG_ROOT_TO_ACTIVE, "Root to Active Scene");
 }
 
 /* ************************************************* */
