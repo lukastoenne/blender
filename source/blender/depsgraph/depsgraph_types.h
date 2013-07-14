@@ -72,10 +72,14 @@ typedef enum eDepsRelation_Type {
 	/* relationship results from a driver related to transforms */
 	DEG_RELATION_DRIVER_TRANSFORM,
 	
-	/* relationship is used for transform stack */
+	/* relationship is used for transform stack 
+	 * (e.g. parenting, user transforms, constraints)
+	 */
 	DEG_RELATION_TRANSFORM,
 	
-	/* relationship is used for geometry evaluation */
+	/* relationship is used for geometry evaluation 
+	 * (e.g. metaball "motherball" or modifiers)
+	 */
 	DEG_RELATION_GEOMETRY_EVAL,
 	
 	/* relationship is used to trigger a post-change validity updates */
