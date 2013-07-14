@@ -216,11 +216,25 @@ typedef struct GroupDepsNode {
 	/* ... TODO: this will only really be needed if/when we get bugreports about this ... */
 } GroupDepsNode;
 
+
+/* Inter-datablock Operation (e.g. Rigidbody Sim)
+ * Basically, a glorified outer-node wrapper around an atomic operation
+ */
+// XXX: there probably isn't really any good reason yet why we couldn't use that directly...
+typedef struct InterblockDepsNode {
+	DepsNode nd;      /* standard node header */
+	
+	ListBase nodes;   /* ([DepsNode]) operation(s) "inner" nodes to be executed for this step */
+	/* ... TODO: extra metadata for tagging the kinds of events this can accept? ... */
+} InterblockDepsNode;
+
 /* Sub-ID Data Nodes =================== */
 
 /* A sub ID-block "data" node used to represent dependencies between such entities
  * which may be slightly coarser than the operations that are needed (or less coarse).
  */
+// TODO: later on, we'll need to review whether this is really needed (or whether it just adds bloat)
+//       - this will all really become more obvious when we have a bit more "real" logic blocked in
 typedef struct DataDepsNode {
 	DepsNode nd;        /* standard node header */
 	
