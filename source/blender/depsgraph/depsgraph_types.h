@@ -106,6 +106,8 @@ typedef enum eDepsRelation_Flag {
 /* Base-Defines for Nodes in Depsgraph */
 
 /* All nodes in Despgraph are descended from this */
+// XXX: this probably needs some way of representing what data it affects? 
+//      so that it can be used in queries. But will this be too much overhead?
 struct DepsNode {
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
@@ -131,9 +133,11 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OUTER_GROUP = 1,        /* ID Group */
 	DEPSNODE_TYPE_OUTER_OP    = 2,        /* Inter-datablock operation */
 	
+	/* "Data" Nodes (sub-datablock level) */
+	DEPSNODE_TYPE_MID_DATA    = 10,       /* Sub-datablock "data" (i.e. */
+	
 	/* Inner Types */
 	DEPSNODE_TYPE_INNER_ATOM  = 100,      /* Atomic Operation */
-	DEPSNODE_TYPE_INNER_COMBO = 101,      /* Optimised cluster of atomic operations - unexploded */
 } eDepsNode_Type;
 
 
@@ -170,11 +174,46 @@ typedef enum eDepsNode_Flag {
  * operations code won't really find this too painful...
  */
 
+/* "ID" Datablock Node */
+typedef struct DatablockDepsNode {
+	DepsNode nd;           /* standard node header */
+	
+	/* Sub-Graph 
+	 * NOTE: Keep this in sync with GroupDepsNode!
+	 */
+	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
+	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
+} DatablockDepsNode;
+
+
 /* "ID Group" Node */
 typedef struct GroupDepsNode {
-	DepsNode nd;      /* standard node header */
+	DepsNode nd;           /* standard node header */
 	
+	/* Sub-Graph
+	 * WARNING: Keep this in sync with DatablockDepsNode!
+	 */
+	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
+	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
+	
+	/* Headline Section - Datablocks which cannot be evaluated separately from each other */
+	ListBase id_blocks;    /* (LinkData : ID) ID datablocks involved in group */
+	
+	/* Cycle Resolution Stuff */
+	/* ... TODO: this will only really be needed if/when we get bugreports about this ... */
 } GroupDepsNode;
+
+/* Sub-ID Data Nodes =================== */
+
+/* A sub ID-block "data" node used to represent dependencies between such entities
+ * which may be slightly coarser than the operations that are needed (or less coarse).
+ */
+typedef struct DataDepsNode {
+	DepsNode nd;        /* standard node header */
+	
+	PointerRNA ptr;     /* pointer for declaring the type/ref of data that we're referring to... */
+	ListBase nodes;     /* ([DepsNode]) "inner" nodes ready to be executed, which represent this node */
+} DataDepsNode;
 
 /* Inner Nodes ========================= */
 
