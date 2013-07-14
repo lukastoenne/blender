@@ -161,14 +161,17 @@ typedef enum eDepsNode_Color {
 /* Flags for Depsgraph Nodes */
 typedef enum eDepsNode_Flag {
 	/* node needs to be updated */
-	DEPSNODE_NEEDS_UPDATE       = (1 << 0),
+	DEPSNODE_FLAG_NEEDS_UPDATE       = (1 << 0),
 	
 	/* node was directly modified, causing need for update */
 	/* XXX: intention is to make it easier to tell when we just need to take subgraphs */
-	DEPSNODE_DIRECTLY_MODIFIED  = (1 << 1),
+	DEPSNODE_FLAG_DIRECTLY_MODIFIED  = (1 << 1),
 	
 	/* node was visited/handled already in traversal... */
-	DEPSNODE_TEMP_TAG           = (1 << 2)
+	DEPSNODE_FLAG_TEMP_TAG           = (1 << 2),
+	
+	/* node's name needs to be freed (when node is freed, as it is on heap) */
+	DEPSNODE_FLAG_NAME_NEEDS_FREE    = (1 << 3),
 } eDepsNode_Flag;
 
 /* ************************************* */
