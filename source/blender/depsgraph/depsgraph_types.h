@@ -97,7 +97,7 @@ typedef enum eDepsNode_Flag {
 
 /* "ID Group" Node */
 typedef struct GroupDepsNode {
-	DepsNode nodedata;  /* standard node header */
+	DepsNode nd;      /* standard node header */
 	
 } GroupDepsNode;
 
@@ -113,7 +113,7 @@ typedef void (*DEG_AtomicEvalOperation_Cb)(void *state);
 //    - special flags to make it easier to test if operation is of a "certain" type
 //    - "name" derived from callback function used - for easier debugging? Maybe in header instead?
 typedef struct AtomicOperationDepsNode {
-	DepsNode nodedata;                /* standard node header */
+	DepsNode nd;                      /* standard node header */
 	
 	DEG_AtomicEvalOperation_Cb exec;  /* operation to perform */
 	PointerRNA ptr;                   /* for holding info about the type/nature of the data node operates on */
