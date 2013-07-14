@@ -53,8 +53,11 @@
 /* Dependency Graph */
 typedef struct Depsgraph Depsgraph;
 
-/* Base "Node"-Type in Depsgraph */
+/* Base type for all Node types in Depsgraph */
 typedef struct DepsNode DepsNode;
+
+/* Relationship/link (A -> B) type in Depsgraph between Nodes */
+typedef struct DepsRelation DepsRelation;
 
 /* ************************************************ */
 /* Depsgraph API */

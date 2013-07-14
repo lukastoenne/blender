@@ -34,6 +34,62 @@
 #define __DEPSGRAPH_TYPES_H__
 
 /* ************************************* */
+/* Relationships Between Nodes */
+
+/* A depends on B (A -> B) */
+struct DepsRelation {
+	DepsRelation *next, *prev;
+	
+	/* the nodes in the relationship (since this is shared between the nodes) */
+	DepsNode *from;     /* A */
+	DepsNode *to;       /* B */
+	
+	/* relationship attributes */
+	const char *name;   /* label for debugging */
+	
+	int type;           /* (eDepsRelationType) */
+	int flag;           // XXX: needed?
+};
+
+
+/* Types of relationships between nodes 
+ *
+ * This is used to provide additional hints to use when filtering
+ * the graph, so that we can go without doing more extensive
+ * data-level checks...
+ */
+typedef enum eDepsRelationType {
+	/* reationship type unknown/irrelevant */
+	DEG_RELATION_UNKNOWN = 0,
+	
+	/* relationship is just used to enforce ordering of operations
+	 * (e.g. "init()" callback done before "exec() and "cleanup()")
+	 */
+	DEG_RELATION_OPERATION,
+	
+	/* relationship results from a property driver */
+	DEG_RELATION_DRIVER,
+	
+	/* relationship results from a driver related to transforms */
+	DEG_RELATION_DRIVER_TRANSFORM,
+	
+	/* relationship is used for transform stack */
+	DEG_RELATION_TRANSFORM,
+	
+	/* relationship is used for geometry evaluation */
+	DEG_RELATION_GEOMETRY_EVAL,
+	
+	/* relationship is used to trigger a post-change validity updates */
+	DEG_RELATION_UPDATE,
+	
+	/* relationship is used to trigger editor/screen updates */
+	DEG_RELATION_UPDATE_UI,
+	
+	/* general datablock dependency */
+	DEG_RELATION_DATABLOCK,
+} eDepsRelationType;
+
+/* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
 
 /* All nodes in Despgraph are descended from this */
