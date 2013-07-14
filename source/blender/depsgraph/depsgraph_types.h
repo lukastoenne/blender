@@ -51,6 +51,7 @@ struct DepsRelation {
 	int flag;           /* (eDepsRelation_Flag) */
 };
 
+
 /* Types of relationships between nodes 
  *
  * This is used to provide additional hints to use when filtering
@@ -90,6 +91,9 @@ typedef enum eDepsRelation_Type {
 	
 	/* general datablock dependency */
 	DEG_RELATION_DATABLOCK,
+	
+	/* time dependency */
+	DEG_RELATION_TIME,
 } eDepsRelation_Type;
 
 
@@ -128,13 +132,17 @@ struct DepsNode {
 
 /* Types of Nodes */
 typedef enum eDepsNode_Type {
+	/* Generic Types */
+	DEPSNODE_TYPE_ROOT        = 0,        /* "Current Scene" - basically whatever kicks off the ealuation process */
+	DEPSNODE_TYPE_TIMESOURCE  = 1,        /* Time-Source */
+	
 	/* Outer Types */
-	DEPSNODE_TYPE_OUTER_ID    = 0,        /* Datablock */
-	DEPSNODE_TYPE_OUTER_GROUP = 1,        /* ID Group */
-	DEPSNODE_TYPE_OUTER_OP    = 2,        /* Inter-datablock operation */
+	DEPSNODE_TYPE_OUTER_ID    = 10,       /* Datablock */
+	DEPSNODE_TYPE_OUTER_GROUP = 11,       /* ID Group */
+	DEPSNODE_TYPE_OUTER_OP    = 12,       /* Inter-datablock operation */
 	
 	/* "Data" Nodes (sub-datablock level) */
-	DEPSNODE_TYPE_MID_DATA    = 10,       /* Sub-datablock "data" (i.e. */
+	DEPSNODE_TYPE_MID_DATA    = 50,       /* Sub-datablock "data" (i.e. */
 	
 	/* Inner Types */
 	DEPSNODE_TYPE_INNER_ATOM  = 100,      /* Atomic Operation */
