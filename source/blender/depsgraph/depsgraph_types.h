@@ -36,7 +36,7 @@
 /* ************************************* */
 /* Relationships Between Nodes */
 
-/* A depends on B (A -> B) */
+/* B depends on A (A -> B) */
 struct DepsRelation {
 	DepsRelation *next, *prev;
 	
