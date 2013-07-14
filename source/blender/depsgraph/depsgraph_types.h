@@ -62,6 +62,15 @@ typedef enum eDepsRelation_Type {
 	/* reationship type unknown/irrelevant */
 	DEG_RELATION_UNKNOWN = 0,
 	
+	/* root -> active scene/data */
+	DEG_ROOT_TO_ACTIVE,
+	
+	/* general datablock dependency */
+	DEG_RELATION_DATABLOCK,
+	
+	/* time dependency */
+	DEG_RELATION_TIME,
+	
 	/* relationship is just used to enforce ordering of operations
 	 * (e.g. "init()" callback done before "exec() and "cleanup()")
 	 */
@@ -88,12 +97,6 @@ typedef enum eDepsRelation_Type {
 	
 	/* relationship is used to trigger editor/screen updates */
 	DEG_RELATION_UPDATE_UI,
-	
-	/* general datablock dependency */
-	DEG_RELATION_DATABLOCK,
-	
-	/* time dependency */
-	DEG_RELATION_TIME,
 } eDepsRelation_Type;
 
 
