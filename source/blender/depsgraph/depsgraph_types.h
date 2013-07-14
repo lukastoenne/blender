@@ -116,6 +116,8 @@ struct DepsNode {
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
+	const char *name;           /* identifier - mainly for debugging purposes... */
+	
 	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
 	ListBase outlinks;          /* (LinkData : DepsRelation) ndoes which depend on this one */
 	
