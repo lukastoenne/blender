@@ -51,6 +51,62 @@
 
 /* ************************************************* */
 
+/* ************************************************* */
+/* Objects */
+
+static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, Object *ob)
+{
+	DepsNode *ob_node;
+	bConstraint *con;
+	ModifierData *md;
+	
+	/* create node for object itself */
+	// XXX: directly using this name may be dangerous - if object gets freed we could end up having crashes
+	ob_node = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
+	
+	/* AnimData */
+	if (ob->adt) {
+		deg_build_animdata_graph(graph, scene_node, &ob->id);
+	}
+	
+	/* object data */
+	switch (ob->type) {
+		case OB_ARMATURE:
+		{
+			bArmature *arm = (bArmature *)ob->data;
+			...
+		}
+		break;
+		
+		case OB_MESH:
+		{
+			Mesh *me = (Mesh *)ob->data;
+			...
+		}
+		break;
+		
+		case OB_CURVE:
+		{
+			Curve *cu = (Curve *)ob->data;
+			...
+		}
+		break;
+	}
+	
+		/* object constraints */
+	for (con = ob->constraints.first; con; con = con->next) {
+		...
+	}
+	
+	/* modifiers */
+	for (md = ob->modifiers.first; md; md = md->next) {
+		...
+	}
+	
+	/* return object node... */
+	return ob_node;
+}
+
 
 /* ************************************************* */
 /* Scene */
