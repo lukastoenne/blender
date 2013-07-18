@@ -62,6 +62,10 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	
 	/* create node for object itself */
 	// XXX: directly using this name may be dangerous - if object gets freed we could end up having crashes
+	/* XXX: we have a problem here - other nodes we depend on may not exist yet (likewise, others that depend 
+	 * on us may have been done before us). So, we need to make it possible to let nodes hook up with whatever
+	 * they need, if/when they need it. But, this means that we need to be a bit more careful about how
+	 * this all works out... */
 	ob_node = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
 	
 	/* AnimData */
