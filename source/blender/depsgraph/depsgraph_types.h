@@ -147,7 +147,7 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OUTER_OP    = 12,       /* Inter-datablock operation */
 	
 	/* "Data" Nodes (sub-datablock level) */
-	DEPSNODE_TYPE_MID_DATA    = 50,       /* Sub-datablock "data" (i.e. */
+	DEPSNODE_TYPE_DATA        = 50,       /* Sub-datablock "data" (i.e. driver, bone, constraint, modifier) */
 	
 	/* Inner Types */
 	DEPSNODE_TYPE_INNER_ATOM  = 100,      /* Atomic Operation */
