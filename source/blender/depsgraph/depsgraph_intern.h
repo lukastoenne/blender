@@ -42,14 +42,14 @@
  * < graph: dependency graph that node will be part of
  * < type: type of outer-node to create. Inner nodes cannot be created using this method
  * < id: ID block that is associated with this data [<-- XXX: may not be supported/needed for ops?]
- * 
- * < (data): (void *) sub-ID data that node refers to
- * < (srna): (StructRNA) typeinfo for data, which makes it easier to keep track of what it is
+ *
+ * < (data): sub-ID data that node refers to (if applicable)
+ * < (srna): typeinfo for data, which makes it easier to keep track of what it is (if applicable)
  *
  * > returns: The new node created (of the specified type) which now exists in the graph already
  *            (i.e. even if an ID node was created first, the inner node would get created first)
  */
-DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...);
+DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
 
 /* Find an outer node with characteristics matching the specified info 
@@ -58,7 +58,7 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...);
  * > returns: A node matching the required characteristics if it exists
  *            OR NULL if no such node exists in the graph
  */
-DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...);
+DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
 
 /* Get the (outer) node with data matching the requested characteristics
@@ -67,6 +67,6 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...);
  *
  * > returns: A node matching the required characteristics that exists in the graph
  */
-DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...);
+DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
 #endif // __DEPSGRAPH_INTERN_H__

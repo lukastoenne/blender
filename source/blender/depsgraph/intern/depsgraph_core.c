@@ -49,7 +49,7 @@
 /* Node Management */
 
 /* Find matching node */
-DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
+DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
 	DepsNode *result = NULL;
 	
@@ -57,7 +57,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
 }
 
 /* Add a new outer node */
-DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
+DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
 	DepsNode *result = NULL;
 	
@@ -68,15 +68,15 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
 }
 
 /* Get a matching node, creating one if need be */
-DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
+DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
 	DepsNode *node;
 	
 	/* firstly try to get an existing node... */
-	node = DEG_find_node(graph, type, id, va_list);
+	node = DEG_find_node(graph, type, id, srna, data);
 	if (node == NULL) {
 		/* nothing exists, so create one instead! */
-		node = DEG_add_node(graph, type, id, va_list);
+		node = DEG_add_node(graph, type, id, srna, data);
 	}
 	
 	/* return the node - it must exist now... */
