@@ -28,6 +28,7 @@
  
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -35,6 +36,7 @@
 #include "BKE_depsgraph.h"
 
 #include "depsgraph_types.h"
+#include "depsgraph_intern.h"
 
 /* ************************************************** */
 /* Low-Level Dependency Graph Traversal / Sorting / Validity + Integrity */
@@ -43,6 +45,43 @@
 /* ************************************************** */
 /* Node-Type Handling */
 
+/* ************************************************** */
+/* Node Management */
+
+/* Find matching node */
+DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
+{
+	DepsNode *result = NULL;
+	
+	return result;
+}
+
+/* Add a new outer node */
+DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
+{
+	DepsNode *result = NULL;
+	
+	/* depends on type of node... */
+	
+	/* return the newly created node matching the description */
+	return result;
+}
+
+/* Get a matching node, creating one if need be */
+DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, ...)
+{
+	DepsNode *node;
+	
+	/* firstly try to get an existing node... */
+	node = DEG_find_node(graph, type, id, va_list);
+	if (node == NULL) {
+		/* nothing exists, so create one instead! */
+		node = DEG_add_node(graph, type, id, va_list);
+	}
+	
+	/* return the node - it must exist now... */
+	return node;
+}
 
 /* ************************************************** */
 /* Public API */
