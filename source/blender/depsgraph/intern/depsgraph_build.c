@@ -66,7 +66,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	 * on us may have been done before us). So, we need to make it possible to let nodes hook up with whatever
 	 * they need, if/when they need it. But, this means that we need to be a bit more careful about how
 	 * this all works out... */
-	ob_node = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
+	ob_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
 	
 	/* AnimData */
 	if (ob->adt) {
@@ -121,7 +121,7 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 	DepsNode *scene_node;
 	
 	/* init own node */
-	scene_node = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_ID, "Scene");
+	scene_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, "Scene");
 	
 	/* build subgraph for set, and link this in... */
 	// XXX: depending on how this goes, that scene itself could probably store its
@@ -159,7 +159,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Scene *scene)
 	scene_node = deg_build_scene_graph(graph, scene);
 	
 	/* hook this up to a "root" node as entrypoint to graph... */
-	graph->root_node = DEG_add_node(graph, DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	graph->root_node = DEG_get_node(graph, DEPSNODE_TYPE_ROOT, "Root (Scene)");
 	
 	DEG_add_relation(graph, graph->root_node, scene_node, 
 	                 DEG_ROOT_TO_ACTIVE, "Root to Active Scene");
