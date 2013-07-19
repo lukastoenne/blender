@@ -38,6 +38,8 @@
 
 /* Graph Building/Low-Level Querying =============================== */
 
+/* Basics ---------------------------------------------------------- */
+
 /* Always add a new (outer) node 
  * < graph: dependency graph that node will be part of
  * < type: type of outer-node to create. Inner nodes cannot be created using this method
@@ -68,5 +70,15 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
  * > returns: A node matching the required characteristics that exists in the graph
  */
 DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
+
+
+/* Groups ------------------------------------------------------------- */
+
+/* Make a group from the two given outer nodes 
+ * < node1: (DatablockDepsNode | GroupDepsNode)   // XXX: should we really allow existing groups as first arg, to organically "grow" them?
+ * < node2: (DatablockDepsNode)
+ * > return: (GroupDepsNode) either a new group node, or node1 if that was a group already
+ */
+DepsNode *DEG_group_cyclic_nodes(Depsgraph *graph, DepsNode *node1, DepsNode *node2);
 
 #endif // __DEPSGRAPH_INTERN_H__
