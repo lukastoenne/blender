@@ -81,4 +81,45 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
  */
 DepsNode *DEG_group_cyclic_nodes(Depsgraph *graph, DepsNode *node1, DepsNode *node2);
 
+
+/* Node Types Handling ================================================= */
+
+/* "Typeinfo" for Node Types ------------------------------------------- */
+
+/* Typeinfo Struct (nti) */
+typedef struct DepsNodeTypeInfo {
+	/* Identification ................................. */
+	eDepsNode_Type type;           /* DEPSNODE_TYPE_### */
+	size_t size;                   /* size in bytes of the struct */
+	char name[MAX_NAME];           /* name of node type */
+	
+	/* Data Management ................................ */
+	/* Initialise node-specific data - the node already exists */
+	void (*init_data)(DepsNode *node, ID *id, StructRNA *srna, void *data);
+	
+	/* Free node-specific data, but not node itself */
+	void (*free_data)(DepsNode *node);
+	
+	/* Make a copy of "src" node's data over to "dst" node */
+	void (*copy_data)(DepsNode *dst, const DepsNode *src);
+	
+	/* Graph Building (Outer nodes only) ............. */
+	/* Generate atomic operation nodes (inner nodes subgraph) */
+	void (*build_subgraph)(DepsNode *node);
+	
+	// TODO: perform special pruning operations to cull branches which don't do anything?
+} DepsNodeTypeInfo;
+
+/* Typeinfo Management -------------------------------------------------- */
+
+/* Register node type */
+void DEG_register_node_typeinfo(DepsNodeTypeInfo *typeinfo);
+
+/* Get typeinfo for specified type */
+DepsNodeTypeInfo *DEG_get_typeinfo(eDepsNode_Type type);
+
+/* Get typeinfo for provided node */
+DepsNodeTypeInfo *DEG_node_get_typeinfo(DepsNode *node);
+
+
 #endif // __DEPSGRAPH_INTERN_H__
