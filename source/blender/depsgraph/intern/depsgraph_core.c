@@ -54,12 +54,25 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 /* Add a new outer node */
 DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
-	DepsNode *result = NULL;
+	const DepsNodeTypeInfo *nti = DEG_get_typeinfo(type);
+	DepsNode *node = NULL;
 	
-	/* depends on type of node... */
+	BLI_assert(nti != NULL);
+	
+	/* create node data... */
+	node = MEM_callocN(nti->size, nti->name);
+	node->type = type;
+	
+	/* node-specific data init */
+	if (nti->init_data) {
+		nti->init_data(node, id, srna, data);
+	}
+	
+	/* add node to graph */
+	nti->add_to_graph(graph, node);
 	
 	/* return the newly created node matching the description */
-	return result;
+	return node;
 }
 
 /* Get a matching node, creating one if need be */
