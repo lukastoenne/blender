@@ -42,11 +42,69 @@
 
 /* ************************************************** */
 /* Node Management */
+// XXX: should all this node finding stuff be part of low-level query api?
+
+/* find node where type matches (and outer-match function returns true) */
+static DepsNode *deg_find_node__generic_type_match(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
+{
+	DepsNodeTypeInfo *nti = DEG_get_typeinfo(type);
+	DepsNode *node;
+	
+	for (node = graph->nodes.first; node; node = node->next) {
+		if (node->type == type) {
+			if (nti->match_outer) {
+				if (nti->match_outer(node, id, srna, data)) {
+					/* match! */
+					return node;
+				}
+			}
+			else {
+				/* assume match - with only one of this sort */
+				return node;
+			}
+		}
+	}
+	
+	/* not found */
+	return NULL;
+}
 
 /* Find matching node */
 DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
 	DepsNode *result = NULL;
+	
+	/* each class of types requires a different search strategy... */
+	switch (type) {
+		/* "Generic" Types -------------------------- */
+		case DEPSNODE_TYPE_ROOT:   /* NOTE: this case shouldn't need to exist, but just in case... */
+			result = graph->root;
+			break;
+			
+		case DEPSNODE_TYPE_TIMESOURCE: /* Time Source */
+		{
+			/* there can only be one "official" timesource for now */
+			// XXX: what happens if we want the timesource for a subgraph?
+			RootDepsNode *root_node = (RootDepsNode *)graph->root;
+			result = root_node->time_source;
+		}
+			break;
+			
+		/* "Outer" Nodes ---------------------------- */
+		
+		case DEPSNODE_TYPE_OUTER_GROUP: /* Group Nodes */
+		case DEPSNODE_TYPE_OUTER_OP:    /* Generic Operation Wrapper */
+		{
+			result = deg_find_node__generic_type_match(graph, type, id, srna, data);
+		}
+			break;
+			
+		case DEPSNODE_TYPE_OUTER_ID:    /* ID or Group nodes */
+		{
+			
+		}
+			break;
+	}
 	
 	return result;
 }

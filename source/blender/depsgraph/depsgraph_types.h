@@ -271,6 +271,8 @@ struct Depsgraph {
 	ListBase nodes;		/* ([DepsNode]) sorted set of top-level outer-nodes */
 	ListBase relations; /* ([DepsRelation]) list of all relationships in the graph */
 	
+	DepsNode *root;     /* "root" node - the one where all evaluation enters from */
+	
 	size_t num_nodes;   /* total number of nodes present in the system */
 	int type;           /* type of Depsgraph - generic or specialised... */ // XXX: needed?
 	

@@ -108,7 +108,7 @@ typedef struct DepsNodeTypeInfo {
 	
 	/* Querying ...................................... */
 	/* Does node match the (outer-node) query conditions? */
-	bool (*is_match_outer)(DepsNode *node, ID *id, StructRNA *srna, void *data);
+	bool (*match_outer)(DepsNode *node, ID *id, StructRNA *srna, void *data);
 	
 	// ...
 	
