@@ -271,7 +271,7 @@ struct Depsgraph {
 	ListBase nodes;		    /* ([DepsNode]) sorted set of top-level outer-nodes */
 	ListBase relations;     /* ([DepsRelation]) list of all relationships in the graph */
 	
-	DepsNode *root;         /* "root" node - the one where all evaluation enters from */
+	DepsNode *root_node;    /* "root" node - the one where all evaluation enters from */
 	
 	GHash *nodehash;        /* (<ID : DepsNode>) mapping from ID blocks to outer nodes, for quicker retrievals */
 	

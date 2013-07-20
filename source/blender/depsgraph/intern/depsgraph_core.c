@@ -89,14 +89,14 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 	switch (type) {
 		/* "Generic" Types -------------------------- */
 		case DEPSNODE_TYPE_ROOT:   /* NOTE: this case shouldn't need to exist, but just in case... */
-			result = graph->root;
+			result = graph->root_node;
 			break;
 			
 		case DEPSNODE_TYPE_TIMESOURCE: /* Time Source */
 		{
 			/* there can only be one "official" timesource for now */
 			// XXX: what happens if we want the timesource for a subgraph?
-			RootDepsNode *root_node = (RootDepsNode *)graph->root;
+			RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
 			result = root_node->time_source;
 		}
 			break;
