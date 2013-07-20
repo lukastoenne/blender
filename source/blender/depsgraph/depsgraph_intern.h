@@ -103,6 +103,12 @@ typedef struct DepsNodeTypeInfo {
 	/* Make a copy of "src" node's data over to "dst" node */
 	void (*copy_data)(DepsNode *dst, const DepsNode *src);
 	
+	/* Querying ...................................... */
+	/* Does node match the (outer-node) query conditions? */
+	bool (*is_match_outer)(DepsNode *node, ID *id, StructRNA *srna, void *data);
+	
+	// ...
+	
 	/* Graph Building (Outer nodes only) ............. */
 	/* Generate atomic operation nodes (inner nodes subgraph) */
 	void (*build_subgraph)(DepsNode *node);
