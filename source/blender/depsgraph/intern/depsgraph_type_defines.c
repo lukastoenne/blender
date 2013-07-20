@@ -30,6 +30,7 @@
 #include <stdlib.h>
 
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_depsgraph.h"
@@ -44,23 +45,36 @@
 /* External API */
 
 /* Global type registry */
-// XXX: hash or array?
+static GHash *_depsnode_typeinfo_registry = NULL;
 
 /* Registration ------------------------------------------- */
 
 /* Register node type */
 void DEG_register_node_typeinfo(DepsNodeTypeInfo *typeinfo)
 {
-	// TODO: 
+	if (typeinfo) {
+		eDepsNode_Type type = typeinfo->type;
+		BLI_ghash_insert(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(type), typeinfo);
+	}
 }
 
 
 /* Register all node types */
 void DEG_register_node_types(void)
 {
+	/* initialise registry */
+	_depsnode_typeinfo_registry = BLI_ghash_int_new(__func__);
+	
+	/* register node types */
 	DEG_register_node_typeinfo(DNTI_OUTER_ID);
 	DEG_register_node_typeinfo(DNTI_OUTER_GROUP);
 	// ...
+}
+
+/* Free registry on exit */
+void DEG_free_node_types(void)
+{
+	BLI_ghash_free(_depsnode_typeinfo_registry, NULL, NULL);
 }
 
 /* Getters ------------------------------------------------- */

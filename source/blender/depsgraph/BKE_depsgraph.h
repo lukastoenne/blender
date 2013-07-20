@@ -73,8 +73,14 @@ Depsgraph *DEG_graph_new(void);
 /* Free Depsgraph and all its data */
 void DEG_free(Depsgraph *graph);
 
+
+/* Node Types Registry ---------------------------- */
+
 /* Register all node types */
 void DEG_register_node_types(void);
+
+/* Free node type registry on exit */
+void DEG_free_node_types(void);
 
 /* Update Tagging -------------------------------- */
 
