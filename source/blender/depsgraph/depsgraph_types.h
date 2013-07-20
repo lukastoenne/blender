@@ -273,6 +273,8 @@ struct Depsgraph {
 	
 	DepsNode *root;     /* "root" node - the one where all evaluation enters from */
 	
+	GHash *nodehash;    /* (<ID : DepsNode>) mapping from ID blocks to outer nodes, for quicker retrievals */
+	
 	size_t num_nodes;   /* total number of nodes present in the system */
 	int type;           /* type of Depsgraph - generic or specialised... */ // XXX: needed?
 	

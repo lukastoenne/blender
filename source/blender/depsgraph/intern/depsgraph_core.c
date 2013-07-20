@@ -76,7 +76,8 @@ static DepsNode *deg_find_node__generic_type_match(Depsgraph *graph, eDepsNode_T
 static DepsNode *deg_find_node__id_match(Depsgraph *graph, ID *id)
 {
 	/* use graph's ID-hash to quickly jump to relevant node */
-	return NULL; // XXX...
+	// XXX: remember to remove existing entries when grouping nodes...
+	return BLI_ghash_lookup(graph->nodehash, id);
 }
 
 /* Find matching node */
@@ -154,6 +155,7 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 	}
 	
 	/* add node to graph */
+	// XXX: remember to add to both nodelist + nodehash (when adding to toplevel)
 	nti->add_to_graph(graph, node);
 	
 	/* return the newly created node matching the description */
