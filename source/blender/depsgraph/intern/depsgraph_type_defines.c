@@ -75,6 +75,10 @@ void DEG_register_node_types(void)
 	/* register node types */
 	DEG_register_node_typeinfo(DNTI_OUTER_ID);
 	DEG_register_node_typeinfo(DNTI_OUTER_GROUP);
+	DEG_register_node_typeinfo(DNTI_OUTER_OP);
+	
+	DEG_register_node_typeinfo(DNTI_DATA);
+	
 	// ...
 }
 
