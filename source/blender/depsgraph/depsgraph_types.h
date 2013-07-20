@@ -268,17 +268,17 @@ typedef struct AtomicOperationDepsNode {
 
 /* Dependency Graph object */
 struct Depsgraph {
-	ListBase nodes;		/* ([DepsNode]) sorted set of top-level outer-nodes */
-	ListBase relations; /* ([DepsRelation]) list of all relationships in the graph */
+	ListBase nodes;		    /* ([DepsNode]) sorted set of top-level outer-nodes */
+	ListBase relations;     /* ([DepsRelation]) list of all relationships in the graph */
 	
-	DepsNode *root;     /* "root" node - the one where all evaluation enters from */
+	DepsNode *root;         /* "root" node - the one where all evaluation enters from */
 	
-	GHash *nodehash;    /* (<ID : DepsNode>) mapping from ID blocks to outer nodes, for quicker retrievals */
+	GHash *nodehash;        /* (<ID : DepsNode>) mapping from ID blocks to outer nodes, for quicker retrievals */
 	
-	size_t num_nodes;   /* total number of nodes present in the system */
-	int type;           /* type of Depsgraph - generic or specialised... */ // XXX: needed?
+	size_t num_nodes;       /* total number of nodes present in the system */
+	int type;               /* type of Depsgraph - generic or specialised... */ // XXX: needed?
 	
-	void *instance_data; /* this is the datastore (a "context" object of sorts) where data referred to lives */
+	void *instance_data;    /* this is the datastore (a "context" object of sorts) where data referred to lives */
 };
 
 /* ************************************* */
