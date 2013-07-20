@@ -42,6 +42,8 @@
 
 /* ************************************************** */
 /* Node Management */
+
+/* Node Finding ------------------------------------- */
 // XXX: should all this node finding stuff be part of low-level query api?
 
 /* find node where type matches (and outer-match function returns true) */
@@ -57,6 +59,7 @@ static DepsNode *deg_find_node__generic_type_match(Depsgraph *graph, eDepsNode_T
 					/* match! */
 					return node;
 				}
+				/* else: not found yet... */
 			}
 			else {
 				/* assume match - with only one of this sort */
@@ -67,6 +70,13 @@ static DepsNode *deg_find_node__generic_type_match(Depsgraph *graph, eDepsNode_T
 	
 	/* not found */
 	return NULL;
+}
+
+/* find node where id matches or is contained in the node... */
+static DepsNode *deg_find_node__id_match(Depsgraph *graph, ID *id)
+{
+	/* use graph's ID-hash to quickly jump to relevant node */
+	return NULL; // XXX...
 }
 
 /* Find matching node */
@@ -101,13 +111,30 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 			
 		case DEPSNODE_TYPE_OUTER_ID:    /* ID or Group nodes */
 		{
+			/* return the ID or Group node, not just ID, 
+			 * as ID may have already been added to a group
+			 * due to cycles appearing
+			 */
+			result = deg_find_node__id_match(graph, id);
+		}
+			break;
 			
+		case DEPSNODE_TYPE_DATA:        /* Data (i.e. Bones, Drivers, etc.) */
+		{
+			DepsNode *id_node = deg_find_node__id_match(graph, id);
+			
+			if (id_node) {
+				/* find data-node which matches this */
+				
+			}
 		}
 			break;
 	}
 	
 	return result;
 }
+
+/* Get/Add Node ----------------------------------------- */
 
 /* Add a new outer node */
 DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
