@@ -28,7 +28,6 @@
  
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -40,10 +39,6 @@
 
 /* ************************************************** */
 /* Low-Level Dependency Graph Traversal / Sorting / Validity + Integrity */
-
-
-/* ************************************************** */
-/* Node-Type Handling */
 
 /* ************************************************** */
 /* Node Management */

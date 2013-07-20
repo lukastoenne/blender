@@ -124,7 +124,7 @@ struct DepsNode {
 	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
 	ListBase outlinks;          /* (LinkData : DepsRelation) ndoes which depend on this one */
 	
-	short nodetype;             /* (eDepsNode_Type) structural type of node */
+	short type;                 /* (eDepsNode_Type) structural type of node */
 	short datatype;             /* (???) type of data/behaviour represented by node... */
 	
 	short  color;               /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */

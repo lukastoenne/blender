@@ -73,6 +73,9 @@ Depsgraph *DEG_graph_new(void);
 /* Free Depsgraph and all its data */
 void DEG_free(Depsgraph *graph);
 
+/* Register all node types */
+void DEG_register_node_types(void);
+
 /* Update Tagging -------------------------------- */
 
 /* Tag node(s) associated with states such as time and visibility */
