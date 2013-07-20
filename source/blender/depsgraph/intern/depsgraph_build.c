@@ -41,6 +41,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 
@@ -52,6 +53,34 @@
 /* ************************************************* */
 
 /* ************************************************* */
+/* AnimData */
+
+static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID *id)
+{
+	DepsNode *id_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
+	AnimData *adt = BKE_animdata_from_id(id);
+	FCurve *fcu;
+	
+	BLI_assert(adt != NULL);
+	
+	/* animation */
+	if (adt->action || adt->nla_tracks.first) {
+		/* create "animation" data node for this block */
+		
+		/* attach AnimData node to ID block it affects */
+		
+		/* wire up dependencies to other AnimData nodes + */
+		// XXX: this step may have to be done later...
+	}
+	
+	/* drivers */
+	for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
+		// 
+	}
+}
+
+
+/* ************************************************* */
 /* Objects */
 
 static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, Object *ob)
@@ -61,11 +90,6 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	ModifierData *md;
 	
 	/* create node for object itself */
-	// XXX: directly using this name may be dangerous - if object gets freed we could end up having crashes
-	/* XXX: we have a problem here - other nodes we depend on may not exist yet (likewise, others that depend 
-	 * on us may have been done before us). So, we need to make it possible to let nodes hook up with whatever
-	 * they need, if/when they need it. But, this means that we need to be a bit more careful about how
-	 * this all works out... */
 	ob_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
 	
 	/* AnimData */
@@ -97,7 +121,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 		break;
 	}
 	
-		/* object constraints */
+	/* object constraints */
 	for (con = ob->constraints.first; con; con = con->next) {
 		...
 	}
@@ -106,6 +130,9 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	for (md = ob->modifiers.first; md; md = md->next) {
 		...
 	}
+	
+	/* materials */
+	...
 	
 	/* return object node... */
 	return ob_node;
@@ -119,9 +146,12 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 {
 	DepsNode *scene_node;
+	Base *base;
 	
 	/* init own node */
 	scene_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, "Scene");
+	
+	// TODO: timesource?
 	
 	/* build subgraph for set, and link this in... */
 	// XXX: depending on how this goes, that scene itself could probably store its
@@ -132,10 +162,28 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 	}
 	
 	/* scene objects */
+	for (base = scene->base.first; base; base = base->next) {
+		Object *ob = base->object;
+		
+		/* object itself */
+		deg_build_object_graph(graph, scene_node, ob);
+		
+		/* object that this is a proxy for */
+		// XXX: the way that proxies work needs to be completely reviewed!
+		if (ob->proxy) {
+			deg_build_object_graph(graph, scene_node, ob->proxy);
+		}
+	}
 	
 	/* scene's animation and drivers */
+	if (scene->adt) {
+		deg_build_animdata_graph(graph, scene_node, &scene->id);
+	}
 	
 	/* world */
+	if (scene->world) {
+	
+	}
 	
 	/* compo nodes */
 	
