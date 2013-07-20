@@ -191,7 +191,7 @@ typedef enum eDepsNode_Flag {
  */
 
 /* "ID" Datablock Node */
-typedef struct DatablockDepsNode {
+typedef struct IDDepsNode {
 	DepsNode nd;           /* standard node header */
 	
 	/* Sub-Graph 
@@ -199,7 +199,7 @@ typedef struct DatablockDepsNode {
 	 */
 	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
-} DatablockDepsNode;
+} IDDepsNode;
 
 
 /* "ID Group" Node */
