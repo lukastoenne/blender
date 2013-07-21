@@ -112,7 +112,8 @@ typedef struct DepsNodeTypeInfo {
 	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
 	
 	/* Querying ...................................... */
-	/* Does node match the (outer-node) query conditions? */
+	
+	/* Does node match the (outer-node) data-type requirements? */
 	bool (*match_outer)(DepsNode *node, ID *id, StructRNA *srna, void *data);
 	
 	// ...
