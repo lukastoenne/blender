@@ -39,7 +39,55 @@
 #include "depsgraph_intern.h"
 
 /* ******************************************************** */
+/* Outer Nodes */
 
+/* ID Node ================================================ */
+
+static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	/* add to toplevel node and graph */
+	BLI_ghash_insert(graph->nodehash, id, node);
+	BLI_addtail(graph->nodes, node);
+}
+
+/* Group Node ============================================= */
+
+
+/* Data Node ============================================== */
+
+/* Add data node to graph */
+static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	//DataDepsNode *ddn = (DataDepsNode *)node;
+	DepsNode *idnode;
+	
+	/* find parent for this node */
+	idnode = DEG_find_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
+	BLI_assert(idnode != NULL);
+	
+	/* attach to owner */
+	node->owner = idnode;
+	
+	if (idnode->type == DEPSNODE_TYPE_OUTER_ID) {
+		/* id */
+	}
+	else {
+		/* group */
+	}
+}
+
+/* ******************************************************** */
+/* Inner Nodes */
+
+/* ******************************************************** */
+/* Internal API */
+
+/* Make a group from the two given outer nodes */
+DepsNode *DEG_group_cyclic_nodes(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
+{
+	// TODO...
+	return NULL;
+}
 
 /* ******************************************************** */
 /* External API */

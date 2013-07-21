@@ -98,7 +98,7 @@ typedef struct DepsNodeTypeInfo {
 	void (*init_data)(DepsNode *node, ID *id, StructRNA *srna, void *data);
 	
 	/* Add node to graph */
-	void (*add_to_graph)(Depsgraph *graph, DepsNode *node);
+	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, ID *id);
 	
 	/* Free node-specific data, but not node itself */
 	void (*free_data)(DepsNode *node);
