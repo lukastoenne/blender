@@ -38,24 +38,16 @@
 
 /* Graph Building/Low-Level Querying =============================== */
 
-/* Basics ---------------------------------------------------------- */
+/* Node Querying --------------------------------------------------- */
 
-/* Always add a new (outer) node 
+/* Find an outer node with characteristics matching the specified info 
+ 
  * < graph: dependency graph that node will be part of
  * < type: type of outer-node to create. Inner nodes cannot be created using this method
  * < id: ID block that is associated with this data [<-- XXX: may not be supported/needed for ops?]
  *
  * < (data): sub-ID data that node refers to (if applicable)
  * < (srna): typeinfo for data, which makes it easier to keep track of what it is (if applicable)
- *
- * > returns: The new node created (of the specified type) which now exists in the graph already
- *            (i.e. even if an ID node was created first, the inner node would get created first)
- */
-DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
-
-
-/* Find an outer node with characteristics matching the specified info 
- * ! Arguments are as for DEG_add_node()
  *
  * > returns: A node matching the required characteristics if it exists
  *            OR NULL if no such node exists in the graph
@@ -65,11 +57,21 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 
 /* Get the (outer) node with data matching the requested characteristics
  * ! New nodes are created if no matching nodes exist...
- * ! Arguments are as for DEG_add_node()
+ * ! Arguments are as for DEG_find_node()
  *
  * > returns: A node matching the required characteristics that exists in the graph
  */
 DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
+
+/* Node Management ---------------------------------------------------- */
+
+/* Always add a new (outer) node 
+ * ! Arguments are as for DEG_find_node()
+ *
+ * > returns: The new node created (of the specified type) which now exists in the graph already
+ *            (i.e. even if an ID node was created first, the inner node would get created first)
+ */
+DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
 
 /* Groups ------------------------------------------------------------- */
