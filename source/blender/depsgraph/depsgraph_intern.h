@@ -65,6 +65,15 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 
 /* Node Management ---------------------------------------------------- */
 
+/* Create a new node, but don't do anything else with it yet... 
+ * ! Ensuring that the node is properly initialised is the responsibility
+ *   of whoever is calling this...
+ *
+ * > returns: The new node created (of the specified type), but which hasn't been added to
+ *            the graph yet (callers need to do this manually, as well as other initialisations)
+ */
+DepsNode *DEG_create_node(eDepsNode_Type type);
+
 /* Always add a new (outer) node 
  * ! Arguments are as for DEG_find_node()
  *

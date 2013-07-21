@@ -188,7 +188,7 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 /* Add/Remove/Copy ----------------------------------- */
 
 /* Create a new node, but don't do anything else with it yet... */
-static DepsNode *deg_create_node(eDepsNode_Type type)
+DepsNode *DEG_create_node(eDepsNode_Type type)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
