@@ -81,7 +81,7 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
  * < node2: (DatablockDepsNode)
  * > return: (GroupDepsNode) either a new group node, or node1 if that was a group already
  */
-DepsNode *DEG_group_cyclic_nodes(Depsgraph *graph, DepsNode *node1, DepsNode *node2);
+DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2);
 
 
 /* Node Types Handling ================================================= */

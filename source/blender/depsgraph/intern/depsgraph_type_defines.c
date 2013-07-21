@@ -176,7 +176,7 @@ static DepsNodeTypeInfo DNTI_DATA = {
 /* Internal API */
 
 /* Make a group from the two given outer nodes */
-DepsNode *DEG_group_cyclic_nodes(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
+DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
 {
 	// TODO...
 	return NULL;
