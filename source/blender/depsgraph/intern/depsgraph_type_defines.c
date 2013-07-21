@@ -227,7 +227,20 @@ static DepsNodeTypeInfo DNTI_DATA = {
 /* Make a group from the two given outer nodes */
 DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
 {
-	// TODO...
+	eDepsNode_Type t1 = node1->type;
+	eDepsNode_Type t2 = node2->type;
+	
+	/* check node types to see what scenario we're dealing with... */
+	if ((t1 == DEPSNODE_TYPE_OUTER_ID) && (t2 == DEPSNODE_TYPE_OUTER_ID)) {
+		/* create new group, and add both to it */
+	}
+	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
+		/* merge the groups */
+	}
+	else {
+		/* add ID to whatever one is a group */
+	}
+	
 	return NULL;
 }
 
