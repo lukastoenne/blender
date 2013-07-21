@@ -58,21 +58,27 @@ static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id
 /* Add data node to graph */
 static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	//DataDepsNode *ddn = (DataDepsNode *)node;
-	DepsNode *idnode;
+	DepsNode *id_node;
 	
 	/* find parent for this node */
-	idnode = DEG_find_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
-	BLI_assert(idnode != NULL);
+	id_node = DEG_find_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
+	BLI_assert(id_node != NULL);
 	
 	/* attach to owner */
-	node->owner = idnode;
+	node->owner = id_node;
 	
-	if (idnode->type == DEPSNODE_TYPE_OUTER_ID) {
-		/* id */
+	if (id_node->type == DEPSNODE_TYPE_OUTER_ID) {
+		IDDepsNode *id_data = (IDDepsNode *)id_node;
+		
+		/* ID Node - data node is "subdata" here... */
+		BLI_addtail(&id_data->subdata, node);
 	}
 	else {
-		/* group */
+		GroupDepsNode *grp_data = (GroupDepsNode *)id_node;
+		
+		/* Group Node */
+		// XXX: for quicker checks, it may be nice to be able to have "ID + data" subdata node hash?
+		BLI_addtail(&grp_data->subdaa, node);
 	}
 }
 
