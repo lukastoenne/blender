@@ -190,27 +190,40 @@ typedef enum eDepsNode_Flag {
  * operations code won't really find this too painful...
  */
 
+/* "Standard" Datablock Node Header 
+ * NOTE: This is used as the start of both IDDepsNode and GroupDepsNode,
+ *       so any changes here need to be propagated down to both of these.
+ *       We do this so that ID nodes and Groups can be used interchangably.
+ */
+typedef struct OuterIdDepsNodeTemplate {
+	DepsNode nd;          /* standard node header */
+	
+	ListBase subdata;     /* ([DepsNode]) sub-data "data" nodes - where appropriate */
+	ListBase nodes;       /* ([DepsNode]) "inner" nodes ready to be executed */
+} OuterIdDepsNodeTemplate;
+
+
 /* "ID" Datablock Node */
 typedef struct IDDepsNode {
+	/* OuterIdDepsNodeTemplate... */
 	DepsNode nd;           /* standard node header */
-	
-	/* Sub-Graph 
-	 * NOTE: Keep this in sync with GroupDepsNode!
-	 */
 	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
+	
+	
+	/* ID-Node specific data */
+	ID *id;                /* ID-block that this node represents */
 } IDDepsNode;
 
 
 /* "ID Group" Node */
 typedef struct GroupDepsNode {
+	/* OuterIdDepsNodeTemplate... */
 	DepsNode nd;           /* standard node header */
 	
-	/* Sub-Graph
-	 * WARNING: Keep this in sync with IDDepsNode!
-	 */
 	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
+	
 	
 	/* Headline Section - Datablocks which cannot be evaluated separately from each other */
 	ListBase id_blocks;    /* (LinkData : ID) ID datablocks involved in group */

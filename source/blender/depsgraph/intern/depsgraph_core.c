@@ -94,12 +94,12 @@ static DepsNode *deg_find_node__data_match(Depsgraph *graph, ID *id, StructRNA *
 	DepsNode *id_node = deg_find_node__id_match(graph, id);
 	
 	if (id_node) {
+		const OuterIdDepsNodeTemplate *outer_data = (OuterIdDepsNodeTemplate *)id_node;
 		const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(DEPSNODE_TYPE_DATA);
-		const IDDepsNode *id_data   = (IDDepsNode *)id_node; /* NOTE: the start of ID/Group nodes look the same so that we can do this... */
 		DepsNode *node;
 		
 		/* find data-node within this ID-block which matches this */
-		for (node = id_data->subdata.first; node; node = node->next) {
+		for (node = outer_data->subdata.first; node; node = node->next) {
 			// XXX: for now, assume that all have same type (DEPSNODE_TYPE_DATA)
 			if (nti->match_outer(node, id, srna, data)) {
 				/* match! */
