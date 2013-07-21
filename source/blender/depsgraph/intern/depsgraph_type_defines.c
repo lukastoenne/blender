@@ -287,6 +287,9 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		
 		/* add group to graph */
 		nti->add_to_graph(graph, group, NULL);
+		
+		/* free nodes */
+		// XXX: they've already removed the hash links!!!
 	}
 	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
 		/* merge the groups - node1 becomes base */
@@ -303,6 +306,9 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		
 		/* copy over node2's data */
 		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
+		
+		/* free node2 */
+		// XXX: they've already removed the hash links!!!
 		
 		/* node 1 becomes base... */
 		result = node1;
@@ -333,6 +339,9 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		
 		/* add ID's data to this group */
 		transfer_nodegraph_to_group(graph, group, idnode);
+		
+		/* free nodes */
+		// XXX: they've already removed the hash links!!!
 	}
 	
 	/* return group containing both of these */
