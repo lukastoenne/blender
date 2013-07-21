@@ -56,7 +56,7 @@
 /* find node where type matches (and outer-match function returns true) */
 static DepsNode *deg_find_node__generic_type_match(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
-	DepsNodeTypeInfo *nti = DEG_get_typeinfo(type);
+	DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
 	
 	for (node = graph->nodes.first; node; node = node->next) {
@@ -94,7 +94,7 @@ static DepsNode *deg_find_node__data_match(Depsgraph *graph, ID *id, StructRNA *
 	DepsNode *id_node = deg_find_node__id_match(graph, id);
 	
 	if (id_node) {
-		const DepsNodeTypeInfo *nti = DEG_get_typeinfo(DEPSNODE_TYPE_DATA);
+		const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(DEPSNODE_TYPE_DATA);
 		const IDDepsNode *id_data   = (IDDepsNode *)id_node; /* NOTE: the start of ID/Group nodes look the same so that we can do this... */
 		DepsNode *node;
 		
@@ -111,6 +111,7 @@ static DepsNode *deg_find_node__data_match(Depsgraph *graph, ID *id, StructRNA *
 	/* no matching nodes found */
 	return NULL;
 }
+
 
 /* Find matching node */
 DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
@@ -157,6 +158,10 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 			result = deg_find_node__data_match(graph, id, srna, data);
 		}
 			break;
+			
+		default:
+			/* Unhandled... */
+			break;
 	}
 	
 	return result;
@@ -167,7 +172,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 /* Add a new outer node */
 DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
-	const DepsNodeTypeInfo *nti = DEG_get_typeinfo(type);
+	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node = NULL;
 	
 	BLI_assert(nti != NULL);

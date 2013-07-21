@@ -155,7 +155,7 @@ void DEG_free_node_types(void)
 /* Getters ------------------------------------------------- */
 
 /* Get typeinfo for specified type */
-DepsNodeTypeInfo *DEG_get_typeinfo(eDepsNode_Type type)
+DepsNodeTypeInfo *DEG_get_node_typeinfo(eDepsNode_Type type)
 {
 	DepsNodeTypeInfo *nti = NULL;
 	
@@ -169,7 +169,7 @@ DepsNodeTypeInfo *DEG_node_get_typeinfo(DepsNode *node)
 	DepsNodeTypeInfo *nti = NULL;
 	
 	if (node) {
-		nti = DEG_get_typeinfo(node->type);
+		nti = DEG_get_node_typeinfo(node->type);
 	}
 	return nti;
 }
