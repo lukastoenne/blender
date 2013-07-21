@@ -75,9 +75,20 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 /* Group Node ============================================= */
 
 /* Add 'group' node to graph */
-static void dnti_outer_group__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_outer_group__add_to_graph(Depsgraph *graph, DepsNode *node, ID *UNUSED(dummy))
 {
+	GroupDepsNode *group = (GroupDepsNode *)node;
+	LinkData *ld;
 	
+	/* add node to toplevel */
+	BLI_addtail(&graph->nodes, node);
+	
+	/* add all ID links that node has */
+	// XXX: probably there won't actually be any, unless we hijack the adding process...
+	for (ld = group->id_blocks.first; ld; ld = ld->next) {
+		ID *id = (ID *)ld->data;
+		BLI_ghash_insert(graph->nodehash, id, node);
+	}
 }
 
 /* Group Node Type Info */
