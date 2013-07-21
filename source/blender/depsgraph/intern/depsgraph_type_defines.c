@@ -255,23 +255,38 @@ static void transfer_nodegraph_to_group(Depsgraph *graph, GroupDepsNode *group, 
 /* Make a group from the two given outer nodes */
 DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
 {
-	eDepsNode_Type t1 = node1->type;
-	eDepsNode_Type t2 = node2->type;
+	const eDepsNode_Type t1 = node1->type;
+	const eDepsNode_Type t2 = node2->type;
 	DepsNode *result = NULL;
 	
 	/* check node types to see what scenario we're dealing with... */
 	if ((t1 == DEPSNODE_TYPE_OUTER_ID) && (t2 == DEPSNODE_TYPE_OUTER_ID)) {
 		/* create new group, and add both to it */
+		const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(DEPSNODE_TYPE_OUTER_GROUP);
+		IDDepsNode *id1 = (IDDepsNode *)node1;
+		IDDepsNode *id2 = (IDDepsNode *)node2;
 		GroupDepsNode *group;
 		
 		/* create group... */
-		// FIXME: we need to be able to just create a node, fill it out, and then finally push it onto stack only when ready...
-		result = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_GROUP, NULL, NULL, NULL);
+		result = DEG_create_node(DEPSNODE_TYPE_OUTER_GROUP);
 		group = (GroupDepsNode *)result;
 		
-		/* transfer data */
-		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node1);
-		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
+		/* transfer node data */
+		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)id1);
+		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)id2);
+		
+		/* redirect links + set up headliner section */
+		BLI_ghash_remove(graph->nodehash, id1->id, NULL, NULL);
+		BLI_ghash_remove(graph->nodehash, id2->id, NULL, NULL);
+		
+		BLI_ghash_insert(graph->nodehash, id1->id, group);
+		BLI_ghash_insert(graph->nodehash, id2->id, group);
+		
+		BLI_addtail(&group->id_blocks, BLI_genericNodeN(id1->id));
+		BLI_addtail(&group->id_blocks, BLI_genericNodeN(id2->id));
+		
+		/* add group to graph */
+		nti->add_to_graph(graph, group, NULL);
 	}
 	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
 		/* merge the groups - node1 becomes base */
@@ -313,6 +328,8 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		/* redirect node-hash + ID-link references */
 		BLI_ghash_remove(graph->nodehash, idnode->id, NULL, NULL);
 		BLI_ghash_insert(graph->nodehash, idnode->id, group);
+		
+		BLI_addtail(&group->id_blocks, BLI_genericNodeN(idnode->id));
 		
 		/* add ID's data to this group */
 		transfer_nodegraph_to_group(graph, group, idnode);
