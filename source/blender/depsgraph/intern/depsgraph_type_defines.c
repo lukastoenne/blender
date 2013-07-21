@@ -28,12 +28,16 @@
  
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_depsgraph.h"
+
+#include "RNA_access.h"
+#include "RNA_types.h"
 
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
@@ -43,6 +47,7 @@
 
 /* ID Node ================================================ */
 
+/* Add 'id' node to graph */
 static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
 	/* add to toplevel node and graph */
@@ -52,10 +57,15 @@ static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id
 
 /* Group Node ============================================= */
 
+/* Add 'group' node to graph */
+static void dnti_outer_group__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	
+}
 
 /* Data Node ============================================== */
 
-/* Add data node to graph */
+/* Add 'data' node to graph */
 static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
 	DepsNode *id_node;

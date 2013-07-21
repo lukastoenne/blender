@@ -45,6 +45,8 @@
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 
+#include "RNA_access.h"
+#include "RNA_types.h"
 
 #include "depsgraph_types.h"
 #include "depsgraph_eval.h"
