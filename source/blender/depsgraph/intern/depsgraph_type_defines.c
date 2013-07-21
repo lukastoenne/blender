@@ -269,10 +269,8 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		result = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_GROUP, NULL, NULL, NULL);
 		group = (GroupDepsNode *)result;
 		
-		/* add ID-1 */
+		/* transfer data */
 		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node1);
-		
-		/* add ID-2 */
 		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
 	}
 	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
@@ -281,14 +279,11 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		GroupDepsNode *g2 = (GroupDepsNode *)node2;
 		LinkData *ld;
 		
-		/* 1) headliner section (ID-blocks) ---- */
-		/* 1.1 - redirect ID-node lookups */
+		/* redirect node-hash + ID-link references */
 		for (ld = g2->id_blocks.first; ld; ld = ld->next) {
 			BLI_ghash_remove(graph->nodehash, ld->data, NULL, NULL);
 			BLI_ghash_insert(graph->nodehash, ld->data, g1);
 		}
-		
-		/* 1.2 - move over the list directly */
 		BLI_movelisttolist(&g1->id_blocks, &g2->id_blocks);
 		
 		/* copy over node2's data */
@@ -315,7 +310,11 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 			idnode = (OuterIdDepsNodeTemplate *)node1;
 		}
 		
-		/* add ID to this group */
+		/* redirect node-hash + ID-link references */
+		BLI_ghash_remove(graph->nodehash, idnode->id, NULL, NULL);
+		BLI_ghash_insert(graph->nodehash, idnode->id, group);
+		
+		/* add ID's data to this group */
 		transfer_nodegraph_to_group(graph, group, idnode);
 	}
 	
