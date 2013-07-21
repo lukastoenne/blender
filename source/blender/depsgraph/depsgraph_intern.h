@@ -73,6 +73,10 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
  */
 DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
+/* Make a (deep) copy of provided node and it's little subgraph
+ * ! Newly created node is not added to the existing graph
+ */
+DepsNode *DEG_copy_node(const DepsNode *node);
 
 /* Groups ------------------------------------------------------------- */
 

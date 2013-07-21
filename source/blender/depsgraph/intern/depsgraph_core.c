@@ -187,19 +187,32 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 
 /* Add/Remove/Copy ----------------------------------- */
 
-/* Add a new outer node */
-DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
+/* Create a new node, but don't do anything else with it yet... */
+static DepsNode *deg_create_node(eDepsNode_Type type)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
-	DepsNode *node = NULL;
-	
-	BLI_assert(nti != NULL);
+	DepsNode *node;
 	
 	/* create node data... */
 	node = MEM_callocN(nti->size, nti->name);
 	node->type = type;
 	
-	/* node-specific data init */
+	/* return newly created node data for more specialisation... */
+	return node;
+}
+
+/* Add a new outer node */
+DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
+{
+	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
+	DepsNode *node;
+	
+	BLI_assert(nti != NULL);
+	
+	/* create node data... */
+	node = deg_create_node(type);
+	
+	/* type-specific data init */
 	if (nti->init_data) {
 		nti->init_data(node, id, srna, data);
 	}
@@ -209,6 +222,52 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 	
 	/* return the newly created node matching the description */
 	return node;
+}
+
+/* Create a copy of provided node */
+DepsNode *DEG_copy_node(const DepsNode *src)
+{
+	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
+	DepsNode *dst;
+	
+	/* sanity check */
+	if (src == NULL)
+		return NULL;
+	
+	/* allocate new node, and brute-force copy over all "basic" data */
+	dst = deg_create_node(src->type);
+	memcpy(dst, src, nti->size);
+	
+	/* now, fix up any links in standard "node header" (i.e. DepsNode struct, that all 
+	 * all others are derived from) that are now corrupt 
+	 */
+	{
+		//LinkData *ld;
+		
+		/* not assigned to graph... */
+		dst->next = dst->prev = NULL;
+		dst->owner = NULL;
+		
+		/* make a new copy of name (if necessary) */
+		if (dst->flag & DEPSNODE_FLAG_NAME_NEEDS_FREE) {
+			dst->name = BLI_strdup(dst->name);
+		}
+		
+		// FIXME: how to handle links? We may only have partial set of all nodes still?
+		// XXX: the exact details of how to handle this are really part of the querying API...
+		
+		/* clear traversal data */
+		dst->valency = 0;
+		dst->lasttime = 0;
+	}
+	
+	/* fix up type-specific data (and/or subtree...) */
+	if (nti->copy_data) {
+		nti->copy_data(dst, src);
+	}
+	
+	/* return copied node */
+	return dst;
 }
 
 
