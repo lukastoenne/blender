@@ -55,6 +55,23 @@ static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id
 	BLI_addtail(graph->nodes, node);
 }
 
+
+/* ID Node Type Info */
+static DepsNodeTypeInfo DNTI_OUTER_ID = {
+	/* type */               DEPSNODE_TYPE_OUTER_ID,
+	/* size */               sizeof(IDDepsNode),
+	/* name */               "ID Node",
+	
+	/* init_data() */        NULL,
+	/* add_to_graph() */     dnti_outer_id__add_to_graph,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* match_outer() */      NULL, // XXX...
+	
+	/* build_subgraph() */   NULL
+};
+
 /* Group Node ============================================= */
 
 /* Add 'group' node to graph */
@@ -62,6 +79,22 @@ static void dnti_outer_group__add_to_graph(Depsgraph *graph, DepsNode *node, ID 
 {
 	
 }
+
+/* Group Node Type Info */
+static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
+	/* type */               DEPSNODE_TYPE_OUTER_GROUP,
+	/* size */               sizeof(GroupDepsNode),
+	/* name */               "ID Group Node",
+	
+	/* init_data() */        NULL,
+	/* add_to_graph() */     dnti_outer_group__add_to_graph,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* match_outer() */      NULL, // XXX...
+	
+	/* build_subgraph() */   NULL
+};
 
 /* Data Node ============================================== */
 
@@ -91,6 +124,23 @@ static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 		BLI_addtail(&grp_data->subdaa, node);
 	}
 }
+
+
+/* Data Node Type Info */
+static DepsNodeTypeInfo DNTI_DATA = {
+	/* type */               DEPSNODE_TYPE_DATA,
+	/* size */               sizeof(DataDepsNode),
+	/* name */               "ID Group Node",
+	
+	/* init_data() */        NULL,
+	/* add_to_graph() */     dnti_data__add_to_graph,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* match_outer() */      NULL, // XXX...
+	
+	/* build_subgraph() */   NULL
+};
 
 /* ******************************************************** */
 /* Inner Nodes */
