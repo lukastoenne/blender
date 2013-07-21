@@ -224,24 +224,103 @@ static DepsNodeTypeInfo DNTI_DATA = {
 /* ******************************************************** */
 /* Internal API */
 
+/* Helper function - Transfer links from ID/Group node over to Group 
+ * > group: the group where data should be sent
+ * < src: the ID/Group node where data is coming from
+ */
+static void transfer_nodegraph_to_group(Depsgraph *graph, GroupDepsNode *group, OuterIdDepsNodeTemplate *src)
+{
+	DepsNode *node;
+	
+	/* redirect relationships from src to group */
+	// TODO...
+	
+	/* redirect owner values to point to group... */
+	for (node = src->subdata.first; node; node = node->next) {
+		/* BLI_assert(node->owner == src); */
+		node->owner = group;
+	}
+	
+	for (node = src->nodes.first; node; node = node->next) {
+		/* some may point to subdata node, which will just be transfered straight across... */
+		if (node->owner == src)
+			node->owner = group;
+	}
+	
+	/* move the lists over directly */
+	BLI_movelisttolist(&group->subdata, &src->subdata);
+	BLI_movelisttolist(&group->nodes, &src->nodes);
+}
+
 /* Make a group from the two given outer nodes */
 DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
 {
 	eDepsNode_Type t1 = node1->type;
 	eDepsNode_Type t2 = node2->type;
+	DepsNode *result = NULL;
 	
 	/* check node types to see what scenario we're dealing with... */
 	if ((t1 == DEPSNODE_TYPE_OUTER_ID) && (t2 == DEPSNODE_TYPE_OUTER_ID)) {
 		/* create new group, and add both to it */
+		GroupDepsNode *group;
+		
+		/* create group... */
+		// FIXME: we need to be able to just create a node, fill it out, and then finally push it onto stack only when ready...
+		result = DEG_add_node(graph, DEPSNODE_TYPE_OUTER_GROUP, NULL, NULL, NULL);
+		group = (GroupDepsNode *)result;
+		
+		/* add ID-1 */
+		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node1);
+		
+		/* add ID-2 */
+		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
 	}
 	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
-		/* merge the groups */
+		/* merge the groups - node1 becomes base */
+		GroupDepsNode *g1 = (GroupDepsNode *)node1;
+		GroupDepsNode *g2 = (GroupDepsNode *)node2;
+		LinkData *ld;
+		
+		/* 1) headliner section (ID-blocks) ---- */
+		/* 1.1 - redirect ID-node lookups */
+		for (ld = g2->id_blocks.first; ld; ld = ld->next) {
+			BLI_ghash_remove(graph->nodehash, ld->data, NULL, NULL);
+			BLI_ghash_insert(graph->nodehash, ld->data, g1);
+		}
+		
+		/* 1.2 - move over the list directly */
+		BLI_movelisttolist(&g1->id_blocks, &g2->id_blocks);
+		
+		/* copy over node2's data */
+		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
+		
+		/* node 1 becomes base... */
+		result = node1;
 	}
 	else {
 		/* add ID to whatever one is a group */
+		GroupDepsNode *group;
+		OuterIdDepsNodeTemplate *idnode;
+		
+		if (t1 == DEPSNODE_TYPE_OUTER_GROUP) {
+			result = node1;
+			
+			group = (GroupDepsNode *)node1;
+			idnode = (OuterIdDepsNodeTemplate *)node2;
+		}
+		else {
+			result = node2;
+			
+			group = (GroupDepsNode *)node2;
+			idnode = (OuterIdDepsNodeTemplate *)node1;
+		}
+		
+		/* add ID to this group */
+		transfer_nodegraph_to_group(graph, group, idnode);
 	}
 	
-	return NULL;
+	/* return group containing both of these */
+	return (DepsNode *)result;
 }
 
 /* ******************************************************** */
