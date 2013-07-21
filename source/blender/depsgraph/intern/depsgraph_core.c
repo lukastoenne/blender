@@ -167,7 +167,25 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 	return result;
 }
 
-/* Get/Add Node ----------------------------------------- */
+/* Get Node ----------------------------------------- */
+
+/* Get a matching node, creating one if need be */
+DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
+{
+	DepsNode *node;
+	
+	/* firstly try to get an existing node... */
+	node = DEG_find_node(graph, type, id, srna, data);
+	if (node == NULL) {
+		/* nothing exists, so create one instead! */
+		node = DEG_add_node(graph, type, id, srna, data);
+	}
+	
+	/* return the node - it must exist now... */
+	return node;
+}
+
+/* Add/Remove/Copy ----------------------------------- */
 
 /* Add a new outer node */
 DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
@@ -193,21 +211,6 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 	return node;
 }
 
-/* Get a matching node, creating one if need be */
-DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
-{
-	DepsNode *node;
-	
-	/* firstly try to get an existing node... */
-	node = DEG_find_node(graph, type, id, srna, data);
-	if (node == NULL) {
-		/* nothing exists, so create one instead! */
-		node = DEG_add_node(graph, type, id, srna, data);
-	}
-	
-	/* return the node - it must exist now... */
-	return node;
-}
 
 /* ************************************************** */
 /* Public API */
