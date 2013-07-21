@@ -207,7 +207,7 @@ typedef struct GroupDepsNode {
 	DepsNode nd;           /* standard node header */
 	
 	/* Sub-Graph
-	 * WARNING: Keep this in sync with DatablockDepsNode!
+	 * WARNING: Keep this in sync with IDDepsNode!
 	 */
 	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
