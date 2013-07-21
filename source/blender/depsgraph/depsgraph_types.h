@@ -146,6 +146,8 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OUTER_GROUP = 11,       /* ID Group */
 	DEPSNODE_TYPE_OUTER_OP    = 12,       /* Inter-datablock operation */
 	
+	DEPSNODE_TYPE_SUBGRAPH    = 13,       /* For duplis, referenced nodes should be treated as a separate graph from others */
+	
 	/* "Data" Nodes (sub-datablock level) */
 	DEPSNODE_TYPE_DATA        = 50,       /* Sub-datablock "data" (i.e. driver, bone, constraint, modifier) */
 	
