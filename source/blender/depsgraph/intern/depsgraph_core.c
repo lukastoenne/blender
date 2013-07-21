@@ -242,8 +242,6 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 	 * all others are derived from) that are now corrupt 
 	 */
 	{
-		//LinkData *ld;
-		
 		/* not assigned to graph... */
 		dst->next = dst->prev = NULL;
 		dst->owner = NULL;
@@ -253,8 +251,12 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 			dst->name = BLI_strdup(dst->name);
 		}
 		
+		/* relationships to other nodes... */
 		// FIXME: how to handle links? We may only have partial set of all nodes still?
 		// XXX: the exact details of how to handle this are really part of the querying API...
+		// XXX: BUT, for copying subgraphs, we'll need to define an API for doing this stuff anyways
+		dst->inlinks.first = dst->inlinks.last = NULL;
+		dst->outlinks.first = dst->outlinks.last = NULL;
 		
 		/* clear traversal data */
 		dst->valency = 0;
