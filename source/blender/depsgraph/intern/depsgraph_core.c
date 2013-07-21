@@ -87,6 +87,31 @@ static DepsNode *deg_find_node__id_match(Depsgraph *graph, ID *id)
 	return BLI_ghash_lookup(graph->nodehash, id);
 }
 
+/* find node where data matches */
+static DepsNode *deg_find_node__data_match(Depsgraph *graph, ID *id, StructRNA *srna, void *data)
+{
+	/* first, narrow-down the search space to the ID-block this data is attached to */
+	DepsNode *id_node = deg_find_node__id_match(graph, id);
+	
+	if (id_node) {
+		const DepsNodeTypeInfo *nti = DEG_get_typeinfo(DEPSNODE_TYPE_DATA);
+		const IDDepsNode *id_data   = (IDDepsNode *)id_node; /* NOTE: the start of ID/Group nodes look the same so that we can do this... */
+		DepsNode *node;
+		
+		/* find data-node within this ID-block which matches this */
+		for (node = id_data->subdata.first; node; node = node->next) {
+			// XXX: for now, assume that all have same type (DEPSNODE_TYPE_DATA)
+			if (nti->match_outer(node, id, srna, data)) {
+				/* match! */
+				return node;
+			}
+		}
+	}
+	
+	/* no matching nodes found */
+	return NULL;
+}
+
 /* Find matching node */
 DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
@@ -129,12 +154,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 			
 		case DEPSNODE_TYPE_DATA:        /* Data (i.e. Bones, Drivers, etc.) */
 		{
-			DepsNode *id_node = deg_find_node__id_match(graph, id);
-			
-			if (id_node) {
-				/* find data-node which matches this */
-				
-			}
+			result = deg_find_node__data_match(graph, id, srna, data);
 		}
 			break;
 	}
