@@ -177,13 +177,11 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 	node->type = type;
 	
 	/* node-specific data init */
-	// XXX: need some way of setting owner...
 	if (nti->init_data) {
 		nti->init_data(node, id, srna, data);
 	}
 	
 	/* add node to graph */
-	// XXX: remember to add to both nodelist + nodehash (when adding to toplevel)
 	nti->add_to_graph(graph, node, id);
 	
 	/* return the newly created node matching the description */
