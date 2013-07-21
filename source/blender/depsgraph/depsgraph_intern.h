@@ -97,14 +97,17 @@ typedef struct DepsNodeTypeInfo {
 	/* Initialise node-specific data - the node already exists */
 	void (*init_data)(DepsNode *node, ID *id, StructRNA *srna, void *data);
 	
-	/* Add node to graph */
-	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, ID *id);
-	
 	/* Free node-specific data, but not node itself */
 	void (*free_data)(DepsNode *node);
 	
 	/* Make a copy of "src" node's data over to "dst" node */
 	void (*copy_data)(DepsNode *dst, const DepsNode *src);
+	
+	/* Add node to graph */
+	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, ID *id);
+	
+	/* Remove node from graph - Only use when node is to be replaced... */
+	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
 	
 	/* Querying ...................................... */
 	/* Does node match the (outer-node) query conditions? */

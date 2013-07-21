@@ -52,9 +52,19 @@ static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id
 {
 	/* add to toplevel node and graph */
 	BLI_ghash_insert(graph->nodehash, id, node);
-	BLI_addtail(graph->nodes, node);
+	BLI_addtail(&graph->nodes, node);
 }
 
+/* Remove 'id' node from graph - to be replaced with a group perhaps */
+static void dnti_outer_id__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	/* remove toplevel node and hash entry
+	 * NOTE: these will be replaced with new versions later
+	 *       and the other links can be redirected non-destructively
+	 */
+	BLI_ghash_remove(graph->nodehash, id, NULL, NULL);
+	BLI_remlink(&graph->nodes, node);
+}
 
 /* ID Node Type Info */
 static DepsNodeTypeInfo DNTI_OUTER_ID = {
@@ -63,9 +73,11 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 	/* name */               "ID Node",
 	
 	/* init_data() */        NULL,
-	/* add_to_graph() */     dnti_outer_id__add_to_graph,
 	/* free_data() */        NULL,
 	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_outer_id__add_to_graph,
+	/* remove_from_graph()*/ dnti_outer_id__remove_from_graph,
 	
 	/* match_outer() */      NULL, // XXX...
 	
@@ -98,9 +110,11 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 	/* name */               "ID Group Node",
 	
 	/* init_data() */        NULL,
-	/* add_to_graph() */     dnti_outer_group__add_to_graph,
 	/* free_data() */        NULL,
 	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_outer_group__add_to_graph,
+	/* remove_from_graph()*/ dnti_outer_group__remove_from_graph,
 	
 	/* match_outer() */      NULL, // XXX...
 	
@@ -144,9 +158,11 @@ static DepsNodeTypeInfo DNTI_DATA = {
 	/* name */               "ID Group Node",
 	
 	/* init_data() */        NULL,
-	/* add_to_graph() */     dnti_data__add_to_graph,
 	/* free_data() */        NULL,
 	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_data__add_to_graph,
+	/* remove_from_graph()*/ dnti_data__remove_from_graph,
 	
 	/* match_outer() */      NULL, // XXX...
 	
