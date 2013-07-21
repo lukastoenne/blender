@@ -225,6 +225,7 @@ DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 }
 
 /* Create a copy of provided node */
+// FIXME: the handling of sub-nodes and links will need to be subject to filtering options...
 DepsNode *DEG_copy_node(const DepsNode *src)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
@@ -254,7 +255,9 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 		/* relationships to other nodes... */
 		// FIXME: how to handle links? We may only have partial set of all nodes still?
 		// XXX: the exact details of how to handle this are really part of the querying API...
+		
 		// XXX: BUT, for copying subgraphs, we'll need to define an API for doing this stuff anyways
+		// (i.e. for resolving and patching over links that exist within subtree...)
 		dst->inlinks.first = dst->inlinks.last = NULL;
 		dst->outlinks.first = dst->outlinks.last = NULL;
 		

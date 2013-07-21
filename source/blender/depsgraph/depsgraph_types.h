@@ -207,6 +207,7 @@ typedef struct OuterIdDepsNodeTemplate {
 typedef struct IDDepsNode {
 	/* OuterIdDepsNodeTemplate... */
 	DepsNode nd;           /* standard node header */
+	
 	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
 	

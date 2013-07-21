@@ -47,6 +47,42 @@
 
 /* ID Node ================================================ */
 
+/* Ensure that outer node gets copied correctly */
+static void dnti_outer_node__copy_data(DepsNode *dst_node, const DepsNode *src_node)
+{
+	const OuterIdDepsNodeTemplate *src = (const OuterIdDepsNodeTemplate *)src_node;
+	OuterIdDepsNodeTemplate *dst       = (OuterIdDepsNodeTemplate *)dst_node;
+	
+	/* copy subdata nodes */
+	if (src->subdata.first) {
+		DepsNode *itA;
+		
+		/* 1) make valid copies of each node */
+		for (itA = src->subdata.first; itA; itA = itA->next) {
+			DepsNode *node = DEG_copy_node(itA);
+			BLI_addtail(&dst->subdata, node);
+		}
+		
+		/* 2) hook them up correctly again */
+		// ...?
+	}
+	
+	/* copy inner nodes */
+	// XXX: perhaps we only need generic logic for this which can be copied/linked around?
+	{
+		DepsNode *itA;
+		
+		/* 1) make valid copies of each node */
+		for (itA = src->nodes.first; itA; itA = itA->next) {
+			DepsNode *node = DEG_copy_node(itA);
+			BLI_addtail(&dst->nodes, node);
+		}
+		
+		/* 2) hook them up correctly again */
+		// ...?
+	}
+}
+
 /* Add 'id' node to graph */
 static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
@@ -74,7 +110,7 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 	
 	/* init_data() */        NULL,
 	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
+	/* copy_data() */        dnti_outer_node__copy_data,
 	
 	/* add_to_graph() */     dnti_outer_id__add_to_graph,
 	/* remove_from_graph()*/ dnti_outer_id__remove_from_graph,
@@ -85,6 +121,19 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 };
 
 /* Group Node ============================================= */
+
+/* Ensure that 'group' node's subgraph gets copied correctly */
+static void dnti_outer_group__copy_data(DepsNode *dst_node, const DepsNode *src_node)
+{
+	const GroupDepsNode *src = (const GroupDepsNode *)src_node;
+	GroupDepsNode *dst       = (GroupDepsNode *)dst_node;
+	
+	/* perform outer-node copying first */
+	dnti_outer_node__copy_data(dst_nod, src_node);
+	
+	/* copy headliner section - these are just LinkData's with ptrs to ID's */
+	BLI_duplicatelist(&dst->id_blocks, &src->id_blocks);
+}
 
 /* Add 'group' node to graph */
 static void dnti_outer_group__add_to_graph(Depsgraph *graph, DepsNode *node, ID *UNUSED(dummy))
@@ -111,7 +160,7 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 	
 	/* init_data() */        NULL,
 	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
+	/* copy_data() */        dnti_outer_group__copy_data,
 	
 	/* add_to_graph() */     dnti_outer_group__add_to_graph,
 	/* remove_from_graph()*/ dnti_outer_group__remove_from_graph,
