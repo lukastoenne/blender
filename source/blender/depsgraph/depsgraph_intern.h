@@ -93,6 +93,12 @@ DepsNode *DEG_copy_node(const DepsNode *node);
 /* Remove node from graph, but don't free any of its data */
 void DEG_remove_node(Depsgraph *graph, DepsNode *node);
 
+/* Free node data but not node itself 
+ * ! Node data must be separately freed by caller
+ * ! DEG_remove_node() should be called before calling this...
+ */
+void DEG_free_node(DepsNode *node)
+
 /* Groups ------------------------------------------------------------- */
 
 /* Make a group from the two given outer nodes 

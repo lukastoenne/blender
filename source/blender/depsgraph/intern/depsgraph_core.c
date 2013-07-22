@@ -185,7 +185,7 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 	return node;
 }
 
-/* Add/Remove/Copy ----------------------------------- */
+/* Add/Remove/Copy/Free ------------------------------- */
 
 /* Create a new node, but don't do anything else with it yet... */
 DepsNode *DEG_create_node(eDepsNode_Type type)
@@ -297,6 +297,33 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 	
 	/* return copied node */
 	return dst;
+}
+
+/* Free node data but not node itself
+ * - Used when removing/replacing old nodes, but also when cleaning up graph 
+ */
+void DEG_free_node(DepsNode *node)
+{
+	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
+	
+	if (node) {
+		/* free any special type-specific data */
+		if (nti && nti->free_data) {
+			nti->free_data(node);
+		}
+		
+		/* free links */
+		// XXX: review how this works!
+		BLI_freelistN(&node->inlinks);
+		BLI_freelistN(&node->outlinks);
+		
+		/* free custom name */
+		if (node->flag & DEPSNODE_FLAG_NAME_NEEDS_FREE) {
+			if (node->name) 
+				MEM_freeN(node->name);
+			node->name = NULL;
+		}
+	}
 }
 
 /* ************************************************** */
