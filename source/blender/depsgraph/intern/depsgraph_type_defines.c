@@ -224,6 +224,22 @@ static DepsNodeTypeInfo DNTI_DATA = {
 /* ******************************************************** */
 /* Internal API */
 
+/* Add ID dependency to a group 
+ * ! If graph is not NULL, nodehash will be updated to point to group...
+ */
+static void deg_group_add_id_ref(Depsgraph *graph, GroupDepsNode *group, ID *id)
+{
+	/* add ID reference to group's container */
+	BLI_addtail(&group->id_blocks, BLI_genericNodeN(id));
+	
+	/* make nodehash point to group (for lookups of id), 
+	 * but only if caller expects us to do so (graph != NULL) 
+	 */
+	if (graph) {
+		BLI_ghash_insert(graph->nodehash, id, group);
+	}
+}
+
 /* Helper function - Transfer links from ID/Group node over to Group 
  * > group: the group where data should be sent
  * < src: the ID/Group node where data is coming from
@@ -272,9 +288,6 @@ static void transfer_nodegraph_to_group(Depsgraph *graph, GroupDepsNode *group, 
 /* Make a group from the two given outer nodes */
 DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
 {
-	const DepsNodeTypeInfo *nti_gr = DEG_get_node_typeinfo(DEPSNODE_TYPE_OUTER_GROUP);
-	const DepsNodeTypeInfo *nti_id = DEG_get_node_typeinfo(DEPSNODE_TYPE_OUTER_ID);
-	
 	const eDepsNode_Type t1 = node1->type;
 	const eDepsNode_Type t2 = node2->type;
 	
@@ -288,7 +301,6 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		IDDepsNode *id2 = (IDDepsNode *)node2;
 		GroupDepsNode *group;
 		
-		
 		/* create group... */
 		result = DEG_create_node(DEPSNODE_TYPE_OUTER_GROUP);
 		group = (GroupDepsNode *)result;
@@ -297,25 +309,22 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)id1);
 		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)id2);
 		
-		/* redirect links + set up headliner section */
-		BLI_ghash_remove(graph->nodehash, id1->id, NULL, NULL);
-		BLI_ghash_remove(graph->nodehash, id2->id, NULL, NULL);
+		/* remove old ID nodes from graph */
+		DEG_remove_node(graph, node1);
+		DEG_remove_node(graph, node2);
 		
-		BLI_ghash_insert(graph->nodehash, id1->id, group);
-		BLI_ghash_insert(graph->nodehash, id2->id, group);
+		/* re-add these ID's as part of headliner section of group 
+		 * (NOTE: no need to flush to nodehash, as group isn't part of graph yet)
+		 */
+		deg_group_add_id_ref(NULL, group, id1->id);
+		deg_group_add_id_ref(NULL, group, id2->id);
 		
-		BLI_addtail(&group->id_blocks, BLI_genericNodeN(id1->id));
-		BLI_addtail(&group->id_blocks, BLI_genericNodeN(id2->id));
+		/* free old ID-nodes */
+		DEG_free_node(node1);
+		DEG_free_node(node2);
 		
 		/* add group to graph */
-		nti_gr->add_to_graph(graph, group, NULL);
-		
-		/* free nodes */
-		nti_id->free_data(node1);
-		nti_id->free_data(node2);
-		
-		BLI_freelinkN(&graph->nodes, node1);
-		BLI_freelinkN(&graph->nodes, node2);
+		DEG_add_node(graph, result);
 	}
 	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
 		/* merge the groups - node1 becomes base */
@@ -323,7 +332,9 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		GroupDepsNode *g2 = (GroupDepsNode *)node2;
 		LinkData *ld;
 		
-		/* redirect node-hash + ID-link references */
+		/* redirect node-hash + ID-link references 
+		 * NOTE: perform this inline, since we're just shifting/replacing links not making new ones
+		 */
 		for (ld = g2->id_blocks.first; ld; ld = ld->next) {
 			BLI_ghash_remove(graph->nodehash, ld->data, NULL, NULL);
 			BLI_ghash_insert(graph->nodehash, ld->data, g1);
@@ -333,11 +344,11 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		/* copy over node2's data */
 		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
 		
-		/* free node2 */
-		nti_gr->free_data(node2);
-		BLI_freelinkN(&graph->nodes, node2);
+		/* remove and free node2 */
+		DEG_remove_node(node2);
+		DEG_free_node(node2);
 		
-		/* node 1 becomes base... */
+		/* node 1 is now the combined group */
 		result = node1;
 	}
 	else {
@@ -358,18 +369,15 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 			idnode = (OuterIdDepsNodeTemplate *)node1;
 		}
 		
-		/* redirect node-hash + ID-link references */
-		BLI_ghash_remove(graph->nodehash, idnode->id, NULL, NULL);
-		BLI_ghash_insert(graph->nodehash, idnode->id, group);
-		
-		BLI_addtail(&group->id_blocks, BLI_genericNodeN(idnode->id));
-		
 		/* add ID's data to this group */
 		transfer_nodegraph_to_group(graph, group, idnode);
 		
-		/* free nodes */
-		nti_gr->free_data(idnode);
-		BLI_freelinkN(&graph->nodes, idnode);
+		/* remove old ID node from the graph, and assign that ref to group instead */
+		DEG_remove_node(graph, idnode);
+		deg_group_add_id_ref(graph, group, idnode->id);
+		
+		/* free old ID node */
+		DEG_free_node(idnode);
 	}
 	
 	/* return merged group */
