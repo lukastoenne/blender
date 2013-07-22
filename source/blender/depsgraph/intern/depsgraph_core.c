@@ -201,6 +201,16 @@ DepsNode *DEG_create_node(eDepsNode_Type type)
 	return node;
 }
 
+/* Add given node to graph */
+void DEG_add_node(Depsgraph *graph, DepsNode *node)
+{
+	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
+	
+	if (node && nti) {
+		nti->add_to_graph(graph, node);
+	}
+}
+
 /* Add a new outer node */
 DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
 {
