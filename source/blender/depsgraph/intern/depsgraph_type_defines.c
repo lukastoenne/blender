@@ -231,9 +231,23 @@ static DepsNodeTypeInfo DNTI_DATA = {
 static void transfer_nodegraph_to_group(Depsgraph *graph, GroupDepsNode *group, OuterIdDepsNodeTemplate *src)
 {
 	DepsNode *node;
+	LinkData *ld;
 	
-	/* redirect relationships from src to group */
-	// TODO...
+	/* redirect relationships from src to group - all links hold */
+	// XXX: review how these links work...
+	for (ld = src->nd.inlinks.first; ld; ld = ld->next) {
+		DepsRelation *rel = (DepsRelation *)ld->data;
+		
+		if (rel->to == src)
+			rel->to = group;
+	}
+	
+	for (ld = src->nd.outlinks.first; ld; ld = ld->next) {
+		DepsRelation *rel = (DepsRelation *)ld->data;
+		
+		if (rel->from == src)
+			rel->from = group;
+	}
 	
 	/* redirect owner values to point to group... */
 	for (node = src->subdata.first; node; node = node->next) {
@@ -248,6 +262,9 @@ static void transfer_nodegraph_to_group(Depsgraph *graph, GroupDepsNode *group, 
 	}
 	
 	/* move the lists over directly */
+	BLI_movelisttolist(&group->nd.inlinks, &src->nd.inlinks);
+	BLI_movelisttolist(&group->nd.outlinks, &src->nd.outlinks);
+	
 	BLI_movelisttolist(&group->subdata, &src->subdata);
 	BLI_movelisttolist(&group->nodes, &src->nodes);
 }
@@ -255,17 +272,22 @@ static void transfer_nodegraph_to_group(Depsgraph *graph, GroupDepsNode *group, 
 /* Make a group from the two given outer nodes */
 DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2)
 {
+	const DepsNodeTypeInfo *nti_gr = DEG_get_node_typeinfo(DEPSNODE_TYPE_OUTER_GROUP);
+	const DepsNodeTypeInfo *nti_id = DEG_get_node_typeinfo(DEPSNODE_TYPE_OUTER_ID);
+	
 	const eDepsNode_Type t1 = node1->type;
 	const eDepsNode_Type t2 = node2->type;
+	
 	DepsNode *result = NULL;
+	
 	
 	/* check node types to see what scenario we're dealing with... */
 	if ((t1 == DEPSNODE_TYPE_OUTER_ID) && (t2 == DEPSNODE_TYPE_OUTER_ID)) {
 		/* create new group, and add both to it */
-		const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(DEPSNODE_TYPE_OUTER_GROUP);
 		IDDepsNode *id1 = (IDDepsNode *)node1;
 		IDDepsNode *id2 = (IDDepsNode *)node2;
 		GroupDepsNode *group;
+		
 		
 		/* create group... */
 		result = DEG_create_node(DEPSNODE_TYPE_OUTER_GROUP);
@@ -286,10 +308,14 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		BLI_addtail(&group->id_blocks, BLI_genericNodeN(id2->id));
 		
 		/* add group to graph */
-		nti->add_to_graph(graph, group, NULL);
+		nti_gr->add_to_graph(graph, group, NULL);
 		
 		/* free nodes */
-		// XXX: they've already removed the hash links!!!
+		nti_id->free_data(node1);
+		nti_id->free_data(node2);
+		
+		BLI_freelinkN(&graph->nodes, node1);
+		BLI_freelinkN(&graph->nodes, node2);
 	}
 	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
 		/* merge the groups - node1 becomes base */
@@ -308,7 +334,8 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
 		
 		/* free node2 */
-		// XXX: they've already removed the hash links!!!
+		nti_gr->free_data(node2);
+		BLI_freelinkN(&graph->nodes, node2);
 		
 		/* node 1 becomes base... */
 		result = node1;
@@ -341,11 +368,12 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		transfer_nodegraph_to_group(graph, group, idnode);
 		
 		/* free nodes */
-		// XXX: they've already removed the hash links!!!
+		nti_gr->free_data(idnode);
+		BLI_freelinkN(&graph->nodes, idnode);
 	}
 	
-	/* return group containing both of these */
-	return (DepsNode *)result;
+	/* return merged group */
+	return result;
 }
 
 /* ******************************************************** */

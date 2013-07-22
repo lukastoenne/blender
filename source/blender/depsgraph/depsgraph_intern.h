@@ -113,6 +113,7 @@ typedef struct DepsNodeTypeInfo {
 	void (*init_data)(DepsNode *node, ID *id, StructRNA *srna, void *data);
 	
 	/* Free node-specific data, but not node itself */
+	// XXX: note - this should not try to call remove_from_graph()...
 	void (*free_data)(DepsNode *node);
 	
 	/* Make a copy of "src" node's data over to "dst" node */
