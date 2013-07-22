@@ -344,6 +344,9 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		DEG_free_node(node1);
 		DEG_free_node(node2);
 		
+		MEM_freeN(node1);
+		MEM_freeN(ndoe2);
+		
 		/* add group to graph */
 		DEG_add_node(graph, result);
 	}
@@ -368,6 +371,7 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		/* remove and free node2 */
 		DEG_remove_node(node2);
 		DEG_free_node(node2);
+		MEM_freeN(node2);
 		
 		/* node 1 is now the combined group */
 		result = node1;
@@ -399,6 +403,7 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		
 		/* free old ID node */
 		DEG_free_node(idnode);
+		MEM_freeN(idnode);
 	}
 	
 	/* return merged group */

@@ -102,7 +102,7 @@ void DEG_free_node(DepsNode *node)
 /* Groups ------------------------------------------------------------- */
 
 /* Make a group from the two given outer nodes 
- * < node1: (DatablockDepsNode | GroupDepsNode)   // XXX: should we really allow existing groups as first arg, to organically "grow" them?
+ * < node1: (DatablockDepsNode | GroupDepsNode)
  * < node2: (DatablockDepsNode)
  * > return: (GroupDepsNode) either a new group node, or node1 if that was a group already
  */
