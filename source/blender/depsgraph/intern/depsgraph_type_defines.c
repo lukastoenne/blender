@@ -83,6 +83,29 @@ static void dnti_outer_node__copy_data(DepsNode *dst_node, const DepsNode *src_n
 	}
 }
 
+/* Outer node data freeing */
+static void dnti_outer_node__free_data(DepsNode *node)
+{
+	OuterIdDepsNodeTemplate *outer = (OuterIdDepsNodeTemplate *)node;
+	DepsNode *itA, *next;
+	
+	/* free data nodes */
+	for (itA = outer->subdata.first; itA; itA = next) {
+		next = itA->next;
+		
+		DEG_free_node(itA);
+		BLI_freelinkN(&outer->subdata, itA);
+	}
+	
+	/* free inner nodes */
+	for (itA = outer->nodes.first; itA; itA = next) {
+		next = itA->next;
+		
+		DEG_free_node(itA);
+		BLI_freelinkN(&outer->nodes, itA);
+	}
+}
+
 /* Add 'id' node to graph */
 static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
@@ -109,7 +132,7 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 	/* name */               "ID Node",
 	
 	/* init_data() */        NULL,
-	/* free_data() */        NULL,
+	/* free_data() */        dnti_outer_node__free_data,
 	/* copy_data() */        dnti_outer_node__copy_data,
 	
 	/* add_to_graph() */     dnti_outer_id__add_to_graph,
@@ -121,6 +144,18 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 };
 
 /* Group Node ============================================= */
+
+/* Free node data */
+static void dnti_outer_group__free_data(DepsNode *node)
+{
+	GroupDepsNode *group = (GroupDepsNode *)node;
+	
+	/* outer-node freeing */
+	dnti_outer_node__free_data(node);
+	
+	/* free id-refs */
+	BLI_freelistN(&group->id_blocks);
+}
 
 /* Ensure that 'group' node's subgraph gets copied correctly */
 static void dnti_outer_group__copy_data(DepsNode *dst_node, const DepsNode *src_node)
@@ -175,8 +210,8 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 	/* size */               sizeof(GroupDepsNode),
 	/* name */               "ID Group Node",
 	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
+	/* init_data() */        NULL, /* Not Needed - see DEG_group_cyclic_node_pair() */
+	/* free_data() */        dnti_outer_group__free_data,
 	/* copy_data() */        dnti_outer_group__copy_data,
 	
 	/* add_to_graph() */     dnti_outer_group__add_to_graph,
