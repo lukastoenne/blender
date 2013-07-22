@@ -108,6 +108,11 @@ void DEG_free_node(DepsNode *node)
  */
 DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2);
 
+/* Relationships Handling ============================================== */
+
+/* Add new relationship between two nodes */
+DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
+                                   eDepsRelation_Type type, const char *description);
 
 /* Node Types Handling ================================================= */
 

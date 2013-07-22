@@ -328,6 +328,16 @@ void DEG_free_node(DepsNode *node)
 }
 
 /* ************************************************** */
+/* Relationships Management */
+
+/* Add new relationship between two nodes */
+DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
+                                   eDepsRelation_Type type, const char *description)
+{
+	
+}
+
+/* ************************************************** */
 /* Public API */
 
 /* Initialise a new Depsgraph */
