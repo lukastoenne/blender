@@ -90,6 +90,9 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, Struct
  */
 DepsNode *DEG_copy_node(const DepsNode *node);
 
+/* Remove node from graph, but don't free any of its data */
+void DEG_remove_node(Depsgraph *graph, DepsNode *node);
+
 /* Groups ------------------------------------------------------------- */
 
 /* Make a group from the two given outer nodes 

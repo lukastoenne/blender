@@ -234,6 +234,20 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, Struct
 	return node;
 }
 
+/* Remove node from graph, but don't free any of its data */
+void DEG_remove_node(Depsgraph *graph, DepsNode *node)
+{
+	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
+	
+	if (node && nti) {
+		/* relationships */
+		// XXX: for now, they're just left in place...
+		
+		/* remove node from graph - general */
+		nti->remove_from_graph(graph, node);
+	}
+}
+
 /* Create a copy of provided node */
 // FIXME: the handling of sub-nodes and links will need to be subject to filtering options...
 DepsNode *DEG_copy_node(const DepsNode *src)
@@ -284,7 +298,6 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 	/* return copied node */
 	return dst;
 }
-
 
 /* ************************************************** */
 /* Public API */
