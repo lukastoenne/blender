@@ -192,6 +192,7 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 /* Add 'data' node to graph */
 static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
+	OuterIdDepsNodeTemplate *owner;
 	DepsNode *id_node;
 	
 	/* find parent for this node */
@@ -199,23 +200,26 @@ static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 	BLI_assert(id_node != NULL);
 	
 	/* attach to owner */
+	// XXX: perhaps subdata should also have a hash instead, just for quicker seeking?
 	node->owner = id_node;
 	
-	if (id_node->type == DEPSNODE_TYPE_OUTER_ID) {
-		IDDepsNode *id_data = (IDDepsNode *)id_node;
-		
-		/* ID Node - data node is "subdata" here... */
-		BLI_addtail(&id_data->subdata, node);
-	}
-	else {
-		GroupDepsNode *grp_data = (GroupDepsNode *)id_node;
-		
-		/* Group Node */
-		// XXX: for quicker checks, it may be nice to be able to have "ID + data" subdata node hash?
-		BLI_addtail(&grp_data->subdaa, node);
-	}
+	owner = (OuterIdDepsNodeTemplate *)id_node;
+	BLI_addtail(&owner->subdata, node);
 }
 
+/* Remove 'data' node from graph */
+static void dnti_data__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	/* remove from owner */
+	if (node->owner) {
+		if (ELEM(node->owner->type, DEPSNODE_TYPE_OUTER_ID, DEPSNODE_TYPE_OUTER_GROUP)) {
+			OuterIdDepsNodeTemplate *owner = (OuterIdDepsNodeTemplate *)node->owner;
+			BLI_remlink(&owner->subdata, node);
+		}
+	}
+	
+	// XXX: what to do with relationships?
+}
 
 /* Data Node Type Info */
 static DepsNodeTypeInfo DNTI_DATA = {
