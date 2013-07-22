@@ -228,6 +228,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, Struct
 	}
 	
 	/* add node to graph */
+	/* NOTE: this may end up adding parent nodes, if those didn't exist yet */
 	nti->add_to_graph(graph, node, id);
 	
 	/* return the newly created node matching the description */

@@ -251,8 +251,10 @@ static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 	OuterIdDepsNodeTemplate *owner;
 	DepsNode *id_node;
 	
-	/* find parent for this node */
-	id_node = DEG_find_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
+	/* get parent for this node 
+	 * NOTE: this will add a new parent if it doesn't exist yet...
+	 */
+	id_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
 	BLI_assert(id_node != NULL);
 	
 	/* attach to owner */
