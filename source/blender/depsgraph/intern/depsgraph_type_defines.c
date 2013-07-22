@@ -109,6 +109,15 @@ static void dnti_outer_node__free_data(DepsNode *node)
 
 /* ID Node ================================================ */
 
+/* Initialise 'id' node - from pointer data given */
+static void dnti_outer_id__init_data(DepsNode *node, ID *id, StructRNA *UNUSED(srna), void *UNUSED(data))
+{
+	IDDepsNode *idnode = (IDDepsNode *)node;
+	
+	/* store ID-pointer */
+	idnode->id = id;
+}
+
 /* Add 'id' node to graph */
 static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
@@ -134,7 +143,7 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 	/* size */               sizeof(IDDepsNode),
 	/* name */               "ID Node",
 	
-	/* init_data() */        NULL,
+	/* init_data() */        dnti_outer_id__init_data,
 	/* free_data() */        dnti_outer_node__free_data,
 	/* copy_data() */        dnti_outer_node__copy_data,
 	
@@ -227,7 +236,7 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 
 /* Data Node ============================================== */
 
-/* Initialise data node - from pointer data given */
+/* Initialise 'data' node - from pointer data given */
 static void dnti_data__init_data(DepsNode *node, ID *id, StructRNA *srna, void *data)
 {
 	DataDepsNode *ddn = (DataDepsNode *)node;
