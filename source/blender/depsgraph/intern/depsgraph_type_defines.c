@@ -145,10 +145,27 @@ static void dnti_outer_group__add_to_graph(Depsgraph *graph, DepsNode *node, ID 
 	BLI_addtail(&graph->nodes, node);
 	
 	/* add all ID links that node has */
-	// XXX: probably there won't actually be any, unless we hijack the adding process...
 	for (ld = group->id_blocks.first; ld; ld = ld->next) {
 		ID *id = (ID *)ld->data;
 		BLI_ghash_insert(graph->nodehash, id, node);
+	}
+}
+
+/* Remove group node from graph - either when it is being merged, or when freeing the graph */
+static void dnti_outer_group__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	GroupDepsNode *group = (GroupDepsNode *)node;
+	LinkData *ld;
+	
+	/* remove toplevel node */
+	BLI_remlink(&graph->nodes, node);
+	
+	/* remove ID links 
+	 * NOTE: this list should be empty if we've already transfered all data successfully
+	 *       so this shouldn't cause any problems there
+	 */
+	for (ld = group->id_blocks.first; ld; ld = ld->next) {
+		BLI_ghash_remove(graph->nodehash, ld->data, NULL, NULL);
 	}
 }
 
