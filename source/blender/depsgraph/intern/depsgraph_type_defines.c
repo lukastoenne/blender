@@ -45,7 +45,8 @@
 /* ******************************************************** */
 /* Outer Nodes */
 
-/* ID Node ================================================ */
+/* General "Outer" Node Stuff (ID/Group Nodes) ============ */
+
 
 /* Ensure that outer node gets copied correctly */
 static void dnti_outer_node__copy_data(DepsNode *dst_node, const DepsNode *src_node)
@@ -105,6 +106,8 @@ static void dnti_outer_node__free_data(DepsNode *node)
 		BLI_freelinkN(&outer->nodes, itA);
 	}
 }
+
+/* ID Node ================================================ */
 
 /* Add 'id' node to graph */
 static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
