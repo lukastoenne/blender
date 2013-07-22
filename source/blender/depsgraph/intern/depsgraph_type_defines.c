@@ -261,11 +261,11 @@ static void deg_group_add_id_ref(Depsgraph *graph, GroupDepsNode *group, ID *id)
 	}
 }
 
-/* Helper function - Transfer links from ID/Group node over to Group 
+/* Transfer links from ID/Group node over to Group 
  * > group: the group where data should be sent
  * < src: the ID/Group node where data is coming from
  */
-static void transfer_nodegraph_to_group(Depsgraph *graph, GroupDepsNode *group, OuterIdDepsNodeTemplate *src)
+static void deg_group_add_nodedata(Depsgraph *graph, GroupDepsNode *group, OuterIdDepsNodeTemplate *src)
 {
 	DepsNode *node;
 	LinkData *ld;
@@ -327,8 +327,8 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		group = (GroupDepsNode *)result;
 		
 		/* transfer node data */
-		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)id1);
-		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)id2);
+		deg_group_add_nodedata(graph, group, (OuterIdDepsNodeTemplate *)id1);
+		deg_group_add_nodedata(graph, group, (OuterIdDepsNodeTemplate *)id2);
 		
 		/* remove old ID nodes from graph */
 		DEG_remove_node(graph, node1);
@@ -363,7 +363,7 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		BLI_movelisttolist(&g1->id_blocks, &g2->id_blocks);
 		
 		/* copy over node2's data */
-		transfer_nodegraph_to_group(graph, group, (OuterIdDepsNodeTemplate *)node2);
+		deg_group_add_nodedata(graph, group, (OuterIdDepsNodeTemplate *)node2);
 		
 		/* remove and free node2 */
 		DEG_remove_node(node2);
@@ -391,7 +391,7 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		}
 		
 		/* add ID's data to this group */
-		transfer_nodegraph_to_group(graph, group, idnode);
+		deg_group_add_nodedata(graph, group, idnode);
 		
 		/* remove old ID node from the graph, and assign that ref to group instead */
 		DEG_remove_node(graph, idnode);
