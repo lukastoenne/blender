@@ -189,6 +189,15 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 
 /* Data Node ============================================== */
 
+/* Initialise data node - from pointer data given */
+static void dnti_data__init_data(DepsNode *node, ID *id, StructRNA *srna, void *data)
+{
+	DataDepsNode *ddn = (DataDepsNode *)node;
+	
+	/* create RNA pointer */
+	RNA_pointer_create(id, srna, data, &ddn->ptr);
+}
+
 /* Add 'data' node to graph */
 static void dnti_data__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
@@ -221,20 +230,34 @@ static void dnti_data__remove_from_graph(Depsgraph *graph, DepsNode *node)
 	// XXX: what to do with relationships?
 }
 
+/* Check if matching data pointer has been found */
+static bool dnti_data__match_outer(DepsNode *node, ID *id, StructRNA *srna, void *data)
+{
+	DataDepsNode *ddn = (DataDepsNode *)node;
+	PointerRNA *ptr = &ddn->ptr;
+	
+	/* just check RNA pointer element-by-element */
+	/* XXX: what if we only have a partial query?
+	 *      Well, in that case, this may not really
+	 *       be what we're really after anyway...
+	 */
+	return ((ddn->id == id) && (ddn->type == snra) && (ddn->data == data));
+}
+
 /* Data Node Type Info */
 static DepsNodeTypeInfo DNTI_DATA = {
 	/* type */               DEPSNODE_TYPE_DATA,
 	/* size */               sizeof(DataDepsNode),
-	/* name */               "ID Group Node",
+	/* name */               "Data Node",
 	
-	/* init_data() */        NULL,
+	/* init_data() */        dnti_data__init_data,
 	/* free_data() */        NULL,
 	/* copy_data() */        NULL,
 	
 	/* add_to_graph() */     dnti_data__add_to_graph,
 	/* remove_from_graph()*/ dnti_data__remove_from_graph,
 	
-	/* match_outer() */      NULL, // XXX...
+	/* match_outer() */      dnti_data__match_outer,
 	
 	/* build_subgraph() */   NULL
 };
@@ -313,7 +336,6 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 	const eDepsNode_Type t2 = node2->type;
 	
 	DepsNode *result = NULL;
-	
 	
 	/* check node types to see what scenario we're dealing with... */
 	if ((t1 == DEPSNODE_TYPE_OUTER_ID) && (t2 == DEPSNODE_TYPE_OUTER_ID)) {
