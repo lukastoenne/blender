@@ -330,6 +330,31 @@ void DEG_free_node(DepsNode *node)
 /* ************************************************** */
 /* Public API */
 
+/* Initialise a new Depsgraph */
+Depsgraph *DEG_graph_new()
+{
+	Depsgraph *graph = MEM_callocN(sizeof(Depsgraph), "Depsgraph");
+	
+	/* initialise nodehash - hash table for quickly finding outer nodes corresponding to ID's */
+	graph->nodehash = BLI_ghash_ptr_new("Depsgraph NodeHash");
+	
+	/* type of depsgraph */
+	graph->type = 0; // XXX: in time, this can be fleshed out, but for now, this means "main scene/eval one"
+	
+	/* return new graph */
+	return graph;
+}
+
+/* Free graph's contents, but not graph itself */
+void DEG_graph_free(Depsgraph *graph)
+{
+	
+	/* free relationships */
+	
+	/* free nodes */
+	
+}
+
 
 /* ************************************************** */
 /* Evaluation */
