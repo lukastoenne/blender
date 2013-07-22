@@ -80,7 +80,7 @@ DepsNode *DEG_create_node(eDepsNode_Type type);
  * > returns: The new node created (of the specified type) which now exists in the graph already
  *            (i.e. even if an ID node was created first, the inner node would get created first)
  */
-DepsNode *DEG_add_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
+DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
 /* Make a (deep) copy of provided node and it's little subgraph
  * ! Newly created node is not added to the existing graph
