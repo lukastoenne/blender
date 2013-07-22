@@ -215,7 +215,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Scene *scene)
 	graph->root_node = DEG_get_node(graph, DEPSNODE_TYPE_ROOT, "Root (Scene)");
 	
 	DEG_add_new_relation(graph, graph->root_node, scene_node, 
-	                 DEG_ROOT_TO_ACTIVE, "Root to Active Scene");
+	                     DEG_ROOT_TO_ACTIVE, "Root to Active Scene");
 }
 
 /* ************************************************* */
