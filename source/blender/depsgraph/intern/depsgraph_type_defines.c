@@ -340,23 +340,21 @@ static void deg_group_add_id_ref(Depsgraph *graph, GroupDepsNode *group, ID *id)
 static void deg_group_add_nodedata(Depsgraph *graph, GroupDepsNode *group, OuterIdDepsNodeTemplate *src)
 {
 	DepsNode *node;
-	LinkData *ld;
 	
 	/* redirect relationships from src to group - all links hold */
-	// XXX: review how these links work...
-	for (ld = src->nd.inlinks.first; ld; ld = ld->next) {
-		DepsRelation *rel = (DepsRelation *)ld->data;
-		
+	DEPSNODE_RELATIONS_ITER_BEGIN(src->nd.inlinks.first, rel)
+	{	
 		if (rel->to == src)
 			rel->to = group;
 	}
+	DEPSNODE_RELATIONS_ITER_END;
 	
-	for (ld = src->nd.outlinks.first; ld; ld = ld->next) {
-		DepsRelation *rel = (DepsRelation *)ld->data;
-		
+	DEPSNODE_RELATIONS_ITER_BEGIN(src->nd.outlinks.first, rel)
+	{
 		if (rel->from == src)
 			rel->from = group;
 	}
+	DEPSNODE_RELATIONS_ITER_END;
 	
 	/* redirect owner values to point to group... */
 	for (node = src->subdata.first; node; node = node->next) {

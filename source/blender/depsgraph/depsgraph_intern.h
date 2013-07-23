@@ -121,11 +121,10 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
  *
  * NOTE: it is safe to perform removal operations here...
  *
- * < node: (DepsNode *) this should be DepsNode and NOT one of its subclasses
  * < first_link: (LinkData *) first LinkData in list of relationships (in/out links)
  * > rel:  (DepsRelation *) identifier where DepsRelation that we're currently accessing comes up
  */
-#define DEPSNODE_RELATIONS_ITER_BEGIN(node, first_link, relation)                    \
+#define DEPSNODE_RELATIONS_ITER_BEGIN(first_link, relation)                    \
 	{                                                                                \
 		LinkData *__rel_iter, *__rel_next;                                           \
 		for (__rel_iter = first_link; __rel_iter; __rel_iter = __rel_next) {         \
