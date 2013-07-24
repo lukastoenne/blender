@@ -62,7 +62,7 @@ typedef enum eDepsRelation_Type {
 	/* reationship type unknown/irrelevant */
 	DEG_RELATION_UNKNOWN = 0,
 	
-	/* root -> active scene/data */
+	/* root -> active scene or entity (screen, image, etc.) */
 	DEG_ROOT_TO_ACTIVE,
 	
 	/* general datablock dependency */
@@ -113,8 +113,6 @@ typedef enum eDepsRelation_Flag {
 /* Base-Defines for Nodes in Depsgraph */
 
 /* All nodes in Despgraph are descended from this */
-// XXX: this probably needs some way of representing what data it affects? 
-//      so that it can be used in queries. But will this be too much overhead?
 struct DepsNode {
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
