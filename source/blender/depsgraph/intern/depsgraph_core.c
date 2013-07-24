@@ -83,7 +83,6 @@ static DepsNode *deg_find_node__generic_type_match(Depsgraph *graph, eDepsNode_T
 static DepsNode *deg_find_node__id_match(Depsgraph *graph, ID *id)
 {
 	/* use graph's ID-hash to quickly jump to relevant node */
-	// XXX: remember to remove existing entries when grouping nodes...
 	return BLI_ghash_lookup(graph->nodehash, id);
 }
 
@@ -100,7 +99,8 @@ static DepsNode *deg_find_node__data_match(Depsgraph *graph, ID *id, StructRNA *
 		
 		/* find data-node within this ID-block which matches this */
 		for (node = outer_data->subdata.first; node; node = node->next) {
-			// XXX: for now, assume that all have same type (DEPSNODE_TYPE_DATA)
+			BLI_assert(node->type == DEPSNODE_TYPE_DATA);
+			
 			if (nti->match_outer(node, id, srna, data)) {
 				/* match! */
 				return node;
@@ -251,6 +251,7 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 
 /* Create a copy of provided node */
 // FIXME: the handling of sub-nodes and links will need to be subject to filtering options...
+// FIXME: copying nodes is probably more at the heart of the querying + filtering API
 DepsNode *DEG_copy_node(const DepsNode *src)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
