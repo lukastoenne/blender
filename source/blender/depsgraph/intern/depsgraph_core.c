@@ -354,13 +354,9 @@ DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
 	return rel;
 }
 
-/* Add new relationship between two nodes */
-DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
-                                   eDepsRelation_Type type, const char *description)
+/* Add relationship to graph */
+void DEG_add_relation(Depsgraph *graph, DepsRelation *rel)
 {
-	/* create relationship */
-	DepsRelation *rel = DEG_create_new_relation(from, to, type, description);
-	
 	/* hook it up to the nodes which use it */
 	BLI_addtail(&from->outlinks, BLI_genericNodeN(rel));
 	BLI_addtail(&to->inlinks, BLI_genericNodeN(rel));
@@ -368,9 +364,66 @@ DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *t
 	/* store copy of the relation at top-level for safekeeping */
 	// XXX: is there any good reason to keep doing this?
 	BLI_addtail(&graph->relations, rel);
+}
+
+/* Add new relationship between two nodes */
+DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
+                                   eDepsRelation_Type type, const char *description)
+{
+	/* create new relation, and add it to the graph */
+	DepsRelation *rel = DEG_create_new_relation(from, to, type, description);
+	DEG_add_relation(graph, rel);
 	
-	/* return new relationship */
 	return rel;
+}
+
+/* Make a copy of a relationship */
+DepsRelation DEG_copy_relation(const DepsRelation *src)
+{
+	DepsRelation *dst = MEM_dupallocN(src);
+	
+	/* clear out old pointers which no-longer apply */
+	dst->next = dst->prev = NULL;
+	
+	/* return copy */
+	return dst;
+}
+
+/* Remove relationship from graph */
+void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel)
+{
+	LinkData *ld;
+	
+	/* sanity check */
+	if (ELEM3(NULL, rel, rel->from, rel->to)) {
+		return;
+	}
+	
+	/* remove it from the nodes that use it */
+	ld = BLI_findptr(&rel->from->outlinks, rel, offsetof(LinkData, data));
+	if (ld) {
+		BLI_freelinkN(&rel->from->outlinks, ld);
+		ld = NULL;
+	}
+	
+	ld = BLI_findptr(&rel->to->inlinks, rel, offsetof(LinkData, data));
+	if (ld) {
+		BLI_freelinkN(&rel->to->inlinks, rel, offsetof(LinkData, data));
+		ld = NULL;
+	}
+	
+	/* remove relation from the graph... */
+	BLI_remlink(&graph->relations, rel);
+}
+
+/* Free relation and its data */
+void DEG_free_relation(DepsRelation *rel)
+{
+	BLI_assert(rel != NULL);
+	BLI_assert((rel->next == rel->prev) && (rel->next == NULL));
+	
+	/* for now, assume that relation has no data of its own... */
+	MEM_freeN(rel);
 }
 
 /* ************************************************** */

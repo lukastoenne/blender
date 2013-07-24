@@ -144,9 +144,27 @@ DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
                                       eDepsRelation_Type type, 
                                       const char *description);
 
+/* Add given relationship to the graph */
+void DEG_add_relation(Depsgraph *graph, DepsRelation *rel);
+
+
 /* Add new relationship between two nodes */
 DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
                                    eDepsRelation_Type type, const char *description);
+
+
+/* Make a copy of given relationship */
+DepsRelation DEG_copy_relation(const DepsRelation *src);
+
+
+/* Remove relationship from graph, but don't free it yet */
+void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel);
+
+/* Free relationship's data 
+ * ! Assumes that it isn't part of graph anymore (DEG_remove_relation() called)
+ * ! Relationship itself *is* freed...
+ */
+void DEG_free_relation(DepsRelation *rel);
 
 /* Node Types Handling ================================================= */
 
