@@ -139,6 +139,11 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 
 /* API Methods --------------------------------------------------------- */
 
+/* Create new relationship object, but don't add it to graph yet */
+DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to, 
+                                      eDepsRelation_Type type, 
+                                      const char *description);
+
 /* Add new relationship between two nodes */
 DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
                                    eDepsRelation_Type type, const char *description);

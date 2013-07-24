@@ -330,11 +330,47 @@ void DEG_free_node(DepsNode *node)
 /* ************************************************** */
 /* Relationships Management */
 
+/* Create new relationship that between two nodes, but don't link it in */
+DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
+                                      eDepsRelation_Type type,
+                                      const char *description)
+{
+	DepsRelation *rel;
+	
+	/* create new relationship */
+	if (description)
+		rel = MEM_callocN(sizeof(DepsRelation), description);
+	else
+		rel = MEM_callocN(sizeof(DepsRelation), "DepsRelation");
+	
+	/* populate data */
+	rel->from = form;
+	rel->to = to;
+	
+	rel->type = type;
+	rel->description = description;
+	
+	/* return */
+	return rel;
+}
+
 /* Add new relationship between two nodes */
 DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
                                    eDepsRelation_Type type, const char *description)
 {
+	/* create relationship */
+	DepsRelation *rel = DEG_create_new_relation(from, to, type, description);
 	
+	/* hook it up to the nodes which use it */
+	BLI_addtail(&from->outlinks, BLI_genericNodeN(rel));
+	BLI_addtail(&to->inlinks, BLI_genericNodeN(rel));
+	
+	/* store copy of the relation at top-level for safekeeping */
+	// XXX: is there any good reason to keep doing this?
+	BLI_addtail(&graph->relations, rel);
+	
+	/* return new relationship */
+	return rel;
 }
 
 /* ************************************************** */
