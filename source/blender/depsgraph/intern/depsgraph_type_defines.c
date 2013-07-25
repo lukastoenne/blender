@@ -331,16 +331,45 @@ static void dnti_data__init_data(DepsNode *node, ID *id, StructRNA *srna, void *
 /* Add 'operation' node to graph */
 static void dnti_atomic_op__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	AtomicOperationDepsNode *op = (AtomicOperationDepsNode *)node;
+	AtomicOperationDepsNode *aon = (AtomicOperationDepsNode *)node;
+	DepsNode *owner_node;
 	
+	/* find potential owner */
+	if (RNA_struct_is_ID(aon->ptr.type)) {
+		/* ID */
+		owner_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
+	}
+	else {
+		StructRNA *type = aon->ptr.type;
+		void *data = aon->ptr.data;
+		
+		/* find relevant data node */
+		// XXX: but it could also be operation?
+		owner_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, type, data);
+	}
+	
+	/* attach to owner */
+	aon->owner = owner_node;
+	if (owner_node) {
+		OuterDepsNodeTemplate *outer = (OuterDepsNodeTemplate *)owner_node;
+		BLI_addtail(&outer->nodes, aon);
+	}
 }
 
 /* Remove 'operation' node from graph */
 static void dnti_atomic_op__remove_from_graph(Depsgraph *graph, DepsNode *node)
 {
-	AtomicOperationDepsNode *op = (AtomicOperationDepsNode *)node;
+	AtomicOperationDepsNode *aon = (AtomicOperationDepsNode *)node;
 	
+	/* detach from owner */
+	if (node->owner) {
+		if (DEPSNODE_IS_OUTER_NODE(node->owner)) {
+			OuterDepsNodeTemplate *outer = (OuterDepsNodeTemplate *)node->owner;
+			BLI_remlink(&outer->nodes, node);
+		}
+	}
 	
+	// detach relationships?
 }
 
 /* Atomic Operation Node Type Info */
