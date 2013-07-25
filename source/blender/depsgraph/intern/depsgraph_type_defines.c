@@ -609,10 +609,8 @@ void DEG_free_node_types(void)
 /* Get typeinfo for specified type */
 DepsNodeTypeInfo *DEG_get_node_typeinfo(eDepsNode_Type type)
 {
-	DepsNodeTypeInfo *nti = NULL;
-	
-	// TODO: look up typeinfo associated with this type...
-	return nti;
+	/* look up type - at worst, it doesn't exist in table yet, and we fail */
+	return BLI_ghash_lookup(_depsnode_typeinfo_registry, type);
 }
 
 /* Get typeinfo for provided node */
