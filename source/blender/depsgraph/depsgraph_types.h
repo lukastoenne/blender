@@ -190,26 +190,40 @@ typedef enum eDepsNode_Flag {
  * operations code won't really find this too painful...
  */
 
+/* "Standard" Outer-Node Node Header
+ * NOTE: All outer nodes should follow this ordering so that inner nodes
+ *       can easily get to the list of inner-nodes hosted by it without
+ *       resorting to special typechecks or needing extra API's for access.
+ */
+/* @Super(DepsNode) */
+typedef struct OuterDepsNodeTemplate {
+	DepsNode nd;         /* standard node header */
+	
+	ListBase nodes;      /* ([DepsNode]) "inner" nodes ready to be executed */
+} OuterDepsNodeTemplate;
+
 /* "Standard" Datablock Node Header 
  * NOTE: This is used as the start of both IDDepsNode and GroupDepsNode,
  *       so any changes here need to be propagated down to both of these.
  *       We do this so that ID nodes and Groups can be used interchangably.
  */
+/* @Super(OuterDepsNodeTemplate) */
 typedef struct OuterIdDepsNodeTemplate {
 	DepsNode nd;          /* standard node header */
 	
-	ListBase subdata;     /* ([DepsNode]) sub-data "data" nodes - where appropriate */
 	ListBase nodes;       /* ([DepsNode]) "inner" nodes ready to be executed */
+	ListBase subdata;     /* ([DepsNode]) sub-data "data" nodes - where appropriate */
 } OuterIdDepsNodeTemplate;
 
 
 /* "ID" Datablock Node */
+/* @Super(OuterIdDepsNodeTemplate) */
 typedef struct IDDepsNode {
 	/* OuterIdDepsNodeTemplate... */
 	DepsNode nd;           /* standard node header */
 	
-	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
+	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	
 	
 	/* ID-Node specific data */
@@ -218,12 +232,13 @@ typedef struct IDDepsNode {
 
 
 /* "ID Group" Node */
+/* @Super(OuterIdDepsNodeTemplate) */
 typedef struct GroupDepsNode {
 	/* OuterIdDepsNodeTemplate... */
 	DepsNode nd;           /* standard node header */
 	
-	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	ListBase nodes;        /* ([DepsNode]) "inner" nodes ready to be executed */
+	ListBase subdata;      /* ([DepsNode]) sub-datablock "data" nodes - where appropriate */
 	
 	
 	/* Headline Section - Datablocks which cannot be evaluated separately from each other */
@@ -238,6 +253,7 @@ typedef struct GroupDepsNode {
  * Basically, a glorified outer-node wrapper around an atomic operation
  */
 // XXX: there probably isn't really any good reason yet why we couldn't use that directly...
+/* @Super(OuterDepsNodeTemplate) */
 typedef struct InterblockDepsNode {
 	DepsNode nd;      /* standard node header */
 	
@@ -252,6 +268,7 @@ typedef struct InterblockDepsNode {
  */
 // TODO: later on, we'll need to review whether this is really needed (or whether it just adds bloat)
 //       - this will all really become more obvious when we have a bit more "real" logic blocked in
+/* @Super(OuterDepsNodeTemplate) */
 typedef struct DataDepsNode {
 	DepsNode nd;        /* standard node header */
 	
@@ -269,6 +286,7 @@ typedef void (*DEG_AtomicEvalOperation_Cb)(PointerRNA *ptr, void *state);
 /* Atomic Operation Node - The smallest execution unit that can be performed */
 // Potential TODO's?
 //    - special flags to make it easier to test if operation is of a "certain" type
+/* @Super(OuterDepsNodeTemplate) */
 typedef struct AtomicOperationDepsNode {
 	DepsNode nd;                      /* standard node header */
 	
