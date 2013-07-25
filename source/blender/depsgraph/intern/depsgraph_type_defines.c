@@ -335,6 +335,8 @@ static void dnti_atomic_op__add_to_graph(Depsgraph *graph, DepsNode *node, ID *i
 	DepsNode *owner_node;
 	
 	/* find potential owner */
+	// XXX: need to review this! Maybe only toplevel outer nodes are allowed to hold "all" nodes
+	//      and the inner data nodes only hold references to ones they belong to them...
 	if (RNA_struct_is_ID(aon->ptr.type)) {
 		/* ID */
 		owner_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
