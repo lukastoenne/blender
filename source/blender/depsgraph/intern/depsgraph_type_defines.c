@@ -314,6 +314,53 @@ static DepsNodeTypeInfo DNTI_DATA = {
 /* ******************************************************** */
 /* Inner Nodes */
 
+/* AtomicOperationNode =================================== */
+
+/* Partially initialise operation node 
+ * - Just the pointer; Operation needs to be done through API in a different way
+ */
+/* Initialise 'data' node - from pointer data given */
+static void dnti_data__init_data(DepsNode *node, ID *id, StructRNA *srna, void *data)
+{
+	AtomicOperationDepsNode *aon = (AtomicOperationDepsNode *)node;
+	
+	/* create RNA pointer */
+	RNA_pointer_create(id, srna, data, &aon->ptr);
+}
+
+/* Add 'operation' node to graph */
+static void dnti_atomic_op__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	AtomicOperationDepsNode *op = (AtomicOperationDepsNode *)node;
+	
+}
+
+/* Remove 'operation' node from graph */
+static void dnti_atomic_op__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	AtomicOperationDepsNode *op = (AtomicOperationDepsNode *)node;
+	
+	
+}
+
+/* Atomic Operation Node Type Info */
+static DepsNodeTypeInfo DNTI_ATOMIC_OP = {
+	/* type */               DEPSNODE_TYPE_INNER_ATOM,
+	/* size */               sizeof(AtomicOperationDepsNode),
+	/* name */               "Atomic Operation",
+	
+	/* init_data() */        dnti_atomic_op__init_data,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_atomic_op__add_to_graph,
+	/* remove_from_graph()*/ dnti_atomic_op__remove_from_graph,
+	
+	/* match_outer() */      dnti_atomic_op__match_outer,
+	
+	/* build_subgraph() */   NULL
+};
+
 /* ******************************************************** */
 /* Internal API */
 
@@ -516,6 +563,8 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(DNTI_OUTER_OP);
 	
 	DEG_register_node_typeinfo(DNTI_DATA);
+	
+	DEG_register_node_typeinfo(DNTI_ATOMIC_OP);
 	
 	// ...
 }
