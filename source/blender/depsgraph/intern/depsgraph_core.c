@@ -202,12 +202,12 @@ DepsNode *DEG_create_node(eDepsNode_Type type)
 }
 
 /* Add given node to graph */
-void DEG_add_node(Depsgraph *graph, DepsNode *node)
+void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id)
 {
 	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
 	
 	if (node && nti) {
-		nti->add_to_graph(graph, node);
+		nti->add_to_graph(graph, node, id);
 	}
 }
 
@@ -222,14 +222,19 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, Struct
 	/* create node data... */
 	node = deg_create_node(type);
 	
-	/* type-specific data init */
+	/* type-specific data init
+	 * NOTE: this is not included as part of create_node() as
+	 *       some methods may want/need to override this step
+	 */
 	if (nti->init_data) {
 		nti->init_data(node, id, srna, data);
 	}
 	
-	/* add node to graph */
-	/* NOTE: this may end up adding parent nodes, if those didn't exist yet */
-	nti->add_to_graph(graph, node, id);
+	/* add node to graph 
+	 * NOTE: additional nodes may be created in order to add this node to the graph
+	 *       (i.e. parent/owner nodes) where applicable...
+	 */
+	DEG_add_node(graph, node, id);
 	
 	/* return the newly created node matching the description */
 	return node;
