@@ -154,6 +154,19 @@ typedef enum eDepsNode_Type {
 } eDepsNode_Type;
 
 
+/* Checks if node is outer-node or not
+ * < node: (DepsNode)
+ * > returns: (bool) true if outer node
+ */
+#define DEPSNODE_IS_OUTER_NODE(node)                     \
+	( ELEM5((node)->owner, DEPSNODE_TYPE_OUTER_ID,       \
+	                       DEPSNODE_TYPE_OUTER_GROUP,    \
+	                       DEPSNODE_TYPE_OUTER_OP,       \
+	                       DEPSNODE_TYPE_SUBGRAPH,       \
+	                       DEPSNODE_TYPE_DATA ))
+
+
+
 /* "Colors" for use in depsgraph topology algorithms */
 typedef enum eDepsNode_Color {
 	DEPSNODE_WHITE = 0,
