@@ -414,10 +414,10 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 		DEG_free_node(node2);
 		
 		MEM_freeN(node1);
-		MEM_freeN(ndoe2);
+		MEM_freeN(node2);
 		
 		/* add group to graph */
-		DEG_add_node(graph, result);
+		DEG_add_node(graph, result, NULL);
 	}
 	else if ((t1 == DEPSNODE_TYPE_OUTER_GROUP) && (t2 == DEPSNODE_TYPE_OUTER_GROUP)) {
 		/* merge the groups - node1 becomes base */
