@@ -74,8 +74,10 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
  */
 DepsNode *DEG_create_node(eDepsNode_Type type);
 
-/* Add given node to graph */
-void DEG_add_node(Depsgraph *graph, DepsNode *node);
+/* Add given node to graph 
+ * < (id): ID-Block that node is associated with (if applicable)
+ */
+void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
 
 /* Create a new (outer) node and add to graph
  * ! Arguments are as for DEG_find_node()
