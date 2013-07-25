@@ -393,6 +393,8 @@ static DepsNodeTypeInfo DNTI_ATOMIC_OP = {
 /* ******************************************************** */
 /* Internal API */
 
+/* Groups ================================================== */
+
 /* Add ID dependency to a group 
  * ! If graph is not NULL, nodehash will be updated to point to group...
  */
@@ -554,6 +556,10 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 	/* return merged group */
 	return result;
 }
+
+/* Atomic Operations ====================================== */
+
+// XXX: todo...
 
 /* ******************************************************** */
 /* External API */
