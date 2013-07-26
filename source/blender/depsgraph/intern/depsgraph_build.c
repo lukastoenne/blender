@@ -153,8 +153,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 				}
 				
 				/* make driver dependent on this node */
-				// XXX: need another type of hint here...
-				DEG_add_new_relation(graph, target_node, driver_node, DEG_RELATION_DRIVER_TRANSFORM,
+				DEG_add_new_relation(graph, target_node, driver_node, DEG_RELATION_DRIVER_TARGET,
 				                     "[Target -> Driver] DepsRel");
 			}
 		}

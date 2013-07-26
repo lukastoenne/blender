@@ -82,6 +82,9 @@ typedef enum eDepsRelation_Type {
 	/* relationship results from a driver related to transforms */
 	DEG_RELATION_DRIVER_TRANSFORM,
 	
+	/* relationship is something driver depends on */
+	DEG_RELATION_DRIVER_TARGET,
+	
 	/* relationship is used for transform stack 
 	 * (e.g. parenting, user transforms, constraints)
 	 */
