@@ -98,27 +98,33 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	}
 	
 	/* object data */
-	switch (ob->type) {
-		case OB_ARMATURE:
-		{
-			bArmature *arm = (bArmature *)ob->data;
-			...
+	if (ob->data) {
+		switch (ob->type) {
+			case OB_ARMATURE:
+			{
+				bArmature *arm = (bArmature *)ob->data;
+				...
+			}
+			break;
+			
+			case OB_MESH:
+			{
+				Mesh *me = (Mesh *)ob->data;
+				...
+			}
+			break;
+			
+			case OB_CURVE:
+			case OB_FONT:
+			{
+				Curve *cu = (Curve *)ob->data;
+				...
+			}
+			break;
 		}
-		break;
 		
-		case OB_MESH:
-		{
-			Mesh *me = (Mesh *)ob->data;
-			...
-		}
-		break;
+		/* ob data animation */
 		
-		case OB_CURVE:
-		{
-			Curve *cu = (Curve *)ob->data;
-			...
-		}
-		break;
 	}
 	
 	/* object constraints */
