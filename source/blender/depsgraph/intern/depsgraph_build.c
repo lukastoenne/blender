@@ -150,7 +150,14 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	}
 	
 	/* materials */
-	...
+	if (ob->totcol) {
+		int a;
+		
+		for (a = 1; a <= ob->totcol; a++) {
+			Material *ma = give_current_material(ob, a);
+			...
+		}
+	}
 	
 	/* AnimData */
 	if (ob->adt) {
