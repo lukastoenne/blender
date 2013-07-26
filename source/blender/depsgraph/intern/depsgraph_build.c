@@ -95,6 +95,9 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	/* create node for object itself */
 	ob_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
 	
+	/* object parent */
+	if (ob->parent) {
+		
 	}
 	
 	/* object data */
