@@ -71,7 +71,6 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	DriverVar *dvar;
 	
 	DepsNode *affected_node = NULL;
-	
 	DepsNode *driver_node = NULL;
 	
 	
@@ -109,7 +108,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 					                           dtar->id, &RNA_PoseBone, pchan);
 				}
 				else {
-					/* resolve path t oget node... */
+					/* resolve path to get node... */
 					target_node = DEG_get_node_from_rna_path(graph, dtar->id, dtar->rna_path);
 				}
 				
@@ -135,7 +134,8 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 	DepsNode *adt_node = NULL;
 	FCurve *fcu;
 	
-	BLI_assert(adt != NULL);
+	if (adt == NULL)
+		return;
 	
 	/* animation */
 	if (adt->action || adt->nla_tracks.first) {
