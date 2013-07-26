@@ -179,46 +179,70 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 /* object parent relationships */
 static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object *ob)
 {
+	ID *parent_data_id = (ID *)ob->parent->data;
+	ID *parent_id = (ID *)ob->parent;
+	DepsNode *parent_node = NULL;
+	
 	switch (ob->partype) {
-		case PARSKEL:  /* Armature Deform */
+		case PARSKEL:  /* Armature Deform (Virtual Modifier) */
 		{
-			//dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_OB, "Parent");
+			// DAG_RL_DATA_DATA | DAG_RL_OB_OB
+			parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
+			DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Armature Deform Parent");
 		}
-			break;
+		break;
 			
 		case PARVERT1: /* Vertex Parent */
 		case PARVERT3:
 		{
-			//dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, "Vertex Parent");
-			//node2->customdata_mask |= CD_MASK_ORIGINDEX;
-		}
-			break;
+			// DAG_RL_DATA_OB | DAG_RL_OB_OB
+			parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_data_id, NULL, NULL);
+			DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
 			
-		case PARBONE:
-		{
-			//dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, "Bone Parent");
+			//parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
 		}
-			break;
+		break;
+			
+		case PARBONE: /* Bone Parent */
+		{
+			bPoseChannel *pchan = BKE_pose_channel_from_name(ob->parent->pose, ob->parsubstr);
+			
+			parent_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, parent_id, &RNA_PoseBone, pchan);
+			DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
+		}
+		break;
 			
 		default:
 			if (ob->parent->type == OB_LATTICE) {
-				//dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_OB, "Lattice Parent");
+				/* Lattice Deform Parent - Virtual Modifier */
+				// DAG_RL_DATA_DATA | DAG_RL_OB_OB
+				parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
+				DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
 			}
 			else if (ob->parent->type == OB_CURVE) {
 				Curve *cu = ob->parent->data;
 				
 				if (cu->flag & CU_PATH) {
-					//dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, "Curve Parent");
+					/* Follow Path */
+					parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_data_id, NULL, NULL);
+					DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Follow Parent");
+					// XXX: link to geometry or object? both are needed?
+					// XXX: link to timesource too?
 				}
 				else {
-					//dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Curve Parent");
+					/* Standard Parent */
+					parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
+					DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Parent");
 				}
 			}
 			else {
-				//dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Parent");
+				/* Standard Parent */
+				parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
+				DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Parent");
 			}
 			break;
 	}
+	
 	/* exception case: parent is duplivert */
 	if ((ob->type == OB_MBALL) && (ob->parent->transflag & OB_DUPLIVERTS)) {
 		//dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_OB, "Duplivert");
