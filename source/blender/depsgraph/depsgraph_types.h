@@ -60,56 +60,56 @@ struct DepsRelation {
  */
 typedef enum eDepsRelation_Type {
 	/* reationship type unknown/irrelevant */
-	DEG_RELATION_UNKNOWN = 0,
+	DEPSREL_TYPE_STANDARD = 0,
 	
 	/* root -> active scene or entity (screen, image, etc.) */
-	DEG_ROOT_TO_ACTIVE,
+	DEPSREL_TYPE_ROOT_TO_ACTIVE,
 	
 	/* general datablock dependency */
-	DEG_RELATION_DATABLOCK,
+	DEPSREL_TYPE_DATABLOCK,
 	
 	/* time dependency */
-	DEG_RELATION_TIME,
+	DEPSREL_TYPE_TIME,
 	
 	/* relationship is just used to enforce ordering of operations
 	 * (e.g. "init()" callback done before "exec() and "cleanup()")
 	 */
-	DEG_RELATION_OPERATION,
+	DEPSREL_TYPE_OPERATION,
 	
 	/* relationship results from a property driver */
-	DEG_RELATION_DRIVER,
+	DEPSREL_TYPE_DRIVER,
 	
 	/* relationship results from a driver related to transforms */
-	DEG_RELATION_DRIVER_TRANSFORM,
+	DEPSREL_TYPE_DRIVER_TRANSFORM,
 	
 	/* relationship is something driver depends on */
-	DEG_RELATION_DRIVER_TARGET,
+	DEPSREL_TYPE_DRIVER_TARGET,
 	
 	/* relationship is used for transform stack 
 	 * (e.g. parenting, user transforms, constraints)
 	 */
-	DEG_RELATION_TRANSFORM,
+	DEPSREL_TYPE_TRANSFORM,
 	
 	/* relationship is used for geometry evaluation 
 	 * (e.g. metaball "motherball" or modifiers)
 	 */
-	DEG_RELATION_GEOMETRY_EVAL,
+	DEPSREL_TYPE_GEOMETRY_EVAL,
 	
 	/* relationship is used to trigger a post-change validity updates */
-	DEG_RELATION_UPDATE,
+	DEPSREL_TYPE_UPDATE,
 	
 	/* relationship is used to trigger editor/screen updates */
-	DEG_RELATION_UPDATE_UI,
+	DEPSREL_TYPE_UPDATE_UI,
 } eDepsRelation_Type;
 
 
 /* Settings/Tags on Relationship */
 typedef enum eDepsRelation_Flag {
 	/* "pending" tag is used whenever "to" node is still waiting on this relation to be valid */
-	DEG_RELATION_FLAG_PENDING    = (1 << 0),
+	DEPSREL_FLAG_PENDING    = (1 << 0),
 	
 	/* "touched" tag is used when filtering, to know which to collect */
-	DEG_RELATION_FLAG_TEMP_TAG   = (1 << 1)
+	DEPSREL_FLAG_TEMP_TAG   = (1 << 1)
 } eDepsRelation_Flag;
 
 /* ************************************* */

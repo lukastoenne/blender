@@ -111,7 +111,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 		}
 		
 		/* make data dependent on driver */
-		DEG_add_new_relation(graph, driver_node, affected_node, DEG_RELATION_DRIVER, 
+		DEG_add_new_relation(graph, driver_node, affected_node, DEPSREL_TYPE_DRIVER, 
 		                     "[Driver -> Data] DepsRel");
 		
 		/* ensure that affected prop's update callbacks will be triggered once done */
@@ -153,7 +153,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 				}
 				
 				/* make driver dependent on this node */
-				DEG_add_new_relation(graph, target_node, driver_node, DEG_RELATION_DRIVER_TARGET,
+				DEG_add_new_relation(graph, target_node, driver_node, DEPSREL_TYPE_DRIVER_TARGET,
 				                     "[Target -> Driver] DepsRel");
 			}
 		}
@@ -191,7 +191,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
 		time_src = DEG_find_node(graph, DEPSNODE_TYPE_TIMESOURCE, scene_nodedata->id, NULL, NULL);
-		DEG_add_new_relation(graph, time_src, adt_node, DEG_RELATION_TIME, 
+		DEG_add_new_relation(graph, time_src, adt_node, DEPSREL_TYPE_TIME, 
 		                     "[TimeSrc -> Animation] DepsRel");
 	}
 	
@@ -202,7 +202,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 		
 		/* prevent driver from occurring before own animation... */
 		if (adt_node) {
-			DEG_add_new_relation(graph, adt_node, driver_node, DEG_RELATION_OPERATION, 
+			DEG_add_new_relation(graph, adt_node, driver_node, DEPSREL_TYPE_OPERATION, 
 			                     "[AnimData Before Drivers] DepsRel");
 		}
 	}
@@ -370,7 +370,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Scene *scene)
 	graph->root_node = DEG_get_node(graph, DEPSNODE_TYPE_ROOT, "Root (Scene)");
 	
 	DEG_add_new_relation(graph, graph->root_node, scene_node, 
-	                     DEG_ROOT_TO_ACTIVE, "Root to Active Scene");
+	                     DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 }
 
 /* ************************************************* */
