@@ -176,16 +176,65 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 /* ************************************************* */
 /* Objects */
 
+/* object parent relationships */
+static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object *ob)
+{
+	switch (ob->partype) {
+		case PARSKEL:  /* Armature Deform */
+		{
+			//dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_OB, "Parent");
+		}
+			break;
+			
+		case PARVERT1: /* Vertex Parent */
+		case PARVERT3:
+		{
+			//dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, "Vertex Parent");
+			//node2->customdata_mask |= CD_MASK_ORIGINDEX;
+		}
+			break;
+			
+		case PARBONE:
+		{
+			//dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, "Bone Parent");
+		}
+			break;
+			
+		default:
+			if (ob->parent->type == OB_LATTICE) {
+				//dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_OB, "Lattice Parent");
+			}
+			else if (ob->parent->type == OB_CURVE) {
+				Curve *cu = ob->parent->data;
+				
+				if (cu->flag & CU_PATH) {
+					//dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, "Curve Parent");
+				}
+				else {
+					//dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Curve Parent");
+				}
+			}
+			else {
+				//dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Parent");
+			}
+			break;
+	}
+	/* exception case: parent is duplivert */
+	if ((ob->type == OB_MBALL) && (ob->parent->transflag & OB_DUPLIVERTS)) {
+		//dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_OB, "Duplivert");
+	}
+}
+
 static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, Object *ob)
 {
-	DepsNode *ob_node;
+	DepsNode *ob_node, *obdata_node = NULL;
 	
 	/* create node for object itself */
 	ob_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
 	
 	/* object parent */
 	if (ob->parent) {
-		
+		deg_build_object_parents(graph, ob_node, ob);
 	}
 	
 	/* object data */
