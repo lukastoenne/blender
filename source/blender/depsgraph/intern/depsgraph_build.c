@@ -41,9 +41,13 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
+#include "BKE_key.h"
+#include "BKE_material.h"
+#include "BKE_object.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
@@ -57,10 +61,118 @@
 /* ************************************************* */
 /* AnimData */
 
+/* Convenience wrapper to get pointer to data referred to by path 
+ * (needed, so that we don't need to declare out all the various bits)
+ * > r_ptr: PointerRNA at end of path
+ * > (r_prop): Property at end of path (doesn't need to be supplied if not needed)
+ *
+ * < id: ID-Block that path is rooted on
+ * < path: RNA-Path to resolve
+ */
+static bool get_rna_ptr_from_path(PointerRNA *r_ptr, PropertyRNA **r_prop, const ID *id, const char path[])
+{
+	PointerRNA id_ptr;	
+	
+	RNA_id_pointer_create(id, &id_ptr);
+	return RNA_path_resolve(&id_ptr, path, r_ptr, r_prop);
+}
+
+
+/* Build graph node(s) for Driver
+ * < id: ID-Block that driver is attached to
+ * < fcu: Driver-FCurve
+ */
+static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
+{
+	ChannelDriver *driver = fcu->driver;
+	DriverVar *dvar;
+	
+	PointerRNA affected_ptr = {{NULL}};
+	PropertyRNA *affected_prop = NULL;
+	DepsNode *affected_node = NULL;
+	
+	DepsNode *driver_node = NULL;
+	
+	
+	/* create data node for this driver */
+	driver_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_Driver);
+	// TODO: bind execution operations...
+	
+	/* create dependency between data affected by driver and driver */
+	if (get_rna_ptr_from_path(&affected_ptr, &affected_prop, id, fcu->data_path) {
+		/* get node associated with affected data */
+		if (RNA_struct_is_ID(affected_dataPtr.type)) {
+			affected_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, 
+			                             affected_ptr.id, NULL, NULL);
+		}
+		else {
+			affected_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, affected_ptr.id,
+										 affected_ptr.type, affected_ptr.data);
+		}
+		
+		/* make data dependent on driver */
+		DEG_add_new_relation(graph, driver_node, affected_node, DEG_RELATION_DRIVER, 
+		                     "[Driver -> Data] DepsRel");
+		
+		/* ensure that affected prop's update callbacks will be triggered once done */
+		// TODO: implement this once the functionality to add these links exists in RNA
+		// XXX: the data itself could also set this, if it were to be truly initialised later?
+	}
+	
+	/* loop over variables to get the target relationships */
+	for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
+		/* only used targets */
+		DRIVER_TARGETS_USED_LOOPER(dvar) 
+		{
+			if (dtar->id) {
+				DepsNode *target_node = NULL;
+				
+				/* special handling for directly-named bones... */
+				if ((dtar->flag & DTAR_FLAG_STRUCT_REF) && (dtar->pchan_name[0])) {
+					Object *ob = (Object *)dtar->ob;
+					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
+					
+					/* get node associated with bone */
+					target_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, 
+					                           dtar->id, &RNA_PoseBone, pchan);
+				}
+				else {
+					PointerRNA target_ptr;
+					
+					/* resolve path to get node... */
+					if (get_rna_ptr_from_path(&target_ptr, NULL, dtar->id, dtar->rna_path)) {
+						if (RNA_struct_is_ID(target_ptr.type)) {
+							target_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, 
+							                          target_ptr.id, NULL, NULL);
+						}
+						else {
+							target_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, target_ptr.id,
+							                          target_ptr.type, target_ptr.data);
+						}
+					}
+				}
+				
+				/* make driver dependent on this node */
+				// XXX: need another type of hint here...
+				DEG_add_new_relation(graph, target_node, driver_node, DEG_RELATION_DRIVER_TRANSFORM,
+				                     "[Target -> Driver] DepsRel");
+			}
+		}
+		DRIVER_TARGETS_LOOPER_END
+	}
+	
+	/* return driver node created */
+	return driver_node;
+}
+
+/* Build graph nodes for AnimData block 
+ * < scene_node: Scene that ID-block this lives on belongs to
+ * < id: ID-Block which hosts the AnimData
+ */
 static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID *id)
 {
-	DepsNode *id_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, id, NULL, NULL);
 	AnimData *adt = BKE_animdata_from_id(id);
+	DepsNode *adt_node = NULL;
 	FCurve *fcu;
 	
 	BLI_assert(adt != NULL);
@@ -68,10 +180,11 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 	/* animation */
 	if (adt->action || adt->nla_tracks.first) {
 		IDDepsNode *scene_nodedata = (IDDepsNode *)scene_node;
-		DepsNode *adt_node, *time_src;
+		DepsNode *time_src;
 		
 		/* create "animation" data node for this block */
 		adt_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_AnimData, adt);
+		// TODO: bind execution operations...
 		
 		/* wire up dependencies to other AnimData nodes */
 		// XXX: this step may have to be done later...
@@ -79,36 +192,20 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
 		time_src = DEG_find_node(graph, DEPSNODE_TYPE_TIMESOURCE, scene_nodedata->id, NULL, NULL);
-		DEG_add_new_relation(graph, time_src, adt_node, DEG_RELATION_TIME, "[TimeSrc -> Animation] DepsRel");
+		DEG_add_new_relation(graph, time_src, adt_node, DEG_RELATION_TIME, 
+		                     "[TimeSrc -> Animation] DepsRel");
 	}
 	
 	/* drivers */
 	for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
-		ChannelDriver *driver = fcu->driver;
-		DriverVar *dvar;
+		/* create driver */
+		DepsNode *driver_node = deg_build_driver_rel(graph, id, fcu);
 		
-		DepsNode *driver_node, *driver_host;
-		
-		/* create data node for this driver */
-		driver_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_Driver);
-		
-		/* find the node representing the data the driver is attached to */
-		// XXX...
-		
-		/* loop over variables to get the target relationships */
-		for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
-			/* only used targets */
-			DRIVER_TARGETS_USED_LOOPER(dvar) 
-			{
-				if (dtar->id) {
-					
-				}
-			}
-			DRIVER_TARGETS_LOOPER_END
+		/* prevent driver from occurring before own animation... */
+		if (adt_node) {
+			DEG_add_new_relation(graph, adt_node, driver_node, DEG_RELATION_OPERATION, 
+			                     "[AnimData Before Drivers] DepsRel");
 		}
-		
-		/* prevent driver from occurring before animation that it depends on... */
-		// XXX: todo...
 	}
 }
 

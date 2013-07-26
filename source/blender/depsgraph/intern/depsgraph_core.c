@@ -454,9 +454,7 @@ Depsgraph *DEG_graph_new()
 void DEG_graph_free(Depsgraph *graph)
 {
 	
-	/* free relationships */
-	
-	/* free nodes */
+	/* free nodes, and everything else related to them will be freed too... */
 	
 }
 

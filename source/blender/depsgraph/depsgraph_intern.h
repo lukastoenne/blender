@@ -41,7 +41,7 @@
 /* Node Querying --------------------------------------------------- */
 
 /* Find an outer node with characteristics matching the specified info 
- 
+ *
  * < graph: dependency graph that node will be part of
  * < type: type of outer-node to create. Inner nodes cannot be created using this method
  * < id: ID block that is associated with this data [<-- XXX: may not be supported/needed for ops?]
