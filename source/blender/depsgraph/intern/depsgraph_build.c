@@ -91,15 +91,10 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, Object *ob)
 {
 	DepsNode *ob_node;
-	bConstraint *con;
-	ModifierData *md;
 	
 	/* create node for object itself */
 	ob_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
 	
-	/* AnimData */
-	if (ob->adt) {
-		deg_build_animdata_graph(graph, scene_node, &ob->id);
 	}
 	
 	/* object data */
@@ -127,17 +122,34 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	}
 	
 	/* object constraints */
-	for (con = ob->constraints.first; con; con = con->next) {
-		...
+	if (ob->constraints.first) {
+		bConstraint *con;
+		
+		for (con = ob->constraints.first; con; con = con->next) {
+			...
+		}
 	}
 	
 	/* modifiers */
-	for (md = ob->modifiers.first; md; md = md->next) {
-		...
+	if (ob->modifiers.first) {
+		ModifierData *md;
+		
+		for (md = ob->modifiers.first; md; md = md->next) {
+			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+			
+			if (mti->updateDepgraph) {
+				mti->updateDepgraph(md, graph, scene, ob, ob_node);
+			}
+		}
 	}
 	
 	/* materials */
 	...
+	
+	/* AnimData */
+	if (ob->adt) {
+		deg_build_animdata_graph(graph, scene_node, &ob->id);
+	}
 	
 	/* return object node... */
 	return ob_node;
