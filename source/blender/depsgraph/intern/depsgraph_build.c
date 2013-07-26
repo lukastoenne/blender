@@ -67,17 +67,48 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 	
 	/* animation */
 	if (adt->action || adt->nla_tracks.first) {
+		IDDepsNode *scene_nodedata = (IDDepsNode *)scene_node;
+		DepsNode *adt_node, *time_src;
+		
 		/* create "animation" data node for this block */
+		adt_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_AnimData, adt);
 		
-		/* attach AnimData node to ID block it affects */
-		
-		/* wire up dependencies to other AnimData nodes + */
+		/* wire up dependencies to other AnimData nodes */
 		// XXX: this step may have to be done later...
+		
+		/* wire up dependency to time source */
+		// NOTE: this assumes that timesource was already added as one of first steps!
+		time_src = DEG_find_node(graph, DEPSNODE_TYPE_TIMESOURCE, scene_nodedata->id, NULL, NULL);
+		DEG_add_new_relation(graph, time_src, adt_node, DEG_RELATION_TIME, "[TimeSrc -> Animation] DepsRel");
 	}
 	
 	/* drivers */
 	for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
-		// 
+		ChannelDriver *driver = fcu->driver;
+		DriverVar *dvar;
+		
+		DepsNode *driver_node, *driver_host;
+		
+		/* create data node for this driver */
+		driver_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_Driver);
+		
+		/* find the node representing the data the driver is attached to */
+		// XXX...
+		
+		/* loop over variables to get the target relationships */
+		for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
+			/* only used targets */
+			DRIVER_TARGETS_USED_LOOPER(dvar) 
+			{
+				if (dtar->id) {
+					
+				}
+			}
+			DRIVER_TARGETS_LOOPER_END
+		}
+		
+		/* prevent driver from occurring before animation that it depends on... */
+		// XXX: todo...
 	}
 }
 
