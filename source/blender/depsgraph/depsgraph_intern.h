@@ -63,6 +63,17 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
  */
 DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
+/* Get the (outer) node referred to by data path
+ * ! This is just a convenience wrapper for DEG_get_node() 
+ *   when all we have is a ID + RNA Path
+ *
+ * < graph: Depsgraph to find node from
+ * < id: ID-Block that path is rooted on
+ * < path: RNA-Path to resolve
+ * > returns: (IDDepsNode | DataDepsNode) as appropriate
+ */
+DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[]);
+
 /* Node Management ---------------------------------------------------- */
 
 /* Create a new node, but don't do anything else with it yet... 

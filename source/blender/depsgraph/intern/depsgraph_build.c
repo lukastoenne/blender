@@ -61,23 +61,6 @@
 /* ************************************************* */
 /* AnimData */
 
-/* Convenience wrapper to get pointer to data referred to by path 
- * (needed, so that we don't need to declare out all the various bits)
- * > r_ptr: PointerRNA at end of path
- * > (r_prop): Property at end of path (doesn't need to be supplied if not needed)
- *
- * < id: ID-Block that path is rooted on
- * < path: RNA-Path to resolve
- */
-static bool get_rna_ptr_from_path(PointerRNA *r_ptr, PropertyRNA **r_prop, const ID *id, const char path[])
-{
-	PointerRNA id_ptr;	
-	
-	RNA_id_pointer_create(id, &id_ptr);
-	return RNA_path_resolve(&id_ptr, path, r_ptr, r_prop);
-}
-
-
 /* Build graph node(s) for Driver
  * < id: ID-Block that driver is attached to
  * < fcu: Driver-FCurve

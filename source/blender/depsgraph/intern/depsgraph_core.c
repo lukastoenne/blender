@@ -185,6 +185,36 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
 	return node;
 }
 
+/* Get DepsNode referred to by data path.
+ *
+ * < graph: Depsgraph to find node from
+ * < id: ID-Block that path is rooted on
+ * < path: RNA-Path to resolve
+ * > returns: (IDDepsNode | DataDepsNode) as appropriate
+ */
+DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[])
+{
+	PointerRNA id_ptr, ptr;
+	DepsNode *node = NULL;
+	
+	/* create ID pointer for root of path lookup */
+	RNA_id_pointer_create(id, &id_ptr);
+	
+	/* try to resolve path... */
+	if (RNA_path_resolve(&id_ptr, path, &ptr, NULL)) {
+		/* exact type of data to query depends on type of ptr we've got (search code is dumb!) */
+		if (RNA_struct_is_ID(ptr.type)) {
+			node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ptr.id, NULL, NULL);
+		}
+		else {
+			node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, ptr.id, ptr.type, ptr.data);
+		}
+	}
+	
+	/* return node found */
+	return node;
+}
+
 /* Add/Remove/Copy/Free ------------------------------- */
 
 /* Create a new node, but don't do anything else with it yet... */
