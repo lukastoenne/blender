@@ -146,6 +146,9 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 		adt_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_AnimData, adt);
 		// TODO: bind execution operations...
 		
+		/* make all other nodes on data depend on this... */
+		// XXX: ???
+		
 		/* wire up dependencies to other AnimData nodes */
 		// XXX: this step may have to be done later...
 		
@@ -181,8 +184,11 @@ static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object
 {
 	ID *parent_data_id = (ID *)ob->parent->data;
 	ID *parent_id = (ID *)ob->parent;
+	
 	DepsNode *parent_node = NULL;
 	
+	/* type-specific links */
+	// TODO: attach execution hooks...
 	switch (ob->partype) {
 		case PARSKEL:  /* Armature Deform (Virtual Modifier) */
 		{
@@ -249,6 +255,8 @@ static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object
 	}
 }
 
+
+/* build depsgraph nodes + links for object */
 static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, Object *ob)
 {
 	DepsNode *ob_node, *obdata_node = NULL;
@@ -263,6 +271,8 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	
 	/* object data */
 	if (ob->data) {
+		AnimData *data_adt = BKE_animdata_from_id((ID *)ob->data);
+		
 		switch (ob->type) {
 			case OB_ARMATURE:
 			{
@@ -285,10 +295,18 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 				...
 			}
 			break;
+			
+			case OB_CAMERA:
+			{
+				// dof
+			}
+			break;
 		}
 		
 		/* ob data animation */
-		
+		if (data_adt) {
+			deg_build_animdata_graph(graph, scene_node, (ID *)ob->data);
+		}
 	}
 	
 	/* object constraints */
@@ -321,6 +339,11 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 			Material *ma = give_current_material(ob, a);
 			...
 		}
+	}
+	
+	/* particle systems */
+	if (ob->particlesystem.first) {
+		dag_build_particles_graph(graph, scene_node, ob);
 	}
 	
 	/* AnimData */
