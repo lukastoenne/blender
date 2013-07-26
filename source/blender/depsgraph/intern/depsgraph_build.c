@@ -70,8 +70,6 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	ChannelDriver *driver = fcu->driver;
 	DriverVar *dvar;
 	
-	PointerRNA affected_ptr = {{NULL}};
-	PropertyRNA *affected_prop = NULL;
 	DepsNode *affected_node = NULL;
 	
 	DepsNode *driver_node = NULL;
@@ -82,17 +80,8 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	// TODO: bind execution operations...
 	
 	/* create dependency between data affected by driver and driver */
-	if (get_rna_ptr_from_path(&affected_ptr, &affected_prop, id, fcu->data_path) {
-		/* get node associated with affected data */
-		if (RNA_struct_is_ID(affected_dataPtr.type)) {
-			affected_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, 
-			                             affected_ptr.id, NULL, NULL);
-		}
-		else {
-			affected_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, affected_ptr.id,
-										 affected_ptr.type, affected_ptr.data);
-		}
-		
+	affected_node = DEG_get_node_from_rna_path(graph, id, fcu->rna_path);
+	if (affected_node) {
 		/* make data dependent on driver */
 		DEG_add_new_relation(graph, driver_node, affected_node, DEPSREL_TYPE_DRIVER, 
 		                     "[Driver -> Data] DepsRel");
@@ -120,19 +109,8 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 					                           dtar->id, &RNA_PoseBone, pchan);
 				}
 				else {
-					PointerRNA target_ptr;
-					
-					/* resolve path to get node... */
-					if (get_rna_ptr_from_path(&target_ptr, NULL, dtar->id, dtar->rna_path)) {
-						if (RNA_struct_is_ID(target_ptr.type)) {
-							target_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, 
-							                          target_ptr.id, NULL, NULL);
-						}
-						else {
-							target_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, target_ptr.id,
-							                          target_ptr.type, target_ptr.data);
-						}
-					}
+					/* resolve path t oget node... */
+					target_node = DEG_get_node_from_rna_path(graph, dtar->id, dtar->rna_path);
 				}
 				
 				/* make driver dependent on this node */
