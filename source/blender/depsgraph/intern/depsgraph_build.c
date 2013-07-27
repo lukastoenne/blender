@@ -176,6 +176,27 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 /* Rigs (i.e. Armature Bones) */
 
 /* ************************************************* */
+/* Geometry */
+
+/* Shapekeys */
+static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob, Key *key)
+{
+	DepsNode *key_node, *obdata_node;
+	
+	/* create node for shapekeys block */
+	key_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, &key->id, NULL, NULL);
+	
+	/* 1) attach to geometry */
+	obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)ob->data, NULL, NULL);
+	DEG_add_new_relation(graph, key_node, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
+	
+	/* 2) attach drivers, etc. */
+	if (key->adt) {
+		deg_build_animdata_graph(graph, scene, &key->id);
+	}
+}
+
+/* ************************************************* */
 /* Objects */
 
 /* object parent relationships */
@@ -259,6 +280,7 @@ static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object
 static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
 	DepsNode *ob_node, *obdata_node = NULL;
+	Key *key;
 	
 	/* create node for object itself */
 	ob_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
@@ -266,6 +288,12 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	/* object parent */
 	if (ob->parent) {
 		deg_build_object_parents(graph, ob_node, ob);
+	}
+	
+	/* ShapeKeys */
+	key = BKE_key_from_object(ob);
+	if (key) {
+		deg_build_shapekeys_graph(graph, scene, ob, key);
 	}
 	
 	/* object data */
