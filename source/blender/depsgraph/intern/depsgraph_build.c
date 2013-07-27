@@ -128,7 +128,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
  * < scene_node: Scene that ID-block this lives on belongs to
  * < id: ID-Block which hosts the AnimData
  */
-static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID *id)
+static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
 	DepsNode *adt_node = NULL;
@@ -139,7 +139,6 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 	
 	/* animation */
 	if (adt->action || adt->nla_tracks.first) {
-		IDDepsNode *scene_nodedata = (IDDepsNode *)scene_node;
 		DepsNode *time_src;
 		
 		/* create "animation" data node for this block */
@@ -154,7 +153,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, DepsNode *scene_node, ID 
 		
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
-		time_src = DEG_find_node(graph, DEPSNODE_TYPE_TIMESOURCE, scene_nodedata->id, NULL, NULL);
+		time_src = DEG_find_node(graph, DEPSNODE_TYPE_TIMESOURCE, &scene->id, NULL, NULL);
 		DEG_add_new_relation(graph, time_src, adt_node, DEPSREL_TYPE_TIME, 
 		                     "[TimeSrc -> Animation] DepsRel");
 	}
@@ -257,7 +256,7 @@ static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object
 
 
 /* build depsgraph nodes + links for object */
-static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, Object *ob)
+static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
 	DepsNode *ob_node, *obdata_node = NULL;
 	
@@ -352,7 +351,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 		
 		/* ob data animation */
 		if (data_adt) {
-			deg_build_animdata_graph(graph, scene_node, (ID *)ob->data);
+			deg_build_animdata_graph(graph, scene, (ID *)ob->data);
 		}
 	}
 	
@@ -390,12 +389,12 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	
 	/* particle systems */
 	if (ob->particlesystem.first) {
-		dag_build_particles_graph(graph, scene_node, ob);
+		dag_build_particles_graph(graph, scene, ob);
 	}
 	
 	/* AnimData */
 	if (ob->adt) {
-		deg_build_animdata_graph(graph, scene_node, &ob->id);
+		deg_build_animdata_graph(graph, scene, &ob->id);
 	}
 	
 	/* return object node... */
@@ -430,12 +429,12 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 		Object *ob = base->object;
 		
 		/* object itself */
-		deg_build_object_graph(graph, scene_node, ob);
+		deg_build_object_graph(graph, scene, ob);
 		
 		/* object that this is a proxy for */
 		// XXX: the way that proxies work needs to be completely reviewed!
 		if (ob->proxy) {
-			deg_build_object_graph(graph, scene_node, ob->proxy);
+			deg_build_object_graph(graph, scene, ob->proxy);
 		}
 	}
 	
