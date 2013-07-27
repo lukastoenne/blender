@@ -272,6 +272,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 	/* object data */
 	if (ob->data) {
 		AnimData *data_adt = BKE_animdata_from_id((ID *)ob->data);
+		DepsNode *node2;
 		
 		switch (ob->type) {
 			case OB_ARMATURE:
@@ -288,17 +289,63 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, DepsNode *scene_node, 
 			}
 			break;
 			
+			case OB_MBALL: 
+			{
+				Object *mom = BKE_mball_basis_find(scene, ob); // XXX: scene
+				
+				/* node for obdata */
+				// XXX...
+				obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, obdata_id, NULL, NULL);
+				
+				/* motherball - mom depends on children! */
+				// XXX: these needs geom data, but where is geom stored?
+				if (mom != ob) {
+					node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)mom->data, NULL, NULL);
+					DEG_add_new_relation(graph, obdata_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
+				}
+			}
+			break;
+			
 			case OB_CURVE:
 			case OB_FONT:
 			{
-				Curve *cu = (Curve *)ob->data;
-				...
+				Curve *cu = ob->data;
+				
+				/* node for obdata */
+				obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, obdata_id, NULL, NULL);
+				
+				/* curve's dependencies */
+				// XXX: these needs geom data, but where is geom stored?
+				if (cu->bevobj) {
+					node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)cu->bevobj->data, NULL, NULL);
+					DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
+				}
+				if (cu->taperobj) {
+					node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)cu->taperobj->data, NULL, NULL);
+					DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
+				}
+				if (ob->type == OB_FONT) {
+					if (cu->textoncurve) {
+						node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)cu->textoncurve->data, NULL, NULL);
+						DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
+					}
+				}
 			}
 			break;
 			
 			case OB_CAMERA:
 			{
-				// dof
+				Camera *cam = (Camera *)ob->data;
+				
+				/* node for obdata */
+				obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, obdata_id, NULL, NULL);
+				
+				/* DOF */
+				if (cam->dof_ob) {
+					// XXX: to be precise, we want the "transforms" component only...
+					node2 = DEG_get_node(dag, DEPSNODE_TYPE_OUTER_ID, (ID *)cam->dof_ob, NULL, NULL);
+					DEG_add_new_relation(graph, node2, node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
+				}
 			}
 			break;
 		}
