@@ -398,21 +398,21 @@ DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
 }
 
 /* Add relationship to graph */
-void DEG_add_relation(Depsgraph *graph, DepsRelation *rel)
+void DEG_add_relation(DepsRelation *rel)
 {
 	/* hook it up to the nodes which use it */
-	BLI_addtail(&from->outlinks, BLI_genericNodeN(rel));
-	BLI_addtail(&to->inlinks, BLI_genericNodeN(rel));
+	BLI_addtail(&rel->from->outlinks, BLI_genericNodeN(rel));
+	BLI_addtail(&rel->to->inlinks,    BLI_genericNodeN(rel));
 }
 
 /* Add new relationship between two nodes */
-DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to, 
+DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to, 
                                    eDepsRelation_Type type, 
                                    const char description[DEG_MAX_ID_NAME])
 {
 	/* create new relation, and add it to the graph */
 	DepsRelation *rel = DEG_create_new_relation(from, to, type, description);
-	DEG_add_relation(graph, rel);
+	DEG_add_relation(rel);
 	
 	return rel;
 }
