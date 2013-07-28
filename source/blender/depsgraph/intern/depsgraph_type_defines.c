@@ -53,30 +53,24 @@
  */
 
 /* Helper to make it easier to create components */
-static DepsNode *deg_component(ID *id, eDepsNode_Type type, bool ok)
+static DepsNode *deg_component(ID *id, eDepsNode_Type type)
 {
-	DepsNode *component = NULL;
+	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
+	char name_buf[DEG_MAX_ID_LEN];
 	
-	if (ok) {
-		const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
-		char name_buf[DEG_MAX_ID_LEN];
-		
-		/* generate name */
-		if (nti) {
-			BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : %s",
-						 id->name, nti->name);
-		}
-		else {
-			// XXX: this one shouldn't ever happen!
-			BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : <Component %d>",
-			             id->name, type);
-		}
-		
-		/* create component (ComponentDepsNode) */
-		component = DEG_create_node(type, name_buf);
+	/* generate name */
+	if (nti) {
+		BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : %s",
+					 id->name, nti->name);
+	}
+	else {
+		// XXX: this one shouldn't ever happen!
+		BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : <Component %d>",
+					 id->name, type);
 	}
 	
-	return component;
+	/* create component (ComponentDepsNode) */
+	return DEG_create_node(type, name_buf);
 }
 
 /* Register component with node */
@@ -106,17 +100,23 @@ static void deg_idnode_components_init(IDDepsNode *id_node)
 			Object *ob = (Object *)id;
 			
 			/* create components */
-			params = deg_component(id, DEPSNODE_TYPE_PARAMETERS, true);
-			anim   = deg_component(id, DEPSNODE_TYPE_ANIMATION,  
-			                                 (ob->adt != NULL))
-			trans  = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  true);
-			geom   = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  
-			                                 (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_META) != 0));
+			params = deg_component(id, DEPSNODE_TYPE_PARAMETERS);
+			trans  = deg_component(id, DEPSNODE_TYPE_TRANSFORM);
 			
-			proxy  = deg_component(id, DEPSNODE_TYPE_PROXY,
-			                                 (ob->proxy != NULL)); // XXX
-			                                 
-			pose   = deg_component(id, DEPSNODE_TYPE_POSE, (ob->pose != NULL));
+			if (ob->adt) {
+				anim  = deg_component(id, DEPSNODE_TYPE_ANIMATION);
+			}
+			if (ob->proxy) {
+				// XXX
+				proxy = deg_component(id, DEPSNODE_TYPE_PROXY);
+			}
+			if ((ob->type == OB_ARMATURE) || (ob->pose)) {
+				pose = deg_component(id, DEPSNODE_TYPE_POSE);
+			
+			}
+			if (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_META)) {
+				geom   = deg_component(id, DEPSNODE_TYPE_TRANSFORM);
+			}
 		}
 		break;
 		
