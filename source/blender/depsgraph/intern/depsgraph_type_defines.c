@@ -93,29 +93,32 @@ static void deg_idnode_components_init(IDDepsNode *id_node)
 	DepsNode *proxy  = NULL;
 	DepsNode *pose   = NULL;
 	
-	/* create components */
+	/* create standard components */
+	params = deg_component(id, DEPSNODE_TYPE_PARAMETERS);
+	
+	if (BKE_animdata_from_id(id)) {
+		anim = deg_component(id, DEPSNODE_TYPE_ANIMATION);
+	}
+	
+	// TODO: proxy...
+	
+	/* create type-specific components */
 	switch (GS(id->name)) {
-		case ID_OB:
+		case ID_OB: /* Object */
 		{
 			Object *ob = (Object *)id;
 			
-			/* create components */
-			params = deg_component(id, DEPSNODE_TYPE_PARAMETERS);
 			trans  = deg_component(id, DEPSNODE_TYPE_TRANSFORM);
 			
-			if (ob->adt) {
-				anim  = deg_component(id, DEPSNODE_TYPE_ANIMATION);
-			}
 			if (ob->proxy) {
 				// XXX
 				proxy = deg_component(id, DEPSNODE_TYPE_PROXY);
 			}
 			if ((ob->type == OB_ARMATURE) || (ob->pose)) {
 				pose = deg_component(id, DEPSNODE_TYPE_POSE);
-			
 			}
 			if (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_META)) {
-				geom   = deg_component(id, DEPSNODE_TYPE_TRANSFORM);
+				geom = deg_component(id, DEPSNODE_TYPE_TRANSFORM);
 			}
 		}
 		break;
