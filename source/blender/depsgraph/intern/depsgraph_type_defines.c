@@ -79,63 +79,79 @@ static DepsNode *deg_component(ID *id, eDepsNode_Type type, bool ok)
 	return component;
 }
 
+/* Register component with node */
+static void deg_idnode_component_register(IDDepsNode *id_node, DepsNode *component)
+{
+	// TODO: have a list of these to provide easier order-management?
+	BLI_ghash_insert(id_node->component_hash);
+	//BLI_addtail(&id_node->components, component);
+}
+
 /* Create components needed for ID Node in question - well, at least the slots... */
 static void deg_idnode_components_init(IDDepsNode *id_node)
 {
 	ID *id = id_node->id;
 	
+	DepsNode *params = NULL;
+	DepsNode *anim   = NULL;
+	DepsNode *trans  = NULL;
+	DepsNode *geom   = NULL;
+	DepsNode *proxy  = NULL;
+	DepsNode *pose   = NULL;
+	
+	/* create components */
 	switch (GS(id->name)) {
 		case ID_OB:
 		{
 			Object *ob = (Object *)id;
 			
 			/* create components */
-			DepsNode *params = deg_component(id, DEPSNODE_TYPE_PARAMETERS, true);
-			DepsNode *anim   = deg_component(id, DEPSNODE_TYPE_ANIMATION,  
+			params = deg_component(id, DEPSNODE_TYPE_PARAMETERS, true);
+			anim   = deg_component(id, DEPSNODE_TYPE_ANIMATION,  
 			                                 (ob->adt != NULL))
-			DepsNode *trans  = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  true);
-			DepsNode *geom   = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  
+			trans  = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  true);
+			geom   = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  
 			                                 (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_META) != 0));
 			
-			DepsNode *proxy  = deg_component(id, DEPSNODE_TYPE_PROXY,
+			proxy  = deg_component(id, DEPSNODE_TYPE_PROXY,
 			                                 (ob->proxy != NULL)); // XXX
-			
-			/* register components */
-			BLI_ghash_insert(id_node->component_hash, params);
-			BLI_ghash_insert(id_node->component_hash, trans);
-			
-			if (proxy)  BLI_ghash_insert(id_node->component_hash, proxy);
-			if (anim)   BLI_ghash_insert(id_node->component_hash, anim);
-			if (geom)   BLI_ghash_insert(id_node->component_hash, geom);
-			
-			/* connect up relationships between them to enforce order */
-			// NOTE: component sorting will be done in a pass before inner-nodes get sorted...
-			if (proxy) {
-				/* parameters are firstly derived from proxy (if present) */
-				DEG_add_new_relation(proxy, params, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Proxy -> Params]] DepsRel");
-			}
-			if (anim) {
-				/* animation affects parameters */
-				DEG_add_new_relation(anim, params, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Anim -> Params]] DepsRel");
-			}
-			if (proxy && anim) {
-				/* anim cannot be before proxy - anim works on top of proxy results */
-				DEG_add_new_relation(proxy, anim, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Proxy -> Anim]] DepsRel");
-			}
-			if (trans) {
-				/* transform depends on *part* of params - doesn't strictly need to wait, but would be easier if it did */
-				DEG_add_new_relation(params, trans, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Params -> Trans]] DepsRel");
-			}
-			if (trans && geom) {
-				/* transform often affects results of geometry */
-				// XXX: but, there are exceptions, in which case this one will be EVIL
-				DEG_add_new_relation(trans, geom, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Trans -> Geom]] DepsRel");
-			}
-			
 		}
 		break;
 		
 		// XXX: other types to come...
+	}
+	
+	/* register components */
+	if (proxy)   deg_idnode_component_register(id_node, proxy);
+	if (anim)    deg_idnode_component_register(id_node, anim);
+	if (params)  deg_idnode_component_register(id_node, params);
+	if (trans)   deg_idnode_component_register(id_node, trans);
+	if (geom)    deg_idnode_component_register(id_node, geom);
+	if (pose)    deg_idnode_component_register(id_node, pose);
+	
+	
+	/* connect up relationships between them to enforce order */
+	// NOTE: component sorting will be done in a pass before inner-nodes get sorted...
+	if (proxy) {
+		/* parameters are firstly derived from proxy (if present) */
+		DEG_add_new_relation(proxy, params, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Proxy -> Params]] DepsRel");
+	}
+	if (anim) {
+		/* animation affects parameters */
+		DEG_add_new_relation(anim, params, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Anim -> Params]] DepsRel");
+	}
+	if (proxy && anim) {
+		/* anim cannot be before proxy - anim works on top of proxy results */
+		DEG_add_new_relation(proxy, anim, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Proxy -> Anim]] DepsRel");
+	}
+	if (trans) {
+		/* transform depends on *part* of params - doesn't strictly need to wait, but would be easier if it did */
+		DEG_add_new_relation(params, trans, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Params -> Trans]] DepsRel");
+	}
+	if (trans && geom) {
+		/* transform often affects results of geometry */
+		// XXX: but, there are exceptions, in which case this one will be EVIL
+		DEG_add_new_relation(trans, geom, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Trans -> Geom]] DepsRel");
 	}
 }
 
