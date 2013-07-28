@@ -207,6 +207,27 @@ typedef enum eDepsNode_Flag {
 
 /* Generic Nodes ======================= */
 
+/* Root Node */
+/* Super(DepsNode) */
+typedef struct RootDepsNode {
+	DepsNode nd;                    /* standard header */
+	
+	Scene *scene;                   /* scene that this corresponds to */
+	TimeSourceDepsNode time_source; /* entrypoint node for time-changed */
+} RootDepsNode;
+
+/* Time Source Node */
+/* Super(DepsNode) */
+typedef struct TimeSourceDepsNode {
+	DepsNode nd;                   /* standard header */
+	
+	// XXX: how do we keep track of the chain of time sources for propagation of delays?
+	
+	double cfra;                    /* new "current time" */
+	double offset;                  /* time-offset relative to the "official" time source that this one has */
+} TimeSourceDepsNode;
+
+
 /* ID-Block Reference */
 /* Super(DepsNode) */
 typedef struct IDDepsNode {
