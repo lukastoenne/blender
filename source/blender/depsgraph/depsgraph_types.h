@@ -126,7 +126,7 @@ struct DepsNode {
 	ListBase outlinks;          /* (LinkData : DepsRelation) ndoes which depend on this one */
 	
 	short type;                 /* (eDepsNode_Type) structural type of node */
-	short datatype;             /* (???) type of data/behaviour represented by node... */
+	short class;                /* (eDepsNode_Class) type of data/behaviour represented by node... */
 	
 	short  color;               /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
 	short  flag;                /* (eDepsNode_Flag) dirty/visited tags */
@@ -135,39 +135,48 @@ struct DepsNode {
 	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
 };
 
+/* Metatype of Nodes - The general "level" in the graph structure the node serves */
+typedef enum eDepsNode_Class {
+	DEPSNODE_CLASS_GENERIC         = 0,        /* Types generally unassociated with user-visible entities, but needed for graph functioning */
+	
+	DEPSNODE_CLASS_COMPONENT       = 1,        /* [Outer Node] An "aspect" of evaluating/updating an ID-Block, requiring certain types of evaluation behaviours */    
+	DEPSNODE_CLASS_OPERATION       = 2,        /* [Inner Node] A glorified function-pointer/callback for scheduling up evaluation operations for components, subject to relationship requirements */
+} eDepsNode_Class;
 
 /* Types of Nodes */
 typedef enum eDepsNode_Type {
 	/* Generic Types */
-	DEPSNODE_TYPE_ROOT        = 0,        /* "Current Scene" - basically whatever kicks off the ealuation process */
-	DEPSNODE_TYPE_TIMESOURCE  = 1,        /* Time-Source */
+	DEPSNODE_TYPE_ROOT             = 0,        /* "Current Scene" - basically whatever kicks off the ealuation process */
+	DEPSNODE_TYPE_TIMESOURCE       = 1,        /* Time-Source */
+	DEPSNODE_TYPE_ID_REF           = 2,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
+	
 	
 	/* Outer Types */
-	DEPSNODE_TYPE_OUTER_ID    = 10,       /* Datablock */
-	DEPSNODE_TYPE_OUTER_GROUP = 11,       /* ID Group */
-	DEPSNODE_TYPE_OUTER_OP    = 12,       /* Inter-datablock operation */
+	DEPSNODE_TYPE_PARAMETERS       = 10,       /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
+	DEPSNODE_TYPE_PROXY            = 11,       /* Generic "Proxy-Inherit" Component */   // XXX: Also for instancing of subgraphs?
+	DEPSNODE_TYPE_ANIMATION        = 12,       /* Animation Component */                 // XXX: merge in with parameters?
+	DEPSNODE_TYPE_TRANSFORM        = 13,       /* Transform Component (Parenting/Constraints) */
+	DEPSNODE_TYPE_GEOMETRY         = 14,       /* Geometry Component (DerivedMesh/Displist) */
+		
+	/* Evaluation-Related Outer Types (with Subdata) */
+	DEPSNODE_TYPE_EVAL_POSE        = 15,       /* Pose Component - Owner/Container of Bones Eval */
+	DEPSNODE_TYPE_EVAL_PARTICLES   = 16,       /* Particle Systems Component */
 	
-	DEPSNODE_TYPE_SUBGRAPH    = 13,       /* For duplis, referenced nodes should be treated as a separate graph from others */
-	
-	/* "Data" Nodes (sub-datablock level) */
-	DEPSNODE_TYPE_DATA        = 50,       /* Sub-datablock "data" (i.e. driver, bone, constraint, modifier) */
 	
 	/* Inner Types */
-	DEPSNODE_TYPE_INNER_ATOM  = 100,      /* Atomic Operation */
+	DEPSNODE_TYPE_OP_PARAMETER     = 100,      /* Parameter Evaluation Operation */
+	DEPSNODE_TYPE_OP_PROXY         = 101,      /* Proxy Evaluation Operation */
+	DEPSNODE_TYPE_OP_ANIMATION     = 102,      /* Animation Evaluation Operation */
+	DEPSNODE_TYPE_OP_TRANSFORM     = 103,      /* Transform Evaluation Operation (incl. constraints, parenting, anim-to-matrix) */
+	DEPSNODE_TYPE_OP_GEOMETRY      = 104,      /* Geometry Evaluation Operation (incl. modifiers) */
+	
+	DEPSNODE_TYPE_OP_UPDATE        = 105,      /* Property Update Evaluation Operation [Parameter] */
+	DEPSNODE_TYPE_OP_DRIVER        = 106,      /* Driver Evaluation Operation [Parameter] */
+	
+	DEPSNODE_TYPE_OP_BONE          = 107,      /* Bone Evaluation [Transform/Pose] */
+	DEPSNODE_TYPE_OP_PARTICLE      = 108,      /* Particles Evaluation [Particle] */
+	DEPSNODE_TYPE_OP_RIGIDBODY     = 109,      /* Rigidbody Sim (Step) Evaluation */
 } eDepsNode_Type;
-
-
-/* Checks if node is outer-node or not
- * < node: (DepsNode)
- * > returns: (bool) true if outer node
- */
-#define DEPSNODE_IS_OUTER_NODE(node)                     \
-	( ELEM5((node)->owner, DEPSNODE_TYPE_OUTER_ID,       \
-	                       DEPSNODE_TYPE_OUTER_GROUP,    \
-	                       DEPSNODE_TYPE_OUTER_OP,       \
-	                       DEPSNODE_TYPE_SUBGRAPH,       \
-	                       DEPSNODE_TYPE_DATA ))
-
 
 
 /* "Colors" for use in depsgraph topology algorithms */
