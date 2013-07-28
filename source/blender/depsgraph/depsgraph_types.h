@@ -157,10 +157,10 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_ANIMATION        = 12,       /* Animation Component */                 // XXX: merge in with parameters?
 	DEPSNODE_TYPE_TRANSFORM        = 13,       /* Transform Component (Parenting/Constraints) */
 	DEPSNODE_TYPE_GEOMETRY         = 14,       /* Geometry Component (DerivedMesh/Displist) */
-		
+	
 	/* Evaluation-Related Outer Types (with Subdata) */
-	DEPSNODE_TYPE_EVAL_POSE        = 15,       /* Pose Component - Owner/Container of Bones Eval */
-	DEPSNODE_TYPE_EVAL_PARTICLES   = 16,       /* Particle Systems Component */
+	DEPSNODE_TYPE_EVAL_POSE        = 20,       /* Pose Component - Owner/Container of Bones Eval */
+	DEPSNODE_TYPE_EVAL_PARTICLES   = 21,       /* Particle Systems Component */
 	
 	
 	/* Inner Types */
@@ -219,7 +219,7 @@ typedef struct IDDepsNode {
 /* Outer Nodes ========================= */
 
 /* ID Component - Base type for all components */
-/* Super(ComponentDepsNode) */
+/* Super(DepsNode) */
 typedef struct ComponentDepsNode {
 	DepsNode nd;             /* standard header */
 	
@@ -251,14 +251,14 @@ typedef struct PoseComponentDepsNode {
 /* Inner Nodes ========================= */
 
 /* Atomic Operation - Base type for all operations */
-typedef struct AtomicOperationDepsNode {
+typedef struct OperationDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	/* Evaluation Operation for atomic operation 
 	 * < context: (ComponentEvalContext) context containing data necessary for performing this operation
 	 */
 	void (*evaluate)(void *context);
-} AtomicOperationDepsNode;
+} OperationDepsNode;
 
 /* ************************************* */
 /* Depsgraph */
