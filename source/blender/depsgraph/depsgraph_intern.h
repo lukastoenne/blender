@@ -203,19 +203,6 @@ typedef struct DepsNodeTypeInfo {
 	
 	/* Remove node from graph - Only use when node is to be replaced... */
 	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
-	
-	/* Querying ...................................... */
-	
-	/* Does node match the (outer-node) data-type requirements? */
-	bool (*match_outer)(DepsNode *node, ID *id, StructRNA *srna, void *data);
-	
-	// ...
-	
-	/* Graph Building (Outer nodes only) ............. */
-	/* Generate atomic operation nodes (inner nodes subgraph) */
-	void (*build_subgraph)(DepsNode *node);
-	
-	// TODO: perform special pruning operations to cull branches which don't do anything?
 } DepsNodeTypeInfo;
 
 /* Typeinfo Management -------------------------------------------------- */

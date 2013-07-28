@@ -149,10 +149,6 @@ static DepsNodeTypeInfo DNTI_OUTER_ID = {
 	
 	/* add_to_graph() */     dnti_outer_id__add_to_graph,
 	/* remove_from_graph()*/ dnti_outer_id__remove_from_graph,
-	
-	/* match_outer() */      NULL, // XXX...
-	
-	/* build_subgraph() */   NULL
 };
 
 /* Group Node ============================================= */
@@ -228,10 +224,6 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 	
 	/* add_to_graph() */     dnti_outer_group__add_to_graph,
 	/* remove_from_graph()*/ dnti_outer_group__remove_from_graph,
-	
-	/* match_outer() */      NULL, // XXX...
-	
-	/* build_subgraph() */   NULL
 };
 
 /* Data Node ============================================== */
@@ -305,10 +297,6 @@ static DepsNodeTypeInfo DNTI_DATA = {
 	
 	/* add_to_graph() */     dnti_data__add_to_graph,
 	/* remove_from_graph()*/ dnti_data__remove_from_graph,
-	
-	/* match_outer() */      dnti_data__match_outer,
-	
-	/* build_subgraph() */   NULL
 };
 
 /* ******************************************************** */
@@ -386,10 +374,6 @@ static DepsNodeTypeInfo DNTI_ATOMIC_OP = {
 	
 	/* add_to_graph() */     dnti_atomic_op__add_to_graph,
 	/* remove_from_graph()*/ dnti_atomic_op__remove_from_graph,
-	
-	/* match_outer() */      dnti_atomic_op__match_outer,
-	
-	/* build_subgraph() */   NULL
 };
 
 /* ******************************************************** */
