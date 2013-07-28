@@ -295,17 +295,11 @@ typedef struct OperationDepsNode {
 
 /* Dependency Graph object */
 struct Depsgraph {
-	ListBase nodes;		    /* ([DepsNode]) sorted set of top-level outer-nodes */
-	ListBase relations;     /* ([DepsRelation]) list of all relationships in the graph */
+	GHash *id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
+	DepsNode *root_node;     /* "root" node - the one where all evaluation enters from */
 	
-	DepsNode *root_node;    /* "root" node - the one where all evaluation enters from */
-	
-	GHash *nodehash;        /* (<ID : DepsNode>) mapping from ID blocks to outer nodes, for quicker retrievals */
-	
-	size_t num_nodes;       /* total number of nodes present in the system */
-	int type;               /* type of Depsgraph - generic or specialised... */ // XXX: needed?
-	
-	void *instance_data;    /* this is the datastore (a "context" object of sorts) where data referred to lives */
+	// XXX: other data...
+	// XXX: what about free-floating non-id-related nodes? where do "they" go?
 };
 
 /* ************************************* */
