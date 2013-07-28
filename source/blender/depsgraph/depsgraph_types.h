@@ -33,6 +33,9 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
+/* Maximum length of identifier names used in Depsgraph */
+#define DEG_MAX_ID_NAME     128
+
 /* ************************************* */
 /* Relationships Between Nodes */
 
@@ -41,14 +44,14 @@ struct DepsRelation {
 	DepsRelation *next, *prev;
 	
 	/* the nodes in the relationship (since this is shared between the nodes) */
-	DepsNode *from;     /* A */
-	DepsNode *to;       /* B */
+	DepsNode *from;               /* A */
+	DepsNode *to;                 /* B */
 	
 	/* relationship attributes */
-	const char *name;   /* label for debugging */
+	char name[DEG_MAX_ID_NAME];   /* label for debugging */
 	
-	int type;           /* (eDepsRelation_Type) */
-	int flag;           /* (eDepsRelation_Flag) */
+	int type;                     /* (eDepsRelation_Type) */
+	int flag;                     /* (eDepsRelation_Flag) */
 };
 
 
@@ -120,7 +123,7 @@ struct DepsNode {
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
-	const char *name;           /* identifier - mainly for debugging purposes... */
+	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
 	
 	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
 	ListBase outlinks;          /* (LinkData : DepsRelation) ndoes which depend on this one */
@@ -197,9 +200,6 @@ typedef enum eDepsNode_Flag {
 	
 	/* node was visited/handled already in traversal... */
 	DEPSNODE_FLAG_TEMP_TAG           = (1 << 2),
-	
-	/* node's name needs to be freed (when node is freed, as it is on heap) */
-	DEPSNODE_FLAG_NAME_NEEDS_FREE    = (1 << 3),
 } eDepsNode_Flag;
 
 /* ************************************* */
