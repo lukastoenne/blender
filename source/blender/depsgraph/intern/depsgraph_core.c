@@ -54,7 +54,7 @@
 // XXX: should all this node finding stuff be part of low-level query api?
 
 /* Find matching node */
-DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[])
+DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *result = NULL;
 	
@@ -123,7 +123,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 /* Get Node ----------------------------------------- */
 
 /* Get a matching node, creating one if need be */
-DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[])
+DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *node;
 	
@@ -173,7 +173,7 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 /* Add/Remove/Copy/Free ------------------------------- */
 
 /* Create a new node, but don't do anything else with it yet... */
-DepsNode *DEG_create_node(eDepsNode_Type type)
+DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
@@ -181,6 +181,7 @@ DepsNode *DEG_create_node(eDepsNode_Type type)
 	/* create node data... */
 	node = MEM_callocN(nti->size, nti->name);
 	node->type = type;
+	BLI_strncpy(node->name, name, DEG_MAX_ID_NAME);
 	
 	/* return newly created node data for more specialisation... */
 	return node;
@@ -197,7 +198,7 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id)
 }
 
 /* Add a new node */
-DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[])
+DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
@@ -205,7 +206,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const 
 	BLI_assert(nti != NULL);
 	
 	/* create node data... */
-	node = deg_create_node(type);
+	node = DEG_create_node(type, name);
 	
 	/* type-specific data init
 	 * NOTE: this is not included as part of create_node() as
@@ -252,7 +253,8 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 		return NULL;
 	
 	/* allocate new node, and brute-force copy over all "basic" data */
-	dst = deg_create_node(src->type);
+	// XXX: need to review the name here, as we can't have exact duplicates...
+	dst = DEG_create_node(src->type, src->name);
 	memcpy(dst, src, nti->size);
 	
 	/* now, fix up any links in standard "node header" (i.e. DepsNode struct, that all 
@@ -262,11 +264,6 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 		/* not assigned to graph... */
 		dst->next = dst->prev = NULL;
 		dst->owner = NULL;
-		
-		/* make a new copy of name (if necessary) */
-		if (dst->flag & DEPSNODE_FLAG_NAME_NEEDS_FREE) {
-			dst->name = BLI_strdup(dst->name);
-		}
 		
 		/* relationships to other nodes... */
 		// FIXME: how to handle links? We may only have partial set of all nodes still?
@@ -308,13 +305,6 @@ void DEG_free_node(DepsNode *node)
 		// XXX: review how this works!
 		BLI_freelistN(&node->inlinks);
 		BLI_freelistN(&node->outlinks);
-		
-		/* free custom name */
-		if (node->flag & DEPSNODE_FLAG_NAME_NEEDS_FREE) {
-			if (node->name) 
-				MEM_freeN(node->name);
-			node->name = NULL;
-		}
 	}
 }
 
@@ -324,7 +314,7 @@ void DEG_free_node(DepsNode *node)
 /* Create new relationship that between two nodes, but don't link it in */
 DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
                                       eDepsRelation_Type type,
-                                      const char *description)
+                                      const char description[DEG_MAX_ID_NAME])
 {
 	DepsRelation *rel;
 	
@@ -339,7 +329,7 @@ DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
 	rel->to = to;
 	
 	rel->type = type;
-	rel->description = description;
+	BLI_strncpy(rel->description, description, DEG_MAX_ID_NAME);
 	
 	/* return */
 	return rel;
@@ -358,8 +348,9 @@ void DEG_add_relation(Depsgraph *graph, DepsRelation *rel)
 }
 
 /* Add new relationship between two nodes */
-DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
-                                   eDepsRelation_Type type, const char *description)
+DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to, 
+                                   eDepsRelation_Type type, 
+                                   const char description[DEG_MAX_ID_NAME])
 {
 	/* create new relation, and add it to the graph */
 	DepsRelation *rel = DEG_create_new_relation(from, to, type, description);

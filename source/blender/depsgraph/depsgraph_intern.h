@@ -50,7 +50,7 @@
  * > returns: A node matching the required characteristics if it exists
  *            OR NULL if no such node exists in the graph
  */
-DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[]);
+DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
 /* Get the node with data matching the requested characteristics
@@ -59,7 +59,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
  *
  * > returns: A node matching the required characteristics that exists in the graph
  */
-DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[]);
+DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 /* Get the node referred to by data path
  * ! This is just a convenience wrapper for DEG_get_node() 
@@ -82,7 +82,7 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
  * > returns: The new node created (of the specified type), but which hasn't been added to
  *            the graph yet (callers need to do this manually, as well as other initialisations)
  */
-DepsNode *DEG_create_node(eDepsNode_Type type);
+DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 /* Add given node to graph 
  * < (id): ID-Block that node is associated with (if applicable)
@@ -95,7 +95,7 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
  * > returns: The new node created (of the specified type) which now exists in the graph already
  *            (i.e. even if an ID node was created first, the inner node would get created first)
  */
-DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[]);
+DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 /* Make a (deep) copy of provided node and it's little subgraph
  * ! Newly created node is not added to the existing graph
@@ -136,7 +136,7 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
  * < first_link: (LinkData *) first LinkData in list of relationships (in/out links)
  * > rel:  (DepsRelation *) identifier where DepsRelation that we're currently accessing comes up
  */
-#define DEPSNODE_RELATIONS_ITER_BEGIN(first_link, relation)                    \
+#define DEPSNODE_RELATIONS_ITER_BEGIN(first_link, relation)                          \
 	{                                                                                \
 		LinkData *__rel_iter, *__rel_next;                                           \
 		for (__rel_iter = first_link; __rel_iter; __rel_iter = __rel_next) {         \
@@ -154,7 +154,7 @@ DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode
 /* Create new relationship object, but don't add it to graph yet */
 DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to, 
                                       eDepsRelation_Type type, 
-                                      const char *description);
+                                      const char description[DEG_MAX_ID_LEN]);
 
 /* Add given relationship to the graph */
 void DEG_add_relation(Depsgraph *graph, DepsRelation *rel);
@@ -162,7 +162,8 @@ void DEG_add_relation(Depsgraph *graph, DepsRelation *rel);
 
 /* Add new relationship between two nodes */
 DepsRelation *DEG_add_new_relation(Depsgraph *graph, DepsNode *from, DepsNode *to,
-                                   eDepsRelation_Type type, const char *description);
+                                   eDepsRelation_Type type, 
+                                   const char description[DEG_MAX_ID_LEN]);
 
 
 /* Make a copy of given relationship */
@@ -187,7 +188,7 @@ typedef struct DepsNodeTypeInfo {
 	/* Identification ................................. */
 	eDepsNode_Type type;           /* DEPSNODE_TYPE_### */
 	size_t size;                   /* size in bytes of the struct */
-	char name[MAX_NAME];           /* name of node type */
+	char name[DEG_MAX_ID_LEN];     /* name of node type */
 	
 	/* Data Management ................................ */
 	/* Initialise node-specific data - the node already exists */
