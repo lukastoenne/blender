@@ -199,14 +199,37 @@ void DEG_register_node_typeinfo(DepsNodeTypeInfo *typeinfo)
 void DEG_register_node_types(void)
 {
 	/* initialise registry */
-	_depsnode_typeinfo_registry = BLI_ghash_int_new(__func__);
+	_depsnode_typeinfo_registry = BLI_ghash_int_new("Depsgraph Node Type Registry");
 	
 	/* register node types */
-	DEG_register_node_typeinfo(DNTI_OUTER_ID);
+	/* GENERIC */
+	DEG_register_node_typeinfo(DNTI_ROOT);
+	DEG_register_node_typeinfo(DNTI_TIMESOURCE);
+	DEG_register_node_typeinfo(DNTI_ID_REF);
 	
-	DEG_register_node_typeinfo(DNTI_ATOMIC_OP);
+	/* OUTER */
+	DEG_register_node_typeinfo(DNTI_PARAMETERS);
+	DEG_register_node_typeinfo(DNTI_PROXY);
+	DEG_register_node_typeinfo(DNTI_ANIMATION);
+	DEG_register_node_typeinfo(DNTI_TRANSFORM);
+	DEG_register_node_typeinfo(DNTI_GEOMETRY);
 	
-	// ...
+	DEG_register_node_typeinfo(DNTI_EVAL_POSE);
+	DEG_register_node_typeinfo(DNTI_EVAL_PARTICLES);
+	
+	/* INNER */
+	DEG_register_node_typeinfo(DNTI_OP_PARAMETER);
+	DEG_register_node_typeinfo(DNTI_OP_PROXY);
+	DEG_register_node_typeinfo(DNTI_OP_ANIMATION);
+	DEG_register_node_typeinfo(DNTI_OP_TRANSFORM);
+	DEG_register_node_typeinfo(DNTI_OP_GEOMETRY);
+	
+	DEG_register_node_typeinfo(DNTI_OP_UPDATE);
+	DEG_register_node_typeinfo(DNTI_OP_DRIVER);
+	
+	DEG_register_node_typeinfo(DNTI_OP_BONE);
+	DEG_register_node_typeinfo(DNTI_OP_PARTICLE);
+	DEG_register_node_typeinfo(DNTI_OP_RIGIDBODY);
 }
 
 /* Free registry on exit */
