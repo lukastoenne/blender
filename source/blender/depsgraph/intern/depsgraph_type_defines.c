@@ -115,11 +115,14 @@ static void deg_idnode_components_init(IDDepsNode *id_node)
 			
 			proxy  = deg_component(id, DEPSNODE_TYPE_PROXY,
 			                                 (ob->proxy != NULL)); // XXX
+			                                 
+			pose   = deg_component(id, DEPSNODE_TYPE_POSE, (ob->pose != NULL));
 		}
 		break;
 		
 		// XXX: other types to come...
 	}
+	
 	
 	/* register components */
 	if (proxy)   deg_idnode_component_register(id_node, proxy);
@@ -128,6 +131,7 @@ static void deg_idnode_components_init(IDDepsNode *id_node)
 	if (trans)   deg_idnode_component_register(id_node, trans);
 	if (geom)    deg_idnode_component_register(id_node, geom);
 	if (pose)    deg_idnode_component_register(id_node, pose);
+	
 	
 	
 	/* connect up relationships between them to enforce order */
@@ -148,10 +152,20 @@ static void deg_idnode_components_init(IDDepsNode *id_node)
 		/* transform depends on *part* of params - doesn't strictly need to wait, but would be easier if it did */
 		DEG_add_new_relation(params, trans, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Params -> Trans]] DepsRel");
 	}
+	
+	/* ... "params -> geom", and "params -> pose" 
+	 * are skipped for now as they're implicit in 
+	 * all cases here so far, thus causing no problms
+	 */
+	
 	if (trans && geom) {
 		/* transform often affects results of geometry */
 		// XXX: but, there are exceptions, in which case this one will be EVIL
 		DEG_add_new_relation(trans, geom, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Trans -> Geom]] DepsRel");
+	}
+	if (trans && pose) {
+		/* pose must happen after transform - global transforms affect it too */
+		DEG_add_new_relation(trans, pose, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Trans -> Pose]] DepsRel");
 	}
 }
 
