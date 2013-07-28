@@ -207,11 +207,43 @@ typedef enum eDepsNode_Flag {
 
 /* Generic Nodes ======================= */
 
+/* ID-Block Reference */
+/* Super(DepsNode) */
+typedef struct IDDepsNode {
+	DepsNode nd;             /* standard header */
+	
+	ID *id;                  /* ID Block referenced */
+	GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
+} IDDepsNode;
+
 /* Outer Nodes ========================= */
+
+/* ID Component - Base type for all components */
+/* Super(ComponentDepsNode) */
+typedef struct ComponentDepsNode {
+	DepsNode nd;             /* standard header */
+	
+	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
+	
+	PointerRNA ptr;          /* where applicable, the data subset that this corresponds to */
+	void *result_data;       /* (ComponentEvalContext) where the data for this component goes when done */
+	
+	// XXX: a poll() callback to check if component's first node can be started?
+} ComponentDepsNode;
+
+/* ---------------------------------------- */
 
 /* Inner Nodes ========================= */
 
-
+/* Atomic Operation - Base type for all operations */
+typedef struct AtomicOperationDepsNode {
+	DepsNode nd;             /* standard header */
+	
+	/* Evaluation Operation for atomic operation 
+	 * < context: (ComponentEvalContext) context containing data necessary for performing this operation
+	 */
+	void (*evaluate)(void *context);
+} AtomicOperationDepsNode;
 
 /* ************************************* */
 /* Depsgraph */
