@@ -251,6 +251,47 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 /* ******************************************************** */
 /* Outer Nodes */
 
+/* Standard Component Methods ============================= */
+
+/* Initialise 'component' node - from pointer data given */
+static void dnti_component__init_data(DepsNode *node, ID *UNUSED(id))
+{
+	ComponentDepsNode *component = (ComponentDepsNode *)node;
+}
+
+/* Copy 'component' node */
+static void dnti_component__copy_data(DepsNode *dst, const DepsNode *src)
+{
+	const ComponentDepsNode *src_node = (const ComponentDepsNode *)src;
+	ComponentDepsNode *dst_node       = (ComponentDepsNode *)dst;
+	
+	// XXX: duplicate hash...
+}
+
+/* Free 'component' node */
+static void dnti_component__free_data(DepsNode *node)
+{
+	ComponentDepsNode *component = (ComponentDepsNode *)node;
+}
+
+/* Standard Component Defines ============================= */
+
+/* Parameters */
+static DepsNodeTypeInfo DNTI_PARAMETERS = {
+	/* type */               DEPSNODE_TYPE_PARAMETERS,
+	/* size */               sizeof(ComponentDepsNode),
+	/* name */               "Parameters Component",
+	
+	/* init_data() */        dnti_component__init_data,
+	/* free_data() */        dnti_component__free_data,
+	/* copy_data() */        dnti_component__copy_data,
+	
+	/* add_to_graph() */     NULL,
+	/* remove_from_graph()*/ NULL // XXX...
+};
+
+/* Pose Component ========================================= */
+
 /* ******************************************************** */
 /* Inner Nodes */
 
