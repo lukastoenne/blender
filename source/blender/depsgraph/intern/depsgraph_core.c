@@ -227,8 +227,23 @@ DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 	
 	/* create node data... */
 	node = MEM_callocN(nti->size, nti->name);
-	node->type = type;
+	
+	/* populate base node settings */
 	BLI_strncpy(node->name, name, DEG_MAX_ID_NAME);
+	node->type = type;
+	
+	/* node.class 
+	 * ! KEEP IN SYNC wtih eDepsNode_Type
+	 */
+	if (type < DEPSNODE_TYPE_PARAMETERS) {
+		node->class = DEPSNODE_CLASS_GENERIC;
+	}
+	else if (type < DEPSNODE_TYPE_OP_PARAMETER) {
+		node->class = DEPSNODE_CLASS_COMPONENT;
+	}
+	else {
+		node->class = DEPSNODE_CLASS_OPERATION;
+	}
 	
 	/* return newly created node data for more specialisation... */
 	return node;
