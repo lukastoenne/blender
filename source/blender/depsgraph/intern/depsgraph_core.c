@@ -99,7 +99,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 		case DEPSNODE_TYPE_ID_REF: /* ID Block Index/Reference */
 		{
 			/* lookup relevant ID using nodehash */
-			result = BLI_ghash_lookup(graph->nodehash, id);
+			result = BLI_ghash_lookup(graph->id_hash, id);
 		}	
 			break;
 			
@@ -114,7 +114,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 		case DEPSNODE_TYPE_EVAL_PARTICLES:
 		{
 			/* Each ID-Node knows the set of components that are associated with it */
-			IDDepsNode *id_node = BLI_ghash_lookup(graph->nodehash, id);
+			IDDepsNode *id_node = BLI_ghash_lookup(graph->id_hash, id);
 			
 			if (id_node) {
 				result = BLI_ghash_lookup(id_node->component_hash, type);
@@ -403,10 +403,6 @@ void DEG_add_relation(Depsgraph *graph, DepsRelation *rel)
 	/* hook it up to the nodes which use it */
 	BLI_addtail(&from->outlinks, BLI_genericNodeN(rel));
 	BLI_addtail(&to->inlinks, BLI_genericNodeN(rel));
-	
-	/* store copy of the relation at top-level for safekeeping */
-	// XXX: is there any good reason to keep doing this?
-	BLI_addtail(&graph->relations, rel);
 }
 
 /* Add new relationship between two nodes */
@@ -455,9 +451,6 @@ void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel)
 		BLI_freelinkN(&rel->to->inlinks, rel, offsetof(LinkData, data));
 		ld = NULL;
 	}
-	
-	/* remove relation from the graph... */
-	BLI_remlink(&graph->relations, rel);
 }
 
 /* Free relation and its data */
@@ -478,24 +471,30 @@ Depsgraph *DEG_graph_new()
 {
 	Depsgraph *graph = MEM_callocN(sizeof(Depsgraph), "Depsgraph");
 	
-	/* initialise nodehash - hash table for quickly finding outer nodes corresponding to ID's */
-	graph->nodehash = BLI_ghash_ptr_new("Depsgraph NodeHash");
-	
-	/* type of depsgraph */
-	graph->type = 0; // XXX: in time, this can be fleshed out, but for now, this means "main scene/eval one"
+	/* initialise hash used to quickly find node associated with a particular ID block */
+	graph->id_hash = BLI_ghash_ptr_new("Depsgraph NodeHash");
 	
 	/* return new graph */
 	return graph;
 }
 
+/* ---------------------------------------------- */
+
+/* wrapper around DEG_free_node() so that it can be used to free nodes stored in hash... */
+static void deg_graph_free__node_wrapper(void *node_p)
+{
+	DEG_free_node((DepsNode *)node_p);
+	MEM_freeN(node_p);
+}
+
 /* Free graph's contents, but not graph itself */
 void DEG_graph_free(Depsgraph *graph)
 {
+	BLI_ghash_free(graph->id_hash, NULL, deg_graph_free__node_wrapper);
+	graph->id_hash = NULL;
 	
-	/* free nodes, and everything else related to them will be freed too... */
-	
+	graph->root_node = NULL;
 }
-
 
 /* ************************************************** */
 /* Evaluation */
