@@ -43,8 +43,8 @@
 /* Find an outer node with characteristics matching the specified info 
  *
  * < graph: dependency graph that node will be part of
- * < type: type of outer-node to create. Inner nodes cannot be created using this method
- * < id: ID block that is associated with this data [<-- XXX: may not be supported/needed for ops?]
+ * < type: type of node we're dealing with
+ * < id: ID block that is associated with this
  *
  * < (data): sub-ID data that node refers to (if applicable)
  * < (srna): typeinfo for data, which makes it easier to keep track of what it is (if applicable)
@@ -55,7 +55,7 @@
 DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
 
-/* Get the (outer) node with data matching the requested characteristics
+/* Get the node with data matching the requested characteristics
  * ! New nodes are created if no matching nodes exist...
  * ! Arguments are as for DEG_find_node()
  *
@@ -63,7 +63,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
  */
 DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
 
-/* Get the (outer) node referred to by data path
+/* Get the node referred to by data path
  * ! This is just a convenience wrapper for DEG_get_node() 
  *   when all we have is a ID + RNA Path
  *
@@ -72,6 +72,7 @@ DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA 
  * < path: RNA-Path to resolve
  * > returns: (IDDepsNode | DataDepsNode) as appropriate
  */
+// XXX: needs type arg for filtering what we return?
 DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[]);
 
 /* Node Management ---------------------------------------------------- */
