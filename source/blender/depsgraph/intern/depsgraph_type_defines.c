@@ -110,7 +110,7 @@ static void dnti_outer_node__free_data(DepsNode *node)
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
-static void dnti_outer_id__init_data(DepsNode *node, ID *id, StructRNA *UNUSED(srna), void *UNUSED(data))
+static void dnti_outer_id__init_data(DepsNode *node, ID *id)
 {
 	IDDepsNode *idnode = (IDDepsNode *)node;
 	
@@ -229,7 +229,7 @@ static DepsNodeTypeInfo DNTI_OUTER_GROUP = {
 /* Data Node ============================================== */
 
 /* Initialise 'data' node - from pointer data given */
-static void dnti_data__init_data(DepsNode *node, ID *id, StructRNA *srna, void *data)
+static void dnti_data__init_data(DepsNode *node, ID *id)
 {
 	DataDepsNode *ddn = (DataDepsNode *)node;
 	
@@ -308,7 +308,7 @@ static DepsNodeTypeInfo DNTI_DATA = {
  * - Just the pointer; Operation needs to be done through API in a different way
  */
 /* Initialise 'data' node - from pointer data given */
-static void dnti_data__init_data(DepsNode *node, ID *id, StructRNA *srna, void *data)
+static void dnti_data__init_data(DepsNode *node, ID *id)
 {
 	AtomicOperationDepsNode *aon = (AtomicOperationDepsNode *)node;
 	

@@ -260,7 +260,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const 
 	 *       some methods may want/need to override this step
 	 */
 	if (nti->init_data) {
-		nti->init_data(node, id, srna, data);
+		nti->init_data(node, id);
 	}
 	
 	/* add node to graph 

@@ -189,7 +189,7 @@ typedef struct DepsNodeTypeInfo {
 	
 	/* Data Management ................................ */
 	/* Initialise node-specific data - the node already exists */
-	void (*init_data)(DepsNode *node, ID *id, StructRNA *srna, void *data);
+	void (*init_data)(DepsNode *node, ID *id);
 	
 	/* Free node-specific data, but not node itself */
 	// XXX: note - this should not try to call remove_from_graph()...
