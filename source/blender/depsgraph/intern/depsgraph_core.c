@@ -102,7 +102,15 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 		
 		/* "Inner" Nodes ---------------------------- */
 		
-		
+		case DEPSNODE_TYPE_OP_PARAMETER: /* Parameter Related Ops */
+		{
+			ComponentDepsNode *component = DEG_find_node(graph, DEPSNODE_TYPE_PARAMETERS, id, NULL, NULL);
+			
+			if (component) {
+				// how to find the one we're after?
+			}
+		}
+			break;
 		
 		default:
 			/* Unhandled... */
