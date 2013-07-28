@@ -74,16 +74,16 @@ typedef enum eDepsRelation_Type {
 	/* time dependency */
 	DEPSREL_TYPE_TIME,
 	
+	/* component depends on results of another */
+	DEPSREL_TYPE_COMPONENT_ORDER,
+	
 	/* relationship is just used to enforce ordering of operations
 	 * (e.g. "init()" callback done before "exec() and "cleanup()")
 	 */
 	DEPSREL_TYPE_OPERATION,
 	
-	/* relationship results from a property driver */
+	/* relationship results from a property driver affecting property */
 	DEPSREL_TYPE_DRIVER,
-	
-	/* relationship results from a driver related to transforms */
-	DEPSREL_TYPE_DRIVER_TRANSFORM,
 	
 	/* relationship is something driver depends on */
 	DEPSREL_TYPE_DRIVER_TARGET,
