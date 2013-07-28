@@ -225,8 +225,10 @@ typedef struct ComponentDepsNode {
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
 	
+	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
+	void *result_data;       /*  where the data for this component goes when done */
+	
 	PointerRNA ptr;          /* where applicable, the data subset that this corresponds to */
-	void *result_data;       /* (ComponentEvalContext) where the data for this component goes when done */
 	
 	// XXX: a poll() callback to check if component's first node can be started?
 } ComponentDepsNode;
@@ -241,8 +243,10 @@ typedef struct PoseComponentDepsNode {
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
 	
+	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
+	void *result_data;       /*  where the data for this component goes when done */
+	
 	PointerRNA ptr;          /* where applicable, the data subset that this corresponds to */
-	void *result_data;       /* (ComponentEvalContext) where the data for this component goes when done */
 	
 	/* PoseComponentDepsNode */
 	GHash *bone_hash;        /* <String, BoneDepsNode> hash for quickly finding node(s) associated with bone */
@@ -251,13 +255,16 @@ typedef struct PoseComponentDepsNode {
 /* Inner Nodes ========================= */
 
 /* Atomic Operation - Base type for all operations */
+/* Super(DepsNode) */
 typedef struct OperationDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	/* Evaluation Operation for atomic operation 
 	 * < context: (ComponentEvalContext) context containing data necessary for performing this operation
+	 *            Results can generally be written to the context directly...
+	 * < (item): (ComponentDepsNode/PointerRNA) the specific entity involved, where applicable
 	 */
-	void (*evaluate)(void *context);
+	void (*evaluate)(void *context, void *item);
 } OperationDepsNode;
 
 /* ************************************* */
