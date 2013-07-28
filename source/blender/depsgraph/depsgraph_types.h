@@ -250,8 +250,6 @@ typedef struct ComponentDepsNode {
 	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
 	void *result_data;       /*  where the data for this component goes when done */
 	
-	PointerRNA ptr;          /* where applicable, the data subset that this corresponds to */
-	
 	// XXX: a poll() callback to check if component's first node can be started?
 } ComponentDepsNode;
 
@@ -268,8 +266,6 @@ typedef struct PoseComponentDepsNode {
 	
 	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
 	void *result_data;       /*  where the data for this component goes when done */
-	
-	PointerRNA ptr;          /* where applicable, the data subset that this corresponds to */
 	
 	/* PoseComponentDepsNode */
 	GHash *bone_hash;        /* <String, BoneDepsNode> hash for quickly finding node(s) associated with bone */
