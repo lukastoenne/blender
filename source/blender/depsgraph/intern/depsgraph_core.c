@@ -54,6 +54,30 @@
 /* Node Finding ------------------------------------- */
 // XXX: should all this node finding stuff be part of low-level query api?
 
+/* helper for finding inner nodes by their names */
+DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type component_type, 
+                              eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+{
+	ComponentDepsNode *component = DEG_find_node(graph, component_type, id, NULL);
+	
+	if (component) {
+		DepsNode *node;
+		
+		/* for now, iterate over subnodes until we find the one we want... */
+		for (node = component->ops.first; node; node = node->next) {
+			if ((node->type == type) && (strcmp(node->name, name) == 0)) {
+				/* match */
+				return node;
+			}
+		}
+		
+		// XXX: type-specific checks too?
+	}
+	
+	/* no match... */
+	return NULL;
+}
+
 /* Find matching node */
 DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
@@ -103,18 +127,43 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 		
 		/* "Inner" Nodes ---------------------------- */
 		
-		case DEPSNODE_TYPE_OP_PARAMETER: /* Parameter Related Ops */
-		{
-			ComponentDepsNode *component = DEG_find_node(graph, DEPSNODE_TYPE_PARAMETERS, id, NULL, NULL);
+		case DEPSNODE_TYPE_OP_PARAMETER:  /* Parameter Related Ops */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PARAMETERS, type, name);
+			break;
+		case DEPSNODE_TYPE_OP_PROXY:      /* Proxy Ops */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PROXY, type, name);
+			break;
+		case DEPSNODE_TYPE_OP_TRANSFORM:  /* Transform Ops */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_TRANSFORM, type, name);
+			break;
+		case DEPSNODE_TYPE_OP_ANIMATION:  /* Animation Ops */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_ANIMATION, type, name);
+			break;
+		case DEPSNODE_TYPE_OP_GEOMETRY:   /* Geometry Ops */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_GEOMETRY, type, name);
+			break;
 			
-			if (component) {
-				// how to find the one we're after?
-			}
-		}
+		case DEPSNODE_TYPE_OP_UPDATE:     /* Updates */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PARAMETERS, type, name);
+			break;
+		case DEPSNODE_TYPE_OP_DRIVER:     /* Drivers */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PARAMETERS, type, name);
+			break;
+			
+		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_EVAL_POSE, type, name);
+			break;
+		case DEPSNODE_TYPE_OP_PARTICLE:  /* Particle System/Step */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_EVAL_PARTICLE, type, name);
+			break;
+			
+		case DEPSNODE_TYPE_OP_RIGIDBODY: /* Rigidbody Sim */
+			result = NULL; // FIXME!!! Where does this go?
 			break;
 		
 		default:
 			/* Unhandled... */
+			printf("%s(): Unknown node type %d\n", __func__, type);
 			break;
 	}
 	
