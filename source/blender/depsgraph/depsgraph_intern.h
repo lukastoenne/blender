@@ -33,9 +33,6 @@
 #ifndef __DEPSGRAPH_INTERN_H__
 #define __DEPSGRAPH_INTERN_H__
 
-/* includes for safety! */
-#include <stdarg.h>
-
 /* Graph Building/Low-Level Querying =============================== */
 
 /* Node Querying --------------------------------------------------- */
