@@ -61,17 +61,14 @@ DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type component
 	ComponentDepsNode *component = DEG_find_node(graph, component_type, id, NULL);
 	
 	if (component) {
-		DepsNode *node;
+		/* lookup node with matching name... */
+		DepsNode *node = BLI_ghash_lookup(component->ophash, name);
 		
-		/* for now, iterate over subnodes until we find the one we want... */
-		for (node = component->ops.first; node; node = node->next) {
-			if ((node->type == type) && (strcmp(node->name, name) == 0)) {
-				/* match */
-				return node;
-			}
+		if (node) {
+			/* make sure type matches too... just in case */
+			BLI_assert(node->type == type);
+			return node;
 		}
-		
-		// XXX: type-specific checks too?
 	}
 	
 	/* no match... */

@@ -245,6 +245,7 @@ typedef struct ComponentDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
+	GHash *ophash;           /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
 	
 	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
 	void *result_data;       /*  where the data for this component goes when done */
@@ -263,6 +264,7 @@ typedef struct PoseComponentDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
+	GHash *ophash;           /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
 	
 	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
 	void *result_data;       /*  where the data for this component goes when done */
