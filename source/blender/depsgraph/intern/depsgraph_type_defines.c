@@ -49,7 +49,7 @@
 /* NOTE: while this part overlaps with graph building, at the
  * end of the day, components are more related to the low-level
  * structural aspects of the system than the stuff done during
- * graph building (which addresses issues of 
+ * graph building (which addresses issues of user-defined rels)
  */
 
 /* Helper to make it easier to create components */
