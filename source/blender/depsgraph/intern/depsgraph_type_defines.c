@@ -257,6 +257,12 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 static void dnti_component__init_data(DepsNode *node, ID *UNUSED(id))
 {
 	ComponentDepsNode *component = (ComponentDepsNode *)node;
+	
+	/* create op-node hash */
+	component->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash");
+	
+	/* hook up eval context? */
+	// XXX: maybe this needs a special API?
 }
 
 /* Copy 'component' node */
@@ -265,13 +271,23 @@ static void dnti_component__copy_data(DepsNode *dst, const DepsNode *src)
 	const ComponentDepsNode *src_node = (const ComponentDepsNode *)src;
 	ComponentDepsNode *dst_node       = (ComponentDepsNode *)dst;
 	
-	// XXX: duplicate hash...
+	DepsNode *op_node;
+	
+	/* create new op-node hash (to host the copied data) */
+	dst_node->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy");
+	
+	/* duplicate list of operation nodes */
+	
 }
 
 /* Free 'component' node */
 static void dnti_component__free_data(DepsNode *node)
 {
 	ComponentDepsNode *component = (ComponentDepsNode *)node;
+	
+	// free list and nodes...
+	
+	// free hash...
 }
 
 /* Standard Component Defines ============================= */
