@@ -43,6 +43,71 @@
 #include "depsgraph_intern.h"
 
 /* ******************************************************** */
+/* Internal API */
+
+/* Helper to make it easier to create components */
+static DepsNode *deg_component(ID *id, eDepsNode_Type type, bool ok)
+{
+	DepsNode *component = NULL;
+	
+	if (ok) {
+		const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
+		char name_buf[DEG_MAX_ID_LEN];
+		
+		/* generate name */
+		if (nti) {
+			BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : %s",
+						 id->name, nti->name);
+		}
+		else {
+			// XXX: this one shouldn't ever happen!
+			BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : <Component %d>",
+			             id->name, type);
+		}
+		
+		/* create component (ComponentDepsNode) */
+		component = DEG_create_node(type, name_buf);
+	}
+	
+	return component;
+}
+
+/* Create components needed for ID Node in question - well, at least the slots... */
+static void deg_idnode_components_init(IDDepsNode *id_node)
+{
+	ID *id = id_node->id;
+	
+	switch (GS(id->name)) {
+		case ID_OB:
+		{
+			Object *ob = (Object *)id;
+			
+			/* create components */
+			DepsNode *params = deg_component(id, DEPSNODE_TYPE_PARAMETERS, true);
+			DepsNode *anim   = deg_component(id, DEPSNODE_TYPE_ANIMATION,  
+			                                 (ob->adt != NULL))
+			DepsNode *trans  = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  true);
+			DepsNode *geom   = deg_component(id, DEPSNODE_TYPE_TRANSFORM,  
+			                                 (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_META) != 0));
+			// ...
+			
+			/* register components */
+			if (params) BLI_ghash_insert(id_node->component_hash, params);
+			if (anim)   BLI_ghash_insert(id_node->component_hash, anim);
+			if (trans)  BLI_ghash_insert(id_node->component_hash, trans);
+			if (geom)  BLI_ghash_insert(id_node->component_hash, geom);
+			// ...
+			
+			/* connect up relationships between them to enforce order */
+			// ...
+		}
+		break;
+		
+		// XXX: other types to come...
+	}
+}
+
+/* ******************************************************** */
 /* Generic Nodes */
 
 /* ID Node ================================================ */
