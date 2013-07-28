@@ -40,19 +40,17 @@
 
 /* Node Querying --------------------------------------------------- */
 
-/* Find an outer node with characteristics matching the specified info 
+/* Find node which matches the specified description
  *
  * < graph: dependency graph that node will be part of
- * < type: type of node we're dealing with
  * < id: ID block that is associated with this
- *
- * < (data): sub-ID data that node refers to (if applicable)
- * < (srna): typeinfo for data, which makes it easier to keep track of what it is (if applicable)
+ * < type: type of node we're dealing with
+ * < name: custom identifier assigned to node 
  *
  * > returns: A node matching the required characteristics if it exists
  *            OR NULL if no such node exists in the graph
  */
-DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
+DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[]);
 
 
 /* Get the node with data matching the requested characteristics
@@ -61,7 +59,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
  *
  * > returns: A node matching the required characteristics that exists in the graph
  */
-DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
+DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[]);
 
 /* Get the node referred to by data path
  * ! This is just a convenience wrapper for DEG_get_node() 
@@ -97,7 +95,7 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
  * > returns: The new node created (of the specified type) which now exists in the graph already
  *            (i.e. even if an ID node was created first, the inner node would get created first)
  */
-DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data);
+DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[]);
 
 /* Make a (deep) copy of provided node and it's little subgraph
  * ! Newly created node is not added to the existing graph

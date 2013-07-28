@@ -54,7 +54,7 @@
 // XXX: should all this node finding stuff be part of low-level query api?
 
 /* Find matching node */
-DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
+DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[])
 {
 	DepsNode *result = NULL;
 	
@@ -123,15 +123,15 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 /* Get Node ----------------------------------------- */
 
 /* Get a matching node, creating one if need be */
-DepsNode *DEG_get_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
+DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[])
 {
 	DepsNode *node;
 	
 	/* firstly try to get an existing node... */
-	node = DEG_find_node(graph, type, id, srna, data);
+	node = DEG_find_node(graph, type, id, name);
 	if (node == NULL) {
 		/* nothing exists, so create one instead! */
-		node = DEG_add_new_node(graph, type, id, srna, data);
+		node = DEG_add_new_node(graph, type, id, name);
 	}
 	
 	/* return the node - it must exist now... */
@@ -196,8 +196,8 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id)
 	}
 }
 
-/* Add a new outer node */
-DepsNode *DEG_add_new_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA *srna, void *data)
+/* Add a new node */
+DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[])
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
