@@ -73,9 +73,37 @@ DepsNode *DEG_find_node(Depsgraph *graph, eDepsNode_Type type, ID *id, StructRNA
 			result = root_node->time_source;
 		}
 			break;
+		
+		case DEPSNODE_TYPE_ID_REF: /* ID Block Index/Reference */
+		{
+			/* lookup relevant ID using nodehash */
+			result = BLI_ghash_lookup(graph->nodehash, id);
+		}	
+			break;
 			
 		/* "Outer" Nodes ---------------------------- */
+		
+		case DEPSNODE_TYPE_PARAMETERS: /* Components... */
+		case DEPSNODE_TYPE_PROXY:
+		case DEPSNODE_TYPE_ANIMATION:
+		case DEPSNODE_TYPE_TRANSFORM:
+		case DEPSNODE_TYPE_GEOMETRY:
+		case DEPSNODE_TYPE_EVAL_POSE:
+		case DEPSNODE_TYPE_EVAL_PARTICLES:
+		{
+			/* Each ID-Node knows the set of components that are associated with it */
+			IDDepsNode *id_node = BLI_ghash_lookup(graph->nodehash, id);
 			
+			if (id_node) {
+				result = BLI_ghash_lookup(id_node->component_hash, type);
+			}
+		}
+			break;
+		
+		/* "Inner" Nodes ---------------------------- */
+		
+		
+		
 		default:
 			/* Unhandled... */
 			break;
