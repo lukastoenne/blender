@@ -48,45 +48,74 @@
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
-static void dnti_outer_id__init_data(DepsNode *node, ID *id)
+static void dnti_id_ref__init_data(DepsNode *node, ID *id)
 {
-	IDDepsNode *idnode = (IDDepsNode *)node;
+	IDDepsNode *id_node = (IDDepsNode *)node;
 	
 	/* store ID-pointer */
-	idnode->id = id;
+	BLI_assert(id != NULL);
+	id_node->id = id;
+	
+	/* init components hash - eDepsNode_Type : ComponentDepsNode */
+	id_node->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash");
+	
+	/* create components 
+	 * NOTE: we do this in advance regardless of whether there will actually be anything inside them...
+	 *       This will probably be wasteful, but at least helps us catch valid things...
+	 */
+	deg_idnode_components_init(id_node);
+}
+
+/* Helper for freeing ID nodes - Used by component hash to free data... */
+static void dnti_id_ref__hash_free_component(void *component_p)
+{
+	DEG_free_node((DepsNode *)component_p);
+}
+
+/* Free 'id' node */
+static void dnti_id_ref__free_data(DepsNode *node)
+{
+	IDDepsNode *id_node = (IDDepsNode *)node;
+	
+	/* free components (and recursively, their data) while we empty the hash */
+	BLI_ghash_free(id_node->component_hash, NULL, dnti_id_ref__hash_free_component);
+}
+
+/* Copy 'id' node */
+static void dnti_id_ref__copy_data(DepsNode *dst, const DepsNode *src)
+{
+	const IDDepsNode *src_node = (const IDDepsNode *)src;
+	IDDepsNode *dst_node       = (IDDepsNode *)dst;
+	
+	// XXX: duplicate hash...
 }
 
 /* Add 'id' node to graph */
-static void dnti_outer_id__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_id_ref__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	/* add to toplevel node and graph */
-	BLI_ghash_insert(graph->nodehash, id, node);
-	BLI_addtail(&graph->nodes, node);
+	/* add to hash so that it can be found */
+	BLI_ghash_insert(graph->id_hash, id, node);
 }
 
-/* Remove 'id' node from graph - to be replaced with a group perhaps */
-static void dnti_outer_id__remove_from_graph(Depsgraph *graph, DepsNode *node)
+/* Remove 'id' node from graph */
+static void dnti_id_ref__remove_from_graph(Depsgraph *graph, DepsNode *node)
 {
-	/* remove toplevel node and hash entry
-	 * NOTE: these will be replaced with new versions later
-	 *       and the other links can be redirected non-destructively
-	 */
+	/* remove toplevel node and hash entry, but don't free... */
 	BLI_ghash_remove(graph->nodehash, id, NULL, NULL);
-	BLI_remlink(&graph->nodes, node);
 }
 
 /* ID Node Type Info */
-static DepsNodeTypeInfo DNTI_OUTER_ID = {
-	/* type */               DEPSNODE_TYPE_OUTER_ID,
+static DepsNodeTypeInfo DNTI_ID_REF = {
+	/* type */               DEPSNODE_TYPE_ID_REF,
 	/* size */               sizeof(IDDepsNode),
 	/* name */               "ID Node",
 	
-	/* init_data() */        dnti_outer_id__init_data,
-	/* free_data() */        dnti_outer_node__free_data,
-	/* copy_data() */        dnti_outer_node__copy_data,
+	/* init_data() */        dnti_id_ref__init_data,
+	/* free_data() */        dnti_id_ref__free_data,
+	/* copy_data() */        dnti_id_ref__copy_data,
 	
-	/* add_to_graph() */     dnti_outer_id__add_to_graph,
-	/* remove_from_graph()*/ dnti_outer_id__remove_from_graph,
+	/* add_to_graph() */     dnti_id_ref__add_to_graph,
+	/* remove_from_graph()*/ dnti_id_ref__remove_from_graph,
 };
 
 /* ******************************************************** */
@@ -165,9 +194,6 @@ static DepsNodeTypeInfo DNTI_ATOMIC_OP = {
 	/* add_to_graph() */     dnti_atomic_op__add_to_graph,
 	/* remove_from_graph()*/ dnti_atomic_op__remove_from_graph,
 };
-
-/* ******************************************************** */
-/* Internal API */
 
 
 /* ******************************************************** */
