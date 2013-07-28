@@ -233,6 +233,21 @@ typedef struct ComponentDepsNode {
 
 /* ---------------------------------------- */
 
+/* Pose Evaluation - Sub-data needed */
+/* Super(ComponentDepsNode) */
+typedef struct PoseComponentDepsNode {
+	/* ComponentDepsNode */
+	DepsNode nd;             /* standard header */
+	
+	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
+	
+	PointerRNA ptr;          /* where applicable, the data subset that this corresponds to */
+	void *result_data;       /* (ComponentEvalContext) where the data for this component goes when done */
+	
+	/* PoseComponentDepsNode */
+	GHash *bone_hash;        /* <String, BoneDepsNode> hash for quickly finding node(s) associated with bone */
+} PoseComponentDepsNode;
+
 /* Inner Nodes ========================= */
 
 /* Atomic Operation - Base type for all operations */
