@@ -49,135 +49,6 @@
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
-/* ******************************************************** */
-/* Internal API */
-
-/* Components ============================================ */
-/* NOTE: while this part overlaps with graph building, at the
- * end of the day, components are more related to the low-level
- * structural aspects of the system than the stuff done during
- * graph building (which addresses issues of user-defined rels)
- */
-
-/* Helper to make it easier to create components */
-static DepsNode *deg_new_component(ID *id, eDepsNode_Type type)
-{
-	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
-	char name_buf[DEG_MAX_ID_LEN];
-	
-	/* generate name */
-	if (nti) {
-		BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : %s",
-					 id->name, nti->name);
-	}
-	else {
-		// XXX: this one shouldn't ever happen!
-		BLI_snprintf(name_buf, DEG_MAX_ID_LEN, "%s : <Component %d>",
-					 id->name, type);
-	}
-	
-	/* create component (ComponentDepsNode) */
-	return DEG_create_node(type, name_buf);
-}
-
-/* Register component with node */
-static void deg_idnode_component_register(IDDepsNode *id_node, DepsNode *component)
-{
-	// TODO: have a list of these to provide easier order-management?
-	BLI_ghash_insert(id_node->component_hash, SET_INT_IN_POINTER(component->type), component);
-	//BLI_addtail(&id_node->components, component);
-}
-
-/* Create components needed for ID Node in question - well, at least the slots... */
-static void deg_idnode_components_init(IDDepsNode *id_node)
-{
-	ID *id = id_node->id;
-	
-	DepsNode *params = NULL;
-	DepsNode *anim   = NULL;
-	DepsNode *trans  = NULL;
-	DepsNode *geom   = NULL;
-	DepsNode *proxy  = NULL;
-	DepsNode *pose   = NULL;
-	
-	/* create standard components */
-	params = deg_new_component(id, DEPSNODE_TYPE_PARAMETERS);
-	
-	if (BKE_animdata_from_id(id)) {
-		anim = deg_new_component(id, DEPSNODE_TYPE_ANIMATION);
-	}
-	
-	// TODO: proxy...
-	
-	/* create type-specific components */
-	switch (GS(id->name)) {
-		case ID_OB: /* Object */
-		{
-			Object *ob = (Object *)id;
-			
-			trans  = deg_new_component(id, DEPSNODE_TYPE_TRANSFORM);
-			
-			if (ob->proxy) {
-				// XXX
-				proxy = deg_new_component(id, DEPSNODE_TYPE_PROXY);
-			}
-			if ((ob->type == OB_ARMATURE) || (ob->pose)) {
-				pose = deg_new_component(id, DEPSNODE_TYPE_POSE);
-			}
-			if (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_META)) {
-				geom = deg_new_component(id, DEPSNODE_TYPE_TRANSFORM);
-			}
-		}
-		break;
-		
-		// XXX: other types to come...
-	}
-	
-	
-	/* register components */
-	if (proxy)   deg_idnode_component_register(id_node, proxy);
-	if (anim)    deg_idnode_component_register(id_node, anim);
-	if (params)  deg_idnode_component_register(id_node, params);
-	if (trans)   deg_idnode_component_register(id_node, trans);
-	if (geom)    deg_idnode_component_register(id_node, geom);
-	if (pose)    deg_idnode_component_register(id_node, pose);
-	
-	
-	
-	/* connect up relationships between them to enforce order */
-	// NOTE: component sorting will be done in a pass before inner-nodes get sorted...
-	if (proxy) {
-		/* parameters are firstly derived from proxy (if present) */
-		DEG_add_new_relation(proxy, params, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Proxy -> Params]] DepsRel");
-	}
-	if (anim) {
-		/* animation affects parameters */
-		DEG_add_new_relation(anim, params, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Anim -> Params]] DepsRel");
-	}
-	if (proxy && anim) {
-		/* anim cannot be before proxy - anim works on top of proxy results */
-		DEG_add_new_relation(proxy, anim, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Proxy -> Anim]] DepsRel");
-	}
-	if (trans) {
-		/* transform depends on *part* of params - doesn't strictly need to wait, but would be easier if it did */
-		DEG_add_new_relation(params, trans, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Params -> Trans]] DepsRel");
-	}
-	
-	/* ... "params -> geom", and "params -> pose" 
-	 * are skipped for now as they're implicit in 
-	 * all cases here so far, thus causing no problms
-	 */
-	
-	if (trans && geom) {
-		/* transform often affects results of geometry */
-		// XXX: but, there are exceptions, in which case this one will be EVIL
-		DEG_add_new_relation(trans, geom, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Trans -> Geom]] DepsRel");
-	}
-	if (trans && pose) {
-		/* pose must happen after transform - global transforms affect it too */
-		DEG_add_new_relation(trans, pose, DEPSREL_TYPE_COMPONENT_ORDER, "C:[[Trans -> Pose]] DepsRel");
-	}
-}
 
 /* ******************************************************** */
 /* Generic Nodes */
@@ -196,11 +67,10 @@ static void dnti_id_ref__init_data(DepsNode *node, ID *id)
 	/* init components hash - eDepsNode_Type : ComponentDepsNode */
 	id_node->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash");
 	
-	/* create components 
-	 * NOTE: we do this in advance regardless of whether there will actually be anything inside them...
-	 *       This will probably be wasteful, but at least helps us catch valid things...
+	/* NOTE: components themselves are created if/when needed.
+	 * This prevents problems with components getting added 
+	 * twice if an ID-Ref needs to be created to house it...
 	 */
-	deg_idnode_components_init(id_node);
 }
 
 /* Helper for freeing ID nodes - Used by component hash to free data... */
