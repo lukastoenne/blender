@@ -196,6 +196,90 @@ static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob
 	}
 }
 
+/* ObData Geometry Evaluation */
+static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *ob)
+{
+	DepsNode *ob_geom, *obdata_geom;
+	DepsNode *node2;
+	
+	ID *ob_id     = (ID *)ob;
+	ID *obdata_id = (ID *)ob->data;
+	Key *key;
+	
+	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
+	geom_node = DEG_get_node(graph, ob_id, DEPSNODE_TYPE_GEOMETRY, "Ob Geometry Component");
+	obdata_geom = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_GEOMETRY, "ObData Geometry Component");
+	
+	/* link components to each other */
+	DEG_add_new_relation(obdata_geom, geom_node, DEPSREL_TYPE_DATABLOCK, "Object Geometry Base Data");
+	
+	
+	/* type-specific node/links */
+	switch (ob->type) {
+		case OB_MESH:
+		{
+			Mesh *me = (Mesh *)ob->data;
+			...
+		}
+		break;
+		
+		case OB_MBALL: 
+		{
+			Object *mom = BKE_mball_basis_find(scene, ob);
+			
+			/* motherball - mom depends on children! */
+			if (mom != ob) {
+				node2 = DEG_get_node(graph, &mom->id, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
+				DEG_add_new_relation(graph, geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
+			}
+		}
+		break;
+		
+		case OB_CURVE:
+		case OB_FONT:
+		{
+			Curve *cu = ob->data;
+			
+			/* curve's dependencies */
+			// XXX: these needs geom data, but where is geom stored?
+			if (cu->bevobj) {
+				node2 = DEG_get_node(graph, (ID *)cu->bevobj, DEPSNODE_TYPE_GEOMETRY, NULL);
+				DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
+			}
+			if (cu->taperobj) {
+				node2 = DEG_get_node(graph, (ID *)cu->tapeobj, DEPSNODE_TYPE_GEOMETRY, NULL);
+				DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
+			}
+			if (ob->type == OB_FONT) {
+				if (cu->textoncurve) {
+					node2 = DEG_get_node(graph, (ID *)cu->textoncurve, DEPSNODE_TYPE_GEOMETRY, NULL);
+					DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
+				}
+			}
+		}
+		break;
+	}
+	
+	/* ShapeKeys */
+	key = BKE_key_from_object(ob);
+	if (key) {
+		deg_build_shapekeys_graph(graph, scene, ob, key);
+	}
+	
+	/* Modifiers */
+	if (ob->modifiers.first) {
+		ModifierData *md;
+		
+		for (md = ob->modifiers.first; md; md = md->next) {
+			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+			
+			if (mti->updateDepgraph) {
+				mti->updateDepgraph(md, graph, scene, ob);
+			}
+		}
+	}
+}
+
 /* ************************************************* */
 /* Objects */
 
@@ -280,7 +364,6 @@ static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object
 static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
 	DepsNode *ob_node;
-	Key *key;
 	
 	/* create node for object itself */
 	ob_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_ID_REF, ob->id.name);
@@ -290,21 +373,16 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 		deg_build_object_parents(graph, ob_node, ob);
 	}
 	
-	/* ShapeKeys */
-	key = BKE_key_from_object(ob);
-	if (key) {
-		deg_build_shapekeys_graph(graph, scene, ob, key);
-	}
-	
 	/* object data */
 	// XXX: ob.geometry block needs to depend on ob.data somehow...
 	if (ob->data) {
 		AnimData *data_adt = BKE_animdata_from_id(obdata_id);
 		
-		DepsNode *geom_node   = DEG_get_node(graph, &ob->data, DEPSNODE_TYPE_GEOMETRY, "Ob.Geometry");
+		
 		DepsNode *obdata_node = NULL;
 		DepsNode *node2;
 		
+		/* type-specific data... */
 		switch (ob->type) {
 			case OB_ARMATURE:
 			{
@@ -313,57 +391,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			}
 			break;
 			
-			case OB_MESH:
-			{
-				Mesh *me = (Mesh *)ob->data;
-				...
-			}
-			break;
 			
-			case OB_MBALL: 
-			{
-				Object *mom = BKE_mball_basis_find(scene, ob);
-				
-				/* obdata's geometry -> object's geometry */
-				obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_GEOMETRY, "MBall ObData");
-				DEG_add_new_relation(graph, obdata_node, geom_node, DEPSSREL_TYPE_GEOMETRY_EVAL, "Ob Geometry Eval Uses ObData")
-				
-				/* motherball - mom depends on children! */
-				if (mom != ob) {
-					node2 = DEG_get_node(graph, &mom->id, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
-					DEG_add_new_relation(graph, geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
-				}
-			}
-			break;
-			
-			case OB_CURVE:
-			case OB_FONT:
-			{
-				Curve *cu = ob->data;
-				
-				/* obdata's geometry -> object's geometry */
-				obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_GEOMETRY, "Curve ObData");
-				DEG_add_new_relation(graph, obdata_node, geom_node, DEPSSREL_TYPE_GEOMETRY_EVAL, "Ob Geometry Eval Uses ObData")
-				
-				
-				/* curve's dependencies */
-				// XXX: these needs geom data, but where is geom stored?
-				if (cu->bevobj) {
-					node2 = DEG_get_node(graph, (ID *)cu->bevobj, DEPSNODE_TYPE_GEOMETRY, NULL);
-					DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
-				}
-				if (cu->taperobj) {
-					node2 = DEG_get_node(graph, (ID *)cu->tapeobj, DEPSNODE_TYPE_GEOMETRY, NULL);
-					DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
-				}
-				if (ob->type == OB_FONT) {
-					if (cu->textoncurve) {
-						node2 = DEG_get_node(graph, (ID *)cu->textoncurve, DEPSNODE_TYPE_GEOMETRY, NULL);
-						DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
-					}
-				}
-			}
-			break;
 			
 			case OB_CAMERA:
 			{
@@ -394,19 +422,6 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 		
 		for (con = ob->constraints.first; con; con = con->next) {
 			...
-		}
-	}
-	
-	/* modifiers */
-	if (ob->modifiers.first) {
-		ModifierData *md;
-		
-		for (md = ob->modifiers.first; md; md = md->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
-			
-			if (mti->updateDepgraph) {
-				mti->updateDepgraph(md, graph, scene, ob, ob_node);
-			}
 		}
 	}
 	
