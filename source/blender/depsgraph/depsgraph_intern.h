@@ -218,11 +218,18 @@ typedef struct DepsNodeTypeInfo {
 	/* Make a copy of "src" node's data over to "dst" node */
 	void (*copy_data)(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src);
 	
-	/* Add node to graph */
+	/* Graph/Connection Management .................... */
+	
+	/* Add node to graph - Will add additional inbetween nodes as needed */
 	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, ID *id);
 	
 	/* Remove node from graph - Only use when node is to be replaced... */
 	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
+	
+	
+	/* Recursively ensure that all implicit/builtin link rules have been applied */
+	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
+	void (*validate_links)(Depsgraph *graph, DepsNode *node);
 } DepsNodeTypeInfo;
 
 /* Typeinfo Management -------------------------------------------------- */
