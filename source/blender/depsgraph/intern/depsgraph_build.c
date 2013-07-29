@@ -279,11 +279,11 @@ static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object
 /* build depsgraph nodes + links for object */
 static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
-	DepsNode *ob_node, *obdata_node = NULL;
+	DepsNode *ob_node;
 	Key *key;
 	
 	/* create node for object itself */
-	ob_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ob->id.name);
+	ob_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_ID_REF, ob->id.name);
 	
 	/* object parent */
 	if (ob->parent) {
@@ -297,8 +297,12 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	}
 	
 	/* object data */
+	// XXX: ob.geometry block needs to depend on ob.data somehow...
 	if (ob->data) {
-		AnimData *data_adt = BKE_animdata_from_id((ID *)ob->data);
+		AnimData *data_adt = BKE_animdata_from_id(obdata_id);
+		
+		DepsNode *geom_node   = DEG_get_node(graph, &ob->data, DEPSNODE_TYPE_GEOMETRY, "Ob.Geometry");
+		DepsNode *obdata_node = NULL;
 		DepsNode *node2;
 		
 		switch (ob->type) {
@@ -318,17 +322,16 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			
 			case OB_MBALL: 
 			{
-				Object *mom = BKE_mball_basis_find(scene, ob); // XXX: scene
+				Object *mom = BKE_mball_basis_find(scene, ob);
 				
-				/* node for obdata */
-				// XXX...
-				obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, obdata_id, NULL, NULL);
+				/* obdata's geometry -> object's geometry */
+				obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_GEOMETRY, "MBall ObData");
+				DEG_add_new_relation(graph, obdata_node, geom_node, DEPSSREL_TYPE_GEOMETRY_EVAL, "Ob Geometry Eval Uses ObData")
 				
 				/* motherball - mom depends on children! */
-				// XXX: these needs geom data, but where is geom stored?
 				if (mom != ob) {
-					node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)mom->data, NULL, NULL);
-					DEG_add_new_relation(graph, obdata_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
+					node2 = DEG_get_node(graph, &mom->id, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
+					DEG_add_new_relation(graph, geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
 				}
 			}
 			break;
@@ -338,23 +341,25 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			{
 				Curve *cu = ob->data;
 				
-				/* node for obdata */
-				obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, obdata_id, NULL, NULL);
+				/* obdata's geometry -> object's geometry */
+				obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_GEOMETRY, "Curve ObData");
+				DEG_add_new_relation(graph, obdata_node, geom_node, DEPSSREL_TYPE_GEOMETRY_EVAL, "Ob Geometry Eval Uses ObData")
+				
 				
 				/* curve's dependencies */
 				// XXX: these needs geom data, but where is geom stored?
 				if (cu->bevobj) {
-					node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)cu->bevobj->data, NULL, NULL);
-					DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
+					node2 = DEG_get_node(graph, (ID *)cu->bevobj, DEPSNODE_TYPE_GEOMETRY, NULL);
+					DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
 				}
 				if (cu->taperobj) {
-					node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)cu->taperobj->data, NULL, NULL);
-					DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
+					node2 = DEG_get_node(graph, (ID *)cu->tapeobj, DEPSNODE_TYPE_GEOMETRY, NULL);
+					DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
 				}
 				if (ob->type == OB_FONT) {
 					if (cu->textoncurve) {
-						node2 = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)cu->textoncurve->data, NULL, NULL);
-						DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
+						node2 = DEG_get_node(graph, (ID *)cu->textoncurve, DEPSNODE_TYPE_GEOMETRY, NULL);
+						DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
 					}
 				}
 			}
@@ -437,12 +442,14 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 {
 	DepsNode *scene_node;
+	DepsNode *time_src;
 	Base *base;
 	
 	/* init own node */
-	scene_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, "Scene");
+	scene_node = DEG_get_node(graph, &scene->id, DEPSNODE_TYPE_ID_REF, scene->id.name);
 	
-	// TODO: timesource?
+	/* timesource */
+	time_src = DEG_get_node(graph, &scene->id, DEPSNODE_TYPE_TIMESOURCE, "Scene Timesource");
 	
 	/* build subgraph for set, and link this in... */
 	// XXX: depending on how this goes, that scene itself could probably store its
