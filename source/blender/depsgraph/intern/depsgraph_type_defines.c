@@ -60,7 +60,7 @@
  */
 
 /* Helper to make it easier to create components */
-static DepsNode *deg_component(ID *id, eDepsNode_Type type)
+static DepsNode *deg_new_component(ID *id, eDepsNode_Type type)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	char name_buf[DEG_MAX_ID_LEN];
@@ -101,10 +101,10 @@ static void deg_idnode_components_init(IDDepsNode *id_node)
 	DepsNode *pose   = NULL;
 	
 	/* create standard components */
-	params = deg_component(id, DEPSNODE_TYPE_PARAMETERS);
+	params = deg_new_component(id, DEPSNODE_TYPE_PARAMETERS);
 	
 	if (BKE_animdata_from_id(id)) {
-		anim = deg_component(id, DEPSNODE_TYPE_ANIMATION);
+		anim = deg_new_component(id, DEPSNODE_TYPE_ANIMATION);
 	}
 	
 	// TODO: proxy...
@@ -115,17 +115,17 @@ static void deg_idnode_components_init(IDDepsNode *id_node)
 		{
 			Object *ob = (Object *)id;
 			
-			trans  = deg_component(id, DEPSNODE_TYPE_TRANSFORM);
+			trans  = deg_new_component(id, DEPSNODE_TYPE_TRANSFORM);
 			
 			if (ob->proxy) {
 				// XXX
-				proxy = deg_component(id, DEPSNODE_TYPE_PROXY);
+				proxy = deg_new_component(id, DEPSNODE_TYPE_PROXY);
 			}
 			if ((ob->type == OB_ARMATURE) || (ob->pose)) {
-				pose = deg_component(id, DEPSNODE_TYPE_POSE);
+				pose = deg_new_component(id, DEPSNODE_TYPE_POSE);
 			}
 			if (ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_META)) {
-				geom = deg_component(id, DEPSNODE_TYPE_TRANSFORM);
+				geom = deg_new_component(id, DEPSNODE_TYPE_TRANSFORM);
 			}
 		}
 		break;
