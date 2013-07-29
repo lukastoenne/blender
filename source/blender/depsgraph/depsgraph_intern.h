@@ -216,7 +216,7 @@ typedef struct DepsNodeTypeInfo {
 	void (*free_data)(DepsNode *node);
 	
 	/* Make a copy of "src" node's data over to "dst" node */
-	void (*copy_data)(DepsNode *dst, const DepsNode *src);
+	void (*copy_data)(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src);
 	
 	/* Add node to graph */
 	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, ID *id);

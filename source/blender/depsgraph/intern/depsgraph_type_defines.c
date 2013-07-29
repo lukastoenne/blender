@@ -214,7 +214,7 @@ static void dnti_id_ref__free_data(DepsNode *node)
 }
 
 /* Copy 'id' node */
-static void dnti_id_ref__copy_data(DepsNode *dst, const DepsNode *src)
+static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
 {
 	const IDDepsNode *src_node = (const IDDepsNode *)src;
 	IDDepsNode *dst_node       = (IDDepsNode *)dst;
@@ -287,7 +287,7 @@ static void dnti_component__init_data(DepsNode *node, ID *UNUSED(id))
 }
 
 /* Copy 'component' node */
-static void dnti_component__copy_data(DepsNode *dst, const DepsNode *src)
+static void dnti_component__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
 {
 	const ComponentDepsNode *src_node = (const ComponentDepsNode *)src;
 	ComponentDepsNode *dst_node       = (ComponentDepsNode *)dst;
@@ -407,7 +407,7 @@ static void dnti_pose_eval__init_data(DepsNode *node, ID *id)
 }
 
 /* Copy 'component' node */
-static void dnti_pose_eval__copy_data(DepsNode *dst, const DepsNode *src)
+static void dnti_pose_eval__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
 {
 	const PoseComponentDepsNode *src_node = (const PoseComponentDepsNode *)src;
 	PoseComponentDepsNode *dst_node       = (PoseComponentDepsNode *)dst;
