@@ -86,6 +86,7 @@ void DEG_filter_cleanup(DepsgraphCopyContext *dcc)
 
 /* Create a copy of provided node */
 // FIXME: the handling of sub-nodes and links will need to be subject to filtering options...
+// XXX: perhaps this really shouldn't be exposed, as it will just be a sub-step of the evaluation process?
 DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
@@ -99,6 +100,9 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	// XXX: need to review the name here, as we can't have exact duplicates...
 	dst = DEG_create_node(src->type, src->name);
 	memcpy(dst, src, nti->size);
+	
+	/* add this node-pair to the hash... */
+	BLI_ghash_insert(dcc->node_hash, src, dst);
 	
 	/* now, fix up any links in standard "node header" (i.e. DepsNode struct, that all 
 	 * all others are derived from) that are now corrupt 
@@ -126,6 +130,9 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	if (nti->copy_data) {
 		nti->copy_data(dcc, dst, src);
 	}
+	
+	/* fix links */
+	// XXX...
 	
 	/* return copied node */
 	return dst;
