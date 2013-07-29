@@ -232,6 +232,9 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 				node2 = DEG_get_node(graph, &mom->id, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
 				DEG_add_new_relation(graph, geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
 			}
+			
+			/* metaball evaluation operations */
+			// xxx...
 		}
 		break;
 		
@@ -256,6 +259,9 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 					DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
 				}
 			}
+			
+			/* curve evaluation operations */
+			// xxx...
 		}
 		break;
 	}
@@ -284,30 +290,31 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 /* Objects */
 
 /* object parent relationships */
-static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object *ob)
+static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 {
 	ID *parent_data_id = (ID *)ob->parent->data;
 	ID *parent_id = (ID *)ob->parent;
 	
-	DepsNode *parent_node = NULL;
+	DepsNode *ob_node, parent_node = NULL;
+	
+	/* parenting affects the transform-stack of an object */
+	ob_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
+	DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_TRANSFORM, BKE_object_eval_parent);
 	
 	/* type-specific links */
-	// TODO: attach execution hooks...
 	switch (ob->partype) {
 		case PARSKEL:  /* Armature Deform (Virtual Modifier) */
 		{
-			// DAG_RL_DATA_DATA | DAG_RL_OB_OB
-			parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
-			DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Armature Deform Parent");
+			parent_node = DEG_get_node(graph, parent_id, DEPSNODE_TYPE_TRANSFORM, "Par Armature Transform");
+			DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Armature Deform Parent");
 		}
 		break;
 			
 		case PARVERT1: /* Vertex Parent */
 		case PARVERT3:
 		{
-			// DAG_RL_DATA_OB | DAG_RL_OB_OB
-			parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_data_id, NULL, NULL);
-			DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
+			parent_node = DEG_get_node(graph, parent_id, DEPSNODE_TYPE_GEOMETRY, "Vertex Parent Geometry Source");
+			DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
 			
 			//parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
 		}
@@ -317,40 +324,41 @@ static void deg_build_object_parents(Depsgraph *graph, DepsNode *ob_node, Object
 		{
 			bPoseChannel *pchan = BKE_pose_channel_from_name(ob->parent->pose, ob->parsubstr);
 			
-			parent_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, parent_id, &RNA_PoseBone, pchan);
-			DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
+			parent_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_
+			DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
 		}
 		break;
 			
 		default:
+		{
 			if (ob->parent->type == OB_LATTICE) {
 				/* Lattice Deform Parent - Virtual Modifier */
-				// DAG_RL_DATA_DATA | DAG_RL_OB_OB
-				parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
-				DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
+				parent_node = DEG_get_node(graph, parent_id, DEPSNODE_TYPE_TRANSFORM, "Par Lattice Transform");
+				DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
 			}
 			else if (ob->parent->type == OB_CURVE) {
 				Curve *cu = ob->parent->data;
 				
 				if (cu->flag & CU_PATH) {
 					/* Follow Path */
-					parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_data_id, NULL, NULL);
-					DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Follow Parent");
+					parent_node = DEG_get_node(graph, parent_id, DEPSNODE_TYPE_GEOMETRY, "Curve Path");
+					DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Follow Parent");
 					// XXX: link to geometry or object? both are needed?
 					// XXX: link to timesource too?
 				}
 				else {
 					/* Standard Parent */
-					parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
-					DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Parent");
+					parent_node = DEG_get_node(graph, parent_id, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
+					DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Parent");
 				}
 			}
 			else {
 				/* Standard Parent */
-				parent_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, parent_id, NULL, NULL);
-				DEG_add_new_relationship(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Parent");
+				parent_node = DEG_get_node(graph, parent_id, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
+				DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Parent");
 			}
-			break;
+		}
+		break;
 	}
 	
 	/* exception case: parent is duplivert */
