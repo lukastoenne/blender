@@ -108,15 +108,6 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node);
  */
 void DEG_free_node(DepsNode *node)
 
-/* Groups ------------------------------------------------------------- */
-
-/* Make a group from the two given outer nodes 
- * < node1: (DatablockDepsNode | GroupDepsNode)
- * < node2: (DatablockDepsNode)
- * > return: (GroupDepsNode) either a new group node, or node1 if that was a group already
- */
-DepsNode *DEG_group_cyclic_node_pair(Depsgraph *graph, DepsNode *node1, DepsNode *node2);
-
 /* Relationships Handling ============================================== */
 
 /* Convenience Macros -------------------------------------------------- */
