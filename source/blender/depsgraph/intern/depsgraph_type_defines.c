@@ -195,6 +195,12 @@ static void dnti_component__free_data(DepsNode *node)
 	component->op_hash = NULL;
 }
 
+/* Add 'component' node to graph */
+static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	// TODO...
+}
+
 /* Standard Component Defines ============================= */
 
 /* Parameters */
@@ -207,7 +213,7 @@ static DepsNodeTypeInfo DNTI_PARAMETERS = {
 	/* free_data() */        dnti_component__free_data,
 	/* copy_data() */        dnti_component__copy_data,
 	
-	/* add_to_graph() */     NULL,
+	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ NULL // XXX...
 };
 
@@ -221,7 +227,7 @@ static DepsNodeTypeInfo DNTI_ANIMATION = {
 	/* free_data() */        dnti_component__free_data,
 	/* copy_data() */        dnti_component__copy_data,
 	
-	/* add_to_graph() */     NULL,
+	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ NULL // XXX...
 };
 
@@ -235,7 +241,7 @@ static DepsNodeTypeInfo DNTI_TRANSFORM = {
 	/* free_data() */        dnti_component__free_data,
 	/* copy_data() */        dnti_component__copy_data,
 	
-	/* add_to_graph() */     NULL,
+	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ NULL // XXX...
 };
 
@@ -249,7 +255,7 @@ static DepsNodeTypeInfo DNTI_PROXY = {
 	/* free_data() */        dnti_component__free_data,
 	/* copy_data() */        dnti_component__copy_data,
 	
-	/* add_to_graph() */     NULL,
+	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ NULL // XXX...
 };
 
@@ -263,7 +269,7 @@ static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	/* free_data() */        dnti_component__free_data,
 	/* copy_data() */        dnti_component__copy_data,
 	
-	/* add_to_graph() */     NULL,
+	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ NULL // XXX...
 };
 
@@ -316,7 +322,7 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 	/* free_data() */        dnti_pose_eval__free_data,
 	/* copy_data() */        dnti_pose_eval__copy_data,
 	
-	/* add_to_graph() */     NULL,
+	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ NULL // XXX...
 };
 
