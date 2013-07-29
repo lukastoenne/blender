@@ -25,3 +25,32 @@
  *
  * Implementation of Querying and Filtering API's
  */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "MEM_guardedalloc.h"
+
+#include "BLI_blenlib.h"
+#include "BLI_ghash.h"
+#include "BLI_utildefines.h"
+
+#include "BKE_depsgraph.h"
+#include "BKE_depsgraph_query.h"
+
+#include "RNA_access.h"
+#include "RNA_types.h"
+
+#include "depsgraph_types.h"
+#include "depsgraph_intern.h"
+
+/* ************************************************ */
+/* Filtering API - Basically, making a copy of the existing graph */
+
+
+
+/* ************************************************ */
+/* Querying API */
+
+/* ************************************************ */

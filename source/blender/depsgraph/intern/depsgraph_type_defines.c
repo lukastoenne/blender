@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
