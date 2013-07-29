@@ -328,7 +328,100 @@ static DepsNodeTypeInfo DNTI_PARAMETERS = {
 	/* remove_from_graph()*/ NULL // XXX...
 };
 
+/* Animation */
+static DepsNodeTypeInfo DNTI_ANIMATION = {
+	/* type */               DEPSNODE_TYPE_ANIMATION,
+	/* size */               sizeof(ComponentDepsNode),
+	/* name */               "Animation Component",
+	
+	/* init_data() */        dnti_component__init_data,
+	/* free_data() */        dnti_component__free_data,
+	/* copy_data() */        dnti_component__copy_data,
+	
+	/* add_to_graph() */     NULL,
+	/* remove_from_graph()*/ NULL // XXX...
+};
+
+/* Transform */
+static DepsNodeTypeInfo DNTI_TRANSFORM = {
+	/* type */               DEPSNODE_TYPE_TRANSFORM,
+	/* size */               sizeof(ComponentDepsNode),
+	/* name */               "Transform Component",
+	
+	/* init_data() */        dnti_component__init_data,
+	/* free_data() */        dnti_component__free_data,
+	/* copy_data() */        dnti_component__copy_data,
+	
+	/* add_to_graph() */     NULL,
+	/* remove_from_graph()*/ NULL // XXX...
+};
+
+/* Proxy */
+static DepsNodeTypeInfo DNTI_PROXY = {
+	/* type */               DEPSNODE_TYPE_TRANSFORM,
+	/* size */               sizeof(ComponentDepsNode),
+	/* name */               "Proxy Component",
+	
+	/* init_data() */        dnti_component__init_data,
+	/* free_data() */        dnti_component__free_data,
+	/* copy_data() */        dnti_component__copy_data,
+	
+	/* add_to_graph() */     NULL,
+	/* remove_from_graph()*/ NULL // XXX...
+};
+
+/* Geometry */
+static DepsNodeTypeInfo DNTI_GEOMETRY = {
+	/* type */               DEPSNODE_TYPE_GEOMETRY,
+	/* size */               sizeof(ComponentDepsNode),
+	/* name */               "Transform Component",
+	
+	/* init_data() */        dnti_component__init_data,
+	/* free_data() */        dnti_component__free_data,
+	/* copy_data() */        dnti_component__copy_data,
+	
+	/* add_to_graph() */     NULL,
+	/* remove_from_graph()*/ NULL // XXX...
+};
+
 /* Pose Component ========================================= */
+
+/* Initialise 'pose eval' node - from pointer data given */
+static void dnti_pose_eval__init_data(DepsNode *node, ID *id)
+{
+	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
+	
+	/* generic component-node... */
+	dnti_component__init_data(node, id);
+	
+	/* pose-specific data... */
+	pcomp->bone_hash = BLI_ghash_str_new("Pose Component Bone Hash"); /* <String, BoneNode> */
+}
+
+/* Copy 'component' node */
+static void dnti_pose_eval__copy_data(DepsNode *dst, const DepsNode *src)
+{
+	const PoseComponentDepsNode *src_node = (const PoseComponentDepsNode *)src;
+	PoseComponentDepsNode *dst_node       = (PoseComponentDepsNode *)dst;
+	
+	/* generic component node... */
+	dnti_component__copy_data(dst, src);
+	
+	/* pose-specific data... */
+	// copy bonehash...
+}
+
+/* Free 'component' node */
+static void dnti_pose_eval__free_data(DepsNode *node)
+{
+	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
+	
+	/* pose-specific data... */
+	BLI_ghash_free(pcomp->bone_hash, NULL, /*dnti_pose_eval__hash_free_bone*/NULL);
+	
+	/* generic component node... */
+	dnti_component__free_data(node);
+}
 
 /* ******************************************************** */
 /* Inner Nodes */
