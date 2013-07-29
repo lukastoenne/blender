@@ -106,7 +106,7 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node);
  * ! Node data must be separately freed by caller
  * ! DEG_remove_node() should be called before calling this...
  */
-void DEG_free_node(DepsNode *node)
+void DEG_free_node(DepsNode *node);
 
 /* Relationships Handling ============================================== */
 
