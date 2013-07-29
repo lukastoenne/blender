@@ -303,10 +303,19 @@ static void dnti_component__copy_data(DepsNode *dst, const DepsNode *src)
 static void dnti_component__free_data(DepsNode *node)
 {
 	ComponentDepsNode *component = (ComponentDepsNode *)node;
+	DepsNode *node, *next;
 	
-	// free list and nodes...
+	/* free nodes and list of nodes */
+	for (node = component->ops.first; node; node = next) {
+		next = node->next;
+		
+		DEG_free_node(node);
+		BLI_freelinkN(&component->ops, node);
+	}
 	
-	// free hash...
+	/* free hash too - no need to free as it should be empty now */
+	BLI_ghash_free(component->op_hash, NULL, NULL);
+	component->op_hash = NULL;
 }
 
 /* Standard Component Defines ============================= */
