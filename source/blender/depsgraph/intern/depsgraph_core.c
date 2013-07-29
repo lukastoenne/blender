@@ -229,6 +229,7 @@ DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 	node = MEM_callocN(nti->size, nti->name);
 	
 	/* populate base node settings */
+	// XXX: what if no name?
 	BLI_strncpy(node->name, name, DEG_MAX_ID_NAME);
 	node->type = type;
 	
