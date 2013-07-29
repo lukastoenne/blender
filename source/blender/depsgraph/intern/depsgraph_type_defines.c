@@ -77,7 +77,7 @@ static DepsNode *deg_component(ID *id, eDepsNode_Type type)
 static void deg_idnode_component_register(IDDepsNode *id_node, DepsNode *component)
 {
 	// TODO: have a list of these to provide easier order-management?
-	BLI_ghash_insert(id_node->component_hash);
+	BLI_ghash_insert(id_node->component_hash, SET_INT_IN_POINTER(component->type), component);
 	//BLI_addtail(&id_node->components, component);
 }
 
