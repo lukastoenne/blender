@@ -94,11 +94,6 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
  */
 DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
-/* Make a (deep) copy of provided node and it's little subgraph
- * ! Newly created node is not added to the existing graph
- */
-DepsNode *DEG_copy_node(const DepsNode *node);
-
 /* Remove node from graph, but don't free any of its data */
 void DEG_remove_node(Depsgraph *graph, DepsNode *node);
 
@@ -107,6 +102,7 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node);
  * ! DEG_remove_node() should be called before calling this...
  */
 void DEG_free_node(DepsNode *node);
+
 
 /* Relationships Handling ============================================== */
 
@@ -154,10 +150,6 @@ DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
                                    const char description[DEG_MAX_ID_LEN]);
 
 
-/* Make a copy of given relationship */
-DepsRelation DEG_copy_relation(const DepsRelation *src);
-
-
 /* Remove relationship from graph, but don't free it yet */
 void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel);
 
@@ -166,6 +158,32 @@ void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel);
  * ! Relationship itself *is* freed...
  */
 void DEG_free_relation(DepsRelation *rel);
+
+
+/* Graph Copying ========================================================= */
+/* (Part of the Filtering API) */
+
+/* Depsgraph Copying Context (dcc)
+ *
+ * Keeps track of node relationships/links/etc. during the copy 
+ * operation so that they can be safely remapped...
+ */
+typedef struct DepsgraphCopyContext {
+	GHash *nodes_hash;   /* <DepsNode, DepsNode> mapping from src node to dst node */
+	GHash *rels_hash;    // XXX: same for relationships?
+	
+	// XXX: filtering criteria...
+} DepsgraphCopyContext;
+
+
+/* Make a (deep) copy of provided node and it's little subgraph
+ * ! Newly created node is not added to the existing graph
+ * < dcc: Context info for helping resolve links
+ */
+DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src);
+
+/* Make a copy of given relationship */
+DepsRelation DEG_copy_relation(const DepsRelation *src);
 
 /* Node Types Handling ================================================= */
 
