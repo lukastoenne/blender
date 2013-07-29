@@ -302,54 +302,6 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 	}
 }
 
-/* Create a copy of provided node */
-// FIXME: the handling of sub-nodes and links will need to be subject to filtering options...
-// FIXME: copying nodes is probably more at the heart of the querying + filtering API
-DepsNode *DEG_copy_node(const DepsNode *src)
-{
-	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
-	DepsNode *dst;
-	
-	/* sanity check */
-	if (src == NULL)
-		return NULL;
-	
-	/* allocate new node, and brute-force copy over all "basic" data */
-	// XXX: need to review the name here, as we can't have exact duplicates...
-	dst = DEG_create_node(src->type, src->name);
-	memcpy(dst, src, nti->size);
-	
-	/* now, fix up any links in standard "node header" (i.e. DepsNode struct, that all 
-	 * all others are derived from) that are now corrupt 
-	 */
-	{
-		/* not assigned to graph... */
-		dst->next = dst->prev = NULL;
-		dst->owner = NULL;
-		
-		/* relationships to other nodes... */
-		// FIXME: how to handle links? We may only have partial set of all nodes still?
-		// XXX: the exact details of how to handle this are really part of the querying API...
-		
-		// XXX: BUT, for copying subgraphs, we'll need to define an API for doing this stuff anyways
-		// (i.e. for resolving and patching over links that exist within subtree...)
-		dst->inlinks.first = dst->inlinks.last = NULL;
-		dst->outlinks.first = dst->outlinks.last = NULL;
-		
-		/* clear traversal data */
-		dst->valency = 0;
-		dst->lasttime = 0;
-	}
-	
-	/* fix up type-specific data (and/or subtree...) */
-	if (nti->copy_data) {
-		nti->copy_data(dst, src);
-	}
-	
-	/* return copied node */
-	return dst;
-}
-
 /* Free node data but not node itself
  * - Used when removing/replacing old nodes, but also when cleaning up graph 
  */
@@ -415,18 +367,6 @@ DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
 	DEG_add_relation(rel);
 	
 	return rel;
-}
-
-/* Make a copy of a relationship */
-DepsRelation DEG_copy_relation(const DepsRelation *src)
-{
-	DepsRelation *dst = MEM_dupallocN(src);
-	
-	/* clear out old pointers which no-longer apply */
-	dst->next = dst->prev = NULL;
-	
-	/* return copy */
-	return dst;
 }
 
 /* Remove relationship from graph */
