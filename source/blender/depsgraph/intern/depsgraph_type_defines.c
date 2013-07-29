@@ -431,6 +431,20 @@ static void dnti_pose_eval__free_data(DepsNode *node)
 	dnti_component__free_data(node);
 }
 
+/* Pose Evaluation */
+static DepsNodeTypeInfo DNTI_EVAL_POSE = {
+	/* type */               DEPSNODE_TYPE_EVAL_POSE,
+	/* size */               sizeof(PoseComponentDepsNode),
+	/* name */               "Pose Eval Component",
+	
+	/* init_data() */        dnti_pose_eval__init_data,
+	/* free_data() */        dnti_pose_eval__free_data,
+	/* copy_data() */        dnti_pose_eval__copy_data,
+	
+	/* add_to_graph() */     NULL,
+	/* remove_from_graph()*/ NULL // XXX...
+};
+
 /* ******************************************************** */
 /* Inner Nodes */
 
