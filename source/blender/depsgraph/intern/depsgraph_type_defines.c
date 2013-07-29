@@ -223,10 +223,7 @@ static void dnti_id_ref__copy_data(DepsNode *dst, const DepsNode *src)
 	dst->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
 	
 	/* iterate over items in original hash, adding them to new hash */
-	for (hashIter = BLI_ghashIterator_new(src->component_hash);
-	     BLI_ghashIterator_done(hashIter) == false;
-	     BLI_ghashIterator_step(hashIter) )
-	{
+	GHASH_ITER(hashIter, src->component_hash) {
 		/* get current <type : component> mapping */
 		eDepsNode_Type c_type   = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(hashIter));
 		DepsNode *old_component = BLI_ghashIterator_getValue(hashIter);
