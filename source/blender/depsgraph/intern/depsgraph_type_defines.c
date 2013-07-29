@@ -217,7 +217,29 @@ static void dnti_id_ref__copy_data(DepsNode *dst, const DepsNode *src)
 	const IDDepsNode *src_node = (const IDDepsNode *)src;
 	IDDepsNode *dst_node       = (IDDepsNode *)dst;
 	
-	// XXX: duplicate hash...
+	GHashIterator *hashIter;
+	
+	/* create new hash for destination (src's one is still linked to it at this point) */
+	dst->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
+	
+	/* iterate over items in original hash, adding them to new hash */
+	for (hashIter = BLI_ghashIterator_new(src->component_hash);
+	     BLI_ghashIterator_done(hashIter) == false;
+	     BLI_ghashIterator_step(hashIter) )
+	{
+		/* get current <type : component> mapping */
+		eDepsNode_Type c_type   = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(hashIter));
+		DepsNode *old_component = BLI_ghashIterator_getValue(hashIter);
+		
+		/* make a copy of component */
+		DepsNode *component     = DEG_copy_node(old_component);
+		
+		/* add new node to hash... */
+		BLI_ghash_insert(dst->component_hash, SET_INT_IN_POINTER(c_type), old_component);
+	}
+	BLI_ghashIterator_free(hashIter);
+	
+	// TODO: perform a second loop to fix up links?
 }
 
 /* Add 'id' node to graph */
