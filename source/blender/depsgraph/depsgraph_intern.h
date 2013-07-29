@@ -175,6 +175,17 @@ typedef struct DepsgraphCopyContext {
 	// XXX: filtering criteria...
 } DepsgraphCopyContext;
 
+/* Internal Filtering API ---------------------------------------------- */
+
+/* Create filtering context */
+// XXX: needs params for conditions?
+DepsgraphCopyContext *DEG_filter_init(void);
+
+/* Free filtering context once filtering is done */
+void DEG_filter_cleanup(DepsgraphCopyContext *dcc);
+
+
+/* Data Copy Operations ------------------------------------------------ */
 
 /* Make a (deep) copy of provided node and it's little subgraph
  * ! Newly created node is not added to the existing graph

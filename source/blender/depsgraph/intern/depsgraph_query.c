@@ -48,11 +48,45 @@
 /* ************************************************ */
 /* Filtering API - Basically, making a copy of the existing graph */
 
+/* Create filtering context */
+// TODO: allow passing in a number of criteria?
+DepsgraphCopyContext *DEG_filter_init()
+{
+	DepsgraphCopyContext *dcc = MEM_callocN(sizeof(DepsgraphCopyContext), "DepsgraphCopyContext");
+	
+	/* init hashes for easy lookups */
+	dcc->nodes_hash = BLI_ghash_ptr_new("Despgraph Filter NodeHash");
+	dcc->rels_hash = BLI_ghash_ptr_new("Despgraph Filter Relationship Hash"); // XXX?
+	
+	/* store filtering criteria? */
+	// xxx...
+	
+	return dcc;
+}
+
+/* Cleanup filtering context */
+void DEG_filter_cleanup(DepsgraphCopyContext *dcc)
+{
+	/* sanity check */
+	if (dcc == NULL)
+		return;
+		
+	/* free hashes - contents are weren't copied, so are ok... */
+	BLI_ghash_free(dcc->nodes_hash);
+	BLI_ghash_free(dcc->rels_hash);
+	
+	/* clear filtering criteria */
+	// ...
+	
+	/* free dcc itself */
+	MEM_freeN(dcc);
+}
+
+/* -------------------------------------------------- */
 
 /* Create a copy of provided node */
 // FIXME: the handling of sub-nodes and links will need to be subject to filtering options...
-// FIXME: copying nodes is probably more at the heart of the querying + filtering API
-DepsNode *DEG_copy_node(const DepsNode *src)
+DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *dst;
@@ -90,7 +124,7 @@ DepsNode *DEG_copy_node(const DepsNode *src)
 	
 	/* fix up type-specific data (and/or subtree...) */
 	if (nti->copy_data) {
-		nti->copy_data(dst, src);
+		nti->copy_data(dcc, dst, src);
 	}
 	
 	/* return copied node */
