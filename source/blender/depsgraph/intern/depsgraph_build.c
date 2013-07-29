@@ -264,6 +264,18 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			// xxx...
 		}
 		break;
+		
+		case OB_SURF: /* Nurbs Surface */
+		{
+			...
+		}
+		break;
+		
+		case OB_LATTICE: /* Lattice */
+		{
+			...
+		}
+		break;
 	}
 	
 	/* ShapeKeys */
@@ -382,45 +394,51 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	}
 	
 	/* object data */
-	// XXX: ob.geometry block needs to depend on ob.data somehow...
 	if (ob->data) {
-		AnimData *data_adt = BKE_animdata_from_id(obdata_id);
+		AnimData *data_adt;
 		
-		
-		DepsNode *obdata_node = NULL;
-		DepsNode *node2;
+		/* ob data animation */
+		data_adt = BKE_animdata_from_id(obdata_id);
+		if (data_adt) {
+			deg_build_animdata_graph(graph, scene, obdata_id);
+		}
 		
 		/* type-specific data... */
 		switch (ob->type) {
-			case OB_ARMATURE:
+			case OB_MESH:     /* Geometry */
+			case OB_CURVE:
+			case OB_FONT:
+			case OB_SURF:
+			case OB_MBALL:
+			case OB_LATTICE:
+			{
+				deg_build_obdata_geom_graph(graph, scene, ob);
+			}
+			break;
+			
+			
+			case OB_ARMATURE: /* Pose */
 			{
 				bArmature *arm = (bArmature *)ob->data;
 				...
 			}
 			break;
 			
-			
-			
-			case OB_CAMERA:
+			case OB_CAMERA: /* Camera */
 			{
 				Camera *cam = (Camera *)ob->data;
+				DepsNode *obdata_node, *node2;
 				
 				/* node for obdata */
-				obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, obdata_id, NULL, NULL);
+				obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_PARAMETERS, "Camera Parameters");
 				
 				/* DOF */
 				if (cam->dof_ob) {
-					// XXX: to be precise, we want the "transforms" component only...
-					node2 = DEG_get_node(dag, DEPSNODE_TYPE_OUTER_ID, (ID *)cam->dof_ob, NULL, NULL);
-					DEG_add_new_relation(graph, node2, node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
+					node2 = DEG_get_node(dag, (ID *)cam->dof_ob, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
+					DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
 				}
 			}
 			break;
-		}
-		
-		/* ob data animation */
-		if (data_adt) {
-			deg_build_animdata_graph(graph, scene, (ID *)ob->data);
 		}
 	}
 	
