@@ -181,10 +181,12 @@ static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob
 	DepsNode *key_node, *obdata_node;
 	
 	/* create node for shapekeys block */
-	key_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, &key->id, NULL, NULL);
+	// XXX: assume geometry - that's where shapekeys get evaluated anyways...
+	key_node = DEG_get_node(graph, &key->id, DEPSNODE_TYPE_GEOMETRY, NULL);
 	
 	/* 1) attach to geometry */
-	obdata_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, (ID *)ob->data, NULL, NULL);
+	// XXX: aren't shapekeys now done as a pseudo-modifier on object?
+	obdata_node = DEG_get_node(graph, (ID *)ob->data, DEPSNODE_TYPE_GEOMETRY, NULL);
 	DEG_add_new_relation(graph, key_node, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
 	
 	/* 2) attach drivers, etc. */
