@@ -127,7 +127,7 @@ static void dnti_id_ref__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 static void dnti_id_ref__remove_from_graph(Depsgraph *graph, DepsNode *node)
 {
 	/* remove toplevel node and hash entry, but don't free... */
-	BLI_ghash_remove(graph->nodehash, id, NULL, NULL);
+	BLI_ghash_remove(graph->id_hash, id, NULL, NULL);
 }
 
 /* ID Node Type Info */
