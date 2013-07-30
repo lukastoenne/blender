@@ -71,6 +71,17 @@ void DEG_graph_validate_links(Depsgraph *graph)
 }
 
 /* ************************************************** */
+/* Low-Level Graph Traversal and Sorting */
+
+/* Sort nodes to determine evaluation order for operation nodes
+ * where dependency relationships won't get violated.
+ */
+void DEG_graph_sort(Depsgraph *graph)
+{
+
+}
+
+/* ************************************************** */
 /* Node Management */
 
 /* Node Finding ------------------------------------- */
