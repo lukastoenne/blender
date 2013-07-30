@@ -122,10 +122,24 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 			
 		case DEPSNODE_TYPE_TIMESOURCE: /* Time Source */
 		{
-			/* there can only be one "official" timesource for now */
-			// XXX: what happens if we want the timesource for a subgraph?
-			RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
-			result = root_node->time_source;
+			/* search for one attached to a particular ID? */
+			if (id) {
+				/* check if it was added as a component 
+				 * (as may be done for subgraphs needing timeoffset) 
+				 */
+				// XXX: review this
+				IDDepsNode *id_node = BLI_ghash_lookup(graph->id_hash, id);
+				
+				if (id_node) {
+					result = BLI_ghash_lookup(id_node->component_hash,
+					                          SET_INT_IN_POINTER(type));
+				}
+			}
+			else {
+				/* use "official" timesource */
+				RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
+				result = root_node->time_source;
+			}
 		}
 			break;
 		
