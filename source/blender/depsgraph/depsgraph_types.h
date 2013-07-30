@@ -210,10 +210,10 @@ typedef enum eDepsNode_Flag {
 /* Root Node */
 /* Super(DepsNode) */
 typedef struct RootDepsNode {
-	DepsNode nd;                    /* standard header */
+	DepsNode nd;                     /* standard header */
 	
-	Scene *scene;                   /* scene that this corresponds to */
-	TimeSourceDepsNode time_source; /* entrypoint node for time-changed */
+	Scene *scene;                    /* scene that this corresponds to */
+	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
 } RootDepsNode;
 
 /* Time Source Node */
