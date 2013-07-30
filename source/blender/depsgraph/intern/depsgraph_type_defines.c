@@ -130,6 +130,65 @@ static void dnti_id_ref__remove_from_graph(Depsgraph *graph, DepsNode *node)
 	BLI_ghash_remove(graph->id_hash, id, NULL, NULL);
 }
 
+/* Validate links between components */
+static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
+{
+	IDDepsNode *id_node = (IDDepsNode *)node;
+	ListBase dummy_list = {NULL, NULL}; // XXX: perhaps this should live in the node?
+	GHashIterator *hashIter;
+	
+	/* get our components ......................................................................... */
+	ComponentDepsNode *params = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_PARAMETERS);
+	ComponentDepsNode *anim = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_ANIMATION);
+	ComponentDepsNode *trans = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_TRANSFORM);
+	ComponentDepsNode *geom = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_GEOMETRY);
+	ComponentDepsNode *proxy = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_PROXY);
+	ComponentDepsNode *pose = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_POSE);
+	
+	/* for each component, validate it's internal nodes, ready for us to hook up ................... */
+	GHASH_ITER(hashIter, id_node->component_hash) {
+		DepsNode *component = BLI_ghashIterator_getValue(hashIter);
+		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(component);
+		
+		if (nti && nti->validate_links) {
+			nti->validate_links(graph, component);
+		}
+	}
+	BLI_ghashIterator_free(hashIter);
+	
+	/* enforce ordering of these components......................................................... */
+	// TODO: create relationships to do this...
+	
+	/* parameters should always exist... */
+	BLI_assert(params != NULL); // XXX: not always created though!
+	BLI_addhead(&dummy_list, params);
+	
+	/* anim before params */
+	if (anim && params) {
+		BLI_addhead(&dummy_list, anim);
+	}
+	
+	/* proxy before anim (or params) */
+	if (proxy) {
+		BLI_addhead(&dummy_list, proxy);
+	}
+	
+	/* transform after params */
+	if (trans) {
+		BLI_addtail(&dummy_list, trans);
+	}
+	
+	/* geometry after transform */
+	if (geom) {
+		BLI_addtail(&dummy_list, geom);
+	}
+	
+	/* pose eval after transform */
+	if (pose) {
+		BLI_addtail(&dummy_list, pose);
+	}
+}
+
 /* ID Node Type Info */
 static DepsNodeTypeInfo DNTI_ID_REF = {
 	/* type */               DEPSNODE_TYPE_ID_REF,
@@ -143,7 +202,7 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 	/* add_to_graph() */     dnti_id_ref__add_to_graph,
 	/* remove_from_graph()*/ dnti_id_ref__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   dnti_id_ref__validate_links
 };
 
 /* ******************************************************** */
