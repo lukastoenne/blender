@@ -75,10 +75,11 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	
 	
 	/* create data node for this driver */
-	driver_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_Driver);
-	// TODO: bind execution operations...
+	driver_node = DEG_get_node(graph, id, DEPSNODE_TYPE_OP_DRIVER, NULL);
+	// XXX: attach metadata regarding this exact driver
 	
 	/* create dependency between data affected by driver and driver */
+	// XXX: this should return a parameter context for dealing with this...
 	affected_node = DEG_get_node_from_rna_path(graph, id, fcu->rna_path);
 	if (affected_node) {
 		/* make data dependent on driver */
@@ -104,8 +105,8 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
 					
 					/* get node associated with bone */
-					target_node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, 
-					                           dtar->id, &RNA_PoseBone, pchan);
+					// XXX...
+					target_node = DEG_get_node(graph, dtar->id, DEPSNODE_TYPE_OP_BONE, pchan->name);
 				}
 				else {
 					/* resolve path to get node... */
@@ -142,20 +143,15 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		DepsNode *time_src;
 		
 		/* create "animation" data node for this block */
-		adt_node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, id, &RNA_AnimData, adt);
-		// TODO: bind execution operations...
-		
-		/* make all other nodes on data depend on this... */
-		// XXX: ???
-		
-		/* wire up dependencies to other AnimData nodes */
-		// XXX: this step may have to be done later...
+		adt_node = DEG_get_node(graph, id, DEPSNODE_ANIMATION, "Animation");
 		
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
-		time_src = DEG_find_node(graph, DEPSNODE_TYPE_TIMESOURCE, &scene->id, NULL, NULL);
+		time_src = DEG_find_node(graph, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
 		DEG_add_new_relation(graph, time_src, adt_node, DEPSREL_TYPE_TIME, 
 		                     "[TimeSrc -> Animation] DepsRel");
+		                     
+		// XXX: Hook up specific update callbacks for special properties which may need it...
 	}
 	
 	/* drivers */
@@ -164,6 +160,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		DepsNode *driver_node = deg_build_driver_rel(graph, id, fcu);
 		
 		/* prevent driver from occurring before own animation... */
+		// NOTE: probably not strictly needed (anim before parameters anyway)...
 		if (adt_node) {
 			DEG_add_new_relation(graph, adt_node, driver_node, DEPSREL_TYPE_OPERATION, 
 			                     "[AnimData Before Drivers] DepsRel");
