@@ -98,7 +98,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	
 	/* allocate new node, and brute-force copy over all "basic" data */
 	// XXX: need to review the name here, as we can't have exact duplicates...
-	dst = DEG_create_node(src->type, src->name);
+	dst = DEG_create_node(src->type);
 	memcpy(dst, src, nti->size);
 	
 	/* add this node-pair to the hash... */

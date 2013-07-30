@@ -76,7 +76,7 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
  * > returns: The new node created (of the specified type), but which hasn't been added to
  *            the graph yet (callers need to do this manually, as well as other initialisations)
  */
-DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+DepsNode *DEG_create_node(eDepsNode_Type type);
 
 /* Add given node to graph 
  * < (id): ID-Block that node is associated with (if applicable)

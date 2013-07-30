@@ -267,7 +267,7 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 /* Add/Remove/Copy/Free ------------------------------- */
 
 /* Create a new node, but don't do anything else with it yet... */
-DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *DEG_create_node(eDepsNode_Type type)
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
@@ -276,8 +276,6 @@ DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 	node = MEM_callocN(nti->size, nti->name);
 	
 	/* populate base node settings */
-	// XXX: what if no name?
-	BLI_strncpy(node->name, name, DEG_MAX_ID_NAME);
 	node->type = type;
 	
 	/* node.class 
@@ -291,6 +289,14 @@ DepsNode *DEG_create_node(eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 	}
 	else {
 		node->class = DEPSNODE_CLASS_OPERATION;
+	}
+	
+	/* node.name */
+	if (nti->get_name) {
+		nti->get_name(node);
+	}
+	else {
+		BLI_strncpy(node->name, nti->name, DEG_MAX_ID_NAME);
 	}
 	
 	/* return newly created node data for more specialisation... */
@@ -316,7 +322,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const 
 	BLI_assert(nti != NULL);
 	
 	/* create node data... */
-	node = DEG_create_node(type, name);
+	node = DEG_create_node(type);
 	
 	/* type-specific data init
 	 * NOTE: this is not included as part of create_node() as
