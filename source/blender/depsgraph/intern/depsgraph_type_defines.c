@@ -200,7 +200,14 @@ static void dnti_component__free_data(DepsNode *node)
 /* Add 'component' node to graph */
 static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	// TODO...
+	IDDepsNode *id_node;
+	
+	/* find ID node that we belong to (and create it if it doesn't exist!) */
+	id_node = (IDDepsNode *)DEG_get_node(graph, id, DEPSNODE_TYPE_ID_REF, NULL);
+	BLI_assert(id_node != NULL);
+	
+	/* add component to id */
+	BLI_ghash_insert(id_node->component_hash, SET_INT_IN_POINTER(node->type), node);
 }
 
 /* Standard Component Defines ============================= */
