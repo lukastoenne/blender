@@ -103,6 +103,19 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node);
  */
 void DEG_free_node(DepsNode *node);
 
+/* Graph Validity -------------------------------------------------- */
+
+/* Ensure that all implicit constraints between nodes are satisfied 
+ * (e.g. components are only allowed to be executed in a certain order)
+ */
+void DEG_graph_validate_links(Depsgraph *graph);
+
+
+/* Sort nodes to determine evaluation order for operation nodes
+ * where dependency relationships won't get violated.
+ */
+void DEG_graph_sort(Depsgraph *graph);
+
 
 /* Relationships Handling ============================================== */
 

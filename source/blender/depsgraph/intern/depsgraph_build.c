@@ -550,6 +550,13 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Scene *scene)
 	
 	DEG_add_new_relation(graph, graph->root_node, scene_node, 
 	                     DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
+	                     
+	
+	/* ensure that all implicit constraints between nodes are satisfied */
+	DEG_graph_validate_links(graph);
+	
+	/* sort nodes to determine evaluation order (in most cases) */
+	DEG_graph_sort(graph);
 }
 
 /* ************************************************* */
