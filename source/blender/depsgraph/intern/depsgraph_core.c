@@ -46,7 +46,29 @@
 #include "depsgraph_intern.h"
 
 /* ************************************************** */
-/* Low-Level Dependency Graph Traversal / Sorting / Validity + Integrity */
+/* Validity + Integrity */
+
+/* Ensure that all implicit constraints between nodes are satisfied 
+ * (e.g. components are only allowed to be executed in a certain order)
+ */
+void DEG_graph_validate_links(Depsgraph *graph)
+{
+	BLI_assert((graph != NULL) && (graph->id_hash != NULL));
+	
+	/* go over each ID node to recursively call validate_links()
+	 * on it, which should be enough to ensure that all of those
+	 * subtrees are valid
+	 */
+	GHASH_ITER(hashIter, graph->id_hash) {
+		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(hashIter);
+		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
+		
+		if (nti && nti->validate_links) {
+			nti->validate_links(graph, node);
+		}
+	}
+	BLI_ghashIterator_free(hashIter);
+}
 
 /* ************************************************** */
 /* Node Management */
