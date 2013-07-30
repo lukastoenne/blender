@@ -24,10 +24,7 @@
  * ***** END GPL LICENSE BLOCK *****
  *
  * API's for internal use in the Depsgraph
- *
- * XXX: is this file really needed? Or does its purpose overlap with others?
- *      For now, let's keep this on the assumption that these API's aren't
- *      good for any of the other headers.
+ * - Also, defines for "Node Type Info"
  */ 
  
 #ifndef __DEPSGRAPH_INTERN_H__
