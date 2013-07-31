@@ -53,6 +53,79 @@
 /* ******************************************************** */
 /* Generic Nodes */
 
+/* Time Source Node ======================================= */
+
+/* Add 'time source' node to graph */
+static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	TimeSourceDepsNode *ts_node = (TimeSourceDepsNode *)
+	
+	/* determine which node to attach timesource to */
+	if (id) {
+		/* get ID node */
+		DepsNode *id_node = DEG_get_node(graph, id, DEPSNODE_TYPE_ID_REF, NULL);
+		
+		/* depends on what this is... */
+		switch (GS(id->name)) {
+			case ID_SCE: /* Scene - Usually sequencer strip causing time remapping... */
+			{
+				// TODO...
+			}
+			break;
+			
+			// XXX: time source...
+			
+			default:     /* Unhandled */
+				break;
+		}
+	}
+	else {
+		/* root-node */
+		RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
+		
+		root_node->time_source = node;
+		node->owner = graph->root_node;
+	}
+}
+
+/* Remove 'time source' node from graph */
+static void dnti_timesource__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	BLI_assert(node->owner != NULL);
+	
+	switch(node->owner->type) {
+		case DEPSNODE_TYPE_ROOT: /* root node - standard case */
+		{
+			RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
+		
+			root_node->time_source = NULL;
+			node->owner = NULL;
+		}
+		break;
+		
+		// XXX: ID node - as needed...
+		
+		default: /* unhandled for now */
+			break;
+	}	
+}
+
+/* Time Source Type Info */
+static DepsNodeTypeInfo DNTI_TIMESOURCE = {
+	/* type */               DEPSNODE_TYPE_TIMESOURCE,
+	/* size */               sizeof(TimeSourceDepsNode),
+	/* name */               "Time Source",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_timesource__add_to_graph,
+	/* remove_from_graph()*/ dnti_timesource__remove_from_graph,
+	
+	/* validate_links() */   NULL // XXX?
+};
+
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
