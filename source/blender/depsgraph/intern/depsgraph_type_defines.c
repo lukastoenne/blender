@@ -551,6 +551,45 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 /* ******************************************************** */
 /* Inner Nodes */
 
+/* Standard Operation Callbacks =========================== */
+/* NOTE: some of these are just templates used by the others */
+
+/* Helper to add 'operation' node to graph */
+static void dnti_operation__add_to_graph(Depsgraph *graph, DepsNode *node,
+                                         ID *id, eDepsNode_Type component_type)
+{
+	
+}
+
+/* Callback to remove 'operation' node from graph */
+static void dnti_operation__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	
+}
+
+/* Parameter Operation ==================================== */
+
+/* Add 'parameter operation' node to graph */
+static void dnti_op_parameter__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	
+}
+
+/* Parameter Operation Node */
+static DepsNodeTypeInfo DNTI_OP_PARAMETER = {
+	/* type */               DEPSNODE_TYPE_OP_PARAMETER,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Parameter Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_parameter__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
 
 /* ******************************************************** */
 /* External API */
