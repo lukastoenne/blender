@@ -159,6 +159,9 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		/* create driver */
 		DepsNode *driver_node = deg_build_driver_rel(graph, id, fcu);
 		
+		/* hook up update callback associated with F-Curve */
+		// ...
+		
 		/* prevent driver from occurring before own animation... */
 		// NOTE: probably not strictly needed (anim before parameters anyway)...
 		if (adt_node) {

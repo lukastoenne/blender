@@ -407,6 +407,8 @@ OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type ty
 		return NULL;
 	
 	/* create operation node */
+	// XXX: name is used to lookup operations in op-hash
+	// XXX: may want to grab, just in case we're dealing with an update stub someone else left in...
 	op_node = (OperationDepsNode *)DEG_add_new_node(graph, id, type, "OperationNode");
 	BLI_assert(op_node != NULL);
 	
