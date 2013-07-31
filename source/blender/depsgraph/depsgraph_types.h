@@ -284,7 +284,23 @@ typedef struct OperationDepsNode {
 	 * < (item): (ComponentDepsNode/PointerRNA) the specific entity involved, where applicable
 	 */
 	void (*evaluate)(void *context, void *item);
+	
+	PointerRNA ptr;          /* item that operation is to be performed on (optional) */
+	
+	int optype;              /* (eDepsOperation_Type) stage of evaluation */
+	int step;                /* nth step in a linear sequence of actions that must take place within a component? */ // XXX?
 } OperationDepsNode;
+
+/* Type of operation */
+typedef enum eDepsOperation_Type {
+	/* Primary operation types */
+	DEPSOP_TYPE_INIT    = 0, /* initialise evaluation data */
+	DEPSOP_TYPE_EXEC    = 1, /* standard evaluation step */
+	DEPSOP_TYPE_POST    = 2, /* cleanup evaluation data + flush results */
+	
+	/* Additional operation types */
+	DEPSOP_TYPE_OUT     = 3  /* indicator for outputting a temporary result that other components can use */ // XXX?
+} eDepsOperation_Type:
 
 /* ************************************* */
 /* Depsgraph */
