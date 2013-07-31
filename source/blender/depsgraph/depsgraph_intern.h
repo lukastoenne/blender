@@ -83,7 +83,7 @@ DepsNode *DEG_create_node(eDepsNode_Type type);
  */
 void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
 
-/* Create a new (outer) node and add to graph
+/* Create a new node and add to graph
  * ! Arguments are as for DEG_find_node()
  *
  * > returns: The new node created (of the specified type) which now exists in the graph already
@@ -99,6 +99,17 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node);
  * ! DEG_remove_node() should be called before calling this...
  */
 void DEG_free_node(DepsNode *node);
+
+/* Convenience API ------------------------------------------------- */
+
+/* Create a new node for representing an operation and add this to graph 
+ * < id: ID-Block that operation will be performed on
+ * < type: Operation node type (corresponding to context/component that it operates in)
+ * < optype: Role that operation plays within component (i.e. where in eval process)
+ * < op: The operation to perform
+ */
+OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type type,
+                                     eDepsOperation_Type optype, DepsEvalOperationCb op);
 
 /* Graph Validity -------------------------------------------------- */
 

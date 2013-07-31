@@ -273,22 +273,25 @@ typedef struct PoseComponentDepsNode {
 
 /* Inner Nodes ========================= */
 
+/* Evaluation Operation for atomic operation 
+ * < context: (ComponentEvalContext) context containing data necessary for performing this operation
+ *            Results can generally be written to the context directly...
+ * < (item): (ComponentDepsNode/PointerRNA) the specific entity involved, where applicable
+ */
+// XXX: move this to another header that can be exposed?
+typedef void (*DepsEvalOperationCb)(void *context, void *item);
+
 /* Atomic Operation - Base type for all operations */
 /* Super(DepsNode) */
 typedef struct OperationDepsNode {
-	DepsNode nd;             /* standard header */
+	DepsNode nd;                  /* standard header */
 	
-	/* Evaluation Operation for atomic operation 
-	 * < context: (ComponentEvalContext) context containing data necessary for performing this operation
-	 *            Results can generally be written to the context directly...
-	 * < (item): (ComponentDepsNode/PointerRNA) the specific entity involved, where applicable
-	 */
-	void (*evaluate)(void *context, void *item);
+	DepsEvalOperationCb evaluate; /* callback for operation */
 	
-	PointerRNA ptr;          /* item that operation is to be performed on (optional) */
+	PointerRNA ptr;               /* item that operation is to be performed on (optional) */
 	
-	int optype;              /* (eDepsOperation_Type) stage of evaluation */
-	int step;                /* nth step in a linear sequence of actions that must take place within a component? */ // XXX?
+	int optype;                   /* (eDepsOperation_Type) stage of evaluation */
+	int step;                     /* nth step in a linear sequence of actions that must take place within a component? */ // XXX?
 } OperationDepsNode;
 
 /* Type of operation */

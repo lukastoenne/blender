@@ -310,7 +310,8 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	
 	/* parenting affects the transform-stack of an object */
 	ob_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
-	DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_TRANSFORM, BKE_object_eval_parent);
+	DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_TRANSFORM, 
+	                  DEPSOP_TYPE_EXEC, BKE_object_eval_parent);
 	
 	/* type-specific links */
 	switch (ob->partype) {
