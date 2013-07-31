@@ -53,6 +53,36 @@
 /* ******************************************************** */
 /* Generic Nodes */
 
+/* Root Node ============================================== */
+
+/* Add 'root' node to graph */
+static void dnti_root__add_to_graph(Depsgraph *graph, DepsNode *node, ID *UNUSED(id))
+{
+	graph->root_node = node;
+}
+
+/* Remove 'root' node from graph */
+static void dnti_root__remove_from_graph(Depsgraph *graph, DepsNode *UNUSED(node))
+{
+	graph->root_node = NULL;
+}
+
+/* Root Node Type Info */
+static DepsNodeTypeInfo DNTI_ROOT = {
+	/* type */               DEPSNODE_TYPE_ROOT,
+	/* size */               sizeof(RootDepsNode),
+	/* name */               "Root DepsNode",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_root__add_to_graph,
+	/* remove_from_graph()*/ dnti_root__remove_from_graph,
+	
+	/* validate_links() */   NULL // XXX?
+};
+
 /* Time Source Node ======================================= */
 
 /* Add 'time source' node to graph */
