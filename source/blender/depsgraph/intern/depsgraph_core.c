@@ -347,11 +347,28 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 {
 	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
 	
-	if (node && nti) {
-		/* relationships */
-		// XXX: for now, they're just left in place...
-		
-		/* remove node from graph - general */
+	if (node == NULL)
+		return;
+	
+	/* relationships 
+	 * - remove these, since they're at the same level as the
+	 *   node itself (inter-relations between sub-nodes will
+	 *   still remain and/or can still work that way)
+	 */
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
+	{
+		DEG_remove_relation(graph, rel);
+	}
+	DEPSNODE_RELATIONS_ITER_END;
+	
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+	{
+		DEG_remove_relation(graph, rel);
+	}
+	DEPSNODE_RELATIONS_ITER_END;
+	
+	/* remove node from graph - handle special data the node might have */
+	if (nti && nti->remove_from_graph) {
 		nti->remove_from_graph(graph, node);
 	}
 }
