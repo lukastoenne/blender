@@ -610,6 +610,238 @@ static DepsNodeTypeInfo DNTI_OP_PARAMETER = {
 	/* validate_links() */   NULL
 };
 
+/* Proxy Operation ======================================== */
+
+/* Add 'proxy operation' node to graph */
+static void dnti_op_proxy__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PROXY);
+}
+
+/* Proxy Operation Node */
+static DepsNodeTypeInfo DNTI_OP_PROXY = {
+	/* type */               DEPSNODE_TYPE_OP_PROXY,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Proxy Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_proxy__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
+/* Animation Operation ==================================== */
+
+/* Add 'animation operation' node to graph */
+static void dnti_op_animation__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_ANIMATION);
+}
+
+/* Animation Operation Node */
+static DepsNodeTypeInfo DNTI_OP_ANIMATION = {
+	/* type */               DEPSNODE_TYPE_OP_ANIMATION,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Animation Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_animation__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
+/* Transform Operation ==================================== */
+
+/* Add 'transform operation' node to graph */
+static void dnti_op_transform__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_TRANSFORM);
+}
+
+/* Transform Operation Node */
+static DepsNodeTypeInfo DNTI_OP_TRANSFORM = {
+	/* type */               DEPSNODE_TYPE_OP_TRANSFORM,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Transform Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_transform__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
+/* Geometry Operation ===================================== */
+
+/* Add 'geometry operation' node to graph */
+static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_GEOMETRY);
+}
+
+/* Geometry Operation Node */
+static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
+	/* type */               DEPSNODE_TYPE_OP_GEOMETRY,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Geometry Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_geometry__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
+/* Update Operation ======================================= */
+
+/* Add 'update operation' node to graph */
+static void dnti_op_update__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
+}
+
+/* Update Operation Node */
+static DepsNodeTypeInfo DNTI_OP_UPDATE = {
+	/* type */               DEPSNODE_TYPE_OP_UPDATE,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "RNA Update Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_update__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
+/* Driver Operation ===================================== */
+// XXX: some special tweaks may be needed for this one...
+
+/* Add 'driver operation' node to graph */
+static void dnti_op_driver__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
+}
+
+/* Driver Operation Node */
+static DepsNodeTypeInfo DNTI_OP_DRIVER = {
+	/* type */               DEPSNODE_TYPE_OP_DRIVER,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Driver Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_driver__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
+/* Bone Operation ========================================= */
+// XXX: this one needs a lot more attention
+
+/* Add 'bone operation' node to graph */
+static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	// XXX...
+}
+
+/* Remove 'bone operation' node from graph */
+static void dnti_op_bone__remove_from_graph(DepsNode *graph, DepsNode *node)
+{
+	// XXX...
+}
+
+/* Bone Operation Node */
+static DepsNodeTypeInfo DNTI_OP_BONE = {
+	/* type */               DEPSNODE_TYPE_OP_BONE,
+	/* size */               sizeof(OperationDepsNode), // XXX
+	/* name */               "Bone Operation",
+	
+	/* init_data() */        NULL, // XXX
+	/* free_data() */        NULL, // XXX
+	/* copy_data() */        NULL, // XXX
+	
+	/* add_to_graph() */     dnti_op_bone__add_to_graph,
+	/* remove_from_graph()*/ dnti_op_bone__remove_from_graph,
+	
+	/* validate_links() */   NULL // XXX
+};
+
+/* Particle Operation ===================================== */
+// XXX: this category needs further design work
+
+/* Add 'particle operation' node to graph */
+static void dnti_op_particle__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_EVAL_PARTICLES);
+}
+
+/* Remove 'particle operation' node from graph */
+static void dnti_op_particle__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	// XXX...
+	dnti_operation__remove_from_graph(graph, node);
+}
+
+/* Particles Operation Node */
+static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
+	/* type */               DEPSNODE_TYPE_OP_PARTICLE,
+	/* size */               sizeof(OperationDepsNode), // XXX
+	/* name */               "Particles Operation",
+	
+	/* init_data() */        NULL, // XXX
+	/* free_data() */        NULL, // XXX
+	/* copy_data() */        NULL, // XXX
+	
+	/* add_to_graph() */     dnti_op_particle__add_to_graph,
+	/* remove_from_graph()*/ dnti_op_particle__remove_from_graph,
+	
+	/* validate_links() */   NULL // XXX
+};
+
+/* RigidyBody Operation =================================== */
+
+/* Add 'rigidbody operation' node to graph */
+static void dnti_op_rigidbody__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_TRANSFORM); // XXX
+}
+
+/* Rigidbody Operation Node */
+static DepsNodeTypeInfo DNTI_OP_RIGIDBODY = {
+	/* type */               DEPSNODE_TYPE_OP_RIGIDBODY,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Rigidbody Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_rigidbody__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
 /* ******************************************************** */
 /* External API */
 
