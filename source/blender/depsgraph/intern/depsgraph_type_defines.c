@@ -558,13 +558,32 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 static void dnti_operation__add_to_graph(Depsgraph *graph, DepsNode *node,
                                          ID *id, eDepsNode_Type component_type)
 {
+	/* get component node to add operation to */
+	DepsNode *comp_node = DEG_get_node(graph, id, component_type, NULL);
+	ComponentDepsNode *component = (ComponentDepsNode *)comp_node;
 	
+	/* add to hash and list */
+	// XXX: review the use/need of the hash here - perhaps we should use fixed hash instead?
+	BLI_ghash_insert(component->op_hash, node->name, node);
+	BLI_addtail(&component->ops, node);
+	
+	/* add backlink to component */
+	node->owner = comp_node;
 }
 
 /* Callback to remove 'operation' node from graph */
-static void dnti_operation__remove_from_graph(Depsgraph *graph, DepsNode *node)
+static void dnti_operation__remove_from_graph(Depsgraph *UNUSED(graph), DepsNode *node)
 {
-	
+	if (node->owner) {
+		ComponentDepsNode *component = (ComponentDepsNode *)comp_node;
+		
+		/* remove node from hash and list */
+		BLI_ghash_remove(component->op_hash, node->name, NULL, NULL);
+		BLI_remlink(&component->ops, node);
+		
+		/* remove backlink */
+		node->owner = NULL;
+	}
 }
 
 /* Parameter Operation ==================================== */
