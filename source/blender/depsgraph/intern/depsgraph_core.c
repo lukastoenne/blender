@@ -405,46 +405,6 @@ OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type ty
 	/* sanity check */
 	if (ELEM3(NULL, graph, id, op))
 		return NULL;
-		
-	/* determine type of component to house this */
-	// XXX: this really just goes in the opnode's add_to_graph...
-	switch (type) {
-		case DEPSNODE_TYPE_OP_PARAMETER:
-			component_type = DEPSNODE_TYPE_PARAMETERS;
-			break;
-		case DEPSNODE_TYPE_OP_PROXY:
-			component_type = DEPSNODE_TYPE_PROXY;
-			break;
-		case DEPSNODE_TYPE_OP_ANIMATION:
-			component_type = DEPSNODE_TYPE_ANIMATION;
-			break;
-		case DEPSNODE_TYPE_OP_TRANSFORM:
-			component_type = DEPSNODE_TYPE_TRANSFORM;
-			break;
-		case DEPSNODE_TYPE_OP_GEOMETRY:
-			component_type = DEPSNODE_TYPE_GEOMETERY;
-			break;
-		
-		case DEPSNODE_TYPE_OP_UPDATE:
-			component_type = DEPSNODE_TYPE_PARAMETERS;
-			break;
-		case DEPSNODE_TYPE_OP_DRIVER:
-			component_type = DEPSNODE_TYPE_PARAMETERS;
-			break;
-			
-		case DEPSNODE_TYPE_OP_BONE:
-			component_type = DEPSNODE_TYPE_EVAL_POSE; // XXX?
-			break;
-		case DEPSNODE_TYPE_OP_PARTICLE:
-			component_type = DEPSNODE_TYPE_EVAL_PARTICLE;
-			break;
-		case DEPSNODE_TYPE_OP_RIGIDBODY:
-			component_type = DEPSNODE_TYPE_TRANSFORM; // XXX?
-			break;
-	}
-	
-	/* ensure component + ID node exist */
-	// XXX
 	
 	/* create operation node */
 	op_node = (OperationDepsNode *)DEG_add_new_node(graph, id, type, "OperationNode");
