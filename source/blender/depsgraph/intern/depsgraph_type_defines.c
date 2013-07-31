@@ -145,18 +145,7 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	ComponentDepsNode *proxy = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_PROXY);
 	ComponentDepsNode *pose = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_POSE);
 	
-	/* for each component, validate it's internal nodes, ready for us to hook up ................... */
-	GHASH_ITER(hashIter, id_node->component_hash) {
-		DepsNode *component = BLI_ghashIterator_getValue(hashIter);
-		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(component);
-		
-		if (nti && nti->validate_links) {
-			nti->validate_links(graph, component);
-		}
-	}
-	BLI_ghashIterator_free(hashIter);
-	
-	/* enforce ordering of these components......................................................... */
+	/* enforce (gross) ordering of these components................................................. */
 	// TODO: create relationships to do this...
 	
 	/* parameters should always exist... */
@@ -187,6 +176,22 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	if (pose) {
 		BLI_addtail(&dummy_list, pose);
 	}
+	
+	/* for each component, validate it's internal nodes ............................................ */
+	
+	/* NOTE: this is done after the component-level restrictions are done,
+	 * so that we can take those restrictions as a guide for our low-level
+	 * component restrictions...
+	 */
+	GHASH_ITER(hashIter, id_node->component_hash) {
+		DepsNode *component = BLI_ghashIterator_getValue(hashIter);
+		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(component);
+		
+		if (nti && nti->validate_links) {
+			nti->validate_links(graph, component);
+		}
+	}
+	BLI_ghashIterator_free(hashIter);
 }
 
 /* ID Node Type Info */
