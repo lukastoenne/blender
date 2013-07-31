@@ -292,6 +292,22 @@ static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, ID *i
 	node->owner = (DepsNode *)id_node;
 }
 
+/* Remove 'component' node from graph */
+static void dnti_component__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	/* detach from owner (i.e. id-ref) */
+	if (node->owner) {
+		IDDepsNode *id_node = (IDDepsNode *)node->owner;
+		
+		BLI_ghash_remove(id_node->component_hash, SET_INT_IN_POINTER(node->type), NULL, NULL);
+		node->owner = NULL;
+	}
+	
+	/* NOTE: don't need to do anything about relationships,
+	 * as those are handled via the standard mechanism
+	 */
+}
+
 /* Standard Component Defines ============================= */
 
 /* Parameters */
@@ -305,7 +321,7 @@ static DepsNodeTypeInfo DNTI_PARAMETERS = {
 	/* copy_data() */        dnti_component__copy_data,
 	
 	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ NULL, // XXX...
+	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
