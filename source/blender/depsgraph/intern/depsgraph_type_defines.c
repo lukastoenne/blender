@@ -233,13 +233,30 @@ static void dnti_component__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, 
 	const ComponentDepsNode *src_node = (const ComponentDepsNode *)src;
 	ComponentDepsNode *dst_node       = (ComponentDepsNode *)dst;
 	
-	DepsNode *op_node;
+	DepsNode *dst_op, *src_op;
 	
 	/* create new op-node hash (to host the copied data) */
-	dst_node->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy");
+	dst_node->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy)");
 	
 	/* duplicate list of operation nodes */
+	BLI_duplicatelist(&dst->ops, &src->ops);
 	
+	for (dst_op = dst->ops.first, src_op = src->ops.first; 
+	     dst_op && src_op; 
+	     dst_op = dst_op->next,   src_op = src_op->next)
+	{
+		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(op_node);
+		
+		/* recursive copy */
+		if (nti && nti->copy_data)
+			nti->copy_data(dcc, dst_op, src_op);
+			
+		/* fix links... */
+		// ...
+	}
+	
+	/* copy evaluation contexts */
+	//
 }
 
 /* Free 'component' node */
