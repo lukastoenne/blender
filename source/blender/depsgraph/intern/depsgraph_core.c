@@ -202,7 +202,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 			break;
 			
 		case DEPSNODE_TYPE_OP_RIGIDBODY: /* Rigidbody Sim */
-			result = NULL; // FIXME!!! Where does this go?
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_TRANSFORM, type, name); // XXX: needs review
 			break;
 		
 		default:
