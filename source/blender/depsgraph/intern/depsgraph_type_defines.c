@@ -289,6 +289,7 @@ static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, ID *i
 	
 	/* add component to id */
 	BLI_ghash_insert(id_node->component_hash, SET_INT_IN_POINTER(node->type), node);
+	node->owner = (DepsNode *)id_node;
 }
 
 /* Standard Component Defines ============================= */
