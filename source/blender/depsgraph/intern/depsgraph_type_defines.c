@@ -572,7 +572,7 @@ static void dnti_operation__remove_from_graph(Depsgraph *graph, DepsNode *node)
 /* Add 'parameter operation' node to graph */
 static void dnti_op_parameter__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
 }
 
 /* Parameter Operation Node */
