@@ -440,7 +440,7 @@ static DepsNodeTypeInfo DNTI_ANIMATION = {
 	/* copy_data() */        dnti_component__copy_data,
 	
 	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ NULL, // XXX...
+	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
@@ -456,7 +456,7 @@ static DepsNodeTypeInfo DNTI_TRANSFORM = {
 	/* copy_data() */        dnti_component__copy_data,
 	
 	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ NULL, // XXX...
+	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
@@ -472,7 +472,7 @@ static DepsNodeTypeInfo DNTI_PROXY = {
 	/* copy_data() */        dnti_component__copy_data,
 	
 	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ NULL, // XXX...
+	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
@@ -488,7 +488,7 @@ static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	/* copy_data() */        dnti_component__copy_data,
 	
 	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ NULL, // XXX...
+	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
