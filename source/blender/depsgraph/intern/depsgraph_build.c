@@ -69,14 +69,18 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 {
 	ChannelDriver *driver = fcu->driver;
 	DriverVar *dvar;
+	char name_buf[DEG_MAX_ID_NAME];
 	
 	OperationDepsNode *driver_node = NULL;
 	DepsNode *affected_node = NULL;
 	
 	
 	/* create data node for this driver */
+	BLI_snprintf(name_buf, DEG_MAX_ID_NAME, "Driver @ %p", driver);
+	
 	driver_node = DEG_add_operation(graph, id, DEPSNODE_TYPE_OP_DRIVER, 
-	                                DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver);
+	                                DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
+	                                driver_name_buf);
 	
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
 	if (driver->type == DRIVER_TYPE_PYTHON) {
