@@ -292,12 +292,8 @@ DepsNode *DEG_create_node(eDepsNode_Type type)
 	}
 	
 	/* node.name */
-	if (nti->get_name) {
-		nti->get_name(node);
-	}
-	else {
-		BLI_strncpy(node->name, nti->name, DEG_MAX_ID_NAME);
-	}
+	// XXX: placeholder for now...
+	BLI_strncpy(node->name, nti->name, DEG_MAX_ID_NAME);
 	
 	/* return newly created node data for more specialisation... */
 	return node;
@@ -323,6 +319,11 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const 
 	
 	/* create node data... */
 	node = DEG_create_node(type);
+	
+	/* set name if provided */
+	if (name && name[0]) {
+		BLI_strncpy(node->name, name, DEG_MAX_ID_NAME);
+	}
 	
 	/* type-specific data init
 	 * NOTE: this is not included as part of create_node() as
@@ -398,7 +399,7 @@ void DEG_free_node(DepsNode *node)
 /* Create a new node for representing an operation and add this to graph */
 OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type type,
                                      eDepsOperation_Type optype, DepsEvalOperationCb op,
-                                     const char name[DEG_MAX_ID_LEN])
+                                     const char name[DEG_MAX_ID_NAME])
 {
 	OperationDepsNode *op_node = NULL;
 	eDepsNode_Type component_type;

@@ -114,7 +114,7 @@ void DEG_free_node(DepsNode *node);
  */
 OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type type,
                                      eDepsOperation_Type optype, DepsEvalOperationCb op,
-                                     const char name[DEG_MAX_ID_LEN]);
+                                     const char name[DEG_MAX_ID_NAME]);
 
 /* Graph Validity -------------------------------------------------- */
 
