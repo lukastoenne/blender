@@ -180,6 +180,46 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 /* ************************************************* */
 /* Rigs (i.e. Armature Bones) */
 
+
+/* Pose/Armature Bones Graph */
+static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
+{
+	bArmature *arm = (bArmature *)ob->data;
+	bPoseChannel *pchan;
+	
+	PoseComponentDepsNode *pose_node;
+	
+	
+	/* pose eval context 
+	 * NOTE: init/cleanup steps for this are handled as part of the node's code
+	 */
+	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	
+	/* bones */
+	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		OperationDepsNode *bone_node;
+		bConstraint *con;
+		
+		/* node for bone eval */
+		// XXX: do we need/have a bone for each bone?
+		bone_node = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_BONE, 
+		                              DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
+		                              pchan->name);
+		                              
+		/* bone parent */
+		if (pchan->parent) {
+			// XXX: currently assumes that parents get added first...
+			DepsNode *par = DEG_get_node(graph, id, DEPSNODE_TYPE_OP_BONE, pchan->parent->name);
+			DEG_add_new_relation(par, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+		}
+		
+		/* constraints */
+		for (con = pchan->constraints.first; con; con = con->next) {
+			
+		}
+	}
+}
+
 /* ************************************************* */
 /* Geometry */
 
@@ -427,8 +467,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			
 			case OB_ARMATURE: /* Pose */
 			{
-				bArmature *arm = (bArmature *)ob->data;
-				...
+				deg_build_rig_graph(graph, scene, ob);
 			}
 			break;
 			
