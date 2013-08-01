@@ -247,7 +247,11 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		}
 		
 		/* constraints */
-		deg_build_constraints_graph(graph, scene, ob, pchan, &pchan->constraints, pose_node, bone_node);
+		if (pchan->constrains.first) {
+			deg_build_constraints_graph(graph, scene, ob, 
+			                            pchan, &pchan->constraints, 
+			                            pose_node, bone_node);
+		}
 	}
 }
 
