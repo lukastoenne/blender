@@ -290,8 +290,11 @@ typedef struct OperationDepsNode {
 	
 	PointerRNA ptr;               /* item that operation is to be performed on (optional) */
 	
-	int optype;                   /* (eDepsOperation_Type) stage of evaluation */
-	int step;                     /* nth step in a linear sequence of actions that must take place within a component? */ // XXX?
+	double start_time;            /* (secs) last timestamp (in seconds) when operation was started */
+	double last_time;             /* (seconds) time in seconds that last evaluation took */
+	
+	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
+	short flag;                   /* (eDepsOperation_Flag) extra settings affecting evaluation */
 } OperationDepsNode;
 
 /* Type of operation */
@@ -303,7 +306,12 @@ typedef enum eDepsOperation_Type {
 	
 	/* Additional operation types */
 	DEPSOP_TYPE_OUT     = 3  /* indicator for outputting a temporary result that other components can use */ // XXX?
-} eDepsOperation_Type:
+} eDepsOperation_Type;
+
+/* Extra flags affecting operations */
+typedef enum eDepsOperation_Flag {
+	DEPSOP_FLAG_USES_PYTHON   = (1 << 0),  /* Operation is evaluated using CPython; has GIL and security implications... */      
+} eDepsOperation_Flag;
 
 /* ************************************* */
 /* Depsgraph */
