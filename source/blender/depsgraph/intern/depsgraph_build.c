@@ -387,10 +387,16 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	
 	DepsNode *ob_node, parent_node = NULL;
 	
-	/* parenting affects the transform-stack of an object */
+	/* parenting affects the transform-stack of an object 
+	 * NOTE: attach incoming links to the transform component, 
+	 *       which will redirect these to whatever its first 
+	 *       operation is in due course...
+	 */
 	ob_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
+	
 	DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_TRANSFORM, 
-	                  DEPSOP_TYPE_EXEC, BKE_object_eval_parent);
+	                  DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
+	                  "BKE_object_eval_parent");
 	
 	/* type-specific links */
 	switch (ob->partype) {
@@ -462,14 +468,23 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 /* build depsgraph nodes + links for object */
 static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
-	DepsNode *ob_node;
+	DepsNode *ob_node, *params_node, *trans_node;
 	
 	/* create node for object itself */
 	ob_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_ID_REF, ob->id.name);
 	
+	/* standard components */
+	params_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_PARAMETERS, NULL);
+	trans_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_TRANSFORM, NULL);
+	
 	/* object parent */
 	if (ob->parent) {
 		deg_build_object_parents(graph, ob_node, ob);
+	}
+	
+	/* object constraints */
+	if (ob->constraints.first) {
+		deg_build_constraints_graph(graph, scene, ob, NULL, &ob->constraints, trans_node, NULL);
 	}
 	
 	/* object data */
@@ -517,15 +532,6 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 				}
 			}
 			break;
-		}
-	}
-	
-	/* object constraints */
-	if (ob->constraints.first) {
-		bConstraint *con;
-		
-		for (con = ob->constraints.first; con; con = con->next) {
-			...
 		}
 	}
 	
