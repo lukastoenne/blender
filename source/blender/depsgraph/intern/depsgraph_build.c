@@ -70,15 +70,20 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	ChannelDriver *driver = fcu->driver;
 	DriverVar *dvar;
 	
+	OperationDepsNode *driver_node = NULL;
 	DepsNode *affected_node = NULL;
-	DepsNode *driver_node = NULL;
 	
 	
 	/* create data node for this driver */
-	driver_node = DEG_get_node(graph, id, DEPSNODE_TYPE_OP_DRIVER, NULL);
-	// XXX: attach metadata regarding this exact driver
+	driver_node = DEG_add_operation(graph, id, DEPSNODE_TYPE_OP_DRIVER, 
+	                                DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver);
 	
-	/* create dependency between data affected by driver and driver */
+	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
+	if (driver->type == DRIVER_TYPE_PYTHON) {
+		driver_node->flag |= DEPSOP_FLAG_USES_PYTHON;
+	}
+	
+	/* create dependency between driver and data affected by it */
 	// XXX: this should return a parameter context for dealing with this...
 	affected_node = DEG_get_node_from_rna_path(graph, id, fcu->rna_path);
 	if (affected_node) {
