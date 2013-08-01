@@ -102,14 +102,19 @@ void DEG_free_node(DepsNode *node);
 
 /* Convenience API ------------------------------------------------- */
 
-/* Create a new node for representing an operation and add this to graph 
+/* Create a new node for representing an operation and add this to graph
+ * ! If an existing node is found, it will be modified. This helps when node may 
+ *   have been partially created earlier (e.g. parent ref before parent item is added)
+ *
  * < id: ID-Block that operation will be performed on
  * < type: Operation node type (corresponding to context/component that it operates in)
  * < optype: Role that operation plays within component (i.e. where in eval process)
  * < op: The operation to perform
+ * < name: Identifier for operation - used to find/locate it again
  */
 OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type type,
-                                     eDepsOperation_Type optype, DepsEvalOperationCb op);
+                                     eDepsOperation_Type optype, DepsEvalOperationCb op,
+                                     const char name[DEG_MAX_ID_LEN]);
 
 /* Graph Validity -------------------------------------------------- */
 

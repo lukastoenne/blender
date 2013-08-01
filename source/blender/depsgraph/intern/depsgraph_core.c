@@ -397,7 +397,8 @@ void DEG_free_node(DepsNode *node)
 
 /* Create a new node for representing an operation and add this to graph */
 OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type type,
-                                     eDepsOperation_Type optype, DepsEvalOperationCb op)
+                                     eDepsOperation_Type optype, DepsEvalOperationCb op,
+                                     const char name[DEG_MAX_ID_LEN])
 {
 	OperationDepsNode *op_node = NULL;
 	eDepsNode_Type component_type;
@@ -406,10 +407,8 @@ OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type ty
 	if (ELEM3(NULL, graph, id, op))
 		return NULL;
 	
-	/* create operation node */
-	// XXX: name is used to lookup operations in op-hash
-	// XXX: may want to grab, just in case we're dealing with an update stub someone else left in...
-	op_node = (OperationDepsNode *)DEG_add_new_node(graph, id, type, "OperationNode");
+	/* create operation node (or find an existing but perhaps on partially completed one) */
+	op_node = (OperationDepsNode *)DEG_get_node(graph, id, type, name);
 	BLI_assert(op_node != NULL);
 	
 	/* attach extra data... */
