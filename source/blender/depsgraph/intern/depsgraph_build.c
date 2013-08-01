@@ -178,8 +178,38 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 
 
 /* ************************************************* */
-/* Rigs (i.e. Armature Bones) */
+/* Rigs */
 
+/* Constraints - Objects or Bones 
+ * < container: (ComponentDepsNode) component that constraint nodes will be added to
+ * < host: (OperationDepsNode) operation node that should preceed any constraints
+ */
+static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene, 
+                                        Object *ob, bPoseChannel *pchan,
+                                        ListBase *constraints, 
+                                        DepsNode *container, DepsNode *host)
+{
+	bConstraint *con;
+	
+	for (con = constraints->first; con; con = con->next) {
+		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		ListBase targets = {NULL, NULL};
+		bConstraintTarget *ct;
+		
+		if (cti && cti->get_constraint_targets) {
+			cti->get_constraint_targets(con, &targets);
+			
+			for (ct = targets.first; ct; ct = ct->next) {
+				if (ct->tar) {
+					// ...
+				}
+			}
+			
+			if (cti->flush_constraint_targets)
+				cti->flush_constraint_targets(con, &targets, 1);
+		}
+	}
+}
 
 /* Pose/Armature Bones Graph */
 static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
@@ -198,7 +228,6 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	/* bones */
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		OperationDepsNode *bone_node;
-		bConstraint *con;
 		
 		/* node for bone eval */
 		// XXX: do we need/have a bone for each bone?
@@ -214,9 +243,7 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		}
 		
 		/* constraints */
-		for (con = pchan->constraints.first; con; con = con->next) {
-			
-		}
+		deg_build_constraints_graph(graph, scene, ob, pchan, &pchan->constraints, pose_node, bone_node);
 	}
 }
 
