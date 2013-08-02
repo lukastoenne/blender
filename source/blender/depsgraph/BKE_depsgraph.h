@@ -92,6 +92,10 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene);
 
 /* Update Tagging -------------------------------- */
 
+/* Tag a specific node as needing updates */
+// XXX: should this be part of the external API at all?
+void DEG_node_tag_update(Depsgraph *graph, DepsNode *node);
+
 /* Tag node(s) associated with states such as time and visibility */
 void DEG_scene_update_flags(Depsgraph *graph, const bool do_time);
 void DEG_on_visible_update(Depsgraph *graph, const bool do_time);

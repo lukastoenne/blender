@@ -78,9 +78,9 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
 	
 	/* update time on primary timesource */
 	tsrc = (TimeSourceDepsNode *)DEG_find_node(graph, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
-	
 	tsrc->cfra = ctime;
-	tsrc->flag |= (DEPSNODE_FLAG_DIRECTLY_MODIFIED); // XXX: have API calls for touching these, which store in a queue for flushing?
+	
+	DEG_node_tag_update(graph, &tsrc->nd);
 	
 	/* recursively push updates out to all nodes dependent on this, 
 	 * until all affected are tagged and/or scheduled up for eval

@@ -318,8 +318,12 @@ typedef enum eDepsOperation_Flag {
 
 /* Dependency Graph object */
 struct Depsgraph {
+	/* Core Graph Functionality ........... */
 	GHash *id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
 	DepsNode *root_node;     /* "root" node - the one where all evaluation enters from */
+	
+	/* Quick-Access Temp Data ............. */
+	ListBase entry_tags;     /* (LinkData : DepsNode) nodes which have been tagged as "directly modified" */
 	
 	// XXX: other data...
 	// XXX: what about free-floating non-id-related nodes? where do "they" go?

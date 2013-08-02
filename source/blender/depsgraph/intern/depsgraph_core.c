@@ -502,7 +502,28 @@ void DEG_free_relation(DepsRelation *rel)
 }
 
 /* ************************************************** */
-/* Public API */
+/* Update Tagging/Flushing */
+
+/* Tag a specific node as needing updates */
+void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
+{
+	/* sanity check */
+	if (ELEM(NULL, graph, node))
+		return;
+		
+	/* tag for update, but also not that this was the source of an update */
+	node->flag |= (DEPSNODE_FLAG_NEEDS_UPDATE | DEPSNODE_FLAG_DIRECTLY_MODIFIED);
+	
+	/* add to graph-level set of directly modified nodes to start searching from
+	 * NOTE: this is necessary since we have several thousand nodes to play with...
+	 */
+	BLI_addtail(&graph->entry_tags, BLI_genericNodeN(node));
+}
+
+/* ************************************************** */
+/* Public Graph API */
+
+/* Init --------------------------------------------- */
 
 /* Initialise a new Depsgraph */
 Depsgraph *DEG_graph_new()
@@ -516,7 +537,7 @@ Depsgraph *DEG_graph_new()
 	return graph;
 }
 
-/* ---------------------------------------------- */
+/* Freeing ------------------------------------------- */
 
 /* wrapper around DEG_free_node() so that it can be used to free nodes stored in hash... */
 static void deg_graph_free__node_wrapper(void *node_p)
