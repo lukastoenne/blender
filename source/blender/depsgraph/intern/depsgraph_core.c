@@ -557,6 +557,7 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		return;
 	
 	/* starting from the tagged "entry" nodes, flush outwards... */
+	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
 	for (ld = graph->entry_tags; ld; ld = ld->next) {
 		DepsNode *node = ld->data;
 		
@@ -564,7 +565,11 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		
 		/* flush to nodes along links... */
 		
-	}	
+	}
+	
+	/* clear entry tags, since all tagged nodes should now be reachable from root */
+	BLI_freelistN(&graph->entry_tags);
+	
 }
 
 /* ************************************************** */
