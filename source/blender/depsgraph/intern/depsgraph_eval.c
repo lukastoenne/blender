@@ -57,6 +57,38 @@
 #include "depsgraph_intern.h"
 
 /* *************************************************** */
+/* Evaluation Internals */
+
+/* Perform evaluation of a node */
+// NOTE: this is called by the scheduler on a worker thread
+static void deg_exec_node(Depsgraph *graph, DepsNode *node)
+{
+	/* get context and dispatch */
+	if (node->class == DEPSNODE_CLASS_OPERATION) {
+		OperationDepsNode *op  = (OperationDepsNode *)node;
+		ComponentDepsNode *com = (ComponentDepsNode *)op->owner; 
+		void *context = NULL, *item = NULL;
+		
+		/* get context */
+		// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
+		BLI_assert(com != NULL);
+		context = com->context;
+		
+		/* get "item" */
+		// XXX: not everything will use this - some may want something else!
+		item = &op->ptr;
+		
+		/* take note of current time */
+		op->start_time = PIL_check_seconds_timer();
+		
+		/* perform operation */
+		op->evaluate(context, item);
+		
+		/* note how long this took */
+		op->last_time = PIL_check_seconds_timer() - op->start_time;
+	}
+	/* NOTE: "generic" nodes cannot be executed, but will still end up calling this */
+}
 
 /* *************************************************** */
 /* Evaluation Entrypoints */
