@@ -30,10 +30,17 @@
  */
 
 struct NParticleBuffer;
+struct NParticleBufferAttribute;
 
 struct NParticleBuffer *BKE_nparticle_buffer_new(void);
 void BKE_nparticle_buffer_free(struct NParticleBuffer *buf);
 struct NParticleBuffer *BKE_nparticle_buffer_copy(struct NParticleBuffer *buf);
+
+struct NParticleBufferAttribute *BKE_nparticle_attribute_find(struct NParticleBuffer *buf, const char *name);
+struct NParticleBufferAttribute *BKE_nparticle_attribute_new(struct NParticleBuffer *buf, const char *name, int datatype);
+void BKE_nparticle_attribute_remove(struct NParticleBuffer *buf, struct NParticleBufferAttribute *attr);
+void BKE_nparticle_attribute_remove_all(struct NParticleBuffer *buf);
+void BKE_nparticle_attribute_move(struct NParticleBuffer *buf, int from_index, int to_index);
 
 
 #if 0 /* old code */

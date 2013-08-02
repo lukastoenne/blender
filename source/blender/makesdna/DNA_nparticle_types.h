@@ -65,39 +65,34 @@ enum NodeParAttributeStandard {
 };
 
 
-/** Data attribute associated with particles.
- */
+/* Attribute descriptor */
 typedef struct NParticleAttribute {
-	struct NParticleAttribute *next, *prev;
-	struct NParticleAttribute *new_attribute;	/* temporary pointer after copy */
-	
-	short type;
-	short datatype;
-	short flag;
-	short pad;
 	char name[64];
-	
-	/** Buffer layer associated with this attribute. */
-	struct bPagedBufferLayerInfo *layer, *layer_write;
+	int datatype;
+	int pad;
 } NParticleAttribute;
 
-/* particle attribute flags */
-enum NodeParAttributeFlag {
-	PAR_ATTR_STATE			= 1	/* attribute is part of the system state */
-};
-
 /* particle attribute types */
-enum NodeParAttributeDataType {
+enum NParticleAttributeDataType {
 	PAR_ATTR_DATATYPE_INTERNAL		= 0,	/* for static attributes with special types */
 	PAR_ATTR_DATATYPE_FLOAT			= 1,
 	PAR_ATTR_DATATYPE_INT			= 2,
-	PAR_ATTR_DATATYPE_VECTOR		= 3,
-	PAR_ATTR_DATATYPE_POINT			= 4,
-	PAR_ATTR_DATATYPE_NORMAL		= 5,
-	PAR_ATTR_DATATYPE_COLOR			= 6,
-	PAR_ATTR_DATATYPE_QUATERNION	= 7
-	/*PAR_ATTR_DATATYPE_FLAG		= 8*/	/* XXX TODO */
+	PAR_ATTR_DATATYPE_BOOL			= 3,
+	PAR_ATTR_DATATYPE_VECTOR		= 4,
+	PAR_ATTR_DATATYPE_POINT			= 5,
+	PAR_ATTR_DATATYPE_NORMAL		= 6,
+	PAR_ATTR_DATATYPE_COLOR			= 7,
+	PAR_ATTR_DATATYPE_MATRIX		= 8
 };
+
+/* Attribute data in a buffer */
+typedef struct NParticleBufferAttribute {
+	struct NParticleBufferAttribute *next, *prev;
+	struct NParticleBufferAttribute *new_attribute;	/* temporary pointer after copy */
+	
+	NParticleAttribute desc;
+	bPagedBuffer data;
+} NParticleBufferAttribute;
 
 /* ******** Various specialized typedefs for attributes ******** */
 /* data type of the flag attribute layer */
@@ -148,8 +143,6 @@ typedef struct bNodeInstanceMap {
 } bNodeInstanceMap;
 
 typedef struct NParticleBuffer {
-	bPagedBuffer data;
-	
 	ListBase attributes;
 } NParticleBuffer;
 

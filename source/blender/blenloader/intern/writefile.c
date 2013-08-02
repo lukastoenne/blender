@@ -1362,26 +1362,27 @@ static void write_defgroups(WriteData *wd, ListBase *defbase)
 
 static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
 {
-	bPagedBufferLayer *layer;
 	int p;
 	
-	for (layer = pbuf->layers.first; layer; layer = layer->next) {
-		writestruct(wd, DATA, "bPagedBufferLayer", 1, layer);
-		
-		if (layer->pages) {
-			writestruct(wd, DATA, "bPagedBufferPage", layer->totpages, layer->pages);
-			
-			for (p = 0; p < layer->totpages; ++p)
-				writedata(wd, DATA, pbuf->page_bytes, layer->pages[p].data);
+	if (pbuf->pages) {
+		writestruct(wd, DATA, "bPagedBufferPage", pbuf->totpages, pbuf->pages);
+		for (p = 0; p < pbuf->totpages; ++p) {
+			bPagedBufferPage *page = pbuf->pages + p;
+			if (page->data)
+				writedata(wd, DATA, pbuf->page_bytes, page->data);
 		}
 	}
 }
 
 static void write_nparticle_buffer(WriteData *wd, NParticleBuffer *buffer)
 {
-	writestruct(wd, DATA, "NParticleBuffer", 1, buffer);
+	NParticleBufferAttribute *attr;
 	
-	write_pagedbuffer(wd, &buffer->data);
+	writestruct(wd, DATA, "NParticleBuffer", 1, buffer);
+	for (attr = buffer->attributes.first; attr; attr = attr->next) {
+		writestruct(wd, DATA, "NParticleAttribute", 1, attr);
+		write_pagedbuffer(wd, &attr->data);
+	}
 }
 
 static void write_modifiers(WriteData *wd, ListBase *modbase)

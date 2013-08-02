@@ -33,9 +33,106 @@
 #ifdef RNA_RUNTIME
 
 #include "BKE_nparticle.h"
+#include "BKE_report.h"
 
+static NParticleBufferAttribute *rna_NParticleBuffer_attributes_new(NParticleBuffer *buf, ReportList *reports, const char *name, int datatype)
+{
+	if (BKE_nparticle_attribute_find(buf, name)) {
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "Particle attribute with name %s already exists", name);
+		return NULL;
+	}
+	return BKE_nparticle_attribute_new(buf, name, datatype);
+}
+
+static void rna_NParticleBuffer_attributes_remove(NParticleBuffer *buf, NParticleBufferAttribute *attr)
+{
+	BKE_nparticle_attribute_remove(buf, attr);
+}
+
+static void rna_NParticleBuffer_attributes_clear(NParticleBuffer *buf)
+{
+	BKE_nparticle_attribute_remove_all(buf);
+}
+
+static void rna_NParticleBuffer_attributes_move(NParticleBuffer *buf, int from_index, int to_index)
+{
+	BKE_nparticle_attribute_move(buf, from_index, to_index);
+}
 
 #else
+
+EnumPropertyItem nparticle_attribute_datatype_all[] = {
+    {PAR_ATTR_DATATYPE_INTERNAL,    "INTERNAL",     0,  "Internal"      ""},
+    {PAR_ATTR_DATATYPE_FLOAT,       "FLOAT",        0,  "Float"         ""},
+    {PAR_ATTR_DATATYPE_INT,         "INT",          0,  "Int"           ""},
+    {PAR_ATTR_DATATYPE_BOOL,        "BOOL",         0,  "Bool"          ""},
+    {PAR_ATTR_DATATYPE_VECTOR,      "VECTOR",       0,  "Vector"        ""},
+    {PAR_ATTR_DATATYPE_POINT,       "POINT",        0,  "Point"         ""},
+    {PAR_ATTR_DATATYPE_NORMAL,      "NORMAL",       0,  "Normal"        ""},
+    {PAR_ATTR_DATATYPE_COLOR,       "COLOR",        0,  "Color"         ""},
+    {PAR_ATTR_DATATYPE_MATRIX,      "MATRIX",       0,  "Matrix"        ""},
+    {0, NULL, 0, NULL, NULL}
+};
+
+EnumPropertyItem nparticle_attribute_datatype_user[] = {
+    {PAR_ATTR_DATATYPE_FLOAT,       "FLOAT",        0,  "Float"         ""},
+    {PAR_ATTR_DATATYPE_INT,         "INT",          0,  "Int"           ""},
+    {PAR_ATTR_DATATYPE_BOOL,        "BOOL",         0,  "Bool"          ""},
+    {PAR_ATTR_DATATYPE_VECTOR,      "VECTOR",       0,  "Vector"        ""},
+    {PAR_ATTR_DATATYPE_POINT,       "POINT",        0,  "Point"         ""},
+    {PAR_ATTR_DATATYPE_NORMAL,      "NORMAL",       0,  "Normal"        ""},
+    {PAR_ATTR_DATATYPE_COLOR,       "COLOR",        0,  "Color"         ""},
+    {PAR_ATTR_DATATYPE_MATRIX,      "MATRIX",       0,  "Matrix"        ""},
+    {0, NULL, 0, NULL, NULL}
+};
+
+static void rna_def_nparticle_buffer_attribute(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "NParticleBufferAttribute", NULL);
+	RNA_def_struct_sdna(srna, "NParticleBufferAttribute");
+	RNA_def_struct_ui_text(srna, "Particle Buffer Attribute", "Attribute data associated to particles");
+}
+
+static void rna_def_nparticle_buffer_attributes_api(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	PropertyRNA *parm;
+	FunctionRNA *func;
+
+	RNA_def_property_srna(cprop, "NParticleBufferAttributes");
+	srna = RNA_def_struct(brna, "NParticleBufferAttributes", NULL);
+	RNA_def_struct_sdna(srna, "NParticleBuffer");
+	RNA_def_struct_ui_text(srna, "Attributes", "Collection of particle attributes");
+
+	func = RNA_def_function(srna, "new", "rna_NParticleBuffer_attributes_new");
+	RNA_def_function_ui_description(func, "Add a particle attribute");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_string(func, "name", "", MAX_NAME, "Name", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_enum(func, "datatype", nparticle_attribute_datatype_user, PAR_ATTR_DATATYPE_FLOAT, "Data Type", "Base data type");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return value */
+	parm = RNA_def_pointer(func, "attr", "NParticleBufferAttribute", "", "Attribute");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_NParticleBuffer_attributes_remove");
+	RNA_def_function_ui_description(func, "Remove an attribute from the buffer");
+	parm = RNA_def_pointer(func, "attr", "NParticleBufferAttribute", "", "The attribute to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func = RNA_def_function(srna, "clear", "rna_NParticleBuffer_attributes_clear");
+	RNA_def_function_ui_description(func, "Remove all attributes from the buffer");
+
+	func = RNA_def_function(srna, "move", "rna_NParticleBuffer_attributes_move");
+	RNA_def_function_ui_description(func, "Move an attribute to another position");
+	parm = RNA_def_int(func, "from_index", -1, 0, INT_MAX, "From Index", "Index of the attribute to move", 0, 10000);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_int(func, "to_index", -1, 0, INT_MAX, "To Index", "Target index for the attribute", 0, 10000);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+}
 
 static void rna_def_nparticle_buffer(BlenderRNA *brna)
 {
@@ -44,10 +141,17 @@ static void rna_def_nparticle_buffer(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "NParticleBuffer", NULL);
 	RNA_def_struct_ui_text(srna, "Particle Buffer", "Container for particles");
+
+	prop = RNA_def_property(srna, "attributes", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "attributes", NULL);
+	RNA_def_property_ui_text(prop, "Attributes", "Data layers associated to particles");
+	RNA_def_property_struct_type(prop, "NParticleBufferAttribute");
+	rna_def_nparticle_buffer_attributes_api(brna, prop);
 }
 
 void RNA_def_nparticle(BlenderRNA *brna)
 {
+	rna_def_nparticle_buffer_attribute(brna);
 	rna_def_nparticle_buffer(brna);
 }
 

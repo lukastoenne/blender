@@ -45,7 +45,7 @@ BLI_INLINE div_t div_ceil(int a, int b)
 	return result;
 }
 
-static int pbuf_layer_page_size_from_bytes(size_t page_bytes, size_t elem_bytes)
+static int pbuf_page_size_from_bytes(size_t page_bytes, size_t elem_bytes)
 {
 	div_t page_size = div(page_bytes, elem_bytes);
 	#ifdef PBUF_ALIGN_STRICT
@@ -54,191 +54,125 @@ static int pbuf_layer_page_size_from_bytes(size_t page_bytes, size_t elem_bytes)
 	return page_size.quot;
 }
 
-static void pbuf_layer_page_alloc(bPagedBufferLayer *layer, int p, size_t page_bytes)
+static void pbuf_page_alloc(bPagedBuffer *pbuf, int p)
 {
-	bPagedBufferPage *page = &layer->pages[p];
+	bPagedBufferPage *page = &pbuf->pages[p];
 	if (!page->data) {
-		page->data = MEM_mallocN(page_bytes, "paged buffer page");
-		layer->totalloc += layer->page_size;
+		page->data = MEM_mallocN(pbuf->page_bytes, "paged buffer page");
+		pbuf->totalloc += pbuf->page_size;
 	}
 }
 
-static void pbuf_layer_page_free(bPagedBufferLayer *layer, int p)
+static void pbuf_page_free(bPagedBuffer *pbuf, int p)
 {
-	bPagedBufferPage *page = &layer->pages[p];
+	bPagedBufferPage *page = &pbuf->pages[p];
 	if (page->data) {
 		MEM_freeN(page->data);
-		layer->totalloc -= layer->page_size;
+		pbuf->totalloc -= pbuf->page_size;
 	}
 }
 
-typedef enum ePagedBufferLayerPageAlloc {
+typedef enum {
 	PBUF_PAGE_ALLOC_NONE,	/* don't allocate any page data */
 	PBUF_PAGE_ALLOC_EXTEND,	/* allocate only new page data */
 	PBUF_PAGE_ALLOC_ALL		/* allocate all page data */
-} ePagedBufferLayerPageAlloc;
+} ePagedBufferPageAlloc;
 
-static void pbuf_layer_set_totelem(bPagedBufferLayer *layer, size_t page_bytes, int totelem, int new_totelem, ePagedBufferLayerPageAlloc alloc_mode)
+static void pbuf_set_totelem(bPagedBuffer *pbuf, int totelem, ePagedBufferPageAlloc alloc_mode)
 {
-	div_t div_elem = div_ceil(new_totelem, layer->page_size);
-	int ntotpages = div_elem.quot;
-	//	int npagefill = div_elem.rem;
-	bPagedBufferPage *npages;
-	int startp = totelem / layer->page_size;
-	int p;
-	
-	if (ntotpages == 0) {
-		layer->pages = NULL;
-		layer->totpages = 0;
-		return;
+	div_t div_elem = div_ceil(totelem, pbuf->page_size);
+	int totpages = div_elem.quot;
+	//	int pagefill = div_elem.rem;
+	if (totpages == 0) {
+		pbuf->pages = NULL;
+		pbuf->totpages = 0;
+		pbuf->totelem = 0;
+		pbuf->totalloc = 0;
 	}
-	
-	npages = MEM_callocN(sizeof(bPagedBufferPage) * ntotpages, "paged buffer page array");
-	if (layer->pages) {
-		int copyp = min_ii(layer->totpages, ntotpages);
-		memcpy(npages, layer->pages, sizeof(bPagedBufferPage) * copyp);
-		MEM_freeN(layer->pages);
-	}
-	
-	layer->pages = npages;
-	layer->totpages = ntotpages;
-	
-	/* init data */
-	switch (alloc_mode) {
-	case PBUF_PAGE_ALLOC_EXTEND:
-		for (p = startp; p < ntotpages; ++p)
-			pbuf_layer_page_alloc(layer, p, page_bytes);
-		break;
-	case PBUF_PAGE_ALLOC_ALL:
-		for (p = 0; p < ntotpages; ++p)
-			pbuf_layer_page_alloc(layer, p, page_bytes);
-		break;
-	case PBUF_PAGE_ALLOC_NONE:
-		/* nothing to do, data pointers are NULL already */
-		break;
-	}
-}
-
-/* XXX TODO add optional iterator to determine dead pages? */
-static bPagedBufferLayer *pbuf_layer_new(int totelem, size_t page_bytes, size_t elem_bytes)
-{
-	bPagedBufferLayer *layer = MEM_callocN(sizeof(bPagedBufferLayer), "paged buffer layer");
-	layer->elem_bytes = elem_bytes;
-	layer->page_size = pbuf_layer_page_size_from_bytes(page_bytes, elem_bytes);
-	
-	pbuf_layer_set_totelem(layer, page_bytes, 0, totelem, PBUF_PAGE_ALLOC_ALL);
-	
-	return layer;
-}
-
-static void pbuf_layer_free(bPagedBufferLayer *layer)
-{
-	if (layer->pages) {
+	else {
+		bPagedBufferPage *pages = MEM_callocN(sizeof(bPagedBufferPage) * totpages, "paged buffer page array");
+		int startp = totelem / pbuf->page_size;
 		int p;
-		for (p = 0; p < layer->totpages; ++p)
-			pbuf_layer_page_free(layer, p);
-		MEM_freeN(layer->pages);
+		
+		if (pbuf->pages) {
+			int copyp = min_ii(pbuf->totpages, totpages);
+			memcpy(pages, pbuf->pages, sizeof(bPagedBufferPage) * copyp);
+			MEM_freeN(pbuf->pages);
+		}
+		
+		pbuf->pages = pages;
+		pbuf->totpages = totpages;
+		pbuf->totelem = totelem;
+		
+		/* init data */
+		switch (alloc_mode) {
+			case PBUF_PAGE_ALLOC_EXTEND:
+				for (p = startp; p < totpages; ++p)
+					pbuf_page_alloc(pbuf, p);
+				break;
+			case PBUF_PAGE_ALLOC_ALL:
+				for (p = 0; p < totpages; ++p)
+					pbuf_page_alloc(pbuf, p);
+				break;
+			case PBUF_PAGE_ALLOC_NONE:
+				/* nothing to do, data pointers are NULL already */
+				break;
+		}
 	}
-	MEM_freeN(layer);
 }
 
-static bPagedBufferLayer *pbuf_layer_copy(bPagedBufferLayer *layer)
-{
-	bPagedBufferLayer *nlayer = MEM_dupallocN(layer);
-	if (layer->pages) {
-		int p;
-		nlayer->pages = MEM_dupallocN(layer->pages);
-		for (p = 0; p < nlayer->totpages; ++p)
-			if (layer->pages[p].data)
-				nlayer->pages[p].data = MEM_dupallocN(layer->pages[p].data);
-	}
-	return nlayer;
-}
 
-void BLI_pbuf_init(bPagedBuffer *pbuf, size_t page_bytes)
+void BLI_pbuf_init(bPagedBuffer *pbuf, size_t page_bytes, size_t elem_bytes)
 {
 	pbuf->page_bytes = page_bytes;
+	pbuf->elem_bytes = elem_bytes;
+	pbuf->page_size = pbuf_page_size_from_bytes(page_bytes, elem_bytes);
 	
-	pbuf->layers.first = pbuf->layers.last = NULL;
+	pbuf->pages = NULL;
+	pbuf->totpages = 0;
 	pbuf->totelem = 0;
+	pbuf->totalloc = 0;
 }
 
 void BLI_pbuf_free(bPagedBuffer *pbuf)
 {
-	bPagedBufferLayer *layer;
-	for (layer = pbuf->layers.first; layer; layer = layer->next)
-		pbuf_layer_free(layer);
-	pbuf->layers.first = pbuf->layers.last = NULL;
+	if (pbuf->pages) {
+		int p;
+		for (p = 0; p < pbuf->totpages; ++p)
+			pbuf_page_free(pbuf, p);
+		MEM_freeN(pbuf->pages);
+		pbuf->pages = NULL;
+		pbuf->totpages = 0;
+	}
 	pbuf->totelem = 0;
 }
 
 void BLI_pbuf_copy(bPagedBuffer *to, bPagedBuffer *from)
 {
-	bPagedBufferLayer *layer;
-	
 	to->page_bytes = from->page_bytes;
+	to->elem_bytes = from->elem_bytes;
+	to->page_size = from->page_size;
 	
-	for (layer = from->layers.first; layer; layer = layer->next)
-		BLI_addtail(&to->layers, pbuf_layer_copy(layer));
+	if (from->pages) {
+		int p;
+		to->pages = MEM_dupallocN(from->pages);
+		for (p = 0; p < from->totpages; ++p)
+			if (from->pages[p].data)
+				to->pages[p].data = MEM_dupallocN(from->pages[p].data);
+	}
+	else {
+		to->pages = NULL;
+	}
+	to->totpages = from->totpages;
 	to->totelem = from->totelem;
-}
-
-
-bPagedBufferLayer *BLI_pbuf_layer_insert(bPagedBuffer *pbuf, size_t elem_bytes, int pos)
-{
-	bPagedBufferLayer *layer = pbuf_layer_new(pbuf->totelem, pbuf->page_bytes, elem_bytes);
-	bPagedBufferLayer *next = BLI_findlink(&pbuf->layers, pos);
-	BLI_insertlinkbefore(&pbuf->layers, next, layer);
-	return layer;
-}
-
-void BLI_pbuf_layer_add(bPagedBuffer *pbuf, size_t elem_bytes)
-{
-	bPagedBufferLayer *layer = pbuf_layer_new(pbuf->totelem, pbuf->page_bytes, elem_bytes);
-	BLI_addtail(&pbuf->layers, layer);
-}
-
-bPagedBufferLayer *BLI_pbuf_layer_copy(bPagedBuffer *pbuf, int pos, int insert_pos)
-{
-	bPagedBufferLayer *layer = BLI_findlink(&pbuf->layers, pos);
-	if (layer) {
-		bPagedBufferLayer *nlayer = pbuf_layer_copy(layer);
-		bPagedBufferLayer *next = BLI_findlink(&pbuf->layers, insert_pos);
-		BLI_insertlinkbefore(&pbuf->layers, next, nlayer);
-		return nlayer;
-	}
-	return NULL;
-}
-
-void BLI_pbuf_layer_remove(bPagedBuffer *pbuf, int pos)
-{
-	bPagedBufferLayer *layer = BLI_findlink(&pbuf->layers, pos);
-	if (layer) {
-		BLI_remlink(&pbuf->layers, layer);
-		pbuf_layer_free(layer);
-	}
-}
-
-void BLI_pbuf_layer_move(bPagedBuffer *pbuf, int from_pos, int to_pos)
-{
-	if (from_pos != to_pos) {
-		bPagedBufferLayer *layer = BLI_findlink(&pbuf->layers, from_pos);
-		if (layer) {
-			bPagedBufferLayer *next = BLI_findlink(&pbuf->layers, to_pos);
-			BLI_remlink(&pbuf->layers, layer);
-			BLI_insertlinkbefore(&pbuf->layers, next, layer);
-		}
-	}
+	to->totalloc = from->totalloc;
 }
 
 
 void BLI_pbuf_add_elements(bPagedBuffer *pbuf, int num_elem)
 {
 	int ntotelem = pbuf->totelem + num_elem;
-	bPagedBufferLayer *layer;
-	for (layer = pbuf->layers.first; layer; layer = layer->next) {
-		pbuf_layer_set_totelem(layer, pbuf->page_bytes, pbuf->totelem, ntotelem, PBUF_PAGE_ALLOC_EXTEND);
-	}
+	pbuf_set_totelem(pbuf, ntotelem, PBUF_PAGE_ALLOC_EXTEND);
 }
 
 #if 0

@@ -4247,14 +4247,12 @@ static void direct_link_latt(FileData *fd, Lattice *lt)
 
 static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 {
-	bPagedBufferLayer *layer;
 	int p;
 	
-	link_list(fd, &pbuf->layers);
-	for (layer = pbuf->layers.first; layer; layer = layer->next) {
-		layer->pages = newdataadr(fd, layer->pages);
-		for (p = 0; p < layer->totpages; ++p)
-			layer->pages[p].data = newdataadr(fd, layer->pages[p].data);
+	pbuf->pages = newdataadr(fd, pbuf->pages);
+	for (p = 0; p < pbuf->totpages; ++p) {
+		bPagedBufferPage *page = pbuf->pages + p;
+		page->data = newdataadr(fd, page->data);
 	}
 }
 
@@ -4263,7 +4261,12 @@ static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 
 static void direct_link_nparticle_buffer(FileData *fd, NParticleBuffer *buffer)
 {
-	direct_link_pagedbuffer(fd, &buffer->data);
+	NParticleBufferAttribute *attr;
+	
+	link_list(fd, &buffer->attributes);
+	for (attr = buffer->attributes.first; attr; attr = attr->next) {
+		direct_link_pagedbuffer(fd, &attr->data);
+	}
 }
 
 

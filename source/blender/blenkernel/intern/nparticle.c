@@ -26,9 +26,13 @@
  *  \ingroup bke
  */
 
+#include <string.h>
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_pagedbuffer.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_nparticle_types.h"
 
@@ -37,24 +41,118 @@
 /* XXX TODO make this configurable */
 #define PAGE_BYTES 65536
 
+static size_t nparticle_elem_bytes(int datatype)
+{
+	switch (datatype) {
+		case PAR_ATTR_DATATYPE_FLOAT: return sizeof(float);
+		case PAR_ATTR_DATATYPE_INT: return sizeof(int);
+		case PAR_ATTR_DATATYPE_BOOL: return sizeof(bool);
+		case PAR_ATTR_DATATYPE_VECTOR:
+		case PAR_ATTR_DATATYPE_POINT:
+		case PAR_ATTR_DATATYPE_NORMAL:
+			return sizeof(float)*3;
+		case PAR_ATTR_DATATYPE_COLOR: return sizeof(float)*4;
+		case PAR_ATTR_DATATYPE_MATRIX: return sizeof(float)*16;
+
+		default:
+			BLI_assert(false);	/* unknown datatype, should never happen */
+			return 0;
+	}
+}
+
 NParticleBuffer *BKE_nparticle_buffer_new(void)
 {
 	NParticleBuffer *buf = MEM_callocN(sizeof(NParticleBuffer), "nparticle buffer");
-	BLI_pbuf_init(&buf->data, PAGE_BYTES);
 	return buf;
 }
 
 void BKE_nparticle_buffer_free(NParticleBuffer *buf)
 {
-	BLI_pbuf_free(&buf->data);
 	MEM_freeN(buf);
 }
 
 NParticleBuffer *BKE_nparticle_buffer_copy(NParticleBuffer *buf)
 {
 	NParticleBuffer *nbuf = MEM_dupallocN(buf);
-	BLI_pbuf_copy(&nbuf->data, &buf->data);
 	return nbuf;
+}
+
+
+NParticleBufferAttribute *BKE_nparticle_attribute_find(NParticleBuffer *buf, const char *name)
+{
+	NParticleBufferAttribute *attr;
+	for (attr = buf->attributes.first; attr; attr = attr->next)
+		if (STREQ(attr->desc.name, name))
+			return attr;
+	return NULL;
+}
+
+NParticleBufferAttribute *BKE_nparticle_attribute_new(NParticleBuffer *buf, const char *name, int datatype)
+{
+	NParticleBufferAttribute *attr;
+	
+	attr = BKE_nparticle_attribute_find(buf, name);
+	if (attr) {
+		/* if attribute with the same name exists, remove it first */
+		BKE_nparticle_attribute_remove(buf, attr);
+	}
+	
+	if (!attr) {
+		attr = MEM_callocN(sizeof(NParticleBufferAttribute), "particle buffer attribute");
+		BLI_strncpy(attr->desc.name, name, sizeof(attr->desc.name));
+		attr->desc.datatype = datatype;
+		BLI_pbuf_init(&attr->data, PAGE_BYTES, nparticle_elem_bytes(datatype));
+	
+		BLI_addtail(&buf->attributes, attr);
+	}
+	
+	return attr;
+}
+
+void BKE_nparticle_attribute_remove(NParticleBuffer *buf, NParticleBufferAttribute *attr)
+{
+	BLI_remlink(&buf->attributes, attr);
+	
+	BLI_pbuf_free(&attr->data);
+	MEM_freeN(attr);
+}
+
+void BKE_nparticle_attribute_remove_all(NParticleBuffer *buf)
+{
+	NParticleBufferAttribute *attr, *attr_next;
+	for (attr = buf->attributes.first; attr; attr = attr_next) {
+		attr_next = attr->next;
+		
+		BLI_pbuf_free(&attr->data);
+		MEM_freeN(attr);
+	}
+	buf->attributes.first = buf->attributes.last = NULL;
+}
+
+void BKE_nparticle_attribute_move(NParticleBuffer *buf, int from_index, int to_index)
+{
+	NParticleAttribute *attr;
+	
+	if (from_index == to_index)
+		return;
+	if (from_index < 0 || to_index < 0)
+		return;
+	
+	attr = BLI_findlink(&buf->attributes, from_index);
+	if (to_index < from_index) {
+		NParticleAttribute *nextattr = BLI_findlink(&buf->attributes, to_index);
+		if (nextattr) {
+			BLI_remlink(&buf->attributes, attr);
+			BLI_insertlinkbefore(&buf->attributes, nextattr, attr);
+		}
+	}
+	else {
+		NParticleAttribute *prevattr = BLI_findlink(&buf->attributes, to_index);
+		if (prevattr) {
+			BLI_remlink(&buf->attributes, attr);
+			BLI_insertlinkafter(&buf->attributes, prevattr, attr);
+		}
+	}
 }
 
 
