@@ -69,6 +69,7 @@ void DEG_evaluate_on_refresh(Depsgraph *graph)
 {
 	/* from the root node, start queuing up nodes to evaluate */
 	// ... start scheduler, etc.
+	
 }
 
 /* Frame-change happened for root scene that graph belongs to */

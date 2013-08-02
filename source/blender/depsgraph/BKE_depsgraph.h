@@ -97,6 +97,7 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene);
 void DEG_node_tag_update(Depsgraph *graph, DepsNode *node);
 
 /* Tag node(s) associated with states such as time and visibility */
+// XXX: what are these for?
 void DEG_scene_update_flags(Depsgraph *graph, const bool do_time);
 void DEG_on_visible_update(Depsgraph *graph, const bool do_time);
 

@@ -504,6 +504,8 @@ void DEG_free_relation(DepsRelation *rel)
 /* ************************************************** */
 /* Update Tagging/Flushing */
 
+/* Low-Level Tagging -------------------------------- */
+
 /* Tag a specific node as needing updates */
 void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
 {
@@ -518,6 +520,51 @@ void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
 	 * NOTE: this is necessary since we have several thousand nodes to play with...
 	 */
 	BLI_addtail(&graph->entry_tags, BLI_genericNodeN(node));
+}
+
+/* Data-Based Tagging ------------------------------- */
+
+/* Tag all nodes in ID-block for update 
+ * ! This is a crude measure, but is most convenient for old code
+ */
+void DEG_id_tag_update(Depsgraph *graph, const ID *id)
+{
+	DepsNode *node = DEG_find_node(graph, id, DEPSNODE_TYPE_ID_REF, NULL);
+	DEG_node_tag_update(graph, node);
+}
+
+/* Tag nodes related to a specific piece of data */
+void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
+{
+	// ... querying api needed ...
+}
+
+/* Tag nodes related to a specific property */
+void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
+{
+	// ... querying api needed ...
+}
+
+/* Update Flushing ---------------------------------- */
+
+/* Flush updates from tagged nodes outwards until all affected nodes are tagged */
+void DEG_graph_flush_updates(Depsgraph *graph)
+{
+	LinkData *ld;
+	
+	/* sanity check */
+	if (graph == NULL)
+		return;
+	
+	/* starting from the tagged "entry" nodes, flush outwards... */
+	for (ld = graph->entry_tags; ld; ld = ld->next) {
+		DepsNode *node = ld->data;
+		
+		/* flush to sub-nodes... */
+		
+		/* flush to nodes along links... */
+		
+	}	
 }
 
 /* ************************************************** */
