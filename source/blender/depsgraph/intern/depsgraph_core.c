@@ -549,10 +549,18 @@ static void deg_graph_free__node_wrapper(void *node_p)
 /* Free graph's contents, but not graph itself */
 void DEG_graph_free(Depsgraph *graph)
 {
+	/* free node hash */
 	BLI_ghash_free(graph->id_hash, NULL, deg_graph_free__node_wrapper);
 	graph->id_hash = NULL;
 	
-	graph->root_node = NULL;
+	/* free root node - it won't have been freed yet... */
+	if (graph->root_node) {
+		DEG_free_node(graph->root_node);
+		graph->root_node = NULL;
+	}
+	
+	/* free entrypoint tag cache... */
+	BLI_freelistN(&graph->entry_tags);
 }
 
 /* ************************************************** */
