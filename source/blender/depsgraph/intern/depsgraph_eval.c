@@ -61,5 +61,34 @@
 /* *************************************************** */
 /* Evaluation Entrypoints */
 
+/* Evaluate all nodes tagged for updating 
+ * ! This is usually done as part of main loop, but may also be 
+ *   called from frame-change update
+ */
+void DEG_evaluate_on_refresh(Depsgraph *graph)
+{
+	/* from the root node, start queuing up nodes to evaluate */
+	// ... start scheduler, etc.
+}
+
+/* Frame-change happened for root scene that graph belongs to */
+void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
+{
+	TimeSourceDepsNode *tsrc;
+	
+	/* update time on primary timesource */
+	tsrc = (TimeSourceDepsNode *)DEG_find_node(graph, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
+	
+	tsrc->cfra = ctime;
+	tsrc->flag |= (DEPSNODE_FLAG_DIRECTLY_MODIFIED); // XXX: have API calls for touching these, which store in a queue for flushing?
+	
+	/* recursively push updates out to all nodes dependent on this, 
+	 * until all affected are tagged and/or scheduled up for eval
+	 */
+	DEG_scene_flush_update(graph);
+	
+	/* perform recalculation updates */
+	DEG_evaluate_on_refresh(graph);
+}
 
 /* *************************************************** */
