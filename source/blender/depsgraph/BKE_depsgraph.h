@@ -102,7 +102,7 @@ void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr);
 void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
 
 /* Flush updates */
-void DEG_scene_flush_update(Depsgraph *graph);
+void DEG_graph_flush_updates(Depsgraph *graph);
 
 /* ************************************************ */
 /* Evaluation Engine API */

@@ -85,7 +85,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
 	/* recursively push updates out to all nodes dependent on this, 
 	 * until all affected are tagged and/or scheduled up for eval
 	 */
-	DEG_scene_flush_update(graph);
+	DEG_graph_flush_updates(graph);
 	
 	/* perform recalculation updates */
 	DEG_evaluate_on_refresh(graph);
