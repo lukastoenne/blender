@@ -557,11 +557,13 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		return;
 	
 	/* starting from the tagged "entry" nodes, flush outwards... */
+	// XXX: perhaps instead of iterating, we should just push these onto the queue of nodes to check?
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
 	for (ld = graph->entry_tags; ld; ld = ld->next) {
 		DepsNode *node = ld->data;
 		
 		/* flush to sub-nodes... */
+		// NOTE: if flushing to subnodes, we should then proceed to remove tag(s) from self, as only the subnode tags matter
 		
 		/* flush to nodes along links... */
 		
@@ -569,7 +571,6 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	
 	/* clear entry tags, since all tagged nodes should now be reachable from root */
 	BLI_freelistN(&graph->entry_tags);
-	
 }
 
 /* ************************************************** */
