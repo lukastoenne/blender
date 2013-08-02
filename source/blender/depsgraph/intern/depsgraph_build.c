@@ -200,24 +200,30 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 		ListBase targets = {NULL, NULL};
 		bConstraintTarget *ct;
 		
+		/* invalid constraint type... */
+		if (cti == NULL)
+			continue;
+		
 		/* special case for camera tracking -- it doesn't use targets to define relations */
 		if (ELEM3(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
-			int depends_on_camera = 0;
+			DepsNode *node2;
+			bool depends_on_camera = false;
 
-#if 0
+#if 0			
 			if (cti->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
 				bFollowTrackConstraint *data = (bFollowTrackConstraint *)con->data;
 
-				if ((data->clip || data->flag & FOLLOWTRACK_ACTIVECLIP) && data->track[0])
-					depends_on_camera = 1;
-
+				if (((data->clip) || (data->flag & FOLLOWTRACK_ACTIVECLIP)) && data->track[0])
+					depends_on_camera = true;
+				
 				if (data->depth_ob) {
 					node2 = dag_get_node(dag, data->depth_ob);
 					dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
 				}
 			}
-			else if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER)
-				depends_on_camera = 1;
+			else if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
+				depends_on_camera = true;
+			}
 
 			if (depends_on_camera && scene->camera) {
 				node2 = dag_get_node(dag, scene->camera);
@@ -227,7 +233,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 			dag_add_relation(dag, scenenode, node, DAG_RL_SCENE, "Scene Relation");
 #endif
 		}
-		else if (cti && cti->get_constraint_targets) {
+		else if (cti->get_constraint_targets) {
 			cti->get_constraint_targets(con, &targets);
 			
 			for (ct = targets.first; ct; ct = ct->next) {
