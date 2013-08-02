@@ -232,7 +232,20 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 			
 			for (ct = targets.first; ct; ct = ct->next) {
 				if (ct->tar) {
-					// ...
+#if 0 // ob
+				node2 = dag_get_node(dag, obt);
+				if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO))
+					dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
+				else {
+					if (ELEM3(obt->type, OB_ARMATURE, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
+						dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
+						if (obt->type == OB_MESH)
+							node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+					}
+					else
+						dag_add_relation(dag, node2, node, DAG_RL_OB_OB, cti->name);
+				}
+#endif
 				}
 			}
 			
