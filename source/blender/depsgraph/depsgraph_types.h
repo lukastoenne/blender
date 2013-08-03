@@ -238,6 +238,7 @@ typedef struct IDDepsNode {
 	GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
 } IDDepsNode;
 
+
 /* Subgraph Reference */
 /* Super(DepsNode) */
 typedef struct SubgraphDepsNode {
@@ -247,7 +248,13 @@ typedef struct SubgraphDepsNode {
 	ID *root_id;             /* ID-block at root of subgraph (if applicable) */
 	
 	size_t num_users;        /* number of nodes which use/reference this subgraph - if just 1, it may be possible to merge into main */
+	int flag;                /* (eSubgraphRef_Flag) assorted settings for subgraph node */
 } SubgraphDepsNode;
+
+/* Flags for subgraph node */
+typedef struct eSubgraphRef_Flag {
+	SUBGRAPH_FLAG_SHARED   = (1 << 0),   /* subgraph referenced is shared with another reference */
+} eSubgraphRef_Flag;
 
 /* Outer Nodes ========================= */
 
