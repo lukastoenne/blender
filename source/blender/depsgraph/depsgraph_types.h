@@ -151,8 +151,9 @@ typedef enum eDepsNode_Type {
 	/* Generic Types */
 	DEPSNODE_TYPE_ROOT             = 0,        /* "Current Scene" - basically whatever kicks off the ealuation process */
 	DEPSNODE_TYPE_TIMESOURCE       = 1,        /* Time-Source */
-	DEPSNODE_TYPE_ID_REF           = 2,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
 	
+	DEPSNODE_TYPE_ID_REF           = 2,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
+	DEPSNODE_TYPE_SUBGRAPH         = 3,        /* Isolated sub-graph - used for keeping instanced data separate from instances using them */
 	
 	/* Outer Types */
 	DEPSNODE_TYPE_PARAMETERS       = 10,       /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
@@ -236,6 +237,17 @@ typedef struct IDDepsNode {
 	ID *id;                  /* ID Block referenced */
 	GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
 } IDDepsNode;
+
+/* Subgraph Reference */
+/* Super(DepsNode) */
+typedef struct SubgraphDepsNode {
+	DepsNode nd;             /* standard header */
+	
+	Depsgraph *graph;        /* instanced graph */
+	ID *root_id;             /* ID-block at root of subgraph (if applicable) */
+	
+	size_t num_users;        /* number of nodes which use/reference this subgraph - if just 1, it may be possible to merge into main */
+} SubgraphDepsNode;
 
 /* Outer Nodes ========================= */
 
@@ -321,6 +333,8 @@ struct Depsgraph {
 	/* Core Graph Functionality ........... */
 	GHash *id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
 	DepsNode *root_node;     /* "root" node - the one where all evaluation enters from */
+	
+	ListBase subgraphs;      /* (SubgraphDepsNode) subgraphs referenced in tree... */
 	
 	/* Quick-Access Temp Data ............. */
 	ListBase entry_tags;     /* (LinkData : DepsNode) nodes which have been tagged as "directly modified" */
