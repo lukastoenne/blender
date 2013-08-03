@@ -70,7 +70,7 @@ typedef struct DepsRelation DepsRelation;
 // TODO: what args are needed here? What's the building-graph entrypoint?
 Depsgraph *DEG_graph_new(void);
 
-/* Free Depsgraph and all its data */
+/* Free Depsgraph itself and all its data */
 void DEG_free(Depsgraph *graph);
 
 

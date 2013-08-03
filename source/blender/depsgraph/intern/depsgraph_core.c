@@ -599,7 +599,7 @@ static void deg_graph_free__node_wrapper(void *node_p)
 	MEM_freeN(node_p);
 }
 
-/* Free graph's contents, but not graph itself */
+/* Free graph's contents and graph itself */
 void DEG_graph_free(Depsgraph *graph)
 {
 	/* free node hash */
@@ -614,6 +614,9 @@ void DEG_graph_free(Depsgraph *graph)
 	
 	/* free entrypoint tag cache... */
 	BLI_freelistN(&graph->entry_tags);
+	
+	/* finally, graph itself */
+	MEM_freeN(graph);
 }
 
 /* ************************************************** */
