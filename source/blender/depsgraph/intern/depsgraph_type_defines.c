@@ -345,9 +345,10 @@ static void dnti_subgraph__free_data(DepsNode *node)
 /* Copy 'subgraph' node - Assume that the subgraph doesn't get copied for now... */
 static void dnti_subgraph__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
 {
-	const SubgraphDepsNode *src_node = (const SubgraphDepsNode *)src;
-	SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
+	//const SubgraphDepsNode *src_node = (const SubgraphDepsNode *)src;
+	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
 	
+	/* for now, subgraph itself isn't copied... */
 }
 
 /* Add 'subgraph' node to graph */
