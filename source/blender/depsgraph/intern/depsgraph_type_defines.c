@@ -850,13 +850,38 @@ static DepsNodeTypeInfo DNTI_OP_DRIVER = {
 /* Add 'bone operation' node to graph */
 static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	// XXX...
+	/* get pose component node to add operation to */
+	DepsNode *comp_node = DEG_get_node(graph, id, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	PoseComponentDepsNode *component = (PoseComponentDepsNode *)comp_node;
+	
+	/* For now, there is just a single operation node in the graph for each bone.
+	 * - Since bone_node = operation, it must be part of the ops list
+	 * - However, since node name is bone-name (as pointer isn't set yet),
+	 *   we could have conflicts with internal identifiers. So, instead of
+	 *   linking to standard "op_hash", we store these in "bone_hash" instead.
+	 */
+	BLI_addtail(&component->ops, node);
+	BLI_ghash_insert(component->bone_hash, node->name, node);
+	
+	/* add backlink to component */
+	node->owner = comp_node;
 }
 
 /* Remove 'bone operation' node from graph */
 static void dnti_op_bone__remove_from_graph(DepsNode *graph, DepsNode *node)
 {
-	// XXX...
+	if (node->owner) {
+		PoseComponentDepsNode *component = (PoseComponentDepsNode *)comp_node;
+		
+		/* remove node from hash and list 
+		 * See dnti_op_bone__add_to_graph() for details...
+		 */
+		BLI_ghash_remove(component->bone_hash, node->name, NULL, NULL);
+		BLI_remlink(&component->ops, node);
+		
+		/* remove backlink */
+		node->owner = NULL;
+	}
 }
 
 /* Bone Operation Node */

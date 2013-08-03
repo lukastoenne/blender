@@ -88,14 +88,14 @@ void DEG_graph_sort(Depsgraph *graph)
 // XXX: should all this node finding stuff be part of low-level query api?
 
 /* helper for finding inner nodes by their names */
-DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type component_type, 
+static DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type component_type, 
                               eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
-	ComponentDepsNode *component = DEG_find_node(graph, component_type, id, NULL);
+	ComponentDepsNode *component = (ComponentDepsNode *)DEG_find_node(graph, component_type, id, NULL);
 	
 	if (component) {
 		/* lookup node with matching name... */
-		DepsNode *node = BLI_ghash_lookup(component->ophash, name);
+		DepsNode *node = BLI_ghash_lookup(component->op_hash, name);
 		
 		if (node) {
 			/* make sure type matches too... just in case */
@@ -106,6 +106,18 @@ DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type component
 	
 	/* no match... */
 	return NULL;
+}
+
+/* helper for finding bone nodes by their names */
+static DepsNode *deg_find_bone_node(Depsgraph *graph, ID *id, const char name[DEG_MAX_ID_NAME])
+{
+	PoseComponentDepsNode *component = (PoseComponentDepsNode *)DEG_find_node(graph, DEPSNODE_TYPE_EVAL_POSE, id, NULL);
+	
+	if (component)  {
+		/* lookup bone with matching name */
+		DepsNode *node = BLI_ghash_lookup(component->bone_hash, name);
+		return node;
+	}
 }
 
 /* Find matching node */
@@ -194,9 +206,13 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PARAMETERS, type, name);
 			break;
 			
-		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
+		case DEPSNODE_TYPE_OP_POSE:       /* Pose Eval (Non-Bone Operations) */
 			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_EVAL_POSE, type, name);
 			break;
+		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
+			result = deg_find_bone_node(graph, id, name);
+			break;
+			
 		case DEPSNODE_TYPE_OP_PARTICLE:  /* Particle System/Step */
 			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_EVAL_PARTICLE, type, name);
 			break;
