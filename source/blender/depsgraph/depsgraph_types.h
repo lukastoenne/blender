@@ -253,7 +253,8 @@ typedef struct SubgraphDepsNode {
 
 /* Flags for subgraph node */
 typedef struct eSubgraphRef_Flag {
-	SUBGRAPH_FLAG_SHARED   = (1 << 0),   /* subgraph referenced is shared with another reference */
+	SUBGRAPH_FLAG_SHARED      = (1 << 0),   /* subgraph referenced is shared with another reference, so shouldn't free on exit */
+	SUBGRAPH_FLAG_FIRSTREF    = (1 << 1),   /* node is first reference to subgraph, so it can be freed when we are removed */
 } eSubgraphRef_Flag;
 
 /* Outer Nodes ========================= */

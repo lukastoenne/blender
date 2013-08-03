@@ -318,13 +318,28 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 /* Initialise 'subgraph' node - from pointer data given */
 static void dnti_subgraph__init_data(DepsNode *node, ID *id)
 {
+	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
 	
+	/* store ID-ref if provided */
+	sgn->id = id;
+	
+	/* NOTE: graph will need to be added manually,
+	 * as we don't have any way of passing this down
+	 */
 }
 
 /* Free 'subgraph' node */
 static void dnti_subgraph__free_data(DepsNode *node)
 {
+	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
 	
+	/* only free if graph not shared, of if this node is the first reference to it... */
+	// XXX: prune these flags a bit...
+	if ((sgn->flag & SUBGRAPH_FLAG_FIRSTREF) || !(sgn->flag & SUBGRAPH_FLAG_SHARED)) {
+		/* free the referenced graph */
+		DEG_graph_free(sgn->graph);
+		sgn->graph = NULL;
+	}
 }
 
 /* Copy 'subgraph' node - Assume that the subgraph doesn't get copied for now... */
@@ -338,13 +353,30 @@ static void dnti_subgraph__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, c
 /* Add 'subgraph' node to graph */
 static void dnti_subgraph__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
+	/* add to subnodes list */
+	BLI_addtail(&graph->subgraphs, node);
 	
+	/* if there's an ID associated, add to ID-nodes lookup too */
+	if (id) {
+		// TODO: what to do if subgraph's ID has already been added?
+		BLI_assert(BLI_ghash_haskey(graph->id_hash, id) == false);
+		BLI_ghash_insert(graph->id_hash, id, node);
+	}
 }
 
 /* Remove 'subgraph' node from graph */
 static void dnti_subgraph__remove_from_graph(Depsgraph *graph, DepsNode *node)
 {
+	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
 	
+	/* remove from subnodes list */
+	BLI_remlink(&graph->subgraphs, node);
+	
+	/* remove from ID-nodes lookup */
+	if (sgn->root_id) {
+		BLI_assert(BLI_ghash_lookup(graph->id_hash, sgn->root_id) == sgn);
+		BLI_ghash_remove(graph->id_hash, sgn->root_id, NULL, NULL);
+	}
 }
 
 /* Validate subgraph links... */
