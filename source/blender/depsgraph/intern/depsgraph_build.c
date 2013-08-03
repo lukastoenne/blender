@@ -75,12 +75,15 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	DepsNode *affected_node = NULL;
 	
 	
-	/* create data node for this driver */
+	/* create data node for this driver ..................................... */
 	BLI_snprintf(name_buf, DEG_MAX_ID_NAME, "Driver @ %p", driver);
 	
 	driver_node = DEG_add_operation(graph, id, DEPSNODE_TYPE_OP_DRIVER, 
 	                                DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
 	                                driver_name_buf);
+	
+	/* RNA pointer to driver, to provide as context for execution */
+	RNA_pointer_create(id, &RNA_FCurve, fcu, &driver_node->ptr);
 	
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
 	if (driver->type == DRIVER_TYPE_PYTHON) {
