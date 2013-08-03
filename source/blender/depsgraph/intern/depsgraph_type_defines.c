@@ -313,6 +313,62 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 	/* validate_links() */   dnti_id_ref__validate_links
 };
 
+/* Subgraph Node ========================================== */
+
+/* Initialise 'subgraph' node - from pointer data given */
+static void dnti_subgraph__init_data(DepsNode *node, ID *id)
+{
+	
+}
+
+/* Free 'subgraph' node */
+static void dnti_subgraph__free_data(DepsNode *node)
+{
+	
+}
+
+/* Copy 'subgraph' node - Assume that the subgraph doesn't get copied for now... */
+static void dnti_subgraph__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
+{
+	const SubgraphDepsNode *src_node = (const SubgraphDepsNode *)src;
+	SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
+	
+}
+
+/* Add 'subgraph' node to graph */
+static void dnti_subgraph__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	
+}
+
+/* Remove 'subgraph' node from graph */
+static void dnti_subgraph__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	
+}
+
+/* Validate subgraph links... */
+static void dnti_subgraph__validate_links(Depsgraph *graph, DepsNode *node)
+{
+	
+}
+
+/* Subgraph Type Info */
+static DepsNodeTypeInfo DNTI_SUBGRAPH = {
+	/* type */               DEPSNODE_TYPE_SUBGRAPH,
+	/* size */               sizeof(SubgraphDepsNode),
+	/* name */               "Subgraph Node",
+	
+	/* init_data() */        dnti_subgraph__init_data,
+	/* free_data() */        dnti_subgraph__free_data,
+	/* copy_data() */        dnti_subgraph__copy_data,
+	
+	/* add_to_graph() */     dnti_subgraph__add_to_graph,
+	/* remove_from_graph()*/ dnti_subgraph__remove_from_graph,
+	
+	/* validate_links() */   dnti_subgraph__validate_links
+};
+
 /* ******************************************************** */
 /* Outer Nodes */
 
@@ -877,7 +933,9 @@ void DEG_register_node_types(void)
 	/* GENERIC */
 	DEG_register_node_typeinfo(DNTI_ROOT);
 	DEG_register_node_typeinfo(DNTI_TIMESOURCE);
+	
 	DEG_register_node_typeinfo(DNTI_ID_REF);
+	DEG_register_node_typeinfo(DNTI_SUBGRAPH);
 	
 	/* OUTER */
 	DEG_register_node_typeinfo(DNTI_PARAMETERS);
