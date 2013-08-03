@@ -99,6 +99,9 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node)
  */
 void DEG_evaluate_on_refresh(Depsgraph *graph)
 {
+	/* generate base evaluation context, upon which all the others are derived... */
+	// TODO: this needs both main and scene access...
+	
 	/* from the root node, start queuing up nodes to evaluate */
 	// ... start scheduler, etc.
 	
