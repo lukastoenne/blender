@@ -332,7 +332,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
  * given a RNA Pointer (and optionally, a property too)
  */
 void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                        ID **id, eDepsNode_Type *type, const char name[DEG_MAX_ID_NAME])
+                                        ID **id, eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
 {
 	/* set default values for returns */
 	*id       = ptr->id;                   /* for obvious reasons... */

@@ -102,18 +102,21 @@ DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char
 	return node;
 }
 
-/*  Get the most appropriate node referred to by pointer + property */
+/* Get the most appropriate node referred to by pointer + property */
 DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
 {
-	return NULL;
+	ID *id;
+	eDepsNode_Type type;
+	char name[DEG_MAX_ID_NAME];
+	
+	/* get querying conditions */
+	DEG_find_node_critera_from_pointer(ptr, prop, &id, &type, name);
+	
+	/* use standard lookup mechanisms... */
+	return DEG_get_node(graph, id, type, name);
 }
 
-/* Get DepsNode referred to by data path
- * < graph: Depsgraph to find node from
- * < id: ID-Block that path is rooted on
- * < path: RNA-Path to resolve
- * > returns: (IDDepsNode | ComponentDepsNode) as appropriate
- */
+/* Get DepsNode referred to by data path */
 DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[])
 {
 	PointerRNA id_ptr, ptr;
