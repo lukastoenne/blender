@@ -109,16 +109,27 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type co
 }
 
 /* helper for finding bone component nodes by their names */
-// XXX: cannot find operation nodes by name, as we'd need 2 names!
-static DepsNode *deg_find_bone_component_node(Depsgraph *graph, ID *id, const char name[DEG_MAX_ID_NAME])
+// XXX: cannot reliably find operation nodes by name, as we'd need 2 names!
+static DepsNode *deg_find_bone_component_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	PoseComponentDepsNode *pose_comp = (PoseComponentDepsNode *)DEG_find_node(graph, DEPSNODE_TYPE_EVAL_POSE, id, NULL);
 	
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
-		BoneComponentDepsNode *node = BLI_ghash_lookup(pose_comp->bone_hash, name);
-		return node;
+		BoneComponentDepsNode *bone_node = BLI_ghash_lookup(pose_comp->bone_hash, name);
+		
+		if (type == DEPSNODE_TYPE_BONE) {
+			/* bone component is what we want */
+			return bone_node;
+		}
+		else if (type == DEPSNODE_TYPE_OP_BONE) {
+			/* assume for now that there's just a single operation node, and its name is exactly the same! */
+			return BLI_ghash_lookup(bone_node->op_hash, name);
+		}
 	}
+	
+	/* no match */
+	return NULL;
 }
 
 /* Find matching node */
@@ -185,7 +196,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 		case DEPSNODE_TYPE_BONE:       /* Bone Component */
 		{
 			/* this will find the bone component */
-			result = deg_find_bone_node(graph, id, name);
+			result = deg_find_bone_node(graph, id, type, name);
 		}
 			break;
 		
@@ -219,7 +230,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 			break;
 		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
 			// XXX: this won't really work... this will only get us the bone component we want!
-			result = deg_find_bone_node(graph, id, name);
+			result = deg_find_bone_node(graph, id, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_PARTICLE:  /* Particle System/Step */
