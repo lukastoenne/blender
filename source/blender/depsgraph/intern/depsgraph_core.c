@@ -107,7 +107,7 @@ DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char
  * < graph: Depsgraph to find node from
  * < id: ID-Block that path is rooted on
  * < path: RNA-Path to resolve
- * > returns: (IDDepsNode | DataDepsNode) as appropriate
+ * > returns: (IDDepsNode | ComponentDepsNode) as appropriate
  */
 DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[])
 {
@@ -134,7 +134,7 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 	return node;
 }
 
-/* Add/Remove/Copy/Free ------------------------------- */
+/* Add ------------------------------------------------ */
 
 /* Create a new node, but don't do anything else with it yet... */
 DepsNode *DEG_create_node(eDepsNode_Type type)
@@ -212,6 +212,8 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const 
 	/* return the newly created node matching the description */
 	return node;
 }
+
+/* Remove/Free ---------------------------------------- */
 
 /* Remove node from graph, but don't free any of its data */
 void DEG_remove_node(Depsgraph *graph, DepsNode *node)
