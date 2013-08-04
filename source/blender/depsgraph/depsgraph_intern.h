@@ -47,7 +47,7 @@
 DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
-/* Get the node with data matching the requested characteristics
+/* Create or find a node with data matching the requested characteristics
  * ! New nodes are created if no matching nodes exist...
  * ! Arguments are as for DEG_find_node()
  *
@@ -237,11 +237,13 @@ typedef struct DepsNodeTypeInfo {
 	/* Initialise node-specific data - the node already exists */
 	void (*init_data)(DepsNode *node, ID *id);
 	
-	/* Free node-specific data, but not node itself */
-	// XXX: note - this should not try to call remove_from_graph()...
+	/* Free node-specific data, but not node itself 
+	 * NOTE: data should already have been removed from graph!
+	 */
 	void (*free_data)(DepsNode *node);
 	
 	/* Make a copy of "src" node's data over to "dst" node */
+	// TODO: perhaps copying needs to be a two-pass operation?
 	void (*copy_data)(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src);
 	
 	/* Graph/Connection Management .................... */
