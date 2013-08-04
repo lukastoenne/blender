@@ -280,22 +280,27 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	
 	/* bones */
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-		OperationDepsNode *bone_node;
+		BoneComponentDepsNode *bone_node;
+		OperationDepsNode *bone_op;
+		
+		/* component for hosting bone operations */
+		bone_node = (BoneComponentDepsNode *)DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+		bone_node->pchan = pchan;
 		
 		/* node for bone eval */
-		// XXX: do we need/have a bone for each bone?
-		bone_node = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_BONE, 
+		bone_op = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_BONE, 
 		                              DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
 		                              pchan->name);
-		                              
+		RNA_pointer_create(&ob->id, &RNA_PoseBone, pchan, &bone_op->ptr);
+		
 		/* bone parent */
 		if (pchan->parent) {
-			// XXX: currently assumes that parents get added first...
-			DepsNode *par = DEG_get_node(graph, id, DEPSNODE_TYPE_OP_BONE, pchan->parent->name);
-			DEG_add_new_relation(par, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+			DepsNode *par_bone = DEG_get_node(graph, id, DEPSNODE_TYPE_BONE, pchan->parent->name);
+			DEG_add_new_relation(par_bone, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 		}
 		
 		/* constraints */
+		// XXX...
 		if (pchan->constrains.first) {
 			deg_build_constraints_graph(graph, scene, ob, 
 			                            pchan, &pchan->constraints, 
