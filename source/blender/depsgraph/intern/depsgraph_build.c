@@ -188,13 +188,13 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 /* Rigs */
 
 /* Constraints - Objects or Bones 
- * < container: (ComponentDepsNode) component that constraint nodes will be added to
- * < host: (OperationDepsNode) operation node that should preceed any constraints
+ * < container: (ComponentDepsNode) component that constraint nodes will operate within
+ *               Typically this will either be Transform or Bone components.
  */
 static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene, 
                                         Object *ob, bPoseChannel *pchan,
                                         ListBase *constraints, 
-                                        DepsNode *container, DepsNode *host)
+                                        DepsNode *container)
 {
 	bConstraint *con;
 	
@@ -300,11 +300,10 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		}
 		
 		/* constraints */
-		// XXX...
 		if (pchan->constrains.first) {
 			deg_build_constraints_graph(graph, scene, ob, 
 			                            pchan, &pchan->constraints, 
-			                            pose_node, bone_node);
+			                            bone_node);
 		}
 	}
 }
@@ -542,7 +541,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	
 	/* object constraints */
 	if (ob->constraints.first) {
-		deg_build_constraints_graph(graph, scene, ob, NULL, &ob->constraints, trans_node, NULL);
+		deg_build_constraints_graph(graph, scene, ob, NULL, &ob->constraints, trans_node);
 	}
 	
 	/* object data */
