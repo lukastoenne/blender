@@ -860,6 +860,7 @@ static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 	 *   we could have conflicts with internal identifiers. So, instead of
 	 *   linking to standard "op_hash", we store these in "bone_hash" instead.
 	 */
+	// fixme: we need a separate "bone" component...
 	BLI_addtail(&component->ops, node);
 	BLI_ghash_insert(component->bone_hash, node->name, node);
 	

@@ -282,14 +282,30 @@ typedef struct PoseComponentDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
-	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
+	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (pose-level) */
 	
 	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
 	void *result_data;       /*  where the data for this component goes when done */
 	
 	/* PoseComponentDepsNode */
-	GHash *bone_hash;        /* <String, BoneDepsNode> hash for quickly finding node(s) associated with bone */
+	GHash *bone_hash;        /* <String, BoneDepsNode> hash for quickly finding bone components */
 } PoseComponentDepsNode;
+
+/* Bone Component */
+/* Super(ComponentDepsNode) */
+typedef struct BoneComponentDepsNode {
+	/* ComponentDepsNode */
+	DepsNode nd;             /* standard header */
+	
+	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
+	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (bone-level) */
+	
+	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
+	void *result_data;       /*  where the data for this component goes when done */
+	
+	/* BoneComponentDepsNode */
+	bPoseChannel *pchan;     /* the bone that this component represents */
+} BoneComponentDepsNode;
 
 /* Inner Nodes ========================= */
 
