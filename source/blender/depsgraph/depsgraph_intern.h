@@ -30,7 +30,7 @@
 #ifndef __DEPSGRAPH_INTERN_H__
 #define __DEPSGRAPH_INTERN_H__
 
-/* Graph Building/Low-Level Querying =============================== */
+/* Low-Level Querying ============================================== */
 
 /* Node Querying --------------------------------------------------- */
 
@@ -47,6 +47,8 @@
 DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
+/* Node Getting --------------------------------------------------- */
+
 /* Create or find a node with data matching the requested characteristics
  * ! New nodes are created if no matching nodes exist...
  * ! Arguments are as for DEG_find_node()
@@ -55,18 +57,24 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
  */
 DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
-/* Get the node referred to by data path
- * ! This is just a convenience wrapper for DEG_get_node() 
- *   when all we have is a ID + RNA Path
- *
+
+/* Get the most appropriate node referred to by pointer + property 
+ * < graph: Depsgraph to find node from
+ * < ptr: RNA Pointer to the data that we're supposed to find a node for
+ * < (prop): optional RNA Property that is affected
+ */
+// XXX: returns matching outer node only, except for drivers
+DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
+
+/* Get the most appropriate node referred to by data path
  * < graph: Depsgraph to find node from
  * < id: ID-Block that path is rooted on
  * < path: RNA-Path to resolve
  * > returns: (IDDepsNode | DataDepsNode) as appropriate
  */
-// XXX: needs type arg for filtering what we return?
 DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[]);
 
+/* Graph Building ===================================================== */
 /* Node Management ---------------------------------------------------- */
 
 /* Create a new node, but don't do anything else with it yet... 

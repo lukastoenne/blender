@@ -102,8 +102,13 @@ DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char
 	return node;
 }
 
-/* Get DepsNode referred to by data path.
- *
+/*  Get the most appropriate node referred to by pointer + property */
+DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
+{
+	return NULL;
+}
+
+/* Get DepsNode referred to by data path
  * < graph: Depsgraph to find node from
  * < id: ID-Block that path is rooted on
  * < path: RNA-Path to resolve
@@ -112,22 +117,16 @@ DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char
 DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[])
 {
 	PointerRNA id_ptr, ptr;
+	PropertyRNA *prop = NULL;
 	DepsNode *node = NULL;
 	
 	/* create ID pointer for root of path lookup */
 	RNA_id_pointer_create(id, &id_ptr);
 	
 	/* try to resolve path... */
-	if (RNA_path_resolve(&id_ptr, path, &ptr, NULL)) {
-#if 0
-		/* exact type of data to query depends on type of ptr we've got (search code is dumb!) */
-		if (RNA_struct_is_ID(ptr.type)) {
-			node = DEG_get_node(graph, DEPSNODE_TYPE_OUTER_ID, ptr.id, NULL, NULL);
-		}
-		else {
-			node = DEG_get_node(graph, DEPSNODE_TYPE_DATA, ptr.id, ptr.type, ptr.data);
-		}
-#endif
+	if (RNA_path_resolve(&id_ptr, path, &ptr, &prpp)) {
+		/* get matching node... */
+		node = DEG_get_node_from_pointer(graph, &ptr, prop);
 	}
 	
 	/* return node found */
