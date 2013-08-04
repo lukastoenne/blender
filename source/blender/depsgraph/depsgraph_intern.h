@@ -47,6 +47,19 @@
 DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
+/* Determine node-querying criteria for finding a suitable node,
+ * given a RNA Pointer (and optionally, a property too)
+ *
+ * < ptr: pointer to the data that node will represent
+ * < (prop): optional property affected - providing this effectively results in inner nodes being returned
+ *
+ * > id: ID-block for node lookup/creation in
+ * > type: Node Type required
+ * > name: buffer to dump name to use for lookup clarification
+ */
+void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
+                                        ID **id, eDepsNode_Type *type, const char name[DEG_MAX_ID_NAME]);
+
 /* Node Getting --------------------------------------------------- */
 
 /* Create or find a node with data matching the requested characteristics
