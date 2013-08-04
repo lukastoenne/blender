@@ -177,9 +177,11 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OP_UPDATE        = 105,      /* Property Update Evaluation Operation [Parameter] */
 	DEPSNODE_TYPE_OP_DRIVER        = 106,      /* Driver Evaluation Operation [Parameter] */
 	
-	DEPSNODE_TYPE_OP_BONE          = 107,      /* Bone Evaluation [Transform/Pose] */
-	DEPSNODE_TYPE_OP_PARTICLE      = 108,      /* Particles Evaluation [Particle] */
-	DEPSNODE_TYPE_OP_RIGIDBODY     = 109,      /* Rigidbody Sim (Step) Evaluation */
+	DEPSNODE_TYPE_OP_POSE          = 107,      /* Pose Evalation (incl. setup/cleanup IK trees, IK Solvers) [Pose] */
+	DEPSNODE_TYPE_OP_BONE          = 108,      /* Bone Evaluation [Bone] */
+	
+	DEPSNODE_TYPE_OP_PARTICLE      = 109,      /* Particles Evaluation [Particle] */
+	DEPSNODE_TYPE_OP_RIGIDBODY     = 110,      /* Rigidbody Sim (Step) Evaluation */
 } eDepsNode_Type;
 
 
