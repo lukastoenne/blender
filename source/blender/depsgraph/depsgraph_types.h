@@ -164,7 +164,9 @@ typedef enum eDepsNode_Type {
 	
 	/* Evaluation-Related Outer Types (with Subdata) */
 	DEPSNODE_TYPE_EVAL_POSE        = 20,       /* Pose Component - Owner/Container of Bones Eval */
-	DEPSNODE_TYPE_EVAL_PARTICLES   = 21,       /* Particle Systems Component */
+	DEPSNODE_TYPE_BONE,            = 21,       /* Bone Component - Child/Subcomponent of Pose */
+	
+	DEPSNODE_TYPE_EVAL_PARTICLES   = 22,       /* Particle Systems Component */
 	
 	
 	/* Inner Types */
@@ -290,7 +292,7 @@ typedef struct PoseComponentDepsNode {
 	void *result_data;       /*  where the data for this component goes when done */
 	
 	/* PoseComponentDepsNode */
-	GHash *bone_hash;        /* <String, BoneDepsNode> hash for quickly finding bone components */
+	GHash *bone_hash;        /* <String, BoneComponentDepsNode> hash for quickly finding bone components */
 } PoseComponentDepsNode;
 
 /* Bone Component */

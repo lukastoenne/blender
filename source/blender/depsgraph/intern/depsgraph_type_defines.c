@@ -844,51 +844,57 @@ static DepsNodeTypeInfo DNTI_OP_DRIVER = {
 	/* validate_links() */   NULL
 };
 
+/* Pose Operation ========================================= */
+
+/* Add 'pose operation' node to graph */
+static void dnti_op_pose__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_EVAL_POSE);
+}
+
+/* Pose Operation Node */
+static DepsNodeTypeInfo DNTI_OP_POSE = {
+	/* type */               DEPSNODE_TYPE_OP_POSE,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Pose Operation",
+	
+	/* init_data() */        NULL, // XXX
+	/* free_data() */        NULL, // XXX
+	/* copy_data() */        NULL, // XXX
+	
+	/* add_to_graph() */     dnti_op_pose__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL // XXX
+};
+
 /* Bone Operation ========================================= */
-// XXX: this one needs a lot more attention
 
 /* Add 'bone operation' node to graph */
 static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	/* get pose component node to add operation to */
-	DepsNode *comp_node = DEG_get_node(graph, id, DEPSNODE_TYPE_EVAL_POSE, NULL);
-	PoseComponentDepsNode *component = (PoseComponentDepsNode *)comp_node;
+	OperationDepsNode *bone_op = (OperationDepsNode *)node;
+	BoneComponentDepsNode *bone_comp;
+	bPoseChannel *pchan;
 	
-	/* For now, there is just a single operation node in the graph for each bone.
-	 * - Since bone_node = operation, it must be part of the ops list
-	 * - However, since node name is bone-name (as pointer isn't set yet),
-	 *   we could have conflicts with internal identifiers. So, instead of
-	 *   linking to standard "op_hash", we store these in "bone_hash" instead.
-	 */
-	// fixme: we need a separate "bone" component...
-	BLI_addtail(&component->ops, node);
-	BLI_ghash_insert(component->bone_hash, node->name, node);
+	/* get bone component that owns this bone operation */
+	BLI_assert(bone_op->ptr.type == &RNA_PoseBone);
+	pchan = (bPoseChannel *)bone_op->ptr.data;
+	
+	bone_comp = (BoneComponentDepsNode *)DEG_get_node(graph, id, DEPSNODE_TYPE_BONE, pchan->name);
+	
+	/* add to hash and list as per usual */
+	BLI_ghash_insert(bone_comp->op_hash, node->name, node);
+	BLI_addtail(&bone_comp->ops, node);
 	
 	/* add backlink to component */
-	node->owner = comp_node;
-}
-
-/* Remove 'bone operation' node from graph */
-static void dnti_op_bone__remove_from_graph(DepsNode *graph, DepsNode *node)
-{
-	if (node->owner) {
-		PoseComponentDepsNode *component = (PoseComponentDepsNode *)comp_node;
-		
-		/* remove node from hash and list 
-		 * See dnti_op_bone__add_to_graph() for details...
-		 */
-		BLI_ghash_remove(component->bone_hash, node->name, NULL, NULL);
-		BLI_remlink(&component->ops, node);
-		
-		/* remove backlink */
-		node->owner = NULL;
-	}
+	node->owner = &bone_node->nd;
 }
 
 /* Bone Operation Node */
 static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* type */               DEPSNODE_TYPE_OP_BONE,
-	/* size */               sizeof(OperationDepsNode), // XXX
+	/* size */               sizeof(OperationDepsNode),
 	/* name */               "Bone Operation",
 	
 	/* init_data() */        NULL, // XXX
@@ -896,7 +902,7 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* copy_data() */        NULL, // XXX
 	
 	/* add_to_graph() */     dnti_op_bone__add_to_graph,
-	/* remove_from_graph()*/ dnti_op_bone__remove_from_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
 	/* validate_links() */   NULL // XXX
 };
@@ -1016,7 +1022,9 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(DNTI_OP_UPDATE);
 	DEG_register_node_typeinfo(DNTI_OP_DRIVER);
 	
+	DEG_register_node_typeinfo(DNTI_OP_POSE);
 	DEG_register_node_typeinfo(DNTI_OP_BONE);
+	
 	DEG_register_node_typeinfo(DNTI_OP_PARTICLE);
 	DEG_register_node_typeinfo(DNTI_OP_RIGIDBODY);
 }
