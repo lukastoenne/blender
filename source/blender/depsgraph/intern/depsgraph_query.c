@@ -326,6 +326,21 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 	return result;
 }
 
+/* Query Conditions from RNA ----------------------- */
+
+/* Determine node-querying criteria for finding a suitable node,
+ * given a RNA Pointer (and optionally, a property too)
+ */
+void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
+                                        ID **id, eDepsNode_Type *type, const char name[DEG_MAX_ID_NAME])
+{
+	/* set default values for returns */
+	*id       = ptr->id;                   /* for obvious reasons... */
+	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
+	*name[0]  = '\0';                      /* default to no name to lookup in most cases */
+	
+	 
+}
 
 /* ************************************************ */
 /* Querying API */
