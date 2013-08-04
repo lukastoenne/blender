@@ -639,36 +639,16 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 
 /* Bone Component ========================================= */
 
-/* Initialise 'bone component' node - from pointer data given */
-static void dnti_bone__init_data(DepsNode *node, ID *id)
-{
-	
-}
-
-/* Free 'bone component' node */
-static void dnti_bone__free_data(DepsNode *node)
-{
-	
-}
-
-/* Copy 'bone component' node - Assume that the bone doesn't get copied for now... */
-static void dnti_bone__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
-{
-	const BoneComponentDepsNode *src_node = (const BoneComponentDepsNode *)src;
-	BoneComponentDepsNode *dst_node       = (BoneComponentDepsNode *)dst;
-	
-}
-
 /* Add 'bone component' node to graph */
 static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	
+	// add to pose component (not standard)
 }
 
 /* Remove 'bone component' node from graph */
 static void dnti_bone__remove_from_graph(Depsgraph *graph, DepsNode *node)
 {
-	
+	// remove from pose component (not standard)
 }
 
 /* Validate 'bone component' links... */
@@ -683,9 +663,9 @@ static DepsNodeTypeInfo DNTI_BONE = {
 	/* size */               sizeof(BoneDepsNode),
 	/* name */               "Bone Component Node",
 	
-	/* init_data() */        dnti_bone__init_data,
-	/* free_data() */        dnti_bone__free_data,
-	/* copy_data() */        dnti_bone__copy_data,
+	/* init_data() */        dnti_component__init_data,
+	/* free_data() */        dnti_component__free_data,
+	/* copy_data() */        dnti_component__copy_data,
 	
 	/* add_to_graph() */     dnti_bone__add_to_graph,
 	/* remove_from_graph()*/ dnti_bone__remove_from_graph,
