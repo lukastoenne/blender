@@ -637,6 +637,63 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
 
+/* Bone Component ========================================= */
+
+/* Initialise 'bone component' node - from pointer data given */
+static void dnti_bone__init_data(DepsNode *node, ID *id)
+{
+	
+}
+
+/* Free 'bone component' node */
+static void dnti_bone__free_data(DepsNode *node)
+{
+	
+}
+
+/* Copy 'bone component' node - Assume that the bone doesn't get copied for now... */
+static void dnti_bone__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
+{
+	const BoneComponentDepsNode *src_node = (const BoneComponentDepsNode *)src;
+	BoneComponentDepsNode *dst_node       = (BoneComponentDepsNode *)dst;
+	
+}
+
+/* Add 'bone component' node to graph */
+static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	
+}
+
+/* Remove 'bone component' node from graph */
+static void dnti_bone__remove_from_graph(Depsgraph *graph, DepsNode *node)
+{
+	
+}
+
+/* Validate 'bone component' links... */
+static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
+{
+	
+}
+
+/* Bone Type Info */
+static DepsNodeTypeInfo DNTI_BONE = {
+	/* type */               DEPSNODE_TYPE_BONE,
+	/* size */               sizeof(BoneDepsNode),
+	/* name */               "Bone Component Node",
+	
+	/* init_data() */        dnti_bone__init_data,
+	/* free_data() */        dnti_bone__free_data,
+	/* copy_data() */        dnti_bone__copy_data,
+	
+	/* add_to_graph() */     dnti_bone__add_to_graph,
+	/* remove_from_graph()*/ dnti_bone__remove_from_graph,
+	
+	/* validate_links() */   dnti_bone__validate_links
+};
+
+
 /* ******************************************************** */
 /* Inner Nodes */
 
@@ -1010,6 +1067,8 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(DNTI_GEOMETRY);
 	
 	DEG_register_node_typeinfo(DNTI_EVAL_POSE);
+	DEG_register_node_typeinfo(DNTI_BONE);
+	
 	DEG_register_node_typeinfo(DNTI_EVAL_PARTICLES);
 	
 	/* INNER */
