@@ -339,7 +339,20 @@ void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA
 	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
 	*name[0]  = '\0';                      /* default to no name to lookup in most cases */
 	
-	 
+	/* handling of commonly known scenarios... */
+	if (ptr->type == &RNA_PoseBone) {
+		bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+		
+		/* bone - generally, we just want the bone component... */
+		*type = DEPSNODE_TYPE_BONE;
+		BLI_strncpy(name, DEG_MAX_ID_NAME, pchan->name);
+	}
+	else if (ptr->type == &RNA_Object) {
+		Object *ob = (Object *)ptr->data;
+		
+		/* transforms props? */
+		// ...
+	}
 }
 
 /* ************************************************ */
