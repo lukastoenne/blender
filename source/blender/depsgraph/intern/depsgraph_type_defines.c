@@ -642,13 +642,31 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 /* Add 'bone component' node to graph */
 static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
-	// add to pose component (not standard)
+	PoseComponentDepsNode *pose_node;
+	
+	/* find pose node that we belong to (and create it if it doesn't exist!) */
+	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, id, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	BLI_assert(pose_node != NULL);
+	
+	/* add bone component to pose bone-hash */
+	BLI_ghash_insert(pose_node->bone_hash, node->name, node);
+	node->owner = (DepsNode *)pose_node;
 }
 
 /* Remove 'bone component' node from graph */
 static void dnti_bone__remove_from_graph(Depsgraph *graph, DepsNode *node)
 {
-	// remove from pose component (not standard)
+	/* detach from owner (i.e. pose component) */
+	if (node->owner) {
+		PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node->owner;
+		
+		BLI_ghash_remove(pose_node->bone_hash, node->name, NULL, NULL);
+		node->owner = NULL;
+	}
+	
+	/* NOTE: don't need to do anything about relationships,
+	 * as those are handled via the standard mechanism
+	 */
 }
 
 /* Validate 'bone component' links... */
