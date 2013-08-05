@@ -858,6 +858,14 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Scene *scene)
 {
 	DepsNode *scene_node;
 	
+	/* clear "LIB_DOIT" flag from all materials, etc. 
+	 * to prevent infinite recursion problems later [#32017] 
+	 */
+	tag_main_idcode(bmain, ID_MA, FALSE);
+	tag_main_idcode(bmain, ID_LA, FALSE);
+	tag_main_idcode(bmain, ID_WO, FALSE);
+	tag_main_idcode(bmain, ID_TEX, FALSE);
+	
 	/* build graph for scene (and set) */
 	scene_node = deg_build_scene_graph(graph, scene);
 	
