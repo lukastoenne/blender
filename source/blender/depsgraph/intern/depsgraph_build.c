@@ -310,11 +310,55 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 
 /* ************************************************* */
 /* Shading */
+// XXX: how to prevent duplication-problems?
+
+/* forward decl. */
+static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Material *ma);
+static void deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex);
+
 
 /* Recursively build graph for node-tree */
-static void deg_build_shader_nodetree_graph(Depsgraph *graph, DepsNode *owner_component, bNodeTree *ntree)
+static void deg_build_nodetree_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, bNodeTree *ntree)
 {
+	bNode *n;
+	
+	/* nodetree itself */
+	if (ntree->adt) {
+		deg_build_animdata_graph(graph, scene, &ntree->id);
+	}
+	
+	/* nodetree's nodes... */
+	for (n = ntree->nodes.first; n; n = n->next) {
+		if (n->id) {
+			if (GS(n->id->name) == ID_MA) {
+				deg_build_material_graph(graph, scene, owner_component, (Material *)n->id);
+			}
+			else if (n->type == ID_TEX) {
+				deg_build_texture_graph(graph, scene, owner_component, (Texture *)n->id);
+			}
+			else if (n->type == NODE_GROUP) {
+				deg_build_nodetree_graph(graph, scene, owner_component, (bNodeTree *)n->id);
+			}
+		}
+	}
+}
 
+/* Recursively build graph for texture */
+static void deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex)
+{
+	
+}
+
+/* Recursively build graph for material */
+static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Material *ma)
+{
+	
+}
+
+/* Recursively build graph for world */
+static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
+{
+	
 }
 
 /* ************************************************* */
@@ -702,16 +746,20 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 		if (ob->proxy) {
 			deg_build_object_graph(graph, scene, ob->proxy);
 		}
+		
+		// XXX: tag groups
 	}
+	
+	// groups?
 	
 	/* scene's animation and drivers */
 	if (scene->adt) {
-		deg_build_animdata_graph(graph, scene_node, &scene->id);
+		deg_build_animdata_graph(graph, scene, &scene->id);
 	}
 	
 	/* world */
 	if (scene->world) {
-	
+		deg_build_world_graph(graph, scene, scene->world);
 	}
 	
 	/* compo nodes */
