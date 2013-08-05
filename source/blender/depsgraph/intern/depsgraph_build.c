@@ -386,6 +386,12 @@ static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 	
 }
 
+/* Compositing-related nodes */
+static void deg_build_compo_graph(Depsgraph *graph, Scene *scene)
+{
+	
+}
+
 /* ************************************************* */
 /* Physics */
 
@@ -807,6 +813,9 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 	}
 	
 	/* compo nodes */
+	if (scene->nodetree) {
+		deg_build_compo_graph(graph, scene);
+	}
 	
 	/* sequencer */
 	// XXX...
