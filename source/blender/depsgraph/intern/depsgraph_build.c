@@ -454,14 +454,33 @@ static void deg_build_camera_graph(Depsgraph *graph, Scene *scene, Object *ob)
 }
 
 /* Lamps */
-static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
+static void deg_build_lamp_graph(Depsgraph *graph, Scene *UNUSED(scene), Object *ob)
 {
 	Lamp *la = (Lamp *)ob->data;
+	DepsNode *obdata_node;
 	
-	/* node tree */
+	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited 
+	 * already (see build_dag()). This assumes la->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (la->id.flag & LIB_DOIT)
+		return;
+	
+	la->id.flag |= LIB_DOIT;
+	
+	/* node for obdata */
+	obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_PARAMETERS, "Lamp Parameters");
+	
+	/* lamp's nodetree */
 	if (la->nodetree) {
-		// nodetree recurse...
+		deg_build_shader_nodetree_graph(graph, obdata_node, la->nodetree);
 	}
+	
+	/* textures */
+	// TODO...
+	//deg_build_texture_graph(Depsgraph *graph, DepsNode *node, ID *id);
+	
+	la->id.flag &= ~LIB_DOIT;
 }
 
 /* ************************************************* */
