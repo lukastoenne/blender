@@ -353,6 +353,13 @@ void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA
 		/* transforms props? */
 		// ...
 	}
+	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
+		Sequence *seq = (Sequence *)ptr->data;
+		
+		/* sequencer strip */
+		*type = DEPSNODE_TYPE_SEQUENCER;
+		BLI_strncpy(name, DEG_MAX_ID_NAME, seq->name);
+	}
 }
 
 /* ************************************************ */
