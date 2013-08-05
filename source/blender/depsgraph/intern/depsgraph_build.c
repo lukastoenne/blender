@@ -136,8 +136,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
 					
 					/* get node associated with bone */
-					// XXX...
-					target_node = DEG_get_node(graph, dtar->id, DEPSNODE_TYPE_OP_BONE, pchan->name);
+					target_node = DEG_get_node(graph, dtar->id, DEPSNODE_TYPE_BONE, pchan->name);
 				}
 				else {
 					/* resolve path to get node... */
@@ -367,7 +366,38 @@ static void deg_build_nodetree_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 /* Recursively build graph for texture */
 static void deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex)
 {
+	/* Prevent infinite recursion by checking (and tagging the texture) as having been visited 
+	 * already (see build_dag()). This assumes tex->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (tex->id.flag & LIB_DOIT)
+		return;
 	
+	tex->id.flag |= LIB_DOIT;
+	
+	/* texture itself */
+	if (tex->adt) {
+		deg_build_animdata_graph(graph, scene, &tex->id);
+	}
+	
+	/* texture's nodetree */
+	if (tex->nodetree) {
+		deg_build_nodetree_graph(graph, scene, owner_component, tex->nodetree);
+	}
+
+	tex->id.flag &= ~LIB_DOIT;
+}
+
+/* Texture-stack attached to some shading datablock */
+static void deg_build_texture_stack_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, MTex **texture_stack)
+{
+	int i;
+	
+	/* for now assume that all texture-stacks have same number of max items */
+	for (i = 0; i < MAX_MTEX; i++) {
+		MTex *mtex = texture_stack[i];
+		deg_build_texture_graph(graph, scene, owner_component, mtex->tex);
+	}
 }
 
 /* Recursively build graph for material */
@@ -388,8 +418,7 @@ static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 	}
 	
 	/* textures */
-	// TODO...
-	//deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex);
+	deg_build_texture_stack_graph(graph, scene, owner_component, ma->mtex);
 	
 	/* material's nodetree */
 	if (ma->nodetree) {
@@ -419,8 +448,7 @@ static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 	/* TODO: other settings? */
 	
 	/* textures */
-	// TODO...
-	//deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex);
+	deg_build_texture_stack_graph(graph, scene, NULL /* world shading/params? */, wo->mtex);
 	
 	/* world's nodetree */
 	if (wo->nodetree) {
@@ -610,7 +638,7 @@ static void deg_build_camera_graph(Depsgraph *graph, Scene *scene, Object *ob)
 }
 
 /* Lamps */
-static void deg_build_lamp_graph(Depsgraph *graph, Scene *UNUSED(scene), Object *ob)
+static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
 	Lamp *la = (Lamp *)ob->data;
 	DepsNode *obdata_node;
@@ -633,8 +661,7 @@ static void deg_build_lamp_graph(Depsgraph *graph, Scene *UNUSED(scene), Object 
 	}
 	
 	/* textures */
-	// TODO...
-	//deg_build_texture_graph(Depsgraph *graph, DepsNode *node, ID *id);
+	deg_build_texture_stack_graph(graph, scene, obdata_node, la->mtex);
 	
 	la->id.flag &= ~LIB_DOIT;
 }
