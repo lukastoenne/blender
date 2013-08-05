@@ -453,6 +453,17 @@ static void deg_build_camera_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	}
 }
 
+/* Lamps */
+static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
+{
+	Lamp *la = (Lamp *)ob->data;
+	
+	/* node tree */
+	if (la->nodetree) {
+		// nodetree recurse...
+	}
+}
+
 /* ************************************************* */
 /* Objects */
 
@@ -592,17 +603,11 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 				deg_build_rig_graph(graph, scene, ob);
 				break;
 			
-			case OB_LAMP:   /* Lamp */
-			{
-				Lamp *la = (Lamp *)ob->data;
-				
-				/* node tree */
-				if (la->nodetree) {
-					// nodetree recurse...
-				}
-			}
-			break;
 			
+			case OB_LAMP:   /* Lamp */
+				deg_build_lamp_graph(graph, scene, ob);
+				break;
+				
 			case OB_CAMERA: /* Camera */
 				deg_build_camera_graph(graph, scene, ob);
 				break;
