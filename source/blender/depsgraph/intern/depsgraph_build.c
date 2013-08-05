@@ -574,6 +574,17 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			}
 			break;
 			
+			case OB_LAMP:   /* Lamp */
+			{
+				Lamp *la = (Lamp *)ob->data;
+				
+				/* node tree */
+				if (la->nodetree) {
+					// nodetree recurse...
+				}
+			}
+			break;
+			
 			case OB_CAMERA: /* Camera */
 			{
 				Camera *cam = (Camera *)ob->data;
