@@ -434,6 +434,26 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 }
 
 /* ************************************************* */
+/* Assorted Object Data */
+
+/* Cameras */
+// TODO: Link scene-camera links in somehow...
+static void deg_build_camera_graph(Depsgraph *graph, Scene *scene, Object *ob)
+{
+	Camera *cam = (Camera *)ob->data;
+	DepsNode *obdata_node, *node2;
+	
+	/* node for obdata */
+	obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_PARAMETERS, "Camera Parameters");
+	
+	/* DOF */
+	if (cam->dof_ob) {
+		node2 = DEG_get_node(dag, (ID *)cam->dof_ob, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
+		DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
+	}
+}
+
+/* ************************************************* */
 /* Objects */
 
 /* object parent relationships */
@@ -569,10 +589,8 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			
 			
 			case OB_ARMATURE: /* Pose */
-			{
 				deg_build_rig_graph(graph, scene, ob);
-			}
-			break;
+				break;
 			
 			case OB_LAMP:   /* Lamp */
 			{
@@ -586,21 +604,8 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			break;
 			
 			case OB_CAMERA: /* Camera */
-			{
-				Camera *cam = (Camera *)ob->data;
-				DepsNode *obdata_node, *node2;
-				
-				/* node for obdata */
-				obdata_node = DEG_get_node(graph, obdata_id, DEPSNODE_TYPE_PARAMETERS, "Camera Parameters");
-				
-				/* DOF */
-				if (cam->dof_ob) {
-					node2 = DEG_get_node(dag, (ID *)cam->dof_ob, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
-					DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
-				}
-			}
-			break;
-		}
+				deg_build_camera_graph(graph, scene, ob);
+				break;
 	}
 	
 	/* materials */
