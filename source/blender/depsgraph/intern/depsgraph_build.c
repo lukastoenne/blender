@@ -721,6 +721,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			case OB_CAMERA: /* Camera */
 				deg_build_camera_graph(graph, scene, ob);
 				break;
+		}
 	}
 	
 	/* particle systems */
