@@ -309,6 +309,15 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 }
 
 /* ************************************************* */
+/* Shading */
+
+/* Recursively build graph for node-tree */
+static void deg_build_shader_nodetree_graph(Depsgraph *graph, DepsNode *owner_component, bNodeTree *ntree)
+{
+
+}
+
+/* ************************************************* */
 /* Geometry */
 
 /* Shapekeys */
