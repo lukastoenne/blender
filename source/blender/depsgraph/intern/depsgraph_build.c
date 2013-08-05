@@ -383,7 +383,32 @@ static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 /* Recursively build graph for world */
 static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 {
+	/* Prevent infinite recursion by checking (and tagging the world) as having been visited 
+	 * already (see build_dag()). This assumes wo->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (wo->id.flag & LIB_DOIT)
+		return;
 	
+	wo->id.flag |= LIB_DOIT;
+	
+	/* world itself */
+	if (wo->adt) {
+		deg_build_animdata_graph(graph, scene, &wo->id);
+	}
+	
+	/* TODO: other settings? */
+	
+	/* textures */
+	// TODO...
+	//deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex);
+	
+	/* world's nodetree */
+	if (wo->nodetree) {
+		deg_build_nodetree_graph(graph, scene, owner_component, wo->nodetree);
+	}
+
+	wo->id.flag &= ~LIB_DOIT;
 }
 
 /* Compositing-related nodes */
