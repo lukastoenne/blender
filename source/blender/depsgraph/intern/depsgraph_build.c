@@ -341,6 +341,8 @@ static void deg_build_nodetree_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 			}
 		}
 	}
+	
+	// TODO: link from nodetree to owner_component?
 }
 
 /* Recursively build graph for texture */
@@ -352,7 +354,30 @@ static void deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *ow
 /* Recursively build graph for material */
 static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Material *ma)
 {
+	/* Prevent infinite recursion by checking (and tagging the material) as having been visited 
+	 * already (see build_dag()). This assumes ma->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (ma->id.flag & LIB_DOIT)
+		return;
 	
+	ma->id.flag |= LIB_DOIT;
+	
+	/* material itself */
+	if (ma->adt) {
+		deg_build_animdata_graph(graph, scene, &ma->id);
+	}
+	
+	/* textures */
+	// TODO...
+	//deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex);
+	
+	/* material's nodetree */
+	if (ma->nodetree) {
+		deg_build_nodetree_graph(graph, scene, owner_component, ma->nodetree);
+	}
+
+	ma->id.flag &= ~LIB_DOIT;
 }
 
 /* Recursively build graph for world */
@@ -481,6 +506,19 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			
 			if (mti->updateDepgraph) {
 				mti->updateDepgraph(md, graph, scene, ob);
+			}
+		}
+	}
+	
+	/* materials */
+	if (ob->totcol) {
+		int a;
+		
+		for (a = 1; a <= ob->totcol; a++) {
+			Material *ma = give_current_material(ob, a);
+			
+			if (ma) {
+				deg_build_material_graph(graph, scene, geom_node, ma);
 			}
 		}
 	}
@@ -683,16 +721,6 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 			case OB_CAMERA: /* Camera */
 				deg_build_camera_graph(graph, scene, ob);
 				break;
-	}
-	
-	/* materials */
-	if (ob->totcol) {
-		int a;
-		
-		for (a = 1; a <= ob->totcol; a++) {
-			Material *ma = give_current_material(ob, a);
-			...
-		}
 	}
 	
 	/* particle systems */
