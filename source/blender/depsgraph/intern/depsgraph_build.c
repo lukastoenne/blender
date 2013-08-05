@@ -33,27 +33,46 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_curve_types.h"
+#include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
+#include "DNA_world_types.h"
 
 #include "BKE_action.h"
+#include "BKE_armature.h"
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
+#include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_fcurve.h"
 #include "BKE_key.h"
+#include "BKE_library.h"
 #include "BKE_material.h"
+#include "BKE_mball.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "BKE_rigidbody.h"
+#include "BKE_sound.h"
+#include "BKE_texture.h"
+#include "BKE_tracking.h"
+#include "BKE_world.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
 
 #include "depsgraph_types.h"
 #include "depsgraph_eval.h"
+#include "despgraph_intern.h"
 
 
 /* ************************************************* */
