@@ -161,6 +161,7 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_ANIMATION        = 12,       /* Animation Component */                 // XXX: merge in with parameters?
 	DEPSNODE_TYPE_TRANSFORM        = 13,       /* Transform Component (Parenting/Constraints) */
 	DEPSNODE_TYPE_GEOMETRY         = 14,       /* Geometry Component (DerivedMesh/Displist) */
+	DESPNODE_TYPE_SEQUENCER        = 15,       /* Sequencer Component (Scene Only) */
 	
 	/* Evaluation-Related Outer Types (with Subdata) */
 	DEPSNODE_TYPE_EVAL_POSE        = 20,       /* Pose Component - Owner/Container of Bones Eval */
@@ -175,15 +176,16 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OP_ANIMATION     = 102,      /* Animation Evaluation Operation */
 	DEPSNODE_TYPE_OP_TRANSFORM     = 103,      /* Transform Evaluation Operation (incl. constraints, parenting, anim-to-matrix) */
 	DEPSNODE_TYPE_OP_GEOMETRY      = 104,      /* Geometry Evaluation Operation (incl. modifiers) */
+	DEPSNODE_TYPE_OP_SEQUENCER     = 105,
 	
-	DEPSNODE_TYPE_OP_UPDATE        = 105,      /* Property Update Evaluation Operation [Parameter] */
-	DEPSNODE_TYPE_OP_DRIVER        = 106,      /* Driver Evaluation Operation [Parameter] */
+	DEPSNODE_TYPE_OP_UPDATE        = 110,      /* Property Update Evaluation Operation [Parameter] */
+	DEPSNODE_TYPE_OP_DRIVER        = 112,      /* Driver Evaluation Operation [Parameter] */
 	
-	DEPSNODE_TYPE_OP_POSE          = 107,      /* Pose Evalation (incl. setup/cleanup IK trees, IK Solvers) [Pose] */
-	DEPSNODE_TYPE_OP_BONE          = 108,      /* Bone Evaluation [Bone] */
+	DEPSNODE_TYPE_OP_POSE          = 115,      /* Pose Evalation (incl. setup/cleanup IK trees, IK Solvers) [Pose] */
+	DEPSNODE_TYPE_OP_BONE          = 116,      /* Bone Evaluation [Bone] */
 	
-	DEPSNODE_TYPE_OP_PARTICLE      = 109,      /* Particles Evaluation [Particle] */
-	DEPSNODE_TYPE_OP_RIGIDBODY     = 110,      /* Rigidbody Sim (Step) Evaluation */
+	DEPSNODE_TYPE_OP_PARTICLE      = 120,      /* Particles Evaluation [Particle] */
+	DEPSNODE_TYPE_OP_RIGIDBODY     = 121,      /* Rigidbody Sim (Step) Evaluation */
 } eDepsNode_Type;
 
 

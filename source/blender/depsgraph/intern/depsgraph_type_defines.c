@@ -570,7 +570,23 @@ static DepsNodeTypeInfo DNTI_PROXY = {
 static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	/* type */               DEPSNODE_TYPE_GEOMETRY,
 	/* size */               sizeof(ComponentDepsNode),
-	/* name */               "Transform Component",
+	/* name */               "Geometry Component",
+	
+	/* init_data() */        dnti_component__init_data,
+	/* free_data() */        dnti_component__free_data,
+	/* copy_data() */        dnti_component__copy_data,
+	
+	/* add_to_graph() */     dnti_component__add_to_graph,
+	/* remove_from_graph()*/ dnti_component__remove_from_graph,
+	
+	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+};
+
+/* Sequencer */
+static DepsNodeTypeInfo DNTI_SEQUENCER = {
+	/* type */               DEPSNODE_TYPE_SEQUENCER,
+	/* size */               sizeof(ComponentDepsNode),
+	/* name */               "Sequencer Component",
 	
 	/* init_data() */        dnti_component__init_data,
 	/* free_data() */        dnti_component__free_data,
@@ -850,6 +866,30 @@ static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
 	/* validate_links() */   NULL
 };
 
+/* Sequencer Operation ==================================== */
+
+/* Add 'sequencer operation' node to graph */
+static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+{
+	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_SEQUENCER);
+}
+
+/* Sequencer Operation Node */
+static DepsNodeTypeInfo DNTI_OP_SEQUENCER = {
+	/* type */               DEPSNODE_TYPE_OP_SEQUENCER,
+	/* size */               sizeof(OperationDepsNode),
+	/* name */               "Sequencer Operation",
+	
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
+	
+	/* add_to_graph() */     dnti_op_sequencer__add_to_graph,
+	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
+	
+	/* validate_links() */   NULL
+};
+
 /* Update Operation ======================================= */
 
 /* Add 'update operation' node to graph */
@@ -1063,6 +1103,7 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(DNTI_ANIMATION);
 	DEG_register_node_typeinfo(DNTI_TRANSFORM);
 	DEG_register_node_typeinfo(DNTI_GEOMETRY);
+	DEG_register_node_typeinfo(DNTI_SEQUENCER);
 	
 	DEG_register_node_typeinfo(DNTI_EVAL_POSE);
 	DEG_register_node_typeinfo(DNTI_BONE);
@@ -1075,6 +1116,7 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(DNTI_OP_ANIMATION);
 	DEG_register_node_typeinfo(DNTI_OP_TRANSFORM);
 	DEG_register_node_typeinfo(DNTI_OP_GEOMETRY);
+	DEG_register_node_typeinfo(DNTI_OP_SEQUENCER);
 	
 	DEG_register_node_typeinfo(DNTI_OP_UPDATE);
 	DEG_register_node_typeinfo(DNTI_OP_DRIVER);
