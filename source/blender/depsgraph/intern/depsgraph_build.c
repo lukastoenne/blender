@@ -387,6 +387,21 @@ static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 }
 
 /* ************************************************* */
+/* Physics */
+
+/* Particle systems */
+static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob)
+{
+	// loop over particle systems
+	
+	// collision objects?
+	
+	// pointcaches?
+	
+	// etc.
+}
+
+/* ************************************************* */
 /* Geometry */
 
 /* Shapekeys */
@@ -726,7 +741,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	
 	/* particle systems */
 	if (ob->particlesystem.first) {
-		dag_build_particles_graph(graph, scene, ob);
+		deg_build_particles_graph(graph, scene, ob);
 	}
 	
 	/* AnimData */
