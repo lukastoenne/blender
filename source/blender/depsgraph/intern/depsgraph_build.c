@@ -367,7 +367,7 @@ static void deg_build_nodetree_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 static void deg_build_texture_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Tex *tex)
 {
 	/* Prevent infinite recursion by checking (and tagging the texture) as having been visited 
-	 * already (see build_dag()). This assumes tex->id.flag & LIB_DOIT isn't set by anything else
+	 * already. This assumes tex->id.flag & LIB_DOIT isn't set by anything else
 	 * in the meantime... [#32017]
 	 */
 	if (tex->id.flag & LIB_DOIT)
@@ -404,7 +404,7 @@ static void deg_build_texture_stack_graph(Depsgraph *graph, Scene *scene, DepsNo
 static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *owner_component, Material *ma)
 {
 	/* Prevent infinite recursion by checking (and tagging the material) as having been visited 
-	 * already (see build_dag()). This assumes ma->id.flag & LIB_DOIT isn't set by anything else
+	 * already. This assumes ma->id.flag & LIB_DOIT isn't set by anything else
 	 * in the meantime... [#32017]
 	 */
 	if (ma->id.flag & LIB_DOIT)
@@ -432,7 +432,7 @@ static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 {
 	/* Prevent infinite recursion by checking (and tagging the world) as having been visited 
-	 * already (see build_dag()). This assumes wo->id.flag & LIB_DOIT isn't set by anything else
+	 * already. This assumes wo->id.flag & LIB_DOIT isn't set by anything else
 	 * in the meantime... [#32017]
 	 */
 	if (wo->id.flag & LIB_DOIT)
@@ -644,7 +644,7 @@ static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	DepsNode *obdata_node;
 	
 	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited 
-	 * already (see build_dag()). This assumes la->id.flag & LIB_DOIT isn't set by anything else
+	 * already. This assumes la->id.flag & LIB_DOIT isn't set by anything else
 	 * in the meantime... [#32017]
 	 */
 	if (la->id.flag & LIB_DOIT)
