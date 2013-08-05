@@ -257,6 +257,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 		case DEPSNODE_TYPE_ANIMATION:
 		case DEPSNODE_TYPE_TRANSFORM:
 		case DEPSNODE_TYPE_GEOMETRY:
+		case DEPSNODE_TYPE_SEQUENCER:
 		case DEPSNODE_TYPE_EVAL_POSE:
 		case DEPSNODE_TYPE_EVAL_PARTICLES:
 		{
@@ -292,6 +293,9 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 			break;
 		case DEPSNODE_TYPE_OP_GEOMETRY:   /* Geometry Ops */
 			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_GEOMETRY, type, name);
+			break;
+		case DEPSNODE_TYPE_OP_SEQUENCER;  /* Sequencer Ops */
+			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_SEQUENCER, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_UPDATE:     /* Updates */
