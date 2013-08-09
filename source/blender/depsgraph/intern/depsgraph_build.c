@@ -282,6 +282,28 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 	}
 }
 
+/* ------------------------------------------ */
+
+/* IK Solver Eval Steps */
+static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene, 
+                                    Object *ob, bPoseChannel *pchan_owner,
+                                    bConstraint *con)
+{
+	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
+	bPoseChannel *parchan;
+	size_t segcount = 0;
+}
+
+/* Spline IK Eval Steps */
+static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
+                                          Object *ob, bPoseChannel *pchan_owner,
+                                          bConstraint *con)
+{
+	
+}
+
+/* ------------------------------------------ */
+
 /* Pose/Armature Bones Graph */
 static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
@@ -336,11 +358,11 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		for (con = pchan->constraints.first; con; con = con->next) {
 			switch (con->type) {
 				case CONSTRAINT_TYPE_KINEMATIC:
-					// XXX: ik chain solver rels/steps
+					deg_build_ik_pose_graph(graph, scene, ob, pchan, con);
 					break;
 					
 				case CONSTRAINT_TYPE_SPLINEIK:
-					// XXX: spline-ik rels/steps
+					deg_build_splineik_pose_graph(graph, scene, ob, pchan, con);
 					break;
 					
 				default:
