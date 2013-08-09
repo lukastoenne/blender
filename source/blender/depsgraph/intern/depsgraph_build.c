@@ -963,7 +963,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 		{
 			bPoseChannel *pchan = BKE_pose_channel_from_name(ob->parent->pose, ob->parsubstr);
 			
-			parent_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_
+			parent_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_BONE, ob->parsubstr);
 			DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
 		}
 		break;
