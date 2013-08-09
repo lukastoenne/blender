@@ -244,7 +244,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 	
 	constraintStackNode = DEG_add_operation(graph, &ob->id, stackNodeType, 
 	                                        DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
-	                                        "Evaluate Constraints Stack");
+	                                        (pchan) ? pchan->name : "Constraint Stack"); // XXX: review this naming stuff!
 	
 	/* add dependencies for each constraint in turn */
 	for (con = constraints->first; con; con = con->next) {
