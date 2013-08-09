@@ -464,12 +464,29 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	
 	PoseComponentDepsNode *pose_node;
 	
+	/* == Pose Rig Graph ==
+	 * Pose Component:
+	 * - Mainly used for referencing Bone components.
+	 * - This is where the evaluation operations for init/exec/cleanup
+	 *   (ik) solvers live, and are later hooked up (so that they can be
+	 *   interleaved during runtime) with bone-operations they depend on/affect.
+	 * - init_pose_eval() and cleanup_pose_eval() are absolute first and last
+	 *   steps of pose eval process. ALL bone operations must be performed 
+	 *   between these two...
+	 * 
+	 * Bone Component:
+	 * - Used for representing each bone within the rig
+	 * - Acts to encapsulate the evaluation operations (base matrix + parenting, 
+	 *   and constraint stack) so that they can be easily found.
+	 * - Everything else which depends on bone-results hook up to the component only
+	 *   so that we can redirect those to point at either the the post-IK/
+	 *   post-constraint/post-matrix steps, as needed.
+	 */
 	
 	/* pose eval context 
 	 * NOTE: init/cleanup steps for this are handled as part of the node's code
 	 */
 	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_EVAL_POSE, NULL);
-	
 	
 	/* bones */
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
