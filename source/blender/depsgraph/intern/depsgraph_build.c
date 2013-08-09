@@ -680,7 +680,15 @@ static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 /* Compositing-related nodes */
 static void deg_build_compo_graph(Depsgraph *graph, Scene *scene)
 {
-	
+	/* For now, just a plain wrapper? */
+	if (scene->nodetree) {
+		// TODO: create compositing component?
+		// XXX: component type undefined!
+		//deg_build_nodetree_graph(graph, scene, DEPSNODE_TYPE_COMPOSITING, scene->nodetree);
+		
+		/* for now, nodetrees are just parameters; compositing occurs in internals of renderer... */
+		deg_build_nodetree_graph(graph, scene, DEPSNODE_TYPE_PARAMETERS, scene->nodetree);
+	}
 }
 
 /* ************************************************* */
