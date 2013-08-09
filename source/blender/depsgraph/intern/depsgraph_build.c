@@ -528,6 +528,21 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 			}
 		}
 	}
+	
+	
+	/* Armature-Data */
+	// TODO: bone names?
+	// TODO: selection status?
+	if (arm->adt) {
+		/* animation and/or drivers linking posebones to base-armature used to define them 
+		 * NOTE: AnimData here is really used to control animated deform properties, 
+		 *       which ideally should be able to be unique across different instances.
+		 *       Eventually, we need some type of proxy/isolation mechanism inbetween here
+		 *       to ensure that we can use same rig multiple times in same scene...
+		 */
+		// TODO: we need a bit of an exception here to redirect drivers to posebones?
+		deg_build_animdata_graph(graph, scene, &arm->id);
+	}
 }
 
 /* ************************************************* */
