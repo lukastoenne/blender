@@ -355,7 +355,6 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	solver_op = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_POSE,
 	                              DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
 	                              "IK Solver");
-	// XXX: what sort of ID-data is needed?
 	
 	/* attach owner to IK Solver too 
 	 * - assume that owner is always part of chain 
@@ -399,7 +398,7 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
                                           bConstraint *con)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
-	bPoseChannel *parchan;
+	bPoseChannel *parchan, *rootchan = pchan;
 	size_t segcount = 0;
 	
 	OperationDepsNode *solver_op;
@@ -432,7 +431,10 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	/* --------------- */
 	
 	/* Walk to the chain's root */
-	for (parchan = pchan->parent; parchan; parchan = parchan->parent) {
+	for (parchan = pchan->parent;
+	     parchan;
+	     rootchan = parchan,  parchan = parchan->parent)
+	{
 		/* Make Spline IK solver dependent on this bone's result,
 		 * since it can only run after the standard results 
 		 * of the bone are know. Validate links step on the 
@@ -446,6 +448,9 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 		segcount++;
 		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* 255 is weak */
 	}
+	
+	/* store the "root bone" of this chain in the solver, so it knows where to start */
+	RNA_pointer_create(&ob->id, &RNA_PoseBone, rootchan, &solver_op->ptr);
 }
 
 /* ------------------------------------------ */
