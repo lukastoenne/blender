@@ -294,20 +294,36 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 			
 			for (ct = targets.first; ct; ct = ct->next) {
 				if (ct->tar) {
-#if 0 // ob
-				node2 = dag_get_node(dag, obt);
-				if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO))
-					dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
-				else {
-					if (ELEM3(obt->type, OB_ARMATURE, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
-						dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
-						if (obt->type == OB_MESH)
-							node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+					DepsNode *node2;
+					
+					if (ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
+						/* ignore IK constraints - these are handled separately (on pose level) */
 					}
-					else
-						dag_add_relation(dag, node2, node, DAG_RL_OB_OB, cti->name);
-				}
-#endif
+					else if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO)) {
+						/* these constraints require path geometry data... */
+						node2 = DEG_get_node(graph, (ID *)ct->tar, DEPSNODE_TYPE_GEOMETRY, "Path");
+						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_GEOMETRY_EVAL, cti->name); // XXX: type = geom_transform
+					}
+					else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
+						/* bone */
+						node2 = DEG_get_node(graph, (ID *)ct->tar, DEPSNODE_TYPE_BONE, ct->subtarget[0]);
+						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
+					}
+					else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
+						/* vertex group */
+						/* NOTE: for now, we don't need to represent vertex groups separately... */
+						node2 = DEG_get_node(graph, (ID *)ct->tar, DEPSNODE_TYPE_GEOMETRY, NULL);
+						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_GEOMETRY_EVAL, cti->name);
+						
+						if (ct->tar->type == OB-MESH) {
+							//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+						}
+					}
+					else {
+						/* standard object relation */
+						node2 = DEG_get_node(graph, (ID *)ct->tar, DPESNODE_TYPE_TRANSFORM, NULL);
+						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
+					}
 				}
 			}
 			
