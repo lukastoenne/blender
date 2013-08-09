@@ -292,6 +292,25 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
 	bPoseChannel *parchan;
 	size_t segcount = 0;
+	
+	// TODO: get nodes...
+	
+	/* exclude tip from chain? */
+	if ((data->flag & CONSTRAINT_IK_TIP) == 0)
+		parchan = pchan->parent;
+	else
+		parchan = pchan;
+	
+	/* Walk to the chain's root */
+	while (parchan) {
+		// FIXME:
+		//node3 = dag_get_node(dag, parchan);
+		//dag_add_relation(dag, node2, node3, 0, "IK Constraint");
+		
+		segcount++;
+		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
+		parchan = parchan->parent;
+	}
 }
 
 /* Spline IK Eval Steps */
@@ -299,6 +318,10 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
                                           Object *ob, bPoseChannel *pchan_owner,
                                           bConstraint *con)
 {
+	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
+	bPoseChannel *parchan;
+	size_t segcount = 0;
+	
 	
 }
 
