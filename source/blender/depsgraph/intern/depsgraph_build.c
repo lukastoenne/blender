@@ -341,6 +341,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
                                     bConstraint *con)
 {
 	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
+	bPoseChannel *rootchan = pchan;
 	bPoseChannel *parchan;
 	size_t segcount = 0;
 	
@@ -383,8 +384,13 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
 		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
-		parchan = parchan->parent;
+		
+		rootchan = parchan;
+		parchan  = parchan->parent;
 	}
+	
+	/* store the "root bone" of this chain in the solver, so it knows where to start */
+	RNA_pointer_create(&ob->id, &RNA_PoseBone, rootchan, &solver_op->ptr);
 }
 
 /* Spline IK Eval Steps */
