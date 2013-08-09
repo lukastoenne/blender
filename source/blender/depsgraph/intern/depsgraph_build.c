@@ -345,7 +345,50 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	bPoseChannel *parchan;
 	size_t segcount = 0;
 	
+	OperationDepsNode *solver_op;
+	DepsNode *owner_node, *curve_node;
 	
+	/* component for bone holding the constraint */
+	owner_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+	
+	/* component for spline-path geometry that this uses */
+	// XXX: target may not exist!
+	curve_node = DEG_get_node(graph, data->tar, DEPSNODE_TYPE_GEOMETRY, "Path");
+	
+	/* --------------- */
+	
+	/* operation node for evaluating/running IK Solver */
+	solver_op = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_POSE,
+	                              DEPSOP_TYPE_SIM, BKE_pose_splineik_evaluate, 
+	                              "Spline IK Solver");
+	// XXX: what sort of ID-data is needed?
+	
+	/* attach owner to IK Solver too 
+	 * - assume that owner is always part of chain 
+	 * - see notes on direction of rel below...
+	 */
+	DEG_add_new_relation(owner_node, solver_op, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
+	
+	/* attach path dependency to solver */
+	DEG_add_new_relation(curve_node, solver_op, DEPSREL_TYPE_GEOMETRY_EVAL, "[Curve.Path -> Spline IK] DepsRel");
+	
+	/* --------------- */
+	
+	/* Walk to the chain's root */
+	for (parchan = pchan->parent; parchan; parchan = parchan->parent) {
+		/* Make Spline IK solver dependent on this bone's result,
+		 * since it can only run after the standard results 
+		 * of the bone are know. Validate links step on the 
+		 * bone will ensure that users of this bone only
+		 * grab the result with IK solver results...
+		 */
+		DepsNode *parchan_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_BONE, parchan->name);
+		DEG_add_new_relation(parchan_node, solver_op, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
+		
+		/* continue up chain, until we reach target number of items... */
+		segcount++;
+		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* 255 is weak */
+	}
 }
 
 /* ------------------------------------------ */
