@@ -257,11 +257,11 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 			continue;
 		
 		/* special case for camera tracking -- it doesn't use targets to define relations */
+		// TODO: we can now represent dependencies in a much richer manner, so review how this is done...
 		if (ELEM3(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
-			DepsNode *node2;
+			DepsNode *node2, *scene_node;
 			bool depends_on_camera = false;
-
-#if 0			
+			
 			if (cti->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
 				bFollowTrackConstraint *data = (bFollowTrackConstraint *)con->data;
 
@@ -269,8 +269,9 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 					depends_on_camera = true;
 				
 				if (data->depth_ob) {
-					node2 = dag_get_node(dag, data->depth_ob);
-					dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
+					// DAG_RL_DATA_OB | DAG_RL_OB_OB
+					node2 = DEG_get_node(graph, (ID *)data->depth_ob, DEPSNODE_TYPE_TRANSFORM, NULL);
+					DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 				}
 			}
 			else if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
@@ -278,12 +279,15 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 			}
 
 			if (depends_on_camera && scene->camera) {
-				node2 = dag_get_node(dag, scene->camera);
-				dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
+				// DAG_RL_DATA_OB | DAG_RL_OB_OB
+				node2 = DEG_get_node(graph, (ID *)scene->camera, DEPSNODE_TYPE_TRANSFORM, NULL);
+				DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 			}
-
-			dag_add_relation(dag, scenenode, node, DAG_RL_SCENE, "Scene Relation");
-#endif
+			
+			/* tracker <-> constraints */
+			scene_node = DEG_get_node(graph, (ID *)scene, DEPSNODE_TYPE_PARAMETERS, NULL); // XXX: need new category?
+			DEG_add_new_relation(scene_node, constraintStackNode, DEPSREL_TYPE_ROOT_TO_ACTIVE, "Tracker Scene Relation");
+			//dag_add_relation(dag, scenenode, node, DAG_RL_SCENE, "Scene Relation");
 		}
 		else if (cti->get_constraint_targets) {
 			cti->get_constraint_targets(con, &targets);
