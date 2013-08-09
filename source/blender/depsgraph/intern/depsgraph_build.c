@@ -318,10 +318,34 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		}
 		
 		/* constraints */
-		if (pchan->constrains.first) {
+		if (pchan->constraints.first) {
 			deg_build_constraints_graph(graph, scene, ob, 
 			                            pchan, &pchan->constraints, 
 			                            bone_node);
+		}
+	}
+	
+	/* ik-solvers 
+	 * - These require separate processing steps are pose-level
+	 *   to be executed between chains of bones (i.e. once the
+	 *   base transforms of a bunch of bones is done)
+	 */
+	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		bConstraint *con;
+		
+		for (con = pchan->constraints.first; con; con = con->next) {
+			switch (con->type) {
+				case CONSTRAINT_TYPE_KINEMATIC:
+					// XXX: ik chain solver rels/steps
+					break;
+					
+				case CONSTRAINT_TYPE_SPLINEIK:
+					// XXX: spline-ik rels/steps
+					break;
+					
+				default:
+					break;
+			}
 		}
 	}
 }
