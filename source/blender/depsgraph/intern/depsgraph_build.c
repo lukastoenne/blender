@@ -305,6 +305,13 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	                              "IK Solver");
 	// XXX: what sort of ID-data is needed?
 	
+	/* attach owner to IK Solver too 
+	 * - assume that owner is always part of chain 
+	 * - see notes on direction of rel below...
+	 */
+	DEG_add_new_relation(owner_node, solver_op, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
+	
+	
 	/* exclude tip from chain? */
 	if ((data->flag & CONSTRAINT_IK_TIP) == 0)
 		parchan = pchan->parent;
@@ -320,7 +327,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 		 * grab the result with IK solver results...
 		 */
 		DepsNode *parchan_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_BONE, parchan->name);
-		DEG_add_new_relation(parchan_node, solver_op, DEPSREL_TYPE_TRANSFORM, "IK Solver Update"); // XXX?
+		DEG_add_new_relation(parchan_node, solver_op, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
 		
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
