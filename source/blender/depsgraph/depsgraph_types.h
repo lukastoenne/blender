@@ -347,7 +347,8 @@ typedef enum eDepsOperation_Type {
 	DEPSOP_TYPE_POST    = 2, /* cleanup evaluation data + flush results */
 	
 	/* Additional operation types */
-	DEPSOP_TYPE_OUT     = 3  /* indicator for outputting a temporary result that other components can use */ // XXX?
+	DEPSOP_TYPE_OUT     = 3, /* indicator for outputting a temporary result that other components can use */ // XXX?
+	DEPSOP_TYPE_SIM     = 4, /* indicator for things like IK Solvers and Rigidbody Sim steps which modify final results of separate entities at once */
 } eDepsOperation_Type;
 
 /* Extra flags affecting operations */

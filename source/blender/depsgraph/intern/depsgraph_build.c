@@ -286,14 +286,24 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 
 /* IK Solver Eval Steps */
 static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene, 
-                                    Object *ob, bPoseChannel *pchan_owner,
+                                    Object *ob, bPoseChannel *pchan,
                                     bConstraint *con)
 {
 	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
 	bPoseChannel *parchan;
 	size_t segcount = 0;
 	
-	// TODO: get nodes...
+	OperationDepsNode *solver_op;
+	DepsNode *owner_node;
+	
+	/* component for bone holding the constraint */
+	owner_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+	
+	/* operation node for evaluating/running IK Solver */
+	solver_op = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_POSE,
+	                              DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
+	                              "IK Solver");
+	// XXX: what sort of ID-data is needed?
 	
 	/* exclude tip from chain? */
 	if ((data->flag & CONSTRAINT_IK_TIP) == 0)
@@ -303,10 +313,16 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	
 	/* Walk to the chain's root */
 	while (parchan) {
-		// FIXME:
-		//node3 = dag_get_node(dag, parchan);
-		//dag_add_relation(dag, node2, node3, 0, "IK Constraint");
+		/* Make IK-solver dependent on this bone's result,
+		 * since it can only run after the standard results 
+		 * of the bone are know. Validate links step on the 
+		 * bone will ensure that users of this bone only
+		 * grab the result with IK solver results...
+		 */
+		DepsNode *parchan_node = DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_BONE, parchan->name);
+		DEG_add_new_relation(parchan_node, solver_op, DEPSREL_TYPE_TRANSFORM, "IK Solver Update"); // XXX?
 		
+		/* continue up chain, until we reach target number of items... */
 		segcount++;
 		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
 		parchan = parchan->parent;
