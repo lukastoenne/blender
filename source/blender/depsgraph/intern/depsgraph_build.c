@@ -214,8 +214,39 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
                                         ListBase *constraints, 
                                         DepsNode *container)
 {
+	OperationDepsNode *constraintStackNode;
+	eDepsNode_Type stackNodeType;
+	
 	bConstraint *con;
 	
+	
+	/* == Constraints Graph Notes ==
+	 * For constraints, we currently only add a operation node to the Transform
+	 * or Bone components (depending on whichever type of owner we have).
+	 * This represents the entire constraints stack, which is for now just
+	 * executed as a single monolithic block. At least initially, this should
+	 * be sufficient for ensuring that the porting/refactoring process remains
+	 * manageable. 
+	 * 
+	 * However, when the time comes for developing "node-based" constraints,
+	 * we'll need to split this up into pre/post nodes for "constraint stack
+	 * evaluation" + operation nodes for each constraint (i.e. the contents
+	 * of the loop body used in the current "solve_constraints()" operation).
+	 *
+	 * -- Aligorith, August 2013 
+	 */
+	
+	/* create node for constraint stack */
+	if (pchan)
+		stackNodeType = DEPSNODE_TYPE_OP_BONE;
+	else
+		stackNodeType = DEPSNODE_TYPE_OP_TRANSFORM;
+	
+	constraintStackNode = DEG_add_operation(graph, &ob->id, stackNodeType, 
+	                                        DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
+	                                        "Evaluate Constraints Stack");
+	
+	/* add dependencies for each constraint in turn */
 	for (con = constraints->first; con; con = con->next) {
 		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 		ListBase targets = {NULL, NULL};
