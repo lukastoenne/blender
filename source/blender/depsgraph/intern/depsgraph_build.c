@@ -1117,9 +1117,48 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 /* ************************************************* */
 /* Depsgraph Building Entrypoints */
 
+/* Build depsgraph for the given group, and dump results in given graph container 
+ * This is usually used for building subgraphs for groups to use...
+ */
+void DEG_graph_build_from_group(Depsgraph *graph, Main *bmain, Group *group)
+{
+	
+}
+
+/* Build subgraph for group */
+DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, Main *bmain, Group *group)
+{
+	Depsgraph *graph;
+	SubgraphDepsNode *subgraph_node;
+	
+	/* sanity checks */
+	if (ELEM3(NULL, graph_main, bmain, group))
+		return NULL;
+	
+	/* create new subgraph's data */
+	graph = DEG_graph_new();
+	DEG_graph_build_from_group(graph, bmain, group);
+	
+	/* create a node for representing subgraph */
+	subgraph_node = (SubgraphDepsNode *)DEG_get_node(graph_main, &group->id, 
+	                                                 DEPSNODE_TYPE_SUBGRAPH, 
+	                                                 group->id.name);
+	                                                     
+	subgraph_node->graph = graph;
+	
+	/* make a copy of the data this node will need? */
+	// XXX: do we do this now, or later?
+	// TODO: need API function which queries graph's ID's hash, and duplicates those blocks thoroughly with all outside links removed...
+	
+	/* return new subgraph node */
+	return (DepsNode *)subgraph_node;
+}
+
+/* -------------------------------------------------- */
+
 /* Build depsgraph for the given scene, and dump results in given graph container */
 // XXX: assume that this is called from outside, given the current scene as the "main" scene 
-void DEG_graph_build_from_scene(Depsgraph *graph, Scene *scene)
+void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 {
 	DepsNode *scene_node;
 	
