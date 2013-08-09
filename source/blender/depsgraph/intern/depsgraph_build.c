@@ -723,6 +723,14 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 	// etc.
 }
 
+/* ------------------------------------------------ */
+
+/* Rigidbody Simulation - Object Level */
+static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
+{
+	// rigidbody world - init/rebuild + do_simulation()
+}
+
 /* ************************************************* */
 /* Geometry */
 
@@ -1116,6 +1124,11 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 	}
 	
 	// groups?
+	
+	/* rigidbody */
+	if (scene->rigidbody_world) {
+		deg_build_rigidbody_graph(graph, scene);
+	}
 	
 	/* scene's animation and drivers */
 	if (scene->adt) {
