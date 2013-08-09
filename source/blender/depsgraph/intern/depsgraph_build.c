@@ -321,6 +321,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 					}
 					else {
 						/* standard object relation */
+						// TODO: loc vs rot vs scale?
 						node2 = DEG_get_node(graph, (ID *)ct->tar, DPESNODE_TYPE_TRANSFORM, NULL);
 						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
@@ -469,6 +470,7 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	 */
 	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, &ob->id, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	
+	
 	/* bones */
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		BoneComponentDepsNode *bone_node;
@@ -498,10 +500,15 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		}
 	}
 	
-	/* ik-solvers 
+	
+	/* IK Solvers...
 	 * - These require separate processing steps are pose-level
 	 *   to be executed between chains of bones (i.e. once the
 	 *   base transforms of a bunch of bones is done)
+	 *
+	 * Unsolved Issues:
+	 * - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
+	 * - Animated chain-lengths are a problem...
 	 */
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		bConstraint *con;
