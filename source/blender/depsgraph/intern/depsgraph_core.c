@@ -78,7 +78,17 @@ void DEG_graph_validate_links(Depsgraph *graph)
  */
 void DEG_graph_sort(Depsgraph *graph)
 {
-
+	void *ctx = NULL; // XXX: temp struct for keeping track of visited nodes, etc.?
+	
+	/* 1) traverse graph from root
+	 *   - note when each graph was visited (within its peers)
+	 *   - tag/knock out relationships leading to cyclic dependencies
+	 */
+	DEG_graph_traverse(graph, DEG_Filter_ExecutableNodes, NULL, 
+	                          tag_nodes_for_sorting,      ctx); 
+	
+	/* 2) tweak order of nodes within each set of links */
+	
 }
 
 /* ************************************************** */
