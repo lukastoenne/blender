@@ -86,14 +86,32 @@ EnumPropertyItem nparticle_attribute_datatype_user[] = {
     {0, NULL, 0, NULL, NULL}
 };
 
+static void def_nparticle_attribute(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_ui_text(prop, "Name", "Unique name");
+	RNA_def_struct_name_property(srna, prop);
+
+	prop = RNA_def_property(srna, "datatype", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "datatype");
+	RNA_def_property_enum_items(prop, nparticle_attribute_datatype_all);
+	RNA_def_property_ui_text(prop, "Data Type", "Basic data type");
+}
+
 static void rna_def_nparticle_buffer_attribute(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "NParticleBufferAttribute", NULL);
 	RNA_def_struct_sdna(srna, "NParticleBufferAttribute");
 	RNA_def_struct_ui_text(srna, "Particle Buffer Attribute", "Attribute data associated to particles");
+
+	RNA_def_struct_sdna_from(srna, "NParticleAttribute", "desc");
+	def_nparticle_attribute(srna);
+	RNA_def_struct_sdna_from(srna, "NParticleBufferAttribute", NULL); /* reset */
 }
 
 static void rna_def_nparticle_buffer_attributes_api(BlenderRNA *brna, PropertyRNA *cprop)
