@@ -35,6 +35,13 @@
 #include "BKE_nparticle.h"
 #include "BKE_report.h"
 
+static void rna_NParticleAttribute_datatype_set(PointerRNA *ptr, int value)
+{
+//	NParticleAttribute *attr = ptr->data;
+	/* XXX TODO */
+	BLI_assert(false);
+}
+
 static NParticleBufferAttribute *rna_NParticleBuffer_attributes_new(NParticleBuffer *buf, ReportList *reports, const char *name, int datatype)
 {
 	if (BKE_nparticle_attribute_find(buf, name)) {
@@ -98,6 +105,7 @@ static void def_nparticle_attribute(StructRNA *srna)
 	prop = RNA_def_property(srna, "datatype", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "datatype");
 	RNA_def_property_enum_items(prop, nparticle_attribute_datatype_all);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_NParticleAttribute_datatype_set", NULL);
 	RNA_def_property_ui_text(prop, "Data Type", "Basic data type");
 }
 
