@@ -1095,6 +1095,7 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 {
 	DepsNode *scene_node;
 	DepsNode *time_src;
+	Group *group;
 	Base *base;
 	
 	/* init own node */
@@ -1124,10 +1125,27 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 			deg_build_object_graph(graph, scene, ob->proxy);
 		}
 		
-		// XXX: tag groups
+		/* handled in next loop... 
+		 * NOTE: in most cases, setting dupli-group means that we may want
+		 *       to instance existing data and/or reuse it with very few
+		 *       modifications...
+		 */
+		if (ob->dup_group) {
+			ob->dup_group->id.flag |= LIB_DOIT;
+		}
 	}
 	
-	// groups?
+	/* tagged groups */
+	for (group = bmain->group.first; group; group = group->id.next) {
+		if (group->id.flag & LIB_DOIT) {
+			DepsNode *group_node;
+			
+			/* add group as a subgraph... */
+			group_node = DEG_graph_build_group_subgraph(graph, bmain, group);
+			
+			group->id.flag &= ~LIB_DOIT;
+		}
+	}
 	
 	/* rigidbody */
 	if (scene->rigidbody_world) {
