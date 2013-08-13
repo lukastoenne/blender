@@ -19,7 +19,7 @@
  * All rights reserved.
  *
  * Original Author: Joshua Leung
- * Contributor(s): None Yet
+ * Contributor(s): Based on original depsgraph.c code - Blender Foundation (2005-2013)
  *
  * ***** END GPL LICENSE BLOCK *****
  *
@@ -41,9 +41,11 @@
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
@@ -55,6 +57,7 @@
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
+#include "BKE_group.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_material.h"
