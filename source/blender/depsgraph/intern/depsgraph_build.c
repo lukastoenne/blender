@@ -725,10 +725,60 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 
 /* ------------------------------------------------ */
 
-/* Rigidbody Simulation - Object Level */
+/* Rigidbody Simulation - Scene Level */
 static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 {
-	// rigidbody world - init/rebuild + do_simulation()
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	OperationDepsNode *init_node;
+	OperationDepsNode *sim_node; // XXX: what happens if we need to split into several groups?
+	
+	/* == Rigidbody Simulation Nodes == 
+	 * There are 3 nodes related to Rigidbody Simulation:
+	 * 1) "Initialise/Rebuild World" - this is called sparingly, only when the simulation
+	 *    needs to be rebuilt (mainly after file reload, or moving back to start frame)
+	 * 2) "Do Simulation" - perform a simulation step - interleaved between the evaluation
+	 *    steps for clusters of objects (i.e. between those affected and/or not affected by
+	 *    the sim for instance)
+	 *
+	 * 3) "Pull Results" - grab the specific transforms applied for a specific object -
+	 *    performed as part of object's transform-stack building
+	 */
+	
+	/* create nodes ------------------------------------------------------------------------ */
+	/* init/rebuild operation */
+	init_node = DEG_add_operation(graph, &scene->id, DEPSNODE_TYPE_OP_RIGIDBODY,
+	                              DEPSOP_TYPE_INIT, BKE_rigidbody_rebuild_world,
+	                              "Rigidbody World Rebuild");
+	
+	/* do-sim operation */
+	sim_node = DEG_add_operation(graph, &scene->id, DEPSNODE_TYPE_OP_RIGIDBODY,
+	                             DEPSOP_TYPE_EXEC, BKE_rigidbody_do_simulation,
+	                             "Rigidbody World Do Simulation");
+	
+	
+	/* rel between the two sim-nodes */
+	DEG_add_new_relation(&init_node->nd, &sim_node->nd, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
+	
+	/* set up dependencies between these operations and other builtin nodes --------------- */	
+	
+	/* time dependency */
+	{
+		DepsNode *time_src = DEG_get_node(graph, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
+		
+		/* init node is only occasional (i.e. on certain frame values only), 
+		 * but we must still include this link 
+		 */
+		DEG_add_new_relation(time_src, &init_node->nd, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)"
+		
+		/* simulation step must always be performed */
+		DEG_add_new_relation(time_src, &sim_node->nd, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Sim Step");
+	}
+	
+	/* objects - simulation participants */
+	// XXX: todo...
+	
+	/* constraints */
+	// XXX: todo...
 }
 
 /* ************************************************* */
