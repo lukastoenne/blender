@@ -46,6 +46,63 @@
 #include "depsgraph_intern.h"
 
 /* ************************************************ */
+/* Low-Level Graph Traversal */
+
+/* Prepare for graph traversal, by tagging nodes, etc. */
+void DEG_graph_traverse_begin(Depsgraph *graph)
+{
+	/* go over all nodes, initialising the valence counts */
+	// XXX: this will end up being O(|V|), which is bad when we're just updating a few nodes... 
+}
+
+
+/* Perform a traversal of graph from given starting node (in execution order) */
+// TODO: additional flags for controlling the process?
+void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
+                                  DEG_FilterPredicate filter, void *filter_data,
+                                  DEG_NodeOperation op, void *operation_data)
+{
+	Queue *q; // XXX: replace with BLI_heap - min_heap
+	
+	/* sanity checks */
+	if (ELEM3(NULL, graph, start_node, op))
+		return;
+	
+	/* add node as starting node to be evaluated, with value of 0 */
+	q = queue_new();
+	queue_push(0, start_node);
+	
+	/* while we still have nodes in the queue, grab and work on next one */
+	do {
+		/* grab item at front of queue */
+		// XXX: in practice, we may need to wait until one becomes available...
+		DepsNode *node = queue_pop();
+		
+		/* perform operation on node */
+		op(graph, node, operation_data);
+		
+		/* schedule up operations which depend on this */
+		DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+		{
+			DepsNode *new_node = rel->to;
+			
+			// XXX: check if not already in queue (or done!)
+			// XXX: ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.)
+			
+			/* adjust "weight" of node (i.e. how many other nodes it's waiting on) */
+			new_node->valency--;
+			
+			/* schedule up related node for exec */
+			queue_push(calc_node_weight(new_node), new_node);
+		}
+		DEPSNODE_RELATIONS_ITER_END;
+	} while (queue_is_empty(q) == false);
+	
+	/* cleanup */
+	queue_free(q);
+}
+
+/* ************************************************ */
 /* Filtering API - Basically, making a copy of the existing graph */
 
 /* Create filtering context */
