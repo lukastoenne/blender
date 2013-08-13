@@ -777,7 +777,9 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		case OB_MESH:
 		{
 			Mesh *me = (Mesh *)ob->data;
-			...
+			
+			/* evaluation operations */
+			// XXX: wrapper around makeDerivedMesh() - which gets BMesh, etc. data...
 		}
 		break;
 		
@@ -792,7 +794,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			}
 			
 			/* metaball evaluation operations */
-			// xxx...
+			// BKE_displist_make_mball
 		}
 		break;
 		
@@ -819,19 +821,21 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			}
 			
 			/* curve evaluation operations */
-			// xxx...
+			// BKE_displist_make_curveTypes
 		}
 		break;
 		
 		case OB_SURF: /* Nurbs Surface */
 		{
-			...
+			/* nurbs evaluation operations */
+			// BKE_displist_make_curveTypes
 		}
 		break;
 		
 		case OB_LATTICE: /* Lattice */
 		{
-			...
+			/* lattice evaluation operations */
+			// BKE_lattice_modifiers_calc
 		}
 		break;
 	}
