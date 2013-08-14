@@ -42,6 +42,20 @@ void BLI_pbuf_copy(struct bPagedBuffer *to, struct bPagedBuffer *from);
 
 void BLI_pbuf_add_elements(struct bPagedBuffer *pbuf, int num_elem);
 
+void *BLI_pbuf_get(struct bPagedBuffer *pbuf, int index);
+
+
+typedef struct bPagedBufferIterator
+{
+	struct bPagedBufferPage *page;
+	void *data;
+	int index, page_index;
+} bPagedBufferIterator;
+
+void BLI_pbuf_iter_init(struct bPagedBuffer *pbuf, struct bPagedBufferIterator *iter);
+void BLI_pbuf_iter_next(struct bPagedBuffer *pbuf, struct bPagedBufferIterator *iter);
+bool BLI_pbuf_iter_valid(struct bPagedBuffer *pbuf, struct bPagedBufferIterator *iter);
+
 
 #if 0
 /* Buffer Management */

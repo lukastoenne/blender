@@ -42,7 +42,6 @@ void BKE_nparticle_attribute_remove(struct NParticleBuffer *buf, struct NParticl
 void BKE_nparticle_attribute_remove_all(struct NParticleBuffer *buf);
 void BKE_nparticle_attribute_move(struct NParticleBuffer *buf, int from_index, int to_index);
 
-
 #if 0 /* old code */
 #include "BLI_math.h"
 #include "BLI_pagedbuffer.h"

@@ -175,6 +175,57 @@ void BLI_pbuf_add_elements(bPagedBuffer *pbuf, int num_elem)
 	pbuf_set_totelem(pbuf, ntotelem, PBUF_PAGE_ALLOC_EXTEND);
 }
 
+void *BLI_pbuf_get(bPagedBuffer *pbuf, int index)
+{
+	if (index < pbuf->totelem) {
+		div_t page_div = div(index, pbuf->page_size);
+		bPagedBufferPage *page = pbuf->pages + page_div.quot;
+		if (page->data)
+			return (char *)page->data + pbuf->elem_bytes * page_div.rem;
+		else
+			return NULL;
+	}
+	else
+		return NULL;
+}
+
+
+void BLI_pbuf_iter_init(bPagedBuffer *pbuf, bPagedBufferIterator *iter)
+{
+	iter->index = 0;
+	iter->page = pbuf->pages;
+	iter->page_index = 0;
+	while (iter->page->data == NULL && iter->index < pbuf->totelem) {
+		iter->index += pbuf->page_size;
+		++iter->page;
+	}
+	iter->data = iter->page->data;
+}
+
+void BLI_pbuf_iter_next(bPagedBuffer *pbuf, bPagedBufferIterator *iter)
+{
+	++iter->index;
+	++iter->page_index;
+	if (iter->page_index < pbuf->page_size) {
+		iter->data = (char *)iter->data + pbuf->elem_bytes;
+	}
+	else {
+		++iter->page;
+		iter->page_index = 0;
+		while (iter->page->data == NULL && iter->index < pbuf->totelem) {
+			iter->index += pbuf->page_size;
+			++iter->page;
+		}
+		iter->data = iter->page->data;
+	}
+}
+
+bool BLI_pbuf_iter_valid(bPagedBuffer *pbuf, bPagedBufferIterator *iter)
+{
+	return iter->index < pbuf->totelem;
+}
+
+
 #if 0
 /************************************************/
 /*				Buffer Management				*/
