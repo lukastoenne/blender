@@ -221,10 +221,11 @@ DepsRelation DEG_copy_relation(const DepsRelation *src)
  */
 
 /* helper for finding inner nodes by their names */
-static DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type component_type, 
-                              eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+static DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                                     eDepsNode_Type component_type, eDepsNode_Type type, 
+                                     const char name[DEG_MAX_ID_NAME])
 {
-	ComponentDepsNode *component = (ComponentDepsNode *)DEG_find_node(graph, component_type, id, NULL);
+	ComponentDepsNode *component = (ComponentDepsNode *)DEG_find_node(graph, id, subdata, component_type, NULL);
 	
 	if (component) {
 		/* lookup node with matching name... */
@@ -242,21 +243,21 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, eDepsNode_Type co
 }
 
 /* helper for finding bone component nodes by their names */
-// XXX: cannot reliably find operation nodes by name, as we'd need 2 names!
-static DepsNode *deg_find_bone_component_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+static DepsNode *deg_find_bone_component_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                                              eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	PoseComponentDepsNode *pose_comp = (PoseComponentDepsNode *)DEG_find_node(graph, DEPSNODE_TYPE_EVAL_POSE, id, NULL);
 	
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
-		BoneComponentDepsNode *bone_node = BLI_ghash_lookup(pose_comp->bone_hash, name);
+		BoneComponentDepsNode *bone_node = BLI_ghash_lookup(pose_comp->bone_hash, subdata);
 		
 		if (type == DEPSNODE_TYPE_BONE) {
 			/* bone component is what we want */
 			return bone_node;
 		}
 		else if (type == DEPSNODE_TYPE_OP_BONE) {
-			/* assume for now that there's just a single operation node, and its name is exactly the same! */
+			/* now lookup relevant operation node */
 			return BLI_ghash_lookup(bone_node->op_hash, name);
 		}
 	}
@@ -266,7 +267,8 @@ static DepsNode *deg_find_bone_component_node(Depsgraph *graph, ID *id, eDepsNod
 }
 
 /* Find matching node */
-DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *DEG_find_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                        eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *result = NULL;
 	
@@ -337,45 +339,45 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
 		/* "Inner" Nodes ---------------------------- */
 		
 		case DEPSNODE_TYPE_OP_PARAMETER:  /* Parameter Related Ops */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PARAMETERS, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_PROXY:      /* Proxy Ops */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PROXY, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PROXY, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_TRANSFORM:  /* Transform Ops */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_TRANSFORM, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_TRANSFORM, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_ANIMATION:  /* Animation Ops */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_ANIMATION, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_ANIMATION, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_GEOMETRY:   /* Geometry Ops */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_GEOMETRY, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_GEOMETRY, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_SEQUENCER;  /* Sequencer Ops */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_SEQUENCER, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_SEQUENCER, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_UPDATE:     /* Updates */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PARAMETERS, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_DRIVER:     /* Drivers */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_PARAMETERS, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_POSE:       /* Pose Eval (Non-Bone Operations) */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_EVAL_POSE, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_EVAL_POSE, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
 			// XXX: this won't really work... this will only get us the bone component we want!
-			result = deg_find_bone_node(graph, id, type, name);
+			result = deg_find_bone_node(graph, id, subdata, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_PARTICLE:  /* Particle System/Step */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_EVAL_PARTICLE, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_EVAL_PARTICLE, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_RIGIDBODY: /* Rigidbody Sim */
-			result = deg_find_inner_node(graph, id, DEPSNODE_TYPE_TRANSFORM, type, name); // XXX: needs review
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_TRANSFORM, type, name); // XXX: needs review
 			break;
 		
 		default:
@@ -393,10 +395,12 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
  * given a RNA Pointer (and optionally, a property too)
  */
 void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                        ID **id, eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
+                                        ID **id, char subdata[MAX_NAME],
+                                        eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
 {
 	/* set default values for returns */
 	*id       = ptr->id;                   /* for obvious reasons... */
+	*subdata  = '\0';                      /* default to no subdata (e.g. bone) name lookup in most cases */
 	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
 	*name[0]  = '\0';                      /* default to no name to lookup in most cases */
 	
@@ -406,7 +410,7 @@ void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA
 		
 		/* bone - generally, we just want the bone component... */
 		*type = DEPSNODE_TYPE_BONE;
-		BLI_strncpy(name, DEG_MAX_ID_NAME, pchan->name);
+		BLI_strncpy(subdata, MAX_NAME, pchan->name);
 	}
 	else if (ptr->type == &RNA_Object) {
 		Object *ob = (Object *)ptr->data;
@@ -419,7 +423,7 @@ void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA
 		
 		/* sequencer strip */
 		*type = DEPSNODE_TYPE_SEQUENCER;
-		BLI_strncpy(name, DEG_MAX_ID_NAME, seq->name);
+		BLI_strncpy(subdata, MAX_NAME, seq->name); // xxx?
 	}
 }
 

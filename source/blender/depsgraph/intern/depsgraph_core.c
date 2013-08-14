@@ -97,15 +97,16 @@ void DEG_graph_sort(Depsgraph *graph)
 /* Get Node ----------------------------------------- */
 
 /* Get a matching node, creating one if need be */
-DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *DEG_get_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                       eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *node;
 	
 	/* firstly try to get an existing node... */
-	node = DEG_find_node(graph, type, id, name);
+	node = DEG_find_node(graph, id, subdata, type, name);
 	if (node == NULL) {
 		/* nothing exists, so create one instead! */
-		node = DEG_add_new_node(graph, type, id, name);
+		node = DEG_add_new_node(graph, id, subdata, type, name);
 	}
 	
 	/* return the node - it must exist now... */
@@ -117,13 +118,14 @@ DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, con
 {
 	ID *id;
 	eDepsNode_Type type;
+	char subdata[MAX_NAME];
 	char name[DEG_MAX_ID_NAME];
 	
 	/* get querying conditions */
-	DEG_find_node_critera_from_pointer(ptr, prop, &id, &type, name);
+	DEG_find_node_critera_from_pointer(ptr, prop, &id, subdata, &type, name);
 	
 	/* use standard lookup mechanisms... */
-	return DEG_get_node(graph, id, type, name);
+	return DEG_get_node(graph, id, subdata, type, name);
 }
 
 /* Get DepsNode referred to by data path */
@@ -192,7 +194,8 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id)
 }
 
 /* Add a new node */
-DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                           eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
@@ -212,7 +215,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const 
 	 *       some methods may want/need to override this step
 	 */
 	if (nti->init_data) {
-		nti->init_data(node, id);
+		nti->init_data(node, id, subdata);
 	}
 	
 	/* add node to graph 

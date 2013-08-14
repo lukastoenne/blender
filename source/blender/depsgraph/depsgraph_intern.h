@@ -38,13 +38,15 @@
  *
  * < graph: dependency graph that node will be part of
  * < id: ID block that is associated with this
+ * < (subdata): identifier used for sub-ID data (e.g. bone)
  * < type: type of node we're dealing with
- * < name: custom identifier assigned to node 
+ * < (name): custom identifier assigned to node 
  *
  * > returns: A node matching the required characteristics if it exists
  *            OR NULL if no such node exists in the graph
  */
-DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+DepsNode *DEG_find_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME], 
+                        eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
 /* Determine node-querying criteria for finding a suitable node,
@@ -54,11 +56,13 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const cha
  * < (prop): optional property affected - providing this effectively results in inner nodes being returned
  *
  * > id: ID-block for node lookup/creation in
+ * > subdata: identifier used for sub-ID data (e.g. bone)
  * > type: Node Type required
  * > name: buffer to dump name to use for lookup clarification
  */
 void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                        ID **id, eDepsNode_Type *type, char name[DEG_MAX_ID_NAME]);
+                                        ID **id, char subdata[MAX_NAME],
+                                        eDepsNode_Type *type, char name[DEG_MAX_ID_NAME]);
 
 /* Node Getting --------------------------------------------------- */
 
@@ -68,7 +72,8 @@ void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA
  *
  * > returns: A node matching the required characteristics that exists in the graph
  */
-DepsNode *DEG_get_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+DepsNode *DEG_get_node(Depsgraph *graph, ID *id, char subdata[MAX_NAME],
+                       eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
 /* Get the most appropriate node referred to by pointer + property 
@@ -110,7 +115,8 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
  * > returns: The new node created (of the specified type) which now exists in the graph already
  *            (i.e. even if an ID node was created first, the inner node would get created first)
  */
-DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                           eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 /* Remove node from graph, but don't free any of its data */
 void DEG_remove_node(Depsgraph *graph, DepsNode *node);
@@ -128,14 +134,15 @@ void DEG_free_node(DepsNode *node);
  *   have been partially created earlier (e.g. parent ref before parent item is added)
  *
  * < id: ID-Block that operation will be performed on
+ * < (subdata): identifier for sub-ID data that this is for (e.g. bones)
  * < type: Operation node type (corresponding to context/component that it operates in)
  * < optype: Role that operation plays within component (i.e. where in eval process)
  * < op: The operation to perform
  * < name: Identifier for operation - used to find/locate it again
  */
-OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type type,
-                                     eDepsOperation_Type optype, DepsEvalOperationCb op,
-                                     const char name[DEG_MAX_ID_NAME]);
+OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                                     eDepsNode_Type type, eDepsOperation_Type optype, 
+                                     DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME]);
 
 /* Graph Validity -------------------------------------------------- */
 
@@ -256,7 +263,7 @@ typedef struct DepsNodeTypeInfo {
 	
 	/* Data Management ................................ */
 	/* Initialise node-specific data - the node already exists */
-	void (*init_data)(DepsNode *node, ID *id);
+	void (*init_data)(DepsNode *node, ID *id, const char subdata[MAX_NAME]);
 	
 	/* Free node-specific data, but not node itself 
 	 * NOTE: data should already have been removed from graph!
