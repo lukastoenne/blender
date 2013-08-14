@@ -368,7 +368,6 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
 			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_EVAL_POSE, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
-			// XXX: this won't really work... this will only get us the bone component we want!
 			result = deg_find_bone_node(graph, id, subdata, type, name);
 			break;
 			

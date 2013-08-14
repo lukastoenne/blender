@@ -1022,9 +1022,9 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* size */               sizeof(OperationDepsNode),
 	/* name */               "Bone Operation",
 	
-	/* init_data() */        dnti_op_bone__init_data, // XXX
-	/* free_data() */        NULL, // XXX
-	/* copy_data() */        NULL, // XXX
+	/* init_data() */        dnti_op_bone__init_data,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
 	
 	/* add_to_graph() */     dnti_op_bone__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
