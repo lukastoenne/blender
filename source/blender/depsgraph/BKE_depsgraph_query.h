@@ -146,5 +146,25 @@ Depsgraph *DEG_node_get_descendents(const Depsgraph *graph, const DepsNode *node
 Depsgraph *DEG_node_get_ancestors(const Depsgraph *graph, const DepsNode *node);
 
 /* ************************************************ */
+/* Higher-Level Queries */
+
+/* Get ID-blocks which would be affected if specified ID is modified 
+ * < only_direct: True = Only ID-blocks with direct relationships to ID-block will be returned
+ *
+ * > result: (LinkData : ID) a list of ID-blocks matching the specified criteria
+ * > returns: number of matching ID-blocks
+ */
+size_t DEG_query_affected_ids(ListBase *result, const ID *id, const bool only_direct);
+
+
+/* Get ID-blocks which are needed to update/evaluate specified ID 
+ * < only_direct: True = Only ID-blocks with direct relationships to ID-block will be returned
+ *
+ * > result: (LinkData : ID) a list of ID-blocks mathcing the specified criteria
+ * > returns: number of matching ID-blocks
+ */
+size_t DEG_query_required_ids(ListBase *result, const ID *id, const bool only_direct);
+
+/* ************************************************ */
 
 #endif // __BKE_DEPSGRAPH_QUERY_H__
