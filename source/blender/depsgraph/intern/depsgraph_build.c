@@ -98,7 +98,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	/* create data node for this driver ..................................... */
 	BLI_snprintf(name_buf, DEG_MAX_ID_NAME, "Driver @ %p", driver);
 	
-	driver_node = DEG_add_operation(graph, id, DEPSNODE_TYPE_OP_DRIVER, 
+	driver_node = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_DRIVER,
 	                                DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
 	                                driver_name_buf);
 	
@@ -217,6 +217,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 {
 	OperationDepsNode *constraintStackNode;
 	eDepsNode_Type stackNodeType;
+	char *subdata_name;
 	
 	bConstraint *con;
 	
@@ -238,14 +239,18 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 	 */
 	
 	/* create node for constraint stack */
-	if (pchan)
+	if (pchan) {
 		stackNodeType = DEPSNODE_TYPE_OP_BONE;
-	else
+		subdata_name = pchan->name;
+	}
+	else {
 		stackNodeType = DEPSNODE_TYPE_OP_TRANSFORM;
+		subdata_name = NULL;
+	}
 	
-	constraintStackNode = DEG_add_operation(graph, &ob->id, stackNodeType, 
-	                                        DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
-	                                        (pchan) ? pchan->name : "Constraint Stack"); // XXX: review this naming stuff!
+	constraintStackNode = DEG_add_operation(graph, &ob->id, subdata_name, stackNodeType,
+	                                       DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
+	                                        "Constraint Stack");
 	
 	/* add dependencies for each constraint in turn */
 	for (con = constraints->first; con; con = con->next) {
@@ -353,7 +358,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	owner_node = DEG_get_node(graph, &ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* operation node for evaluating/running IK Solver */
-	solver_op = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_POSE,
+	solver_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
 	                              DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
 	                              "IK Solver");
 	
@@ -415,7 +420,7 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	/* --------------- */
 	
 	/* operation node for evaluating/running IK Solver */
-	solver_op = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_POSE,
+	solver_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
 	                              DEPSOP_TYPE_SIM, BKE_pose_splineik_evaluate, 
 	                              "Spline IK Solver");
 	// XXX: what sort of ID-data is needed?
@@ -498,10 +503,9 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		bone_node->pchan = pchan;
 		
 		/* node for bone eval */
-		bone_op = DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_BONE, 
+		bone_op = DEG_add_operation(graph, &ob->id, pchan->name, DEPSNODE_TYPE_OP_BONE, 
 		                              DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
-		                              pchan->name);
-		RNA_pointer_create(&ob->id, &RNA_PoseBone, pchan, &bone_op->ptr);
+		                              "Bone Transforms");
 		
 		/* bone parent */
 		if (pchan->parent) {
@@ -746,12 +750,12 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	
 	/* create nodes ------------------------------------------------------------------------ */
 	/* init/rebuild operation */
-	init_node = DEG_add_operation(graph, &scene->id, DEPSNODE_TYPE_OP_RIGIDBODY,
+	init_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
 	                              DEPSOP_TYPE_INIT, BKE_rigidbody_rebuild_world,
 	                              "Rigidbody World Rebuild");
 	
 	/* do-sim operation */
-	sim_node = DEG_add_operation(graph, &scene->id, DEPSNODE_TYPE_OP_RIGIDBODY,
+	sim_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
 	                             DEPSOP_TYPE_EXEC, BKE_rigidbody_do_simulation,
 	                             "Rigidbody World Do Simulation");
 	
@@ -990,7 +994,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	 */
 	ob_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
 	
-	DEG_add_operation(graph, &ob->id, DEPSNODE_TYPE_OP_TRANSFORM, 
+	DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM, 
 	                  DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
 	                  "BKE_object_eval_parent");
 	
