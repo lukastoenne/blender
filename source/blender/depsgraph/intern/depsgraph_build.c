@@ -1237,7 +1237,17 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Main *bmain, Scene *sce
  */
 void DEG_graph_build_from_group(Depsgraph *graph, Main *bmain, Group *group)
 {
+	GroupObject *go;
 	
+	/* add group objects */
+	for (go = group->gobject.first; go; go = go->next) {
+		Object *ob = go->ob;
+		
+		/* Each "group object" is effectively a separate instance of the underlying
+		 * object data. When the group is evaluated, the transform results and/or 
+		 * some other attributes end up getting overridden by the group
+		 */
+	}
 }
 
 /* Build subgraph for group */
