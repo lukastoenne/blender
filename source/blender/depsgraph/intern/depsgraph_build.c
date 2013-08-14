@@ -286,8 +286,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 			}
 			
 			/* tracker <-> constraints */
-			scene_node = DEG_get_node(graph, (ID *)scene, DEPSNODE_TYPE_PARAMETERS, NULL); // XXX: need new category?
-			DEG_add_new_relation(scene_node, constraintStackNode, DEPSREL_TYPE_ROOT_TO_ACTIVE, "Tracker Scene Relation");
+			// FIXME: actually motionclip dependency on results of motionclip block here...
 			//dag_add_relation(dag, scenenode, node, DAG_RL_SCENE, "Scene Relation");
 		}
 		else if (cti->get_constraint_targets) {
