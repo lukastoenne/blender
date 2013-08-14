@@ -421,7 +421,7 @@ static void rna_def_nparticle_buffer_attributes_api(BlenderRNA *brna, PropertyRN
 	func = RNA_def_function(srna, "new", "rna_NParticleBuffer_attributes_new");
 	RNA_def_function_ui_description(func, "Add a particle attribute");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_string(func, "name", "", MAX_NAME, "Name", "");
+	parm = RNA_def_string(func, "name", "", 64, "Name", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_enum(func, "datatype", nparticle_attribute_datatype_user, PAR_ATTR_DATATYPE_FLOAT, "Data Type", "Base data type");
 	RNA_def_property_flag(parm, PROP_REQUIRED);

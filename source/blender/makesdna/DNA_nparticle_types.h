@@ -29,41 +29,7 @@
  *  \ingroup DNA
  */
 
-#include "BLO_sys_types.h"	/* for uint64_t */
-
-#include "DNA_ID.h"
-
-#include "DNA_node_types.h"
 #include "DNA_pagedbuffer_types.h"
-
-
-/* Standard attribute types */
-/* XXX Warning! when adding attributes here, make sure to update
- * the attribute functions in nparticles.c accordingly!
- * Also make sure the PAR_ATTR_TYPE_MAX below is > than this.
- */
-enum NodeParAttributeStandard {
-	PAR_ATTR_TYPE_UNDEFINED         = -1,
-	
-	PAR_ATTR_TYPE_CUSTOM            = 0,
-	
-	PAR_ATTR_TYPE_FLAG              = 10,
-	PAR_ATTR_TYPE_ID                = 11,
-	PAR_ATTR_TYPE_SOURCE_ID         = 12,
-	PAR_ATTR_TYPE_RANDOM_SEED       = 13,
-	PAR_ATTR_TYPE_REM_INDEX         = 14,
-	
-	PAR_ATTR_TYPE_BIRTH_TIME        = 20,
-	PAR_ATTR_TYPE_POSITION          = 21,
-	PAR_ATTR_TYPE_VELOCITY          = 22,
-	PAR_ATTR_TYPE_FORCE             = 23,
-	PAR_ATTR_TYPE_MASS              = 24,
-	PAR_ATTR_TYPE_ROTATION          = 25,
-	PAR_ATTR_TYPE_ANGULAR_VELOCITY  = 26,
-	PAR_ATTR_TYPE_TORQUE            = 27,
-	PAR_ATTR_TYPE_ANGULAR_MASS      = 28
-};
-
 
 /* Attribute descriptor */
 typedef struct NParticleAttribute {
@@ -93,6 +59,47 @@ typedef struct NParticleBufferAttribute {
 	NParticleAttribute desc;
 	bPagedBuffer data;
 } NParticleBufferAttribute;
+
+typedef struct NParticleBuffer {
+	ListBase attributes;
+} NParticleBuffer;
+
+
+#if 0
+#include "BLO_sys_types.h"	/* for uint64_t */
+
+#include "DNA_ID.h"
+
+#include "DNA_node_types.h"
+
+
+/* Standard attribute types */
+/* XXX Warning! when adding attributes here, make sure to update
+ * the attribute functions in nparticles.c accordingly!
+ * Also make sure the PAR_ATTR_TYPE_MAX below is > than this.
+ */
+enum NodeParAttributeStandard {
+	PAR_ATTR_TYPE_UNDEFINED         = -1,
+	
+	PAR_ATTR_TYPE_CUSTOM            = 0,
+	
+	PAR_ATTR_TYPE_FLAG              = 10,
+	PAR_ATTR_TYPE_ID                = 11,
+	PAR_ATTR_TYPE_SOURCE_ID         = 12,
+	PAR_ATTR_TYPE_RANDOM_SEED       = 13,
+	PAR_ATTR_TYPE_REM_INDEX         = 14,
+	
+	PAR_ATTR_TYPE_BIRTH_TIME        = 20,
+	PAR_ATTR_TYPE_POSITION          = 21,
+	PAR_ATTR_TYPE_VELOCITY          = 22,
+	PAR_ATTR_TYPE_FORCE             = 23,
+	PAR_ATTR_TYPE_MASS              = 24,
+	PAR_ATTR_TYPE_ROTATION          = 25,
+	PAR_ATTR_TYPE_ANGULAR_VELOCITY  = 26,
+	PAR_ATTR_TYPE_TORQUE            = 27,
+	PAR_ATTR_TYPE_ANGULAR_MASS      = 28
+};
+
 
 /* ******** Various specialized typedefs for attributes ******** */
 /* data type of the flag attribute layer */
@@ -142,10 +149,6 @@ typedef struct bNodeInstanceMap {
 	ListBase lb;
 } bNodeInstanceMap;
 
-typedef struct NParticleBuffer {
-	ListBase attributes;
-} NParticleBuffer;
-
 
 typedef struct NParticleSource {
 	int id;
@@ -158,5 +161,6 @@ typedef struct NParticleSource {
 	float emit_carry;
 	int pad;
 } NParticleSource;
+#endif
 
 #endif
