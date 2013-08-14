@@ -1142,7 +1142,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 /* Scene */
 
 /* build depsgraph for specified scene - this is called recursively for sets... */
-static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
+static DepsNode *deg_build_scene_graph(Depsgraph *graph, Main *bmain, Scene *scene)
 {
 	DepsNode *scene_node;
 	DepsNode *time_src;
@@ -1163,7 +1163,7 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 	// XXX: depending on how this goes, that scene itself could probably store its
 	//      own little partial depsgraph?
 	if (scene->set) {
-		DepsNode *set_node = deg_build_scene_graph(graph, scene->set);
+		DepsNode *set_node = deg_build_scene_graph(graph, bmain, scene->set);
 		// TODO: link set to scene, especially our timesource...
 	}
 	
@@ -1286,7 +1286,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	tag_main_idcode(bmain, ID_TEX, FALSE);
 	
 	/* build graph for scene (and set) */
-	scene_node = deg_build_scene_graph(graph, scene);
+	scene_node = deg_build_scene_graph(graph, main, scene);
 	
 	/* hook this up to a "root" node as entrypoint to graph... */
 	graph->root_node = DEG_get_node(graph, DEPSNODE_TYPE_ROOT, "Root (Scene)");
