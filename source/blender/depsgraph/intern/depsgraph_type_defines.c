@@ -93,7 +93,7 @@ static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, ID *
 	/* determine which node to attach timesource to */
 	if (id) {
 		/* get ID node */
-		DepsNode *id_node = DEG_get_node(graph, id, DEPSNODE_TYPE_ID_REF, NULL);
+		DepsNode *id_node = DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 		
 		/* depends on what this is... */
 		switch (GS(id->name)) {
@@ -159,7 +159,7 @@ static DepsNodeTypeInfo DNTI_TIMESOURCE = {
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
-static void dnti_id_ref__init_data(DepsNode *node, ID *id)
+static void dnti_id_ref__init_data(DepsNode *node, ID *id, const char *UNUSED(subdata))
 {
 	IDDepsNode *id_node = (IDDepsNode *)node;
 	
@@ -316,7 +316,7 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 /* Subgraph Node ========================================== */
 
 /* Initialise 'subgraph' node - from pointer data given */
-static void dnti_subgraph__init_data(DepsNode *node, ID *id)
+static void dnti_subgraph__init_data(DepsNode *node, ID *id, const char *UNUSED(subdata))
 {
 	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
 	
@@ -408,7 +408,7 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 /* Standard Component Methods ============================= */
 
 /* Initialise 'component' node - from pointer data given */
-static void dnti_component__init_data(DepsNode *node, ID *UNUSED(id))
+static void dnti_component__init_data(DepsNode *node, ID *UNUSED(id), const char *UNUSED(subdata))
 {
 	ComponentDepsNode *component = (ComponentDepsNode *)node;
 	
@@ -476,7 +476,7 @@ static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, ID *i
 	IDDepsNode *id_node;
 	
 	/* find ID node that we belong to (and create it if it doesn't exist!) */
-	id_node = (IDDepsNode *)DEG_get_node(graph, id, DEPSNODE_TYPE_ID_REF, NULL);
+	id_node = (IDDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 	BLI_assert(id_node != NULL);
 	
 	/* add component to id */
@@ -655,13 +655,29 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 
 /* Bone Component ========================================= */
 
+/* Initialise 'bone component' node - from pointer data given */
+static void dnti_bone__init_data(DepsNode *node, ID *id, const char subdata[MAX_NAME])
+{
+	BoneComponentDepsNode *bone_node = (BoneComponentDepsNode *)node;
+	Object *ob = (Object *)id;
+	
+	/* generic component-node... */
+	dnti_component__init_data(node, id, NULL);
+	
+	/* name of component comes is bone name */
+	BLI_strncpy(node->name, MAX_NAME, subdata);
+	
+	/* bone-specific node data */
+	bone_node->pchan = BKE_pose_channel_from_name(ob->pose, subdata);
+}
+
 /* Add 'bone component' node to graph */
 static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
 	PoseComponentDepsNode *pose_node;
 	
 	/* find pose node that we belong to (and create it if it doesn't exist!) */
-	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, id, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	BLI_assert(pose_node != NULL);
 	
 	/* add bone component to pose bone-hash */
@@ -965,6 +981,20 @@ static DepsNodeTypeInfo DNTI_OP_POSE = {
 
 /* Bone Operation ========================================= */
 
+/* Init local data for bone operation */
+static void dnti_op_bone__init_data(DepsNode *node, ID *id, const char subdata[MAX_NAME])
+{
+	OperationDepsNode *bone_op = (OperationDepsNode *)node;
+	Object *ob;
+	bPoseChannel *pchan;
+	
+	/* set up RNA Pointer to affected bone */
+	ob = (Object *)id;
+	pchan = BKE_pose_channel_from_name(ob->pose, subdata);
+	
+	RNA_pointer_create(id, &RNA_PoseBone, pchan, &bone_op->ptr);
+}
+
 /* Add 'bone operation' node to graph */
 static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 {
@@ -976,14 +1006,14 @@ static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
 	BLI_assert(bone_op->ptr.type == &RNA_PoseBone);
 	pchan = (bPoseChannel *)bone_op->ptr.data;
 	
-	bone_comp = (BoneComponentDepsNode *)DEG_get_node(graph, id, DEPSNODE_TYPE_BONE, pchan->name);
+	bone_comp = (BoneComponentDepsNode *)DEG_get_node(graph, id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* add to hash and list as per usual */
-	BLI_ghash_insert(bone_comp->op_hash, node->name, node);
+	BLI_ghash_insert(bone_comp->op_hash, pchan->name, node);
 	BLI_addtail(&bone_comp->ops, node);
 	
 	/* add backlink to component */
-	node->owner = &bone_node->nd;
+	node->owner = &bone_comp->nd;
 }
 
 /* Bone Operation Node */
@@ -992,7 +1022,7 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* size */               sizeof(OperationDepsNode),
 	/* name */               "Bone Operation",
 	
-	/* init_data() */        NULL, // XXX
+	/* init_data() */        dnti_op_bone__init_data, // XXX
 	/* free_data() */        NULL, // XXX
 	/* copy_data() */        NULL, // XXX
 	
