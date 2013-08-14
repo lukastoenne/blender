@@ -60,9 +60,18 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
  * > type: Node Type required
  * > name: buffer to dump name to use for lookup clarification
  */
-void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                        ID **id, char subdata[MAX_NAME],
-                                        eDepsNode_Type *type, char name[DEG_MAX_ID_NAME]);
+void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
+                                         ID **id, char subdata[MAX_NAME],
+                                         eDepsNode_Type *type, char name[DEG_MAX_ID_NAME]);
+                                         
+/* Convenience wrapper to find node given just pointer + property
+ * < ptr: pointer to the data that node will represent
+ * < (prop): optional property affected - providing this effectively results in inner nodes being returned
+ *
+ * > returns: A node matching the required characteristics if it exists
+ *            OR NULL if no such node exists in the graph
+ */
+DepsNode *DEG_find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop);
 
 /* Node Getting --------------------------------------------------- */
 

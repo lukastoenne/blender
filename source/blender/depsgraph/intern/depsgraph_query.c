@@ -394,9 +394,9 @@ DepsNode *DEG_find_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
 /* Determine node-querying criteria for finding a suitable node,
  * given a RNA Pointer (and optionally, a property too)
  */
-void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                        ID **id, char subdata[MAX_NAME],
-                                        eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
+void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
+                                         ID **id, char subdata[MAX_NAME],
+                                         eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
 {
 	/* set default values for returns */
 	*id       = ptr->id;                   /* for obvious reasons... */
@@ -425,6 +425,21 @@ void DEG_find_node_critera_from_pointer(const PointerRNA *ptr, const PropertyRNA
 		*type = DEPSNODE_TYPE_SEQUENCER;
 		BLI_strncpy(subdata, MAX_NAME, seq->name); // xxx?
 	}
+}
+
+/* Convenience wrapper to find node given just pointer + property */
+DepsNode *DEG_find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop)
+{
+	ID *id;
+	eDepsNode_Type type;
+	char subdata[MAX_NAME];
+	char name[DEG_MAX_ID_NAME];
+	
+	/* get querying conditions */
+	DEG_find_node_critera_from_pointer(ptr, prop, &id, subdata, &type, name);
+	
+	/* use standard node finding code... */
+	return DEG_find_node(graph, id, subdata, type, name);
 }
 
 /* ************************************************ */
