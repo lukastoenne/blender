@@ -1155,6 +1155,10 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Scene *scene)
 	/* timesource */
 	time_src = DEG_get_node(graph, &scene->id, DEPSNODE_TYPE_TIMESOURCE, "Scene Timesource");
 	
+	/* sound system */
+	// XXX: this is mainly on frame change...
+	
+	
 	/* build subgraph for set, and link this in... */
 	// XXX: depending on how this goes, that scene itself could probably store its
 	//      own little partial depsgraph?
