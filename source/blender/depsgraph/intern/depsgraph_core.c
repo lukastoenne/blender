@@ -284,9 +284,9 @@ void DEG_free_node(DepsNode *node)
 /* Convenience Functions ---------------------------- */
 
 /* Create a new node for representing an operation and add this to graph */
-OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type type,
-                                     eDepsOperation_Type optype, DepsEvalOperationCb op,
-                                     const char name[DEG_MAX_ID_NAME])
+OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+                                     eDepsNode_Type type, eDepsOperation_Type optype, 
+                                     DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME])
 {
 	OperationDepsNode *op_node = NULL;
 	eDepsNode_Type component_type;
@@ -296,7 +296,7 @@ OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, eDepsNode_Type ty
 		return NULL;
 	
 	/* create operation node (or find an existing but perhaps on partially completed one) */
-	op_node = (OperationDepsNode *)DEG_get_node(graph, id, type, name);
+	op_node = (OperationDepsNode *)DEG_get_node(graph, id, subdata, type, name);
 	BLI_assert(op_node != NULL);
 	
 	/* attach extra data... */
