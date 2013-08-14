@@ -178,7 +178,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
-		time_src = DEG_find_node(graph, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
+		time_src = DEG_find_node(graph, NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
 		DEG_add_new_relation(graph, time_src, adt_node, DEPSREL_TYPE_TIME, 
 		                     "[TimeSrc -> Animation] DepsRel");
 		                     
