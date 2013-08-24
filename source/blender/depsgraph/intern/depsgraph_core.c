@@ -445,9 +445,13 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	if (graph == NULL)
 		return;
 	
+	/* clear count of number of nodes needing updates */
+	graph->tagged_count = 0;
+	
 	/* starting from the tagged "entry" nodes, flush outwards... */
 	// XXX: perhaps instead of iterating, we should just push these onto the queue of nodes to check?
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
+	// NOTE: count how many nodes we need to handle - entry nodes may be component nodes which don't count for this purpose!
 	for (ld = graph->entry_tags; ld; ld = ld->next) {
 		DepsNode *node = ld->data;
 		
