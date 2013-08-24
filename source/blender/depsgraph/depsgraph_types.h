@@ -370,8 +370,11 @@ struct Depsgraph {
 	/* Quick-Access Temp Data ............. */
 	ListBase entry_tags;     /* (LinkData : DepsNode) nodes which have been tagged as "directly modified" */
 	
-	// XXX: other data...
-	// XXX: what about free-floating non-id-related nodes? where do "they" go?
+	/* Convenience Data ................... */
+	ListBase all_opnodes;    /* (LinkData : DepsNode) all operation nodes, sorted in order of single-thread traversal order */
+	size_t num_nodes;        /* number of operation nodes in all_opnodes list */
+	
+	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
 };
 
 /* ************************************* */
