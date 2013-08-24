@@ -477,7 +477,7 @@ Depsgraph *DEG_graph_new()
 	Depsgraph *graph = MEM_callocN(sizeof(Depsgraph), "Depsgraph");
 	
 	/* initialise hash used to quickly find node associated with a particular ID block */
-	graph->id_hash = BLI_ghash_ptr_new("Depsgraph NodeHash");
+	graph->id_hash = BLI_ghash_ptr_new("Depsgraph ID NodeHash");
 	
 	/* return new graph */
 	return graph;
