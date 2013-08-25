@@ -734,10 +734,12 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 	/* particle systems */
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 		ParticleSettings *part = psys->part;
-		DepsNode *part_comp;
+		DepsNode *psys_op;
 		
 		/* this particle system */
-		part_component = DEG_add_new_node(graph, &ob->id, part->name/*?*/, DEPSNODE_TYPE_PARTICLESYS, NULL);
+		psys_op = DEG_add_operation(graph, &ob->id, part->name, DEPSNODE_TYPE_OP_PARTICLE, 
+		                            DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
+		                            "PSys Eval");
 		
 		
 	}
