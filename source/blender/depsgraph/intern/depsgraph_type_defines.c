@@ -1033,7 +1033,6 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 };
 
 /* Particle Operation ===================================== */
-// XXX: this category needs further design work
 
 /* Add 'particle operation' node to graph */
 static void dnti_op_particle__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
@@ -1051,7 +1050,7 @@ static void dnti_op_particle__remove_from_graph(Depsgraph *graph, DepsNode *node
 /* Particles Operation Node */
 static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
 	/* type */               DEPSNODE_TYPE_OP_PARTICLE,
-	/* size */               sizeof(OperationDepsNode), // XXX
+	/* size */               sizeof(OperationDepsNode),
 	/* name */               "Particles Operation",
 	
 	/* init_data() */        NULL, // XXX
@@ -1064,7 +1063,8 @@ static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
 	/* validate_links() */   NULL // XXX
 };
 
-/* RigidyBody Operation =================================== */
+/* RigidBody Operation ==================================== */
+/* Note: RigidBody Operations are reserved for scene-level rigidbody sim steps */
 
 /* Add 'rigidbody operation' node to graph */
 static void dnti_op_rigidbody__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
