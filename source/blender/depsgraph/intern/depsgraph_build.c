@@ -747,6 +747,12 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 		psys_op = DEG_add_operation(graph, &ob->id, part->name, DEPSNODE_TYPE_OP_PARTICLE, 
 		                            DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
 		                            "PSys Eval");
+		                            
+		/* animation associated with this particle system */
+		// XXX: what if this is used more than once!
+		if (part->adt) {
+			deg_build_animdata_graph(graph, scene, (ID *)part);
+		}
 		
 		/* XXX: if particle system is later re-enabled, we must do full rebuild? */
 		if (!psys_check_enabled(ob, psys))
