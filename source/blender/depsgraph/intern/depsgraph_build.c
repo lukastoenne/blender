@@ -874,7 +874,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 		/* init node is only occasional (i.e. on certain frame values only), 
 		 * but we must still include this link 
 		 */
-		DEG_add_new_relation(time_src, &init_node->nd, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)"
+		DEG_add_new_relation(time_src, &init_node->nd, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)");
 		
 		/* simulation step must always be performed */
 		DEG_add_new_relation(time_src, &sim_node->nd, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Sim Step");
