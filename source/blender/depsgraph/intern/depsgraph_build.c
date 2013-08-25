@@ -734,6 +734,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 	/* particle systems */
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 		ParticleSettings *part = psys->part;
+		ListBase *effectors = NULL;
 		DepsNode *psys_op;
 		
 		/* this particle system */
@@ -741,7 +742,73 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 		                            DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
 		                            "PSys Eval");
 		
-		
+#if 0
+		if (!psys_check_enabled(ob, psys))
+			continue;
+
+		if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {
+			ParticleTarget *pt = psys->targets.first;
+
+			for (; pt; pt = pt->next) {
+				if (pt->ob && BLI_findlink(&pt->ob->particlesystem, pt->psys - 1)) {
+					node2 = dag_get_node(dag, pt->ob);
+					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Particle Targets");
+				}
+			}
+		}
+
+		if (part->ren_as == PART_DRAW_OB && part->dup_ob) {
+			node2 = dag_get_node(dag, part->dup_ob);
+			/* note that this relation actually runs in the wrong direction, the problem
+			 * is that dupli system all have this (due to parenting), and the render
+			 * engine instancing assumes particular ordering of objects in list */
+			dag_add_relation(dag, node, node2, DAG_RL_OB_OB, "Particle Object Visualization");
+			if (part->dup_ob->type == OB_MBALL)
+				dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA, "Particle Object Visualization");
+		}
+
+		if (part->ren_as == PART_DRAW_GR && part->dup_group) {
+			for (go = part->dup_group->gobject.first; go; go = go->next) {
+				node2 = dag_get_node(dag, go->ob);
+				dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Particle Group Visualization");
+			}
+		}
+
+		effectors = pdInitEffectors(scene, ob, psys, part->effector_weights);
+
+		if (effectors) {
+			EffectorCache *eff;
+			
+			for (eff = effectors->first; eff; eff = eff->next) {
+				if (eff->psys) {
+					node2 = dag_get_node(dag, eff->ob);
+					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Particle Field");
+				}
+			}
+		}
+
+		pdEndEffectors(&effectors);
+
+		if (part->boids) {
+			BoidRule *rule = NULL;
+			BoidState *state = NULL;
+			
+			for (state = part->boids->states.first; state; state = state->next) {
+				for (rule = state->rules.first; rule; rule = rule->next) {
+					Object *ruleob = NULL;
+					if (rule->type == eBoidRuleType_Avoid)
+						ruleob = ((BoidRuleGoalAvoid *)rule)->ob;
+					else if (rule->type == eBoidRuleType_FollowLeader)
+						ruleob = ((BoidRuleFollowLeader *)rule)->ob;
+
+					if (ruleob) {
+						node2 = dag_get_node(dag, ruleob);
+						dag_add_relation(dag, node2, node, DAG_RL_OB_DATA, "Boid Rule");
+					}
+				}
+			}
+		}
+#endif
 	}
 	
 	/* pointcache */
