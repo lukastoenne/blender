@@ -715,16 +715,35 @@ static void deg_build_compo_graph(Depsgraph *graph, Scene *scene)
 /* ************************************************* */
 /* Physics */
 
-/* Particle systems */
+/* Physics Systems */
 static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
-	// loop over particle systems
+	ParticleSystem *psys;
+	DepsNode *psys_comp;
 	
-	// collision objects?
+	/* STRUCTURE:
+	 * 1) ID.EVAL_PARTICLES Component (ob)
+	 *   2) ParticleSystem Eval Operation / ParticleSettings Component (part)
+	 *   -  For now, just do a single blackbox operation per particle system...
+	 *     3) ...
+	 */
 	
-	// pointcaches?
+	/* component for all particle systems */
+	psys_comp = DEG_add_new_node(graph, &ob->id, NULL, DEPSNODE_TYPE_EVAL_PARTICLES, NULL);
 	
-	// etc.
+	/* particle systems */
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+		ParticleSettings *part = psys->part;
+		DepsNode *part_comp;
+		
+		/* this particle system */
+		part_component = DEG_add_new_node(graph, &ob->id, part->name/*?*/, DEPSNODE_TYPE_PARTICLESYS, NULL);
+		
+		
+	}
+	
+	/* pointcache */
+	// TODO...
 }
 
 /* ------------------------------------------------ */
@@ -924,6 +943,11 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 				deg_build_material_graph(graph, scene, geom_node, ma);
 			}
 		}
+	}
+	
+	/* geometry collision */
+	if (ELEM3(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
+		// add geometry collider relations
 	}
 }
 
