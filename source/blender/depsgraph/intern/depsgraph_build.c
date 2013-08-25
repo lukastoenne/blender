@@ -735,28 +735,30 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 		ParticleSettings *part = psys->part;
 		ListBase *effectors = NULL;
-		DepsNode *psys_op;
+		EffectorCache *eff;
+		DepsNode *psys_op, *node2;
 		
 		/* this particle system */
 		psys_op = DEG_add_operation(graph, &ob->id, part->name, DEPSNODE_TYPE_OP_PARTICLE, 
 		                            DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
 		                            "PSys Eval");
 		
-#if 0
+		/* XXX: if particle system is later re-enabled, we must do full rebuild? */
 		if (!psys_check_enabled(ob, psys))
 			continue;
-
+		
+#if 0
 		if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {
-			ParticleTarget *pt = psys->targets.first;
+			ParticleTarget *pt;
 
-			for (; pt; pt = pt->next) {
+			for (pt = psys->targets.first; pt; pt = pt->next) {
 				if (pt->ob && BLI_findlink(&pt->ob->particlesystem, pt->psys - 1)) {
 					node2 = dag_get_node(dag, pt->ob);
 					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Particle Targets");
 				}
 			}
 		}
-
+		
 		if (part->ren_as == PART_DRAW_OB && part->dup_ob) {
 			node2 = dag_get_node(dag, part->dup_ob);
 			/* note that this relation actually runs in the wrong direction, the problem
@@ -766,29 +768,32 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 			if (part->dup_ob->type == OB_MBALL)
 				dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA, "Particle Object Visualization");
 		}
-
+		
 		if (part->ren_as == PART_DRAW_GR && part->dup_group) {
 			for (go = part->dup_group->gobject.first; go; go = go->next) {
 				node2 = dag_get_node(dag, go->ob);
 				dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Particle Group Visualization");
 			}
 		}
-
+#endif
+		
+		/* effectors */
 		effectors = pdInitEffectors(scene, ob, psys, part->effector_weights);
-
+		
 		if (effectors) {
-			EffectorCache *eff;
-			
 			for (eff = effectors->first; eff; eff = eff->next) {
 				if (eff->psys) {
-					node2 = dag_get_node(dag, eff->ob);
-					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Particle Field");
+					// XXX: DAG_RL_DATA_DATA | DAG_RL_OB_DATA
+					node2 = DEG_get_node(graph, (ID *)eff->ob, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+					DEG_add_new_relation(node2, psys_op, DEPSREL_TYPE_STANDARD, "Particle Field");
 				}
 			}
 		}
-
+		
 		pdEndEffectors(&effectors);
-
+		
+#if 0
+		/* boids */
 		if (part->boids) {
 			BoidRule *rule = NULL;
 			BoidState *state = NULL;
