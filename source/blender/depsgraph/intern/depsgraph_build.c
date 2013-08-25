@@ -721,11 +721,16 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 	ParticleSystem *psys;
 	DepsNode *psys_comp;
 	
-	/* STRUCTURE:
-	 * 1) ID.EVAL_PARTICLES Component (ob)
-	 *   2) ParticleSystem Eval Operation / ParticleSettings Component (part)
-	 *   -  For now, just do a single blackbox operation per particle system...
-	 *     3) ...
+	/* == Particle Systems Nodes ==
+	 * There are two types of nodes associated with representing
+	 * particle systems:
+	 *  1) Component (EVAL_PARTICLES) - This is the particle-system
+	 *     evaluation context for an object. It acts as the container
+	 *     for all the nodes associated with a particular set of particle
+	 *     systems.
+	 *  2) Particle System Eval Operation - This operation node acts as a
+	 *     blackbox evaluation step for one particle system referenced by
+	 *     the particle systems stack. All dependencies link to this operation.
 	 */
 	
 	/* component for all particle systems */
