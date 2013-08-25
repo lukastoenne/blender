@@ -784,7 +784,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 			for (eff = effectors->first; eff; eff = eff->next) {
 				if (eff->psys) {
 					// XXX: DAG_RL_DATA_DATA | DAG_RL_OB_DATA
-					node2 = DEG_get_node(graph, (ID *)eff->ob, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+					node2 = DEG_get_node(graph, (ID *)eff->ob, NULL, DEPSNODE_TYPE_GEOMETRY, NULL); // xxx: particles instead?
 					DEG_add_new_relation(node2, psys_op, DEPSREL_TYPE_STANDARD, "Particle Field");
 				}
 			}
@@ -792,7 +792,6 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 		
 		pdEndEffectors(&effectors);
 		
-#if 0
 		/* boids */
 		if (part->boids) {
 			BoidRule *rule = NULL;
@@ -807,13 +806,12 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 						ruleob = ((BoidRuleFollowLeader *)rule)->ob;
 
 					if (ruleob) {
-						node2 = dag_get_node(dag, ruleob);
-						dag_add_relation(dag, node2, node, DAG_RL_OB_DATA, "Boid Rule");
+						node2 = DEG_get_node(graph, &ruleob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+						DEG_add_new_relation(node2, psys_op, DEPSREL_TYPE_TRANSFORM, "Boid Rule");
 					}
 				}
 			}
 		}
-#endif
 	}
 	
 	/* pointcache */
