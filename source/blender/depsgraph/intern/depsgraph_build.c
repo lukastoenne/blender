@@ -911,6 +911,7 @@ static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob
 }
 
 /* ObData Geometry Evaluation */
+// XXX: what happens if the datablock is shared!
 static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
 	DepsNode *ob_geom, *obdata_geom;
@@ -1313,6 +1314,7 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Main *bmain, Scene *sce
 			DepsNode *group_node;
 			
 			/* add group as a subgraph... */
+			// TODO: we need to make this group reliant on the object that spawned it...
 			group_node = DEG_graph_build_group_subgraph(graph, bmain, group);
 			
 			group->id.flag &= ~LIB_DOIT;
