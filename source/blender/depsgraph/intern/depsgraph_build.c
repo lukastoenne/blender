@@ -957,6 +957,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		case OB_CURVE:
 		case OB_FONT:
 		{
+			OperationDepsNode *op_eval, *op_path;
 			Curve *cu = ob->data;
 			
 			/* curve's dependencies */
@@ -977,7 +978,15 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			}
 			
 			/* curve evaluation operations */
-			// BKE_displist_make_curveTypes
+			/* - calculate curve geometry, including */
+			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                            DEPSOP_TYPE_EXEC, BKE_displist_make_curveTypes, 
+			                            "Geometry Eval");
+			
+			/* - calculate curve path - this is used by constraints, etc. */
+			op_path = DEG_add_operation(graph, obdata_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                            DEPSOP_TYPE_EXEC, BKE_curve_calc_path,
+			                            "Path");
 		}
 		break;
 		
