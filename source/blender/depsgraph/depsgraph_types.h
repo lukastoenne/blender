@@ -176,7 +176,7 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OP_ANIMATION     = 102,      /* Animation Evaluation Operation */
 	DEPSNODE_TYPE_OP_TRANSFORM     = 103,      /* Transform Evaluation Operation (incl. constraints, parenting, anim-to-matrix) */
 	DEPSNODE_TYPE_OP_GEOMETRY      = 104,      /* Geometry Evaluation Operation (incl. modifiers) */
-	DEPSNODE_TYPE_OP_SEQUENCER     = 105,
+	DEPSNODE_TYPE_OP_SEQUENCER     = 105,      /* Sequencer Evaluation Operation */
 	
 	DEPSNODE_TYPE_OP_UPDATE        = 110,      /* Property Update Evaluation Operation [Parameter] */
 	DEPSNODE_TYPE_OP_DRIVER        = 112,      /* Driver Evaluation Operation [Parameter] */

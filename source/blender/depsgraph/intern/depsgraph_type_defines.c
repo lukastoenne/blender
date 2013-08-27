@@ -80,7 +80,7 @@ static DepsNodeTypeInfo DNTI_ROOT = {
 	/* add_to_graph() */     dnti_root__add_to_graph,
 	/* remove_from_graph()*/ dnti_root__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX?
+	/* validate_links() */   NULL
 };
 
 /* Time Source Node ======================================= */
@@ -98,6 +98,12 @@ static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, ID *
 		/* depends on what this is... */
 		switch (GS(id->name)) {
 			case ID_SCE: /* Scene - Usually sequencer strip causing time remapping... */
+			{
+				// TODO...
+			}
+			break;
+			
+			case ID_GR: /* Group */
 			{
 				// TODO...
 			}
