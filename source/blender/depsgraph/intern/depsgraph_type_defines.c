@@ -253,6 +253,8 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	ComponentDepsNode *geom = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_GEOMETRY);
 	ComponentDepsNode *proxy = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_PROXY);
 	ComponentDepsNode *pose = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_POSE);
+	ComponentDepsNode *psys = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_PARTICLES);
+	ComponentDepsNode *seq = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_SEQUENCER);
 	
 	/* enforce (gross) ordering of these components................................................. */
 	// TODO: create relationships to do this...
