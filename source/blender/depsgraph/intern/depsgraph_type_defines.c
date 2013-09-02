@@ -645,6 +645,32 @@ static void dnti_pose_eval__free_data(DepsNode *node)
 	dnti_component__free_data(node);
 }
 
+/* Validate links for pose evaluation */
+static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
+{
+	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
+	ListBase sources = {NULL, NULL};
+	ListBase sinks = {NULL, NULL};
+	GHashIterator *hashIter;
+	
+	/* ensure that each bone has been validated... */
+	GHASH_ITER(hashIter, src->component_hash) {
+		DepsNode *bone_component = BLI_ghashIterator_getValue(hashIter);
+		
+		/* 1) recursively validate the links within bone component */
+		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
+		dnti_bone__validate_links(graph, bone_component);
+		
+		/* 2) determine which of these bones are the source/sink operations... */
+		// ...
+	}
+	BLI_ghashIterator_free(hashIter);
+	
+	/* create standard pose evaluation start/end hooks */
+	
+	/* attach these endpoints to the bones... */
+}
+
 /* Pose Evaluation */
 static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 	/* type */               DEPSNODE_TYPE_EVAL_POSE,
@@ -658,7 +684,7 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   dnti_pose_eval__validate_links
 };
 
 /* Bone Component ========================================= */
