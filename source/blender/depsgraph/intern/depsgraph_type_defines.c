@@ -667,9 +667,18 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 			/* source */
 			BLI_addtail(&sources, BLI_genericNodeN(bone_comp));
 		}
+		else {
+			/* this could also be a source if all other inlinks are outside of this component */
+			// TODO: query API method for this...
+		}
+		
 		if (bone_comp->outlinks.first == NULL) {
 			/* sink */
 			BLI_addtail(&sources, BLI_genericNodeN(bone_comp));
+		}
+		else {
+			/* this could also be a sink if all other outlinsk are outside of this component */
+			// TODO: query API method for this...
 		}
 	}
 	BLI_ghashIterator_free(hashIter);
