@@ -651,6 +651,7 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
 	ListBase sources = {NULL, NULL};
 	ListBase sinks = {NULL, NULL};
+	
 	GHashIterator *hashIter;
 	
 	/* ensure that each bone has been validated... */
@@ -666,9 +667,36 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	}
 	BLI_ghashIterator_free(hashIter);
 	
-	/* create standard pose evaluation start/end hooks */
-	
-	/* attach these endpoints to the bones... */
+	/* create standard pose evaluation start/end hook steps */
+	if (sources.first && sinks.first) {
+		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
+		ID *id;
+		
+		/* get ID-block that pose-component belongs to */
+		BLI_assert(pcomp->nd.owner != NULL);
+		id = ((IDDepsNode *)pcomp->nd.owner)->id;
+		
+		/* create standard pose evaluation start/end hooks */
+		rebuild_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
+		                               DEPSOP_TYPE_INIT, BKE_pose_rebuild_op,
+		                               "Rebuild Pose");
+		
+		init_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
+		                            DEPSOP_TYPE_INIT, BKE_pose_eval_init,
+		                            "Init Pose Eval");
+		
+		cleanup_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
+		                               DEPSOP_TYPE_POST, BKE_pose_eval_flush,
+		                               "Flush Pose Eval");
+		
+		/* attach these endpoints to the bones... */
+		
+	}
+	else {
+		/* this case shouldn't happen... just including it here for debug purposes initially */
+		BLI_assert(sources.first != NULL);
+		BLI_assert(sinks.first != NULL);
+	}
 }
 
 /* Pose Evaluation */
