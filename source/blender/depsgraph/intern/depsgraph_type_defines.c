@@ -656,14 +656,21 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	
 	/* ensure that each bone has been validated... */
 	GHASH_ITER(hashIter, src->component_hash) {
-		DepsNode *bone_component = BLI_ghashIterator_getValue(hashIter);
+		DepsNode *bone_comp = BLI_ghashIterator_getValue(hashIter);
 		
 		/* 1) recursively validate the links within bone component */
 		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
-		dnti_bone__validate_links(graph, bone_component);
+		dnti_bone__validate_links(graph, bone_comp);
 		
 		/* 2) determine which of these bones are the source/sink operations... */
-		// ...
+		if (bone_comp->inlinks.first == NULL) {
+			/* source */
+			BLI_addtail(&sources, BLI_genericNodeN(bone_comp));
+		}
+		if (bone_comp->outlinks.first == NULL) {
+			/* sink */
+			BLI_addtail(&sources, BLI_genericNodeN(bone_comp));
+		}
 	}
 	BLI_ghashIterator_free(hashIter);
 	
@@ -691,6 +698,10 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		
 		/* attach these endpoints to the bones... */
 		
+		
+		/* cleanup lists */
+		BLI_freelistN(&sources);
+		BLI_freelistN(&sinks);
 	}
 	else {
 		/* this case shouldn't happen... just including it here for debug purposes initially */
