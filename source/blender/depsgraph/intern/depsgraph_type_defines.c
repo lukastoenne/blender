@@ -739,6 +739,11 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		                               DEPSOP_TYPE_POST, BKE_pose_eval_flush,
 		                               "Flush Pose Eval");
 		
+		/* attach links between these operations */
+		DEG_add_new_relation(rebuild_op, init_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
+		DEG_add_new_relation(init_op, cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
+		
+		
 		/* attach these endpoints to the bones... */
 		
 		
