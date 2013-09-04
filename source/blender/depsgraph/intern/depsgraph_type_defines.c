@@ -677,8 +677,7 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		DEG_add_new_relation(rebuild_op, init_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
 		DEG_add_new_relation(init_op, cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
 		
-		
-		/* attach these endpoints to the bones... */
+		/* NOTE: bones will attach themselves to these endpoints */
 	}
 	
 	/* ensure that each bone has been validated... */
