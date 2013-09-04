@@ -670,6 +670,40 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		else {
 			/* this could also be a source if all other inlinks are outside of this component */
 			// TODO: query API method for this...
+			bool has_internal_links = false;
+			
+			DEPSNODE_RELATIONS_ITER_BEGIN(bone_comp->inlinks.first, rel)
+			{
+				/* determine if source of this relation is within this node... */
+				if (rel->from->type == DEPSNODE_TYPE_BONE) {
+					/* one of our bones? */
+					if (rel->from->owner == pcomp) {
+						has_internal_links = true;
+						break;
+					}
+				}
+				else if (rel->from->type == DEPSNODE_TYPE_OP_BONE) {
+					/* operation from one of our own bones?
+					 * - (bone_op) -> [bone] -> [pose]
+					 */
+					if (rel->from->owner->owner == pcomp) {
+						has_internal_links = true;
+						break;
+					}
+				}
+				else if (rel->from->type == DEPSNODE_TYPE_OP_POSE) {
+					/* own IK solver? */
+					if (rel->from->owner == pcomp) {
+						has_internal_links = true;
+						break;
+					}
+				}
+			}
+			DEPSNODE_RELATIONS_ITER_END;
+			
+			if (has_internal_links) {
+				
+			}
 		}
 		
 		if (bone_comp->outlinks.first == NULL) {
