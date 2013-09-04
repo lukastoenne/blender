@@ -649,76 +649,9 @@ static void dnti_pose_eval__free_data(DepsNode *node)
 static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 {
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
-	ListBase sources = {NULL, NULL};
-	ListBase sinks = {NULL, NULL};
-	
 	GHashIterator *hashIter;
 	
-	/* ensure that each bone has been validated... */
-	GHASH_ITER(hashIter, src->component_hash) {
-		DepsNode *bone_comp = BLI_ghashIterator_getValue(hashIter);
-		
-		/* 1) recursively validate the links within bone component */
-		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
-		dnti_bone__validate_links(graph, bone_comp);
-		
-		/* 2) determine which of these bones are the source/sink operations... */
-		if (bone_comp->inlinks.first == NULL) {
-			/* source */
-			BLI_addtail(&sources, BLI_genericNodeN(bone_comp));
-		}
-		else {
-			/* this could also be a source if all other inlinks are outside of this component */
-			// TODO: query API method for this...
-			bool has_internal_links = false;
-			
-			DEPSNODE_RELATIONS_ITER_BEGIN(bone_comp->inlinks.first, rel)
-			{
-				/* determine if source of this relation is within this node... */
-				if (rel->from->type == DEPSNODE_TYPE_BONE) {
-					/* one of our bones? */
-					if (rel->from->owner == pcomp) {
-						has_internal_links = true;
-						break;
-					}
-				}
-				else if (rel->from->type == DEPSNODE_TYPE_OP_BONE) {
-					/* operation from one of our own bones?
-					 * - (bone_op) -> [bone] -> [pose]
-					 */
-					if (rel->from->owner->owner == pcomp) {
-						has_internal_links = true;
-						break;
-					}
-				}
-				else if (rel->from->type == DEPSNODE_TYPE_OP_POSE) {
-					/* own IK solver? */
-					if (rel->from->owner == pcomp) {
-						has_internal_links = true;
-						break;
-					}
-				}
-			}
-			DEPSNODE_RELATIONS_ITER_END;
-			
-			if (has_internal_links) {
-				
-			}
-		}
-		
-		if (bone_comp->outlinks.first == NULL) {
-			/* sink */
-			BLI_addtail(&sources, BLI_genericNodeN(bone_comp));
-		}
-		else {
-			/* this could also be a sink if all other outlinsk are outside of this component */
-			// TODO: query API method for this...
-		}
-	}
-	BLI_ghashIterator_free(hashIter);
-	
-	/* create standard pose evaluation start/end hook steps */
-	if (sources.first && sinks.first) {
+	{
 		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
 		ID *id;
 		
@@ -751,11 +684,16 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		BLI_freelistN(&sources);
 		BLI_freelistN(&sinks);
 	}
-	else {
-		/* this case shouldn't happen... just including it here for debug purposes initially */
-		BLI_assert(sources.first != NULL);
-		BLI_assert(sinks.first != NULL);
+	
+	/* ensure that each bone has been validated... */
+	GHASH_ITER(hashIter, src->component_hash) {
+		DepsNode *bone_comp = BLI_ghashIterator_getValue(hashIter);
+		
+		/* 1) recursively validate the links within bone component */
+		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
+		dnti_bone__validate_links(graph, bone_comp);
 	}
+	BLI_ghashIterator_free(hashIter);
 }
 
 /* Pose Evaluation */
