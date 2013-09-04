@@ -686,7 +686,7 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	}
 	
 	/* ensure that each bone has been validated... */
-	GHASH_ITER(hashIter, src->component_hash) {
+	GHASH_ITER(hashIter, pcomp->bone_hash) {
 		DepsNode *bone_comp = BLI_ghashIterator_getValue(hashIter);
 		
 		/* 1) recursively validate the links within bone component */
