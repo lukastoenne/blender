@@ -651,7 +651,8 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
 	GHashIterator *hashIter;
 	
-	{
+	/* create our core operations... */
+	if (BLI_ghash_size(pcomp->bone_hash) || (pcomp->ops.first)) {
 		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
 		ID *id;
 		
@@ -678,18 +679,13 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		
 		
 		/* attach these endpoints to the bones... */
-		
-		
-		/* cleanup lists */
-		BLI_freelistN(&sources);
-		BLI_freelistN(&sinks);
 	}
 	
 	/* ensure that each bone has been validated... */
 	GHASH_ITER(hashIter, pcomp->bone_hash) {
 		DepsNode *bone_comp = BLI_ghashIterator_getValue(hashIter);
 		
-		/* 1) recursively validate the links within bone component */
+		/* recursively validate the links within bone component */
 		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
 		dnti_bone__validate_links(graph, bone_comp);
 	}
