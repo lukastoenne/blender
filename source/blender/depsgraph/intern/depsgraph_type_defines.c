@@ -755,10 +755,50 @@ static void dnti_bone__remove_from_graph(Depsgraph *graph, DepsNode *node)
 	 */
 }
 
-/* Validate 'bone component' links... */
+/* Validate 'bone component' links... 
+ * - Re-route all component-level relationships to the nodes 
+ */
 static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 {
+	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node->owner;
+	BoneComponentDepsNode *bcomp = (BoneComponentDepsNode *)node;
+	bPoseChannel *pchan = bcomp->pchan;
 	
+	OperationDepsNode *btrans_op = BLI_ghash_lookup(bcomp->op_hash, "Bone Transforms");
+	OperationDepsNode *final_op = NULL;
+	
+	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
+	if (pchan->parent == NULL) {
+		DepsNode *pinit_op = BLI_ghash_lookup(pcomp->op_hash, "Init Pose Eval");
+		DEG_add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
+	}
+	
+	/* inlinks destination should all go to the "Bone Transforms" operation */
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
+	{
+	
+	}
+	DEPSNODE_RELATIONS_ITER_END;
+	
+	
+	/* outlink source target depends on what we might have:
+	 * 1) Transform only - No constraints at all
+	 * 2) Constraints node - Just plain old constraints
+	 * 3) IK Solver node - If part of IK chain
+	 */
+	// TODO: search for IK-solver rels?
+	
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+	{
+	
+	}
+	DEPSNODE_RELATIONS_ITER_END;
+	
+	/* link bone/component to pose "sinks" as final link, unless it has obvious quirks */
+	{
+		DepsNode *ppost_op = BLI_ghash_lookup(pcomp->op_hash, "Cleanup Pose Eval");
+		DEG_add_new_relation(final_op, ppost_op, DEPSNODE_TYPE_OPERATION, "PoseEval Sink-Bone Link");
+	}
 }
 
 /* Bone Type Info */
