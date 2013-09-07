@@ -894,14 +894,14 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 			OperationDepsNode *rbo_op;    /* "rigidbody object" flushing operation - what we call */
 			
 			
-			/* get object's transform component */
-			trans_comp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
-			
-			/* get operation that rigidbody should follow 
+			/* 1.1) get object's transform component 
 			 * NOTE: since we're doing this step after all objects have been built,
 			 *       we can safely assume that all necessary ops we have to play with
 			 *       already exist
 			 */
+			trans_comp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+			
+			/* get operation that rigidbody should follow */
 			// TODO: doesn't pre-simulation updates need this info too?
 			tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
 			if (tbase_op == NULL) {
@@ -914,14 +914,25 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 			 */
 			con_op = BLI_ghash_lookup(tcomp->op_hash, "Constraint Stack");
 			
-			/* create operation for flushing results */
+			
+			/* 2) create operation for flushing results */
 			rbo_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
 			                           DEPSOP_TYPE_EXEC, BKE_rigidbody_sync_transforms, /* xxx: function name */
 			                           "RigidBodyObject Sync");
 			
 			
-			/* hook up evaluation order... */
+			/* 3) hook up evaluation order... 
+			 * 3.1) flushing rigidbody results follows base transforms being applied
+			 * 3.2) rigidbody flushing can only be performed after simulation has been run
+			 *
+			 * 3.3) simulation needs to know base transforms to figure out what to do
+			 *      XXX: there's probably a difference between passive and active 
+			 *           - passive don't change, so may need to know full transform...
+			 */
+			DEG_add_new_relation(&tbase_op->nd, &rbo_op->nd, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
+			DEG_add_new_relation(sim_node,      &rbo_op->nd, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
 			
+			DEG_add_new_relation(&tbase_op->nd, sim_node,    DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval"); /* needed to get correct base values */
 		}
 	}
 	
