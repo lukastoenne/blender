@@ -487,6 +487,7 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	 *   so that we can redirect those to point at either the the post-IK/
 	 *   post-constraint/post-matrix steps, as needed.
 	 */
+	// TODO: rest pose/editmode handling!
 	
 	/* pose eval context 
 	 * NOTE: init/cleanup steps for this are handled as part of the node's code
@@ -1109,6 +1110,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	 *       which will redirect these to whatever its first 
 	 *       operation is in due course...
 	 */
+	// TODO: slow parenting should result in a duplicate parent-eval path, with a special timesource with the offsetted time
 	ob_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
 	
 	DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM, 
