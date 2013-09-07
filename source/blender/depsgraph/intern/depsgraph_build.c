@@ -882,7 +882,48 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	}
 	
 	/* objects - simulation participants */
-	// XXX: todo...
+	if (rbw->group) {
+		GroupObject *go;
+		
+		for (go = rbw->group->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			
+			ComponentDepsNode *tcomp;     /* transform component - where all these operations go */
+			OperationDepsNode *tbase_op;  /* matrix operation + parent - transform baseline that rigidbody is applied on top of/in place of */
+			OperationDepsNode *con_op;    /* constraint stack operation - object's constraints stack, which follows the rigidbody operation */
+			OperationDepsNode *rbo_op;    /* "rigidbody object" flushing operation - what we call */
+			
+			
+			/* get object's transform component */
+			trans_comp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+			
+			/* get operation that rigidbody should follow 
+			 * NOTE: since we're doing this step after all objects have been built,
+			 *       we can safely assume that all necessary ops we have to play with
+			 *       already exist
+			 */
+			// TODO: doesn't pre-simulation updates need this info too?
+			tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
+			if (tbase_op == NULL) {
+				// XXX: this node isn't actually added anywhere yet!
+				//tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
+			}
+			
+			/* get operation for constraint stack
+			 * - it may or may not exist, but should follow rigidbody
+			 */
+			con_op = BLI_ghash_lookup(tcomp->op_hash, "Constraint Stack");
+			
+			/* create operation for flushing results */
+			rbo_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
+			                           DEPSOP_TYPE_EXEC, BKE_rigidbody_sync_transforms, /* xxx: function name */
+			                           "RigidBodyObject Sync");
+			
+			
+			/* hook up evaluation order... */
+			
+		}
+	}
 	
 	/* constraints */
 	// XXX: todo...
