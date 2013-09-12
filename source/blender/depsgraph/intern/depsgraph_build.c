@@ -906,8 +906,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				// TODO: doesn't pre-simulation updates need this info too?
 				tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
 				if (tbase_op == NULL) {
-					// XXX: this node isn't actually added anywhere yet!
-					//tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
+					tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
 				}
 				
 				/* get operation for constraint stack
@@ -1185,6 +1184,23 @@ static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
 /* ************************************************* */
 /* Objects */
 
+/* object transform nodes */
+static DepsNode *deg_build_object_transform(Depsgraph *graph, Object *ob)
+{
+	DepsNode *trans_node;
+	
+	/* component to hold all transform operations */
+	trans_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+	
+	/* init operation - to be hooked up later */
+	DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
+	                  DEPSOP_TYPE_INIT, BKE_object_eval_local_transform,
+	                  "BKE_object_eval_local_transform");
+	
+	/* return component created */
+	return trans_node;
+}
+
 /* object parent relationships */
 static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 {
@@ -1280,7 +1296,8 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	
 	/* standard components */
 	params_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_PARAMETERS, NULL);
-	trans_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+	
+	trans_node = deg_build_object_transform(graph, ob);
 	
 	/* object parent */
 	if (ob->parent) {
