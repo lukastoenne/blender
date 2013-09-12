@@ -888,56 +888,92 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 		for (go = rbw->group->gobject.first; go; go = go->next) {
 			Object *ob = go->ob;
 			
-			ComponentDepsNode *tcomp;     /* transform component - where all these operations go */
-			OperationDepsNode *tbase_op;  /* matrix operation + parent - transform baseline that rigidbody is applied on top of/in place of */
-			OperationDepsNode *con_op;    /* constraint stack operation - object's constraints stack, which follows the rigidbody operation */
-			OperationDepsNode *rbo_op;    /* "rigidbody object" flushing operation - what we call */
-			
-			
-			/* 1.1) get object's transform component 
-			 * NOTE: since we're doing this step after all objects have been built,
-			 *       we can safely assume that all necessary ops we have to play with
-			 *       already exist
-			 */
-			trans_comp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
-			
-			/* get operation that rigidbody should follow */
-			// TODO: doesn't pre-simulation updates need this info too?
-			tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
-			if (tbase_op == NULL) {
-				// XXX: this node isn't actually added anywhere yet!
-				//tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
+			if (ob && (ob->type == OB_MESH)) {
+				ComponentDepsNode *tcomp;     /* transform component - where all these operations go */
+				OperationDepsNode *tbase_op;  /* matrix operation + parent - transform baseline that rigidbody is applied on top of/in place of */
+				OperationDepsNode *con_op;    /* constraint stack operation - object's constraints stack, which follows the rigidbody operation */
+				OperationDepsNode *rbo_op;    /* "rigidbody object" flushing operation - what we call */
+				
+				
+				/* 1.1) get object's transform component 
+				 * NOTE: since we're doing this step after all objects have been built,
+				 *       we can safely assume that all necessary ops we have to play with
+				 *       already exist
+				 */
+				trans_comp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+				
+				/* get operation that rigidbody should follow */
+				// TODO: doesn't pre-simulation updates need this info too?
+				tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
+				if (tbase_op == NULL) {
+					// XXX: this node isn't actually added anywhere yet!
+					//tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
+				}
+				
+				/* get operation for constraint stack
+				 * - it may or may not exist, but should follow rigidbody
+				 */
+				con_op = BLI_ghash_lookup(tcomp->op_hash, "Constraint Stack");
+				
+				
+				/* 2) create operation for flushing results */
+				rbo_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
+										   DEPSOP_TYPE_EXEC, BKE_rigidbody_sync_transforms, /* xxx: function name */
+										   "RigidBodyObject Sync");
+				
+				
+				/* 3) hook up evaluation order... 
+				 * 3.1) flushing rigidbody results follows base transforms being applied
+				 * 3.2) rigidbody flushing can only be performed after simulation has been run
+				 *
+				 * 3.3) simulation needs to know base transforms to figure out what to do
+				 *      XXX: there's probably a difference between passive and active 
+				 *           - passive don't change, so may need to know full transform...
+				 */
+				DEG_add_new_relation(&tbase_op->nd, &rbo_op->nd, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
+				DEG_add_new_relation(sim_node,      &rbo_op->nd, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
+				
+				DEG_add_new_relation(&tbase_op->nd, sim_node,    DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval"); /* needed to get correct base values */
 			}
-			
-			/* get operation for constraint stack
-			 * - it may or may not exist, but should follow rigidbody
-			 */
-			con_op = BLI_ghash_lookup(tcomp->op_hash, "Constraint Stack");
-			
-			
-			/* 2) create operation for flushing results */
-			rbo_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
-			                           DEPSOP_TYPE_EXEC, BKE_rigidbody_sync_transforms, /* xxx: function name */
-			                           "RigidBodyObject Sync");
-			
-			
-			/* 3) hook up evaluation order... 
-			 * 3.1) flushing rigidbody results follows base transforms being applied
-			 * 3.2) rigidbody flushing can only be performed after simulation has been run
-			 *
-			 * 3.3) simulation needs to know base transforms to figure out what to do
-			 *      XXX: there's probably a difference between passive and active 
-			 *           - passive don't change, so may need to know full transform...
-			 */
-			DEG_add_new_relation(&tbase_op->nd, &rbo_op->nd, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
-			DEG_add_new_relation(sim_node,      &rbo_op->nd, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
-			
-			DEG_add_new_relation(&tbase_op->nd, sim_node,    DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval"); /* needed to get correct base values */
 		}
 	}
 	
 	/* constraints */
-	// XXX: todo...
+	if (rbw->constraints) {
+		GroupObject *go;
+		
+		for (go = rbw->constraints->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			RigidBodyCon *rbc = (ob) ? ob->rigidbody_constraint : NULL;
+			
+			/* final result of the constraint object's transform controls how the
+			 * constraint affects the physics sim for these objects 
+			 */
+			if (ob && rbc) {
+				DepsNode *ob1, *ob2;
+				DepsNode *tcomp;
+				
+				/* get rigidbody sync operations for these objects 
+				 * - this ensures that, at the very least, the constraint will be done first 
+				 */
+				// XXX: rigidbody sync occurs after sim!
+				ob1 = DEG_get_node(graph, (ID *)rbc->ob1, NULL, DEPSNODE_TYPE_OP_TRANSFORM, "RigidBodyObject Sync");
+				ob2 = DEG_get_node(graph, (ID *)rbc->ob2, NULL, DEPSNODE_TYPE_OP_TRANSFORM, "RigidBodyObject Sync");
+				
+				/* node for this constraint's final transform */
+				tcomp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+				
+				
+				/* create links */
+				/* - constrained-objects sync depends on the constraint-holder */
+				DEG_add_new_relation(tcomp, ob1, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_1");
+				DEG_add_new_relation(tcomp, ob2, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_2");
+				
+				/* - ensure that sim depends on this constraint's transform */
+				DEG_add_new_relation(tcomp, sim_node, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
+			}
+		}
+	}
 }
 
 /* ************************************************* */
