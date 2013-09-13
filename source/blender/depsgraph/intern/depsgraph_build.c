@@ -45,6 +45,8 @@
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
@@ -1531,10 +1533,10 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	tag_main_idcode(bmain, ID_MA, FALSE);
 	tag_main_idcode(bmain, ID_LA, FALSE);
 	tag_main_idcode(bmain, ID_WO, FALSE);
-	tag_main_idcode(bmain, ID_TEX, FALSE);
+	tag_main_idcode(bmain, ID_TE, FALSE);
 	
 	/* build graph for scene (and set) */
-	scene_node = deg_build_scene_graph(graph, main, scene);
+	scene_node = deg_build_scene_graph(graph, bmain, scene);
 	
 	/* hook this up to a "root" node as entrypoint to graph... */
 	graph->root_node = DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
