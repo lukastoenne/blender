@@ -30,6 +30,9 @@
 #ifndef __DEPSGRAPH_INTERN_H__
 #define __DEPSGRAPH_INTERN_H__
 
+struct Main;
+struct Group;
+
 /* Low-Level Querying ============================================== */
 
 /* Node Querying --------------------------------------------------- */
@@ -222,6 +225,18 @@ void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel);
  */
 void DEG_free_relation(DepsRelation *rel);
 
+/* Graph Building ======================================================== */
+
+/* Build depsgraph for the given group, and dump results in given graph container 
+ * This is usually used for building subgraphs for groups to use...
+ */
+void DEG_graph_build_from_group(Depsgraph *graph, Main *bmain, Group *group);
+
+/* Build subgraph for group */
+DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, struct Main *bmain, struct Group *group);
+
+/* Build depsgraph for the given scene, and dump results in given graph container */
+void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, Scene *scene);
 
 /* Graph Copying ========================================================= */
 /* (Part of the Filtering API) */

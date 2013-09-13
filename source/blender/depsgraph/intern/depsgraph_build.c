@@ -1235,10 +1235,10 @@ static DepsNode *deg_build_object_transform(Depsgraph *graph, Object *ob)
 /* object parent relationships */
 static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 {
-	ID *parent_data_id = (ID *)ob->parent->data;
+	//ID *parent_data_id = (ID *)ob->parent->data;
 	ID *parent_id = (ID *)ob->parent;
 	
-	DepsNode *ob_node, parent_node = NULL;
+	DepsNode *ob_node, *parent_node = NULL;
 	
 	/* parenting affects the transform-stack of an object 
 	 * NOTE: attach incoming links to the transform component, 
@@ -1332,7 +1332,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	
 	/* object parent */
 	if (ob->parent) {
-		deg_build_object_parents(graph, ob_node, ob);
+		deg_build_object_parents(graph, ob);
 	}
 	
 	/* object constraints */
@@ -1342,6 +1342,7 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	
 	/* object data */
 	if (ob->data) {
+		ID *obdata_id = (ID *)ob->data;
 		AnimData *data_adt;
 		
 		/* ob data animation */
@@ -1410,6 +1411,7 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Main *bmain, Scene *sce
 	
 	/* timesource */
 	time_src = DEG_get_node(graph, &scene->id, NULL, DEPSNODE_TYPE_TIMESOURCE, "Scene Timesource");
+	BLI_assert(time_src != NULL);
 	
 	/* sound system */
 	// XXX: this is mainly on frame change...
