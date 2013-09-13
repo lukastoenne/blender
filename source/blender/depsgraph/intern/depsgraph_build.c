@@ -359,6 +359,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	size_t segcount = 0;
 	
 	OperationDepsNode *solver_op;
+	DepsNode *solver_node;
 	DepsNode *owner_node;
 	
 	/* component for bone holding the constraint */
@@ -368,12 +369,13 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	solver_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
 	                              DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
 	                              "IK Solver");
+	solver_node = (DepsNode *)solver_op;
 	
 	/* attach owner to IK Solver too 
 	 * - assume that owner is always part of chain 
 	 * - see notes on direction of rel below...
 	 */
-	DEG_add_new_relation(owner_node, solver_op, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
+	DEG_add_new_relation(owner_node, solver_node, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
 	
 	
 	/* exclude tip from chain? */
@@ -391,7 +393,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 		 * grab the result with IK solver results...
 		 */
 		DepsNode *parchan_node = DEG_get_node(graph, &ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
-		DEG_add_new_relation(parchan_node, solver_op, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
+		DEG_add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
 		
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
@@ -407,7 +409,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 
 /* Spline IK Eval Steps */
 static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
-                                          Object *ob, bPoseChannel *pchan_owner,
+                                          Object *ob, bPoseChannel *pchan,
                                           bConstraint *con)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
@@ -415,6 +417,7 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	size_t segcount = 0;
 	
 	OperationDepsNode *solver_op;
+	DepsNode *solver_node;
 	DepsNode *owner_node, *curve_node;
 	
 	/* component for bone holding the constraint */
@@ -422,7 +425,7 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	
 	/* component for spline-path geometry that this uses */
 	// XXX: target may not exist!
-	curve_node = DEG_get_node(graph, data->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
+	curve_node = DEG_get_node(graph, (ID *)data->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
 	
 	/* --------------- */
 	
@@ -430,16 +433,17 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	solver_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
 	                              DEPSOP_TYPE_SIM, BKE_pose_splineik_evaluate, 
 	                              "Spline IK Solver");
+	solver_node = (DepsNode *)solver_op;
 	// XXX: what sort of ID-data is needed?
 	
 	/* attach owner to IK Solver too 
 	 * - assume that owner is always part of chain 
 	 * - see notes on direction of rel below...
 	 */
-	DEG_add_new_relation(owner_node, solver_op, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
+	DEG_add_new_relation(owner_node, solver_node, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
 	
 	/* attach path dependency to solver */
-	DEG_add_new_relation(curve_node, solver_op, DEPSREL_TYPE_GEOMETRY_EVAL, "[Curve.Path -> Spline IK] DepsRel");
+	DEG_add_new_relation(curve_node, solver_node, DEPSREL_TYPE_GEOMETRY_EVAL, "[Curve.Path -> Spline IK] DepsRel");
 	
 	/* --------------- */
 	
@@ -455,7 +459,7 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 		 * grab the result with IK solver results...
 		 */
 		DepsNode *parchan_node = DEG_get_node(graph, &ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
-		DEG_add_new_relation(parchan_node, solver_op, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
+		DEG_add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
 		
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
@@ -512,20 +516,21 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		
 		/* node for bone eval */
 		bone_op = DEG_add_operation(graph, &ob->id, pchan->name, DEPSNODE_TYPE_OP_BONE, 
-		                              DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
-		                              "Bone Transforms");
+		                            DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
+		                            "Bone Transforms");
+		RNA_pointer_create(&ob->id, &RNA_PoseBone, pchan, &bone_op->ptr);
 		
 		/* bone parent */
 		if (pchan->parent) {
-			DepsNode *par_bone = DEG_get_node(graph, id, pchan->parent->name, DEPSNODE_TYPE_BONE, NULL);
-			DEG_add_new_relation(par_bone, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+			DepsNode *par_bone = DEG_get_node(graph, &ob->id, pchan->parent->name, DEPSNODE_TYPE_BONE, NULL);
+			DEG_add_new_relation(par_bone, &bone_node->nd, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 		}
 		
 		/* constraints */
 		if (pchan->constraints.first) {
 			deg_build_constraints_graph(graph, scene, ob, 
 			                            pchan, &pchan->constraints, 
-			                            bone_node);
+			                            &bone_node->nd);
 		}
 	}
 	
