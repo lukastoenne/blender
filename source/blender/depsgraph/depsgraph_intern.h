@@ -187,18 +187,18 @@ void DEG_graph_sort(Depsgraph *graph);
  * < first_link: (LinkData *) first LinkData in list of relationships (in/out links)
  * > rel:  (DepsRelation *) identifier where DepsRelation that we're currently accessing comes up
  */
-#define DEPSNODE_RELATIONS_ITER_BEGIN(first_link, relation)                          \
+#define DEPSNODE_RELATIONS_ITER_BEGIN(first_link, relation_)                          \
 	{                                                                                \
 		LinkData *__rel_iter, *__rel_next;                                           \
 		for (__rel_iter = first_link; __rel_iter; __rel_iter = __rel_next) {         \
-			DepsRelation *relation = (DepsRelation *)__rel_iter->data;               \
+			DepsRelation *relation_ = (DepsRelation *)__rel_iter->data;              \
 			__rel_next = __rel_iter->next;
 
 			/* ... code for iterator body can be written here ... */
 
 #define DEPSNODE_RELATIONS_ITER_END                                                  \
 		}                                                                            \
-	}(void)
+	}
 
 /* API Methods --------------------------------------------------------- */
 
