@@ -79,6 +79,7 @@
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
 
+#include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
 /* ************************************************* */
 /* AnimData */
