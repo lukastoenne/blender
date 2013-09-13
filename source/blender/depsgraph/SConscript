@@ -34,7 +34,6 @@ incs = [
     './intern', 
     '#/intern/guardedalloc',
     '../bmesh',
-    '../include',
     '../blenlib',
     '../blenkernel',
     '../makesdna',
