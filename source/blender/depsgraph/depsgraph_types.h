@@ -349,6 +349,7 @@ typedef enum eDepsOperation_Type {
 	/* Additional operation types */
 	DEPSOP_TYPE_OUT     = 3, /* indicator for outputting a temporary result that other components can use */ // XXX?
 	DEPSOP_TYPE_SIM     = 4, /* indicator for things like IK Solvers and Rigidbody Sim steps which modify final results of separate entities at once */
+	DEPSOP_TYPE_REBUILD = 5, /* rebuild internal evaluation data - used for Rigidbody Reset and Armature Rebuild-On-Load */
 } eDepsOperation_Type;
 
 /* Extra flags affecting operations */

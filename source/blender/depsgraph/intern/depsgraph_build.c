@@ -854,7 +854,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	/* create nodes ------------------------------------------------------------------------ */
 	/* init/rebuild operation */
 	init_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
-	                              DEPSOP_TYPE_INIT, BKE_rigidbody_rebuild_world,
+	                              DEPSOP_TYPE_REBUILD, BKE_rigidbody_rebuild_world,
 	                              "Rigidbody World Rebuild");
 	
 	/* do-sim operation */

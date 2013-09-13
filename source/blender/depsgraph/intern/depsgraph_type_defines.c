@@ -663,7 +663,7 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		
 		/* create standard pose evaluation start/end hooks */
 		rebuild_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
-		                               DEPSOP_TYPE_INIT, BKE_pose_rebuild_op,
+		                               DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op,
 		                               "Rebuild Pose");
 		
 		init_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
