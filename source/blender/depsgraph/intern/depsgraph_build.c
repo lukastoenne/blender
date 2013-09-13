@@ -94,19 +94,21 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	DriverVar *dvar;
 	char name_buf[DEG_MAX_ID_NAME];
 	
-	OperationDepsNode *driver_node = NULL;
+	OperationDepsNode *driver_op = NULL;
+	DepsNode *driver_node = NULL; /* same as driver_op, just cast to the relevant type */
 	DepsNode *affected_node = NULL;
 	
 	
 	/* create data node for this driver ..................................... */
 	BLI_snprintf(name_buf, DEG_MAX_ID_NAME, "Driver @ %p", driver);
 	
-	driver_node = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_DRIVER,
-	                                DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
-	                                name_buf);
+	driver_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_DRIVER,
+	                              DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
+	                              name_buf);
+	driver_node = (DepsNode *)driver_op;
 	
 	/* RNA pointer to driver, to provide as context for execution */
-	RNA_pointer_create(id, &RNA_FCurve, fcu, &driver_node->ptr);
+	RNA_pointer_create(id, &RNA_FCurve, fcu, &driver_op->ptr);
 	
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
 	if (driver->type == DRIVER_TYPE_PYTHON) {
@@ -136,7 +138,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 				
 				/* special handling for directly-named bones... */
 				if ((dtar->flag & DTAR_FLAG_STRUCT_REF) && (dtar->pchan_name[0])) {
-					Object *ob = (Object *)dtar->ob;
+					Object *ob = (Object *)dtar->id;
 					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
 					
 					/* get node associated with bone */
@@ -177,7 +179,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		DepsNode *time_src;
 		
 		/* create "animation" data node for this block */
-		adt_node = DEG_get_node(graph, id, NULL, DEPSNODE_ANIMATION, "Animation");
+		adt_node = DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ANIMATION, "Animation");
 		
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
@@ -218,7 +220,8 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
                                         ListBase *constraints, 
                                         DepsNode *container)
 {
-	OperationDepsNode *constraintStackNode;
+	OperationDepsNode *constraintStackOp;
+	DepsNode *constraintStackNode;
 	eDepsNode_Type stackNodeType;
 	char *subdata_name;
 	
@@ -251,9 +254,10 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 		subdata_name = NULL;
 	}
 	
-	constraintStackNode = DEG_add_operation(graph, &ob->id, subdata_name, stackNodeType,
-	                                       DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
-	                                        "Constraint Stack");
+	constraintStackOp = DEG_add_operation(graph, &ob->id, subdata_name, stackNodeType,
+	                                      DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
+	                                      "Constraint Stack");
+	constraintStackNode = (DepsNode *)constraintStackOp;
 	
 	/* add dependencies for each constraint in turn */
 	for (con = constraints->first; con; con = con->next) {
@@ -268,7 +272,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 		/* special case for camera tracking -- it doesn't use targets to define relations */
 		// TODO: we can now represent dependencies in a much richer manner, so review how this is done...
 		if (ELEM3(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
-			DepsNode *node2, *scene_node;
+			DepsNode *node2; // *scene_node;
 			bool depends_on_camera = false;
 			
 			if (cti->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
@@ -314,7 +318,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 					}
 					else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 						/* bone */
-						node2 = DEG_get_node(graph, (ID *)ct->tar, ct->subtarget[0], DEPSNODE_TYPE_BONE, NULL);
+						node2 = DEG_get_node(graph, (ID *)ct->tar, &ct->subtarget[0], DEPSNODE_TYPE_BONE, NULL);
 						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 					else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
@@ -323,7 +327,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 						node2 = DEG_get_node(graph, (ID *)ct->tar, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_GEOMETRY_EVAL, cti->name);
 						
-						if (ct->tar->type == OB-MESH) {
+						if (ct->tar->type == OB_MESH) {
 							//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
 						}
 					}
