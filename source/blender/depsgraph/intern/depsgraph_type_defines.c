@@ -112,6 +112,7 @@ static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, ID *
 			// XXX: time source...
 			
 			default:     /* Unhandled */
+				printf("%s(): Unhandled ID - %s \n", __func__, id->name);
 				break;
 		}
 	}
@@ -833,7 +834,6 @@ static void dnti_operation__add_to_graph(Depsgraph *graph, DepsNode *node,
 	ComponentDepsNode *component = (ComponentDepsNode *)comp_node;
 	
 	/* add to hash and list */
-	// XXX: review the use/need of the hash here - perhaps we should use fixed hash instead?
 	BLI_ghash_insert(component->op_hash, node->name, node);
 	BLI_addtail(&component->ops, node);
 	
@@ -1063,14 +1063,14 @@ static DepsNodeTypeInfo DNTI_OP_POSE = {
 	/* size */               sizeof(OperationDepsNode),
 	/* name */               "Pose Operation",
 	
-	/* init_data() */        NULL, // XXX
-	/* free_data() */        NULL, // XXX
-	/* copy_data() */        NULL, // XXX
+	/* init_data() */        NULL,
+	/* free_data() */        NULL,
+	/* copy_data() */        NULL,
 	
 	/* add_to_graph() */     dnti_op_pose__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX
+	/* validate_links() */   NULL
 };
 
 /* Bone Operation ========================================= */
@@ -1123,7 +1123,7 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* add_to_graph() */     dnti_op_bone__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX
+	/* validate_links() */   NULL
 };
 
 /* Particle Operation ===================================== */
