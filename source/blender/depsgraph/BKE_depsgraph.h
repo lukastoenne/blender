@@ -59,6 +59,14 @@ typedef struct DepsNode DepsNode;
 /* Relationship/link (A -> B) type in Depsgraph between Nodes */
 typedef struct DepsRelation DepsRelation;
 
+/* ------------------------------------------------ */
+
+struct Main;
+struct Scene;
+
+struct PointerRNA;
+struct PropertyRNA;
+
 /* ************************************************ */
 /* Depsgraph API */
 
@@ -85,10 +93,10 @@ void DEG_free_node_types(void);
 /* Graph Building -------------------------------- */
 
 /* Rebuild dependency graph only for a given scene */
-void DEG_scene_relations_rebuild(Depsgraph *graph, Main *bmain, Scene *scene);
+void DEG_scene_relations_rebuild(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
 
 /* Create dependency graph if it was cleared or didn't exist yet */
-void DEG_scene_relations_update(Main *bmain, Scene *scene);
+void DEG_scene_relations_update(struct Main *bmain, struct Scene *scene);
 
 /* Update Tagging -------------------------------- */
 
@@ -103,8 +111,8 @@ void DEG_on_visible_update(Depsgraph *graph, const bool do_time);
 
 /* Tag node(s) associated with changed data for later updates */
 void DEG_id_tag_update(Depsgraph *graph, const ID *id);
-void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr);
-void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
+void DEG_data_tag_update(Depsgraph *graph, const struct PointerRNA *ptr);
+void DEG_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, const struct PropertyRNA *prop);
 
 /* Flush updates */
 void DEG_graph_flush_updates(Depsgraph *graph);
