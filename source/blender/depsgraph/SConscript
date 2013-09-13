@@ -31,7 +31,6 @@ sources = env.Glob('intern/*.c')
 
 incs = [
     '.',
-    './intern', 
     '#/intern/guardedalloc',
     '../bmesh',
     '../blenlib',
