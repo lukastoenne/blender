@@ -77,7 +77,7 @@
 
 #include "depsgraph_types.h"
 #include "depsgraph_eval.h"
-#include "despgraph_intern.h"
+#include "depsgraph_intern.h"
 
 
 /* ************************************************* */
