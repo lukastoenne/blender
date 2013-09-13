@@ -50,6 +50,8 @@
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
+#include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
+
 /* ************************************************ */
 /* Low-Level Graph Traversal */
 
@@ -75,13 +77,13 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 	
 	/* add node as starting node to be evaluated, with value of 0 */
 	q = queue_new();
-	queue_push(0, start_node);
+	queue_push(q, 0, start_node);
 	
 	/* while we still have nodes in the queue, grab and work on next one */
 	do {
 		/* grab item at front of queue */
 		// XXX: in practice, we may need to wait until one becomes available...
-		DepsNode *node = queue_pop();
+		DepsNode *node = queue_pop(q);
 		
 		/* perform operation on node */
 		op(graph, node, operation_data);
@@ -98,7 +100,7 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 			new_node->valency--;
 			
 			/* schedule up related node for exec */
-			queue_push(calc_node_weight(new_node), new_node);
+			queue_push(q, calc_node_weight(new_node), new_node);
 		}
 		DEPSNODE_RELATIONS_ITER_END;
 	} while (queue_is_empty(q) == false);
@@ -433,7 +435,7 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
 }
 
 /* Convenience wrapper to find node given just pointer + property */
-DepsNode *DEG_find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop)
+DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
 {
 	ID *id;
 	eDepsNode_Type type;

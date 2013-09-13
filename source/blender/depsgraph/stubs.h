@@ -30,5 +30,17 @@ void BKE_object_eval_local_transform(void *context, void *item);
 void BKE_object_eval_parent(void *context, void *item);
 
 
+/* Priority Queue type */
+typedef struct Queue {
+	void *items;
+	size_t size;
+} Queue;
+
+Queue *queue_new();
+void queue_push(Queue *q, int priority, void *data);
+void *queue_pop(Queue *q);
+bool queue_is_empty(Queue *q);
+void queue_free(Queue *q);
+
 #endif //__DEPSGRAPH_FN_STUBS_H__
 
