@@ -102,7 +102,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	
 	driver_node = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_DRIVER,
 	                                DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
-	                                driver_name_buf);
+	                                name_buf);
 	
 	/* RNA pointer to driver, to provide as context for execution */
 	RNA_pointer_create(id, &RNA_FCurve, fcu, &driver_node->ptr);
