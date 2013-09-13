@@ -859,7 +859,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	
 	/* do-sim operation */
 	sim_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
-	                             DEPSOP_TYPE_EXEC, BKE_rigidbody_do_simulation,
+	                             DEPSOP_TYPE_SIM, BKE_rigidbody_do_simulation,
 	                             "Rigidbody World Do Simulation");
 	
 	
