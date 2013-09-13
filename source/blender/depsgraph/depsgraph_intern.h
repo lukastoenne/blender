@@ -201,7 +201,7 @@ void DEG_graph_sort(Depsgraph *graph);
 /* Create new relationship object, but don't add it to graph yet */
 DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to, 
                                       eDepsRelation_Type type, 
-                                      const char description[DEG_MAX_ID_LEN]);
+                                      const char description[DEG_MAX_ID_NAME]);
 
 /* Add given relationship to the graph */
 void DEG_add_relation(DepsRelation *rel);
@@ -210,7 +210,7 @@ void DEG_add_relation(DepsRelation *rel);
 /* Add new relationship between two nodes */
 DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
                                    eDepsRelation_Type type, 
-                                   const char description[DEG_MAX_ID_LEN]);
+                                   const char description[DEG_MAX_ID_NAME]);
 
 
 /* Remove relationship from graph, but don't free it yet */
@@ -268,7 +268,7 @@ typedef struct DepsNodeTypeInfo {
 	/* Identification ................................. */
 	eDepsNode_Type type;           /* DEPSNODE_TYPE_### */
 	size_t size;                   /* size in bytes of the struct */
-	char name[DEG_MAX_ID_LEN];     /* name of node type */
+	char name[DEG_MAX_ID_NAME];    /* name of node type */
 	
 	/* Data Management ................................ */
 	/* Initialise node-specific data - the node already exists */
