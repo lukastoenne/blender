@@ -40,6 +40,7 @@
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_effect_types.h"
@@ -1173,11 +1174,11 @@ static void deg_build_camera_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	DepsNode *obdata_node, *node2;
 	
 	/* node for obdata */
-	obdata_node = DEG_get_node(graph, obdata_id, NULL, DEPSNODE_TYPE_PARAMETERS, "Camera Parameters");
+	obdata_node = DEG_get_node(graph, &cam->id, NULL, DEPSNODE_TYPE_PARAMETERS, "Camera Parameters");
 	
 	/* DOF */
 	if (cam->dof_ob) {
-		node2 = DEG_get_node(dag, (ID *)cam->dof_ob, NULL, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
+		node2 = DEG_get_node(graph, (ID *)cam->dof_ob, NULL, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
 		DEG_add_new_relation(node2, obdata_node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
 	}
 }
@@ -1198,11 +1199,11 @@ static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	la->id.flag |= LIB_DOIT;
 	
 	/* node for obdata */
-	obdata_node = DEG_get_node(graph, obdata_id, NULL, DEPSNODE_TYPE_PARAMETERS, "Lamp Parameters");
+	obdata_node = DEG_get_node(graph, &la->id, NULL, DEPSNODE_TYPE_PARAMETERS, "Lamp Parameters");
 	
 	/* lamp's nodetree */
 	if (la->nodetree) {
-		deg_build_shader_nodetree_graph(graph, obdata_node, la->nodetree);
+		deg_build_nodetree_graph(graph, scene, obdata_node, la->nodetree);
 	}
 	
 	/* textures */
