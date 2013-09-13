@@ -117,7 +117,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	affected_node = DEG_get_node_from_rna_path(graph, id, fcu->rna_path);
 	if (affected_node) {
 		/* make data dependent on driver */
-		DEG_add_new_relation(graph, driver_node, affected_node, DEPSREL_TYPE_DRIVER, 
+		DEG_add_new_relation(driver_node, affected_node, DEPSREL_TYPE_DRIVER, 
 		                     "[Driver -> Data] DepsRel");
 		
 		/* ensure that affected prop's update callbacks will be triggered once done */
@@ -147,7 +147,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 				}
 				
 				/* make driver dependent on this node */
-				DEG_add_new_relation(graph, target_node, driver_node, DEPSREL_TYPE_DRIVER_TARGET,
+				DEG_add_new_relation(target_node, driver_node, DEPSREL_TYPE_DRIVER_TARGET,
 				                     "[Target -> Driver] DepsRel");
 			}
 		}
@@ -181,7 +181,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
 		time_src = DEG_find_node(graph, NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
-		DEG_add_new_relation(graph, time_src, adt_node, DEPSREL_TYPE_TIME, 
+		DEG_add_new_relation(time_src, adt_node, DEPSREL_TYPE_TIME, 
 		                     "[TimeSrc -> Animation] DepsRel");
 		                     
 		// XXX: Hook up specific update callbacks for special properties which may need it...
@@ -198,7 +198,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		/* prevent driver from occurring before own animation... */
 		// NOTE: probably not strictly needed (anim before parameters anyway)...
 		if (adt_node) {
-			DEG_add_new_relation(graph, adt_node, driver_node, DEPSREL_TYPE_OPERATION, 
+			DEG_add_new_relation(adt_node, driver_node, DEPSREL_TYPE_OPERATION, 
 			                     "[AnimData Before Drivers] DepsRel");
 		}
 	}
@@ -992,7 +992,7 @@ static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob
 	/* 1) attach to geometry */
 	// XXX: aren't shapekeys now done as a pseudo-modifier on object?
 	obdata_node = DEG_get_node(graph, (ID *)ob->data, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
-	DEG_add_new_relation(graph, key_node, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
+	DEG_add_new_relation(key_node, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
 	
 	/* 2) attach drivers, etc. */
 	if (key->adt) {
@@ -1037,7 +1037,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			/* motherball - mom depends on children! */
 			if (mom != ob) {
 				node2 = DEG_get_node(graph, &mom->id, NULL, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
-				DEG_add_new_relation(graph, geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
+				DEG_add_new_relation(geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
 			}
 			
 			/* metaball evaluation operations */
@@ -1055,16 +1055,16 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			// XXX: these needs geom data, but where is geom stored?
 			if (cu->bevobj) {
 				node2 = DEG_get_node(graph, (ID *)cu->bevobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
-				DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
+				DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
 			}
 			if (cu->taperobj) {
 				node2 = DEG_get_node(graph, (ID *)cu->tapeobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
-				DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
+				DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
 			}
 			if (ob->type == OB_FONT) {
 				if (cu->textoncurve) {
 					node2 = DEG_get_node(graph, (ID *)cu->textoncurve, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
-					DEG_add_new_relation(graph, node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
+					DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
 				}
 			}
 			
@@ -1150,7 +1150,7 @@ static void deg_build_camera_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	/* DOF */
 	if (cam->dof_ob) {
 		node2 = DEG_get_node(dag, (ID *)cam->dof_ob, NULL, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
-		DEG_add_new_relation(graph, node2, obdata_node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
+		DEG_add_new_relation(node2, obdata_node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
 	}
 }
 
@@ -1228,7 +1228,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 		case PARSKEL:  /* Armature Deform (Virtual Modifier) */
 		{
 			parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Par Armature Transform");
-			DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Armature Deform Parent");
+			DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Armature Deform Parent");
 		}
 		break;
 			
@@ -1236,7 +1236,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 		case PARVERT3:
 		{
 			parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Vertex Parent Geometry Source");
-			DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
+			DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
 			
 			//parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
 		}
@@ -1245,7 +1245,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 		case PARBONE: /* Bone Parent */
 		{
 			parent_node = DEG_get_node(graph, &ob->id, ob->parsubstr, DEPSNODE_TYPE_BONE, NULL);
-			DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
+			DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
 		}
 		break;
 			
@@ -1254,7 +1254,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 			if (ob->parent->type == OB_LATTICE) {
 				/* Lattice Deform Parent - Virtual Modifier */
 				parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Par Lattice Transform");
-				DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
+				DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
 			}
 			else if (ob->parent->type == OB_CURVE) {
 				Curve *cu = ob->parent->data;
@@ -1262,20 +1262,20 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 				if (cu->flag & CU_PATH) {
 					/* Follow Path */
 					parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Curve Path");
-					DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Follow Parent");
+					DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Follow Parent");
 					// XXX: link to geometry or object? both are needed?
 					// XXX: link to timesource too?
 				}
 				else {
 					/* Standard Parent */
 					parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
-					DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Parent");
+					DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Parent");
 				}
 			}
 			else {
 				/* Standard Parent */
 				parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
-				DEG_add_new_relation(graph, parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Parent");
+				DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Parent");
 			}
 		}
 		break;
@@ -1529,7 +1529,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	/* hook this up to a "root" node as entrypoint to graph... */
 	graph->root_node = DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
 	
-	DEG_add_new_relation(graph, graph->root_node, scene_node, 
+	DEG_add_new_relation(graph->root_node, scene_node, 
 	                     DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 	                     
 	
