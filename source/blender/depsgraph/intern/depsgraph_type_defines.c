@@ -777,7 +777,14 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	/* inlinks destination should all go to the "Bone Transforms" operation */
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
 	{
-	
+		/* redirect destination pointer */
+		rel->to = btrans_op;
+		
+		/* ensure that transform operation knows it has this link now */
+		/* XXX: for now, we preserve the link to the component, so that querying is easier
+		 *      But, this also ends up making more work when flushing updates...
+		 */
+		DEG_add_relation(rel);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 	
