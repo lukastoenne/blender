@@ -56,7 +56,7 @@
 /* Root Node ============================================== */
 
 /* Add 'root' node to graph */
-static void dnti_root__add_to_graph(Depsgraph *graph, DepsNode *node, ID *UNUSED(id))
+static void dnti_root__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *UNUSED(id))
 {
 	graph->root_node = node;
 }
@@ -86,7 +86,7 @@ static DepsNodeTypeInfo DNTI_ROOT = {
 /* Time Source Node ======================================= */
 
 /* Add 'time source' node to graph */
-static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	TimeSourceDepsNode *ts_node = (TimeSourceDepsNode *)
 	
@@ -166,7 +166,7 @@ static DepsNodeTypeInfo DNTI_TIMESOURCE = {
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
-static void dnti_id_ref__init_data(DepsNode *node, ID *id, const char *UNUSED(subdata))
+static void dnti_id_ref__init_data(DepsNode *node, const ID *id, const char *UNUSED(subdata))
 {
 	IDDepsNode *id_node = (IDDepsNode *)node;
 	
@@ -227,7 +227,7 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 }
 
 /* Add 'id' node to graph */
-static void dnti_id_ref__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_id_ref__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	/* add to hash so that it can be found */
 	BLI_ghash_insert(graph->id_hash, id, node);
@@ -325,7 +325,7 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 /* Subgraph Node ========================================== */
 
 /* Initialise 'subgraph' node - from pointer data given */
-static void dnti_subgraph__init_data(DepsNode *node, ID *id, const char *UNUSED(subdata))
+static void dnti_subgraph__init_data(DepsNode *node, const ID *id, const char *UNUSED(subdata))
 {
 	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
 	
@@ -361,7 +361,7 @@ static void dnti_subgraph__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, c
 }
 
 /* Add 'subgraph' node to graph */
-static void dnti_subgraph__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_subgraph__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	/* add to subnodes list */
 	BLI_addtail(&graph->subgraphs, node);
@@ -417,7 +417,7 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 /* Standard Component Methods ============================= */
 
 /* Initialise 'component' node - from pointer data given */
-static void dnti_component__init_data(DepsNode *node, ID *UNUSED(id), const char *UNUSED(subdata))
+static void dnti_component__init_data(DepsNode *node, const ID *UNUSED(id), const char *UNUSED(subdata))
 {
 	ComponentDepsNode *component = (ComponentDepsNode *)node;
 	
@@ -711,7 +711,7 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 /* Bone Component ========================================= */
 
 /* Initialise 'bone component' node - from pointer data given */
-static void dnti_bone__init_data(DepsNode *node, ID *id, const char subdata[MAX_NAME])
+static void dnti_bone__init_data(DepsNode *node, const ID *id, const char subdata[MAX_NAME])
 {
 	BoneComponentDepsNode *bone_node = (BoneComponentDepsNode *)node;
 	Object *ob = (Object *)id;
@@ -727,7 +727,7 @@ static void dnti_bone__init_data(DepsNode *node, ID *id, const char subdata[MAX_
 }
 
 /* Add 'bone component' node to graph */
-static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	PoseComponentDepsNode *pose_node;
 	
@@ -881,7 +881,7 @@ static DepsNodeTypeInfo DNTI_BONE = {
 
 /* Helper to add 'operation' node to graph */
 static void dnti_operation__add_to_graph(Depsgraph *graph, DepsNode *node,
-                                         ID *id, eDepsNode_Type component_type)
+                                         const ID *id, eDepsNode_Type component_type)
 {
 	/* get component node to add operation to */
 	DepsNode *comp_node = DEG_get_node(graph, id, component_type, NULL);
@@ -913,7 +913,7 @@ static void dnti_operation__remove_from_graph(Depsgraph *UNUSED(graph), DepsNode
 /* Parameter Operation ==================================== */
 
 /* Add 'parameter operation' node to graph */
-static void dnti_op_parameter__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_parameter__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
 }
@@ -961,7 +961,7 @@ static DepsNodeTypeInfo DNTI_OP_PROXY = {
 /* Animation Operation ==================================== */
 
 /* Add 'animation operation' node to graph */
-static void dnti_op_animation__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_animation__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_ANIMATION);
 }
@@ -1009,7 +1009,7 @@ static DepsNodeTypeInfo DNTI_OP_TRANSFORM = {
 /* Geometry Operation ===================================== */
 
 /* Add 'geometry operation' node to graph */
-static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_GEOMETRY);
 }
@@ -1057,7 +1057,7 @@ static DepsNodeTypeInfo DNTI_OP_SEQUENCER = {
 /* Update Operation ======================================= */
 
 /* Add 'update operation' node to graph */
-static void dnti_op_update__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_update__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
 }
@@ -1082,7 +1082,7 @@ static DepsNodeTypeInfo DNTI_OP_UPDATE = {
 // XXX: some special tweaks may be needed for this one...
 
 /* Add 'driver operation' node to graph */
-static void dnti_op_driver__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_driver__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
 }
@@ -1106,7 +1106,7 @@ static DepsNodeTypeInfo DNTI_OP_DRIVER = {
 /* Pose Operation ========================================= */
 
 /* Add 'pose operation' node to graph */
-static void dnti_op_pose__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_pose__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_EVAL_POSE);
 }
@@ -1130,7 +1130,7 @@ static DepsNodeTypeInfo DNTI_OP_POSE = {
 /* Bone Operation ========================================= */
 
 /* Init local data for bone operation */
-static void dnti_op_bone__init_data(DepsNode *node, ID *id, const char subdata[MAX_NAME])
+static void dnti_op_bone__init_data(DepsNode *node, const ID *id, const char subdata[MAX_NAME])
 {
 	OperationDepsNode *bone_op = (OperationDepsNode *)node;
 	Object *ob;
@@ -1144,7 +1144,7 @@ static void dnti_op_bone__init_data(DepsNode *node, ID *id, const char subdata[M
 }
 
 /* Add 'bone operation' node to graph */
-static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	OperationDepsNode *bone_op = (OperationDepsNode *)node;
 	BoneComponentDepsNode *bone_comp;
@@ -1183,7 +1183,7 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 /* Particle Operation ===================================== */
 
 /* Add 'particle operation' node to graph */
-static void dnti_op_particle__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_particle__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_EVAL_PARTICLES);
 }
@@ -1215,7 +1215,7 @@ static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
 /* Note: RigidBody Operations are reserved for scene-level rigidbody sim steps */
 
 /* Add 'rigidbody operation' node to graph */
-static void dnti_op_rigidbody__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_rigidbody__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_TRANSFORM); // XXX
 }

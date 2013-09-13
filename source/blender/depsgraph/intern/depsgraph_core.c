@@ -57,7 +57,7 @@
  */
 void DEG_graph_validate_links(Depsgraph *graph)
 {
-	GHashIterator *hashIter;
+	GHashIterator hashIter;
 	
 	BLI_assert((graph != NULL) && (graph->id_hash != NULL));
 	
@@ -66,14 +66,13 @@ void DEG_graph_validate_links(Depsgraph *graph)
 	 * subtrees are valid
 	 */
 	GHASH_ITER(hashIter, graph->id_hash) {
-		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(hashIter);
+		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
 		
 		if (nti && nti->validate_links) {
 			nti->validate_links(graph, node);
 		}
 	}
-	BLI_ghashIterator_free(hashIter);
 }
 
 /* ************************************************** */
@@ -84,6 +83,7 @@ void DEG_graph_validate_links(Depsgraph *graph)
  */
 void DEG_graph_sort(Depsgraph *graph)
 {
+#if 0
 	void *ctx = NULL; // XXX: temp struct for keeping track of visited nodes, etc.?
 	
 	/* 1) traverse graph from root
@@ -93,8 +93,9 @@ void DEG_graph_sort(Depsgraph *graph)
 	DEG_graph_traverse(graph, DEG_Filter_ExecutableNodes, NULL, 
 	                          tag_nodes_for_sorting,      ctx); 
 	
+
 	/* 2) tweak order of nodes within each set of links */
-	
+#endif	
 }
 
 /* ************************************************** */
@@ -103,7 +104,7 @@ void DEG_graph_sort(Depsgraph *graph)
 /* Get Node ----------------------------------------- */
 
 /* Get a matching node, creating one if need be */
-DepsNode *DEG_get_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+DepsNode *DEG_get_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                        eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *node;
@@ -145,10 +146,10 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 	DepsNode *node = NULL;
 	
 	/* create ID pointer for root of path lookup */
-	RNA_id_pointer_create(id, &id_ptr);
+	RNA_id_pointer_create((ID *)id, &id_ptr);
 	
 	/* try to resolve path... */
-	if (RNA_path_resolve(&id_ptr, path, &ptr, &prpp)) {
+	if (RNA_path_resolve(&id_ptr, path, &ptr, &prop)) {
 		/* get matching node... */
 		node = DEG_get_node_from_pointer(graph, &ptr, prop);
 	}
@@ -193,7 +194,7 @@ DepsNode *DEG_create_node(eDepsNode_Type type)
 }
 
 /* Add given node to graph */
-void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id)
+void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
 	
@@ -203,7 +204,7 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id)
 }
 
 /* Add a new node */
-DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                            eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
@@ -333,11 +334,11 @@ DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
 		rel = MEM_callocN(sizeof(DepsRelation), "DepsRelation");
 	
 	/* populate data */
-	rel->from = form;
+	rel->from = from;
 	rel->to = to;
 	
 	rel->type = type;
-	BLI_strncpy(rel->description, description, DEG_MAX_ID_NAME);
+	BLI_strncpy(rel->name, description, DEG_MAX_ID_NAME);
 	
 	/* return */
 	return rel;
@@ -382,7 +383,7 @@ void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel)
 	
 	ld = BLI_findptr(&rel->to->inlinks, rel, offsetof(LinkData, data));
 	if (ld) {
-		BLI_freelinkN(&rel->to->inlinks, rel, offsetof(LinkData, data));
+		BLI_freelinkN(&rel->to->inlinks, rel);
 		ld = NULL;
 	}
 }

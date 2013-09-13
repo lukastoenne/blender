@@ -85,7 +85,7 @@ DepsNode *DEG_find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *p
  *
  * > returns: A node matching the required characteristics that exists in the graph
  */
-DepsNode *DEG_get_node(Depsgraph *graph, ID *id, char subdata[MAX_NAME],
+DepsNode *DEG_get_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                        eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
@@ -120,7 +120,7 @@ DepsNode *DEG_create_node(eDepsNode_Type type);
 /* Add given node to graph 
  * < (id): ID-Block that node is associated with (if applicable)
  */
-void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
+void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id);
 
 /* Create a new node and add to graph
  * ! Arguments are as for DEG_find_node()
@@ -128,7 +128,7 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, ID *id);
  * > returns: The new node created (of the specified type) which now exists in the graph already
  *            (i.e. even if an ID node was created first, the inner node would get created first)
  */
-DepsNode *DEG_add_new_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                            eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 /* Remove node from graph, but don't free any of its data */
@@ -288,7 +288,7 @@ typedef struct DepsNodeTypeInfo {
 	
 	/* Data Management ................................ */
 	/* Initialise node-specific data - the node already exists */
-	void (*init_data)(DepsNode *node, ID *id, const char subdata[MAX_NAME]);
+	void (*init_data)(DepsNode *node, const ID *id, const char subdata[MAX_NAME]);
 	
 	/* Free node-specific data, but not node itself 
 	 * NOTE: data should already have been removed from graph!
@@ -302,7 +302,7 @@ typedef struct DepsNodeTypeInfo {
 	/* Graph/Connection Management .................... */
 	
 	/* Add node to graph - Will add additional inbetween nodes as needed */
-	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, ID *id);
+	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, const ID *id);
 	
 	/* Remove node from graph - Only use when node is to be replaced... */
 	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
