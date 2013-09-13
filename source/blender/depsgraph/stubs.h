@@ -15,6 +15,7 @@ void BKE_constraints_evaluate(void *context, void *item);
 void BKE_pose_iktree_evaluate(void *context, void *item);
 void BKE_pose_splineik_evaluate(void *context, void *item);
 void BKE_pose_eval_bone(void *context, void *item);
+void BKE_particle_system_eval(void *context, void *item);
 
 
 #endif //__DEPSGRAPH_FN_STUBS_H__

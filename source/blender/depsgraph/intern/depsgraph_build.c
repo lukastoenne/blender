@@ -42,6 +42,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_effect_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
@@ -59,6 +60,7 @@
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
 #include "BKE_key.h"
@@ -69,6 +71,7 @@
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
+#include "BKE_particle.h"
 #include "BKE_rigidbody.h"
 #include "BKE_sound.h"
 #include "BKE_texture.h"
@@ -765,7 +768,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 		DepsNode *psys_op, *node2;
 		
 		/* this particle system */
-		psys_op = DEG_add_operation(graph, &ob->id, part->name, DEPSNODE_TYPE_OP_PARTICLE, 
+		psys_op = DEG_add_operation(graph, &ob->id, part->id.name+2, DEPSNODE_TYPE_OP_PARTICLE, 
 		                            DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
 		                            "PSys Eval");
 		                            
