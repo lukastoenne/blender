@@ -26,6 +26,9 @@ void BKE_rigidbody_object_sync_transforms(void *context, void *item); // BKE_rig
 void BKE_displist_make_curveTypes(void *context, void *item);
 void BKE_curve_calc_path(void *context, void *item);
 
+void BKE_object_eval_local_transform(void *context, void *item);
+void BKE_object_eval_parent(void *context, void *item);
+
 
 #endif //__DEPSGRAPH_FN_STUBS_H__
 
