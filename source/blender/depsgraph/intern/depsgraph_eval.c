@@ -37,6 +37,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "PIL_time.h"
+
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -46,6 +48,7 @@
 #include "BKE_constraint.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
+#include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
@@ -66,7 +69,7 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node)
 	/* get context and dispatch */
 	if (node->class == DEPSNODE_CLASS_OPERATION) {
 		OperationDepsNode *op  = (OperationDepsNode *)node;
-		ComponentDepsNode *com = (ComponentDepsNode *)op->owner; 
+		ComponentDepsNode *com = (ComponentDepsNode *)op->nd.owner; 
 		void *context = NULL, *item = NULL;
 		
 		/* get context */
@@ -117,7 +120,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
 	TimeSourceDepsNode *tsrc;
 	
 	/* update time on primary timesource */
-	tsrc = (TimeSourceDepsNode *)DEG_find_node(graph, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
+	tsrc = (TimeSourceDepsNode *)DEG_find_node(graph, NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
 	tsrc->cfra = ctime;
 	
 	DEG_node_tag_update(graph, &tsrc->nd);
