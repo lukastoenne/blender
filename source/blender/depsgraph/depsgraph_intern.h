@@ -32,6 +32,7 @@
 
 struct Main;
 struct Group;
+struct Scene;
 
 /* Low-Level Querying ============================================== */
 
@@ -230,13 +231,13 @@ void DEG_free_relation(DepsRelation *rel);
 /* Build depsgraph for the given group, and dump results in given graph container 
  * This is usually used for building subgraphs for groups to use...
  */
-void DEG_graph_build_from_group(Depsgraph *graph, Main *bmain, Group *group);
+void DEG_graph_build_from_group(Depsgraph *graph, struct Main *bmain, struct Group *group);
 
 /* Build subgraph for group */
 DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, struct Main *bmain, struct Group *group);
 
 /* Build depsgraph for the given scene, and dump results in given graph container */
-void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, Scene *scene);
+void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
 
 /* Graph Copying ========================================================= */
 /* (Part of the Filtering API) */

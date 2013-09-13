@@ -37,6 +37,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_ID.h"
+#include "DNA_listBase.h"
+
 #include "BKE_depsgraph.h"
 
 #include "RNA_access.h"
@@ -53,6 +56,8 @@
  */
 void DEG_graph_validate_links(Depsgraph *graph)
 {
+	GHashIterator *hashIter;
+	
 	BLI_assert((graph != NULL) && (graph->id_hash != NULL));
 	
 	/* go over each ID node to recursively call validate_links()

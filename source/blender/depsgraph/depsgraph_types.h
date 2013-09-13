@@ -302,16 +302,16 @@ typedef struct PoseComponentDepsNode {
 /* Super(ComponentDepsNode) */
 typedef struct BoneComponentDepsNode {
 	/* ComponentDepsNode */
-	DepsNode nd;             /* standard header */
+	DepsNode nd;                    /* standard header */
 	
-	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
-	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (bone-level) */
+	ListBase ops;                   /* ([OperationDepsNode]) inner nodes for this component */
+	GHash *op_hash;                 /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (bone-level) */
 	
-	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
-	void *result_data;       /*  where the data for this component goes when done */
+	void *context;                  /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
+	void *result_data;              /*  where the data for this component goes when done */
 	
 	/* BoneComponentDepsNode */
-	bPoseChannel *pchan;     /* the bone that this component represents */
+	struct bPoseChannel *pchan;     /* the bone that this component represents */
 } BoneComponentDepsNode;
 
 /* Inner Nodes ========================= */
