@@ -10,5 +10,12 @@
 
 #pragma message("DEPSGRAPH PORTING XXX: There are still some undefined stubs")
 
+void BKE_animsys_eval_driver(void *context, void *item);
+void BKE_constraints_evaluate(void *context, void *item);
+void BKE_pose_iktree_evaluate(void *context, void *item);
+void BKE_pose_splineik_evaluate(void *context, void *item);
+void BKE_pose_eval_bone(void *context, void *item);
+
+
 #endif //__DEPSGRAPH_FN_STUBS_H__
 
