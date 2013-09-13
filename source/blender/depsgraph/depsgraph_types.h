@@ -214,15 +214,6 @@ typedef enum eDepsNode_Flag {
 
 /* Generic Nodes ======================= */
 
-/* Root Node */
-/* Super(DepsNode) */
-typedef struct RootDepsNode {
-	DepsNode nd;                     /* standard header */
-	
-	Scene *scene;                    /* scene that this corresponds to */
-	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
-} RootDepsNode;
-
 /* Time Source Node */
 /* Super(DepsNode) */
 typedef struct TimeSourceDepsNode {
@@ -233,6 +224,16 @@ typedef struct TimeSourceDepsNode {
 	double cfra;                    /* new "current time" */
 	double offset;                  /* time-offset relative to the "official" time source that this one has */
 } TimeSourceDepsNode;
+
+/* Root Node */
+/* Super(DepsNode) */
+typedef struct RootDepsNode {
+	DepsNode nd;                     /* standard header */
+	
+	Scene *scene;                    /* scene that this corresponds to */
+	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
+} RootDepsNode;
+
 
 
 /* ID-Block Reference */
