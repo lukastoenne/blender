@@ -36,6 +36,11 @@
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_action_types.h"
+#include "DNA_ID.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+
 #include "BKE_depsgraph.h"
 #include "BKE_depsgraph_query.h"
 
@@ -243,11 +248,12 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, const char subdat
 }
 
 /* helper for finding bone component nodes by their names */
-static DepsNode *deg_find_bone_component_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+static DepsNode *deg_find_bone_component_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                                               eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
-	PoseComponentDepsNode *pose_comp = (PoseComponentDepsNode *)DEG_find_node(graph, DEPSNODE_TYPE_EVAL_POSE, id, NULL);
+	PoseComponentDepsNode *pose_comp;
 	
+	pose_comp = (PoseComponentDepsNode *)DEG_find_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
 		BoneComponentDepsNode *bone_node = BLI_ghash_lookup(pose_comp->bone_hash, subdata);
@@ -297,7 +303,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 			else {
 				/* use "official" timesource */
 				RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
-				result = root_node->time_source;
+				result = (DepsNode *)root_node->time_source;
 			}
 		}
 			break;

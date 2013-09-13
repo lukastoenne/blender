@@ -164,7 +164,7 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_ANIMATION        = 12,       /* Animation Component */                 // XXX: merge in with parameters?
 	DEPSNODE_TYPE_TRANSFORM        = 13,       /* Transform Component (Parenting/Constraints) */
 	DEPSNODE_TYPE_GEOMETRY         = 14,       /* Geometry Component (DerivedMesh/Displist) */
-	DESPNODE_TYPE_SEQUENCER        = 15,       /* Sequencer Component (Scene Only) */
+	DEPSNODE_TYPE_SEQUENCER        = 15,       /* Sequencer Component (Scene Only) */
 	
 	/* Evaluation-Related Outer Types (with Subdata) */
 	DEPSNODE_TYPE_EVAL_POSE        = 20,       /* Pose Component - Owner/Container of Bones Eval */

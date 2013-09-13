@@ -102,7 +102,7 @@ void DEG_graph_traverse(const Depsgraph *graph,
  * < graph: a dependency graph which may or may not contain a node matching these requirements
  * < query: query conditions for the criteria that the node must satisfy 
  */
-DepsNode *DEG_node_find(const Depsgraph *graph, DEG_QueryConditions *query);
+//DepsNode *DEG_node_find(const Depsgraph *graph, DEG_QueryConditions *query);
 
 /* Topology Queries (Direct) ---------------------- */
 
