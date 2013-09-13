@@ -109,6 +109,11 @@ void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const Prop
 /* Flush updates */
 void DEG_graph_flush_updates(Depsgraph *graph);
 
+/* Clear all update tags 
+ * - For aborted updates, or after successful evaluation 
+ */
+void DEG_graph_clear_tags(Depsgraph *graph);
+
 /* ************************************************ */
 /* Evaluation Engine API */
 
