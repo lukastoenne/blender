@@ -766,7 +766,8 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	bPoseChannel *pchan = bcomp->pchan;
 	
 	OperationDepsNode *btrans_op = BLI_ghash_lookup(bcomp->op_hash, "Bone Transforms");
-	OperationDepsNode *final_op = NULL;
+	OperationDepsNode *final_op = NULL;  /* normal final-evaluation operation */
+	OperationDepsNode *ik_op = NULL;     /* IK Solver operation */
 	
 	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 	if (pchan->parent == NULL) {
@@ -792,13 +793,59 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	/* outlink source target depends on what we might have:
 	 * 1) Transform only - No constraints at all
 	 * 2) Constraints node - Just plain old constraints
-	 * 3) IK Solver node - If part of IK chain
+	 * 3) IK Solver node - If part of IK chain...
 	 */
-	// TODO: search for IK-solver rels?
+	if (pchan->constraints.first) {
+		/* find constraint stack operation */
+		final_op = BLI_ghash_lookup(bcomp->op_hash, "Constraint Stack");
+	}
+	else {
+		/* just normal transforms */
+		final_op = btrans_op;
+	}
 	
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
 	{
+		/* Technically, the last evaluation operation on these
+		 * should be IK if present. Since, this link is actually
+		 * present in the form of one or more of the ops, we'll
+		 * take the first one that comes (during a first pass)
+		 * (XXX: there's potential here for problems with forked trees) 
+		 */
+		if (strcmp(rel->name, "IK Solver Update") == 0) {
+			ik_op = rel->to;
+			break;
+		}
+	}
+	DEPSRNODE_RELATIONS_ITER_END;
 	
+	/* fix up outlink refs */
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+	{
+		if (ik_op) {
+			/* bone is part of IK Chain... */
+			if (rel->to == ik_op) {
+				/* can't have ik to ik, so use final "normal" bone transform 
+				 * as indicator to IK Solver that it is ready to run 
+				 */
+				rel->from = final_op;
+			}
+			else {
+				/* everything which depends on result of this bone needs to know 
+				 * about the IK result too!
+				 */
+				rel->from = ik_op;
+			}
+		}
+		else {
+			/* bone is not part of IK Chains... */
+			rel->from = final_op;
+		}
+		
+		/* XXX: for now, we preserve the link to the component, so that querying is easier
+		 *      But, this also ends up making more work when flushing updates...
+		 */
+		DEG_add_relation(rel);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 	
