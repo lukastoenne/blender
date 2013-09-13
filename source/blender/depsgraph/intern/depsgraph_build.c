@@ -44,8 +44,11 @@
 #include "DNA_curve_types.h"
 #include "DNA_effect_types.h"
 #include "DNA_group_types.h"
+#include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meta_types.h"
 #include "DNA_node_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_object_types.h"
@@ -1028,7 +1031,7 @@ static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob
 // XXX: what happens if the datablock is shared!
 static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
-	DepsNode *ob_geom, *obdata_geom;
+	DepsNode *geom_node, *obdata_geom;
 	DepsNode *node2;
 	
 	ID *ob_id     = (ID *)ob;
@@ -1082,7 +1085,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 				DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
 			}
 			if (cu->taperobj) {
-				node2 = DEG_get_node(graph, (ID *)cu->tapeobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+				node2 = DEG_get_node(graph, (ID *)cu->taperobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 				DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
 			}
 			if (ob->type == OB_FONT) {
@@ -1134,7 +1137,8 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 			
 			if (mti->updateDepgraph) {
-				mti->updateDepgraph(md, graph, scene, ob);
+				#pragma message("ModifierTypeInfo->updateDepsgraph()")
+				//mti->updateDepgraph(md, graph, scene, ob);
 			}
 		}
 	}

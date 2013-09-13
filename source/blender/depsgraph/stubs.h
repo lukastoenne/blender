@@ -23,6 +23,9 @@ void BKE_rigidbody_rebuild_sim(void *context, void *item); // BKE_rigidbody_rebu
 void BKE_rigidbody_eval_simulation(void *context, void *item); // BKE_rigidbody_do_simulation
 void BKE_rigidbody_object_sync_transforms(void *context, void *item); // BKE_rigidbody_sync_transforms
 
+void BKE_displist_make_curveTypes(void *context, void *item);
+void BKE_curve_calc_path(void *context, void *item);
+
 
 #endif //__DEPSGRAPH_FN_STUBS_H__
 
