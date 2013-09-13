@@ -33,6 +33,9 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
+struct Scene;
+struct bPoseChannel;
+
 /* Maximum length of identifier names used in Depsgraph */
 #define DEG_MAX_ID_NAME     128
 
@@ -230,7 +233,7 @@ typedef struct TimeSourceDepsNode {
 typedef struct RootDepsNode {
 	DepsNode nd;                     /* standard header */
 	
-	Scene *scene;                    /* scene that this corresponds to */
+	struct Scene *scene;             /* scene that this corresponds to */
 	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
 } RootDepsNode;
 

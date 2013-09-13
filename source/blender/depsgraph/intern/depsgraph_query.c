@@ -267,7 +267,7 @@ static DepsNode *deg_find_bone_component_node(Depsgraph *graph, ID *id, const ch
 }
 
 /* Find matching node */
-DepsNode *DEG_find_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                         eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *result = NULL;

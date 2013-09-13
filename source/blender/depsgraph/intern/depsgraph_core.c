@@ -37,6 +37,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_defs.h"
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 
@@ -121,6 +122,8 @@ DepsNode *DEG_get_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
 /* Get the most appropriate node referred to by pointer + property */
 DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
 {
+	DepsNode *node = NULL;
+	
 	ID *id;
 	eDepsNode_Type type;
 	char subdata[MAX_NAME];
@@ -130,7 +133,8 @@ DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, con
 	DEG_find_node_criteria_from_pointer(ptr, prop, &id, subdata, &type, name);
 	
 	/* use standard lookup mechanisms... */
-	return DEG_get_node(graph, id, subdata, type, name);
+	node = DEG_get_node(graph, id, subdata, type, name);
+	return node;
 }
 
 /* Get DepsNode referred to by data path */
@@ -421,7 +425,7 @@ void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
  */
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
-	DepsNode *node = DEG_find_node(graph, id, DEPSNODE_TYPE_ID_REF, NULL);
+	DepsNode *node = DEG_find_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 	DEG_node_tag_update(graph, node);
 }
 
@@ -457,8 +461,8 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	// XXX: perhaps instead of iterating, we should just push these onto the queue of nodes to check?
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
 	// NOTE: count how many nodes we need to handle - entry nodes may be component nodes which don't count for this purpose!
-	for (ld = graph->entry_tags; ld; ld = ld->next) {
-		DepsNode *node = ld->data;
+	for (ld = graph->entry_tags.first; ld; ld = ld->next) {
+		DepsNode *node = (DepsNode *)ld->data;
 		
 		/* flush to sub-nodes... */
 		// NOTE: if flushing to subnodes, we should then proceed to remove tag(s) from self, as only the subnode tags matter

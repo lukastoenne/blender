@@ -49,7 +49,7 @@ struct Scene;
  * > returns: A node matching the required characteristics if it exists
  *            OR NULL if no such node exists in the graph
  */
-DepsNode *DEG_find_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME], 
+DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME], 
                         eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 
 
