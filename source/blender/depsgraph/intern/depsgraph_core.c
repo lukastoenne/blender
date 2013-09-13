@@ -433,14 +433,14 @@ void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 /* Tag nodes related to a specific piece of data */
 void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
 {
-	DepsNode *node = DEG_find_node_from_pointer(ptr, NULL);
+	DepsNode *node = DEG_find_node_from_pointer(graph, ptr, NULL);
 	DEG_node_tag_update(graph, node);
 }
 
 /* Tag nodes related to a specific property */
 void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
 {
-	DepsNode *node = DEG_find_node_from_pointer(ptr, prop);
+	DepsNode *node = DEG_find_node_from_pointer(graph, ptr, prop);
 	DEG_node_tag_update(graph, node);
 }
 

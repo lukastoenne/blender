@@ -75,7 +75,7 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
  * > returns: A node matching the required characteristics if it exists
  *            OR NULL if no such node exists in the graph
  */
-DepsNode *DEG_find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop);
+DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
 
 /* Node Getting --------------------------------------------------- */
 
