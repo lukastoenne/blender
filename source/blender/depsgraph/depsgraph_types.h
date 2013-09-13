@@ -165,7 +165,7 @@ typedef enum eDepsNode_Type {
 	
 	/* Evaluation-Related Outer Types (with Subdata) */
 	DEPSNODE_TYPE_EVAL_POSE        = 20,       /* Pose Component - Owner/Container of Bones Eval */
-	DEPSNODE_TYPE_BONE,            = 21,       /* Bone Component - Child/Subcomponent of Pose */
+	DEPSNODE_TYPE_BONE             = 21,       /* Bone Component - Child/Subcomponent of Pose */
 	
 	DEPSNODE_TYPE_EVAL_PARTICLES   = 22,       /* Particle Systems Component */
 	
