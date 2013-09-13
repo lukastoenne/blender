@@ -67,6 +67,7 @@
 #include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
+#include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_rigidbody.h"
 #include "BKE_sound.h"
@@ -606,8 +607,8 @@ static void deg_build_nodetree_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 			if (GS(n->id->name) == ID_MA) {
 				deg_build_material_graph(graph, scene, owner_component, (Material *)n->id);
 			}
-			else if (n->type == ID_TEX) {
-				deg_build_texture_graph(graph, scene, owner_component, (Texture *)n->id);
+			else if (n->type == ID_TE) {
+				deg_build_texture_graph(graph, scene, owner_component, (Tex *)n->id);
 			}
 			else if (n->type == NODE_GROUP) {
 				deg_build_nodetree_graph(graph, scene, owner_component, (bNodeTree *)n->id);
@@ -686,6 +687,8 @@ static void deg_build_material_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 /* Recursively build graph for world */
 static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 {
+	DepsNode *owner_component = NULL; /* world shading/params? */
+	
 	/* Prevent infinite recursion by checking (and tagging the world) as having been visited 
 	 * already. This assumes wo->id.flag & LIB_DOIT isn't set by anything else
 	 * in the meantime... [#32017]
@@ -703,7 +706,7 @@ static void deg_build_world_graph(Depsgraph *graph, Scene *scene, World *wo)
 	/* TODO: other settings? */
 	
 	/* textures */
-	deg_build_texture_stack_graph(graph, scene, NULL /* world shading/params? */, wo->mtex);
+	deg_build_texture_stack_graph(graph, scene, owner_component, wo->mtex);
 	
 	/* world's nodetree */
 	if (wo->nodetree) {
@@ -718,12 +721,15 @@ static void deg_build_compo_graph(Depsgraph *graph, Scene *scene)
 {
 	/* For now, just a plain wrapper? */
 	if (scene->nodetree) {
+		DepsNode *owner_component;
+		
 		// TODO: create compositing component?
 		// XXX: component type undefined!
-		//deg_build_nodetree_graph(graph, scene, DEPSNODE_TYPE_COMPOSITING, scene->nodetree);
+		//DEG_get_node(graph, &scene->id, NULL, DEPSNODE_TYPE_COMPOSITING, NULL);
 		
 		/* for now, nodetrees are just parameters; compositing occurs in internals of renderer... */
-		deg_build_nodetree_graph(graph, scene, DEPSNODE_TYPE_PARAMETERS, scene->nodetree);
+		owner_component = DEG_get_node(graph, &scene->id, NULL, DEPSNODE_TYPE_PARAMETERS, NULL);
+		deg_build_nodetree_graph(graph, scene, owner_component, scene->nodetree);
 	}
 }
 
