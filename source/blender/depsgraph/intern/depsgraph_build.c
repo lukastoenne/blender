@@ -877,12 +877,12 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	/* create nodes ------------------------------------------------------------------------ */
 	/* init/rebuild operation */
 	init_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
-	                              DEPSOP_TYPE_REBUILD, BKE_rigidbody_rebuild_world,
+	                              DEPSOP_TYPE_REBUILD, BKE_rigidbody_rebuild_sim,
 	                              "Rigidbody World Rebuild");
 	
 	/* do-sim operation */
 	sim_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
-	                             DEPSOP_TYPE_SIM, BKE_rigidbody_do_simulation,
+	                             DEPSOP_TYPE_SIM, BKE_rigidbody_eval_simulation,
 	                             "Rigidbody World Do Simulation");
 	
 	
@@ -923,7 +923,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				 *       we can safely assume that all necessary ops we have to play with
 				 *       already exist
 				 */
-				trans_comp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+				tcomp = (ComponentDepsNode *)DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 				
 				/* get operation that rigidbody should follow */
 				// TODO: doesn't pre-simulation updates need this info too?
@@ -940,7 +940,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				
 				/* 2) create operation for flushing results */
 				rbo_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
-										   DEPSOP_TYPE_EXEC, BKE_rigidbody_sync_transforms, /* xxx: function name */
+										   DEPSOP_TYPE_EXEC, BKE_rigidbody_object_sync_transforms, /* xxx: function name */
 										   "RigidBodyObject Sync");
 				
 				
@@ -952,10 +952,13 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				 *      XXX: there's probably a difference between passive and active 
 				 *           - passive don't change, so may need to know full transform...
 				 */
-				DEG_add_new_relation(&tbase_op->nd, &rbo_op->nd, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
-				DEG_add_new_relation(sim_node,      &rbo_op->nd, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
+				DEG_add_new_relation(&tbase_op->nd, &rbo_op->nd,   DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
+				DEG_add_new_relation(&sim_node->nd, &rbo_op->nd,   DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
 				
-				DEG_add_new_relation(&tbase_op->nd, sim_node,    DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval"); /* needed to get correct base values */
+				if (con_op)
+					DEG_add_new_relation(&rbo_op->nd, &con_op->nd,  DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
+				
+				DEG_add_new_relation(&tbase_op->nd, &sim_node->nd, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval"); /* needed to get correct base values */
 			}
 		}
 	}
@@ -992,7 +995,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				DEG_add_new_relation(tcomp, ob2, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_2");
 				
 				/* - ensure that sim depends on this constraint's transform */
-				DEG_add_new_relation(tcomp, sim_node, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
+				DEG_add_new_relation(tcomp, &sim_node->nd, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
 			}
 		}
 	}
