@@ -1315,14 +1315,14 @@ void DEG_free_node_types(void)
 /* Getters ------------------------------------------------- */
 
 /* Get typeinfo for specified type */
-DepsNodeTypeInfo *DEG_get_node_typeinfo(eDepsNode_Type type)
+DepsNodeTypeInfo *DEG_get_node_typeinfo(const eDepsNode_Type type)
 {
 	/* look up type - at worst, it doesn't exist in table yet, and we fail */
 	return BLI_ghash_lookup(_depsnode_typeinfo_registry, type);
 }
 
 /* Get typeinfo for provided node */
-DepsNodeTypeInfo *DEG_node_get_typeinfo(DepsNode *node)
+DepsNodeTypeInfo *DEG_node_get_typeinfo(const DepsNode *node)
 {
 	DepsNodeTypeInfo *nti = NULL;
 	

@@ -319,10 +319,10 @@ typedef struct DepsNodeTypeInfo {
 void DEG_register_node_typeinfo(DepsNodeTypeInfo *typeinfo);
 
 /* Get typeinfo for specified type */
-DepsNodeTypeInfo *DEG_get_node_typeinfo(eDepsNode_Type type);
+DepsNodeTypeInfo *DEG_get_node_typeinfo(const eDepsNode_Type type);
 
 /* Get typeinfo for provided node */
-DepsNodeTypeInfo *DEG_node_get_typeinfo(DepsNode *node);
+DepsNodeTypeInfo *DEG_node_get_typeinfo(const DepsNode *node);
 
 
 #endif // __DEPSGRAPH_INTERN_H__
