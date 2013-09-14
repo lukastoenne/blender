@@ -733,7 +733,7 @@ static void dnti_bone__init_data(DepsNode *node, const ID *id, const char subdat
 	BLI_strncpy(node->name, subdata, MAX_NAME);
 	
 	/* bone-specific node data */
-	bone_node->pchan = BKE_pose_channel_from_name(ob->pose, subdata);
+	bone_node->pchan = BKE_pose_channel_find_name(ob->pose, subdata);
 }
 
 /* Add 'bone component' node to graph */
@@ -775,9 +775,9 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	BoneComponentDepsNode *bcomp = (BoneComponentDepsNode *)node;
 	bPoseChannel *pchan = bcomp->pchan;
 	
-	OperationDepsNode *btrans_op = BLI_ghash_lookup(bcomp->op_hash, "Bone Transforms");
-	OperationDepsNode *final_op = NULL;  /* normal final-evaluation operation */
-	OperationDepsNode *ik_op = NULL;     /* IK Solver operation */
+	DepsNode *btrans_op = BLI_ghash_lookup(bcomp->op_hash, "Bone Transforms");
+	DepsNode *final_op = NULL;  /* normal final-evaluation operation */
+	DepsNode *ik_op = NULL;     /* IK Solver operation */
 	
 	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 	if (pchan->parent == NULL) {
@@ -827,7 +827,7 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 			break;
 		}
 	}
-	DEPSRNODE_RELATIONS_ITER_END;
+	DEPSNODE_RELATIONS_ITER_END;
 	
 	/* fix up outlink refs */
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
@@ -862,14 +862,14 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	/* link bone/component to pose "sinks" as final link, unless it has obvious quirks */
 	{
 		DepsNode *ppost_op = BLI_ghash_lookup(pcomp->op_hash, "Cleanup Pose Eval");
-		DEG_add_new_relation(final_op, ppost_op, DEPSNODE_TYPE_OPERATION, "PoseEval Sink-Bone Link");
+		DEG_add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
 	}
 }
 
 /* Bone Type Info */
 static DepsNodeTypeInfo DNTI_BONE = {
 	/* type */               DEPSNODE_TYPE_BONE,
-	/* size */               sizeof(BoneDepsNode),
+	/* size */               sizeof(BoneComponentDepsNode),
 	/* name */               "Bone Component Node",
 	
 	/* init_data() */        dnti_bone__init_data,
@@ -894,7 +894,7 @@ static void dnti_operation__add_to_graph(Depsgraph *graph, DepsNode *node,
                                          const ID *id, eDepsNode_Type component_type)
 {
 	/* get component node to add operation to */
-	DepsNode *comp_node = DEG_get_node(graph, id, component_type, NULL);
+	DepsNode *comp_node = DEG_get_node(graph, id, NULL, component_type, NULL);
 	ComponentDepsNode *component = (ComponentDepsNode *)comp_node;
 	
 	/* add to hash and list */
@@ -909,7 +909,7 @@ static void dnti_operation__add_to_graph(Depsgraph *graph, DepsNode *node,
 static void dnti_operation__remove_from_graph(Depsgraph *UNUSED(graph), DepsNode *node)
 {
 	if (node->owner) {
-		ComponentDepsNode *component = (ComponentDepsNode *)comp_node;
+		ComponentDepsNode *component = (ComponentDepsNode *)node;
 		
 		/* remove node from hash and list */
 		BLI_ghash_remove(component->op_hash, node->name, NULL, NULL);
@@ -1043,7 +1043,7 @@ static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
 /* Sequencer Operation ==================================== */
 
 /* Add 'sequencer operation' node to graph */
-static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+static void dnti_op_sequencer__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_SEQUENCER);
 }
@@ -1148,9 +1148,9 @@ static void dnti_op_bone__init_data(DepsNode *node, const ID *id, const char sub
 	
 	/* set up RNA Pointer to affected bone */
 	ob = (Object *)id;
-	pchan = BKE_pose_channel_from_name(ob->pose, subdata);
+	pchan = BKE_pose_channel_find_name(ob->pose, subdata);
 	
-	RNA_pointer_create(id, &RNA_PoseBone, pchan, &bone_op->ptr);
+	RNA_pointer_create((ID *)id, &RNA_PoseBone, pchan, &bone_op->ptr);
 }
 
 /* Add 'bone operation' node to graph */
@@ -1279,41 +1279,41 @@ void DEG_register_node_types(void)
 	
 	/* register node types */
 	/* GENERIC */
-	DEG_register_node_typeinfo(DNTI_ROOT);
-	DEG_register_node_typeinfo(DNTI_TIMESOURCE);
+	DEG_register_node_typeinfo(&DNTI_ROOT);
+	DEG_register_node_typeinfo(&DNTI_TIMESOURCE);
 	
-	DEG_register_node_typeinfo(DNTI_ID_REF);
-	DEG_register_node_typeinfo(DNTI_SUBGRAPH);
+	DEG_register_node_typeinfo(&DNTI_ID_REF);
+	DEG_register_node_typeinfo(&DNTI_SUBGRAPH);
 	
 	/* OUTER */
-	DEG_register_node_typeinfo(DNTI_PARAMETERS);
-	DEG_register_node_typeinfo(DNTI_PROXY);
-	DEG_register_node_typeinfo(DNTI_ANIMATION);
-	DEG_register_node_typeinfo(DNTI_TRANSFORM);
-	DEG_register_node_typeinfo(DNTI_GEOMETRY);
-	DEG_register_node_typeinfo(DNTI_SEQUENCER);
+	DEG_register_node_typeinfo(&DNTI_PARAMETERS);
+	DEG_register_node_typeinfo(&DNTI_PROXY);
+	DEG_register_node_typeinfo(&DNTI_ANIMATION);
+	DEG_register_node_typeinfo(&DNTI_TRANSFORM);
+	DEG_register_node_typeinfo(&DNTI_GEOMETRY);
+	DEG_register_node_typeinfo(&DNTI_SEQUENCER);
 	
-	DEG_register_node_typeinfo(DNTI_EVAL_POSE);
-	DEG_register_node_typeinfo(DNTI_BONE);
+	DEG_register_node_typeinfo(&DNTI_EVAL_POSE);
+	DEG_register_node_typeinfo(&DNTI_BONE);
 	
-	DEG_register_node_typeinfo(DNTI_EVAL_PARTICLES);
+	//DEG_register_node_typeinfo(&DNTI_EVAL_PARTICLES);
 	
 	/* INNER */
-	DEG_register_node_typeinfo(DNTI_OP_PARAMETER);
-	DEG_register_node_typeinfo(DNTI_OP_PROXY);
-	DEG_register_node_typeinfo(DNTI_OP_ANIMATION);
-	DEG_register_node_typeinfo(DNTI_OP_TRANSFORM);
-	DEG_register_node_typeinfo(DNTI_OP_GEOMETRY);
-	DEG_register_node_typeinfo(DNTI_OP_SEQUENCER);
+	DEG_register_node_typeinfo(&DNTI_OP_PARAMETER);
+	DEG_register_node_typeinfo(&DNTI_OP_PROXY);
+	DEG_register_node_typeinfo(&DNTI_OP_ANIMATION);
+	DEG_register_node_typeinfo(&DNTI_OP_TRANSFORM);
+	DEG_register_node_typeinfo(&DNTI_OP_GEOMETRY);
+	DEG_register_node_typeinfo(&DNTI_OP_SEQUENCER);
 	
-	DEG_register_node_typeinfo(DNTI_OP_UPDATE);
-	DEG_register_node_typeinfo(DNTI_OP_DRIVER);
+	DEG_register_node_typeinfo(&DNTI_OP_UPDATE);
+	DEG_register_node_typeinfo(&DNTI_OP_DRIVER);
 	
-	DEG_register_node_typeinfo(DNTI_OP_POSE);
-	DEG_register_node_typeinfo(DNTI_OP_BONE);
+	DEG_register_node_typeinfo(&DNTI_OP_POSE);
+	DEG_register_node_typeinfo(&DNTI_OP_BONE);
 	
-	DEG_register_node_typeinfo(DNTI_OP_PARTICLE);
-	DEG_register_node_typeinfo(DNTI_OP_RIGIDBODY);
+	DEG_register_node_typeinfo(&DNTI_OP_PARTICLE);
+	DEG_register_node_typeinfo(&DNTI_OP_RIGIDBODY);
 }
 
 /* Free registry on exit */
