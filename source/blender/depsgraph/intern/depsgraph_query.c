@@ -62,6 +62,12 @@ void DEG_graph_traverse_begin(Depsgraph *graph)
 	// XXX: this will end up being O(|V|), which is bad when we're just updating a few nodes... 
 }
 
+/* Compute priority weight for nodes */
+// XXX: this will need to be exported
+static int calc_node_weight(DepsNode *node)
+{
+	return 0; // XXX
+}
 
 /* Perform a traversal of graph from given starting node (in execution order) */
 // TODO: additional flags for controlling the process?
@@ -136,8 +142,8 @@ void DEG_filter_cleanup(DepsgraphCopyContext *dcc)
 		return;
 		
 	/* free hashes - contents are weren't copied, so are ok... */
-	BLI_ghash_free(dcc->nodes_hash);
-	BLI_ghash_free(dcc->rels_hash);
+	BLI_ghash_free(dcc->nodes_hash, NULL, NULL);
+	BLI_ghash_free(dcc->rels_hash, NULL, NULL);
 	
 	/* clear filtering criteria */
 	// ...
@@ -153,7 +159,7 @@ void DEG_filter_cleanup(DepsgraphCopyContext *dcc)
 // XXX: perhaps this really shouldn't be exposed, as it will just be a sub-step of the evaluation process?
 DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 {
-	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
+	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(src);
 	DepsNode *dst;
 	
 	/* sanity check */
@@ -166,7 +172,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	memcpy(dst, src, nti->size);
 	
 	/* add this node-pair to the hash... */
-	BLI_ghash_insert(dcc->node_hash, src, dst);
+	BLI_ghash_insert(dcc->nodes_hash, src, dst);
 	
 	/* now, fix up any links in standard "node header" (i.e. DepsNode struct, that all 
 	 * all others are derived from) that are now corrupt 
@@ -228,7 +234,7 @@ DepsRelation DEG_copy_relation(const DepsRelation *src)
  */
 
 /* helper for finding inner nodes by their names */
-static DepsNode *deg_find_inner_node(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
+static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                                      eDepsNode_Type component_type, eDepsNode_Type type, 
                                      const char name[DEG_MAX_ID_NAME])
 {
