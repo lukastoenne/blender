@@ -49,6 +49,7 @@
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
+#include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
 /* ******************************************************** */
 /* Generic Nodes */

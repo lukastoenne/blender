@@ -17,6 +17,10 @@ void BKE_pose_iktree_evaluate(void *context, void *item);
 void BKE_pose_splineik_evaluate(void *context, void *item);
 void BKE_pose_eval_bone(void *context, void *item);
 
+void BKE_pose_rebuild_op(void *context, void *item);
+void BKE_pose_eval_init(void *context, void *item);
+void BKE_pose_eval_flush(void *context, void *item);
+
 void BKE_particle_system_eval(void *context, void *item);
 
 void BKE_rigidbody_rebuild_sim(void *context, void *item); // BKE_rigidbody_rebuild_sim
@@ -28,6 +32,7 @@ void BKE_curve_calc_path(void *context, void *item);
 
 void BKE_object_eval_local_transform(void *context, void *item);
 void BKE_object_eval_parent(void *context, void *item);
+
 
 
 /* Priority Queue type */
