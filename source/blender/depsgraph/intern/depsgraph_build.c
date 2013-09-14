@@ -1061,15 +1061,21 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		case OB_MBALL: 
 		{
 			Object *mom = BKE_mball_basis_find(scene, ob);
+			OperationDepsNode *op_eval = NULL;
 			
 			/* motherball - mom depends on children! */
 			if (mom != ob) {
+				/* non-motherball -> cannot be directly evaluated! */
 				node2 = DEG_get_node(graph, &mom->id, NULL, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
 				DEG_add_new_relation(geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
 			}
-			
-			/* metaball evaluation operations */
-			// BKE_displist_make_mball
+			else {
+				/* metaball evaluation operations */
+				/* NOTE: only the motherball gets evaluated! */
+				op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                                DEPSOP_TYPE_EXEC, BKE_displist_make_mball, 
+			                                "Geometry Eval");
+			}
 		}
 		break;
 		
@@ -1097,7 +1103,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			}
 			
 			/* curve evaluation operations */
-			/* - calculate curve geometry, including */
+			/* - calculate curve geometry (including path) */
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
 			                            DEPSOP_TYPE_EXEC, BKE_displist_make_curveTypes, 
 			                            "Geometry Eval");
