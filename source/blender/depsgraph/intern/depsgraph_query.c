@@ -172,7 +172,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	memcpy(dst, src, nti->size);
 	
 	/* add this node-pair to the hash... */
-	BLI_ghash_insert(dcc->nodes_hash, src, dst);
+	BLI_ghash_insert(dcc->nodes_hash, (DepsNode *)src, dst);
 	
 	/* now, fix up any links in standard "node header" (i.e. DepsNode struct, that all 
 	 * all others are derived from) that are now corrupt 
@@ -367,7 +367,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_OP_GEOMETRY:   /* Geometry Ops */
 			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_GEOMETRY, type, name);
 			break;
-		case DEPSNODE_TYPE_OP_SEQUENCER;  /* Sequencer Ops */
+		case DEPSNODE_TYPE_OP_SEQUENCER:  /* Sequencer Ops */
 			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_SEQUENCER, type, name);
 			break;
 			
@@ -386,7 +386,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 			break;
 			
 		case DEPSNODE_TYPE_OP_PARTICLE:  /* Particle System/Step */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_EVAL_PARTICLE, type, name);
+			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_EVAL_PARTICLES, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_RIGIDBODY: /* Rigidbody Sim */
