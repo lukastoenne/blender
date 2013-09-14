@@ -331,7 +331,7 @@ static void dnti_subgraph__init_data(DepsNode *node, const ID *id, const char *U
 	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
 	
 	/* store ID-ref if provided */
-	sgn->root_id = id;
+	sgn->root_id = (ID *)id;
 	
 	/* NOTE: graph will need to be added manually,
 	 * as we don't have any way of passing this down
@@ -371,7 +371,7 @@ static void dnti_subgraph__add_to_graph(Depsgraph *graph, DepsNode *node, const 
 	if (id) {
 		// TODO: what to do if subgraph's ID has already been added?
 		BLI_assert(BLI_ghash_haskey(graph->id_hash, id) == false);
-		BLI_ghash_insert(graph->id_hash, id, node);
+		BLI_ghash_insert(graph->id_hash, (ID *)id, node);
 	}
 }
 
@@ -441,13 +441,13 @@ static void dnti_component__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, 
 	dst_node->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy)");
 	
 	/* duplicate list of operation nodes */
-	BLI_duplicatelist(&dst->ops, &src->ops);
+	BLI_duplicatelist(&dst_node->ops, &src_node->ops);
 	
-	for (dst_op = dst->ops.first, src_op = src->ops.first; 
+	for (dst_op = dst_node->ops.first, src_op = src_node->ops.first; 
 	     dst_op && src_op; 
 	     dst_op = dst_op->next,   src_op = src_op->next)
 	{
-		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(op_node);
+		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(src_op);
 		
 		/* recursive copy */
 		if (nti && nti->copy_data)
@@ -465,14 +465,14 @@ static void dnti_component__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, 
 static void dnti_component__free_data(DepsNode *node)
 {
 	ComponentDepsNode *component = (ComponentDepsNode *)node;
-	DepsNode *node, *next;
+	DepsNode *op, *next;
 	
 	/* free nodes and list of nodes */
-	for (node = component->ops.first; node; node = next) {
-		next = node->next;
+	for (op = component->ops.first; op; op = next) {
+		next = op->next;
 		
-		DEG_free_node(node);
-		BLI_freelinkN(&component->ops, node);
+		DEG_free_node(op);
+		BLI_freelinkN(&component->ops, op);
 	}
 	
 	/* free hash too - no need to free as it should be empty now */
@@ -481,7 +481,7 @@ static void dnti_component__free_data(DepsNode *node)
 }
 
 /* Add 'component' node to graph */
-static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	IDDepsNode *id_node;
 	
