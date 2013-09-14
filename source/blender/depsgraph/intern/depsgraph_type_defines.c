@@ -937,7 +937,7 @@ static DepsNodeTypeInfo DNTI_OP_PARAMETER = {
 /* Proxy Operation ======================================== */
 
 /* Add 'proxy operation' node to graph */
-static void dnti_op_proxy__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_proxy__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PROXY);
 }
@@ -985,7 +985,7 @@ static DepsNodeTypeInfo DNTI_OP_ANIMATION = {
 /* Transform Operation ==================================== */
 
 /* Add 'transform operation' node to graph */
-static void dnti_op_transform__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_transform__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_TRANSFORM);
 }
@@ -1033,7 +1033,7 @@ static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
 /* Sequencer Operation ==================================== */
 
 /* Add 'sequencer operation' node to graph */
-static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, ID *id)
+static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_SEQUENCER);
 }
