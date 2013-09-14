@@ -79,7 +79,7 @@ struct PropertyRNA;
 Depsgraph *DEG_graph_new(void);
 
 /* Free Depsgraph itself and all its data */
-void DEG_free(Depsgraph *graph);
+void DEG_graph_free(Depsgraph *graph);
 
 
 /* Node Types Registry ---------------------------- */

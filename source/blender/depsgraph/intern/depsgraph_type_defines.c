@@ -257,7 +257,7 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	ComponentDepsNode *proxy = BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_PROXY));
 	ComponentDepsNode *pose = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_POSE));
 	ComponentDepsNode *psys = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_PARTICLES));
-	ComponentDepsNode *seq = BLI_ghash_lookup(id_node->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_SEQUENCER));
+	ComponentDepsNode *seq = BLI_ghash_lookup(id_node->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_SEQUENCER));
 	
 	/* enforce (gross) ordering of these components................................................. */
 	// TODO: create relationships to do this...
@@ -331,7 +331,7 @@ static void dnti_subgraph__init_data(DepsNode *node, const ID *id, const char *U
 	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
 	
 	/* store ID-ref if provided */
-	sgn->id = id;
+	sgn->root_id = id;
 	
 	/* NOTE: graph will need to be added manually,
 	 * as we don't have any way of passing this down
