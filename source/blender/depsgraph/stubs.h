@@ -36,7 +36,7 @@ typedef struct Queue {
 	size_t size;
 } Queue;
 
-Queue *queue_new();
+Queue *queue_new(void);
 void queue_push(Queue *q, int priority, void *data);
 void *queue_pop(Queue *q);
 bool queue_is_empty(Queue *q);
