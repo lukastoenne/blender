@@ -1121,14 +1121,18 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		case OB_SURF: /* Nurbs Surface */
 		{
 			/* nurbs evaluation operations */
-			// BKE_displist_make_curveTypes
+			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                            DEPSOP_TYPE_EXEC, BKE_displist_make_curveTypes, 
+			                            "Geometry Eval");
 		}
 		break;
 		
 		case OB_LATTICE: /* Lattice */
 		{
 			/* lattice evaluation operations */
-			// BKE_lattice_modifiers_calc
+			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                            DEPSOP_TYPE_EXEC, BKE_lattice_modifiers_calc, 
+			                            "Geometry Eval");
 		}
 		break;
 	}
