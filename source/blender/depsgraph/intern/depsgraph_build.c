@@ -1554,12 +1554,16 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	tag_main_idcode(bmain, ID_WO, FALSE);
 	tag_main_idcode(bmain, ID_TE, FALSE);
 	
-	/* build graph for scene (and set) */
+	/* create root node for scene first
+	 * - this way it should be the first in the graph,
+	 *   reflecting its role as the entrypoint
+	 */
+	graph->root_node = DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	
+	/* build graph for scene and all attached data */
 	scene_node = deg_build_scene_graph(graph, bmain, scene);
 	
 	/* hook this up to a "root" node as entrypoint to graph... */
-	graph->root_node = DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
-	
 	DEG_add_new_relation(graph->root_node, scene_node, 
 	                     DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 	                     
