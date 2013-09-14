@@ -860,7 +860,7 @@ static DepsNodeTypeInfo DNTI_BONE = {
 	/* size */               sizeof(BoneDepsNode),
 	/* name */               "Bone Component Node",
 	
-	/* init_data() */        dnti_component__init_data,
+	/* init_data() */        dnti_bone__init_data,
 	/* free_data() */        dnti_component__free_data,
 	/* copy_data() */        dnti_component__copy_data,
 	
