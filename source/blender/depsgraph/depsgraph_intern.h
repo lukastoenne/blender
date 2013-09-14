@@ -273,7 +273,7 @@ void DEG_filter_cleanup(DepsgraphCopyContext *dcc);
 DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src);
 
 /* Make a copy of given relationship */
-DepsRelation DEG_copy_relation(const DepsRelation *src);
+DepsRelation *DEG_copy_relation(const DepsRelation *src);
 
 /* Node Types Handling ================================================= */
 

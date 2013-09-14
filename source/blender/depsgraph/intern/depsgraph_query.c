@@ -40,6 +40,7 @@
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_depsgraph_query.h"
@@ -209,7 +210,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 }
 
 /* Make a copy of a relationship */
-DepsRelation DEG_copy_relation(const DepsRelation *src)
+DepsRelation *DEG_copy_relation(const DepsRelation *src)
 {
 	DepsRelation *dst = MEM_dupallocN(src);
 	
@@ -256,8 +257,8 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const char 
 }
 
 /* helper for finding bone component nodes by their names */
-static DepsNode *deg_find_bone_component_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
-                                              eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
+                                    eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	PoseComponentDepsNode *pose_comp;
 	
@@ -268,7 +269,7 @@ static DepsNode *deg_find_bone_component_node(Depsgraph *graph, const ID *id, co
 		
 		if (type == DEPSNODE_TYPE_BONE) {
 			/* bone component is what we want */
-			return bone_node;
+			return (DepsNode *)bone_node;
 		}
 		else if (type == DEPSNODE_TYPE_OP_BONE) {
 			/* now lookup relevant operation node */
@@ -338,7 +339,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 			IDDepsNode *id_node = BLI_ghash_lookup(graph->id_hash, id);
 			
 			if (id_node) {
-				result = BLI_ghash_lookup(id_node->component_hash, type);
+				result = BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(type));
 			}
 		}
 			break;
@@ -346,7 +347,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_BONE:       /* Bone Component */
 		{
 			/* this will find the bone component */
-			result = deg_find_bone_node(graph, id, type, name);
+			result = deg_find_bone_node(graph, id, name, type, NULL);
 		}
 			break;
 		
@@ -412,10 +413,10 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
                                          eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
 {
 	/* set default values for returns */
-	*id       = ptr->id;                   /* for obvious reasons... */
+	*id       = ptr->id.data;              /* for obvious reasons... */
 	*subdata  = '\0';                      /* default to no subdata (e.g. bone) name lookup in most cases */
 	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
-	*name[0]  = '\0';                      /* default to no name to lookup in most cases */
+	name[0]   = '\0';                      /* default to no name to lookup in most cases */
 	
 	/* handling of commonly known scenarios... */
 	if (ptr->type == &RNA_PoseBone) {
@@ -423,7 +424,7 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
 		
 		/* bone - generally, we just want the bone component... */
 		*type = DEPSNODE_TYPE_BONE;
-		BLI_strncpy(subdata, MAX_NAME, pchan->name);
+		BLI_strncpy(subdata, pchan->name, MAX_NAME);
 	}
 	else if (ptr->type == &RNA_Object) {
 		Object *ob = (Object *)ptr->data;
@@ -436,7 +437,7 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
 		
 		/* sequencer strip */
 		*type = DEPSNODE_TYPE_SEQUENCER;
-		BLI_strncpy(subdata, MAX_NAME, seq->name); // xxx?
+		BLI_strncpy(subdata, seq->name, MAX_NAME); // xxx?
 	}
 }
 
@@ -449,7 +450,7 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 	char name[DEG_MAX_ID_NAME];
 	
 	/* get querying conditions */
-	DEG_find_node_critera_from_pointer(ptr, prop, &id, subdata, &type, name);
+	DEG_find_node_criteria_from_pointer(ptr, prop, &id, subdata, &type, name);
 	
 	/* use standard node finding code... */
 	return DEG_find_node(graph, id, subdata, type, name);
