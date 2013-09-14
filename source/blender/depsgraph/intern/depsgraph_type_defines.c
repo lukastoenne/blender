@@ -204,7 +204,7 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 	const IDDepsNode *src_node = (const IDDepsNode *)src;
 	IDDepsNode *dst_node       = (IDDepsNode *)dst;
 	
-	GHashIterator *hashIter;
+	GHashIterator hashIter;
 	
 	/* create new hash for destination (src's one is still linked to it at this point) */
 	dst->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
@@ -212,8 +212,8 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 	/* iterate over items in original hash, adding them to new hash */
 	GHASH_ITER(hashIter, src->component_hash) {
 		/* get current <type : component> mapping */
-		eDepsNode_Type c_type   = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(hashIter));
-		DepsNode *old_component = BLI_ghashIterator_getValue(hashIter);
+		eDepsNode_Type c_type   = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&hashIter));
+		DepsNode *old_component = BLI_ghashIterator_getValue(&hashIter);
 		
 		/* make a copy of component */
 		DepsNode *component     = DEG_copy_node(old_component);
@@ -221,7 +221,6 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 		/* add new node to hash... */
 		BLI_ghash_insert(dst->component_hash, SET_INT_IN_POINTER(c_type), old_component);
 	}
-	BLI_ghashIterator_free(hashIter);
 	
 	// TODO: perform a second loop to fix up links?
 }
@@ -245,7 +244,8 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 {
 	IDDepsNode *id_node = (IDDepsNode *)node;
 	ListBase dummy_list = {NULL, NULL}; // XXX: perhaps this should live in the node?
-	GHashIterator *hashIter;
+	
+	GHashIterator hashIter;
 	
 	/* get our components ......................................................................... */
 	ComponentDepsNode *params = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_PARAMETERS);
@@ -296,14 +296,13 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	 * component restrictions...
 	 */
 	GHASH_ITER(hashIter, id_node->component_hash) {
-		DepsNode *component = BLI_ghashIterator_getValue(hashIter);
+		DepsNode *component = BLI_ghashIterator_getValue(&hashIter);
 		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(component);
 		
 		if (nti && nti->validate_links) {
 			nti->validate_links(graph, component);
 		}
 	}
-	BLI_ghashIterator_free(hashIter);
 }
 
 /* ID Node Type Info */
@@ -650,7 +649,7 @@ static void dnti_pose_eval__free_data(DepsNode *node)
 static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 {
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
-	GHashIterator *hashIter;
+	GHashIterator hashIter;
 	
 	/* create our core operations... */
 	if (BLI_ghash_size(pcomp->bone_hash) || (pcomp->ops.first)) {
@@ -683,13 +682,12 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	
 	/* ensure that each bone has been validated... */
 	GHASH_ITER(hashIter, pcomp->bone_hash) {
-		DepsNode *bone_comp = BLI_ghashIterator_getValue(hashIter);
+		DepsNode *bone_comp = BLI_ghashIterator_getValue(&hashIter);
 		
 		/* recursively validate the links within bone component */
 		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
 		dnti_bone__validate_links(graph, bone_comp);
 	}
-	BLI_ghashIterator_free(hashIter);
 }
 
 /* Pose Evaluation */
