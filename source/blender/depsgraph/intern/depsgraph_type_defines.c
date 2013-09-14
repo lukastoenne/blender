@@ -120,7 +120,7 @@ static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, cons
 		/* root-node */
 		RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
 		
-		root_node->time_source = node;
+		root_node->time_source = ts_node;
 		node->owner = graph->root_node;
 	}
 }
@@ -207,19 +207,19 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 	GHashIterator hashIter;
 	
 	/* create new hash for destination (src's one is still linked to it at this point) */
-	dst->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
+	dst_node->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
 	
 	/* iterate over items in original hash, adding them to new hash */
-	GHASH_ITER(hashIter, src->component_hash) {
+	GHASH_ITER(hashIter, src_node->component_hash) {
 		/* get current <type : component> mapping */
 		eDepsNode_Type c_type   = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&hashIter));
 		DepsNode *old_component = BLI_ghashIterator_getValue(&hashIter);
 		
 		/* make a copy of component */
-		DepsNode *component     = DEG_copy_node(old_component);
+		DepsNode *component     = DEG_copy_node(dcc, old_component);
 		
 		/* add new node to hash... */
-		BLI_ghash_insert(dst->component_hash, SET_INT_IN_POINTER(c_type), old_component);
+		BLI_ghash_insert(dst_node->component_hash, SET_INT_IN_POINTER(c_type), old_component);
 	}
 	
 	// TODO: perform a second loop to fix up links?
@@ -229,14 +229,16 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 static void dnti_id_ref__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
 	/* add to hash so that it can be found */
-	BLI_ghash_insert(graph->id_hash, id, node);
+	BLI_ghash_insert(graph->id_hash, (ID *)id, node);
 }
 
 /* Remove 'id' node from graph */
 static void dnti_id_ref__remove_from_graph(Depsgraph *graph, DepsNode *node)
 {
+	IDDepsNode *id_node = (IDDepsNode *)node;
+	
 	/* remove toplevel node and hash entry, but don't free... */
-	BLI_ghash_remove(graph->id_hash, id, NULL, NULL);
+	BLI_ghash_remove(graph->id_hash, id_node->id, NULL, NULL);
 }
 
 /* Validate links between components */
@@ -248,14 +250,14 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	GHashIterator hashIter;
 	
 	/* get our components ......................................................................... */
-	ComponentDepsNode *params = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_PARAMETERS);
-	ComponentDepsNode *anim = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_ANIMATION);
-	ComponentDepsNode *trans = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_TRANSFORM);
-	ComponentDepsNode *geom = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_GEOMETRY);
-	ComponentDepsNode *proxy = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_PROXY);
-	ComponentDepsNode *pose = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_POSE);
-	ComponentDepsNode *psys = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_PARTICLES);
-	ComponentDepsNode *seq = BLI_ghash_lookup(id_node->component_hash, DEPSNODE_TYPE_EVAL_SEQUENCER);
+	ComponentDepsNode *params = BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(DEPSNODE_TYPE_PARAMETERS));
+	ComponentDepsNode *anim = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_ANIMATION));
+	ComponentDepsNode *trans = BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_TRANSFORM));
+	ComponentDepsNode *geom = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_GEOMETRY));
+	ComponentDepsNode *proxy = BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_PROXY));
+	ComponentDepsNode *pose = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_POSE));
+	ComponentDepsNode *psys = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_PARTICLES));
+	ComponentDepsNode *seq = BLI_ghash_lookup(id_node->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_SEQUENCER));
 	
 	/* enforce (gross) ordering of these components................................................. */
 	// TODO: create relationships to do this...
@@ -1316,7 +1318,7 @@ void DEG_free_node_types(void)
 DepsNodeTypeInfo *DEG_get_node_typeinfo(const eDepsNode_Type type)
 {
 	/* look up type - at worst, it doesn't exist in table yet, and we fail */
-	return BLI_ghash_lookup(_depsnode_typeinfo_registry, type);
+	return BLI_ghash_lookup(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(type));
 }
 
 /* Get typeinfo for provided node */
