@@ -88,7 +88,7 @@ static DepsNodeTypeInfo DNTI_ROOT = {
 /* Add 'time source' node to graph */
 static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
-	TimeSourceDepsNode *ts_node = (TimeSourceDepsNode *)
+	TimeSourceDepsNode *ts_node = (TimeSourceDepsNode *)node;
 	
 	/* determine which node to attach timesource to */
 	if (id) {
@@ -172,7 +172,7 @@ static void dnti_id_ref__init_data(DepsNode *node, const ID *id, const char *UNU
 	
 	/* store ID-pointer */
 	BLI_assert(id != NULL);
-	id_node->id = id;
+	id_node->id = (ID *)id;
 	
 	/* init components hash - eDepsNode_Type : ComponentDepsNode */
 	id_node->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash");
