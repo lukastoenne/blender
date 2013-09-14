@@ -36,11 +36,14 @@
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_action.h"
 #include "BKE_animsys.h"
+#include "BKE_armature.h"
 #include "BKE_depsgraph.h"
 
 #include "RNA_access.h"
@@ -612,7 +615,7 @@ static DepsNodeTypeInfo DNTI_SEQUENCER = {
 /* Pose Component ========================================= */
 
 /* Initialise 'pose eval' node - from pointer data given */
-static void dnti_pose_eval__init_data(DepsNode *node, const ID *id)
+static void dnti_pose_eval__init_data(DepsNode *node, const ID *id, const char *UNUSED(subdata))
 {
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
 	
@@ -677,19 +680,25 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		                               "Flush Pose Eval");
 		
 		/* attach links between these operations */
-		DEG_add_new_relation(rebuild_op, init_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
-		DEG_add_new_relation(init_op, cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
+		DEG_add_new_relation(&rebuild_op->nd, &init_op->nd,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
+		DEG_add_new_relation(&init_op->nd,    &cleanup_op->nd, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
 		
 		/* NOTE: bones will attach themselves to these endpoints */
 	}
 	
 	/* ensure that each bone has been validated... */
-	GHASH_ITER(hashIter, pcomp->bone_hash) {
-		DepsNode *bone_comp = BLI_ghashIterator_getValue(&hashIter);
+	if (BLI_ghash_size(pcomp->bone_hash)) {
+		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(DEPSNODE_TYPE_BONE);
 		
-		/* recursively validate the links within bone component */
-		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
-		dnti_bone__validate_links(graph, bone_comp);
+		BLI_assert(nti && nti->validate_links);
+		
+		GHASH_ITER(hashIter, pcomp->bone_hash) {
+			DepsNode *bone_comp = BLI_ghashIterator_getValue(&hashIter);
+			
+			/* recursively validate the links within bone component */
+			// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
+			nti->validate_links(graph, bone_comp);
+		}
 	}
 }
 
@@ -721,7 +730,7 @@ static void dnti_bone__init_data(DepsNode *node, const ID *id, const char subdat
 	dnti_component__init_data(node, id, subdata);
 	
 	/* name of component comes is bone name */
-	BLI_strncpy(node->name, MAX_NAME, subdata);
+	BLI_strncpy(node->name, subdata, MAX_NAME);
 	
 	/* bone-specific node data */
 	bone_node->pchan = BKE_pose_channel_from_name(ob->pose, subdata);
