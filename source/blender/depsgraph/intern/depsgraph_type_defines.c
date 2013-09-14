@@ -611,12 +611,12 @@ static DepsNodeTypeInfo DNTI_SEQUENCER = {
 /* Pose Component ========================================= */
 
 /* Initialise 'pose eval' node - from pointer data given */
-static void dnti_pose_eval__init_data(DepsNode *node, ID *id)
+static void dnti_pose_eval__init_data(DepsNode *node, const ID *id)
 {
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
 	
 	/* generic component-node... */
-	dnti_component__init_data(node, id);
+	dnti_component__init_data(node, id, NULL);
 	
 	/* pose-specific data... */
 	pcomp->bone_hash = BLI_ghash_str_new("Pose Component Bone Hash"); /* <String, BoneNode> */
@@ -629,7 +629,7 @@ static void dnti_pose_eval__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, 
 	PoseComponentDepsNode *dst_node       = (PoseComponentDepsNode *)dst;
 	
 	/* generic component node... */
-	dnti_component__copy_data(dst, src);
+	dnti_component__copy_data(dcc, dst, src);
 	
 	/* pose-specific data... */
 	// copy bonehash...
@@ -717,7 +717,7 @@ static void dnti_bone__init_data(DepsNode *node, const ID *id, const char subdat
 	Object *ob = (Object *)id;
 	
 	/* generic component-node... */
-	dnti_component__init_data(node, id, NULL);
+	dnti_component__init_data(node, id, subdata);
 	
 	/* name of component comes is bone name */
 	BLI_strncpy(node->name, MAX_NAME, subdata);
