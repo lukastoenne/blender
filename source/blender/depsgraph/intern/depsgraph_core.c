@@ -234,6 +234,12 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 	 */
 	DEG_add_node(graph, node, id);
 	
+	/* add node to operation-node list if it plays a part in the evaluation process */
+	if (ELEM(node->class, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
+		BLI_addtail(&graph->all_opnodes, BLI_genericNodeN(node));
+		graph->num_nodes++;
+	}
+	
 	/* return the newly created node matching the description */
 	return node;
 }
