@@ -33,6 +33,7 @@ void BKE_curve_calc_path(void *context, void *item);
 void BKE_object_eval_local_transform(void *context, void *item);
 void BKE_object_eval_parent(void *context, void *item);
 
+void BKE_mesh_evaluate(void *context, void *item);
 
 
 /* Priority Queue type */

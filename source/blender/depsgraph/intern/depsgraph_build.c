@@ -1033,6 +1033,7 @@ static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob
 static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *ob)
 {
 	DepsNode *geom_node, *obdata_geom;
+	OperationDepsNode *op_eval = NULL;
 	DepsNode *node2;
 	
 	ID *ob_id     = (ID *)ob;
@@ -1055,13 +1056,15 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			
 			/* evaluation operations */
 			// XXX: wrapper around makeDerivedMesh() - which gets BMesh, etc. data...
+			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                            DEPSOP_TYPE_EXEC, BKE_mesh_evaluate, 
+			                            "Geometry Eval");
 		}
 		break;
 		
 		case OB_MBALL: 
 		{
 			Object *mom = BKE_mball_basis_find(scene, ob);
-			OperationDepsNode *op_eval = NULL;
 			
 			/* motherball - mom depends on children! */
 			if (mom != ob) {
@@ -1082,7 +1085,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		case OB_CURVE:
 		case OB_FONT:
 		{
-			OperationDepsNode *op_eval, *op_path;
+			OperationDepsNode *op_path;
 			Curve *cu = ob->data;
 			
 			/* curve's dependencies */
