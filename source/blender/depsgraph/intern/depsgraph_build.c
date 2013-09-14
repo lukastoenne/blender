@@ -1052,13 +1052,14 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 	switch (ob->type) {
 		case OB_MESH:
 		{
-			Mesh *me = (Mesh *)ob->data;
+			//Mesh *me = (Mesh *)ob->data;
 			
 			/* evaluation operations */
 			// XXX: wrapper around makeDerivedMesh() - which gets BMesh, etc. data...
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
 			                            DEPSOP_TYPE_EXEC, BKE_mesh_evaluate, 
 			                            "Geometry Eval");
+			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
 		break;
 		
@@ -1078,6 +1079,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 				op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
 			                                DEPSOP_TYPE_EXEC, BKE_displist_make_mball, 
 			                                "Geometry Eval");
+				RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 			}
 		}
 		break;
@@ -1110,6 +1112,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
 			                            DEPSOP_TYPE_EXEC, BKE_displist_make_curveTypes, 
 			                            "Geometry Eval");
+			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 			
 			/* - calculate curve path - this is used by constraints, etc. */
 			op_path = DEG_add_operation(graph, obdata_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
@@ -1124,6 +1127,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
 			                            DEPSOP_TYPE_EXEC, BKE_displist_make_curveTypes, 
 			                            "Geometry Eval");
+			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
 		break;
 		
@@ -1133,6 +1137,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
 			                            DEPSOP_TYPE_EXEC, BKE_lattice_modifiers_calc, 
 			                            "Geometry Eval");
+			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
 		break;
 	}
