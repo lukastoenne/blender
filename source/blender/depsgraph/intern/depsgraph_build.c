@@ -1236,15 +1236,17 @@ static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
 /* object transform nodes */
 static DepsNode *deg_build_object_transform(Depsgraph *graph, Object *ob)
 {
+	OperationDepsNode *trans_op;
 	DepsNode *trans_node;
 	
 	/* component to hold all transform operations */
 	trans_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 	
 	/* init operation - to be hooked up later */
-	DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
-	                  DEPSOP_TYPE_INIT, BKE_object_eval_local_transform,
-	                  "BKE_object_eval_local_transform");
+	trans_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
+	                             DEPSOP_TYPE_INIT, BKE_object_eval_local_transform,
+	                             "BKE_object_eval_local_transform");
+	RNA_id_pointer_create(&ob->id, &trans_op->ptr);
 	
 	/* return component created */
 	return trans_node;
@@ -1257,6 +1259,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	ID *parent_id = (ID *)ob->parent;
 	
 	DepsNode *ob_node, *parent_node = NULL;
+	OperationDepsNode *par_op;
 	
 	/* parenting affects the transform-stack of an object 
 	 * NOTE: attach incoming links to the transform component, 
@@ -1266,9 +1269,10 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	// TODO: slow parenting should result in a duplicate parent-eval path, with a special timesource with the offsetted time
 	ob_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
 	
-	DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM, 
-	                  DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
-	                  "BKE_object_eval_parent");
+	par_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM, 
+	                           DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
+	                           "BKE_object_eval_parent");
+	RNA_id_pointer_create(&ob->id, &par_op->ptr);
 	
 	/* type-specific links */
 	switch (ob->partype) {
@@ -1345,7 +1349,6 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	
 	/* standard components */
 	params_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_PARAMETERS, NULL);
-	
 	trans_node = deg_build_object_transform(graph, ob);
 	
 	/* object parent */
