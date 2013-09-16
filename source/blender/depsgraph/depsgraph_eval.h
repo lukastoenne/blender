@@ -53,7 +53,7 @@ typedef struct DEG_OperationsContext {
 } DEG_OperationsContext;
 
 /* Purpose for evaluation context */
-typedef struct eDEG_OperationContext_UserType {
+typedef enum eDEG_OperationContext_UserType {
 	/* Viewport Display */
 	DEG_OPCONTEXT_USER_VIEWPORT = 0,
 	/* Render Engine DB Conversion */
