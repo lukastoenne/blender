@@ -27,14 +27,14 @@ void BKE_rigidbody_rebuild_sim(void *context, void *item); // BKE_rigidbody_rebu
 void BKE_rigidbody_eval_simulation(void *context, void *item); // BKE_rigidbody_do_simulation
 void BKE_rigidbody_object_sync_transforms(void *context, void *item); // BKE_rigidbody_sync_transforms
 
-void BKE_displist_make_curveTypes(void *context, void *item);
-void BKE_curve_calc_path(void *context, void *item);
-
 void BKE_object_eval_local_transform(void *context, void *item);
 void BKE_object_eval_parent(void *context, void *item);
 
-void BKE_mesh_evaluate(void *context, void *item);
-
+void BKE_mesh_eval_geometry(void *context, void *item);  // wrapper around makeDerivedMesh() - which gets BMesh, etc. data...
+void BKE_mball_eval_geometry(void *context, void *item); // BKE_displist_make_mball
+void BKE_curve_eval_geometry(void *context, void *item); // BKE_displist_make_curveTypes
+void BKE_curve_eval_path(void *context, void *item);
+void BKE_lattice_eval_geometry(void *context, void *item); // BKE_lattice_modifiers_calc
 
 /* Priority Queue type */
 typedef struct Queue {

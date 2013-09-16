@@ -1055,9 +1055,8 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			//Mesh *me = (Mesh *)ob->data;
 			
 			/* evaluation operations */
-			// XXX: wrapper around makeDerivedMesh() - which gets BMesh, etc. data...
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_mesh_evaluate, 
+			                            DEPSOP_TYPE_EXEC, BKE_mesh_eval_geometry, 
 			                            "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
@@ -1077,7 +1076,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 				/* metaball evaluation operations */
 				/* NOTE: only the motherball gets evaluated! */
 				op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                                DEPSOP_TYPE_EXEC, BKE_displist_make_mball, 
+			                                DEPSOP_TYPE_EXEC, BKE_mball_eval_geometry, 
 			                                "Geometry Eval");
 				RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 			}
@@ -1110,13 +1109,13 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			/* curve evaluation operations */
 			/* - calculate curve geometry (including path) */
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_displist_make_curveTypes, 
+			                            DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
 			                            "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 			
 			/* - calculate curve path - this is used by constraints, etc. */
 			op_path = DEG_add_operation(graph, obdata_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_curve_calc_path,
+			                            DEPSOP_TYPE_EXEC, BKE_curve_eval_path,
 			                            "Path");
 		}
 		break;
@@ -1125,7 +1124,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		{
 			/* nurbs evaluation operations */
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_displist_make_curveTypes, 
+			                            DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
 			                            "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
@@ -1135,7 +1134,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		{
 			/* lattice evaluation operations */
 			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_lattice_modifiers_calc, 
+			                            DEPSOP_TYPE_EXEC, BKE_lattice_eval_geometry, 
 			                            "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
