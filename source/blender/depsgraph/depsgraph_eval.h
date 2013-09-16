@@ -46,8 +46,28 @@ typedef struct DEG_OperationsContext {
 	Scene *scene;         /* current scene we're working with */
 	
 	double cfra;          /* current frame (including subframe offset stuff) */
-	size_t type;          /* (eDepsNode_Type.OuterNodes) type of context (for debug purposes) */
+	
+	int type;             /* (eDepsNode_Type.OuterNodes) component type <-> context type (for debug purposes) */
+	short utype;          /* (eDEG_OperationContext_UserType) evaluation user type */
+	short flag;           /* (eDEG_OperationContext_Flag) extra settings */
 } DEG_OperationsContext;
+
+/* Purpose for evaluation context */
+typedef struct eDEG_OperationContext_UserType {
+	/* Viewport Display */
+	DEG_OPCONTEXT_USER_VIEWPORT = 0,
+	/* Render Engine DB Conversion */
+	DEG_OPCONTEXT_USER_RENDER   = 1,
+	/* Background baking operation */
+	DEG_OPCONTEXT_USER_BAKE     = 2,
+} eDEG_OperationContext_UserType;
+
+/* Settings */
+typedef enum eDEG_OperationContext_Flag {
+	/* we're dealing with an instanced item... */
+	// XXX: review this...
+	DEG_OPCONTEXT_FLAG_INSTANCE = (1 << 0),
+} eDEG_OperationContext_Flag;
 
 /* Component Contexts ========================= */
 
@@ -72,7 +92,6 @@ typedef struct DEG_AnimationContext {
 
 
 /* Transform */
-// XXX: assume for now that this is object's only...
 typedef struct DEG_TransformContext {
 	DEG_OperationsContext ctx;       /* standard header */
 	
