@@ -660,24 +660,32 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	/* create our core operations... */
 	if (BLI_ghash_size(pcomp->bone_hash) || (pcomp->ops.first)) {
 		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
+		IDDepsNode *owner_node = (IDDepsNode *)pcomp->nd.owner;
+		Object *ob;
 		ID *id;
 		
 		/* get ID-block that pose-component belongs to */
-		BLI_assert(pcomp->nd.owner != NULL);
-		id = ((IDDepsNode *)pcomp->nd.owner)->id;
+		BLI_assert(owner_node && owner_node->id);
+		
+		id = owner_node->id;
+		ob = (Object *)id;
 		
 		/* create standard pose evaluation start/end hooks */
 		rebuild_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
 		                               DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op,
 		                               "Rebuild Pose");
+		RNA_pointer_create(id, &RNA_Pose, ob->pose, &rebuild_op->ptr);
 		
 		init_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
 		                            DEPSOP_TYPE_INIT, BKE_pose_eval_init,
 		                            "Init Pose Eval");
+		RNA_pointer_create(id, &RNA_Pose, ob->pose, &init_op->ptr);
 		
 		cleanup_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_POSE,
 		                               DEPSOP_TYPE_POST, BKE_pose_eval_flush,
 		                               "Flush Pose Eval");
+		RNA_pointer_create(id, &RNA_Pose, ob->pose, &cleanup_op->ptr);
+		
 		
 		/* attach links between these operations */
 		DEG_add_new_relation(&rebuild_op->nd, &init_op->nd,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
