@@ -62,9 +62,13 @@
 /* *************************************************** */
 /* Evaluation Internals */
 
-/* Perform evaluation of a node */
+/* Perform evaluation of a node 
+ * < graph: Dependency Graph that operations belong to
+ * < node: operation node to evaluate
+ * < context_type: the context/purpose that the node is being evaluated for
+ */
 // NOTE: this is called by the scheduler on a worker thread
-static void deg_exec_node(Depsgraph *graph, DepsNode *node)
+static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextType context_type)
 {
 	/* get context and dispatch */
 	if (node->class == DEPSNODE_CLASS_OPERATION) {
@@ -75,7 +79,7 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node)
 		/* get context */
 		// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
 		BLI_assert(com != NULL);
-		context = com->context;
+		context = com->context[context_type];
 		
 		/* get "item" */
 		// XXX: not everything will use this - some may want something else!
