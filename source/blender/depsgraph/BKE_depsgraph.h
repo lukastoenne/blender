@@ -141,6 +141,9 @@ void DEG_evaluate_on_refresh(Depsgraph *graph);
  */
 void DEG_evaluation_context_init(Depsgraph *graph, short context_type);
 
+/* Free evaluation context */
+void DEG_evaluation_context_free(Depsgraph *graph);
+
 /* ************************************************ */
 
 #endif // __BKE_DEPSGRAPH_H__
