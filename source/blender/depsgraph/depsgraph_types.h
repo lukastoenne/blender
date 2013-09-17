@@ -277,8 +277,10 @@ typedef struct ComponentDepsNode {
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
 	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
 	
-	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
-	void *result_data;       /*  where the data for this component goes when done */
+	/* (DEG_OperationsContext) array of evaluation contexts to be passed to evaluation functions for this component. 
+	 *                         Only the requested context will be used during any particular evaluation
+	 */
+	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];
 	
 	// XXX: a poll() callback to check if component's first node can be started?
 } ComponentDepsNode;
@@ -294,8 +296,7 @@ typedef struct PoseComponentDepsNode {
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
 	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (pose-level) */
 	
-	void *context;           /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
-	void *result_data;       /*  where the data for this component goes when done */
+	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];      /* (DEG_OperationsContext) */
 	
 	/* PoseComponentDepsNode */
 	GHash *bone_hash;        /* <String, BoneComponentDepsNode> hash for quickly finding bone components */
@@ -310,8 +311,7 @@ typedef struct BoneComponentDepsNode {
 	ListBase ops;                   /* ([OperationDepsNode]) inner nodes for this component */
 	GHash *op_hash;                 /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (bone-level) */
 	
-	void *context;                  /* (DEG_OperationsContext) context passed to evaluation functions, where required operations are determined */
-	void *result_data;              /*  where the data for this component goes when done */
+	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];      /* (DEG_OperationsContext) */
 	
 	/* BoneComponentDepsNode */
 	struct bPoseChannel *pchan;     /* the bone that this component represents */
