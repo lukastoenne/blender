@@ -137,12 +137,34 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
 /* *************************************************** */
 /* Evaluation Context Management */
 
-/* Initialise evaluation contexts for nodes
+/* Initialise evaluation context for given node 
  * < context_type: (eDEG_OperationContext_UserType) type of evaluation contexts to create
  */
-void DEG_graph_evaluation_context_init(Depsgraph *graph, short context_type)
+static void deg_node_evaluation_context_init(ComponentDepsNode *comp, short context_type)
+{
+	DepsNodeTypeInfo *nti = DEG_node_get_typeinfo((DepsNode *)comp);
+	
+	/* check if the requested evaluation context exists already */
+	if (comp->contexts[context_type] == NULL) {
+		/* doesn't exist, so create new evaluation context here */
+		DEG_OperationsContext *ctx = NULL;
+		
+		// fill in type-specific stuff...
+	}
+	else {
+		// TODO: validate existing data, as some parts may no longer exist 
+	}
+}
+
+/* Initialise evaluation contexts for all nodes
+ * < context_type: (eDEG_OperationContext_UserType) type of evaluation contexts to create
+ */
+void DEG_evaluation_context_init(Depsgraph *graph, short context_type)
 {
 	GHashIterator idHashIter;
+	
+	/* initialise master context first... */
+	// ...
 	
 	/* loop over components, initialising their contexts */
 	GHASH_ITER(idHashIter, graph->id_hash) {
@@ -150,7 +172,11 @@ void DEG_graph_evaluation_context_init(Depsgraph *graph, short context_type)
 		GHashIterator compHashIter;
 		
 		/* loop over components */
-		// XXX: can these iterators be stacked like this?
+		GHASH_ITER(compHashIter, id_ref->component_hash) {
+			/* initialise evaluation context */
+			ComponentDepsNode *comp = BLI_ghashIterator_getValue(&compHashIter); 
+			deg_node_evaluation_context_init(comp, context_type);
+		}
 	}
 }
 
