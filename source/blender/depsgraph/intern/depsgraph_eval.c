@@ -182,10 +182,17 @@ void DEG_evaluation_context_init(Depsgraph *graph, short context_type)
 
 /* --------------------------------------------------- */
 
-
+/* Free evaluation contexts for node */
+static void deg_node_evaluation_contexts_free(ComponentDepsNode *comp)
+{
+	DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((DepsNode *)comp);
+	
+	/* free each context in turn */
+	
+}
 
 /* Free evaluation contexts for all nodes */
-void DEG_evaluation_context_free(Depsgraph *graph)
+void DEG_evaluation_contexts_free(Depsgraph *graph)
 {
 	GHashIterator idHashIter;
 	
@@ -197,7 +204,7 @@ void DEG_evaluation_context_free(Depsgraph *graph)
 		GHASH_ITER(compHashIter, id_ref->component_hash) {
 			/* free evaluation context */
 			ComponentDepsNode *comp = BLI_ghashIterator_getValue(&compHashIter);
-			deg_node_evaluation_context_free(comp);
+			deg_node_evaluation_contexts_free(comp);
 		}
 	}
 }
