@@ -137,10 +137,8 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
 /* *************************************************** */
 /* Evaluation Context Management */
 
-/* Initialise evaluation context for given node 
- * < context_type: (eDEG_OperationContext_UserType) type of evaluation contexts to create
- */
-static void deg_node_evaluation_context_init(ComponentDepsNode *comp, short context_type)
+/* Initialise evaluation context for given node */
+static void deg_node_evaluation_context_init(ComponentDepsNode *comp, eEvaluationContextType context_type)
 {
 	DepsNodeTypeInfo *nti = DEG_node_get_typeinfo((DepsNode *)comp);
 	
@@ -156,10 +154,8 @@ static void deg_node_evaluation_context_init(ComponentDepsNode *comp, short cont
 	}
 }
 
-/* Initialise evaluation contexts for all nodes
- * < context_type: (eDEG_OperationContext_UserType) type of evaluation contexts to create
- */
-void DEG_evaluation_context_init(Depsgraph *graph, short context_type)
+/* Initialise evaluation contexts for all nodes */
+void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType context_type)
 {
 	GHashIterator idHashIter;
 	

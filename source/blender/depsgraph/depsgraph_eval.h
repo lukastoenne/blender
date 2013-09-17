@@ -52,16 +52,6 @@ typedef struct DEG_OperationsContext {
 	short flag;           /* (eDEG_OperationContext_Flag) extra settings */
 } DEG_OperationsContext;
 
-/* Purpose for evaluation context */
-typedef enum eDEG_OperationContext_UserType {
-	/* Viewport Display */
-	DEG_OPCONTEXT_USER_VIEWPORT = 0,
-	/* Render Engine DB Conversion */
-	DEG_OPCONTEXT_USER_RENDER   = 1,
-	/* Background baking operation */
-	DEG_OPCONTEXT_USER_BAKE     = 2,
-} eDEG_OperationContext_UserType;
-
 /* Settings */
 typedef enum eDEG_OperationContext_Flag {
 	/* we're dealing with an instanced item... */

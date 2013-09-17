@@ -136,10 +136,26 @@ void DEG_evaluate_on_refresh(Depsgraph *graph);
 
 /* ----------------------------------------------- */
 
-/* Intialise evaluation context 
- * < context_type: (eDEG_OperationContext_UserType) type of context to initialise
+/* Role of evaluation context
+ * Describes what each context is to be used for evaluating
  */
-void DEG_evaluation_context_init(Depsgraph *graph, short context_type);
+typedef enum eEvaluationContextType {
+	/* Viewport Display */
+	DEG_EVALUATION_CONTEXT_VIEWPORT = 0,
+	/* Render Engine DB Conversion */
+	DEG_EVALUATION_CONTEXT_RENDER   = 1,
+	/* Background baking operation */
+	DEG_EVALUATION_CONTEXT_BAKE     = 2,
+	
+	/* Maximum number of support evaluation contexts (Always as last) */
+	DEG_MAX_EVALUATION_CONTEXTS
+} eEvaluationContextType;
+
+
+/* Intialise evaluation context 
+ * < context_type: type of evaluation context to initialise
+ */
+void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType context_type);
 
 /* Free evaluation context */
 void DEG_evaluation_contexts_free(Depsgraph *graph);
