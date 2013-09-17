@@ -128,13 +128,6 @@ void DEG_graph_clear_tags(Depsgraph *graph);
 /* ************************************************ */
 /* Evaluation Engine API */
 
-/* Frame changed recalculation entrypoint */
-void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime);
-
-/* Data changed recalculation entrypoint */
-void DEG_evaluate_on_refresh(Depsgraph *graph);
-
-/* ----------------------------------------------- */
 
 /* Role of evaluation context
  * Describes what each context is to be used for evaluating
@@ -159,6 +152,15 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 
 /* Free evaluation context */
 void DEG_evaluation_contexts_free(Depsgraph *graph);
+
+/* ----------------------------------------------- */
+
+/* Frame changed recalculation entrypoint */
+void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime);
+
+/* Data changed recalculation entrypoint */
+void DEG_evaluate_on_refresh(Depsgraph *graph);
+
 
 /* ************************************************ */
 
