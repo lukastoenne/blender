@@ -100,7 +100,7 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node)
  * ! This is usually done as part of main loop, but may also be 
  *   called from frame-change update
  */
-void DEG_evaluate_on_refresh(Depsgraph *graph)
+void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_type)
 {
 	/* generate base evaluation context, upon which all the others are derived... */
 	// TODO: this needs both main and scene access...
@@ -115,7 +115,7 @@ void DEG_evaluate_on_refresh(Depsgraph *graph)
 }
 
 /* Frame-change happened for root scene that graph belongs to */
-void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
+void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType context_type, double ctime)
 {
 	TimeSourceDepsNode *tsrc;
 	
@@ -131,7 +131,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
 	DEG_graph_flush_updates(graph);
 	
 	/* perform recalculation updates */
-	DEG_evaluate_on_refresh(graph);
+	DEG_evaluate_on_refresh(graph, context_type);
 }
 
 /* *************************************************** */

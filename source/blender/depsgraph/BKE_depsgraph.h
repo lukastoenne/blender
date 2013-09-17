@@ -155,11 +155,16 @@ void DEG_evaluation_contexts_free(Depsgraph *graph);
 
 /* ----------------------------------------------- */
 
-/* Frame changed recalculation entrypoint */
-void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime);
+/* Frame changed recalculation entrypoint 
+ * < context_type: context to perform evaluation for
+ * < ctime: (frame) new frame to evaluate values on
+ */
+void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType context_type, double ctime);
 
-/* Data changed recalculation entrypoint */
-void DEG_evaluate_on_refresh(Depsgraph *graph);
+/* Data changed recalculation entrypoint 
+ * < context_type: context to perform evaluation for
+ */
+void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_type);
 
 
 /* ************************************************ */
