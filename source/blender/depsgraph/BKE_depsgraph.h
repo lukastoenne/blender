@@ -134,6 +134,13 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime);
 /* Data changed recalculation entrypoint */
 void DEG_evaluate_on_refresh(Depsgraph *graph);
 
+/* ----------------------------------------------- */
+
+/* Intialise evaluation context 
+ * < context_type: (eDEG_OperationContext_UserType) type of context to initialise
+ */
+void DEG_evaluation_context_init(Depsgraph *graph, short context_type);
+
 /* ************************************************ */
 
 #endif // __BKE_DEPSGRAPH_H__

@@ -135,3 +135,23 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, double ctime)
 }
 
 /* *************************************************** */
+/* Evaluation Context Management */
+
+/* Initialise evaluation contexts for nodes
+ * < context_type: (eDEG_OperationContext_UserType) type of evaluation contexts to create
+ */
+void DEG_graph_evaluation_context_init(Depsgraph *graph, short context_type)
+{
+	GHashIterator idHashIter;
+	
+	/* loop over components, initialising their contexts */
+	GHASH_ITER(idHashIter, graph->id_hash) {
+		IDDepsNode *id_ref = BLI_ghashIterator_getValue(&idHashIter);
+		GHashIterator compHashIter;
+		
+		/* loop over components */
+		// XXX: can these iterators be stacked like this?
+	}
+}
+
+/* *************************************************** */
