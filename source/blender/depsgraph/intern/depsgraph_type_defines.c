@@ -514,7 +514,7 @@ static void dnti_component__remove_from_graph(Depsgraph *graph, DepsNode *node)
 	 */
 }
 
-/* Standard Component Defines ============================= */
+/* Parameter Component Defines ============================ */
 
 /* Parameters */
 static DepsNodeTypeInfo DNTI_PARAMETERS = {
@@ -532,6 +532,8 @@ static DepsNodeTypeInfo DNTI_PARAMETERS = {
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
 
+/* Animation Component Defines ============================ */
+
 /* Animation */
 static DepsNodeTypeInfo DNTI_ANIMATION = {
 	/* type */               DEPSNODE_TYPE_ANIMATION,
@@ -547,6 +549,8 @@ static DepsNodeTypeInfo DNTI_ANIMATION = {
 	
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
+
+/* Transform Component Defines ============================ */
 
 /* Transform */
 static DepsNodeTypeInfo DNTI_TRANSFORM = {
@@ -564,6 +568,8 @@ static DepsNodeTypeInfo DNTI_TRANSFORM = {
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
 
+/* Proxy Component Defines ================================ */
+
 /* Proxy */
 static DepsNodeTypeInfo DNTI_PROXY = {
 	/* type */               DEPSNODE_TYPE_TRANSFORM,
@@ -580,6 +586,8 @@ static DepsNodeTypeInfo DNTI_PROXY = {
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
 
+/* Geometry Component Defines ============================= */
+
 /* Geometry */
 static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	/* type */               DEPSNODE_TYPE_GEOMETRY,
@@ -595,6 +603,8 @@ static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	
 	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
 };
+
+/* Sequencer Component Defines ============================ */
 
 /* Sequencer */
 static DepsNodeTypeInfo DNTI_SEQUENCER = {
