@@ -128,11 +128,13 @@ void DEG_graph_clear_tags(Depsgraph *graph);
 /* ************************************************ */
 /* Evaluation Engine API */
 
-
 /* Role of evaluation context
  * Describes what each context is to be used for evaluating
  */
 typedef enum eEvaluationContextType {
+	/* All Contexts - Not a proper role, but is used when passing args to functions */
+	DEG_ALL_EVALUATION_CONTEXTS     = -1,
+	
 	/* Viewport Display */
 	DEG_EVALUATION_CONTEXT_VIEWPORT = 0,
 	/* Render Engine DB Conversion */
