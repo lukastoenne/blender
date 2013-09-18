@@ -311,6 +311,17 @@ typedef struct DepsNodeTypeInfo {
 	/* Recursively ensure that all implicit/builtin link rules have been applied */
 	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
 	void (*validate_links)(Depsgraph *graph, DepsNode *node);
+	
+	/* Evaluation Context Management .................. */
+	/* (Components Only) */
+	
+	/* Initialise component's evaluation context used for the specified purpose */
+	void (*eval_context_init)(ComponentDepsNode *node, eEvaluationContextType context_type);
+	
+	/* Free data in component's evaluation context which is used for the specified purpose 
+	 * NOTE: this does not free the actual context in question
+	 */
+	void (*eval_context_free)(ComponentDepsNode *node, eEvaluationContextType context_type);
 } DepsNodeTypeInfo;
 
 /* Typeinfo Management -------------------------------------------------- */

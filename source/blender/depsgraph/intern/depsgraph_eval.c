@@ -149,9 +149,14 @@ static void deg_node_evaluation_context_init(ComponentDepsNode *comp, eEvaluatio
 	/* check if the requested evaluation context exists already */
 	if (comp->contexts[context_type] == NULL) {
 		/* doesn't exist, so create new evaluation context here */
-		DEG_OperationsContext *ctx = NULL;
-		
-		// fill in type-specific stuff...
+		if (nti->eval_context_init) {
+			nti->eval_context_init(node, context_type);
+		}
+		else {
+			/* initialise using standard techniques */
+			comp->contexts[context_type] = MEM_callocN(sizeof(DEG_OperationsContext), "Evaluation Context");
+			// TODO: init from master context somehow...
+		}
 	}
 	else {
 		// TODO: validate existing data, as some parts may no longer exist 
@@ -174,6 +179,7 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 		/* loop over components */
 		GHASH_ITER(compHashIter, id_ref->component_hash) {
 			/* initialise evaluation context */
+			// TODO: we probably need to pass the master context down so that it can be handled properly
 			ComponentDepsNode *comp = BLI_ghashIterator_getValue(&compHashIter); 
 			deg_node_evaluation_context_init(comp, context_type);
 		}
@@ -186,9 +192,19 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 static void deg_node_evaluation_contexts_free(ComponentDepsNode *comp)
 {
 	DepsNodeTypeInfo *nti = DEG_node_get_typeinfo((DepsNode *)comp);
+	size_t i;
 	
 	/* free each context in turn */
-	
+	for (i = 0; i < DEG_MAX_EVALUATION_CONTEXTS; i++) {
+		if (comp->contexts[i]) {
+			if (nti->eval_context_free) {
+				nti->eval_context_free(comp, i);
+			}
+			
+			MEM_freeN(comp->contexts[i]);
+			comp->contexts[i] = NULL;
+		}
+	}
 }
 
 /* Free evaluation contexts for all nodes */
