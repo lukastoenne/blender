@@ -79,7 +79,7 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextTy
 		/* get context */
 		// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
 		BLI_assert(com != NULL);
-		context = com->context[context_type];
+		context = com->contexts[context_type];
 		
 		/* get "item" */
 		// XXX: not everything will use this - some may want something else!
@@ -185,7 +185,7 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 /* Free evaluation contexts for node */
 static void deg_node_evaluation_contexts_free(ComponentDepsNode *comp)
 {
-	DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((DepsNode *)comp);
+	DepsNodeTypeInfo *nti = DEG_node_get_typeinfo((DepsNode *)comp);
 	
 	/* free each context in turn */
 	
