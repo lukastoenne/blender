@@ -84,7 +84,10 @@ static DepsNodeTypeInfo DNTI_ROOT = {
 	/* add_to_graph() */     dnti_root__add_to_graph,
 	/* remove_from_graph()*/ dnti_root__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Time Source Node ======================================= */
@@ -164,7 +167,10 @@ static DepsNodeTypeInfo DNTI_TIMESOURCE = {
 	/* add_to_graph() */     dnti_timesource__add_to_graph,
 	/* remove_from_graph()*/ dnti_timesource__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX?
+	/* validate_links() */   NULL, // XXX?
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* ID Node ================================================ */
@@ -324,7 +330,10 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 	/* add_to_graph() */     dnti_id_ref__add_to_graph,
 	/* remove_from_graph()*/ dnti_id_ref__remove_from_graph,
 	
-	/* validate_links() */   dnti_id_ref__validate_links
+	/* validate_links() */   dnti_id_ref__validate_links,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Subgraph Node ========================================== */
@@ -413,7 +422,10 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 	/* add_to_graph() */     dnti_subgraph__add_to_graph,
 	/* remove_from_graph()*/ dnti_subgraph__remove_from_graph,
 	
-	/* validate_links() */   dnti_subgraph__validate_links
+	/* validate_links() */   dnti_subgraph__validate_links,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* ******************************************************** */
@@ -529,7 +541,10 @@ static DepsNodeTypeInfo DNTI_PARAMETERS = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Animation Component Defines ============================ */
@@ -547,7 +562,10 @@ static DepsNodeTypeInfo DNTI_ANIMATION = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Transform Component Defines ============================ */
@@ -565,7 +583,10 @@ static DepsNodeTypeInfo DNTI_TRANSFORM = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Proxy Component Defines ================================ */
@@ -583,7 +604,10 @@ static DepsNodeTypeInfo DNTI_PROXY = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Geometry Component Defines ============================= */
@@ -601,7 +625,10 @@ static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Sequencer Component Defines ============================ */
@@ -619,7 +646,10 @@ static DepsNodeTypeInfo DNTI_SEQUENCER = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Pose Component ========================================= */
@@ -733,7 +763,10 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 	/* add_to_graph() */     dnti_component__add_to_graph,
 	/* remove_from_graph()*/ dnti_component__remove_from_graph,
 	
-	/* validate_links() */   dnti_pose_eval__validate_links
+	/* validate_links() */   dnti_pose_eval__validate_links,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Bone Component ========================================= */
@@ -897,7 +930,10 @@ static DepsNodeTypeInfo DNTI_BONE = {
 	/* add_to_graph() */     dnti_bone__add_to_graph,
 	/* remove_from_graph()*/ dnti_bone__remove_from_graph,
 	
-	/* validate_links() */   dnti_bone__validate_links
+	/* validate_links() */   dnti_bone__validate_links,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 
@@ -959,7 +995,10 @@ static DepsNodeTypeInfo DNTI_OP_PARAMETER = {
 	/* add_to_graph() */     dnti_op_parameter__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Proxy Operation ======================================== */
@@ -983,7 +1022,10 @@ static DepsNodeTypeInfo DNTI_OP_PROXY = {
 	/* add_to_graph() */     dnti_op_proxy__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Animation Operation ==================================== */
@@ -1007,7 +1049,10 @@ static DepsNodeTypeInfo DNTI_OP_ANIMATION = {
 	/* add_to_graph() */     dnti_op_animation__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Transform Operation ==================================== */
@@ -1031,7 +1076,10 @@ static DepsNodeTypeInfo DNTI_OP_TRANSFORM = {
 	/* add_to_graph() */     dnti_op_transform__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Geometry Operation ===================================== */
@@ -1055,7 +1103,10 @@ static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
 	/* add_to_graph() */     dnti_op_geometry__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Sequencer Operation ==================================== */
@@ -1079,7 +1130,10 @@ static DepsNodeTypeInfo DNTI_OP_SEQUENCER = {
 	/* add_to_graph() */     dnti_op_sequencer__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Update Operation ======================================= */
@@ -1103,7 +1157,10 @@ static DepsNodeTypeInfo DNTI_OP_UPDATE = {
 	/* add_to_graph() */     dnti_op_update__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Driver Operation ===================================== */
@@ -1128,7 +1185,10 @@ static DepsNodeTypeInfo DNTI_OP_DRIVER = {
 	/* add_to_graph() */     dnti_op_driver__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Pose Operation ========================================= */
@@ -1152,7 +1212,10 @@ static DepsNodeTypeInfo DNTI_OP_POSE = {
 	/* add_to_graph() */     dnti_op_pose__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Bone Operation ========================================= */
@@ -1205,7 +1268,10 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* add_to_graph() */     dnti_op_bone__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* Particle Operation ===================================== */
@@ -1236,7 +1302,10 @@ static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
 	/* add_to_graph() */     dnti_op_particle__add_to_graph,
 	/* remove_from_graph()*/ dnti_op_particle__remove_from_graph,
 	
-	/* validate_links() */   NULL // XXX
+	/* validate_links() */   NULL, // XXX
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* RigidBody Operation ==================================== */
@@ -1261,7 +1330,10 @@ static DepsNodeTypeInfo DNTI_OP_RIGIDBODY = {
 	/* add_to_graph() */     dnti_op_rigidbody__add_to_graph,
 	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
 	
-	/* validate_links() */   NULL
+	/* validate_links() */   NULL,
+	
+	/* eval_context_init()*/ NULL, 
+	/* eval_context_free()*/ NULL
 };
 
 /* ******************************************************** */
