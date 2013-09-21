@@ -35,6 +35,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "depsgraph_types.h"
 #include "depsgraph_queue.h"
 
 /* ********************************************************* */
@@ -56,8 +57,20 @@
  * be multiple inlinks to each node given the way that the relations
  * work. 
  */
+
+/* Element in Depsgraph Queue */
+typedef struct DegQueueElem {
+	struct DegQueueElem *next, *prev;
+	struct DepsNode *node;
+} DegQueueElem;
+ 
+/* Depsgraph Queue Type */
 typedef struct DepsgraphQueue {
+	// TODO: need some faster datastructure for pending nodes, so that we can check if a node has been added already
+	ListBase pending;              /* (DegQueueElem) queue elements pending usage */
+	ListBase ready;                /* (DegQueueElem) queue elements ready for usage */
 	
+	// TODO: have some kind of memory pool that all queue elements are allocated from
 } DepsgraphQueue;
 
 /* ********************************************************* */
