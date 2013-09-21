@@ -42,9 +42,19 @@
 
 /* Dependency Graph Traversal Queue 
  *
- * This actually consists of two queues - a "pending" queue
- * and a "ready" queue. Only nodes in the "ready" queue can
- * be retrieved and visited.
+ * There are two parts to this:
+ * a) "Pending" Nodes - This part contains the set of nodes
+ *    which are related to those which have been visited
+ *    previously, but are not yet ready to actually be visited.
+ * b) "Scheduled" Nodes - These are the nodes whose ancestors
+ *    have all been evaluated already, which means that any
+ *    or all of them can be picked (in practically in order) to
+ *    be visited immediately.
+ *
+ * Internally, the queue makes sure that each node in the graph
+ * only gets added to the queue once. This is because there can
+ * be multiple inlinks to each node given the way that the relations
+ * work. 
  */
 typedef struct DepsgraphQueue {
 	
