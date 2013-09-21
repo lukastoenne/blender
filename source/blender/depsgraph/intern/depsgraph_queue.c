@@ -63,5 +63,32 @@ typedef struct DepsgraphQueue {
 /* ********************************************************* */
 /* Depsgraph Queue implementation */
 
+DepsgraphQueue *DEG_queue_new(void)
+{
+	DepsgraphQueue *q = MEM_callocN(sizeof(DepsgraphQueue), "DEG_queue_new()");
+	
+	return q;
+}
+
+void DEG_queue_push(DepsgraphQueue *q, void *data)
+{
+
+}
+
+void *DEG_queue_pop(DepsgraphQueue *q)
+{
+	return NULL; // XXX
+}
+
+bool DEG_queue_is_empty(DepsgraphQueue *q)
+{
+	return false; // XXX
+}
+
+void DEG_queue_free(DepsgraphQueue *q)
+{
+
+}
+
 /* ********************************************************* */
 
