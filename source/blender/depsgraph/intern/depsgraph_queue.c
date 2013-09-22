@@ -58,19 +58,18 @@
  * work. 
  */
 
-/* Element in Depsgraph Queue */
-typedef struct DegQueueElem {
-	struct DegQueueElem *next, *prev;
-	struct DepsNode *node;
-} DegQueueElem;
- 
 /* Depsgraph Queue Type */
 typedef struct DepsgraphQueue {
-	// TODO: need some faster datastructure for pending nodes, so that we can check if a node has been added already
-	ListBase pending;              /* (DegQueueElem) queue elements pending usage */
-	ListBase ready;                /* (DegQueueElem) queue elements ready for usage */
+	/* Pending */
+	Heap *pending_heap;         /* (valence:int, DepsNode*) */
+	GHash *pending_hash;        /* (DepsNode* : HeapNode*>) */
 	
-	// TODO: have some kind of memory pool that all queue elements are allocated from
+	/* Ready to be visited - fifo */
+	Heap *ready_nodes;          /* (idx:int, DepsNode*) */
+	
+	/* Size/Order counts */
+	size_t idx;                 /* total number of nodes which are/have been ready so far (including those already visited) */
+	size_t tot;                 /* total number of nodes which have passed through queue; mainly for debug */
 } DepsgraphQueue;
 
 /* ********************************************************* */
