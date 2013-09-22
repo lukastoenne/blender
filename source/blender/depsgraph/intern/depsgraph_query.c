@@ -93,14 +93,16 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 		/* schedule up operations which depend on this */
 		DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
 		{
-			DepsNode *child_node = rel->to;
-			
-			// XXX: ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.)
-			
-			/* only visit node if the filtering function agrees */
-			if ((filter == NULL) || filter(graph, child_node, filter_data)) {			
-				/* schedule up node... */
-				DEG_queue_push(q, child_node);
+			/* ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.) */
+			// TODO: cyclic refs should probably all get clustered towards the end, so that we can just stop on the first one
+			if ((rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
+				DepsNode *child_node = rel->to;
+				
+				/* only visit node if the filtering function agrees */
+				if ((filter == NULL) || filter(graph, child_node, filter_data)) {			
+					/* schedule up node... */
+					DEG_queue_push(q, child_node);
+				}
 			}
 		}
 		DEPSNODE_RELATIONS_ITER_END;
