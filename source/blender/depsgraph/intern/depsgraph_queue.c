@@ -163,6 +163,7 @@ void *DEG_queue_pop(DepsgraphQueue *q)
 	 */
 	if (BLI_heap_is_empty(q->ready_heap)) {
 		// XXX: this should never happen
+		// XXX: if/when it does happen, we may want instead to just wait until something pops up here...
 		printf("DepsgraphHeap Warning: No more ready nodes available. Trying from pending (idx = %d, tot = %d, pending = %d, ready = %d)\n",
 		       q->idx, q->tot, DEG_queue_num_pending(q), DEG_queue_num_ready(q));
 		

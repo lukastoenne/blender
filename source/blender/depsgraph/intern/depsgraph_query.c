@@ -63,34 +63,29 @@ void DEG_graph_traverse_begin(Depsgraph *graph)
 	// XXX: this will end up being O(|V|), which is bad when we're just updating a few nodes... 
 }
 
-/* Compute priority weight for nodes */
-// XXX: this will need to be exported
-static int calc_node_weight(DepsNode *node)
-{
-	return 0; // XXX
-}
-
 /* Perform a traversal of graph from given starting node (in execution order) */
 // TODO: additional flags for controlling the process?
 void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
                                   DEG_FilterPredicate filter, void *filter_data,
                                   DEG_NodeOperation op, void *operation_data)
 {
-	Queue *q; // XXX: replace with BLI_heap - min_heap
+	DepsgraphQueue *q;
 	
 	/* sanity checks */
 	if (ELEM3(NULL, graph, start_node, op))
 		return;
 	
 	/* add node as starting node to be evaluated, with value of 0 */
-	q = queue_new();
-	queue_push(q, 0, start_node);
+	q = DEG_queue_new();
+	
+	BLI_assert(start_node->valency == 0); // XXX: otherwise, it may never start!
+	DEG_queue_push(q, start_node);
 	
 	/* while we still have nodes in the queue, grab and work on next one */
 	do {
 		/* grab item at front of queue */
 		// XXX: in practice, we may need to wait until one becomes available...
-		DepsNode *node = queue_pop(q);
+		DepsNode *node = DEG_queue_pop(q);
 		
 		/* perform operation on node */
 		op(graph, node, operation_data);
@@ -100,20 +95,17 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 		{
 			DepsNode *new_node = rel->to;
 			
-			// XXX: check if not already in queue (or done!)
 			// XXX: ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.)
+			// XXX: ensure that relationsip ends up pointing where we expect it to...
 			
-			/* adjust "weight" of node (i.e. how many other nodes it's waiting on) */
-			new_node->valency--;
-			
-			/* schedule up related node for exec */
-			queue_push(q, calc_node_weight(new_node), new_node);
+			/* schedule up node... */
+			DEG_queue_push(q, new_node);
 		}
 		DEPSNODE_RELATIONS_ITER_END;
-	} while (queue_is_empty(q) == false);
+	} while (DEG_queue_is_empty(q) == false);
 	
 	/* cleanup */
-	queue_free(q);
+	DEG_queue_free(q);
 }
 
 /* ************************************************ */
