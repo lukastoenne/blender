@@ -65,7 +65,7 @@ typedef struct DepsgraphQueue {
 	GHash *pending_hash;        /* (DepsNode* : HeapNode*>) */
 	
 	/* Ready to be visited - fifo */
-	Heap *ready_nodes;          /* (idx:int, DepsNode*) */
+	Heap *ready_heap;           /* (idx:int, DepsNode*) */
 	
 	/* Size/Order counts */
 	size_t idx;                 /* total number of nodes which are/have been ready so far (including those already visited) */
@@ -81,12 +81,33 @@ DepsgraphQueue *DEG_queue_new(void)
 {
 	DepsgraphQueue *q = MEM_callocN(sizeof(DepsgraphQueue), "DEG_queue_new()");
 	
+	/* init data structures for use here */
+	q->pending_heap = BLI_heap_new();
+	q->pending_hash = BLI_ghash_ptr_new("DEG Queue Pending Hash");
+	
+	q->ready_heap   = BLI_heap_new();
+	
+	/* init settings */
+	q->idx = 0;
+	q->tot = 0;
+	
+	/* return queue */
 	return q;
 }
 
 void DEG_queue_free(DepsgraphQueue *q)
 {
-
+	/* free data structures */
+	BLI_assert(BLI_heap_size(q->pending_heap) == 0);
+	BLI_assert(BLI_heap_size(q->ready_heap) == 0);
+	BLI_assert(BLI_ghash_size(q->pending_hash) == 0);
+	
+	BLI_heap_free(q->pending_heap, NULL);
+	BLI_heap_free(q->ready_heap, NULL);
+	BLI_ghash_free(q->pending_hash, NULL, NULL);
+	
+	/* free queue itself */
+	MEM_freeN(q);
 }
 
 /* Statistics --------------------------------------------- */
