@@ -29,11 +29,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_blenlib.h"
+#include "BLI_heap.h"
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "depsgraph_types.h"
 #include "depsgraph_queue.h"
@@ -124,6 +125,7 @@ size_t DEG_queue_num_ready(DepsgraphQueue *q)
 	return BLI_heap_size(q->ready_heap);
 }
 
+/* Check if queue has any items in it (still passing through) */
 bool DEG_queue_is_empty(DepsgraphQueue *q)
 {
 	return ((DEG_queue_num_pending(q) == 0) && ((DEG_queue_num_ready(q) == 0));
@@ -131,14 +133,59 @@ bool DEG_queue_is_empty(DepsgraphQueue *q)
 
 /* Queue Operations --------------------------------------- */
 
-void DEG_queue_push(DepsgraphQueue *q, void *data)
+/* Add DepsNode to the queue 
+ * - Each node is only added once to the queue(s)
+ * - Valence counts get adjusted here, since this call is used
+ *   when the in-node has been visited, clearing the way for
+ *   its dependencies (i.e. the ones we're adding now)
+ */
+void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
 {
+	HeapNode *hnode = NULL;
+	int cost;
 	
+	/* adjust valence count of node */
+	// TODO: this should probably be done as an atomic op?
+	dnode->valency--;
+	cost = dnode->valency;
+	
+	/* Shortcut: Directly add to ready if node isn't waiting on anything now... */
+	if (cost == 0) {
+		/* node is now ready to be visited - schedule it up for such */
+		if (BLI_ghash_has_key(q->pending_hash, dnode)) {
+			/* remove from pending queue - we're moving it to the scheduling queue */
+			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
+			BLI_heap_remove(q->pending_heap, hnode);
+			
+			BLI_ghash_remove(q->pending_hash, dnode, NULL, NULL);
+		}
+		
+		/* schedule up node using latest count (of ready nodes) */
+		BLI_heap_insert(q->ready_hash, (float)q->idx, dnode);
+		q->idx++;
+	}
+	else {
+		/* node is still waiting on some other ancestors, 
+		 * so add it to the pending heap in the meantime...
+		 */
+		// XXX: is this even necessary now?
+		if (BLI_ghash_has_key(q->pending_hash, dnode)) {
+			/* just update cost on pending node */
+			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
+			BLI_heap_node_value_set(q->pending_heap, hnode, (float)cost);
+		}
+		else {
+			/* add new node to pending queue */
+			hnode = BLI_heap_insert(q->pending_heap, (float)cost, dnode);
+		}
+	}
 }
 
+/* Grab a "ready" node from the queue */
 void *DEG_queue_pop(DepsgraphQueue *q)
 {
-	return NULL; // XXX
+	/* only grab "ready" nodes */
+	return BLI_heap_popmin(q->ready_heap);
 }
 
 /* ********************************************************* */
