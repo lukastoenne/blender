@@ -115,7 +115,12 @@ typedef enum eDepsRelation_Flag {
 	DEPSREL_FLAG_PENDING    = (1 << 0),
 	
 	/* "touched" tag is used when filtering, to know which to collect */
-	DEPSREL_FLAG_TEMP_TAG   = (1 << 1)
+	DEPSREL_FLAG_TEMP_TAG   = (1 << 1),
+	
+	/* "cyclic" link - when detecting cycles, this relationship was the one
+	 * which triggers a cyclic relationship to exist in the graph
+	 */
+	DEPSREL_FLAG_CYCLIC     = (1 << 2),
 } eDepsRelation_Flag;
 
 /* ************************************* */
