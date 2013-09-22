@@ -93,13 +93,15 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 		/* schedule up operations which depend on this */
 		DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
 		{
-			DepsNode *new_node = rel->to;
+			DepsNode *child_node = rel->to;
 			
 			// XXX: ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.)
-			// XXX: ensure that relationsip ends up pointing where we expect it to...
 			
-			/* schedule up node... */
-			DEG_queue_push(q, new_node);
+			/* only visit node if the filtering function agrees */
+			if ((filter == NULL) || filter(graph, child_node, filter_data)) {			
+				/* schedule up node... */
+				DEG_queue_push(q, child_node);
+			}
 		}
 		DEPSNODE_RELATIONS_ITER_END;
 	} while (DEG_queue_is_empty(q) == false);
