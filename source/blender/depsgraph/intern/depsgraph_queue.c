@@ -40,40 +40,6 @@
 #include "depsgraph_queue.h"
 
 /* ********************************************************* */
-// TODO: move these type defines to a separate header file
-
-/* Dependency Graph Traversal Queue 
- *
- * There are two parts to this:
- * a) "Pending" Nodes - This part contains the set of nodes
- *    which are related to those which have been visited
- *    previously, but are not yet ready to actually be visited.
- * b) "Scheduled" Nodes - These are the nodes whose ancestors
- *    have all been evaluated already, which means that any
- *    or all of them can be picked (in practically in order) to
- *    be visited immediately.
- *
- * Internally, the queue makes sure that each node in the graph
- * only gets added to the queue once. This is because there can
- * be multiple inlinks to each node given the way that the relations
- * work. 
- */
-
-/* Depsgraph Queue Type */
-typedef struct DepsgraphQueue {
-	/* Pending */
-	Heap *pending_heap;         /* (valence:int, DepsNode*) */
-	GHash *pending_hash;        /* (DepsNode* : HeapNode*>) */
-	
-	/* Ready to be visited - fifo */
-	Heap *ready_heap;           /* (idx:int, DepsNode*) */
-	
-	/* Size/Order counts */
-	size_t idx;                 /* total number of nodes which are/have been ready so far (including those already visited) */
-	size_t tot;                 /* total number of nodes which have passed through queue; mainly for debug */
-} DepsgraphQueue;
-
-/* ********************************************************* */
 /* Depsgraph Queue implementation */
 
 /* Data Management ----------------------------------------- */
