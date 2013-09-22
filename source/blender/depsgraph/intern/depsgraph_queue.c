@@ -115,25 +115,25 @@ void DEG_queue_free(DepsgraphQueue *q)
 /* Get the number of nodes which are we should visit, but are not able to yet */
 size_t DEG_queue_num_pending(DepsgraphQueue *q)
 {
-	return 0; // XXX
+	return BLI_heap_size(q->pending_heap);
 }
 
 /* Get the number of nodes which are now ready to be visited */
 size_t DEG_queue_num_ready(DepsgraphQueue *q)
 {
-	return 0; // XXX
+	return BLI_heap_size(q->ready_heap);
 }
 
 bool DEG_queue_is_empty(DepsgraphQueue *q)
 {
-	return false; // XXX
+	return ((DEG_queue_num_pending(q) == 0) && ((DEG_queue_num_ready(q) == 0));
 }
 
 /* Queue Operations --------------------------------------- */
 
 void DEG_queue_push(DepsgraphQueue *q, void *data)
 {
-
+	
 }
 
 void *DEG_queue_pop(DepsgraphQueue *q)
