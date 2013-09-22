@@ -125,10 +125,16 @@ size_t DEG_queue_num_ready(DepsgraphQueue *q)
 	return BLI_heap_size(q->ready_heap);
 }
 
+/* Get total size of queue */
+size_t DEG_queue_size(DepsgraphQueue *q)
+{
+	return DEG_queue_num_pending(q) + DEG_queue_num_ready(q);
+}
+
 /* Check if queue has any items in it (still passing through) */
 bool DEG_queue_is_empty(DepsgraphQueue *q)
 {
-	return ((DEG_queue_num_pending(q) == 0) && ((DEG_queue_num_ready(q) == 0));
+	return DEG_queue_size(q) == 0;
 }
 
 /* Queue Operations --------------------------------------- */
@@ -175,8 +181,9 @@ void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
 			BLI_heap_node_value_set(q->pending_heap, hnode, (float)cost);
 		}
 		else {
-			/* add new node to pending queue */
+			/* add new node to pending queue, and increase size of overall queue */
 			hnode = BLI_heap_insert(q->pending_heap, (float)cost, dnode);
+			q->tot++;
 		}
 	}
 }
