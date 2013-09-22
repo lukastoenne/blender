@@ -111,16 +111,13 @@ typedef enum eDepsRelation_Type {
 
 /* Settings/Tags on Relationship */
 typedef enum eDepsRelation_Flag {
-	/* "pending" tag is used whenever "to" node is still waiting on this relation to be valid */
-	DEPSREL_FLAG_PENDING    = (1 << 0),
-	
 	/* "touched" tag is used when filtering, to know which to collect */
-	DEPSREL_FLAG_TEMP_TAG   = (1 << 1),
+	DEPSREL_FLAG_TEMP_TAG   = (1 << 0),
 	
 	/* "cyclic" link - when detecting cycles, this relationship was the one
 	 * which triggers a cyclic relationship to exist in the graph
 	 */
-	DEPSREL_FLAG_CYCLIC     = (1 << 2),
+	DEPSREL_FLAG_CYCLIC     = (1 << 1),
 } eDepsRelation_Flag;
 
 /* ************************************* */
