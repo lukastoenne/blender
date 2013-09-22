@@ -191,8 +191,21 @@ void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
 /* Grab a "ready" node from the queue */
 void *DEG_queue_pop(DepsgraphQueue *q)
 {
-	/* only grab "ready" nodes */
-	return BLI_heap_popmin(q->ready_heap);
+	/* sanity check: if there are no "ready" nodes, 
+	 * start pulling from "pending" to keep things moving,
+	 * but throw a warning so that we know that something's up here...
+	 */
+	if (BLI_heap_is_empty(q->ready_heap)) {
+		// XXX: this should never happen
+		printf("DepsgraphHeap Warning: No more ready nodes available. Trying from pending (idx = %d, tot = %d, pending = %d, ready = %d)\n",
+		       q->idx, q->tot, DEG_queue_num_pending(q), DEG_queue_num_ready(q));
+		
+		return BLI_heap_popmin(q->pending_heap);
+	}
+	else {	
+		/* only grab "ready" nodes */
+		return BLI_heap_popmin(q->ready_heap);
+	}
 }
 
 /* ********************************************************* */
