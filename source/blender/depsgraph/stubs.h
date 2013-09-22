@@ -36,17 +36,5 @@ void BKE_curve_eval_geometry(void *context, void *item); // BKE_displist_make_cu
 void BKE_curve_eval_path(void *context, void *item);
 void BKE_lattice_eval_geometry(void *context, void *item); // BKE_lattice_modifiers_calc
 
-/* Priority Queue type */
-typedef struct Queue {
-	void *items;
-	size_t size;
-} Queue;
-
-Queue *queue_new(void);
-void queue_push(Queue *q, int priority, void *data);
-void *queue_pop(Queue *q);
-bool queue_is_empty(Queue *q);
-void queue_free(Queue *q);
-
 #endif //__DEPSGRAPH_FN_STUBS_H__
 
