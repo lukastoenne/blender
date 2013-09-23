@@ -168,6 +168,13 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
  */
 void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_type);
 
+/* ----------------------------------------------- */
+
+/* Initialise threading lock - called during application startup */
+void DEG_threaded_init(void);
+
+/* Free threading lock - called during application shutdown */
+void DEG_threaded_exit(void);
 
 /* ************************************************ */
 
