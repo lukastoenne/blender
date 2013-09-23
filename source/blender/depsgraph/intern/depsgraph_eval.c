@@ -35,6 +35,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_string.h"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "PIL_time.h"
@@ -58,6 +59,25 @@
 #include "depsgraph_types.h"
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
+
+/* *************************************************** */
+/* Multi-Threaded Evaluation Internals */
+
+/* Internal - Lock shared between depsgraph internals for various critical activities */
+// XXX: need to review the access modifiers here, as other files within depsgraph may need to access
+static SpinLock threaded_update_lock;
+
+/* Initialise threading lock - called during application startup */
+void DEG_threaded_init(void)
+{
+	BLI_spin_init(&threaded_update_lock);
+}
+
+/* Free threading lock - called during application shutdown */
+void DEG_threaded_exit(void)
+{
+	BLI_spin_end(&threaded_update_lock);
+}
 
 /* *************************************************** */
 /* Evaluation Internals */
