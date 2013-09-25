@@ -81,7 +81,7 @@ size_t DEG_queue_size(DepsgraphQueue *q);
 bool DEG_queue_is_empty(DepsgraphQueue *q);
 
 /* Operations */
-void DEG_queue_push(DepsgraphQueue *q, struct DepsNode *dnode);
+void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost);
 void *DEG_queue_pop(DepsgraphQueue *q);
 
 /* *********************************************** */

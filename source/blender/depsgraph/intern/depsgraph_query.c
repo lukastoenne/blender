@@ -79,8 +79,8 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 	/* add node as starting node to be evaluated, with value of 0 */
 	q = DEG_queue_new();
 	
-	BLI_assert(start_node->valency == 0); // XXX: otherwise, it may never start!
-	DEG_queue_push(q, start_node);
+	start_node->valency = 0;
+	DEG_queue_push(q, start_node, 0.0f);
 	
 	/* while we still have nodes in the queue, grab and work on next one */
 	do {
@@ -102,7 +102,8 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 				/* only visit node if the filtering function agrees */
 				if ((filter == NULL) || filter(graph, child_node, filter_data)) {			
 					/* schedule up node... */
-					DEG_queue_push(q, child_node);
+					child_node->valency--;
+					DEG_queue_push(q, child_node, (float)child_node->valency);
 				}
 			}
 		}

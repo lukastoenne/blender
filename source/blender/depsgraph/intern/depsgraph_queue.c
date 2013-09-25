@@ -104,21 +104,18 @@ bool DEG_queue_is_empty(DepsgraphQueue *q)
 
 /* Queue Operations --------------------------------------- */
 
-/* Add DepsNode to the queue 
- * - Each node is only added once to the queue(s)
- * - Valence counts get adjusted here, since this call is used
- *   when the in-node has been visited, clearing the way for
- *   its dependencies (i.e. the ones we're adding now)
+/* Add DepsNode to the queue
+ * < dnode: (DepsNode *) node to add to the queue
+ *          Each node is only added once to the queue; Subsequent pushes
+ *          merely update its status (e.g. moving it from "pending" to "ready") 
+ * < cost:  (float) new "valency" count for node *after* it has encountered
+ *          via an outlink from the node currently being visited
+ *          (i.e. we're one of the dependencies which may now be able
+ *          to be processed)
  */
-void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
+void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 {
 	HeapNode *hnode = NULL;
-	int cost;
-	
-	/* adjust valence count of node */
-	// TODO: this should probably be done as an atomic op?
-	dnode->valency--;
-	cost = dnode->valency;
 	
 	/* Shortcut: Directly add to ready if node isn't waiting on anything now... */
 	if (cost == 0) {
@@ -132,7 +129,7 @@ void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
 		}
 		
 		/* schedule up node using latest count (of ready nodes) */
-		BLI_heap_insert(q->ready_hash, (float)q->idx, dnode);
+		BLI_heap_insert(q->ready_heap, (float)q->idx, dnode);
 		q->idx++;
 	}
 	else {
@@ -143,11 +140,11 @@ void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
 		if (BLI_ghash_haskey(q->pending_hash, dnode)) {
 			/* just update cost on pending node */
 			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
-			BLI_heap_node_value_update(q->pending_heap, hnode, (float)cost);
+			BLI_heap_node_value_update(q->pending_heap, hnode, cost);
 		}
 		else {
 			/* add new node to pending queue, and increase size of overall queue */
-			hnode = BLI_heap_insert(q->pending_heap, (float)cost, dnode);
+			hnode = BLI_heap_insert(q->pending_heap, cost, dnode);
 			q->tot++;
 		}
 	}
