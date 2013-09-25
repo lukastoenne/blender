@@ -170,7 +170,7 @@ static void deg_node_evaluation_context_init(ComponentDepsNode *comp, eEvaluatio
 	if (comp->contexts[context_type] == NULL) {
 		/* doesn't exist, so create new evaluation context here */
 		if (nti->eval_context_init) {
-			nti->eval_context_init(node, context_type);
+			nti->eval_context_init(comp, context_type);
 		}
 		else {
 			/* initialise using standard techniques */
