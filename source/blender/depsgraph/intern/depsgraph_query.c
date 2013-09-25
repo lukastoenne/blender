@@ -50,6 +50,7 @@
 
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
+#include "depsgraph_queue.h"
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 

@@ -36,7 +36,6 @@
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
-#include "depsgraph_types.h"
 #include "depsgraph_queue.h"
 
 /* ********************************************************* */
@@ -124,7 +123,7 @@ void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
 	/* Shortcut: Directly add to ready if node isn't waiting on anything now... */
 	if (cost == 0) {
 		/* node is now ready to be visited - schedule it up for such */
-		if (BLI_ghash_has_key(q->pending_hash, dnode)) {
+		if (BLI_ghash_haskey(q->pending_hash, dnode)) {
 			/* remove from pending queue - we're moving it to the scheduling queue */
 			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
 			BLI_heap_remove(q->pending_heap, hnode);
@@ -141,7 +140,7 @@ void DEG_queue_push(DepsgraphQueue *q, DepsNode *dnode)
 		 * so add it to the pending heap in the meantime...
 		 */
 		// XXX: is this even necessary now?
-		if (BLI_ghash_has_key(q->pending_hash, dnode)) {
+		if (BLI_ghash_haskey(q->pending_hash, dnode)) {
 			/* just update cost on pending node */
 			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
 			BLI_heap_node_value_update(q->pending_heap, hnode, (float)cost);
