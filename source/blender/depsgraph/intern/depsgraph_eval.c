@@ -58,6 +58,7 @@
 
 #include "depsgraph_types.h"
 #include "depsgraph_eval.h"
+#include "depsgraph_queue.h"
 #include "depsgraph_intern.h"
 
 /* *************************************************** */

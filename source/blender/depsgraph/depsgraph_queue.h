@@ -31,6 +31,9 @@
 
 struct DepsNode;
 
+struct Heap;
+struct GHash;
+
 /* *********************************************** */
 /* Dependency Graph Traversal Queue 
  *
@@ -52,15 +55,15 @@ struct DepsNode;
 /* Depsgraph Queue Type */
 typedef struct DepsgraphQueue {
 	/* Pending */
-	Heap *pending_heap;         /* (valence:int, DepsNode*) */
-	GHash *pending_hash;        /* (DepsNode* : HeapNode*>) */
+	struct Heap *pending_heap;         /* (valence:int, DepsNode*) */
+	struct GHash *pending_hash;        /* (DepsNode* : HeapNode*>) */
 	
 	/* Ready to be visited - fifo */
-	Heap *ready_heap;           /* (idx:int, DepsNode*) */
+	struct Heap *ready_heap;           /* (idx:int, DepsNode*) */
 	
 	/* Size/Order counts */
-	size_t idx;                 /* total number of nodes which are/have been ready so far (including those already visited) */
-	size_t tot;                 /* total number of nodes which have passed through queue; mainly for debug */
+	size_t idx;                        /* total number of nodes which are/have been ready so far (including those already visited) */
+	size_t tot;                        /* total number of nodes which have passed through queue; mainly for debug */
 } DepsgraphQueue;
 
 /* *********************************************** */
