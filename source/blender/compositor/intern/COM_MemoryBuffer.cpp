@@ -257,15 +257,29 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 	F *= 100.0f;
 #endif
 
+	/* Note: highly eccentric ellipses can lead to large texture space areas to filter!
+	 * This is limited somewhat by the EWA_WTS size in the loop, but a nicer approach
+	 * could be the one found in
+	 * "High Quality Elliptical Texture Filtering on GPU"
+	 * by Pavlos Mavridis and Georgios Papaioannou
+	 * in which the eccentricity of the ellipse is clamped.
+	 */
+
 	float ue, ve;
 	ellipse_bounds(A, B, C, 1.0f, ue, ve);
-	float U0 = u + 0.5f;
-	float V0 = v + 0.5f;
+	/* sane clamping to avoid unnecessarily huge loops */
+	/* XXX if eccentricity gets clamped (see above),
+	 * the ue/ve limits can also be lowered accordingly
+	 */
+	if (ue > (float)EWA_MAXIDX) ue = (float)EWA_MAXIDX;
+	if (ve > (float)EWA_MAXIDX) ve = (float)EWA_MAXIDX;
+	float U0 = u;
+	float V0 = v;
 	
-	int u1 = (int)(U0 - ue);
-	int u2 = (int)(U0 + ue);
-	int v1 = (int)(V0 - ve);
-	int v2 = (int)(V0 + ve);
+	int u1 = (int)(U0 + 0.5f - ue);
+	int u2 = (int)(U0 + 0.5f + ue);
+	int v1 = (int)(V0 + 0.5f - ve);
+	int v2 = (int)(V0 + 0.5f + ve);
 #if USE_DEBUG
 	const int dbg_step = 100;
 	u1 = (int)(u1 / dbg_step) * dbg_step;
