@@ -96,7 +96,7 @@ void DisplaceOperation::executePixel(float output[4], int x, int y, void *data)
 	dyt = signf(dyt) * max_ff(fabsf(dyt), DISPLACE_EPSILON) / this->getHeight();
 
 	/* EWA filtering (without nearest it gets blurry with NO distortion) */
-	this->m_inputColorProgram->readFiltered(output, u, v, dxt, dyt, COM_PS_NEAREST);
+//	this->m_inputColorProgram->readFiltered(output, u, v, dxt, dyt, COM_PS_NEAREST);
 }
 
 void DisplaceOperation::deinitExecution()

@@ -214,6 +214,117 @@ static const float EWA_WTS[EWA_MAXIDX + 1] = {
 	0.00754159f, 0.00625989f, 0.00498819f, 0.00372644f, 0.00247454f, 0.00123242f, 0.f
 };
 
+#if 1
+static void ellipse_bounds(float A, float B, float C, float F, float &xmax, float &ymax)
+{
+	float denom = 4.0f*A*C - B*B;
+	if (denom > 0.0f && A != 0.0f && C != 0.0f) {
+		xmax = sqrt(F)/(2.0f*A) * (sqrt(F*(4.0f*A - B*B/C)) + B*B*sqrt(F/C*denom));
+		ymax = sqrt(F)/(2.0f*C) * (sqrt(F*(4.0f*C - B*B/A)) + B*B*sqrt(F/A*denom));
+	}
+	else {
+		xmax = 0.0f;
+		ymax = 0.0f;
+	}
+}
+
+/**
+ * Filtering method based on
+ * "Creating raster omnimax images from multiple perspective views using the elliptical weighted average filter"
+ * by Ned Greene and Paul S. Heckbert (1986)
+ * \note \a sampler at the moment is either 'COM_PS_NEAREST' or not, other values won't matter.
+ */
+void MemoryBuffer::readEWA(float result[4], const float uv[2], const float derivatives[2][2], PixelSampler sampler)
+{
+	zero_v4(result);
+	int width = this->getWidth(), height = this->getHeight();
+	if (width == 0 || height == 0)
+		return;
+
+#define USE_DEBUG 0
+
+	float u = uv[0], v = uv[1];
+	float Ux = derivatives[0][0], Vx = derivatives[1][0], Uy = derivatives[0][1], Vy = derivatives[1][1];
+#if USE_DEBUG
+//	Vx *= 2;
+//	Vy *= 2;
+#endif
+	float A = Vx*Vx + Vy*Vy;
+	float B = -2.0f * (Ux*Vx + Uy*Vy);
+	float C = Ux*Ux + Uy*Uy;
+	float F = A*C - B*B * 0.25f;
+#if USE_DEBUG
+	F *= 100.0f;
+#endif
+
+	float ue, ve;
+	ellipse_bounds(A, B, C, 1.0f, ue, ve);
+	float U0 = u + 0.5f;
+	float V0 = v + 0.5f;
+	
+	int u1 = (int)(U0 - ue);
+	int u2 = (int)(U0 + ue);
+	int v1 = (int)(V0 - ve);
+	int v2 = (int)(V0 + ve);
+#if USE_DEBUG
+	const int dbg_step = 100;
+	u1 = (int)(u1 / dbg_step) * dbg_step;
+	u2 = (int)((u2+dbg_step-1) / dbg_step) * dbg_step;
+	v1 = (int)(v1 / dbg_step) * dbg_step;
+	v2 = (int)((v2+dbg_step-1) / dbg_step) * dbg_step;
+#endif
+
+#if USE_DEBUG
+	float delta = dbg_step;
+	float DDQ = 2.f * A*delta*delta;
+	float U = (float)u1 - U0;
+	float ac1 = A*delta * (2.f*U + 1.f*delta);
+	float ac2 = A * U*U;
+	float BU = B * U;
+#else
+	float DDQ = 2.f * A;
+	float U = (float)u1 - U0;
+	float ac1 = A * (2.f*U + 1.f);
+	float ac2 = A * U*U;
+	float BU = B * U;
+#endif
+
+	float sum = 0.0f;
+#if USE_DEBUG
+	for (int v = v1; v <= v2; v += dbg_step) {
+#else
+	for (int v = v1; v <= v2; ++v) {
+#endif
+		float V = (float)v - V0;
+
+#if USE_DEBUG
+		float DQ = ac1 + B*V*delta;
+#else
+		float DQ = ac1 + B*V;
+#endif
+		float Q = (C*V + BU)*V + ac2;
+#if USE_DEBUG
+		for (int u = u1; u <= u2; u += dbg_step) {
+#else
+		for (int u = u1; u <= u2; ++u) {
+#endif
+			if (Q < F && Q < (float)(EWA_MAXIDX + 1)) {
+				float tc[4];
+				const float wt = EWA_WTS[Q < 0.f ? 0 : (unsigned int)Q];
+				read(tc, u, v);
+				madd_v4_v4fl(result, tc, wt);
+				sum += wt;
+			}
+			Q += DQ;
+			DQ += DDQ;
+		}
+	}
+	
+	mul_v4_fl(result, (sum != 0.0f ? 1.0f / sum : 0.0f));
+
+	#undef USE_DEBUG
+}
+#else
 static void radangle2imp(float a2, float b2, float th, float *A, float *B, float *C, float *F)
 {
 	float ct2 = cosf(th);
@@ -259,17 +370,14 @@ static float clipuv(float x, float limit)
 	return x;
 }
 
-/**
- * \note \a sampler at the moment is either 'COM_PS_NEAREST' or not, other values won't matter.
- */
 void MemoryBuffer::readEWA(float result[4], float fx, float fy, float dx, float dy, PixelSampler sampler)
 {
 	const int width = this->getWidth(), height = this->getHeight();
 	
 	// scaling dxt/dyt by full resolution can cause overflow because of huge A/B/C and esp. F values,
 	// scaling by aspect ratio alone does the opposite, so try something in between instead...
-	const float ff2 = width, ff = sqrtf(ff2), q = height / ff;
-	const float Ux = dx * ff, Vx = dx * q, Uy = dy * ff, Vy = dy * q;
+	float ff2 = width, ff = sqrtf(ff2), q = height / ff;
+	float Ux = dx * ff, Vx = dx * q, Uy = dy * ff, Vy = dy * q;
 	float A = Vx * Vx + Vy * Vy;
 	float B = -2.f * (Ux * Vx + Uy * Vy);
 	float C = Ux * Ux + Uy * Uy;
@@ -327,13 +435,13 @@ void MemoryBuffer::readEWA(float result[4], float fx, float fy, float dx, float 
 
 	d = result[0] = result[1] = result[2] = result[3] = 0.f;
 	for (v = v1; v <= v2; ++v) {
-		const float V = v - V0;
+		float V = v - V0;
 		float DQ = ac1 + B * V;
 		float Q = (C * V + BU) * V + ac2;
 		for (u = u1; u <= u2; ++u) {
 			if (Q < (float)(EWA_MAXIDX + 1)) {
 				float tc[4];
-				const float wt = EWA_WTS[(Q < 0.f) ? 0 : (unsigned int)Q];
+				float wt = EWA_WTS[(Q < 0.f) ? 0 : (unsigned int)Q];
 				read(tc, clipuv(u, width), clipuv(v, height));
 				madd_v4_v4fl(result, tc, wt);
 				d += wt;
@@ -347,3 +455,4 @@ void MemoryBuffer::readEWA(float result[4], float fx, float fy, float dx, float 
 	d = 1.f / d;
 	mul_v4_fl(result, d);
 }
+#endif

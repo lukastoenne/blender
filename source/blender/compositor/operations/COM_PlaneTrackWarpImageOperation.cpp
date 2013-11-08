@@ -129,6 +129,118 @@ void PlaneTrackWarpImageOperation::deinitExecution()
 
 void PlaneTrackWarpImageOperation::executePixelSampled(float output[4], float x_, float y_, PixelSampler sampler)
 {
+	const float xy[2] = {x, y};
+	float uv[2];
+	float deriv[2][2];
+	
+	if (isPointInsideQuad(x, y, m_frameSpaceCorners)) {
+		pixelTransform(xy, uv, deriv);
+		m_pixelReader->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_NEAREST);
+	}
+	else {
+		zero_v2(uv);
+		zero_v2(deriv[0]);
+		zero_v2(deriv[1]);
+	}
+//	float test[4] = {output[0], output[1], output[2], output[3]};
+//	if (test[0] > 0.0f)
+//		printf("at %4.3f, %4.3f: (%4.3f, %4.3f, %4.3f, %4.3f)\n", x, y, test[0], test[1], test[2], test[3]);
+//	printf("result: %4.3f, %4.3f, %4.3f, %4.3f\n", test[0], test[1], test[2], test[3]);
+//	float ddd = 0;
+
+#if 0
+	/* XXX DEBUGGING: visualize jacobian derivatives */
+	{
+//		output[0] = uv[0];
+//		output[1] = uv[1];
+
+		const float cellsize = 40.0f;
+		float c[2] = { (floorf(x / cellsize) + 0.5f) * cellsize,
+		               (floorf(y / cellsize) + 0.5f) * cellsize };
+		float cuv[2] = { x - c[0], y - c[1] };
+
+		pixelTransform(c, uv, deriv);
+
+#if 0
+		if (len_v2(cuv) < 5) {
+			output[0] = deriv[0][0];
+			output[1] = deriv[0][1];
+			output[2] = 0.0f;
+			output[3] = 1.0f;
+#if 0
+			normalize_v2(cuv);
+			float mat[3][3] = { {deriv[0][0], deriv[0][1], 0.0f}, {deriv[1][0], deriv[1][1], 0.0f}, {0.0f, 0.0f, 1.0f} };
+			mul_m3_v2(mat, cuv);
+			
+			output[0] = cuv[0];
+			output[1] = cuv[1];
+			output[2] = 0.0f;
+			output[3] = 1.0f;
+#endif
+		}
+#endif
+#if 1
+		if (len_v2(cuv) < 3) {
+			output[0] = 1.0f;
+			output[1] = 1.0f;
+			output[2] = 0.0f;
+			output[3] = 1.0f;
+		}
+		else {
+			float z[2] = {0,0};
+#if 0
+//			float arrow_u[2] = {deriv[0][0], deriv[1][0]}, arrow_v[2] = {deriv[0][1], deriv[1][1]};
+			float arrow_u[2] = {deriv[0][0], deriv[0][1]}, arrow_v[2] = {deriv[1][0], deriv[1][1]};
+
+			float mat[3][3];
+			unit_m3(mat);
+			mat[0][0] = deriv[0][0];
+			mat[0][1] = deriv[0][1];
+			mat[1][0] = deriv[1][0];
+			mat[1][1] = deriv[1][1];
+			invert_m3(mat);
+			arrow_u[0] = 1.0f;
+			arrow_u[1] = 0.0f;
+			mul_m3_v2(mat, arrow_u);
+			arrow_v[0] = 0.0f;
+			arrow_v[1] = 1.0f;
+			mul_m3_v2(mat, arrow_v);
+#endif
+//			float arrow_u[2] = {deriv[0][0] != 0.0f ? 1.0f/deriv[0][0] : 0.0f,
+//			                    deriv[0][1] != 0.0f ? 1.0f/deriv[0][1] : 0.0f};
+//			float arrow_v[2] = {deriv[1][0] != 0.0f ? 1.0f/deriv[1][0] : 0.0f,
+//			                    deriv[1][1] != 0.0f ? 1.0f/deriv[1][1] : 0.0f};
+			float arrow_u[2] = {deriv[0][0],
+			                    deriv[0][1]};
+			float arrow_v[2] = {deriv[1][0],
+			                    deriv[1][1]};
+
+			mul_v2_fl(arrow_u, 10.0f);
+			mul_v2_fl(arrow_v, 10.0f);
+			arrow_u[0] *= width;
+			arrow_u[1] *= height;
+			arrow_v[0] *= width;
+			arrow_v[1] *= height;
+
+			if (dist_to_line_segment_v2(cuv, z, arrow_u) < 1.5f) {
+				output[0] = 1.0f;
+				output[1] = 0.0f;
+				output[2] = 0.0f;
+				output[3] = 1.0f;
+			}
+
+			if (dist_to_line_segment_v2(cuv, z, arrow_v) < 1.5f) {
+				output[0] = 0.0f;
+				output[1] = 1.0f;
+				output[2] = 0.0f;
+				output[3] = 1.0f;
+			}
+		}
+#endif
+	}
+#endif
+
+#if 0
 	float color_accum[4];
 
 	zero_v4(color_accum);
@@ -151,6 +263,21 @@ void PlaneTrackWarpImageOperation::executePixelSampled(float output[4], float x_
 	}
 
 	mul_v4_v4fl(output, color_accum, 1.0f / this->m_osa);
+#endif
+}
+
+void PlaneTrackWarpImageOperation::pixelTransform(const float co[2], float r_co[2], float r_deriv[2][2])
+{
+	resolve_quad_uv_deriv(r_co, r_deriv, co, m_frameSpaceCorners[0], m_frameSpaceCorners[1], m_frameSpaceCorners[2], m_frameSpaceCorners[3]);
+
+	float width = m_pixelReader->getWidth();
+	float height = m_pixelReader->getHeight();
+	r_co[0] *= width;
+	r_co[1] *= height;
+	r_deriv[0][0] *= width;
+	r_deriv[0][1] *= height;
+	r_deriv[1][0] *= width;
+	r_deriv[1][1] *= height;
 }
 
 bool PlaneTrackWarpImageOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
