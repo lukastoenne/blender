@@ -42,51 +42,64 @@ void MapUVOperation::initExecution()
 
 void MapUVOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	float inputUV[4];
-	float uv_a[4], uv_b[4];
-	float u, v;
+	float xy[2] = { x, y };
+	float uv[2], deriv[2][2], alpha;
 
-	float dx, dy;
-	float uv_l, uv_r;
-	float uv_u, uv_d;
-
-	this->m_inputUVProgram->readSampled(inputUV, x, y, sampler);
-	if (inputUV[2] == 0.f) {
+	if (!pixelTransform(xy, uv, deriv, alpha) || alpha == 0.0f) {
 		zero_v4(output);
 		return;
 	}
-	/* adaptive sampling, red (U) channel */
-	this->m_inputUVProgram->readSampled(uv_a, x - 1, y, COM_PS_NEAREST);
-	this->m_inputUVProgram->readSampled(uv_b, x + 1, y, COM_PS_NEAREST);
-	uv_l = uv_a[2] != 0.f ? fabsf(inputUV[0] - uv_a[0]) : 0.f;
-	uv_r = uv_b[2] != 0.f ? fabsf(inputUV[0] - uv_b[0]) : 0.f;
-
-	dx = 0.5f * (uv_l + uv_r);
-
-	/* adaptive sampling, green (V) channel */
-	this->m_inputUVProgram->readSampled(uv_a, x, y - 1, COM_PS_NEAREST);
-	this->m_inputUVProgram->readSampled(uv_b, x, y + 1, COM_PS_NEAREST);
-	uv_u = uv_a[2] != 0.f ? fabsf(inputUV[1] - uv_a[1]) : 0.f;
-	uv_d = uv_b[2] != 0.f ? fabsf(inputUV[1] - uv_b[1]) : 0.f;
-
-	dy = 0.5f * (uv_u + uv_d);
-
-	/* UV to alpha threshold */
-	const float threshold = this->m_alpha * 0.05f;
-	float alpha = 1.0f - threshold * (dx + dy);
-	if (alpha < 0.f) alpha = 0.f;
-	else alpha *= inputUV[2];
 
 	/* EWA filtering */
-	u = inputUV[0] * this->m_inputColorProgram->getWidth();
-	v = inputUV[1] * this->m_inputColorProgram->getHeight();
-
-//	this->m_inputColorProgram->readFiltered(output, u, v, dx, dy, COM_PS_NEAREST);
+	this->m_inputColorProgram->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_NEAREST);
+	
+	/* UV to alpha threshold */
+	const float threshold = this->m_alpha * 0.05f;
+	/* XXX what is this supposed to do?!? */
+	/*float alpha = 1.0f - threshold * (dx + dy);*/
+	float du = len_v2(deriv[0]);
+	float dv = len_v2(deriv[1]);
+	float factor = 1.0f - threshold * (du + dv);
+	if (factor < 0.f) alpha = 0.f;
+	else alpha *= factor;
 
 	/* "premul" */
 	if (alpha < 1.0f) {
 		mul_v4_fl(output, alpha);
 	}
+}
+
+bool MapUVOperation::pixelTransform(const float co[2], float r_co[2], float r_deriv[2][2], float &r_alpha)
+{
+	float width = m_inputColorProgram->getWidth();
+	float height = m_inputColorProgram->getHeight();
+	float uv[4];
+
+	m_inputUVProgram->readSampler(uv, co[0], co[1], COM_PS_NEAREST);
+	r_co[0] = uv[0] * width;
+	r_co[1] = uv[1] * height;
+	r_alpha = uv[2];
+
+	/* XXX currently there is no way to get real derivatives from the UV map input.
+	 * Instead use a simple 1st order estimate ...
+	 */
+	const float epsilon[2] = { width != 0.0f ? 1.0f/width : 0.0f, height != 0.0f ? 1.0f/height : 0.0f };
+
+	m_inputUVProgram->readSampler(uv, co[0] + epsilon[0], co[1], COM_PS_NEAREST);
+	r_deriv[0][0] = uv[0];
+	r_deriv[1][0] = uv[1];
+	m_inputUVProgram->readSampler(uv, co[0] - epsilon[0], co[1], COM_PS_NEAREST);
+	r_deriv[0][0] = 0.5f*(r_deriv[0][0] - uv[0]) * width;
+	r_deriv[1][0] = 0.5f*(r_deriv[1][0] - uv[1]) * width;
+
+	m_inputUVProgram->readSampler(uv, co[0], co[1] + epsilon[1], COM_PS_NEAREST);
+	r_deriv[0][1] = uv[0];
+	r_deriv[1][1] = uv[1];
+	m_inputUVProgram->readSampler(uv, co[0], co[1] - epsilon[1], COM_PS_NEAREST);
+	r_deriv[0][1] = 0.5f*(r_deriv[0][1] - uv[0]) * height;
+	r_deriv[1][1] = 0.5f*(r_deriv[1][1] - uv[1]) * height;
+
+	return true;
 }
 
 void MapUVOperation::deinitExecution()

@@ -47,7 +47,7 @@ public:
 	void deinitExecution();
 
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
-	void pixelTransform(const float co[2], float r_co[2], float r_deriv[2][2]);
+	bool pixelTransform(const float co[2], float r_co[2], float r_deriv[2][2]);
 
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 };
