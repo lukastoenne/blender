@@ -228,6 +228,22 @@ static void ellipse_bounds(float A, float B, float C, float F, float &xmax, floa
 	}
 }
 
+static void ellipse_params(float Ux, float Uy, float Vx, float Vy, float &A, float &B, float &C, float &F, float &umax, float &vmax)
+{
+	A = Vx*Vx + Vy*Vy;
+	B = -2.0f * (Ux*Vx + Uy*Vy);
+	C = Ux*Ux + Uy*Uy;
+	F = A*C - B*B * 0.25f;
+
+	float factor = (F != 0.0f ? (float)(EWA_MAXIDX+1) / F : 0.0f);
+	A *= factor;
+	B *= factor;
+	C *= factor;
+	F = (float)(EWA_MAXIDX+1);
+
+	ellipse_bounds(A, B, C, sqrtf(F), umax, vmax);
+}
+
 /**
  * Filtering method based on
  * "Creating raster omnimax images from multiple perspective views using the elliptical weighted average filter"
@@ -256,6 +272,10 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 #if USE_DEBUG
 	F *= 100.0f;
 #endif
+	float factor = (F != 0.0f ? (float)(EWA_MAXIDX+1) / sqrt(F) : 0.0f);
+	A *= factor;
+	B *= factor;
+	C *= factor;
 
 	/* Note: highly eccentric ellipses can lead to large texture space areas to filter!
 	 * This is limited somewhat by the EWA_WTS size in the loop, but a nicer approach
@@ -338,6 +358,83 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 
 	#undef USE_DEBUG
 }
+
+void MemoryBuffer::readEWADebug(float result[4], float &weight, const float uv_ref[2], const float uv[2], const float derivatives[2][2], PixelSampler sampler)
+{
+	zero_v4(result);
+	weight = 0.0f;
+	int width = this->getWidth(), height = this->getHeight();
+	if (width == 0 || height == 0)
+		return;
+
+	/* XXX uv_ref is in 0..1 range */
+	float xy[2] = {uv_ref[0], uv_ref[1]};
+	mul_v2_fl(xy, width > height ? width : height);
+//	read(result, xy[0], xy[1]);
+
+	float u = uv[0], v = uv[1];
+	float Ux = derivatives[0][0], Vx = derivatives[1][0], Uy = derivatives[0][1], Vy = derivatives[1][1];
+	float A, B, C, F, ue, ve;
+	ellipse_params(Ux, Uy, Vx, Vy, A, B, C, F, ue, ve);
+//	float A = Vx*Vx + Vy*Vy;
+//	float B = -2.0f * (Ux*Vx + Uy*Vy);
+//	float C = Ux*Ux + Uy*Uy;
+//	float F = A*C - B*B * 0.25f;
+
+//	float factor = (F != 0.0f ? (float)(EWA_MAXIDX+1) / F : 0.0f);
+//	A *= factor;
+//	B *= factor;
+//	C *= factor;
+//	F = (float)(EWA_MAXIDX+1);
+
+	float U0 = floor(u);
+	float V0 = floor(v);
+
+//	float ue, ve;
+//	ellipse_bounds(A, B, C, sqrt(F), ue, ve);
+	/* sane clamping to avoid unnecessarily huge loops */
+	/* XXX if eccentricity gets clamped (see above),
+	 * the ue/ve limits can also be lowered accordingly
+	 */
+	if (ue > (float)EWA_MAXIDX) ue = (float)EWA_MAXIDX;
+	if (ve > (float)EWA_MAXIDX) ve = (float)EWA_MAXIDX;
+
+	int u1 = (int)(U0 + 0.5f - ue);
+	int u2 = (int)(U0 + 0.5f + ue);
+	int v1 = (int)(V0 + 0.5f - ve);
+	int v2 = (int)(V0 + 0.5f + ve);
+
+	int iu = xy[0];
+	int iv = xy[1];
+//	if (iu < u1 || iu > u2 || iv < v1 || iv > v2)
+//		return;
+
+	float U = (float)iu - U0;
+	float V = (float)iv - V0;
+	float Q = A*U*U + B*U*V + C*V*V;
+
+	if (Q < 9.0f*F) {
+		float denom = Ux*Vy - Uy*Vx;
+		float x = (denom != 0.0f ? (U*Vy - V*Uy) / denom : 0.0f);
+		float y = (denom != 0.0f ? (V*Ux - U*Vx) / denom : 0.0f);
+//		result[0] = ((x > 0.0f ? (int)x : (int)(-x)+1) + (y > 0.0f ? (int)y : (int)(-y)+1)) % 2;
+		result[0] = (x > 0.0f ? (int)x : (int)(-x)+1) % 2;
+		result[1] = (y > 0.0f ? (int)y : (int)(-y)+1) % 2;
+	}
+//	result[0] = U;
+//	result[1] = V;
+//	result[2] = !(iu < u1 || iu > u2 || iv < v1 || iv > v2);
+	result[2] = Q < F;
+	result[3] = 1.0f;
+//	printf("distance (%d, %d): d=%f\n", iu, iv, sqrtf(U*U + V*V));
+//	if (U*U + V*V < 100.0f) {
+//		weight = 1.0f;
+//	}
+//	if (Q < F) {
+//		weight = EWA_WTS[CLAMPIS((int)Q, 0, EWA_MAXIDX)];
+//	}
+}
+
 #else
 static void radangle2imp(float a2, float b2, float th, float *A, float *B, float *C, float *F)
 {

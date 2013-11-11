@@ -129,13 +129,49 @@ void PlaneTrackWarpImageOperation::deinitExecution()
 
 void PlaneTrackWarpImageOperation::executePixelSampled(float output[4], float x_, float y_, PixelSampler sampler)
 {
-	const float xy[2] = {x, y};
+	float xy[2] = {x, y};
 	float uv[2];
 	float deriv[2][2];
 	
+#if 0
 	if (pixelTransform(xy, uv, deriv)) {
 		m_pixelReader->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_NEAREST);
 	}
+#else
+	float width = getWidth();
+	float height = getHeight();
+	float scale_uv = min_ff(width > height ? 1.0f/height : 1.0f/width, 1.0f);
+	float weight;
+	float step = 100.0f;
+	float col[4];
+
+	zero_v4(output);
+	output[3] = 1.0f;
+
+	{
+//		pixelTransform(xy, uv, deriv, alpha);
+//		output[0] = deriv[0][0];
+//		output[1] = deriv[1][0];
+//		return;
+	}
+
+
+//	printf("FOR PIXEL (%4.3f, %4.3f):\n", x, y);
+	/* XXX for debugging purposes: bring xy into 0..1 range */
+	mul_v2_fl(xy, scale_uv);
+	float sx = 0.5f * width, sy = 0.2f * height; { {
+//	for (float sy = 0.5f*step; sy < height; sy += step) {
+//		for (float sx = 0.5f*step; sx < width; sx += step) {
+			float sxy[2] = { sx, sy };
+			if (pixelTransform(sxy, uv, deriv)) {
+//				printf("  -> (%4.3f, %4.3f) = %f\n", sx, sy, sqrtf((x-sx)*(x-sx) + (y-sy)*(y-sy)));
+				m_pixelReader->readFilteredDebug(col, weight, xy, uv, deriv, COM_PS_NEAREST);
+				add_v3_v3(output, col);
+//				output[1] += weight;
+			}
+		}
+	}
+#endif
 
 #if 0
 	float color_accum[4];
@@ -163,17 +199,17 @@ void PlaneTrackWarpImageOperation::executePixelSampled(float output[4], float x_
 #endif
 }
 
-bool PlaneTrackWarpImageOperation::pixelTransform(const float co[2], float r_co[2], float r_deriv[2][2])
+bool PlaneTrackWarpImageOperation::pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2])
 {
-	if (!isPointInsideQuad(co[0], co[1], m_frameSpaceCorners))
+	if (!isPointInsideQuad(xy[0], xy[1], m_frameSpaceCorners))
 		return false;
 
-	resolve_quad_uv_deriv(r_co, r_deriv, co, m_frameSpaceCorners[0], m_frameSpaceCorners[1], m_frameSpaceCorners[2], m_frameSpaceCorners[3]);
+	resolve_quad_uv_deriv(r_uv, r_deriv, xy, m_frameSpaceCorners[0], m_frameSpaceCorners[1], m_frameSpaceCorners[2], m_frameSpaceCorners[3]);
 
 	float width = m_pixelReader->getWidth();
 	float height = m_pixelReader->getHeight();
-	r_co[0] *= width;
-	r_co[1] *= height;
+	r_uv[0] *= width;
+	r_uv[1] *= height;
 	r_deriv[0][0] *= width;
 	r_deriv[0][1] *= height;
 	r_deriv[1][0] *= width;

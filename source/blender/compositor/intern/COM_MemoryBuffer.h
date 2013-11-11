@@ -247,6 +247,7 @@ public:
 
 	void readEWA(float result[4], const float uv[2], const float derivatives[2][2], PixelSampler sampler);
 //	void readEWA(float result[4], float fx, float fy, float dx, float dy, PixelSampler sampler);
+	void readEWADebug(float result[4], float &weight, const float uv_ref[2], const float uv[2], const float derivatives[2][2], PixelSampler sampler);
 	
 	/**
 	 * @brief is this MemoryBuffer a temporarily buffer (based on an area, not on a chunk)

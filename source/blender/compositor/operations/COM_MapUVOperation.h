@@ -47,7 +47,7 @@ public:
 	 */
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 
-	bool pixelTransform(const float co[2], float r_co[2], float r_deriv[2][2], float &r_alpha);
+	bool pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2], float &r_alpha);
 
 	/**
 	 * Initialize the execution
