@@ -248,7 +248,6 @@ static void ellipse_params(float Ux, float Uy, float Vx, float Vy, float &A, flo
  * Filtering method based on
  * "Creating raster omnimax images from multiple perspective views using the elliptical weighted average filter"
  * by Ned Greene and Paul S. Heckbert (1986)
- * \note \a sampler at the moment is either 'COM_PS_NEAREST' or not, other values won't matter.
  */
 void MemoryBuffer::readEWA(float result[4], const float uv[2], const float derivatives[2][2], PixelSampler sampler)
 {
