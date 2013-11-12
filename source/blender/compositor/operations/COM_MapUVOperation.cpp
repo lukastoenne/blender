@@ -45,7 +45,6 @@ void MapUVOperation::executePixelSampled(float output[4], float x, float y, Pixe
 	float xy[2] = { x, y };
 	float uv[2], deriv[2][2], alpha;
 
-#if 0
 	if (!pixelTransform(xy, uv, deriv, alpha) || alpha == 0.0f) {
 		zero_v4(output);
 		return;
@@ -68,40 +67,6 @@ void MapUVOperation::executePixelSampled(float output[4], float x, float y, Pixe
 	if (alpha < 1.0f) {
 		mul_v4_fl(output, alpha);
 	}
-#else
-	float width = getWidth();
-	float height = getHeight();
-	float scale_uv = min_ff(width > height ? 1.0f/height : 1.0f/width, 1.0f);
-	float weight;
-	float step = 100.0f;
-	float col[4];
-
-	zero_v4(output);
-	output[3] = 1.0f;
-
-	{
-//		pixelTransform(xy, uv, deriv, alpha);
-//		output[0] = deriv[0][0];
-//		output[1] = deriv[1][0];
-//		return;
-	}
-
-
-//	printf("FOR PIXEL (%4.3f, %4.3f):\n", x, y);
-//	for (float sy = 0.5f*step; sy < height; sy += step) {
-//		for (float sx = 0.5f*step; sx < width; sx += step) {
-	/* XXX for debugging purposes: bring xy into 0..1 range */
-	mul_v2_fl(xy, scale_uv);
-	float sx = 0.5f * width, sy = 0.2f * height;
-			float sxy[2] = { sx, sy };
-			if (pixelTransform(sxy, uv, deriv, alpha)) {
-//				printf("  -> (%4.3f, %4.3f) = %f\n", sx, sy, sqrtf((x-sx)*(x-sx) + (y-sy)*(y-sy)));
-				this->m_inputColorProgram->readFilteredDebug(output, weight, xy, uv, deriv, COM_PS_NEAREST);
-//				output[1] += weight;
-			}
-//		}
-//	}
-#endif
 }
 
 bool MapUVOperation::pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2], float &r_alpha)

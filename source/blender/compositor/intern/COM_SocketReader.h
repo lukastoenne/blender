@@ -89,7 +89,6 @@ protected:
 	 * @param inputBuffers chunks that can be read by their ReadBufferOperation.
 	 */
 	virtual void executePixelFiltered(float output[4], float x, float y, float dx[2], float dy[2], PixelSampler sampler) {}
-	virtual void executePixelFilteredDebug(float output[4], float &weight, const float uv_ref[2], const float uv[2], const float deriv[2][2], PixelSampler sampler) {}
 
 public:
 	inline void readSampled(float result[4], float x, float y, PixelSampler sampler) {
@@ -100,9 +99,6 @@ public:
 	}
 	inline void readFiltered(float result[4], float x, float y, float dx[2], float dy[2], PixelSampler sampler) {
 		executePixelFiltered(result, x, y, dx, dy, sampler);
-	}
-	inline void readFilteredDebug(float result[4], float &weight, const float uv_ref[2], const float uv[2], const float deriv[2][2], PixelSampler sampler) {
-		executePixelFilteredDebug(result, weight, uv_ref, uv, deriv, sampler);
 	}
 
 	virtual void *initializeTileData(rcti *rect) { return 0; }

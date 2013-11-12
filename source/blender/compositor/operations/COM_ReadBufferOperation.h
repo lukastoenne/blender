@@ -44,7 +44,6 @@ public:
 	void executePixelExtend(float output[4], float x, float y, PixelSampler sampler,
 	                        MemoryBufferExtend extend_x, MemoryBufferExtend extend_y);
 	void executePixelFiltered(float output[4], float x, float y, float dx[2], float dy[2], PixelSampler sampler);
-	void executePixelFilteredDebug(float output[4], float &weight, const float uv_ref[2], const float uv[2], const float deriv[2][2], PixelSampler sampler);
 	const bool isReadBufferOperation() const { return true; }
 	void setOffset(unsigned int offset) { this->m_offset = offset; }
 	unsigned int getOffset() const { return this->m_offset; }

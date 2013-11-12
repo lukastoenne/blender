@@ -94,17 +94,6 @@ void ReadBufferOperation::executePixelFiltered(float output[4], float x, float y
 	}
 }
 
-void ReadBufferOperation::executePixelFilteredDebug(float output[4], float &weight, const float uv_ref[2], const float uv[2], const float deriv[2][2], PixelSampler sampler)
-{
-	if (m_single_value) {
-		/* write buffer has a single value stored at (0,0) */
-		m_buffer->read(output, 0, 0);
-	}
-	else {
-		m_buffer->readEWADebug(output, weight, uv_ref, uv, deriv, sampler);
-	}
-}
-
 bool ReadBufferOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
 {
 	if (this == readOperation) {

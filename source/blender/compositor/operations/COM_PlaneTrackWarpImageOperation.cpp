@@ -133,48 +133,9 @@ void PlaneTrackWarpImageOperation::executePixelSampled(float output[4], float x_
 	float uv[2];
 	float deriv[2][2];
 	
-#if 1
 	if (pixelTransform(xy, uv, deriv)) {
 		m_pixelReader->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_NEAREST);
 	}
-#else
-	float width = getWidth();
-	float height = getHeight();
-	float scale_uv = min_ff(width > height ? 1.0f/height : 1.0f/width, 1.0f);
-	float weight;
-	int steps = 10;
-	float col[4];
-
-	zero_v4(output);
-	output[3] = 1.0f;
-
-	{
-//		pixelTransform(xy, uv, deriv, alpha);
-//		output[0] = deriv[0][0];
-//		output[1] = deriv[1][0];
-//		return;
-	}
-
-//	printf("FOR PIXEL (%4.3f, %4.3f):\n", x, y);
-	/* XXX for debugging purposes: bring xy into 0..1 range */
-	mul_v2_fl(xy, scale_uv);
-//	float sx = 0.5f * width, sy = 0.2f * height; { {
-	float xmin = min_ff(m_frameSpaceCorners[0][0], min_ff(m_frameSpaceCorners[1][0], min_ff(m_frameSpaceCorners[2][0], m_frameSpaceCorners[3][0])));
-	float xmax = max_ff(m_frameSpaceCorners[0][0], max_ff(m_frameSpaceCorners[1][0], max_ff(m_frameSpaceCorners[2][0], m_frameSpaceCorners[3][0])));
-	float ymin = min_ff(m_frameSpaceCorners[0][1], min_ff(m_frameSpaceCorners[1][1], min_ff(m_frameSpaceCorners[2][1], m_frameSpaceCorners[3][1])));
-	float ymax = max_ff(m_frameSpaceCorners[0][1], max_ff(m_frameSpaceCorners[1][1], max_ff(m_frameSpaceCorners[2][1], m_frameSpaceCorners[3][1])));
-	for (int sj = 0; sj < steps; ++sj) {
-		for (int si = 0; si < steps; ++si) {
-			float sxy[2] = { xmin + (xmax-xmin)*((float)si + 0.5f)/(float)(steps+1), ymin + (ymax-ymin)*((float)sj + 0.5f)/(float)(steps+1) };
-			if (pixelTransform(sxy, uv, deriv)) {
-//				printf("  -> (%4.3f, %4.3f) = %f\n", sx, sy, sqrtf((x-sx)*(x-sx) + (y-sy)*(y-sy)));
-				m_pixelReader->readFilteredDebug(col, weight, xy, uv, deriv, COM_PS_NEAREST);
-				add_v3_v3(output, col);
-//				output[1] += weight;
-			}
-		}
-	}
-#endif
 
 #if 0
 	float color_accum[4];
