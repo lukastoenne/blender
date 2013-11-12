@@ -134,7 +134,7 @@ void PlaneTrackWarpImageOperation::executePixelSampled(float output[4], float x_
 	float deriv[2][2];
 	
 	if (pixelTransform(xy, uv, deriv)) {
-		m_pixelReader->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_NEAREST);
+		m_pixelReader->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_BILINEAR);
 	}
 
 #if 0

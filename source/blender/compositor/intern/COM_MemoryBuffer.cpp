@@ -272,6 +272,8 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 
 	int U0 = (int)u;
 	int V0 = (int)v;
+	/* pixel offset for interpolation */
+	float ufac = u - floor(u), vfac = v - floor(v);
 	/* filter size */
 	int u1 = (int)(u - ue);
 	int u2 = (int)(u + ue);
@@ -293,6 +295,13 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 	float ac2 = A * U*U;
 	float BU = B * U;
 
+	/* XXX this doesn't really work */
+#if 0
+	/* for pure downsampling just use the NEAREST sampler */
+	if (ue > 1.0f && ve > 1.0f)
+		sampler = COM_PS_NEAREST;
+#endif
+
 	float sum = 0.0f;
 	for (int v = v1; v <= v2; ++v) {
 		float V = v - V0;
@@ -303,7 +312,12 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 			if (Q < F) {
 				float tc[4];
 				const float wt = EWA_WTS[CLAMPIS((int)Q, 0, EWA_MAXIDX)];
-				read(tc, u, v);
+				switch (sampler) {
+					case COM_PS_NEAREST: read(tc, u, v); break;
+					case COM_PS_BILINEAR: readBilinear(tc, (float)u+ufac, (float)v+vfac); break;
+					case COM_PS_BICUBIC: readBilinear(tc, (float)u+ufac, (float)v+vfac); break; /* XXX no readBicubic method yet */
+					default: zero_v4(tc); break;
+				}
 				madd_v4_v4fl(result, tc, wt);
 				sum += wt;
 			}
