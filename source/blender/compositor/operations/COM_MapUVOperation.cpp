@@ -51,7 +51,7 @@ void MapUVOperation::executePixelSampled(float output[4], float x, float y, Pixe
 	}
 
 	/* EWA filtering */
-	this->m_inputColorProgram->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_NEAREST);
+	this->m_inputColorProgram->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_BILINEAR);
 	
 	/* UV to alpha threshold */
 	const float threshold = this->m_alpha * 0.05f;
@@ -83,7 +83,6 @@ bool MapUVOperation::pixelTransform(const float xy[2], float r_uv[2], float r_de
 	/* XXX currently there is no way to get real derivatives from the UV map input.
 	 * Instead use a simple 1st order estimate ...
 	 */
-//	const float epsilon[2] = { width != 0.0f ? 1.0f/width : 0.0f, height != 0.0f ? 1.0f/height : 0.0f };
 	const float epsilon[2] = { 1.0f, 1.0f };
 
 	m_inputUVProgram->readSampler(col, xy[0] + epsilon[0], xy[1], COM_PS_BILINEAR);
