@@ -219,8 +219,8 @@ static void ellipse_bounds(float A, float B, float C, float F, float &xmax, floa
 {
 	float denom = 4.0f*A*C - B*B;
 	if (denom > 0.0f && A != 0.0f && C != 0.0f) {
-		xmax = sqrt(F)/(2.0f*A) * (sqrt(F*(4.0f*A - B*B/C)) + B*B*sqrt(F/C*denom));
-		ymax = sqrt(F)/(2.0f*C) * (sqrt(F*(4.0f*C - B*B/A)) + B*B*sqrt(F/A*denom));
+		xmax = sqrt(F)/(2.0f*A) * (sqrt(F*(4.0f*A - B*B/C)) + B*B*sqrt(F/(C*denom)));
+		ymax = sqrt(F)/(2.0f*C) * (sqrt(F*(4.0f*C - B*B/A)) + B*B*sqrt(F/(A*denom)));
 	}
 	else {
 		xmax = 0.0f;
@@ -257,25 +257,10 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 	if (width == 0 || height == 0)
 		return;
 
-#define USE_DEBUG 0
-
 	float u = uv[0], v = uv[1];
 	float Ux = derivatives[0][0], Vx = derivatives[1][0], Uy = derivatives[0][1], Vy = derivatives[1][1];
-#if USE_DEBUG
-//	Vx *= 2;
-//	Vy *= 2;
-#endif
-	float A = Vx*Vx + Vy*Vy;
-	float B = -2.0f * (Ux*Vx + Uy*Vy);
-	float C = Ux*Ux + Uy*Uy;
-	float F = A*C - B*B * 0.25f;
-#if USE_DEBUG
-	F *= 100.0f;
-#endif
-	float factor = (F != 0.0f ? (float)(EWA_MAXIDX+1) / sqrt(F) : 0.0f);
-	A *= factor;
-	B *= factor;
-	C *= factor;
+	float A, B, C, F, ue, ve;
+	ellipse_params(Ux, Uy, Vx, Vy, A, B, C, F, ue, ve);
 
 	/* Note: highly eccentric ellipses can lead to large texture space areas to filter!
 	 * This is limited somewhat by the EWA_WTS size in the loop, but a nicer approach
@@ -285,66 +270,39 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 	 * in which the eccentricity of the ellipse is clamped.
 	 */
 
-	float ue, ve;
-	ellipse_bounds(A, B, C, 1.0f, ue, ve);
+	int U0 = (int)u;
+	int V0 = (int)v;
+	/* filter size */
+	int u1 = (int)(u - ue);
+	int u2 = (int)(u + ue);
+	int v1 = (int)(v - ve);
+	int v2 = (int)(v + ve);
+
 	/* sane clamping to avoid unnecessarily huge loops */
 	/* XXX if eccentricity gets clamped (see above),
 	 * the ue/ve limits can also be lowered accordingly
 	 */
-	if (ue > (float)EWA_MAXIDX) ue = (float)EWA_MAXIDX;
-	if (ve > (float)EWA_MAXIDX) ve = (float)EWA_MAXIDX;
-	float U0 = u;
-	float V0 = v;
-	
-	int u1 = (int)(U0 + 0.5f - ue);
-	int u2 = (int)(U0 + 0.5f + ue);
-	int v1 = (int)(V0 + 0.5f - ve);
-	int v2 = (int)(V0 + 0.5f + ve);
-#if USE_DEBUG
-	const int dbg_step = 100;
-	u1 = (int)(u1 / dbg_step) * dbg_step;
-	u2 = (int)((u2+dbg_step-1) / dbg_step) * dbg_step;
-	v1 = (int)(v1 / dbg_step) * dbg_step;
-	v2 = (int)((v2+dbg_step-1) / dbg_step) * dbg_step;
-#endif
+	if (U0-u1 > EWA_MAXIDX) u1 = U0 - EWA_MAXIDX;
+	if (u2-U0 > EWA_MAXIDX) u2 = U0 + EWA_MAXIDX;
+	if (V0-v1 > EWA_MAXIDX) v1 = V0 - EWA_MAXIDX;
+	if (v2-V0 > EWA_MAXIDX) v2 = V0 + EWA_MAXIDX;
 
-#if USE_DEBUG
-	float delta = dbg_step;
-	float DDQ = 2.f * A*delta*delta;
-	float U = (float)u1 - U0;
-	float ac1 = A*delta * (2.f*U + 1.f*delta);
-	float ac2 = A * U*U;
-	float BU = B * U;
-#else
 	float DDQ = 2.f * A;
-	float U = (float)u1 - U0;
+	float U = u1 - U0;
 	float ac1 = A * (2.f*U + 1.f);
 	float ac2 = A * U*U;
 	float BU = B * U;
-#endif
 
 	float sum = 0.0f;
-#if USE_DEBUG
-	for (int v = v1; v <= v2; v += dbg_step) {
-#else
 	for (int v = v1; v <= v2; ++v) {
-#endif
-		float V = (float)v - V0;
+		float V = v - V0;
 
-#if USE_DEBUG
-		float DQ = ac1 + B*V*delta;
-#else
 		float DQ = ac1 + B*V;
-#endif
 		float Q = (C*V + BU)*V + ac2;
-#if USE_DEBUG
-		for (int u = u1; u <= u2; u += dbg_step) {
-#else
 		for (int u = u1; u <= u2; ++u) {
-#endif
-			if (Q < F && Q < (float)(EWA_MAXIDX + 1)) {
+			if (Q < F) {
 				float tc[4];
-				const float wt = EWA_WTS[Q < 0.f ? 0 : (unsigned int)Q];
+				const float wt = EWA_WTS[CLAMPIS((int)Q, 0, EWA_MAXIDX)];
 				read(tc, u, v);
 				madd_v4_v4fl(result, tc, wt);
 				sum += wt;
@@ -355,8 +313,6 @@ void MemoryBuffer::readEWA(float result[4], const float uv[2], const float deriv
 	}
 	
 	mul_v4_fl(result, (sum != 0.0f ? 1.0f / sum : 0.0f));
-
-	#undef USE_DEBUG
 }
 
 void MemoryBuffer::readEWADebug(float result[4], float &weight, const float uv_ref[2], const float uv[2], const float derivatives[2][2], PixelSampler sampler)
@@ -376,43 +332,34 @@ void MemoryBuffer::readEWADebug(float result[4], float &weight, const float uv_r
 	float Ux = derivatives[0][0], Vx = derivatives[1][0], Uy = derivatives[0][1], Vy = derivatives[1][1];
 	float A, B, C, F, ue, ve;
 	ellipse_params(Ux, Uy, Vx, Vy, A, B, C, F, ue, ve);
-//	float A = Vx*Vx + Vy*Vy;
-//	float B = -2.0f * (Ux*Vx + Uy*Vy);
-//	float C = Ux*Ux + Uy*Uy;
-//	float F = A*C - B*B * 0.25f;
 
-//	float factor = (F != 0.0f ? (float)(EWA_MAXIDX+1) / F : 0.0f);
-//	A *= factor;
-//	B *= factor;
-//	C *= factor;
-//	F = (float)(EWA_MAXIDX+1);
+	int U0 = (int)u;
+	int V0 = (int)v;
+	/* filter size */
+	int u1 = (int)(u - ue);
+	int u2 = (int)(u + ue);
+	int v1 = (int)(v - ve);
+	int v2 = (int)(v + ve);
 
-	float U0 = floor(u);
-	float V0 = floor(v);
-
-//	float ue, ve;
-//	ellipse_bounds(A, B, C, sqrt(F), ue, ve);
 	/* sane clamping to avoid unnecessarily huge loops */
 	/* XXX if eccentricity gets clamped (see above),
 	 * the ue/ve limits can also be lowered accordingly
 	 */
-	if (ue > (float)EWA_MAXIDX) ue = (float)EWA_MAXIDX;
-	if (ve > (float)EWA_MAXIDX) ve = (float)EWA_MAXIDX;
-
-	int u1 = (int)(U0 + 0.5f - ue);
-	int u2 = (int)(U0 + 0.5f + ue);
-	int v1 = (int)(V0 + 0.5f - ve);
-	int v2 = (int)(V0 + 0.5f + ve);
+	if (U0-u1 > EWA_MAXIDX) u1 = U0 - EWA_MAXIDX;
+	if (u2-U0 > EWA_MAXIDX) u2 = U0 + EWA_MAXIDX;
+	if (V0-v1 > EWA_MAXIDX) v1 = V0 - EWA_MAXIDX;
+	if (v2-V0 > EWA_MAXIDX) v2 = V0 + EWA_MAXIDX;
 
 	int iu = xy[0];
 	int iv = xy[1];
-//	if (iu < u1 || iu > u2 || iv < v1 || iv > v2)
-//		return;
+	if (iu < u1 || iu > u2 || iv < v1 || iv > v2)
+		return;
 
-	float U = (float)iu - U0;
-	float V = (float)iv - V0;
+	float U = (float)(iu - U0);
+	float V = (float)(iv - V0);
 	float Q = A*U*U + B*U*V + C*V*V;
 
+#if 0
 	if (Q < 9.0f*F) {
 		float denom = Ux*Vy - Uy*Vx;
 		float x = (denom != 0.0f ? (U*Vy - V*Uy) / denom : 0.0f);
@@ -421,9 +368,11 @@ void MemoryBuffer::readEWADebug(float result[4], float &weight, const float uv_r
 		result[0] = (x > 0.0f ? (int)x : (int)(-x)+1) % 2;
 		result[1] = (y > 0.0f ? (int)y : (int)(-y)+1) % 2;
 	}
+#endif
 //	result[0] = U;
 //	result[1] = V;
-//	result[2] = !(iu < u1 || iu > u2 || iv < v1 || iv > v2);
+//	result[0] = !(iu < u1 || iu > u2 || iv < v1 || iv > v2);
+	result[1]= EWA_WTS[CLAMPIS((int)Q, 0, EWA_MAXIDX)];
 	result[2] = Q < F;
 	result[3] = 1.0f;
 //	printf("distance (%d, %d): d=%f\n", iu, iv, sqrtf(U*U + V*V));
