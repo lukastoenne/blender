@@ -75,7 +75,7 @@ bool MapUVOperation::pixelTransform(const float xy[2], float r_uv[2], float r_de
 	float height = m_inputUVProgram->getHeight();
 	float col[4];
 
-	m_inputUVProgram->readSampler(col, xy[0], xy[1], COM_PS_BILINEAR);
+	m_inputUVProgram->readSampled(col, xy[0], xy[1], COM_PS_BILINEAR);
 	r_uv[0] = col[0] * width;
 	r_uv[1] = col[1] * height;
 	r_alpha = col[2];
@@ -85,17 +85,17 @@ bool MapUVOperation::pixelTransform(const float xy[2], float r_uv[2], float r_de
 	 */
 	const float epsilon[2] = { 1.0f, 1.0f };
 
-	m_inputUVProgram->readSampler(col, xy[0] + epsilon[0], xy[1], COM_PS_BILINEAR);
+	m_inputUVProgram->readSampled(col, xy[0] + epsilon[0], xy[1], COM_PS_BILINEAR);
 	r_deriv[0][0] = col[0];
 	r_deriv[1][0] = col[1];
-	m_inputUVProgram->readSampler(col, xy[0] - epsilon[0], xy[1], COM_PS_BILINEAR);
+	m_inputUVProgram->readSampled(col, xy[0] - epsilon[0], xy[1], COM_PS_BILINEAR);
 	r_deriv[0][0] = 0.5f*(r_deriv[0][0] - col[0]) * width;
 	r_deriv[1][0] = 0.5f*(r_deriv[1][0] - col[1]) * width;
 
-	m_inputUVProgram->readSampler(col, xy[0], xy[1] + epsilon[1], COM_PS_BILINEAR);
+	m_inputUVProgram->readSampled(col, xy[0], xy[1] + epsilon[1], COM_PS_BILINEAR);
 	r_deriv[0][1] = col[0];
 	r_deriv[1][1] = col[1];
-	m_inputUVProgram->readSampler(col, xy[0], xy[1] - epsilon[1], COM_PS_BILINEAR);
+	m_inputUVProgram->readSampled(col, xy[0], xy[1] - epsilon[1], COM_PS_BILINEAR);
 	r_deriv[0][1] = 0.5f*(r_deriv[0][1] - col[0]) * height;
 	r_deriv[1][1] = 0.5f*(r_deriv[1][1] - col[1]) * height;
 
