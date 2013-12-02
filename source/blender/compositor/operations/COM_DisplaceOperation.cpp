@@ -54,49 +54,68 @@ void DisplaceOperation::initExecution()
  * in order to take effect */
 #define DISPLACE_EPSILON    0.01f
 
-void DisplaceOperation::executePixel(float output[4], int x, int y, void *data)
+void DisplaceOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	float inVector[4];
-	float inScale[4];
+	float xy[2] = { x, y };
+	float uv[2], deriv[2][2];
 
-	float p_dx, p_dy;   /* main displacement in pixel space */
-	float d_dx, d_dy;
-	float dxt, dyt;
-	float u, v;
-
-	this->m_inputScaleXProgram->readSampled(inScale, x, y, COM_PS_NEAREST);
-	float xs = inScale[0];
-	this->m_inputScaleYProgram->readSampled(inScale, x, y, COM_PS_NEAREST);
-	float ys = inScale[0];
-
-	/* clamp x and y displacement to triple image resolution - 
-	 * to prevent hangs from huge values mistakenly plugged in eg. z buffers */
-	CLAMP(xs, -this->m_width_x4, this->m_width_x4);
-	CLAMP(ys, -this->m_height_x4, this->m_height_x4);
-
-	this->m_inputVectorProgram->readSampled(inVector, x, y, COM_PS_NEAREST);
-	p_dx = inVector[0] * xs;
-	p_dy = inVector[1] * ys;
-
-	/* displaced pixel in uv coords, for image sampling */
-	u = x - p_dx + 0.5f;
-	v = y - p_dy + 0.5f;
-
-	/* calc derivatives */
-	this->m_inputVectorProgram->readSampled(inVector, x + 1, y, COM_PS_NEAREST);
-	d_dx = inVector[0] * xs;
-	this->m_inputVectorProgram->readSampled(inVector, x, y + 1, COM_PS_NEAREST);
-	d_dy = inVector[1] * ys;
-
-	/* clamp derivatives to minimum displacement distance in UV space */
-	dxt = p_dx - d_dx;
-	dyt = p_dy - d_dy;
-
-	dxt = signf(dxt) * max_ff(fabsf(dxt), DISPLACE_EPSILON) / this->getWidth();
-	dyt = signf(dyt) * max_ff(fabsf(dyt), DISPLACE_EPSILON) / this->getHeight();
+	if (!pixelTransform(xy, uv, deriv)) {
+		zero_v4(output);
+		return;
+	}
 
 	/* EWA filtering (without nearest it gets blurry with NO distortion) */
-//	this->m_inputColorProgram->readFiltered(output, u, v, dxt, dyt, COM_PS_NEAREST);
+	this->m_inputColorProgram->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_BILINEAR);
+}
+
+bool DisplaceOperation::pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2])
+{
+	float col[4];
+
+	m_inputScaleXProgram->readSampled(col, xy[0], xy[1], COM_PS_NEAREST);
+	float xs = col[0];
+	m_inputScaleYProgram->readSampled(col, xy[0], xy[1], COM_PS_NEAREST);
+	float ys = col[0];
+	/* clamp x and y displacement to triple image resolution - 
+	 * to prevent hangs from huge values mistakenly plugged in eg. z buffers */
+	CLAMP(xs, -m_width_x4, m_width_x4);
+	CLAMP(ys, -m_height_x4, m_height_x4);
+
+	m_inputVectorProgram->readSampled(col, xy[0], xy[1], COM_PS_NEAREST);
+	/* displaced pixel in uv coords, for image sampling */
+	r_uv[0] = xy[0] - col[0]*xs + 0.5f;
+	r_uv[1] = xy[1] - col[1]*ys + 0.5f;
+
+	/* XXX currently there is no way to get real derivatives from the UV map input.
+	 * Instead use a simple 1st order estimate ...
+	 */
+	const float epsilon[2] = { 1.0f, 1.0f };
+
+	m_inputVectorProgram->readSampled(col, xy[0] + epsilon[0], xy[1], COM_PS_NEAREST);
+	float du_dx = col[0];
+	float dv_dx = col[1];
+	m_inputVectorProgram->readSampled(col, xy[0] - epsilon[0], xy[1], COM_PS_NEAREST);
+	du_dx = 0.5f*(du_dx - col[0]) * xs;
+	dv_dx = 0.5f*(dv_dx - col[1]) * ys;
+
+	m_inputVectorProgram->readSampled(col, xy[0], xy[1] + epsilon[1], COM_PS_NEAREST);
+	float du_dy = col[0];
+	float dv_dy = col[1];
+	m_inputVectorProgram->readSampled(col, xy[0], xy[1] - epsilon[1], COM_PS_NEAREST);
+	du_dy = 0.5f*(du_dy - col[0]) * xs;
+	dv_dy = 0.5f*(dv_dy - col[1]) * ys;
+
+	/* XXX how does this translate to actual jacobian partial derivatives? */
+	/* clamp derivatives to minimum displacement distance in UV space */
+//	dxt = signf(dxt) * max_ff(fabsf(dxt), DISPLACE_EPSILON) / this->getWidth();
+//	dyt = signf(dyt) * max_ff(fabsf(dyt), DISPLACE_EPSILON) / this->getHeight();
+	
+	r_deriv[0][0] = du_dx;
+	r_deriv[0][1] = du_dy;
+	r_deriv[1][0] = dv_dx;
+	r_deriv[1][1] = dv_dy;
+
+	return true;
 }
 
 void DisplaceOperation::deinitExecution()
@@ -126,10 +145,10 @@ bool DisplaceOperation::determineDependingAreaOfInterest(rcti *input, ReadBuffer
 
 	/* vector */
 	operation = getInputOperation(1);
-	vectorInput.xmax = input->xmax + 2;
-	vectorInput.xmin = input->xmin;
-	vectorInput.ymax = input->ymax + 2;
-	vectorInput.ymin = input->ymin;
+	vectorInput.xmax = input->xmax + 1;
+	vectorInput.xmin = input->xmin - 1;
+	vectorInput.ymax = input->ymax + 1;
+	vectorInput.ymin = input->ymin - 1;
 	if (operation->determineDependingAreaOfInterest(&vectorInput, readOperation, output)) {
 		return true;
 	}
