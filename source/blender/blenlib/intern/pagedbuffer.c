@@ -194,13 +194,15 @@ void *BLI_pbuf_get(bPagedBuffer *pbuf, int index)
 void BLI_pbuf_iter_init(bPagedBuffer *pbuf, bPagedBufferIterator *iter)
 {
 	iter->index = 0;
-	iter->page = pbuf->pages;
-	iter->page_index = 0;
-	while (iter->page->data == NULL && iter->index < pbuf->totelem) {
-		iter->index += pbuf->page_size;
-		++iter->page;
+	if (pbuf->pages) {
+		iter->page = pbuf->pages;
+		iter->page_index = 0;
+		while (iter->page->data == NULL && iter->index < pbuf->totelem) {
+			iter->index += pbuf->page_size;
+			++iter->page;
+		}
+		iter->data = iter->page->data;
 	}
-	iter->data = iter->page->data;
 }
 
 void BLI_pbuf_iter_next(bPagedBuffer *pbuf, bPagedBufferIterator *iter)
