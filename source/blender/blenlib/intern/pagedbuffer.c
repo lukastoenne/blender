@@ -35,7 +35,8 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#define PBUF_ALIGN_STRICT
+/* XXX how to handle alignment nicely? */
+/*#define PBUF_ALIGN_STRICT*/
 
 BLI_INLINE div_t div_ceil(int a, int b)
 {
