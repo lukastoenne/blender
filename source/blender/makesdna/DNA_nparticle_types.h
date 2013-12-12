@@ -32,11 +32,11 @@
 #include "DNA_pagedbuffer_types.h"
 
 /* Attribute descriptor */
-typedef struct NParticleAttribute {
+typedef struct NParticleAttributeDescription {
 	char name[64];
 	int datatype;
 	int pad;
-} NParticleAttribute;
+} NParticleAttributeDescription;
 
 /* particle attribute types */
 enum NParticleAttributeDataType {
@@ -51,17 +51,20 @@ enum NParticleAttributeDataType {
 	PAR_ATTR_DATATYPE_MATRIX		= 8
 };
 
-/* Attribute data in a buffer */
-typedef struct NParticleBufferAttribute {
-	struct NParticleBufferAttribute *next, *prev;
-	struct NParticleBufferAttribute *new_attribute;	/* temporary pointer after copy */
-	
-	NParticleAttribute desc;
+typedef struct NParticleAttributeState {
 	bPagedBuffer data;
-} NParticleBufferAttribute;
+} NParticleAttributeState;
 
-typedef struct NParticleBuffer {
-	ListBase attributes;
-} NParticleBuffer;
+/* Attribute data in a system */
+typedef struct NParticleAttribute {
+	struct NParticleAttribute *next, *prev;
+	
+	NParticleAttributeDescription desc;	/* attribute descriptor */
+	NParticleAttributeState state;		/* current state data */
+} NParticleAttribute;
+
+typedef struct NParticleSystem {
+	ListBase attributes;				/* NParticleAttribute list, definition of available attributes */
+} NParticleSystem;
 
 #endif

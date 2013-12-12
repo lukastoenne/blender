@@ -60,76 +60,76 @@ static size_t nparticle_elem_bytes(int datatype)
 	}
 }
 
-NParticleBuffer *BKE_nparticle_buffer_new(void)
+NParticleSystem *BKE_nparticle_system_new(void)
 {
-	NParticleBuffer *buf = MEM_callocN(sizeof(NParticleBuffer), "nparticle buffer");
-	return buf;
+	NParticleSystem *psys = MEM_callocN(sizeof(NParticleSystem), "nparticle system");
+	return psys;
 }
 
-void BKE_nparticle_buffer_free(NParticleBuffer *buf)
+void BKE_nparticle_system_free(NParticleSystem *psys)
 {
-	MEM_freeN(buf);
+	MEM_freeN(psys);
 }
 
-NParticleBuffer *BKE_nparticle_buffer_copy(NParticleBuffer *buf)
+NParticleSystem *BKE_nparticle_system_copy(NParticleSystem *psys)
 {
-	NParticleBuffer *nbuf = MEM_dupallocN(buf);
-	return nbuf;
+	NParticleSystem *npsys = MEM_dupallocN(psys);
+	return npsys;
 }
 
 
-NParticleBufferAttribute *BKE_nparticle_attribute_find(NParticleBuffer *buf, const char *name)
+NParticleAttribute *BKE_nparticle_attribute_find(NParticleSystem *psys, const char *name)
 {
-	NParticleBufferAttribute *attr;
-	for (attr = buf->attributes.first; attr; attr = attr->next)
+	NParticleAttribute *attr;
+	for (attr = psys->attributes.first; attr; attr = attr->next)
 		if (STREQ(attr->desc.name, name))
 			return attr;
 	return NULL;
 }
 
-NParticleBufferAttribute *BKE_nparticle_attribute_new(NParticleBuffer *buf, const char *name, int datatype)
+NParticleAttribute *BKE_nparticle_attribute_new(NParticleSystem *psys, const char *name, int datatype)
 {
-	NParticleBufferAttribute *attr;
+	NParticleAttribute *attr;
 	
-	attr = BKE_nparticle_attribute_find(buf, name);
+	attr = BKE_nparticle_attribute_find(psys, name);
 	if (attr) {
 		/* if attribute with the same name exists, remove it first */
-		BKE_nparticle_attribute_remove(buf, attr);
+		BKE_nparticle_attribute_remove(psys, attr);
 	}
 	
 	if (!attr) {
-		attr = MEM_callocN(sizeof(NParticleBufferAttribute), "particle buffer attribute");
+		attr = MEM_callocN(sizeof(NParticleAttribute), "particle system attribute");
 		BLI_strncpy(attr->desc.name, name, sizeof(attr->desc.name));
 		attr->desc.datatype = datatype;
-		BLI_pbuf_init(&attr->data, PAGE_BYTES, nparticle_elem_bytes(datatype));
+		BLI_pbuf_init(&attr->state.data, PAGE_BYTES, nparticle_elem_bytes(datatype));
 	
-		BLI_addtail(&buf->attributes, attr);
+		BLI_addtail(&psys->attributes, attr);
 	}
 	
 	return attr;
 }
 
-void BKE_nparticle_attribute_remove(NParticleBuffer *buf, NParticleBufferAttribute *attr)
+void BKE_nparticle_attribute_remove(NParticleSystem *psys, NParticleAttribute *attr)
 {
-	BLI_remlink(&buf->attributes, attr);
+	BLI_remlink(&psys->attributes, attr);
 	
-	BLI_pbuf_free(&attr->data);
+	BLI_pbuf_free(&attr->state.data);
 	MEM_freeN(attr);
 }
 
-void BKE_nparticle_attribute_remove_all(NParticleBuffer *buf)
+void BKE_nparticle_attribute_remove_all(NParticleSystem *psys)
 {
-	NParticleBufferAttribute *attr, *attr_next;
-	for (attr = buf->attributes.first; attr; attr = attr_next) {
+	NParticleAttribute *attr, *attr_next;
+	for (attr = psys->attributes.first; attr; attr = attr_next) {
 		attr_next = attr->next;
 		
-		BLI_pbuf_free(&attr->data);
+		BLI_pbuf_free(&attr->state.data);
 		MEM_freeN(attr);
 	}
-	buf->attributes.first = buf->attributes.last = NULL;
+	psys->attributes.first = psys->attributes.last = NULL;
 }
 
-void BKE_nparticle_attribute_move(NParticleBuffer *buf, int from_index, int to_index)
+void BKE_nparticle_attribute_move(NParticleSystem *psys, int from_index, int to_index)
 {
 	NParticleAttribute *attr;
 	
@@ -138,19 +138,19 @@ void BKE_nparticle_attribute_move(NParticleBuffer *buf, int from_index, int to_i
 	if (from_index < 0 || to_index < 0)
 		return;
 	
-	attr = BLI_findlink(&buf->attributes, from_index);
+	attr = BLI_findlink(&psys->attributes, from_index);
 	if (to_index < from_index) {
-		NParticleAttribute *nextattr = BLI_findlink(&buf->attributes, to_index);
+		NParticleAttribute *nextattr = BLI_findlink(&psys->attributes, to_index);
 		if (nextattr) {
-			BLI_remlink(&buf->attributes, attr);
-			BLI_insertlinkbefore(&buf->attributes, nextattr, attr);
+			BLI_remlink(&psys->attributes, attr);
+			BLI_insertlinkbefore(&psys->attributes, nextattr, attr);
 		}
 	}
 	else {
-		NParticleAttribute *prevattr = BLI_findlink(&buf->attributes, to_index);
+		NParticleAttribute *prevattr = BLI_findlink(&psys->attributes, to_index);
 		if (prevattr) {
-			BLI_remlink(&buf->attributes, attr);
-			BLI_insertlinkafter(&buf->attributes, prevattr, attr);
+			BLI_remlink(&psys->attributes, attr);
+			BLI_insertlinkafter(&psys->attributes, prevattr, attr);
 		}
 	}
 }

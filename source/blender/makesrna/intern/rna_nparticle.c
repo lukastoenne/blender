@@ -42,38 +42,38 @@
 
 #include "RNA_access.h"
 
-static StructRNA *rna_NParticleBufferAttribute_refine(PointerRNA *ptr)
+static StructRNA *rna_NParticleAttribute_refine(PointerRNA *ptr)
 {
-	NParticleBufferAttribute *attr = ptr->data;
+	NParticleAttribute *attr = ptr->data;
 	switch (attr->desc.datatype) {
 		case PAR_ATTR_DATATYPE_FLOAT:
-			return &RNA_NParticleBufferAttributeFloat;
+			return &RNA_NParticleAttributeFloat;
 		case PAR_ATTR_DATATYPE_INT:
-			return &RNA_NParticleBufferAttributeInt;
+			return &RNA_NParticleAttributeInt;
 		case PAR_ATTR_DATATYPE_BOOL:
-			return &RNA_NParticleBufferAttributeBool;
+			return &RNA_NParticleAttributeBool;
 		case PAR_ATTR_DATATYPE_VECTOR:
-			return &RNA_NParticleBufferAttributeVector;
+			return &RNA_NParticleAttributeVector;
 		case PAR_ATTR_DATATYPE_POINT:
-			return &RNA_NParticleBufferAttributePoint;
+			return &RNA_NParticleAttributePoint;
 		case PAR_ATTR_DATATYPE_NORMAL:
-			return &RNA_NParticleBufferAttributeNormal;
+			return &RNA_NParticleAttributeNormal;
 		case PAR_ATTR_DATATYPE_COLOR:
-			return &RNA_NParticleBufferAttributeColor;
+			return &RNA_NParticleAttributeColor;
 		case PAR_ATTR_DATATYPE_MATRIX:
-			return &RNA_NParticleBufferAttributeMatrix;
+			return &RNA_NParticleAttributeMatrix;
 		
 		default:
 			BLI_assert(false);	/* unknown data type, should never happen */
-			return &RNA_NParticleBufferAttribute;
+			return &RNA_NParticleAttribute;
 	}
 }
 
 /* Returns the RNA type used for data elements in the attribute buffer.
- * This is mirrors the collection type (see rna_NParticleBufferAttribute_refine),
+ * This is mirrors the collection type (see rna_NParticleAttribute_refine),
  * which must also be specified since each collection has a fixed data type.
  */
-static StructRNA *rna_NParticleBufferAttribute_data_srna(NParticleBufferAttribute *attr)
+static StructRNA *rna_NParticleAttribute_data_srna(NParticleAttribute *attr)
 {
 	switch (attr->desc.datatype) {
 		case PAR_ATTR_DATATYPE_FLOAT:
@@ -95,7 +95,7 @@ static StructRNA *rna_NParticleBufferAttribute_data_srna(NParticleBufferAttribut
 		
 		default:
 			BLI_assert(false);	/* unknown data type, should never happen */
-			return &RNA_NParticleBufferAttribute;
+			return &RNA_NParticleDataVoid;
 	}
 }
 
@@ -106,60 +106,60 @@ static void rna_NParticleAttribute_datatype_set(PointerRNA *ptr, int value)
 	BLI_assert(false);
 }
 
-static void rna_NParticleBufferAttribute_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+static void rna_NParticleAttribute_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-	NParticleBufferAttribute *attr = ptr->data;
+	NParticleAttribute *attr = ptr->data;
 	bPagedBufferIterator *internal = MEM_callocN(sizeof(bPagedBufferIterator), "particle data iterator");
-	BLI_pbuf_iter_init(&attr->data, internal);
+	BLI_pbuf_iter_init(&attr->state.data, internal);
 	
 	iter->internal = internal;
-	iter->valid = BLI_pbuf_iter_valid(&attr->data, internal);
+	iter->valid = BLI_pbuf_iter_valid(&attr->state.data, internal);
 }
 
-static void rna_NParticleBufferAttribute_data_next(CollectionPropertyIterator *iter)
+static void rna_NParticleAttribute_data_next(CollectionPropertyIterator *iter)
 {
-	NParticleBufferAttribute *attr = iter->ptr.data;
+	NParticleAttribute *attr = iter->ptr.data;
 	bPagedBufferIterator *internal = iter->internal;
-	BLI_pbuf_iter_next(&attr->data, internal);
-	iter->valid = BLI_pbuf_iter_valid(&attr->data, internal);
+	BLI_pbuf_iter_next(&attr->state.data, internal);
+	iter->valid = BLI_pbuf_iter_valid(&attr->state.data, internal);
 }
 
-static void rna_NParticleBufferAttribute_data_end(CollectionPropertyIterator *iter)
+static void rna_NParticleAttribute_data_end(CollectionPropertyIterator *iter)
 {
 	MEM_freeN(iter->internal);
 	iter->internal = NULL;
 }
 
-static PointerRNA rna_NParticleBufferAttribute_data_get(CollectionPropertyIterator *iter)
+static PointerRNA rna_NParticleAttribute_data_get(CollectionPropertyIterator *iter)
 {
-	NParticleBufferAttribute *attr = iter->ptr.data;
+	NParticleAttribute *attr = iter->ptr.data;
 	bPagedBufferIterator *internal = iter->internal;
-	StructRNA *data_srna = rna_NParticleBufferAttribute_data_srna(attr);
+	StructRNA *data_srna = rna_NParticleAttribute_data_srna(attr);
 	PointerRNA ptr;
 	RNA_pointer_create(iter->ptr.id.data, data_srna, internal->data, &ptr);
 	return ptr;
 }
 
-static int rna_NParticleBufferAttribute_data_length(PointerRNA *ptr)
+static int rna_NParticleAttribute_data_length(PointerRNA *ptr)
 {
-	NParticleBufferAttribute *attr = ptr->data;
-	return attr->data.totelem;
+	NParticleAttribute *attr = ptr->data;
+	return attr->state.data.totelem;
 }
 
-int rna_NParticleBufferAttribute_data_lookup_int(PointerRNA *ptr, int key, PointerRNA *r_ptr)
+int rna_NParticleAttribute_data_lookup_int(PointerRNA *ptr, int key, PointerRNA *r_ptr)
 {
-	NParticleBufferAttribute *attr = ptr->data;
-	void *data = BLI_pbuf_get(&attr->data, key);
-	StructRNA *data_srna = rna_NParticleBufferAttribute_data_srna(attr);
+	NParticleAttribute *attr = ptr->data;
+	void *data = BLI_pbuf_get(&attr->state.data, key);
+	StructRNA *data_srna = rna_NParticleAttribute_data_srna(attr);
 	RNA_pointer_create(ptr->id.data, data_srna, data, r_ptr);
 	return true;
 }
 
-int rna_NParticleBufferAttribute_data_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr)
+int rna_NParticleAttribute_data_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr)
 {
-	NParticleBufferAttribute *attr = ptr->data;
-	void *data = BLI_pbuf_get(&attr->data, key);
-	StructRNA *data_srna = rna_NParticleBufferAttribute_data_srna(attr);
+	NParticleAttribute *attr = ptr->data;
+	void *data = BLI_pbuf_get(&attr->state.data, key);
+	StructRNA *data_srna = rna_NParticleAttribute_data_srna(attr);
 	PointerRNA data_ptr;
 	RNA_pointer_create(ptr->id.data, data_srna, data, &data_ptr);
 	/* XXX TODO */
@@ -227,28 +227,28 @@ static void rna_NParticleDataMatrix_set(PointerRNA *ptr, const float *value)
 	copy_m4_m4((float(*)[4])ptr->data, (float(*)[4])value);
 }
 
-static NParticleBufferAttribute *rna_NParticleBuffer_attributes_new(NParticleBuffer *buf, ReportList *reports, const char *name, int datatype)
+static NParticleAttribute *rna_NParticleSystem_attributes_new(NParticleSystem *psys, ReportList *reports, const char *name, int datatype)
 {
-	if (BKE_nparticle_attribute_find(buf, name)) {
+	if (BKE_nparticle_attribute_find(psys, name)) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "Particle attribute with name %s already exists", name);
 		return NULL;
 	}
-	return BKE_nparticle_attribute_new(buf, name, datatype);
+	return BKE_nparticle_attribute_new(psys, name, datatype);
 }
 
-static void rna_NParticleBuffer_attributes_remove(NParticleBuffer *buf, NParticleBufferAttribute *attr)
+static void rna_NParticleSystem_attributes_remove(NParticleSystem *psys, NParticleAttribute *attr)
 {
-	BKE_nparticle_attribute_remove(buf, attr);
+	BKE_nparticle_attribute_remove(psys, attr);
 }
 
-static void rna_NParticleBuffer_attributes_clear(NParticleBuffer *buf)
+static void rna_NParticleSystem_attributes_clear(NParticleSystem *psys)
 {
-	BKE_nparticle_attribute_remove_all(buf);
+	BKE_nparticle_attribute_remove_all(psys);
 }
 
-static void rna_NParticleBuffer_attributes_move(NParticleBuffer *buf, int from_index, int to_index)
+static void rna_NParticleSystem_attributes_move(NParticleSystem *psys, int from_index, int to_index)
 {
-	BKE_nparticle_attribute_move(buf, from_index, to_index);
+	BKE_nparticle_attribute_move(psys, from_index, to_index);
 }
 
 #else
@@ -278,7 +278,7 @@ EnumPropertyItem nparticle_attribute_datatype_user[] = {
     {0, NULL, 0, NULL, NULL}
 };
 
-static void def_nparticle_attribute(StructRNA *srna)
+static void def_nparticle_attribute_description(StructRNA *srna)
 {
 	PropertyRNA *prop;
 
@@ -294,39 +294,43 @@ static void def_nparticle_attribute(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Data Type", "Basic data type");
 }
 
-/* defines a subtype of NParticleBufferAttribute with a specific collection property for actual data */
-static StructRNA *def_nparticle_buffer_attribute_type(BlenderRNA *brna, const char *structname, const char *data_structname)
+/* defines a subtype of NParticleAttribute with a specific collection property for actual data */
+static StructRNA *def_nparticle_attribute_type(BlenderRNA *brna, const char *structname, const char *data_structname)
 {
-	StructRNA *srna = RNA_def_struct(brna, structname, "NParticleBufferAttribute");
+	StructRNA *srna = RNA_def_struct(brna, structname, "NParticleAttribute");
 	PropertyRNA *prop;
 
 	prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, data_structname);
 	RNA_def_property_ui_text(prop, "Data", "");
-	RNA_def_property_collection_funcs(prop, "rna_NParticleBufferAttribute_data_begin", "rna_NParticleBufferAttribute_data_next",
-	                                  "rna_NParticleBufferAttribute_data_end", "rna_NParticleBufferAttribute_data_get",
-	                                  "rna_NParticleBufferAttribute_data_length", "rna_NParticleBufferAttribute_data_lookup_int",
-	                                  NULL, "rna_NParticleBufferAttribute_data_assign_int");
+	RNA_def_property_collection_funcs(prop, "rna_NParticleAttribute_data_begin", "rna_NParticleAttribute_data_next",
+	                                  "rna_NParticleAttribute_data_end", "rna_NParticleAttribute_data_get",
+	                                  "rna_NParticleAttribute_data_length", "rna_NParticleAttribute_data_lookup_int",
+	                                  NULL, "rna_NParticleAttribute_data_assign_int");
 
 	return srna;
 }
 
-static void rna_def_nparticle_buffer_attribute(BlenderRNA *brna)
+static void rna_def_nparticle_attribute(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna = RNA_def_struct(brna, "NParticleBufferAttribute", NULL);
-	RNA_def_struct_sdna(srna, "NParticleBufferAttribute");
-	RNA_def_struct_ui_text(srna, "Particle Buffer Attribute", "Attribute buffer in a particle system");
-	RNA_def_struct_refine_func(srna, "rna_NParticleBufferAttribute_refine");
+	srna = RNA_def_struct(brna, "NParticleAttribute", NULL);
+	RNA_def_struct_sdna(srna, "NParticleAttribute");
+	RNA_def_struct_ui_text(srna, "Particle Attribute", "Attribute in a particle system");
+	RNA_def_struct_refine_func(srna, "rna_NParticleAttribute_refine");
 
-	RNA_def_struct_sdna_from(srna, "NParticleAttribute", "desc");
-	def_nparticle_attribute(srna);
-	RNA_def_struct_sdna_from(srna, "NParticleBufferAttribute", NULL); /* reset */
+	RNA_def_struct_sdna_from(srna, "NParticleAttributeDescription", "desc");
+	def_nparticle_attribute_description(srna);
+	RNA_def_struct_sdna_from(srna, "NParticleAttribute", NULL); /* reset */
 
 
 	/*** Subtypes for data access ***/
+	
+	/* VOID */
+	srna = RNA_def_struct(brna, "NParticleDataVoid", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Data", "Unknown particle data type");
 
 	/* FLOAT */
 	srna = RNA_def_struct(brna, "NParticleDataFloat", NULL);
@@ -397,28 +401,28 @@ static void rna_def_nparticle_buffer_attribute(BlenderRNA *brna)
 	RNA_def_property_float_funcs(prop, "rna_NParticleDataMatrix_get", "rna_NParticleDataMatrix_set", NULL);
 	RNA_def_property_ui_text(prop, "Value", "");
 
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributeFloat", "NParticleDataFloat");
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributeInt", "NParticleDataInt");
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributeBool", "NParticleDataBool");
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributeVector", "NParticleDataVector");
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributePoint", "NParticleDataPoint");
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributeNormal", "NParticleDataNormal");
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributeColor", "NParticleDataColor");
-	def_nparticle_buffer_attribute_type(brna, "NParticleBufferAttributeMatrix", "NParticleDataMatrix");
+	def_nparticle_attribute_type(brna, "NParticleAttributeFloat", "NParticleDataFloat");
+	def_nparticle_attribute_type(brna, "NParticleAttributeInt", "NParticleDataInt");
+	def_nparticle_attribute_type(brna, "NParticleAttributeBool", "NParticleDataBool");
+	def_nparticle_attribute_type(brna, "NParticleAttributeVector", "NParticleDataVector");
+	def_nparticle_attribute_type(brna, "NParticleAttributePoint", "NParticleDataPoint");
+	def_nparticle_attribute_type(brna, "NParticleAttributeNormal", "NParticleDataNormal");
+	def_nparticle_attribute_type(brna, "NParticleAttributeColor", "NParticleDataColor");
+	def_nparticle_attribute_type(brna, "NParticleAttributeMatrix", "NParticleDataMatrix");
 }
 
-static void rna_def_nparticle_buffer_attributes_api(BlenderRNA *brna, PropertyRNA *cprop)
+static void rna_def_nparticle_system_attributes_api(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
 	PropertyRNA *parm;
 	FunctionRNA *func;
 
-	RNA_def_property_srna(cprop, "NParticleBufferAttributes");
-	srna = RNA_def_struct(brna, "NParticleBufferAttributes", NULL);
-	RNA_def_struct_sdna(srna, "NParticleBuffer");
+	RNA_def_property_srna(cprop, "NParticleAttributes");
+	srna = RNA_def_struct(brna, "NParticleAttributes", NULL);
+	RNA_def_struct_sdna(srna, "NParticleSystem");
 	RNA_def_struct_ui_text(srna, "Attributes", "Collection of particle attributes");
 
-	func = RNA_def_function(srna, "new", "rna_NParticleBuffer_attributes_new");
+	func = RNA_def_function(srna, "new", "rna_NParticleSystem_attributes_new");
 	RNA_def_function_ui_description(func, "Add a particle attribute");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm = RNA_def_string(func, "name", "", 64, "Name", "");
@@ -426,18 +430,18 @@ static void rna_def_nparticle_buffer_attributes_api(BlenderRNA *brna, PropertyRN
 	parm = RNA_def_enum(func, "datatype", nparticle_attribute_datatype_user, PAR_ATTR_DATATYPE_FLOAT, "Data Type", "Base data type");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* return value */
-	parm = RNA_def_pointer(func, "attr", "NParticleBufferAttribute", "", "Attribute");
+	parm = RNA_def_pointer(func, "attr", "NParticleAttribute", "", "Attribute");
 	RNA_def_function_return(func, parm);
 
-	func = RNA_def_function(srna, "remove", "rna_NParticleBuffer_attributes_remove");
+	func = RNA_def_function(srna, "remove", "rna_NParticleSystem_attributes_remove");
 	RNA_def_function_ui_description(func, "Remove an attribute from the buffer");
-	parm = RNA_def_pointer(func, "attr", "NParticleBufferAttribute", "", "The attribute to remove");
+	parm = RNA_def_pointer(func, "attr", "NParticleAttribute", "", "The attribute to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
-	func = RNA_def_function(srna, "clear", "rna_NParticleBuffer_attributes_clear");
+	func = RNA_def_function(srna, "clear", "rna_NParticleSystem_attributes_clear");
 	RNA_def_function_ui_description(func, "Remove all attributes from the buffer");
 
-	func = RNA_def_function(srna, "move", "rna_NParticleBuffer_attributes_move");
+	func = RNA_def_function(srna, "move", "rna_NParticleSystem_attributes_move");
 	RNA_def_function_ui_description(func, "Move an attribute to another position");
 	parm = RNA_def_int(func, "from_index", -1, 0, INT_MAX, "From Index", "Index of the attribute to move", 0, 10000);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -445,26 +449,25 @@ static void rna_def_nparticle_buffer_attributes_api(BlenderRNA *brna, PropertyRN
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
-static void rna_def_nparticle_buffer(BlenderRNA *brna)
+static void rna_def_nparticle_system(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna = RNA_def_struct(brna, "NParticleBuffer", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Buffer", "Container for particles");
+	srna = RNA_def_struct(brna, "NParticleSystem", NULL);
+	RNA_def_struct_ui_text(srna, "Particle System", "Container for particles");
 
 	prop = RNA_def_property(srna, "attributes", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "attributes", NULL);
 	RNA_def_property_ui_text(prop, "Attributes", "Data layers associated to particles");
-	RNA_def_property_struct_type(prop, "NParticleBufferAttribute");
-	rna_def_nparticle_buffer_attributes_api(brna, prop);
+	RNA_def_property_struct_type(prop, "NParticleAttribute");
+	rna_def_nparticle_system_attributes_api(brna, prop);
 }
 
 void RNA_def_nparticle(BlenderRNA *brna)
 {
-	rna_def_nparticle_buffer_attribute(brna);
-	
-	rna_def_nparticle_buffer(brna);
+	rna_def_nparticle_attribute(brna);
+	rna_def_nparticle_system(brna);
 }
 
 #endif

@@ -41,21 +41,21 @@ struct Object;
 static void nparticle_system_initData(ModifierData *md) 
 {
 	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
-	pmd->buffer = BKE_nparticle_buffer_new();
+	pmd->psys = BKE_nparticle_system_new();
 }
 
 static void nparticle_system_freeData(ModifierData *md)
 {
 	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
-	BKE_nparticle_buffer_free(pmd->buffer);
-	pmd->buffer = NULL;
+	BKE_nparticle_system_free(pmd->psys);
+	pmd->psys = NULL;
 }
 
 static void nparticle_system_copyData(ModifierData *md, ModifierData *target)
 {
 	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
 	NParticleSystemModifierData *tpmd= (NParticleSystemModifierData *)target;
-	tpmd->buffer = BKE_nparticle_buffer_copy(pmd->buffer);
+	tpmd->psys = BKE_nparticle_system_copy(pmd->psys);
 }
 
 static struct DerivedMesh *nparticle_system_applyModifier(ModifierData *UNUSED(md), struct Object *UNUSED(ob),

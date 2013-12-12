@@ -4259,13 +4259,13 @@ static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 
 /* ************ READ NPARTICLE BUFFER ***************** */
 
-static void direct_link_nparticle_buffer(FileData *fd, NParticleBuffer *buffer)
+static void direct_link_nparticle_system(FileData *fd, NParticleSystem *psys)
 {
-	NParticleBufferAttribute *attr;
+	NParticleAttribute *attr;
 	
-	link_list(fd, &buffer->attributes);
-	for (attr = buffer->attributes.first; attr; attr = attr->next) {
-		direct_link_pagedbuffer(fd, &attr->data);
+	link_list(fd, &psys->attributes);
+	for (attr = psys->attributes.first; attr; attr = attr->next) {
+		direct_link_pagedbuffer(fd, &attr->state.data);
 	}
 }
 
@@ -4838,8 +4838,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 		else if (md->type == eModifierType_NParticleSystem) {
 			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
 			
-			pmd->buffer = newdataadr(fd, pmd->buffer);
-			direct_link_nparticle_buffer(fd, pmd->buffer);
+			pmd->psys = newdataadr(fd, pmd->psys);
+			direct_link_nparticle_system(fd, pmd->psys);
 		}
 		else if (md->type == eModifierType_LaplacianDeform) {
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;

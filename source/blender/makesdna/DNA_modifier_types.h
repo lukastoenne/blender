@@ -1366,7 +1366,7 @@ enum {
 typedef struct NParticleSystemModifierData {
 	ModifierData modifier;
 	
-	struct NParticleBuffer *buffer;
+	struct NParticleSystem *psys;
 } NParticleSystemModifierData;
 
 

@@ -1374,14 +1374,14 @@ static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
 	}
 }
 
-static void write_nparticle_buffer(WriteData *wd, NParticleBuffer *buffer)
+static void write_nparticle_system(WriteData *wd, NParticleSystem *psys)
 {
-	NParticleBufferAttribute *attr;
+	NParticleAttribute *attr;
 	
-	writestruct(wd, DATA, "NParticleBuffer", 1, buffer);
-	for (attr = buffer->attributes.first; attr; attr = attr->next) {
+	writestruct(wd, DATA, "NParticleSystem", 1, psys);
+	for (attr = psys->attributes.first; attr; attr = attr->next) {
 		writestruct(wd, DATA, "NParticleAttribute", 1, attr);
-		write_pagedbuffer(wd, &attr->data);
+		write_pagedbuffer(wd, &attr->state.data);
 	}
 }
 
@@ -1504,7 +1504,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 		}
 		else if (md->type==eModifierType_NParticleSystem) {
 			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
-			write_nparticle_buffer(wd, pmd->buffer);
+			write_nparticle_system(wd, pmd->psys);
 		}
 		else if (md->type==eModifierType_LaplacianDeform) {
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData*) md;
