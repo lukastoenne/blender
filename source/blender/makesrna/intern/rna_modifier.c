@@ -3832,7 +3832,8 @@ static void rna_def_modifier_nparticlesystem(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "NParticleSystemModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_MOD_PARTICLES);
 
-	prop = RNA_def_property(srna, "psys", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "particle_system", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "psys");
 	RNA_def_property_ui_text(prop, "Particle System", "Particle data");
 }
 
