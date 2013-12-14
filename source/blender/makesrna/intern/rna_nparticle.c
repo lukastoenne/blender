@@ -69,38 +69,6 @@ static StructRNA *rna_NParticleAttribute_refine(PointerRNA *ptr)
 	}
 }
 
-#if 0
-/* Returns the RNA type used for data elements in the attribute buffer.
- * This is mirrors the collection type (see rna_NParticleAttribute_refine),
- * which must also be specified since each collection has a fixed data type.
- */
-static StructRNA *rna_NParticleAttributeState_data_srna(NParticleAttribute *attr)
-{
-	switch (attr->desc.datatype) {
-		case PAR_ATTR_DATATYPE_FLOAT:
-			return &RNA_NParticleDataFloat;
-		case PAR_ATTR_DATATYPE_INT:
-			return &RNA_NParticleDataInt;
-		case PAR_ATTR_DATATYPE_BOOL:
-			return &RNA_NParticleDataBool;
-		case PAR_ATTR_DATATYPE_VECTOR:
-			return &RNA_NParticleDataVector;
-		case PAR_ATTR_DATATYPE_POINT:
-			return &RNA_NParticleDataPoint;
-		case PAR_ATTR_DATATYPE_NORMAL:
-			return &RNA_NParticleDataNormal;
-		case PAR_ATTR_DATATYPE_COLOR:
-			return &RNA_NParticleDataColor;
-		case PAR_ATTR_DATATYPE_MATRIX:
-			return &RNA_NParticleDataMatrix;
-		
-		default:
-			BLI_assert(false);	/* unknown data type, should never happen */
-			return &RNA_NParticleDataVoid;
-	}
-}
-#endif
-
 static void rna_NParticleAttribute_datatype_set(PointerRNA *ptr, int value)
 {
 //	NParticleAttribute *attr = ptr->data;
