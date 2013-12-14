@@ -4265,7 +4265,9 @@ static void direct_link_nparticle_system(FileData *fd, NParticleSystem *psys)
 	
 	link_list(fd, &psys->attributes);
 	for (attr = psys->attributes.first; attr; attr = attr->next) {
-		direct_link_pagedbuffer(fd, &attr->state.data);
+		attr->state = newdataadr(fd, attr->state);
+		if (attr->state)
+			direct_link_pagedbuffer(fd, &attr->state->data);
 	}
 }
 

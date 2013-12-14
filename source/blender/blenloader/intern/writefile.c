@@ -1381,7 +1381,8 @@ static void write_nparticle_system(WriteData *wd, NParticleSystem *psys)
 	writestruct(wd, DATA, "NParticleSystem", 1, psys);
 	for (attr = psys->attributes.first; attr; attr = attr->next) {
 		writestruct(wd, DATA, "NParticleAttribute", 1, attr);
-		write_pagedbuffer(wd, &attr->state.data);
+		if (attr->state)
+			write_pagedbuffer(wd, &attr->state->data);
 	}
 }
 

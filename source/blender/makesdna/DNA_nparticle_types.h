@@ -55,16 +55,15 @@ typedef struct NParticleAttributeState {
 	bPagedBuffer data;
 } NParticleAttributeState;
 
-/* Attribute data in a system */
 typedef struct NParticleAttribute {
 	struct NParticleAttribute *next, *prev;
 	
 	NParticleAttributeDescription desc;	/* attribute descriptor */
-	NParticleAttributeState state;		/* current state data */
+	NParticleAttributeState *state;
 } NParticleAttribute;
 
 typedef struct NParticleSystem {
-	ListBase attributes;				/* NParticleAttribute list, definition of available attributes */
+	ListBase attributes;				/* definition of available attributes */
 } NParticleSystem;
 
 #endif
