@@ -150,9 +150,6 @@ DEF_ATTR_TYPE_FUNCS(normal, Normal)
 DEF_ATTR_TYPE_FUNCS(color, Color)
 DEF_ATTR_TYPE_FUNCS(matrix, Matrix)
 
-#undef DEF_NPARTICLE_STATE_DATA_GET
-#undef DEF_NPARTICLE_STATE_DATA_LOOKUP_INT
-#undef DEF_NPARTICLE_STATE_DATA_ASSIGN_INT
 #undef DEF_ATTR_TYPE_FUNCS
 
 static float rna_NParticleDataFloat_get(PointerRNA *ptr)
