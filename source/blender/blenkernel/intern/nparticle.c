@@ -175,7 +175,7 @@ NParticleAttribute *BKE_nparticle_attribute_copy(NParticleSystem *to_psys, NPart
 	NParticleAttribute *to_attr = MEM_dupallocN(from_attr);
 	
 	to_attr->state = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute state");
-	nparticle_attribute_state_init(to_attr, to_attr->state);
+	nparticle_attribute_state_copy(to_attr->state, from_attr->state);
 	
 	BLI_addtail(&to_psys->attributes, to_attr);
 	return to_attr;
