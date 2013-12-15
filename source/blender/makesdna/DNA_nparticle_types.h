@@ -64,6 +64,7 @@ typedef struct NParticleAttribute {
 
 typedef struct NParticleSystem {
 	ListBase attributes;				/* definition of available attributes */
+	struct NParticleAttribute *attribute_id;
 } NParticleSystem;
 
 #endif

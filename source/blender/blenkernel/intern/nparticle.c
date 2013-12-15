@@ -79,6 +79,10 @@ static void nparticle_attribute_state_copy(NParticleAttributeState *to, NParticl
 NParticleSystem *BKE_nparticle_system_new(void)
 {
 	NParticleSystem *psys = MEM_callocN(sizeof(NParticleSystem), "nparticle system");
+	
+	/* fixed attributes */
+	psys->attribute_id = BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT);
+	
 	return psys;
 }
 
@@ -91,11 +95,14 @@ void BKE_nparticle_system_free(NParticleSystem *psys)
 NParticleSystem *BKE_nparticle_system_copy(NParticleSystem *psys)
 {
 	NParticleSystem *npsys = MEM_dupallocN(psys);
-	NParticleAttribute *attr;
+	NParticleAttribute *attr, *nattr;
 	
 	npsys->attributes.first = npsys->attributes.last = NULL;
 	for (attr = psys->attributes.first; attr; attr = attr->next) {
-		BKE_nparticle_attribute_copy(npsys, psys, attr);
+		nattr = BKE_nparticle_attribute_copy(npsys, psys, attr);
+		
+		if (attr == psys->attribute_id)
+			npsys->attribute_id = nattr;
 	}
 	
 	return npsys;
