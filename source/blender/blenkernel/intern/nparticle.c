@@ -228,21 +228,61 @@ bool BKE_nparticle_exists(NParticleSystem *psys, NParticleID id)
 	return BKE_nparticle_find_index(psys, id) != -1;
 }
 
-void BKE_nparticle_iter_init(NParticleSystem *UNUSED(psys), NParticleIterator *it)
+
+void BKE_nparticle_iter_init(NParticleSystem *psys, NParticleIterator *it)
 {
+	it->psys = psys;
 	it->index = 0;
 }
 
-void BKE_nparticle_iter_next(NParticleSystem *UNUSED(psys), NParticleIterator *it)
+void BKE_nparticle_iter_next(NParticleIterator *it)
 {
 	++it->index;
 }
 
-bool BKE_nparticle_iter_valid(NParticleSystem *psys, NParticleIterator *it)
+bool BKE_nparticle_iter_valid(NParticleIterator *it)
 {
-	NParticleAttribute *attr_id = psys->attribute_id;
+	NParticleAttribute *attr_id = it->psys->attribute_id;
 	BLI_assert(attr_id);
 	return attr_id->state ? it->index < attr_id->state->data.totelem : false;
+}
+
+
+BLI_INLINE void *nparticle_data_ptr(NParticleSystem *psys, const char *attr_, eParticleAttributeDataType datatype, int index)
+{
+	NParticleAttribute *attr = BKE_nparticle_attribute_find(psys, attr_);
+	if (attr && attr->state) {
+		BLI_assert(attr->desc.datatype == datatype);
+		return BLI_pbuf_get(&attr->state->data, index);
+	}
+	else
+		return NULL;
+}
+
+int BKE_nparticle_iter_get_int(NParticleIterator *it, const char *attr)
+{
+	int *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_INT, it->index);
+	return data ? *data : 0;
+}
+
+void BKE_nparticle_iter_set_int(NParticleIterator *it, const char *attr, int value)
+{
+	int *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_INT, it->index);
+	if (data)
+		*data = value;
+}
+
+float BKE_nparticle_iter_get_float(NParticleIterator *it, const char *attr)
+{
+	float *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT, it->index);
+	return data ? *data : 0.0f;
+}
+
+void BKE_nparticle_iter_set_float(NParticleIterator *it, const char *attr, float value)
+{
+	float *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT, it->index);
+	if (data)
+		*data = value;
 }
 
 

@@ -39,7 +39,7 @@ typedef struct NParticleAttributeDescription {
 } NParticleAttributeDescription;
 
 /* particle attribute types */
-enum NParticleAttributeDataType {
+typedef enum eParticleAttributeDataType {
 	PAR_ATTR_DATATYPE_INTERNAL		= 0,	/* for static attributes with special types */
 	PAR_ATTR_DATATYPE_FLOAT			= 1,
 	PAR_ATTR_DATATYPE_INT			= 2,
@@ -49,7 +49,7 @@ enum NParticleAttributeDataType {
 	PAR_ATTR_DATATYPE_NORMAL		= 6,
 	PAR_ATTR_DATATYPE_COLOR			= 7,
 	PAR_ATTR_DATATYPE_MATRIX		= 8
-};
+} eParticleAttributeDataType;
 
 typedef struct NParticleAttributeState {
 	bPagedBuffer data;

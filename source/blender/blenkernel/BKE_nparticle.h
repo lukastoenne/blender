@@ -55,15 +55,18 @@ int BKE_nparticle_find_index(struct NParticleSystem *psys, NParticleID id);
 bool BKE_nparticle_exists(struct NParticleSystem *psys, NParticleID id);
 
 typedef struct NParticleIterator {
+	struct NParticleSystem *psys;
 	int index;
 } NParticleIterator;
 
 void BKE_nparticle_iter_init(struct NParticleSystem *psys, struct NParticleIterator *it);
-void BKE_nparticle_iter_next(struct NParticleSystem *psys, struct NParticleIterator *it);
-bool BKE_nparticle_iter_valid(struct NParticleSystem *psys, struct NParticleIterator *it);
+void BKE_nparticle_iter_next(struct NParticleIterator *it);
+bool BKE_nparticle_iter_valid(struct NParticleIterator *it);
 
-float BKE_nparticle_state_get_float(struct NParticleState *state, NParticleID pid, const char *attr);
-void BKE_nparticle_state_set_float(struct NParticleState *state, NParticleID pid, const char *attr, float value);
+int BKE_nparticle_iter_get_int(struct NParticleIterator *it, const char *attr);
+void BKE_nparticle_iter_set_int(struct NParticleIterator *it, const char *attr, int value);
+float BKE_nparticle_iter_get_float(struct NParticleIterator *it, const char *attr);
+void BKE_nparticle_iter_set_float(struct NParticleIterator *it, const char *attr, float value);
 
 #if 0 /* old code */
 #include "BLI_math.h"
