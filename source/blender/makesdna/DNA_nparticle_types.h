@@ -63,6 +63,15 @@ typedef struct NParticleAttribute {
 } NParticleAttribute;
 
 typedef struct NParticleSystem {
+	/* XXX attribute access and state separation:
+	 * This needs some more thought. Ideally the state data should be separate
+	 * from the attributes linked list in psys, as a single "state" pointer.
+	 * Then the attribute states should be accessible via hash table, so that
+	 * attribute lookup in the particle state by name becomes O(1).
+	 * Attribute states probably need to store a copy of the descriptor then,
+	 * so that information is directly available for accessors without having
+	 * to resort to the linked (slow) psys list.
+	 */
 	ListBase attributes;				/* definition of available attributes */
 	struct NParticleAttribute *attribute_id;
 } NParticleSystem;
