@@ -55,7 +55,6 @@ typedef struct bPagedBufferIterator
 void BLI_pbuf_iter_init(struct bPagedBuffer *pbuf, struct bPagedBufferIterator *iter);
 void BLI_pbuf_iter_next(struct bPagedBuffer *pbuf, struct bPagedBufferIterator *iter);
 bool BLI_pbuf_iter_valid(struct bPagedBuffer *pbuf, struct bPagedBufferIterator *iter);
-
 void BLI_pbuf_iter_at(struct bPagedBuffer *pbuf, struct bPagedBufferIterator *iter, int index);
 
 

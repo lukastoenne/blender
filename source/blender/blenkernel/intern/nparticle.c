@@ -208,6 +208,27 @@ void BKE_nparticle_attribute_move(NParticleSystem *psys, int from_index, int to_
 }
 
 
+int BKE_nparticle_find_index(NParticleSystem *psys, NParticleID id)
+{
+	NParticleAttribute *attr_id = psys->attribute_id;
+	bPagedBuffer *pbuf;
+	bPagedBufferIterator it;
+	BLI_assert(attr_id && attr_id->state);
+	
+	pbuf = &attr_id->state->data;
+	for (BLI_pbuf_iter_init(pbuf, &it); BLI_pbuf_iter_valid(pbuf, &it); BLI_pbuf_iter_next(pbuf, &it)) {
+		if (*(int*)it.data == id)
+			return it.index;
+	}
+	return -1;
+}
+
+bool BKE_nparticle_exists(NParticleSystem *psys, NParticleID id)
+{
+	return BKE_nparticle_find_index(psys, id) != -1;
+}
+
+
 #if 0 /* old code */
 #include <assert.h>
 #include <stdlib.h>

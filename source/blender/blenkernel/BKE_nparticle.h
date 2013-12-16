@@ -36,7 +36,7 @@ struct NParticleState;
 struct NParticleAttribute;
 
 /* XXX where to put this? */
-typedef uint32_t ParticleID;
+typedef uint32_t NParticleID;
 
 struct NParticleSystem *BKE_nparticle_system_new(void);
 void BKE_nparticle_system_free(struct NParticleSystem *psys);
@@ -50,9 +50,13 @@ void BKE_nparticle_attribute_move(struct NParticleSystem *psys, int from_index, 
 struct NParticleAttribute *BKE_nparticle_attribute_copy(struct NParticleSystem *to_psys,
                                                         struct NParticleSystem *from_psys, struct NParticleAttribute *from_attr);
 
+
+int BKE_nparticle_find_index(struct NParticleSystem *psys, NParticleID id);
+bool BKE_nparticle_exists(struct NParticleSystem *psys, NParticleID id);
+
 typedef struct ParticleIterator {
 	int index;
-	ParticleID pid;
+	NParticleID pid;
 } ParticleIterator;
 
 void BKE_nparticle_iter_next(struct ParticleIterator *it);
@@ -60,8 +64,8 @@ bool BKE_nparticle_iter_valid(struct ParticleIterator *it);
 
 struct ParticleIterator BKE_nparticle_state_begin(void);
 
-float BKE_nparticle_state_get_float(struct NParticleState *state, ParticleID pid, const char *attr);
-void BKE_nparticle_state_set_float(struct NParticleState *state, ParticleID pid, const char *attr, float value);
+float BKE_nparticle_state_get_float(struct NParticleState *state, NParticleID pid, const char *attr);
+void BKE_nparticle_state_set_float(struct NParticleState *state, NParticleID pid, const char *attr, float value);
 
 #if 0 /* old code */
 #include "BLI_math.h"
