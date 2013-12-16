@@ -322,6 +322,21 @@ int rna_NParticleState_particles_lookup_int(PointerRNA *ptr, int key, PointerRNA
 }
 #endif
 
+static int rna_NParticleState_find_particle(NParticleState *state, int id)
+{
+	return BKE_nparticle_find_index(state, (NParticleID)id);
+}
+
+static int rna_NParticleState_add_particle(NParticleState *state, int id)
+{
+	return BKE_nparticle_add(state, (NParticleID)id);
+}
+
+static void rna_NParticleState_remove_particle(NParticleState *state, int id)
+{
+	BKE_nparticle_remove(state, (NParticleID)id);
+}
+
 
 static NParticleAttribute *rna_NParticleSystem_attributes_new(NParticleSystem *psys, ReportList *reports, const char *name, int datatype)
 {
@@ -525,7 +540,8 @@ static void rna_def_nparticle_iterator(BlenderRNA *brna)
 static void rna_def_nparticle_state(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
+	FunctionRNA *func;
+	PropertyRNA *prop, *parm;
 
 	srna = RNA_def_struct(brna, "NParticleState", NULL);
 	RNA_def_struct_ui_text(srna, "Particle State", "Data in a particle system for a specific frame");
@@ -547,6 +563,27 @@ static void rna_def_nparticle_state(BlenderRNA *brna)
 	                                  "rna_NParticleState_particles_length", "rna_NParticleState_particles_lookup_int",
 	                                  NULL, NULL);
 #endif
+
+	func = RNA_def_function(srna, "find_particle", "rna_NParticleState_find_particle");
+	RNA_def_function_ui_description(func, "Get a particle's index");
+	parm = RNA_def_int(func, "id", 0, INT_MIN, INT_MAX, "Identifier", "Unique identifier of the particle", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return value */
+	parm = RNA_def_int(func, "index", 0, 0, INT_MAX, "Index", "Index of the particle in attribute states", 0, INT_MAX);
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "add_particle", "rna_NParticleState_add_particle");
+	RNA_def_function_ui_description(func, "Add a particle");
+	parm = RNA_def_int(func, "id", 0, INT_MIN, INT_MAX, "Identifier", "Unique identifier of the particle", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return value */
+	parm = RNA_def_int(func, "index", 0, 0, INT_MAX, "Index", "Index of the particle in attribute states", 0, INT_MAX);
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove_particle", "rna_NParticleState_remove_particle");
+	RNA_def_function_ui_description(func, "Remove a particle");
+	parm = RNA_def_int(func, "id", 0, INT_MIN, INT_MAX, "Identifier", "Unique identifier of the particle", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
 

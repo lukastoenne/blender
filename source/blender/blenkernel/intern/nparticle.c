@@ -325,6 +325,18 @@ int BKE_nparticle_add(NParticleState *state, NParticleID id)
 	return index;
 }
 
+void BKE_nparticle_remove(NParticleState *state, NParticleID id)
+{
+	int index = BKE_nparticle_find_index(state, id);
+	if (index >= 0) {
+		NParticleAttributeState *attrstate;
+		for (attrstate = state->attributes; attrstate->hashkey; ++attrstate) {
+			/* XXX TODO paged buffer doesn't support removing yet */
+//			BLI_pbuf_remove_elements(&attrstate->data, index);
+		}
+	}
+}
+
 
 void BKE_nparticle_iter_init(NParticleState *state, NParticleIterator *it)
 {
