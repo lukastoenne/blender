@@ -264,6 +264,64 @@ int rna_NParticleState_attributes_lookup_string(PointerRNA *ptr, const char *key
 }
 
 
+#if 0
+static void rna_NParticleState_particles_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	NParticleState *state = ptr->data;
+	NParticleIterator *piter = MEM_callocN(sizeof(NParticleIterator), "particle iterator");
+	
+	BKE_nparticle_iter_init(state, piter);
+	iter->internal = piter;
+	iter->valid
+}
+
+static void rna_NParticleState_particles_next(CollectionPropertyIterator *iter)
+{
+	NParticleState *state = iter->ptr.data;
+	NParticleIterator *piter = iter->internal;
+	BKE_nparticle_iter_next(piter);
+	iter->valid = BKE_nparticle_iter_valid(piter);
+}
+
+static void rna_NParticleState_particles_end(CollectionPropertyIterator *iter)
+{
+	MEM_freeN(iter->internal);
+	iter->internal = NULL;
+}
+
+static PointerRNA rna_NParticleState_particles_get(CollectionPropertyIterator *iter)
+{
+	NParticleIterator *piter = iter->internal;
+	PointerRNA ptr;
+	RNA_pointer_create(iter->ptr.id.data, &RNA_NParticleIterator, piter, &ptr);
+	return ptr;
+}
+
+static int rna_NParticleState_particles_length(PointerRNA *ptr)
+{
+	NParticleState *state = ptr->data;
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, "id");
+	if (attrstate)
+		return attrstate->data.totelem;
+	else
+		return 0;
+}
+
+int rna_NParticleState_particles_lookup_int(PointerRNA *ptr, int key, PointerRNA *r_ptr)
+{
+	/* XXX this is a problem: we cannot return a particle iterator here because
+	 * PointerRNA can only reference data that exists permanently in the DNA ...
+	 */
+	NParticleState *state = ptr->data;
+	BKE_nparticle_iter_find_id(state, , NParticleID id)
+	BKE_nparticle_
+	void *data = BLI_pbuf_get(&state->data, key);
+	RNA_pointer_create(ptr->id.data, data_srna, data, r_ptr);
+	return true;
+}
+#endif
+
+
 static NParticleAttribute *rna_NParticleSystem_attributes_new(NParticleSystem *psys, ReportList *reports, const char *name, int datatype)
 {
 	if (BKE_nparticle_attribute_find(psys, name)) {
@@ -454,6 +512,15 @@ static void rna_def_nparticle_attribute_state(BlenderRNA *brna)
 #undef DEF_ATTR_TYPE_RNA
 }
 
+static void rna_def_nparticle_iterator(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "NParticleIterator", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Iterator", "Access iterator for individual particles");
+}
+
 static void rna_def_nparticle_state(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -469,6 +536,16 @@ static void rna_def_nparticle_state(BlenderRNA *brna)
 	                                  "rna_NParticleState_attributes_lookup_string", NULL);
 	RNA_def_property_ui_text(prop, "Attributes", "Data layers associated to particles");
 	RNA_def_property_struct_type(prop, "NParticleAttributeState");
+
+#if 0
+	prop = RNA_def_property(srna, "particles", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "NParticleIterator");
+	RNA_def_property_ui_text(prop, "Particles", "");
+	RNA_def_property_collection_funcs(prop, "rna_NParticleState_particles_begin", "rna_NParticleState_particles_next",
+	                                  "rna_NParticleState_particles_end", "rna_NParticleState_particles_get",
+	                                  "rna_NParticleState_particles_length", "rna_NParticleState_particles_lookup_int",
+	                                  NULL, NULL);
+#endif
 }
 
 
@@ -547,6 +624,7 @@ static void rna_def_nparticle_system(BlenderRNA *brna)
 void RNA_def_nparticle(BlenderRNA *brna)
 {
 	rna_def_nparticle_attribute_state(brna);
+	rna_def_nparticle_iterator(brna);
 	rna_def_nparticle_state(brna);
 	rna_def_nparticle_attribute(brna);
 	rna_def_nparticle_system(brna);
