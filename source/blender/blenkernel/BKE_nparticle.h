@@ -56,6 +56,7 @@ struct NParticleAttributeState *BKE_nparticle_state_find_attribute(struct NParti
 
 int BKE_nparticle_find_index(struct NParticleState *state, NParticleID id);
 bool BKE_nparticle_exists(struct NParticleState *state, NParticleID id);
+int BKE_nparticle_add(struct NParticleState *state, NParticleID id);
 
 typedef struct NParticleIterator {
 	struct NParticleState *state;

@@ -308,7 +308,21 @@ int BKE_nparticle_find_index(NParticleState *state, NParticleID id)
 
 bool BKE_nparticle_exists(NParticleState *state, NParticleID id)
 {
-	return BKE_nparticle_find_index(state, id) != -1;
+	return BKE_nparticle_find_index(state, id) >= 0;
+}
+
+int BKE_nparticle_add(NParticleState *state, NParticleID id)
+{
+	int index = BKE_nparticle_find_index(state, id);
+	if (index < 0) {
+		NParticleAttributeState *attrstate;
+		for (attrstate = state->attributes; attrstate->hashkey; ++attrstate) {
+			BLI_pbuf_add_elements(&attrstate->data, 1);
+			index = attrstate->data.totelem - 1;
+		}
+	}
+	
+	return index;
 }
 
 
