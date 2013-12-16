@@ -318,6 +318,12 @@ void BKE_nparticle_iter_init(NParticleState *state, NParticleIterator *it)
 	it->index = 0;
 }
 
+void BKE_nparticle_iter_find_id(NParticleState *state, NParticleIterator *it, NParticleID id)
+{
+	it->state = state;
+	it->index = BKE_nparticle_find_index(state, id);
+}
+
 void BKE_nparticle_iter_next(NParticleIterator *it)
 {
 	++it->index;

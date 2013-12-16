@@ -63,6 +63,7 @@ typedef struct NParticleIterator {
 } NParticleIterator;
 
 void BKE_nparticle_iter_init(struct NParticleState *state, struct NParticleIterator *it);
+void BKE_nparticle_iter_find_id(struct NParticleState *state, struct NParticleIterator *it, NParticleID id);
 void BKE_nparticle_iter_next(struct NParticleIterator *it);
 bool BKE_nparticle_iter_valid(struct NParticleIterator *it);
 
