@@ -4261,16 +4261,15 @@ static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 
 static void direct_link_nparticle_system(FileData *fd, NParticleSystem *psys)
 {
-	NParticleAttribute *attr;
+	NParticleAttributeState *attrstate;
 	
 	link_list(fd, &psys->attributes);
-	for (attr = psys->attributes.first; attr; attr = attr->next) {
-		attr->state = newdataadr(fd, attr->state);
-		if (attr->state)
-			direct_link_pagedbuffer(fd, &attr->state->data);
-	}
 	
-	psys->attribute_id = newdataadr(fd, psys->attribute_id);
+	psys->state = newdataadr(fd, psys->state);
+	if (psys->state) {
+		for (attrstate = psys->state->attributes; attrstate->hashkey; ++attrstate)
+			direct_link_pagedbuffer(fd, &attrstate->data);
+	}
 }
 
 

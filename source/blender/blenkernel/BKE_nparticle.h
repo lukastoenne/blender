@@ -32,8 +32,9 @@
 #include "BLI_sys_types.h"
 
 struct NParticleSystem;
-struct NParticleState;
 struct NParticleAttribute;
+struct NParticleState;
+struct NParticleAttributeState;
 
 /* XXX where to put this? */
 typedef uint32_t NParticleID;
@@ -49,6 +50,8 @@ void BKE_nparticle_attribute_remove_all(struct NParticleSystem *psys);
 void BKE_nparticle_attribute_move(struct NParticleSystem *psys, int from_index, int to_index);
 struct NParticleAttribute *BKE_nparticle_attribute_copy(struct NParticleSystem *to_psys,
                                                         struct NParticleSystem *from_psys, struct NParticleAttribute *from_attr);
+
+struct NParticleAttributeState *BKE_nparticle_state_find_attribute(struct NParticleState *state, const char *name);
 
 
 int BKE_nparticle_find_index(struct NParticleSystem *psys, NParticleID id);

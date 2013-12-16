@@ -29,6 +29,8 @@
 #include <string.h>
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_pagedbuffer.h"
 #include "BLI_string.h"
@@ -60,9 +62,10 @@ static size_t nparticle_elem_bytes(int datatype)
 	}
 }
 
-static void nparticle_attribute_state_init(NParticleAttribute *attr, NParticleAttributeState *state)
+static void nparticle_attribute_state_init(NParticleAttribute *attr, NParticleAttributeState *attrstate)
 {
-	BLI_pbuf_init(&state->data, PAGE_BYTES, nparticle_elem_bytes(attr->desc.datatype));
+	attrstate->hashkey = BLI_ghashutil_strhash(attr->desc.name);
+	BLI_pbuf_init(&attrstate->data, PAGE_BYTES, nparticle_elem_bytes(attr->desc.datatype));
 }
 
 static void nparticle_attribute_state_free(NParticleAttributeState *state)
@@ -72,7 +75,88 @@ static void nparticle_attribute_state_free(NParticleAttributeState *state)
 
 static void nparticle_attribute_state_copy(NParticleAttributeState *to, NParticleAttributeState *from)
 {
+	to->hashkey = from->hashkey;
 	BLI_pbuf_copy(&to->data, &from->data);
+}
+
+
+static NParticleState *nparticle_state_new(NParticleSystem *UNUSED(psys))
+{
+	NParticleState *state = MEM_callocN(sizeof(NParticleState), "particle state");
+	/* attribute states get initialized lazily,
+	 * zero hashkey is terminator.
+	 */
+	state->attributes = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute states");
+	return state;
+}
+
+static void nparticle_state_free(NParticleState *state)
+{
+	NParticleAttributeState *attrstate;
+	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+		nparticle_attribute_state_free(attrstate);
+	MEM_freeN(state->attributes);
+	MEM_freeN(state);
+}
+
+static NParticleState *nparticle_state_copy(NParticleState *state)
+{
+	NParticleState *nstate = MEM_dupallocN(state);
+	NParticleAttributeState *attrstate, *nattrstate;
+	
+	nstate->attributes = MEM_dupallocN(state->attributes);
+	
+	for (attrstate = state->attributes, nattrstate = nstate->attributes; attrstate->hashkey; ++attrstate, ++nattrstate)
+		nparticle_attribute_state_copy(nattrstate, attrstate);
+	
+	return nstate;
+}
+
+static int nparticle_state_num_attributes(NParticleState *state)
+{
+	NParticleAttributeState *attrstate;
+	int len = 0;
+	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+		++len;
+	return len;
+}
+
+static void nparticle_state_add_attribute(NParticleState *state, NParticleAttribute *attr)
+{
+	int totattr = nparticle_state_num_attributes(state);
+	state->attributes = MEM_reallocN(state->attributes, sizeof(NParticleAttributeState) * (totattr+1));
+	nparticle_attribute_state_init(attr, state->attributes + totattr);
+}
+
+static void nparticle_state_remove_attribute(NParticleState *state, const char *name)
+{
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, name);
+	if (attrstate) {
+		int index = attrstate - state->attributes;
+		NParticleAttributeState *old_attributes = state->attributes;
+		int totattr = nparticle_state_num_attributes(state);
+		
+		nparticle_attribute_state_free(attrstate);
+		
+		state->attributes = MEM_mallocN(sizeof(NParticleAttributeState) * (totattr-1), "particle state attributes");
+		if (index > 0)
+			memcpy(state->attributes, old_attributes, sizeof(NParticleAttributeState) * index);
+		if (index < (totattr-1))
+			memcpy(state->attributes + index, old_attributes + index + 1, sizeof(NParticleAttributeState) * (totattr - (index+1)));
+		MEM_freeN(old_attributes);
+	}
+}
+
+static void nparticle_state_clear(NParticleState *state)
+{
+	NParticleAttributeState *attrstate;
+	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+		nparticle_attribute_state_free(attrstate);
+	MEM_freeN(state->attributes);
+	/* attribute states get initialized lazily,
+	 * zero hashkey is terminator.
+	 */
+	state->attributes = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute states");
 }
 
 
@@ -81,7 +165,9 @@ NParticleSystem *BKE_nparticle_system_new(void)
 	NParticleSystem *psys = MEM_callocN(sizeof(NParticleSystem), "nparticle system");
 	
 	/* fixed attributes */
-	psys->attribute_id = BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT);
+	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT);
+	
+	psys->state = nparticle_state_new(psys);
 	
 	return psys;
 }
@@ -89,6 +175,9 @@ NParticleSystem *BKE_nparticle_system_new(void)
 void BKE_nparticle_system_free(NParticleSystem *psys)
 {
 	BKE_nparticle_attribute_remove_all(psys);
+	
+	nparticle_state_free(psys->state);
+	
 	MEM_freeN(psys);
 }
 
@@ -97,12 +186,11 @@ NParticleSystem *BKE_nparticle_system_copy(NParticleSystem *psys)
 	NParticleSystem *npsys = MEM_dupallocN(psys);
 	NParticleAttribute *attr, *nattr;
 	
+	npsys->state = nparticle_state_new(npsys);
+	
 	npsys->attributes.first = npsys->attributes.last = NULL;
 	for (attr = psys->attributes.first; attr; attr = attr->next) {
 		nattr = BKE_nparticle_attribute_copy(npsys, psys, attr);
-		
-		if (attr == psys->attribute_id)
-			npsys->attribute_id = nattr;
 	}
 	
 	return npsys;
@@ -128,26 +216,18 @@ NParticleAttribute *BKE_nparticle_attribute_new(NParticleSystem *psys, const cha
 		BKE_nparticle_attribute_remove(psys, attr);
 	}
 	
-	if (!attr) {
-		attr = MEM_callocN(sizeof(NParticleAttribute), "particle system attribute");
-		BLI_strncpy(attr->desc.name, name, sizeof(attr->desc.name));
-		attr->desc.datatype = datatype;
-		
-		BLI_addtail(&psys->attributes, attr);
-		
-		attr->state = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute state");
-		nparticle_attribute_state_init(attr, attr->state);
-	}
+	attr = MEM_callocN(sizeof(NParticleAttribute), "particle system attribute");
+	BLI_strncpy(attr->desc.name, name, sizeof(attr->desc.name));
+	attr->desc.datatype = datatype;
+	
+	BLI_addtail(&psys->attributes, attr);
 	
 	return attr;
 }
 
 void BKE_nparticle_attribute_remove(NParticleSystem *psys, NParticleAttribute *attr)
 {
-	if (attr->state) {
-		nparticle_attribute_state_free(attr->state);
-		MEM_freeN(attr->state);
-	}
+	nparticle_state_remove_attribute(psys->state, attr->desc.name);
 	
 	BLI_remlink(&psys->attributes, attr);
 	MEM_freeN(attr);
@@ -157,14 +237,10 @@ void BKE_nparticle_attribute_remove_all(NParticleSystem *psys)
 {
 	NParticleAttribute *attr, *attr_next;
 	
+	nparticle_state_clear(psys->state);
+	
 	for (attr = psys->attributes.first; attr; attr = attr_next) {
 		attr_next = attr->next;
-		
-		if (attr->state) {
-			nparticle_attribute_state_free(attr->state);
-			MEM_freeN(attr->state);
-		}
-		
 		MEM_freeN(attr);
 	}
 	psys->attributes.first = psys->attributes.last = NULL;
@@ -173,10 +249,6 @@ void BKE_nparticle_attribute_remove_all(NParticleSystem *psys)
 NParticleAttribute *BKE_nparticle_attribute_copy(NParticleSystem *to_psys, NParticleSystem *UNUSED(from_psys), NParticleAttribute *from_attr)
 {
 	NParticleAttribute *to_attr = MEM_dupallocN(from_attr);
-	
-	to_attr->state = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute state");
-	nparticle_attribute_state_copy(to_attr->state, from_attr->state);
-	
 	BLI_addtail(&to_psys->attributes, to_attr);
 	return to_attr;
 }
@@ -208,17 +280,28 @@ void BKE_nparticle_attribute_move(NParticleSystem *psys, int from_index, int to_
 }
 
 
+NParticleAttributeState *BKE_nparticle_state_find_attribute(NParticleState *state, const char *name)
+{
+	int hashkey = BLI_ghashutil_strhash(name);
+	NParticleAttributeState *attrstate;
+	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+		if (attrstate->hashkey == hashkey)
+			return attrstate;
+	return NULL;
+}
+
+
 int BKE_nparticle_find_index(NParticleSystem *psys, NParticleID id)
 {
-	NParticleAttribute *attr_id = psys->attribute_id;
-	bPagedBuffer *pbuf;
-	bPagedBufferIterator it;
-	BLI_assert(attr_id && attr_id->state);
-	
-	pbuf = &attr_id->state->data;
-	for (BLI_pbuf_iter_init(pbuf, &it); BLI_pbuf_iter_valid(pbuf, &it); BLI_pbuf_iter_next(pbuf, &it)) {
-		if (*(int*)it.data == id)
-			return it.index;
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(psys->state, "id");
+	if (attrstate) {
+		bPagedBuffer *pbuf = &attrstate->data;
+		bPagedBufferIterator it;
+		
+		for (BLI_pbuf_iter_init(pbuf, &it); BLI_pbuf_iter_valid(pbuf, &it); BLI_pbuf_iter_next(pbuf, &it)) {
+			if (*(int*)it.data == id)
+				return it.index;
+		}
 	}
 	return -1;
 }
@@ -242,45 +325,55 @@ void BKE_nparticle_iter_next(NParticleIterator *it)
 
 bool BKE_nparticle_iter_valid(NParticleIterator *it)
 {
-	NParticleAttribute *attr_id = it->psys->attribute_id;
-	BLI_assert(attr_id);
-	return attr_id->state ? it->index < attr_id->state->data.totelem : false;
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(it->psys->state, "id");
+	if (attrstate)
+		return it->index < attrstate->data.totelem;
+	else
+		return false;
 }
 
 
-BLI_INLINE void *nparticle_data_ptr(NParticleSystem *psys, const char *attr_, eParticleAttributeDataType datatype, int index)
+BLI_INLINE void *nparticle_data_ptr(NParticleState *state, const char *name, int index)
 {
-	NParticleAttribute *attr = BKE_nparticle_attribute_find(psys, attr_);
-	if (attr && attr->state) {
-		BLI_assert(attr->desc.datatype == datatype);
-		return BLI_pbuf_get(&attr->state->data, index);
-	}
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, name);
+	if (attrstate)
+		return BLI_pbuf_get(&attrstate->data, index);
 	else
 		return NULL;
 }
 
+BLI_INLINE bool nparticle_assert_attribute_type(NParticleSystem *psys, const char *name, eParticleAttributeDataType datatype)
+{
+	NParticleAttribute *attr = BKE_nparticle_attribute_find(psys, name);
+	return !attr || attr->desc.datatype == datatype;
+}
+
 int BKE_nparticle_iter_get_int(NParticleIterator *it, const char *attr)
 {
-	int *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_INT, it->index);
+	int *data = nparticle_data_ptr(it->psys->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_INT));
 	return data ? *data : 0;
 }
 
 void BKE_nparticle_iter_set_int(NParticleIterator *it, const char *attr, int value)
 {
-	int *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_INT, it->index);
+	int *data = nparticle_data_ptr(it->psys->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_INT));
 	if (data)
 		*data = value;
 }
 
 float BKE_nparticle_iter_get_float(NParticleIterator *it, const char *attr)
 {
-	float *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT, it->index);
+	float *data = nparticle_data_ptr(it->psys->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT));
 	return data ? *data : 0.0f;
 }
 
 void BKE_nparticle_iter_set_float(NParticleIterator *it, const char *attr, float value)
 {
-	float *data = nparticle_data_ptr(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT, it->index);
+	float *data = nparticle_data_ptr(it->psys->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT));
 	if (data)
 		*data = value;
 }
