@@ -54,15 +54,15 @@ struct NParticleAttribute *BKE_nparticle_attribute_copy(struct NParticleSystem *
 struct NParticleAttributeState *BKE_nparticle_state_find_attribute(struct NParticleState *state, const char *name);
 
 
-int BKE_nparticle_find_index(struct NParticleSystem *psys, NParticleID id);
-bool BKE_nparticle_exists(struct NParticleSystem *psys, NParticleID id);
+int BKE_nparticle_find_index(struct NParticleState *state, NParticleID id);
+bool BKE_nparticle_exists(struct NParticleState *state, NParticleID id);
 
 typedef struct NParticleIterator {
-	struct NParticleSystem *psys;
+	struct NParticleState *state;
 	int index;
 } NParticleIterator;
 
-void BKE_nparticle_iter_init(struct NParticleSystem *psys, struct NParticleIterator *it);
+void BKE_nparticle_iter_init(struct NParticleState *state, struct NParticleIterator *it);
 void BKE_nparticle_iter_next(struct NParticleIterator *it);
 bool BKE_nparticle_iter_valid(struct NParticleIterator *it);
 

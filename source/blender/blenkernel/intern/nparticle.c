@@ -291,9 +291,9 @@ NParticleAttributeState *BKE_nparticle_state_find_attribute(NParticleState *stat
 }
 
 
-int BKE_nparticle_find_index(NParticleSystem *psys, NParticleID id)
+int BKE_nparticle_find_index(NParticleState *state, NParticleID id)
 {
-	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(psys->state, "id");
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, "id");
 	if (attrstate) {
 		bPagedBuffer *pbuf = &attrstate->data;
 		bPagedBufferIterator it;
@@ -306,15 +306,15 @@ int BKE_nparticle_find_index(NParticleSystem *psys, NParticleID id)
 	return -1;
 }
 
-bool BKE_nparticle_exists(NParticleSystem *psys, NParticleID id)
+bool BKE_nparticle_exists(NParticleState *state, NParticleID id)
 {
-	return BKE_nparticle_find_index(psys, id) != -1;
+	return BKE_nparticle_find_index(state, id) != -1;
 }
 
 
-void BKE_nparticle_iter_init(NParticleSystem *psys, NParticleIterator *it)
+void BKE_nparticle_iter_init(NParticleState *state, NParticleIterator *it)
 {
-	it->psys = psys;
+	it->state = state;
 	it->index = 0;
 }
 
@@ -325,7 +325,7 @@ void BKE_nparticle_iter_next(NParticleIterator *it)
 
 bool BKE_nparticle_iter_valid(NParticleIterator *it)
 {
-	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(it->psys->state, "id");
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(it->state, "id");
 	if (attrstate)
 		return it->index < attrstate->data.totelem;
 	else
@@ -342,38 +342,43 @@ BLI_INLINE void *nparticle_data_ptr(NParticleState *state, const char *name, int
 		return NULL;
 }
 
-BLI_INLINE bool nparticle_assert_attribute_type(NParticleSystem *psys, const char *name, eParticleAttributeDataType datatype)
+BLI_INLINE bool nparticle_assert_attribute_type(NParticleState *state, const char *name, eParticleAttributeDataType datatype)
 {
-	NParticleAttribute *attr = BKE_nparticle_attribute_find(psys, name);
-	return !attr || attr->desc.datatype == datatype;
+	/* XXX this should actually check the data type, but currently this is not stored
+	 * in the NParticleAttributeState ...
+	 * Comparing byte size is a compromise, but won't catch errors if data is interpreted
+	 * incorrectly, e.g. float and int size is the same!
+	 */
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, name);
+	return !attrstate || attrstate->data.elem_bytes == nparticle_elem_bytes(datatype);
 }
 
 int BKE_nparticle_iter_get_int(NParticleIterator *it, const char *attr)
 {
-	int *data = nparticle_data_ptr(it->psys->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_INT));
+	int *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_INT));
 	return data ? *data : 0;
 }
 
 void BKE_nparticle_iter_set_int(NParticleIterator *it, const char *attr, int value)
 {
-	int *data = nparticle_data_ptr(it->psys->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_INT));
+	int *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_INT));
 	if (data)
 		*data = value;
 }
 
 float BKE_nparticle_iter_get_float(NParticleIterator *it, const char *attr)
 {
-	float *data = nparticle_data_ptr(it->psys->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT));
+	float *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_FLOAT));
 	return data ? *data : 0.0f;
 }
 
 void BKE_nparticle_iter_set_float(NParticleIterator *it, const char *attr, float value)
 {
-	float *data = nparticle_data_ptr(it->psys->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->psys, attr, PAR_ATTR_DATATYPE_FLOAT));
+	float *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_FLOAT));
 	if (data)
 		*data = value;
 }
