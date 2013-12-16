@@ -228,6 +228,23 @@ bool BKE_nparticle_exists(NParticleSystem *psys, NParticleID id)
 	return BKE_nparticle_find_index(psys, id) != -1;
 }
 
+void BKE_nparticle_iter_init(NParticleSystem *UNUSED(psys), NParticleIterator *it)
+{
+	it->index = 0;
+}
+
+void BKE_nparticle_iter_next(NParticleSystem *UNUSED(psys), NParticleIterator *it)
+{
+	++it->index;
+}
+
+bool BKE_nparticle_iter_valid(NParticleSystem *psys, NParticleIterator *it)
+{
+	NParticleAttribute *attr_id = psys->attribute_id;
+	BLI_assert(attr_id);
+	return attr_id->state ? it->index < attr_id->state->data.totelem : false;
+}
+
 
 #if 0 /* old code */
 #include <assert.h>
