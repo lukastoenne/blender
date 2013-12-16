@@ -212,6 +212,58 @@ static void rna_NParticleDataMatrix_set(PointerRNA *ptr, const float *value)
 	copy_m4_m4((float(*)[4])ptr->data, (float(*)[4])value);
 }
 
+
+static void rna_NParticleState_attributes_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	NParticleState *state = ptr->data;
+	NParticleAttributeState *attrstate = state->attributes;
+	
+	iter->internal = attrstate;
+	iter->valid = (attrstate->hashkey != 0);
+}
+
+static void rna_NParticleState_attributes_next(CollectionPropertyIterator *iter)
+{
+	NParticleAttributeState *attrstate = iter->internal;
+	
+	++attrstate;
+	
+	iter->internal = attrstate;
+	iter->valid = (attrstate->hashkey != 0);
+}
+
+static void rna_NParticleState_attributes_end(CollectionPropertyIterator *iter)
+{
+	iter->internal = NULL;
+}
+
+static PointerRNA rna_NParticleState_attributes_get(CollectionPropertyIterator *iter)
+{
+	NParticleAttributeState *attrstate = iter->internal;
+	PointerRNA ptr;
+	RNA_pointer_create(iter->ptr.id.data, &RNA_NParticleAttributeState, attrstate, &ptr);
+	return ptr;
+}
+
+static int rna_NParticleState_attributes_length(PointerRNA *ptr)
+{
+	NParticleState *state = ptr->data;
+	NParticleAttributeState *attrstate;
+	int length = 0;
+	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+		++length;
+	return length;
+}
+
+int rna_NParticleState_attributes_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
+{
+	NParticleState *state = ptr->data;
+	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, key);
+	RNA_pointer_create(ptr->id.data, &RNA_NParticleAttributeState, attrstate, r_ptr);
+	return attrstate != NULL;
+}
+
+
 static NParticleAttribute *rna_NParticleSystem_attributes_new(NParticleSystem *psys, ReportList *reports, const char *name, int datatype)
 {
 	if (BKE_nparticle_attribute_find(psys, name)) {
@@ -410,11 +462,15 @@ static void rna_def_nparticle_state(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "NParticleState", NULL);
 	RNA_def_struct_ui_text(srna, "Particle State", "Data in a particle system for a specific frame");
 
-//	prop = RNA_def_property(srna, "attributes", PROP_COLLECTION, PROP_NONE);
-//	RNA_def_property_collection_sdna(prop, NULL, "attributes", NULL);
-//	RNA_def_property_ui_text(prop, "Attributes", "Data layers associated to particles");
-//	RNA_def_property_struct_type(prop, "NParticleAttributeState");
+	prop = RNA_def_property(srna, "attributes", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_funcs(prop, "rna_NParticleState_attributes_begin", "rna_NParticleState_attributes_next",
+	                                  "rna_NParticleState_attributes_end", "rna_NParticleState_attributes_get",
+	                                  "rna_NParticleState_attributes_length", NULL,
+	                                  "rna_NParticleState_attributes_lookup_string", NULL);
+	RNA_def_property_ui_text(prop, "Attributes", "Data layers associated to particles");
+	RNA_def_property_struct_type(prop, "NParticleAttributeState");
 }
+
 
 static void rna_def_nparticle_attribute(BlenderRNA *brna)
 {
