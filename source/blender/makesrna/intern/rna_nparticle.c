@@ -119,18 +119,19 @@ int rna_NParticleAttributeState_data_lookup_int(PointerRNA *ptr, int key, Pointe
 	NParticleAttributeState *state = ptr->data;
 	void *data = BLI_pbuf_get(&state->data, key);
 	RNA_pointer_create(ptr->id.data, data_srna, data, r_ptr);
-	return true;
+	return data != NULL;
 }
 
 int rna_NParticleAttributeState_data_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr, StructRNA *data_srna)
 {
 	NParticleAttributeState *state = ptr->data;
 	void *data = BLI_pbuf_get(&state->data, key);
-	PointerRNA data_ptr;
-	RNA_pointer_create(ptr->id.data, data_srna, data, &data_ptr);
-	/* XXX TODO */
-	BLI_assert(false);
-	return true;
+	if (data) {
+		memcpy(data, assign_ptr->data, state->data.elem_bytes);
+		return true;
+	}
+	else
+		return false;
 }
 
 #define DEF_ATTR_TYPE_FUNCS(lcase, ucase) \
