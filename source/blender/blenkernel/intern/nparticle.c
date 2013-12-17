@@ -330,6 +330,11 @@ bool BKE_nparticle_exists(NParticleState *state, NParticleID id)
 	return BKE_nparticle_find_index(state, id) >= 0;
 }
 
+static bool nparticle_attribute_is_id(NParticleAttributeDescription *desc)
+{
+	return STREQ(desc->name, "id");
+}
+
 int BKE_nparticle_add(NParticleState *state, NParticleID id)
 {
 	int index = BKE_nparticle_find_index(state, id);
@@ -339,8 +344,13 @@ int BKE_nparticle_add(NParticleState *state, NParticleID id)
 			BLI_pbuf_add_elements(&attrstate->data, 1);
 			index = attrstate->data.totelem - 1;
 			
-			/* XXX default value? */
-			memset(BLI_pbuf_get(&attrstate->data, index), 0, attrstate->data.elem_bytes);
+			if (nparticle_attribute_is_id(&attrstate->desc)) {
+				*(int*)BLI_pbuf_get(&attrstate->data, index) = (int)id;
+			}
+			else {
+				/* XXX default value? */
+				memset(BLI_pbuf_get(&attrstate->data, index), 0, attrstate->data.elem_bytes);
+			}
 		}
 	}
 	
