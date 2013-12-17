@@ -40,7 +40,8 @@ typedef struct NParticleAttributeDescription {
 
 typedef enum eParticleAttributeFlag {
 	PAR_ATTR_REQUIRED				= 1,	/* always exists */
-	PAR_ATTR_PROTECTED				= 2		/* descriptor is immutable */
+	PAR_ATTR_PROTECTED				= 2,	/* descriptor is immutable */
+	PAR_ATTR_READONLY				= 4		/* attribute data is read-only */
 } eParticleAttributeFlag;
 
 /* particle attribute types */

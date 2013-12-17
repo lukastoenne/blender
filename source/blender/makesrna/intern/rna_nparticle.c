@@ -439,10 +439,107 @@ static void def_nparticle_attribute_state_type(BlenderRNA *brna,
 	                                  NULL, assign_int_func);
 }
 
-static void rna_def_nparticle_attribute_state(BlenderRNA *brna)
+/* Subtypes for data access */
+static void rna_def_nparticle_attribute_data_types(BlenderRNA *brna, bool readonly)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+
+	/* VOID */
+	if (readonly) {
+		srna = RNA_def_struct(brna, "NParticleDataVoid", NULL);
+		RNA_def_struct_ui_text(srna, "Particle Data", "Unknown particle data type");
+	}
+
+	/* FLOAT */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataFloatReadonly" : "NParticleDataFloat", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Float Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_funcs(prop, "rna_NParticleDataFloat_get", readonly ? NULL : "rna_NParticleDataFloat_set", NULL);
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	/* INT */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataIntReadonly" : "NParticleDataInt", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Int Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_INT, PROP_NONE);
+	RNA_def_property_int_funcs(prop, "rna_NParticleDataInt_get", readonly ? NULL : "rna_NParticleDataInt_set", NULL);
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	/* BOOL */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataBoolReadonly" : "NParticleDataBool", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Bool Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_NParticleDataBool_get", readonly ? NULL : "rna_NParticleDataBool_set");
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	/* VECTOR */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataVectorReadonly" : "NParticleDataVector", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Vector Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_float_funcs(prop, "rna_NParticleDataVector_get", readonly ? NULL : "rna_NParticleDataVector_set", NULL);
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	/* POINT */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataPointReadonly" : "NParticleDataPoint", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Point Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_TRANSLATION);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_float_funcs(prop, "rna_NParticleDataVector_get", readonly ? NULL : "rna_NParticleDataVector_set", NULL);
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	/* NORMAL */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataNormalReadonly" : "NParticleDataNormal", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Normal Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_DIRECTION);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_float_funcs(prop, "rna_NParticleDataVector_get", readonly ? NULL : "rna_NParticleDataVector_set", NULL);
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	/* COLOR */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataColorReadonly" : "NParticleDataColor", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Color Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_float_funcs(prop, "rna_NParticleDataColor_get", readonly ? NULL : "rna_NParticleDataColor_set", NULL);
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	/* MATRIX */
+	srna = RNA_def_struct(brna, readonly ? "NParticleDataMatrixReadonly" : "NParticleDataMatrix", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Matrix Data", "");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_MATRIX);
+	RNA_def_property_array(prop, 16);
+	RNA_def_property_float_funcs(prop, "rna_NParticleDataMatrix_get", readonly ? NULL : "rna_NParticleDataMatrix_set", NULL);
+	RNA_def_property_ui_text(prop, "Value", "");
+	if (readonly)
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+}
+
+static void rna_def_nparticle_attribute_state(BlenderRNA *brna)
+{
+	StructRNA *srna;
 
 	srna = RNA_def_struct(brna, "NParticleAttributeState", NULL);
 	RNA_def_struct_sdna(srna, "NParticleAttributeState");
@@ -451,80 +548,8 @@ static void rna_def_nparticle_attribute_state(BlenderRNA *brna)
 
 	def_nparticle_attribute_description(srna, 0, NULL, NULL);
 
-	/*** Subtypes for data access ***/
-	
-	/* VOID */
-	srna = RNA_def_struct(brna, "NParticleDataVoid", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Data", "Unknown particle data type");
-
-	/* FLOAT */
-	srna = RNA_def_struct(brna, "NParticleDataFloat", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Float Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_funcs(prop, "rna_NParticleDataFloat_get", "rna_NParticleDataFloat_set", NULL);
-	RNA_def_property_ui_text(prop, "Value", "");
-
-	/* INT */
-	srna = RNA_def_struct(brna, "NParticleDataInt", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Int Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_INT, PROP_NONE);
-	RNA_def_property_int_funcs(prop, "rna_NParticleDataInt_get", "rna_NParticleDataInt_set", NULL);
-	RNA_def_property_ui_text(prop, "Value", "");
-
-	/* BOOL */
-	srna = RNA_def_struct(brna, "NParticleDataBool", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Bool Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_NParticleDataBool_get", "rna_NParticleDataBool_set");
-	RNA_def_property_ui_text(prop, "Value", "");
-
-	/* VECTOR */
-	srna = RNA_def_struct(brna, "NParticleDataVector", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Vector Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_XYZ);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_float_funcs(prop, "rna_NParticleDataVector_get", "rna_NParticleDataVector_set", NULL);
-	RNA_def_property_ui_text(prop, "Value", "");
-
-	/* POINT */
-	srna = RNA_def_struct(brna, "NParticleDataPoint", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Point Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_TRANSLATION);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_float_funcs(prop, "rna_NParticleDataVector_get", "rna_NParticleDataVector_set", NULL);
-	RNA_def_property_ui_text(prop, "Value", "");
-
-	/* NORMAL */
-	srna = RNA_def_struct(brna, "NParticleDataNormal", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Normal Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_DIRECTION);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_float_funcs(prop, "rna_NParticleDataVector_get", "rna_NParticleDataVector_set", NULL);
-	RNA_def_property_ui_text(prop, "Value", "");
-
-	/* COLOR */
-	srna = RNA_def_struct(brna, "NParticleDataColor", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Color Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COLOR);
-	RNA_def_property_array(prop, 4);
-	RNA_def_property_float_funcs(prop, "rna_NParticleDataColor_get", "rna_NParticleDataColor_set", NULL);
-	RNA_def_property_ui_text(prop, "Value", "");
-
-	/* MATRIX */
-	srna = RNA_def_struct(brna, "NParticleDataMatrix", NULL);
-	RNA_def_struct_ui_text(srna, "Particle Matrix Data", "");
-
-	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_MATRIX);
-	RNA_def_property_array(prop, 16);
-	RNA_def_property_float_funcs(prop, "rna_NParticleDataMatrix_get", "rna_NParticleDataMatrix_set", NULL);
-	RNA_def_property_ui_text(prop, "Value", "");
+	rna_def_nparticle_attribute_data_types(brna, false);
+	rna_def_nparticle_attribute_data_types(brna, true);
 
 #define DEF_ATTR_TYPE_RNA(lcase, ucase) \
 	def_nparticle_attribute_state_type(brna, "NParticleAttributeState"#ucase, "NParticleData"#ucase, \

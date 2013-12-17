@@ -175,7 +175,7 @@ NParticleSystem *BKE_nparticle_system_new(void)
 	psys->state = nparticle_state_new(psys);
 	
 	/* required attributes */
-	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT, PAR_ATTR_REQUIRED);
+	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT, PAR_ATTR_REQUIRED | PAR_ATTR_READONLY);
 	
 	return psys;
 }
