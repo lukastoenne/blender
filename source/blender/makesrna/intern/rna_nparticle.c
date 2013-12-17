@@ -34,6 +34,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_pagedbuffer.h"
 
@@ -217,20 +218,20 @@ static void rna_NParticleDataMatrix_set(PointerRNA *ptr, const float *value)
 static void rna_NParticleState_attributes_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	NParticleState *state = ptr->data;
-	NParticleAttributeState *attrstate = state->attributes;
+	NParticleAttributeState *attrstate = state->attributes.first;
 	
 	iter->internal = attrstate;
-	iter->valid = (attrstate->hashkey != 0);
+	iter->valid = (attrstate != NULL);
 }
 
 static void rna_NParticleState_attributes_next(CollectionPropertyIterator *iter)
 {
 	NParticleAttributeState *attrstate = iter->internal;
 	
-	++attrstate;
+	attrstate = attrstate->next;
 	
 	iter->internal = attrstate;
-	iter->valid = (attrstate->hashkey != 0);
+	iter->valid = (attrstate != NULL);
 }
 
 static void rna_NParticleState_attributes_end(CollectionPropertyIterator *iter)
@@ -249,11 +250,7 @@ static PointerRNA rna_NParticleState_attributes_get(CollectionPropertyIterator *
 static int rna_NParticleState_attributes_length(PointerRNA *ptr)
 {
 	NParticleState *state = ptr->data;
-	NParticleAttributeState *attrstate;
-	int length = 0;
-	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
-		++length;
-	return length;
+	return BLI_countlist(&state->attributes);
 }
 
 int rna_NParticleState_attributes_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)

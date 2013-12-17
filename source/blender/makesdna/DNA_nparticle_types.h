@@ -52,6 +52,12 @@ typedef enum eParticleAttributeDataType {
 } eParticleAttributeDataType;
 
 typedef struct NParticleAttributeState {
+	/* XXX next/prev only needed for storing in ListBase,
+	 * can be removed when attribute states get stored
+	 * in a hash table instead.
+	 */
+	struct NParticleAttributeState *next, *prev;
+	
 	int hashkey;
 	int pad;
 	
@@ -59,10 +65,10 @@ typedef struct NParticleAttributeState {
 } NParticleAttributeState;
 
 typedef struct NParticleState {
-	/* XXX just a null-terminated list atm (hashkey==0),
-	 * uses linear search for lookup, could use a GHash instead for O(1) lookup.
+	/* XXX just a list atm, uses linear search for lookup,
+	 * could use a GHash instead for O(1) lookup.
 	 */
-	struct NParticleAttributeState *attributes;
+	ListBase attributes;
 } NParticleState;
 
 typedef struct NParticleAttribute {

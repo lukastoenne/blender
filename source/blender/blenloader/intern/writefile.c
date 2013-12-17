@@ -1385,15 +1385,13 @@ static void write_nparticle_system(WriteData *wd, NParticleSystem *psys)
 	
 	if (psys->state) {
 		NParticleAttributeState *attrstate;
-		int totattr = 0;
 		
 		writestruct(wd, DATA, "NParticleState", 1, psys->state);
 		
-		for (attrstate = psys->state->attributes; attrstate->hashkey; ++attrstate) {
+		for (attrstate = psys->state->attributes.first; attrstate; attrstate = attrstate->next) {
+			writestruct(wd, DATA, "NParticleAttributeState", 1, attrstate);
 			write_pagedbuffer(wd, &attrstate->data);
-			++totattr;
 		}
-		writestruct(wd, DATA, "NParticleAttributeState", totattr+1, psys->state->attributes);
 	}
 }
 

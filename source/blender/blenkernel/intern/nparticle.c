@@ -83,19 +83,15 @@ static void nparticle_attribute_state_copy(NParticleAttributeState *to, NParticl
 static NParticleState *nparticle_state_new(NParticleSystem *UNUSED(psys))
 {
 	NParticleState *state = MEM_callocN(sizeof(NParticleState), "particle state");
-	/* attribute states get initialized lazily,
-	 * zero hashkey is terminator.
-	 */
-	state->attributes = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute states");
 	return state;
 }
 
 static void nparticle_state_free(NParticleState *state)
 {
 	NParticleAttributeState *attrstate;
-	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+	for (attrstate = state->attributes.first; attrstate; attrstate = attrstate->next)
 		nparticle_attribute_state_free(attrstate);
-	MEM_freeN(state->attributes);
+	BLI_freelistN(&state->attributes);
 	MEM_freeN(state);
 }
 
@@ -104,9 +100,11 @@ static NParticleState *nparticle_state_copy(NParticleState *state)
 	NParticleState *nstate = MEM_dupallocN(state);
 	NParticleAttributeState *attrstate, *nattrstate;
 	
-	nstate->attributes = MEM_dupallocN(state->attributes);
+	BLI_duplicatelist(&state->attributes, &nstate->attributes);
 	
-	for (attrstate = state->attributes, nattrstate = nstate->attributes; attrstate->hashkey; ++attrstate, ++nattrstate)
+	for (attrstate = state->attributes.first, nattrstate = nstate->attributes.first;
+	     attrstate;
+	     attrstate = attrstate->next, nattrstate = nattrstate->next)
 		nparticle_attribute_state_copy(nattrstate, attrstate);
 	
 	return nstate;
@@ -114,49 +112,32 @@ static NParticleState *nparticle_state_copy(NParticleState *state)
 
 static int nparticle_state_num_attributes(NParticleState *state)
 {
-	NParticleAttributeState *attrstate;
-	int len = 0;
-	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
-		++len;
-	return len;
+	return BLI_countlist(&state->attributes);
 }
 
 static void nparticle_state_add_attribute(NParticleState *state, NParticleAttribute *attr)
 {
-	int totattr = nparticle_state_num_attributes(state);
-	state->attributes = MEM_reallocN(state->attributes, sizeof(NParticleAttributeState) * (totattr+1));
-	nparticle_attribute_state_init(attr, state->attributes + totattr);
+	NParticleAttributeState *attrstate = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute state");
+	nparticle_attribute_state_init(attr, attrstate);
+	BLI_addtail(&state->attributes, attrstate);
 }
 
 static void nparticle_state_remove_attribute(NParticleState *state, const char *name)
 {
 	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, name);
 	if (attrstate) {
-		int index = attrstate - state->attributes;
-		NParticleAttributeState *old_attributes = state->attributes;
-		int totattr = nparticle_state_num_attributes(state);
-		
+		BLI_remlink(&state->attributes, attrstate);
 		nparticle_attribute_state_free(attrstate);
-		
-		state->attributes = MEM_mallocN(sizeof(NParticleAttributeState) * (totattr-1), "particle state attributes");
-		if (index > 0)
-			memcpy(state->attributes, old_attributes, sizeof(NParticleAttributeState) * index);
-		if (index < (totattr-1))
-			memcpy(state->attributes + index, old_attributes + index + 1, sizeof(NParticleAttributeState) * (totattr - (index+1)));
-		MEM_freeN(old_attributes);
+		MEM_freeN(attrstate);
 	}
 }
 
 static void nparticle_state_clear(NParticleState *state)
 {
 	NParticleAttributeState *attrstate;
-	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+	for (attrstate = state->attributes.first; attrstate; attrstate = attrstate->next)
 		nparticle_attribute_state_free(attrstate);
-	MEM_freeN(state->attributes);
-	/* attribute states get initialized lazily,
-	 * zero hashkey is terminator.
-	 */
-	state->attributes = MEM_callocN(sizeof(NParticleAttributeState), "particle attribute states");
+	BLI_freelistN(&state->attributes);
 }
 
 
@@ -284,7 +265,7 @@ NParticleAttributeState *BKE_nparticle_state_find_attribute(NParticleState *stat
 {
 	int hashkey = BLI_ghashutil_strhash(name);
 	NParticleAttributeState *attrstate;
-	for (attrstate = state->attributes; attrstate->hashkey; ++attrstate)
+	for (attrstate = state->attributes.first; attrstate; attrstate = attrstate->next)
 		if (attrstate->hashkey == hashkey)
 			return attrstate;
 	return NULL;
@@ -316,7 +297,7 @@ int BKE_nparticle_add(NParticleState *state, NParticleID id)
 	int index = BKE_nparticle_find_index(state, id);
 	if (index < 0) {
 		NParticleAttributeState *attrstate;
-		for (attrstate = state->attributes; attrstate->hashkey; ++attrstate) {
+		for (attrstate = state->attributes.first; attrstate; attrstate = attrstate->next) {
 			BLI_pbuf_add_elements(&attrstate->data, 1);
 			index = attrstate->data.totelem - 1;
 		}
@@ -330,7 +311,7 @@ void BKE_nparticle_remove(NParticleState *state, NParticleID id)
 	int index = BKE_nparticle_find_index(state, id);
 	if (index >= 0) {
 		NParticleAttributeState *attrstate;
-		for (attrstate = state->attributes; attrstate->hashkey; ++attrstate) {
+		for (attrstate = state->attributes.first; attrstate; attrstate = attrstate->next) {
 			/* XXX TODO paged buffer doesn't support removing yet */
 //			BLI_pbuf_remove_elements(&attrstate->data, index);
 		}
