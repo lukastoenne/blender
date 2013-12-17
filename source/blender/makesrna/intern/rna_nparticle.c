@@ -70,13 +70,6 @@ static StructRNA *rna_NParticleAttributeState_refine(PointerRNA *ptr)
 	}
 }
 
-static void rna_NParticleAttribute_datatype_set(PointerRNA *ptr, int value)
-{
-//	NParticleAttribute *attr = ptr->data;
-	/* XXX TODO */
-	BLI_assert(false);
-}
-
 static void rna_NParticleAttributeState_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	NParticleAttributeState *state = ptr->data;
@@ -335,6 +328,11 @@ static void rna_NParticleState_remove_particle(NParticleState *state, int id)
 }
 
 
+static void rna_NParticleAttribute_update_description(Main *main, Scene *scene, PointerRNA *ptr)
+{
+	/* XXX TODO */
+}
+
 static NParticleAttribute *rna_NParticleSystem_attributes_new(NParticleSystem *psys, ReportList *reports, const char *name, int datatype)
 {
 	if (BKE_nparticle_attribute_find(psys, name)) {
@@ -386,20 +384,27 @@ EnumPropertyItem nparticle_attribute_datatype_user[] = {
     {0, NULL, 0, NULL, NULL}
 };
 
-static void def_nparticle_attribute_description(StructRNA *srna)
+static void def_nparticle_attribute_description(StructRNA *srna, int update_flag, const char *update_cb)
 {
 	PropertyRNA *prop;
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_string_sdna(prop, NULL, "desc.name");
 	RNA_def_property_ui_text(prop, "Name", "Unique name");
+	if (update_cb)
+		RNA_def_property_update(prop, update_flag, update_cb);
+	else
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_struct_name_property(srna, prop);
 
 	prop = RNA_def_property(srna, "datatype", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "datatype");
+	RNA_def_property_enum_sdna(prop, NULL, "desc.datatype");
 	RNA_def_property_enum_items(prop, nparticle_attribute_datatype_all);
-	RNA_def_property_enum_funcs(prop, NULL, "rna_NParticleAttribute_datatype_set", NULL);
 	RNA_def_property_ui_text(prop, "Data Type", "Basic data type");
+	if (update_cb)
+		RNA_def_property_update(prop, update_flag, update_cb);
+	else
+		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
 /* defines a subtype of NParticleAttribute with a specific collection property for actual data */
@@ -431,6 +436,8 @@ static void rna_def_nparticle_attribute_state(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "NParticleAttributeState");
 	RNA_def_struct_ui_text(srna, "Particle Attribute State", "Data for a particle attribute");
 	RNA_def_struct_refine_func(srna, "rna_NParticleAttributeState_refine");
+
+	def_nparticle_attribute_description(srna, 0, NULL);
 
 	/*** Subtypes for data access ***/
 	
@@ -592,9 +599,7 @@ static void rna_def_nparticle_attribute(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "NParticleAttribute");
 	RNA_def_struct_ui_text(srna, "Particle Attribute", "Attribute in a particle system");
 
-	RNA_def_struct_sdna_from(srna, "NParticleAttributeDescription", "desc");
-	def_nparticle_attribute_description(srna);
-	RNA_def_struct_sdna_from(srna, "NParticleAttribute", NULL); /* reset */
+	def_nparticle_attribute_description(srna, 0, "rna_NParticleAttribute_update_description");
 }
 
 static void rna_def_nparticle_system_attributes_api(BlenderRNA *brna, PropertyRNA *cprop)
