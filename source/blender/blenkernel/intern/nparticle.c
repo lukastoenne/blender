@@ -168,14 +168,21 @@ static void nparticle_system_sync_state_attributes(NParticleSystem *psys, NParti
 }
 
 
+static void nparticle_system_default_attributes(NParticleSystem *psys)
+{
+	/* required attributes */
+	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT, PAR_ATTR_REQUIRED | PAR_ATTR_READONLY);
+	
+	/* common attributes */
+	BKE_nparticle_attribute_new(psys, "position", PAR_ATTR_DATATYPE_POINT, PAR_ATTR_PROTECTED);
+}
+
 NParticleSystem *BKE_nparticle_system_new(void)
 {
 	NParticleSystem *psys = MEM_callocN(sizeof(NParticleSystem), "nparticle system");
 	
 	psys->state = nparticle_state_new(psys);
-	
-	/* required attributes */
-	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT, PAR_ATTR_REQUIRED | PAR_ATTR_READONLY);
+	nparticle_system_default_attributes(psys);
 	
 	return psys;
 }
