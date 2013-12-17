@@ -337,6 +337,9 @@ int BKE_nparticle_add(NParticleState *state, NParticleID id)
 		for (attrstate = state->attributes.first; attrstate; attrstate = attrstate->next) {
 			BLI_pbuf_add_elements(&attrstate->data, 1);
 			index = attrstate->data.totelem - 1;
+			
+			/* XXX default value? */
+			memset(BLI_pbuf_get(&attrstate->data, index), 0, attrstate->data.elem_bytes);
 		}
 	}
 	
