@@ -59,10 +59,14 @@ typedef struct NParticleAttributeState {
 	struct NParticleAttributeState *next, *prev;
 	
 	int hashkey;
-	int pad;
+	int flag;
 	
 	bPagedBuffer data;
 } NParticleAttributeState;
+
+typedef enum eParticleAttributeStateFlag {
+	PAR_ATTR_STATE_TEST			= 1		/* generic temporary test flag */
+} eParticleAttributeStateFlag;
 
 typedef struct NParticleState {
 	/* XXX just a list atm, uses linear search for lookup,

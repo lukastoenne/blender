@@ -140,15 +140,45 @@ static void nparticle_state_clear(NParticleState *state)
 	BLI_freelistN(&state->attributes);
 }
 
+static void nparticle_system_sync_state_attributes(NParticleSystem *psys, NParticleState *state)
+{
+	NParticleAttribute *attr;
+	NParticleAttributeState *attrstate, *attrstate_next;
+	
+	for (attrstate = state->attributes.first; attrstate; attrstate = attrstate->next)
+		attrstate->flag &= ~PAR_ATTR_STATE_TEST;
+	for (attr = psys->attributes.first; attr; attr = attr->next) {
+		attrstate = BKE_nparticle_state_find_attribute(state, attr->desc.name);
+		
+		/* add missing attributes */
+		if (!attrstate) {
+			nparticle_state_add_attribute(state, attr);
+		}
+		
+		attrstate->flag |= PAR_ATTR_STATE_TEST;
+	}
+	
+	/* remove unused attribute states */
+	for (attrstate = state->attributes.first; attrstate; attrstate = attrstate_next) {
+		attrstate_next = attrstate->next;
+		
+		if (!(attrstate->flag & PAR_ATTR_STATE_TEST)) {
+			BLI_remlink(&state->attributes, attrstate);
+			nparticle_attribute_state_free(attrstate);
+			MEM_freeN(attrstate);
+		}
+	}
+}
+
 
 NParticleSystem *BKE_nparticle_system_new(void)
 {
 	NParticleSystem *psys = MEM_callocN(sizeof(NParticleSystem), "nparticle system");
 	
+	psys->state = nparticle_state_new(psys);
+	
 	/* fixed attributes */
 	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT);
-	
-	psys->state = nparticle_state_new(psys);
 	
 	return psys;
 }
@@ -167,12 +197,13 @@ NParticleSystem *BKE_nparticle_system_copy(NParticleSystem *psys)
 	NParticleSystem *npsys = MEM_dupallocN(psys);
 	NParticleAttribute *attr, *nattr;
 	
-	npsys->state = nparticle_state_new(npsys);
-	
 	npsys->attributes.first = npsys->attributes.last = NULL;
 	for (attr = psys->attributes.first; attr; attr = attr->next) {
 		nattr = BKE_nparticle_attribute_copy(npsys, psys, attr);
 	}
+	
+	if (psys->state)
+		npsys->state = nparticle_state_copy(psys->state);
 	
 	return npsys;
 }
@@ -203,12 +234,16 @@ NParticleAttribute *BKE_nparticle_attribute_new(NParticleSystem *psys, const cha
 	
 	BLI_addtail(&psys->attributes, attr);
 	
+	if (psys->state)
+		nparticle_state_add_attribute(psys->state, attr);
+	
 	return attr;
 }
 
 void BKE_nparticle_attribute_remove(NParticleSystem *psys, NParticleAttribute *attr)
 {
-	nparticle_state_remove_attribute(psys->state, attr->desc.name);
+	if (psys->state)
+		nparticle_state_remove_attribute(psys->state, attr->desc.name);
 	
 	BLI_remlink(&psys->attributes, attr);
 	MEM_freeN(attr);
@@ -218,7 +253,8 @@ void BKE_nparticle_attribute_remove_all(NParticleSystem *psys)
 {
 	NParticleAttribute *attr, *attr_next;
 	
-	nparticle_state_clear(psys->state);
+	if (psys->state)
+		nparticle_state_clear(psys->state);
 	
 	for (attr = psys->attributes.first; attr; attr = attr_next) {
 		attr_next = attr->next;
@@ -231,6 +267,10 @@ NParticleAttribute *BKE_nparticle_attribute_copy(NParticleSystem *to_psys, NPart
 {
 	NParticleAttribute *to_attr = MEM_dupallocN(from_attr);
 	BLI_addtail(&to_psys->attributes, to_attr);
+	
+	if (to_psys->state)
+		nparticle_state_add_attribute(to_psys->state, to_attr);
+	
 	return to_attr;
 }
 
