@@ -44,7 +44,7 @@ void BKE_nparticle_system_free(struct NParticleSystem *psys);
 struct NParticleSystem *BKE_nparticle_system_copy(struct NParticleSystem *psys);
 
 struct NParticleAttribute *BKE_nparticle_attribute_find(struct NParticleSystem *psys, const char *name);
-struct NParticleAttribute *BKE_nparticle_attribute_new(struct NParticleSystem *psys, const char *name, int datatype);
+struct NParticleAttribute *BKE_nparticle_attribute_new(struct NParticleSystem *psys, const char *name, int datatype, int flag);
 void BKE_nparticle_attribute_remove(struct NParticleSystem *psys, struct NParticleAttribute *attr);
 void BKE_nparticle_attribute_remove_all(struct NParticleSystem *psys);
 void BKE_nparticle_attribute_move(struct NParticleSystem *psys, int from_index, int to_index);

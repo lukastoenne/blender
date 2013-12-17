@@ -35,8 +35,13 @@
 typedef struct NParticleAttributeDescription {
 	char name[64];
 	int datatype;
-	int pad;
+	int flag;
 } NParticleAttributeDescription;
+
+typedef enum eParticleAttributeFlag {
+	PAR_ATTR_REQUIRED				= 1,	/* always exists */
+	PAR_ATTR_PROTECTED				= 2		/* descriptor is immutable */
+} eParticleAttributeFlag;
 
 /* particle attribute types */
 typedef enum eParticleAttributeDataType {

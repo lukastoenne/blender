@@ -339,7 +339,7 @@ static NParticleAttribute *rna_NParticleSystem_attributes_new(NParticleSystem *p
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "Particle attribute with name %s already exists", name);
 		return NULL;
 	}
-	return BKE_nparticle_attribute_new(psys, name, datatype);
+	return BKE_nparticle_attribute_new(psys, name, datatype, 0);
 }
 
 static void rna_NParticleSystem_attributes_remove(NParticleSystem *psys, NParticleAttribute *attr)

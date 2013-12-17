@@ -174,8 +174,8 @@ NParticleSystem *BKE_nparticle_system_new(void)
 	
 	psys->state = nparticle_state_new(psys);
 	
-	/* fixed attributes */
-	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT);
+	/* required attributes */
+	BKE_nparticle_attribute_new(psys, "id", PAR_ATTR_DATATYPE_INT, PAR_ATTR_REQUIRED);
 	
 	return psys;
 }
@@ -215,7 +215,7 @@ NParticleAttribute *BKE_nparticle_attribute_find(NParticleSystem *psys, const ch
 	return NULL;
 }
 
-NParticleAttribute *BKE_nparticle_attribute_new(NParticleSystem *psys, const char *name, int datatype)
+NParticleAttribute *BKE_nparticle_attribute_new(NParticleSystem *psys, const char *name, int datatype, int flag)
 {
 	NParticleAttribute *attr;
 	
@@ -228,6 +228,7 @@ NParticleAttribute *BKE_nparticle_attribute_new(NParticleSystem *psys, const cha
 	attr = MEM_callocN(sizeof(NParticleAttribute), "particle system attribute");
 	BLI_strncpy(attr->desc.name, name, sizeof(attr->desc.name));
 	attr->desc.datatype = datatype;
+	attr->desc.flag = flag;
 	
 	BLI_addtail(&psys->attributes, attr);
 	
