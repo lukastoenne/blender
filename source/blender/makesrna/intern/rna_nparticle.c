@@ -45,8 +45,8 @@
 
 static StructRNA *rna_NParticleAttributeState_refine(PointerRNA *ptr)
 {
-	NParticleAttribute *attr = ptr->data;
-	switch (attr->desc.datatype) {
+	NParticleAttributeState *attrstate = ptr->data;
+	switch (attrstate->desc.datatype) {
 		case PAR_ATTR_DATATYPE_FLOAT:
 			return &RNA_NParticleAttributeStateFloat;
 		case PAR_ATTR_DATATYPE_INT:

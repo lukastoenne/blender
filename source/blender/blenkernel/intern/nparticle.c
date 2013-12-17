@@ -64,6 +64,7 @@ static size_t nparticle_elem_bytes(int datatype)
 
 static void nparticle_attribute_state_init(NParticleAttribute *attr, NParticleAttributeState *attrstate)
 {
+	attrstate->desc = attr->desc;
 	attrstate->hashkey = BLI_ghashutil_strhash(attr->desc.name);
 	BLI_pbuf_init(&attrstate->data, PAGE_BYTES, nparticle_elem_bytes(attr->desc.datatype));
 }
@@ -75,6 +76,7 @@ static void nparticle_attribute_state_free(NParticleAttributeState *state)
 
 static void nparticle_attribute_state_copy(NParticleAttributeState *to, NParticleAttributeState *from)
 {
+	to->desc = from->desc;
 	to->hashkey = from->hashkey;
 	BLI_pbuf_copy(&to->data, &from->data);
 }
@@ -108,11 +110,6 @@ static NParticleState *nparticle_state_copy(NParticleState *state)
 		nparticle_attribute_state_copy(nattrstate, attrstate);
 	
 	return nstate;
-}
-
-static int nparticle_state_num_attributes(NParticleState *state)
-{
-	return BLI_countlist(&state->attributes);
 }
 
 static void nparticle_state_add_attribute(NParticleState *state, NParticleAttribute *attr)
@@ -395,28 +392,26 @@ BLI_INLINE void *nparticle_data_ptr(NParticleState *state, const char *name, int
 		return NULL;
 }
 
-BLI_INLINE bool nparticle_assert_attribute_type(NParticleState *state, const char *name, eParticleAttributeDataType datatype)
+BLI_INLINE bool nparticle_check_attribute_type(NParticleState *state, const char *name, eParticleAttributeDataType datatype)
 {
-	/* XXX this should actually check the data type, but currently this is not stored
-	 * in the NParticleAttributeState ...
-	 * Comparing byte size is a compromise, but won't catch errors if data is interpreted
-	 * incorrectly, e.g. float and int size is the same!
+	/* sanity check to ensure the retrieved data attribute has the correct type.
+	 * only happens in debug, no overhead created for release builds.
 	 */
 	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, name);
-	return !attrstate || attrstate->data.elem_bytes == nparticle_elem_bytes(datatype);
+	return !attrstate || attrstate->desc.datatype == datatype;
 }
 
 int BKE_nparticle_iter_get_int(NParticleIterator *it, const char *attr)
 {
 	int *data = nparticle_data_ptr(it->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_INT));
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_INT));
 	return data ? *data : 0;
 }
 
 void BKE_nparticle_iter_set_int(NParticleIterator *it, const char *attr, int value)
 {
 	int *data = nparticle_data_ptr(it->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_INT));
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_INT));
 	if (data)
 		*data = value;
 }
@@ -424,14 +419,14 @@ void BKE_nparticle_iter_set_int(NParticleIterator *it, const char *attr, int val
 float BKE_nparticle_iter_get_float(NParticleIterator *it, const char *attr)
 {
 	float *data = nparticle_data_ptr(it->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_FLOAT));
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_FLOAT));
 	return data ? *data : 0.0f;
 }
 
 void BKE_nparticle_iter_set_float(NParticleIterator *it, const char *attr, float value)
 {
 	float *data = nparticle_data_ptr(it->state, attr, it->index);
-	BLI_assert(nparticle_assert_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_FLOAT));
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_FLOAT));
 	if (data)
 		*data = value;
 }

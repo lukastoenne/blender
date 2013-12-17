@@ -61,6 +61,7 @@ typedef struct NParticleAttributeState {
 	int hashkey;
 	int flag;
 	
+	NParticleAttributeDescription desc;	/* attribute descriptor */
 	bPagedBuffer data;
 } NParticleAttributeState;
 
