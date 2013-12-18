@@ -1395,6 +1395,11 @@ static void write_nparticle_system(WriteData *wd, NParticleSystem *psys)
 	}
 }
 
+static void write_nparticle_display(WriteData *wd, NParticleDisplay *display)
+{
+	writestruct(wd, DATA, "NParticleDisplay", 1, display);
+}
+
 static void write_modifiers(WriteData *wd, ListBase *modbase)
 {
 	ModifierData *md;
@@ -1514,7 +1519,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 		}
 		else if (md->type==eModifierType_NParticleSystem) {
 			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
+			NParticleDisplay *display;
+			
 			write_nparticle_system(wd, pmd->psys);
+			for (display = pmd->display.first; display; display = display->next)
+				write_nparticle_display(wd, display);
 		}
 		else if (md->type==eModifierType_LaplacianDeform) {
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData*) md;
