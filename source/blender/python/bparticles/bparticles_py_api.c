@@ -33,14 +33,40 @@
 
 #include "BLI_utildefines.h"
 
+#include "DNA_nparticle_types.h"
+
+#include "BKE_nparticle.h"
+
+#include "bparticles_py_types.h"
+
 #include "../generic/py_capi_utils.h"
 
 #include "bparticles_py_api.h" /* own include */
 
+PyDoc_STRVAR(bpy_bpar_new_doc,
+".. method:: new()\n"
+"\n"
+"   :arg psys: The particle system.\n"
+"   :type mesh: :class:`bpy.types.NParticleSystem`\n"
+"   :return: Return a new, empty NParticleState.\n"
+"   :rtype: :class:`bparticles.types.NParticleState`\n"
+);
+
+static PyObject *bpy_bpar_new(PyObject *UNUSED(self), PyObject *value)
+{
+	NParticleSystem *psys = PyC_RNA_AsPointer(value, "NParticleSystem");
+	NParticleState *state;
+
+	if (!psys)
+		return NULL;
+
+	state = BKE_nparticle_state_new(psys);
+
+	return BPy_NParticleState_CreatePyObject(state);
+}
+
 static struct PyMethodDef BPy_BPAR_methods[] = {
-//	{"new",            (PyCFunction)bpy_bm_new,            METH_NOARGS,  bpy_bm_new_doc},
-//	{"from_edit_mesh", (PyCFunction)bpy_bm_from_edit_mesh, METH_O,       bpy_bm_from_edit_mesh_doc},
-//	{"update_edit_mesh", (PyCFunction)bpy_bm_update_edit_mesh, METH_VARARGS | METH_KEYWORDS, bpy_bm_update_edit_mesh_doc},
+	{"new", (PyCFunction)bpy_bpar_new, METH_O, bpy_bpar_new_doc},
 	{NULL, NULL, 0, NULL}
 };
 
@@ -67,16 +93,16 @@ PyObject *BPyInit_bparticles(void)
 	PyObject *submodule;
 	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
 
-//	BPy_BPAR_init_types();
+	BPy_BPAR_init_types();
 
 	mod = PyModule_Create(&BPy_BPAR_module_def);
 
-#if 0
 	/* bparticles.types */
-	PyModule_AddObject(mod, "types", (submodule = BPyInit_bmesh_types()));
+	PyModule_AddObject(mod, "types", (submodule = BPyInit_bparticles_types()));
 	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
 	Py_INCREF(submodule);
 
+#if 0
 	PyModule_AddObject(mod, "ops", (submodule = BPyInit_bmesh_ops()));
 	/* PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule); */
 	PyDict_SetItemString(sys_modules, "bmesh.ops", submodule); /* fake module */

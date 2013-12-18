@@ -32,8 +32,10 @@ set(INC_SYS
 
 set(SRC
 	bparticles_py_api.c
+	bparticles_py_types.c
 
 	bparticles_py_api.h
+	bparticles_py_types.h
 )
 
 blender_add_lib(bf_python_bparticles "${SRC}" "${INC}" "${INC_SYS}")

@@ -80,6 +80,8 @@ typedef struct NParticleState {
 	 * could use a GHash instead for O(1) lookup.
 	 */
 	ListBase attributes;
+	
+	void *py_handle;
 } NParticleState;
 
 typedef struct NParticleAttribute {
