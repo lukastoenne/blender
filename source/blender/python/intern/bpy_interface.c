@@ -78,6 +78,7 @@
 #include "../generic/blf_py_api.h"
 #include "../generic/idprop_py_api.h"
 #include "../bmesh/bmesh_py_api.h"
+#include "../bparticles/bparticles_py_api.h"
 #include "../mathutils/mathutils.h"
 
 
@@ -221,6 +222,7 @@ static struct _inittab bpy_internal_modules[] = {
 	// {(char *)"bmesh.types", BPyInit_bmesh_types},
 	// {(char *)"bmesh.utils", BPyInit_bmesh_utils},
 	// {(char *)"bmesh.utils", BPyInit_bmesh_geometry},
+	{(char *)"bparticles", BPyInit_bparticles},
 #ifdef WITH_AUDASPACE
 	{(char *)"aud", AUD_initPython},
 #endif
