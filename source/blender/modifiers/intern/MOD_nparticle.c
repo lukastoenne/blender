@@ -30,7 +30,10 @@
  *  \ingroup modifiers
  */
 
+#include "BLI_listbase.h"
+
 #include "DNA_modifier_types.h"
+#include "DNA_nparticle_types.h"
 
 #include "BKE_modifier.h"
 #include "BKE_nparticle.h"
@@ -41,12 +44,24 @@ struct Object;
 static void nparticle_system_initData(ModifierData *md) 
 {
 	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
+	
 	pmd->psys = BKE_nparticle_system_new();
+	
+	/* add default particle display */
+	BLI_addtail(&pmd->display, BKE_nparticle_display_particle());
 }
 
 static void nparticle_system_freeData(ModifierData *md)
 {
 	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
+	NParticleDisplay *display, *display_next;
+	
+	for (display = pmd->display.first; display; display = display_next) {
+		display_next = display->next;
+		BKE_nparticle_display_free(display);
+	}
+	pmd->display.first = pmd->display.last = NULL;
+	
 	BKE_nparticle_system_free(pmd->psys);
 	pmd->psys = NULL;
 }
@@ -55,7 +70,15 @@ static void nparticle_system_copyData(ModifierData *md, ModifierData *target)
 {
 	NParticleSystemModifierData *pmd= (NParticleSystemModifierData *)md;
 	NParticleSystemModifierData *tpmd= (NParticleSystemModifierData *)target;
+	NParticleDisplay *display, *ndisplay;
+	
 	tpmd->psys = BKE_nparticle_system_copy(pmd->psys);
+	
+	tpmd->display.first = tpmd->display.last = NULL;
+	for (display = pmd->display.first; display; display = display->next) {
+		ndisplay = BKE_nparticle_display_copy(display);
+		BLI_addtail(&tpmd->display, ndisplay);
+	}
 }
 
 static struct DerivedMesh *nparticle_system_applyModifier(ModifierData *UNUSED(md), struct Object *UNUSED(ob),

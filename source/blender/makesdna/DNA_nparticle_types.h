@@ -94,4 +94,17 @@ typedef struct NParticleSystem {
 	struct NParticleState *state;
 } NParticleSystem;
 
+
+typedef struct NParticleDisplay {
+	struct NParticleDisplay *next, *prev;
+	
+	int type;
+	int pad;
+	char attribute[64];
+} NParticleDisplay;
+
+typedef enum eParticleDisplayType {
+	PAR_DISPLAY_PARTICLE		= 1
+} eParticleDisplayType;
+
 #endif

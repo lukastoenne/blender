@@ -29,12 +29,12 @@
 #include <string.h>
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.h"	/* XXX stupid, needed by ghash, should be included there ... */
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_pagedbuffer.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_nparticle_types.h"
 
@@ -450,6 +450,48 @@ void BKE_nparticle_iter_set_float(NParticleIterator *it, const char *attr, float
 	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_FLOAT));
 	if (data)
 		*data = value;
+}
+
+void BKE_nparticle_iter_get_vector(NParticleIterator *it, const char *attr, float *result)
+{
+	float *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_VECTOR)
+	           || nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_POINT)
+	           || nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_NORMAL));
+	if (data)
+		copy_v3_v3(result, data);
+	else
+		zero_v3(result);
+}
+
+void BKE_nparticle_iter_set_vector(NParticleIterator *it, const char *attr, const float *value)
+{
+	float *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_VECTOR)
+	           || nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_POINT)
+	           || nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_NORMAL));
+	if (data)
+		copy_v3_v3(data, value);
+}
+
+
+NParticleDisplay *BKE_nparticle_display_particle(void)
+{
+	NParticleDisplay *display = MEM_callocN(sizeof(NParticleDisplay), "particle display");
+	display->type = PAR_DISPLAY_PARTICLE;
+	BLI_strncpy(display->attribute, "position", sizeof(display->attribute));
+	return display;
+}
+
+NParticleDisplay *BKE_nparticle_display_copy(NParticleDisplay *display)
+{
+	NParticleDisplay *ndisplay = MEM_dupallocN(display);
+	return ndisplay;
+}
+
+void BKE_nparticle_display_free(NParticleDisplay *display)
+{
+	MEM_freeN(display);
 }
 
 

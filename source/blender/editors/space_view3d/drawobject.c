@@ -37,6 +37,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_nparticle_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
@@ -7111,6 +7112,25 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				glMultMatrixf(ob->obmat);
 			}
 		}
+	}
+
+	/* nparticles */
+	if ((md = modifiers_findByType(ob, eModifierType_NParticleSystem))) {
+		NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
+		NParticleDisplay *display;
+		
+		if (col || (ob->flag & SELECT))
+			cpack(0xFFFFFF);
+		
+		glLoadMatrixf(rv3d->viewmat);
+		
+		for (display = pmd->display.first; display; display = display->next)
+			draw_nparticles(pmd->psys, display);
+		
+		glMultMatrixf(ob->obmat);
+		
+		if (col)
+			cpack(col);
 	}
 
 	/* draw code for smoke */

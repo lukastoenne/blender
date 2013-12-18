@@ -39,6 +39,8 @@ struct ARegion;
 struct ARegionType;
 struct BoundBox;
 struct DerivedMesh;
+struct NParticleDisplay;
+struct NParticleSystem;
 struct Object;
 struct SmokeDomainSettings;
 struct ViewContext;
@@ -162,6 +164,9 @@ void draw_mesh_paint_weight_edges(RegionView3D *rv3d, struct DerivedMesh *dm, co
                                   void *edgemask_cb, void *user_data);
 void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
                      struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
+
+/* drawparticles.c */
+void draw_nparticles(struct NParticleSystem *psys, struct NParticleDisplay *display);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);

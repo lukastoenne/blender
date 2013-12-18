@@ -1367,6 +1367,7 @@ typedef struct NParticleSystemModifierData {
 	ModifierData modifier;
 	
 	struct NParticleSystem *psys;
+	ListBase display;
 } NParticleSystemModifierData;
 
 

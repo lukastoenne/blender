@@ -35,6 +35,7 @@ struct NParticleSystem;
 struct NParticleAttribute;
 struct NParticleState;
 struct NParticleAttributeState;
+struct NParticleDisplay;
 
 /* XXX where to put this? */
 typedef uint32_t NParticleID;
@@ -73,6 +74,14 @@ int BKE_nparticle_iter_get_int(struct NParticleIterator *it, const char *attr);
 void BKE_nparticle_iter_set_int(struct NParticleIterator *it, const char *attr, int value);
 float BKE_nparticle_iter_get_float(struct NParticleIterator *it, const char *attr);
 void BKE_nparticle_iter_set_float(struct NParticleIterator *it, const char *attr, float value);
+void BKE_nparticle_iter_get_vector(struct NParticleIterator *it, const char *attr, float *result);
+void BKE_nparticle_iter_set_vector(struct NParticleIterator *it, const char *attr, const float *value);
+
+
+struct NParticleDisplay *BKE_nparticle_display_particle(void);
+struct NParticleDisplay *BKE_nparticle_display_copy(struct NParticleDisplay *display);
+void BKE_nparticle_display_free(struct NParticleDisplay *display);
+
 
 #if 0 /* old code */
 #include "BLI_math.h"

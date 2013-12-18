@@ -43,6 +43,7 @@ set(SRC
 	drawarmature.c
 	drawmesh.c
 	drawobject.c
+	drawparticles.c
 	drawvolume.c
 	space_view3d.c
 	view3d_buttons.c
