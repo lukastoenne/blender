@@ -42,15 +42,15 @@
 /* Type Docstrings
  * =============== */
 
-PyDoc_STRVAR(bpy_nparticlestate_doc,
+PyDoc_STRVAR(bpy_bpar_state_doc,
 "Particle state data\n"
 );
 
-PyDoc_STRVAR(bpy_nparticleattributestate_doc,
+PyDoc_STRVAR(bpy_bpar_attrstate_doc,
 "Particle attribute state data\n"
 );
 
-static PyObject *bpy_nparticlestate_repr(BPy_NParticleState *self)
+static PyObject *bpy_bpar_state_repr(BPy_NParticleState *self)
 {
 	NParticleState *state = self->state;
 
@@ -63,7 +63,7 @@ static PyObject *bpy_nparticlestate_repr(BPy_NParticleState *self)
 	}
 }
 
-static PyObject *bpy_nparticleattributestate_repr(BPy_NParticleAttributeState *self)
+static PyObject *bpy_bpar_attrstate_repr(BPy_NParticleAttributeState *self)
 {
 	NParticleAttributeState *attrstate = self->attrstate;
 
@@ -77,28 +77,29 @@ static PyObject *bpy_nparticleattributestate_repr(BPy_NParticleAttributeState *s
 	}
 }
 
-static PyGetSetDef bpy_nparticlestate_getseters[] = {
+static PyGetSetDef bpy_bpar_state_getseters[] = {
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
 
-static PyGetSetDef bpy_nparticleattributestate_getseters[] = {
+static PyGetSetDef bpy_bpar_attrstate_getseters[] = {
+	{(char *)"name", (getter)bpy_bpar_attrstate_name_get, (setter)NULL, (char *)bpy_bpar_attrstate_name_doc, NULL},
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
 
-static struct PyMethodDef bpy_nparticlestate_methods[] = {
+static struct PyMethodDef bpy_bpar_state_methods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-static struct PyMethodDef bpy_nparticleattributestate_methods[] = {
+static struct PyMethodDef bpy_bpar_attrstate_methods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-static Py_hash_t bpy_nparticlestate_hash(PyObject *self)
+static Py_hash_t bpy_bpar_state_hash(PyObject *self)
 {
 	return _Py_HashPointer(((BPy_NParticleState *)self)->state);
 }
 
-static Py_hash_t bpy_nparticleattributestate_hash(PyObject *self)
+static Py_hash_t bpy_bpar_attrstate_hash(PyObject *self)
 {
 	return _Py_HashPointer(((BPy_NParticleAttributeState *)self)->attrstate);
 }
@@ -106,7 +107,7 @@ static Py_hash_t bpy_nparticleattributestate_hash(PyObject *self)
 /* Dealloc Functions
  * ================= */
 
-static void bpy_nparticlestate_dealloc(BPy_NParticleState *self)
+static void bpy_bpar_state_dealloc(BPy_NParticleState *self)
 {
 	NParticleState *state = self->state;
 	
@@ -119,7 +120,7 @@ static void bpy_nparticlestate_dealloc(BPy_NParticleState *self)
 	PyObject_DEL(self);
 }
 
-static void bpy_nparticleattributestate_dealloc(BPy_NParticleAttributeState *self)
+static void bpy_bpar_attrstate_dealloc(BPy_NParticleAttributeState *self)
 {
 	PyObject_DEL(self);
 }
@@ -138,23 +139,23 @@ void BPy_BPAR_init_types(void)
 	BPy_NParticleState_Type.tp_name                 = "NParticleState";
 	BPy_NParticleAttributeState_Type.tp_name        = "NParticleAttributeState";
 
-	BPy_NParticleState_Type.tp_doc                  = bpy_nparticlestate_doc;
-	BPy_NParticleAttributeState_Type.tp_doc         = bpy_nparticleattributestate_doc;
+	BPy_NParticleState_Type.tp_doc                  = bpy_bpar_state_doc;
+	BPy_NParticleAttributeState_Type.tp_doc         = bpy_bpar_attrstate_doc;
 
-	BPy_NParticleState_Type.tp_repr                 = (reprfunc)bpy_nparticlestate_repr;
-	BPy_NParticleAttributeState_Type.tp_repr        = (reprfunc)bpy_nparticleattributestate_repr;
+	BPy_NParticleState_Type.tp_repr                 = (reprfunc)bpy_bpar_state_repr;
+	BPy_NParticleAttributeState_Type.tp_repr        = (reprfunc)bpy_bpar_attrstate_repr;
 
-	BPy_NParticleState_Type.tp_getset               = bpy_nparticlestate_getseters;
-	BPy_NParticleAttributeState_Type.tp_getset      = bpy_nparticleattributestate_getseters;
+	BPy_NParticleState_Type.tp_getset               = bpy_bpar_state_getseters;
+	BPy_NParticleAttributeState_Type.tp_getset      = bpy_bpar_attrstate_getseters;
 
-	BPy_NParticleState_Type.tp_methods              = bpy_nparticlestate_methods;
-	BPy_NParticleAttributeState_Type.tp_methods     = bpy_nparticleattributestate_methods;
+	BPy_NParticleState_Type.tp_methods              = bpy_bpar_state_methods;
+	BPy_NParticleAttributeState_Type.tp_methods     = bpy_bpar_attrstate_methods;
 
-	BPy_NParticleState_Type.tp_hash                 = bpy_nparticlestate_hash;
-	BPy_NParticleAttributeState_Type.tp_hash        = bpy_nparticleattributestate_hash;
+	BPy_NParticleState_Type.tp_hash                 = bpy_bpar_state_hash;
+	BPy_NParticleAttributeState_Type.tp_hash        = bpy_bpar_attrstate_hash;
 
-	BPy_NParticleState_Type.tp_dealloc              = (destructor)bpy_nparticlestate_dealloc;
-	BPy_NParticleAttributeState_Type.tp_dealloc     = (destructor)bpy_nparticleattributestate_dealloc;
+	BPy_NParticleState_Type.tp_dealloc              = (destructor)bpy_bpar_state_dealloc;
+	BPy_NParticleAttributeState_Type.tp_dealloc     = (destructor)bpy_bpar_attrstate_dealloc;
 
 	BPy_NParticleState_Type.tp_flags                = Py_TPFLAGS_DEFAULT;
 	BPy_NParticleAttributeState_Type.tp_flags       = Py_TPFLAGS_DEFAULT;
