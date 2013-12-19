@@ -235,6 +235,27 @@ void BKE_nparticle_state_free(NParticleState *state)
 }
 
 
+void BKE_nparticle_state_attributes_begin(NParticleState *state, NParticleAttributeStateIterator *iter)
+{
+	iter->attrstate = state->attributes.first;
+}
+
+bool BKE_nparticle_state_attribute_iter_valid(NParticleAttributeStateIterator *iter)
+{
+	return (iter->attrstate != NULL);
+}
+
+void BKE_nparticle_state_attribute_iter_next(NParticleAttributeStateIterator *iter)
+{
+	iter->attrstate = iter->attrstate->next;
+}
+
+void BKE_nparticle_state_attribute_iter_end(NParticleAttributeStateIterator *iter)
+{
+	iter->attrstate = NULL;
+}
+
+
 NParticleAttribute *BKE_nparticle_attribute_find(NParticleSystem *psys, const char *name)
 {
 	NParticleAttribute *attr;
@@ -328,6 +349,11 @@ void BKE_nparticle_attribute_move(NParticleSystem *psys, int from_index, int to_
 }
 
 
+int BKE_nparticle_state_num_attributes(NParticleState *state)
+{
+	return BLI_countlist(&state->attributes);
+}
+
 NParticleAttributeState *BKE_nparticle_state_find_attribute(NParticleState *state, const char *name)
 {
 	int hashkey = BLI_ghashutil_strhash(name);
@@ -336,6 +362,11 @@ NParticleAttributeState *BKE_nparticle_state_find_attribute(NParticleState *stat
 		if (attrstate->hashkey == hashkey)
 			return attrstate;
 	return NULL;
+}
+
+NParticleAttributeState *BKE_nparticle_state_get_attribute_by_index(NParticleState *state, int index)
+{
+	return BLI_findlink(&state->attributes, index);
 }
 
 

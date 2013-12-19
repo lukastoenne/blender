@@ -58,7 +58,21 @@ void BKE_nparticle_attribute_move(struct NParticleSystem *psys, int from_index, 
 struct NParticleAttribute *BKE_nparticle_attribute_copy(struct NParticleSystem *to_psys,
                                                         struct NParticleSystem *from_psys, struct NParticleAttribute *from_attr);
 
+int BKE_nparticle_state_num_attributes(struct NParticleState *state);
 struct NParticleAttributeState *BKE_nparticle_state_find_attribute(struct NParticleState *state, const char *name);
+struct NParticleAttributeState *BKE_nparticle_state_get_attribute_by_index(struct NParticleState *state, int index);
+
+typedef struct NParticleAttributeStateIterator {
+	/* XXX for now is simply a pointer, using ListBase next/prev.
+	 * Eventually this will become a hash table iterator.
+	 */
+	struct NParticleAttributeState *attrstate;
+} NParticleAttributeStateIterator;
+
+void BKE_nparticle_state_attributes_begin(struct NParticleState *state, struct NParticleAttributeStateIterator *iter);
+bool BKE_nparticle_state_attribute_iter_valid(struct NParticleAttributeStateIterator *iter);
+void BKE_nparticle_state_attribute_iter_next(struct NParticleAttributeStateIterator *iter);
+void BKE_nparticle_state_attribute_iter_end(struct NParticleAttributeStateIterator *iter);
 
 
 int BKE_nparticle_find_index(struct NParticleState *state, NParticleID id);
