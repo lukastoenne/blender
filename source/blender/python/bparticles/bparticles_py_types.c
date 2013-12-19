@@ -50,6 +50,14 @@ PyDoc_STRVAR(bpy_bpar_attrstate_doc,
 "Particle attribute state data\n"
 );
 
+PyDoc_STRVAR(bpy_bpar_attrstate_name_doc,
+"Attribute name\n"
+);
+static PyObject *bpy_bpar_attrstate_name_get(BPy_NParticleAttributeState *self)
+{
+	return PyUnicode_FromString(self->attrstate->desc.name);
+}
+
 static PyObject *bpy_bpar_state_repr(BPy_NParticleState *self)
 {
 	NParticleState *state = self->state;
