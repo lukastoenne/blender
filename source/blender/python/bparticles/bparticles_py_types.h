@@ -31,18 +31,27 @@
 #define __BPARTICLES_PY_TYPES_H__
 
 extern PyTypeObject BPy_NParticleState_Type;
+extern PyTypeObject BPy_NParticleAttributeState_Type;
 
-#define BPy_NParticleState_Check(v)     (Py_TYPE(v) == &BPy_NParticleState_Type)
+#define BPy_NParticleState_Check(v)             (Py_TYPE(v) == &BPy_NParticleState_Type)
+#define BPy_NParticleAttributeState_Check(v)    (Py_TYPE(v) == &BPy_NParticleAttributeState_Type)
 
 typedef struct BPy_NParticleState {
 	PyObject_VAR_HEAD
 	struct NParticleState *state; /* keep first */
 } BPy_NParticleState;
 
+typedef struct BPy_NParticleAttributeState {
+	PyObject_VAR_HEAD
+	struct NParticleState *state; /* keep first */
+	struct NParticleAttributeState *attrstate;
+} BPy_NParticleAttributeState;
+
 void BPy_BPAR_init_types(void);
 
 PyObject *BPyInit_bparticles_types(void);
 
 PyObject *BPy_NParticleState_CreatePyObject(NParticleState *state);
+PyObject *BPy_NParticleAttributeState_CreatePyObject(NParticleState *state, NParticleAttributeState *attr);
 
 #endif /* __BPARTICLES_PY_TYPES_H__ */

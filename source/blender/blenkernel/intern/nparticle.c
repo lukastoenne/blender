@@ -43,6 +43,22 @@
 /* XXX TODO make this configurable */
 #define PAGE_BYTES 65536
 
+const char *BKE_nparticle_datatype_name(int datatype)
+{
+	switch (datatype) {
+		case PAR_ATTR_DATATYPE_INTERNAL: return "internal";
+		case PAR_ATTR_DATATYPE_FLOAT: return "float";
+		case PAR_ATTR_DATATYPE_INT: return "int";
+		case PAR_ATTR_DATATYPE_BOOL: return "bool";
+		case PAR_ATTR_DATATYPE_VECTOR: return "vector";
+		case PAR_ATTR_DATATYPE_POINT: return "point";
+		case PAR_ATTR_DATATYPE_NORMAL: return "normal";
+		case PAR_ATTR_DATATYPE_COLOR: return "color";
+		case PAR_ATTR_DATATYPE_MATRIX: return "matrix";
+		default: return "";
+	}
+}
+
 static size_t nparticle_elem_bytes(int datatype)
 {
 	switch (datatype) {

@@ -40,6 +40,8 @@ struct NParticleDisplay;
 /* XXX where to put this? */
 typedef uint32_t NParticleID;
 
+const char *BKE_nparticle_datatype_name(int datatype);
+
 struct NParticleSystem *BKE_nparticle_system_new(void);
 void BKE_nparticle_system_free(struct NParticleSystem *psys);
 struct NParticleSystem *BKE_nparticle_system_copy(struct NParticleSystem *psys);
