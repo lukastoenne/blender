@@ -82,6 +82,14 @@ static PyObject *bpy_bpar_state_attributes_get(BPy_NParticleState *self, void *U
 	return BPy_NParticleAttributeStateSeq_CreatePyObject(self->state);
 }
 
+PyDoc_STRVAR(bpy_bpar_state_particles_doc,
+"Particles.\n\n:type: :class:`NParticleParticleSeq`"
+);
+static PyObject *bpy_bpar_state_particles_get(BPy_NParticleState *self, void *UNUSED(closure))
+{
+	return BPy_NParticleParticleSeq_CreatePyObject(self->state);
+}
+
 PyDoc_STRVAR(bpy_bpar_attrstate_name_doc,
 "Attribute name\n"
 );
@@ -131,6 +139,7 @@ static PyObject *bpy_bpar_particle_repr(BPy_NParticleParticle *self)
 
 static PyGetSetDef bpy_bpar_state_getseters[] = {
 	{(char *)"attributes", (getter)bpy_bpar_state_attributes_get, (setter)NULL, (char *)bpy_bpar_state_attributes_doc, NULL},
+	{(char *)"particles", (getter)bpy_bpar_state_particles_get, (setter)NULL, (char *)bpy_bpar_state_particles_doc, NULL},
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
 
