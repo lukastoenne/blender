@@ -380,6 +380,11 @@ int BKE_nparticle_state_num_particles(NParticleState *state)
 	return attrstate ? attrstate->data.totelem : 0;
 }
 
+void *BKE_nparticle_attribute_state_data(NParticleAttributeState *attrstate, int index)
+{
+	return BLI_pbuf_get(&attrstate->data, index);
+}
+
 
 int BKE_nparticle_find_index(NParticleState *state, NParticleID id)
 {
@@ -447,10 +452,20 @@ void BKE_nparticle_iter_init(NParticleState *state, NParticleIterator *it)
 	it->index = 0;
 }
 
-void BKE_nparticle_iter_find_id(NParticleState *state, NParticleIterator *it, NParticleID id)
+void BKE_nparticle_iter_from_id(NParticleState *state, NParticleIterator *it, NParticleID id)
 {
 	it->state = state;
 	it->index = BKE_nparticle_find_index(state, id);
+}
+
+void BKE_nparticle_iter_from_index(NParticleState *state, NParticleIterator *it, int index)
+{
+	NParticleAttributeState *attrstate = nparticle_state_find_attribute_id(state);
+	it->state = state;
+	if (index >= 0 && attrstate && index < attrstate->data.totelem)
+		it->index = index;
+	else
+		it->index = -1;
 }
 
 void BKE_nparticle_iter_next(NParticleIterator *it)
@@ -485,6 +500,13 @@ BLI_INLINE bool nparticle_check_attribute_type(NParticleState *state, const char
 	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, name);
 	return !attrstate || attrstate->desc.datatype == datatype;
 }
+
+#if 0 /* unused */
+void *BKE_nparticle_iter_get_data(struct NParticleIterator *it, const char *attr)
+{
+	return nparticle_data_ptr(it->state, attr, it->index);
+}
+#endif
 
 int BKE_nparticle_iter_get_int(NParticleIterator *it, const char *attr)
 {

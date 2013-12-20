@@ -30,10 +30,13 @@
 #include <Python.h>
 
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "DNA_nparticle_types.h"
 
 #include "BKE_nparticle.h"
+
+#include "../mathutils/mathutils.h"
 
 #include "../generic/py_capi_utils.h"
 
@@ -142,10 +145,6 @@ static struct PyMethodDef bpy_bpar_state_methods[] = {
 
 static struct PyMethodDef bpy_bpar_attrstate_methods[] = {
 	{NULL, NULL, 0, NULL}
-};
-
-static PyGetSetDef bpy_bpar_particle_getseters[] = {
-	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
 
 static Py_hash_t bpy_bpar_state_hash(PyObject *self)
@@ -316,7 +315,7 @@ static PyObject *bpy_bpar_particleseq_subscript_int(BPy_NParticleAttributeStateS
 	NParticleIterator iter;
 	NParticleID id = (NParticleID)keynum;
 	
-	BKE_nparticle_iter_find_id(self->state, &iter, id);
+	BKE_nparticle_iter_from_id(self->state, &iter, id);
 	if (BKE_nparticle_iter_valid(&iter))
 		return BPy_NParticleParticle_CreatePyObject(self->state, id, iter);
 	
@@ -418,6 +417,166 @@ static PyObject *bpy_bpar_particleiter_next(BPy_NParticleParticleIter *self)
 	}
 }
 
+/* Get/Set Functions
+ * ================= */
+
+static PyObject *bpy_bpar_particle_data_read(NParticleAttributeDescription *desc, void *data)
+{
+	switch (desc->datatype) {
+		case PAR_ATTR_DATATYPE_FLOAT:
+			return PyFloat_FromDouble(*(float*)data);
+		case PAR_ATTR_DATATYPE_INT:
+			return PyLong_FromLong(*(int*)data);
+		case PAR_ATTR_DATATYPE_BOOL:
+			return PyBool_FromLong(*(bool*)data);
+		case PAR_ATTR_DATATYPE_VECTOR:
+		case PAR_ATTR_DATATYPE_POINT:
+		case PAR_ATTR_DATATYPE_NORMAL:
+			return Vector_CreatePyObject((float*)data, 3, Py_WRAP, NULL);
+		case PAR_ATTR_DATATYPE_COLOR:
+			return Color_CreatePyObject((float*)data, Py_WRAP, NULL);
+		case PAR_ATTR_DATATYPE_MATRIX:
+			return Matrix_CreatePyObject((float*)data, 4, 4, Py_WRAP, NULL);
+			
+		default:
+			return NULL;
+	}
+}
+
+static int bpy_bpar_particle_data_write(NParticleAttributeDescription *desc, void *data, PyObject *value)
+{
+	/* XXX do we accept this sort of overhead just for error prints?
+	 * only needs to happen for actual errors, but mathutils_array_parse needs string in advance.
+	 */
+//	char error_prefix[128];
+//	BLI_snprintf(error_prefix, sizeof(error_prefix), "NParticleParticle.%.200s", desc->name);
+	
+	switch (desc->datatype) {
+		case PAR_ATTR_DATATYPE_FLOAT:
+			if (PyFloat_Check(value))
+				*(float*)data = (float)PyFloat_AsDouble(value);
+			else {
+				PyErr_Format(PyExc_TypeError,
+				             "NParticleParticle.%.200s expects float, not %.200s",
+				             desc->name, Py_TYPE(value)->tp_name);
+				return -1;
+			}
+			break;
+		case PAR_ATTR_DATATYPE_INT:
+			if (PyLong_Check(value))
+				*(int*)data = (int)PyLong_AsLong(value);
+			else {
+				PyErr_Format(PyExc_TypeError,
+				             "NParticleParticle.%.200s expects int, not %.200s",
+				             desc->name, Py_TYPE(value)->tp_name);
+				return -1;
+			}
+			break;
+		case PAR_ATTR_DATATYPE_BOOL:
+			if (PyBool_Check(value))
+				*(bool*)data = (bool)PyLong_AsLong(value);
+			else {
+				PyErr_Format(PyExc_TypeError,
+				             "NParticleParticle.%.200s expects bool, not %.200s",
+				             desc->name, Py_TYPE(value)->tp_name);
+				return -1;
+			}
+			break;
+		case PAR_ATTR_DATATYPE_VECTOR:
+		case PAR_ATTR_DATATYPE_POINT:
+		case PAR_ATTR_DATATYPE_NORMAL: {
+			if (mathutils_array_parse((float*)data, 3, 3, value, "NParticleParticle") == -1)
+				return -1;
+			break;
+		}
+		case PAR_ATTR_DATATYPE_COLOR: {
+			if (mathutils_array_parse((float*)data, 3, 3, value, "NParticleParticle") == -1)
+				return -1;
+			break;
+		}
+		case PAR_ATTR_DATATYPE_MATRIX: {
+			if (mathutils_array_parse((float*)data, 16, 16, value, "NParticleParticle") == -1)
+				return -1;
+			break;
+		}
+	}
+	
+	return 0;
+}
+
+static PyObject *bpy_bpar_particle_getattro(BPy_NParticleParticle *self, PyObject *pyname)
+{
+	const char *name = _PyUnicode_AsString(pyname);
+	PyObject *ret;
+
+//	PYRNA_STRUCT_CHECK_OBJ(self);
+
+	if (!BKE_nparticle_iter_valid(&self->iter)) {
+		ret = NULL;
+	}
+	else if (name == NULL) {
+		PyErr_SetString(PyExc_AttributeError, "NParticleParticle: __getattr__ must be a string");
+		ret = NULL;
+	}
+	else {
+		NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(self->state, name);
+		void *data;
+		
+		if (!attrstate) {
+			PyErr_Format(PyExc_AttributeError, "NParticleParticle.%.200s not found", name);
+			ret = NULL;
+		}
+		else {
+			data = BKE_nparticle_attribute_state_data(attrstate, self->iter.index);
+			if (!data) {
+				ret = NULL;
+			}
+			else {
+				ret = bpy_bpar_particle_data_read(&attrstate->desc, data);
+			}
+		}
+	}
+
+	return ret;
+}
+
+static int bpy_bpar_particle_setattro(BPy_NParticleParticle *self, PyObject *pyname, PyObject *value)
+{
+	const char *name = _PyUnicode_AsString(pyname);
+	
+//	PYRNA_STRUCT_CHECK_INT(self);
+	
+	if (name == NULL) {
+		PyErr_SetString(PyExc_AttributeError, "NParticleParticle: __setattr__ must be a string");
+		return -1;
+	}
+	else {
+		NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(self->state, name);
+		void *data;
+		
+		if (!attrstate) {
+			PyErr_Format(PyExc_AttributeError, "NParticleParticle.%.200s not found", name);
+			return -1;
+		}
+		
+		if (!BKE_nparticle_iter_valid(&self->iter)) {
+			int index = BKE_nparticle_add(self->state, self->id);
+			BKE_nparticle_iter_from_index(self->state, &self->iter, index);
+		}
+		
+		data = BKE_nparticle_attribute_state_data(attrstate, self->iter.index);
+		if (!data) {
+			return -1;
+		}
+		
+		if (bpy_bpar_particle_data_write(&attrstate->desc, data, value) == -1) {
+			return -1;
+		}
+	}
+	
+	return 0;
+}
+
 /* Dealloc Functions
  * ================= */
 
@@ -514,9 +673,11 @@ void BPy_BPAR_init_types(void)
 	BPy_NParticleAttributeState_Type.tp_getset          = bpy_bpar_attrstate_getseters;
 	BPy_NParticleAttributeStateSeq_Type.tp_getset       = NULL;
 	BPy_NParticleAttributeStateIter_Type.tp_getset      = NULL;
-	BPy_NParticleParticle_Type.tp_getset                = bpy_bpar_particle_getseters;
 	BPy_NParticleParticleSeq_Type.tp_getset             = NULL;
 	BPy_NParticleParticleIter_Type.tp_getset            = NULL;
+
+	BPy_NParticleParticle_Type.tp_getattro              = (getattrofunc)bpy_bpar_particle_getattro;
+	BPy_NParticleParticle_Type.tp_setattro              = (setattrofunc)bpy_bpar_particle_setattro;
 
 	BPy_NParticleState_Type.tp_methods                  = bpy_bpar_state_methods;
 	BPy_NParticleAttributeState_Type.tp_methods         = bpy_bpar_attrstate_methods;

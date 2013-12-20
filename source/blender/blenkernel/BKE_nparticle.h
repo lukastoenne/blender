@@ -65,6 +65,8 @@ struct NParticleAttributeState *BKE_nparticle_state_get_attribute_by_index(struc
 
 int BKE_nparticle_state_num_particles(struct NParticleState *state);
 
+void *BKE_nparticle_attribute_state_data(struct NParticleAttributeState *attrstate, int index);
+
 typedef struct NParticleAttributeStateIterator {
 	/* XXX for now is simply a pointer, using ListBase next/prev.
 	 * Eventually this will become a hash table iterator.
@@ -89,10 +91,12 @@ typedef struct NParticleIterator {
 } NParticleIterator;
 
 void BKE_nparticle_iter_init(struct NParticleState *state, struct NParticleIterator *it);
-void BKE_nparticle_iter_find_id(struct NParticleState *state, struct NParticleIterator *it, NParticleID id);
+void BKE_nparticle_iter_from_id(struct NParticleState *state, struct NParticleIterator *it, NParticleID id);
+void BKE_nparticle_iter_from_index(struct NParticleState *state, struct NParticleIterator *it, int index);
 void BKE_nparticle_iter_next(struct NParticleIterator *it);
 bool BKE_nparticle_iter_valid(struct NParticleIterator *it);
 
+/*void *BKE_nparticle_iter_get_data(struct NParticleIterator *it, const char *attr);*/
 int BKE_nparticle_iter_get_int(struct NParticleIterator *it, const char *attr);
 void BKE_nparticle_iter_set_int(struct NParticleIterator *it, const char *attr, int value);
 float BKE_nparticle_iter_get_float(struct NParticleIterator *it, const char *attr);
