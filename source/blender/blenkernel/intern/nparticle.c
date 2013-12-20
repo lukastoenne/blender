@@ -200,6 +200,16 @@ NParticleSystem *BKE_nparticle_system_copy(NParticleSystem *psys)
 	return npsys;
 }
 
+void BKE_nparticle_system_set_state(NParticleSystem *psys, NParticleState *state)
+{
+	if (state) {
+		if (psys->state)
+			BKE_nparticle_state_free(psys->state);
+		
+		psys->state = BKE_nparticle_state_copy(state);
+	}
+}
+
 
 NParticleState *BKE_nparticle_state_new(NParticleSystem *psys)
 {

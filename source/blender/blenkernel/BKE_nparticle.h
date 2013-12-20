@@ -47,6 +47,8 @@ struct NParticleSystem *BKE_nparticle_system_new(void);
 void BKE_nparticle_system_free(struct NParticleSystem *psys);
 struct NParticleSystem *BKE_nparticle_system_copy(struct NParticleSystem *psys);
 
+void BKE_nparticle_system_set_state(struct NParticleSystem *psys, struct NParticleState *state);
+
 struct NParticleState *BKE_nparticle_state_new(struct NParticleSystem *psys);
 struct NParticleState *BKE_nparticle_state_copy(struct NParticleState *state);
 void BKE_nparticle_state_free(struct NParticleState *state);

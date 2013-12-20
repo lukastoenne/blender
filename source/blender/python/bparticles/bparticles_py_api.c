@@ -42,16 +42,16 @@
 #include "../generic/py_capi_utils.h"
 
 #include "bparticles_py_api.h" /* own include */
+#include "bparticles_py_types.h"
 
 PyDoc_STRVAR(bpy_bpar_new_doc,
 ".. method:: new()\n"
 "\n"
 "   :arg psys: The particle system.\n"
-"   :type mesh: :class:`bpy.types.NParticleSystem`\n"
+"   :type psys: :class:`bpy.types.NParticleSystem`\n"
 "   :return: Return a new, empty NParticleState.\n"
 "   :rtype: :class:`bparticles.types.NParticleState`\n"
 );
-
 static PyObject *bpy_bpar_new(PyObject *UNUSED(self), PyObject *value)
 {
 	NParticleSystem *psys = PyC_RNA_AsPointer(value, "NParticleSystem");
@@ -65,8 +65,44 @@ static PyObject *bpy_bpar_new(PyObject *UNUSED(self), PyObject *value)
 	return BPy_NParticleState_CreatePyObject(state);
 }
 
+PyDoc_STRVAR(bpy_bpar_set_current_state_doc,
+".. method:: set_current_state()\n"
+"\n"
+"   :arg psys: The particle system.\n"
+"   :type psys: :class:`bpy.types.NParticleSystem`\n"
+"   :arg state: The particle state.\n"
+"   :type state: :class:`bparticles.types.NParticleState`\n"
+);
+static PyObject *bpy_bpar_set_current_state(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
+{
+	static const char *kwlist[] = {"psys", "state", NULL};
+	PyObject *py_psys;
+	BPy_NParticleState *py_state;
+	NParticleSystem *psys;
+	NParticleState *state;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "OO:set_current_state", (char **)kwlist,
+	                                 &py_psys, &py_state))
+	{
+		return NULL;
+	}
+
+	psys = PyC_RNA_AsPointer(py_psys, "NParticleSystem");
+	state = BPy_NParticleState_Check(py_state) ? py_state->state : NULL;
+
+	if (psys == NULL || state == NULL) {
+		return NULL;
+	}
+
+	/* XXX currently makes a full copy of the state ... */
+	BKE_nparticle_system_set_state(psys, state);
+
+	Py_RETURN_NONE;
+}
+
 static struct PyMethodDef BPy_BPAR_methods[] = {
 	{"new", (PyCFunction)bpy_bpar_new, METH_O, bpy_bpar_new_doc},
+	{"set_current_state", (PyCFunction)bpy_bpar_set_current_state, METH_VARARGS | METH_KEYWORDS, bpy_bpar_set_current_state_doc},
 	{NULL, NULL, 0, NULL}
 };
 
@@ -101,21 +137,6 @@ PyObject *BPyInit_bparticles(void)
 	PyModule_AddObject(mod, "types", (submodule = BPyInit_bparticles_types()));
 	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
 	Py_INCREF(submodule);
-
-#if 0
-	PyModule_AddObject(mod, "ops", (submodule = BPyInit_bmesh_ops()));
-	/* PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule); */
-	PyDict_SetItemString(sys_modules, "bmesh.ops", submodule); /* fake module */
-	Py_INCREF(submodule);
-
-	PyModule_AddObject(mod, "utils", (submodule = BPyInit_bmesh_utils()));
-	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
-	Py_INCREF(submodule);
-
-	PyModule_AddObject(mod, "geometry", (submodule = BPyInit_bmesh_geometry()));
-	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
-	Py_INCREF(submodule);
-#endif
 
 	return mod;
 }
