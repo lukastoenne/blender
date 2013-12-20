@@ -32,19 +32,24 @@
 
 extern PyTypeObject BPy_NParticleState_Type;
 extern PyTypeObject BPy_NParticleAttributeState_Type;
+extern PyTypeObject BPy_NParticleAttributeStateSeq_Type;
+extern PyTypeObject BPy_NParticleAttributeStateIter_Type;
+extern PyTypeObject BPy_NParticleParticle_Type;
+extern PyTypeObject BPy_NParticleParticleSeq_Type;
+extern PyTypeObject BPy_NParticleParticleIter_Type;
 
-#define BPy_NParticleState_Check(v)             (Py_TYPE(v) == &BPy_NParticleState_Type)
-#define BPy_NParticleAttributeState_Check(v)    (Py_TYPE(v) == &BPy_NParticleAttributeState_Type)
+#define BPy_NParticleState_Check(v)                 (Py_TYPE(v) == &BPy_NParticleState_Type)
+#define BPy_NParticleAttributeState_Check(v)        (Py_TYPE(v) == &BPy_NParticleAttributeState_Type)
+#define BPy_NParticleAttributeStateSeq_Check(v)     (Py_TYPE(v) == &BPy_NParticleAttributeStateSeq_Type)
+#define BPy_NParticleAttributeStateIter_Check(v)    (Py_TYPE(v) == &BPy_NParticleAttributeStateIter_Type)
+#define BPy_NParticleParticle_Check(v)              (Py_TYPE(v) == &BPy_NParticleParticle_Type)
+#define BPy_NParticleParticleSeq_Check(v)           (Py_TYPE(v) == &BPy_NParticleParticleSeq_Type)
+#define BPy_NParticleParticleIter_Check(v)          (Py_TYPE(v) == &BPy_NParticleParticleIter_Type)
 
 typedef struct BPy_NParticleState {
 	PyObject_VAR_HEAD
 	struct NParticleState *state; /* keep first */
 } BPy_NParticleState;
-
-typedef struct BPy_NParticleAttributeStateSeq {
-	PyObject_VAR_HEAD
-	struct NParticleState *state; /* keep first */
-} BPy_NParticleAttributeStateSeq;
 
 typedef struct BPy_NParticleAttributeState {
 	PyObject_VAR_HEAD
@@ -52,11 +57,33 @@ typedef struct BPy_NParticleAttributeState {
 	struct NParticleAttributeState *attrstate;
 } BPy_NParticleAttributeState;
 
+typedef struct BPy_NParticleAttributeStateSeq {
+	PyObject_VAR_HEAD
+	struct NParticleState *state; /* keep first */
+} BPy_NParticleAttributeStateSeq;
+
 typedef struct BPy_NParticleAttributeStateIter {
 	PyObject_VAR_HEAD
 	struct NParticleState *state; /* keep first */
 	NParticleAttributeStateIterator iter;
 } BPy_NParticleAttributeStateIter;
+
+typedef struct BPy_NParticleParticle {
+	PyObject_VAR_HEAD
+	struct NParticleState *state; /* keep first */
+	NParticleIterator iter;
+} BPy_NParticleParticle;
+
+typedef struct BPy_NParticleParticleSeq {
+	PyObject_VAR_HEAD
+	struct NParticleState *state; /* keep first */
+} BPy_NParticleParticleSeq;
+
+typedef struct BPy_NParticleParticleIter {
+	PyObject_VAR_HEAD
+	struct NParticleState *state; /* keep first */
+	NParticleIterator iter;
+} BPy_NParticleParticleIter;
 
 void BPy_BPAR_init_types(void);
 
@@ -66,5 +93,8 @@ PyObject *BPy_NParticleState_CreatePyObject(NParticleState *state);
 PyObject *BPy_NParticleAttributeState_CreatePyObject(NParticleState *state, NParticleAttributeState *attr);
 PyObject *BPy_NParticleAttributeStateSeq_CreatePyObject(NParticleState *state);
 PyObject *BPy_NParticleAttributeStateIter_CreatePyObject(NParticleState *state);
+PyObject *BPy_NParticleParticle_CreatePyObject(NParticleState *state, NParticleIterator iter);
+PyObject *BPy_NParticleParticleSeq_CreatePyObject(NParticleState *state);
+PyObject *BPy_NParticleParticleIter_CreatePyObject(NParticleState *state);
 
 #endif /* __BPARTICLES_PY_TYPES_H__ */

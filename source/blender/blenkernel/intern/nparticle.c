@@ -364,15 +364,26 @@ NParticleAttributeState *BKE_nparticle_state_find_attribute(NParticleState *stat
 	return NULL;
 }
 
+BLI_INLINE NParticleAttributeState *nparticle_state_find_attribute_id(NParticleState *state)
+{
+	return BKE_nparticle_state_find_attribute(state, "id");
+}
+
 NParticleAttributeState *BKE_nparticle_state_get_attribute_by_index(NParticleState *state, int index)
 {
 	return BLI_findlink(&state->attributes, index);
 }
 
+int BKE_nparticle_state_num_particles(NParticleState *state)
+{
+	NParticleAttributeState *attrstate = nparticle_state_find_attribute_id(state);
+	return attrstate ? attrstate->data.totelem : 0;
+}
+
 
 int BKE_nparticle_find_index(NParticleState *state, NParticleID id)
 {
-	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(state, "id");
+	NParticleAttributeState *attrstate = nparticle_state_find_attribute_id(state);
 	if (attrstate) {
 		bPagedBuffer *pbuf = &attrstate->data;
 		bPagedBufferIterator it;
@@ -449,7 +460,7 @@ void BKE_nparticle_iter_next(NParticleIterator *it)
 
 bool BKE_nparticle_iter_valid(NParticleIterator *it)
 {
-	NParticleAttributeState *attrstate = BKE_nparticle_state_find_attribute(it->state, "id");
+	NParticleAttributeState *attrstate = nparticle_state_find_attribute_id(it->state);
 	if (attrstate)
 		return it->index < attrstate->data.totelem;
 	else

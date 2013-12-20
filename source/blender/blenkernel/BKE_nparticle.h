@@ -30,6 +30,7 @@
  */
 
 #include "BLI_sys_types.h"
+#include "BLI_utildefines.h"
 
 struct NParticleSystem;
 struct NParticleAttribute;
@@ -61,6 +62,8 @@ struct NParticleAttribute *BKE_nparticle_attribute_copy(struct NParticleSystem *
 int BKE_nparticle_state_num_attributes(struct NParticleState *state);
 struct NParticleAttributeState *BKE_nparticle_state_find_attribute(struct NParticleState *state, const char *name);
 struct NParticleAttributeState *BKE_nparticle_state_get_attribute_by_index(struct NParticleState *state, int index);
+
+int BKE_nparticle_state_num_particles(struct NParticleState *state);
 
 typedef struct NParticleAttributeStateIterator {
 	/* XXX for now is simply a pointer, using ListBase next/prev.
@@ -96,6 +99,11 @@ float BKE_nparticle_iter_get_float(struct NParticleIterator *it, const char *att
 void BKE_nparticle_iter_set_float(struct NParticleIterator *it, const char *attr, float value);
 void BKE_nparticle_iter_get_vector(struct NParticleIterator *it, const char *attr, float *result);
 void BKE_nparticle_iter_set_vector(struct NParticleIterator *it, const char *attr, const float *value);
+
+BLI_INLINE NParticleID BKE_nparticle_iter_get_id(struct NParticleIterator *it)
+{
+	return (NParticleID)BKE_nparticle_iter_get_int(it, "id");
+}
 
 
 struct NParticleDisplay *BKE_nparticle_display_particle(void);

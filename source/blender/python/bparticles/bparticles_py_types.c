@@ -58,6 +58,18 @@ PyDoc_STRVAR(bpy_bpar_attrstateiter_doc,
 "Iterator for looping over particle attribute states\n"
 );
 
+PyDoc_STRVAR(bpy_bpar_particle_doc,
+"Single particle in state data\n"
+);
+
+PyDoc_STRVAR(bpy_bpar_particleseq_doc,
+"Particle sequence\n"
+);
+
+PyDoc_STRVAR(bpy_bpar_particleiter_doc,
+"Iterator for looping over particles\n"
+);
+
 
 PyDoc_STRVAR(bpy_bpar_state_attributes_doc,
 "State attributes (read-only).\n\n:type: :class:`NParticleAttributeStateSeq`"
@@ -102,6 +114,18 @@ static PyObject *bpy_bpar_attrstate_repr(BPy_NParticleAttributeState *self)
 	}
 }
 
+static PyObject *bpy_bpar_particle_repr(BPy_NParticleParticle *self)
+{
+	NParticleIterator *iter = &self->iter;
+
+	if (iter->index >= 0) {
+		return PyUnicode_FromFormat("<NParticleParticle index=%d>", iter->index);
+	}
+	else {
+		return PyUnicode_FromFormat("<NParticleParticle invalid>");
+	}
+}
+
 static PyGetSetDef bpy_bpar_state_getseters[] = {
 	{(char *)"attributes", (getter)bpy_bpar_state_attributes_get, (setter)NULL, (char *)bpy_bpar_state_attributes_doc, NULL},
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
@@ -118,6 +142,10 @@ static struct PyMethodDef bpy_bpar_state_methods[] = {
 
 static struct PyMethodDef bpy_bpar_attrstate_methods[] = {
 	{NULL, NULL, 0, NULL}
+};
+
+static PyGetSetDef bpy_bpar_particle_getseters[] = {
+	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
 
 static Py_hash_t bpy_bpar_state_hash(PyObject *self)
@@ -278,6 +306,69 @@ static PyMappingMethods bpy_bpar_attrstateseq_as_mapping = {
 	(objobjargproc)NULL,                                /* mp_ass_subscript */
 };
 
+static Py_ssize_t bpy_bpar_particleseq_length(BPy_NParticleAttributeStateSeq *self)
+{
+	return BKE_nparticle_state_num_particles(self->state);
+}
+
+static PyObject *bpy_bpar_particleseq_subscript_int(BPy_NParticleAttributeStateSeq *self, int keynum)
+{
+	NParticleIterator iter;
+	
+	BKE_nparticle_iter_find_id(self->state, &iter, (NParticleID)keynum);
+	if (BKE_nparticle_iter_valid(&iter))
+		return BPy_NParticleParticle_CreatePyObject(self->state, iter);
+	
+	PyErr_Format(PyExc_IndexError,
+	             "NParticleParticleSeq[id]: id %d not found", keynum);
+	return NULL;
+}
+
+static int bpy_bpar_particleseq_contains(BPy_NParticleParticleSeq *self, PyObject *value)
+{
+	if (BPy_NParticleParticle_Check(value)) {
+		BPy_NParticleParticle *particle_py = (BPy_NParticleParticle *)value;
+		return particle_py->state == self->state && BKE_nparticle_iter_valid(&particle_py->iter);
+	}
+	return 0;
+}
+
+static PyObject *bpy_bpar_particleseq_subscript(BPy_NParticleAttributeStateSeq *self, PyObject *key)
+{
+	if (PyIndex_Check(key)) {
+		Py_ssize_t i = PyNumber_AsSsize_t(key, PyExc_IndexError);
+		if (i == -1 && PyErr_Occurred())
+			return NULL;
+		return bpy_bpar_particleseq_subscript_int(self, i);
+	}
+	else {
+		PyErr_Format(PyExc_TypeError,
+		             "NParticleAttributeStateSeq[key]: invalid key, "
+		             "must be an int, not %.200s",
+		             Py_TYPE(key)->tp_name);
+		return NULL;
+	}
+}
+
+static PySequenceMethods bpy_bpar_particleseq_as_sequence = {
+	(lenfunc)bpy_bpar_particleseq_length,               /* sq_length */
+	NULL,                                               /* sq_concat */
+	NULL,                                               /* sq_repeat */
+	(ssizeargfunc)bpy_bpar_particleseq_subscript_int,   /* sq_item */ /* Only set this so PySequence_Check() returns True */
+	NULL,                                               /* sq_slice */
+	(ssizeobjargproc)NULL,                              /* sq_ass_item */
+	NULL,                                               /* *was* sq_ass_slice */
+	(objobjproc)bpy_bpar_particleseq_contains,          /* sq_contains */
+	(binaryfunc) NULL,                                  /* sq_inplace_concat */
+	(ssizeargfunc) NULL,                                /* sq_inplace_repeat */
+};
+
+static PyMappingMethods bpy_bpar_particleseq_as_mapping = {
+	(lenfunc)bpy_bpar_particleseq_length,               /* mp_length */
+	(binaryfunc)bpy_bpar_particleseq_subscript,         /* mp_subscript */
+	(objobjargproc)NULL,                                /* mp_ass_subscript */
+};
+
 /* Iterator
  * -------- */
 
@@ -295,6 +386,28 @@ static PyObject *bpy_bpar_attrstateiter_next(BPy_NParticleAttributeStateIter *se
 	if (BKE_nparticle_state_attribute_iter_valid(&self->iter)) {
 		PyObject *result = BPy_NParticleAttributeState_CreatePyObject(self->state, self->iter.attrstate);
 		BKE_nparticle_state_attribute_iter_next(&self->iter);
+		return result;
+	}
+	else {
+		PyErr_SetNone(PyExc_StopIteration);
+		return NULL;
+	}
+}
+
+static PyObject *bpy_bpar_particleseq_iter(BPy_NParticleParticleSeq *self)
+{
+	BPy_NParticleParticleIter *py_iter;
+
+	py_iter = (BPy_NParticleParticleIter *)BPy_NParticleParticleIter_CreatePyObject(self->state);
+	BKE_nparticle_iter_init(self->state, &py_iter->iter);
+	return (PyObject *)py_iter;
+}
+
+static PyObject *bpy_bpar_particleiter_next(BPy_NParticleParticleIter *self)
+{
+	if (BKE_nparticle_iter_valid(&self->iter)) {
+		PyObject *result = BPy_NParticleParticle_CreatePyObject(self->state, self->iter);
+		BKE_nparticle_iter_next(&self->iter);
 		return result;
 	}
 	else {
@@ -335,13 +448,31 @@ static void bpy_bpar_attrstateiter_dealloc(BPy_NParticleAttributeStateIter *self
 	PyObject_DEL(self);
 }
 
+static void bpy_bpar_particle_dealloc(BPy_NParticleParticle *self)
+{
+	PyObject_DEL(self);
+}
+
+static void bpy_bpar_particleseq_dealloc(BPy_NParticleParticleSeq *self)
+{
+	PyObject_DEL(self);
+}
+
+static void bpy_bpar_particleiter_dealloc(BPy_NParticleParticleIter *self)
+{
+	PyObject_DEL(self);
+}
+
 /* Types
  * ===== */
 
 PyTypeObject BPy_NParticleState_Type                = {{{0}}};
+PyTypeObject BPy_NParticleAttributeState_Type       = {{{0}}};
 PyTypeObject BPy_NParticleAttributeStateSeq_Type    = {{{0}}};
 PyTypeObject BPy_NParticleAttributeStateIter_Type   = {{{0}}};
-PyTypeObject BPy_NParticleAttributeState_Type       = {{{0}}};
+PyTypeObject BPy_NParticleParticle_Type             = {{{0}}};
+PyTypeObject BPy_NParticleParticleSeq_Type          = {{{0}}};
+PyTypeObject BPy_NParticleParticleIter_Type         = {{{0}}};
 
 void BPy_BPAR_init_types(void)
 {
@@ -349,60 +480,95 @@ void BPy_BPAR_init_types(void)
 	BPy_NParticleAttributeState_Type.tp_basicsize       = sizeof(BPy_NParticleAttributeState);
 	BPy_NParticleAttributeStateSeq_Type.tp_basicsize    = sizeof(BPy_NParticleAttributeStateSeq);
 	BPy_NParticleAttributeStateIter_Type.tp_basicsize   = sizeof(BPy_NParticleAttributeStateIter);
+	BPy_NParticleParticle_Type.tp_basicsize             = sizeof(BPy_NParticleParticle);
+	BPy_NParticleParticleSeq_Type.tp_basicsize          = sizeof(BPy_NParticleParticleSeq);
+	BPy_NParticleParticleIter_Type.tp_basicsize         = sizeof(BPy_NParticleParticleIter);
 
 	BPy_NParticleState_Type.tp_name                     = "NParticleState";
 	BPy_NParticleAttributeState_Type.tp_name            = "NParticleAttributeState";
 	BPy_NParticleAttributeStateSeq_Type.tp_name         = "NParticleAttributeStateSeq";
 	BPy_NParticleAttributeStateIter_Type.tp_name        = "NParticleAttributeStateIter";
+	BPy_NParticleParticle_Type.tp_name                  = "NParticleParticle";
+	BPy_NParticleParticleSeq_Type.tp_name               = "NParticleParticleSeq";
+	BPy_NParticleParticleIter_Type.tp_name              = "NParticleParticleIter";
 
 	BPy_NParticleState_Type.tp_doc                      = bpy_bpar_state_doc;
 	BPy_NParticleAttributeState_Type.tp_doc             = bpy_bpar_attrstate_doc;
 	BPy_NParticleAttributeStateSeq_Type.tp_doc          = bpy_bpar_attrstateseq_doc;
 	BPy_NParticleAttributeStateIter_Type.tp_doc         = bpy_bpar_attrstateiter_doc;
+	BPy_NParticleParticle_Type.tp_doc                   = bpy_bpar_particle_doc;
+	BPy_NParticleParticleSeq_Type.tp_doc                = bpy_bpar_particleseq_doc;
+	BPy_NParticleParticleIter_Type.tp_doc               = bpy_bpar_particleiter_doc;
 
 	BPy_NParticleState_Type.tp_repr                     = (reprfunc)bpy_bpar_state_repr;
 	BPy_NParticleAttributeState_Type.tp_repr            = (reprfunc)bpy_bpar_attrstate_repr;
 	BPy_NParticleAttributeStateSeq_Type.tp_repr         = NULL;
 	BPy_NParticleAttributeStateIter_Type.tp_repr        = NULL;
+	BPy_NParticleParticle_Type.tp_repr                  = (reprfunc)bpy_bpar_particle_repr;
+	BPy_NParticleParticleSeq_Type.tp_repr               = NULL;
+	BPy_NParticleParticleIter_Type.tp_repr              = NULL;
 
 	BPy_NParticleState_Type.tp_getset                   = bpy_bpar_state_getseters;
 	BPy_NParticleAttributeState_Type.tp_getset          = bpy_bpar_attrstate_getseters;
 	BPy_NParticleAttributeStateSeq_Type.tp_getset       = NULL;
 	BPy_NParticleAttributeStateIter_Type.tp_getset      = NULL;
+	BPy_NParticleParticle_Type.tp_getset                = bpy_bpar_particle_getseters;
+	BPy_NParticleParticleSeq_Type.tp_getset             = NULL;
+	BPy_NParticleParticleIter_Type.tp_getset            = NULL;
 
 	BPy_NParticleState_Type.tp_methods                  = bpy_bpar_state_methods;
 	BPy_NParticleAttributeState_Type.tp_methods         = bpy_bpar_attrstate_methods;
 	BPy_NParticleAttributeStateSeq_Type.tp_methods      = NULL;
 	BPy_NParticleAttributeStateIter_Type.tp_methods     = NULL;
+	BPy_NParticleParticle_Type.tp_methods               = NULL;
+	BPy_NParticleParticleSeq_Type.tp_methods            = NULL;
+	BPy_NParticleParticleIter_Type.tp_methods           = NULL;
 
 	BPy_NParticleState_Type.tp_hash                     = bpy_bpar_state_hash;
 	BPy_NParticleAttributeState_Type.tp_hash            = bpy_bpar_attrstate_hash;
 	BPy_NParticleAttributeStateSeq_Type.tp_hash         = NULL;
 	BPy_NParticleAttributeStateIter_Type.tp_hash        = NULL;
+	BPy_NParticleParticle_Type.tp_hash                  = NULL;
+	BPy_NParticleParticleSeq_Type.tp_hash               = NULL;
+	BPy_NParticleParticleIter_Type.tp_hash              = NULL;
 
 	BPy_NParticleAttributeStateSeq_Type.tp_as_sequence  = &bpy_bpar_attrstateseq_as_sequence;
+	BPy_NParticleParticleSeq_Type.tp_as_sequence        = &bpy_bpar_particleseq_as_sequence;
 
 	BPy_NParticleAttributeStateSeq_Type.tp_as_mapping   = &bpy_bpar_attrstateseq_as_mapping;
+	BPy_NParticleParticleSeq_Type.tp_as_mapping         = &bpy_bpar_particleseq_as_mapping;
 
 	BPy_NParticleAttributeStateSeq_Type.tp_iter         = (getiterfunc)bpy_bpar_attrstateseq_iter;
+	BPy_NParticleParticleSeq_Type.tp_iter               = (getiterfunc)bpy_bpar_particleseq_iter;
 
 	BPy_NParticleAttributeStateIter_Type.tp_iternext    = (iternextfunc)bpy_bpar_attrstateiter_next;
 	BPy_NParticleAttributeStateIter_Type.tp_iter        = PyObject_SelfIter;
+	BPy_NParticleParticleIter_Type.tp_iternext          = (iternextfunc)bpy_bpar_particleiter_next;
+	BPy_NParticleParticleIter_Type.tp_iter              = PyObject_SelfIter;
 
 	BPy_NParticleState_Type.tp_dealloc                  = (destructor)bpy_bpar_state_dealloc;
 	BPy_NParticleAttributeState_Type.tp_dealloc         = (destructor)bpy_bpar_attrstate_dealloc;
 	BPy_NParticleAttributeStateSeq_Type.tp_dealloc      = (destructor)bpy_bpar_attrstateseq_dealloc;
 	BPy_NParticleAttributeStateIter_Type.tp_dealloc     = (destructor)bpy_bpar_attrstateiter_dealloc;
+	BPy_NParticleParticle_Type.tp_dealloc               = (destructor)bpy_bpar_particle_dealloc;
+	BPy_NParticleParticleSeq_Type.tp_dealloc            = (destructor)bpy_bpar_particleseq_dealloc;
+	BPy_NParticleParticleIter_Type.tp_dealloc           = (destructor)bpy_bpar_particleiter_dealloc;
 
 	BPy_NParticleState_Type.tp_flags                    = Py_TPFLAGS_DEFAULT;
 	BPy_NParticleAttributeState_Type.tp_flags           = Py_TPFLAGS_DEFAULT;
 	BPy_NParticleAttributeStateSeq_Type.tp_flags        = Py_TPFLAGS_DEFAULT;
 	BPy_NParticleAttributeStateIter_Type.tp_flags       = Py_TPFLAGS_DEFAULT;
+	BPy_NParticleParticle_Type.tp_flags                 = Py_TPFLAGS_DEFAULT;
+	BPy_NParticleParticleSeq_Type.tp_flags              = Py_TPFLAGS_DEFAULT;
+	BPy_NParticleParticleIter_Type.tp_flags             = Py_TPFLAGS_DEFAULT;
 
 	PyType_Ready(&BPy_NParticleState_Type);
 	PyType_Ready(&BPy_NParticleAttributeState_Type);
 	PyType_Ready(&BPy_NParticleAttributeStateSeq_Type);
 	PyType_Ready(&BPy_NParticleAttributeStateIter_Type);
+	PyType_Ready(&BPy_NParticleParticle_Type);
+	PyType_Ready(&BPy_NParticleParticleSeq_Type);
+	PyType_Ready(&BPy_NParticleParticleIter_Type);
 }
 
 
@@ -435,6 +601,9 @@ PyObject *BPyInit_bparticles_types(void)
 	MODULE_TYPE_ADD(submodule, BPy_NParticleAttributeState_Type);
 	MODULE_TYPE_ADD(submodule, BPy_NParticleAttributeStateSeq_Type);
 	MODULE_TYPE_ADD(submodule, BPy_NParticleAttributeStateIter_Type);
+	MODULE_TYPE_ADD(submodule, BPy_NParticleParticle_Type);
+	MODULE_TYPE_ADD(submodule, BPy_NParticleParticleSeq_Type);
+	MODULE_TYPE_ADD(submodule, BPy_NParticleParticleIter_Type);
 
 #undef MODULE_TYPE_ADD
 
@@ -481,6 +650,29 @@ PyObject *BPy_NParticleAttributeStateSeq_CreatePyObject(NParticleState *state)
 PyObject *BPy_NParticleAttributeStateIter_CreatePyObject(NParticleState *state)
 {
 	BPy_NParticleAttributeStateIter *self = PyObject_New(BPy_NParticleAttributeStateIter, &BPy_NParticleAttributeStateIter_Type);
+	self->state = state;
+	/* caller must initialize 'iter' member */
+	return (PyObject *)self;
+}
+
+PyObject *BPy_NParticleParticle_CreatePyObject(NParticleState *state, NParticleIterator iter)
+{
+	BPy_NParticleParticle *self = PyObject_New(BPy_NParticleParticle, &BPy_NParticleParticle_Type);
+	self->state = state;
+	self->iter = iter;
+	return (PyObject *)self;
+}
+
+PyObject *BPy_NParticleParticleSeq_CreatePyObject(NParticleState *state)
+{
+	BPy_NParticleParticleSeq *self = PyObject_New(BPy_NParticleParticleSeq, &BPy_NParticleParticleSeq_Type);
+	self->state = state;
+	return (PyObject *)self;
+}
+
+PyObject *BPy_NParticleParticleIter_CreatePyObject(NParticleState *state)
+{
+	BPy_NParticleParticleIter *self = PyObject_New(BPy_NParticleParticleIter, &BPy_NParticleParticleIter_Type);
 	self->state = state;
 	/* caller must initialize 'iter' member */
 	return (PyObject *)self;
