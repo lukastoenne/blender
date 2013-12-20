@@ -71,6 +71,7 @@ typedef struct BPy_NParticleAttributeStateIter {
 typedef struct BPy_NParticleParticle {
 	PyObject_VAR_HEAD
 	struct NParticleState *state; /* keep first */
+	NParticleID id;
 	NParticleIterator iter;
 } BPy_NParticleParticle;
 
@@ -93,7 +94,7 @@ PyObject *BPy_NParticleState_CreatePyObject(NParticleState *state);
 PyObject *BPy_NParticleAttributeState_CreatePyObject(NParticleState *state, NParticleAttributeState *attr);
 PyObject *BPy_NParticleAttributeStateSeq_CreatePyObject(NParticleState *state);
 PyObject *BPy_NParticleAttributeStateIter_CreatePyObject(NParticleState *state);
-PyObject *BPy_NParticleParticle_CreatePyObject(NParticleState *state, NParticleIterator iter);
+PyObject *BPy_NParticleParticle_CreatePyObject(NParticleState *state, NParticleID id, NParticleIterator iter);
 PyObject *BPy_NParticleParticleSeq_CreatePyObject(NParticleState *state);
 PyObject *BPy_NParticleParticleIter_CreatePyObject(NParticleState *state);
 

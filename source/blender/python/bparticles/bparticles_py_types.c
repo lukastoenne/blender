@@ -314,10 +314,11 @@ static Py_ssize_t bpy_bpar_particleseq_length(BPy_NParticleAttributeStateSeq *se
 static PyObject *bpy_bpar_particleseq_subscript_int(BPy_NParticleAttributeStateSeq *self, int keynum)
 {
 	NParticleIterator iter;
+	NParticleID id = (NParticleID)keynum;
 	
-	BKE_nparticle_iter_find_id(self->state, &iter, (NParticleID)keynum);
+	BKE_nparticle_iter_find_id(self->state, &iter, id);
 	if (BKE_nparticle_iter_valid(&iter))
-		return BPy_NParticleParticle_CreatePyObject(self->state, iter);
+		return BPy_NParticleParticle_CreatePyObject(self->state, id, iter);
 	
 	PyErr_Format(PyExc_IndexError,
 	             "NParticleParticleSeq[id]: id %d not found", keynum);
@@ -406,7 +407,8 @@ static PyObject *bpy_bpar_particleseq_iter(BPy_NParticleParticleSeq *self)
 static PyObject *bpy_bpar_particleiter_next(BPy_NParticleParticleIter *self)
 {
 	if (BKE_nparticle_iter_valid(&self->iter)) {
-		PyObject *result = BPy_NParticleParticle_CreatePyObject(self->state, self->iter);
+		NParticleID id = BKE_nparticle_iter_get_id(&self->iter);
+		PyObject *result = BPy_NParticleParticle_CreatePyObject(self->state, id, self->iter);
 		BKE_nparticle_iter_next(&self->iter);
 		return result;
 	}
@@ -655,10 +657,11 @@ PyObject *BPy_NParticleAttributeStateIter_CreatePyObject(NParticleState *state)
 	return (PyObject *)self;
 }
 
-PyObject *BPy_NParticleParticle_CreatePyObject(NParticleState *state, NParticleIterator iter)
+PyObject *BPy_NParticleParticle_CreatePyObject(NParticleState *state, NParticleID id, NParticleIterator iter)
 {
 	BPy_NParticleParticle *self = PyObject_New(BPy_NParticleParticle, &BPy_NParticleParticle_Type);
 	self->state = state;
+	self->id = id;
 	self->iter = iter;
 	return (PyObject *)self;
 }
