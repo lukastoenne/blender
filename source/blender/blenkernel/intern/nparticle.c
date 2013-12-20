@@ -477,7 +477,7 @@ bool BKE_nparticle_iter_valid(NParticleIterator *it)
 {
 	NParticleAttributeState *attrstate = nparticle_state_find_attribute_id(it->state);
 	if (attrstate)
-		return it->index < attrstate->data.totelem;
+		return it->index >= 0 && it->index < attrstate->data.totelem;
 	else
 		return false;
 }
