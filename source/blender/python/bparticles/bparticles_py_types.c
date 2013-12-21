@@ -101,13 +101,18 @@ static PyObject *bpy_bpar_attrstate_name_get(BPy_NParticleAttributeState *self)
 static PyObject *bpy_bpar_particle_dir(BPy_NParticleParticle *self)
 {
 	NParticleAttributeStateIterator iter;
+	PyObject *dict;
 	PyObject *ret;
 	PyObject *pystring;
-
+	
 //	PYRNA_STRUCT_CHECK_OBJ(self);
-
-	ret = PyList_New(0);
-
+	
+	dict = BPy_NParticleParticle_Type.tp_dict;
+	if (dict)
+		ret = PyDict_Keys(dict);
+	else
+		ret = PyList_New(0);
+	
 	for (BKE_nparticle_state_attributes_begin(self->state, &iter);
 	     BKE_nparticle_state_attribute_iter_valid(&iter);
 	     BKE_nparticle_state_attribute_iter_next(&iter)) {
@@ -115,7 +120,7 @@ static PyObject *bpy_bpar_particle_dir(BPy_NParticleParticle *self)
 		PyList_Append(ret, pystring);
 		Py_DECREF(pystring);
 	}
-
+	
 	return ret;
 }
 
