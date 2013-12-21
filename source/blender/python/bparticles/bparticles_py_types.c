@@ -98,6 +98,27 @@ static PyObject *bpy_bpar_attrstate_name_get(BPy_NParticleAttributeState *self)
 	return PyUnicode_FromString(self->attrstate->desc.name);
 }
 
+static PyObject *bpy_bpar_particle_dir(BPy_NParticleParticle *self)
+{
+	NParticleAttributeStateIterator iter;
+	PyObject *ret;
+	PyObject *pystring;
+
+//	PYRNA_STRUCT_CHECK_OBJ(self);
+
+	ret = PyList_New(0);
+
+	for (BKE_nparticle_state_attributes_begin(self->state, &iter);
+	     BKE_nparticle_state_attribute_iter_valid(&iter);
+	     BKE_nparticle_state_attribute_iter_next(&iter)) {
+		pystring = PyUnicode_FromString(iter.attrstate->desc.name);
+		PyList_Append(ret, pystring);
+		Py_DECREF(pystring);
+	}
+
+	return ret;
+}
+
 static PyObject *bpy_bpar_state_repr(BPy_NParticleState *self)
 {
 	NParticleState *state = self->state;
@@ -153,6 +174,11 @@ static struct PyMethodDef bpy_bpar_state_methods[] = {
 };
 
 static struct PyMethodDef bpy_bpar_attrstate_methods[] = {
+	{NULL, NULL, 0, NULL}
+};
+
+static struct PyMethodDef bpy_bpar_particle_methods[] = {
+	{"__dir__", (PyCFunction)bpy_bpar_particle_dir, METH_NOARGS, NULL},
 	{NULL, NULL, 0, NULL}
 };
 
@@ -687,7 +713,7 @@ void BPy_BPAR_init_types(void)
 	BPy_NParticleAttributeState_Type.tp_methods         = bpy_bpar_attrstate_methods;
 	BPy_NParticleAttributeStateSeq_Type.tp_methods      = NULL;
 	BPy_NParticleAttributeStateIter_Type.tp_methods     = NULL;
-	BPy_NParticleParticle_Type.tp_methods               = NULL;
+	BPy_NParticleParticle_Type.tp_methods               = bpy_bpar_particle_methods;
 	BPy_NParticleParticleSeq_Type.tp_methods            = NULL;
 	BPy_NParticleParticleIter_Type.tp_methods           = NULL;
 
