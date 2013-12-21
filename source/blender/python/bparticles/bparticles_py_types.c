@@ -541,11 +541,12 @@ static PyObject *bpy_bpar_particle_getattro(BPy_NParticleParticle *self, PyObjec
 
 //	PYRNA_STRUCT_CHECK_OBJ(self);
 
-	if (!BKE_nparticle_iter_valid(&self->iter)) {
+	if (name == NULL) {
+		PyErr_SetString(PyExc_AttributeError, "NParticleParticle: __getattr__ must be a string");
 		ret = NULL;
 	}
-	else if (name == NULL) {
-		PyErr_SetString(PyExc_AttributeError, "NParticleParticle: __getattr__ must be a string");
+	else if (!BKE_nparticle_iter_valid(&self->iter)) {
+		PyErr_Format(PyExc_AttributeError, "NParticleParticle: particle %d does not exist", self->id);
 		ret = NULL;
 	}
 	else {
@@ -558,12 +559,8 @@ static PyObject *bpy_bpar_particle_getattro(BPy_NParticleParticle *self, PyObjec
 		}
 		else {
 			data = BKE_nparticle_attribute_state_data(attrstate, self->iter.index);
-			if (!data) {
-				ret = NULL;
-			}
-			else {
-				ret = bpy_bpar_particle_data_read(&attrstate->desc, data);
-			}
+			BLI_assert(data != NULL); /* the iterator is valid, so this should never happen */
+			ret = bpy_bpar_particle_data_read(&attrstate->desc, data);
 		}
 	}
 
