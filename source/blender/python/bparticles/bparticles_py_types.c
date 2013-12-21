@@ -325,12 +325,7 @@ static PyObject *bpy_bpar_particleseq_subscript_int(BPy_NParticleAttributeStateS
 	NParticleID id = (NParticleID)keynum;
 	
 	BKE_nparticle_iter_from_id(self->state, &iter, id);
-	if (BKE_nparticle_iter_valid(&iter))
-		return BPy_NParticleParticle_CreatePyObject(self->state, id, iter);
-	
-	PyErr_Format(PyExc_IndexError,
-	             "NParticleParticleSeq[id]: id %d not found", keynum);
-	return NULL;
+	return BPy_NParticleParticle_CreatePyObject(self->state, id, iter);
 }
 
 static int bpy_bpar_particleseq_contains(BPy_NParticleParticleSeq *self, PyObject *value)
