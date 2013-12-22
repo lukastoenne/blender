@@ -109,4 +109,4 @@ typedef enum eParticleDisplayType {
 	PAR_DISPLAY_PARTICLE		= 1
 } eParticleDisplayType;
 
-#endif
+#endif /* DNA_NPARTICLE_TYPES_H */
