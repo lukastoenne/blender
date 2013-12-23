@@ -41,7 +41,8 @@ typedef struct NParticleAttributeDescription {
 typedef enum eParticleAttributeFlag {
 	PAR_ATTR_REQUIRED				= 1,	/* always exists */
 	PAR_ATTR_PROTECTED				= 2,	/* descriptor is immutable */
-	PAR_ATTR_READONLY				= 4		/* attribute data is read-only */
+	PAR_ATTR_READONLY				= 4,	/* attribute data is read-only */
+	PAR_ATTR_TEMPORARY				= 8		/* temporary runtime attribute (not stored in cache or blend files) */
 } eParticleAttributeFlag;
 
 /* particle attribute types */
@@ -54,7 +55,8 @@ typedef enum eParticleAttributeDataType {
 	PAR_ATTR_DATATYPE_POINT			= 5,
 	PAR_ATTR_DATATYPE_NORMAL		= 6,
 	PAR_ATTR_DATATYPE_COLOR			= 7,
-	PAR_ATTR_DATATYPE_MATRIX		= 8
+	PAR_ATTR_DATATYPE_MATRIX		= 8,
+	PAR_ATTR_DATATYPE_POINTER		= 9
 } eParticleAttributeDataType;
 
 typedef struct NParticleAttributeState {

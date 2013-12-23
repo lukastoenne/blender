@@ -58,6 +58,7 @@ const char *BKE_nparticle_datatype_name(int datatype)
 		case PAR_ATTR_DATATYPE_NORMAL: return "normal";
 		case PAR_ATTR_DATATYPE_COLOR: return "color";
 		case PAR_ATTR_DATATYPE_MATRIX: return "matrix";
+		case PAR_ATTR_DATATYPE_POINTER: return "pointer";
 		default: return "";
 	}
 }
@@ -74,6 +75,7 @@ static size_t nparticle_elem_bytes(int datatype)
 			return sizeof(float)*3;
 		case PAR_ATTR_DATATYPE_COLOR: return sizeof(float)*4;
 		case PAR_ATTR_DATATYPE_MATRIX: return sizeof(float)*16;
+		case PAR_ATTR_DATATYPE_POINTER: return sizeof(void*);
 
 		default:
 			BLI_assert(false);	/* unknown datatype, should never happen */
@@ -165,6 +167,9 @@ static void nparticle_system_default_attributes(NParticleSystem *psys)
 	
 	/* common attributes */
 	BKE_nparticle_attribute_new(psys, "position", PAR_ATTR_DATATYPE_POINT, PAR_ATTR_PROTECTED);
+	
+	/* XXX bullet RB pointers, this should be based on actual simulation settings and requirements */
+	BKE_nparticle_attribute_new(psys, "rigidbody", PAR_ATTR_DATATYPE_POINTER, PAR_ATTR_PROTECTED | PAR_ATTR_READONLY | PAR_ATTR_TEMPORARY);
 }
 
 NParticleSystem *BKE_nparticle_system_new(void)
