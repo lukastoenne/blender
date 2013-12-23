@@ -116,4 +116,11 @@ struct NParticleDisplay *BKE_nparticle_display_particle(void);
 struct NParticleDisplay *BKE_nparticle_display_copy(struct NParticleDisplay *display);
 void BKE_nparticle_display_free(struct NParticleDisplay *display);
 
+
+struct Object;
+struct RigidBodyWorld;
+
+void BKE_nparticle_system_update_rigid_body(struct RigidBodyWorld *rbw, struct Object *ob, struct NParticleSystem *psys);
+void BKE_nparticle_system_apply_rigid_body(struct RigidBodyWorld *rbw, struct Object *ob, struct NParticleSystem *psys);
+
 #endif /* BKE_NPARTICLE_H */

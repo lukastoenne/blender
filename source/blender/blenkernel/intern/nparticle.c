@@ -37,8 +37,11 @@
 #include "BLI_string.h"
 
 #include "DNA_nparticle_types.h"
+#include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
 
 #include "BKE_nparticle.h"
+#include "BKE_rigidbody.h"
 
 /* XXX TODO make this configurable */
 #define PAGE_BYTES 65536
@@ -588,4 +591,15 @@ NParticleDisplay *BKE_nparticle_display_copy(NParticleDisplay *display)
 void BKE_nparticle_display_free(NParticleDisplay *display)
 {
 	MEM_freeN(display);
+}
+
+
+void BKE_nparticle_system_update_rigid_body(RigidBodyWorld *rbw, Object *ob, NParticleSystem *psys)
+{
+	
+}
+
+void BKE_nparticle_system_apply_rigid_body(RigidBodyWorld *rbw, Object *ob, NParticleSystem *psys)
+{
+	
 }

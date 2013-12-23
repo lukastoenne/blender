@@ -62,6 +62,7 @@
 #include "BKE_group.h"
 #include "BKE_library.h"
 #include "BKE_mesh.h"
+#include "BKE_nparticle.h"
 #include "BKE_object.h"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
@@ -1117,8 +1118,12 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 	/* update objects */
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
+		ModifierData *md;
 
-		if (ob && ob->type == OB_MESH) {
+		if (!ob)
+			continue;
+		
+		if (ob->type == OB_MESH) {
 			/* validate that we've got valid object set up here... */
 			RigidBodyOb *rbo = ob->rigidbody_object;
 			/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
@@ -1158,7 +1163,16 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 			/* update simulation object... */
 			rigidbody_update_sim_ob(scene, rbw, ob, rbo);
 		}
+
+		/* particles */
+		for (md = ob->modifiers.first; md; md = md->next) {
+			if (md->type == eModifierType_NParticleSystem) {
+				NParticleSystemModifierData *pmd = (NParticleSystemModifierData*)md;
+				BKE_nparticle_system_update_rigid_body(rbw, ob, pmd->psys);
+			}
+		}
 	}
+	
 	/* update constraints */
 	if (rbw->constraints == NULL) /* no constraints, move on */
 		return;
@@ -1201,16 +1215,26 @@ static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
 
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
+		RigidBodyOb *rbo;
+		ModifierData *md;
 
-		if (ob) {
-			RigidBodyOb *rbo = ob->rigidbody_object;
-			/* reset kinematic state for transformed objects */
-			if (rbo && (ob->flag & SELECT) && (G.moving & G_TRANSFORM_OBJ)) {
-				RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
-				RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
-				/* deactivate passive objects so they don't interfere with deactivation of active objects */
-				if (rbo->type == RBO_TYPE_PASSIVE)
-					RB_body_deactivate(rbo->physics_object);
+		if (!ob)
+			continue;
+
+		rbo = ob->rigidbody_object;
+		/* reset kinematic state for transformed objects */
+		if (rbo && (ob->flag & SELECT) && (G.moving & G_TRANSFORM_OBJ)) {
+			RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
+			RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+			/* deactivate passive objects so they don't interfere with deactivation of active objects */
+			if (rbo->type == RBO_TYPE_PASSIVE)
+				RB_body_deactivate(rbo->physics_object);
+		}
+		
+		for (md = ob->modifiers.first; md; md = md->next) {
+			if (md->type == eModifierType_NParticleSystem) {
+				NParticleSystemModifierData *pmd = (NParticleSystemModifierData*)md;
+				BKE_nparticle_system_apply_rigid_body(rbw, ob, pmd->psys);
 			}
 		}
 	}
