@@ -84,13 +84,16 @@ struct rbDynamicsWorld {
 
 struct rbRigidBody {
 	rbRigidBody(const btRigidBody::btRigidBodyConstructionInfo& constructionInfo) :
-	    body(constructionInfo)
+	    body(constructionInfo),
+	    col_groups(0),
+	    flag(0)
 	{}
 	~rbRigidBody()
 	{}
 	
 	btRigidBody body;
 	int col_groups;
+	int flag;
 };
 
 size_t rbRigidBodySize = sizeof(rbRigidBody);
@@ -382,6 +385,21 @@ void RB_body_set_collision_shape(rbRigidBody *object, rbCollisionShape *shape)
 }
 
 /* ............ */
+
+int RB_body_get_flags(rbRigidBody *body)
+{
+	return body->flag;
+}
+
+void RB_body_set_flag(rbRigidBody *body, int flag)
+{
+	body->flag |= flag;
+}
+
+void RB_body_clear_flag(rbRigidBody *body, int flag)
+{
+	body->flag &= ~flag;
+}
 
 float RB_body_get_mass(rbRigidBody *object)
 {

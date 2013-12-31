@@ -140,6 +140,11 @@ void RB_body_set_collision_shape(rbRigidBody *body, rbCollisionShape *shape);
 
 /* ............ */
 
+/* Generic flagging */
+extern int RB_body_get_flags(rbRigidBody *body);
+extern void RB_body_set_flag(rbRigidBody *body, int flag);
+extern void RB_body_clear_flag(rbRigidBody *body, int flag);
+
 /* Mass */
 float RB_body_get_mass(rbRigidBody *body);
 void RB_body_set_mass(rbRigidBody *body, float value);
