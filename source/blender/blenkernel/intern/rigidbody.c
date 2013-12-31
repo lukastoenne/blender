@@ -129,7 +129,7 @@ void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 }
 
 /* Free RigidBody settings and sim instances */
-void BKE_rigidbody_free_object(Object *ob)
+void BKE_rigidbody_free_object(RigidBodyWorld *rbw, Object *ob)
 {
 	RigidBodyOb *rbo = (ob) ? ob->rigidbody_object : NULL;
 
@@ -139,7 +139,8 @@ void BKE_rigidbody_free_object(Object *ob)
 
 	/* free physics references */
 	if (rbo->physics_object) {
-		RB_body_delete(rbo->physics_object);
+		RB_body_free(rbo->physics_object);
+		BLI_mempool_free(rbw->body_pool, rbo->physics_object);
 		rbo->physics_object = NULL;
 	}
 
@@ -489,14 +490,22 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 		RB_dworld_remove_body(rbw->physics_world, rbo->physics_object);
 	}
 	if (!rbo->physics_object || rebuild) {
-		/* remove rigid body if it already exists before creating a new one */
 		if (rbo->physics_object) {
-			RB_body_delete(rbo->physics_object);
+			/* remove rigid body if it already exists before creating a new one
+			 * no need to call BLI_mempool_free, we can reuse the memory right away
+			 */
+			RB_body_free(rbo->physics_object);
+		}
+		else {
+			/* only allocate if no rigid body exists yet,
+			 * otherwise previous memory is reused
+			 */
+			rbo->physics_object = BLI_mempool_alloc(rbw->body_pool);
 		}
 
 		mat4_to_loc_quat(loc, rot, ob->obmat);
 
-		rbo->physics_object = RB_body_new(rbo->physics_shape, loc, rot);
+		RB_body_init(rbo->physics_object, rbo->physics_shape, loc, rot);
 
 		RB_body_set_friction(rbo->physics_object, rbo->friction);
 		RB_body_set_restitution(rbo->physics_object, rbo->restitution);
