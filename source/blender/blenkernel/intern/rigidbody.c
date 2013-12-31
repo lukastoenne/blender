@@ -73,6 +73,10 @@
 
 #ifdef WITH_BULLET
 
+enum eRigidBodyFlag {
+	RB_BODY_USED		= 1
+};
+
 /* ************************************** */
 /* Memory Management */
 
@@ -129,7 +133,7 @@ void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 }
 
 /* Free RigidBody settings and sim instances */
-void BKE_rigidbody_free_object(RigidBodyWorld *rbw, Object *ob)
+void BKE_rigidbody_free_object(Object *ob)
 {
 	RigidBodyOb *rbo = (ob) ? ob->rigidbody_object : NULL;
 
@@ -139,8 +143,6 @@ void BKE_rigidbody_free_object(RigidBodyWorld *rbw, Object *ob)
 
 	/* free physics references */
 	if (rbo->physics_object) {
-		RB_body_free(rbo->physics_object);
-		BLI_mempool_free(rbw->body_pool, rbo->physics_object);
 		rbo->physics_object = NULL;
 	}
 
@@ -1119,6 +1121,39 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 	 */
 }
 
+static void rigidbody_world_clear_used_tags(RigidBodyWorld *rbw)
+{
+	BLI_mempool_iter iter;
+	rbRigidBody *body;
+	
+	BLI_mempool_iternew(rbw->body_pool, &iter);
+	for (body = BLI_mempool_iterstep(&iter); body; body = BLI_mempool_iterstep(&iter)) {
+		RB_body_clear_flag(body, RB_BODY_USED);
+	}
+}
+
+static void rigidbody_world_free_unused(RigidBodyWorld *rbw)
+{
+	BLI_mempool_iter iter;
+	rbRigidBody *body, *body_next;
+	
+	/* XXX there is no formal guarantee that the next iterator is still valid
+	 * after removing the current object, but with the current mempool implementation
+	 * this should work fine.
+	 */
+	BLI_mempool_iternew(rbw->body_pool, &iter);
+	for (body = BLI_mempool_iterstep(&iter); body; body = body_next) {
+		body_next = BLI_mempool_iterstep(&iter);
+		
+		if (RB_body_get_flags(body) & RB_BODY_USED)
+			continue;
+		
+		/* free physics references */
+		RB_body_free(body);
+		BLI_mempool_free(rbw->body_pool, body);
+	}
+}
+
 /* Updates and validates world, bodies and shapes.
  * < rebuild: rebuild entire simulation
  */
@@ -1130,6 +1165,9 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 	if (rebuild)
 		BKE_rigidbody_validate_sim_world(scene, rbw, true);
 	rigidbody_update_sim_world(scene, rbw);
+
+	/* clear sync tags */
+	rigidbody_world_clear_used_tags(rbw);
 
 	/* update objects */
 	for (go = rbw->group->gobject.first; go; go = go->next) {
@@ -1175,6 +1213,9 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 				}
 				rbo->flag &= ~(RBO_FLAG_NEEDS_VALIDATE | RBO_FLAG_NEEDS_RESHAPE);
 			}
+
+			if (rbo->physics_object)
+				RB_body_set_flag(rbo->physics_object, RB_BODY_USED);
 
 			/* update simulation object... */
 			rigidbody_update_sim_ob(scene, rbw, ob, rbo);
@@ -1223,6 +1264,9 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 			}
 		}
 	}
+	
+	/* remove orphaned rigid bodies */
+	rigidbody_world_free_unused(rbw);
 }
 
 static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)

@@ -45,7 +45,7 @@ struct Group;
 /* Memory Management */
 
 void BKE_rigidbody_free_world(struct RigidBodyWorld *rbw);
-void BKE_rigidbody_free_object(RigidBodyWorld *rbw, struct Object *ob);
+void BKE_rigidbody_free_object(struct Object *ob);
 void BKE_rigidbody_free_constraint(struct Object *ob);
 
 /* ...... */
