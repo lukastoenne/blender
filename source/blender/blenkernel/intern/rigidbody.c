@@ -82,6 +82,41 @@ enum eRigidBodyFlag {
 
 /* Freeing Methods --------------------- */
 
+static void rigidbody_world_clear_used_tags(RigidBodyWorld *rbw)
+{
+	BLI_mempool_iter iter;
+	rbRigidBody *body;
+	
+	BLI_mempool_iternew(rbw->body_pool, &iter);
+	for (body = BLI_mempool_iterstep(&iter); body; body = BLI_mempool_iterstep(&iter)) {
+		RB_body_clear_flag(body, RB_BODY_USED);
+	}
+}
+
+static void rigidbody_world_free_bodies(RigidBodyWorld *rbw, bool keep_used)
+{
+	BLI_mempool_iter iter;
+	rbRigidBody *body, *body_next;
+	
+	/* XXX there is no formal guarantee that the next iterator is still valid
+	 * after removing the current object, but with the current mempool implementation
+	 * this should work fine.
+	 */
+	BLI_mempool_iternew(rbw->body_pool, &iter);
+	for (body = BLI_mempool_iterstep(&iter); body; body = body_next) {
+		body_next = BLI_mempool_iterstep(&iter);
+		
+		if (keep_used && (RB_body_get_flags(body) & RB_BODY_USED))
+			continue;
+		
+		/* free physics references */
+		if (rbw->physics_world)
+			RB_dworld_remove_body(rbw->physics_world, body);
+		RB_body_free(body);
+		BLI_mempool_free(rbw->body_pool, body);
+	}
+}
+
 /* Free rigidbody world */
 void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 {
@@ -90,6 +125,9 @@ void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 		return;
 
 	if (rbw->physics_world) {
+		BLI_mempool_iter iter;
+		rbRigidBody *body, *body_next;
+		
 		/* free physics references, we assume that all physics objects in will have been added to the world */
 		GroupObject *go;
 		if (rbw->constraints) {
@@ -102,16 +140,9 @@ void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 				}
 			}
 		}
-		if (rbw->group) {
-			for (go = rbw->group->gobject.first; go; go = go->next) {
-				if (go->ob && go->ob->rigidbody_object) {
-					RigidBodyOb *rbo = go->ob->rigidbody_object;
-
-					if (rbo->physics_object)
-						RB_dworld_remove_body(rbw->physics_world, rbo->physics_object);
-				}
-			}
-		}
+		
+		rigidbody_world_free_bodies(rbw, false);
+		
 		/* free dynamics world */
 		RB_dworld_delete(rbw->physics_world);
 	}
@@ -1121,39 +1152,6 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 	 */
 }
 
-static void rigidbody_world_clear_used_tags(RigidBodyWorld *rbw)
-{
-	BLI_mempool_iter iter;
-	rbRigidBody *body;
-	
-	BLI_mempool_iternew(rbw->body_pool, &iter);
-	for (body = BLI_mempool_iterstep(&iter); body; body = BLI_mempool_iterstep(&iter)) {
-		RB_body_clear_flag(body, RB_BODY_USED);
-	}
-}
-
-static void rigidbody_world_free_unused(RigidBodyWorld *rbw)
-{
-	BLI_mempool_iter iter;
-	rbRigidBody *body, *body_next;
-	
-	/* XXX there is no formal guarantee that the next iterator is still valid
-	 * after removing the current object, but with the current mempool implementation
-	 * this should work fine.
-	 */
-	BLI_mempool_iternew(rbw->body_pool, &iter);
-	for (body = BLI_mempool_iterstep(&iter); body; body = body_next) {
-		body_next = BLI_mempool_iterstep(&iter);
-		
-		if (RB_body_get_flags(body) & RB_BODY_USED)
-			continue;
-		
-		/* free physics references */
-		RB_body_free(body);
-		BLI_mempool_free(rbw->body_pool, body);
-	}
-}
-
 /* Updates and validates world, bodies and shapes.
  * < rebuild: rebuild entire simulation
  */
@@ -1266,7 +1264,7 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 	}
 	
 	/* remove orphaned rigid bodies */
-	rigidbody_world_free_unused(rbw);
+	rigidbody_world_free_bodies(rbw, true);
 }
 
 static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
