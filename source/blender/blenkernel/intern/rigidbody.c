@@ -472,6 +472,7 @@ static void rigidbody_validate_sim_shape(Object *ob, bool rebuild)
 static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool rebuild)
 {
 	RigidBodyOb *rbo = (ob) ? ob->rigidbody_object : NULL;
+	rbRigidBody *body;
 	float loc[3];
 	float rot[4];
 
@@ -502,33 +503,34 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 			 */
 			rbo->physics_object = BLI_mempool_alloc(rbw->body_pool);
 		}
+		body = rbo->physics_object;
 
 		mat4_to_loc_quat(loc, rot, ob->obmat);
 
-		RB_body_init(rbo->physics_object, rbo->physics_shape, loc, rot);
+		RB_body_init(body, rbo->physics_shape, loc, rot);
 
-		RB_body_set_friction(rbo->physics_object, rbo->friction);
-		RB_body_set_restitution(rbo->physics_object, rbo->restitution);
+		RB_body_set_friction(body, rbo->friction);
+		RB_body_set_restitution(body, rbo->restitution);
 
-		RB_body_set_damping(rbo->physics_object, rbo->lin_damping, rbo->ang_damping);
-		RB_body_set_sleep_thresh(rbo->physics_object, rbo->lin_sleep_thresh, rbo->ang_sleep_thresh);
-		RB_body_set_activation_state(rbo->physics_object, rbo->flag & RBO_FLAG_USE_DEACTIVATION);
+		RB_body_set_damping(body, rbo->lin_damping, rbo->ang_damping);
+		RB_body_set_sleep_thresh(body, rbo->lin_sleep_thresh, rbo->ang_sleep_thresh);
+		RB_body_set_activation_state(body, rbo->flag & RBO_FLAG_USE_DEACTIVATION);
 
 		if (rbo->type == RBO_TYPE_PASSIVE || rbo->flag & RBO_FLAG_START_DEACTIVATED)
-			RB_body_deactivate(rbo->physics_object);
+			RB_body_deactivate(body);
 
 
-		RB_body_set_linear_factor(rbo->physics_object,
+		RB_body_set_linear_factor(body,
 		                          (ob->protectflag & OB_LOCK_LOCX) == 0,
 		                          (ob->protectflag & OB_LOCK_LOCY) == 0,
 		                          (ob->protectflag & OB_LOCK_LOCZ) == 0);
-		RB_body_set_angular_factor(rbo->physics_object,
+		RB_body_set_angular_factor(body,
 		                           (ob->protectflag & OB_LOCK_ROTX) == 0,
 		                           (ob->protectflag & OB_LOCK_ROTY) == 0,
 		                           (ob->protectflag & OB_LOCK_ROTZ) == 0);
 
-		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
-		RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
+		RB_body_set_mass(body, RBO_GET_MASS(rbo));
+		RB_body_set_kinematic_state(body, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 	}
 
 	if (rbw && rbw->physics_world)
