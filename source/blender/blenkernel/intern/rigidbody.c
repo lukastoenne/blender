@@ -41,6 +41,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_mempool.h"
 
 #ifdef WITH_BULLET
 #  include "RBI_api.h"
@@ -120,6 +121,8 @@ void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 	/* free effector weights */
 	if (rbw->effector_weights)
 		MEM_freeN(rbw->effector_weights);
+
+	BLI_mempool_destroy(rbw->body_pool);
 
 	/* free rigidbody world itself */
 	MEM_freeN(rbw);
@@ -734,6 +737,8 @@ RigidBodyWorld *BKE_rigidbody_create_world(Scene *scene)
 
 	/* create a new sim world */
 	rbw = MEM_callocN(sizeof(RigidBodyWorld), "RigidBodyWorld");
+
+	rbw->body_pool = BLI_mempool_create(rbRigidBodySize, 512, 512, BLI_MEMPOOL_ALLOW_ITER);
 
 	/* set default settings */
 	rbw->effector_weights = BKE_add_effector_weights(NULL);

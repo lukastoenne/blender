@@ -37,6 +37,8 @@
 extern "C" {
 #endif
 
+#include <string.h>
+
 /* API Notes:
  * Currently, this API is optimised for Bullet RigidBodies, and doesn't
  * take into account other Physics Engines. Some tweaking may be necessary
@@ -56,6 +58,7 @@ typedef struct rbDynamicsWorld rbDynamicsWorld;
 
 /* Rigid Body */
 typedef struct rbRigidBody rbRigidBody;
+extern size_t rbRigidBodySize;
 
 /* Collision Shape */
 typedef struct rbCollisionShape rbCollisionShape;

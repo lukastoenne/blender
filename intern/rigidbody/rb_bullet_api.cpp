@@ -81,10 +81,13 @@ struct rbDynamicsWorld {
 	btConstraintSolver *constraintSolver;
 	btOverlapFilterCallback *filterCallback;
 };
+
 struct rbRigidBody {
 	btRigidBody *body;
 	int col_groups;
 };
+
+size_t rbRigidBodySize = sizeof(rbRigidBody);
 
 struct rbVert {
 	float x, y, z;
