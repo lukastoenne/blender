@@ -1360,6 +1360,10 @@ static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, int rebuild
 	/* build constraints */
 	rigidbody_world_build_constraints(scene, rbw, rebuild);
 	
+	/* XXX it may be desirable to do this _before_ adding new bodies (world_build_*),
+	 * otherwise could end up in situations where lots of unneeded
+	 * data is allocated intermittently.
+	 */
 	/* remove orphaned rigid bodies */
 	rigidbody_world_free_bodies(rbw, true);
 }
