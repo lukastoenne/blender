@@ -51,6 +51,7 @@
 #include "DNA_group_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_nparticle_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_rigidbody_types.h"
@@ -565,6 +566,84 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 
 	if (rbw && rbw->physics_world)
 		RB_dworld_add_body(rbw->physics_world, rbo->physics_object, rbo->col_groups);
+}
+
+/* --------------------- */
+
+static void rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNUSED(ob), NParticleIterator *iter, bool rebuild)
+{
+	float loc[3];
+	float rot[4];
+	rbRigidBody *body;
+	rbCollisionShape *shape = NULL;
+	
+	/* make sure collision shape exists */
+	if (!rebuild)
+		shape = BKE_nparticle_iter_get_pointer(iter, "collision_shape");
+	if (!shape) {
+		shape = RB_shape_new_sphere(0.1f);
+		BKE_nparticle_iter_set_pointer(iter, "collision_shape", shape);
+	}
+	
+	BKE_nparticle_iter_get_vector(iter, "position", loc);
+	unit_qt(rot);
+	
+	body = BKE_nparticle_iter_get_pointer(iter, "rigid_body");
+	if (!body || rebuild) {
+		if (body) {
+			/* free the existing rigid body, memory reused below */
+			RB_body_free(body);
+		}
+		else {
+			/* only allocate if no rigid body exists yet,
+			 * otherwise previous memory is reused
+			 */
+			body = BLI_mempool_alloc(rbw->body_pool);
+		}
+	}
+	
+	RB_body_init(body, shape, loc, rot);
+	BKE_nparticle_iter_set_pointer(iter, "rigid_body", body);
+	
+#if 0
+	RB_body_set_friction(rbo->physics_object, rbo->friction);
+	RB_body_set_restitution(rbo->physics_object, rbo->restitution);
+
+	RB_body_set_damping(rbo->physics_object, rbo->lin_damping, rbo->ang_damping);
+	RB_body_set_sleep_thresh(rbo->physics_object, rbo->lin_sleep_thresh, rbo->ang_sleep_thresh);
+	RB_body_set_activation_state(rbo->physics_object, rbo->flag & RBO_FLAG_USE_DEACTIVATION);
+
+	if (rbo->type == RBO_TYPE_PASSIVE || rbo->flag & RBO_FLAG_START_DEACTIVATED)
+		RB_body_deactivate(rbo->physics_object);
+
+
+	RB_body_set_linear_factor(rbo->physics_object,
+							  (ob->protectflag & OB_LOCK_LOCX) == 0,
+							  (ob->protectflag & OB_LOCK_LOCY) == 0,
+							  (ob->protectflag & OB_LOCK_LOCZ) == 0);
+	RB_body_set_angular_factor(rbo->physics_object,
+							   (ob->protectflag & OB_LOCK_ROTX) == 0,
+							   (ob->protectflag & OB_LOCK_ROTY) == 0,
+							   (ob->protectflag & OB_LOCK_ROTZ) == 0);
+
+	RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+	RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
+#endif
+
+	if (rbw && rbw->physics_world)
+		RB_dworld_add_body(rbw->physics_world, body, 0xFFFF);
+}
+
+/* Create physics sim representation of particles
+ * < rebuild: even if an instance already exists, replace it
+ */
+static void rigidbody_validate_sim_particles(RigidBodyWorld *rbw, Object *ob, NParticleState *state, bool rebuild)
+{
+	NParticleIterator iter;
+
+	for (BKE_nparticle_iter_init(state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
+		rigidbody_validate_particle(rbw, ob, &iter, rebuild);
+	}
 }
 
 /* --------------------- */
@@ -1220,7 +1299,7 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 		for (md = ob->modifiers.first; md; md = md->next) {
 			if (md->type == eModifierType_NParticleSystem) {
 				NParticleSystemModifierData *pmd = (NParticleSystemModifierData*)md;
-				BKE_nparticle_system_update_rigid_body(rbw, ob, pmd->psys);
+				rigidbody_validate_sim_particles(rbw, ob, pmd->psys->state, rebuild);
 			}
 		}
 	}
