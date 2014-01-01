@@ -169,7 +169,8 @@ static void nparticle_system_default_attributes(NParticleSystem *psys)
 	BKE_nparticle_attribute_new(psys, "position", PAR_ATTR_DATATYPE_POINT, PAR_ATTR_PROTECTED);
 	
 	/* XXX bullet RB pointers, this should be based on actual simulation settings and requirements */
-	BKE_nparticle_attribute_new(psys, "rigidbody", PAR_ATTR_DATATYPE_POINTER, PAR_ATTR_PROTECTED | PAR_ATTR_READONLY | PAR_ATTR_TEMPORARY);
+	BKE_nparticle_attribute_new(psys, "rigid_body", PAR_ATTR_DATATYPE_POINTER, PAR_ATTR_PROTECTED | PAR_ATTR_TEMPORARY);
+	BKE_nparticle_attribute_new(psys, "collision_shape", PAR_ATTR_DATATYPE_POINTER, PAR_ATTR_PROTECTED | PAR_ATTR_TEMPORARY);
 }
 
 NParticleSystem *BKE_nparticle_system_new(void)
