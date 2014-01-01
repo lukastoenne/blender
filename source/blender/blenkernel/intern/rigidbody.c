@@ -570,7 +570,7 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 
 /* --------------------- */
 
-static void rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNUSED(ob), NParticleIterator *iter, bool rebuild)
+static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNUSED(ob), NParticleIterator *iter, bool rebuild)
 {
 	float loc[3];
 	float rot[4];
@@ -634,15 +634,20 @@ static void rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNUSED(ob),
 		RB_dworld_add_body(rbw->physics_world, body, 0xFFFF);
 }
 
+static void rigidbody_sync_particle(RigidBodyWorld *UNUSED(rbw), Object *UNUSED(ob), NParticleIterator *UNUSED(iter))
+{
+	/* TODO */
+}
+
 /* Create physics sim representation of particles
  * < rebuild: even if an instance already exists, replace it
  */
-static void rigidbody_validate_sim_particles(RigidBodyWorld *rbw, Object *ob, NParticleState *state, bool rebuild)
+static void rigidbody_world_build_particles(RigidBodyWorld *rbw, Object *ob, NParticleState *state, bool rebuild)
 {
 	NParticleIterator iter;
 
 	for (BKE_nparticle_iter_init(state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
-		rigidbody_validate_particle(rbw, ob, &iter, rebuild);
+		rbRigidBody *body = rigidbody_validate_particle(rbw, ob, &iter, rebuild);
 	}
 }
 
@@ -1144,7 +1149,7 @@ static void rigidbody_update_sim_world(Scene *scene, RigidBodyWorld *rbw)
 	rigidbody_update_ob_array(rbw);
 }
 
-static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *ob, RigidBodyOb *rbo)
+static void rigidbody_sync_object(Scene *scene, RigidBodyWorld *rbw, Object *ob, RigidBodyOb *rbo)
 {
 	float loc[3];
 	float rot[4];
@@ -1231,7 +1236,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 /* Updates and validates world, bodies and shapes.
  * < rebuild: rebuild entire simulation
  */
-static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
 	GroupObject *go;
 
@@ -1292,14 +1297,14 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 				RB_body_set_flag(rbo->physics_object, RB_BODY_USED);
 
 			/* update simulation object... */
-			rigidbody_update_sim_ob(scene, rbw, ob, rbo);
+			rigidbody_sync_object(scene, rbw, ob, rbo);
 		}
 
 		/* particles */
 		for (md = ob->modifiers.first; md; md = md->next) {
 			if (md->type == eModifierType_NParticleSystem) {
 				NParticleSystemModifierData *pmd = (NParticleSystemModifierData*)md;
-				rigidbody_validate_sim_particles(rbw, ob, pmd->psys->state, rebuild);
+				rigidbody_world_build_particles(rbw, ob, pmd->psys->state, rebuild);
 			}
 		}
 	}
@@ -1343,7 +1348,7 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 	rigidbody_world_free_bodies(rbw, true);
 }
 
-static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
+static void rigidbody_world_apply(RigidBodyWorld *rbw)
 {
 	GroupObject *go;
 
@@ -1468,7 +1473,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 	if (ctime <= startframe + 1 && rbw->ltime == startframe) {
 		if (cache->flag & PTCACHE_OUTDATED) {
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-			rigidbody_update_simulation(scene, rbw, true);
+			rigidbody_world_build(scene, rbw, true);
 			BKE_ptcache_validate(cache, (int)ctime);
 			cache->last_exact = 0;
 			cache->flag &= ~PTCACHE_REDO_NEEDED;
@@ -1520,14 +1525,14 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 		}
 
 		/* update and validate simulation */
-		rigidbody_update_simulation(scene, rbw, false);
+		rigidbody_world_build(scene, rbw, false);
 
 		/* calculate how much time elapsed since last step in seconds */
 		timestep = 1.0f / (float)FPS * (ctime - rbw->ltime) * rbw->time_scale;
 		/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
 		RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f));
 
-		rigidbody_update_simulation_post_step(rbw);
+		rigidbody_world_apply(rbw);
 
 		/* write cache for current frame */
 		BKE_ptcache_validate(cache, (int)ctime);
