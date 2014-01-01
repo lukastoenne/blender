@@ -1305,36 +1305,36 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 	}
 	
 	/* update constraints */
-	if (rbw->constraints == NULL) /* no constraints, move on */
-		return;
-	for (go = rbw->constraints->gobject.first; go; go = go->next) {
-		Object *ob = go->ob;
-
-		if (ob) {
-			/* validate that we've got valid object set up here... */
-			RigidBodyCon *rbc = ob->rigidbody_constraint;
-			/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
-			BKE_object_where_is_calc(scene, ob);
-
-			if (rbc == NULL) {
-				/* Since this object is included in the group but doesn't have
+	if (rbw->constraints) {
+		for (go = rbw->constraints->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			
+			if (ob) {
+				/* validate that we've got valid object set up here... */
+				RigidBodyCon *rbc = ob->rigidbody_constraint;
+				/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
+				BKE_object_where_is_calc(scene, ob);
+				
+				if (rbc == NULL) {
+					/* Since this object is included in the group but doesn't have
 				 * constraint settings (perhaps it was added manually), add!
 				 */
-				ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
-				rigidbody_validate_sim_constraint(rbw, ob, true);
-
-				rbc = ob->rigidbody_constraint;
-			}
-			else {
-				/* perform simulation data updates as tagged */
-				if (rebuild) {
-					/* World has been rebuilt so rebuild constraint */
+					ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
 					rigidbody_validate_sim_constraint(rbw, ob, true);
+					
+					rbc = ob->rigidbody_constraint;
 				}
-				else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
-					rigidbody_validate_sim_constraint(rbw, ob, false);
+				else {
+					/* perform simulation data updates as tagged */
+					if (rebuild) {
+						/* World has been rebuilt so rebuild constraint */
+						rigidbody_validate_sim_constraint(rbw, ob, true);
+					}
+					else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
+						rigidbody_validate_sim_constraint(rbw, ob, false);
+					}
+					rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
 				}
-				rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
 			}
 		}
 	}
