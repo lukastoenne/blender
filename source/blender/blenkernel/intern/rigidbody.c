@@ -518,9 +518,6 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 	if (rbo->physics_shape == NULL || rebuild)
 		rigidbody_validate_sim_shape(ob, true);
 
-	if (rbo->physics_object && rebuild == false) {
-		RB_dworld_remove_body(rbw->physics_world, rbo->physics_object);
-	}
 	if (!rbo->physics_object || rebuild) {
 		if (rbo->physics_object) {
 			/* remove rigid body if it already exists before creating a new one
@@ -563,6 +560,8 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 		RB_body_set_mass(body, RBO_GET_MASS(rbo));
 		RB_body_set_kinematic_state(body, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 	}
+	else
+		RB_dworld_remove_body(rbw->physics_world, rbo->physics_object);
 
 	if (rbw && rbw->physics_world)
 		RB_dworld_add_body(rbw->physics_world, rbo->physics_object, rbo->col_groups);
@@ -601,6 +600,8 @@ static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNU
 			body = BLI_mempool_alloc(rbw->body_pool);
 		}
 	}
+	else
+		RB_dworld_remove_body(rbw->physics_world, body);
 	
 	RB_body_init(body, shape, loc, rot);
 	BKE_nparticle_iter_set_pointer(iter, "rigid_body", body);
@@ -629,6 +630,8 @@ static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNU
 	RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
 	RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 #endif
+	
+	RB_body_set_flag(body, RB_BODY_USED);
 
 	if (rbw && rbw->physics_world)
 		RB_dworld_add_body(rbw->physics_world, body, 0xFFFF);
