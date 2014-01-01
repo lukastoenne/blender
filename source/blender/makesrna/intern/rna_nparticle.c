@@ -24,6 +24,8 @@
  *  \ingroup RNA
  */
 
+#include <stddef.h>
+
 #include "DNA_nparticle_types.h"
 
 #include "RNA_define.h"

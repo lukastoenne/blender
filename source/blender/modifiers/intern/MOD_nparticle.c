@@ -30,6 +30,8 @@
  *  \ingroup modifiers
  */
 
+#include <stddef.h>
+
 #include "BLI_listbase.h"
 
 #include "DNA_modifier_types.h"
