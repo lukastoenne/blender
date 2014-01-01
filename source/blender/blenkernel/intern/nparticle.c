@@ -613,14 +613,3 @@ void BKE_nparticle_display_free(NParticleDisplay *display)
 {
 	MEM_freeN(display);
 }
-
-
-void BKE_nparticle_system_update_rigid_body(RigidBodyWorld *rbw, Object *ob, NParticleSystem *psys)
-{
-	
-}
-
-void BKE_nparticle_system_apply_rigid_body(RigidBodyWorld *rbw, Object *ob, NParticleSystem *psys)
-{
-	
-}

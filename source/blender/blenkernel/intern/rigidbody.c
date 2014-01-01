@@ -1383,6 +1383,10 @@ static void rigidbody_world_apply_object(Scene *UNUSED(scene), RigidBodyWorld *U
 	}
 }
 
+static void rigidbody_world_apply_particles(Scene *UNUSED(scene), RigidBodyWorld *UNUSED(rbw), Object *ob, NParticleSystem *psys)
+{
+}
+
 static void rigidbody_world_apply(Scene *scene, RigidBodyWorld *rbw)
 {
 	GroupObject *go;
@@ -1399,7 +1403,7 @@ static void rigidbody_world_apply(Scene *scene, RigidBodyWorld *rbw)
 		for (md = ob->modifiers.first; md; md = md->next) {
 			if (md->type == eModifierType_NParticleSystem) {
 				NParticleSystemModifierData *pmd = (NParticleSystemModifierData*)md;
-				BKE_nparticle_system_apply_rigid_body(rbw, ob, pmd->psys);
+				rigidbody_world_apply_particles(scene, rbw, ob, pmd->psys);
 			}
 		}
 	}
