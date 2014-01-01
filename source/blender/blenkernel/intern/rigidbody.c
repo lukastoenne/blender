@@ -1390,8 +1390,22 @@ static void rigidbody_world_apply_object(Scene *UNUSED(scene), RigidBodyWorld *U
 	}
 }
 
-static void rigidbody_world_apply_particles(Scene *UNUSED(scene), RigidBodyWorld *UNUSED(rbw), Object *ob, NParticleSystem *psys)
+static void rigidbody_world_apply_particles(Scene *UNUSED(scene), RigidBodyWorld *UNUSED(rbw), Object *UNUSED(ob), NParticleSystem *psys)
 {
+	NParticleState *state;
+	NParticleIterator iter;
+	
+	state = BKE_nparticle_state_copy(psys->state);
+	for (BKE_nparticle_iter_init(state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
+		rbRigidBody *body = BKE_nparticle_iter_get_pointer(&iter, "rigid_body");
+		if (body) {
+			float pos[3];
+			RB_body_get_position(body, pos);
+			BKE_nparticle_iter_set_vector(&iter, "position", pos);
+		}
+	}
+	
+	BKE_nparticle_system_set_state(psys, state);
 }
 
 static void rigidbody_world_apply(Scene *scene, RigidBodyWorld *rbw)
