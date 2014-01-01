@@ -632,6 +632,8 @@ static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNU
 
 	if (rbw && rbw->physics_world)
 		RB_dworld_add_body(rbw->physics_world, body, 0xFFFF);
+	
+	return body;
 }
 
 static void rigidbody_sync_particle(RigidBodyWorld *UNUSED(rbw), Object *UNUSED(ob), NParticleIterator *UNUSED(iter))
@@ -648,6 +650,8 @@ static void rigidbody_world_build_particles(RigidBodyWorld *rbw, Object *ob, NPa
 
 	for (BKE_nparticle_iter_init(state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
 		rbRigidBody *body = rigidbody_validate_particle(rbw, ob, &iter, rebuild);
+		if (body)
+			rigidbody_sync_particle(rbw, ob, &iter);
 	}
 }
 
@@ -1129,7 +1133,7 @@ static void rigidbody_update_ob_array(RigidBodyWorld *rbw)
 	}
 }
 
-static void rigidbody_update_sim_world(Scene *scene, RigidBodyWorld *rbw)
+static void rigidbody_sync_world(Scene *scene, RigidBodyWorld *rbw)
 {
 	float adj_gravity[3];
 
@@ -1233,22 +1237,9 @@ static void rigidbody_sync_object(Scene *scene, RigidBodyWorld *rbw, Object *ob,
 	 */
 }
 
-/* Updates and validates world, bodies and shapes.
- * < rebuild: rebuild entire simulation
- */
-static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+static void rigidbody_world_build_objects(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
 	GroupObject *go;
-
-	/* update world */
-	if (rebuild)
-		BKE_rigidbody_validate_sim_world(scene, rbw, true);
-	rigidbody_update_sim_world(scene, rbw);
-
-	/* clear sync tags */
-	rigidbody_world_clear_used_tags(rbw);
-
-	/* update objects */
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
 		ModifierData *md;
@@ -1308,41 +1299,66 @@ static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, bool rebuil
 			}
 		}
 	}
+}
+
+static void rigidbody_world_build_constraints(Scene *scene, RigidBodyWorld *rbw, int rebuild)
+{
+	GroupObject *go;
 	
-	/* update constraints */
-	if (rbw->constraints) {
-		for (go = rbw->constraints->gobject.first; go; go = go->next) {
-			Object *ob = go->ob;
+	if (!rbw->constraints)
+		return;
+	
+	for (go = rbw->constraints->gobject.first; go; go = go->next) {
+		Object *ob = go->ob;
+		
+		if (ob) {
+			/* validate that we've got valid object set up here... */
+			RigidBodyCon *rbc = ob->rigidbody_constraint;
+			/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
+			BKE_object_where_is_calc(scene, ob);
 			
-			if (ob) {
-				/* validate that we've got valid object set up here... */
-				RigidBodyCon *rbc = ob->rigidbody_constraint;
-				/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
-				BKE_object_where_is_calc(scene, ob);
-				
-				if (rbc == NULL) {
-					/* Since this object is included in the group but doesn't have
+			if (rbc == NULL) {
+				/* Since this object is included in the group but doesn't have
 				 * constraint settings (perhaps it was added manually), add!
 				 */
-					ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
+				ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
+				rigidbody_validate_sim_constraint(rbw, ob, true);
+				
+				rbc = ob->rigidbody_constraint;
+			}
+			else {
+				/* perform simulation data updates as tagged */
+				if (rebuild) {
+					/* World has been rebuilt so rebuild constraint */
 					rigidbody_validate_sim_constraint(rbw, ob, true);
-					
-					rbc = ob->rigidbody_constraint;
 				}
-				else {
-					/* perform simulation data updates as tagged */
-					if (rebuild) {
-						/* World has been rebuilt so rebuild constraint */
-						rigidbody_validate_sim_constraint(rbw, ob, true);
-					}
-					else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
-						rigidbody_validate_sim_constraint(rbw, ob, false);
-					}
-					rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
+				else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
+					rigidbody_validate_sim_constraint(rbw, ob, false);
 				}
+				rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
 			}
 		}
 	}
+}
+
+/* Construct Bullet bodies, shapes and constraints from a Blender scene.
+ * < rebuild: rebuild entire simulation
+ */
+static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, int rebuild)
+{
+	/* update world */
+	if (rebuild)
+		BKE_rigidbody_validate_sim_world(scene, rbw, true);
+	rigidbody_sync_world(scene, rbw);
+
+	/* clear sync tags */
+	rigidbody_world_clear_used_tags(rbw);
+
+	/* build objects */
+	rigidbody_world_build_objects(scene, rbw, rebuild);
+	
+	/* build constraints */
+	rigidbody_world_build_constraints(scene, rbw, rebuild);
 	
 	/* remove orphaned rigid bodies */
 	rigidbody_world_free_bodies(rbw, true);
@@ -1385,7 +1401,7 @@ bool BKE_rigidbody_check_sim_running(RigidBodyWorld *rbw, float ctime)
 }
 
 /* Sync rigid body and object transformations */
-void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
+void BKE_rigidbody_apply_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
 {
 	RigidBodyOb *rbo = ob->rigidbody_object;
 
