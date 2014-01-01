@@ -125,9 +125,6 @@ void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 		return;
 
 	if (rbw->physics_world) {
-		BLI_mempool_iter iter;
-		rbRigidBody *body, *body_next;
-		
 		/* free physics references, we assume that all physics objects in will have been added to the world */
 		GroupObject *go;
 		if (rbw->constraints) {
