@@ -578,6 +578,21 @@ void BKE_nparticle_iter_set_vector(NParticleIterator *it, const char *attr, cons
 		copy_v3_v3(data, value);
 }
 
+void *BKE_nparticle_iter_get_pointer(NParticleIterator *it, const char *attr)
+{
+	void **data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_POINTER));
+	return data ? *data : NULL;
+}
+
+void BKE_nparticle_iter_set_pointer(NParticleIterator *it, const char *attr, void *value)
+{
+	void **data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_POINTER));
+	if (data)
+		*data = value;
+}
+
 
 NParticleDisplay *BKE_nparticle_display_particle(void)
 {
