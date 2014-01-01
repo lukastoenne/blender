@@ -606,30 +606,28 @@ static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNU
 	RB_body_init(body, shape, loc, rot);
 	BKE_nparticle_iter_set_pointer(iter, "rigid_body", body);
 	
-#if 0
-	RB_body_set_friction(rbo->physics_object, rbo->friction);
-	RB_body_set_restitution(rbo->physics_object, rbo->restitution);
+	RB_body_set_friction(body, 1.0f);
+	RB_body_set_restitution(body, 1.0f);
 
-	RB_body_set_damping(rbo->physics_object, rbo->lin_damping, rbo->ang_damping);
-	RB_body_set_sleep_thresh(rbo->physics_object, rbo->lin_sleep_thresh, rbo->ang_sleep_thresh);
-	RB_body_set_activation_state(rbo->physics_object, rbo->flag & RBO_FLAG_USE_DEACTIVATION);
+	RB_body_set_damping(body, 0.0f, 0.0f);
+//	RB_body_set_sleep_thresh(body, rbo->lin_sleep_thresh, rbo->ang_sleep_thresh);
+//	RB_body_set_activation_state(body, rbo->flag & RBO_FLAG_USE_DEACTIVATION);
 
-	if (rbo->type == RBO_TYPE_PASSIVE || rbo->flag & RBO_FLAG_START_DEACTIVATED)
-		RB_body_deactivate(rbo->physics_object);
+//	if (rbo->type == RBO_TYPE_PASSIVE || rbo->flag & RBO_FLAG_START_DEACTIVATED)
+//		RB_body_deactivate(body);
 
 
-	RB_body_set_linear_factor(rbo->physics_object,
-							  (ob->protectflag & OB_LOCK_LOCX) == 0,
-							  (ob->protectflag & OB_LOCK_LOCY) == 0,
-							  (ob->protectflag & OB_LOCK_LOCZ) == 0);
-	RB_body_set_angular_factor(rbo->physics_object,
-							   (ob->protectflag & OB_LOCK_ROTX) == 0,
-							   (ob->protectflag & OB_LOCK_ROTY) == 0,
-							   (ob->protectflag & OB_LOCK_ROTZ) == 0);
+//	RB_body_set_linear_factor(body,
+//							  (ob->protectflag & OB_LOCK_LOCX) == 0,
+//							  (ob->protectflag & OB_LOCK_LOCY) == 0,
+//							  (ob->protectflag & OB_LOCK_LOCZ) == 0);
+//	RB_body_set_angular_factor(body,
+//							   (ob->protectflag & OB_LOCK_ROTX) == 0,
+//							   (ob->protectflag & OB_LOCK_ROTY) == 0,
+//							   (ob->protectflag & OB_LOCK_ROTZ) == 0);
 
-	RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
-	RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
-#endif
+	RB_body_set_mass(body, 1.0f);
+//	RB_body_set_kinematic_state(body, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 	
 	RB_body_set_flag(body, RB_BODY_USED);
 
