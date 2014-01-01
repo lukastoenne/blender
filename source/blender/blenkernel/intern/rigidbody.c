@@ -1368,27 +1368,33 @@ static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, int rebuild
 	rigidbody_world_free_bodies(rbw, true);
 }
 
-static void rigidbody_world_apply(RigidBodyWorld *rbw)
+static void rigidbody_world_apply_object(Scene *UNUSED(scene), RigidBodyWorld *UNUSED(rbw), Object *ob)
+{
+	RigidBodyOb *rbo;
+
+	rbo = ob->rigidbody_object;
+	/* reset kinematic state for transformed objects */
+	if (rbo && (ob->flag & SELECT) && (G.moving & G_TRANSFORM_OBJ)) {
+		RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
+		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+		/* deactivate passive objects so they don't interfere with deactivation of active objects */
+		if (rbo->type == RBO_TYPE_PASSIVE)
+			RB_body_deactivate(rbo->physics_object);
+	}
+}
+
+static void rigidbody_world_apply(Scene *scene, RigidBodyWorld *rbw)
 {
 	GroupObject *go;
 
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
-		RigidBodyOb *rbo;
 		ModifierData *md;
-
+		
 		if (!ob)
 			continue;
-
-		rbo = ob->rigidbody_object;
-		/* reset kinematic state for transformed objects */
-		if (rbo && (ob->flag & SELECT) && (G.moving & G_TRANSFORM_OBJ)) {
-			RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
-			RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
-			/* deactivate passive objects so they don't interfere with deactivation of active objects */
-			if (rbo->type == RBO_TYPE_PASSIVE)
-				RB_body_deactivate(rbo->physics_object);
-		}
+		
+		rigidbody_world_apply_object(scene, rbw, ob);
 		
 		for (md = ob->modifiers.first; md; md = md->next) {
 			if (md->type == eModifierType_NParticleSystem) {
@@ -1552,7 +1558,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 		/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
 		RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f));
 
-		rigidbody_world_apply(rbw);
+		rigidbody_world_apply(scene, rbw);
 
 		/* write cache for current frame */
 		BKE_ptcache_validate(cache, (int)ctime);
