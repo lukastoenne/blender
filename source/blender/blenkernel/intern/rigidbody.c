@@ -866,8 +866,7 @@ RigidBodyWorld *BKE_rigidbody_create_world(Scene *scene)
 
 	/* create a new sim world */
 	rbw = MEM_callocN(sizeof(RigidBodyWorld), "RigidBodyWorld");
-
-	rbw->body_pool = BLI_mempool_create(rbRigidBodySize, 512, 512, BLI_MEMPOOL_ALLOW_ITER);
+	BKE_rigidbody_world_init_mempool(rbw);
 
 	/* set default settings */
 	rbw->effector_weights = BKE_add_effector_weights(NULL);
@@ -884,6 +883,11 @@ RigidBodyWorld *BKE_rigidbody_create_world(Scene *scene)
 
 	/* return this sim world */
 	return rbw;
+}
+
+void BKE_rigidbody_world_init_mempool(RigidBodyWorld *rbw)
+{
+	rbw->body_pool = BLI_mempool_create(rbRigidBodySize, 512, 512, BLI_MEMPOOL_ALLOW_ITER);
 }
 
 RigidBodyWorld *BKE_rigidbody_world_copy(RigidBodyWorld *rbw)

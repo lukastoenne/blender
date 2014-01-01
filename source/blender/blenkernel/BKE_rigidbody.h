@@ -62,6 +62,9 @@ struct RigidBodyWorld *BKE_rigidbody_create_world(struct Scene *scene);
 struct RigidBodyOb *BKE_rigidbody_create_object(struct Scene *scene, struct Object *ob, short type);
 struct RigidBodyCon *BKE_rigidbody_create_constraint(struct Scene *scene, struct Object *ob, short type);
 
+/* initialize mempools, for readfile */
+void BKE_rigidbody_world_init_mempool(struct RigidBodyWorld *rbw);
+
 /* copy */
 struct RigidBodyWorld *BKE_rigidbody_world_copy(struct RigidBodyWorld *rbw);
 void BKE_rigidbody_world_groups_relink(struct RigidBodyWorld *rbw);
