@@ -65,6 +65,30 @@ static PyObject *bpy_bpar_new(PyObject *UNUSED(self), PyObject *value)
 	return BPy_NParticleState_CreatePyObject(state);
 }
 
+PyDoc_STRVAR(bpy_bpar_copy_doc,
+".. method:: copy()\n"
+"\n"
+"   :arg psys: The particle system.\n"
+"   :type psys: :class:`bpy.types.NParticleSystem`\n"
+"   :return: Return a copy of the current NParticleState.\n"
+"   :rtype: :class:`bparticles.types.NParticleState`\n"
+);
+static PyObject *bpy_bpar_copy(PyObject *UNUSED(self), PyObject *value)
+{
+	NParticleSystem *psys = PyC_RNA_AsPointer(value, "NParticleSystem");
+	NParticleState *state;
+
+	if (!psys)
+		return NULL;
+
+	if (psys->state)
+		state = BKE_nparticle_state_copy(psys->state);
+	else
+		state = BKE_nparticle_state_new(psys);
+
+	return BPy_NParticleState_CreatePyObject(state);
+}
+
 PyDoc_STRVAR(bpy_bpar_set_current_state_doc,
 ".. method:: set_current_state()\n"
 "\n"
@@ -102,6 +126,7 @@ static PyObject *bpy_bpar_set_current_state(PyObject *UNUSED(self), PyObject *ar
 
 static struct PyMethodDef BPy_BPAR_methods[] = {
 	{"new", (PyCFunction)bpy_bpar_new, METH_O, bpy_bpar_new_doc},
+	{"copy", (PyCFunction)bpy_bpar_copy, METH_O, bpy_bpar_copy_doc},
 	{"set_current_state", (PyCFunction)bpy_bpar_set_current_state, METH_VARARGS | METH_KEYWORDS, bpy_bpar_set_current_state_doc},
 	{NULL, NULL, 0, NULL}
 };

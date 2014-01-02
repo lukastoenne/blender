@@ -241,6 +241,8 @@ NParticleState *BKE_nparticle_state_copy(NParticleState *state)
 	     attrstate = attrstate->next, nattrstate = nattrstate->next)
 		nparticle_attribute_state_copy(nattrstate, attrstate);
 	
+	nstate->py_handle = NULL;
+	
 	return nstate;
 }
 
