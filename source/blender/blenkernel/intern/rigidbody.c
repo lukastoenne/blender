@@ -628,8 +628,6 @@ static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNU
 
 	RB_body_set_mass(body, 1.0f);
 //	RB_body_set_kinematic_state(body, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
-	
-	RB_body_set_flag(body, RB_BODY_USED);
 
 	if (rbw && rbw->physics_world)
 		RB_dworld_add_body(rbw->physics_world, body, 0xFFFF);
@@ -650,9 +648,14 @@ static void rigidbody_world_build_particles(RigidBodyWorld *rbw, Object *ob, NPa
 	NParticleIterator iter;
 
 	for (BKE_nparticle_iter_init(state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
-		rbRigidBody *body = rigidbody_validate_particle(rbw, ob, &iter, rebuild);
-		if (body)
+		/* XXX no equivalent to RBO_FLAG_NEEDS_VALIDATE for particles yet */
+		rbRigidBody *body = BKE_nparticle_iter_get_pointer(&iter, "rigid_body");
+		if (!body)
+			body = rigidbody_validate_particle(rbw, ob, &iter, rebuild);
+		if (body) {
 			rigidbody_sync_particle(rbw, ob, &iter);
+			RB_body_set_flag(body, RB_BODY_USED);
+		}
 	}
 }
 
