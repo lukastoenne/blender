@@ -569,20 +569,29 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 
 /* --------------------- */
 
-static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNUSED(ob), NParticleIterator *iter, bool rebuild)
+static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNUSED(ob),
+                                                NParticleDisplayDupliObject *dupli, int totdupli,
+                                                NParticleIterator *iter, bool rebuild)
 {
+	int dupli_index;
+	NParticleDisplayDupliObject *dob;
 	float loc[3];
 	float rot[4];
 	rbRigidBody *body;
 	rbCollisionShape *shape = NULL;
 	
+	dupli_index = BKE_nparticle_iter_get_int(iter, "dupli");
+	if (dupli_index < 0 || dupli_index >= totdupli)
+		return NULL;
+	dob = &dupli[dupli_index];
+	if (!dob->object || !dob->object->rigidbody_object)
+		return NULL;
+	
 	/* make sure collision shape exists */
-	if (!rebuild)
-		shape = BKE_nparticle_iter_get_pointer(iter, "collision_shape");
-	if (!shape) {
-		shape = RB_shape_new_sphere(0.1f);
-		BKE_nparticle_iter_set_pointer(iter, "collision_shape", shape);
-	}
+	/* FIXME we shouldn't always have to rebuild collision shapes when rebuilding objects, but it's needed for constraints to update correctly */
+	if (dob->object->rigidbody_object->physics_shape == NULL || rebuild)
+		rigidbody_validate_sim_shape(dob->object, true);
+	shape = dob->object->rigidbody_object->physics_shape;
 	
 	BKE_nparticle_iter_get_vector(iter, "position", loc);
 	BKE_nparticle_iter_get_quaternion(iter, "rotation", rot);
@@ -606,10 +615,10 @@ static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNU
 	RB_body_init(body, shape, loc, rot);
 	BKE_nparticle_iter_set_pointer(iter, "rigid_body", body);
 	
-	RB_body_set_friction(body, 1.0f);
-	RB_body_set_restitution(body, 1.0f);
+	RB_body_set_friction(body, 0.5f);
+	RB_body_set_restitution(body, 0.0f);
 
-	RB_body_set_damping(body, 0.0f, 0.0f);
+	RB_body_set_damping(body, 0.04f, 0.1f);
 //	RB_body_set_sleep_thresh(body, rbo->lin_sleep_thresh, rbo->ang_sleep_thresh);
 //	RB_body_set_activation_state(body, rbo->flag & RBO_FLAG_USE_DEACTIVATION);
 
@@ -643,20 +652,41 @@ static void rigidbody_sync_particle(RigidBodyWorld *UNUSED(rbw), Object *UNUSED(
 /* Create physics sim representation of particles
  * < rebuild: even if an instance already exists, replace it
  */
-static void rigidbody_world_build_particles(RigidBodyWorld *rbw, Object *ob, NParticleState *state, bool rebuild)
+static void rigidbody_world_build_particles(RigidBodyWorld *rbw, Object *ob, NParticleSystem *psys, bool rebuild)
 {
+	NParticleState *state = psys->state;
+	NParticleDisplay *display;
+	NParticleDisplayDupliObject *dupli = NULL, *dob;
+	int totdupli = 0, i;
 	NParticleIterator iter;
-
+	
+	/* XXX for simplicity: only using the first dupli display here
+	 * fix later ...
+	 */
+	for (display = psys->display.first; display; display = display->next)
+		if (display->type == PAR_DISPLAY_DUPLI)
+			break;
+	if (display) {
+		/* for faster index-based lookup make a temp array */
+		totdupli = BLI_countlist(&display->dupli_objects);
+		dupli = MEM_mallocN(totdupli * sizeof(NParticleDisplayDupliObject), "dupli objects");
+		for (dob = display->dupli_objects.first, i = 0; dob; dob = dob->next, ++i)
+			memcpy(&dupli[i], dob, sizeof(NParticleDisplayDupliObject));
+	}
+	
 	for (BKE_nparticle_iter_init(state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
 		/* XXX no equivalent to RBO_FLAG_NEEDS_VALIDATE for particles yet */
 		rbRigidBody *body = BKE_nparticle_iter_get_pointer(&iter, "rigid_body");
 		if (!body)
-			body = rigidbody_validate_particle(rbw, ob, &iter, rebuild);
+			body = rigidbody_validate_particle(rbw, ob, dupli, totdupli, &iter, rebuild);
 		if (body) {
 			rigidbody_sync_particle(rbw, ob, &iter);
 			RB_body_set_flag(body, RB_BODY_USED);
 		}
 	}
+	
+	if (dupli)
+		MEM_freeN(dupli);
 }
 
 /* --------------------- */
@@ -1303,7 +1333,7 @@ static void rigidbody_world_build_objects(Scene *scene, RigidBodyWorld *rbw, boo
 		for (md = ob->modifiers.first; md; md = md->next) {
 			if (md->type == eModifierType_NParticleSystem) {
 				NParticleSystemModifierData *pmd = (NParticleSystemModifierData*)md;
-				rigidbody_world_build_particles(rbw, ob, pmd->psys->state, rebuild);
+				rigidbody_world_build_particles(rbw, ob, pmd->psys, rebuild);
 			}
 		}
 	}
