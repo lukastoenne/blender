@@ -98,17 +98,24 @@ typedef struct NParticleSystem {
 	struct NParticleState *state;
 } NParticleSystem;
 
-
 typedef struct NParticleDisplay {
 	struct NParticleDisplay *next, *prev;
 	
 	int type;
 	int pad;
 	char attribute[64];
+	
+	/* dupli settings */
+	ListBase dupli_objects;
 } NParticleDisplay;
 
+typedef struct NParticleDisplayDupli {
+	struct Object *ob;
+} NParticleDisplayDupli;
+
 typedef enum eParticleDisplayType {
-	PAR_DISPLAY_PARTICLE		= 1
+	PAR_DISPLAY_PARTICLE		= 1,
+	PAR_DISPLAY_DUPLI			= 2
 } eParticleDisplayType;
 
 #endif /* DNA_NPARTICLE_TYPES_H */

@@ -406,8 +406,9 @@ enum {
 	OB_RENDER_DUPLI     = 1 << 12,
 	OB_NO_CONSTRAINTS   = 1 << 13,  /* runtime constraints disable */
 	OB_NO_PSYS_UPDATE   = 1 << 14,  /* hack to work around particle issue */
+	OB_DUPLI_NPARTICLE  = 1 << 15,  /* hack to work around particle issue */
 
-	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS,
+	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS | OB_DUPLI_NPARTICLE,
 };
 
 /* (short) ipoflag */

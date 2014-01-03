@@ -605,6 +605,14 @@ NParticleDisplay *BKE_nparticle_display_particle(void)
 	return display;
 }
 
+NParticleDisplay *BKE_nparticle_display_dupli(void)
+{
+	NParticleDisplay *display = MEM_callocN(sizeof(NParticleDisplay), "particle display");
+	display->type = PAR_DISPLAY_DUPLI;
+	BLI_strncpy(display->attribute, "position", sizeof(display->attribute));
+	return display;
+}
+
 NParticleDisplay *BKE_nparticle_display_copy(NParticleDisplay *display)
 {
 	NParticleDisplay *ndisplay = MEM_dupallocN(display);
