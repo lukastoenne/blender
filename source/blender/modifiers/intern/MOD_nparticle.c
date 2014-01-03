@@ -51,6 +51,7 @@ static void nparticle_system_initData(ModifierData *md)
 	
 	/* add default particle display */
 	BKE_nparticle_display_add(pmd->psys, PAR_DISPLAY_PARTICLE);
+	BKE_nparticle_display_add(pmd->psys, PAR_DISPLAY_DUPLI);
 }
 
 static void nparticle_system_freeData(ModifierData *md)
