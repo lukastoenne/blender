@@ -4260,9 +4260,9 @@ static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 
 /* ************ READ NPARTICLE BUFFER ***************** */
 
-static void direct_link_nparticle_display(FileData *UNUSED(fd), NParticleDisplay *UNUSED(display))
+static void direct_link_nparticle_display(FileData *fd, NParticleDisplay *display)
 {
-	/* nothing to do here yet */
+	link_list(fd, &display->dupli_objects);
 }
 
 static void direct_link_nparticle_system(FileData *fd, NParticleSystem *psys)

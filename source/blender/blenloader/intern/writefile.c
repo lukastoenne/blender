@@ -1376,7 +1376,13 @@ static void write_pagedbuffer(WriteData *wd, bPagedBuffer *pbuf)
 
 static void write_nparticle_display(WriteData *wd, NParticleDisplay *display)
 {
+	NParticleDisplayDupliObject *dob;
+	
 	writestruct(wd, DATA, "NParticleDisplay", 1, display);
+	
+	for (dob = display->dupli_objects.first; dob; dob = dob->next) {
+		writestruct(wd, DATA, "NParticleDisplayDupliObject", 1, dob);
+	}
 }
 
 static void write_nparticle_system(WriteData *wd, NParticleSystem *psys)

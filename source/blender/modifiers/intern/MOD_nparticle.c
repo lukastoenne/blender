@@ -78,6 +78,26 @@ static struct DerivedMesh *nparticle_system_applyModifier(ModifierData *UNUSED(m
 	return derivedData;
 }
 
+static void nparticle_system_foreachObjectLink(ModifierData *md, struct Object *ob,
+                                               void (*walk)(void *userData, struct Object *ob, struct Object **obpoin),
+                                               void *userData)
+{
+	NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
+	NParticleDisplay *display;
+
+	for (display = pmd->psys->display.first; display; display = display->next) {
+		switch (display->type) {
+			case PAR_DISPLAY_DUPLI: {
+				NParticleDisplayDupliObject *dob;
+				for (dob = display->dupli_objects.first; dob; dob = dob->next) {
+					walk(userData, ob, &dob->object);
+				}
+				break;
+			}
+		}
+	}
+}
+
 ModifierTypeInfo modifierType_NParticleSystem = {
 	/* name */              "Particles",
 	/* structName */        "NParticleSystemModifierData",
@@ -101,6 +121,6 @@ ModifierTypeInfo modifierType_NParticleSystem = {
 	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
-	/* foreachObjectLink */ NULL,
+	/* foreachObjectLink */ nparticle_system_foreachObjectLink,
 	/* foreachIDLink */     NULL,
 };
