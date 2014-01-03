@@ -36,6 +36,8 @@ typedef struct NParticleAttributeDescription {
 	char name[64];
 	int datatype;
 	int flag;
+	
+	char default_value[64];
 } NParticleAttributeDescription;
 
 typedef enum eParticleAttributeFlag {

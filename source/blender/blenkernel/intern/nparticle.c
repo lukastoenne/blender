@@ -316,6 +316,23 @@ NParticleAttribute *BKE_nparticle_attribute_new(NParticleSystem *psys, const cha
 	BLI_strncpy(attr->desc.name, name, sizeof(attr->desc.name));
 	attr->desc.datatype = datatype;
 	attr->desc.flag = flag;
+	/* some data types should have more usable defaults
+	 * without explicitly setting them.
+	 */
+	switch (datatype) {
+		case PAR_ATTR_DATATYPE_NORMAL:
+			((float*)attr->desc.default_value)[2] = 1.0f;
+			break;
+		case PAR_ATTR_DATATYPE_QUATERNION:
+			unit_qt((float*)attr->desc.default_value);
+			break;
+		case PAR_ATTR_DATATYPE_COLOR:
+			((float*)attr->desc.default_value)[3] = 1.0f;
+			break;
+		case PAR_ATTR_DATATYPE_MATRIX:
+			unit_m4((float(*)[4])attr->desc.default_value);
+			break;
+	}
 	
 	BLI_addtail(&psys->attributes, attr);
 	
@@ -461,8 +478,7 @@ int BKE_nparticle_add(NParticleState *state, NParticleID id)
 				*(int*)BLI_pbuf_get(&attrstate->data, index) = (int)id;
 			}
 			else {
-				/* XXX default value? */
-				memset(BLI_pbuf_get(&attrstate->data, index), 0, attrstate->data.elem_bytes);
+				memcpy(BLI_pbuf_get(&attrstate->data, index), attrstate->desc.default_value, attrstate->data.elem_bytes);
 			}
 		}
 	}
