@@ -637,6 +637,17 @@ void BKE_nparticle_display_free(NParticleSystem *psys, NParticleDisplay *display
 {
 	BLI_remlink(&psys->display, display);
 	
+	switch (display->type) {
+		case PAR_DISPLAY_DUPLI: {
+			NParticleDisplayDupliObject *dob, *dob_next;
+			for (dob = display->dupli_objects.first; dob; dob = dob_next) {
+				dob_next = dob->next;
+				MEM_freeN(dob);
+			}
+			break;
+		}
+	}
+	
 	MEM_freeN(display);
 }
 
