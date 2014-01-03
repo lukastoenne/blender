@@ -111,9 +111,11 @@ typedef struct NParticleDisplay {
 	ListBase dupli_objects;
 } NParticleDisplay;
 
-typedef struct NParticleDisplayDupli {
-	struct Object *ob;
-} NParticleDisplayDupli;
+typedef struct NParticleDisplayDupliObject {
+	struct NParticleDisplayDupliObject *next, *prev;
+	
+	struct Object *object;
+} NParticleDisplayDupliObject;
 
 typedef enum eParticleDisplayType {
 	PAR_DISPLAY_PARTICLE		= 1,

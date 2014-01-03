@@ -32,6 +32,13 @@
 
 #include "rna_internal.h"
 
+static EnumPropertyItem nparticle_display_type_items[] = {
+    {PAR_DISPLAY_PARTICLE, "PARTICLE", ICON_NONE, "Particles", "Display particle symbols"},
+    {PAR_DISPLAY_DUPLI, "DUPLI", ICON_NONE, "Duplis", "Create object dupli instances from particles"},
+    {0, NULL, 0, NULL, NULL}
+};
+
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"
@@ -118,7 +125,7 @@ int rna_NParticleAttributeState_data_lookup_int(PointerRNA *ptr, int key, Pointe
 	return data != NULL;
 }
 
-int rna_NParticleAttributeState_data_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr, StructRNA *data_srna)
+int rna_NParticleAttributeState_data_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr, StructRNA *UNUSED(data_srna))
 {
 	NParticleAttributeState *state = ptr->data;
 	void *data = BLI_pbuf_get(&state->data, key);
@@ -365,6 +372,37 @@ static void rna_NParticleSystem_attributes_move(NParticleSystem *psys, int from_
 	BKE_nparticle_attribute_move(psys, from_index, to_index);
 }
 
+static StructRNA *rna_NParticleDisplay_refine(PointerRNA *ptr)
+{
+	NParticleDisplay *display = ptr->data;
+	
+	switch (display->type) {
+		case PAR_DISPLAY_PARTICLE:      return &RNA_NParticleDisplayParticle;
+		case PAR_DISPLAY_DUPLI:         return &RNA_NParticleDisplayDupli;
+		default:                        return &RNA_NParticleDisplay;
+	}
+}
+
+static NParticleDisplayDupliObject *rna_NParticleDisplayDupli_dupli_objects_new(NParticleDisplay *display)
+{
+	return BKE_nparticle_display_dupli_object_add(display);
+}
+
+static void rna_NParticleDisplayDupli_dupli_objects_remove(NParticleDisplay *display, NParticleDisplayDupliObject *dupli_object)
+{
+	BKE_nparticle_display_dupli_object_remove(display, dupli_object);
+}
+
+static void rna_NParticleDisplayDupli_dupli_objects_clear(NParticleDisplay *display)
+{
+	BKE_nparticle_display_dupli_object_remove_all(display);
+}
+
+static void rna_NParticleDisplayDupli_dupli_objects_move(NParticleDisplay *display, int from_index, int to_index)
+{
+	BKE_nparticle_display_dupli_object_move(display, from_index, to_index);
+}
+
 #else
 
 EnumPropertyItem nparticle_attribute_datatype_all[] = {
@@ -574,7 +612,6 @@ static void rna_def_nparticle_attribute_state(BlenderRNA *brna)
 static void rna_def_nparticle_iterator(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "NParticleIterator", NULL);
 	RNA_def_struct_ui_text(srna, "Particle Iterator", "Access iterator for individual particles");
@@ -679,6 +716,86 @@ static void rna_def_nparticle_system_attributes_api(BlenderRNA *brna, PropertyRN
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
+static void rna_def_nparticle_display_dupli_object(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "NParticleDisplayDupliObject", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Display Dupli Object", "Object dupli settings");
+
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "object");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "Object to use for dupli instances");
+}
+
+static void rna_def_nparticle_display_dupli_objects_api(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	PropertyRNA *parm;
+	FunctionRNA *func;
+	
+	RNA_def_property_srna(cprop, "NParticleDisplayDupliObjects");
+	srna = RNA_def_struct(brna, "NParticleDisplayDupliObjects", NULL);
+	RNA_def_struct_sdna(srna, "NParticleDisplay");
+	RNA_def_struct_ui_text(srna, "Dupli Objects", "Collection of dupli objects in a particle system");
+	
+	func = RNA_def_function(srna, "new", "rna_NParticleDisplayDupli_dupli_objects_new");
+	RNA_def_function_ui_description(func, "Add a particle dupli object");
+	/* return value */
+	parm = RNA_def_pointer(func, "dupli_object", "NParticleDisplayDupliObject", "Dupli Object", "");
+	RNA_def_function_return(func, parm);
+	
+	func = RNA_def_function(srna, "remove", "rna_NParticleDisplayDupli_dupli_objects_remove");
+	RNA_def_function_ui_description(func, "Remove an particle dupli object");
+	parm = RNA_def_pointer(func, "dupli_object", "NParticleDisplayDupliObject", "", "The dupli object to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	
+	func = RNA_def_function(srna, "clear", "rna_NParticleDisplayDupli_dupli_objects_clear");
+	RNA_def_function_ui_description(func, "Remove all particle dupli objects");
+	
+	func = RNA_def_function(srna, "move", "rna_NParticleDisplayDupli_dupli_objects_move");
+	RNA_def_function_ui_description(func, "Move a particle dupli object to another index");
+	parm = RNA_def_int(func, "from_index", -1, 0, INT_MAX, "From Index", "Index of the attribute to move", 0, 10000);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_int(func, "to_index", -1, 0, INT_MAX, "To Index", "Target index for the attribute", 0, 10000);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+}
+
+static void rna_def_nparticle_display(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "NParticleDisplay", NULL);
+	RNA_def_struct_sdna(srna, "NParticleDisplay");
+	RNA_def_struct_ui_text(srna, "Particle Display", "Display mode for particles");
+	RNA_def_struct_refine_func(srna, "rna_NParticleDisplay_refine");
+
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, nparticle_display_type_items);
+	RNA_def_property_ui_text(prop, "Type", "");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+
+	srna = RNA_def_struct(brna, "NParticleDisplayParticle", "NParticleDisplay");
+	RNA_def_struct_sdna(srna, "NParticleDisplay");
+	RNA_def_struct_ui_text(srna, "Particle Symbol Display", "Displays particle symbols");
+
+
+	srna = RNA_def_struct(brna, "NParticleDisplayDupli", "NParticleDisplay");
+	RNA_def_struct_sdna(srna, "NParticleDisplay");
+	RNA_def_struct_ui_text(srna, "Particle Dupli Display", "Create object dupli instances");
+
+	prop = RNA_def_property(srna, "dupli_objects", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "dupli_objects", NULL);
+	RNA_def_property_ui_text(prop, "Dupli Objects", "Usable objects for dupli instances");
+	RNA_def_property_struct_type(prop, "NParticleDisplayDupliObject");
+	rna_def_nparticle_display_dupli_objects_api(brna, prop);
+}
+
 static void rna_def_nparticle_system(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -698,6 +815,11 @@ static void rna_def_nparticle_system(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "NParticleState");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "State", "");
+
+	prop = RNA_def_property(srna, "display", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "display", NULL);
+	RNA_def_property_ui_text(prop, "Display", "Display modes");
+	RNA_def_property_struct_type(prop, "NParticleDisplay");
 }
 
 void RNA_def_nparticle(BlenderRNA *brna)
@@ -706,6 +828,8 @@ void RNA_def_nparticle(BlenderRNA *brna)
 	rna_def_nparticle_iterator(brna);
 	rna_def_nparticle_state(brna);
 	rna_def_nparticle_attribute(brna);
+	rna_def_nparticle_display_dupli_object(brna);
+	rna_def_nparticle_display(brna);
 	rna_def_nparticle_system(brna);
 }
 

@@ -38,6 +38,7 @@ struct NParticleAttribute;
 struct NParticleState;
 struct NParticleAttributeState;
 struct NParticleDisplay;
+struct NParticleDisplayDupliObject;
 
 /* XXX where to put this? */
 typedef uint32_t NParticleID;
@@ -121,5 +122,10 @@ void BKE_nparticle_display_free(struct NParticleSystem *psys, struct NParticleDi
 
 /* update object transflag for nparticle duplis */
 void BKE_nparticle_update_object_dupli_flags(struct Object *ob, struct NParticleSystem *psys);
+
+struct NParticleDisplayDupliObject *BKE_nparticle_display_dupli_object_add(struct NParticleDisplay *display);
+void BKE_nparticle_display_dupli_object_remove(struct NParticleDisplay *display, struct NParticleDisplayDupliObject *dupli_object);
+void BKE_nparticle_display_dupli_object_remove_all(struct NParticleDisplay *display);
+void BKE_nparticle_display_dupli_object_move(struct NParticleDisplay *display, int from_index, int to_index);
 
 #endif /* BKE_NPARTICLE_H */

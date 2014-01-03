@@ -649,3 +649,64 @@ void BKE_nparticle_update_object_dupli_flags(Object *ob, NParticleSystem *psys)
 			ob->transflag |= OB_DUPLI_NPARTICLE;
 	}
 }
+
+NParticleDisplayDupliObject *BKE_nparticle_display_dupli_object_add(NParticleDisplay *display)
+{
+	NParticleDisplayDupliObject *dob;
+	
+	BLI_assert(display->type == PAR_DISPLAY_DUPLI);
+	
+	dob = MEM_callocN(sizeof(NParticleDisplayDupliObject), "particle dupli object");
+	BLI_addtail(&display->dupli_objects, dob);
+	return dob;
+}
+
+void BKE_nparticle_display_dupli_object_remove(NParticleDisplay *display, NParticleDisplayDupliObject *dupli_object)
+{
+	BLI_assert(display->type == PAR_DISPLAY_DUPLI);
+	
+	BLI_remlink(&display->dupli_objects, dupli_object);
+	MEM_freeN(dupli_object);
+}
+
+void BKE_nparticle_display_dupli_object_remove_all(NParticleDisplay *display)
+{
+	NParticleDisplayDupliObject *dob, *dob_next;
+	
+	BLI_assert(display->type == PAR_DISPLAY_DUPLI);
+	
+	for (dob = display->dupli_objects.first; dob; dob = dob_next) {
+		dob_next = dob->next;
+		
+		MEM_freeN(dob);
+	}
+	display->dupli_objects.first = display->dupli_objects.last = NULL;
+}
+
+void BKE_nparticle_display_dupli_object_move(NParticleDisplay *display, int from_index, int to_index)
+{
+	NParticleDisplayDupliObject *dob;
+	
+	BLI_assert(display->type == PAR_DISPLAY_DUPLI);
+	
+	if (from_index == to_index)
+		return;
+	if (from_index < 0 || to_index < 0)
+		return;
+	
+	dob = BLI_findlink(&display->dupli_objects, from_index);
+	if (to_index < from_index) {
+		NParticleDisplayDupliObject *nextdob = BLI_findlink(&display->dupli_objects, to_index);
+		if (nextdob) {
+			BLI_remlink(&display->dupli_objects, dob);
+			BLI_insertlinkbefore(&display->dupli_objects, nextdob, dob);
+		}
+	}
+	else {
+		NParticleDisplayDupliObject *prevdob = BLI_findlink(&display->dupli_objects, to_index);
+		if (prevdob) {
+			BLI_remlink(&display->dupli_objects, dob);
+			BLI_insertlinkafter(&display->dupli_objects, prevdob, dob);
+		}
+	}
+}
