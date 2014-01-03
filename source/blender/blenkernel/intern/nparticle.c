@@ -644,3 +644,13 @@ void BKE_nparticle_display_free(NParticleSystem *psys, NParticleDisplay *display
 	
 	MEM_freeN(display);
 }
+
+void BKE_nparticle_update_object_dupli_flags(Object *ob, NParticleSystem *psys)
+{
+	NParticleDisplay *display;
+	ob->transflag &= ~OB_DUPLI_NPARTICLE;
+	for (display = psys->display.first; display; display = display->next) {
+		if (display->type == PAR_DISPLAY_DUPLI)
+			ob->transflag |= OB_DUPLI_NPARTICLE;
+	}
+}

@@ -32,6 +32,7 @@
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
+struct Object;
 struct NParticleSystem;
 struct NParticleAttribute;
 struct NParticleState;
@@ -118,5 +119,8 @@ struct NParticleDisplay *BKE_nparticle_display_add_particle(struct NParticleSyst
 struct NParticleDisplay *BKE_nparticle_display_add_dupli(struct NParticleSystem *psys);
 struct NParticleDisplay *BKE_nparticle_display_copy(struct NParticleSystem *psys, struct NParticleDisplay *display);
 void BKE_nparticle_display_free(struct NParticleSystem *psys, struct NParticleDisplay *display);
+
+/* update object transflag for nparticle duplis */
+void BKE_nparticle_update_object_dupli_flags(struct Object *ob, struct NParticleSystem *psys);
 
 #endif /* BKE_NPARTICLE_H */
