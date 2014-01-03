@@ -7124,7 +7124,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		
 		glLoadMatrixf(rv3d->viewmat);
 		
-		for (display = pmd->display.first; display; display = display->next)
+		for (display = pmd->psys->display.first; display; display = display->next)
 			draw_nparticles(pmd->psys, display);
 		
 		glMultMatrixf(ob->obmat);

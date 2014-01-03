@@ -186,9 +186,16 @@ NParticleSystem *BKE_nparticle_system_new(void)
 
 void BKE_nparticle_system_free(NParticleSystem *psys)
 {
+	NParticleDisplay *display, *display_next;
+	
 	BKE_nparticle_attribute_remove_all(psys);
 	
 	BKE_nparticle_state_free(psys->state);
+	
+	for (display = psys->display.first; display; display = display_next) {
+		display_next = display->next;
+		BKE_nparticle_display_free(psys, display);
+	}
 	
 	MEM_freeN(psys);
 }
@@ -197,6 +204,7 @@ NParticleSystem *BKE_nparticle_system_copy(NParticleSystem *psys)
 {
 	NParticleSystem *npsys = MEM_dupallocN(psys);
 	NParticleAttribute *attr, *nattr;
+	NParticleDisplay *display;
 	
 	npsys->attributes.first = npsys->attributes.last = NULL;
 	for (attr = psys->attributes.first; attr; attr = attr->next) {
@@ -205,6 +213,11 @@ NParticleSystem *BKE_nparticle_system_copy(NParticleSystem *psys)
 	
 	if (psys->state)
 		npsys->state = BKE_nparticle_state_copy(psys->state);
+	
+	npsys->display.first = npsys->display.last = NULL;
+	for (display = psys->display.first; display; display = display->next) {
+		BKE_nparticle_display_copy(npsys, display);
+	}
 	
 	return npsys;
 }
@@ -597,29 +610,37 @@ void BKE_nparticle_iter_set_pointer(NParticleIterator *it, const char *attr, voi
 }
 
 
-NParticleDisplay *BKE_nparticle_display_particle(void)
+NParticleDisplay *BKE_nparticle_display_add_particle(NParticleSystem *psys)
 {
 	NParticleDisplay *display = MEM_callocN(sizeof(NParticleDisplay), "particle display");
 	display->type = PAR_DISPLAY_PARTICLE;
 	BLI_strncpy(display->attribute, "position", sizeof(display->attribute));
+	
+	BLI_addtail(&psys->display, display);
 	return display;
 }
 
-NParticleDisplay *BKE_nparticle_display_dupli(void)
+NParticleDisplay *BKE_nparticle_display_add_dupli(NParticleSystem *psys)
 {
 	NParticleDisplay *display = MEM_callocN(sizeof(NParticleDisplay), "particle display");
 	display->type = PAR_DISPLAY_DUPLI;
 	BLI_strncpy(display->attribute, "position", sizeof(display->attribute));
+	
+	BLI_addtail(&psys->display, display);
 	return display;
 }
 
-NParticleDisplay *BKE_nparticle_display_copy(NParticleDisplay *display)
+NParticleDisplay *BKE_nparticle_display_copy(NParticleSystem *psys, NParticleDisplay *display)
 {
 	NParticleDisplay *ndisplay = MEM_dupallocN(display);
+	
+	BLI_addtail(&psys->display, display);
 	return ndisplay;
 }
 
-void BKE_nparticle_display_free(NParticleDisplay *display)
+void BKE_nparticle_display_free(NParticleSystem *psys, NParticleDisplay *display)
 {
+	BLI_remlink(&psys->display, display);
+	
 	MEM_freeN(display);
 }

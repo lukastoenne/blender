@@ -95,7 +95,9 @@ typedef struct NParticleAttribute {
 typedef struct NParticleSystem {
 	ListBase attributes;				/* definition of available attributes */
 	
-	struct NParticleState *state;
+	struct NParticleState *state;		/* current state */
+	
+	ListBase display;					/* display settings */
 } NParticleSystem;
 
 typedef struct NParticleDisplay {
