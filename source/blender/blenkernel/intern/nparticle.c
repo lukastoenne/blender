@@ -169,6 +169,7 @@ static void nparticle_system_default_attributes(NParticleSystem *psys)
 	
 	/* common attributes */
 	BKE_nparticle_attribute_new(psys, "position", PAR_ATTR_DATATYPE_POINT, PAR_ATTR_PROTECTED);
+	BKE_nparticle_attribute_new(psys, "rotation", PAR_ATTR_DATATYPE_QUATERNION, PAR_ATTR_PROTECTED);
 	
 	/* XXX bullet RB pointers, this should be based on actual simulation settings and requirements */
 	BKE_nparticle_attribute_new(psys, "rigid_body", PAR_ATTR_DATATYPE_POINTER, PAR_ATTR_PROTECTED | PAR_ATTR_TEMPORARY);

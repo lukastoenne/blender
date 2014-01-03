@@ -585,7 +585,7 @@ static rbRigidBody *rigidbody_validate_particle(RigidBodyWorld *rbw, Object *UNU
 	}
 	
 	BKE_nparticle_iter_get_vector(iter, "position", loc);
-	unit_qt(rot);
+	BKE_nparticle_iter_get_quaternion(iter, "rotation", rot);
 	
 	body = BKE_nparticle_iter_get_pointer(iter, "rigid_body");
 	if (!body || rebuild) {
@@ -1400,9 +1400,11 @@ static void rigidbody_world_apply_particles(Scene *UNUSED(scene), RigidBodyWorld
 	for (BKE_nparticle_iter_init(state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
 		rbRigidBody *body = BKE_nparticle_iter_get_pointer(&iter, "rigid_body");
 		if (body) {
-			float pos[3];
+			float pos[3], rot[4];
 			RB_body_get_position(body, pos);
+			RB_body_get_orientation(body, rot);
 			BKE_nparticle_iter_set_vector(&iter, "position", pos);
+			BKE_nparticle_iter_set_quaternion(&iter, "rotation", rot);
 		}
 	}
 	
