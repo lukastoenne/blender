@@ -56,6 +56,7 @@ const char *BKE_nparticle_datatype_name(int datatype)
 		case PAR_ATTR_DATATYPE_VECTOR: return "vector";
 		case PAR_ATTR_DATATYPE_POINT: return "point";
 		case PAR_ATTR_DATATYPE_NORMAL: return "normal";
+		case PAR_ATTR_DATATYPE_QUATERNION: return "quaternion";
 		case PAR_ATTR_DATATYPE_COLOR: return "color";
 		case PAR_ATTR_DATATYPE_MATRIX: return "matrix";
 		case PAR_ATTR_DATATYPE_POINTER: return "pointer";
@@ -73,6 +74,7 @@ static size_t nparticle_elem_bytes(int datatype)
 		case PAR_ATTR_DATATYPE_POINT:
 		case PAR_ATTR_DATATYPE_NORMAL:
 			return sizeof(float)*3;
+		case PAR_ATTR_DATATYPE_QUATERNION: return sizeof(float)*4;
 		case PAR_ATTR_DATATYPE_COLOR: return sizeof(float)*4;
 		case PAR_ATTR_DATATYPE_MATRIX: return sizeof(float)*16;
 		case PAR_ATTR_DATATYPE_POINTER: return sizeof(void*);
@@ -592,6 +594,24 @@ void BKE_nparticle_iter_set_vector(NParticleIterator *it, const char *attr, cons
 	           || nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_NORMAL));
 	if (data)
 		copy_v3_v3(data, value);
+}
+
+void BKE_nparticle_iter_get_quaternion(NParticleIterator *it, const char *attr, float *result)
+{
+	float *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_QUATERNION));
+	if (data)
+		copy_qt_qt(result, data);
+	else
+		unit_qt(result);
+}
+
+void BKE_nparticle_iter_set_quaternion(NParticleIterator *it, const char *attr, const float *value)
+{
+	float *data = nparticle_data_ptr(it->state, attr, it->index);
+	BLI_assert(nparticle_check_attribute_type(it->state, attr, PAR_ATTR_DATATYPE_QUATERNION));
+	if (data)
+		copy_qt_qt(data, value);
 }
 
 void *BKE_nparticle_iter_get_pointer(NParticleIterator *it, const char *attr)

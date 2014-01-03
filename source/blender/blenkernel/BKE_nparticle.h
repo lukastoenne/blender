@@ -107,6 +107,8 @@ float BKE_nparticle_iter_get_float(struct NParticleIterator *it, const char *att
 void BKE_nparticle_iter_set_float(struct NParticleIterator *it, const char *attr, float value);
 void BKE_nparticle_iter_get_vector(struct NParticleIterator *it, const char *attr, float *result);
 void BKE_nparticle_iter_set_vector(struct NParticleIterator *it, const char *attr, const float *value);
+void BKE_nparticle_iter_get_quaternion(struct NParticleIterator *it, const char *attr, float *result);
+void BKE_nparticle_iter_set_quaternion(struct NParticleIterator *it, const char *attr, const float *value);
 void *BKE_nparticle_iter_get_pointer(struct NParticleIterator *it, const char *attr);
 void BKE_nparticle_iter_set_pointer(struct NParticleIterator *it, const char *attr, void *value);
 

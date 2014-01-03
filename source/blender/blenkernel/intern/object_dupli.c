@@ -44,6 +44,9 @@
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_nparticle_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 
@@ -56,6 +59,7 @@
 #include "BKE_lattice.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_nparticle.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
@@ -1141,6 +1145,69 @@ const DupliGenerator gen_dupli_particles = {
 
 /* ------------- */
 
+/* OB_DUPLIPARTS */
+static void make_duplis_nparticle_system(const DupliContext *ctx, NParticleSystem *psys, NParticleDisplay *display)
+{
+	NParticleIterator iter;
+	NParticleDisplayDupliObject *dupli, *dob;
+	int totdupli, i;
+	float loc[3], rot[4], scale[3], obmat[4][4];
+	
+	/* simple preventing of too deep nested groups */
+	if (level > MAX_DUPLI_RECUR) return;
+	
+	/* for faster index-based lookup make a temp array */
+	totdupli = BLI_countlist(&display->dupli_objects);
+	dupli = MEM_mallocN(totdupli * sizeof(NParticleDisplayDupliObject), "dupli objects");
+	for (dob = display->dupli_objects.first, i = 0; dob; dob = dob->next, ++i)
+		memcpy(&dupli[i], dob, sizeof(NParticleDisplayDupliObject));
+	
+	scale[0] = scale[1] = scale[2] = 1.0f;
+	
+	for (BKE_nparticle_iter_init(psys->state, &iter); BKE_nparticle_iter_valid(&iter); BKE_nparticle_iter_next(&iter)) {
+		i = BKE_nparticle_iter_get_int(&iter, "dupli");
+		if (i < 0 || i >= totdupli || dupli[i].object==NULL)
+			continue;
+		
+		BKE_nparticle_iter_get_vector(&iter, "position", loc);
+		BKE_nparticle_iter_get_quaternion(&iter, "rotation", rot);
+		loc_quat_size_to_mat4(obmat, loc, rot, scale);
+		
+		make_dupli(ctx, dupli[i].object, obmat, BKE_nparticle_iter_get_id(&iter), false, false);
+	}
+	
+	MEM_freeN(dupli);
+}
+
+static void make_duplis_nparticles(const DupliContext *ctx)
+{
+	ModifierData *md;
+	int pmd_index = 0;	/* XXX not really a persistent index, but modifier is only stop-gap design anyway */
+	for (md = ctx->object->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_NParticleSystem) {
+			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
+			NParticleDisplay *display;
+			/* particles create one more level for persistent psys index */
+			DupliContext pctx;
+			copy_dupli_context(&pctx, ctx, ctx->object, NULL, pmd_index, false);
+			
+			for (display = pmd->psys->display.first; display; display = display->next) {
+				if (display->type == PAR_DISPLAY_DUPLI)
+					make_duplis_nparticle_system(&pctx, pmd->psys, display);
+			}
+			
+			++pmd_index;
+		}
+	}
+}
+
+const DupliGenerator gen_dupli_nparticles = {
+    OB_DUPLI_NPARTICLE,             /* type */
+    make_duplis_nparticles          /* make_duplis */
+};
+
+/* ------------- */
+
 /* select dupli generator from given context */
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 {
@@ -1156,6 +1223,9 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 
 	if (transflag & OB_DUPLIPARTS) {
 		return &gen_dupli_particles;
+	}
+	else if (transflag & OB_DUPLI_NPARTICLE) {
+		return &gen_dupli_nparticles;
 	}
 	else if (transflag & OB_DUPLIVERTS) {
 		if (ctx->object->type == OB_MESH) {
