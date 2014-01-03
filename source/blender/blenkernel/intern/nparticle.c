@@ -610,21 +610,16 @@ void BKE_nparticle_iter_set_pointer(NParticleIterator *it, const char *attr, voi
 }
 
 
-NParticleDisplay *BKE_nparticle_display_add_particle(NParticleSystem *psys)
+NParticleDisplay *BKE_nparticle_display_add(NParticleSystem *psys, int type)
 {
 	NParticleDisplay *display = MEM_callocN(sizeof(NParticleDisplay), "particle display");
-	display->type = PAR_DISPLAY_PARTICLE;
-	BLI_strncpy(display->attribute, "position", sizeof(display->attribute));
+	display->type = type;
 	
-	BLI_addtail(&psys->display, display);
-	return display;
-}
-
-NParticleDisplay *BKE_nparticle_display_add_dupli(NParticleSystem *psys)
-{
-	NParticleDisplay *display = MEM_callocN(sizeof(NParticleDisplay), "particle display");
-	display->type = PAR_DISPLAY_DUPLI;
-	BLI_strncpy(display->attribute, "position", sizeof(display->attribute));
+	switch (type) {
+		case PAR_DISPLAY_PARTICLE:
+			BLI_strncpy(display->attribute, "position", sizeof(display->attribute));
+			break;
+	}
 	
 	BLI_addtail(&psys->display, display);
 	return display;

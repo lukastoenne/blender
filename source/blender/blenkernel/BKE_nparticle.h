@@ -115,8 +115,7 @@ BLI_INLINE NParticleID BKE_nparticle_iter_get_id(struct NParticleIterator *it)
 }
 
 
-struct NParticleDisplay *BKE_nparticle_display_add_particle(struct NParticleSystem *psys);
-struct NParticleDisplay *BKE_nparticle_display_add_dupli(struct NParticleSystem *psys);
+struct NParticleDisplay *BKE_nparticle_display_add(struct NParticleSystem *psys, int type);
 struct NParticleDisplay *BKE_nparticle_display_copy(struct NParticleSystem *psys, struct NParticleDisplay *display);
 void BKE_nparticle_display_free(struct NParticleSystem *psys, struct NParticleDisplay *display);
 
