@@ -713,8 +713,7 @@ int where_on_path(Object *ob, float ctime, float vec[4], float dir[3], float qua
 
 enum {
 	DUPLILIST_DO_UPDATE     = 1,
-	DUPLILIST_FOR_RENDER    = 2,
-	DUPLILIST_ANIMATED      = 4
+	DUPLILIST_ANIMATED      = 2
 };
 
 #if 0
@@ -1734,8 +1733,6 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 	/* don't allow BKE_object_handle_update for viewport during render, can crash */
 	if (update && !(G.is_rendering && !eval_ctx->for_render))
 		ctx.flag |= DUPLILIST_DO_UPDATE;
-	if (eval_ctx->for_render)
-		ctx.flag |= DUPLILIST_FOR_RENDER;
 	
 	ctx.object = ob;
 	copy_m4_m4(ctx.obmat, ob->obmat);
@@ -1814,7 +1811,7 @@ static void make_duplilist_object(const DupliContext *ctx, ListBase *lb,
 
 static void make_group_duplilist(const DupliContext *ctx, ListBase *lb)
 {
-	bool for_render = ctx->flag & DUPLILIST_FOR_RENDER;
+	bool for_render = ctx->eval_ctx->for_render;
 	Object *ob = ctx->object;
 	Group *group;
 	GroupObject *go;
