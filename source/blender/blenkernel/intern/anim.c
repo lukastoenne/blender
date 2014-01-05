@@ -1716,18 +1716,21 @@ typedef struct DupliContext {
 	int index;
 	
 	const struct DupliGenerator *gen;
+	
+	/* result containers */
+	ListBase *duplilist; /* legacy doubly-linked list */
 } DupliContext;
 
 typedef struct DupliGenerator {
 	int type;				/* dupli type */
 	bool recursive;         /* generate duplis recursively */
-	void (*make_duplilist)(const DupliContext *ctx, ListBase *lb);
+	void (*make_duplis)(const DupliContext *ctx);
 } DupliGenerator;
 
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
 
-/* Returns a list of DupliObject */
-ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+/* create initial context for root object */
+static DupliContext init_context(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
 	DupliContext ctx;
 	ctx.eval_ctx = eval_ctx;
@@ -1742,10 +1745,36 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 	ctx.level = 0;
 	
 	ctx.gen = get_dupli_generator(&ctx);
+	
+	ctx.duplilist = NULL;
+	
+	return ctx;
+}
+
+/* create sub-context for recursive duplis */
+static DupliContext copy_dupli_context(const DupliContext *ctx, Object *ob, float mat[4][4], int index, bool animated)
+{
+	DupliContext rctx = *ctx;
+	rctx.animated |= animated; /* object animation makes all children animated */
+	
+	rctx.object = ob;
+	copy_m4_m4(rctx.obmat, mat);
+	rctx.persistent_id[rctx.level] = index;
+	++rctx.level;
+	
+	rctx.gen = get_dupli_generator(ctx);
+	
+	return rctx;
+}
+
+/* Returns a list of DupliObject */
+ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+{
+	DupliContext ctx = init_context(eval_ctx, scene, ob, update);
 	if (ctx.gen) {
-		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
-		ctx.gen->make_duplilist(&ctx, duplilist);
-		return duplilist;
+		ctx.duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		ctx.gen->make_duplis(&ctx);
+		return ctx.duplilist;
 	}
 	
 	return NULL;
@@ -1758,14 +1787,23 @@ ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 	return object_duplilist_ex(eval_ctx, sce, ob, true);
 }
 
-
-static void make_duplilist_object(const DupliContext *ctx, ListBase *lb,
-                                  Object *ob, float mat[4][4], int index,
-                                  bool animated, bool hide)
+/* setup a dupli object, allocation happens outside */
+static void make_dupli(const DupliContext *ctx,
+                       Object *ob, float mat[4][4], int index,
+                       bool animated, bool hide)
 {
-	DupliObject *dob = MEM_callocN(sizeof(DupliObject), "dupliobject");
+	DupliObject *dob;
 	int i;
-
+	
+	/* add a DupliObject instance to the result container */
+	if (ctx->duplilist) {
+		dob = MEM_callocN(sizeof(DupliObject), "dupli object");
+		BLI_addtail(ctx->duplilist, dob);
+	}
+	else {
+		return;
+	}
+	
 	dob->ob = ob;
 	copy_m4_m4(dob->mat, mat);
 	copy_m4_m4(dob->omat, ob->obmat);
@@ -1790,29 +1828,25 @@ static void make_duplilist_object(const DupliContext *ctx, ListBase *lb,
 	 * scene, they will not show up at all, limitation that should be solved once. */
 	if (ob->type == OB_MBALL)
 		dob->no_draw = true;
-	
-	BLI_addtail(lb, dob);
-	
-	/* simple preventing of too deep nested groups */
+
+	/* recursive dupli objects,
+	 * simple preventing of too deep nested groups with MAX_DUPLI_RECUR
+	 */
 	if (ctx->gen->recursive && ctx->level < MAX_DUPLI_RECUR) {
-		DupliContext rctx = *ctx;
-		rctx.animated |= animated; /* object animation makes all children animated */
-		
-		rctx.object = ob;
-		copy_m4_m4(rctx.obmat, mat);
-		rctx.persistent_id[rctx.level] = index;
-		++rctx.level;
-		
-		rctx.gen = get_dupli_generator(ctx);
+		DupliContext rctx = copy_dupli_context(ctx, ob, mat, index, animated);
 		if (rctx.gen) {
 			copy_m4_m4(ob->obmat, dob->mat);
-			rctx.gen->make_duplilist(&rctx, lb);
+			rctx.gen->make_duplis(&rctx);
 			copy_m4_m4(ob->obmat, dob->omat);
 		}
 	}
 }
 
-static void make_group_duplilist(const DupliContext *ctx, ListBase *lb)
+
+/*---- Implementations ----*/
+
+/* OB_DUPLIGROUP */
+static void make_duplis_group(const DupliContext *ctx)
 {
 	bool for_render = ctx->eval_ctx->for_render;
 	Object *ob = ctx->object;
@@ -1855,7 +1889,7 @@ static void make_group_duplilist(const DupliContext *ctx, ListBase *lb)
 			hide = (go->ob->lay & group->layer) == 0 ||
 			       (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
 			
-			make_duplilist_object(ctx, lb, go->ob, mat, id, animated, hide);
+			make_dupli(ctx, go->ob, mat, id, animated, hide);
 		}
 	}
 }
@@ -1863,9 +1897,12 @@ static void make_group_duplilist(const DupliContext *ctx, ListBase *lb)
 const DupliGenerator gen_dupli_group = {
     OB_DUPLIGROUP,                  /* type */
     true,                           /* recursive */
-    make_group_duplilist            /* make_duplilist */
+    make_duplis_group               /* make_duplis */
 };
 
+/* ------------- */
+
+/* select dupli generator from given context */
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 {
 	int transflag = ctx->object->transflag;
