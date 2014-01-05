@@ -76,9 +76,11 @@
 /* --------------------- */
 /* forward declarations */
 
+#if 0
 static void object_duplilist_recursive(EvaluationContext *eval_ctx,
                                        ID *id, Scene *scene, Object *ob, ListBase *duplilist, float par_space_mat[4][4],
                                        int persistent_id[MAX_DUPLI_RECUR], int level, int index, short flag);
+#endif
 
 /* ******************************************************************** */
 /* Animation Visualization */
@@ -709,10 +711,13 @@ int where_on_path(Object *ob, float ctime, float vec[4], float dir[3], float qua
 /* ******************************************************************** */
 /* Dupli-Geometry */
 
-#define DUPLILIST_DO_UPDATE		1
-#define DUPLILIST_FOR_RENDER	2
-#define DUPLILIST_ANIMATED		4
+enum {
+	DUPLILIST_DO_UPDATE     = 1,
+	DUPLILIST_FOR_RENDER    = 2,
+	DUPLILIST_ANIMATED      = 4
+};
 
+#if 0
 static DupliObject *new_dupli_object(ListBase *lb, Object *ob, float mat[4][4], int lay,
                                      int persistent_id[MAX_DUPLI_RECUR], int level, int index, int type, short flag)
 {
@@ -1692,9 +1697,205 @@ static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int persiste
 
 	MEM_freeN(chartransdata);
 }
+#endif
 
 /* ------------- */
 
+typedef struct DupliContext {
+	EvaluationContext *eval_ctx;
+	Scene *scene;
+	Object *object;
+	float obmat[4][4];
+	int lay;
+	
+	int persistent_id[MAX_DUPLI_RECUR];
+	int level;
+	int index;
+	short flag;
+	
+	const struct DupliGenerator *gen;
+} DupliContext;
+
+typedef struct DupliGenerator {
+	int type;				/* dupli type */
+	bool recursive;         /* generate duplis recursively */
+	void (*make_duplilist)(const DupliContext *ctx, ListBase *lb);
+} DupliGenerator;
+
+static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
+
+/* Returns a list of DupliObject */
+ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+{
+	DupliContext ctx;
+	ctx.eval_ctx = eval_ctx;
+	ctx.scene = scene;
+	ctx.flag = 0;
+	/* don't allow BKE_object_handle_update for viewport during render, can crash */
+	if (update && !(G.is_rendering && !eval_ctx->for_render))
+		ctx.flag |= DUPLILIST_DO_UPDATE;
+	if (eval_ctx->for_render)
+		ctx.flag |= DUPLILIST_FOR_RENDER;
+	
+	ctx.object = ob;
+	copy_m4_m4(ctx.obmat, ob->obmat);
+	ctx.lay = ob->lay;
+	ctx.level = 0;
+	
+	ctx.gen = get_dupli_generator(&ctx);
+	if (ctx.gen) {
+		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		ctx.gen->make_duplilist(&ctx, duplilist);
+		return duplilist;
+	}
+	
+	return NULL;
+}
+
+/* note: previously updating was always done, this is why it defaults to be on
+ * but there are likely places it can be called without updating */
+ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
+{
+	return object_duplilist_ex(eval_ctx, sce, ob, true);
+}
+
+
+static void make_duplilist_object(const DupliContext *ctx, ListBase *lb,
+                                  Object *ob, float mat[4][4], int index,
+                                  bool animated, bool hide)
+{
+	DupliObject *dob = MEM_callocN(sizeof(DupliObject), "dupliobject");
+	int i;
+
+	dob->ob = ob;
+	copy_m4_m4(dob->mat, mat);
+	copy_m4_m4(dob->omat, ob->obmat);
+	dob->type = ctx->gen->type;
+	dob->animated = animated;
+
+	dob->origlay = ob->lay;
+	ob->lay = ctx->lay;
+
+	/* set persistent id, which is an array with a persistent index for each level
+	 * (particle number, vertex number, ..). by comparing this we can find the same
+	 * dupli object between frames, which is needed for motion blur. last level
+	 * goes first in the array. */
+	dob->persistent_id[0] = index;
+	for (i = 0; i < ctx->level; i++)
+		dob->persistent_id[i+1] = ctx->persistent_id[ctx->level - 1 - i];
+	
+	if (hide)
+		dob->no_draw = true;
+	/* metaballs never draw in duplis, they are instead merged into one by the basis
+	 * mball outside of the group. this does mean that if that mball is not in the
+	 * scene, they will not show up at all, limitation that should be solved once. */
+	if (ob->type == OB_MBALL)
+		dob->no_draw = true;
+	
+	BLI_addtail(lb, dob);
+	
+	/* simple preventing of too deep nested groups */
+	if (ctx->gen->recursive && ctx->level < MAX_DUPLI_RECUR) {
+		DupliContext rctx = *ctx;
+		
+		rctx.object = ob;
+		copy_m4_m4(rctx.obmat, mat);
+		rctx.persistent_id[rctx.level] = index;
+		++rctx.level;
+		
+		rctx.gen = get_dupli_generator(ctx);
+		if (rctx.gen) {
+			copy_m4_m4(ob->obmat, dob->mat);
+			rctx.gen->make_duplilist(&rctx, lb);
+			copy_m4_m4(ob->obmat, dob->omat);
+		}
+	}
+}
+
+static void make_group_duplilist(const DupliContext *ctx, ListBase *lb)
+{
+	bool for_render = ctx->flag & DUPLILIST_FOR_RENDER;
+	Object *ob = ctx->object;
+	Group *group;
+	GroupObject *go;
+	float mat[4][4], ob_obmat_ofs[4][4], id;
+	bool animated, hide;
+
+	if (ob->dup_group == NULL) return;
+	group = ob->dup_group;
+	
+	/* don't access 'ob->obmat' from now on. */
+	copy_m4_m4(ob_obmat_ofs, ob->obmat);
+
+	if (!is_zero_v3(group->dupli_ofs)) {
+		float tvec[3];
+		copy_v3_v3(tvec, group->dupli_ofs);
+		mul_mat3_m4_v3(ob_obmat_ofs, tvec);
+		sub_v3_v3(ob_obmat_ofs[3], tvec);
+	}
+
+	/* handles animated groups */
+
+	/* we need to check update for objects that are not in scene... */
+	if (ctx->flag & DUPLILIST_DO_UPDATE) {
+		/* note: update is optional because we don't always need object
+		 * transformations to be correct. Also fixes bug [#29616]. */
+		BKE_group_handle_recalc_and_update(ctx->eval_ctx, ctx->scene, ob, group);
+	}
+
+	animated = BKE_group_is_animated(group, ob);
+	
+	for (go = group->gobject.first, id = 0; go; go = go->next, id++) {
+		/* note, if you check on layer here, render goes wrong... it still deforms verts and uses parent imat */
+		if (go->ob != ob) {
+			/* group dupli offset, should apply after everything else */
+			mul_m4_m4m4(mat, ob_obmat_ofs, go->ob->obmat);
+			
+			/* check the group instance and object layers match, also that the object visible flags are ok. */
+			hide = (go->ob->lay & group->layer) == 0 ||
+			       (!for_render && go->ob->restrictflag & OB_RESTRICT_VIEW) ||
+			       (for_render && go->ob->restrictflag & OB_RESTRICT_RENDER);
+			
+			make_duplilist_object(ctx, lb, go->ob, mat, id, animated, hide);
+		}
+	}
+}
+
+const DupliGenerator gen_dupli_group = {
+    OB_DUPLIGROUP,                  /* type */
+    true,                           /* recursive */
+    make_group_duplilist            /* make_duplilist */
+};
+
+static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
+{
+	int transflag = ctx->object->transflag;
+	int restrictflag = ctx->object->restrictflag;
+	
+	if ((transflag & OB_DUPLI) == 0)
+		return NULL;
+	
+	/* Should the dupli's be generated for this object? - Respect restrict flags */
+	if (ctx->eval_ctx->for_render ? (restrictflag & OB_RESTRICT_RENDER) : (restrictflag & OB_RESTRICT_VIEW))
+		return NULL;
+	
+	if (transflag & OB_DUPLIPARTS) {
+	}
+	else if (transflag & OB_DUPLIVERTS) {
+	}
+	else if (transflag & OB_DUPLIFACES) {
+	}
+	else if (transflag & OB_DUPLIFRAMES) {
+	}
+	else if (transflag & OB_DUPLIGROUP) {
+		return &gen_dupli_group;
+	}
+	
+	return NULL;
+}
+
+
+#if 0
 static void object_duplilist_recursive(EvaluationContext *eval_ctx,
                                        ID *id, Scene *scene, Object *ob, ListBase *duplilist, float par_space_mat[4][4],
                                        int persistent_id[MAX_DUPLI_RECUR], int level, int index, short flag)
@@ -1791,6 +1992,7 @@ ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 {
 	return object_duplilist_ex(eval_ctx, sce, ob, true);
 }
+#endif
 
 void free_object_duplilist(ListBase *lb)
 {
