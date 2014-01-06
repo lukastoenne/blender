@@ -2054,14 +2054,13 @@ const DupliGenerator gen_dupli_frames = {
 
 /* OB_DUPLIVERTS */
 typedef struct VertexDupliData {
-	const DupliContext *ctx;
-	
 	DerivedMesh *dm;
 	BMEditMesh *edit_btmesh;
 	int totvert;
 	float (*orco)[3];
 	bool use_rotation;
 	
+	const DupliContext *ctx;
 	Object *inst_ob; /* object to instantiate (argument for vertex map callback) */
 	const float (*inst_obmat)[4];
 } VertexDupliData;
@@ -2182,6 +2181,150 @@ const DupliGenerator gen_dupli_verts = {
     make_duplis_verts               /* make_duplis */
 };
 
+/* OB_DUPLIFACES */
+typedef struct FaceDupliData {
+	DerivedMesh *dm;
+	int totface;
+	MPoly *mpoly;
+	MLoop *mloop;
+	MVert *mvert;
+	float (*orco)[3];
+	MLoopUV *mloopuv;
+	bool use_scale;
+	
+	Object *inst_ob; /* object to instantiate (argument for vertex map callback) */
+	const float (*inst_obmat)[4];
+} FaceDupliData;
+
+static void make_child_duplis_faces(const DupliContext *ctx, void *userdata, Object *child, float child_obmat[4][4])
+{
+	FaceDupliData *fdd = userdata;
+	MPoly *mpoly = fdd->mpoly, *mp;
+	MLoop *mloop = fdd->mloop;
+	MVert *mvert = fdd->mvert;
+	float (*orco)[3] = fdd->orco;
+	MLoopUV *mloopuv = fdd->mloopuv;
+	int a, totface = fdd->totface;
+	float imat[3][3];
+	DupliObject *dob;
+	
+	fdd->inst_ob = child;
+	fdd->inst_obmat = child_obmat;
+	
+	copy_m3_m4(imat, child->parentinv);
+	
+	for (a = 0, mp = mpoly; a < totface; a++, mp++) {
+		float *v1;
+		float *v2;
+		float *v3;
+		/* float *v4; */ /* UNUSED */
+		float cent[3], quat[4], mat[3][3], mat3[3][3], tmat[4][4], obmat[4][4];
+		float f_no[3];
+		MLoop *loopstart = mloop + mp->loopstart;
+
+		if (UNLIKELY(mp->totloop < 3)) {
+			continue;
+		}
+		else {
+			BKE_mesh_calc_poly_normal(mp, mloop + mp->loopstart, mvert, f_no);
+			v1 = mvert[loopstart[0].v].co;
+			v2 = mvert[loopstart[1].v].co;
+			v3 = mvert[loopstart[2].v].co;
+		}
+
+		/* translation */
+		BKE_mesh_calc_poly_center(mp, loopstart, mvert, cent);
+
+		/* rotate into world space, offset by child origin */
+		mul_mat3_m4_v3(ctx->object->obmat, cent);
+		add_v3_v3(cent, fdd->inst_obmat[3]);
+		
+		copy_m4_m4(obmat, (float (*)[4])fdd->inst_obmat);
+		copy_v3_v3(obmat[3], cent);
+		
+		/* rotation */
+		tri_to_quat_ex(quat, v1, v2, v3, f_no);
+		quat_to_mat3(mat, quat);
+		
+		/* scale */
+		if (fdd->use_scale) {
+			float size = BKE_mesh_calc_poly_area(mp, loopstart, mvert, f_no);
+			size = sqrtf(size) * ctx->object->dupfacesca;
+			mul_m3_fl(mat, size);
+		}
+		
+		copy_m3_m3(mat3, mat);
+		mul_m3_m3m3(mat, imat, mat3);
+		
+		copy_m4_m4(tmat, obmat);
+		mul_m4_m4m3(obmat, tmat, mat);
+		
+		dob = make_dupli(ctx, fdd->inst_ob, obmat, a, false, false);
+		if (ctx->eval_ctx->for_render) {
+			float w = 1.0f / (float)mp->totloop;
+
+			if (orco) {
+				int j;
+				for (j = 0; j < mpoly->totloop; j++) {
+					madd_v3_v3fl(dob->orco, orco[loopstart[j].v], w);
+				}
+			}
+
+			if (mloopuv) {
+				int j;
+				for (j = 0; j < mpoly->totloop; j++) {
+					madd_v2_v2fl(dob->uv, mloopuv[mp->loopstart + j].uv, w);
+				}
+			}
+		}
+	}
+}
+
+static void make_duplis_faces(const DupliContext *ctx)
+{
+	Scene *scene = ctx->scene;
+	Object *parent = ctx->object;
+	bool for_render = ctx->eval_ctx->for_render;
+	FaceDupliData fdd;
+	
+	fdd.use_scale = parent->transflag & OB_DUPLIFACES_SCALE;
+	
+	/* gather mesh info */
+	{
+		BMEditMesh *em = BKE_editmesh_from_object(parent);
+		CustomDataMask dm_mask = (for_render ? CD_MASK_BAREMESH | CD_MASK_ORCO | CD_MASK_MLOOPUV : CD_MASK_BAREMESH);
+		
+		if (em)
+			fdd.dm = editbmesh_get_derived_cage(scene, parent, em, dm_mask);
+		else
+			fdd.dm = mesh_get_derived_final(scene, parent, dm_mask);
+		
+		if (for_render) {
+			fdd.orco = fdd.dm->getVertDataArray(fdd.dm, CD_ORCO);
+			fdd.mloopuv = fdd.dm->getLoopDataArray(fdd.dm, CD_MLOOPUV);
+		}
+		else {
+			fdd.orco = NULL;
+			fdd.mloopuv = NULL;
+		}
+		
+		fdd.totface = fdd.dm->getNumPolys(fdd.dm);
+		fdd.mpoly = fdd.dm->getPolyArray(fdd.dm);
+		fdd.mloop = fdd.dm->getLoopArray(fdd.dm);
+		fdd.mvert = fdd.dm->getVertArray(fdd.dm);
+	}
+	
+	make_child_duplis(ctx, &fdd, make_child_duplis_faces);
+	
+	fdd.dm->release(fdd.dm);
+}
+
+const DupliGenerator gen_dupli_faces = {
+    OB_DUPLIFACES,                  /* type */
+    true,                           /* recursive */
+    make_duplis_faces               /* make_duplis */
+};
+
 /* ------------- */
 
 /* select dupli generator from given context */
@@ -2212,6 +2355,8 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 		}
 	}
 	else if (transflag & OB_DUPLIFACES) {
+		if (ctx->object->type == OB_MESH)
+			return &gen_dupli_faces;
 	}
 	else if (transflag & OB_DUPLIFRAMES) {
 		return &gen_dupli_frames;
