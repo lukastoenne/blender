@@ -1788,9 +1788,9 @@ ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 }
 
 /* setup a dupli object, allocation happens outside */
-static void make_dupli(const DupliContext *ctx,
-                       Object *ob, float mat[4][4], int index,
-                       bool animated, bool hide)
+static DupliObject *make_dupli(const DupliContext *ctx,
+                               Object *ob, float mat[4][4], int index,
+                               bool animated, bool hide)
 {
 	DupliObject *dob;
 	int i;
@@ -1801,7 +1801,7 @@ static void make_dupli(const DupliContext *ctx,
 		BLI_addtail(ctx->duplilist, dob);
 	}
 	else {
-		return;
+		return NULL;
 	}
 	
 	dob->ob = ob;
@@ -1840,6 +1840,8 @@ static void make_dupli(const DupliContext *ctx,
 			copy_m4_m4(ob->obmat, dob->omat);
 		}
 	}
+	
+	return dob;
 }
 
 
@@ -1900,6 +1902,81 @@ const DupliGenerator gen_dupli_group = {
     make_duplis_group               /* make_duplis */
 };
 
+/* OB_DUPLIFRAMES */
+static void make_duplis_frames(const DupliContext *ctx)
+{
+	Scene *scene = ctx->scene;
+	Object *ob = ctx->object;
+	extern int enable_cu_speed; /* object.c */
+	Object copyob;
+	int cfrao = scene->r.cfra;
+	int dupend = ob->dupend;
+	
+	/* if we don't have any data/settings which will lead to object movement,
+	 * don't waste time trying, as it will all look the same...
+	 */
+	if (ob->parent == NULL && ob->constraints.first == NULL && ob->adt == NULL)
+		return;
+	
+	/* make a copy of the object's original data (before any dupli-data overwrites it) 
+	 * as we'll need this to keep track of unkeyed data
+	 *	- this doesn't take into account other data that can be reached from the object,
+	 *	  for example it's shapekeys or bones, hence the need for an update flush at the end
+	 */
+	copyob = *ob;
+	
+	/* duplicate over the required range */
+	if (ob->transflag & OB_DUPLINOSPEED) enable_cu_speed = 0;
+	
+	for (scene->r.cfra = ob->dupsta; scene->r.cfra <= dupend; scene->r.cfra++) {
+		short ok = 1;
+		
+		/* - dupoff = how often a frames within the range shouldn't be made into duplis
+		 * - dupon = the length of each "skipping" block in frames
+		 */
+		if (ob->dupoff) {
+			ok = scene->r.cfra - ob->dupsta;
+			ok = ok % (ob->dupon + ob->dupoff);
+			ok = (ok < ob->dupon);
+		}
+		
+		if (ok) {
+			DupliObject *dob;
+			
+			/* WARNING: doing animation updates in this way is not terribly accurate, as the dependencies
+			 * and/or other objects which may affect this object's transforms are not updated either.
+			 * However, this has always been the way that this worked (i.e. pre 2.5), so I guess that it'll be fine!
+			 */
+			BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
+			BKE_object_where_is_calc_time(scene, ob, (float)scene->r.cfra);
+			
+			dob = make_dupli(ctx, ob, ob->obmat, scene->r.cfra, false, false);
+			copy_m4_m4(dob->omat, copyob.obmat);
+		}
+	}
+
+	enable_cu_speed = 1;
+	
+	/* reset frame to original frame, then re-evaluate animation as above 
+	 * as 2.5 animation data may have far-reaching consequences
+	 */
+	scene->r.cfra = cfrao;
+	
+	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
+	BKE_object_where_is_calc_time(scene, ob, (float)scene->r.cfra);
+	
+	/* but, to make sure unkeyed object transforms are still sane, 
+	 * let's copy object's original data back over
+	 */
+	*ob = copyob;
+}
+
+const DupliGenerator gen_dupli_frames = {
+    OB_DUPLIFRAMES,                 /* type */
+    false,                          /* recursive */
+    make_duplis_frames              /* make_duplis */
+};
+
 /* ------------- */
 
 /* select dupli generator from given context */
@@ -1922,6 +1999,7 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 	else if (transflag & OB_DUPLIFACES) {
 	}
 	else if (transflag & OB_DUPLIFRAMES) {
+		return &gen_dupli_frames;
 	}
 	else if (transflag & OB_DUPLIGROUP) {
 		return &gen_dupli_group;
