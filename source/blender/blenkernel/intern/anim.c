@@ -1705,10 +1705,11 @@ typedef struct DupliContext {
 	EvaluationContext *eval_ctx;
 	bool do_update;
 	bool animated;
+	Group *group; /* XXX child objects are selected from this group if set, could be nicer */
 	
 	Scene *scene;
 	Object *object;
-	float obmat[4][4];
+	float space_mat[4][4];
 	int lay;
 	
 	int persistent_id[MAX_DUPLI_RECUR];
@@ -1730,7 +1731,7 @@ typedef struct DupliGenerator {
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
 
 /* create initial context for root object */
-static DupliContext init_context(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+static DupliContext init_context(EvaluationContext *eval_ctx, Scene *scene, Object *ob, float space_mat[4][4], bool update)
 {
 	DupliContext ctx;
 	ctx.eval_ctx = eval_ctx;
@@ -1738,9 +1739,13 @@ static DupliContext init_context(EvaluationContext *eval_ctx, Scene *scene, Obje
 	/* don't allow BKE_object_handle_update for viewport during render, can crash */
 	ctx.do_update = update && !(G.is_rendering && !eval_ctx->for_render);
 	ctx.animated = false;
+	ctx.group = NULL;
 	
 	ctx.object = ob;
-	copy_m4_m4(ctx.obmat, ob->obmat);
+	if (space_mat)
+		copy_m4_m4(ctx.space_mat, space_mat);
+	else
+		unit_m4(ctx.space_mat);
 	ctx.lay = ob->lay;
 	ctx.level = 0;
 	
@@ -1752,13 +1757,18 @@ static DupliContext init_context(EvaluationContext *eval_ctx, Scene *scene, Obje
 }
 
 /* create sub-context for recursive duplis */
-static DupliContext copy_dupli_context(const DupliContext *ctx, Object *ob, float mat[4][4], int index, bool animated)
+static DupliContext copy_dupli_context(const DupliContext *ctx, Object *ob, float space_mat[4][4], int index, bool animated)
 {
 	DupliContext rctx = *ctx;
 	rctx.animated |= animated; /* object animation makes all children animated */
 	
+	/* XXX annoying, previously was done by passing an ID* argument, this at least is more explicit */
+	if (ctx->gen->type == OB_DUPLIGROUP)
+		rctx.group = ctx->object->dup_group;
+	
 	rctx.object = ob;
-	copy_m4_m4(rctx.obmat, mat);
+	if (space_mat)
+		mul_m4_m4m4(rctx.space_mat, (float (*)[4])ctx->space_mat, space_mat);
 	rctx.persistent_id[rctx.level] = index;
 	++rctx.level;
 	
@@ -1770,7 +1780,7 @@ static DupliContext copy_dupli_context(const DupliContext *ctx, Object *ob, floa
 /* Returns a list of DupliObject */
 ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
-	DupliContext ctx = init_context(eval_ctx, scene, ob, update);
+	DupliContext ctx = init_context(eval_ctx, scene, ob, NULL, update);
 	if (ctx.gen) {
 		ctx.duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
 		ctx.gen->make_duplis(&ctx);
@@ -1805,7 +1815,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 	}
 	
 	dob->ob = ob;
-	copy_m4_m4(dob->mat, mat);
+	mul_m4_m4m4(dob->mat, (float (*)[4])ctx->space_mat, mat);
 	copy_m4_m4(dob->omat, ob->obmat);
 	dob->type = ctx->gen->type;
 	dob->animated = animated || ctx->animated; /* object itself or some parent is animated */
@@ -1844,6 +1854,71 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 	return dob;
 }
 
+/* ---- Child Duplis ---- */
+
+typedef void (*MakeChildDuplisFunc)(const DupliContext *ctx, void *userdata, Object *child, float child_obmat[4][4]);
+
+BLI_INLINE bool is_child(const Object *ob, const Object *parent)
+{
+	const Object *ob_parent = ob->parent;
+	while (ob_parent) {
+		if (ob_parent == parent)
+			return true;
+		ob_parent = ob_parent->parent;
+	}
+	return false;
+}
+
+/* create duplis from every child in scene or group */
+static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChildDuplisFunc make_child_duplis)
+{
+	Object *parent = ctx->object;
+	Object *obedit = ctx->scene->obedit;
+	float obmat[4][4]; /* child obmat in dupli context space */
+	
+	if (ctx->group) {
+		int lay = ctx->group->layer;
+		GroupObject *go;
+		for (go = ctx->group->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			
+			if ((ob->lay & lay) && ob != obedit && is_child(ob, parent)) {
+				/* mballs have a different dupli handling */
+				if (ob->type != OB_MBALL)
+					ob->flag |= OB_DONE;  /* doesnt render */
+				
+				mul_m4_m4m4(obmat, (float (*)[4])ctx->space_mat, ob->obmat);
+				
+				make_child_duplis(ctx, userdata, ob, obmat);
+			}
+		}
+	}
+	else {
+		unsigned int lay = ctx->scene->lay;
+		Base *base;
+		for (base = ctx->scene->base.first; base; base = base->next) {
+			Object *ob = base->object;
+			
+			if ((base->lay & lay) && ob != obedit && is_child(ob, parent)) {
+				/* mballs have a different dupli handling */
+				if (ob->type != OB_MBALL)
+					ob->flag |= OB_DONE;  /* doesnt render */
+				
+				mul_m4_m4m4(obmat, (float (*)[4])ctx->space_mat, ob->obmat);
+				
+				make_child_duplis(ctx, userdata, ob, obmat);
+				
+				/* Set proper layer in case of scene looping,
+				 * in case of groups the object layer will be
+				 * changed when it's duplicated due to the
+				 * group duplication.
+				 */
+				ob->lay = ctx->object->lay;
+			}
+		}
+	}
+}
+
 
 /*---- Implementations ----*/
 
@@ -1854,7 +1929,7 @@ static void make_duplis_group(const DupliContext *ctx)
 	Object *ob = ctx->object;
 	Group *group;
 	GroupObject *go;
-	float mat[4][4], ob_obmat_ofs[4][4], id;
+	float ob_obmat_ofs[4][4], id;
 	bool animated, hide;
 
 	if (ob->dup_group == NULL) return;
@@ -1884,14 +1959,11 @@ static void make_duplis_group(const DupliContext *ctx)
 	for (go = group->gobject.first, id = 0; go; go = go->next, id++) {
 		/* note, if you check on layer here, render goes wrong... it still deforms verts and uses parent imat */
 		if (go->ob != ob) {
-			/* group dupli offset, should apply after everything else */
-			mul_m4_m4m4(mat, ob_obmat_ofs, go->ob->obmat);
-			
 			/* check the group instance and object layers match, also that the object visible flags are ok. */
 			hide = (go->ob->lay & group->layer) == 0 ||
 			       (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
 			
-			make_dupli(ctx, go->ob, mat, id, animated, hide);
+			make_dupli(ctx, go->ob, ob_obmat_ofs, id, animated, hide);
 		}
 	}
 }
@@ -1912,6 +1984,9 @@ static void make_duplis_frames(const DupliContext *ctx)
 	int cfrao = scene->r.cfra;
 	int dupend = ob->dupend;
 	
+	/* dupliframes not supported inside groups */
+	if (ctx->group)
+		return;
 	/* if we don't have any data/settings which will lead to object movement,
 	 * don't waste time trying, as it will all look the same...
 	 */
@@ -1977,6 +2052,136 @@ const DupliGenerator gen_dupli_frames = {
     make_duplis_frames              /* make_duplis */
 };
 
+/* OB_DUPLIVERTS */
+typedef struct VertexDupliData {
+	const DupliContext *ctx;
+	
+	DerivedMesh *dm;
+	BMEditMesh *edit_btmesh;
+	int totvert;
+	float (*orco)[3];
+	bool use_rotation;
+	
+	Object *inst_ob; /* object to instantiate (argument for vertex map callback) */
+	const float (*inst_obmat)[4];
+} VertexDupliData;
+
+static void vertex_dupli__mapFunc(void *userData, int index, const float co[3],
+                                  const float no_f[3], const short no_s[3])
+{
+	const VertexDupliData *vdd = userData;
+	const DupliContext *ctx = vdd->ctx;
+	DupliObject *dob;
+	float vec[3], q2[4], mat[3][3], tmat[4][4], obmat[4][4];
+	int origlay;
+	
+	copy_v3_v3(vec, co);
+	/* rotate into world space, offset by child origin */
+	mul_mat3_m4_v3(ctx->object->obmat, vec);
+	add_v3_v3(vec, vdd->inst_obmat[3]);
+	
+	copy_m4_m4(obmat, (float (*)[4])vdd->inst_obmat);
+	copy_v3_v3(obmat[3], vec);
+	
+	if (ctx->object->transflag & OB_DUPLIROT) {
+		if (no_f) {
+			vec[0] = -no_f[0]; vec[1] = -no_f[1]; vec[2] = -no_f[2];
+		}
+		else if (no_s) {
+			vec[0] = -no_s[0]; vec[1] = -no_s[1]; vec[2] = -no_s[2];
+		}
+		
+		vec_to_quat(q2, vec, vdd->inst_ob->trackflag, vdd->inst_ob->upflag);
+		
+		quat_to_mat3(mat, q2);
+		copy_m4_m4(tmat, obmat);
+		mul_m4_m4m3(obmat, tmat, mat);
+	}
+
+	origlay = vdd->inst_ob->lay;
+	dob = make_dupli(vdd->ctx, vdd->inst_ob, obmat, index, false, false);
+	/* restore the original layer so that each dupli will have proper dob->origlay */
+	vdd->inst_ob->lay = origlay;
+
+	if (vdd->orco)
+		copy_v3_v3(dob->orco, vdd->orco[index]);
+}
+
+static void make_child_duplis_verts(const DupliContext *UNUSED(ctx), void *userdata, Object *child, float child_obmat[4][4])
+{
+	VertexDupliData *vdd = userdata;
+	DerivedMesh *dm = vdd->dm;
+	
+	vdd->inst_ob = child;
+	vdd->inst_obmat = child_obmat;
+	
+	if (vdd->edit_btmesh) {
+		dm->foreachMappedVert(dm, vertex_dupli__mapFunc, vdd,
+		                      vdd->use_rotation ? DM_FOREACH_USE_NORMAL : 0);
+	}
+	else {
+		int a, totvert = vdd->totvert;
+		float vec[3], no[3];
+		
+		if (vdd->use_rotation) {
+			for (a = 0; a < totvert; a++) {
+				dm->getVertCo(dm, a, vec);
+				dm->getVertNo(dm, a, no);
+				
+				vertex_dupli__mapFunc(vdd, a, vec, no, NULL);
+			}
+		}
+		else {
+			for (a = 0; a < totvert; a++) {
+				dm->getVertCo(dm, a, vec);
+				
+				vertex_dupli__mapFunc(vdd, a, vec, NULL, NULL);
+			}
+		}
+	}
+}
+
+static void make_duplis_verts(const DupliContext *ctx)
+{
+	Scene *scene = ctx->scene;
+	Object *parent = ctx->object;
+	bool for_render = ctx->eval_ctx->for_render;
+	VertexDupliData vdd;
+	
+	vdd.ctx = ctx;
+	vdd.use_rotation = parent->transflag & OB_DUPLIROT;
+
+	/* gather mesh info */
+	{
+		Mesh *me = parent->data;
+		BMEditMesh *em = BKE_editmesh_from_object(parent);
+		CustomDataMask dm_mask = (for_render ? CD_MASK_BAREMESH | CD_MASK_ORCO : CD_MASK_BAREMESH);
+		
+		if (em)
+			vdd.dm = editbmesh_get_derived_cage(scene, parent, em, dm_mask);
+		else
+			vdd.dm = mesh_get_derived_final(scene, parent, dm_mask);
+		vdd.edit_btmesh = me->edit_btmesh;
+		
+		if (for_render)
+			vdd.orco = vdd.dm->getVertDataArray(vdd.dm, CD_ORCO);
+		else
+			vdd.orco = NULL;
+		
+		vdd.totvert = vdd.dm->getNumVerts(vdd.dm);
+	}
+	
+	make_child_duplis(ctx, &vdd, make_child_duplis_verts);
+	
+	vdd.dm->release(vdd.dm);
+}
+
+const DupliGenerator gen_dupli_verts = {
+    OB_DUPLIVERTS,                  /* type */
+    true,                           /* recursive */
+    make_duplis_verts               /* make_duplis */
+};
+
 /* ------------- */
 
 /* select dupli generator from given context */
@@ -1995,6 +2200,16 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 	if (transflag & OB_DUPLIPARTS) {
 	}
 	else if (transflag & OB_DUPLIVERTS) {
+		if (ctx->object->type == OB_MESH) {
+			return &gen_dupli_verts;
+		}
+		else if (ctx->object->type == OB_FONT) {
+#if 0 /* XXX TODO */
+			if (GS(id->name) == ID_SCE) { /* TODO - support dupligroups */
+				font_duplilist(duplilist, scene, ob, persistent_id, level + 1, flag);
+			}
+#endif
+		}
 	}
 	else if (transflag & OB_DUPLIFACES) {
 	}
