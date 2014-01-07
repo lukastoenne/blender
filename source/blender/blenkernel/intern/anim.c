@@ -2182,25 +2182,35 @@ const DupliGenerator gen_dupli_verts = {
 };
 
 /* OB_DUPLIVERTS - FONT */
-static Object *find_family_object(Object **obar, char *family, char ch)
+static Object *find_family_object(const char *family, size_t family_len, unsigned int ch, GHash *family_gh)
 {
+	Object **ob_pt;
 	Object *ob;
-	int flen;
-	
-	if (obar[(int)ch]) return obar[(int)ch];
-	
-	flen = strlen(family);
-	
-	ob = G.main->object.first;
-	while (ob) {
-		if (ob->id.name[flen + 2] == ch) {
-			if (strncmp(ob->id.name + 2, family, flen) == 0) break;
-		}
-		ob = ob->id.next;
+	void *ch_key = SET_UINT_IN_POINTER(ch);
+
+	if ((ob_pt = (Object **)BLI_ghash_lookup_p(family_gh, ch_key))) {
+		ob = *ob_pt;
 	}
-	
-	obar[(int)ch] = ob;
-	
+	else {
+		char ch_utf8[7];
+		size_t ch_utf8_len;
+
+		ch_utf8_len = BLI_str_utf8_from_unicode(ch, ch_utf8);
+		ch_utf8[ch_utf8_len] = '\0';
+		ch_utf8_len += 1;  /* compare with null terminator */
+
+		for (ob = G.main->object.first; ob; ob = ob->id.next) {
+			if (STREQLEN(ob->id.name + 2 + family_len, ch_utf8, ch_utf8_len)) {
+				if (STREQLEN(ob->id.name + 2, family, family_len)) {
+					break;
+				}
+			}
+		}
+
+		/* inserted value can be NULL, just to save searches in future */
+		BLI_ghash_insert(family_gh, ch_key, ob);
+	}
+
 	return ob;
 }
 
@@ -2208,11 +2218,15 @@ static void make_duplis_font(const DupliContext *ctx)
 {
 	Scene *scene = ctx->scene;
 	Object *par = ctx->object;
-	Object *ob, *obar[256] = {NULL};
+	GHash *family_gh;
+	Object *ob;
 	Curve *cu;
-	struct CharTrans *ct, *chartransdata;
+	struct CharTrans *ct, *chartransdata = NULL;
 	float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
-	int slen, a;
+	int text_len, a;
+	size_t family_len;
+	const wchar_t *text = NULL;
+	bool text_free = false;
 	
 	/* font dupliverts not supported inside groups */
 	if (ctx->group)
@@ -2222,20 +2236,28 @@ static void make_duplis_font(const DupliContext *ctx)
 	
 	/* in par the family name is stored, use this to find the other objects */
 	
-	chartransdata = BKE_vfont_to_curve(G.main, scene, par, FO_DUPLI);
-	if (chartransdata == NULL) return;
+	BKE_vfont_to_curve_ex(G.main, scene, par, FO_DUPLI, NULL,
+	                      &text, &text_len, &text_free, &chartransdata);
+
+	if (text == NULL || chartransdata == NULL) {
+		return;
+	}
 
 	cu = par->data;
-	slen = strlen(cu->str);
 	fsize = cu->fsize;
 	xof = cu->xof;
 	yof = cu->yof;
 	
 	ct = chartransdata;
 	
-	for (a = 0; a < slen; a++, ct++) {
+	/* cache result */
+	family_len = strlen(cu->family);
+	family_gh = BLI_ghash_int_new_ex(__func__, 256);
+
+	/* advance matching BLI_strncpy_wchar_from_utf8 */
+	for (a = 0; a < text_len; a++, ct++) {
 		
-		ob = find_family_object(obar, cu->family, cu->str[a]);
+		ob = find_family_object(cu->family, family_len, text[a], family_gh);
 		if (ob) {
 			vec[0] = fsize * (ct->xof - xof);
 			vec[1] = fsize * (ct->yof - yof);
@@ -2244,12 +2266,28 @@ static void make_duplis_font(const DupliContext *ctx)
 			mul_m4_v3(pmat, vec);
 			
 			copy_m4_m4(obmat, par->obmat);
+
+			if (UNLIKELY(ct->rot != 0.0f)) {
+				float rmat[4][4];
+
+				zero_v3(obmat[3]);
+				unit_m4(rmat);
+				rotate_m4(rmat, 'Z', -ct->rot);
+				mul_m4_m4m4(obmat, obmat, rmat);
+			}
+
 			copy_v3_v3(obmat[3], vec);
 			
 			make_dupli(ctx, ob, obmat, a, false, false);
 		}
 	}
-	
+
+	if (text_free) {
+		MEM_freeN((void *)text);
+	}
+
+	BLI_ghash_free(family_gh, NULL, NULL);
+
 	MEM_freeN(chartransdata);
 }
 
