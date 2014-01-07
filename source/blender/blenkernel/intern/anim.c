@@ -1780,14 +1780,14 @@ static DupliContext copy_dupli_context(const DupliContext *ctx, Object *ob, floa
 /* Returns a list of DupliObject */
 ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
+	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
 	DupliContext ctx = init_context(eval_ctx, scene, ob, NULL, update);
 	if (ctx.gen) {
-		ctx.duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		ctx.duplilist = duplilist;
 		ctx.gen->make_duplis(&ctx);
-		return ctx.duplilist;
 	}
 	
-	return NULL;
+	return duplilist;
 }
 
 /* note: previously updating was always done, this is why it defaults to be on
