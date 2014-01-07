@@ -2181,6 +2181,84 @@ const DupliGenerator gen_dupli_verts = {
     make_duplis_verts               /* make_duplis */
 };
 
+/* OB_DUPLIVERTS - FONT */
+static Object *find_family_object(Object **obar, char *family, char ch)
+{
+	Object *ob;
+	int flen;
+	
+	if (obar[(int)ch]) return obar[(int)ch];
+	
+	flen = strlen(family);
+	
+	ob = G.main->object.first;
+	while (ob) {
+		if (ob->id.name[flen + 2] == ch) {
+			if (strncmp(ob->id.name + 2, family, flen) == 0) break;
+		}
+		ob = ob->id.next;
+	}
+	
+	obar[(int)ch] = ob;
+	
+	return ob;
+}
+
+static void make_duplis_font(const DupliContext *ctx)
+{
+	Scene *scene = ctx->scene;
+	Object *par = ctx->object;
+	Object *ob, *obar[256] = {NULL};
+	Curve *cu;
+	struct CharTrans *ct, *chartransdata;
+	float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
+	int slen, a;
+	
+	/* font dupliverts not supported inside groups */
+	if (ctx->group)
+		return;
+	
+	copy_m4_m4(pmat, par->obmat);
+	
+	/* in par the family name is stored, use this to find the other objects */
+	
+	chartransdata = BKE_vfont_to_curve(G.main, scene, par, FO_DUPLI);
+	if (chartransdata == NULL) return;
+
+	cu = par->data;
+	slen = strlen(cu->str);
+	fsize = cu->fsize;
+	xof = cu->xof;
+	yof = cu->yof;
+	
+	ct = chartransdata;
+	
+	for (a = 0; a < slen; a++, ct++) {
+		
+		ob = find_family_object(obar, cu->family, cu->str[a]);
+		if (ob) {
+			vec[0] = fsize * (ct->xof - xof);
+			vec[1] = fsize * (ct->yof - yof);
+			vec[2] = 0.0;
+			
+			mul_m4_v3(pmat, vec);
+			
+			copy_m4_m4(obmat, par->obmat);
+			copy_v3_v3(obmat[3], vec);
+			
+			make_dupli(ctx, ob, obmat, a, false, false);
+		}
+	}
+	
+	MEM_freeN(chartransdata);
+}
+
+const DupliGenerator gen_dupli_verts_font = {
+    OB_DUPLIVERTS,                  /* type */
+    false,                          /* recursive */
+    make_duplis_font                /* make_duplis */
+};
+
 /* OB_DUPLIFACES */
 typedef struct FaceDupliData {
 	DerivedMesh *dm;
@@ -2663,7 +2741,6 @@ const DupliGenerator gen_dupli_particles = {
     make_duplis_particles           /* make_duplis */
 };
 
-
 /* ------------- */
 
 /* select dupli generator from given context */
@@ -2687,11 +2764,7 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 			return &gen_dupli_verts;
 		}
 		else if (ctx->object->type == OB_FONT) {
-#if 0 /* XXX TODO */
-			if (GS(id->name) == ID_SCE) { /* TODO - support dupligroups */
-				font_duplilist(duplilist, scene, ob, persistent_id, level + 1, flag);
-			}
-#endif
+			return &gen_dupli_verts_font;
 		}
 	}
 	else if (transflag & OB_DUPLIFACES) {
