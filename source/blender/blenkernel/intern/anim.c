@@ -2704,16 +2704,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 					mul_m4_m4m4(obmat, obmat, size_mat);
 				}
-				
-				/* Normal particles and cached hair live in global space so we need to
-				 * remove the real emitter's transformation before 2nd order duplication.
-				 */
-#if 0 /* XXX is this needed? */
-				mul_m4_m4m4(mat, psys->imat, pamat);
-#else
-				copy_m4_m4(mat, pamat);
-#endif
-				mul_m4_m4m4(tmat, mat, obmat);
+
+				mul_m4_m4m4(tmat, pamat, obmat);
 				mul_mat3_m4_fl(tmat, size * scale);
 
 				copy_m4_m4(mat, tmat);
