@@ -76,12 +76,6 @@
 /* --------------------- */
 /* forward declarations */
 
-#if 0
-static void object_duplilist_recursive(EvaluationContext *eval_ctx,
-                                       ID *id, Scene *scene, Object *ob, ListBase *duplilist, float par_space_mat[4][4],
-                                       int persistent_id[MAX_DUPLI_RECUR], int level, int index, short flag);
-#endif
-
 /* ******************************************************************** */
 /* Animation Visualization */
 
