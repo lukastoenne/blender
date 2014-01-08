@@ -1772,7 +1772,7 @@ static DupliContext copy_dupli_context(const DupliContext *ctx, Object *ob, floa
 	rctx.persistent_id[rctx.level] = index;
 	++rctx.level;
 	
-	rctx.gen = get_dupli_generator(ctx);
+	rctx.gen = get_dupli_generator(&rctx);
 	
 	return rctx;
 }
