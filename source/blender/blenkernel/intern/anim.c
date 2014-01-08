@@ -2671,16 +2671,6 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 				}
 			}
 			else {
-				/* XXX what to do with this crap? */
-#if 0
-				int dupli_type = OB_DUPLIPARTS;
-
-				/* blender internal needs this to be set to dupligroup to render
-				 * groups correctly, but we don't want this hack for cycles */
-				if (dupli_type_hack && GS(id->name) == ID_GR)
-					dupli_type = OB_DUPLIGROUP;
-#endif
-
 				/* to give ipos in object correct offset */
 				BKE_object_where_is_calc_time(scene, ob, ctime - pa_time);
 
@@ -2736,6 +2726,10 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 				copy_m4_m4(dob->omat, oldobmat);
 				if (for_render)
 					psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
+				/* XXX blender internal needs this to be set to dupligroup to render
+				 * groups correctly, but we don't want this hack for cycles */
+				if (dupli_type_hack && ctx->group)
+					dob->type = OB_DUPLIGROUP;
 			}
 		}
 
