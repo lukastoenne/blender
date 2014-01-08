@@ -1777,26 +1777,6 @@ static DupliContext copy_dupli_context(const DupliContext *ctx, Object *ob, floa
 	return rctx;
 }
 
-/* Returns a list of DupliObject */
-ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
-{
-	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
-	DupliContext ctx = init_context(eval_ctx, scene, ob, NULL, update);
-	if (ctx.gen) {
-		ctx.duplilist = duplilist;
-		ctx.gen->make_duplis(&ctx);
-	}
-	
-	return duplilist;
-}
-
-/* note: previously updating was always done, this is why it defaults to be on
- * but there are likely places it can be called without updating */
-ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
-{
-	return object_duplilist_ex(eval_ctx, sce, ob, true);
-}
-
 /* setup a dupli object, allocation happens outside */
 static DupliObject *make_dupli(const DupliContext *ctx,
                                Object *ob, float mat[4][4], int index,
@@ -2904,6 +2884,29 @@ ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 	return object_duplilist_ex(eval_ctx, sce, ob, true);
 }
 #endif
+
+
+/* ---- ListBase dupli container implementation ---- */
+
+/* Returns a list of DupliObject */
+ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+{
+	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+	DupliContext ctx = init_context(eval_ctx, scene, ob, NULL, update);
+	if (ctx.gen) {
+		ctx.duplilist = duplilist;
+		ctx.gen->make_duplis(&ctx);
+	}
+	
+	return duplilist;
+}
+
+/* note: previously updating was always done, this is why it defaults to be on
+ * but there are likely places it can be called without updating */
+ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
+{
+	return object_duplilist_ex(eval_ctx, sce, ob, true);
+}
 
 void free_object_duplilist(ListBase *lb)
 {
