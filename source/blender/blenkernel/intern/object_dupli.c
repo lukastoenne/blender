@@ -93,7 +93,7 @@ typedef struct DupliContext {
 } DupliContext;
 
 typedef struct DupliGenerator {
-	short type;				/* dupli type */
+	int type;				/* dupli type */
 	void (*make_duplis)(const DupliContext *ctx);
 } DupliGenerator;
 
@@ -1153,12 +1153,9 @@ static void make_duplis_nparticle_system(const DupliContext *ctx, NParticleSyste
 	int totdupli, i;
 	float loc[3], rot[4], scale[3], obmat[4][4];
 	
-	/* simple preventing of too deep nested groups */
-	if (level > MAX_DUPLI_RECUR) return;
-	
 	/* for faster index-based lookup make a temp array */
 	totdupli = BLI_countlist(&display->dupli_objects);
-	dupli = MEM_mallocN(totdupli * sizeof(NParticleDisplayDupliObject), "dupli objects");
+	dupli = MEM_mallocN((unsigned int)totdupli * sizeof(NParticleDisplayDupliObject), "dupli objects");
 	for (dob = display->dupli_objects.first, i = 0; dob; dob = dob->next, ++i)
 		memcpy(&dupli[i], dob, sizeof(NParticleDisplayDupliObject));
 	
@@ -1173,7 +1170,7 @@ static void make_duplis_nparticle_system(const DupliContext *ctx, NParticleSyste
 		BKE_nparticle_iter_get_quaternion(&iter, "rotation", rot);
 		loc_quat_size_to_mat4(obmat, loc, rot, scale);
 		
-		make_dupli(ctx, dupli[i].object, obmat, BKE_nparticle_iter_get_id(&iter), false, false);
+		make_dupli(ctx, dupli[i].object, obmat, (int)BKE_nparticle_iter_get_id(&iter), false, false);
 	}
 	
 	MEM_freeN(dupli);
