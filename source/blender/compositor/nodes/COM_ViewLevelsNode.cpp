@@ -31,7 +31,7 @@ ViewLevelsNode::ViewLevelsNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ViewLevelsNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ViewLevelsNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *input = this->getInputSocket(0);
 	bool firstOperationConnected = false;

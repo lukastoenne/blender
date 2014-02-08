@@ -218,7 +218,7 @@ OutputSocket *KeyingNode::setupClip(ExecutionSystem *graph, OutputSocket *clipIn
 	return clipOperation->getOutputSocket(0);
 }
 
-void KeyingNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void KeyingNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputImage = this->getInputSocket(0);
 	InputSocket *inputScreen = this->getInputSocket(1);

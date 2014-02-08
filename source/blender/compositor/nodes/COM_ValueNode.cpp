@@ -29,7 +29,7 @@ ValueNode::ValueNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ValueNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ValueNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	SetValueOperation *operation = new SetValueOperation();
 	OutputSocket *output = this->getOutputSocket(0);

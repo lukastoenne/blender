@@ -30,7 +30,7 @@ SwitchNode::SwitchNode(bNode *editorNode) : Node(editorNode)
 }
 
 
-void SwitchNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void SwitchNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	SocketProxyOperation *operation = new SocketProxyOperation(COM_DT_COLOR);
 	int switchFrame = this->getbNode()->custom1;

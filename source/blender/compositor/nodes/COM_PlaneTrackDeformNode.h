@@ -34,5 +34,5 @@ extern "C" {
 class PlaneTrackDeformNode : public Node {
 public:
 	PlaneTrackDeformNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;
 };

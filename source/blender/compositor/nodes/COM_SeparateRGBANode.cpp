@@ -34,7 +34,7 @@ SeparateRGBANode::SeparateRGBANode(bNode *editorNode) : Node(editorNode)
 }
 
 
-void SeparateRGBANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void SeparateRGBANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *imageSocket = this->getInputSocket(0);
 	OutputSocket *outputRSocket = this->getOutputSocket(0);

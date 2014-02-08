@@ -32,7 +32,7 @@ FilterNode::FilterNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void FilterNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void FilterNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocket = this->getInputSocket(0);
 	InputSocket *inputImageSocket = this->getInputSocket(1);

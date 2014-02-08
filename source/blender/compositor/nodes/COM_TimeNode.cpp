@@ -33,7 +33,7 @@ TimeNode::TimeNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void TimeNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void TimeNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	SetValueOperation *operation = new SetValueOperation();
 	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());

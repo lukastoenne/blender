@@ -29,12 +29,12 @@ extern "C" {
 }
 
 #include "COM_Converter.h"
+#include "COM_NodeCompiler.h"
 #include "COM_NodeOperation.h"
 #include "COM_ExecutionGroup.h"
 #include "COM_NodeBase.h"
 #include "COM_WorkScheduler.h"
 #include "COM_ReadBufferOperation.h"
-#include "COM_GroupNode.h"
 #include "COM_WriteBufferOperation.h"
 #include "COM_ReadBufferOperation.h"
 #include "COM_ExecutionSystemHelper.h"
@@ -63,13 +63,15 @@ ExecutionSystem::ExecutionSystem(RenderData *rd, Scene *scene, bNodeTree *editin
 	this->m_context.setRendering(rendering);
 	this->m_context.setHasActiveOpenCLDevices(WorkScheduler::hasGPUDevices() && (editingtree->flag & NTREE_COM_OPENCL));
 
-	ExecutionSystemHelper::addbNodeTree(*this, 0, editingtree, NODE_INSTANCE_KEY_BASE);
-
 	this->m_context.setRenderData(rd);
 	this->m_context.setViewSettings(viewSettings);
 	this->m_context.setDisplaySettings(displaySettings);
 
-	this->convertToOperations();
+	{
+		NodeCompiler compiler(&m_context, editingtree);
+		compiler.convertToOperations(this);
+	}
+
 	this->groupOperations(); /* group operations in ExecutionGroups */
 	unsigned int index;
 	unsigned int resolution[2];
@@ -112,11 +114,6 @@ ExecutionSystem::~ExecutionSystem()
 		delete connection;
 	}
 	this->m_connections.clear();
-	for (index = 0; index < this->m_nodes.size(); index++) {
-		Node *node = this->m_nodes[index];
-		delete node;
-	}
-	this->m_nodes.clear();
 	for (index = 0; index < this->m_operations.size(); index++) {
 		NodeOperation *operation = this->m_operations[index];
 		delete operation;
@@ -202,109 +199,109 @@ void ExecutionSystem::addOperation(NodeOperation *operation)
 	DebugInfo::operation_added(operation);
 }
 
+typedef std::vector<InputSocket*> InputSocketList;
+
+/* helper function to store connected inputs for replacement */
+static InputSocketList cache_output_connections(OutputSocket *output)
+{
+	int totconnections = output->getNumberOfConnections();
+	InputSocketList targets;
+	targets.reserve(totconnections);
+	for (int index = 0; index < totconnections; ++index)
+		targets.push_back(output->getConnection(index)->getToSocket());
+	return targets;
+}
+
+void ExecutionSystem::addInputReadWriteBufferOperations(NodeOperation *operation, InputSocket *input)
+{
+	if (!input->isConnected())
+		return;
+	
+	SocketConnection *connection = input->getConnection();
+	if (connection->getFromOperation()->isReadBufferOperation()) {
+		/* input is already buffered, no need to add another */
+		return;
+	}
+	
+	/* cache connected socket, so we can safely remove connection first before replacing it */
+	OutputSocket *output = connection->getFromSocket();
+	
+	/* this connection will be replaced below */
+	removeConnection(connection);
+	
+	/* check of other end already has write operation, otherwise add a new one */
+	WriteBufferOperation *writeoperation = output->findAttachedWriteBufferOperation();
+	if (!writeoperation) {
+		writeoperation = new WriteBufferOperation();
+		writeoperation->setbNodeTree(this->getContext().getbNodeTree());
+		this->addOperation(writeoperation);
+		
+		addConnection(output, writeoperation->getInputSocket(0));
+		
+		writeoperation->readResolutionFromInputSocket();
+	}
+	
+	/* add readbuffer op for the input */
+	ReadBufferOperation *readoperation = new ReadBufferOperation();
+	readoperation->setMemoryProxy(writeoperation->getMemoryProxy());
+	this->addOperation(readoperation);
+	
+	addConnection(readoperation->getOutputSocket(), input);
+	
+	readoperation->readResolutionFromWriteBuffer();
+}
+
+void ExecutionSystem::addOutputReadWriteBufferOperations(NodeOperation *operation, OutputSocket *output)
+{
+	if (!output->isConnected())
+		return;
+	
+	/* cache connected sockets, so we can safely remove connections first before replacing them */
+	InputSocketList targets = cache_output_connections(output);
+	
+	/* remove all connections (avoid loop over output connections list while modifying) */
+	for (int index = 0; index < targets.size(); ++index)
+		removeConnection(targets[index]->getConnection());
+	
+	/* add new writebuffer op to the output */
+	WriteBufferOperation *writeOperation = new WriteBufferOperation();
+	writeOperation->setbNodeTree(this->getContext().getbNodeTree());
+	addOperation(writeOperation);
+	
+	addConnection(output, writeOperation->getInputSocket(0));
+	
+	writeOperation->readResolutionFromInputSocket();
+	
+	/* add readbuffer op for every former connected input */
+	for (int index = 0; index < targets.size(); ++index) {
+		ReadBufferOperation *readoperation = new ReadBufferOperation();
+		readoperation->setMemoryProxy(writeOperation->getMemoryProxy());
+		addOperation(readoperation);
+		
+		addConnection(readoperation->getOutputSocket(), targets[index]);
+	
+		readoperation->readResolutionFromWriteBuffer();
+	}
+}
+
 void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 {
 	DebugInfo::operation_read_write_buffer(operation);
 	
 	// for every input add write and read operation if input is not a read operation
 	// only add read operation to other links when they are attached to buffered operations.
-	unsigned int index;
-	for (index = 0; index < operation->getNumberOfInputSockets(); index++) {
-		InputSocket *inputsocket = operation->getInputSocket(index);
-		if (inputsocket->isConnected()) {
-			SocketConnection *connection = inputsocket->getConnection();
-			NodeOperation *otherEnd = (NodeOperation *)connection->getFromNode();
-			if (!otherEnd->isReadBufferOperation()) {
-				// check of other end already has write operation
-				OutputSocket *fromsocket = connection->getFromSocket();
-				WriteBufferOperation *writeoperation = fromsocket->findAttachedWriteBufferOperation();
-				if (writeoperation == NULL) {
-					writeoperation = new WriteBufferOperation();
-					writeoperation->setbNodeTree(this->getContext().getbNodeTree());
-					this->addOperation(writeoperation);
-					ExecutionSystemHelper::addLink(this->getConnections(), fromsocket, writeoperation->getInputSocket(0));
-					writeoperation->readResolutionFromInputSocket();
-				}
-				ReadBufferOperation *readoperation = new ReadBufferOperation();
-				readoperation->setMemoryProxy(writeoperation->getMemoryProxy());
-				connection->setFromSocket(readoperation->getOutputSocket());
-				readoperation->getOutputSocket()->addConnection(connection);
-				readoperation->readResolutionFromWriteBuffer();
-				this->addOperation(readoperation);
-			}
-		}
+	for (int index = 0; index < operation->getNumberOfInputSockets(); index++) {
+		addInputReadWriteBufferOperations(operation, operation->getInputSocket(index));
 	}
-	/*
-	 * link the outputsocket to a write operation
-	 * link the writeoperation to a read operation
-	 * link the read operation to the next node.
-	 */
-	OutputSocket *outputsocket = operation->getOutputSocket();
-	if (outputsocket->isConnected()) {
-		WriteBufferOperation *writeOperation;
-		writeOperation = new WriteBufferOperation();
-		writeOperation->setbNodeTree(this->getContext().getbNodeTree());
-		this->addOperation(writeOperation);
-		ExecutionSystemHelper::addLink(this->getConnections(), outputsocket, writeOperation->getInputSocket(0));
-		writeOperation->readResolutionFromInputSocket();
-		for (index = 0; index < outputsocket->getNumberOfConnections() - 1; index++) {
-			SocketConnection *connection = outputsocket->getConnection(index);
-			ReadBufferOperation *readoperation = new ReadBufferOperation();
-			readoperation->setMemoryProxy(writeOperation->getMemoryProxy());
-			connection->setFromSocket(readoperation->getOutputSocket());
-			readoperation->getOutputSocket()->addConnection(connection);
-			readoperation->readResolutionFromWriteBuffer();
-			this->addOperation(readoperation);
-		}
-	}
+	
+	/* XXX this assumes there is only one relevant output socket! */
+	addOutputReadWriteBufferOperations(operation, operation->getOutputSocket());
 }
 
-#ifndef NDEBUG
-/* if this fails, there are still connection to/from this node,
- * which have not been properly relinked to operations!
- */
-static void debug_check_node_connections(Node *node)
+void ExecutionSystem::determineResolutions()
 {
-	/* note: connected inputs are not checked here,
-	 * it would break quite a lot and such inputs are ignored later anyway
-	 */
-#if 0
-	for (int i = 0; i < node->getNumberOfInputSockets(); ++i) {
-		BLI_assert(!node->getInputSocket(i)->isConnected());
-	}
-#endif
-	for (int i = 0; i < node->getNumberOfOutputSockets(); ++i) {
-		BLI_assert(!node->getOutputSocket(i)->isConnected());
-	}
-}
-#else
-/* stub */
-#define debug_check_node_connections(node)
-#endif
-
-void ExecutionSystem::convertToOperations()
-{
-	unsigned int index;
-
-	for (index = 0; index < this->m_nodes.size(); index++) {
-		Node *node = (Node *)this->m_nodes[index];
-		DebugInfo::node_to_operations(node);
-		node->convertToOperations(this, &this->m_context);
-
-		debug_check_node_connections(node);
-	}
-
-	for (index = 0; index < this->m_connections.size(); index++) {
-		SocketConnection *connection = this->m_connections[index];
-		if (connection->isValid()) {
-			if (connection->getFromSocket()->getDataType() != connection->getToSocket()->getDataType()) {
-				Converter::convertDataType(connection, this);
-			}
-		}
-	}
-
 	// determine all resolutions of the operations (Width/Height)
-	for (index = 0; index < this->m_operations.size(); index++) {
+	for (int index = 0; index < this->m_operations.size(); index++) {
 		NodeOperation *operation = this->m_operations[index];
 		if (operation->isOutputOperation(this->m_context.isRendering()) && !operation->isPreviewOperation()) {
 			unsigned int resolution[2] = {0, 0};
@@ -313,7 +310,7 @@ void ExecutionSystem::convertToOperations()
 			operation->setResolution(resolution);
 		}
 	}
-	for (index = 0; index < this->m_operations.size(); index++) {
+	for (int index = 0; index < this->m_operations.size(); index++) {
 		NodeOperation *operation = this->m_operations[index];
 		if (operation->isOutputOperation(this->m_context.isRendering()) && operation->isPreviewOperation()) {
 			unsigned int resolution[2] = {0, 0};
@@ -322,15 +319,12 @@ void ExecutionSystem::convertToOperations()
 			operation->setResolution(resolution);
 		}
 	}
-
+	
 	// add convert resolution operations when needed.
-	for (index = 0; index < this->m_connections.size(); index++) {
+	for (int index = 0; index < this->m_connections.size(); index++) {
 		SocketConnection *connection = this->m_connections[index];
-		if (connection->isValid()) {
-			if (connection->needsResolutionConversion()) {
-				Converter::convertResolution(connection, this);
-			}
-		}
+		if (connection->needsResolutionConversion())
+			Converter::convertResolution(connection, this);
 	}
 }
 
@@ -356,21 +350,54 @@ void ExecutionSystem::groupOperations()
 	}
 }
 
-void ExecutionSystem::addSocketConnection(SocketConnection *connection)
+SocketConnection *ExecutionSystem::addConnection(OutputSocket *from, InputSocket *to)
 {
-	this->m_connections.push_back(connection);
+	if (to->isConnected())
+		return NULL;
+	
+	SocketConnection *connection = new SocketConnection(from, to);
+	m_connections.push_back(connection);
+	return connection;
 }
 
-void ExecutionSystem::removeSocketConnection(SocketConnection *connection)
+void ExecutionSystem::removeConnection(SocketConnection *connection)
 {
 	for (vector<SocketConnection *>::iterator it = m_connections.begin(); it != m_connections.end(); ++it) {
 		if (*it == connection) {
 			this->m_connections.erase(it);
-			return;
+			delete connection;
+			break;
 		}
 	}
 }
 
+void ExecutionSystem::replaceInputConnections(InputSocket *old_input, InputSocket *new_input)
+{
+	if (!old_input->isConnected())
+		return;
+	
+	OutputSocket *source = old_input->getConnection()->getFromSocket();
+	
+	removeConnection(old_input->getConnection());
+	addConnection(source, new_input);
+}
+
+void ExecutionSystem::replaceOutputConnections(OutputSocket *old_output, OutputSocket *new_output)
+{
+	if (!old_output->isConnected())
+		return;
+	
+	/* cache connected sockets, so we can safely remove connections first before replacing them */
+	InputSocketList targets = cache_output_connections(old_output);
+	
+	/* remove all connections (avoid loop over output connections list while modifying)
+	 * add connections to new output
+	 */
+	for (int index = 0; index < targets.size(); ++index) {
+		removeConnection(targets[index]->getConnection());
+		addConnection(new_output, targets[index]);
+	}
+}
 
 void ExecutionSystem::findOutputExecutionGroup(vector<ExecutionGroup *> *result, CompositorPriority priority) const
 {

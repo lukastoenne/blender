@@ -34,7 +34,7 @@ MixNode::MixNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void MixNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void MixNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *valueSocket = this->getInputSocket(0);
 	InputSocket *color1Socket = this->getInputSocket(1);

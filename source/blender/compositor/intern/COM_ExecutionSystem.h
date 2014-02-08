@@ -122,11 +122,6 @@ private:
 	CompositorContext m_context;
 
 	/**
-	 * @brief vector of nodes
-	 */
-	vector<Node *> m_nodes;
-
-	/**
 	 * @brief vector of operations
 	 */
 	vector<NodeOperation *> m_operations;
@@ -147,7 +142,8 @@ private: //methods
 	 * @param operation the operation to add the bufferoperations around.
 	 */
 	void addReadWriteBufferOperations(NodeOperation *operation);
-
+	void addInputReadWriteBufferOperations(NodeOperation *operation, InputSocket *input);
+	void addOutputReadWriteBufferOperations(NodeOperation *operation, OutputSocket *output);
 
 	/**
 	 * find all execution group with output nodes
@@ -191,22 +187,13 @@ public:
 	 */
 	void addOperation(NodeOperation *operation);
 
-	/**
-	 * Add an editor link to the system. convert it to an socketconnection (CPP-representative)
-	 * this converted socket is returned.
-	 */
-	SocketConnection *addNodeLink(bNodeLink *bNodeLink);
-	void addSocketConnection(SocketConnection *connection);
+	SocketConnection *addConnection(OutputSocket *from, InputSocket *to);
+	void removeConnection(SocketConnection *connection);
 
-	/**
-	 * Remove a socket connection from the system.
-	 */
-	void removeSocketConnection(SocketConnection *connection);
+	void replaceInputConnections(InputSocket *old_input, InputSocket *new_input);
+	void replaceOutputConnections(OutputSocket *old_output, OutputSocket *new_output);
 
-	/**
-	 * @brief Convert all nodes to operations
-	 */
-	void convertToOperations();
+	void determineResolutions();
 
 	/**
 	 * @brief group operations in ExecutionGroup's
@@ -218,11 +205,6 @@ public:
 	 * @brief get the reference to the compositor context
 	 */
 	CompositorContext &getContext() { return this->m_context; }
-
-	/**
-	 * @brief get the reference to the compositor nodes
-	 */
-	vector<Node *> &getNodes() { return this->m_nodes; }
 
 	/**
 	 * @brief get the reference to the compositor connections

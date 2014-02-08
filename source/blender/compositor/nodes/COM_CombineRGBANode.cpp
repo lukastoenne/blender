@@ -34,7 +34,7 @@ CombineRGBANode::CombineRGBANode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void CombineRGBANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void CombineRGBANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputRSocket = this->getInputSocket(0);
 	InputSocket *inputGSocket = this->getInputSocket(1);

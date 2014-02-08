@@ -31,7 +31,7 @@
 class LuminanceMatteNode : public Node {
 public:
 	LuminanceMatteNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;
 };
 
 #endif  /* __COM_LUMINANCEMATTENODE_H__ */

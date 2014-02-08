@@ -30,7 +30,7 @@ BilateralBlurNode::BilateralBlurNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void BilateralBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void BilateralBlurNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	NodeBilateralBlurData *data = (NodeBilateralBlurData *)this->getbNode()->storage;
 	BilateralBlurOperation *operation = new BilateralBlurOperation();

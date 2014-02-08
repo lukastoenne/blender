@@ -43,7 +43,7 @@ void NodeOperation::determineResolution(unsigned int resolution[2], unsigned int
 {
 	unsigned int temp[2];
 	unsigned int temp2[2];
-	vector<InputSocket *> &inputsockets = this->getInputSockets();
+	const vector<InputSocket *> &inputsockets = this->getInputSockets();
 	
 	for (unsigned int index = 0; index < inputsockets.size(); index++) {
 		InputSocket *inputSocket = inputsockets[index];
@@ -109,8 +109,8 @@ NodeOperation *NodeOperation::getInputOperation(unsigned int inputSocketIndex)
 
 void NodeOperation::getConnectedInputSockets(vector<InputSocket *> *sockets)
 {
-	vector<InputSocket *> &inputsockets = this->getInputSockets();
-	for (vector<InputSocket *>::iterator iterator = inputsockets.begin(); iterator != inputsockets.end(); iterator++) {
+	const vector<InputSocket *> &inputsockets = this->getInputSockets();
+	for (vector<InputSocket *>::const_iterator iterator = inputsockets.begin(); iterator != inputsockets.end(); iterator++) {
 		InputSocket *socket = *iterator;
 		if (socket->isConnected()) {
 			sockets->push_back(socket);

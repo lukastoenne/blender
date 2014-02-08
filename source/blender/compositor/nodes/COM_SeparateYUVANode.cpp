@@ -29,7 +29,7 @@ SeparateYUVANode::SeparateYUVANode(bNode *editorNode) : SeparateRGBANode(editorN
 	/* pass */
 }
 
-void SeparateYUVANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void SeparateYUVANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	ConvertRGBToYUVOperation *operation = new ConvertRGBToYUVOperation();
 	InputSocket *inputSocket = this->getInputSocket(0);

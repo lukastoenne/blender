@@ -30,7 +30,7 @@ ChannelMatteNode::ChannelMatteNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ChannelMatteNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ChannelMatteNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocketImage = this->getInputSocket(0);
 	OutputSocket *outputSocketImage = this->getOutputSocket(0);

@@ -30,7 +30,7 @@ MapValueNode::MapValueNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void MapValueNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void MapValueNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *colorSocket = this->getInputSocket(0);
 	OutputSocket *valueSocket = this->getOutputSocket(0);

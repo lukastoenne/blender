@@ -64,7 +64,7 @@ NodeOperation *ImageNode::doMultilayerCheck(ExecutionSystem *system, RenderLayer
 	return operation;
 }
 
-void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ImageNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	/// Image output
 	OutputSocket *outputImage = this->getOutputSocket(0);

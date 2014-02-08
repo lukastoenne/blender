@@ -32,7 +32,7 @@ BoxMaskNode::BoxMaskNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void BoxMaskNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void BoxMaskNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	BoxMaskOperation *operation;
 	operation = new BoxMaskOperation();

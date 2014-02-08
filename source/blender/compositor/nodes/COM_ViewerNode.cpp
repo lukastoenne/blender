@@ -31,7 +31,7 @@ ViewerNode::ViewerNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ViewerNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ViewerNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *editorNode = this->getbNode();
 	bool is_active = (editorNode->flag & NODE_DO_OUTPUT_RECALC || context->isRendering()) &&

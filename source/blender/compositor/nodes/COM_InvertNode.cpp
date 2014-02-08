@@ -30,7 +30,7 @@ InvertNode::InvertNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void InvertNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void InvertNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InvertOperation *operation = new InvertOperation();
 	bNode *node = this->getbNode();

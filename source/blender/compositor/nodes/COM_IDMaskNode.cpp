@@ -29,7 +29,7 @@ IDMaskNode::IDMaskNode(bNode *editorNode) : Node(editorNode)
 {
 	/* pass */
 }
-void IDMaskNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void IDMaskNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *bnode = this->getbNode();
 	IDMaskOperation *operation;

@@ -30,7 +30,7 @@ ColorMatteNode::ColorMatteNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ColorMatteNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ColorMatteNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocketImage = this->getInputSocket(0);
 	InputSocket *inputSocketKey = this->getInputSocket(1);

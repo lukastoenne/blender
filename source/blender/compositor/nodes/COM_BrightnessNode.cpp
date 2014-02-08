@@ -29,7 +29,7 @@ BrightnessNode::BrightnessNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void BrightnessNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void BrightnessNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	BrightnessOperation *operation = new BrightnessOperation();
 	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);

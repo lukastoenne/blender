@@ -24,13 +24,13 @@
 
 #include "BKE_node.h"
 
-#include "COM_Node.h"
+#include "COM_ExecutionSystem.h"
+#include "COM_NodeCompiler.h"
 #include "COM_NodeOperation.h"
 #include "COM_SetValueOperation.h"
 #include "COM_SetVectorOperation.h"
 #include "COM_SetColorOperation.h"
 #include "COM_SocketConnection.h"
-#include "COM_ExecutionSystem.h"
 #include "COM_PreviewOperation.h"
 #include "COM_TranslateOperation.h"
 
@@ -38,6 +38,8 @@
 
 //#include <stdio.h>
 #include "COM_defines.h"
+
+#include "COM_Node.h" /* own include */
 
 Node::Node(bNode *editorNode, bool create_sockets) : NodeBase()
 {
@@ -65,13 +67,13 @@ Node::Node(bNode *editorNode, bool create_sockets) : NodeBase()
 	}
 }
 
-void Node::addSetValueOperation(ExecutionSystem *graph, InputSocket *inputsocket, int editorNodeInputSocketIndex)
+void Node::addSetValueOperation(ExecutionSystem *system, InputSocket *inputsocket, int editorNodeInputSocketIndex)
 {
 	InputSocket *input = getInputSocket(editorNodeInputSocketIndex);
 	SetValueOperation *operation = new SetValueOperation();
 	operation->setValue(input->getEditorValueFloat());
-	this->addLink(graph, operation->getOutputSocket(), inputsocket);
-	graph->addOperation(operation);
+	system->addOperation(operation);
+	system->addConnection(operation->getOutputSocket(), inputsocket);
 }
 
 void Node::addPreviewOperation(ExecutionSystem *system, CompositorContext *context, OutputSocket *outputSocket)
@@ -83,9 +85,9 @@ void Node::addPreviewOperation(ExecutionSystem *system, CompositorContext *conte
 				PreviewOperation *operation = new PreviewOperation(context->getViewSettings(), context->getDisplaySettings());
 				system->addOperation(operation);
 				operation->setbNode(this->getbNode());
-				operation->setbNodeTree(system->getContext().getbNodeTree());
+				operation->setbNodeTree(context->getbNodeTree());
 				operation->verifyPreview(previews, this->getInstanceKey());
-				this->addLink(system, outputSocket, operation->getInputSocket(0));
+				system->addConnection(outputSocket, operation->getInputSocket(0));
 			}
 		}
 	}
@@ -99,21 +101,7 @@ void Node::addPreviewOperation(ExecutionSystem *system, CompositorContext *conte
 	}
 }
 
-SocketConnection *Node::addLink(ExecutionSystem *graph, OutputSocket *outputSocket, InputSocket *inputsocket)
-{
-	if (inputsocket->isConnected()) {
-		return NULL;
-	}
-	SocketConnection *connection = new SocketConnection();
-	connection->setFromSocket(outputSocket);
-	outputSocket->addConnection(connection);
-	connection->setToSocket(inputsocket);
-	inputsocket->setConnection(connection);
-	graph->addSocketConnection(connection);
-	return connection;
-}
-
-void Node::addSetColorOperation(ExecutionSystem *graph, InputSocket *inputsocket, int editorNodeInputSocketIndex)
+void Node::addSetColorOperation(ExecutionSystem *system, InputSocket *inputsocket, int editorNodeInputSocketIndex)
 {
 	InputSocket *input = getInputSocket(editorNodeInputSocketIndex);
 	SetColorOperation *operation = new SetColorOperation();
@@ -123,11 +111,11 @@ void Node::addSetColorOperation(ExecutionSystem *graph, InputSocket *inputsocket
 	operation->setChannel2(col[1]);
 	operation->setChannel3(col[2]);
 	operation->setChannel4(col[3]);
-	this->addLink(graph, operation->getOutputSocket(), inputsocket);
-	graph->addOperation(operation);
+	system->addOperation(operation);
+	system->addConnection(operation->getOutputSocket(), inputsocket);
 }
 
-void Node::addSetVectorOperation(ExecutionSystem *graph, InputSocket *inputsocket, int editorNodeInputSocketIndex)
+void Node::addSetVectorOperation(ExecutionSystem *system, InputSocket *inputsocket, int editorNodeInputSocketIndex)
 {
 	InputSocket *input = getInputSocket(editorNodeInputSocketIndex);
 	SetVectorOperation *operation = new SetVectorOperation();
@@ -136,30 +124,29 @@ void Node::addSetVectorOperation(ExecutionSystem *graph, InputSocket *inputsocke
 	operation->setX(vec[0]);
 	operation->setY(vec[1]);
 	operation->setZ(vec[2]);
-	this->addLink(graph, operation->getOutputSocket(), inputsocket);
-	graph->addOperation(operation);
+	system->addOperation(operation);
+	system->addConnection(operation->getOutputSocket(), inputsocket);
 }
 
-NodeOperation *Node::convertToOperations_invalid_index(ExecutionSystem *graph, int index)
+NodeOperation *Node::convertToOperations_invalid_index(NodeCompiler *compiler, int index) const
 {
 	const float warning_color[4] = {1.0f, 0.0f, 1.0f, 1.0f};
 	SetColorOperation *operation = new SetColorOperation();
 	operation->setChannels(warning_color);
 
-	/* link the operation */
-	this->getOutputSocket(index)->relinkConnections(operation->getOutputSocket());
-	graph->addOperation(operation);
+	compiler->mapOutputSocket(getOutputSocket(index), operation->getOutputSocket());
+	compiler->addOperation(operation);
 	return operation;
 }
 
 /* when a node has no valid data (missing image / group pointer, or missing renderlayer from EXR) */
-void Node::convertToOperations_invalid(ExecutionSystem *graph, CompositorContext *context)
+void Node::convertToOperations_invalid(NodeCompiler *compiler) const
 {
 	/* this is a really bad situation - bring on the pink! - so artists know this is bad */
 	int index;
-	vector<OutputSocket *> &outputsockets = this->getOutputSockets();
+	const vector<OutputSocket *> &outputsockets = this->getOutputSockets();
 	for (index = 0; index < outputsockets.size(); index++) {
-		convertToOperations_invalid_index(graph, index);
+		convertToOperations_invalid_index(compiler, index);
 	}
 }
 
@@ -186,32 +173,6 @@ bNodeSocket *Node::getEditorOutputSocket(int editorNodeInputSocketIndex)
 		}
 		index++;
 		bSock = bSock->next;
-	}
-	return NULL;
-}
-
-InputSocket *Node::findInputSocketBybNodeSocket(bNodeSocket *socket)
-{
-	vector<InputSocket *> &inputsockets = this->getInputSockets();
-	unsigned int index;
-	for (index = 0; index < inputsockets.size(); index++) {
-		InputSocket *input = inputsockets[index];
-		if (input->getbNodeSocket() == socket) {
-			return input;
-		}
-	}
-	return NULL;
-}
-
-OutputSocket *Node::findOutputSocketBybNodeSocket(bNodeSocket *socket)
-{
-	vector<OutputSocket *> &outputsockets = this->getOutputSockets();
-	unsigned int index;
-	for (index = 0; index < outputsockets.size(); index++) {
-		OutputSocket *output = outputsockets[index];
-		if (output->getbNodeSocket() == socket) {
-			return output;
-		}
 	}
 	return NULL;
 }

@@ -65,7 +65,6 @@
 #include "COM_FlipNode.h"
 #include "COM_GammaNode.h"
 #include "COM_GlareNode.h"
-#include "COM_GroupNode.h"
 #include "COM_HueSaturationValueCorrectNode.h"
 #include "COM_HueSaturationValueNode.h"
 #include "COM_IDMaskNode.h"
@@ -84,7 +83,6 @@
 #include "COM_MixNode.h"
 #include "COM_MovieClipNode.h"
 #include "COM_MovieDistortionNode.h"
-#include "COM_MuteNode.h"
 #include "COM_NormalNode.h"
 #include "COM_NormalizeNode.h"
 #include "COM_OutputFileNode.h"
@@ -118,30 +116,24 @@
 #include "COM_PixelateNode.h"
 #include "COM_PlaneTrackDeformNode.h"
 
-Node *Converter::convert(bNode *b_node, bool fast)
+bool Converter::is_fast_node(bNode *b_node)
+{
+	return !(b_node->type == CMP_NODE_BLUR ||
+	         b_node->type == CMP_NODE_VECBLUR ||
+	         b_node->type == CMP_NODE_BILATERALBLUR ||
+	         b_node->type == CMP_NODE_DEFOCUS ||
+	         b_node->type == CMP_NODE_BOKEHBLUR ||
+	         b_node->type == CMP_NODE_GLARE ||
+	         b_node->type == CMP_NODE_DBLUR ||
+	         b_node->type == CMP_NODE_MOVIEDISTORTION ||
+	         b_node->type == CMP_NODE_LENSDIST ||
+	         b_node->type == CMP_NODE_DOUBLEEDGEMASK ||
+	         b_node->type == CMP_NODE_DILATEERODE);
+}
+
+Node *Converter::convert(bNode *b_node)
 {
 	Node *node = NULL;
-
-	if (b_node->flag & NODE_MUTED) {
-		node = new MuteNode(b_node);
-		return node;
-	}
-	if (fast) {
-		if (b_node->type == CMP_NODE_BLUR ||
-		    b_node->type == CMP_NODE_VECBLUR ||
-		    b_node->type == CMP_NODE_BILATERALBLUR ||
-		    b_node->type == CMP_NODE_DEFOCUS ||
-		    b_node->type == CMP_NODE_BOKEHBLUR ||
-		    b_node->type == CMP_NODE_GLARE ||
-		    b_node->type == CMP_NODE_DBLUR ||
-		    b_node->type == CMP_NODE_MOVIEDISTORTION ||
-		    b_node->type == CMP_NODE_LENSDIST ||
-		    b_node->type == CMP_NODE_DOUBLEEDGEMASK ||
-		    b_node->type == CMP_NODE_DILATEERODE)
-		{
-			return new MuteNode(b_node);
-		}
-	}
 
 	switch (b_node->type) {
 		case CMP_NODE_COMPOSITE:
@@ -220,11 +212,9 @@ Node *Converter::convert(bNode *b_node, bool fast)
 			node = new InvertNode(b_node);
 			break;
 		case NODE_GROUP:
-			node = new GroupNode(b_node);
-			break;
 		case NODE_GROUP_INPUT:
 		case NODE_GROUP_OUTPUT:
-			/* handled in GroupNode::ungroup */
+			/* handled in NodeCompiler */
 			break;
 		case CMP_NODE_NORMAL:
 			node = new NormalNode(b_node);
@@ -401,52 +391,47 @@ Node *Converter::convert(bNode *b_node, bool fast)
 		case CMP_NODE_PLANETRACKDEFORM:
 			node = new PlaneTrackDeformNode(b_node);
 			break;
-		default:
-			node = new MuteNode(b_node);
-			break;
 	}
 	return node;
 }
-void Converter::convertDataType(SocketConnection *connection, ExecutionSystem *system)
+
+NodeOperation *Converter::convertDataType(OutputSocket *from, InputSocket *to)
 {
-	OutputSocket *outputSocket = connection->getFromSocket();
-	InputSocket *inputSocket = connection->getToSocket();
-	DataType fromDatatype = outputSocket->getDataType();
-	DataType toDatatype = inputSocket->getDataType();
-	NodeOperation *converter = NULL;
+	DataType fromDatatype = from->getDataType();
+	DataType toDatatype = to->getDataType();
+	
 	if (fromDatatype == COM_DT_VALUE && toDatatype == COM_DT_COLOR) {
-		converter = new ConvertValueToColorOperation();
+		return new ConvertValueToColorOperation();
 	}
 	else if (fromDatatype == COM_DT_VALUE && toDatatype == COM_DT_VECTOR) {
-		converter = new ConvertValueToVectorOperation();
+		return new ConvertValueToVectorOperation();
 	}
 	else if (fromDatatype == COM_DT_COLOR && toDatatype == COM_DT_VALUE) {
-		converter = new ConvertColorToValueOperation();
+		return new ConvertColorToValueOperation();
 	}
 	else if (fromDatatype == COM_DT_COLOR && toDatatype == COM_DT_VECTOR) {
-		converter = new ConvertColorToVectorOperation();
+		return new ConvertColorToVectorOperation();
 	}
 	else if (fromDatatype == COM_DT_VECTOR && toDatatype == COM_DT_VALUE) {
-		converter = new ConvertVectorToValueOperation();
+		return new ConvertVectorToValueOperation();
 	}
 	else if (fromDatatype == COM_DT_VECTOR && toDatatype == COM_DT_COLOR) {
-		converter = new ConvertVectorToColorOperation();
+		return new ConvertVectorToColorOperation();
 	}
-	if (converter != NULL) {
-		inputSocket->relinkConnections(converter->getInputSocket(0));
-		ExecutionSystemHelper::addLink(system->getConnections(), converter->getOutputSocket(), inputSocket);
-		system->addOperation(converter);
-	}
+	
+	return NULL;
 }
 
 void Converter::convertResolution(SocketConnection *connection, ExecutionSystem *system)
 {
 	InputSocketResizeMode mode = connection->getToSocket()->getResizeMode();
 
-	NodeOperation *toOperation = (NodeOperation *)connection->getToNode();
+	NodeOperation *toOperation = connection->getToOperation();
+	InputSocket *toSocket = connection->getToSocket();
 	const float toWidth = toOperation->getWidth();
 	const float toHeight = toOperation->getHeight();
-	NodeOperation *fromOperation = (NodeOperation *)connection->getFromNode();
+	NodeOperation *fromOperation = connection->getFromOperation();
+	OutputSocket *fromSocket = connection->getFromSocket();
 	const float fromWidth = fromOperation->getWidth();
 	const float fromHeight = fromOperation->getHeight();
 	bool doCenter = false;
@@ -502,11 +487,11 @@ void Converter::convertResolution(SocketConnection *connection, ExecutionSystem 
 			first = scaleOperation;
 			SetValueOperation *sxop = new SetValueOperation();
 			sxop->setValue(scaleX);
-			c = ExecutionSystemHelper::addLink(system->getConnections(), sxop->getOutputSocket(), scaleOperation->getInputSocket(1));
+			c = system->addConnection(sxop->getOutputSocket(), scaleOperation->getInputSocket(1));
 			c->setIgnoreResizeCheck(true);
 			SetValueOperation *syop = new SetValueOperation();
 			syop->setValue(scaleY);
-			c = ExecutionSystemHelper::addLink(system->getConnections(), syop->getOutputSocket(), scaleOperation->getInputSocket(2));
+			c = system->addConnection(syop->getOutputSocket(), scaleOperation->getInputSocket(2));
 			c->setIgnoreResizeCheck(true);
 			system->addOperation(sxop);
 			system->addOperation(syop);
@@ -525,11 +510,11 @@ void Converter::convertResolution(SocketConnection *connection, ExecutionSystem 
 		if (!first) first = translateOperation;
 		SetValueOperation *xop = new SetValueOperation();
 		xop->setValue(addX);
-		c = ExecutionSystemHelper::addLink(system->getConnections(), xop->getOutputSocket(), translateOperation->getInputSocket(1));
+		c = system->addConnection(xop->getOutputSocket(), translateOperation->getInputSocket(1));
 		c->setIgnoreResizeCheck(true);
 		SetValueOperation *yop = new SetValueOperation();
 		yop->setValue(addY);
-		c = ExecutionSystemHelper::addLink(system->getConnections(), yop->getOutputSocket(), translateOperation->getInputSocket(2));
+		c = system->addConnection(yop->getOutputSocket(), translateOperation->getInputSocket(2));
 		c->setIgnoreResizeCheck(true);
 		system->addOperation(xop);
 		system->addOperation(yop);
@@ -542,15 +527,15 @@ void Converter::convertResolution(SocketConnection *connection, ExecutionSystem 
 		system->addOperation(translateOperation);
 
 		if (doScale) {
-			c = ExecutionSystemHelper::addLink(system->getConnections(), scaleOperation->getOutputSocket(), translateOperation->getInputSocket(0));
+			c = system->addConnection(scaleOperation->getOutputSocket(), translateOperation->getInputSocket(0));
 			c->setIgnoreResizeCheck(true);
 		}
 
-		InputSocket *inputSocket = connection->getToSocket();
-		inputSocket->relinkConnections(first->getInputSocket(0));
-		c = ExecutionSystemHelper::addLink(system->getConnections(), translateOperation->getOutputSocket(), inputSocket);
+		/* remove previous connection and replace */
+		system->removeConnection(connection);
+		c = system->addConnection(fromSocket, first->getInputSocket(0));
+		c->setIgnoreResizeCheck(true);
+		c = system->addConnection(translateOperation->getOutputSocket(), toSocket);
 		c->setIgnoreResizeCheck(true);
 	}
-
-	connection->setIgnoreResizeCheck(true);
 }

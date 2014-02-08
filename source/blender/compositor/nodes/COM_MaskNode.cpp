@@ -34,7 +34,7 @@ MaskNode::MaskNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void MaskNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void MaskNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	const RenderData *rd = context->getRenderData();
 

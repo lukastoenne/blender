@@ -29,7 +29,7 @@ VectorCurveNode::VectorCurveNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void VectorCurveNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void VectorCurveNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	VectorCurveOperation *operation = new VectorCurveOperation();
 

@@ -33,7 +33,7 @@ DilateErodeNode::DilateErodeNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void DilateErodeNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void DilateErodeNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	
 	bNode *editorNode = this->getbNode();

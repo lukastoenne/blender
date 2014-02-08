@@ -34,7 +34,7 @@ KeyingScreenNode::KeyingScreenNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void KeyingScreenNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void KeyingScreenNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	OutputSocket *outputScreen = this->getOutputSocket(0);
 

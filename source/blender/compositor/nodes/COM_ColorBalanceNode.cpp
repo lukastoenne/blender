@@ -32,7 +32,7 @@ ColorBalanceNode::ColorBalanceNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ColorBalanceNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ColorBalanceNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocket = this->getInputSocket(0);
 	InputSocket *inputImageSocket = this->getInputSocket(1);

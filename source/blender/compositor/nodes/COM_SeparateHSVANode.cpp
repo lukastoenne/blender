@@ -31,7 +31,7 @@ SeparateHSVANode::SeparateHSVANode(bNode *editorNode) : SeparateRGBANode(editorN
 	/* pass */
 }
 
-void SeparateHSVANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void SeparateHSVANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	ConvertRGBToHSVOperation *operation = new ConvertRGBToHSVOperation();
 	InputSocket *inputSocket = this->getInputSocket(0);

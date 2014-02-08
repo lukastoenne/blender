@@ -23,65 +23,31 @@
 #include "COM_SocketConnection.h"
 #include "COM_NodeOperation.h"
 
-SocketConnection::SocketConnection()
+SocketConnection::SocketConnection(OutputSocket *from, InputSocket *to) :
+    m_fromSocket(from),
+    m_toSocket(to),
+    m_ignoreResizeCheck(false)
 {
-	this->m_fromSocket = NULL;
-	this->m_toSocket = NULL;
-	this->setIgnoreResizeCheck(false);
+	BLI_assert(from);
+	BLI_assert(to);
+	
+	/* register with sockets */
+	from->addConnection(this);
+	to->setConnection(this);
 }
 
-void SocketConnection::setFromSocket(OutputSocket *fromsocket)
+SocketConnection::~SocketConnection()
 {
-	if (fromsocket == NULL) {
-		throw "ERROR";
-	}
-	this->m_fromSocket = fromsocket;
-}
-
-OutputSocket *SocketConnection::getFromSocket() const { return this->m_fromSocket; }
-void SocketConnection::setToSocket(InputSocket *tosocket)
-{
-	if (tosocket == NULL) {
-		throw "ERROR";
-	}
-	this->m_toSocket = tosocket;
-}
-
-InputSocket *SocketConnection::getToSocket() const { return this->m_toSocket; }
-
-NodeBase *SocketConnection::getFromNode() const
-{
-	if (this->getFromSocket() == NULL) {
-		return NULL;
-	}
-	else {
-		return this->getFromSocket()->getNode();
-	}
-}
-NodeBase *SocketConnection::getToNode() const
-{
-	if (this->getToSocket() == NULL) {
-		return NULL;
-	}
-	else {
-		return this->getToSocket()->getNode();
-	}
-}
-bool SocketConnection::isValid() const
-{
-	if ((this->getToSocket() != NULL && this->getFromSocket() != NULL)) {
-		if (this->getFromNode()->isOperation() && this->getToNode()->isOperation()) {
-			return true;
-		}
-	}
-	return false;
+	/* unregister with sockets */
+	m_fromSocket->removeConnection(this);
+	m_toSocket->setConnection(NULL);
 }
 
 bool SocketConnection::needsResolutionConversion() const
 {
 	if (this->m_ignoreResizeCheck) { return false; }
-	NodeOperation *fromOperation = (NodeOperation *)this->getFromNode();
-	NodeOperation *toOperation = (NodeOperation *)this->getToNode();
+	NodeOperation *fromOperation = this->getFromOperation();
+	NodeOperation *toOperation = this->getToOperation();
 	if (this->m_toSocket->getResizeMode() == COM_SC_NO_RESIZE) { return false; }
 	const unsigned int fromWidth = fromOperation->getWidth();
 	const unsigned int fromHeight = fromOperation->getHeight();

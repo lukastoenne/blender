@@ -38,7 +38,7 @@ Stabilize2dNode::Stabilize2dNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void Stabilize2dNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void Stabilize2dNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *imageInput = this->getInputSocket(0);
 	MovieClip *clip = (MovieClip *)getbNode()->id;

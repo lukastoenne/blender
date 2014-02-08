@@ -27,7 +27,7 @@ CombineYCCANode::CombineYCCANode(bNode *editorNode) : CombineRGBANode(editorNode
 	/* pass */
 }
 
-void CombineYCCANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void CombineYCCANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	ConvertYCCToRGBOperation *operation = new ConvertYCCToRGBOperation();
 	OutputSocket *outputSocket = this->getOutputSocket(0);

@@ -30,7 +30,7 @@
 class DespeckleNode : public Node {
 public:
 	DespeckleNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;
 };
 
 #endif

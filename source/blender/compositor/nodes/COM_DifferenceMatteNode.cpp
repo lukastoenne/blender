@@ -30,7 +30,7 @@ DifferenceMatteNode::DifferenceMatteNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void DifferenceMatteNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void DifferenceMatteNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocket = this->getInputSocket(0);
 	InputSocket *inputSocket2 = this->getInputSocket(1);

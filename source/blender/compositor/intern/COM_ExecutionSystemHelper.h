@@ -42,33 +42,6 @@ class ExecutionSystemHelper {
 public:
 
 	/**
-	 * @brief add an bNodeTree to the nodes list and connections
-	 * @param system Execution system
-	 * @param nodes_start Starting index in the system's nodes list for nodes in this tree.
-	 * @param tree bNodeTree to add
-	 * @return Node representing the "Compositor node" of the maintree. or NULL when a subtree is added
-	 */
-	static void addbNodeTree(ExecutionSystem &system, int nodes_start, bNodeTree *tree, bNodeInstanceKey parent_key);
-
-	/**
-	 * @brief add an editor node to the system.
-	 * this node is converted to a Node instance.
-	 * and the converted node is returned
-	 *
-	 * @param b_node node to add
-	 * @return Node that represents the bNode or null when not able to convert.
-	 */
-	static Node *addNode(vector<Node *>& nodes, bNode *b_node, bool isInActiveGroup, bool fast);
-
-	/**
-	 * @brief Add a Node to a list
-	 *
-	 * @param nodes the list where the node needs to be added to
-	 * @param node the node to be added
-	 */
-	static void addNode(vector<Node *>& nodes, Node *node);
-
-	/**
 	 * @brief Add an operation to the operation list
 	 *
 	 * The id of the operation is updated.
@@ -95,28 +68,6 @@ public:
 	 * FALSE is editing, TRUE is rendering
 	 */
 	static void findOutputNodeOperations(vector<NodeOperation *> *result, vector<NodeOperation *>& operations, bool rendering);
-
-	/**
-	 * @brief add a bNodeLink to the list of links
-	 * the bNodeLink will be wrapped in a SocketConnection
-	 *
-	 * @note Cyclic links will be ignored
-	 *
-	 * @param node_range list of possible nodes for lookup.
-	 * @param links list of links to add the bNodeLink to
-	 * @param bNodeLink the link to be added
-	 * @return the created SocketConnection or NULL
-	 */
-	static SocketConnection *addNodeLink(NodeRange &node_range, vector<SocketConnection *>& links, bNodeLink *bNodeLink);
-
-	/**
-	 * @brief create a new SocketConnection and add to a vector of links
-	 * @param links the vector of links
-	 * @param fromSocket the startpoint of the connection
-	 * @param toSocket the endpoint of the connection
-	 * @return the new created SocketConnection
-	 */
-	static SocketConnection *addLink(vector<SocketConnection *>& links, OutputSocket *fromSocket, InputSocket *toSocket);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("COM:ExecutionSystemHelper")

@@ -63,7 +63,7 @@ void RenderLayersNode::testSocketConnection(ExecutionSystem *system, CompositorC
 	}
 }
 
-void RenderLayersNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void RenderLayersNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	testSocketConnection(graph, context, 0, new RenderLayersColorProg());
 	testSocketConnection(graph, context, 1, new RenderLayersAlphaProg());

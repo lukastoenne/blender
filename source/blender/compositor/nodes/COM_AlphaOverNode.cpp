@@ -27,16 +27,14 @@
 #include "COM_AlphaOverMixedOperation.h"
 #include "COM_AlphaOverPremultiplyOperation.h"
 
-#include "COM_ExecutionSystem.h"
+#include "COM_NodeCompiler.h"
 #include "COM_SetValueOperation.h"
 #include "DNA_material_types.h" // the ramp types
 
-void AlphaOverNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void AlphaOverNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
-	InputSocket *valueSocket = this->getInputSocket(0);
 	InputSocket *color1Socket = this->getInputSocket(1);
 	InputSocket *color2Socket = this->getInputSocket(2);
-	OutputSocket *outputSocket = this->getOutputSocket(0);
 	bNode *editorNode = this->getbNode();
 	
 	MixBaseOperation *convertProg;
@@ -64,9 +62,7 @@ void AlphaOverNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 	else {
 		convertProg->setResolutionInputSocketIndex(0);
 	}
-	valueSocket->relinkConnections(convertProg->getInputSocket(0), 0, graph);
-	color1Socket->relinkConnections(convertProg->getInputSocket(1), 1, graph);
-	color2Socket->relinkConnections(convertProg->getInputSocket(2), 2, graph);
-	outputSocket->relinkConnections(convertProg->getOutputSocket(0));
-	graph->addOperation(convertProg);
+	
+	compiler->addOperation(convertProg);
+	compiler->mapAllSockets(convertProg);
 }

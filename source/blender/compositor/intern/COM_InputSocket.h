@@ -30,7 +30,7 @@
 using namespace std;
 class SocketConnection;
 class Node;
-class ExecutionSystem;
+class NodeCompiler;
 class OutputSocket;
 class ChannelInfo;
 class NodeOperation;
@@ -90,37 +90,6 @@ public:
 	 * @param preferredResolution the preferable resolution as no resolution could be determined
 	 */
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
-	
-	/**
-	 * @brief move all connections of this input socket to another socket
-	 * only use this method when already checked the availability of a SocketConnection
-	 * @param relinkToSocket the socket to move to connections to
-	 */
-	void relinkConnections(InputSocket *relinkToSocket);
-	
-	/**
-	 * @brief move all connections of this input socket to another socket
-	 * @param relinkToSocket the socket to move to connections to
-	 * @param editorNodeInputSocketIndex index of the socket number of the bNode (used to retrieve the value for autoconnection)
-	 * @param system ExecutionSystem to update to
-	 */
-	void relinkConnections(InputSocket *relinkToSocket, int editorNodeInputSocketIndex, ExecutionSystem *system);
-	
-	/**
-	 * @brief add a connection of this input socket to another socket
-	 * @warning make sure to remove the original connection with \a unlinkConnections afterward.
-	 * @param relinkToSocket the socket to move to connections to
-	 * @param editorNodeInputSocketIndex index of the socket number of the bNode (used to retrieve the value for autoconnection)
-	 * @param system ExecutionSystem to update to
-	 */
-	void relinkConnectionsDuplicate(InputSocket *relinkToSocket, int editorNodeInputSocketIndex, ExecutionSystem *system);
-	
-	/**
-	 * @brief remove all connections of this input socket.
-	 * @warning \a relinkConnectionsDuplicate should be used to ensure this socket is still connected.
-	 * @param system ExecutionSystem to update to
-	 */
-	void unlinkConnections(ExecutionSystem *system);
 	
 	/**
 	 * @brief set the resize mode

@@ -35,14 +35,19 @@ public:
 	 * @brief Convert/wraps a bNode in its Node instance.
 	 *
 	 * For all nodetypes a wrapper class is created.
-	 * Muted nodes are wrapped with MuteNode.
 	 *
 	 * @note When adding a new node to blender, this method needs to be changed to return the correct Node instance.
 	 *
 	 * @see Node
-	 * @see MuteNode
 	 */
-	static Node *convert(bNode *b_node, bool fast);
+	static Node *convert(bNode *b_node);
+	
+	/**
+	 * @brief True if the node is considered 'fast'.
+	 *
+	 * Slow nodes will be skipped if fast execution is required.
+	 */
+	static bool is_fast_node(bNode *b_node);
 	
 	/**
 	 * @brief This method will add a datetype conversion rule when the to-socket does not support the from-socket actual data type.
@@ -53,7 +58,7 @@ public:
 	 * @param system the ExecutionSystem to add the conversion to.
 	 * @see SocketConnection - a link between two sockets
 	 */
-	static void convertDataType(SocketConnection *connection, ExecutionSystem *system);
+	static NodeOperation *convertDataType(OutputSocket *from, InputSocket *to);
 	
 	/**
 	 * @brief This method will add a resolution rule based on the settings of the InputSocket.

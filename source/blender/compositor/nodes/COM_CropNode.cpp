@@ -29,7 +29,7 @@ CropNode::CropNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void CropNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void CropNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *node = getbNode();
 	NodeTwoXYs *cropSettings = (NodeTwoXYs *)node->storage;

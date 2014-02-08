@@ -31,7 +31,7 @@
 class DistanceMatteNode : public Node {
 public:
 	DistanceMatteNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;
 };
 
 #endif  /* COM_DistanceMatteNODE_H */

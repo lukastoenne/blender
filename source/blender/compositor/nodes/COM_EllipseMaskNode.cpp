@@ -32,7 +32,7 @@ EllipseMaskNode::EllipseMaskNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void EllipseMaskNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void EllipseMaskNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	EllipseMaskOperation *operation;
 

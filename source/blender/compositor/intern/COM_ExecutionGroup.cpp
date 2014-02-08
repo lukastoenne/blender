@@ -127,7 +127,7 @@ void ExecutionGroup::addOperation(ExecutionSystem *system, NodeOperation *operat
 			for (index = 0; index < operation->getNumberOfInputSockets(); index++) {
 				InputSocket *inputSocket = operation->getInputSocket(index);
 				if (inputSocket->isConnected()) {
-					NodeOperation *node = (NodeOperation *)inputSocket->getConnection()->getFromNode();
+					NodeOperation *node = inputSocket->getConnection()->getFromOperation();
 					this->addOperation(system, node);
 				}
 			}

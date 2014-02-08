@@ -68,12 +68,12 @@ protected:
 	/**
 	 * @brief get access to the vector of input sockets
 	 */
-	inline vector<InputSocket *>& getInputSockets() { return this->m_inputsockets; }
+	inline const vector<InputSocket *>& getInputSockets() { return this->m_inputsockets; }
 	
 	/**
 	 * @brief get access to the vector of input sockets
 	 */
-	inline vector<OutputSocket *>& getOutputSockets() { return this->m_outputsockets; }
+	inline const vector<OutputSocket *>& getOutputSockets() const { return this->m_outputsockets; }
 
 
 protected:
@@ -137,21 +137,21 @@ public:
 	 * @param index
 	 * the index of the needed outputsocket
 	 */
-	OutputSocket *getOutputSocket(const unsigned int index);
+	OutputSocket *getOutputSocket(const unsigned int index) const;
 	
 	/**
 	 * get the reference to the first outputsocket
 	 * @param index
 	 * the index of the needed outputsocket
 	 */
-	inline OutputSocket *getOutputSocket() { return getOutputSocket(0); }
+	inline OutputSocket *getOutputSocket() const { return getOutputSocket(0); }
 	
 	/**
 	 * get the reference to a certain inputsocket
 	 * @param index
 	 * the index of the needed inputsocket
 	 */
-	InputSocket *getInputSocket(const unsigned int index);
+	InputSocket *getInputSocket(const unsigned int index) const;
 	
 	virtual bool isStatic() const { return false; }
 	void getStaticValues(float *result) const { }

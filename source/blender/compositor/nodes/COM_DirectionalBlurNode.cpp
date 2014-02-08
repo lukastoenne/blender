@@ -30,7 +30,7 @@ DirectionalBlurNode::DirectionalBlurNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void DirectionalBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void DirectionalBlurNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	NodeDBlurData *data = (NodeDBlurData *)this->getbNode()->storage;
 	DirectionalBlurOperation *operation = new DirectionalBlurOperation();

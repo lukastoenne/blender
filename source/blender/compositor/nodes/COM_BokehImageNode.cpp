@@ -29,7 +29,7 @@ BokehImageNode::BokehImageNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void BokehImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void BokehImageNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	BokehImageOperation *operation = new BokehImageOperation();
 	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));

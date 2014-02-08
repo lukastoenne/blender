@@ -29,7 +29,7 @@ ColorNode::ColorNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ColorNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ColorNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	SetColorOperation *operation = new SetColorOperation();
 	OutputSocket *output = this->getOutputSocket(0);

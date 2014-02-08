@@ -60,46 +60,17 @@ private:
 	 */
 	bool m_ignoreResizeCheck;
 public:
-	SocketConnection();
+	SocketConnection(OutputSocket *from, InputSocket *to);
+	~SocketConnection();
 	
-	/**
-	 * @brief set the startpoint of the connection
-	 * @param fromsocket
-	 */
-	void setFromSocket(OutputSocket *fromsocket);
+	OutputSocket *getFromSocket() const { return this->m_fromSocket; }
+	InputSocket *getToSocket() const { return this->m_toSocket; }
 	
-	/**
-	 * @brief get the startpoint of the connection
-	 * @return from OutputSocket
-	 */
-	OutputSocket *getFromSocket() const;
+	NodeBase *getFromNode() const { return m_fromSocket ? m_fromSocket->getNode() : NULL; }
+	NodeBase *getToNode() const { return m_toSocket ? m_toSocket->getNode() : NULL; }
 	
-	/**
-	 * @brief set the endpoint of the connection
-	 * @param tosocket
-	 */
-	void setToSocket(InputSocket *tosocket);
-	
-	/**
-	 * @brief get the endpoint of the connection
-	 * @return to InputSocket
-	 */
-	InputSocket *getToSocket() const;
-	
-	/**
-	 * @brief check if this connection is valid
-	 */
-	bool isValid() const;
-	
-	/**
-	 * @brief return the Node where this connection is connected from
-	 */
-	NodeBase *getFromNode() const;
-	
-	/**
-	 * @brief return the Node where this connection is connected to
-	 */
-	NodeBase *getToNode() const;
+	NodeOperation *getFromOperation() const { return m_fromSocket ? (NodeOperation *)m_fromSocket->getNode() : NULL; }
+	NodeOperation *getToOperation() const { return m_toSocket ? (NodeOperation *)m_toSocket->getNode() : NULL; }
 	
 	/**
 	 * @brief set, whether the resize has already been done for this SocketConnection

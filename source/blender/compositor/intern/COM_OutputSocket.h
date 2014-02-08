@@ -49,11 +49,15 @@ public:
 	OutputSocket(DataType datatype);
 	OutputSocket(DataType datatype, int inputSocketDataTypeDeterminatorIndex);
 	OutputSocket(OutputSocket *from);
+	
+	int isOutputSocket() const { return true; }
+	
 	void addConnection(SocketConnection *connection);
 	void removeConnection(SocketConnection *connection);
-	SocketConnection *getConnection(unsigned int index) { return this->m_connections[index]; }
-	const int isConnected() const;
-	int isOutputSocket() const;
+	
+	const int isConnected() const { return !this->m_connections.empty(); }
+	const int getNumberOfConnections() const { return this->m_connections.size(); }
+	SocketConnection *getConnection(unsigned int index) const { return this->m_connections[index]; }
 	
 	/**
 	 * @brief determine the resolution of this socket
@@ -61,15 +65,6 @@ public:
 	 * @param preferredResolution the preferable resolution as no resolution could be determined
 	 */
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
-	
-	/**
-	 * @brief determine the actual data type and channel info.
-	 */
-	void relinkConnections(OutputSocket *relinkToSocket) { this->relinkConnections(relinkToSocket, false); }
-	void relinkConnections(OutputSocket *relinkToSocket, bool single);
-	const int getNumberOfConnections() { return this->m_connections.size(); }
-	
-	void clearConnections();
 	
 	/**
 	 * @brief find a connected write buffer operation to this OutputSocket

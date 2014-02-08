@@ -30,7 +30,7 @@ PixelateNode::PixelateNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void PixelateNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void PixelateNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocket = this->getInputSocket(0);
 	OutputSocket *outputSocket = this->getOutputSocket(0);

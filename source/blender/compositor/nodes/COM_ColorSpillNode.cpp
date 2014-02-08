@@ -29,7 +29,7 @@ ColorSpillNode::ColorSpillNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void ColorSpillNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void ColorSpillNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocketImage = this->getInputSocket(0);
 	InputSocket *inputSocketFac = this->getInputSocket(1);

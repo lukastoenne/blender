@@ -38,7 +38,7 @@ PlaneTrackDeformNode::PlaneTrackDeformNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void PlaneTrackDeformNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void PlaneTrackDeformNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *input_image = this->getInputSocket(0);
 

@@ -33,7 +33,7 @@ TransformNode::TransformNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void TransformNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void TransformNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *imageInput = this->getInputSocket(0);
 	InputSocket *xInput = this->getInputSocket(1);

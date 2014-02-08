@@ -36,7 +36,7 @@ TrackPositionNode::TrackPositionNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void TrackPositionNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void TrackPositionNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	OutputSocket *outputX = this->getOutputSocket(0);
 	OutputSocket *outputY = this->getOutputSocket(1);

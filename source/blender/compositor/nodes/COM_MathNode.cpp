@@ -24,7 +24,7 @@
 #include "COM_MathBaseOperation.h"
 #include "COM_ExecutionSystem.h"
 
-void MathNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void MathNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	MathBaseOperation *operation = NULL;
 	

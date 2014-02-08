@@ -34,7 +34,7 @@ BokehBlurNode::BokehBlurNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void BokehBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void BokehBlurNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *b_node = this->getbNode();
 

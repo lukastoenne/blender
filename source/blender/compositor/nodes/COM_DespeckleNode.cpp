@@ -29,7 +29,7 @@ DespeckleNode::DespeckleNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void DespeckleNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void DespeckleNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *editorNode = this->getbNode();
 	InputSocket *inputSocket = this->getInputSocket(0);

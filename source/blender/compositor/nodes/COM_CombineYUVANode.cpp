@@ -27,7 +27,7 @@ CombineYUVANode::CombineYUVANode(bNode *editorNode) : CombineRGBANode(editorNode
 	/* pass */
 }
 
-void CombineYUVANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void CombineYUVANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	ConvertYUVToRGBOperation *operation = new ConvertYUVToRGBOperation();
 	OutputSocket *outputSocket = this->getOutputSocket(0);

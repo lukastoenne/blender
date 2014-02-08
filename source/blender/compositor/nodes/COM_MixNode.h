@@ -32,6 +32,6 @@
 class MixNode : public Node {
 public:
 	MixNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;
 };
 #endif

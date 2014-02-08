@@ -29,7 +29,7 @@ SeparateYCCANode::SeparateYCCANode(bNode *editorNode) : SeparateRGBANode(editorN
 	/* pass */
 }
 
-void SeparateYCCANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void SeparateYCCANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	ConvertRGBToYCCOperation *operation = new ConvertRGBToYCCOperation();
 	InputSocket *inputSocket = this->getInputSocket(0);

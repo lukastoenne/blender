@@ -32,7 +32,7 @@ OutputFileNode::OutputFileNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void OutputFileNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void OutputFileNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	NodeImageMultiFile *storage = (NodeImageMultiFile *)this->getbNode()->storage;
 	

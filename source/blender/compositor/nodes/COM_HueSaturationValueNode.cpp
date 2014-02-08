@@ -35,7 +35,7 @@ HueSaturationValueNode::HueSaturationValueNode(bNode *editorNode) : Node(editorN
 	/* pass */
 }
 
-void HueSaturationValueNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void HueSaturationValueNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *valueSocket = this->getInputSocket(0);
 	InputSocket *colorSocket = this->getInputSocket(1);

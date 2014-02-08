@@ -29,7 +29,7 @@ DisplaceNode::DisplaceNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void DisplaceNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void DisplaceNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	NodeOperation *operation;
 	if (context->getQuality() == COM_QUALITY_LOW)

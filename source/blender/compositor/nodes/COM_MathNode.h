@@ -32,7 +32,7 @@
 class MathNode : public Node {
 public:
 	MathNode(bNode *editorNode) : Node(editorNode) {}
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;
 };
 
 #endif

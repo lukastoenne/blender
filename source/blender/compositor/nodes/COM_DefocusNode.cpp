@@ -39,7 +39,7 @@ DefocusNode::DefocusNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void DefocusNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void DefocusNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *node = this->getbNode();
 	NodeDefocus *data = (NodeDefocus *)node->storage;

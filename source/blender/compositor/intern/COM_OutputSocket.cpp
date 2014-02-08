@@ -30,9 +30,6 @@ OutputSocket::OutputSocket(DataType datatype) : Socket(datatype)
 	/* pass */
 }
 
-int OutputSocket::isOutputSocket() const { return true; }
-const int OutputSocket::isConnected() const { return this->m_connections.size() != 0; }
-
 void OutputSocket::determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2])
 {
 	NodeBase *node = this->getNode();
@@ -61,43 +58,6 @@ void OutputSocket::removeConnection(SocketConnection *connection)
 			m_connections.erase(it);
 			return;
 		}
-	}
-}
-
-void OutputSocket::relinkConnections(OutputSocket *relinkToSocket, bool single)
-{
-	if (isConnected()) {
-		if (single) {
-			SocketConnection *connection = this->m_connections[0];
-			connection->setFromSocket(relinkToSocket);
-			relinkToSocket->addConnection(connection);
-			this->m_connections.erase(this->m_connections.begin());
-		}
-		else {
-			unsigned int index;
-			for (index = 0; index < this->m_connections.size(); index++) {
-				SocketConnection *connection = this->m_connections[index];
-				connection->setFromSocket(relinkToSocket);
-				relinkToSocket->addConnection(connection);
-			}
-			this->m_connections.clear();
-		}
-	}
-}
-void OutputSocket::removeFirstConnection()
-{
-	SocketConnection *connection = this->m_connections[0];
-	InputSocket *inputSocket = connection->getToSocket();
-	if (inputSocket != NULL) {
-		inputSocket->setConnection(NULL);
-	}
-	this->m_connections.erase(this->m_connections.begin());
-}
-
-void OutputSocket::clearConnections()
-{
-	while (this->isConnected()) {
-		removeFirstConnection();
 	}
 }
 

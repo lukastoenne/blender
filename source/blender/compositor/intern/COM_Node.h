@@ -26,23 +26,23 @@
 #include "COM_NodeBase.h"
 #include "COM_InputSocket.h"
 #include "COM_OutputSocket.h"
-#include "COM_CompositorContext.h"
 #include "DNA_node_types.h"
 #include "BKE_text.h"
-#include "COM_ExecutionSystem.h"
 #include <vector>
 #include <string>
 #include <algorithm>
+
+/* common node includes
+ * added here so node files don't have to include themselves
+ */
+#include "COM_CompositorContext.h"
+#include "COM_NodeCompiler.h"
 
 using namespace std;
 
 class Node;
 class NodeOperation;
-class ExecutionSystem;
-
-typedef vector<Node *> NodeList;
-typedef NodeList::iterator NodeIterator;
-typedef pair<NodeIterator, NodeIterator> NodeRange;
+class NodeCompiler;
 
 /**
  * My node documentation.
@@ -85,7 +85,7 @@ public:
 	 * @param system the ExecutionSystem where the operations need to be added
 	 * @param context reference to the CompositorContext
 	 */
-	virtual void convertToOperations(ExecutionSystem *system, CompositorContext *context) = 0;
+	virtual void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const = 0;
 	
 	/**
 	 * this method adds a SetValueOperation as input of the input socket.
@@ -108,42 +108,18 @@ public:
 	/**
 	 * Create dummy warning operation, use when we can't get the source data.
 	 */
-	NodeOperation *convertToOperations_invalid_index(ExecutionSystem *graph, int index);
+	NodeOperation *convertToOperations_invalid_index(NodeCompiler *compiler, int index) const;
 	/**
 	 * when a node has no valid data (missing image or a group nodes ID pointer is NULL)
 	 * call this function from #convertToOperations, this way the node sockets are converted
 	 * into valid outputs, without this the compositor system gets confused and crashes, see [#32490]
 	 */
-	void convertToOperations_invalid(ExecutionSystem *graph, CompositorContext *context);
-
-	/**
-	 * Creates a new link between an outputSocket and inputSocket and registrates the link to the graph
-	 * @return the new created link
-	 */
-	SocketConnection *addLink(ExecutionSystem *graph, OutputSocket *outputSocket, InputSocket *inputsocket);
+	void convertToOperations_invalid(NodeCompiler *compiler) const;
 	
-	/**
-	 * is this node a group node.
-	 */
-	virtual bool isGroupNode() const { return false; }
 	/**
 	 * is this node a proxy node.
 	 */
 	virtual bool isProxyNode() const { return false; }
-	
-	/**
-	 * @brief find the InputSocket by bNodeSocket
-	 *
-	 * @param socket
-	 */
-	InputSocket *findInputSocketBybNodeSocket(bNodeSocket *socket);
-	
-	/**
-	 * @brief find the OutputSocket by bNodeSocket
-	 *
-	 * @param socket
-	 */
-	OutputSocket *findOutputSocketBybNodeSocket(bNodeSocket *socket);
 	
 	void setInstanceKey(bNodeInstanceKey instance_key) { m_instanceKey = instance_key; }
 	bNodeInstanceKey getInstanceKey() const { return m_instanceKey; }
