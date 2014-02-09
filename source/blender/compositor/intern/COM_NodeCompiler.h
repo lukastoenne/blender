@@ -23,6 +23,7 @@
 #define _COM_NodeCompiler_h
 
 #include <map>
+#include <set>
 #include <vector>
 
 extern "C" {
@@ -90,11 +91,16 @@ public:
 	typedef std::map<InputSocket *, InputSocket *> InputSocketMap;
 	typedef std::map<OutputSocket *, OutputSocket *> OutputSocketMap;
 	
+	typedef std::vector<InputSocket *> InputSocketList;
+	typedef std::map<InputSocket *, InputSocketList> InputSocketInverseMap;
+	
 private:
 	const CompositorContext *m_context;
 	NodeGraph m_graph;
 	
+	/** Maps operation inputs to node inputs */
 	InputSocketMap m_input_map;
+	/** Maps node outputs to operation outputs */
 	OutputSocketMap m_output_map;
 	
 	ExecutionSystem *m_current_system;
@@ -124,8 +130,8 @@ public:
 	void addConnection(OutputSocket *from, InputSocket *to);
 	
 protected:
-	InputSocket *find_operation_input(InputSocket *node_input) const;
-	OutputSocket *find_operation_output(OutputSocket *node_output) const;
+	static const InputSocketList &find_operation_inputs(const InputSocketInverseMap &map, InputSocket *node_input);
+	static OutputSocket *find_operation_output(const OutputSocketMap &map, OutputSocket *node_output);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("COM:Converter")

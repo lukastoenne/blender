@@ -330,28 +330,40 @@ void NodeCompiler::convertToOperations(ExecutionSystem *system)
 	
 	m_current_node = NULL;
 	
+	/* The input map constructed by nodes maps operation inputs to node inputs.
+	 * Inverting yields a map of node inputs to all connected operation inputs,
+	 * so multiple operations can use the same node input.
+	 */
+	InputSocketInverseMap inverse_input_map;
+	for (InputSocketMap::const_iterator it = m_input_map.begin(); it != m_input_map.end(); ++it)
+		inverse_input_map[it->second].push_back(it->first);
+	
 	for (int index = 0; index < m_graph.connections().size(); index++) {
 		SocketConnection *connection = m_graph.connections()[index];
 		OutputSocket *from = connection->getFromSocket();
 		InputSocket *to = connection->getToSocket();
 		
-		OutputSocket *op_from = find_operation_output(from);
-		InputSocket *op_to = find_operation_input(to);
-		if (!op_from || !op_to) {
+		OutputSocket *op_from = find_operation_output(m_output_map, from);
+		const InputSocketList &op_to_list = find_operation_inputs(inverse_input_map, to);
+		if (!op_from || op_to_list.empty()) {
 			/* XXX allow this? error/debug message? */
 			BLI_assert(false);
 			continue;
 		}
 		
-		if (op_from->getDataType() != op_to->getDataType()) {
-			NodeOperation *converter = Converter::convertDataType(op_from, op_to);
-			if (converter) {
-				addConnection(op_from, converter->getInputSocket(0));
-				addConnection(converter->getOutputSocket(0), op_to);
+		for (InputSocketList::const_iterator it = op_to_list.begin(); it != op_to_list.end(); ++it) {
+			InputSocket *op_to = *it;
+			
+			if (op_from->getDataType() != op_to->getDataType()) {
+				NodeOperation *converter = Converter::convertDataType(op_from, op_to);
+				if (converter) {
+					addConnection(op_from, converter->getInputSocket(0));
+					addConnection(converter->getOutputSocket(0), op_to);
+				}
 			}
+			else
+				addConnection(op_from, op_to);
 		}
-		else
-			addConnection(op_from, op_to);
 	}
 	
 	system->determineResolutions();
@@ -370,14 +382,18 @@ void NodeCompiler::mapInputSocket(InputSocket *node_socket, InputSocket *operati
 	BLI_assert(m_current_system);
 	BLI_assert(m_current_node);
 	
-	m_input_map[node_socket] = operation_socket;
+	/* note: this maps operation sockets to node sockets.
+	 * for resolving links the map will be inverted first in convertToOperations,
+	 * to get a list of connections for each node input socket.
+	 */
+	m_input_map[operation_socket] = node_socket;
 }
 
 void NodeCompiler::mapOutputSocket(OutputSocket *node_socket, OutputSocket *operation_socket)
 {
 	BLI_assert(m_current_system);
 	BLI_assert(m_current_node);
-
+	
 	m_output_map[node_socket] = operation_socket;
 }
 
@@ -412,14 +428,15 @@ void NodeCompiler::addConnection(OutputSocket *from, InputSocket *to)
 	m_current_system->addConnection(from, to);
 }
 
-InputSocket *NodeCompiler::find_operation_input(InputSocket *node_input) const
+const NodeCompiler::InputSocketList &NodeCompiler::find_operation_inputs(const InputSocketInverseMap &map, InputSocket *node_input)
 {
-	InputSocketMap::const_iterator it = m_input_map.find(node_input);
-	return (it != m_input_map.end() ? it->second : NULL);
+	static const InputSocketList empty_list;
+	InputSocketInverseMap::const_iterator it = map.find(node_input);
+	return (it != map.end() ? it->second : empty_list);
 }
 
-OutputSocket *NodeCompiler::find_operation_output(OutputSocket *node_output) const
+OutputSocket *NodeCompiler::find_operation_output(const OutputSocketMap &map, OutputSocket *node_output)
 {
-	OutputSocketMap::const_iterator it = m_output_map.find(node_output);
-	return (it != m_output_map.end() ? it->second : NULL);
+	OutputSocketMap::const_iterator it = map.find(node_output);
+	return (it != map.end() ? it->second : NULL);
 }
