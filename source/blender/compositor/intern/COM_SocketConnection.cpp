@@ -25,8 +25,7 @@
 
 SocketConnection::SocketConnection(OutputSocket *from, InputSocket *to) :
     m_fromSocket(from),
-    m_toSocket(to),
-    m_ignoreResizeCheck(false)
+    m_toSocket(to)
 {
 	BLI_assert(from);
 	BLI_assert(to);
@@ -45,17 +44,18 @@ SocketConnection::~SocketConnection()
 
 bool SocketConnection::needsResolutionConversion() const
 {
-	if (this->m_ignoreResizeCheck) { return false; }
+	if (m_toSocket->getResizeMode() == COM_SC_NO_RESIZE)
+		return false;
+	
 	NodeOperation *fromOperation = this->getFromOperation();
 	NodeOperation *toOperation = this->getToOperation();
-	if (this->m_toSocket->getResizeMode() == COM_SC_NO_RESIZE) { return false; }
 	const unsigned int fromWidth = fromOperation->getWidth();
 	const unsigned int fromHeight = fromOperation->getHeight();
 	const unsigned int toWidth = toOperation->getWidth();
 	const unsigned int toHeight = toOperation->getHeight();
-
-	if (fromWidth == toWidth && fromHeight == toHeight) {
+	
+	if (fromWidth == toWidth && fromHeight == toHeight)
 		return false;
-	}
+	
 	return true;
 }

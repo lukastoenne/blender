@@ -32,8 +32,10 @@ BokehImageNode::BokehImageNode(bNode *editorNode) : Node(editorNode)
 void BokehImageNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	BokehImageOperation *operation = new BokehImageOperation();
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
-	graph->addOperation(operation);
 	operation->setData((NodeBokehImage *)this->getbNode()->storage);
-	addPreviewOperation(graph, context, operation->getOutputSocket(0));
+	
+	compiler->addOperation(operation);
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
+	
+	compiler->addOutputPreview(operation->getOutputSocket(0));
 }

@@ -480,19 +480,18 @@ void Converter::convertResolution(SocketConnection *connection, ExecutionSystem 
 
 	if (doCenter) {
 		NodeOperation *first = NULL;
-		SocketConnection *c;
 		ScaleOperation *scaleOperation = NULL;
 		if (doScale) {
 			scaleOperation = new ScaleOperation();
+			scaleOperation->getInputSocket(1)->setResizeMode(COM_SC_NO_RESIZE);
+			scaleOperation->getInputSocket(2)->setResizeMode(COM_SC_NO_RESIZE);
 			first = scaleOperation;
 			SetValueOperation *sxop = new SetValueOperation();
 			sxop->setValue(scaleX);
-			c = system->addConnection(sxop->getOutputSocket(), scaleOperation->getInputSocket(1));
-			c->setIgnoreResizeCheck(true);
+			system->addConnection(sxop->getOutputSocket(), scaleOperation->getInputSocket(1));
 			SetValueOperation *syop = new SetValueOperation();
 			syop->setValue(scaleY);
-			c = system->addConnection(syop->getOutputSocket(), scaleOperation->getInputSocket(2));
-			c->setIgnoreResizeCheck(true);
+			system->addConnection(syop->getOutputSocket(), scaleOperation->getInputSocket(2));
 			system->addOperation(sxop);
 			system->addOperation(syop);
 
@@ -502,20 +501,18 @@ void Converter::convertResolution(SocketConnection *connection, ExecutionSystem 
 			sxop->setResolution(resolution);
 			syop->setResolution(resolution);
 			system->addOperation(scaleOperation);
-
-			c->setIgnoreResizeCheck(true);
 		}
 
 		TranslateOperation *translateOperation = new TranslateOperation();
+		translateOperation->getInputSocket(1)->setResizeMode(COM_SC_NO_RESIZE);
+		translateOperation->getInputSocket(2)->setResizeMode(COM_SC_NO_RESIZE);
 		if (!first) first = translateOperation;
 		SetValueOperation *xop = new SetValueOperation();
 		xop->setValue(addX);
-		c = system->addConnection(xop->getOutputSocket(), translateOperation->getInputSocket(1));
-		c->setIgnoreResizeCheck(true);
+		system->addConnection(xop->getOutputSocket(), translateOperation->getInputSocket(1));
 		SetValueOperation *yop = new SetValueOperation();
 		yop->setValue(addY);
-		c = system->addConnection(yop->getOutputSocket(), translateOperation->getInputSocket(2));
-		c->setIgnoreResizeCheck(true);
+		system->addConnection(yop->getOutputSocket(), translateOperation->getInputSocket(2));
 		system->addOperation(xop);
 		system->addOperation(yop);
 
@@ -527,15 +524,15 @@ void Converter::convertResolution(SocketConnection *connection, ExecutionSystem 
 		system->addOperation(translateOperation);
 
 		if (doScale) {
-			c = system->addConnection(scaleOperation->getOutputSocket(), translateOperation->getInputSocket(0));
-			c->setIgnoreResizeCheck(true);
+			translateOperation->getInputSocket(0)->setResizeMode(COM_SC_NO_RESIZE);
+			system->addConnection(scaleOperation->getOutputSocket(), translateOperation->getInputSocket(0));
 		}
 
 		/* remove previous connection and replace */
 		system->removeConnection(connection);
-		c = system->addConnection(fromSocket, first->getInputSocket(0));
-		c->setIgnoreResizeCheck(true);
-		c = system->addConnection(translateOperation->getOutputSocket(), toSocket);
-		c->setIgnoreResizeCheck(true);
+		first->getInputSocket(0)->setResizeMode(COM_SC_NO_RESIZE);
+		toSocket->setResizeMode(COM_SC_NO_RESIZE);
+		system->addConnection(fromSocket, first->getInputSocket(0));
+		system->addConnection(translateOperation->getOutputSocket(), toSocket);
 	}
 }

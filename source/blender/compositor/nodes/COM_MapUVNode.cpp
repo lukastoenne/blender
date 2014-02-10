@@ -30,15 +30,14 @@ MapUVNode::MapUVNode(bNode *editorNode) : Node(editorNode)
 
 void MapUVNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
-	MapUVOperation *operation = new MapUVOperation();
-
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-	
 	bNode *node = this->getbNode();
+	
+	MapUVOperation *operation = new MapUVOperation();
 	operation->setAlpha((float)node->custom1);
 	operation->setResolutionInputSocketIndex(1);
+	compiler->addOperation(operation);
 
-	graph->addOperation(operation);
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 }

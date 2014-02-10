@@ -37,12 +37,11 @@ void LensDistortionNode::convertToOperations(NodeCompiler *compiler, const Compo
 	if (data->proj) {
 		ProjectorLensDistortionOperation *operation = new ProjectorLensDistortionOperation();
 		operation->setbNode(editorNode);
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getInputSocket(2)->relinkConnections(operation->getInputSocket(1), 2, graph);
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
-
-		graph->addOperation(operation);
-
+		compiler->addOperation(operation);
+		
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapInputSocket(getInputSocket(2), operation->getInputSocket(1));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 	}
 	else {
 		ScreenLensDistortionOperation *operation = new ScreenLensDistortionOperation();
@@ -55,13 +54,11 @@ void LensDistortionNode::convertToOperations(NodeCompiler *compiler, const Compo
 		if (!getInputSocket(2)->isConnected())
 			operation->setDispersion(getInputSocket(2)->getEditorValueFloat());
 		
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-		this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, graph);
-
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
-
-		graph->addOperation(operation);
+		compiler->addOperation(operation);
+		
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+		compiler->mapInputSocket(getInputSocket(2), operation->getInputSocket(2));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 	}
-
 }

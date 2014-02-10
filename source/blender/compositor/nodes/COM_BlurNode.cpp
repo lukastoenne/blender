@@ -55,8 +55,9 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		operationfgb->setData(data);
 		operationfgb->setChunksize(context->getChunksize());
 		operationfgb->setbNode(editorNode);
-		this->getInputSocket(1)->relinkConnections(operationfgb->getInputSocket(1), 1, graph);
-		graph->addOperation(operationfgb);
+		
+		compiler->addOperation(operationfgb);
+		compiler->mapInputSocket(getInputSocket(1), operationfgb->getInputSocket(1));
 
 		input_operation = operationfgb;
 		output_operation = operationfgb;
@@ -64,13 +65,14 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 	else if (editorNode->custom1 & CMP_NODEFLAG_BLUR_VARIABLE_SIZE) {
 		MathAddOperation *clamp = new MathAddOperation();
 		SetValueOperation *zero = new SetValueOperation();
-		addLink(graph, zero->getOutputSocket(), clamp->getInputSocket(1));
-		this->getInputSocket(1)->relinkConnections(clamp->getInputSocket(0), 1, graph);
 		zero->setValue(0.0f);
 		clamp->setUseClamp(true);
-		graph->addOperation(clamp);
-		graph->addOperation(zero);
-	
+		
+		compiler->addOperation(clamp);
+		compiler->addOperation(zero);
+		compiler->mapInputSocket(getInputSocket(1), clamp->getInputSocket(0));
+		compiler->addConnection(zero->getOutputSocket(), clamp->getInputSocket(1));
+		
 		GaussianAlphaXBlurOperation *operationx = new GaussianAlphaXBlurOperation();
 		operationx->setData(data);
 		operationx->setbNode(editorNode);
@@ -78,9 +80,10 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		operationx->setSize(1.0f);
 		operationx->setFalloff(PROP_SMOOTH);
 		operationx->setSubtract(false);
-		addLink(graph, clamp->getOutputSocket(), operationx->getInputSocket(0));
-		graph->addOperation(operationx);
-
+		
+		compiler->addOperation(operationx);
+		compiler->addConnection(clamp->getOutputSocket(), operationx->getInputSocket(0));
+		
 		GaussianAlphaYBlurOperation *operationy = new GaussianAlphaYBlurOperation();
 		operationy->setData(data);
 		operationy->setbNode(editorNode);
@@ -88,16 +91,18 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		operationy->setSize(1.0f);
 		operationy->setFalloff(PROP_SMOOTH);
 		operationy->setSubtract(false);
-		addLink(graph, operationx->getOutputSocket(), operationy->getInputSocket(0));
-		graph->addOperation(operationy);
-
+		
+		compiler->addOperation(operationy);
+		compiler->addConnection(operationx->getOutputSocket(), operationy->getInputSocket(0));
+		
 		GaussianBlurReferenceOperation *operation = new GaussianBlurReferenceOperation();
 		operation->setData(data);
 		operation->setbNode(editorNode);
 		operation->setQuality(quality);
-		addLink(graph, operationy->getOutputSocket(), operation->getInputSocket(1));
-		graph->addOperation(operation);
-
+		
+		compiler->addOperation(operation);
+		compiler->addConnection(operationy->getOutputSocket(), operation->getInputSocket(1));
+		
 		output_operation = operation;
 		input_operation = operation;
 	}
@@ -106,16 +111,18 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		operationx->setData(data);
 		operationx->setbNode(editorNode);
 		operationx->setQuality(quality);
-		this->getInputSocket(1)->relinkConnections(operationx->getInputSocket(1), 1, graph);
-		graph->addOperation(operationx);
+		
+		compiler->addOperation(operationx);
+		compiler->mapInputSocket(getInputSocket(1), operationx->getInputSocket(1));
+		
 		GaussianYBlurOperation *operationy = new GaussianYBlurOperation();
 		operationy->setData(data);
 		operationy->setbNode(editorNode);
 		operationy->setQuality(quality);
 
-		graph->addOperation(operationy);
-		addLink(graph, operationx->getOutputSocket(), operationy->getInputSocket(0));
-		addLink(graph, operationx->getInputSocket(1)->getConnection()->getFromSocket(), operationy->getInputSocket(1));
+		compiler->addOperation(operationy);
+		compiler->mapInputSocket(getInputSocket(1), operationy->getInputSocket(1));
+		compiler->addConnection(operationx->getOutputSocket(), operationy->getInputSocket(0));
 
 		if (!connectedSizeSocket) {
 			operationx->setSize(size);
@@ -129,9 +136,10 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		GaussianBokehBlurOperation *operation = new GaussianBokehBlurOperation();
 		operation->setData(data);
 		operation->setbNode(editorNode);
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
 		operation->setQuality(quality);
-		graph->addOperation(operation);
+		
+		compiler->addOperation(operation);
+		compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
 
 		if (!connectedSizeSocket) {
 			operation->setSize(size);
@@ -144,19 +152,20 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 	if (data->gamma) {
 		GammaCorrectOperation *correct = new GammaCorrectOperation();
 		GammaUncorrectOperation *inverse = new GammaUncorrectOperation();
-
-		this->getInputSocket(0)->relinkConnections(correct->getInputSocket(0), 0, graph);
-		addLink(graph, correct->getOutputSocket(), input_operation->getInputSocket(0));
-		addLink(graph, output_operation->getOutputSocket(), inverse->getInputSocket(0));
-		this->getOutputSocket()->relinkConnections(inverse->getOutputSocket());
 		graph->addOperation(correct);
 		graph->addOperation(inverse);
-
+		
+		compiler->mapInputSocket(getInputSocket(0), correct->getInputSocket(0));
+		compiler->addConnection(correct->getOutputSocket(), input_operation->getInputSocket(0));
+		compiler->addConnection(output_operation->getOutputSocket(), inverse->getInputSocket(0));
+		compiler->mapOutputSocket(getOutputSocket(), inverse->getOutputSocket());
+		
 		addPreviewOperation(graph, context, inverse->getOutputSocket());
 	}
 	else {
-		this->getInputSocket(0)->relinkConnections(input_operation->getInputSocket(0), 0, graph);
-		this->getOutputSocket()->relinkConnections(output_operation->getOutputSocket());
+		compiler->mapInputSocket(getInputSocket(0), input_operation->getInputSocket(0));
+		compiler->mapOutputSocket(getOutputSocket(), output_operation->getOutputSocket());
+		
 		addPreviewOperation(graph, context, output_operation->getOutputSocket());
 	}
 }

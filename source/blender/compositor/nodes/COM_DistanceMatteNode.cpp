@@ -33,53 +33,56 @@ DistanceMatteNode::DistanceMatteNode(bNode *editorNode) : Node(editorNode)
 
 void DistanceMatteNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
+	bNode *editorsnode = getbNode();
+	NodeChroma *storage = (NodeChroma *)editorsnode->storage;
+	
 	InputSocket *inputSocketImage = this->getInputSocket(0);
 	InputSocket *inputSocketKey = this->getInputSocket(1);
 	OutputSocket *outputSocketImage = this->getOutputSocket(0);
 	OutputSocket *outputSocketMatte = this->getOutputSocket(1);
-
-	NodeOperation *operation;
-	bNode *editorsnode = getbNode();
-	NodeChroma *storage = (NodeChroma *)editorsnode->storage;
-
+	
+	SetAlphaOperation *operationAlpha = new SetAlphaOperation();
+	compiler->addOperation(operationAlpha);
+	
 	/* work in RGB color space */
+	NodeOperation *operation;
 	if (storage->channel == 1) {
-		operation = new DistanceRGBMatteOperation();
-		((DistanceRGBMatteOperation *) operation)->setSettings(storage);
-
-		inputSocketImage->relinkConnections(operation->getInputSocket(0), 0, graph);
-		inputSocketKey->relinkConnections(operation->getInputSocket(1), 1, graph);
+		DistanceRGBMatteOperation *matte = new DistanceRGBMatteOperation();
+		matte->setSettings(storage);
+		compiler->addOperation(matte);
+		
+		compiler->mapInputSocket(inputSocketImage, matte->getInputSocket(0));
+		compiler->mapInputSocket(inputSocketImage, operationAlpha->getInputSocket(0));
+		
+		compiler->mapInputSocket(inputSocketKey, matte->getInputSocket(1));
+		
+		operation = matte;
 	}
 	/* work in YCbCr color space */
 	else {
-		operation = new DistanceYCCMatteOperation();
-		((DistanceYCCMatteOperation *) operation)->setSettings(storage);
-
+		DistanceYCCMatteOperation *matte = new DistanceYCCMatteOperation();
+		matte->setSettings(storage);
+		compiler->addOperation(matte);
+		
 		ConvertRGBToYCCOperation *operationYCCImage = new ConvertRGBToYCCOperation();
-		inputSocketImage->relinkConnections(operationYCCImage->getInputSocket(0), 0, graph);
-		addLink(graph, operationYCCImage->getOutputSocket(), operation->getInputSocket(0));
-		graph->addOperation(operationYCCImage);
-
 		ConvertRGBToYCCOperation *operationYCCMatte = new ConvertRGBToYCCOperation();
-		inputSocketKey->relinkConnections(operationYCCMatte->getInputSocket(0), 1, graph);
-		addLink(graph, operationYCCMatte->getOutputSocket(), operation->getInputSocket(1));
-		graph->addOperation(operationYCCMatte);
+		compiler->addOperation(operationYCCImage);
+		compiler->addOperation(operationYCCMatte);
+		
+		compiler->mapInputSocket(inputSocketImage, operationYCCImage->getInputSocket(0));
+		compiler->addConnection(operationYCCImage->getOutputSocket(), matte->getInputSocket(0));
+		compiler->addConnection(operationYCCImage->getOutputSocket(), operationAlpha->getInputSocket(0));
+		
+		compiler->mapInputSocket(inputSocketKey, operationYCCMatte->getInputSocket(0));
+		compiler->addConnection(operationYCCMatte->getOutputSocket(), matte->getInputSocket(1));
+		
+		operation = matte;
 	}
-
-	if (outputSocketMatte->isConnected()) {
-		outputSocketMatte->relinkConnections(operation->getOutputSocket());
-	}
-
-	graph->addOperation(operation);
-
-	SetAlphaOperation *operationAlpha = new SetAlphaOperation();
-	addLink(graph, operation->getInputSocket(0)->getConnection()->getFromSocket(), operationAlpha->getInputSocket(0));
-	addLink(graph, operation->getOutputSocket(), operationAlpha->getInputSocket(1));
-
-	graph->addOperation(operationAlpha);
-	addPreviewOperation(graph, context, operationAlpha->getOutputSocket());
-
-	if (outputSocketImage->isConnected()) {
-		outputSocketImage->relinkConnections(operationAlpha->getOutputSocket());
-	}
+	
+	compiler->addConnection(operation->getOutputSocket(), operationAlpha->getInputSocket(1));
+	
+	compiler->mapOutputSocket(outputSocketMatte, operation->getOutputSocket());
+	compiler->mapOutputSocket(outputSocketImage, operationAlpha->getOutputSocket());
+	
+	compiler->addOutputPreview(operationAlpha->getOutputSocket());
 }

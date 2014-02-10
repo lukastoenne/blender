@@ -45,10 +45,11 @@ void CompositorNode::convertToOperations(NodeCompiler *compiler, const Composito
 	compositorOperation->setbNodeTree(context->getbNodeTree());
 	compositorOperation->setIgnoreAlpha(editorNode->custom2 & CMP_NODE_OUTPUT_IGNORE_ALPHA);
 	compositorOperation->setActive(is_active);
-	imageSocket->relinkConnections(compositorOperation->getInputSocket(0), 0, graph);
-	alphaSocket->relinkConnections(compositorOperation->getInputSocket(1));
-	depthSocket->relinkConnections(compositorOperation->getInputSocket(2));
-	graph->addOperation(compositorOperation);
-
-	addPreviewOperation(graph, context, compositorOperation->getInputSocket(0));
+	
+	compiler->addOperation(compositorOperation);
+	compiler->mapInputSocket(imageSocket, compositorOperation->getInputSocket(0));
+	compiler->mapInputSocket(alphaSocket, compositorOperation->getInputSocket(1));
+	compiler->mapInputSocket(depthSocket, compositorOperation->getInputSocket(2));
+	
+	compiler->addInputPreview(compositorOperation->getInputSocket(0));
 }

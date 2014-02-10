@@ -61,10 +61,6 @@ void MaskNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		operation->setMaskHeight(rd->ysch * rd->size / 100.0f);
 	}
 
-	if (outputMask->isConnected()) {
-		outputMask->relinkConnections(operation->getOutputSocket());
-	}
-
 	operation->setMask(mask);
 	operation->setFramenumber(context->getFramenumber());
 	operation->setSmooth((bool)(editorNode->custom1 & CMP_NODEFLAG_MASK_AA) != 0);
@@ -78,5 +74,6 @@ void MaskNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		operation->setMotionBlurShutter(editorNode->custom3);
 	}
 
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	compiler->mapOutputSocket(outputMask, operation->getOutputSocket());
 }

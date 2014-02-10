@@ -38,6 +38,7 @@ class InputSocket;
 class Node;
 class NodeOperation;
 class OutputSocket;
+class PreviewOperation;
 class SocketConnection;
 
 class NodeGraph {
@@ -58,32 +59,36 @@ public:
 	
 	void from_bNodeTree(const CompositorContext &context, bNodeTree *tree);
 	
-	void add_group_node_input_proxy(const CompositorContext &context, InputSocket *group_input, bNode *b_input_node, bNodeSocket *b_input_socket);
-	void add_group_node_output_proxy(const CompositorContext &context, OutputSocket *group_output, bNode *b_output_node, bNodeSocket *b_output_socket);
-	
 protected:
 	typedef vector<Node *> NodeList;
 	typedef NodeList::iterator NodeIterator;
 	typedef pair<NodeIterator, NodeIterator> NodeRange;
+	
+	static bNodeSocket *find_b_node_input(bNode *b_node, const char *identifier);
+	static bNodeSocket *find_b_node_output(bNode *b_node, const char *identifier);
 	
 	void add_node(Node *node, bNodeTree *b_ntree, bNodeInstanceKey key, bool is_active_group);
 	void add_connection(OutputSocket *fromSocket, InputSocket *toSocket);
 	
 	void add_bNodeTree(const CompositorContext &context, int nodes_start, bNodeTree *tree, bNodeInstanceKey parent_key);
 	
-	void add_bNode_mute_proxies(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
-	void add_bNode_skip_proxies(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
-	void add_group_node_input_proxies(bNode *b_node, bNode *b_node_io);
-	void add_group_node_output_proxies(bNode *b_node, bNode *b_node_io, bool use_buffer);
-	void add_node_group(const CompositorContext &context, bNode *b_node, bNodeInstanceKey key);
 	void add_bNode(const CompositorContext &context, bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
-	
-	static bNodeSocket *find_b_node_input(bNode *b_node, const char *identifier);
-	static bNodeSocket *find_b_node_output(bNode *b_node, const char *identifier);
 	
 	InputSocket *find_input(const NodeRange &node_range, bNodeSocket *b_socket);
 	OutputSocket *find_output(const NodeRange &node_range, bNodeSocket *b_socket);
 	void add_bNodeLink(const NodeRange &node_range, bNodeLink *bNodeLink);
+	
+	/* **** Special proxy node type conversions **** */
+	/* These nodes are not represented in the node graph themselves,
+	 * but converted into a number of proxy connections
+	 */
+	
+	void add_proxies_mute(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
+	void add_proxies_skip(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
+	
+	void add_proxies_group_inputs(bNode *b_node, bNode *b_node_io);
+	void add_proxies_group_outputs(bNode *b_node, bNode *b_node_io, bool use_buffer);
+	void add_proxies_group(const CompositorContext &context, bNode *b_node, bNodeInstanceKey key);
 };
 
 class NodeCompiler {
@@ -127,11 +132,32 @@ public:
 	/** Map all input and output sockets of the current node to operation sockets by index */
 	void mapAllSockets(NodeOperation *operation);
 	
+	OutputSocket *addInputProxy(InputSocket *input);
+	InputSocket *addOutputProxy(OutputSocket *output);
+	
+	void addOutputValue(OutputSocket *output, float value);
+	void addOutputColor(OutputSocket *output, const float value[4]);
+	void addOutputVector(OutputSocket *output, const float value[3]);
+	
 	void addConnection(OutputSocket *from, InputSocket *to);
+	
+	/** Add a preview operation for a node input */
+	void addInputPreview(InputSocket *input);
+	/** Add a preview operation for a node output */
+	void addOutputPreview(OutputSocket *output);
+	
+	/** When a node has no valid data
+	 *  @note missing image / group pointer, or missing renderlayer from EXR
+	 */
+	NodeOperation *set_invalid_output(OutputSocket *output);
+	void set_invalid_node();
 	
 protected:
 	static const InputSocketList &find_operation_inputs(const InputSocketInverseMap &map, InputSocket *node_input);
 	static OutputSocket *find_operation_output(const OutputSocketMap &map, OutputSocket *node_output);
+
+private:
+	PreviewOperation *make_preview_operation() const;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("COM:Converter")

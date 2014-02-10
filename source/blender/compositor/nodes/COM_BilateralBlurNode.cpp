@@ -37,8 +37,7 @@ void BilateralBlurNode::convertToOperations(NodeCompiler *compiler, const Compos
 	operation->setbNode(this->getbNode());
 	operation->setQuality(context->getQuality());
 	operation->setData(data);
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-	graph->addOperation(operation);
+	
+	compiler->addOperation(operation);
+	compiler->mapAllSockets(operation);
 }

@@ -33,9 +33,10 @@ void ColorNode::convertToOperations(NodeCompiler *compiler, const CompositorCont
 {
 	SetColorOperation *operation = new SetColorOperation();
 	OutputSocket *output = this->getOutputSocket(0);
-	output->relinkConnections(operation->getOutputSocket());
 	float col[4];
 	output->getEditorValueColor(col);
 	operation->setChannels(col);
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapOutputSocket(output, operation->getOutputSocket());
 }

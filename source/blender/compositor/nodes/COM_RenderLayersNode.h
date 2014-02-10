@@ -33,5 +33,5 @@ public:
 	RenderLayersNode(bNode *editorNode);
 	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;
 private:
-	void testSocketConnection(ExecutionSystem *graph, CompositorContext *context, int outputSocketNumber, RenderLayersBaseProg *operation);
+	void testSocketConnection(NodeCompiler *compiler, const CompositorContext *context, int outputSocketNumber, RenderLayersBaseProg *operation) const;
 };

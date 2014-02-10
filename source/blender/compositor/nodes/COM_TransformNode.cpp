@@ -42,29 +42,30 @@ void TransformNode::convertToOperations(NodeCompiler *compiler, const Compositor
 	InputSocket *scaleInput = this->getInputSocket(4);
 	
 	ScaleOperation *scaleOperation = new ScaleOperation();
+	compiler->addOperation(scaleOperation);
+	
 	RotateOperation *rotateOperation = new RotateOperation();
-	TranslateOperation *translateOperation = new TranslateOperation();
-	SetSamplerOperation *sampler = new SetSamplerOperation();
-
-	sampler->setSampler((PixelSampler)this->getbNode()->custom1);
-	
-	imageInput->relinkConnections(sampler->getInputSocket(0), 0, graph);
-	addLink(graph, sampler->getOutputSocket(), scaleOperation->getInputSocket(0));
-	scaleInput->relinkConnections(scaleOperation->getInputSocket(1), 4, graph);
-	addLink(graph, scaleOperation->getInputSocket(1)->getConnection()->getFromSocket(), scaleOperation->getInputSocket(2)); // xscale = yscale
-	
-	addLink(graph, scaleOperation->getOutputSocket(), rotateOperation->getInputSocket(0));
 	rotateOperation->setDoDegree2RadConversion(false);
-	angleInput->relinkConnections(rotateOperation->getInputSocket(1), 3, graph);
-
-	addLink(graph, rotateOperation->getOutputSocket(), translateOperation->getInputSocket(0));
-	xInput->relinkConnections(translateOperation->getInputSocket(1), 1, graph);
-	yInput->relinkConnections(translateOperation->getInputSocket(2), 2, graph);
+	compiler->addOperation(rotateOperation);
 	
-	this->getOutputSocket()->relinkConnections(translateOperation->getOutputSocket());
+	TranslateOperation *translateOperation = new TranslateOperation();
+	compiler->addOperation(translateOperation);
 	
-	graph->addOperation(sampler);
-	graph->addOperation(scaleOperation);
-	graph->addOperation(rotateOperation);
-	graph->addOperation(translateOperation);
+	SetSamplerOperation *sampler = new SetSamplerOperation();
+	sampler->setSampler((PixelSampler)this->getbNode()->custom1);
+	compiler->addOperation(sampler);
+	
+	compiler->mapInputSocket(imageInput, sampler->getInputSocket(0));
+	compiler->addConnection(sampler->getOutputSocket(), scaleOperation->getInputSocket(0));
+	compiler->mapInputSocket(scaleInput, scaleOperation->getInputSocket(1));
+	compiler->addConnection(sampler->getOutputSocket(), scaleOperation->getInputSocket(2)); // xscale = yscale
+	
+	compiler->addConnection(scaleOperation->getOutputSocket(), rotateOperation->getInputSocket(0));
+	compiler->mapInputSocket(angleInput, rotateOperation->getInputSocket(1));
+	
+	compiler->addConnection(rotateOperation->getOutputSocket(), translateOperation->getInputSocket(0));
+	compiler->mapInputSocket(xInput, translateOperation->getInputSocket(1));
+	compiler->mapInputSocket(yInput, translateOperation->getInputSocket(2));
+	
+	compiler->mapOutputSocket(getOutputSocket(), translateOperation->getOutputSocket());
 }

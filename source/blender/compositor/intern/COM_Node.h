@@ -75,7 +75,7 @@ public:
 	 * the active group will be the main tree (all nodes that are not part of a group will be active)
 	 * @return bool [false:true]
 	 */
-	inline bool isInActiveGroup() { return this->m_inActiveGroup; }
+	inline bool isInActiveGroup() const { return this->m_inActiveGroup; }
 
 	/**
 	 * @brief convert node to operation
@@ -125,9 +125,6 @@ public:
 	bNodeInstanceKey getInstanceKey() const { return m_instanceKey; }
 	
 protected:
-	void addPreviewOperation(ExecutionSystem *system, CompositorContext *context, InputSocket *inputSocket);
-	void addPreviewOperation(ExecutionSystem *system, CompositorContext *context, OutputSocket *outputSocket);
-	
 	bNodeSocket *getEditorInputSocket(int editorNodeInputSocketIndex);
 	bNodeSocket *getEditorOutputSocket(int editorNodeOutputSocketIndex);
 private:

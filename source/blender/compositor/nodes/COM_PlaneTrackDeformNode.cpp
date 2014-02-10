@@ -40,42 +40,32 @@ PlaneTrackDeformNode::PlaneTrackDeformNode(bNode *editorNode) : Node(editorNode)
 
 void PlaneTrackDeformNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
-	InputSocket *input_image = this->getInputSocket(0);
-
-	OutputSocket *output_warped_image = this->getOutputSocket(0);
-	OutputSocket *output_plane = this->getOutputSocket(1);
-
 	bNode *editorNode = this->getbNode();
 	MovieClip *clip = (MovieClip *) editorNode->id;
-
 	NodePlaneTrackDeformData *data = (NodePlaneTrackDeformData *) editorNode->storage;
-
+	
 	int frame_number = context->getFramenumber();
-
-	if (output_warped_image->isConnected()) {
-		PlaneTrackWarpImageOperation *warp_image_operation = new PlaneTrackWarpImageOperation();
-
-		warp_image_operation->setMovieClip(clip);
-		warp_image_operation->setTrackingObject(data->tracking_object);
-		warp_image_operation->setPlaneTrackName(data->plane_track_name);
-		warp_image_operation->setFramenumber(frame_number);
-
-		input_image->relinkConnections(warp_image_operation->getInputSocket(0), 0, graph);
-		output_warped_image->relinkConnections(warp_image_operation->getOutputSocket());
-
-		graph->addOperation(warp_image_operation);
-	}
-
-	if (output_plane->isConnected()) {
-		PlaneTrackMaskOperation *plane_mask_operation = new PlaneTrackMaskOperation();
-
-		plane_mask_operation->setMovieClip(clip);
-		plane_mask_operation->setTrackingObject(data->tracking_object);
-		plane_mask_operation->setPlaneTrackName(data->plane_track_name);
-		plane_mask_operation->setFramenumber(frame_number);
-
-		output_plane->relinkConnections(plane_mask_operation->getOutputSocket());
-
-		graph->addOperation(plane_mask_operation);
-	}
+	
+	InputSocket *input_image = this->getInputSocket(0);
+	OutputSocket *output_warped_image = this->getOutputSocket(0);
+	OutputSocket *output_plane = this->getOutputSocket(1);
+	
+	PlaneTrackWarpImageOperation *warp_image_operation = new PlaneTrackWarpImageOperation();
+	warp_image_operation->setMovieClip(clip);
+	warp_image_operation->setTrackingObject(data->tracking_object);
+	warp_image_operation->setPlaneTrackName(data->plane_track_name);
+	warp_image_operation->setFramenumber(frame_number);
+	compiler->addOperation(warp_image_operation);
+	
+	compiler->mapInputSocket(input_image, warp_image_operation->getInputSocket(0));
+	compiler->mapOutputSocket(output_warped_image, warp_image_operation->getOutputSocket());
+	
+	PlaneTrackMaskOperation *plane_mask_operation = new PlaneTrackMaskOperation();
+	plane_mask_operation->setMovieClip(clip);
+	plane_mask_operation->setTrackingObject(data->tracking_object);
+	plane_mask_operation->setPlaneTrackName(data->plane_track_name);
+	plane_mask_operation->setFramenumber(frame_number);
+	compiler->addOperation(plane_mask_operation);
+	
+	compiler->mapOutputSocket(output_plane, plane_mask_operation->getOutputSocket());
 }

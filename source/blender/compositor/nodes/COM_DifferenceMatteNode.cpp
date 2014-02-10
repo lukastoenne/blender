@@ -40,16 +40,18 @@ void DifferenceMatteNode::convertToOperations(NodeCompiler *compiler, const Comp
 
 	DifferenceMatteOperation *operationSet = new DifferenceMatteOperation();
 	operationSet->setSettings((NodeChroma *)editorNode->storage);
-	inputSocket->relinkConnections(operationSet->getInputSocket(0), 0, graph);
-	inputSocket2->relinkConnections(operationSet->getInputSocket(1), 1, graph);
-
-	outputSocketMatte->relinkConnections(operationSet->getOutputSocket(0));
-	graph->addOperation(operationSet);
+	compiler->addOperation(operationSet);
+	
+	compiler->mapInputSocket(inputSocket, operationSet->getInputSocket(0));
+	compiler->mapInputSocket(inputSocket2, operationSet->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocketMatte, operationSet->getOutputSocket(0));
 
 	SetAlphaOperation *operation = new SetAlphaOperation();
-	addLink(graph, operationSet->getInputSocket(0)->getConnection()->getFromSocket(), operation->getInputSocket(0));
-	addLink(graph, operationSet->getOutputSocket(), operation->getInputSocket(1));
-	outputSocketImage->relinkConnections(operation->getOutputSocket());
-	graph->addOperation(operation);
-	addPreviewOperation(graph, context, operation->getOutputSocket());
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(0));
+	compiler->addConnection(operationSet->getOutputSocket(), operation->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocketImage, operation->getOutputSocket());
+	
+	compiler->addOutputPreview(operation->getOutputSocket());
 }

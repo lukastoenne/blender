@@ -44,30 +44,29 @@ void BokehBlurNode::convertToOperations(NodeCompiler *compiler, const Compositor
 
 	if ((b_node->custom1 & CMP_NODEFLAG_BLUR_VARIABLE_SIZE) && connectedSizeSocket) {
 		VariableSizeBokehBlurOperation *operation = new VariableSizeBokehBlurOperation();
-
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-		this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, graph);
 		operation->setQuality(context->getQuality());
 		operation->setbNode(this->getbNode());
-		graph->addOperation(operation);
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-
 		operation->setThreshold(0.0f);
 		operation->setMaxBlur(b_node->custom4);
 		operation->setDoScaleSize(true);
+		
+		compiler->addOperation(operation);
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+		compiler->mapInputSocket(getInputSocket(2), operation->getInputSocket(2));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 	}
 	else {
 		BokehBlurOperation *operation = new BokehBlurOperation();
-
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-		this->getInputSocket(2)->relinkConnections(operation->getInputSocket(3), 2, graph);
-		this->getInputSocket(3)->relinkConnections(operation->getInputSocket(2), 3, graph);
 		operation->setQuality(context->getQuality());
 		operation->setbNode(this->getbNode());
-		graph->addOperation(operation);
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
+		
+		compiler->addOperation(operation);
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+		compiler->mapInputSocket(getInputSocket(2), operation->getInputSocket(2));
+		compiler->mapInputSocket(getInputSocket(3), operation->getInputSocket(3));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 
 		if (!connectedSizeSocket) {
 			operation->setSize(this->getInputSocket(2)->getEditorValueFloat());

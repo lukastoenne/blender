@@ -55,10 +55,6 @@ private:
 	 */
 	InputSocket *m_toSocket;
 	
-	/**
-	 * @brief has the resize already been done for this connection
-	 */
-	bool m_ignoreResizeCheck;
 public:
 	SocketConnection(OutputSocket *from, InputSocket *to);
 	~SocketConnection();
@@ -71,16 +67,6 @@ public:
 	
 	NodeOperation *getFromOperation() const { return m_fromSocket ? (NodeOperation *)m_fromSocket->getNode() : NULL; }
 	NodeOperation *getToOperation() const { return m_toSocket ? (NodeOperation *)m_toSocket->getNode() : NULL; }
-	
-	/**
-	 * @brief set, whether the resize has already been done for this SocketConnection
-	 */
-	void setIgnoreResizeCheck(bool check) { this->m_ignoreResizeCheck = check; }
-	
-	/**
-	 * @brief has the resize already been done for this SocketConnection
-	 */
-	bool isIgnoreResizeCheck() const { return this->m_ignoreResizeCheck; }
 	
 	/**
 	 * @brief does this SocketConnection need resolution conversion

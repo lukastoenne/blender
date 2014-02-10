@@ -20,6 +20,7 @@
  */
 
 extern "C" {
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_node_types.h"
@@ -33,6 +34,12 @@ extern "C" {
 #include "COM_Node.h"
 #include "COM_SocketConnection.h"
 #include "COM_SocketProxyNode.h"
+
+#include "COM_PreviewOperation.h"
+#include "COM_SetValueOperation.h"
+#include "COM_SetVectorOperation.h"
+#include "COM_SetColorOperation.h"
+#include "COM_SocketProxyOperation.h"
 
 #include "COM_NodeCompiler.h" /* own include */
 
@@ -57,6 +64,24 @@ NodeGraph::~NodeGraph()
 void NodeGraph::from_bNodeTree(const CompositorContext &context, bNodeTree *tree)
 {
 	add_bNodeTree(context, 0, tree, NODE_INSTANCE_KEY_BASE);
+}
+
+bNodeSocket *NodeGraph::find_b_node_input(bNode *b_group_node, const char *identifier)
+{
+	for (bNodeSocket *b_sock = (bNodeSocket *)b_group_node->inputs.first; b_sock; b_sock = b_sock->next) {
+		if (STREQ(b_sock->identifier, identifier))
+			return b_sock;
+	}
+	return NULL;
+}
+
+bNodeSocket *NodeGraph::find_b_node_output(bNode *b_group_node, const char *identifier)
+{
+	for (bNodeSocket *b_sock = (bNodeSocket *)b_group_node->outputs.first; b_sock; b_sock = b_sock->next) {
+		if (STREQ(b_sock->identifier, identifier))
+			return b_sock;
+	}
+	return NULL;
 }
 
 void NodeGraph::add_node(Node *node, bNodeTree *b_ntree, bNodeInstanceKey key, bool is_active_group)
@@ -96,134 +121,23 @@ void NodeGraph::add_bNodeTree(const CompositorContext &context, int nodes_start,
 	}
 }
 
-void NodeGraph::add_bNode_mute_proxies(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group)
-{
-	for (bNodeLink *b_link = (bNodeLink *)b_node->internal_links.first; b_link; b_link = b_link->next) {
-		SocketProxyNode *proxy = new SocketProxyNode(b_node, b_link->fromsock, b_link->tosock);
-		add_node(proxy, b_ntree, key, is_active_group);
-	}
-}
-
-void NodeGraph::add_bNode_skip_proxies(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group)
-{
-	for (bNodeSocket *output = (bNodeSocket *)b_node->outputs.first; output; output = output->next) {
-		bNodeSocket *input;
-		
-		/* look for first input with matching datatype for each output */
-		for (input = (bNodeSocket *)b_node->inputs.first; input; input = input->next) {
-			if (input->type == output->type)
-				break;
-		}
-		
-		if (input) {
-			SocketProxyNode *proxy = new SocketProxyNode(b_node, input, output);
-			add_node(proxy, b_ntree, key, is_active_group);
-		}
-	}
-}
-
-bNodeSocket *NodeGraph::find_b_node_input(bNode *b_group_node, const char *identifier)
-{
-	for (bNodeSocket *b_sock = (bNodeSocket *)b_group_node->inputs.first; b_sock; b_sock = b_sock->next) {
-		if (STREQ(b_sock->identifier, identifier))
-			return b_sock;
-	}
-	return NULL;
-}
-
-bNodeSocket *NodeGraph::find_b_node_output(bNode *b_group_node, const char *identifier)
-{
-	for (bNodeSocket *b_sock = (bNodeSocket *)b_group_node->outputs.first; b_sock; b_sock = b_sock->next) {
-		if (STREQ(b_sock->identifier, identifier))
-			return b_sock;
-	}
-	return NULL;
-}
-
-void NodeGraph::add_group_node_input_proxies(bNode *b_node, bNode *b_node_io)
-{
-	bNodeTree *b_group_tree = (bNodeTree *)b_node->id;
-	BLI_assert(b_group_tree); /* should have been checked in advance */
-	
-	/* not important for proxies */
-	bNodeInstanceKey key = NODE_INSTANCE_KEY_BASE;
-	bool is_active_group = false;
-	
-	for (bNodeSocket *b_sock_io = (bNodeSocket *)b_node_io->outputs.first; b_sock_io; b_sock_io = b_sock_io->next) {
-		bNodeSocket *b_sock_group = find_b_node_input(b_node, b_sock_io->identifier);
-		if (b_sock_group) {
-			SocketProxyNode *proxy = new SocketProxyNode(b_node_io, b_sock_group, b_sock_io);
-			add_node(proxy, b_group_tree, key, is_active_group);
-		}
-	}
-}
-
-void NodeGraph::add_group_node_output_proxies(bNode *b_node, bNode *b_node_io, bool use_buffer)
-{
-	bNodeTree *b_group_tree = (bNodeTree *)b_node->id;
-	BLI_assert(b_group_tree); /* should have been checked in advance */
-	
-	/* not important for proxies */
-	bNodeInstanceKey key = NODE_INSTANCE_KEY_BASE;
-	bool is_active_group = false;
-	
-	for (bNodeSocket *b_sock_io = (bNodeSocket *)b_node_io->inputs.first; b_sock_io; b_sock_io = b_sock_io->next) {
-		bNodeSocket *b_sock_group = find_b_node_output(b_node, b_sock_io->identifier);
-		if (b_sock_group) {
-			if (use_buffer) {
-				SocketBufferNode *buffer = new SocketBufferNode(b_node_io, b_sock_group, b_sock_io);
-				add_node(buffer, b_group_tree, key, is_active_group);
-			}
-			else {
-				SocketProxyNode *proxy = new SocketProxyNode(b_node_io, b_sock_group, b_sock_io);
-				add_node(proxy, b_group_tree, key, is_active_group);
-			}
-		}
-	}
-}
-
-void NodeGraph::add_node_group(const CompositorContext &context, bNode *b_node, bNodeInstanceKey key)
-{
-	bNodeTree *b_group_tree = (bNodeTree *)b_node->id;
-
-	/* missing node group datablock can happen with library linking */
-	if (!b_group_tree) {
-		/* this error case its handled in convertToOperations() so we don't get un-convertred sockets */
-		return;
-	}
-
-	/* use node list size before adding proxies, so they can be connected in add_bNodeTree */
-	int nodes_start = m_nodes.size();
-
-	/* create proxy nodes for group input/output nodes */
-	for (bNode *b_node_io = (bNode *)b_group_tree->nodes.first; b_node_io; b_node_io = b_node_io->next) {
-		if (b_node_io->type == NODE_GROUP_INPUT)
-			add_group_node_input_proxies(b_node, b_node_io);
-		
-		if (b_node_io->type == NODE_GROUP_OUTPUT && (b_node_io->flag & NODE_DO_OUTPUT))
-			add_group_node_output_proxies(b_node, b_node_io, context.isGroupnodeBufferEnabled());
-	}
-	
-	add_bNodeTree(context, nodes_start, b_group_tree, key);
-}
-
 void NodeGraph::add_bNode(const CompositorContext &context, bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group)
 {
 	/* replace muted nodes by proxies for internal links */
 	if (b_node->flag & NODE_MUTED) {
-		add_bNode_mute_proxies(b_ntree, b_node, key, is_active_group);
+		add_proxies_mute(b_ntree, b_node, key, is_active_group);
 		return;
 	}
 	
 	/* replace slow nodes with proxies for fast execution */
 	if (context.isFastCalculation() && !Converter::is_fast_node(b_node)) {
-		add_bNode_skip_proxies(b_ntree, b_node, key, is_active_group);
+		add_proxies_skip(b_ntree, b_node, key, is_active_group);
 		return;
 	}
 	
-	/* expand group nodes */
+	/* special node types */
 	if (b_node->type == NODE_GROUP) {
-		add_node_group(context, b_node, key);
+		add_proxies_group(context, b_node, key);
 		return;
 	}
 	
@@ -272,6 +186,101 @@ void NodeGraph::add_bNodeLink(const NodeRange &node_range, bNodeLink *b_nodelink
 		return;
 	
 	add_connection(output, input);
+}
+
+/* **** Special proxy node type conversions **** */
+
+void NodeGraph::add_proxies_mute(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group)
+{
+	for (bNodeLink *b_link = (bNodeLink *)b_node->internal_links.first; b_link; b_link = b_link->next) {
+		SocketProxyNode *proxy = new SocketProxyNode(b_node, b_link->fromsock, b_link->tosock);
+		add_node(proxy, b_ntree, key, is_active_group);
+	}
+}
+
+void NodeGraph::add_proxies_skip(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group)
+{
+	for (bNodeSocket *output = (bNodeSocket *)b_node->outputs.first; output; output = output->next) {
+		bNodeSocket *input;
+		
+		/* look for first input with matching datatype for each output */
+		for (input = (bNodeSocket *)b_node->inputs.first; input; input = input->next) {
+			if (input->type == output->type)
+				break;
+		}
+		
+		if (input) {
+			SocketProxyNode *proxy = new SocketProxyNode(b_node, input, output);
+			add_node(proxy, b_ntree, key, is_active_group);
+		}
+	}
+}
+
+void NodeGraph::add_proxies_group_inputs(bNode *b_node, bNode *b_node_io)
+{
+	bNodeTree *b_group_tree = (bNodeTree *)b_node->id;
+	BLI_assert(b_group_tree); /* should have been checked in advance */
+	
+	/* not important for proxies */
+	bNodeInstanceKey key = NODE_INSTANCE_KEY_BASE;
+	bool is_active_group = false;
+	
+	for (bNodeSocket *b_sock_io = (bNodeSocket *)b_node_io->outputs.first; b_sock_io; b_sock_io = b_sock_io->next) {
+		bNodeSocket *b_sock_group = find_b_node_input(b_node, b_sock_io->identifier);
+		if (b_sock_group) {
+			SocketProxyNode *proxy = new SocketProxyNode(b_node_io, b_sock_group, b_sock_io);
+			add_node(proxy, b_group_tree, key, is_active_group);
+		}
+	}
+}
+
+void NodeGraph::add_proxies_group_outputs(bNode *b_node, bNode *b_node_io, bool use_buffer)
+{
+	bNodeTree *b_group_tree = (bNodeTree *)b_node->id;
+	BLI_assert(b_group_tree); /* should have been checked in advance */
+	
+	/* not important for proxies */
+	bNodeInstanceKey key = NODE_INSTANCE_KEY_BASE;
+	bool is_active_group = false;
+	
+	for (bNodeSocket *b_sock_io = (bNodeSocket *)b_node_io->inputs.first; b_sock_io; b_sock_io = b_sock_io->next) {
+		bNodeSocket *b_sock_group = find_b_node_output(b_node, b_sock_io->identifier);
+		if (b_sock_group) {
+			if (use_buffer) {
+				SocketBufferNode *buffer = new SocketBufferNode(b_node_io, b_sock_group, b_sock_io);
+				add_node(buffer, b_group_tree, key, is_active_group);
+			}
+			else {
+				SocketProxyNode *proxy = new SocketProxyNode(b_node_io, b_sock_group, b_sock_io);
+				add_node(proxy, b_group_tree, key, is_active_group);
+			}
+		}
+	}
+}
+
+void NodeGraph::add_proxies_group(const CompositorContext &context, bNode *b_node, bNodeInstanceKey key)
+{
+	bNodeTree *b_group_tree = (bNodeTree *)b_node->id;
+
+	/* missing node group datablock can happen with library linking */
+	if (!b_group_tree) {
+		/* this error case its handled in convertToOperations() so we don't get un-convertred sockets */
+		return;
+	}
+
+	/* use node list size before adding proxies, so they can be connected in add_bNodeTree */
+	int nodes_start = m_nodes.size();
+
+	/* create proxy nodes for group input/output nodes */
+	for (bNode *b_node_io = (bNode *)b_group_tree->nodes.first; b_node_io; b_node_io = b_node_io->next) {
+		if (b_node_io->type == NODE_GROUP_INPUT)
+			add_proxies_group_inputs(b_node, b_node_io);
+		
+		if (b_node_io->type == NODE_GROUP_OUTPUT && (b_node_io->flag & NODE_DO_OUTPUT))
+			add_proxies_group_outputs(b_node, b_node_io, context.isGroupnodeBufferEnabled());
+	}
+	
+	add_bNodeTree(context, nodes_start, b_group_tree, key);
 }
 
 
@@ -381,6 +390,7 @@ void NodeCompiler::mapInputSocket(InputSocket *node_socket, InputSocket *operati
 {
 	BLI_assert(m_current_system);
 	BLI_assert(m_current_node);
+	BLI_assert(node_socket->getNode() == m_current_node);
 	
 	/* note: this maps operation sockets to node sockets.
 	 * for resolving links the map will be inverted first in convertToOperations,
@@ -393,6 +403,7 @@ void NodeCompiler::mapOutputSocket(OutputSocket *node_socket, OutputSocket *oper
 {
 	BLI_assert(m_current_system);
 	BLI_assert(m_current_node);
+	BLI_assert(node_socket->getNode() == m_current_node);
 	
 	m_output_map[node_socket] = operation_socket;
 }
@@ -439,4 +450,133 @@ OutputSocket *NodeCompiler::find_operation_output(const OutputSocketMap &map, Ou
 {
 	OutputSocketMap::const_iterator it = map.find(node_output);
 	return (it != map.end() ? it->second : NULL);
+}
+
+PreviewOperation *NodeCompiler::make_preview_operation() const
+{
+	BLI_assert(m_current_system);
+	BLI_assert(m_current_node);
+	
+	if (!(m_current_node->getbNode()->flag & NODE_PREVIEW))
+		return NULL;
+	/* previews only in the active group */
+	if (!m_current_node->isInActiveGroup())
+		return NULL;
+	/* do not calculate previews of hidden nodes */
+	if (m_current_node->getbNode()->flag & NODE_HIDDEN)
+		return NULL;
+	
+	bNodeInstanceHash *previews = m_context->getPreviewHash();
+	if (previews) {
+		PreviewOperation *operation = new PreviewOperation(m_context->getViewSettings(), m_context->getDisplaySettings());
+		operation->setbNode(m_current_node->getbNode());
+		operation->setbNodeTree(m_context->getbNodeTree());
+		operation->verifyPreview(previews, m_current_node->getInstanceKey());
+		return operation;
+	}
+	
+	return NULL;
+}
+
+void NodeCompiler::addInputPreview(InputSocket *input)
+{
+	PreviewOperation *operation = make_preview_operation();
+	if (operation) {
+		addOperation(operation);
+		
+		/* need to add a proxy, so we can pass input to preview as well */
+		OutputSocket *output = addInputProxy(input);
+		addConnection(output, operation->getInputSocket(0));
+	}
+}
+
+void NodeCompiler::addOutputPreview(OutputSocket *output)
+{
+	PreviewOperation *operation = make_preview_operation();
+	if (operation) {
+		addOperation(operation);
+		
+		addConnection(output, operation->getInputSocket(0));
+	}
+}
+
+#if 0 /* XXX is this used anywhere? can't see the logic in using input parameter here */
+void Node::addPreviewOperation(InputSocket *inputSocket)
+{
+	if (inputSocket->isConnected() && this->isInActiveGroup()) {
+		OutputSocket *outputsocket = inputSocket->getConnection()->getFromSocket();
+		this->addPreviewOperation(system, context, outputsocket);
+	}
+}
+#endif
+
+NodeOperation *NodeCompiler::set_invalid_output(OutputSocket *output)
+{
+	const float warning_color[4] = {1.0f, 0.0f, 1.0f, 1.0f};
+	
+	SetColorOperation *operation = new SetColorOperation();
+	operation->setChannels(warning_color);
+	
+	addOperation(operation);
+	mapOutputSocket(output, operation->getOutputSocket());
+	
+	return operation;
+}
+
+void NodeCompiler::set_invalid_node()
+{
+	BLI_assert(m_current_system);
+	BLI_assert(m_current_node);
+	
+	/* this is a really bad situation - bring on the pink! - so artists know this is bad */
+	for (int index = 0; index < m_current_node->getNumberOfOutputSockets(); index++) {
+		set_invalid_output(m_current_node->getOutputSocket(index));
+	}
+}
+
+OutputSocket *NodeCompiler::addInputProxy(InputSocket *input)
+{
+	SocketProxyOperation *proxy = new SocketProxyOperation(input->getDataType());
+	addOperation(proxy);
+	
+	mapInputSocket(input, proxy->getInputSocket(0));
+	
+	return proxy->getOutputSocket();
+}
+
+InputSocket *NodeCompiler::addOutputProxy(OutputSocket *output)
+{
+	SocketProxyOperation *proxy = new SocketProxyOperation(output->getDataType());
+	addOperation(proxy);
+	
+	mapOutputSocket(output, proxy->getOutputSocket());
+	
+	return proxy->getInputSocket(0);
+}
+
+void NodeCompiler::addOutputValue(OutputSocket *output, float value)
+{
+	SetValueOperation *operation = new SetValueOperation();
+	operation->setValue(value);
+	
+	addOperation(operation);
+	mapOutputSocket(output, operation->getOutputSocket());
+}
+
+void NodeCompiler::addOutputColor(OutputSocket *output, const float value[4])
+{
+	SetColorOperation *operation = new SetColorOperation();
+	operation->setChannels(value);
+	
+	addOperation(operation);
+	mapOutputSocket(output, operation->getOutputSocket());
+}
+
+void NodeCompiler::addOutputVector(OutputSocket *output, const float value[3])
+{
+	SetVectorOperation *operation = new SetVectorOperation();
+	operation->setVector(value);
+	
+	addOperation(operation);
+	mapOutputSocket(output, operation->getOutputSocket());
 }

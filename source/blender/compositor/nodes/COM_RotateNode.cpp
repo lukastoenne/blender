@@ -31,21 +31,20 @@ RotateNode::RotateNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void RotateNode::convertToOperations(ExecutionSystem *system, CompositorContext *context)
+void RotateNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputSocket = this->getInputSocket(0);
 	InputSocket *inputDegreeSocket = this->getInputSocket(1);
 	OutputSocket *outputSocket = this->getOutputSocket(0);
 	RotateOperation *operation = new RotateOperation();
 	SetSamplerOperation *sampler = new SetSamplerOperation();
-
 	sampler->setSampler((PixelSampler)this->getbNode()->custom1);
-	addLink(system, sampler->getOutputSocket(), operation->getInputSocket(0));
 	
-	inputSocket->relinkConnections(sampler->getInputSocket(0), 0, system);
-	inputDegreeSocket->relinkConnections(operation->getInputSocket(1), 1, system);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	system->addOperation(sampler);
-	system->addOperation(operation);
+	compiler->addOperation(sampler);
+	compiler->addOperation(operation);
 	
+	compiler->addConnection(sampler->getOutputSocket(), operation->getInputSocket(0));
+	compiler->mapInputSocket(inputSocket, sampler->getInputSocket(0));
+	compiler->mapInputSocket(inputDegreeSocket, operation->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket(0));
 }

@@ -44,7 +44,8 @@ void CropNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 	}
 	operation->setCropSettings(cropSettings);
 	operation->setRelative(relative);
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getOutputSocket()->relinkConnections(operation->getOutputSocket());
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapOutputSocket(getOutputSocket(), operation->getOutputSocket());
 }

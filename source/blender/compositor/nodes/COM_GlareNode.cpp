@@ -36,15 +36,13 @@ GlareNode::GlareNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void GlareNode::convertToOperations(ExecutionSystem *system, CompositorContext *context) \
-	{
+void GlareNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
+{
 	bNode *node = this->getbNode();
 	NodeGlare *glare = (NodeGlare *)node->storage;
 	
 	GlareBaseOperation *glareoperation = NULL;
-	
 	switch (glare->type) {
-	
 		default:
 		case 3:
 			glareoperation = new GlareGhostOperation();
@@ -59,28 +57,32 @@ void GlareNode::convertToOperations(ExecutionSystem *system, CompositorContext *
 			glareoperation = new GlareSimpleStarOperation();
 			break;
 	}
-	GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
-	SetValueOperation *mixvalueoperation = new SetValueOperation();
-	MixGlareOperation *mixoperation = new MixGlareOperation();
-	mixoperation->getInputSocket(2)->setResizeMode(COM_SC_FIT);
-	thresholdOperation->setbNode(node);
+	BLI_assert(glareoperation);
 	glareoperation->setbNode(node);
-
-	this->getInputSocket(0)->relinkConnections(thresholdOperation->getInputSocket(0), 0, system);
-	addLink(system, thresholdOperation->getOutputSocket(), glareoperation->getInputSocket(0));
-	addLink(system, mixvalueoperation->getOutputSocket(), mixoperation->getInputSocket(0));
-	addLink(system, glareoperation->getOutputSocket(), mixoperation->getInputSocket(2));
-	addLink(system, thresholdOperation->getInputSocket(0)->getConnection()->getFromSocket(), mixoperation->getInputSocket(1));
-	this->getOutputSocket()->relinkConnections(mixoperation->getOutputSocket());
-
-	thresholdOperation->setGlareSettings(glare);
 	glareoperation->setGlareSettings(glare);
-	mixvalueoperation->setValue(0.5f + glare->mix * 0.5f);
-	mixoperation->setResolutionInputSocketIndex(1);
-
-	system->addOperation(glareoperation);
-	system->addOperation(thresholdOperation);
-	system->addOperation(mixvalueoperation);
-	system->addOperation(mixoperation);
 	
-	}
+	GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
+	thresholdOperation->setbNode(node);
+	thresholdOperation->setGlareSettings(glare);
+	
+	SetValueOperation *mixvalueoperation = new SetValueOperation();
+	mixvalueoperation->setValue(0.5f + glare->mix * 0.5f);
+	
+	MixGlareOperation *mixoperation = new MixGlareOperation();
+	mixoperation->setResolutionInputSocketIndex(1);
+	mixoperation->getInputSocket(2)->setResizeMode(COM_SC_FIT);
+	
+	compiler->addOperation(glareoperation);
+	compiler->addOperation(thresholdOperation);
+	compiler->addOperation(mixvalueoperation);
+	compiler->addOperation(mixoperation);
+
+	compiler->mapInputSocket(getInputSocket(0), thresholdOperation->getInputSocket(0));
+	compiler->addConnection(thresholdOperation->getOutputSocket(), glareoperation->getInputSocket(0));
+	
+	compiler->addConnection(mixvalueoperation->getOutputSocket(), mixoperation->getInputSocket(0));
+	compiler->mapInputSocket(getInputSocket(0), mixoperation->getInputSocket(1));
+	compiler->addConnection(glareoperation->getOutputSocket(), mixoperation->getInputSocket(2));
+	compiler->mapOutputSocket(getOutputSocket(), mixoperation->getOutputSocket());
+
+}

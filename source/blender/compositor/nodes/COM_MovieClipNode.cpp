@@ -62,27 +62,23 @@ void MovieClipNode::convertToOperations(NodeCompiler *compiler, const Compositor
 	
 	// always connect the output image
 	MovieClipOperation *operation = new MovieClipOperation();
-	
-	addPreviewOperation(graph, context, operation->getOutputSocket());
-	if (outputMovieClip->isConnected()) {
-		outputMovieClip->relinkConnections(operation->getOutputSocket());
-	}
-
 	operation->setMovieClip(movieClip);
 	operation->setMovieClipUser(movieClipUser);
 	operation->setFramenumber(context->getFramenumber());
 	operation->setCacheFrame(cacheFrame);
-	graph->addOperation(operation);
 
-	if (alphaMovieClip->isConnected()) {
-		MovieClipAlphaOperation *alphaOperation = new MovieClipAlphaOperation();
-		alphaOperation->setMovieClip(movieClip);
-		alphaOperation->setMovieClipUser(movieClipUser);
-		alphaOperation->setFramenumber(context->getFramenumber());
-		alphaOperation->setCacheFrame(cacheFrame);
-		alphaMovieClip->relinkConnections(alphaOperation->getOutputSocket());
-		graph->addOperation(alphaOperation);
-	}
+	compiler->addOperation(operation);
+	compiler->mapOutputSocket(outputMovieClip, operation->getOutputSocket());
+	compiler->addOutputPreview(operation->getOutputSocket());
+
+	MovieClipAlphaOperation *alphaOperation = new MovieClipAlphaOperation();
+	alphaOperation->setMovieClip(movieClip);
+	alphaOperation->setMovieClipUser(movieClipUser);
+	alphaOperation->setFramenumber(context->getFramenumber());
+	alphaOperation->setCacheFrame(cacheFrame);
+	
+	compiler->addOperation(alphaOperation);
+	compiler->mapOutputSocket(alphaMovieClip, alphaOperation->getOutputSocket());
 
 	MovieTrackingStabilization *stab = &movieClip->tracking.stabilization;
 	float loc[2], scale, angle;
@@ -99,31 +95,11 @@ void MovieClipNode::convertToOperations(NodeCompiler *compiler, const Compositor
 		}
 	}
 
-	if (offsetXMovieClip->isConnected()) {
-		SetValueOperation *operationSetValue = new SetValueOperation();
-		operationSetValue->setValue(loc[0]);
-		offsetXMovieClip->relinkConnections(operationSetValue->getOutputSocket());
-		graph->addOperation(operationSetValue);
-	}
-	if (offsetYMovieClip->isConnected()) {
-		SetValueOperation *operationSetValue = new SetValueOperation();
-		operationSetValue->setValue(loc[1]);
-		offsetYMovieClip->relinkConnections(operationSetValue->getOutputSocket());
-		graph->addOperation(operationSetValue);
-	}
-	if (scaleMovieClip->isConnected()) {
-		SetValueOperation *operationSetValue = new SetValueOperation();
-		operationSetValue->setValue(scale);
-		scaleMovieClip->relinkConnections(operationSetValue->getOutputSocket());
-		graph->addOperation(operationSetValue);
-	}
-	if (angleMovieClip->isConnected()) {
-		SetValueOperation *operationSetValue = new SetValueOperation();
-		operationSetValue->setValue(angle);
-		angleMovieClip->relinkConnections(operationSetValue->getOutputSocket());
-		graph->addOperation(operationSetValue);
-	}
-
+	compiler->addOutputValue(offsetXMovieClip, loc[0]);
+	compiler->addOutputValue(offsetYMovieClip, loc[1]);
+	compiler->addOutputValue(scaleMovieClip, scale);
+	compiler->addOutputValue(angleMovieClip, angle);
+	
 	if (ibuf) {
 		IMB_freeImBuf(ibuf);
 	}

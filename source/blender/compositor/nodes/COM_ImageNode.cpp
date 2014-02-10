@@ -38,7 +38,8 @@ ImageNode::ImageNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 
 }
-NodeOperation *ImageNode::doMultilayerCheck(ExecutionSystem *system, RenderLayer *rl, Image *image, ImageUser *user, int framenumber, int outputsocketIndex, int passindex, DataType datatype)
+NodeOperation *ImageNode::doMultilayerCheck(NodeCompiler *compiler, RenderLayer *rl, Image *image, ImageUser *user,
+                                            int framenumber, int outputsocketIndex, int passindex, DataType datatype) const
 {
 	OutputSocket *outputSocket = this->getOutputSocket(outputsocketIndex);
 	MultilayerBaseOperation *operation = NULL;
@@ -59,8 +60,10 @@ NodeOperation *ImageNode::doMultilayerCheck(ExecutionSystem *system, RenderLayer
 	operation->setRenderLayer(rl);
 	operation->setImageUser(user);
 	operation->setFramenumber(framenumber);
-	outputSocket->relinkConnections(operation->getOutputSocket());
-	system->addOperation(operation);
+	
+	compiler->addOperation(operation);
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket());
+	
 	return operation;
 }
 
@@ -110,15 +113,15 @@ void ImageNode::convertToOperations(NodeCompiler *compiler, const CompositorCont
 							imageuser->pass = passindex;
 							switch (rpass->channels) {
 								case 1:
-									operation = doMultilayerCheck(graph, rl, image, imageuser, framenumber, index, passindex, COM_DT_VALUE);
+									operation = doMultilayerCheck(compiler, rl, image, imageuser, framenumber, index, passindex, COM_DT_VALUE);
 									break;
 								/* using image operations for both 3 and 4 channels (RGB and RGBA respectively) */
 								/* XXX any way to detect actual vector images? */
 								case 3:
-									operation = doMultilayerCheck(graph, rl, image, imageuser, framenumber, index, passindex, COM_DT_VECTOR);
+									operation = doMultilayerCheck(compiler, rl, image, imageuser, framenumber, index, passindex, COM_DT_VECTOR);
 									break;
 								case 4:
-									operation = doMultilayerCheck(graph, rl, image, imageuser, framenumber, index, passindex, COM_DT_COLOR);
+									operation = doMultilayerCheck(compiler, rl, image, imageuser, framenumber, index, passindex, COM_DT_COLOR);
 									break;
 								default:
 									/* dummy operation is added below */
@@ -126,54 +129,45 @@ void ImageNode::convertToOperations(NodeCompiler *compiler, const CompositorCont
 							}
 
 							if (index == 0 && operation) {
-								addPreviewOperation(graph, context, operation->getOutputSocket());
+								compiler->addOutputPreview(operation->getOutputSocket());
 							}
 						}
 					}
 
 					/* incase we can't load the layer */
-					if (operation == NULL) {
-						convertToOperations_invalid_index(graph, index);
-					}
+					if (operation == NULL)
+						compiler->set_invalid_output(getOutputSocket(index));
 				}
 			}
 		}
 		BKE_image_release_ibuf(image, ibuf, NULL);
 
 		/* without this, multilayer that fail to load will crash blender [#32490] */
-		if (is_multilayer_ok == false) {
-			int index;
-			vector<OutputSocket *> &outputsockets = this->getOutputSockets();
-			for (index = 0; index < outputsockets.size(); index++) {
-				const float warning_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-				SetColorOperation *operation = new SetColorOperation();
-				operation->setChannels(warning_color);
-
-				/* link the operation */
-				this->getOutputSocket(index)->relinkConnections(operation->getOutputSocket());
-				graph->addOperation(operation);
-			}
-		}
+		if (is_multilayer_ok == false)
+			compiler->set_invalid_node();
 	}
 	else {
 		if (numberOfOutputs >  0) {
 			ImageOperation *operation = new ImageOperation();
-			if (outputImage->isConnected()) {
-				if (outputStraightAlpha) {
-					NodeOperation *alphaConvertOperation = new ConvertPremulToStraightOperation();
-					addLink(graph, operation->getOutputSocket(0), alphaConvertOperation->getInputSocket(0));
-					outputImage->relinkConnections(alphaConvertOperation->getOutputSocket());
-					graph->addOperation(alphaConvertOperation);
-				}
-				else {
-					outputImage->relinkConnections(operation->getOutputSocket());
-				}
-			}
 			operation->setImage(image);
 			operation->setImageUser(imageuser);
 			operation->setFramenumber(framenumber);
-			graph->addOperation(operation);
-			addPreviewOperation(graph, context, operation->getOutputSocket());
+			compiler->addOperation(operation);
+			
+			if (outputImage->isConnected()) {
+				if (outputStraightAlpha) {
+					NodeOperation *alphaConvertOperation = new ConvertPremulToStraightOperation();
+					
+					compiler->addOperation(alphaConvertOperation);
+					compiler->mapOutputSocket(outputImage, alphaConvertOperation->getOutputSocket());
+					compiler->addConnection(operation->getOutputSocket(0), alphaConvertOperation->getInputSocket(0));
+				}
+				else {
+					compiler->mapOutputSocket(outputImage, operation->getOutputSocket());
+				}
+			}
+			
+			compiler->addOutputPreview(operation->getOutputSocket());
 		}
 		
 		if (numberOfOutputs > 1) {
@@ -183,8 +177,9 @@ void ImageNode::convertToOperations(NodeCompiler *compiler, const CompositorCont
 				alphaOperation->setImage(image);
 				alphaOperation->setImageUser(imageuser);
 				alphaOperation->setFramenumber(framenumber);
-				alphaImage->relinkConnections(alphaOperation->getOutputSocket());
-				graph->addOperation(alphaOperation);
+				compiler->addOperation(alphaOperation);
+				
+				compiler->mapOutputSocket(alphaImage, alphaOperation->getOutputSocket());
 			}
 		}
 		if (numberOfOutputs > 2) {
@@ -194,8 +189,9 @@ void ImageNode::convertToOperations(NodeCompiler *compiler, const CompositorCont
 				depthOperation->setImage(image);
 				depthOperation->setImageUser(imageuser);
 				depthOperation->setFramenumber(framenumber);
-				depthImage->relinkConnections(depthOperation->getOutputSocket());
-				graph->addOperation(depthOperation);
+				compiler->addOperation(depthOperation);
+				
+				compiler->mapOutputSocket(depthImage, depthOperation->getOutputSocket());
 			}
 		}
 		if (numberOfOutputs > 3) {
@@ -233,8 +229,8 @@ void ImageNode::convertToOperations(NodeCompiler *compiler, const CompositorCont
 				}
 
 				if (operation) {
-					output->relinkConnections(operation->getOutputSocket());
-					graph->addOperation(operation);
+					compiler->addOperation(operation);
+					compiler->mapOutputSocket(output, operation->getOutputSocket());
 				}
 			}
 		}

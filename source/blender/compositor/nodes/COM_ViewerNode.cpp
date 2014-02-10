@@ -62,10 +62,10 @@ void ViewerNode::convertToOperations(NodeCompiler *compiler, const CompositorCon
 		}
 	}
 
-	imageSocket->relinkConnections(viewerOperation->getInputSocket(0), 0, graph);
-	alphaSocket->relinkConnections(viewerOperation->getInputSocket(1));
-	depthSocket->relinkConnections(viewerOperation->getInputSocket(2));
-	graph->addOperation(viewerOperation);
+	compiler->addOperation(viewerOperation);
+	compiler->mapInputSocket(imageSocket, viewerOperation->getInputSocket(0));
+	compiler->mapInputSocket(alphaSocket, viewerOperation->getInputSocket(1));
+	compiler->mapInputSocket(depthSocket, viewerOperation->getInputSocket(2));
 
-	addPreviewOperation(graph, context, viewerOperation->getInputSocket(0));
+	compiler->addInputPreview(viewerOperation->getInputSocket(0));
 }

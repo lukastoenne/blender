@@ -50,7 +50,7 @@ void FlipNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 			break;
 	}
 	
-	inputSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(0));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket(0));
 }

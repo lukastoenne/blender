@@ -31,7 +31,6 @@
 #include "COM_SetVectorOperation.h"
 #include "COM_SetColorOperation.h"
 #include "COM_SocketConnection.h"
-#include "COM_PreviewOperation.h"
 #include "COM_TranslateOperation.h"
 
 #include "COM_SocketProxyNode.h"
@@ -76,31 +75,6 @@ void Node::addSetValueOperation(ExecutionSystem *system, InputSocket *inputsocke
 	system->addConnection(operation->getOutputSocket(), inputsocket);
 }
 
-void Node::addPreviewOperation(ExecutionSystem *system, CompositorContext *context, OutputSocket *outputSocket)
-{
-	if (this->isInActiveGroup()) {
-		if (!(this->getbNode()->flag & NODE_HIDDEN)) { // do not calculate previews of hidden nodes.
-			bNodeInstanceHash *previews = context->getPreviewHash();
-			if (previews && (this->getbNode()->flag & NODE_PREVIEW)) {
-				PreviewOperation *operation = new PreviewOperation(context->getViewSettings(), context->getDisplaySettings());
-				system->addOperation(operation);
-				operation->setbNode(this->getbNode());
-				operation->setbNodeTree(context->getbNodeTree());
-				operation->verifyPreview(previews, this->getInstanceKey());
-				system->addConnection(outputSocket, operation->getInputSocket(0));
-			}
-		}
-	}
-}
-
-void Node::addPreviewOperation(ExecutionSystem *system, CompositorContext *context, InputSocket *inputSocket)
-{
-	if (inputSocket->isConnected() && this->isInActiveGroup()) {
-		OutputSocket *outputsocket = inputSocket->getConnection()->getFromSocket();
-		this->addPreviewOperation(system, context, outputsocket);
-	}
-}
-
 void Node::addSetColorOperation(ExecutionSystem *system, InputSocket *inputsocket, int editorNodeInputSocketIndex)
 {
 	InputSocket *input = getInputSocket(editorNodeInputSocketIndex);
@@ -126,28 +100,6 @@ void Node::addSetVectorOperation(ExecutionSystem *system, InputSocket *inputsock
 	operation->setZ(vec[2]);
 	system->addOperation(operation);
 	system->addConnection(operation->getOutputSocket(), inputsocket);
-}
-
-NodeOperation *Node::convertToOperations_invalid_index(NodeCompiler *compiler, int index) const
-{
-	const float warning_color[4] = {1.0f, 0.0f, 1.0f, 1.0f};
-	SetColorOperation *operation = new SetColorOperation();
-	operation->setChannels(warning_color);
-
-	compiler->mapOutputSocket(getOutputSocket(index), operation->getOutputSocket());
-	compiler->addOperation(operation);
-	return operation;
-}
-
-/* when a node has no valid data (missing image / group pointer, or missing renderlayer from EXR) */
-void Node::convertToOperations_invalid(NodeCompiler *compiler) const
-{
-	/* this is a really bad situation - bring on the pink! - so artists know this is bad */
-	int index;
-	const vector<OutputSocket *> &outputsockets = this->getOutputSockets();
-	for (index = 0; index < outputsockets.size(); index++) {
-		convertToOperations_invalid_index(compiler, index);
-	}
 }
 
 bNodeSocket *Node::getEditorInputSocket(int editorNodeInputSocketIndex)

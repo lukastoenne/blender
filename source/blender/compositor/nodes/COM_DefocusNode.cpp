@@ -54,15 +54,17 @@ void DefocusNode::convertToOperations(NodeCompiler *compiler, const CompositorCo
 		SetValueOperation *maxRadius = new SetValueOperation();
 		maxRadius->setValue(data->maxblur);
 		MathMinimumOperation *minimize = new MathMinimumOperation();
-		this->getInputSocket(1)->relinkConnections(multiply->getInputSocket(0), 1, graph);
-		addLink(graph, multiplier->getOutputSocket(), multiply->getInputSocket(1));
-		addLink(graph, maxRadius->getOutputSocket(), minimize->getInputSocket(1));
-		addLink(graph, multiply->getOutputSocket(), minimize->getInputSocket(0));
 		
-		graph->addOperation(multiply);
-		graph->addOperation(multiplier);
-		graph->addOperation(maxRadius);
-		graph->addOperation(minimize);
+		compiler->addOperation(multiply);
+		compiler->addOperation(multiplier);
+		compiler->addOperation(maxRadius);
+		compiler->addOperation(minimize);
+		
+		compiler->mapInputSocket(getInputSocket(1), multiply->getInputSocket(0));
+		compiler->addConnection(multiplier->getOutputSocket(), multiply->getInputSocket(1));
+		compiler->addConnection(multiply->getOutputSocket(), minimize->getInputSocket(0));
+		compiler->addConnection(maxRadius->getOutputSocket(), minimize->getInputSocket(1));
+		
 		radiusOperation = minimize;
 	}
 	else {
@@ -70,17 +72,19 @@ void DefocusNode::convertToOperations(NodeCompiler *compiler, const CompositorCo
 		converter->setCameraObject(camob);
 		converter->setfStop(data->fstop);
 		converter->setMaxRadius(data->maxblur);
-		this->getInputSocket(1)->relinkConnections(converter->getInputSocket(0), 1, graph);
-		graph->addOperation(converter);
+		compiler->addOperation(converter);
+		
+		compiler->mapInputSocket(getInputSocket(1), converter->getInputSocket(0));
 		
 		FastGaussianBlurValueOperation *blur = new FastGaussianBlurValueOperation();
-		addLink(graph, converter->getOutputSocket(0), blur->getInputSocket(0));
-		graph->addOperation(blur);
-		radiusOperation = blur;
-		converter->setPostBlur(blur);
-
 		/* maintain close pixels so far Z values don't bleed into the foreground */
 		blur->setOverlay(FAST_GAUSS_OVERLAY_MIN);
+		compiler->addOperation(blur);
+		
+		compiler->addConnection(converter->getOutputSocket(0), blur->getInputSocket(0));
+		converter->setPostBlur(blur);
+		
+		radiusOperation = blur;
 	}
 	
 	BokehImageOperation *bokeh = new BokehImageOperation();

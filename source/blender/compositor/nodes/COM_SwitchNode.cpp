@@ -21,27 +21,21 @@
  */
 
 #include "COM_SwitchNode.h"
-#include "COM_ExecutionSystem.h"
-#include "COM_SocketProxyOperation.h"
 
 SwitchNode::SwitchNode(bNode *editorNode) : Node(editorNode)
 {
 	/* pass */
 }
 
-
 void SwitchNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
-	SocketProxyOperation *operation = new SocketProxyOperation(COM_DT_COLOR);
-	int switchFrame = this->getbNode()->custom1;
-
-	if (!switchFrame) {
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	}
-	else {
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(0), 1, graph);
-	}
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-
-	graph->addOperation(operation);
+	bool condition = this->getbNode()->custom1;
+	
+	OutputSocket *result;
+	if (!condition)
+		result = compiler->addInputProxy(getInputSocket(0));
+	else
+		result = compiler->addInputProxy(getInputSocket(1));
+	
+	compiler->mapOutputSocket(getOutputSocket(0), result);
 }

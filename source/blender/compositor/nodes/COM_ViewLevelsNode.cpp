@@ -34,49 +34,31 @@ ViewLevelsNode::ViewLevelsNode(bNode *editorNode) : Node(editorNode)
 void ViewLevelsNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *input = this->getInputSocket(0);
-	bool firstOperationConnected = false;
 	if (input->isConnected()) {
-		OutputSocket *inputSocket = input->getConnection()->getFromSocket();
 		// add preview to inputSocket;
 		
-		OutputSocket *socket = this->getOutputSocket(0);
-		if (socket->isConnected()) {
-			// calculate mean operation
+		/* calculate mean operation */
+		{
 			CalculateMeanOperation *operation = new CalculateMeanOperation();
-			input->relinkConnections(operation->getInputSocket(0), 0, graph);
-			firstOperationConnected = true;
 			operation->setSetting(this->getbNode()->custom1);
-			socket->relinkConnections(operation->getOutputSocket());
-			graph->addOperation(operation);
+			
+			compiler->addOperation(operation);
+			compiler->mapInputSocket(input, operation->getInputSocket(0));
+			compiler->mapOutputSocket(this->getOutputSocket(0), operation->getOutputSocket());
 		}
 
-		socket = this->getOutputSocket(1);
-		if (socket->isConnected()) {
-			// calculate standard deviation operation
+		/* calculate standard deviation operation */
+		{
 			CalculateStandardDeviationOperation *operation = new CalculateStandardDeviationOperation();
-			if (firstOperationConnected) {
-				addLink(graph, inputSocket, operation->getInputSocket(0));
-			}
-			else {
-				input->relinkConnections(operation->getInputSocket(0), 0, graph);
-			}
 			operation->setSetting(this->getbNode()->custom1);
-			socket->relinkConnections(operation->getOutputSocket());
-			graph->addOperation(operation);
+			
+			compiler->addOperation(operation);
+			compiler->mapInputSocket(input, operation->getInputSocket(0));
+			compiler->mapOutputSocket(this->getOutputSocket(1), operation->getOutputSocket());
 		}
 	}
 	else {
-		SetValueOperation *meanOutput = new SetValueOperation();
-		SetValueOperation *stdDevOutput = new SetValueOperation();
-
-		meanOutput->setValue(0.0f);
-		stdDevOutput->setValue(0.0f);
-
-		this->getOutputSocket(0)->relinkConnections(meanOutput->getOutputSocket());
-		this->getOutputSocket(1)->relinkConnections(stdDevOutput->getOutputSocket());
-
-		graph->addOperation(meanOutput);
-		graph->addOperation(stdDevOutput);
+		compiler->addOutputValue(getOutputSocket(0), 0.0f);
+		compiler->addOutputValue(getOutputSocket(1), 0.0f);
 	}
 }
-	

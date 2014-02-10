@@ -34,42 +34,41 @@ TranslateNode::TranslateNode(bNode *editorNode) : Node(editorNode)
 
 void TranslateNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
+	bNode *bnode = this->getbNode();
+	NodeTranslateData *data = (NodeTranslateData *)bnode->storage;
+	
 	InputSocket *inputSocket = this->getInputSocket(0);
 	InputSocket *inputXSocket = this->getInputSocket(1);
 	InputSocket *inputYSocket = this->getInputSocket(2);
 	OutputSocket *outputSocket = this->getOutputSocket(0);
+	
 	TranslateOperation *operation = new TranslateOperation();
-
-	bNode *bnode = this->getbNode();
-	NodeTranslateData *data = (NodeTranslateData *)bnode->storage;
-
+	if (data->relative) {
+		const RenderData *rd = context->getRenderData();
+		float fx = rd->xsch * rd->size / 100.0f;
+		float fy = rd->ysch * rd->size / 100.0f;
+		
+		operation->setFactorXY(fx, fy);
+	}
+	
+	compiler->addOperation(operation);
+	compiler->mapInputSocket(inputXSocket, operation->getInputSocket(1));
+	compiler->mapInputSocket(inputYSocket, operation->getInputSocket(2));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket(0));
+	
 	if (data->wrap_axis) {
 		WriteBufferOperation *writeOperation = new WriteBufferOperation();
 		WrapOperation *wrapOperation = new WrapOperation();
 		wrapOperation->setMemoryProxy(writeOperation->getMemoryProxy());
 		wrapOperation->setWrapping(data->wrap_axis);
 		
-		inputSocket->relinkConnections(writeOperation->getInputSocket(0), 0, graph);
-		addLink(graph, wrapOperation->getOutputSocket(), operation->getInputSocket(0));
-		
-		graph->addOperation(writeOperation);
-		graph->addOperation(wrapOperation);
+		compiler->addOperation(writeOperation);
+		compiler->addOperation(wrapOperation);
+		compiler->mapInputSocket(inputSocket, writeOperation->getInputSocket(0));
+		compiler->addConnection(wrapOperation->getOutputSocket(), operation->getInputSocket(0));
 	}
 	else {
-		inputSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
+		compiler->mapInputSocket(inputSocket, operation->getInputSocket(0));
 	}
-
-	if (data->relative) {
-		const RenderData *rd = context->getRenderData();
-		float fx = rd->xsch * rd->size / 100.0f;
-		float fy = rd->ysch * rd->size / 100.0f;
-
-		operation->setFactorXY(fx, fy);
-	}
-
-	inputXSocket->relinkConnections(operation->getInputSocket(1), 1, graph);
-	inputYSocket->relinkConnections(operation->getInputSocket(2), 2, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	graph->addOperation(operation);
 }
 

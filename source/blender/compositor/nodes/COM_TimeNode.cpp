@@ -36,7 +36,6 @@ TimeNode::TimeNode(bNode *editorNode) : Node(editorNode)
 void TimeNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	SetValueOperation *operation = new SetValueOperation();
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
 	bNode *node = this->getbNode();
 
 	/* stack order output: fac */
@@ -56,5 +55,7 @@ void TimeNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 	curvemapping_initialize((CurveMapping *)node->storage);
 	fac = curvemapping_evaluateF((CurveMapping *)node->storage, 0, fac);
 	operation->setValue(CLAMPIS(fac, 0.0f, 1.0f));
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 }

@@ -33,7 +33,8 @@ void ValueNode::convertToOperations(NodeCompiler *compiler, const CompositorCont
 {
 	SetValueOperation *operation = new SetValueOperation();
 	OutputSocket *output = this->getOutputSocket(0);
-	output->relinkConnections(operation->getOutputSocket());
 	operation->setValue(output->getEditorValueFloat());
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapOutputSocket(output, operation->getOutputSocket());
 }

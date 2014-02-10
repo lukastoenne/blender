@@ -36,12 +36,11 @@ void DisplaceNode::convertToOperations(NodeCompiler *compiler, const CompositorC
 		operation = new DisplaceSimpleOperation();
 	else
 		operation = new DisplaceOperation();
+	compiler->addOperation(operation);
 
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-	this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, graph);
-	this->getInputSocket(3)->relinkConnections(operation->getInputSocket(3), 3, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-
-	graph->addOperation(operation);
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+	compiler->mapInputSocket(getInputSocket(2), operation->getInputSocket(2));
+	compiler->mapInputSocket(getInputSocket(3), operation->getInputSocket(3));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 }

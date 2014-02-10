@@ -41,12 +41,6 @@ void OutputFileNode::convertToOperations(NodeCompiler *compiler, const Composito
 		 * otherwise, it overwrites the output files just
 		 * scrubbing through the timeline when the compositor updates.
 		 */
-		
-		/* still, need to unlink input sockets to remove the node from the graph completely */
-		int num_inputs = getNumberOfInputSockets();
-		for (int i = 0; i < num_inputs; ++i) {
-			getInputSocket(i)->unlinkConnections(graph);
-		}
 		return;
 	}
 	
@@ -54,6 +48,7 @@ void OutputFileNode::convertToOperations(NodeCompiler *compiler, const Composito
 		/* single output operation for the multilayer file */
 		OutputOpenExrMultiLayerOperation *outputOperation = new OutputOpenExrMultiLayerOperation(
 		        context->getRenderData(), context->getbNodeTree(), storage->base_path, storage->format.exr_codec);
+		compiler->addOperation(outputOperation);
 		
 		int num_inputs = getNumberOfInputSockets();
 		bool hasConnections = false;
@@ -63,14 +58,11 @@ void OutputFileNode::convertToOperations(NodeCompiler *compiler, const Composito
 			
 			outputOperation->add_layer(sockdata->layer, input->getDataType());
 			
-			if (input->isConnected()) {
-				hasConnections = true;
-				input->relinkConnections(outputOperation->getInputSocket(i));
-			}
+			compiler->mapInputSocket(input, outputOperation->getInputSocket(i));
+			hasConnections |= input->isConnected();
 		}
-		if (hasConnections) addPreviewOperation(graph, context, outputOperation->getInputSocket(0));
-		
-		graph->addOperation(outputOperation);
+		if (hasConnections)
+			compiler->addInputPreview(outputOperation->getInputSocket(0));
 	}
 	else {  /* single layer format */
 		int num_inputs = getNumberOfInputSockets();
@@ -88,14 +80,15 @@ void OutputFileNode::convertToOperations(NodeCompiler *compiler, const Composito
 				OutputSingleLayerOperation *outputOperation = new OutputSingleLayerOperation(
 				        context->getRenderData(), context->getbNodeTree(), input->getDataType(), format, path,
 				        context->getViewSettings(), context->getDisplaySettings());
-				input->relinkConnections(outputOperation->getInputSocket(0));
-				graph->addOperation(outputOperation);
+				compiler->addOperation(outputOperation);
+				
+				compiler->mapInputSocket(input, outputOperation->getInputSocket(0));
+				
 				if (!previewAdded) {
-					addPreviewOperation(graph, context, outputOperation->getInputSocket(0));
+					compiler->addInputPreview(outputOperation->getInputSocket(0));
 					previewAdded = true;
 				}
 			}
 		}
 	}
 }
-

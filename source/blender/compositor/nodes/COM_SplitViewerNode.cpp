@@ -47,8 +47,9 @@ void SplitViewerNode::convertToOperations(NodeCompiler *compiler, const Composit
 	splitViewerOperation->setSplitPercentage(this->getbNode()->custom1);
 	splitViewerOperation->setXSplit(!this->getbNode()->custom2);
 
-	image1Socket->relinkConnections(splitViewerOperation->getInputSocket(0), 0, graph);
-	image2Socket->relinkConnections(splitViewerOperation->getInputSocket(1), 1, graph);
+	compiler->addOperation(splitViewerOperation);
+	compiler->mapInputSocket(image1Socket, splitViewerOperation->getInputSocket(0));
+	compiler->mapInputSocket(image2Socket, splitViewerOperation->getInputSocket(1));
 
 	ViewerOperation *viewerOperation = new ViewerOperation();
 	viewerOperation->setImage(image);
@@ -63,10 +64,8 @@ void SplitViewerNode::convertToOperations(NodeCompiler *compiler, const Composit
 	viewerOperation->setCenterX(0.5f);
 	viewerOperation->setCenterY(0.5f);
 
-	addLink(graph, splitViewerOperation->getOutputSocket(), viewerOperation->getInputSocket(0));
+	compiler->addOperation(viewerOperation);
+	compiler->addConnection(splitViewerOperation->getOutputSocket(), viewerOperation->getInputSocket(0));
 
-	addPreviewOperation(graph, context, viewerOperation->getInputSocket(0));
-
-	graph->addOperation(splitViewerOperation);
-	graph->addOperation(viewerOperation);
+	compiler->addInputPreview(viewerOperation->getInputSocket(0));
 }

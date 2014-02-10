@@ -32,13 +32,13 @@ ChannelMatteNode::ChannelMatteNode(bNode *editorNode) : Node(editorNode)
 
 void ChannelMatteNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
+	bNode *node = this->getbNode();
+	
 	InputSocket *inputSocketImage = this->getInputSocket(0);
 	OutputSocket *outputSocketImage = this->getOutputSocket(0);
 	OutputSocket *outputSocketMatte = this->getOutputSocket(1);
-
+	
 	NodeOperation *convert = NULL;
-	bNode *node = this->getbNode();
-
 	/* colorspace */
 	switch (node->custom1) {
 		case CMP_NODE_CHANNEL_MATTE_CS_RGB:
@@ -56,35 +56,31 @@ void ChannelMatteNode::convertToOperations(NodeCompiler *compiler, const Composi
 		default:
 			break;
 	}
-
+	
 	ChannelMatteOperation *operation = new ChannelMatteOperation();
 	/* pass the ui properties to the operation */
 	operation->setSettings((NodeChroma *)node->storage, node->custom2);
-
+	compiler->addOperation(operation);
+	
 	SetAlphaOperation *operationAlpha = new SetAlphaOperation();
-
+	compiler->addOperation(operationAlpha);
+	
 	if (convert) {
-		inputSocketImage->relinkConnections(convert->getInputSocket(0), 0, graph);
-		addLink(graph, convert->getOutputSocket(), operation->getInputSocket(0));
-		addLink(graph, convert->getInputSocket(0)->getConnection()->getFromSocket(), operationAlpha->getInputSocket(0));
-		graph->addOperation(convert);
+		compiler->addOperation(convert);
+		
+		compiler->mapInputSocket(inputSocketImage, convert->getInputSocket(0));
+		compiler->addConnection(convert->getOutputSocket(), operation->getInputSocket(0));
+		compiler->addConnection(convert->getOutputSocket(), operationAlpha->getInputSocket(0));
 	}
 	else {
-		inputSocketImage->relinkConnections(operation->getInputSocket(0), 0, graph);
-		addLink(graph, operation->getInputSocket(0)->getConnection()->getFromSocket(), operationAlpha->getInputSocket(0));
+		compiler->mapInputSocket(inputSocketImage, operation->getInputSocket(0));
+		compiler->mapInputSocket(inputSocketImage, operationAlpha->getInputSocket(0));
 	}
-
-	if (outputSocketMatte->isConnected()) {
-		outputSocketMatte->relinkConnections(operation->getOutputSocket(0));
-	}
-
-	graph->addOperation(operation);
-	graph->addOperation(operationAlpha);
-
-	addLink(graph, operation->getOutputSocket(), operationAlpha->getInputSocket(1));
-	addPreviewOperation(graph, context, operationAlpha->getOutputSocket());
-
-	if (outputSocketImage->isConnected()) {
-		outputSocketImage->relinkConnections(operationAlpha->getOutputSocket());
-	}
+	
+	compiler->mapOutputSocket(outputSocketMatte, operation->getOutputSocket(0));
+	
+	compiler->addConnection(operation->getOutputSocket(), operationAlpha->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocketImage, operationAlpha->getOutputSocket());
+	
+	compiler->addOutputPreview(operationAlpha->getOutputSocket());
 }

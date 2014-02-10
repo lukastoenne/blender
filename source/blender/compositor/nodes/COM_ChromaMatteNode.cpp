@@ -32,42 +32,36 @@ ChromaMatteNode::ChromaMatteNode(bNode *editorNode) : Node(editorNode)
 
 void ChromaMatteNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
+	bNode *editorsnode = getbNode();
+	
 	InputSocket *inputSocketImage = this->getInputSocket(0);
 	InputSocket *inputSocketKey = this->getInputSocket(1);
 	OutputSocket *outputSocketImage = this->getOutputSocket(0);
 	OutputSocket *outputSocketMatte = this->getOutputSocket(1);
-
+	
 	ConvertRGBToYCCOperation *operationRGBToYCC_Image = new ConvertRGBToYCCOperation();
 	ConvertRGBToYCCOperation *operationRGBToYCC_Key = new ConvertRGBToYCCOperation();
 	operationRGBToYCC_Image->setMode(0); /* BLI_YCC_ITU_BT601 */
 	operationRGBToYCC_Key->setMode(0); /* BLI_YCC_ITU_BT601 */
-
+	compiler->addOperation(operationRGBToYCC_Image);
+	compiler->addOperation(operationRGBToYCC_Key);
+	
 	ChromaMatteOperation *operation = new ChromaMatteOperation();
-	bNode *editorsnode = getbNode();
 	operation->setSettings((NodeChroma *)editorsnode->storage);
-
-	inputSocketImage->relinkConnections(operationRGBToYCC_Image->getInputSocket(0), 0, graph);
-	inputSocketKey->relinkConnections(operationRGBToYCC_Key->getInputSocket(0), 1, graph);
-
-	addLink(graph, operationRGBToYCC_Image->getOutputSocket(), operation->getInputSocket(0));
-	addLink(graph, operationRGBToYCC_Key->getOutputSocket(), operation->getInputSocket(1));
-
-	graph->addOperation(operationRGBToYCC_Image);
-	graph->addOperation(operationRGBToYCC_Key);
-	graph->addOperation(operation);
-
-	if (outputSocketMatte->isConnected()) {
-		outputSocketMatte->relinkConnections(operation->getOutputSocket());
-	}
-
+	compiler->addOperation(operation);
+	
 	SetAlphaOperation *operationAlpha = new SetAlphaOperation();
-	addLink(graph, operationRGBToYCC_Image->getInputSocket(0)->getConnection()->getFromSocket(), operationAlpha->getInputSocket(0));
-	addLink(graph, operation->getOutputSocket(), operationAlpha->getInputSocket(1));
-
-	graph->addOperation(operationAlpha);
-	addPreviewOperation(graph, context, operationAlpha->getOutputSocket());
-
-	if (outputSocketImage->isConnected()) {
-		outputSocketImage->relinkConnections(operationAlpha->getOutputSocket());
-	}
+	compiler->addOperation(operationAlpha);
+	
+	compiler->mapInputSocket(inputSocketImage, operationRGBToYCC_Image->getInputSocket(0));
+	compiler->mapInputSocket(inputSocketKey, operationRGBToYCC_Key->getInputSocket(0));
+	compiler->addConnection(operationRGBToYCC_Image->getOutputSocket(), operation->getInputSocket(0));
+	compiler->addConnection(operationRGBToYCC_Key->getOutputSocket(), operation->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocketMatte, operation->getOutputSocket());
+	
+	compiler->mapInputSocket(inputSocketImage, operationAlpha->getInputSocket(0));
+	compiler->addConnection(operation->getOutputSocket(), operationAlpha->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocketImage, operationAlpha->getOutputSocket());
+	
+	compiler->addOutputPreview(operationAlpha->getOutputSocket());
 }

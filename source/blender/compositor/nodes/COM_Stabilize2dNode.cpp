@@ -44,22 +44,25 @@ void Stabilize2dNode::convertToOperations(NodeCompiler *compiler, const Composit
 	MovieClip *clip = (MovieClip *)getbNode()->id;
 	
 	ScaleOperation *scaleOperation = new ScaleOperation();
+	scaleOperation->setSampler((PixelSampler)this->getbNode()->custom1);
 	RotateOperation *rotateOperation = new RotateOperation();
+	rotateOperation->setDoDegree2RadConversion(false);
 	TranslateOperation *translateOperation = new TranslateOperation();
 	MovieClipAttributeOperation *scaleAttribute = new MovieClipAttributeOperation();
 	MovieClipAttributeOperation *angleAttribute = new MovieClipAttributeOperation();
 	MovieClipAttributeOperation *xAttribute = new MovieClipAttributeOperation();
 	MovieClipAttributeOperation *yAttribute = new MovieClipAttributeOperation();
 	SetSamplerOperation *psoperation = new SetSamplerOperation();
-
+	psoperation->setSampler((PixelSampler)this->getbNode()->custom1);
+	
 	scaleAttribute->setAttribute(MCA_SCALE);
 	scaleAttribute->setFramenumber(context->getFramenumber());
 	scaleAttribute->setMovieClip(clip);
-
+	
 	angleAttribute->setAttribute(MCA_ANGLE);
 	angleAttribute->setFramenumber(context->getFramenumber());
 	angleAttribute->setMovieClip(clip);
-
+	
 	xAttribute->setAttribute(MCA_X);
 	xAttribute->setFramenumber(context->getFramenumber());
 	xAttribute->setMovieClip(clip);
@@ -68,30 +71,26 @@ void Stabilize2dNode::convertToOperations(NodeCompiler *compiler, const Composit
 	yAttribute->setFramenumber(context->getFramenumber());
 	yAttribute->setMovieClip(clip);
 	
-	imageInput->relinkConnections(scaleOperation->getInputSocket(0), 0, graph);
-	addLink(graph, scaleAttribute->getOutputSocket(), scaleOperation->getInputSocket(1));
-	addLink(graph, scaleAttribute->getOutputSocket(), scaleOperation->getInputSocket(2));
+	compiler->addOperation(scaleAttribute);
+	compiler->addOperation(angleAttribute);
+	compiler->addOperation(xAttribute);
+	compiler->addOperation(yAttribute);
+	compiler->addOperation(scaleOperation);
+	compiler->addOperation(translateOperation);
+	compiler->addOperation(rotateOperation);
+	compiler->addOperation(psoperation);
 	
-	scaleOperation->setSampler((PixelSampler)this->getbNode()->custom1);
+	compiler->mapInputSocket(imageInput, scaleOperation->getInputSocket(0));
+	compiler->addConnection(scaleAttribute->getOutputSocket(), scaleOperation->getInputSocket(1));
+	compiler->addConnection(scaleAttribute->getOutputSocket(), scaleOperation->getInputSocket(2));
 	
-	addLink(graph, scaleOperation->getOutputSocket(), rotateOperation->getInputSocket(0));
-	addLink(graph, angleAttribute->getOutputSocket(), rotateOperation->getInputSocket(1));
-	rotateOperation->setDoDegree2RadConversion(false);
+	compiler->addConnection(scaleOperation->getOutputSocket(), rotateOperation->getInputSocket(0));
+	compiler->addConnection(angleAttribute->getOutputSocket(), rotateOperation->getInputSocket(1));
 
-	addLink(graph, rotateOperation->getOutputSocket(), translateOperation->getInputSocket(0));
-	addLink(graph, xAttribute->getOutputSocket(), translateOperation->getInputSocket(1));
-	addLink(graph, yAttribute->getOutputSocket(), translateOperation->getInputSocket(2));
+	compiler->addConnection(rotateOperation->getOutputSocket(), translateOperation->getInputSocket(0));
+	compiler->addConnection(xAttribute->getOutputSocket(), translateOperation->getInputSocket(1));
+	compiler->addConnection(yAttribute->getOutputSocket(), translateOperation->getInputSocket(2));
 	
-	psoperation->setSampler((PixelSampler)this->getbNode()->custom1);
-	addLink(graph, translateOperation->getOutputSocket(), psoperation->getInputSocket(0));
-	this->getOutputSocket()->relinkConnections(psoperation->getOutputSocket());
-	
-	graph->addOperation(scaleAttribute);
-	graph->addOperation(angleAttribute);
-	graph->addOperation(xAttribute);
-	graph->addOperation(yAttribute);
-	graph->addOperation(scaleOperation);
-	graph->addOperation(translateOperation);
-	graph->addOperation(rotateOperation);
-	graph->addOperation(psoperation);
+	compiler->addConnection(translateOperation->getOutputSocket(), psoperation->getInputSocket(0));
+	compiler->mapOutputSocket(getOutputSocket(), psoperation->getOutputSocket());
 }
