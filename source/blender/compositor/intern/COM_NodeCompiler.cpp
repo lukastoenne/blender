@@ -104,6 +104,42 @@ void NodeCompiler::convertToOperations(ExecutionSystem *system)
 		}
 	}
 	
+	/* Use mapping info to define default input values */
+	for (InputSocketInverseMap::const_iterator it = inverse_input_map.begin(); it != inverse_input_map.end(); ++it) {
+		InputSocket *node_input = it->first;
+		
+		const InputSocketList &input_list = it->second;
+		for (InputSocketList::const_iterator it_input = input_list.begin(); it_input != input_list.end(); ++it_input) {
+			InputSocket *input = *it_input;
+			
+			/* XXX this is bad: adding reference to bNodeSocket in operations should be avoided!
+			 * is only needed here for providing default input values,
+			 * later could be replaced by storing actual values in the input sockets
+			 */
+			input->setEditorSocket(node_input->getbNodeSocket());
+		}
+	}
+	
+	/* Default input values:
+	 * Construct a value operation for every unconnected input
+	 */
+	/* XXX annoying: have to avoid looping over ops directly,
+	 * since adding value ops changes size ... should be fixed at some point
+	 * by using a linked list or so
+	 */
+	int num_ops = system->getOperations().size();
+	for (int i = 0; i < num_ops; ++i) {
+		NodeOperation *op = system->getOperations()[i];
+		
+		for (int k = 0; k < op->getNumberOfInputSockets(); ++k) {
+			InputSocket *input = op->getInputSocket(k);
+			
+			if (!input->isConnected()) {
+				add_operation_input_constant(input);
+			}
+		}
+	}
+	
 	system->determineResolutions();
 	
 	m_current_system = NULL;
@@ -229,16 +265,6 @@ void NodeCompiler::addOutputPreview(OutputSocket *output)
 	}
 }
 
-#if 0 /* XXX is this used anywhere? can't see the logic in using input parameter here */
-void Node::addPreviewOperation(InputSocket *inputSocket)
-{
-	if (inputSocket->isConnected() && this->isInActiveGroup()) {
-		OutputSocket *outputsocket = inputSocket->getConnection()->getFromSocket();
-		this->addPreviewOperation(system, context, outputsocket);
-	}
-}
-#endif
-
 NodeOperation *NodeCompiler::set_invalid_output(OutputSocket *output)
 {
 	const float warning_color[4] = {1.0f, 0.0f, 1.0f, 1.0f};
@@ -281,6 +307,51 @@ InputSocket *NodeCompiler::addOutputProxy(OutputSocket *output)
 	mapOutputSocket(output, proxy->getOutputSocket());
 	
 	return proxy->getInputSocket(0);
+}
+
+void NodeCompiler::add_operation_input_constant(InputSocket *input)
+{
+	switch (input->getDataType()) {
+		case COM_DT_VALUE: {
+			float value;
+			if (input->getbNodeSocket())
+				value = input->getEditorValueFloat();
+			else
+				value = 0.0f;
+			
+			SetValueOperation *op = new SetValueOperation();
+			op->setValue(value);
+			addOperation(op);
+			addConnection(op->getOutputSocket(), input);
+			break;
+		}
+		case COM_DT_COLOR: {
+			float value[4];
+			if (input->getbNodeSocket())
+				input->getEditorValueColor(value);
+			else
+				zero_v4(value);
+			
+			SetColorOperation *op = new SetColorOperation();
+			op->setChannels(value);
+			addOperation(op);
+			addConnection(op->getOutputSocket(), input);
+			break;
+		}
+		case COM_DT_VECTOR: {
+			float value[3];
+			if (input->getbNodeSocket())
+				input->getEditorValueVector(value);
+			else
+				zero_v3(value);
+			
+			SetVectorOperation *op = new SetVectorOperation();
+			op->setVector(value);
+			addOperation(op);
+			addConnection(op->getOutputSocket(), input);
+			break;
+		}
+	}
 }
 
 void NodeCompiler::addOutputValue(OutputSocket *output, float value)

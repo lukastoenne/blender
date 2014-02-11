@@ -103,7 +103,9 @@ public:
 protected:
 	static const InputSocketList &find_operation_inputs(const InputSocketInverseMap &map, InputSocket *node_input);
 	static OutputSocket *find_operation_output(const OutputSocketMap &map, OutputSocket *node_output);
-
+	
+	void add_operation_input_constant(InputSocket *input);
+	
 private:
 	PreviewOperation *make_preview_operation() const;
 
