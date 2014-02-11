@@ -97,7 +97,12 @@ void NodeGraph::add_node(Node *node, bNodeTree *b_ntree, bNodeInstanceKey key, b
 
 void NodeGraph::add_connection(OutputSocket *fromSocket, InputSocket *toSocket)
 {
-	m_connections.push_back(new SocketConnection(fromSocket, toSocket));
+	SocketConnection *connection = new SocketConnection(fromSocket, toSocket);
+	m_connections.push_back(connection);
+	
+	/* register with sockets */
+	fromSocket->addConnection(connection);
+	toSocket->setConnection(connection);
 }
 
 void NodeGraph::add_bNodeTree(const CompositorContext &context, int nodes_start, bNodeTree *tree, bNodeInstanceKey parent_key)

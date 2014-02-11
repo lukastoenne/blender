@@ -357,6 +357,11 @@ SocketConnection *ExecutionSystem::addConnection(OutputSocket *from, InputSocket
 	
 	SocketConnection *connection = new SocketConnection(from, to);
 	m_connections.push_back(connection);
+	
+	/* register with sockets */
+	from->addConnection(connection);
+	to->setConnection(connection);
+	
 	return connection;
 }
 
@@ -364,6 +369,10 @@ void ExecutionSystem::removeConnection(SocketConnection *connection)
 {
 	for (vector<SocketConnection *>::iterator it = m_connections.begin(); it != m_connections.end(); ++it) {
 		if (*it == connection) {
+			/* unregister with sockets */
+			connection->getFromSocket()->removeConnection(connection);
+			connection->getToSocket()->setConnection(NULL);
+			
 			this->m_connections.erase(it);
 			delete connection;
 			break;

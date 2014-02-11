@@ -29,17 +29,10 @@ SocketConnection::SocketConnection(OutputSocket *from, InputSocket *to) :
 {
 	BLI_assert(from);
 	BLI_assert(to);
-	
-	/* register with sockets */
-	from->addConnection(this);
-	to->setConnection(this);
 }
 
 SocketConnection::~SocketConnection()
 {
-	/* unregister with sockets */
-	m_fromSocket->removeConnection(this);
-	m_toSocket->setConnection(NULL);
 }
 
 bool SocketConnection::needsResolutionConversion() const

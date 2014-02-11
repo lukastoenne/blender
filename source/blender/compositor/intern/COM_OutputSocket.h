@@ -72,8 +72,5 @@ public:
 	 */
 	WriteBufferOperation *findAttachedWriteBufferOperation() const;
 	ChannelInfo *getChannelInfo(const int channelnumber);
-	
-private:
-
 };
 #endif
