@@ -36,7 +36,8 @@ void ColorToBWNode::convertToOperations(NodeCompiler *compiler, const Compositor
 	OutputSocket *valueSocket = this->getOutputSocket(0);
 	
 	ConvertColorToBWOperation *convertProg = new ConvertColorToBWOperation();
-	colorSocket->relinkConnections(convertProg->getInputSocket(0), 0, graph);
-	valueSocket->relinkConnections(convertProg->getOutputSocket(0));
-	graph->addOperation(convertProg);
+	compiler->addOperation(convertProg);
+	
+	compiler->mapInputSocket(colorSocket, convertProg->getInputSocket(0));
+	compiler->mapOutputSocket(valueSocket, convertProg->getOutputSocket(0));
 }

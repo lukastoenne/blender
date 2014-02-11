@@ -45,24 +45,24 @@ void HueSaturationValueCorrectNode::convertToOperations(NodeCompiler *compiler, 
 	CurveMapping *storage = (CurveMapping *)editorsnode->storage;
 	
 	ConvertRGBToHSVOperation *rgbToHSV = new ConvertRGBToHSVOperation();
+	compiler->addOperation(rgbToHSV);
+	
 	ConvertHSVToRGBOperation *hsvToRGB = new ConvertHSVToRGBOperation();
+	compiler->addOperation(hsvToRGB);
+	
 	HueSaturationValueCorrectOperation *changeHSV = new HueSaturationValueCorrectOperation();
-	MixBlendOperation *blend = new MixBlendOperation();
-
-	colorSocket->relinkConnections(rgbToHSV->getInputSocket(0), 1, graph);
-	addLink(graph, rgbToHSV->getOutputSocket(), changeHSV->getInputSocket(0));
-	addLink(graph, changeHSV->getOutputSocket(), hsvToRGB->getInputSocket(0));
-	addLink(graph, hsvToRGB->getOutputSocket(), blend->getInputSocket(2));
-	addLink(graph, rgbToHSV->getInputSocket(0)->getConnection()->getFromSocket(), blend->getInputSocket(1));
-	valueSocket->relinkConnections(blend->getInputSocket(0), 0, graph);
-	outputSocket->relinkConnections(blend->getOutputSocket());
-
 	changeHSV->setCurveMapping(storage);
-
+	compiler->addOperation(changeHSV);
+	
+	MixBlendOperation *blend = new MixBlendOperation();
 	blend->setResolutionInputSocketIndex(1);
+	compiler->addOperation(blend);
 
-	graph->addOperation(rgbToHSV);
-	graph->addOperation(hsvToRGB);
-	graph->addOperation(changeHSV);
-	graph->addOperation(blend);
+	compiler->mapInputSocket(colorSocket, rgbToHSV->getInputSocket(0));
+	compiler->addConnection(rgbToHSV->getOutputSocket(), changeHSV->getInputSocket(0));
+	compiler->addConnection(changeHSV->getOutputSocket(), hsvToRGB->getInputSocket(0));
+	compiler->addConnection(hsvToRGB->getOutputSocket(), blend->getInputSocket(2));
+	compiler->mapInputSocket(colorSocket, blend->getInputSocket(1));
+	compiler->mapInputSocket(valueSocket, blend->getInputSocket(0));
+	compiler->mapOutputSocket(outputSocket, blend->getOutputSocket());
 }

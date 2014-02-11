@@ -74,10 +74,11 @@ void FilterNode::convertToOperations(NodeCompiler *compiler, const CompositorCon
 			break;
 	}
 	operation->setbNode(this->getbNode());
-	inputImageSocket->relinkConnections(operation->getInputSocket(0), 1, graph);
-	inputSocket->relinkConnections(operation->getInputSocket(1), 0, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket());
-	addPreviewOperation(graph, context, operation->getOutputSocket(0));
+	compiler->addOperation(operation);
 	
-	graph->addOperation(operation);
+	compiler->mapInputSocket(inputImageSocket, operation->getInputSocket(0));
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket());
+	
+	compiler->addOutputPreview(operation->getOutputSocket(0));
 }

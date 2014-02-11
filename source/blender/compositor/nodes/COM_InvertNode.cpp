@@ -36,9 +36,9 @@ void InvertNode::convertToOperations(NodeCompiler *compiler, const CompositorCon
 	bNode *node = this->getbNode();
 	operation->setColor(node->custom1 & CMP_CHAN_RGB);
 	operation->setAlpha(node->custom1 & CMP_CHAN_A);
+	compiler->addOperation(operation);
 	
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
-	graph->addOperation(operation);
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 }

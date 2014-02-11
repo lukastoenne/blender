@@ -32,11 +32,9 @@ VectorCurveNode::VectorCurveNode(bNode *editorNode) : Node(editorNode)
 void VectorCurveNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	VectorCurveOperation *operation = new VectorCurveOperation();
-
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-
 	operation->setCurveMapping((CurveMapping *)this->getbNode()->storage);
-
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 }

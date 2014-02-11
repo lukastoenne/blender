@@ -29,17 +29,19 @@ VectorBlurNode::VectorBlurNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void VectorBlurNode::convertToOperations(ExecutionSystem *system, CompositorContext *context)
+void VectorBlurNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *node = this->getbNode();
 	NodeBlurData *vectorBlurSettings = (NodeBlurData *)node->storage;
+	
 	VectorBlurOperation *operation = new VectorBlurOperation();
 	operation->setbNode(node);
 	operation->setVectorBlurSettings(vectorBlurSettings);
 	operation->setQuality(context->getQuality());
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, system);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, system);
-	this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, system);
-	this->getOutputSocket()->relinkConnections(operation->getOutputSocket());
-	system->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+	compiler->mapInputSocket(getInputSocket(2), operation->getInputSocket(2));
+	compiler->mapOutputSocket(getOutputSocket(), operation->getOutputSocket());
 }

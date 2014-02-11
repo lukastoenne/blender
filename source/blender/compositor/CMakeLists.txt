@@ -241,22 +241,10 @@ set(SRC
 	# converter nodes
 	nodes/COM_IDMaskNode.cpp
 	nodes/COM_IDMaskNode.h
-	nodes/COM_SeparateRGBANode.cpp
-	nodes/COM_SeparateRGBANode.h
-	nodes/COM_CombineRGBANode.cpp
-	nodes/COM_CombineRGBANode.h
-	nodes/COM_SeparateHSVANode.cpp
-	nodes/COM_SeparateHSVANode.h
-	nodes/COM_CombineHSVANode.cpp
-	nodes/COM_CombineHSVANode.h
-	nodes/COM_SeparateYUVANode.cpp
-	nodes/COM_SeparateYUVANode.h
-	nodes/COM_CombineYUVANode.cpp
-	nodes/COM_CombineYUVANode.h
-	nodes/COM_SeparateYCCANode.cpp
-	nodes/COM_SeparateYCCANode.h
-	nodes/COM_CombineYCCANode.cpp
-	nodes/COM_CombineYCCANode.h
+	nodes/COM_SeparateColorNode.cpp
+	nodes/COM_SeparateColorNode.h
+	nodes/COM_CombineColorNode.cpp
+	nodes/COM_CombineColorNode.h
 
 	nodes/COM_NormalNode.cpp
 	nodes/COM_NormalNode.h

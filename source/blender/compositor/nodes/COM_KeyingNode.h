@@ -29,17 +29,15 @@
  */
 class KeyingNode : public Node {
 protected:
-	NodeBlurData m_alpha_blur; /* only used for blurring alpha, since the dilate/erode node doesnt have this */
-
-	OutputSocket *setupPreBlur(ExecutionSystem *graph, InputSocket *inputImage, int size, OutputSocket **originalImage);
-	OutputSocket *setupPostBlur(ExecutionSystem *graph, OutputSocket *postBlurInput, int size);
-	OutputSocket *setupDilateErode(ExecutionSystem *graph, OutputSocket *dilateErodeInput, int distance);
-	OutputSocket *setupFeather(ExecutionSystem *graph, CompositorContext *context, OutputSocket *featherInput,
-	                           int falloff, int distance);
-	OutputSocket *setupDespill(ExecutionSystem *graph, OutputSocket *despillInput, OutputSocket *inputSrceen,
-	                           float factor, float colorBalance);
-	OutputSocket *setupClip(ExecutionSystem *graph, OutputSocket *clipInput, int kernelRadius, float kernelTolerance,
-	                        float clipBlack, float clipWhite, bool edgeMatte);
+	OutputSocket *setupPreBlur(NodeCompiler *compiler, InputSocket *inputImage, int size) const;
+	OutputSocket *setupPostBlur(NodeCompiler *compiler, OutputSocket *postBlurInput, int size) const;
+	OutputSocket *setupDilateErode(NodeCompiler *compiler, OutputSocket *dilateErodeInput, int distance) const;
+	OutputSocket *setupFeather(NodeCompiler *compiler, const CompositorContext *context, OutputSocket *featherInput,
+	                           int falloff, int distance) const;
+	OutputSocket *setupDespill(NodeCompiler *compiler, OutputSocket *despillInput, OutputSocket *inputSrceen,
+	                           float factor, float colorBalance) const;
+	OutputSocket *setupClip(NodeCompiler *compiler, OutputSocket *clipInput, int kernelRadius, float kernelTolerance,
+	                        float clipBlack, float clipWhite, bool edgeMatte) const;
 public:
 	KeyingNode(bNode *editorNode);
 	void convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const;

@@ -41,8 +41,9 @@ void InpaintNode::convertToOperations(NodeCompiler *compiler, const CompositorCo
 		InpaintSimpleOperation *operation = new InpaintSimpleOperation();
 		operation->setbNode(editorNode);
 		operation->setIterations(editorNode->custom2);
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
-		graph->addOperation(operation);
+		compiler->addOperation(operation);
+		
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 	}
 }

@@ -36,24 +36,19 @@ KeyingScreenNode::KeyingScreenNode(bNode *editorNode) : Node(editorNode)
 
 void KeyingScreenNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
-	OutputSocket *outputScreen = this->getOutputSocket(0);
-
 	bNode *editorNode = this->getbNode();
 	MovieClip *clip = (MovieClip *) editorNode->id;
-
 	NodeKeyingScreenData *keyingscreen_data = (NodeKeyingScreenData *) editorNode->storage;
-
+	
+	OutputSocket *outputScreen = this->getOutputSocket(0);
+	
 	// always connect the output image
 	KeyingScreenOperation *operation = new KeyingScreenOperation();
 	operation->setbNode(editorNode);
-
-	if (outputScreen->isConnected()) {
-		outputScreen->relinkConnections(operation->getOutputSocket());
-	}
-
 	operation->setMovieClip(clip);
 	operation->setTrackingObject(keyingscreen_data->tracking_object);
 	operation->setFramenumber(context->getFramenumber());
-
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapOutputSocket(outputScreen, operation->getOutputSocket());
 }

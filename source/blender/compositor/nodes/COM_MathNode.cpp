@@ -85,15 +85,13 @@ void MathNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 			break;
 	}
 	
-	if (operation != NULL) {
-		bool useClamp = this->getbNode()->custom2;
-
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-
+	if (operation) {
+		bool useClamp = getbNode()->custom2;
 		operation->setUseClamp(useClamp);
-
-		graph->addOperation(operation);
+		compiler->addOperation(operation);
+		
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 	}
 }

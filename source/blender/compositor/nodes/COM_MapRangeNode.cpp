@@ -38,17 +38,15 @@ void MapRangeNode::convertToOperations(NodeCompiler *compiler, const CompositorC
 	InputSocket *destMinSocket = this->getInputSocket(3);
 	InputSocket *destMaxSocket = this->getInputSocket(4);
 	OutputSocket *outputSocket = this->getOutputSocket(0);
-
+	
 	MapRangeOperation *operation = new MapRangeOperation();
-
-	valueSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
-	sourceMinSocket->relinkConnections(operation->getInputSocket(1), 1, graph);
-	sourceMaxSocket->relinkConnections(operation->getInputSocket(2), 2, graph);
-	destMinSocket->relinkConnections(operation->getInputSocket(3), 3, graph);
-	destMaxSocket->relinkConnections(operation->getInputSocket(4), 4, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-
 	operation->setUseClamp(this->getbNode()->custom1);
-
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(valueSocket, operation->getInputSocket(0));
+	compiler->mapInputSocket(sourceMinSocket, operation->getInputSocket(1));
+	compiler->mapInputSocket(sourceMaxSocket, operation->getInputSocket(2));
+	compiler->mapInputSocket(destMinSocket, operation->getInputSocket(3));
+	compiler->mapInputSocket(destMaxSocket, operation->getInputSocket(4));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket(0));
 }

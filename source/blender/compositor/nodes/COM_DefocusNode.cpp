@@ -87,7 +87,6 @@ void DefocusNode::convertToOperations(NodeCompiler *compiler, const CompositorCo
 		radiusOperation = blur;
 	}
 	
-	BokehImageOperation *bokeh = new BokehImageOperation();
 	NodeBokehImage *bokehdata = new NodeBokehImage();
 	bokehdata->angle = data->rotation;
 	bokehdata->rounding = 0.0f;
@@ -99,44 +98,48 @@ void DefocusNode::convertToOperations(NodeCompiler *compiler, const CompositorCo
 	bokehdata->catadioptric = 0.0f;
 	bokehdata->lensshift = 0.0f;
 	
+	BokehImageOperation *bokeh = new BokehImageOperation();
 	bokeh->setData(bokehdata);
 	bokeh->deleteDataOnFinish();
-	graph->addOperation(bokeh);
-
-#ifdef COM_DEFOCUS_SEARCH	
+	compiler->addOperation(bokeh);
+	
+#ifdef COM_DEFOCUS_SEARCH
 	InverseSearchRadiusOperation *search = new InverseSearchRadiusOperation();
-	addLink(graph, radiusOperation->getOutputSocket(0), search->getInputSocket(0));
 	search->setMaxBlur(data->maxblur);
-	graph->addOperation(search);
+	compiler->addOperation(search);
+	
+	compiler->addConnection(radiusOperation->getOutputSocket(0), search->getInputSocket(0));
 #endif
+	
 	VariableSizeBokehBlurOperation *operation = new VariableSizeBokehBlurOperation();
-	if (data->preview) {
+	if (data->preview)
 		operation->setQuality(COM_QUALITY_LOW);
-	}
-	else {
+	else
 		operation->setQuality(context->getQuality());
-	}
 	operation->setMaxBlur(data->maxblur);
 	operation->setbNode(node);
 	operation->setThreshold(data->bthresh);
-	addLink(graph, bokeh->getOutputSocket(), operation->getInputSocket(1));
-	addLink(graph, radiusOperation->getOutputSocket(), operation->getInputSocket(2));
+	compiler->addOperation(operation);
+	
+	compiler->addConnection(bokeh->getOutputSocket(), operation->getInputSocket(1));
+	compiler->addConnection(radiusOperation->getOutputSocket(), operation->getInputSocket(2));
 #ifdef COM_DEFOCUS_SEARCH
-	addLink(graph, search->getOutputSocket(), operation->getInputSocket(3));
+	compiler->addConnection(search->getOutputSocket(), operation->getInputSocket(3));
 #endif
+	
 	if (data->gamco) {
 		GammaCorrectOperation *correct = new GammaCorrectOperation();
+		compiler->addOperation(correct);
 		GammaUncorrectOperation *inverse = new GammaUncorrectOperation();
-		this->getInputSocket(0)->relinkConnections(correct->getInputSocket(0), 0, graph);
-		addLink(graph, correct->getOutputSocket(), operation->getInputSocket(0));
-		addLink(graph, operation->getOutputSocket(), inverse->getInputSocket(0));
-		this->getOutputSocket()->relinkConnections(inverse->getOutputSocket());
-		graph->addOperation(correct);
-		graph->addOperation(inverse);
+		compiler->addOperation(inverse);
+		
+		compiler->mapInputSocket(getInputSocket(0), correct->getInputSocket(0));
+		compiler->addConnection(correct->getOutputSocket(), operation->getInputSocket(0));
+		compiler->addConnection(operation->getOutputSocket(), inverse->getInputSocket(0));
+		compiler->mapOutputSocket(getOutputSocket(), inverse->getOutputSocket());
 	}
 	else {
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getOutputSocket()->relinkConnections(operation->getOutputSocket());
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapOutputSocket(getOutputSocket(), operation->getOutputSocket());
 	}
-	graph->addOperation(operation);
 }

@@ -33,32 +33,28 @@ void ColorCurveNode::convertToOperations(NodeCompiler *compiler, const Composito
 {
 	if (this->getInputSocket(2)->isConnected() || this->getInputSocket(3)->isConnected()) {
 		ColorCurveOperation *operation = new ColorCurveOperation();
-	
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-		this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, graph);
-		this->getInputSocket(3)->relinkConnections(operation->getInputSocket(3), 3, graph);
-	
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-	
 		operation->setCurveMapping((CurveMapping *)this->getbNode()->storage);
-	
-		graph->addOperation(operation);
+		compiler->addOperation(operation);
+		
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+		compiler->mapInputSocket(getInputSocket(2), operation->getInputSocket(2));
+		compiler->mapInputSocket(getInputSocket(3), operation->getInputSocket(3));
+		
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 	}
 	else {
 		ConstantLevelColorCurveOperation *operation = new ConstantLevelColorCurveOperation();
-	
-		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
 		float col[4];
 		this->getInputSocket(2)->getEditorValueColor(col);
 		operation->setBlackLevel(col);
 		this->getInputSocket(3)->getEditorValueColor(col);
 		operation->setWhiteLevel(col);
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-	
 		operation->setCurveMapping((CurveMapping *)this->getbNode()->storage);
-	
-		graph->addOperation(operation);
+		compiler->addOperation(operation);
+		
+		compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+		compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 	}
 }

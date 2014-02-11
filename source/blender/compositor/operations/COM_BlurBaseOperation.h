@@ -60,7 +60,7 @@ public:
 	 */
 	void deinitExecution();
 	
-	void setData(NodeBlurData *data) { this->m_data = data; }
+	void setData(const NodeBlurData *data);
 
 	void deleteDataWhenFinished() { this->m_deleteData = true; }
 

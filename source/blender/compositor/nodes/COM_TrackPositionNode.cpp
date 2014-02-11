@@ -38,13 +38,12 @@ TrackPositionNode::TrackPositionNode(bNode *editorNode) : Node(editorNode)
 
 void TrackPositionNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
-	OutputSocket *outputX = this->getOutputSocket(0);
-	OutputSocket *outputY = this->getOutputSocket(1);
-
 	bNode *editorNode = this->getbNode();
 	MovieClip *clip = (MovieClip *) editorNode->id;
-
 	NodeTrackPosData *trackpos_data = (NodeTrackPosData *) editorNode->storage;
+	
+	OutputSocket *outputX = this->getOutputSocket(0);
+	OutputSocket *outputY = this->getOutputSocket(1);
 
 	int frame_number;
 	if (editorNode->custom1 == CMP_TRACKPOS_ABSOLUTE_FRAME) {
@@ -55,8 +54,6 @@ void TrackPositionNode::convertToOperations(NodeCompiler *compiler, const Compos
 	}
 
 	TrackPositionOperation *operationX = new TrackPositionOperation();
-	TrackPositionOperation *operationY = new TrackPositionOperation();
-
 	operationX->setMovieClip(clip);
 	operationX->setTrackingObject(trackpos_data->tracking_object);
 	operationX->setTrackName(trackpos_data->track_name);
@@ -64,7 +61,9 @@ void TrackPositionNode::convertToOperations(NodeCompiler *compiler, const Compos
 	operationX->setAxis(0);
 	operationX->setPosition(editorNode->custom1);
 	operationX->setRelativeFrame(editorNode->custom2);
-
+	compiler->addOperation(operationX);
+	
+	TrackPositionOperation *operationY = new TrackPositionOperation();
 	operationY->setMovieClip(clip);
 	operationY->setTrackingObject(trackpos_data->tracking_object);
 	operationY->setTrackName(trackpos_data->track_name);
@@ -72,10 +71,8 @@ void TrackPositionNode::convertToOperations(NodeCompiler *compiler, const Compos
 	operationY->setAxis(1);
 	operationY->setPosition(editorNode->custom1);
 	operationY->setRelativeFrame(editorNode->custom2);
-
-	outputX->relinkConnections(operationX->getOutputSocket());
-	outputY->relinkConnections(operationY->getOutputSocket());
-
-	graph->addOperation(operationX);
-	graph->addOperation(operationY);
+	compiler->addOperation(operationY);
+	
+	compiler->mapOutputSocket(outputX, operationX->getOutputSocket());
+	compiler->mapOutputSocket(outputY, operationY->getOutputSocket());
 }

@@ -35,6 +35,7 @@ void PixelateNode::convertToOperations(NodeCompiler *compiler, const CompositorC
 	InputSocket *inputSocket = this->getInputSocket(0);
 	OutputSocket *outputSocket = this->getOutputSocket(0);
 	DataType datatype = inputSocket->getDataType();
+	
 	if (inputSocket->isConnected()) {
 		SocketConnection *connection = inputSocket->getConnection();
 		OutputSocket *otherOutputSocket = connection->getFromSocket();
@@ -42,7 +43,8 @@ void PixelateNode::convertToOperations(NodeCompiler *compiler, const CompositorC
 	}
 
 	PixelateOperation *operation = new PixelateOperation(datatype);
-	inputSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(0));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket(0));
 }

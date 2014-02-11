@@ -31,9 +31,8 @@ NormalizeNode::NormalizeNode(bNode *editorNode) : Node(editorNode)
 void NormalizeNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	NormalizeOperation *operation = new NormalizeOperation();
+	compiler->addOperation(operation);
 
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
-
-	graph->addOperation(operation);
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 }

@@ -32,20 +32,21 @@ IDMaskNode::IDMaskNode(bNode *editorNode) : Node(editorNode)
 void IDMaskNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	bNode *bnode = this->getbNode();
+	
 	IDMaskOperation *operation;
 	operation = new IDMaskOperation();
 	operation->setObjectIndex(bnode->custom1);
+	compiler->addOperation(operation);
 	
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
 	if (bnode->custom2 == 0 || context->getRenderData()->scemode & R_FULL_SAMPLE) {
-		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
+		compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 	}
 	else {
 		AntiAliasOperation *antiAliasOperation = new AntiAliasOperation();
-		addLink(graph, operation->getOutputSocket(), antiAliasOperation->getInputSocket(0));
-		this->getOutputSocket(0)->relinkConnections(antiAliasOperation->getOutputSocket(0));
-		graph->addOperation(antiAliasOperation);
+		compiler->addOperation(antiAliasOperation);
+		
+		compiler->addConnection(operation->getOutputSocket(), antiAliasOperation->getInputSocket(0));
+		compiler->mapOutputSocket(getOutputSocket(0), antiAliasOperation->getOutputSocket(0));
 	}
-	graph->addOperation(operation);
-	
 }

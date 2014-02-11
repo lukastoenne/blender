@@ -32,12 +32,15 @@ MapValueNode::MapValueNode(bNode *editorNode) : Node(editorNode)
 
 void MapValueNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
+	TexMapping *storage =  (TexMapping *)this->getbNode()->storage;
+	
 	InputSocket *colorSocket = this->getInputSocket(0);
 	OutputSocket *valueSocket = this->getOutputSocket(0);
-	TexMapping *storage =  (TexMapping *)this->getbNode()->storage;
+	
 	MapValueOperation *convertProg = new MapValueOperation();
 	convertProg->setSettings(storage);
-	colorSocket->relinkConnections(convertProg->getInputSocket(0), 0, graph);
-	valueSocket->relinkConnections(convertProg->getOutputSocket(0));
-	graph->addOperation(convertProg);
+	compiler->addOperation(convertProg);
+	
+	compiler->mapInputSocket(colorSocket, convertProg->getInputSocket(0));
+	compiler->mapOutputSocket(valueSocket, convertProg->getOutputSocket(0));
 }

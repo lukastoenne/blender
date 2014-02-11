@@ -35,16 +35,16 @@ void DespeckleNode::convertToOperations(NodeCompiler *compiler, const Compositor
 	InputSocket *inputSocket = this->getInputSocket(0);
 	InputSocket *inputImageSocket = this->getInputSocket(1);
 	OutputSocket *outputSocket = this->getOutputSocket(0);
+	
 	DespeckleOperation *operation = new DespeckleOperation();
-
 	operation->setbNode(editorNode);
 	operation->setThreshold(editorNode->custom3);
 	operation->setThresholdNeighbor(editorNode->custom4);
-
-	inputImageSocket->relinkConnections(operation->getInputSocket(0), 1, graph);
-	inputSocket->relinkConnections(operation->getInputSocket(1), 0, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket());
-	addPreviewOperation(graph, context, operation->getOutputSocket(0));
-
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(inputImageSocket, operation->getInputSocket(0));
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket());
+	
+	compiler->addOutputPreview(operation->getOutputSocket(0));
 }

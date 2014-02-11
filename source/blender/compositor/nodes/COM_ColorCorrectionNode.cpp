@@ -31,14 +31,16 @@ ColorCorrectionNode::ColorCorrectionNode(bNode *editorNode) : Node(editorNode)
 
 void ColorCorrectionNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
-	ColorCorrectionOperation *operation = new ColorCorrectionOperation();
 	bNode *editorNode = getbNode();
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
+	
+	ColorCorrectionOperation *operation = new ColorCorrectionOperation();
 	operation->setData((NodeColorCorrection *)editorNode->storage);
 	operation->setRedChannelEnabled((editorNode->custom1 & 1) > 0);
 	operation->setGreenChannelEnabled((editorNode->custom1 & 2) > 0);
 	operation->setBlueChannelEnabled((editorNode->custom1 & 4) > 0);
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 }

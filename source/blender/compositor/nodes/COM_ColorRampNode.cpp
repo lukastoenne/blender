@@ -40,15 +40,16 @@ void ColorRampNode::convertToOperations(NodeCompiler *compiler, const Compositor
 	bNode *editorNode = this->getbNode();
 
 	ColorRampOperation *operation = new ColorRampOperation();
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	if (outputSocketAlpha->isConnected()) {
-		SeparateChannelOperation *operation2 = new SeparateChannelOperation();
-		outputSocketAlpha->relinkConnections(operation2->getOutputSocket());
-		addLink(graph, operation->getOutputSocket(), operation2->getInputSocket(0));
-		operation2->setChannel(3);
-		graph->addOperation(operation2);
-	}
 	operation->setColorBand((ColorBand *)editorNode->storage);
-	inputSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(0));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket(0));
+	
+	SeparateChannelOperation *operation2 = new SeparateChannelOperation();
+	operation2->setChannel(3);
+	compiler->addOperation(operation2);
+	
+	compiler->addConnection(operation->getOutputSocket(), operation2->getInputSocket(0));
+	compiler->mapOutputSocket(outputSocketAlpha, operation2->getOutputSocket());
 }

@@ -34,12 +34,13 @@ ColorBalanceNode::ColorBalanceNode(bNode *editorNode) : Node(editorNode)
 
 void ColorBalanceNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
+	bNode *node = this->getbNode();
+	NodeColorBalance *n = (NodeColorBalance *)node->storage;
+	
 	InputSocket *inputSocket = this->getInputSocket(0);
 	InputSocket *inputImageSocket = this->getInputSocket(1);
 	OutputSocket *outputSocket = this->getOutputSocket(0);
 	
-	bNode *node = this->getbNode();
-	NodeColorBalance *n = (NodeColorBalance *)node->storage;
 	NodeOperation *operation;
 	if (node->custom1 == 0) {
 		ColorBalanceLGGOperation *operationLGG = new ColorBalanceLGGOperation();
@@ -62,9 +63,9 @@ void ColorBalanceNode::convertToOperations(NodeCompiler *compiler, const Composi
 		operationCDL->setSlope(n->slope);
 		operation = operationCDL;
 	}
+	compiler->addOperation(operation);
 	
-	inputSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
-	inputImageSocket->relinkConnections(operation->getInputSocket(1), 1, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	graph->addOperation(operation);
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(0));
+	compiler->mapInputSocket(inputImageSocket, operation->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocket, operation->getOutputSocket(0));
 }

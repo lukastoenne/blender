@@ -37,7 +37,8 @@ void DirectionalBlurNode::convertToOperations(NodeCompiler *compiler, const Comp
 	operation->setQuality(context->getQuality());
 	operation->setData(data);
 	operation->setbNode(this->getbNode());
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
 }

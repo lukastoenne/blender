@@ -148,6 +148,11 @@ void BlurBaseOperation::deinitExecution()
 	this->m_data = NULL;
 }
 
+void BlurBaseOperation::setData(const NodeBlurData *data)
+{
+	memcpy(&m_data, data, sizeof(NodeBlurData));
+}
+
 void BlurBaseOperation::updateSize()
 {
 	if (!this->m_sizeavailable) {

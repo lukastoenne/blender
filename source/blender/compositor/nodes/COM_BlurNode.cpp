@@ -55,10 +55,10 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 		operationfgb->setData(data);
 		operationfgb->setChunksize(context->getChunksize());
 		operationfgb->setbNode(editorNode);
-		
 		compiler->addOperation(operationfgb);
+		
 		compiler->mapInputSocket(getInputSocket(1), operationfgb->getInputSocket(1));
-
+		
 		input_operation = operationfgb;
 		output_operation = operationfgb;
 	}
@@ -152,20 +152,20 @@ void BlurNode::convertToOperations(NodeCompiler *compiler, const CompositorConte
 	if (data->gamma) {
 		GammaCorrectOperation *correct = new GammaCorrectOperation();
 		GammaUncorrectOperation *inverse = new GammaUncorrectOperation();
-		graph->addOperation(correct);
-		graph->addOperation(inverse);
+		compiler->addOperation(correct);
+		compiler->addOperation(inverse);
 		
 		compiler->mapInputSocket(getInputSocket(0), correct->getInputSocket(0));
 		compiler->addConnection(correct->getOutputSocket(), input_operation->getInputSocket(0));
 		compiler->addConnection(output_operation->getOutputSocket(), inverse->getInputSocket(0));
 		compiler->mapOutputSocket(getOutputSocket(), inverse->getOutputSocket());
 		
-		addPreviewOperation(graph, context, inverse->getOutputSocket());
+		compiler->addOutputPreview(inverse->getOutputSocket());
 	}
 	else {
 		compiler->mapInputSocket(getInputSocket(0), input_operation->getInputSocket(0));
 		compiler->mapOutputSocket(getOutputSocket(), output_operation->getOutputSocket());
 		
-		addPreviewOperation(graph, context, output_operation->getOutputSocket());
+		compiler->addOutputPreview(output_operation->getOutputSocket());
 	}
 }

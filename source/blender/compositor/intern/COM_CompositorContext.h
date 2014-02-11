@@ -181,7 +181,7 @@ public:
 	 */
 	void setHasActiveOpenCLDevices(bool hasAvtiveOpenCLDevices) { this->m_hasActiveOpenCLDevices = hasAvtiveOpenCLDevices; }
 	
-	int getChunksize() { return this->getbNodeTree()->chunksize; }
+	int getChunksize() const { return this->getbNodeTree()->chunksize; }
 	
 	void setFastCalculation(bool fastCalculation) {this->m_fastCalculation = fastCalculation;}
 	bool isFastCalculation() const { return this->m_fastCalculation; }

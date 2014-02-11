@@ -45,7 +45,6 @@ void MixNode::convertToOperations(NodeCompiler *compiler, const CompositorContex
 	bool useClamp = this->getbNode()->custom2 & 2;
 	
 	MixBaseOperation *convertProg;
-	
 	switch (editorNode->custom1) {
 		case MA_RAMP_ADD:
 			convertProg = new MixAddOperation();
@@ -106,14 +105,14 @@ void MixNode::convertToOperations(NodeCompiler *compiler, const CompositorContex
 	}
 	convertProg->setUseValueAlphaMultiply(useAlphaPremultiply);
 	convertProg->setUseClamp(useClamp);
-
-	valueSocket->relinkConnections(convertProg->getInputSocket(0), 0, graph);
-	color1Socket->relinkConnections(convertProg->getInputSocket(1), 1, graph);
-	color2Socket->relinkConnections(convertProg->getInputSocket(2), 2, graph);
-	outputSocket->relinkConnections(convertProg->getOutputSocket(0));
-	addPreviewOperation(graph, context, convertProg->getOutputSocket(0));
+	compiler->addOperation(convertProg);
+	
+	compiler->mapInputSocket(valueSocket, convertProg->getInputSocket(0));
+	compiler->mapInputSocket(color1Socket, convertProg->getInputSocket(1));
+	compiler->mapInputSocket(color2Socket, convertProg->getInputSocket(2));
+	compiler->mapOutputSocket(outputSocket, convertProg->getOutputSocket(0));
+	
+	compiler->addOutputPreview(convertProg->getOutputSocket(0));
 	
 	convertProg->getInputSocket(2)->setResizeMode(color2Socket->getResizeMode());
-	
-	graph->addOperation(convertProg);
 }

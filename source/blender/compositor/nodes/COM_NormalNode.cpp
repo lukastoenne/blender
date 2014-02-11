@@ -40,23 +40,20 @@ void NormalNode::convertToOperations(NodeCompiler *compiler, const CompositorCon
 	SetVectorOperation *operationSet = new SetVectorOperation();
 	float normal[3];
 	outputSocket->getEditorValueVector(normal);
-
 	/* animation can break normalization, this restores it */
 	normalize_v3(normal);
-
 	operationSet->setX(normal[0]);
 	operationSet->setY(normal[1]);
 	operationSet->setZ(normal[2]);
 	operationSet->setW(0.0f);
+	compiler->addOperation(operationSet);
 	
-	outputSocket->relinkConnections(operationSet->getOutputSocket(0));
-	graph->addOperation(operationSet);
+	compiler->mapOutputSocket(outputSocket, operationSet->getOutputSocket(0));
 	
-	if (outputSocketDotproduct->isConnected()) {
-		DotproductOperation *operation = new DotproductOperation();
-		outputSocketDotproduct->relinkConnections(operation->getOutputSocket(0));
-		inputSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
-		addLink(graph, operationSet->getOutputSocket(0), operation->getInputSocket(1));
-		graph->addOperation(operation);
-	}
+	DotproductOperation *operation = new DotproductOperation();
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(inputSocket, operation->getInputSocket(0));
+	compiler->addConnection(operationSet->getOutputSocket(0), operation->getInputSocket(1));
+	compiler->mapOutputSocket(outputSocketDotproduct, operation->getOutputSocket(0));
 }

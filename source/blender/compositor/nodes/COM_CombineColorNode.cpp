@@ -18,23 +18,20 @@
  * Contributor: 
  *		Jeroen Bakker 
  *		Monique Dewanchand
+ *		Lukas Toenne
  */
 
-#include "COM_CombineRGBANode.h"
+#include "COM_CombineColorNode.h"
 
 #include "COM_ConvertOperation.h"
 
-#include "COM_ExecutionSystem.h"
-#include "COM_SetValueOperation.h"
-#include "DNA_material_types.h" // the ramp types
 
-
-CombineRGBANode::CombineRGBANode(bNode *editorNode) : Node(editorNode)
+CombineColorNode::CombineColorNode(bNode *editorNode) :
+    Node(editorNode)
 {
-	/* pass */
 }
 
-void CombineRGBANode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
+void CombineColorNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	InputSocket *inputRSocket = this->getInputSocket(0);
 	InputSocket *inputGSocket = this->getInputSocket(1);
@@ -55,10 +52,42 @@ void CombineRGBANode::convertToOperations(NodeCompiler *compiler, const Composit
 	else {
 		operation->setResolutionInputSocketIndex(3);
 	}
-	inputRSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
-	inputGSocket->relinkConnections(operation->getInputSocket(1), 1, graph);
-	inputBSocket->relinkConnections(operation->getInputSocket(2), 2, graph);
-	inputASocket->relinkConnections(operation->getInputSocket(3), 3, graph);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	graph->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(inputRSocket, operation->getInputSocket(0));
+	compiler->mapInputSocket(inputGSocket, operation->getInputSocket(1));
+	compiler->mapInputSocket(inputBSocket, operation->getInputSocket(2));
+	compiler->mapInputSocket(inputASocket, operation->getInputSocket(3));
+	
+	NodeOperation *converter = getColorConverter(context);
+	if (converter) {
+		compiler->addOperation(converter);
+		
+		compiler->addConnection(operation->getOutputSocket(), converter->getInputSocket(0));
+		compiler->mapOutputSocket(outputSocket, converter->getOutputSocket());
+	}
+	else {
+		compiler->mapOutputSocket(outputSocket, operation->getOutputSocket());
+	}
+}
+
+
+NodeOperation *CombineRGBANode::getColorConverter(const CompositorContext *context) const
+{
+	return NULL; /* no conversion needed */
+}
+
+NodeOperation *CombineHSVANode::getColorConverter(const CompositorContext *context) const
+{
+	return new ConvertHSVToRGBOperation();
+}
+
+NodeOperation *CombineYCCANode::getColorConverter(const CompositorContext *context) const
+{
+	return new ConvertYCCToRGBOperation();
+}
+
+NodeOperation *CombineYUVANode::getColorConverter(const CompositorContext *context) const
+{
+	return new ConvertYUVToRGBOperation();
 }

@@ -29,13 +29,15 @@ TonemapNode::TonemapNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 }
 
-void TonemapNode::convertToOperations(ExecutionSystem *system, CompositorContext *context)
+void TonemapNode::convertToOperations(NodeCompiler *compiler, const CompositorContext *context) const
 {
 	NodeTonemap *data = (NodeTonemap *)this->getbNode()->storage;
+	
 	TonemapOperation *operation = data->type == 1 ? new PhotoreceptorTonemapOperation() : new TonemapOperation();
 	operation->setbNode(this->getbNode());
 	operation->setData(data);
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, system);
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
-	system->addOperation(operation);
+	compiler->addOperation(operation);
+	
+	compiler->mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+	compiler->mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
 }
