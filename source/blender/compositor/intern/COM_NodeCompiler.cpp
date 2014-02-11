@@ -296,29 +296,6 @@ NodeCompiler::~NodeCompiler()
 {
 }
 
-#ifndef NDEBUG
-/* if this fails, there are still connection to/from this node,
- * which have not been properly relinked to operations!
- */
-static void debug_check_node_connections(Node *node)
-{
-	/* note: connected inputs are not checked here,
-	 * it would break quite a lot and such inputs are ignored later anyway
-	 */
-#if 0
-	for (int i = 0; i < node->getNumberOfInputSockets(); ++i) {
-		BLI_assert(!node->getInputSocket(i)->isConnected());
-	}
-#endif
-	for (int i = 0; i < node->getNumberOfOutputSockets(); ++i) {
-		BLI_assert(!node->getOutputSocket(i)->isConnected());
-	}
-}
-#else
-/* stub */
-#define debug_check_node_connections(node)
-#endif
-
 void NodeCompiler::convertToOperations(ExecutionSystem *system)
 {
 	/* temporary pointer, so we don't have to pass it down
@@ -333,8 +310,6 @@ void NodeCompiler::convertToOperations(ExecutionSystem *system)
 		
 		DebugInfo::node_to_operations(node);
 		node->convertToOperations(this, m_context);
-		
-		debug_check_node_connections(node);
 	}
 	
 	m_current_node = NULL;
