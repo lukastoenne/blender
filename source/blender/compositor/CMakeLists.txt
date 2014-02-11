@@ -58,6 +58,8 @@ set(SRC
 	intern/COM_ExecutionSystemHelper.h
 	intern/COM_NodeCompiler.cpp
 	intern/COM_NodeCompiler.h
+	intern/COM_NodeGraph.cpp
+	intern/COM_NodeGraph.h
 	intern/COM_Converter.cpp
 	intern/COM_Converter.h
 	intern/COM_ExecutionGroup.cpp

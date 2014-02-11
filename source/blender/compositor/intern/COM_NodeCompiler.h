@@ -26,9 +26,7 @@
 #include <set>
 #include <vector>
 
-extern "C" {
-#include "DNA_node_types.h"
-}
+#include "COM_NodeGraph.h"
 
 using std::vector;
 
@@ -40,56 +38,6 @@ class NodeOperation;
 class OutputSocket;
 class PreviewOperation;
 class SocketConnection;
-
-class NodeGraph {
-public:
-	typedef vector<Node *> Nodes;
-	typedef vector<SocketConnection *> Connections;
-	
-private:
-	Nodes m_nodes;
-	Connections m_connections;
-	
-public:
-	NodeGraph();
-	~NodeGraph();
-	
-	const Nodes &nodes() const { return m_nodes; }
-	const Connections &connections() const { return m_connections; }
-	
-	void from_bNodeTree(const CompositorContext &context, bNodeTree *tree);
-	
-protected:
-	typedef vector<Node *> NodeList;
-	typedef NodeList::iterator NodeIterator;
-	typedef pair<NodeIterator, NodeIterator> NodeRange;
-	
-	static bNodeSocket *find_b_node_input(bNode *b_node, const char *identifier);
-	static bNodeSocket *find_b_node_output(bNode *b_node, const char *identifier);
-	
-	void add_node(Node *node, bNodeTree *b_ntree, bNodeInstanceKey key, bool is_active_group);
-	void add_connection(OutputSocket *fromSocket, InputSocket *toSocket);
-	
-	void add_bNodeTree(const CompositorContext &context, int nodes_start, bNodeTree *tree, bNodeInstanceKey parent_key);
-	
-	void add_bNode(const CompositorContext &context, bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
-	
-	InputSocket *find_input(const NodeRange &node_range, bNodeSocket *b_socket);
-	OutputSocket *find_output(const NodeRange &node_range, bNodeSocket *b_socket);
-	void add_bNodeLink(const NodeRange &node_range, bNodeLink *bNodeLink);
-	
-	/* **** Special proxy node type conversions **** */
-	/* These nodes are not represented in the node graph themselves,
-	 * but converted into a number of proxy connections
-	 */
-	
-	void add_proxies_mute(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
-	void add_proxies_skip(bNodeTree *b_ntree, bNode *b_node, bNodeInstanceKey key, bool is_active_group);
-	
-	void add_proxies_group_inputs(bNode *b_node, bNode *b_node_io);
-	void add_proxies_group_outputs(bNode *b_node, bNode *b_node_io, bool use_buffer);
-	void add_proxies_group(const CompositorContext &context, bNode *b_node, bNodeInstanceKey key);
-};
 
 class NodeCompiler {
 public:
@@ -160,7 +108,7 @@ private:
 	PreviewOperation *make_preview_operation() const;
 
 #ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("COM:Converter")
+	MEM_CXX_CLASS_ALLOC_FUNCS("COM:NodeCompiler")
 #endif
 };
 
