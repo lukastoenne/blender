@@ -211,8 +211,21 @@ ccl_device_inline void curvebounds(float *lower, float *upper, float *extremta, 
 	}
 }
 
+#ifdef __KERNEL_SSE2__
+ccl_device_inline __m128 transform_point_T3(const __m128 t[3], const __m128 &a)
+{
+	return fma(broadcast<0>(a), t[0], fma(broadcast<1>(a), t[1], _mm_mul_ps(broadcast<2>(a), t[2])));
+}
+#endif
+
+#ifdef __KERNEL_SSE2__
+/* Pass P and idir by reference to aligned vector */
+ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersection *isect,
+	const float3 &P, const float3 &idir, uint visibility, int object, int curveAddr, int segment, uint *lcg_state, float difl, float extmax)
+#else
 ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	float3 P, float3 idir, uint visibility, int object, int curveAddr, int segment, uint *lcg_state, float difl, float extmax)
+#endif
 {
 	float epsilon = 0.0f;
 	float r_st, r_en;
@@ -220,7 +233,59 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 	int depth = kernel_data.curve.subdivisions;
 	int flags = kernel_data.curve.curveflags;
 	int prim = kernel_tex_fetch(__prim_index, curveAddr);
+
+#ifdef __KERNEL_SSE2__
+	__m128 vdir = _mm_div_ps(_mm_set1_ps(1.0f), (__m128 &)idir);
+	__m128 vcurve_coef[4];
+	const float3 *curve_coef = (float3 *)vcurve_coef;
 	
+	{
+		__m128 dtmp = _mm_mul_ps(vdir, vdir);
+		__m128 d_ss = _mm_sqrt_ss(_mm_add_ss(dtmp, broadcast<2>(dtmp)));
+		__m128 rd_ss = _mm_div_ss(_mm_set_ss(1.0f), d_ss);
+
+		__m128i v00vec = _mm_load_si128((__m128i *)&kg->__curves.data[prim]);
+		int2 &v00 = (int2 &)v00vec;
+
+		int k0 = v00.x + segment;
+		int k1 = k0 + 1;
+		int ka = max(k0 - 1, v00.x);
+		int kb = min(k1 + 1, v00.x + v00.y - 1);
+
+		__m128 P0 = _mm_load_ps(&kg->__curve_keys.data[ka].x);
+		__m128 P1 = _mm_load_ps(&kg->__curve_keys.data[k0].x);
+		__m128 P2 = _mm_load_ps(&kg->__curve_keys.data[k1].x);
+		__m128 P3 = _mm_load_ps(&kg->__curve_keys.data[kb].x);
+
+		__m128 rd_sgn = set_sign_bit<0, 1, 1, 1>(broadcast<0>(rd_ss));
+		__m128 mul_zxxy = _mm_mul_ps(shuffle<2, 0, 0, 1>(vdir), rd_sgn);
+		__m128 mul_yz = _mm_mul_ps(shuffle<1, 2, 1, 2>(vdir), mul_zxxy);
+		__m128 mul_shuf = shuffle<0, 1, 2, 3>(mul_zxxy, mul_yz);
+		__m128 vdir0 = _mm_and_ps(vdir, _mm_castsi128_ps(_mm_setr_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0)));
+
+		__m128 htfm0 = shuffle<0, 2, 0, 3>(mul_shuf, vdir0);
+		__m128 htfm1 = shuffle<1, 0, 1, 3>(_mm_set_ss(_mm_cvtss_f32(d_ss)), vdir0);
+		__m128 htfm2 = shuffle<1, 3, 2, 3>(mul_shuf, vdir0);
+
+		__m128 htfm[] = { htfm0, htfm1, htfm2 };
+		__m128 p0 = transform_point_T3(htfm, _mm_sub_ps(P0, (__m128 &)P));
+		__m128 p1 = transform_point_T3(htfm, _mm_sub_ps(P1, (__m128 &)P));
+		__m128 p2 = transform_point_T3(htfm, _mm_sub_ps(P2, (__m128 &)P));
+		__m128 p3 = transform_point_T3(htfm, _mm_sub_ps(P3, (__m128 &)P));
+
+		float fc = 0.71f;
+		__m128 vfc = _mm_set1_ps(fc);
+		__m128 vfcxp3 = _mm_mul_ps(vfc, p3);
+
+		vcurve_coef[0] = p1;
+		vcurve_coef[1] = _mm_mul_ps(vfc, _mm_sub_ps(p2, p0));
+		vcurve_coef[2] = fma(_mm_set1_ps(fc * 2.0f), p0, fma(_mm_set1_ps(fc - 3.0f), p1, fms(_mm_set1_ps(3.0f - 2.0f * fc), p2, vfcxp3)));
+		vcurve_coef[3] = fms(_mm_set1_ps(fc - 2.0f), _mm_sub_ps(p2, p1), fms(vfc, p0, vfcxp3));
+
+		r_st = ((float4 &)P1).w;
+		r_en = ((float4 &)P2).w;
+	}
+#else
 	float3 curve_coef[4];
 
 	/* curve Intersection check */
@@ -263,7 +328,7 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 		r_st = P1.w;
 		r_en = P2.w;
 	}
-	
+#endif
 
 	float r_curr = max(r_st, r_en);
 
@@ -302,6 +367,19 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 	while(!(tree >> (depth))) {
 		float i_st = tree * resol;
 		float i_en = i_st + (level * resol);
+#ifdef __KERNEL_SSE2__
+		__m128 vi_st = _mm_set1_ps(i_st), vi_en = _mm_set1_ps(i_en);
+		__m128 vp_st = fma(fma(fma(vcurve_coef[3], vi_st, vcurve_coef[2]), vi_st, vcurve_coef[1]), vi_st, vcurve_coef[0]);
+		__m128 vp_en = fma(fma(fma(vcurve_coef[3], vi_en, vcurve_coef[2]), vi_en, vcurve_coef[1]), vi_en, vcurve_coef[0]);
+
+		__m128 vbmin = _mm_min_ps(vp_st, vp_en);
+		__m128 vbmax = _mm_max_ps(vp_st, vp_en);
+
+		float3 &bmin = (float3 &)vbmin, &bmax = (float3 &)vbmax;
+		float &bminx = bmin.x, &bminy = bmin.y, &bminz = bmin.z;
+		float &bmaxx = bmax.x, &bmaxy = bmax.y, &bmaxz = bmax.z;
+		float3 &p_st = (float3 &)vp_st, &p_en = (float3 &)vp_en;
+#else
 		float3 p_st = ((curve_coef[3] * i_st + curve_coef[2]) * i_st + curve_coef[1]) * i_st + curve_coef[0];
 		float3 p_en = ((curve_coef[3] * i_en + curve_coef[2]) * i_en + curve_coef[1]) * i_en + curve_coef[0];
 		
@@ -311,6 +389,7 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 		float bmaxy = max(p_st.y, p_en.y);
 		float bminz = min(p_st.z, p_en.z);
 		float bmaxz = max(p_st.z, p_en.z);
+#endif
 
 		if(xextrem[0] >= i_st && xextrem[0] <= i_en) {
 			bminx = min(bminx,xextrem[1]);
@@ -640,8 +719,7 @@ ccl_device_inline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isec
 		if(t > 0.0f && t < isect->t && z >= 0 && z <= l) {
 
 			if (flags & CURVE_KN_ENCLOSEFILTER) {
-
-				float enc_ratio = kernel_data.curve.encasing_ratio;
+				float enc_ratio = 1.01f;
 				if((dot(P - p1, tg) > -r1 * enc_ratio) && (dot(P - p2, tg) < r2 * enc_ratio)) {
 					float a2 = 1.0f - (dirz*dirz*(1 + gd*gd*enc_ratio*enc_ratio));
 					float c2 = dot(dif,dif) - difz * difz * (1 + gd*gd*enc_ratio*enc_ratio) - r1*r1*enc_ratio*enc_ratio - 2*r1*difz*gd*enc_ratio;
@@ -1044,10 +1122,10 @@ ccl_device_inline float3 curvetangent(float t, float3 p0, float3 p1, float3 p2, 
 	float fc = 0.71f;
 	float data[4];
 	float t2 = t * t;
-    data[0] = -3.0f * fc          * t2  + 4.0f * fc * t                  - fc;
-    data[1] =  3.0f * (2.0f - fc) * t2  + 2.0f * (fc - 3.0f) * t;
-    data[2] =  3.0f * (fc - 2.0f) * t2  + 2.0f * (3.0f - 2.0f * fc) * t  + fc;
-    data[3] =  3.0f * fc          * t2  - 2.0f * fc * t;
+	data[0] = -3.0f * fc          * t2  + 4.0f * fc * t                  - fc;
+	data[1] =  3.0f * (2.0f - fc) * t2  + 2.0f * (fc - 3.0f) * t;
+	data[2] =  3.0f * (fc - 2.0f) * t2  + 2.0f * (3.0f - 2.0f * fc) * t  + fc;
+	data[3] =  3.0f * fc          * t2  - 2.0f * fc * t;
 	return data[0] * p0 + data[1] * p1 + data[2] * p2 + data[3] * p3;
 }
 

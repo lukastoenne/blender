@@ -65,7 +65,6 @@
 #include "BKE_scene.h"
 
 #include "BKE_library.h"
-#include "BKE_image.h"
 #include "BKE_texture.h"
 #include "BKE_key.h"
 #include "BKE_ipo.h"
@@ -2756,7 +2755,7 @@ void do_volume_tex(ShadeInput *shi, const float *xyz, int mapto_flag, float col_
 				else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			}
 			
-			rgbnor = multitex(tex, texvec, NULL, NULL, 0, &texres, 0, mtex->which_output, re->pool);	/* NULL = dxt/dyt, 0 = shi->osatex - not supported */
+			rgbnor = multitex(tex, texvec, NULL, NULL, 0, &texres, shi->thread, mtex->which_output, re->pool);	/* NULL = dxt/dyt, 0 = shi->osatex - not supported */
 			
 			/* texture output */
 

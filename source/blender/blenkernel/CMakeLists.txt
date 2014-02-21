@@ -115,7 +115,7 @@ set(SRC
 	intern/mball.c
 	intern/mesh.c
 	intern/mesh_evaluate.c
-    intern/mesh_mapping.c
+	intern/mesh_mapping.c
 	intern/mesh_validate.c
 	intern/modifier.c
 	intern/modifiers_bmesh.c
@@ -221,7 +221,7 @@ set(SRC
 	BKE_material.h
 	BKE_mball.h
 	BKE_mesh.h
-    BKE_mesh_mapping.h
+	BKE_mesh_mapping.h
 	BKE_modifier.h
 	BKE_movieclip.h
 	BKE_multires.h
@@ -384,12 +384,6 @@ endif()
 
 if(WITH_MOD_OCEANSIM)
 	add_definitions(-DWITH_OCEANSIM)
-endif()
-
-if(WITH_MOD_BOOLEAN)
-	list(APPEND INC
-		../../../intern/bsp/extern
-	)
 endif()
 
 if(WITH_JACK)

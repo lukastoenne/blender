@@ -1107,7 +1107,9 @@ int WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(eve
 }
 
 /* Can't be used as an invoke directly, needs message arg (can be NULL) */
-int WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
+int WM_operator_confirm_message_ex(bContext *C, wmOperator *op,
+                                   const char *title, const int icon,
+                                   const char *message)
 {
 	uiPopupMenu *pup;
 	uiLayout *layout;
@@ -1118,7 +1120,7 @@ int WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message
 	else
 		properties = NULL;
 
-	pup = uiPupMenuBegin(C, IFACE_("OK?"), ICON_QUESTION);
+	pup = uiPupMenuBegin(C, title, icon);
 	layout = uiPupMenuLayout(pup);
 	uiItemFullO_ptr(layout, op->type, message, ICON_NONE, properties, WM_OP_EXEC_REGION_WIN, 0);
 	uiPupMenuEnd(C, pup);
@@ -1126,6 +1128,10 @@ int WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message
 	return OPERATOR_CANCELLED;
 }
 
+int WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
+{
+	return WM_operator_confirm_message_ex(C, op, IFACE_("OK?"), ICON_QUESTION, message);
+}
 
 int WM_operator_confirm(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
@@ -1434,7 +1440,7 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 	wmOpPopUp *data = arg1;
 	uiBlock *block = arg2;
 
-	WM_operator_call(C, data->op);
+	WM_operator_call_ex(C, data->op, true);
 
 	/* let execute handle freeing it */
 	//data->free_op = FALSE;
@@ -1548,7 +1554,7 @@ static void wm_operator_ui_popup_ok(struct bContext *C, void *arg, int retval)
 	wmOperator *op = data->op;
 
 	if (op && retval > 0)
-		WM_operator_call(C, op);
+		WM_operator_call_ex(C, op, true);
 	
 	MEM_freeN(data);
 }
@@ -1761,12 +1767,12 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	extern char datatoc_splash_png[];
 	extern int datatoc_splash_png_size;
 
-	ImBuf *ibuf = IMB_ibImageFromMemory((unsigned char *)datatoc_splash_png,
-	                                    datatoc_splash_png_size, IB_rect, NULL, "<splash screen>");
+	extern char datatoc_splash_2x_png[];
+	extern int datatoc_splash_2x_png_size;
+	ImBuf *ibuf;
 #else
 	ImBuf *ibuf = NULL;
 #endif
-
 
 #ifdef WITH_BUILDINFO
 	int label_delta = 0;
@@ -1785,13 +1791,24 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	date_width = (int)BLF_width(style->widgetlabel.uifont_id, date_buf, sizeof(date_buf)) + U.widget_unit;
 #endif  /* WITH_BUILDINFO */
 
+#ifndef WITH_HEADLESS
+	if (U.pixelsize == 2) {
+		ibuf = IMB_ibImageFromMemory((unsigned char *)datatoc_splash_2x_png,
+		                             datatoc_splash_2x_png_size, IB_rect, NULL, "<splash screen>");
+	}
+	else {
+		ibuf = IMB_ibImageFromMemory((unsigned char *)datatoc_splash_png,
+		                             datatoc_splash_png_size, IB_rect, NULL, "<splash screen>");
+	}
+#endif
+
 	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
 
 	/* note on UI_BLOCK_NO_WIN_CLIP, the window size is not always synchronized
 	 * with the OS when the splash shows, window clipping in this case gives
 	 * ugly results and clipping the splash isn't useful anyway, just disable it [#32938] */
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
-	
+
 	/* XXX splash scales with pixelsize, should become widget-units */
 	but = uiDefBut(block, BUT_IMAGE, 0, "", 0, 0.5f * U.widget_unit, U.pixelsize * 501, U.pixelsize * 282, ibuf, 0.0, 0.0, 0, 0, ""); /* button owns the imbuf now */
 	uiButSetFunc(but, wm_block_splash_close, block, NULL);
@@ -1979,7 +1996,7 @@ static int wm_call_menu_exec(bContext *C, wmOperator *op)
 	char idname[BKE_ST_MAXNAME];
 	RNA_string_get(op->ptr, "name", idname);
 
-	uiPupMenuInvoke(C, idname);
+	uiPupMenuInvoke(C, idname, op->reports);
 
 	return OPERATOR_CANCELLED;
 }
@@ -2127,6 +2144,27 @@ static void WM_OT_read_factory_settings(wmOperatorType *ot)
 
 /* *************** open file **************** */
 
+/**
+ * Wrap #WM_file_read, shared by file reading operators.
+ */
+static bool wm_file_read_opwrap(bContext *C, const char *filepath, ReportList *reports,
+                                const bool autoexec_init)
+{
+	bool success;
+
+	/* XXX wm in context is not set correctly after WM_file_read -> crash */
+	/* do it before for now, but is this correct with multiple windows? */
+	WM_event_add_notifier(C, NC_WINDOW, NULL);
+
+	if (autoexec_init) {
+		WM_file_autoexec_init(filepath);
+	}
+
+	success = WM_file_read(C, filepath, reports);
+
+	return success;
+}
+
 /* currently fits in a pointer */
 struct FileRuntime {
 	bool is_untrusted;
@@ -2186,9 +2224,10 @@ static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 
 static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 {
-	char path[FILE_MAX];
+	char filepath[FILE_MAX];
+	bool success;
 
-	RNA_string_get(op->ptr, "filepath", path);
+	RNA_string_get(op->ptr, "filepath", filepath);
 
 	/* re-use last loaded setting so we can reload a file without changing */
 	open_set_load_ui(op, false);
@@ -2204,20 +2243,17 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 	else
 		G.f &= ~G_SCRIPT_AUTOEXEC;
 	
-	/* XXX wm in context is not set correctly after WM_file_read -> crash */
-	/* do it before for now, but is this correct with multiple windows? */
-	WM_event_add_notifier(C, NC_WINDOW, NULL);
-
-	/* autoexec is already set correctly for invoke() for exec() though we need to initialize */
-	if (!RNA_struct_property_is_set(op->ptr, "use_scripts")) {
-		WM_file_autoexec_init(path);
-	}
-	WM_file_read(C, path, op->reports);
+	success = wm_file_read_opwrap(C, filepath, op->reports, !(G.f & G_SCRIPT_AUTOEXEC));
 
 	/* for file open also popup for warnings, not only errors */
 	BKE_report_print_level_set(op->reports, RPT_WARNING);
 
-	return OPERATOR_FINISHED;
+	if (success) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 static bool wm_open_mainfile_check(bContext *UNUSED(C), wmOperator *op)
@@ -2290,6 +2326,38 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	                "Allow .blend file to execute scripts automatically, default available from system preferences");
 }
 
+
+/* *************** revert file **************** */
+
+static int wm_revert_mainfile_exec(bContext *C, wmOperator *op)
+{
+	bool success;
+
+	success = wm_file_read_opwrap(C, G.main->name, op->reports, true);
+
+	if (success) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
+static int wm_revert_mainfile_poll(bContext *UNUSED(C))
+{
+	return G.relbase_valid;
+}
+
+static void WM_OT_revert_mainfile(wmOperatorType *ot)
+{
+	ot->name = "Revert";
+	ot->idname = "WM_OT_revert_mainfile";
+	ot->description = "Reload the saved file";
+
+	ot->exec = wm_revert_mainfile_exec;
+	ot->poll = wm_revert_mainfile_poll;
+}
+
 /* **************** link/append *************** */
 
 static int wm_link_append_poll(bContext *C)
@@ -2349,7 +2417,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	Main *mainl = NULL;
 	BlendHandle *bh;
 	PropertyRNA *prop;
-	char name[FILE_MAX], dir[FILE_MAX], libname[FILE_MAX], group[GROUP_MAX];
+	char name[FILE_MAX], dir[FILE_MAX], libname[FILE_MAX], group[BLO_GROUP_MAX];
 	int idcode, totfiles = 0;
 	short flag;
 
@@ -2498,20 +2566,14 @@ static void WM_OT_link_append(wmOperatorType *ot)
 
 void WM_recover_last_session(bContext *C, ReportList *reports)
 {
-	char filename[FILE_MAX];
+	char filepath[FILE_MAX];
 	
-	BLI_make_file_string("/", filename, BLI_temporary_dir(), BLENDER_QUIT_FILE);
+	BLI_make_file_string("/", filepath, BLI_temporary_dir(), BLENDER_QUIT_FILE);
 	/* if reports==NULL, it's called directly without operator, we add a quick check here */
-	if (reports || BLI_exists(filename)) {
+	if (reports || BLI_exists(filepath)) {
 		G.fileflags |= G_FILE_RECOVER;
 		
-		/* XXX wm in context is not set correctly after WM_file_read -> crash */
-		/* do it before for now, but is this correct with multiple windows? */
-		WM_event_add_notifier(C, NC_WINDOW, NULL);
-		
-		/* load file */
-		WM_file_autoexec_init(filename);
-		WM_file_read(C, filename, reports);
+		wm_file_read_opwrap(C, filepath, reports, true);
 	
 		G.fileflags &= ~G_FILE_RECOVER;
 		
@@ -2545,23 +2607,23 @@ static void WM_OT_recover_last_session(wmOperatorType *ot)
 
 static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
 {
-	char path[FILE_MAX];
+	char filepath[FILE_MAX];
+	bool success;
 
-	RNA_string_get(op->ptr, "filepath", path);
+	RNA_string_get(op->ptr, "filepath", filepath);
 
 	G.fileflags |= G_FILE_RECOVER;
 
-	/* XXX wm in context is not set correctly after WM_file_read -> crash */
-	/* do it before for now, but is this correct with multiple windows? */
-	WM_event_add_notifier(C, NC_WINDOW, NULL);
-
-	/* load file */
-	WM_file_autoexec_init(path);
-	WM_file_read(C, path, op->reports);
+	success = wm_file_read_opwrap(C, filepath, op->reports, true);
 
 	G.fileflags &= ~G_FILE_RECOVER;
 	
-	return OPERATOR_FINISHED;
+	if (success) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 static int wm_recover_auto_save_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
@@ -2751,8 +2813,7 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 
 	if (G.save_over) {
 		if (BLI_exists(name)) {
-			uiPupMenuSaveOver(C, op, name);
-			ret = OPERATOR_RUNNING_MODAL;
+			ret = WM_operator_confirm_message_ex(C, op, IFACE_("Save Over?"), ICON_QUESTION, name);
 		}
 		else {
 			ret = wm_save_as_mainfile_exec(C, op);
@@ -3933,7 +3994,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	/* temporarily disable other paint cursors */
 	wm = CTX_wm_manager(C);
 	rc->orig_paintcursors = wm->paintcursors;
-	wm->paintcursors.first = wm->paintcursors.last = NULL;
+	BLI_listbase_clear(&wm->paintcursors);
 
 	/* add radial control paint cursor */
 	rc->cursor = WM_paint_cursor_activate(wm, op->type->poll,
@@ -4271,48 +4332,6 @@ static void WM_OT_dependency_relations(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static int wm_ndof_sensitivity_exec(bContext *UNUSED(C), wmOperator *op)
-{
-	const float min = 0.25f, max = 4.0f; /* TODO: get these from RNA property */
-	float change;
-	float sensitivity = U.ndof_sensitivity;
-
-	if (RNA_boolean_get(op->ptr, "fast"))
-		change = 0.5f;  /* 50% change */
-	else
-		change = 0.1f;  /* 10% */
-
-	if (RNA_boolean_get(op->ptr, "decrease")) {
-		sensitivity -= sensitivity * change; 
-		if (sensitivity < min)
-			sensitivity = min;
-	}
-	else {
-		sensitivity += sensitivity * change; 
-		if (sensitivity > max)
-			sensitivity = max;
-	}
-
-	if (sensitivity != U.ndof_sensitivity) {
-		U.ndof_sensitivity = sensitivity;
-	}
-
-	return OPERATOR_FINISHED;
-}
-
-static void WM_OT_ndof_sensitivity_change(wmOperatorType *ot)
-{
-	ot->name = "Change NDOF Sensitivity";
-	ot->idname = "WM_OT_ndof_sensitivity_change";
-	ot->description = "Change NDOF sensitivity";
-	
-	ot->exec = wm_ndof_sensitivity_exec;
-
-	RNA_def_boolean(ot->srna, "decrease", 1, "Decrease NDOF sensitivity", "If true then action decreases NDOF sensitivity instead of increasing");
-	RNA_def_boolean(ot->srna, "fast", 0, "Fast NDOF sensitivity change", "If true then sensitivity changes 50%, otherwise 10%");
-} 
-
-
 static void operatortype_ghash_free_cb(wmOperatorType *ot)
 {
 	if (ot->last_properties) {
@@ -4354,6 +4373,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_window_fullscreen_toggle);
 	WM_operatortype_append(WM_OT_quit_blender);
 	WM_operatortype_append(WM_OT_open_mainfile);
+	WM_operatortype_append(WM_OT_revert_mainfile);
 	WM_operatortype_append(WM_OT_link_append);
 	WM_operatortype_append(WM_OT_recover_last_session);
 	WM_operatortype_append(WM_OT_recover_auto_save);
@@ -4368,7 +4388,6 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_search_menu);
 	WM_operatortype_append(WM_OT_call_menu);
 	WM_operatortype_append(WM_OT_radial_control);
-	WM_operatortype_append(WM_OT_ndof_sensitivity_change);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif
@@ -4564,6 +4583,7 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 {
 	wmKeyMap *keymap = WM_keymap_find(keyconf, "Window", 0, 0);
 	wmKeyMapItem *kmi;
+	const char *data_path;
 	
 	/* note, this doesn't replace existing keymap items */
 	WM_keymap_verify_item(keymap, "WM_OT_window_duplicate", WKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
@@ -4649,21 +4669,25 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 	RNA_string_set(kmi->ptr, "value", "DOPESHEET_EDITOR");
 	
 	/* ndof speed */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_ndof_sensitivity_change", NDOF_BUTTON_PLUS, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "decrease", FALSE);
-	RNA_boolean_set(kmi->ptr, "fast", FALSE);
+	data_path = "user_preferences.inputs.ndof_sensitivity";
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_scale_float", NDOF_BUTTON_PLUS, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", data_path);
+	RNA_float_set(kmi->ptr, "value", 1.1f);
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_ndof_sensitivity_change", NDOF_BUTTON_MINUS, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "decrease", TRUE);
-	RNA_boolean_set(kmi->ptr, "fast", FALSE);
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_scale_float", NDOF_BUTTON_MINUS, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", data_path);
+	RNA_float_set(kmi->ptr, "value", 1.0f / 1.1f);
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_ndof_sensitivity_change", NDOF_BUTTON_PLUS, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "decrease", FALSE);
-	RNA_boolean_set(kmi->ptr, "fast", TRUE);
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_scale_float", NDOF_BUTTON_PLUS, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", data_path);
+	RNA_float_set(kmi->ptr, "value", 1.5f);
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_ndof_sensitivity_change", NDOF_BUTTON_MINUS, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "decrease", TRUE);
-	RNA_boolean_set(kmi->ptr, "fast", TRUE);
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_scale_float", NDOF_BUTTON_MINUS, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", data_path);
+	RNA_float_set(kmi->ptr, "value", 1.0f / 1.5f);
+	data_path = NULL;
+	(void)data_path;
+
 
 	gesture_circle_modal_keymap(keyconf);
 	gesture_border_modal_keymap(keyconf);

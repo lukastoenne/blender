@@ -296,7 +296,7 @@ static int add_keyingset_button_exec(bContext *C, wmOperator *op)
 	char *path = NULL;
 	short success = 0;
 	int index = 0, pflag = 0;
-	int all = RNA_boolean_get(op->ptr, "all");
+	const bool all = RNA_boolean_get(op->ptr, "all");
 	
 	/* verify the Keying Set to use:
 	 *	- use the active one for now (more control over this can be added later)
@@ -892,7 +892,7 @@ short ANIM_validate_keyingset(bContext *C, ListBase *dsources, KeyingSet *ks)
 				
 			/* if we don't have any paths now, then this still qualifies as invalid context */
 			// FIXME: we need some error conditions (to be retrieved from the iterator why this failed!)
-			if (ks->paths.first == NULL)
+			if (BLI_listbase_is_empty(&ks->paths))
 				return MODIFYKEY_INVALID_CONTEXT;
 		}
 		else {

@@ -1015,7 +1015,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	/* NT fluid sim defaults */
 	ob->fluidsimSettings = NULL;
 
-	ob->pc_ids.first = ob->pc_ids.last = NULL;
+	BLI_listbase_clear(&ob->pc_ids);
 	
 	/* Animation Visualization defaults */
 	animviz_settings_init(&ob->avs);
@@ -1111,23 +1111,23 @@ static LodLevel *lod_level_select(Object *ob, const float cam_loc[3])
 {
 	LodLevel *current = ob->currentlod;
 	float ob_loc[3], delta[3];
-	float distance2;
+	float dist_sq;
 
 	if (!current) return NULL;
 
 	copy_v3_v3(ob_loc, ob->obmat[3]);
 	sub_v3_v3v3(delta, ob_loc, cam_loc);
-	distance2 = len_squared_v3(delta);
+	dist_sq = len_squared_v3(delta);
 
-	if (distance2 < current->distance * current->distance) {
+	if (dist_sq < current->distance * current->distance) {
 		/* check for higher LoD */
-		while (current->prev && distance2 < (current->distance * current->distance)) {
+		while (current->prev && dist_sq < (current->distance * current->distance)) {
 			current = current->prev;
 		}
 	}
 	else {
 		/* check for lower LoD */
-		while (current->next && distance2 > (current->next->distance * current->next->distance)) {
+		while (current->next && dist_sq > (current->next->distance * current->next->distance)) {
 			current = current->next;
 		}
 	}
@@ -1285,8 +1285,8 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	psysn->effectors = NULL;
 	psysn->tree = NULL;
 	
-	psysn->pathcachebufs.first = psysn->pathcachebufs.last = NULL;
-	psysn->childcachebufs.first = psysn->childcachebufs.last = NULL;
+	BLI_listbase_clear(&psysn->pathcachebufs);
+	BLI_listbase_clear(&psysn->childcachebufs);
 	psysn->renderdata = NULL;
 	
 	psysn->pointcache = BKE_ptcache_copy_list(&psysn->ptcaches, &psys->ptcaches, FALSE);
@@ -1312,7 +1312,7 @@ void BKE_object_copy_particlesystems(Object *obn, Object *ob)
 		return;
 	}
 
-	obn->particlesystem.first = obn->particlesystem.last = NULL;
+	BLI_listbase_clear(&obn->particlesystem);
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 		npsys = copy_particlesystem(psys);
 
@@ -1460,7 +1460,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 	if (ob->bb) obn->bb = MEM_dupallocN(ob->bb);
 	obn->flag &= ~OB_FROMGROUP;
 	
-	obn->modifiers.first = obn->modifiers.last = NULL;
+	BLI_listbase_clear(&obn->modifiers);
 	
 	for (md = ob->modifiers.first; md; md = md->next) {
 		ModifierData *nmd = modifier_new(md->type);
@@ -1469,7 +1469,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 		BLI_addtail(&obn->modifiers, nmd);
 	}
 
-	obn->prop.first = obn->prop.last = NULL;
+	BLI_listbase_clear(&obn->prop);
 	BKE_bproperty_copy_list(&obn->prop, &ob->prop);
 	
 	copy_sensors(&obn->sensors, &ob->sensors);
@@ -1517,8 +1517,8 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 	obn->derivedDeform = NULL;
 	obn->derivedFinal = NULL;
 
-	obn->gpulamp.first = obn->gpulamp.last = NULL;
-	obn->pc_ids.first = obn->pc_ids.last = NULL;
+	BLI_listbase_clear(&obn->gpulamp);
+	BLI_listbase_clear(&obn->pc_ids);
 
 	obn->mpath = NULL;
 
@@ -1985,7 +1985,6 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[4][4])
 {
 	Curve *cu;
 	float vec[4], dir[3], quat[4], radius, ctime;
-	float timeoffs = 0.0, sf_orig = 0.0;
 	
 	unit_m4(mat);
 	
@@ -2020,15 +2019,6 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[4][4])
 		
 		CLAMP(ctime, 0.0f, 1.0f);
 	}
-	
-	/* time calculus is correct, now apply distance offset */
-	if (cu->flag & CU_OFFS_PATHDIST) {
-		ctime += timeoffs / par->curve_cache->path->totdist;
-
-		/* restore */
-		SWAP(float, sf_orig, ob->sf);
-	}
-	
 	
 	/* vec: 4 items! */
 	if (where_on_path(par, ctime, vec, dir, cu->flag & CU_FOLLOW ? quat : NULL, &radius, NULL)) {
@@ -2303,7 +2293,7 @@ static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4
 	}
 }
 
-static int where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[4][4])
+static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[4][4])
 {
 	float *fp1, *fp2;
 	float fac1, fac2;
@@ -2660,23 +2650,23 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const bool us
 
 void BKE_object_empty_draw_type_set(Object *ob, const int value)
 {
-    ob->empty_drawtype = value;
+	ob->empty_drawtype = value;
 
-    if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
-        if (!ob->iuser) {
-            ob->iuser = MEM_callocN(sizeof(ImageUser), "image user");
-            ob->iuser->ok = 1;
-            ob->iuser->frames = 100;
-            ob->iuser->sfra = 1;
-            ob->iuser->fie_ima = 2;
-        }
-    }
-    else {
-        if (ob->iuser) {
-            MEM_freeN(ob->iuser);
-            ob->iuser = NULL;
-        }
-    }
+	if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
+		if (!ob->iuser) {
+			ob->iuser = MEM_callocN(sizeof(ImageUser), "image user");
+			ob->iuser->ok = 1;
+			ob->iuser->frames = 100;
+			ob->iuser->sfra = 1;
+			ob->iuser->fie_ima = 2;
+		}
+	}
+	else {
+		if (ob->iuser) {
+			MEM_freeN(ob->iuser);
+			ob->iuser = NULL;
+		}
+	}
 }
 
 bool BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_max[3], const bool use_hidden)
@@ -2878,7 +2868,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 		/* XXX: should this case be OB_RECALC_OB instead? */
 		if (ob->recalc & OB_RECALC_ALL) {
 			
-			if (G.debug & G_DEBUG)
+			if (G.debug & G_DEBUG_DEPSGRAPH)
 				printf("recalcob %s\n", ob->id.name + 2);
 			
 			/* handle proxy copy for target */
@@ -2906,7 +2896,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 			float ctime = BKE_scene_frame_get(scene);
 			ModifierData *md;
 			
-			if (G.debug & G_DEBUG)
+			if (G.debug & G_DEBUG_DEPSGRAPH)
 				printf("recalcdata %s\n", ob->id.name + 2);
 
 			if (adt) {
@@ -2996,6 +2986,11 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 				
 				psys = ob->particlesystem.first;
 				while (psys) {
+					/* ensure this update always happens even if psys is disabled */
+					if (psys->recalc & PSYS_RECALC_TYPE) {
+						psys_changed_type(ob, psys);
+					}
+
 					if (psys_check_enabled(ob, psys)) {
 						/* check use of dupli objects here */
 						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->for_render) &&
@@ -3141,7 +3136,8 @@ int BKE_object_obdata_texspace_get(Object *ob, short **r_texflag, float **r_loc,
  * Test a bounding box for ray intersection
  * assumes the ray is already local to the boundbox space
  */
-bool BKE_boundbox_ray_hit_check(struct BoundBox *bb, const float ray_start[3], const float ray_normal[3])
+bool BKE_boundbox_ray_hit_check(struct BoundBox *bb, const float ray_start[3], const float ray_normal[3],
+                                float *r_lambda)
 {
 	const int triangle_indexes[12][3] = {
 	    {0, 1, 2}, {0, 2, 3},
@@ -3153,16 +3149,23 @@ bool BKE_boundbox_ray_hit_check(struct BoundBox *bb, const float ray_start[3], c
 
 	bool result = false;
 	int i;
-	
-	for (i = 0; i < 12 && result == 0; i++) {
+
+	for (i = 0; i < 12 && (!result || r_lambda); i++) {
 		float lambda;
 		int v1, v2, v3;
 		v1 = triangle_indexes[i][0];
 		v2 = triangle_indexes[i][1];
 		v3 = triangle_indexes[i][2];
-		result = isect_ray_tri_v3(ray_start, ray_normal, bb->vec[v1], bb->vec[v2], bb->vec[v3], &lambda, NULL);
+		if (isect_ray_tri_v3(ray_start, ray_normal, bb->vec[v1], bb->vec[v2], bb->vec[v3], &lambda, NULL) &&
+		    (!r_lambda || *r_lambda > lambda))
+		{
+			result = true;
+			if (r_lambda) {
+				*r_lambda = lambda;
+			}
+		}
 	}
-	
+
 	return result;
 }
 
@@ -3195,7 +3198,6 @@ int BKE_object_insert_ptcache(Object *ob)
 	return i;
 }
 
-#if 0
 static int pc_findindex(ListBase *listbase, int index)
 {
 	LinkData *link = NULL;
@@ -3205,7 +3207,7 @@ static int pc_findindex(ListBase *listbase, int index)
 	
 	link = listbase->first;
 	while (link) {
-		if ((int)link->data == index)
+		if (GET_INT_FROM_POINTER(link->data) == index)
 			return number;
 		
 		number++;
@@ -3215,18 +3217,17 @@ static int pc_findindex(ListBase *listbase, int index)
 	return -1;
 }
 
-void object_delete_ptcache(Object *ob, int index) 
+void BKE_object_delete_ptcache(Object *ob, int index)
 {
 	int list_index = pc_findindex(&ob->pc_ids, index);
 	LinkData *link = BLI_findlink(&ob->pc_ids, list_index);
 	BLI_freelinkN(&ob->pc_ids, link);
 }
-#endif
 
 /* shape key utility function */
 
 /************************* Mesh ************************/
-static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, int from_mix)
+static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, const bool from_mix)
 {
 	Mesh *me = ob->data;
 	Key *key = me->key;
@@ -3258,7 +3259,7 @@ static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, int 
 	return kb;
 }
 /************************* Lattice ************************/
-static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, int from_mix)
+static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, const bool from_mix)
 {
 	Lattice *lt = ob->data;
 	Key *key = lt->key;
@@ -3296,7 +3297,7 @@ static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, int 
 	return kb;
 }
 /************************* Curve ************************/
-static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, int from_mix)
+static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, const bool from_mix)
 {
 	Curve *cu = ob->data;
 	Key *key = cu->key;
@@ -3336,7 +3337,7 @@ static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, int
 	return kb;
 }
 
-KeyBlock *BKE_object_insert_shape_key(Scene *scene, Object *ob, const char *name, int from_mix)
+KeyBlock *BKE_object_insert_shape_key(Scene *scene, Object *ob, const char *name, const bool from_mix)
 {	
 	switch (ob->type) {
 		case OB_MESH:
@@ -3369,7 +3370,7 @@ int BKE_object_is_modified(Scene *scene, Object *ob)
 	int flag = 0;
 
 	if (BKE_key_from_object(ob)) {
-		flag |= eModifierMode_Render;
+		flag |= eModifierMode_Render | eModifierMode_Realtime;
 	}
 	else {
 		ModifierData *md;

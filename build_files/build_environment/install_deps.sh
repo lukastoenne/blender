@@ -25,10 +25,10 @@
 ARGS=$( \
 getopt \
 -o s:i:t:h \
---long source:,install:,tmp:,threads:,help,with-all,with-opencollada,all-static,force-all,\
+--long source:,install:,tmp:,threads:,help,with-all,with-opencollada,force-all,\
 force-python,force-numpy,force-boost,force-ocio,force-oiio,force-llvm,force-osl,force-opencollada,\
 force-ffmpeg,skip-python,skip-numpy,skip-boost,skip-ocio,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,\
-skip-opencollada,required-numpy \
+skip-opencollada,required-numpy,libyaml-cpp-ver: \
 -- "$@" \
 )
 
@@ -45,9 +45,6 @@ WITH_ALL=false
 # Do not yet enable opencollada, use --with-opencollada (or --with-all) option to try it.
 WITH_OPENCOLLADA=false
 
-# Try to link everything statically. Use this to produce portable versions of blender.
-ALL_STATIC=false
-
 THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 if [ -z "$THREADS" ]; then
   THREADS=1
@@ -61,9 +58,6 @@ or use --source/--install options, if you want to use other paths!
 Number of threads for building: \$THREADS (automatically detected, use --threads=<nbr> to override it).
 Full install: \$WITH_ALL (use --with-all option to enable it).
 Building OpenCOLLADA: \$WITH_OPENCOLLADA (use --with-opencollada option to enable it).
-All static linking: \$ALL_STATIC (use --all-static option to enable it).
-
-WARNING: Static build works fine with CMake, but with scons it may be tricky to get a valid Blender build!
 
 Example:
 Full install without OpenCOLLADA: --with-all --skip-opencollada
@@ -94,9 +88,6 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
 
     --with-opencollada
         Build and install the OpenCOLLADA libraries.
-
-    --all-static
-        *BROKEN CURRENTLY, do not use!* Build libraries as statically as possible, to create static builds of Blender.
 
     --force-all
         Force the rebuild of all built libraries.
@@ -170,7 +161,11 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
 
     --required-numpy
         Use this in case your distro features a valid python package, but no matching Numpy one.
-        It will force compilation of both python 3.3 and numpy 1.7.\""
+        It will force compilation of both python 3.3 and numpy 1.7.
+
+    --libyaml-cpp-ver=<ver>
+        Ubuntu hack: you may have to force installation of a non-defaut version of libyaml-cpp
+        (e.g. ocio in trusty uses 0.3, while default version is 0.5... *sigh*)\""
 
 ##### Main Vars #####
 
@@ -199,6 +194,8 @@ OCIO_SOURCE="https://github.com/imageworks/OpenColorIO/tarball/v$OCIO_VERSION"
 OCIO_VERSION_MIN="1.0"
 OCIO_FORCE_REBUILD=false
 OCIO_SKIP=false
+LIBYAML_CPP_VER_DEFINED=false
+LIBYAML_CPP_VER="0.0"
 
 OPENEXR_VERSION="2.1.0"
 OPENEXR_VERSION_MIN="2.0.1"
@@ -351,9 +348,6 @@ while true; do
     --with-opencollada)
       WITH_OPENCOLLADA=true; shift; continue
     ;;
-    --all-static)
-      ALL_STATIC=true; shift; continue
-    ;;
     --force-all)
       PYTHON_FORCE_REBUILD=true
       NUMPY_FORCE_REBUILD=true
@@ -434,6 +428,9 @@ while true; do
     ;;
     --required-numpy)
       NUMPY_REQUIRED=true; shift; continue
+    ;;
+    --libyaml-cpp-ver)
+      LIBYAML_CPP_VER_DEFINED=true; LIBYAML_CPP_VER="$2"; shift; shift; continue
     ;;
     --)
       # no more arguments to parse
@@ -936,11 +933,7 @@ compile_ILMBASE() {
     cmake_d="-D CMAKE_BUILD_TYPE=Release"
     cmake_d="$cmake_d -D CMAKE_PREFIX_PATH=$_inst"
     cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$_inst"
-    if [ $ALL_STATIC == true ]; then
-      cmake_d="$cmake_d -D BUILD_SHARED_LIBS=OFF"
-    else
-      cmake_d="$cmake_d -D BUILD_SHARED_LIBS=ON"
-    fi
+    cmake_d="$cmake_d -D BUILD_SHARED_LIBS=ON"
 
     if file /bin/cp | grep -q '32-bit'; then
       cflags="-fPIC -m32 -march=i686"
@@ -1043,11 +1036,7 @@ compile_OPENEXR() {
     cmake_d="$cmake_d -D CMAKE_PREFIX_PATH=$_inst"
     cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$_inst"
     cmake_d="$cmake_d -D ILMBASE_PACKAGE_PREFIX=$_ilmbase_inst"
-    if [ $ALL_STATIC == true ]; then
-      cmake_d="$cmake_d -D BUILD_SHARED_LIBS=OFF"
-    else
-      cmake_d="$cmake_d -D BUILD_SHARED_LIBS=ON"
-    fi
+    cmake_d="$cmake_d -D BUILD_SHARED_LIBS=ON"
 
     if file /bin/cp | grep -q '32-bit'; then
       cflags="-fPIC -m32 -march=i686"
@@ -1058,9 +1047,6 @@ compile_OPENEXR() {
     cmake $cmake_d -D CMAKE_CXX_FLAGS="$cflags" -D CMAKE_EXE_LINKER_FLAGS="-lgcc_s -lgcc" ../OpenEXR
 
     make -j$THREADS && make install
-
-    # Force linking against static libs
-#    rm -f $_inst/lib/*.so*
 
     make clean
 
@@ -1152,13 +1138,8 @@ compile_OIIO() {
     cmake_d="$cmake_d -D CMAKE_PREFIX_PATH=$_inst"
     cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$_inst"
     cmake_d="$cmake_d -D STOP_ON_WARNING=OFF"
-    if [ $ALL_STATIC == true ]; then
-      cmake_d="$cmake_d -D BUILDSTATIC=ON"
-      cmake_d="$cmake_d -D LINKSTATIC=ON"
-    else
-      cmake_d="$cmake_d -D BUILDSTATIC=OFF"
-      cmake_d="$cmake_d -D LINKSTATIC=OFF"
-    fi
+    cmake_d="$cmake_d -D BUILDSTATIC=OFF"
+    cmake_d="$cmake_d -D LINKSTATIC=OFF"
 
     if [ $_with_built_openexr == true ]; then
       cmake_d="$cmake_d -D ILMBASE_HOME=$INST/openexr"
@@ -1176,17 +1157,8 @@ compile_OIIO() {
     #cmake_d="$cmake_d -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
     #cmake_d="$cmake_d -D CMAKE_VERBOSE_MAKEFILE=ON"
 
-    # linking statically could give issues on Debian/Ubuntu (and probably other distros
-    # which doesn't like static linking) when linking shared oiio library due to missing
-    # text symbols (static libs should be compiled with -fPIC)
-    # cmake_d="$cmake_d -D LINKSTATIC=ON"
-
     if [ -d $INST/boost ]; then
       cmake_d="$cmake_d -D BOOST_ROOT=$INST/boost -D Boost_NO_SYSTEM_PATHS=ON"
-      # XXX Does not work (looks like static boost are built without fPIC :/ ).
-      #if $ALL_STATIC; then
-        #cmake_d="$cmake_d -D Boost_USE_STATIC_LIBS=ON"
-      #fi
     fi
 
     # Looks like we do not need ocio in oiio for now...
@@ -1395,11 +1367,7 @@ compile_OSL() {
     cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$_inst"
     cmake_d="$cmake_d -D BUILD_TESTING=OFF"
     cmake_d="$cmake_d -D STOP_ON_WARNING=OFF"
-    if [ $ALL_STATIC == true ]; then
-      cmake_d="$cmake_d -D BUILDSTATIC=ON"
-    else
-      cmake_d="$cmake_d -D BUILDSTATIC=OFF"
-    fi
+    cmake_d="$cmake_d -D BUILDSTATIC=OFF"
 
     if [ $_with_built_openexr == true ]; then
       cmake_d="$cmake_d -D ILMBASE_HOME=$INST/openexr"
@@ -1408,9 +1376,6 @@ compile_OSL() {
 
     if [ -d $INST/boost ]; then
       cmake_d="$cmake_d -D BOOST_ROOT=$INST/boost -D Boost_NO_SYSTEM_PATHS=ON"
-      if $ALL_STATIC; then
-        cmake_d="$cmake_d -D Boost_USE_STATIC_LIBS=ON"        
-      fi
     fi
 
     if [ -d $INST/oiio ]; then
@@ -1504,11 +1469,7 @@ compile_OpenCOLLADA() {
     cmake_d="$cmake_d -D USE_EXPAT=OFF"
     cmake_d="$cmake_d -D USE_LIBXML=ON"
     # XXX Does not work!
-#    if [ $ALL_STATIC == true ]; then
-#      cmake_d="$cmake_d -D USE_STATIC=ON"
-#    else
-#      cmake_d="$cmake_d -D USE_STATIC=OFF"
-#    fi
+#    cmake_d="$cmake_d -D USE_STATIC=OFF"
     cmake_d="$cmake_d -D USE_STATIC=ON"
 
     cmake $cmake_d ../
@@ -1652,6 +1613,16 @@ check_package_DEB() {
   fi
 }
 
+check_package_installed_DEB() {
+  r=`dpkg -s $1 | grep -c '$1'`
+
+  if [ $r -ge 1 ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 check_package_version_match_DEB() {
   v=`apt-cache policy $1 | grep 'Candidate:' | sed -r 's/.*:\s*([0-9]+:)(([0-9]+\.?)+).*/\2/'`
 
@@ -1685,6 +1656,10 @@ install_packages_DEB() {
 install_DEB() {
   PRINT ""
   INFO "Installing dependencies for DEB-based distribution"
+  PRINT ""
+  WARNING "Ubuntu users: Beware of Trusty!!!"
+  PRINT "Ubuntu 14.4 comes with a default libyaml-cpp in 0.5 version, while their ocio package still uses the 0.3 version"
+  PRINT "You have to use '--libyaml-cpp-ver=0.3' option (else Blender will builds with 0.5, and break when using packaged ocio)..."
   PRINT ""
   PRINT "`eval _echo "$COMMON_INFO"`"
   PRINT ""
@@ -1735,10 +1710,23 @@ install_DEB() {
   OGG_USE=true
   THEORA_USE=true
 
+  PRINT "$LIBYAML_CPP_VER"
   # Some not-so-old distro (ubuntu 12.4) do not have it, do not fail in this case, just warn.
   YAMLCPP_DEV="libyaml-cpp-dev"
   check_package_DEB $YAMLCPP_DEV
   if [ $? -eq 0 ]; then
+    # Another Ubuntu hack - in 14.4, ocio uses (old) 0.3, while default is now 0.5... grrrrr.
+    if $LIBYAML_CPP_VER_DEFINED; then
+      YAMLCPP_VER_DEV="libyaml-cpp$LIBYAML_CPP_VER-dev"
+      check_package_DEB $YAMLCPP_VER_DEV
+      if [ $? -eq 0 ]; then
+        YAMLCPP_DEV=$YAMLCPP_VER_DEV
+      else
+        PRINT ""
+        WARNING "libyaml-cpp$LIBYAML_CPP_VER-dev not found!"
+        PRINT ""
+      fi
+    fi
     _packages="$_packages $YAMLCPP_DEV"
   else
     PRINT ""
@@ -1778,7 +1766,16 @@ install_DEB() {
   fi
 
   if $WITH_ALL; then
-    _packages="$_packages libspnav-dev libjack-dev"
+    _packages="$_packages libspnav-dev"
+    # Only install jack if jack2 is not already installed!
+    JACK="libjack-dev"
+    JACK2="libjack-jackd2-dev"
+    check_package_installed_DEB JACK2
+    if [ $? -eq 0 ]; then
+      _packages="$_packages $JACK2"
+    else
+      _packages="$_packages $JACK"
+    fi
   fi
 
   PRINT ""
@@ -2738,24 +2735,14 @@ install_ARCH() {
 #### Printing User Info ####
 
 print_info_ffmpeglink_DEB() {
-  if $ALL_STATIC; then
-    dpkg -L $_packages | grep -e ".*\/lib[^\/]\+\.a" | gawk '{ printf(nlines ? "'"$_ffmpeg_list_sep"'%s" : "%s", $0); nlines++ }'
-  else
-    dpkg -L $_packages | grep -e ".*\/lib[^\/]\+\.so" | gawk '{ printf(nlines ? "'"$_ffmpeg_list_sep"'%s" : "%s", gensub(/.*lib([^\/]+)\.so/, "\\1", "g", $0)); nlines++ }'
-  fi
+  dpkg -L $_packages | grep -e ".*\/lib[^\/]\+\.so" | gawk '{ printf(nlines ? "'"$_ffmpeg_list_sep"'%s" : "%s", gensub(/.*lib([^\/]+)\.so/, "\\1", "g", $0)); nlines++ }'
 }
 
 print_info_ffmpeglink_RPM() {
-#  # XXX No static libs...
-#  if $ALL_STATIC; then
-#    rpm -ql $_packages | grep -e ".*\/lib[^\/]\+\.a" | gawk '{ printf(nlines ? "'"$_ffmpeg_list_sep"'%s" : "%s", $0); nlines++ }'
-#  else
   rpm -ql $_packages | grep -e ".*\/lib[^\/]\+\.so" | gawk '{ printf(nlines ? "'"$_ffmpeg_list_sep"'%s" : "%s", gensub(/.*lib([^\/]+)\.so/, "\\1", "g", $0)); nlines++ }'
-#  fi
 }
 
 print_info_ffmpeglink_ARCH() {
-# No static libs...
   pacman -Ql $_packages | grep -e ".*\/lib[^\/]\+\.so$" | gawk '{ printf(nlines ? "'"$_ffmpeg_list_sep"'%s" : "%s", gensub(/.*lib([^\/]+)\.so/, "\\1", $0)); nlines++ }'
 }
 
@@ -2826,21 +2813,6 @@ print_info() {
 
   _buildargs=""
 
-  if $ALL_STATIC; then
-    _1="-D WITH_STATIC_LIBS=ON"
-    # XXX Force linking with shared SDL lib!
-    _2="-D SDL_LIBRARY='libSDL.so;-lpthread'"
-    PRINT "  $_1"
-    PRINT "  $_2"
-    _buildargs="$_buildargs $_1 $_2"
-    # XXX Arch linux needs to link freetype dynamically...
-    if [ "$DISTRO" = "ARCH" ]; then
-      _1="-D FREETYPE_LIBRARY=/usr/lib/libfreetype.so"
-      PRINT "  $_1"
-      _buildargs="$_buildargs $_1"
-    fi
-  fi
-
   if [ -d $INST/python-$PYTHON_VERSION_MIN ]; then
     _1="-D PYTHON_ROOT_DIR=$INST/python-$PYTHON_VERSION_MIN"
     PRINT "  $_1"
@@ -2853,28 +2825,6 @@ print_info() {
     PRINT "  $_1"
     PRINT "  $_2"
     _buildargs="$_buildargs $_1 $_2"
-  elif $ALL_STATIC; then
-    _1="-D WITH_BOOST_ICU=ON"
-    PRINT "  $_1"
-    _buildargs="$_buildargs $_1"
-    # XXX Arch linux fails static linking without these...
-    if [ "$DISTRO" = "ARCH" ]; then
-      _1="-D ICU_LIBRARY_DATA=/usr/lib/libicudata.so"
-      _2="-D ICU_LIBRARY_I18N=/usr/lib/libicui18n.so"
-      _3="-D ICU_LIBRARY_IO=/usr/lib/libicuio.so"
-      _4="-D ICU_LIBRARY_LE=/usr/lib/libicule.so"
-      _5="-D ICU_LIBRARY_LX=/usr/lib/libiculx.so"
-      _6="-D ICU_LIBRARY_TU=/usr/lib/libicutu.so"
-      _7="-D ICU_LIBRARY_UC=/usr/lib/libicuuc.so"
-      PRINT "  $_1"
-      PRINT "  $_2"
-      PRINT "  $_3"
-      PRINT "  $_4"
-      PRINT "  $_5"
-      PRINT "  $_6"
-      PRINT "  $_7"
-      _buildargs="$_buildargs $_1 $_2 $_3 $_4 $_5 $_6 $_7"
-    fi
   fi
 
   if [ -d $INST/ocio ]; then
@@ -2919,11 +2869,6 @@ print_info() {
     _1="-D WITH_OPENCOLLADA=ON"
     PRINT "  $_1"
     _buildargs="$_buildargs $_1"
-    if $ALL_STATIC; then
-      _1="-D XML2_LIBRARY=$_XML2_LIB"
-      PRINT "  $_1"
-      _buildargs="$_buildargs $_1"
-    fi
   fi
 
   _1="-D WITH_CODEC_FFMPEG=ON"
@@ -2948,16 +2893,10 @@ print_info() {
     PRINT "BF_PYTHON = '$INST/python-$PYTHON_VERSION_MIN'"
     PRINT "BF_PYTHON_ABI_FLAGS = 'm'"
   fi
-  if $ALL_STATIC; then
-    PRINT "WITH_BF_STATICPYTHON = True"
-  fi
 
   PRINT "WITH_BF_OCIO = True"
   if [ -d $INST/ocio ]; then
     PRINT "BF_OCIO = '$INST/ocio'"
-  fi
-  if $ALL_STATIC; then
-    PRINT "WITH_BF_STATICOCIO = True"
   fi
 
   if [ -d $INST/openexr ]; then
@@ -2969,17 +2908,9 @@ print_info() {
       _ilm_libs_ext=`echo $OPENEXR_VERSION | sed -r 's/([0-9]+)\.([0-9]+).*/-\1_\2/'`
     fi
     PRINT "BF_OPENEXR_LIB = 'Half IlmImf$_ilm_libs_ext Iex$_ilm_libs_ext Imath$_ilm_libs_ext '"
-    if $ALL_STATIC; then
-      PRINT "BF_OPENEXR_LIB_STATIC = '\${BF_OPENEXR}/lib/libHalf.a \${BF_OPENEXR}/lib/libIlmImf$_ilm_libs_ext.a \${BF_OPENEXR}/lib/libIex$_ilm_libs_ext.a \${BF_OPENEXR}/lib/libImath$_ilm_libs_ext.a \${BF_OPENEXR}/lib/libIlmThread$_ilm_libs_ext.a'"
-    else
-      # BF_OPENEXR_LIB does not work, things like '-lIlmImf-2_1' do not suit ld.
-      # For now, hack around!!!
-      PRINT "BF_OPENEXR_LIB_STATIC = '\${BF_OPENEXR}/lib/libHalf.so \${BF_OPENEXR}/lib/libIlmImf$_ilm_libs_ext.so \${BF_OPENEXR}/lib/libIex$_ilm_libs_ext.so \${BF_OPENEXR}/lib/libImath$_ilm_libs_ext.so \${BF_OPENEXR}/lib/libIlmThread$_ilm_libs_ext.so'"
-      PRINT "WITH_BF_STATICOPENEXR = True"
-    fi
-
-  fi
-  if $ALL_STATIC; then
+    # BF_OPENEXR_LIB does not work, things like '-lIlmImf-2_1' do not suit ld.
+    # For now, hack around!!!
+    PRINT "BF_OPENEXR_LIB_STATIC = '\${BF_OPENEXR}/lib/libHalf.so \${BF_OPENEXR}/lib/libIlmImf$_ilm_libs_ext.so \${BF_OPENEXR}/lib/libIex$_ilm_libs_ext.so \${BF_OPENEXR}/lib/libImath$_ilm_libs_ext.so \${BF_OPENEXR}/lib/libIlmThread$_ilm_libs_ext.so'"
     PRINT "WITH_BF_STATICOPENEXR = True"
   fi
 
@@ -2987,10 +2918,7 @@ print_info() {
   if [ -d $INST/oiio ]; then
     PRINT "BF_OIIO = '$INST/oiio'"
   fi
-  # XXX No more static oiio for now :/
-  #if $ALL_STATIC; then
-    #PRINT "WITH_BF_STATICOIIO = True"
-  #fi
+
   PRINT "WITH_BF_CYCLES = True"
 
   if [ -d $INST/osl ]; then
@@ -3001,10 +2929,6 @@ print_info() {
   if [ -d $INST/boost ]; then
     PRINT "BF_BOOST = '$INST/boost'"
   fi
-  # XXX Broken in scons...
-  #if $ALL_STATIC; then
-    #PRINT "WITH_BF_STATICBOOST = True"
-  #fi
 
   if $WITH_OPENCOLLADA; then
     PRINT "WITH_BF_COLLADA = True"
@@ -3017,12 +2941,7 @@ print_info() {
   if [ -d $INST/ffmpeg ]; then
     PRINT "BF_FFMPEG = '$INST/ffmpeg'"
   fi
-  if $ALL_STATIC; then
-    PRINT "WITH_BF_STATICFFMPEG = True"
-    PRINT "BF_FFMPEG_LIB_STATIC = '\${BF_FFMPEG_LIBPATH}/libavformat.a \${BF_FFMPEG_LIBPATH}/libavcodec.a \${BF_FFMPEG_LIBPATH}/libswscale.a \${BF_FFMPEG_LIBPATH}/libavutil.a \${BF_FFMPEG_LIBPATH}/libavdevice.a `print_info_ffmpeglink`'"
-  else
-    PRINT "BF_FFMPEG_LIB = 'avformat avcodec swscale avutil avdevice `print_info_ffmpeglink`'"
-  fi
+  PRINT "BF_FFMPEG_LIB = 'avformat avcodec swscale avutil avdevice `print_info_ffmpeglink`'"
 
   if ! $WITH_ALL; then
     PRINT "WITH_BF_3DMOUSE = False"
@@ -3031,14 +2950,9 @@ print_info() {
     PRINT "WITH_BF_3DMOUSE = False"
   fi
 
-  if [ $ALL_STATIC -o $WITH_OPENCOLLADA ]; then
+  if $WITH_OPENCOLLADA; then
     PRINT "LLIBS = [\""xml2"\", \""expat"\"] + LLIBS"
   fi
-
-  PRINT ""
-  PRINT "NOTE: static build with scons are very tricky to set-up, if you choose that option"
-  PRINT "      you will likely have to edit these settings manually!"
-  PRINT ""
 }
 
 #### "Main" ####

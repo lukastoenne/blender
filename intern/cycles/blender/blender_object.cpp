@@ -516,7 +516,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 		mesh_motion_synced.clear();
 }
 
-void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override)
+void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override, void **python_thread_state)
 {
 	if(scene->need_motion() == Scene::MOTION_NONE)
 		return;
@@ -532,7 +532,12 @@ void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override)
 	int frame = b_scene.frame_current();
 
 	for(int motion = -1; motion <= 1; motion += 2) {
+		/* we need to set the python thread state again because this
+		 * function assumes it is being executed from python and will
+		 * try to save the thread state */
+		python_thread_state_restore(python_thread_state);
 		b_scene.frame_set(frame + motion, 0.0f);
+		python_thread_state_save(python_thread_state);
 
 		/* camera object */
 		if(b_cam)
@@ -542,7 +547,12 @@ void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override)
 		sync_objects(b_v3d, motion);
 	}
 
+	/* we need to set the python thread state again because this
+	 * function assumes it is being executed from python and will
+	 * try to save the thread state */
+	python_thread_state_restore(python_thread_state);
 	b_scene.frame_set(frame, 0.0f);
+	python_thread_state_save(python_thread_state);
 
 	/* tag camera for motion update */
 	if(scene->camera->motion_modified(prevcam))

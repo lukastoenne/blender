@@ -248,7 +248,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 			/* ugly, need to remove the old inputs list to avoid bad pointer checks when adding new sockets.
 			 * sock->storage is expected to contain path info in ntreeCompositOutputFileAddSocket.
 			 */
-			node->inputs.first = node->inputs.last = NULL;
+			BLI_listbase_clear(&node->inputs);
 
 			node->storage = nimf;
 
@@ -921,7 +921,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 				if (!tracking->settings.object_distance)
 					tracking->settings.object_distance = 1.0f;
 
-				if (tracking->objects.first == NULL)
+				if (BLI_listbase_is_empty(&tracking->objects))
 					BKE_tracking_object_add(tracking, "Camera");
 
 				while (tracking_object) {
@@ -2499,7 +2499,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 						}
 						else {
 							tmd->quad_method = MOD_TRIANGULATE_QUAD_FIXED;
-							tmd->ngon_method = MOD_TRIANGULATE_NGON_SCANFILL;
+							tmd->ngon_method = MOD_TRIANGULATE_NGON_EARCLIP;
 						}
 					}
 				}
@@ -2672,6 +2672,41 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
+	if (!MAIN_VERSION_ATLEAST(main, 269, 11)) {
+		bScreen *sc;
+
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *space_link;
+
+				for (space_link = sa->spacedata.first; space_link; space_link = space_link->next) {
+					if (space_link->spacetype == SPACE_IMAGE) {
+						ARegion *ar;
+						ListBase *lb;
+
+						if (space_link == sa->spacedata.first) {
+							lb = &sa->regionbase;
+						}
+						else {
+							lb = &space_link->regionbase;
+						}
+
+						for (ar = lb->first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_PREVIEW) {
+								ar->regiontype = RGN_TYPE_TOOLS;
+								ar->alignment = RGN_ALIGN_LEFT;
+							}
+							else if (ar->regiontype == RGN_TYPE_UI) {
+								ar->alignment = RGN_ALIGN_RIGHT;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "float", "profile")) {
 		Object *ob;
 
@@ -2684,6 +2719,46 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 					bmd->val_flags = MOD_BEVEL_AMT_OFFSET;
 				}
 			}
+		}
+	}
+
+	{
+		/* nodes don't use fixed node->id any more, clean up */
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_COMPOSIT) {
+				bNode *node;
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
+						node->id = NULL;
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+
+		{
+			bScreen *screen;
+
+			for (screen = main->screen.first; screen; screen = screen->id.next) {
+				ScrArea *area;
+				for (area = screen->areabase.first; area; area = area->next) {
+					SpaceLink *space_link;
+					for (space_link = area->spacedata.first; space_link; space_link = space_link->next) {
+						if (space_link->spacetype == SPACE_CLIP) {
+							SpaceClip *space_clip = (SpaceClip *) space_link;
+							if (space_clip->mode != SC_MODE_MASKEDIT) {
+								space_clip->mode = SC_MODE_TRACKING;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingSettings", "float", "default_weight")) {
+		MovieClip *clip;
+		for (clip = main->movieclip.first; clip; clip = clip->id.next) {
+			clip->tracking.settings.default_weight = 1.0f;
 		}
 	}
 }

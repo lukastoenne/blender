@@ -112,7 +112,7 @@ void free_fcurves(ListBase *list)
 	}
 	
 	/* clear pointers just in case */
-	list->first = list->last = NULL;
+	BLI_listbase_clear(list);
 }	
 
 /* ---------------------- Copy --------------------------- */
@@ -159,7 +159,7 @@ void copy_fcurves(ListBase *dst, ListBase *src)
 		return;
 	
 	/* clear destination list first */
-	dst->first = dst->last = NULL;
+	BLI_listbase_clear(dst);
 	
 	/* copy one-by-one */
 	for (sfcu = src->first; sfcu; sfcu = sfcu->next) {
@@ -433,7 +433,7 @@ int binarysearch_bezt_index(BezTriple array[], float frame, int arraylen, bool *
 
 /* helper for calc_fcurve_* functions -> find first and last BezTriple to be used */
 static short get_fcurve_end_keyframes(FCurve *fcu, BezTriple **first, BezTriple **last,
-                                      const short do_sel_only)
+                                      const bool do_sel_only)
 {
 	short found = FALSE;
 	
@@ -482,12 +482,12 @@ static short get_fcurve_end_keyframes(FCurve *fcu, BezTriple **first, BezTriple 
 
 
 /* Calculate the extents of F-Curve's data */
-short calc_fcurve_bounds(FCurve *fcu, float *xmin, float *xmax, float *ymin, float *ymax,
-                         const short do_sel_only, const short include_handles)
+bool calc_fcurve_bounds(FCurve *fcu, float *xmin, float *xmax, float *ymin, float *ymax,
+                        const bool do_sel_only, const bool include_handles)
 {
 	float xminv = 999999999.0f, xmaxv = -999999999.0f;
 	float yminv = 999999999.0f, ymaxv = -999999999.0f;
-	short foundvert = FALSE;
+	bool foundvert = false;
 	unsigned int i;
 	
 	if (fcu->totvert) {
@@ -578,7 +578,7 @@ short calc_fcurve_bounds(FCurve *fcu, float *xmin, float *xmax, float *ymin, flo
 
 /* Calculate the extents of F-Curve's keyframes */
 bool calc_fcurve_range(FCurve *fcu, float *start, float *end,
-                       const short do_sel_only, const short do_min_length)
+                       const bool do_sel_only, const bool do_min_length)
 {
 	float min = 999999999.0f, max = -999999999.0f;
 	short foundvert = FALSE;
@@ -631,7 +631,7 @@ bool calc_fcurve_range(FCurve *fcu, float *start, float *end,
  * Usability of keyframes refers to whether they should be displayed,
  * and also whether they will have any influence on the final result.
  */
-short fcurve_are_keyframes_usable(FCurve *fcu)
+bool fcurve_are_keyframes_usable(FCurve *fcu)
 {
 	/* F-Curve must exist */
 	if (fcu == NULL)
@@ -1588,7 +1588,7 @@ ChannelDriver *fcurve_copy_driver(ChannelDriver *driver)
 	ndriver->expr_comp = NULL;
 	
 	/* copy variables */
-	ndriver->variables.first = ndriver->variables.last = NULL;
+	BLI_listbase_clear(&ndriver->variables);
 	BLI_duplicatelist(&ndriver->variables, &driver->variables);
 	
 	for (dvar = ndriver->variables.first; dvar; dvar = dvar->next) {
@@ -1648,7 +1648,7 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 		case DRIVER_TYPE_SUM: /* sum values of driver targets */
 		{
 			/* check how many variables there are first (i.e. just one?) */
-			if (driver->variables.first == driver->variables.last) {
+			if (BLI_listbase_is_single(&driver->variables)) {
 				/* just one target, so just use that */
 				dvar = driver->variables.first;
 				driver->curval = driver_get_variable_value(driver, dvar);

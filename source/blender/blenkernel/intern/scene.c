@@ -51,6 +51,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -451,6 +452,7 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.blurfac = 0.5;
 	sce->r.frs_sec = 24;
 	sce->r.frs_sec_base = 1;
+	sce->r.edgeint = 10;
 	sce->r.ocres = 128;
 
 	/* OCIO_TODO: for forwards compatibility only, so if no tonecurve are used,
@@ -716,23 +718,63 @@ Scene *BKE_scene_set_name(Main *bmain, const char *name)
 	return NULL;
 }
 
+static void scene_unlink_space_node(SpaceNode *snode, Scene *sce)
+{
+	if (snode->id == &sce->id) {
+		/* nasty DNA logic for SpaceNode:
+		 * ideally should be handled by editor code, but would be bad level call
+		 */
+		bNodeTreePath *path, *path_next;
+		for (path = snode->treepath.first; path; path = path_next) {
+			path_next = path->next;
+			MEM_freeN(path);
+		}
+		BLI_listbase_clear(&snode->treepath);
+		
+		snode->id = NULL;
+		snode->from = NULL;
+		snode->nodetree = NULL;
+		snode->edittree = NULL;
+	}
+}
+
 void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 {
 	Scene *sce1;
-	bScreen *sc;
+	bScreen *screen;
 
 	/* check all sets */
 	for (sce1 = bmain->scene.first; sce1; sce1 = sce1->id.next)
 		if (sce1->set == sce)
 			sce1->set = NULL;
 	
-	/* check render layer nodes in other scenes */
-	clear_scene_in_nodes(bmain, sce);
+	for (sce1 = bmain->scene.first; sce1; sce1 = sce1->id.next) {
+		bNode *node;
+		
+		if (sce1 == sce || !sce1->nodetree)
+			continue;
+		
+		for (node = sce1->nodetree->nodes.first; node; node = node->next) {
+			if (node->id == &sce->id)
+				node->id = NULL;
+		}
+	}
 	
-	/* al screens */
-	for (sc = bmain->screen.first; sc; sc = sc->id.next)
-		if (sc->scene == sce)
-			sc->scene = newsce;
+	/* all screens */
+	for (screen = bmain->screen.first; screen; screen = screen->id.next) {
+		ScrArea *area;
+		
+		if (screen->scene == sce)
+			screen->scene = newsce;
+		
+		for (area = screen->areabase.first; area; area = area->next) {
+			SpaceLink *space_link;
+			for (space_link = area->spacedata.first; space_link; space_link = space_link->next) {
+				if (space_link->spacetype == SPACE_NODE)
+					scene_unlink_space_node((SpaceNode *)space_link, sce);
+			}
+		}
+	}
 
 	BKE_libblock_free(bmain, sce);
 }
@@ -743,7 +785,7 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
                              Scene **scene, int val, Base **base, Object **ob)
 {
-	int run_again = 1;
+	bool run_again = true;
 	
 	/* init */
 	if (val == 0) {
@@ -1262,7 +1304,7 @@ static void scene_update_object_func(TaskPool *pool, void *taskdata, int threadi
 
 		PRINT("Thread %d: update object %s\n", threadid, object->id.name);
 
-		if (G.debug & G_DEBUG) {
+		if (G.debug & G_DEBUG_DEPSGRAPH) {
 			start_time = PIL_check_seconds_timer();
 
 			if (object->recalc & OB_RECALC_ALL) {
@@ -1311,7 +1353,7 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 {
 	int i, tot_thread;
 
-	if ((G.debug & G_DEBUG) == 0) {
+	if ((G.debug & G_DEBUG_DEPSGRAPH) == 0) {
 		return;
 	}
 
@@ -1436,7 +1478,7 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 	state.scene_parent = scene_parent;
 
 	/* Those are only needed when blender is run with --debug argument. */
-	if (G.debug & G_DEBUG) {
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
 		memset(state.statistics, 0, sizeof(state.statistics));
 		state.has_updated_objects = false;
 		state.base_time = PIL_check_seconds_timer();
@@ -1452,7 +1494,7 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
 
-	if (G.debug & G_DEBUG) {
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
 		print_threads_statistics(&state);
 	}
 
@@ -1665,12 +1707,13 @@ SceneRenderLayer *BKE_scene_add_render_layer(Scene *sce, const char *name)
 	srl->lay = (1 << 20) - 1;
 	srl->layflag = 0x7FFF;   /* solid ztra halo edge strand */
 	srl->passflag = SCE_PASS_COMBINED | SCE_PASS_Z;
+	srl->pass_alpha_threshold = 0.5f;
 	BKE_freestyle_config_init(&srl->freestyleConfig);
 
 	return srl;
 }
 
-int BKE_scene_remove_render_layer(Main *bmain, Scene *scene, SceneRenderLayer *srl)
+bool BKE_scene_remove_render_layer(Main *bmain, Scene *scene, SceneRenderLayer *srl)
 {
 	const int act = BLI_findindex(&scene->r.layers, srl);
 	Scene *sce;
@@ -1765,7 +1808,7 @@ Base *_setlooper_base_step(Scene **sce_iter, Base *base)
 	return NULL;
 }
 
-int BKE_scene_use_new_shading_nodes(Scene *scene)
+bool BKE_scene_use_new_shading_nodes(Scene *scene)
 {
 	RenderEngineType *type = RE_engines_find(scene->r.engine);
 	return (type && type->flag & RE_USE_SHADING_NODES);
@@ -1809,12 +1852,12 @@ void BKE_scene_disable_color_management(Scene *scene)
 	}
 }
 
-int BKE_scene_check_color_management_enabled(const Scene *scene)
+bool BKE_scene_check_color_management_enabled(const Scene *scene)
 {
 	return strcmp(scene->display_settings.display_device, "None") != 0;
 }
 
-int BKE_scene_check_rigidbody_active(const Scene *scene)
+bool BKE_scene_check_rigidbody_active(const Scene *scene)
 {
 	return scene && scene->rigidbody_world && scene->rigidbody_world->group && !(scene->rigidbody_world->flag & RBW_FLAG_MUTED);
 }

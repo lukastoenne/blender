@@ -587,7 +587,7 @@ BLI_INLINE bool sculpt_brush_test_clipping(SculptBrushTest *test, const float co
 	return (rv3d && (ED_view3d_clipping_test(rv3d, co, true)));
 }
 
-static int sculpt_brush_test(SculptBrushTest *test, const float co[3])
+static bool sculpt_brush_test(SculptBrushTest *test, const float co[3])
 {
 	float distsq = len_squared_v3v3(co, test->location);
 
@@ -603,7 +603,7 @@ static int sculpt_brush_test(SculptBrushTest *test, const float co[3])
 	}
 }
 
-static int sculpt_brush_test_sq(SculptBrushTest *test, const float co[3])
+static bool sculpt_brush_test_sq(SculptBrushTest *test, const float co[3])
 {
 	float distsq = len_squared_v3v3(co, test->location);
 
@@ -619,7 +619,7 @@ static int sculpt_brush_test_sq(SculptBrushTest *test, const float co[3])
 	}
 }
 
-static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
+static bool sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 {
 	if (sculpt_brush_test_clipping(test, co)) {
 		return 0;
@@ -627,7 +627,7 @@ static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 	return len_squared_v3v3(co, test->location) <= test->radius_squared;
 }
 
-static int sculpt_brush_test_cube(SculptBrushTest *test, float co[3], float local[4][4])
+static bool sculpt_brush_test_cube(SculptBrushTest *test, float co[3], float local[4][4])
 {
 	float side = M_SQRT1_2;
 	float local_co[3];
@@ -680,7 +680,7 @@ static float frontface(Brush *br, const float sculpt_normal[3],
 
 #if 0
 
-static int sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float location[3], float an[3])
+static bool sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float location[3], float an[3])
 {
 	if (sculpt_brush_test_fast(test, co)) {
 		float t1[3], t2[3], t3[3], dist;
@@ -995,7 +995,7 @@ typedef struct {
 } SculptSearchSphereData;
 
 /* Test AABB against sphere */
-static int sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
+static bool sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
 {
 	SculptSearchSphereData *data = data_v;
 	float *center = data->ss->cache->location, nearest[3];
@@ -3552,7 +3552,7 @@ void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 	MultiresModifierData *mmd = sculpt_multires_active(scene, ob);
 
 	ss->modifiers_active = sculpt_modifiers_active(scene, sd, ob);
-	ss->show_diffuse_color = sd->flags & SCULPT_SHOW_DIFFUSE;
+	ss->show_diffuse_color = (sd->flags & SCULPT_SHOW_DIFFUSE) != 0;
 
 	if (need_mask) {
 		if (mmd == NULL) {
@@ -4261,7 +4261,7 @@ static void sculpt_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
  * (This allows us to ignore the GL depth buffer)
  * Returns 0 if the ray doesn't hit the mesh, non-zero otherwise
  */
-int sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
+bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
 {
 	ViewContext vc;
 	Object *ob;
@@ -4376,7 +4376,7 @@ static void sculpt_restore_mesh(Sculpt *sd, Object *ob)
 }
 
 /* Copy the PBVH bounding box into the object's bounding box */
-static void sculpt_update_object_bounding_box(Object *ob)
+void sculpt_update_object_bounding_box(Object *ob)
 {
 	if (ob->bb) {
 		float bb_min[3], bb_max[3];
@@ -4430,7 +4430,7 @@ static void sculpt_flush_update(bContext *C)
 
 /* Returns whether the mouse/stylus is over the mesh (1)
  * or over the background (0) */
-static int over_mesh(bContext *C, struct wmOperator *UNUSED(op), float x, float y)
+static bool over_mesh(bContext *C, struct wmOperator *UNUSED(op), float x, float y)
 {
 	float mouse[2], co[3];
 
@@ -4440,7 +4440,7 @@ static int over_mesh(bContext *C, struct wmOperator *UNUSED(op), float x, float 
 	return sculpt_stroke_get_location(C, co, mouse);
 }
 
-static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
+static bool sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
                                     const float mouse[2])
 {
 	/* Don't start the stroke until mouse goes over the mesh.
@@ -4711,7 +4711,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 static void sculpt_dynamic_topology_triangulate(BMesh *bm)
 {
 	if (bm->totloop != bm->totface * 3) {
-		BM_mesh_triangulate(bm, MOD_TRIANGULATE_QUAD_FIXED, MOD_TRIANGULATE_NGON_SCANFILL, false, NULL, NULL);
+		BM_mesh_triangulate(bm, MOD_TRIANGULATE_QUAD_FIXED, MOD_TRIANGULATE_NGON_EARCLIP, false, NULL, NULL);
 	}
 }
 

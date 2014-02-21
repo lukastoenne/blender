@@ -709,7 +709,7 @@ static void init_iconfile_list(struct ListBase *list)
 	int totfile, i, index = 1;
 	const char *icondir;
 
-	list->first = list->last = NULL;
+	BLI_listbase_clear(list);
 	icondir = BLI_get_folder(BLENDER_DATAFILES, "icons");
 
 	if (icondir == NULL)
@@ -981,7 +981,7 @@ PreviewImage *UI_icon_to_preview(int icon_id)
 }
 
 static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh,
-                           unsigned int *rect, float alpha, const float rgb[3], short is_preview)
+                           unsigned int *rect, float alpha, const float rgb[3], const bool is_preview)
 {
 	ImBuf *ima = NULL;
 

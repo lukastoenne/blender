@@ -15,8 +15,8 @@ to kill any code duplication
 """
 
 import os
-import os.path
 import string
+import ctypes as ct
 import glob
 import time
 import sys
@@ -51,10 +51,8 @@ program_list = [] # A list holding Nodes to final binaries, used to create insta
 arguments = None
 targets = None
 resources = []
-bitness = 0
-
-#some internals
-blenderdeps = [] # don't manipulate this one outside this module!
+allowed_bitnesses = {4 : 32, 8 : 64} # only expecting 32-bit or 64-bit
+bitness = allowed_bitnesses[ct.sizeof(ct.c_void_p)]
 
 ##### LIB STUFF ##########
 
@@ -265,7 +263,7 @@ def setup_syslibs(lenv):
     if lenv['WITH_BF_OPENAL']:
         if not lenv['WITH_BF_STATICOPENAL']:
             syslibs += Split(lenv['BF_OPENAL_LIB'])
-    if lenv['WITH_BF_OPENMP'] and lenv['CC'] != 'icc' and not lenv['WITH_BF_STATICOPENMP']:
+    if lenv['WITH_BF_OPENMP'] and lenv['CC'] != 'icc' and lenv['C_COMPILER_ID'] != 'clang' and not lenv['WITH_BF_STATICOPENMP']:
         if lenv['CC'] == 'cl.exe':
             syslibs += ['vcomp']
         else:
@@ -428,9 +426,18 @@ def buildinfo(lenv, build_type):
             build_hash = build_hash.strip()
             build_branch = os.popen('git rev-parse --abbrev-ref HEAD').read().strip()
 
+            if build_branch == 'HEAD':
+                master_check = os.popen('git branch --list master --contains ' + build_hash).read().strip()
+                if master_check == 'master':
+                    build_branch = 'master'
+
             if build_hash == '':
                 build_hash = os.popen('git rev-parse --short HEAD').read().strip()
                 no_upstream = True
+            else:
+                older_commits = os.popen('git log --oneline HEAD..@{u}').read().strip()
+                if older_commits:
+                    build_hash = os.popen('git rev-parse --short HEAD').read().strip()
 
             # ## Check for local modifications
             has_local_changes = False
@@ -442,7 +449,7 @@ def buildinfo(lenv, build_type):
             if changed_files:
                 has_local_changes = True
             elif no_upstream == False:
-                unpushed_log = os.popen('git log @{u}..').read().strip()
+                unpushed_log = os.popen('git log --oneline @{u}..').read().strip()
                 has_local_changes = unpushed_log != ''
 
             if has_local_changes:
@@ -730,23 +737,33 @@ def AppIt(target=None, source=None, env=None):
     commands.getoutput(cmd)
     cmd = 'find %s/%s.app -name __MACOSX -exec rm -rf {} \;'%(installdir, binary)
     commands.getoutput(cmd)
-    if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.6.1': # for correct errorhandling with gcc >= 4.6.1 we need the gcc.dylib and gomp.dylib to link, thus distribute in app-bundle
-        print "Bundling libgcc and libgomp"
-        instname = env['BF_CXX']
-        cmd = 'ditto --arch %s %s/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libgcc
-        commands.getoutput(cmd)
-        cmd = 'install_name_tool -id @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/libgcc_s.1.dylib'%(installdir, binary) # change id of libgcc
-        commands.getoutput(cmd)
-        cmd = 'ditto --arch %s %s/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libgomp
-        commands.getoutput(cmd)
-        cmd = 'install_name_tool -id @executable_path/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/lib/libgomp.1.dylib'%(installdir, binary) # change id of libgomp
-        commands.getoutput(cmd)
-        cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/libgomp.1.dylib'%(instname, installdir, binary) # change ref to libgcc
-        commands.getoutput(cmd)
-        cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgcc ( blender )
-        commands.getoutput(cmd)
-        cmd = 'install_name_tool -change %s/lib/libgomp.1.dylib  @executable_path/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgomp ( blender )
-        commands.getoutput(cmd)
+    if env['WITH_BF_OPENMP']:
+        if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.6.1': # for correct errorhandling with gcc >= 4.6.1 we need the gcc.dylib and gomp.dylib to link, thus distribute in app-bundle
+            print "Bundling libgcc and libgomp"
+            instname = env['BF_CXX']
+            cmd = 'ditto --arch %s %s/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libgcc
+            commands.getoutput(cmd)
+            cmd = 'install_name_tool -id @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/libgcc_s.1.dylib'%(installdir, binary) # change id of libgcc
+            commands.getoutput(cmd)
+            cmd = 'ditto --arch %s %s/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libgomp
+            commands.getoutput(cmd)
+            cmd = 'install_name_tool -id @executable_path/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/lib/libgomp.1.dylib'%(installdir, binary) # change id of libgomp
+            commands.getoutput(cmd)
+            cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/lib/libgomp.1.dylib'%(instname, installdir, binary) # change ref to libgcc
+            commands.getoutput(cmd)
+            cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgcc ( blender )
+            commands.getoutput(cmd)
+            cmd = 'install_name_tool -change %s/lib/libgomp.1.dylib  @executable_path/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgomp ( blender )
+            commands.getoutput(cmd)
+        if env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
+            print "Bundling libiomp5"
+            instname = env['LCGDIR'][1:] # made libiomp5 part of blender libs
+            cmd = 'ditto --arch %s %s/openmp/lib/libiomp5.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libiomp5
+            commands.getoutput(cmd)
+            cmd = 'install_name_tool -id @loader_path/lib/libiomp5.dylib %s/%s.app/Contents/MacOS/lib/libiomp5.dylib'%(installdir, binary) # change id of libiomp5
+            commands.getoutput(cmd)
+            cmd = 'install_name_tool -change @loader_path/libiomp5.dylib  @loader_path/lib/libiomp5.dylib %s/%s.app/Contents/MacOS/%s'%(installdir, binary, binary) # change ref to libiomp5 ( blender )
+            commands.getoutput(cmd)
 
 # extract copy system python, be sure to update other build systems
 # when making changes to the files that are copied.

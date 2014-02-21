@@ -124,7 +124,8 @@ void BKE_object_where_is_calc_mat4(struct Scene *scene, struct Object *ob, float
 /* possibly belong in own moduke? */
 struct BoundBox *BKE_boundbox_alloc_unit(void);
 void BKE_boundbox_init_from_minmax(struct BoundBox *bb, const float min[3], const float max[3]);
-bool BKE_boundbox_ray_hit_check(struct BoundBox *bb, const float ray_start[3], const float ray_normal[3]);
+bool BKE_boundbox_ray_hit_check(struct BoundBox *bb, const float ray_start[3], const float ray_normal[3],
+                                float *r_lambda);
 
 struct BoundBox *BKE_object_boundbox_get(struct Object *ob);
 void BKE_object_dimensions_get(struct Object *ob, float vec[3]);
@@ -172,8 +173,8 @@ void BKE_object_sculpt_modifiers_changed(struct Object *ob);
 int BKE_object_obdata_texspace_get(struct Object *ob, short **r_texflag, float **r_loc, float **r_size, float **r_rot);
 
 int BKE_object_insert_ptcache(struct Object *ob);
-// void object_delete_ptcache(struct Object *ob, int index);
-struct KeyBlock *BKE_object_insert_shape_key(struct Scene *scene, struct Object *ob, const char *name, int from_mix);
+void BKE_object_delete_ptcache(struct Object *ob, int index);
+struct KeyBlock *BKE_object_insert_shape_key(struct Scene *scene, struct Object *ob, const char *name, const bool from_mix);
 
 bool BKE_object_is_child_recursive(struct Object *ob_parent, struct Object *ob_child);
 bool BKE_object_is_animated(struct Scene *scene, struct Object *ob);

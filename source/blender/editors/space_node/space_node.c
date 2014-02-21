@@ -49,7 +49,6 @@
 #include "ED_node.h"
 #include "ED_render.h"
 #include "ED_screen.h"
-#include "ED_node.h"
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -70,7 +69,7 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 		path_next = path->next;
 		MEM_freeN(path);
 	}
-	snode->treepath.first = snode->treepath.last = NULL;
+	BLI_listbase_clear(&snode->treepath);
 	
 	if (ntree) {
 		path = MEM_callocN(sizeof(bNodeTreePath), "node tree path");
@@ -558,7 +557,7 @@ static SpaceLink *node_duplicate(SpaceLink *sl)
 	BLI_duplicatelist(&snoden->treepath, &snode->treepath);
 
 	/* clear or remove stuff from old */
-	snoden->linkdrag.first = snoden->linkdrag.last = NULL;
+	BLI_listbase_clear(&snoden->linkdrag);
 
 	/* Note: no need to set node tree user counts,
 	 * the editor only keeps at least 1 (id_us_ensure_real),

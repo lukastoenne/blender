@@ -488,9 +488,9 @@ static EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), Point
 
 static void rna_Object_empty_draw_type_set(PointerRNA *ptr, int value)
 {
-    Object *ob = (Object *)ptr->data;
+	Object *ob = (Object *)ptr->data;
 
-    BKE_object_empty_draw_type_set(ob, value);
+	BKE_object_empty_draw_type_set(ob, value);
 }
 
 static EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext *UNUSED(C), PointerRNA *ptr,
@@ -2300,6 +2300,7 @@ static void rna_def_object(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "size");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_editable_array_func(prop, "rna_Object_scale_editable");
 	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);
 	RNA_def_property_float_array_default(prop, default_scale);
@@ -2346,6 +2347,7 @@ static void rna_def_object(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "delta_scale", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "dscale");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);
 	RNA_def_property_float_array_default(prop, default_scale);
 	RNA_def_property_ui_text(prop, "Delta Scale", "Extra scaling added to the scale of the object");

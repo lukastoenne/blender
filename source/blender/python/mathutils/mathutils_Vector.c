@@ -855,30 +855,36 @@ PyDoc_STRVAR(Vector_cross_doc,
 "   :arg other: The other vector to perform the cross product with.\n"
 "   :type other: :class:`Vector`\n"
 "   :return: The cross product.\n"
-"   :rtype: :class:`Vector`\n"
+"   :rtype: :class:`Vector` or float when 2D vectors are used\n"
 "\n"
-"   .. note:: both vectors must be 3D\n"
+"   .. note:: both vectors must be 2D or 3D\n"
 );
 static PyObject *Vector_cross(VectorObject *self, PyObject *value)
 {
-	VectorObject *ret;
-	float tvec[MAX_DIMENSIONS];
+	PyObject *ret;
+	float tvec[3];
 
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	if (mathutils_array_parse(tvec, self->size, self->size, value, "Vector.cross(other), invalid 'other' arg") == -1)
-		return NULL;
-
-	if (self->size != 3) {
+	if (self->size > 3) {
 		PyErr_SetString(PyExc_ValueError,
-		                "Vector must be 3D");
+		                "Vector must be 2D or 3D");
 		return NULL;
 	}
 
-	ret = (VectorObject *)Vector_CreatePyObject(NULL, 3, Py_NEW, Py_TYPE(self));
-	cross_v3_v3v3(ret->vec, self->vec, tvec);
-	return (PyObject *)ret;
+	if (mathutils_array_parse(tvec, self->size, self->size, value, "Vector.cross(other), invalid 'other' arg") == -1)
+		return NULL;
+
+	if (self->size == 3) {
+		ret = Vector_CreatePyObject(NULL, 3, Py_NEW, Py_TYPE(self));
+		cross_v3_v3v3(((VectorObject *)ret)->vec, self->vec, tvec);
+	}
+	else {
+		/* size == 2 */
+		ret = PyFloat_FromDouble(cross_v2v2(self->vec, tvec));
+	}
+	return ret;
 }
 
 PyDoc_STRVAR(Vector_dot_doc,
@@ -1261,7 +1267,7 @@ static int Vector_len(VectorObject *self)
 	return self->size;
 }
 /* sequence accessor (get): vector[index] */
-static PyObject *vector_item_internal(VectorObject *self, int i, const int is_attr)
+static PyObject *vector_item_internal(VectorObject *self, int i, const bool is_attr)
 {
 	if (i < 0) i = self->size - i;
 
@@ -1289,13 +1295,13 @@ static PyObject *Vector_item(VectorObject *self, int i)
 	return vector_item_internal(self, i, false);
 }
 /* sequence accessor (set): vector[index] = value */
-static int vector_ass_item_internal(VectorObject *self, int i, PyObject *value, const int is_attr)
+static int vector_ass_item_internal(VectorObject *self, int i, PyObject *value, const bool is_attr)
 {
 	float scalar;
 	if ((scalar = PyFloat_AsDouble(value)) == -1.0f && PyErr_Occurred()) { /* parsed item not a number */
 		PyErr_SetString(PyExc_TypeError,
 		                "vector[index] = x: "
-		                "index argument not a number");
+		                "assigned value not a number");
 		return -1;
 	}
 

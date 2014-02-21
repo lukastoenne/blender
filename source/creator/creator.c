@@ -111,6 +111,7 @@
 #include "RE_pipeline.h"
 
 #include "ED_datafiles.h"
+#include "ED_util.h"
 
 #include "WM_api.h"
 
@@ -313,6 +314,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--debug-memory");
 	BLI_argsPrintArgDoc(ba, "--debug-jobs");
 	BLI_argsPrintArgDoc(ba, "--debug-python");
+	BLI_argsPrintArgDoc(ba, "--debug-depsgraph");
 
 	BLI_argsPrintArgDoc(ba, "--debug-wm");
 	BLI_argsPrintArgDoc(ba, "--debug-all");
@@ -369,7 +371,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	printf("  $BLENDER_USER_CONFIG      Directory for user configuration files.\n");
 	printf("  $BLENDER_USER_SCRIPTS     Directory for user scripts.\n");
 	printf("  $BLENDER_SYSTEM_SCRIPTS   Directory for system wide scripts.\n");
-	printf("  Directory for user data files (icons, translations, ..).\n");
+	printf("  $BLENDER_USER_DATAFILES   Directory for user data files (icons, translations, ..).\n");
 	printf("  $BLENDER_SYSTEM_DATAFILES Directory for system wide data files.\n");
 	printf("  $BLENDER_SYSTEM_PYTHON    Directory for system python libraries.\n");
 #ifdef WIN32
@@ -870,7 +872,7 @@ static int set_threads(int argc, const char **argv, void *UNUSED(data))
 		return 1;
 	}
 	else {
-		printf("\nError: you must specify a number of threads between 0 and 8 '-t  / --threads'.\n");
+		printf("\nError: you must specify a number of threads between 0 and %d '-t / --threads'.\n", BLENDER_MAX_THREADS);
 		return 0;
 	}
 }
@@ -1252,7 +1254,11 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 	BLI_path_cwd(filename);
 
 	if (G.background) {
-		int retval = BKE_read_file(C, filename, NULL);
+		int retval;
+
+		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_PRE);
+
+		retval = BKE_read_file(C, filename, NULL);
 
 		/* we successfully loaded a blend file, get sure that
 		 * pointcache works */
@@ -1261,11 +1267,11 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 			Main *bmain = CTX_data_main(C);
 
 			/* special case, 2.4x files */
-			if (wm == NULL && CTX_data_main(C)->wm.first == NULL) {
+			if (wm == NULL && BLI_listbase_is_empty(&bmain->wm)) {
 				extern void wm_add_default(bContext *C);
 
 				/* wm_add_default() needs the screen to be set. */
-				CTX_wm_screen_set(C, CTX_data_main(C)->screen.first);
+				CTX_wm_screen_set(C, bmain->screen.first);
 				wm_add_default(C);
 			}
 
@@ -1274,6 +1280,8 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 			G.relbase_valid = 1;
 			if (CTX_wm_manager(C) == NULL) CTX_wm_manager_set(C, wm);  /* reset wm */
 
+			/* WM_file_read would call normally */
+			ED_editors_init(C);
 			DAG_on_visible_update(bmain, TRUE);
 			BKE_scene_update_tagged(bmain->eval_ctx, bmain, CTX_data_scene(C));
 		}
@@ -1287,6 +1295,8 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 		/* run any texts that were loaded in and flagged as modules */
 		BPY_python_reset(C);
 #endif
+
+		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
 		/* happens for the UI on file reading too (huh? (ton))*/
 		// XXX		BKE_reset_undo();
@@ -1377,7 +1387,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #undef PY_ENABLE_AUTO
 #undef PY_DISABLE_AUTO
 	
-	BLI_argsAdd(ba, 1, "-b", "--background", "<file>\n\tLoad <file> in background (often used for UI-less rendering)", background_mode, NULL);
+	BLI_argsAdd(ba, 1, "-b", "--background", "\n\tRun in background (often used for UI-less rendering)", background_mode, NULL);
 
 	BLI_argsAdd(ba, 1, "-a", NULL, playback_doc, playback_mode, NULL);
 
@@ -1406,6 +1416,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 	BLI_argsAdd(ba, 1, NULL, "--debug-jobs",  "\n\tEnable time profiling for background jobs.", debug_mode_generic, (void *)G_DEBUG_JOBS);
+	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph", "\n\tEnable debug messages from dependency graph", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", "<verbose>\n\tSet logging verbosity level.", set_verbosity, NULL);
 
@@ -1744,7 +1755,7 @@ int main(int argc, const char **argv)
 #ifdef WITH_PYTHON_MODULE
 void main_python_exit(void)
 {
-	WM_exit((bContext *)evil_C);
+	WM_exit_ext((bContext *)evil_C, true);
 	evil_C = NULL;
 }
 #endif

@@ -57,7 +57,6 @@ typedef unsigned long uint_ptr;
 #include "SG_Controller.h"
 #include "PHY_IGraphicController.h"
 #include "SG_Node.h"
-#include "SG_Controller.h"
 #include "KX_ClientObjectInfo.h"
 #include "RAS_BucketManager.h"
 #include "KX_RayCast.h"
@@ -3033,7 +3032,8 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 
 PyObject *KX_GameObject::PySuspendDynamics()
 {
-	GetPhysicsController()->SuspendDynamics();
+	if (GetPhysicsController())
+		GetPhysicsController()->SuspendDynamics();
 	Py_RETURN_NONE;
 }
 
@@ -3041,7 +3041,8 @@ PyObject *KX_GameObject::PySuspendDynamics()
 
 PyObject *KX_GameObject::PyRestoreDynamics()
 {
-	GetPhysicsController()->RestoreDynamics();
+	if (GetPhysicsController())
+		GetPhysicsController()->RestoreDynamics();
 	Py_RETURN_NONE;
 }
 

@@ -123,8 +123,8 @@ EnumPropertyItem modifier_triangulate_quad_method_items[] = {
 };
 
 EnumPropertyItem modifier_triangulate_ngon_method_items[] = {
-	{MOD_TRIANGULATE_NGON_SCANFILL, "SCANFILL", 0, "Scanfill", "Split the polygons using a scanfill algorithm"},
-	{MOD_TRIANGULATE_NGON_BEAUTY, "BEAUTY", 0, "Beauty", "Arrange the new triangles nicely, slower method"},
+	{MOD_TRIANGULATE_NGON_BEAUTY, "BEAUTY", 0, "Beauty", "Arrange the new triangles evenly (slow)"},
+	{MOD_TRIANGULATE_NGON_EARCLIP, "CLIP", 0, "Clip", "Split the polygons with an ear clipping algorithm"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -1759,6 +1759,7 @@ static void rna_def_modifier_uvproject(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "aspect_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "aspectx");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 1, FLT_MAX);
 	RNA_def_property_ui_range(prop, 1, 1000, 1, 3);
 	RNA_def_property_ui_text(prop, "Horizontal Aspect Ratio", "");
@@ -1766,6 +1767,7 @@ static void rna_def_modifier_uvproject(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "aspect_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "aspecty");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 1, FLT_MAX);
 	RNA_def_property_ui_range(prop, 1, 1000, 1, 3);
 	RNA_def_property_ui_text(prop, "Vertical Aspect Ratio", "");
@@ -1773,6 +1775,7 @@ static void rna_def_modifier_uvproject(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "scale_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scalex");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 0, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 1000, 1, 3);
 	RNA_def_property_ui_text(prop, "Horizontal Scale", "");
@@ -1780,6 +1783,7 @@ static void rna_def_modifier_uvproject(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "scale_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scaley");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 0, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 1000, 1, 3);
 	RNA_def_property_ui_text(prop, "Vertical Scale", "");
@@ -2326,7 +2330,7 @@ static void rna_def_modifier_bevel(BlenderRNA *brna)
 		{MOD_BEVEL_WEIGHT, "WEIGHT", 0, "Weight",
 		                   "Use bevel weights to determine how much bevel is applied in edge mode"},
 		{MOD_BEVEL_VGROUP, "VGROUP", 0, "Vertex Group",
-		                   "Use vertex group weights to determine how much bevel is applied in vertex mode"},
+		                   "Use vertex group weights to select whether vertex or edge is beveled"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

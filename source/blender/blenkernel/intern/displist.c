@@ -458,11 +458,12 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 	DispList *dlnew = NULL, *dl;
 	float *f1;
 	int colnr = 0, charidx = 0, cont = 1, tot, a, *index, nextcol = 0;
-	intptr_t totvert;
+	int totvert;
+	const int scanfill_flag = BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_POLYS | BLI_SCANFILL_CALC_HOLES;
 
 	if (dispbase == NULL)
 		return;
-	if (dispbase->first == NULL)
+	if (BLI_listbase_is_empty(dispbase))
 		return;
 
 	sf_arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
@@ -481,6 +482,9 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 					cont = 1;
 				else if (charidx == dl->charidx) { /* character with needed index */
 					if (colnr == dl->col) {
+
+						sf_ctx.poly_nr++;
+
 						/* make editverts and edges */
 						f1 = dl->verts;
 						a = dl->nr;
@@ -516,7 +520,7 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 
 		/* XXX (obedit && obedit->actcol) ? (obedit->actcol-1) : 0)) { */
 		if (totvert && (tot = BLI_scanfill_calc_ex(&sf_ctx,
-		                                           BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_HOLES,
+		                                           scanfill_flag,
 		                                           normal_proj)))
 		{
 			if (tot) {
@@ -538,23 +542,22 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 					f1 += 3;
 
 					/* index number */
-					sf_vert->tmp.l = totvert;
+					sf_vert->tmp.i = totvert;
 					totvert++;
 				}
 
 				/* index data */
-				sf_tri = sf_ctx.fillfacebase.first;
+
 				index = dlnew->index;
-				while (sf_tri) {
-					index[0] = (intptr_t)sf_tri->v1->tmp.l;
-					index[1] = (intptr_t)sf_tri->v2->tmp.l;
-					index[2] = (intptr_t)sf_tri->v3->tmp.l;
+				for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
+					index[0] = sf_tri->v1->tmp.i;
+					index[1] = sf_tri->v2->tmp.i;
+					index[2] = sf_tri->v3->tmp.i;
 
 					if (flipnormal)
 						SWAP(int, index[0], index[2]);
 
 					index += 3;
-					sf_tri = sf_tri->next;
 				}
 			}
 
@@ -586,7 +589,8 @@ static void bevels_to_filledpoly(Curve *cu, ListBase *dispbase)
 	float *fp, *fp1;
 	int a, dpoly;
 
-	front.first = front.last = back.first = back.last = NULL;
+	BLI_listbase_clear(&front);
+	BLI_listbase_clear(&back);
 
 	dl = dispbase->first;
 	while (dl) {
@@ -798,6 +802,8 @@ static void curve_calc_modifiers_pre(Scene *scene, Object *ob, ListBase *nurb,
 	float (*deformedVerts)[3] = NULL;
 	float *keyVerts = NULL;
 	int required_mode;
+
+	modifiers_clearErrors(ob);
 
 	if (editmode)
 		app_flag |= MOD_APPLY_USECACHE;
@@ -1407,7 +1413,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 				if (bl->nr) { /* blank bevel lists can happen */
 
 					/* exception handling; curve without bevel or extrude, with width correction */
-					if (dlbev.first == NULL) {
+					if (BLI_listbase_is_empty(&dlbev)) {
 						dl = MEM_callocN(sizeof(DispList), "makeDispListbev");
 						dl->verts = MEM_callocN(3 * sizeof(float) * bl->nr, "dlverts");
 						BLI_addtail(dispbase, dl);

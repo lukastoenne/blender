@@ -40,7 +40,7 @@ CCL_NAMESPACE_BEGIN
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_,
 	BL::BlendData b_data_, BL::Scene b_scene_)
 : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_render(b_engine_.render()), b_scene(b_scene_),
-  b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL)
+  b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL), python_thread_state(NULL)
 {
 	/* offline render */
 
@@ -50,15 +50,13 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	background = true;
 	last_redraw_time = 0.0;
 	start_resize_time = 0.0;
-
-	create_session();
 }
 
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_,
 	BL::BlendData b_data_, BL::Scene b_scene_,
 	BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
 : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_render(b_scene_.render()), b_scene(b_scene_),
-  b_v3d(b_v3d_), b_rv3d(b_rv3d_)
+  b_v3d(b_v3d_), b_rv3d(b_rv3d_), python_thread_state(NULL)
 {
 	/* 3d view render */
 
@@ -67,14 +65,19 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	background = false;
 	last_redraw_time = 0.0;
 	start_resize_time = 0.0;
-
-	create_session();
-	session->start();
 }
 
 BlenderSession::~BlenderSession()
 {
 	free_session();
+}
+
+void BlenderSession::create()
+{
+	create_session();
+
+	if(b_v3d)
+		session->start();
 }
 
 void BlenderSession::create_session()
@@ -102,7 +105,7 @@ void BlenderSession::create_session()
 
 	if(b_v3d) {
 		/* full data sync */
-		sync->sync_data(b_v3d, b_engine.camera_override());
+		sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 		sync->sync_view(b_v3d, b_rv3d, width, height);
 	}
 	else {
@@ -382,13 +385,14 @@ void BlenderSession::render()
 		end_render_result(b_engine, b_rr, true, false);
 
 		buffer_params.passes = passes;
+		scene->film->pass_alpha_threshold = b_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 
 		/* update scene */
 		sync->sync_camera(b_render, b_engine.camera_override(), width, height);
-		sync->sync_data(b_v3d, b_engine.camera_override(), b_rlay_name.c_str());
+		sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state, b_rlay_name.c_str());
 
 		/* update number of samples per layer */
 		int samples = sync->get_layer_samples();
@@ -505,7 +509,7 @@ void BlenderSession::synchronize()
 	}
 
 	/* data and camera synchronize */
-	sync->sync_data(b_v3d, b_engine.camera_override());
+	sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 
 	if(b_rv3d)
 		sync->sync_view(b_v3d, b_rv3d, width, height);
@@ -668,12 +672,12 @@ void BlenderSession::update_status_progress()
 		status += " | " + substatus;
 
 	if(status != last_status) {
+		b_engine.update_stats("", (timestatus + scene + status).c_str());
 		b_engine.update_memory_stats(mem_used, mem_peak);
 		last_status = status;
 	}
 	if(progress != last_progress) {
 		b_engine.update_progress(progress);
-		b_engine.update_stats("", (timestatus + scene + status).c_str());
 		last_progress = progress;
 	}
 }

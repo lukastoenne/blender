@@ -33,7 +33,7 @@ enum_devices = (
     )
 
 if _cycles.with_network:
-  enum_devices += (('NETWORK', "Networked Device", "Use networked device for rendering"),)
+    enum_devices += (('NETWORK', "Networked Device", "Use networked device for rendering"),)
 
 enum_feature_set = (
     ('SUPPORTED', "Supported", "Only use finished and supported features"),
@@ -108,6 +108,11 @@ enum_integrator = (
     ('PATH', "Path Tracing", "Pure path tracing integrator"),
     )
 
+enum_volume_homogeneous_sampling = (
+    ('DISTANCE', "Distance", "Use Distance Sampling"),
+    ('EQUI_ANGULAR', "Equi-angular", "Use Equi-angular Sampling"),
+    )
+
 
 class CyclesRenderSettings(bpy.types.PropertyGroup):
     @classmethod
@@ -139,6 +144,13 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Method to sample lights and materials",
                 items=enum_integrator,
                 default='PATH',
+                )
+
+        cls.volume_homogeneous_sampling = EnumProperty(
+                name="Homogeneous Sampling",
+                description="Sampling method to use for homogeneous volumes",
+                items=enum_volume_homogeneous_sampling,
+                default='DISTANCE',
                 )
 
         cls.use_square_samples = BoolProperty(
@@ -363,9 +375,18 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=0,
                 )
 
-        cls.sample_clamp = FloatProperty(
-                name="Clamp",
-                description="If non-zero, the maximum value for a sample, "
+        cls.sample_clamp_direct = FloatProperty(
+                name="Clamp Direct",
+                description="If non-zero, the maximum value for a direct sample, "
+                            "higher values will be scaled down to avoid too "
+                            "much noise and slow convergence at the cost of accuracy",
+                min=0.0, max=1e8,
+                default=0.0,
+                )
+
+        cls.sample_clamp_indirect = FloatProperty(
+                name="Clamp Indirect",
+                description="If non-zero, the maximum value for an indirect sample, "
                             "higher values will be scaled down to avoid too "
                             "much noise and slow convergence at the cost of accuracy",
                 min=0.0, max=1e8,

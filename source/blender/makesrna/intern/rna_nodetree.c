@@ -2613,10 +2613,14 @@ static EnumPropertyItem *rna_Node_image_layer_itemf(bContext *UNUSED(C), Pointer
 	EnumPropertyItem *item = NULL;
 	RenderLayer *rl;
 	
-	if (!ima || !(ima->rr)) return NULL;
-	
-	rl = ima->rr->layers.first;
-	item = renderresult_layers_add_enum(rl);
+	if (ima && ima->rr) {
+		rl = ima->rr->layers.first;
+		item = renderresult_layers_add_enum(rl);
+	}
+	else {
+		int totitem = 0;
+		RNA_enum_item_end(&item, &totitem);
+	}
 	
 	*r_free = true;
 	
@@ -2631,10 +2635,14 @@ static EnumPropertyItem *rna_Node_scene_layer_itemf(bContext *UNUSED(C), Pointer
 	EnumPropertyItem *item = NULL;
 	RenderLayer *rl;
 	
-	if (!sce) return NULL;
-	
-	rl = sce->r.layers.first;
-	item = renderresult_layers_add_enum(rl);
+	if (sce) {
+		rl = sce->r.layers.first;
+		item = renderresult_layers_add_enum(rl);
+	}
+	else {
+		int totitem = 0;
+		RNA_enum_item_end(&item, &totitem);
+	}
 	
 	*r_free = true;
 	
@@ -3232,6 +3240,7 @@ static void def_sh_mapping(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "size");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Scale", "");
 	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
 	
@@ -4234,7 +4243,7 @@ static void rna_def_cmp_output_file_slot_file(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "format", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ImageFormatSettings");
 	
-	prop = RNA_def_property(srna, "path", PROP_STRING, PROP_FILEPATH);
+	prop = RNA_def_property(srna, "path", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "path");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_NodeOutputFileSlotFile_path_set");
 	RNA_def_struct_name_property(srna, prop);
@@ -4841,7 +4850,7 @@ static void def_cmp_map_uv(StructRNA *srna)
 static void def_cmp_defocus(StructRNA *srna)
 {
 	PropertyRNA *prop;
-	
+
 	static EnumPropertyItem bokeh_items[] = {
 		{8, "OCTAGON",  0, "Octagonal",  "8 sides"},
 		{7, "HEPTAGON", 0, "Heptagonal", "7 sides"},
@@ -4852,9 +4861,17 @@ static void def_cmp_defocus(StructRNA *srna)
 		{0, "CIRCLE",   0, "Circular",   ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-	
+
+	prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "id");
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_Node_scene_set", NULL, NULL);
+	RNA_def_property_struct_type(prop, "Scene");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Scene", "Scene from which to select the active camera (render scene if undefined)");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
 	RNA_def_struct_sdna_from(srna, "NodeDefocus", "storage");
-	
+
 	prop = RNA_def_property(srna, "bokeh", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "bktype");
 	RNA_def_property_enum_items(prop, bokeh_items);
@@ -6312,7 +6329,7 @@ static void rna_def_node_socket(BlenderRNA *brna)
 	/* registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "typeinfo->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name", "");
 
 	/* draw socket */
@@ -6386,7 +6403,7 @@ static void rna_def_node_socket_interface(BlenderRNA *brna)
 	/* registration */
 	prop = RNA_def_property(srna, "bl_socket_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "typeinfo->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name", "");
 
 	func = RNA_def_function(srna, "draw", NULL);
@@ -6436,6 +6453,20 @@ static void rna_def_node_socket_float(BlenderRNA *brna, const char *idname, cons
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	float value_default;
+	
+	/* choose sensible common default based on subtype */
+	switch (subtype) {
+		case PROP_FACTOR:
+			value_default = 1.0f;
+			break;
+		case PROP_PERCENTAGE:
+			value_default = 100.0f;
+			break;
+		default:
+			value_default = 0.0f;
+			break;
+	}
 	
 	srna = RNA_def_struct(brna, idname, "NodeSocketStandard");
 	RNA_def_struct_ui_text(srna, "Float Node Socket", "Floating point number socket of a node");
@@ -6461,6 +6492,7 @@ static void rna_def_node_socket_float(BlenderRNA *brna, const char *idname, cons
 	
 	prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
 	RNA_def_property_float_sdna(prop, NULL, "value");
+	RNA_def_property_float_default(prop, value_default);
 	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_NodeSocketStandard_float_range");
 	RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketInterface_update");
@@ -6482,6 +6514,20 @@ static void rna_def_node_socket_int(BlenderRNA *brna, const char *identifier, co
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	int value_default;
+	
+	/* choose sensible common default based on subtype */
+	switch (subtype) {
+		case PROP_FACTOR:
+			value_default = 1;
+			break;
+		case PROP_PERCENTAGE:
+			value_default = 100;
+			break;
+		default:
+			value_default = 0;
+			break;
+	}
 	
 	srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
 	RNA_def_struct_ui_text(srna, "Integer Node Socket", "Integer number socket of a node");
@@ -6491,6 +6537,7 @@ static void rna_def_node_socket_int(BlenderRNA *brna, const char *identifier, co
 	
 	prop = RNA_def_property(srna, "default_value", PROP_INT, subtype);
 	RNA_def_property_int_sdna(prop, NULL, "value");
+	RNA_def_property_int_default(prop, value_default);
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_NodeSocketStandard_int_range");
 	RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
@@ -6562,6 +6609,21 @@ static void rna_def_node_socket_vector(BlenderRNA *brna, const char *identifier,
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	const float *value_default;
+	
+	/* choose sensible common default based on subtype */
+	switch (subtype) {
+		case PROP_DIRECTION: {
+			static const float default_direction[3] = {0.0f, 0.0f, 1.0f};
+			value_default = default_direction;
+			break;
+		}
+		default: {
+			static const float default_vector[3] = {0.0f, 0.0f, 0.0f};
+			value_default = default_vector;
+			break;
+		}
+	}
 	
 	srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
 	RNA_def_struct_ui_text(srna, "Vector Node Socket", "3D vector socket of a node");
@@ -6571,6 +6633,7 @@ static void rna_def_node_socket_vector(BlenderRNA *brna, const char *identifier,
 	
 	prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
 	RNA_def_property_float_sdna(prop, NULL, "value");
+	RNA_def_property_float_array_default(prop, value_default);
 	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_NodeSocketStandard_vector_range");
 	RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
@@ -7088,7 +7151,7 @@ static void rna_def_node(BlenderRNA *brna)
 	/* registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "typeinfo->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name", "");
 
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
@@ -7467,7 +7530,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	/* registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "typeinfo->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name", "");
 
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);

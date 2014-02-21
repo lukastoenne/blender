@@ -81,9 +81,6 @@
 
 #include "filelist.h"
 
-/* max length of library group name within filesel */
-#define GROUP_MAX 32
-
 struct FileList;
 
 typedef struct FileImage {
@@ -120,7 +117,7 @@ typedef struct FileList {
 	short hide_parent;
 
 	void (*readf)(struct FileList *);
-	int (*filterf)(struct direntry *file, const char *dir, unsigned int filter, short hide_dot);
+	bool (*filterf)(struct direntry *file, const char *dir, unsigned int filter, short hide_dot);
 
 } FileList;
 
@@ -296,9 +293,9 @@ static int compare_extension(const void *a1, const void *a2)
 	return (BLI_strcasecmp(sufix1, sufix2));
 }
 
-static int is_hidden_file(const char *filename, short hide_dot)
+static bool is_hidden_file(const char *filename, short hide_dot)
 {
-	int is_hidden = 0;
+	bool is_hidden = false;
 
 	if (hide_dot) {
 		if (filename[0] == '.' && filename[1] != '.' && filename[1] != 0) {
@@ -322,9 +319,9 @@ static int is_hidden_file(const char *filename, short hide_dot)
 	return is_hidden;
 }
 
-static int is_filtered_file(struct direntry *file, const char *UNUSED(dir), unsigned int filter, short hide_dot)
+static bool is_filtered_file(struct direntry *file, const char *UNUSED(dir), unsigned int filter, short hide_dot)
 {
-	int is_filtered = 0;
+	bool is_filtered = false;
 	if (filter) {
 		if (file->flags & filter) {
 			is_filtered = 1;
@@ -341,10 +338,10 @@ static int is_filtered_file(struct direntry *file, const char *UNUSED(dir), unsi
 	return is_filtered && !is_hidden_file(file->relname, hide_dot);
 }
 
-static int is_filtered_lib(struct direntry *file, const char *dir, unsigned int filter, short hide_dot)
+static bool is_filtered_lib(struct direntry *file, const char *dir, unsigned int filter, short hide_dot)
 {
-	int is_filtered = 0;
-	char tdir[FILE_MAX], tgroup[GROUP_MAX];
+	bool is_filtered = false;
+	char tdir[FILE_MAX], tgroup[BLO_GROUP_MAX];
 	if (BLO_is_a_library(dir, tdir, tgroup)) {
 		is_filtered = !is_hidden_file(file->relname, hide_dot);
 	}
@@ -354,7 +351,7 @@ static int is_filtered_lib(struct direntry *file, const char *dir, unsigned int 
 	return is_filtered;
 }
 
-static int is_filtered_main(struct direntry *file, const char *UNUSED(dir), unsigned int UNUSED(filter), short hide_dot)
+static bool is_filtered_main(struct direntry *file, const char *UNUSED(dir), unsigned int UNUSED(filter), short hide_dot)
 {
 	return !is_hidden_file(file->relname, hide_dot);
 }
@@ -748,19 +745,17 @@ void filelist_setfilter_types(struct FileList *filelist, const char *filter_glob
 }
 
 /* would recognize .blend as well */
-static int file_is_blend_backup(const char *str)
+static bool file_is_blend_backup(const char *str)
 {
-	short a, b;
-	int retval = 0;
-	
-	a = strlen(str);
-	b = 7;
-	
+	const size_t a = strlen(str);
+	size_t b = 7;
+	bool retval = 0;
+
 	if (a == 0 || b >= a) {
 		/* pass */
 	}
 	else {
-		char *loc;
+		const char *loc;
 		
 		if (a > b + 1)
 			b++;
@@ -789,19 +784,10 @@ static int path_extension_type(const char *path)
 	else if (BLI_testextensie(path, ".py")) {
 		return PYSCRIPTFILE;
 	}
-	else if (BLI_testextensie(path, ".txt")  ||
-	         BLI_testextensie(path, ".glsl") ||
-	         BLI_testextensie(path, ".osl")  ||
-	         BLI_testextensie(path, ".data"))
-	{
+	else if (BLI_testextensie_n(path, ".txt", ".glsl", ".osl", ".data", NULL)) {
 		return TEXTFILE;
 	}
-	else if (BLI_testextensie(path, ".ttf") ||
-	         BLI_testextensie(path, ".ttc") ||
-	         BLI_testextensie(path, ".pfb") ||
-	         BLI_testextensie(path, ".otf") ||
-	         BLI_testextensie(path, ".otc"))
-	{
+	else if (BLI_testextensie_n(path, ".ttf", ".ttc", ".pfb", ".otf", ".otc", NULL)) {
 		return FTFONTFILE;
 	}
 	else if (BLI_testextensie(path, ".btx")) {
@@ -1002,7 +988,7 @@ void filelist_select(struct FileList *filelist, FileSelection *sel, FileSelType 
 	}
 }
 
-int filelist_is_selected(struct FileList *filelist, int index, FileCheckType check)
+bool filelist_is_selected(struct FileList *filelist, int index, FileCheckType check)
 {
 	struct direntry *file = filelist_file(filelist, index);
 	if (!file) {
@@ -1015,7 +1001,7 @@ int filelist_is_selected(struct FileList *filelist, int index, FileCheckType che
 			return S_ISREG(file->type) && (file->selflag & SELECTED_FILE);
 		case CHECK_ALL:
 		default:
-			return (file->selflag & SELECTED_FILE);
+			return (file->selflag & SELECTED_FILE) != 0;
 	}
 }
 
@@ -1040,14 +1026,14 @@ void filelist_sort(struct FileList *filelist, short sort)
 }
 
 
-int filelist_islibrary(struct FileList *filelist, char *dir, char *group)
+bool filelist_islibrary(struct FileList *filelist, char *dir, char *group)
 {
 	return BLO_is_a_library(filelist->dir, dir, group);
 }
 
 static int groupname_to_code(const char *group)
 {
-	char buf[32];
+	char buf[BLO_GROUP_MAX];
 	char *lslash;
 	
 	BLI_strncpy(buf, group, sizeof(buf));
@@ -1055,7 +1041,7 @@ static int groupname_to_code(const char *group)
 	if (lslash)
 		lslash[0] = '\0';
 
-	return BKE_idcode_from_name(buf);
+	return buf[0] ? BKE_idcode_from_name(buf) : 0;
 }
  
 void filelist_from_library(struct FileList *filelist)
@@ -1064,7 +1050,7 @@ void filelist_from_library(struct FileList *filelist)
 	struct ImBuf *ima;
 	int ok, i, nprevs, nnames, idcode;
 	char filename[FILE_MAX];
-	char dir[FILE_MAX], group[GROUP_MAX];
+	char dir[FILE_MAX], group[BLO_GROUP_MAX];
 	
 	/* name test */
 	ok = filelist_islibrary(filelist, dir, group);

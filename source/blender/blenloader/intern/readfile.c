@@ -105,7 +105,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_endian_switch.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -492,7 +491,7 @@ void blo_split_main(ListBase *mainlist, Main *main)
 	mainlist->first = mainlist->last = main;
 	main->next = NULL;
 	
-	if (main->library.first == NULL)
+	if (BLI_listbase_is_empty(&main->library))
 		return;
 	
 	for (lib = main->library.first; lib; lib = lib->id.next) {
@@ -1154,14 +1153,13 @@ void blo_freefiledata(FileData *fd)
 
 /* ************ DIV ****************** */
 
-int BLO_has_bfile_extension(const char *str)
+bool BLO_has_bfile_extension(const char *str)
 {
-	return (BLI_testextensie(str, ".ble") || 
-	        BLI_testextensie(str, ".blend") || 
-	        BLI_testextensie(str, ".blend.gz"));
+	const char *ext_test[4] = {".blend", ".ble", ".blend.gz", NULL};
+	return BLI_testextensie_array(str, ext_test);
 }
 
-int BLO_is_a_library(const char *path, char *dir, char *group)
+bool BLO_is_a_library(const char *path, char *dir, char *group)
 {
 	/* return ok when a blenderfile, in dir is the filename,
 	 * in group the type of libdata
@@ -1196,7 +1194,7 @@ int BLO_is_a_library(const char *path, char *dir, char *group)
 		/* now we know that we are in a blend file and it is safe to 
 		 * assume that gp actually points to a group */
 		if (strcmp("Screen", gp) != 0)
-			BLI_strncpy(group, gp, GROUP_MAX);
+			BLI_strncpy(group, gp, BLO_GROUP_MAX);
 	}
 	return 1;
 }
@@ -1577,7 +1575,7 @@ static void link_list(FileData *fd, ListBase *lb)		/* only direct data */
 {
 	Link *ln, *prev;
 	
-	if (lb->first == NULL) return;
+	if (BLI_listbase_is_empty(lb)) return;
 	
 	lb->first = newdataadr(fd, lb->first);
 	ln = lb->first;
@@ -1596,7 +1594,7 @@ static void link_glob_list(FileData *fd, ListBase *lb)		/* for glob data */
 	Link *ln, *prev;
 	void *poin;
 
-	if (lb->first == NULL) return;
+	if (BLI_listbase_is_empty(lb)) return;
 	poin = newdataadr(fd, lb->first);
 	if (lb->first) {
 		oldnewmap_insert(fd->globmap, lb->first, poin, 0);
@@ -3131,7 +3129,7 @@ static void direct_link_mball(FileData *fd, MetaBall *mb)
 	
 	link_list(fd, &(mb->elems));
 	
-	mb->disp.first = mb->disp.last = NULL;
+	BLI_listbase_clear(&mb->disp);
 	mb->editelems = NULL;
 /*	mb->edit_elems.first= mb->edit_elems.last= NULL;*/
 	mb->lastelem = NULL;
@@ -3391,7 +3389,6 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 	}
 
 	cu->editnurb = NULL;
-	cu->lastsel = NULL;
 	cu->editfont = NULL;
 	
 	for (nu = cu->nurb.first; nu; nu = nu->next) {
@@ -3544,7 +3541,7 @@ static void direct_link_material(FileData *fd, Material *ma)
 	}
 	
 	ma->preview = direct_link_preview_image(fd, ma->preview);
-	ma->gpumaterial.first = ma->gpumaterial.last = NULL;
+	BLI_listbase_clear(&ma->gpumaterial);
 }
 
 /* ************ READ PARTICLE SETTINGS ***************** */
@@ -3590,7 +3587,7 @@ static void direct_link_pointcache(FileData *fd, PointCache *cache)
 		}
 	}
 	else
-		cache->mem_cache.first = cache->mem_cache.last = NULL;
+		BLI_listbase_clear(&cache->mem_cache);
 	
 	cache->flag &= ~PTCACHE_SIMULATION_VALID;
 	cache->simframe = 0;
@@ -3661,7 +3658,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 			if (part->dupliweights.first && part->dup_group) {
 				int index_ok = 0;
 				/* check for old files without indices (all indexes 0) */
-				if (part->dupliweights.first == part->dupliweights.last) {
+				if (BLI_listbase_is_single(&part->dupliweights)) {
 					/* special case for only one object in the group */
 					index_ok = 1;
 				}
@@ -3689,7 +3686,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 				}
 			}
 			else {
-				part->dupliweights.first = part->dupliweights.last = NULL;
+				BLI_listbase_clear(&part->dupliweights);
 			}
 			
 			if (part->boids) {
@@ -3852,8 +3849,8 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->free_edit = NULL;
 		psys->pathcache = NULL;
 		psys->childcache = NULL;
-		psys->pathcachebufs.first = psys->pathcachebufs.last = NULL;
-		psys->childcachebufs.first = psys->childcachebufs.last = NULL;
+		BLI_listbase_clear(&psys->pathcachebufs);
+		BLI_listbase_clear(&psys->childcachebufs);
 		psys->frand = NULL;
 		psys->pdd = NULL;
 		psys->renderdata = NULL;
@@ -4586,8 +4583,8 @@ static void direct_link_pose(FileData *fd, bPose *pose)
 		if (pchan->mpath)
 			direct_link_motionpath(fd, pchan->mpath);
 		
-		pchan->iktree.first = pchan->iktree.last = NULL;
-		pchan->siktree.first = pchan->siktree.last = NULL;
+		BLI_listbase_clear(&pchan->iktree);
+		BLI_listbase_clear(&pchan->siktree);
 		
 		/* in case this value changes in future, clamp else we get undefined behavior */
 		CLAMP(pchan->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
@@ -4689,8 +4686,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 						}
 						BKE_ptcache_free(cache);
 					}
-					smd->domain->ptcaches[1].first = NULL;
-					smd->domain->ptcaches[1].last = NULL;
+					BLI_listbase_clear(&smd->domain->ptcaches[1]);
 					smd->domain->point_cache[1] = NULL;
 				}
 			}
@@ -5088,7 +5084,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->bb = NULL;
 	ob->derivedDeform = NULL;
 	ob->derivedFinal = NULL;
-	ob->gpulamp.first= ob->gpulamp.last = NULL;
+	BLI_listbase_clear(&ob->gpulamp);
 	link_list(fd, &ob->pc_ids);
 
 	/* Runtime curve data  */
@@ -5113,7 +5109,7 @@ static void composite_patch(bNodeTree *ntree, Scene *scene)
 	bNode *node;
 	
 	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->id==NULL && ELEM4(node->type, CMP_NODE_R_LAYERS, CMP_NODE_COMPOSITE, CMP_NODE_DEFOCUS, CMP_NODE_OUTPUT_FILE))
+		if (node->id==NULL && node->type == CMP_NODE_R_LAYERS)
 			node->id = &scene->id;
 	}
 }
@@ -5573,11 +5569,11 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 		win->curswin = NULL;
 		win->tweak = NULL;
 		
-		win->queue.first = win->queue.last = NULL;
-		win->handlers.first = win->handlers.last = NULL;
-		win->modalhandlers.first = win->modalhandlers.last = NULL;
-		win->subwindows.first = win->subwindows.last = NULL;
-		win->gesture.first = win->gesture.last = NULL;
+		BLI_listbase_clear(&win->queue);
+		BLI_listbase_clear(&win->handlers);
+		BLI_listbase_clear(&win->modalhandlers);
+		BLI_listbase_clear(&win->subwindows);
+		BLI_listbase_clear(&win->gesture);
 		
 		win->drawdata = NULL;
 		win->drawmethod = -1;
@@ -5589,24 +5585,25 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 		win->modalcursor = 0;
 	}
 	
-	wm->timers.first = wm->timers.last = NULL;
-	wm->operators.first = wm->operators.last = NULL;
-	wm->paintcursors.first = wm->paintcursors.last = NULL;
-	wm->queue.first = wm->queue.last = NULL;
+	BLI_listbase_clear(&wm->timers);
+	BLI_listbase_clear(&wm->operators);
+	BLI_listbase_clear(&wm->paintcursors);
+	BLI_listbase_clear(&wm->queue);
 	BKE_reports_init(&wm->reports, RPT_STORE);
 	
-	wm->keyconfigs.first = wm->keyconfigs.last = NULL;
+	BLI_listbase_clear(&wm->keyconfigs);
 	wm->defaultconf = NULL;
 	wm->addonconf = NULL;
 	wm->userconf = NULL;
 	
-	wm->jobs.first = wm->jobs.last = NULL;
-	wm->drags.first = wm->drags.last = NULL;
+	BLI_listbase_clear(&wm->jobs);
+	BLI_listbase_clear(&wm->drags);
 	
 	wm->windrawable = NULL;
 	wm->winactive = NULL;
 	wm->initialized = 0;
 	wm->op_undo_depth = 0;
+	wm->is_interface_locked = 0;
 }
 
 static void lib_link_windowmanager(FileData *fd, Main *main)
@@ -6138,7 +6135,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					if (ntree)
 						snode->nodetree = ntree;
 					else
-						snode->nodetree = restore_pointer_by_name(newmain, (ID*)snode->nodetree, 0);
+						snode->nodetree = restore_pointer_by_name(newmain, (ID*)snode->nodetree, 2);
 					
 					for (path = snode->treepath.first; path; path = path->next) {
 						if (path == snode->treepath.first) {
@@ -6242,9 +6239,9 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	ar->v2d.tab_num = 0;
 	ar->v2d.tab_cur = 0;
 	ar->v2d.sms = NULL;
-	ar->panels_category.first = ar->panels_category.last = NULL;
-	ar->handlers.first = ar->handlers.last = NULL;
-	ar->uiblocks.first = ar->uiblocks.last = NULL;
+	BLI_listbase_clear(&ar->panels_category);
+	BLI_listbase_clear(&ar->handlers);
+	BLI_listbase_clear(&ar->uiblocks);
 	ar->headerstr = NULL;
 	ar->swinid = 0;
 	ar->type = NULL;
@@ -6319,7 +6316,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 		link_list(fd, &(sa->spacedata));
 		link_list(fd, &(sa->regionbase));
 		
-		sa->handlers.first = sa->handlers.last = NULL;
+		BLI_listbase_clear(&sa->handlers);
 		sa->type = NULL;	/* spacetype callbacks */
 		sa->region_active_win = -1;
 
@@ -6376,9 +6373,9 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 					direct_link_gpencil(fd, v3d->gpd);
 				}
 				v3d->localvd = newdataadr(fd, v3d->localvd);
-				v3d->afterdraw_transp.first = v3d->afterdraw_transp.last = NULL;
-				v3d->afterdraw_xray.first = v3d->afterdraw_xray.last = NULL;
-				v3d->afterdraw_xraytransp.first = v3d->afterdraw_xraytransp.last = NULL;
+				BLI_listbase_clear(&v3d->afterdraw_transp);
+				BLI_listbase_clear(&v3d->afterdraw_xray);
+				BLI_listbase_clear(&v3d->afterdraw_xraytransp);
 				v3d->properties_storage = NULL;
 				v3d->defmaterial = NULL;
 				
@@ -6392,7 +6389,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				SpaceIpo *sipo = (SpaceIpo *)sl;
 				
 				sipo->ads = newdataadr(fd, sipo->ads);
-				sipo->ghostCurves.first = sipo->ghostCurves.last = NULL;
+				BLI_listbase_clear(&sipo->ghostCurves);
 			}
 			else if (sl->spacetype == SPACE_NLA) {
 				SpaceNla *snla = (SpaceNla *)sl;
@@ -6460,7 +6457,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				
 				link_list(fd, &snode->treepath);
 				snode->edittree = NULL;
-				snode->linkdrag.first = snode->linkdrag.last = NULL;
+				BLI_listbase_clear(&snode->linkdrag);
 			}
 			else if (sl->spacetype == SPACE_TEXT) {
 				SpaceText *st= (SpaceText *)sl;
@@ -6471,7 +6468,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 			}
 			else if (sl->spacetype == SPACE_TIME) {
 				SpaceTime *stime = (SpaceTime *)sl;
-				stime->caches.first = stime->caches.last = NULL;
+				BLI_listbase_clear(&stime->caches);
 			}
 			else if (sl->spacetype == SPACE_LOGIC) {
 				SpaceLogic *slogic = (SpaceLogic *)sl;
@@ -6561,7 +6558,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 			}
 		}
 		
-		sa->actionzones.first = sa->actionzones.last = NULL;
+		BLI_listbase_clear(&sa->actionzones);
 		
 		sa->v1 = newdataadr(fd, sa->v1);
 		sa->v2 = newdataadr(fd, sa->v2);
@@ -6817,8 +6814,8 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	clip->tracking.stabilization.rot_track = newdataadr(fd, clip->tracking.stabilization.rot_track);
 
 	clip->tracking.dopesheet.ok = 0;
-	clip->tracking.dopesheet.channels.first = clip->tracking.dopesheet.channels.last = NULL;
-	clip->tracking.dopesheet.coverage_segments.first = clip->tracking.dopesheet.coverage_segments.last = NULL;
+	BLI_listbase_clear(&clip->tracking.dopesheet.channels);
+	BLI_listbase_clear(&clip->tracking.dopesheet.coverage_segments);
 
 	link_list(fd, &tracking->objects);
 	
@@ -8744,7 +8741,7 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 
 /* ***************************** */
 	
-static int object_in_any_scene(Main *mainvar, Object *ob)
+static bool object_in_any_scene(Main *mainvar, Object *ob)
 {
 	Scene *sce;
 	
@@ -8756,11 +8753,11 @@ static int object_in_any_scene(Main *mainvar, Object *ob)
 	return 0;
 }
 
-static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const short idcode, const short is_link, const short active_lay)
+static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const short idcode, const bool is_link, const short active_lay)
 {
 	Object *ob;
 	Base *base;
-	const short is_group_append = (is_link==FALSE && idcode==ID_GR);
+	const bool is_group_append = (is_link == false && idcode == ID_GR);
 
 	/* give all objects which are LIB_INDIRECT a base, or for a group when *lib has been set */
 	for (ob = mainvar->object.first; ob; ob = ob->id.next) {
@@ -9068,7 +9065,7 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 		
 		/* give a base to loose objects. If group append, do it for objects too */
 		if (scene) {
-			const short is_link = (flag & FILE_LINK) != 0;
+			const bool is_link = (flag & FILE_LINK) != 0;
 			if (idcode == ID_SCE) {
 				/* don't instance anything when linking in scenes, assume the scene its self instances the data */
 			}

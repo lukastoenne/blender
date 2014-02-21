@@ -74,14 +74,15 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
     row.prop(km, "show_expanded_children", text="", emboss=False)
     row.label(text=km.name, text_ctxt=i18n_contexts.id_windowmanager)
 
-    subrow = row.row()
-    subrow.alignment = 'RIGHT'
+    if km.is_user_modified or km.is_modal:
+        subrow = row.row()
+        subrow.alignment = 'RIGHT'
 
-    if km.is_user_modified:
-        subrow.operator("wm.keymap_restore", text="Restore")
-    if km.is_modal:
-        subrow.label(text="", icon='LINKED')
-    del subrow
+        if km.is_user_modified:
+            subrow.operator("wm.keymap_restore", text="Restore")
+        if km.is_modal:
+            subrow.label(text="", icon='LINKED')
+        del subrow
 
     if km.show_expanded_children:
         if children:
@@ -209,6 +210,7 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
 
 _EVENT_TYPES = set()
 _EVENT_TYPE_MAP = {}
+_EVENT_TYPE_MAP_EXTRA = {}
 
 
 def draw_filtered(display_keymaps, filter_type, filter_text, layout):
@@ -225,7 +227,7 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                                     for key, item in enum.items()})
 
             del enum
-            _EVENT_TYPE_MAP.update({
+            _EVENT_TYPE_MAP_EXTRA.update({
                 "`": 'ACCENT_GRAVE',
                 "*": 'NUMPAD_ASTERIX',
                 "/": 'NUMPAD_SLASH',
@@ -233,7 +235,7 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                 "LMB": 'LEFTMOUSE',
                 "MMB": 'MIDDLEMOUSE',
                 })
-            _EVENT_TYPE_MAP.update({
+            _EVENT_TYPE_MAP_EXTRA.update({
                 "%d" % i: "NUMPAD_%d" % i for i in range(9)
                 })
         # done with once off init
@@ -272,23 +274,25 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
 
             if kmi_type in _EVENT_TYPES:
                 kmi_type_set.add(kmi_type)
-            else:
+
+            if not kmi_type_set or len(kmi_type) > 1:
                 # replacement table
-                kmi_type_test = _EVENT_TYPE_MAP.get(kmi_type)
-                if kmi_type_test is not None:
-                    kmi_type_set.add(kmi_type_test)
-                else:
-                    # print("Unknown Type:", kmi_type)
+                for event_type_map in (_EVENT_TYPE_MAP, _EVENT_TYPE_MAP_EXTRA):
+                    kmi_type_test = event_type_map.get(kmi_type)
+                    if kmi_type_test is not None:
+                        kmi_type_set.add(kmi_type_test)
+                    else:
+                        # print("Unknown Type:", kmi_type)
 
-                    # Partial match
-                    for k, v in _EVENT_TYPE_MAP.items():
-                        if (kmi_type in k) or (kmi_type in v):
-                            kmi_type_set.add(v)
+                        # Partial match
+                        for k, v in event_type_map.items():
+                            if (kmi_type in k) or (kmi_type in v):
+                                kmi_type_set.add(v)
 
-                    if not kmi_type_set:
-                        return False
-
-            kmi_test_dict["type"] = kmi_type_set
+            if not kmi_type_set:
+                return False
+            else:
+                kmi_test_dict["type"] = kmi_type_set
 
         # main filter func, runs many times
         def filter_func(kmi):

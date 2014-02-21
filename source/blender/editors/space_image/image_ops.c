@@ -363,7 +363,7 @@ void IMAGE_OT_view_pan(wmOperatorType *ot)
 	ot->poll = space_image_main_area_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER | OPTYPE_LOCK_BYPASS;
 	
 	/* properties */
 	RNA_def_float_vector(ot->srna, "offset", 2, NULL, -FLT_MAX, FLT_MAX,
@@ -577,7 +577,7 @@ void IMAGE_OT_view_zoom(wmOperatorType *ot)
 	ot->poll = space_image_main_area_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_LOCK_BYPASS;
 	
 	/* properties */
 	RNA_def_float(ot->srna, "factor", 0.0f, -FLT_MAX, FLT_MAX,
@@ -599,16 +599,14 @@ static int image_view_ndof_invoke(bContext *C, wmOperator *UNUSED(op), const wmE
 	else {
 		SpaceImage *sima = CTX_wm_space_image(C);
 		ARegion *ar = CTX_wm_region(C);
+		float pan_vec[3];
 
 		wmNDOFMotionData *ndof = (wmNDOFMotionData *) event->customdata;
 
 		float dt = ndof->dt;
-		/* tune these until it feels right */
-		const float zoom_sensitivity = 0.5f; // 50% per second (I think)
-		const float pan_sensitivity = 300.f; // screen pixels per second
 
-		float pan_x = pan_sensitivity * dt * ndof->tvec[0] / sima->zoom;
-		float pan_y = pan_sensitivity * dt * ndof->tvec[1] / sima->zoom;
+		/* tune these until it feels right */
+		const float pan_sensitivity = 300.0f;  /* screen pixels per second */
 
 		/* "mouse zoom" factor = 1 + (dx + dy) / 300
 		 * what about "ndof zoom" factor? should behave like this:
@@ -616,14 +614,15 @@ static int image_view_ndof_invoke(bContext *C, wmOperator *UNUSED(op), const wmE
 		 * move forward -> factor > 1
 		 * move backward -> factor < 1
 		 */
-		float zoom_factor = 1.f + zoom_sensitivity * dt * -ndof->tvec[2];
 
-		if (U.ndof_flag & NDOF_ZOOM_INVERT)
-			zoom_factor = -zoom_factor;
+		WM_event_ndof_pan_get(ndof, pan_vec, true);
 
-		sima_zoom_set_factor(sima, ar, zoom_factor, NULL);
-		sima->xof += pan_x;
-		sima->yof += pan_y;
+		mul_v2_fl(pan_vec, (pan_sensitivity * dt) / sima->zoom);
+		pan_vec[2] *= -dt;
+
+		sima_zoom_set_factor(sima, ar, 1.0f + pan_vec[2], NULL);
+		sima->xof += pan_vec[0];
+		sima->yof += pan_vec[1];
 
 		ED_region_tag_redraw(ar);
 
@@ -640,6 +639,9 @@ void IMAGE_OT_view_ndof(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke = image_view_ndof_invoke;
+
+	/* flags */
+	ot->flag = OPTYPE_LOCK_BYPASS;
 }
 
 /********************** view all operator *********************/
@@ -654,7 +656,7 @@ static int image_view_all_exec(bContext *C, wmOperator *op)
 	ARegion *ar;
 	float aspx, aspy, zoomx, zoomy, w, h;
 	int width, height;
-	int fit_view = RNA_boolean_get(op->ptr, "fit_view");
+	const bool fit_view = RNA_boolean_get(op->ptr, "fit_view");
 
 	/* retrieve state */
 	sima = CTX_wm_space_image(C);
@@ -817,6 +819,9 @@ void IMAGE_OT_view_zoom_in(wmOperatorType *ot)
 	ot->exec = image_view_zoom_in_exec;
 	ot->poll = space_image_main_area_poll;
 
+	/* flags */
+	ot->flag = OPTYPE_LOCK_BYPASS;
+
 	/* properties */
 	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX, "Location", "Cursor location in screen coordinates", -10.0f, 10.0f);
 }
@@ -859,6 +864,9 @@ void IMAGE_OT_view_zoom_out(wmOperatorType *ot)
 	ot->exec = image_view_zoom_out_exec;
 	ot->poll = space_image_main_area_poll;
 
+	/* flags */
+	ot->flag = OPTYPE_LOCK_BYPASS;
+
 	/* properties */
 	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX, "Location", "Cursor location in screen coordinates", -10.0f, 10.0f);
 }
@@ -900,6 +908,9 @@ void IMAGE_OT_view_zoom_ratio(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = image_view_zoom_ratio_exec;
 	ot->poll = space_image_main_area_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_LOCK_BYPASS;
 
 	/* properties */
 	RNA_def_float(ot->srna, "ratio", 0.0f, -FLT_MAX, FLT_MAX,
@@ -1039,7 +1050,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	if (RNA_struct_property_is_set(op->ptr, "files") && RNA_struct_property_is_set(op->ptr, "directory")) {	
 		ListBase frames;
 
-		frames.first = frames.last = NULL;
+		BLI_listbase_clear(&frames);
 		image_sequence_get_frames(op->ptr, &frames, path, sizeof(path));
 		frame_seq_len = image_sequence_get_len(&frames, &frame_ofs);
 		BLI_freelistN(&frames);
@@ -1344,12 +1355,12 @@ static int save_image_options_init(SaveImageOptions *simopts, SpaceImage *sima, 
 
 	if (ibuf) {
 		Image *ima = sima->image;
-		short is_depth_set = FALSE;
+		bool is_depth_set = false;
 
 		if (ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
 			/* imtype */
 			simopts->im_format = scene->r.im_format;
-			is_depth_set = TRUE;
+			is_depth_set = true;
 		}
 		else {
 			if (ima->source == IMA_SRC_GENERATED) {
@@ -1376,7 +1387,7 @@ static int save_image_options_init(SaveImageOptions *simopts, SpaceImage *sima, 
 		}
 
 		/* depth, account for float buffer and format support */
-		if (is_depth_set == FALSE) {
+		if (is_depth_set == false) {
 			simopts->im_format.depth = imtype_best_depth(ibuf, simopts->im_format.imtype);
 		}
 
@@ -2106,7 +2117,7 @@ void IMAGE_OT_invert(wmOperatorType *ot)
 static bool image_pack_test(bContext *C, wmOperator *op)
 {
 	Image *ima = CTX_data_edit_image(C);
-	int as_png = RNA_boolean_get(op->ptr, "as_png");
+	const bool as_png = RNA_boolean_get(op->ptr, "as_png");
 
 	if (!ima)
 		return 0;
@@ -2126,7 +2137,7 @@ static int image_pack_exec(bContext *C, wmOperator *op)
 	struct Main *bmain = CTX_data_main(C);
 	Image *ima = CTX_data_edit_image(C);
 	ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
-	int as_png = RNA_boolean_get(op->ptr, "as_png");
+	const bool as_png = RNA_boolean_get(op->ptr, "as_png");
 
 	if (!image_pack_test(C, op))
 		return OPERATOR_CANCELLED;
@@ -2154,7 +2165,7 @@ static int image_pack_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 	ImBuf *ibuf;
 	uiPopupMenu *pup;
 	uiLayout *layout;
-	int as_png = RNA_boolean_get(op->ptr, "as_png");
+	const bool as_png = RNA_boolean_get(op->ptr, "as_png");
 
 	if (!image_pack_test(C, op))
 		return OPERATOR_CANCELLED;
@@ -2311,12 +2322,12 @@ static void image_sample_draw(const bContext *C, ARegion *ar, void *arg_info)
 
 /* returns color in SRGB */
 /* matching ED_space_node_color_sample() */
-int ED_space_image_color_sample(SpaceImage *sima, ARegion *ar, int mval[2], float r_col[3])
+bool ED_space_image_color_sample(SpaceImage *sima, ARegion *ar, int mval[2], float r_col[3])
 {
 	void *lock;
 	ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock);
 	float fx, fy;
-	int ret = FALSE;
+	bool ret = false;
 
 	if (ibuf == NULL) {
 		ED_space_image_release_buffer(sima, ibuf, lock);

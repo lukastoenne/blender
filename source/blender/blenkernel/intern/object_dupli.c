@@ -174,7 +174,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 	 * dupli object between frames, which is needed for motion blur. last level
 	 * goes first in the array. */
 	dob->persistent_id[0] = index;
-	for (i = 1; i < ctx->level+1; i++)
+	for (i = 1; i < ctx->level + 1; i++)
 		dob->persistent_id[i] = ctx->persistent_id[ctx->level - i];
 	/* fill rest of values with INT_MAX which index will never have as value */
 	for (; i < MAX_DUPLI_RECUR; i++)
@@ -341,7 +341,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 	/* if we don't have any data/settings which will lead to object movement,
 	 * don't waste time trying, as it will all look the same...
 	 */
-	if (ob->parent == NULL && ob->constraints.first == NULL && ob->adt == NULL)
+	if (ob->parent == NULL && BLI_listbase_is_empty(&ob->constraints) && ob->adt == NULL)
 		return;
 
 	/* make a copy of the object's original data (before any dupli-data overwrites it)
@@ -371,8 +371,6 @@ static void make_duplis_frames(const DupliContext *ctx)
 		}
 
 		if (ok) {
-			DupliObject *dob;
-
 			/* WARNING: doing animation updates in this way is not terribly accurate, as the dependencies
 			 * and/or other objects which may affect this object's transforms are not updated either.
 			 * However, this has always been the way that this worked (i.e. pre 2.5), so I guess that it'll be fine!
@@ -380,7 +378,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 			BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
 			BKE_object_where_is_calc_time(scene, ob, (float)scene->r.cfra);
 
-			dob = make_dupli(ctx, ob, ob->obmat, scene->r.cfra, false, false);
+			make_dupli(ctx, ob, ob->obmat, scene->r.cfra, false, false);
 		}
 	}
 
@@ -786,7 +784,7 @@ static void make_duplis_faces(const DupliContext *ctx)
 	bool for_render = ctx->eval_ctx->for_render;
 	FaceDupliData fdd;
 
-	fdd.use_scale = parent->transflag & OB_DUPLIFACES_SCALE;
+	fdd.use_scale = ((parent->transflag & OB_DUPLIFACES_SCALE) != 0);
 
 	/* gather mesh info */
 	{
@@ -844,7 +842,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 	float (*obmat)[4];
 	int a, b, hair = 0;
 	int totpart, totchild, totgroup = 0 /*, pa_num */;
-	int dupli_type_hack = !BKE_scene_use_new_shading_nodes(scene);
+	const bool dupli_type_hack = !BKE_scene_use_new_shading_nodes(scene);
 
 	int no_draw_flag = PARS_UNEXIST;
 
@@ -883,7 +881,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 				return;
 		}
 		else { /*PART_DRAW_GR */
-			if (part->dup_group == NULL || part->dup_group->gobject.first == NULL)
+			if (part->dup_group == NULL || BLI_listbase_is_empty(&part->dup_group->gobject))
 				return;
 
 			if (BLI_findptr(&part->dup_group->gobject, par, offsetof(GroupObject, ob))) {

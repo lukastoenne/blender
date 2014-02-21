@@ -762,19 +762,19 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 static float get_shortest_pattern_side(MovieTrackingMarker *marker)
 {
 	int i, next;
-	float len = FLT_MAX;
+	float len_sq = FLT_MAX;
 
 	for (i = 0; i < 4; i++) {
 		float cur_len;
 
 		next = (i + 1) % 4;
 
-		cur_len = len_v2v2(marker->pattern_corners[i], marker->pattern_corners[next]);
+		cur_len = len_squared_v2v2(marker->pattern_corners[i], marker->pattern_corners[next]);
 
-		len = min_ff(cur_len, len);
+		len_sq = min_ff(cur_len, len_sq);
 	}
 
-	return len;
+	return sqrtf(len_sq);
 }
 
 static void draw_marker_slide_square(float x, float y, float dx, float dy, int outline, float px[2])
@@ -1031,8 +1031,7 @@ static void getArrowEndPoint(const int width, const int height, const float zoom
 
 	direction[0] *= width;
 	direction[1] *= height;
-	max_length = len_v2(direction);
-	normalize_v2(direction);
+	max_length = normalize_v2(direction);
 	mul_v2_fl(direction, min_ff(32.0f / zoom, max_length));
 	direction[0] /= width;
 	direction[1] /= height;
@@ -1461,7 +1460,7 @@ static void draw_tracking_tracks(SpaceClip *sc, Scene *scene, ARegion *ar, Movie
 
 						sub_v2_v2(vec, npos);
 
-						if (len_v2(vec) < 3.0f)
+						if (len_squared_v2(vec) < (3.0f * 3.0f))
 							glColor3f(0.0f, 1.0f, 0.0f);
 						else
 							glColor3f(1.0f, 0.0f, 0.0f);
@@ -1527,9 +1526,6 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	float aspy = 1.0f / tracking->camera.pixel_aspect;
 	float dx = (float)width / n, dy = (float)height / n * aspy;
 	float offsx = 0.0f, offsy = 0.0f;
-
-	if (sc->mode != SC_MODE_DISTORTION)
-		return;
 
 	if (!tracking->camera.focal)
 		return;
@@ -1819,7 +1815,7 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 	if (onlyv2d) {
 		/* if manual calibration is used then grease pencil data is already
 		 * drawn in draw_distortion */
-		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0 || sc->mode != SC_MODE_DISTORTION) {
+		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0) {
 			glPushMatrix();
 			glMultMatrixf(sc->unistabmat);
 

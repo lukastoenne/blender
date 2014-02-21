@@ -40,6 +40,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_mesh_types.h"  /* init_userdef_factory */
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -89,6 +90,9 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 	static char setting = 0;
 	const char *cp = error;
 	
+	/* ensure we're not getting a color after running BKE_userdef_free */
+	BLI_assert(BLI_findindex(&U.themes, theme_active) != -1);
+
 	if (btheme) {
 	
 		/* first check for ui buttons theme */
@@ -372,7 +376,7 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->nurb_sel_vline; break;
 				case TH_ACTIVE_SPLINE:
 					cp = ts->act_spline; break;
-				case TH_LASTSEL_POINT:
+				case TH_ACTIVE_VERT:
 					cp = ts->lastsel_point; break;
 				case TH_HANDLE_FREE:
 					cp = ts->handle_free; break;
@@ -743,8 +747,8 @@ static void ui_theme_init_new_do(ThemeSpace *ts)
 	rgba_char_args_set(ts->list_text_hi,   255, 255, 255, 255);
 
 	rgba_char_args_set(ts->tab_active,     114, 114, 114, 255);
-	rgba_char_args_set(ts->tab_inactive,   100, 100, 100, 255);
-	rgba_char_args_set(ts->tab_back,       70, 70, 70, 255);
+	rgba_char_args_set(ts->tab_inactive,   83, 83, 83, 255);
+	rgba_char_args_set(ts->tab_back,       64, 64, 64, 255);
 	rgba_char_args_set(ts->tab_outline,    60, 60, 60, 255);
 }
 
@@ -2410,8 +2414,8 @@ void init_userdef_do_versions(void)
 
 			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
 				rgba_char_args_set(ts->tab_active, 114, 114, 114, 255);
-				rgba_char_args_set(ts->tab_inactive, 100, 100, 100, 255);
-				rgba_char_args_set(ts->tab_back, 70, 70, 70, 255);
+				rgba_char_args_set(ts->tab_inactive, 83, 83, 83, 255);
+				rgba_char_args_set(ts->tab_back, 64, 64, 64, 255);
 				rgba_char_args_set(ts->tab_outline, 60, 60, 60, 255);
 			}
 		}
@@ -2442,8 +2446,13 @@ void init_userdef_factory(void)
 	U.uiflag |= USER_QUIT_PROMPT;
 	U.uiflag |= USER_CONTINUOUS_MOUSE;
 
-	U.ogl_multisamples = USER_MULTISAMPLE_4;
-
 	U.versions = 1;
 	U.savetime = 2;
+
+	{
+		Mesh *me;
+		for (me = G.main->mesh.first; me; me = me->id.next) {
+			me->flag &= ~ME_TWOSIDED;
+		}
+	}
 }

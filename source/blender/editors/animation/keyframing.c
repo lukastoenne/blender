@@ -183,7 +183,7 @@ FCurve *verify_fcurve(bAction *act, const char group[], PointerRNA *ptr,
 		fcu = MEM_callocN(sizeof(FCurve), "FCurve");
 		
 		fcu->flag = (FCURVE_VISIBLE | FCURVE_SELECTED);
-		if (act->curves.first == NULL)
+		if (BLI_listbase_is_empty(&act->curves))
 			fcu->flag |= FCURVE_ACTIVE;  /* first one added active */
 			
 		/* store path - make copy, and store that */
@@ -1249,20 +1249,10 @@ static int modify_key_op_poll(bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	Scene *scene = CTX_data_scene(C);
-	SpaceOops *so = CTX_wm_space_outliner(C);
 	
 	/* if no area or active scene */
 	if (ELEM(NULL, sa, scene)) 
 		return 0;
-	
-	/* if Outliner, don't allow in some views */
-	if (so) {
-		if (ELEM4(so->outlinevis, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_USERDEF)) {
-			return 0;
-		}
-	}
-	
-	/* TODO: checks for other space types can be added here */
 	
 	/* should be fine */
 	return 1;
@@ -1659,7 +1649,8 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 	char *path;
 	float cfra = (float)CFRA;
 	short success = 0;
-	int a, index, length, all = RNA_boolean_get(op->ptr, "all");
+	int a, index, length;
+	const bool all = RNA_boolean_get(op->ptr, "all");
 	short flag = 0;
 	
 	/* flags for inserting keyframes */
@@ -1750,7 +1741,8 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
 	char *path;
 	float cfra = (float)CFRA; // XXX for now, don't bother about all the yucky offset crap
 	short success = 0;
-	int a, index, length, all = RNA_boolean_get(op->ptr, "all");
+	int a, index, length;
+	const bool all = RNA_boolean_get(op->ptr, "all");
 	
 	/* try to insert keyframe using property retrieved from UI */
 	uiContextActiveProperty(C, &ptr, &prop, &index);
@@ -1819,7 +1811,8 @@ static int clear_key_button_exec(bContext *C, wmOperator *op)
 	PropertyRNA *prop = NULL;
 	char *path;
 	short success = 0;
-	int a, index, length, all = RNA_boolean_get(op->ptr, "all");
+	int a, index, length;
+	const bool all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to insert keyframe using property retrieved from UI */
 	uiContextActiveProperty(C, &ptr, &prop, &index);
@@ -1908,7 +1901,7 @@ int autokeyframe_cfra_can_key(Scene *scene, ID *id)
 /* --------------- API/Per-Datablock Handling ------------------- */
 
 /* Checks if some F-Curve has a keyframe for a given frame */
-short fcurve_frame_has_keyframe(FCurve *fcu, float frame, short filter)
+bool fcurve_frame_has_keyframe(FCurve *fcu, float frame, short filter)
 {
 	/* quick sanity check */
 	if (ELEM(NULL, fcu, fcu->bezt))

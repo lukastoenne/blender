@@ -246,7 +246,7 @@ static SpaceLink *clip_new(const bContext *C)
 
 	sc = MEM_callocN(sizeof(SpaceClip), "initclip");
 	sc->spacetype = SPACE_CLIP;
-	sc->flag = SC_SHOW_MARKER_PATTERN | SC_SHOW_TRACK_PATH | SC_MANUAL_CALIBRATION |
+	sc->flag = SC_SHOW_MARKER_PATTERN | SC_SHOW_TRACK_PATH |
 	           SC_SHOW_GRAPH_TRACKS_MOTION | SC_SHOW_GRAPH_FRAMES | SC_SHOW_GPENCIL;
 	sc->zoom = 1.0f;
 	sc->path_length = 20;
@@ -695,7 +695,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "CLIP_OT_hide_tracks_clear", HKEY, KM_PRESS, KM_ALT, 0);
 
 	/* plane tracks */
-	WM_keymap_add_item(keymap, "CLIP_OT_slide_plane_marker", LEFTMOUSE, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CLIP_OT_slide_plane_marker", ACTIONMOUSE, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "CLIP_OT_keyframe_insert", IKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CLIP_OT_keyframe_delete", IKEY, KM_PRESS, KM_ALT, 0);
@@ -781,6 +781,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 
 	/* view */
 	WM_keymap_add_item(keymap, "CLIP_OT_graph_view_all", HOMEKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CLIP_OT_graph_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CLIP_OT_graph_center_current_frame", PADPERIOD, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", LKEY, KM_PRESS, 0, 0);
@@ -811,6 +812,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "extend", TRUE);  /* toggle */
 
 	WM_keymap_add_item(keymap, "CLIP_OT_dopesheet_view_all", HOMEKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CLIP_OT_dopesheet_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 }
 
 const char *clip_context_dir[] = {"edit_movieclip", "edit_mask", NULL};
@@ -1186,7 +1188,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 
 	if (sc->mode == SC_MODE_MASKEDIT) {
 		Mask *mask = CTX_data_edit_mask(C);
-		if (mask) {
+		if (mask && clip) {
 			ScrArea *sa = CTX_wm_area(C);
 			int mask_width, mask_height;
 			ED_mask_get_size(sa, &mask_width, &mask_height);

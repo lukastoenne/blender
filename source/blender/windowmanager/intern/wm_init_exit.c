@@ -75,6 +75,7 @@
 #include "BKE_sequencer.h" /* free seq clipboard */
 #include "BKE_material.h" /* clear_matcopybuf */
 #include "BKE_tracking.h" /* free tracking clipboard */
+#include "BKE_mask.h" /* free mask clipboard */
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"        /* RE_ free stuff */
@@ -449,6 +450,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 
 	BKE_sequencer_free_clipboard(); /* sequencer.c */
 	BKE_tracking_clipboard_free();
+	BKE_mask_clipboard_free();
 		
 #ifdef WITH_COMPOSITOR
 	COM_deinitialize();
@@ -520,20 +522,21 @@ void WM_exit_ext(bContext *C, const bool do_python)
 		MEM_printmemlist();
 	}
 	wm_autosave_delete();
-	
-	printf("\nBlender quit\n");
-	
-#ifdef WIN32   
-	/* ask user to press a key when in debug mode */
-	if (G.debug & G_DEBUG) {
-		printf("Press any key to exit . . .\n\n");
-		wait_for_console_key();
-	}
-#endif 
 }
 
 void WM_exit(bContext *C)
 {
 	WM_exit_ext(C, 1);
+
+	printf("\nBlender quit\n");
+
+#ifdef WIN32
+	/* ask user to press a key when in debug mode */
+	if (G.debug & G_DEBUG) {
+		printf("Press any key to exit . . .\n\n");
+		wait_for_console_key();
+	}
+#endif
+
 	exit(G.is_break == TRUE);
 }

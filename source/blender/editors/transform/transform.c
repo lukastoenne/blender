@@ -414,26 +414,34 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 		SpaceClip *sc = t->sa->spacedata.first;
 
 		if (t->options & CTX_MASK) {
-			/* not working quite right, TODO (see above too) */
-			float aspx, aspy;
-			float v[2];
+			MovieClip *clip = ED_space_clip_get_clip(sc);
 
-			ED_space_clip_get_aspect(sc, &aspx, &aspy);
+			if (clip) {
+				/* not working quite right, TODO (see above too) */
+				float aspx, aspy;
+				float v[2];
 
-			copy_v2_v2(v, vec);
+				ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
-			v[0] = v[0] / aspx;
-			v[1] = v[1] / aspy;
+				copy_v2_v2(v, vec);
 
-			BKE_mask_coord_to_movieclip(sc->clip, &sc->user, v, v);
+				v[0] = v[0] / aspx;
+				v[1] = v[1] / aspy;
 
-			v[0] = v[0] / aspx;
-			v[1] = v[1] / aspy;
+				BKE_mask_coord_to_movieclip(sc->clip, &sc->user, v, v);
 
-			ED_clip_point_stable_pos__reverse(sc, t->ar, v, v);
+				v[0] = v[0] / aspx;
+				v[1] = v[1] / aspy;
 
-			adr[0] = v[0];
-			adr[1] = v[1];
+				ED_clip_point_stable_pos__reverse(sc, t->ar, v, v);
+
+				adr[0] = v[0];
+				adr[1] = v[1];
+			}
+			else {
+				adr[0] = 0;
+				adr[1] = 0;
+			}
 		}
 		else if (t->options & CTX_MOVIECLIP) {
 			float v[2], aspx, aspy;
@@ -1434,13 +1442,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 			case RIGHTALTKEY:
 				if (ELEM(t->spacetype, SPACE_SEQ, SPACE_VIEW3D)) {
 					t->flag |= T_ALT_TRANSFORM;
-					t->redraw |= TREDRAW_HARD;
-					handled = true;
-				}
-				break;
-			case HKEY:
-				if (t->spacetype == SPACE_NODE) {
-					t->flag ^= T_TOGGLE_HIDDEN;
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
@@ -5273,8 +5274,8 @@ static void calcNonProportionalEdgeSlide(TransInfo *t, EdgeSlideData *sld, const
 		int i = 0;
 
 		float v_proj[2];
-		float dist = 0;
-		float min_dist = FLT_MAX;
+		float dist_sq = 0;
+		float dist_min_sq = FLT_MAX;
 
 		if (t->spacetype == SPACE_VIEW3D) {
 			/* background mode support */
@@ -5294,9 +5295,9 @@ static void calcNonProportionalEdgeSlide(TransInfo *t, EdgeSlideData *sld, const
 			sv->edge_len = len_v3v3(sv->dir_a, sv->dir_b);
 
 			ED_view3d_project_float_v2_m4(ar, sv->v->co, v_proj, projectMat);
-			dist = len_squared_v2v2(mval, v_proj);
-			if (dist < min_dist) {
-				min_dist = dist;
+			dist_sq = len_squared_v2v2(mval, v_proj);
+			if (dist_sq < dist_min_sq) {
+				dist_min_sq = dist_sq;
 				sld->curr_sv_index = i;
 			}
 		}
@@ -6249,14 +6250,14 @@ static void calcVertSlideMouseActiveVert(struct TransInfo *t, const int mval[2])
 	TransDataVertSlideVert *sv;
 
 	/* set the vertex to use as a reference for the mouse direction 'curr_sv_index' */
-	float dist = 0.0f;
-	float min_dist = FLT_MAX;
+	float dist_sq = 0.0f;
+	float dist_min_sq = FLT_MAX;
 	int i;
 
 	for (i = 0, sv = sld->sv; i < sld->totsv; i++, sv++) {
-		dist = len_squared_v2v2(mval_fl, sv->co_orig_2d);
-		if (dist < min_dist) {
-			min_dist = dist;
+		dist_sq = len_squared_v2v2(mval_fl, sv->co_orig_2d);
+		if (dist_sq < dist_min_sq) {
+			dist_min_sq = dist_sq;
 			sld->curr_sv_index = i;
 		}
 	}

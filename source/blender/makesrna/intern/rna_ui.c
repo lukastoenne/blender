@@ -358,30 +358,34 @@ static void uilist_filter_items(uiList *ui_list, bContext *C, PointerRNA *datapt
 	parm = RNA_function_find_parameter(NULL, func, "filter_flags");
 	ret_len = RNA_parameter_dynamic_length_get(&list, parm);
 	if (ret_len != len && ret_len != 0) {
-		printf("%s: Error, py func returned %d items in %s, %d or none were expected.\n", AT,
+		printf("%s: Error, py func returned %d items in %s, %d or none were expected.\n", __func__,
 		       RNA_parameter_dynamic_length_get(&list, parm), "filter_flags", len);
-		RNA_parameter_list_free(&list);
-		return;
+		/* Note: we cannot return here, we would let flt_data in inconsistent state... see T38356. */
+		filter_flags = NULL;
 	}
-	RNA_parameter_get(&list, parm, &ret1);
-	filter_flags = (int *)ret1;
+	else {
+		RNA_parameter_get(&list, parm, &ret1);
+		filter_flags = (int *)ret1;
+	}
 
 	parm = RNA_function_find_parameter(NULL, func, "filter_neworder");
 	ret_len = RNA_parameter_dynamic_length_get(&list, parm);
 	if (ret_len != len && ret_len != 0) {
-		printf("%s: Error, py func returned %d items in %s, %d or none were expected.\n", AT,
+		printf("%s: Error, py func returned %d items in %s, %d or none were expected.\n", __func__,
 		       RNA_parameter_dynamic_length_get(&list, parm), "filter_neworder", len);
-		RNA_parameter_list_free(&list);
-		return;
+		/* Note: we cannot return here, we would let flt_data in inconsistent state... see T38356. */
+		filter_neworder = NULL;
 	}
-	RNA_parameter_get(&list, parm, &ret2);
-	filter_neworder = (int *)ret2;
+	else {
+		RNA_parameter_get(&list, parm, &ret2);
+		filter_neworder = (int *)ret2;
+	}
 
 	/* We have to do some final checks and transforms... */
 	{
 		int i, filter_exclude = ui_list->filter_flag & UILST_FLT_EXCLUDE;
 		if (filter_flags) {
-			flt_data->items_filter_flags = MEM_mallocN(sizeof(int) * len, AT);
+			flt_data->items_filter_flags = MEM_mallocN(sizeof(int) * len, __func__);
 			memcpy(flt_data->items_filter_flags, filter_flags, sizeof(int) * len);
 
 			if (filter_neworder) {
@@ -397,7 +401,7 @@ static void uilist_filter_items(uiList *ui_list, bContext *C, PointerRNA *datapt
 					}
 				}
 				items_shown = flt_data->items_shown = shown_idx;
-				flt_data->items_filter_neworder = MEM_mallocN(sizeof(int) * items_shown, AT);
+				flt_data->items_filter_neworder = MEM_mallocN(sizeof(int) * items_shown, __func__);
 				/* And now, bring back new indices into the [0, items_shown[ range!
 				 * XXX This is O(N²)... :/
 				 */
@@ -429,7 +433,7 @@ static void uilist_filter_items(uiList *ui_list, bContext *C, PointerRNA *datapt
 			flt_data->items_shown = len;
 
 			if (filter_neworder) {
-				flt_data->items_filter_neworder = MEM_mallocN(sizeof(int) * len, AT);
+				flt_data->items_filter_neworder = MEM_mallocN(sizeof(int) * len, __func__);
 				memcpy(flt_data->items_filter_neworder, filter_neworder, sizeof(int) * len);
 			}
 		}
@@ -673,7 +677,6 @@ static void rna_Menu_unregister(Main *UNUSED(bmain), StructRNA *type)
 	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
-static char _menu_descr[RNA_DYN_DESCR_MAX];
 static StructRNA *rna_Menu_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
                                     StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
@@ -683,14 +686,14 @@ static StructRNA *rna_Menu_register(Main *bmain, ReportList *reports, void *data
 	int have_function[2];
 	size_t over_alloc = 0; /* warning, if this becomes a bess, we better do another alloc */
 	size_t description_size = 0;
+	char _menu_descr[RNA_DYN_DESCR_MAX];
 
 	/* setup dummy menu & menu type to store static properties in */
 	dummymenu.type = &dummymt;
+	_menu_descr[0] = '\0';
 	dummymenu.type->description = _menu_descr;
 	RNA_pointer_create(NULL, &RNA_Menu, &dummymenu, &dummymtr);
 
-	/* clear in case they are left unset */
-	_menu_descr[0] = '\0';
 	/* We have to set default context! Else we get a void string... */
 	strcpy(dummymt.translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 
@@ -723,6 +726,8 @@ static StructRNA *rna_Menu_register(Main *bmain, ReportList *reports, void *data
 		memcpy(buf, _menu_descr, description_size);
 		mt->description = buf;
 	}
+	else
+		mt->description = "";
 
 	mt->ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, mt->idname, &RNA_Menu);
 	RNA_def_struct_translation_context(mt->ext.srna, mt->translation_context);
@@ -960,7 +965,7 @@ static void rna_def_panel(BlenderRNA *brna)
 	/* registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name",
 	                         "If this is set, the panel gets a custom ID, otherwise it takes the "
 	                         "name of the class used to define the panel. For example, if the "
@@ -1034,7 +1039,7 @@ static void rna_def_uilist(BlenderRNA *brna)
 	/* Registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name",
 	                         "If this is set, the uilist gets a custom ID, otherwise it takes the "
 	                         "name of the class used to define the uilist (for example, if the "
@@ -1168,7 +1173,7 @@ static void rna_def_header(BlenderRNA *brna)
 	/* registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name",
 	                         "If this is set, the header gets a custom ID, otherwise it takes the "
 	                         "name of the class used to define the panel; for example, if the "
@@ -1223,7 +1228,7 @@ static void rna_def_menu(BlenderRNA *brna)
 	/* registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Name",
 	                         "If this is set, the menu gets a custom ID, otherwise it takes the "
 	                         "name of the class used to define the menu (for example, if the "

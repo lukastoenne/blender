@@ -1,5 +1,4 @@
 /*
-
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -91,13 +90,12 @@ void UI_template_fix_linking(void)
 
 /********************** Header Template *************************/
 
-void uiTemplateHeader(uiLayout *layout, bContext *C, int menus)
+void uiTemplateHeader(uiLayout *layout, bContext *C)
 {
 	uiBlock *block;
 
 	block = uiLayoutAbsoluteBlock(layout);
-	if (menus) ED_area_header_standardbuttons(C, block, 0);
-	else ED_area_header_switchbutton(C, block, 0);
+	ED_area_header_switchbutton(C, block, 0);
 }
 
 /********************** Search Callbacks *************************/
@@ -304,8 +302,8 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 			break;
 		case UI_ID_ALONE:
 			if (id) {
-				const int do_scene_obj = (GS(id->name) == ID_OB) &&
-				                         (template->ptr.type == &RNA_SceneObjects);
+				const bool do_scene_obj = (GS(id->name) == ID_OB) &&
+				                          (template->ptr.type == &RNA_SceneObjects);
 
 				/* make copy */
 				if (do_scene_obj) {
@@ -1472,6 +1470,9 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 	float unit = BLI_rctf_size_x(butr) / 14.0f;
 	float xs = butr->xmin;
 	float ys = butr->ymin;
+	PointerRNA ptr;
+
+	RNA_pointer_create(cb->ptr.id.data, &RNA_ColorRamp, coba, &ptr);
 
 	split = uiLayoutSplit(layout, 0.4f, false);
 
@@ -1495,10 +1496,8 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 	uiBlockSetEmboss(block, UI_EMBOSS);
 
 	row = uiLayoutRow(split, false);
-	bt = uiDefButS(block, MENU, 0, IFACE_("Interpolation %t|Ease %x1|Cardinal %x3|Linear %x0|B-Spline %x2|Constant %x4"),
-	               0, ys + UI_UNIT_Y, 8.0f * unit, UI_UNIT_Y, &coba->ipotype, 0.0, 0.0, 0, 0,
-	               TIP_("Set interpolation between color stops"));
-	uiButSetNFunc(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
+
+	uiItemR(row, &ptr, "interpolation", 0, "", ICON_NONE);
 
 	row = uiLayoutRow(layout, false);
 
@@ -1509,7 +1508,6 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 
 	if (coba->tot) {
 		CBData *cbd = coba->data + coba->cur;
-		PointerRNA ptr;
 
 		RNA_pointer_create(cb->ptr.id.data, &RNA_ColorRampElement, cbd, &ptr);
 
@@ -1551,6 +1549,7 @@ void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, const char *propname
 	PointerRNA cptr;
 	RNAUpdateCb *cb;
 	uiBlock *block;
+	ID *id;
 	rctf rect;
 
 	if (!prop || RNA_property_type(prop) != PROP_POINTER)
@@ -1568,7 +1567,13 @@ void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, const char *propname
 	rect.ymin = 0; rect.ymax = 19.5f * UI_UNIT_X;
 
 	block = uiLayoutAbsoluteBlock(layout);
+
+	id = cptr.id.data;
+	uiBlockSetButLock(block, (id && id->lib), ERROR_LIBDATA_MESSAGE);
+
 	colorband_buttons_layout(layout, block, cptr.data, &rect, cb, expand);
+
+	uiBlockClearButLock(block);
 
 	MEM_freeN(cb);
 }
@@ -2175,6 +2180,8 @@ void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, const char *propn
 	RNAUpdateCb *cb;
 	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 	PointerRNA cptr;
+	ID *id;
+	uiBlock *block = uiLayoutGetBlock(layout);
 
 	if (!prop) {
 		RNA_warning("curve property not found: %s.%s",
@@ -2196,7 +2203,12 @@ void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, const char *propn
 	cb->ptr = *ptr;
 	cb->prop = prop;
 
+	id = cptr.id.data;
+	uiBlockSetButLock(block, (id && id->lib), ERROR_LIBDATA_MESSAGE);
+
 	curvemap_buttons_layout(layout, &cptr, type, levels, brush, cb);
+
+	uiBlockClearButLock(block);
 
 	MEM_freeN(cb);
 }
@@ -2806,14 +2818,8 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 	ui_list->layout_type = layout_type;
 
 	/* Reset filtering data. */
-	if (dyn_data->items_filter_flags) {
-		MEM_freeN(dyn_data->items_filter_flags);
-		dyn_data->items_filter_flags = NULL;
-	}
-	if (dyn_data->items_filter_neworder) {
-		MEM_freeN(dyn_data->items_filter_neworder);
-		dyn_data->items_filter_neworder = NULL;
-	}
+	MEM_SAFE_FREE(dyn_data->items_filter_flags);
+	MEM_SAFE_FREE(dyn_data->items_filter_neworder);
 	dyn_data->items_len = dyn_data->items_shown = -1;
 
 	/* When active item changed since last draw, scroll to it. */
@@ -3278,7 +3284,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	uiBut *but;
 	uiStyle *style = UI_GetStyle();
 	int width;
-	int icon = 0;
+	int icon;
 	
 	/* if the report display has timed out, don't show */
 	if (!reports->reporttimer) return;
@@ -3310,12 +3316,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	
 	
 	/* icon and report message on top */
-	if (report->type & RPT_ERROR_ALL)
-		icon = ICON_ERROR;
-	else if (report->type & RPT_WARNING_ALL)
-		icon = ICON_ERROR;
-	else if (report->type & RPT_INFO_ALL)
-		icon = ICON_INFO;
+	icon = uiIconFromReportType(report->type);
 	
 	/* XXX: temporary operator to dump all reports to a text block, but only if more than 1 report 
 	 * to be shown instead of icon when appropriate...

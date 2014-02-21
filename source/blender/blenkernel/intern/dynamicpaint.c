@@ -259,7 +259,7 @@ static int dynamicPaint_surfaceNumOfPoints(DynamicPaintSurface *surface)
 }
 
 /* checks whether surface's format/type has realtime preview */
-int dynamicPaint_surfaceHasColorPreview(DynamicPaintSurface *surface)
+bool dynamicPaint_surfaceHasColorPreview(DynamicPaintSurface *surface)
 {
 	if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
 		return 0;
@@ -321,7 +321,7 @@ static void dynamicPaint_setPreview(DynamicPaintSurface *t_surface)
 	}
 }
 
-int dynamicPaint_outputLayerExists(struct DynamicPaintSurface *surface, Object *ob, int output)
+bool dynamicPaint_outputLayerExists(struct DynamicPaintSurface *surface, Object *ob, int output)
 {
 	char *name;
 
@@ -1101,7 +1101,7 @@ DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *c
 /*
  * Initialize modifier data
  */
-int dynamicPaint_createType(struct DynamicPaintModifierData *pmd, int type, struct Scene *scene)
+bool dynamicPaint_createType(struct DynamicPaintModifierData *pmd, int type, struct Scene *scene)
 {
 	if (pmd) {
 		if (type == MOD_DYNAMICPAINT_TYPE_CANVAS) {
@@ -1461,7 +1461,7 @@ static void dynamicPaint_setInitialColor(Scene *scene, DynamicPaintSurface *surf
 	PaintPoint *pPoint = (PaintPoint *)sData->type_data;
 	DerivedMesh *dm = surface->canvas->dm;
 	int i;
-	bool scene_color_manage = BKE_scene_check_color_management_enabled(scene);
+	const bool scene_color_manage = BKE_scene_check_color_management_enabled(scene);
 
 	if (surface->type != MOD_DPAINT_SURFACE_T_PAINT)
 		return;
@@ -1628,7 +1628,7 @@ void dynamicPaint_clearSurface(Scene *scene, DynamicPaintSurface *surface)
 }
 
 /* completely (re)initializes surface (only for point cache types)*/
-int dynamicPaint_resetSurface(Scene *scene, DynamicPaintSurface *surface)
+bool dynamicPaint_resetSurface(Scene *scene, DynamicPaintSurface *surface)
 {
 	int numOfPoints = dynamicPaint_surfaceNumOfPoints(surface);
 	/* free existing data */
@@ -1655,7 +1655,7 @@ int dynamicPaint_resetSurface(Scene *scene, DynamicPaintSurface *surface)
 }
 
 /* make sure allocated surface size matches current requirements */
-static int dynamicPaint_checkSurfaceData(Scene *scene, DynamicPaintSurface *surface)
+static bool dynamicPaint_checkSurfaceData(Scene *scene, DynamicPaintSurface *surface)
 {
 	if (!surface->data || ((dynamicPaint_surfaceNumOfPoints(surface) != surface->data->total_points))) {
 		return dynamicPaint_resetSurface(scene, surface);
@@ -2944,13 +2944,13 @@ static void mesh_faces_nearest_point_dp(void *userdata, int index, const float c
 	t3 = face->v4 ? vert[face->v4].co : NULL;
 
 	do {
-		float nearest_tmp[3], dist;
+		float nearest_tmp[3], dist_sq;
 		int vertex, edge;
 		
-		dist = nearest_point_in_tri_surface(t0, t1, t2, co, &vertex, &edge, nearest_tmp);
-		if (dist < nearest->dist) {
+		dist_sq = nearest_point_in_tri_surface_squared(t0, t1, t2, co, &vertex, &edge, nearest_tmp);
+		if (dist_sq < nearest->dist_sq) {
 			nearest->index = index;
-			nearest->dist = dist;
+			nearest->dist_sq = dist_sq;
 			copy_v3_v3(nearest->co, nearest_tmp);
 			nearest->no[0] = (quad) ? 1.0f : 0.0f;
 		}
@@ -3405,7 +3405,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 							hit.index = -1;
 							hit.dist = 9999;
 							nearest.index = -1;
-							nearest.dist = brush_radius * brush_radius; /* find_nearest uses squared distance */
+							nearest.dist_sq = brush_radius * brush_radius; /* find_nearest uses squared distance */
 
 							/* Check volume collision	*/
 							if (brush->collision == MOD_DPAINT_COL_VOLUME || brush->collision == MOD_DPAINT_COL_VOLDIST)
@@ -3463,7 +3463,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 								/* If pure distance proximity, find the nearest point on the mesh */
 								if (!(brush->flags & MOD_DPAINT_PROX_PROJECT)) {
 									if (BLI_bvhtree_find_nearest(treeData.tree, ray_start, &nearest, mesh_faces_nearest_point_dp, &treeData) != -1) {
-										proxDist = sqrtf(nearest.dist);
+										proxDist = sqrtf(nearest.dist_sq);
 										copy_v3_v3(hitCo, nearest.co);
 										hQuad = (nearest.no[0] == 1.0f);
 										face = nearest.index;
@@ -4225,7 +4225,7 @@ static int dynamicPaint_prepareEffectStep(DynamicPaintSurface *surface, Scene *s
 	/* Init force data if required */
 	if (surface->effect & MOD_DPAINT_EFFECT_DO_DRIP) {
 		float vel[3] = {0};
-		ListBase *effectors = pdInitEffectors(scene, ob, NULL, surface->effector_weights);
+		ListBase *effectors = pdInitEffectors(scene, ob, NULL, surface->effector_weights, true);
 
 		/* allocate memory for force data (dir vector + strength) */
 		*force = MEM_mallocN(sData->total_points * 4 * sizeof(float), "PaintEffectForces");

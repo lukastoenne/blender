@@ -148,7 +148,7 @@ static void rna_tracking_active_track_set(PointerRNA *ptr, PointerRNA value)
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
 	int index = BLI_findindex(tracksbase, track);
 
-	if (index >= 0)
+	if (index != -1)
 		clip->tracking.act_track = track;
 	else
 		clip->tracking.act_track = NULL;
@@ -169,7 +169,7 @@ static void rna_tracking_active_plane_track_set(PointerRNA *ptr, PointerRNA valu
 	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(&clip->tracking);
 	int index = BLI_findindex(plane_tracks_base, plane_track);
 
-	if (index >= 0)
+	if (index != -1)
 		clip->tracking.act_plane_track = plane_track;
 	else
 		clip->tracking.act_plane_track = NULL;
@@ -187,11 +187,11 @@ static void rna_trackingTrack_name_set(PointerRNA *ptr, const char *value)
 	/* TODO: it's a bit difficult to find list track came from knowing just
 	 *       movie clip ID and MovieTracking structure, so keep this naive
 	 *       search for a while */
-	if (BLI_findindex(tracksbase, track) < 0) {
+	if (BLI_findindex(tracksbase, track) == -1) {
 		MovieTrackingObject *object = tracking->objects.first;
 
 		while (object) {
-			if (BLI_findindex(&object->tracks, track)) {
+			if (BLI_findindex(&object->tracks, track) != -1) {
 				tracksbase = &object->tracks;
 				break;
 			}
@@ -285,11 +285,11 @@ static void rna_trackingPlaneTrack_name_set(PointerRNA *ptr, const char *value)
 	/* TODO: it's a bit difficult to find list track came from knowing just
 	 *       movie clip ID and MovieTracking structure, so keep this naive
 	 *       search for a while */
-	if (BLI_findindex(plane_tracks_base, plane_track) < 0) {
+	if (BLI_findindex(plane_tracks_base, plane_track) == -1) {
 		MovieTrackingObject *object = tracking->objects.first;
 
 		while (object) {
-			if (BLI_findindex(&object->plane_tracks, plane_track)) {
+			if (BLI_findindex(&object->plane_tracks, plane_track) != -1) {
 				plane_tracks_base = &object->plane_tracks;
 				break;
 			}
@@ -441,7 +441,7 @@ static void rna_tracking_active_object_set(PointerRNA *ptr, PointerRNA value)
 	MovieTrackingObject *object = (MovieTrackingObject *)value.data;
 	int index = BLI_findindex(&clip->tracking.objects, object);
 
-	if (index >= 0) clip->tracking.objectnr = index;
+	if (index != -1) clip->tracking.objectnr = index;
 	else clip->tracking.objectnr = 0;
 }
 
@@ -819,7 +819,14 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_default_expanded", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", TRACKING_SETTINGS_SHOW_DEFAULT_EXPANDED);
-	RNA_def_property_ui_text(prop, "Show Expanded", "Show the expanded in the user interface");
+	RNA_def_property_ui_text(prop, "Show Expanded", "Show default options expanded in the user interface");
+	RNA_def_property_ui_icon(prop, ICON_TRIA_RIGHT, 1);
+
+	/* ** extra tracker settings ** */
+	prop = RNA_def_property(srna, "show_extra_expanded", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", TRACKING_SETTINGS_SHOW_EXTRA_EXPANDED);
+	RNA_def_property_ui_text(prop, "Show Expanded", "Show extra options expanded in the user interface");
 	RNA_def_property_ui_icon(prop, ICON_TRIA_RIGHT, 1);
 
 	/* solver settings */
@@ -922,6 +929,10 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "default_flag", TRACK_DISABLE_BLUE);
 	RNA_def_property_ui_text(prop, "Use Blue Channel", "Use blue channel from footage for tracking");
 	RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, NULL);
+
+	prop = RNA_def_property(srna, "default_weight", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Weight", "Influence of newly created track on a final solution");
 
 	/* ** object tracking ** */
 

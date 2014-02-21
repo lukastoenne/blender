@@ -434,7 +434,7 @@ static int view3d_camera_to_view_poll(bContext *C)
 	View3D *v3d = CTX_wm_view3d(C);
 	if (v3d && v3d->camera && v3d->camera->id.lib == NULL) {
 		RegionView3D *rv3d = CTX_wm_region_view3d(C);
-		if (rv3d && !rv3d->viewlock) {
+		if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
 			return 1;
 		}
 	}
@@ -724,7 +724,7 @@ bool ED_view3d_viewplane_get(View3D *v3d, RegionView3D *rv3d, int winx, int winy
 /**
  * Use instead of: ``bglPolygonOffset(rv3d->dist, ...)`` see bug [#37727]
  */
-void ED_view3d_polygon_offset(const RegionView3D *rv3d, float dist)
+void ED_view3d_polygon_offset(const RegionView3D *rv3d, const float dist)
 {
 	float viewdist = rv3d->dist;
 
@@ -748,10 +748,10 @@ void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)
 	RegionView3D *rv3d = ar->regiondata;
 	rctf viewplane;
 	float clipsta, clipend, x1, y1, x2, y2;
-	int orth;
+	bool is_ortho;
 	
-	orth = ED_view3d_viewplane_get(v3d, rv3d, ar->winx, ar->winy, &viewplane, &clipsta, &clipend, NULL);
-	rv3d->is_persp = !orth;
+	is_ortho = ED_view3d_viewplane_get(v3d, rv3d, ar->winx, ar->winy, &viewplane, &clipsta, &clipend, NULL);
+	rv3d->is_persp = !is_ortho;
 
 #if 0
 	printf("%s: %d %d %f %f %f %f %f %f\n", __func__, winx, winy,
@@ -774,12 +774,12 @@ void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)
 		rect->ymax /= (float)ar->winy;
 		rect->ymax = y1 + rect->ymax * (y2 - y1);
 		
-		if (orth) wmOrtho(rect->xmin, rect->xmax, rect->ymin, rect->ymax, -clipend, clipend);
+		if (is_ortho) wmOrtho(rect->xmin, rect->xmax, rect->ymin, rect->ymax, -clipend, clipend);
 		else wmFrustum(rect->xmin, rect->xmax, rect->ymin, rect->ymax, clipsta, clipend);
 
 	}
 	else {
-		if (orth) wmOrtho(x1, x2, y1, y2, clipsta, clipend);
+		if (is_ortho) wmOrtho(x1, x2, y1, y2, clipsta, clipend);
 		else wmFrustum(x1, x2, y1, y2, clipsta, clipend);
 	}
 
@@ -803,37 +803,55 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
 	mat3_to_quat(rv3d->viewquat, tmat);
 }
 
-bool ED_view3d_lock(RegionView3D *rv3d)
+bool ED_view3d_quat_from_axis_view(const char view, float quat[4])
 {
-	switch (rv3d->view) {
+	/* quat values are all unit length */
+
+	switch (view) {
 		case RV3D_VIEW_BOTTOM:
-			copy_v4_fl4(rv3d->viewquat, 0.0, -1.0, 0.0, 0.0);
+			copy_v4_fl4(quat, 0.0, -1.0, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_BACK:
-			copy_v4_fl4(rv3d->viewquat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
+			copy_v4_fl4(quat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
 			break;
 
 		case RV3D_VIEW_LEFT:
-			copy_v4_fl4(rv3d->viewquat, 0.5, -0.5, 0.5, 0.5);
+			copy_v4_fl4(quat, 0.5, -0.5, 0.5, 0.5);
 			break;
 
 		case RV3D_VIEW_TOP:
-			copy_v4_fl4(rv3d->viewquat, 1.0, 0.0, 0.0, 0.0);
+			copy_v4_fl4(quat, 1.0, 0.0, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_FRONT:
-			copy_v4_fl4(rv3d->viewquat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
+			copy_v4_fl4(quat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_RIGHT:
-			copy_v4_fl4(rv3d->viewquat, 0.5, -0.5, -0.5, -0.5);
+			copy_v4_fl4(quat, 0.5, -0.5, -0.5, -0.5);
 			break;
 		default:
 			return false;
 	}
 
 	return true;
+}
+
+char ED_view3d_lock_view_from_index(int index)
+{
+	switch (index) {
+		case 0:  return RV3D_VIEW_FRONT;
+		case 1:  return RV3D_VIEW_TOP;
+		case 2:  return RV3D_VIEW_RIGHT;
+		default: return RV3D_VIEW_USER;
+	}
+
+}
+
+bool ED_view3d_lock(RegionView3D *rv3d)
+{
+	return ED_view3d_quat_from_axis_view(rv3d->view, rv3d->viewquat);
 }
 
 /* don't set windows active in here, is used by renderwin too */
@@ -854,7 +872,7 @@ void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d)
 
 
 		/* should be moved to better initialize later on XXX */
-		if (rv3d->viewlock)
+		if (rv3d->viewlock & RV3D_LOCKED)
 			ED_view3d_lock(rv3d);
 		
 		quat_to_mat4(rv3d->viewmat, rv3d->viewquat);
@@ -1348,7 +1366,7 @@ static void SaveState(bContext *C, wmWindow *win)
 	
 	queue_back = win->queue;
 	
-	win->queue.first = win->queue.last = NULL;
+	BLI_listbase_clear(&win->queue);
 	
 	//XXX waitcursor(1);
 }

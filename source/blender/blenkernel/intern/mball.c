@@ -1500,7 +1500,7 @@ static void find_first_points(PROCESS *process, MetaBall *mb, int a)
 		float in_v /*, out_v*/;
 		float workp[3];
 		float dvec[3];
-		float tmp_v, workp_v, max_len, nx, ny, nz, max_dim;
+		float tmp_v, workp_v, max_len_sq, nx, ny, nz, max_dim;
 
 		calc_mballco(ml, in);
 		in_v = process->function(process, in[0], in[1], in[2]);
@@ -1553,7 +1553,7 @@ static void find_first_points(PROCESS *process, MetaBall *mb, int a)
 					/* find "first points" on Implicit Surface of MetaElemnt ml */
 					copy_v3_v3(workp, in);
 					workp_v = in_v;
-					max_len = len_v3v3(out, in);
+					max_len_sq = len_squared_v3v3(out, in);
 
 					nx = fabsf((out[0] - in[0]) / process->size);
 					ny = fabsf((out[1] - in[1]) / process->size);
@@ -1561,13 +1561,13 @@ static void find_first_points(PROCESS *process, MetaBall *mb, int a)
 					
 					max_dim = max_fff(nx, ny, nz);
 					if (max_dim != 0.0f) {
-						float len = 0.0f;
+						float len_sq = 0.0f;
 
 						dvec[0] = (out[0] - in[0]) / max_dim;
 						dvec[1] = (out[1] - in[1]) / max_dim;
 						dvec[2] = (out[2] - in[2]) / max_dim;
 
-						while (len <= max_len) {
+						while (len_sq <= max_len_sq) {
 							add_v3_v3(workp, dvec);
 
 							/* compute value of implicite function */
@@ -1589,7 +1589,7 @@ static void find_first_points(PROCESS *process, MetaBall *mb, int a)
 									add_cube(process, c_i, c_j, c_k, 2);
 								}
 							}
-							len = len_v3v3(workp, in);
+							len_sq = len_squared_v3v3(workp, in);
 							workp_v = tmp_v;
 
 						}
@@ -1901,8 +1901,7 @@ static void subdivide_metaball_octal_node(octal_node *node, float size_x, float 
 		for (i = 0; i < 8; i++)
 			node->nodes[a]->nodes[i] = NULL;
 		node->nodes[a]->parent = node;
-		node->nodes[a]->elems.first = NULL;
-		node->nodes[a]->elems.last = NULL;
+		BLI_listbase_clear(&node->nodes[a]->elems);
 		node->nodes[a]->count = 0;
 		node->nodes[a]->neg = 0;
 		node->nodes[a]->pos = 0;
@@ -2171,8 +2170,7 @@ static void init_metaball_octal_tree(PROCESS *process, int depth)
 	process->metaball_tree->neg = node->neg = 0;
 	process->metaball_tree->pos = node->pos = 0;
 	
-	node->elems.first = NULL;
-	node->elems.last = NULL;
+	BLI_listbase_clear(&node->elems);
 	node->count = 0;
 
 	for (a = 0; a < 8; a++)
@@ -2420,7 +2418,7 @@ bool BKE_mball_minmax(MetaBall *mb, float min[3], float max[3])
 		minmax_v3v3_v3(min, max, &ml->x);
 	}
 
-	return (mb->elems.first != NULL);
+	return (BLI_listbase_is_empty(&mb->elems) == false);
 }
 
 bool BKE_mball_center_median(MetaBall *mb, float r_cent[3])

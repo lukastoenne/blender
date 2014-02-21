@@ -652,7 +652,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 #endif
 
 		/* holdout mask objects do not write data passes */
-		kernel_write_data_passes(kg, buffer, &L, &sd, sample, state.flag, throughput);
+		kernel_write_data_passes(kg, buffer, &L, &sd, sample, &state, throughput);
 
 		/* blurring of bsdf after bounces, for rays that have a small likelihood
 		 * of following this particular path (diffuse, rough glossy) */
@@ -884,11 +884,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 			ray.t = FLT_MAX;
 	}
 
-	float3 L_sum = path_radiance_sum(kg, &L);
-
-#ifdef __CLAMP_SAMPLE__
-	path_radiance_clamp(&L, &L_sum, kernel_data.integrator.sample_clamp);
-#endif
+	float3 L_sum = path_radiance_clamp_and_sum(kg, &L);
 
 	kernel_write_light_passes(kg, buffer, &L, sample);
 
@@ -1185,7 +1181,7 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 #endif
 
 		/* holdout mask objects do not write data passes */
-		kernel_write_data_passes(kg, buffer, &L, &sd, sample, state.flag, throughput);
+		kernel_write_data_passes(kg, buffer, &L, &sd, sample, &state, throughput);
 
 #ifdef __EMISSION__
 		/* emission */
@@ -1320,11 +1316,7 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 #endif
 	}
 
-	float3 L_sum = path_radiance_sum(kg, &L);
-
-#ifdef __CLAMP_SAMPLE__
-	path_radiance_clamp(&L, &L_sum, kernel_data.integrator.sample_clamp);
-#endif
+	float3 L_sum = path_radiance_clamp_and_sum(kg, &L);
 
 	kernel_write_light_passes(kg, buffer, &L, sample);
 

@@ -728,7 +728,7 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 	int w;
 
 	if (!name) {
-		if (ot && ot->srna)
+		if (ot && ot->srna && (flag & UI_ITEM_R_ICON_ONLY) == 0)
 			name = RNA_struct_ui_name(ot->srna);
 		else
 			name = "";
@@ -1159,8 +1159,15 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 	len = (is_array) ? RNA_property_array_length(ptr, prop) : 0;
 
 	/* set name and icon */
-	if (!name)
-		name = RNA_property_ui_name(prop);
+	if (!name) {
+		if ((flag & UI_ITEM_R_ICON_ONLY) == 0) {
+			name = RNA_property_ui_name(prop);
+		}
+		else {
+			name = "";
+		}
+	}
+
 	if (icon == ICON_NONE)
 		icon = RNA_property_ui_icon(prop);
 	
@@ -1619,10 +1626,14 @@ static void ui_item_menu(uiLayout *layout, const char *name, int icon, uiMenuCre
 	h = UI_UNIT_Y;
 
 	if (layout->root->type == UI_LAYOUT_HEADER) { /* ugly .. */
-		if (force_menu)
+		if (force_menu) {
 			w += UI_UNIT_Y;
-		else
-			w -= UI_UNIT_Y / 2;
+		}
+		else {
+			if (name[0]) {
+				w -= UI_UNIT_Y / 2;
+			}
+		}
 	}
 
 	if (name[0] && icon)
@@ -1643,8 +1654,7 @@ static void ui_item_menu(uiLayout *layout, const char *name, int icon, uiMenuCre
 	if (ELEM(layout->root->type, UI_LAYOUT_PANEL, UI_LAYOUT_TOOLBAR) ||
 	    (force_menu && layout->root->type != UI_LAYOUT_MENU))  /* We never want a dropdown in menu! */
 	{
-		but->type = MENU;
-		but->drawflag |= UI_BUT_TEXT_LEFT;
+		uiButSetMenuFromPulldown(but);
 	}
 }
 
@@ -1783,6 +1793,9 @@ static void menu_item_enum_opname_menu(bContext *UNUSED(C), uiLayout *layout, vo
 
 	uiLayoutSetOperatorContext(layout, lvl->opcontext);
 	uiItemsEnumO(layout, lvl->opname, lvl->propname);
+
+	/* override default, needed since this was assumed pre 2.70 */
+	uiBlockSetDirection(layout->root->block, UI_DOWN);
 }
 
 void uiItemMenuEnumO(uiLayout *layout, bContext *C, const char *opname, const char *propname, const char *name, int icon)
@@ -2692,7 +2705,7 @@ static void ui_item_estimate(uiItem *item)
 		for (subitem = litem->items.first; subitem; subitem = subitem->next)
 			ui_item_estimate(subitem);
 
-		if (litem->items.first == NULL)
+		if (BLI_listbase_is_empty(&litem->items))
 			return;
 
 		if (litem->scale[0] != 0.0f || litem->scale[1] != 0.0f)
@@ -2782,7 +2795,7 @@ static void ui_item_layout(uiItem *item)
 	if (item->type != ITEM_BUTTON) {
 		uiLayout *litem = (uiLayout *)item;
 
-		if (litem->items.first == NULL)
+		if (BLI_listbase_is_empty(&litem->items))
 			return;
 
 		if (litem->align)
