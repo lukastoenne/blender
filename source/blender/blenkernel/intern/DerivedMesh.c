@@ -64,7 +64,6 @@
 #include "BKE_multires.h"
 #include "BKE_armature.h"
 #include "BKE_particle.h"
-#include "BKE_editmesh.h"
 #include "BKE_bvhutils.h"
 #include "BKE_deform.h"
 #include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */
@@ -949,7 +948,7 @@ static DerivedMesh *create_orco_dm(Object *ob, Mesh *me, BMEditMesh *em, int lay
 	float (*orco)[3];
 	int free;
 
-	if (em) dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+	if (em) dm = CDDM_from_editbmesh(em, false, false);
 	else dm = CDDM_from_mesh(me);
 
 	orco = get_orco_coords_dm(ob, em, layer, &free);
@@ -1429,23 +1428,24 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	DerivedMesh *dm = NULL, *orcodm, *clothorcodm, *finaldm;
 	int numVerts = me->totvert;
 	int required_mode;
-	int isPrevDeform = FALSE;
-	int skipVirtualArmature = (useDeform < 0);
+	bool isPrevDeform = false;
+	const bool skipVirtualArmature = (useDeform < 0);
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
-	int has_multires = mmd != NULL, multires_applied = 0;
-	int sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->sculpt;
-	int sculpt_dyntopo = (sculpt_mode && ob->sculpt->bm);
-	int draw_flag = dm_drawflag_calc(scene->toolsettings);
+	const bool has_multires = (mmd && mmd->sculptlvl != 0);
+	bool multires_applied = false;
+	const bool sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->sculpt;
+	const bool sculpt_dyntopo = (sculpt_mode && ob->sculpt->bm);
+	const int draw_flag = dm_drawflag_calc(scene->toolsettings);
 
 	/* Generic preview only in object mode! */
-	const int do_mod_mcol = (ob->mode == OB_MODE_OBJECT);
+	const bool do_mod_mcol = (ob->mode == OB_MODE_OBJECT);
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
-	const int do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
+	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
-	const int do_final_wmcol = FALSE;
-	int do_init_wmcol = ((dataMask & CD_MASK_PREVIEW_MCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT) && !do_final_wmcol);
+	const bool do_final_wmcol = FALSE;
+	const bool do_init_wmcol = ((dataMask & CD_MASK_PREVIEW_MCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT) && !do_final_wmcol);
 	/* XXX Same as above... For now, only weights preview in WPaint mode. */
-	const int do_mod_wmcol = do_init_wmcol;
+	const bool do_mod_wmcol = do_init_wmcol;
 
 	VirtualModifierData virtualModifierData;
 
@@ -1455,9 +1455,6 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		app_flags |= MOD_APPLY_USECACHE;
 	if (useDeform)
 		deform_app_flags |= MOD_APPLY_USECACHE;
-
-	if (mmd && !mmd->sculptlvl)
-		has_multires = 0;
 
 	if (!skipVirtualArmature) {
 		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
@@ -1570,7 +1567,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		if (sculpt_mode &&
 		    (!has_multires || multires_applied || ob->sculpt->bm))
 		{
-			int unsupported = 0;
+			bool unsupported = false;
 
 			if (md->type == eModifierType_Multires && ((MultiresModifierData *)md)->sculptlvl == 0) {
 				/* If multires is on level 0 skip it silently without warning message. */
@@ -1578,10 +1575,10 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 			}
 
 			if (sculpt_dyntopo && !useRenderParams)
-				unsupported = TRUE;
+				unsupported = true;
 
 			if (scene->toolsettings->sculpt->flags & SCULPT_ONLY_DEFORM)
-				unsupported |= mti->type != eModifierTypeType_OnlyDeform;
+				unsupported |= (mti->type != eModifierTypeType_OnlyDeform);
 
 			unsupported |= multires_applied;
 
@@ -1786,8 +1783,9 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		if ((index >= 0) && (BLI_findindex(&ob->modifiers, md) >= index))
 			break;
 
-		if (sculpt_mode && md->type == eModifierType_Multires)
-			multires_applied = 1;
+		if (sculpt_mode && md->type == eModifierType_Multires) {
+			multires_applied = true;
+		}
 	}
 
 	for (md = firstmd; md; md = md->next)
@@ -1939,7 +1937,7 @@ float (*editbmesh_get_vertex_cos(BMEditMesh *em, int *numVerts_r))[3]
 	return cos;
 }
 
-int editbmesh_modifier_is_enabled(Scene *scene, ModifierData *md, DerivedMesh *dm)
+bool editbmesh_modifier_is_enabled(Scene *scene, ModifierData *md, DerivedMesh *dm)
 {
 	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
@@ -1966,14 +1964,14 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
 	int draw_flag = dm_drawflag_calc(scene->toolsettings);
 
-	// const int do_mod_mcol = true; // (ob->mode == OB_MODE_OBJECT);
+	// const bool do_mod_mcol = true; // (ob->mode == OB_MODE_OBJECT);
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
-	const int do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
+	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
-	const int do_final_wmcol = FALSE;
-	int do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
-	int do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
-	const int do_mod_wmcol = do_init_wmcol;
+	const bool do_final_wmcol = FALSE;
+	const bool do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
+	const bool do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
+	const bool do_mod_wmcol = do_init_wmcol;
 	VirtualModifierData virtualModifierData;
 
 	modifiers_clearErrors(ob);
@@ -2062,7 +2060,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 
 			}
 			else {
-				dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+				dm = CDDM_from_editbmesh(em, false, false);
 				ASSERT_IS_VALID_DM(dm);
 
 				if (deformedVerts) {
@@ -2698,7 +2696,8 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 			{
 				float *verts[4], *tex_coords[4];
 				const int nr_verts = mface[f].v4 != 0 ? 4 : 3;
-				int i, is_degenerate;
+				bool is_degenerate;
+				int i;
 
 				verts[0] = mvert[mface[f].v1].co; verts[1] = mvert[mface[f].v2].co; verts[2] = mvert[mface[f].v3].co;
 				tex_coords[0] = mtface[f].uv[0]; tex_coords[1] = mtface[f].uv[1]; tex_coords[2] = mtface[f].uv[2];
@@ -2726,7 +2725,7 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 					/* verify the winding is consistent */
 					if (is_degenerate == 0) {
 						float prev_edge[2];
-						int is_signed = 0;
+						bool is_signed = 0;
 						sub_v2_v2v2(prev_edge, tex_coords[0], tex_coords[3]);
 
 						i = 0;

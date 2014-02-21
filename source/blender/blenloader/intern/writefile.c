@@ -148,7 +148,6 @@
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_pagedbuffer.h"
-#include "BLI_utildefines.h"
 #include "BLI_mempool.h"
 
 #include "BKE_action.h"
@@ -448,7 +447,7 @@ static void IDP_WriteIDPArray(IDProperty *prop, void *wd)
 static void IDP_WriteString(IDProperty *prop, void *wd)
 {
 	/*REMEMBER to set totalen to len in the linking code!!*/
-	writedata(wd, DATA, prop->len+1, prop->data.pointer);
+	writedata(wd, DATA, prop->len, prop->data.pointer);
 }
 
 static void IDP_WriteGroup(IDProperty *prop, void *wd)
@@ -1593,6 +1592,7 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			write_particlesystems(wd, &ob->particlesystem);
 			write_modifiers(wd, &ob->modifiers);
 
+			writelist(wd, DATA, "LinkData", &ob->pc_ids);
 			writelist(wd, DATA, "LodLevel", &ob->lodlevels);
 		}
 		ob= ob->id.next;
@@ -3469,7 +3469,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 
 /* do reverse file history: .blend1 -> .blend2, .blend -> .blend1 */
 /* return: success(0), failure(1) */
-static int do_history(const char *name, ReportList *reports)
+static bool do_history(const char *name, ReportList *reports)
 {
 	char tempname1[FILE_MAX], tempname2[FILE_MAX];
 	int hisnr= U.versions;
@@ -3575,7 +3575,7 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 	/* file save to temporary file was successful */
 	/* now do reverse file history (move .blend1 -> .blend2, .blend -> .blend1) */
 	if (write_flags & G_FILE_HISTORY) {
-		int err_hist = do_history(filepath, reports);
+		const bool err_hist = do_history(filepath, reports);
 		if (err_hist) {
 			BKE_report(reports, RPT_ERROR, "Version backup failed (file saved with @)");
 			return 0;

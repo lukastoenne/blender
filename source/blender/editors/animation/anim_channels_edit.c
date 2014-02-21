@@ -80,7 +80,7 @@ void ANIM_set_active_channel(bAnimContext *ac, void *data, short datatype, int f
 	
 	/* try to build list of filtered items */
 	ANIM_animdata_filter(ac, &anim_data, filter, data, datatype);
-	if (anim_data.first == NULL)
+	if (BLI_listbase_is_empty(&anim_data))
 		return;
 		
 	/* only clear the 'active' flag for the channels of the same type */
@@ -550,7 +550,7 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *f
 			/* if group has no more channels, remove it too, 
 			 * otherwise can have many dangling groups [#33541]
 			 */
-			if (agrp->channels.first == NULL) {
+			if (BLI_listbase_is_empty(&agrp->channels)) {
 				BLI_freelinkN(&act->groups, agrp);
 			}
 		}
@@ -565,7 +565,7 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *f
 		 * channel list that are empty, and linger around long after the data they
 		 * are for has disappeared (and probably won't come back).
 		 */
-		if ((act->curves.first == NULL) && (adt->flag & ADT_NLA_EDIT_ON) == 0) {
+		if (BLI_listbase_is_empty(&act->curves) && (adt->flag & ADT_NLA_EDIT_ON) == 0) {
 			id_us_min(&act->id);
 			adt->action = NULL;
 		}
@@ -659,7 +659,7 @@ typedef enum eReorderIslandFlag {
 
 /* Rearrange Methods --------------------------------------------- */
 
-static short rearrange_island_ok(tReorderChannelIsland *island)
+static bool rearrange_island_ok(tReorderChannelIsland *island)
 {
 	/* island must not be untouchable */
 	if (island->flag & REORDER_ISLAND_UNTOUCHABLE)
@@ -671,7 +671,7 @@ static short rearrange_island_ok(tReorderChannelIsland *island)
 
 /* ............................. */
 
-static short rearrange_island_top(ListBase *list, tReorderChannelIsland *island)
+static bool rearrange_island_top(ListBase *list, tReorderChannelIsland *island)
 {
 	if (rearrange_island_ok(island)) {
 		/* remove from current position */
@@ -686,7 +686,7 @@ static short rearrange_island_top(ListBase *list, tReorderChannelIsland *island)
 	return 0;
 }
 
-static short rearrange_island_up(ListBase *list, tReorderChannelIsland *island)
+static bool rearrange_island_up(ListBase *list, tReorderChannelIsland *island)
 {
 	if (rearrange_island_ok(island)) {
 		/* moving up = moving before the previous island, otherwise we're in the same place */
@@ -706,7 +706,7 @@ static short rearrange_island_up(ListBase *list, tReorderChannelIsland *island)
 	return 0;
 }
 
-static short rearrange_island_down(ListBase *list, tReorderChannelIsland *island)
+static bool rearrange_island_down(ListBase *list, tReorderChannelIsland *island)
 {
 	if (rearrange_island_ok(island)) {
 		/* moving down = moving after the next island, otherwise we're in the same place */
@@ -730,7 +730,7 @@ static short rearrange_island_down(ListBase *list, tReorderChannelIsland *island
 	return 0;
 }
 
-static short rearrange_island_bottom(ListBase *list, tReorderChannelIsland *island)
+static bool rearrange_island_bottom(ListBase *list, tReorderChannelIsland *island)
 {
 	if (rearrange_island_ok(island)) {
 		tReorderChannelIsland *last = list->last;
@@ -762,7 +762,7 @@ static short rearrange_island_bottom(ListBase *list, tReorderChannelIsland *isla
  * < island: island to be moved
  * > return[0]: whether operation was a success
  */
-typedef short (*AnimChanRearrangeFp)(ListBase *list, tReorderChannelIsland *island);
+typedef bool (*AnimChanRearrangeFp)(ListBase *list, tReorderChannelIsland *island);
 
 /* get rearranging function, given 'rearrange' mode */
 static AnimChanRearrangeFp rearrange_get_mode_func(short mode)
@@ -787,7 +787,7 @@ static AnimChanRearrangeFp rearrange_get_mode_func(short mode)
 static void rearrange_animchannel_add_to_islands(ListBase *islands, ListBase *srcList, Link *channel, short type)
 {
 	tReorderChannelIsland *island = islands->last;  /* always try to add to last island if possible */
-	short is_sel = 0, is_untouchable = 0;
+	bool is_sel = false, is_untouchable = false;
 	
 	/* get flags - selected and untouchable from the channel */
 	switch (type) {
@@ -844,7 +844,7 @@ static void rearrange_animchannel_flatten_islands(ListBase *islands, ListBase *s
 	tReorderChannelIsland *island, *isn = NULL;
 	
 	/* make sure srcList is empty now */
-	BLI_assert(srcList->first == NULL);
+	BLI_assert(BLI_listbase_is_empty(srcList));
 	
 	/* go through merging islands */
 	for (island = islands->first; island; island = isn) {
@@ -859,14 +859,14 @@ static void rearrange_animchannel_flatten_islands(ListBase *islands, ListBase *s
 /* ............................. */
 
 /* performing rearranging of channels using islands */
-static short rearrange_animchannel_islands(ListBase *list, AnimChanRearrangeFp rearrange_func, short mode, short type)
+static bool rearrange_animchannel_islands(ListBase *list, AnimChanRearrangeFp rearrange_func, short mode, short type)
 {
 	ListBase islands = {NULL, NULL};
 	Link *channel, *chanNext = NULL;
 	short done = FALSE;
 	
 	/* don't waste effort on an empty list */
-	if (list->first == NULL)
+	if (BLI_listbase_is_empty(list))
 		return 0;
 	
 	/* group channels into islands */
@@ -1027,7 +1027,7 @@ static void join_groups_action_temp(bAction *act)
 static void rearrange_action_channels(bAnimContext *ac, bAction *act, short mode)
 {
 	bActionGroup tgrp;
-	short do_channels;
+	bool do_channels;
 	
 	/* get rearranging function */
 	AnimChanRearrangeFp rearrange_func = rearrange_get_mode_func(mode);
@@ -1221,7 +1221,7 @@ static void animchannels_group_channels(bAnimContext *ac, bAnimListElem *adt_ref
 				/* remove F-Curve from group, then group too if it is now empty */
 				action_groups_remove_channel(act, fcu);
 				
-				if ((grp) && (grp->channels.first == NULL)) {
+				if ((grp) && BLI_listbase_is_empty(&grp->channels)) {
 					BLI_freelinkN(&act->groups, grp);
 				}
 				
@@ -1326,7 +1326,7 @@ static int animchannels_ungroup_exec(bContext *C, wmOperator *UNUSED(op))
 				BLI_addtail(&act->curves, fcu);
 				
 				/* delete group if it is now empty */
-				if (agrp->channels.first == NULL) {
+				if (BLI_listbase_is_empty(&agrp->channels)) {
 					BLI_freelinkN(&act->groups, agrp);
 				}
 			}

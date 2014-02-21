@@ -140,7 +140,7 @@ static void wm_window_match_init(bContext *C, ListBase *wmlist)
 	wmWindow *win, *active_win;
 	
 	*wmlist = G.main->wm;
-	G.main->wm.first = G.main->wm.last = NULL;
+	BLI_listbase_clear(&G.main->wm);
 	
 	active_win = CTX_wm_window(C);
 
@@ -193,7 +193,7 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 	wmWindow *oldwin, *win;
 	
 	/* cases 1 and 2 */
-	if (oldwmlist->first == NULL) {
+	if (BLI_listbase_is_empty(oldwmlist)) {
 		if (G.main->wm.first) {
 			/* nothing todo */
 		}
@@ -205,7 +205,7 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 		/* cases 3 and 4 */
 		
 		/* we've read file without wm..., keep current one entirely alive */
-		if (G.main->wm.first == NULL) {
+		if (BLI_listbase_is_empty(&G.main->wm)) {
 			bScreen *screen = NULL;
 
 			/* when loading without UI, no matching needed */
@@ -244,7 +244,7 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 			wm->defaultconf = oldwm->defaultconf;
 			wm->userconf = oldwm->userconf;
 
-			oldwm->keyconfigs.first = oldwm->keyconfigs.last = NULL;
+			BLI_listbase_clear(&oldwm->keyconfigs);
 			oldwm->addonconf = NULL;
 			oldwm->defaultconf = NULL;
 			oldwm->userconf = NULL;
@@ -388,8 +388,9 @@ void WM_file_autoexec_init(const char *filepath)
 	}
 }
 
-void WM_file_read(bContext *C, const char *filepath, ReportList *reports)
+bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 {
+	bool success = false;
 	int retval;
 
 	/* so we can get the error message */
@@ -412,7 +413,7 @@ void WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 		ListBase wmbase;
 
 		/* assume automated tasks with background, don't write recent file list */
-		const int do_history = (G.background == FALSE) && (CTX_wm_manager(C)->op_undo_depth == 0);
+		const bool do_history = (G.background == FALSE) && (CTX_wm_manager(C)->op_undo_depth == 0);
 
 		/* put aside screens to match with persistent windows later */
 		/* also exit screens and editors */
@@ -496,6 +497,8 @@ void WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
 		BKE_reset_undo();
 		BKE_write_undo(C, "original");  /* save current state */
+
+		success = true;
 	}
 	else if (retval == BKE_READ_EXOTIC_OK_OTHER)
 		BKE_write_undo(C, "Import file");
@@ -515,6 +518,8 @@ void WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 	}
 
 	WM_cursor_wait(0);
+
+	return success;
 
 }
 
@@ -583,7 +588,7 @@ int wm_homefile_read(bContext *C, ReportList *reports, bool from_memory, const c
 		if (BLI_access(startstr, R_OK) == 0) {
 			success = (BKE_read_file(C, startstr, NULL) != BKE_READ_FILE_FAIL);
 		}
-		if (U.themes.first == NULL) {
+		if (BLI_listbase_is_empty(&U.themes)) {
 			if (G.debug & G_DEBUG)
 				printf("\nNote: No (valid) '%s' found, fall back to built-in default.\n\n", startstr);
 			success = 0;
@@ -597,7 +602,9 @@ int wm_homefile_read(bContext *C, ReportList *reports, bool from_memory, const c
 
 	if (success == 0) {
 		success = BKE_read_file_from_memory(C, datatoc_startup_blend, datatoc_startup_blend_size, NULL, true);
-		if (wmbase.first == NULL) wm_clear_default_size(C);
+		if (BLI_listbase_is_empty(&wmbase)) {
+			wm_clear_default_size(C);
+		}
 		BLI_init_temporary_dir(U.tempdir);
 
 #ifdef WITH_PYTHON_SECURITY
@@ -710,7 +717,7 @@ void wm_read_history(void)
 
 	lines = BLI_file_read_as_lines(name);
 
-	G.recent_files.first = G.recent_files.last = NULL;
+	BLI_listbase_clear(&G.recent_files);
 
 	/* read list of recent opened files from recent-files.txt to memory */
 	for (l = lines, num = 0; l && (num < U.recent_files); l = l->next) {

@@ -996,9 +996,6 @@ static int rna_SequenceModifier_otherSequence_poll(PointerRNA *ptr, PointerRNA v
 	if (seq == cur)
 		return FALSE;
 
-	if (BKE_sequence_check_depend(seq, cur))
-		return FALSE;
-
 	return TRUE;
 }
 
@@ -1404,11 +1401,13 @@ static void rna_def_sequence(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_MUTE);
+	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, true);
 	RNA_def_property_ui_text(prop, "Mute", "");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_mute_update");
 
 	prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_LOCK);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Lock", "Lock strip so that it can't be transformed");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, NULL);
 
@@ -2125,13 +2124,13 @@ static void rna_def_transform(StructRNA *srna)
 	prop = RNA_def_property(srna, "translate_start_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "xIni");
 	RNA_def_property_ui_text(prop, "Translate X", "");
-	RNA_def_property_ui_range(prop, -500.0f, 500.0f, 3, 6);
+	RNA_def_property_ui_range(prop, -4000.0f, 4000.0f, 3, 6);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 	
 	prop = RNA_def_property(srna, "translate_start_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "yIni");
 	RNA_def_property_ui_text(prop, "Translate Y", "");
-	RNA_def_property_ui_range(prop, -500.0f, 500.0f, 3, 6);
+	RNA_def_property_ui_range(prop, -4000.0f, 4000.0f, 3, 6);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 	
 	prop = RNA_def_property(srna, "rotation_start", PROP_FLOAT, PROP_NONE);

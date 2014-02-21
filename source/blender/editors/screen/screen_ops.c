@@ -2073,8 +2073,8 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	DLRBT_Tree keys;
 	ActKeyColumn *ak;
 	float cfra;
-	short next = RNA_boolean_get(op->ptr, "next");
-	short done = FALSE;
+	const bool next = RNA_boolean_get(op->ptr, "next");
+	bool done = false;
 	
 	/* sanity checks */
 	if (scene == NULL)
@@ -2164,7 +2164,7 @@ static int marker_jump_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	TimeMarker *marker;
 	int closest = CFRA;
-	short next = RNA_boolean_get(op->ptr, "next");
+	const bool next = RNA_boolean_get(op->ptr, "next");
 	bool found = false;
 
 	/* find matching marker in the right direction */
@@ -2217,7 +2217,7 @@ static void SCREEN_OT_marker_jump(wmOperatorType *ot)
 
 /* ************** switch screen operator ***************************** */
 
-static int screen_set_is_ok(bScreen *screen, bScreen *screen_prev)
+static bool screen_set_is_ok(bScreen *screen, bScreen *screen_prev)
 {
 	return ((screen->winid == 0)    &&
 	        (screen->full == 0)     &&
@@ -2516,7 +2516,7 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (sa) {
 				if (jd->sa1 != sa) {
 					dir = area_getorientation(jd->sa1, sa);
-					if (dir >= 0) {
+					if (dir != -1) {
 						if (jd->sa2) jd->sa2->flag &= ~AREA_FLAG_DRAWJOINTO;
 						jd->sa2 = sa;
 						jd->sa2->flag |= AREA_FLAG_DRAWJOINTO;
@@ -2527,7 +2527,7 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						 * in this case we can swap areas.
 						 */
 						dir = area_getorientation(sa, jd->sa2);
-						if (dir >= 0) {
+						if (dir != -1) {
 							if (jd->sa1) jd->sa1->flag &= ~AREA_FLAG_DRAWJOINFROM;
 							if (jd->sa2) jd->sa2->flag &= ~AREA_FLAG_DRAWJOINTO;
 							jd->sa1 = jd->sa2;
@@ -2553,13 +2553,13 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						if (jd->sa1) jd->sa1->flag |= AREA_FLAG_DRAWJOINFROM;
 						if (jd->sa2) jd->sa2->flag |= AREA_FLAG_DRAWJOINTO;
 						dir = area_getorientation(jd->sa1, jd->sa2);
-						if (dir < 0) {
+						if (dir == -1) {
 							printf("oops, didn't expect that!\n");
 						}
 					}
 					else {
 						dir = area_getorientation(jd->sa1, sa);
-						if (dir >= 0) {
+						if (dir != -1) {
 							if (jd->sa2) jd->sa2->flag &= ~AREA_FLAG_DRAWJOINTO;
 							jd->sa2 = sa;
 							jd->sa2->flag |= AREA_FLAG_DRAWJOINTO;
@@ -2753,7 +2753,8 @@ static int repeat_history_invoke(bContext *C, wmOperator *op, const wmEvent *UNU
 	layout = uiPupMenuLayout(pup);
 	
 	for (i = items - 1, lastop = wm->operators.last; lastop; lastop = lastop->prev, i--)
-		uiItemIntO(layout, RNA_struct_ui_name(lastop->type->srna), ICON_NONE, op->type->idname, "index", i);
+		if (WM_operator_repeat_check(C, lastop))
+			uiItemIntO(layout, RNA_struct_ui_name(lastop->type->srna), ICON_NONE, op->type->idname, "index", i);
 	
 	uiPupMenuEnd(C, pup);
 	
@@ -2895,6 +2896,7 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
 		/* lock views and set them */
 		if (sa->spacetype == SPACE_VIEW3D) {
 			View3D *v3d = sa->spacedata.first;
+			int index_qsplit = 0;
 
 			/* run ED_view3d_lock() so the correct 'rv3d->viewquat' is set,
 			 * otherwise when restoring rv3d->localvd the 'viewquat' won't
@@ -2906,9 +2908,9 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
 			const char viewlock = (rv3d->viewlock_quad & RV3D_VIEWLOCK_INIT) ?
 			                      (rv3d->viewlock_quad & ~RV3D_VIEWLOCK_INIT) : RV3D_LOCKED;
 
-			region_quadview_init_rv3d(sa, ar,              viewlock, RV3D_VIEW_FRONT, RV3D_ORTHO);
-			region_quadview_init_rv3d(sa, (ar = ar->next), viewlock, RV3D_VIEW_TOP,   RV3D_ORTHO);
-			region_quadview_init_rv3d(sa, (ar = ar->next), viewlock, RV3D_VIEW_RIGHT, RV3D_ORTHO);
+			region_quadview_init_rv3d(sa, ar,              viewlock, ED_view3d_lock_view_from_index(index_qsplit++), RV3D_ORTHO);
+			region_quadview_init_rv3d(sa, (ar = ar->next), viewlock, ED_view3d_lock_view_from_index(index_qsplit++), RV3D_ORTHO);
+			region_quadview_init_rv3d(sa, (ar = ar->next), viewlock, ED_view3d_lock_view_from_index(index_qsplit++), RV3D_ORTHO);
 			if (v3d->camera) region_quadview_init_rv3d(sa, (ar = ar->next), 0, RV3D_VIEW_CAMERA,     RV3D_CAMOB);
 			else             region_quadview_init_rv3d(sa, (ar = ar->next), 0, RV3D_VIEW_PERSPORTHO, RV3D_PERSP);
 
@@ -3046,9 +3048,9 @@ static int header_toggle_menus_exec(bContext *C, wmOperator *UNUSED(op))
 static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Show/Hide Header Menus";
+	ot->name = "Expand/Collapse Header Menus";
 	ot->idname = "SCREEN_OT_header_toggle_menus";
-	ot->description = "Show or hide the header pulldown menus";
+	ot->description = "Expand or collapse the header pulldown menus";
 	
 	/* api callbacks */
 	ot->exec = header_toggle_menus_exec;
@@ -3069,10 +3071,9 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *UN
 	else
 		uiItemO(layout, IFACE_("Flip to Top"), ICON_NONE, "SCREEN_OT_header_flip");
 
-	if (sa->flag & HEADER_NO_PULLDOWN)
-		uiItemO(layout, IFACE_("Show Menus"), ICON_NONE, "SCREEN_OT_header_toggle_menus");
-	else
-		uiItemO(layout, IFACE_("Hide Menus"), ICON_NONE, "SCREEN_OT_header_toggle_menus");
+	uiItemO(layout, IFACE_("Collapse Menus"),
+	        (sa->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT,
+	        "SCREEN_OT_header_toggle_menus");
 
 	uiItemS(layout);
 
@@ -3754,7 +3755,7 @@ float ED_region_blend_factor(ARegion *ar)
 }
 
 /* assumes region has running region-blend timer */
-static void region_blend_end(bContext *C, ARegion *ar, int is_running)
+static void region_blend_end(bContext *C, ARegion *ar, const bool is_running)
 {
 	RegionAlphaInfo *rgi = ar->regiontimer->customdata;
 	
@@ -3790,7 +3791,7 @@ void region_blend_start(bContext *C, ScrArea *sa, ARegion *ar)
 	/* end running timer */
 	if (ar->regiontimer) {
 
-		region_blend_end(C, ar, 1);
+		region_blend_end(C, ar, true);
 	}
 	rgi = MEM_callocN(sizeof(RegionAlphaInfo), "RegionAlphaInfo");
 	
@@ -3836,7 +3837,7 @@ static int region_blend_invoke(bContext *C, wmOperator *UNUSED(op), const wmEven
 	
 	/* end timer? */
 	if (rgi->ar->regiontimer->duration > (double)TIMEOUT) {
-		region_blend_end(C, rgi->ar, 0);
+		region_blend_end(C, rgi->ar, false);
 		return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
 	}
 

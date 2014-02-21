@@ -12,19 +12,27 @@ endif()
 include(cmake/external_libs.cmake)
 
 # Build Flags
+# todo: refactor this code to match scons
 
 if(WIN32 AND MSVC)
+	# /arch:AVX for VC2012 and above
+	if(NOT MSVC_VERSION LESS 1700)
+		set(CYCLES_AVX_ARCH_FLAGS "/arch:AVX")
+	elseif(NOT CMAKE_CL_64)
+		set(CYCLES_AVX_ARCH_FLAGS "/arch:SSE2")
+	endif()
+
 	# there is no /arch:SSE3, but intrinsics are available anyway
 	if(CMAKE_CL_64)
 		set(CYCLES_SSE2_KERNEL_FLAGS "/fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
 		set(CYCLES_SSE3_KERNEL_FLAGS "/fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
 		set(CYCLES_SSE41_KERNEL_FLAGS "/fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
-		set(CYCLES_AVX_KERNEL_FLAGS "/fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-") #/arch:AVX for VC2012 and above
+		set(CYCLES_AVX_KERNEL_FLAGS "${CYCLES_AVX_ARCH_FLAGS} /fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
 	else()
 		set(CYCLES_SSE2_KERNEL_FLAGS "/arch:SSE2 /fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
 		set(CYCLES_SSE3_KERNEL_FLAGS "/arch:SSE2 /fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
 		set(CYCLES_SSE41_KERNEL_FLAGS "/arch:SSE2 /fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
-		set(CYCLES_AVX_KERNEL_FLAGS "/arch:SSE2 /fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-") #/arch:AVX for VC2012 and above
+		set(CYCLES_AVX_KERNEL_FLAGS "${CYCLES_AVX_ARCH_FLAGS} /fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-") 
 	endif()
 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:fast -D_CRT_SECURE_NO_WARNINGS /Gs-")
@@ -44,6 +52,8 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	set(CYCLES_AVX_KERNEL_FLAGS "-ffast-math -msse -msse2 -msse3 -mssse3 -msse4.1 -mavx")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math")
 endif()
+
+add_definitions(-DWITH_KERNEL_SSE2 -DWITH_KERNEL_SSE3 -DWITH_KERNEL_SSE41 -DWITH_KERNEL_AVX)
 
 # for OSL
 if(WIN32 AND MSVC)
@@ -90,7 +100,8 @@ include_directories(
 	${BOOST_INCLUDE_DIR}
 	${OPENIMAGEIO_INCLUDE_DIRS}
 	${OPENIMAGEIO_INCLUDE_DIRS}/OpenImageIO
-	${OPENEXR_INCLUDE_DIR})
+	${OPENEXR_INCLUDE_DIR}
+	${OPENEXR_INCLUDE_DIRS})
 
 # Subdirectories
 

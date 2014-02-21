@@ -154,7 +154,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 			int vtot = m1->totvert;
 			
 			for (j = 0; j < vtot; j++, v1++, v2++) {
-				if (len_v3v3(v1->co, v2->co) > thresh)
+				if (len_squared_v3v3(v1->co, v2->co) > thresh_sq)
 					return MESHCMP_VERTCOMISMATCH;
 				/* I don't care about normals, let's just do coodinates */
 			}
@@ -449,7 +449,11 @@ Mesh *BKE_mesh_add(Main *bmain, const char *name)
 	me->size[0] = me->size[1] = me->size[2] = 1.0;
 	me->smoothresh = 30;
 	me->texflag = ME_AUTOSPACE;
+
+	/* disable because its slow on many GPU's, see [#37518] */
+#if 0
 	me->flag = ME_TWOSIDED;
+#endif
 	me->drawflag = ME_DRAWEDGES | ME_DRAWFACES | ME_DRAWCREASES;
 
 	CustomData_reset(&me->vdata);

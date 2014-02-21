@@ -378,7 +378,7 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 	FileSelection sel;
 	int numfiles = filelist_numfiles(sfile->files);
 	int i;
-	int is_selected = 0;
+	bool is_selected = false;
 
 	sel.first = 0; 
 	sel.last = numfiles - 1;
@@ -386,7 +386,7 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 	/* Is any file selected ? */
 	for (i = 0; i < numfiles; ++i) {
 		if (filelist_is_selected(sfile->files, i, CHECK_ALL)) {
-			is_selected = 1;
+			is_selected = true;
 			break;
 		}
 	}
@@ -765,7 +765,7 @@ void file_draw_check_cb(bContext *C, void *UNUSED(arg1), void *UNUSED(arg2))
 	}
 }
 
-int file_draw_check_exists(SpaceFile *sfile)
+bool file_draw_check_exists(SpaceFile *sfile)
 {
 	if (sfile->op) { /* fails on reload */
 		if (RNA_struct_find_property(sfile->op->ptr, "check_existing")) {
@@ -849,8 +849,7 @@ int file_parent_exec(bContext *C, wmOperator *UNUSED(unused))
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	
 	if (sfile->params) {
-		if (BLI_has_parent(sfile->params->dir)) {
-			BLI_parent_dir(sfile->params->dir);
+		if (BLI_parent_dir(sfile->params->dir)) {
 			BLI_cleanup_dir(G.main->name, sfile->params->dir);
 			file_change_dir(C, 0);
 			WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);

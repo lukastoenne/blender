@@ -523,7 +523,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			/* Deprecated */
 			smd->domain->point_cache[1] = NULL;
-			smd->domain->ptcaches[1].first = smd->domain->ptcaches[1].last = NULL;
+			BLI_listbase_clear(&smd->domain->ptcaches[1]);
 			/* set some standard values */
 			smd->domain->fluid = NULL;
 			smd->domain->fluid_mutex = BLI_rw_mutex_alloc();
@@ -797,7 +797,7 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 						float ray_start[3] = {(float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f};
 						BVHTreeNearest nearest = {0};
 						nearest.index = -1;
-						nearest.dist = surface_distance * surface_distance; /* find_nearest uses squared distance */
+						nearest.dist_sq = surface_distance * surface_distance; /* find_nearest uses squared distance */
 
 						/* find the nearest point on the mesh */
 						if (BLI_bvhtree_find_nearest(treeData.tree, ray_start, &nearest, treeData.nearest_callback, &treeData) != -1) {
@@ -1434,7 +1434,7 @@ static void sample_derivedmesh(SmokeFlowSettings *sfs, MVert *mvert, MTFace *tfa
 	hit.index = -1;
 	hit.dist = 9999;
 	nearest.index = -1;
-	nearest.dist = sfs->surface_distance * sfs->surface_distance; /* find_nearest uses squared distance */
+	nearest.dist_sq = sfs->surface_distance * sfs->surface_distance; /* find_nearest uses squared distance */
 
 	/* Check volume collision */
 	if (sfs->volume_density) {
@@ -1465,7 +1465,7 @@ static void sample_derivedmesh(SmokeFlowSettings *sfs, MVert *mvert, MTFace *tfa
 
 		/* emit from surface based on distance */
 		if (sfs->surface_distance) {
-			sample_str = sqrtf(nearest.dist) / sfs->surface_distance;
+			sample_str = sqrtf(nearest.dist_sq) / sfs->surface_distance;
 			CLAMP(sample_str, 0.0f, 1.0f);
 			sample_str = pow(1.0f - sample_str, 0.5f);
 		}
@@ -2363,7 +2363,7 @@ static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 	ListBase *effectors;
 	/* make sure smoke flow influence is 0.0f */
 	sds->effector_weights->weight[PFIELD_SMOKEFLOW] = 0.0f;
-	effectors = pdInitEffectors(scene, ob, NULL, sds->effector_weights);
+	effectors = pdInitEffectors(scene, ob, NULL, sds->effector_weights, true);
 
 	if (effectors)
 	{

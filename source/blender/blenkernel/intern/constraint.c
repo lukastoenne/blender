@@ -81,7 +81,6 @@
 #include "BKE_idprop.h"
 #include "BKE_mesh.h"
 #include "BKE_shrinkwrap.h"
-#include "BKE_mesh.h"
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
 #include "BKE_movieclip.h"
@@ -366,7 +365,7 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 	/* get DerivedMesh */
 	if (em) {
 		/* target is in editmode, so get a special derived mesh */
-		dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+		dm = CDDM_from_editbmesh(em, false, false);
 		freeDM = 1;
 	}
 	else {
@@ -3348,7 +3347,7 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					float dist;
 
 					nearest.index = -1;
-					nearest.dist = FLT_MAX;
+					nearest.dist_sq = FLT_MAX;
 
 					if (scon->shrinkType == MOD_SHRINKWRAP_NEAREST_VERTEX)
 						bvhtree_from_mesh_verts(&treeData, target, 0.0, 2, 6);
@@ -4490,7 +4489,7 @@ void BKE_copy_constraints(ListBase *dst, const ListBase *src, int do_extern)
 {
 	bConstraint *con, *srccon;
 	
-	dst->first = dst->last = NULL;
+	BLI_listbase_clear(dst);
 	BLI_duplicatelist(dst, src);
 	
 	for (con = dst->first, srccon = src->first; con && srccon; srccon = srccon->next, con = con->next) {

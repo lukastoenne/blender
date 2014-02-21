@@ -419,12 +419,12 @@ Sequence *find_nearest_seq(Scene *scene, View2D *v2d, int *hand, const int mval[
 }
 
 
-static int seq_is_parent(Sequence *par, Sequence *seq)
+static bool seq_is_parent(Sequence *par, Sequence *seq)
 {
 	return ((par->seq1 == seq) || (par->seq2 == seq) || (par->seq3 == seq));
 }
 
-static int seq_is_predecessor(Sequence *pred, Sequence *seq)
+static bool seq_is_predecessor(Sequence *pred, Sequence *seq)
 {
 	if (!pred) return 0;
 	if (pred == seq) return 0;
@@ -475,7 +475,7 @@ int ED_space_sequencer_maskedit_mask_poll(bContext *C)
 	return ED_space_sequencer_maskedit_poll(C);
 }
 
-int ED_space_sequencer_check_show_maskedit(SpaceSeq *sseq, Scene *scene)
+bool ED_space_sequencer_check_show_maskedit(SpaceSeq *sseq, Scene *scene)
 {
 	if (sseq && sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 		return (BKE_sequencer_mask_get(scene) != NULL);
@@ -497,7 +497,7 @@ int ED_space_sequencer_maskedit_poll(bContext *C)
 }
 
 /* are we displaying the seq output (not channels or histogram)*/
-int ED_space_sequencer_check_show_imbuf(SpaceSeq *sseq)
+bool ED_space_sequencer_check_show_imbuf(SpaceSeq *sseq)
 {
 	return (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW) &&
 	        ELEM(sseq->mainb, SEQ_DRAW_SEQUENCE, SEQ_DRAW_IMG_IMBUF));
@@ -612,6 +612,26 @@ static Sequence *del_seq_find_replace_recurs(Scene *scene, Sequence *seq)
 	}
 	else
 		return seq;
+}
+
+static void del_seq_clear_modifiers_recurs(Scene *scene, Sequence *deleting_sequence)
+{
+	Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
+	Sequence *current_sequence;
+
+	SEQP_BEGIN(ed, current_sequence)
+	{
+		if (!(current_sequence->flag & SELECT) && current_sequence != deleting_sequence) {
+			SequenceModifierData *smd;
+
+			for (smd = current_sequence->modifiers.first; smd; smd = smd->next) {
+				if (smd->mask_sequence == deleting_sequence) {
+					smd->mask_sequence = NULL;
+				}
+			}
+		}
+	}
+	SEQ_END
 }
 
 static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short deleteall)
@@ -1394,7 +1414,7 @@ static int sequencer_reload_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
 	Sequence *seq;
-	int adjust_length = RNA_boolean_get(op->ptr, "adjust_length");
+	const bool adjust_length = RNA_boolean_get(op->ptr, "adjust_length");
 
 	for (seq = ed->seqbasep->first; seq; seq = seq->next) {
 		if (seq->flag & SELECT) {
@@ -1746,10 +1766,17 @@ static int sequencer_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	if (nothingSelected)
 		return OPERATOR_FINISHED;
 
-	/* for effects, try to find a replacement input */
-	for (seq = ed->seqbasep->first; seq; seq = seq->next)
-		if ((seq->type & SEQ_TYPE_EFFECT) && !(seq->flag & SELECT))
-			del_seq_find_replace_recurs(scene, seq);
+	/* for effects and modifiers, try to find a replacement input */
+	for (seq = ed->seqbasep->first; seq; seq = seq->next) {
+		if (!(seq->flag & SELECT)) {
+			if ((seq->type & SEQ_TYPE_EFFECT)) {
+				del_seq_find_replace_recurs(scene, seq);
+			}
+		}
+		else {
+			del_seq_clear_modifiers_recurs(scene, seq);
+		}
+	}
 
 	/* delete all selected strips */
 	recurs_del_seq_flag(scene, ed->seqbasep, SELECT, 0);
@@ -1980,7 +2007,7 @@ static int sequencer_meta_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 
 		Sequence *seq;
 
-		if (ed->metastack.first == NULL)
+		if (BLI_listbase_is_empty(&ed->metastack))
 			return OPERATOR_CANCELLED;
 
 		ms = ed->metastack.last;
@@ -2114,8 +2141,7 @@ static int sequencer_meta_separate_exec(bContext *C, wmOperator *UNUSED(op))
 
 	BLI_movelisttolist(ed->seqbasep, &last_seq->seqbase);
 
-	last_seq->seqbase.first = NULL;
-	last_seq->seqbase.last = NULL;
+	BLI_listbase_clear(&last_seq->seqbase);
 
 	BLI_remlink(ed->seqbasep, last_seq);
 	BKE_sequence_free(scene, last_seq);
@@ -2414,7 +2440,7 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot)
 
 static int find_next_prev_edit(Scene *scene, int cfra,
                                const short side,
-                               const short do_skip_mute, const short do_center)
+                               const bool do_skip_mute, const bool do_center)
 {
 	Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
 	Sequence *seq, *best_seq = NULL, *frame_seq = NULL;
@@ -2488,7 +2514,7 @@ static int find_next_prev_edit(Scene *scene, int cfra,
 
 static bool strip_jump_internal(Scene *scene,
                                 const short side,
-                                const short do_skip_mute, const short do_center)
+                                const bool do_skip_mute, const bool do_center)
 {
 	bool changed = false;
 	int cfra = CFRA;
@@ -2515,8 +2541,8 @@ static int sequencer_strip_jump_poll(bContext *C)
 static int sequencer_strip_jump_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	short next = RNA_boolean_get(op->ptr, "next");
-	short center = RNA_boolean_get(op->ptr, "center");
+	const bool next = RNA_boolean_get(op->ptr, "next");
+	const bool center = RNA_boolean_get(op->ptr, "center");
 
 	/* currently do_skip_mute is always TRUE */
 	if (!strip_jump_internal(scene, next ? SEQ_SIDE_RIGHT : SEQ_SIDE_LEFT, TRUE, center)) {

@@ -1540,23 +1540,26 @@ void psys_threads_free(ParticleThread *threads)
 	MEM_freeN(threads);
 }
 
-/* set particle parameters that don't change during particle's life */
-void initialize_particle(ParticleSimulationData *sim, ParticleData *pa, int p)
+static void initialize_particle_texture(ParticleSimulationData *sim, ParticleData *pa, int p)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleTexture ptex;
 
-	pa->flag &= ~PARS_UNEXIST;
-
 	if (part->type != PART_FLUID) {
 		psys_get_texture(sim, pa, &ptex, PAMAP_INIT, 0.f);
-		
+
 		if (ptex.exist < PSYS_FRAND(p+125))
 			pa->flag |= PARS_UNEXIST;
 
 		pa->time = (part->type == PART_HAIR) ? 0.f : part->sta + (part->end - part->sta)*ptex.time;
 	}
+}
+
+/* set particle parameters that don't change during particle's life */
+void initialize_particle(ParticleData *pa)
+{
+	pa->flag &= ~PARS_UNEXIST;
 
 	pa->hair_index = 0;
 	/* we can't reset to -1 anymore since we've figured out correct index in distribute_particles */
@@ -1572,7 +1575,7 @@ static void initialize_all_particles(ParticleSimulationData *sim)
 
 	LOOP_PARTICLES {
 		if ((pa->flag & PARS_UNEXIST)==0)
-			initialize_particle(sim, pa, p);
+			initialize_particle(pa);
 
 		if (pa->flag & PARS_UNEXIST)
 			psys->totunexist++;
@@ -1984,6 +1987,13 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 
 	psys_get_birth_coordinates(sim, pa, &pa->state, dtime, cfra);
 
+	/* Initialize particle settings which depends on texture.
+	 *
+	 * We could only do it now because we'll need to know coordinate
+	 * before sampling the texture.
+	 */
+	initialize_particle_texture(sim, pa, p);
+
 	if (part->phystype==PART_PHYS_BOIDS && pa->boid) {
 		BoidParticle *bpa = pa->boid;
 
@@ -2170,7 +2180,7 @@ void psys_make_temp_pointcache(Object *ob, ParticleSystem *psys)
 {
 	PointCache *cache = psys->pointcache;
 
-	if (cache->flag & PTCACHE_DISK_CACHE && cache->mem_cache.first == NULL) {
+	if (cache->flag & PTCACHE_DISK_CACHE && BLI_listbase_is_empty(&cache->mem_cache)) {
 		PTCacheID pid;
 		BKE_ptcache_id_from_particles(&pid, ob, psys);
 		cache->flag &= ~PTCACHE_DISK_CACHE;
@@ -2254,7 +2264,8 @@ void psys_update_particle_tree(ParticleSystem *psys, float cfra)
 static void psys_update_effectors(ParticleSimulationData *sim)
 {
 	pdEndEffectors(&sim->psys->effectors);
-	sim->psys->effectors = pdInitEffectors(sim->scene, sim->ob, sim->psys, sim->psys->part->effector_weights);
+	sim->psys->effectors = pdInitEffectors(sim->scene, sim->ob, sim->psys,
+	                                       sim->psys->part->effector_weights, true);
 	precalc_guides(sim, sim->psys->effectors);
 }
 
@@ -3587,7 +3598,7 @@ static int collision_detect(ParticleData *pa, ParticleCollision *col, BVHTreeRay
 	ColliderCache *coll;
 	float ray_dir[3];
 
-	if (colliders->first == NULL)
+	if (BLI_listbase_is_empty(colliders))
 		return 0;
 
 	sub_v3_v3v3(ray_dir, col->co2, col->co1);
@@ -4794,15 +4805,15 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 }
 
 /* system type has changed so set sensible defaults and clear non applicable flags */
-static void psys_changed_type(ParticleSimulationData *sim)
+void psys_changed_type(Object *ob, ParticleSystem *psys)
 {
-	ParticleSettings *part = sim->psys->part;
+	ParticleSettings *part = psys->part;
 	PTCacheID pid;
 
-	BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
+	BKE_ptcache_id_from_particles(&pid, ob, psys);
 
 	if (part->phystype != PART_PHYS_KEYED)
-		sim->psys->flag &= ~PSYS_KEYED;
+		psys->flag &= ~PSYS_KEYED;
 
 	if (part->type == PART_HAIR) {
 		if (ELEM4(part->ren_as, PART_DRAW_NOT, PART_DRAW_PATH, PART_DRAW_OB, PART_DRAW_GR)==0)
@@ -4820,13 +4831,13 @@ static void psys_changed_type(ParticleSimulationData *sim)
 		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
 	}
 	else {
-		free_hair(sim->ob, sim->psys, 1);
+		free_hair(ob, psys, 1);
 
 		CLAMP(part->path_start, 0.0f, MAX2(100.0f, part->end + part->lifetime));
 		CLAMP(part->path_end, 0.0f, MAX2(100.0f, part->end + part->lifetime));
 	}
 
-	psys_reset(sim->psys, PSYS_RESET_ALL);
+	psys_reset(psys, PSYS_RESET_ALL);
 }
 void psys_check_boid_data(ParticleSystem *psys)
 {
@@ -4961,7 +4972,7 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 	psys->flag &= ~PSYS_OB_ANIM_RESTORE;
 
 	if (psys->recalc & PSYS_RECALC_TYPE)
-		psys_changed_type(&sim);
+		psys_changed_type(sim.ob, sim.psys);
 
 	if (psys->recalc & PSYS_RECALC_RESET)
 		psys->totunexist = 0;

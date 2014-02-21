@@ -339,11 +339,11 @@ void ntreeSetTypes(const struct bContext *C, struct bNodeTree *ntree);
 struct bNodeTree *ntreeAddTree(struct Main *bmain, const char *name, const char *idname);
 
 /* copy/free funcs, need to manage ID users */
-void              ntreeFreeTree_ex(struct bNodeTree *ntree, const short do_id_user);
+void              ntreeFreeTree_ex(struct bNodeTree *ntree, const bool do_id_user);
 void              ntreeFreeTree(struct bNodeTree *ntree);
-struct bNodeTree *ntreeCopyTree_ex(struct bNodeTree *ntree, const short do_id_user);
+struct bNodeTree *ntreeCopyTree_ex(struct bNodeTree *ntree, const bool do_id_user);
 struct bNodeTree *ntreeCopyTree(struct bNodeTree *ntree);
-void              ntreeSwitchID_ex(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to, const short do_id_user);
+void              ntreeSwitchID_ex(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to, const bool do_id_user);
 void              ntreeSwitchID(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to);
 /* node->id user count */
 void              ntreeUserIncrefID(struct bNodeTree *ntree);
@@ -353,7 +353,8 @@ void              ntreeUserDecrefID(struct bNodeTree *ntree);
 struct bNodeTree *ntreeFromID(struct ID *id);
 
 void              ntreeMakeLocal(struct bNodeTree *ntree);
-int               ntreeHasType(struct bNodeTree *ntree, int type);
+bool              ntreeHasType(const struct bNodeTree *ntree, int type);
+bool              ntreeHasTree(const struct bNodeTree *ntree, const struct bNodeTree *lookup);
 void              ntreeUpdateTree(struct Main *main, struct bNodeTree *ntree);
 /* XXX Currently each tree update call does call to ntreeVerifyNodes too.
  * Some day this should be replaced by a decent depsgraph automatism!
@@ -487,7 +488,7 @@ int             nodeSocketIsHidden(struct bNodeSocket *sock);
 /* Node Clipboard */
 void                   BKE_node_clipboard_init(struct bNodeTree *ntree);
 void                   BKE_node_clipboard_clear(void);
-int                    BKE_node_clipboard_validate(void);
+bool                   BKE_node_clipboard_validate(void);
 void                   BKE_node_clipboard_add_node(struct bNode *node);
 void                   BKE_node_clipboard_add_link(struct bNodeLink *link);
 const struct ListBase *BKE_node_clipboard_get_nodes(void);
@@ -553,7 +554,7 @@ void            BKE_node_preview_clear_tree(struct bNodeTree *ntree);
 void            BKE_node_preview_sync_tree(struct bNodeTree *to_ntree, struct bNodeTree *from_ntree);
 void            BKE_node_preview_merge_tree(struct bNodeTree *to_ntree, struct bNodeTree *from_ntree, bool remove_old);
 
-void            BKE_node_preview_set_pixel(struct bNodePreview *preview, const float col[4], int x, int y, int do_manage);
+void            BKE_node_preview_set_pixel(struct bNodePreview *preview, const float col[4], int x, int y, bool do_manage);
 
 
 /* ************** NODE TYPE ACCESS *************** */
@@ -769,7 +770,7 @@ void            ntreeShaderGetTexcoMode(struct bNodeTree *ntree, int osa, short 
 extern void (*node_shader_lamp_loop)(struct ShadeInput *, struct ShadeResult *);
 void            set_node_shader_lamp_loop(void (*lamp_loop_func)(struct ShadeInput *, struct ShadeResult *));
 
-void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
+void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat, short compatibility);
 
 
 /* ************** COMPOSITE NODES *************** */
@@ -930,7 +931,7 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 
 /* API */
 struct CompBuf;
-void ntreeCompositExecTree(struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews,
+void ntreeCompositExecTree(struct Scene *scene, struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews,
                            const struct ColorManagedViewSettings *view_settings, const struct ColorManagedDisplaySettings *display_settings);
 void ntreeCompositTagRender(struct Scene *sce);
 int ntreeCompositTagAnimated(struct bNodeTree *ntree);
@@ -997,7 +998,5 @@ int ntreeTexExecTree(struct bNodeTree *ntree, struct TexResult *target,
 
 void init_nodesystem(void);
 void free_nodesystem(void);
-
-void clear_scene_in_nodes(struct Main *bmain, struct Scene *sce);
 
 #endif

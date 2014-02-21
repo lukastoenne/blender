@@ -1022,6 +1022,24 @@ static BMOpDefine bmo_dissolve_limit_def = {
 };
 
 /*
+ * Degenerate Dissolve.
+ *
+ * Dissolve edges with no length, faces with no area.
+ */
+static BMOpDefine bmo_dissolve_degenerate_def = {
+	"dissolve_degenerate",
+	/* slots_in */
+	{{"dist", BMO_OP_SLOT_FLT}, /* minimum distance to consider degenerate */
+	 {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
+	 {{'\0'}},
+	},
+	/* slots_out */
+	{{{'\0'}}},
+	bmo_dissolve_degenerate_exec,
+	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
+};
+
+/*
  * Triangulate.
  */
 static BMOpDefine bmo_triangulate_def = {
@@ -1673,6 +1691,7 @@ static BMOpDefine bmo_inset_region_def = {
 	 {"use_even_offset", BMO_OP_SLOT_BOOL},
 	 {"use_interpolate", BMO_OP_SLOT_BOOL},
 	 {"use_relative_offset", BMO_OP_SLOT_BOOL},
+	 {"use_edge_rail", BMO_OP_SLOT_BOOL},
 	 {"thickness", BMO_OP_SLOT_FLT},
 	 {"depth", BMO_OP_SLOT_FLT},
 	 {"use_outset", BMO_OP_SLOT_BOOL},
@@ -1827,8 +1846,9 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_delete_def,
 	&bmo_dissolve_edges_def,
 	&bmo_dissolve_faces_def,
-	&bmo_dissolve_limit_def,
 	&bmo_dissolve_verts_def,
+	&bmo_dissolve_limit_def,
+	&bmo_dissolve_degenerate_def,
 	&bmo_duplicate_def,
 	&bmo_holes_fill_def,
 	&bmo_face_attribute_fill_def,

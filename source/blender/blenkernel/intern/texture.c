@@ -253,7 +253,7 @@ ColorBand *add_colorband(bool rangetype)
 
 /* ------------------------------------------------------------------------- */
 
-int do_colorband(const ColorBand *coba, float in, float out[4])
+bool do_colorband(const ColorBand *coba, float in, float out[4])
 {
 	const CBData *cbd1, *cbd2, *cbd0, *cbd3;
 	float fac, mfac, t[4];
@@ -1121,7 +1121,7 @@ void set_current_material_texture(Material *ma, Tex *newtex)
 	}
 }
 
-int has_current_material_texture(Material *ma)
+bool has_current_material_texture(Material *ma)
 {
 	bNode *node;
 

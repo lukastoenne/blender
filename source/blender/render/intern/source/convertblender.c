@@ -120,7 +120,6 @@
 #include "texture.h"
 #include "volume_precache.h"
 #include "sss.h"
-#include "strand.h"
 #include "zbuf.h"
 #include "sunsky.h"
 
@@ -3132,7 +3131,7 @@ static EdgeHash *make_freestyle_edge_mark_hash(Mesh *me, DerivedMesh *dm)
 	return edge_hash;
 }
 
-static int has_freestyle_edge_mark(EdgeHash *edge_hash, int v1, int v2)
+static bool has_freestyle_edge_mark(EdgeHash *edge_hash, int v1, int v2)
 {
 	MEdge *medge= BLI_edgehash_lookup(edge_hash, v1, v2);
 	return (!medge) ? 0 : 1;
@@ -3975,7 +3974,7 @@ static void set_material_lightgroups(Render *re)
 	Material *ma;
 	
 	/* not for preview render */
-	if (re->r.scemode & (R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))
+	if (re->scene->r.scemode & (R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))
 		return;
 	
 	for (group= re->main->group.first; group; group=group->id.next)

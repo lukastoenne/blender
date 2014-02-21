@@ -108,8 +108,12 @@ void VIEW3D_OT_clear_render_border(struct wmOperatorType *ot);
 void VIEW3D_OT_zoom_border(struct wmOperatorType *ot);
 
 void view3d_boxview_copy(ScrArea *sa, ARegion *ar);
-void ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4]);
-float ndof_to_axis_angle(const struct wmNDOFMotionData *ndof, float axis[3]);
+
+void view3d_ndof_fly(
+        const struct wmNDOFMotionData *ndof,
+        struct View3D *v3d, struct RegionView3D *rv3d,
+        const bool use_precision, const short protectflag,
+        bool *r_has_translate, bool *r_has_rotate);
 
 /* view3d_fly.c */
 void view3d_keymap(struct wmKeyConfig *keyconf);
@@ -140,6 +144,8 @@ void drawaxes(float size, char drawtype);
 void view3d_cached_text_draw_begin(void);
 void view3d_cached_text_draw_add(const float co[3], const char *str, short xoffs, short flag, const unsigned char col[4]);
 void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, float mat[4][4]);
+
+bool check_object_draw_texture(struct Scene *scene, struct View3D *v3d, const char drawtype);
 
 enum {
 	V3D_CACHE_TEXT_ZBUF         = (1 << 0),

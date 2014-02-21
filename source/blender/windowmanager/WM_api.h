@@ -65,6 +65,7 @@ struct wmDrag;
 struct ImBuf;
 struct ImageFormatData;
 struct ARegion;
+struct wmNDOFMotionData;
 
 typedef struct wmJob wmJob;
 
@@ -106,7 +107,7 @@ bool		WM_is_draw_triple(struct wmWindow *win);
 
 			/* files */
 void		WM_file_autoexec_init(const char *filepath);
-void		WM_file_read(struct bContext *C, const char *filepath, struct ReportList *reports);
+bool		WM_file_read(struct bContext *C, const char *filepath, struct ReportList *reports);
 void		WM_autosave_init(struct wmWindowManager *wm);
 void		WM_recover_last_session(struct bContext *C, struct ReportList *reports);
 
@@ -205,7 +206,11 @@ int 		WM_operator_props_dialog_popup(struct bContext *C, struct wmOperator *op, 
 int			WM_operator_redo_popup	(struct bContext *C, struct wmOperator *op);
 int			WM_operator_ui_popup	(struct bContext *C, struct wmOperator *op, int width, int height);
 
-int			WM_operator_confirm_message(struct bContext *C, struct wmOperator *op, const char *message);
+int         WM_operator_confirm_message_ex(struct bContext *C, struct wmOperator *op,
+                                           const char *title, const int icon,
+                                           const char *message);
+int         WM_operator_confirm_message(struct bContext *C, struct wmOperator *op,
+                                        const char *message);
 
 		/* operator api */
 void		WM_operator_free		(struct wmOperator *op);
@@ -227,12 +232,13 @@ struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *
 
 int			WM_operator_poll		(struct bContext *C, struct wmOperatorType *ot);
 int			WM_operator_poll_context(struct bContext *C, struct wmOperatorType *ot, short context);
+int         WM_operator_call_ex(struct bContext *C, struct wmOperator *op, const bool store);
 int			WM_operator_call		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_call_notest(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat		(struct bContext *C, struct wmOperator *op);
-int			WM_operator_repeat_check(const struct bContext *C, struct wmOperator *op);
+bool        WM_operator_repeat_check(const struct bContext *C, struct wmOperator *op);
 int			WM_operator_name_call	(struct bContext *C, const char *opstring, short context, struct PointerRNA *properties);
-int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short context, struct PointerRNA *properties, struct ReportList *reports, short is_undo);
+int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short context, struct PointerRNA *properties, struct ReportList *reports, const bool is_undo);
 
 void		WM_operator_properties_alloc(struct PointerRNA **ptr, struct IDProperty **properties, const char *opstring); /* used for keymap and macro items */
 void		WM_operator_properties_sanitize(struct PointerRNA *ptr, const bool no_context); /* make props context sensitive or not */
@@ -288,14 +294,14 @@ void		WM_operator_py_idname(char *to, const char *from);
 /* *************** uilist types ******************** */
 void                WM_uilisttype_init(void);
 struct uiListType  *WM_uilisttype_find(const char *idname, bool quiet);
-int                 WM_uilisttype_add(struct uiListType *ult);
+bool                WM_uilisttype_add(struct uiListType *ult);
 void                WM_uilisttype_freelink(struct uiListType *ult);
 void                WM_uilisttype_free(void);
 
 /* *************** menu types ******************** */
 void                WM_menutype_init(void);
 struct MenuType    *WM_menutype_find(const char *idname, bool quiet);
-int                 WM_menutype_add(struct MenuType *mt);
+bool                WM_menutype_add(struct MenuType *mt);
 void                WM_menutype_freelink(struct MenuType *mt);
 void                WM_menutype_free(void);
 
@@ -426,6 +432,15 @@ void        WM_main_playanim(int argc, const char **argv);
 
 /* debugging only, convenience function to write on crash */
 bool write_crash_blend(void);
+
+			/* Lock the interface for any communication */
+void        WM_set_locked_interface(struct wmWindowManager *wm, bool lock);
+
+void        WM_event_ndof_pan_get(const struct wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom);
+void        WM_event_ndof_rotate_get(const struct wmNDOFMotionData *ndof, float r_rot[3]);
+
+float       WM_event_ndof_to_axis_angle(const struct wmNDOFMotionData *ndof, float axis[3]);
+void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4]);
 
 #ifdef __cplusplus
 }

@@ -1193,7 +1193,8 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
 	int drawstr_left_len = UI_MAX_DRAW_STR;
-	char *drawstr_right = NULL;
+	const char *drawstr = but->drawstr;
+	const char *drawstr_right = NULL;
 	bool use_right_only = false;
 
 	uiStyleFontSet(fstyle);
@@ -1208,6 +1209,21 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	if (fstyle->kerning == 1) /* for BLF_width */
 		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 	
+
+	/* Special case: when we're entering text for multiple buttons,
+	 * don't draw the text for any of the multi-editing buttons */
+	if (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI)) {
+		uiBut *but_iter;
+		for (but_iter = but->block->buttons.first; but_iter; but_iter = but_iter->next) {
+			if (but_iter->editstr) {
+				drawstr = but_iter->editstr;
+				fstyle->align = UI_STYLE_TEXT_LEFT;
+				break;
+			}
+		}
+	}
+
+
 	/* text button selection and cursor */
 	if (but->editstr && but->pos != -1) {
 		short t = 0, pos = 0;
@@ -1218,16 +1234,16 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			selsta_tmp = but->selsta;
 			selend_tmp = but->selend;
 			
-			if (but->drawstr[0] != 0) {
+			if (drawstr[0] != 0) {
 
 				if (but->selsta >= but->ofs) {
-					selsta_draw = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, selsta_tmp - but->ofs);
+					selsta_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, selsta_tmp - but->ofs);
 				}
 				else {
 					selsta_draw = 0;
 				}
 
-				selwidth_draw = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, selend_tmp - but->ofs);
+				selwidth_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, selend_tmp - but->ofs);
 
 				glColor4ubv((unsigned char *)wcol->item);
 				glRects(rect->xmin + selsta_draw, rect->ymin + 2, rect->xmin + selwidth_draw, rect->ymax - 2);
@@ -1237,8 +1253,8 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			/* text cursor */
 			pos = but->pos;
 			if (pos >= but->ofs) {
-				if (but->drawstr[0] != 0) {
-					t = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, pos - but->ofs) / but->aspect;
+				if (drawstr[0] != 0) {
+					t = BLF_width(fstyle->uifont_id, drawstr + but->ofs, pos - but->ofs);
 				}
 
 				glColor3f(0.20, 0.6, 0.9);
@@ -1258,20 +1274,23 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	/* cut string in 2 parts - only for menu entries */
 	if ((but->block->flag & UI_BLOCK_LOOP)) {
 		if (ELEM3(but->type, NUM, TEX, NUMSLI) == 0) {
-			drawstr_right = strchr(but->drawstr, UI_SEP_CHAR);
+			drawstr_right = strchr(drawstr, UI_SEP_CHAR);
 			if (drawstr_right) {
-				drawstr_left_len = (drawstr_right - but->drawstr);
+				drawstr_left_len = (drawstr_right - drawstr);
 				drawstr_right++;
 			}
 		}
 	}
 	
 #ifdef USE_NUMBUTS_LR_ALIGN
-	if (!drawstr_right && ELEM(but->type, NUM, NUMSLI) && (but->editstr == NULL)) {
-		drawstr_right = strchr(but->drawstr + but->ofs, ':');
+	if (!drawstr_right && ELEM(but->type, NUM, NUMSLI) &&
+	    /* if we're editing or multi-drag (fake editing), then use left alignment */
+	    (but->editstr == NULL) && (drawstr == but->drawstr))
+	{
+		drawstr_right = strchr(drawstr + but->ofs, ':');
 		if (drawstr_right) {
 			drawstr_right++;
-			drawstr_left_len = (drawstr_right - but->drawstr);
+			drawstr_left_len = (drawstr_right - drawstr);
 
 			while (*drawstr_right == ' ') {
 				drawstr_right++;
@@ -1279,7 +1298,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		}
 		else {
 			/* no prefix, even so use only cpoin */
-			drawstr_right = but->drawstr + but->ofs;
+			drawstr_right = drawstr + but->ofs;
 			use_right_only = true;
 		}
 	}
@@ -1291,14 +1310,14 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		/* for underline drawing */
 		float font_xofs, font_yofs;
 
-		uiStyleFontDrawExt(fstyle, rect, but->drawstr + but->ofs,
+		uiStyleFontDrawExt(fstyle, rect, drawstr + but->ofs,
 		                   drawstr_left_len - but->ofs, &font_xofs, &font_yofs);
 
 		if (but->menu_key != '\0') {
 			char fixedbuf[128];
 			char *str;
 
-			BLI_strncpy(fixedbuf, but->drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
+			BLI_strncpy(fixedbuf, drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
 
 			str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
 			if (str == NULL)
@@ -1338,11 +1357,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 /* draws text and icons for buttons */
 static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
+	const bool show_menu_icon = ui_but_draw_menu_icon(but);
 	float alpha = (float)wcol->text[3] / 255.0f;
 	char password_str[UI_MAX_DRAW_STR];
-
-	if (but == NULL)
-		return;
 
 	ui_button_text_password_hide(password_str, but, false);
 
@@ -1356,8 +1373,8 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	/* If there's an icon too (made with uiDefIconTextBut) then draw the icon
 	 * and offset the text label to accommodate it */
 
-	if (but->flag & UI_HAS_ICON) {
-		const bool show_menu_icon = ui_but_draw_menu_icon(but);
+	if (but->flag & UI_HAS_ICON || show_menu_icon) {
+		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
 		const float icon_size = ICON_SIZE_FROM_BUTRECT(rect);
 
 		/* menu item - add some more padding so menus don't feel cramped. it must
@@ -1365,7 +1382,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		if (ui_block_is_menu(but->block))
 			rect->xmin += 0.3f * U.widget_unit;
 
-		widget_draw_icon(but, but->icon + but->iconadd, alpha, rect, show_menu_icon);
+		widget_draw_icon(but, icon, alpha, rect, show_menu_icon);
 
 		rect->xmin += icon_size;
 		/* without this menu keybindings will overlap the arrow icon [#38083] */
@@ -1777,6 +1794,12 @@ static void widget_state(uiWidgetType *wt, int state)
 		char red[4] = {255, 0, 0};
 		widget_state_blend(wt->wcol.inner, red, 0.4f);
 	}
+
+	if (state & UI_BUT_DRAG_MULTI) {
+		/* the button isn't SELECT but we're editing this so draw with sel color */
+		widget_state_blend(wt->wcol.inner, wt->wcol.inner_sel, 1.0f);
+	}
+
 	if (state & UI_BUT_NODE_ACTIVE) {
 		char blue[4] = {86, 128, 194};
 		widget_state_blend(wt->wcol.inner, blue, 0.3f);
@@ -1981,9 +2004,9 @@ void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rec
 	const float centy = BLI_rcti_cent_y_fl(rect);
 	const float radius = (float)min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)) / 2.0f;
 	const float m_delta[2] = {mx - centx, my - centy};
-	const float dist_squared = len_squared_v2(m_delta);
+	const float dist_sq = len_squared_v2(m_delta);
 
-	*val_dist = (dist_squared < (radius * radius)) ? sqrtf(dist_squared) / radius : 1.0f;
+	*val_dist = (dist_sq < (radius * radius)) ? sqrtf(dist_sq) / radius : 1.0f;
 	*val_rad = atan2f(m_delta[0], m_delta[1]) / (2.0f * (float)M_PI) + 0.5f;
 }
 
@@ -2663,6 +2686,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	
 	/* draw left/right parts only when not in text editing */
 	if (!(state & UI_TEXTINPUT)) {
+		int roundboxalign_slider;
 		
 		/* slider part */
 		copy_v3_v3_char(outline, wcol->outline);
@@ -2687,11 +2711,15 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 		rect1.xmax = rect1.xmin + fac + offs;
 		rect1.xmin +=  floor(offs - U.pixelsize);
 		
-		if (rect1.xmax + offs > rect->xmax)
+		if (rect1.xmax + offs > rect->xmax) {
+			roundboxalign_slider = roundboxalign & ~(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
 			offs *= (rect1.xmax + offs - rect->xmax) / offs;
-		else 
+		}
+		else {
+			roundboxalign_slider = 0;
 			offs = 0.0f;
-		round_box_edges(&wtb1, roundboxalign & ~(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT), &rect1, offs);
+		}
+		round_box_edges(&wtb1, roundboxalign_slider, &rect1, offs);
 		
 		widgetbase_draw(&wtb1, wcol);
 		copy_v3_v3_char(wcol->outline, outline);
@@ -2704,12 +2732,11 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	wtb.outline = 1;
 	wtb.inner = 0;
 	widgetbase_draw(&wtb, wcol);
-	
-	/* text space */
-	if ((roundboxalign & UI_CNR_TOP_LEFT) && (roundboxalign & UI_CNR_BOTTOM_LEFT))
-		rect->xmin += toffs;
-	if ((roundboxalign & UI_CNR_TOP_RIGHT) && (roundboxalign & UI_CNR_BOTTOM_RIGHT))
-		rect->xmax -= toffs;
+
+	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
+	rect->xmax -= toffs;
+	rect->xmin += toffs;
+
 }
 
 /* I think 3 is sufficient border to indicate keyed status */

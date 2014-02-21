@@ -39,7 +39,6 @@
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_ghash.h"
 
@@ -1305,7 +1304,7 @@ void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *d
 	prop->description = description;
 }
 
-void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, int consecutive)
+void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, bool consecutive)
 {
 	prop->icon = icon;
 	if (consecutive)
@@ -2144,7 +2143,7 @@ void RNA_def_property_update(PropertyRNA *prop, int noteflag, const char *func)
 
 void RNA_def_property_update_runtime(PropertyRNA *prop, const void *func)
 {
-	prop->update = func;
+	prop->update = (void *)func;
 }
 
 void RNA_def_property_dynamic_array_funcs(PropertyRNA *prop, const char *getlength)

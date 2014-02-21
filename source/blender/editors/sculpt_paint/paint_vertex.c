@@ -280,12 +280,13 @@ static void do_shared_vertex_tesscol(Mesh *me, bool *mfacetag)
 	MEM_freeN(scolmain);
 }
 
-static void do_shared_vertexcol(Mesh *me, bool *mlooptag, bool *mfacetag, int do_tessface)
+static void do_shared_vertexcol(Mesh *me, bool *mlooptag, bool *mfacetag, const bool do_tessface)
 {
 	const int use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL);
 	MPoly *mp;
 	int (*scol)[4];
-	int i, j, has_shared = 0;
+	int i, j;
+	bool has_shared = false;
 
 	/* if no mloopcol: do not do */
 	/* if mtexpoly: only the involved faces, otherwise all */
@@ -917,11 +918,11 @@ static float calc_vp_strength_col_dl(VPaint *vp, ViewContext *vc, const float co
 	                                   co, co_ss,
 	                                   V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_NEAR) == V3D_PROJ_RET_OK)
 	{
-		const float dist_squared = len_squared_v2v2(mval, co_ss);
+		const float dist_sq = len_squared_v2v2(mval, co_ss);
 
-		if (dist_squared <= brush_size_pressure * brush_size_pressure) {
+		if (dist_sq <= brush_size_pressure * brush_size_pressure) {
 			Brush *brush = BKE_paint_brush(&vp->paint);
-			const float dist = sqrtf(dist_squared);
+			const float dist = sqrtf(dist_sq);
 			float factor;
 
 			if (brush->mtex.tex && rgba) {
@@ -1376,7 +1377,7 @@ static void do_weight_paint_normalize_all_active(MDeformVert *dvert, const int d
 /*
  * See if the current deform vertex has a locked group
  */
-static char has_locked_group(MDeformVert *dvert, const int defbase_tot,
+static bool has_locked_group(MDeformVert *dvert, const int defbase_tot,
                              const bool *bone_groups, const bool *lock_flags)
 {
 	int i;
@@ -1405,8 +1406,8 @@ static bool has_locked_group_selected(int defbase_tot, const bool *defbase_sel, 
 
 
 #if 0 /* UNUSED */
-static int has_unselected_unlocked_bone_group(int defbase_tot, bool *defbase_sel, int selected,
-                                              const bool *lock_flags, const bool *vgroup_validmap)
+static bool has_unselected_unlocked_bone_group(int defbase_tot, bool *defbase_sel, int selected,
+                                               const bool *lock_flags, const bool *vgroup_validmap)
 {
 	int i;
 	if (defbase_tot == selected) {
@@ -1464,7 +1465,7 @@ static void multipaint_selection(MDeformVert *dvert, const int defbase_tot, floa
 static float redistribute_change(MDeformVert *ndv, const int defbase_tot,
                                  char *change_status, const char change_me, int changeto,
                                  float totchange, float total_valid,
-                                 char do_auto_normalize)
+                                 bool do_auto_normalize)
 {
 	bool changed;
 	float change;
@@ -1523,7 +1524,7 @@ static float get_mp_change(MDeformVert *odv, const int defbase_tot, const bool *
 static void enforce_locks(MDeformVert *odv, MDeformVert *ndv,
                           const int defbase_tot, const bool *defbase_sel,
                           const bool *lock_flags, const bool *vgroup_validmap,
-                          char do_auto_normalize, char do_multipaint)
+                          bool do_auto_normalize, bool do_multipaint)
 {
 	float totchange = 0.0f;
 	float totchange_allowed = 0.0f;
@@ -1697,9 +1698,9 @@ typedef struct WeightPaintInfo {
 	const bool *vgroup_validmap; /* same as WeightPaintData.vgroup_validmap,
 	                              * only added here for convenience */
 
-	char do_flip;
-	char do_multipaint;
-	char do_auto_normalize;
+	bool do_flip;
+	bool do_multipaint;
+	bool do_auto_normalize;
 
 	float brush_alpha_value;  /* result of BKE_brush_alpha_get() */
 } WeightPaintInfo;
@@ -2182,7 +2183,7 @@ static bool wpaint_ensure_data(bContext *C, wmOperator *op)
 			}
 		}
 	}
-	if (ob->defbase.first == NULL) {
+	if (BLI_listbase_is_empty(&ob->defbase)) {
 		ED_vgroup_add(ob);
 	}
 
@@ -2195,7 +2196,7 @@ static bool wpaint_ensure_data(bContext *C, wmOperator *op)
 	return TRUE;
 }
 
-static int wpaint_stroke_test_start(bContext *C, wmOperator *op, const float UNUSED(mouse[2]))
+static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float UNUSED(mouse[2]))
 {
 	Scene *scene = CTX_data_scene(C);
 	struct PaintStroke *stroke = op->customdata;
@@ -2778,7 +2779,7 @@ static void vpaint_build_poly_facemap(struct VPaintData *vd, Mesh *me)
 	                              tessface_origindex, me->totface);
 }
 
-static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const float UNUSED(mouse[2]))
+static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const float UNUSED(mouse[2]))
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	struct PaintStroke *stroke = op->customdata;
@@ -2792,12 +2793,12 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const fl
 	/* context checks could be a poll() */
 	me = BKE_mesh_from_object(ob);
 	if (me == NULL || me->totpoly == 0)
-		return OPERATOR_PASS_THROUGH;
+		return false;
 	
 	if (me->mloopcol == NULL)
 		make_vertexcol(ob);
 	if (me->mloopcol == NULL)
-		return OPERATOR_CANCELLED;
+		return false;
 
 	/* Update tessface data if needed
 	 * Added here too because e.g. switching to/from edit mode would remove tessface data,

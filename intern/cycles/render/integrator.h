@@ -41,6 +41,7 @@ public:
 	bool transparent_probalistic;
 	bool transparent_shadows;
 
+	int volume_homogeneous_sampling;
 	int volume_max_steps;
 	float volume_step_size;
 
@@ -50,7 +51,8 @@ public:
 	int seed;
 	int layer_flag;
 
-	float sample_clamp;
+	float sample_clamp_direct;
+	float sample_clamp_indirect;
 	bool motion_blur;
 
 	int aa_samples;

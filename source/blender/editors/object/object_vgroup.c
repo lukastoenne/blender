@@ -506,6 +506,9 @@ bool ED_vgroup_array_copy(Object *ob, Object *ob_from)
 	int defbase_tot = BLI_countlist(&ob->defbase);
 	bool new_vgroup = false;
 
+	if (ob == ob_from)
+		return true;
+
 	ED_vgroup_parray_alloc(ob_from->data, &dvert_array_from, &dvert_tot_from, false);
 	ED_vgroup_parray_alloc(ob->data, &dvert_array, &dvert_tot, false);
 
@@ -514,7 +517,8 @@ bool ED_vgroup_array_copy(Object *ob, Object *ob_from)
 		new_vgroup = true;
 	}
 
-	if (ob == ob_from || dvert_tot == 0 || (dvert_tot != dvert_tot_from) || dvert_array_from == NULL || dvert_array == NULL) {
+	if (dvert_tot == 0 || (dvert_tot != dvert_tot_from) || dvert_array_from == NULL || dvert_array == NULL) {
+
 		if (dvert_array) MEM_freeN(dvert_array);
 		if (dvert_array_from) MEM_freeN(dvert_array_from);
 
@@ -522,7 +526,9 @@ bool ED_vgroup_array_copy(Object *ob, Object *ob_from)
 			/* free the newly added vgroup since it wasn't compatible */
 			vgroup_delete_all(ob);
 		}
-		return false;
+
+		/* if true: both are 0 and nothing needs changing, consider this a success */
+		return (dvert_tot == dvert_tot_from);
 	}
 
 	/* do the copy */
@@ -909,7 +915,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 	}
 
 	/* Get meshes.*/
-	dmesh_src = mesh_get_derived_final(scene, ob_src, CD_MASK_BAREMESH|CD_MASK_MDEFORMVERT);
+	dmesh_src = mesh_get_derived_final(scene, ob_src, CD_MASK_BAREMESH | CD_MASK_MDEFORMVERT);
 	me_dst = ob_dst->data;
 
 	/* Get vertex group array from source mesh */
@@ -997,7 +1003,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1037,7 +1043,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1098,7 +1104,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1251,16 +1257,17 @@ void ED_vgroup_vert_add(Object *ob, bDeformGroup *dg, int vertnum, float weight,
 	/* get the deform group number, exit if
 	 * it can't be found
 	 */
-	if (def_nr < 0) return;
+	if (def_nr != -1) {
 
-	/* if there's no deform verts then create some,
-	 */
-	if (ED_vgroup_array_get(ob->data, &dv, &tot) && dv == NULL)
-		ED_vgroup_data_create(ob->data);
+		/* if there's no deform verts then create some,
+		 */
+		if (ED_vgroup_array_get(ob->data, &dv, &tot) && dv == NULL)
+			ED_vgroup_data_create(ob->data);
 
-	/* call another function to do the work
-	 */
-	ED_vgroup_nr_vert_add(ob, def_nr, vertnum, weight, assignmode);
+		/* call another function to do the work
+		 */
+		ED_vgroup_nr_vert_add(ob, def_nr, vertnum, weight, assignmode);
+	}
 }
 
 /* mesh object mode, lattice can be in editmode */
@@ -2778,7 +2785,7 @@ static void vgroup_delete_object_mode(Object *ob, bDeformGroup *dg)
 	int dvert_tot = 0;
 	const int def_nr = BLI_findindex(&ob->defbase, dg);
 
-	assert(def_nr > -1);
+	BLI_assert(def_nr != -1);
 
 	ED_vgroup_array_get(ob->data, &dvert_array, &dvert_tot);
 
@@ -2813,7 +2820,7 @@ static void vgroup_delete_object_mode(Object *ob, bDeformGroup *dg)
 		ob->actdef = 1;
 
 	/* remove all dverts */
-	if (ob->defbase.first == NULL) {
+	if (BLI_listbase_is_empty(&ob->defbase)) {
 		if (ob->type == OB_MESH) {
 			Mesh *me = ob->data;
 			CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
@@ -2908,7 +2915,7 @@ static void vgroup_delete_edit_mode(Object *ob, bDeformGroup *dg)
 	int i;
 	const int dg_index = BLI_findindex(&ob->defbase, dg);
 
-	assert(dg_index > -1);
+	BLI_assert(dg_index != -1);
 
 	/* Make sure that no verts are using this group */
 	if (vgroup_active_remove_verts(ob, true, dg) == false) {
@@ -2962,7 +2969,7 @@ static void vgroup_delete_edit_mode(Object *ob, bDeformGroup *dg)
 		ob->actdef = 1;
 
 	/* remove all dverts */
-	if (ob->defbase.first == NULL) {
+	if (BLI_listbase_is_empty(&ob->defbase)) {
 		if (ob->type == OB_MESH) {
 			Mesh *me = ob->data;
 			CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
@@ -4056,7 +4063,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 	{
 		if (ob_act != ob_src) {
 
-			if (ob_src->defbase.first == NULL) {
+			if (BLI_listbase_is_empty(&ob_src->defbase)) {
 				BKE_reportf(op->reports, RPT_WARNING,
 				            "Skipping object '%s' it has no vertex groups", ob_src->id.name + 2);
 				continue;
@@ -4132,7 +4139,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 	else {
-		if (op->reports->list.first == NULL) {
+		if (BLI_listbase_is_empty(&op->reports->list)) {
 			BKE_report(op->reports, RPT_WARNING, "Failed, no other selected objects with vertex groups found");
 		}
 

@@ -36,7 +36,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -82,8 +81,8 @@ typedef struct drawMeshFaceSelect_userData {
 
 typedef struct drawEMTFMapped_userData {
 	BMEditMesh *em;
-	short has_mcol;
-	short has_mtface;
+	bool has_mcol;
+	bool has_mtface;
 	MFace *mf;
 	MTFace *tf;
 } drawEMTFMapped_userData;
@@ -393,7 +392,7 @@ static void draw_textured_end(void)
 	glPopMatrix();
 }
 
-static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int matnr)
+static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, const bool has_mcol, int matnr)
 {
 	Material *ma = give_current_material(Gtexdraw.ob, matnr + 1);
 	bool invalidtexture = false;
@@ -434,7 +433,7 @@ static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int
 	}
 }
 
-static DMDrawOption draw_mcol__set_draw_legacy(MTFace *UNUSED(tface), int has_mcol, int UNUSED(matnr))
+static DMDrawOption draw_mcol__set_draw_legacy(MTFace *UNUSED(tface), const bool has_mcol, int UNUSED(matnr))
 {
 	if (has_mcol)
 		return DM_DRAW_OPTION_NORMAL;
@@ -442,7 +441,7 @@ static DMDrawOption draw_mcol__set_draw_legacy(MTFace *UNUSED(tface), int has_mc
 		return DM_DRAW_OPTION_NO_MCOL;
 }
 
-static DMDrawOption draw_tface__set_draw(MTFace *tface, int UNUSED(has_mcol), int matnr)
+static DMDrawOption draw_tface__set_draw(MTFace *tface, const bool UNUSED(has_mcol), int matnr)
 {
 	Material *ma = give_current_material(Gtexdraw.ob, matnr + 1);
 

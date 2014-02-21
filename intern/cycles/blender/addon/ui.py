@@ -41,11 +41,12 @@ class CyclesButtonsPanel():
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "render"
+    COMPAT_ENGINES = {'CYCLES'}
 
     @classmethod
     def poll(cls, context):
         rd = context.scene.render
-        return rd.engine == 'CYCLES'
+        return rd.engine in cls.COMPAT_ENGINES
 
 
 def draw_samples_info(layout, cscene):
@@ -119,7 +120,8 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.label("Settings:")
         sub.prop(cscene, "seed")
-        sub.prop(cscene, "sample_clamp")
+        sub.prop(cscene, "sample_clamp_direct")
+        sub.prop(cscene, "sample_clamp_indirect")
 
         if cscene.progressive == 'PATH':
             col = split.column()
@@ -164,6 +166,10 @@ class CyclesRender_PT_volume_sampling(CyclesButtonsPanel, Panel):
 
         scene = context.scene
         cscene = scene.cycles
+
+        layout.prop(cscene, "volume_homogeneous_sampling", text="Homogeneous")
+
+        layout.label("Heterogeneous:")
 
         split = layout.split()
         split.prop(cscene, "volume_step_size")
@@ -391,6 +397,8 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.separator()
         col.prop(rl, "use_pass_shadow")
         col.prop(rl, "use_pass_ambient_occlusion")
+        col.separator()
+        col.prop(rl, "pass_alpha_threshold")
 
         col = split.column()
         col.label(text="Diffuse:")
@@ -1191,7 +1199,7 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
         layout.prop(ccscene, "primitive", text="Primitive")
         layout.prop(ccscene, "shape", text="Shape")
 
-        if (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS') == False:
+        if not (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS'):
             layout.prop(ccscene, "cull_backfacing", text="Cull back-faces")
 
         if ccscene.primitive == 'TRIANGLES' and ccscene.shape == 'THICK':
@@ -1377,6 +1385,7 @@ def get_panels():
         ]
 
     return [getattr(types, p) for p in panels if hasattr(types, p)]
+
 
 def register():
     bpy.types.RENDER_PT_render.append(draw_device)

@@ -1066,7 +1066,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 		ListBase *effectors;
 
 		/* get effectors present in the group specified by effector_weights */
-		effectors = pdInitEffectors(scene, ob, NULL, effector_weights);
+		effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
 		if (effectors) {
 			float eff_force[3] = {0.0f, 0.0f, 0.0f};
 			float eff_loc[3], eff_vel[3];
@@ -1307,7 +1307,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 		cache->flag |= PTCACHE_OUTDATED;
 	}
 
-	if (ctime <= startframe + 1 && rbw->ltime == startframe) {
+	if (ctime == startframe + 1 && rbw->ltime == startframe) {
 		if (cache->flag & PTCACHE_OUTDATED) {
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			rigidbody_update_simulation(scene, rbw, true);

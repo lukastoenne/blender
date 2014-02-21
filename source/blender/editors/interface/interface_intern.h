@@ -181,7 +181,7 @@ struct uiBut {
 	/* both these values use depends on the button type
 	 * (polymorphic struct or union would be nicer for this stuff) */
 
-	/* (type == COLOR),      Use UI_GRAD_* values.
+	/* (type == HSVCUBE),      Use UI_GRAD_* values.
 	 * (type == NUM),        Use to store RNA 'step' value, for dragging and click-step.
 	 * (type == LABEL),      Use (a1 == 1.0f) to use a2 as a blending factor (wow, this is imaginative!).
 	 * (type == SCROLL)      Use as scroll size.
@@ -196,7 +196,6 @@ struct uiBut {
 	 */
 	float a2;
 
-	float aspect;
 	unsigned char col[4];
 
 	uiButHandleFunc func;
@@ -280,6 +279,8 @@ struct uiBlock {
 	Panel *panel;
 	uiBlock *oldblock;
 
+	ListBase butstore;  /* UI_butstore_* runtime function */
+
 	ListBase layouts;
 	struct uiLayout *curlayout;
 
@@ -292,7 +293,7 @@ struct uiBlock {
 	rctf rect;
 	float aspect;
 
-	int puphash;  /* popup menu hash for memory */
+	unsigned int puphash;  /* popup menu hash for memory */
 
 	uiButHandleFunc func;
 	void *func_arg1;
@@ -350,9 +351,9 @@ struct uiBlock {
 
 	bool color_profile;         /* color profile for correcting linear colors for display */
 
-	const char *display_device; /* display device name used to display this block,
-	                             * used by color widgets to transform colors from/to scene linear
-	                             */
+	char display_device[64]; /* display device name used to display this block,
+	                          * used by color widgets to transform colors from/to scene linear
+	                          */
 };
 
 typedef struct uiSafetyRct {
@@ -400,6 +401,7 @@ extern void ui_check_but(uiBut *but);
 extern bool ui_is_but_float(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_is_but_bool(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_is_but_unit(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+extern bool ui_is_but_compatible(const uiBut *but_a, const uiBut *but_b) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_is_but_rna_valid(uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_is_but_utf8(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_is_but_search_unlink_visible(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
@@ -464,7 +466,8 @@ uiBlock *ui_block_func_COLOR(struct bContext *C, uiPopupBlockHandle *handle, voi
 struct ARegion *ui_tooltip_create(struct bContext *C, struct ARegion *butregion, uiBut *but);
 void ui_tooltip_free(struct bContext *C, struct ARegion *ar);
 
-uiBut *ui_popup_menu_memory(struct uiBlock *block, struct uiBut *but);
+uiBut *ui_popup_menu_memory_get(struct uiBlock *block);
+void   ui_popup_menu_memory_set(struct uiBlock *block, struct uiBut *but);
 
 float *ui_block_hsv_get(struct uiBlock *block);
 void ui_popup_block_scrolltest(struct uiBlock *block);
@@ -487,11 +490,10 @@ uiPopupBlockHandle *ui_popup_block_create(struct bContext *C, struct ARegion *bu
                                           uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
                                           void *arg);
 uiPopupBlockHandle *ui_popup_menu_create(struct bContext *C, struct ARegion *butregion, uiBut *but,
-                                         uiMenuCreateFunc create_func, void *arg, char *str);
+                                         uiMenuCreateFunc create_func, void *arg);
 
 void ui_popup_block_free(struct bContext *C, uiPopupBlockHandle *handle);
 
-void ui_set_name_menu(uiBut *but, int value);
 int ui_step_name_menu(uiBut *but, int step);
 
 struct AutoComplete;
@@ -519,13 +521,16 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol
 PointerRNA *ui_handle_afterfunc_add_operator(struct wmOperatorType *ot, int opcontext, bool create_props);
 extern void ui_pan_to_scroll(const struct wmEvent *event, int *type, int *val);
 extern void ui_button_activate_do(struct bContext *C, struct ARegion *ar, uiBut *but);
-extern void ui_button_execute_do(struct bContext *C, struct ARegion *ar, uiBut *but);
+extern void ui_button_execute_begin(struct bContext *C, struct ARegion *ar, uiBut *but, void **active_back);
+extern void ui_button_execute_end(struct bContext *C, struct ARegion *ar, uiBut *but, void *active_back);
 extern void ui_button_active_free(const struct bContext *C, uiBut *but);
 extern bool ui_button_is_active(struct ARegion *ar) ATTR_WARN_UNUSED_RESULT;
 extern int ui_button_open_menu_direction(uiBut *but);
 extern void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, const bool restore);
 void ui_button_clipboard_free(void);
 void ui_panel_menu(struct bContext *C, ARegion *ar, Panel *pa);
+uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new);
+uiBut *ui_but_find_new(uiBlock *block_old, const uiBut *but_new);
 
 /* interface_widgets.c */
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);

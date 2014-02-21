@@ -330,6 +330,7 @@ void psys_apply_hair_lattice(struct Scene *scene, struct Object *ob, struct Part
 struct ParticleSystem *psys_get_target_system(struct Object *ob, struct ParticleTarget *pt);
 void psys_count_keyed_targets(struct ParticleSimulationData *sim);
 void psys_update_particle_tree(struct ParticleSystem *psys, float cfra);
+void psys_changed_type(struct Object *ob, struct ParticleSystem *psys);
 
 void psys_make_temp_pointcache(struct Object *ob, struct ParticleSystem *psys);
 void psys_get_pointcache_start_end(struct Scene *scene, ParticleSystem *psys, int *sfra, int *efra);
@@ -375,7 +376,7 @@ void psys_particle_on_dm(struct DerivedMesh *dm, int from, int index, int index_
                          float orco[3], float ornor[3]);
 
 /* particle_system.c */
-void initialize_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, int p);
+void initialize_particle(struct ParticleData *pa);
 void psys_calc_dmcache(struct Object *ob, struct DerivedMesh *dm, struct ParticleSystem *psys);
 int psys_particle_dm_face_lookup(struct Object *ob, struct DerivedMesh *dm, int index, const float fw[4], struct LinkNode *node);
 

@@ -913,7 +913,7 @@ static void region_overlap_fix(ScrArea *sa, ARegion *ar)
 }
 
 /* overlapping regions only in the following restricted cases */
-static int region_is_overlap(wmWindow *win, ScrArea *sa, ARegion *ar)
+static bool region_is_overlap(wmWindow *win, ScrArea *sa, ARegion *ar)
 {
 	if (U.uiflag2 & USER_REGION_OVERLAP) {
 		if (WM_is_draw_triple(win)) {
@@ -1447,7 +1447,7 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type)
 				break;
 		
 		/* old spacedata... happened during work on 2.50, remove */
-		if (sl && sl->regionbase.first == NULL) {
+		if (sl && BLI_listbase_is_empty(&sl->regionbase)) {
 			st->free(sl);
 			BLI_freelinkN(&sa->spacedata, sl);
 			if (slold == sl) {
@@ -1460,7 +1460,7 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type)
 			/* swap regions */
 			slold->regionbase = sa->regionbase;
 			sa->regionbase = sl->regionbase;
-			sl->regionbase.first = sl->regionbase.last = NULL;
+			BLI_listbase_clear(&sl->regionbase);
 			
 			/* put in front of list */
 			BLI_remlink(&sa->spacedata, sl);
@@ -1476,7 +1476,7 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type)
 				if (slold)
 					slold->regionbase = sa->regionbase;
 				sa->regionbase = sl->regionbase;
-				sl->regionbase.first = sl->regionbase.last = NULL;
+				BLI_listbase_clear(&sl->regionbase);
 			}
 		}
 		
@@ -1533,39 +1533,6 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
 	return xco + 1.7 * U.widget_unit;
 }
 
-int ED_area_header_standardbuttons(const bContext *C, uiBlock *block, int yco)
-{
-	ScrArea *sa = CTX_wm_area(C);
-	int xco = 0.4 * U.widget_unit;
-	uiBut *but;
-	
-	if (!sa->full)
-		xco = ED_area_header_switchbutton(C, block, yco);
-
-	uiBlockSetEmboss(block, UI_EMBOSSN);
-
-	if (sa->flag & HEADER_NO_PULLDOWN) {
-		but = uiDefIconButBitS(block, TOG, HEADER_NO_PULLDOWN, 0,
-		                       ICON_DISCLOSURE_TRI_RIGHT,
-		                       xco, yco, U.widget_unit, U.widget_unit * 0.9f,
-		                       &(sa->flag), 0, 0, 0, 0,
-		                       TIP_("Show pulldown menus"));
-	}
-	else {
-		but = uiDefIconButBitS(block, TOG, HEADER_NO_PULLDOWN, 0,
-		                       ICON_DISCLOSURE_TRI_DOWN,
-		                       xco, yco, U.widget_unit, U.widget_unit * 0.9f,
-		                       &(sa->flag), 0, 0, 0, 0,
-		                       TIP_("Hide pulldown menus"));
-	}
-
-	uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
-
-	uiBlockSetEmboss(block, UI_EMBOSS);
-	
-	return xco + U.widget_unit;
-}
-
 /************************ standard UI regions ************************/
 
 void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *context, int contextnr)
@@ -1590,7 +1557,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 
 	BLI_SMALLSTACK_DECLARE(pt_stack, PanelType *);
 
-	if (contextnr >= 0)
+	if (contextnr != -1)
 		is_context_new = UI_view2d_tab_set(v2d, contextnr);
 	
 	/* before setting the view */

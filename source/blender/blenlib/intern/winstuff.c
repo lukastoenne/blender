@@ -153,6 +153,8 @@ void RegisterBlendExtension(void)
 	GetSystemDirectory(SysDir, FILE_MAXDIR);
 #ifdef WIN64
 	ThumbHandlerDLL = "BlendThumb64.dll";
+#elif defined(__MINGW32__)
+	ThumbHandlerDLL = "BlendThumb.dll";
 #else
 	IsWow64Process(GetCurrentProcess(), &IsWOW64);
 	if (IsWOW64 == TRUE)
@@ -225,6 +227,8 @@ void get_default_root(char *root)
 	}
 }
 
+/* UNUSED */
+#if 0
 int check_file_chars(char *filename)
 {
 	char *p = filename;
@@ -245,6 +249,7 @@ int check_file_chars(char *filename)
 	}
 	return 1;
 }
+#endif
 
 #else
 

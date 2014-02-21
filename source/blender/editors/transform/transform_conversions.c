@@ -238,7 +238,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 		if ((tob->flag & TD_SELECTED) == 0) {
 			TransData *td;
 			int i;
-			float dist, vec[3];
+			float dist_sq, vec[3];
 
 			tob->rdist = -1.0f; // signal for next loop
 
@@ -253,9 +253,9 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 						sub_v3_v3(vec, vec_p);
 					}
 
-					dist = len_squared_v3(vec);
-					if ((tob->rdist == -1.0f) || (dist < (tob->rdist * tob->rdist))) {
-						tob->rdist = sqrtf(dist);
+					dist_sq = len_squared_v3(vec);
+					if ((tob->rdist == -1.0f) || (dist_sq < (tob->rdist * tob->rdist))) {
+						tob->rdist = sqrtf(dist_sq);
 					}
 				}
 				else {
@@ -1197,6 +1197,7 @@ static void createTransArmatureVerts(TransInfo *t)
 
 					if ((ebo->flag & BONE_ROOTSEL) == 0) {
 						td->extra = ebo;
+						td->ival = ebo->roll;
 					}
 
 					td->ext = NULL;
@@ -1219,6 +1220,7 @@ static void createTransArmatureVerts(TransInfo *t)
 					ED_armature_ebone_to_mat3(ebo, td->axismtx);
 
 					td->extra = ebo; /* to fix roll */
+					td->ival = ebo->roll;
 
 					td->ext = NULL;
 					td->val = NULL;
@@ -2230,7 +2232,7 @@ static void createTransEditVerts(TransInfo *t)
 	}
 
 	/* detect CrazySpace [tm] */
-	if (modifiers_getCageIndex(t->scene, t->obedit, NULL, 1) >= 0) {
+	if (modifiers_getCageIndex(t->scene, t->obedit, NULL, 1) != -1) {
 		int totleft = -1;
 		if (modifiers_isCorrectableDeformed(t->scene, t->obedit)) {
 			/* check if we can use deform matrices for modifier from the
@@ -2372,7 +2374,6 @@ cleanup:
 void flushTransNodes(TransInfo *t)
 {
 	const float dpi_fac = UI_DPI_FAC;
-	bool hidden_state;
 	int a;
 	TransData *td;
 	TransData2D *td2d;
@@ -2391,18 +2392,6 @@ void flushTransNodes(TransInfo *t)
 		node->locx = td2d->loc[0] / dpi_fac;
 		node->locy = td2d->loc[1] / dpi_fac;
 #endif
-		/* update node hidden state with transform data TD_HIDDEN + transformInfo T_TOGGLE_HIDDEN */
-		hidden_state = (td->flag & TD_HIDDEN) != 0;
-		if (t->state != TRANS_CANCEL) {
-			hidden_state ^= (t->flag & T_TOGGLE_HIDDEN) > 0;
-		}
-
-		if (hidden_state) {
-			node->flag |= NODE_HIDDEN;
-		}
-		else {
-			node->flag &= ~NODE_HIDDEN;
-		}
 	}
 	
 	/* handle intersection with noodles */
@@ -2418,10 +2407,26 @@ void flushTransNodes(TransInfo *t)
 
 #define SEQ_TX_NESTED_METAS
 
+BLI_INLINE void trans_update_seq(Scene *sce, Sequence *seq, int old_start, int sel_flag)
+{
+	if (seq->depth == 0) {
+		/* Calculate this strip and all nested strips.
+		 * Children are ALWAYS transformed first so we don't need to do this in another loop.
+		 */
+		BKE_sequence_calc(sce, seq);
+	}
+	else {
+		BKE_sequence_calc_disp(sce, seq);
+	}
+
+	if (sel_flag == SELECT)
+		BKE_sequencer_offset_animdata(sce, seq, seq->start - old_start);
+}
+
 void flushTransSeq(TransInfo *t)
 {
 	ListBase *seqbasep = BKE_sequencer_editing_get(t->scene, FALSE)->seqbasep; /* Editing null check already done */
-	int a, new_frame, old_start;
+	int a, new_frame;
 	TransData *td = NULL;
 	TransData2D *td2d = NULL;
 	TransDataSeq *tdsq = NULL;
@@ -2433,9 +2438,11 @@ void flushTransSeq(TransInfo *t)
 	 * if the transdata order is changed this will mess up
 	 * but so will TransDataSeq */
 	Sequence *seq_prev = NULL;
+	int old_start_prev = 0, sel_flag_prev = 0;
 
 	/* flush to 2d vector from internally used 3d vector */
 	for (a = 0, td = t->data, td2d = t->data2d; a < t->total; a++, td++, td2d++) {
+		int old_start;
 		tdsq = (TransDataSeq *)td->extra;
 		seq = tdsq->seq;
 		old_start = seq->start;
@@ -2467,21 +2474,27 @@ void flushTransSeq(TransInfo *t)
 				break;
 		}
 
+		/* Update *previous* seq! Else, we would update a seq after its first transform, and if it has more than one
+		 * (like e.g. SEQ_LEFTSEL and SEQ_RIGHTSEL), the others are not updated! See T38469.
+		 */
 		if (seq != seq_prev) {
-			if (seq->depth == 0) {
-				/* Calculate this strip and all nested strips
-				 * children are ALWAYS transformed first
-				 * so we don't need to do this in another loop. */
-				BKE_sequence_calc(t->scene, seq);
-			}
-			else {
-				BKE_sequence_calc_disp(t->scene, seq);
+			if (seq_prev) {
+				trans_update_seq(t->scene, seq_prev, old_start_prev, sel_flag_prev);
 			}
 
-			if (tdsq->sel_flag == SELECT)
-				BKE_sequencer_offset_animdata(t->scene, seq, seq->start - old_start);
+			seq_prev = seq;
+			old_start_prev = old_start;
+			sel_flag_prev = tdsq->sel_flag;
 		}
-		seq_prev = seq;
+		else {
+			/* We want to accumulate *all* sel_flags for this seq! */
+			sel_flag_prev |= tdsq->sel_flag;
+		}
+	}
+
+	/* Don't forget to update the last seq! */
+	if (seq_prev) {
+		trans_update_seq(t->scene, seq_prev, old_start_prev, sel_flag_prev);
 	}
 
 
@@ -3025,11 +3038,11 @@ static void posttrans_gpd_clean(bGPdata *gpd)
 		}
 		
 		/* error checking: it is unlikely, but may be possible to have none selected */
-		if (sel_buffer.first == NULL)
+		if (BLI_listbase_is_empty(&sel_buffer))
 			continue;
 		
 		/* if all were selected (i.e. gpl->frames is empty), then just transfer sel-buf over */
-		if (gpl->frames.first == NULL) {
+		if (BLI_listbase_is_empty(&gpl->frames)) {
 			gpl->frames.first = sel_buffer.first;
 			gpl->frames.last = sel_buffer.last;
 			
@@ -3115,11 +3128,11 @@ static void posttrans_mask_clean(Mask *mask)
 		}
 
 		/* error checking: it is unlikely, but may be possible to have none selected */
-		if (sel_buffer.first == NULL)
+		if (BLI_listbase_is_empty(&sel_buffer))
 			continue;
 
 		/* if all were selected (i.e. masklay->splines_shapes is empty), then just transfer sel-buf over */
-		if (masklay->splines_shapes.first == NULL) {
+		if (BLI_listbase_is_empty(&masklay->splines_shapes)) {
 			masklay->splines_shapes.first = sel_buffer.first;
 			masklay->splines_shapes.last = sel_buffer.last;
 
@@ -3776,7 +3789,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				const char sel1 = use_handle ? bezt->f1 & SELECT : sel2;
 				const char sel3 = use_handle ? bezt->f3 & SELECT : sel2;
 
-				if (ELEM3(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE)) {
+				if (ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE)) {
 					/* for 'normal' pivots - just include anything that is selected.
 					 * this works a bit differently in translation modes */
 					if (sel2) {
@@ -3884,7 +3897,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				/* only include handles if selected, irrespective of the interpolation modes.
 				 * also, only treat handles specially if the center point isn't selected. 
 				 */
-				if (!ELEM3(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE) || !(sel2)) {
+				if (!ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE) || !(sel2)) {
 					if (sel1) {
 						hdata = initTransDataCurveHandles(td, bezt);
 						bezt_to_transdata(td++, td2d++, adt, bezt, 0, 1, 1, intvals, scaled_mtx, scaled_smtx);
@@ -3907,7 +3920,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				if (sel2 && (use_local_center == false)) {
 
 					/* move handles relative to center */
-					if (ELEM3(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE)) {
+					if (ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE)) {
 						if (sel1) td->flag |= TD_MOVEHANDLE1;
 						if (sel3) td->flag |= TD_MOVEHANDLE2;
 					}
@@ -4501,7 +4514,7 @@ static void freeSeqData(TransInfo *t)
 				}
 
 				if (overlap) {
-					int has_effect = 0;
+					bool has_effect = false;
 					for (seq = seqbasep->first; seq; seq = seq->next)
 						seq->tmp = NULL;
 
@@ -4512,7 +4525,7 @@ static void freeSeqData(TransInfo *t)
 						if ((seq != seq_prev)) {
 							/* check effects strips, we cant change their time */
 							if ((seq->type & SEQ_TYPE_EFFECT) && seq->seq1) {
-								has_effect = TRUE;
+								has_effect = true;
 							}
 							else {
 								/* Tag seq with a non zero value, used by BKE_sequence_base_shuffle_time to identify the ones to shuffle */
@@ -5108,7 +5121,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 			}
 		}
 		else if (IS_AUTOKEY_FLAG(scene, INSERTNEEDED)) {
-			short do_loc = FALSE, do_rot = FALSE, do_scale = FALSE;
+			bool do_loc = false, do_rot = false, do_scale = false;
 			
 			/* filter the conditions when this happens (assume that curarea->spacetype==SPACE_VIE3D) */
 			if (tmode == TFM_TRANSLATION) {
@@ -5997,9 +6010,6 @@ static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node, const
 	td->ext = NULL; td->val = NULL;
 
 	td->flag |= TD_SELECTED;
-	if (node->flag & NODE_HIDDEN) {
-		td->flag |= TD_HIDDEN;
-	}
 	td->dist = 0.0;
 
 	unit_m3(td->mtx);
@@ -6008,7 +6018,7 @@ static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node, const
 	td->extra = node;
 }
 
-static int is_node_parent_select(bNode *node)
+static bool is_node_parent_select(bNode *node)
 {
 	while ((node = node->parent)) {
 		if (node->flag & NODE_TRANSFORM) {
@@ -6034,8 +6044,6 @@ static void createTransNodeData(bContext *UNUSED(C), TransInfo *t)
 
 	/* nodes dont support PET and probably never will */
 	t->flag &= ~T_PROP_EDIT_ALL;
-	/* initial: do not toggle hidden */
-	t->flag &= ~T_TOGGLE_HIDDEN;
 
 	/* set transform flags on nodes */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
@@ -6624,7 +6632,7 @@ void flushTransTracking(TransInfo *t)
 /* * masking * */
 
 typedef struct TransDataMasking {
-	int is_handle;
+	bool is_handle;
 
 	float handle[2], orig_handle[2];
 	float vec[3][3];
@@ -6638,8 +6646,8 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
                                  const int propmode, const float asp[2])
 {
 	BezTriple *bezt = &point->bezt;
-	short is_sel_point = MASKPOINT_ISSEL_KNOT(point);
-	short is_sel_any = MASKPOINT_ISSEL_ANY(point);
+	const bool is_sel_point = MASKPOINT_ISSEL_KNOT(point);
+	const bool is_sel_any = MASKPOINT_ISSEL_ANY(point);
 	float parent_matrix[3][3], parent_inverse_matrix[3][3];
 
 	tdm->point = point;
@@ -6755,6 +6763,14 @@ static void createTransMaskingData(bContext *C, TransInfo *t)
 	if (!mask)
 		return;
 
+	if (t->spacetype == SPACE_CLIP) {
+		SpaceClip *sc = t->sa->spacedata.first;
+		MovieClip *clip = ED_space_clip_get_clip(sc);
+		if (!clip) {
+			return;
+		}
+	}
+
 	/* count */
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskSpline *spline;
@@ -6861,6 +6877,7 @@ void createTransData(bContext *C, TransInfo *t)
 	Scene *scene = t->scene;
 	Object *ob = OBACT;
 
+	/* if tests must match recalcData for correct updates */
 	if (t->options & CTX_TEXTURE) {
 		t->flag |= T_TEXTURE;
 		createTransTexspace(t);

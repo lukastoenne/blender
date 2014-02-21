@@ -1592,7 +1592,10 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma)
 
 	if (!(scene->gm.flag & GAME_GLSL_NO_NODES) && ma->nodetree && ma->use_nodes) {
 		/* create nodes */
-		ntreeGPUMaterialNodes(ma->nodetree, mat);
+		if (BKE_scene_use_new_shading_nodes(scene))
+			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_NEW_SHADING);
+		else
+			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_OLD_SHADING);
 	}
 	else {
 		if (BKE_scene_use_new_shading_nodes(scene)) {
@@ -1891,11 +1894,11 @@ void GPU_lamp_free(Object *ob)
 	BLI_freelistN(&ob->gpulamp);
 }
 
-int GPU_lamp_has_shadow_buffer(GPULamp *lamp)
+bool GPU_lamp_has_shadow_buffer(GPULamp *lamp)
 {
 	return (!(lamp->scene->gm.flag & GAME_GLSL_NO_SHADOWS) &&
-			!(lamp->scene->gm.flag & GAME_GLSL_NO_LIGHTS) &&
-			lamp->tex && lamp->fb);
+	        !(lamp->scene->gm.flag & GAME_GLSL_NO_LIGHTS) &&
+	        lamp->tex && lamp->fb);
 }
 
 void GPU_lamp_update_buffer_mats(GPULamp *lamp)

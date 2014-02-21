@@ -782,22 +782,19 @@ typedef enum eNdof_Flag {
 	NDOF_SHOULD_ZOOM    = (1 << 4),
 	NDOF_SHOULD_ROTATE  = (1 << 5),
 
-	/* orbit navigation modes
-	 * only two options, so it's sort of a hybrid bool/enum
-	 * if ((U.ndof_flag & NDOF_ORBIT_MODE) == NDOF_OM_OBJECT)... */
+	/* orbit navigation modes */
 
-	// NDOF_ORBIT_MODE     = (1 << 6),
-	// #define NDOF_OM_TARGETCAMERA 0
-	// #define NDOF_OM_OBJECT      NDOF_ORBIT_MODE
+	/* exposed as Orbit|Explore in the UI */
+	NDOF_MODE_ORBIT      = (1 << 6),
 
 	/* actually... users probably don't care about what the mode
 	 * is called, just that it feels right */
 	/* zoom is up/down if this flag is set (otherwise forward/backward) */
-	NDOF_ZOOM_UPDOWN        = (1 << 7),
+	NDOF_PAN_YZ_SWAP_AXIS   = (1 << 7),
 	NDOF_ZOOM_INVERT        = (1 << 8),
-	NDOF_ROTATE_INVERT_AXIS = (1 << 9),
-	NDOF_TILT_INVERT_AXIS   = (1 << 10),
-	NDOF_ROLL_INVERT_AXIS   = (1 << 11),
+	NDOF_ROTX_INVERT_AXIS   = (1 << 9),
+	NDOF_ROTY_INVERT_AXIS   = (1 << 10),
+	NDOF_ROTZ_INVERT_AXIS   = (1 << 11),
 	NDOF_PANX_INVERT_AXIS   = (1 << 12),
 	NDOF_PANY_INVERT_AXIS   = (1 << 13),
 	NDOF_PANZ_INVERT_AXIS   = (1 << 14),

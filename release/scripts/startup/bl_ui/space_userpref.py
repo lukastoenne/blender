@@ -48,7 +48,7 @@ class USERPREF_HT_header(Header):
     def draw(self, context):
         layout = self.layout
 
-        layout.template_header(menus=False)
+        layout.template_header()
 
         userpref = context.user_preferences
 
@@ -432,12 +432,12 @@ class USERPREF_PT_system(Panel):
             col.label(text="Might fail for Mesh editing selection!")
             col.separator()
         col.prop(system, "use_region_overlap")
-        
+
         col.separator()
 
         col.label(text="Text Draw Options:")
         col.prop(system, "use_text_antialiasing")
-        
+
         col.separator()
 
         col.label(text="Textures:")
@@ -917,7 +917,7 @@ class USERPREF_PT_file(Panel):
         col.prop(paths, "save_version")
         col.prop(paths, "recent_files")
         col.prop(paths, "use_save_preview_images")
-        
+
         col.separator()
 
         col.label(text="Auto Save:")
@@ -950,33 +950,40 @@ class USERPREF_MT_ndof_settings(Menu):
 
         input_prefs = context.user_preferences.inputs
 
-        layout.separator()
-        layout.prop(input_prefs, "ndof_sensitivity")
-        layout.prop(input_prefs, "ndof_orbit_sensitivity")
+        is_view3d = context.space_data.type == 'VIEW_3D'
 
-        if context.space_data.type == 'VIEW_3D':
+        layout.prop(input_prefs, "ndof_sensitivity")
+        if is_view3d:
+            layout.prop(input_prefs, "ndof_orbit_sensitivity")
+
+        if is_view3d:
             layout.separator()
             layout.prop(input_prefs, "ndof_show_guide")
 
             layout.separator()
-            layout.label(text="Orbit options")
+            layout.label(text="Orbit style")
+            layout.row().prop(input_prefs, "ndof_view_navigate_method", text="")
             layout.row().prop(input_prefs, "ndof_view_rotate_method", text="")
-            layout.prop(input_prefs, "ndof_roll_invert_axis")
-            layout.prop(input_prefs, "ndof_tilt_invert_axis")
-            layout.prop(input_prefs, "ndof_rotate_invert_axis")
-
             layout.separator()
-            layout.label(text="Pan options")
-            layout.prop(input_prefs, "ndof_panx_invert_axis")
-            layout.prop(input_prefs, "ndof_pany_invert_axis")
-            layout.prop(input_prefs, "ndof_panz_invert_axis")
+            layout.label(text="Orbit options")
+            layout.prop(input_prefs, "ndof_rotx_invert_axis")
+            layout.prop(input_prefs, "ndof_roty_invert_axis")
+            layout.prop(input_prefs, "ndof_rotz_invert_axis")
 
-            layout.label(text="Zoom options")
-            layout.prop(input_prefs, "ndof_zoom_invert")
-            layout.prop(input_prefs, "ndof_zoom_updown")
+        # view2d use pan/zoom
+        layout.separator()
+        layout.label(text="Pan options")
+        layout.prop(input_prefs, "ndof_panx_invert_axis")
+        layout.prop(input_prefs, "ndof_pany_invert_axis")
+        layout.prop(input_prefs, "ndof_panz_invert_axis")
+        layout.prop(input_prefs, "ndof_pan_yz_swap_axis")
 
+        layout.label(text="Zoom options")
+        layout.prop(input_prefs, "ndof_zoom_invert")
+
+        if is_view3d:
             layout.separator()
-            layout.label(text="Fly options")
+            layout.label(text="Fly/Walk options")
             layout.prop(input_prefs, "ndof_fly_helicopter", icon='NDOF_FLY')
             layout.prop(input_prefs, "ndof_lock_horizon", icon='NDOF_DOM')
 
@@ -1047,7 +1054,7 @@ class USERPREF_PT_input(Panel):
         sub.row().prop(inputs, "view_rotate_method", expand=True)
 
         sub.separator()
-        
+
         sub.label(text="Zoom Style:")
         sub.row().prop(inputs, "view_zoom_method", text="")
         if inputs.view_zoom_method in {'DOLLY', 'CONTINUE'}:

@@ -2034,6 +2034,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 			    (dob->type == OB_DUPLIGROUP && dob->animated) ||
 			    !(bb_tmp = BKE_object_boundbox_get(dob->ob)) ||
 			    draw_glsl_material(scene, dob->ob, v3d, dt) ||
+			    check_object_draw_texture(scene, v3d, dt) ||
 			    (base->object == OBACT && v3d->flag2 & V3D_SOLID_MATCAP))
 			{
 				// printf("draw_dupli_objects_color: skipping displist for %s\n", dob->ob->id.name + 2);
@@ -2397,7 +2398,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 	Base *base;
 	Object *ob;
 	
-	shadows.first = shadows.last = NULL;
+	BLI_listbase_clear(&shadows);
 	
 	/* update lamp transform and gather shadow lamps */
 	for (SETLOOPER(scene, sce_iter, base)) {
@@ -3375,7 +3376,7 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 		BDR_drawSketch(C);
 	}
 
-	if ((U.ndof_flag & NDOF_SHOW_GUIDE) && (rv3d->viewlock != RV3D_LOCKED) && (rv3d->persp != RV3D_CAMOB))
+	if ((U.ndof_flag & NDOF_SHOW_GUIDE) && ((rv3d->viewlock & RV3D_LOCKED) == 0) && (rv3d->persp != RV3D_CAMOB))
 		/* TODO: draw something else (but not this) during fly mode */
 		draw_rotation_guide(rv3d);
 

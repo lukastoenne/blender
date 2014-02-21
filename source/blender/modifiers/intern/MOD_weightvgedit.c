@@ -32,6 +32,7 @@
 #include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
+#include "BLI_listbase.h"
 #include "BLI_rand.h"
 
 #include "DNA_color_types.h"      /* CurveMapping. */
@@ -184,11 +185,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	int defgrp_index;
 	int i;
 	/* Flags. */
-	int do_add  = (wmd->edit_flags & MOD_WVG_EDIT_ADD2VG) != 0;
-	int do_rem  = (wmd->edit_flags & MOD_WVG_EDIT_REMFVG) != 0;
+	const bool do_add  = (wmd->edit_flags & MOD_WVG_EDIT_ADD2VG) != 0;
+	const bool do_rem  = (wmd->edit_flags & MOD_WVG_EDIT_REMFVG) != 0;
 	/* Only do weight-preview in Object, Sculpt and Pose modes! */
 #if 0
-	int do_prev = (wmd->modifier.mode & eModifierMode_DoWeightPreview);
+	const bool do_prev = (wmd->modifier.mode & eModifierMode_DoWeightPreview);
 #endif
 
 	/* Get number of verts. */
@@ -197,7 +198,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	/* Check if we can just return the original mesh.
 	 * Must have verts and therefore verts assigned to vgroups to do anything useful!
 	 */
-	if ((numVerts == 0) || (ob->defbase.first == NULL))
+	if ((numVerts == 0) || BLI_listbase_is_empty(&ob->defbase))
 		return dm;
 
 	/* Get vgroup idx from its name. */

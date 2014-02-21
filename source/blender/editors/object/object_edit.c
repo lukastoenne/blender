@@ -1497,7 +1497,8 @@ static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *UNUSED(
 
 	ob = CTX_data_active_object(C);
 	if (ob) {
-		const bool use_mode_particle_edit = (ob->particlesystem.first != NULL) || (ob->soft != NULL) ||
+		const bool use_mode_particle_edit = (BLI_listbase_is_empty(&ob->particlesystem) == false) ||
+		                                    (ob->soft != NULL) ||
 		                                    (modifiers_findByType(ob, eModifierType_Cloth) != NULL);
 		while (input->identifier) {
 			if ((input->value == OB_MODE_EDIT && OB_TYPE_SUPPORT_EDITMODE(ob->type)) ||
@@ -1610,7 +1611,7 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 	ObjectMode mode = RNA_enum_get(op->ptr, "mode");
 	ObjectMode restore_mode = (ob) ? ob->mode : OB_MODE_OBJECT;
-	int toggle = RNA_boolean_get(op->ptr, "toggle");
+	const bool toggle = RNA_boolean_get(op->ptr, "toggle");
 
 	if (!ob || !object_mode_compat_test(ob, mode))
 		return OPERATOR_PASS_THROUGH;

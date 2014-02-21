@@ -227,7 +227,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
 	/* in the case of only one editable thing, set pset->edittype accordingly */
-	if (pidlist.first && pidlist.first == pidlist.last) {
+	if (BLI_listbase_is_single(&pidlist)) {
 		pid = pidlist.first;
 		switch (pid->type) {
 			case PTCACHE_TYPE_PARTICLES:
@@ -415,7 +415,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 
 /*************************** selection utilities *******************************/
 
-static int key_test_depth(PEData *data, const float co[3], const int screen_co[2])
+static bool key_test_depth(PEData *data, const float co[3], const int screen_co[2])
 {
 	View3D *v3d= data->vc.v3d;
 	ViewDepths *vd = data->vc.rv3d->depths;
@@ -453,7 +453,7 @@ static int key_test_depth(PEData *data, const float co[3], const int screen_co[2
 		return 1;
 }
 
-static int key_inside_circle(PEData *data, float rad, const float co[3], float *distance)
+static bool key_inside_circle(PEData *data, float rad, const float co[3], float *distance)
 {
 	float dx, dy, dist;
 	int screen_co[2];
@@ -480,7 +480,7 @@ static int key_inside_circle(PEData *data, float rad, const float co[3], float *
 	return 0;
 }
 
-static int key_inside_rect(PEData *data, const float co[3])
+static bool key_inside_rect(PEData *data, const float co[3])
 {
 	int screen_co[2];
 
@@ -497,7 +497,7 @@ static int key_inside_rect(PEData *data, const float co[3])
 	return 0;
 }
 
-static int key_inside_test(PEData *data, const float co[3])
+static bool key_inside_test(PEData *data, const float co[3])
 {
 	if (data->mval)
 		return key_inside_circle(data, data->rad, co, NULL);
@@ -505,7 +505,7 @@ static int key_inside_test(PEData *data, const float co[3])
 		return key_inside_rect(data, co);
 }
 
-static int point_is_selected(PTCacheEditPoint *point)
+static bool point_is_selected(PTCacheEditPoint *point)
 {
 	KEY_K;
 
@@ -3458,7 +3458,7 @@ static int brush_add(PEData *data, short number)
 			}
 			
 			pa->size= 1.0f;
-			initialize_particle(&sim, pa, i);
+			initialize_particle(pa);
 			reset_particle(&sim, pa, 0.0, 1.0);
 			point->flag |= PEP_EDIT_RECALC;
 			if (pe_x_mirror(ob))
@@ -4266,7 +4266,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 	if (cache && cache->flag & PTCACHE_DISK_CACHE)
 		return;
 
-	if (psys == NULL && (cache && cache->mem_cache.first == NULL))
+	if (psys == NULL && (cache && BLI_listbase_is_empty(&cache->mem_cache)))
 		return;
 
 	edit = (psys) ? psys->edit : cache->edit;
@@ -4285,7 +4285,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 			psys->free_edit= PE_free_ptcache_edit;
 
 			edit->pathcache = NULL;
-			edit->pathcachebufs.first = edit->pathcachebufs.last = NULL;
+			BLI_listbase_clear(&edit->pathcachebufs);
 
 			pa = psys->particles;
 			LOOP_POINTS {

@@ -49,12 +49,9 @@
 #include "BLF_api.h"
 #include "BLF_translation.h"
 
-#include "NOD_texture.h"
-
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "BLF_translation.h"
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
@@ -404,7 +401,7 @@ static void node_draw_frame_label(bNodeTree *ntree, bNode *node, const float asp
 	BLF_size(fontid, MIN2(24, font_size), U.dpi); /* clamp otherwise it can suck up a LOT of memory */
 	
 	/* title color */
-	UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.8f, 10);
+	UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.4f, 10);
 
 	width = BLF_width(fontid, label, sizeof(label));
 	ascender = BLF_ascender(fontid);
@@ -673,7 +670,7 @@ static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *ptr,
 		uiItemR(col, ptr, "frame_start", 0, NULL, ICON_NONE);
 		uiItemR(col, ptr, "frame_offset", 0, NULL, ICON_NONE);
 		uiItemR(col, ptr, "use_cyclic", 0, NULL, ICON_NONE);
-		uiItemR(col, ptr, "use_auto_refresh", UI_ITEM_R_ICON_ONLY, NULL, ICON_NONE);
+		uiItemR(col, ptr, "use_auto_refresh", 0, NULL, ICON_NONE);
 	}
 
 	col = uiLayoutColumn(layout, FALSE);
@@ -699,29 +696,37 @@ static void node_shader_buts_material(uiLayout *layout, bContext *C, PointerRNA 
 
 static void node_shader_buts_mapping(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	uiLayout *row;
-	
+	uiLayout *row, *col, *sub;
+
 	uiItemR(layout, ptr, "vector_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 
-	uiItemL(layout, IFACE_("Location:"), ICON_NONE);
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "translation", 0, "", ICON_NONE);
-	
-	uiItemL(layout, IFACE_("Rotation:"), ICON_NONE);
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "rotation", 0, "", ICON_NONE);
-	
-	uiItemL(layout, IFACE_("Scale:"), ICON_NONE);
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "scale", 0, "", ICON_NONE);
-	
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "use_min", 0, IFACE_("Min"), ICON_NONE);
-	uiItemR(row, ptr, "min", 0, "", ICON_NONE);
-	
-	row = uiLayoutRow(layout, TRUE);
-	uiItemR(row, ptr, "use_max", 0, IFACE_("Max"), ICON_NONE);
-	uiItemR(row, ptr, "max", 0, "", ICON_NONE);
+	row = uiLayoutRow(layout, FALSE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemL(col, IFACE_("Location:"), ICON_NONE);
+	uiItemR(col, ptr, "translation", 0, "", ICON_NONE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemL(col, IFACE_("Rotation:"), ICON_NONE);
+	uiItemR(col, ptr, "rotation", 0, "", ICON_NONE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemL(col, IFACE_("Scale:"), ICON_NONE);
+	uiItemR(col, ptr, "scale", 0, "", ICON_NONE);
+
+	row = uiLayoutRow(layout, FALSE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemR(col, ptr, "use_min", 0, IFACE_("Min"), ICON_NONE);
+	sub = uiLayoutColumn(col, TRUE);
+	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_min"));
+	uiItemR(sub, ptr, "min", 0, "", ICON_NONE);
+
+	col = uiLayoutColumn(row, TRUE);
+	uiItemR(col, ptr, "use_max", 0, IFACE_("Max"), ICON_NONE);
+	sub = uiLayoutColumn(col, TRUE);
+	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_max"));
+	uiItemR(sub, ptr, "max", 0, "", ICON_NONE);
 }
 
 static void node_shader_buts_vect_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -1234,7 +1239,7 @@ static void node_composit_buts_bilateralblur(uiLayout *layout, bContext *UNUSED(
 	uiItemR(col, ptr, "sigma_space", 0, NULL, ICON_NONE);
 }
 
-static void node_composit_buts_defocus(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_composit_buts_defocus(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiLayout *sub, *col;
 	
@@ -1254,7 +1259,9 @@ static void node_composit_buts_defocus(uiLayout *layout, bContext *UNUSED(C), Po
 
 	col = uiLayoutColumn(layout, FALSE);
 	uiItemR(col, ptr, "use_preview", 0, NULL, ICON_NONE);
-	
+
+	uiTemplateID(layout, C, ptr, "scene", NULL, NULL, NULL);
+
 	col = uiLayoutColumn(layout, FALSE);
 	uiItemR(col, ptr, "use_zbuffer", 0, NULL, ICON_NONE);
 	sub = uiLayoutColumn(col, FALSE);
@@ -2860,6 +2867,7 @@ static void std_node_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr,
 	/* XXX not nice, eventually give this node its own socket type ... */
 	if (node->type == CMP_NODE_OUTPUT_FILE) {
 		node_file_output_socket_draw(C, layout, ptr, node_ptr);
+		return;
 	}
 	
 	if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_IN_USE) || (sock->flag & SOCK_HIDE_VALUE)) {
@@ -3202,7 +3210,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 #define LINK_ARROW  12  /* position of arrow on the link, LINK_RESOL/2 */
 #define ARROW_SIZE 7
 void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
-                           int th_col1, int do_shaded, int th_col2, int do_triple, int th_col3)
+                           int th_col1, bool do_shaded, int th_col2, bool do_triple, int th_col3)
 {
 	float coord_array[LINK_RESOL + 1][2];
 	
@@ -3388,8 +3396,9 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 /* note; this is used for fake links in groups too */
 void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 {
-	int do_shaded = FALSE, th_col1 = TH_HEADER, th_col2 = TH_HEADER;
-	int do_triple = FALSE, th_col3 = TH_WIRE;
+	bool do_shaded = false;
+	bool do_triple = false;
+	int th_col1 = TH_HEADER, th_col2 = TH_HEADER, th_col3 = TH_WIRE;
 	
 	if (link->fromsock == NULL && link->tosock == NULL)
 		return;

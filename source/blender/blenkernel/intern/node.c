@@ -41,7 +41,6 @@
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
@@ -1136,8 +1135,8 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool do_
 	/* in case a running nodetree is copied */
 	newtree->execdata = NULL;
 	
-	newtree->nodes.first = newtree->nodes.last = NULL;
-	newtree->links.first = newtree->links.last = NULL;
+	BLI_listbase_clear(&newtree->nodes);
+	BLI_listbase_clear(&newtree->links);
 	
 	last = ntree->nodes.last;
 	for (node = ntree->nodes.first; node; node = node->next) {
@@ -1209,7 +1208,7 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool do_
 	return newtree;
 }
 
-bNodeTree *ntreeCopyTree_ex(bNodeTree *ntree, const short do_id_user)
+bNodeTree *ntreeCopyTree_ex(bNodeTree *ntree, const bool do_id_user)
 {
 	return ntreeCopyTree_internal(ntree, G.main, do_id_user, TRUE, TRUE);
 }
@@ -1219,7 +1218,7 @@ bNodeTree *ntreeCopyTree(bNodeTree *ntree)
 }
 
 /* use when duplicating scenes */
-void ntreeSwitchID_ex(bNodeTree *ntree, ID *id_from, ID *id_to, const short do_id_user)
+void ntreeSwitchID_ex(bNodeTree *ntree, ID *id_from, ID *id_to, const bool do_id_user)
 {
 	bNode *node;
 
@@ -1478,7 +1477,7 @@ void BKE_node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, boo
 /* hack warning! this function is only used for shader previews, and 
  * since it gets called multiple times per pixel for Ztransp we only
  * add the color once. Preview gets cleared before it starts render though */
-void BKE_node_preview_set_pixel(bNodePreview *preview, const float col[4], int x, int y, int do_manage)
+void BKE_node_preview_set_pixel(bNodePreview *preview, const float col[4], int x, int y, bool do_manage)
 {
 	if (preview) {
 		if (x >= 0 && y >= 0) {
@@ -1702,7 +1701,7 @@ static void free_localized_node_groups(bNodeTree *ntree)
 }
 
 /* do not free ntree itself here, BKE_libblock_free calls this function too */
-void ntreeFreeTree_ex(bNodeTree *ntree, const short do_id_user)
+void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 {
 	bNodeTree *tntree;
 	bNode *node, *next;
@@ -2289,7 +2288,7 @@ void ntreeInterfaceTypeUpdate(bNodeTree *ntree)
 
 /* ************ find stuff *************** */
 
-int ntreeHasType(bNodeTree *ntree, int type)
+bool ntreeHasType(const bNodeTree *ntree, int type)
 {
 	bNode *node;
 	
@@ -2298,6 +2297,21 @@ int ntreeHasType(bNodeTree *ntree, int type)
 			if (node->type == type)
 				return 1;
 	return 0;
+}
+
+bool ntreeHasTree(const bNodeTree *ntree, const bNodeTree *lookup)
+{
+	bNode *node;
+
+	if (ntree == lookup)
+		return true;
+
+	for (node = ntree->nodes.first; node; node = node->next)
+		if (node->type == NODE_GROUP && node->id)
+			if (ntreeHasTree((bNodeTree *)node->id, lookup))
+				return true;
+
+	return false;
 }
 
 bNodeLink *nodeFindLink(bNodeTree *ntree, bNodeSocket *from, bNodeSocket *to)
@@ -2523,13 +2537,13 @@ void BKE_node_clipboard_clear(void)
 		link_next = link->next;
 		nodeRemLink(NULL, link);
 	}
-	node_clipboard.links.first = node_clipboard.links.last = NULL;
+	BLI_listbase_clear(&node_clipboard.links);
 	
 	for (node = node_clipboard.nodes.first; node; node = node_next) {
 		node_next = node->next;
 		node_free_node_ex(NULL, node, false, false);
 	}
-	node_clipboard.nodes.first = node_clipboard.nodes.last = NULL;
+	BLI_listbase_clear(&node_clipboard.nodes);
 
 #ifdef USE_NODE_CB_VALIDATE
 	BLI_freelistN(&node_clipboard.nodes_extra_info);
@@ -2537,9 +2551,9 @@ void BKE_node_clipboard_clear(void)
 }
 
 /* return FALSE when one or more ID's are lost */
-int BKE_node_clipboard_validate(void)
+bool BKE_node_clipboard_validate(void)
 {
-	int ok = TRUE;
+	bool ok = true;
 
 #ifdef USE_NODE_CB_VALIDATE
 	bNodeClipboardExtraInfo *node_info;
@@ -2570,7 +2584,7 @@ int BKE_node_clipboard_validate(void)
 				node->id = BLI_findstring(lb, node_info->id_name + 2, offsetof(ID, name) + 2);
 
 				if (node->id == NULL) {
-					ok = FALSE;
+					ok = false;
 				}
 			}
 		}
@@ -3640,31 +3654,6 @@ void free_nodesystem(void)
 
 		BLI_ghash_free(nodetreetypes_hash, NULL, ntree_free_type);
 		nodetreetypes_hash = NULL;
-	}
-}
-
-/* called from BKE_scene_unlink, when deleting a scene goes over all scenes
- * other than the input, checks if they have render layer nodes referencing
- * the to-be-deleted scene, and resets them to NULL. */
-
-/* XXX needs to get current scene then! */
-void clear_scene_in_nodes(Main *bmain, Scene *sce)
-{
-	Scene *sce1;
-	bNode *node;
-
-	for (sce1 = bmain->scene.first; sce1; sce1 = sce1->id.next) {
-		if (sce1 != sce) {
-			if (sce1->nodetree) {
-				for (node = sce1->nodetree->nodes.first; node; node = node->next) {
-					if (node->type == CMP_NODE_R_LAYERS) {
-						Scene *nodesce = (Scene *)node->id;
-						
-						if (nodesce == sce) node->id = NULL;
-					}
-				}
-			}
-		}
 	}
 }
 

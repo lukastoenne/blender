@@ -172,6 +172,7 @@ enum {
 	UI_BUT_VEC_SIZE_LOCK = (1 << 22),  /* used to flag if color hsv-circle should keep luminance */
 	UI_BUT_COLOR_CUBIC   = (1 << 23),  /* cubic saturation for the color wheel */
 	UI_BUT_LIST_ITEM     = (1 << 24),  /* This but is "inside" a list item (currently used to change theme colors). */
+	UI_BUT_DRAG_MULTI    = (1 << 25),  /* edit this button as well as the active button (not just dragging) */
 };
 
 #define UI_PANEL_WIDTH          340
@@ -347,12 +348,8 @@ struct uiPopupMenu *uiPupMenuBegin(struct bContext *C, const char *title, int ic
 void uiPupMenuEnd(struct bContext *C, struct uiPopupMenu *head);
 struct uiLayout *uiPupMenuLayout(uiPopupMenu *head);
 
-void uiPupMenuOkee(struct bContext *C, const char *opname, const char *str, ...) ATTR_PRINTF_FORMAT(3, 4);
-void uiPupMenuSaveOver(struct bContext *C, struct wmOperator *op, const char *filename);
-void uiPupMenuNotice(struct bContext *C, const char *str, ...) ATTR_PRINTF_FORMAT(2, 3);
-void uiPupMenuError(struct bContext *C, const char *str, ...) ATTR_PRINTF_FORMAT(2, 3);
-void uiPupMenuReports(struct bContext *C, struct ReportList *reports);
-void uiPupMenuInvoke(struct bContext *C, const char *idname); /* popup registered menu */
+void uiPupMenuReports(struct bContext *C, struct ReportList *reports) ATTR_NONNULL();
+bool uiPupMenuInvoke(struct bContext *C, const char *idname, struct ReportList *reports) ATTR_NONNULL(1, 2);
 
 /* Popup Blocks
  *
@@ -421,7 +418,7 @@ void uiExplicitBoundsBlock(uiBlock *block, int minx, int miny, int maxx, int max
 
 int     uiBlocksGetYMin(struct ListBase *lb);
 
-void    uiBlockSetDirection(uiBlock *block, int direction);
+void    uiBlockSetDirection(uiBlock *block, char direction);
 void    uiBlockFlipOrder(uiBlock *block);
 void    uiBlockSetFlag(uiBlock *block, int flag);
 void    uiBlockClearFlag(uiBlock *block, int flag);
@@ -442,6 +439,8 @@ void    uiButClearFlag(uiBut *but, int flag);
 
 void    uiButSetDrawFlag(uiBut *but, int flag);
 void    uiButClearDrawFlag(uiBut *but, int flag);
+
+void    uiButSetMenuFromPulldown(uiBut *but);
 
 /* special button case, only draw it when used actively, for outliner etc */
 bool    uiButActiveOnly(const struct bContext *C, struct ARegion *ar, uiBlock *block, uiBut *but);
@@ -579,6 +578,7 @@ void uiButGetStrInfo(struct bContext *C, uiBut *but, ...) ATTR_SENTINEL(0);
 #define UI_ID_FULL          (UI_ID_RENAME | UI_ID_BROWSE | UI_ID_ADD_NEW | UI_ID_OPEN | UI_ID_ALONE | UI_ID_DELETE | UI_ID_LOCAL)
 
 int uiIconFromID(struct ID *id);
+int uiIconFromReportType(int type);
 
 uiBut *uiDefPulldownBut(uiBlock *block, uiBlockCreateFunc func, void *arg, const char *str, int x, int y, short width, short height, const char *tip);
 uiBut *uiDefMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, const char *str, int x, int y, short width, short height, const char *tip);
@@ -820,7 +820,7 @@ uiLayout *uiLayoutOverlap(uiLayout *layout);
 uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout);
 
 /* templates */
-void uiTemplateHeader(uiLayout *layout, struct bContext *C, int menus);
+void uiTemplateHeader(uiLayout *layout, struct bContext *C);
 void uiTemplateID(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
                   const char *newop, const char *openop, const char *unlinkop);
 void uiTemplateIDBrowse(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
@@ -941,6 +941,20 @@ void UI_template_fix_linking(void);
 /* UI_OT_editsource helpers */
 bool UI_editsource_enable_check(void);
 void UI_editsource_active_but_test(uiBut *but);
+
+/* UI_butstore_ helpers */
+typedef struct uiButStore uiButStore;
+typedef struct uiButStoreElem uiButStoreElem;
+
+uiButStore *UI_butstore_create(uiBlock *block);
+void UI_butstore_clear(uiBlock *block);
+void UI_butstore_update(uiBlock *block);
+void UI_butstore_free(uiBlock *block, uiButStore *bs);
+bool UI_butstore_is_valid(uiButStore *bs);
+bool UI_butstore_is_registered(uiBlock *block, uiBut *but);
+void UI_butstore_register(uiButStore *bs_handle, uiBut **but_p);
+void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
+
 
 /* Float precision helpers */
 #define UI_PRECISION_FLOAT_MAX 7

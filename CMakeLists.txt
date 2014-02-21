@@ -372,14 +372,14 @@ if(APPLE)
 		message(STATUS "OSX_SYSROOT_PREFIX: " ${OSX_SYSROOT_PREFIX})
 		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
 		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
-        if(${CMAKE_GENERATOR} MATCHES "Xcode")
-            set(CMAKE_XCODE_ATTRIBUTE_SDKROOT macosx${OSX_SYSTEM}) # to silence sdk not found warning, just overrides CMAKE_OSX_SYSROOT
-        endif()
+		if(${CMAKE_GENERATOR} MATCHES "Xcode")
+			set(CMAKE_XCODE_ATTRIBUTE_SDKROOT macosx${OSX_SYSTEM}) # to silence sdk not found warning, just overrides CMAKE_OSX_SYSROOT
+		endif()
 	endif()
 
-    if(OSX_SYSTEM MATCHES 10.9)
-        set(CMAKE_FIND_ROOT_PATH ${CMAKE_OSX_SYSROOT}) # make sure syslibs and headers are looked up in sdk ( expecially for 10.9 openGL atm. )
-    endif()
+	if(OSX_SYSTEM MATCHES 10.9)
+		set(CMAKE_FIND_ROOT_PATH ${CMAKE_OSX_SYSROOT}) # make sure syslibs and headers are looked up in sdk ( expecially for 10.9 openGL atm. )
+	endif()
 
 	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
 		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6" CACHE STRING "" FORCE) # 10.6 is our min. target, if you use higher sdk, weak linking happens
@@ -511,21 +511,24 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Check for valid directories
-# ... svn extern paths can be missing because of svn-git.
+# ... a partial checkout may cause this.
+#
+# note: we need to check for a known subdir in both cases.
+#       since uninitialized git submodules will give blank dirs
 
 if(WITH_INTERNATIONAL)
-	if(NOT EXISTS "${CMAKE_SOURCE_DIR}/release/datafiles/locale")
+	if(NOT EXISTS "${CMAKE_SOURCE_DIR}/release/datafiles/locale/languages")
 		message(WARNING "Translation path '${CMAKE_SOURCE_DIR}/release/datafiles/locale' is missing, "
-						"This is an 'svn external', which are known not to work with bridges to other version "
+						"This is a 'git submodule', which are known not to work with bridges to other version "
 						"control systems, disabling 'WITH_INTERNATIONAL'.")
 		set(WITH_INTERNATIONAL OFF)
 	endif()
 endif()
 
 if(WITH_PYTHON)
-	if(NOT EXISTS "${CMAKE_SOURCE_DIR}/release/scripts/addons")
+	if(NOT EXISTS "${CMAKE_SOURCE_DIR}/release/scripts/addons/modules")
 		message(WARNING "Addons path '${CMAKE_SOURCE_DIR}/release/scripts/addons' is missing, "
-						"This is an 'svn external', which are known not to work with bridges to other version "
+						"This is a 'git submodule', which are known not to work with bridges to other version "
 						"control systems: * CONTINUING WITHOUT ADDONS *")
 	endif()
 endif()
@@ -981,24 +984,43 @@ elseif(WIN32)
 		set(CMAKE_C_FLAGS   "/nologo /J /Gd /MP"       CACHE STRING "MSVC MT C++ flags " FORCE)
 
 		if(CMAKE_CL_64)
-			set(CMAKE_CXX_FLAGS_DEBUG "/Od /Gm /RTC1 /MTd /Zi /MP" CACHE STRING "MSVC MT flags " FORCE)
+			set(CMAKE_CXX_FLAGS_DEBUG "/Od /RTC1 /MTd /Zi /MP" CACHE STRING "MSVC MT flags " FORCE)
 		else()
-			set(CMAKE_CXX_FLAGS_DEBUG "/Od /Gm /RTC1 /MTd /ZI /MP" CACHE STRING "MSVC MT flags " FORCE)
+			set(CMAKE_CXX_FLAGS_DEBUG "/Od /RTC1 /MTd /ZI /MP" CACHE STRING "MSVC MT flags " FORCE)
 		endif()
 		set(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2 /MT /MP" CACHE STRING "MSVC MT flags " FORCE)
 		set(CMAKE_CXX_FLAGS_MINSIZEREL "/O1 /Ob1 /MT /MP" CACHE STRING "MSVC MT flags " FORCE)
 		set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Ob1 /MT /Zi /MP" CACHE STRING "MSVC MT flags " FORCE)
 		if(CMAKE_CL_64)
-			set(CMAKE_C_FLAGS_DEBUG "/Od /Gm /RTC1 /MTd /Zi /MP" CACHE STRING "MSVC MT flags " FORCE)
+			set(CMAKE_C_FLAGS_DEBUG "/Od /RTC1 /MTd /Zi /MP" CACHE STRING "MSVC MT flags " FORCE)
 		else()
-			set(CMAKE_C_FLAGS_DEBUG "/Od /Gm /RTC1 /MTd /ZI /MP" CACHE STRING "MSVC MT flags " FORCE)
+			set(CMAKE_C_FLAGS_DEBUG "/Od /RTC1 /MTd /ZI /MP" CACHE STRING "MSVC MT flags " FORCE)
 		endif()
 		set(CMAKE_C_FLAGS_RELEASE "/O2 /Ob2 /MT /MP" CACHE STRING "MSVC MT flags " FORCE)
 		set(CMAKE_C_FLAGS_MINSIZEREL "/O1 /Ob1 /MT /MP" CACHE STRING "MSVC MT flags " FORCE)
 		set(CMAKE_C_FLAGS_RELWITHDEBINFO "/O2 /Ob1 /MT /Zi /MP" CACHE STRING "MSVC MT flags " FORCE)
 
 		# most msvc warnings are C & C++
-		set(_WARNINGS "/W3 /wd4018 /wd4244 /wd4305 /wd4800 /wd4181 /wd4065 /wd4267 /we4013 /wd4200")
+		set(_WARNINGS
+			# warning level:
+			"/W3"
+			"/w34062"  # switch statement contains 'default' but no 'case' labels
+			# disable:
+			"/wd4018"  # signed/unsigned mismatch
+			"/wd4065"  # switch statement contains 'default' but no 'case' labels
+			"/wd4127"  # conditional expression is constant
+			"/wd4181"  # qualifier applied to reference type; ignored
+			"/wd4200"  # zero-sized array in struct/union
+			"/wd4244"  # conversion from 'type1' to 'type2', possible loss of data
+			"/wd4267"  # conversion from 'size_t' to 'type', possible loss of data
+			"/wd4305"  # truncation from 'type1' to 'type2'
+			"/wd4800"  # forcing value to bool 'true' or 'false'
+			# errors:
+			"/we4013"  # 'function' undefined; assuming extern returning int
+			"/we4431"  # missing type specifier - int assumed
+		)
+
+		string(REPLACE ";" " " _WARNINGS "${_WARNINGS}")
 		set(C_WARNINGS "${_WARNINGS}")
 		set(CXX_WARNINGS "${_WARNINGS}")
 		unset(_WARNINGS)
@@ -1202,7 +1224,11 @@ elseif(WIN32)
 				message(WARNING "USING HARDCODED boost locations")
 				set(BOOST ${LIBDIR}/boost)
 				set(BOOST_INCLUDE_DIR ${BOOST}/include)
-				if(MSVC11)
+				if(MSVC12)
+					set(BOOST_LIBPATH ${BOOST}/lib)
+					set(BOOST_POSTFIX "vc120-mt-s-1_55.lib")
+					set(BOOST_DEBUG_POSTFIX "vc120-mt-sgd-1_55.lib")
+				elseif(MSVC11)
 					set(BOOST_LIBPATH ${BOOST}/lib)
 					set(BOOST_POSTFIX "vc110-mt-s-1_53.lib")
 					set(BOOST_DEBUG_POSTFIX "vc110-mt-sgd-1_53.lib")
@@ -1503,12 +1529,12 @@ elseif(WIN32)
 	if(WITH_OPENAL)
 		set(OPENAL ${LIBDIR}/openal)
 		set(OPENALDIR ${LIBDIR}/openal)
-        set(OPENAL_INCLUDE_DIR ${OPENAL}/include)
-        if(MSVC11 OR MSVC12)
-            set(OPENAL_LIBRARY openal32)
-        else()
-            set(OPENAL_LIBRARY wrap_oal)
-        endif()
+		set(OPENAL_INCLUDE_DIR ${OPENAL}/include)
+		if(MSVC11 OR MSVC12)
+			set(OPENAL_LIBRARY openal32)
+		else()
+			set(OPENAL_LIBRARY wrap_oal)
+		endif()
 		set(OPENAL_LIBPATH ${OPENAL}/lib)
 	endif()
 
@@ -1830,6 +1856,18 @@ elseif(APPLE)
 		else()
 			message(STATUS "OSL not found")
 		endif()
+	endif()
+	
+	if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+		set(OPENMP_FOUND ON)
+		set(OpenMP_C_FLAGS "-fopenmp" CACHE STRING "C compiler flags for OpenMP parallization" FORCE)
+		set(OpenMP_CXX_FLAGS "-fopenmp" CACHE STRING "C++ compiler flags for OpenMP parallization" FORCE)
+		include_directories(${LIBDIR}/openmp/include)
+		LINK_DIRECTORIES(${LIBDIR}/openmp/lib)
+		execute_process(COMMAND cp ${LIBDIR}/openmp/lib/libiomp5.dylib ${CMAKE_BINARY_DIR}/bin/libiomp5.dylib) # for intermediate binaries, lib id is @loader_path
+	else()
+		set(OpenMP_C_FLAGS "" CACHE STRING "C compiler flags for OpenMP parallization" FORCE) # unset
+		set(OpenMP_CXX_FLAGS "" CACHE STRING "C++ compiler flags for OpenMP parallization" FORCE) # unset
 	endif()
 
 	set(EXETYPE MACOSX_BUNDLE)
@@ -2258,7 +2296,7 @@ if(WITH_BLENDER OR WITH_PLAYER)
 	add_subdirectory(extern)
 elseif(WITH_CYCLES_STANDALONE)
 	add_subdirectory(intern/cycles)
-	if(WITH_CYCLES_STANDALONE_GUI)
+	if(NOT WITH_SYSTEM_GLEW)
 		add_subdirectory(extern/glew)
 	endif()
 endif()
