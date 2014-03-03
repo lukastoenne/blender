@@ -57,16 +57,19 @@ void BKE_mesh_sample_surface_array_begin(MSurfaceSampleArrayIterator *iter, MSur
 
 /* Sampling */
 
-typedef enum eMSurfaceSampleRNG {
-	MSS_RNG_UNIFORM
-} eMSurfaceSampleRNG;
+typedef enum eMSurfaceSampleAlgorithm {
+	MSS_RANDOM
+} eMSurfaceSampleAlgorithm;
 
 typedef struct MSurfaceSampleInfo {
+	eMSurfaceSampleAlgorithm algorithm;
 	struct DerivedMesh *dm;
 	
-	eMSurfaceSampleRNG rng;
-	unsigned int seed;
+	struct RNG *rng;
 } MSurfaceSampleInfo;
+
+void BKE_mesh_sample_info_random(struct MSurfaceSampleInfo *info, struct DerivedMesh *dm, unsigned int seed);
+void BKE_mesh_sample_info_release(struct MSurfaceSampleInfo *info);
 
 void BKE_mesh_sample_surface_array(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *samples, int totsample);
 

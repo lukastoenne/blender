@@ -72,14 +72,60 @@ void BKE_mesh_sample_surface_array_begin(MSurfaceSampleArrayIterator *iter, MSur
 
 /* Sampling */
 
-static mesh_sample_surface_uniform(const MSurfaceSampleInfo *info, MSurfaceSample *sample, RNG *rng)
+void BKE_mesh_sample_info_random(MSurfaceSampleInfo *info, DerivedMesh *dm, unsigned int seed)
 {
-	sample->orig_face = BLI_rng_get_int(rng) % info->dm->getNumTessFaces(info->dm);
-	sample->orig_weights = 
+	info->algorithm = MSS_RANDOM;
+	info->dm = dm;
+	
+	info->rng = BLI_rng_new(seed);
+}
+
+void BKE_mesh_sample_info_release(MSurfaceSampleInfo *info)
+{
+	if (info->rng) {
+		BLI_rng_free(info->rng);
+		info->rng = NULL;
+	}
+}
+
+
+static void mesh_sample_surface_random(const MSurfaceSampleInfo *info, MSurfaceSample *sample)
+{
+	MFace *mfaces = info->dm->getTessFaceArray(info->dm);
+	int totfaces = info->dm->getNumTessFaces(info->dm);
+	MFace *mface;
+	float sum, inv_sum;
+	
+	sample->orig_face = BLI_rng_get_int(info->rng) % totfaces;
+	
+	mface = &mfaces[sample->orig_face];
+	sample->orig_weights[0] = BLI_rng_get_float(info->rng);
+	sample->orig_weights[1] = BLI_rng_get_float(info->rng);
+	sample->orig_weights[2] = BLI_rng_get_float(info->rng);
+	sample->orig_weights[3] = mface->v4 ? BLI_rng_get_float(info->rng) : 0.0f;
+	
+	sum = sample->orig_weights[0] +
+	      sample->orig_weights[1] +
+	      sample->orig_weights[2] +
+	      sample->orig_weights[3];
+	inv_sum = sum > 0.0f ? 1.0f/sum : 0.0f;
+	sample->orig_weights[0] *= inv_sum;
+	sample->orig_weights[1] *= inv_sum;
+	sample->orig_weights[2] *= inv_sum;
+	sample->orig_weights[3] *= inv_sum;
 }
 
 void BKE_mesh_sample_surface_array(const MSurfaceSampleInfo *info, MSurfaceSample *samples, int totsample)
 {
-	RNG *rng = BLI_rng_new(info->seed);
+	MSurfaceSample *sample;
+	int i;
 	
+	switch (info->algorithm) {
+		case MSS_RANDOM: {
+			DM_ensure_tessface(info->dm);
+			for (sample = samples, i = 0; i < totsample; ++sample, ++i)
+				mesh_sample_surface_random(info, sample);
+			break;
+		}
+	}
 }
