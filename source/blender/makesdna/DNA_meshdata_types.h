@@ -300,6 +300,12 @@ enum {
 	FREESTYLE_FACE_MARK = 1,
 };
 
+typedef struct MSurfaceSample {
+	int orig_face;
+	int pad;
+	float orig_weights[4];
+} MSurfaceSample;
+
 /* mvert->flag */
 enum {
 /*	SELECT              = (1 << 0), */
