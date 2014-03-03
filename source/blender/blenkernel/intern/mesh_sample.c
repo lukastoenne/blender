@@ -41,6 +41,46 @@
 
 /* Evaluate */
 
+void BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float loc[3], float nor[3])
+{
+	MVert *mverts = dm->getVertArray(dm);
+	MVert *v1, *v2, *v3, *v4;
+	MFace *mfaces = dm->getTessFaceArray(dm);
+	int totfaces = dm->getNumTessFaces(dm);
+	MFace *mface = &mfaces[sample->orig_face];
+	float vnor[3];
+	
+	zero_v3(loc);
+	zero_v3(nor);
+	
+	if (sample->orig_face >= totfaces)
+		return;
+	
+	v1 = &mverts[mface->v1];
+	v2 = &mverts[mface->v2];
+	v3 = &mverts[mface->v3];
+	
+	madd_v3_v3fl(loc, v1->co, sample->orig_weights[0]);
+	madd_v3_v3fl(loc, v2->co, sample->orig_weights[1]);
+	madd_v3_v3fl(loc, v3->co, sample->orig_weights[2]);
+	
+	normal_short_to_float_v3(vnor, v1->no);
+	madd_v3_v3fl(nor, vnor, sample->orig_weights[0]);
+	normal_short_to_float_v3(vnor, v2->no);
+	madd_v3_v3fl(nor, vnor, sample->orig_weights[1]);
+	normal_short_to_float_v3(vnor, v3->no);
+	madd_v3_v3fl(nor, vnor, sample->orig_weights[2]);
+	
+	if (mface->v4) {
+		v4 = &mverts[mface->v4];
+		
+		madd_v3_v3fl(loc, v4->co, sample->orig_weights[3]);
+		
+		normal_short_to_float_v3(vnor, v4->no);
+		madd_v3_v3fl(nor, vnor, sample->orig_weights[3]);
+	}
+}
+
 
 /* Iterators */
 
