@@ -1147,7 +1147,7 @@ static void calc_ortho_extent(KnifeTool_OpData *kcd)
 
 	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		for (i = 0; i < 3; i++)
-			max_xyz = max_ff(max_xyz, fabs(v->co[i]));
+			max_xyz = max_ff(max_xyz, fabsf(v->co[i]));
 	}
 	kcd->ortho_extent = max_xyz;
 }
@@ -1797,6 +1797,10 @@ static int knife_update_active(KnifeTool_OpData *kcd)
 {
 	knife_pos_data_clear(&kcd->curr);
 	copy_v2_v2(kcd->curr.mval, kcd->mval);
+
+	/* view matrix may have changed, reproject */
+	knife_project_v2(kcd, kcd->prev.co, kcd->prev.mval);
+
 	if (kcd->angle_snapping != ANGLE_FREE && kcd->mode == MODE_DRAGGING)
 		knife_snap_angle(kcd);
 

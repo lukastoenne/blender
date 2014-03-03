@@ -294,7 +294,7 @@ static void fly_update_header(bContext *C, FlyInfo *fly)
 	                                           "Ctrl: free look, "
 	                                           "X: Upright x axis (%s), "
 	                                           "Z: Upright z axis (%s), "
-                                               "(+/- | Wheel): speed, "),
+                                               "(+/- | Wheel): speed"),
 
 	    WM_bool_as_string(fly->xlock != FLY_AXISLOCK_STATE_OFF),
 		WM_bool_as_string(fly->zlock != FLY_AXISLOCK_STATE_OFF));
@@ -460,7 +460,7 @@ static void flyEvent(bContext *C, FlyInfo *fly, const wmEvent *event)
 		// puts("ndof motion detected in fly mode!");
 		// static const char *tag_name = "3D mouse position";
 
-		wmNDOFMotionData *incoming_ndof = (wmNDOFMotionData *)event->customdata;
+		const wmNDOFMotionData *incoming_ndof = event->customdata;
 		switch (incoming_ndof->progress) {
 			case P_STARTING:
 				/* start keeping track of 3D mouse position */

@@ -812,17 +812,12 @@ static void recalcData_objects(TransInfo *t)
 						}
 						else {
 							copy_v3_v3(up_axis, td->axismtx[2]);
-							
-							if (t->mode != TFM_ROTATION) {
-								sub_v3_v3v3(vec, ebo->tail, ebo->head);
-								normalize_v3(vec);
-								rotation_between_vecs_to_quat(qrot, td->axismtx[1], vec);
-								mul_qt_v3(qrot, up_axis);
-							}
-							else {
-								mul_m3_v3(t->mat, up_axis);
-							}
-							
+
+							sub_v3_v3v3(vec, ebo->tail, ebo->head);
+							normalize_v3(vec);
+							rotation_between_vecs_to_quat(qrot, td->axismtx[1], vec);
+							mul_qt_v3(qrot, up_axis);
+
 							/* roll has a tendency to flip in certain orientations - [#34283], [#33974] */
 							roll = ED_rollBoneToVector(ebo, up_axis, false);
 							ebo->roll = angle_compat_rad(roll, td->ival);
@@ -1720,11 +1715,8 @@ void calculateCenter(TransInfo *t)
 	/* for panning from cameraview */
 	if (t->flag & T_OBJECT) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
-			View3D *v3d = t->view;
-			Scene *scene = t->scene;
-			RegionView3D *rv3d = t->ar->regiondata;
 			
-			if (v3d->camera == OBACT && rv3d->persp == RV3D_CAMOB) {
+			if (t->flag & T_CAMERA) {
 				float axis[3];
 				/* persinv is nasty, use viewinv instead, always right */
 				copy_v3_v3(axis, t->viewinv[2]);

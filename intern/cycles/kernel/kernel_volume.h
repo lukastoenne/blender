@@ -114,7 +114,7 @@ ccl_device bool volume_stack_is_heterogeneous(KernelGlobals *kg, VolumeStack *st
  * These functions are used to attenuate shadow rays to lights. Both absorption
  * and scattering will block light, represented by the extinction coefficient. */
 
-/* homogenous volume: assume shader evaluation at the starts gives
+/* homogeneous volume: assume shader evaluation at the starts gives
  * the extinction coefficient for the entire line segment */
 ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd, float3 *throughput)
 {
@@ -192,7 +192,7 @@ ccl_device_noinline void kernel_volume_shadow(KernelGlobals *kg, PathState *stat
 
 /* Volume Path */
 
-/* homogenous volume: assume shader evaluation at the starts gives
+/* homogeneous volume: assume shader evaluation at the start gives
  * the volume shading coefficient for the entire line segment */
 ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGlobals *kg,
 	PathState *state, Ray *ray, ShaderData *sd, PathRadiance *L, float3 *throughput,
@@ -257,7 +257,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGloba
 
 			if(xi < sample_transmittance) {
 				/* no scattering */
-				float3 transmittance = volume_color_attenuation(sigma_t, t);
+				transmittance = volume_color_attenuation(sigma_t, t);
 				float pdf = (transmittance.x + transmittance.y + transmittance.z);
 				new_tp = *throughput * transmittance * (3.0f / pdf);
 			}
@@ -431,7 +431,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous(KernelGlo
 					accum_sigma_s = (accum_sigma_s + dt*sigma_s)/new_t;
 
 					/* todo: it's not clear to me that this is correct if we move
-					 * through a color volumed, needs verification */
+					 * through a color volume, needs verification */
 					float pdf = dot(accum_sigma_t, accum_transmittance);
 					new_tp = tp * accum_sigma_s * transmittance * (3.0f / pdf);
 
@@ -536,12 +536,17 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous(KernelGlo
 ccl_device_noinline VolumeIntegrateResult kernel_volume_integrate(KernelGlobals *kg,
 	PathState *state, ShaderData *sd, Ray *ray, PathRadiance *L, float3 *throughput, RNG *rng)
 {
+	/* workaround to fix correlation bug in T38710, can find better solution
+	 * in random number generator later, for now this is done here to not impact
+	 * performance of rendering without volumes */
+	RNG tmp_rng = cmj_hash(*rng, state->rng_offset);
+
 	shader_setup_from_volume(kg, sd, ray, state->bounce);
 
 	if(volume_stack_is_heterogeneous(kg, state->volume_stack))
-		return kernel_volume_integrate_heterogeneous(kg, state, ray, sd, L, throughput, rng);
+		return kernel_volume_integrate_heterogeneous(kg, state, ray, sd, L, throughput, &tmp_rng);
 	else
-		return kernel_volume_integrate_homogeneous(kg, state, ray, sd, L, throughput, rng);
+		return kernel_volume_integrate_homogeneous(kg, state, ray, sd, L, throughput, &tmp_rng);
 }
 
 /* Volume Stack

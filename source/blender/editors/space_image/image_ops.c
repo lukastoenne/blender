@@ -601,24 +601,13 @@ static int image_view_ndof_invoke(bContext *C, wmOperator *UNUSED(op), const wmE
 		ARegion *ar = CTX_wm_region(C);
 		float pan_vec[3];
 
-		wmNDOFMotionData *ndof = (wmNDOFMotionData *) event->customdata;
-
-		float dt = ndof->dt;
-
-		/* tune these until it feels right */
-		const float pan_sensitivity = 300.0f;  /* screen pixels per second */
-
-		/* "mouse zoom" factor = 1 + (dx + dy) / 300
-		 * what about "ndof zoom" factor? should behave like this:
-		 * at rest -> factor = 1
-		 * move forward -> factor > 1
-		 * move backward -> factor < 1
-		 */
+		const wmNDOFMotionData *ndof = event->customdata;
+		const float speed = NDOF_PIXELS_PER_SECOND;
 
 		WM_event_ndof_pan_get(ndof, pan_vec, true);
 
-		mul_v2_fl(pan_vec, (pan_sensitivity * dt) / sima->zoom);
-		pan_vec[2] *= -dt;
+		mul_v2_fl(pan_vec, (speed * ndof->dt) / sima->zoom);
+		pan_vec[2] *= -ndof->dt;
 
 		sima_zoom_set_factor(sima, ar, 1.0f + pan_vec[2], NULL);
 		sima->xof += pan_vec[0];
@@ -639,6 +628,7 @@ void IMAGE_OT_view_ndof(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke = image_view_ndof_invoke;
+	ot->poll = space_image_main_area_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_LOCK_BYPASS;
@@ -1036,6 +1026,7 @@ static int image_sequence_get_len(ListBase *frames, int *ofs)
 
 static int image_open_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	SpaceImage *sima = CTX_wm_space_image(C); /* XXX other space types can call */
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
@@ -1046,6 +1037,8 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	char path[FILE_MAX];
 	int frame_seq_len = 0;
 	int frame_ofs = 1;
+
+	const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
 
 	if (RNA_struct_property_is_set(op->ptr, "files") && RNA_struct_property_is_set(op->ptr, "directory")) {	
 		ListBase frames;
@@ -1072,6 +1065,12 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
 	if (!op->customdata)
 		image_open_init(C, op);
+
+	/* only image path after save, never ibuf */
+	if (is_relative_path) {
+		const char *relbase = ID_BLEND_PATH(bmain, &ima->id);
+		BLI_path_rel(ima->name, relbase);
+	}
 
 	/* hook into UI */
 	iod = op->customdata;

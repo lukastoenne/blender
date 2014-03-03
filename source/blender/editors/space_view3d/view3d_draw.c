@@ -805,11 +805,11 @@ static void draw_viewport_name(ARegion *ar, View3D *v3d, rcti *rect)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	const char *name = view3d_get_name(v3d, rv3d);
-	/* XXX 24 may be a bit small for unicode languages (Chinese in utf-8...) */
+	/* increase size for unicode languages (Chinese in utf-8...) */
 #ifdef WITH_INTERNATIONAL
-	char tmpstr[64];
+	char tmpstr[96];
 #else
-	char tmpstr[24];
+	char tmpstr[32];
 #endif
 
 	if (v3d->localvd) {
@@ -950,6 +950,9 @@ static void view3d_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 
 	/* get camera viewplane */
 	BKE_camera_params_init(&params);
+	/* fallback for non camera objects */
+	params.clipsta = v3d->near;
+	params.clipend = v3d->far;
 	BKE_camera_params_from_object(&params, v3d->camera);
 	if (no_shift) {
 		params.shiftx = 0.0f;
@@ -1217,7 +1220,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			vmargin = 0.035f * (y2 - y1);
 			uiDrawBox(GL_LINE_LOOP, x1 + hmargin, y1 + vmargin, x2 - hmargin, y2 - vmargin, 2.0f);
 		}
-		if (ca && (ca->flag & CAM_SHOWSENSOR)) {
+		if (ca->flag & CAM_SHOWSENSOR) {
 			/* determine sensor fit, and get sensor x/y, for auto fit we
 			 * assume and square sensor and only use sensor_x */
 			float sizex = scene->r.xsch * scene->r.xasp;
@@ -1276,7 +1279,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	BLI_assert(ar->regiontype == RGN_TYPE_WINDOW);
 
 	if (base && (base->object->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT) ||
-	             paint_facesel_test(base->object)))
+	             BKE_paint_select_face_test(base->object)))
 	{
 		/* do nothing */
 	}
@@ -2746,6 +2749,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 		CameraParams params;
 
 		BKE_camera_params_init(&params);
+		/* fallback for non camera objects */
+		params.clipsta = v3d->near;
+		params.clipend = v3d->far;
 		BKE_camera_params_from_object(&params, v3d->camera);
 		BKE_camera_params_compute_viewplane(&params, sizex, sizey, scene->r.xasp, scene->r.yasp);
 		BKE_camera_params_compute_matrix(&params);

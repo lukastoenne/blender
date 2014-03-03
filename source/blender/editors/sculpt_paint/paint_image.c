@@ -960,6 +960,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
 	SampleColorData *data = MEM_mallocN(sizeof(SampleColorData), "sample color custom data");
 	ARegion *ar = CTX_wm_region(C);
 	wmWindow *win = CTX_wm_window(C);
@@ -977,6 +978,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	paint_sample_color(C, ar, event->mval[0], event->mval[1]);
 
 	WM_event_add_modal_handler(C, op);
+	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -1128,16 +1130,16 @@ int image_texture_paint_poll(bContext *C)
 
 int facemask_paint_poll(bContext *C)
 {
-	return paint_facesel_test(CTX_data_active_object(C));
+	return BKE_paint_select_face_test(CTX_data_active_object(C));
 }
 
 int vert_paint_poll(bContext *C)
 {
-	return paint_vertsel_test(CTX_data_active_object(C));
+	return BKE_paint_select_vert_test(CTX_data_active_object(C));
 }
 
 int mask_paint_poll(bContext *C)
 {
-	return paint_facesel_test(CTX_data_active_object(C)) || paint_vertsel_test(CTX_data_active_object(C));
+	return BKE_paint_select_elem_test(CTX_data_active_object(C));
 }
 

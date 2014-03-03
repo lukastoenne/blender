@@ -19,6 +19,7 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Menu, Panel
+from bl_ui.properties_grease_pencil_common import GreasePencilPanel
 from bl_ui.properties_paint_common import (
         UnifiedPaintPanel,
         brush_texture_settings,
@@ -50,26 +51,6 @@ def draw_keyframing_tools(context, layout):
     row.operator("anim.keyframe_delete_v3d", text="Remove")
 
 
-# Grease Pencil tools
-def draw_gpencil_tools(context, layout):
-    col = layout.column(align=True)
-
-    row = col.row(align=True)
-    row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
-    row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
-    row = col.row(align=True)
-    row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
-    row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
-
-    col.separator()
-
-    col.prop(context.tool_settings, "use_grease_pencil_sessions")
-
-    col.separator()
-
-    col.label(text="Measure:")
-    col.operator("view3d.ruler")
-
 # ********** default tools for object-mode ****************
 
 
@@ -86,11 +67,8 @@ class VIEW3D_PT_tools_transform(View3DPanel, Panel):
         col.operator("transform.rotate")
         col.operator("transform.resize", text="Scale")
 
-        active_object = context.active_object
-        if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
-
-            col = layout.column(align=True)
-            col.operator("transform.mirror", text="Mirror")
+        col = layout.column(align=True)
+        col.operator("transform.mirror", text="Mirror")
 
 
 class VIEW3D_PT_tools_object(View3DPanel, Panel):
@@ -105,23 +83,26 @@ class VIEW3D_PT_tools_object(View3DPanel, Panel):
         col.operator("object.duplicate_move", text="Duplicate")
         col.operator("object.duplicate_move_linked", text="Duplicate Linked")
 
-        active_object = context.active_object
-        if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
-            col = layout.column(align=True)
-            col.operator("object.join")
         col.operator("object.delete")
 
-        col = layout.column(align=True)
-        if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
+        obj = context.active_object
+        if obj:
+            obj_type = obj.type
 
-            col = layout.column(align=True)
-            col.operator("object.origin_set", text="Set Origin")
+            if obj_type in {'MESH', 'CURVE', 'SURFACE', 'ARMATURE'}:
+                col = layout.column(align=True)
+                col.operator("object.join")
 
-            col = layout.column(align=True)
-            col.label(text="Shading:")
-            row = col.row(align=True)
-            row.operator("object.shade_smooth", text="Smooth")
-            row.operator("object.shade_flat", text="Flat")
+            if obj_type in {'MESH', 'CURVE', 'SURFACE', 'ARMATURE', 'FONT', 'LATTICE'}:
+                col = layout.column(align=True)
+                col.operator_menu_enum("object.origin_set", "type", text="Set Origin")
+
+            if obj_type in {'MESH', 'CURVE', 'SURFACE'}:
+                col = layout.column(align=True)
+                col.label(text="Shading:")
+                row = col.row(align=True)
+                row.operator("object.shade_smooth", text="Smooth")
+                row.operator("object.shade_flat", text="Flat")
 
 
 class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
@@ -240,7 +221,7 @@ class VIEW3D_PT_tools_animation(View3DPanel, Panel):
         col.operator("nla.bake", text="Bake Action")
 
 
-class VIEW3D_PT_tools_rigidbody(View3DPanel, Panel):
+class VIEW3D_PT_tools_rigid_body(View3DPanel, Panel):
     bl_category = "Physics"
     bl_context = "objectmode"
     bl_label = "Rigid Body Tools"
@@ -1280,7 +1261,7 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
 
 class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
     bl_category = "Tools"
-    bl_label = "Symmetry \ Lock"
+    bl_label = "Symmetry / Lock"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1335,24 +1316,25 @@ class VIEW3D_PT_tools_brush_appearance(Panel, View3DPaintPanel):
         col = layout.column()
         col.prop(settings, "show_brush")
 
-        col = col.column()
-        col.active = settings.show_brush
+        sub = col.column()
+        sub.active = settings.show_brush
 
         if context.sculpt_object and context.tool_settings.sculpt:
             if brush.sculpt_capabilities.has_secondary_color:
-                col.row().prop(brush, "cursor_color_add", text="Add")
-                col.row().prop(brush, "cursor_color_subtract", text="Subtract")
+                sub.row().prop(brush, "cursor_color_add", text="Add")
+                sub.row().prop(brush, "cursor_color_subtract", text="Subtract")
             else:
-                col.prop(brush, "cursor_color_add", text="")
+                sub.prop(brush, "cursor_color_add", text="")
         else:
-            col.prop(brush, "cursor_color_add", text="")
+            sub.prop(brush, "cursor_color_add", text="")
 
-        layout.separator()
+        col.separator()
 
-        col = layout.column(align=True)
+        col = col.column(align=True)
         col.prop(brush, "use_custom_icon")
-        if brush.use_custom_icon:
-            col.prop(brush, "icon_filepath", text="")
+        sub = col.column()
+        sub.active = brush.use_custom_icon
+        sub.prop(brush, "icon_filepath", text="")
 
 # ********** default tools for weight-paint ****************
 
@@ -1549,6 +1531,7 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
     """Default tools for particle mode"""
     bl_context = "particlemode"
     bl_label = "Options"
+    bl_category = "Tools"
 
     def draw(self, context):
         layout = self.layout
@@ -1614,13 +1597,10 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
 
 
 # Grease Pencil tools
-class VIEW3D_PT_tools_greasepencil(View3DPanel, Panel):
+class VIEW3D_PT_tools_grease_pencil(GreasePencilPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
     bl_category = "Grease Pencil"
-    bl_label = "Grease Pencil"
-
-    def draw(self, context):
-        layout = self.layout
-        draw_gpencil_tools(context, layout)
 
 
 if __name__ == "__main__":  # only for live edit.

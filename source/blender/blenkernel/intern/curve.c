@@ -2896,14 +2896,13 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 
 /* ****************** HANDLES ************** */
 
-/*
- *   handlecodes:
- *		0: nothing,  1:auto,  2:vector,  3:aligned
- */
-
-/* mode: is not zero when FCurve, is 2 when forced horizontal for autohandles */
-static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode, int skip_align)
+static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *next,
+                                  bool is_fcurve, bool skip_align)
 {
+	/* defines to avoid confusion */
+#define p2_h1 (p2 - 3)
+#define p2_h2 (p2 + 3)
+
 	float *p1, *p2, *p3, pt[3];
 	float dvec_a[3], dvec_b[3];
 	float len, len_a, len_b;
@@ -2939,7 +2938,7 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 	sub_v3_v3v3(dvec_a, p2, p1);
 	sub_v3_v3v3(dvec_b, p3, p2);
 
-	if (mode != 0) {
+	if (is_fcurve) {
 		len_a = dvec_a[0];
 		len_b = dvec_b[0];
 	}
@@ -2957,10 +2956,18 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 		tvec[0] = dvec_b[0] / len_b + dvec_a[0] / len_a;
 		tvec[1] = dvec_b[1] / len_b + dvec_a[1] / len_a;
 		tvec[2] = dvec_b[2] / len_b + dvec_a[2] / len_a;
-		len = len_v3(tvec) * 2.5614f;
+
+		if (is_fcurve) {
+			len = tvec[0];
+		}
+		else {
+			len = len_v3(tvec);
+		}
+		len *=  2.5614f;
 
 		if (len != 0.0f) {
-			int leftviolate = 0, rightviolate = 0;  /* for mode==2 */
+			/* only for fcurves */
+			bool leftviolate = false, rightviolate = false;
 
 			if (len_a > 5.0f * len_b)
 				len_a = 5.0f * len_b;
@@ -2969,7 +2976,7 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 
 			if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM)) {
 				len_a /= len;
-				madd_v3_v3v3fl(p2 - 3, p2, tvec, -len_a);
+				madd_v3_v3v3fl(p2_h1, p2, tvec, -len_a);
 
 				if ((bezt->h1 == HD_AUTO_ANIM) && next && prev) { /* keep horizontal if extrema */
 					float ydiff1 = prev->vec[1][1] - bezt->vec[1][1];
@@ -2995,7 +3002,7 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 			}
 			if (ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM)) {
 				len_b /= len;
-				madd_v3_v3v3fl(p2 + 3, p2, tvec,  len_b);
+				madd_v3_v3v3fl(p2_h2, p2, tvec,  len_b);
 
 				if ((bezt->h2 == HD_AUTO_ANIM) && next && prev) { /* keep horizontal if extrema */
 					float ydiff1 = prev->vec[1][1] - bezt->vec[1][1];
@@ -3020,45 +3027,65 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 				}
 			}
 			if (leftviolate || rightviolate) { /* align left handle */
-				float h1[3], h2[3];
-				float dot;
+				BLI_assert(is_fcurve);
+#if 0
+				if (is_fcurve)
+#endif
+				{
+					/* simple 2d calculation */
+					float h1_x = p2_h1[0] - p2[0];
+					float h2_x = p2[0] - p2_h2[0];
 
-				sub_v3_v3v3(h1, p2 - 3, p2);
-				sub_v3_v3v3(h2, p2, p2 + 3);
-
-				len_a = normalize_v3(h1);
-				len_b = normalize_v3(h2);
-
-				dot = dot_v3v3(h1, h2);
-
-				if (leftviolate) {
-					mul_v3_fl(h1, dot * len_b);
-					sub_v3_v3v3(p2 + 3, p2, h1);
+					if (leftviolate) {
+						p2_h2[1] = p2[1] + ((p2[1] - p2_h1[1]) / h1_x) * h2_x;
+					}
+					else {
+						p2_h1[1] = p2[1] + ((p2[1] - p2_h2[1]) / h2_x) * h1_x;
+					}
 				}
+#if 0
 				else {
-					mul_v3_fl(h2, dot * len_a);
-					add_v3_v3v3(p2 - 3, p2, h2);
+					float h1[3], h2[3];
+					float dot;
+
+					sub_v3_v3v3(h1, p2_h1, p2);
+					sub_v3_v3v3(h2, p2, p2_h2);
+
+					len_a = normalize_v3(h1);
+					len_b = normalize_v3(h2);
+
+					dot = dot_v3v3(h1, h2);
+
+					if (leftviolate) {
+						mul_v3_fl(h1, dot * len_b);
+						sub_v3_v3v3(p2_h2, p2, h1);
+					}
+					else {
+						mul_v3_fl(h2, dot * len_a);
+						add_v3_v3v3(p2_h1, p2, h2);
+					}
 				}
+#endif
 			}
 		}
 	}
 
 	if (bezt->h1 == HD_VECT) {    /* vector */
-		madd_v3_v3v3fl(p2 - 3, p2, dvec_a, -1.0f / 3.0f);
+		madd_v3_v3v3fl(p2_h1, p2, dvec_a, -1.0f / 3.0f);
 	}
 	if (bezt->h2 == HD_VECT) {
-		madd_v3_v3v3fl(p2 + 3, p2, dvec_b,  1.0f / 3.0f);
+		madd_v3_v3v3fl(p2_h2, p2, dvec_b,  1.0f / 3.0f);
 	}
 
-	if (skip_align) {
+	if (skip_align || !ELEM(HD_ALIGN, bezt->h1, bezt->h2)) {
 		/* handles need to be updated during animation and applying stuff like hooks,
 		 * but in such situations it's quite difficult to distinguish in which order
 		 * align handles should be aligned so skip them for now */
 		return;
 	}
 
-	len_b = len_v3v3(p2, p2 + 3);
-	len_a = len_v3v3(p2, p2 - 3);
+	len_a = len_v3v3(p2, p2_h1);
+	len_b = len_v3v3(p2, p2_h2);
 	if (len_a == 0.0f)
 		len_a = 1.0f;
 	if (len_b == 0.0f)
@@ -3068,17 +3095,17 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 		if (bezt->h2 == HD_ALIGN) { /* aligned */
 			if (len_a > eps) {
 				len = len_b / len_a;
-				p2[3] = p2[0] + len * (p2[0] - p2[-3]);
-				p2[4] = p2[1] + len * (p2[1] - p2[-2]);
-				p2[5] = p2[2] + len * (p2[2] - p2[-1]);
+				p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
+				p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
+				p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
 			}
 		}
 		if (bezt->h1 == HD_ALIGN) {
 			if (len_b > eps) {
 				len = len_a / len_b;
-				p2[-3] = p2[0] + len * (p2[0] - p2[3]);
-				p2[-2] = p2[1] + len * (p2[1] - p2[4]);
-				p2[-1] = p2[2] + len * (p2[2] - p2[5]);
+				p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
+				p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
+				p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
 			}
 		}
 	}
@@ -3086,23 +3113,26 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 		if (bezt->h1 == HD_ALIGN) {
 			if (len_b > eps) {
 				len = len_a / len_b;
-				p2[-3] = p2[0] + len * (p2[0] - p2[3]);
-				p2[-2] = p2[1] + len * (p2[1] - p2[4]);
-				p2[-1] = p2[2] + len * (p2[2] - p2[5]);
+				p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
+				p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
+				p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
 			}
 		}
 		if (bezt->h2 == HD_ALIGN) {   /* aligned */
 			if (len_a > eps) {
 				len = len_b / len_a;
-				p2[3] = p2[0] + len * (p2[0] - p2[-3]);
-				p2[4] = p2[1] + len * (p2[1] - p2[-2]);
-				p2[5] = p2[2] + len * (p2[2] - p2[-1]);
+				p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
+				p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
+				p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
 			}
 		}
 	}
+
+#undef p2_h1
+#undef p2_h2
 }
 
-static void calchandlesNurb_intern(Nurb *nu, int skip_align)
+static void calchandlesNurb_intern(Nurb *nu, bool skip_align)
 {
 	BezTriple *bezt, *prev, *next;
 	int a;
@@ -3134,9 +3164,9 @@ static void calchandlesNurb_intern(Nurb *nu, int skip_align)
 	}
 }
 
-void BKE_nurb_handle_calc(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode)
+void BKE_nurb_handle_calc(BezTriple *bezt, BezTriple *prev, BezTriple *next, const bool is_fcurve)
 {
-	calchandleNurb_intern(bezt, prev, next, mode, FALSE);
+	calchandleNurb_intern(bezt, prev, next, is_fcurve, false);
 }
 
 void BKE_nurb_handles_calc(Nurb *nu) /* first, if needed, set handle flags */
@@ -3570,7 +3600,7 @@ void BKE_nurb_direction_switch(Nurb *nu)
 				a--;
 				fp2[a] = fp1[a];
 				while (a--) {
-					fp2[0] = fabs(fp1[1] - fp1[0]);
+					fp2[0] = fabsf(fp1[1] - fp1[0]);
 					fp1++;
 					fp2++;
 				}

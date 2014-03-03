@@ -956,7 +956,7 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 	but->ofs = 0;
 	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr, sizeof(but->drawstr));
 
-	if (but->strwidth > okwidth) {
+	if ((okwidth > 0.0f) && (but->strwidth > okwidth)) {
 		float strwidth;
 		but->ofs = BLF_width_to_rstrlen(fstyle->uifont_id, but->drawstr,
 		                                sizeof(but->drawstr), okwidth, &strwidth);
@@ -972,7 +972,7 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
  * This func assumes things like kerning handling have already been handled!
  * Return the length of modified (right-clipped + ellipsis) string.
  */
-static void ui_text_clip_right_ex(uiFontStyle *fstyle, uiBut *but, const size_t max_len, const float okwidth,
+static void ui_text_clip_right_ex(uiFontStyle *fstyle, char *str, const size_t max_len, const float okwidth,
                                   const char *sep, const int sep_len, const float sep_strwidth)
 {
 	float tmp;
@@ -982,56 +982,54 @@ static void ui_text_clip_right_ex(uiFontStyle *fstyle, uiBut *but, const size_t 
 	 * (as using the ellipsis would remove even more useful chars, and we cannot show much already!).
 	 */
 	if (sep_strwidth / okwidth > 0.2f) {
-		l_end = BLF_width_to_strlen(fstyle->uifont_id, but->drawstr, max_len, okwidth, &tmp);
-		but->drawstr[l_end] = '\0';
+		l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth, &tmp);
+		str[l_end] = '\0';
 	}
 	else {
-		l_end = BLF_width_to_strlen(fstyle->uifont_id, but->drawstr, max_len, okwidth - sep_strwidth, &tmp);
-		memcpy(but->drawstr + l_end, sep, sep_len + 1);  /* +1 for trailing '\0'. */
+		l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, &tmp);
+		memcpy(str + l_end, sep, sep_len + 1);  /* +1 for trailing '\0'. */
 	}
 }
 
 /**
- * Cut off the middle of the text to fit into the width of \a rect.
+ * Cut off the middle of the text to fit into the given width.
  * Note in case this middle clipping would just remove a few chars, it rather clips right, which is more readable.
  */
-static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
+static float ui_text_clip_middle_ex(uiFontStyle *fstyle, char *str, const float okwidth, const float minwidth,
+                                    const size_t max_len)
 {
-	/* No margin for labels! */
-	const int border = ELEM(but->type, LABEL, MENU) ? 0 : (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
-	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 	float strwidth;
-	const size_t max_len = sizeof(but->drawstr);
 
 	/* need to set this first */
 	uiStyleFontSet(fstyle);
 
-	if (fstyle->kerning == 1) /* for BLF_width */
+	if (fstyle->kerning == 1) {  /* for BLF_width */
 		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+	}
 
-	but->ofs = 0;
-	strwidth = BLF_width(fstyle->uifont_id, but->drawstr, max_len);
+	strwidth = BLF_width(fstyle->uifont_id, str, max_len);
 
-	if (strwidth > okwidth) {
-		const char sep[] = "…";
+	if ((okwidth > 0.0f) && (strwidth > okwidth)) {
+		/* utf8 ellipsis '...', some compilers complain */
+		const char sep[] = {0xe2, 0x80, 0xa6, 0x0};
 		const int sep_len = sizeof(sep) - 1;
 		size_t l_end;
 
 		const float sep_strwidth = BLF_width(fstyle->uifont_id, sep, sep_len + 1);
 		const float parts_strwidth = ((float)okwidth - sep_strwidth) / 2.0f;
 
-		if (min_ff(parts_strwidth, strwidth - okwidth) < (float)(UI_DPI_ICON_SIZE) / but->block->aspect * 2.0f) {
+		if (min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
 			/* If we really have no place, or we would clip a very small piece of string in the middle,
 			 * only show start of string.
 			 */
-			ui_text_clip_right_ex(fstyle, but, max_len, (float)okwidth, sep, sep_len, sep_strwidth);
+			ui_text_clip_right_ex(fstyle, str, max_len, okwidth, sep, sep_len, sep_strwidth);
 		}
 		else {
 			size_t r_offset, r_len;
 
-			l_end = BLF_width_to_strlen(fstyle->uifont_id, but->drawstr, max_len, parts_strwidth, &strwidth);
-			r_offset = BLF_width_to_rstrlen(fstyle->uifont_id, but->drawstr, max_len, parts_strwidth, &strwidth);
-			r_len = strlen(but->drawstr + r_offset) + 1;  /* +1 for the trailing '\0'... */
+			l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, parts_strwidth, &strwidth);
+			r_offset = BLF_width_to_rstrlen(fstyle->uifont_id, str, max_len, parts_strwidth, &strwidth);
+			r_len = strlen(str + r_offset) + 1;  /* +1 for the trailing '\0'... */
 
 			if (l_end + sep_len + r_len > max_len) {
 				/* Corner case, the str already takes all available mem, and the ellipsis chars would actually
@@ -1039,21 +1037,33 @@ static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rec
 				 * Better to just trim one or two letters to the right in this case...
 				 * Note: with a single-char ellipsis, this should never happen! But better be safe here...
 				 */
-				ui_text_clip_right_ex(fstyle, but, max_len, (float)okwidth, sep, sep_len, sep_strwidth);
+				ui_text_clip_right_ex(fstyle, str, max_len, okwidth, sep, sep_len, sep_strwidth);
 			}
 			else {
-				memmove(but->drawstr + l_end + sep_len, but->drawstr + r_offset, r_len);
-				memcpy(but->drawstr + l_end, sep, sep_len);
+				memmove(str + l_end + sep_len, str + r_offset, r_len);
+				memcpy(str + l_end, sep, sep_len);
 			}
 		}
-		strwidth = BLF_width(fstyle->uifont_id, but->drawstr, max_len);
+		strwidth = BLF_width(fstyle->uifont_id, str, max_len);
 	}
-
-	but->strwidth = strwidth;
 
 	if (fstyle->kerning == 1) {
 		BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 	}
+
+	return strwidth;
+}
+
+static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
+{
+	/* No margin for labels! */
+	const int border = ELEM(but->type, LABEL, MENU) ? 0 : (int)(UI_TEXT_CLIP_MARGIN + 0.5f);
+	const float okwidth = (float)max_ii(BLI_rcti_size_x(rect) - border, 0);
+	const size_t max_len = sizeof(but->drawstr);
+	const float minwidth = (float)(UI_DPI_ICON_SIZE) / but->block->aspect * 2.0f;
+
+	but->ofs = 0;
+	but->strwidth = ui_text_clip_middle_ex(fstyle, but->drawstr, okwidth, minwidth, max_len);
 }
 
 /**
@@ -1189,7 +1199,6 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 		BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 }
 
-
 static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
 	int drawstr_left_len = UI_MAX_DRAW_STR;
@@ -1213,13 +1222,10 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	/* Special case: when we're entering text for multiple buttons,
 	 * don't draw the text for any of the multi-editing buttons */
 	if (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI)) {
-		uiBut *but_iter;
-		for (but_iter = but->block->buttons.first; but_iter; but_iter = but_iter->next) {
-			if (but_iter->editstr) {
-				drawstr = but_iter->editstr;
-				fstyle->align = UI_STYLE_TEXT_LEFT;
-				break;
-			}
+		uiBut *but_edit = ui_get_but_drag_multi_edit(but);
+		if (but_edit) {
+			drawstr = but_edit->editstr;
+			fstyle->align = UI_STYLE_TEXT_LEFT;
 		}
 	}
 
@@ -2416,9 +2422,11 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 
 	widgetbase_draw(&wtb, wcol);
 	
-	/* text space */
-	rect->xmin += textofs;
-	rect->xmax -= textofs;
+	if (!(state & UI_TEXTINPUT)) {
+		/* text space */
+		rect->xmin += textofs;
+		rect->xmax -= textofs;
+	}
 }
 
 static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
@@ -2734,8 +2742,10 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	widgetbase_draw(&wtb, wcol);
 
 	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
-	rect->xmax -= toffs;
-	rect->xmin += toffs;
+	if (!(state & UI_TEXTINPUT)) {
+		rect->xmax -= toffs;
+		rect->xmin += toffs;
+	}
 
 }
 
@@ -3538,8 +3548,13 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		roundboxalign = widget_roundbox_set(but, rect);
 
 		state = but->flag;
-		if (but->editstr) state |= UI_TEXTINPUT;
-		
+
+		if ((but->editstr) ||
+		    (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI) && ui_get_but_drag_multi_edit(but)))
+		{
+			state |= UI_TEXTINPUT;
+		}
+
 		if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE))
 			if (but->dt != UI_EMBOSSP)
 				disabled = true;
@@ -3626,7 +3641,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
 	rcti _rect = *rect;
-	char *cpoin;
+	char *cpoin = NULL;
 
 	wt->state(wt, state);
 	wt->draw(&wt->wcol, rect, 0, 0);
@@ -3643,13 +3658,35 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		cpoin = strchr(name, UI_SEP_CHAR);
 		if (cpoin) {
 			*cpoin = 0;
-			rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1, INT_MAX) + 10;
+
+			/* need to set this first */
+			uiStyleFontSet(fstyle);
+
+			if (fstyle->kerning == 1) { /* for BLF_width */
+				BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+			}
+
+			rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1, INT_MAX) + UI_DPI_ICON_SIZE;
+
+			if (fstyle->kerning == 1) {
+				BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+			}
 		}
 	}
-	
-	glColor4ubv((unsigned char *)wt->wcol.text);
-	uiStyleFontDraw(fstyle, rect, name);
-	
+
+	{
+		char drawstr[UI_MAX_DRAW_STR];
+		const float okwidth = (float)BLI_rcti_size_x(rect);
+		const size_t max_len = sizeof(drawstr);
+		const float minwidth = (float)(UI_DPI_ICON_SIZE);
+
+		BLI_strncpy(drawstr, name, sizeof(drawstr));
+		ui_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len);
+
+		glColor4ubv((unsigned char *)wt->wcol.text);
+		uiStyleFontDraw(fstyle, rect, drawstr);
+	}
+
 	/* part text right aligned */
 	if (use_sep) {
 		if (cpoin) {
@@ -3711,8 +3748,17 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	glEnable(GL_BLEND);
 	glRecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
 	glDisable(GL_BLEND);
-	
-	glColor3ubv((unsigned char *)wt->wcol.text);
 
-	uiStyleFontDraw(fstyle, &trect, name);
+	{
+		char drawstr[UI_MAX_DRAW_STR];
+		const float okwidth = (float)BLI_rcti_size_x(&trect);
+		const size_t max_len = sizeof(drawstr);
+		const float minwidth = (float)(UI_DPI_ICON_SIZE);
+
+		BLI_strncpy(drawstr, name, sizeof(drawstr));
+		ui_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len);
+
+		glColor4ubv((unsigned char *)wt->wcol.text);
+		uiStyleFontDraw(fstyle, &trect, drawstr);
+	}
 }
