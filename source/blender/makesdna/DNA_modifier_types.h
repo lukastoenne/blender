@@ -85,6 +85,7 @@ typedef enum ModifierType {
 	eModifierType_DataTransfer      = 49,
 	eModifierType_NormalEdit        = 50,
 	eModifierType_CorrectiveSmooth  = 51,
+	eModifierType_MeshSampleTest    = 52,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1443,6 +1444,11 @@ enum {
 	MOD_WIREFRAME_OFS_RELATIVE  = (1 << 4),
 	MOD_WIREFRAME_CREASE        = (1 << 5),
 };
+
+typedef struct MeshSampleTestModifierData {
+	ModifierData modifier;
+
+} MeshSampleTestModifierData;
 
 
 typedef struct DataTransferModifierData {

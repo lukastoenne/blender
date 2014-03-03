@@ -72,6 +72,7 @@ set(SRC
 	intern/MOD_meshcache_pc2.c
 	intern/MOD_meshcache_util.c
 	intern/MOD_meshdeform.c
+	intern/MOD_meshsampletest.c
 	intern/MOD_mirror.c
 	intern/MOD_multires.c
 	intern/MOD_none.c
