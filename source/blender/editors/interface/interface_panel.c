@@ -61,6 +61,7 @@
 
 #include "ED_screen.h"
 
+#include "UI_view2d.h"
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
@@ -169,21 +170,24 @@ static int panels_re_align(ScrArea *sa, ARegion *ar, Panel **r_pa)
 
 /****************************** panels ******************************/
 
-static void panels_collapse_all(ScrArea *sa, ARegion *ar, Panel *from_pa)
+static void panels_collapse_all(ScrArea *sa, ARegion *ar, const Panel *from_pa)
 {
+	const bool has_category_tabs = UI_panel_category_is_visible(ar);
+	const char *category = has_category_tabs ? UI_panel_category_active_get(ar, false) : NULL;
+	const int flag = ((panel_aligned(sa, ar) == BUT_HORIZONTAL) ? PNL_CLOSEDX : PNL_CLOSEDY);
+	const PanelType *from_pt = from_pa->type;
 	Panel *pa;
-	PanelType *pt, *from_pt;
-	int flag = ((panel_aligned(sa, ar) == BUT_HORIZONTAL) ? PNL_CLOSEDX : PNL_CLOSEDY);
 
 	for (pa = ar->panels.first; pa; pa = pa->next) {
-		pt = pa->type;
-		from_pt = from_pa->type;
+		PanelType *pt = pa->type;
 
 		/* close panels with headers in the same context */
 		if (pt && from_pt && !(pt->flag & PNL_NO_HEADER)) {
-			if (!pt->context[0] || strcmp(pt->context, from_pt->context) == 0) {
-				pa->flag &= ~PNL_CLOSED;
-				pa->flag |= flag;
+			if (!pt->context[0] || !from_pt->context[0] || STREQ(pt->context, from_pt->context)) {
+				if ((pa->flag & PNL_PIN) || !category || !pt->category[0] || STREQ(pt->category, category)) {
+					pa->flag &= ~PNL_CLOSED;
+					pa->flag |= flag;
+				}
 			}
 		}
 	}
@@ -1638,6 +1642,10 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 				if (pc_dyn) {
 					UI_panel_category_active_set(ar, pc_dyn->idname);
 					ED_region_tag_redraw(ar);
+
+					/* reset scroll to the top [#38348] */
+					UI_view2d_offset(&ar->v2d, -1.0f, 1.0f);
+
 					retval = WM_UI_HANDLER_BREAK;
 				}
 			}
@@ -1652,6 +1660,8 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 						if (LIKELY(pc_dyn)) {
 							pc_dyn = (event->type == WHEELDOWNMOUSE) ? pc_dyn->next : pc_dyn->prev;
 							if (pc_dyn) {
+								/* intentionally don't reset scroll in this case,
+								 * this allows for quick browsing between tabs */
 								UI_panel_category_active_set(ar, pc_dyn->idname);
 								ED_region_tag_redraw(ar);
 							}

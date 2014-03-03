@@ -757,6 +757,7 @@ class WM_OT_url_open(Operator):
     "Open a website in the web-browser"
     bl_idname = "wm.url_open"
     bl_label = ""
+    bl_options = {'INTERNAL'}
 
     url = StringProperty(
             name="URL",
@@ -773,6 +774,7 @@ class WM_OT_path_open(Operator):
     "Open a path in a file browser"
     bl_idname = "wm.path_open"
     bl_label = ""
+    bl_options = {'INTERNAL'}
 
     filepath = StringProperty(
             subtype='FILE_PATH',
@@ -1081,12 +1083,12 @@ class WM_OT_properties_edit(Operator):
         prop_type_old = type(item[prop_old])
 
         rna_idprop_ui_prop_clear(item, prop_old)
-        exec_str = "del item['%s']" % prop_old
+        exec_str = "del item[%r]" % prop_old
         # print(exec_str)
         exec(exec_str)
 
         # Reassign
-        exec_str = "item['%s'] = %s" % (prop, repr(value_eval))
+        exec_str = "item[%r] = %s" % (prop, repr(value_eval))
         # print(exec_str)
         exec(exec_str)
         self._last_prop[:] = [prop]
@@ -1103,7 +1105,7 @@ class WM_OT_properties_edit(Operator):
 
         # If we have changed the type of the property, update its potential anim curves!
         if prop_type_old != prop_type:
-            data_path = '["%s"]' % prop
+            data_path = '["%s"]' % bpy.utils.escape_identifier(prop)
             done = set()
 
             def _update(fcurves):
@@ -1114,9 +1116,9 @@ class WM_OT_properties_edit(Operator):
 
             def _update_strips(strips):
                 for st in strips:
-                    if st.type in {'CLIP'} and st.action:
+                    if st.type == 'CLIP' and st.action:
                         _update(st.action.fcurves)
-                    elif st.type in {'META'}:
+                    elif st.type == 'META':
                         _update_strips(st.strips)
 
             adt = getattr(item, "animation_data", None)
@@ -2019,6 +2021,7 @@ class WM_OT_addon_expand(Operator):
     "Display more information on this addon"
     bl_idname = "wm.addon_expand"
     bl_label = ""
+    bl_options = {'INTERNAL'}
 
     module = StringProperty(
             name="Module",

@@ -230,7 +230,7 @@ static int render_scene_needs_vector(Render *re)
 {
 	SceneRenderLayer *srl;
 	
-	for (srl = re->scene->r.layers.first; srl; srl = srl->next)
+	for (srl = re->r.layers.first; srl; srl = srl->next)
 		if (!(srl->layflag & SCE_LAY_DISABLE))
 			if (srl->passflag & SCE_PASS_VECTOR)
 				return 1;
@@ -412,6 +412,8 @@ void RE_FreeRender(Render *re)
 		RE_engine_free(re->engine);
 
 	BLI_rw_mutex_end(&re->resultmutex);
+
+	BLI_freelistN(&re->r.layers);
 	
 	/* main dbase can already be invalid now, some database-free code checks it */
 	re->main = NULL;
@@ -507,7 +509,11 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 	re->ok = TRUE;   /* maybe flag */
 	
 	re->i.starttime = PIL_check_seconds_timer();
-	re->r = *rd;     /* hardcopy */
+
+	/* copy render data and render layers for thread safety */
+	BLI_freelistN(&re->r.layers);
+	re->r = *rd;
+	BLI_duplicatelist(&re->r.layers, &rd->layers);
 
 	if (source) {
 		/* reuse border flags from source renderer */
@@ -582,7 +588,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 	}
 	
 	if (srl) {
-		int index = BLI_findindex(&re->r.layers, srl);
+		int index = BLI_findindex(&rd->layers, srl);
 		if (index != -1) {
 			re->r.actlay = index;
 			re->r.scemode |= R_SINGLE_LAYER;
@@ -602,7 +608,17 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 			re->result = NULL;
 		}
 		else if (re->result) {
-			if (re->result->rectx == re->rectx && re->result->recty == re->recty) {
+			SceneRenderLayer *actsrl = BLI_findlink(&re->r.layers, re->r.actlay);
+			RenderLayer *rl;
+			bool have_layer = false;
+
+			for (rl = re->result->layers.first; rl; rl = rl->next)
+				if (STREQ(rl->name, actsrl->name))
+					have_layer = true;
+
+			if (re->result->rectx == re->rectx && re->result->recty == re->recty &&
+			    have_layer)
+			{
 				/* keep render result, this avoids flickering black tiles
 				 * when the preview changes */
 			}
@@ -2305,6 +2321,20 @@ static void do_render_all_options(Render *re)
 	}
 }
 
+bool RE_force_single_renderlayer(Scene *scene)
+{
+	int scemode = check_mode_full_sample(&scene->r);
+	if (scemode & R_SINGLE_LAYER) {
+		SceneRenderLayer *srl = BLI_findlink(&scene->r.layers, scene->r.actlay);
+		/* force layer to be enabled */
+		if (srl->layflag & SCE_LAY_DISABLE) {
+			srl->layflag &= ~SCE_LAY_DISABLE;
+			return true;
+		}
+	}
+	return false;
+}
+
 static bool check_valid_compositing_camera(Scene *scene, Object *camera_override)
 {
 	if (scene->r.scemode & R_DOCOMP && scene->use_nodes) {
@@ -2466,14 +2496,8 @@ bool RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *
 		}
 #endif
 	}
-
-	/* layer flag tests */
-	if (scemode & R_SINGLE_LAYER) {
-		srl = BLI_findlink(&scene->r.layers, scene->r.actlay);
-		/* force layer to be enabled */
-		srl->layflag &= ~SCE_LAY_DISABLE;
-	}
 	
+	/* layer flag tests */
 	for (srl = scene->r.layers.first; srl; srl = srl->next)
 		if (!(srl->layflag & SCE_LAY_DISABLE))
 			break;

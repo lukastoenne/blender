@@ -1177,7 +1177,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	ed_keymap_stencil(keymap);
 
-	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_DRAW, DKEY, 0);
+	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_DRAW, XKEY, 0);
 	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_SMOOTH, SKEY, 0);
 	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_PINCH, PKEY, 0);
 	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_INFLATE, IKEY, 0);

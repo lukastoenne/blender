@@ -45,6 +45,7 @@ class BrushButtonsPanel:
         toolsettings = context.tool_settings.image_paint
         return sima.show_paint and toolsettings.brush
 
+
 class UVToolsPanel:
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
@@ -54,6 +55,7 @@ class UVToolsPanel:
     def poll(cls, context):
         sima = context.space_data
         return sima.show_uvedit and not context.tool_settings.use_uv_sculpt
+
 
 class IMAGE_MT_view(Menu):
     bl_label = "View"
@@ -494,6 +496,7 @@ class IMAGE_PT_mask(MASK_PT_mask, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
 
+
 class IMAGE_PT_mask_layers(MASK_PT_layers, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
@@ -653,9 +656,10 @@ class IMAGE_PT_tools_transform_uvs(Panel, UVToolsPanel):
 
         col.operator("transform.shear")
 
+
 class IMAGE_PT_paint(Panel, ImagePaintPanel):
     bl_label = "Paint"
-    
+
     @classmethod
     def poll(cls, context):
         sima = context.space_data
@@ -894,19 +898,19 @@ class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
             layout.label(text="Brush Unset")
             return
 
-        col = layout.column()
-        col.prop(toolsettings, "show_brush")
-
-        col = col.column()
-        col.prop(brush, "cursor_color_add", text="")
-        col.active = toolsettings.show_brush
-
-        layout.separator()
-
         col = layout.column(align=True)
+
+        col.prop(toolsettings, "show_brush")
+        sub = col.column()
+        sub.active = toolsettings.show_brush
+        sub.prop(brush, "cursor_color_add", text="")
+
+        col.separator()
+
         col.prop(brush, "use_custom_icon")
-        if brush.use_custom_icon:
-            col.prop(brush, "icon_filepath", text="")
+        sub = col.column()
+        sub.active = brush.use_custom_icon
+        sub.prop(brush, "icon_filepath", text="")
 
 
 class IMAGE_UV_sculpt_curve(Panel):
@@ -985,6 +989,7 @@ class IMAGE_PT_tools_mask(MASK_PT_tools, Panel):
     bl_category = 'Mask'
 
 # --- end mask ---
+
 
 class IMAGE_PT_view_histogram(Panel):
     bl_space_type = 'IMAGE_EDITOR'
