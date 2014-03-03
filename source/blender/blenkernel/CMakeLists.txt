@@ -121,6 +121,7 @@ set(SRC
 	intern/mesh.c
 	intern/mesh_evaluate.c
 	intern/mesh_mapping.c
+	intern/mesh_sample.c
 	intern/mesh_validate.c
 	intern/modifier.c
 	intern/modifiers_bmesh.c
@@ -231,6 +232,7 @@ set(SRC
 	BKE_mball.h
 	BKE_mesh.h
 	BKE_mesh_mapping.h
+	BKE_mesh_sample.h
 	BKE_modifier.h
 	BKE_movieclip.h
 	BKE_multires.h
