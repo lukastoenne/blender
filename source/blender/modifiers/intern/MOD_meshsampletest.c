@@ -281,9 +281,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			dm->copyPolyArray(dm, CDDM_get_polys(result));
 		}
 		
-		/* needed for evaluation */
-		DM_ensure_tessface(dm);
-		
 		mv = result->getVertArray(result);
 		me = result->getEdgeArray(result);
 		ml = result->getLoopArray(result);
