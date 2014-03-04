@@ -76,12 +76,12 @@ static void freeData(ModifierData *md)
 
 static void notch_size(int *num_verts, int *num_edges, int *num_loops, int *num_polys)
 {
+#if 0
 	*num_verts = 4;
 	*num_edges = 4;
 	*num_loops = 4;
 	*num_polys = 1;
-
-#if 0
+#else
 	*num_verts = 4;
 	*num_edges = 6;
 	*num_loops = 9;
@@ -94,11 +94,13 @@ static void add_notch(const float loc[3], const float nor[3],
                       unsigned int mvert_offset, unsigned int medge_offset, unsigned int mloop_offset)
 {
 	static const float size = 0.05f;
+	static const float basescale = 0.3f;
 	const float up[3] = {0,0,1};
 	float quat[4];
 	
 	rotation_between_vecs_to_quat(quat, up, nor);
 	
+#if 0
 	zero_v3(mverts[0].co);
 	mverts[0].co[0] += 0.5f*size;
 	mverts[0].co[1] += 0.5f*size;
@@ -147,18 +149,17 @@ static void add_notch(const float loc[3], const float nor[3],
 	
 	mpolys[0].loopstart = (int)(mloop_offset + 0);
 	mpolys[0].totloop = 4;
-
-#if 0
+#else
 	zero_v3(mverts[0].co);
-	mverts[0].co[1] += size;
+	mverts[0].co[1] += size * basescale;
 	
 	zero_v3(mverts[1].co);
-	mverts[1].co[0] -= 0.866f*size;
-	mverts[1].co[1] -= 0.5f*size;
+	mverts[1].co[0] -= 0.866f*size * basescale;
+	mverts[1].co[1] -= 0.5f*size * basescale;
 	
 	zero_v3(mverts[2].co);
-	mverts[2].co[0] += 0.866f*size;
-	mverts[2].co[1] -= 0.5f*size;
+	mverts[2].co[0] += 0.866f*size * basescale;
+	mverts[2].co[1] -= 0.5f*size * basescale;
 	
 	zero_v3(mverts[3].co);
 	mverts[3].co[2] += size;
@@ -190,23 +191,23 @@ static void add_notch(const float loc[3], const float nor[3],
 	medges[5].v1 = mvert_offset + 2;
 	medges[5].v2 = mvert_offset + 3;
 	
-	mloops[0].v = medge_offset + 0;
-	mloops[1].v = medge_offset + 1;
-	mloops[2].v = medge_offset + 3;
+	mloops[0].v = mvert_offset + 0;
+	mloops[1].v = mvert_offset + 1;
+	mloops[2].v = mvert_offset + 3;
 	mloops[0].e = medge_offset + 0;
 	mloops[1].e = medge_offset + 4;
 	mloops[2].e = medge_offset + 3;
 	
-	mloops[3].v = medge_offset + 1;
-	mloops[4].v = medge_offset + 2;
-	mloops[5].v = medge_offset + 3;
+	mloops[3].v = mvert_offset + 1;
+	mloops[4].v = mvert_offset + 2;
+	mloops[5].v = mvert_offset + 3;
 	mloops[3].e = medge_offset + 1;
 	mloops[4].e = medge_offset + 5;
 	mloops[5].e = medge_offset + 4;
 	
-	mloops[6].v = medge_offset + 2;
-	mloops[7].v = medge_offset + 0;
-	mloops[8].v = medge_offset + 3;
+	mloops[6].v = mvert_offset + 2;
+	mloops[7].v = mvert_offset + 0;
+	mloops[8].v = mvert_offset + 3;
 	mloops[6].e = medge_offset + 2;
 	mloops[7].e = medge_offset + 3;
 	mloops[8].e = medge_offset + 5;
