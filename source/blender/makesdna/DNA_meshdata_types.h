@@ -301,9 +301,10 @@ enum {
 };
 
 typedef struct MSurfaceSample {
-	int orig_face;
-	int pad;
-	float orig_weights[4];
+	unsigned int orig_verts[3];
+	float orig_weights[3];
+	int orig_poly;
+	unsigned int orig_loops[3];
 } MSurfaceSample;
 
 /* mvert->flag */
