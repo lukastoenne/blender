@@ -1448,6 +1448,9 @@ enum {
 typedef struct MeshSampleTestModifierData {
 	ModifierData modifier;
 
+	unsigned int seed;
+	int totsamples;
+	struct MSurfaceSample *samples;
 } MeshSampleTestModifierData;
 
 

@@ -106,6 +106,8 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MeshSample *sample, float loc[3
 			madd_v3_v3fl(edge, nor, -dot_v3v3(edge, nor));
 			normalize_v3_v3(tang, edge);
 		}
+	
+	normalize_v3(nor);
 	}
 	
 	return true;

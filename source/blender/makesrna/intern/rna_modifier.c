@@ -31,6 +31,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
@@ -1066,6 +1067,18 @@ static int rna_CorrectiveSmoothModifier_is_bind_get(PointerRNA *ptr)
 {
 	CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)ptr->data;
 	return (csmd->bind_coords != NULL);
+}
+
+static void rna_MeshSampleTestModifier_resample_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	MeshSampleTestModifierData *smd = (MeshSampleTestModifierData *)ptr->data;
+	
+	if (smd->samples) {
+		MEM_freeN(smd->samples);
+		smd->samples = NULL;
+	}
+	
+	rna_Modifier_update(bmain, scene, ptr);
 }
 
 #else
@@ -4585,6 +4598,17 @@ static void rna_def_modifier_meshsampletest(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Mesh Sample Test Modifier", "");
 	RNA_def_struct_sdna(srna, "MeshSampleTestModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_MOD_MESHDEFORM);
+
+	prop = RNA_def_property(srna, "amount", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "totsamples");
+	RNA_def_property_ui_range(prop, 0, 10000, 1, 1);
+	RNA_def_property_ui_text(prop, "Amount", "Number of sample points");
+	RNA_def_property_update(prop, 0, "rna_MeshSampleTestModifier_resample_update");
+
+	prop = RNA_def_property(srna, "samples", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "samples", "totsamples");
+	RNA_def_property_struct_type(prop, "MeshSurfaceSample");
+	RNA_def_property_ui_text(prop, "Samples", "");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)
