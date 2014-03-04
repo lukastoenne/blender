@@ -80,6 +80,8 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float l
 		madd_v3_v3fl(nor, vnor, sample->orig_weights[3]);
 	}
 	
+	normalize_v3(nor);
+	
 	return true;
 }
 
