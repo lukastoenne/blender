@@ -59,10 +59,10 @@ static void rna_def_mesh_sample(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "MSurfaceSample");
 	RNA_def_struct_ui_text(srna, "Mesh Sample", "Point on a mesh that follows deformation");
 
-	prop = RNA_def_property(srna, "face_index", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "orig_face");
+	prop = RNA_def_property(srna, "vertex_indices", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "orig_verts");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Face Index", "Index of the mesh face");
+	RNA_def_property_ui_text(prop, "Vertex Indices", "Index of the mesh vertices used for interpolation");
 }
 
 void RNA_def_mesh_sample(BlenderRNA *brna)
