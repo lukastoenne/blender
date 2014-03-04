@@ -31,7 +31,7 @@ struct MSurfaceSample;
 
 /* Evaluate */
 
-void BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MSurfaceSample *sample, float loc[3], float nor[3]);
+bool BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MSurfaceSample *sample, float loc[3], float nor[3]);
 
 
 /* Iterators */
