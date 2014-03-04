@@ -44,21 +44,21 @@
 bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float loc[3], float nor[3])
 {
 	MVert *mverts = dm->getVertArray(dm);
-	MVert *v1, *v2, *v3, *v4;
-	MFace *mfaces = dm->getTessFaceArray(dm);
-	int totfaces = dm->getNumTessFaces(dm);
-	MFace *mface = &mfaces[sample->orig_face];
+	int totverts = dm->getNumVerts(dm);
+	MVert *v1, *v2, *v3;
 	float vnor[3];
 	
 	zero_v3(loc);
 	zero_v3(nor);
 	
-	if (sample->orig_face >= totfaces)
+	if (sample->orig_verts[0] >= totverts ||
+	    sample->orig_verts[1] >= totverts ||
+	    sample->orig_verts[2] >= totverts)
 		return false;
 	
-	v1 = &mverts[mface->v1];
-	v2 = &mverts[mface->v2];
-	v3 = &mverts[mface->v3];
+	v1 = &mverts[sample->orig_verts[0]];
+	v2 = &mverts[sample->orig_verts[1]];
+	v3 = &mverts[sample->orig_verts[2]];
 	
 	madd_v3_v3fl(loc, v1->co, sample->orig_weights[0]);
 	madd_v3_v3fl(loc, v2->co, sample->orig_weights[1]);
@@ -70,15 +70,6 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float l
 	madd_v3_v3fl(nor, vnor, sample->orig_weights[1]);
 	normal_short_to_float_v3(vnor, v3->no);
 	madd_v3_v3fl(nor, vnor, sample->orig_weights[2]);
-	
-	if (mface->v4) {
-		v4 = &mverts[mface->v4];
-		
-		madd_v3_v3fl(loc, v4->co, sample->orig_weights[3]);
-		
-		normal_short_to_float_v3(vnor, v4->no);
-		madd_v3_v3fl(nor, vnor, sample->orig_weights[3]);
-	}
 	
 	normalize_v3(nor);
 	
@@ -138,25 +129,30 @@ static void mesh_sample_surface_random(const MSurfaceSampleInfo *info, MSurfaceS
 	MFace *mfaces = info->dm->getTessFaceArray(info->dm);
 	int totfaces = info->dm->getNumTessFaces(info->dm);
 	MFace *mface;
-	float sum, inv_sum;
+	float a, b;
 	
-	sample->orig_face = BLI_rng_get_int(info->rng) % totfaces;
+	mface = &mfaces[BLI_rng_get_int(info->rng) % totfaces];
 	
-	mface = &mfaces[sample->orig_face];
-	sample->orig_weights[0] = BLI_rng_get_float(info->rng);
-	sample->orig_weights[1] = BLI_rng_get_float(info->rng);
-	sample->orig_weights[2] = BLI_rng_get_float(info->rng);
-	sample->orig_weights[3] = mface->v4 ? BLI_rng_get_float(info->rng) : 0.0f;
+	if (mface->v4 && BLI_rng_get_int(info->rng) % 2 == 0) {
+		sample->orig_verts[0] = mface->v3;
+		sample->orig_verts[1] = mface->v4;
+		sample->orig_verts[2] = mface->v1;
+	}
+	else {
+		sample->orig_verts[0] = mface->v1;
+		sample->orig_verts[1] = mface->v2;
+		sample->orig_verts[2] = mface->v3;
+	}
 	
-	sum = sample->orig_weights[0] +
-	      sample->orig_weights[1] +
-	      sample->orig_weights[2] +
-	      sample->orig_weights[3];
-	inv_sum = sum > 0.0f ? 1.0f/sum : 0.0f;
-	sample->orig_weights[0] *= inv_sum;
-	sample->orig_weights[1] *= inv_sum;
-	sample->orig_weights[2] *= inv_sum;
-	sample->orig_weights[3] *= inv_sum;
+	a = BLI_rng_get_float(info->rng);
+	b = BLI_rng_get_float(info->rng);
+	if (a + b > 1.0f) {
+		a = 1.0f - a;
+		b = 1.0f - b;
+	}
+	sample->orig_weights[0] = 1.0f - (a + b);
+	sample->orig_weights[1] = a;
+	sample->orig_weights[2] = b;
 }
 
 void BKE_mesh_sample_surface_array(const MSurfaceSampleInfo *info, MSurfaceSample *samples, int totsample)
