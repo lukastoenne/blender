@@ -41,12 +41,17 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_depsgraph.h"
+
 #include "rna_internal.h"  /* own include */
+
+#ifdef DAG_DEBUG_GRAPHVIZ
+#define DAG_DEBUG_GRAPHVIZ_MAXLEN 16384
+#endif
 
 #ifdef RNA_RUNTIME
 
 #include "BKE_animsys.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_scene.h"
@@ -174,6 +179,13 @@ static void rna_Scene_collada_export(
 
 #endif
 
+#ifdef DAG_DEBUG_GRAPHVIZ
+static void rna_Scene_depgraph_graphviz(Scene *scene, Main *bmain, char *result)
+{
+	DAG_debug_graphviz(bmain, scene, result, DAG_DEBUG_GRAPHVIZ_MAXLEN);
+}
+#endif /* DAG_DEBUG_GRAPHVIZ */
+
 #else
 
 void RNA_api_scene(StructRNA *srna)
@@ -247,6 +259,14 @@ void RNA_api_scene(StructRNA *srna)
 
 	RNA_def_function_ui_description(func, "Export to collada file");
 #endif
+
+#ifdef DAG_DEBUG_GRAPHVIZ
+	func = RNA_def_function(srna, "depgraph_graphviz", "rna_Scene_depgraph_graphviz");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
+	parm = RNA_def_string(func, "result", NULL, DAG_DEBUG_GRAPHVIZ_MAXLEN, "Result", "Graphviz debug output");
+	RNA_def_property_flag(parm, PROP_THICK_WRAP); /* needed for string return value */
+	RNA_def_function_output(func, parm);
+#endif /* DAG_DEBUG_GRAPHVIZ */
 }
 
 

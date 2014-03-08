@@ -44,6 +44,11 @@
 extern "C" {
 #endif
 
+#ifndef NDEBUG
+/* if enabled, graphviz debug output is available */
+#define DAG_DEBUG_GRAPHVIZ
+#endif
+
 struct ID;
 struct Main;
 struct Object;
@@ -153,6 +158,9 @@ void DAG_threaded_update_handle_node_updated(void *node_v,
 /* Debugging: print dependency graph for scene or armature object to console */
 
 void DAG_print_dependencies(struct Main *bmain, struct Scene *scene, struct Object *ob);
+#ifdef DAG_DEBUG_GRAPHVIZ
+void DAG_debug_graphviz(struct Main *bmain, struct Scene *scene, char *buf, int maxlen);
+#endif /* DAG_DEBUG_GRAPHVIZ */
 
 /* ************************ DAG querying ********************* */
 

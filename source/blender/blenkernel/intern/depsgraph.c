@@ -84,6 +84,11 @@
 
 #include "depsgraph_private.h"
 
+#ifdef DAG_DEBUG_GRAPHVIZ
+#include "BLI_string.h"
+#include "BKE_idcode.h"
+#endif /* DAG_DEBUG_GRAPHVIZ */
+
 static SpinLock threaded_update_lock;
 
 void DAG_init(void)
@@ -3065,6 +3070,82 @@ void DAG_print_dependencies(Main *bmain, Scene *scene, Object *ob)
 	
 	dag_print_dependencies = 0;
 }
+
+#ifdef DAG_DEBUG_GRAPHVIZ
+
+#define BUFSTR (buf + len)
+#define BUFLEN (maxlen > len ? maxlen - len : 0)
+#define NL "\r\n"
+
+static int dag_debug_graphviz_node(char *buf, int maxlen, DagNode *node)
+{
+	int len = 0;
+	const char *nodename = dag_node_name(node);
+	const char *idname = BKE_idcode_to_name(node->type);
+	const char *shape = "box";
+	const char *fillcolor = "darkorange";
+	
+	len += snprintf(BUFSTR, BUFLEN, "\"N_%p\"", node);
+	len += snprintf(BUFSTR, BUFLEN, "[");
+	len += snprintf(BUFSTR, BUFLEN, "label=<<B>%s</B><BR/>%s>", nodename, idname);
+	len += snprintf(BUFSTR, BUFLEN, ",shape=%s", shape);
+	len += snprintf(BUFSTR, BUFLEN, ",style=filled");
+	len += snprintf(BUFSTR, BUFLEN, ",fillcolor=%s", fillcolor);
+	len += snprintf(BUFSTR, BUFLEN, "]" NL);
+	
+	return len;
+}
+
+static int dag_debug_graphviz_relation(char *buf, int maxlen, DagNode *parent, DagNode *child)
+{
+	int len = 0;
+	
+	len += snprintf(BUFSTR, BUFLEN, "\"N_%p\"", child);
+	len += snprintf(BUFSTR, BUFLEN, " -> ");
+	len += snprintf(BUFSTR, BUFLEN, "\"N_%p\"", parent);
+	len += snprintf(BUFSTR, BUFLEN, NL);
+	
+	return len;
+}
+
+void DAG_debug_graphviz(Main *bmain, Scene *scene, char *buf, int maxlen)
+{
+	int len = 0;
+	DagAdjList *itA;
+	
+	if (!buf || maxlen < 1)
+		return;
+	buf[0] = '\0';
+	
+	DAG_scene_relations_rebuild(bmain, scene);
+	
+	if (scene->theDag) {
+		DagNode *node;
+		
+		len += snprintf(BUFSTR, BUFLEN, "digraph compositorexecution {" NL);
+		len += snprintf(BUFSTR, BUFLEN, "ranksep=1.5" NL);
+		len += snprintf(BUFSTR, BUFLEN, "splines=false" NL);
+		
+		for (node = scene->theDag->DagNode.first; node; node = node->next) {
+			len += dag_debug_graphviz_node(BUFSTR, BUFLEN, node);
+		}
+		
+		for (node = scene->theDag->DagNode.first; node; node = node->next) {
+			for (itA = node->child; itA; itA = itA->next) {
+				len += dag_debug_graphviz_relation(BUFSTR, BUFLEN, node, itA->node);
+			}
+		}
+		
+		len += snprintf(BUFSTR, BUFLEN, "}" NL);
+	}
+}
+
+#undef BUFSTR
+#undef BUFLEN
+#undef NL
+
+#endif /* DAG_DEBUG_GRAPHVIZ */
+
 
 /* ************************ DAG querying ********************* */
 
