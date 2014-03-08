@@ -3077,66 +3077,52 @@ void DAG_print_dependencies(Main *bmain, Scene *scene, Object *ob)
 #define BUFLEN (maxlen > len ? maxlen - len : 0)
 #define NL "\r\n"
 
-static int dag_debug_graphviz_node(char *buf, int maxlen, DagNode *node)
+static void dag_debug_graphviz_node(FILE *fp, DagNode *node)
 {
-	int len = 0;
 	const char *nodename = dag_node_name(node);
 	const char *idname = BKE_idcode_to_name(node->type);
 	const char *shape = "box";
 	const char *fillcolor = "darkorange";
 	
-	len += snprintf(BUFSTR, BUFLEN, "\"N_%p\"", node);
-	len += snprintf(BUFSTR, BUFLEN, "[");
-	len += snprintf(BUFSTR, BUFLEN, "label=<<B>%s</B><BR/>%s>", nodename, idname);
-	len += snprintf(BUFSTR, BUFLEN, ",shape=%s", shape);
-	len += snprintf(BUFSTR, BUFLEN, ",style=filled");
-	len += snprintf(BUFSTR, BUFLEN, ",fillcolor=%s", fillcolor);
-	len += snprintf(BUFSTR, BUFLEN, "]" NL);
-	
-	return len;
+	fprintf(fp, "\"N_%p\"", node);
+	fprintf(fp, "[");
+	fprintf(fp, "label=<<B>%s</B><BR/>%s>", nodename, idname);
+	fprintf(fp, ",shape=%s", shape);
+	fprintf(fp, ",style=filled");
+	fprintf(fp, ",fillcolor=%s", fillcolor);
+	fprintf(fp, "]" NL);
 }
 
-static int dag_debug_graphviz_relation(char *buf, int maxlen, DagNode *parent, DagNode *child)
+static void dag_debug_graphviz_relation(FILE *fp, DagNode *parent, DagNode *child)
 {
-	int len = 0;
-	
-	len += snprintf(BUFSTR, BUFLEN, "\"N_%p\"", child);
-	len += snprintf(BUFSTR, BUFLEN, " -> ");
-	len += snprintf(BUFSTR, BUFLEN, "\"N_%p\"", parent);
-	len += snprintf(BUFSTR, BUFLEN, NL);
-	
-	return len;
+	fprintf(fp, "\"N_%p\"", child);
+	fprintf(fp, " -> ");
+	fprintf(fp, "\"N_%p\"", parent);
+	fprintf(fp, NL);
 }
 
-void DAG_debug_graphviz(Main *bmain, Scene *scene, char *buf, int maxlen)
+void DAG_debug_graphviz(FILE *fp, Main *bmain, Scene *scene)
 {
-	int len = 0;
 	DagAdjList *itA;
-	
-	if (!buf || maxlen < 1)
-		return;
-	buf[0] = '\0';
 	
 	DAG_scene_relations_rebuild(bmain, scene);
 	
 	if (scene->theDag) {
 		DagNode *node;
 		
-		len += snprintf(BUFSTR, BUFLEN, "digraph compositorexecution {" NL);
-		len += snprintf(BUFSTR, BUFLEN, "ranksep=1.5" NL);
-		len += snprintf(BUFSTR, BUFLEN, "splines=false" NL);
+		fprintf(fp, "digraph depgraph {" NL);
 		
 		for (node = scene->theDag->DagNode.first; node; node = node->next) {
-			len += dag_debug_graphviz_node(BUFSTR, BUFLEN, node);
+			dag_debug_graphviz_node(fp, node);
 		}
 		
 		for (node = scene->theDag->DagNode.first; node; node = node->next) {
 			for (itA = node->child; itA; itA = itA->next) {
-				len += dag_debug_graphviz_relation(BUFSTR, BUFLEN, node, itA->node);
+				dag_debug_graphviz_relation(fp, node, itA->node);
 			}
 		}
 		
-		len += snprintf(BUFSTR, BUFLEN, "}" NL);
+		fprintf(fp, "}" NL);
 	}
 }
 

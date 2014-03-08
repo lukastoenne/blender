@@ -159,7 +159,7 @@ void DAG_threaded_update_handle_node_updated(void *node_v,
 
 void DAG_print_dependencies(struct Main *bmain, struct Scene *scene, struct Object *ob);
 #ifdef DAG_DEBUG_GRAPHVIZ
-void DAG_debug_graphviz(struct Main *bmain, struct Scene *scene, char *buf, int maxlen);
+void DAG_debug_graphviz(FILE *fp, struct Main *bmain, struct Scene *scene);
 #endif /* DAG_DEBUG_GRAPHVIZ */
 
 /* ************************ DAG querying ********************* */
