@@ -46,8 +46,8 @@ set(SRC
 	intern/depsgraph_queue.c
 	intern/depsgraph_type_defines.c
 
-	BKE_depsgraph.h
-	BKE_depsgraph_query.h
+	DEG_depsgraph.h
+	DEG_depsgraph_query.h
 	intern/depsgraph_eval.h
 	intern/depsgraph_intern.h
 	intern/depsgraph_queue.h

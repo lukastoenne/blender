@@ -44,7 +44,8 @@
 #include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
-#include "BKE_depsgraph.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"

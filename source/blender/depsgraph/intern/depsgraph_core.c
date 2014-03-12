@@ -41,7 +41,7 @@
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 
-#include "BKE_depsgraph.h"
+#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"

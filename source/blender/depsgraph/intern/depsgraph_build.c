@@ -63,7 +63,6 @@
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
@@ -81,6 +80,8 @@
 #include "BKE_texture.h"
 #include "BKE_tracking.h"
 #include "BKE_world.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"

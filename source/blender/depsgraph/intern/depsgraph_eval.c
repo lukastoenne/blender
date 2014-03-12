@@ -48,10 +48,11 @@
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"

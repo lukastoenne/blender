@@ -42,8 +42,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BKE_depsgraph.h"
-#include "BKE_depsgraph_query.h"
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
