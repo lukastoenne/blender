@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	./intern
 	../blenkernel
 	../blenlib
 	../bmesh
@@ -47,11 +48,11 @@ set(SRC
 
 	BKE_depsgraph.h
 	BKE_depsgraph_query.h
-	depsgraph_eval.h
-	depsgraph_intern.h
-	depsgraph_queue.h
-	depsgraph_types.h
-	stubs.h
+	intern/depsgraph_eval.h
+	intern/depsgraph_intern.h
+	intern/depsgraph_queue.h
+	intern/depsgraph_types.h
+	intern/stubs.h
 )
 
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}")
