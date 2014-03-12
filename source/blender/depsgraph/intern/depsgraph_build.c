@@ -1569,10 +1569,10 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	/* clear "LIB_DOIT" flag from all materials, etc. 
 	 * to prevent infinite recursion problems later [#32017] 
 	 */
-	tag_main_idcode(bmain, ID_MA, FALSE);
-	tag_main_idcode(bmain, ID_LA, FALSE);
-	tag_main_idcode(bmain, ID_WO, FALSE);
-	tag_main_idcode(bmain, ID_TE, FALSE);
+	BKE_main_id_tag_idcode(bmain, ID_MA, false);
+	BKE_main_id_tag_idcode(bmain, ID_LA, false);
+	BKE_main_id_tag_idcode(bmain, ID_WO, false);
+	BKE_main_id_tag_idcode(bmain, ID_TE, false);
 	
 	/* create root node for scene first
 	 * - this way it should be the first in the graph,
