@@ -111,7 +111,7 @@ void DEG_scene_update_flags(Depsgraph *graph, const bool do_time);
 void DEG_on_visible_update(Depsgraph *graph, const bool do_time);
 
 /* Tag node(s) associated with changed data for later updates */
-void DEG_id_tag_update(Depsgraph *graph, const ID *id);
+void DEG_id_tag_update(Depsgraph *graph, const struct ID *id);
 void DEG_data_tag_update(Depsgraph *graph, const struct PointerRNA *ptr);
 void DEG_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, const struct PropertyRNA *prop);
 
