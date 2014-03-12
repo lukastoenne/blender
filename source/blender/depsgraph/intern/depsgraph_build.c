@@ -817,7 +817,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 #endif
 		
 		/* effectors */
-		effectors = pdInitEffectors(scene, ob, psys, part->effector_weights);
+		effectors = pdInitEffectors(scene, ob, psys, part->effector_weights, false);
 		
 		if (effectors) {
 			for (eff = effectors->first; eff; eff = eff->next) {
