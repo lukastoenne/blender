@@ -985,6 +985,7 @@ endif()
 		bf_ikplugin
 		bf_modifiers
 		bf_bmesh
+		bf_depsgraph
 		bf_blenkernel
 		bf_nodes
 		bf_gpu
