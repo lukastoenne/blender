@@ -26,8 +26,8 @@
  * Public API for Depsgraph
  */
 
-#ifndef __BKE_DEPSGRAPH_H__
-#define __BKE_DEPSGRAPH_H__
+#ifndef __DEG_DEPSGRAPH_H__
+#define __DEG_DEPSGRAPH_H__
 
 /* Dependency Graph
  *
@@ -178,4 +178,4 @@ void DEG_threaded_exit(void);
 
 /* ************************************************ */
 
-#endif // __BKE_DEPSGRAPH_H__
+#endif // __DEG_DEPSGRAPH_H__

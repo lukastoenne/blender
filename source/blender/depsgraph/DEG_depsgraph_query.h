@@ -26,8 +26,8 @@
  * Public API for Querying and Filtering Depsgraph
  */
 
-#ifndef __BKE_DEPSGRAPH_QUERY_H__
-#define __BKE_DEPSGRAPH_QUERY_H__
+#ifndef __DEG_DEPSGRAPH_QUERY_H__
+#define __DEG_DEPSGRAPH_QUERY_H__
 
 /* ************************************************ */
 /* Type Defines */
@@ -167,4 +167,4 @@ size_t DEG_query_required_ids(ListBase *result, const ID *id, const bool only_di
 
 /* ************************************************ */
 
-#endif // __BKE_DEPSGRAPH_QUERY_H__
+#endif // __DEG_DEPSGRAPH_QUERY_H__
