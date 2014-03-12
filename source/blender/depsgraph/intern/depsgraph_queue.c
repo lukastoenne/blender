@@ -140,7 +140,8 @@ void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 		if (BLI_ghash_haskey(q->pending_hash, dnode)) {
 			/* just update cost on pending node */
 			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
-			BLI_heap_node_value_update(q->pending_heap, hnode, cost);
+			BLI_heap_remove(q->pending_heap, hnode);
+			BLI_heap_insert(q->pending_heap, cost, hnode);
 		}
 		else {
 			/* add new node to pending queue, and increase size of overall queue */
