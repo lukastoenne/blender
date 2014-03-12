@@ -594,7 +594,7 @@ static DepsNodeTypeInfo DNTI_TRANSFORM = {
 
 /* Proxy */
 static DepsNodeTypeInfo DNTI_PROXY = {
-	/* type */               DEPSNODE_TYPE_TRANSFORM,
+	/* type */               DEPSNODE_TYPE_PROXY,
 	/* size */               sizeof(ComponentDepsNode),
 	/* name */               "Proxy Component",
 	
