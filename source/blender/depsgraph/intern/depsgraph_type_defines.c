@@ -667,7 +667,7 @@ static void dnti_pose_eval__init_data(DepsNode *node, const ID *id, const char *
 	pcomp->bone_hash = BLI_ghash_str_new("Pose Component Bone Hash"); /* <String, BoneNode> */
 }
 
-/* Copy 'component' node */
+/* Copy 'pose eval' node */
 static void dnti_pose_eval__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
 {
 	const PoseComponentDepsNode *src_node = (const PoseComponentDepsNode *)src;
@@ -680,7 +680,7 @@ static void dnti_pose_eval__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, 
 	// copy bonehash...
 }
 
-/* Free 'component' node */
+/* Free 'pose eval' node */
 static void dnti_pose_eval__free_data(DepsNode *node)
 {
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
@@ -691,6 +691,10 @@ static void dnti_pose_eval__free_data(DepsNode *node)
 	/* generic component node... */
 	dnti_component__free_data(node);
 }
+
+void BKE_pose_rebuild_op(void *UNUSED(context), void *UNUSED(item)) {}
+void BKE_pose_eval_init(void *UNUSED(context), void *UNUSED(item)) {}
+void BKE_pose_eval_flush(void *UNUSED(context), void *UNUSED(item)) {}
 
 /* Validate links for pose evaluation */
 static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
