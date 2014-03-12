@@ -76,6 +76,8 @@ extern "C"
 #include "BKE_text.h"
 #include "BKE_sound.h"
 
+#include "DEG_depsgraph.h"
+
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 	
@@ -445,6 +447,7 @@ int main(int argc, char** argv)
 	BKE_images_init();
 	BKE_modifier_init();
 	DAG_init();
+	DEG_register_node_types();
 
 #ifdef WITH_FFMPEG
 	IMB_ffmpeg_init();
@@ -1072,6 +1075,7 @@ int main(int argc, char** argv)
 	IMB_exit();
 	BKE_images_exit();
 	DAG_exit();
+	DEG_free_node_types();
 	IMB_moviecache_destruct();
 
 	SYS_DeleteSystem(syshandle);

@@ -83,6 +83,8 @@
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
 
+#include "DEG_depsgraph.h"
+
 #include "RE_pipeline.h"
 
 #include "BLF_api.h"
@@ -121,6 +123,7 @@ void free_blender(void)
 	IMB_exit();
 	BKE_images_exit();
 	DAG_exit();
+	DEG_free_node_types();
 
 	BKE_brush_system_exit();
 

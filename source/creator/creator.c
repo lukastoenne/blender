@@ -102,6 +102,8 @@
 #include "BKE_image.h"
 #include "BKE_particle.h"
 
+#include "DEG_depsgraph.h"
+
 #include "IMB_imbuf.h"  /* for IMB_init */
 
 #ifdef WITH_PYTHON
@@ -1596,6 +1598,7 @@ int main(int argc, const char **argv)
 	BKE_images_init();
 	BKE_modifier_init();
 	DAG_init();
+	DEG_register_node_types();
 
 	BKE_brush_system_init();
 
