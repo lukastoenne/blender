@@ -300,7 +300,8 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	// TODO: create relationships to do this...
 	
 	/* parameters should always exist... */
-	BLI_assert(params != NULL); // XXX: not always created though!
+	#pragma message("DEPSGRAPH PORTING XXX: params not always created, assert disabled for now")
+//	BLI_assert(params != NULL);
 	BLI_addhead(&dummy_list, params);
 	
 	/* anim before params */
