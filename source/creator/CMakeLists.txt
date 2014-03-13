@@ -986,7 +986,6 @@ endif()
 		bf_ikplugin
 		bf_modifiers
 		bf_bmesh
-		bf_depsgraph
 		bf_blenkernel
 		bf_nodes
 		bf_gpu
@@ -1030,6 +1029,7 @@ endif()
 		ge_videotex
 		bf_rna
 		bf_dna
+		bf_depsgraph
 		bf_blenfont
 		bf_intern_audaspace
 		bf_intern_mikktspace
