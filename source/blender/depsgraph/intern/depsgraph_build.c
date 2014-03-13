@@ -660,7 +660,8 @@ static void deg_build_texture_stack_graph(Depsgraph *graph, Scene *scene, DepsNo
 	/* for now assume that all texture-stacks have same number of max items */
 	for (i = 0; i < MAX_MTEX; i++) {
 		MTex *mtex = texture_stack[i];
-		deg_build_texture_graph(graph, scene, owner_component, mtex->tex);
+		if (mtex)
+			deg_build_texture_graph(graph, scene, owner_component, mtex->tex);
 	}
 }
 
