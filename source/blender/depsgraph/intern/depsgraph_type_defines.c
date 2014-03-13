@@ -55,6 +55,32 @@
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
+void BKE_animsys_eval_driver(void *context, void *item) {}
+
+void BKE_constraints_evaluate(void *context, void *item) {}
+void BKE_pose_iktree_evaluate(void *context, void *item) {}
+void BKE_pose_splineik_evaluate(void *context, void *item) {}
+void BKE_pose_eval_bone(void *context, void *item) {}
+
+void BKE_pose_rebuild_op(void *context, void *item) {}
+void BKE_pose_eval_init(void *context, void *item) {}
+void BKE_pose_eval_flush(void *context, void *item) {}
+
+void BKE_particle_system_eval(void *context, void *item) {}
+
+void BKE_rigidbody_rebuild_sim(void *context, void *item) {}
+void BKE_rigidbody_eval_simulation(void *context, void *item) {}
+void BKE_rigidbody_object_sync_transforms(void *context, void *item) {}
+
+void BKE_object_eval_local_transform(void *context, void *item) {}
+void BKE_object_eval_parent(void *context, void *item) {}
+
+void BKE_mesh_eval_geometry(void *context, void *item) {}
+void BKE_mball_eval_geometry(void *context, void *item) {}
+void BKE_curve_eval_geometry(void *context, void *item) {}
+void BKE_curve_eval_path(void *context, void *item) {}
+void BKE_lattice_eval_geometry(void *context, void *item) {}
+
 /* ******************************************************** */
 /* Generic Nodes */
 
@@ -691,10 +717,6 @@ static void dnti_pose_eval__free_data(DepsNode *node)
 	/* generic component node... */
 	dnti_component__free_data(node);
 }
-
-void BKE_pose_rebuild_op(void *UNUSED(context), void *UNUSED(item)) {}
-void BKE_pose_eval_init(void *UNUSED(context), void *UNUSED(item)) {}
-void BKE_pose_eval_flush(void *UNUSED(context), void *UNUSED(item)) {}
 
 /* Validate links for pose evaluation */
 static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
