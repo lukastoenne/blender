@@ -244,10 +244,10 @@ typedef struct RootDepsNode {
 /* ID-Block Reference */
 /* Super(DepsNode) */
 typedef struct IDDepsNode {
-	DepsNode nd;             /* standard header */
+	DepsNode nd;                    /* standard header */
 	
-	ID *id;                  /* ID Block referenced */
-	GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
+	struct ID *id;                  /* ID Block referenced */
+	struct GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
 } IDDepsNode;
 
 
@@ -257,7 +257,7 @@ typedef struct SubgraphDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	Depsgraph *graph;        /* instanced graph */
-	ID *root_id;             /* ID-block at root of subgraph (if applicable) */
+	struct ID *root_id;      /* ID-block at root of subgraph (if applicable) */
 	
 	size_t num_users;        /* number of nodes which use/reference this subgraph - if just 1, it may be possible to merge into main */
 	int flag;                /* (eSubgraphRef_Flag) assorted settings for subgraph node */
@@ -277,7 +277,7 @@ typedef struct ComponentDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
-	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
+	struct GHash *op_hash;   /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
 	
 	/* (DEG_OperationsContext) array of evaluation contexts to be passed to evaluation functions for this component. 
 	 *                         Only the requested context will be used during any particular evaluation
@@ -296,12 +296,12 @@ typedef struct PoseComponentDepsNode {
 	DepsNode nd;             /* standard header */
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
-	GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (pose-level) */
+	struct GHash *op_hash;   /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (pose-level) */
 	
 	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];      /* (DEG_OperationsContext) */
 	
 	/* PoseComponentDepsNode */
-	GHash *bone_hash;        /* <String, BoneComponentDepsNode> hash for quickly finding bone components */
+	struct GHash *bone_hash; /* <String, BoneComponentDepsNode> hash for quickly finding bone components */
 } PoseComponentDepsNode;
 
 /* Bone Component */
@@ -311,7 +311,7 @@ typedef struct BoneComponentDepsNode {
 	DepsNode nd;                    /* standard header */
 	
 	ListBase ops;                   /* ([OperationDepsNode]) inner nodes for this component */
-	GHash *op_hash;                 /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (bone-level) */
+	struct GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (bone-level) */
 	
 	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];      /* (DEG_OperationsContext) */
 	
@@ -369,7 +369,7 @@ typedef enum eDepsOperation_Flag {
 /* Dependency Graph object */
 struct Depsgraph {
 	/* Core Graph Functionality ........... */
-	GHash *id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
+	struct GHash *id_hash;   /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
 	DepsNode *root_node;     /* "root" node - the one where all evaluation enters from */
 	
 	ListBase subgraphs;      /* (SubgraphDepsNode) subgraphs referenced in tree... */
