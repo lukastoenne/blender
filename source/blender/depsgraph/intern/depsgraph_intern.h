@@ -30,6 +30,8 @@
 #ifndef __DEPSGRAPH_INTERN_H__
 #define __DEPSGRAPH_INTERN_H__
 
+#include "depsgraph_types.h"
+
 struct Main;
 struct Group;
 struct Scene;
