@@ -95,6 +95,7 @@ endif()
 		bf_intern_ghostndof3dconnexion
 		bf_rna
 		bf_blenkernel
+		bf_depsgraph
 		bf_intern_rigidbody
 		bf_blenloader
 		ge_blen_routines

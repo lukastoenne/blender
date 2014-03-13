@@ -323,6 +323,9 @@ EnumPropertyItem image_color_depth_items[] = {
 #include "BKE_sequencer.h"
 #include "BKE_animsys.h"
 
+#include "DEG_depsgraph.h"
+#include "intern/depsgraph_intern.h"
+
 #include "WM_api.h"
 
 #include "ED_info.h"
@@ -1496,6 +1499,15 @@ static void rna_EditMesh_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *U
 static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
 {
 	return BLI_strdup("tool_settings.statvis");
+}
+
+#pragma message("DEPSGRAPH PORTING XXX: The depsgraph_rebuild function in scene RNA is temporary")
+static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain)
+{
+	if (!scene->depsgraph)
+		scene->depsgraph = DEG_graph_new();
+	
+	DEG_graph_build_from_scene(scene->depsgraph, bmain, scene);
 }
 
 /* note: without this, when Multi-Paint is activated/deactivated, the colors
@@ -5449,6 +5461,15 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "sequencer_colorspace_settings");
 	RNA_def_property_struct_type(prop, "ColorManagedSequencerColorspaceSettings");
 	RNA_def_property_ui_text(prop, "Sequencer Color Space Settings", "Settings of color space sequencer is working in");
+
+	/* Dependency Graph */
+	prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Depsgraph");
+	RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
+
+	func = RNA_def_function(srna, "depsgraph_rebuild", "rna_Scene_depsgraph_rebuild");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
+	RNA_def_function_ui_description(func, "Rebuild the dependency graph");
 
 	/* Nestled Data  */
 	/* *** Non-Animated *** */
