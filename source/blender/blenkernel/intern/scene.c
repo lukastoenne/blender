@@ -87,6 +87,8 @@
 #include "BKE_sound.h"
 #include "BKE_world.h"
 
+#include "DEG_depsgraph.h"
+
 #include "RE_engine.h"
 
 #include "PIL_time.h"
@@ -184,6 +186,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 
 		scen->ed = NULL;
 		scen->theDag = NULL;
+		scen->depsgraph = NULL;
 		scen->obedit = NULL;
 		scen->stats = NULL;
 		scen->fps_info = NULL;
@@ -398,6 +401,8 @@ void BKE_scene_free(Scene *sce)
 	}
 	
 	DAG_scene_free(sce);
+	if (sce->depsgraph)
+		DEG_graph_free(sce->depsgraph);
 	
 	if (sce->nodetree) {
 		ntreeFreeTree(sce->nodetree);
