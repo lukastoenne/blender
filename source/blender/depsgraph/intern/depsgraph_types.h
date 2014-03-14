@@ -123,7 +123,7 @@ typedef enum eDepsRelation_Flag {
 /* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
 
-/* All nodes in Despgraph are descended from this */
+/* All nodes in Depsgraph are descended from this */
 struct DepsNode {
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
@@ -131,7 +131,7 @@ struct DepsNode {
 	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
 	
 	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
-	ListBase outlinks;          /* (LinkData : DepsRelation) ndoes which depend on this one */
+	ListBase outlinks;          /* (LinkData : DepsRelation) nodes which depend on this one */
 	
 	short type;                 /* (eDepsNode_Type) structural type of node */
 	short class;                /* (eDepsNode_Class) type of data/behaviour represented by node... */
@@ -154,7 +154,7 @@ typedef enum eDepsNode_Class {
 /* Types of Nodes */
 typedef enum eDepsNode_Type {
 	/* Generic Types */
-	DEPSNODE_TYPE_ROOT             = 0,        /* "Current Scene" - basically whatever kicks off the ealuation process */
+	DEPSNODE_TYPE_ROOT             = 0,        /* "Current Scene" - basically whatever kicks off the evaluation process */
 	DEPSNODE_TYPE_TIMESOURCE       = 1,        /* Time-Source */
 	
 	DEPSNODE_TYPE_ID_REF           = 2,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
@@ -186,7 +186,7 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OP_UPDATE        = 110,      /* Property Update Evaluation Operation [Parameter] */
 	DEPSNODE_TYPE_OP_DRIVER        = 112,      /* Driver Evaluation Operation [Parameter] */
 	
-	DEPSNODE_TYPE_OP_POSE          = 115,      /* Pose Evalation (incl. setup/cleanup IK trees, IK Solvers) [Pose] */
+	DEPSNODE_TYPE_OP_POSE          = 115,      /* Pose Evaluation (incl. setup/cleanup IK trees, IK Solvers) [Pose] */
 	DEPSNODE_TYPE_OP_BONE          = 116,      /* Bone Evaluation [Bone] */
 	
 	DEPSNODE_TYPE_OP_PARTICLE      = 120,      /* Particles Evaluation [Particle] */

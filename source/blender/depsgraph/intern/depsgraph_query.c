@@ -124,8 +124,8 @@ DepsgraphCopyContext *DEG_filter_init()
 	DepsgraphCopyContext *dcc = MEM_callocN(sizeof(DepsgraphCopyContext), "DepsgraphCopyContext");
 	
 	/* init hashes for easy lookups */
-	dcc->nodes_hash = BLI_ghash_ptr_new("Despgraph Filter NodeHash");
-	dcc->rels_hash = BLI_ghash_ptr_new("Despgraph Filter Relationship Hash"); // XXX?
+	dcc->nodes_hash = BLI_ghash_ptr_new("Depsgraph Filter NodeHash");
+	dcc->rels_hash = BLI_ghash_ptr_new("Depsgraph Filter Relationship Hash"); // XXX?
 	
 	/* store filtering criteria? */
 	// xxx...
