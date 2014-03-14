@@ -462,6 +462,7 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 /* Specialized Debugging */
 
 #define NL "\r\n"
+
 static int deg_debug_node_type_color_index(eDepsNode_Type type) {
 	switch (type) {
 		case DEPSNODE_TYPE_ROOT         : return 1;
@@ -521,14 +522,15 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 
 static void deg_debug_graphviz_node_relations(FILE *f, DepsNode *node)
 {
-	DepsRelation *rel;
-	
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
 	{
 		fprintf(f, "\"N_%p\"", rel->from);
 		fprintf(f, " -> ");
 		fprintf(f, "\"N_%p\"", rel->to); /* same as node */
-		fprintf(f, NL);
+
+		fprintf(f, "[");
+		fprintf(f, "label=<%s>", rel->name);
+		fprintf(f, "]" NL);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 }
