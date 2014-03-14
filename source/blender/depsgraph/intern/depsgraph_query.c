@@ -501,8 +501,23 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 {
 	const char *nodename = node->name;
 //	const char *idname = BKE_idcode_to_name(node->type);
-	const char *shape = "box";
-	const char *style = "filled";
+	const char *shape;
+	const char *style;
+	
+	switch (node->class) {
+		case DEPSNODE_CLASS_GENERIC:
+			shape = "box";
+			style = "filled";
+			break;
+		case DEPSNODE_CLASS_COMPONENT:
+			shape = "box";
+			style = "filled,diagonals";
+			break;
+		case DEPSNODE_CLASS_OPERATION:
+			shape = "box";
+			style = "filled,rounded";
+			break;
+	}
 	
 	fprintf(f, "\"N_%p\"", node);
 	fprintf(f, "[");
