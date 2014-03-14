@@ -46,6 +46,7 @@ incs = [
     '../blenkernel',
     '../blenlib',
     '../bmesh',
+    '../depsgraph',
     '../editors/include',
     '../gpu',
     '../ikplugin',
