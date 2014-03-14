@@ -463,21 +463,30 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 
 #define NL "\r\n"
 
-static const char *deg_debug_node_type_colorscheme = "set312";
+static const int deg_debug_max_colors = 12;
+static const char *deg_debug_colors_dark[] = {"#6e8997","#144f77","#76945b","#216a1d",
+                                              "#a76665","#971112","#a87f49","#a9540",
+                                              "#86768e","#462866","#a9a965","#753b1a"};
+static const char *deg_debug_colors[] = {"#a6cee3","#1f78b4","#b2df8a","#33a02c",
+                                         "#fb9a99","#e31a1c","#fdbf6f","#ff7f00",
+                                         "#cab2d6","#6a3d9a","#ffff99","#b15928"};
+static const char *deg_debug_colors_light[] = {"#8dd3c7","#ffffb3","#bebada","#fb8072",
+                                               "#80b1d3","#fdb462","#b3de69","#fccde5",
+                                               "#d9d9d9","#bc80bd","#ccebc5","#ffed6f"};
 static const int deg_debug_node_type_color_map[][2] = {
-    {DEPSNODE_TYPE_ROOT,         1},
-    {DEPSNODE_TYPE_TIMESOURCE,   2},
-    {DEPSNODE_TYPE_ID_REF,       3},
-    {DEPSNODE_TYPE_SUBGRAPH,     4},
+    {DEPSNODE_TYPE_ROOT,         0},
+    {DEPSNODE_TYPE_TIMESOURCE,   1},
+    {DEPSNODE_TYPE_ID_REF,       2},
+    {DEPSNODE_TYPE_SUBGRAPH,     3},
     
     /* Outer Types */
-    {DEPSNODE_TYPE_PARAMETERS,   5},
-    {DEPSNODE_TYPE_PROXY,        6},
-    {DEPSNODE_TYPE_ANIMATION,    7},
-    {DEPSNODE_TYPE_TRANSFORM,    8},
-    {DEPSNODE_TYPE_GEOMETRY,     9},
-    {DEPSNODE_TYPE_SEQUENCER,    10},
-    {-1,                         0},
+    {DEPSNODE_TYPE_PARAMETERS,   4},
+    {DEPSNODE_TYPE_PROXY,        5},
+    {DEPSNODE_TYPE_ANIMATION,    6},
+    {DEPSNODE_TYPE_TRANSFORM,    7},
+    {DEPSNODE_TYPE_GEOMETRY,     8},
+    {DEPSNODE_TYPE_SEQUENCER,    9},
+    {-1,                         0}
 };
 
 static int deg_debug_node_type_color_index(eDepsNode_Type type)
@@ -486,22 +495,60 @@ static int deg_debug_node_type_color_index(eDepsNode_Type type)
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair)
 		if ((*pair)[0] == type)
 			return (*pair)[1];
-	return 0;
+	return -1;
+}
+
+static const int deg_debug_relation_type_color_map[][2] = {
+    {DEPSREL_TYPE_STANDARD,         0},
+    {DEPSREL_TYPE_ROOT_TO_ACTIVE,   1},
+    {DEPSREL_TYPE_DATABLOCK,        2},
+    {DEPSREL_TYPE_TIME,             3},
+    {DEPSREL_TYPE_COMPONENT_ORDER,  4},
+    {DEPSREL_TYPE_OPERATION,        5},
+    {DEPSREL_TYPE_DRIVER,           6},
+    {DEPSREL_TYPE_DRIVER_TARGET,    7},
+    {DEPSREL_TYPE_TRANSFORM,        8},
+    {DEPSREL_TYPE_GEOMETRY_EVAL,    9},
+    {DEPSREL_TYPE_UPDATE,           10},
+    {DEPSREL_TYPE_UPDATE_UI,        11},
+    {-1,                            0}
+};
+
+static int deg_debug_relation_type_color_index(eDepsRelation_Type type)
+{
+	const int (*pair)[2];
+	for (pair = deg_debug_relation_type_color_map; (*pair)[0] >= 0; ++pair)
+		if ((*pair)[0] == type)
+			return (*pair)[1];
+	return -1;
 }
 
 static void deg_debug_graphviz_node_type_color(FILE *f, const char *attr, eDepsNode_Type type)
 {
-	/* uses Brewer color schemes:
-	 * http://www.graphviz.org/doc/info/colors.html#brewer
-	 */
 	const char *defaultcolor = "gainsboro";
 	int color = deg_debug_node_type_color_index(type);
 	
 	fprintf(f, "%s=", attr);
-	if (color == 0)
+	if (color < 0)
 		fprintf(f, "%s", defaultcolor);
 	else
-		fprintf(f, "\"/%s/%d\"", deg_debug_node_type_colorscheme, color);
+		fprintf(f, "\"%s\"", deg_debug_colors_light[color % deg_debug_max_colors]);
+}
+
+static void deg_debug_graphviz_relation_type_color(FILE *f, const char *attr, eDepsRelation_Type type)
+{
+	const char *defaultcolor = "black";
+#if 0 /* disabled for now, edge colors are hardly distinguishable */
+	int color = deg_debug_relation_type_color_index(type);
+	
+	fprintf(f, "%s=", attr);
+	if (color < 0)
+		fprintf(f, "%s", defaultcolor);
+	else
+		fprintf(f, "\"%s\"", deg_debug_colors_dark[color % deg_debug_max_colors]);
+#else
+	fprintf(f, "%s=%s", attr, defaultcolor);
+#endif
 }
 
 static void deg_debug_graphviz_node_single(FILE *f, const void *p, const char *name, const char *style, eDepsNode_Type type)
@@ -588,6 +635,7 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 
 		fprintf(f, "[");
 		fprintf(f, "label=<%s>", rel->name);
+		deg_debug_graphviz_relation_type_color(f, ",color", rel->type);
 		fprintf(f, "];" NL);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
@@ -609,21 +657,21 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 	}
 }
 
-static void deg_debug_graphviz_legend_color(FILE *f, const char *name, const char *colorscheme, int color)
+static void deg_debug_graphviz_legend_color(FILE *f, const char *name, const char *color)
 {
-	fprintf(f, "<TR><TD>%s</TD><TD BGCOLOR=\"/%s/%d\"></TD></TR>\r\n", name, colorscheme, color);
+	fprintf(f, "<TR><TD>%s</TD><TD BGCOLOR=\"%s\"></TD></TR>" NL, name, color);
 }
 
 #if 0
-static void deg_debug_graphviz_legend_line(FILE *f, const char *name, const char *colorscheme, int color, const char *style)
+static void deg_debug_graphviz_legend_line(FILE *f, const char *name, const char *color, const char *style)
 {
 	/* XXX TODO */
-	fprintf(f, "\r\n");
+	fprintf(f, "" NL);
 }
 
-static void deg_debug_graphviz_legend_cluster(FILE *f, const char *name, const char *colorscheme, int color, const char *style)
+static void deg_debug_graphviz_legend_cluster(FILE *f, const char *name, const char *color, const char *style)
 {
-	fprintf(f, "<TR><TD>%s</TD><TD CELLPADDING=\"4\"><TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\"><TR><TD BGCOLOR=\"/%s/%d\"></TD></TR></TABLE></TD></TR>\r\n", name, colorscheme, color);
+	fprintf(f, "<TR><TD>%s</TD><TD CELLPADDING=\"4\"><TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\"><TR><TD BGCOLOR=\"%s\"></TD></TR></TABLE></TD></TR>" NL, name, color);
 }
 #endif
 
@@ -639,7 +687,7 @@ static void deg_debug_graphviz_legend(FILE *f)
 	
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
 		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((*pair)[0]);
-		deg_debug_graphviz_legend_color(f, nti->name, deg_debug_node_type_colorscheme, (*pair)[1]);
+		deg_debug_graphviz_legend_color(f, nti->name, deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
 	}
 	
 	fprintf(f, "</TABLE>" NL);
@@ -651,6 +699,15 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 {
 	DepsNode *node;
 	GHashIterator hashIter;
+#if 0 /* generate shaded color set */
+	static char colors[][3] = {{0xa6, 0xce, 0xe3},{0x1f, 0x78, 0xb4},{0xb2, 0xdf, 0x8a},{0x33, 0xa0, 0x2c},
+	                           {0xfb, 0x9a, 0x99},{0xe3, 0x1a, 0x1c},{0xfd, 0xbf, 0x6f},{0xff, 0x7f, 0x00},
+	                           {0xca, 0xb2, 0xd6},{0x6a, 0x3d, 0x9a},{0xff, 0xff, 0x99},{0xb1, 0x59, 0x28}};
+	int i;
+	const float factor = 0.666f;
+	for (i=0; i < 12; ++i)
+		printf("\"#%x%x%x\"\n", (char)(colors[i][0] * factor), (char)(colors[i][1] * factor), (char)(colors[i][2] * factor));
+#endif
 	
 	if (!graph)
 		return;
