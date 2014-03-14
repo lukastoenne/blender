@@ -463,6 +463,7 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 
 #define NL "\r\n"
 
+static const char *deg_debug_graphviz_fontname = "helvetica";
 static const int deg_debug_max_colors = 12;
 static const char *deg_debug_colors_dark[] = {"#6e8997","#144f77","#76945b","#216a1d",
                                               "#a76665","#971112","#a87f49","#a9540",
@@ -514,6 +515,54 @@ static const int deg_debug_relation_type_color_map[][2] = {
     {-1,                            0}
 };
 
+static void deg_debug_graphviz_legend_color(FILE *f, const char *name, const char *color)
+{
+	fprintf(f, "<TR>");
+	fprintf(f, "<TD>%s</TD>", name);
+	fprintf(f, "<TD BGCOLOR=\"%s\"></TD>", color);
+	fprintf(f, "</TR>" NL);
+}
+
+#if 0
+static void deg_debug_graphviz_legend_line(FILE *f, const char *name, const char *color, const char *style)
+{
+	/* XXX TODO */
+	fprintf(f, "" NL);
+}
+
+static void deg_debug_graphviz_legend_cluster(FILE *f, const char *name, const char *color, const char *style)
+{
+	fprintf(f, "<TR>");
+	fprintf(f, "<TD>%s</TD>", name);
+	fprintf(f, "<TD CELLPADDING=\"4\"><TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\">");
+	fprintf(f, "<TR><TD BGCOLOR=\"%s\"></TD></TR>", color);
+	fprintf(f, "</TABLE></TD>");
+	fprintf(f, "</TR>" NL);
+}
+#endif
+
+static void deg_debug_graphviz_legend(FILE *f)
+{
+	const int (*pair)[2];
+	
+	fprintf(f, "{" NL);
+	fprintf(f, "rank = sink;" NL);
+	fprintf(f, "Legend [shape=none, margin=0, label=<" NL);
+	fprintf(f, "  <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" NL);
+	fprintf(f, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
+	
+	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
+		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((*pair)[0]);
+		deg_debug_graphviz_legend_color(f, nti->name, deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
+	}
+	
+	fprintf(f, "</TABLE>" NL);
+	fprintf(f, ">" NL);
+	fprintf(f, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+	fprintf(f, "];" NL);
+	fprintf(f, "}" NL);
+}
+
 static int deg_debug_relation_type_color_index(eDepsRelation_Type type)
 {
 	const int (*pair)[2];
@@ -557,7 +606,9 @@ static void deg_debug_graphviz_node_single(FILE *f, const void *p, const char *n
 	
 	fprintf(f, "\"node_%p\"", p);
 	fprintf(f, "[");
-	fprintf(f, "label=<<B>%s</B>>", name);
+//	fprintf(f, "label=<<B>%s</B>>", name);
+	fprintf(f, "label=<%s>", name);
+	fprintf(f, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 	fprintf(f, ",shape=%s", shape);
 	fprintf(f, ",style=%s", style);
 	deg_debug_graphviz_node_type_color(f, ",fillcolor", type);
@@ -567,7 +618,9 @@ static void deg_debug_graphviz_node_single(FILE *f, const void *p, const char *n
 static void deg_debug_graphviz_node_cluster_begin(FILE *f, const void *p, const char *name, const char *style, eDepsNode_Type type)
 {
 	fprintf(f, "subgraph \"cluster_%p\" {", p);
-	fprintf(f, "label=<<B>%s</B>>;" NL, name);
+//	fprintf(f, "label=<<B>%s</B>>;" NL, name);
+	fprintf(f, "label=<%s>;" NL, name);
+	fprintf(f, "fontname=\"%s\";" NL, deg_debug_graphviz_fontname);
 	fprintf(f, "style=%s;" NL, style);
 	deg_debug_graphviz_node_type_color(f, "fillcolor", type); fprintf(f, ";" NL);
 }
@@ -647,6 +700,7 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 
 		fprintf(f, "[");
 		fprintf(f, "label=<%s>", rel->name);
+		fprintf(f, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 		deg_debug_graphviz_relation_type_color(f, ",color", rel->type);
 		fprintf(f, "];" NL);
 	}
@@ -671,44 +725,6 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 			break;
 		}
 	}
-}
-
-static void deg_debug_graphviz_legend_color(FILE *f, const char *name, const char *color)
-{
-	fprintf(f, "<TR><TD>%s</TD><TD BGCOLOR=\"%s\"></TD></TR>" NL, name, color);
-}
-
-#if 0
-static void deg_debug_graphviz_legend_line(FILE *f, const char *name, const char *color, const char *style)
-{
-	/* XXX TODO */
-	fprintf(f, "" NL);
-}
-
-static void deg_debug_graphviz_legend_cluster(FILE *f, const char *name, const char *color, const char *style)
-{
-	fprintf(f, "<TR><TD>%s</TD><TD CELLPADDING=\"4\"><TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\"><TR><TD BGCOLOR=\"%s\"></TD></TR></TABLE></TD></TR>" NL, name, color);
-}
-#endif
-
-static void deg_debug_graphviz_legend(FILE *f)
-{
-	const int (*pair)[2];
-	
-	fprintf(f, "{" NL);
-	fprintf(f, "rank = sink;" NL);
-	fprintf(f, "Legend [shape=none, margin=0, label=<" NL);
-	fprintf(f, "  <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" NL);
-	fprintf(f, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
-	
-	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
-		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((*pair)[0]);
-		deg_debug_graphviz_legend_color(f, nti->name, deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
-	}
-	
-	fprintf(f, "</TABLE>" NL);
-	fprintf(f, ">];" NL);
-	fprintf(f, "}" NL);
 }
 
 static void deg_debug_graphviz_graph_nodes(FILE *f, const Depsgraph *graph)
