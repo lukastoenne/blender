@@ -571,7 +571,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 	}
 }
 
-static void deg_debug_graphviz_node_relations(FILE *f, DepsNode *node)
+static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
 	{
@@ -584,6 +584,22 @@ static void deg_debug_graphviz_node_relations(FILE *f, DepsNode *node)
 		fprintf(f, "];" NL);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
+
+	switch (node->type) {
+		case DEPSNODE_TYPE_ID_REF: {
+			const IDDepsNode *id_node = (const IDDepsNode *)node;
+			GHashIterator hashIter;
+			GHASH_ITER(hashIter, id_node->component_hash) {
+				const DepsNode *component = BLI_ghashIterator_getValue(&hashIter);
+				deg_debug_graphviz_node_relations(f, component);
+			}
+			break;
+		}
+		
+		case DEPSNODE_TYPE_SUBGRAPH: {
+			break;
+		}
+	}
 }
 
 void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
