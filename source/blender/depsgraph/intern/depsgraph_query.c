@@ -551,8 +551,8 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 		deg_debug_graphviz_node(f, node);
 	}
 	
-	for (node = graph->subgraphs.first; node; node = node->next)
-		deg_debug_graphviz_node(f, node);
+//	for (node = graph->subgraphs.first; node; node = node->next)
+//		deg_debug_graphviz_node(f, node);
 	
 	/* relations */
 	if (graph->root_node)
@@ -561,18 +561,6 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 		node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 		deg_debug_graphviz_node_relations(f, node);
 	}
-	
-#if 0
-	for (node = scene->theDag->DagNode.first; node; node = node->next) {
-		dag_debug_graphviz_node(fp, node);
-	}
-	
-	for (node = scene->theDag->DagNode.first; node; node = node->next) {
-		for (itA = node->child; itA; itA = itA->next) {
-			dag_debug_graphviz_relation(fp, node, itA->node);
-		}
-	}
-#endif
 	
 	fprintf(f, "}" NL);
 }
