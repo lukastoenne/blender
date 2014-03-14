@@ -493,7 +493,7 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 		
 		/* clear node's "pending update" settings */
 		node->flag &= ~(DEPSNODE_FLAG_DIRECTLY_MODIFIED | DEPSNODE_FLAG_NEEDS_UPDATE);
-		node->valency = 0; /* reset so that it can be bumped up again */
+		node->num_links_pending = 0; /* reset so that it can be bumped up again */
 	}
 	
 	/* clear any entry tags which haven't been flushed */

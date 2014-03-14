@@ -108,7 +108,7 @@ bool DEG_queue_is_empty(DepsgraphQueue *q)
  * < dnode: (DepsNode *) node to add to the queue
  *          Each node is only added once to the queue; Subsequent pushes
  *          merely update its status (e.g. moving it from "pending" to "ready") 
- * < cost:  (float) new "valency" count for node *after* it has encountered
+ * < cost:  (float) new "num_links_pending" count for node *after* it has encountered
  *          via an outlink from the node currently being visited
  *          (i.e. we're one of the dependencies which may now be able
  *          to be processed)

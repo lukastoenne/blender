@@ -139,7 +139,7 @@ struct DepsNode {
 	short  color;               /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
 	short  flag;                /* (eDepsNode_Flag) dirty/visited tags */
 	
-	size_t valency;             /* how many inlinks are we still waiting on before we can be evaluated... */
+	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
 };
 

@@ -79,7 +79,7 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 	/* add node as starting node to be evaluated, with value of 0 */
 	q = DEG_queue_new();
 	
-	start_node->valency = 0;
+	start_node->num_links_pending = 0;
 	DEG_queue_push(q, start_node, 0.0f);
 	
 	/* while we still have nodes in the queue, grab and work on next one */
@@ -102,8 +102,8 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 				/* only visit node if the filtering function agrees */
 				if ((filter == NULL) || filter(graph, child_node, filter_data)) {			
 					/* schedule up node... */
-					child_node->valency--;
-					DEG_queue_push(q, child_node, (float)child_node->valency);
+					child_node->num_links_pending--;
+					DEG_queue_push(q, child_node, (float)child_node->num_links_pending);
 				}
 			}
 		}
@@ -191,7 +191,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 		dst->outlinks.first = dst->outlinks.last = NULL;
 		
 		/* clear traversal data */
-		dst->valency = 0;
+		dst->num_links_pending = 0;
 		dst->lasttime = 0;
 	}
 	
