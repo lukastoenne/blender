@@ -48,4 +48,4 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', '
 
 env.BlenderLib(libname='bf_depsgraph', sources=sources,
                includes=incs, defines=defs,
-               libtype=['core', 'player'], priority=[80, 40])
+               libtype=['core', 'player'], priority=[200, 40])
