@@ -457,4 +457,65 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 /* ************************************************ */
 /* Querying API */
 
+
+/* ************************************************ */
+/* Specialized Debugging */
+
+#define NL "\r\n"
+
+static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
+{
+	const char *nodename = node->name;
+//	const char *idname = BKE_idcode_to_name(node->type);
+	const char *shape = "box";
+	const char *style = "filled";
+	const char *fillcolor = "darkorange";
+	
+	fprintf(f, "\"N_%p\"", node);
+	fprintf(f, "[");
+//	fprintf(f, "label=<<B>%s</B><BR/>%s>", nodename, idname);
+	fprintf(f, "label=<<B>%s</B>>", nodename);
+	fprintf(f, ",shape=%s", shape);
+	fprintf(f, ",style=%s", style);
+	fprintf(f, ",fillcolor=%s", fillcolor);
+	fprintf(f, "]" NL);
+}
+
+static void deg_debug_graphviz_relation(FILE *f, DepsRelation *rel)
+{
+	fprintf(f, "\"N_%p\"", rel->from);
+	fprintf(f, " -> ");
+	fprintf(f, "\"N_%p\"", rel->to);
+	fprintf(f, NL);
+}
+
+void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
+{
+	DepsNode *node;
+	
+	if (!graph)
+		return;
+	
+	fprintf(f, "digraph depgraph {" NL);
+	
+	if (graph->root_node)
+		deg_debug_graphviz_node(f, graph->root_node);
+	
+#if 0
+	for (node = scene->theDag->DagNode.first; node; node = node->next) {
+		dag_debug_graphviz_node(fp, node);
+	}
+	
+	for (node = scene->theDag->DagNode.first; node; node = node->next) {
+		for (itA = node->child; itA; itA = itA->next) {
+			dag_debug_graphviz_relation(fp, node, itA->node);
+		}
+	}
+#endif
+	
+	fprintf(f, "}" NL);
+}
+
+#undef NL
+
 /* ************************************************ */

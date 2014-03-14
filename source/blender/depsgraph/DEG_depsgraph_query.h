@@ -166,5 +166,11 @@ size_t DEG_query_affected_ids(ListBase *result, const ID *id, const bool only_di
 size_t DEG_query_required_ids(ListBase *result, const ID *id, const bool only_direct);
 
 /* ************************************************ */
+/* Specialized Debugging */
+
+#pragma message("DEPSGRAPH PORTING XXX: Move this to python once query and RNA are fully defined")
+void DEG_debug_graphviz(const Depsgraph *graph, FILE *stream);
+
+/* ************************************************ */
 
 #endif // __DEG_DEPSGRAPH_QUERY_H__

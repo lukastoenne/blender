@@ -63,6 +63,17 @@ static PointerRNA rna_Depsgraph_root_node_get(PointerRNA *ptr)
 	return root_node_ptr;
 }
 
+static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
+{
+	FILE *f = fopen(filename, "w");
+	if (f == NULL)
+		return;
+	
+	DEG_debug_graphviz(graph, f);
+	
+	fclose(f);
+}
+
 #else
 
 static void rna_def_depsnode(BlenderRNA *brna)
@@ -84,6 +95,8 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 	
 	srna = RNA_def_struct(brna, "Depsgraph", NULL);
 	RNA_def_struct_ui_text(srna, "Dependency Graph", "");
@@ -91,6 +104,11 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "root_node", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "DepsNode");
 	RNA_def_property_pointer_funcs(prop, "rna_Depsgraph_root_node_get", NULL, NULL, NULL);
+	
+	func = RNA_def_function(srna, "debug_graphviz", "rna_Depsgraph_debug_graphviz");
+	parm = RNA_def_string_file_path(func, "filename", NULL, FILENAME_MAX, "File Name",
+	                                "File in which to store graphviz debug output");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
 void RNA_def_depsgraph(BlenderRNA *brna)
