@@ -497,41 +497,77 @@ static void deg_debug_graphviz_node_type_color(FILE *f, const char *attr, eDepsN
 		fprintf(f, "\"/%s/%d\"", colorscheme, color);
 }
 
+static void deg_debug_graphviz_node_single(FILE *f, const void *p, const char *name, const char *style, eDepsNode_Type type)
+{
+	const char *shape = "box";
+	
+	fprintf(f, "\"node_%p\"", p);
+	fprintf(f, "[");
+	fprintf(f, "label=<<B>%s</B>>", name);
+	fprintf(f, ",shape=%s", shape);
+	fprintf(f, ",style=%s", style);
+	deg_debug_graphviz_node_type_color(f, ",fillcolor", type);
+	fprintf(f, "];" NL);
+}
+
+static void deg_debug_graphviz_node_cluster_begin(FILE *f, const void *p, const char *name, const char *style, eDepsNode_Type type)
+{
+	fprintf(f, "subgraph \"cluster_%p\" {", p);
+	fprintf(f, "label=<<B>%s</B>>;" NL, name);
+	fprintf(f, "style=%s;" NL, style);
+	deg_debug_graphviz_node_type_color(f, "fillcolor", type); fprintf(f, ";" NL);
+}
+
+static void deg_debug_graphviz_node_cluster_end(FILE *f)
+{
+	fprintf(f, "}" NL);
+}
+
 static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 {
-	const char *nodename = node->name;
-//	const char *idname = BKE_idcode_to_name(node->type);
-	const char *shape;
 	const char *style;
-	
 	switch (node->tclass) {
 		case DEPSNODE_CLASS_GENERIC:
-			shape = "box";
-			style = "filled";
+			style = "\"filled\"";
 			break;
 		case DEPSNODE_CLASS_COMPONENT:
-			shape = "box";
-			style = "filled,diagonals";
+			style = "\"filled\"";
 			break;
 		case DEPSNODE_CLASS_OPERATION:
-			shape = "box";
-			style = "filled,rounded";
+			style = "\"filled,rounded\"";
 			break;
 	}
 	
-	fprintf(f, "\"N_%p\"", node);
-	fprintf(f, "[");
-//	fprintf(f, "label=<<B>%s</B><BR/>%s>", nodename, idname);
-	fprintf(f, "label=<<B>%s</B>>", nodename);
-	fprintf(f, ",shape=%s", shape);
-	fprintf(f, ",style=%s", style);
-	deg_debug_graphviz_node_type_color(f, ",fillcolor", node->type);
-	fprintf(f, "]" NL);
-	
 	switch (node->type) {
-		case DEPSNODE_TYPE_ROOT:
-//			DepsNode
+		case DEPSNODE_TYPE_ID_REF: {
+			const IDDepsNode *id_node = (const IDDepsNode *)node;
+			if (BLI_ghash_size(id_node->component_hash) > 0) {
+				GHashIterator hashIter;
+				
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				
+				GHASH_ITER(hashIter, id_node->component_hash) {
+					const DepsNode *component = BLI_ghashIterator_getValue(&hashIter);
+					deg_debug_graphviz_node(f, component);
+				}
+				
+				deg_debug_graphviz_node_cluster_end(f);
+			}
+			else {
+				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+			}
 			break;
+		}
+		
+		case DEPSNODE_TYPE_SUBGRAPH: {
+			deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+			deg_debug_graphviz_node_cluster_end(f);
+			break;
+		}
+		
+		default: {
+			deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+		}
 	}
 }
 
@@ -539,13 +575,13 @@ static void deg_debug_graphviz_node_relations(FILE *f, DepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
 	{
-		fprintf(f, "\"N_%p\"", rel->from);
+		fprintf(f, "\"node_%p\"", rel->from);
 		fprintf(f, " -> ");
-		fprintf(f, "\"N_%p\"", rel->to); /* same as node */
+		fprintf(f, "\"node_%p\"", rel->to); /* same as node */
 
 		fprintf(f, "[");
 		fprintf(f, "label=<%s>", rel->name);
-		fprintf(f, "]" NL);
+		fprintf(f, "];" NL);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 }
@@ -559,6 +595,7 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 		return;
 	
 	fprintf(f, "digraph depgraph {" NL);
+	fprintf(f, "compound=true;" NL);
 	
 	/* nodes */
 	if (graph->root_node)
