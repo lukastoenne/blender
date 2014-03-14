@@ -504,7 +504,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 	const char *shape;
 	const char *style;
 	
-	switch (node->class) {
+	switch (node->tclass) {
 		case DEPSNODE_CLASS_GENERIC:
 			shape = "box";
 			style = "filled";

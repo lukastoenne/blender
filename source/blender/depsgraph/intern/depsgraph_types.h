@@ -134,7 +134,7 @@ struct DepsNode {
 	ListBase outlinks;          /* (LinkData : DepsRelation) nodes which depend on this one */
 	
 	short type;                 /* (eDepsNode_Type) structural type of node */
-	short class;                /* (eDepsNode_Class) type of data/behaviour represented by node... */
+	short tclass;               /* (eDepsNode_Class) type of data/behaviour represented by node... */
 	
 	short  color;               /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
 	short  flag;                /* (eDepsNode_Flag) dirty/visited tags */

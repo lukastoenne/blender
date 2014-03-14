@@ -176,13 +176,13 @@ DepsNode *DEG_create_node(eDepsNode_Type type)
 	 * ! KEEP IN SYNC wtih eDepsNode_Type
 	 */
 	if (type < DEPSNODE_TYPE_PARAMETERS) {
-		node->class = DEPSNODE_CLASS_GENERIC;
+		node->tclass = DEPSNODE_CLASS_GENERIC;
 	}
 	else if (type < DEPSNODE_TYPE_OP_PARAMETER) {
-		node->class = DEPSNODE_CLASS_COMPONENT;
+		node->tclass = DEPSNODE_CLASS_COMPONENT;
 	}
 	else {
-		node->class = DEPSNODE_CLASS_OPERATION;
+		node->tclass = DEPSNODE_CLASS_OPERATION;
 	}
 	
 	/* node.name */
@@ -235,7 +235,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 	DEG_add_node(graph, node, id);
 	
 	/* add node to operation-node list if it plays a part in the evaluation process */
-	if (ELEM(node->class, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
+	if (ELEM(node->tclass, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
 		BLI_addtail(&graph->all_opnodes, BLI_genericNodeN(node));
 		graph->num_nodes++;
 	}

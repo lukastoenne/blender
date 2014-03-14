@@ -93,7 +93,7 @@ void DEG_threaded_exit(void)
 static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextType context_type)
 {
 	/* get context and dispatch */
-	if (node->class == DEPSNODE_CLASS_OPERATION) {
+	if (node->tclass == DEPSNODE_CLASS_OPERATION) {
 		OperationDepsNode *op  = (OperationDepsNode *)node;
 		ComponentDepsNode *com = (ComponentDepsNode *)op->nd.owner; 
 		void *context = NULL, *item = NULL;
