@@ -577,6 +577,9 @@ static void deg_debug_graphviz_node_cluster_end(FILE *f)
 	fprintf(f, "}" NL);
 }
 
+static void deg_debug_graphviz_graph_nodes(FILE *f, const Depsgraph *graph);
+static void deg_debug_graphviz_graph_relations(FILE *f, const Depsgraph *graph);
+
 static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 {
 	const char *style;
@@ -614,8 +617,17 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		}
 		
 		case DEPSNODE_TYPE_SUBGRAPH: {
-			deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
-			deg_debug_graphviz_node_cluster_end(f);
+			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
+			if (sub_node->graph) {
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				
+				deg_debug_graphviz_graph_nodes(f, sub_node->graph);
+				
+				deg_debug_graphviz_node_cluster_end(f);
+			}
+			else {
+				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+			}
 			break;
 		}
 		
@@ -652,6 +664,10 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 		}
 		
 		case DEPSNODE_TYPE_SUBGRAPH: {
+			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
+			if (sub_node->graph) {
+				deg_debug_graphviz_graph_relations(f, sub_node->graph);
+			}
 			break;
 		}
 	}
@@ -695,10 +711,30 @@ static void deg_debug_graphviz_legend(FILE *f)
 	fprintf(f, "}" NL);
 }
 
+static void deg_debug_graphviz_graph_nodes(FILE *f, const Depsgraph *graph)
+{
+	GHashIterator hashIter;
+	if (graph->root_node)
+		deg_debug_graphviz_node(f, graph->root_node);
+	GHASH_ITER(hashIter, graph->id_hash) {
+		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+		deg_debug_graphviz_node(f, node);
+	}
+}
+
+static void deg_debug_graphviz_graph_relations(FILE *f, const Depsgraph *graph)
+{
+	GHashIterator hashIter;
+	if (graph->root_node)
+		deg_debug_graphviz_node_relations(f, graph->root_node);
+	GHASH_ITER(hashIter, graph->id_hash) {
+		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+		deg_debug_graphviz_node_relations(f, node);
+	}
+}
+
 void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 {
-	DepsNode *node;
-	GHashIterator hashIter;
 #if 0 /* generate shaded color set */
 	static char colors[][3] = {{0xa6, 0xce, 0xe3},{0x1f, 0x78, 0xb4},{0xb2, 0xdf, 0x8a},{0x33, 0xa0, 0x2c},
 	                           {0xfb, 0x9a, 0x99},{0xe3, 0x1a, 0x1c},{0xfd, 0xbf, 0x6f},{0xff, 0x7f, 0x00},
@@ -715,24 +751,8 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 	fprintf(f, "digraph depgraph {" NL);
 	fprintf(f, "compound=true;" NL);
 	
-	/* nodes */
-	if (graph->root_node)
-		deg_debug_graphviz_node(f, graph->root_node);
-	GHASH_ITER(hashIter, graph->id_hash) {
-		node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-		deg_debug_graphviz_node(f, node);
-	}
-	
-//	for (node = graph->subgraphs.first; node; node = node->next)
-//		deg_debug_graphviz_node(f, node);
-	
-	/* relations */
-	if (graph->root_node)
-		deg_debug_graphviz_node_relations(f, graph->root_node);
-	GHASH_ITER(hashIter, graph->id_hash) {
-		node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-		deg_debug_graphviz_node_relations(f, node);
-	}
+	deg_debug_graphviz_graph_nodes(f, graph);
+	deg_debug_graphviz_graph_relations(f, graph);
 	
 	deg_debug_graphviz_legend(f);
 	
