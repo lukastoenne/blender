@@ -1504,9 +1504,10 @@ static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
 #pragma message("DEPSGRAPH PORTING XXX: The depsgraph_rebuild function in scene RNA is temporary")
 static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain)
 {
-	if (!scene->depsgraph)
-		scene->depsgraph = DEG_graph_new();
-	
+	if (scene->depsgraph)
+		DEG_graph_free(scene->depsgraph);
+		
+	scene->depsgraph = DEG_graph_new();
 	DEG_graph_build_from_scene(scene->depsgraph, bmain, scene);
 }
 
