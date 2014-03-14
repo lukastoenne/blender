@@ -462,6 +462,39 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 /* Specialized Debugging */
 
 #define NL "\r\n"
+static int deg_debug_node_type_color_index(eDepsNode_Type type) {
+	switch (type) {
+		case DEPSNODE_TYPE_ROOT         : return 1;
+		case DEPSNODE_TYPE_TIMESOURCE   : return 2;
+		case DEPSNODE_TYPE_ID_REF       : return 3;
+		case DEPSNODE_TYPE_SUBGRAPH     : return 4;
+		
+		/* Outer Types */
+		case DEPSNODE_TYPE_PARAMETERS   : return 5;
+		case DEPSNODE_TYPE_PROXY        : return 6;
+		case DEPSNODE_TYPE_ANIMATION    : return 7;
+		case DEPSNODE_TYPE_TRANSFORM    : return 8;
+		case DEPSNODE_TYPE_GEOMETRY     : return 9;
+		case DEPSNODE_TYPE_SEQUENCER    : return 10;
+		
+		default: return 0;
+	}
+}
+
+static void deg_debug_graphviz_node_type_color(FILE *f, const char *attr, eDepsNode_Type type) {
+	/* uses Brewer color schemes:
+	 * http://www.graphviz.org/doc/info/colors.html#brewer
+	 */
+	const char *defaultcolor = "gainsboro";
+	const char *colorscheme = "set312";
+	int color = deg_debug_node_type_color_index(type);
+	
+	fprintf(f, "%s=", attr);
+	if (color == 0)
+		fprintf(f, "%s", defaultcolor);
+	else
+		fprintf(f, "\"/%s/%d\"", colorscheme, color);
+}
 
 static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 {
@@ -469,7 +502,6 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 //	const char *idname = BKE_idcode_to_name(node->type);
 	const char *shape = "box";
 	const char *style = "filled";
-	const char *fillcolor = "darkorange";
 	
 	fprintf(f, "\"N_%p\"", node);
 	fprintf(f, "[");
@@ -477,29 +509,58 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 	fprintf(f, "label=<<B>%s</B>>", nodename);
 	fprintf(f, ",shape=%s", shape);
 	fprintf(f, ",style=%s", style);
-	fprintf(f, ",fillcolor=%s", fillcolor);
+	deg_debug_graphviz_node_type_color(f, ",fillcolor", node->type);
 	fprintf(f, "]" NL);
+	
+	switch (node->type) {
+		case DEPSNODE_TYPE_ROOT:
+//			DepsNode
+			break;
+	}
 }
 
-static void deg_debug_graphviz_relation(FILE *f, DepsRelation *rel)
+static void deg_debug_graphviz_node_relations(FILE *f, DepsNode *node)
 {
-	fprintf(f, "\"N_%p\"", rel->from);
-	fprintf(f, " -> ");
-	fprintf(f, "\"N_%p\"", rel->to);
-	fprintf(f, NL);
+	DepsRelation *rel;
+	
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
+	{
+		fprintf(f, "\"N_%p\"", rel->from);
+		fprintf(f, " -> ");
+		fprintf(f, "\"N_%p\"", rel->to); /* same as node */
+		fprintf(f, NL);
+	}
+	DEPSNODE_RELATIONS_ITER_END;
 }
 
 void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 {
 	DepsNode *node;
+	GHashIterator hashIter;
 	
 	if (!graph)
 		return;
 	
 	fprintf(f, "digraph depgraph {" NL);
 	
+	/* nodes */
 	if (graph->root_node)
 		deg_debug_graphviz_node(f, graph->root_node);
+	GHASH_ITER(hashIter, graph->id_hash) {
+		node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+		deg_debug_graphviz_node(f, node);
+	}
+	
+	for (node = graph->subgraphs.first; node; node = node->next)
+		deg_debug_graphviz_node(f, node);
+	
+	/* relations */
+	if (graph->root_node)
+		deg_debug_graphviz_node_relations(f, graph->root_node);
+	GHASH_ITER(hashIter, graph->id_hash) {
+		node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+		deg_debug_graphviz_node_relations(f, node);
+	}
 	
 #if 0
 	for (node = scene->theDag->DagNode.first; node; node = node->next) {
