@@ -575,9 +575,9 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
 	{
-		fprintf(f, "\"node_%p\"", rel->from);
-		fprintf(f, " -> ");
 		fprintf(f, "\"node_%p\"", rel->to); /* same as node */
+		fprintf(f, " -> ");
+		fprintf(f, "\"node_%p\"", rel->from);
 
 		fprintf(f, "[");
 		fprintf(f, "label=<%s>", rel->name);
