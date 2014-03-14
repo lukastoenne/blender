@@ -463,38 +463,45 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 
 #define NL "\r\n"
 
-static int deg_debug_node_type_color_index(eDepsNode_Type type) {
-	switch (type) {
-		case DEPSNODE_TYPE_ROOT         : return 1;
-		case DEPSNODE_TYPE_TIMESOURCE   : return 2;
-		case DEPSNODE_TYPE_ID_REF       : return 3;
-		case DEPSNODE_TYPE_SUBGRAPH     : return 4;
-		
-		/* Outer Types */
-		case DEPSNODE_TYPE_PARAMETERS   : return 5;
-		case DEPSNODE_TYPE_PROXY        : return 6;
-		case DEPSNODE_TYPE_ANIMATION    : return 7;
-		case DEPSNODE_TYPE_TRANSFORM    : return 8;
-		case DEPSNODE_TYPE_GEOMETRY     : return 9;
-		case DEPSNODE_TYPE_SEQUENCER    : return 10;
-		
-		default: return 0;
-	}
+static const char *deg_debug_node_type_colorscheme = "set312";
+static const int deg_debug_node_type_color_map[][2] = {
+    {DEPSNODE_TYPE_ROOT,         1},
+    {DEPSNODE_TYPE_TIMESOURCE,   2},
+    {DEPSNODE_TYPE_ID_REF,       3},
+    {DEPSNODE_TYPE_SUBGRAPH,     4},
+    
+    /* Outer Types */
+    {DEPSNODE_TYPE_PARAMETERS,   5},
+    {DEPSNODE_TYPE_PROXY,        6},
+    {DEPSNODE_TYPE_ANIMATION,    7},
+    {DEPSNODE_TYPE_TRANSFORM,    8},
+    {DEPSNODE_TYPE_GEOMETRY,     9},
+    {DEPSNODE_TYPE_SEQUENCER,    10},
+    {-1,                         0},
+};
+
+static int deg_debug_node_type_color_index(eDepsNode_Type type)
+{
+	const int (*pair)[2];
+	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair)
+		if ((*pair)[0] == type)
+			return (*pair)[1];
+	return 0;
 }
 
-static void deg_debug_graphviz_node_type_color(FILE *f, const char *attr, eDepsNode_Type type) {
+static void deg_debug_graphviz_node_type_color(FILE *f, const char *attr, eDepsNode_Type type)
+{
 	/* uses Brewer color schemes:
 	 * http://www.graphviz.org/doc/info/colors.html#brewer
 	 */
 	const char *defaultcolor = "gainsboro";
-	const char *colorscheme = "set312";
 	int color = deg_debug_node_type_color_index(type);
 	
 	fprintf(f, "%s=", attr);
 	if (color == 0)
 		fprintf(f, "%s", defaultcolor);
 	else
-		fprintf(f, "\"/%s/%d\"", colorscheme, color);
+		fprintf(f, "\"/%s/%d\"", deg_debug_node_type_colorscheme, color);
 }
 
 static void deg_debug_graphviz_node_single(FILE *f, const void *p, const char *name, const char *style, eDepsNode_Type type)
@@ -602,6 +609,44 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 	}
 }
 
+static void deg_debug_graphviz_legend_color(FILE *f, const char *name, const char *colorscheme, int color)
+{
+	fprintf(f, "<TR><TD>%s</TD><TD BGCOLOR=\"/%s/%d\"></TD></TR>\r\n", name, colorscheme, color);
+}
+
+#if 0
+static void deg_debug_graphviz_legend_line(FILE *f, const char *name, const char *colorscheme, int color, const char *style)
+{
+	/* XXX TODO */
+	fprintf(f, "\r\n");
+}
+
+static void deg_debug_graphviz_legend_cluster(FILE *f, const char *name, const char *colorscheme, int color, const char *style)
+{
+	fprintf(f, "<TR><TD>%s</TD><TD CELLPADDING=\"4\"><TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\"><TR><TD BGCOLOR=\"/%s/%d\"></TD></TR></TABLE></TD></TR>\r\n", name, colorscheme, color);
+}
+#endif
+
+static void deg_debug_graphviz_legend(FILE *f)
+{
+	const int (*pair)[2];
+	
+	fprintf(f, "{" NL);
+	fprintf(f, "rank = sink;" NL);
+	fprintf(f, "Legend [shape=none, margin=0, label=<" NL);
+	fprintf(f, "  <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" NL);
+	fprintf(f, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
+	
+	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
+		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((*pair)[0]);
+		deg_debug_graphviz_legend_color(f, nti->name, deg_debug_node_type_colorscheme, (*pair)[1]);
+	}
+	
+	fprintf(f, "</TABLE>" NL);
+	fprintf(f, ">];" NL);
+	fprintf(f, "}" NL);
+}
+
 void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 {
 	DepsNode *node;
@@ -631,6 +676,8 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 		node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 		deg_debug_graphviz_node_relations(f, node);
 	}
+	
+	deg_debug_graphviz_legend(f);
 	
 	fprintf(f, "}" NL);
 }
