@@ -5514,7 +5514,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	func = RNA_def_function(srna, "depsgraph_rebuild", "rna_Scene_depsgraph_rebuild");
 	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Rebuild the dependency graph");
-	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
+	parm = RNA_def_string_file_path(func, "debug_filename", NULL, FILE_MAX, "Debug File Name",
 	                                "Optional file in which to store graphviz debug output");
 
 	/* Nestled Data  */
