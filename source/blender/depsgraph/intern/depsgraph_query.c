@@ -777,4 +777,51 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 
 #undef NL
 
+#ifndef NDEBUG
+#define DEG_DEBUG_BUILD
+#endif
+
+#ifdef DEG_DEBUG_BUILD
+
+static void *deg_debug_build_userdata;
+DEG_DebugBuildCb_NodeAdded deg_debug_build_node_added_cb;
+DEG_DebugBuildCb_RelationAdded deg_debug_build_rel_added_cb;
+
+void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb)
+{
+	deg_debug_build_userdata = userdata;
+	deg_debug_build_node_added_cb = node_added_cb;
+	deg_debug_build_rel_added_cb = rel_added_cb;
+}
+
+void DEG_debug_build_node_added(const DepsNode *node)
+{
+	if (deg_debug_build_node_added_cb) {
+		deg_debug_build_node_added_cb(deg_debug_build_userdata, node);
+	}
+}
+
+void DEG_debug_build_relation_added(const DepsRelation *rel)
+{
+	if (deg_debug_build_rel_added_cb) {
+		deg_debug_build_rel_added_cb(deg_debug_build_userdata, rel);
+	}
+}
+
+void DEG_debug_build_end(void)
+{
+	deg_debug_build_userdata = NULL;
+	deg_debug_build_node_added_cb = NULL;
+	deg_debug_build_rel_added_cb = NULL;
+}
+
+#else /* DEG_DEBUG_BUILD */
+
+void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb) {}
+void DEG_debug_build_node_added(const DepsNode *node) {}
+void DEG_debug_build_relation_added(const DepsRelation *rel) {}
+void DEG_debug_build_end(void) {}
+
+#endif /* DEG_DEBUG_BUILD */
+
 /* ************************************************ */

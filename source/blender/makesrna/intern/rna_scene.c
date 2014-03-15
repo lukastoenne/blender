@@ -37,6 +37,8 @@
 #include "DNA_world_types.h"
 
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
+#include "BLI_path_util.h"
 
 #include "BLF_translation.h"
 
@@ -305,6 +307,7 @@ EnumPropertyItem image_color_depth_items[] = {
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_string.h"
 #include "BLI_threads.h"
 
 #include "BKE_brush.h"
@@ -324,6 +327,7 @@ EnumPropertyItem image_color_depth_items[] = {
 #include "BKE_animsys.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_query.h"
 #include "intern/depsgraph_intern.h"
 
 #include "WM_api.h"
@@ -1501,14 +1505,53 @@ static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
 	return BLI_strdup("tool_settings.statvis");
 }
 
+
 #pragma message("DEPSGRAPH PORTING XXX: The depsgraph_rebuild function in scene RNA is temporary")
-static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain)
+
+typedef struct SceneDepsgraphDebugInfo {
+	const char *filename;
+	int step;
+	const Depsgraph *graph;
+} SceneDepsgraphDebugInfo;
+
+/* generic debug output function */
+static void rna_Scene_depsgraph_debug(SceneDepsgraphDebugInfo *info, void *UNUSED(elem))
 {
+	char filename[FILE_MAX];
+	
+	BLI_snprintf(filename, sizeof(filename), "%s_%04d", info->filename, info->step);
+	FILE *f = fopen(filename, "w");
+	if (f == NULL)
+		return;
+	
+	DEG_debug_graphviz(info->graph, f);
+	
+	fclose(f);
+	
+	++info->step;
+}
+
+static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain, const char *debug_filename)
+{
+	SceneDepsgraphDebugInfo debug_info;
+	debug_info.filename = debug_filename;
+	debug_info.step = 0;
+	
 	if (scene->depsgraph)
 		DEG_graph_free(scene->depsgraph);
-		
+	
 	scene->depsgraph = DEG_graph_new();
+	debug_info.graph = scene->depsgraph;
+	
+	if (debug_filename && debug_filename[0])
+		DEG_debug_build_init(&debug_info,
+		                     (DEG_DebugBuildCb_NodeAdded)rna_Scene_depsgraph_debug,
+		                     (DEG_DebugBuildCb_RelationAdded)rna_Scene_depsgraph_debug);
+	
 	DEG_graph_build_from_scene(scene->depsgraph, bmain, scene);
+	
+	if (debug_filename && debug_filename[0])
+		DEG_debug_build_end();
 }
 
 /* note: without this, when Multi-Paint is activated/deactivated, the colors
@@ -5471,6 +5514,8 @@ void RNA_def_scene(BlenderRNA *brna)
 	func = RNA_def_function(srna, "depsgraph_rebuild", "rna_Scene_depsgraph_rebuild");
 	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Rebuild the dependency graph");
+	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
+	                                "Optional file in which to store graphviz debug output");
 
 	/* Nestled Data  */
 	/* *** Non-Animated *** */

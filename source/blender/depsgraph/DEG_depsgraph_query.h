@@ -171,6 +171,12 @@ size_t DEG_query_required_ids(ListBase *result, const ID *id, const bool only_di
 #pragma message("DEPSGRAPH PORTING XXX: Move this to python once query and RNA are fully defined")
 void DEG_debug_graphviz(const Depsgraph *graph, FILE *stream);
 
+typedef void (*DEG_DebugBuildCb_NodeAdded)(void *userdata, const DepsNode *node);
+typedef void (*DEG_DebugBuildCb_RelationAdded)(void *userdata, const DepsRelation *rel);
+
+void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb);
+void DEG_debug_build_end(void);
+
 /* ************************************************ */
 
 #endif // __DEG_DEPSGRAPH_QUERY_H__

@@ -240,6 +240,8 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 		graph->num_nodes++;
 	}
 	
+	DEG_debug_build_node_added(node);
+	
 	/* return the newly created node matching the description */
 	return node;
 }
@@ -366,6 +368,8 @@ DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
 	/* create new relation, and add it to the graph */
 	DepsRelation *rel = DEG_create_new_relation(from, to, type, description);
 	DEG_add_relation(rel);
+	
+	DEG_debug_build_relation_added(rel);
 	
 	return rel;
 }

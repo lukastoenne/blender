@@ -337,5 +337,10 @@ DepsNodeTypeInfo *DEG_get_node_typeinfo(const eDepsNode_Type type);
 /* Get typeinfo for provided node */
 DepsNodeTypeInfo *DEG_node_get_typeinfo(const DepsNode *node);
 
+/* Debugging ========================================================= */
+
+void DEG_debug_build_node_added(const DepsNode *node);
+void DEG_debug_build_relation_added(const DepsRelation *rel);
+
 
 #endif // __DEPSGRAPH_INTERN_H__
