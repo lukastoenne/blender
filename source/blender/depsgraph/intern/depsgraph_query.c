@@ -655,12 +655,10 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 				GHashIterator hashIter;
 				
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
-				
 				GHASH_ITER(hashIter, id_node->component_hash) {
 					const DepsNode *component = BLI_ghashIterator_getValue(&hashIter);
 					deg_debug_graphviz_node(f, component);
 				}
-				
 				deg_debug_graphviz_node_cluster_end(f);
 			}
 			else {
@@ -673,9 +671,25 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
 			if (sub_node->graph) {
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
-				
 				deg_debug_graphviz_graph_nodes(f, sub_node->graph);
+				deg_debug_graphviz_node_cluster_end(f);
+			}
+			else {
+				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+			}
+			break;
+		}
+		
+		case DEPSNODE_TYPE_EVAL_POSE: {
+			PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node;
+			if (BLI_ghash_size(pose_node->bone_hash) > 0) {
+				GHashIterator hashIter;
 				
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				GHASH_ITER(hashIter, pose_node->bone_hash) {
+					const DepsNode *bone_comp = BLI_ghashIterator_getValue(&hashIter);
+					deg_debug_graphviz_node(f, bone_comp);
+				}
 				deg_debug_graphviz_node_cluster_end(f);
 			}
 			else {
