@@ -26,6 +26,9 @@
 
 #include <stdlib.h>
 
+#include "BLI_utildefines.h"
+#include "BLI_path_util.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -106,7 +109,7 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, "rna_Depsgraph_root_node_get", NULL, NULL, NULL);
 	
 	func = RNA_def_function(srna, "debug_graphviz", "rna_Depsgraph_debug_graphviz");
-	parm = RNA_def_string_file_path(func, "filename", NULL, FILENAME_MAX, "File Name",
+	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
