@@ -680,6 +680,29 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 			break;
 		}
 		
+		case DEPSNODE_TYPE_PARAMETERS:
+		case DEPSNODE_TYPE_ANIMATION:
+		case DEPSNODE_TYPE_TRANSFORM:
+		case DEPSNODE_TYPE_PROXY:
+		case DEPSNODE_TYPE_GEOMETRY:
+		case DEPSNODE_TYPE_SEQUENCER: {
+			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
+			if (BLI_ghash_size(comp_node->op_hash) > 0) {
+				GHashIterator hashIter;
+				
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				GHASH_ITER(hashIter, comp_node->op_hash) {
+					const DepsNode *op_node = BLI_ghashIterator_getValue(&hashIter);
+					deg_debug_graphviz_node(f, op_node);
+				}
+				deg_debug_graphviz_node_cluster_end(f);
+			}
+			else {
+				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+			}
+			break;
+		}
+		
 		case DEPSNODE_TYPE_EVAL_POSE: {
 			PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node;
 			if (BLI_ghash_size(pose_node->bone_hash) > 0) {
