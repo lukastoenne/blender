@@ -378,14 +378,29 @@ struct SequencerComponentDepsNode : public ComponentDepsNode {
 
 /* Pose Evaluation - Sub-data needed */
 struct PoseComponentDepsNode : public ComponentDepsNode {
-	/* PoseComponentDepsNode */
+	void init(const ID *id, const char *subdata);
+	void copy(DepsgraphCopyContext *dcc, const PoseComponentDepsNode *src);
+	~PoseComponentDepsNode();
+	
+	void validate_links(Depsgraph *graph);
+	
 	struct GHash *bone_hash; /* <String, BoneComponentDepsNode> hash for quickly finding bone components */
+	
+	DEG_DEPSNODE_DECLARE;
 };
 
 /* Bone Component */
 struct BoneComponentDepsNode : public ComponentDepsNode {
-	/* BoneComponentDepsNode */
+	void init(const ID *id, const char *subdata);
+	
+	void add_to_graph(Depsgraph *graph, const ID *id);
+	void remove_from_graph(Depsgraph *graph);
+	
+	void validate_links(Depsgraph *graph);
+	
 	struct bPoseChannel *pchan;     /* the bone that this component represents */
+	
+	DEG_DEPSNODE_DECLARE;
 };
 
 /* Inner Nodes ========================= */

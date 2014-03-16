@@ -697,54 +697,42 @@ static DepsNodeTypeInfo DNTI_SEQUENCER = {
 
 /* Pose Component ========================================= */
 
-#if 0
 /* Initialise 'pose eval' node - from pointer data given */
-static void dnti_pose_eval__init_data(DepsNode *node, const ID *id, const char *UNUSED(subdata))
+void PoseComponentDepsNode::init(const ID *id, const char *subdata)
 {
-	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
-	
 	/* generic component-node... */
-	dnti_component__init_data(node, id, NULL);
+	ComponentDepsNode::init(id, subdata);
 	
 	/* pose-specific data... */
-	pcomp->bone_hash = BLI_ghash_str_new("Pose Component Bone Hash"); /* <String, BoneNode> */
+	this->bone_hash = BLI_ghash_str_new("Pose Component Bone Hash"); /* <String, BoneNode> */
 }
 
 /* Copy 'pose eval' node */
-static void dnti_pose_eval__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
+void PoseComponentDepsNode::copy(DepsgraphCopyContext *dcc, const PoseComponentDepsNode *src)
 {
-	const PoseComponentDepsNode *src_node = (const PoseComponentDepsNode *)src;
-	PoseComponentDepsNode *dst_node       = (PoseComponentDepsNode *)dst;
-	
 	/* generic component node... */
-	dnti_component__copy_data(dcc, dst, src);
+	ComponentDepsNode::copy(dcc, src);
 	
 	/* pose-specific data... */
 	// copy bonehash...
 }
 
 /* Free 'pose eval' node */
-static void dnti_pose_eval__free_data(DepsNode *node)
+PoseComponentDepsNode::~PoseComponentDepsNode()
 {
-	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
-	
 	/* pose-specific data... */
-	BLI_ghash_free(pcomp->bone_hash, NULL, /*dnti_pose_eval__hash_free_bone*/NULL);
-	
-	/* generic component node... */
-	dnti_component__free_data(node);
+	BLI_ghash_free(this->bone_hash, NULL, /*dnti_pose_eval__hash_free_bone*/NULL);
 }
 
 /* Validate links for pose evaluation */
-static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
+void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 {
-	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node;
 	GHashIterator hashIter;
 	
 	/* create our core operations... */
-	if (BLI_ghash_size(pcomp->bone_hash) || (pcomp->ops.first)) {
+	if (BLI_ghash_size(this->bone_hash) || (this->ops.first)) {
 		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
-		IDDepsNode *owner_node = (IDDepsNode *)pcomp->owner;
+		IDDepsNode *owner_node = (IDDepsNode *)this->owner;
 		Object *ob;
 		ID *id;
 		
@@ -779,21 +767,20 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	}
 	
 	/* ensure that each bone has been validated... */
-	if (BLI_ghash_size(pcomp->bone_hash)) {
-		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(DEPSNODE_TYPE_BONE);
-		
-		BLI_assert(nti && nti->validate_links);
-		
-		GHASH_ITER(hashIter, pcomp->bone_hash) {
+	if (BLI_ghash_size(this->bone_hash)) {
+		GHASH_ITER(hashIter, this->bone_hash) {
 			DepsNode *bone_comp = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-			
 			/* recursively validate the links within bone component */
 			// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
-			nti->validate_links(graph, bone_comp);
+			bone_comp->validate_links(graph);
 		}
 	}
 }
 
+DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEPSNODE_TYPE_EVAL_POSE, "Pose Eval Component");
+static DepsNodeTypeInfoImpl<PoseComponentDepsNode> DNTI_EVAL_POSE();
+
+#if 0
 /* Pose Evaluation */
 static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 	/* type */               DEPSNODE_TYPE_EVAL_POSE,
@@ -812,27 +799,26 @@ static DepsNodeTypeInfo DNTI_EVAL_POSE = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Bone Component ========================================= */
 
 /* Initialise 'bone component' node - from pointer data given */
-static void dnti_bone__init_data(DepsNode *node, const ID *id, const char subdata[MAX_NAME])
+void BoneComponentDepsNode::init(const ID *id, const char *subdata)
 {
-	BoneComponentDepsNode *bone_node = (BoneComponentDepsNode *)node;
-	Object *ob = (Object *)id;
-	
 	/* generic component-node... */
-	dnti_component__init_data(node, id, subdata);
+	ComponentDepsNode::init(id, subdata);
 	
 	/* name of component comes is bone name */
-	BLI_strncpy(node->name, subdata, MAX_NAME);
+	BLI_strncpy(this->name, subdata, MAX_NAME);
 	
 	/* bone-specific node data */
-	bone_node->pchan = BKE_pose_channel_find_name(ob->pose, subdata);
+	Object *ob = (Object *)id;
+	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata);
 }
 
 /* Add 'bone component' node to graph */
-static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void BoneComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
 	PoseComponentDepsNode *pose_node;
 	
@@ -841,19 +827,19 @@ static void dnti_bone__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *
 	BLI_assert(pose_node != NULL);
 	
 	/* add bone component to pose bone-hash */
-	BLI_ghash_insert(pose_node->bone_hash, node->name, node);
-	node->owner = (DepsNode *)pose_node;
+	BLI_ghash_insert(pose_node->bone_hash, this->name, this);
+	this->owner = (DepsNode *)pose_node;
 }
 
 /* Remove 'bone component' node from graph */
-static void dnti_bone__remove_from_graph(Depsgraph *graph, DepsNode *node)
+void BoneComponentDepsNode::remove_from_graph(Depsgraph *graph)
 {
 	/* detach from owner (i.e. pose component) */
-	if (node->owner) {
-		PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node->owner;
+	if (this->owner) {
+		PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)this->owner;
 		
-		BLI_ghash_remove(pose_node->bone_hash, node->name, NULL, NULL);
-		node->owner = NULL;
+		BLI_ghash_remove(pose_node->bone_hash, this->name, NULL, NULL);
+		this->owner = NULL;
 	}
 	
 	/* NOTE: don't need to do anything about relationships,
@@ -864,13 +850,12 @@ static void dnti_bone__remove_from_graph(Depsgraph *graph, DepsNode *node)
 /* Validate 'bone component' links... 
  * - Re-route all component-level relationships to the nodes 
  */
-static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
+void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 {
-	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)node->owner;
-	BoneComponentDepsNode *bcomp = (BoneComponentDepsNode *)node;
-	bPoseChannel *pchan = bcomp->pchan;
+	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)this->owner;
+	bPoseChannel *pchan = this->pchan;
 	
-	DepsNode *btrans_op = (DepsNode *)BLI_ghash_lookup(bcomp->op_hash, "Bone Transforms");
+	DepsNode *btrans_op = (DepsNode *)BLI_ghash_lookup(this->op_hash, "Bone Transforms");
 	DepsNode *final_op = NULL;  /* normal final-evaluation operation */
 	DepsNode *ik_op = NULL;     /* IK Solver operation */
 	
@@ -883,7 +868,7 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	}
 	
 	/* inlinks destination should all go to the "Bone Transforms" operation */
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks.first, rel)
 	{
 		/* redirect destination pointer */
 		rel->to = btrans_op;
@@ -904,14 +889,14 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	 */
 	if (pchan->constraints.first) {
 		/* find constraint stack operation */
-		final_op = (DepsNode *)BLI_ghash_lookup(bcomp->op_hash, "Constraint Stack");
+		final_op = (DepsNode *)BLI_ghash_lookup(this->op_hash, "Constraint Stack");
 	}
 	else {
 		/* just normal transforms */
 		final_op = btrans_op;
 	}
 	
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks.first, rel)
 	{
 		/* Technically, the last evaluation operation on these
 		 * should be IK if present. Since, this link is actually
@@ -927,7 +912,7 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	DEPSNODE_RELATIONS_ITER_END;
 	
 	/* fix up outlink refs */
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks.first, rel)
 	{
 		if (ik_op) {
 			/* bone is part of IK Chain... */
@@ -958,11 +943,15 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	
 	/* link bone/component to pose "sinks" as final link, unless it has obvious quirks */
 	{
-		DepsNode *ppost_op = (DepsNode *)BLI_ghash_lookup(pcomp->op_hash, "Cleanup Pose Eval");
+		DepsNode *ppost_op = (DepsNode *)BLI_ghash_lookup(this->op_hash, "Cleanup Pose Eval");
 		DEG_add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
 	}
 }
 
+DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");
+static DepsNodeTypeInfoImpl<BoneComponentDepsNode> DNTI_BONE();
+
+#if 0
 /* Bone Type Info */
 static DepsNodeTypeInfo DNTI_BONE = {
 	/* type */               DEPSNODE_TYPE_BONE,
