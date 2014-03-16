@@ -131,18 +131,19 @@ static DepsNodeTypeInfo DNTI_ROOT = {
 };
 #endif
 
-#if 0
 /* Time Source Node ======================================= */
 
-/* Add 'time source' node to graph */
-static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+TimeSourceDepsNode::TimeSourceDepsNode(const ID *UNUSED(id), const char *UNUSED(subdata))
 {
-	TimeSourceDepsNode *ts_node = (TimeSourceDepsNode *)node;
-	
+}
+
+/* Add 'time source' node to graph */
+void TimeSourceDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
+{
 	/* determine which node to attach timesource to */
 	if (id) {
 		/* get ID node */
-		DepsNode *id_node = DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
+//		DepsNode *id_node = DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 		
 		/* depends on what this is... */
 		switch (GS(id->name)) {
@@ -167,25 +168,21 @@ static void dnti_timesource__add_to_graph(Depsgraph *graph, DepsNode *node, cons
 	}
 	else {
 		/* root-node */
-		RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
-		
-		root_node->time_source = ts_node;
-		node->owner = graph->root_node;
+		graph->root_node->time_source = this;
+		this->owner = graph->root_node;
 	}
 }
 
 /* Remove 'time source' node from graph */
-static void dnti_timesource__remove_from_graph(Depsgraph *graph, DepsNode *node)
+void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
 {
-	BLI_assert(node->owner != NULL);
+	BLI_assert(this->owner != NULL);
 	
-	switch(node->owner->type) {
+	switch(this->owner->type) {
 		case DEPSNODE_TYPE_ROOT: /* root node - standard case */
 		{
-			RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
-		
-			root_node->time_source = NULL;
-			node->owner = NULL;
+			graph->root_node->time_source = NULL;
+			this->owner = NULL;
 		}
 		break;
 		
@@ -193,9 +190,13 @@ static void dnti_timesource__remove_from_graph(Depsgraph *graph, DepsNode *node)
 		
 		default: /* unhandled for now */
 			break;
-	}	
+	}
 }
 
+DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEPSNODE_TYPE_TIMESOURCE, "Time Source");
+static DepsNodeTypeInfoImpl<TimeSourceDepsNode> DNTI_TIMESOURCE();
+
+#if 0
 /* Time Source Type Info */
 static DepsNodeTypeInfo DNTI_TIMESOURCE = {
 	/* type */               DEPSNODE_TYPE_TIMESOURCE,
@@ -214,20 +215,19 @@ static DepsNodeTypeInfo DNTI_TIMESOURCE = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
-static void dnti_id_ref__init_data(DepsNode *node, const ID *id, const char *UNUSED(subdata))
+IDDepsNode::IDDepsNode(const ID *id, const char *UNUSED(subdata))
 {
-	IDDepsNode *id_node = (IDDepsNode *)node;
-	
 	/* store ID-pointer */
 	BLI_assert(id != NULL);
-	id_node->id = (ID *)id;
+	this->id = (ID *)id;
 	
 	/* init components hash - eDepsNode_Type : ComponentDepsNode */
-	id_node->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash");
+	this->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash");
 	
 	/* NOTE: components themselves are created if/when needed.
 	 * This prevents problems with components getting added 
@@ -238,31 +238,27 @@ static void dnti_id_ref__init_data(DepsNode *node, const ID *id, const char *UNU
 /* Helper for freeing ID nodes - Used by component hash to free data... */
 static void dnti_id_ref__hash_free_component(void *component_p)
 {
-	DEG_free_node((DepsNode *)component_p);
+	DepsNode *component = (DepsNode *)component_p;
+	delete component;
 }
 
 /* Free 'id' node */
-static void dnti_id_ref__free_data(DepsNode *node)
+IDDepsNode::~IDDepsNode()
 {
-	IDDepsNode *id_node = (IDDepsNode *)node;
-	
 	/* free components (and recursively, their data) while we empty the hash */
-	BLI_ghash_free(id_node->component_hash, NULL, dnti_id_ref__hash_free_component);
+	BLI_ghash_free(this->component_hash, NULL, dnti_id_ref__hash_free_component);
 }
 
 /* Copy 'id' node */
-static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
+IDDepsNode::IDDepsNode(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 {
-	const IDDepsNode *src_node = (const IDDepsNode *)src;
-	IDDepsNode *dst_node       = (IDDepsNode *)dst;
-	
 	GHashIterator hashIter;
 	
 	/* create new hash for destination (src's one is still linked to it at this point) */
-	dst_node->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
+	this->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
 	
 	/* iterate over items in original hash, adding them to new hash */
-	GHASH_ITER(hashIter, src_node->component_hash) {
+	GHASH_ITER(hashIter, src->component_hash) {
 		/* get current <type : component> mapping */
 		eDepsNode_Type c_type   = (eDepsNode_Type)GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&hashIter));
 		DepsNode *old_component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
@@ -271,45 +267,42 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 		DepsNode *component     = DEG_copy_node(dcc, old_component);
 		
 		/* add new node to hash... */
-		BLI_ghash_insert(dst_node->component_hash, SET_INT_IN_POINTER(c_type), old_component);
+		BLI_ghash_insert(this->component_hash, SET_INT_IN_POINTER(c_type), old_component);
 	}
 	
 	// TODO: perform a second loop to fix up links?
 }
 
 /* Add 'id' node to graph */
-static void dnti_id_ref__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void IDDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
 	/* add to hash so that it can be found */
-	BLI_ghash_insert(graph->id_hash, (ID *)id, node);
+	BLI_ghash_insert(graph->id_hash, (ID *)id, this);
 }
 
 /* Remove 'id' node from graph */
-static void dnti_id_ref__remove_from_graph(Depsgraph *graph, DepsNode *node)
+void IDDepsNode::remove_from_graph(Depsgraph *graph)
 {
-	IDDepsNode *id_node = (IDDepsNode *)node;
-	
 	/* remove toplevel node and hash entry, but don't free... */
-	BLI_ghash_remove(graph->id_hash, id_node->id, NULL, NULL);
+	BLI_ghash_remove(graph->id_hash, this->id, NULL, NULL);
 }
 
 /* Validate links between components */
-static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
+void IDDepsNode::validate_links(Depsgraph *graph)
 {
-	IDDepsNode *id_node = (IDDepsNode *)node;
 	ListBase dummy_list = {NULL, NULL}; // XXX: perhaps this should live in the node?
 	
 	GHashIterator hashIter;
 	
 	/* get our components ......................................................................... */
-	ComponentDepsNode *params = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(DEPSNODE_TYPE_PARAMETERS));
-	ComponentDepsNode *anim = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_ANIMATION));
-	ComponentDepsNode *trans = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_TRANSFORM));
-	ComponentDepsNode *geom = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_GEOMETRY));
-	ComponentDepsNode *proxy = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_PROXY));
-	ComponentDepsNode *pose = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_POSE));
-	ComponentDepsNode *psys = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_PARTICLES));
-	ComponentDepsNode *seq = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_SEQUENCER));
+	ComponentDepsNode *params = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash, SET_INT_IN_POINTER(DEPSNODE_TYPE_PARAMETERS));
+	ComponentDepsNode *anim = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_ANIMATION));
+	ComponentDepsNode *trans = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_TRANSFORM));
+	ComponentDepsNode *geom = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_GEOMETRY));
+	ComponentDepsNode *proxy = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_PROXY));
+	ComponentDepsNode *pose = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_POSE));
+	ComponentDepsNode *psys = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_PARTICLES));
+	ComponentDepsNode *seq = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_SEQUENCER));
 	
 	/* enforce (gross) ordering of these components................................................. */
 	// TODO: create relationships to do this...
@@ -350,16 +343,16 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	 * so that we can take those restrictions as a guide for our low-level
 	 * component restrictions...
 	 */
-	GHASH_ITER(hashIter, id_node->component_hash) {
+	GHASH_ITER(hashIter, this->component_hash) {
 		DepsNode *component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(component);
-		
-		if (nti && nti->validate_links) {
-			nti->validate_links(graph, component);
-		}
+		component->validate_links(graph);
 	}
 }
 
+DEG_DEPSNODE_DEFINE(IDDepsNode, DEPSNODE_TYPE_ID_REF, "ID Node");
+static DepsNodeTypeInfoImpl<IDDepsNode> DNTI_ID_REF();
+
+#if 0
 /* ID Node Type Info */
 static DepsNodeTypeInfo DNTI_ID_REF = {
 	/* type */               DEPSNODE_TYPE_ID_REF,
@@ -378,16 +371,15 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Subgraph Node ========================================== */
 
 /* Initialise 'subgraph' node - from pointer data given */
-static void dnti_subgraph__init_data(DepsNode *node, const ID *id, const char *UNUSED(subdata))
+SubgraphDepsNode::SubgraphDepsNode(const ID *id, const char *UNUSED(subdata))
 {
-	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
-	
 	/* store ID-ref if provided */
-	sgn->root_id = (ID *)id;
+	this->root_id = (ID *)id;
 	
 	/* NOTE: graph will need to be added manually,
 	 * as we don't have any way of passing this down
@@ -395,21 +387,19 @@ static void dnti_subgraph__init_data(DepsNode *node, const ID *id, const char *U
 }
 
 /* Free 'subgraph' node */
-static void dnti_subgraph__free_data(DepsNode *node)
+SubgraphDepsNode::~SubgraphDepsNode()
 {
-	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
-	
 	/* only free if graph not shared, of if this node is the first reference to it... */
 	// XXX: prune these flags a bit...
-	if ((sgn->flag & SUBGRAPH_FLAG_FIRSTREF) || !(sgn->flag & SUBGRAPH_FLAG_SHARED)) {
+	if ((this->flag & SUBGRAPH_FLAG_FIRSTREF) || !(this->flag & SUBGRAPH_FLAG_SHARED)) {
 		/* free the referenced graph */
-		DEG_graph_free(sgn->graph);
-		sgn->graph = NULL;
+		DEG_graph_free(this->graph);
+		this->graph = NULL;
 	}
 }
 
 /* Copy 'subgraph' node - Assume that the subgraph doesn't get copied for now... */
-static void dnti_subgraph__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
+SubgraphDepsNode::SubgraphDepsNode(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src)
 {
 	//const SubgraphDepsNode *src_node = (const SubgraphDepsNode *)src;
 	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
@@ -418,40 +408,39 @@ static void dnti_subgraph__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, c
 }
 
 /* Add 'subgraph' node to graph */
-static void dnti_subgraph__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void SubgraphDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
 	/* add to subnodes list */
-	BLI_addtail(&graph->subgraphs, node);
+	BLI_addtail(&graph->subgraphs, this);
 	
 	/* if there's an ID associated, add to ID-nodes lookup too */
 	if (id) {
 		// TODO: what to do if subgraph's ID has already been added?
 		BLI_assert(BLI_ghash_haskey(graph->id_hash, id) == false);
-		BLI_ghash_insert(graph->id_hash, (ID *)id, node);
+		BLI_ghash_insert(graph->id_hash, (ID *)id, this);
 	}
 }
 
 /* Remove 'subgraph' node from graph */
-static void dnti_subgraph__remove_from_graph(Depsgraph *graph, DepsNode *node)
+void SubgraphDepsNode::remove_from_graph(Depsgraph *graph)
 {
-	SubgraphDepsNode *sgn = (SubgraphDepsNode *)node;
-	
 	/* remove from subnodes list */
-	BLI_remlink(&graph->subgraphs, node);
+	BLI_remlink(&graph->subgraphs, this);
 	
 	/* remove from ID-nodes lookup */
-	if (sgn->root_id) {
-		BLI_assert(BLI_ghash_lookup(graph->id_hash, sgn->root_id) == sgn);
-		BLI_ghash_remove(graph->id_hash, sgn->root_id, NULL, NULL);
+	if (this->root_id) {
+		BLI_assert(BLI_ghash_lookup(graph->id_hash, this->root_id) == this);
+		BLI_ghash_remove(graph->id_hash, this->root_id, NULL, NULL);
 	}
 }
 
 /* Validate subgraph links... */
-static void dnti_subgraph__validate_links(Depsgraph *graph, DepsNode *node)
+void SubgraphDepsNode::validate_links(Depsgraph *graph)
 {
 	
 }
 
+#if 0
 /* Subgraph Type Info */
 static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 	/* type */               DEPSNODE_TYPE_SUBGRAPH,

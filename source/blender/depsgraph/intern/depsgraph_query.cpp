@@ -160,16 +160,13 @@ void DEG_filter_cleanup(DepsgraphCopyContext *dcc)
 // XXX: perhaps this really shouldn't be exposed, as it will just be a sub-step of the evaluation process?
 DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 {
-	DepsNode *dst;
-	
 	/* sanity check */
 	if (src == NULL)
 		return NULL;
 	
-	/* allocate new node, and brute-force copy over all "basic" data */
-	// XXX: need to review the name here, as we can't have exact duplicates...
-	// XXX maybe more consistent to make 'copy' a factory method
-	dst = src->copy(dcc);
+	DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(src->type);
+	BLI_assert(nti != NULL);
+	DepsNode *dst = nti->copy_node(dcc, src);
 	
 	/* add this node-pair to the hash... */
 	BLI_ghash_insert(dcc->nodes_hash, (DepsNode *)src, dst);

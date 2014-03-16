@@ -1582,7 +1582,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 * - this way it should be the first in the graph,
 	 *   reflecting its role as the entrypoint
 	 */
-	graph->root_node = DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	graph->root_node = (RootDepsNode *)DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
 	
 	/* build graph for scene and all attached data */
 	scene_node = deg_build_scene_graph(graph, bmain, scene);

@@ -70,11 +70,7 @@ void DEG_graph_validate_links(Depsgraph *graph)
 	 */
 	GHASH_ITER(hashIter, graph->id_hash) {
 		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
-		
-		if (nti && nti->validate_links) {
-			nti->validate_links(graph, node);
-		}
+		node->validate_links(graph);
 	}
 }
 
@@ -163,16 +159,6 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 
 /* Add ------------------------------------------------ */
 
-/* Add given node to graph */
-void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id)
-{
-	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
-	
-	if (node && nti) {
-		nti->add_to_graph(graph, node, id);
-	}
-}
-
 DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type_, const char *tname_)
 {
 	this->type = type_;
@@ -216,7 +202,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 	 * NOTE: additional nodes may be created in order to add this node to the graph
 	 *       (i.e. parent/owner nodes) where applicable...
 	 */
-	DEG_add_node(graph, node, id);
+	node->add_to_graph(graph, id);
 	
 	/* add node to operation-node list if it plays a part in the evaluation process */
 	if (ELEM(node->tclass, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
@@ -235,8 +221,6 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 /* Remove node from graph, but don't free any of its data */
 void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 {
-	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
-	
 	if (node == NULL)
 		return;
 	
@@ -258,9 +242,7 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 	DEPSNODE_RELATIONS_ITER_END;
 	
 	/* remove node from graph - handle special data the node might have */
-	if (nti && nti->remove_from_graph) {
-		nti->remove_from_graph(graph, node);
-	}
+	node->remove_from_graph(graph);
 }
 
 /* Convenience Functions ---------------------------- */
@@ -271,7 +253,6 @@ OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, const char subdat
                                      DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME])
 {
 	OperationDepsNode *op_node = NULL;
-	eDepsNode_Type component_type;
 	
 	/* sanity check */
 	if (ELEM3(NULL, graph, id, op))

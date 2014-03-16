@@ -30,6 +30,10 @@
 #ifndef __DEPSGRAPH_INTERN_H__
 #define __DEPSGRAPH_INTERN_H__
 
+extern "C" {
+#include "BLI_utildefines.h"
+} /* extern "C" */
+
 #include "depsgraph_types.h"
 
 struct Main;
@@ -109,11 +113,6 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 
 /* Graph Building ===================================================== */
 /* Node Management ---------------------------------------------------- */
-
-/* Add given node to graph 
- * < (id): ID-Block that node is associated with (if applicable)
- */
-void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id);
 
 /* Create a new node and add to graph
  * ! Arguments are as for DEG_find_node()
@@ -270,6 +269,7 @@ struct DepsNodeTypeInfo {
 	virtual const char *tname() const = 0;
 	
 	virtual DepsNode *create_node(const ID *id, const char *subdata, const char *name) const = 0;
+	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const = 0;
 
 	#pragma message("DEPSGRAPH PORTING XXX: replace these callbacks")
 	/* Identification ................................. */
@@ -293,15 +293,15 @@ struct DepsNodeTypeInfo {
 	/* Graph/Connection Management .................... */
 	
 	/* Add node to graph - Will add additional inbetween nodes as needed */
-	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, const ID *id);
+//	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, const ID *id);
 	
 	/* Remove node from graph - Only use when node is to be replaced... */
-	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
+//	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
 	
 	
 	/* Recursively ensure that all implicit/builtin link rules have been applied */
 	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
-	void (*validate_links)(Depsgraph *graph, DepsNode *node);
+//	void (*validate_links)(Depsgraph *graph, DepsNode *node);
 	
 	/* Evaluation Context Management .................. */
 	/* (Components Only) */
@@ -335,6 +335,20 @@ struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
 		else
 			/* ... otherwise use default type name */
 			BLI_strncpy(node->name, tname(), DEG_MAX_ID_NAME);
+		
+		return node;
+	}
+	
+	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const
+	{
+		BLI_assert(copy->type == type());
+		DepsNode *node = new NodeType(dcc, static_cast<NodeType *>(copy));
+		
+		/* populate base node settings */
+		node->type = type();
+		node->tclass = tclass();
+		// XXX: need to review the name here, as we can't have exact duplicates...
+		BLI_strncpy(node->name, copy->name, DEG_MAX_ID_NAME);
 		
 		return node;
 	}

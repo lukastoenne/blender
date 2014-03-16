@@ -200,6 +200,7 @@ typedef enum eDepsNode_Flag {
 
 /* All nodes in Depsgraph are descended from this */
 struct DepsNode {
+	/* Helper class for static typeinfo in subclasses */
 	struct TypeInfo {
 		TypeInfo(eDepsNode_Type type, const char *tname);
 		
@@ -229,12 +230,16 @@ public:
 	DepsNode();
 	virtual ~DepsNode();
 	
-	virtual DepsNode *copy(DepsgraphCopyContext *dcc) const = 0;
-	
-	/* Add node to graph - Will add additional inbetween nodes as needed */
+	/* Add node to graph - Will add additional inbetween nodes as needed
+	 * < (id): ID-Block that node is associated with (if applicable)
+	 */
 	virtual void add_to_graph(Depsgraph *graph, const ID *id) = 0;
 	/* Remove node from graph - Only use when node is to be replaced... */
 	virtual void remove_from_graph(Depsgraph *graph) = 0;
+	
+	/* Recursively ensure that all implicit/builtin link rules have been applied */
+	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
+	virtual void validate_links(Depsgraph *graph) {}
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
@@ -254,16 +259,21 @@ public:
 /* Generic Nodes ======================= */
 
 /* Time Source Node */
-/* Super(DepsNode) */
 struct TimeSourceDepsNode : public DepsNode {
+	TimeSourceDepsNode(const ID *id, const char *subdata);
+	
+	void add_to_graph(Depsgraph *graph, const ID *id);
+	void remove_from_graph(Depsgraph *graph);
+	
 	// XXX: how do we keep track of the chain of time sources for propagation of delays?
 	
 	double cfra;                    /* new "current time" */
 	double offset;                  /* time-offset relative to the "official" time source that this one has */
+	
+	DEG_DEPSNODE_DECLARE;
 };
 
 /* Root Node */
-/* Super(DepsNode) */
 struct RootDepsNode : public DepsNode {
 	RootDepsNode(const ID *id, const char *subdata);
 	
@@ -276,24 +286,41 @@ struct RootDepsNode : public DepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 
-
-
 /* ID-Block Reference */
-/* Super(DepsNode) */
 struct IDDepsNode : public DepsNode {
+	IDDepsNode(const ID *id, const char *subdata);
+	IDDepsNode(DepsgraphCopyContext *dcc, const IDDepsNode *src);
+	~IDDepsNode();
+	
+	void add_to_graph(Depsgraph *graph, const ID *id);
+	void remove_from_graph(Depsgraph *graph);
+	
+	void validate_links(Depsgraph *graph);
+	
 	struct ID *id;                  /* ID Block referenced */
 	struct GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
+	
+	DEG_DEPSNODE_DECLARE;
 };
 
-
 /* Subgraph Reference */
-/* Super(DepsNode) */
 struct SubgraphDepsNode : public DepsNode {
+	SubgraphDepsNode(const ID *id, const char *subdata);
+	SubgraphDepsNode(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src);
+	~SubgraphDepsNode();
+	
+	void add_to_graph(Depsgraph *graph, const ID *id);
+	void remove_from_graph(Depsgraph *graph);
+	
+	void validate_links(Depsgraph *graph);
+	
 	Depsgraph *graph;        /* instanced graph */
 	struct ID *root_id;      /* ID-block at root of subgraph (if applicable) */
 	
 	size_t num_users;        /* number of nodes which use/reference this subgraph - if just 1, it may be possible to merge into main */
 	int flag;                /* (eSubgraphRef_Flag) assorted settings for subgraph node */
+	
+	DEG_DEPSNODE_DECLARE;
 };
 
 /* Flags for subgraph node */
@@ -380,7 +407,7 @@ typedef enum eDepsOperation_Flag {
 struct Depsgraph {
 	/* Core Graph Functionality ........... */
 	struct GHash *id_hash;   /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
-	DepsNode *root_node;     /* "root" node - the one where all evaluation enters from */
+	RootDepsNode *root_node; /* "root" node - the one where all evaluation enters from */
 	
 	ListBase subgraphs;      /* (SubgraphDepsNode) subgraphs referenced in tree... */
 	
