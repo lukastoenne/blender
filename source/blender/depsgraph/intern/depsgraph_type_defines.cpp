@@ -88,11 +88,6 @@ void BKE_lattice_eval_geometry(void *context, void *item) {}
 
 /* Root Node ============================================== */
 
-
-RootDepsNode::RootDepsNode(const ID *UNUSED(id), const char *UNUSED(subdata))
-{
-}
-
 /* Add 'root' node to graph */
 void RootDepsNode::add_to_graph(Depsgraph *graph, const ID *UNUSED(id))
 {
@@ -132,10 +127,6 @@ static DepsNodeTypeInfo DNTI_ROOT = {
 #endif
 
 /* Time Source Node ======================================= */
-
-TimeSourceDepsNode::TimeSourceDepsNode(const ID *UNUSED(id), const char *UNUSED(subdata))
-{
-}
 
 /* Add 'time source' node to graph */
 void TimeSourceDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
@@ -220,7 +211,7 @@ static DepsNodeTypeInfo DNTI_TIMESOURCE = {
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
-IDDepsNode::IDDepsNode(const ID *id, const char *UNUSED(subdata))
+void IDDepsNode::init(const ID *id, const char *UNUSED(subdata))
 {
 	/* store ID-pointer */
 	BLI_assert(id != NULL);
@@ -250,7 +241,7 @@ IDDepsNode::~IDDepsNode()
 }
 
 /* Copy 'id' node */
-IDDepsNode::IDDepsNode(DepsgraphCopyContext *dcc, const IDDepsNode *src)
+void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 {
 	GHashIterator hashIter;
 	
@@ -376,7 +367,7 @@ static DepsNodeTypeInfo DNTI_ID_REF = {
 /* Subgraph Node ========================================== */
 
 /* Initialise 'subgraph' node - from pointer data given */
-SubgraphDepsNode::SubgraphDepsNode(const ID *id, const char *UNUSED(subdata))
+void SubgraphDepsNode::init(const ID *id, const char *UNUSED(subdata))
 {
 	/* store ID-ref if provided */
 	this->root_id = (ID *)id;
@@ -399,7 +390,7 @@ SubgraphDepsNode::~SubgraphDepsNode()
 }
 
 /* Copy 'subgraph' node - Assume that the subgraph doesn't get copied for now... */
-SubgraphDepsNode::SubgraphDepsNode(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src)
+void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src)
 {
 	//const SubgraphDepsNode *src_node = (const SubgraphDepsNode *)src;
 	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
@@ -470,7 +461,7 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 /* Standard Component Methods ============================= */
 
 /* Initialise 'component' node - from pointer data given */
-ComponentDepsNode::ComponentDepsNode(const ID *id, const char *subdata)
+void ComponentDepsNode::init(const ID *id, const char *subdata)
 {
 	/* create op-node hash */
 	this->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash");
@@ -480,7 +471,7 @@ ComponentDepsNode::ComponentDepsNode(const ID *id, const char *subdata)
 }
 
 /* Copy 'component' node */
-ComponentDepsNode::ComponentDepsNode(DepsgraphCopyContext *dcc, const ComponentDepsNode *src)
+void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src)
 {
 	/* create new op-node hash (to host the copied data) */
 	this->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy)");

@@ -323,7 +323,7 @@ struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
 	
 	DepsNode *create_node(const ID *id, const char *subdata, const char *name)
 	{
-		DepsNode *node = new NodeType(id, subdata);
+		DepsNode *node = new NodeType();
 		
 		/* populate base node settings */
 		node->type = type();
@@ -336,19 +336,23 @@ struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
 			/* ... otherwise use default type name */
 			BLI_strncpy(node->name, tname(), DEG_MAX_ID_NAME);
 		
+		node->init(id, subdata);
+		
 		return node;
 	}
 	
 	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const
 	{
 		BLI_assert(copy->type == type());
-		DepsNode *node = new NodeType(dcc, static_cast<NodeType *>(copy));
+		DepsNode *node = new NodeType();
 		
 		/* populate base node settings */
 		node->type = type();
 		node->tclass = tclass();
 		// XXX: need to review the name here, as we can't have exact duplicates...
 		BLI_strncpy(node->name, copy->name, DEG_MAX_ID_NAME);
+		
+		node->copy(dcc, static_cast<NodeType *>(copy));
 		
 		return node;
 	}

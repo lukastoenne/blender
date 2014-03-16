@@ -230,6 +230,9 @@ public:
 	DepsNode();
 	virtual ~DepsNode();
 	
+	virtual void init(const ID *id, const char *subdata) {}
+	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
+	
 	/* Add node to graph - Will add additional inbetween nodes as needed
 	 * < (id): ID-Block that node is associated with (if applicable)
 	 */
@@ -260,8 +263,6 @@ public:
 
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
-	TimeSourceDepsNode(const ID *id, const char *subdata);
-	
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
@@ -275,8 +276,6 @@ struct TimeSourceDepsNode : public DepsNode {
 
 /* Root Node */
 struct RootDepsNode : public DepsNode {
-	RootDepsNode(const ID *id, const char *subdata);
-	
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
@@ -288,8 +287,8 @@ struct RootDepsNode : public DepsNode {
 
 /* ID-Block Reference */
 struct IDDepsNode : public DepsNode {
-	IDDepsNode(const ID *id, const char *subdata);
-	IDDepsNode(DepsgraphCopyContext *dcc, const IDDepsNode *src);
+	void init(const ID *id, const char *subdata);
+	void copy(DepsgraphCopyContext *dcc, const IDDepsNode *src);
 	~IDDepsNode();
 	
 	void add_to_graph(Depsgraph *graph, const ID *id);
@@ -305,8 +304,8 @@ struct IDDepsNode : public DepsNode {
 
 /* Subgraph Reference */
 struct SubgraphDepsNode : public DepsNode {
-	SubgraphDepsNode(const ID *id, const char *subdata);
-	SubgraphDepsNode(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src);
+	void init(const ID *id, const char *subdata);
+	void copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src);
 	~SubgraphDepsNode();
 	
 	void add_to_graph(Depsgraph *graph, const ID *id);
@@ -333,8 +332,8 @@ typedef enum eSubgraphRef_Flag {
 
 /* ID Component - Base type for all components */
 struct ComponentDepsNode : public DepsNode {
-	ComponentDepsNode(const ID *id, const char *subdata);
-	ComponentDepsNode(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
+	void init(const ID *id, const char *subdata);
+	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
 	~ComponentDepsNode();
 	
 	void add_to_graph(Depsgraph *graph, const ID *id);
@@ -354,38 +353,26 @@ struct ComponentDepsNode : public DepsNode {
 /* ---------------------------------------- */
 
 struct ParametersComponentDepsNode : public ComponentDepsNode {
-	ParametersComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
-	ParametersComponentDepsNode(DepsgraphCopyContext *dcc, const ParametersComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct AnimationComponentDepsNode : public ComponentDepsNode {
-	AnimationComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
-	AnimationComponentDepsNode(DepsgraphCopyContext *dcc, const AnimationComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct TransformComponentDepsNode : public ComponentDepsNode {
-	TransformComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
-	TransformComponentDepsNode(DepsgraphCopyContext *dcc, const TransformComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct ProxyComponentDepsNode : public ComponentDepsNode {
-	ProxyComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
-	ProxyComponentDepsNode(DepsgraphCopyContext *dcc, const ProxyComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct GeometryComponentDepsNode : public ComponentDepsNode {
-	GeometryComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
-	GeometryComponentDepsNode(DepsgraphCopyContext *dcc, const GeometryComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct SequencerComponentDepsNode : public ComponentDepsNode {
-	SequencerComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
-	SequencerComponentDepsNode(DepsgraphCopyContext *dcc, const SequencerComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
 	DEG_DEPSNODE_DECLARE;
 };
 
