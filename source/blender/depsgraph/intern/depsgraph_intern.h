@@ -127,12 +127,6 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 /* Remove node from graph, but don't free any of its data */
 void DEG_remove_node(Depsgraph *graph, DepsNode *node);
 
-/* Free node data but not node itself 
- * ! Node data must be separately freed by caller
- * ! DEG_remove_node() should be called before calling this...
- */
-void DEG_free_node(DepsNode *node);
-
 /* Convenience API ------------------------------------------------- */
 
 /* Create a new node for representing an operation and add this to graph
@@ -288,7 +282,7 @@ struct DepsNodeTypeInfo {
 	/* Free node-specific data, but not node itself 
 	 * NOTE: data should already have been removed from graph!
 	 */
-	void (*free_data)(DepsNode *node);
+//	void (*free_data)(DepsNode *node);
 	
 	/* Make a copy of "src" node's data over to "dst" node */
 	// TODO: perhaps copying needs to be a two-pass operation?

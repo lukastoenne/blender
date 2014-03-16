@@ -176,10 +176,16 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id)
 DepsNode::DepsNode()
 {
 	this->name[0] = '\0';
+	BLI_listbase_clear(&this->inlinks);
+	BLI_listbase_clear(&this->outlinks);
 }
 
 DepsNode::~DepsNode()
 {
+	/* free links */
+	// XXX: review how this works!
+	BLI_freelistN(&this->inlinks);
+	BLI_freelistN(&this->outlinks);
 }
 
 /* Add a new node */
@@ -242,26 +248,6 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 	/* remove node from graph - handle special data the node might have */
 	if (nti && nti->remove_from_graph) {
 		nti->remove_from_graph(graph, node);
-	}
-}
-
-/* Free node data but not node itself
- * - Used when removing/replacing old nodes, but also when cleaning up graph 
- */
-void DEG_free_node(DepsNode *node)
-{
-	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(node);
-	
-	if (node) {
-		/* free any special type-specific data */
-		if (nti && nti->free_data) {
-			nti->free_data(node);
-		}
-		
-		/* free links */
-		// XXX: review how this works!
-		BLI_freelistN(&node->inlinks);
-		BLI_freelistN(&node->outlinks);
 	}
 }
 
@@ -492,8 +478,8 @@ Depsgraph *DEG_graph_new()
 /* wrapper around DEG_free_node() so that it can be used to free nodes stored in hash... */
 static void deg_graph_free__node_wrapper(void *node_p)
 {
-	DEG_free_node((DepsNode *)node_p);
-	MEM_freeN(node_p);
+	DepsNode *node = (DepsNode *)node_p;
+	delete node;
 }
 
 /* Free graph's contents and graph itself */
@@ -505,7 +491,7 @@ void DEG_graph_free(Depsgraph *graph)
 	
 	/* free root node - it won't have been freed yet... */
 	if (graph->root_node) {
-		DEG_free_node(graph->root_node);
+		delete graph->root_node;
 		graph->root_node = NULL;
 	}
 	
