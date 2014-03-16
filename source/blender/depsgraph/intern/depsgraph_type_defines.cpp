@@ -440,6 +440,9 @@ void SubgraphDepsNode::validate_links(Depsgraph *graph)
 	
 }
 
+DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");
+static DepsNodeTypeInfoImpl<SubgraphDepsNode> DNTI_SUBGRAPH();
+
 #if 0
 /* Subgraph Type Info */
 static DepsNodeTypeInfo DNTI_SUBGRAPH = {
@@ -459,6 +462,7 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* ******************************************************** */
 /* Outer Nodes */
@@ -466,40 +470,29 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 /* Standard Component Methods ============================= */
 
 /* Initialise 'component' node - from pointer data given */
-static void dnti_component__init_data(DepsNode *node, const ID *UNUSED(id), const char *UNUSED(subdata))
+ComponentDepsNode::ComponentDepsNode(const ID *id, const char *subdata)
 {
-	ComponentDepsNode *component = (ComponentDepsNode *)node;
-	
 	/* create op-node hash */
-	component->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash");
+	this->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash");
 	
 	/* hook up eval context? */
 	// XXX: maybe this needs a special API?
 }
 
 /* Copy 'component' node */
-static void dnti_component__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src)
+ComponentDepsNode::ComponentDepsNode(DepsgraphCopyContext *dcc, const ComponentDepsNode *src)
 {
-	const ComponentDepsNode *src_node = (const ComponentDepsNode *)src;
-	ComponentDepsNode *dst_node       = (ComponentDepsNode *)dst;
-	
-	DepsNode *dst_op, *src_op;
-	
 	/* create new op-node hash (to host the copied data) */
-	dst_node->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy)");
+	this->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy)");
 	
 	/* duplicate list of operation nodes */
-	BLI_duplicatelist(&dst_node->ops, &src_node->ops);
+	BLI_listbase_clear(&this->ops);
 	
-	for (dst_op = (DepsNode *)dst_node->ops.first, src_op = (DepsNode *)src_node->ops.first; 
-	     dst_op && src_op; 
-	     dst_op = dst_op->next,   src_op = src_op->next)
-	{
-		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(src_op);
-		
+	for (DepsNode *src_op = (DepsNode *)src->ops.first; src_op; src_op = src_op->next) {
 		/* recursive copy */
-		if (nti && nti->copy_data)
-			nti->copy_data(dcc, dst_op, src_op);
+		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(src_op);
+		DepsNode *dst_op = nti->copy_node(dcc, src_op);
+		BLI_addtail(&this->ops, dst_op);
 			
 		/* fix links... */
 		// ...
@@ -510,47 +503,44 @@ static void dnti_component__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, 
 }
 
 /* Free 'component' node */
-static void dnti_component__free_data(DepsNode *node)
+ComponentDepsNode::~ComponentDepsNode()
 {
-	ComponentDepsNode *component = (ComponentDepsNode *)node;
 	DepsNode *op, *next;
 	
 	/* free nodes and list of nodes */
-	for (op = (DepsNode *)component->ops.first; op; op = next) {
+	for (op = (DepsNode *)this->ops.first; op; op = next) {
 		next = op->next;
 		
-		DEG_free_node(op);
-		BLI_freelinkN(&component->ops, op);
+		BLI_remlink(&this->ops, op);
+		delete op;
 	}
 	
 	/* free hash too - no need to free as it should be empty now */
-	BLI_ghash_free(component->op_hash, NULL, NULL);
-	component->op_hash = NULL;
+	BLI_ghash_free(this->op_hash, NULL, NULL);
+	this->op_hash = NULL;
 }
 
 /* Add 'component' node to graph */
-static void dnti_component__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void ComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	IDDepsNode *id_node;
-	
 	/* find ID node that we belong to (and create it if it doesn't exist!) */
-	id_node = (IDDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
+	IDDepsNode *id_node = (IDDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 	BLI_assert(id_node != NULL);
 	
 	/* add component to id */
-	BLI_ghash_insert(id_node->component_hash, SET_INT_IN_POINTER(node->type), node);
-	node->owner = (DepsNode *)id_node;
+	BLI_ghash_insert(id_node->component_hash, SET_INT_IN_POINTER(this->type), this);
+	this->owner = (DepsNode *)id_node;
 }
 
 /* Remove 'component' node from graph */
-static void dnti_component__remove_from_graph(Depsgraph *graph, DepsNode *node)
+void ComponentDepsNode::remove_from_graph(Depsgraph *graph)
 {
 	/* detach from owner (i.e. id-ref) */
-	if (node->owner) {
-		IDDepsNode *id_node = (IDDepsNode *)node->owner;
+	if (this->owner) {
+		IDDepsNode *id_node = (IDDepsNode *)this->owner;
 		
-		BLI_ghash_remove(id_node->component_hash, SET_INT_IN_POINTER(node->type), NULL, NULL);
-		node->owner = NULL;
+		BLI_ghash_remove(id_node->component_hash, SET_INT_IN_POINTER(this->type), NULL, NULL);
+		this->owner = NULL;
 	}
 	
 	/* NOTE: don't need to do anything about relationships,
@@ -560,6 +550,10 @@ static void dnti_component__remove_from_graph(Depsgraph *graph, DepsNode *node)
 
 /* Parameter Component Defines ============================ */
 
+DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");
+static DepsNodeTypeInfoImpl<ParametersComponentDepsNode> DNTI_PARAMETERS();
+
+#if 0
 /* Parameters */
 static DepsNodeTypeInfo DNTI_PARAMETERS = {
 	/* type */               DEPSNODE_TYPE_PARAMETERS,
@@ -578,9 +572,14 @@ static DepsNodeTypeInfo DNTI_PARAMETERS = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Animation Component Defines ============================ */
 
+DEG_DEPSNODE_DEFINE(AnimationComponentDepsNode, DEPSNODE_TYPE_ANIMATION, "Animation Component");
+static DepsNodeTypeInfoImpl<AnimationComponentDepsNode> DNTI_ANIMATION();
+
+#if 0
 /* Animation */
 static DepsNodeTypeInfo DNTI_ANIMATION = {
 	/* type */               DEPSNODE_TYPE_ANIMATION,
@@ -599,9 +598,14 @@ static DepsNodeTypeInfo DNTI_ANIMATION = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Transform Component Defines ============================ */
 
+DEG_DEPSNODE_DEFINE(TransformComponentDepsNode, DEPSNODE_TYPE_TRANSFORM, "Transform Component");
+static DepsNodeTypeInfoImpl<TransformComponentDepsNode> DNTI_TRANSFORM();
+
+#if 0
 /* Transform */
 static DepsNodeTypeInfo DNTI_TRANSFORM = {
 	/* type */               DEPSNODE_TYPE_TRANSFORM,
@@ -620,9 +624,14 @@ static DepsNodeTypeInfo DNTI_TRANSFORM = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Proxy Component Defines ================================ */
 
+DEG_DEPSNODE_DEFINE(ProxyComponentDepsNode, DEPSNODE_TYPE_PROXY, "Proxy Component");
+static DepsNodeTypeInfoImpl<ProxyComponentDepsNode> DNTI_PROXY();
+
+#if 0
 /* Proxy */
 static DepsNodeTypeInfo DNTI_PROXY = {
 	/* type */               DEPSNODE_TYPE_PROXY,
@@ -641,9 +650,14 @@ static DepsNodeTypeInfo DNTI_PROXY = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Geometry Component Defines ============================= */
 
+DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEPSNODE_TYPE_GEOMETRY, "Geometry Component");
+static DepsNodeTypeInfoImpl<GeometryComponentDepsNode> DNTI_GEOMETRY();
+
+#if 0
 /* Geometry */
 static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	/* type */               DEPSNODE_TYPE_GEOMETRY,
@@ -662,9 +676,14 @@ static DepsNodeTypeInfo DNTI_GEOMETRY = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Sequencer Component Defines ============================ */
 
+DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequencer Component");
+static DepsNodeTypeInfoImpl<SequencerComponentDepsNode> DNTI_SEQUENCER();
+
+#if 0
 /* Sequencer */
 static DepsNodeTypeInfo DNTI_SEQUENCER = {
 	/* type */               DEPSNODE_TYPE_SEQUENCER,
@@ -683,9 +702,11 @@ static DepsNodeTypeInfo DNTI_SEQUENCER = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Pose Component ========================================= */
 
+#if 0
 /* Initialise 'pose eval' node - from pointer data given */
 static void dnti_pose_eval__init_data(DepsNode *node, const ID *id, const char *UNUSED(subdata))
 {

@@ -333,6 +333,13 @@ typedef enum eSubgraphRef_Flag {
 
 /* ID Component - Base type for all components */
 struct ComponentDepsNode : public DepsNode {
+	ComponentDepsNode(const ID *id, const char *subdata);
+	ComponentDepsNode(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
+	~ComponentDepsNode();
+	
+	void add_to_graph(Depsgraph *graph, const ID *id);
+	void remove_from_graph(Depsgraph *graph);
+	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
 	struct GHash *op_hash;   /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
 	
@@ -345,6 +352,42 @@ struct ComponentDepsNode : public DepsNode {
 };
 
 /* ---------------------------------------- */
+
+struct ParametersComponentDepsNode : public ComponentDepsNode {
+	ParametersComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
+	ParametersComponentDepsNode(DepsgraphCopyContext *dcc, const ParametersComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct AnimationComponentDepsNode : public ComponentDepsNode {
+	AnimationComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
+	AnimationComponentDepsNode(DepsgraphCopyContext *dcc, const AnimationComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct TransformComponentDepsNode : public ComponentDepsNode {
+	TransformComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
+	TransformComponentDepsNode(DepsgraphCopyContext *dcc, const TransformComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct ProxyComponentDepsNode : public ComponentDepsNode {
+	ProxyComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
+	ProxyComponentDepsNode(DepsgraphCopyContext *dcc, const ProxyComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct GeometryComponentDepsNode : public ComponentDepsNode {
+	GeometryComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
+	GeometryComponentDepsNode(DepsgraphCopyContext *dcc, const GeometryComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct SequencerComponentDepsNode : public ComponentDepsNode {
+	SequencerComponentDepsNode(const ID *id, const char *subdata) : ComponentDepsNode(id, subdata) {}
+	SequencerComponentDepsNode(DepsgraphCopyContext *dcc, const SequencerComponentDepsNode *src) : ComponentDepsNode(dcc, src) {}
+	DEG_DEPSNODE_DECLARE;
+};
 
 /* Pose Evaluation - Sub-data needed */
 struct PoseComponentDepsNode : public ComponentDepsNode {
