@@ -266,7 +266,9 @@ DepsRelation *DEG_copy_relation(const DepsRelation *src);
 /* Typeinfo Struct (nti) */
 struct DepsNodeTypeInfo {
 	virtual eDepsNode_Type type() const = 0;
-	virtual const char *name() const = 0;
+	virtual eDepsNode_Class tclass() const = 0;
+	virtual const char *tname() const = 0;
+	
 	virtual DepsNode *create_node(const ID *id, const char *subdata, const char *name) const = 0;
 
 	#pragma message("DEPSGRAPH PORTING XXX: replace these callbacks")
@@ -313,34 +315,26 @@ struct DepsNodeTypeInfo {
 	void (*eval_context_free)(ComponentDepsNode *node, eEvaluationContextType context_type);
 };
 
-template <eDepsNode_Type type_, const char *tname_, class NodeType>
+template <class NodeType>
 struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
-	
-	eDepsNode_Type type() const { return type_; }
-	const char *name() const { return tname_; }
+	eDepsNode_Type type() const { return NodeType::typeinfo.type; }
+	eDepsNode_Class tclass() const { return NodeType::typeinfo.tclass; }
+	const char *tname() const { return NodeType::typeinfo.tname; }
 	
 	DepsNode *create_node(const ID *id, const char *subdata, const char *name)
 	{
 		DepsNode *node = new NodeType(id, subdata);
 		
 		/* populate base node settings */
-		node->type = type_;
-		/* node.class 
-		 * ! KEEP IN SYNC wtih eDepsNode_Type
-		 */
-		if (type_ < DEPSNODE_TYPE_PARAMETERS)
-			node->tclass = DEPSNODE_CLASS_GENERIC;
-		else if (type_ < DEPSNODE_TYPE_OP_PARAMETER)
-			node->tclass = DEPSNODE_CLASS_COMPONENT;
-		else
-			node->tclass = DEPSNODE_CLASS_OPERATION;
+		node->type = type();
+		node->tclass = tclass();
 		
 		if (name && name[0])
 			/* set name if provided ... */
 			BLI_strncpy(node->name, name, DEG_MAX_ID_NAME);
 		else
 			/* ... otherwise use default type name */
-			BLI_strncpy(node->name, tname_, DEG_MAX_ID_NAME);
+			BLI_strncpy(node->name, tname(), DEG_MAX_ID_NAME);
 		
 		return node;
 	}

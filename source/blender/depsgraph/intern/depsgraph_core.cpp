@@ -173,6 +173,18 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id)
 	}
 }
 
+DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type_, const char *tname_)
+{
+	this->type = type_;
+	if (type_ < DEPSNODE_TYPE_PARAMETERS)
+		this->tclass = DEPSNODE_CLASS_GENERIC;
+	else if (type_ < DEPSNODE_TYPE_OP_PARAMETER)
+		this->tclass = DEPSNODE_CLASS_COMPONENT;
+	else
+		this->tclass = DEPSNODE_CLASS_OPERATION;
+	this->tname = tname_;
+}
+
 DepsNode::DepsNode()
 {
 	this->name[0] = '\0';

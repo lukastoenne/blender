@@ -200,6 +200,14 @@ typedef enum eDepsNode_Flag {
 
 /* All nodes in Depsgraph are descended from this */
 struct DepsNode {
+	struct TypeInfo {
+		TypeInfo(eDepsNode_Type type, const char *tname);
+		
+		eDepsNode_Type type;
+		eDepsNode_Class tclass;
+		const char *tname;
+	};
+	
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
@@ -233,6 +241,12 @@ public:
 #endif
 };
 
+/* Macros for common static typeinfo */
+#define DEG_DEPSNODE_DECLARE \
+	static const DepsNode::TypeInfo typeinfo
+#define DEG_DEPSNODE_DEFINE(NodeType, type_, tname_) \
+	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_)
+
 
 /* ************************************* */
 /* Node Types - to be customised during graph building */
@@ -258,6 +272,8 @@ struct RootDepsNode : public DepsNode {
 	
 	struct Scene *scene;             /* scene that this corresponds to */
 	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
+	
+	DEG_DEPSNODE_DECLARE;
 };
 
 

@@ -88,6 +88,7 @@ void BKE_lattice_eval_geometry(void *context, void *item) {}
 
 /* Root Node ============================================== */
 
+
 RootDepsNode::RootDepsNode(const ID *UNUSED(id), const char *UNUSED(subdata))
 {
 }
@@ -106,7 +107,8 @@ void RootDepsNode::remove_from_graph(Depsgraph *graph)
 	graph->root_node = NULL;
 }
 
-static DepsNodeTypeInfoImpl<DEPSNODE_TYPE_ROOT, "Root DepsNode", RootDepsNode> DNTI_ROOT();
+DEG_DEPSNODE_DEFINE(RootDepsNode, DEPSNODE_TYPE_ROOT, "Root DepsNode");
+static DepsNodeTypeInfoImpl<RootDepsNode> DNTI_ROOT();
 
 #if 0
 /* Root Node Type Info */

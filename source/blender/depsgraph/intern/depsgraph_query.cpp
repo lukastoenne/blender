@@ -549,7 +549,7 @@ static void deg_debug_graphviz_legend(FILE *f)
 	
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
 		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((eDepsNode_Type)(*pair)[0]);
-		deg_debug_graphviz_legend_color(f, nti->name(), deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
+		deg_debug_graphviz_legend_color(f, nti->tname(), deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
 	}
 	
 	fprintf(f, "</TABLE>" NL);
