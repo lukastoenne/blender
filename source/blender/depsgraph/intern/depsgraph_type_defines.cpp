@@ -83,24 +83,32 @@ void BKE_curve_eval_geometry(void *context, void *item) {}
 void BKE_curve_eval_path(void *context, void *item) {}
 void BKE_lattice_eval_geometry(void *context, void *item) {}
 
-#if 0
 /* ******************************************************** */
 /* Generic Nodes */
 
 /* Root Node ============================================== */
 
-/* Add 'root' node to graph */
-static void dnti_root__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *UNUSED(id))
+RootDepsNode::RootDepsNode(const ID *UNUSED(id), const char *UNUSED(subdata))
 {
-	graph->root_node = node;
+}
+
+/* Add 'root' node to graph */
+void RootDepsNode::add_to_graph(Depsgraph *graph, const ID *UNUSED(id))
+{
+	BLI_assert(graph->root_node == NULL);
+	graph->root_node = this;
 }
 
 /* Remove 'root' node from graph */
-static void dnti_root__remove_from_graph(Depsgraph *graph, DepsNode *UNUSED(node))
+void RootDepsNode::remove_from_graph(Depsgraph *graph)
 {
+	BLI_assert(graph->root_node == this);
 	graph->root_node = NULL;
 }
 
+static DepsNodeTypeInfoImpl<DEPSNODE_TYPE_ROOT, "Root DepsNode", RootDepsNode> DNTI_ROOT();
+
+#if 0
 /* Root Node Type Info */
 static DepsNodeTypeInfo DNTI_ROOT = {
 	/* type */               DEPSNODE_TYPE_ROOT,
@@ -119,7 +127,9 @@ static DepsNodeTypeInfo DNTI_ROOT = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
+#if 0
 /* Time Source Node ======================================= */
 
 /* Add 'time source' node to graph */
@@ -1401,9 +1411,8 @@ static GHash *_depsnode_typeinfo_registry = NULL;
 /* Register node type */
 static void DEG_register_node_typeinfo(DepsNodeTypeInfo *factory)
 {
-	if (factory) {
-		BLI_ghash_insert(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(factory->type()), factory);
-	}
+	BLI_assert(factory != NULL);
+	BLI_ghash_insert(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(factory->type()), factory);
 }
 
 /* Register all node types */

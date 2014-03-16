@@ -222,7 +222,12 @@ public:
 	virtual ~DepsNode();
 	
 	virtual DepsNode *copy(DepsgraphCopyContext *dcc) const = 0;
-
+	
+	/* Add node to graph - Will add additional inbetween nodes as needed */
+	virtual void add_to_graph(Depsgraph *graph, const ID *id) = 0;
+	/* Remove node from graph - Only use when node is to be replaced... */
+	virtual void remove_from_graph(Depsgraph *graph) = 0;
+	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
 #endif
@@ -246,6 +251,11 @@ struct TimeSourceDepsNode : public DepsNode {
 /* Root Node */
 /* Super(DepsNode) */
 struct RootDepsNode : public DepsNode {
+	RootDepsNode(const ID *id, const char *subdata);
+	
+	void add_to_graph(Depsgraph *graph, const ID *id);
+	void remove_from_graph(Depsgraph *graph);
+	
 	struct Scene *scene;             /* scene that this corresponds to */
 	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
 };
