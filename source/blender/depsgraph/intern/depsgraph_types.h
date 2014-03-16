@@ -39,6 +39,7 @@ struct Scene;
 struct bPoseChannel;
 
 struct DepsNode;
+struct DepsgraphCopyContext;
 
 /* Maximum length of identifier names used in Depsgraph */
 #define DEG_MAX_ID_NAME     128
@@ -219,6 +220,8 @@ struct DepsNode {
 public:
 	DepsNode(eDepsNode_Type type);
 	virtual ~DepsNode();
+	
+	virtual DepsNode *copy(DepsgraphCopyContext *dcc) const = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
