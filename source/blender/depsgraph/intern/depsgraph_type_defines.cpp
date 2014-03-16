@@ -730,7 +730,7 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 	/* create our core operations... */
 	if (BLI_ghash_size(pcomp->bone_hash) || (pcomp->ops.first)) {
 		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
-		IDDepsNode *owner_node = (IDDepsNode *)pcomp->nd.owner;
+		IDDepsNode *owner_node = (IDDepsNode *)pcomp->owner;
 		Object *ob;
 		ID *id;
 		
@@ -758,8 +758,8 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		
 		
 		/* attach links between these operations */
-		DEG_add_new_relation(&rebuild_op->nd, &init_op->nd,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
-		DEG_add_new_relation(&init_op->nd,    &cleanup_op->nd, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
+		DEG_add_new_relation(rebuild_op, init_op,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
+		DEG_add_new_relation(init_op,    cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
 		
 		/* NOTE: bones will attach themselves to these endpoints */
 	}
@@ -1241,7 +1241,7 @@ static void dnti_op_pose__add_to_graph(Depsgraph *graph, DepsNode *node, const I
 	BLI_addtail(&pose_comp->ops, node);
 	
 	/* add backlink to component */
-	node->owner = &pose_comp->nd;
+	node->owner = pose_comp;
 }
 
 /* Pose Operation Node */
@@ -1297,7 +1297,7 @@ static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, const I
 	BLI_addtail(&bone_comp->ops, node);
 	
 	/* add backlink to component */
-	node->owner = &bone_comp->nd;
+	node->owner = bone_comp;
 }
 
 /* Bone Operation Node */

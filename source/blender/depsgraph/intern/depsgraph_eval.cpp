@@ -97,7 +97,7 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextTy
 	/* get context and dispatch */
 	if (node->tclass == DEPSNODE_CLASS_OPERATION) {
 		OperationDepsNode *op  = (OperationDepsNode *)node;
-		ComponentDepsNode *com = (ComponentDepsNode *)op->nd.owner; 
+		ComponentDepsNode *com = (ComponentDepsNode *)op->owner; 
 		void *context = NULL, *item = NULL;
 		
 		/* get context */
@@ -151,7 +151,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
 	tsrc = (TimeSourceDepsNode *)DEG_find_node(graph, NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
 	tsrc->cfra = ctime;
 	
-	DEG_node_tag_update(graph, &tsrc->nd);
+	DEG_node_tag_update(graph, tsrc);
 	
 	/* recursively push updates out to all nodes dependent on this, 
 	 * until all affected are tagged and/or scheduled up for eval

@@ -536,14 +536,14 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		/* bone parent */
 		if (pchan->parent) {
 			DepsNode *par_bone = DEG_get_node(graph, &ob->id, pchan->parent->name, DEPSNODE_TYPE_BONE, NULL);
-			DEG_add_new_relation(par_bone, &bone_node->nd, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+			DEG_add_new_relation(par_bone, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 		}
 		
 		/* constraints */
 		if (pchan->constraints.first) {
 			deg_build_constraints_graph(graph, scene, ob, 
 			                            pchan, &pchan->constraints, 
-			                            &bone_node->nd);
+			                            bone_node);
 		}
 	}
 	
@@ -895,7 +895,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	
 	
 	/* rel between the two sim-nodes */
-	DEG_add_new_relation(&init_node->nd, &sim_node->nd, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
+	DEG_add_new_relation(init_node, sim_node, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
 	
 	/* set up dependencies between these operations and other builtin nodes --------------- */	
 	
@@ -906,10 +906,10 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 		/* init node is only occasional (i.e. on certain frame values only), 
 		 * but we must still include this link 
 		 */
-		DEG_add_new_relation(time_src, &init_node->nd, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)");
+		DEG_add_new_relation(time_src, init_node, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)");
 		
 		/* simulation step must always be performed */
-		DEG_add_new_relation(time_src, &sim_node->nd, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Sim Step");
+		DEG_add_new_relation(time_src, sim_node, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Sim Step");
 	}
 	
 	/* objects - simulation participants */
@@ -960,13 +960,13 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				 *      XXX: there's probably a difference between passive and active 
 				 *           - passive don't change, so may need to know full transform...
 				 */
-				DEG_add_new_relation(&tbase_op->nd, &rbo_op->nd,   DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
-				DEG_add_new_relation(&sim_node->nd, &rbo_op->nd,   DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
+				DEG_add_new_relation(tbase_op, rbo_op,   DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
+				DEG_add_new_relation(sim_node, rbo_op,   DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
 				
 				if (con_op)
-					DEG_add_new_relation(&rbo_op->nd, &con_op->nd,  DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
+					DEG_add_new_relation(rbo_op, con_op,  DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
 				
-				DEG_add_new_relation(&tbase_op->nd, &sim_node->nd, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval"); /* needed to get correct base values */
+				DEG_add_new_relation(tbase_op, sim_node, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval"); /* needed to get correct base values */
 			}
 		}
 	}
@@ -1003,7 +1003,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				DEG_add_new_relation(tcomp, ob2, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_2");
 				
 				/* - ensure that sim depends on this constraint's transform */
-				DEG_add_new_relation(tcomp, &sim_node->nd, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
+				DEG_add_new_relation(tcomp, sim_node, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
 			}
 		}
 	}

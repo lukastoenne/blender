@@ -197,7 +197,6 @@ typedef enum eDepsNode_Flag {
 
 /* All nodes in Depsgraph are descended from this */
 struct DepsNode {
-public:
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
@@ -224,47 +223,39 @@ public:
 
 /* Time Source Node */
 /* Super(DepsNode) */
-typedef struct TimeSourceDepsNode {
-	DepsNode nd;                   /* standard header */
-	
+struct TimeSourceDepsNode : public DepsNode {
 	// XXX: how do we keep track of the chain of time sources for propagation of delays?
 	
 	double cfra;                    /* new "current time" */
 	double offset;                  /* time-offset relative to the "official" time source that this one has */
-} TimeSourceDepsNode;
+};
 
 /* Root Node */
 /* Super(DepsNode) */
-typedef struct RootDepsNode {
-	DepsNode nd;                     /* standard header */
-	
+struct RootDepsNode : public DepsNode {
 	struct Scene *scene;             /* scene that this corresponds to */
 	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
-} RootDepsNode;
+};
 
 
 
 /* ID-Block Reference */
 /* Super(DepsNode) */
-typedef struct IDDepsNode {
-	DepsNode nd;                    /* standard header */
-	
+struct IDDepsNode : public DepsNode {
 	struct ID *id;                  /* ID Block referenced */
 	struct GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
-} IDDepsNode;
+};
 
 
 /* Subgraph Reference */
 /* Super(DepsNode) */
-typedef struct SubgraphDepsNode {
-	DepsNode nd;             /* standard header */
-	
+struct SubgraphDepsNode : public DepsNode {
 	Depsgraph *graph;        /* instanced graph */
 	struct ID *root_id;      /* ID-block at root of subgraph (if applicable) */
 	
 	size_t num_users;        /* number of nodes which use/reference this subgraph - if just 1, it may be possible to merge into main */
 	int flag;                /* (eSubgraphRef_Flag) assorted settings for subgraph node */
-} SubgraphDepsNode;
+};
 
 /* Flags for subgraph node */
 typedef enum eSubgraphRef_Flag {
@@ -275,10 +266,7 @@ typedef enum eSubgraphRef_Flag {
 /* Outer Nodes ========================= */
 
 /* ID Component - Base type for all components */
-/* Super(DepsNode) */
-typedef struct ComponentDepsNode {
-	DepsNode nd;             /* standard header */
-	
+struct ComponentDepsNode : public DepsNode {
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
 	struct GHash *op_hash;   /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
 	
@@ -288,39 +276,21 @@ typedef struct ComponentDepsNode {
 	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];
 	
 	// XXX: a poll() callback to check if component's first node can be started?
-} ComponentDepsNode;
+};
 
 /* ---------------------------------------- */
 
 /* Pose Evaluation - Sub-data needed */
-/* Super(ComponentDepsNode) */
-typedef struct PoseComponentDepsNode {
-	/* ComponentDepsNode */
-	DepsNode nd;             /* standard header */
-	
-	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
-	struct GHash *op_hash;   /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (pose-level) */
-	
-	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];      /* (DEG_OperationsContext) */
-	
+struct PoseComponentDepsNode : public ComponentDepsNode {
 	/* PoseComponentDepsNode */
 	struct GHash *bone_hash; /* <String, BoneComponentDepsNode> hash for quickly finding bone components */
-} PoseComponentDepsNode;
+};
 
 /* Bone Component */
-/* Super(ComponentDepsNode) */
-typedef struct BoneComponentDepsNode {
-	/* ComponentDepsNode */
-	DepsNode nd;                    /* standard header */
-	
-	ListBase ops;                   /* ([OperationDepsNode]) inner nodes for this component */
-	struct GHash *op_hash;          /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier (bone-level) */
-	
-	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];      /* (DEG_OperationsContext) */
-	
+struct BoneComponentDepsNode : public ComponentDepsNode {
 	/* BoneComponentDepsNode */
 	struct bPoseChannel *pchan;     /* the bone that this component represents */
-} BoneComponentDepsNode;
+};
 
 /* Inner Nodes ========================= */
 
@@ -334,9 +304,7 @@ typedef void (*DepsEvalOperationCb)(void *context, void *item);
 
 /* Atomic Operation - Base type for all operations */
 /* Super(DepsNode) */
-typedef struct OperationDepsNode {
-	DepsNode nd;                  /* standard header */
-	
+struct OperationDepsNode : public DepsNode {
 	DepsEvalOperationCb evaluate; /* callback for operation */
 	
 	PointerRNA ptr;               /* item that operation is to be performed on (optional) */
@@ -346,7 +314,7 @@ typedef struct OperationDepsNode {
 	
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
 	short flag;                   /* (eDepsOperation_Flag) extra settings affecting evaluation */
-} OperationDepsNode;
+};
 
 /* Type of operation */
 typedef enum eDepsOperation_Type {
