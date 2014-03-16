@@ -321,7 +321,7 @@ struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
 	eDepsNode_Class tclass() const { return NodeType::typeinfo.tclass; }
 	const char *tname() const { return NodeType::typeinfo.tname; }
 	
-	DepsNode *create_node(const ID *id, const char *subdata, const char *name)
+	DepsNode *create_node(const ID *id, const char *subdata, const char *name) const
 	{
 		DepsNode *node = new NodeType();
 		
@@ -352,7 +352,7 @@ struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
 		// XXX: need to review the name here, as we can't have exact duplicates...
 		BLI_strncpy(node->name, copy->name, DEG_MAX_ID_NAME);
 		
-		node->copy(dcc, static_cast<NodeType *>(copy));
+		node->copy(dcc, static_cast<const NodeType *>(copy));
 		
 		return node;
 	}

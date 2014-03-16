@@ -103,7 +103,7 @@ void RootDepsNode::remove_from_graph(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(RootDepsNode, DEPSNODE_TYPE_ROOT, "Root DepsNode");
-static DepsNodeTypeInfoImpl<RootDepsNode> DNTI_ROOT();
+static DepsNodeTypeInfoImpl<RootDepsNode> DNTI_ROOT;
 
 #if 0
 /* Root Node Type Info */
@@ -185,7 +185,7 @@ void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEPSNODE_TYPE_TIMESOURCE, "Time Source");
-static DepsNodeTypeInfoImpl<TimeSourceDepsNode> DNTI_TIMESOURCE();
+static DepsNodeTypeInfoImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
 
 #if 0
 /* Time Source Type Info */
@@ -341,7 +341,7 @@ void IDDepsNode::validate_links(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(IDDepsNode, DEPSNODE_TYPE_ID_REF, "ID Node");
-static DepsNodeTypeInfoImpl<IDDepsNode> DNTI_ID_REF();
+static DepsNodeTypeInfoImpl<IDDepsNode> DNTI_ID_REF;
 
 #if 0
 /* ID Node Type Info */
@@ -432,7 +432,7 @@ void SubgraphDepsNode::validate_links(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");
-static DepsNodeTypeInfoImpl<SubgraphDepsNode> DNTI_SUBGRAPH();
+static DepsNodeTypeInfoImpl<SubgraphDepsNode> DNTI_SUBGRAPH;
 
 #if 0
 /* Subgraph Type Info */
@@ -542,7 +542,7 @@ void ComponentDepsNode::remove_from_graph(Depsgraph *graph)
 /* Parameter Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");
-static DepsNodeTypeInfoImpl<ParametersComponentDepsNode> DNTI_PARAMETERS();
+static DepsNodeTypeInfoImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
 
 #if 0
 /* Parameters */
@@ -568,7 +568,7 @@ static DepsNodeTypeInfo DNTI_PARAMETERS = {
 /* Animation Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(AnimationComponentDepsNode, DEPSNODE_TYPE_ANIMATION, "Animation Component");
-static DepsNodeTypeInfoImpl<AnimationComponentDepsNode> DNTI_ANIMATION();
+static DepsNodeTypeInfoImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
 
 #if 0
 /* Animation */
@@ -594,7 +594,7 @@ static DepsNodeTypeInfo DNTI_ANIMATION = {
 /* Transform Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(TransformComponentDepsNode, DEPSNODE_TYPE_TRANSFORM, "Transform Component");
-static DepsNodeTypeInfoImpl<TransformComponentDepsNode> DNTI_TRANSFORM();
+static DepsNodeTypeInfoImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
 
 #if 0
 /* Transform */
@@ -620,7 +620,7 @@ static DepsNodeTypeInfo DNTI_TRANSFORM = {
 /* Proxy Component Defines ================================ */
 
 DEG_DEPSNODE_DEFINE(ProxyComponentDepsNode, DEPSNODE_TYPE_PROXY, "Proxy Component");
-static DepsNodeTypeInfoImpl<ProxyComponentDepsNode> DNTI_PROXY();
+static DepsNodeTypeInfoImpl<ProxyComponentDepsNode> DNTI_PROXY;
 
 #if 0
 /* Proxy */
@@ -646,7 +646,7 @@ static DepsNodeTypeInfo DNTI_PROXY = {
 /* Geometry Component Defines ============================= */
 
 DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEPSNODE_TYPE_GEOMETRY, "Geometry Component");
-static DepsNodeTypeInfoImpl<GeometryComponentDepsNode> DNTI_GEOMETRY();
+static DepsNodeTypeInfoImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
 
 #if 0
 /* Geometry */
@@ -672,7 +672,7 @@ static DepsNodeTypeInfo DNTI_GEOMETRY = {
 /* Sequencer Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequencer Component");
-static DepsNodeTypeInfoImpl<SequencerComponentDepsNode> DNTI_SEQUENCER();
+static DepsNodeTypeInfoImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
 
 #if 0
 /* Sequencer */
@@ -778,7 +778,7 @@ void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEPSNODE_TYPE_EVAL_POSE, "Pose Eval Component");
-static DepsNodeTypeInfoImpl<PoseComponentDepsNode> DNTI_EVAL_POSE();
+static DepsNodeTypeInfoImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
 
 #if 0
 /* Pose Evaluation */
@@ -949,7 +949,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");
-static DepsNodeTypeInfoImpl<BoneComponentDepsNode> DNTI_BONE();
+static DepsNodeTypeInfoImpl<BoneComponentDepsNode> DNTI_BONE;
 
 #if 0
 /* Bone Type Info */
@@ -1414,7 +1414,6 @@ void DEG_register_node_types(void)
 	_depsnode_typeinfo_registry = BLI_ghash_int_new("Depsgraph Node Type Registry");
 	
 	/* register node types */
-#if 0
 	/* GENERIC */
 	DEG_register_node_typeinfo(&DNTI_ROOT);
 	DEG_register_node_typeinfo(&DNTI_TIMESOURCE);
@@ -1433,6 +1432,7 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(&DNTI_EVAL_POSE);
 	DEG_register_node_typeinfo(&DNTI_BONE);
 	
+#if 0
 	//DEG_register_node_typeinfo(&DNTI_EVAL_PARTICLES);
 	
 	/* INNER */
