@@ -206,6 +206,35 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id)
 	}
 }
 
+DepsNode::DepsNode(eDepsNode_Type type)
+{
+	/* populate base node settings */
+	this->type = type;
+	
+	/* node.class 
+	 * ! KEEP IN SYNC wtih eDepsNode_Type
+	 */
+	if (type < DEPSNODE_TYPE_PARAMETERS) {
+		this->tclass = DEPSNODE_CLASS_GENERIC;
+	}
+	else if (type < DEPSNODE_TYPE_OP_PARAMETER) {
+		this->tclass = DEPSNODE_CLASS_COMPONENT;
+	}
+	else {
+		this->tclass = DEPSNODE_CLASS_OPERATION;
+	}
+	
+	/* node.name */
+	// XXX: placeholder for now...
+//	BLI_strncpy(this->name, nti->name, DEG_MAX_ID_NAME);
+	this->name[0] = '\0';
+}
+
+DepsNode::~DepsNode()
+{
+	
+}
+
 /* Add a new node */
 DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                            eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])

@@ -216,6 +216,10 @@ struct DepsNode {
 	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
 
+public:
+	DepsNode(eDepsNode_Type type);
+	virtual ~DepsNode();
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
 #endif
