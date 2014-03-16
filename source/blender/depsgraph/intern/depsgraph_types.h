@@ -33,6 +33,8 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
+#include "MEM_guardedalloc.h"
+
 struct Scene;
 struct bPoseChannel;
 
@@ -213,6 +215,10 @@ struct DepsNode {
 	
 	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
+
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
+#endif
 };
 
 

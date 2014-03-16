@@ -30,9 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern "C" {
 #include "MEM_guardedalloc.h"
 
+extern "C" {
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
