@@ -29,6 +29,13 @@
 #ifndef __DEG_DEPSGRAPH_QUERY_H__
 #define __DEG_DEPSGRAPH_QUERY_H__
 
+struct ListBase;
+struct ID;
+
+struct Depsgraph;
+struct DepsNode;
+struct DepsRelation;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,7 +53,7 @@ extern "C" {
  * < userdata: FilterPredicate state data (as needed)
  * > returns: True if node is relevant
  */
-typedef bool (*DEG_FilterPredicate)(const Depsgraph *graph, const DepsNode *node, void *userdata);
+typedef bool (*DEG_FilterPredicate)(const struct Depsgraph *graph, const struct DepsNode *node, void *userdata);
 
 
 /* Node Operation 
@@ -59,7 +66,7 @@ typedef bool (*DEG_FilterPredicate)(const Depsgraph *graph, const DepsNode *node
  * < userdata: Node Operation's state data (as needed)
  * > returns: True if traversal should be aborted at this point
  */
-typedef bool (*DEG_NodeOperation)(const Depsgraph *graph, DepsNode *node, void *userdata);
+typedef bool (*DEG_NodeOperation)(const struct Depsgraph *graph, struct DepsNode *node, void *userdata);
 
 /* ************************************************ */
 /* Low-Level Filtering API */
@@ -76,7 +83,7 @@ typedef bool (*DEG_NodeOperation)(const Depsgraph *graph, DepsNode *node, void *
  * > returns: a full copy of all the relevant nodes - the matching subgraph
  */
 // XXX: is there any need for extra settings/options for how the filtering goes?
-Depsgraph *DEG_graph_filter(const Depsgraph *graph, DEG_FilterPredicate *filter, void *userdata);
+Depsgraph *DEG_graph_filter(const struct Depsgraph *graph, DEG_FilterPredicate *filter, void *userdata);
 
 
 /* Traverse nodes in graph which are deemed relevant,
@@ -92,7 +99,7 @@ Depsgraph *DEG_graph_filter(const Depsgraph *graph, DEG_FilterPredicate *filter,
  * < op_data: Custom state data for NodeOperation
  *            (Note: This can be the same as filter_data, where appropriate)
  */
-void DEG_graph_traverse(const Depsgraph *graph,
+void DEG_graph_traverse(const struct Depsgraph *graph,
                         DEG_FilterPredicate *filter, void *filter_data,
                         DEG_NodeOperation *op, void *op_data);
 
@@ -115,7 +122,7 @@ void DEG_graph_traverse(const Depsgraph *graph,
  * > result: list to write results to
  * < node: the node to find the children/dependents of
  */
-void DEG_node_get_children(ListBase *result, const DepsNode *node);
+void DEG_node_get_children(struct ListBase *result, const struct DepsNode *node);
 
 
 /* Get list of nodes which given node directly depends on 
@@ -123,7 +130,7 @@ void DEG_node_get_children(ListBase *result, const DepsNode *node);
  * > result: list to write results to
  * < node: the node to find the dependencies of
  */
-void DEG_node_get_dependencies(ListBase *result, const DepsNode *node);
+void DEG_node_get_dependencies(struct ListBase *result, const struct DepsNode *node);
 
 
 /* Topology Queries (Subgraph) -------------------- */
@@ -139,7 +146,7 @@ void DEG_node_get_dependencies(ListBase *result, const DepsNode *node);
  * That is, get the subgraph / subset of nodes which are dependent
  * on the results of the given node.
  */
-Depsgraph *DEG_node_get_descendents(const Depsgraph *graph, const DepsNode *node);
+Depsgraph *DEG_node_get_descendents(const struct Depsgraph *graph, const struct DepsNode *node);
 
 
 /* Get all ancestors of a node 
@@ -147,7 +154,7 @@ Depsgraph *DEG_node_get_descendents(const Depsgraph *graph, const DepsNode *node
  * That is, get the subgraph / subset of nodes which the given node
  * is dependent on in order to be evaluated.
  */
-Depsgraph *DEG_node_get_ancestors(const Depsgraph *graph, const DepsNode *node);
+Depsgraph *DEG_node_get_ancestors(const struct Depsgraph *graph, const struct DepsNode *node);
 
 /* ************************************************ */
 /* Higher-Level Queries */
@@ -158,7 +165,7 @@ Depsgraph *DEG_node_get_ancestors(const Depsgraph *graph, const DepsNode *node);
  * > result: (LinkData : ID) a list of ID-blocks matching the specified criteria
  * > returns: number of matching ID-blocks
  */
-size_t DEG_query_affected_ids(ListBase *result, const ID *id, const bool only_direct);
+size_t DEG_query_affected_ids(struct ListBase *result, const struct ID *id, const bool only_direct);
 
 
 /* Get ID-blocks which are needed to update/evaluate specified ID 
@@ -167,16 +174,16 @@ size_t DEG_query_affected_ids(ListBase *result, const ID *id, const bool only_di
  * > result: (LinkData : ID) a list of ID-blocks mathcing the specified criteria
  * > returns: number of matching ID-blocks
  */
-size_t DEG_query_required_ids(ListBase *result, const ID *id, const bool only_direct);
+size_t DEG_query_required_ids(struct ListBase *result, const struct ID *id, const bool only_direct);
 
 /* ************************************************ */
 /* Specialized Debugging */
 
 #pragma message("DEPSGRAPH PORTING XXX: Move this to python once query and RNA are fully defined")
-void DEG_debug_graphviz(const Depsgraph *graph, FILE *stream);
+void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream);
 
-typedef void (*DEG_DebugBuildCb_NodeAdded)(void *userdata, const DepsNode *node);
-typedef void (*DEG_DebugBuildCb_RelationAdded)(void *userdata, const DepsRelation *rel);
+typedef void (*DEG_DebugBuildCb_NodeAdded)(void *userdata, const struct DepsNode *node);
+typedef void (*DEG_DebugBuildCb_RelationAdded)(void *userdata, const struct DepsRelation *rel);
 
 void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb);
 void DEG_debug_build_end(void);

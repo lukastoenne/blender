@@ -328,7 +328,6 @@ EnumPropertyItem image_color_depth_items[] = {
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
-#include "intern/depsgraph_intern.h"
 
 #include "WM_api.h"
 

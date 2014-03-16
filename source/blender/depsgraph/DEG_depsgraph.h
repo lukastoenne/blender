@@ -53,12 +53,6 @@
 /* Dependency Graph */
 typedef struct Depsgraph Depsgraph;
 
-/* Base type for all Node types in Depsgraph */
-typedef struct DepsNode DepsNode;
-
-/* Relationship/link (A -> B) type in Depsgraph between Nodes */
-typedef struct DepsRelation DepsRelation;
-
 /* ------------------------------------------------ */
 
 struct Main;
@@ -102,12 +96,11 @@ void DEG_scene_relations_rebuild(Depsgraph *graph, struct Main *bmain, struct Sc
 /* Create dependency graph if it was cleared or didn't exist yet */
 void DEG_scene_relations_update(struct Main *bmain, struct Scene *scene);
 
+/* Build depsgraph for the given scene, and dump results in given graph container */
+void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
+
 
 /* Update Tagging -------------------------------- */
-
-/* Tag a specific node as needing updates */
-// XXX: should this be part of the external API at all?
-void DEG_node_tag_update(Depsgraph *graph, DepsNode *node);
 
 /* Tag node(s) associated with states such as time and visibility */
 // XXX: what are these for?

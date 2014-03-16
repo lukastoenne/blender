@@ -36,6 +36,8 @@
 struct Scene;
 struct bPoseChannel;
 
+struct DepsNode;
+
 /* Maximum length of identifier names used in Depsgraph */
 #define DEG_MAX_ID_NAME     128
 
@@ -195,6 +197,7 @@ typedef enum eDepsNode_Flag {
 
 /* All nodes in Depsgraph are descended from this */
 struct DepsNode {
+public:
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	

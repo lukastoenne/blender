@@ -48,6 +48,7 @@ extern "C" {
 #include "RNA_types.h"
 } /* extern "C" */
 
+#include "depsgraph_eval.h"
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 

@@ -33,6 +33,9 @@
 #ifndef __DEPSGRAPH_EVAL_TYPES_H__
 #define __DEPSGRAPH_EVAL_TYPES_H__
 
+struct Depsgraph;
+struct DepsNode;
+
 /* ****************************************** */
 /* Operation Contexts */
 
@@ -42,8 +45,8 @@
  * operations will inevitably need at some point.
  */
 typedef struct DEG_OperationsContext {
-	Main *bmain;          /* scene database to query data from (if needed) */
-	Scene *scene;         /* current scene we're working with */
+	struct Main *bmain;   /* scene database to query data from (if needed) */
+	struct Scene *scene;  /* current scene we're working with */
 	
 	double cfra;          /* current frame (including subframe offset stuff) */
 	
@@ -74,8 +77,8 @@ typedef struct DEG_ParametersContext {
 typedef struct DEG_AnimationContext {
 	DEG_OperationsContext ctx;       /* standard header */
 	
-	ID *id;                          /* ID block to evaluate AnimData for */
-	AnimData *adt;                   /* id->adt to be evaluated */
+	struct ID *id;                   /* ID block to evaluate AnimData for */
+	struct AnimData *adt;            /* id->adt to be evaluated */
 	
 	// TODO: accumulation buffers for NLA?
 } DEG_AnimationContext;
@@ -87,7 +90,7 @@ typedef struct DEG_TransformContext {
 	
 	float matrix[4][4];              /* 4x4 matrix where results go */
 	
-	Object *ob;                      /* object that we're evaluating */
+	struct Object *ob;               /* object that we're evaluating */
 	struct bConstraintOb *cob;       /* constraint evaluation temp object/context */
 } DEG_TransformContext;
 
@@ -115,9 +118,15 @@ typedef struct DEG_PoseContext {
 	
 	/* Source Data */
 	/* NOTE: "iktrees" are stored on the bones as they're being evaluated... */
-	Object *ob;                     /* object that pose resides on */
-	bPose *pose;                    /* pose object that is being "solved" */
+	struct Object *ob;              /* object that pose resides on */
+	struct bPose *pose;             /* pose object that is being "solved" */
 } DEG_PoseContext;
+
+/* ****************************************** */
+/* Tagging */
+
+/* Tag a specific node as needing updates */
+void DEG_node_tag_update(Depsgraph *graph, DepsNode *node);
 
 /* ****************************************** */
 
