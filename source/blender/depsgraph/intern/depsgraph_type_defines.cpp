@@ -83,6 +83,7 @@ void BKE_curve_eval_geometry(void *context, void *item) {}
 void BKE_curve_eval_path(void *context, void *item) {}
 void BKE_lattice_eval_geometry(void *context, void *item) {}
 
+#if 0
 /* ******************************************************** */
 /* Generic Nodes */
 
@@ -1380,6 +1381,7 @@ static DepsNodeTypeInfo DNTI_OP_RIGIDBODY = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* ******************************************************** */
 /* External API */
@@ -1397,14 +1399,12 @@ static GHash *_depsnode_typeinfo_registry = NULL;
 /* Registration ------------------------------------------- */
 
 /* Register node type */
-void DEG_register_node_typeinfo(DepsNodeTypeInfo *typeinfo)
+static void DEG_register_node_typeinfo(DepsNodeTypeInfo *factory)
 {
-	if (typeinfo) {
-		eDepsNode_Type type = typeinfo->type;
-		BLI_ghash_insert(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(type), typeinfo);
+	if (factory) {
+		BLI_ghash_insert(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(factory->type()), factory);
 	}
 }
-
 
 /* Register all node types */
 void DEG_register_node_types(void)
@@ -1413,6 +1413,7 @@ void DEG_register_node_types(void)
 	_depsnode_typeinfo_registry = BLI_ghash_int_new("Depsgraph Node Type Registry");
 	
 	/* register node types */
+#if 0
 	/* GENERIC */
 	DEG_register_node_typeinfo(&DNTI_ROOT);
 	DEG_register_node_typeinfo(&DNTI_TIMESOURCE);
@@ -1449,6 +1450,7 @@ void DEG_register_node_types(void)
 	
 	DEG_register_node_typeinfo(&DNTI_OP_PARTICLE);
 	DEG_register_node_typeinfo(&DNTI_OP_RIGIDBODY);
+#endif
 }
 
 /* Free registry on exit */

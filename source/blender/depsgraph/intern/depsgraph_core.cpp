@@ -163,39 +163,6 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 
 /* Add ------------------------------------------------ */
 
-/* Create a new node, but don't do anything else with it yet... */
-DepsNode *DEG_create_node(eDepsNode_Type type)
-{
-	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
-	DepsNode *node;
-	
-	/* create node data... */
-	node = (DepsNode *)MEM_callocN(nti->size, nti->name);
-	
-	/* populate base node settings */
-	node->type = type;
-	
-	/* node.class 
-	 * ! KEEP IN SYNC wtih eDepsNode_Type
-	 */
-	if (type < DEPSNODE_TYPE_PARAMETERS) {
-		node->tclass = DEPSNODE_CLASS_GENERIC;
-	}
-	else if (type < DEPSNODE_TYPE_OP_PARAMETER) {
-		node->tclass = DEPSNODE_CLASS_COMPONENT;
-	}
-	else {
-		node->tclass = DEPSNODE_CLASS_OPERATION;
-	}
-	
-	/* node.name */
-	// XXX: placeholder for now...
-	BLI_strncpy(node->name, nti->name, DEG_MAX_ID_NAME);
-	
-	/* return newly created node data for more specialisation... */
-	return node;
-}
-
 /* Add given node to graph */
 void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id)
 {
@@ -206,33 +173,13 @@ void DEG_add_node(Depsgraph *graph, DepsNode *node, const ID *id)
 	}
 }
 
-DepsNode::DepsNode(eDepsNode_Type type)
+DepsNode::DepsNode()
 {
-	/* populate base node settings */
-	this->type = type;
-	
-	/* node.class 
-	 * ! KEEP IN SYNC wtih eDepsNode_Type
-	 */
-	if (type < DEPSNODE_TYPE_PARAMETERS) {
-		this->tclass = DEPSNODE_CLASS_GENERIC;
-	}
-	else if (type < DEPSNODE_TYPE_OP_PARAMETER) {
-		this->tclass = DEPSNODE_CLASS_COMPONENT;
-	}
-	else {
-		this->tclass = DEPSNODE_CLASS_OPERATION;
-	}
-	
-	/* node.name */
-	// XXX: placeholder for now...
-//	BLI_strncpy(this->name, nti->name, DEG_MAX_ID_NAME);
 	this->name[0] = '\0';
 }
 
 DepsNode::~DepsNode()
 {
-	
 }
 
 /* Add a new node */
@@ -245,20 +192,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 	BLI_assert(nti != NULL);
 	
 	/* create node data... */
-	node = DEG_create_node(type);
-	
-	/* set name if provided */
-	if (name && name[0]) {
-		BLI_strncpy(node->name, name, DEG_MAX_ID_NAME);
-	}
-	
-	/* type-specific data init
-	 * NOTE: this is not included as part of create_node() as
-	 *       some methods may want/need to override this step
-	 */
-	if (nti->init_data) {
-		nti->init_data(node, id, subdata);
-	}
+	node = nti->create_node(id, subdata, name);
 	
 	/* add node to graph 
 	 * NOTE: additional nodes may be created in order to add this node to the graph

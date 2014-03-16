@@ -218,7 +218,7 @@ struct DepsNode {
 	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
 
 public:
-	DepsNode(eDepsNode_Type type);
+	DepsNode();
 	virtual ~DepsNode();
 	
 	virtual DepsNode *copy(DepsgraphCopyContext *dcc) const = 0;

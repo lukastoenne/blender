@@ -160,7 +160,6 @@ void DEG_filter_cleanup(DepsgraphCopyContext *dcc)
 // XXX: perhaps this really shouldn't be exposed, as it will just be a sub-step of the evaluation process?
 DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 {
-	const DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(src);
 	DepsNode *dst;
 	
 	/* sanity check */
@@ -169,8 +168,8 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	
 	/* allocate new node, and brute-force copy over all "basic" data */
 	// XXX: need to review the name here, as we can't have exact duplicates...
-	dst = (DepsNode *)DEG_create_node(src->type);
-	memcpy(dst, src, nti->size);
+	// XXX maybe more consistent to make 'copy' a factory method
+	dst = src->copy(dcc);
 	
 	/* add this node-pair to the hash... */
 	BLI_ghash_insert(dcc->nodes_hash, (DepsNode *)src, dst);
@@ -195,11 +194,6 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 		/* clear traversal data */
 		dst->num_links_pending = 0;
 		dst->lasttime = 0;
-	}
-	
-	/* fix up type-specific data (and/or subtree...) */
-	if (nti->copy_data) {
-		nti->copy_data(dcc, dst, src);
 	}
 	
 	/* fix links */
@@ -555,7 +549,7 @@ static void deg_debug_graphviz_legend(FILE *f)
 	
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
 		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((eDepsNode_Type)(*pair)[0]);
-		deg_debug_graphviz_legend_color(f, nti->name, deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
+		deg_debug_graphviz_legend_color(f, nti->name(), deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
 	}
 	
 	fprintf(f, "</TABLE>" NL);
