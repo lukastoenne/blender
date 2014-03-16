@@ -345,7 +345,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_BONE:       /* Bone Component */
 		{
 			/* this will find the bone component */
-			result = deg_find_bone_node(graph, id, name, type, NULL);
+			result = deg_find_bone_node(graph, id, subdata, type, name);
 		}
 			break;
 		

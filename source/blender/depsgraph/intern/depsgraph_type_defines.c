@@ -858,6 +858,8 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	DepsNode *final_op = NULL;  /* normal final-evaluation operation */
 	DepsNode *ik_op = NULL;     /* IK Solver operation */
 	
+	BLI_assert(btrans_op != NULL);
+	
 	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 	if (pchan->parent == NULL) {
 		DepsNode *pinit_op = BLI_ghash_lookup(pcomp->op_hash, "Init Pose Eval");
@@ -1224,7 +1226,20 @@ static DepsNodeTypeInfo DNTI_OP_DRIVER = {
 /* Add 'pose operation' node to graph */
 static void dnti_op_pose__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_EVAL_POSE);
+	OperationDepsNode *pose_op = (OperationDepsNode *)node;
+	PoseComponentDepsNode *pose_comp;
+	
+	/* get bone component that owns this bone operation */
+//	BLI_assert(pose_op->ptr.type == &RNA_Pose);
+	
+	pose_comp = (PoseComponentDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	
+	/* add to hash and list as per usual */
+	BLI_ghash_insert(pose_comp->op_hash, node->name, node);
+	BLI_addtail(&pose_comp->ops, node);
+	
+	/* add backlink to component */
+	node->owner = &pose_comp->nd;
 }
 
 /* Pose Operation Node */
