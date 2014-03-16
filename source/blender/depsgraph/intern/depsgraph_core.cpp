@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -45,6 +46,7 @@
 
 #include "RNA_access.h"
 #include "RNA_types.h"
+} /* extern "C" */
 
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
@@ -167,7 +169,7 @@ DepsNode *DEG_create_node(eDepsNode_Type type)
 	DepsNode *node;
 	
 	/* create node data... */
-	node = MEM_callocN(nti->size, nti->name);
+	node = (DepsNode *)MEM_callocN(nti->size, nti->name);
 	
 	/* populate base node settings */
 	node->type = type;
@@ -337,9 +339,9 @@ DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
 	
 	/* create new relationship */
 	if (description)
-		rel = MEM_callocN(sizeof(DepsRelation), description);
+		rel = (DepsRelation *)MEM_callocN(sizeof(DepsRelation), description);
 	else
-		rel = MEM_callocN(sizeof(DepsRelation), "DepsRelation");
+		rel = (DepsRelation *)MEM_callocN(sizeof(DepsRelation), "DepsRelation");
 	
 	/* populate data */
 	rel->from = from;
@@ -385,13 +387,13 @@ void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel)
 	}
 	
 	/* remove it from the nodes that use it */
-	ld = BLI_findptr(&rel->from->outlinks, rel, offsetof(LinkData, data));
+	ld = (LinkData *)BLI_findptr(&rel->from->outlinks, rel, offsetof(LinkData, data));
 	if (ld) {
 		BLI_freelinkN(&rel->from->outlinks, ld);
 		ld = NULL;
 	}
 	
-	ld = BLI_findptr(&rel->to->inlinks, rel, offsetof(LinkData, data));
+	ld = (LinkData *)BLI_findptr(&rel->to->inlinks, rel, offsetof(LinkData, data));
 	if (ld) {
 		BLI_freelinkN(&rel->to->inlinks, rel);
 		ld = NULL;
@@ -472,7 +474,7 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	// XXX: perhaps instead of iterating, we should just push these onto the queue of nodes to check?
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
 	// NOTE: count how many nodes we need to handle - entry nodes may be component nodes which don't count for this purpose!
-	for (ld = graph->entry_tags.first; ld; ld = ld->next) {
+	for (ld = (LinkData *)graph->entry_tags.first; ld; ld = ld->next) {
 		DepsNode *node = (DepsNode *)ld->data;
 		
 		/* flush to sub-nodes... */
@@ -492,7 +494,7 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 	LinkData *ld;
 	
 	/* go over all operation nodes, clearing tags */
-	for (ld = graph->all_opnodes.first; ld; ld = ld->next) {
+	for (ld = (LinkData *)graph->all_opnodes.first; ld; ld = ld->next) {
 		DepsNode *node = (DepsNode *)ld->data;
 		
 		/* clear node's "pending update" settings */
@@ -512,7 +514,7 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 /* Initialise a new Depsgraph */
 Depsgraph *DEG_graph_new()
 {
-	Depsgraph *graph = MEM_callocN(sizeof(Depsgraph), "Depsgraph");
+	Depsgraph *graph = (Depsgraph *)MEM_callocN(sizeof(Depsgraph), "Depsgraph");
 	
 	/* initialise hash used to quickly find node associated with a particular ID block */
 	graph->id_hash = BLI_ghash_ptr_new("Depsgraph ID NodeHash");

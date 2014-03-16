@@ -29,6 +29,10 @@
 #ifndef __DEG_DEPSGRAPH_QUERY_H__
 #define __DEG_DEPSGRAPH_QUERY_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ************************************************ */
 /* Type Defines */
 
@@ -178,5 +182,9 @@ void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_
 void DEG_debug_build_end(void);
 
 /* ************************************************ */
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif // __DEG_DEPSGRAPH_QUERY_H__

@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -56,6 +57,7 @@
 
 #include "RNA_access.h"
 #include "RNA_types.h"
+} /* extern "C" */
 
 #include "depsgraph_types.h"
 #include "depsgraph_eval.h"
@@ -195,14 +197,14 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 	
 	/* loop over components, initialising their contexts */
 	GHASH_ITER(idHashIter, graph->id_hash) {
-		IDDepsNode *id_ref = BLI_ghashIterator_getValue(&idHashIter);
+		IDDepsNode *id_ref = (IDDepsNode *)BLI_ghashIterator_getValue(&idHashIter);
 		GHashIterator compHashIter;
 		
 		/* loop over components */
 		GHASH_ITER(compHashIter, id_ref->component_hash) {
 			/* initialise evaluation context */
 			// TODO: we probably need to pass the master context down so that it can be handled properly
-			ComponentDepsNode *comp = BLI_ghashIterator_getValue(&compHashIter); 
+			ComponentDepsNode *comp = (ComponentDepsNode *)BLI_ghashIterator_getValue(&compHashIter); 
 			deg_node_evaluation_context_init(comp, context_type);
 		}
 	}
@@ -220,7 +222,7 @@ static void deg_node_evaluation_contexts_free(ComponentDepsNode *comp)
 	for (i = 0; i < DEG_MAX_EVALUATION_CONTEXTS; i++) {
 		if (comp->contexts[i]) {
 			if (nti->eval_context_free) {
-				nti->eval_context_free(comp, i);
+				nti->eval_context_free(comp, (eEvaluationContextType)i);
 			}
 			
 			MEM_freeN(comp->contexts[i]);
@@ -236,12 +238,12 @@ void DEG_evaluation_contexts_free(Depsgraph *graph)
 	
 	/* free contexts for components first */
 	GHASH_ITER(idHashIter, graph->id_hash) {
-		IDDepsNode *id_ref = BLI_ghashIterator_getValue(&idHashIter);
+		IDDepsNode *id_ref = (IDDepsNode *)BLI_ghashIterator_getValue(&idHashIter);
 		GHashIterator compHashIter;
 		
 		GHASH_ITER(compHashIter, id_ref->component_hash) {
 			/* free evaluation context */
-			ComponentDepsNode *comp = BLI_ghashIterator_getValue(&compHashIter);
+			ComponentDepsNode *comp = (ComponentDepsNode *)BLI_ghashIterator_getValue(&compHashIter);
 			deg_node_evaluation_contexts_free(comp);
 		}
 	}

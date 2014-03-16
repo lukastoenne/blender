@@ -192,7 +192,7 @@ void DEG_graph_sort(Depsgraph *graph);
 #define DEPSNODE_RELATIONS_ITER_BEGIN(first_link, relation_)                          \
 	{                                                                                \
 		LinkData *__rel_iter, *__rel_next;                                           \
-		for (__rel_iter = first_link; __rel_iter; __rel_iter = __rel_next) {         \
+		for (__rel_iter = (LinkData *)first_link; __rel_iter; __rel_iter = __rel_next) {         \
 			DepsRelation *relation_ = (DepsRelation *)__rel_iter->data;              \
 			__rel_next = __rel_iter->next;
 
@@ -238,8 +238,15 @@ void DEG_graph_build_from_group(Depsgraph *graph, struct Main *bmain, struct Gro
 /* Build subgraph for group */
 DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, struct Main *bmain, struct Group *group);
 
+#pragma message("DEPSGRAPH PORTING XXX: Called from C code currently, needs cleanup")
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* Build depsgraph for the given scene, and dump results in given graph container */
 void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 /* Graph Copying ========================================================= */
 /* (Part of the Filtering API) */

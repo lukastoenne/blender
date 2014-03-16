@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -85,6 +86,7 @@
 
 #include "RNA_access.h"
 #include "RNA_types.h"
+} /* extern "C" */
 
 #include "depsgraph_types.h"
 #include "depsgraph_eval.h"
@@ -140,7 +142,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	}
 	
 	/* loop over variables to get the target relationships */
-	for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
+	for (dvar = (DriverVar *)driver->variables.first; dvar; dvar = dvar->next) {
 		/* only used targets */
 		DRIVER_TARGETS_USED_LOOPER(dvar) 
 		{
@@ -202,7 +204,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 	}
 	
 	/* drivers */
-	for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
+	for (fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
 		/* create driver */
 		DepsNode *driver_node = deg_build_driver_rel(graph, id, fcu);
 		
@@ -271,7 +273,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 	constraintStackNode = (DepsNode *)constraintStackOp;
 	
 	/* add dependencies for each constraint in turn */
-	for (con = constraints->first; con; con = con->next) {
+	for (con = (bConstraint *)constraints->first; con; con = con->next) {
 		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 		ListBase targets = {NULL, NULL};
 		bConstraintTarget *ct;
@@ -315,7 +317,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 		else if (cti->get_constraint_targets) {
 			cti->get_constraint_targets(con, &targets);
 			
-			for (ct = targets.first; ct; ct = ct->next) {
+			for (ct = (bConstraintTarget *)targets.first; ct; ct = ct->next) {
 				if (ct->tar) {
 					DepsNode *node2;
 					
@@ -517,7 +519,7 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	
 	/* bones */
-	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+	for (pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		BoneComponentDepsNode *bone_node;
 		OperationDepsNode *bone_op;
 		
@@ -555,10 +557,10 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	 * - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
 	 * - Animated chain-lengths are a problem...
 	 */
-	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+	for (pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		bConstraint *con;
 		
-		for (con = pchan->constraints.first; con; con = con->next) {
+		for (con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
 			switch (con->type) {
 				case CONSTRAINT_TYPE_KINEMATIC:
 					deg_build_ik_pose_graph(graph, scene, ob, pchan, con);
@@ -610,7 +612,7 @@ static void deg_build_nodetree_graph(Depsgraph *graph, Scene *scene, DepsNode *o
 	}
 	
 	/* nodetree's nodes... */
-	for (n = ntree->nodes.first; n; n = n->next) {
+	for (n = (bNode *)ntree->nodes.first; n; n = n->next) {
 		if (n->id) {
 			if (GS(n->id->name) == ID_MA) {
 				deg_build_material_graph(graph, scene, owner_component, (Material *)n->id);
@@ -767,14 +769,14 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 	psys_comp = DEG_add_new_node(graph, &ob->id, NULL, DEPSNODE_TYPE_EVAL_PARTICLES, NULL);
 	
 	/* particle systems */
-	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+	for (psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
 		ParticleSettings *part = psys->part;
 		ListBase *effectors = NULL;
 		EffectorCache *eff;
 		DepsNode *psys_op, *node2;
 		
 		/* this particle system */
-		psys_op = DEG_add_operation(graph, &ob->id, part->id.name+2, DEPSNODE_TYPE_OP_PARTICLE, 
+		psys_op = (DepsNode *)DEG_add_operation(graph, &ob->id, part->id.name+2, DEPSNODE_TYPE_OP_PARTICLE, 
 		                            DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
 		                            "PSys Eval");
 		                            
@@ -822,7 +824,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 		effectors = pdInitEffectors(scene, ob, psys, part->effector_weights, false);
 		
 		if (effectors) {
-			for (eff = effectors->first; eff; eff = eff->next) {
+			for (eff = (EffectorCache *)effectors->first; eff; eff = eff->next) {
 				if (eff->psys) {
 					// XXX: DAG_RL_DATA_DATA | DAG_RL_OB_DATA
 					node2 = DEG_get_node(graph, (ID *)eff->ob, NULL, DEPSNODE_TYPE_GEOMETRY, NULL); // xxx: particles instead?
@@ -838,8 +840,8 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 			BoidRule *rule = NULL;
 			BoidState *state = NULL;
 			
-			for (state = part->boids->states.first; state; state = state->next) {
-				for (rule = state->rules.first; rule; rule = rule->next) {
+			for (state = (BoidState *)part->boids->states.first; state; state = state->next) {
+				for (rule = (BoidRule *)state->rules.first; rule; rule = rule->next) {
 					Object *ruleob = NULL;
 					if (rule->type == eBoidRuleType_Avoid)
 						ruleob = ((BoidRuleGoalAvoid *)rule)->ob;
@@ -914,7 +916,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	if (rbw->group) {
 		GroupObject *go;
 		
-		for (go = rbw->group->gobject.first; go; go = go->next) {
+		for (go = (GroupObject *)rbw->group->gobject.first; go; go = go->next) {
 			Object *ob = go->ob;
 			
 			if (ob && (ob->type == OB_MESH)) {
@@ -933,15 +935,15 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				
 				/* get operation that rigidbody should follow */
 				// TODO: doesn't pre-simulation updates need this info too?
-				tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
+				tbase_op = (OperationDepsNode *)BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
 				if (tbase_op == NULL) {
-					tbase_op = BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
+					tbase_op = (OperationDepsNode *)BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
 				}
 				
 				/* get operation for constraint stack
 				 * - it may or may not exist, but should follow rigidbody
 				 */
-				con_op = BLI_ghash_lookup(tcomp->op_hash, "Constraint Stack");
+				con_op = (OperationDepsNode *)BLI_ghash_lookup(tcomp->op_hash, "Constraint Stack");
 				
 				
 				/* 2) create operation for flushing results */
@@ -973,7 +975,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	if (rbw->constraints) {
 		GroupObject *go;
 		
-		for (go = rbw->constraints->gobject.first; go; go = go->next) {
+		for (go = (GroupObject *)rbw->constraints->gobject.first; go; go = go->next) {
 			Object *ob = go->ob;
 			RigidBodyCon *rbc = (ob) ? ob->rigidbody_constraint : NULL;
 			
@@ -1089,7 +1091,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		case OB_FONT:
 		{
 			OperationDepsNode *op_path;
-			Curve *cu = ob->data;
+			Curve *cu = (Curve *)ob->data;
 			
 			/* curve's dependencies */
 			// XXX: these needs geom data, but where is geom stored?
@@ -1153,8 +1155,8 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 	if (ob->modifiers.first) {
 		ModifierData *md;
 		
-		for (md = ob->modifiers.first; md; md = md->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
 			
 			if (mti->updateDepgraph) {
 				#pragma message("ModifierTypeInfo->updateDepsgraph()")
@@ -1309,7 +1311,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 				DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
 			}
 			else if (ob->parent->type == OB_CURVE) {
-				Curve *cu = ob->parent->data;
+				Curve *cu = (Curve *)ob->parent->data;
 				
 				if (cu->flag & CU_PATH) {
 					/* Follow Path */
@@ -1448,8 +1450,8 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Main *bmain, Scene *sce
 	}
 	
 	/* scene objects */
-	for (base = scene->base.first; base; base = base->next) {
-		Object *ob = base->object;
+	for (base = (Base *)scene->base.first; base; base = base->next) {
+		Object *ob = (Object *)base->object;
 		
 		/* object itself */
 		deg_build_object_graph(graph, scene, ob);
@@ -1471,7 +1473,7 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Main *bmain, Scene *sce
 	}
 	
 	/* tagged groups */
-	for (group = bmain->group.first; group; group = group->id.next) {
+	for (group = (Group *)bmain->group.first; group; group = (Group *)group->id.next) {
 		if (group->id.flag & LIB_DOIT) {
 			DepsNode *group_node;
 			
@@ -1521,7 +1523,7 @@ void DEG_graph_build_from_group(Depsgraph *graph, Main *bmain, Group *group)
 	GroupObject *go;
 	
 	/* add group objects */
-	for (go = group->gobject.first; go; go = go->next) {
+	for (go = (GroupObject *)group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
 		
 		/* Each "group object" is effectively a separate instance of the underlying

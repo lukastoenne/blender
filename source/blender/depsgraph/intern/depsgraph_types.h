@@ -42,22 +42,6 @@ struct bPoseChannel;
 /* ************************************* */
 /* Relationships Between Nodes */
 
-/* B depends on A (A -> B) */
-struct DepsRelation {
-	DepsRelation *next, *prev;
-	
-	/* the nodes in the relationship (since this is shared between the nodes) */
-	DepsNode *from;               /* A */
-	DepsNode *to;                 /* B */
-	
-	/* relationship attributes */
-	char name[DEG_MAX_ID_NAME];   /* label for debugging */
-	
-	int type;                     /* (eDepsRelation_Type) */
-	int flag;                     /* (eDepsRelation_Flag) */
-};
-
-
 /* Types of relationships between nodes 
  *
  * This is used to provide additional hints to use when filtering
@@ -120,28 +104,24 @@ typedef enum eDepsRelation_Flag {
 	DEPSREL_FLAG_CYCLIC     = (1 << 1),
 } eDepsRelation_Flag;
 
+/* B depends on A (A -> B) */
+struct DepsRelation {
+	DepsRelation *next, *prev;
+	
+	/* the nodes in the relationship (since this is shared between the nodes) */
+	DepsNode *from;               /* A */
+	DepsNode *to;                 /* B */
+	
+	/* relationship attributes */
+	char name[DEG_MAX_ID_NAME];   /* label for debugging */
+	
+	eDepsRelation_Type type;      /* type */
+	int flag;                     /* (eDepsRelation_Flag) */
+};
+
+
 /* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
-
-/* All nodes in Depsgraph are descended from this */
-struct DepsNode {
-	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
-	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
-	
-	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
-	
-	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
-	ListBase outlinks;          /* (LinkData : DepsRelation) nodes which depend on this one */
-	
-	short type;                 /* (eDepsNode_Type) structural type of node */
-	short tclass;               /* (eDepsNode_Class) type of data/behaviour represented by node... */
-	
-	short  color;               /* (eDepsNode_Color) stuff for tagging nodes (for algorithmic purposes) */
-	short  flag;                /* (eDepsNode_Flag) dirty/visited tags */
-	
-	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
-	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
-};
 
 /* Metatype of Nodes - The general "level" in the graph structure the node serves */
 typedef enum eDepsNode_Class {
@@ -193,7 +173,6 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OP_RIGIDBODY     = 121,      /* Rigidbody Sim (Step) Evaluation */
 } eDepsNode_Type;
 
-
 /* "Colors" for use in depsgraph topology algorithms */
 typedef enum eDepsNode_Color {
 	DEPSNODE_WHITE = 0,
@@ -213,6 +192,27 @@ typedef enum eDepsNode_Flag {
 	/* node was visited/handled already in traversal... */
 	DEPSNODE_FLAG_TEMP_TAG           = (1 << 2),
 } eDepsNode_Flag;
+
+/* All nodes in Depsgraph are descended from this */
+struct DepsNode {
+	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
+	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
+	
+	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
+	
+	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
+	ListBase outlinks;          /* (LinkData : DepsRelation) nodes which depend on this one */
+	
+	eDepsNode_Type type;        /* structural type of node */
+	eDepsNode_Class tclass;     /* type of data/behaviour represented by node... */
+	
+	eDepsNode_Color color;      /* stuff for tagging nodes (for algorithmic purposes) */
+	short flag;                 /* (eDepsNode_Flag) dirty/visited tags */
+	
+	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
+	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
+};
+
 
 /* ************************************* */
 /* Node Types - to be customised during graph building */

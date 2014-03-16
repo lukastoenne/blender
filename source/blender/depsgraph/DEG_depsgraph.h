@@ -67,6 +67,10 @@ struct Scene;
 struct PointerRNA;
 struct PropertyRNA;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ************************************************ */
 /* Depsgraph API */
 
@@ -177,5 +181,9 @@ void DEG_threaded_init(void);
 void DEG_threaded_exit(void);
 
 /* ************************************************ */
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif // __DEG_DEPSGRAPH_H__

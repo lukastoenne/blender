@@ -39,12 +39,12 @@ set(INC_SYS
 )
 
 set(SRC
-	intern/depsgraph_build.c
-	intern/depsgraph_core.c
-	intern/depsgraph_eval.c
-	intern/depsgraph_query.c
-	intern/depsgraph_queue.c
-	intern/depsgraph_type_defines.c
+	intern/depsgraph_build.cpp
+	intern/depsgraph_core.cpp
+	intern/depsgraph_eval.cpp
+	intern/depsgraph_query.cpp
+	intern/depsgraph_queue.cpp
+	intern/depsgraph_type_defines.cpp
 
 	DEG_depsgraph.h
 	DEG_depsgraph_query.h

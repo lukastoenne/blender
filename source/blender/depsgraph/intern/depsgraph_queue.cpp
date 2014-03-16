@@ -29,12 +29,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_heap.h"
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
+} /* extern "C" */
 
 #include "depsgraph_queue.h"
 
@@ -45,7 +47,7 @@
 
 DepsgraphQueue *DEG_queue_new(void)
 {
-	DepsgraphQueue *q = MEM_callocN(sizeof(DepsgraphQueue), "DEG_queue_new()");
+	DepsgraphQueue *q = (DepsgraphQueue *)MEM_callocN(sizeof(DepsgraphQueue), "DEG_queue_new()");
 	
 	/* init data structures for use here */
 	q->pending_heap = BLI_heap_new();
@@ -122,7 +124,7 @@ void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 		/* node is now ready to be visited - schedule it up for such */
 		if (BLI_ghash_haskey(q->pending_hash, dnode)) {
 			/* remove from pending queue - we're moving it to the scheduling queue */
-			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
+			hnode = (HeapNode *)BLI_ghash_lookup(q->pending_hash, dnode);
 			BLI_heap_remove(q->pending_heap, hnode);
 			
 			BLI_ghash_remove(q->pending_hash, dnode, NULL, NULL);
@@ -139,7 +141,7 @@ void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 		// XXX: is this even necessary now?
 		if (BLI_ghash_haskey(q->pending_hash, dnode)) {
 			/* just update cost on pending node */
-			hnode = BLI_ghash_lookup(q->pending_hash, dnode);
+			hnode = (HeapNode *)BLI_ghash_lookup(q->pending_hash, dnode);
 			BLI_heap_remove(q->pending_heap, hnode);
 			BLI_heap_insert(q->pending_heap, cost, hnode);
 		}
@@ -162,7 +164,7 @@ void *DEG_queue_pop(DepsgraphQueue *q)
 		// XXX: this should never happen
 		// XXX: if/when it does happen, we may want instead to just wait until something pops up here...
 		printf("DepsgraphHeap Warning: No more ready nodes available. Trying from pending (idx = %d, tot = %d, pending = %d, ready = %d)\n",
-		       q->idx, q->tot, DEG_queue_num_pending(q), DEG_queue_num_ready(q));
+		       (int)q->idx, (int)q->tot, (int)DEG_queue_num_pending(q), (int)DEG_queue_num_ready(q));
 		
 		return BLI_heap_popmin(q->pending_heap);
 	}

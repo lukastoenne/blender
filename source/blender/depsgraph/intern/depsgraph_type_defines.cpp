@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -49,6 +50,7 @@
 
 #include "RNA_access.h"
 #include "RNA_types.h"
+} /* extern "C" */
 
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
@@ -249,8 +251,8 @@ static void dnti_id_ref__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, con
 	/* iterate over items in original hash, adding them to new hash */
 	GHASH_ITER(hashIter, src_node->component_hash) {
 		/* get current <type : component> mapping */
-		eDepsNode_Type c_type   = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&hashIter));
-		DepsNode *old_component = BLI_ghashIterator_getValue(&hashIter);
+		eDepsNode_Type c_type   = (eDepsNode_Type)GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&hashIter));
+		DepsNode *old_component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 		
 		/* make a copy of component */
 		DepsNode *component     = DEG_copy_node(dcc, old_component);
@@ -287,14 +289,14 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	GHashIterator hashIter;
 	
 	/* get our components ......................................................................... */
-	ComponentDepsNode *params = BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(DEPSNODE_TYPE_PARAMETERS));
-	ComponentDepsNode *anim = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_ANIMATION));
-	ComponentDepsNode *trans = BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_TRANSFORM));
-	ComponentDepsNode *geom = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_GEOMETRY));
-	ComponentDepsNode *proxy = BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_PROXY));
-	ComponentDepsNode *pose = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_POSE));
-	ComponentDepsNode *psys = BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_PARTICLES));
-	ComponentDepsNode *seq = BLI_ghash_lookup(id_node->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_SEQUENCER));
+	ComponentDepsNode *params = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(DEPSNODE_TYPE_PARAMETERS));
+	ComponentDepsNode *anim = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_ANIMATION));
+	ComponentDepsNode *trans = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_TRANSFORM));
+	ComponentDepsNode *geom = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_GEOMETRY));
+	ComponentDepsNode *proxy = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_PROXY));
+	ComponentDepsNode *pose = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_POSE));
+	ComponentDepsNode *psys = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_PARTICLES));
+	ComponentDepsNode *seq = (ComponentDepsNode *)BLI_ghash_lookup(id_node->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_SEQUENCER));
 	
 	/* enforce (gross) ordering of these components................................................. */
 	// TODO: create relationships to do this...
@@ -336,7 +338,7 @@ static void dnti_id_ref__validate_links(Depsgraph *graph, DepsNode *node)
 	 * component restrictions...
 	 */
 	GHASH_ITER(hashIter, id_node->component_hash) {
-		DepsNode *component = BLI_ghashIterator_getValue(&hashIter);
+		DepsNode *component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(component);
 		
 		if (nti && nti->validate_links) {
@@ -487,7 +489,7 @@ static void dnti_component__copy_data(DepsgraphCopyContext *dcc, DepsNode *dst, 
 	/* duplicate list of operation nodes */
 	BLI_duplicatelist(&dst_node->ops, &src_node->ops);
 	
-	for (dst_op = dst_node->ops.first, src_op = src_node->ops.first; 
+	for (dst_op = (DepsNode *)dst_node->ops.first, src_op = (DepsNode *)src_node->ops.first; 
 	     dst_op && src_op; 
 	     dst_op = dst_op->next,   src_op = src_op->next)
 	{
@@ -512,7 +514,7 @@ static void dnti_component__free_data(DepsNode *node)
 	DepsNode *op, *next;
 	
 	/* free nodes and list of nodes */
-	for (op = component->ops.first; op; op = next) {
+	for (op = (DepsNode *)component->ops.first; op; op = next) {
 		next = op->next;
 		
 		DEG_free_node(op);
@@ -769,7 +771,7 @@ static void dnti_pose_eval__validate_links(Depsgraph *graph, DepsNode *node)
 		BLI_assert(nti && nti->validate_links);
 		
 		GHASH_ITER(hashIter, pcomp->bone_hash) {
-			DepsNode *bone_comp = BLI_ghashIterator_getValue(&hashIter);
+			DepsNode *bone_comp = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 			
 			/* recursively validate the links within bone component */
 			// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
@@ -854,7 +856,7 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	BoneComponentDepsNode *bcomp = (BoneComponentDepsNode *)node;
 	bPoseChannel *pchan = bcomp->pchan;
 	
-	DepsNode *btrans_op = BLI_ghash_lookup(bcomp->op_hash, "Bone Transforms");
+	DepsNode *btrans_op = (DepsNode *)BLI_ghash_lookup(bcomp->op_hash, "Bone Transforms");
 	DepsNode *final_op = NULL;  /* normal final-evaluation operation */
 	DepsNode *ik_op = NULL;     /* IK Solver operation */
 	
@@ -862,7 +864,7 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	
 	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 	if (pchan->parent == NULL) {
-		DepsNode *pinit_op = BLI_ghash_lookup(pcomp->op_hash, "Init Pose Eval");
+		DepsNode *pinit_op = (DepsNode *)BLI_ghash_lookup(pcomp->op_hash, "Init Pose Eval");
 		DEG_add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 	}
 	
@@ -888,7 +890,7 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	 */
 	if (pchan->constraints.first) {
 		/* find constraint stack operation */
-		final_op = BLI_ghash_lookup(bcomp->op_hash, "Constraint Stack");
+		final_op = (DepsNode *)BLI_ghash_lookup(bcomp->op_hash, "Constraint Stack");
 	}
 	else {
 		/* just normal transforms */
@@ -942,7 +944,7 @@ static void dnti_bone__validate_links(Depsgraph *graph, DepsNode *node)
 	
 	/* link bone/component to pose "sinks" as final link, unless it has obvious quirks */
 	{
-		DepsNode *ppost_op = BLI_ghash_lookup(pcomp->op_hash, "Cleanup Pose Eval");
+		DepsNode *ppost_op = (DepsNode *)BLI_ghash_lookup(pcomp->op_hash, "Cleanup Pose Eval");
 		DEG_add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
 	}
 }
@@ -1461,7 +1463,7 @@ void DEG_free_node_types(void)
 DepsNodeTypeInfo *DEG_get_node_typeinfo(const eDepsNode_Type type)
 {
 	/* look up type - at worst, it doesn't exist in table yet, and we fail */
-	return BLI_ghash_lookup(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(type));
+	return (DepsNodeTypeInfo *)BLI_ghash_lookup(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(type));
 }
 
 /* Get typeinfo for provided node */

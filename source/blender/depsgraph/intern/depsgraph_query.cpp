@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -47,6 +48,7 @@
 
 #include "RNA_access.h"
 #include "RNA_types.h"
+} /* extern "C" */
 
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
@@ -86,7 +88,7 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 	do {
 		/* grab item at front of queue */
 		// XXX: in practice, we may need to wait until one becomes available...
-		DepsNode *node = DEG_queue_pop(q);
+		DepsNode *node = (DepsNode *)DEG_queue_pop(q);
 		
 		/* perform operation on node */
 		op(graph, node, operation_data);
@@ -121,7 +123,7 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 // TODO: allow passing in a number of criteria?
 DepsgraphCopyContext *DEG_filter_init()
 {
-	DepsgraphCopyContext *dcc = MEM_callocN(sizeof(DepsgraphCopyContext), "DepsgraphCopyContext");
+	DepsgraphCopyContext *dcc = (DepsgraphCopyContext *)MEM_callocN(sizeof(DepsgraphCopyContext), "DepsgraphCopyContext");
 	
 	/* init hashes for easy lookups */
 	dcc->nodes_hash = BLI_ghash_ptr_new("Depsgraph Filter NodeHash");
@@ -167,7 +169,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	
 	/* allocate new node, and brute-force copy over all "basic" data */
 	// XXX: need to review the name here, as we can't have exact duplicates...
-	dst = DEG_create_node(src->type);
+	dst = (DepsNode *)DEG_create_node(src->type);
 	memcpy(dst, src, nti->size);
 	
 	/* add this node-pair to the hash... */
@@ -210,7 +212,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 /* Make a copy of a relationship */
 DepsRelation *DEG_copy_relation(const DepsRelation *src)
 {
-	DepsRelation *dst = MEM_dupallocN(src);
+	DepsRelation *dst = (DepsRelation *)MEM_dupallocN(src);
 	
 	/* clear out old pointers which no-longer apply */
 	dst->next = dst->prev = NULL;
@@ -241,7 +243,7 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const char 
 	
 	if (component) {
 		/* lookup node with matching name... */
-		DepsNode *node = BLI_ghash_lookup(component->op_hash, name);
+		DepsNode *node = (DepsNode *)BLI_ghash_lookup(component->op_hash, name);
 		
 		if (node) {
 			/* make sure type matches too... just in case */
@@ -263,7 +265,7 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char s
 	pose_comp = (PoseComponentDepsNode *)DEG_find_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
-		BoneComponentDepsNode *bone_node = BLI_ghash_lookup(pose_comp->bone_hash, subdata);
+		BoneComponentDepsNode *bone_node = (BoneComponentDepsNode *)BLI_ghash_lookup(pose_comp->bone_hash, subdata);
 		
 		if (type == DEPSNODE_TYPE_BONE) {
 			/* bone component is what we want */
@@ -271,7 +273,7 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char s
 		}
 		else if (type == DEPSNODE_TYPE_OP_BONE) {
 			/* now lookup relevant operation node */
-			return BLI_ghash_lookup(bone_node->op_hash, name);
+			return (DepsNode *)BLI_ghash_lookup(bone_node->op_hash, name);
 		}
 	}
 	
@@ -300,10 +302,10 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 				 * (as may be done for subgraphs needing timeoffset) 
 				 */
 				// XXX: review this
-				IDDepsNode *id_node = BLI_ghash_lookup(graph->id_hash, id);
+				IDDepsNode *id_node = (IDDepsNode *)BLI_ghash_lookup(graph->id_hash, id);
 				
 				if (id_node) {
-					result = BLI_ghash_lookup(id_node->component_hash,
+					result = (DepsNode *)BLI_ghash_lookup(id_node->component_hash,
 					                          SET_INT_IN_POINTER(type));
 				}
 			}
@@ -318,7 +320,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_ID_REF: /* ID Block Index/Reference */
 		{
 			/* lookup relevant ID using nodehash */
-			result = BLI_ghash_lookup(graph->id_hash, id);
+			result = (DepsNode *)BLI_ghash_lookup(graph->id_hash, id);
 		}	
 			break;
 			
@@ -334,10 +336,10 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_EVAL_PARTICLES:
 		{
 			/* Each ID-Node knows the set of components that are associated with it */
-			IDDepsNode *id_node = BLI_ghash_lookup(graph->id_hash, id);
+			IDDepsNode *id_node = (IDDepsNode *)BLI_ghash_lookup(graph->id_hash, id);
 			
 			if (id_node) {
-				result = BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(type));
+				result = (DepsNode *)BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(type));
 			}
 		}
 			break;
@@ -411,7 +413,7 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
                                          eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
 {
 	/* set default values for returns */
-	*id       = ptr->id.data;              /* for obvious reasons... */
+	*id       = (ID *)ptr->id.data;              /* for obvious reasons... */
 	*subdata  = '\0';                      /* default to no subdata (e.g. bone) name lookup in most cases */
 	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
 	name[0]   = '\0';                      /* default to no name to lookup in most cases */
@@ -552,7 +554,7 @@ static void deg_debug_graphviz_legend(FILE *f)
 	fprintf(f, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
 	
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
-		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((*pair)[0]);
+		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((eDepsNode_Type)(*pair)[0]);
 		deg_debug_graphviz_legend_color(f, nti->name, deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
 	}
 	
@@ -656,7 +658,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 				
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
 				GHASH_ITER(hashIter, id_node->component_hash) {
-					const DepsNode *component = BLI_ghashIterator_getValue(&hashIter);
+					const DepsNode *component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 					deg_debug_graphviz_node(f, component);
 				}
 				deg_debug_graphviz_node_cluster_end(f);
@@ -692,7 +694,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 				
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
 				GHASH_ITER(hashIter, comp_node->op_hash) {
-					const DepsNode *op_node = BLI_ghashIterator_getValue(&hashIter);
+					const DepsNode *op_node = (const DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 					deg_debug_graphviz_node(f, op_node);
 				}
 				deg_debug_graphviz_node_cluster_end(f);
@@ -710,7 +712,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 				
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
 				GHASH_ITER(hashIter, pose_node->bone_hash) {
-					const DepsNode *bone_comp = BLI_ghashIterator_getValue(&hashIter);
+					const DepsNode *bone_comp = (const DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 					deg_debug_graphviz_node(f, bone_comp);
 				}
 				deg_debug_graphviz_node_cluster_end(f);
@@ -748,7 +750,7 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
 			GHashIterator hashIter;
 			GHASH_ITER(hashIter, id_node->component_hash) {
-				const DepsNode *component = BLI_ghashIterator_getValue(&hashIter);
+				const DepsNode *component = (const DepsNode *)BLI_ghashIterator_getValue(&hashIter);
 				deg_debug_graphviz_node_relations(f, component);
 			}
 			break;
@@ -761,6 +763,9 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 			}
 			break;
 		}
+		
+		default:
+			break;
 	}
 }
 
