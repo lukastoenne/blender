@@ -970,6 +970,7 @@ static DepsNodeTypeInfo DNTI_BONE = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 
 /* ******************************************************** */
@@ -979,44 +980,46 @@ static DepsNodeTypeInfo DNTI_BONE = {
 /* NOTE: some of these are just templates used by the others */
 
 /* Helper to add 'operation' node to graph */
-static void dnti_operation__add_to_graph(Depsgraph *graph, DepsNode *node,
-                                         const ID *id, eDepsNode_Type component_type)
+void OperationDepsNode::add_to_component_node(Depsgraph *graph, const ID *id, eDepsNode_Type component_type)
 {
 	/* get component node to add operation to */
-	DepsNode *comp_node = DEG_get_node(graph, id, NULL, component_type, NULL);
-	ComponentDepsNode *component = (ComponentDepsNode *)comp_node;
+	ComponentDepsNode *component = (ComponentDepsNode *)DEG_get_node(graph, id, NULL, component_type, NULL);
 	
 	/* add to hash and list */
-	BLI_ghash_insert(component->op_hash, node->name, node);
-	BLI_addtail(&component->ops, node);
+	BLI_ghash_insert(component->op_hash, this->name, this);
+	BLI_addtail(&component->ops, this);
 	
 	/* add backlink to component */
-	node->owner = comp_node;
+	this->owner = component;
 }
 
 /* Callback to remove 'operation' node from graph */
-static void dnti_operation__remove_from_graph(Depsgraph *UNUSED(graph), DepsNode *node)
+void OperationDepsNode::remove_from_graph(Depsgraph *UNUSED(graph))
 {
-	if (node->owner) {
-		ComponentDepsNode *component = (ComponentDepsNode *)node;
+	if (this->owner) {
+		ComponentDepsNode *component = (ComponentDepsNode *)this->owner;
 		
 		/* remove node from hash and list */
-		BLI_ghash_remove(component->op_hash, node->name, NULL, NULL);
-		BLI_remlink(&component->ops, node);
+		BLI_ghash_remove(component->op_hash, this->name, NULL, NULL);
+		BLI_remlink(&component->ops, this);
 		
 		/* remove backlink */
-		node->owner = NULL;
+		this->owner = NULL;
 	}
 }
 
 /* Parameter Operation ==================================== */
 
 /* Add 'parameter operation' node to graph */
-static void dnti_op_parameter__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void ParametersOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_PARAMETERS);
 }
 
+DEG_DEPSNODE_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, "Parameters Operation");
+static DepsNodeTypeInfoImpl<ParametersOperationDepsNode> DNTI_OP_PARAMETERS;
+
+#if 0
 /* Parameter Operation Node */
 static DepsNodeTypeInfo DNTI_OP_PARAMETER = {
 	/* type */               DEPSNODE_TYPE_OP_PARAMETER,
@@ -1035,15 +1038,20 @@ static DepsNodeTypeInfo DNTI_OP_PARAMETER = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Proxy Operation ======================================== */
 
 /* Add 'proxy operation' node to graph */
-static void dnti_op_proxy__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void ProxyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PROXY);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_PROXY);
 }
 
+DEG_DEPSNODE_DEFINE(ProxyOperationDepsNode, DEPSNODE_TYPE_OP_PROXY, "Proxy Operation");
+static DepsNodeTypeInfoImpl<ProxyOperationDepsNode> DNTI_OP_PROXY;
+
+#if 0
 /* Proxy Operation Node */
 static DepsNodeTypeInfo DNTI_OP_PROXY = {
 	/* type */               DEPSNODE_TYPE_OP_PROXY,
@@ -1062,15 +1070,20 @@ static DepsNodeTypeInfo DNTI_OP_PROXY = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Animation Operation ==================================== */
 
 /* Add 'animation operation' node to graph */
-static void dnti_op_animation__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void AnimationOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_ANIMATION);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_ANIMATION);
 }
 
+DEG_DEPSNODE_DEFINE(AnimationOperationDepsNode, DEPSNODE_TYPE_OP_ANIMATION, "Animation Operation");
+static DepsNodeTypeInfoImpl<AnimationOperationDepsNode> DNTI_OP_ANIMATION;
+
+#if 0
 /* Animation Operation Node */
 static DepsNodeTypeInfo DNTI_OP_ANIMATION = {
 	/* type */               DEPSNODE_TYPE_OP_ANIMATION,
@@ -1089,15 +1102,20 @@ static DepsNodeTypeInfo DNTI_OP_ANIMATION = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Transform Operation ==================================== */
 
 /* Add 'transform operation' node to graph */
-static void dnti_op_transform__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void TransformOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_TRANSFORM);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_TRANSFORM);
 }
 
+DEG_DEPSNODE_DEFINE(TransformOperationDepsNode, DEPSNODE_TYPE_OP_TRANSFORM, "Transform Operation");
+static DepsNodeTypeInfoImpl<TransformOperationDepsNode> DNTI_OP_TRANSFORM;
+
+#if 0
 /* Transform Operation Node */
 static DepsNodeTypeInfo DNTI_OP_TRANSFORM = {
 	/* type */               DEPSNODE_TYPE_OP_TRANSFORM,
@@ -1116,15 +1134,20 @@ static DepsNodeTypeInfo DNTI_OP_TRANSFORM = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Geometry Operation ===================================== */
 
 /* Add 'geometry operation' node to graph */
-static void dnti_op_geometry__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void GeometryOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_GEOMETRY);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_GEOMETRY);
 }
 
+DEG_DEPSNODE_DEFINE(GeometryOperationDepsNode, DEPSNODE_TYPE_OP_GEOMETRY, "Geometry Operation");
+static DepsNodeTypeInfoImpl<GeometryOperationDepsNode> DNTI_OP_GEOMETRY;
+
+#if 0
 /* Geometry Operation Node */
 static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
 	/* type */               DEPSNODE_TYPE_OP_GEOMETRY,
@@ -1143,15 +1166,20 @@ static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Sequencer Operation ==================================== */
 
 /* Add 'sequencer operation' node to graph */
-static void dnti_op_sequencer__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void SequencerOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_SEQUENCER);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_SEQUENCER);
 }
 
+DEG_DEPSNODE_DEFINE(SequencerOperationDepsNode, DEPSNODE_TYPE_OP_SEQUENCER, "Sequencer Operation");
+static DepsNodeTypeInfoImpl<SequencerOperationDepsNode> DNTI_OP_SEQUENCER;
+
+#if 0
 /* Sequencer Operation Node */
 static DepsNodeTypeInfo DNTI_OP_SEQUENCER = {
 	/* type */               DEPSNODE_TYPE_OP_SEQUENCER,
@@ -1170,15 +1198,20 @@ static DepsNodeTypeInfo DNTI_OP_SEQUENCER = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Update Operation ======================================= */
 
 /* Add 'update operation' node to graph */
-static void dnti_op_update__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void UpdateOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_PARAMETERS);
 }
 
+DEG_DEPSNODE_DEFINE(UpdateOperationDepsNode, DEPSNODE_TYPE_OP_UPDATE, "RNA Update Operation");
+static DepsNodeTypeInfoImpl<UpdateOperationDepsNode> DNTI_OP_UPDATE;
+
+#if 0
 /* Update Operation Node */
 static DepsNodeTypeInfo DNTI_OP_UPDATE = {
 	/* type */               DEPSNODE_TYPE_OP_UPDATE,
@@ -1197,16 +1230,21 @@ static DepsNodeTypeInfo DNTI_OP_UPDATE = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Driver Operation ===================================== */
 // XXX: some special tweaks may be needed for this one...
 
 /* Add 'driver operation' node to graph */
-static void dnti_op_driver__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void DriverOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_PARAMETERS);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_PARAMETERS);
 }
 
+DEG_DEPSNODE_DEFINE(DriverOperationDepsNode, DEPSNODE_TYPE_OP_DRIVER, "Driver Operation");
+static DepsNodeTypeInfoImpl<DriverOperationDepsNode> DNTI_OP_DRIVER;
+
+#if 0
 /* Driver Operation Node */
 static DepsNodeTypeInfo DNTI_OP_DRIVER = {
 	/* type */               DEPSNODE_TYPE_OP_DRIVER,
@@ -1225,28 +1263,20 @@ static DepsNodeTypeInfo DNTI_OP_DRIVER = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Pose Operation ========================================= */
 
 /* Add 'pose operation' node to graph */
-static void dnti_op_pose__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void PoseOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	OperationDepsNode *pose_op = (OperationDepsNode *)node;
-	PoseComponentDepsNode *pose_comp;
-	
-	/* get bone component that owns this bone operation */
-//	BLI_assert(pose_op->ptr.type == &RNA_Pose);
-	
-	pose_comp = (PoseComponentDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
-	
-	/* add to hash and list as per usual */
-	BLI_ghash_insert(pose_comp->op_hash, node->name, node);
-	BLI_addtail(&pose_comp->ops, node);
-	
-	/* add backlink to component */
-	node->owner = pose_comp;
+	add_to_component_node(graph, id, DEPSNODE_TYPE_EVAL_POSE);
 }
 
+DEG_DEPSNODE_DEFINE(PoseOperationDepsNode, DEPSNODE_TYPE_OP_POSE, "Pose Operation");
+static DepsNodeTypeInfoImpl<PoseOperationDepsNode> DNTI_OP_POSE;
+
+#if 0
 /* Pose Operation Node */
 static DepsNodeTypeInfo DNTI_OP_POSE = {
 	/* type */               DEPSNODE_TYPE_OP_POSE,
@@ -1265,13 +1295,13 @@ static DepsNodeTypeInfo DNTI_OP_POSE = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Bone Operation ========================================= */
 
 /* Init local data for bone operation */
-static void dnti_op_bone__init_data(DepsNode *node, const ID *id, const char subdata[MAX_NAME])
+void BoneOperationDepsNode::init(const ID *id, const char *subdata)
 {
-	OperationDepsNode *bone_op = (OperationDepsNode *)node;
 	Object *ob;
 	bPoseChannel *pchan;
 	
@@ -1279,30 +1309,33 @@ static void dnti_op_bone__init_data(DepsNode *node, const ID *id, const char sub
 	ob = (Object *)id;
 	pchan = BKE_pose_channel_find_name(ob->pose, subdata);
 	
-	RNA_pointer_create((ID *)id, &RNA_PoseBone, pchan, &bone_op->ptr);
+	RNA_pointer_create((ID *)id, &RNA_PoseBone, pchan, &this->ptr);
 }
 
 /* Add 'bone operation' node to graph */
-static void dnti_op_bone__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	OperationDepsNode *bone_op = (OperationDepsNode *)node;
 	BoneComponentDepsNode *bone_comp;
 	bPoseChannel *pchan;
 	
 	/* get bone component that owns this bone operation */
-	BLI_assert(bone_op->ptr.type == &RNA_PoseBone);
-	pchan = (bPoseChannel *)bone_op->ptr.data;
+	BLI_assert(this->ptr.type == &RNA_PoseBone);
+	pchan = (bPoseChannel *)this->ptr.data;
 	
 	bone_comp = (BoneComponentDepsNode *)DEG_get_node(graph, id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* add to hash and list as per usual */
-	BLI_ghash_insert(bone_comp->op_hash, pchan->name, node);
-	BLI_addtail(&bone_comp->ops, node);
+	BLI_ghash_insert(bone_comp->op_hash, pchan->name, this);
+	BLI_addtail(&bone_comp->ops, this);
 	
 	/* add backlink to component */
-	node->owner = bone_comp;
+	this->owner = bone_comp;
 }
 
+DEG_DEPSNODE_DEFINE(BoneOperationDepsNode, DEPSNODE_TYPE_OP_BONE, "Bone Operation");
+static DepsNodeTypeInfoImpl<BoneOperationDepsNode> DNTI_OP_BONE;
+
+#if 0
 /* Bone Operation Node */
 static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* type */               DEPSNODE_TYPE_OP_BONE,
@@ -1321,22 +1354,27 @@ static DepsNodeTypeInfo DNTI_OP_BONE = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* Particle Operation ===================================== */
 
 /* Add 'particle operation' node to graph */
-static void dnti_op_particle__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void ParticlesOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_EVAL_PARTICLES);
+	add_to_component_node(graph, id, DEPSNODE_TYPE_EVAL_PARTICLES);
 }
 
 /* Remove 'particle operation' node from graph */
-static void dnti_op_particle__remove_from_graph(Depsgraph *graph, DepsNode *node)
+void ParticlesOperationDepsNode::remove_from_graph(Depsgraph *graph)
 {
 	// XXX...
-	dnti_operation__remove_from_graph(graph, node);
+	OperationDepsNode::remove_from_graph(graph);
 }
 
+DEG_DEPSNODE_DEFINE(ParticlesOperationDepsNode, DEPSNODE_TYPE_OP_PARTICLE, "Particles Operation");
+static DepsNodeTypeInfoImpl<ParticlesOperationDepsNode> DNTI_OP_PARTICLES;
+
+#if 0
 /* Particles Operation Node */
 static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
 	/* type */               DEPSNODE_TYPE_OP_PARTICLE,
@@ -1355,16 +1393,21 @@ static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
 	/* eval_context_init()*/ NULL, 
 	/* eval_context_free()*/ NULL
 };
+#endif
 
 /* RigidBody Operation ==================================== */
 /* Note: RigidBody Operations are reserved for scene-level rigidbody sim steps */
 
 /* Add 'rigidbody operation' node to graph */
-static void dnti_op_rigidbody__add_to_graph(Depsgraph *graph, DepsNode *node, const ID *id)
+void RigidBodyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
-	dnti_operation__add_to_graph(graph, node, id, DEPSNODE_TYPE_TRANSFORM); // XXX
+	add_to_component_node(graph, id, DEPSNODE_TYPE_TRANSFORM); // XXX
 }
 
+DEG_DEPSNODE_DEFINE(RigidBodyOperationDepsNode, DEPSNODE_TYPE_OP_RIGIDBODY, "RigidBody Operation");
+static DepsNodeTypeInfoImpl<RigidBodyOperationDepsNode> DNTI_OP_RIGIDBODY;
+
+#if 0
 /* Rigidbody Operation Node */
 static DepsNodeTypeInfo DNTI_OP_RIGIDBODY = {
 	/* type */               DEPSNODE_TYPE_OP_RIGIDBODY,
@@ -1432,11 +1475,10 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(&DNTI_EVAL_POSE);
 	DEG_register_node_typeinfo(&DNTI_BONE);
 	
-#if 0
 	//DEG_register_node_typeinfo(&DNTI_EVAL_PARTICLES);
 	
 	/* INNER */
-	DEG_register_node_typeinfo(&DNTI_OP_PARAMETER);
+	DEG_register_node_typeinfo(&DNTI_OP_PARAMETERS);
 	DEG_register_node_typeinfo(&DNTI_OP_PROXY);
 	DEG_register_node_typeinfo(&DNTI_OP_ANIMATION);
 	DEG_register_node_typeinfo(&DNTI_OP_TRANSFORM);
@@ -1449,9 +1491,8 @@ void DEG_register_node_types(void)
 	DEG_register_node_typeinfo(&DNTI_OP_POSE);
 	DEG_register_node_typeinfo(&DNTI_OP_BONE);
 	
-	DEG_register_node_typeinfo(&DNTI_OP_PARTICLE);
+	DEG_register_node_typeinfo(&DNTI_OP_PARTICLES);
 	DEG_register_node_typeinfo(&DNTI_OP_RIGIDBODY);
-#endif
 }
 
 /* Free registry on exit */
