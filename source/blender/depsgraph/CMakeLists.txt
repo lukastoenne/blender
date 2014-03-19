@@ -26,6 +26,7 @@
 set(INC
 	.
 	./intern
+	./util
 	../blenkernel
 	../blenlib
 	../bmesh
@@ -36,6 +37,7 @@ set(INC
 )
 
 set(INC_SYS
+	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
@@ -53,6 +55,11 @@ set(SRC
 	intern/depsgraph_queue.h
 	intern/depsgraph_types.h
 	intern/stubs.h
+	util/depsgraph_util_foreach.h
+	util/depsgraph_util_map.h
+	util/depsgraph_util_set.h
 )
+
+add_definitions(${BOOST_DEFINITIONS})
 
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}")

@@ -27,11 +27,12 @@
 
 Import('env')
 
-sources = env.Glob('intern/*.c')
+sources = env.Glob('intern/*.c') + env.Glob('util/*.c')
 
 incs = [
     '.',
-	'./intern',
+    './intern',
+    './util',
     '#/intern/guardedalloc',
     '../bmesh',
     '../blenlib',
@@ -42,6 +43,8 @@ incs = [
     ]
 
 defs = []
+
+incs.append(env['BF_BOOST_INC'])
 
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', 'win64-mingw'):
     incs.append(env['BF_PTHREADS_INC'])
