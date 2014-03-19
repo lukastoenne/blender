@@ -293,7 +293,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 				 * (as may be done for subgraphs needing timeoffset) 
 				 */
 				// XXX: review this
-				IDDepsNode *id_node = (IDDepsNode *)BLI_ghash_lookup(graph->id_hash, id);
+				IDDepsNode *id_node = graph->find_id_node(id);
 				
 				if (id_node) {
 					result = id_node->find_component(type);
@@ -310,7 +310,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_ID_REF: /* ID Block Index/Reference */
 		{
 			/* lookup relevant ID using nodehash */
-			result = (DepsNode *)BLI_ghash_lookup(graph->id_hash, id);
+			result = graph->find_id_node(id);
 		}	
 			break;
 			
@@ -326,7 +326,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_EVAL_PARTICLES:
 		{
 			/* Each ID-Node knows the set of components that are associated with it */
-			IDDepsNode *id_node = (IDDepsNode *)BLI_ghash_lookup(graph->id_hash, id);
+			IDDepsNode *id_node = graph->find_id_node(id);
 			
 			if (id_node) {
 				result = id_node->find_component(type);
@@ -761,8 +761,8 @@ static void deg_debug_graphviz_graph_nodes(FILE *f, const Depsgraph *graph)
 	GHashIterator hashIter;
 	if (graph->root_node)
 		deg_debug_graphviz_node(f, graph->root_node);
-	GHASH_ITER(hashIter, graph->id_hash) {
-		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+		DepsNode *node = it->second;
 		deg_debug_graphviz_node(f, node);
 	}
 }
@@ -772,8 +772,8 @@ static void deg_debug_graphviz_graph_relations(FILE *f, const Depsgraph *graph)
 	GHashIterator hashIter;
 	if (graph->root_node)
 		deg_debug_graphviz_node_relations(f, graph->root_node);
-	GHASH_ITER(hashIter, graph->id_hash) {
-		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+		DepsNode *node = it->second;
 		deg_debug_graphviz_node_relations(f, node);
 	}
 }

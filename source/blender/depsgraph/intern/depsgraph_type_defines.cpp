@@ -255,14 +255,14 @@ void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 void IDDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
 	/* add to hash so that it can be found */
-	BLI_ghash_insert(graph->id_hash, (ID *)id, this);
+	graph->id_hash[id] = this;
 }
 
 /* Remove 'id' node from graph */
 void IDDepsNode::remove_from_graph(Depsgraph *graph)
 {
 	/* remove toplevel node and hash entry, but don't free... */
-	BLI_ghash_remove(graph->id_hash, this->id, NULL, NULL);
+	graph->id_hash.erase(this->id);
 }
 
 /* Validate links between components */
@@ -399,9 +399,11 @@ void SubgraphDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	
 	/* if there's an ID associated, add to ID-nodes lookup too */
 	if (id) {
+#if 0 /* XXX subgraph node is NOT a true IDDepsNode - what is this supposed to do? */
 		// TODO: what to do if subgraph's ID has already been added?
-		BLI_assert(BLI_ghash_haskey(graph->id_hash, id) == false);
-		BLI_ghash_insert(graph->id_hash, (ID *)id, this);
+		BLI_assert(!graph->find_id_node(id));
+		graph->id_hash[id] = this;
+#endif
 	}
 }
 
@@ -413,8 +415,10 @@ void SubgraphDepsNode::remove_from_graph(Depsgraph *graph)
 	
 	/* remove from ID-nodes lookup */
 	if (this->root_id) {
-		BLI_assert(BLI_ghash_lookup(graph->id_hash, this->root_id) == this);
-		BLI_ghash_remove(graph->id_hash, this->root_id, NULL, NULL);
+#if 0 /* XXX subgraph node is NOT a true IDDepsNode - what is this supposed to do? */
+		BLI_assert(graph->find_id_node(this->root_id) == this);
+		graph->id_hash.erase(this->root_id);
+#endif
 	}
 }
 

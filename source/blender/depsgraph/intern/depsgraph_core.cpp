@@ -60,16 +60,14 @@ extern "C" {
  */
 void DEG_graph_validate_links(Depsgraph *graph)
 {
-	GHashIterator hashIter;
-	
-	BLI_assert((graph != NULL) && (graph->id_hash != NULL));
+	BLI_assert(graph != NULL);
 	
 	/* go over each ID node to recursively call validate_links()
 	 * on it, which should be enough to ensure that all of those
 	 * subtrees are valid
 	 */
-	GHASH_ITER(hashIter, graph->id_hash) {
-		DepsNode *node = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+		DepsNode *node = it->second;
 		node->validate_links(graph);
 	}
 }
@@ -99,6 +97,12 @@ void DEG_graph_sort(Depsgraph *graph)
 
 /* ************************************************** */
 /* Node Management */
+
+IDDepsNode *Depsgraph::find_id_node(const ID *id) const
+{
+	Depsgraph::IDNodeMap::const_iterator it = this->id_hash.find(id);
+	return it != this->id_hash.end() ? it->second : NULL;
+}
 
 /* Get Node ----------------------------------------- */
 
@@ -459,28 +463,20 @@ Depsgraph *DEG_graph_new()
 {
 	Depsgraph *graph = (Depsgraph *)MEM_callocN(sizeof(Depsgraph), "Depsgraph");
 	
-	/* initialise hash used to quickly find node associated with a particular ID block */
-	graph->id_hash = BLI_ghash_ptr_new("Depsgraph ID NodeHash");
-	
 	/* return new graph */
 	return graph;
 }
 
 /* Freeing ------------------------------------------- */
 
-/* wrapper around DEG_free_node() so that it can be used to free nodes stored in hash... */
-static void deg_graph_free__node_wrapper(void *node_p)
-{
-	DepsNode *node = (DepsNode *)node_p;
-	delete node;
-}
-
 /* Free graph's contents and graph itself */
 void DEG_graph_free(Depsgraph *graph)
 {
 	/* free node hash */
-	BLI_ghash_free(graph->id_hash, NULL, deg_graph_free__node_wrapper);
-	graph->id_hash = NULL;
+	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+		DepsNode *node = it->second;
+		delete node;
+	}
 	
 	/* free root node - it won't have been freed yet... */
 	if (graph->root_node) {

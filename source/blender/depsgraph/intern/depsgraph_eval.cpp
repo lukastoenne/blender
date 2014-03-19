@@ -190,14 +190,12 @@ static void deg_node_evaluation_context_init(ComponentDepsNode *comp, eEvaluatio
 /* Initialise evaluation contexts for all nodes */
 void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType context_type)
 {
-	GHashIterator idHashIter;
-	
 	/* initialise master context first... */
 	// ...
 	
 	/* loop over components, initialising their contexts */
-	GHASH_ITER(idHashIter, graph->id_hash) {
-		IDDepsNode *id_ref = (IDDepsNode *)BLI_ghashIterator_getValue(&idHashIter);
+	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+		IDDepsNode *id_ref = it->second;
 		
 		/* loop over components */
 		for (IDDepsNode::ComponentMap::iterator it = id_ref->components.begin(); it != id_ref->components.end(); ++it) {
@@ -233,11 +231,9 @@ static void deg_node_evaluation_contexts_free(ComponentDepsNode *comp)
 /* Free evaluation contexts for all nodes */
 void DEG_evaluation_contexts_free(Depsgraph *graph)
 {
-	GHashIterator idHashIter;
-	
 	/* free contexts for components first */
-	GHASH_ITER(idHashIter, graph->id_hash) {
-		IDDepsNode *id_ref = (IDDepsNode *)BLI_ghashIterator_getValue(&idHashIter);
+	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+		IDDepsNode *id_ref = it->second;
 		
 		for (IDDepsNode::ComponentMap::iterator it = id_ref->components.begin(); it != id_ref->components.end(); ++it) {
 			ComponentDepsNode *comp = it->second;

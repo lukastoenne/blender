@@ -536,8 +536,10 @@ struct RigidBodyOperationDepsNode : public OperationDepsNode {
 
 /* Dependency Graph object */
 struct Depsgraph {
+	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
+	
 	/* Core Graph Functionality ........... */
-	struct GHash *id_hash;   /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
+	IDNodeMap id_hash;       /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
 	RootDepsNode *root_node; /* "root" node - the one where all evaluation enters from */
 	
 	ListBase subgraphs;      /* (SubgraphDepsNode) subgraphs referenced in tree... */
@@ -551,6 +553,9 @@ struct Depsgraph {
 	size_t num_nodes;        /* number of operation nodes in all_opnodes list */
 	
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
+	
+public:
+	IDDepsNode *find_id_node(const ID *id) const;
 };
 
 /* ************************************* */
