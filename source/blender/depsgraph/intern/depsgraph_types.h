@@ -35,6 +35,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "depsgraph_util_map.h"
+
 struct Scene;
 struct bPoseChannel;
 
@@ -261,6 +263,8 @@ public:
 
 /* Generic Nodes ======================= */
 
+struct ComponentDepsNode;
+
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
 	void add_to_graph(Depsgraph *graph, const ID *id);
@@ -287,6 +291,8 @@ struct RootDepsNode : public DepsNode {
 
 /* ID-Block Reference */
 struct IDDepsNode : public DepsNode {
+	typedef unordered_map<eDepsNode_Type, ComponentDepsNode *> ComponentMap;
+	
 	void init(const ID *id, const char *subdata);
 	void copy(DepsgraphCopyContext *dcc, const IDDepsNode *src);
 	~IDDepsNode();
@@ -296,8 +302,10 @@ struct IDDepsNode : public DepsNode {
 	
 	void validate_links(Depsgraph *graph);
 	
+	ComponentDepsNode *find_component(eDepsNode_Type type) const;
+	
 	struct ID *id;                  /* ID Block referenced */
-	struct GHash *component_hash;   /* <eDepsNode_Type, ComponentDepsNode*> hash to make it faster to look up components */
+	ComponentMap components;        /* hash to make it faster to look up components */
 	
 	DEG_DEPSNODE_DECLARE;
 };

@@ -198,13 +198,12 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 	/* loop over components, initialising their contexts */
 	GHASH_ITER(idHashIter, graph->id_hash) {
 		IDDepsNode *id_ref = (IDDepsNode *)BLI_ghashIterator_getValue(&idHashIter);
-		GHashIterator compHashIter;
 		
 		/* loop over components */
-		GHASH_ITER(compHashIter, id_ref->component_hash) {
+		for (IDDepsNode::ComponentMap::iterator it = id_ref->components.begin(); it != id_ref->components.end(); ++it) {
+			ComponentDepsNode *comp = it->second;
 			/* initialise evaluation context */
 			// TODO: we probably need to pass the master context down so that it can be handled properly
-			ComponentDepsNode *comp = (ComponentDepsNode *)BLI_ghashIterator_getValue(&compHashIter); 
 			deg_node_evaluation_context_init(comp, context_type);
 		}
 	}
@@ -239,11 +238,10 @@ void DEG_evaluation_contexts_free(Depsgraph *graph)
 	/* free contexts for components first */
 	GHASH_ITER(idHashIter, graph->id_hash) {
 		IDDepsNode *id_ref = (IDDepsNode *)BLI_ghashIterator_getValue(&idHashIter);
-		GHashIterator compHashIter;
 		
-		GHASH_ITER(compHashIter, id_ref->component_hash) {
+		for (IDDepsNode::ComponentMap::iterator it = id_ref->components.begin(); it != id_ref->components.end(); ++it) {
+			ComponentDepsNode *comp = it->second;
 			/* free evaluation context */
-			ComponentDepsNode *comp = (ComponentDepsNode *)BLI_ghashIterator_getValue(&compHashIter);
 			deg_node_evaluation_contexts_free(comp);
 		}
 	}

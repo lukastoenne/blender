@@ -296,8 +296,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 				IDDepsNode *id_node = (IDDepsNode *)BLI_ghash_lookup(graph->id_hash, id);
 				
 				if (id_node) {
-					result = (DepsNode *)BLI_ghash_lookup(id_node->component_hash,
-					                          SET_INT_IN_POINTER(type));
+					result = id_node->find_component(type);
 				}
 			}
 			else {
@@ -330,7 +329,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 			IDDepsNode *id_node = (IDDepsNode *)BLI_ghash_lookup(graph->id_hash, id);
 			
 			if (id_node) {
-				result = (DepsNode *)BLI_ghash_lookup(id_node->component_hash, SET_INT_IN_POINTER(type));
+				result = id_node->find_component(type);
 			}
 		}
 			break;
@@ -644,18 +643,16 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 	switch (node->type) {
 		case DEPSNODE_TYPE_ID_REF: {
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
-			if (BLI_ghash_size(id_node->component_hash) > 0) {
-				GHashIterator hashIter;
-				
-				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
-				GHASH_ITER(hashIter, id_node->component_hash) {
-					const DepsNode *component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-					deg_debug_graphviz_node(f, component);
-				}
-				deg_debug_graphviz_node_cluster_end(f);
+			if (id_node->components.empty()) {
+				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
 			}
 			else {
-				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
+					const ComponentDepsNode *comp = it->second;
+					deg_debug_graphviz_node(f, comp);
+				}
+				deg_debug_graphviz_node_cluster_end(f);
 			}
 			break;
 		}
@@ -739,10 +736,9 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 	switch (node->type) {
 		case DEPSNODE_TYPE_ID_REF: {
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
-			GHashIterator hashIter;
-			GHASH_ITER(hashIter, id_node->component_hash) {
-				const DepsNode *component = (const DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-				deg_debug_graphviz_node_relations(f, component);
+			for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
+				const ComponentDepsNode *comp = it->second;
+				deg_debug_graphviz_node_relations(f, comp);
 			}
 			break;
 		}

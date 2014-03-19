@@ -217,48 +217,35 @@ void IDDepsNode::init(const ID *id, const char *UNUSED(subdata))
 	BLI_assert(id != NULL);
 	this->id = (ID *)id;
 	
-	/* init components hash - eDepsNode_Type : ComponentDepsNode */
-	this->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash");
-	
 	/* NOTE: components themselves are created if/when needed.
 	 * This prevents problems with components getting added 
 	 * twice if an ID-Ref needs to be created to house it...
 	 */
 }
 
-/* Helper for freeing ID nodes - Used by component hash to free data... */
-static void dnti_id_ref__hash_free_component(void *component_p)
-{
-	DepsNode *component = (DepsNode *)component_p;
-	delete component;
-}
-
 /* Free 'id' node */
 IDDepsNode::~IDDepsNode()
 {
-	/* free components (and recursively, their data) while we empty the hash */
-	BLI_ghash_free(this->component_hash, NULL, dnti_id_ref__hash_free_component);
+	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
+		const ComponentDepsNode *comp = it->second;
+		delete comp;
+	}
 }
 
 /* Copy 'id' node */
 void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 {
-	GHashIterator hashIter;
-	
-	/* create new hash for destination (src's one is still linked to it at this point) */
-	this->component_hash = BLI_ghash_int_new("IDDepsNode Component Hash Copy");
-	
 	/* iterate over items in original hash, adding them to new hash */
-	GHASH_ITER(hashIter, src->component_hash) {
+	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
 		/* get current <type : component> mapping */
-		eDepsNode_Type c_type   = (eDepsNode_Type)GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(&hashIter));
-		DepsNode *old_component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+		eDepsNode_Type c_type   = it->first;
+		DepsNode *old_component = it->second;
 		
 		/* make a copy of component */
-		DepsNode *component     = DEG_copy_node(dcc, old_component);
+		ComponentDepsNode *component     = (ComponentDepsNode *)DEG_copy_node(dcc, old_component);
 		
 		/* add new node to hash... */
-		BLI_ghash_insert(this->component_hash, SET_INT_IN_POINTER(c_type), old_component);
+		this->components[c_type] = component;
 	}
 	
 	// TODO: perform a second loop to fix up links?
@@ -286,14 +273,14 @@ void IDDepsNode::validate_links(Depsgraph *graph)
 	GHashIterator hashIter;
 	
 	/* get our components ......................................................................... */
-	ComponentDepsNode *params = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash, SET_INT_IN_POINTER(DEPSNODE_TYPE_PARAMETERS));
-	ComponentDepsNode *anim = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_ANIMATION));
-	ComponentDepsNode *trans = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_TRANSFORM));
-	ComponentDepsNode *geom = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_GEOMETRY));
-	ComponentDepsNode *proxy = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,  SET_INT_IN_POINTER(DEPSNODE_TYPE_PROXY));
-	ComponentDepsNode *pose = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_POSE));
-	ComponentDepsNode *psys = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,   SET_INT_IN_POINTER(DEPSNODE_TYPE_EVAL_PARTICLES));
-	ComponentDepsNode *seq = (ComponentDepsNode *)BLI_ghash_lookup(this->component_hash,    SET_INT_IN_POINTER(DEPSNODE_TYPE_SEQUENCER));
+	ComponentDepsNode *params = find_component(DEPSNODE_TYPE_PARAMETERS);
+	ComponentDepsNode *anim = find_component(DEPSNODE_TYPE_ANIMATION);
+	ComponentDepsNode *trans = find_component(DEPSNODE_TYPE_TRANSFORM);
+	ComponentDepsNode *geom = find_component(DEPSNODE_TYPE_GEOMETRY);
+	ComponentDepsNode *proxy = find_component(DEPSNODE_TYPE_PROXY);
+	ComponentDepsNode *pose = find_component(DEPSNODE_TYPE_EVAL_POSE);
+	ComponentDepsNode *psys = find_component(DEPSNODE_TYPE_EVAL_PARTICLES);
+	ComponentDepsNode *seq = find_component(DEPSNODE_TYPE_SEQUENCER);
 	
 	/* enforce (gross) ordering of these components................................................. */
 	// TODO: create relationships to do this...
@@ -334,10 +321,16 @@ void IDDepsNode::validate_links(Depsgraph *graph)
 	 * so that we can take those restrictions as a guide for our low-level
 	 * component restrictions...
 	 */
-	GHASH_ITER(hashIter, this->component_hash) {
-		DepsNode *component = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
+		DepsNode *component = it->second;
 		component->validate_links(graph);
 	}
+}
+
+ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
+{
+	ComponentMap::const_iterator it = components.find(type);
+	return it != components.end() ? it->second : NULL;
 }
 
 DEG_DEPSNODE_DEFINE(IDDepsNode, DEPSNODE_TYPE_ID_REF, "ID Node");
@@ -519,8 +512,8 @@ void ComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	BLI_assert(id_node != NULL);
 	
 	/* add component to id */
-	BLI_ghash_insert(id_node->component_hash, SET_INT_IN_POINTER(this->type), this);
-	this->owner = (DepsNode *)id_node;
+	id_node->components[this->type] = this;
+	this->owner = id_node;
 }
 
 /* Remove 'component' node from graph */
@@ -529,8 +522,7 @@ void ComponentDepsNode::remove_from_graph(Depsgraph *graph)
 	/* detach from owner (i.e. id-ref) */
 	if (this->owner) {
 		IDDepsNode *id_node = (IDDepsNode *)this->owner;
-		
-		BLI_ghash_remove(id_node->component_hash, SET_INT_IN_POINTER(this->type), NULL, NULL);
+		id_node->components.erase(this->type);
 		this->owner = NULL;
 	}
 	
