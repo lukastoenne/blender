@@ -231,8 +231,8 @@ DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, struct Main *bma
  * operation so that they can be safely remapped...
  */
 typedef struct DepsgraphCopyContext {
-	GHash *nodes_hash;   /* <DepsNode, DepsNode> mapping from src node to dst node */
-	GHash *rels_hash;    // XXX: same for relationships?
+	struct GHash *nodes_hash;   /* <DepsNode, DepsNode> mapping from src node to dst node */
+	struct GHash *rels_hash;    // XXX: same for relationships?
 	
 	// XXX: filtering criteria...
 } DepsgraphCopyContext;
