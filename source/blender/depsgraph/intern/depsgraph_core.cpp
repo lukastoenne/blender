@@ -100,7 +100,7 @@ void DEG_graph_sort(Depsgraph *graph)
 
 IDDepsNode *Depsgraph::find_id_node(const ID *id) const
 {
-	Depsgraph::IDNodeMap::const_iterator it = this->id_hash.find(id);
+	IDNodeMap::const_iterator it = this->id_hash.find(id);
 	return it != this->id_hash.end() ? it->second : NULL;
 }
 

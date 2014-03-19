@@ -264,6 +264,7 @@ public:
 /* Generic Nodes ======================= */
 
 struct ComponentDepsNode;
+struct OperationDepsNode;
 
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
@@ -340,6 +341,10 @@ typedef enum eSubgraphRef_Flag {
 
 /* ID Component - Base type for all components */
 struct ComponentDepsNode : public DepsNode {
+	typedef unordered_map<const char *, OperationDepsNode *> OperationMap;
+	
+	OperationDepsNode *find_operation(const char *name) const;
+	
 	void init(const ID *id, const char *subdata);
 	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
 	~ComponentDepsNode();
@@ -348,7 +353,7 @@ struct ComponentDepsNode : public DepsNode {
 	void remove_from_graph(Depsgraph *graph);
 	
 	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
-	struct GHash *op_hash;   /* <String, OperationDepsNode> quicker lookups for inner nodes attached here by name/identifier */
+	OperationMap op_hash;    /* quicker lookups for inner nodes attached here by name/identifier */
 	
 	/* (DEG_OperationsContext) array of evaluation contexts to be passed to evaluation functions for this component. 
 	 *                         Only the requested context will be used during any particular evaluation
@@ -538,6 +543,8 @@ struct RigidBodyOperationDepsNode : public OperationDepsNode {
 struct Depsgraph {
 	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
 	
+	IDDepsNode *find_id_node(const ID *id) const;
+	
 	/* Core Graph Functionality ........... */
 	IDNodeMap id_hash;       /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
 	RootDepsNode *root_node; /* "root" node - the one where all evaluation enters from */
@@ -553,9 +560,6 @@ struct Depsgraph {
 	size_t num_nodes;        /* number of operation nodes in all_opnodes list */
 	
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
-	
-public:
-	IDDepsNode *find_id_node(const ID *id) const;
 };
 
 /* ************************************* */

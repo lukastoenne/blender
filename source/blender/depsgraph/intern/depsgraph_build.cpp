@@ -935,15 +935,15 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				
 				/* get operation that rigidbody should follow */
 				// TODO: doesn't pre-simulation updates need this info too?
-				tbase_op = (OperationDepsNode *)BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_parent");
+				tbase_op = tcomp->find_operation("BKE_object_eval_parent");
 				if (tbase_op == NULL) {
-					tbase_op = (OperationDepsNode *)BLI_ghash_lookup(tcomp->op_hash, "BKE_object_eval_local_transform");
+					tbase_op = tcomp->find_operation("BKE_object_eval_local_transform");
 				}
 				
 				/* get operation for constraint stack
 				 * - it may or may not exist, but should follow rigidbody
 				 */
-				con_op = (OperationDepsNode *)BLI_ghash_lookup(tcomp->op_hash, "Constraint Stack");
+				con_op = tcomp->find_operation("Constraint Stack");
 				
 				
 				/* 2) create operation for flushing results */

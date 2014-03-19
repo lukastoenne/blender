@@ -457,12 +457,15 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 
 /* Standard Component Methods ============================= */
 
+OperationDepsNode *ComponentDepsNode::find_operation(const char *name) const
+{
+	OperationMap::const_iterator it = this->op_hash.find(name);
+	return it != this->op_hash.end() ? it->second : NULL;
+}
+
 /* Initialise 'component' node - from pointer data given */
 void ComponentDepsNode::init(const ID *id, const char *subdata)
 {
-	/* create op-node hash */
-	this->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash");
-	
 	/* hook up eval context? */
 	// XXX: maybe this needs a special API?
 }
@@ -470,9 +473,6 @@ void ComponentDepsNode::init(const ID *id, const char *subdata)
 /* Copy 'component' node */
 void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src)
 {
-	/* create new op-node hash (to host the copied data) */
-	this->op_hash = BLI_ghash_str_new("DepsNode Component - Operations Hash (Copy)");
-	
 	/* duplicate list of operation nodes */
 	BLI_listbase_clear(&this->ops);
 	
@@ -503,9 +503,7 @@ ComponentDepsNode::~ComponentDepsNode()
 		delete op;
 	}
 	
-	/* free hash too - no need to free as it should be empty now */
-	BLI_ghash_free(this->op_hash, NULL, NULL);
-	this->op_hash = NULL;
+	/* no need to free in op_hash as it should be empty now */
 }
 
 /* Add 'component' node to graph */
@@ -851,7 +849,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)this->owner;
 	bPoseChannel *pchan = this->pchan;
 	
-	DepsNode *btrans_op = (DepsNode *)BLI_ghash_lookup(this->op_hash, "Bone Transforms");
+	DepsNode *btrans_op = this->find_operation("Bone Transforms");
 	DepsNode *final_op = NULL;  /* normal final-evaluation operation */
 	DepsNode *ik_op = NULL;     /* IK Solver operation */
 	
@@ -859,7 +857,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	
 	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 	if (pchan->parent == NULL) {
-		DepsNode *pinit_op = (DepsNode *)BLI_ghash_lookup(pcomp->op_hash, "Init Pose Eval");
+		DepsNode *pinit_op = pcomp->find_operation("Init Pose Eval");
 		DEG_add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 	}
 	
@@ -885,7 +883,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	 */
 	if (pchan->constraints.first) {
 		/* find constraint stack operation */
-		final_op = (DepsNode *)BLI_ghash_lookup(this->op_hash, "Constraint Stack");
+		final_op = this->find_operation("Constraint Stack");
 	}
 	else {
 		/* just normal transforms */
@@ -939,7 +937,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	
 	/* link bone/component to pose "sinks" as final link, unless it has obvious quirks */
 	{
-		DepsNode *ppost_op = (DepsNode *)BLI_ghash_lookup(this->op_hash, "Cleanup Pose Eval");
+		DepsNode *ppost_op = this->find_operation("Cleanup Pose Eval");
 		DEG_add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
 	}
 }
@@ -982,7 +980,7 @@ void OperationDepsNode::add_to_component_node(Depsgraph *graph, const ID *id, eD
 	ComponentDepsNode *component = (ComponentDepsNode *)DEG_get_node(graph, id, NULL, component_type, NULL);
 	
 	/* add to hash and list */
-	BLI_ghash_insert(component->op_hash, this->name, this);
+	component->op_hash[this->name] = this;
 	BLI_addtail(&component->ops, this);
 	
 	/* add backlink to component */
@@ -996,7 +994,7 @@ void OperationDepsNode::remove_from_graph(Depsgraph *UNUSED(graph))
 		ComponentDepsNode *component = (ComponentDepsNode *)this->owner;
 		
 		/* remove node from hash and list */
-		BLI_ghash_remove(component->op_hash, this->name, NULL, NULL);
+		component->op_hash.erase(this->name);
 		BLI_remlink(&component->ops, this);
 		
 		/* remove backlink */
@@ -1321,7 +1319,7 @@ void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	bone_comp = (BoneComponentDepsNode *)DEG_get_node(graph, id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* add to hash and list as per usual */
-	BLI_ghash_insert(bone_comp->op_hash, pchan->name, this);
+	bone_comp->op_hash[pchan->name] = this;
 	BLI_addtail(&bone_comp->ops, this);
 	
 	/* add backlink to component */

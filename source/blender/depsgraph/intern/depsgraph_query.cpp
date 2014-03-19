@@ -234,7 +234,7 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const char 
 	
 	if (component) {
 		/* lookup node with matching name... */
-		DepsNode *node = (DepsNode *)BLI_ghash_lookup(component->op_hash, name);
+		DepsNode *node = component->find_operation(name);
 		
 		if (node) {
 			/* make sure type matches too... just in case */
@@ -264,7 +264,7 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char s
 		}
 		else if (type == DEPSNODE_TYPE_OP_BONE) {
 			/* now lookup relevant operation node */
-			return (DepsNode *)BLI_ghash_lookup(bone_node->op_hash, name);
+			return bone_node->find_operation(name);
 		}
 	}
 	
@@ -677,12 +677,10 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		case DEPSNODE_TYPE_GEOMETRY:
 		case DEPSNODE_TYPE_SEQUENCER: {
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
-			if (BLI_ghash_size(comp_node->op_hash) > 0) {
-				GHashIterator hashIter;
-				
+			if (!comp_node->op_hash.empty()) {
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
-				GHASH_ITER(hashIter, comp_node->op_hash) {
-					const DepsNode *op_node = (const DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->op_hash.begin(); it != comp_node->op_hash.end(); ++it) {
+					const DepsNode *op_node = it->second;
 					deg_debug_graphviz_node(f, op_node);
 				}
 				deg_debug_graphviz_node_cluster_end(f);
