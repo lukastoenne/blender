@@ -265,6 +265,7 @@ public:
 
 struct ComponentDepsNode;
 struct OperationDepsNode;
+struct BoneComponentDepsNode;
 
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
@@ -391,13 +392,17 @@ struct SequencerComponentDepsNode : public ComponentDepsNode {
 
 /* Pose Evaluation - Sub-data needed */
 struct PoseComponentDepsNode : public ComponentDepsNode {
+	typedef unordered_map<const char *, BoneComponentDepsNode *> BoneComponentMap;
+	
+	BoneComponentDepsNode *find_bone_component(const char *name) const;
+	
 	void init(const ID *id, const char *subdata);
 	void copy(DepsgraphCopyContext *dcc, const PoseComponentDepsNode *src);
 	~PoseComponentDepsNode();
 	
 	void validate_links(Depsgraph *graph);
 	
-	struct GHash *bone_hash; /* <String, BoneComponentDepsNode> hash for quickly finding bone components */
+	BoneComponentMap bone_hash; /* hash for quickly finding bone components */
 	
 	DEG_DEPSNODE_DECLARE;
 };

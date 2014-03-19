@@ -691,14 +691,17 @@ static DepsNodeTypeInfo DNTI_SEQUENCER = {
 
 /* Pose Component ========================================= */
 
+BoneComponentDepsNode *PoseComponentDepsNode::find_bone_component(const char *name) const
+{
+	BoneComponentMap::const_iterator it = this->bone_hash.find(name);
+	return it != this->bone_hash.end() ? it->second : NULL;
+}
+
 /* Initialise 'pose eval' node - from pointer data given */
 void PoseComponentDepsNode::init(const ID *id, const char *subdata)
 {
 	/* generic component-node... */
 	ComponentDepsNode::init(id, subdata);
-	
-	/* pose-specific data... */
-	this->bone_hash = BLI_ghash_str_new("Pose Component Bone Hash"); /* <String, BoneNode> */
 }
 
 /* Copy 'pose eval' node */
@@ -714,17 +717,13 @@ void PoseComponentDepsNode::copy(DepsgraphCopyContext *dcc, const PoseComponentD
 /* Free 'pose eval' node */
 PoseComponentDepsNode::~PoseComponentDepsNode()
 {
-	/* pose-specific data... */
-	BLI_ghash_free(this->bone_hash, NULL, /*dnti_pose_eval__hash_free_bone*/NULL);
 }
 
 /* Validate links for pose evaluation */
 void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 {
-	GHashIterator hashIter;
-	
 	/* create our core operations... */
-	if (BLI_ghash_size(this->bone_hash) || (this->ops.first)) {
+	if (!this->bone_hash.empty() || (this->ops.first)) {
 		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
 		IDDepsNode *owner_node = (IDDepsNode *)this->owner;
 		Object *ob;
@@ -761,13 +760,11 @@ void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 	}
 	
 	/* ensure that each bone has been validated... */
-	if (BLI_ghash_size(this->bone_hash)) {
-		GHASH_ITER(hashIter, this->bone_hash) {
-			DepsNode *bone_comp = (DepsNode *)BLI_ghashIterator_getValue(&hashIter);
-			/* recursively validate the links within bone component */
-			// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
-			bone_comp->validate_links(graph);
-		}
+	for (PoseComponentDepsNode::BoneComponentMap::const_iterator it = this->bone_hash.begin(); it != this->bone_hash.end(); ++it) {
+		DepsNode *bone_comp = it->second;
+		/* recursively validate the links within bone component */
+		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
+		bone_comp->validate_links(graph);
 	}
 }
 
@@ -821,8 +818,8 @@ void BoneComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	BLI_assert(pose_node != NULL);
 	
 	/* add bone component to pose bone-hash */
-	BLI_ghash_insert(pose_node->bone_hash, this->name, this);
-	this->owner = (DepsNode *)pose_node;
+	pose_node->bone_hash[this->name] = this;
+	this->owner = pose_node;
 }
 
 /* Remove 'bone component' node from graph */
@@ -832,7 +829,7 @@ void BoneComponentDepsNode::remove_from_graph(Depsgraph *graph)
 	if (this->owner) {
 		PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)this->owner;
 		
-		BLI_ghash_remove(pose_node->bone_hash, this->name, NULL, NULL);
+		pose_node->bone_hash.erase(this->name);
 		this->owner = NULL;
 	}
 	

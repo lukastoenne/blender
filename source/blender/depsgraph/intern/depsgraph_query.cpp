@@ -256,7 +256,7 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char s
 	pose_comp = (PoseComponentDepsNode *)DEG_find_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
-		BoneComponentDepsNode *bone_node = (BoneComponentDepsNode *)BLI_ghash_lookup(pose_comp->bone_hash, subdata);
+		BoneComponentDepsNode *bone_node = pose_comp->find_bone_component(subdata);
 		
 		if (type == DEPSNODE_TYPE_BONE) {
 			/* bone component is what we want */
@@ -693,12 +693,10 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		
 		case DEPSNODE_TYPE_EVAL_POSE: {
 			PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node;
-			if (BLI_ghash_size(pose_node->bone_hash) > 0) {
-				GHashIterator hashIter;
-				
+			if (!pose_node->bone_hash.empty()) {
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
-				GHASH_ITER(hashIter, pose_node->bone_hash) {
-					const DepsNode *bone_comp = (const DepsNode *)BLI_ghashIterator_getValue(&hashIter);
+				for (PoseComponentDepsNode::BoneComponentMap::const_iterator it = pose_node->bone_hash.begin(); it != pose_node->bone_hash.end(); ++it) {
+					const DepsNode *bone_comp = it->second;
 					deg_debug_graphviz_node(f, bone_comp);
 				}
 				deg_debug_graphviz_node_cluster_end(f);
