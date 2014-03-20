@@ -2911,7 +2911,7 @@ static uiBut *ui_but_list_row_text_activate(bContext *C, uiBut *but, uiHandleBut
 	ARegion *ar = CTX_wm_region(C);
 	uiBut *labelbut = ui_but_find_mouse_over_ex(ar, event->x, event->y, true);
 
-	if (labelbut && labelbut->type == TEX) {
+	if (labelbut && labelbut->type == TEX && !(labelbut->flag & UI_BUT_DISABLED)) {
 		/* exit listrow */
 		data->cancel = true;
 		button_activate_exit(C, but, data, false, false);
@@ -4273,6 +4273,22 @@ static void clamp_axis_max_v3(float v[3], const float max)
 	}
 }
 
+static void ui_rgb_to_color_picker_HSVCUBE_compat_v(uiBut *but, const float rgb[3], float hsv[3])
+{
+	if (but->a1 == UI_GRAD_L_ALT)
+		rgb_to_hsl_compat_v(rgb, hsv);
+	else
+		rgb_to_hsv_compat_v(rgb, hsv);
+}
+
+static void ui_color_picker_to_rgb_HSVCUBE_v(uiBut *but, const float hsv[3], float rgb[3])
+{
+	if (but->a1 == UI_GRAD_L_ALT)
+		hsl_to_rgb_v(hsv, rgb);
+	else
+		hsv_to_rgb_v(hsv, rgb);
+}
+
 static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
                                    int mx, int my,
                                    const enum eSnapType snap, const bool shift)
@@ -4282,7 +4298,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 	float x, y;
 	float mx_fl, my_fl;
 	bool changed = true;
-	bool use_display_colorspace = ui_hsvcube_use_display_colorspace(but);
+	bool use_display_colorspace = ui_color_picker_use_display_colorspace(but);
 
 	ui_mouse_scale_warp(data, mx, my, &mx_fl, &my_fl, shift);
 
@@ -4300,7 +4316,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 	if (use_display_colorspace)
 		ui_block_to_display_space_v3(but->block, rgb);
 
-	rgb_to_hsv_compat_v(rgb, hsv);
+	ui_rgb_to_color_picker_HSVCUBE_compat_v(but, rgb, hsv);
 	
 	/* only apply the delta motion, not absolute */
 	if (shift) {
@@ -4315,7 +4331,8 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 			ui_block_to_display_space_v3(but->block, rgb);
 		
 		copy_v3_v3(hsvo, ui_block_hsv_get(but->block));
-		rgb_to_hsv_compat_v(rgb, hsvo);
+
+		ui_rgb_to_color_picker_HSVCUBE_compat_v(but, rgb, hsvo);
 		
 		/* and original position */
 		ui_hsvcube_pos_from_vals(but, &rect_i, hsvo, &xpos, &ypos);
@@ -4352,12 +4369,14 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 		case UI_GRAD_V:
 			hsv[2] = x;
 			break;
+		case UI_GRAD_L_ALT:
+			hsv[2] = y;
+			break;
 		case UI_GRAD_V_ALT:
 			/* vertical 'value' strip */
 
 			/* exception only for value strip - use the range set in but->min/max */
 			hsv[2] = y * (but->softmax - but->softmin) + but->softmin;
-
 			break;
 		default:
 			BLI_assert(0);
@@ -4370,13 +4389,13 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 		}
 	}
 
-	hsv_to_rgb_v(hsv, rgb);
+	ui_color_picker_to_rgb_HSVCUBE_v(but, hsv, rgb);
 
 	if (use_display_colorspace)
 		ui_block_to_scene_linear_v3(but->block, rgb);
 
 	/* clamp because with color conversion we can exceed range [#34295] */
-	if ((int)but->a1 == UI_GRAD_V_ALT) {
+	if (but->a1 == UI_GRAD_V_ALT) {
 		clamp_axis_max_v3(rgb, but->softmax);
 	}
 
@@ -4396,15 +4415,15 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 	const float hsv_v_max = max_ff(hsv[2], but->softmax);
 	float rgb[3];
 	float sensitivity = (shift ? 0.15f : 0.3f) * ndof->dt;
-	bool use_display_colorspace = ui_hsvcube_use_display_colorspace(but);
+	bool use_display_colorspace = ui_color_picker_use_display_colorspace(but);
 
 	ui_get_but_vectorf(but, rgb);
 
 	if (use_display_colorspace)
 		ui_block_to_display_space_v3(but->block, rgb);
 
-	rgb_to_hsv_compat_v(rgb, hsv);
-	
+	ui_rgb_to_color_picker_HSVCUBE_compat_v(but, rgb, hsv);
+
 	switch ((int)but->a1) {
 		case UI_GRAD_SV:
 			hsv[2] += ndof->rvec[2] * sensitivity;
@@ -4428,6 +4447,7 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 			hsv[2] += ndof->rvec[2] * sensitivity;
 			break;
 		case UI_GRAD_V_ALT:
+		case UI_GRAD_L_ALT:
 			/* vertical 'value' strip */
 			
 			/* exception only for value strip - use the range set in but->min/max */
@@ -4449,7 +4469,7 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 	/* ndof specific: the changes above aren't clamping */
 	hsv_clamp_v(hsv, hsv_v_max);
 
-	hsv_to_rgb_v(hsv, rgb);
+	ui_color_picker_to_rgb_HSVCUBE_v(but, hsv, rgb);
 
 	if (use_display_colorspace)
 		ui_block_to_scene_linear_v3(but->block, rgb);
@@ -4501,11 +4521,10 @@ static int ui_do_but_HSVCUBE(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
 				/* reset only value */
 				
 				len = RNA_property_array_length(&but->rnapoin, but->rnaprop);
-				if (len >= 3) {
+				if (ELEM(len, 3, 4)) {
 					float rgb[3], def_hsv[3];
-					float *def;
+					float def[4];
 					float *hsv = ui_block_hsv_get(but->block);
-					def = MEM_callocN(sizeof(float) * len, "reset_defaults - float");
 					
 					RNA_property_float_get_default_array(&but->rnapoin, but->rnaprop, def);
 					rgb_to_hsv_v(def, def_hsv);
@@ -4519,9 +4538,34 @@ static int ui_do_but_HSVCUBE(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
 					hsv_to_rgb_v(def_hsv, rgb);
 					ui_set_but_vectorf(but, rgb);
 					
+					RNA_property_update(C, &but->rnapoin, but->rnaprop);					
+				}
+				return WM_UI_HANDLER_BREAK;
+			}
+			else if (but->a1 == UI_GRAD_L_ALT) {
+				int len;
+
+				/* reset only value */
+
+				len = RNA_property_array_length(&but->rnapoin, but->rnaprop);
+				if (ELEM(len, 3, 4)) {
+					float rgb[3], def_hsl[3];
+					float def[4];
+					float *hsl = ui_block_hsv_get(but->block);
+
+					RNA_property_float_get_default_array(&but->rnapoin, but->rnaprop, def);
+					rgb_to_hsl_v(def, def_hsl);
+
+					ui_get_but_vectorf(but, rgb);
+					rgb_to_hsl_compat_v(rgb, hsl);
+
+					def_hsl[0] = hsl[0];
+					def_hsl[1] = hsl[1];
+
+					hsl_to_rgb_v(def_hsl, rgb);
+					ui_set_but_vectorf(but, rgb);
+
 					RNA_property_update(C, &but->rnapoin, but->rnaprop);
-					
-					MEM_freeN(def);
 				}
 				return WM_UI_HANDLER_BREAK;
 			}
@@ -4562,7 +4606,8 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	float mx_fl, my_fl;
 	float rgb[3];
 	float hsv[3];
-	
+	bool use_display_colorspace = ui_color_picker_use_display_colorspace(but);
+
 	ui_mouse_scale_warp(data, mx, my, &mx_fl, &my_fl, shift);
 	
 #ifdef USE_CONT_MOUSE_CORRECT
@@ -4584,25 +4629,40 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	BLI_rcti_rctf_copy(&rect, &but->rect);
 
 	ui_get_but_vectorf(but, rgb);
+	if (use_display_colorspace)
+		ui_block_to_display_space_v3(but->block, rgb);
+
 	copy_v3_v3(hsv, ui_block_hsv_get(but->block));
-	rgb_to_hsv_compat_v(rgb, hsv);
-	
+
+	ui_rgb_to_color_picker_compat_v(rgb, hsv);
+
 	/* exception, when using color wheel in 'locked' value state:
 	 * allow choosing a hue for black values, by giving a tiny increment */
-	if (but->flag & UI_BUT_COLOR_LOCK) { // lock
-		if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+	if (but->flag & UI_BUT_COLOR_LOCK) {
+		if (U.color_picker_type == USER_CP_CIRCLE_HSV) { // lock
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+		}
+		else {
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+			if (hsv[2] == 1.f) hsv[2] = 0.9999f;
+		}
 	}
 
 	/* only apply the delta motion, not absolute */
 	if (shift) {
-		float xpos, ypos, hsvo[3];
+		float xpos, ypos, hsvo[3], rgbo[3];
 		
 		/* calculate original hsv again */
 		copy_v3_v3(hsvo, ui_block_hsv_get(but->block));
-		rgb_to_hsv_compat_v(data->origvec, hsvo);
+		copy_v3_v3(rgbo, data->origvec);
+		if (use_display_colorspace)
+			ui_block_to_display_space_v3(but->block, rgbo);
+
+		ui_rgb_to_color_picker_compat_v(rgbo, hsvo);
+
 		/* and original position */
 		ui_hsvcircle_pos_from_vals(but, &rect, hsvo, &xpos, &ypos);
-		
+
 		mx_fl = xpos - (data->dragstartx - mx_fl);
 		my_fl = ypos - (data->dragstarty - my_fl);
 		
@@ -4610,19 +4670,22 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	
 	ui_hsvcircle_vals_from_pos(hsv, hsv + 1, &rect, mx_fl, my_fl);
 
-	if (but->flag & UI_BUT_COLOR_CUBIC)
+	if ((but->flag & UI_BUT_COLOR_CUBIC) && (U.color_picker_type == USER_CP_CIRCLE_HSV))
 		hsv[1] = 1.0f - sqrt3f(1.0f - hsv[1]);
 
 	if (snap != SNAP_OFF) {
 		ui_color_snap_hue(snap, &hsv[0]);
 	}
 
-	hsv_to_rgb_v(hsv, rgb);
+	ui_color_picker_to_rgb_v(hsv, rgb);
 
 	if ((but->flag & UI_BUT_VEC_SIZE_LOCK) && (rgb[0] || rgb[1] || rgb[2])) {
 		normalize_v3(rgb);
 		mul_v3_fl(rgb, but->a2);
 	}
+
+	if (use_display_colorspace)
+		ui_block_to_scene_linear_v3(but->block, rgb);
 
 	ui_set_but_vectorf(but, rgb);
 	
@@ -4642,7 +4705,7 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	float sensitivity = (shift ? 0.06f : 0.3f) * ndof->dt;
 	
 	ui_get_but_vectorf(but, rgb);
-	rgb_to_hsv_compat_v(rgb, hsv);
+	ui_rgb_to_color_picker_compat_v(rgb, hsv);
 	
 	/* Convert current color on hue/sat disc to circular coordinates phi, r */
 	phi = fmodf(hsv[0] + 0.25f, 1.0f) * -2.0f * (float)M_PI;
@@ -4670,8 +4733,14 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 
 	/* exception, when using color wheel in 'locked' value state:
 	 * allow choosing a hue for black values, by giving a tiny increment */
-	if (but->flag & UI_BUT_COLOR_LOCK) { // lock
-		if (hsv[2] == 0.0f) hsv[2] = 0.0001f;
+	if (but->flag & UI_BUT_COLOR_LOCK) {
+		if (U.color_picker_type == USER_CP_CIRCLE_HSV) { // lock
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+		}
+		else {
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+			if (hsv[2] == 1.f) hsv[2] = 0.9999f;
+		}
 	}
 
 	if (snap != SNAP_OFF) {
@@ -4680,7 +4749,7 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 
 	hsv_clamp_v(hsv, FLT_MAX);
 
-	hsv_to_rgb_v(hsv, data->vec);
+	ui_color_picker_to_rgb_v(hsv, data->vec);
 	
 	if ((but->flag & UI_BUT_VEC_SIZE_LOCK) && (data->vec[0] || data->vec[1] || data->vec[2])) {
 		normalize_v3(data->vec);

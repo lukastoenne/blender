@@ -974,6 +974,10 @@ static bool prefetch_check_early_out(const bContext *C)
 	int first_uncached_frame, end_frame;
 	int clip_len;
 
+	if (clip == NULL) {
+		return true;
+	}
+
 	clip_len = BKE_movieclip_get_duration(clip);
 
 	/* check whether all the frames from prefetch range are cached */
@@ -1022,7 +1026,7 @@ void clip_start_prefetch_job(const bContext *C)
 	WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
 	WM_jobs_callbacks(wm_job, prefetch_startjob, NULL, NULL, NULL);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 
 	/* and finally start the job */
 	WM_jobs_start(CTX_wm_manager(C), wm_job);

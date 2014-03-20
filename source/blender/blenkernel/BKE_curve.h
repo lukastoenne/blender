@@ -97,7 +97,7 @@ void         BKE_curve_nurb_vert_active_set(struct Curve *cu, struct Nurb *nu,  
 bool         BKE_curve_nurb_vert_active_get(struct Curve *cu, struct Nurb **r_nu, void **r_vert);
 void         BKE_curve_nurb_vert_active_validate(struct Curve *cu);
 
-float (*BKE_curve_nurbs_vertexCos_get(struct ListBase *lb, int *numVerts_r))[3];
+float (*BKE_curve_nurbs_vertexCos_get(struct ListBase *lb, int *r_numVerts))[3];
 void BK_curve_nurbs_vertexCos_apply(struct ListBase *lb, float (*vertexCos)[3]);
 
 float (*BKE_curve_nurbs_keyVertexCos_get(struct ListBase *lb, float *key))[3];
@@ -111,7 +111,8 @@ float *BKE_curve_make_orco(struct Scene *scene, struct Object *ob, int *r_numVer
 float *BKE_curve_surf_make_orco(struct Object *ob);
 
 void BKE_curve_bevelList_make(struct Object *ob, struct ListBase *nurbs, bool for_render);
-void BKE_curve_bevel_make(struct Scene *scene, struct Object *ob,  struct ListBase *disp, int forRender, int renderResolution);
+void BKE_curve_bevel_make(struct Scene *scene, struct Object *ob,  struct ListBase *disp,
+                          const bool for_render, const bool use_render_resolution);
 
 void BKE_curve_forward_diff_bezier(float q0, float q1, float q2, float q3, float *p, int it, int stride);
 

@@ -2240,10 +2240,6 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 	row = uiLayoutRow(col, true);
 
 	switch (U.color_picker_type) {
-		case USER_CP_CIRCLE:
-			but = uiDefButR_prop(block, HSVCIRCLE, 0, "", 0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, prop,
-			                     -1, 0.0, 0.0, 0, 0, "");
-			break;
 		case USER_CP_SQUARE_SV:
 			but = uiDefButR_prop(block, HSVCUBE, 0, "", 0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, prop,
 			                     -1, 0.0, 0.0, UI_GRAD_SV, 0, "");
@@ -2256,6 +2252,15 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 			but = uiDefButR_prop(block, HSVCUBE, 0, "", 0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, prop,
 			                     -1, 0.0, 0.0, UI_GRAD_HV, 0, "");
 			break;
+
+		/* user default */
+		case USER_CP_CIRCLE_HSV:
+		case USER_CP_CIRCLE_HSL:
+		default:
+			but = uiDefButR_prop(block, HSVCIRCLE, 0, "", 0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, prop,
+			                     -1, 0.0, 0.0, 0, 0, "");
+			break;
+
 	}
 
 	if (lock) {
@@ -2275,10 +2280,10 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 	
 	if (value_slider) {
 		switch (U.color_picker_type) {
-			case USER_CP_CIRCLE:
+			case USER_CP_CIRCLE_HSL:
 				uiItemS(row);
 				uiDefButR_prop(block, HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
-				               -1, softmin, softmax, UI_GRAD_V_ALT, 0, "");
+				               -1, softmin, softmax, UI_GRAD_L_ALT, 0, "");
 				break;
 			case USER_CP_SQUARE_SV:
 				uiItemS(col);
@@ -2294,6 +2299,14 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 				uiItemS(col);
 				uiDefButR_prop(block, HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
 				               -1, softmin, softmax, UI_GRAD_HV + 3, 0, "");
+				break;
+
+			/* user default */
+			case USER_CP_CIRCLE_HSV:
+			default:
+				uiItemS(row);
+				uiDefButR_prop(block, HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
+				               -1, softmin, softmax, UI_GRAD_V_ALT, 0, "");
 				break;
 		}
 	}

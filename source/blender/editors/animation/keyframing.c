@@ -761,7 +761,7 @@ static float visualkey_get_value(PointerRNA *ptr, PropertyRNA *prop, int array_i
 	int rotmode;
 	
 	/* handle for Objects or PoseChannels only 
-	 *  - only Location, Rotation or Scale keyframes are supported curently
+	 *  - only Location, Rotation or Scale keyframes are supported currently
 	 *  - constraints can be on either Objects or PoseChannels, so we only check if the
 	 *    ptr->type is RNA_Object or RNA_PoseBone, which are the RNA wrapping-info for
 	 *        those structs, allowing us to identify the owner of the data
@@ -2026,8 +2026,6 @@ short id_frame_has_keyframe(ID *id, float frame, short filter)
 	switch (GS(id->name)) {
 		case ID_OB: /* object */
 			return object_frame_has_keyframe((Object *)id, frame, filter);
-			break;
-			
 #if 0
 		// XXX TODO... for now, just use 'normal' behavior
 		case ID_SCE: /* scene */

@@ -2629,7 +2629,7 @@ static void init_render_surf(Render *re, ObjectRen *obr, int timeoffset)
 		if (need_orco) {
 			orco = get_object_orco(re, ob);
 			if (!orco) {
-				orco= BKE_displist_make_orco(re->scene, ob, dm, 1, 1);
+				orco= BKE_displist_make_orco(re->scene, ob, dm, true, true);
 				if (orco) {
 					set_object_orco(re, ob, orco);
 				}
@@ -2680,7 +2680,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 	if (ob->type==OB_FONT && cu->str==NULL) return;
 	else if (ob->type==OB_CURVE && cu->nurb.first==NULL) return;
 
-	BKE_displist_make_curveTypes_forRender(re->scene, ob, &disp, &dm, 0, 1);
+	BKE_displist_make_curveTypes_forRender(re->scene, ob, &disp, &dm, false, true);
 	dl= disp.first;
 	if (dl==NULL) return;
 	
@@ -2707,7 +2707,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 		if (need_orco) {
 			orco = get_object_orco(re, ob);
 			if (!orco) {
-				orco = BKE_displist_make_orco(re->scene, ob, dm, 1, 1);
+				orco = BKE_displist_make_orco(re->scene, ob, dm, true, true);
 				if (orco) {
 					set_object_orco(re, ob, orco);
 				}
@@ -3929,12 +3929,7 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 static bool is_object_hidden(Render *re, Object *ob)
 {
 	if (re->r.scemode & R_VIEWPORT_PREVIEW)
-		/* note: in rendered viewport, for now we always use render visibility rather than
-		 * viewport visibility, because using viewport visibility can cause some problems.
-		 * for example, mesh deform cage is drawn as a solid/textured mesh (not a wireframe
-		 * mesh) and its unnecessary surfaces and shadows mess up the preview. we need more
-		 * discussion about the way to take viewport visibility into account. */
-		return (ob->restrictflag & OB_RESTRICT_RENDER) != 0;
+		return (ob->restrictflag & OB_RESTRICT_VIEW) != 0 || ELEM(ob->dt, OB_BOUNDBOX, OB_WIRE);
 	else
 		return (ob->restrictflag & OB_RESTRICT_RENDER) != 0;
 }
@@ -5036,6 +5031,8 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 					if (!allow_render_object(re, obd, nolamps, onlyselected, actob))
 						continue;
 
+					copy_m4_m4(obd->obmat, dob->mat);
+
 					if (allow_render_dupli_instance(re, dob, obd)) {
 						ParticleSystem *psys;
 						ObjectRen *obr = NULL;
@@ -5871,7 +5868,9 @@ void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay,
 	re->lay= lay;
 
 	/* renderdata setup and exceptions */
-	re->r= scene->r;
+	BLI_freelistN(&re->r.layers);
+	re->r = scene->r;
+	BLI_duplicatelist(&re->r.layers, &scene->r.layers);
 	
 	RE_init_threadcount(re);
 	

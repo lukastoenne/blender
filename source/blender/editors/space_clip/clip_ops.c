@@ -1266,7 +1266,7 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
 	WM_jobs_callbacks(wm_job, proxy_startjob, NULL, NULL, proxy_endjob);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 
 	ED_area_tag_redraw(CTX_wm_area(C));
@@ -1378,7 +1378,6 @@ static int clip_prefetch_modal(bContext *C, wmOperator *UNUSED(op), const wmEven
 	switch (event->type) {
 		case ESCKEY:
 			return OPERATOR_RUNNING_MODAL;
-			break;
 	}
 
 	return OPERATOR_PASS_THROUGH;

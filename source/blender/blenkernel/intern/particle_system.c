@@ -109,6 +109,8 @@
 
 #endif // WITH_MOD_FLUID
 
+static ThreadRWMutex psys_bvhtree_rwlock = BLI_RWLOCK_INITIALIZER;
+
 /************************************************/
 /*			Reacting to system events			*/
 /************************************************/
@@ -690,7 +692,7 @@ static void hammersley_create(float *out, int n, int seed, float amount)
 	}
 }
 
-/* modified copy from effect.c */
+/* almost exact copy of BLI_jitter_init */
 static void init_mv_jit(float *jit, int num, int seed2, float amount)
 {
 	RNG *rng;
@@ -721,9 +723,9 @@ static void init_mv_jit(float *jit, int num, int seed2, float amount)
 	jit2= MEM_mallocN(12 + 2*sizeof(float)*num, "initjit");
 
 	for (i=0 ; i<4 ; i++) {
-		BLI_jitterate1(jit, jit2, num, rad1);
-		BLI_jitterate1(jit, jit2, num, rad1);
-		BLI_jitterate2(jit, jit2, num, rad2);
+		BLI_jitterate1((float (*)[2])jit, (float (*)[2])jit2, num, rad1);
+		BLI_jitterate1((float (*)[2])jit, (float (*)[2])jit2, num, rad1);
+		BLI_jitterate2((float (*)[2])jit, (float (*)[2])jit2, num, rad2);
 	}
 	MEM_freeN(jit2);
 	BLI_rng_free(rng);
@@ -815,7 +817,7 @@ static void distribute_threads_exec(ParticleThread *thread, ParticleData *pa, Ch
 
 			psys_particle_on_dm(ctx->dm,from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co1,0,0,0,orco1,0);
 			BKE_mesh_orco_verts_transform((Mesh*)ob->data, &orco1, 1, 1);
-			maxw = BLI_kdtree_find_nearest_n(ctx->tree,orco1,NULL,ptn,3);
+			maxw = BLI_kdtree_find_nearest_n(ctx->tree,orco1,ptn,3);
 
 			for (w=0; w<maxw; w++) {
 				pa->verts[w]=ptn->num;
@@ -940,7 +942,7 @@ static void distribute_threads_exec(ParticleThread *thread, ParticleData *pa, Ch
 
 			psys_particle_on_dm(dm,cfrom,cpa->num,DMCACHE_ISCHILD,cpa->fuv,cpa->foffset,co1,nor1,NULL,NULL,orco1,NULL);
 			BKE_mesh_orco_verts_transform((Mesh*)ob->data, &orco1, 1, 1);
-			maxw = BLI_kdtree_find_nearest_n(ctx->tree,orco1,NULL,ptn,3);
+			maxw = BLI_kdtree_find_nearest_n(ctx->tree,orco1,ptn,3);
 
 			maxd=ptn[maxw-1].dist;
 			/* mind=ptn[0].dist; */ /* UNUSED */
@@ -1077,7 +1079,7 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 	int totelem=0, totpart, *particle_element=0, children=0, totseam=0;
 	int jitlevel= 1, distr;
 	float *element_weight=NULL,*element_sum=NULL,*jitter_offset=NULL, *vweight=NULL;
-	float cur, maxweight=0.0, tweight, totweight, inv_totweight, co[3], nor[3], orco[3], ornor[3];
+	float cur, maxweight=0.0, tweight, totweight, inv_totweight, co[3], nor[3], orco[3];
 	
 	if (ELEM3(NULL, ob, psys, psys->part))
 		return 0;
@@ -1128,9 +1130,9 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 		tree=BLI_kdtree_new(totpart);
 
 		for (p=0,pa=psys->particles; p<totpart; p++,pa++) {
-			psys_particle_on_dm(dm,part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co,nor,0,0,orco,ornor);
+			psys_particle_on_dm(dm,part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co,nor,0,0,orco,NULL);
 			BKE_mesh_orco_verts_transform((Mesh*)ob->data, &orco, 1, 1);
-			BLI_kdtree_insert(tree, p, orco, ornor);
+			BLI_kdtree_insert(tree, p, orco);
 		}
 
 		BLI_kdtree_balance(tree);
@@ -1170,7 +1172,7 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 				}
 				else
 					copy_v3_v3(co,mv[p].co);
-				BLI_kdtree_insert(tree,p,co,NULL);
+				BLI_kdtree_insert(tree, p, co);
 			}
 
 			BLI_kdtree_balance(tree);
@@ -2209,15 +2211,22 @@ static void psys_update_particle_bvhtree(ParticleSystem *psys, float cfra)
 	if (psys) {
 		PARTICLE_P;
 		int totpart = 0;
+		bool need_rebuild;
 
-		if (!psys->bvhtree || psys->bvhtree_frame != cfra) {
+		BLI_rw_mutex_lock(&psys_bvhtree_rwlock, THREAD_LOCK_READ);
+		need_rebuild = !psys->bvhtree || psys->bvhtree_frame != cfra;
+		BLI_rw_mutex_unlock(&psys_bvhtree_rwlock);
+		
+		if (need_rebuild) {
 			LOOP_SHOWN_PARTICLES {
 				totpart++;
 			}
 			
+			BLI_rw_mutex_lock(&psys_bvhtree_rwlock, THREAD_LOCK_WRITE);
+			
 			BLI_bvhtree_free(psys->bvhtree);
 			psys->bvhtree = BLI_bvhtree_new(totpart, 0.0, 4, 6);
-
+			
 			LOOP_SHOWN_PARTICLES {
 				if (pa->alive == PARS_ALIVE) {
 					if (pa->state.time == cfra)
@@ -2227,8 +2236,10 @@ static void psys_update_particle_bvhtree(ParticleSystem *psys, float cfra)
 				}
 			}
 			BLI_bvhtree_balance(psys->bvhtree);
-
+			
 			psys->bvhtree_frame = cfra;
+			
+			BLI_rw_mutex_unlock(&psys_bvhtree_rwlock);
 		}
 	}
 }
@@ -2249,9 +2260,9 @@ void psys_update_particle_tree(ParticleSystem *psys, float cfra)
 			LOOP_SHOWN_PARTICLES {
 				if (pa->alive == PARS_ALIVE) {
 					if (pa->state.time == cfra)
-						BLI_kdtree_insert(psys->tree, p, pa->prev_state.co, NULL);
+						BLI_kdtree_insert(psys->tree, p, pa->prev_state.co);
 					else
-						BLI_kdtree_insert(psys->tree, p, pa->state.co, NULL);
+						BLI_kdtree_insert(psys->tree, p, pa->state.co);
 				}
 			}
 			BLI_kdtree_balance(psys->tree);
@@ -2546,7 +2557,11 @@ static void sph_evaluate_func(BVHTree *tree, ParticleSystem **psys, float co[3],
 			break;
 		}
 		else {
+			BLI_rw_mutex_lock(&psys_bvhtree_rwlock, THREAD_LOCK_READ);
+			
 			BLI_bvhtree_range_query(psys[i]->bvhtree, co, interaction_radius, callback, pfr);
+			
+			BLI_rw_mutex_unlock(&psys_bvhtree_rwlock);
 		}
 	}
 }

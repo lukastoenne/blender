@@ -191,7 +191,6 @@ static int add_marker_at_click_modal(bContext *C, wmOperator *UNUSED(op), const 
 	switch (event->type) {
 		case MOUSEMOVE:
 			return OPERATOR_RUNNING_MODAL;
-			break;
 
 		case LEFTMOUSE:
 			ED_area_headerprint(CTX_wm_area(C), NULL);
@@ -206,7 +205,6 @@ static int add_marker_at_click_modal(bContext *C, wmOperator *UNUSED(op), const 
 
 			WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 			return OPERATOR_FINISHED;
-			break;
 
 		case ESCKEY:
 			ED_area_headerprint(CTX_wm_area(C), NULL);
@@ -1476,7 +1474,7 @@ static int track_markers_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 
 	WM_jobs_callbacks(wm_job, track_markers_startjob, NULL, track_markers_updatejob, track_markers_endjob);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 	WM_cursor_wait(0);
@@ -1497,7 +1495,6 @@ static int track_markers_modal(bContext *C, wmOperator *UNUSED(op), const wmEven
 	switch (event->type) {
 		case ESCKEY:
 			return OPERATOR_RUNNING_MODAL;
-			break;
 	}
 
 	return OPERATOR_PASS_THROUGH;
@@ -1744,7 +1741,7 @@ static int solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 	WM_jobs_timer(wm_job, 0.1, NC_MOVIECLIP | NA_EVALUATED, 0);
 	WM_jobs_callbacks(wm_job, solve_camera_startjob, NULL, solve_camera_updatejob, NULL);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 	WM_cursor_wait(0);
@@ -1765,7 +1762,6 @@ static int solve_camera_modal(bContext *C, wmOperator *UNUSED(op), const wmEvent
 	switch (event->type) {
 		case ESCKEY:
 			return OPERATOR_RUNNING_MODAL;
-			break;
 	}
 
 	return OPERATOR_PASS_THROUGH;
@@ -2275,7 +2271,7 @@ static void set_axis(Scene *scene,  Object *ob, MovieClip *clip, MovieTrackingOb
 		if (!flip) {
 			float lmat[4][4], ilmat[4][4], rmat[3][3];
 
-			BKE_object_rot_to_mat3(ob, rmat, TRUE);
+			BKE_object_rot_to_mat3(ob, rmat, true);
 			invert_m3(rmat);
 			mul_m4_m4m3(mat, mat, rmat);
 

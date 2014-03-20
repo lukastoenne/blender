@@ -1165,7 +1165,7 @@ int ED_curve_updateAnimPaths(Curve *cu)
 
 /* ********************* LOAD and MAKE *************** */
 
-static int *initialize_index_map(Object *obedit, int *old_totvert_r)
+static int *initialize_index_map(Object *obedit, int *r_old_totvert)
 {
 	Curve *curve = (Curve *) obedit->data;
 	EditNurb *editnurb = curve->editnurb;
@@ -1230,7 +1230,7 @@ static int *initialize_index_map(Object *obedit, int *old_totvert_r)
 		}
 	}
 
-	*old_totvert_r = old_totvert;
+	*r_old_totvert = old_totvert;
 	return old_to_new_map;
 }
 
@@ -4369,7 +4369,7 @@ static int make_segment_exec(bContext *C, wmOperator *op)
 			if (isNurbsel_count(cu, nu) == 1) {
 				/* only 1 selected, not first or last, a little complex, but intuitive */
 				if (nu->pntsv == 1) {
-					if ( (nu->bp->f1 & SELECT) || (nu->bp[nu->pntsu - 1].f1 & SELECT)) {
+					if ((nu->bp->f1 & SELECT) || (nu->bp[nu->pntsu - 1].f1 & SELECT)) {
 						/* pass */
 					}
 					else {

@@ -172,15 +172,13 @@ int uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr,
 				if (!is_boolean)
 					uiItemL(col, name, ICON_NONE);
 			}
-			else if (label_align == 'H') {
+			else {  /* (label_align == 'H') */
+				BLI_assert(label_align == 'H');
 				split = uiLayoutSplit(layout, 0.5f, false);
 
 				col = uiLayoutColumn(split, false);
 				uiItemL(col, (is_boolean) ? "" : name, ICON_NONE);
 				col = uiLayoutColumn(split, false);
-			}
-			else {
-				col = NULL;
 			}
 
 			/* may meed to add more cases here.
@@ -325,7 +323,7 @@ struct uiButStoreElem {
 };
 
 /**
- * Create a new button sture, the caller must manage and run #UI_butstore_free
+ * Create a new button store, the caller must manage and run #UI_butstore_free
  */
 uiButStore *UI_butstore_create(uiBlock *block)
 {

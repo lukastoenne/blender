@@ -337,6 +337,43 @@ static void mesh_ensure_tessellation_customdata(Mesh *me)
 	}
 }
 
+void BKE_mesh_ensure_skin_customdata(Mesh *me)
+{
+	BMesh *bm = me->edit_btmesh ? me->edit_btmesh->bm : NULL;
+	MVertSkin *vs;
+
+	if (bm) {
+		if (!CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+			BMVert *v;
+			BMIter iter;
+
+			BM_data_layer_add(bm, &bm->vdata, CD_MVERT_SKIN);
+
+			/* Mark an arbitrary vertex as root */
+			BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+				vs = CustomData_bmesh_get(&bm->vdata, v->head.data,
+				                          CD_MVERT_SKIN);
+				vs->flag |= MVERT_SKIN_ROOT;
+				break;
+			}
+		}
+	}
+	else {
+		if (!CustomData_has_layer(&me->vdata, CD_MVERT_SKIN)) {
+			vs = CustomData_add_layer(&me->vdata,
+			                          CD_MVERT_SKIN,
+			                          CD_DEFAULT,
+			                          NULL,
+			                          me->totvert);
+
+			/* Mark an arbitrary vertex as root */
+			if (vs) {
+				vs->flag |= MVERT_SKIN_ROOT;
+			}
+		}
+	}
+}
+
 /* this ensures grouped customdata (e.g. mtexpoly and mloopuv and mtface, or
  * mloopcol and mcol) have the same relative active/render/clone/mask indices.
  *
@@ -1750,7 +1787,7 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 
 /**
  * Return a newly MEM_malloc'd array of all the mesh vertex locations
- * \note \a numVerts_r may be NULL
+ * \note \a r_numVerts may be NULL
  */
 float (*BKE_mesh_vertexCos_get(Mesh *me, int *r_numVerts))[3]
 {
@@ -1781,11 +1818,11 @@ int poly_find_loop_from_vert(const MPoly *poly, const MLoop *loopstart,
 }
 
 /**
- * Fill \a adj_r with the loop indices in \a poly adjacent to the
+ * Fill \a r_adj with the loop indices in \a poly adjacent to the
  * vertex. Returns the index of the loop matching vertex, or -1 if the
  * vertex is not in \a poly
  */
-int poly_get_adj_loops_from_vert(unsigned adj_r[3], const MPoly *poly,
+int poly_get_adj_loops_from_vert(unsigned r_adj[3], const MPoly *poly,
                                  const MLoop *mloop, unsigned vert)
 {
 	int corner = poly_find_loop_from_vert(poly,
@@ -1796,9 +1833,9 @@ int poly_get_adj_loops_from_vert(unsigned adj_r[3], const MPoly *poly,
 		const MLoop *ml = &mloop[poly->loopstart + corner];
 
 		/* vertex was found */
-		adj_r[0] = ME_POLY_LOOP_PREV(mloop, poly, corner)->v;
-		adj_r[1] = ml->v;
-		adj_r[2] = ME_POLY_LOOP_NEXT(mloop, poly, corner)->v;
+		r_adj[0] = ME_POLY_LOOP_PREV(mloop, poly, corner)->v;
+		r_adj[1] = ml->v;
+		r_adj[2] = ME_POLY_LOOP_NEXT(mloop, poly, corner)->v;
 	}
 
 	return corner;

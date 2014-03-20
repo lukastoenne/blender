@@ -2426,7 +2426,7 @@ BLI_INLINE void trans_update_seq(Scene *sce, Sequence *seq, int old_start, int s
 
 void flushTransSeq(TransInfo *t)
 {
-	ListBase *seqbasep = BKE_sequencer_editing_get(t->scene, FALSE)->seqbasep; /* Editing null check already done */
+	ListBase *seqbasep = BKE_sequencer_editing_get(t->scene, false)->seqbasep; /* Editing null check already done */
 	int a, new_frame;
 	TransData *td = NULL;
 	TransData2D *td2d = NULL;
@@ -3012,7 +3012,10 @@ static int gpf_cmp_frame(void *thunk, void *a, void *b)
 	*((bool *)thunk) = true;
 	/* selected last */
 	if ((frame_a->flag & GP_FRAME_SELECT) &&
-	    ((frame_b->flag & GP_FRAME_SELECT) == 0)) return  1;
+	    ((frame_b->flag & GP_FRAME_SELECT) == 0))
+	{
+		return  1;
+	}
 	return 0;
 }
 
@@ -3026,7 +3029,10 @@ static int masklay_shape_cmp_frame(void *thunk, void *a, void *b)
 	*((bool *)thunk) = true;
 	/* selected last */
 	if ((frame_a->flag & MASK_SHAPE_SELECT) &&
-	    ((frame_b->flag & MASK_SHAPE_SELECT) == 0)) return  1;
+	    ((frame_b->flag & MASK_SHAPE_SELECT) == 0))
+	{
+		return 1;
+	}
 	return 0;
 }
 
@@ -4150,8 +4156,8 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 
 		Scene *scene = t->scene;
 		int cfra = CFRA;
-		int left = BKE_sequence_tx_get_final_left(seq, 1);
-		int right = BKE_sequence_tx_get_final_right(seq, 1);
+		int left = BKE_sequence_tx_get_final_left(seq, true);
+		int right = BKE_sequence_tx_get_final_right(seq, true);
 
 		if (seq->depth == 0 && ((seq->flag & SELECT) == 0 || (seq->flag & SEQ_LOCK))) {
 			*recursive = FALSE;
@@ -4286,16 +4292,16 @@ static TransData *SeqToTransData(TransData *td, TransData2D *td2d, TransDataSeq 
 			/* Use seq_tx_get_final_left() and an offset here
 			 * so transform has the left hand location of the strip.
 			 * tdsq->start_offset is used when flushing the tx data back */
-			start_left = BKE_sequence_tx_get_final_left(seq, 0);
+			start_left = BKE_sequence_tx_get_final_left(seq, false);
 			td2d->loc[0] = start_left;
 			tdsq->start_offset = start_left - seq->start; /* use to apply the original location */
 			break;
 		case SEQ_LEFTSEL:
-			start_left = BKE_sequence_tx_get_final_left(seq, 0);
+			start_left = BKE_sequence_tx_get_final_left(seq, false);
 			td2d->loc[0] = start_left;
 			break;
 		case SEQ_RIGHTSEL:
-			td2d->loc[0] = BKE_sequence_tx_get_final_right(seq, 0);
+			td2d->loc[0] = BKE_sequence_tx_get_final_right(seq, false);
 			break;
 	}
 
@@ -4382,7 +4388,7 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 
 static void freeSeqData(TransInfo *t)
 {
-	Editing *ed = BKE_sequencer_editing_get(t->scene, FALSE);
+	Editing *ed = BKE_sequencer_editing_get(t->scene, false);
 
 	if (ed != NULL) {
 		ListBase *seqbasep = ed->seqbasep;
@@ -4557,7 +4563,7 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 
 	View2D *v2d = UI_view2d_fromcontext(C);
 	Scene *scene = t->scene;
-	Editing *ed = BKE_sequencer_editing_get(t->scene, FALSE);
+	Editing *ed = BKE_sequencer_editing_get(t->scene, false);
 	TransData *td = NULL;
 	TransData2D *td2d = NULL;
 	TransDataSeq *tdsq = NULL;
@@ -5687,7 +5693,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 		if (t->obedit->type == OB_MESH) {
 			BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
 			/* table needs to be created for each edit command, since vertices can move etc */
-			mesh_octree_table(t->obedit, em, NULL, 'e');
+			ED_mesh_mirror_spatial_table(t->obedit, em, NULL, 'e');
 		}
 	}
 	else if ((t->flag & T_POSE) && (t->poseobj)) {
@@ -6593,7 +6599,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 
 			td->flag = 0;
 			td->loc = td2d->loc;
-			copy_v3_v3(td->center, bezt->vec[1]);
+			mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
 			copy_v3_v3(td->iloc, td->loc);
 
 			memset(td->axismtx, 0, sizeof(td->axismtx));
@@ -6641,7 +6647,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 
 		td->flag = 0;
 		td->loc = td2d->loc;
-		copy_v3_v3(td->center, bezt->vec[1]);
+		mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
 		copy_v3_v3(td->iloc, td->loc);
 
 		memset(td->axismtx, 0, sizeof(td->axismtx));
