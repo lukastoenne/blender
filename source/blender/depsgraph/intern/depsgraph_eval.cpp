@@ -167,7 +167,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
 /* Initialise evaluation context for given node */
 static void deg_node_evaluation_context_init(ComponentDepsNode *comp, eEvaluationContextType context_type)
 {
-	DepsNodeTypeInfo *nti = DEG_node_get_typeinfo((DepsNode *)comp);
+	DepsNodeFactory *nti = DEG_node_get_factory((DepsNode *)comp);
 	
 	/* check if the requested evaluation context exists already */
 	if (comp->contexts[context_type] == NULL) {
@@ -211,7 +211,7 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 /* Free evaluation contexts for node */
 static void deg_node_evaluation_contexts_free(ComponentDepsNode *comp)
 {
-	DepsNodeTypeInfo *nti = DEG_node_get_typeinfo((DepsNode *)comp);
+	DepsNodeFactory *nti = DEG_node_get_factory((DepsNode *)comp);
 	size_t i;
 	
 	/* free each context in turn */

@@ -248,7 +248,7 @@ DepsRelation *DEG_copy_relation(const DepsRelation *src);
 /* "Typeinfo" for Node Types ------------------------------------------- */
 
 /* Typeinfo Struct (nti) */
-struct DepsNodeTypeInfo {
+struct DepsNodeFactory {
 	virtual eDepsNode_Type type() const = 0;
 	virtual eDepsNode_Class tclass() const = 0;
 	virtual const char *tname() const = 0;
@@ -301,7 +301,7 @@ struct DepsNodeTypeInfo {
 };
 
 template <class NodeType>
-struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
+struct DepsNodeFactoryImpl : public DepsNodeFactory {
 	eDepsNode_Type type() const { return NodeType::typeinfo.type; }
 	eDepsNode_Class tclass() const { return NodeType::typeinfo.tclass; }
 	const char *tname() const { return NodeType::typeinfo.tname; }
@@ -346,10 +346,10 @@ struct DepsNodeTypeInfoImpl : public DepsNodeTypeInfo {
 /* Typeinfo Management -------------------------------------------------- */
 
 /* Get typeinfo for specified type */
-DepsNodeTypeInfo *DEG_get_node_typeinfo(const eDepsNode_Type type);
+DepsNodeFactory *DEG_get_node_factory(const eDepsNode_Type type);
 
 /* Get typeinfo for provided node */
-DepsNodeTypeInfo *DEG_node_get_typeinfo(const DepsNode *node);
+DepsNodeFactory *DEG_node_get_factory(const DepsNode *node);
 
 /* Debugging ========================================================= */
 

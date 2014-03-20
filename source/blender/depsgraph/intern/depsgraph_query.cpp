@@ -164,9 +164,9 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	if (src == NULL)
 		return NULL;
 	
-	DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(src->type);
-	BLI_assert(nti != NULL);
-	DepsNode *dst = nti->copy_node(dcc, src);
+	DepsNodeFactory *factory = DEG_get_node_factory(src->type);
+	BLI_assert(factory != NULL);
+	DepsNode *dst = factory->copy_node(dcc, src);
 	
 	/* add this node-pair to the hash... */
 	BLI_ghash_insert(dcc->nodes_hash, (DepsNode *)src, dst);
@@ -544,7 +544,7 @@ static void deg_debug_graphviz_legend(FILE *f)
 	fprintf(f, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
 	
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
-		DepsNodeTypeInfo *nti = DEG_get_node_typeinfo((eDepsNode_Type)(*pair)[0]);
+		DepsNodeFactory *nti = DEG_get_node_factory((eDepsNode_Type)(*pair)[0]);
 		deg_debug_graphviz_legend_color(f, nti->tname(), deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
 	}
 	

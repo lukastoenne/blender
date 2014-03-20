@@ -196,13 +196,13 @@ DepsNode::~DepsNode()
 DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
                            eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
-	const DepsNodeTypeInfo *nti = DEG_get_node_typeinfo(type);
 	DepsNode *node;
 	
-	BLI_assert(nti != NULL);
+	DepsNodeFactory *factory = DEG_get_node_factory(type);
+	BLI_assert(factory != NULL);
 	
 	/* create node data... */
-	node = nti->create_node(id, subdata, name);
+	node = factory->create_node(id, subdata, name);
 	
 	/* add node to graph 
 	 * NOTE: additional nodes may be created in order to add this node to the graph

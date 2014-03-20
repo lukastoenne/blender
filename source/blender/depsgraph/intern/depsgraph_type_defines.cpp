@@ -101,7 +101,7 @@ void RootDepsNode::remove_from_graph(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(RootDepsNode, DEPSNODE_TYPE_ROOT, "Root DepsNode");
-static DepsNodeTypeInfoImpl<RootDepsNode> DNTI_ROOT;
+static DepsNodeFactoryImpl<RootDepsNode> DNTI_ROOT;
 
 /* Time Source Node ======================================= */
 
@@ -162,7 +162,7 @@ void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEPSNODE_TYPE_TIMESOURCE, "Time Source");
-static DepsNodeTypeInfoImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
+static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
 
 /* ID Node ================================================ */
 
@@ -295,7 +295,7 @@ ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
 }
 
 DEG_DEPSNODE_DEFINE(IDDepsNode, DEPSNODE_TYPE_ID_REF, "ID Node");
-static DepsNodeTypeInfoImpl<IDDepsNode> DNTI_ID_REF;
+static DepsNodeFactoryImpl<IDDepsNode> DNTI_ID_REF;
 
 /* Subgraph Node ========================================== */
 
@@ -369,7 +369,7 @@ void SubgraphDepsNode::validate_links(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");
-static DepsNodeTypeInfoImpl<SubgraphDepsNode> DNTI_SUBGRAPH;
+static DepsNodeFactoryImpl<SubgraphDepsNode> DNTI_SUBGRAPH;
 
 /* ******************************************************** */
 /* Outer Nodes */
@@ -400,8 +400,8 @@ void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode 
 		OperationDepsNode *src_op = it->second;
 		
 		/* recursive copy */
-		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(src_op);
-		OperationDepsNode *dst_op = (OperationDepsNode *)nti->copy_node(dcc, src_op);
+		DepsNodeFactory *factory = DEG_node_get_factory(src_op);
+		OperationDepsNode *dst_op = (OperationDepsNode *)factory->copy_node(dcc, src_op);
 		this->operations[pchan_name] = dst_op;
 			
 		/* fix links... */
@@ -452,32 +452,32 @@ void ComponentDepsNode::remove_from_graph(Depsgraph *graph)
 /* Parameter Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");
-static DepsNodeTypeInfoImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
+static DepsNodeFactoryImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
 
 /* Animation Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(AnimationComponentDepsNode, DEPSNODE_TYPE_ANIMATION, "Animation Component");
-static DepsNodeTypeInfoImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
+static DepsNodeFactoryImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
 
 /* Transform Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(TransformComponentDepsNode, DEPSNODE_TYPE_TRANSFORM, "Transform Component");
-static DepsNodeTypeInfoImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
+static DepsNodeFactoryImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
 
 /* Proxy Component Defines ================================ */
 
 DEG_DEPSNODE_DEFINE(ProxyComponentDepsNode, DEPSNODE_TYPE_PROXY, "Proxy Component");
-static DepsNodeTypeInfoImpl<ProxyComponentDepsNode> DNTI_PROXY;
+static DepsNodeFactoryImpl<ProxyComponentDepsNode> DNTI_PROXY;
 
 /* Geometry Component Defines ============================= */
 
 DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEPSNODE_TYPE_GEOMETRY, "Geometry Component");
-static DepsNodeTypeInfoImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
+static DepsNodeFactoryImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
 
 /* Sequencer Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequencer Component");
-static DepsNodeTypeInfoImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
+static DepsNodeFactoryImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
 
 /* Pose Component ========================================= */
 
@@ -559,7 +559,7 @@ void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEPSNODE_TYPE_EVAL_POSE, "Pose Eval Component");
-static DepsNodeTypeInfoImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
+static DepsNodeFactoryImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
 
 /* Bone Component ========================================= */
 
@@ -709,7 +709,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");
-static DepsNodeTypeInfoImpl<BoneComponentDepsNode> DNTI_BONE;
+static DepsNodeFactoryImpl<BoneComponentDepsNode> DNTI_BONE;
 
 
 /* ******************************************************** */
@@ -754,7 +754,7 @@ void ParametersOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, "Parameters Operation");
-static DepsNodeTypeInfoImpl<ParametersOperationDepsNode> DNTI_OP_PARAMETERS;
+static DepsNodeFactoryImpl<ParametersOperationDepsNode> DNTI_OP_PARAMETERS;
 
 /* Proxy Operation ======================================== */
 
@@ -765,7 +765,7 @@ void ProxyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(ProxyOperationDepsNode, DEPSNODE_TYPE_OP_PROXY, "Proxy Operation");
-static DepsNodeTypeInfoImpl<ProxyOperationDepsNode> DNTI_OP_PROXY;
+static DepsNodeFactoryImpl<ProxyOperationDepsNode> DNTI_OP_PROXY;
 
 /* Animation Operation ==================================== */
 
@@ -776,7 +776,7 @@ void AnimationOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(AnimationOperationDepsNode, DEPSNODE_TYPE_OP_ANIMATION, "Animation Operation");
-static DepsNodeTypeInfoImpl<AnimationOperationDepsNode> DNTI_OP_ANIMATION;
+static DepsNodeFactoryImpl<AnimationOperationDepsNode> DNTI_OP_ANIMATION;
 
 /* Transform Operation ==================================== */
 
@@ -787,7 +787,7 @@ void TransformOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(TransformOperationDepsNode, DEPSNODE_TYPE_OP_TRANSFORM, "Transform Operation");
-static DepsNodeTypeInfoImpl<TransformOperationDepsNode> DNTI_OP_TRANSFORM;
+static DepsNodeFactoryImpl<TransformOperationDepsNode> DNTI_OP_TRANSFORM;
 
 /* Geometry Operation ===================================== */
 
@@ -798,7 +798,7 @@ void GeometryOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(GeometryOperationDepsNode, DEPSNODE_TYPE_OP_GEOMETRY, "Geometry Operation");
-static DepsNodeTypeInfoImpl<GeometryOperationDepsNode> DNTI_OP_GEOMETRY;
+static DepsNodeFactoryImpl<GeometryOperationDepsNode> DNTI_OP_GEOMETRY;
 
 /* Sequencer Operation ==================================== */
 
@@ -809,7 +809,7 @@ void SequencerOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(SequencerOperationDepsNode, DEPSNODE_TYPE_OP_SEQUENCER, "Sequencer Operation");
-static DepsNodeTypeInfoImpl<SequencerOperationDepsNode> DNTI_OP_SEQUENCER;
+static DepsNodeFactoryImpl<SequencerOperationDepsNode> DNTI_OP_SEQUENCER;
 
 /* Update Operation ======================================= */
 
@@ -820,7 +820,7 @@ void UpdateOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(UpdateOperationDepsNode, DEPSNODE_TYPE_OP_UPDATE, "RNA Update Operation");
-static DepsNodeTypeInfoImpl<UpdateOperationDepsNode> DNTI_OP_UPDATE;
+static DepsNodeFactoryImpl<UpdateOperationDepsNode> DNTI_OP_UPDATE;
 
 /* Driver Operation ===================================== */
 // XXX: some special tweaks may be needed for this one...
@@ -832,7 +832,7 @@ void DriverOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(DriverOperationDepsNode, DEPSNODE_TYPE_OP_DRIVER, "Driver Operation");
-static DepsNodeTypeInfoImpl<DriverOperationDepsNode> DNTI_OP_DRIVER;
+static DepsNodeFactoryImpl<DriverOperationDepsNode> DNTI_OP_DRIVER;
 
 /* Pose Operation ========================================= */
 
@@ -843,7 +843,7 @@ void PoseOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(PoseOperationDepsNode, DEPSNODE_TYPE_OP_POSE, "Pose Operation");
-static DepsNodeTypeInfoImpl<PoseOperationDepsNode> DNTI_OP_POSE;
+static DepsNodeFactoryImpl<PoseOperationDepsNode> DNTI_OP_POSE;
 
 /* Bone Operation ========================================= */
 
@@ -880,7 +880,7 @@ void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(BoneOperationDepsNode, DEPSNODE_TYPE_OP_BONE, "Bone Operation");
-static DepsNodeTypeInfoImpl<BoneOperationDepsNode> DNTI_OP_BONE;
+static DepsNodeFactoryImpl<BoneOperationDepsNode> DNTI_OP_BONE;
 
 /* Particle Operation ===================================== */
 
@@ -898,7 +898,7 @@ void ParticlesOperationDepsNode::remove_from_graph(Depsgraph *graph)
 }
 
 DEG_DEPSNODE_DEFINE(ParticlesOperationDepsNode, DEPSNODE_TYPE_OP_PARTICLE, "Particles Operation");
-static DepsNodeTypeInfoImpl<ParticlesOperationDepsNode> DNTI_OP_PARTICLES;
+static DepsNodeFactoryImpl<ParticlesOperationDepsNode> DNTI_OP_PARTICLES;
 
 /* RigidBody Operation ==================================== */
 /* Note: RigidBody Operations are reserved for scene-level rigidbody sim steps */
@@ -910,7 +910,7 @@ void RigidBodyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 }
 
 DEG_DEPSNODE_DEFINE(RigidBodyOperationDepsNode, DEPSNODE_TYPE_OP_RIGIDBODY, "RigidBody Operation");
-static DepsNodeTypeInfoImpl<RigidBodyOperationDepsNode> DNTI_OP_RIGIDBODY;
+static DepsNodeFactoryImpl<RigidBodyOperationDepsNode> DNTI_OP_RIGIDBODY;
 
 /* ******************************************************** */
 /* External API */
@@ -928,7 +928,7 @@ static GHash *_depsnode_typeinfo_registry = NULL;
 /* Registration ------------------------------------------- */
 
 /* Register node type */
-static void DEG_register_node_typeinfo(DepsNodeTypeInfo *factory)
+static void DEG_register_node_typeinfo(DepsNodeFactory *factory)
 {
 	BLI_assert(factory != NULL);
 	BLI_ghash_insert(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(factory->type()), factory);
@@ -988,21 +988,19 @@ void DEG_free_node_types(void)
 /* Getters ------------------------------------------------- */
 
 /* Get typeinfo for specified type */
-DepsNodeTypeInfo *DEG_get_node_typeinfo(const eDepsNode_Type type)
+DepsNodeFactory *DEG_get_node_factory(const eDepsNode_Type type)
 {
 	/* look up type - at worst, it doesn't exist in table yet, and we fail */
-	return (DepsNodeTypeInfo *)BLI_ghash_lookup(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(type));
+	return (DepsNodeFactory *)BLI_ghash_lookup(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(type));
 }
 
 /* Get typeinfo for provided node */
-DepsNodeTypeInfo *DEG_node_get_typeinfo(const DepsNode *node)
+DepsNodeFactory *DEG_node_get_factory(const DepsNode *node)
 {
-	DepsNodeTypeInfo *nti = NULL;
+	if (!node)
+		return NULL;
 	
-	if (node) {
-		nti = DEG_get_node_typeinfo(node->type);
-	}
-	return nti;
+	return DEG_get_node_factory(node->type);
 }
 
 /* ******************************************************** */
