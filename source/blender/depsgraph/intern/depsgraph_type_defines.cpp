@@ -266,6 +266,12 @@ void IDDepsNode::remove_from_graph(Depsgraph *graph)
 /* Validate links between components */
 void IDDepsNode::validate_links(Depsgraph *graph)
 {
+#if 0
+	/* XXX WARNING: using ListBase is dangerous for virtual C++ classes,
+	 * loses vtable info!
+	 * Disabled for now due to unclear purpose, later use a std::vector or similar here
+	 */
+	
 	ListBase dummy_list = {NULL, NULL}; // XXX: perhaps this should live in the node?
 	
 	/* get our components ......................................................................... */
@@ -310,6 +316,7 @@ void IDDepsNode::validate_links(Depsgraph *graph)
 	if (pose) {
 		BLI_addtail(&dummy_list, pose);
 	}
+#endif
 	
 	/* for each component, validate it's internal nodes ............................................ */
 	
