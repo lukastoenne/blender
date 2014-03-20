@@ -677,9 +677,9 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		case DEPSNODE_TYPE_GEOMETRY:
 		case DEPSNODE_TYPE_SEQUENCER: {
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
-			if (!comp_node->op_hash.empty()) {
+			if (!comp_node->operations.empty()) {
 				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
-				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->op_hash.begin(); it != comp_node->op_hash.end(); ++it) {
+				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin(); it != comp_node->operations.end(); ++it) {
 					const DepsNode *op_node = it->second;
 					deg_debug_graphviz_node(f, op_node);
 				}

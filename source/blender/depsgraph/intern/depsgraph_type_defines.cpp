@@ -462,8 +462,8 @@ static DepsNodeTypeInfo DNTI_SUBGRAPH = {
 
 OperationDepsNode *ComponentDepsNode::find_operation(const char *name) const
 {
-	OperationMap::const_iterator it = this->op_hash.find(name);
-	return it != this->op_hash.end() ? it->second : NULL;
+	OperationMap::const_iterator it = this->operations.find(name);
+	return it != this->operations.end() ? it->second : NULL;
 }
 
 /* Initialise 'component' node - from pointer data given */
@@ -477,13 +477,16 @@ void ComponentDepsNode::init(const ID *id, const char *subdata)
 void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src)
 {
 	/* duplicate list of operation nodes */
-	BLI_listbase_clear(&this->ops);
+	this->operations.clear();
 	
-	for (DepsNode *src_op = (DepsNode *)src->ops.first; src_op; src_op = src_op->next) {
+	for (OperationMap::const_iterator it = src->operations.begin(); it != src->operations.end(); ++it) {
+		const char *pchan_name = it->first;
+		OperationDepsNode *src_op = it->second;
+		
 		/* recursive copy */
 		DepsNodeTypeInfo *nti = DEG_node_get_typeinfo(src_op);
-		DepsNode *dst_op = nti->copy_node(dcc, src_op);
-		BLI_addtail(&this->ops, dst_op);
+		OperationDepsNode *dst_op = (OperationDepsNode *)nti->copy_node(dcc, src_op);
+		this->operations[pchan_name] = dst_op;
 			
 		/* fix links... */
 		// ...
@@ -496,17 +499,11 @@ void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode 
 /* Free 'component' node */
 ComponentDepsNode::~ComponentDepsNode()
 {
-	DepsNode *op, *next;
-	
 	/* free nodes and list of nodes */
-	for (op = (DepsNode *)this->ops.first; op; op = next) {
-		next = op->next;
-		
-		BLI_remlink(&this->ops, op);
+	for (OperationMap::const_iterator it = this->operations.begin(); it != this->operations.end(); ++it) {
+		OperationDepsNode *op = it->second;
 		delete op;
 	}
-	
-	/* no need to free in op_hash as it should be empty now */
 }
 
 /* Add 'component' node to graph */
@@ -726,7 +723,7 @@ PoseComponentDepsNode::~PoseComponentDepsNode()
 void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 {
 	/* create our core operations... */
-	if (!this->bone_hash.empty() || (this->ops.first)) {
+	if (!this->bone_hash.empty() || !this->operations.empty()) {
 		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
 		IDDepsNode *owner_node = (IDDepsNode *)this->owner;
 		Object *ob;
@@ -979,9 +976,8 @@ void OperationDepsNode::add_to_component_node(Depsgraph *graph, const ID *id, eD
 	/* get component node to add operation to */
 	ComponentDepsNode *component = (ComponentDepsNode *)DEG_get_node(graph, id, NULL, component_type, NULL);
 	
-	/* add to hash and list */
-	component->op_hash[this->name] = this;
-	BLI_addtail(&component->ops, this);
+	/* add to hash table */
+	component->operations[this->name] = this;
 	
 	/* add backlink to component */
 	this->owner = component;
@@ -993,9 +989,8 @@ void OperationDepsNode::remove_from_graph(Depsgraph *UNUSED(graph))
 	if (this->owner) {
 		ComponentDepsNode *component = (ComponentDepsNode *)this->owner;
 		
-		/* remove node from hash and list */
-		component->op_hash.erase(this->name);
-		BLI_remlink(&component->ops, this);
+		/* remove node from hash table */
+		component->operations.erase(this->name);
 		
 		/* remove backlink */
 		this->owner = NULL;
@@ -1318,9 +1313,8 @@ void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	
 	bone_comp = (BoneComponentDepsNode *)DEG_get_node(graph, id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
-	/* add to hash and list as per usual */
-	bone_comp->op_hash[pchan->name] = this;
-	BLI_addtail(&bone_comp->ops, this);
+	/* add to hash table */
+	bone_comp->operations[pchan->name] = this;
 	
 	/* add backlink to component */
 	this->owner = bone_comp;

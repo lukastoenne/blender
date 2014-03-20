@@ -363,8 +363,7 @@ struct ComponentDepsNode : public DepsNode {
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
-	ListBase ops;            /* ([OperationDepsNode]) inner nodes for this component */
-	OperationMap op_hash;    /* quicker lookups for inner nodes attached here by name/identifier */
+	OperationMap operations;    /* inner nodes for this component */
 	
 	/* (DEG_OperationsContext) array of evaluation contexts to be passed to evaluation functions for this component. 
 	 *                         Only the requested context will be used during any particular evaluation
