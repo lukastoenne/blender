@@ -212,8 +212,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MA
 	
 	/* add node to operation-node list if it plays a part in the evaluation process */
 	if (ELEM(node->tclass, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
-		BLI_addtail(&graph->all_opnodes, BLI_genericNodeN(node));
-		graph->num_nodes++;
+		graph->all_opnodes.push_back(node);
 	}
 	
 	DEG_debug_build_node_added(node);
@@ -350,7 +349,7 @@ void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
 	/* add to graph-level set of directly modified nodes to start searching from
 	 * NOTE: this is necessary since we have several thousand nodes to play with...
 	 */
-	BLI_addtail(&graph->entry_tags, BLI_genericNodeN(node));
+	graph->entry_tags.insert(node);
 }
 
 /* Data-Based Tagging ------------------------------- */
@@ -383,21 +382,16 @@ void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const Prop
 /* Flush updates from tagged nodes outwards until all affected nodes are tagged */
 void DEG_graph_flush_updates(Depsgraph *graph)
 {
-	LinkData *ld;
-	
 	/* sanity check */
 	if (graph == NULL)
 		return;
-	
-	/* clear count of number of nodes needing updates */
-	graph->tagged_count = 0;
 	
 	/* starting from the tagged "entry" nodes, flush outwards... */
 	// XXX: perhaps instead of iterating, we should just push these onto the queue of nodes to check?
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
 	// NOTE: count how many nodes we need to handle - entry nodes may be component nodes which don't count for this purpose!
-	for (ld = (LinkData *)graph->entry_tags.first; ld; ld = ld->next) {
-		DepsNode *node = (DepsNode *)ld->data;
+	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin(); it != graph->entry_tags.end(); ++it) {
+		DepsNode *node = *it;
 		
 		/* flush to sub-nodes... */
 		// NOTE: if flushing to subnodes, we should then proceed to remove tag(s) from self, as only the subnode tags matter
@@ -407,7 +401,7 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	}
 	
 	/* clear entry tags, since all tagged nodes should now be reachable from root */
-	BLI_freelistN(&graph->entry_tags);
+	graph->entry_tags.clear();
 }
 
 /* Clear tags from all operation nodes */
@@ -416,8 +410,8 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 	LinkData *ld;
 	
 	/* go over all operation nodes, clearing tags */
-	for (ld = (LinkData *)graph->all_opnodes.first; ld; ld = ld->next) {
-		DepsNode *node = (DepsNode *)ld->data;
+	for (Depsgraph::OperationNodes::const_iterator it = graph->all_opnodes.begin(); it != graph->all_opnodes.end(); ++it) {
+		DepsNode *node = *it;
 		
 		/* clear node's "pending update" settings */
 		node->flag &= ~(DEPSNODE_FLAG_DIRECTLY_MODIFIED | DEPSNODE_FLAG_NEEDS_UPDATE);
@@ -425,7 +419,7 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 	}
 	
 	/* clear any entry tags which haven't been flushed */
-	BLI_freelistN(&graph->entry_tags);
+	graph->entry_tags.clear();
 }
 
 /* ************************************************** */
@@ -434,11 +428,6 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 Depsgraph::Depsgraph()
 {
 	this->root_node = NULL;
-	BLI_listbase_clear(&this->subgraphs);
-	BLI_listbase_clear(&this->entry_tags);
-	this->tagged_count = 0;
-	BLI_listbase_clear(&this->all_opnodes);
-	this->num_nodes = 0;
 }
 
 Depsgraph::~Depsgraph()
@@ -453,9 +442,6 @@ Depsgraph::~Depsgraph()
 	if (this->root_node) {
 		delete this->root_node;
 	}
-	
-	/* free entrypoint tag cache... */
-	BLI_freelistN(&this->entry_tags);
 }
 
 /* Init --------------------------------------------- */

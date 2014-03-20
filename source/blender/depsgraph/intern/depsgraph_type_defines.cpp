@@ -398,7 +398,7 @@ void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *s
 void SubgraphDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
 	/* add to subnodes list */
-	BLI_addtail(&graph->subgraphs, this);
+	graph->subgraphs.insert(this);
 	
 	/* if there's an ID associated, add to ID-nodes lookup too */
 	if (id) {
@@ -414,7 +414,7 @@ void SubgraphDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 void SubgraphDepsNode::remove_from_graph(Depsgraph *graph)
 {
 	/* remove from subnodes list */
-	BLI_remlink(&graph->subgraphs, this);
+	graph->subgraphs.erase(this);
 	
 	/* remove from ID-nodes lookup */
 	if (this->root_id) {

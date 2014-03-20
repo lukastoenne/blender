@@ -33,10 +33,14 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
+#include <vector>
+
 #include "MEM_guardedalloc.h"
 
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
+
+using std::vector;
 
 struct Scene;
 struct bPoseChannel;
@@ -556,6 +560,9 @@ struct RigidBodyOperationDepsNode : public OperationDepsNode {
 /* Dependency Graph object */
 struct Depsgraph {
 	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
+	typedef unordered_set<SubgraphDepsNode *> Subgraphs;
+	typedef unordered_set<DepsNode *> EntryTags;
+	typedef vector<DepsNode *> OperationNodes;
 	
 	Depsgraph();
 	~Depsgraph();
@@ -563,18 +570,16 @@ struct Depsgraph {
 	IDDepsNode *find_id_node(const ID *id) const;
 	
 	/* Core Graph Functionality ........... */
-	IDNodeMap id_hash;       /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
-	RootDepsNode *root_node; /* "root" node - the one where all evaluation enters from */
+	IDNodeMap id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
+	RootDepsNode *root_node;    /* "root" node - the one where all evaluation enters from */
 	
-	ListBase subgraphs;      /* (SubgraphDepsNode) subgraphs referenced in tree... */
+	Subgraphs subgraphs;        /* subgraphs referenced in tree... */
 	
 	/* Quick-Access Temp Data ............. */
-	ListBase entry_tags;     /* (LinkData : DepsNode) nodes which have been tagged as "directly modified" */
-	size_t tagged_count;     /* number of nodes that have been tagged for updates/refresh - used for completion cross-checking */     
+	EntryTags entry_tags;       /* nodes which have been tagged as "directly modified" */
 	
 	/* Convenience Data ................... */
-	ListBase all_opnodes;    /* (LinkData : DepsNode) all operation nodes, sorted in order of single-thread traversal order */
-	size_t num_nodes;        /* number of operation nodes in all_opnodes list */
+	OperationNodes all_opnodes; /* all operation nodes, sorted in order of single-thread traversal order */
 	
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
 	
