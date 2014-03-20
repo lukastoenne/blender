@@ -455,15 +455,39 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 /* ************************************************** */
 /* Public Graph API */
 
+Depsgraph::Depsgraph()
+{
+	this->root_node = NULL;
+	BLI_listbase_clear(&this->subgraphs);
+	BLI_listbase_clear(&this->entry_tags);
+	this->tagged_count = 0;
+	BLI_listbase_clear(&this->all_opnodes);
+	this->num_nodes = 0;
+}
+
+Depsgraph::~Depsgraph()
+{
+	/* free node hash */
+	for (Depsgraph::IDNodeMap::const_iterator it = this->id_hash.begin(); it != this->id_hash.end(); ++it) {
+		DepsNode *node = it->second;
+		delete node;
+	}
+	
+	/* free root node - it won't have been freed yet... */
+	if (this->root_node) {
+		delete this->root_node;
+	}
+	
+	/* free entrypoint tag cache... */
+	BLI_freelistN(&this->entry_tags);
+}
+
 /* Init --------------------------------------------- */
 
 /* Initialise a new Depsgraph */
 Depsgraph *DEG_graph_new()
 {
-	Depsgraph *graph = (Depsgraph *)MEM_callocN(sizeof(Depsgraph), "Depsgraph");
-	
-	/* return new graph */
-	return graph;
+	return new Depsgraph;
 }
 
 /* Freeing ------------------------------------------- */
@@ -471,23 +495,7 @@ Depsgraph *DEG_graph_new()
 /* Free graph's contents and graph itself */
 void DEG_graph_free(Depsgraph *graph)
 {
-	/* free node hash */
-	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
-		DepsNode *node = it->second;
-		delete node;
-	}
-	
-	/* free root node - it won't have been freed yet... */
-	if (graph->root_node) {
-		delete graph->root_node;
-		graph->root_node = NULL;
-	}
-	
-	/* free entrypoint tag cache... */
-	BLI_freelistN(&graph->entry_tags);
-	
-	/* finally, graph itself */
-	MEM_freeN(graph);
+	delete graph;
 }
 
 /* ************************************************** */

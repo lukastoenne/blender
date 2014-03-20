@@ -548,6 +548,9 @@ struct RigidBodyOperationDepsNode : public OperationDepsNode {
 struct Depsgraph {
 	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
 	
+	Depsgraph();
+	~Depsgraph();
+	
 	IDDepsNode *find_id_node(const ID *id) const;
 	
 	/* Core Graph Functionality ........... */
@@ -565,6 +568,10 @@ struct Depsgraph {
 	size_t num_nodes;        /* number of operation nodes in all_opnodes list */
 	
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
+	
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
+#endif
 };
 
 /* ************************************* */

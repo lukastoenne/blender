@@ -30,8 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "MEM_guardedalloc.h"
-
 extern "C" {
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
@@ -269,8 +267,6 @@ void IDDepsNode::remove_from_graph(Depsgraph *graph)
 void IDDepsNode::validate_links(Depsgraph *graph)
 {
 	ListBase dummy_list = {NULL, NULL}; // XXX: perhaps this should live in the node?
-	
-	GHashIterator hashIter;
 	
 	/* get our components ......................................................................... */
 	ComponentDepsNode *params = find_component(DEPSNODE_TYPE_PARAMETERS);
