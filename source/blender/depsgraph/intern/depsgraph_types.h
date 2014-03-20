@@ -124,6 +124,13 @@ struct DepsRelation {
 	
 	eDepsRelation_Type type;      /* type */
 	int flag;                     /* (eDepsRelation_Flag) */
+	
+	DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const char *description);
+	~DepsRelation();
+	
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
+#endif
 };
 
 

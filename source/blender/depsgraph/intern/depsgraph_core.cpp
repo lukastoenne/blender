@@ -276,28 +276,20 @@ OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, const char subdat
 /* ************************************************** */
 /* Relationships Management */
 
-/* Create new relationship that between two nodes, but don't link it in */
-DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to,
-                                      eDepsRelation_Type type,
-                                      const char description[DEG_MAX_ID_NAME])
+DepsRelation::DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const char *description)
 {
-	DepsRelation *rel;
+	this->from = from;
+	this->to = to;
+	this->type = type;
+	BLI_strncpy(this->name, description, DEG_MAX_ID_NAME);
+}
+
+DepsRelation::~DepsRelation()
+{
+	/* assumes that it isn't part of graph anymore (DEG_remove_relation() called) */
+	BLI_assert(!this->next && !this->prev);
 	
-	/* create new relationship */
-	if (description)
-		rel = (DepsRelation *)MEM_callocN(sizeof(DepsRelation), description);
-	else
-		rel = (DepsRelation *)MEM_callocN(sizeof(DepsRelation), "DepsRelation");
-	
-	/* populate data */
-	rel->from = from;
-	rel->to = to;
-	
-	rel->type = type;
-	BLI_strncpy(rel->name, description, DEG_MAX_ID_NAME);
-	
-	/* return */
-	return rel;
+	/* for now, assume that relation has no data of its own... */
 }
 
 /* Add relationship to graph */
@@ -314,7 +306,7 @@ DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
                                    const char description[DEG_MAX_ID_NAME])
 {
 	/* create new relation, and add it to the graph */
-	DepsRelation *rel = DEG_create_new_relation(from, to, type, description);
+	DepsRelation *rel = new DepsRelation(from, to, type, description);
 	DEG_add_relation(rel);
 	
 	DEG_debug_build_relation_added(rel);
@@ -344,16 +336,6 @@ void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel)
 		BLI_freelinkN(&rel->to->inlinks, rel);
 		ld = NULL;
 	}
-}
-
-/* Free relation and its data */
-void DEG_free_relation(DepsRelation *rel)
-{
-	BLI_assert(rel != NULL);
-	BLI_assert((rel->next == rel->prev) && (rel->next == NULL));
-	
-	/* for now, assume that relation has no data of its own... */
-	MEM_freeN(rel);
 }
 
 /* ************************************************** */

@@ -188,11 +188,6 @@ void DEG_graph_sort(Depsgraph *graph);
 
 /* API Methods --------------------------------------------------------- */
 
-/* Create new relationship object, but don't add it to graph yet */
-DepsRelation *DEG_create_new_relation(DepsNode *from, DepsNode *to, 
-                                      eDepsRelation_Type type, 
-                                      const char description[DEG_MAX_ID_NAME]);
-
 /* Add given relationship to the graph */
 void DEG_add_relation(DepsRelation *rel);
 
@@ -205,12 +200,6 @@ DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
 
 /* Remove relationship from graph, but don't free it yet */
 void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel);
-
-/* Free relationship's data 
- * ! Assumes that it isn't part of graph anymore (DEG_remove_relation() called)
- * ! Relationship itself *is* freed...
- */
-void DEG_free_relation(DepsRelation *rel);
 
 /* Graph Building ======================================================== */
 
