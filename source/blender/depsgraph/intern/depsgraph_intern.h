@@ -164,21 +164,17 @@ void DEG_graph_sort(Depsgraph *graph);
 /* Helper macros for interating over set of relationship
  * links incident on each node.
  *
- * NOTE: Since each relationship is shared between the two nodes
- *       involved, each node must use "LinkData" to reference
- *       the nodes nearby...
- *
  * NOTE: it is safe to perform removal operations here...
  *
- * < first_link: (LinkData *) first LinkData in list of relationships (in/out links)
- * > rel:  (DepsRelation *) identifier where DepsRelation that we're currently accessing comes up
+ * < relations_set: (DepsNode::Relations) set of relationships (in/out links)
+ * > relation:  (DepsRelation *) identifier where DepsRelation that we're currently accessing comes up
  */
-#define DEPSNODE_RELATIONS_ITER_BEGIN(first_link, relation_)                          \
+#define DEPSNODE_RELATIONS_ITER_BEGIN(relations_set_, relation_)                          \
 	{                                                                                \
-		LinkData *__rel_iter, *__rel_next;                                           \
-		for (__rel_iter = (LinkData *)first_link; __rel_iter; __rel_iter = __rel_next) {         \
-			DepsRelation *relation_ = (DepsRelation *)__rel_iter->data;              \
-			__rel_next = __rel_iter->next;
+		DepsNode::Relations::const_iterator __rel_iter = relations_set_.begin();     \
+		while (__rel_iter != relations_set_.end()) {                                 \
+			DepsRelation *relation_ = *__rel_iter;                                   \
+			++__rel_iter;
 
 			/* ... code for iterator body can be written here ... */
 

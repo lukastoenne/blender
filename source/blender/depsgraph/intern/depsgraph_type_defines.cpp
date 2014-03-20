@@ -855,7 +855,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	}
 	
 	/* inlinks destination should all go to the "Bone Transforms" operation */
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
 	{
 		/* redirect destination pointer */
 		rel->to = btrans_op;
@@ -883,7 +883,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 		final_op = btrans_op;
 	}
 	
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
 	{
 		/* Technically, the last evaluation operation on these
 		 * should be IK if present. Since, this link is actually
@@ -899,7 +899,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	DEPSNODE_RELATIONS_ITER_END;
 	
 	/* fix up outlink refs */
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
 	{
 		if (ik_op) {
 			/* bone is part of IK Chain... */

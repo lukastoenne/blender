@@ -177,16 +177,19 @@ DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type_, const char *tname_)
 DepsNode::DepsNode()
 {
 	this->name[0] = '\0';
-	BLI_listbase_clear(&this->inlinks);
-	BLI_listbase_clear(&this->outlinks);
 }
 
 DepsNode::~DepsNode()
 {
 	/* free links */
 	// XXX: review how this works!
-	BLI_freelistN(&this->inlinks);
-	BLI_freelistN(&this->outlinks);
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
+		delete rel;
+	DEPSNODE_RELATIONS_ITER_END;
+	
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
+		delete rel;
+	DEPSNODE_RELATIONS_ITER_END;
 }
 
 /* Add a new node */
@@ -232,13 +235,13 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 	 *   node itself (inter-relations between sub-nodes will
 	 *   still remain and/or can still work that way)
 	 */
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
 	{
 		DEG_remove_relation(graph, rel);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 	
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks, rel)
 	{
 		DEG_remove_relation(graph, rel);
 	}
@@ -296,8 +299,8 @@ DepsRelation::~DepsRelation()
 void DEG_add_relation(DepsRelation *rel)
 {
 	/* hook it up to the nodes which use it */
-	BLI_addtail(&rel->from->outlinks, BLI_genericNodeN(rel));
-	BLI_addtail(&rel->to->inlinks,    BLI_genericNodeN(rel));
+	rel->from->outlinks.insert(rel);
+	rel->to->inlinks.insert(rel);
 }
 
 /* Add new relationship between two nodes */
@@ -325,17 +328,8 @@ void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel)
 	}
 	
 	/* remove it from the nodes that use it */
-	ld = (LinkData *)BLI_findptr(&rel->from->outlinks, rel, offsetof(LinkData, data));
-	if (ld) {
-		BLI_freelinkN(&rel->from->outlinks, ld);
-		ld = NULL;
-	}
-	
-	ld = (LinkData *)BLI_findptr(&rel->to->inlinks, rel, offsetof(LinkData, data));
-	if (ld) {
-		BLI_freelinkN(&rel->to->inlinks, rel);
-		ld = NULL;
-	}
+	rel->from->outlinks.erase(rel);
+	rel->to->inlinks.erase(rel);
 }
 
 /* ************************************************** */

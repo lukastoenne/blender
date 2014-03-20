@@ -94,7 +94,7 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 		op(graph, node, operation_data);
 		
 		/* schedule up operations which depend on this */
-		DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks.first, rel)
+		DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks, rel)
 		{
 			/* ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.) */
 			// TODO: cyclic refs should probably all get clustered towards the end, so that we can just stop on the first one
@@ -185,8 +185,8 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 		
 		// XXX: BUT, for copying subgraphs, we'll need to define an API for doing this stuff anyways
 		// (i.e. for resolving and patching over links that exist within subtree...)
-		dst->inlinks.first = dst->inlinks.last = NULL;
-		dst->outlinks.first = dst->outlinks.last = NULL;
+		dst->inlinks.clear();
+		dst->outlinks.clear();
 		
 		/* clear traversal data */
 		dst->num_links_pending = 0;
@@ -715,7 +715,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 
 static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 {
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks.first, rel)
+	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
 	{
 		fprintf(f, "\"node_%p\"", rel->to); /* same as node */
 		fprintf(f, " -> ");

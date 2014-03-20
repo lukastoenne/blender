@@ -36,6 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "depsgraph_util_map.h"
+#include "depsgraph_util_set.h"
 
 struct Scene;
 struct bPoseChannel;
@@ -218,13 +219,15 @@ struct DepsNode {
 		const char *tname;
 	};
 	
+	typedef unordered_set<DepsRelation *> Relations;
+	
 	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
 	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
 	
-	ListBase inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
-	ListBase outlinks;          /* (LinkData : DepsRelation) nodes which depend on this one */
+	Relations inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
+	Relations outlinks;          /* (LinkData : DepsRelation) nodes which depend on this one */
 	
 	eDepsNode_Type type;        /* structural type of node */
 	eDepsNode_Class tclass;     /* type of data/behaviour represented by node... */
