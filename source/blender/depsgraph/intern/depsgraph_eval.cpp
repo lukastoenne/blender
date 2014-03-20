@@ -172,10 +172,8 @@ static void deg_node_evaluation_context_init(ComponentDepsNode *comp, eEvaluatio
 	/* check if the requested evaluation context exists already */
 	if (comp->contexts[context_type] == NULL) {
 		/* doesn't exist, so create new evaluation context here */
-		if (nti->eval_context_init) {
-			nti->eval_context_init(comp, context_type);
-		}
-		else {
+		bool valid = comp->eval_context_init(context_type);
+		if (!valid) {
 			/* initialise using standard techniques */
 			comp->contexts[context_type] = MEM_callocN(sizeof(DEG_OperationsContext), "Evaluation Context");
 			// TODO: init from master context somehow...
@@ -211,15 +209,12 @@ void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType contex
 /* Free evaluation contexts for node */
 static void deg_node_evaluation_contexts_free(ComponentDepsNode *comp)
 {
-	DepsNodeFactory *nti = DEG_node_get_factory((DepsNode *)comp);
 	size_t i;
 	
 	/* free each context in turn */
 	for (i = 0; i < DEG_MAX_EVALUATION_CONTEXTS; i++) {
 		if (comp->contexts[i]) {
-			if (nti->eval_context_free) {
-				nti->eval_context_free(comp, (eEvaluationContextType)i);
-			}
+			comp->eval_context_free((eEvaluationContextType)i);
 			
 			MEM_freeN(comp->contexts[i]);
 			comp->contexts[i] = NULL;

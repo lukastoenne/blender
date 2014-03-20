@@ -754,7 +754,6 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 
 static void deg_debug_graphviz_graph_nodes(FILE *f, const Depsgraph *graph)
 {
-	GHashIterator hashIter;
 	if (graph->root_node)
 		deg_debug_graphviz_node(f, graph->root_node);
 	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
@@ -765,7 +764,6 @@ static void deg_debug_graphviz_graph_nodes(FILE *f, const Depsgraph *graph)
 
 static void deg_debug_graphviz_graph_relations(FILE *f, const Depsgraph *graph)
 {
-	GHashIterator hashIter;
 	if (graph->root_node)
 		deg_debug_graphviz_node_relations(f, graph->root_node);
 	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {

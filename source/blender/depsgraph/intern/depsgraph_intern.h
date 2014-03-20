@@ -292,12 +292,12 @@ struct DepsNodeFactory {
 	/* (Components Only) */
 	
 	/* Initialise component's evaluation context used for the specified purpose */
-	void (*eval_context_init)(ComponentDepsNode *node, eEvaluationContextType context_type);
+//	void (*eval_context_init)(ComponentDepsNode *node, eEvaluationContextType context_type);
 	
 	/* Free data in component's evaluation context which is used for the specified purpose 
 	 * NOTE: this does not free the actual context in question
 	 */
-	void (*eval_context_free)(ComponentDepsNode *node, eEvaluationContextType context_type);
+//	void (*eval_context_free)(ComponentDepsNode *node, eEvaluationContextType context_type);
 };
 
 template <class NodeType>

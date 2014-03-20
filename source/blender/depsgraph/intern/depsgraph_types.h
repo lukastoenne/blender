@@ -367,6 +367,15 @@ struct ComponentDepsNode : public DepsNode {
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
+	/* Evaluation Context Management .................. */
+	
+	/* Initialise component's evaluation context used for the specified purpose */
+	virtual bool eval_context_init(eEvaluationContextType context_type) { return false; }
+	/* Free data in component's evaluation context which is used for the specified purpose 
+	 * NOTE: this does not free the actual context in question
+	 */
+	virtual void eval_context_free(eEvaluationContextType context_type) {}
+	
 	OperationMap operations;    /* inner nodes for this component */
 	
 	/* (DEG_OperationsContext) array of evaluation contexts to be passed to evaluation functions for this component. 
