@@ -255,49 +255,6 @@ struct DepsNodeFactory {
 	
 	virtual DepsNode *create_node(const ID *id, const char *subdata, const char *name) const = 0;
 	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const = 0;
-
-	#pragma message("DEPSGRAPH PORTING XXX: replace these callbacks")
-	/* Identification ................................. */
-//	eDepsNode_Type type;           /* DEPSNODE_TYPE_### */
-//	size_t size;                   /* size in bytes of the struct */
-//	char name[DEG_MAX_ID_NAME];    /* name of node type */
-	
-	/* Data Management ................................ */
-	/* Initialise node-specific data - the node already exists */
-//	void (*init_data)(DepsNode *node, const ID *id, const char subdata[MAX_NAME]);
-	
-	/* Free node-specific data, but not node itself 
-	 * NOTE: data should already have been removed from graph!
-	 */
-//	void (*free_data)(DepsNode *node);
-	
-	/* Make a copy of "src" node's data over to "dst" node */
-	// TODO: perhaps copying needs to be a two-pass operation?
-//	void (*copy_data)(DepsgraphCopyContext *dcc, DepsNode *dst, const DepsNode *src);
-	
-	/* Graph/Connection Management .................... */
-	
-	/* Add node to graph - Will add additional inbetween nodes as needed */
-//	void (*add_to_graph)(Depsgraph *graph, DepsNode *node, const ID *id);
-	
-	/* Remove node from graph - Only use when node is to be replaced... */
-//	void (*remove_from_graph)(Depsgraph *graph, DepsNode *node);
-	
-	
-	/* Recursively ensure that all implicit/builtin link rules have been applied */
-	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
-//	void (*validate_links)(Depsgraph *graph, DepsNode *node);
-	
-	/* Evaluation Context Management .................. */
-	/* (Components Only) */
-	
-	/* Initialise component's evaluation context used for the specified purpose */
-//	void (*eval_context_init)(ComponentDepsNode *node, eEvaluationContextType context_type);
-	
-	/* Free data in component's evaluation context which is used for the specified purpose 
-	 * NOTE: this does not free the actual context in question
-	 */
-//	void (*eval_context_free)(ComponentDepsNode *node, eEvaluationContextType context_type);
 };
 
 template <class NodeType>
