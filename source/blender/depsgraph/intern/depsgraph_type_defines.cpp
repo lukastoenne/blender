@@ -103,27 +103,6 @@ void RootDepsNode::remove_from_graph(Depsgraph *graph)
 DEG_DEPSNODE_DEFINE(RootDepsNode, DEPSNODE_TYPE_ROOT, "Root DepsNode");
 static DepsNodeTypeInfoImpl<RootDepsNode> DNTI_ROOT;
 
-#if 0
-/* Root Node Type Info */
-static DepsNodeTypeInfo DNTI_ROOT = {
-	/* type */               DEPSNODE_TYPE_ROOT,
-	/* size */               sizeof(RootDepsNode),
-	/* name */               "Root DepsNode",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_root__add_to_graph,
-	/* remove_from_graph()*/ dnti_root__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Time Source Node ======================================= */
 
 /* Add 'time source' node to graph */
@@ -184,27 +163,6 @@ void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
 
 DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEPSNODE_TYPE_TIMESOURCE, "Time Source");
 static DepsNodeTypeInfoImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
-
-#if 0
-/* Time Source Type Info */
-static DepsNodeTypeInfo DNTI_TIMESOURCE = {
-	/* type */               DEPSNODE_TYPE_TIMESOURCE,
-	/* size */               sizeof(TimeSourceDepsNode),
-	/* name */               "Time Source",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_timesource__add_to_graph,
-	/* remove_from_graph()*/ dnti_timesource__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX?
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* ID Node ================================================ */
 
@@ -339,27 +297,6 @@ ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
 DEG_DEPSNODE_DEFINE(IDDepsNode, DEPSNODE_TYPE_ID_REF, "ID Node");
 static DepsNodeTypeInfoImpl<IDDepsNode> DNTI_ID_REF;
 
-#if 0
-/* ID Node Type Info */
-static DepsNodeTypeInfo DNTI_ID_REF = {
-	/* type */               DEPSNODE_TYPE_ID_REF,
-	/* size */               sizeof(IDDepsNode),
-	/* name */               "ID Node",
-	
-	/* init_data() */        dnti_id_ref__init_data,
-	/* free_data() */        dnti_id_ref__free_data,
-	/* copy_data() */        dnti_id_ref__copy_data,
-	
-	/* add_to_graph() */     dnti_id_ref__add_to_graph,
-	/* remove_from_graph()*/ dnti_id_ref__remove_from_graph,
-	
-	/* validate_links() */   dnti_id_ref__validate_links,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Subgraph Node ========================================== */
 
 /* Initialise 'subgraph' node - from pointer data given */
@@ -433,27 +370,6 @@ void SubgraphDepsNode::validate_links(Depsgraph *graph)
 
 DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");
 static DepsNodeTypeInfoImpl<SubgraphDepsNode> DNTI_SUBGRAPH;
-
-#if 0
-/* Subgraph Type Info */
-static DepsNodeTypeInfo DNTI_SUBGRAPH = {
-	/* type */               DEPSNODE_TYPE_SUBGRAPH,
-	/* size */               sizeof(SubgraphDepsNode),
-	/* name */               "Subgraph Node",
-	
-	/* init_data() */        dnti_subgraph__init_data,
-	/* free_data() */        dnti_subgraph__free_data,
-	/* copy_data() */        dnti_subgraph__copy_data,
-	
-	/* add_to_graph() */     dnti_subgraph__add_to_graph,
-	/* remove_from_graph()*/ dnti_subgraph__remove_from_graph,
-	
-	/* validate_links() */   dnti_subgraph__validate_links,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* ******************************************************** */
 /* Outer Nodes */
@@ -538,156 +454,30 @@ void ComponentDepsNode::remove_from_graph(Depsgraph *graph)
 DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");
 static DepsNodeTypeInfoImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
 
-#if 0
-/* Parameters */
-static DepsNodeTypeInfo DNTI_PARAMETERS = {
-	/* type */               DEPSNODE_TYPE_PARAMETERS,
-	/* size */               sizeof(ComponentDepsNode),
-	/* name */               "Parameters Component",
-	
-	/* init_data() */        dnti_component__init_data,
-	/* free_data() */        dnti_component__free_data,
-	/* copy_data() */        dnti_component__copy_data,
-	
-	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ dnti_component__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Animation Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(AnimationComponentDepsNode, DEPSNODE_TYPE_ANIMATION, "Animation Component");
 static DepsNodeTypeInfoImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
-
-#if 0
-/* Animation */
-static DepsNodeTypeInfo DNTI_ANIMATION = {
-	/* type */               DEPSNODE_TYPE_ANIMATION,
-	/* size */               sizeof(ComponentDepsNode),
-	/* name */               "Animation Component",
-	
-	/* init_data() */        dnti_component__init_data,
-	/* free_data() */        dnti_component__free_data,
-	/* copy_data() */        dnti_component__copy_data,
-	
-	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ dnti_component__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Transform Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(TransformComponentDepsNode, DEPSNODE_TYPE_TRANSFORM, "Transform Component");
 static DepsNodeTypeInfoImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
 
-#if 0
-/* Transform */
-static DepsNodeTypeInfo DNTI_TRANSFORM = {
-	/* type */               DEPSNODE_TYPE_TRANSFORM,
-	/* size */               sizeof(ComponentDepsNode),
-	/* name */               "Transform Component",
-	
-	/* init_data() */        dnti_component__init_data,
-	/* free_data() */        dnti_component__free_data,
-	/* copy_data() */        dnti_component__copy_data,
-	
-	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ dnti_component__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Proxy Component Defines ================================ */
 
 DEG_DEPSNODE_DEFINE(ProxyComponentDepsNode, DEPSNODE_TYPE_PROXY, "Proxy Component");
 static DepsNodeTypeInfoImpl<ProxyComponentDepsNode> DNTI_PROXY;
-
-#if 0
-/* Proxy */
-static DepsNodeTypeInfo DNTI_PROXY = {
-	/* type */               DEPSNODE_TYPE_PROXY,
-	/* size */               sizeof(ComponentDepsNode),
-	/* name */               "Proxy Component",
-	
-	/* init_data() */        dnti_component__init_data,
-	/* free_data() */        dnti_component__free_data,
-	/* copy_data() */        dnti_component__copy_data,
-	
-	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ dnti_component__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Geometry Component Defines ============================= */
 
 DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEPSNODE_TYPE_GEOMETRY, "Geometry Component");
 static DepsNodeTypeInfoImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
 
-#if 0
-/* Geometry */
-static DepsNodeTypeInfo DNTI_GEOMETRY = {
-	/* type */               DEPSNODE_TYPE_GEOMETRY,
-	/* size */               sizeof(ComponentDepsNode),
-	/* name */               "Geometry Component",
-	
-	/* init_data() */        dnti_component__init_data,
-	/* free_data() */        dnti_component__free_data,
-	/* copy_data() */        dnti_component__copy_data,
-	
-	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ dnti_component__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Sequencer Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequencer Component");
 static DepsNodeTypeInfoImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
-
-#if 0
-/* Sequencer */
-static DepsNodeTypeInfo DNTI_SEQUENCER = {
-	/* type */               DEPSNODE_TYPE_SEQUENCER,
-	/* size */               sizeof(ComponentDepsNode),
-	/* name */               "Sequencer Component",
-	
-	/* init_data() */        dnti_component__init_data,
-	/* free_data() */        dnti_component__free_data,
-	/* copy_data() */        dnti_component__copy_data,
-	
-	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ dnti_component__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX: ensure cleanup ops are first/last and hooked to whatever depends on us
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Pose Component ========================================= */
 
@@ -770,27 +560,6 @@ void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 
 DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEPSNODE_TYPE_EVAL_POSE, "Pose Eval Component");
 static DepsNodeTypeInfoImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
-
-#if 0
-/* Pose Evaluation */
-static DepsNodeTypeInfo DNTI_EVAL_POSE = {
-	/* type */               DEPSNODE_TYPE_EVAL_POSE,
-	/* size */               sizeof(PoseComponentDepsNode),
-	/* name */               "Pose Eval Component",
-	
-	/* init_data() */        dnti_pose_eval__init_data,
-	/* free_data() */        dnti_pose_eval__free_data,
-	/* copy_data() */        dnti_pose_eval__copy_data,
-	
-	/* add_to_graph() */     dnti_component__add_to_graph,
-	/* remove_from_graph()*/ dnti_component__remove_from_graph,
-	
-	/* validate_links() */   dnti_pose_eval__validate_links,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Bone Component ========================================= */
 
@@ -942,27 +711,6 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");
 static DepsNodeTypeInfoImpl<BoneComponentDepsNode> DNTI_BONE;
 
-#if 0
-/* Bone Type Info */
-static DepsNodeTypeInfo DNTI_BONE = {
-	/* type */               DEPSNODE_TYPE_BONE,
-	/* size */               sizeof(BoneComponentDepsNode),
-	/* name */               "Bone Component Node",
-	
-	/* init_data() */        dnti_bone__init_data,
-	/* free_data() */        dnti_component__free_data,
-	/* copy_data() */        dnti_component__copy_data,
-	
-	/* add_to_graph() */     dnti_bone__add_to_graph,
-	/* remove_from_graph()*/ dnti_bone__remove_from_graph,
-	
-	/* validate_links() */   dnti_bone__validate_links,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 
 /* ******************************************************** */
 /* Inner Nodes */
@@ -1008,27 +756,6 @@ void ParametersOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 DEG_DEPSNODE_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, "Parameters Operation");
 static DepsNodeTypeInfoImpl<ParametersOperationDepsNode> DNTI_OP_PARAMETERS;
 
-#if 0
-/* Parameter Operation Node */
-static DepsNodeTypeInfo DNTI_OP_PARAMETER = {
-	/* type */               DEPSNODE_TYPE_OP_PARAMETER,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Parameter Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_parameter__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Proxy Operation ======================================== */
 
 /* Add 'proxy operation' node to graph */
@@ -1039,27 +766,6 @@ void ProxyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 
 DEG_DEPSNODE_DEFINE(ProxyOperationDepsNode, DEPSNODE_TYPE_OP_PROXY, "Proxy Operation");
 static DepsNodeTypeInfoImpl<ProxyOperationDepsNode> DNTI_OP_PROXY;
-
-#if 0
-/* Proxy Operation Node */
-static DepsNodeTypeInfo DNTI_OP_PROXY = {
-	/* type */               DEPSNODE_TYPE_OP_PROXY,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Proxy Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_proxy__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Animation Operation ==================================== */
 
@@ -1072,27 +778,6 @@ void AnimationOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 DEG_DEPSNODE_DEFINE(AnimationOperationDepsNode, DEPSNODE_TYPE_OP_ANIMATION, "Animation Operation");
 static DepsNodeTypeInfoImpl<AnimationOperationDepsNode> DNTI_OP_ANIMATION;
 
-#if 0
-/* Animation Operation Node */
-static DepsNodeTypeInfo DNTI_OP_ANIMATION = {
-	/* type */               DEPSNODE_TYPE_OP_ANIMATION,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Animation Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_animation__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Transform Operation ==================================== */
 
 /* Add 'transform operation' node to graph */
@@ -1103,27 +788,6 @@ void TransformOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 
 DEG_DEPSNODE_DEFINE(TransformOperationDepsNode, DEPSNODE_TYPE_OP_TRANSFORM, "Transform Operation");
 static DepsNodeTypeInfoImpl<TransformOperationDepsNode> DNTI_OP_TRANSFORM;
-
-#if 0
-/* Transform Operation Node */
-static DepsNodeTypeInfo DNTI_OP_TRANSFORM = {
-	/* type */               DEPSNODE_TYPE_OP_TRANSFORM,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Transform Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_transform__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Geometry Operation ===================================== */
 
@@ -1136,27 +800,6 @@ void GeometryOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 DEG_DEPSNODE_DEFINE(GeometryOperationDepsNode, DEPSNODE_TYPE_OP_GEOMETRY, "Geometry Operation");
 static DepsNodeTypeInfoImpl<GeometryOperationDepsNode> DNTI_OP_GEOMETRY;
 
-#if 0
-/* Geometry Operation Node */
-static DepsNodeTypeInfo DNTI_OP_GEOMETRY = {
-	/* type */               DEPSNODE_TYPE_OP_GEOMETRY,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Geometry Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_geometry__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Sequencer Operation ==================================== */
 
 /* Add 'sequencer operation' node to graph */
@@ -1168,27 +811,6 @@ void SequencerOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 DEG_DEPSNODE_DEFINE(SequencerOperationDepsNode, DEPSNODE_TYPE_OP_SEQUENCER, "Sequencer Operation");
 static DepsNodeTypeInfoImpl<SequencerOperationDepsNode> DNTI_OP_SEQUENCER;
 
-#if 0
-/* Sequencer Operation Node */
-static DepsNodeTypeInfo DNTI_OP_SEQUENCER = {
-	/* type */               DEPSNODE_TYPE_OP_SEQUENCER,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Sequencer Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_sequencer__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Update Operation ======================================= */
 
 /* Add 'update operation' node to graph */
@@ -1199,27 +821,6 @@ void UpdateOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 
 DEG_DEPSNODE_DEFINE(UpdateOperationDepsNode, DEPSNODE_TYPE_OP_UPDATE, "RNA Update Operation");
 static DepsNodeTypeInfoImpl<UpdateOperationDepsNode> DNTI_OP_UPDATE;
-
-#if 0
-/* Update Operation Node */
-static DepsNodeTypeInfo DNTI_OP_UPDATE = {
-	/* type */               DEPSNODE_TYPE_OP_UPDATE,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "RNA Update Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_update__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Driver Operation ===================================== */
 // XXX: some special tweaks may be needed for this one...
@@ -1233,27 +834,6 @@ void DriverOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 DEG_DEPSNODE_DEFINE(DriverOperationDepsNode, DEPSNODE_TYPE_OP_DRIVER, "Driver Operation");
 static DepsNodeTypeInfoImpl<DriverOperationDepsNode> DNTI_OP_DRIVER;
 
-#if 0
-/* Driver Operation Node */
-static DepsNodeTypeInfo DNTI_OP_DRIVER = {
-	/* type */               DEPSNODE_TYPE_OP_DRIVER,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Driver Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_driver__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Pose Operation ========================================= */
 
 /* Add 'pose operation' node to graph */
@@ -1264,27 +844,6 @@ void PoseOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 
 DEG_DEPSNODE_DEFINE(PoseOperationDepsNode, DEPSNODE_TYPE_OP_POSE, "Pose Operation");
 static DepsNodeTypeInfoImpl<PoseOperationDepsNode> DNTI_OP_POSE;
-
-#if 0
-/* Pose Operation Node */
-static DepsNodeTypeInfo DNTI_OP_POSE = {
-	/* type */               DEPSNODE_TYPE_OP_POSE,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Pose Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_pose__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* Bone Operation ========================================= */
 
@@ -1323,27 +882,6 @@ void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 DEG_DEPSNODE_DEFINE(BoneOperationDepsNode, DEPSNODE_TYPE_OP_BONE, "Bone Operation");
 static DepsNodeTypeInfoImpl<BoneOperationDepsNode> DNTI_OP_BONE;
 
-#if 0
-/* Bone Operation Node */
-static DepsNodeTypeInfo DNTI_OP_BONE = {
-	/* type */               DEPSNODE_TYPE_OP_BONE,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Bone Operation",
-	
-	/* init_data() */        dnti_op_bone__init_data,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_bone__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* Particle Operation ===================================== */
 
 /* Add 'particle operation' node to graph */
@@ -1362,27 +900,6 @@ void ParticlesOperationDepsNode::remove_from_graph(Depsgraph *graph)
 DEG_DEPSNODE_DEFINE(ParticlesOperationDepsNode, DEPSNODE_TYPE_OP_PARTICLE, "Particles Operation");
 static DepsNodeTypeInfoImpl<ParticlesOperationDepsNode> DNTI_OP_PARTICLES;
 
-#if 0
-/* Particles Operation Node */
-static DepsNodeTypeInfo DNTI_OP_PARTICLE = {
-	/* type */               DEPSNODE_TYPE_OP_PARTICLE,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Particles Operation",
-	
-	/* init_data() */        NULL, // XXX
-	/* free_data() */        NULL, // XXX
-	/* copy_data() */        NULL, // XXX
-	
-	/* add_to_graph() */     dnti_op_particle__add_to_graph,
-	/* remove_from_graph()*/ dnti_op_particle__remove_from_graph,
-	
-	/* validate_links() */   NULL, // XXX
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
-
 /* RigidBody Operation ==================================== */
 /* Note: RigidBody Operations are reserved for scene-level rigidbody sim steps */
 
@@ -1394,27 +911,6 @@ void RigidBodyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 
 DEG_DEPSNODE_DEFINE(RigidBodyOperationDepsNode, DEPSNODE_TYPE_OP_RIGIDBODY, "RigidBody Operation");
 static DepsNodeTypeInfoImpl<RigidBodyOperationDepsNode> DNTI_OP_RIGIDBODY;
-
-#if 0
-/* Rigidbody Operation Node */
-static DepsNodeTypeInfo DNTI_OP_RIGIDBODY = {
-	/* type */               DEPSNODE_TYPE_OP_RIGIDBODY,
-	/* size */               sizeof(OperationDepsNode),
-	/* name */               "Rigidbody Operation",
-	
-	/* init_data() */        NULL,
-	/* free_data() */        NULL,
-	/* copy_data() */        NULL,
-	
-	/* add_to_graph() */     dnti_op_rigidbody__add_to_graph,
-	/* remove_from_graph()*/ dnti_operation__remove_from_graph,
-	
-	/* validate_links() */   NULL,
-	
-	/* eval_context_init()*/ NULL, 
-	/* eval_context_free()*/ NULL
-};
-#endif
 
 /* ******************************************************** */
 /* External API */
