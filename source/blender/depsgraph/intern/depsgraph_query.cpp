@@ -596,6 +596,7 @@ static void deg_debug_graphviz_node_single(FILE *f, const void *p, const char *n
 {
 	const char *shape = "box";
 	
+	fprintf(f, "// %s\n", name);
 	fprintf(f, "\"node_%p\"", p);
 	fprintf(f, "[");
 //	fprintf(f, "label=<<B>%s</B>>", name);
@@ -605,21 +606,35 @@ static void deg_debug_graphviz_node_single(FILE *f, const void *p, const char *n
 	fprintf(f, ",style=%s", style);
 	deg_debug_graphviz_node_type_color(f, ",fillcolor", type);
 	fprintf(f, "];" NL);
+	
+	fprintf(f, NL);
 }
 
 static void deg_debug_graphviz_node_cluster_begin(FILE *f, const void *p, const char *name, const char *style, eDepsNode_Type type)
 {
-	fprintf(f, "subgraph \"cluster_%p\" {", p);
+	fprintf(f, "// %s\n", name);
+	fprintf(f, "subgraph \"cluster_%p\" {" NL, p);
 //	fprintf(f, "label=<<B>%s</B>>;" NL, name);
 	fprintf(f, "label=<%s>;" NL, name);
 	fprintf(f, "fontname=\"%s\";" NL, deg_debug_graphviz_fontname);
 	fprintf(f, "style=%s;" NL, style);
 	deg_debug_graphviz_node_type_color(f, "fillcolor", type); fprintf(f, ";" NL);
+	
+	/* dummy node, so we can add edges between clusters */
+	fprintf(f, "\"node_%p\"", p);
+	fprintf(f, "[");
+	fprintf(f, "shape=%s", "point");
+	fprintf(f, ",style=%s", "invis");
+	fprintf(f, "];" NL);
+	
+	fprintf(f, NL);
 }
 
 static void deg_debug_graphviz_node_cluster_end(FILE *f)
 {
 	fprintf(f, "}" NL);
+	
+	fprintf(f, NL);
 }
 
 static void deg_debug_graphviz_graph_nodes(FILE *f, const Depsgraph *graph);
@@ -713,19 +728,63 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 	}
 }
 
+static bool deg_debug_graphviz_is_cluster(const DepsNode *node)
+{
+	switch (node->type) {
+		case DEPSNODE_TYPE_ID_REF: {
+			const IDDepsNode *id_node = (const IDDepsNode *)node;
+			return !id_node->components.empty();
+		}
+		
+		case DEPSNODE_TYPE_SUBGRAPH: {
+			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
+			return sub_node->graph != NULL;
+		}
+		
+		case DEPSNODE_TYPE_PARAMETERS:
+		case DEPSNODE_TYPE_ANIMATION:
+		case DEPSNODE_TYPE_TRANSFORM:
+		case DEPSNODE_TYPE_PROXY:
+		case DEPSNODE_TYPE_GEOMETRY:
+		case DEPSNODE_TYPE_SEQUENCER: {
+			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
+			return !comp_node->operations.empty();
+		}
+		
+		case DEPSNODE_TYPE_EVAL_POSE: {
+			PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node;
+			return !pose_node->bone_hash.empty();
+		}
+		
+		default:
+			return false;
+	}
+}
+
 static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
 	{
-		fprintf(f, "\"node_%p\"", rel->to); /* same as node */
+		const DepsNode *tail = rel->to;
+		const DepsNode *head = rel->from;
+		
+		fprintf(f, "// %s -> %s\n", tail->name, head->name);
+		fprintf(f, "\"node_%p\"", tail); /* same as node */
 		fprintf(f, " -> ");
-		fprintf(f, "\"node_%p\"", rel->from);
+		fprintf(f, "\"node_%p\"", head);
 
 		fprintf(f, "[");
 		fprintf(f, "label=<%s>", rel->name);
 		fprintf(f, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 		deg_debug_graphviz_relation_type_color(f, ",color", rel->type);
+		
+		if (deg_debug_graphviz_is_cluster(tail))
+			fprintf(f, ",ltail=\"cluster_%p\"", tail);
+		if (deg_debug_graphviz_is_cluster(head))
+			fprintf(f, ",lhead=\"cluster_%p\"", head);
+		
 		fprintf(f, "];" NL);
+		fprintf(f, NL);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 
@@ -788,7 +847,7 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 		return;
 	
 	fprintf(f, "digraph depgraph {" NL);
-	fprintf(f, "compound=true;" NL);
+	fprintf(f, "graph [compound=true];" NL);
 	
 	deg_debug_graphviz_graph_nodes(f, graph);
 	deg_debug_graphviz_graph_relations(f, graph);
