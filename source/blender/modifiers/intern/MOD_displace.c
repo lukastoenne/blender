@@ -303,6 +303,7 @@ ModifierTypeInfo modifierType_Displace = {
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	dependsOnNormals,
 	/* foreachObjectLink */ foreachObjectLink,

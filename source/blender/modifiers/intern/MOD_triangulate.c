@@ -120,6 +120,7 @@ ModifierTypeInfo modifierType_Triangulate = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,

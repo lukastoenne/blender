@@ -43,6 +43,7 @@ struct LinkNode;
 struct bArmature;
 struct ModifierData;
 struct BMEditMesh;
+struct DepsNodeHandle;
 
 typedef enum {
 	/* Should not be used, only for None modifier type */
@@ -255,6 +256,13 @@ typedef struct ModifierTypeInfo {
 	 */
 	void (*updateDepgraph)(struct ModifierData *md, struct DagForest *forest, struct Scene *scene,
 	                       struct Object *ob, struct DagNode *obNode);
+
+	/* Add the appropriate relations to the dependency graph.
+	 *
+	 * This function is optional.
+	 */
+	/* XXX DEPSGRAPH PORTING: remove the old callback above once porting is complete! */
+	void (*updateDepsgraph)(struct ModifierData *md, struct Scene *scene, struct Object *ob, struct DepsNodeHandle *deps);
 
 	/* Should return true if the modifier needs to be recalculated on time
 	 * changes.

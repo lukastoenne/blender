@@ -364,6 +364,7 @@ ModifierTypeInfo modifierType_Warp = {
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ foreachObjectLink,

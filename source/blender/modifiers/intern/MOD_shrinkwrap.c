@@ -190,6 +190,7 @@ ModifierTypeInfo modifierType_Shrinkwrap = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  dependsOnNormals,
 	/* foreachObjectLink */ foreachObjectLink,

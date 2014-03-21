@@ -249,6 +249,7 @@ ModifierTypeInfo modifierType_UVWarp = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ foreachObjectLink,

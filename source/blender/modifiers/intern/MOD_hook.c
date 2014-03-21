@@ -289,6 +289,7 @@ ModifierTypeInfo modifierType_Hook = {
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

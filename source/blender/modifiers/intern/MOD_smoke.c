@@ -217,6 +217,7 @@ ModifierTypeInfo modifierType_Smoke = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,

@@ -424,6 +424,7 @@ ModifierTypeInfo modifierType_WeightVGMix = {
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ foreachObjectLink,

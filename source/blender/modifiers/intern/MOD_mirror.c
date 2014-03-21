@@ -363,6 +363,7 @@ ModifierTypeInfo modifierType_Mirror = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

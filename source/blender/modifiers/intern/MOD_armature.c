@@ -207,6 +207,7 @@ ModifierTypeInfo modifierType_Armature = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

@@ -151,6 +151,7 @@ ModifierTypeInfo modifierType_Fluidsim = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,

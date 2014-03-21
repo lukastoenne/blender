@@ -238,6 +238,7 @@ ModifierTypeInfo modifierType_ParticleSystem = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,

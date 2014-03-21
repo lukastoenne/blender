@@ -158,6 +158,7 @@ ModifierTypeInfo modifierType_Curve = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ foreachObjectLink,

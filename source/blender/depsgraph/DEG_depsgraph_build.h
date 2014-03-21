@@ -59,6 +59,11 @@ void DEG_scene_relations_update(struct Main *bmain, struct Scene *scene);
 /* Build depsgraph for the given scene, and dump results in given graph container */
 void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
 
+/* Add Dependencies  ----------------------------- */
+
+/* Handle for components to define their dependencies from callbacks */
+typedef struct DepsNodeHandle DepsNodeHandle;
+
 /* ************************************************ */
 
 #ifdef __cplusplus
