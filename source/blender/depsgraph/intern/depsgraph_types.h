@@ -230,8 +230,8 @@ struct DepsNode {
 	
 	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
 	
-	Relations inlinks;           /* (LinkData : DepsRelation) nodes which this one depends on */
-	Relations outlinks;          /* (LinkData : DepsRelation) nodes which depend on this one */
+	Relations inlinks;           /* nodes which this one depends on */
+	Relations outlinks;          /* nodes which depend on this one */
 	
 	eDepsNode_Type type;        /* structural type of node */
 	eDepsNode_Class tclass;     /* type of data/behaviour represented by node... */

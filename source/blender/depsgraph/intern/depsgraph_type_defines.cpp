@@ -630,14 +630,8 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	/* inlinks destination should all go to the "Bone Transforms" operation */
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
 	{
-		/* redirect destination pointer */
-		rel->to = btrans_op;
-		
-		/* ensure that transform operation knows it has this link now */
-		/* XXX: for now, we preserve the link to the component, so that querying is easier
-		 *      But, this also ends up making more work when flushing updates...
-		 */
-		DEG_add_relation(rel);
+		/* add equivalent relation to the bone transform operation */
+		DEG_add_new_relation(rel->from, btrans_op, rel->type, rel->name);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 	
@@ -680,24 +674,19 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 				/* can't have ik to ik, so use final "normal" bone transform 
 				 * as indicator to IK Solver that it is ready to run 
 				 */
-				rel->from = final_op;
+				DEG_add_new_relation(final_op, rel->to, rel->type, rel->name);
 			}
 			else {
 				/* everything which depends on result of this bone needs to know 
 				 * about the IK result too!
 				 */
-				rel->from = ik_op;
+				DEG_add_new_relation(ik_op, rel->to, rel->type, rel->name);
 			}
 		}
 		else {
 			/* bone is not part of IK Chains... */
-			rel->from = final_op;
+			DEG_add_new_relation(final_op, rel->to, rel->type, rel->name);
 		}
-		
-		/* XXX: for now, we preserve the link to the component, so that querying is easier
-		 *      But, this also ends up making more work when flushing updates...
-		 */
-		DEG_add_relation(rel);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 	

@@ -184,18 +184,10 @@ void DEG_graph_sort(Depsgraph *graph);
 
 /* API Methods --------------------------------------------------------- */
 
-/* Add given relationship to the graph */
-void DEG_add_relation(DepsRelation *rel);
-
-
 /* Add new relationship between two nodes */
 DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
                                    eDepsRelation_Type type, 
                                    const char description[DEG_MAX_ID_NAME]);
-
-
-/* Remove relationship from graph, but don't free it yet */
-void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel);
 
 /* Graph Building ======================================================== */
 

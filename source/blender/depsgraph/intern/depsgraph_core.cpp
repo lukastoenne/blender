@@ -181,8 +181,10 @@ DepsNode::DepsNode()
 
 DepsNode::~DepsNode()
 {
-	/* free links */
-	// XXX: review how this works!
+	/* free links
+	 * note: deleting relations will remove them from the node relations set,
+	 * but only touch the same position as we are using here, which is safe.
+	 */
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
 		delete rel;
 	DEPSNODE_RELATIONS_ITER_END;
@@ -235,15 +237,11 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 	 *   still remain and/or can still work that way)
 	 */
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
-	{
-		DEG_remove_relation(graph, rel);
-	}
+		delete rel;
 	DEPSNODE_RELATIONS_ITER_END;
 	
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks, rel)
-	{
-		DEG_remove_relation(graph, rel);
-	}
+		delete rel;
 	DEPSNODE_RELATIONS_ITER_END;
 	
 	/* remove node from graph - handle special data the node might have */
@@ -284,22 +282,19 @@ DepsRelation::DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type
 	this->to = to;
 	this->type = type;
 	BLI_strncpy(this->name, description, DEG_MAX_ID_NAME);
+	
+	/* hook it up to the nodes which use it */
+	from->outlinks.insert(this);
+	to->inlinks.insert(this);
 }
 
 DepsRelation::~DepsRelation()
 {
-	/* assumes that it isn't part of graph anymore (DEG_remove_relation() called) */
-	BLI_assert(!this->next && !this->prev);
-	
-	/* for now, assume that relation has no data of its own... */
-}
-
-/* Add relationship to graph */
-void DEG_add_relation(DepsRelation *rel)
-{
-	/* hook it up to the nodes which use it */
-	rel->from->outlinks.insert(rel);
-	rel->to->inlinks.insert(rel);
+	/* sanity check */
+	BLI_assert(this->from && this->to);
+	/* remove it from the nodes that use it */
+	this->from->outlinks.erase(this);
+	this->to->inlinks.erase(this);
 }
 
 /* Add new relationship between two nodes */
@@ -309,26 +304,10 @@ DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
 {
 	/* create new relation, and add it to the graph */
 	DepsRelation *rel = new DepsRelation(from, to, type, description);
-	DEG_add_relation(rel);
 	
 	DEG_debug_build_relation_added(rel);
 	
 	return rel;
-}
-
-/* Remove relationship from graph */
-void DEG_remove_relation(Depsgraph *graph, DepsRelation *rel)
-{
-	LinkData *ld;
-	
-	/* sanity check */
-	if (ELEM3(NULL, rel, rel->from, rel->to)) {
-		return;
-	}
-	
-	/* remove it from the nodes that use it */
-	rel->from->outlinks.erase(rel);
-	rel->to->inlinks.erase(rel);
 }
 
 /* ************************************************** */
@@ -407,8 +386,6 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 /* Clear tags from all operation nodes */
 void DEG_graph_clear_tags(Depsgraph *graph)
 {
-	LinkData *ld;
-	
 	/* go over all operation nodes, clearing tags */
 	for (Depsgraph::OperationNodes::const_iterator it = graph->all_opnodes.begin(); it != graph->all_opnodes.end(); ++it) {
 		DepsNode *node = *it;

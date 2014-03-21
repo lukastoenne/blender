@@ -167,8 +167,6 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
 /* Initialise evaluation context for given node */
 static void deg_node_evaluation_context_init(ComponentDepsNode *comp, eEvaluationContextType context_type)
 {
-	DepsNodeFactory *nti = DEG_node_get_factory((DepsNode *)comp);
-	
 	/* check if the requested evaluation context exists already */
 	if (comp->contexts[context_type] == NULL) {
 		/* doesn't exist, so create new evaluation context here */

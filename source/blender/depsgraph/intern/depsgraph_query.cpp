@@ -765,11 +765,11 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
 	{
-		const DepsNode *tail = rel->to;
+		const DepsNode *tail = rel->to; /* same as node */
 		const DepsNode *head = rel->from;
 		
 		fprintf(f, "// %s -> %s\n", tail->name, head->name);
-		fprintf(f, "\"node_%p\"", tail); /* same as node */
+		fprintf(f, "\"node_%p\"", tail);
 		fprintf(f, " -> ");
 		fprintf(f, "\"node_%p\"", head);
 
