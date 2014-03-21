@@ -175,8 +175,6 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	 * all others are derived from) that are now corrupt 
 	 */
 	{
-		/* not assigned to graph... */
-		dst->next = dst->prev = NULL;
 		dst->owner = NULL;
 		
 		/* relationships to other nodes... */

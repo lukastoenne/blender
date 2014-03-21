@@ -118,8 +118,6 @@ typedef enum eDepsRelation_Flag {
 
 /* B depends on A (A -> B) */
 struct DepsRelation {
-	DepsRelation *next, *prev;
-	
 	/* the nodes in the relationship (since this is shared between the nodes) */
 	DepsNode *from;               /* A */
 	DepsNode *to;                 /* B */
@@ -225,7 +223,6 @@ struct DepsNode {
 	
 	typedef unordered_set<DepsRelation *> Relations;
 	
-	DepsNode *next, *prev;		/* linked-list of siblings (from same parent node) */
 	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
 	
 	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
