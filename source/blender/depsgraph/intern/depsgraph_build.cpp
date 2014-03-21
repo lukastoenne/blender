@@ -82,6 +82,7 @@ extern "C" {
 #include "BKE_world.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"

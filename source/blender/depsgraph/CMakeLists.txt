@@ -50,6 +50,7 @@ set(SRC
 	intern/depsgraph_type_defines.cpp
 
 	DEG_depsgraph.h
+	DEG_depsgraph_build.h
 	DEG_depsgraph_debug.h
 	DEG_depsgraph_query.h
 	intern/depsgraph_eval.h

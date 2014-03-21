@@ -88,18 +88,6 @@ void DEG_register_node_types(void);
 /* Free node type registry on exit */
 void DEG_free_node_types(void);
 
-/* Graph Building -------------------------------- */
-
-/* Rebuild dependency graph only for a given scene */
-void DEG_scene_relations_rebuild(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
-
-/* Create dependency graph if it was cleared or didn't exist yet */
-void DEG_scene_relations_update(struct Main *bmain, struct Scene *scene);
-
-/* Build depsgraph for the given scene, and dump results in given graph container */
-void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
-
-
 /* Update Tagging -------------------------------- */
 
 /* Tag node(s) associated with states such as time and visibility */

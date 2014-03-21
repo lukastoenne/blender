@@ -327,6 +327,7 @@ EnumPropertyItem image_color_depth_items[] = {
 #include "BKE_animsys.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_debug.h"
 
 #include "WM_api.h"
