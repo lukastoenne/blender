@@ -200,18 +200,6 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	return dst;
 }
 
-/* Make a copy of a relationship */
-DepsRelation *DEG_copy_relation(const DepsRelation *src)
-{
-	DepsRelation *dst = (DepsRelation *)MEM_dupallocN(src);
-	
-	/* clear out old pointers which no-longer apply */
-	dst->next = dst->prev = NULL;
-	
-	/* return copy */
-	return dst;
-}
-
 /* ************************************************ */
 /* Low-Level Querying API */
 /* NOTE: These querying operations are generally only
