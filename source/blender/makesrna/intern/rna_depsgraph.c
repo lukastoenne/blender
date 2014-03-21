@@ -37,7 +37,7 @@
 #ifdef RNA_RUNTIME
 
 #include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_debug.h"
 
 
 static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
