@@ -57,7 +57,7 @@ void DEG_scene_relations_update(struct Main *bmain, struct Scene *scene);
 #endif
 
 /* Build depsgraph for the given scene, and dump results in given graph container */
-void DEG_graph_build_from_scene(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
+void DEG_graph_build_from_scene(struct Depsgraph *graph, struct Main *bmain, struct Scene *scene);
 
 /* Add Dependencies  ----------------------------- */
 
@@ -90,8 +90,8 @@ typedef enum eDepsObjectComponentType {
 	DEG_OB_COMP_EVAL_PARTICLES,    /* Particle Systems Component */
 } eDepsObjectComponentType;
 
-void DEG_add_scene_relation(DepsNodeHandle *node, Scene *scene, eDepsSceneComponentType component);
-void DEG_add_object_relation(DepsNodeHandle *node, Object *ob, eDepsObjectComponentType component);
+void DEG_add_scene_relation(DepsNodeHandle *node, struct Scene *scene, eDepsSceneComponentType component, const char *name);
+void DEG_add_object_relation(DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *name);
 
 /* ************************************************ */
 
