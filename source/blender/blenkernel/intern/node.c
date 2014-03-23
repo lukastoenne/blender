@@ -1114,20 +1114,13 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool do_
 	
 	if (ntree == NULL) return NULL;
 	
-	if (bmain) {
-		/* is ntree part of library? */
-		if (BLI_findindex(&bmain->nodetree, ntree) != -1)
-			newtree = BKE_libblock_copy(&ntree->id);
-		else
-			newtree = NULL;
+	/* is ntree part of library? */
+	if (bmain && BLI_findindex(&bmain->nodetree, ntree) >= 0) {
+		newtree = BKE_libblock_copy(&ntree->id);
 	}
-	else
-		newtree = NULL;
-	
-	if (newtree == NULL) {
-		newtree = MEM_dupallocN(ntree);
+	else {
+		newtree = BKE_libblock_copy_nolib(&ntree->id);
 		newtree->id.lib = NULL;	/* same as owning datablock id.lib */
-		BKE_libblock_copy_data(&newtree->id, &ntree->id, true); /* copy animdata and ID props */
 	}
 
 	id_us_plus((ID *)newtree->gpd);
@@ -3460,6 +3453,7 @@ static void registerCompositNodes(void)
 	register_node_type_cmp_mask();
 	register_node_type_cmp_trackpos();
 	register_node_type_cmp_planetrackdeform();
+	register_node_type_cmp_cornerpin();
 }
 
 static void registerShaderNodes(void) 

@@ -749,7 +749,7 @@ static void PE_update_mirror_cache(Object *ob, ParticleSystem *psys)
 		psys_mat_hair_to_orco(ob, psmd->dm, psys->part->from, pa, mat);
 		copy_v3_v3(co, key->co);
 		mul_m4_v3(mat, co);
-		BLI_kdtree_insert(tree, p, co, NULL);
+		BLI_kdtree_insert(tree, p, co);
 	}
 
 	BLI_kdtree_balance(tree);
@@ -765,7 +765,7 @@ static void PE_update_mirror_cache(Object *ob, ParticleSystem *psys)
 		mul_m4_v3(mat, co);
 		co[0] = -co[0];
 
-		index= BLI_kdtree_find_nearest(tree, co, NULL, &nearest);
+		index= BLI_kdtree_find_nearest(tree, co, &nearest);
 
 		/* this needs a custom threshold still, duplicated for editmode mirror */
 		if (index != -1 && index != p && (nearest.dist <= 0.0002f))
@@ -915,6 +915,7 @@ static void pe_deflect_emitter(Scene *scene, Object *ob, PTCacheEdit *edit)
 	int index;
 	float *vec, *nor, dvec[3], dot, dist_1st=0.0f;
 	float hairimat[4][4], hairmat[4][4];
+	const float dist = ED_view3d_select_dist_px() * 0.01f;
 
 	if (edit==NULL || edit->psys==NULL || (pset->flag & PE_DEFLECT_EMITTER)==0 || (edit->psys->flag & PSYS_GLOBAL_HAIR))
 		return;
@@ -935,10 +936,10 @@ static void pe_deflect_emitter(Scene *scene, Object *ob, PTCacheEdit *edit)
 		LOOP_KEYS {
 			if (k==0) {
 				dist_1st = len_v3v3((key+1)->co, key->co);
-				dist_1st *= 0.75f * pset->emitterdist;
+				dist_1st *= dist * pset->emitterdist;
 			}
 			else {
-				index= BLI_kdtree_find_nearest(edit->emitter_field, key->co, NULL, NULL);
+				index= BLI_kdtree_find_nearest(edit->emitter_field, key->co, NULL);
 				
 				vec=edit->emitter_cosnos +index*6;
 				nor=vec+3;
@@ -1122,7 +1123,7 @@ static void recalc_emitter_field(Object *ob, ParticleSystem *psys)
 
 		normalize_v3(nor);
 
-		BLI_kdtree_insert(edit->emitter_field, i, vec, NULL);
+		BLI_kdtree_insert(edit->emitter_field, i, vec);
 	}
 
 	BLI_kdtree_balance(edit->emitter_field);
@@ -1446,7 +1447,7 @@ int PE_mouse_particles(bContext *C, const int mval[2], bool extend, bool deselec
 
 	PE_set_view3d_data(C, &data);
 	data.mval= mval;
-	data.rad= 75.0f;
+	data.rad = ED_view3d_select_dist_px();
 
 	/* 1 = nearest only */
 	if (extend)
@@ -2458,7 +2459,7 @@ static int remove_doubles_exec(bContext *C, wmOperator *op)
 			psys_mat_hair_to_object(ob, psmd->dm, psys->part->from, psys->particles+p, mat);
 			copy_v3_v3(co, point->keys->co);
 			mul_m4_v3(mat, co);
-			BLI_kdtree_insert(tree, p, co, NULL);
+			BLI_kdtree_insert(tree, p, co);
 		}
 
 		BLI_kdtree_balance(tree);
@@ -2469,7 +2470,7 @@ static int remove_doubles_exec(bContext *C, wmOperator *op)
 			copy_v3_v3(co, point->keys->co);
 			mul_m4_v3(mat, co);
 
-			totn = BLI_kdtree_find_nearest_n(tree, co, NULL, nearest, 10);
+			totn = BLI_kdtree_find_nearest_n(tree, co, nearest, 10);
 
 			for (n=0; n<totn; n++) {
 				/* this needs a custom threshold still */
@@ -3022,7 +3023,7 @@ static void brush_puff(PEData *data, int point_index)
 			mul_m4_v3(mat, co);
 			mul_v3_m4v3(kco, data->ob->imat, co); /* use 'kco' as the object space version of worldspace 'co', ob->imat is set before calling */
 
-			point_index= BLI_kdtree_find_nearest(edit->emitter_field, kco, NULL, NULL);
+			point_index= BLI_kdtree_find_nearest(edit->emitter_field, kco, NULL);
 			if (point_index == -1) return;
 
 			copy_v3_v3(co_root, co);
@@ -3106,7 +3107,7 @@ static void brush_puff(PEData *data, int point_index)
 						mul_m4_v3(mat, oco);
 						mul_v3_m4v3(kco, data->ob->imat, oco); /* use 'kco' as the object space version of worldspace 'co', ob->imat is set before calling */
 
-						point_index= BLI_kdtree_find_nearest(edit->emitter_field, kco, NULL, NULL);
+						point_index= BLI_kdtree_find_nearest(edit->emitter_field, kco, NULL);
 						if (point_index != -1) {
 							copy_v3_v3(onor, &edit->emitter_cosnos[point_index*6+3]);
 							mul_mat3_m4_v3(data->ob->obmat, onor); /* normal into worldspace */
@@ -3433,7 +3434,7 @@ static int brush_add(PEData *data, short number)
 			
 			for (i=0, pa=psys->particles; i<totpart; i++, pa++) {
 				psys_particle_on_dm(psmd->dm, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, cur_co, 0, 0, 0, 0, 0);
-				BLI_kdtree_insert(tree, i, cur_co, NULL);
+				BLI_kdtree_insert(tree, i, cur_co);
 			}
 
 			BLI_kdtree_balance(tree);
@@ -3477,7 +3478,7 @@ static int brush_add(PEData *data, short number)
 				float maxd, totw=0.0, weight[3];
 
 				psys_particle_on_dm(psmd->dm, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co1, 0, 0, 0, 0, 0);
-				maxw = BLI_kdtree_find_nearest_n(tree, co1, NULL, ptn, 3);
+				maxw = BLI_kdtree_find_nearest_n(tree, co1, ptn, 3);
 
 				maxd= ptn[maxw-1].dist;
 				

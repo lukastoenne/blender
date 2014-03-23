@@ -765,12 +765,18 @@ static void *do_prefetch_thread(void *data_v)
 		MovieClipUser user = {0};
 		int flag = IB_rect | IB_alphamode_detect;
 		int result;
+		char *colorspace_name = NULL;
 
 		user.framenr = current_frame;
 		user.render_size = data->queue->render_size;
 		user.render_flag = data->queue->render_flag;
 
-		ibuf = IMB_ibImageFromMemory(mem, size, flag, clip->colorspace_settings.name, "prefetch frame");
+		/* Proxies are stored in the display space. */
+		if (data->queue->render_flag & MCLIP_USE_PROXY) {
+			colorspace_name = clip->colorspace_settings.name;
+		}
+
+		ibuf = IMB_ibImageFromMemory(mem, size, flag, colorspace_name, "prefetch frame");
 
 		result = BKE_movieclip_put_frame_if_possible(data->clip, &user, ibuf);
 
@@ -968,6 +974,10 @@ static bool prefetch_check_early_out(const bContext *C)
 	int first_uncached_frame, end_frame;
 	int clip_len;
 
+	if (clip == NULL) {
+		return true;
+	}
+
 	clip_len = BKE_movieclip_get_duration(clip);
 
 	/* check whether all the frames from prefetch range are cached */
@@ -1016,7 +1026,7 @@ void clip_start_prefetch_job(const bContext *C)
 	WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
 	WM_jobs_callbacks(wm_job, prefetch_startjob, NULL, NULL, NULL);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 
 	/* and finally start the job */
 	WM_jobs_start(CTX_wm_manager(C), wm_job);

@@ -37,10 +37,6 @@ extern "C" {
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_inline.h"
 
-#if BLI_MATH_DO_INLINE
-#include "intern/math_geom_inline.c"
-#endif
-
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wredundant-decls"
@@ -84,7 +80,7 @@ float dist_squared_to_line_v2(const float p[2], const float l1[2], const float l
 float         dist_to_line_v2(const float p[2], const float l1[2], const float l2[2]);
 float dist_squared_to_line_segment_v2(const float p[2], const float l1[2], const float l2[2]);
 float         dist_to_line_segment_v2(const float p[2], const float l1[2], const float l2[2]);
-void closest_to_line_segment_v2(float closest[2], const float p[2], const float l1[2], const float l2[2]);
+void closest_to_line_segment_v2(float r_close[2], const float p[2], const float l1[2], const float l2[2]);
 
 float dist_squared_to_plane_v3(const float p[3], const float plane[4]);
 float dist_to_plane_v3(const float p[3], const float plane[4]);
@@ -94,8 +90,8 @@ float dist_squared_to_line_v3(const float p[3], const float l1[3], const float l
 float         dist_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
 float closest_to_line_v3(float r[3], const float p[3], const float l1[3], const float l2[3]);
 float closest_to_line_v2(float r[2], const float p[2], const float l1[2], const float l2[2]);
-void closest_to_line_segment_v3(float r[3], const float p[3], const float l1[3], const float l2[3]);
-void closest_to_plane_v3(float close_r[3], const float plane[4], const float pt[3]);
+void closest_to_line_segment_v3(float r_close[3], const float p[3], const float l1[3], const float l2[3]);
+void closest_to_plane_v3(float r_close[3], const float plane[4], const float pt[3]);
 
 /* Set 'r' to the point in triangle (t1, t2, t3) closest to point 'p' */
 void closest_on_tri_to_point_v3(float r[3], const float p[3], const float t1[3], const float t2[3], const float t3[3]);
@@ -304,13 +300,21 @@ float form_factor_hemi_poly(float p[3], float n[3],
                             float v1[3], float v2[3], float v3[3], float v4[3]);
 
 bool  axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3]);
-void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);
-float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3]) ATTR_WARN_UNUSED_RESULT;
+
+MINLINE void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);
+MINLINE float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3]) ATTR_WARN_UNUSED_RESULT;
+MINLINE int axis_dominant_v3_single(const float vec[3]);
 
 MINLINE int max_axis_v3(const float vec[3]);
 MINLINE int min_axis_v3(const float vec[3]);
 
 MINLINE int poly_to_tri_count(const int poly_count, const int corner_count);
+
+/**************************** Inline Definitions ******************************/
+
+#if BLI_MATH_DO_INLINE
+#include "intern/math_geom_inline.c"
+#endif
 
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic pop

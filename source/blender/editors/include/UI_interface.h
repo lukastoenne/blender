@@ -185,8 +185,6 @@ enum {
  *       (except for the 'align' ones)!
  */
 enum {
-	/* draw enum-like up/down arrows for button */
-	UI_BUT_DRAW_ENUM_ARROWS  = (1 << 0),
 	/* Text and icon alignment (by default, they are centered). */
 	UI_BUT_TEXT_LEFT         = (1 << 1),
 	UI_BUT_ICON_LEFT         = (1 << 2),
@@ -285,6 +283,7 @@ typedef enum {
 #define UI_GRAD_V       5
 
 #define UI_GRAD_V_ALT   9
+#define UI_GRAD_L_ALT   10
 
 /* Drawing
  *

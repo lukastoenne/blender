@@ -300,8 +300,9 @@ void EDBM_redo_state_free(struct BMBackup *, struct BMEditMesh *em, int recalcte
 int         join_mesh_exec(struct bContext *C, struct wmOperator *op);
 int         join_mesh_shapes_exec(struct bContext *C, struct wmOperator *op);
 
-intptr_t    mesh_octree_table(struct Object *ob, struct BMEditMesh *em, const float co[3], char mode);
-int         mesh_mirrtopo_table(struct Object *ob, char mode);
+/* mirror lookup api */
+int         ED_mesh_mirror_spatial_table(struct Object *ob, struct BMEditMesh *em, const float co[3], char mode);
+int         ED_mesh_mirror_topo_table(struct Object *ob, char mode);
 
 /* retrieves mirrored cache vert, or NULL if there isn't one.
  * note: calling this without ensuring the mirror cache state

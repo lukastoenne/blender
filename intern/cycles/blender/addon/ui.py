@@ -133,6 +133,9 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.label(text="AA Samples:")
             sub.prop(cscene, "aa_samples", text="Render")
             sub.prop(cscene, "preview_aa_samples", text="Preview")
+            sub.separator()
+            sub.prop(cscene, "sample_all_lights_direct")
+            sub.prop(cscene, "sample_all_lights_indirect")
 
             col = split.column()
             sub = col.column(align=True)
@@ -167,13 +170,16 @@ class CyclesRender_PT_volume_sampling(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
 
-        layout.prop(cscene, "volume_homogeneous_sampling", text="Homogeneous")
+        split = layout.split(align=True)
 
-        layout.label("Heterogeneous:")
+        sub = split.column(align=True)
+        sub.label("Heterogeneous:")
+        sub.prop(cscene, "volume_step_size")
+        sub.prop(cscene, "volume_max_steps")
 
-        split = layout.split()
-        split.prop(cscene, "volume_step_size")
-        split.prop(cscene, "volume_max_steps")
+        sub = split.column(align=True)
+        sub.label("Homogeneous:")
+        sub.prop(cscene, "volume_homogeneous_sampling", text="")
 
 
 class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
@@ -312,28 +318,6 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
 
         col.label(text="Acceleration structure:")
         col.prop(cscene, "debug_use_spatial_splits")
-
-
-class CyclesRender_PT_opengl(CyclesButtonsPanel, Panel):
-    bl_label = "OpenGL Render"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        rd = context.scene.render
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(rd, "use_antialiasing")
-        sub = col.row()
-        sub.active = rd.use_antialiasing
-        sub.prop(rd, "antialiasing_samples", expand=True)
-
-        col = split.column()
-        col.label(text="Alpha:")
-        col.prop(rd, "alpha_mode", text="")
 
 
 class CyclesRender_PT_layer_options(CyclesButtonsPanel, Panel):

@@ -1,5 +1,5 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
+ * Copyright 2014, Blender Foundation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,37 +15,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
+ * Contributor:
+ *		Lukas Toenne
  */
 
-#ifndef __GAMMACORRECTIONTABLES_H__
-#define __GAMMACORRECTIONTABLES_H__
+#ifndef _COM_CornerPinNode_h
+#define _COM_CornerPinNode_h
 
-/** \file blender/render/intern/include/gammaCorrectionTables.h
- *  \ingroup render
- */
+#include "COM_Node.h"
+
+extern "C" {
+#include "DNA_node_types.h"
+}
 
 /**
- * Initialize the gamma lookup tables
+ * @brief CornerPinNode
+ * @ingroup Node
  */
-void makeGammaTables(float gamma);
+class CornerPinNode : public Node {
+public:
+	CornerPinNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+};
 
-/**
- * Apply gamma correction on col
- */
-float gammaCorrect(float col);
-
-/**
- * Apply inverse gamma correction on col
- */
-float invGammaCorrect(float col);
-
-#endif
-
+#endif /* _COM_CornerPinNode_h */

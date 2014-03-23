@@ -3850,7 +3850,6 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->childcache = NULL;
 		BLI_listbase_clear(&psys->pathcachebufs);
 		BLI_listbase_clear(&psys->childcachebufs);
-		psys->frand = NULL;
 		psys->pdd = NULL;
 		psys->renderdata = NULL;
 		
@@ -7205,7 +7204,7 @@ static BHead *read_data_into_oldnewmap(FileData *fd, BHead *bhead, const char *a
 	return bhead;
 }
 
-static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID **id_r)
+static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID **r_id)
 {
 	/* this routine reads a libblock and its direct data. Use link functions
 	 * to connect it all
@@ -7217,8 +7216,8 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	
 	/* read libblock */
 	id = read_struct(fd, bhead, "lib block");
-	if (id_r)
-		*id_r = id;
+	if (r_id)
+		*r_id = id;
 	if (!id)
 		return blo_nextbhead(fd, bhead);
 	
@@ -7493,6 +7492,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	blo_do_versions_pre250(fd, lib, main);
 	blo_do_versions_250(fd, lib, main);
 	blo_do_versions_260(fd, lib, main);
+	blo_do_versions_270(fd, lib, main);
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
@@ -8976,7 +8976,7 @@ ID *BLO_library_append_named_part_ex(const bContext *C, Main *mainl, BlendHandle
 	return append_named_part_ex(C, mainl, fd, idname, idcode, flag);
 }
 
-static void append_id_part(FileData *fd, Main *mainvar, ID *id, ID **id_r)
+static void append_id_part(FileData *fd, Main *mainvar, ID *id, ID **r_id)
 {
 	BHead *bhead;
 	
@@ -8987,7 +8987,7 @@ static void append_id_part(FileData *fd, Main *mainvar, ID *id, ID **id_r)
 				id->flag &= ~LIB_READ;
 				id->flag |= LIB_NEED_EXPAND;
 //				printf("read lib block %s\n", id->name);
-				read_libblock(fd, mainvar, bhead, id->flag, id_r);
+				read_libblock(fd, mainvar, bhead, id->flag, r_id);
 				
 				break;
 			}

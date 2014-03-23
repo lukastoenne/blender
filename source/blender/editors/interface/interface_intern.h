@@ -386,7 +386,7 @@ extern void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rc
                                        const float mx, const float my);
 extern void ui_hsvcircle_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xpos, float *ypos);
 extern void ui_hsvcube_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp);
-bool ui_hsvcube_use_display_colorspace(struct uiBut *but);
+bool ui_color_picker_use_display_colorspace(struct uiBut *but);
 
 extern void ui_get_but_string_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision) ATTR_NONNULL();
 extern void ui_get_but_string(uiBut *but, char *str, const size_t maxlen) ATTR_NONNULL();
@@ -473,6 +473,9 @@ void   ui_popup_menu_memory_set(struct uiBlock *block, struct uiBut *but);
 float *ui_block_hsv_get(struct uiBlock *block);
 void ui_popup_block_scrolltest(struct uiBlock *block);
 
+void ui_rgb_to_color_picker_compat_v(const float rgb[3], float r_cp[3]);
+void ui_color_picker_to_rgb_v(const float r_cp[3], float rgb[3]);
+void ui_color_picker_to_rgb(float r_cp0, float r_cp1, float r_cp2, float *r, float *g, float *b);
 
 /* searchbox for string button */
 ARegion *ui_searchbox_create(struct bContext *C, struct ARegion *butregion, uiBut *but);

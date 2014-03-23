@@ -1002,7 +1002,7 @@ static void do_movie_proxy(void *pjv, int *UNUSED(build_sizes), int UNUSED(build
 	}
 	else {
 		sfra = 1;
-		efra = IMB_anim_get_duration(clip->anim, IMB_TC_NONE);
+		efra = clip->len;
 	}
 
 	if (build_undistort_count) {
@@ -1118,7 +1118,8 @@ static void *do_proxy_thread(void *data_v)
 	while ((mem = proxy_thread_next_frame(data->queue, data->clip, &size, &cfra))) {
 		ImBuf *ibuf;
 
-		ibuf = IMB_ibImageFromMemory(mem, size, IB_rect | IB_multilayer | IB_alphamode_detect, NULL, "proxy frame");
+		ibuf = IMB_ibImageFromMemory(mem, size, IB_rect | IB_multilayer | IB_alphamode_detect,
+		                             data->clip->colorspace_settings.name, "proxy frame");
 
 		BKE_movieclip_build_proxy_frame_for_ibuf(data->clip, ibuf, NULL, cfra,
 		                                         data->build_sizes, data->build_count, false);
@@ -1265,7 +1266,7 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
 	WM_jobs_callbacks(wm_job, proxy_startjob, NULL, NULL, proxy_endjob);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 
 	ED_area_tag_redraw(CTX_wm_area(C));
@@ -1377,7 +1378,6 @@ static int clip_prefetch_modal(bContext *C, wmOperator *UNUSED(op), const wmEven
 	switch (event->type) {
 		case ESCKEY:
 			return OPERATOR_RUNNING_MODAL;
-			break;
 	}
 
 	return OPERATOR_PASS_THROUGH;

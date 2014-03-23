@@ -48,7 +48,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 
 	BMIter liter;
 	BMFace *f_new;
-	BMLoop *l, *l_new;
+	BMLoop *l;
 	BMLoop *l_last;
 	unsigned int i;
 
@@ -96,6 +96,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 	}
 
 	for (i = 0; i < STACK_SIZE(verts_pair); i++) {
+		BMLoop *l_new;
 		BMLoop *l_a, *l_b;
 
 		if ((l_a = BM_face_vert_share_loop(f, verts_pair[i][0])) &&
@@ -105,6 +106,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 		}
 		else {
 			f_new = NULL;
+			l_new = NULL;
 		}
 
 		f = f_new;

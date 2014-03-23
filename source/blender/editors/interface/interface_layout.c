@@ -888,7 +888,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 		EnumPropertyItem *item, *item_array = NULL;
 		bool free;
 		uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
-		uiLayout *column = uiLayoutColumn(split, false);
+		uiLayout *column = uiLayoutColumn(split, layout->align);
 
 		RNA_property_enum_items_gettexted(block->evil_C, &ptr, prop, &item_array, NULL, &free);
 		for (item = item_array; item->identifier; item++) {
@@ -912,7 +912,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 				if (item->name) {
 					uiBut *but;
 					if (item != item_array) {
-						column = uiLayoutColumn(split, false);
+						column = uiLayoutColumn(split, layout->align);
 						/* inconsistent, but menus with labels do not look good flipped */
 						block->flag |= UI_BLOCK_NO_FLIP;
 					}
@@ -1178,12 +1178,18 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 	if (icon == ICON_NONE)
 		icon = RNA_property_ui_icon(prop);
 	
-	if (ELEM4(type, PROP_INT, PROP_FLOAT, PROP_STRING, PROP_POINTER))
+	if (flag & UI_ITEM_R_ICON_ONLY) {
+		/* pass */
+	}
+	else if (ELEM4(type, PROP_INT, PROP_FLOAT, PROP_STRING, PROP_POINTER)) {
 		name = ui_item_name_add_colon(name, namestr);
-	else if (type == PROP_BOOLEAN && is_array && index == RNA_NO_INDEX)
+	}
+	else if (type == PROP_BOOLEAN && is_array && index == RNA_NO_INDEX) {
 		name = ui_item_name_add_colon(name, namestr);
-	else if (type == PROP_ENUM && index != RNA_ENUM_VALUE)
+	}
+	else if (type == PROP_ENUM && index != RNA_ENUM_VALUE) {
 		name = ui_item_name_add_colon(name, namestr);
+	}
 
 	if (layout->root->type == UI_LAYOUT_MENU) {
 		if (type == PROP_BOOLEAN && ((is_array == false) || (index != RNA_NO_INDEX))) {
@@ -1257,6 +1263,12 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 
 	if (no_bg)
 		uiBlockSetEmboss(block, UI_EMBOSS);
+
+	/* ensure text isn't added to icon_only buttons */
+	if (but && icon_only) {
+		BLI_assert(but->str[0] == '\0');
+	}
+
 }
 
 void uiItemR(uiLayout *layout, PointerRNA *ptr, const char *propname, int flag, const char *name, int icon)

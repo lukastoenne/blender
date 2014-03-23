@@ -784,6 +784,7 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "projection", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "interpolation", 0, "", ICON_NONE);
 
 	if (RNA_enum_get(ptr, "projection") == SHD_PROJ_BOX) {
 		uiItemR(layout, ptr, "projection_blend", 0, "Blend", ICON_NONE);
@@ -2279,6 +2280,10 @@ static void node_composit_buts_planetrackdeform(uiLayout *layout, bContext *C, P
 	}
 }
 
+static void node_composit_buts_cornerpin(uiLayout *UNUSED(layout), bContext *UNUSED(C), PointerRNA *UNUSED(ptr))
+{
+}
+
 /* only once called */
 static void node_composit_set_butfunc(bNodeType *ntype)
 {
@@ -2499,6 +2504,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_PLANETRACKDEFORM:
 			ntype->draw_buttons = node_composit_buts_planetrackdeform;
+			break;
+		case CMP_NODE_CORNERPIN:
+			ntype->draw_buttons = node_composit_buts_cornerpin;
 			break;
 	}
 }

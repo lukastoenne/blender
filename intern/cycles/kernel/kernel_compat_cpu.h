@@ -99,32 +99,47 @@ template<typename T> struct texture_image  {
 			return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 		int ix, iy, nix, niy;
-		float tx = frac(x*width - 0.5f, &ix);
-		float ty = frac(y*height - 0.5f, &iy);
+		if(interpolation == INTERPOLATION_CLOSEST) {
+			frac(x*width, &ix);
+			frac(y*height, &iy);
+			if(periodic) {
+				ix = wrap_periodic(ix, width);
+				iy = wrap_periodic(iy, height);
 
-		if(periodic) {
-			ix = wrap_periodic(ix, width);
-			iy = wrap_periodic(iy, height);
-
-			nix = wrap_periodic(ix+1, width);
-			niy = wrap_periodic(iy+1, height);
+			}
+			else {
+				ix = wrap_clamp(ix, width);
+				iy = wrap_clamp(iy, height);
+			}
+			return read(data[ix + iy*width]);
 		}
 		else {
-			ix = wrap_clamp(ix, width);
-			iy = wrap_clamp(iy, height);
+			float tx = frac(x*width - 0.5f, &ix);
+			float ty = frac(y*height - 0.5f, &iy);
 
-			nix = wrap_clamp(ix+1, width);
-			niy = wrap_clamp(iy+1, height);
+			if(periodic) {
+				ix = wrap_periodic(ix, width);
+				iy = wrap_periodic(iy, height);
+
+				nix = wrap_periodic(ix+1, width);
+				niy = wrap_periodic(iy+1, height);
+			}
+			else {
+				ix = wrap_clamp(ix, width);
+				iy = wrap_clamp(iy, height);
+
+				nix = wrap_clamp(ix+1, width);
+				niy = wrap_clamp(iy+1, height);
+			}
+			float4 r = (1.0f - ty)*(1.0f - tx)*read(data[ix + iy*width]);
+			r += (1.0f - ty)*tx*read(data[nix + iy*width]);
+			r += ty*(1.0f - tx)*read(data[ix + niy*width]);
+			r += ty*tx*read(data[nix + niy*width]);
+			return r;
 		}
-
-		float4 r = (1.0f - ty)*(1.0f - tx)*read(data[ix + iy*width]);
-		r += (1.0f - ty)*tx*read(data[nix + iy*width]);
-		r += ty*(1.0f - tx)*read(data[ix + niy*width]);
-		r += ty*tx*read(data[nix + niy*width]);
-
-		return r;
 	}
 
+	int interpolation;
 	T *data;
 	int width, height;
 };
@@ -146,7 +161,6 @@ typedef texture_image<uchar4> texture_image_uchar4;
 #define kernel_tex_fetch_m128i(tex, index) (kg->tex.fetch_m128i(index))
 #define kernel_tex_lookup(tex, t, offset, size) (kg->tex.lookup(t, offset, size))
 #define kernel_tex_image_interp(tex, x, y) ((tex < MAX_FLOAT_IMAGES) ? kg->texture_float_images[tex].interp(x, y) : kg->texture_byte_images[tex - MAX_FLOAT_IMAGES].interp(x, y))
-
 #define kernel_data (kg->__data)
 
 CCL_NAMESPACE_END

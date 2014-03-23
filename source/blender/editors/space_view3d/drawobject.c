@@ -3177,7 +3177,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 		else {
 			glEnable(GL_DEPTH_TEST);
 			draw_mesh_paint_weight_faces(finalDM, false, draw_em_fancy__setFaceOpts, me->edit_btmesh);
-			draw_mesh_paint_weight_edges(rv3d, finalDM, true, draw_dm_edges__setDrawOptions, me->edit_btmesh->bm);
+			draw_mesh_paint_weight_edges(rv3d, finalDM, true, true, draw_dm_edges__setDrawOptions, me->edit_btmesh->bm);
 			glDisable(GL_DEPTH_TEST);
 		}
 	}
@@ -3699,7 +3699,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 	}
 	else {
 		/* ob->bb was set by derived mesh system, do NULL check just to be sure */
-		if (me->totpoly <= 4 || (!ob->bb || ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb))) {
+		if (me->totpoly <= 4 || (!ob->bb || ED_view3d_boundbox_clip(rv3d, ob->bb))) {
 			const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
 			const bool check_alpha = check_alpha_pass(base);
 
@@ -4650,8 +4650,8 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					else
 						pa_health = -1.0;
 
-					r_tilt = 2.0f * (PSYS_FRAND(a + 21) - 0.5f);
-					r_length = PSYS_FRAND(a + 22);
+					r_tilt = 2.0f * (psys_frand(psys, a + 21) - 0.5f);
+					r_length = psys_frand(psys, a + 22);
 
 					if (part->draw_col > PART_DRAW_COL_MAT) {
 						switch (part->draw_col) {
@@ -4678,8 +4678,8 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 					pa_health = -1.0;
 
-					r_tilt = 2.0f * (PSYS_FRAND(a + 21) - 0.5f);
-					r_length = PSYS_FRAND(a + 22);
+					r_tilt = 2.0f * (psys_frand(psys, a + 21) - 0.5f);
+					r_length = psys_frand(psys, a + 22);
 				}
 
 				drawn = 0;
@@ -6422,7 +6422,7 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			has_faces = BKE_displist_has_faces(&ob->curve_cache->disp);
 		}
 
-		if (has_faces && ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
+		if (has_faces && ED_view3d_boundbox_clip(rv3d, ob->bb)) {
 			draw_index_wire = false;
 			if (dm) {
 				draw_mesh_object_outline(v3d, ob, dm);
@@ -6463,7 +6463,7 @@ static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsign
 		glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
 
 		if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
-			if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
+			if (ED_view3d_boundbox_clip(rv3d, ob->bb)) {
 				if (ob->type == OB_CURVE)
 					draw_index_wire = false;
 
@@ -6705,6 +6705,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	bool zbufoff = false, is_paint = false;
 	const bool is_obact = (ob == OBACT);
 	const bool render_override = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
+	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	bool particle_skip_object = false;  /* Draw particles but not their emitter object. */
 
 	/* only once set now, will be removed too, should become a global standard */
@@ -6806,21 +6807,20 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				if (dt < OB_SOLID) {
 					zbufoff = 1;
 					dt = OB_SOLID;
-					is_paint = true;
 				}
 
 				if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
 					dt = OB_PAINT;
-					is_paint = true;
 				}
 
+				is_paint = true;
 				glEnable(GL_DEPTH_TEST);
 			}
 		}
 	}
 
 	/* matcap check - only when not painting color */
-	if ((v3d->flag2 & V3D_SOLID_MATCAP) && (dt == OB_SOLID) && (is_paint == false)) {
+	if ((v3d->flag2 & V3D_SOLID_MATCAP) && (dt == OB_SOLID) && (is_paint == false && is_picking == false)) {
 		draw_object_matcap_check(v3d, ob);
 	}
 
@@ -6981,7 +6981,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 						draw_bounding_volume(ob, ob->boundtype);
 					}
 				}
-				else if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
+				else if (ED_view3d_boundbox_clip(rv3d, ob->bb)) {
 					empty_object = drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 				}
 
@@ -7002,7 +7002,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 						draw_bounding_volume(ob, ob->boundtype);
 					}
 				}
-				else if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
+				else if (ED_view3d_boundbox_clip(rv3d, ob->bb)) {
 					empty_object = drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 
 //XXX old animsys				if (cu->path)
