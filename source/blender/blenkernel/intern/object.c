@@ -274,7 +274,7 @@ void BKE_object_link_modifiers(struct Object *ob_dst, struct Object *ob_src)
 		
 		if (md->type == eModifierType_Skin) {
 			/* ensure skin-node customdata exists */
-			modifier_skin_customdata_ensure(ob_dst);
+			BKE_mesh_ensure_skin_customdata(ob_dst->data);
 		}
 
 		nmd = modifier_new(md->type);
@@ -332,6 +332,10 @@ void BKE_object_free_derived_caches(Object *ob)
 			free_path(ob->curve_cache->path);
 			ob->curve_cache->path = NULL;
 		}
+
+		/* Signal for viewport to run DAG workarounds. */
+		MEM_freeN(ob->curve_cache);
+		ob->curve_cache = NULL;
 	}
 }
 
@@ -1280,10 +1284,10 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	psysn->pathcache = NULL;
 	psysn->childcache = NULL;
 	psysn->edit = NULL;
-	psysn->frand = NULL;
 	psysn->pdd = NULL;
 	psysn->effectors = NULL;
 	psysn->tree = NULL;
+	psysn->bvhtree = NULL;
 	
 	BLI_listbase_clear(&psysn->pathcachebufs);
 	BLI_listbase_clear(&psysn->childcachebufs);
@@ -1487,11 +1491,6 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 
 	obn->mode = 0;
 	obn->sculpt = NULL;
-
-	/* Proxies are not to be copied. */
-	obn->proxy_from = NULL;
-	obn->proxy_group = NULL;
-	obn->proxy = NULL;
 
 	/* increase user numbers */
 	id_us_plus((ID *)obn->data);
@@ -3678,7 +3677,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 					if (index[i] != ORIGINDEX_NONE) {
 						float co[3];
 						mul_v3_m4v3(co, ob->obmat, mvert[i].co);
-						BLI_kdtree_insert(tree, index[i], co, NULL);
+						BLI_kdtree_insert(tree, index[i], co);
 						tot++;
 					}
 				}
@@ -3692,7 +3691,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 				for (i = 0; i < tot; i++) {
 					float co[3];
 					mul_v3_m4v3(co, ob->obmat, mvert[i].co);
-					BLI_kdtree_insert(tree, i, co, NULL);
+					BLI_kdtree_insert(tree, i, co);
 				}
 			}
 
@@ -3722,7 +3721,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 					while (a--) {
 						float co[3];
 						mul_v3_m4v3(co, ob->obmat, bezt->vec[1]);
-						BLI_kdtree_insert(tree, i++, co, NULL);
+						BLI_kdtree_insert(tree, i++, co);
 						bezt++;
 					}
 				}
@@ -3734,7 +3733,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 					while (a--) {
 						float co[3];
 						mul_v3_m4v3(co, ob->obmat, bp->vec);
-						BLI_kdtree_insert(tree, i++, co, NULL);
+						BLI_kdtree_insert(tree, i++, co);
 						bp++;
 					}
 				}
@@ -3758,7 +3757,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 			for (bp = lt->def; i < tot; bp++) {
 				float co[3];
 				mul_v3_m4v3(co, ob->obmat, bp->vec);
-				BLI_kdtree_insert(tree, i++, co, NULL);
+				BLI_kdtree_insert(tree, i++, co);
 			}
 
 			BLI_kdtree_balance(tree);

@@ -71,6 +71,7 @@ void BKE_pbvh_build_bmesh(PBVH *bvh, struct BMesh *bm, int smooth_shading,
                           struct BMLog *log);
 
 void BKE_pbvh_free(PBVH *bvh);
+void BKE_pbvh_free_layer_disp(PBVH *bvh);
 
 /* Hierarchical Search in the BVH, two methods:
  * - for each hit calling a callback
@@ -96,6 +97,9 @@ void BKE_pbvh_raycast(PBVH *bvh, BKE_pbvh_HitOccludedCallback cb, void *data,
 int BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use_origco,
                           const float ray_start[3], const float ray_normal[3],
                           float *dist);
+
+int BKE_pbvh_bmesh_node_raycast_detail(PBVHNode *node, const float ray_start[3],
+							const float ray_normal[3], float *detail, float *dist);
 
 /* for orthographic cameras, project the far away ray segment points to the root node so
  * we can have better precision. */
@@ -134,7 +138,7 @@ typedef enum {
 	PBVH_Subdivide = 1,
 	PBVH_Collapse = 2,
 } PBVHTopologyUpdateMode;
-int BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
+bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
                                    const float center[3], float radius);
 
 /* Node Access */

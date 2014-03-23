@@ -228,7 +228,7 @@ FCurve *verify_fcurve(bAction *act, const char group[], PointerRNA *ptr,
 	return fcu;
 }
 
-/* Helper */
+/* Helper for update_autoflags_fcurve() */
 static void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop)
 {
 	/* set additional flags for the F-Curve (i.e. only integer values) */
@@ -251,8 +251,8 @@ static void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop)
 	}
 }
 
-/*  Update integer/discrete flags of the FCurve (used when creating/inserting keyframes,
- *  but also through RNA when editing an ID prop, see T37103).
+/* Update integer/discrete flags of the FCurve (used when creating/inserting keyframes,
+ * but also through RNA when editing an ID prop, see T37103).
  */
 void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, PointerRNA *ptr)
 {
@@ -276,9 +276,10 @@ void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, Poin
 		            idname, fcu->rna_path);
 		return;
 	}
-
+	
+	/* update F-Curve flags */
 	update_autoflags_fcurve_direct(fcu, prop);
-
+	
 	if (old_flag != fcu->flag) {
 		/* Same as if keyframes had been changed */
 		WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
@@ -760,7 +761,7 @@ static float visualkey_get_value(PointerRNA *ptr, PropertyRNA *prop, int array_i
 	int rotmode;
 	
 	/* handle for Objects or PoseChannels only 
-	 *  - only Location, Rotation or Scale keyframes are supported curently
+	 *  - only Location, Rotation or Scale keyframes are supported currently
 	 *  - constraints can be on either Objects or PoseChannels, so we only check if the
 	 *    ptr->type is RNA_Object or RNA_PoseBone, which are the RNA wrapping-info for
 	 *        those structs, allowing us to identify the owner of the data
@@ -884,6 +885,7 @@ short insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *p
 		}
 	}
 	
+	/* update F-Curve flags to ensure proper behaviour for property type */
 	update_autoflags_fcurve_direct(fcu, prop);
 	
 	/* obtain value to give keyframe */
@@ -2024,8 +2026,6 @@ short id_frame_has_keyframe(ID *id, float frame, short filter)
 	switch (GS(id->name)) {
 		case ID_OB: /* object */
 			return object_frame_has_keyframe((Object *)id, frame, filter);
-			break;
-			
 #if 0
 		// XXX TODO... for now, just use 'normal' behavior
 		case ID_SCE: /* scene */

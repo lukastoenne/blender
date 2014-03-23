@@ -131,7 +131,12 @@ static void image_buffer_rect_update(RenderJob *rj, RenderResult *rr, ImBuf *ibu
 	ColorManagedViewSettings *view_settings;
 	ColorManagedDisplaySettings *display_settings;
 
-	if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
+	/* Exception for exr tiles -- display buffer conversion happens here,
+	 * NOT in the color management pipeline.
+	 */
+	if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID &&
+	    rr->do_exr_tile == false)
+	{
 		/* The whole image buffer it so be color managed again anyway. */
 		return;
 	}
@@ -532,7 +537,10 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 		*(rj->do_update) = TRUE;
 		return;
 	}
-
+	
+	if (rr == NULL)
+		return;
+	
 	/* update part of render */
 	render_image_update_pass_and_layer(rj, rr, &rj->iuser);
 	ibuf = BKE_image_acquire_ibuf(ima, &rj->iuser, &lock);
@@ -550,7 +558,7 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 		{
 			image_buffer_rect_update(rj, rr, ibuf, &rj->iuser, renrect);
 		}
-
+		
 		/* make jobs timer to send notifier */
 		*(rj->do_update) = TRUE;
 	}
@@ -736,7 +744,6 @@ static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event
 	switch (event->type) {
 		case ESCKEY:
 			return OPERATOR_RUNNING_MODAL;
-			break;
 	}
 	return OPERATOR_PASS_THROUGH;
 }

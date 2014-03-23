@@ -84,7 +84,7 @@ void clip_draw_curfra_label(const int framenr, const float x, const float y)
 	float font_dims[2] = {0.0f, 0.0f};
 
 	/* frame number */
-	BLF_size(fontid, 11.0f, U.dpi);
+	BLF_size(fontid, 11.0f * U.pixelsize, U.dpi);
 	BLI_snprintf(numstr, sizeof(numstr), "%d", framenr);
 
 	BLF_width_and_height(fontid, numstr, sizeof(numstr), &font_dims[0], &font_dims[1]);
@@ -940,7 +940,7 @@ static void draw_marker_texts(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	if (!TRACK_VIEW_SELECTED(sc, track))
 		return;
 
-	BLF_size(fontid, 11.0f, U.dpi);
+	BLF_size(fontid, 11.0f * U.pixelsize, U.dpi);
 	fontsize = BLF_height_max(fontid);
 
 	if (marker->flag & MARKER_DISABLED) {
@@ -1311,7 +1311,9 @@ static void draw_tracking_tracks(SpaceClip *sc, Scene *scene, ARegion *ar, Movie
 	     plane_track;
 	     plane_track = plane_track->next)
 	{
-		draw_plane_track(sc, scene, plane_track, framenr, plane_track == active_plane_track, width, height);
+		if ((plane_track->flag & PLANE_TRACK_HIDDEN) == 0) {
+			draw_plane_track(sc, scene, plane_track, framenr, plane_track == active_plane_track, width, height);
+		}
 	}
 
 	if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {

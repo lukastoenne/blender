@@ -684,11 +684,8 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 		x /= (br->mask_stencil_dimension[0]);
 		y /= (br->mask_stencil_dimension[1]);
 
-		x *= mtex->size[0];
-		y *= mtex->size[1];
-
-		co[0] = x + mtex->ofs[0];
-		co[1] = y + mtex->ofs[1];
+		co[0] = x;
+		co[1] = y;
 		co[2] = 0.0f;
 
 		externtex(mtex, co, &intensity,
@@ -744,11 +741,8 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 			y = flen * sinf(angle);
 		}
 
-		x *= mtex->size[0];
-		y *= mtex->size[1];
-
-		co[0] = x + mtex->ofs[0];
-		co[1] = y + mtex->ofs[1];
+		co[0] = x;
+		co[1] = y;
 		co[2] = 0.0f;
 
 		externtex(mtex, co, &intensity,
@@ -999,7 +993,7 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side, bool use_sec
 				/* This is copied from displace modifier code */
 				/* TODO(sergey): brush are always cacheing with CM enabled for now. */
 				externtex(mtex, co, &intensity,
-						  rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL);
+				          rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL);
 
 				((char *)texcache)[(iy * side + ix) * 4] =
 				((char *)texcache)[(iy * side + ix) * 4 + 1] =

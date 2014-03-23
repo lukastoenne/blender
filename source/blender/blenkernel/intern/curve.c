@@ -1620,7 +1620,8 @@ float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
 
 /* ***************** BEVEL ****************** */
 
-void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp, int forRender, int renderResolution)
+void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp,
+                          const bool for_render, const bool use_render_resolution)
 {
 	DispList *dl, *dlnew;
 	Curve *bevcu, *cu;
@@ -1643,8 +1644,8 @@ void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp, int forRende
 			facx = cu->bevobj->size[0];
 			facy = cu->bevobj->size[1];
 
-			if (forRender) {
-				BKE_displist_make_curveTypes_forRender(scene, cu->bevobj, &bevdisp, NULL, 0, renderResolution);
+			if (for_render) {
+				BKE_displist_make_curveTypes_forRender(scene, cu->bevobj, &bevdisp, NULL, false, use_render_resolution);
 				dl = bevdisp.first;
 			}
 			else if (cu->bevobj->curve_cache) {
@@ -3637,9 +3638,9 @@ void BKE_nurb_direction_switch(Nurb *nu)
 }
 
 
-float (*BKE_curve_nurbs_vertexCos_get(ListBase *lb, int *numVerts_r))[3]
+float (*BKE_curve_nurbs_vertexCos_get(ListBase *lb, int *r_numVerts))[3]
 {
-	int i, numVerts = *numVerts_r = BKE_nurbList_verts_count(lb);
+	int i, numVerts = *r_numVerts = BKE_nurbList_verts_count(lb);
 	float *co, (*cos)[3] = MEM_mallocN(sizeof(*cos) * numVerts, "cu_vcos");
 	Nurb *nu;
 
@@ -3802,7 +3803,7 @@ bool BKE_nurb_order_clamp_u(struct Nurb *nu)
 {
 	bool changed = false;
 	if (nu->pntsu < nu->orderu) {
-		nu->orderu = nu->pntsu;
+		nu->orderu = max_ii(2, nu->pntsu);
 		changed = true;
 	}
 	if (((nu->flagu & CU_NURB_CYCLIC) == 0) && (nu->flagu & CU_NURB_BEZIER)) {
@@ -3816,7 +3817,7 @@ bool BKE_nurb_order_clamp_v(struct Nurb *nu)
 {
 	bool changed = false;
 	if (nu->pntsv < nu->orderv) {
-		nu->orderv = nu->pntsv;
+		nu->orderv = max_ii(2, nu->pntsv);
 		changed = true;
 	}
 	if (((nu->flagv & CU_NURB_CYCLIC) == 0) && (nu->flagv & CU_NURB_BEZIER)) {
@@ -4221,4 +4222,13 @@ void BKE_curve_material_index_clear(Curve *cu)
 			}
 		}
 	}
+}
+
+void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *tb, struct rctf *r_rect)
+{
+	r_rect->xmin = (cu->xof * cu->fsize) + tb->x;
+	r_rect->ymax = (cu->yof * cu->fsize) + tb->y + cu->fsize;
+
+	r_rect->xmax = r_rect->xmin + tb->w;
+	r_rect->ymin = r_rect->ymax - tb->h;
 }

@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2013, Blender Foundation.
+ * Copyright 2014, Blender Foundation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,15 +17,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor:
- *		Sergey Sharybin
+ *		Lukas Toenne
  */
 
-#ifndef _COM_PlaneTrackMaskOperation_h
-#define _COM_PlaneTrackMaskOperation_h
+#ifndef _COM_CornerPinWarpImageOperation_h
+#define _COM_CornerPinWarpImageOperation_h
 
 #include <string.h>
 
-#include "COM_PlaneTrackCommonOperation.h"
+#include "COM_PlaneDistortCommonOperation.h"
 
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
@@ -33,17 +33,36 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
-class PlaneTrackMaskOperation : public PlaneTrackCommonOperation {
-protected:
-	int m_osa;
-	float m_jitter[32][2];
 
+class PlaneCornerPinMaskOperation : public PlaneDistortMaskOperation {
+private:
+	bool m_corners_ready;
+	
 public:
-	PlaneTrackMaskOperation();
-
+	PlaneCornerPinMaskOperation();
+	
 	void initExecution();
+	void deinitExecution();
+	
+	void *initializeTileData(rcti *rect);
+	
+	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
+};
 
-	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+
+class PlaneCornerPinWarpImageOperation : public PlaneDistortWarpImageOperation {
+private:
+	bool m_corners_ready;
+	
+public:
+	PlaneCornerPinWarpImageOperation();
+	
+	void initExecution();
+	void deinitExecution();
+	
+	void *initializeTileData(rcti *rect);
+	
+	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 };
 
 #endif

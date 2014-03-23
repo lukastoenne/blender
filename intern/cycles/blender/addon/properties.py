@@ -253,6 +253,18 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default='USE',
                 )
 
+        cls.sample_all_lights_direct = BoolProperty(
+                name="Sample All Direct Lights",
+                description="Sample all lights (for direct samples), rather than randomly picking one",
+                default=True,
+                )
+
+        cls.sample_all_lights_indirect = BoolProperty(
+                name="Sample All Indirect Lights",
+                description="Sample all lights (for indirect samples), rather than randomly picking one",
+                default=True,
+                )
+
         cls.no_caustics = BoolProperty(
                 name="No Caustics",
                 description="Leave out caustics, resulting in a darker image with less noise",

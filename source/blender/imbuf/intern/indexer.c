@@ -336,7 +336,6 @@ int IMB_proxy_size_to_array_index(IMB_Proxy_Size pr_size)
 		default:
 			return 0;
 	}
-	return 0;
 }
 
 int IMB_timecode_to_array_index(IMB_Timecode_Type tc)
@@ -356,7 +355,6 @@ int IMB_timecode_to_array_index(IMB_Timecode_Type tc)
 		default:
 			return 0;
 	}
-	return 0;
 }
 
 
@@ -1265,8 +1263,8 @@ struct anim *IMB_anim_open_proxy(
 
 	get_proxy_filename(anim, preview_size, fname, FALSE);
 
-	/* proxies are generated in default color space */
-	anim->proxy_anim[i] = IMB_open_anim(fname, 0, 0, NULL);
+	/* proxies are generated in the same color space as animation itself */
+	anim->proxy_anim[i] = IMB_open_anim(fname, 0, 0, anim->colorspace);
 	
 	anim->proxies_tried |= preview_size;
 

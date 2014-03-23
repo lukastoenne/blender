@@ -2034,7 +2034,7 @@ static bAnimChannelType ACF_DSNTREE =
 /* TODO: just get this from RNA? */
 static int acf_dslinestyle_icon(bAnimListElem *UNUSED(ale))
 {
-	return ICON_BRUSH_DATA; /* FIXME */
+	return ICON_LINE_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
@@ -3049,7 +3049,6 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, int setting
 						return ((*val) & flag) == 0;
 					else
 						return ((*val) & flag) != 0;
-					break;
 				}
 				case sizeof(short): /* short pointer for setting */
 				{
@@ -3059,7 +3058,6 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, int setting
 						return ((*val) & flag) == 0;
 					else
 						return ((*val) & flag) != 0;
-					break;
 				}
 				case sizeof(char):  /* char pointer for setting */
 				{
@@ -3069,7 +3067,6 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, int setting
 						return ((*val) & flag) == 0;
 					else
 						return ((*val) & flag) != 0;
-					break;
 				}
 			}
 		}

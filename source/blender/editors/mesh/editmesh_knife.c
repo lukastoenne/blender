@@ -77,7 +77,7 @@
 
 #define KNIFE_FLT_EPS          0.00001f
 #define KNIFE_FLT_EPS_SQUARED  (KNIFE_FLT_EPS * KNIFE_FLT_EPS)
-#define KNIFE_FLT_EPSBIG       0.001f
+#define KNIFE_FLT_EPSBIG       0.0005f
 
 typedef struct KnifeColors {
 	unsigned char line[3];
@@ -653,7 +653,7 @@ static void knife_add_single_cut(KnifeTool_OpData *kcd, KnifeLineHit *lh1, Knife
 	}
 
 	/* Check if edge actually lies within face (might not, if this face is concave) */
-	if (lh1->v && lh2->v) {
+	if ((lh1->v && !lh1->kfe) && (lh2->v && !lh2->kfe)) {
 		if (!knife_verts_edge_in_face(lh1->v, lh2->v, f)) {
 			return;
 		}
@@ -1389,8 +1389,8 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 			if (!(d1 <= vert_tol || d2 <= vert_tol || fabsf(d1 - d2) <= vert_tol)) {
 				lambda = d1 / d2;
 				/* Can't just interpolate between ends of kfe because
-				* that doesn't work with perspective transformation.
-				* Need to find 3d intersection of ray through sint */
+				 * that doesn't work with perspective transformation.
+				 * Need to find 3d intersection of ray through sint */
 				knife_input_ray_segment(kcd, sint, 1.0f, r1, r2);
 				isect_kind = isect_line_line_v3(kfe->v1->cageco, kfe->v2->cageco, r1, r2, p, p2);
 				if (isect_kind >= 1 && point_is_visible(kcd, p, sint, &mats)) {
@@ -2861,7 +2861,6 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 				ED_region_tag_redraw(kcd->ar);
 				return OPERATOR_PASS_THROUGH;
-				break;
 		}
 	}
 	else { /* non-modal-mapped events */

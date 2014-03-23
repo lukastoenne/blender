@@ -642,24 +642,15 @@ void ED_view3d_clipping_calc(BoundBox *bb, float planes[4][4], bglMats *mats, co
 	}
 }
 
-
-bool ED_view3d_boundbox_clip(RegionView3D *rv3d, float obmat[4][4], const BoundBox *bb)
+static bool view3d_boundbox_clip_m4(const BoundBox *bb, float persmatob[4][4])
 {
-	/* return 1: draw */
-
-	float mat[4][4];
-	float vec[4], min, max;
 	int a, flag = -1, fl;
 
-	if (bb == NULL) return true;
-	if (bb->flag & BOUNDBOX_DISABLED) return true;
-
-	mul_m4_m4m4(mat, rv3d->persmat, obmat);
-
 	for (a = 0; a < 8; a++) {
+		float vec[4], min, max;
 		copy_v3_v3(vec, bb->vec[a]);
 		vec[3] = 1.0;
-		mul_m4_v4(mat, vec);
+		mul_m4_v4(persmatob, vec);
 		max = vec[3];
 		min = -vec[3];
 
@@ -676,6 +667,28 @@ bool ED_view3d_boundbox_clip(RegionView3D *rv3d, float obmat[4][4], const BoundB
 	}
 
 	return false;
+}
+
+bool ED_view3d_boundbox_clip_ex(RegionView3D *rv3d, const BoundBox *bb, float obmat[4][4])
+{
+	/* return 1: draw */
+
+	float persmatob[4][4];
+
+	if (bb == NULL) return true;
+	if (bb->flag & BOUNDBOX_DISABLED) return true;
+
+	mul_m4_m4m4(persmatob, rv3d->persmat, obmat);
+
+	return view3d_boundbox_clip_m4(bb, persmatob);
+}
+
+bool ED_view3d_boundbox_clip(RegionView3D *rv3d, const BoundBox *bb)
+{
+	if (bb == NULL) return true;
+	if (bb->flag & BOUNDBOX_DISABLED) return true;
+
+	return view3d_boundbox_clip_m4(bb, rv3d->persmatob);
 }
 
 float ED_view3d_depth_read_cached(ViewContext *vc, int x, int y)
@@ -818,39 +831,40 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
 	mat3_to_quat(rv3d->viewquat, tmat);
 }
 
+static float view3d_quat_axis[6][4] = {
+	{M_SQRT1_2, -M_SQRT1_2, 0.0f, 0.0f},    /* RV3D_VIEW_FRONT */
+	{0.0f, 0.0f, -M_SQRT1_2, -M_SQRT1_2},   /* RV3D_VIEW_BACK */
+	{0.5f, -0.5f, 0.5f, 0.5f},              /* RV3D_VIEW_LEFT */
+	{0.5f, -0.5f, -0.5f, -0.5f},            /* RV3D_VIEW_RIGHT */
+	{1.0f, 0.0f, 0.0f, 0.0f},               /* RV3D_VIEW_TOP */
+	{0.0f, -1.0f, 0.0f, 0.0f},              /* RV3D_VIEW_BOTTOM */
+	};
+
+
 bool ED_view3d_quat_from_axis_view(const char view, float quat[4])
+{
+	if (RV3D_VIEW_IS_AXIS(view)) {
+		copy_qt_qt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT]);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+char ED_view3d_quat_to_axis_view(const float quat[4], const float epsilon)
 {
 	/* quat values are all unit length */
 
-	switch (view) {
-		case RV3D_VIEW_BOTTOM:
-			copy_v4_fl4(quat, 0.0, -1.0, 0.0, 0.0);
-			break;
+	char view;
 
-		case RV3D_VIEW_BACK:
-			copy_v4_fl4(quat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
-			break;
-
-		case RV3D_VIEW_LEFT:
-			copy_v4_fl4(quat, 0.5, -0.5, 0.5, 0.5);
-			break;
-
-		case RV3D_VIEW_TOP:
-			copy_v4_fl4(quat, 1.0, 0.0, 0.0, 0.0);
-			break;
-
-		case RV3D_VIEW_FRONT:
-			copy_v4_fl4(quat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
-			break;
-
-		case RV3D_VIEW_RIGHT:
-			copy_v4_fl4(quat, 0.5, -0.5, -0.5, -0.5);
-			break;
-		default:
-			return false;
+	for (view = RV3D_VIEW_FRONT; view <= RV3D_VIEW_BOTTOM; view++) {
+		if (angle_qtqt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT]) < epsilon) {
+			return view;
+		}
 	}
 
-	return true;
+	return RV3D_VIEW_USER;
 }
 
 char ED_view3d_lock_view_from_index(int index)
