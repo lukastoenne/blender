@@ -95,6 +95,32 @@ extern "C" {
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
 /* ************************************************* */
+/* External Build API */
+
+struct DepsNodeHandle {
+	Depsgraph *graph;
+	DepsNode *node;
+	const char *default_name;
+};
+
+static eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType component)
+{
+	switch (component) {
+		case DEG_SCENE_COMP_PARAMETERS:     return DEPSNODE_TYPE_PARAMETERS;
+		case DEG_SCENE_COMP_ANIMATION:      return DEPSNODE_TYPE_ANIMATION;
+		case DEG_SCENE_COMP_SEQUENCER:      return DEPSNODE_TYPE_SEQUENCER;
+	}
+}
+
+void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *name)
+{
+}
+
+void DEG_add_object_relation(DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *name)
+{
+}
+
+/* ************************************************* */
 /* AnimData */
 
 /* Build graph node(s) for Driver
