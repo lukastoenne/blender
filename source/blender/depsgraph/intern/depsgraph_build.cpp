@@ -112,12 +112,40 @@ static eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType com
 	}
 }
 
-void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *name)
+static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType component)
 {
+	switch (component) {
+		case DEG_OB_COMP_PARAMETERS:        return DEPSNODE_TYPE_PARAMETERS;
+		case DEG_OB_COMP_PROXY:             return DEPSNODE_TYPE_PROXY;
+		case DEG_OB_COMP_ANIMATION:         return DEPSNODE_TYPE_ANIMATION;
+		case DEG_OB_COMP_TRANSFORM:         return DEPSNODE_TYPE_TRANSFORM;
+		case DEG_OB_COMP_GEOMETRY:          return DEPSNODE_TYPE_GEOMETRY;
+		case DEG_OB_COMP_EVAL_POSE:         return DEPSNODE_TYPE_EVAL_POSE;
+		case DEG_OB_COMP_BONE:              return DEPSNODE_TYPE_BONE;
+		case DEG_OB_COMP_EVAL_PARTICLES:    return DEPSNODE_TYPE_EVAL_PARTICLES;
+	}
 }
 
-void DEG_add_object_relation(DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *name)
+void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
 {
+	Depsgraph *graph = handle->graph;
+	DepsNode *node = handle->node;
+	
+	eDepsNode_Type type = deg_build_scene_component_type(component);
+	DepsNode *comp_node = DEG_find_node(graph, (ID *)scene, NULL, type, NULL);
+	if (comp_node)
+		DEG_add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, description);
+}
+
+void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
+{
+	Depsgraph *graph = handle->graph;
+	DepsNode *node = handle->node;
+	
+	eDepsNode_Type type = deg_build_object_component_type(component);
+	DepsNode *comp_node = DEG_find_node(graph, (ID *)ob, NULL, type, NULL);
+	if (comp_node)
+		DEG_add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, description);
 }
 
 /* ************************************************* */

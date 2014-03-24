@@ -90,8 +90,8 @@ typedef enum eDepsObjectComponentType {
 	DEG_OB_COMP_EVAL_PARTICLES,    /* Particle Systems Component */
 } eDepsObjectComponentType;
 
-void DEG_add_scene_relation(DepsNodeHandle *node, struct Scene *scene, eDepsSceneComponentType component, const char *name);
-void DEG_add_object_relation(DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *name);
+void DEG_add_scene_relation(DepsNodeHandle *node, struct Scene *scene, eDepsSceneComponentType component, const char *description);
+void DEG_add_object_relation(DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *description);
 
 /* ************************************************ */
 
