@@ -216,7 +216,7 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const char 
                                      eDepsNode_Type component_type, eDepsNode_Type type, 
                                      const char name[DEG_MAX_ID_NAME])
 {
-	ComponentDepsNode *component = (ComponentDepsNode *)DEG_find_node(graph, id, subdata, component_type, NULL);
+	ComponentDepsNode *component = (ComponentDepsNode *)graph->find_node(id, subdata, component_type, NULL);
 	
 	if (component) {
 		/* lookup node with matching name... */
@@ -239,7 +239,7 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char s
 {
 	PoseComponentDepsNode *pose_comp;
 	
-	pose_comp = (PoseComponentDepsNode *)DEG_find_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	pose_comp = (PoseComponentDepsNode *)graph->find_node(id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
 		BoneComponentDepsNode *bone_node = pose_comp->find_bone_component(subdata);
@@ -259,8 +259,8 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char s
 }
 
 /* Find matching node */
-DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
-                        eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *Depsgraph::find_node(const ID *id, const char subdata[MAX_NAME],
+                               eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *result = NULL;
 	
@@ -268,7 +268,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 	switch (type) {
 		/* "Generic" Types -------------------------- */
 		case DEPSNODE_TYPE_ROOT:   /* NOTE: this case shouldn't need to exist, but just in case... */
-			result = graph->root_node;
+			result = this->root_node;
 			break;
 			
 		case DEPSNODE_TYPE_TIMESOURCE: /* Time Source */
@@ -279,7 +279,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 				 * (as may be done for subgraphs needing timeoffset) 
 				 */
 				// XXX: review this
-				IDDepsNode *id_node = graph->find_id_node(id);
+				IDDepsNode *id_node = this->find_id_node(id);
 				
 				if (id_node) {
 					result = id_node->find_component(type);
@@ -287,7 +287,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 			}
 			else {
 				/* use "official" timesource */
-				RootDepsNode *root_node = (RootDepsNode *)graph->root_node;
+				RootDepsNode *root_node = (RootDepsNode *)this->root_node;
 				result = (DepsNode *)root_node->time_source;
 			}
 		}
@@ -296,7 +296,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_ID_REF: /* ID Block Index/Reference */
 		{
 			/* lookup relevant ID using nodehash */
-			result = graph->find_id_node(id);
+			result = this->find_id_node(id);
 		}	
 			break;
 			
@@ -312,7 +312,7 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_EVAL_PARTICLES:
 		{
 			/* Each ID-Node knows the set of components that are associated with it */
-			IDDepsNode *id_node = graph->find_id_node(id);
+			IDDepsNode *id_node = this->find_id_node(id);
 			
 			if (id_node) {
 				result = id_node->find_component(type);
@@ -323,51 +323,51 @@ DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_N
 		case DEPSNODE_TYPE_BONE:       /* Bone Component */
 		{
 			/* this will find the bone component */
-			result = deg_find_bone_node(graph, id, subdata, type, name);
+			result = deg_find_bone_node(this, id, subdata, type, name);
 		}
 			break;
 		
 		/* "Inner" Nodes ---------------------------- */
 		
 		case DEPSNODE_TYPE_OP_PARAMETER:  /* Parameter Related Ops */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_PROXY:      /* Proxy Ops */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PROXY, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_PROXY, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_TRANSFORM:  /* Transform Ops */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_TRANSFORM, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_TRANSFORM, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_ANIMATION:  /* Animation Ops */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_ANIMATION, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_ANIMATION, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_GEOMETRY:   /* Geometry Ops */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_GEOMETRY, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_GEOMETRY, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_SEQUENCER:  /* Sequencer Ops */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_SEQUENCER, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_SEQUENCER, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_UPDATE:     /* Updates */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_DRIVER:     /* Drivers */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_PARAMETERS, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_POSE:       /* Pose Eval (Non-Bone Operations) */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_EVAL_POSE, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_EVAL_POSE, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
-			result = deg_find_bone_node(graph, id, subdata, type, name);
+			result = deg_find_bone_node(this, id, subdata, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_PARTICLE:  /* Particle System/Step */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_EVAL_PARTICLES, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_EVAL_PARTICLES, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_RIGIDBODY: /* Rigidbody Sim */
-			result = deg_find_inner_node(graph, id, subdata, DEPSNODE_TYPE_TRANSFORM, type, name); // XXX: needs review
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_TRANSFORM, type, name); // XXX: needs review
 			break;
 		
 		default:
@@ -429,7 +429,7 @@ DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, co
 	DEG_find_node_criteria_from_pointer(ptr, prop, &id, subdata, &type, name);
 	
 	/* use standard node finding code... */
-	return DEG_find_node(graph, id, subdata, type, name);
+	return graph->find_node(id, subdata, type, name);
 }
 
 /* ************************************************ */

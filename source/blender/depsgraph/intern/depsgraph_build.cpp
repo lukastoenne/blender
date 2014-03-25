@@ -132,7 +132,7 @@ void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSc
 	DepsNode *node = handle->node;
 	
 	eDepsNode_Type type = deg_build_scene_component_type(component);
-	DepsNode *comp_node = DEG_find_node(graph, (ID *)scene, NULL, type, NULL);
+	DepsNode *comp_node = graph->find_node((ID *)scene, NULL, type, NULL);
 	if (comp_node)
 		DEG_add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, description);
 }
@@ -143,7 +143,7 @@ void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObj
 	DepsNode *node = handle->node;
 	
 	eDepsNode_Type type = deg_build_object_component_type(component);
-	DepsNode *comp_node = DEG_find_node(graph, (ID *)ob, NULL, type, NULL);
+	DepsNode *comp_node = graph->find_node((ID *)ob, NULL, type, NULL);
 	if (comp_node)
 		DEG_add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, description);
 }
@@ -250,7 +250,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
-		time_src = DEG_find_node(graph, NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
+		time_src = graph->find_node(NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
 		DEG_add_new_relation(time_src, adt_node, DEPSREL_TYPE_TIME, 
 		                     "[TimeSrc -> Animation] DepsRel");
 		                     

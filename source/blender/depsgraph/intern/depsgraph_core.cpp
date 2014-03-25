@@ -112,7 +112,7 @@ DepsNode *DEG_get_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NA
 	DepsNode *node;
 	
 	/* firstly try to get an existing node... */
-	node = DEG_find_node(graph, id, subdata, type, name);
+	node = graph->find_node(id, subdata, type, name);
 	if (node == NULL) {
 		/* nothing exists, so create one instead! */
 		node = DEG_add_new_node(graph, id, subdata, type, name);
@@ -338,7 +338,7 @@ void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
  */
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
-	DepsNode *node = DEG_find_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
+	DepsNode *node = graph->find_node(id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 	DEG_node_tag_update(graph, node);
 }
 

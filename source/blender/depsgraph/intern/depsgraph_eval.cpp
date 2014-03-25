@@ -147,7 +147,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
 	TimeSourceDepsNode *tsrc;
 	
 	/* update time on primary timesource */
-	tsrc = (TimeSourceDepsNode *)DEG_find_node(graph, NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
+	tsrc = (TimeSourceDepsNode *)graph->find_node(NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
 	tsrc->cfra = ctime;
 	
 	DEG_node_tag_update(graph, tsrc);

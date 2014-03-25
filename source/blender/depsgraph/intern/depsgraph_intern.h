@@ -44,21 +44,6 @@ struct Scene;
 
 /* Node Querying --------------------------------------------------- */
 
-/* Find node which matches the specified description
- *
- * < graph: dependency graph that node will be part of
- * < id: ID block that is associated with this
- * < (subdata): identifier used for sub-ID data (e.g. bone)
- * < type: type of node we're dealing with
- * < (name): custom identifier assigned to node 
- *
- * > returns: A node matching the required characteristics if it exists
- *            OR NULL if no such node exists in the graph
- */
-DepsNode *DEG_find_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME], 
-                        eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
-
-
 /* Determine node-querying criteria for finding a suitable node,
  * given a RNA Pointer (and optionally, a property too)
  *
