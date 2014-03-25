@@ -30,10 +30,14 @@
 #ifndef __DEPSGRAPH_INTERN_H__
 #define __DEPSGRAPH_INTERN_H__
 
+#include <stdlib.h>
+
 extern "C" {
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 } /* extern "C" */
 
+#include "depsgraph.h"
 #include "depsgraph_types.h"
 
 struct Main;

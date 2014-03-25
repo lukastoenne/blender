@@ -37,105 +37,25 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.h"
+
+#include "DEG_depsgraph.h"
+
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
 
 using std::vector;
 
+struct ID;
 struct Scene;
 struct bPoseChannel;
 
-struct DepsNode;
+struct Depsgraph;
+struct DepsRelation;
 struct DepsgraphCopyContext;
 
 /* Maximum length of identifier names used in Depsgraph */
 #define DEG_MAX_ID_NAME     128
-
-/* ************************************* */
-/* Relationships Between Nodes */
-
-/* Types of relationships between nodes 
- *
- * This is used to provide additional hints to use when filtering
- * the graph, so that we can go without doing more extensive
- * data-level checks...
- */
-typedef enum eDepsRelation_Type {
-	/* reationship type unknown/irrelevant */
-	DEPSREL_TYPE_STANDARD = 0,
-	
-	/* root -> active scene or entity (screen, image, etc.) */
-	DEPSREL_TYPE_ROOT_TO_ACTIVE,
-	
-	/* general datablock dependency */
-	DEPSREL_TYPE_DATABLOCK,
-	
-	/* time dependency */
-	DEPSREL_TYPE_TIME,
-	
-	/* component depends on results of another */
-	DEPSREL_TYPE_COMPONENT_ORDER,
-	
-	/* relationship is just used to enforce ordering of operations
-	 * (e.g. "init()" callback done before "exec() and "cleanup()")
-	 */
-	DEPSREL_TYPE_OPERATION,
-	
-	/* relationship results from a property driver affecting property */
-	DEPSREL_TYPE_DRIVER,
-	
-	/* relationship is something driver depends on */
-	DEPSREL_TYPE_DRIVER_TARGET,
-	
-	/* relationship is used for transform stack 
-	 * (e.g. parenting, user transforms, constraints)
-	 */
-	DEPSREL_TYPE_TRANSFORM,
-	
-	/* relationship is used for geometry evaluation 
-	 * (e.g. metaball "motherball" or modifiers)
-	 */
-	DEPSREL_TYPE_GEOMETRY_EVAL,
-	
-	/* relationship is used to trigger a post-change validity updates */
-	DEPSREL_TYPE_UPDATE,
-	
-	/* relationship is used to trigger editor/screen updates */
-	DEPSREL_TYPE_UPDATE_UI,
-} eDepsRelation_Type;
-
-
-/* Settings/Tags on Relationship */
-typedef enum eDepsRelation_Flag {
-	/* "touched" tag is used when filtering, to know which to collect */
-	DEPSREL_FLAG_TEMP_TAG   = (1 << 0),
-	
-	/* "cyclic" link - when detecting cycles, this relationship was the one
-	 * which triggers a cyclic relationship to exist in the graph
-	 */
-	DEPSREL_FLAG_CYCLIC     = (1 << 1),
-} eDepsRelation_Flag;
-
-/* B depends on A (A -> B) */
-struct DepsRelation {
-	/* the nodes in the relationship (since this is shared between the nodes) */
-	DepsNode *from;               /* A */
-	DepsNode *to;                 /* B */
-	
-	/* relationship attributes */
-	char name[DEG_MAX_ID_NAME];   /* label for debugging */
-	
-	eDepsRelation_Type type;      /* type */
-	int flag;                     /* (eDepsRelation_Flag) */
-	
-	DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const char *description);
-	~DepsRelation();
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
-#endif
-};
-
 
 /* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
@@ -558,52 +478,6 @@ struct RigidBodyOperationDepsNode : public OperationDepsNode {
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	
 	DEG_DEPSNODE_DECLARE;
-};
-
-/* ************************************* */
-/* Depsgraph */
-
-/* Dependency Graph object */
-struct Depsgraph {
-	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
-	typedef unordered_set<SubgraphDepsNode *> Subgraphs;
-	typedef unordered_set<DepsNode *> EntryTags;
-	typedef vector<DepsNode *> OperationNodes;
-	
-	Depsgraph();
-	~Depsgraph();
-	
-	/* Find node which matches the specified description
-	 *
-	 * < id: ID block that is associated with this
-	 * < (subdata): identifier used for sub-ID data (e.g. bone)
-	 * < type: type of node we're dealing with
-	 * < (name): custom identifier assigned to node 
-	 *
-	 * > returns: A node matching the required characteristics if it exists
-	 *            OR NULL if no such node exists in the graph
-	 */
-	DepsNode *find_node(const ID *id, const char subdata[MAX_NAME], 
-	                    eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
-	IDDepsNode *find_id_node(const ID *id) const;
-	
-	/* Core Graph Functionality ........... */
-	IDNodeMap id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
-	RootDepsNode *root_node;    /* "root" node - the one where all evaluation enters from */
-	
-	Subgraphs subgraphs;        /* subgraphs referenced in tree... */
-	
-	/* Quick-Access Temp Data ............. */
-	EntryTags entry_tags;       /* nodes which have been tagged as "directly modified" */
-	
-	/* Convenience Data ................... */
-	OperationNodes all_opnodes; /* all operation nodes, sorted in order of single-thread traversal order */
-	
-	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
-#endif
 };
 
 /* ************************************* */
