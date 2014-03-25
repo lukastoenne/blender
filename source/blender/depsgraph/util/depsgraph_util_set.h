@@ -26,9 +26,21 @@
 #define __DEPSGRAPH_UTIL_SET_H__
 
 #include <set>
-#include <boost/tr1/unordered_set.hpp>
 
 using std::set;
-using std::tr1::unordered_set;
+
+#ifdef HAVE_UNORDERED_SET
+
+#include UNORDERED_SET_INCLUDE
+
+using UNORDERED_SET_NAMESPACE::unordered_set;
+using UNORDERED_MAP_NAMESPACE::hash;
+
+#else
+
+/* use std::set as a fallback in case unordered_set is not available */
+typedef std::set unordered_set;
+
+#endif
 
 #endif /* __DEPSGRAPH_UTIL_SET_H__ */

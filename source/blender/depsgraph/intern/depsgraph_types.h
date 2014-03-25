@@ -304,7 +304,7 @@ struct RootDepsNode : public DepsNode {
 
 /* ID-Block Reference */
 struct IDDepsNode : public DepsNode {
-	typedef unordered_map<eDepsNode_Type, ComponentDepsNode *> ComponentMap;
+	typedef unordered_map<eDepsNode_Type, ComponentDepsNode *, hash<int> > ComponentMap;
 	
 	void init(const ID *id, const char *subdata);
 	void copy(DepsgraphCopyContext *dcc, const IDDepsNode *src);

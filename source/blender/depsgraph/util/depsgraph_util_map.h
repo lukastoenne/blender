@@ -26,10 +26,22 @@
 #define __DEPSGRAPH_UTIL_MAP_H__
 
 #include <map>
-#include <boost/tr1/unordered_map.hpp>
 
 using std::map;
 using std::pair;
-using std::tr1::unordered_map;
+
+#ifdef HAVE_UNORDERED_MAP
+
+#include UNORDERED_MAP_INCLUDE
+
+using UNORDERED_MAP_NAMESPACE::unordered_map;
+using UNORDERED_MAP_NAMESPACE::hash;
+
+#else
+
+/* use std::map as a fallback in case unordered_map is not available */
+typedef std::map unordered_map;
+
+#endif
 
 #endif /* __DEPSGRAPH_UTIL_MAP_H__ */

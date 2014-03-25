@@ -37,7 +37,6 @@ set(INC
 )
 
 set(INC_SYS
-	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
@@ -58,11 +57,20 @@ set(SRC
 	intern/depsgraph_queue.h
 	intern/depsgraph_types.h
 	intern/stubs.h
-	util/depsgraph_util_foreach.h
 	util/depsgraph_util_map.h
 	util/depsgraph_util_set.h
 )
 
-add_definitions(${BOOST_DEFINITIONS})
+TEST_UNORDERED_MAP_SUPPORT()
+if(HAVE_UNORDERED_MAP)
+	add_definitions(-DHAVE_UNORDERED_MAP)
+	add_definitions(-DUNORDERED_MAP_INCLUDE=<${UNORDERED_MAP_INCLUDE_PREFIX}/unordered_map>)
+	add_definitions(-DUNORDERED_MAP_NAMESPACE=${UNORDERED_MAP_NAMESPACE})
+	
+	# use same prefix and namespace for unordered_set
+	add_definitions(-DHAVE_UNORDERED_SET)
+	add_definitions(-DUNORDERED_SET_INCLUDE=<${UNORDERED_MAP_INCLUDE_PREFIX}/unordered_set>)
+	add_definitions(-DUNORDERED_SET_NAMESPACE=${UNORDERED_MAP_NAMESPACE})
+endif()
 
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}")
