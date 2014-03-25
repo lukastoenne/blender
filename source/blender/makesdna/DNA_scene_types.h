@@ -855,7 +855,9 @@ typedef struct Sculpt {
 
 	/* gravity factor for sculpting */
 	float gravity_factor;
-	int pad;
+
+	/* scale for constant detail size */
+	float constant_detail;
 
 	struct Object *gravity_object;
 	void *pad2;
