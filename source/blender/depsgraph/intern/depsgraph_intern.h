@@ -72,34 +72,6 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
  */
 DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
 
-/* Node Getting --------------------------------------------------- */
-
-/* Create or find a node with data matching the requested characteristics
- * ! New nodes are created if no matching nodes exist...
- * ! Arguments are as for DEG_find_node()
- *
- * > returns: A node matching the required characteristics that exists in the graph
- */
-DepsNode *DEG_get_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
-                       eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
-
-
-/* Get the most appropriate node referred to by pointer + property 
- * < graph: Depsgraph to find node from
- * < ptr: RNA Pointer to the data that we're supposed to find a node for
- * < (prop): optional RNA Property that is affected
- */
-// XXX: returns matching outer node only, except for drivers
-DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
-
-/* Get the most appropriate node referred to by data path
- * < graph: Depsgraph to find node from
- * < id: ID-Block that path is rooted on
- * < path: RNA-Path to resolve
- * > returns: (IDDepsNode | DataDepsNode) as appropriate
- */
-DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[]);
-
 /* Graph Building ===================================================== */
 /* Node Management ---------------------------------------------------- */
 

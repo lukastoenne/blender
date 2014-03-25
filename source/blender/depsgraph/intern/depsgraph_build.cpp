@@ -184,7 +184,7 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	
 	/* create dependency between driver and data affected by it */
 	// XXX: this should return a parameter context for dealing with this...
-	affected_node = DEG_get_node_from_rna_path(graph, id, fcu->rna_path);
+	affected_node = graph->get_node_from_rna_path(id, fcu->rna_path);
 	if (affected_node) {
 		/* make data dependent on driver */
 		DEG_add_new_relation(driver_node, affected_node, DEPSREL_TYPE_DRIVER, 
@@ -209,11 +209,11 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
 					
 					/* get node associated with bone */
-					target_node = DEG_get_node(graph, dtar->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
+					target_node = graph->get_node(dtar->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 				}
 				else {
 					/* resolve path to get node... */
-					target_node = DEG_get_node_from_rna_path(graph, dtar->id, dtar->rna_path);
+					target_node = graph->get_node_from_rna_path(dtar->id, dtar->rna_path);
 				}
 				
 				/* make driver dependent on this node */
@@ -246,7 +246,7 @@ static void deg_build_animdata_graph(Depsgraph *graph, Scene *scene, ID *id)
 		DepsNode *time_src;
 		
 		/* create "animation" data node for this block */
-		adt_node = DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ANIMATION, "Animation");
+		adt_node = graph->get_node(id, NULL, DEPSNODE_TYPE_ANIMATION, "Animation");
 		
 		/* wire up dependency to time source */
 		// NOTE: this assumes that timesource was already added as one of first steps!
@@ -350,7 +350,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 				
 				if (data->depth_ob) {
 					// DAG_RL_DATA_OB | DAG_RL_OB_OB
-					node2 = DEG_get_node(graph, (ID *)data->depth_ob, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+					node2 = graph->get_node((ID *)data->depth_ob, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 					DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 				}
 			}
@@ -360,7 +360,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 
 			if (depends_on_camera && scene->camera) {
 				// DAG_RL_DATA_OB | DAG_RL_OB_OB
-				node2 = DEG_get_node(graph, (ID *)scene->camera, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+				node2 = graph->get_node((ID *)scene->camera, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 				DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 			}
 			
@@ -380,18 +380,18 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 					}
 					else if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO)) {
 						/* these constraints require path geometry data... */
-						node2 = DEG_get_node(graph, (ID *)ct->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
+						node2 = graph->get_node((ID *)ct->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
 						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_GEOMETRY_EVAL, cti->name); // XXX: type = geom_transform
 					}
 					else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 						/* bone */
-						node2 = DEG_get_node(graph, (ID *)ct->tar, &ct->subtarget[0], DEPSNODE_TYPE_BONE, NULL);
+						node2 = graph->get_node((ID *)ct->tar, &ct->subtarget[0], DEPSNODE_TYPE_BONE, NULL);
 						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 					else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
 						/* vertex group */
 						/* NOTE: for now, we don't need to represent vertex groups separately... */
-						node2 = DEG_get_node(graph, (ID *)ct->tar, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+						node2 = graph->get_node((ID *)ct->tar, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_GEOMETRY_EVAL, cti->name);
 						
 						if (ct->tar->type == OB_MESH) {
@@ -401,7 +401,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 					else {
 						/* standard object relation */
 						// TODO: loc vs rot vs scale?
-						node2 = DEG_get_node(graph, (ID *)ct->tar, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+						node2 = graph->get_node((ID *)ct->tar, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 						DEG_add_new_relation(node2, constraintStackNode, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 				}
@@ -430,7 +430,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	DepsNode *owner_node;
 	
 	/* component for bone holding the constraint */
-	owner_node = DEG_get_node(graph, &ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
+	owner_node = graph->get_node(&ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* operation node for evaluating/running IK Solver */
 	solver_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
@@ -459,7 +459,7 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 		 * bone will ensure that users of this bone only
 		 * grab the result with IK solver results...
 		 */
-		DepsNode *parchan_node = DEG_get_node(graph, &ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
+		DepsNode *parchan_node = graph->get_node(&ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
 		DEG_add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
 		
 		/* continue up chain, until we reach target number of items... */
@@ -488,11 +488,11 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	DepsNode *owner_node, *curve_node;
 	
 	/* component for bone holding the constraint */
-	owner_node = DEG_get_node(graph, &ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
+	owner_node = graph->get_node(&ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* component for spline-path geometry that this uses */
 	// XXX: target may not exist!
-	curve_node = DEG_get_node(graph, (ID *)data->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
+	curve_node = graph->get_node((ID *)data->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
 	
 	/* --------------- */
 	
@@ -525,7 +525,7 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 		 * bone will ensure that users of this bone only
 		 * grab the result with IK solver results...
 		 */
-		DepsNode *parchan_node = DEG_get_node(graph, &ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
+		DepsNode *parchan_node = graph->get_node(&ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
 		DEG_add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
 		
 		/* continue up chain, until we reach target number of items... */
@@ -570,7 +570,7 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	/* pose eval context 
 	 * NOTE: init/cleanup steps for this are handled as part of the node's code
 	 */
-	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	pose_node = (PoseComponentDepsNode *)graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	
 	/* bones */
 	for (pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
@@ -578,7 +578,7 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		OperationDepsNode *bone_op;
 		
 		/* component for hosting bone operations */
-		bone_node = (BoneComponentDepsNode *)DEG_get_node(graph, &ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
+		bone_node = (BoneComponentDepsNode *)graph->get_node(&ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 		bone_node->pchan = pchan;
 		
 		/* node for bone eval */
@@ -589,7 +589,7 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		
 		/* bone parent */
 		if (pchan->parent) {
-			DepsNode *par_bone = DEG_get_node(graph, &ob->id, pchan->parent->name, DEPSNODE_TYPE_BONE, NULL);
+			DepsNode *par_bone = graph->get_node(&ob->id, pchan->parent->name, DEPSNODE_TYPE_BONE, NULL);
 			DEG_add_new_relation(par_bone, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 		}
 		
@@ -790,10 +790,10 @@ static void deg_build_compo_graph(Depsgraph *graph, Scene *scene)
 		
 		// TODO: create compositing component?
 		// XXX: component type undefined!
-		//DEG_get_node(graph, &scene->id, NULL, DEPSNODE_TYPE_COMPOSITING, NULL);
+		//graph->get_node(&scene->id, NULL, DEPSNODE_TYPE_COMPOSITING, NULL);
 		
 		/* for now, nodetrees are just parameters; compositing occurs in internals of renderer... */
-		owner_component = DEG_get_node(graph, &scene->id, NULL, DEPSNODE_TYPE_PARAMETERS, NULL);
+		owner_component = graph->get_node(&scene->id, NULL, DEPSNODE_TYPE_PARAMETERS, NULL);
 		deg_build_nodetree_graph(graph, scene, owner_component, scene->nodetree);
 	}
 }
@@ -881,7 +881,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 			for (eff = (EffectorCache *)effectors->first; eff; eff = eff->next) {
 				if (eff->psys) {
 					// XXX: DAG_RL_DATA_DATA | DAG_RL_OB_DATA
-					node2 = DEG_get_node(graph, (ID *)eff->ob, NULL, DEPSNODE_TYPE_GEOMETRY, NULL); // xxx: particles instead?
+					node2 = graph->get_node((ID *)eff->ob, NULL, DEPSNODE_TYPE_GEOMETRY, NULL); // xxx: particles instead?
 					DEG_add_new_relation(node2, psys_op, DEPSREL_TYPE_STANDARD, "Particle Field");
 				}
 			}
@@ -903,7 +903,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 						ruleob = ((BoidRuleFollowLeader *)rule)->ob;
 
 					if (ruleob) {
-						node2 = DEG_get_node(graph, &ruleob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+						node2 = graph->get_node(&ruleob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 						DEG_add_new_relation(node2, psys_op, DEPSREL_TYPE_TRANSFORM, "Boid Rule");
 					}
 				}
@@ -955,7 +955,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	
 	/* time dependency */
 	{
-		DepsNode *time_src = DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
+		DepsNode *time_src = graph->get_node(NULL, NULL, DEPSNODE_TYPE_TIMESOURCE, NULL);
 		
 		/* init node is only occasional (i.e. on certain frame values only), 
 		 * but we must still include this link 
@@ -985,7 +985,7 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				 *       we can safely assume that all necessary ops we have to play with
 				 *       already exist
 				 */
-				tcomp = (ComponentDepsNode *)DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+				tcomp = (ComponentDepsNode *)graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 				
 				/* get operation that rigidbody should follow */
 				// TODO: doesn't pre-simulation updates need this info too?
@@ -1044,11 +1044,11 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				 * - this ensures that, at the very least, the constraint will be done first 
 				 */
 				// XXX: rigidbody sync occurs after sim!
-				ob1 = DEG_get_node(graph, (ID *)rbc->ob1, NULL, DEPSNODE_TYPE_OP_TRANSFORM, "RigidBodyObject Sync");
-				ob2 = DEG_get_node(graph, (ID *)rbc->ob2, NULL, DEPSNODE_TYPE_OP_TRANSFORM, "RigidBodyObject Sync");
+				ob1 = graph->get_node((ID *)rbc->ob1, NULL, DEPSNODE_TYPE_OP_TRANSFORM, "RigidBodyObject Sync");
+				ob2 = graph->get_node((ID *)rbc->ob2, NULL, DEPSNODE_TYPE_OP_TRANSFORM, "RigidBodyObject Sync");
 				
 				/* node for this constraint's final transform */
-				tcomp = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+				tcomp = graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 				
 				
 				/* create links */
@@ -1073,11 +1073,11 @@ static void deg_build_shapekeys_graph(Depsgraph *graph, Scene *scene, Object *ob
 	
 	/* create node for shapekeys block */
 	// XXX: assume geometry - that's where shapekeys get evaluated anyways...
-	key_node = DEG_get_node(graph, &key->id, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+	key_node = graph->get_node(&key->id, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 	
 	/* 1) attach to geometry */
 	// XXX: aren't shapekeys now done as a pseudo-modifier on object?
-	obdata_node = DEG_get_node(graph, (ID *)ob->data, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+	obdata_node = graph->get_node((ID *)ob->data, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 	DEG_add_new_relation(key_node, obdata_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
 	
 	/* 2) attach drivers, etc. */
@@ -1099,8 +1099,8 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 	Key *key;
 	
 	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
-	geom_node = DEG_get_node(graph, ob_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Ob Geometry Component");
-	obdata_geom = DEG_get_node(graph, obdata_id, NULL, DEPSNODE_TYPE_GEOMETRY, "ObData Geometry Component");
+	geom_node = graph->get_node(ob_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Ob Geometry Component");
+	obdata_geom = graph->get_node(obdata_id, NULL, DEPSNODE_TYPE_GEOMETRY, "ObData Geometry Component");
 	
 	/* link components to each other */
 	DEG_add_new_relation(obdata_geom, geom_node, DEPSREL_TYPE_DATABLOCK, "Object Geometry Base Data");
@@ -1127,7 +1127,7 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			/* motherball - mom depends on children! */
 			if (mom != ob) {
 				/* non-motherball -> cannot be directly evaluated! */
-				node2 = DEG_get_node(graph, &mom->id, NULL, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
+				node2 = graph->get_node(&mom->id, NULL, DEPSNODE_TYPE_GEOMETRY, "Meta-Motherball");
 				DEG_add_new_relation(geom_node, node2, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
 			}
 			else {
@@ -1150,16 +1150,16 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			/* curve's dependencies */
 			// XXX: these needs geom data, but where is geom stored?
 			if (cu->bevobj) {
-				node2 = DEG_get_node(graph, (ID *)cu->bevobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+				node2 = graph->get_node((ID *)cu->bevobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 				DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
 			}
 			if (cu->taperobj) {
-				node2 = DEG_get_node(graph, (ID *)cu->taperobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+				node2 = graph->get_node((ID *)cu->taperobj, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 				DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
 			}
 			if (ob->type == OB_FONT) {
 				if (cu->textoncurve) {
-					node2 = DEG_get_node(graph, (ID *)cu->textoncurve, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
+					node2 = graph->get_node((ID *)cu->textoncurve, NULL, DEPSNODE_TYPE_GEOMETRY, NULL);
 					DEG_add_new_relation(node2, geom_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
 				}
 			}
@@ -1249,11 +1249,11 @@ static void deg_build_camera_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	DepsNode *obdata_node, *node2;
 	
 	/* node for obdata */
-	obdata_node = DEG_get_node(graph, &cam->id, NULL, DEPSNODE_TYPE_PARAMETERS, "Camera Parameters");
+	obdata_node = graph->get_node(&cam->id, NULL, DEPSNODE_TYPE_PARAMETERS, "Camera Parameters");
 	
 	/* DOF */
 	if (cam->dof_ob) {
-		node2 = DEG_get_node(graph, (ID *)cam->dof_ob, NULL, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
+		node2 = graph->get_node((ID *)cam->dof_ob, NULL, DEPSNODE_TYPE_TRANSFORM, "Camera DOF Transform");
 		DEG_add_new_relation(node2, obdata_node, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
 	}
 }
@@ -1274,7 +1274,7 @@ static void deg_build_lamp_graph(Depsgraph *graph, Scene *scene, Object *ob)
 	la->id.flag |= LIB_DOIT;
 	
 	/* node for obdata */
-	obdata_node = DEG_get_node(graph, &la->id, NULL, DEPSNODE_TYPE_PARAMETERS, "Lamp Parameters");
+	obdata_node = graph->get_node(&la->id, NULL, DEPSNODE_TYPE_PARAMETERS, "Lamp Parameters");
 	
 	/* lamp's nodetree */
 	if (la->nodetree) {
@@ -1297,7 +1297,7 @@ static DepsNode *deg_build_object_transform(Depsgraph *graph, Object *ob)
 	DepsNode *trans_node;
 	
 	/* component to hold all transform operations */
-	trans_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
+	trans_node = graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 	
 	/* init operation - to be hooked up later */
 	trans_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
@@ -1324,7 +1324,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	 *       operation is in due course...
 	 */
 	// TODO: slow parenting should result in a duplicate parent-eval path, with a special timesource with the offsetted time
-	ob_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
+	ob_node = graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
 	
 	par_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM, 
 	                           DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
@@ -1335,7 +1335,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	switch (ob->partype) {
 		case PARSKEL:  /* Armature Deform (Virtual Modifier) */
 		{
-			parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Par Armature Transform");
+			parent_node = graph->get_node(parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Par Armature Transform");
 			DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Armature Deform Parent");
 		}
 		break;
@@ -1343,7 +1343,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 		case PARVERT1: /* Vertex Parent */
 		case PARVERT3:
 		{
-			parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Vertex Parent Geometry Source");
+			parent_node = graph->get_node(parent_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Vertex Parent Geometry Source");
 			DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
 			
 			//parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
@@ -1352,7 +1352,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 			
 		case PARBONE: /* Bone Parent */
 		{
-			parent_node = DEG_get_node(graph, &ob->id, ob->parsubstr, DEPSNODE_TYPE_BONE, NULL);
+			parent_node = graph->get_node(&ob->id, ob->parsubstr, DEPSNODE_TYPE_BONE, NULL);
 			DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
 		}
 		break;
@@ -1361,7 +1361,7 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 		{
 			if (ob->parent->type == OB_LATTICE) {
 				/* Lattice Deform Parent - Virtual Modifier */
-				parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Par Lattice Transform");
+				parent_node = graph->get_node(parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Par Lattice Transform");
 				DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
 			}
 			else if (ob->parent->type == OB_CURVE) {
@@ -1369,20 +1369,20 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 				
 				if (cu->flag & CU_PATH) {
 					/* Follow Path */
-					parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Curve Path");
+					parent_node = graph->get_node(parent_id, NULL, DEPSNODE_TYPE_GEOMETRY, "Curve Path");
 					DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Follow Parent");
 					// XXX: link to geometry or object? both are needed?
 					// XXX: link to timesource too?
 				}
 				else {
 					/* Standard Parent */
-					parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
+					parent_node = graph->get_node(parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
 					DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Curve Parent");
 				}
 			}
 			else {
 				/* Standard Parent */
-				parent_node = DEG_get_node(graph, parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
+				parent_node = graph->get_node(parent_id, NULL, DEPSNODE_TYPE_TRANSFORM, "Parent Transform");
 				DEG_add_new_relation(parent_node, ob_node, DEPSREL_TYPE_TRANSFORM, "Parent");
 			}
 		}
@@ -1402,10 +1402,10 @@ static DepsNode *deg_build_object_graph(Depsgraph *graph, Scene *scene, Object *
 	DepsNode *ob_node, *params_node, *trans_node;
 	
 	/* create node for object itself */
-	ob_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_ID_REF, ob->id.name);
+	ob_node = graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_ID_REF, ob->id.name);
 	
 	/* standard components */
-	params_node = DEG_get_node(graph, &ob->id, NULL, DEPSNODE_TYPE_PARAMETERS, NULL);
+	params_node = graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_PARAMETERS, NULL);
 	trans_node = deg_build_object_transform(graph, ob);
 	
 	/* object parent */
@@ -1485,10 +1485,10 @@ static DepsNode *deg_build_scene_graph(Depsgraph *graph, Main *bmain, Scene *sce
 	Base *base;
 	
 	/* init own node */
-	scene_node = DEG_get_node(graph, &scene->id, NULL, DEPSNODE_TYPE_ID_REF, scene->id.name);
+	scene_node = graph->get_node(&scene->id, NULL, DEPSNODE_TYPE_ID_REF, scene->id.name);
 	
 	/* timesource */
-	time_src = DEG_get_node(graph, &scene->id, NULL, DEPSNODE_TYPE_TIMESOURCE, "Scene Timesource");
+	time_src = graph->get_node(&scene->id, NULL, DEPSNODE_TYPE_TIMESOURCE, "Scene Timesource");
 	BLI_assert(time_src != NULL);
 	
 	/* sound system */
@@ -1602,9 +1602,9 @@ DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, Main *bmain, Gro
 	DEG_graph_build_from_group(graph, bmain, group);
 	
 	/* create a node for representing subgraph */
-	subgraph_node = (SubgraphDepsNode *)DEG_get_node(graph_main, &group->id, NULL,
-	                                                 DEPSNODE_TYPE_SUBGRAPH, 
-	                                                 group->id.name);
+	subgraph_node = (SubgraphDepsNode *)graph_main->get_node(&group->id, NULL,
+	                                                         DEPSNODE_TYPE_SUBGRAPH, 
+	                                                         group->id.name);
 	                                                     
 	subgraph_node->graph = graph;
 	
@@ -1636,7 +1636,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 * - this way it should be the first in the graph,
 	 *   reflecting its role as the entrypoint
 	 */
-	graph->root_node = (RootDepsNode *)DEG_get_node(graph, NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	graph->root_node = (RootDepsNode *)graph->get_node(NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
 	
 	/* build graph for scene and all attached data */
 	scene_node = deg_build_scene_graph(graph, bmain, scene);

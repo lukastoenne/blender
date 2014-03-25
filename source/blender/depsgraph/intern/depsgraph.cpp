@@ -25,31 +25,10 @@
  *
  * Core routines for how the Depsgraph works
  */
- 
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-extern "C" {
-//#include "BLI_blenlib.h"
-//#include "BLI_string.h"
-//#include "BLI_utildefines.h"
-
-//#include "DNA_defs.h"
-//#include "DNA_ID.h"
-//#include "DNA_listBase.h"
-
-//#include "DEG_depsgraph.h"
-
-//#include "RNA_access.h"
-//#include "RNA_types.h"
-} /* extern "C" */
-
 #include "depsgraph.h" /* own include */
-//#include "depsgraph_eval.h"
-//#include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
 
@@ -65,16 +44,16 @@ IDDepsNode *Depsgraph::find_id_node(const ID *id) const
 /* Get Node ----------------------------------------- */
 
 /* Get a matching node, creating one if need be */
-DepsNode *DEG_get_node(Depsgraph *graph, const ID *id, const char *subdata,
-                       eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *Depsgraph::get_node(const ID *id, const char *subdata,
+                              eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *node;
 	
 	/* firstly try to get an existing node... */
-	node = graph->find_node(id, subdata, type, name);
+	node = find_node(id, subdata, type, name);
 	if (node == NULL) {
 		/* nothing exists, so create one instead! */
-		node = DEG_add_new_node(graph, id, subdata, type, name);
+		node = DEG_add_new_node(this, id, subdata, type, name);
 	}
 	
 	/* return the node - it must exist now... */
@@ -82,7 +61,7 @@ DepsNode *DEG_get_node(Depsgraph *graph, const ID *id, const char *subdata,
 }
 
 /* Get the most appropriate node referred to by pointer + property */
-DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
+DepsNode *Depsgraph::get_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop)
 {
 	DepsNode *node = NULL;
 	
@@ -95,12 +74,12 @@ DepsNode *DEG_get_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, con
 	DEG_find_node_criteria_from_pointer(ptr, prop, &id, subdata, &type, name);
 	
 	/* use standard lookup mechanisms... */
-	node = DEG_get_node(graph, id, subdata, type, name);
+	node = this->get_node(id, subdata, type, name);
 	return node;
 }
 
 /* Get DepsNode referred to by data path */
-DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char path[])
+DepsNode *Depsgraph::get_node_from_rna_path(const ID *id, const char path[])
 {
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop = NULL;
@@ -112,7 +91,7 @@ DepsNode *DEG_get_node_from_rna_path(Depsgraph *graph, const ID *id, const char 
 	/* try to resolve path... */
 	if (RNA_path_resolve(&id_ptr, path, &ptr, &prop)) {
 		/* get matching node... */
-		node = DEG_get_node_from_pointer(graph, &ptr, prop);
+		node = this->get_node_from_pointer(&ptr, prop);
 	}
 	
 	/* return node found */
@@ -189,7 +168,7 @@ OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, const char subdat
 		return NULL;
 	
 	/* create operation node (or find an existing but perhaps on partially completed one) */
-	op_node = (OperationDepsNode *)DEG_get_node(graph, id, subdata, type, name);
+	op_node = (OperationDepsNode *)graph->get_node(id, subdata, type, name);
 	BLI_assert(op_node != NULL);
 	
 	/* attach extra data... */

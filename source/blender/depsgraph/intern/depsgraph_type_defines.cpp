@@ -111,7 +111,7 @@ void TimeSourceDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	/* determine which node to attach timesource to */
 	if (id) {
 		/* get ID node */
-//		DepsNode *id_node = DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
+//		DepsNode *id_node = graph->get_node(id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 		
 		/* depends on what this is... */
 		switch (GS(id->name)) {
@@ -426,7 +426,7 @@ ComponentDepsNode::~ComponentDepsNode()
 void ComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
 	/* find ID node that we belong to (and create it if it doesn't exist!) */
-	IDDepsNode *id_node = (IDDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
+	IDDepsNode *id_node = (IDDepsNode *)graph->get_node(id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
 	BLI_assert(id_node != NULL);
 	
 	/* add component to id */
@@ -583,7 +583,7 @@ void BoneComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	PoseComponentDepsNode *pose_node;
 	
 	/* find pose node that we belong to (and create it if it doesn't exist!) */
-	pose_node = (PoseComponentDepsNode *)DEG_get_node(graph, id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	pose_node = (PoseComponentDepsNode *)graph->get_node(id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
 	BLI_assert(pose_node != NULL);
 	
 	/* add bone component to pose bone-hash */
@@ -711,7 +711,7 @@ static DepsNodeFactoryImpl<BoneComponentDepsNode> DNTI_BONE;
 void OperationDepsNode::add_to_component_node(Depsgraph *graph, const ID *id, eDepsNode_Type component_type)
 {
 	/* get component node to add operation to */
-	ComponentDepsNode *component = (ComponentDepsNode *)DEG_get_node(graph, id, NULL, component_type, NULL);
+	ComponentDepsNode *component = (ComponentDepsNode *)graph->get_node(id, NULL, component_type, NULL);
 	
 	/* add to hash table */
 	component->operations[this->name] = this;
@@ -859,7 +859,7 @@ void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	BLI_assert(this->ptr.type == &RNA_PoseBone);
 	pchan = (bPoseChannel *)this->ptr.data;
 	
-	bone_comp = (BoneComponentDepsNode *)DEG_get_node(graph, id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
+	bone_comp = (BoneComponentDepsNode *)graph->get_node(id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* add to hash table */
 	bone_comp->operations[pchan->name] = this;
