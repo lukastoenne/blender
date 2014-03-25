@@ -57,6 +57,7 @@ set(SRC
 	intern/convexhull2d.c
 	intern/cpu.c
 	intern/dynlib.c
+	intern/easing.c
 	intern/edgehash.c
 	intern/endian_switch.c
 	intern/fileops.c
@@ -120,6 +121,7 @@ set(SRC
 	BLI_dlrbTree.h
 	BLI_dynlib.h
 	BLI_dynstr.h
+	BLI_easing.h
 	BLI_edgehash.h
 	BLI_endian_switch.h
 	BLI_endian_switch_inline.h

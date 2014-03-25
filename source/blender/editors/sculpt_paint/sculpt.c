@@ -104,6 +104,20 @@
 #include <omp.h>
 #endif
 
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+
+/* how many cores not counting HT aka pysical cores */
+int system_physical_thread_count(void); // declaration here for simplification
+int system_physical_thread_count(void)
+{
+	int pcount;
+	size_t pcount_len = sizeof(pcount);
+	sysctlbyname("hw.physicalcpu", &pcount, &pcount_len, NULL, 0);
+	return pcount;
+}
+#endif // __APPLE__
+
 void ED_sculpt_get_average_stroke(Object *ob, float stroke[3])
 {
 	if (ob->sculpt->last_stroke_valid && ob->sculpt->average_stroke_counter > 0) {
@@ -3773,16 +3787,20 @@ static void sculpt_omp_start(Sculpt *sd, SculptSession *ss)
 	 * Justification: Empirically I've found that two threads per
 	 * processor gives higher throughput. */
 	if (sd->flags & SCULPT_USE_OPENMP) {
-		cache->num_threads = 2 * omp_get_num_procs();
-		omp_set_num_threads(cache->num_threads);
-	}
-	else
+#if defined(__APPLE__)
+		cache->num_threads = system_physical_thread_count();
+#else
+		cache->num_threads = omp_get_num_procs();
 #endif
-	{
-		(void)sd;
+	}
+	else {
 		cache->num_threads = 1;
 	}
-
+	omp_set_num_threads(cache->num_threads);
+#else
+	(void)sd;
+	cache->num_threads = 1;
+#endif
 	if (ss->multires) {
 		int i, gridsize, array_mem_size;
 		BKE_pbvh_node_get_grids(ss->pbvh, NULL, NULL, NULL, NULL,
@@ -4243,6 +4261,13 @@ typedef struct {
 	int original;
 } SculptRaycastData;
 
+typedef struct {
+	float *ray_start, *ray_normal;
+	int hit;
+	float dist;
+	float detail;
+} SculptDetailRaycastData;
+
 static void sculpt_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 {
 	if (BKE_pbvh_node_get_tmin(node) < *tmin) {
@@ -4271,34 +4296,28 @@ static void sculpt_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 	}
 }
 
-/* Do a raycast in the tree to find the 3d brush location
- * (This allows us to ignore the GL depth buffer)
- * Returns 0 if the ray doesn't hit the mesh, non-zero otherwise
- */
-bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
+static void sculpt_raycast_detail_cb(PBVHNode *node, void *data_v, float *tmin)
 {
-	ViewContext vc;
-	Object *ob;
-	SculptSession *ss;
-	StrokeCache *cache;
-	float ray_start[3], ray_end[3], ray_normal[3], dist;
+	if (BKE_pbvh_node_get_tmin(node) < *tmin) {
+		SculptDetailRaycastData *srd = data_v;
+		if (BKE_pbvh_bmesh_node_raycast_detail(node, srd->ray_start, srd->ray_normal,
+		                                       &srd->detail, &srd->dist))
+		{
+			srd->hit = 1;
+			*tmin = srd->dist;
+		}
+	}
+}
+
+static float sculpt_raycast_init(ViewContext *vc, const float mouse[2], float ray_start[3], float ray_end[3], float ray_normal[3], bool original)
+{
 	float obimat[4][4];
-	SculptRaycastData srd;
-	bool original;
-	RegionView3D *rv3d;
-
-	view3d_set_viewcontext(C, &vc);
-	
-	rv3d = vc.ar->regiondata;
-	ob = vc.obact;
-	ss = ob->sculpt;
-	cache = ss->cache;
-	original = (cache) ? cache->original : 0;
-
-	sculpt_stroke_modifiers_check(C, ob);
+	float dist;
+	Object *ob = vc->obact;
+	RegionView3D *rv3d = vc->ar->regiondata;
 
 	/* TODO: what if the segment is totally clipped? (return == 0) */
-	ED_view3d_win_to_segment(vc.ar, vc.v3d, mouse, ray_start, ray_end, true);
+	ED_view3d_win_to_segment(vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
 
 	invert_m4_m4(obimat, ob->obmat);
 	mul_m4_v3(obimat, ray_start);
@@ -4308,15 +4327,44 @@ bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
 	dist = normalize_v3(ray_normal);
 
 	if (!rv3d->is_persp) {
-		BKE_pbvh_raycast_project_ray_root(ss->pbvh, original, ray_start, ray_end, ray_normal);
+		BKE_pbvh_raycast_project_ray_root(ob->sculpt->pbvh, original, ray_start, ray_end, ray_normal);
 
 		/* recalculate the normal */
 		sub_v3_v3v3(ray_normal, ray_end, ray_start);
 		dist = normalize_v3(ray_normal);
 	}
 
+	return dist;
+}
+
+/* Do a raycast in the tree to find the 3d brush location
+ * (This allows us to ignore the GL depth buffer)
+ * Returns 0 if the ray doesn't hit the mesh, non-zero otherwise
+ */
+bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
+{
+	Object *ob;
+	SculptSession *ss;
+	StrokeCache *cache;
+	float ray_start[3], ray_end[3], ray_normal[3], dist;
+	SculptRaycastData srd;
+	bool original;
+	ViewContext vc;
+
+	view3d_set_viewcontext(C, &vc);
+
+	ob = vc.obact;
+
+	ss = ob->sculpt;
+	cache = ss->cache;
+	original = (cache) ? cache->original : 0;
+
+	sculpt_stroke_modifiers_check(C, ob);
+
+	dist = sculpt_raycast_init(&vc, mouse, ray_start, ray_end, ray_normal, original);
+
 	srd.original = original;
-	srd.ss = vc.obact->sculpt;
+	srd.ss = ob->sculpt;
 	srd.hit = 0;
 	srd.ray_start = ray_start;
 	srd.ray_normal = ray_normal;
@@ -4492,7 +4540,8 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 	sculpt_restore_mesh(sd, ob);
 
 	if (sd->flags & SCULPT_DYNTOPO_DETAIL_CONSTANT) {
-		BKE_pbvh_bmesh_detail_size_set(ss->pbvh, (float)sd->detail_size / 100.0f);
+		BKE_pbvh_bmesh_detail_size_set(ss->pbvh,
+			sd->constant_detail / 100.0f);
 	}
 	else {
 		BKE_pbvh_bmesh_detail_size_set(ss->pbvh,
@@ -5146,8 +5195,12 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 			ts->sculpt->flags |= SCULPT_DYNTOPO_SUBDIVIDE;
 		}
 
-		if (!ts->sculpt->detail_size)
+		if (!ts->sculpt->detail_size) {
 			ts->sculpt->detail_size = 30;
+		}
+
+		if (ts->sculpt->constant_detail == 0.0f)
+			ts->sculpt->constant_detail = 30.0f;
 
 		/* Create sculpt mode session data */
 		if (ob->sculpt)
@@ -5186,6 +5239,175 @@ static void SCULPT_OT_sculptmode_toggle(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+
+static int sculpt_and_dynamic_topology_constant_detail_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+
+	return sculpt_mode_poll(C) && ob->sculpt->bm && (sd->flags & SCULPT_DYNTOPO_DETAIL_CONSTANT);
+}
+
+static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+	Object *ob = CTX_data_active_object(C);
+	SculptSession *ss = ob->sculpt;
+	float size;
+	float bb_min[3], bb_max[3];
+	int i, totnodes;
+	PBVHNode **nodes;
+
+	BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnodes);
+
+	if (!totnodes)
+		return OPERATOR_CANCELLED;
+
+	for (i = 0; i < totnodes; i++) {
+		BKE_pbvh_node_mark_topology_update(nodes[i]);
+	}
+	/* get the bounding box, store the size to bb_max and center (zero) to bb_min */
+	BKE_pbvh_bounding_box(ob->sculpt->pbvh, bb_min, bb_max);
+	sub_v3_v3(bb_max, bb_min);
+	zero_v3(bb_min);
+	size = max_fff(bb_max[0], bb_max[1], bb_max[2]);
+
+	/* update topology size */
+	BKE_pbvh_bmesh_detail_size_set(ss->pbvh, sd->constant_detail / 100.0f);
+
+	sculpt_undo_push_begin("Dynamic topology flood fill");
+	sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_COORDS);
+
+	while (BKE_pbvh_bmesh_update_topology(ss->pbvh, PBVH_Collapse | PBVH_Subdivide, bb_min, size)) {
+		for (i = 0; i < totnodes; i++)
+			BKE_pbvh_node_mark_topology_update(nodes[i]);
+	}
+
+	MEM_freeN(nodes);
+	sculpt_undo_push_end();
+
+	/* force rebuild of pbvh for better BB placement */
+	sculpt_pbvh_clear(ob);
+	/* Redraw */
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+static void SCULPT_OT_detail_flood_fill(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Detail Flood Fill";
+	ot->idname = "SCULPT_OT_detail_flood_fill";
+	ot->description = "Flood fill the mesh with the selected detail setting";
+
+	/* api callbacks */
+	ot->exec = sculpt_detail_flood_fill_exec;
+	ot->poll = sculpt_and_dynamic_topology_constant_detail_poll;
+
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static void sample_detail(bContext *C, int ss_co[2])
+{
+	ViewContext vc;
+	Object *ob;
+	Sculpt *sd;
+	float ray_start[3], ray_end[3], ray_normal[3], dist;
+	SculptDetailRaycastData srd;
+	float mouse[2] = {ss_co[0], ss_co[1]};
+	view3d_set_viewcontext(C, &vc);
+
+	sd = CTX_data_tool_settings(C)->sculpt;
+	ob = vc.obact;
+
+	sculpt_stroke_modifiers_check(C, ob);
+
+	dist = sculpt_raycast_init(&vc, mouse, ray_start, ray_end, ray_normal, false);
+
+	srd.hit = 0;
+	srd.ray_start = ray_start;
+	srd.ray_normal = ray_normal;
+	srd.dist = dist;
+	srd.detail = sd->constant_detail;
+
+	BKE_pbvh_raycast(ob->sculpt->pbvh, sculpt_raycast_detail_cb, &srd,
+	                 ray_start, ray_normal, false);
+
+	if (srd.hit) {
+		sd->constant_detail = srd.detail * 100.0f;
+	}
+}
+
+static int sculpt_sample_detail_size_exec(bContext *C, wmOperator *op)
+{
+	int ss_co[2];
+	RNA_int_get_array(op->ptr, "location", ss_co);
+	sample_detail(C, ss_co);
+	return OPERATOR_FINISHED;
+}
+
+
+static int sculpt_sample_detail_size_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(e))
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ED_area_headerprint(sa, "Click on the mesh to set the detail");
+	WM_cursor_modal_set(CTX_wm_window(C), BC_EYEDROPPER_CURSOR);
+	WM_event_add_modal_handler(C, op);
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int sculpt_sample_detail_size_modal(bContext *C, wmOperator *op, const wmEvent *e)
+{
+	switch (e->type) {
+		case LEFTMOUSE:
+			if (e->val == KM_PRESS) {
+				ScrArea *sa = CTX_wm_area(C);
+				int ss_co[2] = {e->mval[0], e->mval[1]};
+
+				sample_detail(C, ss_co);
+
+				RNA_int_set_array(op->ptr, "location", ss_co);
+				WM_cursor_modal_restore(CTX_wm_window(C));
+				ED_area_headerprint(sa, NULL);
+				WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+				return OPERATOR_FINISHED;
+			}
+			break;
+
+		case RIGHTMOUSE:
+		{
+			ScrArea *sa = CTX_wm_area(C);
+			WM_cursor_modal_restore(CTX_wm_window(C));
+			ED_area_headerprint(sa, NULL);
+			return OPERATOR_CANCELLED;
+			break;
+		}
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+
+static void SCULPT_OT_sample_detail_size(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Sample Detail Size";
+	ot->idname = "SCULPT_OT_sample_detail_size";
+	ot->description = "Sample the mesh detail on clicked point";
+
+	/* api callbacks */
+	ot->invoke = sculpt_sample_detail_size_invoke;
+	ot->exec = sculpt_sample_detail_size_exec;
+	ot->modal = sculpt_sample_detail_size_modal;
+	ot->poll = sculpt_and_dynamic_topology_constant_detail_poll;
+
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int_array(ot->srna, "location", 2, NULL, 0, SHRT_MAX, "Location", "Screen Coordinates of sampling", 0, SHRT_MAX);
+}
+
 void ED_operatortypes_sculpt(void)
 {
 	WM_operatortype_append(SCULPT_OT_brush_stroke);
@@ -5194,4 +5416,6 @@ void ED_operatortypes_sculpt(void)
 	WM_operatortype_append(SCULPT_OT_dynamic_topology_toggle);
 	WM_operatortype_append(SCULPT_OT_optimize);
 	WM_operatortype_append(SCULPT_OT_symmetrize);
+	WM_operatortype_append(SCULPT_OT_detail_flood_fill);
+	WM_operatortype_append(SCULPT_OT_sample_detail_size);
 }
