@@ -46,32 +46,6 @@ struct Scene;
 
 /* Low-Level Querying ============================================== */
 
-/* Node Querying --------------------------------------------------- */
-
-/* Determine node-querying criteria for finding a suitable node,
- * given a RNA Pointer (and optionally, a property too)
- *
- * < ptr: pointer to the data that node will represent
- * < (prop): optional property affected - providing this effectively results in inner nodes being returned
- *
- * > id: ID-block for node lookup/creation in
- * > subdata: identifier used for sub-ID data (e.g. bone)
- * > type: Node Type required
- * > name: buffer to dump name to use for lookup clarification
- */
-void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                         ID **id, char subdata[MAX_NAME],
-                                         eDepsNode_Type *type, char name[DEG_MAX_ID_NAME]);
-                                         
-/* Convenience wrapper to find node given just pointer + property
- * < ptr: pointer to the data that node will represent
- * < (prop): optional property affected - providing this effectively results in inner nodes being returned
- *
- * > returns: A node matching the required characteristics if it exists
- *            OR NULL if no such node exists in the graph
- */
-DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
-
 /* Convenience API ------------------------------------------------- */
 
 /* Create a new node for representing an operation and add this to graph

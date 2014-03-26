@@ -160,6 +160,28 @@ struct Depsgraph {
 	DepsNode *find_node(const ID *id, const char subdata[MAX_NAME], 
 	                    eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
 	IDDepsNode *find_id_node(const ID *id) const;
+	/* Determine node-querying criteria for finding a suitable node,
+	 * given a RNA Pointer (and optionally, a property too)
+	 *
+	 * < ptr: pointer to the data that node will represent
+	 * < (prop): optional property affected - providing this effectively results in inner nodes being returned
+	 *
+	 * > id: ID-block for node lookup/creation in
+	 * > subdata: identifier used for sub-ID data (e.g. bone)
+	 * > type: Node Type required
+	 * > name: buffer to dump name to use for lookup clarification
+	 */
+	static void find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
+	                                            ID **id, char subdata[MAX_NAME],
+	                                            eDepsNode_Type *type, char name[DEG_MAX_ID_NAME]);
+	/* Convenience wrapper to find node given just pointer + property
+	 * < ptr: pointer to the data that node will represent
+	 * < (prop): optional property affected - providing this effectively results in inner nodes being returned
+	 *
+	 * > returns: A node matching the required characteristics if it exists
+	 *            OR NULL if no such node exists in the graph
+	 */
+	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop);
 	
 	/* Create or find a node with data matching the requested characteristics
 	 * ! New nodes are created if no matching nodes exist...
