@@ -52,6 +52,9 @@ extern "C" {
 
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
+#include "depsnode.h"
+#include "depsnode_component.h"
+#include "depsnode_operation.h"
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
@@ -97,7 +100,7 @@ static GHash *_depsnode_typeinfo_registry = NULL;
 /* Registration ------------------------------------------- */
 
 /* Register node type */
-static void DEG_register_node_typeinfo(DepsNodeFactory *factory)
+void DEG_register_node_typeinfo(DepsNodeFactory *factory)
 {
 	BLI_assert(factory != NULL);
 	BLI_ghash_insert(_depsnode_typeinfo_registry, SET_INT_IN_POINTER(factory->type()), factory);
@@ -110,42 +113,9 @@ void DEG_register_node_types(void)
 	_depsnode_typeinfo_registry = BLI_ghash_int_new("Depsgraph Node Type Registry");
 	
 	/* register node types */
-	/* GENERIC */
-	DEG_register_node_typeinfo(&DNTI_ROOT);
-	DEG_register_node_typeinfo(&DNTI_TIMESOURCE);
-	
-	DEG_register_node_typeinfo(&DNTI_ID_REF);
-	DEG_register_node_typeinfo(&DNTI_SUBGRAPH);
-	
-	/* OUTER */
-	DEG_register_node_typeinfo(&DNTI_PARAMETERS);
-	DEG_register_node_typeinfo(&DNTI_PROXY);
-	DEG_register_node_typeinfo(&DNTI_ANIMATION);
-	DEG_register_node_typeinfo(&DNTI_TRANSFORM);
-	DEG_register_node_typeinfo(&DNTI_GEOMETRY);
-	DEG_register_node_typeinfo(&DNTI_SEQUENCER);
-	
-	DEG_register_node_typeinfo(&DNTI_EVAL_POSE);
-	DEG_register_node_typeinfo(&DNTI_BONE);
-	
-	//DEG_register_node_typeinfo(&DNTI_EVAL_PARTICLES);
-	
-	/* INNER */
-	DEG_register_node_typeinfo(&DNTI_OP_PARAMETERS);
-	DEG_register_node_typeinfo(&DNTI_OP_PROXY);
-	DEG_register_node_typeinfo(&DNTI_OP_ANIMATION);
-	DEG_register_node_typeinfo(&DNTI_OP_TRANSFORM);
-	DEG_register_node_typeinfo(&DNTI_OP_GEOMETRY);
-	DEG_register_node_typeinfo(&DNTI_OP_SEQUENCER);
-	
-	DEG_register_node_typeinfo(&DNTI_OP_UPDATE);
-	DEG_register_node_typeinfo(&DNTI_OP_DRIVER);
-	
-	DEG_register_node_typeinfo(&DNTI_OP_POSE);
-	DEG_register_node_typeinfo(&DNTI_OP_BONE);
-	
-	DEG_register_node_typeinfo(&DNTI_OP_PARTICLES);
-	DEG_register_node_typeinfo(&DNTI_OP_RIGIDBODY);
+	DEG_register_base_depsnodes();
+	DEG_register_component_depsnodes();
+	DEG_register_operation_depsnodes();
 }
 
 /* Free registry on exit */

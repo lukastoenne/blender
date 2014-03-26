@@ -162,6 +162,9 @@ struct DepsNodeFactoryImpl : public DepsNodeFactory {
 
 /* Typeinfo Management -------------------------------------------------- */
 
+/* Register typeinfo */
+void DEG_register_node_typeinfo(DepsNodeFactory *factory);
+
 /* Get typeinfo for specified type */
 DepsNodeFactory *DEG_get_node_factory(const eDepsNode_Type type);
 

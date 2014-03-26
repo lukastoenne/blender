@@ -240,3 +240,23 @@ void RigidBodyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 
 DEG_DEPSNODE_DEFINE(RigidBodyOperationDepsNode, DEPSNODE_TYPE_OP_RIGIDBODY, "RigidBody Operation");
 static DepsNodeFactoryImpl<RigidBodyOperationDepsNode> DNTI_OP_RIGIDBODY;
+
+
+void DEG_register_operation_depsnodes()
+{
+	DEG_register_node_typeinfo(&DNTI_OP_PARAMETERS);
+	DEG_register_node_typeinfo(&DNTI_OP_PROXY);
+	DEG_register_node_typeinfo(&DNTI_OP_ANIMATION);
+	DEG_register_node_typeinfo(&DNTI_OP_TRANSFORM);
+	DEG_register_node_typeinfo(&DNTI_OP_GEOMETRY);
+	DEG_register_node_typeinfo(&DNTI_OP_SEQUENCER);
+	
+	DEG_register_node_typeinfo(&DNTI_OP_UPDATE);
+	DEG_register_node_typeinfo(&DNTI_OP_DRIVER);
+	
+	DEG_register_node_typeinfo(&DNTI_OP_POSE);
+	DEG_register_node_typeinfo(&DNTI_OP_BONE);
+	
+	DEG_register_node_typeinfo(&DNTI_OP_PARTICLES);
+	DEG_register_node_typeinfo(&DNTI_OP_RIGIDBODY);
+}

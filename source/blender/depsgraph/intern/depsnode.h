@@ -209,4 +209,6 @@ typedef enum eSubgraphRef_Flag {
 
 /* ************************************* */
 
+void DEG_register_base_depsnodes();
+
 #endif // __DEPSNODE_H__

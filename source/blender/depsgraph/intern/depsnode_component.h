@@ -138,4 +138,6 @@ struct BoneComponentDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 
+void DEG_register_component_depsnodes();
+
 #endif // __DEPSNODE_COMPONENT_H__

@@ -366,3 +366,13 @@ void SubgraphDepsNode::validate_links(Depsgraph *graph)
 
 DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");
 static DepsNodeFactoryImpl<SubgraphDepsNode> DNTI_SUBGRAPH;
+
+
+void DEG_register_base_depsnodes()
+{
+	DEG_register_node_typeinfo(&DNTI_ROOT);
+	DEG_register_node_typeinfo(&DNTI_TIMESOURCE);
+	
+	DEG_register_node_typeinfo(&DNTI_ID_REF);
+	DEG_register_node_typeinfo(&DNTI_SUBGRAPH);
+}

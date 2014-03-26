@@ -368,3 +368,19 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 
 DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");
 static DepsNodeFactoryImpl<BoneComponentDepsNode> DNTI_BONE;
+
+
+void DEG_register_component_depsnodes()
+{
+	DEG_register_node_typeinfo(&DNTI_PARAMETERS);
+	DEG_register_node_typeinfo(&DNTI_PROXY);
+	DEG_register_node_typeinfo(&DNTI_ANIMATION);
+	DEG_register_node_typeinfo(&DNTI_TRANSFORM);
+	DEG_register_node_typeinfo(&DNTI_GEOMETRY);
+	DEG_register_node_typeinfo(&DNTI_SEQUENCER);
+	
+	DEG_register_node_typeinfo(&DNTI_EVAL_POSE);
+	DEG_register_node_typeinfo(&DNTI_BONE);
+	
+	//DEG_register_node_typeinfo(&DNTI_EVAL_PARTICLES);
+}
