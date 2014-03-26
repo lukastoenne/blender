@@ -237,6 +237,19 @@ OperationDepsNode *Depsgraph::add_operation(ID *id, const char subdata[MAX_NAME]
 	return op_node;
 }
 
+/* Add new relationship between two nodes */
+DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to, 
+                                          eDepsRelation_Type type, 
+                                          const char description[DEG_MAX_ID_NAME])
+{
+	/* create new relation, and add it to the graph */
+	DepsRelation *rel = new DepsRelation(from, to, type, description);
+	
+	DEG_debug_build_relation_added(rel);
+	
+	return rel;
+}
+
 /* ************************************************** */
 /* Relationships Management */
 
@@ -259,19 +272,6 @@ DepsRelation::~DepsRelation()
 	/* remove it from the nodes that use it */
 	this->from->outlinks.erase(this);
 	this->to->inlinks.erase(this);
-}
-
-/* Add new relationship between two nodes */
-DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to, 
-                                   eDepsRelation_Type type, 
-                                   const char description[DEG_MAX_ID_NAME])
-{
-	/* create new relation, and add it to the graph */
-	DepsRelation *rel = new DepsRelation(from, to, type, description);
-	
-	DEG_debug_build_relation_added(rel);
-	
-	return rel;
 }
 
 /* ************************************************** */

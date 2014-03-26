@@ -543,8 +543,8 @@ void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 		
 		
 		/* attach links between these operations */
-		DEG_add_new_relation(rebuild_op, init_op,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
-		DEG_add_new_relation(init_op,    cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
+		graph->add_new_relation(rebuild_op, init_op,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
+		graph->add_new_relation(init_op,    cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
 		
 		/* NOTE: bones will attach themselves to these endpoints */
 	}
@@ -624,14 +624,14 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 	if (pchan->parent == NULL) {
 		DepsNode *pinit_op = pcomp->find_operation("Init Pose Eval");
-		DEG_add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
+		graph->add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 	}
 	
 	/* inlinks destination should all go to the "Bone Transforms" operation */
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
 	{
 		/* add equivalent relation to the bone transform operation */
-		DEG_add_new_relation(rel->from, btrans_op, rel->type, rel->name);
+		graph->add_new_relation(rel->from, btrans_op, rel->type, rel->name);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 	
@@ -674,18 +674,18 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 				/* can't have ik to ik, so use final "normal" bone transform 
 				 * as indicator to IK Solver that it is ready to run 
 				 */
-				DEG_add_new_relation(final_op, rel->to, rel->type, rel->name);
+				graph->add_new_relation(final_op, rel->to, rel->type, rel->name);
 			}
 			else {
 				/* everything which depends on result of this bone needs to know 
 				 * about the IK result too!
 				 */
-				DEG_add_new_relation(ik_op, rel->to, rel->type, rel->name);
+				graph->add_new_relation(ik_op, rel->to, rel->type, rel->name);
 			}
 		}
 		else {
 			/* bone is not part of IK Chains... */
-			DEG_add_new_relation(final_op, rel->to, rel->type, rel->name);
+			graph->add_new_relation(final_op, rel->to, rel->type, rel->name);
 		}
 	}
 	DEPSNODE_RELATIONS_ITER_END;
@@ -693,7 +693,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	/* link bone/component to pose "sinks" as final link, unless it has obvious quirks */
 	{
 		DepsNode *ppost_op = this->find_operation("Cleanup Pose Eval");
-		DEG_add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
+		graph->add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
 	}
 }
 

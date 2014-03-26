@@ -85,13 +85,6 @@ void DEG_graph_sort(Depsgraph *graph);
 		}                                                                            \
 	}
 
-/* API Methods --------------------------------------------------------- */
-
-/* Add new relationship between two nodes */
-DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
-                                   eDepsRelation_Type type, 
-                                   const char description[DEG_MAX_ID_NAME]);
-
 /* Graph Building ======================================================== */
 
 /* Build depsgraph for the given group, and dump results in given graph container 

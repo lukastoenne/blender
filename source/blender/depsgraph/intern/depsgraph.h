@@ -232,6 +232,11 @@ struct Depsgraph {
 	/* Remove node from graph, but don't free any of its data */
 	void remove_node(DepsNode *node);
 	
+	/* Add new relationship between two nodes */
+	DepsRelation *add_new_relation(DepsNode *from, DepsNode *to,
+	                               eDepsRelation_Type type, 
+	                               const char description[DEG_MAX_ID_NAME]);
+	
 	
 	/* Core Graph Functionality ........... */
 	IDNodeMap id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
