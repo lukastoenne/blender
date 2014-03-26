@@ -41,6 +41,9 @@ set(INC_SYS
 
 set(SRC
 	intern/depsgraph.cpp
+	intern/depsnode.cpp
+	intern/depsnode_component.cpp
+	intern/depsnode_operation.cpp
 	intern/depsgraph_build.cpp
 	intern/depsgraph_core.cpp
 	intern/depsgraph_debug.cpp
@@ -54,6 +57,9 @@ set(SRC
 	DEG_depsgraph_debug.h
 	DEG_depsgraph_query.h
 	intern/depsgraph.h
+	intern/depsnode.h
+	intern/depsnode_component.h
+	intern/depsnode_operation.h
 	intern/depsgraph_eval.h
 	intern/depsgraph_intern.h
 	intern/depsgraph_queue.h

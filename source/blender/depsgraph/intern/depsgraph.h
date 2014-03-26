@@ -38,6 +38,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "depsgraph_types.h"
+
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
 
@@ -46,7 +47,14 @@
 
 using std::vector;
 
+struct PointerRNA;
+struct PropertyRNA;
+
 struct DepsNode;
+struct RootDepsNode;
+struct IDDepsNode;
+struct SubgraphDepsNode;
+struct OperationDepsNode;
 
 
 /* ************************************* */

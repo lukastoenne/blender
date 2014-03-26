@@ -31,9 +31,14 @@
 extern "C" {
 #include "DNA_action_types.h"
 #include "DNA_sequence_types.h"
+
+#include "RNA_access.h"
 }
 
 #include "depsgraph.h" /* own include */
+#include "depsnode.h"
+#include "depsnode_component.h"
+#include "depsnode_operation.h"
 #include "depsgraph_intern.h"
 
 

@@ -38,6 +38,7 @@ extern "C" {
 } /* extern "C" */
 
 #include "depsgraph.h"
+#include "depsnode.h"
 #include "depsgraph_types.h"
 
 struct Main;
