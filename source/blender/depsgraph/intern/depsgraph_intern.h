@@ -59,32 +59,6 @@ void DEG_graph_validate_links(Depsgraph *graph);
  */
 void DEG_graph_sort(Depsgraph *graph);
 
-
-/* Relationships Handling ============================================== */
-
-/* Convenience Macros -------------------------------------------------- */
-
-/* Helper macros for interating over set of relationship
- * links incident on each node.
- *
- * NOTE: it is safe to perform removal operations here...
- *
- * < relations_set: (DepsNode::Relations) set of relationships (in/out links)
- * > relation:  (DepsRelation *) identifier where DepsRelation that we're currently accessing comes up
- */
-#define DEPSNODE_RELATIONS_ITER_BEGIN(relations_set_, relation_)                          \
-	{                                                                                \
-		DepsNode::Relations::const_iterator __rel_iter = relations_set_.begin();     \
-		while (__rel_iter != relations_set_.end()) {                                 \
-			DepsRelation *relation_ = *__rel_iter;                                   \
-			++__rel_iter;
-
-			/* ... code for iterator body can be written here ... */
-
-#define DEPSNODE_RELATIONS_ITER_END                                                  \
-		}                                                                            \
-	}
-
 /* Graph Building ======================================================== */
 
 /* Build depsgraph for the given group, and dump results in given graph container 

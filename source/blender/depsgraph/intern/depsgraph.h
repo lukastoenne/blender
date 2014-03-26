@@ -257,10 +257,26 @@ struct Depsgraph {
 #endif
 };
 
-/* Add new relationship between two nodes */
-DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
-                                   eDepsRelation_Type type, 
-                                   const char description[DEG_MAX_ID_NAME]);
+/* Helper macros for interating over set of relationship
+ * links incident on each node.
+ *
+ * NOTE: it is safe to perform removal operations here...
+ *
+ * < relations_set: (DepsNode::Relations) set of relationships (in/out links)
+ * > relation:  (DepsRelation *) identifier where DepsRelation that we're currently accessing comes up
+ */
+#define DEPSNODE_RELATIONS_ITER_BEGIN(relations_set_, relation_)                          \
+	{                                                                                \
+		DepsNode::Relations::const_iterator __rel_iter = relations_set_.begin();     \
+		while (__rel_iter != relations_set_.end()) {                                 \
+			DepsRelation *relation_ = *__rel_iter;                                   \
+			++__rel_iter;
+
+			/* ... code for iterator body can be written here ... */
+
+#define DEPSNODE_RELATIONS_ITER_END                                                  \
+		}                                                                            \
+	}
 
 /* ************************************* */
 
