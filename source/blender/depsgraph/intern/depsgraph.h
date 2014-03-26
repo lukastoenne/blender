@@ -184,6 +184,18 @@ struct Depsgraph {
 	 */
 	DepsNode *get_node_from_rna_path(const ID *id, const char path[]);
 	
+	/* Create a new node and add to graph
+	 * ! Arguments are as for DEG_find_node()
+	 *
+	 * > returns: The new node created (of the specified type) which now exists in the graph already
+	 *            (i.e. even if an ID node was created first, the inner node would get created first)
+	 */
+	DepsNode *add_new_node(const ID *id, const char *subdata,
+	                       eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+	
+	/* Remove node from graph, but don't free any of its data */
+	void remove_node(DepsNode *node);
+	
 	
 	/* Core Graph Functionality ........... */
 	IDNodeMap id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
@@ -208,21 +220,6 @@ struct Depsgraph {
 DepsRelation *DEG_add_new_relation(DepsNode *from, DepsNode *to,
                                    eDepsRelation_Type type, 
                                    const char description[DEG_MAX_ID_NAME]);
-
-/* Graph Building ===================================================== */
-/* Node Management ---------------------------------------------------- */
-
-/* Create a new node and add to graph
- * ! Arguments are as for DEG_find_node()
- *
- * > returns: The new node created (of the specified type) which now exists in the graph already
- *            (i.e. even if an ID node was created first, the inner node would get created first)
- */
-DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char *subdata,
-                           eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
-
-/* Remove node from graph, but don't free any of its data */
-void DEG_remove_node(Depsgraph *graph, DepsNode *node);
 
 /* ************************************* */
 

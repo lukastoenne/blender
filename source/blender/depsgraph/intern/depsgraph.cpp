@@ -53,7 +53,7 @@ DepsNode *Depsgraph::get_node(const ID *id, const char *subdata,
 	node = find_node(id, subdata, type, name);
 	if (node == NULL) {
 		/* nothing exists, so create one instead! */
-		node = DEG_add_new_node(this, id, subdata, type, name);
+		node = add_new_node(id, subdata, type, name);
 	}
 	
 	/* return the node - it must exist now... */
@@ -101,8 +101,8 @@ DepsNode *Depsgraph::get_node_from_rna_path(const ID *id, const char path[])
 /* Add ------------------------------------------------ */
 
 /* Add a new node */
-DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char *subdata,
-                           eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *Depsgraph::add_new_node(const ID *id, const char *subdata,
+                                  eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
 {
 	DepsNode *node;
 	
@@ -116,11 +116,11 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char *subdata,
 	 * NOTE: additional nodes may be created in order to add this node to the graph
 	 *       (i.e. parent/owner nodes) where applicable...
 	 */
-	node->add_to_graph(graph, id);
+	node->add_to_graph(this, id);
 	
 	/* add node to operation-node list if it plays a part in the evaluation process */
 	if (ELEM(node->tclass, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
-		graph->all_opnodes.push_back(node);
+		this->all_opnodes.push_back(node);
 	}
 	
 	DEG_debug_build_node_added(node);
@@ -132,7 +132,7 @@ DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char *subdata,
 /* Remove/Free ---------------------------------------- */
 
 /* Remove node from graph, but don't free any of its data */
-void DEG_remove_node(Depsgraph *graph, DepsNode *node)
+void Depsgraph::remove_node(DepsNode *node)
 {
 	if (node == NULL)
 		return;
@@ -151,7 +151,7 @@ void DEG_remove_node(Depsgraph *graph, DepsNode *node)
 	DEPSNODE_RELATIONS_ITER_END;
 	
 	/* remove node from graph - handle special data the node might have */
-	node->remove_from_graph(graph);
+	node->remove_from_graph(this);
 }
 
 /* Convenience Functions ---------------------------- */

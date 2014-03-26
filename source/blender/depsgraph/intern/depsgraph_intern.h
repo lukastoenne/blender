@@ -72,21 +72,6 @@ void DEG_find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRN
  */
 DepsNode *DEG_find_node_from_pointer(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop);
 
-/* Graph Building ===================================================== */
-/* Node Management ---------------------------------------------------- */
-
-/* Create a new node and add to graph
- * ! Arguments are as for DEG_find_node()
- *
- * > returns: The new node created (of the specified type) which now exists in the graph already
- *            (i.e. even if an ID node was created first, the inner node would get created first)
- */
-DepsNode *DEG_add_new_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
-                           eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
-
-/* Remove node from graph, but don't free any of its data */
-void DEG_remove_node(Depsgraph *graph, DepsNode *node);
-
 /* Convenience API ------------------------------------------------- */
 
 /* Create a new node for representing an operation and add this to graph

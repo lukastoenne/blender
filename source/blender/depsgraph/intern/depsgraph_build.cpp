@@ -820,7 +820,7 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 	 */
 	
 	/* component for all particle systems */
-	psys_comp = DEG_add_new_node(graph, &ob->id, NULL, DEPSNODE_TYPE_EVAL_PARTICLES, NULL);
+	psys_comp = graph->add_new_node(&ob->id, NULL, DEPSNODE_TYPE_EVAL_PARTICLES, NULL);
 	
 	/* particle systems */
 	for (psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
