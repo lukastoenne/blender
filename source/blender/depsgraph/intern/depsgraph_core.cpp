@@ -96,43 +96,6 @@ void DEG_graph_sort(Depsgraph *graph)
 }
 
 /* ************************************************** */
-/* Node Management */
-
-/* Add ------------------------------------------------ */
-
-DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type_, const char *tname_)
-{
-	this->type = type_;
-	if (type_ < DEPSNODE_TYPE_PARAMETERS)
-		this->tclass = DEPSNODE_CLASS_GENERIC;
-	else if (type_ < DEPSNODE_TYPE_OP_PARAMETER)
-		this->tclass = DEPSNODE_CLASS_COMPONENT;
-	else
-		this->tclass = DEPSNODE_CLASS_OPERATION;
-	this->tname = tname_;
-}
-
-DepsNode::DepsNode()
-{
-	this->name[0] = '\0';
-}
-
-DepsNode::~DepsNode()
-{
-	/* free links
-	 * note: deleting relations will remove them from the node relations set,
-	 * but only touch the same position as we are using here, which is safe.
-	 */
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
-		delete rel;
-	DEPSNODE_RELATIONS_ITER_END;
-	
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
-		delete rel;
-	DEPSNODE_RELATIONS_ITER_END;
-}
-
-/* ************************************************** */
 /* Update Tagging/Flushing */
 
 /* Low-Level Tagging -------------------------------- */
