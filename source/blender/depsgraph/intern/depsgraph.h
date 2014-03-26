@@ -214,6 +214,20 @@ struct Depsgraph {
 	 */
 	DepsNode *add_new_node(const ID *id, const char *subdata,
 	                       eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+	/* Create a new node for representing an operation and add this to graph
+	 * ! If an existing node is found, it will be modified. This helps when node may 
+	 *   have been partially created earlier (e.g. parent ref before parent item is added)
+	 *
+	 * < id: ID-Block that operation will be performed on
+	 * < (subdata): identifier for sub-ID data that this is for (e.g. bones)
+	 * < type: Operation node type (corresponding to context/component that it operates in)
+	 * < optype: Role that operation plays within component (i.e. where in eval process)
+	 * < op: The operation to perform
+	 * < name: Identifier for operation - used to find/locate it again
+	 */
+	OperationDepsNode *add_operation(ID *id, const char subdata[MAX_NAME],
+	                                 eDepsNode_Type type, eDepsOperation_Type optype, 
+	                                 DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME]);
 	
 	/* Remove node from graph, but don't free any of its data */
 	void remove_node(DepsNode *node);

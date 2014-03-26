@@ -169,9 +169,9 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	/* create data node for this driver ..................................... */
 	BLI_snprintf(name_buf, DEG_MAX_ID_NAME, "Driver @ %p", driver);
 	
-	driver_op = DEG_add_operation(graph, id, NULL, DEPSNODE_TYPE_OP_DRIVER,
-	                              DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
-	                              name_buf);
+	driver_op = graph->add_operation(id, NULL, DEPSNODE_TYPE_OP_DRIVER,
+	                                 DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
+	                                 name_buf);
 	driver_node = (DepsNode *)driver_op;
 	
 	/* RNA pointer to driver, to provide as context for execution */
@@ -321,9 +321,9 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 		subdata_name = NULL;
 	}
 	
-	constraintStackOp = DEG_add_operation(graph, &ob->id, subdata_name, stackNodeType,
-	                                      DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
-	                                      "Constraint Stack");
+	constraintStackOp = graph->add_operation(&ob->id, subdata_name, stackNodeType,
+	                                         DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
+	                                         "Constraint Stack");
 	constraintStackNode = (DepsNode *)constraintStackOp;
 	
 	/* add dependencies for each constraint in turn */
@@ -433,9 +433,9 @@ static void deg_build_ik_pose_graph(Depsgraph *graph, Scene *scene,
 	owner_node = graph->get_node(&ob->id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
 	
 	/* operation node for evaluating/running IK Solver */
-	solver_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
-	                              DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
-	                              "IK Solver");
+	solver_op = graph->add_operation(&ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
+	                                 DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
+	                                 "IK Solver");
 	solver_node = (DepsNode *)solver_op;
 	
 	/* attach owner to IK Solver too 
@@ -497,9 +497,9 @@ static void deg_build_splineik_pose_graph(Depsgraph *graph, Scene *scene,
 	/* --------------- */
 	
 	/* operation node for evaluating/running IK Solver */
-	solver_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
-	                              DEPSOP_TYPE_SIM, BKE_pose_splineik_evaluate, 
-	                              "Spline IK Solver");
+	solver_op = graph->add_operation(&ob->id, NULL, DEPSNODE_TYPE_OP_POSE,
+	                                 DEPSOP_TYPE_SIM, BKE_pose_splineik_evaluate, 
+	                                 "Spline IK Solver");
 	solver_node = (DepsNode *)solver_op;
 	// XXX: what sort of ID-data is needed?
 	
@@ -582,9 +582,9 @@ static void deg_build_rig_graph(Depsgraph *graph, Scene *scene, Object *ob)
 		bone_node->pchan = pchan;
 		
 		/* node for bone eval */
-		bone_op = DEG_add_operation(graph, &ob->id, pchan->name, DEPSNODE_TYPE_OP_BONE, 
-		                            DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
-		                            "Bone Transforms");
+		bone_op = graph->add_operation(&ob->id, pchan->name, DEPSNODE_TYPE_OP_BONE, 
+		                               DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
+		                               "Bone Transforms");
 		RNA_pointer_create(&ob->id, &RNA_PoseBone, pchan, &bone_op->ptr);
 		
 		/* bone parent */
@@ -830,9 +830,9 @@ static void deg_build_particles_graph(Depsgraph *graph, Scene *scene, Object *ob
 		DepsNode *psys_op, *node2;
 		
 		/* this particle system */
-		psys_op = (DepsNode *)DEG_add_operation(graph, &ob->id, part->id.name+2, DEPSNODE_TYPE_OP_PARTICLE, 
-		                            DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
-		                            "PSys Eval");
+		psys_op = graph->add_operation(&ob->id, part->id.name+2, DEPSNODE_TYPE_OP_PARTICLE, 
+		                               DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
+		                               "PSys Eval");
 		                            
 		/* animation associated with this particle system */
 		// XXX: what if this is used more than once!
@@ -938,14 +938,14 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 	
 	/* create nodes ------------------------------------------------------------------------ */
 	/* init/rebuild operation */
-	init_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
-	                              DEPSOP_TYPE_REBUILD, BKE_rigidbody_rebuild_sim,
-	                              "Rigidbody World Rebuild");
+	init_node = graph->add_operation(&scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
+	                                 DEPSOP_TYPE_REBUILD, BKE_rigidbody_rebuild_sim,
+	                                 "Rigidbody World Rebuild");
 	
 	/* do-sim operation */
-	sim_node = DEG_add_operation(graph, &scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
-	                             DEPSOP_TYPE_SIM, BKE_rigidbody_eval_simulation,
-	                             "Rigidbody World Do Simulation");
+	sim_node = graph->add_operation(&scene->id, NULL, DEPSNODE_TYPE_OP_RIGIDBODY,
+	                                DEPSOP_TYPE_SIM, BKE_rigidbody_eval_simulation,
+	                                "Rigidbody World Do Simulation");
 	
 	
 	/* rel between the two sim-nodes */
@@ -1001,9 +1001,9 @@ static void deg_build_rigidbody_graph(Depsgraph *graph, Scene *scene)
 				
 				
 				/* 2) create operation for flushing results */
-				rbo_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
-										   DEPSOP_TYPE_EXEC, BKE_rigidbody_object_sync_transforms, /* xxx: function name */
-										   "RigidBodyObject Sync");
+				rbo_op = graph->add_operation(&ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
+				                              DEPSOP_TYPE_EXEC, BKE_rigidbody_object_sync_transforms, /* xxx: function name */
+				                              "RigidBodyObject Sync");
 				
 				
 				/* 3) hook up evaluation order... 
@@ -1113,9 +1113,9 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			//Mesh *me = (Mesh *)ob->data;
 			
 			/* evaluation operations */
-			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_mesh_eval_geometry, 
-			                            "Geometry Eval");
+			op_eval = graph->add_operation(ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                               DEPSOP_TYPE_EXEC, BKE_mesh_eval_geometry, 
+			                               "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
 		break;
@@ -1133,9 +1133,9 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			else {
 				/* metaball evaluation operations */
 				/* NOTE: only the motherball gets evaluated! */
-				op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                                DEPSOP_TYPE_EXEC, BKE_mball_eval_geometry, 
-			                                "Geometry Eval");
+				op_eval = graph->add_operation(ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+				                               DEPSOP_TYPE_EXEC, BKE_mball_eval_geometry, 
+				                               "Geometry Eval");
 				RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 			}
 		}
@@ -1166,24 +1166,24 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 			
 			/* curve evaluation operations */
 			/* - calculate curve geometry (including path) */
-			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
-			                            "Geometry Eval");
+			op_eval = graph->add_operation(ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                               DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
+			                               "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 			
 			/* - calculate curve path - this is used by constraints, etc. */
-			op_path = DEG_add_operation(graph, obdata_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_curve_eval_path,
-			                            "Path");
+			op_path = graph->add_operation(obdata_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                               DEPSOP_TYPE_EXEC, BKE_curve_eval_path,
+			                               "Path");
 		}
 		break;
 		
 		case OB_SURF: /* Nurbs Surface */
 		{
 			/* nurbs evaluation operations */
-			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
-			                            "Geometry Eval");
+			op_eval = graph->add_operation(ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                               DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
+			                               "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
 		break;
@@ -1191,9 +1191,9 @@ static void deg_build_obdata_geom_graph(Depsgraph *graph, Scene *scene, Object *
 		case OB_LATTICE: /* Lattice */
 		{
 			/* lattice evaluation operations */
-			op_eval = DEG_add_operation(graph, ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
-			                            DEPSOP_TYPE_EXEC, BKE_lattice_eval_geometry, 
-			                            "Geometry Eval");
+			op_eval = graph->add_operation(ob_id, NULL, DEPSNODE_TYPE_OP_GEOMETRY,
+			                               DEPSOP_TYPE_EXEC, BKE_lattice_eval_geometry, 
+			                               "Geometry Eval");
 			RNA_id_pointer_create(obdata_id, &op_eval->ptr);
 		}
 		break;
@@ -1300,9 +1300,9 @@ static DepsNode *deg_build_object_transform(Depsgraph *graph, Object *ob)
 	trans_node = graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, NULL);
 	
 	/* init operation - to be hooked up later */
-	trans_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
-	                             DEPSOP_TYPE_INIT, BKE_object_eval_local_transform,
-	                             "BKE_object_eval_local_transform");
+	trans_op = graph->add_operation(&ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM,
+	                                DEPSOP_TYPE_INIT, BKE_object_eval_local_transform,
+	                                "BKE_object_eval_local_transform");
 	RNA_id_pointer_create(&ob->id, &trans_op->ptr);
 	
 	/* return component created */
@@ -1326,9 +1326,9 @@ static void deg_build_object_parents(Depsgraph *graph, Object *ob)
 	// TODO: slow parenting should result in a duplicate parent-eval path, with a special timesource with the offsetted time
 	ob_node = graph->get_node(&ob->id, NULL, DEPSNODE_TYPE_TRANSFORM, "Ob Transform");
 	
-	par_op = DEG_add_operation(graph, &ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM, 
-	                           DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
-	                           "BKE_object_eval_parent");
+	par_op = graph->add_operation(&ob->id, NULL, DEPSNODE_TYPE_OP_TRANSFORM, 
+	                              DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
+	                              "BKE_object_eval_parent");
 	RNA_id_pointer_create(&ob->id, &par_op->ptr);
 	
 	/* type-specific links */

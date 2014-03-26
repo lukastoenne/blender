@@ -215,18 +215,18 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const Propert
 /* Convenience Functions ---------------------------- */
 
 /* Create a new node for representing an operation and add this to graph */
-OperationDepsNode *DEG_add_operation(Depsgraph *graph, ID *id, const char subdata[MAX_NAME],
-                                     eDepsNode_Type type, eDepsOperation_Type optype, 
-                                     DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME])
+OperationDepsNode *Depsgraph::add_operation(ID *id, const char subdata[MAX_NAME],
+                                            eDepsNode_Type type, eDepsOperation_Type optype, 
+                                            DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME])
 {
 	OperationDepsNode *op_node = NULL;
 	
 	/* sanity check */
-	if (ELEM3(NULL, graph, id, op))
+	if (ELEM(NULL, id, op))
 		return NULL;
 	
 	/* create operation node (or find an existing but perhaps on partially completed one) */
-	op_node = (OperationDepsNode *)graph->get_node(id, subdata, type, name);
+	op_node = (OperationDepsNode *)get_node(id, subdata, type, name);
 	BLI_assert(op_node != NULL);
 	
 	/* attach extra data... */
