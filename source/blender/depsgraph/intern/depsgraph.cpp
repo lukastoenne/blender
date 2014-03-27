@@ -42,6 +42,42 @@ extern "C" {
 #include "depsgraph_intern.h"
 
 
+/* Determine node-querying criteria for finding a suitable node,
+ * given a RNA Pointer (and optionally, a property too)
+ */
+static void find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
+                                            ID **id, char subdata[MAX_NAME],
+                                            eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
+{
+	/* set default values for returns */
+	*id       = (ID *)ptr->id.data;              /* for obvious reasons... */
+	*subdata  = '\0';                      /* default to no subdata (e.g. bone) name lookup in most cases */
+	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
+	name[0]   = '\0';                      /* default to no name to lookup in most cases */
+	
+	/* handling of commonly known scenarios... */
+	if (ptr->type == &RNA_PoseBone) {
+		bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+		
+		/* bone - generally, we just want the bone component... */
+		*type = DEPSNODE_TYPE_BONE;
+		BLI_strncpy(subdata, pchan->name, MAX_NAME);
+	}
+	else if (ptr->type == &RNA_Object) {
+		Object *ob = (Object *)ptr->data;
+		
+		/* transforms props? */
+		// ...
+	}
+	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
+		Sequence *seq = (Sequence *)ptr->data;
+		
+		/* sequencer strip */
+		*type = DEPSNODE_TYPE_SEQUENCER;
+		BLI_strncpy(subdata, seq->name, MAX_NAME); // xxx?
+	}
+}
+
 /* ************************************************** */
 /* Node Management */
 
@@ -165,42 +201,6 @@ void Depsgraph::remove_node(DepsNode *node)
 }
 
 /* Query Conditions from RNA ----------------------- */
-
-/* Determine node-querying criteria for finding a suitable node,
- * given a RNA Pointer (and optionally, a property too)
- */
-void Depsgraph::find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                                ID **id, char subdata[MAX_NAME],
-                                                eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
-{
-	/* set default values for returns */
-	*id       = (ID *)ptr->id.data;              /* for obvious reasons... */
-	*subdata  = '\0';                      /* default to no subdata (e.g. bone) name lookup in most cases */
-	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
-	name[0]   = '\0';                      /* default to no name to lookup in most cases */
-	
-	/* handling of commonly known scenarios... */
-	if (ptr->type == &RNA_PoseBone) {
-		bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-		
-		/* bone - generally, we just want the bone component... */
-		*type = DEPSNODE_TYPE_BONE;
-		BLI_strncpy(subdata, pchan->name, MAX_NAME);
-	}
-	else if (ptr->type == &RNA_Object) {
-		Object *ob = (Object *)ptr->data;
-		
-		/* transforms props? */
-		// ...
-	}
-	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
-		Sequence *seq = (Sequence *)ptr->data;
-		
-		/* sequencer strip */
-		*type = DEPSNODE_TYPE_SEQUENCER;
-		BLI_strncpy(subdata, seq->name, MAX_NAME); // xxx?
-	}
-}
 
 /* Convenience wrapper to find node given just pointer + property */
 DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop)
