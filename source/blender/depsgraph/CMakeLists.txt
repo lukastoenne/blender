@@ -67,6 +67,7 @@ set(SRC
 	intern/stubs.h
 	util/depsgraph_util_map.h
 	util/depsgraph_util_set.h
+	util/depsgraph_util_string.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()
