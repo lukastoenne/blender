@@ -65,21 +65,31 @@ set(SRC
 	intern/depsgraph_queue.h
 	intern/depsgraph_types.h
 	intern/stubs.h
+	util/depsgraph_util_hash.h
 	util/depsgraph_util_map.h
 	util/depsgraph_util_set.h
 	util/depsgraph_util_string.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()
-if(HAVE_UNORDERED_MAP)
-	add_definitions(-DHAVE_UNORDERED_MAP)
-	add_definitions(-DUNORDERED_MAP_INCLUDE=<${UNORDERED_MAP_INCLUDE_PREFIX}/unordered_map>)
-	add_definitions(-DUNORDERED_MAP_NAMESPACE=${UNORDERED_MAP_NAMESPACE})
-	
-	# use same prefix and namespace for unordered_set
-	add_definitions(-DHAVE_UNORDERED_SET)
-	add_definitions(-DUNORDERED_SET_INCLUDE=<${UNORDERED_MAP_INCLUDE_PREFIX}/unordered_set>)
-	add_definitions(-DUNORDERED_SET_NAMESPACE=${UNORDERED_MAP_NAMESPACE})
+if(HAVE_STD_UNORDERED_MAP_HEADER)
+	if(HAVE_UNORDERED_MAP_IN_STD_NAMESPACE)
+		add_definitions(-DDEG_STD_UNORDERED_MAP)
+	else()
+		if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
+			add_definitions(-DDEG_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
+		else()
+			add_definitions(-DDEG_NO_UNORDERED_MAP)
+			message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
+		endif()
+	endif()
+else()
+	if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
+		add_definitions(-DDEG_TR1_UNORDERED_MAP)
+	else()
+		add_definitions(-DDEG_NO_UNORDERED_MAP)
+		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
+	endif()
 endif()
 
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}")

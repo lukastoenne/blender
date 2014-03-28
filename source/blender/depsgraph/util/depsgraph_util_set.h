@@ -27,20 +27,34 @@
 
 #include <set>
 
+#include "depsgraph_util_hash.h"
+
 using std::set;
 
-#ifdef HAVE_UNORDERED_SET
-
-#include UNORDERED_SET_INCLUDE
-
-using UNORDERED_SET_NAMESPACE::unordered_set;
-using UNORDERED_MAP_NAMESPACE::hash;
-
-#else
-
-/* use std::set as a fallback in case unordered_set is not available */
+#if defined(DEG_NO_UNORDERED_MAP)
+#  include <set>
 typedef std::set unordered_set;
+#endif
 
+#if defined(DEG_TR1_UNORDERED_MAP)
+#  include <tr1/unordered_set>
+using std::tr1::unordered_set;
+#endif
+
+#if defined(DEG_STD_UNORDERED_MAP)
+#  include <unordered_set>
+using std::unordered_set;
+#endif
+
+#if defined(DEG_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
+#  include <unordered_set>
+using std::tr1::unordered_set;
+#endif
+
+#if !defined(DEG_NO_UNORDERED_MAP) && !defined(DEG_TR1_UNORDERED_MAP) && \
+    !defined(DEG_STD_UNORDERED_MAP) && !defined(DEG_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)  // NOLINT
+#  error One of: DEG_NO_UNORDERED_MAP, DEG_TR1_UNORDERED_MAP,\
+ DEG_STD_UNORDERED_MAP, DEG_STD_UNORDERED_MAP_IN_TR1_NAMESPACE must be defined!  // NOLINT
 #endif
 
 #endif /* __DEPSGRAPH_UTIL_SET_H__ */
