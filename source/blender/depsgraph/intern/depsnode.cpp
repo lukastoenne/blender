@@ -101,9 +101,10 @@ static DepsNodeFactoryImpl<RootDepsNode> DNTI_ROOT;
 
 /* Time Source Node ======================================= */
 
-/* Add 'time source' node to graph */
+///* Add 'time source' node to graph */
 void TimeSourceDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
+#if 0
 	/* determine which node to attach timesource to */
 	if (id) {
 		/* get ID node */
@@ -135,11 +136,13 @@ void TimeSourceDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 		graph->root_node->time_source = this;
 		this->owner = graph->root_node;
 	}
+#endif
 }
 
 /* Remove 'time source' node from graph */
 void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
 {
+#if 0
 	BLI_assert(this->owner != NULL);
 	
 	switch(this->owner->type) {
@@ -155,6 +158,7 @@ void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
 		default: /* unhandled for now */
 			break;
 	}
+#endif
 }
 
 DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEPSNODE_TYPE_TIMESOURCE, "Time Source");

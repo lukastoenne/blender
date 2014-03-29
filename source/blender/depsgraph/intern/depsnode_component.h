@@ -53,6 +53,8 @@ struct BoneComponentDepsNode;
 struct ComponentDepsNode : public DepsNode {
 	typedef unordered_map<const char *, OperationDepsNode *> OperationMap;
 	
+	IDDepsNode *owner;
+	
 	OperationDepsNode *find_operation(const char *name) const;
 	
 	void init(const ID *id, const char *subdata);

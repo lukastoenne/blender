@@ -99,7 +99,7 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextTy
 	/* get context and dispatch */
 	if (node->tclass == DEPSNODE_CLASS_OPERATION) {
 		OperationDepsNode *op  = (OperationDepsNode *)node;
-		ComponentDepsNode *com = (ComponentDepsNode *)op->owner; 
+		ComponentDepsNode *com = op->owner; 
 		void *context = NULL, *item = NULL;
 		
 		/* get context */

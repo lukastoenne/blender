@@ -86,8 +86,6 @@ struct DepsNode {
 	
 	typedef unordered_set<DepsRelation *> Relations;
 	
-	DepsNode *owner;            /* mainly for inner-nodes to see which outer/data node they came from */
-	
 	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
 	
 	Relations inlinks;           /* nodes which this one depends on */

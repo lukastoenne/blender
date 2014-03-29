@@ -53,6 +53,8 @@ struct DepsgraphCopyContext;
 struct OperationDepsNode : public DepsNode {
 	void remove_from_graph(Depsgraph *graph);
 	
+	ComponentDepsNode *owner;     /* component that contains the operation */
+	
 	DepsEvalOperationCb evaluate; /* callback for operation */
 	
 	PointerRNA ptr;               /* item that operation is to be performed on (optional) */

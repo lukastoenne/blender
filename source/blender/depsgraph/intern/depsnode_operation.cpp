@@ -55,7 +55,6 @@ void OperationDepsNode::add_to_component_node(Depsgraph *graph, const ID *id, eD
 	
 	/* add to hash table */
 	component->operations[this->name] = this;
-	
 	/* add backlink to component */
 	this->owner = component;
 }
@@ -64,11 +63,9 @@ void OperationDepsNode::add_to_component_node(Depsgraph *graph, const ID *id, eD
 void OperationDepsNode::remove_from_graph(Depsgraph *UNUSED(graph))
 {
 	if (this->owner) {
-		ComponentDepsNode *component = (ComponentDepsNode *)this->owner;
-		
+		ComponentDepsNode *comp_node = this->owner;
 		/* remove node from hash table */
-		component->operations.erase(this->name);
-		
+		comp_node->operations.erase(this->name);
 		/* remove backlink */
 		this->owner = NULL;
 	}

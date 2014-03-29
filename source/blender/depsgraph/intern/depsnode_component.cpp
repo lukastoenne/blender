@@ -108,7 +108,7 @@ void ComponentDepsNode::remove_from_graph(Depsgraph *graph)
 {
 	/* detach from owner (i.e. id-ref) */
 	if (this->owner) {
-		IDDepsNode *id_node = (IDDepsNode *)this->owner;
+		IDDepsNode *id_node = this->owner;
 		id_node->components.erase(this->type);
 		this->owner = NULL;
 	}
@@ -257,7 +257,8 @@ void BoneComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	
 	/* add bone component to pose bone-hash */
 	pose_node->bone_hash[this->name] = this;
-	this->owner = pose_node;
+#pragma message("DEPSGRAPH PORTING XXX: Type mismatch! bone components are actually sub-components, this should be a distinct class")
+//	this->owner = pose_node;
 }
 
 /* Remove 'bone component' node from graph */

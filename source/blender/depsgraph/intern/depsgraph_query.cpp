@@ -178,8 +178,6 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	 * all others are derived from) that are now corrupt 
 	 */
 	{
-		dst->owner = NULL;
-		
 		/* relationships to other nodes... */
 		// FIXME: how to handle links? We may only have partial set of all nodes still?
 		// XXX: the exact details of how to handle this are really part of the querying API...
