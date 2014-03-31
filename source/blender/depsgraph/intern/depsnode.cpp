@@ -44,7 +44,7 @@ extern "C" {
 
 /* Add ------------------------------------------------ */
 
-DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type_, const char *tname_)
+DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type_, const string &tname_)
 {
 	this->type = type_;
 	if (type_ < DEPSNODE_TYPE_PARAMETERS)
@@ -167,7 +167,7 @@ static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
 /* ID Node ================================================ */
 
 /* Initialise 'id' node - from pointer data given */
-void IDDepsNode::init(const ID *id, const char *UNUSED(subdata))
+void IDDepsNode::init(const ID *id, const string &UNUSED(subdata))
 {
 	/* store ID-pointer */
 	BLI_assert(id != NULL);
@@ -300,7 +300,7 @@ static DepsNodeFactoryImpl<IDDepsNode> DNTI_ID_REF;
 /* Subgraph Node ========================================== */
 
 /* Initialise 'subgraph' node - from pointer data given */
-void SubgraphDepsNode::init(const ID *id, const char *UNUSED(subdata))
+void SubgraphDepsNode::init(const ID *id, const string &UNUSED(subdata))
 {
 	/* store ID-ref if provided */
 	this->root_id = (ID *)id;

@@ -33,9 +33,6 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
-/* Maximum length of identifier names used in Depsgraph */
-#define DEG_MAX_ID_NAME     128
-
 /* Evaluation Operation for atomic operation 
  * < context: (ComponentEvalContext) context containing data necessary for performing this operation
  *            Results can generally be written to the context directly...

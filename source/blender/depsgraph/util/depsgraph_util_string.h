@@ -26,7 +26,30 @@
 #define __DEPSGRAPH_UTIL_STRING_H__
 
 #include <string>
+#include <cstdarg>
+#include <cstdio>
 
 using std::string;
+
+/* format string function working like snprintf
+ * http://stackoverflow.com/a/3742999
+ */
+inline string string_format(const std::string fmt, ...)
+{
+	string s;
+	int n, size=100;
+	bool b=false;
+	va_list marker;
+
+	while (!b)
+	{
+		s.resize(size);
+		va_start(marker, fmt);
+		n = vsnprintf((char*)s.c_str(), size, fmt.c_str(), marker);
+		va_end(marker);
+		if ((n>0) && ((b=(n<size))==true)) s.resize(n); else size*=2;
+	}
+	return s;
+}
 
 #endif /* __DEPSGRAPH_UTIL_STRING_H__ */

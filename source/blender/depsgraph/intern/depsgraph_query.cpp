@@ -213,11 +213,11 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
  */
 
 /* helper for finding inner nodes by their names */
-static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
+static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const string &subdata,
                                      eDepsNode_Type component_type, eDepsNode_Type type, 
-                                     const char name[DEG_MAX_ID_NAME])
+                                     const string &name)
 {
-	ComponentDepsNode *component = (ComponentDepsNode *)graph->find_node(id, subdata, component_type, NULL);
+	ComponentDepsNode *component = (ComponentDepsNode *)graph->find_node(id, subdata, component_type, "");
 	
 	if (component) {
 		/* lookup node with matching name... */
@@ -235,12 +235,12 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const char 
 }
 
 /* helper for finding bone component nodes by their names */
-static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char subdata[MAX_NAME],
-                                    eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const string &subdata,
+                                    eDepsNode_Type type, const string &name)
 {
 	PoseComponentDepsNode *pose_comp;
 	
-	pose_comp = (PoseComponentDepsNode *)graph->find_node(id, NULL, DEPSNODE_TYPE_EVAL_POSE, NULL);
+	pose_comp = (PoseComponentDepsNode *)graph->find_node(id, NULL, DEPSNODE_TYPE_EVAL_POSE, "");
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
 		BoneComponentDepsNode *bone_node = pose_comp->find_bone_component(subdata);
@@ -260,8 +260,7 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const char s
 }
 
 /* Find matching node */
-DepsNode *Depsgraph::find_node(const ID *id, const char subdata[MAX_NAME],
-                               eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *Depsgraph::find_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name)
 {
 	DepsNode *result = NULL;
 	

@@ -46,14 +46,14 @@ extern "C" {
  * given a RNA Pointer (and optionally, a property too)
  */
 static void find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                            ID **id, char subdata[MAX_NAME],
-                                            eDepsNode_Type *type, char name[DEG_MAX_ID_NAME])
+                                            ID **id, string *subdata,
+                                            eDepsNode_Type *type, string *name)
 {
 	/* set default values for returns */
-	*id       = (ID *)ptr->id.data;              /* for obvious reasons... */
-	*subdata  = '\0';                      /* default to no subdata (e.g. bone) name lookup in most cases */
+	*id       = (ID *)ptr->id.data;        /* for obvious reasons... */
+	*subdata  = "";                        /* default to no subdata (e.g. bone) name lookup in most cases */
 	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
-	name[0]   = '\0';                      /* default to no name to lookup in most cases */
+	*name     = "";                        /* default to no name to lookup in most cases */
 	
 	/* handling of commonly known scenarios... */
 	if (ptr->type == &RNA_PoseBone) {
@@ -61,7 +61,7 @@ static void find_node_criteria_from_pointer(const PointerRNA *ptr, const Propert
 		
 		/* bone - generally, we just want the bone component... */
 		*type = DEPSNODE_TYPE_BONE;
-		BLI_strncpy(subdata, pchan->name, MAX_NAME);
+		*subdata = pchan->name;
 	}
 	else if (ptr->type == &RNA_Object) {
 		Object *ob = (Object *)ptr->data;
@@ -74,7 +74,7 @@ static void find_node_criteria_from_pointer(const PointerRNA *ptr, const Propert
 		
 		/* sequencer strip */
 		*type = DEPSNODE_TYPE_SEQUENCER;
-		BLI_strncpy(subdata, seq->name, MAX_NAME); // xxx?
+		*subdata = seq->name; // xxx?
 	}
 }
 
@@ -90,8 +90,7 @@ IDDepsNode *Depsgraph::find_id_node(const ID *id) const
 /* Get Node ----------------------------------------- */
 
 /* Get a matching node, creating one if need be */
-DepsNode *Depsgraph::get_node(const ID *id, const char *subdata,
-                              eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *Depsgraph::get_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name)
 {
 	DepsNode *node;
 	
@@ -113,11 +112,11 @@ DepsNode *Depsgraph::get_node_from_pointer(const PointerRNA *ptr, const Property
 	
 	ID *id;
 	eDepsNode_Type type;
-	char subdata[MAX_NAME];
-	char name[DEG_MAX_ID_NAME];
+	string subdata;
+	string name;
 	
 	/* get querying conditions */
-	find_node_criteria_from_pointer(ptr, prop, &id, subdata, &type, name);
+	find_node_criteria_from_pointer(ptr, prop, &id, &subdata, &type, &name);
 	
 	/* use standard lookup mechanisms... */
 	node = get_node(id, subdata, type, name);
@@ -125,7 +124,7 @@ DepsNode *Depsgraph::get_node_from_pointer(const PointerRNA *ptr, const Property
 }
 
 /* Get DepsNode referred to by data path */
-DepsNode *Depsgraph::get_node_from_rna_path(const ID *id, const char path[])
+DepsNode *Depsgraph::get_node_from_rna_path(const ID *id, const string &path)
 {
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop = NULL;
@@ -135,7 +134,7 @@ DepsNode *Depsgraph::get_node_from_rna_path(const ID *id, const char path[])
 	RNA_id_pointer_create((ID *)id, &id_ptr);
 	
 	/* try to resolve path... */
-	if (RNA_path_resolve(&id_ptr, path, &ptr, &prop)) {
+	if (RNA_path_resolve(&id_ptr, path.c_str(), &ptr, &prop)) {
 		/* get matching node... */
 		node = this->get_node_from_pointer(&ptr, prop);
 	}
@@ -147,8 +146,8 @@ DepsNode *Depsgraph::get_node_from_rna_path(const ID *id, const char path[])
 /* Add ------------------------------------------------ */
 
 /* Add a new node */
-DepsNode *Depsgraph::add_new_node(const ID *id, const char *subdata,
-                                  eDepsNode_Type type, const char name[DEG_MAX_ID_NAME])
+DepsNode *Depsgraph::add_new_node(const ID *id, const string &subdata,
+                                  eDepsNode_Type type, const string &name)
 {
 	DepsNode *node;
 	
@@ -207,11 +206,11 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const Propert
 {
 	ID *id;
 	eDepsNode_Type type;
-	char subdata[MAX_NAME];
-	char name[DEG_MAX_ID_NAME];
+	string subdata;
+	string name;
 	
 	/* get querying conditions */
-	find_node_criteria_from_pointer(ptr, prop, &id, subdata, &type, name);
+	find_node_criteria_from_pointer(ptr, prop, &id, &subdata, &type, &name);
 	
 	/* use standard node finding code... */
 	return find_node(id, subdata, type, name);
@@ -220,9 +219,9 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const Propert
 /* Convenience Functions ---------------------------- */
 
 /* Create a new node for representing an operation and add this to graph */
-OperationDepsNode *Depsgraph::add_operation(ID *id, const char subdata[MAX_NAME],
+OperationDepsNode *Depsgraph::add_operation(ID *id, const string &subdata,
                                             eDepsNode_Type type, eDepsOperation_Type optype, 
-                                            DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME])
+                                            DepsEvalOperationCb op, const string &name)
 {
 	OperationDepsNode *op_node = NULL;
 	
@@ -245,7 +244,7 @@ OperationDepsNode *Depsgraph::add_operation(ID *id, const char subdata[MAX_NAME]
 /* Add new relationship between two nodes */
 DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to, 
                                           eDepsRelation_Type type, 
-                                          const char description[DEG_MAX_ID_NAME])
+                                          const string &description)
 {
 	/* create new relation, and add it to the graph */
 	DepsRelation *rel = new DepsRelation(from, to, type, description);
@@ -258,12 +257,12 @@ DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to,
 /* ************************************************** */
 /* Relationships Management */
 
-DepsRelation::DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const char *description)
+DepsRelation::DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const string &description)
 {
 	this->from = from;
 	this->to = to;
 	this->type = type;
-	BLI_strncpy(this->name, description, DEG_MAX_ID_NAME);
+	this->name = description;
 	
 	/* hook it up to the nodes which use it */
 	from->outlinks.insert(this);

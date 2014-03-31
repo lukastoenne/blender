@@ -150,7 +150,7 @@ static void deg_debug_graphviz_legend(FILE *f)
 	
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
 		DepsNodeFactory *nti = DEG_get_node_factory((eDepsNode_Type)(*pair)[0]);
-		deg_debug_graphviz_legend_color(f, nti->tname(), deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
+		deg_debug_graphviz_legend_color(f, nti->tname().c_str(), deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
 	}
 	
 	fprintf(f, "</TABLE>" NL);
@@ -264,10 +264,10 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		case DEPSNODE_TYPE_ID_REF: {
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
 			if (id_node->components.empty()) {
-				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_single(f, node, node->name.c_str(), style, node->type);
 			}
 			else {
-				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name.c_str(), style, node->type);
 				for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
 					const ComponentDepsNode *comp = it->second;
 					deg_debug_graphviz_node(f, comp);
@@ -280,12 +280,12 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		case DEPSNODE_TYPE_SUBGRAPH: {
 			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
 			if (sub_node->graph) {
-				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name.c_str(), style, node->type);
 				deg_debug_graphviz_graph_nodes(f, sub_node->graph);
 				deg_debug_graphviz_node_cluster_end(f);
 			}
 			else {
-				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_single(f, node, node->name.c_str(), style, node->type);
 			}
 			break;
 		}
@@ -298,7 +298,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		case DEPSNODE_TYPE_SEQUENCER: {
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (!comp_node->operations.empty()) {
-				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name.c_str(), style, node->type);
 				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin(); it != comp_node->operations.end(); ++it) {
 					const DepsNode *op_node = it->second;
 					deg_debug_graphviz_node(f, op_node);
@@ -306,7 +306,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 				deg_debug_graphviz_node_cluster_end(f);
 			}
 			else {
-				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_single(f, node, node->name.c_str(), style, node->type);
 			}
 			break;
 		}
@@ -314,7 +314,7 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 		case DEPSNODE_TYPE_EVAL_POSE: {
 			PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node;
 			if (!pose_node->bone_hash.empty()) {
-				deg_debug_graphviz_node_cluster_begin(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_cluster_begin(f, node, node->name.c_str(), style, node->type);
 				for (PoseComponentDepsNode::BoneComponentMap::const_iterator it = pose_node->bone_hash.begin(); it != pose_node->bone_hash.end(); ++it) {
 					const DepsNode *bone_comp = it->second;
 					deg_debug_graphviz_node(f, bone_comp);
@@ -322,13 +322,13 @@ static void deg_debug_graphviz_node(FILE *f, const DepsNode *node)
 				deg_debug_graphviz_node_cluster_end(f);
 			}
 			else {
-				deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+				deg_debug_graphviz_node_single(f, node, node->name.c_str(), style, node->type);
 			}
 			break;
 		}
 		
 		default: {
-			deg_debug_graphviz_node_single(f, node, node->name, style, node->type);
+			deg_debug_graphviz_node_single(f, node, node->name.c_str(), style, node->type);
 		}
 	}
 }
@@ -373,13 +373,13 @@ static void deg_debug_graphviz_node_relations(FILE *f, const DepsNode *node)
 		const DepsNode *tail = rel->to; /* same as node */
 		const DepsNode *head = rel->from;
 		
-		fprintf(f, "// %s -> %s\n", tail->name, head->name);
+		fprintf(f, "// %s -> %s\n", tail->name.c_str(), head->name.c_str());
 		fprintf(f, "\"node_%p\"", tail);
 		fprintf(f, " -> ");
 		fprintf(f, "\"node_%p\"", head);
 
 		fprintf(f, "[");
-		fprintf(f, "label=<%s>", rel->name);
+		fprintf(f, "label=<%s>", rel->name.c_str());
 		fprintf(f, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 		deg_debug_graphviz_relation_type_color(f, ",color", rel->type);
 		

@@ -174,14 +174,14 @@ static DepsNodeFactoryImpl<PoseOperationDepsNode> DNTI_OP_POSE;
 /* Bone Operation ========================================= */
 
 /* Init local data for bone operation */
-void BoneOperationDepsNode::init(const ID *id, const char *subdata)
+void BoneOperationDepsNode::init(const ID *id, const string &subdata)
 {
 	Object *ob;
 	bPoseChannel *pchan;
 	
 	/* set up RNA Pointer to affected bone */
 	ob = (Object *)id;
-	pchan = BKE_pose_channel_find_name(ob->pose, subdata);
+	pchan = BKE_pose_channel_find_name(ob->pose, subdata.c_str());
 	
 	RNA_pointer_create((ID *)id, &RNA_PoseBone, pchan, &this->ptr);
 }

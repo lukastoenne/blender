@@ -41,9 +41,7 @@
 
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
-
-#pragma message("DEPSGRAPH PORTING XXX: DNA_defs.h only included for unnecessary MAX_NAME macro, remove later")
-#include "DNA_defs.h"
+#include "depsgraph_util_string.h"
 
 using std::vector;
 
@@ -129,12 +127,12 @@ struct DepsRelation {
 	DepsNode *to;                 /* B */
 	
 	/* relationship attributes */
-	char name[DEG_MAX_ID_NAME];   /* label for debugging */
+	string name;                  /* label for debugging */
 	
 	eDepsRelation_Type type;      /* type */
 	int flag;                     /* (eDepsRelation_Flag) */
 	
-	DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const char *description);
+	DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const string &description);
 	~DepsRelation();
 	
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -165,8 +163,7 @@ struct Depsgraph {
 	 * > returns: A node matching the required characteristics if it exists
 	 *            OR NULL if no such node exists in the graph
 	 */
-	DepsNode *find_node(const ID *id, const char subdata[MAX_NAME], 
-	                    eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+	DepsNode *find_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name);
 	IDDepsNode *find_id_node(const ID *id) const;
 	/* Convenience wrapper to find node given just pointer + property
 	 * < ptr: pointer to the data that node will represent
@@ -183,8 +180,7 @@ struct Depsgraph {
 	 *
 	 * > returns: A node matching the required characteristics that exists in the graph
 	 */
-	DepsNode *get_node(const ID *id, const char *subdata,
-	                   eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+	DepsNode *get_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name);
 	/* Get the most appropriate node referred to by pointer + property 
 	 * < graph: Depsgraph to find node from
 	 * < ptr: RNA Pointer to the data that we're supposed to find a node for
@@ -198,7 +194,7 @@ struct Depsgraph {
 	 * < path: RNA-Path to resolve
 	 * > returns: (IDDepsNode | DataDepsNode) as appropriate
 	 */
-	DepsNode *get_node_from_rna_path(const ID *id, const char path[]);
+	DepsNode *get_node_from_rna_path(const ID *id, const string &path);
 	
 	/* Create a new node and add to graph
 	 * ! Arguments are as for DEG_find_node()
@@ -206,8 +202,8 @@ struct Depsgraph {
 	 * > returns: The new node created (of the specified type) which now exists in the graph already
 	 *            (i.e. even if an ID node was created first, the inner node would get created first)
 	 */
-	DepsNode *add_new_node(const ID *id, const char *subdata,
-	                       eDepsNode_Type type, const char name[DEG_MAX_ID_NAME]);
+	DepsNode *add_new_node(const ID *id, const string &subdata,
+	                       eDepsNode_Type type, const string &name);
 	/* Create a new node for representing an operation and add this to graph
 	 * ! If an existing node is found, it will be modified. This helps when node may 
 	 *   have been partially created earlier (e.g. parent ref before parent item is added)
@@ -219,9 +215,9 @@ struct Depsgraph {
 	 * < op: The operation to perform
 	 * < name: Identifier for operation - used to find/locate it again
 	 */
-	OperationDepsNode *add_operation(ID *id, const char subdata[MAX_NAME],
+	OperationDepsNode *add_operation(ID *id, const string &subdata,
 	                                 eDepsNode_Type type, eDepsOperation_Type optype, 
-	                                 DepsEvalOperationCb op, const char name[DEG_MAX_ID_NAME]);
+	                                 DepsEvalOperationCb op, const string &name);
 	
 	/* Remove node from graph, but don't free any of its data */
 	void remove_node(DepsNode *node);
@@ -229,7 +225,7 @@ struct Depsgraph {
 	/* Add new relationship between two nodes */
 	DepsRelation *add_new_relation(DepsNode *from, DepsNode *to,
 	                               eDepsRelation_Type type, 
-	                               const char description[DEG_MAX_ID_NAME]);
+	                               const string &description);
 	
 	
 	/* Core Graph Functionality ........... */

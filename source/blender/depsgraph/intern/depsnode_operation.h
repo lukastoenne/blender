@@ -129,7 +129,7 @@ struct PoseOperationDepsNode : public OperationDepsNode {
 };
 
 struct BoneOperationDepsNode : public OperationDepsNode {
-	void init(const ID *id, const char *subdata);
+	void init(const ID *id, const string &subdata);
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	
 	DEG_DEPSNODE_DECLARE;

@@ -39,6 +39,7 @@
 
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
+#include "depsgraph_util_string.h"
 
 struct ID;
 struct Scene;
@@ -46,9 +47,6 @@ struct Scene;
 struct Depsgraph;
 struct DepsRelation;
 struct DepsgraphCopyContext;
-
-/* Maximum length of identifier names used in Depsgraph */
-#define DEG_MAX_ID_NAME     128
 
 /* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
@@ -77,19 +75,19 @@ typedef enum eDepsNode_Flag {
 struct DepsNode {
 	/* Helper class for static typeinfo in subclasses */
 	struct TypeInfo {
-		TypeInfo(eDepsNode_Type type, const char *tname);
+		TypeInfo(eDepsNode_Type type, const string &tname);
 		
 		eDepsNode_Type type;
 		eDepsNode_Class tclass;
-		const char *tname;
+		string tname;
 	};
 	
 	typedef unordered_set<DepsRelation *> Relations;
 	
-	char name[DEG_MAX_ID_NAME]; /* identifier - mainly for debugging purposes... */
+	string name;                /* identifier - mainly for debugging purposes... */
 	
-	Relations inlinks;           /* nodes which this one depends on */
-	Relations outlinks;          /* nodes which depend on this one */
+	Relations inlinks;          /* nodes which this one depends on */
+	Relations outlinks;         /* nodes which depend on this one */
 	
 	eDepsNode_Type type;        /* structural type of node */
 	eDepsNode_Class tclass;     /* type of data/behaviour represented by node... */
@@ -104,7 +102,7 @@ public:
 	DepsNode();
 	virtual ~DepsNode();
 	
-	virtual void init(const ID *id, const char *subdata) {}
+	virtual void init(const ID *id, const string &subdata) {}
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
 	
 	/* Add node to graph - Will add additional inbetween nodes as needed
@@ -162,7 +160,7 @@ struct RootDepsNode : public DepsNode {
 struct IDDepsNode : public DepsNode {
 	typedef unordered_map<eDepsNode_Type, ComponentDepsNode *, hash<int> > ComponentMap;
 	
-	void init(const ID *id, const char *subdata);
+	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const IDDepsNode *src);
 	~IDDepsNode();
 	
@@ -181,7 +179,7 @@ struct IDDepsNode : public DepsNode {
 
 /* Subgraph Reference */
 struct SubgraphDepsNode : public DepsNode {
-	void init(const ID *id, const char *subdata);
+	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src);
 	~SubgraphDepsNode();
 	

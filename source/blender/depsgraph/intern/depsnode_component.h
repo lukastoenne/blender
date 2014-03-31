@@ -51,13 +51,13 @@ struct BoneComponentDepsNode;
 
 /* ID Component - Base type for all components */
 struct ComponentDepsNode : public DepsNode {
-	typedef unordered_map<const char *, OperationDepsNode *> OperationMap;
+	typedef unordered_map<string, OperationDepsNode *> OperationMap;
 	
 	IDDepsNode *owner;
 	
-	OperationDepsNode *find_operation(const char *name) const;
+	OperationDepsNode *find_operation(const string &name) const;
 	
-	void init(const ID *id, const char *subdata);
+	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
 	~ComponentDepsNode();
 	
@@ -111,11 +111,11 @@ struct SequencerComponentDepsNode : public ComponentDepsNode {
 
 /* Pose Evaluation - Sub-data needed */
 struct PoseComponentDepsNode : public ComponentDepsNode {
-	typedef unordered_map<const char *, BoneComponentDepsNode *> BoneComponentMap;
+	typedef unordered_map<string, BoneComponentDepsNode *> BoneComponentMap;
 	
-	BoneComponentDepsNode *find_bone_component(const char *name) const;
+	BoneComponentDepsNode *find_bone_component(const string &name) const;
 	
-	void init(const ID *id, const char *subdata);
+	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const PoseComponentDepsNode *src);
 	~PoseComponentDepsNode();
 	
@@ -128,7 +128,7 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 
 /* Bone Component */
 struct BoneComponentDepsNode : public ComponentDepsNode {
-	void init(const ID *id, const char *subdata);
+	void init(const ID *id, const string &subdata);
 	
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);

@@ -45,14 +45,14 @@ extern "C" {
 
 /* Standard Component Methods ============================= */
 
-OperationDepsNode *ComponentDepsNode::find_operation(const char *name) const
+OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
 {
 	OperationMap::const_iterator it = this->operations.find(name);
 	return it != this->operations.end() ? it->second : NULL;
 }
 
 /* Initialise 'component' node - from pointer data given */
-void ComponentDepsNode::init(const ID *id, const char *subdata)
+void ComponentDepsNode::init(const ID *id, const string &subdata)
 {
 	/* hook up eval context? */
 	// XXX: maybe this needs a special API?
@@ -65,7 +65,7 @@ void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode 
 	this->operations.clear();
 	
 	for (OperationMap::const_iterator it = src->operations.begin(); it != src->operations.end(); ++it) {
-		const char *pchan_name = it->first;
+		const string &pchan_name = it->first;
 		OperationDepsNode *src_op = it->second;
 		
 		/* recursive copy */
@@ -150,14 +150,14 @@ static DepsNodeFactoryImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
 
 /* Pose Component ========================================= */
 
-BoneComponentDepsNode *PoseComponentDepsNode::find_bone_component(const char *name) const
+BoneComponentDepsNode *PoseComponentDepsNode::find_bone_component(const string &name) const
 {
 	BoneComponentMap::const_iterator it = this->bone_hash.find(name);
 	return it != this->bone_hash.end() ? it->second : NULL;
 }
 
 /* Initialise 'pose eval' node - from pointer data given */
-void PoseComponentDepsNode::init(const ID *id, const char *subdata)
+void PoseComponentDepsNode::init(const ID *id, const string &subdata)
 {
 	/* generic component-node... */
 	ComponentDepsNode::init(id, subdata);
@@ -233,17 +233,17 @@ static DepsNodeFactoryImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
 /* Bone Component ========================================= */
 
 /* Initialise 'bone component' node - from pointer data given */
-void BoneComponentDepsNode::init(const ID *id, const char *subdata)
+void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 {
 	/* generic component-node... */
 	ComponentDepsNode::init(id, subdata);
 	
 	/* name of component comes is bone name */
-	BLI_strncpy(this->name, subdata, MAX_NAME);
+	this->name = subdata;
 	
 	/* bone-specific node data */
 	Object *ob = (Object *)id;
-	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata);
+	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata.c_str());
 }
 
 /* Add 'bone component' node to graph */
@@ -328,7 +328,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 		 * take the first one that comes (during a first pass)
 		 * (XXX: there's potential here for problems with forked trees) 
 		 */
-		if (strcmp(rel->name, "IK Solver Update") == 0) {
+		if (rel->name == "IK Solver Update") {
 			ik_op = rel->to;
 			break;
 		}

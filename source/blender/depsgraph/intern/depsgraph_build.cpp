@@ -95,6 +95,8 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
 
+#include "depsgraph_util_string.h"
+
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
 /* ************************************************* */
@@ -103,7 +105,7 @@ extern "C" {
 struct DepsNodeHandle {
 	Depsgraph *graph;
 	DepsNode *node;
-	const char *default_name;
+	const string &default_name;
 };
 
 static eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType component)
@@ -137,7 +139,7 @@ void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSc
 	eDepsNode_Type type = deg_build_scene_component_type(component);
 	DepsNode *comp_node = graph->find_node((ID *)scene, NULL, type, NULL);
 	if (comp_node)
-		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, description);
+		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, string(description));
 }
 
 void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
@@ -148,7 +150,7 @@ void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObj
 	eDepsNode_Type type = deg_build_object_component_type(component);
 	DepsNode *comp_node = graph->find_node((ID *)ob, NULL, type, NULL);
 	if (comp_node)
-		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, description);
+		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, string(description));
 }
 
 /* ************************************************* */
@@ -162,7 +164,6 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 {
 	ChannelDriver *driver = fcu->driver;
 	DriverVar *dvar;
-	char name_buf[DEG_MAX_ID_NAME];
 	
 	OperationDepsNode *driver_op = NULL;
 	DepsNode *driver_node = NULL; /* same as driver_op, just cast to the relevant type */
@@ -170,11 +171,11 @@ static DepsNode *deg_build_driver_rel(Depsgraph *graph, ID *id, FCurve *fcu)
 	
 	
 	/* create data node for this driver ..................................... */
-	BLI_snprintf(name_buf, DEG_MAX_ID_NAME, "Driver @ %p", driver);
+	string name = string_format("Driver @ %p", driver);
 	
 	driver_op = graph->add_operation(id, NULL, DEPSNODE_TYPE_OP_DRIVER,
 	                                 DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
-	                                 name_buf);
+	                                 name);
 	driver_node = (DepsNode *)driver_op;
 	
 	/* RNA pointer to driver, to provide as context for execution */
@@ -293,7 +294,7 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 	OperationDepsNode *constraintStackOp;
 	DepsNode *constraintStackNode;
 	eDepsNode_Type stackNodeType;
-	char *subdata_name;
+	string subdata_name;
 	
 	bConstraint *con;
 	
@@ -321,7 +322,6 @@ static void deg_build_constraints_graph(Depsgraph *graph, Scene *scene,
 	}
 	else {
 		stackNodeType = DEPSNODE_TYPE_OP_TRANSFORM;
-		subdata_name = NULL;
 	}
 	
 	constraintStackOp = graph->add_operation(&ob->id, subdata_name, stackNodeType,
