@@ -30,6 +30,8 @@
  *  \brief Rigid body object simulation
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -50,7 +52,7 @@
 #include "BKE_rigidbody.h"
 
 /* ------------------------ */
-/* build */
+/* Main Simulation Sync */
 
 static void rigidbody_sync_object(Scene *scene, RigidBodyWorld *rbw, Object *ob, RigidBodyOb *rbo)
 {
@@ -190,8 +192,6 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 		RB_dworld_add_body(rbw->physics_world, rbo->physics_object, rbo->col_groups);
 }
 
-/* --------------------- */
-
 void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool rebuild)
 {
 	GroupObject *go;
@@ -247,7 +247,6 @@ void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool 
 }
 
 /* ------------------------ */
-/* apply */
 
 static void rigidbody_world_apply_object(Scene *UNUSED(scene), Object *ob)
 {
@@ -279,7 +278,7 @@ void BKE_rigidbody_objects_apply(Scene *scene, RigidBodyWorld *rbw)
 }
 
 /* ------------------------ */
-/* transform utilities */
+/* Transform Utils */
 
 /* Sync rigid body and object transformations */
 void BKE_rigidbody_object_apply_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
@@ -339,4 +338,286 @@ void BKE_rigidbody_object_aftertrans_update(Object *ob, float loc[3], float rot[
 		RB_body_set_loc_rot(rbo->physics_object, rbo->pos, rbo->orn);
 	}
 	// RB_TODO update rigid body physics object's loc/rot for dynamic objects here as well (needs to be done outside bullet's update loop)
+}
+
+/* ------------------------ */
+/* Object Data Management */
+
+/* Add rigid body settings to the specified object */
+RigidBodyOb *BKE_rigidbody_create_object(Scene *scene, Object *ob, short type)
+{
+	RigidBodyOb *rbo;
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+
+	/* sanity checks
+	 *	- rigidbody world must exist
+	 *	- object must exist
+	 *	- cannot add rigid body if it already exists
+	 */
+	if (ob == NULL || (ob->rigidbody_object != NULL))
+		return NULL;
+
+	/* create new settings data, and link it up */
+	rbo = MEM_callocN(sizeof(RigidBodyOb), "RigidBodyOb");
+
+	/* set default settings */
+	rbo->type = type;
+
+	rbo->mass = 1.0f;
+
+	rbo->friction = 0.5f; /* best when non-zero. 0.5 is Bullet default */
+	rbo->restitution = 0.0f; /* best when zero. 0.0 is Bullet default */
+
+	rbo->margin = 0.04f; /* 0.04 (in meters) is Bullet default */
+
+	rbo->lin_sleep_thresh = 0.4f; /* 0.4 is half of Bullet default */
+	rbo->ang_sleep_thresh = 0.5f; /* 0.5 is half of Bullet default */
+
+	rbo->lin_damping = 0.04f; /* 0.04 is game engine default */
+	rbo->ang_damping = 0.1f; /* 0.1 is game engine default */
+
+	rbo->col_groups = 1;
+
+	/* use triangle meshes for passive objects
+	 * use convex hulls for active objects since dynamic triangle meshes are very unstable
+	 */
+	if (type == RBO_TYPE_ACTIVE)
+		rbo->shape = RB_SHAPE_CONVEXH;
+	else
+		rbo->shape = RB_SHAPE_TRIMESH;
+
+	rbo->mesh_source = RBO_MESH_DEFORM;
+
+	/* set initial transform */
+	mat4_to_loc_quat(rbo->pos, rbo->orn, ob->obmat);
+
+	/* flag cache as outdated */
+	BKE_rigidbody_cache_reset(rbw);
+
+	/* return this object */
+	return rbo;
+}
+
+void BKE_rigidbody_remove_object(Scene *scene, Object *ob)
+{
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	RigidBodyOb *rbo = ob->rigidbody_object;
+	RigidBodyCon *rbc;
+	GroupObject *go;
+	int i;
+
+	if (rbw) {
+		/* remove from rigidbody world, free object won't do this */
+		if (rbw->physics_world && rbo->physics_object)
+			RB_dworld_remove_body(rbw->physics_world, rbo->physics_object);
+
+		/* remove object from array */
+		if (rbw && rbw->objects) {
+			for (i = 0; i < rbw->numbodies; i++) {
+				if (rbw->objects[i] == ob) {
+					rbw->objects[i] = NULL;
+					break;
+				}
+			}
+		}
+
+		/* remove object from rigid body constraints */
+		if (rbw->constraints) {
+			for (go = rbw->constraints->gobject.first; go; go = go->next) {
+				Object *obt = go->ob;
+				if (obt && obt->rigidbody_constraint) {
+					rbc = obt->rigidbody_constraint;
+					if (rbc->ob1 == ob) {
+						BKE_rigidbody_remove_constraint(scene, obt);
+					}
+					if (rbc->ob2 == ob) {
+						BKE_rigidbody_remove_constraint(scene, obt);
+					}
+				}
+			}
+		}
+	}
+
+	/* remove object's settings */
+	BKE_rigidbody_free_object(ob);
+
+	/* flag cache as outdated */
+	BKE_rigidbody_cache_reset(rbw);
+}
+
+/* Free RigidBody settings and sim instances */
+void BKE_rigidbody_free_object(Object *ob)
+{
+	RigidBodyOb *rbo = (ob) ? ob->rigidbody_object : NULL;
+
+	/* sanity check */
+	if (rbo == NULL)
+		return;
+
+	/* free physics references */
+	if (rbo->physics_object) {
+		rbo->physics_object = NULL;
+	}
+
+	if (rbo->physics_shape) {
+		RB_shape_delete(rbo->physics_shape);
+		rbo->physics_shape = NULL;
+	}
+
+	/* free data itself */
+	MEM_freeN(rbo);
+	ob->rigidbody_object = NULL;
+}
+
+/* This just copies the data, clearing out references to physics objects.
+ * Anything that uses them MUST verify that the copied object will
+ * be added to relevant groups later...
+ */
+RigidBodyOb *BKE_rigidbody_copy_object(Object *ob)
+{
+	RigidBodyOb *rboN = NULL;
+
+	if (ob->rigidbody_object) {
+		/* just duplicate the whole struct first (to catch all the settings) */
+		rboN = MEM_dupallocN(ob->rigidbody_object);
+
+		/* tag object as needing to be verified */
+		rboN->flag |= RBO_FLAG_NEEDS_VALIDATE;
+
+		/* clear out all the fields which need to be revalidated later */
+		rboN->physics_object = NULL;
+		rboN->physics_shape = NULL;
+	}
+
+	/* return new copy of settings */
+	return rboN;
+}
+
+/* ------------------------ */
+
+/* Add rigid body constraint to the specified object */
+RigidBodyCon *BKE_rigidbody_create_constraint(Scene *scene, Object *ob, short type)
+{
+	RigidBodyCon *rbc;
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+
+	/* sanity checks
+	 *	- rigidbody world must exist
+	 *	- object must exist
+	 *	- cannot add constraint if it already exists
+	 */
+	if (ob == NULL || (ob->rigidbody_constraint != NULL))
+		return NULL;
+
+	/* create new settings data, and link it up */
+	rbc = MEM_callocN(sizeof(RigidBodyCon), "RigidBodyCon");
+
+	/* set default settings */
+	rbc->type = type;
+
+	rbc->ob1 = NULL;
+	rbc->ob2 = NULL;
+
+	rbc->flag |= RBC_FLAG_ENABLED;
+	rbc->flag |= RBC_FLAG_DISABLE_COLLISIONS;
+
+	rbc->breaking_threshold = 10.0f; /* no good default here, just use 10 for now */
+	rbc->num_solver_iterations = 10; /* 10 is Bullet default */
+
+	rbc->limit_lin_x_lower = -1.0f;
+	rbc->limit_lin_x_upper = 1.0f;
+	rbc->limit_lin_y_lower = -1.0f;
+	rbc->limit_lin_y_upper = 1.0f;
+	rbc->limit_lin_z_lower = -1.0f;
+	rbc->limit_lin_z_upper = 1.0f;
+	rbc->limit_ang_x_lower = -M_PI_4;
+	rbc->limit_ang_x_upper = M_PI_4;
+	rbc->limit_ang_y_lower = -M_PI_4;
+	rbc->limit_ang_y_upper = M_PI_4;
+	rbc->limit_ang_z_lower = -M_PI_4;
+	rbc->limit_ang_z_upper = M_PI_4;
+
+	rbc->spring_damping_x = 0.5f;
+	rbc->spring_damping_y = 0.5f;
+	rbc->spring_damping_z = 0.5f;
+	rbc->spring_stiffness_x = 10.0f;
+	rbc->spring_stiffness_y = 10.0f;
+	rbc->spring_stiffness_z = 10.0f;
+
+	rbc->motor_lin_max_impulse = 1.0f;
+	rbc->motor_lin_target_velocity = 1.0f;
+	rbc->motor_ang_max_impulse = 1.0f;
+	rbc->motor_ang_target_velocity = 1.0f;
+
+	/* flag cache as outdated */
+	BKE_rigidbody_cache_reset(rbw);
+
+	/* return this object */
+	return rbc;
+}
+
+void BKE_rigidbody_remove_constraint(Scene *scene, Object *ob)
+{
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	RigidBodyCon *rbc = ob->rigidbody_constraint;
+
+	/* remove from rigidbody world, free object won't do this */
+	if (rbw && rbw->physics_world && rbc->physics_constraint) {
+		RB_dworld_remove_constraint(rbw->physics_world, rbc->physics_constraint);
+	}
+	/* remove object's settings */
+	BKE_rigidbody_free_constraint(ob);
+
+	/* flag cache as outdated */
+	BKE_rigidbody_cache_reset(rbw);
+}
+
+/* Free RigidBody constraint and sim instance */
+void BKE_rigidbody_free_constraint(Object *ob)
+{
+	RigidBodyCon *rbc = (ob) ? ob->rigidbody_constraint : NULL;
+
+	/* sanity check */
+	if (rbc == NULL)
+		return;
+
+	/* free physics reference */
+	if (rbc->physics_constraint) {
+		RB_constraint_delete(rbc->physics_constraint);
+		rbc->physics_constraint = NULL;
+	}
+
+	/* free data itself */
+	MEM_freeN(rbc);
+	ob->rigidbody_constraint = NULL;
+}
+
+/* This just copies the data, clearing out references to physics objects.
+ * Anything that uses them MUST verify that the copied object will
+ * be added to relevant groups later...
+ */
+RigidBodyCon *BKE_rigidbody_copy_constraint(Object *ob)
+{
+	RigidBodyCon *rbcN = NULL;
+
+	if (ob->rigidbody_constraint) {
+		/* just duplicate the whole struct first (to catch all the settings) */
+		rbcN = MEM_dupallocN(ob->rigidbody_constraint);
+
+		/* tag object as needing to be verified */
+		rbcN->flag |= RBC_FLAG_NEEDS_VALIDATE;
+
+		/* clear out all the fields which need to be revalidated later */
+		rbcN->physics_constraint = NULL;
+	}
+
+	/* return new copy of settings */
+	return rbcN;
+}
+
+/* preserve relationships between constraints and rigid bodies after duplication */
+void BKE_rigidbody_relink_constraint(RigidBodyCon *rbc)
+{
+	ID_NEW(rbc->ob1);
+	ID_NEW(rbc->ob2);
 }
