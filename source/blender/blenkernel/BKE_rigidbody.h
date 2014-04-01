@@ -29,7 +29,6 @@
  *  \ingroup blenkernel
  *  \brief API for Blender-side Rigid Body stuff
  */
- 
 
 #ifndef __BKE_RIGIDBODY_H__
 #define __BKE_RIGIDBODY_H__
@@ -108,13 +107,11 @@ void BKE_rigidbody_free_constraint(struct Object *ob);
 struct RigidBodyCon *BKE_rigidbody_copy_constraint(struct Object *ob);
 void BKE_rigidbody_relink_constraint(struct RigidBodyCon *rbc);
 
-/* Utility Macros */
+/* Utilities */
 
 /* get mass of Rigid Body Object to supply to RigidBody simulators */
-#define RBO_GET_MASS(rbo) \
-	((rbo && ((rbo->type == RBO_TYPE_PASSIVE) || (rbo->flag & RBO_FLAG_KINEMATIC) || (rbo->flag & RBO_FLAG_DISABLED))) ? (0.0f) : (rbo->mass))
+float BKE_rigidbody_object_mass(struct RigidBodyOb *rbo);
 /* get collision margin for Rigid Body Object, triangle mesh and cone shapes cannot embed margin, convex hull always uses custom margin */
-#define RBO_GET_MARGIN(rbo) \
-	((rbo->flag & RBO_FLAG_USE_MARGIN || rbo->shape == RB_SHAPE_CONVEXH || rbo->shape == RB_SHAPE_TRIMESH || rbo->shape == RB_SHAPE_CONE) ? (rbo->margin) : (0.04f))
+float BKE_rigidbody_object_margin(struct RigidBodyOb *rbo);
 
 #endif /* __BKE_RIGIDBODY_H__ */

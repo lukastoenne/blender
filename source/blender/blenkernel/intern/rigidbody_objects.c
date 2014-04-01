@@ -81,7 +81,7 @@ static void rigidbody_sync_object(Scene *scene, RigidBodyWorld *rbw, Object *ob,
 	RB_body_set_scale(rbo->physics_object, scale);
 	/* compensate for embedded convex hull collision margin */
 	if (!(rbo->flag & RBO_FLAG_USE_MARGIN) && rbo->shape == RB_SHAPE_CONVEXH)
-		RB_shape_set_margin(rbo->physics_shape, RBO_GET_MARGIN(rbo) * MIN3(scale[0], scale[1], scale[2]));
+		RB_shape_set_margin(rbo->physics_shape, BKE_rigidbody_object_margin(rbo) * MIN3(scale[0], scale[1], scale[2]));
 
 	/* make transformed objects temporarily kinmatic so that they can be moved by the user during simulation */
 	if (ob->flag & SELECT && G.moving & G_TRANSFORM_OBJ) {
@@ -185,7 +185,7 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 	                           (ob->protectflag & OB_LOCK_ROTY) == 0,
 	                           (ob->protectflag & OB_LOCK_ROTZ) == 0);
 	
-	RB_body_set_mass(body, RBO_GET_MASS(rbo));
+	RB_body_set_mass(body, BKE_rigidbody_object_mass(rbo));
 	RB_body_set_kinematic_state(body, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 
 	if (rbw && rbw->physics_world)
@@ -472,7 +472,7 @@ static void rigidbody_world_apply_object(Scene *UNUSED(scene), Object *ob)
 	/* reset kinematic state for transformed objects */
 	if (rbo && (ob->flag & SELECT) && (G.moving & G_TRANSFORM_OBJ)) {
 		RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
-		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+		RB_body_set_mass(rbo->physics_object, BKE_rigidbody_object_mass(rbo));
 		/* deactivate passive objects so they don't interfere with deactivation of active objects */
 		if (rbo->type == RBO_TYPE_PASSIVE)
 			RB_body_deactivate(rbo->physics_object);
@@ -836,4 +836,26 @@ void BKE_rigidbody_relink_constraint(RigidBodyCon *rbc)
 {
 	ID_NEW(rbc->ob1);
 	ID_NEW(rbc->ob2);
+}
+
+/* ------------------------ */
+/* Utilities */
+
+float BKE_rigidbody_object_mass(RigidBodyOb *rbo)
+{
+	if (!rbo)
+		return 0.0f;
+	if (rbo->type == RBO_TYPE_PASSIVE || rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED)
+		return 0.0f;
+	return rbo->mass;
+}
+
+float BKE_rigidbody_object_margin(RigidBodyOb *rbo)
+{
+	if (!rbo)
+		return 0.0f;
+	if (rbo->flag & RBO_FLAG_USE_MARGIN || ELEM3(rbo->shape, RB_SHAPE_CONVEXH, RB_SHAPE_TRIMESH, RB_SHAPE_CONE))
+		return rbo->margin;
+	else
+		return 0.04f;
 }

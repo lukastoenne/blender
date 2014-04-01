@@ -414,7 +414,7 @@ void BKE_rigidbody_validate_sim_shape(Object *ob, bool rebuild)
 		if (rbo->physics_shape)
 			RB_shape_delete(rbo->physics_shape);
 		rbo->physics_shape = new_shape;
-		RB_shape_set_margin(rbo->physics_shape, RBO_GET_MARGIN(rbo));
+		RB_shape_set_margin(rbo->physics_shape, BKE_rigidbody_object_margin(rbo));
 	}
 	/* use box shape if we can't fall back to old shape */
 	else if (rbo->physics_shape == NULL) {

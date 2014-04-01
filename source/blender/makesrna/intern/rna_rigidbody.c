@@ -192,7 +192,7 @@ static void rna_RigidBodyOb_disabled_set(PointerRNA *ptr, int value)
 #ifdef WITH_BULLET
 	/* update kinematic state if necessary - only needed for active bodies */
 	if ((rbo->physics_object) && (rbo->type == RBO_TYPE_ACTIVE)) {
-		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+		RB_body_set_mass(rbo->physics_object, BKE_rigidbody_object_mass(rbo));
 		RB_body_set_kinematic_state(rbo->physics_object, !value);
 		rbo->flag |= RBO_FLAG_NEEDS_VALIDATE;
 	}
@@ -208,7 +208,7 @@ static void rna_RigidBodyOb_mass_set(PointerRNA *ptr, float value)
 #ifdef WITH_BULLET
 	/* only active bodies need mass update */
 	if ((rbo->physics_object) && (rbo->type == RBO_TYPE_ACTIVE)) {
-		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+		RB_body_set_mass(rbo->physics_object, BKE_rigidbody_object_mass(rbo));
 	}
 #endif
 }
@@ -246,7 +246,7 @@ static void rna_RigidBodyOb_collision_margin_set(PointerRNA *ptr, float value)
 
 #ifdef WITH_BULLET
 	if (rbo->physics_shape) {
-		RB_shape_set_margin(rbo->physics_shape, RBO_GET_MARGIN(rbo));
+		RB_shape_set_margin(rbo->physics_shape, BKE_rigidbody_object_margin(rbo));
 	}
 #endif
 }
@@ -274,7 +274,7 @@ static void rna_RigidBodyOb_kinematic_state_set(PointerRNA *ptr, int value)
 #ifdef WITH_BULLET
 	/* update kinematic state if necessary */
 	if (rbo->physics_object) {
-		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+		RB_body_set_mass(rbo->physics_object, BKE_rigidbody_object_mass(rbo));
 		RB_body_set_kinematic_state(rbo->physics_object, value);
 		rbo->flag |= RBO_FLAG_NEEDS_VALIDATE;
 	}
