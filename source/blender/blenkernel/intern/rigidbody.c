@@ -547,178 +547,6 @@ static void rigidbody_world_build_particles(RigidBodyWorld *rbw, Object *ob, NPa
 
 /* --------------------- */
 
-/* Create physics sim representation of constraint given rigid body constraint settings
- * < rebuild: even if an instance already exists, replace it
- */
-static void rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, bool rebuild)
-{
-	RigidBodyCon *rbc = (ob) ? ob->rigidbody_constraint : NULL;
-	float loc[3];
-	float rot[4];
-	float lin_lower;
-	float lin_upper;
-	float ang_lower;
-	float ang_upper;
-
-	/* sanity checks:
-	 *	- object should have a rigid body constraint
-	 *  - rigid body constraint should have at least one constrained object
-	 */
-	if (rbc == NULL) {
-		return;
-	}
-
-	if (ELEM4(NULL, rbc->ob1, rbc->ob1->rigidbody_object, rbc->ob2, rbc->ob2->rigidbody_object)) {
-		if (rbc->physics_constraint) {
-			RB_dworld_remove_constraint(rbw->physics_world, rbc->physics_constraint);
-			RB_constraint_delete(rbc->physics_constraint);
-			rbc->physics_constraint = NULL;
-		}
-		return;
-	}
-
-	if (rbc->physics_constraint && rebuild == false) {
-		RB_dworld_remove_constraint(rbw->physics_world, rbc->physics_constraint);
-	}
-	if (rbc->physics_constraint == NULL || rebuild) {
-		rbRigidBody *rb1 = rbc->ob1->rigidbody_object->physics_object;
-		rbRigidBody *rb2 = rbc->ob2->rigidbody_object->physics_object;
-
-		/* remove constraint if it already exists before creating a new one */
-		if (rbc->physics_constraint) {
-			RB_constraint_delete(rbc->physics_constraint);
-			rbc->physics_constraint = NULL;
-		}
-
-		mat4_to_loc_quat(loc, rot, ob->obmat);
-
-		if (rb1 && rb2) {
-			switch (rbc->type) {
-				case RBC_TYPE_POINT:
-					rbc->physics_constraint = RB_constraint_new_point(loc, rb1, rb2);
-					break;
-				case RBC_TYPE_FIXED:
-					rbc->physics_constraint = RB_constraint_new_fixed(loc, rot, rb1, rb2);
-					break;
-				case RBC_TYPE_HINGE:
-					rbc->physics_constraint = RB_constraint_new_hinge(loc, rot, rb1, rb2);
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z) {
-						RB_constraint_set_limits_hinge(rbc->physics_constraint, rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
-					}
-					else
-						RB_constraint_set_limits_hinge(rbc->physics_constraint, 0.0f, -1.0f);
-					break;
-				case RBC_TYPE_SLIDER:
-					rbc->physics_constraint = RB_constraint_new_slider(loc, rot, rb1, rb2);
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X)
-						RB_constraint_set_limits_slider(rbc->physics_constraint, rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
-					else
-						RB_constraint_set_limits_slider(rbc->physics_constraint, 0.0f, -1.0f);
-					break;
-				case RBC_TYPE_PISTON:
-					rbc->physics_constraint = RB_constraint_new_piston(loc, rot, rb1, rb2);
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X) {
-						lin_lower = rbc->limit_lin_x_lower;
-						lin_upper = rbc->limit_lin_x_upper;
-					}
-					else {
-						lin_lower = 0.0f;
-						lin_upper = -1.0f;
-					}
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X) {
-						ang_lower = rbc->limit_ang_x_lower;
-						ang_upper = rbc->limit_ang_x_upper;
-					}
-					else {
-						ang_lower = 0.0f;
-						ang_upper = -1.0f;
-					}
-					RB_constraint_set_limits_piston(rbc->physics_constraint, lin_lower, lin_upper, ang_lower, ang_upper);
-					break;
-				case RBC_TYPE_6DOF_SPRING:
-					rbc->physics_constraint = RB_constraint_new_6dof_spring(loc, rot, rb1, rb2);
-
-					RB_constraint_set_spring_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_X, rbc->flag & RBC_FLAG_USE_SPRING_X);
-					RB_constraint_set_stiffness_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_X, rbc->spring_stiffness_x);
-					RB_constraint_set_damping_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_X, rbc->spring_damping_x);
-
-					RB_constraint_set_spring_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_Y, rbc->flag & RBC_FLAG_USE_SPRING_Y);
-					RB_constraint_set_stiffness_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_Y, rbc->spring_stiffness_y);
-					RB_constraint_set_damping_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_Y, rbc->spring_damping_y);
-
-					RB_constraint_set_spring_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_Z, rbc->flag & RBC_FLAG_USE_SPRING_Z);
-					RB_constraint_set_stiffness_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_Z, rbc->spring_stiffness_z);
-					RB_constraint_set_damping_6dof_spring(rbc->physics_constraint, RB_LIMIT_LIN_Z, rbc->spring_damping_z);
-
-					RB_constraint_set_equilibrium_6dof_spring(rbc->physics_constraint);
-					/* fall-through */
-				case RBC_TYPE_6DOF:
-					if (rbc->type == RBC_TYPE_6DOF) /* a litte awkward but avoids duplicate code for limits */
-						rbc->physics_constraint = RB_constraint_new_6dof(loc, rot, rb1, rb2);
-
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_X)
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_LIN_X, rbc->limit_lin_x_lower, rbc->limit_lin_x_upper);
-					else
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_LIN_X, 0.0f, -1.0f);
-
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Y)
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_LIN_Y, rbc->limit_lin_y_lower, rbc->limit_lin_y_upper);
-					else
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_LIN_Y, 0.0f, -1.0f);
-
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_LIN_Z)
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_LIN_Z, rbc->limit_lin_z_lower, rbc->limit_lin_z_upper);
-					else
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_LIN_Z, 0.0f, -1.0f);
-
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_X)
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_ANG_X, rbc->limit_ang_x_lower, rbc->limit_ang_x_upper);
-					else
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_ANG_X, 0.0f, -1.0f);
-
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Y)
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_ANG_Y, rbc->limit_ang_y_lower, rbc->limit_ang_y_upper);
-					else
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_ANG_Y, 0.0f, -1.0f);
-
-					if (rbc->flag & RBC_FLAG_USE_LIMIT_ANG_Z)
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_ANG_Z, rbc->limit_ang_z_lower, rbc->limit_ang_z_upper);
-					else
-						RB_constraint_set_limits_6dof(rbc->physics_constraint, RB_LIMIT_ANG_Z, 0.0f, -1.0f);
-					break;
-				case RBC_TYPE_MOTOR:
-					rbc->physics_constraint = RB_constraint_new_motor(loc, rot, rb1, rb2);
-
-					RB_constraint_set_enable_motor(rbc->physics_constraint, rbc->flag & RBC_FLAG_USE_MOTOR_LIN, rbc->flag & RBC_FLAG_USE_MOTOR_ANG);
-					RB_constraint_set_max_impulse_motor(rbc->physics_constraint, rbc->motor_lin_max_impulse, rbc->motor_ang_max_impulse);
-					RB_constraint_set_target_velocity_motor(rbc->physics_constraint, rbc->motor_lin_target_velocity, rbc->motor_ang_target_velocity);
-					break;
-			}
-		}
-		else { /* can't create constraint without both rigid bodies */
-			return;
-		}
-
-		RB_constraint_set_enabled(rbc->physics_constraint, rbc->flag & RBC_FLAG_ENABLED);
-
-		if (rbc->flag & RBC_FLAG_USE_BREAKING)
-			RB_constraint_set_breaking_threshold(rbc->physics_constraint, rbc->breaking_threshold);
-		else
-			RB_constraint_set_breaking_threshold(rbc->physics_constraint, FLT_MAX);
-
-		if (rbc->flag & RBC_FLAG_OVERRIDE_SOLVER_ITERATIONS)
-			RB_constraint_set_solver_iterations(rbc->physics_constraint, rbc->num_solver_iterations);
-		else
-			RB_constraint_set_solver_iterations(rbc->physics_constraint, -1);
-	}
-
-	if (rbw && rbw->physics_world && rbc->physics_constraint) {
-		RB_dworld_add_constraint(rbw->physics_world, rbc->physics_constraint, rbc->flag & RBC_FLAG_DISABLE_COLLISIONS);
-	}
-}
-
-/* --------------------- */
-
 /* Create physics sim world given RigidBody world settings */
 // NOTE: this does NOT update object references that the scene uses, in case those aren't ready yet!
 void BKE_rigidbody_validate_sim_world(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
@@ -887,46 +715,6 @@ static void rigidbody_world_build_particle_systems(Scene *UNUSED(scene), RigidBo
 	}
 }
 
-static void rigidbody_world_build_constraints(Scene *scene, RigidBodyWorld *rbw, int rebuild)
-{
-	GroupObject *go;
-	
-	if (!rbw->constraints)
-		return;
-	
-	for (go = rbw->constraints->gobject.first; go; go = go->next) {
-		Object *ob = go->ob;
-		
-		if (ob) {
-			/* validate that we've got valid object set up here... */
-			RigidBodyCon *rbc = ob->rigidbody_constraint;
-			/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
-			BKE_object_where_is_calc(scene, ob);
-			
-			if (rbc == NULL) {
-				/* Since this object is included in the group but doesn't have
-				 * constraint settings (perhaps it was added manually), add!
-				 */
-				ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
-				rigidbody_validate_sim_constraint(rbw, ob, true);
-				
-				rbc = ob->rigidbody_constraint;
-			}
-			else {
-				/* perform simulation data updates as tagged */
-				if (rebuild) {
-					/* World has been rebuilt so rebuild constraint */
-					rigidbody_validate_sim_constraint(rbw, ob, true);
-				}
-				else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
-					rigidbody_validate_sim_constraint(rbw, ob, false);
-				}
-				rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
-			}
-		}
-	}
-}
-
 /* Construct Bullet bodies, shapes and constraints from a Blender scene.
  * < rebuild: rebuild entire simulation
  */
@@ -945,7 +733,7 @@ static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, int rebuild
 	rigidbody_world_build_particle_systems(scene, rbw, rebuild);
 	
 	/* build constraints */
-	rigidbody_world_build_constraints(scene, rbw, rebuild);
+	BKE_rigidbody_constraints_build(scene, rbw, rebuild);
 	
 	/* XXX it may be desirable to do this _before_ adding new bodies (world_build_*),
 	 * otherwise could end up in situations where lots of unneeded
@@ -995,6 +783,8 @@ static void rigidbody_world_apply(Scene *scene, RigidBodyWorld *rbw)
 			}
 		}
 	}
+	
+	BKE_rigidbody_constraints_apply(scene, rbw);
 }
 
 bool BKE_rigidbody_check_sim_running(RigidBodyWorld *rbw, float ctime)

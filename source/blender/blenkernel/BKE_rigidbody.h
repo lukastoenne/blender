@@ -87,6 +87,8 @@ void BKE_rigidbody_do_simulation(struct Scene *scene, float ctime);
 
 void BKE_rigidbody_objects_build(struct Scene *scene, struct RigidBodyWorld *rbw, bool rebuild);
 void BKE_rigidbody_objects_apply(struct Scene *scene, struct RigidBodyWorld *rbw);
+void BKE_rigidbody_constraints_build(struct Scene *scene, struct RigidBodyWorld *rbw, bool rebuild);
+void BKE_rigidbody_constraints_apply(struct Scene *scene, struct RigidBodyWorld *rbw);
 
 /* Transform Utils */
 
