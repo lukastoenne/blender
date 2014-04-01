@@ -1279,66 +1279,6 @@ bool BKE_rigidbody_check_sim_running(RigidBodyWorld *rbw, float ctime)
 	return (rbw && (rbw->flag & RBW_FLAG_MUTED) == 0 && ctime > rbw->pointcache->startframe);
 }
 
-/* Sync rigid body and object transformations */
-void BKE_rigidbody_apply_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
-{
-	RigidBodyOb *rbo = ob->rigidbody_object;
-
-	/* keep original transform for kinematic and passive objects */
-	if (ELEM(NULL, rbw, rbo) || rbo->flag & RBO_FLAG_KINEMATIC || rbo->type == RBO_TYPE_PASSIVE)
-		return;
-
-	/* use rigid body transform after cache start frame if objects is not being transformed */
-	if (BKE_rigidbody_check_sim_running(rbw, ctime) && !(ob->flag & SELECT && G.moving & G_TRANSFORM_OBJ)) {
-		float mat[4][4], size_mat[4][4], size[3];
-
-		normalize_qt(rbo->orn); // RB_TODO investigate why quaternion isn't normalized at this point
-		quat_to_mat4(mat, rbo->orn);
-		copy_v3_v3(mat[3], rbo->pos);
-
-		mat4_to_size(size, ob->obmat);
-		size_to_mat4(size_mat, size);
-		mul_m4_m4m4(mat, mat, size_mat);
-
-		copy_m4_m4(ob->obmat, mat);
-	}
-	/* otherwise set rigid body transform to current obmat */
-	else {
-		mat4_to_loc_quat(rbo->pos, rbo->orn, ob->obmat);
-	}
-}
-
-/* Used when canceling transforms - return rigidbody and object to initial states */
-void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle)
-{
-	RigidBodyOb *rbo = ob->rigidbody_object;
-
-	/* return rigid body and object to their initial states */
-	copy_v3_v3(rbo->pos, ob->loc);
-	copy_v3_v3(ob->loc, loc);
-
-	if (ob->rotmode > 0) {
-		eulO_to_quat(rbo->orn, ob->rot, ob->rotmode);
-		copy_v3_v3(ob->rot, rot);
-	}
-	else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-		axis_angle_to_quat(rbo->orn, ob->rotAxis, ob->rotAngle);
-		copy_v3_v3(ob->rotAxis, rotAxis);
-		ob->rotAngle = rotAngle;
-	}
-	else {
-		copy_qt_qt(rbo->orn, ob->quat);
-		copy_qt_qt(ob->quat, quat);
-	}
-	if (rbo->physics_object) {
-		/* allow passive objects to return to original transform */
-		if (rbo->type == RBO_TYPE_PASSIVE)
-			RB_body_set_kinematic_state(rbo->physics_object, TRUE);
-		RB_body_set_loc_rot(rbo->physics_object, rbo->pos, rbo->orn);
-	}
-	// RB_TODO update rigid body physics object's loc/rot for dynamic objects here as well (needs to be done outside bullet's update loop)
-}
-
 void BKE_rigidbody_cache_reset(RigidBodyWorld *rbw)
 {
 	if (rbw)

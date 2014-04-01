@@ -96,8 +96,6 @@ void BKE_rigidbody_remove_constraint(struct Scene *scene, struct Object *ob);
 /* -------------- */
 /* Simulation */
 
-void BKE_rigidbody_aftertrans_update(struct Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle);
-void BKE_rigidbody_apply_transforms(struct RigidBodyWorld *rbw, struct Object *ob, float ctime);
 bool BKE_rigidbody_check_sim_running(struct RigidBodyWorld *rbw, float ctime);
 void BKE_rigidbody_cache_reset(struct RigidBodyWorld *rbw);
 void BKE_rigidbody_rebuild_world(struct Scene *scene, float ctime);
@@ -109,5 +107,7 @@ void BKE_rigidbody_do_simulation(struct Scene *scene, float ctime);
 
 void BKE_rigidbody_objects_build(struct Scene *scene, struct RigidBodyWorld *rbw, bool rebuild);
 void BKE_rigidbody_objects_apply(struct Scene *scene, struct RigidBodyWorld *rbw);
+void BKE_rigidbody_object_aftertrans_update(struct Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle);
+void BKE_rigidbody_object_apply_transforms(struct RigidBodyWorld *rbw, struct Object *ob, float ctime);
 
 #endif /* __BKE_RIGIDBODY_H__ */
