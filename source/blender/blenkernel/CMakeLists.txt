@@ -97,6 +97,7 @@ set(SRC
 	intern/freestyle.c
 	intern/gpencil.c
 	intern/group.c
+	intern/hair.c
 	intern/icons.c
 	intern/idcode.c
 	intern/idprop.c
@@ -208,6 +209,7 @@ set(SRC
 	BKE_global.h
 	BKE_gpencil.h
 	BKE_group.h
+	BKE_hair.h
 	BKE_icons.h
 	BKE_idcode.h
 	BKE_idprop.h
