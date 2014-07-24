@@ -28,9 +28,35 @@
  *  \ingroup bke
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_hair_types.h"
 
 #include "BKE_hair.h"
+
+struct HairSystem *BKE_hairsys_new(void)
+{
+	HairSystem *hsys = MEM_callocN(sizeof(HairSystem), "hair system");
+	return hsys;
+}
+
+void BKE_hairsys_free(struct HairSystem *hsys)
+{
+	if (hsys->curves)
+		MEM_freeN(hsys->curves);
+	if (hsys->points)
+		MEM_freeN(hsys->points);
+	MEM_freeN(hsys);
+}
+
+struct HairSystem *BKE_hairsys_copy(struct HairSystem *hsys)
+{
+	HairSystem *thsys = MEM_dupallocN(hsys);
+	thsys->points = MEM_dupallocN(hsys->points);
+	thsys->curves = MEM_dupallocN(hsys->curves);
+	
+	return thsys;
+}
 
 void BKE_hair_calc_curve_offsets(HairSystem *hsys)
 {

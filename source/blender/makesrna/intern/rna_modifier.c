@@ -102,6 +102,7 @@ EnumPropertyItem modifier_type_items[] = {
 	{eModifierType_DynamicPaint, "DYNAMIC_PAINT", ICON_MOD_DYNAMICPAINT, "Dynamic Paint", ""},
 	{eModifierType_Explode, "EXPLODE", ICON_MOD_EXPLODE, "Explode", ""},
 	{eModifierType_Fluidsim, "FLUID_SIMULATION", ICON_MOD_FLUIDSIM, "Fluid Simulation", ""},
+	{eModifierType_Hair, "HAIR", ICON_HAIR, "Hair", ""},
 	{eModifierType_Ocean, "OCEAN", ICON_MOD_OCEAN, "Ocean", ""},
 	{eModifierType_ParticleInstance, "PARTICLE_INSTANCE", ICON_MOD_PARTICLES, "Particle Instance", ""},
 	{eModifierType_ParticleSystem, "PARTICLE_SYSTEM", ICON_MOD_PARTICLES, "Particle System", ""},
@@ -244,6 +245,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_LaplacianDeformModifier;
 		case eModifierType_Wireframe:
 			return &RNA_WireframeModifier;
+		case eModifierType_Hair:
+			return &RNA_HairModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -3659,6 +3662,17 @@ static void rna_def_modifier_wireframe(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_hair(BlenderRNA *brna)
+{
+	StructRNA *srna;
+//	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "HairModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Hair Modifier", "Hair simulation modifier");
+	RNA_def_struct_sdna(srna, "HairModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_HAIR);
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3771,6 +3785,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_meshcache(brna);
 	rna_def_modifier_laplaciandeform(brna);
 	rna_def_modifier_wireframe(brna);
+	rna_def_modifier_hair(brna);
 }
 
 #endif

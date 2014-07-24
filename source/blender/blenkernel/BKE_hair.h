@@ -33,6 +33,10 @@
 
 struct HairSystem;
 
+struct HairSystem *BKE_hairsys_new(void);
+void BKE_hairsys_free(struct HairSystem *hsys);
+struct HairSystem *BKE_hairsys_copy(struct HairSystem *hsys);
+
 void BKE_hair_calc_curve_offsets(HairSystem *hsys);
 
 #endif
