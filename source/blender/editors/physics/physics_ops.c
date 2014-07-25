@@ -102,6 +102,8 @@ static void operatortypes_particle(void)
 	WM_operatortype_append(RIGIDBODY_OT_world_add);
 	WM_operatortype_append(RIGIDBODY_OT_world_remove);
 //	WM_operatortype_append(RIGIDBODY_OT_world_export);
+
+	WM_operatortype_append(HAIR_OT_copy_from_particles);
 }
 
 static void keymap_particle(wmKeyConfig *keyconf)

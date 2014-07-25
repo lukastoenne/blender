@@ -1223,7 +1223,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "material_offset", text="Material Offset")
 
     def HAIR(self, layout, ob, md):
-        pass
+        col = layout.column()
+        col.operator("hair.copy_from_particles")
 
 
 if __name__ == "__main__":  # only for live edit.
