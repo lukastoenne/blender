@@ -28,44 +28,156 @@
  *  \ingroup bke
  */
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "MEM_guardedalloc.h"
+
+#include "BLI_utildefines.h"
 
 #include "DNA_hair_types.h"
 
 #include "BKE_hair.h"
 
-struct HairSystem *BKE_hairsys_new(void)
+HairSystem *BKE_hairsys_new(void)
 {
 	HairSystem *hsys = MEM_callocN(sizeof(HairSystem), "hair system");
 	return hsys;
 }
 
-void BKE_hairsys_free(struct HairSystem *hsys)
+void BKE_hairsys_free(HairSystem *hsys)
 {
-	if (hsys->curves)
+	int totcurves = hsys->totcurves, i;
+	if (hsys->curves) {
+		for (i = 0; i < totcurves; ++i)
+			MEM_freeN(hsys->curves[i].points);
 		MEM_freeN(hsys->curves);
-	if (hsys->points)
-		MEM_freeN(hsys->points);
+	}
 	MEM_freeN(hsys);
 }
 
-struct HairSystem *BKE_hairsys_copy(struct HairSystem *hsys)
+HairSystem *BKE_hairsys_copy(HairSystem *hsys)
 {
+	int totcurves = hsys->totcurves, i;
 	HairSystem *thsys = MEM_dupallocN(hsys);
-	thsys->points = MEM_dupallocN(hsys->points);
 	thsys->curves = MEM_dupallocN(hsys->curves);
+	for (i = 0; i < totcurves; ++i)
+		thsys->curves[i].points = MEM_dupallocN(hsys->curves[i].points);
 	
 	return thsys;
 }
 
-void BKE_hair_calc_curve_offsets(HairSystem *hsys)
+
+HairCurve *BKE_hair_curve_add(HairSystem *hsys)
 {
-	HairCurve *hair;
-	int a;
-	int offset = 0;
+	return BKE_hair_curve_add_multi(hsys, 1);
+}
+
+HairCurve *BKE_hair_curve_add_multi(HairSystem *hsys, int num)
+{
+	if (num <= 0)
+		return NULL;
 	
-	for (a = 0, hair = hsys->curves; a < hsys->totcurves; ++a, ++hair) {
-		hair->offset = offset;
-		offset += hair->numpoints;
+	hsys->totcurves += num;
+	hsys->curves = MEM_recallocN_id(hsys->curves, sizeof(HairCurve) * hsys->totcurves, "hair system curve data");
+	
+	return &hsys->curves[hsys->totcurves-num];
+}
+
+void BKE_hair_curve_remove(HairSystem *hsys, HairCurve *hair)
+{
+	HairCurve *ncurves;
+	int pos, ntotcurves;
+	
+	pos = (int)(hair - hsys->curves);
+	BLI_assert(pos >= 0 && pos < hsys->totcurves);
+	
+	ntotcurves = hsys->totcurves - 1;
+	ncurves = ntotcurves > 0 ? MEM_mallocN(sizeof(HairCurve) * ntotcurves, "hair system curve data") : NULL;
+	
+	if (pos >= 1) {
+		memcpy(ncurves, hsys->curves, sizeof(HairCurve) * pos);
 	}
+	if (pos < hsys->totcurves - 1) {
+		memcpy(ncurves + pos, hsys->curves + (pos + 1), hsys->totcurves - (pos + 1));
+	}
+	
+	MEM_freeN(hair->points);
+	MEM_freeN(hsys->curves);
+	hsys->curves = ncurves;
+	hsys->totcurves = ntotcurves;
+}
+
+HairPoint *BKE_hair_point_append(HairSystem *hsys, HairCurve *hair)
+{
+	return BKE_hair_point_append_multi(hsys, hair, 1);
+}
+
+HairPoint *BKE_hair_point_append_multi(HairSystem *UNUSED(hsys), HairCurve *hair, int num)
+{
+	if (num <= 0)
+		return NULL;
+	
+	hair->totpoints += num;
+	hair->points = MEM_recallocN_id(hair->points, sizeof(HairPoint) * hair->totpoints, "hair point data");
+	
+	return &hair->points[hair->totpoints-num];
+}
+
+HairPoint *BKE_hair_point_insert(HairSystem *hsys, HairCurve *hair, int pos)
+{
+	return BKE_hair_point_insert_multi(hsys, hair, pos, 1);
+}
+
+HairPoint *BKE_hair_point_insert_multi(HairSystem *UNUSED(hsys), HairCurve *hair, int pos, int num)
+{
+	HairPoint *npoints;
+	int ntotpoints;
+	
+	if (num <= 0)
+		return NULL;
+	
+	ntotpoints = hair->totpoints + num;
+	npoints = ntotpoints > 0 ? MEM_callocN(sizeof(HairPoint) * ntotpoints, "hair point data") : NULL;
+	
+	CLAMP(pos, 0, ntotpoints-1);
+	if (pos >= 1) {
+		memcpy(npoints, hair->points, sizeof(HairPoint) * pos);
+	}
+	if (pos < hair->totpoints - num) {
+		memcpy(npoints + (pos + num), hair->points + pos, hair->totpoints - pos);
+	}
+	
+	MEM_freeN(hair->points);
+	hair->points = npoints;
+	hair->totpoints = ntotpoints;
+	
+	return &hair->points[pos];
+}
+
+void BKE_hair_point_remove(HairSystem *hsys, HairCurve *hair, HairPoint *point)
+{
+	BKE_hair_point_remove_position(hsys, hair, (int)(point - hair->points));
+}
+
+void BKE_hair_point_remove_position(HairSystem *UNUSED(hsys), HairCurve *hair, int pos)
+{
+	HairPoint *npoints;
+	int ntotpoints;
+	
+	BLI_assert(pos >= 0 && pos < hair->totpoints);
+	
+	ntotpoints = hair->totpoints - 1;
+	npoints = ntotpoints > 0 ? MEM_mallocN(sizeof(HairPoint) * ntotpoints, "hair point data") : NULL;
+	
+	if (pos >= 1) {
+		memcpy(npoints, hair->points, sizeof(HairPoint) * pos);
+	}
+	if (pos < hair->totpoints - 1) {
+		memcpy(npoints + pos, hair->points + (pos + 1), hair->totpoints - (pos + 1));
+	}
+	
+	MEM_freeN(hair->points);
+	hair->points = npoints;
+	hair->totpoints = ntotpoints;
 }

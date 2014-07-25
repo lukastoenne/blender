@@ -32,11 +32,22 @@
  */
 
 struct HairSystem;
+struct HairCurve;
+struct HairPoint;
 
 struct HairSystem *BKE_hairsys_new(void);
 void BKE_hairsys_free(struct HairSystem *hsys);
 struct HairSystem *BKE_hairsys_copy(struct HairSystem *hsys);
 
-void BKE_hair_calc_curve_offsets(HairSystem *hsys);
+struct HairCurve *BKE_hair_curve_add(struct HairSystem *hsys);
+struct HairCurve *BKE_hair_curve_add_multi(struct HairSystem *hsys, int num);
+void BKE_hair_curve_remove(struct HairSystem *hsys, struct HairCurve *hair);
+
+struct HairPoint *BKE_hair_point_append(struct HairSystem *hsys, struct HairCurve *hair);
+struct HairPoint *BKE_hair_point_append_multi(struct HairSystem *hsys, struct HairCurve *hair, int num);
+struct HairPoint *BKE_hair_point_insert(struct HairSystem *hsys, struct HairCurve *hair, int pos);
+struct HairPoint *BKE_hair_point_insert_multi(struct HairSystem *hsys, struct HairCurve *hair, int pos, int num);
+void BKE_hair_point_remove(struct HairSystem *hsys, struct HairCurve *hair, struct HairPoint *point);
+void BKE_hair_point_remove_position(struct HairSystem *hsys, struct HairCurve *hair, int pos);
 
 #endif

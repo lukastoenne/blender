@@ -35,19 +35,19 @@
 
 typedef struct HairPoint {
 	float co[3];                /* location in object space */
+	int pad;
 } HairPoint;
 
 typedef struct HairCurve {
-	int numpoints;              /* number of points in the curve */
-	
-	int offset;                 /* utility variable to keep track of points offset */
+	HairPoint *points;          /* point data */
+	int totpoints;              /* number of points in the curve */
+	int pad;
 } HairCurve;
 
 typedef struct HairSystem {
-	HairPoint *points;          /* point data */
 	HairCurve *curves;          /* curve data */
-	
-	int totcurves, totpoints;   /* number of curves and points */
+	int totcurves;              /* number of curves */
+	int pad;
 } HairSystem;
 
 #endif
