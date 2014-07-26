@@ -39,6 +39,7 @@ struct ARegion;
 struct ARegionType;
 struct BoundBox;
 struct DerivedMesh;
+struct HairSystem;
 struct Object;
 struct SmokeDomainSettings;
 struct ViewContext;
@@ -130,7 +131,9 @@ void draw_motion_path_instance(Scene *scene,
                                struct bAnimVizSettings *avs, struct bMotionPath *mpath);
 void draw_motion_paths_cleanup(View3D *v3d);
 
-
+/* drawhair.c */
+bool draw_hair_system(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
+               struct HairSystem *hsys);
 
 /* drawobject.c */
 void draw_object(Scene *scene, struct ARegion *ar, View3D *v3d, Base *base, const short dflag);
