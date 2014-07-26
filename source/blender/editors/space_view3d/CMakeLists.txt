@@ -25,6 +25,7 @@ set(INC
 	../../blenlib
 	../../bmesh
 	../../gpu
+	../../hair
 	../../imbuf
 	../../makesdna
 	../../makesrna

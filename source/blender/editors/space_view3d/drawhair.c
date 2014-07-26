@@ -48,6 +48,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "HAIR_capi.h"
+
 /* ******** Hair Drawing ******** */
 
 /* TODO vertex/index buffers, etc. etc., avoid direct mode ... */
@@ -62,6 +64,25 @@ static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
 		glVertex3fv(point->co);
 	}
 	glEnd();
+	
+	/* smoothed curve */
+	{
+		struct SmoothingIteratorFloat3 *iter;
+		float smooth_co[3];
+		
+		glColor3f(0.5f, 1.0f, 0.1f);
+		
+		glBegin(GL_LINE_STRIP);
+		iter = HAIR_smoothing_iter_new(hair, 0.1f, 4.0f);
+		for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
+			if (HAIR_smoothing_iter_valid(hair, iter)) {
+				HAIR_smoothing_iter_next(hair, iter, smooth_co);
+				glVertex3fv(smooth_co);
+			}
+		}
+		HAIR_smoothing_iter_free(iter);
+		glEnd();
+	}
 }
 
 /* called from drawobject.c, return true if nothing was drawn */

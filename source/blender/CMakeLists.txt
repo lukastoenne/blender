@@ -107,6 +107,7 @@ add_subdirectory(gpu)
 add_subdirectory(imbuf)
 add_subdirectory(nodes)
 add_subdirectory(modifiers)
+add_subdirectory(hair)
 add_subdirectory(makesdna)
 add_subdirectory(makesrna)
 
