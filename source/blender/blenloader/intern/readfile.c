@@ -68,6 +68,7 @@
 #include "DNA_genfile.h"
 #include "DNA_group_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_hair_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
@@ -4583,6 +4584,17 @@ static void direct_link_pose(FileData *fd, bPose *pose)
 	}
 }
 
+static void direct_link_hair_system(FileData *fd, HairSystem *hsys)
+{
+	HairCurve *hair;
+	int i;
+	
+	hsys->curves = newdataadr(fd, hsys->curves);
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		hair->points = newdataadr(fd, hair->points);
+	}
+}
+
 static void direct_link_modifiers(FileData *fd, ListBase *lb)
 {
 	ModifierData *md;
@@ -4842,6 +4854,13 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				BLI_endian_switch_float_array(lmd->vertexco, lmd->total_verts * 3);
 			}
 			lmd->cache_system = NULL;
+		}
+		else if (md->type == eModifierType_Hair) {
+			HairModifierData *hmd = (HairModifierData *)md;
+
+			hmd->hairsys = newdataadr(fd, hmd->hairsys);
+			if (hmd->hairsys)
+				direct_link_hair_system(fd, hmd->hairsys);
 		}
 	}
 }
