@@ -45,6 +45,7 @@
 #include "BKE_hair.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "BKE_particle.h"
 #include "BKE_report.h"
 
 #include "ED_screen.h"
@@ -77,7 +78,7 @@ static int ED_hair_active_poll(bContext *C)
 	return ED_hair_get(C, NULL, NULL);
 }
 
-static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *pob, ParticleSystem *psys)
+static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *pob, ParticleSystem *psys, struct DerivedMesh *pdm)
 {
 	HairCurve *hairs;
 	int tothairs;
@@ -96,6 +97,10 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *
 		HairCurve *hair = hairs + i;
 		HairPoint *points;
 		int totpoints;
+		float hairmat[4][4];
+		
+		psys_mat_hair_to_object(pob, pdm, psys->part->from, pa, hairmat);
+		mul_m4_m4m4(hairmat, mat, hairmat);
 		
 		totpoints = pa->totkey;
 		points = BKE_hair_point_append_multi(hsys, hair, totpoints);
@@ -104,7 +109,7 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *
 			HairKey *pa_key = pa->hair + k;
 			HairPoint *point = points + k;
 			
-			copy_v3_v3(point->co, pa_key->co);
+			mul_v3_m4v3(point->co, hairmat, pa_key->co);
 		}
 	}
 }
@@ -118,12 +123,17 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *UNUSED(op))
 	CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
 		Object *pob = base->object;
 		ParticleSystem *psys;
+		ParticleSystemModifierData *psmd;
 		
 		for (psys = pob->particlesystem.first; psys; psys = psys->next) {
 			if (psys->part->type != PART_HAIR)
 				continue;
 			
-			hair_copy_from_particles_psys(ob, hsys, pob, psys);
+			psmd = psys_get_modifier(pob, psys);
+			if (!psmd)
+				continue;
+			
+			hair_copy_from_particles_psys(ob, hsys, pob, psys, psmd->dm);
 		}
 	}
 	CTX_DATA_END;
