@@ -78,7 +78,7 @@ static int ED_hair_active_poll(bContext *C)
 	return ED_hair_get(C, NULL, NULL);
 }
 
-static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *pob, ParticleSystem *psys, struct DerivedMesh *pdm)
+static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *UNUSED(pob), ParticleSystem *psys)
 {
 	HairCurve *hairs;
 	int tothairs;
@@ -86,30 +86,25 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *
 	int i, k;
 	
 	/* matrix for bringing hairs from pob to ob space */
-	invert_m4_m4(ob->imat, ob->obmat);
-	mul_m4_m4m4(mat, ob->imat, pob->obmat);
+	invert_m4_m4(mat, ob->obmat);
 	
 	tothairs = psys->totpart;
 	hairs = BKE_hair_curve_add_multi(hsys, tothairs);
 	
 	for (i = 0; i < tothairs; ++i) {
-		ParticleData *pa = psys->particles + i;
+		ParticleCacheKey *pa_cache = psys->pathcache[i];
 		HairCurve *hair = hairs + i;
 		HairPoint *points;
 		int totpoints;
-		float hairmat[4][4];
 		
-		psys_mat_hair_to_object(pob, pdm, psys->part->from, pa, hairmat);
-		mul_m4_m4m4(hairmat, mat, hairmat);
-		
-		totpoints = pa->totkey;
+		totpoints = pa_cache->steps + 1;
 		points = BKE_hair_point_append_multi(hsys, hair, totpoints);
 		
 		for (k = 0; k < totpoints; ++k) {
-			HairKey *pa_key = pa->hair + k;
+			ParticleCacheKey *pa_key = pa_cache + k;
 			HairPoint *point = points + k;
 			
-			mul_v3_m4v3(point->co, hairmat, pa_key->co);
+			mul_v3_m4v3(point->co, mat, pa_key->co);
 		}
 	}
 }
@@ -123,17 +118,12 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *UNUSED(op))
 	CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
 		Object *pob = base->object;
 		ParticleSystem *psys;
-		ParticleSystemModifierData *psmd;
 		
 		for (psys = pob->particlesystem.first; psys; psys = psys->next) {
 			if (psys->part->type != PART_HAIR)
 				continue;
 			
-			psmd = psys_get_modifier(pob, psys);
-			if (!psmd)
-				continue;
-			
-			hair_copy_from_particles_psys(ob, hsys, pob, psys, psmd->dm);
+			hair_copy_from_particles_psys(ob, hsys, pob, psys);
 		}
 	}
 	CTX_DATA_END;
