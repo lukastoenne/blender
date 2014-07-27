@@ -93,7 +93,7 @@ float3 Solver::calc_velocity(Curve *curve, Point *point, float time, Point::Stat
 
 float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const
 {
-	return float3(0.0f, 0.0f, -1.0f);
+	return float3(0.0f, 0.0f, -0.01f);
 }
 
 void Solver::step(float timestep)
@@ -106,7 +106,17 @@ void Solver::step(float timestep)
 	
 	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
 		int numpoints = curve->totpoints;
-		for (k = 0, point = curve->points; k < numpoints; ++k, ++point) {
+		
+		/* Root point animation */
+		k = 0;
+		point = curve->points;
+		
+		// TODO actually evaluate animation here
+		point->next.co = point->cur.co;
+		point->next.vel = float3(0.0f, 0.0f, 0.0f);
+		
+		/* Integrate the remaining free points */
+		for (++k, ++point; k < numpoints; ++k, ++point) {
 			float3 acc = calc_acceleration(curve, point, 0.0f, point->cur);
 			point->next.vel = point->cur.vel + acc * timestep;
 			
