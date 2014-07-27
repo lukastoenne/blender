@@ -38,7 +38,7 @@ extern "C" {
 
 using namespace HAIR_NAMESPACE;
 
-struct HAIR_Solver *HAIR_solver_new()
+struct HAIR_Solver *HAIR_solver_new(void)
 {
 	Solver *solver = new Solver();
 	
@@ -66,8 +66,8 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, HairSystem *hsys)
 	
 	/* allocate data */
 	solver->init_data(hsys->totcurves, totpoints);
-	Curve *solver_curves = solver->data().curves;
-	Point *solver_points = solver->data().points;
+	Curve *solver_curves = solver->data()->curves;
+	Point *solver_points = solver->data()->points;
 	
 	/* copy data to solver data */
 	Point *point = solver_points;
@@ -86,8 +86,8 @@ void HAIR_solver_apply(struct HAIR_Solver *csolver, HairSystem *hsys)
 	Solver *solver = (Solver *)csolver;
 	int i;
 	
-	Curve *solver_curves = solver->data().curves;
-	int totcurves = solver->data().totcurves;
+	Curve *solver_curves = solver->data()->curves;
+	int totcurves = solver->data()->totcurves;
 	
 	/* copy solver data to DNA */
 	for (i = 0; i < totcurves && i < hsys->totcurves; ++i) {

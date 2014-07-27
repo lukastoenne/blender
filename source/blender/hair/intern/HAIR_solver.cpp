@@ -54,26 +54,36 @@ SolverData::SolverData(const SolverData &other) :
 
 SolverData::~SolverData()
 {
-	delete curves;
-	delete points;
+	if (curves)
+		delete[] curves;
+	if (points)
+		delete[] points;
 }
 
-Solver::Solver()
+Solver::Solver() :
+    m_data(NULL)
 {
 }
 
 Solver::~Solver()
 {
+	if (m_data)
+		delete m_data;
 }
 
 void Solver::init_data(int totcurves, int totpoints)
 {
-	m_data = SolverData(totcurves, totpoints);
+	if (!m_data) {
+		m_data = new SolverData(totcurves, totpoints);
+	}
 }
 
 void Solver::free_data()
 {
-	m_data = SolverData();
+	if (m_data) {
+		delete m_data;
+		m_data = NULL;
+	}
 }
 
 HAIR_NAMESPACE_END

@@ -54,13 +54,12 @@ public:
 	
 	void init_data(int totcurves, int totpoints);
 	void free_data();
-	SolverData &data() { return m_data; }
-	const SolverData &data() const { return m_data; }
+	SolverData *data() const { return m_data; }
 	
 	void step(float timestep);
 	
 private:
-	SolverData m_data;
+	SolverData *m_data;
 
 	HAIR_CXX_CLASS_ALLOC(Solver)
 };

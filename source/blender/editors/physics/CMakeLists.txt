@@ -23,6 +23,7 @@ set(INC
 	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../hair
 	../../makesdna
 	../../makesrna
 	../../windowmanager
