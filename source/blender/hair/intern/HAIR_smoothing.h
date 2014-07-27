@@ -31,6 +31,8 @@ extern "C" {
 #include "BLI_math.h"
 }
 
+#include "HAIR_memalloc.h"
+
 HAIR_NAMESPACE_BEGIN
 
 #if 0
@@ -101,6 +103,8 @@ struct SmoothingIterator {
 	T dval_p, dval_pp;
 	int num;
 	const float beta, f1, f2, f3;
+
+	HAIR_CXX_CLASS_ALLOC(SmoothingIterator)
 };
 
 HAIR_NAMESPACE_END

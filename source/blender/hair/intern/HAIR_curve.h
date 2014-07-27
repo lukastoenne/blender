@@ -27,6 +27,8 @@
 #ifndef __HAIR_CURVE_H__
 #define __HAIR_CURVE_H__
 
+#include "HAIR_memalloc.h"
+
 #include "HAIR_types.h"
 
 HAIR_NAMESPACE_BEGIN
@@ -35,6 +37,8 @@ class Point {
 	Point(const float3 &co);
 	
 	float3 co;
+	
+	HAIR_CXX_CLASS_ALLOC(Point)
 };
 
 class Curve {
@@ -42,6 +46,8 @@ class Curve {
 	
 	Point *points;
 	int totpoints;
+
+	HAIR_CXX_CLASS_ALLOC(Curve)
 };
 
 HAIR_NAMESPACE_END

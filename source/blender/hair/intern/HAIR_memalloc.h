@@ -24,19 +24,17 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "HAIR_curve.h"
+#ifndef __HAIR_MEMALLOC_H__
+#define __HAIR_MEMALLOC_H__
 
-HAIR_NAMESPACE_BEGIN
+#include "MEM_guardedalloc.h"
 
-Point::Point(const float3 &co) :
-    co(co)
-{
-}
+#include "BLI_utildefines.h"
 
-Curve::Curve(int totpoints, Point *points) :
-    points(points),
-    totpoints(totpoints)
-{
-}
+#ifdef WITH_CXX_GUARDEDALLOC
+	#define HAIR_CXX_CLASS_ALLOC(name) MEM_CXX_CLASS_ALLOC_FUNCS(STRINGIFY(HAIR_NAMESPACE)##name)
+#else
+	#define HAIR_CXX_CLASS_ALLOC(name)
+#endif
 
-HAIR_NAMESPACE_END
+#endif
