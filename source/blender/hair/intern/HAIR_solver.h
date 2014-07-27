@@ -27,6 +27,10 @@
 #ifndef __HAIR_SOLVER_H__
 #define __HAIR_SOLVER_H__
 
+extern "C" {
+#include "DNA_hair_types.h"
+}
+
 #include "HAIR_curve.h"
 #include "HAIR_memalloc.h"
 
@@ -49,8 +53,10 @@ struct SolverData {
 class Solver
 {
 public:
-	Solver();
+	Solver(const HairParams &params);
 	~Solver();
+	
+	const HairParams &params() const { return m_params; }
 	
 	void init_data(int totcurves, int totpoints);
 	void free_data();
@@ -63,6 +69,7 @@ protected:
 	float3 calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const;
 	
 private:
+	HairParams m_params;
 	SolverData *m_data;
 
 	HAIR_CXX_CLASS_ALLOC(Solver)

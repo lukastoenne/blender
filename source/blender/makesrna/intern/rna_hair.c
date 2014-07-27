@@ -52,6 +52,25 @@ static void rna_HairSystem_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Poi
 
 #else
 
+static void rna_def_hair_params(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "HairParams", NULL);
+	RNA_def_struct_ui_text(srna, "Hair Parameters", "Hair simulation parameters");
+
+	prop = RNA_def_property(srna, "stretch_stiffness", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "stretch_stiffness");
+	RNA_def_property_ui_range(prop, 0.0f, 10.0f, 0.1, 2);
+	RNA_def_property_ui_text(prop, "Stretch Stiffness", "");
+
+	prop = RNA_def_property(srna, "stretch_damping", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "stretch_damping");
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.05, 3);
+	RNA_def_property_ui_text(prop, "Stretch Damping", "");
+}
+
 static void rna_def_hair_system(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -65,10 +84,16 @@ static void rna_def_hair_system(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0f, 10.0f, 0.1, 2);
 	RNA_def_property_ui_text(prop, "Smoothing", "Amount of smoothing");
 	RNA_def_property_update(prop, 0, "rna_HairSystem_update");
+
+	prop = RNA_def_property(srna, "params", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "params");
+	RNA_def_property_struct_type(prop, "HairParams");
+	RNA_def_property_ui_text(prop, "Parameters", "Parameters for the hair simulation");
 }
 
 void RNA_def_hair(BlenderRNA *brna)
 {
+	rna_def_hair_params(brna);
 	rna_def_hair_system(brna);
 }
 

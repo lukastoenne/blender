@@ -46,12 +46,22 @@ typedef struct HairCurve {
 	int pad;
 } HairCurve;
 
+typedef struct HairParams {
+	float stretch_stiffness;
+	float stretch_damping;
+	int pad[2];
+} HairParams;
+
 typedef struct HairSystem {
 	HairCurve *curves;          /* curve data */
 	int totcurves;              /* number of curves */
+	int pad;
+	
+	HairParams params;
 	
 	/* testing */
 	float smooth;
+	int pad2;
 } HairSystem;
 
 #endif

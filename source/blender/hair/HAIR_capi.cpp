@@ -38,9 +38,9 @@ extern "C" {
 
 using namespace HAIR_NAMESPACE;
 
-struct HAIR_Solver *HAIR_solver_new(void)
+struct HAIR_Solver *HAIR_solver_new(const struct HairParams *params)
 {
-	Solver *solver = new Solver();
+	Solver *solver = new Solver(*params);
 	
 	return (HAIR_Solver *)solver;
 }

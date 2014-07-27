@@ -42,6 +42,10 @@
 HairSystem *BKE_hairsys_new(void)
 {
 	HairSystem *hsys = MEM_callocN(sizeof(HairSystem), "hair system");
+	
+	hsys->params.stretch_stiffness = 7e6;
+	hsys->params.stretch_damping = 4500;
+	
 	return hsys;
 }
 

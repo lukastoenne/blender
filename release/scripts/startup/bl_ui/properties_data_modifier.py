@@ -1224,12 +1224,22 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def HAIR(self, layout, ob, md):
         hsys = md.hair_system
+        params = hsys.params
         col = layout.column()
-
-        col.prop(md, "steps_per_second")
-        col.separator()
+        
         col.prop(hsys, "smooth")
+        
         col.separator()
+        
+        col.prop(md, "steps_per_second")
+        row = col.row()
+        col2 = row.column()
+        col2.prop(params, "stretch_stiffness")
+        col2 = row.column()
+        col2.prop(params, "stretch_damping")
+        
+        col.separator()
+        
         col.operator("hair.copy_from_particles")
 
 

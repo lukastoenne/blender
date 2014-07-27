@@ -34,7 +34,7 @@ struct HairSystem;
 struct HAIR_Solver;
 struct HAIR_SmoothingIteratorFloat3;
 
-struct HAIR_Solver *HAIR_solver_new(void);
+struct HAIR_Solver *HAIR_solver_new(const struct HairParams *params);
 void HAIR_solver_free(struct HAIR_Solver *solver);
 void HAIR_solver_init(struct HAIR_Solver *solver, struct HairSystem *hsys);
 void HAIR_solver_step(struct HAIR_Solver *solver, float timestep);

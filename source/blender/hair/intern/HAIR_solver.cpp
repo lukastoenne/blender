@@ -60,7 +60,8 @@ SolverData::~SolverData()
 		delete[] points;
 }
 
-Solver::Solver() :
+Solver::Solver(const HairParams &params) :
+    m_params(params),
     m_data(NULL)
 {
 }
