@@ -92,18 +92,17 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 		float dt = 1.0f / (float)hmd->steps_per_second;
 		int s;
 		
+		solver = HAIR_solver_new();
+		HAIR_solver_init(solver, hsys);
+		
 		if (num_steps < 10000) {
 			for (s = 0; s < num_steps; ++s) {
-				solver = HAIR_solver_new();
-				HAIR_solver_init(solver, hsys);
-				
 				HAIR_solver_step(solver, dt);
-				
-				HAIR_solver_apply(solver, hsys);
-				
-				HAIR_solver_free(solver);
 			}
 		}
+		HAIR_solver_apply(solver, hsys);
+		
+		HAIR_solver_free(solver);
 	}
 	
 	return dm;
