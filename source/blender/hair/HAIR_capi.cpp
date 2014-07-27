@@ -76,7 +76,9 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, HairSystem *hsys)
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
-			*point = Point(hair_pt->co, hair_pt->vel);
+			*point = Point(hair_pt->rest_co);
+			point->cur.co = float3(hair_pt->co);
+			point->cur.vel = float3(hair_pt->vel);
 		}
 	}
 }

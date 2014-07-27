@@ -40,10 +40,12 @@ struct Point {
 	};
 	
 	Point();
-	Point(const float3 &co, const float3 &vel);
+	Point(const float3 &rest_co);
 	
 	State cur;
 	State next;
+	
+	float3 rest_co;
 	
 	HAIR_CXX_CLASS_ALLOC(Point)
 };

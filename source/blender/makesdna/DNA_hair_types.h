@@ -34,10 +34,10 @@
 #define __DNA_HAIR_TYPES_H__
 
 typedef struct HairPoint {
+	float rest_co[3];           /* rest location in object space */
 	float co[3];                /* location in object space */
-	int pad;
 	float vel[3];               /* velocity */
-	int pad2;
+	int pad[3];
 } HairPoint;
 
 typedef struct HairCurve {

@@ -110,7 +110,8 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *
 			ParticleCacheKey *pa_key = pa_cache + k;
 			HairPoint *point = points + k;
 			
-			mul_v3_m4v3(point->co, mat, pa_key->co);
+			mul_v3_m4v3(point->rest_co, mat, pa_key->co);
+			copy_v3_v3(point->co, point->rest_co);
 			zero_v3(point->vel);
 		}
 	}
