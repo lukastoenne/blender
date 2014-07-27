@@ -1370,6 +1370,8 @@ typedef struct HairModifierData {
 	ModifierData modifier;
 	
 	struct HairSystem *hairsys;
+	float prev_cfra;
+	int steps_per_second;
 } HairModifierData;
 
 

@@ -33,6 +33,7 @@ set(INC
 	../makesdna
 	../makesrna
 	../bmesh
+	../hair
 	../render/extern/include
 	../../../intern/elbeem/extern
 	../../../intern/guardedalloc

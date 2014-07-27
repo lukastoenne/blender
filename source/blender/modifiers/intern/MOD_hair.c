@@ -37,8 +37,11 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_hair.h"
 #include "BKE_modifier.h"
+#include "BKE_scene.h"
 
 #include "depsgraph_private.h"
+
+#include "HAIR_capi.h"
 
 #include "MOD_util.h"
 #include "MEM_guardedalloc.h"
@@ -48,6 +51,9 @@ static void initData(ModifierData *md)
 	HairModifierData *hmd = (HairModifierData *) md;
 	
 	hmd->hairsys = BKE_hairsys_new();
+	hmd->prev_cfra = 1.0f; /* XXX where to get this properly ... md-> is not initialized at this point */
+	
+	hmd->steps_per_second = 30;
 }
 static void freeData(ModifierData *md)
 {
@@ -65,13 +71,40 @@ static void copyData(ModifierData *md, ModifierData *target)
 		BKE_hairsys_free(thmd->hairsys);
 	
 	thmd->hairsys = BKE_hairsys_copy(hmd->hairsys);
+	thmd->prev_cfra = hmd->prev_cfra;
 }
 
-static DerivedMesh *applyModifier(ModifierData *UNUSED(md), Object *UNUSED(ob),
+static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
                                   DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {
-	/*HairModifierData *hmd = (HairModifierData *) md;*/
+	HairModifierData *hmd = (HairModifierData *) md;
+	HairSystem *hsys = hmd->hairsys;
+	Scene *scene = md->scene;
+	float cfra = BKE_scene_frame_get(scene), dfra;
+	struct HAIR_Solver *solver;
+	
+	dfra = cfra - hmd->prev_cfra;
+	if (dfra > 0.0f && FPS > 0.0f) {
+		float prev_steps = hmd->prev_cfra / FPS * (float)hmd->steps_per_second;
+		float steps = cfra / FPS * (float)hmd->steps_per_second;
+		int num_steps = (int)steps - (int)prev_steps;
+		float dt = 1.0f / (float)hmd->steps_per_second;
+		int s;
+		
+		if (num_steps < 10000) {
+			for (s = 0; s < num_steps; ++s) {
+				solver = HAIR_solver_new();
+				HAIR_solver_init(solver, hsys);
+				
+				HAIR_solver_step(solver, dt);
+				
+				HAIR_solver_apply(solver, hsys);
+				
+				HAIR_solver_free(solver);
+			}
+		}
+	}
 	
 	return dm;
 }

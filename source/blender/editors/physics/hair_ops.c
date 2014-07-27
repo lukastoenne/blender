@@ -50,6 +50,8 @@
 
 #include "HAIR_capi.h"
 
+#include "RNA_define.h"
+
 #include "ED_screen.h"
 
 #include "WM_types.h"
@@ -78,43 +80,6 @@ static bool ED_hair_get(bContext *C, Object **r_ob, HairSystem **r_hsys)
 static int ED_hair_active_poll(bContext *C)
 {
 	return ED_hair_get(C, NULL, NULL);
-}
-
-/************************ run simulation *********************/
-
-static int hair_simulate_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	Object *ob;
-	HairSystem *hsys;
-	struct HAIR_Solver *solver;
-	ED_hair_get(C, &ob, &hsys);
-	
-	solver = HAIR_solver_new();
-	HAIR_solver_init(solver, hsys);
-	
-	HAIR_solver_step(solver, 0.1f);
-	
-	HAIR_solver_apply(solver, hsys);
-	
-	HAIR_solver_free(solver);
-	
-	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
-	return OPERATOR_FINISHED;
-}
-
-void HAIR_OT_simulate(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->idname = "HAIR_OT_simulate";
-	ot->name = "Simulate Hair";
-	ot->description = "Evaluate a number of discrete simulation time steps in the hair system";
-
-	/* callbacks */
-	ot->exec = hair_simulate_exec;
-	ot->poll = ED_hair_active_poll;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
 /************************ copy hair data from old particles *********************/
