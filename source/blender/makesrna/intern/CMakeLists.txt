@@ -52,6 +52,7 @@ set(DEFSRC
 	rna_fluidsim.c
 	rna_gpencil.c
 	rna_group.c
+	rna_hair.c
 	rna_image.c
 	rna_key.c
 	rna_lamp.c

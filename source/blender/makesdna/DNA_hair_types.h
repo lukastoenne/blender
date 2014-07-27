@@ -47,7 +47,9 @@ typedef struct HairCurve {
 typedef struct HairSystem {
 	HairCurve *curves;          /* curve data */
 	int totcurves;              /* number of curves */
-	int pad;
+	
+	/* testing */
+	float smooth;
 } HairSystem;
 
 #endif

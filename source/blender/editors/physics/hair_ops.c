@@ -128,6 +128,7 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	CTX_DATA_END;
 	
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	return OPERATOR_FINISHED;
 }
 

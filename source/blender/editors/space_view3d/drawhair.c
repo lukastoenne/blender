@@ -48,16 +48,20 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "UI_resources.h"
+
 #include "HAIR_capi.h"
 
 /* ******** Hair Drawing ******** */
 
 /* TODO vertex/index buffers, etc. etc., avoid direct mode ... */
 
-static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
+static void draw_hair_curve(HairSystem *hsys, HairCurve *hair)
 {
 	HairPoint *point;
 	int k;
+	
+	glColor3f(0.4f, 0.7f, 1.0f);
 	
 	glBegin(GL_LINE_STRIP);
 	for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
@@ -66,22 +70,37 @@ static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
 	glEnd();
 	
 	/* smoothed curve */
-	{
+	if (hair->totpoints >= 2) {
 		struct SmoothingIteratorFloat3 *iter;
 		float smooth_co[3];
 		
 		glColor3f(0.5f, 1.0f, 0.1f);
 		
 		glBegin(GL_LINE_STRIP);
-		iter = HAIR_smoothing_iter_new(hair, 0.1f, 4.0f);
-		for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
-			if (HAIR_smoothing_iter_valid(hair, iter)) {
-				HAIR_smoothing_iter_next(hair, iter, smooth_co);
-				glVertex3fv(smooth_co);
-			}
+		iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
+		glVertex3fv(smooth_co);
+		while (HAIR_smoothing_iter_valid(hair, iter)) {
+			HAIR_smoothing_iter_next(hair, iter, smooth_co);
+			glVertex3fv(smooth_co);
 		}
+		HAIR_smoothing_iter_end(hair, iter, smooth_co);
+		glVertex3fv(smooth_co);
 		HAIR_smoothing_iter_free(iter);
 		glEnd();
+		
+		glPointSize(2.5f);
+		glBegin(GL_POINTS);
+		iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
+		glVertex3fv(smooth_co);
+		while (HAIR_smoothing_iter_valid(hair, iter)) {
+			HAIR_smoothing_iter_next(hair, iter, smooth_co);
+			glVertex3fv(smooth_co);
+		}
+		HAIR_smoothing_iter_end(hair, iter, smooth_co);
+		glVertex3fv(smooth_co);
+		HAIR_smoothing_iter_free(iter);
+		glEnd();
+		glPointSize(1.0f);
 	}
 }
 

@@ -3665,12 +3665,17 @@ static void rna_def_modifier_wireframe(BlenderRNA *brna)
 static void rna_def_modifier_hair(BlenderRNA *brna)
 {
 	StructRNA *srna;
-//	PropertyRNA *prop;
+	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "HairModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Hair Modifier", "Hair simulation modifier");
 	RNA_def_struct_sdna(srna, "HairModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_HAIR);
+
+	prop = RNA_def_property(srna, "hair_system", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "hairsys");
+	RNA_def_property_struct_type(prop, "HairSystem");
+	RNA_def_property_ui_text(prop, "Hair System", "");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

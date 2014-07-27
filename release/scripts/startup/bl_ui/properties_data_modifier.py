@@ -1223,7 +1223,13 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "material_offset", text="Material Offset")
 
     def HAIR(self, layout, ob, md):
+        hsys = md.hair_system
+
         col = layout.column()
+        col.prop(hsys, "smooth")
+
+        col.separator()
+
         col.operator("hair.copy_from_particles")
 
 

@@ -50,47 +50,55 @@ struct StdArithmetic {
 };
 #endif
 
-//template <typename T, typename OperationsT = StdArithmetic<T> >
 template <typename T>
+struct NullDefaultCtor {
+	static const T null = T();
+};
+
+//template <typename T, typename OperationsT = StdArithmetic<T> >
+template <typename T, typename NullT = NullDefaultCtor<T> >
 struct SmoothingIterator {
 	SmoothingIterator(float rest_length, float amount) :
-	    beta(min_ff(1.0f, 1.0f - expf(- rest_length / amount))),
+	    beta(min_ff(1.0f, amount > 0.0f ? 1.0f - expf(- rest_length / amount) : 1.0f)),
 	    f1(2.0f*(1.0f-beta)),
-	    f2(-(1.0f-beta)*(1.0f-beta)),
+	    f2((1.0f-beta)*(1.0f-beta)),
 	    f3(beta*beta)
 	{
 	}
 	
-	void begin(const T &val0, const T &val1)
+	T begin(const T &val0, const T &val1)
 	{
-		dval_ppp = dval_pp = dval_p = val1 - val0;
+		dval_pp = dval_p = val1 - val0;
 		
 		res_p = val0;
-		res = val1;
 		
-		num = 1;
+		val = val1;
+		
+		num = 2;
+		
+		return val0;
 	}
 	
-	const T& next(const T &val_)
+	T next(const T &val_n)
 	{
-		dval_ppp = dval_pp;
+		T ndval_p = f1 * dval_p - f2 * dval_pp + f3 * (val_n - val);
+		T nres = res_p + dval_p;
+		
 		dval_pp = dval_p;
-		dval_p = f1 * dval_pp + f2 * dval_ppp + f3 * (val_ - val_p);
+		dval_p = ndval_p;
 		
-		T tmp = res_p;
-		res_p = res;
-		res = tmp + dval_p;
+		res_p = nres;
 		
-		val_p = val_;
+		val = val_n;
 		
 		++num;
 		
-		return res;
+		return nres;
 	}
 	
-	T val_p;
-	T res, res_p;
-	T dval_p, dval_pp, dval_ppp;
+	T val;
+	T res_p;
+	T dval_p, dval_pp;
 	int num;
 	const float beta, f1, f2, f3;
 };
