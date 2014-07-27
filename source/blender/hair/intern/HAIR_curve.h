@@ -34,10 +34,16 @@
 HAIR_NAMESPACE_BEGIN
 
 struct Point {
-	Point();
-	Point(const float3 &co);
+	struct State {
+		float3 co;
+		float3 vel;
+	};
 	
-	float3 co;
+	Point();
+	Point(const float3 &co, const float3 &vel);
+	
+	State cur;
+	State next;
 	
 	HAIR_CXX_CLASS_ALLOC(Point)
 };

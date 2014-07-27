@@ -86,4 +86,42 @@ void Solver::free_data()
 	}
 }
 
+float3 Solver::calc_velocity(Curve *curve, Point *point, float time, Point::State &state) const
+{
+	return state.vel;
+}
+
+float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const
+{
+	return float3(0.0f, 0.0f, -1.0f);
+}
+
+void Solver::step(float timestep)
+{
+	Curve *curve;
+	Point *point;
+	int totcurve = m_data->totcurves;
+	/*int totpoint = m_data->totpoints;*/
+	int i, k;
+	
+	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
+		int numpoints = curve->totpoints;
+		for (k = 0, point = curve->points; k < numpoints; ++k, ++point) {
+			float3 acc = calc_acceleration(curve, point, 0.0f, point->cur);
+			point->next.vel = point->cur.vel + acc * timestep;
+			
+			float3 vel = calc_velocity(curve, point, 0.0f, point->next);
+			point->next.co = point->cur.co + vel * timestep;
+		}
+	}
+	
+	/* advance state */
+	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
+		int numpoints = curve->totpoints;
+		for (k = 0, point = curve->points; k < numpoints; ++k, ++point) {
+			point->cur = point->next;
+		}
+	}
+}
+
 HAIR_NAMESPACE_END

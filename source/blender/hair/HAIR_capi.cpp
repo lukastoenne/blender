@@ -76,9 +76,16 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, HairSystem *hsys)
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
-			*point = Point(float3(hair_pt->co[0], hair_pt->co[1], hair_pt->co[2]));
+			*point = Point(hair_pt->co, hair_pt->vel);
 		}
 	}
+}
+
+void HAIR_solver_step(struct HAIR_Solver *csolver, float timestep)
+{
+	Solver *solver = (Solver *)csolver;
+	
+	solver->step(timestep);
 }
 
 void HAIR_solver_apply(struct HAIR_Solver *csolver, HairSystem *hsys)
@@ -98,9 +105,8 @@ void HAIR_solver_apply(struct HAIR_Solver *csolver, HairSystem *hsys)
 			Point *point = curve->points + k;
 			HairPoint *hpoint = hcurve->points + k;
 			
-			hpoint->co[0] = point->co.x;
-			hpoint->co[1] = point->co.y;
-			hpoint->co[2] = point->co.z;
+			copy_v3_v3(hpoint->co, point->cur.co.data());
+			copy_v3_v3(hpoint->vel, point->cur.vel.data());
 		}
 	}
 }
@@ -114,10 +120,8 @@ struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(HairCurve *curve, f
 		float *co0 = curve->points[0].co;
 		float *co1 = curve->points[1].co;
 		
-		float3 val = iter->begin(float3(co0[0], co0[1], co0[2]), float3(co1[0], co1[1], co1[2]));
-		cval[0] = val.x;
-		cval[1] = val.y;
-		cval[2] = val.z;
+		float3 val = iter->begin(co0, co1);
+		copy_v3_v3(cval, val.data());
 	}
 	/* XXX setting iter->num is not nice, find a better way to invalidate the iterator */
 	else if (curve->totpoints >= 1) {
@@ -149,10 +153,8 @@ void HAIR_smoothing_iter_next(HairCurve *curve, struct HAIR_SmoothingIteratorFlo
 	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
 	
 	float *co = curve->points[iter->num].co;
-	float3 val = iter->next(float3(co[0], co[1], co[2]));
-	cval[0] = val.x;
-	cval[1] = val.y;
-	cval[2] = val.z;
+	float3 val = iter->next(co);
+	copy_v3_v3(cval, val.data());
 }
 
 void HAIR_smoothing_iter_end(HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer, float cval[3])
@@ -160,8 +162,6 @@ void HAIR_smoothing_iter_end(HairCurve *curve, struct HAIR_SmoothingIteratorFloa
 	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
 	
 	float *co = curve->points[iter->num-1].co;
-	float3 val = iter->next(float3(co[0], co[1], co[2]));
-	cval[0] = val.x;
-	cval[1] = val.y;
-	cval[2] = val.z;
+	float3 val = iter->next(co);
+	copy_v3_v3(cval, val.data());
 }

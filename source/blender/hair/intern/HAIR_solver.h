@@ -58,6 +58,10 @@ public:
 	
 	void step(float timestep);
 	
+protected:
+	float3 calc_velocity(Curve *curve, Point *point, float time, Point::State &state) const;
+	float3 calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const;
+	
 private:
 	SolverData *m_data;
 

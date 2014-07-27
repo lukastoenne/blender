@@ -32,9 +32,10 @@ Point::Point()
 {
 }
 
-Point::Point(const float3 &co) :
-    co(co)
+Point::Point(const float3 &co, const float3 &vel)
 {
+	cur.co = co;
+	cur.vel = vel;
 }
 
 Curve::Curve(int totpoints, Point *points) :

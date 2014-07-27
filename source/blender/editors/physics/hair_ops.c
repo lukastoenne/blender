@@ -92,7 +92,7 @@ static int hair_simulate_exec(bContext *C, wmOperator *UNUSED(op))
 	solver = HAIR_solver_new();
 	HAIR_solver_init(solver, hsys);
 	
-	
+	HAIR_solver_step(solver, 0.1f);
 	
 	HAIR_solver_apply(solver, hsys);
 	
@@ -146,6 +146,7 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *
 			HairPoint *point = points + k;
 			
 			mul_v3_m4v3(point->co, mat, pa_key->co);
+			zero_v3(point->vel);
 		}
 	}
 }
