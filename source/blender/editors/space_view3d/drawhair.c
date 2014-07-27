@@ -71,7 +71,7 @@ static void draw_hair_curve(HairSystem *hsys, HairCurve *hair)
 	
 	/* smoothed curve */
 	if (hair->totpoints >= 2) {
-		struct SmoothingIteratorFloat3 *iter;
+		struct HAIR_SmoothingIteratorFloat3 *iter;
 		float smooth_co[3];
 		
 		glColor3f(0.5f, 1.0f, 0.1f);

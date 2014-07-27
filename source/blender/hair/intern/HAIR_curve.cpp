@@ -28,6 +28,10 @@
 
 HAIR_NAMESPACE_BEGIN
 
+Point::Point()
+{
+}
+
 Point::Point(const float3 &co) :
     co(co)
 {
@@ -36,6 +40,12 @@ Point::Point(const float3 &co) :
 Curve::Curve(int totpoints, Point *points) :
     points(points),
     totpoints(totpoints)
+{
+}
+
+Curve::Curve() :
+    points(NULL),
+    totpoints(0)
 {
 }
 

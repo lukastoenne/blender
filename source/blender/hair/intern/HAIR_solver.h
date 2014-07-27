@@ -24,32 +24,45 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __HAIR_CURVE_H__
-#define __HAIR_CURVE_H__
+#ifndef __HAIR_SOLVER_H__
+#define __HAIR_SOLVER_H__
 
+#include "HAIR_curve.h"
 #include "HAIR_memalloc.h"
-
-#include "HAIR_types.h"
 
 HAIR_NAMESPACE_BEGIN
 
-struct Point {
-	Point();
-	Point(const float3 &co);
+struct SolverData {
+	SolverData();
+	SolverData(int totcurves, int totpoints);
+	SolverData(const SolverData &other);
+	~SolverData();
 	
-	float3 co;
+	Curve *curves;
+	Point *points;
+	int totcurves;
+	int totpoints;
 	
-	HAIR_CXX_CLASS_ALLOC(Point)
+	HAIR_CXX_CLASS_ALLOC(SolverData)
 };
 
-struct Curve {
-	Curve();
-	Curve(int totpoints, Point *points);
+class Solver
+{
+public:
+	Solver();
+	~Solver();
 	
-	Point *points;
-	int totpoints;
+	void init_data(int totcurves, int totpoints);
+	void free_data();
+	SolverData &data() { return m_data; }
+	const SolverData &data() const { return m_data; }
+	
+	void step(float timestep);
+	
+private:
+	SolverData m_data;
 
-	HAIR_CXX_CLASS_ALLOC(Curve)
+	HAIR_CXX_CLASS_ALLOC(Solver)
 };
 
 HAIR_NAMESPACE_END

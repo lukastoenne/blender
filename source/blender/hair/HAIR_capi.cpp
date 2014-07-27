@@ -26,16 +26,87 @@
 
 extern "C" {
 #include "DNA_hair_types.h"
+
+#include "BKE_hair.h"
 }
 
 #include "HAIR_capi.h"
 
 #include "HAIR_smoothing.h"
+#include "HAIR_solver.h"
 #include "HAIR_types.h"
 
 using namespace HAIR_NAMESPACE;
 
-struct SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(HairCurve *curve, float rest_length, float amount, float cval[3])
+struct HAIR_Solver *HAIR_solver_new()
+{
+	Solver *solver = new Solver();
+	
+	return (HAIR_Solver *)solver;
+}
+
+void HAIR_solver_free(struct HAIR_Solver *csolver)
+{
+	Solver *solver = (Solver *)csolver;
+	
+	delete solver;
+}
+
+void HAIR_solver_init(struct HAIR_Solver *csolver, HairSystem *hsys)
+{
+	Solver *solver = (Solver *)csolver;
+	HairCurve *hair;
+	int i;
+	
+	/* count points */
+	int totpoints = 0;
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		totpoints += hair->totpoints;
+	}
+	
+	/* allocate data */
+	solver->init_data(hsys->totcurves, totpoints);
+	Curve *solver_curves = solver->data().curves;
+	Point *solver_points = solver->data().points;
+	
+	/* copy data to solver data */
+	Point *point = solver_points;
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		solver_curves[i] = Curve(hair->totpoints, point);
+		
+		for (int k = 0; k < hair->totpoints; ++k, ++point) {
+			HairPoint *hair_pt = hair->points + k;
+			*point = Point(float3(hair_pt->co[0], hair_pt->co[1], hair_pt->co[2]));
+		}
+	}
+}
+
+void HAIR_solver_apply(struct HAIR_Solver *csolver, HairSystem *hsys)
+{
+	Solver *solver = (Solver *)csolver;
+	int i;
+	
+	Curve *solver_curves = solver->data().curves;
+	int totcurves = solver->data().totcurves;
+	
+	/* copy solver data to DNA */
+	for (i = 0; i < totcurves && i < hsys->totcurves; ++i) {
+		Curve *curve = solver_curves + i;
+		HairCurve *hcurve = hsys->curves + i;
+		
+		for (int k = 0; k < curve->totpoints && k < hcurve->totpoints; ++k) {
+			Point *point = curve->points + k;
+			HairPoint *hpoint = hcurve->points + k;
+			
+			hpoint->co[0] = point->co.x;
+			hpoint->co[1] = point->co.y;
+			hpoint->co[2] = point->co.z;
+		}
+	}
+}
+
+
+struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(HairCurve *curve, float rest_length, float amount, float cval[3])
 {
 	SmoothingIterator<float3> *iter = new SmoothingIterator<float3>(rest_length, amount);
 	
@@ -56,24 +127,24 @@ struct SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(HairCurve *curve, float 
 	else
 		iter->num = 1;
 	
-	return (struct SmoothingIteratorFloat3 *)iter;
+	return (struct HAIR_SmoothingIteratorFloat3 *)iter;
 }
 
-void HAIR_smoothing_iter_free(struct SmoothingIteratorFloat3 *citer)
+void HAIR_smoothing_iter_free(struct HAIR_SmoothingIteratorFloat3 *citer)
 {
 	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
 	
 	delete iter;
 }
 
-bool HAIR_smoothing_iter_valid(HairCurve *curve, struct SmoothingIteratorFloat3 *citer)
+bool HAIR_smoothing_iter_valid(HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer)
 {
 	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
 	
 	return iter->num < curve->totpoints;
 }
 
-void HAIR_smoothing_iter_next(HairCurve *curve, struct SmoothingIteratorFloat3 *citer, float cval[3])
+void HAIR_smoothing_iter_next(HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer, float cval[3])
 {
 	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
 	
@@ -84,7 +155,7 @@ void HAIR_smoothing_iter_next(HairCurve *curve, struct SmoothingIteratorFloat3 *
 	cval[2] = val.z;
 }
 
-void HAIR_smoothing_iter_end(HairCurve *curve, struct SmoothingIteratorFloat3 *citer, float cval[3])
+void HAIR_smoothing_iter_end(HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer, float cval[3])
 {
 	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
 	
