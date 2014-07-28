@@ -106,10 +106,12 @@ float3 Solver::calc_stretch(Curve *curve, Point *point0, Point *point1, float ti
 	float3 dir;
 	float rest_length = len_v3(point1->rest_co - point0->rest_co);
 	float length = normalize_v3_v3(dir, point1->cur.co - point0->cur.co);
+	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
-	float3 stretch_acc = m_params.stretch_stiffness * (length - rest_length) * dir;
+	float3 stretch_force = m_params.stretch_stiffness * (length - rest_length) * dir;
+	float3 stretch_damp = m_params.stretch_damping * dot_v3_v3(dvel, dir) * dir;
 	
-	return stretch_acc;
+	return stretch_force + stretch_damp;
 }
 
 float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, float3 prev_stretch, float3 stretch, Point::State &state) const

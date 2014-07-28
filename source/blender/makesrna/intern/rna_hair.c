@@ -68,7 +68,8 @@ static void rna_def_hair_params(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "stretch_damping", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "stretch_damping");
-	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.05, 3);
+	RNA_def_property_range(prop, 0.0f, 1.0e6f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0e5f, 0.1, 2);
 	RNA_def_property_ui_text(prop, "Stretch Damping", "");
 }
 
