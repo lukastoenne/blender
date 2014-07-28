@@ -93,7 +93,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		int s;
 		
 		solver = HAIR_solver_new(&hsys->params);
-		HAIR_solver_init(solver, ob, hsys);
+		HAIR_solver_init(solver, scene, ob, hsys);
 		
 		if (num_steps < 10000) {
 			for (s = 0; s < num_steps; ++s) {

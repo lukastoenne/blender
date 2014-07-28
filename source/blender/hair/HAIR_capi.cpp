@@ -29,6 +29,7 @@ extern "C" {
 
 #include "DNA_hair_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_hair.h"
 }
@@ -55,11 +56,13 @@ void HAIR_solver_free(struct HAIR_Solver *csolver)
 	delete solver;
 }
 
-void HAIR_solver_init(struct HAIR_Solver *csolver, Object *ob, HairSystem *hsys)
+void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)
 {
 	Solver *solver = (Solver *)csolver;
 	HairCurve *hair;
 	int i;
+	
+	solver->forces().gravity = float3(scene->physics_settings.gravity);
 	
 	Transform mat = Transform(ob->obmat);
 	

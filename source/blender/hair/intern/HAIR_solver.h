@@ -50,6 +50,12 @@ struct SolverData {
 	HAIR_CXX_CLASS_ALLOC(SolverData)
 };
 
+struct SolverForces {
+	SolverForces();
+	
+	float3 gravity;
+};
+
 class Solver
 {
 public:
@@ -57,6 +63,8 @@ public:
 	~Solver();
 	
 	const HairParams &params() const { return m_params; }
+	
+	SolverForces &forces() { return m_forces; }
 	
 	void init_data(int totcurves, int totpoints);
 	void free_data();
@@ -71,6 +79,7 @@ protected:
 	
 private:
 	HairParams m_params;
+	SolverForces m_forces;
 	SolverData *m_data;
 
 	HAIR_CXX_CLASS_ALLOC(Solver)

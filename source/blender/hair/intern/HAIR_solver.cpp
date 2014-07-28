@@ -61,6 +61,13 @@ SolverData::~SolverData()
 		delete[] points;
 }
 
+
+SolverForces::SolverForces()
+{
+	gravity = float3(0.0f, 0.0f, 0.0f);
+}
+
+
 Solver::Solver(const HairParams &params) :
     m_params(params),
     m_data(NULL)
@@ -107,7 +114,9 @@ float3 Solver::calc_stretch(Curve *curve, Point *point0, Point *point1, float ti
 
 float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, float3 prev_stretch, float3 stretch, Point::State &state) const
 {
-	float3 acc = float3(0.0f, 0.0f, -0.01f);
+	float3 acc = float3(0.0f, 0.0f, 0.0f);
+	
+	acc = acc + m_forces.gravity;
 	
 	acc = acc - prev_stretch + stretch;
 	
