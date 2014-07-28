@@ -74,7 +74,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	thmd->prev_cfra = hmd->prev_cfra;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
+static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {
@@ -93,14 +93,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 		int s;
 		
 		solver = HAIR_solver_new(&hsys->params);
-		HAIR_solver_init(solver, hsys);
+		HAIR_solver_init(solver, ob, hsys);
 		
 		if (num_steps < 10000) {
 			for (s = 0; s < num_steps; ++s) {
 				HAIR_solver_step(solver, dt);
 			}
 		}
-		HAIR_solver_apply(solver, hsys);
+		HAIR_solver_apply(solver, ob, hsys);
 		
 		HAIR_solver_free(solver);
 	}

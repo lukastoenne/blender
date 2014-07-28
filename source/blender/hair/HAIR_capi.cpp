@@ -28,6 +28,7 @@ extern "C" {
 #include "BLI_math.h"
 
 #include "DNA_hair_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_hair.h"
 }
@@ -54,11 +55,13 @@ void HAIR_solver_free(struct HAIR_Solver *csolver)
 	delete solver;
 }
 
-void HAIR_solver_init(struct HAIR_Solver *csolver, HairSystem *hsys)
+void HAIR_solver_init(struct HAIR_Solver *csolver, Object *ob, HairSystem *hsys)
 {
 	Solver *solver = (Solver *)csolver;
 	HairCurve *hair;
 	int i;
+	
+	Transform mat = Transform(ob->obmat);
 	
 	/* count points */
 	int totpoints = 0;
@@ -80,9 +83,9 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, HairSystem *hsys)
 			HairPoint *hair_pt = hair->points + k;
 			bool is_root = (k == 0);
 			
-			*point = Point(hair_pt->rest_co, !is_root);
-			point->cur.co = float3(hair_pt->co);
-			point->cur.vel = float3(hair_pt->vel);
+			*point = Point(transform_point(mat, hair_pt->rest_co), !is_root);
+			point->cur.co = transform_point(mat, hair_pt->co);
+			point->cur.vel = transform_direction(mat, hair_pt->vel);
 		}
 	}
 }
@@ -94,10 +97,12 @@ void HAIR_solver_step(struct HAIR_Solver *csolver, float timestep)
 	solver->step(timestep);
 }
 
-void HAIR_solver_apply(struct HAIR_Solver *csolver, HairSystem *hsys)
+void HAIR_solver_apply(struct HAIR_Solver *csolver, Object *ob, HairSystem *hsys)
 {
 	Solver *solver = (Solver *)csolver;
 	int i;
+	
+	Transform imat = transform_inverse(Transform(ob->obmat));
 	
 	Curve *solver_curves = solver->data()->curves;
 	int totcurves = solver->data()->totcurves;
@@ -111,8 +116,8 @@ void HAIR_solver_apply(struct HAIR_Solver *csolver, HairSystem *hsys)
 			Point *point = curve->points + k;
 			HairPoint *hpoint = hcurve->points + k;
 			
-			copy_v3_v3(hpoint->co, point->cur.co.data());
-			copy_v3_v3(hpoint->vel, point->cur.vel.data());
+			copy_v3_v3(hpoint->co, transform_point(imat, point->cur.co).data());
+			copy_v3_v3(hpoint->vel, transform_direction(imat, point->cur.vel).data());
 		}
 	}
 }
