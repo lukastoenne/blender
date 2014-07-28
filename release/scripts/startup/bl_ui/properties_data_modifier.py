@@ -1240,6 +1240,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         
         col.separator()
         
+        col.operator("hair.reset to rest location")
         col.operator("hair.copy_from_particles")
 
 

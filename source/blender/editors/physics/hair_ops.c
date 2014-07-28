@@ -82,6 +82,44 @@ static int ED_hair_active_poll(bContext *C)
 	return ED_hair_get(C, NULL, NULL);
 }
 
+/************************ reset hair to rest position *********************/
+
+static int hair_reset_to_rest_location_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob;
+	HairSystem *hsys;
+	int i, k;
+	ED_hair_get(C, &ob, &hsys);
+	
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *hair = &hsys->curves[i];
+		for (k = 0; k < hair->totpoints; ++k) {
+			HairPoint *point = &hair->points[k];
+			
+			copy_v3_v3(point->co, point->rest_co);
+			zero_v3(point->vel);
+		}
+	}
+	
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
+	return OPERATOR_FINISHED;
+}
+
+void HAIR_OT_reset_to_rest_location(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->idname = "HAIR_OT_reset to rest location";
+	ot->name = "Reset to Rest Location";
+	ot->description = "Reset hair data to the rest location";
+
+	/* callbacks */
+	ot->exec = hair_reset_to_rest_location_exec;
+	ot->poll = ED_hair_active_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
 /************************ copy hair data from old particles *********************/
 
 static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *UNUSED(pob), ParticleSystem *psys)

@@ -126,5 +126,6 @@ void RIGIDBODY_OT_world_export(struct wmOperatorType *ot);
 
 /* hair_ops.c */
 void HAIR_OT_copy_from_particles(struct wmOperatorType *ot);
+void HAIR_OT_reset_to_rest_location(struct wmOperatorType *ot);
 
 #endif /* __PHYSICS_INTERN_H__ */
