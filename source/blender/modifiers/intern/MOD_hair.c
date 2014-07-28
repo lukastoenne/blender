@@ -105,6 +105,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 		HAIR_solver_free(solver);
 	}
 	
+	hmd->prev_cfra = cfra;
+	
 	return dm;
 }
 
