@@ -42,6 +42,7 @@ set(SRC
 
 	intern/HAIR_curve.h
 	intern/HAIR_curve.cpp
+	intern/HAIR_math.h
 	intern/HAIR_memalloc.h
 	intern/HAIR_smoothing.h
 	intern/HAIR_smoothing.cpp

@@ -40,12 +40,13 @@ struct Point {
 	};
 	
 	Point();
-	Point(const float3 &rest_co);
+	Point(const float3 &rest_co, bool is_dynamic=true);
 	
 	State cur;
 	State next;
 	
 	float3 rest_co;
+	bool is_dynamic;
 	
 	HAIR_CXX_CLASS_ALLOC(Point)
 };

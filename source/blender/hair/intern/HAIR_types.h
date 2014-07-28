@@ -89,28 +89,6 @@ struct float4 {
 	__forceinline float& operator[](int i) { return *(&x + i); }
 };
 
-/* standard arithmetic */
-
-__forceinline float3 operator + (const float3 &a, const float3 &b)
-{
-	return float3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-
-__forceinline float3 operator - (const float3 &a, const float3 &b)
-{
-	return float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-__forceinline float3 operator * (float fac, const float3 &a)
-{
-	return float3(fac * a.x, fac * a.y, fac * a.z);
-}
-
-__forceinline float3 operator * (const float3 &a, float fac)
-{
-	return float3(fac * a.x, fac * a.y, fac * a.z);
-}
-
 HAIR_NAMESPACE_END
 
 #endif

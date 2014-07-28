@@ -27,10 +27,7 @@
 #ifndef __HAIR_SMOOTHING_H__
 #define __HAIR_SMOOTHING_H__
 
-extern "C" {
-#include "BLI_math.h"
-}
-
+#include "HAIR_math.h"
 #include "HAIR_memalloc.h"
 
 HAIR_NAMESPACE_BEGIN

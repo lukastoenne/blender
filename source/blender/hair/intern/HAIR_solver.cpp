@@ -24,6 +24,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "HAIR_math.h"
 #include "HAIR_solver.h"
 
 HAIR_NAMESPACE_BEGIN
@@ -92,9 +93,25 @@ float3 Solver::calc_velocity(Curve *curve, Point *point, float time, Point::Stat
 	return state.vel;
 }
 
-float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const
+float3 Solver::calc_stretch(Curve *curve, Point *point0, Point *point1, float time) const
 {
-	return float3(0.0f, 0.0f, -0.01f);
+	/* XXX this could be cached in SolverData */
+	float3 dir;
+	float rest_length = len_v3(point1->rest_co - point0->rest_co);
+	float length = normalize_v3_v3(dir, point1->cur.co - point0->cur.co);
+	
+	float3 stretch_acc = m_params.stretch_stiffness * (length - rest_length) * dir;
+	
+	return stretch_acc;
+}
+
+float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, float3 prev_stretch, float3 stretch, Point::State &state) const
+{
+	float3 acc = float3(0.0f, 0.0f, -0.01f);
+	
+	acc = acc - prev_stretch + stretch;
+	
+	return acc;
 }
 
 void Solver::step(float timestep)
@@ -105,8 +122,11 @@ void Solver::step(float timestep)
 	/*int totpoint = m_data->totpoints;*/
 	int i, k;
 	
+	float time = 0.0f;
+	
 	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
 		int numpoints = curve->totpoints;
+		float3 prev_stretch;
 		
 		/* Root point animation */
 		k = 0;
@@ -116,13 +136,20 @@ void Solver::step(float timestep)
 		point->next.co = point->cur.co;
 		point->next.vel = float3(0.0f, 0.0f, 0.0f);
 		
+		float3 stretch = k < numpoints-1 ? calc_stretch(curve, point, point+1, time) : float3(0.0f, 0.0f, 0.0f);
+		prev_stretch = stretch;
+		
 		/* Integrate the remaining free points */
 		for (++k, ++point; k < numpoints; ++k, ++point) {
-			float3 acc = calc_acceleration(curve, point, 0.0f, point->cur);
+			float3 stretch = k < numpoints-1 ? calc_stretch(curve, point, point+1, time) : float3(0.0f, 0.0f, 0.0f);
+			
+			float3 acc = calc_acceleration(curve, point, time, prev_stretch, stretch, point->cur);
 			point->next.vel = point->cur.vel + acc * timestep;
 			
-			float3 vel = calc_velocity(curve, point, 0.0f, point->next);
+			float3 vel = calc_velocity(curve, point, time, point->next);
 			point->next.co = point->cur.co + vel * timestep;
+			
+			prev_stretch = stretch;
 		}
 	}
 	

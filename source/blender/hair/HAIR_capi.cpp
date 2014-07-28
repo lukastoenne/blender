@@ -25,6 +25,8 @@
  */
 
 extern "C" {
+#include "BLI_math.h"
+
 #include "DNA_hair_types.h"
 
 #include "BKE_hair.h"
@@ -76,7 +78,9 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, HairSystem *hsys)
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
-			*point = Point(hair_pt->rest_co);
+			bool is_root = (k == 0);
+			
+			*point = Point(hair_pt->rest_co, !is_root);
 			point->cur.co = float3(hair_pt->co);
 			point->cur.vel = float3(hair_pt->vel);
 		}

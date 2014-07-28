@@ -66,7 +66,8 @@ public:
 	
 protected:
 	float3 calc_velocity(Curve *curve, Point *point, float time, Point::State &state) const;
-	float3 calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const;
+	float3 calc_acceleration(Curve *curve, Point *point, float time, float3 prev_stretch, float3 stretch, Point::State &state) const;
+	float3 calc_stretch(Curve *curve, Point *point0, Point *point1, float time) const;
 	
 private:
 	HairParams m_params;
