@@ -84,9 +84,8 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, Hai
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
-			bool is_root = (k == 0);
 			
-			*point = Point(transform_point(mat, hair_pt->rest_co), !is_root);
+			*point = Point(transform_point(mat, hair_pt->rest_co));
 			point->cur.co = transform_point(mat, hair_pt->co);
 			point->cur.vel = transform_direction(mat, hair_pt->vel);
 		}

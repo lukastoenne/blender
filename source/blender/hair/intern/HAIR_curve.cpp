@@ -32,9 +32,8 @@ Point::Point()
 {
 }
 
-Point::Point(const float3 &rest_co, bool is_dynamic) :
-    rest_co(rest_co),
-    is_dynamic(is_dynamic)
+Point::Point(const float3 &rest_co) :
+    rest_co(rest_co)
 {
 	cur.co = rest_co;
 	cur.vel = float3(0.0f, 0.0f, 0.0f);
