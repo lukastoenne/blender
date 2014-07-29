@@ -140,6 +140,11 @@ __forceinline float dot_v4_v4(const float4 &a, const float4 &b)
 	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
 
+__forceinline float3 cross_v3_v3(const float3 &a, const float3 &b)
+{
+	return float3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
+}
+
 __forceinline float len_v3(const float3 &v)
 {
 	return sqrtf(dot_v3_v3(v, v));
@@ -150,6 +155,51 @@ __forceinline float normalize_v3_v3(float3 &r, const float3 &v)
 	float len = len_v3(v);
 	r = len > 0.0f ? v / len : float3(0.0f, 0.0f, 0.0f);
 	return len;
+}
+
+/* quaternion functions */
+
+__forceinline float3 mul_qt_v3(const float4 &q, const float3 &v)
+{
+	float t0, t1, t2;
+	float3 r;
+	
+	t0  = -q.x * v.x - q.y * v.y - q.z * v.z;
+	t1  =  q.w * v.x + q.y * v.z - q.z * v.y;
+	t2  =  q.w * v.y + q.z * v.x - q.x * v.z;
+	r.z =  q.w * v.z + q.x * v.y - q.y * v.x;
+	r.x =  t1;
+	r.y =  t2;
+	
+	t1  = t0 * -q.x + r.x * q.w - r.y * q.z + r.z * q.y;
+	t2  = t0 * -q.y + r.y * q.w - r.z * q.x + r.x * q.z;
+	r.z = t0 * -q.z + r.z * q.w - r.x * q.y + r.y * q.x;
+	r.x = t1;
+	r.y = t2;
+	
+	return r;
+}
+
+__forceinline float4 mul_qt_v4(const float4 &q, const float4 &v)
+{
+	float t0, t1, t2;
+	float4 r;
+	
+	t0  = -q.x * v.x - q.y * v.y - q.z * v.z;
+	t1  =  q.w * v.x + q.y * v.z - q.z * v.y;
+	t2  =  q.w * v.y + q.z * v.x - q.x * v.z;
+	r.z =  q.w * v.z + q.x * v.y - q.y * v.x;
+	r.x =  t1;
+	r.y =  t2;
+	
+	t1  = t0 * -q.x + r.x * q.w - r.y * q.z + r.z * q.y;
+	t2  = t0 * -q.y + r.y * q.w - r.z * q.x + r.x * q.z;
+	r.z = t0 * -q.z + r.z * q.w - r.x * q.y + r.y * q.x;
+	r.x = t1;
+	r.y = t2;
+	r.w = 1.0f;
+	
+	return r;
 }
 
 /* matrix arithmetic */

@@ -35,6 +35,7 @@ struct HairSystem;
 
 struct HAIR_Solver;
 struct HAIR_SmoothingIteratorFloat3;
+struct HAIR_FrameIterator;
 
 struct HAIR_Solver *HAIR_solver_new(const struct HairParams *params);
 void HAIR_solver_free(struct HAIR_Solver *solver);
@@ -47,6 +48,11 @@ void HAIR_smoothing_iter_free(struct HAIR_SmoothingIteratorFloat3 *iter);
 bool HAIR_smoothing_iter_valid(struct HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *iter);
 void HAIR_smoothing_iter_next(struct HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *iter, float val[3]);
 void HAIR_smoothing_iter_end(struct HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer, float cval[3]);
+
+struct HAIR_FrameIterator *HAIR_frame_iter_new(struct HairCurve *curve, float rest_length, float amount, float nor[3], float tan[3], float cotan[3]);
+void HAIR_frame_iter_free(struct HAIR_FrameIterator *iter);
+bool HAIR_frame_iter_valid(struct HairCurve *curve, struct HAIR_FrameIterator *iter);
+void HAIR_frame_iter_next(struct HairCurve *curve, struct HAIR_FrameIterator *iter, float nor[3], float tan[3], float cotan[3]);
 
 #ifdef __cplusplus
 }

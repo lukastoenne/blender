@@ -61,6 +61,33 @@ struct Curve {
 	HAIR_CXX_CLASS_ALLOC(Curve)
 };
 
+struct Frame {
+	Frame() :
+	    normal(float3(1.0f, 0.0f, 0.0f)),
+	    tangent(float3(0.0f, 1.0f, 0.0f)),
+	    cotangent(float3(0.0f, 0.0f, 1.0f))
+	{}
+	Frame(const float3 &normal, const float3 &tangent, const float3 &cotangent) :
+	    normal(normal),
+	    tangent(tangent),
+	    cotangent(cotangent)
+	{}
+	Frame(const Transform &t) :
+	    normal(float3(t.x.x, t.y.x, t.z.x)),
+	    tangent(float3(t.x.y, t.y.y, t.z.y)),
+	    cotangent(float3(t.x.z, t.y.z, t.z.z))
+	{}
+	
+	float3 normal;
+	float3 tangent;
+	float3 cotangent;
+	
+	__forceinline Transform to_transform() const
+	{
+		return Transform(normal.to_direction(), tangent.to_direction(), cotangent.to_direction(), float4(0.0f, 0.0f, 0.0f, 1.0f));
+	}
+};
+
 HAIR_NAMESPACE_END
 
 #endif

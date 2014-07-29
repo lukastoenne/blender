@@ -71,7 +71,8 @@ struct float3 {
 	__forceinline float *data() { return &x; }
 	__forceinline const float *data() const { return &x; }
 
-	__forceinline float4 to_float4() const;
+	__forceinline float4 to_point() const;
+	__forceinline float4 to_direction() const;
 };
 
 struct float4 {
@@ -152,9 +153,14 @@ typedef struct Transform {
 
 /* -------------------------------------------------- */
 
-__forceinline float4 float3::to_float4() const
+__forceinline float4 float3::to_point() const
 {
 	return float4(x, y, z, 1.0f);
+}
+
+__forceinline float4 float3::to_direction() const
+{
+	return float4(x, y, z, 0.0f);
 }
 
 HAIR_NAMESPACE_END

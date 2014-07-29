@@ -69,6 +69,60 @@ static void draw_hair_curve(HairSystem *hsys, HairCurve *hair)
 	}
 	glEnd();
 	
+	/* frames */
+	{
+		struct HAIR_FrameIterator *iter;
+		float co[3], nor[3], tan[3], cotan[3];
+		int k = 0;
+		const float scale = 0.1f;
+		
+		glBegin(GL_LINES);
+		iter = HAIR_frame_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, nor, tan, cotan);
+		copy_v3_v3(co, hair->points[0].co);
+		mul_v3_fl(nor, scale);
+		mul_v3_fl(tan, scale);
+		mul_v3_fl(cotan, scale);
+		add_v3_v3(nor, co);
+		add_v3_v3(tan, co);
+		add_v3_v3(cotan, co);
+		++k;
+		
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex3fv(co);
+		glVertex3fv(nor);
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex3fv(co);
+		glVertex3fv(tan);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex3fv(co);
+		glVertex3fv(cotan);
+		
+		while (HAIR_frame_iter_valid(hair, iter)) {
+			HAIR_frame_iter_next(hair, iter, nor, tan, cotan);
+			copy_v3_v3(co, hair->points[k].co);
+			mul_v3_fl(nor, scale);
+			mul_v3_fl(tan, scale);
+			mul_v3_fl(cotan, scale);
+			add_v3_v3(nor, co);
+			add_v3_v3(tan, co);
+			add_v3_v3(cotan, co);
+			++k;
+			
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glVertex3fv(co);
+			glVertex3fv(nor);
+			glColor3f(0.0f, 1.0f, 0.0f);
+			glVertex3fv(co);
+			glVertex3fv(tan);
+			glColor3f(0.0f, 0.0f, 1.0f);
+			glVertex3fv(co);
+			glVertex3fv(cotan);
+		}
+		HAIR_frame_iter_free(iter);
+		glEnd();
+	}
+	
+#if 0
 	/* smoothed curve */
 	if (hair->totpoints >= 2) {
 		struct HAIR_SmoothingIteratorFloat3 *iter;
@@ -102,6 +156,7 @@ static void draw_hair_curve(HairSystem *hsys, HairCurve *hair)
 		glEnd();
 		glPointSize(1.0f);
 	}
+#endif
 }
 
 /* called from drawobject.c, return true if nothing was drawn */
