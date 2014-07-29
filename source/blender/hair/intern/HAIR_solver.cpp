@@ -64,9 +64,8 @@ SolverData::~SolverData()
 
 static float3 calc_bend(const Frame &frame, const float3 &co0, const float3 &co1)
 {
-	float3 dir;
-	normalize_v3_v3(dir, co1 - co0);
-	return float3(dot_v3_v3(dir, frame.normal), dot_v3_v3(dir, frame.tangent), dot_v3_v3(dir, frame.cotangent));
+	float3 edge = co1 - co0;
+	return float3(dot_v3_v3(edge, frame.normal), dot_v3_v3(edge, frame.tangent), dot_v3_v3(edge, frame.cotangent));
 }
 
 void SolverData::precompute_rest_bend()
@@ -150,7 +149,7 @@ float3 Solver::calc_velocity(Curve *curve, Point *point, float time, Point::Stat
 	return state.vel;
 }
 
-float3 Solver::calc_stretch(Curve *curve, Point *point0, Point *point1, float time) const
+float3 Solver::calc_stretch_force(Curve *curve, Point *point0, Point *point1, float time) const
 {
 	/* XXX this could be cached in SolverData */
 	float3 dir;
@@ -164,13 +163,33 @@ float3 Solver::calc_stretch(Curve *curve, Point *point0, Point *point1, float ti
 	return stretch_force + stretch_damp;
 }
 
-float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, float3 prev_stretch, float3 stretch, Point::State &state) const
+#if 0
+float3 Solver::calc_bend_force(Curve *curve, const Frame &frame, Point *point0, Point *point1, float time) const
+{
+	float3 bend = calc_bend(frame, point0->cur.co, point1->cur.co);
+	
+	
+}
+#endif
+
+float3 Solver::calc_bend_force(Curve *curve, Point *point0, Point *point1, float time) const
+{
+	float3 dir;
+	float3 edge = point1->cur.co - point0->cur.co;
+	normalize_v3_v3(dir, edge);
+	float3 dvel = point1->cur.vel - point0->cur.vel;
+	
+	float3 bend_force = m_params.bend_stiffness * (edge - point0->rest_bend);
+	float3 bend_damp = m_params.bend_damping * (dvel - dot_v3_v3(dvel, dir) * dir);
+	
+	return bend_force + bend_damp;
+}
+
+float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const
 {
 	float3 acc = float3(0.0f, 0.0f, 0.0f);
 	
 	acc = acc + m_forces.gravity;
-	
-	acc = acc - prev_stretch + stretch;
 	
 	return acc;
 }
@@ -187,7 +206,7 @@ void Solver::step(float timestep)
 	
 	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
 		int numpoints = curve->totpoints;
-		float3 prev_stretch;
+		float3 stretch, prev_stretch, bend, prev_bend;
 		
 		/* Root point animation */
 		k = 0;
@@ -197,20 +216,37 @@ void Solver::step(float timestep)
 		point->next.co = point->cur.co;
 		point->next.vel = float3(0.0f, 0.0f, 0.0f);
 		
-		float3 stretch = k < numpoints-1 ? calc_stretch(curve, point, point+1, time) : float3(0.0f, 0.0f, 0.0f);
+		if (k < numpoints-1) {
+			stretch = calc_stretch_force(curve, point, point+1, time);
+			bend = calc_bend_force(curve, point, point+1, time);
+		}
+		else {
+			stretch = float3(0.0f, 0.0f, 0.0f);
+			bend = float3(0.0f, 0.0f, 0.0f);
+		}
 		prev_stretch = stretch;
+		prev_bend = bend;
 		
 		/* Integrate the remaining free points */
 		for (++k, ++point; k < numpoints; ++k, ++point) {
-			float3 stretch = k < numpoints-1 ? calc_stretch(curve, point, point+1, time) : float3(0.0f, 0.0f, 0.0f);
+			if (k < numpoints-1) {
+				stretch = calc_stretch_force(curve, point, point+1, time);
+				bend = calc_bend_force(curve, point, point+1, time);
+			}
+			else {
+				stretch = float3(0.0f, 0.0f, 0.0f);
+				bend = float3(0.0f, 0.0f, 0.0f);
+			}
 			
-			float3 acc = calc_acceleration(curve, point, time, prev_stretch, stretch, point->cur);
+			float3 acc = calc_acceleration(curve, point, time, point->cur);
+			acc = acc - prev_stretch + stretch - prev_bend + bend;
 			point->next.vel = point->cur.vel + acc * timestep;
 			
 			float3 vel = calc_velocity(curve, point, time, point->next);
 			point->next.co = point->cur.co + vel * timestep;
 			
 			prev_stretch = stretch;
+			prev_bend = bend;
 		}
 	}
 	

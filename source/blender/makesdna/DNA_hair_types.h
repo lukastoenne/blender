@@ -49,7 +49,8 @@ typedef struct HairCurve {
 typedef struct HairParams {
 	float stretch_stiffness;
 	float stretch_damping;
-	int pad[2];
+	float bend_stiffness;
+	float bend_damping;
 } HairParams;
 
 typedef struct HairSystem {

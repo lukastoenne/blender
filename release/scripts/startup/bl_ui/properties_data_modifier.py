@@ -1235,8 +1235,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row = col.row()
         col2 = row.column()
         col2.prop(params, "stretch_stiffness")
+        col2.prop(params, "bend_stiffness")
         col2 = row.column()
         col2.prop(params, "stretch_damping")
+        col2.prop(params, "bend_damping")
         
         col.separator()
         
