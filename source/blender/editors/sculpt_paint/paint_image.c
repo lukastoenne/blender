@@ -1372,7 +1372,7 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob, wmOperator *op)
 			if (ma) {
 				has_material = true;
 				if (!ma->texpaintslot) {
-					proj_paint_add_slot(C, MAP_COL, ma);
+					proj_paint_add_slot(C, ma, NULL);
 				}
 			}
 		}
@@ -1385,14 +1385,14 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob, wmOperator *op)
 		Material *ma = BKE_material_add(CTX_data_main(C), "Material");
 		/* no material found, just assign to first slot */
 		assign_material(ob, ma, 1, BKE_MAT_ASSIGN_USERPREF);
-		proj_paint_add_slot(C, MAP_COL, ma);
+		proj_paint_add_slot(C, ma, NULL);
 	}
 
 	me = BKE_mesh_from_object(ob);
 	layernum = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
 
 	if (layernum == 0) {
-		BKE_reportf(op->reports, RPT_WARNING, "Object did not have UV map. Recommend manual unwrap");
+		BKE_reportf(op->reports, RPT_WARNING, "Object did not have UV map, manual unwrap recommended");
 
 		ED_mesh_uv_texture_add(me, "UVMap", true);
 	}
@@ -1407,14 +1407,8 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob, wmOperator *op)
 			Main *bmain = CTX_data_main(C);
 			float color[4] = {0.0, 0.0, 0.0, 1.0};
 
-			/* should not be allowed, but just in case */
-			if (imapaint->slot_xresolution_default == 0)
-				imapaint->slot_xresolution_default = 1024;
-			if (imapaint->slot_yresolution_default == 0)
-				imapaint->slot_yresolution_default = 1024;
-
-			width = imapaint->slot_xresolution_default;
-			height = imapaint->slot_yresolution_default;
+			width = 1024;
+			height = 1024;
 			imapaint->stencil = BKE_image_add_generated(bmain, width, height, "Stencil", 32, false, IMA_GENTYPE_BLANK, color);
 		}
 	}

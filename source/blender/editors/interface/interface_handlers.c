@@ -385,16 +385,16 @@ void ui_pan_to_scroll(const wmEvent *event, int *type, int *val)
 	}
 }
 
-static bool ui_but_editable(uiBut *but)
+static bool ui_but_is_editable(const uiBut *but)
 {
-	return ELEM(but->type, LABEL, SEPR, SEPRLINE, ROUNDBOX, LISTBOX, PROGRESSBAR);
+	return !ELEM(but->type, LABEL, SEPR, SEPRLINE, ROUNDBOX, LISTBOX, PROGRESSBAR);
 }
 
 static uiBut *ui_but_prev(uiBut *but)
 {
 	while (but->prev) {
 		but = but->prev;
-		if (!ui_but_editable(but)) return but;
+		if (ui_but_is_editable(but)) return but;
 	}
 	return NULL;
 }
@@ -403,7 +403,7 @@ static uiBut *ui_but_next(uiBut *but)
 {
 	while (but->next) {
 		but = but->next;
-		if (!ui_but_editable(but)) return but;
+		if (ui_but_is_editable(but)) return but;
 	}
 	return NULL;
 }
@@ -414,7 +414,7 @@ static uiBut *ui_but_first(uiBlock *block)
 	
 	but = block->buttons.first;
 	while (but) {
-		if (!ui_but_editable(but)) return but;
+		if (ui_but_is_editable(but)) return but;
 		but = but->next;
 	}
 	return NULL;
@@ -426,7 +426,7 @@ static uiBut *ui_but_last(uiBlock *block)
 	
 	but = block->buttons.last;
 	while (but) {
-		if (!ui_but_editable(but)) return but;
+		if (ui_but_is_editable(but)) return but;
 		but = but->prev;
 	}
 	return NULL;
@@ -6435,10 +6435,13 @@ bool UI_but_active_drop_name(bContext *C)
 bool UI_but_active_drop_color(bContext *C)
 {
 	ARegion *ar = CTX_wm_region(C);
-	uiBut *but = ui_but_find_activated(ar);
 
-	if (but && but->type == COLOR)
-		return true;
+	if (ar) {
+		uiBut *but = ui_but_find_activated(ar);
+
+		if (but && but->type == COLOR)
+			return true;
+	}
 
 	return false;
 }
@@ -7906,6 +7909,7 @@ static int ui_handle_menu_event(
 	if (menu->is_grab) {
 		if (event->type == LEFTMOUSE) {
 			menu->is_grab = false;
+			retval = WM_UI_HANDLER_BREAK;
 		}
 		else {
 			if (event->type == MOUSEMOVE) {
@@ -8263,9 +8267,10 @@ static int ui_handle_menu_event(
 			else if ((event->type == LEFTMOUSE) && (event->val == KM_PRESS) &&
 			         (inside && is_floating && inside_title))
 			{
-				if (!ui_but_find_activated(ar)) {
+				if (!but || !ui_mouse_inside_button(ar, but, event->x, event->y)) {
 					menu->is_grab = true;
 					copy_v2_v2_int(menu->grab_xy_prev, &event->x);
+					retval = WM_UI_HANDLER_BREAK;
 				}
 			}
 #endif
@@ -8600,15 +8605,15 @@ static int ui_handler_popup(bContext *C, const wmEvent *event, void *userdata)
 
 	/* free if done, does not free handle itself */
 	if (menu->menuretval) {
+		wmWindow *win = CTX_wm_window(C);
 		/* copy values, we have to free first (closes region) */
 		uiPopupBlockHandle temp = *menu;
 		
 		ui_popup_block_free(C, menu);
-		UI_remove_popup_handlers(&CTX_wm_window(C)->modalhandlers, menu);
+		UI_remove_popup_handlers(&win->modalhandlers, menu);
 
 #ifdef USE_DRAG_TOGGLE
 		{
-			wmWindow *win = CTX_wm_window(C);
 			WM_event_free_ui_handler_all(C, &win->modalhandlers,
 			                             ui_handler_region_drag_toggle, ui_handler_region_drag_toggle_remove);
 		}

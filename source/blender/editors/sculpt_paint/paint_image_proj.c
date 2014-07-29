@@ -3292,7 +3292,7 @@ static void project_paint_begin(ProjPaintState *ps)
 				continue;
 
 			if (slot != slot_last) {
-				if (!slot->uvname[0] || !(tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname)))
+				if (!slot->uvname || !(tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname)))
 					tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
 				slot_last = slot;
 			}
@@ -3313,7 +3313,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			tf_clone = ps->dm_mtface_clone + face_index;
 
 			if (slot_clone != slot_last_clone) {
-				if (!slot_clone->uvname[0] || !(tf_clone_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot_clone->uvname)))
+				if (!slot->uvname || !(tf_clone_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot_clone->uvname)))
 					tf_clone_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
 				slot_last_clone = slot_clone;
 			}
@@ -4816,27 +4816,14 @@ static EnumPropertyItem layer_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-bool proj_paint_add_slot(bContext *C, int type, Material *ma)
+bool proj_paint_add_slot(bContext *C, Material *ma, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	Scene *scene = CTX_data_scene(C);
-	int i;
-	ImagePaintSettings *imapaint = &CTX_data_tool_settings(C)->imapaint;
 	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
-	int width;
-	int height;
 
 	if (!ob)
 		return false;
-
-	/* should not be allowed, but just in case */
-	if (imapaint->slot_xresolution_default == 0)
-		imapaint->slot_xresolution_default = 1024;
-	if (imapaint->slot_yresolution_default == 0)
-		imapaint->slot_yresolution_default = 1024;
-
-	width = imapaint->slot_xresolution_default;
-	height = imapaint->slot_yresolution_default;
 
 	if (!ma)
 		ma = give_current_material(ob, ob->actcol);
@@ -4853,36 +4840,41 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 			if (mtex) {
 				Main *bmain = CTX_data_main(C);
 				Image *ima;
-				const char *name;
+				int type = MAP_COL;
 
-				/* get the name of the texture layer type */
-				i = RNA_enum_from_value(layer_type_items, type);
-				BLI_assert(i != -1);
-				name = layer_type_items[i].name;
+				if (op)
+					type = RNA_enum_get(op->ptr, "type");
 
-				mtex->tex = add_texture(bmain, DATA_(name));
+				mtex->tex = add_texture(bmain, DATA_(layer_type_items[type].name));
 				mtex->mapto = type;
 
 				if (mtex->tex) {
-					char imagename[FILE_MAX];
-					float color[4];
-					bool use_float = type == MAP_NORM;
+					float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+					char imagename[MAX_ID_NAME - 2] = "Material Diffuse Color";
+					int width = 1024;
+					int height = 1024;
+					bool use_float = false;
+					short gen_type = IMA_GENTYPE_BLANK;
+					bool alpha = false;
 
-					copy_v4_v4(color, imapaint->slot_color_default);
-					if (use_float) {
-						mul_v3_fl(color, color[3]);
+					if (op) {
+						width = RNA_int_get(op->ptr, "width");
+						height = RNA_int_get(op->ptr, "height");
+						use_float = RNA_boolean_get(op->ptr, "float");
+						gen_type = RNA_enum_get(op->ptr, "generated_type");
+						RNA_float_get_array(op->ptr, "color", color);
+						alpha = RNA_boolean_get(op->ptr, "alpha");
+						RNA_string_get(op->ptr, "name", imagename);
 					}
-					else {
+
+					if (!use_float) {
 						/* crappy workaround because we only upload straight color to OpenGL and that makes
 						 * painting result on viewport too opaque */
 						color[3] = 1.0;
 					}
 
-					/* take the second letter to avoid the ID identifier */
-					BLI_snprintf(imagename, FILE_MAX, "%s_%s", &ma->id.name[2], name);
-
-					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, use_float,
-					                                               IMA_GENTYPE_BLANK, color);
+					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, alpha ? 32 : 24, use_float,
+					                                               gen_type, color);
 
 					BKE_texpaint_slot_refresh_cache(ma, false);
 					BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
@@ -4902,19 +4894,44 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 
 static int texture_paint_add_texture_paint_slot_exec(bContext *C, wmOperator *op)
 {
+	return proj_paint_add_slot(C, NULL, op);
+}
+
+
+static int texture_paint_add_texture_paint_slot_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	char imagename[MAX_ID_NAME - 2];
+	Object *ob = CTX_data_active_object(C);
+	Material *ma = give_current_material(ob, ob->actcol);
 	int type = RNA_enum_get(op->ptr, "type");
 
-	return proj_paint_add_slot(C, type, NULL) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+	type = RNA_enum_from_value(layer_type_items, type);
+
+	/* get the name of the texture layer type */
+	BLI_assert(type != -1);
+
+	/* take the second letter to avoid the ID identifier */
+	BLI_snprintf(imagename, FILE_MAX, "%s %s", &ma->id.name[2], layer_type_items[type].name);
+
+	RNA_string_set(op->ptr, "name", imagename);
+	return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X, 5 * UI_UNIT_Y);
 }
+
+#define IMA_DEF_NAME N_("Untitled")
+
 
 void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	static float default_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
 	/* identifiers */
 	ot->name = "Add Texture Paint Slot";
 	ot->description = "Add a texture paint slot";
 	ot->idname = "PAINT_OT_add_texture_paint_slot";
 
 	/* api callbacks */
+	ot->invoke = texture_paint_add_texture_paint_slot_invoke;
 	ot->exec = texture_paint_add_texture_paint_slot_exec;
 	ot->poll = ED_operator_region_view3d_active;
 
@@ -4922,5 +4939,18 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	ot->prop = RNA_def_enum(ot->srna, "type", layer_type_items, 0, "Type", "Merge method to use");
+	prop = RNA_def_enum(ot->srna, "type", layer_type_items, 0, "Type", "Merge method to use");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "name", IMA_DEF_NAME, MAX_ID_NAME - 2, "Name", "Image datablock name");
+	prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
+	RNA_def_property_subtype(prop, PROP_PIXEL);
+	prop = RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
+	RNA_def_property_subtype(prop, PROP_PIXEL);
+	prop = RNA_def_float_color(ot->srna, "color", 4, NULL, 0.0f, FLT_MAX, "Color", "Default fill color", 0.0f, 1.0f);
+	RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
+	RNA_def_property_float_array_default(prop, default_color);
+	RNA_def_boolean(ot->srna, "alpha", 1, "Alpha", "Create an image with an alpha channel");
+	RNA_def_enum(ot->srna, "generated_type", image_generated_type_items, IMA_GENTYPE_BLANK,
+	             "Generated Type", "Fill the image with a grid for UV map testing");
+	RNA_def_boolean(ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
 }

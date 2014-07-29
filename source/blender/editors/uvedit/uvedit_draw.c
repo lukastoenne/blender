@@ -424,7 +424,7 @@ static void draw_uvs_other_mesh_new_shading(Object *ob, const Image *curimage)
 		
 		/* if no materials, assume a default material with no image */
 		if (ob->totcol)
-			ED_object_get_active_image(ob, a + 1, &image, NULL, NULL);
+			ED_object_get_active_image(ob, a + 1, &image, NULL, NULL, NULL);
 		else
 			image = NULL;
 
@@ -497,7 +497,7 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 		MPoly *mpoly = me->mpoly;
 		MLoopUV *mloopuv, *mloopuv_base;
 		int a, b;
-		if (!(ma && ma->texpaintslot && ma->texpaintslot[ma->paint_active_slot].uvname[0] &&
+		if (!(ma && ma->texpaintslot && ma->texpaintslot[ma->paint_active_slot].uvname &&
 		      (mloopuv = CustomData_get_layer_named(&me->ldata, CD_MLOOPUV, ma->texpaintslot[ma->paint_active_slot].uvname))))
 		{
 			mloopuv = me->mloopuv;
@@ -577,7 +577,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 
 		if (new_shading_nodes) {
 			if (efa_act) {
-				ED_object_get_active_image(obedit, efa_act->mat_nr + 1, &curimage, NULL, NULL);
+				ED_object_get_active_image(obedit, efa_act->mat_nr + 1, &curimage, NULL, NULL, NULL);
 			}
 			else {
 				curimage = ima;

@@ -1040,7 +1040,7 @@ class TEXTURE_UL_texpaintslots(UIList):
         ima = item
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=ima.name, translate=False, icon_value=icon)
+            layout.prop(item, "name", text="", emboss=False, icon_value=icon)
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="")
@@ -1049,7 +1049,7 @@ class TEXTURE_UL_texpaintslots(UIList):
 class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
     bl_context = "imagepaint"
     bl_label = "Slots"
-    bl_category = "Layers"
+    bl_category = "Slots"
 
     @classmethod
     def poll(cls, context):
@@ -1068,7 +1068,7 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
 
         if len(ob.material_slots) > 1:
             col.label("Materials")
-            col.template_list("MATERIAL_UL_matslots", "",
+            col.template_list("MATERIAL_UL_matslots", "layers",
                               ob, "material_slots",
                               ob, "active_material_index", rows=2)
 
@@ -1076,16 +1076,58 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
         if mat:
             col.label("Available Paint Slots")
             col.template_list("TEXTURE_UL_texpaintslots", "",
-                              mat, "texture_paint_slots",
+                              mat, "texture_paint_images",
                               mat, "paint_active_slot", rows=2)
 
-            if not mat.use_nodes:
+            if (not mat.use_nodes) and (context.scene.render.engine == 'BLENDER_RENDER'):
                 col.operator_menu_enum("paint.add_texture_paint_slot", "type")
 
-                row = col.row(align=True)
-                row.prop(settings, "slot_xresolution_default")
-                row.prop(settings, "slot_yresolution_default")
-                col.prop(settings, "slot_color_default")
+                slot = mat.texture_paint_slots[mat.paint_active_slot]
+                col.separator()
+                col.label("UV Map")
+                col.prop_search(slot, "uv_layer", ob.data, "uv_textures", text="")
+
+
+
+class VIEW3D_PT_stencil_projectpaint(View3DPanel, Panel):
+    bl_context = "imagepaint"
+    bl_label = "Stencil"
+    bl_category = "Slots"
+
+    @classmethod
+    def poll(cls, context):
+        brush = context.tool_settings.image_paint.brush
+        ob = context.active_object
+        return (brush is not None and ob is not None)
+
+    def draw_header(self, context):
+        ipaint = context.tool_settings.image_paint
+        self.layout.prop(ipaint, "use_stencil_layer", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings
+        ipaint = toolsettings.image_paint
+        ob = context.active_object
+        mesh = ob.data
+
+        col = layout.column()
+        col.active = ipaint.use_stencil_layer
+
+        stencil_text = mesh.uv_texture_stencil.name if mesh.uv_texture_stencil else ""
+        col.label("UV Map")
+        col.menu("VIEW3D_MT_tools_projectpaint_stencil", text=stencil_text, translate=False)
+
+        col.label("Image")
+        row = col.row(align=True)
+        row.operator("image.new", icon='ZOOMIN', text="Add New").texstencil = True;
+        row.template_ID(ipaint, "stencil_image")
+ 
+        col.label("Visualization")
+        row = col.row(align=True)
+        row.prop(ipaint, "stencil_color", text="")
+        row.prop(ipaint, "invert_stencil", text="", icon='IMAGE_ALPHA')
 
 
 class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
@@ -1600,11 +1642,8 @@ class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        ob = context.active_object
-        mesh = ob.data
         toolsettings = context.tool_settings
         ipaint = toolsettings.image_paint
-        # settings = toolsettings.image_paint
 
         col = layout.column()
 
@@ -1617,20 +1656,6 @@ class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
         sub = row.row()
         sub.active = (ipaint.use_normal_falloff)
         sub.prop(ipaint, "normal_angle", text="")
-
-        split = layout.split()
-
-        split.prop(ipaint, "use_stencil_layer", text="Stencil")
-
-        col = split.column()
-        col.active = (ipaint.use_stencil_layer)
-        row = col.row()
-        stencil_text = mesh.uv_texture_stencil.name if mesh.uv_texture_stencil else ""
-        row.menu("VIEW3D_MT_tools_projectpaint_stencil", text=stencil_text, translate=False)
-        row.prop(ipaint, "invert_stencil", text="", icon='IMAGE_ALPHA')
-        col.template_ID(ipaint, "stencil_image")
-        col.operator("image.new").texstencil = True;
-        col.prop(ipaint, "stencil_color")
 
         layout.prop(ipaint, "seam_bleed")
         self.unified_paint_settings(layout, context)

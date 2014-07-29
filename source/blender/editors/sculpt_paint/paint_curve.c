@@ -97,7 +97,7 @@ static void paintcurve_undo_restore(bContext *C, ListBase *lb)
 {
 	Paint *p = BKE_paint_get_active_from_context(C);
 	UndoCurve *uc;
-	PaintCurve *pc;
+	PaintCurve *pc = NULL;
 
 	if (p->brush) {
 		pc = p->brush->paint_curve;
@@ -562,7 +562,7 @@ void PAINTCURVE_OT_select(wmOperatorType *ot)
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
 	                   "Location", "Location of vertex in area space", 0, SHRT_MAX);
-	prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle", "Select/Deselect all");
+	prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle", "(De)select all");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend selection");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -593,9 +593,10 @@ static int paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *e
 		return OPERATOR_PASS_THROUGH;
 
 	if (do_select) {
-	        pcp = paintcurve_point_get_closest(pc, loc_fl, align, PAINT_CURVE_SELECT_THRESHOLD, &select);
+		pcp = paintcurve_point_get_closest(pc, loc_fl, align, PAINT_CURVE_SELECT_THRESHOLD, &select);
 	}
 	else {
+		pcp = NULL;
 		/* just find first selected point */
 		for (i = 0; i < pc->tot_points; i++) {
 			if (pc->points[i].bez.f1 || pc->points[i].bez.f2 || pc->points[i].bez.f3) {
