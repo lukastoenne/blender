@@ -90,6 +90,9 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, Hai
 			point->cur.vel = transform_direction(mat, hair_pt->vel);
 		}
 	}
+	
+	/* finalize */
+	solver->prepare_data();
 }
 
 void HAIR_solver_step(struct HAIR_Solver *csolver, float timestep)

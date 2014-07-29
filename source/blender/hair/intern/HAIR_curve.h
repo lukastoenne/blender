@@ -46,6 +46,7 @@ struct Point {
 	State next;
 	
 	float3 rest_co;
+	float3 rest_bend;
 	
 	HAIR_CXX_CLASS_ALLOC(Point)
 };

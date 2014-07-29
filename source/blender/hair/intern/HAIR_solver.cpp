@@ -25,6 +25,7 @@
  */
 
 #include "HAIR_math.h"
+#include "HAIR_smoothing.h"
 #include "HAIR_solver.h"
 
 HAIR_NAMESPACE_BEGIN
@@ -61,6 +62,47 @@ SolverData::~SolverData()
 		delete[] points;
 }
 
+static float3 calc_bend(const Frame &frame, const float3 &co0, const float3 &co1)
+{
+	float3 dir;
+	normalize_v3_v3(dir, co1 - co0);
+	return float3(dot_v3_v3(dir, frame.normal), dot_v3_v3(dir, frame.tangent), dot_v3_v3(dir, frame.cotangent));
+}
+
+void SolverData::precompute_rest_bend()
+{
+	Curve *curve;
+	int i;
+	
+	for (curve = curves, i = 0; i < totcurves; ++curve, ++i) {
+		Point *pt0, *pt1;
+		
+		if (curve->totpoints >= 2) {
+			pt0 = &curve->points[0];
+			pt1 = &curve->points[1];
+		}
+		else if (curve->totpoints >= 1) {
+			pt0 = pt1 = &curve->points[0];
+		}
+		else
+			continue;
+		
+		FrameIterator iter(1.0f / curve->totpoints, 0.1f, curve->totpoints, pt0->rest_co, pt1->rest_co);
+		
+		pt0->rest_bend = calc_bend(iter.frame(), pt0->rest_co, pt1->rest_co);
+		
+		Point *pt = pt1;
+		while (iter.valid()) {
+			Point *next_pt = &curve->points[iter.cur()];
+			
+			pt->rest_bend = calc_bend(iter.frame(), pt->rest_co, next_pt->rest_co);
+			
+			iter.next(next_pt->rest_co);
+			pt = next_pt;
+		}
+	}
+}
+
 
 SolverForces::SolverForces()
 {
@@ -85,6 +127,14 @@ void Solver::init_data(int totcurves, int totpoints)
 	if (!m_data) {
 		m_data = new SolverData(totcurves, totpoints);
 	}
+}
+
+void Solver::prepare_data()
+{
+	if (!m_data)
+		return;
+	
+	m_data->precompute_rest_bend();
 }
 
 void Solver::free_data()

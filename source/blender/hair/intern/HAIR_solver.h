@@ -47,6 +47,8 @@ struct SolverData {
 	int totcurves;
 	int totpoints;
 	
+	void precompute_rest_bend();
+	
 	HAIR_CXX_CLASS_ALLOC(SolverData)
 };
 
@@ -67,6 +69,7 @@ public:
 	SolverForces &forces() { return m_forces; }
 	
 	void init_data(int totcurves, int totpoints);
+	void prepare_data();
 	void free_data();
 	SolverData *data() const { return m_data; }
 	
