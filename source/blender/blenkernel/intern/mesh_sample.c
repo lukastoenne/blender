@@ -44,7 +44,7 @@
 bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float loc[3], float nor[3])
 {
 	MVert *mverts = dm->getVertArray(dm);
-	int totverts = dm->getNumVerts(dm);
+	unsigned int totverts = (unsigned int)dm->getNumVerts(dm);
 	MVert *v1, *v2, *v3;
 	float vnor[3];
 	
