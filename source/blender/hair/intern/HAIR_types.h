@@ -102,7 +102,7 @@ struct float4 {
 };
 
 
-typedef struct Transform {
+struct Transform {
 	float4 x, y, z, w; /* rows */
 	
 	static const Transform Identity;
@@ -149,7 +149,27 @@ typedef struct Transform {
 
 	float4_col col(int i) { return float4_col(*this, i); }
 	float4_col_const col(int i) const { return float4_col_const(*this, i); }
-} Transform;
+};
+
+struct Transform3 {
+	float3 x, y, z; /* rows */
+	
+	static const Transform3 Identity;
+	
+	__forceinline Transform3() {}
+	__forceinline Transform3(const float3 &x, const float3 &y, const float3 &z) : x(x), y(y), z(z) {}
+	__forceinline Transform3(float data[3][3]) :
+	    x(data[0][0], data[1][0], data[2][0]),
+	    y(data[0][1], data[1][1], data[2][1]),
+	    z(data[0][2], data[1][2], data[2][2])
+	{}
+	
+	__forceinline float3 operator[](int i) const { return *(&x + i); }
+	__forceinline float3& operator[](int i) { return *(&x + i); }
+	
+	float3 row(int i) const { return *(&x + i); }
+	float3 &row(int i) { return *(&x + i); }
+};
 
 /* -------------------------------------------------- */
 

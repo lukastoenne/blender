@@ -33,4 +33,8 @@ const Transform Transform::Identity = Transform(float4(1.0f, 0.0f, 0.0f, 0.0f),
                                                 float4(0.0f, 0.0f, 1.0f, 0.0f),
                                                 float4(0.0f, 0.0f, 0.0f, 1.0f));
 
+const Transform3 Transform3::Identity = Transform3(float3(1.0f, 0.0f, 0.0f),
+                                                   float3(0.0f, 1.0f, 0.0f),
+                                                   float3(0.0f, 0.0f, 1.0f));
+
 HAIR_NAMESPACE_END
