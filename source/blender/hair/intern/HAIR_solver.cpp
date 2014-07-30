@@ -24,6 +24,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <vector>
+
+extern "C" {
+#include "BLI_task.h"
+#include "BLI_threads.h"
+}
+
 #include "HAIR_math.h"
 #include "HAIR_smoothing.h"
 #include "HAIR_solver.h"
@@ -135,7 +142,7 @@ void Solver::free_data()
 	}
 }
 
-void Solver::calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel) const
+static void calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel)
 {
 	const CurveRoot &root0 = curve->root0;
 	const CurveRoot &root1 = curve->root1;
@@ -153,12 +160,12 @@ void Solver::calc_root_animation(float t0, float t1, float t, Curve *curve, floa
 	}
 }
 
-float3 Solver::calc_velocity(Curve *curve, Point *point, float time, Point::State &state) const
+static float3 calc_velocity(Curve *curve, Point *point, float time, Point::State &state)
 {
 	return state.vel;
 }
 
-float3 Solver::calc_stretch_force(Curve *curve, Point *point0, Point *point1, float time) const
+static float3 calc_stretch_force(const HairParams &params, Curve *curve, Point *point0, Point *point1, float time)
 {
 	/* XXX this could be cached in SolverData */
 	float3 dir;
@@ -166,52 +173,50 @@ float3 Solver::calc_stretch_force(Curve *curve, Point *point0, Point *point1, fl
 	float length = normalize_v3_v3(dir, point1->cur.co - point0->cur.co);
 	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
-	float3 stretch_force = m_params.stretch_stiffness * (length - rest_length) * dir;
-	float3 stretch_damp = m_params.stretch_damping * dot_v3_v3(dvel, dir) * dir;
+	float3 stretch_force = params.stretch_stiffness * (length - rest_length) * dir;
+	float3 stretch_damp = params.stretch_damping * dot_v3_v3(dvel, dir) * dir;
 	
 	return stretch_force + stretch_damp;
 }
 
-#if 0
-float3 Solver::calc_bend_force(Curve *curve, const Frame &frame, Point *point0, Point *point1, float time) const
-{
-	float3 bend = calc_bend(frame, point0->cur.co, point1->cur.co);
-	
-	
-}
-#endif
-
-float3 Solver::calc_bend_force(Curve *curve, Point *point0, Point *point1, float time) const
+static float3 calc_bend_force(const HairParams &params, Curve *curve, Point *point0, Point *point1, float time)
 {
 	float3 dir;
 	float3 edge = point1->cur.co - point0->cur.co;
 	normalize_v3_v3(dir, edge);
 	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
-	float3 bend_force = m_params.bend_stiffness * (edge - point0->rest_bend);
-	float3 bend_damp = m_params.bend_damping * (dvel - dot_v3_v3(dvel, dir) * dir);
+	float3 bend_force = params.bend_stiffness * (edge - point0->rest_bend);
+	float3 bend_damp = params.bend_damping * (dvel - dot_v3_v3(dvel, dir) * dir);
 	
 	return bend_force + bend_damp;
 }
 
-float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const
+static float3 calc_acceleration(const SolverForces &forces, Curve *curve, Point *point, float time, Point::State &state)
 {
 	float3 acc = float3(0.0f, 0.0f, 0.0f);
 	
-	acc = acc + m_forces.gravity;
+	acc = acc + forces.gravity;
 	
 	return acc;
 }
 
-void Solver::step(float time, float timestep)
+struct SolverTaskData {
+	Curve *curves;
+	Point *points;
+	int totcurves;
+	int totpoints;
+};
+
+static void step(const HairParams &params, const SolverForces &forces, float time, float timestep, float t0, float t1, const SolverTaskData &data)
 {
 	Curve *curve;
 	Point *point;
-	int totcurve = m_data->totcurves;
-	/*int totpoint = m_data->totpoints;*/
+	int totcurve = data.totcurves;
+	/*int totpoint = data.totpoints;*/
 	int i, k;
 	
-	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
+	for (i = 0, curve = data.curves; i < totcurve; ++i, ++curve) {
 		int numpoints = curve->totpoints;
 		float3 stretch, prev_stretch, bend, prev_bend;
 		
@@ -219,11 +224,11 @@ void Solver::step(float time, float timestep)
 		k = 0;
 		point = curve->points;
 		
-		calc_root_animation(m_data->t0, m_data->t1, time, curve, point->next.co, point->next.vel);
+		calc_root_animation(t0, t1, time, curve, point->next.co, point->next.vel);
 		
 		if (k < numpoints-1) {
-			stretch = calc_stretch_force(curve, point, point+1, time);
-			bend = calc_bend_force(curve, point, point+1, time);
+			stretch = calc_stretch_force(params, curve, point, point+1, time);
+			bend = calc_bend_force(params, curve, point, point+1, time);
 		}
 		else {
 			stretch = float3(0.0f, 0.0f, 0.0f);
@@ -235,15 +240,15 @@ void Solver::step(float time, float timestep)
 		/* Integrate the remaining free points */
 		for (++k, ++point; k < numpoints; ++k, ++point) {
 			if (k < numpoints-1) {
-				stretch = calc_stretch_force(curve, point, point+1, time);
-				bend = calc_bend_force(curve, point, point+1, time);
+				stretch = calc_stretch_force(params, curve, point, point+1, time);
+				bend = calc_bend_force(params, curve, point, point+1, time);
 			}
 			else {
 				stretch = float3(0.0f, 0.0f, 0.0f);
 				bend = float3(0.0f, 0.0f, 0.0f);
 			}
 			
-			float3 acc = calc_acceleration(curve, point, time, point->cur);
+			float3 acc = calc_acceleration(forces, curve, point, time, point->cur);
 			acc = acc - prev_stretch + stretch - prev_bend + bend;
 			point->next.vel = point->cur.vel + acc * timestep;
 			
@@ -256,12 +261,91 @@ void Solver::step(float time, float timestep)
 	}
 	
 	/* advance state */
-	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
+	for (i = 0, curve = data.curves; i < totcurve; ++i, ++curve) {
 		int numpoints = curve->totpoints;
 		for (k = 0, point = curve->points; k < numpoints; ++k, ++point) {
 			point->cur = point->next;
 		}
 	}
+}
+
+struct SolverPoolData {
+	const HairParams *params;
+	const SolverForces *forces;
+	float time, timestep, t0, t1;
+};
+
+static void step_threaded_func(TaskPool *pool, void *vtaskdata, int UNUSED(threadid))
+{
+	SolverPoolData *pooldata = (SolverPoolData *)BLI_task_pool_userdata(pool);
+	SolverTaskData *taskdata = (SolverTaskData *)vtaskdata;
+	step(*pooldata->params, *pooldata->forces, pooldata->time, pooldata->timestep, pooldata->t0, pooldata->t1, *taskdata);
+}
+
+void Solver::step_threaded(float time, float timestep)
+{
+	typedef std::vector<SolverTaskData> SolverTaskVector;
+	
+	const int max_points_per_task = 1024;
+	const int max_hairs_per_task = 256;
+	
+	SolverPoolData pooldata;
+	pooldata.params = &m_params;
+	pooldata.forces = &m_forces;
+	pooldata.time = time;
+	pooldata.timestep = timestep;
+	pooldata.t0 = m_data->t0;
+	pooldata.t1 = m_data->t1;
+	
+	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
+	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, (void*)(&pooldata));
+	
+	SolverTaskVector taskdata;
+	
+	int point_start = 0;
+	int num_points = 0;
+	int hair_start = 0;
+	int num_hairs = 0;
+	Curve *curve = m_data->curves;
+	
+	/* Generate tasks
+	 * The approach for now is to distribute whole hairs among tasks,
+	 * such that each task has roughly the same amount of points in total
+	 */
+	while (hair_start < m_data->totcurves) {
+		++num_hairs;
+		num_points += curve->totpoints;
+		
+		if (num_points > max_points_per_task || num_hairs > max_hairs_per_task ||
+		    hair_start + num_hairs >= m_data->totcurves) {
+			
+			SolverTaskData solver_task;
+			solver_task.curves = m_data->curves + hair_start;
+			solver_task.points = m_data->points + point_start;
+			solver_task.totcurves = num_hairs;
+			solver_task.totpoints = num_points;
+			taskdata.push_back(solver_task);
+			
+			hair_start += num_hairs;
+			point_start += num_points;
+			num_hairs = 0;
+			num_points = 0;
+		}
+		
+		++curve;
+	}
+	
+	/* Note: can't create tasks right away in the loop above,
+	 * because they reference data in a vector which can be altered afterward.
+	 */
+	for (SolverTaskVector::const_iterator it = taskdata.begin(); it != taskdata.end(); ++it) {
+		BLI_task_pool_push(task_pool, step_threaded_func, (void*)(&(*it)), false, TASK_PRIORITY_LOW);
+	}
+	
+	/* work and wait until tasks are done */
+	BLI_task_pool_work_and_wait(task_pool);
+	
+	BLI_task_pool_free(task_pool);
 }
 
 HAIR_NAMESPACE_END

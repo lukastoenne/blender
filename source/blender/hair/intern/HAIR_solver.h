@@ -75,7 +75,7 @@ public:
 	void free_data();
 	SolverData *data() const { return m_data; }
 	
-	void step(float time, float timestep);
+	void step_threaded(float time, float timestep);
 	
 protected:
 	void calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel) const;

@@ -85,7 +85,7 @@ void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)
 {
 	Solver *solver = (Solver *)csolver;
 	
-	solver->step(time, timestep);
+	solver->step_threaded(time, timestep);
 }
 
 void HAIR_solver_apply(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)
