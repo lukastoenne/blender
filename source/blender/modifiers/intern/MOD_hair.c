@@ -28,6 +28,7 @@
  *  \ingroup modifiers
  */
 
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_hair_types.h"
@@ -89,15 +90,20 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		float prev_steps = hmd->prev_cfra / FPS * (float)hmd->steps_per_second;
 		float steps = cfra / FPS * (float)hmd->steps_per_second;
 		int num_steps = (int)steps - (int)prev_steps;
-		float dt = 1.0f / (float)hmd->steps_per_second;
 		int s;
 		
+		float dt = 1.0f / (float)hmd->steps_per_second;
+		float prev_time = floorf(prev_steps) * dt;
+		float time = floorf(steps) * dt;
+		
 		solver = HAIR_solver_new(&hsys->params);
-		HAIR_solver_init(solver, scene, ob, hsys);
+		HAIR_solver_init(solver, scene, ob, dm, hsys, prev_time);
+		HAIR_solver_update_externals(solver, scene, ob, dm, hsys, time);
 		
 		if (num_steps < 10000) {
 			for (s = 0; s < num_steps; ++s) {
-				HAIR_solver_step(solver, dt);
+				HAIR_solver_step(solver, time, dt);
+				time += dt;
 			}
 		}
 		HAIR_solver_apply(solver, scene, ob, hsys);
@@ -130,7 +136,6 @@ ModifierTypeInfo modifierType_Hair = {
 	/* type */              eModifierTypeType_Nonconstructive,
 
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
-	                        eModifierTypeFlag_RequiresOriginalData |
 	                        eModifierTypeFlag_Single,
 
 	/* copyData */          copyData,

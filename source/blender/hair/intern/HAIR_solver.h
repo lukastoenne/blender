@@ -47,6 +47,8 @@ struct SolverData {
 	int totcurves;
 	int totpoints;
 	
+	float t0, t1;
+	
 	void precompute_rest_bend();
 	
 	HAIR_CXX_CLASS_ALLOC(SolverData)
@@ -72,9 +74,10 @@ public:
 	void free_data();
 	SolverData *data() const { return m_data; }
 	
-	void step(float timestep);
+	void step(float time, float timestep);
 	
 protected:
+	void calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel) const;
 	float3 calc_velocity(Curve *curve, Point *point, float time, Point::State &state) const;
 	float3 calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const;
 	float3 calc_stretch_force(Curve *curve, Point *point0, Point *point1, float time) const;

@@ -28,7 +28,11 @@ extern "C" {
 #include "BLI_math.h"
 
 #include "DNA_hair_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+
+#include "BKE_DerivedMesh.h"
+#include "BKE_mesh_sample.h"
 }
 
 #include "HAIR_curve.h"
@@ -39,7 +43,18 @@ extern "C" {
 
 HAIR_NAMESPACE_BEGIN
 
-SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, HairSystem *hsys)
+static bool mesh_sample_eval(DerivedMesh *dm, const Transform &tfm, MSurfaceSample *sample, float3 &loc, float3 &nor)
+{
+	float vloc[3], vnor[3];
+	
+	bool ok = BKE_mesh_sample_eval(dm, sample, vloc, vnor);
+	loc = transform_point(tfm, vloc);
+	nor = transform_direction(tfm, vnor);
+	
+	return ok;
+}
+
+SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	HairCurve *hair;
 	int i;
@@ -57,10 +72,16 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, HairSyst
 	Curve *solver_curves = data->curves;
 	Point *solver_points = data->points;
 	
+	data->t0 = data->t1 = time;
+	
 	/* copy scene data to solver data */
 	Point *point = solver_points;
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		solver_curves[i] = Curve(hair->totpoints, point);
+		Curve *curve = solver_curves + i;
+		*curve = Curve(hair->totpoints, point);
+		
+		mesh_sample_eval(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
+		curve->root0 = curve->root1;
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
@@ -75,6 +96,27 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, HairSyst
 	data->precompute_rest_bend();
 	
 	return data;
+}
+
+void SceneConverter::update_solver_data_externals(SolverData *data, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
+{
+	int i;
+	
+	Transform mat = Transform(ob->obmat);
+	
+	Curve *solver_curves = data->curves;
+	int totcurves = data->totcurves;
+	
+	data->t0 = data->t1;
+	data->t1 = time;
+	
+	for (i = 0; i < totcurves; ++i) {
+		HairCurve *hcurve = hsys->curves + i;
+		Curve *curve = solver_curves + i;
+		
+		curve->root0 = curve->root1;
+		mesh_sample_eval(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
+	}
 }
 
 void SceneConverter::apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys)

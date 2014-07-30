@@ -29,6 +29,7 @@
 
 struct Scene;
 struct Object;
+struct DerivedMesh;
 struct HairSystem;
 
 HAIR_NAMESPACE_BEGIN
@@ -36,7 +37,9 @@ HAIR_NAMESPACE_BEGIN
 struct SolverData;
 
 struct SceneConverter {
-	static SolverData *build_solver_data(Scene *scene, Object *ob, HairSystem *hsys);
+	static SolverData *build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time);
+	static void update_solver_data_externals(SolverData *data, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time);
+	
 	static void apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys);
 };
 

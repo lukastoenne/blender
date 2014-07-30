@@ -57,21 +57,28 @@ void HAIR_solver_free(struct HAIR_Solver *csolver)
 	delete solver;
 }
 
-void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)
+void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	Solver *solver = (Solver *)csolver;
 	
 	solver->forces().gravity = float3(scene->physics_settings.gravity);
 	
-	SolverData *data = SceneConverter::build_solver_data(scene, ob, hsys);
+	SolverData *data = SceneConverter::build_solver_data(scene, ob, dm, hsys, time);
 	solver->set_data(data);
 }
 
-void HAIR_solver_step(struct HAIR_Solver *csolver, float timestep)
+void HAIR_solver_update_externals(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	Solver *solver = (Solver *)csolver;
 	
-	solver->step(timestep);
+	SceneConverter::update_solver_data_externals(solver->data(), scene, ob, dm, hsys, time);
+}
+
+void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)
+{
+	Solver *solver = (Solver *)csolver;
+	
+	solver->step(time, timestep);
 }
 
 void HAIR_solver_apply(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)

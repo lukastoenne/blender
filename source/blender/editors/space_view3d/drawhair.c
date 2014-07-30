@@ -57,7 +57,7 @@
 
 /* TODO vertex/index buffers, etc. etc., avoid direct mode ... */
 
-static void draw_hair_curve(HairSystem *hsys, HairCurve *hair)
+static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
 {
 	HairPoint *point;
 	int k;

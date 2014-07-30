@@ -136,6 +136,24 @@ void Solver::free_data()
 	}
 }
 
+void Solver::calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel) const
+{
+	const CurveRoot &root0 = curve->root0;
+	const CurveRoot &root1 = curve->root1;
+	
+	if (t1 > t0) {
+		float x = (t - t0) / (t1 - t0);
+		float mx = 1.0f - x;
+		
+		co = root0.co * mx + root1.co * x;
+		vel = (root1.co - root0.co) / (t1 - t0);
+	}
+	else {
+		co = root0.co;
+		vel = float3(0.0f, 0.0f, 0.0f);
+	}
+}
+
 float3 Solver::calc_velocity(Curve *curve, Point *point, float time, Point::State &state) const
 {
 	return state.vel;
@@ -186,15 +204,13 @@ float3 Solver::calc_acceleration(Curve *curve, Point *point, float time, Point::
 	return acc;
 }
 
-void Solver::step(float timestep)
+void Solver::step(float time, float timestep)
 {
 	Curve *curve;
 	Point *point;
 	int totcurve = m_data->totcurves;
 	/*int totpoint = m_data->totpoints;*/
 	int i, k;
-	
-	float time = 0.0f;
 	
 	for (i = 0, curve = m_data->curves; i < totcurve; ++i, ++curve) {
 		int numpoints = curve->totpoints;
@@ -204,9 +220,7 @@ void Solver::step(float timestep)
 		k = 0;
 		point = curve->points;
 		
-		// TODO actually evaluate animation here
-		point->next.co = point->cur.co;
-		point->next.vel = float3(0.0f, 0.0f, 0.0f);
+		calc_root_animation(m_data->t0, m_data->t1, time, curve, point->next.co, point->next.vel);
 		
 		if (k < numpoints-1) {
 			stretch = calc_stretch_force(curve, point, point+1, time);

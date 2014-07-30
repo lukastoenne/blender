@@ -51,13 +51,20 @@ struct Point {
 	HAIR_CXX_CLASS_ALLOC(Point)
 };
 
+struct CurveRoot {
+	float3 co;
+	float3 nor;
+};
+
 struct Curve {
 	Curve();
 	Curve(int totpoints, Point *points);
 	
 	Point *points;
 	int totpoints;
-
+	
+	CurveRoot root0, root1;
+	
 	HAIR_CXX_CLASS_ALLOC(Curve)
 };
 
