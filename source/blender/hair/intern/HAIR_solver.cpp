@@ -109,8 +109,7 @@ SolverForces::SolverForces()
 }
 
 
-Solver::Solver(const HairParams &params) :
-    m_params(params),
+Solver::Solver() :
     m_data(NULL)
 {
 }
@@ -253,6 +252,9 @@ void Solver::step(float time, float timestep)
 			
 			prev_stretch = stretch;
 			prev_bend = bend;
+			
+			if (len_v3(point->next.co) > 100.0f)
+				printf("badbadbad\n");
 		}
 	}
 	

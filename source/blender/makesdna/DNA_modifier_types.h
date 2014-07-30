@@ -1374,7 +1374,14 @@ typedef struct HairModifierData {
 	struct HAIR_Solver *solver;     /* runtime instance */
 	float prev_cfra;
 	int steps_per_second;
+	
+	int flag;
+	int pad;
 } HairModifierData;
+
+enum {
+	MOD_HAIR_SOLVER_DATA_VALID  = (1 << 0),
+};
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

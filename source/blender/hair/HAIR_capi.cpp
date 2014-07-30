@@ -43,9 +43,9 @@ extern "C" {
 
 using namespace HAIR_NAMESPACE;
 
-struct HAIR_Solver *HAIR_solver_new(const struct HairParams *params)
+struct HAIR_Solver *HAIR_solver_new(void)
 {
-	Solver *solver = new Solver(*params);
+	Solver *solver = new Solver();
 	
 	return (HAIR_Solver *)solver;
 }
@@ -57,7 +57,14 @@ void HAIR_solver_free(struct HAIR_Solver *csolver)
 	delete solver;
 }
 
-void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
+void HAIR_solver_set_params(struct HAIR_Solver *csolver, const struct HairParams *params)
+{
+	Solver *solver = (Solver *)csolver;
+	
+	solver->params(*params);
+}
+
+void HAIR_solver_build_data(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	Solver *solver = (Solver *)csolver;
 	

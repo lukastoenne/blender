@@ -101,8 +101,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		float time = floorf(steps) * dt;
 		
 		if (!hmd->solver) {
-			hmd->solver = HAIR_solver_new(&hsys->params);
-			HAIR_solver_init(hmd->solver, scene, ob, dm, hsys, time);
+			hmd->solver = HAIR_solver_new();
+			hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
+		}
+		
+		HAIR_solver_set_params(hmd->solver, &hsys->params);
+		
+		if (!hmd->flag & MOD_HAIR_SOLVER_DATA_VALID) {
+			HAIR_solver_build_data(hmd->solver, scene, ob, dm, hsys, time);
+			hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
 		}
 		
 		HAIR_solver_update_externals(hmd->solver, scene, ob, dm, hsys, time);

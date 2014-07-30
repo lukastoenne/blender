@@ -63,9 +63,10 @@ struct SolverForces {
 class Solver
 {
 public:
-	Solver(const HairParams &params);
+	Solver();
 	~Solver();
 	
+	void params(const HairParams &params) { m_params = params; }
 	const HairParams &params() const { return m_params; }
 	
 	SolverForces &forces() { return m_forces; }

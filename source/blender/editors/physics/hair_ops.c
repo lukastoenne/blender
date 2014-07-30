@@ -61,7 +61,7 @@
 
 #include "physics_intern.h" // own include
 
-static bool ED_hair_get(bContext *C, Object **r_ob, HairSystem **r_hsys)
+static bool ED_hair_get(bContext *C, Object **r_ob, HairSystem **r_hsys, HairModifierData **r_hmd)
 {
 	Object *ob;
 	HairModifierData *hmd;
@@ -76,12 +76,13 @@ static bool ED_hair_get(bContext *C, Object **r_ob, HairSystem **r_hsys)
 	
 	if (r_ob) *r_ob = ob;
 	if (r_hsys) *r_hsys = hmd->hairsys;
+	if (r_hmd) *r_hmd = hmd;
 	return true;
 }
 
 static int ED_hair_active_poll(bContext *C)
 {
-	return ED_hair_get(C, NULL, NULL);
+	return ED_hair_get(C, NULL, NULL, NULL);
 }
 
 /************************ reset hair to rest position *********************/
@@ -90,11 +91,13 @@ static int hair_reset_to_rest_location_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob;
 	HairSystem *hsys;
+	HairModifierData *hmd;
 	int i, k;
-	ED_hair_get(C, &ob, &hsys);
+	ED_hair_get(C, &ob, &hsys, &hmd);
 	
 	for (i = 0; i < hsys->totcurves; ++i) {
 		HairCurve *hair = &hsys->curves[i];
+		
 		for (k = 0; k < hair->totpoints; ++k) {
 			HairPoint *point = &hair->points[k];
 			
@@ -102,6 +105,8 @@ static int hair_reset_to_rest_location_exec(bContext *C, wmOperator *UNUSED(op))
 			zero_v3(point->vel);
 		}
 	}
+	
+	hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	return OPERATOR_FINISHED;
@@ -224,7 +229,8 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 	Object *ob;
 	ParticleSystem *psys;
 	HairSystem *hsys;
-	ED_hair_get(C, &ob, &hsys);
+	HairModifierData *hmd;
+	ED_hair_get(C, &ob, &hsys, &hmd);
 	
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 		ParticleSystemModifierData *psmd;
@@ -238,9 +244,14 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 		}
 		
 		psmd = psys_get_modifier(ob, psys);
-		BLI_assert(psmd != NULL);
+		if (!psmd || !psmd->dm) {
+			BKE_reportf(op->reports, RPT_ERROR, "Skipping particle system %s: Invalid data", psys->name);
+			continue;
+		}
 		
 		hair_copy_from_particles_psys(ob, hsys, psys, psmd->dm);
+		
+		hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
 	}
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
