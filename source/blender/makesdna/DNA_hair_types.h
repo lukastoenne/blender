@@ -33,6 +33,8 @@
 #ifndef __DNA_HAIR_TYPES_H__
 #define __DNA_HAIR_TYPES_H__
 
+#include "DNA_meshdata_types.h"
+
 typedef struct HairPoint {
 	float rest_co[3];           /* rest location in object space */
 	float co[3];                /* location in object space */
@@ -44,6 +46,8 @@ typedef struct HairCurve {
 	HairPoint *points;          /* point data */
 	int totpoints;              /* number of points in the curve */
 	int pad;
+	
+	MSurfaceSample root;
 } HairCurve;
 
 typedef struct HairParams {
@@ -54,8 +58,8 @@ typedef struct HairParams {
 } HairParams;
 
 typedef struct HairSystem {
-	HairCurve *curves;          /* curve data */
-	int totcurves;              /* number of curves */
+	HairCurve *curves;              /* curve data */
+	int totcurves;                  /* number of curves */
 	int pad;
 	
 	HairParams params;

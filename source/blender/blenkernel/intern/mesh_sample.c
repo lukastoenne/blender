@@ -157,13 +157,18 @@ static void mesh_sample_surface_random(const MSurfaceSampleInfo *info, MSurfaceS
 
 void BKE_mesh_sample_surface_array(const MSurfaceSampleInfo *info, MSurfaceSample *samples, int totsample)
 {
+	BKE_mesh_sample_surface_array_stride(info, samples, (int)sizeof(MSurfaceSample), totsample);
+}
+
+void BKE_mesh_sample_surface_array_stride(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *first, int stride, int totsample)
+{
 	MSurfaceSample *sample;
 	int i;
 	
 	switch (info->algorithm) {
 		case MSS_RANDOM: {
 			DM_ensure_tessface(info->dm);
-			for (sample = samples, i = 0; i < totsample; ++sample, ++i)
+			for (sample = first, i = 0; i < totsample; sample = (MSurfaceSample *)((char *)sample + stride), ++i)
 				mesh_sample_surface_random(info, sample);
 			break;
 		}

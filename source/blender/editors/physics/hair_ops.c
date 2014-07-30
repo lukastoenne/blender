@@ -37,11 +37,13 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_hair_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 
 #include "BKE_context.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_hair.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -122,7 +124,59 @@ void HAIR_OT_reset_to_rest_location(wmOperatorType *ot)
 
 /************************ copy hair data from old particles *********************/
 
-static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, ParticleSystem *psys)
+static bool hair_copy_particle_emitter_location(Object *UNUSED(ob), ParticleSystem *psys, ParticleData *pa, struct DerivedMesh *dm, MSurfaceSample *result)
+{
+	float mapfw[4];
+	int mapindex;
+	MVert *mverts = dm->getVertArray(dm);
+	MFace *mface;
+	float *co1, *co2, *co3, *co4;
+	float vec[3];
+	float w[3];
+	
+	if (!psys_get_index_on_dm(psys, dm, pa, &mapindex, mapfw))
+		return false;
+	
+	mface = dm->getTessFaceData(dm, mapindex, CD_MFACE);
+	mverts = dm->getVertDataArray(dm, CD_MVERT);
+
+	co1 = mverts[mface->v1].co;
+	co2 = mverts[mface->v2].co;
+	co3 = mverts[mface->v3].co;
+
+	if (mface->v4) {
+		co4 = mverts[mface->v4].co;
+		
+		interp_v3_v3v3v3v3(vec, co1, co2, co3, co4, mapfw);
+	}
+	else {
+		interp_v3_v3v3v3(vec, co1, co2, co3, mapfw);
+	}
+	
+	/* test both triangles of the face */
+	interp_weights_face_v3(w, co1, co2, co3, NULL, vec);
+	if (w[0] <= 1.0f && w[1] <= 1.0f && w[2] <= 1.0f) {
+		result->orig_verts[0] = mface->v1;
+		result->orig_verts[1] = mface->v2;
+		result->orig_verts[2] = mface->v3;
+		
+		copy_v3_v3(result->orig_weights, w);
+		return true;
+	}
+	else if (mface->v4) {
+		interp_weights_face_v3(w, co3, co4, co1, NULL, vec);
+		result->orig_verts[0] = mface->v3;
+		result->orig_verts[1] = mface->v4;
+		result->orig_verts[2] = mface->v1;
+		
+		copy_v3_v3(result->orig_weights, w);
+		return true;
+	}
+	else
+		return false;
+}
+
+static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm)
 {
 	HairCurve *hairs;
 	int tothairs;
@@ -132,30 +186,40 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 	/* matrix for bringing hairs from pob to ob space */
 	invert_m4_m4(mat, ob->obmat);
 	
+	/* particle emitter mesh data */
+	DM_ensure_tessface(dm);
+	
 	tothairs = psys->totpart;
 	hairs = BKE_hair_curve_add_multi(hsys, tothairs);
 	
 	for (i = 0; i < tothairs; ++i) {
 		ParticleCacheKey *pa_cache = psys->pathcache[i];
+		ParticleData *root = &psys->particles[i];
 		HairCurve *hair = hairs + i;
 		HairPoint *points;
 		int totpoints;
 		
+		if (pa_cache->steps == 0)
+			continue;
+		
 		totpoints = pa_cache->steps + 1;
 		points = BKE_hair_point_append_multi(hsys, hair, totpoints);
+		
+		hair_copy_particle_emitter_location(ob, psys, root, dm, &hair->root);
 		
 		for (k = 0; k < totpoints; ++k) {
 			ParticleCacheKey *pa_key = pa_cache + k;
 			HairPoint *point = points + k;
 			
 			mul_v3_m4v3(point->rest_co, mat, pa_key->co);
+			/* apply rest position */
 			copy_v3_v3(point->co, point->rest_co);
 			zero_v3(point->vel);
 		}
 	}
 }
 
-static int hair_copy_from_particles_exec(bContext *C, wmOperator *UNUSED(op))
+static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 {
 	Object *ob;
 	ParticleSystem *psys;
@@ -163,10 +227,20 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *UNUSED(op))
 	ED_hair_get(C, &ob, &hsys);
 	
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		if (psys->part->type != PART_HAIR)
+		ParticleSystemModifierData *psmd;
+		if (psys->part->type != PART_HAIR) {
+			BKE_reportf(op->reports, RPT_WARNING, "Skipping particle system %s: Not a hair particle system", psys->name);
 			continue;
+		}
+		if (psys->part->from != PART_FROM_FACE) {
+			BKE_reportf(op->reports, RPT_WARNING, "Skipping particle system %s: Must use face emitter mode", psys->name);
+			continue;
+		}
 		
-		hair_copy_from_particles_psys(ob, hsys, psys);
+		psmd = psys_get_modifier(ob, psys);
+		BLI_assert(psmd != NULL);
+		
+		hair_copy_from_particles_psys(ob, hsys, psys, psmd->dm);
 	}
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);

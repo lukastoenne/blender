@@ -38,6 +38,7 @@
 #include "DNA_hair_types.h"
 
 #include "BKE_hair.h"
+#include "BKE_mesh_sample.h"
 
 HairSystem *BKE_hairsys_new(void)
 {
@@ -64,6 +65,7 @@ HairSystem *BKE_hairsys_copy(HairSystem *hsys)
 {
 	int totcurves = hsys->totcurves, i;
 	HairSystem *thsys = MEM_dupallocN(hsys);
+	
 	thsys->curves = MEM_dupallocN(hsys->curves);
 	for (i = 0; i < totcurves; ++i)
 		thsys->curves[i].points = MEM_dupallocN(hsys->curves[i].points);
@@ -103,7 +105,7 @@ void BKE_hair_curve_remove(HairSystem *hsys, HairCurve *hair)
 		memcpy(ncurves, hsys->curves, sizeof(HairCurve) * pos);
 	}
 	if (pos < hsys->totcurves - 1) {
-		memcpy(ncurves + pos, hsys->curves + (pos + 1), hsys->totcurves - (pos + 1));
+		memcpy(ncurves + pos, hsys->curves + (pos + 1), sizeof(HairCurve) * (hsys->totcurves - (pos + 1)));
 	}
 	
 	MEM_freeN(hair->points);
