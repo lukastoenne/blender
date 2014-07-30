@@ -122,7 +122,7 @@ void HAIR_OT_reset_to_rest_location(wmOperatorType *ot)
 
 /************************ copy hair data from old particles *********************/
 
-static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *UNUSED(pob), ParticleSystem *psys)
+static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, ParticleSystem *psys)
 {
 	HairCurve *hairs;
 	int tothairs;
@@ -158,21 +158,16 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Object *
 static int hair_copy_from_particles_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob;
+	ParticleSystem *psys;
 	HairSystem *hsys;
 	ED_hair_get(C, &ob, &hsys);
 	
-	CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
-		Object *pob = base->object;
-		ParticleSystem *psys;
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+		if (psys->part->type != PART_HAIR)
+			continue;
 		
-		for (psys = pob->particlesystem.first; psys; psys = psys->next) {
-			if (psys->part->type != PART_HAIR)
-				continue;
-			
-			hair_copy_from_particles_psys(ob, hsys, pob, psys);
-		}
+		hair_copy_from_particles_psys(ob, hsys, psys);
 	}
-	CTX_DATA_END;
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	return OPERATOR_FINISHED;
