@@ -36,6 +36,7 @@ extern "C" {
 
 #include "HAIR_capi.h"
 
+#include "HAIR_scene.h"
 #include "HAIR_smoothing.h"
 #include "HAIR_solver.h"
 #include "HAIR_types.h"
@@ -64,35 +65,8 @@ void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, Hai
 	
 	solver->forces().gravity = float3(scene->physics_settings.gravity);
 	
-	Transform mat = Transform(ob->obmat);
-	
-	/* count points */
-	int totpoints = 0;
-	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		totpoints += hair->totpoints;
-	}
-	
-	/* allocate data */
-	solver->init_data(hsys->totcurves, totpoints);
-	Curve *solver_curves = solver->data()->curves;
-	Point *solver_points = solver->data()->points;
-	
-	/* copy data to solver data */
-	Point *point = solver_points;
-	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		solver_curves[i] = Curve(hair->totpoints, point);
-		
-		for (int k = 0; k < hair->totpoints; ++k, ++point) {
-			HairPoint *hair_pt = hair->points + k;
-			
-			*point = Point(transform_point(mat, hair_pt->rest_co));
-			point->cur.co = transform_point(mat, hair_pt->co);
-			point->cur.vel = transform_direction(mat, hair_pt->vel);
-		}
-	}
-	
-	/* finalize */
-	solver->prepare_data();
+	SolverData *data = SceneConverter::build_solver_data(scene, ob, hsys);
+	solver->set_data(data);
 }
 
 void HAIR_solver_step(struct HAIR_Solver *csolver, float timestep)

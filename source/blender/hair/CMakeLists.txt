@@ -45,6 +45,8 @@ set(SRC
 	intern/HAIR_math.h
 	intern/HAIR_math.cpp
 	intern/HAIR_memalloc.h
+	intern/HAIR_scene.h
+	intern/HAIR_scene.cpp
 	intern/HAIR_smoothing.h
 	intern/HAIR_smoothing.cpp
 	intern/HAIR_solver.h

@@ -68,8 +68,7 @@ public:
 	
 	SolverForces &forces() { return m_forces; }
 	
-	void init_data(int totcurves, int totpoints);
-	void prepare_data();
+	void set_data(SolverData *data);
 	void free_data();
 	SolverData *data() const { return m_data; }
 	

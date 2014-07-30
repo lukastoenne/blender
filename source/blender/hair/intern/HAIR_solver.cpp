@@ -121,19 +121,11 @@ Solver::~Solver()
 		delete m_data;
 }
 
-void Solver::init_data(int totcurves, int totpoints)
+void Solver::set_data(SolverData *data)
 {
-	if (!m_data) {
-		m_data = new SolverData(totcurves, totpoints);
-	}
-}
-
-void Solver::prepare_data()
-{
-	if (!m_data)
-		return;
-	
-	m_data->precompute_rest_bend();
+	if (m_data)
+		delete m_data;
+	m_data = data;
 }
 
 void Solver::free_data()
