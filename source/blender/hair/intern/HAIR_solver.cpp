@@ -252,9 +252,6 @@ void Solver::step(float time, float timestep)
 			
 			prev_stretch = stretch;
 			prev_bend = bend;
-			
-			if (len_v3(point->next.co) > 100.0f)
-				printf("badbadbad\n");
 		}
 	}
 	
