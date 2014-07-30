@@ -60,6 +60,9 @@ static void freeData(ModifierData *md)
 {
 	HairModifierData *hmd = (HairModifierData *) md;
 	
+	if (hmd->solver)
+		HAIR_solver_free(hmd->solver);
+	
 	BKE_hairsys_free(hmd->hairsys);
 }
 
@@ -72,6 +75,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 		BKE_hairsys_free(thmd->hairsys);
 	
 	thmd->hairsys = BKE_hairsys_copy(hmd->hairsys);
+	
+	thmd->solver = NULL;
 	thmd->prev_cfra = hmd->prev_cfra;
 }
 
@@ -83,7 +88,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	HairSystem *hsys = hmd->hairsys;
 	Scene *scene = md->scene;
 	float cfra = BKE_scene_frame_get(scene), dfra;
-	struct HAIR_Solver *solver;
 	
 	dfra = cfra - hmd->prev_cfra;
 	if (dfra > 0.0f && FPS > 0.0f) {
@@ -93,22 +97,25 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		int s;
 		
 		float dt = 1.0f / (float)hmd->steps_per_second;
-		float prev_time = floorf(prev_steps) * dt;
+		/*float prev_time = floorf(prev_steps) * dt;*/
 		float time = floorf(steps) * dt;
 		
-		solver = HAIR_solver_new(&hsys->params);
-		HAIR_solver_init(solver, scene, ob, dm, hsys, prev_time);
-		HAIR_solver_update_externals(solver, scene, ob, dm, hsys, time);
+		if (!hmd->solver) {
+			hmd->solver = HAIR_solver_new(&hsys->params);
+			HAIR_solver_init(hmd->solver, scene, ob, dm, hsys, time);
+		}
+		
+		HAIR_solver_update_externals(hmd->solver, scene, ob, dm, hsys, time);
 		
 		if (num_steps < 10000) {
+			struct HAIR_Solver *solver = hmd->solver;
 			for (s = 0; s < num_steps; ++s) {
 				HAIR_solver_step(solver, time, dt);
 				time += dt;
 			}
 		}
-		HAIR_solver_apply(solver, scene, ob, hsys);
 		
-		HAIR_solver_free(solver);
+		HAIR_solver_apply(hmd->solver, scene, ob, hsys);
 	}
 	
 	hmd->prev_cfra = cfra;

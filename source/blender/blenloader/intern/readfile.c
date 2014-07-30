@@ -4861,6 +4861,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			hmd->hairsys = newdataadr(fd, hmd->hairsys);
 			if (hmd->hairsys)
 				direct_link_hair_system(fd, hmd->hairsys);
+
+			hmd->solver = NULL;
 		}
 	}
 }
