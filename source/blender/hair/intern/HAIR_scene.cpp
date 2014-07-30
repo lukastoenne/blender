@@ -25,6 +25,8 @@
  */
 
 extern "C" {
+#include "BLI_math.h"
+
 #include "DNA_hair_types.h"
 #include "DNA_object_types.h"
 }
@@ -73,6 +75,30 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, HairSyst
 	data->precompute_rest_bend();
 	
 	return data;
+}
+
+void SceneConverter::apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys)
+{
+	int i;
+	
+	Transform imat = transform_inverse(Transform(ob->obmat));
+	
+	Curve *solver_curves = data->curves;
+	int totcurves = data->totcurves;
+	
+	/* copy solver data to DNA */
+	for (i = 0; i < totcurves && i < hsys->totcurves; ++i) {
+		Curve *curve = solver_curves + i;
+		HairCurve *hcurve = hsys->curves + i;
+		
+		for (int k = 0; k < curve->totpoints && k < hcurve->totpoints; ++k) {
+			Point *point = curve->points + k;
+			HairPoint *hpoint = hcurve->points + k;
+			
+			copy_v3_v3(hpoint->co, transform_point(imat, point->cur.co).data());
+			copy_v3_v3(hpoint->vel, transform_direction(imat, point->cur.vel).data());
+		}
+	}
 }
 
 HAIR_NAMESPACE_END

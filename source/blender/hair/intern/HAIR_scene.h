@@ -37,6 +37,7 @@ struct SolverData;
 
 struct SceneConverter {
 	static SolverData *build_solver_data(Scene *scene, Object *ob, HairSystem *hsys);
+	static void apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys);
 };
 
 HAIR_NAMESPACE_END

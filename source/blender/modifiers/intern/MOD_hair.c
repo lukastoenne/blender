@@ -100,7 +100,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				HAIR_solver_step(solver, dt);
 			}
 		}
-		HAIR_solver_apply(solver, ob, hsys);
+		HAIR_solver_apply(solver, scene, ob, hsys);
 		
 		HAIR_solver_free(solver);
 	}

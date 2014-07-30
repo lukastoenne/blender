@@ -41,7 +41,7 @@ struct HAIR_Solver *HAIR_solver_new(const struct HairParams *params);
 void HAIR_solver_free(struct HAIR_Solver *solver);
 void HAIR_solver_init(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 void HAIR_solver_step(struct HAIR_Solver *solver, float timestep);
-void HAIR_solver_apply(struct HAIR_Solver *solver, struct Object *ob, struct HairSystem *hsys);
+void HAIR_solver_apply(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 
 struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(struct HairCurve *curve, float rest_length, float amount, float cval[3]);
 void HAIR_smoothing_iter_free(struct HAIR_SmoothingIteratorFloat3 *iter);

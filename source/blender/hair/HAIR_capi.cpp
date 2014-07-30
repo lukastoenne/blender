@@ -60,8 +60,6 @@ void HAIR_solver_free(struct HAIR_Solver *csolver)
 void HAIR_solver_init(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)
 {
 	Solver *solver = (Solver *)csolver;
-	HairCurve *hair;
-	int i;
 	
 	solver->forces().gravity = float3(scene->physics_settings.gravity);
 	
@@ -76,29 +74,11 @@ void HAIR_solver_step(struct HAIR_Solver *csolver, float timestep)
 	solver->step(timestep);
 }
 
-void HAIR_solver_apply(struct HAIR_Solver *csolver, Object *ob, HairSystem *hsys)
+void HAIR_solver_apply(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)
 {
 	Solver *solver = (Solver *)csolver;
-	int i;
 	
-	Transform imat = transform_inverse(Transform(ob->obmat));
-	
-	Curve *solver_curves = solver->data()->curves;
-	int totcurves = solver->data()->totcurves;
-	
-	/* copy solver data to DNA */
-	for (i = 0; i < totcurves && i < hsys->totcurves; ++i) {
-		Curve *curve = solver_curves + i;
-		HairCurve *hcurve = hsys->curves + i;
-		
-		for (int k = 0; k < curve->totpoints && k < hcurve->totpoints; ++k) {
-			Point *point = curve->points + k;
-			HairPoint *hpoint = hcurve->points + k;
-			
-			copy_v3_v3(hpoint->co, transform_point(imat, point->cur.co).data());
-			copy_v3_v3(hpoint->vel, transform_direction(imat, point->cur.vel).data());
-		}
-	}
+	SceneConverter::apply_solver_data(solver->data(), scene, ob, hsys);
 }
 
 
