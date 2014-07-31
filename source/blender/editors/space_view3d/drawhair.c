@@ -73,6 +73,10 @@ static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
 	glPointSize(2.5f);
 	glBegin(GL_POINTS);
 	for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
+		if (k == 0)
+			glColor3f(1.0f, 0.0f, 1.0f);
+		else
+			glColor3f(0.2f, 0.0f, 1.0f);
 		glVertex3fv(point->co);
 	}
 	glEnd();
