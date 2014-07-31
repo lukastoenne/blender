@@ -97,7 +97,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		int s;
 		
 		float dt = 1.0f / (float)hmd->steps_per_second;
-		/*float prev_time = floorf(prev_steps) * dt;*/
+		float prev_time = floorf(prev_steps) * dt;
 		float time = floorf(steps) * dt;
 		
 		if (!hmd->solver) {
@@ -116,9 +116,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		
 		if (num_steps < 10000) {
 			struct HAIR_Solver *solver = hmd->solver;
+			float curtime = prev_time;
 			for (s = 0; s < num_steps; ++s) {
-				HAIR_solver_step(solver, time, dt);
-				time += dt;
+				HAIR_solver_step(solver, curtime, dt);
+				curtime += dt;
 			}
 		}
 		

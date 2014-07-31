@@ -224,7 +224,10 @@ static void step(const HairParams &params, const SolverForces &forces, float tim
 		k = 0;
 		point = curve->points;
 		
-		calc_root_animation(t0, t1, time, curve, point->next.co, point->next.vel);
+		/* note: roots are evaluated at the end of the timestep: time + timestep
+		 * so the hair points align perfectly with them
+		 */
+		calc_root_animation(t0, t1, time + timestep, curve, point->next.co, point->next.vel);
 		
 		if (k < numpoints-1) {
 			stretch = calc_stretch_force(params, curve, point, point+1, time);
