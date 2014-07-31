@@ -1231,7 +1231,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         
         col.separator()
         
-        col.prop(md, "steps_per_second")
         row = col.row()
         col2 = row.column()
         col2.prop(params, "stretch_stiffness")

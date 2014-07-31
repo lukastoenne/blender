@@ -3676,13 +3676,6 @@ static void rna_def_modifier_hair(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "hairsys");
 	RNA_def_property_struct_type(prop, "HairSystem");
 	RNA_def_property_ui_text(prop, "Hair System", "");
-
-	prop = RNA_def_property(srna, "steps_per_second", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "steps_per_second");
-	RNA_def_property_int_default(prop, 30);
-	RNA_def_property_range(prop, 1, 512);
-	RNA_def_property_ui_text(prop, "Steps", "Steps per second");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

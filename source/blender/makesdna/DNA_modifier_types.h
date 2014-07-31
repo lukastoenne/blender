@@ -1372,9 +1372,9 @@ typedef struct HairModifierData {
 	struct HairSystem *hairsys;
 	
 	struct HAIR_Solver *solver;     /* runtime instance */
-	int steps_per_second;
 	
 	int flag;
+	int pad;
 } HairModifierData;
 
 enum {

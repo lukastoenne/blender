@@ -52,9 +52,8 @@ static void initData(ModifierData *md)
 	HairModifierData *hmd = (HairModifierData *) md;
 	
 	hmd->hairsys = BKE_hairsys_new();
-	
-	hmd->steps_per_second = 30;
 }
+
 static void freeData(ModifierData *md)
 {
 	HairModifierData *hmd = (HairModifierData *) md;
