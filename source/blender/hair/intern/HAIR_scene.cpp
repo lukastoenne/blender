@@ -30,6 +30,8 @@ extern "C" {
 #include "DNA_hair_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_rigidbody_types.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
@@ -101,7 +103,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	return data;
 }
 
-void SceneConverter::update_solver_data_externals(SolverData *data, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
+void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces &forces, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	int i;
 	
@@ -120,6 +122,9 @@ void SceneConverter::update_solver_data_externals(SolverData *data, Scene *scene
 		curve->root0 = curve->root1;
 		mesh_sample_eval(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
 	}
+	
+	forces.dynamics_world = (rbDynamicsWorld *)scene->rigidbody_world->physics_world;
+	forces.gravity = float3(scene->physics_settings.gravity);
 }
 
 void SceneConverter::apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys)

@@ -34,6 +34,8 @@ extern "C" {
 #include "HAIR_curve.h"
 #include "HAIR_memalloc.h"
 
+struct rbDynamicsWorld;
+
 HAIR_NAMESPACE_BEGIN
 
 struct SolverData {
@@ -56,6 +58,8 @@ struct SolverData {
 
 struct SolverForces {
 	SolverForces();
+	
+	struct rbDynamicsWorld *dynamics_world;
 	
 	float3 gravity;
 };

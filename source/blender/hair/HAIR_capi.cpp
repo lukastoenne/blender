@@ -68,8 +68,6 @@ void HAIR_solver_build_data(struct HAIR_Solver *csolver, Scene *scene, Object *o
 {
 	Solver *solver = (Solver *)csolver;
 	
-	solver->forces().gravity = float3(scene->physics_settings.gravity);
-	
 	SolverData *data = SceneConverter::build_solver_data(scene, ob, dm, hsys, time);
 	solver->set_data(data);
 }
@@ -78,7 +76,7 @@ void HAIR_solver_update_externals(struct HAIR_Solver *csolver, Scene *scene, Obj
 {
 	Solver *solver = (Solver *)csolver;
 	
-	SceneConverter::update_solver_data_externals(solver->data(), scene, ob, dm, hsys, time);
+	SceneConverter::update_solver_data_externals(solver->data(), solver->forces(), scene, ob, dm, hsys, time);
 }
 
 void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)
