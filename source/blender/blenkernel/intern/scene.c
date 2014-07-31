@@ -1249,13 +1249,31 @@ static void scene_rebuild_rbw_recursive(Scene *scene, float ctime)
 		BKE_rigidbody_rebuild_world(scene, ctime);
 }
 
+static void scene_tick(void *vscene, float timestep)
+{
+}
+
+/* fallback implementation for global simulation solvers,
+ * in case Bullet time stepping is not available.
+ */
+static void scene_do_simulation_step(Scene *scene, float ctime)
+{
+	// XXX TODO !!
+}
+
 static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
 {
 	if (scene->set)
 		scene_do_rb_simulation_recursive(scene->set, ctime);
 
-	if (BKE_scene_check_rigidbody_active(scene))
-		BKE_rigidbody_do_simulation(scene, ctime);
+	{
+		bool stepped = false;
+		if (BKE_scene_check_rigidbody_active(scene))
+			stepped |= BKE_rigidbody_do_simulation(scene, ctime, scene_tick, scene);
+	
+		if (!stepped)
+			scene_do_simulation_step(scene, ctime);
+	}
 }
 
 /* Used to visualize CPU threads activity during threaded object update,

@@ -213,9 +213,32 @@ void RB_dworld_set_split_impulse(rbDynamicsWorld *world, int split_impulse)
 
 /* Simulation ----------------------- */
 
-void RB_dworld_step_simulation(rbDynamicsWorld *world, float timeStep, int maxSubSteps, float timeSubStep)
+struct rbSimulationTickData {
+	rbSimulationTickData(rbSimulationTickCallback cb, void *userdata) : cb(cb), userdata(userdata) {}
+	
+	rbSimulationTickCallback cb;
+	void *userdata;
+};
+
+/* wrapper for our own callback type */
+static void rb_simulation_step_cb(btDynamicsWorld *world, btScalar timestep)
 {
+	rbSimulationTickData *data = (rbSimulationTickData *)world->getWorldUserInfo();
+	data->cb(data->userdata, timestep);
+}
+
+void RB_dworld_step_simulation(rbDynamicsWorld *world, float timeStep, int maxSubSteps, float timeSubStep,
+                               rbSimulationTickCallback cb, void *userdata, bool is_pre_tick)
+{
+	/* set the tick callback */
+	rbSimulationTickData data(cb, userdata);
+	world->dynamicsWorld->setInternalTickCallback(rb_simulation_step_cb, (void *)(&data), is_pre_tick);
+	
+	/* perform actual time step */
 	world->dynamicsWorld->stepSimulation(timeStep, maxSubSteps, timeSubStep);
+	
+	/* clean up */
+	world->dynamicsWorld->setWorldUserInfo(NULL);
 }
 
 /* Export -------------------------- */

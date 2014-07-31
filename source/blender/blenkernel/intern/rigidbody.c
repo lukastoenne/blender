@@ -1515,7 +1515,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 }
 
 /* Run RigidBody simulation for the specified physics world */
-void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
+bool BKE_rigidbody_do_simulation(Scene *scene, float ctime, void (*tickcb)(void *tickdata, float timestep), void *tickdata)
 {
 	float timestep;
 	RigidBodyWorld *rbw = scene->rigidbody_world;
@@ -1529,7 +1529,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 
 	if (ctime <= startframe) {
 		rbw->ltime = startframe;
-		return;
+		return true; /* is ok, just nothing to simulate before the start frame */
 	}
 	/* make sure we don't go out of cache frame range */
 	else if (ctime > endframe) {
@@ -1538,7 +1538,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 
 	/* don't try to run the simulation if we don't have a world yet but allow reading baked cache */
 	if (rbw->physics_world == NULL && !(cache->flag & PTCACHE_BAKED))
-		return;
+		return false;
 	else if (rbw->objects == NULL)
 		rigidbody_update_ob_array(rbw);
 
@@ -1547,7 +1547,11 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	if (BKE_ptcache_read(&pid, ctime)) {
 		BKE_ptcache_validate(cache, (int)ctime);
 		rbw->ltime = ctime;
-		return;
+		/* XXX TODO run the stepping loop anyway, but then set all rigid bodies
+		 * to animated and interpolate cached data!
+		 * The collision info may still be needed for other solvers
+		 */
+		return true;
 	}
 
 	/* advance simulation, we can only step one frame forward */
@@ -1563,7 +1567,8 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 		/* calculate how much time elapsed since last step in seconds */
 		timestep = 1.0f / (float)FPS * (ctime - rbw->ltime) * rbw->time_scale;
 		/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
-		RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f));
+		RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f),
+		                          tickcb, tickdata, false);
 
 		rigidbody_update_simulation_post_step(rbw);
 
@@ -1573,6 +1578,8 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 
 		rbw->ltime = ctime;
 	}
+	
+	return true;
 }
 /* ************************************** */
 

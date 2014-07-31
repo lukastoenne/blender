@@ -97,6 +97,6 @@ void BKE_rigidbody_sync_transforms(struct RigidBodyWorld *rbw, struct Object *ob
 bool BKE_rigidbody_check_sim_running(struct RigidBodyWorld *rbw, float ctime);
 void BKE_rigidbody_cache_reset(struct RigidBodyWorld *rbw);
 void BKE_rigidbody_rebuild_world(struct Scene *scene, float ctime);
-void BKE_rigidbody_do_simulation(struct Scene *scene, float ctime);
+bool BKE_rigidbody_do_simulation(struct Scene *scene, float ctime, void (*tickcb)(void *tickdata, float timestep), void *tickdata);
 
 #endif /* __BKE_RIGIDBODY_H__ */

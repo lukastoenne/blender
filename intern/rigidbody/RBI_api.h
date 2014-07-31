@@ -66,6 +66,9 @@ typedef struct rbMeshData rbMeshData;
 /* Constraint */
 typedef struct rbConstraint rbConstraint;
 
+/* Callback type for handling simulation ticks */
+typedef void (*rbSimulationTickCallback)(void *userdata, float timestep);
+
 /* ********************************** */
 /* Dynamics World Methods */
 
@@ -92,7 +95,8 @@ void RB_dworld_set_split_impulse(rbDynamicsWorld *world, int split_impulse);
 /* Simulation ----------------------- */
 
 /* Step the simulation by the desired amount (in seconds) with extra controls on substep sizes and maximum substeps */
-void RB_dworld_step_simulation(rbDynamicsWorld *world, float timeStep, int maxSubSteps, float timeSubStep);
+void RB_dworld_step_simulation(rbDynamicsWorld *world, float timeStep, int maxSubSteps, float timeSubStep,
+                               rbSimulationTickCallback cb, void *userdata, bool is_pre_tick);
 
 /* Export -------------------------- */
 
