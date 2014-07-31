@@ -278,7 +278,7 @@ unset(PLATFORM_DEFAULT)
 
 # LLVM
 option(WITH_LLVM					"Use LLVM" OFF)
-option(LLVM_STATIC					"Link with LLVM static libraries" ON)
+option(LLVM_STATIC					"Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 
 # disable for now, but plan to support on all platforms eventually
@@ -1772,6 +1772,10 @@ elseif(APPLE)
 
 		set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
 		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lxml2 -lbuffer -lftoa")
+		# Use UTF functions from collada if LLVM is not enabled
+		if(NOT WITH_LLVM)
+			set(OPENCOLLADA_LIBRARIES "${OPENCOLLADA_LIBRARIES} -lUTF")
+		endif()
 		# pcre is bundled with openCollada
 		#set(PCRE ${LIBDIR}/pcre)
 		#set(PCRE_LIBPATH ${PCRE}/lib)
