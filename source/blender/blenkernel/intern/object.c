@@ -41,6 +41,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_group_types.h"
+#include "DNA_hair_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
@@ -86,6 +87,7 @@
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
+#include "BKE_hair.h"
 #include "BKE_key.h"
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
@@ -109,6 +111,8 @@
 #include "BKE_material.h"
 #include "BKE_camera.h"
 #include "BKE_image.h"
+
+#include "HAIR_capi.h"
 
 #ifdef WITH_MOD_FLUID
 #include "LBM_fluidsim.h"
@@ -3078,6 +3082,57 @@ void BKE_object_sculpt_modifiers_changed(Object *ob)
 				BKE_pbvh_node_mark_update(nodes[n]);
 
 			MEM_freeN(nodes);
+		}
+	}
+}
+
+void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
+{
+	ModifierData *md;
+	
+	for (md = ob->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_Hair) {
+			HairModifierData *hmd = (HairModifierData*) md;
+			HairSystem *hsys = hmd->hairsys;
+			DerivedMesh *dm = ob->derivedFinal;
+			
+			if (!hmd->solver) {
+				hmd->solver = HAIR_solver_new();
+				hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
+			}
+			
+			HAIR_solver_set_params(hmd->solver, &hsys->params);
+			
+			if (!hmd->flag & MOD_HAIR_SOLVER_DATA_VALID) {
+				HAIR_solver_build_data(hmd->solver, scene, ob, dm, hsys, ctime);
+				hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
+			}
+			
+			HAIR_solver_update_externals(hmd->solver, scene, ob, dm, hsys, ctime);
+		}
+	}
+}
+
+void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float timestep)
+{
+	ModifierData *md;
+	
+	for (md = ob->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_Hair) {
+			HairModifierData *hmd = (HairModifierData*) md;
+			HAIR_solver_step(hmd->solver, ctime, timestep);
+		}
+	}
+}
+
+void BKE_object_sim_post_step(Scene *scene, Object *ob, float UNUSED(ctime))
+{
+	ModifierData *md;
+	
+	for (md = ob->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_Hair) {
+			HairModifierData *hmd = (HairModifierData*) md;
+			HAIR_solver_apply(hmd->solver, scene, ob, hmd->hairsys);
 		}
 	}
 }

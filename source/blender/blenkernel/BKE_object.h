@@ -171,6 +171,10 @@ void BKE_object_handle_update_ex(struct EvaluationContext *eval_ctx,
                                  const bool do_proxy_update);
 void BKE_object_sculpt_modifiers_changed(struct Object *ob);
 
+void BKE_object_sim_pre_step(struct Scene *scene, struct Object *ob, float ctime);
+void BKE_object_sim_tick(struct Scene *scene, struct Object *ob, float ctime, float timestep);
+void BKE_object_sim_post_step(struct Scene *scene, struct Object *ob, float ctime);
+
 int BKE_object_obdata_texspace_get(struct Object *ob, short **r_texflag, float **r_loc, float **r_size, float **r_rot);
 
 int BKE_object_insert_ptcache(struct Object *ob);

@@ -52,7 +52,6 @@ static void initData(ModifierData *md)
 	HairModifierData *hmd = (HairModifierData *) md;
 	
 	hmd->hairsys = BKE_hairsys_new();
-	hmd->prev_cfra = 1.0f; /* XXX where to get this properly ... md-> is not initialized at this point */
 	
 	hmd->steps_per_second = 30;
 }
@@ -77,57 +76,12 @@ static void copyData(ModifierData *md, ModifierData *target)
 	thmd->hairsys = BKE_hairsys_copy(hmd->hairsys);
 	
 	thmd->solver = NULL;
-	thmd->prev_cfra = hmd->prev_cfra;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
+static DerivedMesh *applyModifier(ModifierData *UNUSED(md), Object *UNUSED(ob),
                                   DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {
-	HairModifierData *hmd = (HairModifierData *) md;
-	HairSystem *hsys = hmd->hairsys;
-	Scene *scene = md->scene;
-	float cfra = BKE_scene_frame_get(scene), dfra;
-	
-	dfra = cfra - hmd->prev_cfra;
-	if (dfra > 0.0f && FPS > 0.0f) {
-		float prev_steps = hmd->prev_cfra / FPS * (float)hmd->steps_per_second;
-		float steps = cfra / FPS * (float)hmd->steps_per_second;
-		int num_steps = (int)steps - (int)prev_steps;
-		int s;
-		
-		float dt = 1.0f / (float)hmd->steps_per_second;
-		float prev_time = floorf(prev_steps) * dt;
-		float time = floorf(steps) * dt;
-		
-		if (!hmd->solver) {
-			hmd->solver = HAIR_solver_new();
-			hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
-		}
-		
-		HAIR_solver_set_params(hmd->solver, &hsys->params);
-		
-		if (!hmd->flag & MOD_HAIR_SOLVER_DATA_VALID) {
-			HAIR_solver_build_data(hmd->solver, scene, ob, dm, hsys, time);
-			hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
-		}
-		
-		HAIR_solver_update_externals(hmd->solver, scene, ob, dm, hsys, time);
-		
-		if (num_steps < 10000) {
-			struct HAIR_Solver *solver = hmd->solver;
-			float curtime = prev_time;
-			for (s = 0; s < num_steps; ++s) {
-				HAIR_solver_step(solver, curtime, dt);
-				curtime += dt;
-			}
-		}
-		
-		HAIR_solver_apply(hmd->solver, scene, ob, hsys);
-	}
-	
-	hmd->prev_cfra = cfra;
-	
 	return dm;
 }
 

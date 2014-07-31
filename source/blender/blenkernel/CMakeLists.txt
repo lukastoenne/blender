@@ -36,6 +36,7 @@ set(INC
 	../bmesh
 	../modifiers
 	../nodes
+	../hair
 	../render/extern/include
 	../../../intern/guardedalloc
 	../../../intern/iksolver/extern

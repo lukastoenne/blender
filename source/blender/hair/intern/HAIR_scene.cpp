@@ -59,6 +59,9 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	HairCurve *hair;
 	int i;
 	
+	if (!dm)
+		return new SolverData(0, 0);
+	
 	Transform mat = Transform(ob->obmat);
 	
 	/* count points */
