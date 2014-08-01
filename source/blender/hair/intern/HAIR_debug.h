@@ -58,8 +58,8 @@ private:
 
 #else
 	
-	void collision_contact(const float3 &co) {}
-	void set_collision_contacts(CollisionContacts *contacts) {}
+	static void collision_contact(const float3 &co) {}
+	static void set_collision_contacts(CollisionContacts *contacts) {}
 	
 #endif
 };
