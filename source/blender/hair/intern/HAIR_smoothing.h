@@ -34,23 +34,6 @@
 
 HAIR_NAMESPACE_BEGIN
 
-#if 0
-template <typename T>
-struct StdArithmetic {
-	static T sum(const T &a, const T &b) {
-		return a + b;
-	}
-	
-	static T difference(const T &a, const T &b) {
-		return a - b;
-	}
-	
-	static T scale(float fac, const T &a) {
-		return fac * a;
-	}
-};
-#endif
-
 template <typename T>
 struct NullDefaultCtor {
 	static const T null = T();
