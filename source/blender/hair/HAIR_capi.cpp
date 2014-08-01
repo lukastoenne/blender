@@ -36,6 +36,7 @@ extern "C" {
 
 #include "HAIR_capi.h"
 
+#include "HAIR_debug.h"
 #include "HAIR_scene.h"
 #include "HAIR_smoothing.h"
 #include "HAIR_solver.h"
@@ -84,6 +85,24 @@ void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)
 	Solver *solver = (Solver *)csolver;
 	
 	solver->step_threaded(time, timestep);
+}
+
+void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float timestep, HAIR_SolverContact **contacts, int *totcontacts)
+{
+	Solver *solver = (Solver *)csolver;
+	
+	Debug::CollisionContacts dbg_contacts;
+	Debug::set_collision_contacts(&dbg_contacts);
+	
+	solver->step_threaded(time, timestep);
+	
+	Debug::set_collision_contacts(NULL);
+	*totcontacts = dbg_contacts.size();
+	*contacts = (HAIR_SolverContact *)MEM_mallocN(sizeof(HAIR_SolverContact) * dbg_contacts.size(), "hair solver contact debug data");
+	for (int i = 0; i < dbg_contacts.size(); ++i) {
+		HAIR_SolverContact *c = (*contacts) + i;
+		copy_v3_v3(c->co, dbg_contacts[i].data());
+	}
 }
 
 void HAIR_solver_apply(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)

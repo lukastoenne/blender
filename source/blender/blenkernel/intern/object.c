@@ -3120,7 +3120,14 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
+			
+#if 0
 			HAIR_solver_step(hmd->solver, ctime, timestep);
+#else
+			if (hmd->debug_contacts)
+				MEM_freeN(hmd->debug_contacts);
+			HAIR_solver_step_debug(hmd->solver, ctime, timestep, &hmd->debug_contacts, &hmd->debug_totcontacts);
+#endif
 		}
 	}
 }

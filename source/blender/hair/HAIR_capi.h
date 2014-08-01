@@ -43,7 +43,14 @@ void HAIR_solver_free(struct HAIR_Solver *solver);
 void HAIR_solver_set_params(struct HAIR_Solver *solver, const struct HairParams *params);
 void HAIR_solver_build_data(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
 void HAIR_solver_update_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
+
+typedef struct HAIR_SolverContact {
+	float co[3];
+} HAIR_SolverContact;
+
 void HAIR_solver_step(struct HAIR_Solver *solver, float time, float timestep);
+void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float timestep, struct HAIR_SolverContact **contacts, int *totcontacts);
+
 void HAIR_solver_apply(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 
 struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(struct HairCurve *curve, float rest_length, float amount, float cval[3]);

@@ -31,6 +31,7 @@ extern "C" {
 #include "BLI_threads.h"
 }
 
+#include "HAIR_debug.h"
 #include "HAIR_math.h"
 #include "HAIR_smoothing.h"
 #include "HAIR_solver.h"

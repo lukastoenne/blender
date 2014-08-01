@@ -1375,6 +1375,10 @@ typedef struct HairModifierData {
 	
 	int flag;
 	int pad;
+	
+	struct HAIR_SolverContact *debug_contacts;
+	int debug_totcontacts;
+	int pad2;
 } HairModifierData;
 
 enum {

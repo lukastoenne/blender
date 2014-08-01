@@ -62,6 +62,9 @@ static void freeData(ModifierData *md)
 		HAIR_solver_free(hmd->solver);
 	
 	BKE_hairsys_free(hmd->hairsys);
+	
+	if (hmd->debug_contacts)
+		MEM_freeN(hmd->debug_contacts);
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -75,6 +78,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	thmd->hairsys = BKE_hairsys_copy(hmd->hairsys);
 	
 	thmd->solver = NULL;
+	thmd->debug_contacts = NULL;
+	thmd->debug_totcontacts = 0;
 }
 
 static DerivedMesh *applyModifier(ModifierData *UNUSED(md), Object *UNUSED(ob),

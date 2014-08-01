@@ -81,97 +81,6 @@ static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
 	}
 	glEnd();
 	glPointSize(1.0f);
-	
-#if 0
-	/* frames */
-	{
-		struct HAIR_FrameIterator *iter;
-		float co[3], nor[3], tan[3], cotan[3];
-		int k = 0;
-		const float scale = 0.1f;
-		
-		glBegin(GL_LINES);
-		iter = HAIR_frame_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, nor, tan, cotan);
-		copy_v3_v3(co, hair->points[0].co);
-		mul_v3_fl(nor, scale);
-		mul_v3_fl(tan, scale);
-		mul_v3_fl(cotan, scale);
-		add_v3_v3(nor, co);
-		add_v3_v3(tan, co);
-		add_v3_v3(cotan, co);
-		++k;
-		
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3fv(co);
-		glVertex3fv(nor);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3fv(co);
-		glVertex3fv(tan);
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3fv(co);
-		glVertex3fv(cotan);
-		
-		while (HAIR_frame_iter_valid(hair, iter)) {
-			HAIR_frame_iter_next(hair, iter, nor, tan, cotan);
-			copy_v3_v3(co, hair->points[k].co);
-			mul_v3_fl(nor, scale);
-			mul_v3_fl(tan, scale);
-			mul_v3_fl(cotan, scale);
-			add_v3_v3(nor, co);
-			add_v3_v3(tan, co);
-			add_v3_v3(cotan, co);
-			++k;
-			
-			glColor3f(1.0f, 0.0f, 0.0f);
-			glVertex3fv(co);
-			glVertex3fv(nor);
-			glColor3f(0.0f, 1.0f, 0.0f);
-			glVertex3fv(co);
-			glVertex3fv(tan);
-			glColor3f(0.0f, 0.0f, 1.0f);
-			glVertex3fv(co);
-			glVertex3fv(cotan);
-		}
-		HAIR_frame_iter_free(iter);
-		glEnd();
-	}
-#endif
-	
-#if 0
-	/* smoothed curve */
-	if (hair->totpoints >= 2) {
-		struct HAIR_SmoothingIteratorFloat3 *iter;
-		float smooth_co[3];
-		
-		glColor3f(0.5f, 1.0f, 0.1f);
-		
-		glBegin(GL_LINE_STRIP);
-		iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
-		glVertex3fv(smooth_co);
-		while (HAIR_smoothing_iter_valid(hair, iter)) {
-			HAIR_smoothing_iter_next(hair, iter, smooth_co);
-			glVertex3fv(smooth_co);
-		}
-		HAIR_smoothing_iter_end(hair, iter, smooth_co);
-		glVertex3fv(smooth_co);
-		HAIR_smoothing_iter_free(iter);
-		glEnd();
-		
-		glPointSize(2.5f);
-		glBegin(GL_POINTS);
-		iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
-		glVertex3fv(smooth_co);
-		while (HAIR_smoothing_iter_valid(hair, iter)) {
-			HAIR_smoothing_iter_next(hair, iter, smooth_co);
-			glVertex3fv(smooth_co);
-		}
-		HAIR_smoothing_iter_end(hair, iter, smooth_co);
-		glVertex3fv(smooth_co);
-		HAIR_smoothing_iter_free(iter);
-		glEnd();
-		glPointSize(1.0f);
-	}
-#endif
 }
 
 /* called from drawobject.c, return true if nothing was drawn */
@@ -208,4 +117,181 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 	}
 	
 	return retval;
+}
+
+/* ---------------- debug drawing ---------------- */
+
+//#define SHOW_ROOTS
+//#define SHOW_FRAMES
+//#define SHOW_SMOOTHING
+#define SHOW_CONTACTS
+
+static void draw_hair_debug_roots(HairSystem *hsys, struct DerivedMesh *dm)
+{
+#ifdef SHOW_ROOTS
+	HairCurve *hair;
+	int i;
+	
+	/* hair roots */
+	if (dm) {
+		glPointSize(3.0f);
+		glColor3f(1.0f, 1.0f, 0.0f);
+		glBegin(GL_LINES);
+		for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+			float loc[3], nor[3];
+			if (BKE_mesh_sample_eval(dm, &hair->root, loc, nor)) {
+				glVertex3f(loc[0], loc[1], loc[2]);
+				madd_v3_v3fl(loc, nor, 0.1f);
+				glVertex3f(loc[0], loc[1], loc[2]);
+			}
+		}
+		glEnd();
+	}
+#else
+	(void)hsys;
+	(void)dm;
+#endif
+}
+
+static void draw_hair_curve_debug_frames(HairSystem *hsys, HairCurve *hair)
+{
+#ifdef SHOW_FRAMES
+	struct HAIR_FrameIterator *iter;
+	float co[3], nor[3], tan[3], cotan[3];
+	int k = 0;
+	const float scale = 0.1f;
+	
+	glBegin(GL_LINES);
+	iter = HAIR_frame_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, nor, tan, cotan);
+	copy_v3_v3(co, hair->points[0].co);
+	mul_v3_fl(nor, scale);
+	mul_v3_fl(tan, scale);
+	mul_v3_fl(cotan, scale);
+	add_v3_v3(nor, co);
+	add_v3_v3(tan, co);
+	add_v3_v3(cotan, co);
+	++k;
+	
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glVertex3fv(co);
+	glVertex3fv(nor);
+	glColor3f(0.0f, 1.0f, 0.0f);
+	glVertex3fv(co);
+	glVertex3fv(tan);
+	glColor3f(0.0f, 0.0f, 1.0f);
+	glVertex3fv(co);
+	glVertex3fv(cotan);
+	
+	while (HAIR_frame_iter_valid(hair, iter)) {
+		HAIR_frame_iter_next(hair, iter, nor, tan, cotan);
+		copy_v3_v3(co, hair->points[k].co);
+		mul_v3_fl(nor, scale);
+		mul_v3_fl(tan, scale);
+		mul_v3_fl(cotan, scale);
+		add_v3_v3(nor, co);
+		add_v3_v3(tan, co);
+		add_v3_v3(cotan, co);
+		++k;
+		
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex3fv(co);
+		glVertex3fv(nor);
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex3fv(co);
+		glVertex3fv(tan);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex3fv(co);
+		glVertex3fv(cotan);
+	}
+	HAIR_frame_iter_free(iter);
+	glEnd();
+#else
+	(void)hsys;
+	(void)hair;
+#endif
+}
+
+static void draw_hair_curve_debug_smoothing(HairSystem *hsys, HairCurve *hair)
+{
+#ifdef SHOW_SMOOTHING
+	struct HAIR_SmoothingIteratorFloat3 *iter;
+	float smooth_co[3];
+	
+	if (hair->totpoints < 2)
+		return;
+	
+	glColor3f(0.5f, 1.0f, 0.1f);
+	
+	glBegin(GL_LINE_STRIP);
+	iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
+	glVertex3fv(smooth_co);
+	while (HAIR_smoothing_iter_valid(hair, iter)) {
+		HAIR_smoothing_iter_next(hair, iter, smooth_co);
+		glVertex3fv(smooth_co);
+	}
+	HAIR_smoothing_iter_end(hair, iter, smooth_co);
+	glVertex3fv(smooth_co);
+	HAIR_smoothing_iter_free(iter);
+	glEnd();
+	
+	glPointSize(2.5f);
+	glBegin(GL_POINTS);
+	iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
+	glVertex3fv(smooth_co);
+	while (HAIR_smoothing_iter_valid(hair, iter)) {
+		HAIR_smoothing_iter_next(hair, iter, smooth_co);
+		glVertex3fv(smooth_co);
+	}
+	HAIR_smoothing_iter_end(hair, iter, smooth_co);
+	glVertex3fv(smooth_co);
+	HAIR_smoothing_iter_free(iter);
+	glEnd();
+	glPointSize(1.0f);
+#else
+	(void)hsys;
+	(void)hair;
+#endif
+}
+
+static void draw_hair_debug_contacts(HAIR_SolverContact *contacts, int totcontacts)
+{
+#ifdef SHOW_CONTACTS
+	int i;
+	
+	glColor3f(1.0f, 0.1f, 0.0f);
+	
+	glPointSize(3.0f);
+	glBegin(GL_POINTS);
+	for (i = 0; i < totcontacts; ++i) {
+		HAIR_SolverContact *c = contacts + i;
+		
+		glVertex3f(c->co[0], c->co[1], c->co[2]);
+	}
+	glEnd();
+	glPointSize(1.0f);
+#else
+	(void)contacts;
+	(void)totcontacts;
+#endif
+}
+
+void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Base *base, HairModifierData *hmd)
+{
+	RegionView3D *rv3d = ar->regiondata;
+	Object *ob = base->object;
+	HairSystem *hsys = hmd->hairsys;
+	HairCurve *hair;
+	int i;
+	
+	glLoadMatrixf(rv3d->viewmat);
+	glMultMatrixf(ob->obmat);
+	
+	draw_hair_debug_roots(hsys, ob->derivedFinal);
+	
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		draw_hair_curve_debug_frames(hsys, hair);
+		draw_hair_curve_debug_smoothing(hsys, hair);
+	}
+	
+	draw_hair_debug_contacts(hmd->debug_contacts, hmd->debug_totcontacts);
 }
