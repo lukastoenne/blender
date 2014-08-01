@@ -37,6 +37,8 @@
 extern "C" {
 #endif
 
+#include <string.h>
+
 /* API Notes:
  * Currently, this API is optimised for Bullet RigidBodies, and doesn't
  * take into account other Physics Engines. Some tweaking may be necessary
@@ -56,6 +58,7 @@ typedef struct rbDynamicsWorld rbDynamicsWorld;
 
 /* Rigid Body */
 typedef struct rbRigidBody rbRigidBody;
+extern size_t rbRigidBodySize;
 
 /* Collision Shape */
 typedef struct rbCollisionShape rbCollisionShape;
@@ -124,10 +127,10 @@ void RB_world_convex_sweep_test(
 /* ............ */
 
 /* Create new RigidBody instance */
-rbRigidBody *RB_body_new(rbCollisionShape *shape, const float loc[3], const float rot[4]);
+void RB_body_init(rbRigidBody *object, rbCollisionShape *shape, const float loc[3], const float rot[4]);
 
 /* Delete the given RigidBody instance */
-void RB_body_delete(rbRigidBody *body);
+void RB_body_free(rbRigidBody *object);
 
 /* Settings ------------------------- */
 
@@ -140,6 +143,11 @@ void RB_body_set_type(rbRigidBody *body, int type, float mass);
 void RB_body_set_collision_shape(rbRigidBody *body, rbCollisionShape *shape);
 
 /* ............ */
+
+/* Generic flagging */
+extern int RB_body_get_flags(rbRigidBody *body);
+extern void RB_body_set_flag(rbRigidBody *body, int flag);
+extern void RB_body_clear_flag(rbRigidBody *body, int flag);
 
 /* Mass */
 float RB_body_get_mass(rbRigidBody *body);

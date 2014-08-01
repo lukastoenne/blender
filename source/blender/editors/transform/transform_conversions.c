@@ -5903,7 +5903,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			if (ob->rigidbody_object && canceled) {
 				float ctime = BKE_scene_frame_get(t->scene);
 				if (BKE_rigidbody_check_sim_running(t->scene->rigidbody_world, ctime))
-					BKE_rigidbody_aftertrans_update(ob, td->ext->oloc, td->ext->orot, td->ext->oquat, td->ext->orotAxis, td->ext->orotAngle);
+					BKE_rigidbody_object_aftertrans_update(ob, td->ext->oloc, td->ext->orot, td->ext->oquat, td->ext->orotAxis, td->ext->orotAngle);
 			}
 		}
 	}

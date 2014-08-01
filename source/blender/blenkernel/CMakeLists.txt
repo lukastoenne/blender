@@ -142,6 +142,7 @@ set(SRC
 	intern/property.c
 	intern/report.c
 	intern/rigidbody.c
+	intern/rigidbody_objects.c
 	intern/sca.c
 	intern/scene.c
 	intern/screen.c

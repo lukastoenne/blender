@@ -55,6 +55,8 @@ typedef struct RigidBodyWorld {
 	
 	struct Group *constraints;	/* Group containing objects to use for Rigid Body Constraints*/
 
+	struct BLI_mempool *body_pool;
+
 	int pad;
 	float ltime;				/* last frame world was evaluated for (internal) */
 	
