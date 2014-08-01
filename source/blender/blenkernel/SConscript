@@ -57,6 +57,7 @@ incs = [
     '../blenloader',
     '../bmesh',
     '../gpu',
+    '../hair',
     '../ikplugin',
     '../imbuf',
     '../makesdna',

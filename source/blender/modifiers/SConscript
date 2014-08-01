@@ -45,6 +45,7 @@ incs = [
     '../makesrna',
     '../blenkernel',
     '../gpu',
+    '../hair',
     env['BF_ZLIB_INC'],
     ]
 
