@@ -32,6 +32,8 @@ struct Object;
 struct DerivedMesh;
 struct HairSystem;
 
+struct rbDynamicsWorld;
+
 HAIR_NAMESPACE_BEGIN
 
 struct SolverData;
@@ -42,6 +44,8 @@ struct SceneConverter {
 	static void update_solver_data_externals(SolverData *data, SolverForces &force, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time);
 	
 	static void apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys);
+	
+	static void sync_rigidbody_data(SolverData *data);
 };
 
 HAIR_NAMESPACE_END

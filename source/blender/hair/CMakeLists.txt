@@ -63,4 +63,14 @@ add_definitions(
 	-DHAIR_NAMESPACE_END=}
 )
 
+if(WITH_BULLET)
+	list(APPEND INC_SYS
+		${BULLET_INCLUDE_DIRS}
+	)
+	list(APPEND INC
+		../../../intern/rigidbody
+	)
+	add_definitions(-DWITH_BULLET)
+endif()
+
 blender_add_lib(bf_hair "${SRC}" "${INC}" "${INC_SYS}")

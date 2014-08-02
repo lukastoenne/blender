@@ -183,6 +183,8 @@ __forceinline float4 float3::to_direction() const
 	return float4(x, y, z, 0.0f);
 }
 
+const float4 unit_qt(0.0f, 0.0f, 0.0f, 1.0f);
+
 HAIR_NAMESPACE_END
 
 #endif

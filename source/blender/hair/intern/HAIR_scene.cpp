@@ -35,6 +35,8 @@ extern "C" {
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
+
+#include "RBI_api.h"
 }
 
 #include "HAIR_curve.h"
@@ -147,6 +149,23 @@ void SceneConverter::apply_solver_data(SolverData *data, Scene *scene, Object *o
 			
 			copy_v3_v3(hpoint->co, transform_point(imat, point->cur.co).data());
 			copy_v3_v3(hpoint->vel, transform_direction(imat, point->cur.vel).data());
+		}
+	}
+}
+
+void SceneConverter::sync_rigidbody_data(SolverData *data)
+{
+	/* sync settings */
+	Curve *solver_curves = data->curves;
+	int totcurves = data->totcurves;
+	
+	for (int i = 0; i < totcurves && i < totcurves; ++i) {
+		Curve *curve = solver_curves + i;
+		
+		for (int k = 0; k < curve->totpoints; ++k) {
+			Point *point = curve->points + k;
+			
+			RB_ghost_set_loc_rot(&point->rb_ghost, point->cur.co.data(), unit_qt.data());
 		}
 	}
 }

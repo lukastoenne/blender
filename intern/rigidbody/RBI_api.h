@@ -58,7 +58,11 @@ typedef struct rbDynamicsWorld rbDynamicsWorld;
 
 /* Rigid Body */
 typedef struct rbRigidBody rbRigidBody;
-extern size_t rbRigidBodySize;
+extern const size_t rbRigidBodySize;
+
+/* Ghost Object */
+typedef struct rbGhostObject rbGhostObject;
+extern const size_t rbGhostObjectSize;
 
 /* Collision Shape */
 typedef struct rbCollisionShape rbCollisionShape;
@@ -117,6 +121,10 @@ void RB_dworld_add_body(rbDynamicsWorld *world, rbRigidBody *body, int col_group
 /* Remove RigidBody from dynamics world */
 void RB_dworld_remove_body(rbDynamicsWorld *world, rbRigidBody *body);
 
+/* Ghost Object for detecting collisions */
+void RB_dworld_add_ghost(rbDynamicsWorld *world, rbGhostObject *object, int col_groups);
+void RB_dworld_remove_ghost(rbDynamicsWorld *world, rbGhostObject *object);
+
 /* Collision detection */
 
 void RB_world_convex_sweep_test(
@@ -131,6 +139,10 @@ void RB_body_init(rbRigidBody *object, rbCollisionShape *shape, const float loc[
 
 /* Delete the given RigidBody instance */
 void RB_body_free(rbRigidBody *object);
+
+/* Ghost Object for detecting collisions */
+void RB_ghost_init(rbGhostObject *object, rbCollisionShape *shape, const float loc[3], const float rot[4]);
+void RB_ghost_free(rbGhostObject *object);
 
 /* Settings ------------------------- */
 
@@ -221,6 +233,14 @@ void RB_body_get_orientation(rbRigidBody *body, float v_out[4]);
 /* ............ */
 
 void RB_body_apply_central_force(rbRigidBody *body, const float v_in[3]);
+
+/* ............ */
+
+int RB_ghost_get_flags(rbGhostObject *ghost);
+void RB_ghost_set_flag(rbGhostObject *ghost, int flag);
+void RB_ghost_clear_flag(rbGhostObject *ghost, int flag);
+
+void RB_ghost_set_loc_rot(rbGhostObject *ghost, const float loc[3], const float rot[4]);
 
 /* ********************************** */
 /* Collision Shape Methods */

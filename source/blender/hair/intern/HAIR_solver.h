@@ -35,6 +35,7 @@ extern "C" {
 #include "HAIR_memalloc.h"
 
 struct rbDynamicsWorld;
+struct rbGhostObject;
 
 HAIR_NAMESPACE_BEGIN
 
@@ -52,6 +53,9 @@ struct SolverData {
 	float t0, t1;
 	
 	void precompute_rest_bend();
+	
+	void add_to_world(rbDynamicsWorld *world, int col_groups);
+	void remove_from_world(rbDynamicsWorld *world);
 	
 	HAIR_CXX_CLASS_ALLOC(SolverData)
 };

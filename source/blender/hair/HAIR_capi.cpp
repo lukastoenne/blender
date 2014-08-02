@@ -29,6 +29,7 @@ extern "C" {
 
 #include "DNA_hair_types.h"
 #include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_hair.h"
@@ -68,9 +69,19 @@ void HAIR_solver_set_params(struct HAIR_Solver *csolver, const struct HairParams
 void HAIR_solver_build_data(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	Solver *solver = (Solver *)csolver;
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	rbDynamicsWorld *world = rbw ? (rbDynamicsWorld *)rbw->physics_world : NULL;
+	
+	if (world && solver->data())
+		solver->data()->remove_from_world(world);
 	
 	SolverData *data = SceneConverter::build_solver_data(scene, ob, dm, hsys, time);
 	solver->set_data(data);
+	
+	if (world) {
+		// XXX col_groups ?
+		data->add_to_world(world, 0);
+	}
 }
 
 void HAIR_solver_update_externals(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
@@ -78,6 +89,7 @@ void HAIR_solver_update_externals(struct HAIR_Solver *csolver, Scene *scene, Obj
 	Solver *solver = (Solver *)csolver;
 	
 	SceneConverter::update_solver_data_externals(solver->data(), solver->forces(), scene, ob, dm, hsys, time);
+	SceneConverter::sync_rigidbody_data(solver->data());
 }
 
 void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)

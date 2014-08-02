@@ -27,6 +27,12 @@
 #ifndef __HAIR_CURVE_H__
 #define __HAIR_CURVE_H__
 
+extern "C" {
+#include "RBI_api.h"
+}
+
+#include "rb_internal_types.h"
+
 #include "HAIR_memalloc.h"
 
 #include "HAIR_types.h"
@@ -47,6 +53,8 @@ struct Point {
 	
 	float3 rest_co;
 	float3 rest_bend;
+	
+	rbGhostObject rb_ghost;
 	
 	HAIR_CXX_CLASS_ALLOC(Point)
 };

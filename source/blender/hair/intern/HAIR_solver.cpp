@@ -29,6 +29,8 @@
 extern "C" {
 #include "BLI_task.h"
 #include "BLI_threads.h"
+
+#include "RBI_api.h"
 }
 
 #include "HAIR_debug.h"
@@ -68,6 +70,20 @@ SolverData::~SolverData()
 		delete[] curves;
 	if (points)
 		delete[] points;
+}
+
+void SolverData::add_to_world(rbDynamicsWorld *world, int col_groups)
+{
+	for (int k = 0; k < totpoints; ++k) {
+		RB_dworld_add_ghost(world, &points[k].rb_ghost, col_groups);
+	}
+}
+
+void SolverData::remove_from_world(rbDynamicsWorld *world)
+{
+	for (int k = 0; k < totpoints; ++k) {
+		RB_dworld_remove_ghost(world, &points[k].rb_ghost);
+	}
 }
 
 static float3 calc_bend(const Frame &frame, const float3 &co0, const float3 &co1)

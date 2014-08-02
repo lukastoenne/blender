@@ -72,6 +72,12 @@ subject to the following restrictions:
 #include "BulletCollision/Gimpact/btGImpactShape.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"
+#include "BulletCollision/CollisionDispatch/btGhostObject.h"
+
+#include "rb_internal_types.h"
+
+const size_t rbRigidBodySize = sizeof(rbRigidBody);
+const size_t rbGhostObjectSize = sizeof(rbGhostObject);
 
 struct rbDynamicsWorld {
 	btDiscreteDynamicsWorld *dynamicsWorld;
@@ -81,22 +87,6 @@ struct rbDynamicsWorld {
 	btConstraintSolver *constraintSolver;
 	btOverlapFilterCallback *filterCallback;
 };
-
-struct rbRigidBody {
-	rbRigidBody(const btRigidBody::btRigidBodyConstructionInfo& constructionInfo) :
-	    body(constructionInfo),
-	    col_groups(0),
-	    flag(0)
-	{}
-	~rbRigidBody()
-	{}
-	
-	btRigidBody body;
-	int col_groups;
-	int flag;
-};
-
-size_t rbRigidBodySize = sizeof(rbRigidBody);
 
 struct rbVert {
 	float x, y, z;
@@ -300,6 +290,21 @@ void RB_dworld_remove_body(rbDynamicsWorld *world, rbRigidBody *object)
 	world->dynamicsWorld->removeRigidBody(body);
 }
 
+void RB_dworld_add_ghost(rbDynamicsWorld *world, rbGhostObject *object, int col_groups)
+{
+	btGhostObject *ghost = &object->ghost;
+	object->col_groups = col_groups;
+	
+	world->dynamicsWorld->addCollisionObject(ghost);
+}
+
+void RB_dworld_remove_ghost(rbDynamicsWorld *world, rbGhostObject *object)
+{
+	btGhostObject *ghost = &object->ghost;
+	
+	world->dynamicsWorld->removeCollisionObject(ghost);
+}
+
 /* Collision detection */
 
 void RB_world_convex_sweep_test(
@@ -394,6 +399,34 @@ void RB_body_free(rbRigidBody *object)
 	
 	/* only call destructor, memory management happens externally */
 	object->~rbRigidBody();
+}
+
+/* ............ */
+
+void RB_ghost_init(rbGhostObject *object, rbCollisionShape *shape, const float loc[3], const float rot[4])
+{
+	/* current transform */
+	btTransform trans;
+	trans.setOrigin(btVector3(loc[0], loc[1], loc[2]));
+	trans.setRotation(btQuaternion(rot[1], rot[2], rot[3], rot[0]));
+	
+	/* make rigidbody, using placement new to initialize given memory buffer */
+	new (object) rbGhostObject();
+	object->ghost.setUserPointer(object);
+	
+	object->ghost.setWorldTransform(trans);
+}
+
+void RB_ghost_free(rbGhostObject *object)
+{
+//	btGhostObject *ghost = &object->ghost;
+	
+	/* collision shape is done elsewhere... */
+	
+	/* body itself */
+	
+	/* only call destructor, memory management happens externally */
+	object->~rbGhostObject();
 }
 
 /* Settings ------------------------- */
@@ -690,6 +723,37 @@ void RB_body_apply_central_force(rbRigidBody *object, const float v_in[3])
 	
 	body->applyCentralForce(btVector3(v_in[0], v_in[1], v_in[2]));
 }
+
+/* ............ */
+
+int RB_ghost_get_flags(rbGhostObject *ghost)
+{
+	return ghost->flag;
+}
+
+void RB_ghost_set_flag(rbGhostObject *ghost, int flag)
+{
+	ghost->flag |= flag;
+}
+
+void RB_ghost_clear_flag(rbGhostObject *ghost, int flag)
+{
+	ghost->flag &= ~flag;
+}
+
+void RB_ghost_set_loc_rot(rbGhostObject *object, const float loc[3], const float rot[4])
+{
+	btGhostObject *ghost = &object->ghost;
+	
+	/* set transform matrix */
+	btTransform trans;
+	trans.setOrigin(btVector3(loc[0], loc[1], loc[2]));
+	trans.setRotation(btQuaternion(rot[1], rot[2], rot[3], rot[0]));
+	
+	ghost->setWorldTransform(trans);
+}
+
+
 
 /* ********************************** */
 /* Collision Shape Methods */
