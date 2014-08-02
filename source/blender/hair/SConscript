@@ -33,7 +33,7 @@ sources += env.Glob('intern/*.cpp')
 
 incs = [
     '.',
-    './intern',
+    'intern',
     '../blenkernel',
     '../blenlib',
     '../makesdna',
@@ -41,7 +41,7 @@ incs = [
     ]
 incs = ' '.join(incs)
 
-defs = ['HAIR_NAMESPACE=hair', 'HAIR_NAMESPACE_BEGIN=namespace hair', 'HAIR_NAMESPACE_END=}'] 
+defs = ['HAIR_NAMESPACE=hair', 'HAIR_NAMESPACE_BEGIN=namespace hair {', 'HAIR_NAMESPACE_END=}'] 
 
 if env['WITH_BF_PYTHON']:
     incs += ' ' + env['BF_PYTHON_INC']
