@@ -111,7 +111,8 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 	*contacts = (HAIR_SolverContact *)MEM_mallocN(sizeof(HAIR_SolverContact) * dbg_contacts.size(), "hair solver contact debug data");
 	for (int i = 0; i < dbg_contacts.size(); ++i) {
 		HAIR_SolverContact *c = (*contacts) + i;
-		copy_v3_v3(c->co, dbg_contacts[i].data());
+		copy_v3_v3(c->coA, dbg_contacts[i].coA.data());
+		copy_v3_v3(c->coB, dbg_contacts[i].coB.data());
 	}
 }
 

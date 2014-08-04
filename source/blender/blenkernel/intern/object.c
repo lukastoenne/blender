@@ -3127,6 +3127,17 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 			if (hmd->debug_contacts)
 				MEM_freeN(hmd->debug_contacts);
 			HAIR_solver_step_debug(hmd->solver, ctime, timestep, &hmd->debug_contacts, &hmd->debug_totcontacts);
+			/* transform to object space */
+			{
+				float imat[4][4];
+				int i;
+				invert_m4_m4(imat, ob->obmat);
+				for (i = 0; i < hmd->debug_totcontacts; ++i) {
+					HAIR_SolverContact *c = hmd->debug_contacts + i;
+					mul_m4_v3(imat, c->coA);
+					mul_m4_v3(imat, c->coB);
+				}
+			}
 #endif
 		}
 	}

@@ -38,14 +38,21 @@ HAIR_NAMESPACE_BEGIN
 #endif
 
 struct Debug {
-	typedef std::vector<float3> CollisionContacts;
+	struct Contact {
+		float3 coA, coB;
+	};
+	typedef std::vector<Contact> CollisionContacts;
 	
 #ifdef HAIR_DEBUG
 
-	static void collision_contact(const float3 &co)
+	static void collision_contact(const float3 &coA, const float3 &coB)
 	{
-		if (m_contacts)
-			m_contacts->push_back(co);
+		if (m_contacts) {
+			Contact c;
+			c.coA = coA;
+			c.coB = coB;
+			m_contacts->push_back(c);
+		}
 	}
 	
 	static void set_collision_contacts(CollisionContacts *contacts)

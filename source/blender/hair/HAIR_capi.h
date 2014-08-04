@@ -45,7 +45,7 @@ void HAIR_solver_build_data(struct HAIR_Solver *solver, struct Scene *scene, str
 void HAIR_solver_update_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
 
 typedef struct HAIR_SolverContact {
-	float co[3];
+	float coA[3], coB[3];
 } HAIR_SolverContact;
 
 void HAIR_solver_step(struct HAIR_Solver *solver, float time, float timestep);

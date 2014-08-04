@@ -163,7 +163,7 @@ static void debug_point_contacts(btDynamicsWorld *dworld, Point *point)
 					const btVector3 &ptB = pt.getPositionWorldOnB();
 					const btVector3 &normalOnB = pt.m_normalWorldOnB;
 					
-					Debug::collision_contact(float3(ptB.x(), ptB.y(), ptB.z()));
+					Debug::collision_contact(float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
 				}
 			}
 		}

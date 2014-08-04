@@ -258,14 +258,25 @@ static void draw_hair_debug_contacts(HAIR_SolverContact *contacts, int totcontac
 #ifdef SHOW_CONTACTS
 	int i;
 	
-	glColor3f(1.0f, 0.1f, 0.0f);
+	glBegin(GL_LINES);
+	glColor3f(0.7f, 0.7f, 0.9f);
+	for (i = 0; i < totcontacts; ++i) {
+		HAIR_SolverContact *c = contacts + i;
+		
+		glVertex3f(c->coA[0], c->coA[1], c->coA[2]);
+		glVertex3f(c->coB[0], c->coB[1], c->coB[2]);
+	}
+	glEnd();
 	
 	glPointSize(3.0f);
 	glBegin(GL_POINTS);
 	for (i = 0; i < totcontacts; ++i) {
 		HAIR_SolverContact *c = contacts + i;
 		
-		glVertex3f(c->co[0], c->co[1], c->co[2]);
+		glColor3f(1.0f, 0.1f, 0.0f);
+		glVertex3f(c->coA[0], c->coA[1], c->coA[2]);
+		glColor3f(0.0f, 1.0f, 0.7f);
+		glVertex3f(c->coB[0], c->coB[1], c->coB[2]);
 	}
 	glEnd();
 	glPointSize(1.0f);
