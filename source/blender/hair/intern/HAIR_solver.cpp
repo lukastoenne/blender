@@ -74,6 +74,9 @@ SolverData::~SolverData()
 
 void SolverData::add_to_world(rbDynamicsWorld *world, int col_groups)
 {
+	if (!world)
+		return;
+	
 	for (int k = 0; k < totpoints; ++k) {
 		RB_dworld_add_ghost(world, &points[k].rb_ghost, col_groups);
 	}
@@ -81,6 +84,9 @@ void SolverData::add_to_world(rbDynamicsWorld *world, int col_groups)
 
 void SolverData::remove_from_world(rbDynamicsWorld *world)
 {
+	if (!world)
+		return;
+	
 	for (int k = 0; k < totpoints; ++k) {
 		RB_dworld_remove_ghost(world, &points[k].rb_ghost);
 	}
@@ -190,12 +196,8 @@ Solver::Solver() :
 
 Solver::~Solver()
 {
-	if (m_data) {
-		if (m_forces.dynamics_world)
-			m_data->remove_from_world(m_forces.dynamics_world);
-		
+	if (m_data)
 		delete m_data;
-	}
 }
 
 void Solver::set_data(SolverData *data)

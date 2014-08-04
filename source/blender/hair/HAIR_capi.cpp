@@ -72,16 +72,14 @@ void HAIR_solver_build_data(struct HAIR_Solver *csolver, Scene *scene, Object *o
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	rbDynamicsWorld *world = rbw ? (rbDynamicsWorld *)rbw->physics_world : NULL;
 	
-	if (world && solver->data())
+	if (solver->data())
 		solver->data()->remove_from_world(world);
 	
 	SolverData *data = SceneConverter::build_solver_data(scene, ob, dm, hsys, time);
 	solver->set_data(data);
 	
-	if (world) {
-		// XXX col_groups ?
-		data->add_to_world(world, 0xFFFFFFFF);
-	}
+	// XXX col_groups ?
+	data->add_to_world(world, 0xFFFFFFFF);
 }
 
 void HAIR_solver_update_externals(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
