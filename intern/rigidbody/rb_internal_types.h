@@ -36,32 +36,60 @@
 #include "btBulletDynamicsCommon.h"
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 
-struct rbRigidBody {
-	rbRigidBody(const btRigidBody::btRigidBodyConstructionInfo& constructionInfo) :
-	    body(constructionInfo),
-	    col_groups(0),
-	    flag(0)
+struct rbDynamicsWorld {
+	btDiscreteDynamicsWorld *dynamicsWorld;
+	btDefaultCollisionConfiguration *collisionConfiguration;
+	btDispatcher *dispatcher;
+	btBroadphaseInterface *pairCache;
+	btConstraintSolver *constraintSolver;
+	btOverlapFilterCallback *filterCallback;
+	btGhostPairCallback *ghostPairCallback;
+};
+
+/* Common extra group info for collision objects */
+struct rbCollisionObject {
+	rbCollisionObject(int col_groups = 0) :
+	    col_groups(col_groups)
 	{}
+	
+	int col_groups;
+};
+
+struct rbRigidBody : rbCollisionObject {
+	rbRigidBody(const btRigidBody::btRigidBodyConstructionInfo& constructionInfo) :
+	    rbCollisionObject(0),
+	    body(constructionInfo),
+	    flag(0)
+	{
+		body.setUserPointer(this);
+	}
+	
 	~rbRigidBody()
 	{}
 	
 	btRigidBody body;
-	int col_groups;
 	int flag;
 };
 
-struct rbGhostObject {
+struct rbGhostObject : rbCollisionObject {
 	rbGhostObject() :
+	    rbCollisionObject(0),
 	    ghost(),
-	    col_groups(0),
 	    flag(0)
-	{}
+	{
+		ghost.setUserPointer(this);
+	}
+	
 	~rbGhostObject()
 	{}
 	
-	btGhostObject ghost;
-	int col_groups;
+	btPairCachingGhostObject ghost;
 	int flag;
+	
+private:
+	/* non-copyable */
+	rbGhostObject(const rbGhostObject &) {}
+	rbGhostObject& operator = (const rbGhostObject &) { return *this; }
 };
 
 #endif /* __RB_TYPES_H__ */

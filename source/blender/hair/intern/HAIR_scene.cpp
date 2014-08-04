@@ -93,7 +93,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
 			
-			*point = Point(transform_point(mat, hair_pt->rest_co));
+			point->rest_co = transform_point(mat, hair_pt->rest_co);
 			point->cur.co = transform_point(mat, hair_pt->co);
 			point->cur.vel = transform_direction(mat, hair_pt->vel);
 		}

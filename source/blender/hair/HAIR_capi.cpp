@@ -80,7 +80,7 @@ void HAIR_solver_build_data(struct HAIR_Solver *csolver, Scene *scene, Object *o
 	
 	if (world) {
 		// XXX col_groups ?
-		data->add_to_world(world, 0);
+		data->add_to_world(world, 0xFFFFFFFF);
 	}
 }
 

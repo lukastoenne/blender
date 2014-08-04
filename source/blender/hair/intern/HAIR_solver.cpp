@@ -126,6 +126,56 @@ void SolverData::precompute_rest_bend()
 	}
 }
 
+static void debug_point_contacts(btDynamicsWorld *dworld, Point *point)
+{
+	btPairCachingGhostObject *ghost = &point->rb_ghost.ghost;
+	
+	btManifoldArray manifold_array;
+	const btBroadphasePairArray& pairs = ghost->getOverlappingPairCache()->getOverlappingPairArray();
+	int num_pairs = pairs.size();
+	
+	for (int i = 0; i < num_pairs; i++) {
+		manifold_array.clear();
+		
+		const btBroadphasePair& pair = pairs[i];
+		
+		/* unless we manually perform collision detection on this pair, the contacts are in the dynamics world paircache */
+		btBroadphasePair* collision_pair = dworld->getPairCache()->findPair(pair.m_pProxy0,pair.m_pProxy1);
+		if (!collision_pair)
+			continue;
+	
+		if (collision_pair->m_algorithm)
+			collision_pair->m_algorithm->getAllContactManifolds(manifold_array);
+	
+		for (int j = 0; j < manifold_array.size(); j++) {
+			btPersistentManifold* manifold = manifold_array[j];
+			btScalar direction_sign = manifold->getBody0() == ghost ? btScalar(-1.0) : btScalar(1.0);
+			for (int p = 0; p < manifold->getNumContacts(); p++) {
+				const btManifoldPoint &pt = manifold->getContactPoint(p);
+				if (pt.getDistance() < 0.f) {
+					const btVector3 &ptA = pt.getPositionWorldOnA();
+					const btVector3 &ptB = pt.getPositionWorldOnB();
+					const btVector3 &normalOnB = pt.m_normalWorldOnB;
+					
+					Debug::collision_contact(float3(ptB.x(), ptB.y(), ptB.z()));
+				}
+			}
+		}
+	}
+}
+
+void SolverData::debug_contacts(rbDynamicsWorld *world)
+{
+	btDynamicsWorld *dworld = world->dynamicsWorld;
+	
+	Curve *curve = curves;
+	for (int i = 0; i < totcurves; ++i, ++curve) {
+		Point *pt = curve->points;
+		for (int k = 0; k < curve->totpoints; ++k, ++pt)
+			debug_point_contacts(dworld, pt);
+	}
+}
+
 
 SolverForces::SolverForces()
 {
@@ -140,8 +190,12 @@ Solver::Solver() :
 
 Solver::~Solver()
 {
-	if (m_data)
+	if (m_data) {
+		if (m_forces.dynamics_world)
+			m_data->remove_from_world(m_forces.dynamics_world);
+		
 		delete m_data;
+	}
 }
 
 void Solver::set_data(SolverData *data)
@@ -304,6 +358,9 @@ static void step_threaded_func(TaskPool *pool, void *vtaskdata, int UNUSED(threa
 
 void Solver::step_threaded(float time, float timestep)
 {
+	if (m_forces.dynamics_world)
+		m_data->debug_contacts(m_forces.dynamics_world);
+	
 	typedef std::vector<SolverTaskData> SolverTaskVector;
 	
 	const int max_points_per_task = 1024;

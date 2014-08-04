@@ -49,9 +49,6 @@ struct Point {
 	
 	Point();
 	Point(const float3 &rest_co);
-	Point(const Point &other);
-	
-	Point &operator = (const Point &other);
 	
 	State cur;
 	State next;

@@ -79,15 +79,6 @@ subject to the following restrictions:
 const size_t rbRigidBodySize = sizeof(rbRigidBody);
 const size_t rbGhostObjectSize = sizeof(rbGhostObject);
 
-struct rbDynamicsWorld {
-	btDiscreteDynamicsWorld *dynamicsWorld;
-	btDefaultCollisionConfiguration *collisionConfiguration;
-	btDispatcher *dispatcher;
-	btBroadphaseInterface *pairCache;
-	btConstraintSolver *constraintSolver;
-	btOverlapFilterCallback *filterCallback;
-};
-
 struct rbVert {
 	float x, y, z;
 };
@@ -112,13 +103,13 @@ struct rbFilterCallback : public btOverlapFilterCallback
 {
 	virtual bool needBroadphaseCollision(btBroadphaseProxy *proxy0, btBroadphaseProxy *proxy1) const
 	{
-		rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)proxy0->m_clientObject)->getUserPointer();
-		rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)proxy1->m_clientObject)->getUserPointer();
+		rbCollisionObject *ob0 = (rbCollisionObject *)((btCollisionObject *)proxy0->m_clientObject)->getUserPointer();
+		rbCollisionObject *ob1 = (rbCollisionObject *)((btCollisionObject *)proxy1->m_clientObject)->getUserPointer();
 		
 		bool collides;
 		collides = (proxy0->m_collisionFilterGroup & proxy1->m_collisionFilterMask) != 0;
 		collides = collides && (proxy1->m_collisionFilterGroup & proxy0->m_collisionFilterMask);
-		collides = collides && (rb0->col_groups & rb1->col_groups);
+		collides = collides && (ob0->col_groups & ob1->col_groups);
 		
 		return collides;
 	}
@@ -157,6 +148,8 @@ rbDynamicsWorld *RB_dworld_new(const float gravity[3])
 	
 	world->filterCallback = new rbFilterCallback();
 	world->pairCache->getOverlappingPairCache()->setOverlapFilterCallback(world->filterCallback);
+	world->ghostPairCallback = new btGhostPairCallback();
+	world->pairCache->getOverlappingPairCache()->setInternalGhostPairCallback(world->ghostPairCallback);
 
 	/* constraint solving */
 	world->constraintSolver = new btSequentialImpulseConstraintSolver();
@@ -181,6 +174,7 @@ void RB_dworld_delete(rbDynamicsWorld *world)
 	delete world->dispatcher;
 	delete world->collisionConfiguration;
 	delete world->filterCallback;
+	delete world->ghostPairCallback;
 	delete world;
 }
 
@@ -295,7 +289,7 @@ void RB_dworld_add_ghost(rbDynamicsWorld *world, rbGhostObject *object, int col_
 	btGhostObject *ghost = &object->ghost;
 	object->col_groups = col_groups;
 	
-	world->dynamicsWorld->addCollisionObject(ghost);
+	world->dynamicsWorld->addCollisionObject(ghost, btBroadphaseProxy::AllFilter, btBroadphaseProxy::AllFilter);
 }
 
 void RB_dworld_remove_ghost(rbDynamicsWorld *world, rbGhostObject *object)
@@ -374,7 +368,6 @@ void RB_body_init(rbRigidBody *object, rbCollisionShape *shape, const float loc[
 	
 	/* make rigidbody, using placement new to initialize given memory buffer */
 	new (object) rbRigidBody(rbInfo);
-	object->body.setUserPointer(object);
 }
 
 void RB_body_free(rbRigidBody *object)
@@ -412,7 +405,6 @@ void RB_ghost_init(rbGhostObject *object, rbCollisionShape *shape, const float l
 	
 	/* make rigidbody, using placement new to initialize given memory buffer */
 	new (object) rbGhostObject();
-	object->ghost.setUserPointer(object);
 	
 	object->ghost.setWorldTransform(trans);
 }

@@ -4864,6 +4864,9 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				direct_link_hair_system(fd, hmd->hairsys);
 
 			hmd->solver = NULL;
+
+			hmd->debug_contacts = NULL;
+			hmd->debug_totcontacts = 0;
 		}
 	}
 }

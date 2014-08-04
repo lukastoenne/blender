@@ -57,6 +57,8 @@ struct SolverData {
 	void add_to_world(rbDynamicsWorld *world, int col_groups);
 	void remove_from_world(rbDynamicsWorld *world);
 	
+	void debug_contacts(rbDynamicsWorld *world);
+	
 	HAIR_CXX_CLASS_ALLOC(SolverData)
 };
 
