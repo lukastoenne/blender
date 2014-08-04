@@ -1295,46 +1295,12 @@ static void scene_simulation_tick(void *vdata, float timestep)
 	data->t += timestep;
 }
 
-/* fallback implementation for global simulation solvers,
- * in case Bullet time stepping is not available.
- */
-static void scene_do_simulation_step(Scene *scene, float ctime)
-{
-#if 0
-	const int maxSubSteps = INT_MAX;
-	const float fixedTimeStep = 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f);
-	int numSimulationSubSteps = 0;
-	float local_time;
-	
-	//fixed timestep with interpolation
-	local_time += timeStep;
-	if (local_time >= fixedTimeStep)
-	{
-		numSimulationSubSteps = int( local_time / fixedTimeStep);
-		local_time -= numSimulationSubSteps * fixedTimeStep;
-	}
-	
-	if (numSimulationSubSteps) {
-		//clamp the number of substeps, to prevent simulation grinding spiralling down to a halt
-		int clampedSimulationSteps = (numSimulationSubSteps > maxSubSteps) ? maxSubSteps : numSimulationSubSteps;
-		
-		for (int i=0;i<clampedSimulationSteps;i++)
-		{
-			scene_tick(scene, fixedTimeStep);
-		}
-	}
-	
-	return numSimulationSubSteps;
-#endif
-}
-
 static void scene_do_rb_simulation_recursive(Scene *scene, float cfra)
 {
 	if (scene->set)
 		scene_do_rb_simulation_recursive(scene->set, cfra);
 
 	{
-		bool stepped = false;
 		SceneSimStepData data;
 		float frametime = FRA2TIME(1);
 		
@@ -1344,15 +1310,13 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float cfra)
 		data.t1 = data.t0 + frametime;
 		data.t = data.t0;
 		
-		scene_simulation_objects_pre_step(scene, data.t0);
-		
-		if (BKE_scene_check_rigidbody_active(scene))
-			stepped |= BKE_rigidbody_do_simulation(scene, cfra, scene_simulation_tick, &data);
-	
-		if (!stepped)
-			scene_do_simulation_step(scene, cfra);
-		
-		scene_simulation_objects_post_step(scene, data.t1);
+		if (BKE_scene_check_rigidbody_active(scene)) {
+			scene_simulation_objects_pre_step(scene, data.t0);
+			
+			BKE_rigidbody_do_simulation(scene, cfra, scene_simulation_tick, &data);
+			
+			scene_simulation_objects_post_step(scene, data.t1);
+		}
 	}
 }
 
@@ -2038,7 +2002,7 @@ bool BKE_scene_check_color_management_enabled(const Scene *scene)
 
 bool BKE_scene_check_rigidbody_active(const Scene *scene)
 {
-	return scene && scene->rigidbody_world && scene->rigidbody_world->group && !(scene->rigidbody_world->flag & RBW_FLAG_MUTED);
+	return scene && scene->rigidbody_world && !(scene->rigidbody_world->flag & RBW_FLAG_MUTED);
 }
 
 int BKE_render_num_threads(const RenderData *rd)

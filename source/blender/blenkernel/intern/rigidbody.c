@@ -833,33 +833,36 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 		cache->flag |= PTCACHE_OUTDATED;
 	}
 
-	if (ctime == startframe + 1 && rbw->ltime == startframe) {
-		if (cache->flag & PTCACHE_OUTDATED) {
-			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-			rigidbody_world_build(scene, rbw, true);
-			BKE_ptcache_validate(cache, (int)ctime);
-			cache->last_exact = 0;
-			cache->flag &= ~PTCACHE_REDO_NEEDED;
-		}
+	bool rebuild = (cache->flag & PTCACHE_OUTDATED);
+	rigidbody_world_build(scene, rbw, rebuild);
+	
+	bool is_startframe = (ctime == startframe + 1 && rbw->ltime == startframe);
+	if (is_startframe) {
+		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
+		BKE_ptcache_validate(cache, (int)ctime);
+		cache->last_exact = 0;
+		cache->flag &= ~PTCACHE_REDO_NEEDED;
 	}
 }
 
 /* Run RigidBody simulation for the specified physics world */
-bool BKE_rigidbody_do_simulation(Scene *scene, float ctime, void (*tickcb)(void *tickdata, float timestep), void *tickdata)
+void BKE_rigidbody_do_simulation(Scene *scene, float ctime, void (*tickcb)(void *tickdata, float timestep), void *tickdata)
 {
-	float timestep;
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	PointCache *cache;
 	PTCacheID pid;
 	int startframe, endframe;
+	bool cache_read, cache_baked;
+	float timestep;
 
 	BKE_ptcache_id_from_rigidbody(&pid, NULL, rbw);
 	BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, NULL);
 	cache = rbw->pointcache;
+	cache_baked = cache->flag & PTCACHE_BAKED;
 
 	if (ctime <= startframe) {
 		rbw->ltime = startframe;
-		return true; /* is ok, just nothing to simulate before the start frame */
+		return;
 	}
 	/* make sure we don't go out of cache frame range */
 	else if (ctime > endframe) {
@@ -867,49 +870,53 @@ bool BKE_rigidbody_do_simulation(Scene *scene, float ctime, void (*tickcb)(void 
 	}
 
 	/* don't try to run the simulation if we don't have a world yet but allow reading baked cache */
-	if (rbw->physics_world == NULL && !(cache->flag & PTCACHE_BAKED))
-		return false;
+	if (rbw->physics_world == NULL && !cache_baked)
+		return;
 	else if (rbw->objects == NULL)
 		rigidbody_update_ob_array(rbw);
 
 	/* try to read from cache */
+	cache_read = BKE_ptcache_read(&pid, ctime);
 	// RB_TODO deal with interpolated, old and baked results
-	if (BKE_ptcache_read(&pid, ctime)) {
+	if (cache_read) {
 		BKE_ptcache_validate(cache, (int)ctime);
 		rbw->ltime = ctime;
 		/* XXX TODO run the stepping loop anyway, but then set all rigid bodies
 		 * to animated and interpolate cached data!
 		 * The collision info may still be needed for other solvers
 		 */
-		return true;
+		return;
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (ctime == rbw->ltime + 1 && !(cache->flag & PTCACHE_BAKED)) {
-		/* write cache for first frame when on second frame */
-		if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
-			BKE_ptcache_write(&pid, startframe);
-		}
-
+	if (ctime == rbw->ltime + 1) {
+		
 		/* update and validate simulation */
 		rigidbody_world_build(scene, rbw, false);
-
+		
+		if (!cache_baked) {
+			/* write cache for first frame when on second frame */
+			if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
+				BKE_ptcache_write(&pid, startframe);
+			}
+		}
+		
 		/* calculate how much time elapsed since last step in seconds */
 		timestep = 1.0f / (float)FPS * (ctime - rbw->ltime) * rbw->time_scale;
 		/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
 		RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f),
 		                          tickcb, tickdata, false);
-
+		
 		rigidbody_world_apply(scene, rbw);
-
-		/* write cache for current frame */
-		BKE_ptcache_validate(cache, (int)ctime);
-		BKE_ptcache_write(&pid, (unsigned int)ctime);
-
+		
+		if (!cache_baked) {
+			/* write cache for current frame */
+			BKE_ptcache_validate(cache, (int)ctime);
+			BKE_ptcache_write(&pid, (unsigned int)ctime);
+		}
+		
 		rbw->ltime = ctime;
 	}
-	
-	return true;
 }
 /* ************************************** */
 
