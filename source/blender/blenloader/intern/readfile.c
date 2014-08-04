@@ -4594,9 +4594,6 @@ static void direct_link_hair_system(FileData *fd, HairSystem *hsys)
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
 		hair->points = newdataadr(fd, hair->points);
 	}
-
-	hsys->physics_objects = NULL;
-	hsys->tot_physics_objects = 0;
 }
 
 static void direct_link_modifiers(FileData *fd, ListBase *lb)

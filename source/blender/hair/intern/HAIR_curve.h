@@ -31,6 +31,8 @@ extern "C" {
 #include "RBI_api.h"
 }
 
+#include <BulletCollision/CollisionShapes/btSphereShape.h>
+
 #include "rb_internal_types.h"
 
 #include "HAIR_memalloc.h"
@@ -47,6 +49,9 @@ struct Point {
 	
 	Point();
 	Point(const float3 &rest_co);
+	Point(const Point &other);
+	
+	Point &operator = (const Point &other);
 	
 	State cur;
 	State next;
@@ -55,6 +60,7 @@ struct Point {
 	float3 rest_bend;
 	
 	rbGhostObject rb_ghost;
+	btSphereShape bt_shape;
 	
 	HAIR_CXX_CLASS_ALLOC(Point)
 };

@@ -24,19 +24,50 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "rb_internal_types.h"
+
 #include "HAIR_curve.h"
 
 HAIR_NAMESPACE_BEGIN
 
-Point::Point()
+Point::Point() :
+    rb_ghost(),
+    bt_shape(1.0f)
 {
+	rb_ghost.ghost.setCollisionShape(&bt_shape);
 }
 
 Point::Point(const float3 &rest_co) :
-    rest_co(rest_co)
+    rest_co(rest_co),
+    rb_ghost(),
+    bt_shape(1.0f)
 {
 	cur.co = rest_co;
 	cur.vel = float3(0.0f, 0.0f, 0.0f);
+	
+	rb_ghost.ghost.setCollisionShape(&bt_shape);
+}
+
+Point::Point(const Point &other) :
+    bt_shape(1.0f)
+{
+	*this = other;
+}
+
+Point &Point::operator = (const Point &other)
+{
+	rest_co = other.rest_co;
+	rest_bend = other.rest_bend;
+	
+	cur = other.cur;
+	next = other.next;
+	
+	rb_ghost = other.rb_ghost;
+	bt_shape = other.bt_shape;
+	/* assign new collision shape */
+	rb_ghost.ghost.setCollisionShape(&bt_shape);
+	
+	return *this;
 }
 
 Curve::Curve(int totpoints, Point *points) :

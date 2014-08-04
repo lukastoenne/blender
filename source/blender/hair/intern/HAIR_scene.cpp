@@ -125,7 +125,7 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 		mesh_sample_eval(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
 	}
 	
-	forces.dynamics_world = (rbDynamicsWorld *)scene->rigidbody_world->physics_world;
+	forces.dynamics_world = scene->rigidbody_world ? (rbDynamicsWorld *)scene->rigidbody_world->physics_world : NULL;
 	forces.gravity = float3(scene->physics_settings.gravity);
 }
 
