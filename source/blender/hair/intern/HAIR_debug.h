@@ -43,31 +43,36 @@ struct Debug {
 	};
 	typedef std::vector<Contact> CollisionContacts;
 	
-#ifdef HAIR_DEBUG
 
 	static void collision_contact(const float3 &coA, const float3 &coB)
 	{
+#ifdef HAIR_DEBUG
 		if (m_contacts) {
 			Contact c;
 			c.coA = coA;
 			c.coB = coB;
 			m_contacts->push_back(c);
 		}
+#else
+		(void)coA;
+		(void)coB;
+#endif
 	}
 	
 	static void set_collision_contacts(CollisionContacts *contacts)
 	{
+#ifdef HAIR_DEBUG
 		m_contacts = contacts;
+#else
+		(void)contacts;
+#endif
 	}
-	
+
+#ifdef HAIR_DEBUG
+
 private:
 	static CollisionContacts *m_contacts;
 
-#else
-	
-	static void collision_contact(const float3 &co) {}
-	static void set_collision_contacts(CollisionContacts *contacts) {}
-	
 #endif
 };
 
