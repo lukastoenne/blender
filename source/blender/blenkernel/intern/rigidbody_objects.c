@@ -197,6 +197,8 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool rebuild)
 {
 	GroupObject *go;
+	if (!rbw->group)
+		return;
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
 		RigidBodyOb *rbo;
@@ -487,7 +489,8 @@ static void rigidbody_world_apply_object(Scene *UNUSED(scene), Object *ob)
 void BKE_rigidbody_objects_apply(Scene *scene, RigidBodyWorld *rbw)
 {
 	GroupObject *go;
-	
+	if (!rbw->group)
+		return;
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
 		

@@ -710,16 +710,22 @@ static void rigidbody_update_ob_array(RigidBodyWorld *rbw)
 	GroupObject *go;
 	int i, n;
 
-	n = BLI_countlist(&rbw->group->gobject);
-
-	if (rbw->numbodies != n) {
-		rbw->numbodies = n;
-		rbw->objects = realloc(rbw->objects, sizeof(Object *) * rbw->numbodies);
+	if (rbw->group) {
+		n = BLI_countlist(&rbw->group->gobject);
+		
+		if (rbw->numbodies != n) {
+			rbw->numbodies = n;
+			rbw->objects = realloc(rbw->objects, sizeof(Object *) * rbw->numbodies);
+		}
+		
+		for (go = rbw->group->gobject.first, i = 0; go; go = go->next, i++) {
+			Object *ob = go->ob;
+			rbw->objects[i] = ob;
+		}
 	}
-
-	for (go = rbw->group->gobject.first, i = 0; go; go = go->next, i++) {
-		Object *ob = go->ob;
-		rbw->objects[i] = ob;
+	else {
+		rbw->numbodies = 0;
+		rbw->objects = NULL;
 	}
 }
 
@@ -748,7 +754,7 @@ static void rigidbody_sync_world(Scene *scene, RigidBodyWorld *rbw)
  *
  * \param rebuild Rebuild entire simulation
  */
-static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, int rebuild)
+static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
 	/* update world */
 	if (rebuild)
@@ -829,7 +835,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 	cache = rbw->pointcache;
 
 	/* flag cache as outdated if we don't have a world or number of objects in the simulation has changed */
-	if (rbw->physics_world == NULL || rbw->numbodies != BLI_countlist(&rbw->group->gobject)) {
+	if (rbw->physics_world == NULL || (rbw->group && rbw->numbodies != BLI_countlist(&rbw->group->gobject))) {
 		cache->flag |= PTCACHE_OUTDATED;
 	}
 
