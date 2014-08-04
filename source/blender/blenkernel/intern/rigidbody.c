@@ -757,7 +757,7 @@ static void rigidbody_sync_world(Scene *scene, RigidBodyWorld *rbw)
 static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
 	/* update world */
-	if (rebuild)
+	if (rebuild || !rbw->physics_world)
 		BKE_rigidbody_validate_sim_world(scene, rbw, true);
 	rigidbody_sync_world(scene, rbw);
 
@@ -829,6 +829,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 	PointCache *cache;
 	PTCacheID pid;
 	int startframe, endframe;
+	bool rebuild, is_startframe;
 
 	BKE_ptcache_id_from_rigidbody(&pid, NULL, rbw);
 	BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, NULL);
@@ -839,16 +840,19 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 		cache->flag |= PTCACHE_OUTDATED;
 	}
 
-	bool rebuild = (cache->flag & PTCACHE_OUTDATED);
-	rigidbody_world_build(scene, rbw, rebuild);
-	
-	bool is_startframe = (ctime == startframe + 1 && rbw->ltime == startframe);
+	rebuild = false;
+	is_startframe = (ctime == startframe + 1 && rbw->ltime == startframe);
 	if (is_startframe) {
-		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		BKE_ptcache_validate(cache, (int)ctime);
-		cache->last_exact = 0;
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
+		if (cache->flag & PTCACHE_OUTDATED) {
+			rebuild = true;
+			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
+			BKE_ptcache_validate(cache, (int)ctime);
+			cache->last_exact = 0;
+			cache->flag &= ~PTCACHE_REDO_NEEDED;
+		}
 	}
+	
+	rigidbody_world_build(scene, rbw, rebuild);
 }
 
 /* Run RigidBody simulation for the specified physics world */
@@ -900,7 +904,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime, void (*tickcb)(void 
 		/* update and validate simulation */
 		rigidbody_world_build(scene, rbw, false);
 		
-		if (!cache_baked) {
+		if (!cache_baked && !cache_read) {
 			/* write cache for first frame when on second frame */
 			if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
 				BKE_ptcache_write(&pid, startframe);
@@ -915,7 +919,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime, void (*tickcb)(void 
 		
 		rigidbody_world_apply(scene, rbw);
 		
-		if (!cache_baked) {
+		if (!cache_baked && !cache_read) {
 			/* write cache for current frame */
 			BKE_ptcache_validate(cache, (int)ctime);
 			BKE_ptcache_write(&pid, (unsigned int)ctime);

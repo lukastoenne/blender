@@ -224,7 +224,7 @@ void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool 
 		else {
 			/* perform simulation data updates as tagged */
 			/* refresh object... */
-			if (rebuild) {
+			if (rebuild || !rbo->physics_object) {
 				/* World has been rebuilt so rebuild object */
 				rigidbody_validate_sim_object(rbw, ob, true);
 			}
