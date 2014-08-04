@@ -338,7 +338,7 @@ static float draw_seq_handle_size_get_clamped(Sequence *seq, const float pixelx)
 /* draw a handle, for each end of a sequence strip */
 static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_clamped, const short direction)
 {
-	float v1[2], v2[2], v3[2], rx1 = 0, rx2 = 0; //for triangles and rect
+	float v1[2], v2[2], v3[2], rx1 = 0; //for triangles and rect
 	float x1, x2, y1, y2;
 	unsigned int whichsel = 0;
 	
@@ -351,7 +351,6 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	/* set up co-ordinates/dimensions for either left or right handle */
 	if (direction == SEQ_LEFTHANDLE) {
 		rx1 = x1;
-		rx2 = x1 + handsize_clamped * 0.75f;
 		
 		v1[0] = x1 + handsize_clamped / 4; v1[1] = y1 + ( ((y1 + y2) / 2.0f - y1) / 2);
 		v2[0] = x1 + handsize_clamped / 4; v2[1] = y2 - ( ((y1 + y2) / 2.0f - y1) / 2);
@@ -361,7 +360,6 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	}
 	else if (direction == SEQ_RIGHTHANDLE) {
 		rx1 = x2 - handsize_clamped * 0.75f;
-		rx2 = x2;
 		
 		v1[0] = x2 - handsize_clamped / 4; v1[1] = y1 + ( ((y1 + y2) / 2.0f - y1) / 2);
 		v2[0] = x2 - handsize_clamped / 4; v2[1] = y2 - ( ((y1 + y2) / 2.0f - y1) / 2);
@@ -382,7 +380,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 		else if (seq->flag & SELECT) glColor4ub(255, 255, 255, 30);
 		else glColor4ub(0, 0, 0, 22);
 		
-		glRectf(rx1, y1, rx2, y2);
+		//glRectf(rx1, y1, rx2, y2);
 		
 		if (seq->flag & whichsel) glColor4ub(255, 255, 255, 200);
 		else glColor4ub(0, 0, 0, 50);
@@ -626,6 +624,54 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 	UI_view2d_text_cache_add_rectf(v2d, &rect, str, str_len, col);
 }
 
+/* draw code vertex array storage */
+static float strip_vertex_storage[36][2];
+static char strip_color_storage[36][3];
+
+static void generate_strip_vertices(float x1, float y1, float x2, float y2)
+{
+	float ymid1, ymid2;
+
+	int i;
+	float cuddly_radius = (y2 - y1) * 0.2f;
+	ymid1 = (y2 - y1) * 0.25f + y1;
+	ymid2 = (y2 - y1) * 0.65f + y1;
+
+	strip_vertex_storage[0][0] = x1;
+	strip_vertex_storage[0][1] = ymid1;
+
+	strip_vertex_storage[1][0] = x1;
+	strip_vertex_storage[1][1] = ymid2;
+
+	for (i = 0; i < 8; i++) {
+		strip_vertex_storage[i + 2][0] = x1 + cuddly_radius - cuddly_radius * cos(i * M_PI / 16.0);
+		strip_vertex_storage[i + 2][1] = y2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 16.0);
+	}
+
+	for (i = 0; i < 8; i++) {
+		strip_vertex_storage[i + 10][0] = x2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 16.0);
+		strip_vertex_storage[i + 10][1] = y2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 16.0);
+	}
+
+	strip_vertex_storage[18][0] = x2;
+	strip_vertex_storage[18][1] = ymid2;
+
+	strip_vertex_storage[19][0] = x2;
+	strip_vertex_storage[19][1] = ymid1;
+
+	for (i = 0; i < 8; i++) {
+		strip_vertex_storage[i + 20][0] = x2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 16.0);
+		strip_vertex_storage[i + 20][1] = y1 + cuddly_radius - cuddly_radius * sin(i * M_PI / 16.0);
+	}
+
+	for (i = 0; i < 8; i++) {
+		strip_vertex_storage[i + 28][0] = x1 + cuddly_radius - cuddly_radius * sin(i * M_PI / 16.0);
+		strip_vertex_storage[i + 28][1] = y1 + cuddly_radius - cuddly_radius * cos(i * M_PI / 16.0);
+	}
+
+	glVertexPointer(2, GL_FLOAT, 0, strip_vertex_storage);
+}
+
 /* draws a shaded strip, made from gradient + flat color + gradient */
 static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
 {
@@ -663,7 +709,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	glEnd();
 	
 	glRectf(x1,  ymid1,  x2,  ymid2);
-	
+
 	glBegin(GL_QUADS);
 	
 	glVertex2f(x1, ymid2);
@@ -705,7 +751,6 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	x2 = (seq->endstill) ? (seq->start + seq->len) : seq->enddisp;
 	y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
-
 	/* get the correct color per strip type*/
 	//get_seq_color3ubv(scene, seq, col);
 	get_seq_color3ubv(scene, seq, background_col);
@@ -731,6 +776,8 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	x1 = seq->startdisp;
 	x2 = seq->enddisp;
 	
+	generate_strip_vertices(x1, y1, x2, y2);
+
 	/* draw sound wave */
 	if (seq->type == SEQ_TYPE_SOUND_RAM) {
 		drawseqwave(scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
@@ -744,8 +791,9 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		/* light stripes */
 		glColor4ub(255, 255, 255, 32);
 		glPolygonStipple(stipple_diag_stripes_pos);
-		glRectf(x1, y1, x2, y2);
+		//glRectf(x1, y1, x2, y2);
 
+		glDrawArrays(GL_POLYGON, 0, 36);
 		/* dark stripes */
 		glColor4ub(0, 0, 0, 32);
 		glPolygonStipple(stipple_diag_stripes_neg);
@@ -761,7 +809,8 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		/* panic! */
 		glColor4ub(255, 0, 0, 255);
 		glPolygonStipple(stipple_diag_stripes_pos);
-		glRectf(x1, y1, x2, y2);
+		//glRectf(x1, y1, x2, y2);
+		glDrawArrays(GL_POLYGON, 0, 36);
 
 		glDisable(GL_POLYGON_STIPPLE);
 	}
@@ -784,7 +833,9 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		glLineStipple(1, 0x8888);
 	}
 	
-	uiDrawBoxShade(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
+	glDrawArrays(GL_LINE_LOOP, 0, 36);
+
+	//uiDrawBoxShade(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
 	
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_LINE_STIPPLE);
@@ -1363,6 +1414,9 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 	int sel = 0, j;
 	float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
 	
+	glEnableClientState(GL_VERTEX_ARRAY);
+//	glEnableClientState(GL_COLOR_ARRAY);
+
 	/* loop through twice, first unselected, then selected */
 	for (j = 0; j < 2; j++) {
 		Sequence *seq;
@@ -1389,6 +1443,9 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 	/* draw the last selected last (i.e. 'active' in other parts of Blender), removes some overlapping error */
 	if (last_seq)
 		draw_seq_strip(scene, ar, last_seq, 120, pixelx);
+
+	//glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
