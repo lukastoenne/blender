@@ -40,6 +40,7 @@
 #endif
 
 #include "DNA_group_types.h"
+#include "DNA_hair_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_rigidbody_types.h"
@@ -50,6 +51,8 @@
 #include "BKE_global.h"
 #include "BKE_object.h"
 #include "BKE_rigidbody.h"
+
+#include "HAIR_capi.h"
 
 /* ------------------------ */
 /* Main Simulation Sync */
@@ -194,60 +197,89 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 		RB_dworld_add_body(rbw->physics_world, rbo->physics_object, rbo->col_groups);
 }
 
+/* build main object rigid body */
+static void rigidbody_object_build(Scene *scene, RigidBodyWorld *rbw, Object *ob, bool rebuild)
+{
+	RigidBodyOb *rbo;
+
+	if (!ob || ob->type != OB_MESH)
+		return;
+	
+	/* validate that we've got valid object set up here... */
+	rbo = ob->rigidbody_object;
+	/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
+	BKE_object_where_is_calc(scene, ob);
+	
+	if (rbo == NULL) {
+		/* Since this object is included in the sim group but doesn't have
+			 * rigid body settings (perhaps it was added manually), add!
+			 *	- assume object to be active? That is the default for newly added settings...
+			 */
+		ob->rigidbody_object = BKE_rigidbody_create_object(scene, ob, RBO_TYPE_ACTIVE);
+		rigidbody_validate_sim_object(rbw, ob, true);
+		
+		rbo = ob->rigidbody_object;
+	}
+	else {
+		/* perform simulation data updates as tagged */
+		/* refresh object... */
+		if (rebuild || !rbo->physics_object) {
+			/* World has been rebuilt so rebuild object */
+			rigidbody_validate_sim_object(rbw, ob, true);
+		}
+		else if (rbo->flag & RBO_FLAG_NEEDS_VALIDATE) {
+			rigidbody_validate_sim_object(rbw, ob, false);
+		}
+		
+		/* refresh shape... */
+		if (rbo->flag & RBO_FLAG_NEEDS_RESHAPE) {
+			/* mesh/shape data changed, so force shape refresh */
+			BKE_rigidbody_validate_sim_shape(ob, true);
+			/* now tell RB sim about it */
+			// XXX: we assume that this can only get applied for active/passive shapes that will be included as rigidbodies
+			RB_body_set_collision_shape(rbo->physics_object, rbo->physics_shape);
+		}
+		
+		rbo->flag &= ~(RBO_FLAG_NEEDS_VALIDATE | RBO_FLAG_NEEDS_RESHAPE);
+	}
+	
+	BKE_rigidbody_body_tag_used(rbo->physics_object);
+	
+	/* update simulation object... */
+	rigidbody_sync_object(scene, rbw, ob, rbo);
+}
+
+/* build secondary rigidbody components */
+static void rigidbody_object_build_components(Scene *UNUSED(scene), RigidBodyWorld *rbw, Object *ob, bool rebuild)
+{
+	ModifierData *md;
+	
+	if (!ob)
+		return;
+	
+	for (md = ob->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_Hair) {
+			HairModifierData *hmd = (HairModifierData*) md;
+			
+			if (rebuild && hmd->solver)
+				HAIR_solver_rebuild_rigidbodyworld(hmd->solver, rbw->physics_world);
+		}
+	}
+}
+
 void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool rebuild)
 {
+	Base *base;
 	GroupObject *go;
-	if (!rbw->group)
-		return;
-	for (go = rbw->group->gobject.first; go; go = go->next) {
-		Object *ob = go->ob;
-		RigidBodyOb *rbo;
-
-		if (!ob || ob->type != OB_MESH)
-			continue;
-		
-		/* validate that we've got valid object set up here... */
-		rbo = ob->rigidbody_object;
-		/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
-		BKE_object_where_is_calc(scene, ob);
-		
-		if (rbo == NULL) {
-			/* Since this object is included in the sim group but doesn't have
-				 * rigid body settings (perhaps it was added manually), add!
-				 *	- assume object to be active? That is the default for newly added settings...
-				 */
-			ob->rigidbody_object = BKE_rigidbody_create_object(scene, ob, RBO_TYPE_ACTIVE);
-			rigidbody_validate_sim_object(rbw, ob, true);
-			
-			rbo = ob->rigidbody_object;
+	
+	if (rbw->group) {
+		for (go = rbw->group->gobject.first; go; go = go->next) {
+			rigidbody_object_build(scene, rbw, go->ob, rebuild);
 		}
-		else {
-			/* perform simulation data updates as tagged */
-			/* refresh object... */
-			if (rebuild || !rbo->physics_object) {
-				/* World has been rebuilt so rebuild object */
-				rigidbody_validate_sim_object(rbw, ob, true);
-			}
-			else if (rbo->flag & RBO_FLAG_NEEDS_VALIDATE) {
-				rigidbody_validate_sim_object(rbw, ob, false);
-			}
-			
-			/* refresh shape... */
-			if (rbo->flag & RBO_FLAG_NEEDS_RESHAPE) {
-				/* mesh/shape data changed, so force shape refresh */
-				BKE_rigidbody_validate_sim_shape(ob, true);
-				/* now tell RB sim about it */
-				// XXX: we assume that this can only get applied for active/passive shapes that will be included as rigidbodies
-				RB_body_set_collision_shape(rbo->physics_object, rbo->physics_shape);
-			}
-			
-			rbo->flag &= ~(RBO_FLAG_NEEDS_VALIDATE | RBO_FLAG_NEEDS_RESHAPE);
-		}
-		
-		BKE_rigidbody_body_tag_used(rbo->physics_object);
-		
-		/* update simulation object... */
-		rigidbody_sync_object(scene, rbw, ob, rbo);
+	}
+	
+	for (base = scene->base.first; base; base = base->next) {
+		rigidbody_object_build_components(scene, rbw, base->object, rebuild);
 	}
 }
 

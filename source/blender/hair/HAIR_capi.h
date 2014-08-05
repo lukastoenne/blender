@@ -33,6 +33,7 @@ struct Object;
 struct DerivedMesh;
 struct HairCurve;
 struct HairSystem;
+struct rbDynamicsWorld;
 
 struct HAIR_Solver;
 struct HAIR_SmoothingIteratorFloat3;
@@ -43,6 +44,7 @@ void HAIR_solver_free(struct HAIR_Solver *solver);
 void HAIR_solver_set_params(struct HAIR_Solver *solver, const struct HairParams *params);
 void HAIR_solver_build_data(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
 void HAIR_solver_update_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
+void HAIR_solver_rebuild_rigidbodyworld(struct HAIR_Solver *solver, struct rbDynamicsWorld *world);
 
 typedef struct HAIR_SolverContact {
 	float coA[3], coB[3];

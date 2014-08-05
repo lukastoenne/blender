@@ -786,7 +786,6 @@ static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, bool rebuil
 		}
 	}
 
-
 	/* build objects */
 	BKE_rigidbody_objects_build(scene, rbw, rebuild);
 	

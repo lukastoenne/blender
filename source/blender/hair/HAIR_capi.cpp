@@ -90,6 +90,14 @@ void HAIR_solver_update_externals(struct HAIR_Solver *csolver, Scene *scene, Obj
 	SceneConverter::sync_rigidbody_data(solver->data());
 }
 
+void HAIR_solver_rebuild_rigidbodyworld(struct HAIR_Solver *csolver, struct rbDynamicsWorld *world)
+{
+	Solver *solver = (Solver *)csolver;
+	
+	if (solver->data())
+		solver->data()->add_to_world(world, 0xFFFFFFFF);
+}
+
 void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)
 {
 	Solver *solver = (Solver *)csolver;
