@@ -88,29 +88,12 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 {
 	RegionView3D *rv3d = ar->regiondata;
 	Object *ob = base->object;
-	struct DerivedMesh *dm = ob->derivedFinal;
 	HairCurve *hair;
 	int i;
 	bool retval = true;
 	
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
-	
-	/* hair roots */
-	if (dm) {
-		glPointSize(3.0f);
-		glColor3f(1.0f, 1.0f, 0.0f);
-		glBegin(GL_LINES);
-		for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-			float loc[3], nor[3];
-			if (BKE_mesh_sample_eval(dm, &hair->root, loc, nor)) {
-				glVertex3f(loc[0], loc[1], loc[2]);
-				madd_v3_v3fl(loc, nor, 0.1f);
-				glVertex3f(loc[0], loc[1], loc[2]);
-			}
-		}
-		glEnd();
-	}
 	
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
 		draw_hair_curve(hsys, hair);
