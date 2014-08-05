@@ -1055,8 +1055,8 @@ static void view2d_map_cur_using_mask(View2D *v2d, rctf *curmasked)
 	}
 }
 
-/* Set view matrices to use 'cur' rect as viewing frame for View2D drawing */
-void UI_view2d_view_ortho(View2D *v2d)
+/* Set view matrices to use 'cur' rect as viewing frame for View2D drawing, return y/x aspect ratio */
+float UI_view2d_view_ortho(View2D *v2d)
 {
 	rctf curmasked;
 	const int sizex = BLI_rcti_size_x(&v2d->mask);
@@ -1094,6 +1094,8 @@ void UI_view2d_view_ortho(View2D *v2d)
 
 	/* XXX is this necessary? */
 	glLoadIdentity();
+
+	return (curmasked.ymax - curmasked.ymin) / (curmasked.xmax - curmasked.xmin);
 }
 
 /* Set view matrices to only use one axis of 'cur' only

@@ -627,31 +627,25 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 /* draw code vertex array storage */
 static float strip_vertex_storage[36][2];
 static char strip_color_storage[36][3];
+const static unsigned short strip_element_buffer[] = {10, 11, 9, 12, 8, 13, 7, 14, 6, 15, 5, 16, 4, 17, 3, 18, 2, 19, 1, 20, 0, 21,
+                                       35, 22, 34, 23, 33, 24, 32, 25, 31, 26, 30, 27, 29, 28};
 
-static void generate_strip_vertices(float x1, float y1, float x2, float y2)
+static void generate_strip_vertices(float x1, float y1, float x2, float y2, float aspect)
 {
 	float ymid1, ymid2;
 
 	int i;
-	float cuddly_radius = (y2 - y1) * 0.2f;
+	float cuddly_radius = (y2 - y1) * 0.25f;
+	float cuddly_radius_x = 0.5f * cuddly_radius / aspect;
 	ymid1 = (y2 - y1) * 0.25f + y1;
 	ymid2 = (y2 - y1) * 0.65f + y1;
 
+	/* center of polygon */
 	strip_vertex_storage[0][0] = x1;
 	strip_vertex_storage[0][1] = ymid1;
 
 	strip_vertex_storage[1][0] = x1;
 	strip_vertex_storage[1][1] = ymid2;
-
-	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 2][0] = x1 + cuddly_radius - cuddly_radius * cos(i * M_PI / 16.0);
-		strip_vertex_storage[i + 2][1] = y2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 16.0);
-	}
-
-	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 10][0] = x2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 16.0);
-		strip_vertex_storage[i + 10][1] = y2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 16.0);
-	}
 
 	strip_vertex_storage[18][0] = x2;
 	strip_vertex_storage[18][1] = ymid2;
@@ -659,13 +653,24 @@ static void generate_strip_vertices(float x1, float y1, float x2, float y2)
 	strip_vertex_storage[19][0] = x2;
 	strip_vertex_storage[19][1] = ymid1;
 
+	/* corners of polygon */
 	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 20][0] = x2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 16.0);
+		strip_vertex_storage[i + 2][0] = x1 + cuddly_radius_x - cuddly_radius_x * cos(i * M_PI / 16.0);
+		strip_vertex_storage[i + 2][1] = y2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 16.0);
+	}
+
+	for (i = 0; i < 8; i++) {
+		strip_vertex_storage[i + 10][0] = x2 - cuddly_radius_x + cuddly_radius_x * sin(i * M_PI / 16.0);
+		strip_vertex_storage[i + 10][1] = y2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 16.0);
+	}
+
+	for (i = 0; i < 8; i++) {
+		strip_vertex_storage[i + 20][0] = x2 - cuddly_radius_x + cuddly_radius_x * cos(i * M_PI / 16.0);
 		strip_vertex_storage[i + 20][1] = y1 + cuddly_radius - cuddly_radius * sin(i * M_PI / 16.0);
 	}
 
 	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 28][0] = x1 + cuddly_radius - cuddly_radius * sin(i * M_PI / 16.0);
+		strip_vertex_storage[i + 28][0] = x1 + cuddly_radius_x - cuddly_radius_x * sin(i * M_PI / 16.0);
 		strip_vertex_storage[i + 28][1] = y1 + cuddly_radius - cuddly_radius * cos(i * M_PI / 16.0);
 	}
 
@@ -676,14 +681,14 @@ static void generate_strip_vertices(float x1, float y1, float x2, float y2)
 static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
 {
 	float ymid1, ymid2;
-	
+
+	ymid1 = (y2 - y1) * 0.25f + y1;
+	ymid2 = (y2 - y1) * 0.65f + y1;
+
 	if (seq->flag & SEQ_MUTE) {
 		glEnable(GL_POLYGON_STIPPLE);
 		glPolygonStipple(stipple_halftone);
 	}
-	
-	ymid1 = (y2 - y1) * 0.25f + y1;
-	ymid2 = (y2 - y1) * 0.65f + y1;
 	
 	glShadeModel(GL_SMOOTH);
 	glBegin(GL_QUADS);
@@ -724,7 +729,67 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	glVertex2f(x1, y2);
 	
 	glEnd();
-	
+
+	if (seq->flag & SEQ_MUTE) {
+		glDisable(GL_POLYGON_STIPPLE);
+	}
+}
+
+static void draw_shaded_cuddly_strip(Sequence *seq, unsigned char col[3])
+{
+	unsigned char center_col[3];
+	unsigned char lower_col[3];
+	int i;
+
+	/* calculate strip colors (must take care to properly update col, since it will be returned to other functions later) */
+	if (seq->flag & SEQ_INVALID_EFFECT) { lower_col[0] = 255; lower_col[1] = 0; lower_col[2] = 255; }
+	else if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, lower_col, -50);
+	else copy_v3_v3_char((char *)lower_col, (char *)col);
+
+	if (seq->flag & SEQ_INVALID_EFFECT) { center_col[0] = 255; center_col[1] = 0; center_col[2] = 255; }
+	else if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(lower_col, lower_col, center_col, 0.0, 5);
+	else UI_GetColorPtrShade3ubv(lower_col, center_col, -5);
+
+	if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(center_col, col, -15);
+	else UI_GetColorPtrShade3ubv(center_col, col, 25);
+
+	if (seq->flag & SEQ_MUTE) {
+		glEnable(GL_POLYGON_STIPPLE);
+		glPolygonStipple(stipple_halftone);
+	}
+
+	glShadeModel(GL_SMOOTH);
+
+	/* first copy the color to the central part of the polygon */
+	copy_v3_v3_char((char *)strip_color_storage[0], (char *)center_col);
+	copy_v3_v3_char((char *)strip_color_storage[1], (char *)center_col);
+	copy_v3_v3_char((char *)strip_color_storage[18], (char *)center_col);
+	copy_v3_v3_char((char *)strip_color_storage[19], (char *)center_col);
+
+	/* handle the corners */
+
+	/* lower part */
+	for (i = 0; i < 8; i++)
+		interp_v3_v3v3_char((char *)strip_color_storage[20 + i], (char *)center_col, (char *)lower_col, sin(i * M_PI / 16.0));
+
+	for (i = 0; i < 8; i++)
+		interp_v3_v3v3_char((char *)strip_color_storage[28 + i], (char *)center_col, (char *)lower_col, cos(i * M_PI / 16.0));
+
+
+	/* high part */
+	for (i = 0; i < 8; i++)
+		interp_v3_v3v3_char((char *)strip_color_storage[2 + i], (char *)center_col, (char *)col, sin(i * M_PI / 16.0));
+
+	for (i = 0; i < 8; i++)
+		interp_v3_v3v3_char((char *)strip_color_storage[10 + i], (char *)center_col, (char *)col, cos(i * M_PI / 16.0));
+
+	glColorPointer(3, GL_UNSIGNED_BYTE, 0, strip_color_storage);
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	glDrawRangeElements(GL_TRIANGLE_STRIP, 0, 35, ARRAY_SIZE(strip_element_buffer), GL_UNSIGNED_SHORT, strip_element_buffer);
+
+	glDisableClientState(GL_COLOR_ARRAY);
+
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_POLYGON_STIPPLE);
 	}
@@ -735,7 +800,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
  * ARegion is currently only used to get the windows width in pixels
  * so wave file sample drawing precision is zoom adjusted
  */
-static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx)
+static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx, float aspect)
 {
 	View2D *v2d = &ar->v2d;
 	float x1, x2, y1, y2;
@@ -757,12 +822,12 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	
 	/* draw the main strip body */
 	if (is_single_image) {  /* single image */
-		draw_shadedstrip(seq, background_col,
-		                 BKE_sequence_tx_get_final_left(seq, false), y1,
-		                 BKE_sequence_tx_get_final_right(seq, false), y2);
+		generate_strip_vertices(BKE_sequence_tx_get_final_left(seq, false), y1, BKE_sequence_tx_get_final_right(seq, false), y2, aspect);
+		draw_shaded_cuddly_strip(seq, background_col);
 	}
 	else {  /* normal operation */
-		draw_shadedstrip(seq, background_col, x1, y1, x2, y2);
+		generate_strip_vertices(x1, y1, x2, y2, aspect);
+		draw_shaded_cuddly_strip(seq, background_col);
 	}
 	
 	/* draw additional info and controls */
@@ -776,7 +841,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	x1 = seq->startdisp;
 	x2 = seq->enddisp;
 	
-	generate_strip_vertices(x1, y1, x2, y2);
+	generate_strip_vertices(x1, y1, x2, y2, aspect);
 
 	/* draw sound wave */
 	if (seq->type == SEQ_TYPE_SOUND_RAM) {
@@ -1406,7 +1471,7 @@ static void draw_seq_backdrop(View2D *v2d)
 }
 
 /* draw the contents of the sequencer strips view */
-static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
+static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar, float aspect)
 {
 	Scene *scene = CTX_data_scene(C);
 	View2D *v2d = &ar->v2d;
@@ -1415,7 +1480,6 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 	float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
 	
 	glEnableClientState(GL_VERTEX_ARRAY);
-//	glEnableClientState(GL_COLOR_ARRAY);
 
 	/* loop through twice, first unselected, then selected */
 	for (j = 0; j < 2; j++) {
@@ -1433,7 +1497,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 			else if (seq->machine > v2d->cur.ymax) continue;
 			
 			/* strip passed all tests unscathed... so draw it now */
-			draw_seq_strip(scene, ar, seq, outline_tint, pixelx);
+			draw_seq_strip(scene, ar, seq, outline_tint, pixelx, aspect);
 		}
 		
 		/* draw selected next time round */
@@ -1442,9 +1506,8 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 	
 	/* draw the last selected last (i.e. 'active' in other parts of Blender), removes some overlapping error */
 	if (last_seq)
-		draw_seq_strip(scene, ar, last_seq, 120, pixelx);
+		draw_seq_strip(scene, ar, last_seq, 120, pixelx, aspect);
 
-	//glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
@@ -1482,6 +1545,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	View2DScrollers *scrollers;
 	short unit = 0, flag = 0;
 	float col[3];
+	float aspect;
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
@@ -1491,7 +1555,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 		glClearColor(col[0], col[1], col[2], 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	UI_view2d_view_ortho(v2d);
+	aspect = UI_view2d_view_ortho(v2d);
 	
 	
 	/* calculate extents of sequencer strips/data 
@@ -1514,7 +1578,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* sequence strips (if there is data available to be drawn) */
 	if (ed) {
 		/* draw the data */
-		draw_seq_strips(C, ed, ar);
+		draw_seq_strips(C, ed, ar, aspect);
 		
 		/* text draw cached (for sequence names), in pixelspace now */
 		UI_view2d_text_cache_draw(ar);
