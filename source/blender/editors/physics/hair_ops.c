@@ -137,7 +137,7 @@ static bool hair_copy_particle_emitter_location(Object *UNUSED(ob), ParticleSyst
 	MFace *mface;
 	float *co1, *co2, *co3, *co4;
 	float vec[3];
-	float w[3];
+	float w[4];
 	
 	if (!psys_get_index_on_dm(psys, dm, pa, &mapindex, mapfw))
 		return false;
