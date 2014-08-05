@@ -627,18 +627,19 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 /* draw code vertex array storage */
 static float strip_vertex_storage[36][2];
 static char strip_color_storage[36][3];
-const static unsigned short strip_element_buffer[] = {10, 11, 9, 12, 8, 13, 7, 14, 6, 15, 5, 16, 4, 17, 3, 18, 2, 19, 1, 20, 0, 21,
-                                       35, 22, 34, 23, 33, 24, 32, 25, 31, 26, 30, 27, 29, 28};
+const static unsigned short strip_element_buffer[] = {9, 10, 8, 11, 7, 12, 6, 13, 5, 14, 4, 15, 3, 16, 2, 17, 1, 18, 0, 19, 35, 20,
+                                       34, 21, 33, 22, 32, 23, 31, 24, 30, 25, 29, 26, 28, 27};
 
 static void generate_strip_vertices(float x1, float y1, float x2, float y2, float aspect)
 {
 	float ymid1, ymid2;
 
 	int i;
-	float cuddly_radius = (y2 - y1) * 0.25f;
-	float cuddly_radius_x = 0.5f * cuddly_radius / aspect;
-	ymid1 = (y2 - y1) * 0.25f + y1;
-	ymid2 = (y2 - y1) * 0.65f + y1;
+	float h = (y2 - y1);
+	float cuddly_radius = h * 0.25f;
+	float cuddly_radius_x = 0.5f * min_ff(cuddly_radius / aspect, (x2 - x1));
+	ymid1 = h * 0.25f + y1;
+	ymid2 = h * 0.65f + y1;
 
 	/* center of polygon */
 	strip_vertex_storage[0][0] = x1;
@@ -655,23 +656,23 @@ static void generate_strip_vertices(float x1, float y1, float x2, float y2, floa
 
 	/* corners of polygon */
 	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 2][0] = x1 + cuddly_radius_x - cuddly_radius_x * cos(i * M_PI / 16.0);
-		strip_vertex_storage[i + 2][1] = y2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 16.0);
+		strip_vertex_storage[i + 2][0] = x1 + cuddly_radius_x - cuddly_radius_x * cos(i * M_PI / 14.0);
+		strip_vertex_storage[i + 2][1] = y2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 14.0);
 	}
 
 	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 10][0] = x2 - cuddly_radius_x + cuddly_radius_x * sin(i * M_PI / 16.0);
-		strip_vertex_storage[i + 10][1] = y2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 16.0);
+		strip_vertex_storage[i + 10][0] = x2 - cuddly_radius_x + cuddly_radius_x * sin(i * M_PI / 14.0);
+		strip_vertex_storage[i + 10][1] = y2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 14.0);
 	}
 
 	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 20][0] = x2 - cuddly_radius_x + cuddly_radius_x * cos(i * M_PI / 16.0);
-		strip_vertex_storage[i + 20][1] = y1 + cuddly_radius - cuddly_radius * sin(i * M_PI / 16.0);
+		strip_vertex_storage[i + 20][0] = x2 - cuddly_radius_x + cuddly_radius_x * cos(i * M_PI / 14.0);
+		strip_vertex_storage[i + 20][1] = y1 + cuddly_radius - cuddly_radius * sin(i * M_PI / 14.0);
 	}
 
 	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 28][0] = x1 + cuddly_radius_x - cuddly_radius_x * sin(i * M_PI / 16.0);
-		strip_vertex_storage[i + 28][1] = y1 + cuddly_radius - cuddly_radius * cos(i * M_PI / 16.0);
+		strip_vertex_storage[i + 28][0] = x1 + cuddly_radius_x - cuddly_radius_x * sin(i * M_PI / 14.0);
+		strip_vertex_storage[i + 28][1] = y1 + cuddly_radius - cuddly_radius * cos(i * M_PI / 14.0);
 	}
 
 	glVertexPointer(2, GL_FLOAT, 0, strip_vertex_storage);
@@ -770,18 +771,18 @@ static void draw_shaded_cuddly_strip(Sequence *seq, unsigned char col[3])
 
 	/* lower part */
 	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[20 + i], (char *)center_col, (char *)lower_col, sin(i * M_PI / 16.0));
+		interp_v3_v3v3_char((char *)strip_color_storage[20 + i], (char *)center_col, (char *)lower_col, sin(i * M_PI / 14.0));
 
 	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[28 + i], (char *)center_col, (char *)lower_col, cos(i * M_PI / 16.0));
+		interp_v3_v3v3_char((char *)strip_color_storage[28 + i], (char *)center_col, (char *)lower_col, cos(i * M_PI / 14.0));
 
 
 	/* high part */
 	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[2 + i], (char *)center_col, (char *)col, sin(i * M_PI / 16.0));
+		interp_v3_v3v3_char((char *)strip_color_storage[2 + i], (char *)center_col, (char *)col, sin(i * M_PI / 14.0));
 
 	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[10 + i], (char *)center_col, (char *)col, cos(i * M_PI / 16.0));
+		interp_v3_v3v3_char((char *)strip_color_storage[10 + i], (char *)center_col, (char *)col, cos(i * M_PI / 14.0));
 
 	glColorPointer(3, GL_UNSIGNED_BYTE, 0, strip_color_storage);
 	glEnableClientState(GL_COLOR_ARRAY);
