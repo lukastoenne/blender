@@ -56,6 +56,8 @@ struct Point {
 	float3 rest_co;
 	float3 rest_bend;
 	
+	float radius;
+	
 	rbGhostObject rb_ghost;
 	btSphereShape bt_shape;
 	

@@ -94,6 +94,8 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 			HairPoint *hair_pt = hair->points + k;
 			
 			point->rest_co = transform_point(mat, hair_pt->rest_co);
+			point->radius = 0.0f;
+			
 			point->cur.co = transform_point(mat, hair_pt->co);
 			point->cur.vel = transform_direction(mat, hair_pt->vel);
 		}
@@ -158,16 +160,41 @@ void SceneConverter::sync_rigidbody_data(SolverData *data)
 	/* sync settings */
 	Curve *solver_curves = data->curves;
 	int totcurves = data->totcurves;
+	btTransform trans;
+	btVector3 halfsize;
 	
-	for (int i = 0; i < totcurves && i < totcurves; ++i) {
-		Curve *curve = solver_curves + i;
-		
-		for (int k = 0; k < curve->totpoints; ++k) {
-			Point *point = curve->points + k;
-			
-			RB_ghost_set_loc_rot(&point->rb_ghost, point->cur.co.data(), unit_qt.data());
-		}
+	if (data->totpoints == 0) {
+		trans.setIdentity();
+		halfsize = btVector3(0.5f, 0.5f, 0.5f);
 	}
+	else {
+		float3 co_min(FLT_MAX, FLT_MAX, FLT_MAX);
+		float3 co_max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+		
+		for (int i = 0; i < totcurves && i < totcurves; ++i) {
+			Curve *curve = solver_curves + i;
+			
+			for (int k = 0; k < curve->totpoints; ++k) {
+				Point *point = curve->points + k;
+				
+				co_min[0] = min_ff(co_min[0], point->cur.co.x - point->radius);
+				co_min[1] = min_ff(co_min[1], point->cur.co.y - point->radius);
+				co_min[2] = min_ff(co_min[2], point->cur.co.z - point->radius);
+				co_max[0] = max_ff(co_max[0], point->cur.co.x + point->radius);
+				co_max[1] = max_ff(co_max[1], point->cur.co.y + point->radius);
+				co_max[2] = max_ff(co_max[2], point->cur.co.z + point->radius);
+				
+				RB_ghost_set_loc_rot(&point->rb_ghost, point->cur.co.data(), unit_qt.data());
+			}
+		}
+		
+		trans.setIdentity();
+		trans.setOrigin(btVector3(0.5f*(co_min[0] + co_max[0]), 0.5f*(co_min[1] + co_max[1]), 0.5f*(co_min[2] + co_max[2])));
+		halfsize = btVector3(0.5f*(co_max[0] - co_min[0]), 0.5f*(co_max[1] - co_min[1]), 0.5f*(co_max[2] - co_min[2]));
+	}
+	
+	data->rb_ghost.ghost.setWorldTransform(trans);
+	data->bt_shape.setLocalScaling(halfsize);
 }
 
 HAIR_NAMESPACE_END

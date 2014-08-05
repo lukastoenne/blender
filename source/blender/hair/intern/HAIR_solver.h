@@ -27,6 +27,8 @@
 #ifndef __HAIR_SOLVER_H__
 #define __HAIR_SOLVER_H__
 
+#include <BulletCollision/CollisionShapes/btBoxShape.h>
+
 extern "C" {
 #include "DNA_hair_types.h"
 }
@@ -51,6 +53,9 @@ struct SolverData {
 	int totpoints;
 	
 	float t0, t1;
+	
+	rbGhostObject rb_ghost;
+	btBoxShape bt_shape;
 	
 	void precompute_rest_bend();
 	

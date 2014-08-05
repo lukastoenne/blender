@@ -39,6 +39,7 @@ Point::Point() :
 
 Point::Point(const float3 &rest_co) :
     rest_co(rest_co),
+    radius(0.0f),
     rb_ghost(),
     bt_shape(1.0f)
 {

@@ -44,24 +44,34 @@ SolverData::SolverData() :
     curves(NULL),
     points(NULL),
     totcurves(0),
-    totpoints(0)
+    totpoints(0),
+    rb_ghost(),
+    bt_shape(btVector3(1.0f, 1.0f, 1.0f))
 {
+	rb_ghost.ghost.setCollisionShape(&bt_shape);
 }
 
 SolverData::SolverData(int totcurves, int totpoints) :
     totcurves(totcurves),
-    totpoints(totpoints)
+    totpoints(totpoints),
+    rb_ghost(),
+    bt_shape(btVector3(1.0f, 1.0f, 1.0f))
 {
 	curves = new Curve[totcurves];
 	points = new Point[totpoints];
+
+	rb_ghost.ghost.setCollisionShape(&bt_shape);
 }
 
 SolverData::SolverData(const SolverData &other) :
     curves(other.curves),
     points(other.points),
     totcurves(other.totcurves),
-    totpoints(other.totpoints)
+    totpoints(other.totpoints),
+    rb_ghost(),
+    bt_shape(btVector3(1.0f, 1.0f, 1.0f))
 {
+	rb_ghost.ghost.setCollisionShape(&bt_shape);
 }
 
 SolverData::~SolverData()
@@ -77,9 +87,7 @@ void SolverData::add_to_world(rbDynamicsWorld *world, int col_groups)
 	if (!world)
 		return;
 	
-	for (int k = 0; k < totpoints; ++k) {
-		RB_dworld_add_ghost(world, &points[k].rb_ghost, col_groups);
-	}
+	RB_dworld_add_ghost(world, &rb_ghost, col_groups);
 }
 
 void SolverData::remove_from_world(rbDynamicsWorld *world)
@@ -87,9 +95,7 @@ void SolverData::remove_from_world(rbDynamicsWorld *world)
 	if (!world)
 		return;
 	
-	for (int k = 0; k < totpoints; ++k) {
-		RB_dworld_remove_ghost(world, &points[k].rb_ghost);
-	}
+	RB_dworld_remove_ghost(world, &rb_ghost);
 }
 
 static float3 calc_bend(const Frame &frame, const float3 &co0, const float3 &co1)
@@ -132,9 +138,29 @@ void SolverData::precompute_rest_bend()
 	}
 }
 
-static void debug_point_contacts(btDynamicsWorld *dworld, Point *point)
+struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
+	btScalar addSingleResult(btManifoldPoint &cp,
+	                         const btCollisionObjectWrapper *colObj0Wrap, int partId0, int index0,
+	                         const btCollisionObjectWrapper *colObj1Wrap, int partId1, int index1)
+	{
+		if (cp.getDistance() < 0.f) {
+			const btVector3 &ptA = cp.getPositionWorldOnA();
+			const btVector3 &ptB = cp.getPositionWorldOnB();
+//			const btVector3 &normalOnB = cp.m_normalWorldOnB;
+			
+			Debug::collision_contact(float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
+		}
+		
+		/* note: return value is unused
+		 * http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?p=20990#p20990
+		 */
+		return 0.0f;
+	}
+};
+
+static void debug_ghost_contacts(SolverData *data, btDynamicsWorld *dworld, rbGhostObject *object)
 {
-	btPairCachingGhostObject *ghost = &point->rb_ghost.ghost;
+	btPairCachingGhostObject *ghost = &object->ghost;
 	
 	btManifoldArray manifold_array;
 	const btBroadphasePairArray& pairs = ghost->getOverlappingPairCache()->getOverlappingPairArray();
@@ -149,10 +175,25 @@ static void debug_point_contacts(btDynamicsWorld *dworld, Point *point)
 		btBroadphasePair* collision_pair = dworld->getPairCache()->findPair(pair.m_pProxy0,pair.m_pProxy1);
 		if (!collision_pair)
 			continue;
-	
+		
+		btCollisionObject *ob0 = (btCollisionObject *)pair.m_pProxy0->m_clientObject;
+		btCollisionObject *ob1 = (btCollisionObject *)pair.m_pProxy1->m_clientObject;
+		btCollisionObject *other = ob0 == ghost ? ob1 : ob0;
+		
+		HairContactResultCallback cb;
+		
+		Curve *curve = data->curves;
+		for (int i = 0; i < data->totcurves; ++i, ++curve) {
+			Point *pt = curve->points;
+			for (int k = 0; k < curve->totpoints; ++k, ++pt) {
+				dworld->contactPairTest(&pt->rb_ghost.ghost, other, cb);
+			}
+		}
+		
+#if 0
 		if (collision_pair->m_algorithm)
 			collision_pair->m_algorithm->getAllContactManifolds(manifold_array);
-	
+		
 		for (int j = 0; j < manifold_array.size(); j++) {
 			btPersistentManifold* manifold = manifold_array[j];
 			btScalar direction_sign = manifold->getBody0() == ghost ? btScalar(-1.0) : btScalar(1.0);
@@ -167,6 +208,7 @@ static void debug_point_contacts(btDynamicsWorld *dworld, Point *point)
 				}
 			}
 		}
+#endif
 	}
 }
 
@@ -174,11 +216,32 @@ void SolverData::debug_contacts(rbDynamicsWorld *world)
 {
 	btDynamicsWorld *dworld = world->dynamicsWorld;
 	
-	Curve *curve = curves;
-	for (int i = 0; i < totcurves; ++i, ++curve) {
-		Point *pt = curve->points;
-		for (int k = 0; k < curve->totpoints; ++k, ++pt)
-			debug_point_contacts(dworld, pt);
+	debug_ghost_contacts(this, dworld, &rb_ghost);
+
+	if (rb_ghost.ghost.getBroadphaseHandle()) {
+		float3 c[8];
+		c[0] = float3((float *)rb_ghost.ghost.getBroadphaseHandle()->m_aabbMin.m_floats);
+		c[7] = float3((float *)rb_ghost.ghost.getBroadphaseHandle()->m_aabbMax.m_floats);
+		c[1] = float3(c[7].x, c[0].y, c[0].z);
+		c[2] = float3(c[0].x, c[7].y, c[0].z);
+		c[3] = float3(c[7].x, c[7].y, c[0].z);
+		c[4] = float3(c[0].x, c[0].y, c[7].z);
+		c[5] = float3(c[7].x, c[0].y, c[7].z);
+		c[6] = float3(c[0].x, c[7].y, c[7].z);
+		Debug::collision_contact(c[0], c[1]);
+		Debug::collision_contact(c[1], c[3]);
+		Debug::collision_contact(c[3], c[2]);
+		Debug::collision_contact(c[2], c[0]);
+		
+		Debug::collision_contact(c[0], c[4]);
+		Debug::collision_contact(c[1], c[5]);
+		Debug::collision_contact(c[2], c[6]);
+		Debug::collision_contact(c[3], c[7]);
+		
+		Debug::collision_contact(c[4], c[5]);
+		Debug::collision_contact(c[5], c[7]);
+		Debug::collision_contact(c[7], c[6]);
+		Debug::collision_contact(c[6], c[4]);
 	}
 }
 
