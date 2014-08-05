@@ -289,7 +289,7 @@ void RB_dworld_add_ghost(rbDynamicsWorld *world, rbGhostObject *object, int col_
 	btGhostObject *ghost = &object->ghost;
 	object->col_groups = col_groups;
 	
-	world->dynamicsWorld->addCollisionObject(ghost, btBroadphaseProxy::AllFilter, btBroadphaseProxy::AllFilter);
+	world->dynamicsWorld->addCollisionObject(ghost, btBroadphaseProxy::DefaultFilter, 0);
 }
 
 void RB_dworld_remove_ghost(rbDynamicsWorld *world, rbGhostObject *object)
