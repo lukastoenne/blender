@@ -110,31 +110,30 @@ void SolverData::precompute_rest_bend()
 	int i;
 	
 	for (curve = curves, i = 0; i < totcurves; ++curve, ++i) {
-		Point *pt0, *pt1;
-		
-		if (curve->totpoints >= 2) {
-			pt0 = &curve->points[0];
-			pt1 = &curve->points[1];
-		}
-		else if (curve->totpoints >= 1) {
-			pt0 = pt1 = &curve->points[0];
-		}
-		else
+		/* XXX arbitrary smoothing amount here! */
+		FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), 1.0f / curve->totpoints, 0.1f);
+		if (!iter.valid())
 			continue;
 		
-		FrameIterator iter(1.0f / curve->totpoints, 0.1f, curve->totpoints, pt0->rest_co, pt1->rest_co);
+		Point *pt = curve->points + iter.index();
+		iter.next();
 		
-		pt0->rest_bend = calc_bend(iter.frame(), pt0->rest_co, pt1->rest_co);
+		if (!iter.valid()) {
+			pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
+			continue;
+		}
 		
-		Point *pt = pt1;
-		while (iter.valid()) {
-			Point *next_pt = &curve->points[iter.cur()];
+		do {
+			Point *next_pt = curve->points + iter.index();
 			
 			pt->rest_bend = calc_bend(iter.frame(), pt->rest_co, next_pt->rest_co);
 			
-			iter.next(next_pt->rest_co);
+			iter.next();
 			pt = next_pt;
-		}
+		} while (iter.valid());
+		
+		/* last point has no defined rest bend */
+		pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
 	}
 }
 

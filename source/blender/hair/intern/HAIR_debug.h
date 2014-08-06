@@ -41,9 +41,9 @@ struct Debug {
 	struct Contact {
 		float3 coA, coB;
 	};
+	
 	typedef std::vector<Contact> CollisionContacts;
 	
-
 	static void collision_contact(const float3 &coA, const float3 &coB)
 	{
 #ifdef HAIR_DEBUG

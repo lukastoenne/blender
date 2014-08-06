@@ -67,6 +67,29 @@ struct SolverData {
 	HAIR_CXX_CLASS_ALLOC(SolverData)
 };
 
+/* Utility class for smoothing algorithms */
+struct SolverDataRestLocWalker {
+	typedef float3 data_t;
+	
+	SolverDataRestLocWalker(Curve *curve) :
+	    curve(curve),
+	    i(0)
+	{}
+	
+	float3 read()
+	{
+		float3 result = curve->points[i].rest_co;
+		if (i < curve->totpoints-1)
+			++i;
+		return result;
+	}
+	
+	int size() const { return curve->totpoints; }
+	
+	Curve *curve;
+	int i;
+};
+
 struct SolverForces {
 	SolverForces();
 	

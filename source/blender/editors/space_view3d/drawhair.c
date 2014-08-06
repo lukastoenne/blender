@@ -105,7 +105,7 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 /* ---------------- debug drawing ---------------- */
 
 //#define SHOW_ROOTS
-//#define SHOW_FRAMES
+#define SHOW_FRAMES
 //#define SHOW_SMOOTHING
 #define SHOW_CYLINDERS
 #define SHOW_CONTACTS
@@ -146,28 +146,28 @@ static void draw_hair_curve_debug_frames(HairSystem *hsys, HairCurve *hair)
 	const float scale = 0.1f;
 	
 	glBegin(GL_LINES);
-	iter = HAIR_frame_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, nor, tan, cotan);
-	copy_v3_v3(co, hair->points[0].co);
-	mul_v3_fl(nor, scale);
-	mul_v3_fl(tan, scale);
-	mul_v3_fl(cotan, scale);
-	add_v3_v3(nor, co);
-	add_v3_v3(tan, co);
-	add_v3_v3(cotan, co);
-	++k;
+	iter = HAIR_frame_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth);
+//	copy_v3_v3(co, hair->points[0].co);
+//	mul_v3_fl(nor, scale);
+//	mul_v3_fl(tan, scale);
+//	mul_v3_fl(cotan, scale);
+//	add_v3_v3(nor, co);
+//	add_v3_v3(tan, co);
+//	add_v3_v3(cotan, co);
+//	++k;
 	
-	glColor3f(1.0f, 0.0f, 0.0f);
-	glVertex3fv(co);
-	glVertex3fv(nor);
-	glColor3f(0.0f, 1.0f, 0.0f);
-	glVertex3fv(co);
-	glVertex3fv(tan);
-	glColor3f(0.0f, 0.0f, 1.0f);
-	glVertex3fv(co);
-	glVertex3fv(cotan);
+//	glColor3f(1.0f, 0.0f, 0.0f);
+//	glVertex3fv(co);
+//	glVertex3fv(nor);
+//	glColor3f(0.0f, 1.0f, 0.0f);
+//	glVertex3fv(co);
+//	glVertex3fv(tan);
+//	glColor3f(0.0f, 0.0f, 1.0f);
+//	glVertex3fv(co);
+//	glVertex3fv(cotan);
 	
-	while (HAIR_frame_iter_valid(hair, iter)) {
-		HAIR_frame_iter_next(hair, iter, nor, tan, cotan);
+	while (HAIR_frame_iter_valid(iter)) {
+		HAIR_frame_iter_get(iter, nor, tan, cotan);
 		copy_v3_v3(co, hair->points[k].co);
 		mul_v3_fl(nor, scale);
 		mul_v3_fl(tan, scale);
@@ -186,6 +186,8 @@ static void draw_hair_curve_debug_frames(HairSystem *hsys, HairCurve *hair)
 		glColor3f(0.0f, 0.0f, 1.0f);
 		glVertex3fv(co);
 		glVertex3fv(cotan);
+		
+		HAIR_frame_iter_next(iter);
 	}
 	HAIR_frame_iter_free(iter);
 	glEnd();
@@ -207,27 +209,25 @@ static void draw_hair_curve_debug_smoothing(HairSystem *hsys, HairCurve *hair)
 	glColor3f(0.5f, 1.0f, 0.1f);
 	
 	glBegin(GL_LINE_STRIP);
-	iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
-	glVertex3fv(smooth_co);
-	while (HAIR_smoothing_iter_valid(hair, iter)) {
-		HAIR_smoothing_iter_next(hair, iter, smooth_co);
+	iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth);
+	while (HAIR_smoothing_iter_valid(iter)) {
+		HAIR_smoothing_iter_get(iter, smooth_co);
 		glVertex3fv(smooth_co);
+		
+		HAIR_smoothing_iter_next(iter);
 	}
-	HAIR_smoothing_iter_end(hair, iter, smooth_co);
-	glVertex3fv(smooth_co);
 	HAIR_smoothing_iter_free(iter);
 	glEnd();
 	
 	glPointSize(2.5f);
 	glBegin(GL_POINTS);
-	iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth, smooth_co);
-	glVertex3fv(smooth_co);
-	while (HAIR_smoothing_iter_valid(hair, iter)) {
-		HAIR_smoothing_iter_next(hair, iter, smooth_co);
+	iter = HAIR_smoothing_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth);
+	while (HAIR_smoothing_iter_valid(iter)) {
+		HAIR_smoothing_iter_get(iter, smooth_co);
 		glVertex3fv(smooth_co);
+		
+		HAIR_smoothing_iter_next(iter);
 	}
-	HAIR_smoothing_iter_end(hair, iter, smooth_co);
-	glVertex3fv(smooth_co);
 	HAIR_smoothing_iter_free(iter);
 	glEnd();
 	glPointSize(1.0f);

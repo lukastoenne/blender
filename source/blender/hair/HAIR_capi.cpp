@@ -132,107 +132,100 @@ void HAIR_solver_apply(struct HAIR_Solver *csolver, Scene *scene, Object *ob, Ha
 }
 
 
-struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(HairCurve *curve, float rest_length, float amount, float cval[3])
-{
-	SmoothingIterator<float3> *iter = new SmoothingIterator<float3>(rest_length, amount);
+struct HairCurveWalker {
+	typedef float3 data_t;
 	
-	if (curve->totpoints >= 2) {
-		float *co0 = curve->points[0].co;
-		float *co1 = curve->points[1].co;
-		
-		float3 val = iter->begin(co0, co1);
-		copy_v3_v3(cval, val.data());
+	HairCurveWalker(HairCurve *curve) :
+	    curve(curve),
+	    i(0)
+	{}
+	
+	float3 read()
+	{
+		float3 result(curve->points[i].co);
+		if (i < curve->totpoints-1)
+			++i;
+		return result;
 	}
-	/* XXX setting iter->num is not nice, find a better way to invalidate the iterator */
-	else if (curve->totpoints >= 1) {
-		copy_v3_v3(cval, curve->points[0].co);
-		iter->num = 2; 
-	}
-	else
-		iter->num = 1;
+	
+	int size() const { return curve->totpoints; }
+	
+	HairCurve *curve;
+	int i;
+};
+
+typedef SmoothingIterator<HairCurveWalker> HairCurveSmoothingIterator;
+typedef FrameIterator<HairCurveWalker> HairCurveFrameIterator;
+
+struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(HairCurve *curve, float rest_length, float amount)
+{
+	HairCurveSmoothingIterator *iter = new HairCurveSmoothingIterator(HairCurveWalker(curve), rest_length, amount);
 	
 	return (struct HAIR_SmoothingIteratorFloat3 *)iter;
 }
 
 void HAIR_smoothing_iter_free(struct HAIR_SmoothingIteratorFloat3 *citer)
 {
-	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
+	HairCurveSmoothingIterator *iter = (HairCurveSmoothingIterator *)citer;
 	
 	delete iter;
 }
 
-bool HAIR_smoothing_iter_valid(HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer)
+bool HAIR_smoothing_iter_valid(struct HAIR_SmoothingIteratorFloat3 *citer)
 {
-	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
+	HairCurveSmoothingIterator *iter = (HairCurveSmoothingIterator *)citer;
 	
-	return iter->num < curve->totpoints;
+	return iter->valid();
 }
 
-void HAIR_smoothing_iter_next(HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer, float cval[3])
+void HAIR_smoothing_iter_get(struct HAIR_SmoothingIteratorFloat3 *citer, float cval[3])
 {
-	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
+	HairCurveSmoothingIterator *iter = (HairCurveSmoothingIterator *)citer;
 	
-	float *co = curve->points[iter->num].co;
-	float3 val = iter->next(co);
+	float3 val = iter->get();
 	copy_v3_v3(cval, val.data());
 }
 
-void HAIR_smoothing_iter_end(HairCurve *curve, struct HAIR_SmoothingIteratorFloat3 *citer, float cval[3])
+void HAIR_smoothing_iter_next(struct HAIR_SmoothingIteratorFloat3 *citer)
 {
-	SmoothingIterator<float3> *iter = (SmoothingIterator<float3> *)citer;
+	HairCurveSmoothingIterator *iter = (HairCurveSmoothingIterator *)citer;
 	
-	float *co = curve->points[iter->num-1].co;
-	float3 val = iter->next(co);
-	copy_v3_v3(cval, val.data());
+	iter->next();
 }
 
-
-struct HAIR_FrameIterator *HAIR_frame_iter_new(HairCurve *curve, float rest_length, float amount, float cnor[3], float ctan[3], float ccotan[3])
+struct HAIR_FrameIterator *HAIR_frame_iter_new(HairCurve *curve, float rest_length, float amount)
 {
-	FrameIterator *iter;
-	float3 co0, co1;
-	
-	if (curve->totpoints >= 2) {
-		co0 = curve->points[0].co;
-		co1 = curve->points[1].co;
-	}
-	else if (curve->totpoints >= 1) {
-		co0 = co1 = curve->points[0].co;
-	}
-	else {
-		static const float3 v(0.0f, 0.0f, 0.0f);
-		co0 = co1 = v;
-	}
-	
-	iter = new FrameIterator(rest_length, amount, curve->totpoints, co0, co1);
-	copy_v3_v3(cnor, iter->frame().normal.data());
-	copy_v3_v3(ctan, iter->frame().tangent.data());
-	copy_v3_v3(ccotan, iter->frame().cotangent.data());
+	HairCurveFrameIterator *iter = new HairCurveFrameIterator(HairCurveWalker(curve), rest_length, amount);
 	
 	return (struct HAIR_FrameIterator *)iter;
 }
 
 void HAIR_frame_iter_free(struct HAIR_FrameIterator *citer)
 {
-	FrameIterator *iter = (FrameIterator *)citer;
+	HairCurveFrameIterator *iter = (HairCurveFrameIterator *)citer;
 	
 	delete iter;
 }
 
-bool HAIR_frame_iter_valid(HairCurve *curve, struct HAIR_FrameIterator *citer)
+bool HAIR_frame_iter_valid(struct HAIR_FrameIterator *citer)
 {
-	FrameIterator *iter = (FrameIterator *)citer;
+	HairCurveFrameIterator *iter = (HairCurveFrameIterator *)citer;
 	
 	return iter->valid();
 }
 
-void HAIR_frame_iter_next(HairCurve *curve, struct HAIR_FrameIterator *citer, float cnor[3], float ctan[3], float ccotan[3])
+void HAIR_frame_iter_get(struct HAIR_FrameIterator *citer, float cnor[3], float ctan[3], float ccotan[3])
 {
-	FrameIterator *iter = (FrameIterator *)citer;
+	HairCurveFrameIterator *iter = (HairCurveFrameIterator *)citer;
 	
-	float *co = curve->points[iter->cur()].co;
-	iter->next(co);
 	copy_v3_v3(cnor, iter->frame().normal.data());
 	copy_v3_v3(ctan, iter->frame().tangent.data());
 	copy_v3_v3(ccotan, iter->frame().cotangent.data());
+}
+
+void HAIR_frame_iter_next(struct HAIR_FrameIterator *citer)
+{
+	HairCurveFrameIterator *iter = (HairCurveFrameIterator *)citer;
+	
+	iter->next();
 }
