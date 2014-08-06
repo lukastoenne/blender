@@ -338,6 +338,8 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints)
 		else
 			cross_v3_v3v3(tangent, normal, sidevec);
 
+		normalize_v3(tangent);
+
 		for (k = 0; k < hair->totpoints - 1; ++point, ++next_point, ++k) {
 			float pivot_axis[3];
 			float new_normal[3];
@@ -356,13 +358,13 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints)
 				float halfcosine;
 				float halfsine;
 				/* substitute by cosine of half angle because we are doing smooth-like interpolation */
-				cosine = sqrt3f(0.5 + cosine * 0.5);
+				cosine = sqrt(0.5 + cosine * 0.5);
 
 				/* half angle cosines needed for quaternion rotation */
-				halfcosine = sqrt3f(0.5 + cosine * 0.5);
-				halfsine = sqrt3f(0.5 - cosine * 0.5);
+				halfcosine = sqrt(0.5 + cosine * 0.5);
+				halfsine = sqrt(0.5 - cosine * 0.5);
 
-				cross_v3_v3v3(pivot_axis, new_normal, normal);
+				cross_v3_v3v3(pivot_axis, normal, new_normal);
 				normalize_v3(pivot_axis);
 
 				rot_quat[0] = halfcosine;
@@ -371,6 +373,8 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints)
 				rot_quat[3] = halfsine * pivot_axis[2];
 
 				mul_qt_v3(rot_quat, tangent);
+
+				normalize_v3(tangent);
 			}
 
 			copy_v3_v3(normal, new_normal);
