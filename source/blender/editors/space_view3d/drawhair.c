@@ -271,7 +271,7 @@ static void draw_hair_debug_contacts(HAIR_SolverContact *contacts, int totcontac
 }
 
 /* debug preview of hairs as cylinders. warning, computation here hurts a lot! */
-static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints)
+static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints, int valid_points)
 {
 #ifdef SHOW_CYLINDERS
 	HairCurve *hair;
@@ -290,9 +290,9 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints)
 	unsigned int offset = 0;
 	unsigned int elem_offset = 0;
 
-	/* twice the subdivisions for top and bottom plus twive all for the normals */
-	int tot_verts = totpoints * 4 * subdiv;
-	int tot_elems = totpoints * 6 * subdiv;
+	/* twive for all for the normals */
+	int tot_verts = totpoints * 2 * subdiv;
+	int tot_elems = (totpoints - valid_points) * 6 * subdiv;
 
 	static unsigned int hairbuf = 0;
 	static unsigned int hairelem = 0;
@@ -374,8 +374,14 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints)
 
 				mul_qt_v3(rot_quat, tangent);
 
+				/* also rotate by the half amount the rotation axis */
+				copy_v3_v3(pivot_axis, normal);
+				mul_qt_v3(rot_quat, pivot_axis);
+
 				normalize_v3(tangent);
 			}
+			else
+				copy_v3_v3(pivot_axis, normal);
 
 			copy_v3_v3(normal, new_normal);
 
@@ -395,9 +401,9 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints)
 				copy_v3_v3(v_nor, tangent);
 
 				rot_quat[0] = cos(half_angle);
-				rot_quat[1] = sine * normal[0];
-				rot_quat[2] = sine * normal[1];
-				rot_quat[3] = sine * normal[2];
+				rot_quat[1] = sine * pivot_axis[0];
+				rot_quat[2] = sine * pivot_axis[1];
+				rot_quat[3] = sine * pivot_axis[2];
 
 				mul_qt_v3(rot_quat, v_nor);
 				copy_v3_v3(vert_data[offset], v_nor);
@@ -452,7 +458,8 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	HairCurve *hair;
 	int i;
 	int tot_points = 0;
-	
+	int valid_points = 0;
+
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
@@ -461,9 +468,12 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
 		draw_hair_curve_debug_frames(hsys, hair);
 		draw_hair_curve_debug_smoothing(hsys, hair);
-		tot_points += (hair->totpoints > 1) ? hair->totpoints - 1 : 0;
+		if (hair->totpoints > 1) {
+			tot_points += hair->totpoints;
+			valid_points++;
+		}
 	}
 	
-	draw_hair_debug_cylinders(hsys, tot_points);
+	draw_hair_debug_cylinders(hsys, tot_points, valid_points);
 	draw_hair_debug_contacts(hmd->debug_contacts, hmd->debug_totcontacts);
 }
