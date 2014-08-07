@@ -83,6 +83,12 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 1.0e6f);
 	RNA_def_property_ui_range(prop, 0.0f, 20.0f, 0.1, 2);
 	RNA_def_property_ui_text(prop, "Bend Damping", "");
+
+	prop = RNA_def_property(srna, "bend_smoothing", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "bend_smoothing");
+	RNA_def_property_range(prop, 0.0f, 256.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 8.0f, 0.1, 2);
+	RNA_def_property_ui_text(prop, "Bend Smoothing", "Smoothing amount to avoid rotation of hair curls");
 }
 
 static void rna_def_hair_system(BlenderRNA *brna)

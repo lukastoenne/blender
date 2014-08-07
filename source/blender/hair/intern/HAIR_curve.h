@@ -75,6 +75,7 @@ struct Curve {
 	
 	Point *points;
 	int totpoints;
+	float avg_rest_length;
 	
 	CurveRoot root0, root1;
 	

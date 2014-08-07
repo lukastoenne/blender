@@ -113,23 +113,37 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 		Point *pt = curve->points;
 		Point *next_pt = pt + 1;
 		
-		/* XXX calculating a rest frame ad-hoc from identity here, should use the surface normal/tangent instead! */
-		float3 normal, tangent;
-		normalize_v3_v3(normal, next_pt->rest_co - pt->rest_co);
-		normalize_v3_v3(tangent, float3(0,1,0) - dot_v3v3(float3(0,1,0), normal) * normal);
-		Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
-		
-		FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), 1.0f / curve->totpoints, params.bend_smoothing, rest_frame);
-		while (iter.index() < curve->totpoints - 1) {
-			pt->rest_bend = calc_bend(iter.frame(), pt->rest_co, next_pt->rest_co);
-			
-			iter.next();
-			++pt;
-			++next_pt;
+		/* calculate average rest length */
+		curve->avg_rest_length = 0.0f;
+		if (curve->totpoints > 1) {
+			for (int k = 0; k < curve->totpoints - 1; ++k)
+				curve->avg_rest_length += len_v3(curve->points[k+1].rest_co - curve->points[k].rest_co);
+			curve->avg_rest_length /= curve->totpoints;
 		}
 		
-		/* last point has no defined rest bending vector */
-		pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
+		if (curve->totpoints == 0)
+			continue;
+		else if (curve->totpoints == 1)
+			pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
+		else {
+			/* XXX calculating a rest frame ad-hoc from identity here, should use the surface normal/tangent instead! */
+			float3 normal, tangent;
+			normalize_v3_v3(normal, next_pt->rest_co - pt->rest_co);
+			normalize_v3_v3(tangent, float3(0,1,0) - dot_v3v3(float3(0,1,0), normal) * normal);
+			Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
+			
+			FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
+			while (iter.index() < curve->totpoints - 1) {
+				pt->rest_bend = calc_bend(iter.frame(), pt->rest_co, next_pt->rest_co);
+				
+				iter.next();
+				++pt;
+				++next_pt;
+			}
+			
+			/* last point has no defined rest bending vector */
+			pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
+		}
 	}
 }
 
@@ -381,7 +395,7 @@ static void step(const HairParams &params, const SolverForces &forces, float tim
 			tangent = float3(0,1,0);
 		}
 		Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
-		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), 1.0f / numpoints, params.bend_smoothing, rest_frame);
+		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
 		
 		if (k < numpoints-1) {
 			stretch = calc_stretch_force(params, curve, point, point+1, time);
