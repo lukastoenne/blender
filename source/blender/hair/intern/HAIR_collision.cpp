@@ -36,17 +36,26 @@ extern "C" {
 
 HAIR_NAMESPACE_BEGIN
 
-PointContactInfo::PointContactInfo(const btManifoldPoint &bt_point, int point_index) :
+PointContactInfo::PointContactInfo(const btManifoldPoint &bt_point, const btCollisionObject *ob0, const btCollisionObject *ob1, int point_index) :
     point_index(point_index),
     local_point_body(bt_point.m_localPointB.m_floats),
     local_point_hair(bt_point.m_localPointA),
     world_point_body(bt_point.m_positionWorldOnB),
     world_point_hair(bt_point.m_positionWorldOnA),
     world_normal_body(bt_point.m_normalWorldOnB),
-    distance(bt_point.m_distance1),
-    friction(bt_point.m_combinedFriction),
-    restitution(bt_point.m_combinedRestitution)
+    distance(bt_point.m_distance1)
 {
+	float3 lin_vel(ob1->getInterpolationLinearVelocity().m_floats);
+	float3 ang_vel(ob1->getInterpolationAngularVelocity().m_floats);
+	float3 p((ob1->getWorldTransform() * bt_point.m_localPointB).m_floats);
+	
+	world_vel_body = dot_v3v3(lin_vel + cross_v3_v3(ang_vel, p), world_normal_body) * world_normal_body;
+	
+	/* note: combined friction and restitution in the manifold point are not usable,
+	 * have to calculate it manually here
+	 */
+	friction = ob0->getFriction() * ob1->getFriction();
+	restitution = ob0->getRestitution() * ob1->getRestitution();
 }
 
 struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
@@ -61,16 +70,10 @@ struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
 	                         const btCollisionObjectWrapper *colObj1Wrap, int partId1, int index1)
 	{
 		if (cp.getDistance() < 0.f) {
-			PointContactInfo info(cp, point_index);
-			
+			const btCollisionObject *ob0 = colObj0Wrap->getCollisionObject();
 			const btCollisionObject *ob1 = colObj1Wrap->getCollisionObject();
 			
-			float3 lin_vel(ob1->getInterpolationLinearVelocity().m_floats);
-			float3 ang_vel(ob1->getInterpolationAngularVelocity().m_floats);
-			float3 p((ob1->getWorldTransform() * cp.m_localPointB).m_floats);
-			
-			info.world_vel_body = dot_v3v3(lin_vel + cross_v3_v3(ang_vel, p), info.world_normal_body) * info.world_normal_body;
-			
+			PointContactInfo info(cp, ob0, ob1, point_index);
 			cache->push_back(info);
 			
 //			const btVector3 &ptA = cp.getPositionWorldOnA();

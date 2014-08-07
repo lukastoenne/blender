@@ -129,7 +129,7 @@ struct SolverForces {
 
 struct PointContactInfo {
 	PointContactInfo() {}
-	PointContactInfo(const btManifoldPoint &bt_point, int point_index);
+	PointContactInfo(const btManifoldPoint &bt_point, const btCollisionObject *ob0, const btCollisionObject *ob1, int point_index);
 	
 	int point_index;
 	

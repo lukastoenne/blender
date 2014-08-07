@@ -1238,6 +1238,14 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         
         col.separator()
         
+        row = col.row()
+        col2 = row.column()
+        col2.prop(params, "restitution")
+        col2 = row.column()
+        col2.prop(params, "friction")
+        
+        col.separator()
+        
         col.operator("hair.reset to rest location")
         col.operator("hair.copy_from_particles")
 

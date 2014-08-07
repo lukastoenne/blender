@@ -60,6 +60,7 @@ static bool mesh_sample_eval(DerivedMesh *dm, const Transform &tfm, MSurfaceSamp
 
 SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
+	HairParams &params = hsys->params;
 	HairCurve *hair;
 	int i;
 	
@@ -106,7 +107,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	}
 	
 	/* finalize */
-	data->precompute_rest_bend(hsys->params);
+	data->precompute_rest_bend(params);
 	
 	return data;
 }
@@ -159,13 +160,16 @@ void SceneConverter::apply_solver_data(SolverData *data, Scene *scene, Object *o
 	}
 }
 
-void SceneConverter::sync_rigidbody_data(SolverData *data)
+void SceneConverter::sync_rigidbody_data(SolverData *data, const HairParams &params)
 {
 	/* sync settings */
 	Curve *solver_curves = data->curves;
 	int totcurves = data->totcurves;
 	btTransform trans;
 	btVector3 halfsize;
+	
+	data->rb_ghost.ghost.setRestitution(params.restitution);
+	data->rb_ghost.ghost.setFriction(params.friction);
 	
 	if (data->totpoints == 0) {
 		trans.setIdentity();
@@ -189,6 +193,9 @@ void SceneConverter::sync_rigidbody_data(SolverData *data)
 				co_max[2] = max_ff(co_max[2], point->cur.co.z + point->radius);
 				
 				RB_ghost_set_loc_rot(&point->rb_ghost, point->cur.co.data(), unit_qt.data());
+				
+				point->rb_ghost.ghost.setRestitution(params.restitution);
+				point->rb_ghost.ghost.setFriction(params.friction);
 			}
 		}
 		

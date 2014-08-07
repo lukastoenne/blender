@@ -66,31 +66,45 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "stretch_stiffness");
 	RNA_def_property_range(prop, 0.0f, 1.0e9f);
 	RNA_def_property_ui_range(prop, 0.0f, 3000.0f, 0.1, 2);
-	RNA_def_property_ui_text(prop, "Stretch Stiffness", "");
+	RNA_def_property_ui_text(prop, "Stretch Stiffness", "Resistance to stretching");
 
 	prop = RNA_def_property(srna, "stretch_damping", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "stretch_damping");
 	RNA_def_property_range(prop, 0.0f, 1.0e6f);
 	RNA_def_property_ui_range(prop, 0.0f, 20.0f, 0.1, 2);
-	RNA_def_property_ui_text(prop, "Stretch Damping", "");
+	RNA_def_property_ui_text(prop, "Stretch Damping", "Damping of stretch motion");
 
 	prop = RNA_def_property(srna, "bend_stiffness", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "bend_stiffness");
 	RNA_def_property_range(prop, 0.0f, 1.0e9f);
 	RNA_def_property_ui_range(prop, 0.0f, 500.0f, 0.1, 2);
-	RNA_def_property_ui_text(prop, "Bend Stiffness", "");
+	RNA_def_property_ui_text(prop, "Bend Stiffness", "Resistance to bending");
 
 	prop = RNA_def_property(srna, "bend_damping", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "bend_damping");
 	RNA_def_property_range(prop, 0.0f, 1.0e6f);
 	RNA_def_property_ui_range(prop, 0.0f, 20.0f, 0.1, 2);
-	RNA_def_property_ui_text(prop, "Bend Damping", "");
+	RNA_def_property_ui_text(prop, "Bend Damping", "Damping of bending motion");
 
 	prop = RNA_def_property(srna, "bend_smoothing", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "bend_smoothing");
 	RNA_def_property_range(prop, 0.0f, 256.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 8.0f, 0.1, 2);
 	RNA_def_property_ui_text(prop, "Bend Smoothing", "Smoothing amount to avoid rotation of hair curls");
+
+	prop = RNA_def_property(srna, "friction", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "friction");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1, 3);
+	RNA_def_property_float_default(prop, 0.5f);
+	RNA_def_property_ui_text(prop, "Friction", "Resistance of hair to sliding over objects");
+
+	prop = RNA_def_property(srna, "restitution", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "restitution");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1, 3);
+	RNA_def_property_float_default(prop, 0.0f);
+	RNA_def_property_ui_text(prop, "Restitution", "Amount of energy retained after collision");
 }
 
 static void rna_def_hair_system(BlenderRNA *brna)

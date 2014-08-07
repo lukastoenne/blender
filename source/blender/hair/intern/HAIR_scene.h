@@ -45,7 +45,7 @@ struct SceneConverter {
 	
 	static void apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys);
 	
-	static void sync_rigidbody_data(SolverData *data);
+	static void sync_rigidbody_data(SolverData *data, const HairParams &params);
 };
 
 HAIR_NAMESPACE_END
