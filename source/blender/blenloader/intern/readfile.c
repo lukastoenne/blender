@@ -4865,8 +4865,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 
 			hmd->solver = NULL;
 
-			hmd->debug_contacts = NULL;
-			hmd->debug_totcontacts = 0;
+			hmd->debug_data = NULL;
 		}
 	}
 }

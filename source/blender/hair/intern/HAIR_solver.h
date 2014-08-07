@@ -57,7 +57,7 @@ struct SolverData {
 	rbGhostObject rb_ghost;
 	btBoxShape bt_shape;
 	
-	void precompute_rest_bend();
+	void precompute_rest_bend(const HairParams &params);
 	
 	void add_to_world(rbDynamicsWorld *world, int col_groups);
 	void remove_from_world(rbDynamicsWorld *world);
@@ -67,7 +67,32 @@ struct SolverData {
 	HAIR_CXX_CLASS_ALLOC(SolverData)
 };
 
-/* Utility class for smoothing algorithms */
+/* Utility classes for smoothing algorithms */
+
+struct SolverDataLocWalker {
+	typedef float3 data_t;
+	
+	SolverDataLocWalker(Curve *curve) :
+	    curve(curve),
+	    i(0)
+	{}
+	
+	float3 read()
+	{
+		float3 result = curve->points[i].cur.co;
+		if (i < curve->totpoints-1)
+			++i;
+		return result;
+	}
+	
+	int size() const { return curve->totpoints; }
+	
+	Curve *curve;
+	int i;
+	
+	int dbg_kstart;
+};
+
 struct SolverDataRestLocWalker {
 	typedef float3 data_t;
 	

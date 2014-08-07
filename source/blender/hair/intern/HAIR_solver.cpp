@@ -101,38 +101,34 @@ void SolverData::remove_from_world(rbDynamicsWorld *world)
 static float3 calc_bend(const Frame &frame, const float3 &co0, const float3 &co1)
 {
 	float3 edge = co1 - co0;
-	return float3(dot_v3_v3(edge, frame.normal), dot_v3_v3(edge, frame.tangent), dot_v3_v3(edge, frame.cotangent));
+	return float3(dot_v3v3(edge, frame.normal), dot_v3v3(edge, frame.tangent), dot_v3v3(edge, frame.cotangent));
 }
 
-void SolverData::precompute_rest_bend()
+void SolverData::precompute_rest_bend(const HairParams &params)
 {
 	Curve *curve;
 	int i;
 	
 	for (curve = curves, i = 0; i < totcurves; ++curve, ++i) {
-		/* XXX arbitrary smoothing amount here! */
-		FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), 1.0f / curve->totpoints, 0.1f);
-		if (!iter.valid())
-			continue;
+		Point *pt = curve->points;
+		Point *next_pt = pt + 1;
 		
-		Point *pt = curve->points + iter.index();
-		iter.next();
+		/* XXX calculating a rest frame ad-hoc from identity here, should use the surface normal/tangent instead! */
+		float3 normal, tangent;
+		normalize_v3_v3(normal, next_pt->rest_co - pt->rest_co);
+		normalize_v3_v3(tangent, float3(0,1,0) - dot_v3v3(float3(0,1,0), normal) * normal);
+		Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
 		
-		if (!iter.valid()) {
-			pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
-			continue;
-		}
-		
-		do {
-			Point *next_pt = curve->points + iter.index();
-			
+		FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), 1.0f / curve->totpoints, params.bend_smoothing, rest_frame);
+		while (iter.index() < curve->totpoints - 1) {
 			pt->rest_bend = calc_bend(iter.frame(), pt->rest_co, next_pt->rest_co);
 			
 			iter.next();
-			pt = next_pt;
-		} while (iter.valid());
+			++pt;
+			++next_pt;
+		}
 		
-		/* last point has no defined rest bend */
+		/* last point has no defined rest bending vector */
 		pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
 	}
 }
@@ -309,20 +305,31 @@ static float3 calc_stretch_force(const HairParams &params, Curve *curve, Point *
 	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
 	float3 stretch_force = params.stretch_stiffness * (length - rest_length) * dir;
-	float3 stretch_damp = params.stretch_damping * dot_v3_v3(dvel, dir) * dir;
+	float3 stretch_damp = params.stretch_damping * dot_v3v3(dvel, dir) * dir;
 	
 	return stretch_force + stretch_damp;
 }
 
-static float3 calc_bend_force(const HairParams &params, Curve *curve, Point *point0, Point *point1, float time)
+static float3 bend_target(const Frame &frame, Point *pt)
 {
+	float3 rest_bend = pt->rest_bend;
+	float3 target(frame.normal.x * rest_bend.x + frame.tangent.x * rest_bend.y + frame.cotangent.x * rest_bend.z,
+	              frame.normal.y * rest_bend.x + frame.tangent.y * rest_bend.y + frame.cotangent.y * rest_bend.z,
+	              frame.normal.z * rest_bend.x + frame.tangent.z * rest_bend.y + frame.cotangent.z * rest_bend.z);
+	return target;
+}
+
+static float3 calc_bend_force(const HairParams &params, Curve *curve, Point *point0, Point *point1, const Frame &frame, float time)
+{
+	float3 target = bend_target(frame, point0);
+	
 	float3 dir;
 	float3 edge = point1->cur.co - point0->cur.co;
 	normalize_v3_v3(dir, edge);
 	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
-	float3 bend_force = params.bend_stiffness * (edge - point0->rest_bend);
-	float3 bend_damp = params.bend_damping * (dvel - dot_v3_v3(dvel, dir) * dir);
+	float3 bend_force = params.bend_stiffness * (edge - target);
+	float3 bend_damp = params.bend_damping * (dvel - dot_v3v3(dvel, dir) * dir);
 	
 	return bend_force + bend_damp;
 }
@@ -349,7 +356,7 @@ static void step(const HairParams &params, const SolverForces &forces, float tim
 	Point *point;
 	int totcurve = data.totcurves;
 	/*int totpoint = data.totpoints;*/
-	int i, k;
+	int i, k, ktot = 0;
 	
 	for (i = 0, curve = data.curves; i < totcurve; ++i, ++curve) {
 		int numpoints = curve->totpoints;
@@ -364,22 +371,38 @@ static void step(const HairParams &params, const SolverForces &forces, float tim
 		 */
 		calc_root_animation(t0, t1, time + timestep, curve, point->next.co, point->next.vel);
 		
+		float3 normal, tangent;
+		if (numpoints >= 2) {
+			normalize_v3_v3(normal, (point+1)->cur.co - point->cur.co);
+			normalize_v3_v3(tangent, float3(0,1,0) - dot_v3v3(float3(0,1,0), normal) * normal);
+		}
+		else {
+			normal = float3(1,0,0);
+			tangent = float3(0,1,0);
+		}
+		Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
+		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), 1.0f / numpoints, params.bend_smoothing, rest_frame);
+		
 		if (k < numpoints-1) {
 			stretch = calc_stretch_force(params, curve, point, point+1, time);
-			bend = calc_bend_force(params, curve, point, point+1, time);
+			bend = calc_bend_force(params, curve, point, point+1, frame_iter.frame(), time);
 		}
 		else {
 			stretch = float3(0.0f, 0.0f, 0.0f);
 			bend = float3(0.0f, 0.0f, 0.0f);
 		}
+		
+		Debug::point(ktot, bend_target(frame_iter.frame(), point), frame_iter.frame());
+		
+		frame_iter.next();
 		prev_stretch = stretch;
 		prev_bend = bend;
 		
 		/* Integrate the remaining free points */
-		for (++k, ++point; k < numpoints; ++k, ++point) {
+		for (++k, ++ktot, ++point; k < numpoints; ++k, ++ktot, ++point) {
 			if (k < numpoints-1) {
 				stretch = calc_stretch_force(params, curve, point, point+1, time);
-				bend = calc_bend_force(params, curve, point, point+1, time);
+				bend = calc_bend_force(params, curve, point, point+1, frame_iter.frame(), time);
 			}
 			else {
 				stretch = float3(0.0f, 0.0f, 0.0f);
@@ -393,6 +416,9 @@ static void step(const HairParams &params, const SolverForces &forces, float tim
 			float3 vel = calc_velocity(curve, point, time, point->next);
 			point->next.co = point->cur.co + vel * timestep;
 			
+			Debug::point(ktot, bend_target(frame_iter.frame(), point), frame_iter.frame());
+			
+			frame_iter.next();
 			prev_stretch = stretch;
 			prev_bend = bend;
 		}

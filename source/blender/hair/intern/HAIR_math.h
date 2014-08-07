@@ -130,7 +130,7 @@ __forceinline float4 operator / (const float4 &a, float d)
 
 /* vector functions */
 
-__forceinline float dot_v3_v3(const float3 &a, const float3 &b)
+__forceinline float dot_v3v3(const float3 &a, const float3 &b)
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
@@ -147,7 +147,7 @@ __forceinline float3 cross_v3_v3(const float3 &a, const float3 &b)
 
 __forceinline float len_v3(const float3 &v)
 {
-	return sqrtf(dot_v3_v3(v, v));
+	return sqrtf(dot_v3v3(v, v));
 }
 
 __forceinline float normalize_v3_v3(float3 &r, const float3 &v)
@@ -281,7 +281,7 @@ __forceinline float3 transform_direction_transposed(const Transform &t, const fl
 	float3 y = float3(t.x.y, t.y.y, t.z.y);
 	float3 z = float3(t.x.z, t.y.z, t.z.z);
 
-	return float3(dot_v3_v3(x, a), dot_v3_v3(y, a), dot_v3_v3(z, a));
+	return float3(dot_v3v3(x, a), dot_v3v3(y, a), dot_v3v3(z, a));
 }
 
 __forceinline Transform transform_transpose(const Transform &tfm)

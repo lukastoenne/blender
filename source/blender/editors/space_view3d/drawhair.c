@@ -104,11 +104,44 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 
 /* ---------------- debug drawing ---------------- */
 
+#define SHOW_POINTS
 //#define SHOW_ROOTS
 #define SHOW_FRAMES
 //#define SHOW_SMOOTHING
-#define SHOW_CYLINDERS
-#define SHOW_CONTACTS
+//#define SHOW_CYLINDERS
+//#define SHOW_CONTACTS
+
+static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
+{
+#ifdef SHOW_POINTS
+	int i, k, ktot = 0;
+	
+	glColor3f(0.8f, 1.0f, 1.0f);
+	glBegin(GL_LINES);
+	
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *hair = hsys->curves + i;
+		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
+			HairPoint *point = hair->points + k;
+			
+			if (ktot < dtotpoints) {
+				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
+				float loc[3];
+				
+				glVertex3fv(point->co);
+				add_v3_v3v3(loc, point->co, dpoint->bend);
+				glVertex3fv(loc);
+			}
+		}
+	}
+	
+	glEnd();
+#else
+	(void)hsys;
+	(void)dpoints;
+	(void)dtotpoints;
+#endif
+}
 
 static void draw_hair_debug_roots(HairSystem *hsys, struct DerivedMesh *dm)
 {
@@ -137,6 +170,52 @@ static void draw_hair_debug_roots(HairSystem *hsys, struct DerivedMesh *dm)
 #endif
 }
 
+static void draw_hair_debug_frames(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
+{
+#ifdef SHOW_FRAMES
+	const float scale = 0.2f;
+	int i, k, ktot;
+	
+	glColor3f(0.8f, 1.0f, 1.0f);
+	glBegin(GL_LINES);
+	
+	ktot = 0;
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *hair = hsys->curves + i;
+		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
+			HairPoint *point = hair->points + k;
+			
+			if (ktot < dtotpoints) {
+				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
+				float co[3], nor[3], tan[3], cotan[3];
+				
+				copy_v3_v3(co, point->co);
+				madd_v3_v3v3fl(nor, co, dpoint->frame[0], scale);
+				madd_v3_v3v3fl(tan, co, dpoint->frame[1], scale);
+				madd_v3_v3v3fl(cotan, co, dpoint->frame[2], scale);
+				
+				glColor3f(1.0f, 0.0f, 0.0f);
+				glVertex3fv(co);
+				glVertex3fv(nor);
+				glColor3f(0.0f, 1.0f, 0.0f);
+				glVertex3fv(co);
+				glVertex3fv(tan);
+				glColor3f(0.0f, 0.0f, 1.0f);
+				glVertex3fv(co);
+				glVertex3fv(cotan);
+			}
+		}
+	}
+	
+	glEnd();
+#else
+	(void)hsys;
+	(void)dpoints;
+	(void)dtotpoints;
+#endif
+}
+
+#if 0
 static void draw_hair_curve_debug_frames(HairSystem *hsys, HairCurve *hair)
 {
 #ifdef SHOW_FRAMES
@@ -147,24 +226,6 @@ static void draw_hair_curve_debug_frames(HairSystem *hsys, HairCurve *hair)
 	
 	glBegin(GL_LINES);
 	iter = HAIR_frame_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth);
-//	copy_v3_v3(co, hair->points[0].co);
-//	mul_v3_fl(nor, scale);
-//	mul_v3_fl(tan, scale);
-//	mul_v3_fl(cotan, scale);
-//	add_v3_v3(nor, co);
-//	add_v3_v3(tan, co);
-//	add_v3_v3(cotan, co);
-//	++k;
-	
-//	glColor3f(1.0f, 0.0f, 0.0f);
-//	glVertex3fv(co);
-//	glVertex3fv(nor);
-//	glColor3f(0.0f, 1.0f, 0.0f);
-//	glVertex3fv(co);
-//	glVertex3fv(tan);
-//	glColor3f(0.0f, 0.0f, 1.0f);
-//	glVertex3fv(co);
-//	glVertex3fv(cotan);
 	
 	while (HAIR_frame_iter_valid(iter)) {
 		HAIR_frame_iter_get(iter, nor, tan, cotan);
@@ -196,6 +257,7 @@ static void draw_hair_curve_debug_frames(HairSystem *hsys, HairCurve *hair)
 	(void)hair;
 #endif
 }
+#endif
 
 static void draw_hair_curve_debug_smoothing(HairSystem *hsys, HairCurve *hair)
 {
@@ -237,7 +299,7 @@ static void draw_hair_curve_debug_smoothing(HairSystem *hsys, HairCurve *hair)
 #endif
 }
 
-static void draw_hair_debug_contacts(HAIR_SolverContact *contacts, int totcontacts)
+static void draw_hair_debug_contacts(HairSystem *UNUSED(hsys), HAIR_SolverDebugContact *contacts, int totcontacts)
 {
 #ifdef SHOW_CONTACTS
 	int i;
@@ -245,7 +307,7 @@ static void draw_hair_debug_contacts(HAIR_SolverContact *contacts, int totcontac
 	glBegin(GL_LINES);
 	glColor3f(0.7f, 0.7f, 0.9f);
 	for (i = 0; i < totcontacts; ++i) {
-		HAIR_SolverContact *c = contacts + i;
+		HAIR_SolverDebugContact *c = contacts + i;
 		
 		glVertex3f(c->coA[0], c->coA[1], c->coA[2]);
 		glVertex3f(c->coB[0], c->coB[1], c->coB[2]);
@@ -255,7 +317,7 @@ static void draw_hair_debug_contacts(HAIR_SolverContact *contacts, int totcontac
 	glPointSize(3.0f);
 	glBegin(GL_POINTS);
 	for (i = 0; i < totcontacts; ++i) {
-		HAIR_SolverContact *c = contacts + i;
+		HAIR_SolverDebugContact *c = contacts + i;
 		
 		glColor3f(1.0f, 0.1f, 0.0f);
 		glVertex3f(c->coA[0], c->coA[1], c->coA[2]);
@@ -466,7 +528,6 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	draw_hair_debug_roots(hsys, ob->derivedFinal);
 	
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		draw_hair_curve_debug_frames(hsys, hair);
 		draw_hair_curve_debug_smoothing(hsys, hair);
 		if (hair->totpoints > 1) {
 			tot_points += hair->totpoints;
@@ -475,5 +536,10 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	}
 	
 	draw_hair_debug_cylinders(hsys, tot_points, valid_points);
-	draw_hair_debug_contacts(hmd->debug_contacts, hmd->debug_totcontacts);
+	
+	if (hmd->debug_data) {
+		draw_hair_debug_frames(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
+		draw_hair_debug_points(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
+		draw_hair_debug_contacts(hsys, hmd->debug_data->contacts, hmd->debug_data->totcontacts);
+	}
 }

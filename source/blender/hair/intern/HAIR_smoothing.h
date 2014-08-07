@@ -27,7 +27,12 @@
 #ifndef __HAIR_SMOOTHING_H__
 #define __HAIR_SMOOTHING_H__
 
+extern "C" {
+#include "BLI_math.h"
+}
+
 #include "HAIR_curve.h"
+#include "HAIR_debug.h"
 #include "HAIR_math.h"
 #include "HAIR_memalloc.h"
 #include "HAIR_types.h"
@@ -110,7 +115,7 @@ protected:
 
 template <typename WalkerT>
 struct FrameIterator {
-	FrameIterator(const WalkerT &walker, float rest_length, float amount, const Frame &initial_frame = Frame(Transform::Identity)) :
+	FrameIterator(const WalkerT &walker, float rest_length, float amount, const Frame &initial_frame) :
 	    m_loc_iter(walker, rest_length, amount),
 	    m_frame(initial_frame)
 	{
@@ -123,40 +128,41 @@ struct FrameIterator {
 	{
 		static const float epsilon = 1.0e-6;
 		
-		float3 prev_co = m_loc_iter.get();
-		m_loc_iter.next();
-		float3 co = m_loc_iter.get();
-		
-		float3 dir;
-		normalize_v3_v3(dir, co - prev_co);
-		
-		if (index() > 1) {
-			float3 C = cross_v3_v3(m_prev_dir, dir);
-			float D = dot_v3_v3(m_prev_dir, dir);
-			/* test if angle too small for usable result
-			 * XXX define epsilon better
-			 */
-			if (fabsf(D) < 1.0f - epsilon) {
+		if (index() == 0) {
+			float3 prev_co = m_loc_iter.get();
+			m_loc_iter.next();
+			float3 co = m_loc_iter.get();
+			normalize_v3_v3(m_dir, co - prev_co);
+		}
+		else {
+			float3 prev_dir = m_dir;
+			
+			float3 prev_co = m_loc_iter.get();
+			m_loc_iter.next();
+			float3 co = m_loc_iter.get();
+			normalize_v3_v3(m_dir, co - prev_co);
+			
+			float3 C = cross_v3_v3(prev_dir, m_dir);
+			float D = dot_v3v3(prev_dir, m_dir);
+			if (D > epsilon && fabsf(D) < 1.0f - epsilon) {
+				/* half angle sine, cosine */
+				D = sqrtf((1.0f + D) * 0.5f);
+				C = C / D * 0.5f;
 				/* construct rotation from one segment to the next */
-				float cos_phi_2 = sqrtf((1.0f + D) * 0.5f); /* cos(phi/2) -> quaternion w element */
-				float3 axis = C / (2.0f * cos_phi_2); /* axis * sin(phi/2) -> quaternion (x,y,z) elements */
-				float4 rot(axis.x, axis.y, axis.z, cos_phi_2);
-				
+				float4 rot(C.x, C.y, C.z, D);
 				/* apply the local rotation to the frame axes */
 				m_frame.normal = mul_qt_v3(rot, m_frame.normal);
 				m_frame.tangent = mul_qt_v3(rot, m_frame.tangent);
 				m_frame.cotangent = mul_qt_v3(rot, m_frame.cotangent);
 			}
 		}
-		
-		m_prev_dir = dir;
 	}
 	
 	const Frame &frame() const { return m_frame; }
 	
 protected:
 	SmoothingIterator<WalkerT> m_loc_iter;
-	float3 m_prev_dir;
+	float3 m_dir;
 	
 	Frame m_frame;
 	

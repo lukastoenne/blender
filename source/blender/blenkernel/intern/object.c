@@ -3121,23 +3121,24 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
 			
-#if 0
+#if 0 /* debugging? */
 			HAIR_solver_step(hmd->solver, ctime, timestep);
 #else
-			if (hmd->debug_contacts)
-				MEM_freeN(hmd->debug_contacts);
-			HAIR_solver_step_debug(hmd->solver, ctime, timestep, &hmd->debug_contacts, &hmd->debug_totcontacts);
-			/* transform to object space */
-			{
-				float imat[4][4];
-				int i;
-				invert_m4_m4(imat, ob->obmat);
-				for (i = 0; i < hmd->debug_totcontacts; ++i) {
-					HAIR_SolverContact *c = hmd->debug_contacts + i;
-					mul_m4_v3(imat, c->coA);
-					mul_m4_v3(imat, c->coB);
-				}
+			float imat[4][4];
+			
+			invert_m4_m4(imat, ob->obmat);
+			
+			if (hmd->debug_data) {
+				if (hmd->debug_data->points)
+					MEM_freeN(hmd->debug_data->points);
+				if (hmd->debug_data->contacts)
+					MEM_freeN(hmd->debug_data->contacts);
 			}
+			else {
+				hmd->debug_data = MEM_callocN(sizeof(HairDebugData), "hair debug data");
+			}
+			
+			HAIR_solver_step_debug(hmd->solver, ctime, timestep, imat, &hmd->debug_data->points, &hmd->debug_data->totpoints, &hmd->debug_data->contacts, &hmd->debug_data->totcontacts);
 #endif
 		}
 	}

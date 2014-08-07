@@ -1366,6 +1366,13 @@ enum {
 	MOD_WIREFRAME_CREASE        = (1 << 5),
 };
 
+typedef struct HairDebugData {
+	struct HAIR_SolverDebugContact *contacts;
+	struct HAIR_SolverDebugPoint *points;
+	int totcontacts;
+	int totpoints;
+} HairDebugData;
+
 typedef struct HairModifierData {
 	ModifierData modifier;
 	
@@ -1376,9 +1383,7 @@ typedef struct HairModifierData {
 	int flag;
 	int pad;
 	
-	struct HAIR_SolverContact *debug_contacts;
-	int debug_totcontacts;
-	int pad2;
+	struct HairDebugData *debug_data;
 } HairModifierData;
 
 enum {

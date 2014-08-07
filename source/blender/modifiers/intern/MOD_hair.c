@@ -54,6 +54,15 @@ static void initData(ModifierData *md)
 	hmd->hairsys = BKE_hairsys_new();
 }
 
+static void free_debug_data(HairDebugData *debug_data)
+{
+	if (debug_data->points)
+		MEM_freeN(debug_data->points);
+	if (debug_data->contacts)
+		MEM_freeN(debug_data->contacts);
+	MEM_freeN(debug_data);
+}
+
 static void freeData(ModifierData *md)
 {
 	HairModifierData *hmd = (HairModifierData *) md;
@@ -63,8 +72,8 @@ static void freeData(ModifierData *md)
 	
 	BKE_hairsys_free(hmd->hairsys);
 	
-	if (hmd->debug_contacts)
-		MEM_freeN(hmd->debug_contacts);
+	if (hmd->debug_data)
+		free_debug_data(hmd->debug_data);
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -78,8 +87,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	thmd->hairsys = BKE_hairsys_copy(hmd->hairsys);
 	
 	thmd->solver = NULL;
-	thmd->debug_contacts = NULL;
-	thmd->debug_totcontacts = 0;
+	thmd->debug_data = NULL;
 }
 
 static DerivedMesh *applyModifier(ModifierData *UNUSED(md), Object *UNUSED(ob),

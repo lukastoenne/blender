@@ -102,7 +102,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	}
 	
 	/* finalize */
-	data->precompute_rest_bend();
+	data->precompute_rest_bend(hsys->params);
 	
 	return data;
 }

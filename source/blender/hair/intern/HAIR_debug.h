@@ -29,6 +29,7 @@
 
 #include <vector>
 
+#include "HAIR_smoothing.h"
 #include "HAIR_types.h"
 
 HAIR_NAMESPACE_BEGIN
@@ -37,12 +38,47 @@ HAIR_NAMESPACE_BEGIN
 #define HAIR_DEBUG
 #endif
 
+struct SolverData;
+
 struct Debug {
+	struct Point {
+		int index;
+		
+		float3 bend;
+		Frame frame;
+	};
+	
+	typedef std::vector<Point> Points;
+	
 	struct Contact {
 		float3 coA, coB;
 	};
 	
 	typedef std::vector<Contact> CollisionContacts;
+	
+	static void point(int index, const float3 &bend, const Frame &frame)
+	{
+#ifdef HAIR_DEBUG
+		if (m_points) {
+			Point p;
+			p.index = index;
+			p.bend = bend;
+			p.frame = frame;
+			m_points->push_back(p);
+		}
+#else
+		(void)bend;
+#endif
+	}
+	
+	static void set_points(Points *points)
+	{
+#ifdef HAIR_DEBUG
+		m_points = points;
+#else
+		(void)points;
+#endif
+	}
 	
 	static void collision_contact(const float3 &coA, const float3 &coB)
 	{
@@ -72,6 +108,7 @@ struct Debug {
 
 private:
 	static CollisionContacts *m_contacts;
+	static Points *m_points;
 
 #endif
 };
