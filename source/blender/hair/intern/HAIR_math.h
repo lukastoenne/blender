@@ -61,6 +61,11 @@ __forceinline float2 operator - (const float2 &a, const float2 &b)
 	return float2(a.x - b.x, a.y - b.y);
 }
 
+__forceinline float2 operator - (const float2 &a)
+{
+	return float2(-a.x, -a.y);
+}
+
 __forceinline float2 operator * (float fac, const float2 &a)
 {
 	return float2(fac * a.x, fac * a.y);
@@ -85,6 +90,11 @@ __forceinline float3 operator + (const float3 &a, const float3 &b)
 __forceinline float3 operator - (const float3 &a, const float3 &b)
 {
 	return float3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+__forceinline float3 operator - (const float3 &a)
+{
+	return float3(-a.x, -a.y, -a.z);
 }
 
 __forceinline float3 operator * (float fac, const float3 &a)

@@ -41,6 +41,8 @@ struct rbGhostObject;
 
 HAIR_NAMESPACE_BEGIN
 
+struct SolverTaskData;
+
 struct SolverData {
 	SolverData();
 	SolverData(int totcurves, int totpoints);
@@ -61,8 +63,6 @@ struct SolverData {
 	
 	void add_to_world(rbDynamicsWorld *world, int col_groups);
 	void remove_from_world(rbDynamicsWorld *world);
-	
-	void debug_contacts(rbDynamicsWorld *world);
 	
 	HAIR_CXX_CLASS_ALLOC(SolverData)
 };
@@ -123,6 +123,25 @@ struct SolverForces {
 	float3 gravity;
 };
 
+/* Point contact info */
+
+#if 0
+struct PointContactInfo {
+	PointContactInfo() {}
+	PointContactInfo(const btManifoldPoint &bt_point);
+	
+	float3 local_point_body;
+	float3 local_point_hair;
+	float3 world_point_body;
+	float3 world_point_hair;
+	float3 world_normal_body;
+	
+	float distance;
+	float friction;
+	float restitution;
+};
+#endif
+
 class Solver
 {
 public:
@@ -138,14 +157,9 @@ public:
 	void free_data();
 	SolverData *data() const { return m_data; }
 	
-	void step_threaded(float time, float timestep);
+	void do_integration(float time, float timestep, const SolverTaskData &data) const;
 	
-protected:
-	void calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel) const;
-	float3 calc_velocity(Curve *curve, Point *point, float time, Point::State &state) const;
-	float3 calc_acceleration(Curve *curve, Point *point, float time, Point::State &state) const;
-	float3 calc_stretch_force(Curve *curve, Point *point0, Point *point1, float time) const;
-	float3 calc_bend_force(Curve *curve, Point *point0, Point *point1, float time) const;
+	void step_threaded(float time, float timestep);
 	
 private:
 	HairParams m_params;

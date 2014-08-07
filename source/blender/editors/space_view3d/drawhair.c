@@ -104,12 +104,12 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 
 /* ---------------- debug drawing ---------------- */
 
-#define SHOW_POINTS
+//#define SHOW_POINTS
 //#define SHOW_ROOTS
-#define SHOW_FRAMES
+//#define SHOW_FRAMES
 //#define SHOW_SMOOTHING
 //#define SHOW_CYLINDERS
-//#define SHOW_CONTACTS
+#define SHOW_CONTACTS
 
 static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
 {

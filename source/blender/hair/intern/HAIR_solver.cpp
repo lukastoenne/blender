@@ -145,113 +145,6 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 	}
 }
 
-struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
-	btScalar addSingleResult(btManifoldPoint &cp,
-	                         const btCollisionObjectWrapper *colObj0Wrap, int partId0, int index0,
-	                         const btCollisionObjectWrapper *colObj1Wrap, int partId1, int index1)
-	{
-		if (cp.getDistance() < 0.f) {
-			const btVector3 &ptA = cp.getPositionWorldOnA();
-			const btVector3 &ptB = cp.getPositionWorldOnB();
-//			const btVector3 &normalOnB = cp.m_normalWorldOnB;
-			
-			Debug::collision_contact(float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
-		}
-		
-		/* note: return value is unused
-		 * http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?p=20990#p20990
-		 */
-		return 0.0f;
-	}
-};
-
-static void debug_ghost_contacts(SolverData *data, btDynamicsWorld *dworld, rbGhostObject *object)
-{
-	btPairCachingGhostObject *ghost = &object->ghost;
-	
-	btManifoldArray manifold_array;
-	const btBroadphasePairArray& pairs = ghost->getOverlappingPairCache()->getOverlappingPairArray();
-	int num_pairs = pairs.size();
-	
-	for (int i = 0; i < num_pairs; i++) {
-		manifold_array.clear();
-		
-		const btBroadphasePair& pair = pairs[i];
-		
-		/* unless we manually perform collision detection on this pair, the contacts are in the dynamics world paircache */
-		btBroadphasePair* collision_pair = dworld->getPairCache()->findPair(pair.m_pProxy0,pair.m_pProxy1);
-		if (!collision_pair)
-			continue;
-		
-		btCollisionObject *ob0 = (btCollisionObject *)pair.m_pProxy0->m_clientObject;
-		btCollisionObject *ob1 = (btCollisionObject *)pair.m_pProxy1->m_clientObject;
-		btCollisionObject *other = ob0 == ghost ? ob1 : ob0;
-		
-		HairContactResultCallback cb;
-		
-		Curve *curve = data->curves;
-		for (int i = 0; i < data->totcurves; ++i, ++curve) {
-			Point *pt = curve->points;
-			for (int k = 0; k < curve->totpoints; ++k, ++pt) {
-				dworld->contactPairTest(&pt->rb_ghost.ghost, other, cb);
-			}
-		}
-		
-#if 0
-		if (collision_pair->m_algorithm)
-			collision_pair->m_algorithm->getAllContactManifolds(manifold_array);
-		
-		for (int j = 0; j < manifold_array.size(); j++) {
-			btPersistentManifold* manifold = manifold_array[j];
-			btScalar direction_sign = manifold->getBody0() == ghost ? btScalar(-1.0) : btScalar(1.0);
-			for (int p = 0; p < manifold->getNumContacts(); p++) {
-				const btManifoldPoint &pt = manifold->getContactPoint(p);
-				if (pt.getDistance() < 0.f) {
-					const btVector3 &ptA = pt.getPositionWorldOnA();
-					const btVector3 &ptB = pt.getPositionWorldOnB();
-					const btVector3 &normalOnB = pt.m_normalWorldOnB;
-					
-					Debug::collision_contact(float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
-				}
-			}
-		}
-#endif
-	}
-}
-
-void SolverData::debug_contacts(rbDynamicsWorld *world)
-{
-	btDynamicsWorld *dworld = world->dynamicsWorld;
-	
-	debug_ghost_contacts(this, dworld, &rb_ghost);
-
-	if (rb_ghost.ghost.getBroadphaseHandle()) {
-		float3 c[8];
-		c[0] = float3((float *)rb_ghost.ghost.getBroadphaseHandle()->m_aabbMin.m_floats);
-		c[7] = float3((float *)rb_ghost.ghost.getBroadphaseHandle()->m_aabbMax.m_floats);
-		c[1] = float3(c[7].x, c[0].y, c[0].z);
-		c[2] = float3(c[0].x, c[7].y, c[0].z);
-		c[3] = float3(c[7].x, c[7].y, c[0].z);
-		c[4] = float3(c[0].x, c[0].y, c[7].z);
-		c[5] = float3(c[7].x, c[0].y, c[7].z);
-		c[6] = float3(c[0].x, c[7].y, c[7].z);
-		Debug::collision_contact(c[0], c[1]);
-		Debug::collision_contact(c[1], c[3]);
-		Debug::collision_contact(c[3], c[2]);
-		Debug::collision_contact(c[2], c[0]);
-		
-		Debug::collision_contact(c[0], c[4]);
-		Debug::collision_contact(c[1], c[5]);
-		Debug::collision_contact(c[2], c[6]);
-		Debug::collision_contact(c[3], c[7]);
-		
-		Debug::collision_contact(c[4], c[5]);
-		Debug::collision_contact(c[5], c[7]);
-		Debug::collision_contact(c[7], c[6]);
-		Debug::collision_contact(c[6], c[4]);
-	}
-}
-
 
 SolverForces::SolverForces()
 {
@@ -312,21 +205,30 @@ static float3 calc_velocity(Curve *curve, Point *point, float time, Point::State
 	return state.vel;
 }
 
-static float3 calc_stretch_force(const HairParams &params, Curve *curve, Point *point0, Point *point1, float time)
+/* XXX could cache rest_length in SolverData */
+
+static float3 calc_stretch_force(const HairParams &params, const Point *point0, const Point *point1, float time)
 {
-	/* XXX this could be cached in SolverData */
 	float3 dir;
-	float rest_length = len_v3(point1->rest_co - point0->rest_co);
+	float3 edge = point1->cur.co - point0->cur.co;
+	normalize_v3_v3(dir, edge);
+	float rest_length = len_v3(edge);
 	float length = normalize_v3_v3(dir, point1->cur.co - point0->cur.co);
-	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
-	float3 stretch_force = params.stretch_stiffness * (length - rest_length) * dir;
-	float3 stretch_damp = params.stretch_damping * dot_v3v3(dvel, dir) * dir;
-	
-	return stretch_force + stretch_damp;
+	return params.stretch_stiffness * (length - rest_length) * dir;
 }
 
-static float3 bend_target(const Frame &frame, Point *pt)
+static float3 calc_stretch_damping(const HairParams &params, const Point *point0, const Point *point1, float time)
+{
+	float3 dir;
+	float3 edge = point1->cur.co - point0->cur.co;
+	normalize_v3_v3(dir, edge);
+	float3 dvel = point1->cur.vel - point0->cur.vel;
+	
+	return params.stretch_damping * dot_v3v3(dvel, dir) * dir;
+}
+
+static float3 bend_target(const Frame &frame, const Point *pt)
 {
 	float3 rest_bend = pt->rest_bend;
 	float3 target(frame.normal.x * rest_bend.x + frame.tangent.x * rest_bend.y + frame.cotangent.x * rest_bend.z,
@@ -335,28 +237,30 @@ static float3 bend_target(const Frame &frame, Point *pt)
 	return target;
 }
 
-static float3 calc_bend_force(const HairParams &params, Curve *curve, Point *point0, Point *point1, const Frame &frame, float time)
+static float3 calc_bend_force(const HairParams &params, const Point *point0, const Point *point1, const Frame &frame, float time)
 {
 	float3 target = bend_target(frame, point0);
 	
 	float3 dir;
 	float3 edge = point1->cur.co - point0->cur.co;
 	normalize_v3_v3(dir, edge);
-	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
-	float3 bend_force = params.bend_stiffness * (edge - target);
-	float3 bend_damp = params.bend_damping * (dvel - dot_v3v3(dvel, dir) * dir);
-	
-	return bend_force + bend_damp;
+	return params.bend_stiffness * (edge - target);
 }
 
-static float3 calc_acceleration(const SolverForces &forces, Curve *curve, Point *point, float time, Point::State &state)
+static float3 calc_bend_damping(const HairParams &params, const Point *point0, const Point *point1, const Frame &frame, float time)
 {
-	float3 acc = float3(0.0f, 0.0f, 0.0f);
+	float3 dir;
+	float3 edge = point1->cur.co - point0->cur.co;
+	normalize_v3_v3(dir, edge);
+	float3 dvel = point1->cur.vel - point0->cur.vel;
 	
-	acc = acc + forces.gravity;
-	
-	return acc;
+	return params.bend_damping * (dvel - dot_v3v3(dvel, dir) * dir);
+}
+
+static float3 calc_collision_force()
+{
+	return float3(0.0f, 0.0f, 0.0f);
 }
 
 struct SolverTaskData {
@@ -366,111 +270,161 @@ struct SolverTaskData {
 	int totpoints;
 };
 
-static void step(const HairParams &params, const SolverForces &forces, float time, float timestep, float t0, float t1, const SolverTaskData &data)
+static void do_internal_forces(const HairParams &params, const SolverForces &forces, float time, float timestep, const Point *point0, const Point *point1, const Frame &frame,
+                               float3 &force0, float3 &force1)
 {
-	Curve *curve;
-	Point *point;
-	int totcurve = data.totcurves;
-	/*int totpoint = data.totpoints;*/
-	int i, k, ktot = 0;
+	float3 stretch, bend;
 	
-	for (i = 0, curve = data.curves; i < totcurve; ++i, ++curve) {
-		int numpoints = curve->totpoints;
-		float3 stretch, prev_stretch, bend, prev_bend;
-		
-		/* Root point animation */
-		k = 0;
-		point = curve->points;
-		
-		/* note: roots are evaluated at the end of the timestep: time + timestep
-		 * so the hair points align perfectly with them
-		 */
-		float3 normal, tangent;
-		calc_root_animation(t0, t1, time + timestep, curve, point->next.co, point->next.vel, normal, tangent);
-		
-		Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
-		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
-		
-		if (k < numpoints-1) {
-			stretch = calc_stretch_force(params, curve, point, point+1, time);
-			bend = calc_bend_force(params, curve, point, point+1, frame_iter.frame(), time);
-		}
-		else {
-			stretch = float3(0.0f, 0.0f, 0.0f);
-			bend = float3(0.0f, 0.0f, 0.0f);
-		}
-		
-		Debug::point(ktot, bend_target(frame_iter.frame(), point), frame_iter.frame());
-		
-		frame_iter.next();
-		prev_stretch = stretch;
-		prev_bend = bend;
-		
-		/* Integrate the remaining free points */
-		for (++k, ++ktot, ++point; k < numpoints; ++k, ++ktot, ++point) {
-			if (k < numpoints-1) {
-				stretch = calc_stretch_force(params, curve, point, point+1, time);
-				bend = calc_bend_force(params, curve, point, point+1, frame_iter.frame(), time);
-			}
-			else {
-				stretch = float3(0.0f, 0.0f, 0.0f);
-				bend = float3(0.0f, 0.0f, 0.0f);
-			}
-			
-			float3 acc = calc_acceleration(forces, curve, point, time, point->cur);
-			acc = acc - prev_stretch + stretch - prev_bend + bend;
-			point->next.vel = point->cur.vel + acc * timestep;
-			
-			float3 vel = calc_velocity(curve, point, time, point->next);
-			point->next.co = point->cur.co + vel * timestep;
-			
-			Debug::point(ktot, bend_target(frame_iter.frame(), point), frame_iter.frame());
-			
-			frame_iter.next();
-			prev_stretch = stretch;
-			prev_bend = bend;
-		}
+	if (point1) {
+		stretch = calc_stretch_force(params, point0, point1, time);
+		bend = calc_bend_force(params, point0, point1, frame, time);
+	}
+	else {
+		stretch = float3(0.0f, 0.0f, 0.0f);
+		bend = float3(0.0f, 0.0f, 0.0f);
 	}
 	
-	/* advance state */
-	for (i = 0, curve = data.curves; i < totcurve; ++i, ++curve) {
-		int numpoints = curve->totpoints;
-		for (k = 0, point = curve->points; k < numpoints; ++k, ++point) {
-			point->cur = point->next;
+	force0 = stretch + bend;
+	force1 = - stretch - bend;
+}
+
+static void do_external_forces(const HairParams &params, const SolverForces &forces, float time, float timestep, const Point *point0, const Point *point1, const Frame &frame,
+                               float3 &force)
+{
+	float3 acc = float3(0.0f, 0.0f, 0.0f);
+	
+	acc = acc + forces.gravity;
+	
+	force = acc;
+}
+
+static void do_damping(const HairParams &params, const SolverForces &forces, float time, float timestep, const Point *point0, const Point *point1, const Frame &frame,
+                       float3 &force0, float3 &force1)
+{
+	const int totsteps = 1; /* XXX TODO can have multiple damping steps per integration step for accuracy */
+	float dt = timestep / (float)totsteps;
+	float3 stretch, bend;
+	
+	force0 = float3(0.0f, 0.0f, 0.0f);
+	force1 = float3(0.0f, 0.0f, 0.0f);
+	
+	if (point1) {
+		for (int step = 0; step < totsteps; ++step) {
+			stretch = calc_stretch_damping(params, point0, point1, time);
+			bend = calc_bend_damping(params, point0, point1, frame, time);
+			force0 = force0 + stretch + bend;
+			force1 = force1 - stretch - bend;
+			
+			time += dt;
 		}
+	}
+}
+
+void Solver::do_integration(float time, float timestep, const SolverTaskData &data) const
+{
+	const int totsteps = 1; /* XXX TODO can have multiple integration steps per tick for accuracy */
+	float dt = timestep / (float)totsteps;
+	
+	for (int step = 0; step < totsteps; ++step) {
+		
+		int totcurve = data.totcurves;
+		/*int totpoint = data.totpoints;*/
+		
+		int ktot = 0; /* global point counter over all curves */
+		Curve *curve = data.curves;
+		for (int i = 0; i < totcurve; ++i, ++curve) {
+			int numpoints = curve->totpoints;
+			
+			/* note: roots are evaluated at the end of the timestep: time + timestep
+			 * so the hair points align perfectly with them
+			 */
+			float3 root_co, root_vel, normal, tangent;
+			calc_root_animation(m_data->t0, m_data->t1, time + timestep, curve, root_co, root_vel, normal, tangent);
+			
+			Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
+			FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, m_params.bend_smoothing, rest_frame);
+			
+			float3 intern_force, intern_force_next, extern_force, damping, damping_next;
+			float3 acc_prev; /* reactio from previous point */
+			
+			/* Root point animation */
+			Point *point = curve->points;
+			int k = 0;
+			if (numpoints > 0) {
+				Point *point_next = k < numpoints-1 ? point+1 : NULL;
+				do_internal_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
+				do_external_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), extern_force);
+				do_damping(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), damping, damping_next);
+				
+				point->next.co = root_co;
+				point->next.vel = root_vel;
+				
+				frame_iter.next();
+				acc_prev = intern_force_next + damping_next;
+				++k;
+				++ktot;
+				++point;
+			}
+			
+			/* Integrate free points */
+			for (; k < numpoints; ++k, ++ktot, ++point) {
+				Point *point_next = k < numpoints-1 ? point+1 : NULL;
+				do_internal_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
+				do_external_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), extern_force);
+				do_damping(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), damping, damping_next);
+				
+				float3 acc = intern_force + extern_force + damping + acc_prev;
+				point->next.vel = point->cur.vel + acc * timestep;
+				
+				float3 vel = point->next.vel;
+				point->next.co = point->cur.co + vel * timestep;
+				
+				frame_iter.next();
+				acc_prev = intern_force_next + damping_next;
+			}
+		}
+		
+		time += dt;
 	}
 }
 
 struct SolverPoolData {
-	const HairParams *params;
-	const SolverForces *forces;
-	float time, timestep, t0, t1;
+	const Solver *solver;
+	float time, timestep;
 };
 
 static void step_threaded_func(TaskPool *pool, void *vtaskdata, int UNUSED(threadid))
 {
-	SolverPoolData *pooldata = (SolverPoolData *)BLI_task_pool_userdata(pool);
+	const SolverPoolData *pooldata = (const SolverPoolData *)BLI_task_pool_userdata(pool);
 	SolverTaskData *taskdata = (SolverTaskData *)vtaskdata;
-	step(*pooldata->params, *pooldata->forces, pooldata->time, pooldata->timestep, pooldata->t0, pooldata->t1, *taskdata);
+	pooldata->solver->do_integration(pooldata->time, pooldata->timestep, *taskdata);
+}
+
+static void advance_state(SolverData *data)
+{
+//	Curve *curve;
+	Point *point;
+//	int i, totcurves = data->totcurves;
+	int k, totpoints = data->totpoints;
+	
+//	for (int i = 0, curve = data->curves; i < totcurves; ++i, ++curve) {
+//	}
+	for (k = 0, point = data->points; k < totpoints; ++k, ++point) {
+		point->cur = point->next;
+	}
 }
 
 void Solver::step_threaded(float time, float timestep)
 {
-	if (m_forces.dynamics_world)
-		m_data->debug_contacts(m_forces.dynamics_world);
-	
 	typedef std::vector<SolverTaskData> SolverTaskVector;
 	
 	const int max_points_per_task = 1024;
 	const int max_hairs_per_task = 256;
 	
 	SolverPoolData pooldata;
-	pooldata.params = &m_params;
-	pooldata.forces = &m_forces;
+	pooldata.solver = this;
 	pooldata.time = time;
 	pooldata.timestep = timestep;
-	pooldata.t0 = m_data->t0;
-	pooldata.t1 = m_data->t1;
 	
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, (void*)(&pooldata));
@@ -521,6 +475,8 @@ void Solver::step_threaded(float time, float timestep)
 	BLI_task_pool_work_and_wait(task_pool);
 	
 	BLI_task_pool_free(task_pool);
+	
+	advance_state(m_data);
 }
 
 HAIR_NAMESPACE_END
