@@ -43,7 +43,7 @@ struct float2 {
 	
 	__forceinline float2() {}
 	__forceinline float2(float x, float y) : x(x), y(y) {}
-	__forceinline float2(float *data) : x(data[0]), y(data[1]) {}
+	__forceinline float2(const float *data) : x(data[0]), y(data[1]) {}
 
 	__forceinline float operator[](int i) const { return *(&x + i); }
 	__forceinline float& operator[](int i) { return *(&x + i); }
@@ -65,7 +65,7 @@ struct float3 {
 
 	__forceinline float3() {}
 	__forceinline float3(float x, float y, float z) : x(x), y(y), z(z) {}
-	__forceinline float3(float *data) : x(data[0]), y(data[1]), z(data[2]) {}
+	__forceinline float3(const float *data) : x(data[0]), y(data[1]), z(data[2]) {}
 #endif
 
 	__forceinline float operator[](int i) const { return *(&x + i); }
@@ -94,7 +94,7 @@ struct float4 {
 	
 	__forceinline float4() {}
 	__forceinline float4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
-	__forceinline float4(float *data) : x(data[0]), y(data[1]), z(data[2]), w(data[3]) {}
+	__forceinline float4(const float *data) : x(data[0]), y(data[1]), z(data[2]), w(data[3]) {}
 #endif
 
 	__forceinline float operator[](int i) const { return *(&x + i); }

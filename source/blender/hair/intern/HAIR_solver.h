@@ -27,6 +27,8 @@
 #ifndef __HAIR_SOLVER_H__
 #define __HAIR_SOLVER_H__
 
+#include <vector>
+
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
 
 extern "C" {
@@ -125,7 +127,6 @@ struct SolverForces {
 
 /* Point contact info */
 
-#if 0
 struct PointContactInfo {
 	PointContactInfo() {}
 	PointContactInfo(const btManifoldPoint &bt_point);
@@ -140,7 +141,8 @@ struct PointContactInfo {
 	float friction;
 	float restitution;
 };
-#endif
+
+typedef std::vector<PointContactInfo> PointContactCache;
 
 class Solver
 {
@@ -156,6 +158,8 @@ public:
 	void set_data(SolverData *data);
 	void free_data();
 	SolverData *data() const { return m_data; }
+	
+	void cache_point_contacts(PointContactCache &cache) const;
 	
 	void do_integration(float time, float timestep, const SolverTaskData &data) const;
 	
