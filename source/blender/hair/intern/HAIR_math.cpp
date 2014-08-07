@@ -24,7 +24,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <stdlib.h>
 #include <cstring>
+#include <limits>
+#include <cfloat>
 
 extern "C" {
 #include "BLI_utildefines.h"
@@ -33,6 +36,63 @@ extern "C" {
 #include "HAIR_math.h"
 
 HAIR_NAMESPACE_BEGIN
+
+
+/**
+ * Generic function for implementing slerp
+ * (quaternions and spherical vector coords).
+ *
+ * \param t: factor in [0..1]
+ * \param cosom: dot product from normalized vectors/quats.
+ * \param r_w: calculated weights.
+ */
+static float2 interp_dot_slerp(float t, float cosom)
+{
+	const float eps = 1e-4f;
+
+	float2 w;
+
+	BLI_assert(IN_RANGE_INCL(cosom, -1.0001f, 1.0001f));
+
+	/* within [-1..1] range, avoid aligned axis */
+	if (LIKELY(fabsf(cosom) < (1.0f - eps))) {
+		float omega, sinom;
+
+		omega = acosf(cosom);
+		sinom = sinf(omega);
+		w[0] = sinf((1.0f - t) * omega) / sinom;
+		w[1] = sinf(t * omega) / sinom;
+	}
+	else {
+		/* fallback to lerp */
+		w[0] = 1.0f - t;
+		w[1] = t;
+	}
+	
+	return w;
+}
+
+bool interp_v3v3_slerp(float3 &r, const float3 &a, const float3 &b, float t)
+{
+//	BLI_ASSERT_UNIT_V3(a);
+//	BLI_ASSERT_UNIT_V3(b);
+
+	float cosom = dot_v3v3(a, b);
+
+	/* direct opposites */
+	if (UNLIKELY(cosom < (-1.0f + FLT_EPSILON))) {
+		return false;
+	}
+
+	float2 w = interp_dot_slerp(t, cosom);
+
+	r = float3(w.x * a.x + w.y * b.x,
+	           w.x * a.y + w.y * b.y,
+	           w.x * a.z + w.y * b.z);
+
+	return true;
+}
+
 
 static bool transform_matrix4_gj_inverse(float R[][4], float M[][4])
 {

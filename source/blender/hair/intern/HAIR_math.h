@@ -157,6 +157,11 @@ __forceinline float normalize_v3_v3(float3 &r, const float3 &v)
 	return len;
 }
 
+/**
+ * slerp, treat vectors as spherical coordinates
+ */
+bool interp_v3v3_slerp(float3 &r, const float3 &a, const float3 &b, float t);
+
 /* quaternion functions */
 
 __forceinline float3 mul_qt_v3(const float4 &q, const float3 &v)

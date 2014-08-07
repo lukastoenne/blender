@@ -126,10 +126,8 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 		else if (curve->totpoints == 1)
 			pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
 		else {
-			/* XXX calculating a rest frame ad-hoc from identity here, should use the surface normal/tangent instead! */
-			float3 normal, tangent;
-			normalize_v3_v3(normal, next_pt->rest_co - pt->rest_co);
-			normalize_v3_v3(tangent, float3(0,1,0) - dot_v3v3(float3(0,1,0), normal) * normal);
+			
+			float3 normal = curve->rest_root_normal, tangent = curve->rest_root_tangent;
 			Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
 			
 			FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
@@ -287,7 +285,7 @@ void Solver::free_data()
 	}
 }
 
-static void calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel)
+static void calc_root_animation(float t0, float t1, float t, Curve *curve, float3 &co, float3 &vel, float3 &normal, float3 &tangent)
 {
 	const CurveRoot &root0 = curve->root0;
 	const CurveRoot &root1 = curve->root1;
@@ -298,10 +296,14 @@ static void calc_root_animation(float t0, float t1, float t, Curve *curve, float
 		
 		co = root0.co * mx + root1.co * x;
 		vel = (root1.co - root0.co) / (t1 - t0);
+		interp_v3v3_slerp(normal, root0.nor, root1.nor, x);
+		interp_v3v3_slerp(tangent, root0.tan, root1.tan, x);
 	}
 	else {
 		co = root0.co;
 		vel = float3(0.0f, 0.0f, 0.0f);
+		normal = root0.nor;
+		tangent = root0.tan;
 	}
 }
 
@@ -383,17 +385,9 @@ static void step(const HairParams &params, const SolverForces &forces, float tim
 		/* note: roots are evaluated at the end of the timestep: time + timestep
 		 * so the hair points align perfectly with them
 		 */
-		calc_root_animation(t0, t1, time + timestep, curve, point->next.co, point->next.vel);
-		
 		float3 normal, tangent;
-		if (numpoints >= 2) {
-			normalize_v3_v3(normal, (point+1)->cur.co - point->cur.co);
-			normalize_v3_v3(tangent, float3(0,1,0) - dot_v3v3(float3(0,1,0), normal) * normal);
-		}
-		else {
-			normal = float3(1,0,0);
-			tangent = float3(0,1,0);
-		}
+		calc_root_animation(t0, t1, time + timestep, curve, point->next.co, point->next.vel, normal, tangent);
+		
 		Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
 		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
 		

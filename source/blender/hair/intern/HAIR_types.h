@@ -40,7 +40,10 @@ struct float4;
 struct float2 {
 	float x, y;
 
+	
+	__forceinline float2() {}
 	__forceinline float2(float x, float y) : x(x), y(y) {}
+	__forceinline float2(float *data) : x(data[0]), y(data[1]) {}
 
 	__forceinline float operator[](int i) const { return *(&x + i); }
 	__forceinline float& operator[](int i) { return *(&x + i); }

@@ -67,6 +67,7 @@ struct Point {
 struct CurveRoot {
 	float3 co;
 	float3 nor;
+	float3 tan;
 };
 
 struct Curve {
@@ -77,7 +78,8 @@ struct Curve {
 	int totpoints;
 	float avg_rest_length;
 	
-	CurveRoot root0, root1;
+	CurveRoot root0, root1;     /* root data at start and end of the time interval */
+	float3 rest_root_normal, rest_root_tangent;
 	
 	HAIR_CXX_CLASS_ALLOC(Curve)
 };

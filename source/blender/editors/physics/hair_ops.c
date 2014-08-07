@@ -45,6 +45,7 @@
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_hair.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -203,6 +204,7 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 		HairCurve *hair = hairs + i;
 		HairPoint *points;
 		int totpoints;
+		float loc[3], tan[3];
 		
 		if (pa_cache->steps == 0)
 			continue;
@@ -211,6 +213,9 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 		points = BKE_hair_point_append_multi(hsys, hair, totpoints);
 		
 		hair_copy_particle_emitter_location(ob, psys, root, dm, &hair->root);
+		BKE_mesh_sample_eval(dm, &hair->root, loc, hair->rest_nor);
+		tan[0] = 0.0f; tan[1] = 0.0f; tan[2] = 1.0f;
+		madd_v3_v3v3fl(hair->rest_tan, tan, hair->rest_nor, -dot_v3v3(tan, hair->rest_nor));
 		
 		for (k = 0; k < totpoints; ++k) {
 			ParticleCacheKey *pa_key = pa_cache + k;

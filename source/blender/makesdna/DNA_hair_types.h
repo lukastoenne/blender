@@ -48,6 +48,8 @@ typedef struct HairCurve {
 	int pad;
 	
 	MSurfaceSample root;
+	float rest_nor[3];          /* rest normal */
+	float rest_tan[3];          /* rest tangent */
 } HairCurve;
 
 typedef struct HairParams {

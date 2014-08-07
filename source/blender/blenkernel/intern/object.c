@@ -3121,9 +3121,12 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
 			
-#if 0 /* debugging? */
+#if 0
 			HAIR_solver_step(hmd->solver, ctime, timestep);
 #else
+			/* Debug Version
+			 * WARNING: Debugging is not threadsafe atm, crashes with large hair numbers (>1024)!
+			 */
 			float imat[4][4];
 			
 			invert_m4_m4(imat, ob->obmat);
