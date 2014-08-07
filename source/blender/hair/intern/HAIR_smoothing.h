@@ -138,7 +138,7 @@ struct FrameIterator {
 		
 		float3 C = cross_v3_v3(prev_dir, m_dir);
 		float D = dot_v3v3(prev_dir, m_dir);
-		if (D > epsilon && fabsf(D) < 1.0f - epsilon) {
+		if (fabsf(D) > epsilon && fabsf(D) < 1.0f - epsilon) {
 			/* half angle sine, cosine */
 			D = sqrtf((1.0f + D) * 0.5f);
 			C = C / D * 0.5f;
