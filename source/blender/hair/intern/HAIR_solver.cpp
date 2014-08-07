@@ -209,10 +209,8 @@ static float3 calc_velocity(Curve *curve, Point *point, float time, Point::State
 
 static float3 calc_stretch_force(const HairParams &params, const Point *point0, const Point *point1, float time)
 {
+	float rest_length = len_v3(point1->rest_co - point0->rest_co);
 	float3 dir;
-	float3 edge = point1->cur.co - point0->cur.co;
-	normalize_v3_v3(dir, edge);
-	float rest_length = len_v3(edge);
 	float length = normalize_v3_v3(dir, point1->cur.co - point0->cur.co);
 	
 	return params.stretch_stiffness * (length - rest_length) * dir;
