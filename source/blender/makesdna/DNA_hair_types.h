@@ -65,10 +65,6 @@ typedef struct HairSystem {
 	int pad;
 	
 	HairParams params;
-	
-	/* testing */
-	float smooth;
-	int pad2;
 } HairSystem;
 
 #endif

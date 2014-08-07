@@ -45,10 +45,12 @@
 
 #include "WM_api.h"
 
+#if 0 /* unused */
 static void rna_HairSystem_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ptr->id.data);
 }
+#endif
 
 #else
 
@@ -98,12 +100,6 @@ static void rna_def_hair_system(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "HairSystem", NULL);
 	RNA_def_struct_ui_text(srna, "Hair System", "Hair simulation and rendering");
-
-	prop = RNA_def_property(srna, "smooth", PROP_FLOAT, PROP_UNSIGNED);
-	RNA_def_property_float_sdna(prop, NULL, "smooth");
-	RNA_def_property_ui_range(prop, 0.0f, 10.0f, 0.1, 2);
-	RNA_def_property_ui_text(prop, "Smoothing", "Amount of smoothing");
-	RNA_def_property_update(prop, 0, "rna_HairSystem_update");
 
 	prop = RNA_def_property(srna, "params", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "params");
