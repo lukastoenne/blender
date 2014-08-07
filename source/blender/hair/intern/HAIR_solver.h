@@ -129,7 +129,9 @@ struct SolverForces {
 
 struct PointContactInfo {
 	PointContactInfo() {}
-	PointContactInfo(const btManifoldPoint &bt_point);
+	PointContactInfo(const btManifoldPoint &bt_point, int point_index);
+	
+	int point_index;
 	
 	float3 local_point_body;
 	float3 local_point_hair;
@@ -140,6 +142,8 @@ struct PointContactInfo {
 	float distance;
 	float friction;
 	float restitution;
+	
+	float3 world_vel_body;
 };
 
 typedef std::vector<PointContactInfo> PointContactCache;

@@ -256,16 +256,11 @@ static float3 calc_bend_damping(const HairParams &params, const Point *point0, c
 	return params.bend_damping * (dvel - dot_v3v3(dvel, dir) * dir);
 }
 
-static float3 calc_collision_force()
-{
-	return float3(0.0f, 0.0f, 0.0f);
-}
-
 struct SolverTaskData {
 	Curve *curves;
 	Point *points;
-	int totcurves;
-	int totpoints;
+	int startcurve, totcurves;
+	int startpoint, totpoints;
 };
 
 static void do_internal_forces(const HairParams &params, const SolverForces &forces, float time, float timestep, const Point *point0, const Point *point1, const Frame &frame,
@@ -318,15 +313,63 @@ static void do_damping(const HairParams &params, const SolverForces &forces, flo
 	}
 }
 
+static void do_collision(const HairParams &params, const SolverForces &forces, float time, float timestep, const SolverTaskData &data, const PointContactCache &contacts)
+{
+	int start = data.startpoint;
+	int end = start + data.totpoints;
+	
+	/* XXX there could be a bit of overhead here since we skip points that are not in the task point range.
+	 * contacts could be sorted by point index to avoid this, but the sorting might actually be more costly than it's worth ...
+	 */
+	for (int i = 0; i < contacts.size(); ++i) {
+		const PointContactInfo &info = contacts[i];
+		
+		if (info.point_index < start || info.point_index >= end)
+			continue;
+		
+		Point *point = data.points + (info.point_index - start);
+		
+		/* Collision response based on
+		 * "Simulating Complex Hair with Robust Collision Handling"
+		 * Choe, Choi, Ko 2005
+		 * http://graphics.snu.ac.kr/publications/2005-choe-HairSim/Choe_2005_SCA.pdf
+		 */
+		
+		/* XXX we don't have a nice way of handling deformation velocity yet,
+		 * assume constant linear/rotational velocity for now
+		 */
+		float3 obj_v0 = info.world_vel_body;
+		float3 obj_v1 = obj_v0;
+		float3 v0 = point->cur.vel;
+		if (dot_v3v3(v0, info.world_normal_body) < 0.0f) {
+			/* estimate for velocity change to prevent collision (3.2, (8)) */
+			float3 dv_a = dot_v3v3(info.restitution * (obj_v0 - v0) + (obj_v1 - v0), info.world_normal_body) * info.world_normal_body;
+			
+			point->force_accum = point->force_accum + dv_a / timestep;
+//			Debug::collision_contact(point->cur.co, point->cur.co + point->force_accum);
+		}
+	}
+}
+
 void Solver::do_integration(float time, float timestep, const SolverTaskData &data) const
 {
 	const int totsteps = 1; /* XXX TODO can have multiple integration steps per tick for accuracy */
 	float dt = timestep / (float)totsteps;
 	
+	int totcurve = data.totcurves;
+	/*int totpoint = data.totpoints;*/
+	
+	PointContactCache contacts;
+	cache_point_contacts(contacts);
+	
 	for (int step = 0; step < totsteps; ++step) {
 		
-		int totcurve = data.totcurves;
-		/*int totpoint = data.totpoints;*/
+		/* clear forces */
+		for (int k = 0; k < data.totpoints; ++k) {
+			data.points[k].force_accum = float3(0.0f, 0.0f, 0.0f);
+		}
+		
+		do_collision(m_params, m_forces, time, dt, data, contacts);
 		
 		int ktot = 0; /* global point counter over all curves */
 		Curve *curve = data.curves;
@@ -371,7 +414,7 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 				do_external_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), extern_force);
 				do_damping(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), damping, damping_next);
 				
-				float3 acc = intern_force + extern_force + damping + acc_prev;
+				float3 acc = intern_force + extern_force + damping + acc_prev + point->force_accum;
 				point->next.vel = point->cur.vel + acc * timestep;
 				
 				float3 vel = point->next.vel;
@@ -449,6 +492,8 @@ void Solver::step_threaded(float time, float timestep)
 			SolverTaskData solver_task;
 			solver_task.curves = m_data->curves + hair_start;
 			solver_task.points = m_data->points + point_start;
+			solver_task.startcurve = hair_start;
+			solver_task.startpoint = point_start;
 			solver_task.totcurves = num_hairs;
 			solver_task.totpoints = num_points;
 			taskdata.push_back(solver_task);

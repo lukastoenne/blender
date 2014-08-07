@@ -36,7 +36,8 @@ extern "C" {
 
 HAIR_NAMESPACE_BEGIN
 
-PointContactInfo::PointContactInfo(const btManifoldPoint &bt_point) :
+PointContactInfo::PointContactInfo(const btManifoldPoint &bt_point, int point_index) :
+    point_index(point_index),
     local_point_body(bt_point.m_localPointB.m_floats),
     local_point_hair(bt_point.m_localPointA),
     world_point_body(bt_point.m_positionWorldOnB),
@@ -50,7 +51,8 @@ PointContactInfo::PointContactInfo(const btManifoldPoint &bt_point) :
 
 struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
 	HairContactResultCallback(PointContactCache &cache) :
-	    m_cache(&cache)
+	    cache(&cache),
+	    point_index(0)
 	{
 	}
 
@@ -59,11 +61,21 @@ struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
 	                         const btCollisionObjectWrapper *colObj1Wrap, int partId1, int index1)
 	{
 		if (cp.getDistance() < 0.f) {
-			m_cache->push_back(PointContactInfo(cp));
+			PointContactInfo info(cp, point_index);
 			
-			const btVector3 &ptA = cp.getPositionWorldOnA();
-			const btVector3 &ptB = cp.getPositionWorldOnB();
-			Debug::collision_contact(float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
+			const btCollisionObject *ob1 = colObj1Wrap->getCollisionObject();
+			
+			float3 lin_vel(ob1->getInterpolationLinearVelocity().m_floats);
+			float3 ang_vel(ob1->getInterpolationAngularVelocity().m_floats);
+			float3 p((ob1->getWorldTransform() * cp.m_localPointB).m_floats);
+			
+			info.world_vel_body = dot_v3v3(lin_vel + cross_v3_v3(ang_vel, p), info.world_normal_body) * info.world_normal_body;
+			
+			cache->push_back(info);
+			
+//			const btVector3 &ptA = cp.getPositionWorldOnA();
+//			const btVector3 &ptB = cp.getPositionWorldOnB();
+//			Debug::collision_contact(float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
 		}
 		
 		/* note: return value is unused
@@ -72,8 +84,45 @@ struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
 		return 0.0f;
 	}
 	
-	PointContactCache *m_cache;
+	PointContactCache *cache;
+	int point_index;
 };
+
+void Solver::cache_point_contacts(PointContactCache &cache) const
+{
+	btDynamicsWorld *dworld = m_forces.dynamics_world->dynamicsWorld;
+	btPairCachingGhostObject *ghost = &m_data->rb_ghost.ghost;
+	
+//	btManifoldArray manifold_array;
+	const btBroadphasePairArray& pairs = ghost->getOverlappingPairCache()->getOverlappingPairArray();
+	int num_pairs = pairs.size();
+	
+	cache.reserve(num_pairs);
+	
+	for (int i = 0; i < num_pairs; i++) {
+//		manifold_array.clear();
+		
+		const btBroadphasePair& pair = pairs[i];
+		
+		/* unless we manually perform collision detection on this pair, the contacts are in the dynamics world paircache */
+		btBroadphasePair* collision_pair = dworld->getPairCache()->findPair(pair.m_pProxy0,pair.m_pProxy1);
+		if (!collision_pair)
+			continue;
+		
+		btCollisionObject *ob0 = (btCollisionObject *)pair.m_pProxy0->m_clientObject;
+		btCollisionObject *ob1 = (btCollisionObject *)pair.m_pProxy1->m_clientObject;
+		btCollisionObject *other = ob0 == ghost ? ob1 : ob0;
+		
+		HairContactResultCallback cb(cache);
+		
+		Point *point = m_data->points;
+		int totpoints = m_data->totpoints;
+		for (int k = 0; k < totpoints; ++k, ++point) {
+			cb.point_index = k;
+			dworld->contactPairTest(&point->rb_ghost.ghost, other, cb);
+		}
+	}
+}
 
 #if 0
 struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
@@ -185,41 +234,5 @@ void SolverData::debug_contacts(rbDynamicsWorld *world)
 #endif
 }
 #endif
-
-
-void Solver::cache_point_contacts(PointContactCache &cache) const
-{
-	btDynamicsWorld *dworld = m_forces.dynamics_world->dynamicsWorld;
-	btPairCachingGhostObject *ghost = &m_data->rb_ghost.ghost;
-	
-//	btManifoldArray manifold_array;
-	const btBroadphasePairArray& pairs = ghost->getOverlappingPairCache()->getOverlappingPairArray();
-	int num_pairs = pairs.size();
-	
-	cache.reserve(num_pairs);
-	
-	for (int i = 0; i < num_pairs; i++) {
-//		manifold_array.clear();
-		
-		const btBroadphasePair& pair = pairs[i];
-		
-		/* unless we manually perform collision detection on this pair, the contacts are in the dynamics world paircache */
-		btBroadphasePair* collision_pair = dworld->getPairCache()->findPair(pair.m_pProxy0,pair.m_pProxy1);
-		if (!collision_pair)
-			continue;
-		
-		btCollisionObject *ob0 = (btCollisionObject *)pair.m_pProxy0->m_clientObject;
-		btCollisionObject *ob1 = (btCollisionObject *)pair.m_pProxy1->m_clientObject;
-		btCollisionObject *other = ob0 == ghost ? ob1 : ob0;
-		
-		HairContactResultCallback cb(cache);
-		
-		Point *point = m_data->points;
-		int totpoints = m_data->totpoints;
-		for (int k = 0; k < totpoints; ++k, ++point) {
-			dworld->contactPairTest(&point->rb_ghost.ghost, other, cb);
-		}
-	}
-}
 
 HAIR_NAMESPACE_END

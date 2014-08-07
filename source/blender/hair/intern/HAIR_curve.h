@@ -52,6 +52,7 @@ struct Point {
 	
 	State cur;
 	State next;
+	float3 force_accum; /* accumulated external forces */
 	
 	float3 rest_co;
 	float3 rest_bend;
