@@ -313,7 +313,7 @@ static void do_damping(const HairParams &params, const SolverForces &forces, flo
 	}
 }
 
-static void do_collision(const HairParams &params, const SolverForces &forces, float time, float timestep, const SolverTaskData &data, const PointContactCache &contacts)
+static void do_collision(const HairParams &params, const SolverForces &forces, float time, float timestep, float restitution_scale, const SolverTaskData &data, const PointContactCache &contacts)
 {
 	int start = data.startpoint;
 	int end = start + data.totpoints;
@@ -345,7 +345,7 @@ static void do_collision(const HairParams &params, const SolverForces &forces, f
 			/* estimate for velocity change to prevent collision (3.2, (8)) */
 			float3 dv_a = dot_v3v3(info.restitution * (obj_v0 - v0) + (obj_v1 - v0), info.world_normal_body) * info.world_normal_body;
 			
-			point->force_accum = point->force_accum + dv_a / timestep;
+			point->force_accum = point->force_accum + dv_a * restitution_scale;
 //			Debug::collision_contact(point->cur.co, point->cur.co + point->force_accum);
 		}
 	}
@@ -358,6 +358,12 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 	
 	int totcurve = data.totcurves;
 	/*int totpoint = data.totpoints;*/
+	
+	/* Note: the restitution scale is determined by the overall timestep,
+	 * since collisions are only generated once during this interval.
+	 * Otherwise restitution forces would be num_force_steps times too large
+	 */
+	float restitution_scale = 1.0f / timestep;
 	
 	for (int step = 0; step < totsteps; ++step) {
 		
@@ -412,7 +418,7 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 			
 		}
 		
-		do_collision(m_params, m_forces, time, dt, data, contacts);
+		do_collision(m_params, m_forces, time, dt, restitution_scale, data, contacts);
 		
 		/* integrate */
 		{
