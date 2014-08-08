@@ -351,16 +351,13 @@ static void do_collision(const HairParams &params, const SolverForces &forces, f
 	}
 }
 
-void Solver::do_integration(float time, float timestep, const SolverTaskData &data) const
+void Solver::do_integration(float time, float timestep, const SolverTaskData &data, const PointContactCache &contacts) const
 {
 	const int totsteps = m_params.substeps_forces; /* can have multiple integration steps per tick for accuracy */
 	float dt = timestep / (float)totsteps;
 	
 	int totcurve = data.totcurves;
 	/*int totpoint = data.totpoints;*/
-	
-	PointContactCache contacts;
-	cache_point_contacts(contacts);
 	
 	for (int step = 0; step < totsteps; ++step) {
 		
@@ -456,13 +453,14 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 struct SolverPoolData {
 	const Solver *solver;
 	float time, timestep;
+	const PointContactCache *contacts;
 };
 
 static void step_threaded_func(TaskPool *pool, void *vtaskdata, int UNUSED(threadid))
 {
 	const SolverPoolData *pooldata = (const SolverPoolData *)BLI_task_pool_userdata(pool);
 	SolverTaskData *taskdata = (SolverTaskData *)vtaskdata;
-	pooldata->solver->do_integration(pooldata->time, pooldata->timestep, *taskdata);
+	pooldata->solver->do_integration(pooldata->time, pooldata->timestep, *taskdata, *pooldata->contacts);
 }
 
 static void advance_state(SolverData *data)
@@ -481,6 +479,10 @@ static void advance_state(SolverData *data)
 
 void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *debug_thread_data)
 {
+	/* filter and cache Bullet contact information */
+	PointContactCache contacts;
+	cache_point_contacts(contacts);
+	
 	typedef std::vector<SolverTaskData> SolverTaskVector;
 	
 	const int max_points_per_task = 1024;
@@ -490,6 +492,7 @@ void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *de
 	pooldata.solver = this;
 	pooldata.time = time;
 	pooldata.timestep = timestep;
+	pooldata.contacts = &contacts;
 	
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, (void*)(&pooldata));

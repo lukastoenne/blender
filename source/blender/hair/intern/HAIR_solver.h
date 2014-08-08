@@ -167,7 +167,7 @@ public:
 	
 	void cache_point_contacts(PointContactCache &cache) const;
 	
-	void do_integration(float time, float timestep, const SolverTaskData &data) const;
+	void do_integration(float time, float timestep, const SolverTaskData &data, const PointContactCache &contacts) const;
 	
 	void step_threaded(float time, float timestep, DebugThreadDataVector *debug_thread_data = NULL);
 	
