@@ -286,7 +286,9 @@ static void do_external_forces(const HairParams &params, const SolverForces &for
 {
 	float3 acc = float3(0.0f, 0.0f, 0.0f);
 	
-	acc = acc + forces.gravity;
+	float3 drag = - params.drag * point0->cur.vel;
+	
+	acc = acc + forces.gravity + drag;
 	
 	force = acc;
 }

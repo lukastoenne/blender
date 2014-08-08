@@ -1249,8 +1249,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row = col.row()
         col2 = row.column()
         col2.prop(params, "restitution")
-        col2 = row.column()
         col2.prop(params, "friction")
+        col2 = row.column()
+        col2.prop(params, "drag")
         
         col.separator()
         

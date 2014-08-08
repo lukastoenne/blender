@@ -62,11 +62,11 @@ typedef struct HairParams {
 	float bend_damping;
 	float bend_smoothing;
 	
+	float drag;
+	
 	/* collision settings */
 	float restitution;
 	float friction;
-	
-	int pad;
 } HairParams;
 
 typedef struct HairSystem {
