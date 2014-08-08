@@ -34,6 +34,7 @@
 struct HairSystem;
 struct HairCurve;
 struct HairPoint;
+struct HairDebugData;
 
 struct HairSystem *BKE_hairsys_new(void);
 void BKE_hairsys_free(struct HairSystem *hsys);
@@ -49,5 +50,7 @@ struct HairPoint *BKE_hair_point_insert(struct HairSystem *hsys, struct HairCurv
 struct HairPoint *BKE_hair_point_insert_multi(struct HairSystem *hsys, struct HairCurve *hair, int pos, int num);
 void BKE_hair_point_remove(struct HairSystem *hsys, struct HairCurve *hair, struct HairPoint *point);
 void BKE_hair_point_remove_position(struct HairSystem *hsys, struct HairCurve *hair, int pos);
+
+void BKE_hair_debug_data_free(struct HairDebugData *debug_data);
 
 #endif

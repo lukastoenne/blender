@@ -488,7 +488,7 @@ void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *de
 	/* filter and cache Bullet contact information */
 	PointContactCache contacts;
 	cache_point_contacts(contacts);
-	{
+	if (debug_thread_data) {
 		debug_thread_data->push_back(DebugThreadData());
 		DebugThreadData *thread_data = &debug_thread_data->back();
 		for (int i = 0; i < contacts.size(); ++i) {

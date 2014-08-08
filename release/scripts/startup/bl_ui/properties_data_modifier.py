@@ -1258,6 +1258,18 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         
         col.operator("hair.reset to rest location")
         col.operator("hair.copy_from_particles")
+        
+        col.separator()
+        
+        col.prop(md, "show_debug")
+        col2 = col.column()
+        col2.active = md.show_debug
+        col2.prop(md, "show_debug_contacts")
+        col2.prop(md, "show_debug_size")
+        col2.prop(md, "show_debug_cylinders")
+        col2.prop(md, "show_debug_roots")
+        col2.prop(md, "show_debug_frames")
+        col2.prop(md, "show_debug_smoothing")
 
 
 if __name__ == "__main__":  # only for live edit.

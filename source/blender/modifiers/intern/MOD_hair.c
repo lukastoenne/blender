@@ -54,15 +54,6 @@ static void initData(ModifierData *md)
 	hmd->hairsys = BKE_hairsys_new();
 }
 
-static void free_debug_data(HairDebugData *debug_data)
-{
-	if (debug_data->points)
-		MEM_freeN(debug_data->points);
-	if (debug_data->contacts)
-		MEM_freeN(debug_data->contacts);
-	MEM_freeN(debug_data);
-}
-
 static void freeData(ModifierData *md)
 {
 	HairModifierData *hmd = (HairModifierData *) md;
@@ -72,8 +63,7 @@ static void freeData(ModifierData *md)
 	
 	BKE_hairsys_free(hmd->hairsys);
 	
-	if (hmd->debug_data)
-		free_debug_data(hmd->debug_data);
+	BKE_hair_debug_data_free(hmd->debug_data);
 }
 
 static void copyData(ModifierData *md, ModifierData *target)

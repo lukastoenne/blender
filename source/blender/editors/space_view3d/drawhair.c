@@ -104,12 +104,12 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 
 /* ---------------- debug drawing ---------------- */
 
-//#define SHOW_POINTS
-//#define SHOW_SIZE
-//#define SHOW_ROOTS
-//#define SHOW_FRAMES
+#define SHOW_POINTS
+#define SHOW_SIZE
+#define SHOW_ROOTS
+#define SHOW_FRAMES
 //#define SHOW_SMOOTHING
-//#define SHOW_CYLINDERS
+#define SHOW_CYLINDERS
 #define SHOW_CONTACTS
 
 static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
@@ -542,6 +542,7 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	RegionView3D *rv3d = ar->regiondata;
 	Object *ob = base->object;
 	HairSystem *hsys = hmd->hairsys;
+	int debug_flag = hmd->debug_flag;
 	HairCurve *hair;
 	int i;
 	int tot_points = 0;
@@ -553,22 +554,28 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
-	draw_hair_debug_size(hsys, imat);
-	draw_hair_debug_roots(hsys, ob->derivedFinal);
+	if (debug_flag & MOD_HAIR_DEBUG_SIZE)
+		draw_hair_debug_size(hsys, imat);
+	if (debug_flag & MOD_HAIR_DEBUG_ROOTS)
+		draw_hair_debug_roots(hsys, ob->derivedFinal);
 	
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		draw_hair_curve_debug_smoothing(hsys, hair);
+		if (debug_flag & MOD_HAIR_DEBUG_SMOOTHING)
+			draw_hair_curve_debug_smoothing(hsys, hair);
 		if (hair->totpoints > 1) {
 			tot_points += hair->totpoints;
 			valid_points++;
 		}
 	}
 	
-	draw_hair_debug_cylinders(hsys, tot_points, valid_points);
+	if (debug_flag & MOD_HAIR_DEBUG_CYLINDERS)
+		draw_hair_debug_cylinders(hsys, tot_points, valid_points);
 	
 	if (hmd->debug_data) {
-		draw_hair_debug_frames(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
-		draw_hair_debug_points(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
-		draw_hair_debug_contacts(hsys, hmd->debug_data->contacts, hmd->debug_data->totcontacts);
+		if (debug_flag & MOD_HAIR_DEBUG_FRAMES)
+			draw_hair_debug_frames(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
+//		draw_hair_debug_points(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
+		if (debug_flag & MOD_HAIR_DEBUG_CONTACTS)
+			draw_hair_debug_contacts(hsys, hmd->debug_data->contacts, hmd->debug_data->totcontacts);
 	}
 }

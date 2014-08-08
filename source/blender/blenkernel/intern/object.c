@@ -3124,28 +3124,26 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
 			
-#if 0
-			HAIR_solver_step(hmd->solver, ctime, timestep);
-#else
-			/* Debug Version
-			 * WARNING: Debugging is not threadsafe atm, crashes with large hair numbers (>1024)!
-			 */
-			float imat[4][4];
-			
-			invert_m4_m4(imat, ob->obmat);
-			
-			if (hmd->debug_data) {
-				if (hmd->debug_data->points)
-					MEM_freeN(hmd->debug_data->points);
-				if (hmd->debug_data->contacts)
-					MEM_freeN(hmd->debug_data->contacts);
+			if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
+				HAIR_solver_step(hmd->solver, ctime, timestep);
 			}
 			else {
-				hmd->debug_data = MEM_callocN(sizeof(HairDebugData), "hair debug data");
+				float imat[4][4];
+				
+				invert_m4_m4(imat, ob->obmat);
+				
+				if (hmd->debug_data) {
+					if (hmd->debug_data->points)
+						MEM_freeN(hmd->debug_data->points);
+					if (hmd->debug_data->contacts)
+						MEM_freeN(hmd->debug_data->contacts);
+				}
+				else {
+					hmd->debug_data = MEM_callocN(sizeof(HairDebugData), "hair debug data");
+				}
+				
+				HAIR_solver_step_debug(hmd->solver, ctime, timestep, imat, &hmd->debug_data->points, &hmd->debug_data->totpoints, &hmd->debug_data->contacts, &hmd->debug_data->totcontacts);
 			}
-			
-			HAIR_solver_step_debug(hmd->solver, ctime, timestep, imat, &hmd->debug_data->points, &hmd->debug_data->totpoints, &hmd->debug_data->contacts, &hmd->debug_data->totcontacts);
-#endif
 		}
 	}
 }

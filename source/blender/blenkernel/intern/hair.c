@@ -191,3 +191,14 @@ void BKE_hair_point_remove_position(HairSystem *UNUSED(hsys), HairCurve *hair, i
 	hair->points = npoints;
 	hair->totpoints = ntotpoints;
 }
+
+void BKE_hair_debug_data_free(HairDebugData *debug_data)
+{
+	if (debug_data) {
+		if (debug_data->points)
+			MEM_freeN(debug_data->points);
+		if (debug_data->contacts)
+			MEM_freeN(debug_data->contacts);
+		MEM_freeN(debug_data);
+	}
+}

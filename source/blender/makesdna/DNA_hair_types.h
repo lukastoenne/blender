@@ -81,4 +81,11 @@ typedef struct HairSystem {
 	HairParams params;
 } HairSystem;
 
+typedef struct HairDebugData {
+	struct HAIR_SolverDebugContact *contacts;
+	struct HAIR_SolverDebugPoint *points;
+	int totcontacts;
+	int totpoints;
+} HairDebugData;
+
 #endif
