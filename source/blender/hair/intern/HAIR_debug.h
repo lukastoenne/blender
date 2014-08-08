@@ -40,77 +40,61 @@ HAIR_NAMESPACE_BEGIN
 
 struct SolverData;
 
+struct DebugPoint {
+	int index;
+	
+	float3 bend;
+	Frame frame;
+};
+
+struct DebugContact {
+	float3 coA, coB;
+};
+
+struct DebugThreadData
+{
+	typedef std::vector<DebugPoint> Points;
+	typedef std::vector<DebugContact> CollisionContacts;
+	
+	CollisionContacts contacts;
+	Points points;
+};
+
 struct Debug {
-	struct Point {
-		int index;
-		
-		float3 bend;
-		Frame frame;
-	};
 	
-	typedef std::vector<Point> Points;
-	
-	struct Contact {
-		float3 coA, coB;
-	};
-	
-	typedef std::vector<Contact> CollisionContacts;
-	
-	static void point(int index, const float3 &bend, const Frame &frame)
+	static void point(DebugThreadData *data, int index, const float3 &bend, const Frame &frame)
 	{
 #ifdef HAIR_DEBUG
-		if (m_points) {
-			Point p;
+		if (data) {
+			DebugPoint p;
 			p.index = index;
 			p.bend = bend;
 			p.frame = frame;
-			m_points->push_back(p);
+			data->points.push_back(p);
 		}
 #else
+		(void)data;
+		(void)index;
 		(void)bend;
+		(void)frame;
 #endif
 	}
 	
-	static void set_points(Points *points)
+	static void collision_contact(DebugThreadData *data, const float3 &coA, const float3 &coB)
 	{
 #ifdef HAIR_DEBUG
-		m_points = points;
-#else
-		(void)points;
-#endif
-	}
-	
-	static void collision_contact(const float3 &coA, const float3 &coB)
-	{
-#ifdef HAIR_DEBUG
-		if (m_contacts) {
-			Contact c;
+		if (data) {
+			DebugContact c;
 			c.coA = coA;
 			c.coB = coB;
-			m_contacts->push_back(c);
+			data->contacts.push_back(c);
 		}
 #else
+		(void)data;
 		(void)coA;
 		(void)coB;
 #endif
 	}
-	
-	static void set_collision_contacts(CollisionContacts *contacts)
-	{
-#ifdef HAIR_DEBUG
-		m_contacts = contacts;
-#else
-		(void)contacts;
-#endif
-	}
-
-#ifdef HAIR_DEBUG
-
-private:
-	static CollisionContacts *m_contacts;
-	static Points *m_points;
-
-#endif
 };
 
 HAIR_NAMESPACE_END

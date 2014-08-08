@@ -455,7 +455,7 @@ static void advance_state(SolverData *data)
 	}
 }
 
-void Solver::step_threaded(float time, float timestep)
+void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *debug_thread_data)
 {
 	typedef std::vector<SolverTaskData> SolverTaskVector;
 	

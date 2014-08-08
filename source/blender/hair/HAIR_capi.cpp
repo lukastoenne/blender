@@ -113,39 +113,52 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 	Solver *solver = (Solver *)csolver;
 	Transform itfm(ob_imat);
 	
-	Debug::Points dbg_points;
-	Debug::set_points(&dbg_points);
-	Debug::CollisionContacts dbg_contacts;
-	Debug::set_collision_contacts(&dbg_contacts);
+	DebugThreadDataVector thread_data_list;
+	solver->step_threaded(time, timestep, &thread_data_list);
 	
-	solver->step_threaded(time, timestep);
-	
-	Debug::set_points(NULL);
 	if (points && totpoints) {
 		int tot = solver->data()->totpoints;
 		*totpoints = tot;
 		*points = (HAIR_SolverDebugPoint *)MEM_mallocN(sizeof(HAIR_SolverDebugPoint) * tot, "hair solver point debug data");
-		for (int i = 0; i < dbg_points.size(); ++i) {
-			const Debug::Point &dbg_point = dbg_points[i];
-			if (dbg_point.index < 0 || dbg_point.index >= tot)
-				continue;
-			
-			HAIR_SolverDebugPoint *p = (*points) + dbg_point.index;
-			copy_v3_v3(p->bend, transform_direction(itfm, dbg_point.bend).data());
-			copy_v3_v3(p->frame[0], transform_direction(itfm, dbg_point.frame.normal).data());
-			copy_v3_v3(p->frame[1], transform_direction(itfm, dbg_point.frame.tangent).data());
-			copy_v3_v3(p->frame[2], transform_direction(itfm, dbg_point.frame.cotangent).data());
-		}
 	}
 	
-	Debug::set_collision_contacts(NULL);
+	HAIR_SolverDebugContact *contact;
 	if (contacts && totcontacts) {
-		*totcontacts = dbg_contacts.size();
-		*contacts = (HAIR_SolverDebugContact *)MEM_mallocN(sizeof(HAIR_SolverDebugContact) * dbg_contacts.size(), "hair solver contact debug data");
-		for (int i = 0; i < dbg_contacts.size(); ++i) {
-			HAIR_SolverDebugContact *c = (*contacts) + i;
-			copy_v3_v3(c->coA, transform_point(itfm, dbg_contacts[i].coA).data());
-			copy_v3_v3(c->coB, transform_point(itfm, dbg_contacts[i].coB).data());
+		*totcontacts = 0;
+		for (int d = 0; d < thread_data_list.size(); ++d) {
+			const DebugThreadData &data = thread_data_list[d];
+			*totcontacts += data.contacts.size();
+		}
+		*contacts = (HAIR_SolverDebugContact *)MEM_mallocN(sizeof(HAIR_SolverDebugContact) * (*totcontacts), "hair solver contact debug data");	
+		contact = *contacts;
+	}
+	else
+		contact = NULL;
+	
+	for (int d = 0; d < thread_data_list.size(); ++d) {
+		const DebugThreadData &data = thread_data_list[d];
+		
+		if (points && totpoints) {
+			int tot = solver->data()->totpoints;
+			for (int i = 0; i < data.points.size(); ++i) {
+				const DebugPoint &dbg_point = data.points[i];
+				if (dbg_point.index < 0 || dbg_point.index >= tot)
+					continue;
+				
+				HAIR_SolverDebugPoint *p = (*points) + dbg_point.index;
+				copy_v3_v3(p->bend, transform_direction(itfm, dbg_point.bend).data());
+				copy_v3_v3(p->frame[0], transform_direction(itfm, dbg_point.frame.normal).data());
+				copy_v3_v3(p->frame[1], transform_direction(itfm, dbg_point.frame.tangent).data());
+				copy_v3_v3(p->frame[2], transform_direction(itfm, dbg_point.frame.cotangent).data());
+			}
+		}
+		
+		if (contacts && totcontacts) {
+			for (int i = 0; i < data.contacts.size(); ++i, ++contact) {
+				HAIR_SolverDebugContact *c = contact;
+				copy_v3_v3(c->coA, transform_point(itfm, data.contacts[i].coA).data());
+				copy_v3_v3(c->coB, transform_point(itfm, data.contacts[i].coB).data());
+			}
 		}
 	}
 }

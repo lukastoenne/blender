@@ -32,9 +32,6 @@ HAIR_NAMESPACE_BEGIN
 
 #ifdef HAIR_DEBUG
 
-Debug::CollisionContacts *Debug::m_contacts = NULL;
-Debug::Points *Debug::m_points = NULL;
-
 #endif
 
 
