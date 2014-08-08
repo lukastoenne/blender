@@ -1227,6 +1227,14 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         params = hsys.params
         col = layout.column()
         
+        col.separator()
+        
+        row = col.row()
+        col2 = row.column()
+        col2.prop(params, "substeps_forces")
+        col2 = row.column()
+        col2.prop(params, "substeps_damping")
+        
         row = col.row()
         col2 = row.column()
         col2.prop(params, "stretch_stiffness")

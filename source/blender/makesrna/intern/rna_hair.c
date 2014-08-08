@@ -62,6 +62,20 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "HairParams", NULL);
 	RNA_def_struct_ui_text(srna, "Hair Parameters", "Hair simulation parameters");
 
+	prop = RNA_def_property(srna, "substeps_forces", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "substeps_forces");
+	RNA_def_property_range(prop, 1, 1000);
+	RNA_def_property_ui_range(prop, 1, 120, 1, 1);
+	RNA_def_property_int_default(prop, 30);
+	RNA_def_property_ui_text(prop, "Substeps Forces", "Substeps for force integration");
+
+	prop = RNA_def_property(srna, "substeps_damping", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "substeps_damping");
+	RNA_def_property_range(prop, 1, 100);
+	RNA_def_property_ui_range(prop, 1, 30, 1, 1);
+	RNA_def_property_int_default(prop, 10);
+	RNA_def_property_ui_text(prop, "Substeps Damping", "Substeps for damping force integration (on top of force substeps)");
+
 	prop = RNA_def_property(srna, "stretch_stiffness", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "stretch_stiffness");
 	RNA_def_property_range(prop, 0.0f, 1.0e9f);

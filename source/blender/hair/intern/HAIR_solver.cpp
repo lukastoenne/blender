@@ -353,7 +353,7 @@ static void do_collision(const HairParams &params, const SolverForces &forces, f
 
 void Solver::do_integration(float time, float timestep, const SolverTaskData &data) const
 {
-	const int totsteps = 1; /* XXX TODO can have multiple integration steps per tick for accuracy */
+	const int totsteps = m_params.substeps_forces; /* can have multiple integration steps per tick for accuracy */
 	float dt = timestep / (float)totsteps;
 	
 	int totcurve = data.totcurves;
@@ -369,9 +369,6 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 			data.points[k].force_accum = float3(0.0f, 0.0f, 0.0f);
 		}
 		
-		do_collision(m_params, m_forces, time, dt, data, contacts);
-		
-		int ktot = 0; /* global point counter over all curves */
 		Curve *curve = data.curves;
 		for (int i = 0; i < totcurve; ++i, ++curve) {
 			int numpoints = curve->totpoints;
@@ -397,35 +394,62 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 				do_external_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), extern_force);
 				do_damping(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), damping, damping_next);
 				
-				point->next.co = root_co;
-				point->next.vel = root_vel;
-				
 				frame_iter.next();
 				acc_prev = intern_force_next + damping_next;
 				++k;
-				++ktot;
 				++point;
 			}
 			
 			/* Integrate free points */
-			for (; k < numpoints; ++k, ++ktot, ++point) {
+			for (; k < numpoints; ++k, ++point) {
 				Point *point_next = k < numpoints-1 ? point+1 : NULL;
 				do_internal_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
 				do_external_forces(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), extern_force);
 				do_damping(m_params, m_forces, time, dt, point, point_next, frame_iter.frame(), damping, damping_next);
 				
-				float3 acc = intern_force + extern_force + damping + acc_prev + point->force_accum;
-				point->next.vel = point->cur.vel + acc * timestep;
-				
-				float3 vel = point->next.vel;
-				point->next.co = point->cur.co + vel * timestep;
+				point->force_accum = point->force_accum + intern_force + extern_force + damping + acc_prev;
 				
 				frame_iter.next();
 				acc_prev = intern_force_next + damping_next;
 			}
+			
 		}
 		
-		time += dt;
+		do_collision(m_params, m_forces, time, dt, data, contacts);
+		
+		/* integrate */
+		{
+			Curve *curve = data.curves;
+			for (int i = 0; i < totcurve; ++i, ++curve) {
+				int numpoints = curve->totpoints;
+				
+				/* note: roots are evaluated at the end of the timestep: time + timestep
+				 * so the hair points align perfectly with them
+				 */
+				float3 root_co, root_vel, normal, tangent;
+				calc_root_animation(m_data->t0, m_data->t1, time + timestep, curve, root_co, root_vel, normal, tangent);
+				
+				/* Root point animation */
+				Point *point = curve->points;
+				int k = 0;
+				if (numpoints > 0) {
+					point->next.co = root_co;
+					point->next.vel = root_vel;
+					
+					++k;
+					++point;
+				}
+				
+				/* Integrate free points */
+				for (; k < numpoints; ++k, ++point) {
+					/* semi-implicit Euler step */
+					point->next.vel = point->cur.vel + point->force_accum * timestep;
+					point->next.co = point->cur.co + point->next.vel * timestep;
+				}
+			}
+			
+			time += dt;
+		}
 	}
 }
 
