@@ -184,6 +184,9 @@ static bool hair_copy_particle_emitter_location(Object *UNUSED(ob), ParticleSyst
 
 static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm)
 {
+	/* scale of segment lengths to get point radius */
+	const float seglen_to_radius = 2.0f / 3.0f;
+	
 	HairCurve *hairs;
 	int tothairs;
 	float mat[4][4];
@@ -205,6 +208,7 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 		HairPoint *points;
 		int totpoints;
 		float loc[3], tan[3];
+		float radius;
 		
 		if (pa_cache->steps == 0)
 			continue;
@@ -217,6 +221,7 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 		tan[0] = 0.0f; tan[1] = 0.0f; tan[2] = 1.0f;
 		madd_v3_v3v3fl(hair->rest_tan, tan, hair->rest_nor, -dot_v3v3(tan, hair->rest_nor));
 		
+		radius = 0.0f;
 		for (k = 0; k < totpoints; ++k) {
 			ParticleCacheKey *pa_key = pa_cache + k;
 			HairPoint *point = points + k;
@@ -225,6 +230,18 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 			/* apply rest position */
 			copy_v3_v3(point->co, point->rest_co);
 			zero_v3(point->vel);
+			
+			if (k == 0) {
+				if (k < totpoints-1)
+					radius = seglen_to_radius * len_v3v3(pa_key->co, (pa_key+1)->co);
+				point->radius = radius;
+			}
+			else {
+				float prev_radius = radius;
+				if (k < totpoints-1)
+					radius = seglen_to_radius * len_v3v3(pa_key->co, (pa_key+1)->co);
+				point->radius = 0.5f * (radius + prev_radius);
+			}
 		}
 	}
 }

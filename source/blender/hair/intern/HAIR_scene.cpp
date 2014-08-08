@@ -99,7 +99,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 			HairPoint *hair_pt = hair->points + k;
 			
 			point->rest_co = transform_point(mat, hair_pt->rest_co);
-			point->radius = 0.0f;
+			point->radius = hair_pt->radius;
 			
 			point->cur.co = transform_point(mat, hair_pt->co);
 			point->cur.vel = transform_direction(mat, hair_pt->vel);
@@ -196,6 +196,8 @@ void SceneConverter::sync_rigidbody_data(SolverData *data, const HairParams &par
 				
 				point->rb_ghost.ghost.setRestitution(params.restitution);
 				point->rb_ghost.ghost.setFriction(params.friction);
+				
+				point->bt_shape.setUnscaledRadius(point->radius);
 			}
 		}
 		

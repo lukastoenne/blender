@@ -105,6 +105,7 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 /* ---------------- debug drawing ---------------- */
 
 //#define SHOW_POINTS
+//#define SHOW_SIZE
 //#define SHOW_ROOTS
 //#define SHOW_FRAMES
 //#define SHOW_SMOOTHING
@@ -140,6 +141,26 @@ static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoi
 	(void)hsys;
 	(void)dpoints;
 	(void)dtotpoints;
+#endif
+}
+
+static void draw_hair_debug_size(HairSystem *hsys, float tmat[4][4])
+{
+#ifdef SHOW_SIZE
+	int i, k;
+	
+	glColor3f(1.0f, 0.4f, 0.4f);
+	
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *hair = hsys->curves + i;
+		for (k = 0; k < hair->totpoints; ++k) {
+			HairPoint *point = hair->points + k;
+			
+			drawcircball(GL_LINE_LOOP, point->co, point->radius, tmat);
+		}
+	}
+#else
+	(void)hsys;
 #endif
 }
 
@@ -342,7 +363,7 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints, int valid
 	float upvec[] = {0.0f, 0.0f, 1.0f};
 	float sidevec[] = {1.0f, 0.0f, 0.0f};
 
-	float diameter = 0.05f;
+	float radius_factor = 1.0f;
 	/* number of cylinder subdivisions */
 	int subdiv = 8;
 
@@ -449,7 +470,7 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints, int valid
 
 			/* and repeat */
 			copy_v3_v3(vert_data[offset], tangent);
-			mul_v3_fl(vert_data[offset], diameter);
+			mul_v3_fl(vert_data[offset], point->radius * radius_factor);
 			add_v3_v3(vert_data[offset++], point->co);
 			copy_v3_v3(vert_data[offset++], tangent);
 
@@ -469,7 +490,7 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints, int valid
 
 				mul_qt_v3(rot_quat, v_nor);
 				copy_v3_v3(vert_data[offset], v_nor);
-				mul_v3_fl(vert_data[offset], diameter);
+				mul_v3_fl(vert_data[offset], point->radius * radius_factor);
 				add_v3_v3(vert_data[offset++], point->co);
 				copy_v3_v3(vert_data[offset++], v_nor);
 			}
@@ -509,6 +530,10 @@ static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints, int valid
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#else
+	(void)hsys;
+	(void)totpoints;
+	(void)valid_points;
 #endif
 }
 
@@ -521,10 +546,14 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	int i;
 	int tot_points = 0;
 	int valid_points = 0;
-
+	float imat[4][4];
+	
+	invert_m4_m4(imat, rv3d->viewmatob);
+	
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
+	draw_hair_debug_size(hsys, imat);
 	draw_hair_debug_roots(hsys, ob->derivedFinal);
 	
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {

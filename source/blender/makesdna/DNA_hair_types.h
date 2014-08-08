@@ -39,7 +39,9 @@ typedef struct HairPoint {
 	float rest_co[3];           /* rest location in object space */
 	float co[3];                /* location in object space */
 	float vel[3];               /* velocity */
-	int pad[3];
+	float radius;               /* thickness of a hair wisp */
+	
+	int pad[2];
 } HairPoint;
 
 typedef struct HairCurve {
