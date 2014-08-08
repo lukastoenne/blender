@@ -1250,6 +1250,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col2 = row.column()
         col2.prop(params, "restitution")
         col2.prop(params, "friction")
+        col2.prop(params, "margin")
         col2 = row.column()
         col2.prop(params, "drag")
         

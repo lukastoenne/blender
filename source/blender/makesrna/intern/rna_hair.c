@@ -126,6 +126,13 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1, 3);
 	RNA_def_property_float_default(prop, 0.0f);
 	RNA_def_property_ui_text(prop, "Restitution", "Amount of energy retained after collision");
+
+	prop = RNA_def_property(srna, "margin", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "margin");
+	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 100.0f, 0.01f, 3);
+	RNA_def_property_float_default(prop, 0.02f);
+	RNA_def_property_ui_text(prop, "Margin", "Collision margin to avoid penetration");
 }
 
 static void rna_def_hair_system(BlenderRNA *brna)

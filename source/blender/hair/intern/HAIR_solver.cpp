@@ -200,11 +200,6 @@ static void calc_root_animation(float t0, float t1, float t, Curve *curve, float
 	}
 }
 
-static float3 calc_velocity(Curve *curve, Point *point, float time, Point::State &state)
-{
-	return state.vel;
-}
-
 /* XXX could cache rest_length in SolverData */
 
 static float3 calc_stretch_force(const HairParams &params, const Point *point0, const Point *point1, float time)
@@ -347,7 +342,10 @@ static void do_collision(const HairParams &params, const SolverForces &forces, f
 			/* estimate for velocity change to prevent collision (3.2, (8)) */
 			float3 dv_a = dot_v3v3(info.restitution * (obj_v0 - v0) + (obj_v1 - v0), info.world_normal_body) * info.world_normal_body;
 			
-			point->force_accum = point->force_accum + dv_a * restitution_scale;
+			float3 dv_b = (params.margin - info.distance) * restitution_scale * info.world_normal_body - v0;
+			
+			float3 dv(max_ff(dv_a[0], dv_b[0]), max_ff(dv_a[1], dv_b[1]), max_ff(dv_a[2], dv_b[2]));
+			point->force_accum = point->force_accum + dv * restitution_scale;
 //			Debug::collision_contact(point->cur.co, point->cur.co + point->force_accum);
 		}
 	}
@@ -490,6 +488,14 @@ void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *de
 	/* filter and cache Bullet contact information */
 	PointContactCache contacts;
 	cache_point_contacts(contacts);
+	{
+		debug_thread_data->push_back(DebugThreadData());
+		DebugThreadData *thread_data = &debug_thread_data->back();
+		for (int i = 0; i < contacts.size(); ++i) {
+			const PointContactInfo &info = contacts[i];
+			Debug::collision_contact(thread_data, info.world_point_hair, info.world_point_body);
+		}
+	}
 	
 	typedef std::vector<SolverTaskData> SolverTaskVector;
 	

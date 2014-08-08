@@ -59,9 +59,10 @@ PointContactInfo::PointContactInfo(const btManifoldPoint &bt_point, const btColl
 }
 
 struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
-	HairContactResultCallback(PointContactCache &cache) :
+	HairContactResultCallback(const HairParams &params, PointContactCache &cache) :
 	    cache(&cache),
-	    point_index(0)
+	    point_index(0),
+	    margin(params.margin)
 	{
 	}
 
@@ -69,7 +70,7 @@ struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
 	                         const btCollisionObjectWrapper *colObj0Wrap, int partId0, int index0,
 	                         const btCollisionObjectWrapper *colObj1Wrap, int partId1, int index1)
 	{
-		if (cp.getDistance() < 0.f) {
+		if (cp.getDistance() < margin) {
 			const btCollisionObject *ob0 = colObj0Wrap->getCollisionObject();
 			const btCollisionObject *ob1 = colObj1Wrap->getCollisionObject();
 			
@@ -78,7 +79,7 @@ struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
 			
 //			const btVector3 &ptA = cp.getPositionWorldOnA();
 //			const btVector3 &ptB = cp.getPositionWorldOnB();
-//			Debug::collision_contact(float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
+//			Debug::collision_contact(debug_data, float3(ptA.x(), ptA.y(), ptA.z()), float3(ptB.x(), ptB.y(), ptB.z()));
 		}
 		
 		/* note: return value is unused
@@ -89,6 +90,7 @@ struct HairContactResultCallback : btCollisionWorld::ContactResultCallback {
 	
 	PointContactCache *cache;
 	int point_index;
+	float margin;
 };
 
 void Solver::cache_point_contacts(PointContactCache &cache) const
@@ -116,7 +118,7 @@ void Solver::cache_point_contacts(PointContactCache &cache) const
 		btCollisionObject *ob1 = (btCollisionObject *)pair.m_pProxy1->m_clientObject;
 		btCollisionObject *other = ob0 == ghost ? ob1 : ob0;
 		
-		HairContactResultCallback cb(cache);
+		HairContactResultCallback cb(m_params, cache);
 		
 		Point *point = m_data->points;
 		int totpoints = m_data->totpoints;

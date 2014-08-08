@@ -69,6 +69,8 @@ typedef struct HairParams {
 	/* collision settings */
 	float restitution;
 	float friction;
+	float margin;
+	int pad;
 } HairParams;
 
 typedef struct HairSystem {
