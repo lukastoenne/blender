@@ -1225,6 +1225,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
     def HAIR(self, layout, ob, md):
         hsys = md.hair_system
         params = hsys.params
+        display = hsys.display
         col = layout.column()
         
         col.separator()
@@ -1261,12 +1262,17 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         
         col.separator()
         
+        col.label("Display:")
+        row = col.row()
+        row.prop(display, "mode", expand=True)
+        
+        col.separator()
+        
         col.prop(md, "show_debug")
         col2 = col.column()
         col2.active = md.show_debug
         col2.prop(md, "show_debug_contacts")
         col2.prop(md, "show_debug_size")
-        col2.prop(md, "show_debug_cylinders")
         col2.prop(md, "show_debug_roots")
         col2.prop(md, "show_debug_frames")
         col2.prop(md, "show_debug_smoothing")

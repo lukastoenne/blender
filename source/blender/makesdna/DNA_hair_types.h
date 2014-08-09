@@ -73,12 +73,24 @@ typedef struct HairParams {
 	int pad;
 } HairParams;
 
+typedef struct HairDisplaySettings {
+	int mode;
+	int pad;
+} HairDisplaySettings;
+
+typedef enum eHairDisplay_Mode {
+	HAIR_DISPLAY_LINE,
+	HAIR_DISPLAY_RENDER,
+	HAIR_DISPLAY_HULL,
+} eHairDisplay_Mode;
+
 typedef struct HairSystem {
 	HairCurve *curves;              /* curve data */
 	int totcurves;                  /* number of curves */
 	int pad;
 	
 	HairParams params;
+	HairDisplaySettings display;
 } HairSystem;
 
 typedef struct HairDebugData {

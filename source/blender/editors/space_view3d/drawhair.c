@@ -83,6 +83,203 @@ static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
 	glPointSize(1.0f);
 }
 
+static void count_hairs(HairSystem *hsys, int *totpoints, int *validhairs)
+{
+	HairCurve *hair;
+	int i;
+	
+	*totpoints = *validhairs = 0;
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		if (hair->totpoints > 1) {
+			*totpoints += hair->totpoints;
+			*validhairs += 1;
+		}
+	}
+}
+
+/* preview of hairs as cylinders */
+/* XXX warning, computation here hurts a lot! */
+static void draw_hair_hulls(HairSystem *hsys)
+{
+	HairCurve *hair;
+	HairPoint *point, *next_point;
+	int k, i, s;
+	float upvec[] = {0.0f, 0.0f, 1.0f};
+	float sidevec[] = {1.0f, 0.0f, 0.0f};
+
+	float radius_factor = 1.0f;
+	/* number of cylinder subdivisions */
+	int subdiv = 8;
+	
+	int totpoints, validhairs;
+	int tot_verts, tot_elems;
+
+	/* vertex array variables */
+	float (*vert_data)[3];
+	unsigned int *elem_data;
+	unsigned int offset = 0;
+	unsigned int elem_offset = 0;
+
+	static unsigned int hairbuf = 0;
+	static unsigned int hairelem = 0;
+
+	count_hairs(hsys, &totpoints, &validhairs);
+	/* twice for all for the normals */
+	tot_verts = totpoints * 2 * subdiv;
+	tot_elems = (totpoints - validhairs) * 6 * subdiv;
+
+	/* set up OpenGL code */
+	if (!hairbuf) {
+		glGenBuffers(1, &hairbuf);
+		glGenBuffers(1, &hairelem);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, hairbuf);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hairelem);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * tot_verts, NULL, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tot_elems, NULL, GL_DYNAMIC_DRAW);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, 6 * sizeof(float), NULL);
+	glNormalPointer(GL_FLOAT, 6 * sizeof(float), (GLubyte *)NULL + 3 * sizeof(float));
+
+	vert_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+
+	/* generate the data and copy to the display buffers */
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		float normal[3];
+		float dir[3];
+		float tangent[3];
+		unsigned int cur_offset = offset / 2;
+
+		if (hair->totpoints == 1)
+			continue;
+		point = hair->points;
+		next_point = hair->points + 1;
+
+		sub_v3_v3v3(dir, next_point->co, point->co);
+		normalize_v3_v3(normal, dir);
+
+		/* calculate a tangent by cross product between z vector and normal */
+		if (fabs(dot_v3v3(normal, upvec)) < 0.99f) {
+			cross_v3_v3v3(tangent, normal, upvec);
+		}
+		else
+			cross_v3_v3v3(tangent, normal, sidevec);
+
+		normalize_v3(tangent);
+
+		for (k = 0; k < hair->totpoints - 1; ++point, ++next_point, ++k) {
+			float pivot_axis[3];
+			float new_normal[3];
+			float cosine;
+			/* first step is to compute a tangent vector to the surface and rotate around the normal */
+			sub_v3_v3v3(dir, next_point->co, point->co);
+			normalize_v3_v3(new_normal, dir);
+			cosine = dot_v3v3(new_normal, normal);
+
+			cur_offset = offset / 2;
+
+			/* if needed rotate the previous original tangent to the new frame by using cross product between current
+			 * and previous segment */
+			if (fabs(cosine) < 0.999f) {
+				float rot_quat[4];
+				float halfcosine;
+				float halfsine;
+				/* substitute by cosine of half angle because we are doing smooth-like interpolation */
+				cosine = sqrt(0.5 + cosine * 0.5);
+
+				/* half angle cosines needed for quaternion rotation */
+				halfcosine = sqrt(0.5 + cosine * 0.5);
+				halfsine = sqrt(0.5 - cosine * 0.5);
+
+				cross_v3_v3v3(pivot_axis, normal, new_normal);
+				normalize_v3(pivot_axis);
+
+				rot_quat[0] = halfcosine;
+				rot_quat[1] = halfsine * pivot_axis[0];
+				rot_quat[2] = halfsine * pivot_axis[1];
+				rot_quat[3] = halfsine * pivot_axis[2];
+
+				mul_qt_v3(rot_quat, tangent);
+
+				/* also rotate by the half amount the rotation axis */
+				copy_v3_v3(pivot_axis, normal);
+				mul_qt_v3(rot_quat, pivot_axis);
+
+				normalize_v3(tangent);
+			}
+			else
+				copy_v3_v3(pivot_axis, normal);
+
+			copy_v3_v3(normal, new_normal);
+
+			/* and repeat */
+			copy_v3_v3(vert_data[offset], tangent);
+			mul_v3_fl(vert_data[offset], point->radius * radius_factor);
+			add_v3_v3(vert_data[offset++], point->co);
+			copy_v3_v3(vert_data[offset++], tangent);
+
+			/* create quaternion to rotate tangent around normal */
+			for (s = 1; s < subdiv; s++) {
+				float v_nor[3];
+				float rot_quat[4];
+				float half_angle = (M_PI * s) / subdiv;
+				float sine = sin(half_angle);
+
+				copy_v3_v3(v_nor, tangent);
+
+				rot_quat[0] = cos(half_angle);
+				rot_quat[1] = sine * pivot_axis[0];
+				rot_quat[2] = sine * pivot_axis[1];
+				rot_quat[3] = sine * pivot_axis[2];
+
+				mul_qt_v3(rot_quat, v_nor);
+				copy_v3_v3(vert_data[offset], v_nor);
+				mul_v3_fl(vert_data[offset], point->radius * radius_factor);
+				add_v3_v3(vert_data[offset++], point->co);
+				copy_v3_v3(vert_data[offset++], v_nor);
+			}
+
+			for (s = 0; s < subdiv; s++) {
+				elem_data[elem_offset++] = cur_offset + s;
+				elem_data[elem_offset++] = cur_offset + s + subdiv;
+				elem_data[elem_offset++] = cur_offset + (s + 1) % subdiv;
+
+				elem_data[elem_offset++] = cur_offset + s + subdiv;
+				elem_data[elem_offset++] = cur_offset + (s + 1) % subdiv;
+				elem_data[elem_offset++] = cur_offset + (s + 1) % subdiv + subdiv;
+			}
+		}
+
+		/* finally add the last point */
+		for (s = 0; s < subdiv; s++) {
+			add_v3_v3v3(vert_data[offset], vert_data[offset - 2 * subdiv], dir);
+			offset++;
+			copy_v3_v3(vert_data[offset], vert_data[offset - 2 * subdiv]);
+			offset++;
+		}
+
+	}
+
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+
+	glEnable(GL_LIGHTING);
+	/* draw */
+	glShadeModel(GL_SMOOTH);
+	glDrawElements(GL_TRIANGLES, elem_offset, GL_UNSIGNED_INT, NULL);
+	glDisable(GL_LIGHTING);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
 /* called from drawobject.c, return true if nothing was drawn */
 bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Base *base, HairSystem *hsys)
 {
@@ -95,8 +292,18 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
-	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		draw_hair_curve(hsys, hair);
+	switch (hsys->display.mode) {
+		case HAIR_DISPLAY_LINE:
+			for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+				draw_hair_curve(hsys, hair);
+			}
+			break;
+		case HAIR_DISPLAY_RENDER:
+			// TODO
+			break;
+		case HAIR_DISPLAY_HULL:
+			draw_hair_hulls(hsys);
+			break;
 	}
 	
 	return retval;
@@ -109,7 +316,6 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 #define SHOW_ROOTS
 #define SHOW_FRAMES
 //#define SHOW_SMOOTHING
-#define SHOW_CYLINDERS
 #define SHOW_CONTACTS
 
 static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
@@ -353,190 +559,6 @@ static void draw_hair_debug_contacts(HairSystem *UNUSED(hsys), HAIR_SolverDebugC
 #endif
 }
 
-/* debug preview of hairs as cylinders. warning, computation here hurts a lot! */
-static void draw_hair_debug_cylinders(HairSystem *hsys, int totpoints, int valid_points)
-{
-#ifdef SHOW_CYLINDERS
-	HairCurve *hair;
-	HairPoint *point, *next_point;
-	int k, i, s;
-	float upvec[] = {0.0f, 0.0f, 1.0f};
-	float sidevec[] = {1.0f, 0.0f, 0.0f};
-
-	float radius_factor = 1.0f;
-	/* number of cylinder subdivisions */
-	int subdiv = 8;
-
-	/* vertex array variables */
-	float (*vert_data)[3];
-	unsigned int *elem_data;
-	unsigned int offset = 0;
-	unsigned int elem_offset = 0;
-
-	/* twive for all for the normals */
-	int tot_verts = totpoints * 2 * subdiv;
-	int tot_elems = (totpoints - valid_points) * 6 * subdiv;
-
-	static unsigned int hairbuf = 0;
-	static unsigned int hairelem = 0;
-
-	/* set up OpenGL code */
-	if (!hairbuf) {
-		glGenBuffers(1, &hairbuf);
-		glGenBuffers(1, &hairelem);
-	}
-	glBindBuffer(GL_ARRAY_BUFFER, hairbuf);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hairelem);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * tot_verts, NULL, GL_DYNAMIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tot_elems, NULL, GL_DYNAMIC_DRAW);
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
-
-	glVertexPointer(3, GL_FLOAT, 6 * sizeof(float), NULL);
-	glNormalPointer(GL_FLOAT, 6 * sizeof(float), (GLubyte *)NULL + 3 * sizeof(float));
-
-	vert_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-	elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
-
-	/* generate the data and copy to the display buffers */
-	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		float normal[3];
-		float dir[3];
-		float tangent[3];
-		unsigned int cur_offset = offset / 2;
-
-		if (hair->totpoints == 1)
-			continue;
-		point = hair->points;
-		next_point = hair->points + 1;
-
-		sub_v3_v3v3(dir, next_point->co, point->co);
-		normalize_v3_v3(normal, dir);
-
-		/* calculate a tangent by cross product between z vector and normal */
-		if (fabs(dot_v3v3(normal, upvec)) < 0.99f) {
-			cross_v3_v3v3(tangent, normal, upvec);
-		}
-		else
-			cross_v3_v3v3(tangent, normal, sidevec);
-
-		normalize_v3(tangent);
-
-		for (k = 0; k < hair->totpoints - 1; ++point, ++next_point, ++k) {
-			float pivot_axis[3];
-			float new_normal[3];
-			float cosine;
-			/* first step is to compute a tangent vector to the surface and rotate around the normal */
-			sub_v3_v3v3(dir, next_point->co, point->co);
-			normalize_v3_v3(new_normal, dir);
-			cosine = dot_v3v3(new_normal, normal);
-
-			cur_offset = offset / 2;
-
-			/* if needed rotate the previous original tangent to the new frame by using cross product between current
-			 * and previous segment */
-			if (fabs(cosine) < 0.999f) {
-				float rot_quat[4];
-				float halfcosine;
-				float halfsine;
-				/* substitute by cosine of half angle because we are doing smooth-like interpolation */
-				cosine = sqrt(0.5 + cosine * 0.5);
-
-				/* half angle cosines needed for quaternion rotation */
-				halfcosine = sqrt(0.5 + cosine * 0.5);
-				halfsine = sqrt(0.5 - cosine * 0.5);
-
-				cross_v3_v3v3(pivot_axis, normal, new_normal);
-				normalize_v3(pivot_axis);
-
-				rot_quat[0] = halfcosine;
-				rot_quat[1] = halfsine * pivot_axis[0];
-				rot_quat[2] = halfsine * pivot_axis[1];
-				rot_quat[3] = halfsine * pivot_axis[2];
-
-				mul_qt_v3(rot_quat, tangent);
-
-				/* also rotate by the half amount the rotation axis */
-				copy_v3_v3(pivot_axis, normal);
-				mul_qt_v3(rot_quat, pivot_axis);
-
-				normalize_v3(tangent);
-			}
-			else
-				copy_v3_v3(pivot_axis, normal);
-
-			copy_v3_v3(normal, new_normal);
-
-			/* and repeat */
-			copy_v3_v3(vert_data[offset], tangent);
-			mul_v3_fl(vert_data[offset], point->radius * radius_factor);
-			add_v3_v3(vert_data[offset++], point->co);
-			copy_v3_v3(vert_data[offset++], tangent);
-
-			/* create quaternion to rotate tangent around normal */
-			for (s = 1; s < subdiv; s++) {
-				float v_nor[3];
-				float rot_quat[4];
-				float half_angle = (M_PI * s) / subdiv;
-				float sine = sin(half_angle);
-
-				copy_v3_v3(v_nor, tangent);
-
-				rot_quat[0] = cos(half_angle);
-				rot_quat[1] = sine * pivot_axis[0];
-				rot_quat[2] = sine * pivot_axis[1];
-				rot_quat[3] = sine * pivot_axis[2];
-
-				mul_qt_v3(rot_quat, v_nor);
-				copy_v3_v3(vert_data[offset], v_nor);
-				mul_v3_fl(vert_data[offset], point->radius * radius_factor);
-				add_v3_v3(vert_data[offset++], point->co);
-				copy_v3_v3(vert_data[offset++], v_nor);
-			}
-
-			for (s = 0; s < subdiv; s++) {
-				elem_data[elem_offset++] = cur_offset + s;
-				elem_data[elem_offset++] = cur_offset + s + subdiv;
-				elem_data[elem_offset++] = cur_offset + (s + 1) % subdiv;
-
-				elem_data[elem_offset++] = cur_offset + s + subdiv;
-				elem_data[elem_offset++] = cur_offset + (s + 1) % subdiv;
-				elem_data[elem_offset++] = cur_offset + (s + 1) % subdiv + subdiv;
-			}
-		}
-
-		/* finally add the last point */
-		for (s = 0; s < subdiv; s++) {
-			add_v3_v3v3(vert_data[offset], vert_data[offset - 2 * subdiv], dir);
-			offset++;
-			copy_v3_v3(vert_data[offset], vert_data[offset - 2 * subdiv]);
-			offset++;
-		}
-
-	}
-
-	glUnmapBuffer(GL_ARRAY_BUFFER);
-	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-
-	glEnable(GL_LIGHTING);
-	/* draw */
-	glShadeModel(GL_SMOOTH);
-	glDrawElements(GL_TRIANGLES, elem_offset, GL_UNSIGNED_INT, NULL);
-	glDisable(GL_LIGHTING);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-#else
-	(void)hsys;
-	(void)totpoints;
-	(void)valid_points;
-#endif
-}
-
 void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Base *base, HairModifierData *hmd)
 {
 	RegionView3D *rv3d = ar->regiondata;
@@ -545,8 +567,6 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	int debug_flag = hmd->debug_flag;
 	HairCurve *hair;
 	int i;
-	int tot_points = 0;
-	int valid_points = 0;
 	float imat[4][4];
 	
 	invert_m4_m4(imat, rv3d->viewmatob);
@@ -559,17 +579,10 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	if (debug_flag & MOD_HAIR_DEBUG_ROOTS)
 		draw_hair_debug_roots(hsys, ob->derivedFinal);
 	
-	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		if (debug_flag & MOD_HAIR_DEBUG_SMOOTHING)
+	if (debug_flag & MOD_HAIR_DEBUG_SMOOTHING) {
+		for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i)
 			draw_hair_curve_debug_smoothing(hsys, hair);
-		if (hair->totpoints > 1) {
-			tot_points += hair->totpoints;
-			valid_points++;
-		}
 	}
-	
-	if (debug_flag & MOD_HAIR_DEBUG_CYLINDERS)
-		draw_hair_debug_cylinders(hsys, tot_points, valid_points);
 	
 	if (hmd->debug_data) {
 		if (debug_flag & MOD_HAIR_DEBUG_FRAMES)

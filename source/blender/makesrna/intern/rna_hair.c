@@ -52,6 +52,11 @@ static void rna_HairSystem_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Poi
 }
 #endif
 
+static void rna_HairDisplaySettings_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ptr->id.data);
+}
+
 #else
 
 static void rna_def_hair_params(BlenderRNA *brna)
@@ -135,6 +140,28 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Margin", "Collision margin to avoid penetration");
 }
 
+static void rna_def_hair_display_settings(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem mode_items[] = {
+	    {HAIR_DISPLAY_LINE,     "LINE",     0, "Line",      "Show center lines representing hair"},
+	    {HAIR_DISPLAY_RENDER,   "RENDER",   0, "Render",    "Show render hairs"},
+	    {HAIR_DISPLAY_HULL,     "HULL",     0, "Hull",      "Show symbolic hulls"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
+	srna = RNA_def_struct(brna, "HairDisplaySettings", NULL);
+	RNA_def_struct_ui_text(srna, "Hair Display Settings", "");
+
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "mode");
+	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "Hair display mode");
+	RNA_def_property_update(prop, 0, "rna_HairDisplaySettings_update");
+}
+
 static void rna_def_hair_system(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -147,11 +174,17 @@ static void rna_def_hair_system(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "params");
 	RNA_def_property_struct_type(prop, "HairParams");
 	RNA_def_property_ui_text(prop, "Parameters", "Parameters for the hair simulation");
+
+	prop = RNA_def_property(srna, "display", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "display");
+	RNA_def_property_struct_type(prop, "HairDisplaySettings");
+	RNA_def_property_ui_text(prop, "Display Settings", "Display settings for the hair system");
 }
 
 void RNA_def_hair(BlenderRNA *brna)
 {
 	rna_def_hair_params(brna);
+	rna_def_hair_display_settings(brna);
 	rna_def_hair_system(brna);
 }
 

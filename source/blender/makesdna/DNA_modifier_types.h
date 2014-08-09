@@ -1388,9 +1388,8 @@ enum {
 	MOD_HAIR_DEBUG_CONTACTS     = (1 << 1),
 	MOD_HAIR_DEBUG_SIZE         = (1 << 2),
 	MOD_HAIR_DEBUG_ROOTS        = (1 << 3),
-	MOD_HAIR_DEBUG_CYLINDERS    = (1 << 4),
-	MOD_HAIR_DEBUG_SMOOTHING    = (1 << 5),
-	MOD_HAIR_DEBUG_FRAMES       = (1 << 6),
+	MOD_HAIR_DEBUG_SMOOTHING    = (1 << 4),
+	MOD_HAIR_DEBUG_FRAMES       = (1 << 5),
 };
 
 
