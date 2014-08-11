@@ -57,30 +57,99 @@
 
 /* TODO vertex/index buffers, etc. etc., avoid direct mode ... */
 
-static void draw_hair_curve(HairSystem *UNUSED(hsys), HairCurve *hair)
+static void draw_hair_line(HairSystem *hsys)
 {
-	HairPoint *point;
-	int k;
+	HairCurve *hair;
+	int i;
 	
-	glColor3f(0.4f, 0.7f, 1.0f);
-	
-	glBegin(GL_LINE_STRIP);
-	for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
-		glVertex3fv(point->co);
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		HairPoint *point;
+		int k;
+		
+		glColor3f(0.4f, 0.7f, 1.0f);
+		
+		glBegin(GL_LINE_STRIP);
+		for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
+			glVertex3fv(point->co);
+		}
+		glEnd();
+		
+		glPointSize(2.5f);
+		glBegin(GL_POINTS);
+		for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
+			if (k == 0)
+				glColor3f(1.0f, 0.0f, 1.0f);
+			else
+				glColor3f(0.2f, 0.0f, 1.0f);
+			glVertex3fv(point->co);
+		}
+		glEnd();
+		glPointSize(1.0f);
 	}
+}
+
+static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
+{
+	const float up[3] = {0.0f, 0.0f, 1.0f};
+	float normal[3];
+	
+	if (hair->totpoints >= 2) {
+		sub_v3_v3v3(normal, hair->points[1].co, hair->points[0].co);
+		normalize_v3(normal);
+		
+		copy_v3_v3(frame[0], normal);
+		madd_v3_v3v3fl(frame[1], up, normal, -dot_v3v3(up, normal));
+		normalize_v3(frame[1]);
+		cross_v3_v3v3(frame[2], frame[0], frame[1]);
+	}
+	else {
+		unit_m3(frame);
+	}
+}
+
+static void draw_hair_render(HairSystem *hsys)
+{
+	const float scale = 0.2f;
+	
+	struct HAIR_FrameIterator *iter = HAIR_frame_iter_new();
+	int i;
+	
+	glBegin(GL_LINES);
+	
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *hair = hsys->curves + i;
+		float initial_frame[3][3];
+		
+		get_hair_root_frame(hair, initial_frame);
+		
+		for (HAIR_frame_iter_init(iter, hair, hair->avg_rest_length, hsys->params.curl_smoothing, initial_frame); HAIR_frame_iter_valid(iter); HAIR_frame_iter_next(iter)) {
+			HairPoint *point = hair->points + HAIR_frame_iter_index(iter);
+			float co[3], nor[3], tan[3], cotan[3];
+			
+			copy_v3_v3(co, point->co);
+			HAIR_frame_iter_get(iter, nor, tan, cotan);
+			mul_v3_fl(nor, scale);
+			mul_v3_fl(tan, scale);
+			mul_v3_fl(cotan, scale);
+			add_v3_v3(nor, co);
+			add_v3_v3(tan, co);
+			add_v3_v3(cotan, co);
+			
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glVertex3fv(co);
+			glVertex3fv(nor);
+			glColor3f(0.0f, 1.0f, 0.0f);
+			glVertex3fv(co);
+			glVertex3fv(tan);
+			glColor3f(0.0f, 0.0f, 1.0f);
+			glVertex3fv(co);
+			glVertex3fv(cotan);
+		}
+	}
+	
 	glEnd();
 	
-	glPointSize(2.5f);
-	glBegin(GL_POINTS);
-	for (point = hair->points, k = 0; k < hair->totpoints; ++point, ++k) {
-		if (k == 0)
-			glColor3f(1.0f, 0.0f, 1.0f);
-		else
-			glColor3f(0.2f, 0.0f, 1.0f);
-		glVertex3fv(point->co);
-	}
-	glEnd();
-	glPointSize(1.0f);
+	HAIR_frame_iter_free(iter);
 }
 
 static void count_hairs(HairSystem *hsys, int *totpoints, int *validhairs)
@@ -285,8 +354,6 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 {
 	RegionView3D *rv3d = ar->regiondata;
 	Object *ob = base->object;
-	HairCurve *hair;
-	int i;
 	bool retval = true;
 	
 	glLoadMatrixf(rv3d->viewmat);
@@ -294,12 +361,10 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 	
 	switch (hsys->display.mode) {
 		case HAIR_DISPLAY_LINE:
-			for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-				draw_hair_curve(hsys, hair);
-			}
+			draw_hair_line(hsys);
 			break;
 		case HAIR_DISPLAY_RENDER:
-			// TODO
+			draw_hair_render(hsys);
 			break;
 		case HAIR_DISPLAY_HULL:
 			draw_hair_hulls(hsys);

@@ -57,6 +57,11 @@ static void rna_HairDisplaySettings_update(Main *UNUSED(bmain), Scene *UNUSED(sc
 	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ptr->id.data);
 }
 
+static void rna_HairParams_render_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ptr->id.data);
+}
+
 #else
 
 static void rna_def_hair_params(BlenderRNA *brna)
@@ -138,6 +143,15 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0f, 100.0f, 0.01f, 3);
 	RNA_def_property_float_default(prop, 0.02f);
 	RNA_def_property_ui_text(prop, "Margin", "Collision margin to avoid penetration");
+
+	/* Render Settings */
+
+	prop = RNA_def_property(srna, "curl_smoothing", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "curl_smoothing");
+	RNA_def_property_range(prop, 0.0f, 256.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 8.0f, 0.1, 2);
+	RNA_def_property_ui_text(prop, "Curl Smoothing", "Smoothing amount to avoid rotation of hair curls");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
 }
 
 static void rna_def_hair_display_settings(BlenderRNA *brna)

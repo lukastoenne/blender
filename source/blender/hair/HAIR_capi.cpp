@@ -174,6 +174,9 @@ void HAIR_solver_apply(struct HAIR_Solver *csolver, Scene *scene, Object *ob, Ha
 struct HairCurveWalker {
 	typedef float3 data_t;
 	
+	HairCurveWalker()
+	{}
+	
 	HairCurveWalker(HairCurve *curve) :
 	    curve(curve),
 	    i(0)
@@ -232,19 +235,21 @@ void HAIR_smoothing_iter_next(struct HAIR_SmoothingIteratorFloat3 *citer)
 	iter->next();
 }
 
-#if 0
-struct HAIR_FrameIterator *HAIR_frame_iter_new(HairCurve *curve, float rest_length, float amount)
+struct HAIR_FrameIterator *HAIR_frame_iter_new(void)
 {
-	HairCurveFrameIterator *iter = new HairCurveFrameIterator(HairCurveWalker(curve), rest_length, amount);
-	
-	return (struct HAIR_FrameIterator *)iter;
+	return (struct HAIR_FrameIterator *)(new HairCurveFrameIterator());
 }
 
 void HAIR_frame_iter_free(struct HAIR_FrameIterator *citer)
 {
+	delete ((HairCurveFrameIterator *)citer);
+}
+
+void HAIR_frame_iter_init(struct HAIR_FrameIterator *citer, HairCurve *curve, float rest_length, float amount, float initial_frame[3][3])
+{
 	HairCurveFrameIterator *iter = (HairCurveFrameIterator *)citer;
 	
-	delete iter;
+	*iter = HairCurveFrameIterator(HairCurveWalker(curve), rest_length, amount, Frame(initial_frame[0], initial_frame[1], initial_frame[2]));
 }
 
 bool HAIR_frame_iter_valid(struct HAIR_FrameIterator *citer)
@@ -252,6 +257,13 @@ bool HAIR_frame_iter_valid(struct HAIR_FrameIterator *citer)
 	HairCurveFrameIterator *iter = (HairCurveFrameIterator *)citer;
 	
 	return iter->valid();
+}
+
+int HAIR_frame_iter_index(struct HAIR_FrameIterator *citer)
+{
+	HairCurveFrameIterator *iter = (HairCurveFrameIterator *)citer;
+	
+	return iter->index();
 }
 
 void HAIR_frame_iter_get(struct HAIR_FrameIterator *citer, float cnor[3], float ctan[3], float ccotan[3])
@@ -269,4 +281,3 @@ void HAIR_frame_iter_next(struct HAIR_FrameIterator *citer)
 	
 	iter->next();
 }
-#endif

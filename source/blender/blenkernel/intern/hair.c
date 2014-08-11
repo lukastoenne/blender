@@ -33,6 +33,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_hair_types.h"
@@ -190,6 +191,25 @@ void BKE_hair_point_remove_position(HairSystem *UNUSED(hsys), HairCurve *hair, i
 	MEM_freeN(hair->points);
 	hair->points = npoints;
 	hair->totpoints = ntotpoints;
+}
+
+void BKE_hair_calculate_rest(HairSystem *hsys)
+{
+	HairCurve *hair;
+	int i;
+	
+	for (i = 0, hair = hsys->curves; i < hsys->totcurves; ++i, ++hair) {
+		HairPoint *point;
+		int k;
+		float tot_rest_length;
+		
+		tot_rest_length = 0.0f;
+		for (k = 1, point = hair->points + 1; k < hair->totpoints; ++k, ++point) {
+			tot_rest_length += len_v3v3((point-1)->rest_co, point->rest_co);
+		}
+		if (hair->totpoints > 1)
+			hair->avg_rest_length = tot_rest_length / (float)(hair->totpoints-1);
+	}
 }
 
 void BKE_hair_debug_data_free(HairDebugData *debug_data)

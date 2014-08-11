@@ -46,6 +46,8 @@ struct NullDefaultCtor {
 
 /* WalkerT must have the following interface:
  * 
+ * WalkerT()            : default constructor (uninitialized)
+ * operator =           : assignment/copy operator
  * data_t               : type of the returned value
  * data_t read()        : return the next value
  * int size() const     : total number of elements
@@ -54,6 +56,9 @@ struct NullDefaultCtor {
 template <typename WalkerT>
 struct SmoothingIterator {
 	typedef typename WalkerT::data_t data_t;
+	
+	SmoothingIterator()
+	{}
 	
 	SmoothingIterator(const WalkerT &_walker, float rest_length, float amount) :
 	    walker(_walker),
@@ -108,13 +113,16 @@ protected:
 	data_t res;
 	data_t dval, dval_p;
 	
-	const float beta, f1, f2, f3;
+	float beta, f1, f2, f3;
 
 	HAIR_CXX_CLASS_ALLOC(SmoothingIterator)
 };
 
 template <typename WalkerT>
 struct FrameIterator {
+	FrameIterator()
+	{}
+
 	FrameIterator(const WalkerT &walker, float rest_length, float amount, const Frame &initial_frame) :
 	    m_loc_iter(walker, rest_length, amount),
 	    m_frame(initial_frame)

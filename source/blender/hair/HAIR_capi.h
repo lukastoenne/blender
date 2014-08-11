@@ -69,13 +69,13 @@ bool HAIR_smoothing_iter_valid(struct HAIR_SmoothingIteratorFloat3 *iter);
 void HAIR_smoothing_iter_get(struct HAIR_SmoothingIteratorFloat3 *iter, float val[3]);
 void HAIR_smoothing_iter_next(struct HAIR_SmoothingIteratorFloat3 *iter);
 
-#if 0
-struct HAIR_FrameIterator *HAIR_frame_iter_new(struct HairCurve *curve, float rest_length, float amount);
+struct HAIR_FrameIterator *HAIR_frame_iter_new(void);
 void HAIR_frame_iter_free(struct HAIR_FrameIterator *iter);
+void HAIR_frame_iter_init(struct HAIR_FrameIterator *iter, struct HairCurve *curve, float rest_length, float amount, float initial_frame[3][3]);
 bool HAIR_frame_iter_valid(struct HAIR_FrameIterator *iter);
+int HAIR_frame_iter_index(struct HAIR_FrameIterator *citer);
 void HAIR_frame_iter_get(struct HAIR_FrameIterator *iter, float nor[3], float tan[3], float cotan[3]);
 void HAIR_frame_iter_next(struct HAIR_FrameIterator *iter);
-#endif
 
 #ifdef __cplusplus
 }

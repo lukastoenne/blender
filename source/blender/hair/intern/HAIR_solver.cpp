@@ -113,14 +113,6 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 		Point *pt = curve->points;
 		Point *next_pt = pt + 1;
 		
-		/* calculate average rest length */
-		curve->avg_rest_length = 0.0f;
-		if (curve->totpoints > 1) {
-			for (int k = 0; k < curve->totpoints - 1; ++k)
-				curve->avg_rest_length += len_v3(curve->points[k+1].rest_co - curve->points[k].rest_co);
-			curve->avg_rest_length /= curve->totpoints;
-		}
-		
 		if (curve->totpoints == 0)
 			continue;
 		else if (curve->totpoints == 1)

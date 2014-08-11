@@ -1262,6 +1262,11 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         
         col.separator()
         
+        col.label("Render:")
+        col2.prop(params, "curl_smoothing")
+        
+        col.separator()
+        
         col.label("Display:")
         row = col.row()
         row.prop(display, "mode", expand=True)

@@ -92,6 +92,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 		curve->root0 = curve->root1;
 		
+		curve->avg_rest_length = hair->avg_rest_length;
 		curve->rest_root_normal = float3(hair->rest_nor);
 		curve->rest_root_tangent = float3(hair->rest_tan);
 		

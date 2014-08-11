@@ -47,7 +47,7 @@ typedef struct HairPoint {
 typedef struct HairCurve {
 	HairPoint *points;          /* point data */
 	int totpoints;              /* number of points in the curve */
-	int pad;
+	float avg_rest_length;      /* average segment rest length */
 	
 	MSurfaceSample root;
 	float rest_nor[3];          /* rest normal */
@@ -70,7 +70,9 @@ typedef struct HairParams {
 	float restitution;
 	float friction;
 	float margin;
-	int pad;
+	
+	/* render settings */
+	float curl_smoothing;
 } HairParams;
 
 typedef struct HairDisplaySettings {
