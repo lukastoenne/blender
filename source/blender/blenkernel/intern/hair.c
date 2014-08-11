@@ -52,6 +52,9 @@ HairSystem *BKE_hairsys_new(void)
 	hsys->params.bend_stiffness = 40.0f;
 	hsys->params.bend_damping = 10.0f;
 	
+	hsys->params.num_render_hairs = 100;
+	hsys->params.curl_smoothing = 1.0f;
+	
 	return hsys;
 }
 
@@ -63,6 +66,10 @@ void BKE_hairsys_free(HairSystem *hsys)
 			MEM_freeN(hsys->curves[i].points);
 		MEM_freeN(hsys->curves);
 	}
+	
+	if (hsys->display.drawdata)
+		MEM_freeN(hsys->display.drawdata);
+	
 	MEM_freeN(hsys);
 }
 
@@ -74,6 +81,8 @@ HairSystem *BKE_hairsys_copy(HairSystem *hsys)
 	thsys->curves = MEM_dupallocN(hsys->curves);
 	for (i = 0; i < totcurves; ++i)
 		thsys->curves[i].points = MEM_dupallocN(hsys->curves[i].points);
+	
+	thsys->display.drawdata = NULL;
 	
 	return thsys;
 }

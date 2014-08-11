@@ -146,6 +146,13 @@ static void rna_def_hair_params(BlenderRNA *brna)
 
 	/* Render Settings */
 
+	prop = RNA_def_property(srna, "render_hairs", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "num_render_hairs");
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_range(prop, 1, 200, 1, 1);
+	RNA_def_property_int_default(prop, 100);
+	RNA_def_property_ui_text(prop, "Render Hairs", "Number of hairs rendered around each simulated hair");
+
 	prop = RNA_def_property(srna, "curl_smoothing", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "curl_smoothing");
 	RNA_def_property_range(prop, 0.0f, 256.0f);

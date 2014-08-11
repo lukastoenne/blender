@@ -72,12 +72,17 @@ typedef struct HairParams {
 	float margin;
 	
 	/* render settings */
+	int num_render_hairs;       /* render hairs per simulation hair */
+	
 	float curl_smoothing;
+	int pad;
 } HairParams;
 
 typedef struct HairDisplaySettings {
 	int mode;
 	int pad;
+	
+	struct HairDrawData *drawdata;  /* draw data cache */
 } HairDisplaySettings;
 
 typedef enum eHairDisplay_Mode {

@@ -29,6 +29,8 @@
  *  \ingroup spview3d
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_hair_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -107,23 +109,84 @@ static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
 	}
 }
 
+static int max_hair_points(HairSystem *hsys)
+{
+	HairCurve *hair;
+	int i;
+	
+	int max_points = 0;
+	for (i = 0, hair = hsys->curves; i < hsys->totcurves; ++i, ++hair) {
+		if (hair->totpoints > max_points)
+			max_points = hair->totpoints;
+	}
+	
+	return max_points;
+}
+
 static void draw_hair_render(HairSystem *hsys)
 {
 	const float scale = 0.2f;
+	int num_render_hairs = hsys->params.num_render_hairs;
+	
+	static unsigned int vertex_glbuf = 0;
+	static unsigned int elem_glbuf = 0;
+	
+	int maxpoints = max_hair_points(hsys);
+	int maxsteps = maxpoints; // TODO include interpolation
+	int maxverts = num_render_hairs * maxsteps;
+	int maxelems = num_render_hairs * 2 * (maxsteps-1);
+	
+	float (*vertex_data)[3];
+	unsigned int *elem_data;
 	
 	struct HAIR_FrameIterator *iter = HAIR_frame_iter_new();
 	int i;
 	
-	glBegin(GL_LINES);
+	if (maxelems < 1)
+		return;
+	
+#define USE_BUFFERS
+	
+#ifdef USE_BUFFERS
+	/* set up OpenGL buffers */
+	if (!vertex_glbuf) {
+		glGenBuffers(1, &vertex_glbuf);
+		glGenBuffers(1, &elem_glbuf);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_glbuf);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elem_glbuf);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * maxverts, NULL, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * maxelems, NULL, GL_DYNAMIC_DRAW);
+	
+	glEnableClientState(GL_VERTEX_ARRAY);
+	
+	glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), NULL);
+#else
+	vertex_data = MEM_mallocN(sizeof(float) * 3 * maxverts, "hair vertex data");
+	elem_data = MEM_mallocN(sizeof(unsigned int) * maxelems, "hair elem data");
+#endif
+	
+//	glEnable(GL_LIGHTING);
 	
 	for (i = 0; i < hsys->totcurves; ++i) {
 		HairCurve *hair = hsys->curves + i;
+		int totsteps = hair->totpoints; // TODO include interpolation
+		/*int totverts = num_render_hairs * totsteps;*/ /* unused */
+		int totelems = num_render_hairs * 2 * (totsteps-1);
+		unsigned int vertex_offset = 0;
+		unsigned int elem_offset = 0;
 		float initial_frame[3][3];
 		
 		get_hair_root_frame(hair, initial_frame);
 		
+#ifdef USE_BUFFERS
+		vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+		elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+#endif
+		
 		for (HAIR_frame_iter_init(iter, hair, hair->avg_rest_length, hsys->params.curl_smoothing, initial_frame); HAIR_frame_iter_valid(iter); HAIR_frame_iter_next(iter)) {
 			HairPoint *point = hair->points + HAIR_frame_iter_index(iter);
+			int a;
 			float co[3], nor[3], tan[3], cotan[3];
 			
 			copy_v3_v3(co, point->co);
@@ -135,21 +198,53 @@ static void draw_hair_render(HairSystem *hsys)
 			add_v3_v3(tan, co);
 			add_v3_v3(cotan, co);
 			
-			glColor3f(1.0f, 0.0f, 0.0f);
-			glVertex3fv(co);
-			glVertex3fv(nor);
-			glColor3f(0.0f, 1.0f, 0.0f);
-			glVertex3fv(co);
-			glVertex3fv(tan);
-			glColor3f(0.0f, 0.0f, 1.0f);
-			glVertex3fv(co);
-			glVertex3fv(cotan);
+			for (a = 0; a < num_render_hairs; ++a) {
+				copy_v3_v3(vertex_data[vertex_offset], co);
+				
+				if (HAIR_frame_iter_index(iter) < hair->totpoints - 1) {
+					elem_data[elem_offset] = vertex_offset;
+					elem_data[elem_offset + 1] = vertex_offset + 1;
+				}
+				
+				vertex_offset += 1;
+				elem_offset += 2;
+			}
 		}
+		
+#ifdef USE_BUFFERS
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+		glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+		
+		/* draw */
+//		glShadeModel(GL_SMOOTH);
+		glDrawElements(GL_LINES, totelems, GL_UNSIGNED_INT, NULL);
+#else
+		{
+			int u;
+			glBegin(GL_LINES);
+			for (u = 0; u < totelems; ++u) {
+				glVertex3fv(vertex_data[elem_data[u]]);
+			}
+			glEnd();
+		}
+#endif
 	}
 	
-	glEnd();
+#ifdef USE_BUFFERS
+//	glDisable(GL_LIGHTING);
+	
+	glDisableClientState(GL_VERTEX_ARRAY);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#else
+	MEM_freeN(vertex_data);
+	MEM_freeN(elem_data);
+#endif
 	
 	HAIR_frame_iter_free(iter);
+	
+#undef USE_BUFFERS
 }
 
 static void count_hairs(HairSystem *hsys, int *totpoints, int *validhairs)

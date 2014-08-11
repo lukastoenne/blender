@@ -1263,6 +1263,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.separator()
         
         col.label("Render:")
+        col2.prop(params, "render_hairs")
         col2.prop(params, "curl_smoothing")
         
         col.separator()
