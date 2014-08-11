@@ -39,6 +39,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
@@ -123,10 +124,33 @@ static int max_hair_points(HairSystem *hsys)
 	return max_points;
 }
 
+typedef struct HairRenderData {
+	float u, v;
+} HairRenderData;
+
+static HairRenderData *gen_render_hairs(HairParams *params, unsigned int seed)
+{
+	int num_render_hairs = params->num_render_hairs;
+	HairRenderData *hair, *data = MEM_mallocN(sizeof(HairRenderData) * num_render_hairs, "hair render data");
+	RNG *rng;
+	int i;
+	
+	rng = BLI_rng_new(seed);
+	
+	for (i = 0, hair = data; i < num_render_hairs; ++i, ++hair) {
+		hair->u = BLI_rng_get_float(rng)*2.0f - 1.0f;
+		hair->v = BLI_rng_get_float(rng)*2.0f - 1.0f;
+	}
+	
+	BLI_rng_free(rng);
+	
+	return data;
+}
+
 static void draw_hair_render(HairSystem *hsys)
 {
-	const float scale = 0.2f;
 	int num_render_hairs = hsys->params.num_render_hairs;
+	HairRenderData *render_data;
 	
 	static unsigned int vertex_glbuf = 0;
 	static unsigned int elem_glbuf = 0;
@@ -144,6 +168,11 @@ static void draw_hair_render(HairSystem *hsys)
 	
 	if (maxelems < 1)
 		return;
+	
+	/* TODO handle seeds properly here ... */
+	render_data = gen_render_hairs(&hsys->params, 12345);
+	
+	glColor3f(0.4f, 0.7f, 1.0f);
 	
 #define USE_BUFFERS
 	
@@ -175,6 +204,7 @@ static void draw_hair_render(HairSystem *hsys)
 		int totelems = num_render_hairs * 2 * (totsteps-1);
 		unsigned int vertex_offset = 0;
 		unsigned int elem_offset = 0;
+		unsigned int start_vertex = 0;
 		float initial_frame[3][3];
 		
 		get_hair_root_frame(hair, initial_frame);
@@ -185,30 +215,31 @@ static void draw_hair_render(HairSystem *hsys)
 #endif
 		
 		for (HAIR_frame_iter_init(iter, hair, hair->avg_rest_length, hsys->params.curl_smoothing, initial_frame); HAIR_frame_iter_valid(iter); HAIR_frame_iter_next(iter)) {
-			HairPoint *point = hair->points + HAIR_frame_iter_index(iter);
+			int point_index = HAIR_frame_iter_index(iter);
+			HairPoint *point = hair->points + point_index;
+			float radius = point->radius;
 			int a;
 			float co[3], nor[3], tan[3], cotan[3];
 			
-			copy_v3_v3(co, point->co);
 			HAIR_frame_iter_get(iter, nor, tan, cotan);
-			mul_v3_fl(nor, scale);
-			mul_v3_fl(tan, scale);
-			mul_v3_fl(cotan, scale);
-			add_v3_v3(nor, co);
-			add_v3_v3(tan, co);
-			add_v3_v3(cotan, co);
+			
+			copy_v3_v3(co, point->co);
 			
 			for (a = 0; a < num_render_hairs; ++a) {
 				copy_v3_v3(vertex_data[vertex_offset], co);
+				madd_v3_v3fl(vertex_data[vertex_offset], tan, render_data[a].u * radius);
+				madd_v3_v3fl(vertex_data[vertex_offset], cotan, render_data[a].v * radius);
 				
 				if (HAIR_frame_iter_index(iter) < hair->totpoints - 1) {
-					elem_data[elem_offset] = vertex_offset;
-					elem_data[elem_offset + 1] = vertex_offset + 1;
+					elem_data[elem_offset] = start_vertex + a;
+					elem_data[elem_offset + 1] = start_vertex + a + num_render_hairs;
 				}
 				
 				vertex_offset += 1;
 				elem_offset += 2;
 			}
+			
+			start_vertex += num_render_hairs;
 		}
 		
 #ifdef USE_BUFFERS
@@ -243,6 +274,8 @@ static void draw_hair_render(HairSystem *hsys)
 #endif
 	
 	HAIR_frame_iter_free(iter);
+	
+	MEM_freeN(render_data);
 	
 #undef USE_BUFFERS
 }
