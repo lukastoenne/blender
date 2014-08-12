@@ -34,12 +34,15 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
+#include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_hair_types.h"
 
 #include "BKE_hair.h"
 #include "BKE_mesh_sample.h"
+
+#include "HAIR_capi.h"
 
 HairSystem *BKE_hairsys_new(void)
 {
@@ -232,6 +235,9 @@ void BKE_hair_debug_data_free(HairDebugData *debug_data)
 	}
 }
 
+
+/* ================ Render ================ */
+
 static int hair_maxpoints(HairSystem *hsys)
 {
 	HairCurve *hair;
@@ -244,12 +250,74 @@ static int hair_maxpoints(HairSystem *hsys)
 	return maxpoints;
 }
 
+static HairRenderChildData *hair_gen_child_data(HairParams *params, unsigned int seed)
+{
+	int num_render_hairs = params->num_render_hairs;
+	HairRenderChildData *hair, *data = MEM_mallocN(sizeof(HairRenderChildData) * num_render_hairs, "hair render data");
+	RNG *rng;
+	int i;
+	
+	rng = BLI_rng_new(seed);
+	
+	for (i = 0, hair = data; i < num_render_hairs; ++i, ++hair) {
+		hair->u = BLI_rng_get_float(rng)*2.0f - 1.0f;
+		hair->v = BLI_rng_get_float(rng)*2.0f - 1.0f;
+	}
+	
+	BLI_rng_free(rng);
+	
+	return data;
+}
+
+static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
+{
+	const float up[3] = {0.0f, 0.0f, 1.0f};
+	float normal[3];
+	
+	if (hair->totpoints >= 2) {
+		sub_v3_v3v3(normal, hair->points[1].co, hair->points[0].co);
+		normalize_v3(normal);
+		
+		copy_v3_v3(frame[0], normal);
+		madd_v3_v3v3fl(frame[1], up, normal, -dot_v3v3(up, normal));
+		normalize_v3(frame[1]);
+		cross_v3_v3v3(frame[2], frame[0], frame[1]);
+	}
+	else {
+		unit_m3(frame);
+	}
+}
+
+static void hair_precalc_cache(HairRenderIterator *iter)
+{
+	struct HAIR_FrameIterator *frame_iter = HAIR_frame_iter_new();
+	HairPointRenderCache *cache = iter->hair_cache;
+	float initial_frame[3][3];
+	int i;
+	
+	get_hair_root_frame(iter->hair, initial_frame);
+	
+	for (HAIR_frame_iter_init(frame_iter, iter->hair, iter->hair->avg_rest_length, iter->hsys->params.curl_smoothing, initial_frame);
+	     HAIR_frame_iter_valid(frame_iter);
+	     HAIR_frame_iter_next(iter)) {
+		
+		HAIR_frame_iter_get(frame_iter, cache->frame[0], cache->frame[1], cache->frame[2]);
+		/* matrix is stored row-major, needs to be transposed */
+		transpose_m3(cache->frame);
+		
+		++cache;
+	}
+}
+
 void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
 {
 	iter->hsys = hsys;
 	iter->maxpoints = hair_maxpoints(hsys);
 	iter->hair_cache = MEM_mallocN(sizeof(HairPointRenderCache) * iter->maxpoints, "hair render cache data");
 	iter->steps_per_point = 1; // XXX TODO!
+	
+	iter->maxchildren = hsys->params.num_render_hairs;
+	iter->child_data = hair_gen_child_data(&hsys->params, 12345); /* TODO handle seeds properly here ... */
 	
 	iter->hair = hsys->curves;
 	iter->i = 0;
@@ -262,12 +330,18 @@ void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
 	
 	iter->step = 0;
 	iter->totsteps = (iter->hair->totpoints - 1) * iter->steps_per_point + 1;
+	
+	/* fill the hair cache to avoid redundant per-child calculations */
+	hair_precalc_cache(iter);
 }
 
 void BKE_hair_render_iter_end(HairRenderIterator *iter)
 {
 	if (iter->hair_cache)
 		MEM_freeN(iter->hair_cache);
+	
+	if (iter->child_data)
+		MEM_freeN(iter->child_data);
 }
 
 bool BKE_hair_render_iter_valid_hair(HairRenderIterator *iter)

@@ -39,7 +39,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
@@ -91,52 +90,8 @@ static void draw_hair_line(HairSystem *hsys)
 	}
 }
 
-static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
-{
-	const float up[3] = {0.0f, 0.0f, 1.0f};
-	float normal[3];
-	
-	if (hair->totpoints >= 2) {
-		sub_v3_v3v3(normal, hair->points[1].co, hair->points[0].co);
-		normalize_v3(normal);
-		
-		copy_v3_v3(frame[0], normal);
-		madd_v3_v3v3fl(frame[1], up, normal, -dot_v3v3(up, normal));
-		normalize_v3(frame[1]);
-		cross_v3_v3v3(frame[2], frame[0], frame[1]);
-	}
-	else {
-		unit_m3(frame);
-	}
-}
-
-typedef struct HairRenderData {
-	float u, v;
-} HairRenderData;
-
-static HairRenderData *gen_render_hairs(HairParams *params, unsigned int seed)
-{
-	int num_render_hairs = params->num_render_hairs;
-	HairRenderData *hair, *data = MEM_mallocN(sizeof(HairRenderData) * num_render_hairs, "hair render data");
-	RNG *rng;
-	int i;
-	
-	rng = BLI_rng_new(seed);
-	
-	for (i = 0, hair = data; i < num_render_hairs; ++i, ++hair) {
-		hair->u = BLI_rng_get_float(rng)*2.0f - 1.0f;
-		hair->v = BLI_rng_get_float(rng)*2.0f - 1.0f;
-	}
-	
-	BLI_rng_free(rng);
-	
-	return data;
-}
-
 static void draw_hair_render(HairSystem *hsys)
 {
-	HairRenderData *render_data;
-	
 	static unsigned int vertex_glbuf = 0;
 	static unsigned int elem_glbuf = 0;
 	
@@ -155,9 +110,6 @@ static void draw_hair_render(HairSystem *hsys)
 		BKE_hair_render_iter_end(&iter);
 		return;
 	}
-	
-	/* TODO handle seeds properly here ... */
-	render_data = gen_render_hairs(&hsys->params, 12345);
 	
 	glColor3f(0.4f, 0.7f, 1.0f);
 	
@@ -188,9 +140,6 @@ static void draw_hair_render(HairSystem *hsys)
 		int totelems;
 		unsigned int vertex_offset = 0;
 		unsigned int elem_offset = 0;
-		float initial_frame[3][3];
-		
-		get_hair_root_frame(iter.hair, initial_frame);
 		
 #ifdef USE_BUFFERS
 		vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
@@ -248,8 +197,6 @@ static void draw_hair_render(HairSystem *hsys)
 #endif
 	
 	BKE_hair_render_iter_end(&iter);
-	
-	MEM_freeN(render_data);
 	
 #undef USE_BUFFERS
 }

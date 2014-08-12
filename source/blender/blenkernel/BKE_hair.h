@@ -60,11 +60,18 @@ typedef struct HairPointRenderCache {
 	float frame[3][3];
 } HairPointRenderCache;
 
+typedef struct HairRenderChildData {
+	float u, v;
+} HairRenderChildData;
+
 typedef struct HairRenderIterator {
 	struct HairSystem *hsys;
 	struct HairPointRenderCache *hair_cache; /* array of maxpoints elements to avoid recalculating per child hair */
 	int maxpoints;
 	int steps_per_point;
+	
+	HairRenderChildData *child_data;
+	int maxchildren;
 	
 	/* hair curve data */
 	struct HairCurve *hair;
