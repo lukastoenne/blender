@@ -231,3 +231,84 @@ void BKE_hair_debug_data_free(HairDebugData *debug_data)
 		MEM_freeN(debug_data);
 	}
 }
+
+static int hair_maxpoints(HairSystem *hsys)
+{
+	HairCurve *hair;
+	int i;
+	int maxpoints = 0;
+	for (i = 0, hair = hsys->curves; i < hsys->totcurves; ++i, ++hair) {
+		if (hair->totpoints > maxpoints)
+			maxpoints = hair->totpoints;
+	}
+	return maxpoints;
+}
+
+void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
+{
+	iter->hsys = hsys;
+	iter->maxpoints = hair_maxpoints(hsys);
+	iter->hair_cache = MEM_mallocN(sizeof(HairPointRenderCache) * iter->maxpoints, "hair render cache data");
+	iter->steps_per_point = 1; // XXX TODO!
+	
+	iter->hair = hsys->curves;
+	iter->i = 0;
+}
+
+void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
+{
+	iter->point = iter->hair->points;
+	iter->k = 0;
+	
+	iter->step = 0;
+	iter->totsteps = (iter->hair->totpoints - 1) * iter->steps_per_point + 1;
+}
+
+void BKE_hair_render_iter_end(HairRenderIterator *iter)
+{
+	if (iter->hair_cache)
+		MEM_freeN(iter->hair_cache);
+}
+
+bool BKE_hair_render_iter_valid_hair(HairRenderIterator *iter)
+{
+	return iter->i < iter->hsys->totcurves;
+}
+
+bool BKE_hair_render_iter_valid_step(HairRenderIterator *iter)
+{
+	return iter->step < iter->totsteps;
+}
+
+void BKE_hair_render_iter_next(HairRenderIterator *iter)
+{
+	++iter->step;
+	
+	if (iter->step >= iter->totsteps) {
+		++iter->hair;
+		++iter->i;
+	}
+	else if (iter->step % iter->steps_per_point == 0) {
+		++iter->point;
+		++iter->k;
+	}
+}
+
+void BKE_hair_render_iter_get(HairRenderIterator *iter, float co[3], float *radius)
+{
+	if (iter->step < iter->totsteps - 1) {
+		int i = iter->step % iter->steps_per_point;
+		float t = (float)i / (float)iter->steps_per_point;
+		float mt = 1.0f - t;
+		HairPoint *pt0 = iter->point, *pt1 = pt0 + 1;
+		
+		interp_v3_v3v3(co, pt0->co, pt1->co, t);
+		*radius = pt0->radius * mt + pt1->radius * t;
+	}
+	else {
+		HairPoint *pt0 = iter->point;
+		
+		copy_v3_v3(co, pt0->co);
+		*radius = pt0->radius;
+	}
+}

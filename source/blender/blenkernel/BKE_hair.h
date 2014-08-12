@@ -55,4 +55,34 @@ void BKE_hair_calculate_rest(struct HairSystem *hsys);
 
 void BKE_hair_debug_data_free(struct HairDebugData *debug_data);
 
+/* cached per-hair data */
+typedef struct HairPointRenderCache {
+	float frame[3][3];
+} HairPointRenderCache;
+
+typedef struct HairRenderIterator {
+	struct HairSystem *hsys;
+	struct HairPointRenderCache *hair_cache; /* array of maxpoints elements to avoid recalculating per child hair */
+	int maxpoints;
+	int steps_per_point;
+	
+	/* hair curve data */
+	struct HairCurve *hair;
+	int i;
+	
+	/* hair point data */
+	struct HairPoint *point;
+	int k;
+	
+	int step, totsteps;
+} HairRenderIterator;
+
+void BKE_hair_render_iter_init(struct HairRenderIterator *iter, struct HairSystem *hsys);
+void BKE_hair_render_iter_end(struct HairRenderIterator *iter);
+void BKE_hair_render_iter_init_hair(struct HairRenderIterator *iter);
+bool BKE_hair_render_iter_valid_hair(struct HairRenderIterator *iter);
+bool BKE_hair_render_iter_valid_step(struct HairRenderIterator *iter);
+void BKE_hair_render_iter_next(struct HairRenderIterator *iter);
+void BKE_hair_render_iter_get(struct HairRenderIterator *iter, float co[3], float *radius);
+
 #endif

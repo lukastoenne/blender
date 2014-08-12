@@ -110,20 +110,6 @@ static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
 	}
 }
 
-static int max_hair_points(HairSystem *hsys)
-{
-	HairCurve *hair;
-	int i;
-	
-	int max_points = 0;
-	for (i = 0, hair = hsys->curves; i < hsys->totcurves; ++i, ++hair) {
-		if (hair->totpoints > max_points)
-			max_points = hair->totpoints;
-	}
-	
-	return max_points;
-}
-
 typedef struct HairRenderData {
 	float u, v;
 } HairRenderData;
@@ -149,25 +135,26 @@ static HairRenderData *gen_render_hairs(HairParams *params, unsigned int seed)
 
 static void draw_hair_render(HairSystem *hsys)
 {
-	int num_render_hairs = hsys->params.num_render_hairs;
 	HairRenderData *render_data;
 	
 	static unsigned int vertex_glbuf = 0;
 	static unsigned int elem_glbuf = 0;
 	
-	int maxpoints = max_hair_points(hsys);
-	int maxsteps = maxpoints; // TODO include interpolation
-	int maxverts = num_render_hairs * maxsteps;
-	int maxelems = num_render_hairs * 2 * (maxsteps-1);
+	int maxsteps, maxverts, maxelems;
 	
 	float (*vertex_data)[3];
 	unsigned int *elem_data;
 	
-	struct HAIR_FrameIterator *iter = HAIR_frame_iter_new();
-	int i;
+	HairRenderIterator iter;
 	
-	if (maxelems < 1)
+	BKE_hair_render_iter_init(&iter, hsys);
+	maxsteps = iter.maxpoints * iter.steps_per_point;
+	maxverts = maxsteps;
+	maxelems = 2 * (maxsteps - 1);
+	if (maxelems < 1) {
+		BKE_hair_render_iter_end(&iter);
 		return;
+	}
 	
 	/* TODO handle seeds properly here ... */
 	render_data = gen_render_hairs(&hsys->params, 12345);
@@ -197,49 +184,36 @@ static void draw_hair_render(HairSystem *hsys)
 	
 //	glEnable(GL_LIGHTING);
 	
-	for (i = 0; i < hsys->totcurves; ++i) {
-		HairCurve *hair = hsys->curves + i;
-		int totsteps = hair->totpoints; // TODO include interpolation
-		/*int totverts = num_render_hairs * totsteps;*/ /* unused */
-		int totelems = num_render_hairs * 2 * (totsteps-1);
+	while (BKE_hair_render_iter_valid_hair(&iter)) {
+		int totelems;
 		unsigned int vertex_offset = 0;
 		unsigned int elem_offset = 0;
-		unsigned int start_vertex = 0;
 		float initial_frame[3][3];
 		
-		get_hair_root_frame(hair, initial_frame);
+		get_hair_root_frame(iter.hair, initial_frame);
 		
 #ifdef USE_BUFFERS
 		vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 		elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
 #endif
+		BKE_hair_render_iter_init_hair(&iter);
+		totelems = 2 * (iter.totsteps-1);
 		
-		for (HAIR_frame_iter_init(iter, hair, hair->avg_rest_length, hsys->params.curl_smoothing, initial_frame); HAIR_frame_iter_valid(iter); HAIR_frame_iter_next(iter)) {
-			int point_index = HAIR_frame_iter_index(iter);
-			HairPoint *point = hair->points + point_index;
-			float radius = point->radius;
-			int a;
-			float co[3], nor[3], tan[3], cotan[3];
+		for (; BKE_hair_render_iter_valid_step(&iter); BKE_hair_render_iter_next(&iter)) {
+			float radius;
+			float co[3];
 			
-			HAIR_frame_iter_get(iter, nor, tan, cotan);
+			BKE_hair_render_iter_get(&iter, co, &radius);
 			
-			copy_v3_v3(co, point->co);
+			copy_v3_v3(vertex_data[vertex_offset], co);
 			
-			for (a = 0; a < num_render_hairs; ++a) {
-				copy_v3_v3(vertex_data[vertex_offset], co);
-				madd_v3_v3fl(vertex_data[vertex_offset], tan, render_data[a].u * radius);
-				madd_v3_v3fl(vertex_data[vertex_offset], cotan, render_data[a].v * radius);
-				
-				if (HAIR_frame_iter_index(iter) < hair->totpoints - 1) {
-					elem_data[elem_offset] = start_vertex + a;
-					elem_data[elem_offset + 1] = start_vertex + a + num_render_hairs;
-				}
-				
-				vertex_offset += 1;
-				elem_offset += 2;
+			if (iter.step < iter.totsteps - 1) {
+				elem_data[elem_offset] = vertex_offset;
+				elem_data[elem_offset + 1] = vertex_offset + 1;
 			}
 			
-			start_vertex += num_render_hairs;
+			vertex_offset += 1;
+			elem_offset += 2;
 		}
 		
 #ifdef USE_BUFFERS
@@ -273,7 +247,7 @@ static void draw_hair_render(HairSystem *hsys)
 	MEM_freeN(elem_data);
 #endif
 	
-	HAIR_frame_iter_free(iter);
+	BKE_hair_render_iter_end(&iter);
 	
 	MEM_freeN(render_data);
 	
