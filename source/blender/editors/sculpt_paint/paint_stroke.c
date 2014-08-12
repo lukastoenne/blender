@@ -213,6 +213,9 @@ static bool paint_brush_update(bContext *C,
 		copy_v2_v2(ups->mask_tex_mouse, mouse);
 		stroke->cached_size_pressure = pressure;
 
+		ups->do_linear_conversion = false;
+		ups->colorspace = NULL;
+
 		/* check here if color sampling the main brush should do color conversion. This is done here
 		 * to avoid locking up to get the image buffer during sampling */
 		if (brush->mtex.tex && brush->mtex.tex->type == TEX_IMAGE && brush->mtex.tex->ima) {
@@ -1118,6 +1121,11 @@ ViewContext *paint_stroke_view_context(PaintStroke *stroke)
 void *paint_stroke_mode_data(struct PaintStroke *stroke)
 {
 	return stroke->mode_data;
+}
+
+bool paint_stroke_flipped(struct PaintStroke *stroke)
+{
+	return stroke->pen_flip;
 }
 
 float paint_stroke_distance_get(struct PaintStroke *stroke)
