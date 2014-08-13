@@ -223,10 +223,9 @@ enum PathTraceDimension {
 	PRNG_PHASE_V = 9,
 	PRNG_PHASE = 10,
 	PRNG_SCATTER_DISTANCE = 11,
-	PRNG_BOUNCE_NUM = 12,
-#else
-	PRNG_BOUNCE_NUM = 8,
 #endif
+
+	PRNG_BOUNCE_NUM = 12,
 };
 
 enum SamplingPattern {
@@ -524,14 +523,14 @@ typedef struct ShaderClosure {
 	ClosureType type;
 	float3 weight;
 
-	float sample_weight;
-
 	float data0;
 	float data1;
 	float data2;
 
 	float3 N;
 	float3 T;
+	
+	float sample_weight;
 
 #ifdef __OSL__
 	void *prim;
@@ -593,6 +592,7 @@ enum ShaderDataFlag {
 	SD_HOLDOUT_MASK = 524288,			/* holdout for camera rays */
 	SD_OBJECT_MOTION = 1048576,			/* has object motion blur */
 	SD_TRANSFORM_APPLIED = 2097152,		/* vertices have transform applied */
+	SD_NEGATIVE_SCALE_APPLIED = 4194304,	/* vertices have negative scale applied */
 
 	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED)
 };

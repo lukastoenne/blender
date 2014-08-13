@@ -2049,6 +2049,41 @@ static void WM_OT_call_menu(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the menu");
 }
 
+static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	char idname[BKE_ST_MAXNAME];
+	RNA_string_get(op->ptr, "name", idname);
+
+	uiPieMenuInvoke(C, idname, event);
+
+	return OPERATOR_CANCELLED;
+}
+
+static int wm_call_pie_menu_exec(bContext *C, wmOperator *op)
+{
+	char idname[BKE_ST_MAXNAME];
+	RNA_string_get(op->ptr, "name", idname);
+
+	uiPieMenuInvoke(C, idname, CTX_wm_window(C)->eventstate);
+
+	return OPERATOR_CANCELLED;
+}
+
+static void WM_OT_call_menu_pie(wmOperatorType *ot)
+{
+	ot->name = "Call Pie Menu";
+	ot->idname = "WM_OT_call_menu_pie";
+	ot->description = "Call (draw) a pre-defined pie menu";
+
+	ot->invoke = wm_call_pie_menu_invoke;
+	ot->exec = wm_call_pie_menu_exec;
+	ot->poll = WM_operator_winactive;
+
+	ot->flag = OPTYPE_INTERNAL;
+
+	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
+}
+
 /* ************ window / screen operator definitions ************** */
 
 /* this poll functions is needed in place of WM_operator_winactive
@@ -4165,8 +4200,6 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 
 static void WM_OT_radial_control(wmOperatorType *ot)
 {
-	PropertyRNA *prop;
-
 	ot->name = "Radial Control";
 	ot->idname = "WM_OT_radial_control";
 	ot->description = "Set some size property (like e.g. brush size) with mouse wheel";
@@ -4178,32 +4211,23 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	/* all paths relative to the context */
-	prop = RNA_def_string(ot->srna, "data_path_primary", NULL, 0, "Primary Data Path", "Primary path of property to be set by the radial control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "data_path_primary", NULL, 0, "Primary Data Path", "Primary path of property to be set by the radial control");
 
-	prop = RNA_def_string(ot->srna, "data_path_secondary", NULL, 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "data_path_secondary", NULL, 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
 
-	prop = RNA_def_string(ot->srna, "use_secondary", NULL, 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "use_secondary", NULL, 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
 
-	prop = RNA_def_string(ot->srna, "rotation_path", NULL, 0, "Rotation Path", "Path of property used to rotate the texture display");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "rotation_path", NULL, 0, "Rotation Path", "Path of property used to rotate the texture display");
 
-	prop = RNA_def_string(ot->srna, "color_path", NULL, 0, "Color Path", "Path of property used to set the color of the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "color_path", NULL, 0, "Color Path", "Path of property used to set the color of the control");
 
-	prop = RNA_def_string(ot->srna, "fill_color_path", NULL, 0, "Fill Color Path", "Path of property used to set the fill color of the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "fill_color_path", NULL, 0, "Fill Color Path", "Path of property used to set the fill color of the control");
 
-	prop = RNA_def_string(ot->srna, "zoom_path", NULL, 0, "Zoom Path", "Path of property used to set the zoom level for the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "zoom_path", NULL, 0, "Zoom Path", "Path of property used to set the zoom level for the control");
 
-	prop = RNA_def_string(ot->srna, "image_id", NULL, 0, "Image ID", "Path of ID that is used to generate an image for the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "image_id", NULL, 0, "Image ID", "Path of ID that is used to generate an image for the control");
 
-	prop = RNA_def_boolean(ot->srna, "secondary_tex", 0, "Secondary Texture", "Tweak brush secondary/mask texture");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_boolean(ot->srna, "secondary_tex", 0, "Secondary Texture", "Tweak brush secondary/mask texture");
 }
 
 /* ************************** timer for testing ***************** */
@@ -4438,6 +4462,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_splash);
 	WM_operatortype_append(WM_OT_search_menu);
 	WM_operatortype_append(WM_OT_call_menu);
+	WM_operatortype_append(WM_OT_call_menu_pie);
 	WM_operatortype_append(WM_OT_radial_control);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);

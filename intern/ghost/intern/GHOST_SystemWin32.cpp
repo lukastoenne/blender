@@ -46,6 +46,7 @@
 
 #include <shlobj.h>
 #include <tlhelp32.h>
+#include <Psapi.h>
 
 #include "utfconv.h"
 
@@ -113,6 +114,17 @@
 #ifndef VK_MEDIA_PLAY_PAUSE
 #define VK_MEDIA_PLAY_PAUSE 0xB3
 #endif // VK_MEDIA_PLAY_PAUSE
+
+/* Workaround for some laptop touchpads, some of which seems to
+ * have driver issues which makes it so window function receives
+ * the message, but PeekMessage doesn't pick those messages for
+ * some reason.
+ *
+ * We send a dummy WM_USER message to force PeekMessage to receive
+ * something, making it so blender's window manager sees the new
+ * messages coming in.
+ */
+#define BROKEN_PEEK_TOUCHPAD
 
 static void initRawInput()
 {
@@ -1052,6 +1064,10 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					 * until it finds a window that processes it.
 					 */
 					event = processWheelEvent(window, wParam, lParam);
+
+#ifdef BROKEN_PEEK_TOUCHPAD
+					PostMessage(hwnd, WM_USER, 0, 0);
+#endif
 					break;
 				case WM_SETCURSOR:
 					/* The WM_SETCURSOR message is sent to a window if the mouse causes the cursor
@@ -1383,16 +1399,63 @@ void GHOST_SystemWin32::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 	}
 }
 
+static DWORD GetParentProcessID(void)
+{
+	HANDLE snapshot;
+	PROCESSENTRY32 pe32 = {0};
+	DWORD ppid = 0, pid = GetCurrentProcessId();
+	snapshot = CreateToolhelp32Snapshot( TH32CS_SNAPPROCESS, 0 );
+	if (snapshot == INVALID_HANDLE_VALUE) {
+		return -1;
+	}
+	pe32.dwSize = sizeof( pe32 );
+	if (!Process32First(snapshot, &pe32)) {
+		CloseHandle(snapshot);
+		return -1;
+	}
+	do {
+		if (pe32.th32ProcessID == pid) {
+			ppid = pe32.th32ParentProcessID;
+			break;
+		}
+	} while (Process32Next(snapshot, &pe32));
+	CloseHandle(snapshot);
+	return ppid;
+}
+
+static bool getProcessName(int pid, char *buffer, int max_len)
+{
+	bool result = false;
+	HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+	                            FALSE, pid);
+	if (handle) {
+		GetModuleFileNameEx(handle, 0, buffer, max_len);
+		result = true;
+	}
+	CloseHandle(handle);
+	return result;
+}
+
 static bool isStartedFromCommandPrompt()
 {
 	HWND hwnd = GetConsoleWindow();
 	
 	if (hwnd) {
 		DWORD pid = (DWORD)-1;
+		DWORD ppid = GetParentProcessID();
+		char parent_name[MAX_PATH];
+		bool start_from_launcher = false;
 
 		GetWindowThreadProcessId(hwnd, &pid);
+		if (getProcessName(ppid, parent_name, sizeof(parent_name))) {
+			char *filename = strrchr(parent_name, '\\');
+			if (filename != NULL) {
+				start_from_launcher = strstr(filename, "blender.exe") != NULL;
+			}
+		}
 
-		if (pid == GetCurrentProcessId())
+		/* When we're starting from a wrapper we need to compare with parent process ID. */
+		if (pid == (start_from_launcher ? ppid : GetCurrentProcessId()))
 			return true;
 	}
 

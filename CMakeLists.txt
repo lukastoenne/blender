@@ -283,7 +283,11 @@ unset(PLATFORM_DEFAULT)
 
 # LLVM
 option(WITH_LLVM					"Use LLVM" OFF)
-option(LLVM_STATIC					"Link with LLVM static libraries" OFF)
+if(APPLE)
+	option(LLVM_STATIC					"Link with LLVM static libraries" ON) # we prefer static llvm build on Apple, dyn build possible though
+else()
+	option(LLVM_STATIC					"Link with LLVM static libraries" OFF)
+endif()
 mark_as_advanced(LLVM_STATIC)
 
 # disable for now, but plan to support on all platforms eventually
@@ -1194,13 +1198,23 @@ elseif(WIN32)
 			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
 			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
-			set(OPENEXR_LIBRARIES
-				${OPENEXR_LIBPATH}/Iex.lib
-				${OPENEXR_LIBPATH}/Half.lib
-				${OPENEXR_LIBPATH}/IlmImf.lib
-				${OPENEXR_LIBPATH}/Imath.lib
-				${OPENEXR_LIBPATH}/IlmThread.lib
-			)
+			if(MSVC12)
+				set(OPENEXR_LIBRARIES
+					${OPENEXR_LIBPATH}/Iex-2_1.lib
+					${OPENEXR_LIBPATH}/Half.lib
+					${OPENEXR_LIBPATH}/IlmImf-2_1.lib
+					${OPENEXR_LIBPATH}/Imath-2_1.lib
+					${OPENEXR_LIBPATH}/IlmThread-2_1.lib
+				)
+			else()
+				set(OPENEXR_LIBRARIES
+					${OPENEXR_LIBPATH}/Iex.lib
+					${OPENEXR_LIBPATH}/Half.lib
+					${OPENEXR_LIBPATH}/IlmImf.lib
+					${OPENEXR_LIBPATH}/Imath.lib
+					${OPENEXR_LIBPATH}/IlmThread.lib
+				)
+			endif()
 			endif(NOT OPENEXR_FOUND)
 		endif()
 
@@ -1891,6 +1905,8 @@ elseif(APPLE)
 				                OUTPUT_VARIABLE LLVM_LIBRARY
 				                OUTPUT_STRIP_TRAILING_WHITESPACE)
 				string(REPLACE " " ";" LLVM_LIBRARY ${LLVM_LIBRARY})
+			else()
+				set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -lLLVM-3.4")
 			endif()
 		else()
 			message(FATAL_ERROR "LLVM not found.")
