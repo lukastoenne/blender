@@ -80,11 +80,13 @@ static void copyData(ModifierData *md, ModifierData *target)
 	thmd->debug_data = NULL;
 }
 
-static DerivedMesh *applyModifier(ModifierData *UNUSED(md), Object *UNUSED(ob),
-                                  DerivedMesh *dm,
-                                  ModifierApplyFlag UNUSED(flag))
+static void deformVerts(ModifierData *UNUSED(md), Object *UNUSED(ob),
+                        DerivedMesh *UNUSED(dm),
+                        float (*vertexCos)[3], int UNUSED(numVerts),
+                        ModifierApplyFlag UNUSED(flag))
 {
-	return dm;
+	(void)vertexCos;
+	return;
 }
 
 static void updateDepgraph(
@@ -104,17 +106,17 @@ ModifierTypeInfo modifierType_Hair = {
 	/* name */              "Hair",
 	/* structName */        "HairModifierData",
 	/* structSize */        sizeof(HairModifierData),
-	/* type */              eModifierTypeType_Nonconstructive,
+	/* type */              eModifierTypeType_OnlyDeform,
 
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_Single,
 
 	/* copyData */          copyData,
-	/* deformVerts */       NULL,
+	/* deformVerts */       deformVerts,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     applyModifier,
+	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  NULL,
