@@ -90,29 +90,34 @@ static void draw_hair_line(HairSystem *hsys)
 	}
 }
 
+#define USE_BUFFERS
+
 static void draw_hair_render(HairSystem *hsys)
 {
+	/* number of hairs drawn with one glDrawElements call */
+	static const int hair_buffer_size = 1024; /* XXX arbitrary */
+	
 	static unsigned int vertex_glbuf = 0;
 	static unsigned int elem_glbuf = 0;
 	
 	int maxverts, maxelems;
-	
 	float (*vertex_data)[3];
 	unsigned int *elem_data;
 	
 	HairRenderIterator iter;
+	unsigned int vertex_offset;
+	unsigned int elem_offset;
+	int num_buffered_hairs = 0;
 	
 	BKE_hair_render_iter_init(&iter, hsys);
-	maxverts = iter.maxsteps;
-	maxelems = 2 * (iter.maxsteps - 1);
+	maxverts = iter.maxsteps * hair_buffer_size;
+	maxelems = 2 * (iter.maxsteps - 1) * hair_buffer_size;
 	if (maxelems < 1) {
 		BKE_hair_render_iter_end(&iter);
 		return;
 	}
 	
 	glColor3f(0.4f, 0.7f, 1.0f);
-	
-#define USE_BUFFERS
 	
 #ifdef USE_BUFFERS
 	/* set up OpenGL buffers */
@@ -136,16 +141,15 @@ static void draw_hair_render(HairSystem *hsys)
 //	glEnable(GL_LIGHTING);
 	
 	while (BKE_hair_render_iter_valid_hair(&iter)) {
-		int totelems;
-		unsigned int vertex_offset = 0;
-		unsigned int elem_offset = 0;
-		
-#ifdef USE_BUFFERS
-		vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-		elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
-#endif
 		BKE_hair_render_iter_init_hair(&iter);
-		totelems = 2 * (iter.totsteps-1);
+		
+		if (num_buffered_hairs == 0) {
+			/* initialize buffers */
+			vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+			elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+			vertex_offset = 0;
+			elem_offset = 0;
+		}
 		
 		for (; BKE_hair_render_iter_valid_step(&iter); BKE_hair_render_iter_next(&iter)) {
 			float radius;
@@ -164,13 +168,39 @@ static void draw_hair_render(HairSystem *hsys)
 			elem_offset += 2;
 		}
 		
+		++num_buffered_hairs;
+		
+		if (num_buffered_hairs >= hair_buffer_size) {
+			num_buffered_hairs = 0;
+			
+			/* finalize buffers and draw */
+#ifdef USE_BUFFERS
+			glUnmapBuffer(GL_ARRAY_BUFFER);
+			glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+			
+//			glShadeModel(GL_SMOOTH);
+			glDrawElements(GL_LINES, elem_offset, GL_UNSIGNED_INT, NULL);
+#else
+			{
+				int u;
+				glBegin(GL_LINES);
+				for (u = 0; u < totelems; ++u) {
+					glVertex3fv(vertex_data[elem_data[u]]);
+				}
+				glEnd();
+			}
+#endif
+		}
+	}
+	
+	if (num_buffered_hairs > 0) {
+		/* finalize buffers and draw */
 #ifdef USE_BUFFERS
 		glUnmapBuffer(GL_ARRAY_BUFFER);
 		glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 		
-		/* draw */
-//		glShadeModel(GL_SMOOTH);
-		glDrawElements(GL_LINES, totelems, GL_UNSIGNED_INT, NULL);
+//			glShadeModel(GL_SMOOTH);
+		glDrawElements(GL_LINES, elem_offset, GL_UNSIGNED_INT, NULL);
 #else
 		{
 			int u;
@@ -196,9 +226,10 @@ static void draw_hair_render(HairSystem *hsys)
 #endif
 	
 	BKE_hair_render_iter_end(&iter);
-	
-#undef USE_BUFFERS
 }
+
+#undef USE_BUFFERS
+
 
 static void count_hairs(HairSystem *hsys, int *totpoints, int *validhairs)
 {
