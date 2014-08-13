@@ -89,6 +89,7 @@ typedef struct HairRenderIterator {
 
 void BKE_hair_render_iter_init(struct HairRenderIterator *iter, struct HairSystem *hsys);
 void BKE_hair_render_iter_end(struct HairRenderIterator *iter);
+bool BKE_hair_render_iter_initialized(struct HairRenderIterator *iter);
 void BKE_hair_render_iter_init_hair(struct HairRenderIterator *iter);
 bool BKE_hair_render_iter_valid_hair(struct HairRenderIterator *iter);
 bool BKE_hair_render_iter_valid_step(struct HairRenderIterator *iter);

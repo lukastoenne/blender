@@ -43,7 +43,13 @@
 
 #ifdef RNA_RUNTIME
 
+#include "BKE_hair.h"
+
+#include "RNA_access.h"
+
 #include "WM_api.h"
+
+#include "MEM_guardedalloc.h"
 
 #if 0 /* unused */
 static void rna_HairSystem_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -60,6 +66,76 @@ static void rna_HairDisplaySettings_update(Main *UNUSED(bmain), Scene *UNUSED(sc
 static void rna_HairParams_render_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ptr->id.data);
+}
+
+static PointerRNA rna_HairSystem_render_get(PointerRNA *ptr)
+{
+	HairSystem *hsys = ptr->data;
+	PointerRNA r_ptr;
+	
+	if (!hsys->render_iter) {
+		hsys->render_iter = MEM_callocN(sizeof(HairRenderIterator), "hair render iterator RNA instance");
+		/* store the hsys here already, so callers
+		 * don't have to pass it explicitly again in the init function */
+		hsys->render_iter->hsys = hsys;
+	}
+	
+	RNA_pointer_create(ptr->id.data, &RNA_HairRenderIterator, hsys->render_iter, &r_ptr);
+	return r_ptr;
+}
+
+static void rna_HairRenderIterator_init(HairRenderIterator *iter)
+{
+	/* make sure the iterator is uninitialized first */
+	if (BKE_hair_render_iter_initialized(iter))
+		BKE_hair_render_iter_end(iter);
+	
+	BKE_hair_render_iter_init(iter, iter->hsys);
+}
+
+static void rna_HairRenderIterator_end(HairRenderIterator *iter)
+{
+	BKE_hair_render_iter_end(iter);
+}
+
+static int rna_HairRenderIterator_valid(HairRenderIterator *iter)
+{
+	return BKE_hair_render_iter_valid_hair(iter);
+}
+
+static PointerRNA rna_HairRenderIterator_step_init(ID *id, HairRenderIterator *iter)
+{
+	PointerRNA r_ptr;
+	
+	if (!BKE_hair_render_iter_initialized(iter)) {
+		RNA_pointer_create(id, &RNA_HairRenderStepIterator, NULL, &r_ptr);
+		return r_ptr;
+	}
+	
+	BKE_hair_render_iter_init_hair(iter);
+	
+	RNA_pointer_create(id, &RNA_HairRenderStepIterator, iter, &r_ptr);
+	return r_ptr;
+}
+
+//static void rna_HairRenderStepIterator_init(HairRenderIterator *iter)
+//{
+//	BKE_hair_render_iter_init_hair(iter);
+//}
+
+static int rna_HairRenderStepIterator_valid(HairRenderIterator *iter)
+{
+	return BKE_hair_render_iter_valid_step(iter);
+}
+
+static void rna_HairRenderStepIterator_next(HairRenderIterator *iter)
+{
+	BKE_hair_render_iter_next(iter);
+}
+
+static void rna_HairRenderStepIterator_eval(HairRenderIterator *iter, float co[3], float *radius)
+{
+	BKE_hair_render_iter_get(iter, co, radius);
 }
 
 #else
@@ -201,12 +277,79 @@ static void rna_def_hair_system(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "display");
 	RNA_def_property_struct_type(prop, "HairDisplaySettings");
 	RNA_def_property_ui_text(prop, "Display Settings", "Display settings for the hair system");
+
+	prop = RNA_def_property(srna, "render_iterator", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "HairRenderIterator");
+	RNA_def_property_pointer_funcs(prop, "rna_HairSystem_render_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Render Iterator", "Access to render data");
+}
+
+static void rna_def_hair_render_iterator(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	srna = RNA_def_struct(brna, "HairRenderIterator", NULL);
+	RNA_def_struct_sdna(srna, "HairRenderIterator");
+	RNA_def_struct_ui_text(srna, "Hair Render Iterator", "Iterator over rendered hairs");
+
+	func = RNA_def_function(srna, "init", "rna_HairRenderIterator_init");
+	RNA_def_function_ui_description(func, "Reset the iterator to the start of the render data");
+
+	func = RNA_def_function(srna, "end", "rna_HairRenderIterator_end");
+	RNA_def_function_ui_description(func, "Clean up the iterator after finishing render data export");
+
+	func = RNA_def_function(srna, "valid", "rna_HairRenderIterator_valid");
+	RNA_def_function_ui_description(func, "Returns True if the iterator valid elements left");
+	parm = RNA_def_boolean(func, "result", false, "Result", "");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "step_init", "rna_HairRenderIterator_step_init");
+	RNA_def_function_ui_description(func, "Iterator over interpolation steps");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+	parm = RNA_def_pointer(func, "result", "HairRenderStepIterator", "Result", "");
+	RNA_def_function_return(func, parm);
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+}
+
+static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
+{
+	static const float default_co[3] = { 0.0f, 0.0f, 0.0f };
+	
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	srna = RNA_def_struct(brna, "HairRenderStepIterator", NULL);
+	RNA_def_struct_sdna(srna, "HairRenderIterator");
+	RNA_def_struct_ui_text(srna, "Hair Render Step Iterator", "Iterator over steps in a single hair's render data");
+
+//	func = RNA_def_function(srna, "init", "rna_HairRenderStepIterator_init");
+//	RNA_def_function_ui_description(func, "Reset the iterator to the start of the render data");
+
+	func = RNA_def_function(srna, "valid", "rna_HairRenderStepIterator_valid");
+	RNA_def_function_ui_description(func, "Returns True if the iterator valid elements left");
+	parm = RNA_def_boolean(func, "result", false, "Result", "");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "next", "rna_HairRenderStepIterator_next");
+	RNA_def_function_ui_description(func, "Advance to the next interpolation step");
+
+	func = RNA_def_function(srna, "eval", "rna_HairRenderStepIterator_eval");
+	RNA_def_function_ui_description(func, "Evaluate the iterator to get hair data at the current step");
+	parm = RNA_def_float_vector(func, "co", 3, default_co, -FLT_MAX, FLT_MAX, "Location", "Location of the hair strand", -FLT_MAX, FLT_MAX);
+	RNA_def_function_output(func, parm);
+	parm = RNA_def_float(func, "radius", 0.0f, -FLT_MAX, FLT_MAX, "Radius", "Thickness of the hair wisp", -FLT_MAX, FLT_MAX);
+	RNA_def_function_output(func, parm);
 }
 
 void RNA_def_hair(BlenderRNA *brna)
 {
 	rna_def_hair_params(brna);
 	rna_def_hair_display_settings(brna);
+	rna_def_hair_render_iterator(brna);
+	rna_def_hair_render_step_iterator(brna);
 	rna_def_hair_system(brna);
 }
 

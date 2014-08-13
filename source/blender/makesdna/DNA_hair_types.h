@@ -96,6 +96,8 @@ typedef struct HairSystem {
 	
 	HairParams params;
 	HairDisplaySettings display;
+	
+	struct HairRenderIterator *render_iter; /* runtime RNA utility pointer */
 } HairSystem;
 
 typedef struct HairDebugData {

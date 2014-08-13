@@ -70,6 +70,9 @@ void BKE_hairsys_free(HairSystem *hsys)
 		MEM_freeN(hsys->curves);
 	}
 	
+	if (hsys->render_iter)
+		MEM_freeN(hsys->render_iter);
+	
 	MEM_freeN(hsys);
 }
 
@@ -81,6 +84,8 @@ HairSystem *BKE_hairsys_copy(HairSystem *hsys)
 	thsys->curves = MEM_dupallocN(hsys->curves);
 	for (i = 0; i < totcurves; ++i)
 		thsys->curves[i].points = MEM_dupallocN(hsys->curves[i].points);
+	
+	thsys->render_iter = NULL;
 	
 	return thsys;
 }
@@ -355,11 +360,22 @@ void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
 
 void BKE_hair_render_iter_end(HairRenderIterator *iter)
 {
-	if (iter->hair_cache)
+	if (iter->hair_cache) {
 		MEM_freeN(iter->hair_cache);
+		iter->hair_cache = NULL;
+	}
 	
-	if (iter->child_data)
+	if (iter->child_data) {
 		MEM_freeN(iter->child_data);
+		iter->child_data = NULL;
+	}
+	
+	iter->hair = NULL; /* indicates uninitialized iterator */
+}
+
+bool BKE_hair_render_iter_initialized(HairRenderIterator *iter)
+{
+	return iter->hair != NULL || iter->hair_cache || iter->child_data;
 }
 
 bool BKE_hair_render_iter_valid_hair(HairRenderIterator *iter)
