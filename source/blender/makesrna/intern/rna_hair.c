@@ -103,6 +103,16 @@ static int rna_HairRenderIterator_valid(HairRenderIterator *iter)
 	return BKE_hair_render_iter_valid_hair(iter);
 }
 
+static void rna_HairRenderIterator_next(HairRenderIterator *iter)
+{
+	BKE_hair_render_iter_next_hair(iter);
+}
+
+static void rna_HairRenderIterator_count(HairRenderIterator *iter, int *tothairs, int *totsteps)
+{
+	BKE_hair_render_iter_count(iter, tothairs, totsteps);
+}
+
 static PointerRNA rna_HairRenderIterator_step_init(ID *id, HairRenderIterator *iter)
 {
 	PointerRNA r_ptr;
@@ -130,7 +140,13 @@ static int rna_HairRenderStepIterator_valid(HairRenderIterator *iter)
 
 static void rna_HairRenderStepIterator_next(HairRenderIterator *iter)
 {
-	BKE_hair_render_iter_next(iter);
+	BKE_hair_render_iter_next_step(iter);
+}
+
+static int rna_HairRenderStepIterator_totsteps_get(PointerRNA *ptr)
+{
+	HairRenderIterator *iter = ptr->data;
+	return iter->totsteps;
 }
 
 static void rna_HairRenderStepIterator_eval(HairRenderIterator *iter, float co[3], float *radius)
@@ -305,6 +321,16 @@ static void rna_def_hair_render_iterator(BlenderRNA *brna)
 	parm = RNA_def_boolean(func, "result", false, "Result", "");
 	RNA_def_function_return(func, parm);
 
+	func = RNA_def_function(srna, "next", "rna_HairRenderIterator_next");
+	RNA_def_function_ui_description(func, "Advance to the next hair");
+
+	func = RNA_def_function(srna, "count", "rna_HairRenderIterator_count");
+	RNA_def_function_ui_description(func, "Count total number of hairs and steps");
+	parm = RNA_def_int(func, "tothairs", 0, INT_MIN, INT_MAX, "Hairs", "Total number of hair curves", INT_MIN, INT_MAX);
+	RNA_def_function_output(func, parm);
+	parm = RNA_def_int(func, "totsteps", 0, INT_MIN, INT_MAX, "Steps", "Total number of interpolation vertex steps", INT_MIN, INT_MAX);
+	RNA_def_function_output(func, parm);
+
 	func = RNA_def_function(srna, "step_init", "rna_HairRenderIterator_step_init");
 	RNA_def_function_ui_description(func, "Iterator over interpolation steps");
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID);
@@ -318,6 +344,7 @@ static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
 	static const float default_co[3] = { 0.0f, 0.0f, 0.0f };
 	
 	StructRNA *srna;
+	PropertyRNA *prop;
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
@@ -335,6 +362,11 @@ static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
 
 	func = RNA_def_function(srna, "next", "rna_HairRenderStepIterator_next");
 	RNA_def_function_ui_description(func, "Advance to the next interpolation step");
+
+	prop = RNA_def_property(srna, "totsteps", PROP_INT, PROP_NONE);
+	RNA_def_property_int_funcs(prop, "rna_HairRenderStepIterator_totsteps_get", NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Steps", "Number of interpolation steps on the current hair curve");
 
 	func = RNA_def_function(srna, "eval", "rna_HairRenderStepIterator_eval");
 	RNA_def_function_ui_description(func, "Evaluate the iterator to get hair data at the current step");

@@ -38,7 +38,6 @@ void InterpolateKeySegments(int seg, int segno, int key, int curve, float3 *keyl
 bool ObtainCacheParticleUV(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int uv_num);
 bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int vcol_num);
 bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background);
-void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData);
 void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotCam);
 void ExportCurveTriangleGeometry(Mesh *mesh, ParticleCurveData *CData, int resolution);
 void ExportCurveTriangleUV(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata);
@@ -544,7 +543,7 @@ void ExportCurveTriangleGeometry(Mesh *mesh, ParticleCurveData *CData, int resol
 	/* texture coords still needed */
 }
 
-void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData)
+static void ExportParticleCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData)
 {
 	int num_keys = 0;
 	int num_curves = 0;
@@ -612,7 +611,7 @@ void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData)
 	}
 }
 
-static void ExportCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveData *CData, int time_index)
+static void ExportParticleCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveData *CData, int time_index)
 {
 	/* find attribute */
 	Attribute *attr_mP = mesh->curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
@@ -679,6 +678,138 @@ static void ExportCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveDat
 			}
 		}
 	}
+}
+
+static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_hsys)
+{
+	/* XXX TODO put these into render parameters */
+	float shape = 0.0f;
+	float root_radius = 0.01f;
+	float tip_radius = 0.01f;
+	
+	int num_keys = 0;
+	int num_curves = 0;
+	
+	if(!(mesh->curves.empty() && mesh->curve_keys.empty()))
+		return;
+	
+	Attribute *attr_intercept = NULL;
+	
+	if(mesh->need_attribute(scene, ATTR_STD_CURVE_INTERCEPT))
+		attr_intercept = mesh->curve_attributes.add(ATTR_STD_CURVE_INTERCEPT);
+	
+	BL::HairRenderIterator b_hair_iter = b_hsys.render_iterator();
+	b_hair_iter.init();
+	
+	b_hair_iter.count(&num_curves, &num_keys);
+	mesh->curve_keys.reserve(mesh->curve_keys.size() + num_keys);
+	mesh->curves.reserve(mesh->curves.size() + num_curves);
+	
+	num_keys = 0;
+	num_curves = 0;
+	for (; b_hair_iter.valid(); b_hair_iter.next()) {
+		BL::HairRenderStepIterator b_step_iter = b_hair_iter.step_init();
+		if (b_step_iter.totsteps() <= 1)
+			continue;
+		
+		int num_curve_keys = 0;
+		for (; b_step_iter.valid(); b_step_iter.next()) {
+			float time = 0.0f; // XXX
+			float radius = shaperadius(shape, root_radius, tip_radius, time);
+			float co[3], hair_radius;
+			
+			b_step_iter.eval(co, &hair_radius);
+			
+			mesh->add_curve_key(make_float3(co[0], co[1], co[2]), radius);
+			if(attr_intercept)
+				attr_intercept->add(time);
+			
+			++num_curve_keys;
+		}
+		
+		mesh->add_curve(num_keys, num_curve_keys, 0);
+		num_keys += num_curve_keys;
+		num_curves++;
+	}
+	
+	/* check allocation*/
+	if((mesh->curve_keys.size() !=  num_keys) || (mesh->curves.size() !=  num_curves)) {
+		/* allocation failed -> clear data */
+		mesh->curve_keys.clear();
+		mesh->curves.clear();
+		mesh->curve_attributes.clear();
+	}
+}
+
+static void ExportHairCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveData *CData, int time_index)
+{
+#if 0
+	/* find attribute */
+	Attribute *attr_mP = mesh->curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+	bool new_attribute = false;
+
+	/* add new attribute if it doesn't exist already */
+	if(!attr_mP) {
+		attr_mP = mesh->curve_attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+		new_attribute = true;
+	}
+
+	/* export motion vectors for curve keys */
+	size_t numkeys = mesh->curve_keys.size();
+	float4 *mP = attr_mP->data_float4() + time_index*numkeys;
+	bool have_motion = false;
+	int i = 0;
+
+	for(int sys = 0; sys < CData->psys_firstcurve.size(); sys++) {
+		if(CData->psys_curvenum[sys] == 0)
+			continue;
+
+		for(int curve = CData->psys_firstcurve[sys]; curve < CData->psys_firstcurve[sys] + CData->psys_curvenum[sys]; curve++) {
+			if(CData->curve_keynum[curve] <= 1 || CData->curve_length[curve] == 0.0f)
+				continue;
+
+			for(int curvekey = CData->curve_firstkey[curve]; curvekey < CData->curve_firstkey[curve] + CData->curve_keynum[curve]; curvekey++) {
+				if(i < mesh->curve_keys.size()) {
+					float3 ickey_loc = CData->curvekey_co[curvekey];
+					float time = CData->curvekey_time[curvekey]/CData->curve_length[curve];
+					float radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], CData->psys_tipradius[sys], time);
+
+					if(CData->psys_closetip[sys] && (curvekey == CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1))
+						radius = 0.0f;
+
+					mP[i] = float3_to_float4(ickey_loc);
+					mP[i].w = radius;
+
+					/* unlike mesh coordinates, these tend to be slightly different
+					 * between frames due to particle transforms into/out of object
+					 * space, so we use an epsilon to detect actual changes */
+					if(len_squared(mP[i] - mesh->curve_keys[i]) > 1e-5f*1e-5f)
+						have_motion = true;
+				}
+
+				i++;
+			}
+		}
+	}
+
+	/* in case of new attribute, we verify if there really was any motion */
+	if(new_attribute) {
+		if(i != numkeys || !have_motion) {
+			/* no motion, remove attributes again */
+			mesh->curve_attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
+		}
+		else if(time_index > 0) {
+			/* motion, fill up previous steps that we might have skipped because
+			 * they had no motion, but we need them anyway now */
+			for(int step = 0; step < time_index; step++) {
+				float4 *mP = attr_mP->data_float4() + step*numkeys;
+
+				for(int key = 0; key < numkeys; key++)
+					mP[key] = mesh->curve_keys[key];
+			}
+		}
+	}
+#endif
 }
 
 void ExportCurveTriangleUV(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata)
@@ -824,24 +955,14 @@ void BlenderSync::sync_curve_settings()
 		curve_system_manager->tag_update(scene);
 }
 
-void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index)
+bool BlenderSync::sync_particle_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index)
 {
-	if(!motion) {
-		/* Clear stored curve data */
-		mesh->curve_keys.clear();
-		mesh->curves.clear();
-		mesh->curve_attributes.clear();
-	}
-
-	/* obtain general settings */
-	bool use_curves = scene->curve_system_manager->use_curves;
-
-	if(!(use_curves && b_ob.mode() != b_ob.mode_PARTICLE_EDIT)) {
-		if(!motion)
-			mesh->compute_bounds();
-		return;
-	}
-
+	if(b_ob.mode() == b_ob.mode_PARTICLE_EDIT)
+		return false;
+	
+	if(!preview)
+		set_resolution(mesh, &b_mesh, &b_ob, &b_scene, true);
+	
 	int primitive = scene->curve_system_manager->primitive;
 	int triangle_method = scene->curve_system_manager->triangle_method;
 	int resolution = scene->curve_system_manager->resolution;
@@ -852,10 +973,6 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 	/* extract particle hair data - should be combined with connecting to mesh later*/
 
 	ParticleCurveData CData;
-
-	if(!preview)
-		set_resolution(mesh, &b_mesh, &b_ob, &b_scene, true);
-
 	ObtainCacheParticleData(mesh, &b_mesh, &b_ob, &CData, !preview);
 
 	/* obtain camera parameters */
@@ -879,9 +996,9 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 	}
 	else {
 		if(motion)
-			ExportCurveSegmentsMotion(scene, mesh, &CData, time_index);
+			ExportParticleCurveSegmentsMotion(scene, mesh, &CData, time_index);
 		else
-			ExportCurveSegments(scene, mesh, &CData);
+			ExportParticleCurveSegments(scene, mesh, &CData);
 	}
 
 	/* generated coordinates from first key. we should ideally get this from
@@ -992,11 +1109,199 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 			}
 		}
 	}
-
+	
 	if(!preview)
 		set_resolution(mesh, &b_mesh, &b_ob, &b_scene, false);
+	
+	return true;
+}
 
-	mesh->compute_bounds();
+bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index)
+{
+	int primitive = scene->curve_system_manager->primitive;
+	int triangle_method = scene->curve_system_manager->triangle_method;
+	int resolution = scene->curve_system_manager->resolution;
+	size_t vert_num = mesh->verts.size();
+	size_t tri_num = mesh->triangles.size();
+	int used_res = 1;
+
+	/* extract hair data - should be combined with connecting to mesh later*/
+
+//	ParticleCurveData CData;
+//	ObtainCacheParticleData(mesh, &b_mesh, &b_ob, &CData, !preview);
+
+	/* obtain camera parameters */
+	BL::Object b_CamOb = b_scene.camera();
+	float3 RotCam = make_float3(0.0f, 0.0f, 0.0f);
+	if(b_CamOb) {
+		Transform ctfm = get_transform(b_CamOb.matrix_world());
+		Transform tfm = get_transform(b_ob.matrix_world());
+		Transform itfm = transform_quick_inverse(tfm);
+		RotCam = transform_point(&itfm, make_float3(ctfm.x.w, ctfm.y.w, ctfm.z.w));
+	}
+
+	BL::Object::modifiers_iterator b_mod_iter;
+	for (b_ob.modifiers.begin(b_mod_iter); b_mod_iter != b_ob.modifiers.end(); ++b_mod_iter) {
+		if (b_mod_iter->type() != BL::Modifier::type_HAIR)
+			continue;
+		
+		BL::HairModifier b_mod_hair(*b_mod_iter);
+		
+		/* add hair geometry to mesh */
+		if(primitive == CURVE_TRIANGLES) {
+#if 0 /* TODO */
+			if(triangle_method == CURVE_CAMERA_TRIANGLES)
+				ExportCurveTrianglePlanes(mesh, &CData, RotCam);
+			else {
+				ExportCurveTriangleGeometry(mesh, &CData, resolution);
+				used_res = resolution;
+			}
+#endif
+		}
+		else {
+//			if(motion)
+//				ExportParticleCurveSegmentsMotion(scene, mesh, &CData, time_index);
+//			else
+				ExportHairCurveSegments(scene, mesh, b_mod_hair.hair_system());
+//				ExportParticleCurveSegments(scene, mesh, &CData);
+		}
+
+#if 0
+		/* generated coordinates from first key. we should ideally get this from
+	 * blender to handle deforming objects */
+		if(!motion) {
+			if(mesh->need_attribute(scene, ATTR_STD_GENERATED)) {
+				float3 loc, size;
+				mesh_texture_space(b_mesh, loc, size);
+				
+				if(primitive == CURVE_TRIANGLES) {
+					Attribute *attr_generated = mesh->attributes.add(ATTR_STD_GENERATED);
+					float3 *generated = attr_generated->data_float3();
+					
+					for(size_t i = vert_num; i < mesh->verts.size(); i++)
+						generated[i] = mesh->verts[i]*size - loc;
+				}
+				else {
+					Attribute *attr_generated = mesh->curve_attributes.add(ATTR_STD_GENERATED);
+					float3 *generated = attr_generated->data_float3();
+					size_t i = 0;
+					
+					foreach(Mesh::Curve& curve, mesh->curves) {
+						float3 co = float4_to_float3(mesh->curve_keys[curve.first_key]);
+						generated[i++] = co*size - loc;
+					}
+				}
+			}
+		}
+		
+		/* create vertex color attributes */
+		if(!motion) {
+			BL::Mesh::tessface_vertex_colors_iterator l;
+			int vcol_num = 0;
+			
+			for(b_mesh.tessface_vertex_colors.begin(l); l != b_mesh.tessface_vertex_colors.end(); ++l, vcol_num++) {
+				if(!mesh->need_attribute(scene, ustring(l->name().c_str())))
+					continue;
+				
+				ObtainCacheParticleVcol(mesh, &b_mesh, &b_ob, &CData, !preview, vcol_num);
+				
+				if(primitive == CURVE_TRIANGLES) {
+					Attribute *attr_vcol = mesh->attributes.add(
+					                           ustring(l->name().c_str()), TypeDesc::TypeColor, ATTR_ELEMENT_CORNER_BYTE);
+					
+					uchar4 *cdata = attr_vcol->data_uchar4();
+					
+					ExportCurveTriangleVcol(mesh, &CData, tri_num * 3, used_res, cdata);
+				}
+				else {
+					Attribute *attr_vcol = mesh->curve_attributes.add(
+					                           ustring(l->name().c_str()), TypeDesc::TypeColor, ATTR_ELEMENT_CURVE);
+					
+					float3 *fdata = attr_vcol->data_float3();
+					
+					if(fdata) {
+						size_t i = 0;
+						
+						for(size_t curve = 0; curve < CData.curve_vcol.size(); curve++)
+							if(!(CData.curve_keynum[curve] <= 1 || CData.curve_length[curve] == 0.0f))
+								fdata[i++] = color_srgb_to_scene_linear(CData.curve_vcol[curve]);
+					}
+				}
+			}
+		}
+		
+		/* create UV attributes */
+		if(!motion) {
+			BL::Mesh::tessface_uv_textures_iterator l;
+			int uv_num = 0;
+			
+			for(b_mesh.tessface_uv_textures.begin(l); l != b_mesh.tessface_uv_textures.end(); ++l, uv_num++) {
+				bool active_render = l->active_render();
+				AttributeStandard std = (active_render)? ATTR_STD_UV: ATTR_STD_NONE;
+				ustring name = ustring(l->name().c_str());
+				
+				/* UV map */
+				if(mesh->need_attribute(scene, name) || mesh->need_attribute(scene, std)) {
+					Attribute *attr_uv;
+					
+					ObtainCacheParticleUV(mesh, &b_mesh, &b_ob, &CData, !preview, uv_num);
+					
+					if(primitive == CURVE_TRIANGLES) {
+						if(active_render)
+							attr_uv = mesh->attributes.add(std, name);
+						else
+							attr_uv = mesh->attributes.add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CORNER);
+						
+						float3 *uv = attr_uv->data_float3();
+						
+						ExportCurveTriangleUV(mesh, &CData, tri_num * 3, used_res, uv);
+					}
+					else {
+						if(active_render)
+							attr_uv = mesh->curve_attributes.add(std, name);
+						else
+							attr_uv = mesh->curve_attributes.add(name, TypeDesc::TypePoint,  ATTR_ELEMENT_CURVE);
+						
+						float3 *uv = attr_uv->data_float3();
+						
+						if(uv) {
+							size_t i = 0;
+							
+							for(size_t curve = 0; curve < CData.curve_uv.size(); curve++)
+								if(!(CData.curve_keynum[curve] <= 1 || CData.curve_length[curve] == 0.0f))
+									uv[i++] = CData.curve_uv[curve];
+						}
+					}
+				}
+			}
+		}
+#endif
+		
+	} /* modifiers */
+	
+	return true;
+}
+
+void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index)
+{
+	if(!motion) {
+		/* Clear stored curve data */
+		mesh->curve_keys.clear();
+		mesh->curves.clear();
+		mesh->curve_attributes.clear();
+	}
+	
+	if(!scene->curve_system_manager->use_curves) {
+		if(!motion)
+			mesh->compute_bounds();
+		return;
+	}
+	
+	bool has_particle_curves = sync_particle_curves(mesh, b_mesh, b_ob, motion, time_index);
+	bool has_hair_curves = sync_hair_curves(mesh, b_mesh, b_ob, motion, time_index);
+	
+	if (!motion || has_particle_curves || has_hair_curves)
+		mesh->compute_bounds();
 }
 
 CCL_NAMESPACE_END

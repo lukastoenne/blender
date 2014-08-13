@@ -90,10 +90,12 @@ typedef struct HairRenderIterator {
 void BKE_hair_render_iter_init(struct HairRenderIterator *iter, struct HairSystem *hsys);
 void BKE_hair_render_iter_end(struct HairRenderIterator *iter);
 bool BKE_hair_render_iter_initialized(struct HairRenderIterator *iter);
+void BKE_hair_render_iter_count(struct HairRenderIterator *iter, int *tothairs, int *totsteps);
 void BKE_hair_render_iter_init_hair(struct HairRenderIterator *iter);
 bool BKE_hair_render_iter_valid_hair(struct HairRenderIterator *iter);
 bool BKE_hair_render_iter_valid_step(struct HairRenderIterator *iter);
-void BKE_hair_render_iter_next(struct HairRenderIterator *iter);
+void BKE_hair_render_iter_next_hair(struct HairRenderIterator *iter);
+void BKE_hair_render_iter_next_step(struct HairRenderIterator *iter);
 void BKE_hair_render_iter_get(struct HairRenderIterator *iter, float co[3], float *radius);
 
 #endif

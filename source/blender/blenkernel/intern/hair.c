@@ -378,6 +378,23 @@ bool BKE_hair_render_iter_initialized(HairRenderIterator *iter)
 	return iter->hair != NULL || iter->hair_cache || iter->child_data;
 }
 
+void BKE_hair_render_iter_count(HairRenderIterator *iter, int *r_tothairs, int *r_totsteps)
+{
+	int tothairs, totsteps;
+	HairCurve *hair;
+	int i;
+	
+	tothairs = iter->hsys->totcurves;
+	
+	totsteps = 0;
+	for (i = 0, hair = iter->hsys->curves; i < iter->hsys->totcurves; ++i, ++hair) {
+		totsteps += (hair->totpoints - 1) * iter->steps_per_point + 1;
+	}
+	
+	if (r_tothairs) *r_tothairs = tothairs;
+	if (r_totsteps) *r_totsteps = totsteps;
+}
+
 bool BKE_hair_render_iter_valid_hair(HairRenderIterator *iter)
 {
 	return iter->i < iter->hsys->totcurves;
@@ -388,19 +405,21 @@ bool BKE_hair_render_iter_valid_step(HairRenderIterator *iter)
 	return iter->step < iter->totsteps;
 }
 
-void BKE_hair_render_iter_next(HairRenderIterator *iter)
+void BKE_hair_render_iter_next_hair(HairRenderIterator *iter)
+{
+	++iter->child;
+	
+	if (iter->child >= iter->totchildren) {
+		++iter->hair;
+		++iter->i;
+	}
+}
+
+void BKE_hair_render_iter_next_step(HairRenderIterator *iter)
 {
 	++iter->step;
 	
-	if (iter->step >= iter->totsteps) {
-		++iter->child;
-		
-		if (iter->child >= iter->totchildren) {
-			++iter->hair;
-			++iter->i;
-		}
-	}
-	else if (iter->step % iter->steps_per_point == 0) {
+	if (iter->step < iter->totsteps && iter->step % iter->steps_per_point == 0) {
 		++iter->point;
 		++iter->k;
 	}

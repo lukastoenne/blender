@@ -140,7 +140,7 @@ static void draw_hair_render(HairSystem *hsys)
 	
 //	glEnable(GL_LIGHTING);
 	
-	while (BKE_hair_render_iter_valid_hair(&iter)) {
+	for (; BKE_hair_render_iter_valid_hair(&iter);  BKE_hair_render_iter_next_hair(&iter)) {
 		BKE_hair_render_iter_init_hair(&iter);
 		
 		if (num_buffered_hairs == 0) {
@@ -151,7 +151,7 @@ static void draw_hair_render(HairSystem *hsys)
 			elem_offset = 0;
 		}
 		
-		for (; BKE_hair_render_iter_valid_step(&iter); BKE_hair_render_iter_next(&iter)) {
+		for (; BKE_hair_render_iter_valid_step(&iter); BKE_hair_render_iter_next_step(&iter)) {
 			float radius;
 			float co[3];
 			

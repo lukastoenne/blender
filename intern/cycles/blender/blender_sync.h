@@ -90,7 +90,11 @@ private:
 	void sync_camera_motion(BL::Object b_ob, float motion_time);
 
 	/* particles */
+	bool sync_particle_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
 	bool sync_dupli_particle(BL::Object b_ob, BL::DupliObject b_dup, Object *object);
+
+	/* hair */
+	bool sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
 
 	/* util */
 	void find_shader(BL::ID id, vector<uint>& used_shaders, int default_shader);
