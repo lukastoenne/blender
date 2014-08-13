@@ -70,9 +70,6 @@ void BKE_hairsys_free(HairSystem *hsys)
 		MEM_freeN(hsys->curves);
 	}
 	
-	if (hsys->display.drawdata)
-		MEM_freeN(hsys->display.drawdata);
-	
 	MEM_freeN(hsys);
 }
 
@@ -84,8 +81,6 @@ HairSystem *BKE_hairsys_copy(HairSystem *hsys)
 	thsys->curves = MEM_dupallocN(hsys->curves);
 	for (i = 0; i < totcurves; ++i)
 		thsys->curves[i].points = MEM_dupallocN(hsys->curves[i].points);
-	
-	thsys->display.drawdata = NULL;
 	
 	return thsys;
 }

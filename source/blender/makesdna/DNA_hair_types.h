@@ -81,8 +81,6 @@ typedef struct HairParams {
 typedef struct HairDisplaySettings {
 	int mode;
 	int pad;
-	
-	struct HairDrawData *drawdata;  /* draw data cache */
 } HairDisplaySettings;
 
 typedef enum eHairDisplay_Mode {
