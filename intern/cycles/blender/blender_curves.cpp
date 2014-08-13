@@ -715,9 +715,13 @@ static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_h
 		int num_curve_keys = 0;
 		for (; b_step_iter.valid(); b_step_iter.next()) {
 			float time = 0.0f; // XXX
-			float radius = shaperadius(shape, root_radius, tip_radius, time);
-			float co[3], hair_radius;
 			
+			bool closetip = true; // XXX
+			float radius = shaperadius(shape, root_radius, tip_radius, time);
+			if (closetip && b_step_iter.index() == b_step_iter.totsteps() - 1)
+				radius = 0.0f;
+			
+			float co[3], hair_radius;
 			b_step_iter.eval(co, &hair_radius);
 			
 			mesh->add_curve_key(make_float3(co[0], co[1], co[2]), radius);
@@ -731,6 +735,7 @@ static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_h
 		num_keys += num_curve_keys;
 		num_curves++;
 	}
+	b_hair_iter.end();
 	
 	/* check allocation*/
 	if((mesh->curve_keys.size() !=  num_keys) || (mesh->curves.size() !=  num_curves)) {
@@ -741,57 +746,65 @@ static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_h
 	}
 }
 
-static void ExportHairCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveData *CData, int time_index)
+static void ExportHairCurveSegmentsMotion(Scene *scene, Mesh *mesh, BL::HairSystem b_hsys, int time_index)
 {
-#if 0
+	/* XXX TODO put these into render parameters */
+	float shape = 0.0f;
+	float root_radius = 0.01f;
+	float tip_radius = 0.01f;
+	
 	/* find attribute */
 	Attribute *attr_mP = mesh->curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
 	bool new_attribute = false;
-
+	
 	/* add new attribute if it doesn't exist already */
 	if(!attr_mP) {
 		attr_mP = mesh->curve_attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
 		new_attribute = true;
 	}
-
+	
 	/* export motion vectors for curve keys */
 	size_t numkeys = mesh->curve_keys.size();
-	float4 *mP = attr_mP->data_float4() + time_index*numkeys;
+	float4 *mP = attr_mP->data_float4() + time_index * numkeys;
 	bool have_motion = false;
 	int i = 0;
-
-	for(int sys = 0; sys < CData->psys_firstcurve.size(); sys++) {
-		if(CData->psys_curvenum[sys] == 0)
+	
+	BL::HairRenderIterator b_hair_iter = b_hsys.render_iterator();
+	b_hair_iter.init();
+	
+	for (; b_hair_iter.valid(); b_hair_iter.next()) {
+		BL::HairRenderStepIterator b_step_iter = b_hair_iter.step_init();
+		if (b_step_iter.totsteps() <= 1)
 			continue;
-
-		for(int curve = CData->psys_firstcurve[sys]; curve < CData->psys_firstcurve[sys] + CData->psys_curvenum[sys]; curve++) {
-			if(CData->curve_keynum[curve] <= 1 || CData->curve_length[curve] == 0.0f)
-				continue;
-
-			for(int curvekey = CData->curve_firstkey[curve]; curvekey < CData->curve_firstkey[curve] + CData->curve_keynum[curve]; curvekey++) {
-				if(i < mesh->curve_keys.size()) {
-					float3 ickey_loc = CData->curvekey_co[curvekey];
-					float time = CData->curvekey_time[curvekey]/CData->curve_length[curve];
-					float radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], CData->psys_tipradius[sys], time);
-
-					if(CData->psys_closetip[sys] && (curvekey == CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1))
-						radius = 0.0f;
-
-					mP[i] = float3_to_float4(ickey_loc);
-					mP[i].w = radius;
-
-					/* unlike mesh coordinates, these tend to be slightly different
-					 * between frames due to particle transforms into/out of object
-					 * space, so we use an epsilon to detect actual changes */
-					if(len_squared(mP[i] - mesh->curve_keys[i]) > 1e-5f*1e-5f)
-						have_motion = true;
-				}
-
-				i++;
+		
+		for (; b_step_iter.valid(); b_step_iter.next()) {
+			if(i < mesh->curve_keys.size()) {
+				float time = 0.0f; // XXX
+				
+				bool closetip = true; // XXX
+				float radius = shaperadius(shape, root_radius, tip_radius, time);
+				if (closetip && b_step_iter.index() == b_step_iter.totsteps() - 1)
+					radius = 0.0f;
+				
+				float co[3], hair_radius;
+				b_step_iter.eval(co, &hair_radius);
+				
+				mP[i].x = co[0];
+				mP[i].y = co[1];
+				mP[i].z = co[2];
+				mP[i].w = radius;
+				
+				/* unlike mesh coordinates, these tend to be slightly different
+				 * between frames due to particle transforms into/out of object
+				 * space, so we use an epsilon to detect actual changes */
+				if(len_squared(mP[i] - mesh->curve_keys[i]) > 1e-5f*1e-5f)
+					have_motion = true;
 			}
+			
+			i++;
 		}
 	}
-
+	
 	/* in case of new attribute, we verify if there really was any motion */
 	if(new_attribute) {
 		if(i != numkeys || !have_motion) {
@@ -802,14 +815,13 @@ static void ExportHairCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurv
 			/* motion, fill up previous steps that we might have skipped because
 			 * they had no motion, but we need them anyway now */
 			for(int step = 0; step < time_index; step++) {
-				float4 *mP = attr_mP->data_float4() + step*numkeys;
-
+				float4 *mP = attr_mP->data_float4() + step * numkeys;
+				
 				for(int key = 0; key < numkeys; key++)
 					mP[key] = mesh->curve_keys[key];
 			}
 		}
 	}
-#endif
 }
 
 void ExportCurveTriangleUV(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata)
@@ -1159,11 +1171,10 @@ bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob,
 #endif
 		}
 		else {
-//			if(motion)
-//				ExportParticleCurveSegmentsMotion(scene, mesh, &CData, time_index);
-//			else
+			if(motion)
+				ExportHairCurveSegmentsMotion(scene, mesh, b_mod_hair.hair_system(), time_index);
+			else
 				ExportHairCurveSegments(scene, mesh, b_mod_hair.hair_system());
-//				ExportParticleCurveSegments(scene, mesh, &CData);
 		}
 
 #if 0

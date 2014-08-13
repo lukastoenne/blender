@@ -143,6 +143,12 @@ static void rna_HairRenderStepIterator_next(HairRenderIterator *iter)
 	BKE_hair_render_iter_next_step(iter);
 }
 
+static int rna_HairRenderStepIterator_index_get(PointerRNA *ptr)
+{
+	HairRenderIterator *iter = ptr->data;
+	return iter->step;
+}
+
 static int rna_HairRenderStepIterator_totsteps_get(PointerRNA *ptr)
 {
 	HairRenderIterator *iter = ptr->data;
@@ -363,10 +369,15 @@ static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
 	func = RNA_def_function(srna, "next", "rna_HairRenderStepIterator_next");
 	RNA_def_function_ui_description(func, "Advance to the next interpolation step");
 
+	prop = RNA_def_property(srna, "index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_funcs(prop, "rna_HairRenderStepIterator_index_get", NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Steps", "Current Interpolation step on the hair curve");
+
 	prop = RNA_def_property(srna, "totsteps", PROP_INT, PROP_NONE);
 	RNA_def_property_int_funcs(prop, "rna_HairRenderStepIterator_totsteps_get", NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Steps", "Number of interpolation steps on the current hair curve");
+	RNA_def_property_ui_text(prop, "Steps", "Number of interpolation steps on the hair curve");
 
 	func = RNA_def_function(srna, "eval", "rna_HairRenderStepIterator_eval");
 	RNA_def_function_ui_description(func, "Evaluate the iterator to get hair data at the current step");
