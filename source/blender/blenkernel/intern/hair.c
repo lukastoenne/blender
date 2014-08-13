@@ -293,13 +293,12 @@ static void hair_precalc_cache(HairRenderIterator *iter)
 	struct HAIR_FrameIterator *frame_iter = HAIR_frame_iter_new();
 	HairPointRenderCache *cache = iter->hair_cache;
 	float initial_frame[3][3];
-	int i;
 	
 	get_hair_root_frame(iter->hair, initial_frame);
 	
 	for (HAIR_frame_iter_init(frame_iter, iter->hair, iter->hair->avg_rest_length, iter->hsys->params.curl_smoothing, initial_frame);
 	     HAIR_frame_iter_valid(frame_iter);
-	     HAIR_frame_iter_next(iter)) {
+	     HAIR_frame_iter_next(frame_iter)) {
 		
 		HAIR_frame_iter_get(frame_iter, cache->frame[0], cache->frame[1], cache->frame[2]);
 		/* matrix is stored row-major, needs to be transposed */
