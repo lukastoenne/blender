@@ -57,7 +57,7 @@ void BKE_hair_debug_data_free(struct HairDebugData *debug_data);
 
 /* cached per-hair data */
 typedef struct HairPointRenderCache {
-	float frame[3][3];
+	float nor[3], tan[3], cotan[3];
 } HairPointRenderCache;
 
 typedef struct HairRenderChildData {
@@ -67,7 +67,7 @@ typedef struct HairRenderChildData {
 typedef struct HairRenderIterator {
 	struct HairSystem *hsys;
 	struct HairPointRenderCache *hair_cache; /* array of maxpoints elements to avoid recalculating per child hair */
-	int maxpoints;
+	int maxsteps;
 	int steps_per_point;
 	
 	HairRenderChildData *child_data;
@@ -76,6 +76,9 @@ typedef struct HairRenderIterator {
 	/* hair curve data */
 	struct HairCurve *hair;
 	int i;
+	
+	/* child instance */
+	int child, totchildren;
 	
 	/* hair point data */
 	struct HairPoint *point;

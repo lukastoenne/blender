@@ -95,7 +95,7 @@ static void draw_hair_render(HairSystem *hsys)
 	static unsigned int vertex_glbuf = 0;
 	static unsigned int elem_glbuf = 0;
 	
-	int maxsteps, maxverts, maxelems;
+	int maxverts, maxelems;
 	
 	float (*vertex_data)[3];
 	unsigned int *elem_data;
@@ -103,9 +103,8 @@ static void draw_hair_render(HairSystem *hsys)
 	HairRenderIterator iter;
 	
 	BKE_hair_render_iter_init(&iter, hsys);
-	maxsteps = iter.maxpoints * iter.steps_per_point;
-	maxverts = maxsteps;
-	maxelems = 2 * (maxsteps - 1);
+	maxverts = iter.maxsteps;
+	maxelems = 2 * (iter.maxsteps - 1);
 	if (maxelems < 1) {
 		BKE_hair_render_iter_end(&iter);
 		return;

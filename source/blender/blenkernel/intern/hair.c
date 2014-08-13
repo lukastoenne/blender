@@ -299,10 +299,24 @@ static void hair_precalc_cache(HairRenderIterator *iter)
 	for (HAIR_frame_iter_init(frame_iter, iter->hair, iter->hair->avg_rest_length, iter->hsys->params.curl_smoothing, initial_frame);
 	     HAIR_frame_iter_valid(frame_iter);
 	     HAIR_frame_iter_next(frame_iter)) {
+		int k = HAIR_frame_iter_index(frame_iter);
 		
-		HAIR_frame_iter_get(frame_iter, cache->frame[0], cache->frame[1], cache->frame[2]);
-		/* matrix is stored row-major, needs to be transposed */
-		transpose_m3(cache->frame);
+		HAIR_frame_iter_get(frame_iter, cache->nor, cache->tan, cache->cotan);
+		
+		/* for rendering, rotate frames half-way to the next segment */
+		if (k > 0) {
+			add_v3_v3((cache-1)->nor, cache->nor);
+			mul_v3_fl((cache-1)->nor, 0.5f);
+			normalize_v3((cache-1)->nor);
+			
+			add_v3_v3((cache-1)->tan, cache->tan);
+			mul_v3_fl((cache-1)->tan, 0.5f);
+			normalize_v3((cache-1)->tan);
+			
+			add_v3_v3((cache-1)->cotan, cache->cotan);
+			mul_v3_fl((cache-1)->cotan, 0.5f);
+			normalize_v3((cache-1)->cotan);
+		}
 		
 		++cache;
 	}
@@ -310,16 +324,20 @@ static void hair_precalc_cache(HairRenderIterator *iter)
 
 void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
 {
+	int maxpoints = hair_maxpoints(hsys);
+	
 	iter->hsys = hsys;
-	iter->maxpoints = hair_maxpoints(hsys);
-	iter->hair_cache = MEM_mallocN(sizeof(HairPointRenderCache) * iter->maxpoints, "hair render cache data");
 	iter->steps_per_point = 1; // XXX TODO!
+	iter->maxsteps = (maxpoints - 1) * iter->steps_per_point + 1;
+	iter->hair_cache = MEM_mallocN(sizeof(HairPointRenderCache) * maxpoints, "hair render cache data");
 	
 	iter->maxchildren = hsys->params.num_render_hairs;
 	iter->child_data = hair_gen_child_data(&hsys->params, 12345); /* TODO handle seeds properly here ... */
 	
 	iter->hair = hsys->curves;
 	iter->i = 0;
+	iter->totchildren = hsys->params.num_render_hairs;
+	iter->child = 0;
 }
 
 void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
@@ -327,11 +345,17 @@ void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
 	iter->point = iter->hair->points;
 	iter->k = 0;
 	
-	iter->step = 0;
 	iter->totsteps = (iter->hair->totpoints - 1) * iter->steps_per_point + 1;
+	iter->step = 0;
 	
-	/* fill the hair cache to avoid redundant per-child calculations */
-	hair_precalc_cache(iter);
+	/* actual new hair or just next child? */
+	if (iter->child >= iter->totchildren) {
+		iter->totchildren = iter->hsys->params.num_render_hairs; /* XXX in principle could differ per hair */
+		iter->child = 0;
+		
+		/* fill the hair cache to avoid redundant per-child calculations */
+		hair_precalc_cache(iter);
+	}
 }
 
 void BKE_hair_render_iter_end(HairRenderIterator *iter)
@@ -358,8 +382,12 @@ void BKE_hair_render_iter_next(HairRenderIterator *iter)
 	++iter->step;
 	
 	if (iter->step >= iter->totsteps) {
-		++iter->hair;
-		++iter->i;
+		++iter->child;
+		
+		if (iter->child >= iter->totchildren) {
+			++iter->hair;
+			++iter->i;
+		}
 	}
 	else if (iter->step % iter->steps_per_point == 0) {
 		++iter->point;
@@ -367,21 +395,40 @@ void BKE_hair_render_iter_next(HairRenderIterator *iter)
 	}
 }
 
-void BKE_hair_render_iter_get(HairRenderIterator *iter, float co[3], float *radius)
+void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_radius)
 {
+	HairPoint *pt0 = iter->point;
+	float tan[3], cotan[3];
+	float co[3];
+	float radius;
+	
+	copy_v3_v3(co, pt0->co);
+	radius = pt0->radius;
+	
+	copy_v3_v3(tan, iter->hair_cache[iter->k].tan);
+	copy_v3_v3(cotan, iter->hair_cache[iter->k].cotan);
+	
 	if (iter->step < iter->totsteps - 1) {
+		HairPoint *pt1 = pt0 + 1;
 		int i = iter->step % iter->steps_per_point;
 		float t = (float)i / (float)iter->steps_per_point;
 		float mt = 1.0f - t;
-		HairPoint *pt0 = iter->point, *pt1 = pt0 + 1;
 		
-		interp_v3_v3v3(co, pt0->co, pt1->co, t);
-		*radius = pt0->radius * mt + pt1->radius * t;
-	}
-	else {
-		HairPoint *pt0 = iter->point;
+		interp_v3_v3v3(co, co, pt1->co, t);
+		radius = radius * mt + pt1->radius * t;
 		
-		copy_v3_v3(co, pt0->co);
-		*radius = pt0->radius;
+		interp_v3_v3v3(tan, tan, iter->hair_cache[iter->k + 1].tan, t);
+		interp_v3_v3v3(cotan, cotan, iter->hair_cache[iter->k + 1].cotan, t);
 	}
+	
+	/* child offset */
+	{
+		HairRenderChildData *child_data = iter->child_data + iter->child;
+		
+		madd_v3_v3fl(co, tan, child_data->u * radius);
+		madd_v3_v3fl(co, cotan, child_data->v * radius);
+	}
+	
+	if (r_co) copy_v3_v3(r_co, co);
+	if (r_radius) *r_radius = radius;
 }
