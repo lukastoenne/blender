@@ -59,6 +59,8 @@ HairSystem *BKE_hairsys_new(void)
 	
 	render->flag = HAIR_RENDER_CLOSE_TIP;
 	render->num_render_hairs = 100;
+	render->interpolation_steps = 4;
+	
 	render->curl_smoothing = 1.0f;
 	render->radius_scale = 0.01f;
 	render->root_width = 1.0f;
@@ -341,7 +343,7 @@ void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
 	int maxpoints = hair_maxpoints(hsys);
 	
 	iter->hsys = hsys;
-	iter->steps_per_point = 1; // XXX TODO!
+	iter->steps_per_point = render->interpolation_steps;
 	iter->maxsteps = (maxpoints - 1) * iter->steps_per_point + 1;
 	iter->hair_cache = MEM_mallocN(sizeof(HairPointRenderCache) * maxpoints, "hair render cache data");
 	

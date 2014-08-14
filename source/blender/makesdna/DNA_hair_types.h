@@ -59,13 +59,14 @@ typedef struct HairRenderSettings {
 	
 	int num_render_hairs;       /* render hairs per simulation hair */
 	
+	int interpolation_steps;
+	
 	float radius_scale;
 	float root_width;
 	float tip_width;
 	float shape;
 	
 	float curl_smoothing;
-	int pad;
 } HairRenderSettings;
 
 typedef enum eHairRenderSettings_Flag {

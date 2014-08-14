@@ -268,6 +268,14 @@ static void rna_def_hair_render_settings(BlenderRNA *brna) {
 	RNA_def_property_ui_text(prop, "Render Hairs", "Number of hairs rendered around each simulated hair");
 	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
 
+	prop = RNA_def_property(srna, "interpolation_steps", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "interpolation_steps");
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_range(prop, 1, 128, 1, 1);
+	RNA_def_property_int_default(prop, 4);
+	RNA_def_property_ui_text(prop, "Interpolation Steps", "Number of interpolated segments to use for rendering");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
+
 	prop = RNA_def_property(srna, "radius_scale", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_range(prop, 0.0, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 0.01f, 3);

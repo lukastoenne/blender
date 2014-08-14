@@ -109,6 +109,7 @@ class PHYSICS_PT_hair_render(PhysicButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(render, "render_hairs")
+        col.prop(render, "interpolation_steps")
 
         col.label("Curl:")
         col.prop(render, "curl_smoothing")
