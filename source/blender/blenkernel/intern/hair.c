@@ -47,16 +47,23 @@
 HairSystem *BKE_hairsys_new(void)
 {
 	HairSystem *hsys = MEM_callocN(sizeof(HairSystem), "hair system");
+	HairParams *params = &hsys->params;
+	HairRenderSettings *render = &params->render;
 	
-	hsys->params.substeps_forces = 30;
-	hsys->params.substeps_damping = 10;
-	hsys->params.stretch_stiffness = 2000.0f;
-	hsys->params.stretch_damping = 10.0f;
-	hsys->params.bend_stiffness = 40.0f;
-	hsys->params.bend_damping = 10.0f;
+	params->substeps_forces = 30;
+	params->substeps_damping = 10;
+	params->stretch_stiffness = 2000.0f;
+	params->stretch_damping = 10.0f;
+	params->bend_stiffness = 40.0f;
+	params->bend_damping = 10.0f;
 	
-	hsys->params.num_render_hairs = 100;
-	hsys->params.curl_smoothing = 1.0f;
+	render->flag = HAIR_RENDER_CLOSE_TIP;
+	render->num_render_hairs = 100;
+	render->curl_smoothing = 1.0f;
+	render->radius_scale = 0.01f;
+	render->root_width = 1.0f;
+	render->tip_width = 0.0f;
+	render->shape = 0.0f;
 	
 	return hsys;
 }
@@ -252,7 +259,7 @@ static int hair_maxpoints(HairSystem *hsys)
 
 static HairRenderChildData *hair_gen_child_data(HairParams *params, unsigned int seed)
 {
-	int num_render_hairs = params->num_render_hairs;
+	int num_render_hairs = params->render.num_render_hairs;
 	HairRenderChildData *hair, *data = MEM_mallocN(sizeof(HairRenderChildData) * num_render_hairs, "hair render data");
 	RNG *rng;
 	int i;
@@ -290,6 +297,7 @@ static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
 
 static void hair_precalc_cache(HairRenderIterator *iter)
 {
+	HairRenderSettings *render = &iter->hsys->params.render;
 	struct HAIR_FrameIterator *frame_iter;
 	HairPointRenderCache *cache;
 	float initial_frame[3][3];
@@ -301,7 +309,7 @@ static void hair_precalc_cache(HairRenderIterator *iter)
 	get_hair_root_frame(iter->hair, initial_frame);
 	
 	cache = iter->hair_cache;
-	for (HAIR_frame_iter_init(frame_iter, iter->hair, iter->hair->avg_rest_length, iter->hsys->params.curl_smoothing, initial_frame);
+	for (HAIR_frame_iter_init(frame_iter, iter->hair, iter->hair->avg_rest_length, render->curl_smoothing, initial_frame);
 	     HAIR_frame_iter_valid(frame_iter);
 	     HAIR_frame_iter_next(frame_iter)) {
 		int k = HAIR_frame_iter_index(frame_iter);
@@ -329,6 +337,7 @@ static void hair_precalc_cache(HairRenderIterator *iter)
 
 void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
 {
+	HairRenderSettings *render = &hsys->params.render;
 	int maxpoints = hair_maxpoints(hsys);
 	
 	iter->hsys = hsys;
@@ -336,12 +345,12 @@ void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
 	iter->maxsteps = (maxpoints - 1) * iter->steps_per_point + 1;
 	iter->hair_cache = MEM_mallocN(sizeof(HairPointRenderCache) * maxpoints, "hair render cache data");
 	
-	iter->maxchildren = hsys->params.num_render_hairs;
+	iter->maxchildren = render->num_render_hairs;
 	iter->child_data = hair_gen_child_data(&hsys->params, 12345); /* TODO handle seeds properly here ... */
 	
 	iter->hair = hsys->curves;
 	iter->i = 0;
-	iter->totchildren = hsys->params.num_render_hairs;
+	iter->totchildren = render->num_render_hairs;
 	iter->child = 0;
 	
 	/* fill the hair cache to avoid redundant per-child calculations */
@@ -358,7 +367,7 @@ void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
 	
 	/* actual new hair or just next child? */
 	if (iter->child >= iter->totchildren) {
-		iter->totchildren = iter->hsys->params.num_render_hairs; /* XXX in principle could differ per hair */
+		iter->totchildren = iter->hsys->params.render.num_render_hairs; /* XXX in principle could differ per hair */
 		iter->child = 0;
 		
 		/* fill the hair cache to avoid redundant per-child calculations */

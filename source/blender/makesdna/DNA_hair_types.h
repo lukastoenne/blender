@@ -54,6 +54,24 @@ typedef struct HairCurve {
 	float rest_tan[3];          /* rest tangent */
 } HairCurve;
 
+typedef struct HairRenderSettings {
+	int flag;
+	
+	int num_render_hairs;       /* render hairs per simulation hair */
+	
+	float radius_scale;
+	float root_width;
+	float tip_width;
+	float shape;
+	
+	float curl_smoothing;
+	int pad;
+} HairRenderSettings;
+
+typedef enum eHairRenderSettings_Flag {
+	HAIR_RENDER_CLOSE_TIP       = 1,
+} eHairRenderSettings_Flag;
+
 typedef struct HairParams {
 	int substeps_forces;
 	int substeps_damping;
@@ -70,12 +88,9 @@ typedef struct HairParams {
 	float restitution;
 	float friction;
 	float margin;
-	
-	/* render settings */
-	int num_render_hairs;       /* render hairs per simulation hair */
-	
-	float curl_smoothing;
 	int pad;
+	
+	HairRenderSettings render;
 } HairParams;
 
 typedef struct HairDisplaySettings {

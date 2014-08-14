@@ -105,10 +105,22 @@ class PHYSICS_PT_hair_render(PhysicButtonsPanel, Panel):
         md = context.hair
         hsys = md.hair_system
         params = hsys.params
+        render = params.render
 
         col = layout.column()
-        col.prop(params, "render_hairs")
-        col.prop(params, "curl_smoothing")
+        col.prop(render, "render_hairs")
+
+        col.label("Curl:")
+        col.prop(render, "curl_smoothing")
+
+        col.label("Strands:")
+        col.prop(render, "shape", text="Shape")
+        row = col.row()
+        row.prop(render, "root_width", text="Root")
+        row.prop(render, "tip_width", text="Tip")
+        row = col.row()
+        row.prop(render, "radius_scale", text="Scaling")
+        row.prop(render, "use_closetip", text="Close tip")
 
 
 class PHYSICS_PT_hair_display(PhysicButtonsPanel, Panel):

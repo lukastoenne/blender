@@ -242,7 +242,18 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	RNA_def_property_float_default(prop, 0.02f);
 	RNA_def_property_ui_text(prop, "Margin", "Collision margin to avoid penetration");
 
-	/* Render Settings */
+	prop = RNA_def_property(srna, "render", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "render");
+	RNA_def_property_struct_type(prop, "HairRenderSettings");
+	RNA_def_property_ui_text(prop, "Render Settings", "");
+}
+
+static void rna_def_hair_render_settings(BlenderRNA *brna) {
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "HairRenderSettings", NULL);
+	RNA_def_struct_ui_text(srna, "Hair Render Settings", "Hair render settings");
 
 	prop = RNA_def_property(srna, "render_hairs", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "num_render_hairs");
@@ -250,6 +261,40 @@ static void rna_def_hair_params(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 1, 200, 1, 1);
 	RNA_def_property_int_default(prop, 100);
 	RNA_def_property_ui_text(prop, "Render Hairs", "Number of hairs rendered around each simulated hair");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
+
+	prop = RNA_def_property(srna, "radius_scale", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 0.01f, 3);
+	RNA_def_property_float_default(prop, 0.01f);
+	RNA_def_property_ui_text(prop, "Radius Scaling", "Multiplier of width properties");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
+
+	prop = RNA_def_property(srna, "root_width", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 0.1f, 2);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Root Size", "Strand width at the root");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
+
+	prop = RNA_def_property(srna, "tip_width", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 0.1f, 2);
+	RNA_def_property_float_default(prop, 0.0f);
+	RNA_def_property_ui_text(prop, "Tip Size", "Strand width at the tip");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
+
+	prop = RNA_def_property(srna, "shape", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, -1.0, 1.0f);
+	RNA_def_property_ui_range(prop, -1.0f, 1.0f, 0.1f, 3);
+	RNA_def_property_float_default(prop, 0.0f);
+	RNA_def_property_ui_text(prop, "Strand Shape", "Strand shape parameter");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
+
+	prop = RNA_def_property(srna, "use_closetip", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_RENDER_CLOSE_TIP);
+	RNA_def_property_ui_text(prop, "Close Tip", "Set tip radius to zero");
+	RNA_def_property_boolean_default(prop, true);
 	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
 
 	prop = RNA_def_property(srna, "curl_smoothing", PROP_FLOAT, PROP_FACTOR);
@@ -389,6 +434,7 @@ static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
 
 void RNA_def_hair(BlenderRNA *brna)
 {
+	rna_def_hair_render_settings(brna);
 	rna_def_hair_params(brna);
 	rna_def_hair_display_settings(brna);
 	rna_def_hair_render_iterator(brna);
