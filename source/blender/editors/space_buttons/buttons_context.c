@@ -743,7 +743,7 @@ const char *buttons_context_dir[] = {
 	"texture", "texture_user", "texture_user_property", "bone", "edit_bone",
 	"pose_bone", "particle_system", "particle_system_editable", "particle_settings",
 	"cloth", "soft_body", "fluid", "smoke", "collision", "brush", "dynamic_paint",
-	"line_style", NULL
+	"line_style", "hair", NULL
 };
 
 int buttons_context(const bContext *C, const char *member, bContextDataResult *result)
@@ -1062,6 +1062,16 @@ int buttons_context(const bContext *C, const char *member, bContextDataResult *r
 	else if (CTX_data_equals(member, "line_style")) {
 		set_pointer_type(path, result, &RNA_FreestyleLineStyle);
 		return 1;
+	}
+	else if (CTX_data_equals(member, "hair")) {
+		PointerRNA *ptr = get_pointer_type(path, &RNA_Object);
+
+		if (ptr && ptr->data) {
+			Object *ob = ptr->data;
+			ModifierData *md = modifiers_findByType(ob, eModifierType_Hair);
+			CTX_data_pointer_set(result, &ob->id, &RNA_HairModifier, md);
+			return 1;
+		}
 	}
 	else {
 		return 0; /* not found */
