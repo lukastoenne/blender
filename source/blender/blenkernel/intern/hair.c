@@ -290,12 +290,17 @@ static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
 
 static void hair_precalc_cache(HairRenderIterator *iter)
 {
-	struct HAIR_FrameIterator *frame_iter = HAIR_frame_iter_new();
-	HairPointRenderCache *cache = iter->hair_cache;
+	struct HAIR_FrameIterator *frame_iter;
+	HairPointRenderCache *cache;
 	float initial_frame[3][3];
 	
+	if (!BKE_hair_render_iter_valid_hair(iter))
+		return;
+	
+	frame_iter = HAIR_frame_iter_new();
 	get_hair_root_frame(iter->hair, initial_frame);
 	
+	cache = iter->hair_cache;
 	for (HAIR_frame_iter_init(frame_iter, iter->hair, iter->hair->avg_rest_length, iter->hsys->params.curl_smoothing, initial_frame);
 	     HAIR_frame_iter_valid(frame_iter);
 	     HAIR_frame_iter_next(frame_iter)) {
@@ -338,6 +343,9 @@ void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
 	iter->i = 0;
 	iter->totchildren = hsys->params.num_render_hairs;
 	iter->child = 0;
+	
+	/* fill the hair cache to avoid redundant per-child calculations */
+	hair_precalc_cache(iter);
 }
 
 void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
