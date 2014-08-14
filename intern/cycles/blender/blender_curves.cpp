@@ -1019,6 +1019,7 @@ bool BlenderSync::sync_particle_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b
 			mesh_texture_space(b_mesh, loc, size);
 
 			if(primitive == CURVE_TRIANGLES) {
+				mesh->attributes.reserve(); /* make sure the buffer size is correct, in case the attribute already exists */
 				Attribute *attr_generated = mesh->attributes.add(ATTR_STD_GENERATED);
 				float3 *generated = attr_generated->data_float3();
 
@@ -1026,6 +1027,7 @@ bool BlenderSync::sync_particle_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b
 					generated[i] = mesh->verts[i]*size - loc;
 			}
 			else {
+				mesh->curve_attributes.reserve(); /* make sure the buffer size is correct, in case the attribute already exists */
 				Attribute *attr_generated = mesh->curve_attributes.add(ATTR_STD_GENERATED);
 				float3 *generated = attr_generated->data_float3();
 				size_t i = 0;
@@ -1175,15 +1177,15 @@ bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob,
 				ExportHairCurveSegments(scene, mesh, b_mod_hair.hair_system());
 		}
 
-#if 0
 		/* generated coordinates from first key. we should ideally get this from
-	 * blender to handle deforming objects */
+		 * blender to handle deforming objects */
 		if(!motion) {
 			if(mesh->need_attribute(scene, ATTR_STD_GENERATED)) {
 				float3 loc, size;
 				mesh_texture_space(b_mesh, loc, size);
 				
 				if(primitive == CURVE_TRIANGLES) {
+					mesh->attributes.reserve(); /* make sure the buffer size is correct, in case the attribute already exists */
 					Attribute *attr_generated = mesh->attributes.add(ATTR_STD_GENERATED);
 					float3 *generated = attr_generated->data_float3();
 					
@@ -1191,6 +1193,7 @@ bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob,
 						generated[i] = mesh->verts[i]*size - loc;
 				}
 				else {
+					mesh->curve_attributes.reserve(); /* make sure the buffer size is correct, in case the attribute already exists */
 					Attribute *attr_generated = mesh->curve_attributes.add(ATTR_STD_GENERATED);
 					float3 *generated = attr_generated->data_float3();
 					size_t i = 0;
@@ -1203,6 +1206,7 @@ bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob,
 			}
 		}
 		
+#if 0
 		/* create vertex color attributes */
 		if(!motion) {
 			BL::Mesh::tessface_vertex_colors_iterator l;
