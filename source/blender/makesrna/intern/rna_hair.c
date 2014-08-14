@@ -160,6 +160,11 @@ static void rna_HairRenderStepIterator_eval(HairRenderIterator *iter, float co[3
 	BKE_hair_render_iter_get(iter, co, radius);
 }
 
+static float rna_HairRenderStepIterator_parameter(HairRenderIterator *iter)
+{
+	return BKE_hair_render_iter_param(iter);
+}
+
 #else
 
 static void rna_def_hair_params(BlenderRNA *brna)
@@ -430,6 +435,11 @@ static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
 	RNA_def_function_output(func, parm);
 	parm = RNA_def_float(func, "radius", 0.0f, -FLT_MAX, FLT_MAX, "Radius", "Thickness of the hair wisp", -FLT_MAX, FLT_MAX);
 	RNA_def_function_output(func, parm);
+
+	func = RNA_def_function(srna, "parameter", "rna_HairRenderStepIterator_parameter");
+	RNA_def_function_ui_description(func, "Parameter along the hair curve");
+	parm = RNA_def_float(func, "result", 0.0f, 0.0f, 1.0f, "Result", "", 0.0f, 1.0f);
+	RNA_def_function_return(func, parm);
 }
 
 void RNA_def_hair(BlenderRNA *brna)

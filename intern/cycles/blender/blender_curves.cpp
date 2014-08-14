@@ -682,10 +682,11 @@ static void ExportParticleCurveSegmentsMotion(Scene *scene, Mesh *mesh, Particle
 
 static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_hsys)
 {
-	/* XXX TODO put these into render parameters */
-	float shape = 0.0f;
-	float root_radius = 0.01f;
-	float tip_radius = 0.01f;
+	BL::HairRenderSettings b_render(b_hsys.params().render());
+	float shape = b_render.shape();
+	float root_width = b_render.root_width() * b_render.radius_scale();
+	float tip_width = b_render.tip_width() * b_render.radius_scale();
+	bool closetip = b_render.use_closetip();
 	
 	int num_keys = 0;
 	int num_curves = 0;
@@ -714,10 +715,8 @@ static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_h
 		
 		int num_curve_keys = 0;
 		for (; b_step_iter.valid(); b_step_iter.next()) {
-			float time = 0.0f; // XXX
-			
-			bool closetip = true; // XXX
-			float radius = shaperadius(shape, root_radius, tip_radius, time);
+			float param = b_step_iter.parameter();
+			float radius = shaperadius(shape, root_width, tip_width, param);
 			if (closetip && b_step_iter.index() == b_step_iter.totsteps() - 1)
 				radius = 0.0f;
 			
@@ -726,7 +725,7 @@ static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_h
 			
 			mesh->add_curve_key(make_float3(co[0], co[1], co[2]), radius);
 			if(attr_intercept)
-				attr_intercept->add(time);
+				attr_intercept->add(param);
 			
 			++num_curve_keys;
 		}
@@ -748,10 +747,11 @@ static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_h
 
 static void ExportHairCurveSegmentsMotion(Scene *scene, Mesh *mesh, BL::HairSystem b_hsys, int time_index)
 {
-	/* XXX TODO put these into render parameters */
-	float shape = 0.0f;
-	float root_radius = 0.01f;
-	float tip_radius = 0.01f;
+	BL::HairRenderSettings b_render(b_hsys.params().render());
+	float shape = b_render.shape();
+	float root_width = b_render.root_width() * b_render.radius_scale();
+	float tip_width = b_render.tip_width() * b_render.radius_scale();
+	bool closetip = b_render.use_closetip();
 	
 	/* find attribute */
 	Attribute *attr_mP = mesh->curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
@@ -779,10 +779,8 @@ static void ExportHairCurveSegmentsMotion(Scene *scene, Mesh *mesh, BL::HairSyst
 		
 		for (; b_step_iter.valid(); b_step_iter.next()) {
 			if(i < mesh->curve_keys.size()) {
-				float time = 0.0f; // XXX
-				
-				bool closetip = true; // XXX
-				float radius = shaperadius(shape, root_radius, tip_radius, time);
+				float param = b_step_iter.parameter();
+				float radius = shaperadius(shape, root_width, tip_width, param);
 				if (closetip && b_step_iter.index() == b_step_iter.totsteps() - 1)
 					radius = 0.0f;
 				

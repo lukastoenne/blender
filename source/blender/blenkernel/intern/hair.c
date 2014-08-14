@@ -479,3 +479,8 @@ void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_
 	if (r_co) copy_v3_v3(r_co, co);
 	if (r_radius) *r_radius = radius;
 }
+
+float BKE_hair_render_iter_param(HairRenderIterator *iter)
+{
+	return iter->totsteps > 1 ? (float)iter->step / (float)(iter->totsteps-1) : 0.0f;
+}

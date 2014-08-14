@@ -97,5 +97,6 @@ bool BKE_hair_render_iter_valid_step(struct HairRenderIterator *iter);
 void BKE_hair_render_iter_next_hair(struct HairRenderIterator *iter);
 void BKE_hair_render_iter_next_step(struct HairRenderIterator *iter);
 void BKE_hair_render_iter_get(struct HairRenderIterator *iter, float co[3], float *radius);
+float BKE_hair_render_iter_param(struct HairRenderIterator *iter);
 
 #endif
