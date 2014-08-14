@@ -85,6 +85,10 @@ typedef struct HairRenderIterator {
 	int k;
 	
 	int step, totsteps;
+	
+	/* forward differencing interpolation variables */
+	float t;
+	float f[3], fd[3], fdd[3], fdd_per_2[3], fddd[3], fddd_per_2[3], fddd_per_6[3];
 } HairRenderIterator;
 
 void BKE_hair_render_iter_init(struct HairRenderIterator *iter, struct HairSystem *hsys);

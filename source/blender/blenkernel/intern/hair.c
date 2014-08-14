@@ -359,6 +359,50 @@ void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)
 	hair_precalc_cache(iter);
 }
 
+BLI_INLINE void forward_diff_precalc(HairRenderIterator *iter, float t,
+                                     float p0[3], float p1[3], float p2[3], float p3[3],
+                                     int i)
+{
+	float t_sq = t * t;
+	float fdd_per_2, fddd_per_2;
+	
+	/* hermite spline interpolation tangents */
+#if 1
+	/* Catmull-Rom tangents */
+	float m1 = 0.5f * (p2[i] - p0[i]);
+	float m2 = 0.5f * (p3[i] - p1[i]);
+#else
+	/* Cardinal tangents */
+	float c = 0.5f; /* tension parameter */
+	float m1 = c * 0.5f * (p2[i] - p0[i]);
+	float m2 = c * 0.5f * (p3[i] - p1[i]);
+#endif
+	
+	iter->f[i] = p1[i];
+	iter->fd[i] = m1 * t;
+	iter->fdd_per_2[i] = fdd_per_2 = (3.0f * (p2[i] - p1[i]) - 2.0f * m1 - m2) * t_sq;
+	iter->fddd_per_2[i] = fddd_per_2 = 3.0f * (2.0f * (p1[i] - p2[i]) + m1 + m2) * t_sq * t;
+	
+	iter->fddd[i] = fddd_per_2 + fddd_per_2;
+	iter->fdd[i] = fdd_per_2 + fdd_per_2;
+	iter->fddd_per_6[i] = fddd_per_2 * (1.0f / 3.0f);
+}
+
+static void hair_render_iter_init_point(HairRenderIterator *iter)
+{
+	int totpoints = iter->hair->totpoints;
+	int i;
+	
+	int k = iter->k;
+	HairPoint *pt1 = iter->point;
+	HairPoint *pt0 = k > 0 ? pt1 - 1 : pt1;
+	HairPoint *pt2 = k < totpoints - 1 ? pt1 + 1 : pt1;
+	HairPoint *pt3 = k < totpoints - 2 ? pt1 + 2 : pt2;
+	
+	for (i = 0; i < 3; ++i)
+		forward_diff_precalc(iter, 1.0f / (float)iter->steps_per_point, pt0->co, pt1->co, pt2->co, pt3->co, i);
+}
+
 void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
 {
 	iter->point = iter->hair->points;
@@ -375,6 +419,10 @@ void BKE_hair_render_iter_init_hair(HairRenderIterator *iter)
 		/* fill the hair cache to avoid redundant per-child calculations */
 		hair_precalc_cache(iter);
 	}
+	
+	/* init first point */
+	if (iter->hair->totpoints > 0)
+		hair_render_iter_init_point(iter);
 }
 
 void BKE_hair_render_iter_end(HairRenderIterator *iter)
@@ -434,13 +482,30 @@ void BKE_hair_render_iter_next_hair(HairRenderIterator *iter)
 	}
 }
 
+BLI_INLINE void forward_diff_step(HairRenderIterator *iter, int i)
+{
+	iter->f[i] = iter->f[i] + iter->fd[i] + iter->fdd_per_2[i] + iter->fddd_per_6[i];
+	iter->fd[i] = iter->fd[i] + iter->fdd[i] + iter->fddd_per_2[i];
+	iter->fdd[i] = iter->fdd[i] + iter->fddd[i];
+	iter->fdd_per_2[i] = iter->fdd_per_2[i] + iter->fddd_per_2[i];
+}
+
 void BKE_hair_render_iter_next_step(HairRenderIterator *iter)
 {
+	int i;
+	
+	/* calculate next interpolation value */
+	for (i = 0; i < 3; ++i)
+		forward_diff_step(iter, i);
+	
 	++iter->step;
 	
 	if (iter->step < iter->totsteps && iter->step % iter->steps_per_point == 0) {
 		++iter->point;
 		++iter->k;
+		
+		/* init next point */
+		hair_render_iter_init_point(iter);
 	}
 }
 
@@ -451,7 +516,13 @@ void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_
 	float co[3];
 	float radius;
 	
-	copy_v3_v3(co, pt0->co);
+	/* spline interpolation */
+	
+	copy_v3_v3(co, iter->f);
+	
+	
+	/* linear interpolation */
+	
 	radius = pt0->radius;
 	
 	copy_v3_v3(tan, iter->hair_cache[iter->k].tan);
@@ -463,7 +534,6 @@ void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_
 		float t = (float)i / (float)iter->steps_per_point;
 		float mt = 1.0f - t;
 		
-		interp_v3_v3v3(co, co, pt1->co, t);
 		radius = radius * mt + pt1->radius * t;
 		
 		interp_v3_v3v3(tan, tan, iter->hair_cache[iter->k + 1].tan, t);
