@@ -511,6 +511,7 @@ void BKE_hair_render_iter_next_step(HairRenderIterator *iter)
 
 void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_radius)
 {
+	HairPointRenderCache *cache0 = iter->hair_cache + iter->k;
 	HairPoint *pt0 = iter->point;
 	float tan[3], cotan[3];
 	float co[3];
@@ -525,10 +526,11 @@ void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_
 	
 	radius = pt0->radius;
 	
-	copy_v3_v3(tan, iter->hair_cache[iter->k].tan);
-	copy_v3_v3(cotan, iter->hair_cache[iter->k].cotan);
+	copy_v3_v3(tan, cache0->tan);
+	copy_v3_v3(cotan, cache0->cotan);
 	
 	if (iter->step < iter->totsteps - 1) {
+		HairPointRenderCache *cache1 = cache0 + 1;
 		HairPoint *pt1 = pt0 + 1;
 		int i = iter->step % iter->steps_per_point;
 		float t = (float)i / (float)iter->steps_per_point;
@@ -536,8 +538,8 @@ void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_
 		
 		radius = radius * mt + pt1->radius * t;
 		
-		interp_v3_v3v3(tan, tan, iter->hair_cache[iter->k + 1].tan, t);
-		interp_v3_v3v3(cotan, cotan, iter->hair_cache[iter->k + 1].cotan, t);
+		interp_v3_v3v3(tan, tan, cache1->tan, t);
+		interp_v3_v3v3(cotan, cotan, cache1->cotan, t);
 	}
 	
 	/* child offset */
@@ -550,6 +552,24 @@ void BKE_hair_render_iter_get(HairRenderIterator *iter, float r_co[3], float *r_
 	
 	if (r_co) copy_v3_v3(r_co, co);
 	if (r_radius) *r_radius = radius;
+}
+
+void BKE_hair_render_iter_get_frame(HairRenderIterator *iter, float nor[3], float tan[3], float cotan[3])
+{
+	HairPointRenderCache *cache0 = iter->hair_cache + iter->k;
+	copy_v3_v3(nor, cache0->nor);
+	copy_v3_v3(tan, cache0->tan);
+	copy_v3_v3(cotan, cache0->cotan);
+	
+	if (iter->step < iter->totsteps - 1) {
+		HairPointRenderCache *cache1 = cache0 + 1;
+		int i = iter->step % iter->steps_per_point;
+		float t = (float)i / (float)iter->steps_per_point;
+		
+		interp_v3_v3v3(nor, nor, cache1->nor, t);
+		interp_v3_v3v3(tan, tan, cache1->tan, t);
+		interp_v3_v3v3(cotan, cotan, cache1->cotan, t);
+	}
 }
 
 float BKE_hair_render_iter_param(HairRenderIterator *iter)

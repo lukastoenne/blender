@@ -160,6 +160,11 @@ static void rna_HairRenderStepIterator_eval(HairRenderIterator *iter, float co[3
 	BKE_hair_render_iter_get(iter, co, radius);
 }
 
+static void rna_HairRenderStepIterator_eval_frame(HairRenderIterator *iter, float nor[3], float tan[3], float cotan[3])
+{
+	BKE_hair_render_iter_get_frame(iter, nor, tan, cotan);
+}
+
 static float rna_HairRenderStepIterator_parameter(HairRenderIterator *iter)
 {
 	return BKE_hair_render_iter_param(iter);
@@ -406,6 +411,9 @@ static void rna_def_hair_render_iterator(BlenderRNA *brna)
 static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
 {
 	static const float default_co[3] = { 0.0f, 0.0f, 0.0f };
+	static const float default_nor[3] = { 1.0f, 0.0f, 0.0f };
+	static const float default_tan[3] = { 0.0f, 1.0f, 0.0f };
+	static const float default_cotan[3] = { 0.0f, 0.0f, 1.0f };
 	
 	StructRNA *srna;
 	PropertyRNA *prop;
@@ -442,6 +450,15 @@ static void rna_def_hair_render_step_iterator(BlenderRNA *brna)
 	parm = RNA_def_float_vector(func, "co", 3, default_co, -FLT_MAX, FLT_MAX, "Location", "Location of the hair strand", -FLT_MAX, FLT_MAX);
 	RNA_def_function_output(func, parm);
 	parm = RNA_def_float(func, "radius", 0.0f, -FLT_MAX, FLT_MAX, "Radius", "Thickness of the hair wisp", -FLT_MAX, FLT_MAX);
+	RNA_def_function_output(func, parm);
+
+	func = RNA_def_function(srna, "eval_frame", "rna_HairRenderStepIterator_eval_frame");
+	RNA_def_function_ui_description(func, "Evaluate the coordinate frame at the current step");
+	parm = RNA_def_float_vector(func, "normal", 3, default_nor, -FLT_MAX, FLT_MAX, "Normal", "Axis perpendicular to the curve", -FLT_MAX, FLT_MAX);
+	RNA_def_function_output(func, parm);
+	parm = RNA_def_float_vector(func, "tangent", 3, default_tan, -FLT_MAX, FLT_MAX, "Tangent", "Axis in the direction of the curve", -FLT_MAX, FLT_MAX);
+	RNA_def_function_output(func, parm);
+	parm = RNA_def_float_vector(func, "cotangent", 3, default_cotan, -FLT_MAX, FLT_MAX, "Cotangent", "Axis perpendicular to the curve bend", -FLT_MAX, FLT_MAX);
 	RNA_def_function_output(func, parm);
 
 	func = RNA_def_function(srna, "parameter", "rna_HairRenderStepIterator_parameter");

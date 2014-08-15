@@ -680,24 +680,35 @@ static void ExportParticleCurveSegmentsMotion(Scene *scene, Mesh *mesh, Particle
 	}
 }
 
+static void hair_step_iter_eval(BL::HairRenderStepIterator b_step_iter, float3 &co, float3 frame[3], float &param)
+{
+	float fco[3], fnor[3], ftan[3], fcotan[3], fhair_radius;
+	
+	param = b_step_iter.parameter();
+	
+	b_step_iter.eval(fco, &fhair_radius);
+	co = make_float3(fco[0], fco[1], fco[2]);
+	
+	b_step_iter.eval_frame(fnor, ftan, fcotan);
+	frame[0] = make_float3(fnor[0], fnor[1], fnor[2]);
+	frame[1] = make_float3(ftan[0], ftan[1], ftan[2]);
+	frame[2] = make_float3(fcotan[0], fcotan[1], fcotan[2]);
+}
+
 /* evaluate curve at each step:
  *   v_p, v, v_n:       previous/current/next location
  *   d, d_n:            current/next direction
  *   param, param_n:    current/next curve parameter
  */
-static void hair_curve_triangle_step(int step, BL::HairRenderStepIterator b_step_iter, float3 &v_p, float3 &v, float3 &v_n, float3 &d, float3 &d_n, float &param, float &param_n)
+static void hair_curve_triangle_step(int step, BL::HairRenderStepIterator b_step_iter, float3 &v_p, float3 &v, float3 &v_n, float3 &d, float3 &d_n,
+                                     float &param, float &param_n, float3 frame[3], float3 frame_n[3])
 {
-	float co[3], hair_radius;
-	
 	if (step == 0) {
-		b_step_iter.eval(co, &hair_radius);
-		param       = b_step_iter.parameter();
-		v_p = v     = make_float3(co[0], co[1], co[2]);
+		hair_step_iter_eval(b_step_iter, v, frame, param);
+		v_p         = v;
 		b_step_iter.next();
 		
-		b_step_iter.eval(co, &hair_radius);
-		param_n     = b_step_iter.parameter();
-		v_n         = make_float3(co[0], co[1], co[2]);
+		hair_step_iter_eval(b_step_iter, v_n, frame_n, param_n);
 		d = d_n     = v_n - v;
 		b_step_iter.next();
 	}
@@ -705,11 +716,9 @@ static void hair_curve_triangle_step(int step, BL::HairRenderStepIterator b_step
 		v_p         = v;
 		v           = v_n;
 		param       = param_n;
-		param_n     = b_step_iter.parameter();
-		
-		b_step_iter.eval(co, &hair_radius);
-		v_n         = make_float3(co[0], co[1], co[2]);
 		d           = d_n;
+		
+		hair_step_iter_eval(b_step_iter, v_n, frame_n, param_n);
 		d_n         = v_n - v;
 		b_step_iter.next();
 	}
@@ -755,11 +764,11 @@ static void ExportHairCurveTrianglePlanes(Mesh *mesh, BL::HairSystem b_hsys, flo
 		if (totsteps <= 1)
 			continue;
 		
-		float3 v_p, v, v_n, d, d_n;
+		float3 v_p, v, v_n, d, d_n, frame[3], frame_n[3];
 		float param, param_n;
 		
 		for (int step = 0; step < totsteps; ++step) {
-			hair_curve_triangle_step(step, b_step_iter, v_p, v, v_n, d, d_n, param, param_n);
+			hair_curve_triangle_step(step, b_step_iter, v_p, v, v_n, d, d_n, param, param_n, frame, frame_n);
 			
 			float radius = shaperadius(shape, root_width, tip_width, param);
 			if (closetip && step == totsteps - 1)
@@ -776,6 +785,84 @@ static void ExportHairCurveTrianglePlanes(Mesh *mesh, BL::HairSystem b_hsys, flo
 				mesh->add_triangle(vertexindex+1, vertexindex-1, vertexindex, shader, true);
 			}
 			vertexindex += 2;
+		}
+	}
+	b_hair_iter.end();
+
+	mesh->reserve(mesh->verts.size(), mesh->triangles.size(), 0, 0);
+	mesh->attributes.remove(ATTR_STD_VERTEX_NORMAL);
+	mesh->attributes.remove(ATTR_STD_FACE_NORMAL);
+	mesh->add_face_normals();
+	mesh->add_vertex_normals();
+	mesh->attributes.remove(ATTR_STD_FACE_NORMAL);
+
+	/* texture coords still needed */
+}
+
+static void ExportHairCurveTriangleGeometry(Mesh *mesh, BL::HairSystem b_hsys, int resolution)
+{
+	BL::HairRenderSettings b_render(b_hsys.params().render());
+	float shape = b_render.shape();
+	float root_width = b_render.root_width() * b_render.radius_scale();
+	float tip_width = b_render.tip_width() * b_render.radius_scale();
+	bool closetip = b_render.use_closetip();
+	int shader = 0; // XXX TODO
+	
+	int vertexno = mesh->verts.size();
+	int vertexindex = vertexno;
+	int numverts = 0, numtris = 0;
+	
+	BL::HairRenderIterator b_hair_iter = b_hsys.render_iterator();
+	b_hair_iter.init();
+	
+	/* compute and reserve size of arrays */
+	int num_curves, num_keys;
+	b_hair_iter.count(&num_curves, &num_keys);
+	numverts += (num_keys - 2)*2*resolution + resolution;
+	numtris += (num_keys - 2)*resolution;
+	
+	mesh->verts.reserve(mesh->verts.size() + numverts);
+	mesh->triangles.reserve(mesh->triangles.size() + numtris);
+	mesh->shader.reserve(mesh->shader.size() + numtris);
+	mesh->smooth.reserve(mesh->smooth.size() + numtris);
+	
+	/* actually export */
+	for (; b_hair_iter.valid(); b_hair_iter.next()) {
+		BL::HairRenderStepIterator b_step_iter = b_hair_iter.step_init();
+		int totsteps = b_step_iter.totsteps();
+		if (totsteps <= 1)
+			continue;
+		
+		float3 v_p, v, v_n, d, d_n, frame[3], frame_n[3];
+		float param, param_n;
+		
+		for (int step = 0; step < totsteps; ++step) {
+			hair_curve_triangle_step(step, b_step_iter, v_p, v, v_n, d, d_n, param, param_n, frame, frame_n);
+			
+			float radius = shaperadius(shape, root_width, tip_width, param);
+			if (closetip && step == totsteps - 1)
+				radius = 0.0f;
+			
+			float3 xbasis = frame[1];
+			float3 ybasis = frame[2];
+			
+			float3 ickey_loc = v;
+			
+			float angle = M_2PI_F / (float)resolution;
+			for(int section = 0; section < resolution; section++) {
+				float3 ickey_loc_shf = ickey_loc + radius * (cosf(angle * section) * xbasis + sinf(angle * section) * ybasis);
+				mesh->verts.push_back(ickey_loc_shf);
+			}
+			
+			if(step > 0) {
+				for(int section = 0; section < resolution - 1; section++) {
+					mesh->add_triangle(vertexindex - resolution + section, vertexindex + section, vertexindex - resolution + section + 1, shader, true);
+					mesh->add_triangle(vertexindex + section + 1, vertexindex - resolution + section + 1, vertexindex + section, shader, true);
+				}
+				mesh->add_triangle(vertexindex-1, vertexindex + resolution - 1, vertexindex - resolution, shader, true);
+				mesh->add_triangle(vertexindex, vertexindex - resolution , vertexindex + resolution - 1, shader, true);
+			}
+			vertexindex += resolution;
 		}
 	}
 	b_hair_iter.end();
@@ -1276,9 +1363,8 @@ bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob,
 			if(triangle_method == CURVE_CAMERA_TRIANGLES)
 				ExportHairCurveTrianglePlanes(mesh, b_mod_hair.hair_system(), RotCam);
 			else {
-				// TODO
-//				ExportCurveTriangleGeometry(mesh, &CData, resolution);
-//				used_res = resolution;
+				ExportHairCurveTriangleGeometry(mesh, b_mod_hair.hair_system(), resolution);
+				used_res = resolution;
 			}
 		}
 		else {
