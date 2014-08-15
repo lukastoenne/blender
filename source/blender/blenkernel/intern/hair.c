@@ -72,16 +72,7 @@ HairSystem *BKE_hairsys_new(void)
 
 void BKE_hairsys_free(HairSystem *hsys)
 {
-	int totcurves = hsys->totcurves, i;
-	if (hsys->curves) {
-		for (i = 0; i < totcurves; ++i)
-			MEM_freeN(hsys->curves[i].points);
-		MEM_freeN(hsys->curves);
-	}
-	
-	if (hsys->render_iter)
-		MEM_freeN(hsys->render_iter);
-	
+	BKE_hairsys_clear(hsys);
 	MEM_freeN(hsys);
 }
 
@@ -99,6 +90,22 @@ HairSystem *BKE_hairsys_copy(HairSystem *hsys)
 	return thsys;
 }
 
+void BKE_hairsys_clear(HairSystem *hsys)
+{
+	int totcurves = hsys->totcurves, i;
+	if (hsys->curves) {
+		for (i = 0; i < totcurves; ++i)
+			MEM_freeN(hsys->curves[i].points);
+		MEM_freeN(hsys->curves);
+		hsys->curves = NULL;
+		hsys->totcurves = 0;
+	}
+	
+	if (hsys->render_iter) {
+		MEM_freeN(hsys->render_iter);
+		hsys->render_iter = NULL;
+	}
+}
 
 HairCurve *BKE_hair_curve_add(HairSystem *hsys)
 {

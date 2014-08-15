@@ -40,6 +40,8 @@ struct HairSystem *BKE_hairsys_new(void);
 void BKE_hairsys_free(struct HairSystem *hsys);
 struct HairSystem *BKE_hairsys_copy(struct HairSystem *hsys);
 
+void BKE_hairsys_clear(struct HairSystem *hsys);
+
 struct HairCurve *BKE_hair_curve_add(struct HairSystem *hsys);
 struct HairCurve *BKE_hair_curve_add_multi(struct HairSystem *hsys, int num);
 void BKE_hair_curve_remove(struct HairSystem *hsys, struct HairCurve *hair);

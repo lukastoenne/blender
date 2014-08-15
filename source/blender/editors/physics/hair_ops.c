@@ -254,6 +254,8 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 	HairModifierData *hmd;
 	ED_hair_get(C, &ob, &hsys, &hmd);
 	
+	BKE_hairsys_clear(hsys);
+	
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 		ParticleSystemModifierData *psmd;
 		if (psys->part->type != PART_HAIR) {
@@ -272,9 +274,9 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 		}
 		
 		hair_copy_from_particles_psys(ob, hsys, psys, psmd->dm);
-		
-		hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
 	}
+	
+	hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
 	
 	BKE_hair_calculate_rest(hsys);
 	
