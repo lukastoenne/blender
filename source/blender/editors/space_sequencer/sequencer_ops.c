@@ -53,6 +53,7 @@ void sequencer_operatortypes(void)
 	WM_operatortype_append(SEQUENCER_OT_mute);
 	WM_operatortype_append(SEQUENCER_OT_unmute);
 	WM_operatortype_append(SEQUENCER_OT_lock);
+	WM_operatortype_append(SEQUENCER_OT_parent);
 	WM_operatortype_append(SEQUENCER_OT_unlock);
 	WM_operatortype_append(SEQUENCER_OT_reload);
 	WM_operatortype_append(SEQUENCER_OT_refresh_all);
@@ -152,6 +153,8 @@ void sequencer_keymap(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "SEQUENCER_OT_cut", KKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_enum_set(kmi->ptr, "type", SEQ_CUT_HARD);
 
+	kmi = WM_keymap_add_item(keymap, "SEQUENCER_OT_parent", PKEY, KM_PRESS, KM_CTRL, 0);
+	
 	kmi = WM_keymap_add_item(keymap, "SEQUENCER_OT_mute", HKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "unselected", false);
 	kmi = WM_keymap_add_item(keymap, "SEQUENCER_OT_mute", HKEY, KM_PRESS, KM_SHIFT, 0);

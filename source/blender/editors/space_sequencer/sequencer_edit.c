@@ -1231,6 +1231,46 @@ void SEQUENCER_OT_snap(struct wmOperatorType *ot)
 	RNA_def_int(ot->srna, "frame", 0, INT_MIN, INT_MAX, "Frame", "Frame where selected strips will be snapped", INT_MIN, INT_MAX);
 }
 
+static int sequencer_parent_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	
+	if (scene) {
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
+		Sequence *seq, *active_seq = ed->act_seq;
+		
+		for (seq = ed->seqbasep->first; seq; seq = seq->next) {
+			if (seq == active_seq)
+				continue;
+			
+			if (seq->flag & SELECT) {
+				seq->parent = active_seq;
+			}
+		}
+	}
+	
+	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+	
+	return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_parent(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Parent Strips";
+	ot->idname = "SEQUENCER_OT_parent";
+	ot->description = "";
+
+	/* api callbacks */
+	ot->exec = sequencer_parent_exec;
+	ot->poll = sequencer_edit_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+}
+
+
 /* mute operator */
 static int sequencer_mute_exec(bContext *C, wmOperator *op)
 {
@@ -3270,4 +3310,3 @@ void SEQUENCER_OT_change_path(struct wmOperatorType *ot)
 	                               WM_FILESEL_DIRECTORY | WM_FILESEL_RELPATH | WM_FILESEL_FILEPATH | WM_FILESEL_FILES,
 	                               FILE_DEFAULTDISPLAY);
 }
-

@@ -630,6 +630,11 @@ static char strip_color_storage[36][3];
 const static unsigned short strip_element_buffer[] = {9, 10, 8, 11, 7, 12, 6, 13, 5, 14, 4, 15, 3, 16, 2, 17, 1, 18, 0, 19, 35, 20,
                                        34, 21, 33, 22, 32, 23, 31, 24, 30, 25, 29, 26, 28, 27};
 
+static float calculate_cuddly_radius_x(float x1, float x2, float h, float aspect)
+{
+	return 0.5f * min_ff(h * 0.25f / aspect, (x2 - x1));	
+}
+
 static void generate_strip_vertices(float x1, float y1, float x2, float y2, float aspect)
 {
 	float ymid1, ymid2;
@@ -637,7 +642,8 @@ static void generate_strip_vertices(float x1, float y1, float x2, float y2, floa
 	int i;
 	float h = (y2 - y1);
 	float cuddly_radius = h * 0.25f;
-	float cuddly_radius_x = 0.5f * min_ff(cuddly_radius / aspect, (x2 - x1));
+	float cuddly_radius_x = calculate_cuddly_radius_x(x1, x2, h, aspect);
+	
 	ymid1 = h * 0.25f + y1;
 	ymid2 = h * 0.65f + y1;
 
@@ -804,7 +810,7 @@ static void draw_shaded_cuddly_strip(Sequence *seq, unsigned char col[3])
 static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx, float aspect)
 {
 	View2D *v2d = &ar->v2d;
-	float x1, x2, y1, y2;
+	float x1, x2, y1, y2, xchild;
 	unsigned char col[3], background_col[3], is_single_image;
 	const float handsize_clamped = draw_seq_handle_size_get_clamped(seq, pixelx);
 
@@ -817,6 +823,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	x2 = (seq->endstill) ? (seq->start + seq->len) : seq->enddisp;
 	y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
+	xchild = x1 + calculate_cuddly_radius_x(x1, x2, SEQ_STRIP_OFSTOP - SEQ_STRIP_OFSBOTTOM, aspect);
 	/* get the correct color per strip type*/
 	//get_seq_color3ubv(scene, seq, col);
 	get_seq_color3ubv(scene, seq, background_col);
@@ -924,6 +931,37 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	/* nice text here would require changing the view matrix for texture text */
 	if ((x2 - x1) / pixelx > 32) {
 		draw_seq_text(v2d, seq, x1, x2, y1, y2, background_col);
+	}
+	
+	/* lastly, draw strip parent indicator */
+	if (seq->parent && seq->parent->machine != seq->machine) {
+		Sequence *parent = seq->parent;
+		float x1_par, x2_par, xpar;
+		float ypar, yseq;
+		x1_par = (parent->startstill) ? parent->start : parent->startdisp;
+		x2_par = (parent->endstill) ? (parent->start + parent->len) : parent->enddisp;
+		y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
+		y2 = seq->machine + SEQ_STRIP_OFSTOP;
+		
+		xpar = max_ff(x1_par + calculate_cuddly_radius_x(x1_par, x2_par, SEQ_STRIP_OFSTOP - SEQ_STRIP_OFSBOTTOM, aspect), xchild);
+		xpar = min_ff(x2_par, xpar);
+
+		if (seq->machine > parent->machine) {
+			yseq = seq->machine + SEQ_STRIP_OFSBOTTOM;
+			ypar = parent->machine + SEQ_STRIP_OFSTOP;
+		}		
+		else {
+			yseq = seq->machine + SEQ_STRIP_OFSTOP;
+			ypar = parent->machine + SEQ_STRIP_OFSBOTTOM;	
+		}
+		
+		glBegin(GL_TRIANGLES);
+		glColor3f(0.5f, 0.5f, 0.5f);
+		glVertex2f(xpar, ypar);
+		glColor3f(0.9f, 0.9f, 1.0f);
+		glVertex2f(xchild + 0.05f / aspect, yseq);
+		glVertex2f(xchild, yseq);
+		glEnd();
 	}
 }
 
