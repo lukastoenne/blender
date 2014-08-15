@@ -241,7 +241,7 @@ static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, s
 }
 #else
 /* base particle data */
-static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm, float mat[4][4], HairCurve *hair, int index)
+static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm, float UNUSED(mat[4][4]), HairCurve *hair, int index)
 {
 	/* scale of segment lengths to get point radius */
 	const float seglen_to_radius = 2.0f / 3.0f;
@@ -263,7 +263,6 @@ static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, s
 	
 	/* particle hair is defined in a local face/root space, don't want that */
 	psys_mat_hair_to_object(ob, dm, psys->part->from, pa, hairmat);
-	mul_m4_m4m4(hairmat, mat, hairmat);
 	
 	radius = 0.0f;
 	for (k = 0; k < totpoints; ++k) {
