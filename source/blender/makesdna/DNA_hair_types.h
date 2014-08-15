@@ -56,6 +56,7 @@ typedef struct HairCurve {
 
 typedef struct HairRenderSettings {
 	int flag;
+	int material_slot;          /* index of the object's material slot */
 	
 	int num_render_hairs;       /* render hairs per simulation hair */
 	
@@ -67,6 +68,7 @@ typedef struct HairRenderSettings {
 	float shape;
 	
 	float curl_smoothing;
+	int pad;
 } HairRenderSettings;
 
 typedef enum eHairRenderSettings_Flag {

@@ -44,6 +44,10 @@
 #ifdef RNA_RUNTIME
 
 #include "BKE_hair.h"
+#include "BKE_material.h"
+
+#include "DNA_object_types.h"
+#include "DNA_material_types.h"
 
 #include "RNA_access.h"
 
@@ -82,6 +86,46 @@ static PointerRNA rna_HairSystem_render_get(PointerRNA *ptr)
 	
 	RNA_pointer_create(ptr->id.data, &RNA_HairRenderIterator, hsys->render_iter, &r_ptr);
 	return r_ptr;
+}
+
+static EnumPropertyItem *rna_HairRenderSettings_material_slot_itemf(bContext *C, PointerRNA *UNUSED(ptr),
+                                                                    PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	Object *ob = CTX_data_pointer_get(C, "object").data;
+	Material *ma;
+	EnumPropertyItem *item = NULL;
+	EnumPropertyItem tmp = {0, "", 0, "", ""};
+	int totitem = 0;
+	int i;
+
+	if (ob && ob->totcol > 0) {
+		for (i = 1; i <= ob->totcol; i++) {
+			ma = give_current_material(ob, i);
+			tmp.value = i;
+			tmp.icon = ICON_MATERIAL_DATA;
+			if (ma) {
+				tmp.name = ma->id.name + 2;
+				tmp.identifier = tmp.name;
+			}
+			else {
+				tmp.name = "Default Material";
+				tmp.identifier = tmp.name;
+			}
+			RNA_enum_item_add(&item, &totitem, &tmp);
+		}
+	}
+	else {
+		tmp.value = 1;
+		tmp.icon = ICON_MATERIAL_DATA;
+		tmp.name = "Default Material";
+		tmp.identifier = tmp.name;
+		RNA_enum_item_add(&item, &totitem, &tmp);
+	}
+
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
 }
 
 static void rna_HairRenderIterator_init(HairRenderIterator *iter)
@@ -261,9 +305,27 @@ static void rna_def_hair_params(BlenderRNA *brna)
 static void rna_def_hair_render_settings(BlenderRNA *brna) {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	
+	static EnumPropertyItem material_slot_items[] = {
+		{0, "DUMMY", 0, "Dummy", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	srna = RNA_def_struct(brna, "HairRenderSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Hair Render Settings", "Hair render settings");
+
+	prop = RNA_def_property(srna, "material_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "material_slot");
+	RNA_def_property_range(prop, 1, 32767);
+	RNA_def_property_ui_text(prop, "Material Index", "Index of material slot used for rendering");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
+
+	prop = RNA_def_property(srna, "material_slot", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "material_slot");
+	RNA_def_property_enum_items(prop, material_slot_items);
+	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_HairRenderSettings_material_slot_itemf");
+	RNA_def_property_ui_text(prop, "Material Slot", "Material slot used for rendering");
+	RNA_def_property_update(prop, 0, "rna_HairParams_render_update");
 
 	prop = RNA_def_property(srna, "render_hairs", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "num_render_hairs");

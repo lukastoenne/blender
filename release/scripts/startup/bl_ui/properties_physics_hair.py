@@ -108,6 +108,11 @@ class PHYSICS_PT_hair_render(PhysicButtonsPanel, Panel):
         render = params.render
 
         col = layout.column()
+
+        col.prop(render, "material_slot")
+
+        col.separator()
+
         col.prop(render, "render_hairs")
         col.prop(render, "interpolation_steps")
 

@@ -737,7 +737,7 @@ static void ExportHairCurveTrianglePlanes(Mesh *mesh, BL::HairSystem b_hsys, flo
 	float root_width = b_render.root_width() * b_render.radius_scale();
 	float tip_width = b_render.tip_width() * b_render.radius_scale();
 	bool closetip = b_render.use_closetip();
-	int shader = 0; // XXX TODO
+	int shader = mesh->used_shaders[clamp(b_render.material_slot()-1, 0, mesh->used_shaders.size()-1)];
 	
 	int vertexno = mesh->verts.size();
 	int vertexindex = vertexno;
@@ -806,7 +806,7 @@ static void ExportHairCurveTriangleGeometry(Mesh *mesh, BL::HairSystem b_hsys, i
 	float root_width = b_render.root_width() * b_render.radius_scale();
 	float tip_width = b_render.tip_width() * b_render.radius_scale();
 	bool closetip = b_render.use_closetip();
-	int shader = 0; // XXX TODO
+	int shader = mesh->used_shaders[clamp(b_render.material_slot()-1, 0, mesh->used_shaders.size()-1)];
 	
 	int vertexno = mesh->verts.size();
 	int vertexindex = vertexno;
@@ -884,7 +884,7 @@ static void ExportHairCurveSegments(Scene *scene, Mesh *mesh, BL::HairSystem b_h
 	float root_width = b_render.root_width() * b_render.radius_scale();
 	float tip_width = b_render.tip_width() * b_render.radius_scale();
 	bool closetip = b_render.use_closetip();
-	int shader = 0; // XXX TODO
+	int shader = mesh->used_shaders[clamp(b_render.material_slot()-1, 0, mesh->used_shaders.size()-1)];
 	
 	int num_keys = 0;
 	int num_curves = 0;
