@@ -183,17 +183,121 @@ static bool hair_copy_particle_emitter_location(Object *UNUSED(ob), ParticleSyst
 		return false;
 }
 
-static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm)
+static void hair_copy_root(Object *ob, HairSystem *UNUSED(hsys), ParticleSystem *psys, struct DerivedMesh *dm, HairCurve *hair, int index)
+{
+	ParticleData *root = &psys->particles[index];
+	float loc[3], tan[3];
+	
+	hair_copy_particle_emitter_location(ob, psys, root, dm, &hair->root);
+	BKE_mesh_sample_eval(dm, &hair->root, loc, hair->rest_nor);
+	tan[0] = 0.0f; tan[1] = 0.0f; tan[2] = 1.0f;
+	madd_v3_v3v3fl(hair->rest_tan, tan, hair->rest_nor, -dot_v3v3(tan, hair->rest_nor));
+	normalize_v3(hair->rest_tan);
+}
+
+#if 0
+/* cached particle data */
+static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm, float mat[4][4], HairCurve *hair, int index)
 {
 	/* scale of segment lengths to get point radius */
 	const float seglen_to_radius = 2.0f / 3.0f;
 	
+	ParticleCacheKey *pa_cache = psys->pathcache[index];
+	HairPoint *points;
+	int totpoints;
+	float radius;
+	int k;
+	
+	if (pa_cache->steps == 0)
+		return;
+	
+	totpoints = pa_cache->steps + 1;
+	points = BKE_hair_point_append_multi(hsys, hair, totpoints);
+	
+	hair_copy_root(ob, hsys, psys, dm, hair, index);
+	
+	radius = 0.0f;
+	for (k = 0; k < totpoints; ++k) {
+		ParticleCacheKey *pa_key = pa_cache + k;
+		HairPoint *point = points + k;
+		
+		mul_v3_m4v3(point->rest_co, mat, pa_key->co);
+		/* apply rest position */
+		copy_v3_v3(point->co, point->rest_co);
+		zero_v3(point->vel);
+		
+		if (k == 0) {
+			if (k < totpoints-1)
+				radius = seglen_to_radius * len_v3v3(pa_key->co, (pa_key+1)->co);
+			point->radius = radius;
+		}
+		else {
+			float prev_radius = radius;
+			if (k < totpoints-1)
+				radius = seglen_to_radius * len_v3v3(pa_key->co, (pa_key+1)->co);
+			point->radius = 0.5f * (radius + prev_radius);
+		}
+	}
+}
+#else
+/* base particle data */
+static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm, float mat[4][4], HairCurve *hair, int index)
+{
+	/* scale of segment lengths to get point radius */
+	const float seglen_to_radius = 2.0f / 3.0f;
+	
+	ParticleData *pa = psys->particles + index;
+	HairPoint *points;
+	int totpoints;
+	float hairmat[4][4];
+	float radius;
+	int k;
+	
+	if (pa->totkey <= 1)
+		return;
+	
+	totpoints = pa->totkey;
+	points = BKE_hair_point_append_multi(hsys, hair, totpoints);
+	
+	hair_copy_root(ob, hsys, psys, dm, hair, index);
+	
+	/* particle hair is defined in a local face/root space, don't want that */
+	psys_mat_hair_to_object(ob, dm, psys->part->from, pa, hairmat);
+	mul_m4_m4m4(hairmat, mat, hairmat);
+	
+	radius = 0.0f;
+	for (k = 0; k < totpoints; ++k) {
+		HairKey *psys_hair_key = pa->hair + k;
+		HairPoint *point = points + k;
+		
+		mul_v3_m4v3(point->rest_co, hairmat, psys_hair_key->co);
+		/* apply rest position */
+		copy_v3_v3(point->co, point->rest_co);
+		zero_v3(point->vel);
+		
+		if (k == 0) {
+			if (k < totpoints-1)
+				radius = seglen_to_radius * len_v3v3(psys_hair_key->co, (psys_hair_key+1)->co);
+			point->radius = radius;
+		}
+		else {
+			float prev_radius = radius;
+			if (k < totpoints-1)
+				radius = seglen_to_radius * len_v3v3(psys_hair_key->co, (psys_hair_key+1)->co);
+			point->radius = 0.5f * (radius + prev_radius);
+		}
+	}
+}
+#endif
+
+static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm)
+{
 	ParticleSettings *part = psys->part;
 	HairCurve *hairs;
 	PointerRNA part_ptr, cycles_ptr;
 	int tothairs;
 	float mat[4][4];
-	int i, k;
+	int i;
 	
 	/* matrix for bringing hairs from pob to ob space */
 	invert_m4_m4(mat, ob->obmat);
@@ -230,47 +334,7 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 	hairs = BKE_hair_curve_add_multi(hsys, tothairs);
 	
 	for (i = 0; i < tothairs; ++i) {
-		ParticleCacheKey *pa_cache = psys->pathcache[i];
-		ParticleData *root = &psys->particles[i];
-		HairCurve *hair = hairs + i;
-		HairPoint *points;
-		int totpoints;
-		float loc[3], tan[3];
-		float radius;
-		
-		if (pa_cache->steps == 0)
-			continue;
-		
-		totpoints = pa_cache->steps + 1;
-		points = BKE_hair_point_append_multi(hsys, hair, totpoints);
-		
-		hair_copy_particle_emitter_location(ob, psys, root, dm, &hair->root);
-		BKE_mesh_sample_eval(dm, &hair->root, loc, hair->rest_nor);
-		tan[0] = 0.0f; tan[1] = 0.0f; tan[2] = 1.0f;
-		madd_v3_v3v3fl(hair->rest_tan, tan, hair->rest_nor, -dot_v3v3(tan, hair->rest_nor));
-		
-		radius = 0.0f;
-		for (k = 0; k < totpoints; ++k) {
-			ParticleCacheKey *pa_key = pa_cache + k;
-			HairPoint *point = points + k;
-			
-			mul_v3_m4v3(point->rest_co, mat, pa_key->co);
-			/* apply rest position */
-			copy_v3_v3(point->co, point->rest_co);
-			zero_v3(point->vel);
-			
-			if (k == 0) {
-				if (k < totpoints-1)
-					radius = seglen_to_radius * len_v3v3(pa_key->co, (pa_key+1)->co);
-				point->radius = radius;
-			}
-			else {
-				float prev_radius = radius;
-				if (k < totpoints-1)
-					radius = seglen_to_radius * len_v3v3(pa_key->co, (pa_key+1)->co);
-				point->radius = 0.5f * (radius + prev_radius);
-			}
-		}
+		hair_copy_data(ob, hsys, psys, dm, mat, hairs + i, i);
 	}
 }
 
