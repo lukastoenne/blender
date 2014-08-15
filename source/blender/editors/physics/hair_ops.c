@@ -53,6 +53,7 @@
 
 #include "HAIR_capi.h"
 
+#include "RNA_access.h"
 #include "RNA_define.h"
 
 #include "ED_screen.h"
@@ -90,9 +91,9 @@ static int ED_hair_active_poll(bContext *C)
 
 static int hair_reset_to_rest_location_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *ob;
-	HairSystem *hsys;
-	HairModifierData *hmd;
+	Object *ob = NULL;
+	HairSystem *hsys = NULL;
+	HairModifierData *hmd = NULL;
 	int i, k;
 	ED_hair_get(C, &ob, &hsys, &hmd);
 	
@@ -136,7 +137,7 @@ static bool hair_copy_particle_emitter_location(Object *UNUSED(ob), ParticleSyst
 	int mapindex;
 	MVert *mverts = dm->getVertArray(dm);
 	MFace *mface;
-	float *co1, *co2, *co3, *co4;
+	float *co1 = NULL, *co2 = NULL, *co3 = NULL, *co4 = NULL;
 	float vec[3];
 	float w[4];
 	
@@ -187,7 +188,9 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 	/* scale of segment lengths to get point radius */
 	const float seglen_to_radius = 2.0f / 3.0f;
 	
+	ParticleSettings *part = psys->part;
 	HairCurve *hairs;
+	PointerRNA part_ptr, cycles_ptr;
 	int tothairs;
 	float mat[4][4];
 	int i, k;
@@ -197,6 +200,31 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 	
 	/* particle emitter mesh data */
 	DM_ensure_tessface(dm);
+	
+	RNA_id_pointer_create((ID *)part, &part_ptr);
+	if (RNA_struct_find_property(&part_ptr, "cycles"))
+		cycles_ptr = RNA_pointer_get(&part_ptr, "cycles");
+	else
+		cycles_ptr.data = NULL;
+	
+	/* copy system parameters */
+	hsys->params.render.flag = 0;
+	hsys->params.render.material_slot = (int)part->omat;
+	hsys->params.render.num_render_hairs = part->ren_child_nbr;
+	if (cycles_ptr.data) {
+		/* various cycles settings, now defined by the hair system itself */
+		hsys->params.render.radius_scale = RNA_float_get(&cycles_ptr, "radius_scale");
+		hsys->params.render.root_width = RNA_float_get(&cycles_ptr, "root_width");
+		hsys->params.render.tip_width = RNA_float_get(&cycles_ptr, "tip_width");
+		hsys->params.render.shape = RNA_float_get(&cycles_ptr, "shape");
+		if (RNA_boolean_get(&cycles_ptr, "use_closetip"))
+			hsys->params.render.flag |= HAIR_RENDER_CLOSE_TIP;
+	}
+	
+	/* XXX segment counts are incompatible: we copy from displayed segments ...
+	 * set interpolation to 1 to avoid exploding point counts
+	 */
+	hsys->params.render.interpolation_steps = 1;
 	
 	tothairs = psys->totpart;
 	hairs = BKE_hair_curve_add_multi(hsys, tothairs);
@@ -248,10 +276,10 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 
 static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 {
-	Object *ob;
+	Object *ob = NULL;
 	ParticleSystem *psys;
-	HairSystem *hsys;
-	HairModifierData *hmd;
+	HairSystem *hsys = NULL;
+	HairModifierData *hmd = NULL;
 	ED_hair_get(C, &ob, &hsys, &hmd);
 	
 	BKE_hairsys_clear(hsys);
