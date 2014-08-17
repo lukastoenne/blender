@@ -118,6 +118,11 @@ protected:
 	HAIR_CXX_CLASS_ALLOC(SmoothingIterator)
 };
 
+/* XXX optimizing the frame iterator could be quite rewarding in terms of performance ...
+ * See "Parallel Transport Approach to Curve Framing" (Hanson et al. 1995)
+ * ftp://cgi.soic.indiana.edu/pub/techreports/TR425.pdf
+ */
+
 template <typename WalkerT>
 struct FrameIterator {
 	FrameIterator()
