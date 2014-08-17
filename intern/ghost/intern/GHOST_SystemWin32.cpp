@@ -115,6 +115,17 @@
 #define VK_MEDIA_PLAY_PAUSE 0xB3
 #endif // VK_MEDIA_PLAY_PAUSE
 
+/* Workaround for some laptop touchpads, some of which seems to
+ * have driver issues which makes it so window function receives
+ * the message, but PeekMessage doesn't pick those messages for
+ * some reason.
+ *
+ * We send a dummy WM_USER message to force PeekMessage to receive
+ * something, making it so blender's window manager sees the new
+ * messages coming in.
+ */
+#define BROKEN_PEEK_TOUCHPAD
+
 static void initRawInput()
 {
 #ifdef WITH_INPUT_NDOF
@@ -1053,6 +1064,10 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					 * until it finds a window that processes it.
 					 */
 					event = processWheelEvent(window, wParam, lParam);
+
+#ifdef BROKEN_PEEK_TOUCHPAD
+					PostMessage(hwnd, WM_USER, 0, 0);
+#endif
 					break;
 				case WM_SETCURSOR:
 					/* The WM_SETCURSOR message is sent to a window if the mouse causes the cursor
@@ -1439,9 +1454,7 @@ static bool isStartedFromCommandPrompt()
 			}
 		}
 
-		/* When we're starting from a wrapper we need to comare with
-		 * parent process ID.
-		 */
+		/* When we're starting from a wrapper we need to compare with parent process ID. */
 		if (pid == (start_from_launcher ? ppid : GetCurrentProcessId()))
 			return true;
 	}
