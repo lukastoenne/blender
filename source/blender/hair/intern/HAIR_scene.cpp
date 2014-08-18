@@ -131,6 +131,7 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 		
 		curve->root0 = curve->root1;
 		mesh_sample_eval(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
+		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 	}
 	
 	forces.dynamics_world = scene->rigidbody_world ? (rbDynamicsWorld *)scene->rigidbody_world->physics_world : NULL;
