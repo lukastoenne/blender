@@ -39,6 +39,7 @@ set(INC_SYS
 set(SRC
 	HAIR_capi.h
 	HAIR_capi.cpp
+	HAIR_debug_types.h
 
 	intern/HAIR_curve.h
 	intern/HAIR_curve.cpp

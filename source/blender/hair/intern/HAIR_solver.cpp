@@ -274,6 +274,8 @@ struct SolverTaskData {
 	Point *points;
 	int startcurve, totcurves;
 	int startpoint, totpoints;
+	
+	DebugThreadData *debug_data;
 };
 
 static void accum_internal_forces(const HairParams &params, const SolverForces &forces, float time, float timestep, const Point *point0, const Point *point1, const Frame &frame,
@@ -567,15 +569,21 @@ static void advance_state(SolverData *data)
 
 void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *debug_thread_data)
 {
+	/* global debug data for the host thread */
+	DebugThreadData *debug_data = NULL;
+	if (debug_thread_data) {
+		debug_thread_data->push_back(DebugThreadData());
+		debug_data = &debug_thread_data->back();
+	}
+	
 	/* filter and cache Bullet contact information */
 	PointContactCache contacts;
 	cache_point_contacts(contacts);
-	if (debug_thread_data) {
-		debug_thread_data->push_back(DebugThreadData());
-		DebugThreadData *thread_data = &debug_thread_data->back();
+	
+	if (debug_data) {
 		for (int i = 0; i < contacts.size(); ++i) {
 			const PointContactInfo &info = contacts[i];
-			Debug::collision_contact(thread_data, info.world_point_hair, info.world_point_body);
+			Debug::collision_contact(debug_data, info.world_point_hair, info.world_point_body);
 		}
 	}
 	
@@ -619,6 +627,7 @@ void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *de
 			solver_task.startpoint = point_start;
 			solver_task.totcurves = num_hairs;
 			solver_task.totpoints = num_points;
+			solver_task.debug_data = NULL; /* defined below if needed */
 			taskdata.push_back(solver_task);
 			
 			hair_start += num_hairs;
@@ -630,11 +639,23 @@ void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *de
 		++curve;
 	}
 	
+	/* Note: have to create the debug data stack afterward to safely point to the std::vector */
+	if (debug_thread_data) {
+		/* reserve ensures no re-alloc happens and we can safely push and reference */
+		debug_thread_data->reserve(debug_thread_data->size() + taskdata.size());
+		for (SolverTaskVector::iterator it = taskdata.begin(); it != taskdata.end(); ++it) {
+			SolverTaskData &solver_task = *it;
+			debug_thread_data->push_back(DebugThreadData());
+			solver_task.debug_data = &debug_thread_data->back();
+		}
+	}
+	
 	/* Note: can't create tasks right away in the loop above,
 	 * because they reference data in a vector which can be altered afterward.
 	 */
 	for (SolverTaskVector::const_iterator it = taskdata.begin(); it != taskdata.end(); ++it) {
-		BLI_task_pool_push(task_pool, step_threaded_func, (void*)(&(*it)), false, TASK_PRIORITY_LOW);
+		const SolverTaskData &solver_task = *it;
+		BLI_task_pool_push(task_pool, step_threaded_func, (void*)(&solver_task), false, TASK_PRIORITY_LOW);
 	}
 	
 	/* work and wait until tasks are done */

@@ -29,6 +29,11 @@
 
 #include <vector>
 
+extern "C" {
+#include "BLI_math.h"
+}
+
+#include "HAIR_debug_types.h"
 #include "HAIR_smoothing.h"
 #include "HAIR_types.h"
 
@@ -40,21 +45,10 @@ HAIR_NAMESPACE_BEGIN
 
 struct SolverData;
 
-struct DebugPoint {
-	int index;
-	
-	float3 bend;
-	Frame frame;
-};
-
-struct DebugContact {
-	float3 coA, coB;
-};
-
 struct DebugThreadData
 {
-	typedef std::vector<DebugPoint> Points;
-	typedef std::vector<DebugContact> CollisionContacts;
+	typedef std::vector<HAIR_SolverDebugPoint> Points;
+	typedef std::vector<HAIR_SolverDebugContact> CollisionContacts;
 	
 	CollisionContacts contacts;
 	Points points;
@@ -62,19 +56,23 @@ struct DebugThreadData
 
 struct Debug {
 	
-	static void point(DebugThreadData *data, int index, const float3 &bend, const Frame &frame)
+	static void point(DebugThreadData *data, int index, const float3 &co, const float3 &bend, const Frame &frame)
 	{
 #ifdef HAIR_DEBUG
 		if (data) {
-			DebugPoint p;
+			HAIR_SolverDebugPoint p;
 			p.index = index;
-			p.bend = bend;
-			p.frame = frame;
+			copy_v3_v3(p.co, co.data());
+			copy_v3_v3(p.bend, bend.data());
+			copy_v3_v3(p.frame[0], frame.normal.data());
+			copy_v3_v3(p.frame[1], frame.tangent.data());
+			copy_v3_v3(p.frame[2], frame.cotangent.data());
 			data->points.push_back(p);
 		}
 #else
 		(void)data;
 		(void)index;
+		(void)co;
 		(void)bend;
 		(void)frame;
 #endif
@@ -84,9 +82,9 @@ struct Debug {
 	{
 #ifdef HAIR_DEBUG
 		if (data) {
-			DebugContact c;
-			c.coA = coA;
-			c.coB = coB;
+			HAIR_SolverDebugContact c;
+			copy_v3_v3(c.coA, coA.data());
+			copy_v3_v3(c.coB, coB.data());
 			data->contacts.push_back(c);
 		}
 #else

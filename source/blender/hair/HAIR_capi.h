@@ -24,6 +24,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#ifndef __HAIR_CAPI_H__
+#define __HAIR_CAPI_H__
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -38,6 +41,9 @@ struct rbDynamicsWorld;
 struct HAIR_Solver;
 struct HAIR_SmoothingIteratorFloat3;
 struct HAIR_FrameIterator;
+struct HAIR_SolverDebugContact;
+struct HAIR_SolverDebugPoint;
+
 
 struct HAIR_Solver *HAIR_solver_new(void);
 void HAIR_solver_free(struct HAIR_Solver *solver);
@@ -45,15 +51,6 @@ void HAIR_solver_set_params(struct HAIR_Solver *solver, const struct HairParams 
 void HAIR_solver_build_data(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
 void HAIR_solver_update_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
 void HAIR_solver_rebuild_rigidbodyworld(struct HAIR_Solver *solver, struct rbDynamicsWorld *world);
-
-typedef struct HAIR_SolverDebugContact {
-	float coA[3], coB[3];
-} HAIR_SolverDebugContact;
-
-typedef struct HAIR_SolverDebugPoint {
-	float bend[3];
-	float frame[3][3];
-} HAIR_SolverDebugPoint;
 
 void HAIR_solver_step(struct HAIR_Solver *solver, float time, float timestep);
 void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float timestep,
@@ -79,4 +76,6 @@ void HAIR_frame_iter_next(struct HAIR_FrameIterator *iter);
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

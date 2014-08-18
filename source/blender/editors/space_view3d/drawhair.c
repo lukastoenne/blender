@@ -53,7 +53,7 @@
 
 #include "UI_resources.h"
 
-#include "HAIR_capi.h"
+#include "HAIR_debug_types.h"
 
 /* ******** Hair Drawing ******** */
 
