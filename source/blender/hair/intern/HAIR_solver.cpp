@@ -358,6 +358,8 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 	}
 	
 	Curve *curve = data.curves;
+	int k_tot = 0;
+
 	for (int i = 0; i < data.totcurves; ++i, ++curve) {
 		int numpoints = curve->totpoints;
 		
@@ -387,6 +389,7 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 			acc_prev = intern_force_next;
 			++k;
 			++point;
+			++k_tot;
 		}
 		
 		/* Integrate free points */
@@ -397,10 +400,11 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 			
 			point->force_accum = point->force_accum + intern_force + extern_force + acc_prev;
 			
-			Debug::point(data.debug_data, k, point->cur.co, point->rest_bend, frame_iter.frame());
+			Debug::point(data.debug_data, k_tot, point->cur.co, point->rest_bend, frame_iter.frame());
 			
 			frame_iter.next();
 			acc_prev = intern_force_next;
+			k_tot++;
 		}
 		
 	}
