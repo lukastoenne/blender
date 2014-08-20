@@ -56,13 +56,15 @@ struct DebugThreadData
 
 struct Debug {
 	
-	static void point(DebugThreadData *data, int index, const float3 &co, const float3 &bend, const Frame &frame)
+	static void point(DebugThreadData *data, int index, const float3 &co,
+	                  const float3 &rest_bend, const float3 &bend, const Frame &frame)
 	{
 #ifdef HAIR_DEBUG
 		if (data) {
 			HAIR_SolverDebugPoint p;
 			p.index = index;
 			copy_v3_v3(p.co, co.data());
+			copy_v3_v3(p.rest_bend, rest_bend.data());
 			copy_v3_v3(p.bend, bend.data());
 			copy_v3_v3(p.frame[0], frame.normal.data());
 			copy_v3_v3(p.frame[1], frame.tangent.data());

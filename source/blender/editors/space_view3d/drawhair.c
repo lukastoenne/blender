@@ -461,6 +461,7 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 #define SHOW_FRAMES
 //#define SHOW_SMOOTHING
 #define SHOW_CONTACTS
+#define SHOW_BENDING
 
 static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
 {
@@ -554,13 +555,13 @@ static void draw_hair_debug_frames(HairSystem *hsys, HAIR_SolverDebugPoint *dpoi
 	for (i = 0; i < hsys->totcurves; ++i) {
 		HairCurve *hair = hsys->curves + i;
 		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
-			HairPoint *point = hair->points + k;
+//			HairPoint *point = hair->points + k;
 			
 			if (ktot < dtotpoints) {
 				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
 				float co[3], nor[3], tan[3], cotan[3];
 				
-				copy_v3_v3(co, point->co);
+				copy_v3_v3(co, dpoint->co);
 				madd_v3_v3v3fl(nor, co, dpoint->frame[0], scale);
 				madd_v3_v3v3fl(tan, co, dpoint->frame[1], scale);
 				madd_v3_v3v3fl(cotan, co, dpoint->frame[2], scale);
@@ -574,6 +575,46 @@ static void draw_hair_debug_frames(HairSystem *hsys, HAIR_SolverDebugPoint *dpoi
 				glColor3f(0.0f, 0.0f, 1.0f);
 				glVertex3fv(co);
 				glVertex3fv(cotan);
+			}
+		}
+	}
+	
+	glEnd();
+#else
+	(void)hsys;
+	(void)dpoints;
+	(void)dtotpoints;
+#endif
+}
+
+static void draw_hair_debug_bending(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
+{
+#ifdef SHOW_BENDING
+	int i, k, ktot;
+	
+	glBegin(GL_LINES);
+	
+	ktot = 0;
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *hair = hsys->curves + i;
+		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
+//			HairPoint *point = hair->points + k;
+			
+			if (ktot < dtotpoints) {
+				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
+				float co[3], bend[3];
+				
+				copy_v3_v3(co, dpoint->co);
+				
+				add_v3_v3v3(bend, co, dpoint->bend);
+				glColor3f(0.4f, 0.25f, 0.55f);
+				glVertex3fv(co);
+				glVertex3fv(bend);
+				
+				add_v3_v3v3(bend, co, dpoint->rest_bend);
+				glColor3f(0.15f, 0.55f, 0.55f);
+				glVertex3fv(co);
+				glVertex3fv(bend);
 			}
 		}
 	}
@@ -731,6 +772,8 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	if (hmd->debug_data) {
 		if (debug_flag & MOD_HAIR_DEBUG_FRAMES)
 			draw_hair_debug_frames(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
+		if (debug_flag & MOD_HAIR_DEBUG_BENDING)
+			draw_hair_debug_bending(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
 //		draw_hair_debug_points(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
 		if (debug_flag & MOD_HAIR_DEBUG_CONTACTS)
 			draw_hair_debug_contacts(hsys, hmd->debug_data->contacts, hmd->debug_data->totcontacts);

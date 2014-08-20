@@ -161,6 +161,7 @@ class PHYSICS_PT_hair_debug(PhysicButtonsPanel, Panel):
         col.prop(md, "show_debug_size")
         col.prop(md, "show_debug_roots")
         col.prop(md, "show_debug_frames")
+        col.prop(md, "show_debug_bending")
         col.prop(md, "show_debug_smoothing")
 
 

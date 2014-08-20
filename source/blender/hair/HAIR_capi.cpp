@@ -148,6 +148,7 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 				/* transform to object space for display */
 				mul_m4_v3(ob_imat, p.co);
 				mul_mat3_m4_v3(ob_imat, p.bend);
+				mul_mat3_m4_v3(ob_imat, p.rest_bend);
 				mul_mat3_m4_v3(ob_imat, p.frame[0]);
 				mul_mat3_m4_v3(ob_imat, p.frame[1]);
 				mul_mat3_m4_v3(ob_imat, p.frame[2]);

@@ -1391,6 +1391,7 @@ enum {
 	MOD_HAIR_DEBUG_ROOTS        = (1 << 3),
 	MOD_HAIR_DEBUG_SMOOTHING    = (1 << 4),
 	MOD_HAIR_DEBUG_FRAMES       = (1 << 5),
+	MOD_HAIR_DEBUG_BENDING      = (1 << 6),
 };
 
 

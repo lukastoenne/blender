@@ -3724,6 +3724,11 @@ static void rna_def_modifier_hair(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "debug_flag", MOD_HAIR_DEBUG_SMOOTHING);
 	RNA_def_property_ui_text(prop, "Show Smoothing", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "show_debug_bending", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "debug_flag", MOD_HAIR_DEBUG_BENDING);
+	RNA_def_property_ui_text(prop, "Show Bending", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

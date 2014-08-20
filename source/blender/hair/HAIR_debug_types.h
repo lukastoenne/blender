@@ -42,6 +42,7 @@ typedef struct HAIR_SolverDebugContact {
 typedef struct HAIR_SolverDebugPoint {
 	int index;
 	float co[3];
+	float rest_bend[3];
 	float bend[3];
 	float frame[3][3];
 } HAIR_SolverDebugPoint;

@@ -383,7 +383,7 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 			accum_internal_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
 			accum_external_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), extern_force);
 			
-			Debug::point(data.debug_data, k, point->cur.co, point->rest_bend, frame_iter.frame());
+			Debug::point(data.debug_data, k, point->cur.co, point->rest_bend, bend_target(frame_iter.frame(), point), frame_iter.frame());
 			
 			frame_iter.next();
 			acc_prev = intern_force_next;
@@ -393,18 +393,17 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 		}
 		
 		/* Integrate free points */
-		for (; k < numpoints; ++k, ++point) {
+		for (; k < numpoints; ++k, ++point, ++k_tot) {
 			Point *point_next = k < numpoints-1 ? point+1 : NULL;
 			accum_internal_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
 			accum_external_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), extern_force);
 			
 			point->force_accum = point->force_accum + intern_force + extern_force + acc_prev;
 			
-			Debug::point(data.debug_data, k_tot, point->cur.co, point->rest_bend, frame_iter.frame());
+			Debug::point(data.debug_data, k_tot, point->cur.co, point->rest_bend, bend_target(frame_iter.frame(), point), frame_iter.frame());
 			
 			frame_iter.next();
 			acc_prev = intern_force_next;
-			k_tot++;
 		}
 		
 	}
