@@ -275,6 +275,7 @@ blender_include_dirs(
 	../../bmesh
 	../../blenfont
 	../../gpu
+        ../../hair
 	../../imbuf
 	../../ikplugin
 	../../makesdna

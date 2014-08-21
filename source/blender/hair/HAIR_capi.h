@@ -36,6 +36,7 @@ struct Object;
 struct DerivedMesh;
 struct HairCurve;
 struct HairSystem;
+struct HairParams;
 struct rbDynamicsWorld;
 
 struct HAIR_Solver;
@@ -60,7 +61,7 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 
 void HAIR_solver_apply(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 
-struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(HairCurve *curve, float rest_length, float amount);
+struct HAIR_SmoothingIteratorFloat3 *HAIR_smoothing_iter_new(struct HairCurve *curve, float rest_length, float amount);
 void HAIR_smoothing_iter_free(struct HAIR_SmoothingIteratorFloat3 *iter);
 bool HAIR_smoothing_iter_valid(struct HAIR_SmoothingIteratorFloat3 *iter);
 void HAIR_smoothing_iter_get(struct HAIR_SmoothingIteratorFloat3 *iter, float val[3]);

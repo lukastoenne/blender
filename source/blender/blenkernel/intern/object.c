@@ -1271,12 +1271,17 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 		}
 	}
 
+#if 0
 	if (psys->clmd) {
 		psysn->clmd = (ClothModifierData *)modifier_new(eModifierType_Cloth);
 		modifier_copyData((ModifierData *)psys->clmd, (ModifierData *)psysn->clmd);
 		psys->hair_in_dm = psys->hair_out_dm = NULL;
 	}
+#endif
 
+	psysn->solver = NULL;
+	*psysn->params = *psys->params;
+	
 	BLI_duplicatelist(&psysn->targets, &psys->targets);
 
 	psysn->pathcache = NULL;
@@ -1295,9 +1300,11 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 
 	/* XXX - from reading existing code this seems correct but intended usage of
 	 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */
+#if 0
 	if (psysn->clmd) {
 		psysn->clmd->point_cache = psysn->pointcache;
 	}
+#endif
 
 	id_us_plus((ID *)psysn->part);
 

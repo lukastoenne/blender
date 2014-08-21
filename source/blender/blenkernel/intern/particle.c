@@ -82,6 +82,8 @@
 #include "BKE_scene.h"
 #include "BKE_deform.h"
 
+#include "HAIR_capi.h"
+
 #include "RE_render_ext.h"
 
 unsigned int PSYS_FRAND_SEED_OFFSET[PSYS_FRAND_COUNT];
@@ -403,6 +405,7 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
 
 	psys->flag &= ~PSYS_HAIR_DONE;
 
+#if 0
 	if (psys->clmd) {
 		if (dynamics) {
 			BKE_ptcache_free_list(&psys->ptcaches);
@@ -418,7 +421,17 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
 			cloth_free_modifier(psys->clmd);
 		}
 	}
-
+#endif
+	if (psys->solver) {
+		HAIR_solver_free(psys->solver);
+		psys->solver = NULL;
+	}
+	
+	if (psys->params) {
+		MEM_freeN(psys->params);
+		psys->params = NULL;
+	}
+	
 	if (psys->hair_in_dm)
 		psys->hair_in_dm->release(psys->hair_in_dm);
 	psys->hair_in_dm = NULL;

@@ -41,6 +41,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_boid_types.h"
 #include "DNA_texture_types.h"
+#include "DNA_hair_types.h"
+
+#include "BKE_hair.h"
+
+#include "HAIR_capi.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -705,12 +710,22 @@ static void rna_Particle_hair_dynamics(Main *bmain, Scene *scene, PointerRNA *pt
 	Object *ob = (Object *)ptr->id.data;
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
 	
+#if 0
 	if (psys && !psys->clmd) {
 		psys->clmd = (ClothModifierData *)modifier_new(eModifierType_Cloth);
 		psys->clmd->sim_parms->goalspring = 0.0f;
 		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL | CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
 		psys->clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
 		rna_Particle_redo(bmain, scene, ptr);
+	}
+#endif
+	if (psys && !psys->solver) {
+		psys->solver = HAIR_solver_new();
+
+		if (!psys->params) {
+			psys->params = MEM_callocN(sizeof(HairParams), "hair_params_particle");
+			BKE_hairparams_init(psys->params);
+		}
 	}
 	else
 		WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_EDITED, NULL);
@@ -3130,13 +3145,21 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Hair Dynamics", "Enable hair dynamics using cloth simulation");
 	RNA_def_property_update(prop, 0, "rna_Particle_hair_dynamics");
 
+#if 0
 	prop = RNA_def_property(srna, "cloth", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "clmd");
 	RNA_def_property_struct_type(prop, "ClothModifier");
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Cloth", "Cloth dynamics for hair");
-
+#endif
+	prop = RNA_def_property(srna, "params", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "params");
+	RNA_def_property_struct_type(prop, "HairParams");
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Hair Properties", "Dynamics for hair");
+	
 	/* reactor */
 	prop = RNA_def_property(srna, "reactor_target_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "target_ob");

@@ -48,6 +48,7 @@ incs = [
     '../bmesh',
     '../editors/include',
     '../gpu',
+    '../hair',
     '../ikplugin',
     '../imbuf',
     '../makesdna',

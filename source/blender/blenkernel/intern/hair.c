@@ -44,19 +44,23 @@
 
 #include "HAIR_capi.h"
 
-HairSystem *BKE_hairsys_new(void)
+void BKE_hairparams_init(HairParams *params)
 {
-	HairSystem *hsys = MEM_callocN(sizeof(HairSystem), "hair system");
-	HairParams *params = &hsys->params;
-	HairRenderSettings *render = &params->render;
-	
 	params->substeps_forces = 30;
 	params->substeps_damping = 10;
 	params->stretch_stiffness = 2000.0f;
 	params->stretch_damping = 10.0f;
 	params->bend_stiffness = 40.0f;
 	params->bend_damping = 10.0f;
+}
+
+HairSystem *BKE_hairsys_new(void)
+{
+	HairSystem *hsys = MEM_callocN(sizeof(HairSystem), "hair system");
+	HairParams *params = &hsys->params;
+	HairRenderSettings *render = &params->render;
 	
+	BKE_hairparams_init(params);
 	render->flag = HAIR_RENDER_CLOSE_TIP;
 	render->num_render_hairs = 100;
 	render->interpolation_steps = 4;

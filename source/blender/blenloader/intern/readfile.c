@@ -3811,7 +3811,8 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			
 			psys->parent = newlibadr(fd, id->lib, psys->parent);
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
-			
+
+#if 0			
 			if (psys->clmd) {
 				/* XXX - from reading existing code this seems correct but intended usage of
 				 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */
@@ -3820,6 +3821,8 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
 				psys->clmd->modifier.error = NULL;
 			}
+#endif
+			psys->solver = NULL;
 		}
 		else {
 			/* particle modifier must be removed before particle system */
@@ -3884,6 +3887,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		
 		direct_link_pointcache_list(fd, &psys->ptcaches, &psys->pointcache, 0);
 		
+#if 0
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);
 			psys->clmd->clothObject = NULL;
@@ -3897,10 +3901,16 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 					psys->clmd->sim_parms->presets = 0;
 			}
 			
-			psys->hair_in_dm = psys->hair_out_dm = NULL;
 			
 			psys->clmd->point_cache = psys->pointcache;
 		}
+#endif
+		if (psys->params) {
+			psys->params = newdataadr(fd, psys->params);
+		}
+		
+		psys->solver = NULL;
+		psys->hair_in_dm = psys->hair_out_dm = NULL;
 		
 		psys->tree = NULL;
 		psys->bvhtree = NULL;
