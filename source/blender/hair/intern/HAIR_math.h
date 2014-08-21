@@ -33,6 +33,10 @@
 
 #include <math.h>
 
+extern "C" {
+#include "BLI_utildefines.h"
+}
+
 #include "HAIR_types.h"
 
 HAIR_NAMESPACE_BEGIN
@@ -215,6 +219,27 @@ __forceinline float4 mul_qt_v4(const float4 &q, const float4 &v)
 	r.w = 1.0f;
 	
 	return r;
+}
+
+__forceinline float4 rotation_between_vecs_to_quat(const float3 a, const float3 b)
+{
+	static const float epsilon = 1.0e-6;
+	
+	float3 na, nb;
+	normalize_v3_v3(na, a);
+	normalize_v3_v3(nb, b);
+	float3 C = cross_v3_v3(na, nb);
+	float D = dot_v3v3(na, nb);
+	
+	if (fabsf(D) > epsilon && fabsf(D) < 1.0f - epsilon) {
+		/* half angle sine, cosine */
+		D = sqrtf((1.0f + D) * 0.5f);
+		C = C / D * 0.5f;
+		/* construct rotation quaternion */
+		return float4(C.x, C.y, C.z, D);
+	}
+	else
+		return unit_qt;
 }
 
 /* matrix arithmetic */

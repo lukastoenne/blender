@@ -132,7 +132,6 @@ struct FrameIterator {
 	    m_loc_iter(walker, rest_length, amount),
 	    m_frame(initial_frame)
 	{
-		m_dir = initial_frame.normal;
 	}
 	
 	int index() const { return m_loc_iter.index(); }
@@ -140,27 +139,29 @@ struct FrameIterator {
 	
 	void next()
 	{
-		static const float epsilon = 1.0e-6;
-		
-		float3 prev_dir = m_dir;
-		
-		float3 prev_co = m_loc_iter.get();
-		m_loc_iter.next();
-		float3 co = m_loc_iter.get();
-		normalize_v3_v3(m_dir, co - prev_co);
-		
-		float3 C = cross_v3_v3(prev_dir, m_dir);
-		float D = dot_v3v3(prev_dir, m_dir);
-		if (fabsf(D) > epsilon && fabsf(D) < 1.0f - epsilon) {
-			/* half angle sine, cosine */
-			D = sqrtf((1.0f + D) * 0.5f);
-			C = C / D * 0.5f;
+		if (m_loc_iter.index() == 0) {
+			float3 prev_co = m_loc_iter.get();
+			m_loc_iter.next();
+			float3 co = m_loc_iter.get();
+			normalize_v3_v3(m_dir, co - prev_co);
+		}
+		else {
+			float3 prev_dir = m_dir;
+			
+			float3 prev_co = m_loc_iter.get();
+			m_loc_iter.next();
+			float3 co = m_loc_iter.get();
+			normalize_v3_v3(m_dir, co - prev_co);
+			
 			/* construct rotation from one segment to the next */
-			float4 rot(C.x, C.y, C.z, D);
+			float4 rot = rotation_between_vecs_to_quat(prev_dir, m_dir);
 			/* apply the local rotation to the frame axes */
 			m_frame.normal = mul_qt_v3(rot, m_frame.normal);
 			m_frame.tangent = mul_qt_v3(rot, m_frame.tangent);
 			m_frame.cotangent = mul_qt_v3(rot, m_frame.cotangent);
+			normalize_v3_v3(m_frame.normal, m_frame.normal);
+			normalize_v3_v3(m_frame.tangent, m_frame.tangent);
+			normalize_v3_v3(m_frame.cotangent, m_frame.cotangent);
 		}
 	}
 	

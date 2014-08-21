@@ -29,10 +29,6 @@
 #include <limits>
 #include <cfloat>
 
-extern "C" {
-#include "BLI_utildefines.h"
-}
-
 #include "HAIR_math.h"
 
 HAIR_NAMESPACE_BEGIN

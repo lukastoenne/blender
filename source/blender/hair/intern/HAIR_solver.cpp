@@ -98,10 +98,14 @@ void SolverData::remove_from_world(rbDynamicsWorld *world)
 	RB_dworld_remove_ghost(world, &rb_ghost);
 }
 
-static float3 calc_bend(const Frame &frame, const float3 &co0, const float3 &co1)
+static float3 world_to_frame_space(const Frame &frame, const float3 &vec)
 {
-	float3 edge = co1 - co0;
-	return float3(dot_v3v3(edge, frame.normal), dot_v3v3(edge, frame.tangent), dot_v3v3(edge, frame.cotangent));
+	return float3(dot_v3v3(vec, frame.normal), dot_v3v3(vec, frame.tangent), dot_v3v3(vec, frame.cotangent));
+}
+
+static float3 frame_to_world_space(const Frame &frame, const float3 &vec)
+{
+	return frame.normal * vec.x + frame.tangent * vec.y + frame.cotangent * vec.z;
 }
 
 void SolverData::precompute_rest_bend(const HairParams &params)
@@ -118,13 +122,12 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 		else if (curve->totpoints == 1)
 			pt->rest_bend = float3(0.0f, 0.0f, 0.0f);
 		else {
-			
-			float3 normal = curve->rest_root_normal, tangent = curve->rest_root_tangent;
-			Frame rest_frame(normal, tangent, cross_v3_v3(normal, tangent));
+			float3 root_nor = curve->rest_root_normal, root_tan = curve->rest_root_tangent;
+			Frame rest_frame(root_nor, root_tan, cross_v3_v3(root_nor, root_tan));
 			
 			FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
 			while (iter.index() < curve->totpoints - 1) {
-				pt->rest_bend = calc_bend(iter.frame(), pt->rest_co, next_pt->rest_co);
+				pt->rest_bend = world_to_frame_space(iter.frame(), next_pt->rest_co - pt->rest_co);
 				
 				iter.next();
 				++pt;
@@ -238,18 +241,9 @@ static float3 calc_stretch_damping(const HairParams &params, const Point *point0
 	return params.stretch_damping * dot_v3v3(dvel, dir) * dir;
 }
 
-static float3 bend_target(const Frame &frame, const Point *pt)
-{
-	float3 rest_bend = pt->rest_bend;
-	float3 target(frame.normal.x * rest_bend.x + frame.tangent.x * rest_bend.y + frame.cotangent.x * rest_bend.z,
-	              frame.normal.y * rest_bend.x + frame.tangent.y * rest_bend.y + frame.cotangent.y * rest_bend.z,
-	              frame.normal.z * rest_bend.x + frame.tangent.z * rest_bend.y + frame.cotangent.z * rest_bend.z);
-	return target;
-}
-
 static float3 calc_bend_force(const HairParams &params, const Point *point0, const Point *point1, const Frame &frame, float time)
 {
-	float3 target = bend_target(frame, point0);
+	float3 target = frame_to_world_space(frame, point0->rest_bend);
 	
 	float3 dir;
 	float3 edge = point1->cur.co - point0->cur.co;
@@ -358,19 +352,12 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 	}
 	
 	Curve *curve = data.curves;
-	int k_tot = 0;
+	int k_tot = data.startpoint;
 
 	for (int i = 0; i < data.totcurves; ++i, ++curve) {
 		int numpoints = curve->totpoints;
-		
-		/* note: roots are evaluated at the end of the timestep: time + timestep
-		 * so the hair points align perfectly with them
-		 */
-		float3 root_nor, root_tan;
-		get_root_frame(t0, t1, time + timestep, curve, root_nor, root_tan);
-		
-		Frame rest_frame(root_nor, root_tan, cross_v3_v3(root_nor, root_tan));
-		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
+		if (numpoints == 0)
+			continue;
 		
 		float3 intern_force, intern_force_next, extern_force;
 		float3 acc_prev; /* reactio from previous point */
@@ -378,19 +365,42 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 		/* Root point animation */
 		Point *point = curve->points;
 		int k = 0;
-		if (numpoints > 0) {
-			Point *point_next = k < numpoints-1 ? point+1 : NULL;
-			accum_internal_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
-			accum_external_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), extern_force);
-			
-			Debug::point(data.debug_data, k, point->cur.co, point->rest_bend, bend_target(frame_iter.frame(), point), frame_iter.frame());
-			
-			frame_iter.next();
-			acc_prev = intern_force_next;
-			++k;
-			++point;
-			++k_tot;
+		Point *point_next = k < numpoints-1 ? point+1 : NULL;
+		
+		/* note: roots are evaluated at the end of the timestep: time + timestep
+		 * so the hair points align perfectly with them
+		 */
+		float3 root_nor, root_tan;
+		get_root_frame(t0, t1, time + timestep, curve, root_nor, root_tan);
+		
+		if (point_next) {
+			/* rest frame must be rotated according so the first segment is aligned with the rest direction */
+			float4 rot = rotation_between_vecs_to_quat(point_next->rest_co - point->rest_co, point_next->cur.co - point->cur.co);
+			root_nor = mul_qt_v3(rot, root_nor);
+			root_tan = mul_qt_v3(rot, root_tan);
+			normalize_v3_v3(root_nor, root_nor);
+			normalize_v3_v3(root_tan, root_tan);
 		}
+		
+		Frame rest_frame(root_nor, root_tan, cross_v3_v3(root_nor, root_tan));
+		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
+		
+		accum_internal_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
+		accum_external_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), extern_force);
+		
+		{
+			float3 rest_bend = frame_to_world_space(frame_iter.frame(), point->rest_bend);
+			float3 bend = frame_to_world_space(frame_iter.frame(), point_next ? point_next->cur.co - point->cur.co : float3(0,0,0));
+//			float3 rest_bend = point->rest_bend;
+//			float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
+			Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
+		}
+		
+		frame_iter.next();
+		acc_prev = intern_force_next;
+		++k;
+		++point;
+		++k_tot;
 		
 		/* Integrate free points */
 		for (; k < numpoints; ++k, ++point, ++k_tot) {
@@ -400,7 +410,14 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 			
 			point->force_accum = point->force_accum + intern_force + extern_force + acc_prev;
 			
-			Debug::point(data.debug_data, k_tot, point->cur.co, point->rest_bend, bend_target(frame_iter.frame(), point), frame_iter.frame());
+			{
+				float3 rest_bend = frame_to_world_space(frame_iter.frame(), point->rest_bend);
+				float3 bend = frame_to_world_space(frame_iter.frame(), point_next ? world_to_frame_space(frame_iter.frame(), point_next->cur.co - point->cur.co) : float3(0,0,0));
+//				float3 rest_bend = point->rest_bend;
+//				float3 bend = point_next ? world_to_frame_space(frame_iter.frame(), point_next->cur.co - point->cur.co) : float3(0,0,0);
+//				float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);
+				Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
+			}
 			
 			frame_iter.next();
 			acc_prev = intern_force_next;

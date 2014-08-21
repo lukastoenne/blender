@@ -47,7 +47,7 @@ extern "C" {
 
 HAIR_NAMESPACE_BEGIN
 
-static bool mesh_sample_eval(DerivedMesh *dm, const Transform &tfm, MSurfaceSample *sample, float3 &loc, float3 &nor)
+static bool mesh_sample_eval_transformed(DerivedMesh *dm, const Transform &tfm, MSurfaceSample *sample, float3 &loc, float3 &nor)
 {
 	float vloc[3], vnor[3];
 	
@@ -88,13 +88,16 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		Curve *curve = solver_curves + i;
 		*curve = Curve(hair->totpoints, point);
 		
-		mesh_sample_eval(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
+		mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
+		
 		curve->root0 = curve->root1;
 		
 		curve->avg_rest_length = hair->avg_rest_length;
 		curve->rest_root_normal = float3(hair->rest_nor);
 		curve->rest_root_tangent = float3(hair->rest_tan);
+//		transform_direction(mat, curve->rest_root_normal);
+//		transform_direction(mat, curve->rest_root_tangent);
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
@@ -130,7 +133,7 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 		Curve *curve = solver_curves + i;
 		
 		curve->root0 = curve->root1;
-		mesh_sample_eval(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
+		mesh_sample_eval_transformed(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 	}
 	
