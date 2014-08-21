@@ -284,7 +284,7 @@ static bool object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
 	if (md->type == eModifierType_ParticleSystem) {
 		ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
 
-		if (psmd->psys) {
+		if (psmd->psys && psmd->psys->solver) {
 			RigidBodyWorld *rbw = md->scene->rigidbody_world;
 			
 			if (rbw)
