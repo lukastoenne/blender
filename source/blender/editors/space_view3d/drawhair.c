@@ -495,6 +495,41 @@ static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoi
 #endif
 }
 
+static void draw_hair_debug_force_vector(const float co[3], const float f[3], float r, float g, float b)
+{
+	const float scale = 1.0f;
+	float p[3];
+	
+	madd_v3_v3v3fl(p, co, f, scale);
+	
+	glColor3f(r, g, b);
+	glVertex3fv(co);
+	glVertex3fv(p);
+}
+
+static void draw_hair_debug_forces(HairSystem *hsys, int debug_forces, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
+{
+	int i, k, ktot = 0;
+	
+	glBegin(GL_LINES);
+	
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *hair = hsys->curves + i;
+		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
+//			HairPoint *point = hair->points + k;
+			
+			if (ktot < dtotpoints) {
+				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
+				
+				if (debug_forces & MOD_HAIR_DEBUG_FORCE_BENDING)
+					draw_hair_debug_force_vector(dpoint->co, dpoint->force_bend, 1.0f, 1.0f, 0.0f);
+			}
+		}
+	}
+	
+	glEnd();
+}
+
 static void draw_hair_debug_size(HairSystem *hsys, float tmat[4][4])
 {
 #ifdef SHOW_SIZE
@@ -607,12 +642,12 @@ static void draw_hair_debug_bending(HairSystem *hsys, HAIR_SolverDebugPoint *dpo
 				copy_v3_v3(co, dpoint->co);
 				
 				add_v3_v3v3(bend, co, dpoint->bend);
-				glColor3f(0.4f, 0.25f, 0.55f);
+				glColor3f(0.15f, 0.55f, 0.55f);
 				glVertex3fv(co);
 				glVertex3fv(bend);
 				
 				add_v3_v3v3(bend, co, dpoint->rest_bend);
-				glColor3f(0.15f, 0.55f, 0.55f);
+				glColor3f(0.4f, 0.25f, 0.55f);
 				glVertex3fv(co);
 				glVertex3fv(bend);
 			}
@@ -777,5 +812,7 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 //		draw_hair_debug_points(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
 		if (debug_flag & MOD_HAIR_DEBUG_CONTACTS)
 			draw_hair_debug_contacts(hsys, hmd->debug_data->contacts, hmd->debug_data->totcontacts);
+		if (debug_flag & MOD_HAIR_DEBUG_FORCES)
+			draw_hair_debug_forces(hsys, hmd->debug_flag_forces, hmd->debug_data->points, hmd->debug_data->totpoints);
 	}
 }

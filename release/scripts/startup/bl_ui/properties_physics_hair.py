@@ -163,6 +163,11 @@ class PHYSICS_PT_hair_debug(PhysicButtonsPanel, Panel):
         col.prop(md, "show_debug_frames")
         col.prop(md, "show_debug_bending")
         col.prop(md, "show_debug_smoothing")
+        
+        box = col.box()
+        box.prop(md, "show_debug_forces")
+        sub = box.column(align=True)
+        sub.prop(md, "show_debug_force_bending", toggle=True)
 
 
 #class PHYSICS_PT_hair_cache(PhysicButtonsPanel, Panel):

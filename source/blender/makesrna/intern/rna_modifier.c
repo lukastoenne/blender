@@ -3695,6 +3695,7 @@ static void rna_def_modifier_hair(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "HairSystem");
 	RNA_def_property_ui_text(prop, "Hair System", "");
 
+	/* debug flags */
 	prop = RNA_def_property(srna, "show_debug", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "debug_flag", MOD_HAIR_DEBUG_SHOW);
 	RNA_def_property_ui_text(prop, "Show Debug", "Show debugging data");
@@ -3727,6 +3728,17 @@ static void rna_def_modifier_hair(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_debug_bending", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "debug_flag", MOD_HAIR_DEBUG_BENDING);
+	RNA_def_property_ui_text(prop, "Show Bending", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "show_debug_forces", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "debug_flag", MOD_HAIR_DEBUG_FORCES);
+	RNA_def_property_ui_text(prop, "Show Forces", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	/* debug forces flags */
+	prop = RNA_def_property(srna, "show_debug_force_bending", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "debug_flag_forces", MOD_HAIR_DEBUG_FORCE_BENDING);
 	RNA_def_property_ui_text(prop, "Show Bending", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }

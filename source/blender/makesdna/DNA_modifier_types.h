@@ -1377,6 +1377,8 @@ typedef struct HairModifierData {
 	int flag;
 
 	int debug_flag;
+	int debug_flag_forces;
+	int pad;
 	struct HairDebugData *debug_data;
 } HairModifierData;
 
@@ -1385,13 +1387,18 @@ enum {
 };
 
 enum {
-	MOD_HAIR_DEBUG_SHOW         = (1 << 0),
-	MOD_HAIR_DEBUG_CONTACTS     = (1 << 1),
-	MOD_HAIR_DEBUG_SIZE         = (1 << 2),
-	MOD_HAIR_DEBUG_ROOTS        = (1 << 3),
-	MOD_HAIR_DEBUG_SMOOTHING    = (1 << 4),
-	MOD_HAIR_DEBUG_FRAMES       = (1 << 5),
-	MOD_HAIR_DEBUG_BENDING      = (1 << 6),
+	MOD_HAIR_DEBUG_SHOW             = (1 << 0),
+	MOD_HAIR_DEBUG_CONTACTS         = (1 << 1),
+	MOD_HAIR_DEBUG_SIZE             = (1 << 2),
+	MOD_HAIR_DEBUG_ROOTS            = (1 << 3),
+	MOD_HAIR_DEBUG_SMOOTHING        = (1 << 4),
+	MOD_HAIR_DEBUG_FRAMES           = (1 << 5),
+	MOD_HAIR_DEBUG_BENDING          = (1 << 6),
+	MOD_HAIR_DEBUG_FORCES           = (1 << 7),
+};
+
+enum {
+	MOD_HAIR_DEBUG_FORCE_BENDING    = (1 << 0),
 };
 
 
