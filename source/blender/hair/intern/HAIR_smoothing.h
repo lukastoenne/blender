@@ -139,22 +139,26 @@ struct FrameIterator {
 	
 	void next()
 	{
-		if (m_loc_iter.index() == 0) {
-			float3 prev_co = m_loc_iter.get();
-			m_loc_iter.next();
-			float3 co = m_loc_iter.get();
-			normalize_v3_v3(m_dir, co - prev_co);
-		}
-		else {
-			float3 prev_dir = m_dir;
+//		if (m_loc_iter.index() == 0) {
+//			float3 prev_co = m_loc_iter.get();
+//			m_loc_iter.next();
+//			float3 co = m_loc_iter.get();
+//			normalize_v3_v3(m_dir, co - prev_co);
+//		}
+//		else {
+//			float3 prev_dir = m_dir;
 			
 			float3 prev_co = m_loc_iter.get();
 			m_loc_iter.next();
 			float3 co = m_loc_iter.get();
-			normalize_v3_v3(m_dir, co - prev_co);
+//			normalize_v3_v3(m_dir, co - prev_co);
+			
+			float3 dir;
+			normalize_v3_v3(dir, co - prev_co);
 			
 			/* construct rotation from one segment to the next */
-			float4 rot = rotation_between_vecs_to_quat(prev_dir, m_dir);
+//			float4 rot = rotation_between_vecs_to_quat(prev_dir, m_dir);
+			float4 rot = rotation_between_vecs_to_quat(m_frame.normal, dir);
 			/* apply the local rotation to the frame axes */
 			m_frame.normal = mul_qt_v3(rot, m_frame.normal);
 			m_frame.tangent = mul_qt_v3(rot, m_frame.tangent);
@@ -162,14 +166,15 @@ struct FrameIterator {
 			normalize_v3_v3(m_frame.normal, m_frame.normal);
 			normalize_v3_v3(m_frame.tangent, m_frame.tangent);
 			normalize_v3_v3(m_frame.cotangent, m_frame.cotangent);
-		}
+//		}
 	}
 	
 	const Frame &frame() const { return m_frame; }
+	Frame &frame() { return m_frame; }
 	
 protected:
 	SmoothingIterator<WalkerT> m_loc_iter;
-	float3 m_dir;
+//	float3 m_dir;
 	
 	Frame m_frame;
 	

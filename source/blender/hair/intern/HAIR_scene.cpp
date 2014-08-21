@@ -90,7 +90,14 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		Curve *curve = solver_curves + i;
 		*curve = Curve(hair->totpoints, point);
 		
-		mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
+		float3 nor;
+		mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, nor);
+		if (hair->totpoints >= 2) {
+			float3 first_edge = transform_direction(mat, float3(hair->points[1].co) - float3(hair->points[0].co));
+			normalize_v3_v3(curve->root1.nor, first_edge);
+		}
+		else
+			curve->root1.nor = nor;
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 		
 		curve->root0 = curve->root1;
@@ -98,8 +105,8 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		curve->avg_rest_length = hair->avg_rest_length;
 		curve->rest_root_normal = float3(hair->rest_nor);
 		curve->rest_root_tangent = float3(hair->rest_tan);
-//		transform_direction(mat, curve->rest_root_normal);
-//		transform_direction(mat, curve->rest_root_tangent);
+		transform_direction(mat, curve->rest_root_normal);
+		transform_direction(mat, curve->rest_root_tangent);
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
@@ -222,11 +229,18 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 	data->t1 = time;
 	
 	for (i = 0; i < totcurves; ++i) {
-		HairCurve *hcurve = hsys->curves + i;
+		HairCurve *hair = hsys->curves + i;
 		Curve *curve = solver_curves + i;
 		
 		curve->root0 = curve->root1;
-		mesh_sample_eval_transformed(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
+		float3 nor;
+		mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, nor);
+		if (hair->totpoints >= 2) {
+//			float3 first_edge = transform_direction(mat, float3(hair->points[1].co) - float3(hair->points[0].co));
+//			normalize_v3_v3(curve->root1.nor, first_edge);
+		}
+		else
+			curve->root1.nor = nor;
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 	}
 	

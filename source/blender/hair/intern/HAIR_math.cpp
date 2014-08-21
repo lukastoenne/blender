@@ -29,6 +29,11 @@
 #include <limits>
 #include <cfloat>
 
+extern "C" {
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+}
+
 #include "HAIR_math.h"
 
 HAIR_NAMESPACE_BEGIN
@@ -188,5 +193,26 @@ Transform transform_inverse(const Transform& tfm)
 
 	return tfmR;
 }
+
+#if 0
+float3 mul_qt_v3(const float4 &q, const float3 &v)
+{
+	float quat[4] = {q.w, q.x, q.y, q.z}, vec[3];
+	copy_v3_v3(vec, v.data());
+	::mul_qt_v3(quat, vec);
+	return float3(vec);
+}
+#endif
+
+#if 0
+float4 rotation_between_vecs_to_quat(const float3 a, const float3 b)
+{
+	float q[4], v1[3], v2[3];
+	::normalize_v3_v3(v1, a.data());
+	::normalize_v3_v3(v2, b.data());
+	::rotation_between_vecs_to_quat(q, v1, v2);
+	return float4(q[1], q[2], q[3], q[0]);
+}
+#endif
 
 HAIR_NAMESPACE_END

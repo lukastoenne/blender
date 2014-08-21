@@ -373,14 +373,19 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 		float3 root_nor, root_tan;
 		get_root_frame(t0, t1, time + timestep, curve, root_nor, root_tan);
 		
+#if 0
+		float4 rest_rot;
 		if (point_next) {
 			/* rest frame must be rotated according so the first segment is aligned with the rest direction */
-			float4 rot = rotation_between_vecs_to_quat(point_next->rest_co - point->rest_co, point_next->cur.co - point->cur.co);
-			root_nor = mul_qt_v3(rot, root_nor);
-			root_tan = mul_qt_v3(rot, root_tan);
-			normalize_v3_v3(root_nor, root_nor);
-			normalize_v3_v3(root_tan, root_tan);
+			rest_rot = rotation_between_vecs_to_quat(point_next->rest_co - point->rest_co, point_next->cur.co - point->cur.co);
+//			root_nor = mul_qt_v3(rot, root_nor);
+//			root_tan = mul_qt_v3(rot, root_tan);
+//			normalize_v3_v3(root_nor, root_nor);
+//			normalize_v3_v3(root_tan, root_tan);
 		}
+		else
+			rest_rot = unit_qt;
+#endif
 		
 		Frame rest_frame(root_nor, root_tan, cross_v3_v3(root_nor, root_tan));
 		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
@@ -391,6 +396,9 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 		{
 			float3 rest_bend = frame_to_world_space(frame_iter.frame(), point->rest_bend);
 			float3 bend = frame_to_world_space(frame_iter.frame(), point_next ? point_next->cur.co - point->cur.co : float3(0,0,0));
+//			float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
+
+//			float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);
 //			float3 rest_bend = point->rest_bend;
 //			float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
 			Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
@@ -413,6 +421,8 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 			{
 				float3 rest_bend = frame_to_world_space(frame_iter.frame(), point->rest_bend);
 				float3 bend = frame_to_world_space(frame_iter.frame(), point_next ? world_to_frame_space(frame_iter.frame(), point_next->cur.co - point->cur.co) : float3(0,0,0));
+//				float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);
+//				float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
 //				float3 rest_bend = point->rest_bend;
 //				float3 bend = point_next ? world_to_frame_space(frame_iter.frame(), point_next->cur.co - point->cur.co) : float3(0,0,0);
 //				float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);

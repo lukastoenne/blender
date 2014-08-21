@@ -186,10 +186,22 @@ static bool hair_copy_particle_emitter_location(Object *UNUSED(ob), ParticleSyst
 static void hair_copy_root(Object *ob, HairSystem *UNUSED(hsys), ParticleSystem *psys, struct DerivedMesh *dm, HairCurve *hair, int index)
 {
 	ParticleData *root = &psys->particles[index];
-	float loc[3], tan[3];
+	float nor[3], tan[3];
 	
 	hair_copy_particle_emitter_location(ob, psys, root, dm, &hair->root);
-	BKE_mesh_sample_eval(dm, &hair->root, loc, hair->rest_nor);
+	
+	if (root->totkey >= 2) {
+		sub_v3_v3v3(nor, root->hair[1].co, root->hair[0].co);
+		normalize_v3(nor);
+	}
+	else {
+		float loc[3];
+		
+		BKE_mesh_sample_eval(dm, &hair->root, loc, nor);
+	}
+	
+	copy_v3_v3(hair->rest_nor, nor);
+	
 	tan[0] = 0.0f; tan[1] = 0.0f; tan[2] = 1.0f;
 	madd_v3_v3v3fl(hair->rest_tan, tan, hair->rest_nor, -dot_v3v3(tan, hair->rest_nor));
 	normalize_v3(hair->rest_tan);

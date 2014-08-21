@@ -565,7 +565,8 @@ static void draw_hair_debug_roots(HairSystem *hsys, struct DerivedMesh *dm)
 			float loc[3], nor[3];
 			if (BKE_mesh_sample_eval(dm, &hair->root, loc, nor)) {
 				glVertex3f(loc[0], loc[1], loc[2]);
-				madd_v3_v3fl(loc, nor, 0.1f);
+//				madd_v3_v3fl(loc, nor, 0.1f);
+				add_v3_v3(loc, hair->rest_nor);
 				glVertex3f(loc[0], loc[1], loc[2]);
 			}
 		}
