@@ -36,6 +36,7 @@ extern "C" {
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
+#include "BKE_particle.h"
 
 #include "RBI_api.h"
 }
@@ -120,23 +121,25 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *psys, float time)
 {
 	HairParams *params = psys->params;
-	HairCurve *hair;
-	int i;
+	ParticleData *pa;
+	int i, k;
+	float hairmat[4][4];
+	const float seglen_to_radius = 2.0f / 3.0f;	
 	
-	if (!dm)
+	//if (!dm)
 		return new SolverData(0, 0);
 	
 	Transform mat = Transform(ob->obmat);
 	
-#if 0
+
 	/* count points */
 	int totpoints = 0;
-	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		totpoints += hair->totpoints;
+	for (pa = psys->particles, i = 0; i < psys->totpart; ++pa, ++i) {
+		totpoints += pa->totkey;
 	}
 	
 	/* allocate data */
-	SolverData *data = new SolverData(hsys->totcurves, totpoints);
+	SolverData *data = new SolverData(psys->totpart, totpoints);
 	Curve *solver_curves = data->curves;
 	Point *solver_points = data->points;
 	
@@ -144,20 +147,49 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	
 	/* copy scene data to solver data */
 	Point *point = solver_points;
-	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
-		Curve *curve = solver_curves + i;
-		*curve = Curve(hair->totpoints, point);
+	for (pa = psys->particles, i = 0; i < psys->totpart; ++pa, ++i) {
+		Transform finalmat;
+		float radius = 0.0f;
 		
-		mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
+		int totkey = pa->totkey;
+		Curve *curve = solver_curves + i;
+		*curve = Curve(totkey, point);
+
+		psys_mat_hair_to_object(ob, dm, psys->part->from, pa, hairmat);
+		
+		Transform hair_tr(hairmat);
+		
+		/* we are transforming hairs to world space for the solver to work 
+		 * on a frame of reference without pseudoforces */
+		finalmat = mat * hair_tr;
+		
+	//	mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 		
 		curve->root0 = curve->root1;
-		
-		curve->avg_rest_length = hair->avg_rest_length;
+
+		for (k = 0; k < totkey; ++k) {
+			HairKey *psys_hair_key = pa->hair + k;
+
+			point->rest_co = transform_point(finalmat, psys_hair_key->co);
+			if (k == 0) {
+				if (k < totkey-1)
+					radius = seglen_to_radius * len_v3v3(psys_hair_key->co, (psys_hair_key+1)->co);
+				point->radius = radius;
+			}
+			else {
+				float prev_radius = radius;
+				if (k < totkey-1)
+					radius = seglen_to_radius * len_v3v3(psys_hair_key->co, (psys_hair_key+1)->co);
+				point->radius = 0.5f * (radius + prev_radius);
+			}
+			
+			point->cur.vel = float3(0.0f, 0.0f, 0.0f);
+		}
+			
+	/*	curve->avg_rest_length = hair->avg_rest_length;
 		curve->rest_root_normal = float3(hair->rest_nor);
 		curve->rest_root_tangent = float3(hair->rest_tan);
-//		transform_direction(mat, curve->rest_root_normal);
-//		transform_direction(mat, curve->rest_root_tangent);
 		
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
@@ -168,14 +200,12 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 			point->cur.co = transform_point(mat, hair_pt->co);
 			point->cur.vel = transform_direction(mat, hair_pt->vel);
 		}
+		*/
 	}
 	/* finalize */
-	data->precompute_rest_bend(params);
+	data->precompute_rest_bend(*params);
 	
 	return data;
-#endif
-	
-	return new SolverData(0, 0);
 }
 
 
@@ -215,7 +245,6 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 	
 	data->t0 = data->t1;
 	data->t1 = time;
-	
 	
 	for (i = 0; i < totcurves; ++i) {
 		ParticleData *pa = psys->particles + i;

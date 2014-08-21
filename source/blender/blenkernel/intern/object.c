@@ -3144,6 +3144,7 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 				if (!psys->solver) {
 					psys->solver = HAIR_solver_new();
 					
+					/* it should never happen actually */
 					if (!psys->params) {
 						psys->params = MEM_mallocN(sizeof(HairParams), "particle_system_hair_params");
 						BKE_hairparams_init(psys->params);
