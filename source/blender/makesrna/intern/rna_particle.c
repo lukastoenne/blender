@@ -705,7 +705,7 @@ static void rna_Particle_target_redo(Main *UNUSED(bmain), Scene *UNUSED(scene), 
 	}
 }
 
-static void rna_Particle_hair_dynamics(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Particle_hair_dynamics(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Object *ob = (Object *)ptr->id.data;
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
@@ -719,13 +719,9 @@ static void rna_Particle_hair_dynamics(Main *bmain, Scene *scene, PointerRNA *pt
 		rna_Particle_redo(bmain, scene, ptr);
 	}
 #endif
-	if (psys && !psys->solver) {
-		psys->solver = HAIR_solver_new();
-
-		if (!psys->params) {
-			psys->params = MEM_callocN(sizeof(HairParams), "hair_params_particle");
-			BKE_hairparams_init(psys->params);
-		}
+	if (psys && !psys->params) {
+		psys->params = MEM_callocN(sizeof(HairParams), "hair_params_particle");
+		BKE_hairparams_init(psys->params);
 	}
 	else
 		WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_EDITED, NULL);

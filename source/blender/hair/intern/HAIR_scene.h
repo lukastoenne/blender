@@ -31,6 +31,7 @@ struct Scene;
 struct Object;
 struct DerivedMesh;
 struct HairSystem;
+struct ParticleSystem;
 
 struct rbDynamicsWorld;
 
@@ -41,7 +42,9 @@ struct SolverForces;
 
 struct SceneConverter {
 	static SolverData *build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time);
+	static SolverData *build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *psys, float time);
 	static void update_solver_data_externals(SolverData *data, SolverForces &force, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time);
+	static void update_solver_data_externals(SolverData *data, SolverForces &force, Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *hsys, float time);
 	
 	static void apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys);
 	

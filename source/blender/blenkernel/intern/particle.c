@@ -440,6 +440,7 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
 		psys->hair_out_dm->release(psys->hair_out_dm);
 	psys->hair_out_dm = NULL;
 }
+
 void free_keyed_keys(ParticleSystem *psys)
 {
 	PARTICLE_P;

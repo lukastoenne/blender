@@ -39,6 +39,8 @@ struct HairSystem;
 struct HairParams;
 struct rbDynamicsWorld;
 
+struct ParticleSystem;
+
 struct HAIR_Solver;
 struct HAIR_SmoothingIteratorFloat3;
 struct HAIR_FrameIterator;
@@ -49,8 +51,10 @@ struct HAIR_SolverDebugPoint;
 struct HAIR_Solver *HAIR_solver_new(void);
 void HAIR_solver_free(struct HAIR_Solver *solver);
 void HAIR_solver_set_params(struct HAIR_Solver *solver, const struct HairParams *params);
-void HAIR_solver_build_data(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
-void HAIR_solver_update_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
+void HAIR_solver_build_modifier_data(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
+void HAIR_solver_build_particle_data(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct ParticleSystem *psys, float time);
+void HAIR_solver_update_modifier_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct HairSystem *hsys, float time);
+void HAIR_solver_update_particle_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct ParticleSystem *psys, float time);
 void HAIR_solver_rebuild_rigidbodyworld(struct HAIR_Solver *solver, struct rbDynamicsWorld *world);
 
 void HAIR_solver_step(struct HAIR_Solver *solver, float time, float timestep);

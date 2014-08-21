@@ -32,6 +32,7 @@ extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_rigidbody_types.h"
+#include "DNA_particle_types.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
@@ -116,6 +117,68 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	return data;
 }
 
+SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *psys, float time)
+{
+	HairParams *params = psys->params;
+	HairCurve *hair;
+	int i;
+	
+	if (!dm)
+		return new SolverData(0, 0);
+	
+	Transform mat = Transform(ob->obmat);
+	
+#if 0
+	/* count points */
+	int totpoints = 0;
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		totpoints += hair->totpoints;
+	}
+	
+	/* allocate data */
+	SolverData *data = new SolverData(hsys->totcurves, totpoints);
+	Curve *solver_curves = data->curves;
+	Point *solver_points = data->points;
+	
+	data->t0 = data->t1 = time;
+	
+	/* copy scene data to solver data */
+	Point *point = solver_points;
+	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i) {
+		Curve *curve = solver_curves + i;
+		*curve = Curve(hair->totpoints, point);
+		
+		mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
+		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
+		
+		curve->root0 = curve->root1;
+		
+		curve->avg_rest_length = hair->avg_rest_length;
+		curve->rest_root_normal = float3(hair->rest_nor);
+		curve->rest_root_tangent = float3(hair->rest_tan);
+//		transform_direction(mat, curve->rest_root_normal);
+//		transform_direction(mat, curve->rest_root_tangent);
+		
+		for (int k = 0; k < hair->totpoints; ++k, ++point) {
+			HairPoint *hair_pt = hair->points + k;
+			
+			point->rest_co = transform_point(mat, hair_pt->rest_co);
+			point->radius = hair_pt->radius;
+			
+			point->cur.co = transform_point(mat, hair_pt->co);
+			point->cur.vel = transform_direction(mat, hair_pt->vel);
+		}
+	}
+	/* finalize */
+	data->precompute_rest_bend(params);
+	
+	return data;
+#endif
+	
+	return new SolverData(0, 0);
+}
+
+
 void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces &forces, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	int i;
@@ -134,6 +197,33 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 		
 		curve->root0 = curve->root1;
 		mesh_sample_eval_transformed(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
+		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
+	}
+	
+	forces.dynamics_world = scene->rigidbody_world ? (rbDynamicsWorld *)scene->rigidbody_world->physics_world : NULL;
+	forces.gravity = float3(scene->physics_settings.gravity);
+}
+
+void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces &forces, Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *psys, float time)
+{
+	int i;
+	
+	Transform mat = Transform(ob->obmat);
+	
+	Curve *solver_curves = data->curves;
+	int totcurves = data->totcurves;
+	
+	data->t0 = data->t1;
+	data->t1 = time;
+	
+	
+	for (i = 0; i < totcurves; ++i) {
+		ParticleData *pa = psys->particles + i;
+		Curve *curve = solver_curves + i;
+		
+		curve->root0 = curve->root1;
+		//mesh_sample_eval_transformed(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
+		
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 	}
 	

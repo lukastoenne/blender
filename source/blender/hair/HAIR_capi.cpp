@@ -67,7 +67,7 @@ void HAIR_solver_set_params(struct HAIR_Solver *csolver, const struct HairParams
 	solver->params(*params);
 }
 
-void HAIR_solver_build_data(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
+void HAIR_solver_build_modifier_data(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	Solver *solver = (Solver *)csolver;
 	RigidBodyWorld *rbw = scene->rigidbody_world;
@@ -83,12 +83,37 @@ void HAIR_solver_build_data(struct HAIR_Solver *csolver, Scene *scene, Object *o
 	data->add_to_world(world, 0xFFFFFFFF);
 }
 
-void HAIR_solver_update_externals(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
+void HAIR_solver_build_particle_data(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *psys, float time)
+{
+	Solver *solver = (Solver *)csolver;
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	rbDynamicsWorld *world = rbw ? (rbDynamicsWorld *)rbw->physics_world : NULL;
+	
+	if (solver->data())
+		solver->data()->remove_from_world(world);
+	
+	SolverData *data = SceneConverter::build_solver_data(scene, ob, dm, psys, time);
+	solver->set_data(data);
+	
+	// XXX col_groups ?
+	data->add_to_world(world, 0xFFFFFFFF);
+}
+
+
+void HAIR_solver_update_modifier_externals(struct HAIR_Solver *csolver, Scene *scene, Object *ob, DerivedMesh *dm, HairSystem *hsys, float time)
 {
 	Solver *solver = (Solver *)csolver;
 	
 	SceneConverter::update_solver_data_externals(solver->data(), solver->forces(), scene, ob, dm, hsys, time);
 	SceneConverter::sync_rigidbody_data(solver->data(), solver->params());
+}
+
+void HAIR_solver_update_particle_externals(struct HAIR_Solver *csolver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct ParticleSystem *psys, float time)
+{
+	Solver *solver = (Solver *)csolver;
+	
+	SceneConverter::update_solver_data_externals(solver->data(), solver->forces(), scene, ob, dm, psys, time);
+	SceneConverter::sync_rigidbody_data(solver->data(), solver->params());	
 }
 
 void HAIR_solver_rebuild_rigidbodyworld(struct HAIR_Solver *csolver, struct rbDynamicsWorld *world)

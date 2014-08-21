@@ -4023,12 +4023,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 #endif
 	
 	if (!psys->solver) {
-		psys->solver = HAIR_solver_new();
-		
-		if (!psys->params) {
-			psys->params = MEM_callocN(sizeof(HairParams), "hair_params_particle");
-			BKE_hairparams_init(psys->params);
-		}
+		/* say "bad boy" */
 	}
 
 	/* create a dm from hair vertices */
