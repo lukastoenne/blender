@@ -3137,7 +3137,7 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 		else if (md->type == eModifierType_ParticleSystem) {
 			ParticleSystem *psys = ((ParticleSystemModifierData *) md)->psys;
 			
-			if (psys->part && psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS && psys->particles) {
+			if (psys && psys->part && psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS && psys->particles) {
 				/* This, strictly speaking, is not so correct */
 				DerivedMesh *dm = ob->derivedFinal;
 				

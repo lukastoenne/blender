@@ -124,6 +124,15 @@ void HAIR_solver_rebuild_rigidbodyworld(struct HAIR_Solver *csolver, struct rbDy
 		solver->data()->add_to_world(world, 0xFFFFFFFF);
 }
 
+void HAIR_solver_remove_from_rigidbodyworld(struct HAIR_Solver *csolver, struct rbDynamicsWorld *world)
+{
+	Solver *solver = (Solver *)csolver;
+
+	if (solver->data())
+		solver->data()->remove_from_world(world);	
+}
+
+
 void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)
 {
 	Solver *solver = (Solver *)csolver;

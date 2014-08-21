@@ -38,6 +38,7 @@ incs = [
     '../../blenlib',
     '../../bmesh',
     '../../gpu',
+    '../../hair',
     '../../ikplugin',
     '../../imbuf',
     '../../makesdna',
