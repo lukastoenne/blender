@@ -30,13 +30,10 @@
 
 HAIR_NAMESPACE_BEGIN
 
-#ifdef HAIR_DEBUG
-
 bool Debug::active = false;
+#ifdef HAIR_DEBUG
 ThreadMutex Debug::mutex;
 Debug::Elements Debug::elements;
-
 #endif
-
 
 HAIR_NAMESPACE_END

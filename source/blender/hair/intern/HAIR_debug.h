@@ -41,7 +41,7 @@ extern "C" {
 HAIR_NAMESPACE_BEGIN
 
 #ifndef NDEBUG
-#define HAIR_DEBUG
+//#define HAIR_DEBUG
 #endif
 
 struct SolverData;
@@ -51,20 +51,25 @@ struct Debug {
 	
 	static void init()
 	{
+#ifdef HAIR_DEBUG
 		BLI_mutex_init(&mutex);
 		active = true;
+#endif
 	}
 	
 	static void end()
 	{
+#ifdef HAIR_DEBUG
 		elements.clear();
 		
 		BLI_mutex_end(&mutex);
 		active = false;
+#endif
 	}
 	
 	static void dot(const float3 &p, float r, float g, float b, int hash)
 	{
+#ifdef HAIR_DEBUG
 		HAIR_SolverDebugElement elem;
 		elem.type = HAIR_DEBUG_ELEM_DOT;
 		elem.hash = hash;
@@ -78,10 +83,18 @@ struct Debug {
 		BLI_mutex_lock(&mutex);
 		elements.push_back(elem);
 		BLI_mutex_unlock(&mutex);
+#else
+		(void)p;
+		(void)r;
+		(void)g;
+		(void)b;
+		(void)hash;
+#endif
 	}
 	
 	static void line(const float3 &v1, const float3 &v2, float r, float g, float b, int hash)
 	{
+#ifdef HAIR_DEBUG
 		HAIR_SolverDebugElement elem;
 		elem.type = HAIR_DEBUG_ELEM_LINE;
 		elem.hash = hash;
@@ -96,10 +109,19 @@ struct Debug {
 		BLI_mutex_lock(&mutex);
 		elements.push_back(elem);
 		BLI_mutex_unlock(&mutex);
+#else
+		(void)v1;
+		(void)v2;
+		(void)r;
+		(void)g;
+		(void)b;
+		(void)hash;
+#endif
 	}
 	
 	static void vector(const float3 &p, const float3 &d, float r, float g, float b, int hash)
 	{
+#ifdef HAIR_DEBUG
 		HAIR_SolverDebugElement elem;
 		elem.type = HAIR_DEBUG_ELEM_VECTOR;
 		elem.hash = hash;
@@ -114,11 +136,21 @@ struct Debug {
 		BLI_mutex_lock(&mutex);
 		elements.push_back(elem);
 		BLI_mutex_unlock(&mutex);
+#else
+		(void)p;
+		(void)d;
+		(void)r;
+		(void)g;
+		(void)b;
+		(void)hash;
+#endif
 	}
 	
 	static bool active;
+#ifdef HAIR_DEBUG
 	static ThreadMutex mutex;
 	static Elements elements;
+#endif
 };
 
 HAIR_NAMESPACE_END

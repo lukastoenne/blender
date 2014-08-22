@@ -149,6 +149,7 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 	
 	solver->step_threaded(time, timestep);
 	
+#ifdef HAIR_DEBUG
 	if (debug_data) {
 		int i, tot = Debug::elements.size();
 		for (i = 0; i < tot; ++i) {
@@ -156,58 +157,6 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 			*elem = Debug::elements[i];
 			
 			BKE_hair_debug_data_insert(debug_data, elem);
-		}
-	}
-	
-#if 0
-	if (points && totpoints) {
-		int tot = solver->data()->totpoints;
-		*totpoints = tot;
-		*points = (HAIR_SolverDebugPoint *)MEM_mallocN(sizeof(HAIR_SolverDebugPoint) * tot, "hair solver point debug data");
-	}
-	
-	if (contacts && totcontacts) {
-		*totcontacts = 0;
-		for (int d = 0; d < thread_data_list.size(); ++d) {
-			const DebugThreadData &data = thread_data_list[d];
-			*totcontacts += data.contacts.size();
-		}
-		*contacts = (HAIR_SolverDebugContact *)MEM_mallocN(sizeof(HAIR_SolverDebugContact) * (*totcontacts), "hair solver contact debug data");	
-	}
-	
-	HAIR_SolverDebugContact *pcontact = contacts ? *contacts : NULL;
-	for (int d = 0; d < thread_data_list.size(); ++d) {
-		const DebugThreadData &data = thread_data_list[d];
-		
-		if (points && totpoints) {
-			int tot = solver->data()->totpoints;
-			for (int i = 0; i < data.points.size(); ++i) {
-				const HAIR_SolverDebugPoint &dp = data.points[i];
-				if (dp.index < 0 || dp.index >= tot)
-					continue;
-				
-				HAIR_SolverDebugPoint &p = (*points)[dp.index];
-				p = dp;
-				
-				/* transform to object space for display */
-				mul_m4_v3(ob_imat, p.co);
-				mul_mat3_m4_v3(ob_imat, p.bend);
-				mul_mat3_m4_v3(ob_imat, p.rest_bend);
-				mul_mat3_m4_v3(ob_imat, p.frame[0]);
-				mul_mat3_m4_v3(ob_imat, p.frame[1]);
-				mul_mat3_m4_v3(ob_imat, p.frame[2]);
-			}
-		}
-		
-		if (contacts && totcontacts) {
-			for (int i = 0; i < data.contacts.size(); ++i) {
-				const HAIR_SolverDebugContact &dc = data.contacts[i];
-				HAIR_SolverDebugContact &c = *(pcontact++);
-				c = dc;
-				
-				mul_m4_v3(ob_imat, c.coA);
-				mul_m4_v3(ob_imat, c.coB);
-			}
 		}
 	}
 #endif
