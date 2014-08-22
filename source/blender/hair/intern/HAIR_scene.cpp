@@ -125,6 +125,84 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	return data;
 }
 
+
+static bool solver_evaluate_root_location(ParticleSystem *psys, ParticleData *pa, struct DerivedMesh *dm, float3 &co, float3 &no)
+{
+	float mapfw[4];
+	int mapindex;
+	MVert *mverts = dm->getVertArray(dm), *v1, *v2, *v3;
+	MFace *mface;
+	float *co1 = NULL, *co2 = NULL, *co3 = NULL, *co4 = NULL;
+	float vec[3], vnor[3];
+	float w[4];
+	unsigned int orig_verts[3];
+	unsigned int totverts = (unsigned int)dm->getNumVerts(dm);
+	
+	if (!psys_get_index_on_dm(psys, dm, pa, &mapindex, mapfw))
+		return false;
+	
+	mface = (MFace *)dm->getTessFaceData(dm, mapindex, CD_MFACE);
+	mverts = (MVert *)dm->getVertDataArray(dm, CD_MVERT);
+
+	co1 = mverts[mface->v1].co;
+	co2 = mverts[mface->v2].co;
+	co3 = mverts[mface->v3].co;
+
+	if (mface->v4) {
+		co4 = mverts[mface->v4].co;
+		
+		interp_v3_v3v3v3v3(vec, co1, co2, co3, co4, mapfw);
+	}
+	else {
+		interp_v3_v3v3v3(vec, co1, co2, co3, mapfw);
+	}
+	
+	/* test both triangles of the face */
+	interp_weights_face_v3(w, co1, co2, co3, NULL, vec);
+	
+	if (w[0] <= 1.0f && w[1] <= 1.0f && w[2] <= 1.0f) {
+		orig_verts[0] = mface->v1;
+		orig_verts[1] = mface->v2;
+		orig_verts[2] = mface->v3;	
+	}
+	else if (mface->v4) {
+		interp_weights_face_v3(w, co3, co4, co1, NULL, vec);
+		orig_verts[0] = mface->v3;
+		orig_verts[1] = mface->v4;
+		orig_verts[2] = mface->v1;
+	}
+	else
+		return false;
+	
+	zero_v3(co.data());
+	zero_v3(no.data());
+	
+	if (orig_verts[0] >= totverts ||
+	    orig_verts[1] >= totverts ||
+	    orig_verts[2] >= totverts)
+		return false;
+	
+	v1 = &mverts[orig_verts[0]];
+	v2 = &mverts[orig_verts[1]];
+	v3 = &mverts[orig_verts[2]];
+	
+	madd_v3_v3fl(co.data(), v1->co, w[0]);
+	madd_v3_v3fl(co.data(), v2->co, w[1]);
+	madd_v3_v3fl(co.data(), v3->co, w[2]);
+	
+	normal_short_to_float_v3(vnor, v1->no);
+	madd_v3_v3fl(no.data(), vnor, w[0]);
+	normal_short_to_float_v3(vnor, v2->no);
+	madd_v3_v3fl(no.data(), vnor, w[1]);
+	normal_short_to_float_v3(vnor, v3->no);
+	madd_v3_v3fl(no.data(), vnor, w[2]);
+	
+	normalize_v3(no.data());
+	
+	return true;
+}
+
+
 SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *psys, float time)
 {
 	HairParams *params = psys->params;
@@ -133,7 +211,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	float hairmat[4][4];
 	const float seglen_to_radius = 2.0f / 3.0f;	
 	
-	//if (!dm)
+	if (!dm)
 		return new SolverData(0, 0);
 	
 	Transform mat = Transform(ob->obmat);
@@ -157,6 +235,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	for (pa = psys->particles, i = 0; i < psys->totpart; ++pa, ++i) {
 		Transform finalmat;
 		float radius = 0.0f;
+		float len_accum = 0.0f;
 		
 		int totkey = pa->totkey;
 		Curve *curve = solver_curves + i;
@@ -170,34 +249,54 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		 * on a frame of reference without pseudoforces */
 		finalmat = mat * hair_tr;
 		
-	//	mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
+		/* evaluate if particle is on surface. If not, discard */
+		if (!solver_evaluate_root_location(psys, pa, dm, curve->root1.co, curve->root1.nor)) {
+			point += totkey;
+			continue;
+		}
+		
+		/* send to world space (normal should be sent as well ) */
+		transform_point(mat, curve->root1.co);
+		
+		//mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 		
 		curve->root0 = curve->root1;
 
-		for (k = 0; k < totkey; ++k) {
+		for (k = 0; k < totkey; ++k, ++point) {
 			HairKey *psys_hair_key = pa->hair + k;
-
+			float len = 0.0f;
+			float prev_radius = radius;
+			
 			point->rest_co = transform_point(finalmat, psys_hair_key->co);
+			/* Not optimal, but we don't really have a way to store intermediate results yet */
+			point->cur.co = point->rest_co;
+			point->cur.vel = float3(0.0f, 0.0f, 0.0f);
+			
+			if (k < totkey-1) {
+				len = len_v3v3(psys_hair_key->co, (psys_hair_key+1)->co);
+				radius = seglen_to_radius * len;
+				
+				len_accum += len;
+			}
+			
 			if (k == 0) {
-				if (k < totkey-1)
-					radius = seglen_to_radius * len_v3v3(psys_hair_key->co, (psys_hair_key+1)->co);
 				point->radius = radius;
 			}
 			else {
-				float prev_radius = radius;
-				if (k < totkey-1)
-					radius = seglen_to_radius * len_v3v3(psys_hair_key->co, (psys_hair_key+1)->co);
 				point->radius = 0.5f * (radius + prev_radius);
 			}
-			
-			point->cur.vel = float3(0.0f, 0.0f, 0.0f);
 		}
-			
-	/*	curve->avg_rest_length = hair->avg_rest_length;
-		curve->rest_root_normal = float3(hair->rest_nor);
-		curve->rest_root_tangent = float3(hair->rest_tan);
 		
+		if (totkey > 1) {
+			len_accum /= (totkey - 1);
+		}
+		
+		curve->avg_rest_length = len_accum;
+		curve->rest_root_normal = curve->root1.nor;
+		curve->rest_root_tangent = curve->root1.tan;
+		
+		/*
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
 			HairPoint *hair_pt = hair->points + k;
 			
