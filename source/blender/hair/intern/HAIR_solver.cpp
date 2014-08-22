@@ -125,14 +125,13 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 		else {
 			float3 root_nor = curve->rest_root_normal, root_tan = curve->rest_root_tangent;
 			Frame rest_frame(root_nor, root_tan, cross_v3_v3(root_nor, root_tan));
+//			Debug::line(pt->rest_co, pt->rest_co + rest_frame.normal, 1.0f, 0.5f, 0.5f, hash_int_2d(i, 51));
+//			Debug::line(pt->rest_co, pt->rest_co + rest_frame.tangent, 0.5f, 1.0f, 0.5f, hash_int_2d(i, 41));
+//			Debug::line(pt->rest_co, pt->rest_co + rest_frame.cotangent, 0.5f, 0.5f, 1.0f, hash_int_2d(i, 31));
 			
 			FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
 			while (iter.index() < curve->totpoints - 1) {
 				pt->rest_bend = world_to_frame_space(iter.frame(), next_pt->rest_co - pt->rest_co);
-				
-				Debug::line(pt->rest_co, pt->rest_co + iter.frame().normal, 1.0f, 0.5f, 0.5f, hash_int_2d(i, 51));
-				Debug::line(pt->rest_co, pt->rest_co + iter.frame().tangent, 0.5f, 1.0f, 0.5f, hash_int_2d(i, 41));
-				Debug::line(pt->rest_co, pt->rest_co + iter.frame().cotangent, 0.5f, 0.5f, 1.0f, hash_int_2d(i, 31));
 				
 				iter.next();
 				++pt;
@@ -235,20 +234,10 @@ static float3 calc_stretch_force(const HairParams &params, const Point *point0, 
 	return params.stretch_stiffness * (length - rest_length) * dir;
 }
 
-static float3 calc_stretch_damping(const HairParams &params, const Point *point0, const Point *point1)
-{
-	float3 dir;
-	float3 edge = point1->cur.co - point0->cur.co;
-	normalize_v3_v3(dir, edge);
-	/* NB: for damping, use the updated next.vel velocities! */
-	float3 dvel = point1->next.vel - point0->next.vel;
-	
-	return params.stretch_damping * dot_v3v3(dvel, dir) * dir;
-}
-
-static float3 calc_bend_force(const HairParams &params, const Point *point0, const Point *point1, const Frame &frame, float time)
+static float3 calc_bend_force(const HairParams &params, int k, const Point *point0, const Point *point1, const Frame &frame, float time)
 {
 	float3 target = frame_to_world_space(frame, point0->rest_bend);
+	Debug::vector(point0->cur.co, target, 1.0f, 0.5f, 1.0f, hash_int_2d(hash_int_2d(k, 0), 837));
 	
 	float3 dir;
 	float3 edge = point1->cur.co - point0->cur.co;
@@ -257,7 +246,7 @@ static float3 calc_bend_force(const HairParams &params, const Point *point0, con
 	return params.bend_stiffness * (edge - target);
 }
 
-static float3 calc_bend_damping(const HairParams &params, const Point *point0, const Point *point1)
+static void calc_damping(const HairParams &params, int k, const Point *point0, const Point *point1, float3 &stretch, float3 &bend)
 {
 	float3 dir;
 	float3 edge = point1->cur.co - point0->cur.co;
@@ -265,7 +254,11 @@ static float3 calc_bend_damping(const HairParams &params, const Point *point0, c
 	/* NB: for damping, use the updated next.vel velocities! */
 	float3 dvel = point1->next.vel - point0->next.vel;
 	
-	return params.bend_damping * (dvel - dot_v3v3(dvel, dir) * dir);
+	Debug::vector(point0->cur.co, dvel, 0.5f, 0.5f, 1.0f, hash_int_2d(hash_int_2d(k, 0), 867));
+	
+	float3 dvel_edge = dot_v3v3(dvel, dir) * dir;
+	stretch = params.stretch_damping * dvel_edge;
+	bend = params.bend_damping * (dvel - dvel_edge);
 }
 
 struct SolverTaskData {
@@ -275,14 +268,14 @@ struct SolverTaskData {
 	int startpoint, totpoints;
 };
 
-static void accum_internal_forces(const HairParams &params, const SolverForces &forces, float time, float timestep, const Point *point0, const Point *point1, const Frame &frame,
-                               float3 &force0, float3 &force1)
+static void accum_internal_forces(const HairParams &params, const SolverForces &forces, float time, float timestep, int k, const Point *point0, const Point *point1, const Frame &frame,
+                                  float3 &force0, float3 &force1)
 {
 	float3 stretch, bend;
 	
 	if (point1) {
 		stretch = calc_stretch_force(params, point0, point1, time);
-		bend = calc_bend_force(params, point0, point1, frame, time);
+		bend = calc_bend_force(params, k, point0, point1, frame, time);
 	}
 	else {
 		stretch = float3(0.0f, 0.0f, 0.0f);
@@ -393,7 +386,7 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 		Frame rest_frame(root_nor, root_tan, cross_v3_v3(root_nor, root_tan));
 		FrameIterator<SolverDataLocWalker> frame_iter(SolverDataLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
 		
-		accum_internal_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
+		accum_internal_forces(params, forces, time, timestep, k, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
 		accum_external_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), extern_force);
 		
 		{
@@ -405,6 +398,9 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 //			float3 rest_bend = point->rest_bend;
 //			float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
 //			Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
+//			Debug::vector(point->cur.co, frame_iter.frame().normal, 1.0f, 0.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 61));
+//			Debug::vector(point->cur.co, frame_iter.frame().tangent, 0.0f, 1.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 71));
+//			Debug::vector(point->cur.co, frame_iter.frame().cotangent, 0.0f, 0.0f, 1.0f, hash_int_2d(hash_int_2d(i, k), 81));
 		}
 		
 		frame_iter.next();
@@ -416,7 +412,7 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 		/* Integrate free points */
 		for (; k < numpoints; ++k, ++point, ++k_tot) {
 			Point *point_next = k < numpoints-1 ? point+1 : NULL;
-			accum_internal_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
+			accum_internal_forces(params, forces, time, timestep, k, point, point_next, frame_iter.frame(), intern_force, intern_force_next);
 			accum_external_forces(params, forces, time, timestep, point, point_next, frame_iter.frame(), extern_force);
 			
 			point->force_accum = point->force_accum + intern_force + extern_force + acc_prev;
@@ -430,6 +426,9 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 //				float3 bend = point_next ? world_to_frame_space(frame_iter.frame(), point_next->cur.co - point->cur.co) : float3(0,0,0);
 //				float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);
 //				Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
+//				Debug::vector(point->cur.co, frame_iter.frame().normal, 1.0f, 0.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 61));
+//				Debug::vector(point->cur.co, frame_iter.frame().tangent, 0.0f, 1.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 71));
+//				Debug::vector(point->cur.co, frame_iter.frame().cotangent, 0.0f, 0.0f, 1.0f, hash_int_2d(hash_int_2d(i, k), 81));
 			}
 			
 			frame_iter.next();
@@ -441,18 +440,18 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 	do_collision(params, forces, time, timestep, restitution_scale, data, contacts);
 }
 
-static void damping_forces(const HairParams &params, const Point *point0, const Point *point1,
+static void damping_forces(const HairParams &params, int k, const Point *point0, const Point *point1,
                            float3 &force0, float3 &force1)
 {
 	float3 stretch, bend;
 	
-	stretch = calc_stretch_damping(params, point0, point1);
-	bend = calc_bend_damping(params, point0, point1);
+	calc_damping(params, k, point0, point1, stretch, bend);
 	
 	force0 = stretch + bend;
 	force1 = -(stretch + bend);
 }
 
+#if 0 /* unused, do_velocity_integration applies forces instead */
 static void apply_acceleration(const SolverTaskData &data, float time, float timestep, float t0, float t1)
 {
 	Curve *curve = data.curves;
@@ -481,6 +480,7 @@ static void apply_acceleration(const SolverTaskData &data, float time, float tim
 		}
 	}
 }
+#endif
 
 static void apply_velocity(const SolverTaskData &data, float time, float timestep, float t0, float t1)
 {
@@ -511,41 +511,68 @@ static void apply_velocity(const SolverTaskData &data, float time, float timeste
 	}
 }
 
-static void do_damping(const HairParams &params, float time, float timestep, const SolverTaskData &data)
+static void do_velocity_integration(const HairParams &params, float time, float timestep, float t0, float t1, const SolverTaskData &data)
 {
 	const int totsteps = params.substeps_damping;
 	float dt = timestep / (float)totsteps;
 	
-	for (int step = 0; step < totsteps; ++step) {
-		Curve *curve = data.curves;
-		for (int i = 0; i < data.totcurves; ++i, ++curve) {
-			int totpoints = curve->totpoints;
+	Curve *curve = data.curves;
+	for (int i = 0; i < data.totcurves; ++i, ++curve) {
+		/* Root point animation */
+		if (curve->totpoints > 0) {
+			/* note: roots are evaluated at the end of the timestep: time + timestep
+			 * so the hair points align perfectly with them
+			 */
+			float3 root_vel = get_root_velocity(t0, t1, time + timestep, curve);
 			
-			int k;
-			Point *point;
-			
-			/* initialize force */
-			for (k = 0, point = curve->points; k < totpoints; ++k, ++point) {
-				point->force_accum = float3(0.0f, 0.0f, 0.0f);
-			}
-			
-			/* accumulate forces */
-			for (k = 0, point = curve->points; k < totpoints - 1; ++k, ++point) {
-				float3 force, force_next;
-				damping_forces(params, point, point + 1, force, force_next);
-				
-				point->force_accum = point->force_accum + force;
-				(point+1)->force_accum = (point+1)->force_accum + force_next;
-			}
-			
-			/* update velocities of free points */
-			for (k = 1, point = curve->points + 1; k < totpoints - 1; ++k, ++point) {
-				point->next.vel = point->next.vel + point->force_accum * timestep;
-			}
+			curve->points[0].next.vel = root_vel;
 		}
 	}
 	
-	time += dt;
+	curve = data.curves;
+	for (int i = 0; i < data.totcurves; ++i, ++curve) {
+		int totpoints = curve->totpoints;
+		if (totpoints == 0)
+			continue;
+		
+		int k;
+		Point *point;
+		
+		/* initialize next.vel */
+		for (k = 0, point = curve->points; k < totpoints; ++k, ++point) {
+			point->next.vel = point->cur.vel;
+		}
+		
+		for (int step = 0; step < totsteps; ++step) {
+			float3 force_prev(0.0f, 0.0f, 0.0f), force, force_next;
+			
+			k = 0;
+			point = curve->points;
+			
+			/* first point:
+			 * root, not accelerated (forces are calculated anyway for the next point)
+			 */
+			damping_forces(params, k, point, point + 1, force, force_next);
+			force_prev = force_next;
+			
+			/* calculate damping and apply acceleration
+			 * (in the same loop so damping force does not have to be stored)
+			 */
+			for (++k, ++point; k < totpoints - 1; ++k, ++point) {
+				damping_forces(params, k, point, point + 1, force, force_next);
+				
+				point->next.vel = point->next.vel + (point->force_accum + force_prev + force) * dt;
+				force_prev = force_next;
+			}
+			
+			/* last point:
+			 * only uses external acceleration and damping from previous segment
+			 */
+			point->next.vel = point->next.vel + (point->force_accum + force_prev) * dt;
+			
+			time += dt;
+		}
+	}
 }
 
 void Solver::do_integration(float time, float timestep, const SolverTaskData &data, const PointContactCache &contacts) const
@@ -564,11 +591,7 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 		/* calculate Point.force_accum vectors */
 		calc_forces(m_params, m_forces, time, dt, restitution_scale, m_data->t0, m_data->t1, data, contacts);
 		
-		/* apply velocity change from accumulated forces */
-		apply_acceleration(data, time, timestep, m_data->t0, m_data->t1);
-		
-		/* apply velocity change from viscous damping */
-		do_damping(m_params, time, timestep, data);
+		do_velocity_integration(m_params, time, timestep, m_data->t0, m_data->t1, data);
 		
 		/* apply positional changes */
 		apply_velocity(data, time, timestep, m_data->t0, m_data->t1);
