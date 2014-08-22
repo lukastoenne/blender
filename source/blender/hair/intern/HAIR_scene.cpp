@@ -209,7 +209,6 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	
 	Transform mat = Transform(ob->obmat);
 	
-
 	/* count points */
 	int totpoints = 0;
 	for (pa = psys->particles, i = 0; i < psys->totpart; ++pa, ++i) {
@@ -250,7 +249,6 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		
 		/* send to world space (normal matrix should be changed to inverse transpose here) */
 		transform_point(mat, curve->root1.co);
-		transform_direction(mat, curve->root1.nor);
 		
 		//mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
@@ -287,8 +285,8 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		}
 		
 		curve->avg_rest_length = len_accum;
-		curve->rest_root_normal = curve->root1.nor;
-		curve->rest_root_tangent = curve->root1.tan;
+		curve->rest_root_normal = transform_direction(mat, curve->root1.nor);
+		curve->rest_root_tangent = 	transform_direction(mat, curve->root1.tan);
 		
 		/*
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
