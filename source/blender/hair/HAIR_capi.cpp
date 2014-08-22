@@ -147,8 +147,7 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 	
 	Debug::init();
 	
-	DebugThreadDataVector thread_data_list;
-	solver->step_threaded(time, timestep, &thread_data_list);
+	solver->step_threaded(time, timestep);
 	
 	if (debug_data) {
 		int i, tot = Debug::elements.size();

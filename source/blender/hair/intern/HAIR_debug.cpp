@@ -32,6 +32,7 @@ HAIR_NAMESPACE_BEGIN
 
 #ifdef HAIR_DEBUG
 
+bool Debug::active = false;
 ThreadMutex Debug::mutex;
 Debug::Elements Debug::elements;
 

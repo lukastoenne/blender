@@ -49,19 +49,6 @@ typedef enum eHAIR_SolverDebugElement_Type {
 	HAIR_DEBUG_ELEM_VECTOR,
 } eHAIR_SolverDebugElement_Type;
 
-typedef struct HAIR_SolverDebugContact {
-	float coA[3], coB[3];
-} HAIR_SolverDebugContact;
-
-typedef struct HAIR_SolverDebugPoint {
-	int index;
-	float co[3];
-	float rest_bend[3];
-	float bend[3];
-	float force_bend[3];
-	float frame[3][3];
-} HAIR_SolverDebugPoint;
-
 #ifdef __cplusplus
 }
 #endif

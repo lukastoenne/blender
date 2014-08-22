@@ -464,73 +464,6 @@ bool draw_hair_system(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Ba
 #define SHOW_CONTACTS
 #define SHOW_BENDING
 
-static void draw_hair_debug_points(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
-{
-#ifdef SHOW_POINTS
-	int i, k, ktot = 0;
-	
-	glColor3f(0.8f, 1.0f, 1.0f);
-	glBegin(GL_LINES);
-	
-	for (i = 0; i < hsys->totcurves; ++i) {
-		HairCurve *hair = hsys->curves + i;
-		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
-			HairPoint *point = hair->points + k;
-			
-			if (ktot < dtotpoints) {
-				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
-				float loc[3];
-				
-				glVertex3fv(point->co);
-				add_v3_v3v3(loc, point->co, dpoint->bend);
-				glVertex3fv(loc);
-			}
-		}
-	}
-	
-	glEnd();
-#else
-	(void)hsys;
-	(void)dpoints;
-	(void)dtotpoints;
-#endif
-}
-
-static void draw_hair_debug_force_vector(const float co[3], const float f[3], float r, float g, float b)
-{
-	const float scale = 1.0f;
-	float p[3];
-	
-	madd_v3_v3v3fl(p, co, f, scale);
-	
-	glColor3f(r, g, b);
-	glVertex3fv(co);
-	glVertex3fv(p);
-}
-
-static void draw_hair_debug_forces(HairSystem *hsys, int debug_forces, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
-{
-	int i, k, ktot = 0;
-	
-	glBegin(GL_LINES);
-	
-	for (i = 0; i < hsys->totcurves; ++i) {
-		HairCurve *hair = hsys->curves + i;
-		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
-//			HairPoint *point = hair->points + k;
-			
-			if (ktot < dtotpoints) {
-				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
-				
-				if (debug_forces & MOD_HAIR_DEBUG_FORCE_BENDING)
-					draw_hair_debug_force_vector(dpoint->co, dpoint->force_bend, 1.0f, 1.0f, 0.0f);
-			}
-		}
-	}
-	
-	glEnd();
-}
-
 static void draw_hair_debug_size(HairSystem *hsys, float tmat[4][4])
 {
 #ifdef SHOW_SIZE
@@ -579,135 +512,6 @@ static void draw_hair_debug_roots(HairSystem *hsys, struct DerivedMesh *dm)
 #endif
 }
 
-static void draw_hair_debug_frames(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
-{
-#ifdef SHOW_FRAMES
-	const float scale = 0.2f;
-	int i, k, ktot;
-	
-	glColor3f(0.8f, 1.0f, 1.0f);
-	glBegin(GL_LINES);
-	
-	ktot = 0;
-	for (i = 0; i < hsys->totcurves; ++i) {
-		HairCurve *hair = hsys->curves + i;
-		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
-//			HairPoint *point = hair->points + k;
-			
-			if (ktot < dtotpoints) {
-				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
-				float co[3], nor[3], tan[3], cotan[3];
-				
-				copy_v3_v3(co, dpoint->co);
-				madd_v3_v3v3fl(nor, co, dpoint->frame[0], scale);
-				madd_v3_v3v3fl(tan, co, dpoint->frame[1], scale);
-				madd_v3_v3v3fl(cotan, co, dpoint->frame[2], scale);
-				
-				glColor3f(1.0f, 0.0f, 0.0f);
-				glVertex3fv(co);
-				glVertex3fv(nor);
-				glColor3f(0.0f, 1.0f, 0.0f);
-				glVertex3fv(co);
-				glVertex3fv(tan);
-				glColor3f(0.0f, 0.0f, 1.0f);
-				glVertex3fv(co);
-				glVertex3fv(cotan);
-			}
-		}
-	}
-	
-	glEnd();
-#else
-	(void)hsys;
-	(void)dpoints;
-	(void)dtotpoints;
-#endif
-}
-
-static void draw_hair_debug_bending(HairSystem *hsys, HAIR_SolverDebugPoint *dpoints, int dtotpoints)
-{
-#ifdef SHOW_BENDING
-	int i, k, ktot;
-	
-	glBegin(GL_LINES);
-	
-	ktot = 0;
-	for (i = 0; i < hsys->totcurves; ++i) {
-		HairCurve *hair = hsys->curves + i;
-		for (k = 0; k < hair->totpoints; ++k, ++ktot) {
-//			HairPoint *point = hair->points + k;
-			
-			if (ktot < dtotpoints) {
-				HAIR_SolverDebugPoint *dpoint = dpoints + ktot;
-				float co[3], bend[3];
-				
-				copy_v3_v3(co, dpoint->co);
-				
-				add_v3_v3v3(bend, co, dpoint->bend);
-				glColor3f(0.15f, 0.55f, 0.55f);
-				glVertex3fv(co);
-				glVertex3fv(bend);
-				
-				add_v3_v3v3(bend, co, dpoint->rest_bend);
-				glColor3f(0.4f, 0.25f, 0.55f);
-				glVertex3fv(co);
-				glVertex3fv(bend);
-			}
-		}
-	}
-	
-	glEnd();
-#else
-	(void)hsys;
-	(void)dpoints;
-	(void)dtotpoints;
-#endif
-}
-
-#if 0
-static void draw_hair_curve_debug_frames(HairSystem *hsys, HairCurve *hair)
-{
-#ifdef SHOW_FRAMES
-	struct HAIR_FrameIterator *iter;
-	float co[3], nor[3], tan[3], cotan[3];
-	int k = 0;
-	const float scale = 0.1f;
-	
-	glBegin(GL_LINES);
-	iter = HAIR_frame_iter_new(hair, 1.0f / hair->totpoints, hsys->smooth);
-	
-	while (HAIR_frame_iter_valid(iter)) {
-		HAIR_frame_iter_get(iter, nor, tan, cotan);
-		copy_v3_v3(co, hair->points[k].co);
-		mul_v3_fl(nor, scale);
-		mul_v3_fl(tan, scale);
-		mul_v3_fl(cotan, scale);
-		add_v3_v3(nor, co);
-		add_v3_v3(tan, co);
-		add_v3_v3(cotan, co);
-		++k;
-		
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3fv(co);
-		glVertex3fv(nor);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3fv(co);
-		glVertex3fv(tan);
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3fv(co);
-		glVertex3fv(cotan);
-		
-		HAIR_frame_iter_next(iter);
-	}
-	HAIR_frame_iter_free(iter);
-	glEnd();
-#else
-	(void)hsys;
-	(void)hair;
-#endif
-}
-#endif
-
 static void draw_hair_curve_debug_smoothing(HairSystem *hsys, HairCurve *hair)
 {
 #ifdef SHOW_SMOOTHING
@@ -745,39 +549,6 @@ static void draw_hair_curve_debug_smoothing(HairSystem *hsys, HairCurve *hair)
 #else
 	(void)hsys;
 	(void)hair;
-#endif
-}
-
-static void draw_hair_debug_contacts(HairSystem *UNUSED(hsys), HAIR_SolverDebugContact *contacts, int totcontacts)
-{
-#ifdef SHOW_CONTACTS
-	int i;
-	
-	glBegin(GL_LINES);
-	glColor3f(0.7f, 0.7f, 0.9f);
-	for (i = 0; i < totcontacts; ++i) {
-		HAIR_SolverDebugContact *c = contacts + i;
-		
-		glVertex3f(c->coA[0], c->coA[1], c->coA[2]);
-		glVertex3f(c->coB[0], c->coB[1], c->coB[2]);
-	}
-	glEnd();
-	
-	glPointSize(3.0f);
-	glBegin(GL_POINTS);
-	for (i = 0; i < totcontacts; ++i) {
-		HAIR_SolverDebugContact *c = contacts + i;
-		
-		glColor3f(1.0f, 0.1f, 0.0f);
-		glVertex3f(c->coA[0], c->coA[1], c->coA[2]);
-		glColor3f(0.0f, 1.0f, 0.7f);
-		glVertex3f(c->coB[0], c->coB[1], c->coB[2]);
-	}
-	glEnd();
-	glPointSize(1.0f);
-#else
-	(void)contacts;
-	(void)totcontacts;
 #endif
 }
 
@@ -869,6 +640,7 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 		for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i)
 			draw_hair_curve_debug_smoothing(hsys, hair);
 	}
+	
 	glPopMatrix();
 	
 	if (hmd->debug_data) {

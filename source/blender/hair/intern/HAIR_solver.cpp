@@ -273,8 +273,6 @@ struct SolverTaskData {
 	Point *points;
 	int startcurve, totcurves;
 	int startpoint, totpoints;
-	
-	DebugThreadData *debug_data;
 };
 
 static void accum_internal_forces(const HairParams &params, const SolverForces &forces, float time, float timestep, const Point *point0, const Point *point1, const Frame &frame,
@@ -406,7 +404,7 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 //			float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);
 //			float3 rest_bend = point->rest_bend;
 //			float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
-			Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
+//			Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
 		}
 		
 		frame_iter.next();
@@ -431,7 +429,7 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 //				float3 rest_bend = point->rest_bend;
 //				float3 bend = point_next ? world_to_frame_space(frame_iter.frame(), point_next->cur.co - point->cur.co) : float3(0,0,0);
 //				float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);
-				Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
+//				Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
 			}
 			
 			frame_iter.next();
@@ -606,23 +604,18 @@ static void advance_state(SolverData *data)
 	}
 }
 
-void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *debug_thread_data)
+void Solver::step_threaded(float time, float timestep)
 {
-	/* global debug data for the host thread */
-	DebugThreadData *debug_data = NULL;
-	if (debug_thread_data) {
-		debug_thread_data->push_back(DebugThreadData());
-		debug_data = &debug_thread_data->back();
-	}
-	
 	/* filter and cache Bullet contact information */
 	PointContactCache contacts;
 	cache_point_contacts(contacts);
 	
-	if (debug_data) {
+	if (Debug::active) {
 		for (int i = 0; i < contacts.size(); ++i) {
 			const PointContactInfo &info = contacts[i];
-			Debug::collision_contact(debug_data, info.world_point_hair, info.world_point_body);
+			Debug::line(info.world_point_hair, info.world_point_body, 0.6, 0.6, 0.6, hash_int_2d(2347, i));
+			Debug::dot(info.world_point_hair, 0, 1, 0, hash_int_2d(2348, i));
+			Debug::dot(info.world_point_body, 1, 0, 0, hash_int_2d(2349, i));
 		}
 	}
 	
@@ -666,7 +659,6 @@ void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *de
 			solver_task.startpoint = point_start;
 			solver_task.totcurves = num_hairs;
 			solver_task.totpoints = num_points;
-			solver_task.debug_data = NULL; /* defined below if needed */
 			taskdata.push_back(solver_task);
 			
 			hair_start += num_hairs;
@@ -676,17 +668,6 @@ void Solver::step_threaded(float time, float timestep, DebugThreadDataVector *de
 		}
 		
 		++curve;
-	}
-	
-	/* Note: have to create the debug data stack afterward to safely point to the std::vector */
-	if (debug_thread_data) {
-		/* reserve ensures no re-alloc happens and we can safely push and reference */
-		debug_thread_data->reserve(debug_thread_data->size() + taskdata.size());
-		for (SolverTaskVector::iterator it = taskdata.begin(); it != taskdata.end(); ++it) {
-			SolverTaskData &solver_task = *it;
-			debug_thread_data->push_back(DebugThreadData());
-			solver_task.debug_data = &debug_thread_data->back();
-		}
 	}
 	
 	/* Note: can't create tasks right away in the loop above,

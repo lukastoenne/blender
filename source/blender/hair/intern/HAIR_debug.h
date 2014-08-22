@@ -46,21 +46,13 @@ HAIR_NAMESPACE_BEGIN
 
 struct SolverData;
 
-struct DebugThreadData
-{
-	typedef std::vector<HAIR_SolverDebugPoint> Points;
-	typedef std::vector<HAIR_SolverDebugContact> CollisionContacts;
-	
-	CollisionContacts contacts;
-	Points points;
-};
-
 struct Debug {
 	typedef std::vector<HAIR_SolverDebugElement> Elements;
 	
 	static void init()
 	{
 		BLI_mutex_init(&mutex);
+		active = true;
 	}
 	
 	static void end()
@@ -68,6 +60,7 @@ struct Debug {
 		elements.clear();
 		
 		BLI_mutex_end(&mutex);
+		active = false;
 	}
 	
 	static void dot(const float3 &p, float r, float g, float b, int hash)
@@ -123,46 +116,7 @@ struct Debug {
 		BLI_mutex_unlock(&mutex);
 	}
 	
-	static void point(DebugThreadData *data, int index, const float3 &co,
-	                  const float3 &rest_bend, const float3 &bend, const Frame &frame)
-	{
-#ifdef HAIR_DEBUG
-		if (data) {
-			HAIR_SolverDebugPoint p;
-			p.index = index;
-			copy_v3_v3(p.co, co.data());
-			copy_v3_v3(p.rest_bend, rest_bend.data());
-			copy_v3_v3(p.bend, bend.data());
-			copy_v3_v3(p.frame[0], frame.normal.data());
-			copy_v3_v3(p.frame[1], frame.tangent.data());
-			copy_v3_v3(p.frame[2], frame.cotangent.data());
-			data->points.push_back(p);
-		}
-#else
-		(void)data;
-		(void)index;
-		(void)co;
-		(void)bend;
-		(void)frame;
-#endif
-	}
-	
-	static void collision_contact(DebugThreadData *data, const float3 &coA, const float3 &coB)
-	{
-#ifdef HAIR_DEBUG
-		if (data) {
-			HAIR_SolverDebugContact c;
-			copy_v3_v3(c.coA, coA.data());
-			copy_v3_v3(c.coB, coB.data());
-			data->contacts.push_back(c);
-		}
-#else
-		(void)data;
-		(void)coA;
-		(void)coB;
-#endif
-	}
-	
+	static bool active;
 	static ThreadMutex mutex;
 	static Elements elements;
 };

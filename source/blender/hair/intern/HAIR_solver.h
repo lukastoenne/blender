@@ -43,7 +43,6 @@ struct rbGhostObject;
 
 HAIR_NAMESPACE_BEGIN
 
-struct DebugThreadData;
 struct SolverTaskData;
 
 struct SolverData {
@@ -148,7 +147,6 @@ struct PointContactInfo {
 };
 
 typedef std::vector<PointContactInfo> PointContactCache;
-typedef std::vector<DebugThreadData> DebugThreadDataVector;
 
 class Solver
 {
@@ -169,7 +167,7 @@ public:
 	
 	void do_integration(float time, float timestep, const SolverTaskData &data, const PointContactCache &contacts) const;
 	
-	void step_threaded(float time, float timestep, DebugThreadDataVector *debug_thread_data = NULL);
+	void step_threaded(float time, float timestep);
 	
 private:
 	HairParams m_params;
