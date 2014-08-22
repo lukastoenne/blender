@@ -35,6 +35,20 @@
 extern "C" {
 #endif
 
+typedef struct HAIR_SolverDebugElement {
+	int type;
+	int hash;
+	float color[3];
+	
+	float a[3], b[3];
+} HAIR_SolverDebugElement;
+
+typedef enum eHAIR_SolverDebugElement_Type {
+	HAIR_DEBUG_ELEM_DOT,
+	HAIR_DEBUG_ELEM_LINE,
+	HAIR_DEBUG_ELEM_VECTOR,
+} eHAIR_SolverDebugElement_Type;
+
 typedef struct HAIR_SolverDebugContact {
 	float coA[3], coB[3];
 } HAIR_SolverDebugContact;

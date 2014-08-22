@@ -119,10 +119,7 @@ typedef struct HairSystem {
 } HairSystem;
 
 typedef struct HairDebugData {
-	struct HAIR_SolverDebugContact *contacts;
-	struct HAIR_SolverDebugPoint *points;
-	int totcontacts;
-	int totpoints;
+	struct GHash *gh;
 } HairDebugData;
 
 #endif

@@ -37,6 +37,7 @@ extern "C" {
 #include "HAIR_math.h"
 #include "HAIR_smoothing.h"
 #include "HAIR_solver.h"
+#include "HAIR_util_hash.h"
 
 HAIR_NAMESPACE_BEGIN
 
@@ -128,6 +129,10 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 			FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
 			while (iter.index() < curve->totpoints - 1) {
 				pt->rest_bend = world_to_frame_space(iter.frame(), next_pt->rest_co - pt->rest_co);
+				
+				Debug::line(pt->rest_co, pt->rest_co + iter.frame().normal, 1.0f, 0.5f, 0.5f, hash_int_2d(i, 51));
+				Debug::line(pt->rest_co, pt->rest_co + iter.frame().tangent, 0.5f, 1.0f, 0.5f, hash_int_2d(i, 41));
+				Debug::line(pt->rest_co, pt->rest_co + iter.frame().cotangent, 0.5f, 0.5f, 1.0f, hash_int_2d(i, 31));
 				
 				iter.next();
 				++pt;

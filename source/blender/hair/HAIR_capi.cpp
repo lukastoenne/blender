@@ -141,15 +141,26 @@ void HAIR_solver_step(struct HAIR_Solver *csolver, float time, float timestep)
 }
 
 void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float timestep,
-                            float ob_imat[4][4],
-                            HAIR_SolverDebugPoint **points, int *totpoints,
-                            HAIR_SolverDebugContact **contacts, int *totcontacts)
+                            float ob_imat[4][4], HairDebugData *debug_data)
 {
 	Solver *solver = (Solver *)csolver;
+	
+	Debug::init();
 	
 	DebugThreadDataVector thread_data_list;
 	solver->step_threaded(time, timestep, &thread_data_list);
 	
+	if (debug_data) {
+		int i, tot = Debug::elements.size();
+		for (i = 0; i < tot; ++i) {
+			HAIR_SolverDebugElement *elem = (HAIR_SolverDebugElement *)MEM_mallocN(sizeof(HAIR_SolverDebugElement), "hair debug element");
+			*elem = Debug::elements[i];
+			
+			BKE_hair_debug_data_insert(debug_data, elem);
+		}
+	}
+	
+#if 0
 	if (points && totpoints) {
 		int tot = solver->data()->totpoints;
 		*totpoints = tot;
@@ -200,6 +211,9 @@ void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float times
 			}
 		}
 	}
+#endif
+	
+	Debug::end();
 }
 
 void HAIR_solver_apply(struct HAIR_Solver *csolver, Scene *scene, Object *ob, HairSystem *hsys)

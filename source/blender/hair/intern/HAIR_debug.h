@@ -30,6 +30,7 @@
 #include <vector>
 
 extern "C" {
+#include "BLI_threads.h"
 #include "BLI_math.h"
 }
 
@@ -55,6 +56,72 @@ struct DebugThreadData
 };
 
 struct Debug {
+	typedef std::vector<HAIR_SolverDebugElement> Elements;
+	
+	static void init()
+	{
+		BLI_mutex_init(&mutex);
+	}
+	
+	static void end()
+	{
+		elements.clear();
+		
+		BLI_mutex_end(&mutex);
+	}
+	
+	static void dot(const float3 &p, float r, float g, float b, int hash)
+	{
+		HAIR_SolverDebugElement elem;
+		elem.type = HAIR_DEBUG_ELEM_DOT;
+		elem.hash = hash;
+		
+		copy_v3_v3(elem.a, p.data());
+		
+		elem.color[0] = r;
+		elem.color[1] = g;
+		elem.color[2] = b;
+		
+		BLI_mutex_lock(&mutex);
+		elements.push_back(elem);
+		BLI_mutex_unlock(&mutex);
+	}
+	
+	static void line(const float3 &v1, const float3 &v2, float r, float g, float b, int hash)
+	{
+		HAIR_SolverDebugElement elem;
+		elem.type = HAIR_DEBUG_ELEM_LINE;
+		elem.hash = hash;
+		
+		copy_v3_v3(elem.a, v1.data());
+		copy_v3_v3(elem.b, v2.data());
+		
+		elem.color[0] = r;
+		elem.color[1] = g;
+		elem.color[2] = b;
+		
+		BLI_mutex_lock(&mutex);
+		elements.push_back(elem);
+		BLI_mutex_unlock(&mutex);
+	}
+	
+	static void vector(const float3 &v1, const float3 &v2, float r, float g, float b, int hash)
+	{
+		HAIR_SolverDebugElement elem;
+		elem.type = HAIR_DEBUG_ELEM_VECTOR;
+		elem.hash = hash;
+		
+		copy_v3_v3(elem.a, v1.data());
+		copy_v3_v3(elem.b, v2.data());
+		
+		elem.color[0] = r;
+		elem.color[1] = g;
+		elem.color[2] = b;
+		
+		BLI_mutex_lock(&mutex);
+		elements.push_back(elem);
+		BLI_mutex_unlock(&mutex);
+	}
 	
 	static void point(DebugThreadData *data, int index, const float3 &co,
 	                  const float3 &rest_bend, const float3 &bend, const Frame &frame)
@@ -95,6 +162,9 @@ struct Debug {
 		(void)coB;
 #endif
 	}
+	
+	static ThreadMutex mutex;
+	static Elements elements;
 };
 
 HAIR_NAMESPACE_END

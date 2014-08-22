@@ -24,18 +24,49 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <cstring>
-
-#include "HAIR_debug.h"
+#ifndef __HAIR_UTIL_HASH_H__
+#define __HAIR_UTIL_HASH_H__
 
 HAIR_NAMESPACE_BEGIN
 
-#ifdef HAIR_DEBUG
+static inline unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
 
-ThreadMutex Debug::mutex;
-Debug::Elements Debug::elements;
+	unsigned int a, b, c;
 
-#endif
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
 
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
+static inline unsigned int hash_int(unsigned int k)
+{
+	return hash_int_2d(k, 0);
+}
+
+static inline int hash_int_2d(int kx, int ky)
+{
+	return (unsigned int)hash_int_2d((unsigned int)kx, (unsigned int)ky);
+}
+
+static inline int hash_int(int k)
+{
+	return (unsigned int)hash_int((unsigned int)k);
+}
 
 HAIR_NAMESPACE_END
+
+#endif

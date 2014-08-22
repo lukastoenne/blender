@@ -40,6 +40,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "BKE_global.h"
 #include "BKE_hair.h"
@@ -780,6 +781,67 @@ static void draw_hair_debug_contacts(HairSystem *UNUSED(hsys), HAIR_SolverDebugC
 #endif
 }
 
+static void draw_hair_debug_elements(HairSystem *UNUSED(hsys), HairDebugData *debug_data)
+{
+	GHashIterator iter;
+	
+	/**** dots ****/
+	
+	glPointSize(3.0f);
+	glBegin(GL_POINT);
+	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
+		HAIR_SolverDebugElement *elem = BLI_ghashIterator_getValue(&iter);
+		if (elem->type != HAIR_DEBUG_ELEM_DOT)
+			continue;
+		
+		glColor3f(elem->color[0], elem->color[1], elem->color[2]);
+		glVertex3f(elem->a[0], elem->a[1], elem->a[2]);
+	}
+	glEnd();
+	glPointSize(1.0f);
+	
+	/**** lines ****/
+	
+	glBegin(GL_LINES);
+	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
+		HAIR_SolverDebugElement *elem = BLI_ghashIterator_getValue(&iter);
+		if (elem->type != HAIR_DEBUG_ELEM_LINE)
+			continue;
+		
+		glColor3f(elem->color[0], elem->color[1], elem->color[2]);
+		glVertex3f(elem->a[0], elem->a[1], elem->a[2]);
+		glVertex3f(elem->b[0], elem->b[1], elem->b[2]);
+	}
+	glEnd();
+	
+	/**** vectors ****/
+	
+	glPointSize(2.0f);
+	glBegin(GL_POINT);
+	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
+		HAIR_SolverDebugElement *elem = BLI_ghashIterator_getValue(&iter);
+		if (elem->type != HAIR_DEBUG_ELEM_VECTOR)
+			continue;
+		
+		glColor3f(elem->color[0], elem->color[1], elem->color[2]);
+		glVertex3f(elem->a[0], elem->a[1], elem->a[2]);
+	}
+	glEnd();
+	glPointSize(1.0f);
+	
+	glBegin(GL_LINES);
+	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
+		HAIR_SolverDebugElement *elem = BLI_ghashIterator_getValue(&iter);
+		if (elem->type != HAIR_DEBUG_ELEM_VECTOR)
+			continue;
+		
+		glColor3f(elem->color[0], elem->color[1], elem->color[2]);
+		glVertex3f(elem->a[0], elem->a[1], elem->a[2]);
+		glVertex3f(elem->b[0], elem->b[1], elem->b[2]);
+	}
+	glEnd();
+}
+
 void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Base *base, HairModifierData *hmd)
 {
 	RegionView3D *rv3d = ar->regiondata;
@@ -806,14 +868,15 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	}
 	
 	if (hmd->debug_data) {
-		if (debug_flag & MOD_HAIR_DEBUG_FRAMES)
-			draw_hair_debug_frames(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
-		if (debug_flag & MOD_HAIR_DEBUG_BENDING)
-			draw_hair_debug_bending(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
-//		draw_hair_debug_points(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
-		if (debug_flag & MOD_HAIR_DEBUG_CONTACTS)
-			draw_hair_debug_contacts(hsys, hmd->debug_data->contacts, hmd->debug_data->totcontacts);
-		if (debug_flag & MOD_HAIR_DEBUG_FORCES)
-			draw_hair_debug_forces(hsys, hmd->debug_flag_forces, hmd->debug_data->points, hmd->debug_data->totpoints);
+//		if (debug_flag & MOD_HAIR_DEBUG_FRAMES)
+//			draw_hair_debug_frames(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
+//		if (debug_flag & MOD_HAIR_DEBUG_BENDING)
+//			draw_hair_debug_bending(hsys, hmd->debug_data->points, hmd->debug_data->totpoints);
+//		if (debug_flag & MOD_HAIR_DEBUG_CONTACTS)
+//			draw_hair_debug_contacts(hsys, hmd->debug_data->contacts, hmd->debug_data->totcontacts);
+//		if (debug_flag & MOD_HAIR_DEBUG_FORCES)
+//			draw_hair_debug_forces(hsys, hmd->debug_flag_forces, hmd->debug_data->points, hmd->debug_data->totpoints);
+		
+		draw_hair_debug_elements(hsys, hmd->debug_data);
 	}
 }

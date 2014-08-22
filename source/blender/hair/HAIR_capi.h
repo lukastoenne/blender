@@ -37,6 +37,7 @@ struct DerivedMesh;
 struct HairCurve;
 struct HairSystem;
 struct HairParams;
+struct HairDebugData;
 struct rbDynamicsWorld;
 
 struct ParticleSystem;
@@ -44,6 +45,7 @@ struct ParticleSystem;
 struct HAIR_Solver;
 struct HAIR_SmoothingIteratorFloat3;
 struct HAIR_FrameIterator;
+struct HAIR_SolverDebugElement;
 struct HAIR_SolverDebugContact;
 struct HAIR_SolverDebugPoint;
 
@@ -60,9 +62,7 @@ void HAIR_solver_remove_from_rigidbodyworld(struct HAIR_Solver *solver, struct r
 
 void HAIR_solver_step(struct HAIR_Solver *solver, float time, float timestep);
 void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float timestep,
-                            float ob_imat[4][4],
-                            struct HAIR_SolverDebugPoint **points, int *totpoints,
-                            struct HAIR_SolverDebugContact **contacts, int *totcontacts);
+                            float ob_imat[4][4], HairDebugData *debug_data);
 
 void HAIR_solver_apply(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 

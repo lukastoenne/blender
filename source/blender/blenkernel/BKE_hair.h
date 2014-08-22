@@ -36,6 +36,7 @@ struct HairCurve;
 struct HairPoint;
 struct HairDebugData;
 struct HairParams;
+struct HAIR_SolverDebugElement;
 
 struct HairSystem *BKE_hairsys_new(void);
 void BKE_hairsys_free(struct HairSystem *hsys);
@@ -58,6 +59,9 @@ void BKE_hair_point_remove_position(struct HairSystem *hsys, struct HairCurve *h
 
 void BKE_hair_calculate_rest(struct HairSystem *hsys);
 
+struct HairDebugData *BKE_hair_debug_data_new(void);
+void BKE_hair_debug_data_insert(struct HairDebugData *debug_data, struct HAIR_SolverDebugElement *elem);
+void BKE_hair_debug_data_clear(struct HairDebugData *debug_data);
 void BKE_hair_debug_data_free(struct HairDebugData *debug_data);
 
 /* cached per-hair data */

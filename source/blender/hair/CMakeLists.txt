@@ -57,6 +57,7 @@ set(SRC
 	intern/HAIR_collision.cpp
 	intern/HAIR_types.h
 	intern/HAIR_types.cpp
+intern/HAIR_util_hash.h
 )
 
 add_definitions(
