@@ -47,7 +47,7 @@ struct SceneConverter {
 	static void update_solver_data_externals(SolverData *data, SolverForces &force, Scene *scene, Object *ob, DerivedMesh *dm, ParticleSystem *hsys, float time);
 	
 	static void apply_solver_data(SolverData *data, Scene *scene, Object *ob, HairSystem *hsys);
-	static void apply_solver_data(SolverData *data, ParticleSystem *psys, float (*vertCoords)[3]);
+	static void apply_solver_data(SolverData *data, ParticleSystem *psys,  Object *ob, float (*vertCoords)[3]);
 	
 	static void sync_rigidbody_data(SolverData *data, const HairParams &params);
 };

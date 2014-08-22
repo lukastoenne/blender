@@ -392,9 +392,11 @@ void SceneConverter::apply_solver_data(SolverData *data, Scene *scene, Object *o
 	}
 }
 
-void SceneConverter::apply_solver_data(SolverData *data, ParticleSystem *psys, float (*vertCoords)[3])
+void SceneConverter::apply_solver_data(SolverData *data, ParticleSystem *psys,  Object *ob, float (*vertCoords)[3])
 {
 	int i, k, pc = 0;
+	
+	invert_m4_m4(ob->imat, ob->obmat);
 	
 	for (i = 0; i < data->totcurves; i++) {
 		int part_pc = pc;
@@ -402,10 +404,14 @@ void SceneConverter::apply_solver_data(SolverData *data, ParticleSystem *psys, f
 		
 		for (k = 0; k < pa->totkey; k++) {
 			copy_v3_v3(vertCoords[part_pc + i + k + 1], (data->points + pc)->cur.co.data());
+	
+			/* convert back to object space from world space */
+			mul_m4_v3(ob->imat, vertCoords[part_pc + i + k + 1]);
+			
 			pc++;
 		}
 		
-		copy_v3_v3(vertCoords[part_pc + i], (data->points + part_pc)->cur.co.data());
+		copy_v3_v3(vertCoords[part_pc + i], vertCoords[part_pc + i + 1]);
 	}
 }
 

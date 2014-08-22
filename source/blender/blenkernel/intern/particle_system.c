@@ -4118,7 +4118,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 
 	if (psys->solver) {
-		HAIR_solver_get_derived_verts(psys->solver, psys, deformedVerts);				
+		HAIR_solver_get_derived_verts(psys->solver, psys, sim->ob, deformedVerts);				
 	}
 	//clothModifier_do(psys->clmd, sim->scene, sim->ob, dm, deformedVerts);
 
