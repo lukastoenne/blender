@@ -414,11 +414,11 @@ void SceneConverter::apply_solver_data(SolverData *data, ParticleSystem *psys, f
 		ParticleData *pa = psys->particles + i;
 		
 		for (k = 0; k < pa->totkey; k++) {
-			copy_v3_v3(vertCoords[part_pc + k + 1], (data->points + pc)->cur.co.data());
+			copy_v3_v3(vertCoords[part_pc + i + k + 1], (data->points + pc)->cur.co.data());
 			pc++;
 		}
 		
-		copy_v3_v3(vertCoords[part_pc], (data->points + part_pc)->cur.co.data());
+		copy_v3_v3(vertCoords[part_pc + i], (data->points + part_pc)->cur.co.data());
 	}
 }
 
