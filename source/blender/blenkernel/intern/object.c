@@ -3191,6 +3191,11 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 				HAIR_solver_step_debug(hmd->solver, ctime, timestep, imat, hmd->debug_data);
 			}
 		}
+		else if (md->type == eModifierType_ParticleSystem) {
+			ParticleSystem *psys = ((ParticleSystemModifierData *) md)->psys;
+			
+			HAIR_solver_step(psys->solver, ctime, timestep);
+		}
 	}
 }
 

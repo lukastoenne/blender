@@ -282,3 +282,9 @@ void HAIR_frame_iter_next(struct HAIR_FrameIterator *citer)
 	
 	iter->next();
 }
+
+void HAIR_solver_get_derived_verts(struct HAIR_Solver *csolver, ParticleSystem *psys, float (*vertCoords)[3])
+{
+	Solver *solver = (Solver *)csolver;
+	SceneConverter::apply_solver_data(solver->data(), psys, vertCoords);
+}

@@ -59,6 +59,9 @@ void HAIR_solver_update_modifier_externals(struct HAIR_Solver *solver, struct Sc
 void HAIR_solver_update_particle_externals(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct ParticleSystem *psys, float time);
 void HAIR_solver_rebuild_rigidbodyworld(struct HAIR_Solver *solver, struct rbDynamicsWorld *world);
 void HAIR_solver_remove_from_rigidbodyworld(struct HAIR_Solver *solver, struct rbDynamicsWorld *world);
+/* get the final object space vertex data from the solver */
+void HAIR_solver_get_derived_verts(struct HAIR_Solver *solver, struct ParticleSystem *psys, float (*vertCoords)[3]);
+
 
 void HAIR_solver_step(struct HAIR_Solver *solver, float time, float timestep);
 void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float timestep,

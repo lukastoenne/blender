@@ -255,8 +255,9 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 			continue;
 		}
 		
-		/* send to world space (normal should be sent as well ) */
+		/* send to world space (normal matrix should be changed to inverse transpose here) */
 		transform_point(mat, curve->root1.co);
+		transform_direction(mat, curve->root1.nor);
 		
 		//mesh_sample_eval_transformed(dm, mat, &hair->root, curve->root1.co, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
@@ -364,7 +365,14 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 		Curve *curve = solver_curves + i;
 		
 		curve->root0 = curve->root1;
-		//mesh_sample_eval_transformed(dm, mat, &hcurve->root, curve->root1.co, curve->root1.nor);
+
+		if (!solver_evaluate_root_location(psys, pa, dm, curve->root1.co, curve->root1.nor)) {
+			continue;
+		}
+
+		/* send to world space (normal matrix should be changed to inverse transpose here) */
+		transform_point(mat, curve->root1.co);
+		transform_direction(mat, curve->root1.nor);
 		
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 	}
@@ -396,6 +404,24 @@ void SceneConverter::apply_solver_data(SolverData *data, Scene *scene, Object *o
 		}
 	}
 }
+
+void SceneConverter::apply_solver_data(SolverData *data, ParticleSystem *psys, float (*vertCoords)[3])
+{
+	int i, k, pc = 0;
+	
+	for (i = 0; i < data->totcurves; i++) {
+		int part_pc = pc;
+		ParticleData *pa = psys->particles + i;
+		
+		for (k = 0; k < pa->totkey; k++) {
+			copy_v3_v3(vertCoords[part_pc + k + 1], (data->points + pc)->cur.co.data());
+			pc++;
+		}
+		
+		copy_v3_v3(vertCoords[part_pc], (data->points + part_pc)->cur.co.data());
+	}
+}
+
 
 void SceneConverter::sync_rigidbody_data(SolverData *data, const HairParams &params)
 {

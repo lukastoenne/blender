@@ -56,6 +56,7 @@
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_listBase.h"
@@ -4022,10 +4023,6 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	}
 #endif
 	
-	if (!psys->solver) {
-		/* say "bad boy" */
-	}
-
 	/* create a dm from hair vertices */
 	LOOP_PARTICLES
 		totpoint += pa->totkey;
@@ -4120,6 +4117,9 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	psys->hair_out_dm = CDDM_copy(dm);
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 
+	if (psys->solver) {
+		HAIR_solver_get_derived_verts(psys->solver, psys, deformedVerts);				
+	}
 	//clothModifier_do(psys->clmd, sim->scene, sim->ob, dm, deformedVerts);
 
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
@@ -4154,6 +4154,11 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 		psys_calc_dmcache(sim->ob, sim->psmd->dm, psys);
 
 		if (psys->solver) {
+			RigidBodyWorld *rbw = sim->scene->rigidbody_world;
+						
+			if (rbw)
+				HAIR_solver_remove_from_rigidbodyworld(psys->solver, rbw->physics_world);
+
 			HAIR_solver_free(psys->solver);
 			psys->solver = NULL;
 		}

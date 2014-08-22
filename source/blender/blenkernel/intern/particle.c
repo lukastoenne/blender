@@ -392,7 +392,7 @@ void BKE_particlesettings_free(ParticleSettings *part)
 	}
 }
 
-void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
+void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int UNUSED(dynamics))
 {
 	PARTICLE_P;
 
