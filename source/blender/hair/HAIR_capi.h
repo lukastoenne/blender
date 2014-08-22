@@ -62,7 +62,7 @@ void HAIR_solver_remove_from_rigidbodyworld(struct HAIR_Solver *solver, struct r
 
 void HAIR_solver_step(struct HAIR_Solver *solver, float time, float timestep);
 void HAIR_solver_step_debug(struct HAIR_Solver *csolver, float time, float timestep,
-                            float ob_imat[4][4], HairDebugData *debug_data);
+                            float ob_imat[4][4], struct HairDebugData *debug_data);
 
 void HAIR_solver_apply(struct HAIR_Solver *solver, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 
