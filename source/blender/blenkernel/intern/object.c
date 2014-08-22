@@ -3129,6 +3129,7 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 			
 			if (!hmd->flag & MOD_HAIR_SOLVER_DATA_VALID) {
 				HAIR_solver_build_modifier_data(hmd->solver, scene, ob, dm, hsys, ctime);
+				BKE_hair_debug_data_clear(hmd->debug_data);
 				hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
 			}
 			
