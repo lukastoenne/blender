@@ -132,6 +132,12 @@ void SolverData::precompute_rest_bend(const HairParams &params)
 			FrameIterator<SolverDataRestLocWalker> iter(SolverDataRestLocWalker(curve), curve->avg_rest_length, params.bend_smoothing, rest_frame);
 			while (iter.index() < curve->totpoints - 1) {
 				pt->rest_bend = world_to_frame_space(iter.frame(), next_pt->rest_co - pt->rest_co);
+				if (iter.index() == 0) {
+					Debug::vector(pt->rest_co, pt->rest_bend, 0, 0.3, 0.9, hash_int_2d(iter.index(), 577));
+					Debug::vector(pt->rest_co, iter.frame().normal, 1, 0.6, 0.6, hash_int_2d(iter.index(), 578));
+					Debug::vector(pt->rest_co, iter.frame().tangent, 0.6, 1, 0.6, hash_int_2d(iter.index(), 570));
+					Debug::vector(pt->rest_co, iter.frame().cotangent, 0.6, 0.6, 1, hash_int_2d(iter.index(), 579));
+				}
 				
 				iter.next();
 				++pt;
@@ -237,7 +243,7 @@ static float3 calc_stretch_force(const HairParams &params, const Point *point0, 
 static float3 calc_bend_force(const HairParams &params, int k, const Point *point0, const Point *point1, const Frame &frame, float time)
 {
 	float3 target = frame_to_world_space(frame, point0->rest_bend);
-	Debug::vector(point0->cur.co, target, 1.0f, 0.5f, 1.0f, hash_int_2d(hash_int_2d(k, 0), 837));
+//	Debug::vector(point0->cur.co, target, 1.0f, 0.5f, 1.0f, hash_int_2d(hash_int_2d(k, 0), 837));
 	
 	float3 dir;
 	float3 edge = point1->cur.co - point0->cur.co;
@@ -254,7 +260,7 @@ static void calc_damping(const HairParams &params, int k, const Point *point0, c
 	/* NB: for damping, use the updated next.vel velocities! */
 	float3 dvel = point1->next.vel - point0->next.vel;
 	
-	Debug::vector(point0->cur.co, dvel, 0.5f, 0.5f, 1.0f, hash_int_2d(hash_int_2d(k, 0), 867));
+//	Debug::vector(point0->cur.co, dvel, 0.5f, 0.5f, 1.0f, hash_int_2d(hash_int_2d(k, 0), 867));
 	
 	float3 dvel_edge = dot_v3v3(dvel, dir) * dir;
 	stretch = params.stretch_damping * dvel_edge;
@@ -391,16 +397,18 @@ static void calc_forces(const HairParams &params, const SolverForces &forces, fl
 		
 		{
 			float3 rest_bend = frame_to_world_space(frame_iter.frame(), point->rest_bend);
+//			float3 rest_bend = point->rest_bend;
 			float3 bend = frame_to_world_space(frame_iter.frame(), point_next ? point_next->cur.co - point->cur.co : float3(0,0,0));
 //			float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
 
 //			float3 bend = point_next ? calc_bend_force(params, point, point_next, frame_iter.frame(), time) : float3(0,0,0);
 //			float3 rest_bend = point->rest_bend;
 //			float3 bend = point_next ? point_next->cur.co - point->cur.co : float3(0,0,0);
-//			Debug::point(data.debug_data, k_tot, point->cur.co, rest_bend, bend, frame_iter.frame());
-//			Debug::vector(point->cur.co, frame_iter.frame().normal, 1.0f, 0.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 61));
-//			Debug::vector(point->cur.co, frame_iter.frame().tangent, 0.0f, 1.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 71));
-//			Debug::vector(point->cur.co, frame_iter.frame().cotangent, 0.0f, 0.0f, 1.0f, hash_int_2d(hash_int_2d(i, k), 81));
+//			Debug::vector(point->cur.co, root_nor, 1,1,0, hash_int_2d(k_tot, 345));
+			Debug::vector(point->cur.co, frame_iter.frame().normal, 1.0f, 0.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 61));
+			Debug::vector(point->cur.co, frame_iter.frame().tangent, 0.0f, 1.0f, 0.0f, hash_int_2d(hash_int_2d(i, k), 71));
+			Debug::vector(point->cur.co, frame_iter.frame().cotangent, 0.0f, 0.0f, 1.0f, hash_int_2d(hash_int_2d(i, k), 81));
+			Debug::vector(point->cur.co, rest_bend, 1,1,1, hash_int_2d(k_tot, 345));
 		}
 		
 		frame_iter.next();

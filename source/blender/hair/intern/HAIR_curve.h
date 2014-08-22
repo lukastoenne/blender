@@ -28,6 +28,8 @@
 #define __HAIR_CURVE_H__
 
 extern "C" {
+#include "BLI_math.h"
+
 #include "RBI_api.h"
 }
 
@@ -95,12 +97,20 @@ struct Frame {
 	    normal(normal),
 	    tangent(tangent),
 	    cotangent(cotangent)
-	{}
+	{
+//		BLI_ASSERT_UNIT_V3(normal.data());
+//		BLI_ASSERT_UNIT_V3(tangent.data());
+//		BLI_ASSERT_UNIT_V3(cotangent.data());
+	}
 	Frame(const Transform &t) :
 	    normal(float3(t.x.x, t.y.x, t.z.x)),
 	    tangent(float3(t.x.y, t.y.y, t.z.y)),
 	    cotangent(float3(t.x.z, t.y.z, t.z.z))
-	{}
+	{
+//		BLI_ASSERT_UNIT_V3(normal.data());
+//		BLI_ASSERT_UNIT_V3(tangent.data());
+//		BLI_ASSERT_UNIT_V3(cotangent.data());
+	}
 	
 	float3 normal;
 	float3 tangent;
