@@ -603,12 +603,14 @@ static void draw_hair_debug_elements(HairSystem *UNUSED(hsys), HairDebugData *de
 	glBegin(GL_LINES);
 	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
 		HAIR_SolverDebugElement *elem = BLI_ghashIterator_getValue(&iter);
+		float t[3];
 		if (elem->type != HAIR_DEBUG_ELEM_VECTOR)
 			continue;
 		
 		glColor3f(elem->color[0], elem->color[1], elem->color[2]);
 		glVertex3f(elem->a[0], elem->a[1], elem->a[2]);
-		glVertex3f(elem->b[0], elem->b[1], elem->b[2]);
+		add_v3_v3v3(t, elem->a, elem->b);
+		glVertex3f(t[0], t[1], t[2]);
 	}
 	glEnd();
 }

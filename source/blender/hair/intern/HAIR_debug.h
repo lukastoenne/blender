@@ -98,14 +98,14 @@ struct Debug {
 		BLI_mutex_unlock(&mutex);
 	}
 	
-	static void vector(const float3 &v1, const float3 &v2, float r, float g, float b, int hash)
+	static void vector(const float3 &p, const float3 &d, float r, float g, float b, int hash)
 	{
 		HAIR_SolverDebugElement elem;
 		elem.type = HAIR_DEBUG_ELEM_VECTOR;
 		elem.hash = hash;
 		
-		copy_v3_v3(elem.a, v1.data());
-		copy_v3_v3(elem.b, v2.data());
+		copy_v3_v3(elem.a, p.data());
+		copy_v3_v3(elem.b, d.data());
 		
 		elem.color[0] = r;
 		elem.color[1] = g;
