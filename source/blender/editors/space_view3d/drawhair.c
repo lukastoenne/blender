@@ -855,6 +855,9 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 	invert_m4_m4(imat, rv3d->viewmatob);
 	
 	glLoadMatrixf(rv3d->viewmat);
+	
+	/* object space drawing */
+	glPushMatrix();
 	glMultMatrixf(ob->obmat);
 	
 	if (debug_flag & MOD_HAIR_DEBUG_SIZE)
@@ -866,6 +869,7 @@ void draw_hair_debug_info(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar
 		for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i)
 			draw_hair_curve_debug_smoothing(hsys, hair);
 	}
+	glPopMatrix();
 	
 	if (hmd->debug_data) {
 //		if (debug_flag & MOD_HAIR_DEBUG_FRAMES)
