@@ -599,13 +599,13 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 		/* calculate Point.force_accum vectors */
 		calc_forces(m_params, m_forces, time, dt, restitution_scale, m_data->t0, m_data->t1, data, contacts);
 		
-		do_velocity_integration(m_params, time, timestep, m_data->t0, m_data->t1, data);
-		
-		/* apply positional changes */
-		apply_velocity(data, time, timestep, m_data->t0, m_data->t1);
+		do_velocity_integration(m_params, time, dt, m_data->t0, m_data->t1, data);
 		
 		time += dt;
 	}
+	
+	/* apply positional changes */
+	apply_velocity(data, time, timestep, m_data->t0, m_data->t1);
 }
 
 struct SolverPoolData {
