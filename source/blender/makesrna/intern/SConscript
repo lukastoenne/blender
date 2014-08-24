@@ -142,6 +142,9 @@ if env['WITH_BF_COLLADA']:
 if env['WITH_BF_CYCLES']:
     defs.append('WITH_CYCLES')
 
+if env['WITH_BF_FREESTYLE']:
+    defs.append('WITH_FREESTYLE')
+
 if env['OURPLATFORM'] == 'linux':
     cflags='-pthread'
 

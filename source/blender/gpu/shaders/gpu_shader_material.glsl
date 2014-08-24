@@ -1012,6 +1012,38 @@ void mtex_rgb_color(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 i
 	incol.rgb = col.rgb;
 }
 
+void mtex_rgb_soft(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-fact;
+
+	vec3 one = vec3(1.0);
+	vec3 scr = one - (one - texcol)*(one - outcol);
+	incol = facm*outcol + fact*((one - texcol)*outcol*texcol + outcol*scr);
+}
+
+void mtex_rgb_linear(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	fact *= facg;
+
+	if(texcol.r > 0.5)
+		incol.r = outcol.r + fact*(2.0*(texcol.r - 0.5));
+	else
+		incol.r = outcol.r + fact*(2.0*(texcol.r) - 1.0);
+
+	if(texcol.g > 0.5)
+		incol.g = outcol.g + fact*(2.0*(texcol.g - 0.5));
+	else
+		incol.g = outcol.g + fact*(2.0*(texcol.g) - 1.0);
+
+	if(texcol.b > 0.5)
+		incol.b = outcol.b + fact*(2.0*(texcol.b - 0.5));
+	else
+		incol.b = outcol.b + fact*(2.0*(texcol.b) - 1.0);
+}
+
 void mtex_value_vars(inout float fact, float facg, out float facm)
 {
 	fact *= abs(facg);
@@ -2285,7 +2317,7 @@ void node_tex_coord(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat,
 	out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
 	out vec3 camera, out vec3 window, out vec3 reflection)
 {
-	generated = attr_orco;
+	generated = attr_orco * 0.5 + vec3(0.5, 0.5, 0.5);
 	normal = normalize((obinvmat*(viewinvmat*vec4(N, 0.0))).xyz);
 	uv = attr_uv;
 	object = (obinvmat*(viewinvmat*vec4(I, 1.0))).xyz;

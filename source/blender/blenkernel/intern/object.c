@@ -184,7 +184,7 @@ void BKE_object_free_curve_cache(Object *ob)
 {
 	if (ob->curve_cache) {
 		BKE_displist_free(&ob->curve_cache->disp);
-		BLI_freelistN(&ob->curve_cache->bev);
+		BKE_curve_bevelList_free(&ob->curve_cache->bev);
 		if (ob->curve_cache->path) {
 			free_path(ob->curve_cache->path);
 		}
@@ -326,7 +326,7 @@ void BKE_object_free_derived_caches(Object *ob)
 	
 	if (ob->curve_cache) {
 		BKE_displist_free(&ob->curve_cache->disp);
-		BLI_freelistN(&ob->curve_cache->bev);
+		BKE_curve_bevelList_free(&ob->curve_cache->bev);
 		if (ob->curve_cache->path) {
 			free_path(ob->curve_cache->path);
 			ob->curve_cache->path = NULL;
@@ -412,7 +412,7 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 
 	/* Free runtime curves data. */
 	if (ob->curve_cache) {
-		BLI_freelistN(&ob->curve_cache->bev);
+		BKE_curve_bevelList_free(&ob->curve_cache->bev);
 		if (ob->curve_cache->path)
 			free_path(ob->curve_cache->path);
 		MEM_freeN(ob->curve_cache);
