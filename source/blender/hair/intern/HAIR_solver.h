@@ -169,6 +169,9 @@ public:
 	
 	void step_threaded(float time, float timestep);
 	
+protected:
+	void create_step_tasks(float time, float timestep, const PointContactCache &contacts);
+	
 private:
 	HairParams m_params;
 	SolverForces m_forces;

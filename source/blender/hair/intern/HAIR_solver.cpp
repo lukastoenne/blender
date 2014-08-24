@@ -637,21 +637,8 @@ static void advance_state(SolverData *data)
 	}
 }
 
-void Solver::step_threaded(float time, float timestep)
+void Solver::create_step_tasks(float time, float timestep, const PointContactCache &contacts)
 {
-	/* filter and cache Bullet contact information */
-	PointContactCache contacts;
-	cache_point_contacts(contacts);
-	
-	if (Debug::active) {
-		for (int i = 0; i < contacts.size(); ++i) {
-			const PointContactInfo &info = contacts[i];
-			Debug::line(info.world_point_hair, info.world_point_body, 0.6, 0.6, 0.6, hash_int_2d(2347, i));
-			Debug::dot(info.world_point_hair, 0, 1, 0, hash_int_2d(2348, i));
-			Debug::dot(info.world_point_body, 1, 0, 0, hash_int_2d(2349, i));
-		}
-	}
-	
 	typedef std::vector<SolverTaskData> SolverTaskVector;
 	
 	const int max_points_per_task = 1024;
@@ -715,6 +702,24 @@ void Solver::step_threaded(float time, float timestep)
 	BLI_task_pool_work_and_wait(task_pool);
 	
 	BLI_task_pool_free(task_pool);
+}
+
+void Solver::step_threaded(float time, float timestep)
+{
+	/* filter and cache Bullet contact information */
+	PointContactCache contacts;
+	cache_point_contacts(contacts);
+	
+	if (Debug::active) {
+		for (int i = 0; i < contacts.size(); ++i) {
+			const PointContactInfo &info = contacts[i];
+			Debug::line(info.world_point_hair, info.world_point_body, 0.6, 0.6, 0.6, hash_int_2d(2347, i));
+			Debug::dot(info.world_point_hair, 0, 1, 0, hash_int_2d(2348, i));
+			Debug::dot(info.world_point_body, 1, 0, 0, hash_int_2d(2349, i));
+		}
+	}
+	
+	create_step_tasks(time, timestep, contacts);
 	
 	advance_state(m_data);
 }
