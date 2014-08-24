@@ -28,12 +28,18 @@
 
 HAIR_NAMESPACE_BEGIN
 
-Volume::Volume()
+Volume::Volume() :
+    m_size_x(0),
+    m_size_y(0),
+    m_size_z(0)
 {
 }
 
 void Volume::resize(int x, int y, int z)
 {
+	m_size_x = x;
+	m_size_y = y;
+	m_size_z = z;
 	int totsize = x * y * z;
 	
 	randomstuff.resize(totsize);

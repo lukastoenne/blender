@@ -39,6 +39,7 @@ struct HairSystem;
 struct HairParams;
 struct HairDebugData;
 struct rbDynamicsWorld;
+struct VoxelData;
 
 struct ParticleSystem;
 
@@ -82,6 +83,8 @@ bool HAIR_frame_iter_valid(struct HAIR_FrameIterator *iter);
 int HAIR_frame_iter_index(struct HAIR_FrameIterator *citer);
 void HAIR_frame_iter_get(struct HAIR_FrameIterator *iter, float nor[3], float tan[3], float cotan[3]);
 void HAIR_frame_iter_next(struct HAIR_FrameIterator *iter);
+
+bool HAIR_debug_texture_volume(struct HAIR_Solver *solver, struct VoxelData *vd);
 
 #ifdef __cplusplus
 }

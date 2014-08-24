@@ -53,12 +53,6 @@ typedef struct HAIR_SolverDebugVoxel {
 	float r;
 } HAIR_SolverDebugVoxel;
 
-typedef struct HAIR_SolverDebugVolume {
-	HAIR_SolverDebugVoxel *data;
-	int size_x, size_y, size_z;
-	float dimensions[3];
-} HAIR_SolverDebugVolume;
-
 #ifdef __cplusplus
 }
 #endif

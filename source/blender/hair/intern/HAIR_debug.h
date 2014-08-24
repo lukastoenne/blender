@@ -38,6 +38,8 @@ extern "C" {
 #include "HAIR_smoothing.h"
 #include "HAIR_types.h"
 
+struct VoxelData;
+
 HAIR_NAMESPACE_BEGIN
 
 #ifndef NDEBUG
@@ -147,7 +149,7 @@ struct Debug {
 #endif
 	}
 	
-	static HAIR_SolverDebugVolume *volume(Volume *vol);
+	static bool texture_volume(Volume *vol, VoxelData *vd);
 	
 	static bool active;
 #ifdef HAIR_DEBUG

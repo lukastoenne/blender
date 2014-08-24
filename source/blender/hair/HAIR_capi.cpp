@@ -288,3 +288,9 @@ void HAIR_solver_get_derived_verts(struct HAIR_Solver *csolver, ParticleSystem *
 	Solver *solver = (Solver *)csolver;
 	SceneConverter::apply_solver_data(solver->data(), psys, ob, vertCoords);
 }
+
+bool HAIR_debug_texture_volume(HAIR_Solver *csolver, struct VoxelData *vd)
+{
+	Solver *solver = (Solver *)csolver;
+	return Debug::texture_volume(&solver->volume(), vd);
+}

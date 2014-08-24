@@ -26,6 +26,10 @@
 
 #include <cstring>
 
+extern "C" {
+#include "DNA_texture_types.h"
+}
+
 #include "HAIR_debug.h"
 #include "HAIR_volume.h"
 
@@ -37,21 +41,24 @@ ThreadMutex Debug::mutex;
 Debug::Elements Debug::elements;
 #endif
 
-HAIR_SolverDebugVolume *Debug::volume(Volume *vol)
+bool Debug::texture_volume(Volume *vol, VoxelData *vd)
 {
-	HAIR_SolverDebugVolume *dvol = (HAIR_SolverDebugVolume *)MEM_callocN(sizeof(HAIR_SolverDebugVolume), "hair debug volume");
+	vd->resol[0] = vol->size_x();
+	vd->resol[1] = vol->size_y();
+	vd->resol[2] = vol->size_z();
 	
-	dvol->size_x = vol->size_x();
-	dvol->size_y = vol->size_y();
-	dvol->size_z = vol->size_z();
-	
-	dvol->dimensions[0] = dvol->dimensions[1] = dvol->dimensions[2] = 10.0f;
-	
-	int totsize = vol->size_x() * vol->size_y() * vol->size_z();
-	dvol->data = (HAIR_SolverDebugVoxel *)MEM_mallocN(sizeof(HAIR_SolverDebugVoxel) * totsize, "hair debug voxel data");
-	for (int i = 0; i < totsize; ++i) {
-		dvol->data[i].r = vol->randomstuff.data()[i];
+	size_t totres = (size_t)vol->size_x() * (size_t)vol->size_y() * (size_t)vol->size_z();
+	vd->data_type = TEX_VD_INTENSITY;
+	if (totres > 0) {
+		vd->dataset = (float *)MEM_mapallocN(sizeof(float) * (totres), "hair volume texture data");
+		for (int i = 0; i < totres; ++i) {
+			vd->dataset[i] = vol->randomstuff.data()[i];
+		}
 	}
+	else
+		vd->dataset = NULL;
+	
+	return true;
 }
 
 HAIR_NAMESPACE_END
