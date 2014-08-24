@@ -551,6 +551,7 @@ static void do_velocity_integration(const HairParams &params, float time, float 
 			point->next.vel = point->cur.vel;
 		}
 		
+		float steptime = time;
 		for (int step = 0; step < totsteps; ++step) {
 			float3 force_prev(0.0f, 0.0f, 0.0f), force, force_next;
 			
@@ -578,7 +579,7 @@ static void do_velocity_integration(const HairParams &params, float time, float 
 			 */
 			point->next.vel = point->next.vel + (point->force_accum + force_prev) * dt;
 			
-			time += dt;
+			steptime += dt;
 		}
 	}
 }
@@ -594,14 +595,15 @@ void Solver::do_integration(float time, float timestep, const SolverTaskData &da
 	 */
 	float restitution_scale = 1.0f / timestep;
 	
+	float steptime = time;
 	for (int step = 0; step < totsteps; ++step) {
 		
 		/* calculate Point.force_accum vectors */
-		calc_forces(m_params, m_forces, time, dt, restitution_scale, m_data->t0, m_data->t1, data, contacts);
+		calc_forces(m_params, m_forces, steptime, dt, restitution_scale, m_data->t0, m_data->t1, data, contacts);
 		
-		do_velocity_integration(m_params, time, dt, m_data->t0, m_data->t1, data);
+		do_velocity_integration(m_params, steptime, dt, m_data->t0, m_data->t1, data);
 		
-		time += dt;
+		steptime += dt;
 	}
 	
 	/* apply positional changes */
