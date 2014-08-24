@@ -57,6 +57,8 @@ set(SRC
 	intern/HAIR_collision.cpp
 	intern/HAIR_types.h
 	intern/HAIR_types.cpp
+	intern/HAIR_volume.h
+	intern/HAIR_volume.cpp
 intern/HAIR_util_hash.h
 )
 
