@@ -40,6 +40,7 @@ struct VolumeAttribute {
 	VolumeAttribute()
 	{
 		m_data = NULL;
+		m_alloc_size = 0;
 		m_size = 0;
 	}
 	
@@ -60,26 +61,44 @@ struct VolumeAttribute {
 	
 	void resize(int size)
 	{
-		free();
-		alloc(size);
+		if (size > m_alloc_size) {
+			free();
+			alloc(size);
+		}
+		else {
+			m_size = size;
+		}
+	}
+	
+	void shrink_to_fit()
+	{
+		if (m_size < m_alloc_size) {
+			free();
+			alloc(m_size);
+		}
 	}
 	
 protected:
 	void alloc(int size)
 	{
-		m_data = (T*)MEM_mallocN(sizeof(T) * size, "Hair Volume Attribute");
+		m_data = size > 0 ? (T*)MEM_mallocN(sizeof(T) * size, "Hair Volume Attribute") : NULL;
+		m_alloc_size = size;
 		m_size = size;
 	}
 	
 	void free()
 	{
-		if (m_data)
+		if (m_data) {
 			MEM_freeN(m_data);
+			m_data = NULL;
+		}
+		m_alloc_size = 0;
+		m_size = 0;
 	}
 	
 private:
 	T *m_data;
-	int m_size;
+	int m_size, m_alloc_size;
 };
 
 typedef VolumeAttribute<float> VolumeAttributeFloat;
