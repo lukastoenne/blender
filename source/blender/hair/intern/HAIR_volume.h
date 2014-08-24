@@ -108,12 +108,15 @@ typedef VolumeAttribute<float3> VolumeAttributeFloat3;
 struct Volume {
 	Volume();
 	
+	int size_x() const { return m_size_x; }
+	int size_y() const { return m_size_y; }
+	int size_z() const { return m_size_z; }
 	void resize(int x, int y, int z);
 	
 	VolumeAttributeFloat randomstuff;
 	
 private:
-	int size_x, size_y, size_z;
+	int m_size_x, m_size_y, m_size_z;
 };
 
 HAIR_NAMESPACE_END

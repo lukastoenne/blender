@@ -27,6 +27,7 @@
 #include <cstring>
 
 #include "HAIR_debug.h"
+#include "HAIR_volume.h"
 
 HAIR_NAMESPACE_BEGIN
 
@@ -35,5 +36,22 @@ bool Debug::active = false;
 ThreadMutex Debug::mutex;
 Debug::Elements Debug::elements;
 #endif
+
+HAIR_SolverDebugVolume *Debug::volume(Volume *vol)
+{
+	HAIR_SolverDebugVolume *dvol = (HAIR_SolverDebugVolume *)MEM_callocN(sizeof(HAIR_SolverDebugVolume), "hair debug volume");
+	
+	dvol->size_x = vol->size_x();
+	dvol->size_y = vol->size_y();
+	dvol->size_z = vol->size_z();
+	
+	dvol->dimensions[0] = dvol->dimensions[1] = dvol->dimensions[2] = 10.0f;
+	
+	int totsize = vol->size_x() * vol->size_y() * vol->size_z();
+	dvol->data = (HAIR_SolverDebugVoxel *)MEM_mallocN(sizeof(HAIR_SolverDebugVoxel) * totsize, "hair debug voxel data");
+	for (int i = 0; i < totsize; ++i) {
+		dvol->data[i].r = vol->randomstuff.data()[i];
+	}
+}
 
 HAIR_NAMESPACE_END

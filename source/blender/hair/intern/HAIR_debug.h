@@ -45,6 +45,7 @@ HAIR_NAMESPACE_BEGIN
 #endif
 
 struct SolverData;
+struct Volume;
 
 struct Debug {
 	typedef std::vector<HAIR_SolverDebugElement> Elements;
@@ -145,6 +146,8 @@ struct Debug {
 		(void)hash;
 #endif
 	}
+	
+	static HAIR_SolverDebugVolume *volume(Volume *vol);
 	
 	static bool active;
 #ifdef HAIR_DEBUG
