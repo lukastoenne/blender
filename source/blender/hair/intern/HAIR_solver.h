@@ -37,6 +37,7 @@ extern "C" {
 
 #include "HAIR_curve.h"
 #include "HAIR_memalloc.h"
+#include "HAIR_volume.h"
 
 struct rbDynamicsWorld;
 struct rbGhostObject;
@@ -159,6 +160,8 @@ public:
 	
 	SolverForces &forces() { return m_forces; }
 	
+	Volume &volume() { return m_volume; }
+	
 	void set_data(SolverData *data);
 	void free_data();
 	SolverData *data() const { return m_data; }
@@ -176,6 +179,7 @@ private:
 	HairParams m_params;
 	SolverForces m_forces;
 	SolverData *m_data;
+	Volume m_volume;
 
 	HAIR_CXX_CLASS_ALLOC(Solver)
 };

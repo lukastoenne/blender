@@ -719,6 +719,9 @@ void Solver::step_threaded(float time, float timestep)
 		}
 	}
 	
+	// XXX TODO
+	m_volume.resize(10, 10, 10);
+	
 	create_step_tasks(time, timestep, contacts);
 	
 	advance_state(m_data);
