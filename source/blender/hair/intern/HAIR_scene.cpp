@@ -361,8 +361,8 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 		}
 
 		/* send to world space (normal matrix should be changed to inverse transpose here) */
-		transform_point(mat, curve->root1.co);
-		transform_direction(mat, curve->root1.nor);
+		curve->root1.co = transform_point(mat, curve->root1.co);
+		curve->root1.nor = transform_direction(mat, curve->root1.nor);
 		/* transform can introduce scale, have to renormalize */
 		normalize_v3_v3(curve->root1.nor, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
