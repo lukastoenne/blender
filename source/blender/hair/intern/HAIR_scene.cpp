@@ -56,6 +56,8 @@ static bool mesh_sample_eval_transformed(DerivedMesh *dm, const Transform &tfm, 
 	bool ok = BKE_mesh_sample_eval(dm, sample, vloc, vnor);
 	loc = transform_point(tfm, vloc);
 	nor = transform_direction(tfm, vnor);
+	/* transform can introduce scale, have to renormalize */
+	normalize_v3_v3(nor, nor);
 	
 	return ok;
 }
@@ -287,6 +289,9 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 		curve->avg_rest_length = len_accum;
 		curve->rest_root_normal = transform_direction(mat, curve->root1.nor);
 		curve->rest_root_tangent = 	transform_direction(mat, curve->root1.tan);
+		/* transform can introduce scale, have to renormalize */
+		normalize_v3_v3(curve->rest_root_normal, curve->rest_root_normal);
+		normalize_v3_v3(curve->rest_root_tangent, curve->rest_root_tangent);
 		
 		/*
 		for (int k = 0; k < hair->totpoints; ++k, ++point) {
@@ -358,7 +363,8 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 		/* send to world space (normal matrix should be changed to inverse transpose here) */
 		transform_point(mat, curve->root1.co);
 		transform_direction(mat, curve->root1.nor);
-		
+		/* transform can introduce scale, have to renormalize */
+		normalize_v3_v3(curve->root1.nor, curve->root1.nor);
 		normalize_v3_v3(curve->root1.tan, float3(0,0,1) - dot_v3v3(float3(0,0,1), curve->root1.nor) * curve->root1.nor);
 	}
 	
