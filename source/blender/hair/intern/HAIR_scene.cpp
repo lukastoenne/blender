@@ -84,7 +84,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	Curve *solver_curves = data->curves;
 	Point *solver_points = data->points;
 	
-	data->t0 = data->t1 = time;
+	data->root0_time = data->root1_time = time;
 	
 	/* copy scene data to solver data */
 	Point *point = solver_points;
@@ -222,7 +222,7 @@ SolverData *SceneConverter::build_solver_data(Scene *scene, Object *ob, DerivedM
 	Curve *solver_curves = data->curves;
 	Point *solver_points = data->points;
 	
-	data->t0 = data->t1 = time;
+	data->root0_time = data->root1_time = time;
 	
 	/* copy scene data to solver data */
 	Point *point = solver_points;
@@ -321,8 +321,8 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 	Curve *solver_curves = data->curves;
 	int totcurves = data->totcurves;
 	
-	data->t0 = data->t1;
-	data->t1 = time;
+	data->root0_time = data->root1_time;
+	data->root1_time = time;
 	
 	for (i = 0; i < totcurves; ++i) {
 		HairCurve *hair = hsys->curves + i;
@@ -347,8 +347,8 @@ void SceneConverter::update_solver_data_externals(SolverData *data, SolverForces
 	Curve *solver_curves = data->curves;
 	int totcurves = data->totcurves;
 	
-	data->t0 = data->t1;
-	data->t1 = time;
+	data->root0_time = data->root1_time;
+	data->root1_time = time;
 	
 	for (i = 0; i < totcurves; ++i) {
 		ParticleData *pa = psys->particles + i;

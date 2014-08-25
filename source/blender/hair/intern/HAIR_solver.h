@@ -57,7 +57,10 @@ struct SolverData {
 	int totcurves;
 	int totpoints;
 	
-	float t0, t1;
+	/* times of root0/root1, interpolation happens between these times.
+	 * note: NOT synonymous with the timestep, which can be somewhere between these two times!
+	 */
+	float root0_time, root1_time;
 	
 	rbGhostObject rb_ghost;
 	btBoxShape bt_shape;
