@@ -288,12 +288,12 @@ typedef struct {
 	float *wdata; /* actual kernel */
 	int side; /* kernel side */
 	int side_squared; /* data side */
-	float pixel_len; /* pixels around center that kernel is wide */
+	int pixel_len; /* pixels around center that kernel is wide */
 } BlurKernel;
 
 enum BlurKernelType;
 /* can be extended to other blur kernels later */
-BlurKernel *paint_new_blur_kernel(struct Brush *br);
+BlurKernel *paint_new_blur_kernel(struct Brush *br, bool proj);
 void paint_delete_blur_kernel(BlurKernel *);
 
 /* paint curve defines */

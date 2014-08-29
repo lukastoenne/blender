@@ -214,7 +214,7 @@ static bool write_internal_bake_pixels(
 			IMB_buffer_float_from_float(
 			        ibuf->rect_float, buffer, ibuf->channels,
 			        IB_PROFILE_LINEAR_RGB, IB_PROFILE_LINEAR_RGB, false,
-			        ibuf->x, ibuf->y, ibuf->x, ibuf->y);
+			        ibuf->x, ibuf->y, ibuf->x, ibuf->x);
 		}
 		else {
 			IMB_buffer_byte_from_float(
@@ -227,7 +227,7 @@ static bool write_internal_bake_pixels(
 		if (is_float) {
 			IMB_buffer_float_from_float_mask(
 			        ibuf->rect_float, buffer, ibuf->channels,
-			        ibuf->x, ibuf->y, ibuf->x, ibuf->y, mask_buffer);
+			        ibuf->x, ibuf->y, ibuf->x, ibuf->x, mask_buffer);
 		}
 		else {
 			IMB_buffer_byte_from_float_mask(
@@ -293,7 +293,7 @@ static bool write_external_bake_pixels(
 		IMB_buffer_float_from_float(
 		        ibuf->rect_float, buffer, ibuf->channels,
 		        IB_PROFILE_LINEAR_RGB, IB_PROFILE_LINEAR_RGB, false,
-		        ibuf->x, ibuf->y, ibuf->x, ibuf->y);
+		        ibuf->x, ibuf->y, ibuf->x, ibuf->x);
 	}
 	else {
 		if (!is_noncolor) {
@@ -561,7 +561,7 @@ static int bake(
 	int tot_highpoly;
 
 	char restrict_flag_low = ob_low->restrictflag;
-	char restrict_flag_cage;
+	char restrict_flag_cage = 0;
 
 	Mesh *me_low = NULL;
 	Mesh *me_cage = NULL;
