@@ -278,7 +278,8 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
         if not psys.cloth:
             return
 
-        cloth = psys.cloth.settings
+        cloth_md = psys.cloth
+        cloth = cloth_md.settings
 
         layout.enabled = psys.use_hair_dynamics and psys.point_cache.is_baked is False
 
@@ -303,6 +304,9 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
 
         col.label(text="Quality:")
         col.prop(cloth, "quality", text="Steps", slider=True)
+
+        col.prop(cloth_md, "show_debug_data", text="Debug")
+
 
 
 class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):
