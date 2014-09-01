@@ -1172,7 +1172,7 @@ static int viewrotate_modal(bContext *C, wmOperator *op, const wmEvent *event)
  *
  * shared with NDOF.
  */
-static void view3d_ensure_persp(struct View3D *v3d, ARegion *ar)
+static bool view3d_ensure_persp(struct View3D *v3d, ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	const bool autopersp = (U.uiflag & USER_AUTOPERSP) != 0;
@@ -1180,7 +1180,7 @@ static void view3d_ensure_persp(struct View3D *v3d, ARegion *ar)
 	BLI_assert((rv3d->viewlock & RV3D_LOCKED) == 0);
 
 	if (ED_view3d_camera_lock_check(v3d, rv3d))
-		return;
+		return false;
 
 	if (rv3d->persp != RV3D_PERSP) {
 		if (rv3d->persp == RV3D_CAMOB) {
@@ -1191,7 +1191,10 @@ static void view3d_ensure_persp(struct View3D *v3d, ARegion *ar)
 		else if (autopersp && RV3D_VIEW_IS_AXIS(rv3d->view)) {
 			rv3d->persp = RV3D_PERSP;
 		}
+		return true;
 	}
+
+	return false;
 }
 
 static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1210,8 +1213,14 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	/* switch from camera view when: */
-	view3d_ensure_persp(vod->v3d, vod->ar);
-	
+	if (view3d_ensure_persp(vod->v3d, vod->ar)) {
+		/* If we're switching from camera view to the perspective one,
+		 * need to tag viewport update, so camera vuew and borders
+		 * are properly updated.
+		 */
+		ED_region_tag_redraw(vod->ar);
+	}
+
 	if (event->type == MOUSEPAN) {
 		/* Rotate direction we keep always same */
 		if (U.uiflag2 & USER_TRACKPAD_NATURAL)
@@ -2106,8 +2115,11 @@ static void viewzoom_apply(ViewOpsData *vod, const int xy[2], const short viewzo
 {
 	float zfac = 1.0;
 	bool use_cam_zoom;
+	float dist_range[2];
 
 	use_cam_zoom = (vod->rv3d->persp == RV3D_CAMOB) && !(vod->rv3d->is_persp && ED_view3d_camera_lock_check(vod->v3d, vod->rv3d));
+
+	ED_view3d_dist_range_get(vod->v3d, dist_range);
 
 	if (use_cam_zoom) {
 		float delta;
@@ -2175,16 +2187,19 @@ static void viewzoom_apply(ViewOpsData *vod, const int xy[2], const short viewzo
 	}
 
 	if (!use_cam_zoom) {
-		if (zfac != 1.0f && zfac * vod->rv3d->dist > 0.001f * vod->grid &&
-		    zfac * vod->rv3d->dist < 10.0f * vod->far)
-		{
-			view_zoom_mouseloc(vod->ar, zfac, vod->oldx, vod->oldy);
+		if (zfac != 1.0f) {
+			const float zfac_min = dist_range[0] / vod->rv3d->dist;
+			const float zfac_max = dist_range[1] / vod->rv3d->dist;
+			CLAMP(zfac, zfac_min, zfac_max);
+
+			if (zfac != 1.0f) {
+				view_zoom_mouseloc(vod->ar, zfac, vod->oldx, vod->oldy);
+			}
 		}
 	}
 
 	/* these limits were in old code too */
-	if (vod->rv3d->dist < 0.001f * vod->grid) vod->rv3d->dist = 0.001f * vod->grid;
-	if (vod->rv3d->dist > 10.0f * vod->far) vod->rv3d->dist = 10.0f * vod->far;
+	CLAMP(vod->rv3d->dist, dist_range[0], dist_range[1]);
 
 	if (vod->rv3d->viewlock & RV3D_BOXVIEW)
 		view3d_boxview_sync(vod->sa, vod->ar);
@@ -2248,6 +2263,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 	ScrArea *sa;
 	ARegion *ar;
 	bool use_cam_zoom;
+	float dist_range[2];
 
 	const int delta = RNA_int_get(op->ptr, "delta");
 	int mx, my;
@@ -2271,13 +2287,15 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 
 	use_cam_zoom = (rv3d->persp == RV3D_CAMOB) && !(rv3d->is_persp && ED_view3d_camera_lock_check(v3d, rv3d));
 
+	ED_view3d_dist_range_get(v3d, dist_range);
+
 	if (delta < 0) {
 		/* this min and max is also in viewmove() */
 		if (use_cam_zoom) {
 			rv3d->camzoom -= 10.0f;
 			if (rv3d->camzoom < RV3D_CAMZOOM_MIN) rv3d->camzoom = RV3D_CAMZOOM_MIN;
 		}
-		else if (rv3d->dist < 10.0f * v3d->far) {
+		else if (rv3d->dist < dist_range[1]) {
 			view_zoom_mouseloc(ar, 1.2f, mx, my);
 		}
 	}
@@ -2286,7 +2304,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 			rv3d->camzoom += 10.0f;
 			if (rv3d->camzoom > RV3D_CAMZOOM_MAX) rv3d->camzoom = RV3D_CAMZOOM_MAX;
 		}
-		else if (rv3d->dist > 0.001f * v3d->grid) {
+		else if (rv3d->dist > dist_range[0]) {
 			view_zoom_mouseloc(ar, 0.83333f, mx, my);
 		}
 	}
@@ -2399,6 +2417,8 @@ static void viewzoom_cancel(bContext *C, wmOperator *op)
 
 void VIEW3D_OT_zoom(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Zoom View";
 	ot->description = "Zoom in/out in the view";
@@ -2415,8 +2435,10 @@ void VIEW3D_OT_zoom(wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER;
 
 	RNA_def_int(ot->srna, "delta", 0, INT_MIN, INT_MAX, "Delta", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "mx", 0, 0, INT_MAX, "Zoom Position X", "", 0, INT_MAX);
-	RNA_def_int(ot->srna, "my", 0, 0, INT_MAX, "Zoom Position Y", "", 0, INT_MAX);
+	prop = RNA_def_int(ot->srna, "mx", 0, 0, INT_MAX, "Zoom Position X", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop = RNA_def_int(ot->srna, "my", 0, 0, INT_MAX, "Zoom Position Y", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 
@@ -3365,7 +3387,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	/* Zooms in on a border drawn by the user */
 	rcti rect;
 	float dvec[3], vb[2], xscale, yscale;
-	float dist_range_min;
+	float dist_range[2];
 
 	/* SMOOTHVIEW */
 	float new_dist;
@@ -3384,6 +3406,8 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 
 	/* check if zooming in/out view */
 	gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
+
+	ED_view3d_dist_range_get(v3d, dist_range);
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	bgl_get_mats(&mats);
@@ -3433,8 +3457,9 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		new_ofs[2] = -p[2];
 
 		new_dist = len_v3(dvec);
-		dist_range_min = v3d->near * 1.5f;
 
+		/* ignore dist_range min */
+		dist_range[0] = v3d->near * 1.5f;
 	}
 	else { /* othographic */
 		   /* find the current window width and height */
@@ -3476,9 +3501,6 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		xscale = (BLI_rcti_size_x(&rect) / vb[0]);
 		yscale = (BLI_rcti_size_y(&rect) / vb[1]);
 		new_dist *= max_ff(xscale, yscale);
-
-		/* zoom in as required, or as far as we can go */
-		dist_range_min = 0.001f * v3d->grid;
 	}
 
 	if (gesture_mode == GESTURE_MODAL_OUT) {
@@ -3488,9 +3510,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	}
 
 	/* clamp after because we may have been zooming out */
-	if (new_dist < dist_range_min) {
-		new_dist = dist_range_min;
-	}
+	CLAMP(new_dist, dist_range[0], dist_range[1]);
 
 	ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
 	                      new_ofs, NULL, &new_dist, NULL,
@@ -4488,32 +4508,11 @@ void ED_view3d_cursor3d_update(bContext *C, const int mval[2])
 		WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
 }
 
-static int view3d_cursor3d_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int view3d_cursor3d_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
 {
 	ED_view3d_cursor3d_update(C, event->mval);
-	op->customdata = SET_INT_IN_POINTER(event->type);
-	WM_event_add_modal_handler(C, op);
 
-	return OPERATOR_RUNNING_MODAL;
-}
-
-static int view3d_cursor3d_modal(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	int event_type = GET_INT_FROM_POINTER(op->customdata);
-
-	if (event->type == event_type) {
-		return OPERATOR_FINISHED;
-	}
-
-	switch (event->type) {
-		case MOUSEMOVE:
-			ED_view3d_cursor3d_update(C, event->mval);
-			break;
-		case LEFTMOUSE:
-			return OPERATOR_FINISHED;
-	}
-
-	return OPERATOR_RUNNING_MODAL;
+	return OPERATOR_FINISHED;	
 }
 
 void VIEW3D_OT_cursor3d(wmOperatorType *ot)
@@ -4526,7 +4525,6 @@ void VIEW3D_OT_cursor3d(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->invoke = view3d_cursor3d_invoke;
-	ot->modal  = view3d_cursor3d_modal;
 
 	ot->poll = ED_operator_view3d_active;
 

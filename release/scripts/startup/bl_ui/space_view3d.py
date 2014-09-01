@@ -1454,7 +1454,7 @@ class VIEW3D_MT_brush(Menu):
             layout.separator()
 
             if sculpt_tool != 'GRAB':
-                layout.prop_menu_enum(brush, "sculpt_stroke_method")
+                layout.prop_menu_enum(brush, "stroke_method")
 
                 if sculpt_tool in {'DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'}:
                     layout.prop_menu_enum(brush, "direction")
@@ -2266,6 +2266,7 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.inset")
         layout.operator("mesh.bevel").vertex_only = False
         layout.operator("mesh.solidify")
+        layout.operator("mesh.intersect")
         layout.operator("mesh.wireframe")
 
         layout.separator()
@@ -2945,7 +2946,7 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         row = col.row(align=True)
 
         row.prop(mesh, "show_normal_vertex", text="", icon='VERTEXSEL')
-        row.prop(mesh, "show_normal_loop", text="", icon='VERTEXSEL')
+        row.prop(mesh, "show_normal_loop", text="", icon='LOOPSEL')
         row.prop(mesh, "show_normal_face", text="", icon='FACESEL')
 
         sub = row.row(align=True)

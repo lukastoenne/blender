@@ -56,6 +56,7 @@
 #include "PIL_time.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_dial.h"
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -1312,9 +1313,14 @@ void WM_operator_properties_gesture_border(wmOperatorType *ot, bool extend)
 
 void WM_operator_properties_mouse_select(wmOperatorType *ot)
 {
-	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
-	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from selection");
-	RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Selection", "Toggle the selection");
+	PropertyRNA *prop;
+	
+	prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Selection", "Toggle the selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
@@ -2371,8 +2377,8 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 
-	RNA_def_boolean(ot->srna, "load_ui", 1, "Load UI", "Load user interface setup in the .blend file");
-	RNA_def_boolean(ot->srna, "use_scripts", 1, "Trusted Source",
+	RNA_def_boolean(ot->srna, "load_ui", true, "Load UI", "Load user interface setup in the .blend file");
+	RNA_def_boolean(ot->srna, "use_scripts", true, "Trusted Source",
 	                "Allow .blend file to execute scripts automatically, default available from system preferences");
 }
 
@@ -2383,7 +2389,14 @@ static int wm_revert_mainfile_exec(bContext *C, wmOperator *op)
 {
 	bool success;
 
-	success = wm_file_read_opwrap(C, G.main->name, op->reports, true);
+	wm_open_init_use_scripts(op, false);
+
+	if (RNA_boolean_get(op->ptr, "use_scripts"))
+		G.f |= G_SCRIPT_AUTOEXEC;
+	else
+		G.f &= ~G_SCRIPT_AUTOEXEC;
+
+	success = wm_file_read_opwrap(C, G.main->name, op->reports, !(G.f & G_SCRIPT_AUTOEXEC));
 
 	if (success) {
 		return OPERATOR_FINISHED;
@@ -2404,6 +2417,9 @@ static void WM_OT_revert_mainfile(wmOperatorType *ot)
 	ot->idname = "WM_OT_revert_mainfile";
 	ot->description = "Reload the saved file";
 	ot->invoke = WM_operator_confirm;
+
+	RNA_def_boolean(ot->srna, "use_scripts", true, "Trusted Source",
+	                "Allow .blend file to execute scripts automatically, default available from system preferences");
 
 	ot->exec = wm_revert_mainfile_exec;
 	ot->poll = wm_revert_mainfile_poll;
@@ -3677,6 +3693,9 @@ typedef struct {
 	StructRNA *image_id_srna;
 	float initial_value, current_value, min_value, max_value;
 	int initial_mouse[2];
+	int slow_mouse[2];
+	bool slow_mode;
+	Dial *dial;
 	unsigned int gltex;
 	ListBase orig_paintcursors;
 	bool use_secondary_tex;
@@ -4110,6 +4129,11 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
 	RadialControl *rc = op->customdata;
 	wmWindowManager *wm = CTX_wm_manager(C);
 
+	if (rc->dial) {
+		MEM_freeN(rc->dial);
+		rc->dial = NULL;
+	}
+	
 	WM_paint_cursor_end(wm, rc->cursor);
 
 	/* restore original paint cursors */
@@ -4129,24 +4153,61 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 {
 	RadialControl *rc = op->customdata;
 	float new_value, dist, zoom[2];
-	float delta[2], snap, ret = OPERATOR_RUNNING_MODAL;
-
+	float delta[2], ret = OPERATOR_RUNNING_MODAL;
+	bool snap;
+	float angle_precision = 0.0f;
 	/* TODO: fix hardcoded events */
 
-	snap = event->ctrl;
+	snap = event->ctrl != 0;
 
 	switch (event->type) {
 		case MOUSEMOVE:
-			delta[0] = rc->initial_mouse[0] - event->x;
-			delta[1] = rc->initial_mouse[1] - event->y;
-
-			if (rc->zoom_prop) {
-				RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
-				delta[0] /= zoom[0];
-				delta[1] /= zoom[1];
+			if (rc->slow_mode) {
+				if (rc->subtype == PROP_ANGLE) {
+					float position[2] = {event->x, event->y};
+					
+					/* calculate the initial angle here first */
+					delta[0] = rc->initial_mouse[0] - rc->slow_mouse[0];
+					delta[1] = rc->initial_mouse[1] - rc->slow_mouse[1];
+					
+					/* precision angle gets calculated from dial and gets added later */
+					angle_precision = -0.1f * BLI_dial_angle(rc->dial, position);
+				}
+				else {
+					delta[0] = rc->initial_mouse[0] - rc->slow_mouse[0];
+					delta[1] = rc->initial_mouse[1] - rc->slow_mouse[1];
+					
+					if (rc->zoom_prop) {
+						RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
+						delta[0] /= zoom[0];
+						delta[1] /= zoom[1];
+					}
+					
+					dist = len_v2(delta);
+					
+					delta[0] = event->x - rc->slow_mouse[0];
+					delta[1] = event->y - rc->slow_mouse[1];
+					
+					if (rc->zoom_prop) {
+						delta[0] /= zoom[0];
+						delta[1] /= zoom[1];
+					}
+					
+					dist = dist + 0.1f * (delta[0] + delta[1]);
+				}
 			}
+			else {
+				delta[0] = rc->initial_mouse[0] - event->x;
+				delta[1] = rc->initial_mouse[1] - event->y;
 
-			dist = len_v2(delta);
+				if (rc->zoom_prop) {
+					RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
+					delta[0] /= zoom[0];
+					delta[1] /= zoom[1];
+				}
+	
+				dist = len_v2(delta);				
+			}
 
 			/* calculate new value and apply snapping  */
 			switch (rc->subtype) {
@@ -4161,7 +4222,10 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 					if (snap) new_value = ((int)ceil(new_value * 10.f) * 10.0f) / 100.f;
 					break;
 				case PROP_ANGLE:
-					new_value = atan2(delta[1], delta[0]) + M_PI;
+					new_value = atan2(delta[1], delta[0]) + M_PI + angle_precision;
+					new_value = fmod(new_value, 2.0f * (float)M_PI);
+					if (new_value < 0.0f)
+						new_value += 2.0f * (float)M_PI;
 					if (snap) new_value = DEG2RADF(((int)RAD2DEGF(new_value) + 5) / 10 * 10);
 					break;
 				default:
@@ -4187,6 +4251,29 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 			/* done; value already set */
 			RNA_property_update(C, &rc->ptr, rc->prop);
 			ret = OPERATOR_FINISHED;
+			break;
+			
+		case LEFTSHIFTKEY:
+		case RIGHTSHIFTKEY:
+			if (event->val == KM_PRESS) {
+				rc->slow_mouse[0] = event->x;
+				rc->slow_mouse[1] = event->y;
+				rc->slow_mode = true;
+				if (rc->subtype == PROP_ANGLE) {
+					float initial_position[2] = {UNPACK2(rc->initial_mouse)};
+					float current_position[2] = {UNPACK2(rc->slow_mouse)};
+					rc->dial = BLI_dial_initialize(initial_position, 0.0f);
+					/* immediately set the position to get a an initial direction */
+					BLI_dial_angle(rc->dial, current_position);
+				}
+			}
+			if (event->val == KM_RELEASE) {
+				rc->slow_mode = false;
+				if (rc->dial) {
+					MEM_freeN(rc->dial);
+					rc->dial = NULL;
+				}
+			}
 			break;
 	}
 

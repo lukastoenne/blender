@@ -66,6 +66,8 @@ CCL_NAMESPACE_BEGIN
 #define __SUBSURFACE__
 #define __CMJ__
 #define __VOLUME__
+#define __VOLUME_DECOUPLED__
+#define __VOLUME_SCATTER__
 #define __SHADOW_RECORD_ALL__
 #endif
 
@@ -73,10 +75,15 @@ CCL_NAMESPACE_BEGIN
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
 #define __BRANCHED_PATH__
+#define __VOLUME__
+#define __VOLUME_SCATTER__
 
 /* Experimental on GPU */
-//#define __VOLUME__
-//#define __SUBSURFACE__
+#ifdef __KERNEL_CUDA_EXPERIMENTAL__
+#define __SUBSURFACE__
+#define __CMJ__
+#endif
+
 #endif
 
 #ifdef __KERNEL_OPENCL__
@@ -103,7 +110,6 @@ CCL_NAMESPACE_BEGIN
 #define __BACKGROUND_MIS__
 #define __LAMP_MIS__
 #define __AO__
-#define __ANISOTROPIC__
 //#define __CAMERA_MOTION__
 //#define __OBJECT_MOTION__
 //#define __HAIR__
@@ -134,11 +140,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef __KERNEL_SHADING__
 #define __SVM__
 #define __EMISSION__
-#define __PROCEDURAL_TEXTURES__
-#define __IMAGE_TEXTURES__
+#define __TEXTURES__
 #define __EXTRA_NODES__
 #define __HOLDOUT__
-#define __NORMAL_MAP__
 #endif
 
 #ifdef __KERNEL_ADV_SHADING__
@@ -148,7 +152,6 @@ CCL_NAMESPACE_BEGIN
 #define __BACKGROUND_MIS__
 #define __LAMP_MIS__
 #define __AO__
-#define __ANISOTROPIC__
 #define __CAMERA_MOTION__
 #define __OBJECT_MOTION__
 #define __HAIR__
@@ -758,9 +761,12 @@ typedef struct KernelCamera {
 	/* render size */
 	float width, height;
 	int resolution;
+
+	/* anamorphic lens bokeh */
+	float inv_aperture_ratio;
+
 	int pad1;
 	int pad2;
-	int pad3;
 
 	/* more matrices */
 	Transform screentoworld;

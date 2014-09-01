@@ -522,7 +522,7 @@ MTFace *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
 		tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
 		                                     dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
 		/* This can fail if we have changed the name in the UV layer list and have assigned the old name in the material
-			 * texture slot.*/
+		 * texture slot.*/
 		if (!tf_base)
 			tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
 	}
@@ -2022,9 +2022,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 		previewmd = modifiers_getLastPreview(scene, md, required_mode);
 		/* even if the modifier doesn't need the data, to make a preview it may */
 		if (previewmd) {
-			if (do_mod_wmcol) {
-				previewmask = CD_MASK_MDEFORMVERT;
-			}
+			previewmask = CD_MASK_MDEFORMVERT;
 		}
 	}
 

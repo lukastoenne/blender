@@ -116,8 +116,8 @@ void BlenderSession::create_session()
 	if(b_v3d) {
 		if(session_pause == false) {
 			/* full data sync */
-			sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 			sync->sync_view(b_v3d, b_rv3d, width, height);
+			sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 		}
 	}
 	else {
@@ -529,6 +529,7 @@ void BlenderSession::bake(BL::Object b_object, const string& pass_type, BL::Bake
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
 
+	scene->bake_manager->set_shader_limit((size_t)b_engine.tile_x(), (size_t)b_engine.tile_y());
 	scene->bake_manager->set_baking(true);
 
 	/* set number of samples */

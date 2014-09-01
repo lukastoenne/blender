@@ -34,6 +34,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
@@ -95,6 +96,7 @@
 
 #include "ED_armature.h"
 #include "ED_curve.h"
+#include "ED_lattice.h"
 #include "ED_mball.h"
 #include "ED_mesh.h"
 #include "ED_node.h"
@@ -446,14 +448,17 @@ Object *ED_object_add_type(bContext *C, int type, const float loc[3], const floa
 /* for object add operator */
 static int object_add_exec(bContext *C, wmOperator *op)
 {
+	Object *ob;
 	bool enter_editmode;
 	unsigned int layer;
 	float loc[3], rot[3];
 
+	WM_operator_view3d_unit_defaults(C, op);
 	if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, &enter_editmode, &layer, NULL))
 		return OPERATOR_CANCELLED;
 
-	ED_object_add_type(C, RNA_enum_get(op->ptr, "type"), loc, rot, enter_editmode, layer);
+	ob = ED_object_add_type(C, RNA_enum_get(op->ptr, "type"), loc, rot, enter_editmode, layer);
+	BKE_object_obdata_size_init(ob, RNA_float_get(op->ptr, "radius"));
 
 	return OPERATOR_FINISHED;
 }
@@ -472,6 +477,8 @@ void OBJECT_OT_add(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+	/* properties */
+	ED_object_add_unit_props(ot);
 	RNA_def_enum(ot->srna, "type", object_type_items, 0, "Type", "");
 
 	ED_object_add_generic_props(ot, true);
@@ -488,32 +495,31 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	float mat[4][4];
+	float dia;
 
+	WM_operator_view3d_unit_defaults(C, op);
 	if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, &enter_editmode, &layer, NULL))
 		return OPERATOR_CANCELLED;
 
 	type = RNA_enum_get(op->ptr, "type");
+	dia = RNA_float_get(op->ptr, "radius");
 
 	if (type == PFIELD_GUIDE) {
 		Curve *cu;
 		ob = ED_object_add_type(C, OB_CURVE, loc, rot, false, layer);
-		if (!ob)
-			return OPERATOR_CANCELLED;
 
 		rename_id(&ob->id, CTX_DATA_(BLF_I18NCONTEXT_ID_OBJECT, "CurveGuide"));
 		cu = ob->data;
 		cu->flag |= CU_PATH | CU_3D;
 		ED_object_editmode_enter(C, 0);
 		ED_object_new_primitive_matrix(C, ob, loc, rot, mat, false);
-		BLI_addtail(&cu->editnurb->nurbs, add_nurbs_primitive(C, ob, mat, CU_NURBS | CU_PRIM_PATH, 1));
+		BLI_addtail(&cu->editnurb->nurbs, add_nurbs_primitive(C, ob, mat, CU_NURBS | CU_PRIM_PATH, dia));
 		if (!enter_editmode)
 			ED_object_editmode_exit(C, EM_FREEDATA);
 	}
 	else {
 		ob = ED_object_add_type(C, OB_EMPTY, loc, rot, false, layer);
-		if (!ob)
-			return OPERATOR_CANCELLED;
-
+		BKE_object_obdata_size_init(ob, dia);
 		rename_id(&ob->id, CTX_DATA_(BLF_I18NCONTEXT_ID_OBJECT, "Field"));
 		if (ELEM(type, PFIELD_WIND, PFIELD_VORTEX))
 			ob->empty_drawtype = OB_SINGLE_ARROW;
@@ -540,8 +546,10 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", field_type_items, 0, "Type", "");
 
+	ED_object_add_unit_props(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -552,6 +560,7 @@ static int object_camera_add_exec(bContext *C, wmOperator *op)
 	View3D *v3d = CTX_wm_view3d(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob;
+	Camera *cam;
 	bool enter_editmode;
 	unsigned int layer;
 	float loc[3], rot[3];
@@ -571,6 +580,9 @@ static int object_camera_add_exec(bContext *C, wmOperator *op)
 			scene->camera = ob;
 		}
 	}
+
+	cam = ob->data;
+	cam->drawsize = v3d ? ED_view3d_grid_scale(scene, v3d, NULL) : ED_scene_grid_scale(scene, NULL);
 
 	return OPERATOR_FINISHED;
 }
@@ -668,6 +680,7 @@ static int object_add_text_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 
+	WM_operator_view3d_unit_defaults(C, op);
 	if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, &enter_editmode, &layer, NULL))
 		return OPERATOR_CANCELLED;
 
@@ -675,6 +688,7 @@ static int object_add_text_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	obedit = ED_object_add_type(C, OB_FONT, loc, rot, enter_editmode, layer);
+	BKE_object_obdata_size_init(obedit, RNA_float_get(op->ptr, "radius"));
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 
@@ -694,6 +708,9 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	ED_object_add_unit_props(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -706,9 +723,10 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
 	bool newob = false;
 	bool enter_editmode;
 	unsigned int layer;
-	float loc[3], rot[3];
+	float loc[3], rot[3], dia;
 	bool view_aligned = rv3d && (U.flag & USER_ADD_VIEWALIGNED);
 
+	WM_operator_view3d_unit_defaults(C, op);
 	if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, &enter_editmode, &layer, NULL))
 		return OPERATOR_CANCELLED;
 
@@ -726,7 +744,8 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	add_primitive_bone(obedit, view_aligned);
+	dia = RNA_float_get(op->ptr, "radius");
+	ED_armature_edit_bone_add_primitive(obedit, dia, view_aligned);
 
 	/* userdef */
 	if (newob && !enter_editmode)
@@ -750,6 +769,9 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	ED_object_add_unit_props(ot);
 	ED_object_add_generic_props(ot, true);
 }
 
@@ -762,12 +784,14 @@ static int object_empty_add_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 
+	WM_operator_view3d_unit_defaults(C, op);
 	if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, NULL, &layer, NULL))
 		return OPERATOR_CANCELLED;
 
 	ob = ED_object_add_type(C, OB_EMPTY, loc, rot, false, layer);
 
 	BKE_object_empty_draw_type_set(ob, type);
+	BKE_object_obdata_size_init(ob, RNA_float_get(op->ptr, "radius"));
 
 	return OPERATOR_FINISHED;
 }
@@ -790,6 +814,7 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", object_empty_drawtype_items, 0, "Type", "");
 
+	ED_object_add_unit_props(ot);
 	ED_object_add_generic_props(ot, false);
 }
 
@@ -899,12 +924,14 @@ static int object_lamp_add_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 
+	WM_operator_view3d_unit_defaults(C, op);
 	if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, NULL, &layer, NULL))
 		return OPERATOR_CANCELLED;
 
 	ob = ED_object_add_type(C, OB_LAMP, loc, rot, false, layer);
-	la = (Lamp *)ob->data;
+	BKE_object_obdata_size_init(ob, RNA_float_get(op->ptr, "radius"));
 
+	la = (Lamp *)ob->data;
 	la->type = type;
 	rename_id(&ob->id, get_lamp_defname(type));
 	rename_id(&la->id, get_lamp_defname(type));
@@ -936,6 +963,7 @@ void OBJECT_OT_lamp_add(wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "type", lamp_type_items, 0, "Type", "");
 	RNA_def_property_translation_context(ot->prop, BLF_I18NCONTEXT_ID_LAMP);
 
+	ED_object_add_unit_props(ot);
 	ED_object_add_generic_props(ot, false);
 }
 

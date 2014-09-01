@@ -101,6 +101,8 @@
 /* drag popups by their header */
 #define USE_DRAG_POPUP
 
+#define UI_MAX_PASSWORD_STR 128
+
 /* proto */
 static void ui_add_smart_controller(bContext *C, uiBut *from, uiBut *to);
 static void ui_add_link(bContext *C, uiBut *from, uiBut *to);
@@ -602,7 +604,13 @@ static void ui_apply_autokey(bContext *C, uiBut *but)
 
 	/* make a little report about what we've done! */
 	if (but->rnaprop) {
-		char *buf = WM_prop_pystring_assign(C, &but->rnapoin, but->rnaprop, but->rnaindex);
+		char *buf;
+
+		if (RNA_property_subtype(but->rnaprop) == PROP_PASSWORD) {
+			return;
+		}
+
+		buf = WM_prop_pystring_assign(C, &but->rnapoin, but->rnaprop, but->rnaindex);
 		if (buf) {
 			BKE_report(CTX_wm_reports(C), RPT_PROPERTY, buf);
 			MEM_freeN(buf);
@@ -1946,28 +1954,35 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 
 static int ui_text_position_from_hidden(uiBut *but, int pos)
 {
-	const char *strpos;
+	const char *strpos, *butstr;
 	int i;
 
-	for (i = 0, strpos = but->drawstr; i < pos; i++)
+	butstr = (but->editstr) ? but->editstr : but->drawstr;
+
+	for (i = 0, strpos = butstr; i < pos; i++)
 		strpos = BLI_str_find_next_char_utf8(strpos, NULL);
 	
-	return (strpos - but->drawstr);
+	return (strpos - butstr);
 }
 
 static int ui_text_position_to_hidden(uiBut *but, int pos)
 {
-	return BLI_strnlen_utf8(but->drawstr, pos);
+	const char *butstr = butstr = (but->editstr) ? but->editstr : but->drawstr;
+	return BLI_strnlen_utf8(butstr, pos);
 }
 
-void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, const bool restore)
+void ui_button_text_password_hide(char password_str[UI_MAX_PASSWORD_STR], uiBut *but, const bool restore)
 {
+	char *butstr;
+
 	if (!(but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_PASSWORD))
 		return;
 
+	butstr = (but->editstr) ? but->editstr : but->drawstr;
+
 	if (restore) {
 		/* restore original string */
-		BLI_strncpy(but->drawstr, password_str, UI_MAX_DRAW_STR);
+		BLI_strncpy(butstr, password_str, UI_MAX_PASSWORD_STR);
 
 		/* remap cursor positions */
 		if (but->pos >= 0) {
@@ -1977,8 +1992,8 @@ void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but
 		}
 	}
 	else {
-		/* convert text to hidden test using asterisks (e.g. pass -> ****) */
-		const size_t len = BLI_strlen_utf8(but->drawstr);
+		/* convert text to hidden text using asterisks (e.g. pass -> ****) */
+		const size_t len = BLI_strlen_utf8(butstr);
 
 		/* remap cursor positions */
 		if (but->pos >= 0) {
@@ -1988,10 +2003,9 @@ void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but
 		}
 
 		/* save original string */
-		BLI_strncpy(password_str, but->drawstr, UI_MAX_DRAW_STR);
-
-		memset(but->drawstr, '*', len);
-		but->drawstr[len] = '\0';
+		BLI_strncpy(password_str, butstr, UI_MAX_PASSWORD_STR);
+		memset(butstr, '*', len);
+		butstr[len] = '\0';
 	}
 }
 
@@ -2027,7 +2041,7 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
 
 	float startx = but->rect.xmin;
 	float starty_dummy = 0.0f;
-	char *origstr, password_str[UI_MAX_DRAW_STR];
+	char *origstr, password_str[UI_MAX_PASSWORD_STR];
 
 	ui_block_to_window_fl(data->region, but->block, &startx, &starty_dummy);
 
@@ -5006,6 +5020,9 @@ static bool ui_numedit_but_COLORBAND(uiBut *but, uiHandleButtonData *data, int m
 	if (data->draglastx == mx)
 		return changed;
 
+	if (data->coba->tot == 0)
+		return changed;
+
 	dx = ((float)(mx - data->draglastx)) / BLI_rctf_size_x(&but->rect);
 	data->dragcbd->pos += dx;
 	CLAMP(data->dragcbd->pos, 0.0f, 1.0f);
@@ -6697,10 +6714,13 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
 		data->tooltiptimer = NULL;
 	}
 
-	if ((U.flag & USER_TOOLTIPS) || (but->flag & UI_OPTION_TOOLTIPS))
-		if (!but->block->tooltipdisabled)
-			if (!wm->drags.first)
+	if ((U.flag & USER_TOOLTIPS) || (but->flag & UI_BUT_TIP_FORCE)) {
+		if (!but->block->tooltipdisabled) {
+			if (!wm->drags.first) {
 				data->tooltiptimer = WM_event_add_timer(data->wm, data->window, TIMER, BUTTON_TOOLTIP_DELAY);
+			}
+		}
+	}
 }
 
 static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState state)
@@ -7209,11 +7229,13 @@ static int ui_handle_button_over(bContext *C, const wmEvent *event, ARegion *ar)
 	if (event->type == MOUSEMOVE) {
 		but = ui_but_find_mouse_over(ar, event);
 		if (but) {
-			if (event->alt)
+			if (event->alt) {
 				/* display tooltips if holding alt on mouseover when tooltips are off in prefs */
-				but->flag |= UI_OPTION_TOOLTIPS;
-			else
-				but->flag &= ~UI_OPTION_TOOLTIPS;
+				but->flag |= UI_BUT_TIP_FORCE;
+			}
+			else {
+				but->flag &= ~UI_BUT_TIP_FORCE;
+			}
 			button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
 		}
 	}
@@ -7322,7 +7344,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 				uiBut *but_other = ui_but_find_mouse_over(ar, event);
 				bool exit = false;
 
-				if (!ui_block_is_menu(block) &&
+				if ((!ui_block_is_menu(block) || ui_block_is_pie_menu(but->block)) &&
 				    !ui_mouse_inside_button(ar, but, event->x, event->y))
 				{
 					exit = true;
@@ -7931,13 +7953,13 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
 		if (event->val == KM_RELEASE) {
 			/* pass, needed so we can exit active menu-items when click-dragging out of them */
 		}
-		else if (!ui_block_is_menu(but->block)) {
+		else if (!ui_block_is_menu(but->block) || ui_block_is_pie_menu(but->block)) {
 			/* pass, skip for dialogs */
 		}
 		else if (!ui_mouse_inside_region(but->active->region, event->x, event->y)) {
 			/* pass, needed to click-exit outside of non-flaoting menus */
 		}
-		else if ((event->type != MOUSEMOVE) && ISMOUSE(event->type)) {
+		else if ((!ELEM(event->type, MOUSEMOVE, WHEELUPMOUSE, WHEELDOWNMOUSE, MOUSEPAN)) && ISMOUSE(event->type)) {
 			if (!ui_mouse_inside_button(but->active->region, but, event->x, event->y)) {
 				but = NULL;
 			}
@@ -8690,13 +8712,16 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 		if (event->val != KM_RELEASE) {
 			ui_handle_menu_button(C, event, menu);
 
+			if (len_squared_v2v2(event_xy, block->pie_data.pie_center_init) > PIE_CLICK_THRESHOLD_SQ) {
+				block->pie_data.flags |= UI_PIE_DRAG_STYLE;
+			}
 			/* why redraw here? It's simple, we are getting many double click events here.
 			 * Those operate like mouse move events almost */
 			ED_region_tag_redraw(ar);
 		}
 		else {
 			/* distance from initial point */
-			if (len_squared_v2v2(event_xy, block->pie_data.pie_center_init) < PIE_CLICK_THRESHOLD_SQ) {
+			if (!(block->pie_data.flags & UI_PIE_DRAG_STYLE)) {
 				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
 			}
 			else if (!is_click_style) {
@@ -8712,8 +8737,12 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 		switch (event->type) {
 			case MOUSEMOVE:
-				/* mouse move should always refresh the area for pie menus */
+				if (len_squared_v2v2(event_xy, block->pie_data.pie_center_init) > PIE_CLICK_THRESHOLD_SQ) {
+					block->pie_data.flags |= UI_PIE_DRAG_STYLE;
+				}
 				ui_handle_menu_button(C, event, menu);
+				
+				/* mouse move should always refresh the area for pie menus */
 				ED_region_tag_redraw(ar);
 				break;
 
