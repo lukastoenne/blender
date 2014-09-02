@@ -209,6 +209,13 @@ class SEQUENCER_MT_select(Menu):
 
         layout.operator("sequencer.select_active_side", text="Strips to the Left").side = 'LEFT'
         layout.operator("sequencer.select_active_side", text="Strips to the Right").side = 'RIGHT'
+        op = layout.operator("sequencer.select_active_side", text="All strips to the Left")
+        op.side = 'LEFT'
+        op.all = True
+        op = layout.operator("sequencer.select_active_side", text="All strips to the Right")
+        op.side = 'RIGHT'
+        op.all = True
+        
         layout.separator()
         layout.operator("sequencer.select_handles", text="Surrounding Handles").side = 'BOTH'
         layout.operator("sequencer.select_handles", text="Left Handle").side = 'LEFT'
