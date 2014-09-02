@@ -80,12 +80,12 @@ static void select_surrounding_handles(Scene *scene, Sequence *test) /* XXX BRIN
 }
 
 /* used for mouse selection and for SEQUENCER_OT_select_active_side() */
-static void select_active_side(ListBase *seqbase, int sel_side, int channel, int frame, bool use_same_channel)
+static void select_active_side(ListBase *seqbase, int sel_side, int channel, int frame)
 {
 	Sequence *seq;
 
 	for (seq = seqbase->first; seq; seq = seq->next) {
-		if (!use_same_channel || channel == seq->machine) {
+		if (channel == seq->machine) {
 			switch (sel_side) {
 				case SEQ_SIDE_LEFT:
 					if (frame > (seq->startdisp)) {
@@ -452,7 +452,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
 								if (extend == 0) ED_sequencer_deselect_all(scene);
 								seq->flag |= SELECT;
 
-								select_active_side(ed->seqbasep, SEQ_SIDE_LEFT, seq->machine, seq->startdisp, true);
+								select_active_side(ed->seqbasep, SEQ_SIDE_LEFT, seq->machine, seq->startdisp);
 							}
 							else {
 								if (extend == 0) ED_sequencer_deselect_all(scene);
@@ -469,7 +469,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
 								if (extend == 0) ED_sequencer_deselect_all(scene);
 								seq->flag |= SELECT;
 
-								select_active_side(ed->seqbasep, SEQ_SIDE_RIGHT, seq->machine, seq->startdisp, true);
+								select_active_side(ed->seqbasep, SEQ_SIDE_RIGHT, seq->machine, seq->startdisp);
 							}
 							else {
 								if (extend == 0) ED_sequencer_deselect_all(scene);
@@ -485,7 +485,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
 				}
 				else {
 					if (extend == 0) ED_sequencer_deselect_all(scene);
-					select_active_side(ed->seqbasep, sel_side, seq->machine, seq->startdisp, true);
+					select_active_side(ed->seqbasep, sel_side, seq->machine, seq->startdisp);
 				}
 			}
 			recurs_sel_seq(seq);
@@ -806,7 +806,7 @@ static int sequencer_select_active_side_exec(bContext *C, wmOperator *op)
 
 	seq_act->flag |= SELECT;
 
-	select_active_side(ed->seqbasep, RNA_enum_get(op->ptr, "side"), seq_act->machine, seq_act->startdisp, false);
+	select_active_side(ed->seqbasep, RNA_enum_get(op->ptr, "side"), seq_act->machine, seq_act->startdisp);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
@@ -829,7 +829,6 @@ void SEQUENCER_OT_select_active_side(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "side", prop_side_types, SEQ_SIDE_BOTH, "Side", "The side of the handle that is selected");
-	RNA_def_boolean(ot->srna, "all", false, "All", "Select in other channels as well");
 }
 
 
