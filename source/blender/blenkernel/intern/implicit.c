@@ -347,6 +347,15 @@ static void print_fmatrix(float m3[3][3])
 	printf("%f\t%f\t%f\n", m3[1][0], m3[1][1], m3[1][2]);
 	printf("%f\t%f\t%f\n\n", m3[2][0], m3[2][1], m3[2][2]);
 }
+
+static void print_sparse_matrix(fmatrix3x3 *m)
+{
+	if (m) {
+		unsigned int i;
+		for (i = 0; i < m[0].vcount + m[0].scount; i++)
+			print_fmatrix(m[i].m);
+	}
+}
 #endif
 
 /* copy 3x3 matrix */
@@ -907,10 +916,11 @@ DO_INLINE void filter(lfVector *V, fmatrix3x3 *S)
 	unsigned int i=0;
 
 	for (i = 0; i < S[0].vcount; i++) {
-		mul_fvector_fmatrix(V[S[i].r], V[S[i].r], S[i].m);
+		mul_m3_v3(S[i].m, V[S[i].r]);
 	}
 }
 
+#if 0
 static int  cg_filtered(lfVector *ldV, fmatrix3x3 *lA, lfVector *lB, lfVector *z, fmatrix3x3 *S)
 {
 	// Solves for unknown X in equation AX=B
@@ -975,6 +985,73 @@ static int  cg_filtered(lfVector *ldV, fmatrix3x3 *lA, lfVector *lB, lfVector *z
 
 	return conjgrad_loopcount<conjgrad_looplimit;  // true means we reached desired accuracy in given time - ie stable
 }
+#else
+static int cg_filtered(lfVector *ldV, fmatrix3x3 *lA, lfVector *lB, lfVector *z, fmatrix3x3 *S)
+{
+	// Solves for unknown X in equation AX=B
+	unsigned int conjgrad_loopcount=0, conjgrad_looplimit=100;
+	float conjgrad_epsilon=0.0001f /* , conjgrad_lasterror=0 */ /* UNUSED */;
+	
+	unsigned int numverts = lA[0].vcount;
+	lfVector *fB = create_lfvector(numverts);
+	lfVector *AdV = create_lfvector(numverts);
+	lfVector *r = create_lfvector(numverts);
+	lfVector *c = create_lfvector(numverts);
+	lfVector *q = create_lfvector(numverts);
+	lfVector *s = create_lfvector(numverts);
+	float delta_new, delta_old, delta_target, alpha;
+	
+	cp_lfvector(ldV, z, numverts);
+	
+	/* d0 = filter(B)^T * P * filter(B) */
+	cp_lfvector(fB, lB, numverts);
+	filter(fB, S);
+	delta_target = conjgrad_epsilon*conjgrad_epsilon * dot_lfvector(fB, fB, numverts);
+	
+	/* r = filter(B - A * dV) */
+	mul_bfmatrix_lfvector(AdV, lA, ldV);
+	sub_lfvector_lfvector(r, lB, AdV, numverts);
+	filter(r, S);
+	
+	/* c = filter(P^-1 * r) */
+	cp_lfvector(c, r, numverts);
+	filter(c, S);
+	
+	/* delta = r^T * c */
+	delta_new = dot_lfvector(r, c, numverts);
+	
+	while (delta_new > delta_target && conjgrad_loopcount < conjgrad_looplimit) {
+		mul_bfmatrix_lfvector(q, lA, c);
+		filter(q, S);
+		
+		alpha = delta_new / dot_lfvector(c, q, numverts);
+		
+		add_lfvector_lfvectorS(ldV, ldV, c, alpha, numverts);
+		
+		add_lfvector_lfvectorS(r, r, q, -alpha, numverts);
+		
+		/* s = P^-1 * r */
+		cp_lfvector(s, r, numverts);
+		delta_old = delta_new;
+		delta_new = dot_lfvector(r, s, numverts);
+		
+		add_lfvector_lfvectorS(c, s, c, delta_new / delta_old, numverts);
+		filter(c, S);
+		
+		conjgrad_loopcount++;
+	}
+	
+	del_lfvector(fB);
+	del_lfvector(AdV);
+	del_lfvector(r);
+	del_lfvector(c);
+	del_lfvector(q);
+	del_lfvector(s);
+	// printf("W/O conjgrad_loopcount: %d\n", conjgrad_loopcount);
+
+	return conjgrad_loopcount < conjgrad_looplimit;  // true means we reached desired accuracy in given time - ie stable
+}
+#endif
 
 // block diagonalizer
 DO_INLINE void BuildPPinv(fmatrix3x3 *lA, fmatrix3x3 *P, fmatrix3x3 *Pinv)
@@ -1880,10 +1957,12 @@ static void setup_constraint_matrix(ClothVertex *verts, int numverts, ColliderCo
 	/* pinned vertex constraints */
 	for (i = 0; i < numverts; i++) {
 		S[i].c = S[i].r = i;
-		if (verts[i].flags & CLOTH_VERT_FLAG_PINNED)
+		if (verts[i].flags & CLOTH_VERT_FLAG_PINNED) {
 			zero_m3(S[i].m);
-		else
+		}
+		else {
 			unit_m3(S[i].m);
+		}
 	}
 
 	for (i = 0; i < totcolliders; ++i) {
@@ -1891,12 +1970,14 @@ static void setup_constraint_matrix(ClothVertex *verts, int numverts, ColliderCo
 		for (j = 0; j < ct->totcollisions; ++j) {
 			CollPair *collpair = &ct->collisions[j];
 			int v = collpair->face1;
+			float cmat[3][3];
 			
 			/* pinned verts handled separately */
 			if (verts[v].flags & CLOTH_VERT_FLAG_PINNED)
 				continue;
 			
-			zero_m3(S[v].m);
+			mul_fvectorT_fvector(cmat, collpair->normal, collpair->normal);
+			sub_m3_m3m3(S[v].m, I, cmat);
 		}
 	}
 }
@@ -2047,18 +2128,22 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), lfVec
 			cloth_apply_spring_force(clmd, search->link, lF, lX, lV, dFdV, dFdX);
 		search = search->next;
 	}
+//	printf("====== dFdV ======\n");
+//	print_sparse_matrix(dFdV);
+//	printf("============\n");
 	// printf("\n");
 }
 
-static void simulate_implicit_euler(Implicit_Data *id, float dt)
+static bool simulate_implicit_euler(Implicit_Data *id, float dt)
 {
 	unsigned int numverts = id->dFdV[0].vcount;
+	bool ok;
 
 	lfVector *dFdXmV = create_lfvector(numverts);
 	zero_lfvector(id->dV, numverts);
-	
+
 	cp_bfmatrix(id->A, id->M);
-	
+
 	subadd_bfmatrixS_bfmatrixS(id->A, id->dFdV, dt, id->dFdX, (dt*dt));
 
 	mul_bfmatrix_lfvector(dFdXmV, id->dFdX, id->V);
@@ -2067,7 +2152,7 @@ static void simulate_implicit_euler(Implicit_Data *id, float dt)
 
 	// itstart();
 
-	cg_filtered(id->dV, id->A, id->B, id->z, id->S); /* conjugate gradient algorithm to solve Ax=b */
+	ok = cg_filtered(id->dV, id->A, id->B, id->z, id->S); /* conjugate gradient algorithm to solve Ax=b */
 	// cg_filtered_pre(id->dV, id->A, id->B, id->z, id->S, id->P, id->Pinv, id->bigI);
 
 	// itend();
@@ -2077,6 +2162,8 @@ static void simulate_implicit_euler(Implicit_Data *id, float dt)
 	add_lfvector_lfvector(id->Vnew, id->V, id->dV, numverts);
 
 	del_lfvector(dFdXmV);
+	
+	return ok;
 }
 
 /* computes where the cloth would be if it were subject to perfectly stiff edges
@@ -2226,6 +2313,13 @@ int implicit_solver(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 			}
 			
 			copy_v3_v3(verts[i].txold, id->X[i]);
+			
+//			if (!(verts[i].flags & CLOTH_VERT_FLAG_PINNED) && i > 0)
+//				BKE_sim_debug_data_add_line(clmd->debug_data, id->Xnew[i], id->Xnew[i-1], 1, 0.5, 0.5, "hair", hash_vertex(4892, i));
+//			BKE_sim_debug_data_add_vector(clmd->debug_data, id->Xnew[i], id->Vnew[i], 0, 0, 1, "velocity", hash_vertex(3158, i));
+			if (!(verts[i].flags & CLOTH_VERT_FLAG_PINNED) && i > 0)
+				BKE_sim_debug_data_add_line(clmd->debug_data, id->X[i], id->X[i-1], 1, 0.5, 0.5, "hair", hash_vertex(4892, i));
+			BKE_sim_debug_data_add_vector(clmd->debug_data, id->X[i], id->V[i], 0, 0, 1, "velocity", hash_vertex(3158, i));
 		}
 
 #if 0
