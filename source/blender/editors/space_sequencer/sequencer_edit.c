@@ -1715,8 +1715,11 @@ void SEQUENCER_OT_cut(struct wmOperatorType *ot)
 }
 
 typedef struct TrimData {
-	float init_mouse[2];
+	int init_mouse[2];
+	float init_mouseloc[2];
 	TransSeq ts;
+	bool slow;
+	int slow_offset; /* offset at the point where offset was turned on */
 } TrimData;
 
 
@@ -1743,11 +1746,69 @@ static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 
 	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
 	
-	copy_v2_v2(data->init_mouse, mouseloc);
+	copy_v2_v2_int(data->init_mouse, event->mval);
+	copy_v2_v2(data->init_mouseloc, mouseloc);
+
+	data->slow = false;
 	
 	WM_event_add_modal_handler(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;
+}
+
+static bool sequencer_trim(Scene *scene, Sequence *seq, int offset, int old_start)
+{
+	/* only data types supported for now */
+	if ((offset != 0) && !(seq->type & SEQ_TYPE_EFFECT) && !ELEM(seq->type, SEQ_TYPE_META, SEQ_TYPE_SCENE)) {
+		int endframe;
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
+		/* we have the offset, do the terrible math */
+
+		/* first, do the offset */
+		seq->start = old_start + offset;
+	
+		/* find the endframe */
+		endframe = seq->start + seq->len;
+		
+		/* now compute the terrible offsets */
+		if (endframe > seq->enddisp) {
+			seq->endstill = 0;
+			seq->endofs = endframe - seq->enddisp;
+		}
+		else if (endframe <= seq->enddisp) {
+			seq->endstill = seq->enddisp - endframe;
+			seq->endofs = 0;
+		}
+		
+		if (seq->start > seq->startdisp) {
+			seq->startstill = seq->start - seq->startdisp;
+			seq->startofs = 0;
+		}
+		else if (seq->start <= seq->startdisp) {
+			seq->startstill = 0;
+			seq->startofs = seq->startdisp - seq->start;
+		}
+		
+		BKE_sequence_reload_new_file(scene, seq, false);				
+		BKE_sequence_calc(scene, seq);
+	
+		BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
+		
+		return true;
+	}
+	
+	return false;
+}
+
+static int sequencer_trim_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	Sequence *seq = BKE_sequencer_active_get(scene);
+	int offset = RNA_int_get(op->ptr, "offset");
+	if(sequencer_trim(scene, seq, offset, seq->start))
+		return OPERATOR_FINISHED;
+	
+	return OPERATOR_CANCELLED;
 }
 
 static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1755,54 +1816,41 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 	Scene *scene = CTX_data_scene(C);
 	Sequence *seq = BKE_sequencer_active_get(scene);
 	TrimData *data = (TrimData *)op->customdata;
+	ScrArea *sa = CTX_wm_area(C);
 
 	switch (event->type) {
 		case MOUSEMOVE:
 		{
 			float mouseloc[2];
 			int offset;
+			int mouse_x;
 			View2D *v2d = UI_view2d_fromcontext(C);
 
+			if (data->slow) {
+				mouse_x = event->mval[0] - data->slow_offset;
+				mouse_x *= 0.1f;
+				mouse_x += data->slow_offset;
+			}
+			else {
+				mouse_x = event->mval[0];				
+			}
+			
+			
 			/* choose the side based on which side of the playhead the mouse is on */
-			UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
-			offset = mouseloc[0] - data->init_mouse[0];
+			UI_view2d_region_to_view(v2d, mouse_x, 0, &mouseloc[0], &mouseloc[1]);
+			offset = mouseloc[0] - data->init_mouseloc[0];
 
-			/* only data types supported for now */
-			if (!(seq->type & SEQ_TYPE_EFFECT) && !ELEM(seq->type, SEQ_TYPE_META, SEQ_TYPE_SCENE)) {
-				int endframe;
-				Editing *ed = BKE_sequencer_editing_get(scene, false);
-				/* we have the offset, do the terrible math */
-
-				/* first, do the offset */
-				seq->start = data->ts.start + offset;
+			RNA_int_set(op->ptr, "offset", offset);
 			
-				/* find the endframe */
-				endframe = seq->start + seq->len;
-				
-				/* now compute the terrible offsets */
-				if (endframe > seq->enddisp) {
-					seq->endstill = 0;
-					seq->endofs = endframe - seq->enddisp;
-				}
-				else if (endframe <= seq->enddisp) {
-					seq->endstill = seq->enddisp - endframe;
-					seq->endofs = 0;
-				}
-				
-				if (seq->start > seq->startdisp) {
-					seq->startstill = seq->start - seq->startdisp;
-					seq->startofs = 0;
-				}
-				else if (seq->start <= seq->startdisp) {
-					seq->startstill = 0;
-					seq->startofs = seq->startdisp - seq->start;
-				}
-				
-				BKE_sequence_reload_new_file(scene, seq, false);				
-				BKE_sequence_calc(scene, seq);
+			if (sa) {
+#define HEADER_LENGTH 40
+				char msg[HEADER_LENGTH];
+				BLI_snprintf(msg, HEADER_LENGTH, "Trim offset: %d", offset);
+#undef HEADER_LENGTH
+				ED_area_headerprint(sa, msg);
+			}
 			
-				BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
-				
+			if (sequencer_trim(scene, seq, offset, data->ts.start)) {
 				WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 			}
 			break;			
@@ -1812,6 +1860,9 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 		{
 			MEM_freeN(data);
 			op->customdata = NULL;
+			if (sa) {
+				ED_area_headerprint(sa, NULL);
+			}
 			return OPERATOR_FINISHED;
 		}
 		case RIGHTMOUSE:
@@ -1835,9 +1886,24 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 			op->customdata = NULL;
 		
 			WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+
+			if (sa) {
+				ED_area_headerprint(sa, NULL);
+			}
 			
 			return OPERATOR_CANCELLED;
 		}
+			
+		case RIGHTSHIFTKEY:
+		case LEFTSHIFTKEY:
+			if (event->val == KM_PRESS) {
+				data->slow = true;
+				data->slow_offset = event->mval[0];
+			}
+			else if (event->val == KM_RELEASE) {
+				data->slow = false;
+			}
+			break;
 			
 		default:
 			break;
@@ -1856,11 +1922,13 @@ void SEQUENCER_OT_trim(struct wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = sequencer_trim_invoke;
 	ot->modal = sequencer_trim_modal;
-//	ot->exec = sequencer_trim_exec;
+	ot->exec = sequencer_trim_exec;
 	ot->poll = sequencer_edit_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_int(ot->srna, "offset", 0, INT32_MIN, INT32_MAX, "Offset", "offset to the data of the strip", INT32_MIN, INT32_MAX);
 }
 
 /* duplicate operator */
