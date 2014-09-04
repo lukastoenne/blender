@@ -1770,6 +1770,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 			/* only data types supported for now */
 			if (!(seq->type & SEQ_TYPE_EFFECT) && !ELEM(seq->type, SEQ_TYPE_META, SEQ_TYPE_SCENE)) {
 				int endframe;
+				Editing *ed = BKE_sequencer_editing_get(scene, false);
 				/* we have the offset, do the terrible math */
 
 				/* first, do the offset */
@@ -1799,6 +1800,8 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 				
 				BKE_sequence_reload_new_file(scene, seq, false);				
 				BKE_sequence_calc(scene, seq);
+			
+				BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
 				
 				WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 			}
