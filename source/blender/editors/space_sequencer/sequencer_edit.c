@@ -1714,6 +1714,152 @@ void SEQUENCER_OT_cut(struct wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "side", prop_side_types, SEQ_SIDE_BOTH, "Side", "The side that remains selected after cutting");
 }
 
+typedef struct TrimData {
+	float init_mouse[2];
+	TransSeq ts;
+} TrimData;
+
+
+static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	TrimData *data = op->customdata = MEM_mallocN(sizeof(TrimData), "trimdata");	
+	Scene *scene = CTX_data_scene(C);
+	Sequence *seq = BKE_sequencer_active_get(scene);
+	float mouseloc[2];
+	View2D *v2d = UI_view2d_fromcontext(C);
+
+	/* backup values */
+	data->ts.start = seq->start;
+	data->ts.machine = seq->machine;
+	data->ts.startstill = seq->startstill;
+	data->ts.endstill = seq->endstill;
+	data->ts.startdisp = seq->startdisp;
+	data->ts.enddisp = seq->enddisp;
+	data->ts.startofs = seq->startofs;
+	data->ts.endofs = seq->endofs;
+	data->ts.anim_startofs = seq->anim_startofs;
+	data->ts.anim_endofs = seq->anim_endofs;
+	data->ts.len = seq->len;
+
+	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
+	
+	copy_v2_v2(data->init_mouse, mouseloc);
+	
+	WM_event_add_modal_handler(C, op);
+	
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Scene *scene = CTX_data_scene(C);
+	Sequence *seq = BKE_sequencer_active_get(scene);
+	TrimData *data = (TrimData *)op->customdata;
+
+	switch (event->type) {
+		case MOUSEMOVE:
+		{
+			float mouseloc[2];
+			int offset;
+			View2D *v2d = UI_view2d_fromcontext(C);
+
+			/* choose the side based on which side of the playhead the mouse is on */
+			UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
+			offset = mouseloc[0] - data->init_mouse[0];
+
+			/* only data types supported for now */
+			if (!(seq->type & SEQ_TYPE_EFFECT) && !ELEM(seq->type, SEQ_TYPE_META, SEQ_TYPE_SCENE)) {
+				int endframe;
+				/* we have the offset, do the terrible math */
+
+				/* first, do the offset */
+				seq->start = data->ts.start + offset;
+			
+				/* find the endframe */
+				endframe = seq->start + seq->len;
+				
+				/* now compute the terrible offsets */
+				if (endframe > seq->enddisp) {
+					seq->endstill = 0;
+					seq->endofs = endframe - seq->enddisp;
+				}
+				else if (endframe <= seq->enddisp) {
+					seq->endstill = seq->enddisp - endframe;
+					seq->endofs = 0;
+				}
+				
+				if (seq->start > seq->startdisp) {
+					seq->startstill = seq->start - seq->startdisp;
+					seq->startofs = 0;
+				}
+				else if (seq->start <= seq->startdisp) {
+					seq->startstill = 0;
+					seq->startofs = seq->startdisp - seq->start;
+				}
+				
+				BKE_sequence_reload_new_file(scene, seq, false);				
+				BKE_sequence_calc(scene, seq);
+				
+				WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+			}
+			break;			
+		}
+		
+		case LEFTMOUSE:
+		{
+			MEM_freeN(data);
+			op->customdata = NULL;
+			return OPERATOR_FINISHED;
+		}
+		case RIGHTMOUSE:
+		{
+			seq->start = data->ts.start;
+			seq->machine = data->ts.machine;
+			seq->startstill = data->ts.startstill;
+			seq->endstill = data->ts.endstill;
+			seq->startdisp = data->ts.startdisp;
+			seq->enddisp = data->ts.enddisp;
+			seq->startofs = data->ts.startofs;
+			seq->endofs = data->ts.endofs;
+			seq->anim_startofs = data->ts.anim_startofs;
+			seq->anim_endofs = data->ts.anim_endofs;
+			seq->len = data->ts.len;
+			
+			BKE_sequence_reload_new_file(scene, seq, false);				
+			BKE_sequence_calc(scene, seq);
+			
+			MEM_freeN(data);
+			op->customdata = NULL;
+		
+			WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+			
+			return OPERATOR_CANCELLED;
+		}
+			
+		default:
+			break;
+	}
+	
+	return OPERATOR_RUNNING_MODAL;
+}
+
+void SEQUENCER_OT_trim(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Trim Strips";
+	ot->idname = "SEQUENCER_OT_trim";
+	ot->description = "Trim the contents of the selected strips";
+	
+	/* api callbacks */
+	ot->invoke = sequencer_trim_invoke;
+	ot->modal = sequencer_trim_modal;
+//	ot->exec = sequencer_trim_exec;
+	ot->poll = sequencer_edit_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* duplicate operator */
 static int apply_unique_name_cb(Sequence *seq, void *arg_pt)
 {
