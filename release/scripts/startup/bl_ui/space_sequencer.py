@@ -82,6 +82,7 @@ class SEQUENCER_HT_header(Header):
 
             layout.separator()
             layout.operator("sequencer.refresh_all")
+            layout.prop(st, "overlay_viewer")
         else:
             if st.view_type == 'SEQUENCER_PREVIEW':
                 layout.separator()

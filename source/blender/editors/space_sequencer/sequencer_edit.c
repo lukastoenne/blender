@@ -1921,7 +1921,7 @@ void SEQUENCER_OT_trim(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Trim Strips";
 	ot->idname = "SEQUENCER_OT_trim";
-	ot->description = "Trim the contents of the selected strips";
+	ot->description = "Trim the contents of the active strip";
 	
 	/* api callbacks */
 	ot->invoke = sequencer_trim_invoke;
