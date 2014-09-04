@@ -1867,6 +1867,8 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 		}
 		case RIGHTMOUSE:
 		{
+			Editing *ed = BKE_sequencer_editing_get(scene, false);
+
 			seq->start = data->ts.start;
 			seq->machine = data->ts.machine;
 			seq->startstill = data->ts.startstill;
@@ -1886,7 +1888,9 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 			op->customdata = NULL;
 		
 			WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-
+		
+			BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
+			
 			if (sa) {
 				ED_area_headerprint(sa, NULL);
 			}
