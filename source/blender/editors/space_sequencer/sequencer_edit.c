@@ -1759,7 +1759,7 @@ static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 static bool sequencer_trim(Scene *scene, Sequence *seq, int offset, int old_start)
 {
 	/* only data types supported for now */
-	if ((offset != 0) && !(seq->type & SEQ_TYPE_EFFECT) && !ELEM(seq->type, SEQ_TYPE_META, SEQ_TYPE_SCENE)) {
+	if ((offset != 0) && !(seq->type & SEQ_TYPE_EFFECT) && (seq->type != SEQ_TYPE_META)) {
 		int endframe;
 		Editing *ed = BKE_sequencer_editing_get(scene, false);
 		/* we have the offset, do the terrible math */
