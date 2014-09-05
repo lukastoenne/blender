@@ -29,6 +29,9 @@
  *  \ingroup bke
  */
 
+//#define IMPLICIT_SOLVER_BLENDER
+
+#ifdef IMPLICIT_SOLVER_BLENDER
 
 #include "MEM_guardedalloc.h"
 
@@ -2477,3 +2480,5 @@ void implicit_set_positions(ClothModifierData *clmd)
 	if (G.debug_value > 0)
 		printf("implicit_set_positions\n");
 }
+
+#endif /* IMPLICIT_SOLVER_BLENDER */
