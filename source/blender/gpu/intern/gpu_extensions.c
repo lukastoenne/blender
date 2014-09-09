@@ -77,10 +77,14 @@ extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
 extern char datatoc_gpu_shader_vsm_store_frag_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_vert_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
+extern char datatoc_gpu_shader_fx_vert_glsl[];
+extern char datatoc_gpu_shader_fx_frag_glsl[];
 
 typedef struct GPUShaders {
 	GPUShader *vsm_store;
 	GPUShader *sep_gaussian_blur;
+	/* cache for shader fx. Those can exist in combinations so store them here */
+	GPUShader *fx_shaders[MAX_FX_SHADERS];
 } GPUShaders;
 
 static struct GPUGlobal {
@@ -784,6 +788,37 @@ void GPU_texture_unbind(GPUTexture *tex)
 	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
 
 	tex->number = -1;
+
+	GPU_print_error("Post Texture Unbind");
+}
+
+void GPU_depth_texture_mode(GPUTexture *tex, bool compare)
+{
+	GLenum arbnumber;
+
+	if (tex->number >= GG.maxtextures) {
+		GPU_print_error("Not enough texture slots.");
+		return;
+	}
+	
+	if (!tex->depth) {
+		GPU_print_error("Not a depth texture.");
+		return;
+	}
+	
+	if (tex->number == -1)
+		return;
+	
+	GPU_print_error("Pre Texture Unbind");
+
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
+	if (tex->number != 0) glActiveTextureARB(arbnumber);
+	if (compare)
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
+	else
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+	
+	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
 
 	GPU_print_error("Post Texture Unbind");
 }
@@ -1506,8 +1541,24 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	return retval;
 }
 
+GPUShader *GPU_shader_get_builtin_fx_shader(int effects)
+{
+	/* avoid shaders out of range */
+	if (effects >= MAX_FX_SHADERS)
+		return NULL;
+	
+	if (!GG.shaders.fx_shaders[effects]) {
+		GG.shaders.fx_shaders[effects] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_frag_glsl, NULL, NULL);
+	}
+	
+	return GG.shaders.fx_shaders[effects];
+}
+
+
 void GPU_shader_free_builtin_shaders(void)
 {
+	int i;
+	
 	if (GG.shaders.vsm_store) {
 		MEM_freeN(GG.shaders.vsm_store);
 		GG.shaders.vsm_store = NULL;
@@ -1516,6 +1567,13 @@ void GPU_shader_free_builtin_shaders(void)
 	if (GG.shaders.sep_gaussian_blur) {
 		MEM_freeN(GG.shaders.sep_gaussian_blur);
 		GG.shaders.sep_gaussian_blur = NULL;
+	}
+	
+	for (i = 0; i < MAX_FX_SHADERS; i++) {
+		if (GG.shaders.fx_shaders[i]) {
+			MEM_freeN(GG.shaders.fx_shaders[i]);
+			GG.shaders.fx_shaders[i] = NULL;
+		}
 	}
 }
 

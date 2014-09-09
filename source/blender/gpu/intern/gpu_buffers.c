@@ -577,6 +577,7 @@ void GPU_drawobject_free(DerivedMesh *dm)
 	GPU_buffer_free(gdo->points);
 	GPU_buffer_free(gdo->normals);
 	GPU_buffer_free(gdo->uv);
+	GPU_buffer_free(gdo->uv_tex);
 	GPU_buffer_free(gdo->colors);
 	GPU_buffer_free(gdo->edges);
 	GPU_buffer_free(gdo->uvedges);
@@ -1019,7 +1020,7 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 		case GPU_BUFFER_UV:
 			return &gdo->uv;
 		case GPU_BUFFER_UV_TEXPAINT:
-			return &gdo->uv;
+			return &gdo->uv_tex;
 		case GPU_BUFFER_EDGE:
 			return &gdo->edges;
 		case GPU_BUFFER_UVEDGE:
@@ -1157,7 +1158,7 @@ void GPU_texpaint_uv_setup(DerivedMesh *dm)
 
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	if (useVBOs) {
-		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->uv->id);
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->uv_tex->id);
 		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), 0);
 		glClientActiveTexture(GL_TEXTURE2);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1165,10 +1166,10 @@ void GPU_texpaint_uv_setup(DerivedMesh *dm)
 		glClientActiveTexture(GL_TEXTURE0);
 	}
 	else {
-		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), dm->drawObject->uv->pointer);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), dm->drawObject->uv_tex->pointer);
 		glClientActiveTexture(GL_TEXTURE2);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), (char *)dm->drawObject->uv->pointer + 2 * sizeof(float));
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), (char *)dm->drawObject->uv_tex->pointer + 2 * sizeof(float));
 		glClientActiveTexture(GL_TEXTURE0);
 	}
 

@@ -85,6 +85,7 @@ typedef struct GPUDrawObject {
 	GPUBuffer *points;
 	GPUBuffer *normals;
 	GPUBuffer *uv;
+	GPUBuffer *uv_tex;	
 	GPUBuffer *colors;
 	GPUBuffer *edges;
 	GPUBuffer *uvedges;

@@ -2865,8 +2865,18 @@ class VIEW3D_PT_view3d_shading(Panel):
                 col.prop(view, "show_textured_shadeless")
 
         col.prop(view, "show_backface_culling")
-        if obj and obj.mode == 'EDIT' and view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
-            col.prop(view, "show_occlude_wire")
+
+        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
+            if obj and obj.mode == 'EDIT':
+                col.prop(view, "show_occlude_wire")
+            #hide ssao for now, will expose again when it's ready
+            #col.prop(view, "ssao")
+            col.prop(view, "depth_of_field")
+            if view.depth_of_field:
+                subcol = col.column(align=True)
+                subcol.prop(view, "dof_focal_distance")
+                subcol.prop(view, "dof_aperture")
+                subcol.prop(view, "dof_fstop")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):

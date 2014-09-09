@@ -70,6 +70,8 @@ data_to_c_simple(shaders/gpu_shader_simple_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_fx_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_fx_frag.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)

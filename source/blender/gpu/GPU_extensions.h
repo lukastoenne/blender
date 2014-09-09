@@ -128,6 +128,8 @@ void GPU_texture_ref(GPUTexture *tex);
 void GPU_texture_bind(GPUTexture *tex, int number);
 void GPU_texture_unbind(GPUTexture *tex);
 
+void GPU_depth_texture_mode(GPUTexture *tex, bool compare);
+
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 
 int GPU_texture_target(GPUTexture *tex);
@@ -188,7 +190,17 @@ typedef enum GPUBuiltinShader {
 	GPU_SHADER_SEP_GAUSSIAN_BLUR =	(1<<1),
 } GPUBuiltinShader;
 
+typedef enum GPUFXShaderEffect {
+	GPU_SHADER_FX_SSAO           =	(1<<0),
+	GPU_SHADER_FX_DEPTH_OF_FIELD =	(1<<1),
+	GPU_SHADER_FX_MAX            =	(1<<2),
+} GPUFXShaderEffect;
+
+#define MAX_FX_SHADERS (GPU_SHADER_FX_MAX - 1)
+
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader);
+GPUShader *GPU_shader_get_builtin_fx_shader(int effects);
+
 void GPU_shader_free_builtin_shaders(void);
 
 /* Vertex attributes for shaders */

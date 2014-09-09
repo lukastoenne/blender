@@ -2175,6 +2175,31 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Matcap", "Image to use for Material Capture, active objects only");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_matcap_update");
 
+	prop = RNA_def_property(srna, "depth_of_field", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", V3D_FX_DEPTH_OF_FIELD);
+	RNA_def_property_ui_text(prop, "Depth Of Field", "Use depth of field on viewport using the values from active camera");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+	
+	prop = RNA_def_property(srna, "dof_focal_distance", PROP_FLOAT, PROP_UNIT_CAMERA);
+	RNA_def_property_ui_text(prop, "Focal distance", "Viewport dof focal distance");
+	RNA_def_property_range(prop, 0.0f, 100000.0f);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "dof_aperture", PROP_FLOAT, PROP_UNIT_CAMERA);
+	RNA_def_property_ui_text(prop, "Aperture", "Aperture for dof effect");
+	RNA_def_property_range(prop, 0.0f, 250.0f);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "dof_fstop", PROP_FLOAT, PROP_UNIT_CAMERA);
+	RNA_def_property_ui_text(prop, "FStop", "FStop for dof effect");
+	RNA_def_property_range(prop, 0.0f, 250.0f);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+	
+	prop = RNA_def_property(srna, "ssao", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", V3D_FX_SSAO);
+	RNA_def_property_ui_text(prop, "SSAO", "Use screen space ambient occlusion of field on viewport");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+	
 	/* region */
 
 	srna = RNA_def_struct(brna, "RegionView3D", NULL);

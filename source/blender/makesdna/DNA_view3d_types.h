@@ -212,8 +212,16 @@ typedef struct View3D {
 	
 	/* drawflags, denoting state */
 	char zbuf, transp, xray;
-	char pad3[5];
+	char pad3;
 
+	/* built-in shader effects */
+	int shader_fx;
+
+	float dof_focal_distance; /* focal distance for depth of field */
+	float dof_aperture;           /* aperture for dof lens (could use fstop as well) */
+	float dof_fstop;
+	float pad4;
+	
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */
 
@@ -222,6 +230,10 @@ typedef struct View3D {
 
 } View3D;
 
+
+/* View3D->shaderfx */
+#define V3D_FX_DEPTH_OF_FIELD  1
+#define V3D_FX_SSAO           (1 << 1)
 
 /* View3D->flag (short) */
 /*#define V3D_DISPIMAGE		1*/ /*UNUSED*/
