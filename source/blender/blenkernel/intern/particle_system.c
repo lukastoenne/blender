@@ -4028,11 +4028,18 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	if (dm && (totpoint != dm->getNumVerts(dm) || totedge != dm->getNumEdges(dm))) {
 		dm->release(dm);
 		dm = psys->hair_in_dm = NULL;
+		
+		MEM_freeN(psys->clmd->roots);
+		psys->clmd->roots = NULL;
 	}
 
 	if (!dm) {
 		dm = psys->hair_in_dm = CDDM_new(totpoint, totedge, 0, 0, 0);
 		DM_add_vert_layer(dm, CD_MDEFORMVERT, CD_CALLOC, NULL);
+	}
+	
+	if (!psys->clmd->roots) {
+		psys->clmd->roots = MEM_mallocN(sizeof(ClothHairRoot) * totpoint, "hair roots");
 	}
 
 	mvert = CDDM_get_verts(dm);
@@ -4050,6 +4057,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 		psys_mat_hair_to_object(sim->ob, sim->psmd->dm, psys->part->from, pa, hairmat);
 
 		for (k=0, key=pa->hair; k<pa->totkey; k++,key++) {
+			ClothHairRoot *root = &psys->clmd->roots[pa->hair_index + k - 1];
 			
 			/* create fake root before actual root to resist bending */
 			if (k==0) {
@@ -4074,6 +4082,10 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 					dvert++;
 				}
 			}
+
+			/* store root transform in cloth data */
+			copy_v3_v3(root->loc, hairmat[3]);
+			copy_m3_m4(root->rot, hairmat);
 
 			copy_v3_v3(mvert->co, key->co);
 			mul_m4_v3(hairmat, mvert->co);
