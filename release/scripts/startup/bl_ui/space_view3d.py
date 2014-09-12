@@ -2869,8 +2869,7 @@ class VIEW3D_PT_view3d_shading(Panel):
         if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
-            #hide ssao for now, will expose again when it's ready
-            #col.prop(view, "ssao")
+            col.prop(view, "ssao")
             col.prop(view, "depth_of_field")
             if view.depth_of_field:
                 subcol = col.column(align=True)
