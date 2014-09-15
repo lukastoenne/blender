@@ -60,7 +60,7 @@ struct GPUFX {
 	GPUTexture *depth_buffer;
 	
 	/* dimensions of the gbuffer */
-	float gbuffer_dim[2];
+	int gbuffer_dim[2];
 	
 	/* or-ed flags of enabled effects */
 	int effects;
@@ -119,7 +119,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, int fxflags)
 		return false;
 	
 	/* check if color buffers need recreation */
-	if (!fx->color_buffer || !fx->depth_buffer || w > fx->gbuffer_dim[0] || h > fx->gbuffer_dim[1]) {
+	if (!fx->color_buffer || !fx->depth_buffer || w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]) {
 		cleanup_fx_gl_data(fx, false);
 		
 		if (!(fx->color_buffer = GPU_texture_create_2D(w, h, NULL, err_out))) {
@@ -134,11 +134,11 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, int fxflags)
 		if (!fx->color_buffer || !fx->depth_buffer) {
 			cleanup_fx_gl_data(fx, true);
 			return false;
-		}		
+		}
+		
+		fx->gbuffer_dim[0] = w;
+		fx->gbuffer_dim[1] = h;		
 	}
-
-	fx->gbuffer_dim[0] = w;
-	fx->gbuffer_dim[1] = h;
 	
 	/* bind the buffers */
 	
@@ -180,6 +180,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 		float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
 							   v3d->dof_focal_distance};
 		float ssao_params[4] = {v3d->ssao_scale, v3d->ssao_darkening, v3d->ssao_distance_atten, 0.0};
+		float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
 		
 		dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
 		ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
@@ -190,7 +191,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 		
 		GPU_shader_bind(fx_shader);
 		
-		GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, fx->gbuffer_dim);
+		GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screen_dim);
 		GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
 		GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
 		
