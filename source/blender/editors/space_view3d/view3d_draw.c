@@ -3497,7 +3497,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 			float fac = v3d->dof_fstop * v3d->dof_aperture;
 			float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
 								   v3d->dof_focal_distance};
-			float ssao_params[2] = {v3d->ssao_scale, v3d->ssao_darkening};
+			float ssao_params[4] = {v3d->ssao_scale, v3d->ssao_darkening, v3d->ssao_distance_atten, 0.0};
 
 			dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
 			ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
@@ -3510,7 +3510,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 			GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screendim);
 			GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
-			GPU_shader_uniform_vector(fx_shader, ssao_uniform, 2, 1, ssao_params);
+			GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
 
 			GPU_texture_bind(color_buffer, 0);
 			GPU_shader_uniform_texture(fx_shader, blurred_uniform, color_buffer);

@@ -15,7 +15,7 @@ uniform vec2 dof_params;
 
 /* ssao_params.x : pixel scale for the ssao radious */
 /* ssao_params.y : factor for the ssao darkening */
-uniform vec2 ssao_params;
+uniform vec4 ssao_params;
 
 #define NUM_SAMPLES 8
 
@@ -66,7 +66,7 @@ float calculate_ssao_factor(in vec3 normal, in vec4 position)
             vec4 pos_new = calculate_view_space_position(framecoords.xy + (vec2(x,y) - vec2(4.0)) * offset);
             vec3 dir = vec3(pos_new.xyz) - vec3(position.xyz);
             float len = length(dir);
-            factor += max(dot(dir, normal) * (1.0/(1.0 + len)), 0.0);
+            factor += max(dot(dir, normal) * (1.0/(1.0 + len * len * ssao_params.z)), 0.0);
         }
     }
 
