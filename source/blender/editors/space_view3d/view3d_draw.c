@@ -3413,7 +3413,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 #endif
 
 	/* framebuffer fx needed, we need to draw offscreen first */
-	if (v3d->shader_fx & V3D_FX_DEPTH_OF_FIELD) {
+	if (v3d->shader_fx) {
 		int w = BLI_rcti_size_x(&ar->winrct) + 1, h = BLI_rcti_size_y(&ar->winrct) + 1;
 		
 		char err_out[256];
@@ -3493,12 +3493,14 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		/* set up the shader */
 		fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
 		if (fx_shader) {
-			int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform;
+			int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform, ssao_uniform;
 			float fac = v3d->dof_fstop * v3d->dof_aperture;
-			float parameters[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
+			float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
 								   v3d->dof_focal_distance};
+			float ssao_params[2] = {v3d->ssao_scale, v3d->ssao_darkening};
 
 			dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
+			ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
 			blurred_uniform = GPU_shader_get_uniform(fx_shader, "blurredcolorbuffer");
 			screendim_uniform = GPU_shader_get_uniform(fx_shader, "screendim");
 			color_uniform = GPU_shader_get_uniform(fx_shader, "colorbuffer");
@@ -3507,7 +3509,8 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 			GPU_shader_bind(fx_shader);
 
 			GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screendim);
-			GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, parameters);
+			GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
+			GPU_shader_uniform_vector(fx_shader, ssao_uniform, 2, 1, ssao_params);
 
 			GPU_texture_bind(color_buffer, 0);
 			GPU_shader_uniform_texture(fx_shader, blurred_uniform, color_buffer);

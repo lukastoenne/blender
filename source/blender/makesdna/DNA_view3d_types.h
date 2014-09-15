@@ -220,6 +220,8 @@ typedef struct View3D {
 	float dof_focal_distance; /* focal distance for depth of field */
 	float dof_aperture;           /* aperture for dof lens (could use fstop as well) */
 	float dof_fstop;
+	float ssao_darkening;
+	float ssao_scale;
 	float pad4;
 	
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */

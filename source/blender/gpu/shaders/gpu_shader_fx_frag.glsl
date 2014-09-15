@@ -11,17 +11,36 @@ uniform sampler2D depthbuffer;
 varying vec4 framecoords;
 
 // this includes focal distance in x and aperture size in y
-uniform vec2 dof_params; 
+uniform vec2 dof_params;
 
-#define NUM_SAMPLES 5
+/* ssao_params.x : pixel scale for the ssao radious */
+/* ssao_params.y : factor for the ssao darkening */
+uniform vec2 ssao_params;
 
-vec3 calculate_ss_normal(in vec4 viewposition)
+#define NUM_SAMPLES 8
+
+vec3 calculate_view_space_normal(in vec4 viewposition)
 {
     vec3 normal = cross(normalize(dFdx(viewposition.xyz)), 
                         normalize(dFdy(viewposition.xyz)));
     normalize(normal);
-    normal = normal * 0.5 + vec3(0.5);
     return normal;
+}
+
+vec4 calculate_view_space_position(in vec2 uvcoords)
+{
+    float depth = texture2D(depthbuffer, uvcoords).r;
+	
+    //First we need to calculate the view space distance from the shader inputs
+    //This will unfortunately depend on the precision of the depth buffer which is not linear
+    vec2 norm_scr = uvcoords * 2.0 - 1.0;
+    vec4 viewposition = vec4(norm_scr.x, norm_scr.y, depth, 1.0);
+
+    // convert to view space now
+    viewposition = gl_ProjectionMatrixInverse * viewposition;
+    viewposition = viewposition / viewposition.w;
+    
+    return viewposition;
 }
 
 float calculate_dof_coc(in vec4 viewposition, inout vec3 normal)
@@ -35,26 +54,40 @@ float calculate_dof_coc(in vec4 viewposition, inout vec3 normal)
 }
 
 
+float calculate_ssao_factor(in vec3 normal, in vec4 position)
+{
+    // divide by distance to camera to make the effect independent
+    vec2 offset = (ssao_params.x / position.z) * vec2(1.0/screendim.x, 1.0/screendim.y);
+    float factor = 0.0;
+    int x, y;
+    
+    for (x = 0; x < NUM_SAMPLES; x++) {
+        for (y = 0; y < NUM_SAMPLES; y++) {
+            vec4 pos_new = calculate_view_space_position(framecoords.xy + (vec2(x,y) - vec2(4.0)) * offset);
+            vec3 dir = vec3(pos_new.xyz) - vec3(position.xyz);
+            float len = length(dir);
+            factor += max(dot(dir, normal) * (1.0/(1.0 + len)), 0.0);
+        }
+    }
+
+    factor /= NUM_SAMPLES * NUM_SAMPLES;    
+    
+    return max(0.0, 1.0 - factor * ssao_params.y);
+}
+
 void main()
 {
     vec3 normal;
-    float depth = texture2D(depthbuffer, framecoords.xy).r;
-	
-    //First we need to calculate the view space distance from the shader inputs
-    //This will unfortunately depend on the precision of the depth buffer which is not linear
-    vec2 norm_scr = framecoords.xy * 2.0 - 1.0;
-    vec4 viewposition = vec4(norm_scr.x, norm_scr.y, depth, 1.0);
+    vec4 position = calculate_view_space_position(framecoords.xy);
     
-    // convert to view space now
-    viewposition = gl_ProjectionMatrixInverse * viewposition;
-    viewposition = viewposition / viewposition.w;
-    
-    normal = calculate_ss_normal(viewposition);
-    vec3 color = normal;
+    normal = calculate_view_space_normal(position);
+    //vec3 color = normal * 0.5 + vec3(0.5);
     
     // blend between blurred-non blurred images based on coc	
     //vec4 color = coc * texture2D(blurredcolorbuffer, framecoords.xy) +
     //       (1.0 - coc) * texture2D(colorbuffer, framecoords.xy);
     
+    vec4 color = texture2D(colorbuffer, framecoords.xy) *
+           calculate_ssao_factor(normal, position); 
     gl_FragColor = vec4(color.xyz, 1.0);
 }
