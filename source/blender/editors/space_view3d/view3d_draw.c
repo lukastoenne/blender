@@ -94,6 +94,7 @@
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
+#include "GPU_compositing.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -3384,11 +3385,8 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 	unsigned int lay_used = v3d->lay_used;
 	
 	/* post processing */
-	GPUFrameBuffer *first_pass = NULL;
-	GPUTexture *color_buffer = NULL;
-	GPUTexture *depth_buffer = NULL;
-	float screendim[2];
-
+	bool do_compositing = false;
+	
 	/* shadow buffers, before we setup matrices */
 	if (draw_glsl_material(scene, NULL, v3d, v3d->drawtype))
 		gpu_update_lamps_shadows(scene, v3d);
@@ -3414,54 +3412,12 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->shader_fx) {
-		int w = BLI_rcti_size_x(&ar->winrct) + 1, h = BLI_rcti_size_y(&ar->winrct) + 1;
+		if (!rv3d->compositor)
+			rv3d->compositor = GPU_create_fx_compositor();
 		
-		char err_out[256];
-		/* overkill to create per frame, but it's just for testing now */
-		first_pass = GPU_framebuffer_create();
-		
-		screendim[0] = w;
-		screendim[1] = h;
-
-		if (first_pass) {
-			if (!(color_buffer = GPU_texture_create_2D(w, h, NULL, err_out))) {
-				printf(".256%s\n", err_out);
-			}
-			
-			if (!(depth_buffer = GPU_texture_create_depth(w, h, err_out))) {
-				printf("%.256s\n", err_out);
-			}
-			
-			/* in case of failure, cleanup */
-			if (!color_buffer || !depth_buffer) {
-				if (color_buffer) {
-					GPU_texture_free(color_buffer);
-					color_buffer = NULL;
-				}
-				if (depth_buffer) {
-					GPU_texture_free(depth_buffer);
-					depth_buffer = NULL;
-				}		
-				GPU_framebuffer_free(first_pass);
-				first_pass = NULL;
-			}
-			else {
-				/* bind the buffers */
-				
-				/* first depth buffer, because system assumes read/write buffers */
-				if(!GPU_framebuffer_texture_attach(first_pass, depth_buffer, err_out))
-					printf("%.256s\n", err_out);
-
-				if(!GPU_framebuffer_texture_attach(first_pass, color_buffer, err_out))
-					printf("%.256s\n", err_out);
-				
-				GPU_framebuffer_texture_bind(first_pass, color_buffer, 
-											 GPU_texture_opengl_width(color_buffer), GPU_texture_opengl_height(color_buffer));
-				//glClearColor(1.0, 0.0, 1.0, 1.0);
-				//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			}
-		}		
+		do_compositing = GPU_initialize_fx_passes(rv3d->compositor, &ar->winrct, v3d->shader_fx);
 	}
+	
 	/* clear the background */
 	view3d_main_area_clear(scene, v3d, ar);
 
@@ -3471,89 +3427,11 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 	}
 
 	/* main drawing call */
-	view3d_draw_objects(C, scene, v3d, ar, grid_unit, true, first_pass != NULL);
+	view3d_draw_objects(C, scene, v3d, ar, grid_unit, true, false);
 
 	/* post process */
-	if (first_pass) {
-		float fullscreencos[4][2] = {{-1.0f, -1.0f}, {1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, 1.0f}};
-		float fullscreenuvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
-		GPUShader *fx_shader;
-		
-		/* first, unbind the render-to-texture framebuffer */
-		GPU_framebuffer_texture_unbind(first_pass, color_buffer);
-		//GPU_framebuffer_texture_detach(first_pass, color_buffer);
-		//GPU_framebuffer_texture_detach(first_pass, depth_buffer);
-		GPU_framebuffer_restore();
-		
-		/* full screen FX pass */
-		
-		/* first we need to blur the color pass */
-		
-		
-		/* set up the shader */
-		fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
-		if (fx_shader) {
-			int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform, ssao_uniform;
-			float fac = v3d->dof_fstop * v3d->dof_aperture;
-			float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
-								   v3d->dof_focal_distance};
-			float ssao_params[4] = {v3d->ssao_scale, v3d->ssao_darkening, v3d->ssao_distance_atten, 0.0};
-
-			dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
-			ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
-			blurred_uniform = GPU_shader_get_uniform(fx_shader, "blurredcolorbuffer");
-			screendim_uniform = GPU_shader_get_uniform(fx_shader, "screendim");
-			color_uniform = GPU_shader_get_uniform(fx_shader, "colorbuffer");
-			depth_uniform = GPU_shader_get_uniform(fx_shader, "depthbuffer");
-
-			GPU_shader_bind(fx_shader);
-
-			GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screendim);
-			GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
-			GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
-
-			GPU_texture_bind(color_buffer, 0);
-			GPU_shader_uniform_texture(fx_shader, blurred_uniform, color_buffer);
-			/* generate mipmaps for the color buffer */
-			glGenerateMipmapEXT(GL_TEXTURE_2D);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 2.0);
-			
-			GPU_texture_bind(color_buffer, 1);
-			GPU_shader_uniform_texture(fx_shader, color_uniform, color_buffer);
-			
-			GPU_texture_bind(depth_buffer, 2);
-			GPU_depth_texture_mode(depth_buffer, false);
-			GPU_shader_uniform_texture(fx_shader, depth_uniform, depth_buffer);
-		}
-		/* set up quad buffer */
-		glVertexPointer(2, GL_FLOAT, 0, fullscreencos);
-		glTexCoordPointer(2, GL_FLOAT, 0, fullscreenuvs);
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);		
-		
-		/* set invalid color in case shader fails */
-		glColor3f(1.0, 0.0, 1.0);
-
-		/* draw */
-		glDisable(GL_DEPTH_TEST);
-		glDrawArrays(GL_QUADS, 0, 4);
-
-		/* disable bindings */
-		GPU_texture_unbind(color_buffer);
-		GPU_depth_texture_mode(depth_buffer, true);
-		GPU_texture_unbind(depth_buffer);
-		glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0);
-		
-		glDisableClientState(GL_VERTEX_ARRAY);
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-		
-		GPU_shader_unbind();
-		
-		/* cleanup framebuffer */
-		GPU_framebuffer_free(first_pass);
-		GPU_texture_free(color_buffer);
-		GPU_texture_free(depth_buffer);		
+	if (do_compositing) {
+		GPU_fx_do_composite_pass(rv3d->compositor, v3d);
 	}
 	
 	/* Disable back anti-aliasing */

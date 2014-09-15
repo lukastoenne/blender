@@ -190,14 +190,6 @@ typedef enum GPUBuiltinShader {
 	GPU_SHADER_SEP_GAUSSIAN_BLUR =	(1<<1),
 } GPUBuiltinShader;
 
-typedef enum GPUFXShaderEffect {
-	GPU_SHADER_FX_SSAO           =	(1<<0),
-	GPU_SHADER_FX_DEPTH_OF_FIELD =	(1<<1),
-	GPU_SHADER_FX_MAX            =	(1<<2),
-} GPUFXShaderEffect;
-
-#define MAX_FX_SHADERS (GPU_SHADER_FX_MAX - 1)
-
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader);
 GPUShader *GPU_shader_get_builtin_fx_shader(int effects);
 

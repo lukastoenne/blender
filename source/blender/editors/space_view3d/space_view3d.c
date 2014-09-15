@@ -56,6 +56,7 @@
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_compositing.h"
 
 #include "BIF_gl.h"
 
@@ -561,6 +562,11 @@ static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
 		GPU_offscreen_free(rv3d->gpuoffscreen);
 		rv3d->gpuoffscreen = NULL;
 	}
+	
+	if (rv3d->compositor) {
+		GPU_destroy_fx_compositor(rv3d->compositor);
+		rv3d->compositor = NULL;
+	}
 }
 
 static int view3d_ob_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
@@ -714,6 +720,9 @@ static void view3d_main_area_free(ARegion *ar)
 		}
 		if (rv3d->gpuoffscreen) {
 			GPU_offscreen_free(rv3d->gpuoffscreen);
+		}
+		if (rv3d->compositor) {
+			GPU_destroy_fx_compositor(rv3d->compositor);
 		}
 
 		MEM_freeN(rv3d);

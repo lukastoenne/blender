@@ -47,6 +47,7 @@ struct bGPdata;
 struct SmoothView3DStore;
 struct wmTimer;
 struct Material;
+struct GPUFX;
 
 /* This is needed to not let VC choke on near and far... old
  * proprietary MS extensions... */
@@ -147,6 +148,7 @@ typedef struct RegionView3D {
 	float rot_angle;
 	float rot_axis[3];
 
+	struct GPUFX *compositor;
 } RegionView3D;
 
 /* 3D ViewPort Struct */

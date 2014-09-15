@@ -47,6 +47,7 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_compositing.h"
 #include "GPU_simple_shader.h"
 #include "gpu_codegen.h"
 

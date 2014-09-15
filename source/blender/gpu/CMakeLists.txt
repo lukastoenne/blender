@@ -52,6 +52,7 @@ set(SRC
 	intern/gpu_material.c
 	intern/gpu_simple_shader.c
 	intern/gpu_select.c
+	intern/gpu_compositing.c
 
 	GPU_buffers.h
 	GPU_draw.h
@@ -59,6 +60,7 @@ set(SRC
 	GPU_material.h
 	GPU_simple_shader.h
 	GPU_select.h
+	GPU_compositing.h
 	intern/gpu_codegen.h
 )
 
