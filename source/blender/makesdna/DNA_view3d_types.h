@@ -211,6 +211,9 @@ typedef struct View3D {
 	struct ListBase afterdraw_transp;
 	struct ListBase afterdraw_xray;
 	struct ListBase afterdraw_xraytransp;
+
+	/* list of gpu materials to draw */
+	struct ListBase gpu_material;
 	
 	/* drawflags, denoting state */
 	char zbuf, transp, xray;

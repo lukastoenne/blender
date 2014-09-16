@@ -95,6 +95,7 @@
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
+#include "GPU_renderer.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -2736,6 +2737,9 @@ static void view3d_draw_objects(
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	}
 
+	/* draw sorted materials in the gpu renderer */
+	if (v3d->gpu_material.first)         GPU_renderer_material_draw(&v3d->gpu_material);
+	
 	/* transp and X-ray afterdraw stuff */
 	if (v3d->afterdraw_transp.first)     view3d_draw_transp(scene, ar, v3d);
 	if (v3d->afterdraw_xray.first)       view3d_draw_xray(scene, ar, v3d, true);
