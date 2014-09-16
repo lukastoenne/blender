@@ -922,7 +922,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 		}
 	}
 	else {
-		if (GPU_buffer_legacy(dm)) {
+		if (GPU_buffer_legacy(dm, GPU_SORT_MATERIAL)) {
 			if (draw_flags & DRAW_MODIFIERS_PREVIEW)
 				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy, NULL, NULL, uvflag);
 			else 

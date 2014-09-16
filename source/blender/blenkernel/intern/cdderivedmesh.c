@@ -348,15 +348,15 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	MVert *mv = cddm->mvert;
 	int i;
 
-	if (GPU_buffer_legacy(dm)) {
+	if (GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 		glBegin(GL_POINTS);
 		for (i = 0; i < dm->numVertData; i++, mv++)
 			glVertex3fv(mv->co);
 		glEnd();
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
-		GPU_vertex_setup(dm);
-		if (!GPU_buffer_legacy(dm)) {
+		GPU_vertex_setup(dm, GPU_SORT_NONE);
+		if (!GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 			if (dm->drawObject->tot_triangle_point)
 				glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_triangle_point);
 			else
@@ -374,7 +374,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 	int i;
 
 	if (mf) {
-		if (GPU_buffer_legacy(dm)) {
+		if (GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 			glBegin(GL_LINES);
 			for (i = 0; i < dm->numTessFaceData; i++, mf++, tf++) {
 				if (!(mf->flag & ME_HIDE)) {
@@ -405,8 +405,8 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 			int draw = 1;
 			int curpos = 0;
 
-			GPU_uvedge_setup(dm);
-			if (!GPU_buffer_legacy(dm)) {
+			GPU_uvedge_setup(dm, GPU_SORT_NONE);
+			if (!GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 				for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 					if (!(mf->flag & ME_HIDE)) {
 						draw = 1;
@@ -452,7 +452,7 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 		return;
 	}
 	
-	if (GPU_buffer_legacy(dm)) {
+	if (GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawEdges\n");
 		glBegin(GL_LINES);
 		for (i = 0; i < dm->numEdgeData; i++, medge++) {
@@ -470,8 +470,8 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 		int prevdraw = 1;
 		bool draw = true;
 
-		GPU_edge_setup(dm);
-		if (!GPU_buffer_legacy(dm)) {
+		GPU_edge_setup(dm, GPU_SORT_NONE);
+		if (!GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 			for (i = 0; i < dm->numEdgeData; i++, medge++) {
 				if ((drawAllEdges || (medge->flag & ME_EDGEDRAW)) &&
 				    (drawLooseEdges || !(medge->flag & ME_LOOSEEDGE)))
@@ -504,7 +504,7 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 	MEdge *medge = cddm->medge;
 	int i;
 
-	if (GPU_buffer_legacy(dm)) {
+	if (GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawLooseEdges\n");
 		glBegin(GL_LINES);
 		for (i = 0; i < dm->numEdgeData; i++, medge++) {
@@ -520,8 +520,8 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 		int prevdraw = 1;
 		int draw = 1;
 
-		GPU_edge_setup(dm);
-		if (!GPU_buffer_legacy(dm)) {
+		GPU_edge_setup(dm, GPU_SORT_NONE);
+		if (!GPU_buffer_legacy(dm, GPU_SORT_NONE)) {
 			for (i = 0; i < dm->numEdgeData; i++, medge++) {
 				if (medge->flag & ME_LOOSEEDGE) {
 					draw = 1;
@@ -568,7 +568,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		return;
 	}
 
-	if (GPU_buffer_legacy(dm)) {
+	if (GPU_buffer_legacy(dm, GPU_SORT_MATERIAL)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesSolid\n");
 		glBegin(glmode = GL_QUADS);
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
@@ -649,9 +649,9 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		glEnd();
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
-		GPU_vertex_setup(dm);
-		GPU_normal_setup(dm);
-		if (!GPU_buffer_legacy(dm)) {
+		GPU_vertex_setup(dm, GPU_SORT_MATERIAL);
+		GPU_normal_setup(dm, GPU_SORT_MATERIAL);
+		if (!GPU_buffer_legacy(dm, GPU_SORT_MATERIAL)) {
 			glShadeModel(GL_SMOOTH);
 			for (a = 0; a < dm->drawObject->totmaterial; a++) {
 				if (!setMaterial || setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
@@ -719,7 +719,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 	cdDM_update_normals_from_pbvh(dm);
 
-	if (GPU_buffer_legacy(dm)) {
+	if (GPU_buffer_legacy(dm, GPU_SORT_MATERIAL_TEXTURE)) {
 		int mat_nr_cache = -1;
 		MTFace *tf_base = DM_get_tessface_data_layer(dm, CD_MTFACE);
 		MTFace *tf_stencil_base = NULL;
@@ -844,17 +844,17 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
-		GPU_vertex_setup(dm);
-		GPU_normal_setup(dm);
+		GPU_vertex_setup(dm, GPU_SORT_MATERIAL_TEXTURE);
+		GPU_normal_setup(dm, GPU_SORT_MATERIAL_TEXTURE);
 		if (uvflag & DM_DRAW_USE_TEXPAINT_UV)
-			GPU_texpaint_uv_setup(dm);
+			GPU_texpaint_uv_setup(dm, GPU_SORT_MATERIAL_TEXTURE);
 		else
-			GPU_uv_setup(dm);
+			GPU_uv_setup(dm, GPU_SORT_MATERIAL_TEXTURE);
 		if (mcol) {
-			GPU_color_setup(dm, colType);
+			GPU_color_setup(dm, colType, GPU_SORT_MATERIAL_TEXTURE);
 		}
 
-		if (!GPU_buffer_legacy(dm)) {
+		if (!GPU_buffer_legacy(dm, GPU_SORT_MATERIAL_TEXTURE)) {
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			int next_actualFace = dm->drawObject->triangle_to_mface[0];
 
@@ -969,7 +969,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 
 	/* back-buffer always uses legacy since VBO's would need the
 	 * color array temporarily overwritten for drawing, then reset. */
-	if (GPU_buffer_legacy(dm) || G.f & G_BACKBUFSEL) {
+	if (GPU_buffer_legacy(dm, GPU_SORT_MATERIAL) || G.f & G_BACKBUFSEL) {
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFaces\n");
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 			int drawSmooth = ((flag & DM_DRAW_ALWAYS_SMOOTH) || lnors) ? 1 : (mf->flag & ME_SMOOTH);
@@ -1071,12 +1071,12 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		int prevstart = 0;
-		GPU_vertex_setup(dm);
-		GPU_normal_setup(dm);
+		GPU_vertex_setup(dm, GPU_SORT_MATERIAL);
+		GPU_normal_setup(dm, GPU_SORT_MATERIAL);
 		if (useColors && mcol) {
-			GPU_color_setup(dm, colType);
+			GPU_color_setup(dm, colType, GPU_SORT_MATERIAL);
 		}
-		if (!GPU_buffer_legacy(dm)) {
+		if (!GPU_buffer_legacy(dm, GPU_SORT_MATERIAL)) {
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			glShadeModel(GL_SMOOTH);
 			
@@ -1271,7 +1271,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 	glShadeModel(GL_SMOOTH);
 
-	if (GPU_buffer_legacy(dm) || setDrawOptions != NULL) {
+	if (GPU_buffer_legacy(dm, GPU_SORT_MATERIAL) || setDrawOptions != NULL) {
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFacesGLSL\n");
 		memset(&attribs, 0, sizeof(attribs));
 
@@ -1355,10 +1355,10 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPUAttrib datatypes[GPU_MAX_ATTRIB]; /* TODO, messing up when switching materials many times - [#21056]*/
 		memset(&attribs, 0, sizeof(attribs));
 
-		GPU_vertex_setup(dm);
-		GPU_normal_setup(dm);
+		GPU_vertex_setup(dm, GPU_SORT_MATERIAL);
+		GPU_normal_setup(dm, GPU_SORT_MATERIAL);
 
-		if (!GPU_buffer_legacy(dm)) {
+		if (!GPU_buffer_legacy(dm, GPU_SORT_MATERIAL)) {
 			for (i = 0; i < dm->drawObject->tot_triangle_point / 3; i++) {
 
 				a = dm->drawObject->triangle_to_mface[i];

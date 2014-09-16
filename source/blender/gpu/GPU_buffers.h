@@ -133,18 +133,25 @@ void GPU_global_buffer_pool_free_unused(void);
 GPUBuffer *GPU_buffer_alloc(int size);
 void GPU_buffer_free(GPUBuffer *buffer);
 
-GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm);
+/* how are vertex data sorted */
+typedef enum GPUSortType {
+	GPU_SORT_NONE =             0, /* no sorting, just dump data */
+	GPU_SORT_MATERIAL =         1, /* sort based on materials only */
+	GPU_SORT_MATERIAL_TEXTURE = 2  /* sort based on materials and textures */
+} GPUSortType;
+
+GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm, GPUSortType type);
 void GPU_drawobject_free(struct DerivedMesh *dm);
 
 /* called before drawing */
-void GPU_vertex_setup(struct DerivedMesh *dm);
-void GPU_normal_setup(struct DerivedMesh *dm);
-void GPU_uv_setup(struct DerivedMesh *dm);
-void GPU_texpaint_uv_setup(struct DerivedMesh *dm);
+void GPU_vertex_setup(struct DerivedMesh *dm, GPUSortType type);
+void GPU_normal_setup(struct DerivedMesh *dm, GPUSortType type);
+void GPU_uv_setup(struct DerivedMesh *dm, GPUSortType type);
+void GPU_texpaint_uv_setup(struct DerivedMesh *dm, GPUSortType type);
 /* colType is the cddata MCol type to use! */
-void GPU_color_setup(struct DerivedMesh *dm, int colType);
-void GPU_edge_setup(struct DerivedMesh *dm); /* does not mix with other data */
-void GPU_uvedge_setup(struct DerivedMesh *dm);
+void GPU_color_setup(struct DerivedMesh *dm, int colType, GPUSortType type);
+void GPU_edge_setup(struct DerivedMesh *dm, GPUSortType type); /* does not mix with other data */
+void GPU_uvedge_setup(struct DerivedMesh *dm, GPUSortType type);
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
 void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata);
 
@@ -163,7 +170,7 @@ void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start,
 void GPU_buffer_unbind(void);
 
 /* used to check whether to use the old (without buffers) code */
-bool GPU_buffer_legacy(struct DerivedMesh *dm);
+bool GPU_buffer_legacy(struct DerivedMesh *dm, GPUSortType type);
 
 /* Buffers for non-DerivedMesh drawing */
 typedef struct GPU_PBVH_Buffers GPU_PBVH_Buffers;
