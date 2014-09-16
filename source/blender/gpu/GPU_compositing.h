@@ -55,7 +55,7 @@ GPUFX *GPU_create_fx_compositor(void);
 void GPU_destroy_fx_compositor(GPUFX *fx);
 
 /* initialize a framebuffer with size taken from the viewport */
-bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, int fxflags);
+bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, rcti *scissor_rect, int fxflags);
 
 /* do compositing on the fx passes that have been initialized */
 bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d);

@@ -105,7 +105,7 @@ void GPU_destroy_fx_compositor(GPUFX *fx)
 
 
 
-bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, int fxflags)
+bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxflags)
 {
 	int w = BLI_rcti_size_x(rect) + 1, h = BLI_rcti_size_y(rect) + 1;
 	char err_out[256];
@@ -151,6 +151,16 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, int fxflags)
 	
 	GPU_framebuffer_texture_bind(fx->gbuffer, fx->color_buffer, 
 								 GPU_texture_opengl_width(fx->color_buffer), GPU_texture_opengl_height(fx->color_buffer));
+
+	/* enable scissor test. It's needed to ensure sculpting works correctly */
+	if (scissor_rect) {
+		int w_sc = BLI_rcti_size_x(scissor_rect) + 1;
+		int h_sc = BLI_rcti_size_y(scissor_rect) + 1;
+		glPushAttrib(GL_SCISSOR_BIT);
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(scissor_rect->xmin - rect->xmin, scissor_rect->ymin - rect->ymin, 
+				  w_sc, h_sc);
+	}
 	fx->effects = fxflags;
 	
 	return true;
@@ -167,6 +177,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 	
 	/* first, unbind the render-to-texture framebuffer */
 	GPU_framebuffer_texture_unbind(fx->gbuffer, fx->color_buffer);
+	glPopAttrib();
 	GPU_framebuffer_restore();
 	
 	/* full screen FX pass */
