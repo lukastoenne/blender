@@ -65,6 +65,8 @@ import os
 sources.extend((
     os.path.join(env['DATA_SOURCES'], "gpu_shader_simple_frag.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_simple_vert.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_fx_frag.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_fx_vert.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_material.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_sep_gaussian_blur_frag.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_sep_gaussian_blur_vert.glsl.c"),
