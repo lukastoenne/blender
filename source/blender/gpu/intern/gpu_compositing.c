@@ -160,9 +160,11 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, int fxflags)
 
 bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 	GPUShader *fx_shader;
+	int numslots = 0, i;
 	
 	if (fx->effects == 0)
 		return false;
+	
 	/* first, unbind the render-to-texture framebuffer */
 	GPU_framebuffer_texture_unbind(fx->gbuffer, fx->color_buffer);
 	GPU_framebuffer_restore();
@@ -195,17 +197,17 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 		GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
 		GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
 		
-		GPU_texture_bind(fx->color_buffer, 0);
+		GPU_texture_bind(fx->color_buffer, numslots++);
 		GPU_shader_uniform_texture(fx_shader, blurred_uniform, fx->color_buffer);
 		/* generate mipmaps for the color buffer */
-		glGenerateMipmapEXT(GL_TEXTURE_2D);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 2.0);
+//		glGenerateMipmapEXT(GL_TEXTURE_2D);
+//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+//		glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 2.0);
 		
-		GPU_texture_bind(fx->color_buffer, 1);
+		GPU_texture_bind(fx->color_buffer, numslots++);
 		GPU_shader_uniform_texture(fx_shader, color_uniform, fx->color_buffer);
 		
-		GPU_texture_bind(fx->depth_buffer, 2);
+		GPU_texture_bind(fx->depth_buffer, numslots++);
 		GPU_depth_texture_mode(fx->depth_buffer, false);
 		GPU_shader_uniform_texture(fx_shader, depth_uniform, fx->depth_buffer);
 	}
@@ -226,7 +228,13 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 	GPU_texture_unbind(fx->color_buffer);
 	GPU_depth_texture_mode(fx->depth_buffer, true);
 	GPU_texture_unbind(fx->depth_buffer);
-	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0);
+
+	/* same texture may be bound to more than one slot. Use this to explicitly disable texturing everywhere */
+	for (i = numslots; i > 0; i--) {
+		glActiveTexture(GL_TEXTURE0 + i - 1);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glDisable(GL_TEXTURE_2D);
+	}
 	
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
