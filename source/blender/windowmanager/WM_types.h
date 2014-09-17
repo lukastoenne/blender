@@ -505,6 +505,12 @@ typedef struct wmTimer {
 	int sleep;				/* internal, put timers to sleep when needed */
 } wmTimer;
 
+#define WM_WIDGET_HIGHLIGHT    (1 << 0)
+#define WM_WIDGET_FREE_DATA    (1 << 1)
+#define WM_WIDGET_REQUIRES_OGL (1 << 2)
+
+typedef struct wmWidget wmWidget;
+
 typedef struct wmOperatorType {
 	const char *name;		/* text for ui, undo */
 	const char *idname;		/* unique identifier */

@@ -343,6 +343,9 @@ static SpaceLink *view3d_new(const bContext *C)
 	
 	v3d->bundle_size = 0.2f;
 	v3d->bundle_drawtype = OB_PLAINAXES;
+
+	/* add the generic manipulator widget here */
+	v3d->manipulator_widget = WM_widget_new(NULL, NULL, NULL, NULL, NULL, NULL, 0, 0);
 	
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for view3d");
@@ -470,7 +473,7 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	ListBase *lb;
 	wmKeyMap *keymap;
-
+	
 	/* object ops. */
 	
 	/* important to be before Pose keymap since they can both be enabled at once */
@@ -548,7 +551,8 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
-	
+
+	WM_widget_handler_register(ar);
 }
 
 static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)

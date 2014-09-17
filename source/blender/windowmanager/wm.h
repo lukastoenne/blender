@@ -33,6 +33,7 @@
 
 struct wmWindow;
 struct ReportList;
+struct wmEvent;
 
 typedef struct wmPaintCursor {
 	struct wmPaintCursor *next, *prev;

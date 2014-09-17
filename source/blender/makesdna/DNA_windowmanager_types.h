@@ -156,7 +156,8 @@ typedef struct wmWindowManager {
 	struct wmTimer *autosavetimer;    /* timer for auto save */
 
 	char is_interface_locked;		/* indicates whether interface is locked for user interaction */
-	char par[7];
+	char par[3];
+	int num_ogl_widgets; /* widgets requiring an OpenGL pass to detect */
 } wmWindowManager;
 
 /* wmWindowManager.initialized */

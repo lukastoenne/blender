@@ -70,6 +70,8 @@ typedef struct wmEventHandler {
 
 	/* drop box handler */
 	ListBase *dropboxes;
+	/* widget handler */
+	ListBase *widgets;
 
 } wmEventHandler;
 
@@ -104,6 +106,9 @@ void        wm_event_do_notifiers   (bContext *C);
 void        wm_dropbox_free(void);
 void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
+
+/* wm_widget.c */
+void        wm_widgetmap_free(void);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

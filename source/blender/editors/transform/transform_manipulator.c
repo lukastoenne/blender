@@ -1920,4 +1920,3 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 
 	return val;
 }
-

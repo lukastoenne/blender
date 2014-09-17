@@ -1970,6 +1970,9 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					}
 				}
 			}
+			else if (handler->widgets) {
+				
+			}
 			else {
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
@@ -3415,6 +3418,7 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	angle = WM_event_ndof_to_axis_angle(ndof, axis);
 	axis_angle_to_quat(q, axis, angle);
 }
+/** \} */
 
 /* if this is a tablet event, return tablet pressure and set *pen_flip
  * to 1 if the eraser tool is being used, 0 otherwise */
@@ -3449,6 +3453,3 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 {
 	return (event->tablet_data) ? true : false;
 }
-
-
-/** \} */

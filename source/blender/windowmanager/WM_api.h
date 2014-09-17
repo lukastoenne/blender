@@ -55,6 +55,7 @@ struct wmJob;
 struct wmNotifier;
 struct wmOperatorType;
 struct wmOperator;
+struct wmWidget;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -457,6 +458,23 @@ void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4
 
 float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]);
 bool        WM_event_is_tablet(const struct wmEvent *event);
+
+
+/* widget API */
+struct wmWidget *WM_widget_new(int (*poll)(const struct bContext *C, void *customdata),
+						void (*draw)(const struct bContext *C, void *customdata),
+						void (*draw_highlighted)(const struct bContext *C, void *customdata),
+						void (*interact)(struct bContext *C, struct wmEvent *event, void *customdata),
+						void (*handler)(struct bContext *C, struct wmEvent *event, void *customdata),
+						void *customdata, bool free_data, bool requires_ogl);
+
+void WM_widgets_delete(struct wmWidget *widget);
+void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
+void WM_widget_handler_register(struct ARegion *ar);
+
+void WM_widget_register(struct ARegion *ar, struct wmWidget *widget);
+void WM_widget_unregister(struct ARegion *ar, struct wmWidget *widget);
+struct ListBase *WM_widgetmap_find(const char *idname, int spaceid, int regionid);
 
 #ifdef __cplusplus
 }

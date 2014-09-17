@@ -146,7 +146,6 @@ typedef struct RegionView3D {
 	/* active rotation from NDOF or elsewhere */
 	float rot_angle;
 	float rot_axis[3];
-
 } RegionView3D;
 
 /* 3D ViewPort Struct */
@@ -220,6 +219,8 @@ typedef struct View3D {
 	/* XXX deprecated? */
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
 
+	
+	void *manipulator_widget;	
 } View3D;
 
 
