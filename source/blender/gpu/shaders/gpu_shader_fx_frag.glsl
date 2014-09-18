@@ -27,10 +27,8 @@ vec3 calculate_view_space_normal(in vec4 viewposition)
     return normal;
 }
 
-vec4 calculate_view_space_position(in vec2 uvcoords)
-{
-    float depth = texture2D(depthbuffer, uvcoords).r;
-	
+vec4 calculate_view_space_position(in vec2 uvcoords, float depth)
+{	
     //First we need to calculate the view space distance from the shader inputs
     //This will unfortunately depend on the precision of the depth buffer which is not linear
     vec2 norm_scr = uvcoords * 2.0 - 1.0;
@@ -54,8 +52,15 @@ float calculate_dof_coc(in vec4 viewposition, inout vec3 normal)
 }
 
 
-float calculate_ssao_factor(in vec3 normal, in vec4 position)
+float calculate_ssao_factor(float depth)
 {
+    /* occlusion is zero in full depth */
+    if (depth == 1.0)
+        return 0.0;
+
+    vec4 position = calculate_view_space_position(framecoords.xy, depth);
+    vec3 normal = calculate_view_space_normal(position);
+
     // divide by distance to camera to make the effect independent
     vec2 offset = (ssao_params.x / position.z) * vec2(1.0/screendim.x, 1.0/screendim.y);
     float factor = 0.0;
@@ -63,10 +68,15 @@ float calculate_ssao_factor(in vec3 normal, in vec4 position)
     
     for (x = 0; x < NUM_SAMPLES; x++) {
         for (y = 0; y < NUM_SAMPLES; y++) {
-            vec4 pos_new = calculate_view_space_position(framecoords.xy + (vec2(x,y) - vec2(4.0)) * offset);
-            vec3 dir = vec3(pos_new.xyz) - vec3(position.xyz);
-            float len = length(dir);
-            factor += max(dot(dir, normal) * (1.0/(1.0 + len * len * ssao_params.z)), 0.0);
+            vec2 uvcoords = framecoords.xy + (vec2(x,y) - vec2(4.0)) * offset;
+	
+            float depth = texture2D(depthbuffer, uvcoords).r;
+            if (depth != 1.0) {
+                vec4 pos_new = calculate_view_space_position(uvcoords, depth);
+                vec3 dir = vec3(pos_new.xyz) - vec3(position.xyz);
+                float len = length(dir);
+                factor += max(dot(dir, normal) * (1.0/(1.0 + len * len * ssao_params.z)), 0.0);
+            }
         }
     }
 
@@ -77,10 +87,8 @@ float calculate_ssao_factor(in vec3 normal, in vec4 position)
 
 void main()
 {
-    vec3 normal;
-    vec4 position = calculate_view_space_position(framecoords.xy);
+    float depth = texture2D(depthbuffer, framecoords.xy).r;
     
-    normal = calculate_view_space_normal(position);
     //vec3 color = normal * 0.5 + vec3(0.5);
     
     // blend between blurred-non blurred images based on coc	
@@ -88,6 +96,6 @@ void main()
     //       (1.0 - coc) * texture2D(colorbuffer, framecoords.xy);
     
     vec4 color = texture2D(colorbuffer, framecoords.xy) *
-           calculate_ssao_factor(normal, position); 
+           calculate_ssao_factor(depth); 
     gl_FragColor = vec4(color.xyz, 1.0);
 }
