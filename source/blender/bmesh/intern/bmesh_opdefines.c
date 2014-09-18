@@ -916,6 +916,7 @@ static BMOpDefine bmo_connect_verts_def = {
 	"connect_verts",
 	/* slots_in */
 	{{"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
+	 {"faces_exclude", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
 	 {"check_degenerate", BMO_OP_SLOT_BOOL},  /* prevent splits with overlaps & intersections */
 	 {{'\0'}},
 	},
@@ -961,6 +962,8 @@ static BMOpDefine bmo_connect_vert_pair_def = {
 	"connect_vert_pair",
 	/* slots_in */
 	{{"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
+	 {"verts_exclude", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
+	 {"faces_exclude", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1792,6 +1795,7 @@ static BMOpDefine bmo_inset_region_def = {
 	"inset_region",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},    /* input faces */
+	 {"faces_exclude", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
 	 {"use_boundary", BMO_OP_SLOT_BOOL},
 	 {"use_even_offset", BMO_OP_SLOT_BOOL},
 	 {"use_interpolate", BMO_OP_SLOT_BOOL},
