@@ -2881,6 +2881,7 @@ class VIEW3D_PT_view3d_shading(Panel):
                 subcol.prop(view, "ssao_scale")
                 subcol.prop(view, "ssao_darkening")
                 subcol.prop(view, "ssao_distance_atten")
+                subcol.prop(view, "ssao_color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):

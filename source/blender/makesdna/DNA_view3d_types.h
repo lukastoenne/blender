@@ -228,6 +228,7 @@ typedef struct View3D {
 	float ssao_darkening;
 	float ssao_scale;
 	float ssao_distance_atten;
+	float ssao_color[4];
 	
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */

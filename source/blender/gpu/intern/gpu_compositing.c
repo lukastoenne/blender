@@ -188,7 +188,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 	/* set up the shader */
 	fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
 	if (fx_shader) {
-		int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform, ssao_uniform;
+		int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform; 
+		int ssao_uniform, ssao_color_uniform;
 		float fac = v3d->dof_fstop * v3d->dof_aperture;
 		float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
 							   v3d->dof_focal_distance};
@@ -197,6 +198,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 		
 		dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
 		ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
+		ssao_color_uniform = GPU_shader_get_uniform(fx_shader, "ssao_color");
 		blurred_uniform = GPU_shader_get_uniform(fx_shader, "blurredcolorbuffer");
 		screendim_uniform = GPU_shader_get_uniform(fx_shader, "screendim");
 		color_uniform = GPU_shader_get_uniform(fx_shader, "colorbuffer");
@@ -207,6 +209,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 		GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screen_dim);
 		GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
 		GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
+		GPU_shader_uniform_vector(fx_shader, ssao_color_uniform, 4, 1, v3d->ssao_color);
 		
 		GPU_texture_bind(fx->color_buffer, numslots++);
 		GPU_shader_uniform_texture(fx_shader, blurred_uniform, fx->color_buffer);

@@ -16,6 +16,7 @@ uniform vec2 dof_params;
 /* ssao_params.x : pixel scale for the ssao radious */
 /* ssao_params.y : factor for the ssao darkening */
 uniform vec4 ssao_params;
+uniform vec4 ssao_color;
 
 #define NUM_SAMPLES 8
 
@@ -82,7 +83,7 @@ float calculate_ssao_factor(float depth)
 
     factor /= NUM_SAMPLES * NUM_SAMPLES;    
     
-    return max(0.0, 1.0 - factor * ssao_params.y);
+    return max(0.0, factor * ssao_params.y);
 }
 
 void main()
@@ -95,7 +96,6 @@ void main()
     //vec4 color = coc * texture2D(blurredcolorbuffer, framecoords.xy) +
     //       (1.0 - coc) * texture2D(colorbuffer, framecoords.xy);
     
-    vec4 color = texture2D(colorbuffer, framecoords.xy) *
-           calculate_ssao_factor(depth); 
+    vec4 color = mix(texture2D(colorbuffer, framecoords.xy), ssao_color, calculate_ssao_factor(depth)); 
     gl_FragColor = vec4(color.xyz, 1.0);
 }
