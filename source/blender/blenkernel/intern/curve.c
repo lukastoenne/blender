@@ -2605,7 +2605,6 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 				bp = nu->bp;
 				seglen = bl->seglen;
 				segbevcount = bl->segbevcount;
-				BLI_assert(segcount >= len);
 
 				while (len--) {
 					copy_v3_v3(bevp->vec, bp->vec);
@@ -3209,7 +3208,13 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 		madd_v3_v3v3fl(p2_h2, p2, dvec_b,  1.0f / 3.0f);
 	}
 
-	if (skip_align || (!ELEM(HD_ALIGN, bezt->h1, bezt->h2) && !ELEM(HD_ALIGN_DOUBLESIDE, bezt->h1, bezt->h2))) {
+	if (skip_align ||
+	    /* when one handle is free, alignming makes no sense, see: T35952 */
+	    (ELEM(HD_FREE, bezt->h1, bezt->h2)) ||
+	    /* also when no handles are aligned, skip this step */
+	    (!ELEM(HD_ALIGN, bezt->h1, bezt->h2) &&
+	     !ELEM(HD_ALIGN_DOUBLESIDE, bezt->h1, bezt->h2)))
+	{
 		/* handles need to be updated during animation and applying stuff like hooks,
 		 * but in such situations it's quite difficult to distinguish in which order
 		 * align handles should be aligned so skip them for now */
@@ -3305,6 +3310,31 @@ void BKE_nurb_handle_calc(BezTriple *bezt, BezTriple *prev, BezTriple *next, con
 void BKE_nurb_handles_calc(Nurb *nu) /* first, if needed, set handle flags */
 {
 	calchandlesNurb_intern(nu, false);
+}
+
+/**
+ * Workaround #BKE_nurb_handles_calc logic
+ * that makes unselected align to the selected handle.
+ */
+static void nurbList_handles_swap_select(Nurb *nu)
+{
+	BezTriple *bezt;
+	int i;
+
+	for (i = nu->pntsu, bezt = nu->bezt; i--; bezt++) {
+		if ((bezt->f1 & SELECT) != (bezt->f3 & SELECT)) {
+			bezt->f1 ^= SELECT;
+			bezt->f3 ^= SELECT;
+		}
+	}
+}
+
+/* internal use only (weak) */
+static void nurb_handles_calc__align_selected(Nurb *nu)
+{
+	nurbList_handles_swap_select(nu);
+	BKE_nurb_handles_calc(nu);
+	nurbList_handles_swap_select(nu);
 }
 
 /* similar to BKE_nurb_handle_calc but for curves and
@@ -3504,7 +3534,9 @@ void BKE_nurbList_handles_set(ListBase *editnurb, const char code)
 					}
 					bezt++;
 				}
-				BKE_nurb_handles_calc(nu);
+
+				/* like BKE_nurb_handles_calc but moves selected */
+				nurb_handles_calc__align_selected(nu);
 			}
 			nu = nu->next;
 		}
@@ -3548,7 +3580,9 @@ void BKE_nurbList_handles_set(ListBase *editnurb, const char code)
 
 					bezt++;
 				}
-				BKE_nurb_handles_calc(nu);
+
+				/* like BKE_nurb_handles_calc but moves selected */
+				nurb_handles_calc__align_selected(nu);
 			}
 		}
 	}
