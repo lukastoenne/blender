@@ -119,6 +119,7 @@ enum {
 	SOUND_FLAGS_3D          = (1 << 3),  /* deprecated! used for sound actuator loading */
 	SOUND_FLAGS_CACHING     = (1 << 4),
 	SOUND_FLAGS_MONO        = (1 << 5),
+	SOUND_FLAGS_WAVEFORM_SAVED = (1 << 6)
 };
 
 #if (DNA_DEPRECATED_GCC_POISON == 1)

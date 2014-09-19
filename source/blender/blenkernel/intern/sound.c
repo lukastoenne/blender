@@ -86,7 +86,7 @@ bSound *sound_new_file(struct Main *bmain, const char *filename)
 	BLI_strncpy(sound->name, filename, FILE_MAX);
 	/* sound->type = SOUND_TYPE_FILE; */ /* XXX unused currently */
 
-	sound_load(bmain, sound);
+	sound_load(bmain, sound, true);
 
 	if (!sound->playback_handle) {
 		BKE_libblock_free(bmain, sound);
@@ -236,7 +236,7 @@ bSound *sound_new_buffer(struct Main *bmain, bSound *source)
 	sound->child_sound = source;
 	sound->type = SOUND_TYPE_BUFFER;
 
-	sound_load(bmain, sound);
+	sound_load(bmain, sound, true);
 
 	if (!sound->playback_handle)
 	{
@@ -262,7 +262,7 @@ bSound *sound_new_limiter(struct Main *bmain, bSound *source, float start, float
 	sound->end = end;
 	sound->type = SOUND_TYPE_LIMITER;
 
-	sound_load(bmain, sound);
+	sound_load(bmain, sound, true);
 
 	if (!sound->playback_handle)
 	{
@@ -312,7 +312,7 @@ void sound_delete_cache(bSound *sound)
 	}
 }
 
-void sound_load(struct Main *bmain, bSound *sound)
+void sound_load(struct Main *bmain, bSound *sound, bool waveform)
 {
 	if (sound) {
 		if (sound->cache) {
@@ -326,7 +326,8 @@ void sound_load(struct Main *bmain, bSound *sound)
 			sound->playback_handle = NULL;
 		}
 
-		sound_free_waveform(sound);
+		if (waveform)
+			sound_free_waveform(sound);
 
 /* XXX unused currently */
 #if 0
@@ -809,7 +810,7 @@ void sound_exit(void) {}
 void sound_exit_once(void) {}
 void sound_cache(struct bSound *UNUSED(sound)) {}
 void sound_delete_cache(struct bSound *UNUSED(sound)) {}
-void sound_load(struct Main *UNUSED(bmain), struct bSound *UNUSED(sound)) {}
+void sound_load(struct Main *UNUSED(bmain), struct bSound *UNUSED(sound), true) {}
 void sound_create_scene(struct Scene *UNUSED(scene)) {}
 void sound_destroy_scene(struct Scene *UNUSED(scene)) {}
 void sound_mute_scene(struct Scene *UNUSED(scene), int UNUSED(muted)) {}

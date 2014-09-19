@@ -156,6 +156,7 @@
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
+#include "BKE_sound.h"
 #include "BKE_subsurf.h"
 #include "BKE_modifier.h"
 #include "BKE_fcurve.h"
@@ -2907,9 +2908,18 @@ static void write_sounds(WriteData *wd, ListBase *idbase)
 	while (sound) {
 		if (sound->id.us>0 || wd->current) {
 			/* write LibData */
+			if (sound->waveform)
+				sound->flags |= SOUND_FLAGS_WAVEFORM_SAVED;
+
 			writestruct(wd, ID_SO, "bSound", 1, sound);
 			if (sound->id.properties) IDP_WriteProperty(sound->id.properties, wd);
 
+			if (sound->waveform) {
+				SoundWaveform *waveform = sound->waveform;
+				writedata(wd, DATA, sizeof(SoundWaveform), waveform);
+				writedata(wd, DATA, sizeof(float) * 3 * waveform->length, waveform->data);
+			}
+			
 			if (sound->packedfile) {
 				pf = sound->packedfile;
 				writestruct(wd, DATA, "PackedFile", 1, pf);

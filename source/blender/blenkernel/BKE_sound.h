@@ -75,7 +75,7 @@ void sound_cache_notifying(struct Main *main, struct bSound *sound);
 
 void sound_delete_cache(struct bSound *sound);
 
-void sound_load(struct Main *main, struct bSound *sound);
+void sound_load(struct Main *main, struct bSound *sound, bool waveform);
 
 void BKE_sound_free(struct bSound *sound);
 

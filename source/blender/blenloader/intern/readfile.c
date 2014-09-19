@@ -6702,8 +6702,18 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 {
 	sound->handle = NULL;
 	sound->playback_handle = NULL;
-	sound->waveform = NULL;
 
+	if (!(sound->flags & SOUND_FLAGS_WAVEFORM_SAVED)) {
+		sound->waveform = NULL;
+	}
+	else {
+		if (sound->waveform) {
+			SoundWaveform *waveform = sound->waveform = newdataadr(fd, sound->waveform);
+			waveform->data = newdataadr(fd, waveform->data);
+			/* waveform has been read, restore the flag */
+			sound->flags &= ~SOUND_FLAGS_WAVEFORM_SAVED;
+		}	
+	}
 	// versioning stuff, if there was a cache, then we enable caching:
 	if (sound->cache) {
 		sound->flags |= SOUND_FLAGS_CACHING;
@@ -6723,7 +6733,7 @@ static void lib_link_sound(FileData *fd, Main *main)
 			sound->id.flag -= LIB_NEED_LINK;
 			sound->ipo = newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX deprecated - old animation system
 			
-			sound_load(main, sound);
+			sound_load(main, sound, false);
 		}
 	}
 }

@@ -520,7 +520,7 @@ int unpackSound(Main *bmain, ReportList *reports, bSound *sound, int how)
 			freePackedFile(sound->packedfile);
 			sound->packedfile = NULL;
 
-			sound_load(bmain, sound);
+			sound_load(bmain, sound, true);
 
 			ret_value = RET_OK;
 		}

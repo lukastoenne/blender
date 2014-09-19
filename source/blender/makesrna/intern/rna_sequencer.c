@@ -585,7 +585,7 @@ static void rna_Sequence_filepath_set(PointerRNA *ptr, const char *value)
 		PointerRNA id_ptr;
 		RNA_id_pointer_create((ID *)seq->sound, &id_ptr);
 		RNA_string_set(&id_ptr, "filepath", value);
-		sound_load(G.main, seq->sound);
+		sound_load(G.main, seq->sound, true);
 		sound_update_scene_sound(seq->scene_sound, seq->sound);
 	}
 
