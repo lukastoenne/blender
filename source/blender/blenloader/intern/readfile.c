@@ -4637,6 +4637,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				}
 			}
 			
+			clmd->solver_result = NULL;
 			clmd->debug_data = NULL;
 		}
 		else if (md->type == eModifierType_Fluidsim) {
