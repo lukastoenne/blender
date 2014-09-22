@@ -716,6 +716,7 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        st = context.space_data
         strip = act_strip(context)
         sound = strip.sound
 
@@ -734,7 +735,10 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
 
             row.prop(sound, "use_memory_cache")
 
-        layout.prop(strip, "show_waveform")
+        layout.prop(st, "waveform_draw", text="")
+        if st.waveform_draw == 'DEFAULT_WAVEFORMS':
+            layout.prop(strip, "show_waveform")
+
         layout.prop(strip, "volume")
         layout.prop(strip, "pitch")
         layout.prop(strip, "pan")

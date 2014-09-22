@@ -525,6 +525,8 @@ typedef enum eSpaceSeq_Flag {
 	SEQ_SHOW_GPENCIL            = (1 << 4),
 	SEQ_NO_DRAW_CFRANUM         = (1 << 5),
 	SEQ_USE_ALPHA               = (1 << 6), /* use RGBA display mode for preview */
+	SEQ_ALL_WAVEFORMS           = (1 << 7), /* draw all waveforms */
+	SEQ_NO_WAVEFORMS            = (1 << 8), /* draw no waveforms */
 } eSpaceSeq_Flag;
 
 /* sseq->view */
