@@ -45,6 +45,7 @@ struct ARegion;
 struct ARegionType;
 struct Scene;
 struct Main;
+struct SequencePreview;
 
 /* space_sequencer.c */
 struct ARegion *sequencer_has_buttons_region(struct ScrArea *sa);
@@ -199,6 +200,9 @@ void SEQUENCER_OT_strip_modifier_move(struct wmOperatorType *ot);
 
 /* sequencer_view.c */
 void SEQUENCER_OT_sample(struct wmOperatorType *ot);
+
+/* sequencer_preview.c */
+void sequencer_preview_add_sound(const struct bContext *C, struct Sequence *seq);
 
 #endif /* __SEQUENCER_INTERN_H__ */
 

@@ -34,6 +34,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_threads.h"
 
 #include "IMB_imbuf_types.h"
 
@@ -62,12 +63,15 @@
 #include "ED_mask.h"
 #include "ED_sequencer.h"
 #include "ED_space_api.h"
+#include "ED_screen.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "WM_api.h"
+
+#include "MEM_guardedalloc.h"
 
 /* own include */
 #include "sequencer_intern.h"
@@ -175,7 +179,7 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 	}
 }
 
-static void drawseqwave(SpaceSeq *sseq, Scene *scene, Sequence *seq, float x1, float y1, float x2, float y2, float stepsize)
+static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequence *seq, float x1, float y1, float x2, float y2, float stepsize)
 {
 	/*
 	 * x1 is the starting x value to draw the wave,
@@ -190,19 +194,27 @@ static void drawseqwave(SpaceSeq *sseq, Scene *scene, Sequence *seq, float x1, f
 		float samplestep;
 		float startsample, endsample;
 		float value;
+		bSound *sound = seq->sound;
 
 		SoundWaveform *waveform;
-
-		if (!seq->sound->waveform)
-			sound_read_waveform(seq->sound);
-
-		if (!seq->sound->waveform)
-			return;  /* zero length sound */
-
+		
+		if (!sound->mutex)
+			sound->mutex = BLI_mutex_alloc();
+		
+		BLI_mutex_lock(sound->mutex);
 		waveform = seq->sound->waveform;
-
-		if (!waveform)
-			return;
+		if (!waveform) {
+			if(!(sound->flags & SOUND_FLAGS_WAVEFORM_LOADING)) {
+				BLI_mutex_unlock(sound->mutex);
+				sequencer_preview_add_sound(C, seq);
+			}
+			else {
+				BLI_mutex_unlock(sound->mutex);				
+			}
+			return;  /* nothing to draw */
+		}
+		BLI_mutex_unlock(sound->mutex);
+		
 
 		startsample = floor((seq->startofs + seq->anim_startofs) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
 		endsample = ceil((seq->startofs + seq->anim_startofs + seq->enddisp - seq->startdisp) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
@@ -807,7 +819,7 @@ static void draw_shaded_cuddly_strip(Sequence *seq, unsigned char col[3])
  * ARegion is currently only used to get the windows width in pixels
  * so wave file sample drawing precision is zoom adjusted
  */
-static void draw_seq_strip(SpaceSeq *sseq, Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx, float aspect)
+static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx, float aspect)
 {
 	View2D *v2d = &ar->v2d;
 	float x1, x2, y1, y2, xchild;
@@ -853,7 +865,7 @@ static void draw_seq_strip(SpaceSeq *sseq, Scene *scene, ARegion *ar, Sequence *
 
 	/* draw sound wave */
 	if ((seq->type == SEQ_TYPE_SOUND_RAM) && !(sseq->flag & SEQ_NO_WAVEFORMS)) {
-		drawseqwave(sseq, scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
+		drawseqwave(C, sseq, scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
 	}
 
 	/* draw lock */
@@ -1539,7 +1551,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar, float a
 			else if (seq->machine > v2d->cur.ymax) continue;
 			
 			/* strip passed all tests unscathed... so draw it now */
-			draw_seq_strip(sseq, scene, ar, seq, outline_tint, pixelx, aspect);
+			draw_seq_strip(C, sseq, scene, ar, seq, outline_tint, pixelx, aspect);
 		}
 		
 		/* draw selected next time round */
@@ -1548,7 +1560,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar, float a
 	
 	/* draw the last selected last (i.e. 'active' in other parts of Blender), removes some overlapping error */
 	if (last_seq)
-		draw_seq_strip(sseq, scene, ar, last_seq, 120, pixelx, aspect);
+		draw_seq_strip(C, sseq, scene, ar, last_seq, 120, pixelx, aspect);
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 }

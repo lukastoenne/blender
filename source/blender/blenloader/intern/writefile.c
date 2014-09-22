@@ -2344,7 +2344,7 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 			SEQ_BEGIN (ed, seq)
 			{
 				if (seq->strip) seq->strip->done = false;
-				writestruct(wd, DATA, "Sequence", 1, seq);
+				writestruct(wd, DATA, "Sequence", 1, seq);			
 			}
 			SEQ_END
 			
@@ -2375,7 +2375,7 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 							break;
 						}
 					}
-					
+										
 					strip= seq->strip;
 					writestruct(wd, DATA, "Strip", 1, strip);
 					if (seq->flag & SEQ_USE_CROP && strip->crop) {
@@ -2908,18 +2908,9 @@ static void write_sounds(WriteData *wd, ListBase *idbase)
 	while (sound) {
 		if (sound->id.us>0 || wd->current) {
 			/* write LibData */
-			if (sound->waveform)
-				sound->flags |= SOUND_FLAGS_WAVEFORM_SAVED;
-
 			writestruct(wd, ID_SO, "bSound", 1, sound);
 			if (sound->id.properties) IDP_WriteProperty(sound->id.properties, wd);
 
-			if (sound->waveform) {
-				SoundWaveform *waveform = sound->waveform;
-				writedata(wd, DATA, sizeof(SoundWaveform), waveform);
-				writedata(wd, DATA, sizeof(float) * 3 * waveform->length, waveform->data);
-			}
-			
 			if (sound->packedfile) {
 				pf = sound->packedfile;
 				writestruct(wd, DATA, "PackedFile", 1, pf);

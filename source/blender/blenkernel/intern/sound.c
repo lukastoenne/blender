@@ -36,6 +36,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_threads.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -86,7 +87,7 @@ bSound *sound_new_file(struct Main *bmain, const char *filename)
 	BLI_strncpy(sound->name, filename, FILE_MAX);
 	/* sound->type = SOUND_TYPE_FILE; */ /* XXX unused currently */
 
-	sound_load(bmain, sound, true);
+	sound_load(bmain, sound);
 
 	if (!sound->playback_handle) {
 		BKE_libblock_free(bmain, sound);
@@ -116,6 +117,12 @@ void BKE_sound_free(bSound *sound)
 	}
 
 	sound_free_waveform(sound);
+	
+	if (sound->mutex) {
+		BLI_mutex_free(sound->mutex);
+		sound->mutex = NULL;
+	}
+	
 #endif  /* WITH_AUDASPACE */
 }
 
@@ -312,7 +319,7 @@ void sound_delete_cache(bSound *sound)
 	}
 }
 
-void sound_load(struct Main *bmain, bSound *sound, bool waveform)
+void sound_load(struct Main *bmain, bSound *sound)
 {
 	if (sound) {
 		if (sound->cache) {
@@ -326,8 +333,7 @@ void sound_load(struct Main *bmain, bSound *sound, bool waveform)
 			sound->playback_handle = NULL;
 		}
 
-		if (waveform)
-			sound_free_waveform(sound);
+		sound_free_waveform(sound);
 
 /* XXX unused currently */
 #if 0
@@ -681,7 +687,7 @@ void sound_free_waveform(bSound *sound)
 	sound->waveform = NULL;
 }
 
-void sound_read_waveform(bSound *sound)
+void sound_read_waveform(bSound *sound, bool locked, short *stop)
 {
 	AUD_SoundInfo info;
 
@@ -692,10 +698,21 @@ void sound_read_waveform(bSound *sound)
 		int length = info.length * SOUND_WAVE_SAMPLES_PER_SECOND;
 
 		waveform->data = MEM_mallocN(length * sizeof(float) * 3, "SoundWaveform.samples");
-		waveform->length = AUD_readSound(sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND);
+		waveform->length = AUD_readSound(sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND, stop);
 
+		if (*stop) {
+			MEM_freeN(waveform->data);
+			MEM_freeN(waveform);
+			return;
+		}
+		
 		sound_free_waveform(sound);
+		
+		if (locked)
+			BLI_mutex_lock(sound->mutex);
 		sound->waveform = waveform;
+		if (locked)
+			BLI_mutex_unlock(sound->mutex);
 	}
 }
 
@@ -831,7 +848,7 @@ void sound_stop_scene(struct Scene *UNUSED(scene)) {}
 void sound_seek_scene(struct Main *UNUSED(bmain), struct Scene *UNUSED(scene)) {}
 float sound_sync_scene(struct Scene *UNUSED(scene)) { return NAN_FLT; }
 int sound_scene_playing(struct Scene *UNUSED(scene)) { return -1; }
-void sound_read_waveform(struct bSound *UNUSED(sound)) {}
+void sound_read_waveform(struct bSound *UNUSED(sound), bool locked) {}
 void sound_init_main(struct Main *UNUSED(bmain)) {}
 void sound_set_cfra(int UNUSED(cfra)) {}
 void sound_update_sequencer(struct Main *UNUSED(main), struct bSound *UNUSED(sound)) {}

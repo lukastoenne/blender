@@ -123,7 +123,7 @@ static int sound_open_exec(bContext *C, wmOperator *op)
 
 	if (RNA_boolean_get(op->ptr, "mono")) {
 		sound->flags |= SOUND_FLAGS_MONO;
-		sound_load(bmain, sound, true);
+		sound_load(bmain, sound);
 	}
 
 	if (RNA_boolean_get(op->ptr, "cache")) {
@@ -691,7 +691,7 @@ static int sound_pack_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	sound->packedfile = newPackedFile(op->reports, sound->name, ID_BLEND_PATH(bmain, &sound->id));
-	sound_load(bmain, sound, true);
+	sound_load(bmain, sound);
 
 	return OPERATOR_FINISHED;
 }

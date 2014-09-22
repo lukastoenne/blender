@@ -71,6 +71,7 @@ class SEQUENCER_HT_header(Header):
         row.prop(scene, "lock_frame_selection_to_range", text="", toggle=True)
 
         layout.prop(st, "view_type", expand=True, text="")
+        layout.prop(st, "waveform_draw", text="")
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "display_mode", expand=True, text="")
@@ -735,7 +736,6 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
 
             row.prop(sound, "use_memory_cache")
 
-        layout.prop(st, "waveform_draw", text="")
         if st.waveform_draw == 'DEFAULT_WAVEFORMS':
             layout.prop(strip, "show_waveform")
 

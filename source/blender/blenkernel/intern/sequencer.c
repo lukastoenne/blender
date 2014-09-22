@@ -194,7 +194,7 @@ static void BKE_sequence_free_ex(Scene *scene, Sequence *seq, const bool do_cach
 	if (seq->sound) {
 		((ID *)seq->sound)->us--; 
 	}
-
+	
 	/* clipboard has no scene and will never have a sound handle or be active
 	 * same goes to sequences copy for proxy rebuild job
 	 */
