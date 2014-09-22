@@ -81,7 +81,7 @@ float calculate_ssao_factor(float depth)
         }
     }
 
-    factor /= NUM_SAMPLES * NUM_SAMPLES;    
+    factor /= float(NUM_SAMPLES * NUM_SAMPLES);    
     
     return max(0.0, factor * ssao_params.y);
 }
