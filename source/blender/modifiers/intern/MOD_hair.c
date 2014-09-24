@@ -41,6 +41,8 @@
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
 
+#include "BPH_mass_spring.h"
+
 #include "depsgraph_private.h"
 
 #include "MOD_util.h"
@@ -58,7 +60,7 @@ static void freeData(ModifierData *md)
 	HairModifierData *hmd = (HairModifierData *) md;
 	
 	if (hmd->solver_data)
-		HAIR_solver_free(hmd->solver_data);
+		BPH_hair_solver_free(hmd->solver_data);
 	
 	BKE_hairsys_free(hmd->hairsys);
 	

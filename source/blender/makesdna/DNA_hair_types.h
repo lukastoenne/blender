@@ -93,6 +93,8 @@ typedef struct HairParams {
 	float margin;
 	int pad;
 	
+	struct EffectorWeights *effector_weights;
+	
 	HairRenderSettings render;
 } HairParams;
 

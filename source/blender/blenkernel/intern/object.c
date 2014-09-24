@@ -113,6 +113,8 @@
 #include "BKE_camera.h"
 #include "BKE_image.h"
 
+#include "BPH_mass_spring.h"
+
 #ifdef WITH_MOD_FLUID
 #include "LBM_fluidsim.h"
 #endif
@@ -3177,22 +3179,33 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
 			HairSystem *hsys = hmd->hairsys;
-			DerivedMesh *dm = ob->derivedFinal;
+			DerivedMesh *dm = ob->derivedFinal; // XXX TODO this should be more flexible, use modifier position in the stack?
 			
-			if (!hmd->solver_data) {
-				hmd->solver_data = HAIR_solver_new();
-				hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
-			}
-			
-			HAIR_solver_set_params(hmd->solver_data, &hsys->params);
-			
-			if (!hmd->flag & MOD_HAIR_SOLVER_DATA_VALID) {
-				HAIR_solver_build_modifier_data(hmd->solver_data, scene, ob, dm, hsys, ctime);
-				BKE_sim_debug_data_clear(hmd->debug_data);
+			if (!hmd->solver_data || !(hmd->flag & MOD_HAIR_SOLVER_DATA_VALID)) {
+				if (hmd->solver_data) {
+					BPH_hair_solver_free(hmd->solver_data);
+				}
+				hmd->solver_data = BPH_hair_solver_create();
+				
 				hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
+				BKE_sim_debug_data_clear(hmd->debug_data);
 			}
 			
-			HAIR_solver_update_modifier_externals(hmd->solver_data, scene, ob, dm, hsys, ctime);
+			BPH_hair_solver_set_externals(hmd->solver_data, scene, ob, dm, hsys->params.effector_weights);
+			
+			BPH_hair_solver_set_positions(hmd->solver_data, scene, ob, hmd->hairsys);
+			
+			if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
+				if (hmd->debug_data) {
+					BKE_sim_debug_data_free(hmd->debug_data);
+					hmd->debug_data = NULL;
+				}
+			}
+			else {
+				if (!hmd->debug_data) {
+					hmd->debug_data = BKE_sim_debug_data_new();
+				}
+			}
 		}
 	}
 }
@@ -3204,24 +3217,9 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
+			HairSystem *hsys = hmd->hairsys;
 			
-			if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
-				if (hmd->debug_data) {
-					BKE_sim_debug_data_free(hmd->debug_data);
-					hmd->debug_data = NULL;
-				}
-				
-				HAIR_solver_step(hmd->solver_data, ctime, timestep);
-			}
-			else {
-				float imat[4][4];
-				invert_m4_m4(imat, ob->obmat);
-				
-				if (!hmd->debug_data)
-					hmd->debug_data = BKE_sim_debug_data_new();
-				
-				HAIR_solver_step_debug(hmd->solver_data, ctime, timestep, imat, hmd->debug_data);
-			}
+			BPH_hair_solve(hmd->solver_data, &hsys->params, ctime, timestep, hmd->debug_data);
 		}
 	}
 }
@@ -3233,7 +3231,10 @@ void BKE_object_sim_post_step(Scene *scene, Object *ob, float UNUSED(ctime))
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
-			HAIR_solver_apply(hmd->solver_data, scene, ob, hmd->hairsys);
+			
+			BPH_hair_solver_free_effectors(hmd->solver_data);
+			
+			BPH_hair_solver_apply_positions(hmd->solver_data, scene, ob, hmd->hairsys);
 		}
 	}
 }

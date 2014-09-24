@@ -52,8 +52,6 @@
 #include "BKE_object.h"
 #include "BKE_rigidbody.h"
 
-#include "HAIR_capi.h"
-
 /* ------------------------ */
 /* Main Simulation Sync */
 
@@ -257,14 +255,13 @@ static void rigidbody_object_build_components(Scene *UNUSED(scene), RigidBodyWor
 	if (!ob)
 		return;
 	
+#if 0 /* unused */
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
-			
-			if (rebuild && hmd->solver_data)
-				HAIR_solver_rebuild_rigidbodyworld(hmd->solver_data, rbw->physics_world);
 		}
 	}
+#endif
 }
 
 void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool rebuild)

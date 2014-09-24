@@ -34,6 +34,14 @@ extern "C" {
 
 struct Implicit_Data;
 struct ClothModifierData;
+struct DerivedMesh;
+struct EffectorWeights;
+struct HairSolverData;
+struct HairSystem;
+struct HairParams;
+struct Object;
+struct Scene;
+struct SimDebugData;
 
 typedef enum eMassSpringSolverStatus {
 	BPH_SOLVER_SUCCESS              = (1 << 0),
@@ -49,6 +57,16 @@ int BPH_cloth_solver_init(struct Object *ob, struct ClothModifierData *clmd);
 void BPH_cloth_solver_free(struct ClothModifierData *clmd);
 int BPH_cloth_solve(struct Object *ob, float frame, struct ClothModifierData *clmd, struct ListBase *effectors);
 void BKE_cloth_solver_set_positions(struct ClothModifierData *clmd);
+
+struct HairSolverData *BPH_hair_solver_create(void);
+void BPH_hair_solver_free(struct HairSolverData *data);
+
+void BPH_hair_solver_set_externals(struct HairSolverData *data, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct EffectorWeights *effector_weights);
+void BPH_hair_solver_free_effectors(struct HairSolverData *data);
+
+void BPH_hair_solver_set_positions(struct HairSolverData *data, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
+void BPH_hair_solve(struct HairSolverData *data, struct HairParams *params, float time, float timestep, struct SimDebugData *debug_data);
+void BPH_hair_solver_apply_positions(struct HairSolverData *data, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 
 bool implicit_hair_volume_get_texture_data(struct Object *UNUSED(ob), struct ClothModifierData *clmd, struct ListBase *UNUSED(effectors), struct VoxelData *vd);
 
