@@ -120,7 +120,7 @@ void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm
 	totfaces = dm->getNumTessFaces(dm);
 	
 	for (i = 0; i < totsample; ++i) {
-		MSurfaceSample sample = {0};
+		MSurfaceSample sample = {{0}};
 		
 		mface = &mfaces[BLI_rng_get_int(rng) % totfaces];
 		
