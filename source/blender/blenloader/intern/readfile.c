@@ -4883,6 +4883,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				direct_link_hair_system(fd, hmd->hairsys);
 
 			hmd->solver_data = NULL;
+			hmd->debug_data = NULL;
 		}
 	}
 }

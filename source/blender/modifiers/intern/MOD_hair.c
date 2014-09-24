@@ -36,6 +36,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_DerivedMesh.h"
+#include "BKE_effect.h"
 #include "BKE_hair.h"
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
@@ -61,7 +62,7 @@ static void freeData(ModifierData *md)
 	
 	BKE_hairsys_free(hmd->hairsys);
 	
-	BKE_hair_debug_data_free(hmd->debug_data);
+	BKE_sim_debug_data_free(hmd->debug_data);
 }
 
 static void copyData(ModifierData *md, ModifierData *target)

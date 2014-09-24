@@ -1377,7 +1377,8 @@ typedef struct HairModifierData {
 	ModifierData modifier;
 	
 	struct HairSystem *hairsys;
-	struct HairSolverData *solver_data;     /* runtime instance */
+	struct HairSolverData *solver_data;     /* runtime solver data */
+	struct SimDebugData *debug_data;        /* runtime solver debugging */
 	
 	int flag;
 

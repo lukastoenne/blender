@@ -3188,7 +3188,7 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 			
 			if (!hmd->flag & MOD_HAIR_SOLVER_DATA_VALID) {
 				HAIR_solver_build_modifier_data(hmd->solver_data, scene, ob, dm, hsys, ctime);
-				BKE_hair_debug_data_clear(hmd->debug_data);
+				BKE_sim_debug_data_clear(hmd->debug_data);
 				hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
 			}
 			
@@ -3207,7 +3207,7 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 			
 			if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
 				if (hmd->debug_data) {
-					BKE_hair_debug_data_free(hmd->debug_data);
+					BKE_sim_debug_data_free(hmd->debug_data);
 					hmd->debug_data = NULL;
 				}
 				
@@ -3218,7 +3218,7 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 				invert_m4_m4(imat, ob->obmat);
 				
 				if (!hmd->debug_data)
-					hmd->debug_data = BKE_hair_debug_data_new();
+					hmd->debug_data = BKE_sim_debug_data_new();
 				
 				HAIR_solver_step_debug(hmd->solver_data, ctime, timestep, imat, hmd->debug_data);
 			}
