@@ -292,7 +292,6 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                                 kmi_type_set.add(v)
             return kmi_type_set
 
-        kmi_type_set_combine = None
         for i, kmi_type in enumerate(filter_text_split):
             kmi_type_set = kmi_type_set_from_string(kmi_type)
 
@@ -375,7 +374,7 @@ def draw_keymaps(context, layout):
 
     row = subcol.row(align=True)
 
-    #~ row.prop_search(wm.keyconfigs, "active", wm, "keyconfigs", text="Key Config:")
+    #~ row.prop_search(wm.keyconfigs, "active", wm, "keyconfigs", text="Key Config")
     text = bpy.path.display_name(wm.keyconfigs.active.name)
     if not text:
         text = "Blender (default)"

@@ -154,7 +154,6 @@ typedef struct uiGradientColors {
 	char high_gradient[4];
 	int show_grad;
 	int pad2;
-
 } uiGradientColors;
 
 typedef struct ThemeUI {
@@ -163,7 +162,7 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
 	uiWidgetColors wcol_num, wcol_numslider;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
-	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item;
+	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item, wcol_pie_menu;
 	
 	uiWidgetStateColors wcol_state;
 
@@ -233,8 +232,10 @@ typedef struct ThemeSpace {
 	char hilite[4];
 	char grid[4]; 
 	
+	char view_overlay[4];
+
 	char wire[4], wire_edit[4], select[4];
-	char lamp[4], speaker[4], empty[4], camera[4], pad[4];
+	char lamp[4], speaker[4], empty[4], camera[4];
 	char active[4], group[4], group_active[4], transform[4];
 	char vertex[4], vertex_select[4], vertex_unreferenced[4];
 	char edge[4], edge_select[4];
@@ -244,6 +245,7 @@ typedef struct ThemeSpace {
 	char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];
 	char normal[4];
 	char vertex_normal[4];
+	char loop_normal[4];
 	char bone_solid[4], bone_pose[4], bone_pose_active[4];
 	char strip[4], strip_select[4];
 	char cframe[4];
@@ -261,7 +263,7 @@ typedef struct ThemeSpace {
 	char keyborder[4], keyborder_select[4];
 	
 	char console_output[4], console_input[4], console_info[4], console_error[4];
-	char console_cursor[4], console_select[4], pad1[4];
+	char console_cursor[4], console_select[4];
 	
 	char vertex_size, outline_width, facedot_size;
 	char noodle_curving;
@@ -326,6 +328,9 @@ typedef struct ThemeSpace {
 	char info_warning[4], info_warning_text[4];
 	char info_info[4], info_info_text[4];
 	char info_debug[4], info_debug_text[4];
+
+	char paint_curve_pivot[4];
+	char paint_curve_handle[4];
 } ThemeSpace;
 
 
@@ -420,6 +425,8 @@ typedef struct UserDef {
 	char tempdir[768];	/* FILE_MAXDIR length */
 	char fontdir[768];
 	char renderdir[1024]; /* FILE_MAX length */
+	/* EXR cache path */
+	char render_cachedir[768];  /* 768 = FILE_MAXDIR */
 	char textudir[768];
 	char pythondir[768];
 	char sounddir[768];
@@ -483,8 +490,10 @@ typedef struct UserDef {
 	short glreslimit;
 	short curssize;
 	short color_picker_type;
-	short ipo_new;			/* interpolation mode for newly added F-Curves */
-	short keyhandles_new;	/* handle types for newly added keyframes */
+	char  ipo_new;			/* interpolation mode for newly added F-Curves */
+	char  keyhandles_new;	/* handle types for newly added keyframes */
+	char  gpu_select_method;
+	char  pad1;
 
 	short scrcastfps;		/* frame rate for screencast to be played back */
 	short scrcastwait;		/* milliseconds between screencast snapshots */
@@ -518,11 +527,22 @@ typedef struct UserDef {
 
 	char author[80];	/* author name for file formats supporting it */
 
+	char font_path_ui[1024];
+
 	int compute_device_type;
 	int compute_device_id;
 	
 	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
+
+	short pie_interaction_type;     /* if keeping a pie menu spawn button pressed after this time, it turns into
+	                             * a drag/release pie menu */
+	short pie_initial_timeout;  /* direction in the pie menu will always be calculated from the initial position
+	                             * within this time limit */
+	int pie_animation_timeout;
+	int pad2;
+	short pie_menu_radius;        /* pie menu radius */
+	short pie_menu_threshold;     /* pie menu distance from center before a direction is set */
 
 	struct WalkNavigation walk_navigation;
 } UserDef;
@@ -709,6 +729,13 @@ typedef enum eOpenGL_RenderingOptions {
 	/* USER_DISABLE_AA			= (1 << 4), */ /* DEPRECATED */
 } eOpenGL_RenderingOptions;
 
+/* selection method for opengl gpu_select_method */
+typedef enum eOpenGL_SelectOptions {
+	USER_SELECT_AUTO = 0,
+	USER_SELECT_USE_OCCLUSION_QUERY = 1,
+	USER_SELECT_USE_SELECT_RENDERMODE = 2
+} eOpenGL_SelectOptions;
+
 /* wm draw method */
 typedef enum eWM_DrawMethod {
 	USER_DRAW_TRIPLE		= 0,
@@ -733,10 +760,11 @@ typedef enum eGP_UserdefSettings {
 
 /* color picker types */
 typedef enum eColorPicker_Types {
-	USER_CP_CIRCLE		= 0,
+	USER_CP_CIRCLE_HSV	= 0,
 	USER_CP_SQUARE_SV	= 1,
 	USER_CP_SQUARE_HS	= 2,
 	USER_CP_SQUARE_HV	= 3,
+	USER_CP_CIRCLE_HSL	= 4,
 } eColorPicker_Types;
 
 /* timecode display styles */

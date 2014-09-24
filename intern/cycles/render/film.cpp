@@ -80,22 +80,13 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			pass.components = 1;
 			break;
 		case PASS_OBJECT_ID:
-			pass.components = 1;
-			pass.filter = false;
-			break;
 		case PASS_MATERIAL_ID:
 			pass.components = 1;
 			pass.filter = false;
 			break;
 		case PASS_DIFFUSE_COLOR:
-			pass.components = 4;
-			break;
 		case PASS_GLOSSY_COLOR:
-			pass.components = 4;
-			break;
 		case PASS_TRANSMISSION_COLOR:
-			pass.components = 4;
-			break;
 		case PASS_SUBSURFACE_COLOR:
 			pass.components = 4;
 			break;
@@ -141,9 +132,6 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			break;
 
 		case PASS_EMISSION:
-			pass.components = 4;
-			pass.exposure = true;
-			break;
 		case PASS_BACKGROUND:
 			pass.components = 4;
 			pass.exposure = true;
@@ -154,6 +142,9 @@ void Pass::add(PassType type, vector<Pass>& passes)
 		case PASS_SHADOW:
 			pass.components = 4;
 			pass.exposure = false;
+			break;
+		case PASS_LIGHT:
+			/* ignores */
 			break;
 	}
 
@@ -391,6 +382,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				break;
 			case PASS_SHADOW:
 				kfilm->pass_shadow = kfilm->pass_stride;
+				kfilm->use_light_pass = 1;
+				break;
+
+			case PASS_LIGHT:
 				kfilm->use_light_pass = 1;
 				break;
 			case PASS_NONE:

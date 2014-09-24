@@ -110,7 +110,7 @@ bMovieHandle *BKE_movie_handle_get(const char imtype)
 	}
 #endif
 #ifdef WITH_FFMPEG
-	if (ELEM4(imtype, R_IMF_IMTYPE_FFMPEG, R_IMF_IMTYPE_H264, R_IMF_IMTYPE_XVID, R_IMF_IMTYPE_THEORA)) {
+	if (ELEM(imtype, R_IMF_IMTYPE_FFMPEG, R_IMF_IMTYPE_H264, R_IMF_IMTYPE_XVID, R_IMF_IMTYPE_THEORA)) {
 		mh.start_movie = BKE_ffmpeg_start;
 		mh.append_movie = BKE_ffmpeg_append;
 		mh.end_movie = BKE_ffmpeg_end;
@@ -236,7 +236,7 @@ static int append_avi(RenderData *UNUSED(rd), int start_frame, int frame, int *p
 	}
 	
 	AVI_write_frame(avi, (frame - start_frame), AVI_FORMAT_RGB32, rectot, rectx * recty * 4);
-//	printf ("added frame %3d (frame %3d in avi): ", frame, frame-start_frame);
+//	printf("added frame %3d (frame %3d in avi): ", frame, frame-start_frame);
 
 	return 1;
 }

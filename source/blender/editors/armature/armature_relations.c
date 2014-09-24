@@ -40,7 +40,6 @@
 #include "BLF_translation.h"
 
 #include "BKE_action.h"
-#include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -73,7 +72,7 @@ static void joined_armature_fix_links_constraints(
 	bConstraint *con;
 
 	for (con = lb->first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 		ListBase targets = {NULL, NULL};
 		bConstraintTarget *ct;
 
@@ -246,7 +245,7 @@ int join_armature_exec(bContext *C, wmOperator *op)
 					invert_m4_m4(imat, premat);
 					mul_m4_m4m4(difmat, imat, postmat);
 					
-					curbone->roll -= (float)atan2(difmat[2][0], difmat[2][2]);
+					curbone->roll -= atan2f(difmat[2][0], difmat[2][2]);
 				}
 				
 				/* Fix Constraints and Other Links to this Bone and Armature */
@@ -300,7 +299,7 @@ static void separated_armature_fix_links(Object *origArm, Object *newArm)
 		if (ob->type == OB_ARMATURE) {
 			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -338,7 +337,7 @@ static void separated_armature_fix_links(Object *origArm, Object *newArm)
 		/* fix object-level constraints */
 		if (ob != origArm) {
 			for (con = ob->constraints.first; con; con = con->next) {
-				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+				bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				

@@ -49,6 +49,7 @@ static PyStructSequence_Field app_cb_info_fields[] = {
 	{(char *)"render_pre",        (char *)"Callback list - on render (before)"},
 	{(char *)"render_post",       (char *)"Callback list - on render (after)"},
 	{(char *)"render_stats",      (char *)"Callback list - on printing render statistics"},
+	{(char *)"render_init",       (char *)"Callback list - on initialization of a render job"},
 	{(char *)"render_complete",   (char *)"Callback list - on completion of render job"},
 	{(char *)"render_cancel",     (char *)"Callback list - on canceling a render job"},
 	{(char *)"load_pre",          (char *)"Callback list - on loading a new blend file (before)"},
@@ -59,6 +60,7 @@ static PyStructSequence_Field app_cb_info_fields[] = {
 	{(char *)"scene_update_post", (char *)"Callback list - on updating the scenes data (after)"},
 	{(char *)"game_pre",          (char *)"Callback list - on starting the game engine"},
 	{(char *)"game_post",         (char *)"Callback list - on ending the game engine"},
+	{(char *)"version_update",    (char *)"Callback list - on ending the versioning code"},
 
 	/* sets the permanent tag */
 #   define APP_CB_OTHER_FIELDS 1
@@ -71,11 +73,11 @@ static PyStructSequence_Desc app_cb_info_desc = {
 	(char *)"bpy.app.handlers",     /* name */
 	(char *)"This module contains callbacks",    /* doc */
 	app_cb_info_fields,    /* fields */
-	(sizeof(app_cb_info_fields) / sizeof(PyStructSequence_Field)) - 1
+	ARRAY_SIZE(app_cb_info_fields) - 1
 };
 
 #if 0
-#  if (BLI_CB_EVT_TOT != ((sizeof(app_cb_info_fields) / sizeof(PyStructSequence_Field))))
+#  if (BLI_CB_EVT_TOT != ARRAY_SIZE(app_cb_info_fields))
 #    error "Callbacks are out of sync"
 #  endif
 #endif
@@ -174,7 +176,7 @@ static PyObject *py_cb_array[BLI_CB_EVT_TOT] = {NULL};
 static PyObject *make_app_cb_info(void)
 {
 	PyObject *app_cb_info;
-	int pos = 0;
+	int pos;
 
 	app_cb_info = PyStructSequence_New(&BlenderAppCbType);
 	if (app_cb_info == NULL) {

@@ -140,6 +140,15 @@ class WindowManager(bpy_types.ID):
         finally:
             self.pupmenu_end__internal(popup)
 
+    def popup_menu_pie(self, event, draw_func, title="", icon='NONE'):
+        import bpy
+        pie = self.piemenu_begin__internal(title, icon, event)
+
+        try:
+            draw_func(pie, bpy.context)
+        finally:
+            self.piemenu_end__internal(pie)
+
 
 class _GenericBone:
     """
@@ -180,14 +189,14 @@ class _GenericBone:
 
     @property
     def y_axis(self):
-        """ Vector pointing down the x-axis of the bone.
+        """ Vector pointing down the y-axis of the bone.
         """
         from mathutils import Vector
         return self.matrix.to_3x3() * Vector((0.0, 1.0, 0.0))
 
     @property
     def z_axis(self):
-        """ Vector pointing down the x-axis of the bone.
+        """ Vector pointing down the z-axis of the bone.
         """
         from mathutils import Vector
         return self.matrix.to_3x3() * Vector((0.0, 0.0, 1.0))
@@ -685,7 +694,7 @@ class _GenericUI:
         draw_funcs = cls._dyn_ui_initialize()
         try:
             draw_funcs.remove(draw_func)
-        except:
+        except ValueError:
             pass
 
 

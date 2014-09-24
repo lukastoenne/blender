@@ -96,8 +96,8 @@ typedef struct tMakeLocalActionContext {
 	bAction *act;       /* original action */
 	bAction *act_new;   /* new action */
 	
-	int is_lib;         /* some action users were libraries */
-	int is_local;       /* some action users were not libraries */
+	bool is_lib;        /* some action users were libraries */
+	bool is_local;      /* some action users were not libraries */
 } tMakeLocalActionContext;
 
 /* helper function for BKE_action_make_local() - local/lib init step */
@@ -106,8 +106,8 @@ static void make_localact_init_cb(ID *id, AnimData *adt, void *mlac_ptr)
 	tMakeLocalActionContext *mlac = (tMakeLocalActionContext *)mlac_ptr;
 	
 	if (adt->action == mlac->act) {
-		if (id->lib) mlac->is_lib = TRUE;
-		else mlac->is_local = TRUE;
+		if (id->lib) mlac->is_lib = true;
+		else mlac->is_local = true;
 	}
 }
 
@@ -129,7 +129,7 @@ static void make_localact_apply_cb(ID *id, AnimData *adt, void *mlac_ptr)
 // does copy_fcurve...
 void BKE_action_make_local(bAction *act)
 {
-	tMakeLocalActionContext mlac = {act, NULL, FALSE, FALSE};
+	tMakeLocalActionContext mlac = {act, NULL, false, false};
 	Main *bmain = G.main;
 	
 	if (act->id.lib == NULL)
@@ -143,7 +143,7 @@ void BKE_action_make_local(bAction *act)
 	
 	BKE_animdata_main_cb(bmain, make_localact_init_cb, &mlac);
 	
-	if (mlac.is_local && mlac.is_lib == FALSE) {
+	if (mlac.is_local && mlac.is_lib == false) {
 		id_clear_lib_data(bmain, &act->id);
 	}
 	else if (mlac.is_local && mlac.is_lib) {
@@ -315,7 +315,7 @@ bActionGroup *action_groups_add_new(bAction *act, const char name[])
 void action_groups_add_channel(bAction *act, bActionGroup *agrp, FCurve *fcurve)
 {	
 	/* sanity checks */
-	if (ELEM3(NULL, act, agrp, fcurve))
+	if (ELEM(NULL, act, agrp, fcurve))
 		return;
 	
 	/* if no channels anywhere, just add to two lists at the same time */
@@ -417,7 +417,7 @@ void action_groups_remove_channel(bAction *act, FCurve *fcu)
 bActionGroup *BKE_action_group_find_name(bAction *act, const char name[])
 {
 	/* sanity checks */
-	if (ELEM3(NULL, act, act->groups.first, name) || (name[0] == 0))
+	if (ELEM(NULL, act, act->groups.first, name) || (name[0] == 0))
 		return NULL;
 		
 	/* do string comparisons */
@@ -526,7 +526,7 @@ bPoseChannel *BKE_pose_channel_active(Object *ob)
 	bArmature *arm = (ob) ? ob->data : NULL;
 	bPoseChannel *pchan;
 
-	if (ELEM3(NULL, ob, ob->pose, arm)) {
+	if (ELEM(NULL, ob, ob->pose, arm)) {
 		return NULL;
 	}
 
@@ -588,14 +588,6 @@ void BKE_pose_copy_data(bPose **dst, bPose *src, const bool copy_constraints)
 	outPose = MEM_callocN(sizeof(bPose), "pose");
 	
 	BLI_duplicatelist(&outPose->chanbase, &src->chanbase);
-	if (outPose->chanbase.first) {
-		bPoseChannel *pchan;
-		for (pchan = outPose->chanbase.first; pchan; pchan = pchan->next) {
-			if (pchan->custom) {
-				id_us_plus(&pchan->custom->id);
-			}
-		}
-	}
 
 	outPose->iksolver = src->iksolver;
 	outPose->ikdata = NULL;
@@ -603,8 +595,18 @@ void BKE_pose_copy_data(bPose **dst, bPose *src, const bool copy_constraints)
 	outPose->avs = src->avs;
 	
 	for (pchan = outPose->chanbase.first; pchan; pchan = pchan->next) {
+
+		if (pchan->custom) {
+			id_us_plus(&pchan->custom->id);
+		}
+
+		/* warning, O(n2) here, but it's a rarely used feature. */
+		if (pchan->custom_tx) {
+			pchan->custom_tx = BKE_pose_channel_find_name(outPose, pchan->custom_tx->name);
+		}
+
 		if (copy_constraints) {
-			BKE_copy_constraints(&listb, &pchan->constraints, TRUE);  // BKE_copy_constraints NULLs listb
+			BKE_constraints_copy(&listb, &pchan->constraints, true);  // BKE_constraints_copy NULLs listb
 			pchan->constraints = listb;
 			pchan->mpath = NULL; /* motion paths should not get copied yet... */
 		}
@@ -727,7 +729,7 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
 		pchan->mpath = NULL;
 	}
 
-	BKE_free_constraints(&pchan->constraints);
+	BKE_constraints_free(&pchan->constraints);
 	
 	if (pchan->prop) {
 		IDP_FreeProperty(pchan->prop);
@@ -843,7 +845,7 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 	pchan->iklinweight = pchan_from->iklinweight;
 
 	/* constraints */
-	BKE_copy_constraints(&pchan->constraints, &pchan_from->constraints, TRUE);
+	BKE_constraints_copy(&pchan->constraints, &pchan_from->constraints, true);
 
 	/* id-properties */
 	if (pchan->prop) {
@@ -950,56 +952,68 @@ void framechange_poses_clear_unkeyed(void)
 
 /* ************************** Bone Groups ************************** */
 
-/* Adds a new bone-group */
-void BKE_pose_add_group(Object *ob)
+/* Adds a new bone-group (name may be NULL) */
+bActionGroup *BKE_pose_add_group(bPose *pose, const char *name)
 {
-	bPose *pose = (ob) ? ob->pose : NULL;
 	bActionGroup *grp;
 	
-	if (ELEM(NULL, ob, ob->pose))
-		return;
+	if (!name) {
+		name = DATA_("Group");
+	}
 	
 	grp = MEM_callocN(sizeof(bActionGroup), "PoseGroup");
-	BLI_strncpy(grp->name, DATA_("Group"), sizeof(grp->name));
+	BLI_strncpy(grp->name, name, sizeof(grp->name));
 	BLI_addtail(&pose->agroups, grp);
-	BLI_uniquename(&pose->agroups, grp, DATA_("Group"), '.', offsetof(bActionGroup, name), sizeof(grp->name));
+	BLI_uniquename(&pose->agroups, grp, name, '.', offsetof(bActionGroup, name), sizeof(grp->name));
 	
 	pose->active_group = BLI_countlist(&pose->agroups);
+	
+	return grp;
 }
 
-/* Remove the active bone-group */
-void BKE_pose_remove_group(Object *ob)
+/* Remove the given bone-group (expects 'virtual' index (+1 one, used by active_group etc.))
+ * index might be invalid ( < 1), in which case it will be find from grp. */
+void BKE_pose_remove_group(bPose *pose, bActionGroup *grp, const int index)
 {
-	bPose *pose = (ob) ? ob->pose : NULL;
-	bActionGroup *grp = NULL;
 	bPoseChannel *pchan;
+	int idx = index;
 	
-	/* sanity checks */
-	if (ELEM(NULL, ob, pose))
-		return;
-	if (pose->active_group <= 0)
-		return;
+	if (idx < 1) {
+		idx = BLI_findindex(&pose->agroups, grp) + 1;
+	}
 	
-	/* get group to remove */
-	grp = BLI_findlink(&pose->agroups, pose->active_group - 1);
-	if (grp) {
-		/* adjust group references (the trouble of using indices!):
-		 *	- firstly, make sure nothing references it 
-		 *	- also, make sure that those after this item get corrected
-		 */
-		for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-			if (pchan->agrp_index == pose->active_group)
-				pchan->agrp_index = 0;
-			else if (pchan->agrp_index > pose->active_group)
-				pchan->agrp_index--;
-		}
-		
-		/* now, remove it from the pose */
-		BLI_freelinkN(&pose->agroups, grp);
+	BLI_assert(idx > 0);
+	
+	/* adjust group references (the trouble of using indices!):
+	 *  - firstly, make sure nothing references it
+	 *  - also, make sure that those after this item get corrected
+	 */
+	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+		if (pchan->agrp_index == idx)
+			pchan->agrp_index = 0;
+		else if (pchan->agrp_index > idx)
+			pchan->agrp_index--;
+	}
+
+	/* now, remove it from the pose */
+	BLI_freelinkN(&pose->agroups, grp);
+	if (pose->active_group >= idx) {
 		pose->active_group--;
 		if (pose->active_group < 0 || BLI_listbase_is_empty(&pose->agroups)) {
 			pose->active_group = 0;
 		}
+	}
+}
+
+/* Remove the indexed bone-group (expects 'virtual' index (+1 one, used by active_group etc.)) */
+void BKE_pose_remove_group_index(bPose *pose, const int index)
+{
+	bActionGroup *grp = NULL;
+	
+	/* get group to remove */
+	grp = BLI_findlink(&pose->agroups, index - 1);
+	if (grp) {
+		BKE_pose_remove_group(pose, grp, index);
 	}
 }
 
@@ -1037,7 +1051,7 @@ void calc_action_range(const bAction *act, float *start, float *end, short incl_
 				
 				/* get extents for this curve */
 				/* TODO: allow enabling/disabling this? */
-				calc_fcurve_range(fcu, &nmin, &nmax, FALSE, TRUE);
+				calc_fcurve_range(fcu, &nmin, &nmax, false, true);
 				
 				/* compare to the running tally */
 				min = min_ff(min, nmin);
@@ -1127,7 +1141,7 @@ short action_get_item_transforms(bAction *act, Object *ob, bPoseChannel *pchan, 
 	 *	- we cannot use the groups, since they may not be grouped in that way...
 	 */
 	for (fcu = act->curves.first; fcu; fcu = fcu->next) {
-		char *bPtr = NULL, *pPtr = NULL;
+		const char *bPtr = NULL, *pPtr = NULL;
 		
 		/* if enough flags have been found, we can stop checking unless we're also getting the curves */
 		if ((flags == ACT_TRANS_ALL) && (curves == NULL))

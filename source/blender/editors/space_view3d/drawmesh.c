@@ -33,7 +33,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_blenlib.h"
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
 
@@ -46,10 +45,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BKE_DerivedMesh.h"
-#include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_material.h"
@@ -68,7 +65,8 @@
 #include "GPU_draw.h"
 #include "GPU_material.h"
 
-#include "ED_mesh.h"
+#include "RE_engine.h"
+
 #include "ED_uvedit.h"
 
 #include "view3d_intern.h"  /* own include */
@@ -115,8 +113,8 @@ static BLI_bitmap *get_tface_mesh_marked_edge_info(Mesh *me)
 
 			ml = me->mloop + mp->loopstart;
 			for (j = 0; j < mp->totloop; j++, ml++) {
-				BLI_BITMAP_SET(bitmap_edge_flags, edge_vis_index(ml->e));
-				if (select_set) BLI_BITMAP_SET(bitmap_edge_flags, edge_sel_index(ml->e));
+				BLI_BITMAP_ENABLE(bitmap_edge_flags, edge_vis_index(ml->e));
+				if (select_set) BLI_BITMAP_ENABLE(bitmap_edge_flags, edge_sel_index(ml->e));
 			}
 		}
 	}
@@ -131,12 +129,12 @@ static DMDrawOption draw_mesh_face_select__setHiddenOpts(void *userData, int ind
 	Mesh *me = data->me;
 
 	if (me->drawflag & ME_DRAWEDGES) {
-		if ((me->drawflag & ME_HIDDENEDGES) || (BLI_BITMAP_GET(data->edge_flags, edge_vis_index(index))))
+		if ((me->drawflag & ME_HIDDENEDGES) || (BLI_BITMAP_TEST(data->edge_flags, edge_vis_index(index))))
 			return DM_DRAW_OPTION_NORMAL;
 		else
 			return DM_DRAW_OPTION_SKIP;
 	}
-	else if (BLI_BITMAP_GET(data->edge_flags, edge_sel_index(index)))
+	else if (BLI_BITMAP_TEST(data->edge_flags, edge_sel_index(index)))
 		return DM_DRAW_OPTION_NORMAL;
 	else
 		return DM_DRAW_OPTION_SKIP;
@@ -145,7 +143,7 @@ static DMDrawOption draw_mesh_face_select__setHiddenOpts(void *userData, int ind
 static DMDrawOption draw_mesh_face_select__setSelectOpts(void *userData, int index)
 {
 	drawMeshFaceSelect_userData *data = userData;
-	return (BLI_BITMAP_GET(data->edge_flags, edge_sel_index(index))) ? DM_DRAW_OPTION_NORMAL : DM_DRAW_OPTION_SKIP;
+	return (BLI_BITMAP_TEST(data->edge_flags, edge_sel_index(index))) ? DM_DRAW_OPTION_NORMAL : DM_DRAW_OPTION_SKIP;
 }
 
 /* draws unselected */
@@ -214,11 +212,16 @@ static Material *give_current_material_or_def(Object *ob, int matnr)
 
 static struct TextureDrawState {
 	Object *ob;
+	Image *stencil; /* texture painting stencil */
+	Image *canvas;  /* texture painting canvas, for image mode */
+	bool use_game_mat;
 	int is_lit, is_tex;
 	int color_profile;
 	bool use_backface_culling;
 	unsigned char obcol[4];
-} Gtexdraw = {NULL, 0, 0, 0, false, {0, 0, 0, 0}};
+	bool is_texpaint;
+	bool texpaint_material; /* use material slots for texture painting */
+} Gtexdraw = {NULL, NULL, NULL, false, 0, 0, 0, false, {0, 0, 0, 0}, false, false};
 
 static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *ma, struct TextureDrawState gtexdraw)
 {
@@ -230,42 +233,58 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 	static int c_lit;
 	static int c_has_texface;
 
-	Object *litob = NULL;  /* to get mode to turn off mipmap in painting mode */
 	int backculled = 1;
-	int alphablend = 0;
+	int alphablend = GPU_BLEND_SOLID;
 	int textured = 0;
 	int lit = 0;
 	int has_texface = texface != NULL;
 	bool need_set_tpage = false;
+	bool texpaint = ((gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) != 0);
+
+	Image *ima = NULL;
+
+	if (ma != NULL) {
+		if (ma->mode & MA_TRANSP) {
+			alphablend = GPU_BLEND_ALPHA;
+		}
+	}
 
 	if (clearcache) {
 		c_textured = c_lit = c_backculled = -1;
 		memset(&c_texface, 0, sizeof(MTFace));
 		c_badtex = false;
 		c_has_texface = -1;
+		c_ma = NULL;
 	}
 	else {
 		textured = gtexdraw.is_tex;
-		litob = gtexdraw.ob;
 	}
 
 	/* convert number of lights into boolean */
 	if (gtexdraw.is_lit) lit = 1;
 
+	backculled = gtexdraw.use_backface_culling;
 	if (ma) {
-		alphablend = ma->game.alpha_blend;
 		if (ma->mode & MA_SHLESS) lit = 0;
-		backculled = (ma->game.flag & GEMAT_BACKCULL) || gtexdraw.use_backface_culling;
+		if (gtexdraw.use_game_mat) {
+			backculled = backculled || (ma->game.flag & GEMAT_BACKCULL);
+			alphablend = ma->game.alpha_blend;
+		}
 	}
 
-	if (texface) {
+	if (texface && !texpaint) {
 		textured = textured && (texface->tpage);
 
 		/* no material, render alpha if texture has depth=32 */
 		if (!ma && BKE_image_has_alpha(texface->tpage))
 			alphablend = GPU_BLEND_ALPHA;
 	}
-
+	else if (texpaint && ma) {
+		if (gtexdraw.texpaint_material)
+			ima = ma->texpaintslot ? ma->texpaintslot[ma->paint_active_slot].ima : NULL;
+		else 
+			ima = gtexdraw.canvas;
+	}
 	else
 		textured = 0;
 
@@ -279,11 +298,43 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 	/* need to re-set tpage if textured flag changed or existsment of texface changed..  */
 	need_set_tpage = textured != c_textured || has_texface != c_has_texface;
 	/* ..or if settings inside texface were changed (if texface was used) */
-	need_set_tpage |= texface && memcmp(&c_texface, texface, sizeof(c_texface));
+	need_set_tpage |= (texpaint && c_ma != ma) || (texface && memcmp(&c_texface, texface, sizeof(c_texface)));
 
 	if (need_set_tpage) {
 		if (textured) {
-			c_badtex = !GPU_set_tpage(texface, !(litob->mode & OB_MODE_TEXTURE_PAINT), alphablend);
+			if (texpaint) {
+				c_badtex = false;
+				if (GPU_verify_image(ima, NULL, 0, 1, 0, false)) {
+					glEnable(GL_TEXTURE_2D);
+					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+					glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
+					glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PRIMARY_COLOR);
+					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+					glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
+					
+					glActiveTexture(GL_TEXTURE1);
+					glEnable(GL_TEXTURE_2D);
+					glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+					glActiveTexture(GL_TEXTURE0);					
+				}
+				else {
+					glActiveTexture(GL_TEXTURE1);
+					glDisable(GL_TEXTURE_2D);
+					glBindTexture(GL_TEXTURE_2D, 0);
+					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+					glActiveTexture(GL_TEXTURE0);									
+
+					c_badtex = true;
+					GPU_clear_tpage(true);
+					glDisable(GL_TEXTURE_2D);
+					glBindTexture(GL_TEXTURE_2D, 0);
+					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+				}
+			}
+			else {
+				c_badtex = !GPU_set_tpage(texface, !texpaint, alphablend);
+			}
 		}
 		else {
 			GPU_set_tpage(NULL, 0, 0);
@@ -317,6 +368,7 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			glDisable(GL_COLOR_MATERIAL);
 		}
 		c_lit = lit;
+		c_ma = ma;
 	}
 
 	return c_badtex;
@@ -327,6 +379,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	unsigned char obcol[4];
 	bool is_tex, solidtex;
 	Mesh *me = ob->data;
+	ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
 
 	/* XXX scene->obedit warning */
 
@@ -356,9 +409,54 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	else is_tex = false;
 
 	Gtexdraw.ob = ob;
+	Gtexdraw.stencil = (imapaint->flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) ? imapaint->stencil : NULL;
+	Gtexdraw.is_texpaint = (ob->mode == OB_MODE_TEXTURE_PAINT);
+	Gtexdraw.texpaint_material = (imapaint->mode == IMAGEPAINT_MODE_MATERIAL);
+	Gtexdraw.canvas = (Gtexdraw.texpaint_material) ? NULL : imapaint->canvas;
 	Gtexdraw.is_tex = is_tex;
 
+	/* naughty multitexturing hacks to quickly support stencil + shading + alpha blending 
+	 * in new texpaint code. The better solution here would be to support GLSL */
+	if (Gtexdraw.is_texpaint) {			
+		glActiveTexture(GL_TEXTURE1);
+		glEnable(GL_TEXTURE_2D);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+		glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
+		glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+		glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PRIMARY_COLOR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_SRC2_RGB, GL_PREVIOUS);
+		glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_ALPHA);
+		glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+		glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS);
+		
+		/* load the stencil texture here */
+		if (Gtexdraw.stencil != NULL) {
+			glActiveTexture(GL_TEXTURE2);
+			if (GPU_verify_image(Gtexdraw.stencil, NULL, false, false, false, false)) {
+				float col[4] = {imapaint->stencil_col[0], imapaint->stencil_col[1], imapaint->stencil_col[2], 1.0f};
+				glEnable(GL_TEXTURE_2D);
+				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_CONSTANT);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC2_RGB, GL_TEXTURE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE);
+				glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, col);
+				if ((imapaint->flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) == 0) {
+					glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_ONE_MINUS_SRC_COLOR);
+				}
+				else {
+					glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
+				}
+			}
+		}
+		glActiveTexture(GL_TEXTURE0);
+	}
+	
 	Gtexdraw.color_profile = BKE_scene_check_color_management_enabled(scene);
+	Gtexdraw.use_game_mat = (RE_engines_find(scene->r.engine)->flag & RE_GAME) != 0;
 	Gtexdraw.use_backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING) != 0;
 
 	memcpy(Gtexdraw.obcol, obcol, sizeof(obcol));
@@ -370,8 +468,31 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 
 static void draw_textured_end(void)
 {
-	/* switch off textures */
-	GPU_set_tpage(NULL, 0, 0);
+	if (Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) {
+		glActiveTexture(GL_TEXTURE1);
+		glDisable(GL_TEXTURE_2D);
+		glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		if (Gtexdraw.stencil != NULL) {
+			glActiveTexture(GL_TEXTURE2);
+			glDisable(GL_TEXTURE_2D);
+			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			glBindTexture(GL_TEXTURE_2D, 0);
+		}		
+		glActiveTexture(GL_TEXTURE0);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		/* manual reset, since we don't use tpage */
+		glBindTexture(GL_TEXTURE_2D, 0);
+		/* force switch off textures */
+		GPU_clear_tpage(true);
+	}
+	else {
+		/* switch off textures */
+		GPU_set_tpage(NULL, 0, 0);
+	}
 
 	glShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);
@@ -447,7 +568,7 @@ static DMDrawOption draw_tface__set_draw(MTFace *tface, const bool UNUSED(has_mc
 
 	if (ma && (ma->game.flag & GEMAT_INVISIBLE)) return 0;
 
-	if (tface)
+	if (tface || Gtexdraw.is_texpaint)
 		set_draw_settings_cached(0, tface, ma, Gtexdraw);
 
 	/* always use color from mcol, as set in update_tface_color_layer */
@@ -761,7 +882,8 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
                                    Object *ob, DerivedMesh *dm, const int draw_flags)
 {
 	Mesh *me = ob->data;
-	
+	DMDrawFlag uvflag = DM_DRAW_USE_ACTIVE_UV;
+
 	/* correct for negative scale */
 	if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
 	else glFrontFace(GL_CCW);
@@ -770,6 +892,10 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 	draw_textured_begin(scene, v3d, rv3d, ob);
 
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+		uvflag = DM_DRAW_USE_TEXPAINT_UV;
+	}
 
 	if (ob->mode & OB_MODE_EDIT) {
 		drawEMTFMapped_userData data;
@@ -780,7 +906,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 		data.mf = DM_get_tessface_data_layer(dm, CD_MFACE);
 		data.tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 
-		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, compareDrawOptionsEm, &data);
+		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, compareDrawOptionsEm, &data, 0);
 	}
 	else if (draw_flags & DRAW_FACE_SELECT) {
 		if (ob->mode & OB_MODE_WEIGHT_PAINT)
@@ -792,15 +918,15 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 			userData.mf = DM_get_tessface_data_layer(dm, CD_MFACE);
 			userData.tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 			userData.me = me;
-			dm->drawMappedFacesTex(dm, me->mpoly ? draw_tface_mapped__set_draw : NULL, compareDrawOptions, &userData);
+			dm->drawMappedFacesTex(dm, me->mpoly ? draw_tface_mapped__set_draw : NULL, compareDrawOptions, &userData, uvflag);
 		}
 	}
 	else {
 		if (GPU_buffer_legacy(dm)) {
 			if (draw_flags & DRAW_MODIFIERS_PREVIEW)
-				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy, NULL, NULL);
+				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy, NULL, NULL, uvflag);
 			else 
-				dm->drawFacesTex(dm, draw_tface__set_draw_legacy, NULL, NULL);
+				dm->drawFacesTex(dm, draw_tface__set_draw_legacy, NULL, NULL, uvflag);
 		}
 		else {
 			drawTFace_userData userData;
@@ -811,7 +937,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 			userData.tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 			userData.me = NULL;
 
-			dm->drawFacesTex(dm, draw_tface__set_draw, compareDrawOptions, &userData);
+			dm->drawFacesTex(dm, draw_tface__set_draw, compareDrawOptions, &userData, uvflag);
 		}
 	}
 
@@ -861,7 +987,7 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 	int texture_set = 0;
 
 	/* draw image texture if we find one */
-	if (ED_object_get_active_image(data->ob, mat_nr, &ima, &iuser, &node)) {
+	if (ED_object_get_active_image(data->ob, mat_nr, &ima, &iuser, &node, NULL)) {
 		/* get openl texture */
 		int mipmap = 1;
 		int bindcode = (ima) ? GPU_verify_image(ima, iuser, 0, 0, mipmap, false) : 0;
@@ -944,7 +1070,11 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
                         Object *ob, DerivedMesh *dm, const int draw_flags)
 {
 	/* if not cycles, or preview-modifiers, or drawing matcaps */
-	if ((!BKE_scene_use_new_shading_nodes(scene)) || (draw_flags & DRAW_MODIFIERS_PREVIEW) || (v3d->flag2 & V3D_SHOW_SOLID_MATCAP)) {
+	if ((draw_flags & DRAW_MODIFIERS_PREVIEW) ||
+	    (v3d->flag2 & V3D_SHOW_SOLID_MATCAP) ||
+	    (BKE_scene_use_new_shading_nodes(scene) == false) ||
+	    ((ob->mode & OB_MODE_TEXTURE_PAINT) && ELEM(v3d->drawtype, OB_TEXTURE, OB_SOLID)))
+	{
 		draw_mesh_textured_old(scene, v3d, rv3d, ob, dm, draw_flags);
 		return;
 	}
@@ -1020,34 +1150,69 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 }
 
 /* Vertex Paint and Weight Paint */
+static void draw_mesh_paint_light_begin(void)
+{
+	const float spec[4] = {0.47f, 0.47f, 0.47f, 0.47f};
+
+	GPU_enable_material(0, NULL);
+
+	/* but set default spec */
+	glColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+
+	/* diffuse */
+	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_COLOR_MATERIAL);
+}
+static void draw_mesh_paint_light_end(void)
+{
+	glDisable(GL_COLOR_MATERIAL);
+	glDisable(GL_LIGHTING);
+
+	GPU_disable_material();
+}
+
 void draw_mesh_paint_weight_faces(DerivedMesh *dm, const bool use_light,
                                   void *facemask_cb, void *user_data)
 {
 	if (use_light) {
-		const float spec[4] = {0.47f, 0.47f, 0.47f, 0.47f};
-
-		/* but set default spec */
-		glColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-
-		/* diffuse */
-		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-		glEnable(GL_LIGHTING);
-		glEnable(GL_COLOR_MATERIAL);
+		draw_mesh_paint_light_begin();
 	}
 
 	dm->drawMappedFaces(dm, (DMSetDrawOptions)facemask_cb, GPU_enable_material, NULL, user_data,
 	                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
 
 	if (use_light) {
-		glDisable(GL_COLOR_MATERIAL);
-		glDisable(GL_LIGHTING);
-
-		GPU_disable_material();
+		draw_mesh_paint_light_end();
 	}
 }
 
-void draw_mesh_paint_weight_edges(RegionView3D *rv3d, DerivedMesh *dm, const bool use_depth,
+void draw_mesh_paint_vcolor_faces(DerivedMesh *dm, const bool use_light,
+                                  void *facemask_cb, void *user_data,
+                                  const Mesh *me)
+{
+	if (use_light) {
+		draw_mesh_paint_light_begin();
+	}
+
+	if (me->mloopcol) {
+		dm->drawMappedFaces(dm, facemask_cb, GPU_enable_material, NULL, user_data,
+		                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
+	}
+	else {
+		glColor3f(1.0f, 1.0f, 1.0f);
+		dm->drawMappedFaces(dm, facemask_cb, GPU_enable_material, NULL, user_data,
+		                    DM_DRAW_ALWAYS_SMOOTH);
+	}
+
+	if (use_light) {
+		draw_mesh_paint_light_end();
+	}
+}
+
+void draw_mesh_paint_weight_edges(RegionView3D *rv3d, DerivedMesh *dm,
+                                  const bool use_depth, const bool use_alpha,
                                   void *edgemask_cb, void *user_data)
 {
 	/* weight paint in solid mode, special case. focus on making the weights clear
@@ -1061,7 +1226,10 @@ void draw_mesh_paint_weight_edges(RegionView3D *rv3d, DerivedMesh *dm, const boo
 		glDisable(GL_DEPTH_TEST);
 	}
 
-	glEnable(GL_BLEND);
+	if (use_alpha) {
+		glEnable(GL_BLEND);
+	}
+
 	glColor4ub(255, 255, 255, 96);
 	glEnable(GL_LINE_STIPPLE);
 	glLineStipple(1, 0xAAAA);
@@ -1077,7 +1245,10 @@ void draw_mesh_paint_weight_edges(RegionView3D *rv3d, DerivedMesh *dm, const boo
 	}
 
 	glDisable(GL_LINE_STIPPLE);
-	glDisable(GL_BLEND);
+
+	if (use_alpha) {
+		glDisable(GL_BLEND);
+	}
 }
 
 void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
@@ -1092,22 +1263,10 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 		facemask = wpaint__setSolidDrawOptions_facemask;
 
 	if (ob->mode & OB_MODE_WEIGHT_PAINT) {
-		if (use_light) {
-			GPU_enable_material(0, NULL);
-		}
-
 		draw_mesh_paint_weight_faces(dm, use_light, facemask, me);
 	}
 	else if (ob->mode & OB_MODE_VERTEX_PAINT) {
-		if (me->mloopcol) {
-			dm->drawMappedFaces(dm, facemask, GPU_enable_material, NULL, me,
-			                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
-		}
-		else {
-			glColor3f(1.0f, 1.0f, 1.0f);
-			dm->drawMappedFaces(dm, facemask, GPU_enable_material, NULL, me,
-			                    DM_DRAW_ALWAYS_SMOOTH);
-		}
+		draw_mesh_paint_vcolor_faces(dm, use_light, facemask, me, me);
 	}
 
 	/* draw face selection on top */
@@ -1116,7 +1275,17 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 	}
 	else if ((use_light == false) || (ob->dtx & OB_DRAWWIRE)) {
 		const bool use_depth = (v3d->flag & V3D_ZBUF_SELECT) || !(ob->mode & OB_MODE_WEIGHT_PAINT);
-		draw_mesh_paint_weight_edges(rv3d, dm, use_depth, NULL, NULL);
+		const bool use_alpha = (ob->mode & OB_MODE_VERTEX_PAINT) == 0;
+
+		if (use_alpha == false) {
+			set_inverted_drawing(1);
+		}
+
+		draw_mesh_paint_weight_edges(rv3d, dm, use_depth, use_alpha, NULL, NULL);
+
+		if (use_alpha == false) {
+			set_inverted_drawing(0);
+		}
 	}
 }
 

@@ -37,7 +37,6 @@
 #include "DNA_object_force.h"
 #include "DNA_meshdata_types.h"
 
-#include "BLI_threads.h"
 #include "BLI_math.h"
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
@@ -1237,7 +1236,7 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 	sub_v3_v3v3(extent, X[s->kl], X[s->ij]);
 	sub_v3_v3v3(vel, V[s->kl], V[s->ij]);
 	dot = dot_v3v3(extent, extent);
-	length = sqrt(dot);
+	length = sqrtf(dot);
 	
 	s->flags &= ~CLOTH_SPRING_FLAG_NEEDED;
 	
@@ -1271,16 +1270,17 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 			k = scaling / (clmd->sim_parms->avg_spring_len + FLT_EPSILON);
 
 			// TODO: verify, half verified (couldn't see error)
- 			if(s->type & CLOTH_SPRING_TYPE_SEWING) {
- 				// sewing springs usually have a large distance at first so clamp the force so we don't get tunnelling through colission objects
- 				float force = k*(length-L);
- 				if(force > clmd->sim_parms->max_sewing) {
- 					force = clmd->sim_parms->max_sewing;
- 				}
- 				mul_fvector_S(stretch_force, dir, force);
- 			} else {
-  				mul_fvector_S(stretch_force, dir, k*(length-L));
- 			}
+			if (s->type & CLOTH_SPRING_TYPE_SEWING) {
+				// sewing springs usually have a large distance at first so clamp the force so we don't get tunnelling through colission objects
+				float force = k*(length-L);
+				if (force > clmd->sim_parms->max_sewing) {
+					force = clmd->sim_parms->max_sewing;
+				}
+				mul_fvector_S(stretch_force, dir, force);
+			}
+			else {
+				mul_fvector_S(stretch_force, dir, k * (length - L));
+			}
 
 			VECADD(s->f, s->f, stretch_force);
 
@@ -1399,7 +1399,7 @@ static void CalcFloat4( float *v1, float *v2, float *v3, float *v4, float *n)
 	n[2] = n1[0]*n2[1]-n1[1]*n2[0];
 }
 
-static float calculateVertexWindForce(float wind[3], float vertexnormal[3])  
+static float calculateVertexWindForce(const float wind[3], const float vertexnormal[3])
 {
 	return dot_v3v3(wind, vertexnormal);
 }
@@ -1432,7 +1432,7 @@ static void hair_velocity_smoothing(ClothModifierData *clmd, lfVector *lF, lfVec
 	float smoothfac = 2.0f * clmd->sim_parms->velocity_smooth;
 	float collfac = 2.0f * clmd->sim_parms->collider_friction;
 	unsigned int	v = 0;
-	unsigned int	i = 0;
+	int	            i = 0;
 	int				j = 0;
 	int				k = 0;
 
@@ -1804,6 +1804,7 @@ static int UNUSED_FUNCTION(cloth_calc_helper_forces)(Object *UNUSED(ob), ClothMo
 	
 	return 1;
 }
+
 int implicit_solver(Object *ob, float frame, ClothModifierData *clmd, ListBase *effectors)
 {
 	unsigned int i=0;
@@ -1888,10 +1889,8 @@ int implicit_solver(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 			//if (do_extra_solve)
 			//	cloth_calc_helper_forces(ob, clmd, initial_cos, step/clmd->sim_parms->timescale, dt/clmd->sim_parms->timescale);
 			
-			for (i = 0; i < numverts; i++) {
-
-				if (do_extra_solve) {
-					
+			if (do_extra_solve) {
+				for (i = 0; i < numverts; i++) {				
 					if ((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
 						continue;
 

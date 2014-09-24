@@ -39,6 +39,8 @@ void   BM_mesh_clear(BMesh *bm);
 
 void BM_mesh_normals_update(BMesh *bm);
 void BM_verts_calc_normal_vcos(BMesh *bm, const float (*fnos)[3], const float (*vcos)[3], float (*vnos)[3]);
+void BM_loops_calc_normal_vcos(BMesh *bm, const float (*vcos)[3], const float (*vnos)[3], const float (*pnos)[3],
+                               const float split_angle, float (*r_lnos)[3]);
 
 void bmesh_edit_begin(BMesh *bm, const BMOpTypeFlag type_flag);
 void bmesh_edit_end(BMesh *bm, const BMOpTypeFlag type_flag);
@@ -48,7 +50,7 @@ void BM_mesh_elem_index_validate(BMesh *bm, const char *location, const char *fu
                                  const char *msg_a, const char *msg_b);
 
 #ifndef NDEBUG
-bool BM_mesh_elem_table_check(BMesh *em);
+bool BM_mesh_elem_table_check(BMesh *bm);
 #endif
 
 void           BM_mesh_elem_table_ensure(BMesh *bm, const char htype);
@@ -67,7 +69,11 @@ BMFace *BM_face_at_index_find(BMesh *bm, const int index);
 
 int  BM_mesh_elem_count(BMesh *bm, const char htype);
 
-void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx);
+void BM_mesh_remap(
+        BMesh *bm,
+        const unsigned int *vert_idx,
+        const unsigned int *edge_idx,
+        const unsigned int *face_idx);
 
 typedef struct BMAllocTemplate {
 	int totvert, totedge, totloop, totface;

@@ -39,6 +39,7 @@ using carve::geom3d::Vector;
 using carve::math::Matrix3;
 using carve::mesh::Face;
 using carve::mesh::MeshSet;
+using carve::triangulate::tri_idx;
 using carve::triangulate::triangulate;
 
 typedef std::map< MeshSet<3>::mesh_t*, RTreeNode<3, Face<3> *> * > RTreeCache;
@@ -48,83 +49,52 @@ namespace {
 
 // Functions adopted from BLI_math.h to use Carve Vector and Matrix.
 
-void axis_angle_normalized_to_mat3(const Vector &normal,
-                                   const double angle,
-                                   Matrix3 *matrix)
+void transpose_m3__bli(double mat[3][3])
 {
-	double nsi[3], co, si, ico;
+	double t;
 
-	/* now convert this to a 3x3 matrix */
-	co = cos(angle);
-	si = sin(angle);
-
-	ico = (1.0 - co);
-	nsi[0] = normal[0] * si;
-	nsi[1] = normal[1] * si;
-	nsi[2] = normal[2] * si;
-
-	matrix->m[0][0] = ((normal[0] * normal[0]) * ico) + co;
-	matrix->m[0][1] = ((normal[0] * normal[1]) * ico) + nsi[2];
-	matrix->m[0][2] = ((normal[0] * normal[2]) * ico) - nsi[1];
-	matrix->m[1][0] = ((normal[0] * normal[1]) * ico) - nsi[2];
-	matrix->m[1][1] = ((normal[1] * normal[1]) * ico) + co;
-	matrix->m[1][2] = ((normal[1] * normal[2]) * ico) + nsi[0];
-	matrix->m[2][0] = ((normal[0] * normal[2]) * ico) + nsi[1];
-	matrix->m[2][1] = ((normal[1] * normal[2]) * ico) - nsi[0];
-	matrix->m[2][2] = ((normal[2] * normal[2]) * ico) + co;
+	t = mat[0][1];
+	mat[0][1] = mat[1][0];
+	mat[1][0] = t;
+	t = mat[0][2];
+	mat[0][2] = mat[2][0];
+	mat[2][0] = t;
+	t = mat[1][2];
+	mat[1][2] = mat[2][1];
+	mat[2][1] = t;
 }
 
-void axis_angle_to_mat3(const Vector &axis,
-                        const double angle,
-                        Matrix3 *matrix)
+void ortho_basis_v3v3_v3__bli(double r_n1[3], double r_n2[3], const double n[3])
 {
-	if (axis.length2() < FLT_EPSILON) {
-		*matrix = Matrix3();
-		return;
-	}
+	const double eps = FLT_EPSILON;
+	const double f = (n[0] * n[0]) + (n[1] * n[1]);
 
-	Vector nor = axis;
-	nor.normalize();
+	if (f > eps) {
+		const double d = 1.0f / sqrt(f);
 
-	axis_angle_normalized_to_mat3(nor, angle, matrix);
-}
-
-inline double saacos(double fac)
-{
-	if      (fac <= -1.0) return M_PI;
-	else if (fac >=  1.0) return 0.0;
-	else                  return acos(fac);
-}
-
-bool axis_dominant_v3_to_m3(const Vector &normal,
-                            Matrix3 *matrix)
-{
-	Vector up;
-	Vector axis;
-	double angle;
-
-	up.x = 0.0;
-	up.y = 0.0;
-	up.z = 1.0;
-
-	axis = carve::geom::cross(normal, up);
-	angle = saacos(carve::geom::dot(normal, up));
-
-	if (angle >= FLT_EPSILON) {
-		if (axis.length2() < FLT_EPSILON) {
-			axis[0] = 0.0;
-			axis[1] = 1.0;
-			axis[2] = 0.0;
-		}
-
-		axis_angle_to_mat3(axis, angle, matrix);
-		return true;
+		r_n1[0] =  n[1] * d;
+		r_n1[1] = -n[0] * d;
+		r_n1[2] =  0.0f;
+		r_n2[0] = -n[2] * r_n1[1];
+		r_n2[1] =  n[2] * r_n1[0];
+		r_n2[2] =  n[0] * r_n1[1] - n[1] * r_n1[0];
 	}
 	else {
-		*matrix = Matrix3();
-		return false;
+		/* degenerate case */
+		r_n1[0] = (n[2] < 0.0f) ? -1.0f : 1.0f;
+		r_n1[1] = r_n1[2] = r_n2[0] = r_n2[2] = 0.0f;
+		r_n2[1] = 1.0f;
 	}
 }
+
+void axis_dominant_v3_to_m3__bli(Matrix3 *r_mat, const Vector &normal)
+{
+	memcpy(r_mat->m[2], normal.v, sizeof(double[3]));
+	ortho_basis_v3v3_v3__bli(r_mat->m[0], r_mat->m[1], r_mat->m[2]);
+
+	transpose_m3__bli(r_mat->m);
+}
+
 
 void meshset_minmax(const MeshSet<3> *mesh,
                     Vector *min,
@@ -395,7 +365,10 @@ MeshSet<3> *getIntersectedOperand(std::vector<MeshSet<3>::mesh_t*> *meshes,
 
 MeshSet<3> *unionIntersectingMeshes(carve::csg::CSG *csg,
                                     MeshSet<3> *poly,
-                                    const MeshSet<3>::aabb_t &otherAABB)
+                                    const MeshSet<3> *other_poly,
+                                    const MeshSet<3>::aabb_t &otherAABB,
+                                    UnionIntersectionsCallback callback,
+                                    void *user_data)
 {
 	if (poly->meshes.size() <= 1) {
 		return poly;
@@ -439,6 +412,7 @@ MeshSet<3> *unionIntersectingMeshes(carve::csg::CSG *csg,
 				                                  carve::csg::CSG::UNION,
 				                                  NULL, carve::csg::CSG::CLASSIFY_EDGE);
 
+				callback(result, other_poly, user_data);
 				delete left;
 				delete right;
 
@@ -449,6 +423,8 @@ MeshSet<3> *unionIntersectingMeshes(carve::csg::CSG *csg,
 			std::cerr << "CSG failed, exception " << e.str() << std::endl;
 
 			MeshSet<3> *result = meshSetFromTwoMeshes(left->meshes, right->meshes);
+
+			callback(result, other_poly, user_data);
 
 			delete left;
 			delete right;
@@ -487,7 +463,9 @@ MeshSet<3> *unionIntersectingMeshes(carve::csg::CSG *csg,
 // more clear what's going on and hopefully optimize it as well.
 void carve_unionIntersections(carve::csg::CSG *csg,
                               MeshSet<3> **left_r,
-                              MeshSet<3> **right_r)
+                              MeshSet<3> **right_r,
+                              UnionIntersectionsCallback callback,
+                              void *user_data)
 {
 	MeshSet<3> *left = *left_r, *right = *right_r;
 
@@ -498,15 +476,18 @@ void carve_unionIntersections(carve::csg::CSG *csg,
 	MeshSet<3>::aabb_t leftAABB = left->getAABB();
 	MeshSet<3>::aabb_t rightAABB = right->getAABB();;
 
-	left = unionIntersectingMeshes(csg, left, rightAABB);
-	right = unionIntersectingMeshes(csg, right, leftAABB);
+	left = unionIntersectingMeshes(csg, left, right, rightAABB,
+	                               callback, user_data);
+	right = unionIntersectingMeshes(csg, right, left, leftAABB,
+	                                callback, user_data);
 
 	if (left != *left_r) {
 		delete *left_r;
 	}
 
-	if (right != *right_r)
+	if (right != *right_r) {
 		delete *right_r;
+	}
 
 	*left_r = left;
 	*right_r = right;
@@ -522,7 +503,7 @@ static inline void add_newell_cross_v3_v3v3(const Vector &v_prev,
 }
 
 // Axis matrix is being set for non-flat ngons only.
-bool carve_checkPolyPlanarAndGetNormal(const std::vector<Vector> &vertices,
+bool carve_checkPolyPlanarAndGetNormal(const std::vector<MeshSet<3>::vertex_t> &vertex_storage,
                                        const int verts_per_poly,
                                        const int *verts_of_poly,
                                        Matrix3 *axis_matrix_r)
@@ -534,10 +515,10 @@ bool carve_checkPolyPlanarAndGetNormal(const std::vector<Vector> &vertices,
 	else if (verts_per_poly == 4) {
 		// Presumably faster than using generig n-gon check for quads.
 
-		const Vector &v1 = vertices[verts_of_poly[0]],
-		             &v2 = vertices[verts_of_poly[1]],
-		             &v3 = vertices[verts_of_poly[2]],
-		             &v4 = vertices[verts_of_poly[3]];
+		const Vector &v1 = vertex_storage[verts_of_poly[0]].v,
+		             &v2 = vertex_storage[verts_of_poly[1]].v,
+		             &v3 = vertex_storage[verts_of_poly[2]].v,
+		             &v4 = vertex_storage[verts_of_poly[3]].v;
 
 		Vector vec1, vec2, vec3, cross;
 
@@ -556,14 +537,14 @@ bool carve_checkPolyPlanarAndGetNormal(const std::vector<Vector> &vertices,
 		return fabs(production) < magnitude;
 	}
 	else {
-		const Vector *vert_prev = &vertices[verts_of_poly[verts_per_poly - 1]];
-		const Vector *vert_curr = &vertices[verts_of_poly[0]];
+		const Vector *vert_prev = &vertex_storage[verts_of_poly[verts_per_poly - 1]].v;
+		const Vector *vert_curr = &vertex_storage[verts_of_poly[0]].v;
 
 		Vector normal = carve::geom::VECTOR(0.0, 0.0, 0.0);
 		for (int i = 0; i < verts_per_poly; i++) {
 			add_newell_cross_v3_v3v3(*vert_prev, *vert_curr, &normal);
 			vert_prev = vert_curr;
-			vert_curr = &vertices[verts_of_poly[(i + 1) % verts_per_poly]];
+			vert_curr = &vertex_storage[verts_of_poly[(i + 1) % verts_per_poly]].v;
 		}
 
 		if (normal.length2() < FLT_EPSILON) {
@@ -574,13 +555,13 @@ bool carve_checkPolyPlanarAndGetNormal(const std::vector<Vector> &vertices,
 			double magnitude = normal.length2();
 
 			normal.normalize();
-			axis_dominant_v3_to_m3(normal, axis_matrix_r);
+			axis_dominant_v3_to_m3__bli(axis_matrix_r, normal);
 
-			Vector first_projected = *axis_matrix_r * vertices[verts_of_poly[0]];
+			Vector first_projected = *axis_matrix_r * vertex_storage[verts_of_poly[0]].v;
 			double min_z = first_projected[2], max_z = first_projected[2];
 
 			for (int i = 1; i < verts_per_poly; i++) {
-				const Vector &vertex = vertices[verts_of_poly[i]];
+				const Vector &vertex = vertex_storage[verts_of_poly[i]].v;
 				Vector projected = *axis_matrix_r * vertex;
 				if (projected[2] < min_z) {
 					min_z = projected[2];
@@ -603,18 +584,18 @@ bool carve_checkPolyPlanarAndGetNormal(const std::vector<Vector> &vertices,
 
 namespace {
 
-int triangulateNGon_carveTriangulator(const std::vector<Vector> &vertices,
+int triangulateNGon_carveTriangulator(const std::vector<MeshSet<3>::vertex_t> &vertex_storage,
                                       const int verts_per_poly,
                                       const int *verts_of_poly,
                                       const Matrix3 &axis_matrix,
-                                      std::vector<carve::triangulate::tri_idx> *triangles)
+                                      std::vector<tri_idx> *triangles)
 {
 	// Project vertices to 2D plane.
 	Vector projected;
 	std::vector<carve::geom::vector<2> > poly_2d;
 	poly_2d.reserve(verts_per_poly);
 	for (int i = 0; i < verts_per_poly; ++i) {
-		projected = axis_matrix * vertices[verts_of_poly[i]];
+		projected = axis_matrix * vertex_storage[verts_of_poly[i]].v;
 		poly_2d.push_back(carve::geom::VECTOR(projected[0], projected[1]));
 	}
 
@@ -626,11 +607,11 @@ int triangulateNGon_carveTriangulator(const std::vector<Vector> &vertices,
 
 int triangulateNGon_importerTriangulator(struct ImportMeshData *import_data,
                                          CarveMeshImporter *mesh_importer,
-                                         const std::vector<Vector> &vertices,
+                                         const std::vector<MeshSet<3>::vertex_t> &vertex_storage,
                                          const int verts_per_poly,
                                          const int *verts_of_poly,
                                          const Matrix3 &axis_matrix,
-                                         std::vector<carve::triangulate::tri_idx> *triangles)
+                                         std::vector<tri_idx> *triangles)
 {
 	typedef float Vector2D[2];
 	typedef unsigned int Triangle[3];
@@ -639,7 +620,7 @@ int triangulateNGon_importerTriangulator(struct ImportMeshData *import_data,
 	Vector2D *poly_2d = new Vector2D[verts_per_poly];
 	Vector projected;
 	for (int i = 0; i < verts_per_poly; ++i) {
-		projected = axis_matrix * vertices[verts_of_poly[i]];
+		projected = axis_matrix * vertex_storage[verts_of_poly[i]].v;
 		poly_2d[i][0] = projected[0];
 		poly_2d[i][1] = projected[1];
 	}
@@ -653,10 +634,9 @@ int triangulateNGon_importerTriangulator(struct ImportMeshData *import_data,
 
 	triangles->reserve(num_triangles);
 	for (int i = 0; i < num_triangles; ++i) {
-		triangles->push_back(
-			carve::triangulate::tri_idx(api_triangles[i][0],
-			                            api_triangles[i][1],
-			                            api_triangles[i][2]));
+		triangles->push_back(tri_idx(api_triangles[i][0],
+			                         api_triangles[i][1],
+			                         api_triangles[i][2]));
 	}
 
 	delete [] poly_2d;
@@ -665,19 +645,51 @@ int triangulateNGon_importerTriangulator(struct ImportMeshData *import_data,
 	return num_triangles;
 }
 
+template <typename T>
+void sortThreeNumbers(T &a, T &b, T &c)
+{
+	if (a > b)
+		std::swap(a, b);
+	if (b > c)
+		std::swap(b, c);
+	if (a > b)
+		std::swap(a, b);
+}
+
+bool pushTriangle(int v1, int v2, int v3,
+                  std::vector<int> *face_indices,
+                  TrianglesStorage *triangles_storage)
+{
+
+	tri_idx triangle(v1, v2, v3);
+	sortThreeNumbers(triangle.a, triangle.b, triangle.c);
+
+	assert(triangle.a < triangle.b);
+	assert(triangle.b < triangle.c);
+
+	if (triangles_storage->find(triangle) == triangles_storage->end()) {
+		face_indices->push_back(v1);
+		face_indices->push_back(v2);
+		face_indices->push_back(v3);
+
+		triangles_storage->insert(triangle);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 }  // namespace
 
 int carve_triangulatePoly(struct ImportMeshData *import_data,
                           CarveMeshImporter *mesh_importer,
-                          int poly_index,
-                          int start_loop_index,
-                          const std::vector<Vector> &vertices,
+                          const std::vector<MeshSet<3>::vertex_t> &vertex_storage,
                           const int verts_per_poly,
                           const int *verts_of_poly,
                           const Matrix3 &axis_matrix,
                           std::vector<int> *face_indices,
-                          std::vector<int> *orig_loop_index_map,
-                          std::vector<int> *orig_poly_index_map)
+                          TrianglesStorage *triangles_storage)
 {
 	int num_triangles = 0;
 
@@ -690,51 +702,45 @@ int carve_triangulatePoly(struct ImportMeshData *import_data,
 		// TODO(sergey): Consider using shortest diagonal here. However
 		// display code in Blende use static 1-3 split, so some experiments
 		// are needed here.
-		face_indices->push_back(3);
-		face_indices->push_back(verts_of_poly[0]);
-		face_indices->push_back(verts_of_poly[1]);
-		face_indices->push_back(verts_of_poly[2]);
+		if (pushTriangle(verts_of_poly[0],
+		                 verts_of_poly[1],
+		                 verts_of_poly[2],
+		                 face_indices,
+		                 triangles_storage))
+		{
+			num_triangles++;
+		}
 
-		orig_loop_index_map->push_back(start_loop_index);
-		orig_loop_index_map->push_back(start_loop_index + 1);
-		orig_loop_index_map->push_back(-1);
-		orig_poly_index_map->push_back(poly_index);
-
-		face_indices->push_back(3);
-		face_indices->push_back(verts_of_poly[0]);
-		face_indices->push_back(verts_of_poly[2]);
-		face_indices->push_back(verts_of_poly[3]);
-
-		orig_loop_index_map->push_back(-1);
-		orig_loop_index_map->push_back(start_loop_index + 2);
-		orig_loop_index_map->push_back(start_loop_index + 3);
-		orig_poly_index_map->push_back(poly_index);
-
-		num_triangles = 2;
+		if (pushTriangle(verts_of_poly[0],
+		                 verts_of_poly[2],
+		                 verts_of_poly[3],
+		                 face_indices,
+		                 triangles_storage))
+		{
+			num_triangles++;
+		}
 	}
 	else {
-		std::vector<carve::triangulate::tri_idx> triangles;
+		std::vector<tri_idx> triangles;
 		triangles.reserve(verts_per_poly - 2);
 
 		// Make triangulator callback optional so we could do some tests
 		// in the future.
 		if (mesh_importer->triangulate2DPoly) {
-			num_triangles =
-				triangulateNGon_importerTriangulator(import_data,
-				                                     mesh_importer,
-				                                     vertices,
-				                                     verts_per_poly,
-				                                     verts_of_poly,
-				                                     axis_matrix,
-				                                     &triangles);
+			triangulateNGon_importerTriangulator(import_data,
+			                                     mesh_importer,
+			                                     vertex_storage,
+			                                     verts_per_poly,
+			                                     verts_of_poly,
+			                                     axis_matrix,
+			                                     &triangles);
 		}
 		else {
-			num_triangles =
-				triangulateNGon_carveTriangulator(vertices,
-				                                  verts_per_poly,
-				                                  verts_of_poly,
-				                                  axis_matrix,
-				                                  &triangles);
+			triangulateNGon_carveTriangulator(vertex_storage,
+			                                  verts_per_poly,
+			                                  verts_of_poly,
+			                                  axis_matrix,
+			                                  &triangles);
 		}
 
 		for (int i = 0; i < triangles.size(); ++i) {
@@ -750,30 +756,14 @@ int carve_triangulatePoly(struct ImportMeshData *import_data,
 			assert(v2 < verts_per_poly);
 			assert(v3 < verts_per_poly);
 
-			face_indices->push_back(3);
-			face_indices->push_back(verts_of_poly[v1]);
-			face_indices->push_back(verts_of_poly[v2]);
-			face_indices->push_back(verts_of_poly[v3]);
-
-#define CHECK_TRIANGLE_LOOP_INDEX(v1, v2) \
-	{ \
-		int v1_ = std::min(v1, v2), \
-		    v2_ = std::max(v1, v2); \
-		if (v1_ + 1 == v2_ || v1_ + verts_per_poly == v2_ + 1) { \
-			orig_loop_index_map->push_back(start_loop_index + v1); \
-		} \
-		else { \
-			orig_loop_index_map->push_back(-1); \
-		} \
-	} (void) 0
-
-			CHECK_TRIANGLE_LOOP_INDEX(v1, v2);
-			CHECK_TRIANGLE_LOOP_INDEX(v2, v3);
-			CHECK_TRIANGLE_LOOP_INDEX(v3, v1);
-
-#undef CHECK_TRIANGLE_LOOP_INDEX
-
-			orig_poly_index_map->push_back(poly_index);
+			if (pushTriangle(verts_of_poly[v1],
+			                 verts_of_poly[v2],
+			                 verts_of_poly[v3],
+			                 face_indices,
+			                 triangles_storage))
+			{
+				num_triangles++;
+			}
 		}
 	}
 

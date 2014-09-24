@@ -190,7 +190,11 @@ struct RenderLayer *RE_GetRenderLayer(struct RenderResult *rr, const char *name)
 float *RE_RenderLayerGetPass(struct RenderLayer *rl, int passtype);
 
 /* obligatory initialize call, disprect is optional */
-void RE_InitState(struct Render *re, struct Render *source, struct RenderData *rd, struct SceneRenderLayer *srl, int winx, int winy, rcti *disprect);
+void RE_InitState(struct Render *re, struct Render *source, struct RenderData *rd,
+                  struct SceneRenderLayer *srl,
+                  int winx, int winy, rcti *disprect);
+void RE_ChangeResolution(struct Render *re, int winx, int winy, rcti *disprect);
+void RE_ChangeModeFlag(struct Render *re, int flag, bool clear);
 
 /* set up the viewplane/perspective matrix, three choices */
 struct Object *RE_GetCamera(struct Render *re); /* return camera override if set */
@@ -224,10 +228,14 @@ void RE_init_threadcount(Render *re);
 void RE_TileProcessor(struct Render *re);
 
 /* only RE_NewRender() needed, main Blender render calls */
-void RE_BlenderFrame(struct Render *re, struct Main *bmain, struct Scene *scene, struct SceneRenderLayer *srl, struct Object *camera_override, unsigned int lay_override, int frame, const short write_still);
-void RE_BlenderAnim(struct Render *re, struct Main *bmain, struct Scene *scene, struct Object *camera_override, unsigned int lay_override, int sfra, int efra, int tfra);
+void RE_BlenderFrame(struct Render *re, struct Main *bmain, struct Scene *scene,
+                     struct SceneRenderLayer *srl, struct Object *camera_override,
+                     unsigned int lay_override, int frame, const bool write_still);
+void RE_BlenderAnim(struct Render *re, struct Main *bmain, struct Scene *scene, struct Object *camera_override,
+                    unsigned int lay_override, int sfra, int efra, int tfra);
 #ifdef WITH_FREESTYLE
 void RE_RenderFreestyleStrokes(struct Render *re, struct Main *bmain, struct Scene *scene, int render);
+void RE_RenderFreestyleExternal(struct Render *re);
 #endif
 
 /* error reporting */
@@ -236,12 +244,12 @@ void RE_SetReports(struct Render *re, struct ReportList *reports);
 /* main preview render call */
 void RE_PreviewRender(struct Render *re, struct Main *bmain, struct Scene *scene);
 
-int RE_ReadRenderResult(struct Scene *scene, struct Scene *scenode);
-int RE_WriteRenderResult(struct ReportList *reports, RenderResult *rr, const char *filename, int compress);
-struct RenderResult *RE_MultilayerConvert(void *exrhandle, const char *colorspace, int predivide, int rectx, int recty);
+bool RE_ReadRenderResult(struct Scene *scene, struct Scene *scenode);
+bool RE_WriteRenderResult(struct ReportList *reports, RenderResult *rr, const char *filename, int compress);
+struct RenderResult *RE_MultilayerConvert(void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty);
 
 extern const float default_envmap_layout[];
-int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, const char imtype, float layout[12]);
+bool RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, const char imtype, float layout[12]);
 
 /* do a full sample buffer compo */
 void RE_MergeFullSample(struct Render *re, struct Main *bmain, struct Scene *sce, struct bNodeTree *ntree);
@@ -254,6 +262,7 @@ void RE_stats_draw_cb	(struct Render *re, void *handle, void (*f)(void *handle, 
 void RE_progress_cb	(struct Render *re, void *handle, void (*f)(void *handle, float));
 void RE_draw_lock_cb		(struct Render *re, void *handle, void (*f)(void *handle, int));
 void RE_test_break_cb	(struct Render *re, void *handle, int (*f)(void *handle));
+void RE_current_scene_update_cb(struct Render *re, void *handle, void (*f)(void *handle, struct Scene *scene));
 
 /* should move to kernel once... still unsure on how/where */
 float RE_filter_value(int type, float x);

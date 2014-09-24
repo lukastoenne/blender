@@ -37,12 +37,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -61,7 +58,7 @@
 #include "ED_object.h"
 #include "ED_render.h"
 #include "ED_screen.h"
-#include "ED_sculpt.h"
+#include "ED_paint.h"
 #include "ED_util.h"
 #include "ED_text.h"
 
@@ -105,13 +102,16 @@ void ED_undo_push(bContext *C, const char *str)
 	}
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
 		if (U.undosteps == 0) return;
-		
+
 		PE_undo_push(CTX_data_scene(C), str);
+	}
+	else if (obact && obact->mode & OB_MODE_SCULPT) {
+		/* do nothing for now */
 	}
 	else {
 		BKE_write_undo(C, str);
 	}
-	
+
 	if (wm->file_saved) {
 		wm->file_saved = 0;
 		/* notifier that data changed, for save-over warning or header */
@@ -213,6 +213,7 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 	}
 	
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
+	WM_event_add_notifier(C, NC_WM | ND_UNDO, NULL);
 
 	if (win) {
 		win->addmousemove = true;
@@ -385,7 +386,13 @@ int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 			ED_undo_pop_op(C, op);
 
 			if (op->type->check) {
-				op->type->check(C, op); /* ignore return value since its running again anyway */
+				if (op->type->check(C, op)) {
+					/* check for popup and re-layout buttons */
+					ARegion *ar_menu = CTX_wm_menu(C);
+					if (ar_menu) {
+						ED_region_tag_refresh_ui(ar_menu);
+					}
+				}
 			}
 
 			retval = WM_operator_repeat(C, op);
@@ -433,13 +440,25 @@ void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int UNUSED(arg_ev
 enum {
 	UNDOSYSTEM_GLOBAL   = 1,
 	UNDOSYSTEM_EDITMODE = 2,
-	UNDOSYSTEM_PARTICLE = 3
+	UNDOSYSTEM_PARTICLE = 3,
+	UNDOSYSTEM_IMAPAINT = 4
 };
 
 static int get_undo_system(bContext *C)
 {
+	Object *obact = CTX_data_active_object(C);
 	Object *obedit = CTX_data_edit_object(C);
-	
+	ScrArea *sa = CTX_wm_area(C);
+
+	/* first check for editor undo */
+	if (sa && (sa->spacetype == SPACE_IMAGE)) {
+		SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
+
+		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
+			if (!ED_undo_paint_empty(UNDO_PAINT_IMAGE))
+				return UNDOSYSTEM_IMAPAINT;
+		}
+	}
 	/* find out which undo system */
 	if (obedit) {
 		if (OB_TYPE_SUPPORT_EDITMODE(obedit->type)) {
@@ -449,9 +468,15 @@ static int get_undo_system(bContext *C)
 	else {
 		Object *obact = CTX_data_active_object(C);
 		
-		if (obact && obact->mode & OB_MODE_PARTICLE_EDIT)
-			return UNDOSYSTEM_PARTICLE;
-		else if (U.uiflag & USER_GLOBALUNDO)
+		if (obact) {
+			if (obact->mode & OB_MODE_PARTICLE_EDIT)
+				return UNDOSYSTEM_PARTICLE;
+			else if (obact->mode & OB_MODE_TEXTURE_PAINT) {
+				if (!ED_undo_paint_empty(UNDO_PAINT_IMAGE))
+					return UNDOSYSTEM_IMAPAINT;
+			}
+		}
+		if (U.uiflag & USER_GLOBALUNDO)
 			return UNDOSYSTEM_GLOBAL;
 	}
 	
@@ -464,7 +489,7 @@ static EnumPropertyItem *rna_undo_itemf(bContext *C, int undosys, int *totitem)
 	EnumPropertyItem item_tmp = {0}, *item = NULL;
 	int active, i = 0;
 	
-	while (TRUE) {
+	while (true) {
 		const char *name = NULL;
 		
 		if (undosys == UNDOSYSTEM_PARTICLE) {
@@ -472,6 +497,9 @@ static EnumPropertyItem *rna_undo_itemf(bContext *C, int undosys, int *totitem)
 		}
 		else if (undosys == UNDOSYSTEM_EDITMODE) {
 			name = undo_editmode_get_name(C, i, &active);
+		}
+		else if (undosys == UNDOSYSTEM_IMAPAINT) {
+			name = ED_undo_paint_get_name(C, UNDO_PAINT_IMAGE, i, &active);
 		}
 		else {
 			name = BKE_undo_get_name(i, &active);
@@ -510,16 +538,22 @@ static int undo_history_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 		if (totitem > 0) {
 			uiPopupMenu *pup = uiPupMenuBegin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
 			uiLayout *layout = uiPupMenuLayout(pup);
-			uiLayout *split = uiLayoutSplit(layout, 0.0f, FALSE);
+			uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
 			uiLayout *column = NULL;
+			const int col_size = 20 + totitem / 12;
 			int i, c;
+			bool add_col = true;
 			
-			for (c = 0, i = totitem - 1; i >= 0; i--, c++) {
-				if ( (c % 20) == 0)
-					column = uiLayoutColumn(split, FALSE);
-				if (item[i].identifier)
+			for (c = 0, i = totitem; i--;) {
+				if (add_col && !(c % col_size)) {
+					column = uiLayoutColumn(split, false);
+					add_col = false;
+				}
+				if (item[i].identifier) {
 					uiItemIntO(column, item[i].name, item[i].icon, op->type->idname, "item", item[i].value);
-				
+					++c;
+					add_col = true;
+				}
 			}
 			
 			MEM_freeN(item);
@@ -544,6 +578,9 @@ static int undo_history_exec(bContext *C, wmOperator *op)
 		else if (undosys == UNDOSYSTEM_EDITMODE) {
 			undo_editmode_number(C, item + 1);
 			WM_event_add_notifier(C, NC_GEOM | ND_DATA, NULL);
+		}
+		else if (undosys == UNDOSYSTEM_IMAPAINT) {
+			ED_undo_paint_step_num(C, UNDO_PAINT_IMAGE, item );
 		}
 		else {
 			ED_viewport_render_kill_jobs(C, true);

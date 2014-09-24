@@ -39,6 +39,11 @@ class Scene;
 class ShaderGraph;
 struct float3;
 
+enum ShadingSystem {
+	SHADINGSYSTEM_OSL,
+	SHADINGSYSTEM_SVM
+};
+
 /* Shader describing the appearance of a Mesh, Light or Background.
  *
  * While there is only a single shader graph, it has three outputs: surface,
@@ -63,6 +68,7 @@ public:
 	bool use_mis;
 	bool use_transparent_shadow;
 	bool heterogeneous_volume;
+	int volume_sampling_method;
 
 	/* synchronization */
 	bool need_update;
@@ -77,6 +83,7 @@ public:
 	bool has_surface_bssrdf;
 	bool has_converter_blackbody;
 	bool has_bssrdf_bump;
+	bool has_heterogeneous_volume;
 
 	/* requested mesh attributes */
 	AttributeRequestSet attributes;
@@ -142,6 +149,7 @@ protected:
 	AttributeIDMap unique_attribute_id;
 
 	size_t blackbody_table_offset;
+	size_t beckmann_table_offset;
 };
 
 CCL_NAMESPACE_END

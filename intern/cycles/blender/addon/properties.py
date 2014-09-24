@@ -108,9 +108,10 @@ enum_integrator = (
     ('PATH', "Path Tracing", "Pure path tracing integrator"),
     )
 
-enum_volume_homogeneous_sampling = (
-    ('DISTANCE', "Distance", "Use Distance Sampling"),
-    ('EQUI_ANGULAR', "Equi-angular", "Use Equi-angular Sampling"),
+enum_volume_sampling = (
+    ('DISTANCE', "Distance", "Use distance sampling, best for dense volumes with lights far away"),
+    ('EQUIANGULAR', "Equiangular", "Use equiangular sampling, best for volumes with low density with light inside or near the volume"),
+    ('MULTIPLE_IMPORTANCE', "Multiple Importance", "Combine distance and equi-angular sampling for volumes where neither method is ideal"),
     )
 
 
@@ -144,13 +145,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Method to sample lights and materials",
                 items=enum_integrator,
                 default='PATH',
-                )
-
-        cls.volume_homogeneous_sampling = EnumProperty(
-                name="Homogeneous Sampling",
-                description="Sampling method to use for homogeneous volumes",
-                items=enum_volume_homogeneous_sampling,
-                default='DISTANCE',
                 )
 
         cls.use_square_samples = BoolProperty(
@@ -236,7 +230,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 name="Volume Samples",
                 description="Number of volume scattering samples to render for each AA sample",
                 min=1, max=10000,
-                default=1,
+                default=0,
                 )
 
         cls.sampling_pattern = EnumProperty(
@@ -253,11 +247,30 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default='USE',
                 )
 
-        cls.no_caustics = BoolProperty(
-                name="No Caustics",
-                description="Leave out caustics, resulting in a darker image with less noise",
-                default=False,
+        cls.sample_all_lights_direct = BoolProperty(
+                name="Sample All Direct Lights",
+                description="Sample all lights (for direct samples), rather than randomly picking one",
+                default=True,
                 )
+
+        cls.sample_all_lights_indirect = BoolProperty(
+                name="Sample All Indirect Lights",
+                description="Sample all lights (for indirect samples), rather than randomly picking one",
+                default=True,
+                )
+
+        cls.caustics_reflective = BoolProperty(
+                name="Reflective Caustics",
+                description="Use reflective caustics, resulting in a brighter image (more noise but added realism)",
+                default=True,
+                )
+
+        cls.caustics_refractive = BoolProperty(
+                name="Refractive Caustics",
+                description="Use refractive caustics, resulting in a brighter image (more noise but added realism)",
+                default=True,
+                )
+
         cls.blur_glossy = FloatProperty(
                 name="Filter Glossy",
                 description="Adaptively blur glossy shaders after blurry bounces, "
@@ -303,7 +316,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 name="Volume Bounces",
                 description="Maximum number of volumetric scattering events",
                 min=0, max=1024,
-                default=1,
+                default=0,
                 )
 
         cls.transparent_min_bounces = IntProperty(
@@ -459,6 +472,33 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=False,
                 )
 
+        cls.bake_type = EnumProperty(
+            name="Bake Type",
+            default='COMBINED',
+            description="Type of pass to bake",
+            items = (
+                ('COMBINED', "Combined", ""),
+                ('AO', "Ambient Occlusion", ""),
+                ('SHADOW', "Shadow", ""),
+                ('NORMAL', "Normal", ""),
+                ('UV', "UV", ""),
+                ('EMIT', "Emit", ""),
+                ('ENVIRONMENT', "Environment", ""),
+                ('DIFFUSE_DIRECT', "Diffuse Direct", ""),
+                ('DIFFUSE_INDIRECT', "Diffuse Indirect", ""),
+                ('DIFFUSE_COLOR', "Diffuse Color", ""),
+                ('GLOSSY_DIRECT', "Glossy Direct", ""),
+                ('GLOSSY_INDIRECT', "Glossy Indirect", ""),
+                ('GLOSSY_COLOR', "Glossy Color", ""),
+                ('TRANSMISSION_DIRECT', "Transmission Direct", ""),
+                ('TRANSMISSION_INDIRECT', "Transmission Indirect", ""),
+                ('TRANSMISSION_COLOR', "Transmission Color", ""),
+                ('SUBSURFACE_DIRECT', "Subsurface Direct", ""),
+                ('SUBSURFACE_INDIRECT', "Subsurface Indirect", ""),
+                ('SUBSURFACE_COLOR', "Subsurface Color", ""),
+                ),
+            )
+
     @classmethod
     def unregister(cls):
         del bpy.types.Scene.cycles
@@ -511,6 +551,13 @@ class CyclesCameraSettings(bpy.types.PropertyGroup):
                 subtype='ANGLE',
                 default=0,
                 )
+        cls.aperture_ratio = FloatProperty(
+                name="Aperture Ratio",
+                description="Distortion to simulate anamorphic lens bokeh",
+                min=0.01, soft_min=1.0, soft_max=2.0,
+                default=1.0,
+                precision=4,
+                )
         cls.panorama_type = EnumProperty(
                 name="Panorama Type",
                 description="Distortion to use for the calculation",
@@ -562,6 +609,12 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
                 description="When using volume rendering, assume volume has the same density everywhere "
                             "(not using any textures), for faster rendering",
                 default=False,
+                )
+        cls.volume_sampling = EnumProperty(
+                name="Volume Sampling",
+                description="Sampling method to use for volumes",
+                items=enum_volume_sampling,
+                default='DISTANCE',
                 )
 
     @classmethod
@@ -633,6 +686,12 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                             "(not using any textures), for faster rendering",
                 default=False,
                 )
+        cls.volume_sampling = EnumProperty(
+                name="Volume Sampling",
+                description="Sampling method to use for volumes",
+                items=enum_volume_sampling,
+                default='EQUIANGULAR',
+                )
 
     @classmethod
     def unregister(cls):
@@ -677,6 +736,11 @@ class CyclesVisibilitySettings(bpy.types.PropertyGroup):
         cls.shadow = BoolProperty(
                 name="Shadow",
                 description="Object visibility for shadow rays",
+                default=True,
+                )
+        cls.scatter = BoolProperty(
+                name="Volume Scatter",
+                description="Object visibility for volume scatter rays",
                 default=True,
                 )
 
@@ -728,6 +792,41 @@ class CyclesMeshSettings(bpy.types.PropertyGroup):
         del bpy.types.Mesh.cycles
         del bpy.types.Curve.cycles
         del bpy.types.MetaBall.cycles
+
+
+class CyclesObjectBlurSettings(bpy.types.PropertyGroup):
+
+    @classmethod
+    def register(cls):
+
+        bpy.types.Object.cycles = PointerProperty(
+                name="Cycles Object Settings",
+                description="Cycles object settings",
+                type=cls,
+                )
+
+        cls.use_motion_blur = BoolProperty(
+                name="Use Motion Blur",
+                description="Use motion blur for this object",
+                default=True,
+                )
+
+        cls.use_deform_motion = BoolProperty(
+                name="Use Deformation Motion",
+                description="Use deformation motion blur for this object",
+                default=True,
+                )
+
+        cls.motion_steps = IntProperty(
+                name="Motion Steps",
+                description="Control accuracy of deformation motion blur, more steps gives more memory usage (actual number of steps is 2^(steps - 1))",
+                min=1, soft_max=8,
+                default=1,
+                )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Object.cycles
 
 
 class CyclesCurveRenderSettings(bpy.types.PropertyGroup):

@@ -37,7 +37,6 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_ghash.h"
 
 #include "DNA_armature_types.h"
@@ -47,7 +46,6 @@
 
 #include "BKE_action.h" /* BKE_pose_channel_find_name */
 #include "BKE_cdderivedmesh.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_deform.h"
 
@@ -150,12 +148,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		Object *oba = mmd->ob_arm;
 		bPoseChannel *pchan;
 		bDeformGroup *def;
-		char *bone_select_array;
+		bool *bone_select_array;
 		int bone_select_tot = 0;
 		const int defbase_tot = BLI_countlist(&ob->defbase);
 		
 		/* check that there is armature object with bones to use, otherwise return original mesh */
-		if (ELEM3(NULL, oba, oba->pose, ob->defbase.first))
+		if (ELEM(NULL, oba, oba->pose, ob->defbase.first))
 			return dm;
 		
 		/* determine whether each vertexgroup is associated with a selected bone or not 
@@ -167,11 +165,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		for (i = 0, def = ob->defbase.first; def; def = def->next, i++) {
 			pchan = BKE_pose_channel_find_name(oba->pose, def->name);
 			if (pchan && pchan->bone && (pchan->bone->flag & BONE_SELECTED)) {
-				bone_select_array[i] = TRUE;
+				bone_select_array[i] = true;
 				bone_select_tot++;
 			}
 			else {
-				bone_select_array[i] = FALSE;
+				bone_select_array[i] = false;
 			}
 		}
 
@@ -194,7 +192,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				if (dw->def_nr < defbase_tot) {
 					if (bone_select_array[dw->def_nr]) {
 						if (dw->weight != 0.0f) {
-							found = TRUE;
+							found = true;
 							break;
 						}
 					}
@@ -263,12 +261,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	for (i = 0; i < maxPolys; i++) {
 		MPoly *mp = &mpoly[i];
 		MLoop *ml = mloop + mp->loopstart;
-		int ok = TRUE;
+		bool ok = true;
 		int j;
 		
 		for (j = 0; j < mp->totloop; j++, ml++) {
 			if (!BLI_ghash_haskey(vertHash, SET_INT_IN_POINTER(ml->v))) {
-				ok = FALSE;
+				ok = false;
 				break;
 			}
 		}

@@ -174,6 +174,10 @@ if(WITH_BUILDINFO)
 	list(APPEND SRC
 		buildinfo.c
 	)
+
+	# make an object library so can load with it in tests
+	add_library(buildinfoobj OBJECT buildinfo.c)
+	add_dependencies(buildinfoobj buildinfo)
 endif()
 
 # message(STATUS "Configuring blender")
@@ -270,7 +274,7 @@ elseif(APPLE)
 	if(WITH_PYTHON_MODULE)
 		set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
 	else()
-		set(TARGETDIR_VER ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION})
+		set(TARGETDIR_VER ${TARGETDIR}/blender.app/Contents/Resources/${BLENDER_VERSION})
 	endif()
 
 endif()
@@ -387,13 +391,29 @@ endif()
 
 if(UNIX AND NOT APPLE)
 
+	if(NOT WITH_PYTHON_MODULE)
+		install(
+			CODE
+			"
+			execute_process(COMMAND
+							${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
+							${TARGETDIR}/blender
+							${TARGETDIR}/blender.1)
+			"
+		)
+	endif()
+
 	# there are a few differences between portable and system install
 	if(WITH_INSTALL_PORTABLE)
+		install(
+			FILES ${TARGETDIR}/blender.1
+			DESTINATION ${TARGETDIR}
+		)
+
 		install(
 			FILES
 				${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
 				${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
-				${CMAKE_SOURCE_DIR}/doc/manpage/blender.1
 			DESTINATION ${TARGETDIR}
 		)
 
@@ -420,6 +440,11 @@ if(UNIX AND NOT APPLE)
 			install(
 				PROGRAMS ${TARGETDIR}/blender
 				DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+			)
+			# manpage only with 'blender' binary
+			install(
+				FILES ${TARGETDIR}/blender.1
+				DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
 			)
 		endif()
 
@@ -454,10 +479,6 @@ if(UNIX AND NOT APPLE)
 		install(
 			PROGRAMS ${CMAKE_SOURCE_DIR}/release/bin/blender-thumbnailer.py
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-		)
-		install(
-			FILES ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
 		)
 		install(
 			FILES ${BLENDER_TEXT_FILES}
@@ -498,16 +519,22 @@ if(UNIX AND NOT APPLE)
 				PATTERN "idlelib" EXCLUDE                   # ./idlelib
 				PATTERN "test" EXCLUDE                      # ./test
 				PATTERN "turtledemo" EXCLUDE                # ./turtledemo
-				PATTERN "turtle.py" EXCLUDE					# ./turtle.py
+				PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
 			)
 
 			# # doesnt work, todo
 			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
-			
+
 			if(WITH_PYTHON_INSTALL_NUMPY)
+				# Install to the same directory as the source, so debian-like
+				# distros are happy with their policy.
+				set(_suffix "site-packages")
+				if(${PYTHON_NUMPY_PATH} MATCHES "dist-packages")
+					set(_suffix "dist-packages")
+				endif()
 				install(
 					DIRECTORY ${PYTHON_NUMPY_PATH}/numpy
-					DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}/python${PYTHON_VERSION}/site-packages
+					DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}/python${PYTHON_VERSION}/${_suffix}
 					PATTERN ".svn" EXCLUDE
 					PATTERN "__pycache__" EXCLUDE           # * any cache *
 					PATTERN "*.pyc" EXCLUDE                 # * any cache *
@@ -521,8 +548,48 @@ if(UNIX AND NOT APPLE)
 					PATTERN "*.h" EXCLUDE                   # some includes are not in include dirs
 					PATTERN "*.a" EXCLUDE                   # ./core/lib/libnpymath.a - for linking, we dont need.
 				)
+				unset(_suffix)
 			endif()
-			
+
+			# Copy requests, we need to generalize site-packages
+			if(WITH_PYTHON_INSTALL_REQUESTS)
+				set(_suffix "site-packages")
+				if(${PYTHON_REQUESTS_PATH} MATCHES "dist-packages")
+					set(_suffix "dist-packages")
+				endif()
+				install(
+					DIRECTORY ${PYTHON_REQUESTS_PATH}/requests
+					DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}/python${PYTHON_VERSION}/${_suffix}
+					PATTERN ".svn" EXCLUDE
+					PATTERN "__pycache__" EXCLUDE           # * any cache *
+					PATTERN "*.pyc" EXCLUDE                 # * any cache *
+					PATTERN "*.pyo" EXCLUDE                 # * any cache *
+					PATTERN "cacert.pem" EXCLUDE            # for now we don't deal with security
+				)
+				# On some platforms requests does have extra dependencies.
+				set(_requests_deps "chardet" "urllib3")
+				foreach(_requests_dep ${_requests_deps})
+					if(EXISTS ${PYTHON_REQUESTS_PATH}/${_requests_dep})
+						install(
+							DIRECTORY ${PYTHON_REQUESTS_PATH}/${_requests_dep}
+							DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}/python${PYTHON_VERSION}/${_suffix}
+							PATTERN ".svn" EXCLUDE
+							PATTERN "__pycache__" EXCLUDE           # * any cache *
+							PATTERN "*.pyc" EXCLUDE                 # * any cache *
+							PATTERN "*.pyo" EXCLUDE                 # * any cache *
+						)
+					endif()
+				endforeach()
+				if(EXISTS ${PYTHON_REQUESTS_PATH}/six.py)
+					install(
+						FILES ${PYTHON_REQUESTS_PATH}/six.py
+						DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}/python${PYTHON_VERSION}/${_suffix}
+					)
+					endif()
+				unset(_requests_dep)
+				unset(_requests_deps)
+				unset(_suffix)
+			endif()
 			unset(_target_LIB)
 			
 		endif()
@@ -538,13 +605,13 @@ elseif(WIN32)
 		string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
 		install(
-			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll
+			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll ${LIBDIR}/python/lib/sqlite3.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
 		)
 
 		install(
-			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll
+			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll ${LIBDIR}/python/lib/sqlite3_d.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Debug
 		)
@@ -575,6 +642,27 @@ elseif(WIN32)
 				endif()
 				"
 			)
+
+			if(WITH_PYTHON_INSTALL_NUMPY)
+				install(
+					CODE
+					"
+					execute_process(COMMAND \"${CMAKE_COMMAND}\" -E chdir \"${TARGETDIR_VER}/python/lib/site-packages\"
+						\"${CMAKE_COMMAND}\" -E tar xzfv \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_numpy_1.8.tar.gz\")
+					"
+				)
+			endif()
+
+			# release/site-packages
+			install(
+				CODE
+				"
+				execute_process(COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
+					${LIBDIR}/release/site-packages
+					\"${TARGETDIR_VER}/python/lib/site-packages\")
+				"
+			)
+
 
 			# doesnt work, todo
 			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
@@ -615,19 +703,7 @@ elseif(WIN32)
 	endif()
 
 	if(WITH_CODEC_FFMPEG)
-		if(MSVC11)
-			install(
-				FILES
-					${LIBDIR}/ffmpeg/lib/avcodec-54.dll
-					${LIBDIR}/ffmpeg/lib/avformat-54.dll
-					${LIBDIR}/ffmpeg/lib/avdevice-54.dll
-					${LIBDIR}/ffmpeg/lib/avutil-52.dll
-					${LIBDIR}/ffmpeg/lib/avfilter-3.dll
-					${LIBDIR}/ffmpeg/lib/swresample-0.dll
-					${LIBDIR}/ffmpeg/lib/swscale-2.dll
-				DESTINATION ${TARGETDIR}
-			)
-		else()
+		if(WITH_MINGW64)
 			install(
 				FILES
 					${LIBDIR}/ffmpeg/lib/avcodec-53.dll
@@ -635,16 +711,20 @@ elseif(WIN32)
 					${LIBDIR}/ffmpeg/lib/avdevice-53.dll
 					${LIBDIR}/ffmpeg/lib/avutil-51.dll
 					${LIBDIR}/ffmpeg/lib/swscale-2.dll
+					${LIBDIR}/ffmpeg/lib/swresample-0.dll
+					${LIBDIR}/ffmpeg/lib/xvidcore.dll
 				DESTINATION ${TARGETDIR}
 			)
-		endif()
-		if(WITH_MINGW64)
-		install(
-			FILES
-				${LIBDIR}/ffmpeg/lib/swresample-0.dll
-				${LIBDIR}/ffmpeg/lib/xvidcore.dll
-			DESTINATION ${TARGETDIR}
-		)
+		else()
+			install(
+				FILES
+					${LIBDIR}/ffmpeg/lib/avcodec-55.dll
+					${LIBDIR}/ffmpeg/lib/avformat-55.dll
+					${LIBDIR}/ffmpeg/lib/avdevice-55.dll
+					${LIBDIR}/ffmpeg/lib/avutil-52.dll
+					${LIBDIR}/ffmpeg/lib/swscale-2.dll
+				DESTINATION ${TARGETDIR}
+			)
 		endif()
 	endif()
 
@@ -656,45 +736,19 @@ elseif(WIN32)
 	endif()
 
 	if(WITH_OPENAL)
-		if(MSVC11)
-			install(
-				FILES
-					${LIBDIR}/openal/lib/OpenAL32.dll
-				DESTINATION ${TARGETDIR}
-			)
-		else()
-			install(
-				FILES
-					${LIBDIR}/openal/lib/OpenAL32.dll
-					${LIBDIR}/openal/lib/wrap_oal.dll
-				DESTINATION ${TARGETDIR}
-			)
-		endif()
+		install(
+			FILES
+				${LIBDIR}/openal/lib/OpenAL32.dll
+				${LIBDIR}/openal/lib/wrap_oal.dll
+			DESTINATION ${TARGETDIR}
+		)
 	endif()
 
-#	if(WITH_JACK AND MSVC11)
-#		if(CMAKE_CL_64)
-#			install(
-#				FILES
-#					${LIBDIR}/jack/lib/libjack64.dll
-#				DESTINATION ${TARGETDIR}
-#			)
-#		else()
-#			install(
-#				FILES
-#					${LIBDIR}/jack/lib/libjack.dll
-#				DESTINATION ${TARGETDIR}
-#			)
-#		endif()
-#	endif()
-
 	if(WITH_SDL)
-		if(NOT CMAKE_CL_64)
-			install(
-				FILES ${LIBDIR}/sdl/lib/SDL.dll
-				DESTINATION ${TARGETDIR}
-			)
-		endif()
+		install(
+			FILES ${LIBDIR}/sdl/lib/SDL.dll
+			DESTINATION ${TARGETDIR}
+		)
 	endif()
 
 	if(NOT CMAKE_CL_64)
@@ -780,6 +834,13 @@ elseif(APPLE)
 		)
 	endif()
 
+	if(WITH_LLVM AND NOT LLVM_STATIC)
+		install(
+			FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
+			DESTINATION ${TARGETDIR}/blender.app/Contents/MacOS
+		)
+	endif()
+
 	# python
 	if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 		# the python zip is first extract as part of the build process,
@@ -805,6 +866,11 @@ elseif(APPLE)
 		install_dir(
 			${CMAKE_CURRENT_BINARY_DIR}/python
 			\${TARGETDIR_VER}
+		)
+		# copy site-packages files
+		install_dir(
+			${LIBDIR}/release/site-packages
+			${CMAKE_CURRENT_BINARY_DIR}/python/lib/python${PYTHON_VERSION}/site-packages
 		)
 
 	endif()
@@ -869,241 +935,23 @@ unset(BLENDER_TEXT_FILES)
 
 add_dependencies(blender makesdna)
 
-get_property(BLENDER_LINK_LIBS GLOBAL PROPERTY BLENDER_LINK_LIBS)
+setup_blender_sorted_libs()
 
-list(APPEND BLENDER_LINK_LIBS
-	bf_windowmanager
-	bf_render
-)
-
-if(WITH_MOD_FLUID)
-	list(APPEND BLENDER_LINK_LIBS bf_intern_elbeem)
-endif()
-
-if(WITH_CYCLES)
-	list(APPEND BLENDER_LINK_LIBS
-		cycles_render
-		cycles_bvh
-		cycles_device
-		cycles_kernel
-		cycles_util
-		cycles_subd)
-	if(WITH_CYCLES_OSL)
-		list(APPEND BLENDER_LINK_LIBS cycles_kernel_osl)
-	endif()
-endif()
-
-#if(UNIX)
-	# Sort libraries
-	set(BLENDER_SORTED_LIBS
-		bf_windowmanager
-
-		bf_editor_space_api
-		bf_editor_space_action
-		bf_editor_space_buttons
-		bf_editor_space_console
-		bf_editor_space_file
-		bf_editor_space_graph
-		bf_editor_space_image
-		bf_editor_space_info
-		bf_editor_space_logic
-		bf_editor_space_nla
-		bf_editor_space_node
-		bf_editor_space_outliner
-		bf_editor_space_script
-		bf_editor_space_sequencer
-		bf_editor_space_time
-		bf_editor_space_userpref
-		bf_editor_space_view3d
-		bf_editor_space_clip
-
-		bf_editor_text
-		bf_editor_transform
-		bf_editor_util
-		bf_editor_uvedit
-		bf_editor_curve
-		bf_editor_gpencil
-		bf_editor_interface
-		bf_editor_mesh
-		bf_editor_metaball
-		bf_editor_object
-		bf_editor_armature
-		bf_editor_physics
-		bf_editor_render
-		bf_editor_screen
-		bf_editor_sculpt_paint
-		bf_editor_sound
-		bf_editor_animation
-		bf_editor_datafiles
-		bf_editor_mask
-		bf_editor_io
-
-		bf_render
-		bf_python
-		bf_python_ext
-		bf_python_mathutils
-		bf_python_bmesh
-		bf_freestyle
-		bf_ikplugin
-		bf_modifiers
-		bf_bmesh
-		bf_blenkernel
-		bf_nodes
-		bf_gpu
-		bf_blenloader
-		bf_imbuf
-		bf_blenlib
-		bf_intern_ghost
-		bf_intern_string
-		bf_avi
-		bf_imbuf_cineon
-		bf_imbuf_openexr
-		bf_imbuf_openimageio
-		bf_imbuf_dds
-		bf_collada
-		bf_intern_elbeem
-		bf_intern_memutil
-		bf_intern_guardedalloc
-		bf_intern_ctr
-		bf_intern_utfconv
-		ge_blen_routines
-		ge_converter
-		ge_phys_dummy
-		ge_phys_bullet
-		bf_intern_smoke
-		extern_minilzo
-		extern_lzma
-		extern_colamd
-		ge_logic_ketsji
-		extern_recastnavigation
-		ge_logic
-		ge_rasterizer
-		ge_oglrasterizer
-		ge_logic_expressions
-		ge_scenegraph
-		ge_logic_network
-		ge_logic_ngnetwork
-		ge_logic_loopbacknetwork
-		bf_intern_moto
-		extern_openjpeg
-		extern_redcode
-		ge_videotex
-		bf_rna
-		bf_dna
-		bf_blenfont
-		bf_intern_audaspace
-		bf_intern_mikktspace
-		bf_intern_dualcon
-		bf_intern_cycles
-		cycles_render
-		cycles_bvh
-		cycles_device
-		cycles_kernel
-		cycles_util
-		cycles_subd
-		bf_intern_raskter
-		bf_intern_opencolorio
-		extern_rangetree
-		extern_wcwidth
-		extern_libmv
-	)
-
-	if(WITH_COMPOSITOR)
-		# added for opencl compositor
-		list_insert_before(BLENDER_SORTED_LIBS "bf_blenkernel" "bf_compositor")
-		list_insert_after(BLENDER_SORTED_LIBS "bf_compositor" "bf_intern_opencl")
-	endif()
-
-	if(WITH_LIBMV)
-		list(APPEND BLENDER_SORTED_LIBS extern_ceres)
-	endif()
-
-	if(WITH_MOD_CLOTH_ELTOPO)
-		list(APPEND BLENDER_SORTED_LIBS extern_eltopo)
-	endif()
-
-	if(NOT WITH_SYSTEM_GLEW)
-		list(APPEND BLENDER_SORTED_LIBS extern_glew)
-	endif()
-
-	if(WITH_BINRELOC)
-		list(APPEND BLENDER_SORTED_LIBS extern_binreloc)
-	endif()
-
-	if(WITH_CXX_GUARDEDALLOC)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_guardedalloc_cpp)
-	endif()
-
-	if(WITH_IK_SOLVER)
-		list_insert_after(BLENDER_SORTED_LIBS "bf_intern_elbeem" "bf_intern_iksolver")
-	endif()
-
-	if(WITH_IK_ITASC)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_itasc)
-	endif()
-
-	if(WITH_CODEC_QUICKTIME)
-		list(APPEND BLENDER_SORTED_LIBS bf_quicktime)
-	endif()
-
-	if(WITH_INPUT_NDOF)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_ghostndof3dconnexion)
-	endif()
-	
-	if(WITH_MOD_BOOLEAN)
-		list(APPEND BLENDER_SORTED_LIBS extern_carve)
-	endif()
-
-	if(WITH_GHOST_XDND)
-		list(APPEND BLENDER_SORTED_LIBS extern_xdnd)
-	endif()
-
-	if(WITH_CYCLES_OSL)
-		list_insert_after(BLENDER_SORTED_LIBS "cycles_kernel" "cycles_kernel_osl")
-	endif()
-
-	if(WITH_INTERNATIONAL)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_locale)
-	endif()
-
-	if(WITH_OPENNL)
-		list_insert_after(BLENDER_SORTED_LIBS "bf_render" "bf_intern_opennl")
-	endif()
-
-	if(WITH_BULLET)
-		list_insert_after(BLENDER_SORTED_LIBS "bf_blenkernel" "bf_intern_rigidbody")
-	endif()
-
-	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)
-		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_ngnetwork" "extern_bullet")
-	endif()
-
-	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
-		set(REMLIB ${SORTLIB})
-		foreach(SEARCHLIB ${BLENDER_LINK_LIBS})
-			if(${SEARCHLIB} STREQUAL ${SORTLIB})
-				set(REMLIB "")
-			endif()
-		endforeach()
-		if(REMLIB)
-			# message(STATUS "Removing library ${REMLIB} from blender linking because: not configured")
-			list(APPEND REM_MSG ${REMLIB})
-			list(REMOVE_ITEM BLENDER_SORTED_LIBS ${REMLIB})
-		endif()
-	endforeach()
-	if(REM_MSG)
-		list(SORT REM_MSG)
-		message(STATUS "Blender Skipping: (${REM_MSG})")
-	endif()
-	target_link_libraries(blender ${BLENDER_SORTED_LIBS})
-
-	unset(SEARCHLIB)
-	unset(SORTLIB)
-	unset(REMLIB)
-	unset(REM_MSG)
-
-#else()
-#	target_link_libraries(blender ${BLENDER_LINK_LIBS})
-#endif()
+target_link_libraries(blender ${BLENDER_SORTED_LIBS})
 
 setup_liblinks(blender)
+
+# -----------------------------------------------------------------------------
+# Setup launcher
+
+if(WIN32 AND NOT WITH_PYTHON_MODULE)
+	set(LAUNCHER_SRC
+		creator_launch_win.c
+		../icons/winblender.rc
+	)
+	add_executable(blender-launcher ${LAUNCHER_SRC})
+	target_link_libraries(blender-launcher bf_intern_utfconv ${PLATFORM_LINKLIBS})
+
+	set_target_properties(blender PROPERTIES OUTPUT_NAME blender-app)
+	set_target_properties(blender-launcher PROPERTIES OUTPUT_NAME blender)
+endif()

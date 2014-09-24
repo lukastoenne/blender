@@ -279,7 +279,7 @@ protected:
 	/**
 	 * Sets the cursor grab on the window using
 	 * native window system calls.
-	 * \param warp	Only used when grab is enabled, hides the mouse and allows gragging outside the screen.
+	 * \param warp	Only used when grab is enabled, hides the mouse and allows dragging outside the screen.
 	 */
 	GHOST_TSuccess
 	setWindowCursorGrab(
@@ -373,6 +373,9 @@ private:
 	
 	/** XCursor structure of the custom cursor */
 	Cursor m_custom_cursor;
+
+	/** XCursor to show when cursor is visible */
+	Cursor m_visible_cursor;
 	
 	/** Cache of XC_* ID's to XCursor structures */
 	std::map<unsigned int, Cursor> m_standard_cursors;

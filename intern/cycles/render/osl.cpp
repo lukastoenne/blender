@@ -248,20 +248,27 @@ void OSLShaderManager::shading_system_free()
 
 bool OSLShaderManager::osl_compile(const string& inputfile, const string& outputfile)
 {
-	vector<string> options;
+#if OSL_LIBRARY_VERSION_CODE < 10500
+	typedef string string_view;
+#endif
+
+	vector<string_view> options;
 	string stdosl_path;
+	string shader_path = path_get("shader");
 
 	/* specify output file name */
 	options.push_back("-o");
 	options.push_back(outputfile);
 
 	/* specify standard include path */
-	options.push_back("-I" + path_get("shader"));
+	options.push_back("-I");
+	options.push_back(shader_path);
+
 	stdosl_path = path_get("shader/stdosl.h");
 
 	/* compile */
 	OSL::OSLCompiler *compiler = OSL::OSLCompiler::create();
-	bool ok = compiler->compile(inputfile, options, stdosl_path);
+	bool ok = compiler->compile(string_view(inputfile), options, string_view(stdosl_path));
 	delete compiler;
 
 	return ok;
@@ -513,16 +520,14 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
 		}
 	}
 
-	/* create shader of the appropriate type. we pass "surface" to all shaders,
-	 * because "volume" and "displacement" don't work yet in OSL. the shaders
-	 * work fine, but presumably these values would be used for more strict
-	 * checking, so when that is fixed, we should update the code here too. */
+	/* create shader of the appropriate type. OSL only distinguishes between "surface"
+	 * and "displacement" atm */
 	if(current_type == SHADER_TYPE_SURFACE)
 		ss->Shader("surface", name, id(node).c_str());
 	else if(current_type == SHADER_TYPE_VOLUME)
 		ss->Shader("surface", name, id(node).c_str());
 	else if(current_type == SHADER_TYPE_DISPLACEMENT)
-		ss->Shader("surface", name, id(node).c_str());
+		ss->Shader("displacement", name, id(node).c_str());
 	else
 		assert(0);
 	
@@ -545,7 +550,7 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
 	/* test if we shader contains specific closures */
 	OSLShaderInfo *info = ((OSLShaderManager*)manager)->shader_loaded_info(name);
 
-	if(info) {
+	if(info && current_type == SHADER_TYPE_SURFACE) {
 		if(info->has_surface_emission)
 			current_shader->has_surface_emission = true;
 		if(info->has_surface_transparent)
@@ -554,6 +559,10 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
 			current_shader->has_surface_bssrdf = true;
 			current_shader->has_bssrdf_bump = true; /* can't detect yet */
 		}
+	}
+	else if(current_type == SHADER_TYPE_VOLUME) {
+		if(node->has_spatial_varying())
+			current_shader->has_heterogeneous_volume = true;
 	}
 }
 
@@ -710,14 +719,20 @@ void OSLCompiler::generate_nodes(const set<ShaderNode*>& nodes)
 					node->compile(*this);
 					done.insert(node);
 
-					if(node->has_surface_emission())
-						current_shader->has_surface_emission = true;
-					if(node->has_surface_transparent())
-						current_shader->has_surface_transparent = true;
-					if(node->has_surface_bssrdf()) {
-						current_shader->has_surface_bssrdf = true;
-						if(node->has_bssrdf_bump())
-							current_shader->has_bssrdf_bump = true;
+					if(current_type == SHADER_TYPE_SURFACE) {
+						if(node->has_surface_emission())
+							current_shader->has_surface_emission = true;
+						if(node->has_surface_transparent())
+							current_shader->has_surface_transparent = true;
+						if(node->has_surface_bssrdf()) {
+							current_shader->has_surface_bssrdf = true;
+							if(node->has_bssrdf_bump())
+								current_shader->has_bssrdf_bump = true;
+						}
+					}
+					else if(current_type == SHADER_TYPE_VOLUME) {
+						if(node->has_spatial_varying())
+							current_shader->has_heterogeneous_volume = true;
 					}
 				}
 				else
@@ -799,6 +814,7 @@ void OSLCompiler::compile(OSLGlobals *og, Shader *shader)
 		shader->has_bssrdf_bump = false;
 		shader->has_volume = false;
 		shader->has_displacement = false;
+		shader->has_heterogeneous_volume = false;
 
 		/* generate surface shader */
 		if(shader->used && graph && output->input("Surface")->link) {

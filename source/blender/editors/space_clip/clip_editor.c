@@ -43,18 +43,15 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_mask_types.h"
-#include "DNA_object_types.h"	/* SELECT */
 
 #include "BLI_utildefines.h"
 #include "BLI_fileops.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_rect.h"
 #include "BLI_threads.h"
 
 #include "BKE_global.h"
 #include "BKE_main.h"
-#include "BKE_mask.h"
 #include "BKE_movieclip.h"
 #include "BKE_context.h"
 #include "BKE_tracking.h"
@@ -83,9 +80,9 @@ int ED_space_clip_poll(bContext *C)
 	SpaceClip *sc = CTX_wm_space_clip(C);
 
 	if (sc && sc->clip)
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 }
 
 int ED_space_clip_view_clip_poll(bContext *C)
@@ -96,7 +93,7 @@ int ED_space_clip_view_clip_poll(bContext *C)
 		return sc->view == SC_VIEW_CLIP;
 	}
 
-	return FALSE;
+	return false;
 }
 
 int ED_space_clip_tracking_poll(bContext *C)
@@ -106,7 +103,7 @@ int ED_space_clip_tracking_poll(bContext *C)
 	if (sc && sc->clip)
 		return ED_space_clip_check_show_trackedit(sc);
 
-	return FALSE;
+	return false;
 }
 
 int ED_space_clip_maskedit_poll(bContext *C)
@@ -117,7 +114,7 @@ int ED_space_clip_maskedit_poll(bContext *C)
 		return ED_space_clip_check_show_maskedit(sc);
 	}
 
-	return FALSE;
+	return false;
 }
 
 int ED_space_clip_maskedit_mask_poll(bContext *C)
@@ -132,7 +129,7 @@ int ED_space_clip_maskedit_mask_poll(bContext *C)
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 /* ******** common editing functions ******** */
@@ -260,10 +257,11 @@ ImBuf *ED_space_clip_get_stable_buffer(SpaceClip *sc, float loc[2], float *scale
 	return NULL;
 }
 
-/* returns color in SRGB */
-/* matching ED_space_image_color_sample() */
-bool ED_space_clip_color_sample(SpaceClip *sc, ARegion *ar, int mval[2], float r_col[3])
+/* Returns color in the display space, matching ED_space_image_color_sample(). */
+bool ED_space_clip_color_sample(Scene *scene, SpaceClip *sc, ARegion *ar, int mval[2], float r_col[3])
 {
+	const char *display_device = scene->display_settings.display_device;
+	struct ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
 	ImBuf *ibuf;
 	float fx, fy, co[2];
 	bool ret = false;
@@ -280,7 +278,7 @@ bool ED_space_clip_color_sample(SpaceClip *sc, ARegion *ar, int mval[2], float r
 	fy = co[1];
 
 	if (fx >= 0.0f && fy >= 0.0f && fx < 1.0f && fy < 1.0f) {
-		float *fp;
+		const float *fp;
 		unsigned char *cp;
 		int x = (int)(fx * ibuf->x), y = (int)(fy * ibuf->y);
 
@@ -289,15 +287,22 @@ bool ED_space_clip_color_sample(SpaceClip *sc, ARegion *ar, int mval[2], float r
 
 		if (ibuf->rect_float) {
 			fp = (ibuf->rect_float + (ibuf->channels) * (y * ibuf->x + x));
-			linearrgb_to_srgb_v3_v3(r_col, fp);
+			copy_v3_v3(r_col, fp);
 			ret = true;
 		}
 		else if (ibuf->rect) {
 			cp = (unsigned char *)(ibuf->rect + y * ibuf->x + x);
 			rgb_uchar_to_float(r_col, cp);
+			IMB_colormanagement_colorspace_to_scene_linear_v3(r_col, ibuf->rect_colorspace);
 			ret = true;
 		}
 	}
+
+	if (ret) {
+		IMB_colormanagement_scene_linear_to_display_v3(r_col, display);
+	}
+
+	IMB_freeImBuf(ibuf);
 
 	return ret;
 }
@@ -316,7 +321,7 @@ void ED_clip_update_frame(const Main *mainp, int cfra)
 				if (sa->spacetype == SPACE_CLIP) {
 					SpaceClip *sc = sa->spacedata.first;
 
-					sc->scopes.ok = FALSE;
+					sc->scopes.ok = false;
 
 					BKE_movieclip_user_set_frame(&sc->user, cfra);
 				}
@@ -445,7 +450,7 @@ void ED_clip_point_stable_pos(SpaceClip *sc, ARegion *ar, float x, float y, floa
 	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
 	ED_space_clip_get_size(sc, &width, &height);
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 
 	pos[0] = (x - sx) / zoomx;
 	pos[1] = (y - sy) / zoomy;
@@ -481,7 +486,7 @@ void ED_clip_point_stable_pos__reverse(SpaceClip *sc, ARegion *ar, const float c
 	int width, height;
 	int sx, sy;
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 	ED_space_clip_get_size(sc, &width, &height);
 	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
 
@@ -643,7 +648,7 @@ static unsigned char *prefetch_read_file_to_memory(MovieClip *clip, int current_
 	BKE_movieclip_filename_for_frame(clip, &user, name);
 
 	file = BLI_open(name, O_BINARY | O_RDONLY, 0);
-	if (file < 0) {
+	if (file == -1) {
 		return NULL;
 	}
 
@@ -765,12 +770,18 @@ static void *do_prefetch_thread(void *data_v)
 		MovieClipUser user = {0};
 		int flag = IB_rect | IB_alphamode_detect;
 		int result;
+		char *colorspace_name = NULL;
 
 		user.framenr = current_frame;
 		user.render_size = data->queue->render_size;
 		user.render_flag = data->queue->render_flag;
 
-		ibuf = IMB_ibImageFromMemory(mem, size, flag, clip->colorspace_settings.name, "prefetch frame");
+		/* Proxies are stored in the display space. */
+		if (data->queue->render_flag & MCLIP_USE_PROXY) {
+			colorspace_name = clip->colorspace_settings.name;
+		}
+
+		ibuf = IMB_ibImageFromMemory(mem, size, flag, colorspace_name, "prefetch frame");
 
 		result = BKE_movieclip_put_frame_if_possible(data->clip, &user, ibuf);
 
@@ -968,6 +979,10 @@ static bool prefetch_check_early_out(const bContext *C)
 	int first_uncached_frame, end_frame;
 	int clip_len;
 
+	if (clip == NULL) {
+		return true;
+	}
+
 	clip_len = BKE_movieclip_get_duration(clip);
 
 	/* check whether all the frames from prefetch range are cached */
@@ -1016,7 +1031,7 @@ void clip_start_prefetch_job(const bContext *C)
 	WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
 	WM_jobs_callbacks(wm_job, prefetch_startjob, NULL, NULL, NULL);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 
 	/* and finally start the job */
 	WM_jobs_start(CTX_wm_manager(C), wm_job);

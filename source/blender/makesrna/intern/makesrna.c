@@ -659,7 +659,7 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 
 					if (dp->dnaarraylength == 1) {
 						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
-							fprintf(f, "		values[i] = %s((data->%s & (%d << i)) != 0);\n",
+							fprintf(f, "		values[i] = %s((data->%s & (%du << i)) != 0);\n",
 							        (dp->booleannegative) ? "!" : "", dp->dnaname, dp->booleanbit);
 						}
 						else {
@@ -744,6 +744,24 @@ static void rna_clamp_value_range(FILE *f, PropertyRNA *prop)
 		}
 	}
 }
+
+#ifdef USE_RNA_RANGE_CHECK
+static void rna_clamp_value_range_check(
+        FILE *f, PropertyRNA *prop,
+        const char *dnaname_prefix, const char *dnaname)
+{
+	if (prop->type == PROP_INT) {
+		IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
+		fprintf(f,
+		        "	{ BLI_STATIC_ASSERT("
+		        "(TYPEOF_MAX(%s%s) >= %d) && "
+		        "(TYPEOF_MIN(%s%s) <= %d), "
+		        "\"invalid limits\"); }\n",
+		        dnaname_prefix, dnaname, iprop->hardmax,
+		        dnaname_prefix, dnaname, iprop->hardmin);
+	}
+}
+#endif  /* USE_RNA_RANGE_CHECK */
 
 static void rna_clamp_value(FILE *f, PropertyRNA *prop, int array)
 {
@@ -897,14 +915,14 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 					if (prop->flag & PROP_DYNAMIC) {
 						char *lenfunc = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier),
 						                                        "set_length");
-						fprintf(f, "	int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
-						fprintf(f, "	int len = %s(ptr, arraylen);\n\n", lenfunc);
+						fprintf(f, "	unsigned int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
+						fprintf(f, "	unsigned int len = %s(ptr, arraylen);\n\n", lenfunc);
 						rna_clamp_value_range(f, prop);
 						fprintf(f, "	for (i = 0; i < len; i++) {\n");
 						MEM_freeN(lenfunc);
 					}
 					else {
-						fprintf(f, "	int i;\n\n");
+						fprintf(f, "	unsigned int i;\n\n");
 						rna_clamp_value_range(f, prop);
 						fprintf(f, "	for (i = 0; i < %u; i++) {\n", prop->totarraylength);
 					}
@@ -913,7 +931,7 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
 							fprintf(f, "		if (%svalues[i]) data->%s |= (%d<<i);\n",
 							        (dp->booleannegative) ? "!" : "", dp->dnaname, dp->booleanbit);
-							fprintf(f, "		else data->%s &= ~(%d << i);\n", dp->dnaname, dp->booleanbit);
+							fprintf(f, "		else data->%s &= ~(%du << i);\n", dp->dnaname, dp->booleanbit);
 						}
 						else {
 							fprintf(f, "		(&data->%s)[i] = %s", dp->dnaname, (dp->booleannegative) ? "!" : "");
@@ -944,6 +962,18 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 					}
 					fprintf(f, "	}\n");
 				}
+
+#ifdef USE_RNA_RANGE_CHECK
+				if (dp->dnaname && manualfunc == NULL) {
+					if (dp->dnaarraylength == 1) {
+						rna_clamp_value_range_check(f, prop, "data->", dp->dnaname);
+					}
+					else {
+						rna_clamp_value_range_check(f, prop, "*data->", dp->dnaname);
+					}
+				}
+#endif
+
 				fprintf(f, "}\n\n");
 			}
 			else {
@@ -975,6 +1005,13 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 						rna_clamp_value(f, prop, 0);
 					}
 				}
+
+#ifdef USE_RNA_RANGE_CHECK
+				if (dp->dnaname && manualfunc == NULL) {
+					rna_clamp_value_range_check(f, prop, "data->", dp->dnaname);
+				}
+#endif
+
 				fprintf(f, "}\n\n");
 			}
 			break;
@@ -1147,7 +1184,7 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 	fprintf(f, "	if (iter.valid) {\n");
 
 	if (strcmp(nextfunc, "rna_iterator_array_next") == 0) {
-		fprintf(f, "		ArrayIterator *internal = iter.internal;\n");
+		fprintf(f, "		ArrayIterator *internal = &iter.internal.array;\n");
 		fprintf(f, "		if (index < 0 || index >= internal->length) {\n");
 		fprintf(f, "#ifdef __GNUC__\n");
 		fprintf(f, "			printf(\"Array iterator out of range: %%s (index %%d)\\n\", __func__, index);\n");
@@ -1167,7 +1204,7 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 		fprintf(f, "		}\n");
 	}
 	else if (strcmp(nextfunc, "rna_iterator_listbase_next") == 0) {
-		fprintf(f, "		ListBaseIterator *internal = iter.internal;\n");
+		fprintf(f, "		ListBaseIterator *internal = &iter.internal.listbase;\n");
 		fprintf(f, "		if (internal->skip) {\n");
 		fprintf(f, "			while (index-- > 0 && iter.valid) {\n");
 		fprintf(f, "				rna_iterator_listbase_next(&iter);\n");
@@ -1536,7 +1573,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 {
 	PropertyRNA *prop;
-	char *func;
+	const char *func;
 
 	prop = dp->prop;
 
@@ -1768,12 +1805,12 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 
 			if (cprop->item_type)
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s, %s)", collection_funcs, (const char *)cprop->item_type, srna->identifier,
-				        rna_safe_id(prop->identifier), (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        rna_safe_id(prop->identifier), (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 			else
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s, %s)", collection_funcs, "UnknownType", srna->identifier,
-				        rna_safe_id(prop->identifier), (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        rna_safe_id(prop->identifier), (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 			break;
 		}
 	}
@@ -1949,12 +1986,12 @@ static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDe
 
 			if (cprop->type)
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s)", (const char *)cprop->type, srna->identifier,
-				        prop->identifier, (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        prop->identifier, (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 			else
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s)", "UnknownType", srna->identifier,
-				        prop->identifier, (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        prop->identifier, (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 #endif
 			break;
 		}
@@ -2156,7 +2193,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	PropertyType type;
 	const char *funcname, *valstr;
 	const char *ptrstr;
-	const short has_data = (dfunc->cont.properties.first != NULL);
+	const bool has_data = (dfunc->cont.properties.first != NULL);
 	int flag, pout, cptr, first;
 
 	srna = dsrna->srna;
@@ -3518,7 +3555,7 @@ static const char *cpp_classes = ""
 "#define POINTER_PROPERTY(type, sname, identifier) \\\n"
 "	inline type sname::identifier(void) { return type(sname##_##identifier##_get(&ptr)); }\n"
 "\n"
-"#define COLLECTION_PROPERTY_LENGTH_FALSE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LENGTH_false(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_length_wrap(PointerRNA *ptr) \\\n"
 "	{ \\\n"
 "		CollectionPropertyIterator iter; \\\n"
@@ -3531,11 +3568,11 @@ static const char *cpp_classes = ""
 "		sname##_##identifier##_end(&iter); \\\n"
 "		return length; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LENGTH_TRUE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LENGTH_true(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_length_wrap(PointerRNA *ptr) \\\n"
 "	{ return sname##_##identifier##_length(ptr); } \n"
 "\n"
-"#define COLLECTION_PROPERTY_LOOKUP_INT_FALSE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_INT_false(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_int_wrap(PointerRNA *ptr, int key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		CollectionPropertyIterator iter; \\\n"
@@ -3555,7 +3592,7 @@ static const char *cpp_classes = ""
 "			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
 "		return found; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LOOKUP_INT_TRUE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_INT_true(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_int_wrap(PointerRNA *ptr, int key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		int found = sname##_##identifier##_lookup_int(ptr, key, r_ptr); \\\n"
@@ -3563,7 +3600,7 @@ static const char *cpp_classes = ""
 "			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
 "		return found; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LOOKUP_STRING_FALSE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_STRING_false(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_string_wrap(PointerRNA *ptr, const char *key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		CollectionPropertyIterator iter; \\\n"
@@ -3588,7 +3625,7 @@ static const char *cpp_classes = ""
 "			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
 "		return found; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LOOKUP_STRING_TRUE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_STRING_true(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_string_wrap(PointerRNA *ptr, const char *key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		int found = sname##_##identifier##_lookup_string(ptr, key, r_ptr); \\\n"

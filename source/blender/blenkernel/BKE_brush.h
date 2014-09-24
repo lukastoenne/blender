@@ -72,7 +72,7 @@ float BKE_brush_curve_strength(struct Brush *br, float p, const float len); /* u
 /* sampling */
 float BKE_brush_sample_tex_3D(const Scene *scene, struct Brush *br, const float point[3],
                               float rgba[4], const int thread, struct ImagePool *pool);
-float BKE_brush_sample_masktex(const Scene *scene, struct Brush *br, const float point[3],
+float BKE_brush_sample_masktex(const Scene *scene, struct Brush *br, const float point[2],
                                const int thread, struct ImagePool *pool);
 
 /* texture */
@@ -81,7 +81,11 @@ unsigned int *BKE_brush_gen_texture_cache(struct Brush *br, int half_side, bool 
 /* radial control */
 struct ImBuf *BKE_brush_gen_radial_control_imbuf(struct Brush *br, bool secondary);
 
-/* unified strength and size */
+/* unified strength size and color */
+
+float *BKE_brush_color_get(const struct Scene *scene, struct Brush *brush);
+float *BKE_brush_secondary_color_get(const struct Scene *scene, struct Brush *brush);
+void BKE_brush_color_set(struct Scene *scene, struct Brush *brush, const float color[3]);
 
 int  BKE_brush_size_get(const struct Scene *scene, struct Brush *brush);
 void BKE_brush_size_set(struct Scene *scene, struct Brush *brush, int value);

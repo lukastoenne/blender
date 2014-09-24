@@ -40,14 +40,10 @@
 #  include <xmmintrin.h>
 #endif
 
-/* crash handler */
 #ifdef WIN32
-#  include <process.h> /* getpid */
-#else
-#  include <unistd.h> /* getpid */
-#endif
-
-#ifdef WIN32
+#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+#    include <math.h> /* needed for _set_FMA3_enable */
+#  endif
 #  include <windows.h>
 #  include "utfconv.h"
 #endif
@@ -79,6 +75,8 @@
 #include "BLI_callbacks.h"
 #include "BLI_blenlib.h"
 #include "BLI_mempool.h"
+#include "BLI_system.h"
+#include BLI_SYSTEM_PID_H
 
 #include "DNA_ID.h"
 #include "DNA_scene_types.h"
@@ -94,12 +92,12 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_modifier.h"
-#include "BKE_packedFile.h"
 #include "BKE_scene.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sound.h"
 #include "BKE_image.h"
+#include "BKE_particle.h"
 
 #include "IMB_imbuf.h"  /* for IMB_init */
 
@@ -209,7 +207,7 @@ static void blender_esc(int sig)
 {
 	static int count = 0;
 	
-	G.is_break = TRUE;  /* forces render loop to read queue, not sure if its needed */
+	G.is_break = true;  /* forces render loop to read queue, not sure if its needed */
 	
 	if (sig == 2) {
 		if (count) {
@@ -537,10 +535,10 @@ static void blender_crash_handler_backtrace(FILE *fp)
 
 	process = GetCurrentProcess();
 
-	SymInitialize(process, NULL, TRUE);
+	SymInitialize(process, NULL, true);
 
 	nframes = CaptureStackBackTrace(0, SIZE, stack, NULL);
-	symbolinfo = MEM_callocN(sizeof(SYMBOL_INFO) + MAXSYMBOL * sizeof( char ), "crash Symbol table");
+	symbolinfo = MEM_callocN(sizeof(SYMBOL_INFO) + MAXSYMBOL * sizeof(char), "crash Symbol table");
 	symbolinfo->MaxNameLen = MAXSYMBOL - 1;
 	symbolinfo->SizeOfStruct = sizeof(SYMBOL_INFO);
 
@@ -571,7 +569,7 @@ static void blender_crash_handler(int signum)
 		char fname[FILE_MAX];
 
 		if (!G.main->name[0]) {
-			BLI_make_file_string("/", fname, BLI_temporary_dir(), "crash.blend");
+			BLI_make_file_string("/", fname, BLI_temp_dir_base(), "crash.blend");
 		}
 		else {
 			BLI_strncpy(fname, G.main->name, sizeof(fname));
@@ -592,10 +590,10 @@ static void blender_crash_handler(int signum)
 	char fname[FILE_MAX];
 
 	if (!G.main->name[0]) {
-		BLI_join_dirfile(fname, sizeof(fname), BLI_temporary_dir(), "blender.crash.txt");
+		BLI_join_dirfile(fname, sizeof(fname), BLI_temp_dir_base(), "blender.crash.txt");
 	}
 	else {
-		BLI_join_dirfile(fname, sizeof(fname), BLI_temporary_dir(), BLI_path_basename(G.main->name));
+		BLI_join_dirfile(fname, sizeof(fname), BLI_temp_dir_base(), BLI_path_basename(G.main->name));
 		BLI_replace_extension(fname, sizeof(fname), ".crash.txt");
 	}
 
@@ -626,6 +624,8 @@ static void blender_crash_handler(int signum)
 		fclose(fp);
 	}
 
+	/* Delete content of temp dir! */
+	BLI_temp_dir_session_purge();
 
 	/* really crash */
 	signal(signum, SIG_DFL);
@@ -817,6 +817,9 @@ static int set_engine(int argc, const char **argv, void *data)
 				if (BLI_findstring(&R_engines, argv[1], offsetof(RenderEngineType, idname))) {
 					BLI_strncpy_utf8(rd->engine, argv[1], sizeof(rd->engine));
 				}
+				else {
+					printf("\nError: engine not found '%s'\n", argv[1]);
+				}
 			}
 			else {
 				printf("\nError: no blend loaded. order the arguments so '-E  / --engine ' is after a blend is loaded.\n");
@@ -1004,6 +1007,7 @@ static int render_frame(int argc, const char **argv, void *data)
 					break;
 			}
 
+			BLI_begin_threaded_malloc();
 			BKE_reports_init(&reports, RPT_PRINT);
 
 			frame = CLAMPIS(frame, MINAFRAME, MAXFRAME);
@@ -1011,6 +1015,7 @@ static int render_frame(int argc, const char **argv, void *data)
 			RE_SetReports(re, &reports);
 			RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, frame, frame, scene->r.frame_step);
 			RE_SetReports(re, NULL);
+			BLI_end_threaded_malloc();
 			return 1;
 		}
 		else {
@@ -1032,10 +1037,12 @@ static int render_animation(int UNUSED(argc), const char **UNUSED(argv), void *d
 		Main *bmain = CTX_data_main(C);
 		Render *re = RE_NewRender(scene->id.name);
 		ReportList reports;
+		BLI_begin_threaded_malloc();
 		BKE_reports_init(&reports, RPT_PRINT);
 		RE_SetReports(re, &reports);
 		RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step);
 		RE_SetReports(re, NULL);
+		BLI_end_threaded_malloc();
 	}
 	else {
 		printf("\nError: no blend loaded. cannot use '-a'.\n");
@@ -1282,7 +1289,7 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 
 			/* WM_file_read would call normally */
 			ED_editors_init(C);
-			DAG_on_visible_update(bmain, TRUE);
+			DAG_on_visible_update(bmain, true);
 			BKE_scene_update_tagged(bmain->eval_ctx, bmain, CTX_data_scene(C));
 		}
 		else {
@@ -1477,12 +1484,21 @@ char **environ = NULL;
 #  endif
 #endif
 
-
+/**
+ * Blender's main function responsabilities are:
+ * - setup subsystems.
+ * - handle arguments.
+ * - run WM_main() event loop,
+ *   or exit when running in background mode.
+ */
+int main(
+       int argc,
 #ifdef WIN32
-int main(int argc, const char **UNUSED(argv_c)) /* Do not mess with const */
+        const char **UNUSED(argv_c)
 #else
-int main(int argc, const char **argv)
+        const char **argv
 #endif
+         )
 {
 	bContext *C;
 	SYS_SystemHandle syshandle;
@@ -1491,7 +1507,13 @@ int main(int argc, const char **argv)
 	bArgs *ba;
 #endif
 
-#ifdef WIN32 /* Win32 Unicode Args */
+#ifdef WIN32
+    /* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
+#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+    _set_FMA3_enable(0);
+#  endif
+
+	/* Win32 Unicode Args */
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
 	 *       (it depends on the args passed in, which is what we're getting here!)
 	 */
@@ -1631,6 +1653,7 @@ int main(int argc, const char **argv)
 
 	RE_engines_init();
 	init_nodesystem();
+	psys_init_rng();
 	/* end second init */
 
 
@@ -1661,7 +1684,7 @@ int main(int argc, const char **argv)
 
 		/* this is properly initialized with user defs, but this is default */
 		/* call after loading the startup.blend so we can read U.tempdir */
-		BLI_init_temporary_dir(U.tempdir);
+		BLI_temp_dir_init(U.tempdir);
 	}
 	else {
 #ifndef WITH_PYTHON_MODULE
@@ -1671,7 +1694,7 @@ int main(int argc, const char **argv)
 		WM_init(C, argc, (const char **)argv);
 
 		/* don't use user preferences temp dir */
-		BLI_init_temporary_dir(NULL);
+		BLI_temp_dir_init(NULL);
 	}
 #ifdef WITH_PYTHON
 	/**

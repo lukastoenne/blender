@@ -47,7 +47,6 @@
 #include "BKE_colortools.h"
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
-#include "BKE_paint.h"
 
 
 #include "IMB_colormanagement.h"
@@ -183,14 +182,14 @@ void curvemapping_set_black_white(CurveMapping *cumap, const float black[3], con
 /* ********** NOTE: requires curvemapping_changed() call after ******** */
 
 /* remove specified point */
-int curvemap_remove_point(CurveMap *cuma, CurveMapPoint *point)
+bool curvemap_remove_point(CurveMap *cuma, CurveMapPoint *point)
 {
 	CurveMapPoint *cmp;
 	int a, b, removed = 0;
 	
 	/* must have 2 points minimum */
 	if (cuma->totpoint <= 2)
-		return FALSE;
+		return false;
 
 	cmp = MEM_mallocN((cuma->totpoint) * sizeof(CurveMapPoint), "curve points");
 
@@ -578,14 +577,14 @@ static void curvemap_make_table(CurveMap *cuma, const rctf *clipr)
 	/* store first and last handle for extrapolation, unit length */
 	cuma->ext_in[0] = bezt[0].vec[0][0] - bezt[0].vec[1][0];
 	cuma->ext_in[1] = bezt[0].vec[0][1] - bezt[0].vec[1][1];
-	range = sqrt(cuma->ext_in[0] * cuma->ext_in[0] + cuma->ext_in[1] * cuma->ext_in[1]);
+	range = sqrtf(cuma->ext_in[0] * cuma->ext_in[0] + cuma->ext_in[1] * cuma->ext_in[1]);
 	cuma->ext_in[0] /= range;
 	cuma->ext_in[1] /= range;
 
 	a = cuma->totpoint - 1;
 	cuma->ext_out[0] = bezt[a].vec[1][0] - bezt[a].vec[2][0];
 	cuma->ext_out[1] = bezt[a].vec[1][1] - bezt[a].vec[2][1];
-	range = sqrt(cuma->ext_out[0] * cuma->ext_out[0] + cuma->ext_out[1] * cuma->ext_out[1]);
+	range = sqrtf(cuma->ext_out[0] * cuma->ext_out[0] + cuma->ext_out[1] * cuma->ext_out[1]);
 	cuma->ext_out[0] /= range;
 	cuma->ext_out[1] /= range;
 	
@@ -759,7 +758,7 @@ void curvemapping_changed_all(CurveMapping *cumap)
 	for (a = 0; a < CM_TOT; a++) {
 		if (cumap->cm[a].curve) {
 			cumap->cur = a;
-			curvemapping_changed(cumap, FALSE);
+			curvemapping_changed(cumap, false);
 		}
 	}
 
@@ -961,7 +960,7 @@ void BKE_histogram_update_sample_line(Histogram *hist, ImBuf *ibuf, const ColorM
                                       const ColorManagedDisplaySettings *display_settings)
 {
 	int i, x, y;
-	float *fp;
+	const float *fp;
 	float rgb[3];
 	unsigned char *cp;
 
@@ -1024,7 +1023,7 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, const ColorManagedViewSettings *
 	int x, y, c;
 	unsigned int nl, na, nr, ng, nb;
 	double divl, diva, divr, divg, divb;
-	float *rf = NULL;
+	const float *rf = NULL;
 	unsigned char *rc = NULL;
 	unsigned int *bin_lum, *bin_r, *bin_g, *bin_b, *bin_a;
 	int savedlines, saveline;

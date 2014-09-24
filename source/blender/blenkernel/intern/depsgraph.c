@@ -59,12 +59,13 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
-#include "BKE_group.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
@@ -79,6 +80,8 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_tracking.h"
+
+#include "GPU_buffers.h"
 
 #include "atomic_ops.h"
 
@@ -305,6 +308,7 @@ DagForest *dag_init(void)
 	DagForest *forest;
 	/* use callocN to init all zero */
 	forest = MEM_callocN(sizeof(DagForest), "DAG root");
+	forest->ugly_hack_sorry = true;
 	return forest;
 }
 
@@ -507,7 +511,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			
 			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -524,7 +528,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 									if (ct->tar->type == OB_MESH)
 										node3->customdata_mask |= CD_MASK_MDEFORMVERT;
 								}
-								else if (ELEM3(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO, CONSTRAINT_TYPE_SPLINEIK))
+								else if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO, CONSTRAINT_TYPE_SPLINEIK))
 									dag_add_relation(dag, node3, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, cti->name);
 								else
 									dag_add_relation(dag, node3, node, DAG_RL_OB_DATA, cti->name);
@@ -688,6 +692,29 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Curve Taper");
 			}
 			if (ob->type == OB_FONT) {
+				/* Really rather dirty hack. needs to support font family to work
+				 * reliably on render export.
+				 *
+				 * This totally mimics behavior of regular verts duplication with
+				 * parenting. The only tricky thing here is to get list of objects
+				 * used for the custom "font".
+				 *
+				 * This shouldn't harm so much because this code only runs on DAG
+				 * rebuild and this feature is not that commonly used.
+				 *
+				 *                                                 - sergey -
+				 */
+				if (cu->family[0] != '\n') {
+					ListBase *duplilist;
+					DupliObject *dob;
+					duplilist = object_duplilist(G.main->eval_ctx, scene, ob);
+					for (dob = duplilist->first; dob; dob = dob->next) {
+						node2 = dag_get_node(dag, dob->ob);
+						dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Object Font");
+					}
+					free_object_duplilist(duplilist);
+				}
+
 				if (cu->textoncurve) {
 					node2 = dag_get_node(dag, cu->textoncurve);
 					/* Text on curve requires path to be evaluated for the target curve. */
@@ -795,7 +822,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 	
 	/* object constraints */
 	for (con = ob->constraints.first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 		ListBase targets = {NULL, NULL};
 		bConstraintTarget *ct;
 		
@@ -803,7 +830,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			continue;
 
 		/* special case for camera tracking -- it doesn't use targets to define relations */
-		if (ELEM3(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
+		if (ELEM(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
 			int depends_on_camera = 0;
 
 			if (cti->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
@@ -843,7 +870,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO))
 					dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
 				else {
-					if (ELEM3(obt->type, OB_ARMATURE, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
+					if (ELEM(obt->type, OB_ARMATURE, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
 						dag_add_relation(dag, node2, node, DAG_RL_DATA_OB | DAG_RL_OB_OB, cti->name);
 						if (obt->type == OB_MESH)
 							node2->customdata_mask |= CD_MASK_MDEFORMVERT;
@@ -995,7 +1022,6 @@ DagNode *dag_find_node(DagForest *forest, void *fob)
 	return NULL;
 }
 
-static int ugly_hack_sorry = 1;         /* prevent type check */
 static int dag_print_dependencies = 0;  /* debugging */
 
 /* no checking of existence, use dag_find_node first or dag_get_node */
@@ -1008,7 +1034,7 @@ DagNode *dag_add_node(DagForest *forest, void *fob)
 		node->ob = fob;
 		node->color = DAG_WHITE;
 
-		if (ugly_hack_sorry) node->type = GS(((ID *) fob)->name);  /* sorry, done for pose sorting */
+		if (forest->ugly_hack_sorry) node->type = GS(((ID *) fob)->name);  /* sorry, done for pose sorting */
 		if (forest->numNodes) {
 			((DagNode *) forest->DagNode.last)->next = node;
 			forest->DagNode.last = node;
@@ -1116,28 +1142,28 @@ void dag_add_relation(DagForest *forest, DagNode *fob1, DagNode *fob2, short rel
 	fob1->child = itA;
 }
 
-static const char *dag_node_name(DagNode *node)
+static const char *dag_node_name(DagForest *dag, DagNode *node)
 {
 	if (node->ob == NULL)
 		return "null";
-	else if (ugly_hack_sorry)
+	else if (dag->ugly_hack_sorry)
 		return ((ID *)(node->ob))->name + 2;
 	else
 		return ((bPoseChannel *)(node->ob))->name;
 }
 
-static void dag_node_print_dependencies(DagNode *node)
+static void dag_node_print_dependencies(DagForest *dag, DagNode *node)
 {
 	DagAdjList *itA;
 
-	printf("%s depends on:\n", dag_node_name(node));
+	printf("%s depends on:\n", dag_node_name(dag, node));
 
 	for (itA = node->parent; itA; itA = itA->next)
-		printf("  %s through %s\n", dag_node_name(itA->node), itA->name);
+		printf("  %s through %s\n", dag_node_name(dag, itA->node), itA->name);
 	printf("\n");
 }
 
-static int dag_node_print_dependency_recurs(DagNode *node, DagNode *endnode)
+static int dag_node_print_dependency_recurs(DagForest *dag, DagNode *node, DagNode *endnode)
 {
 	DagAdjList *itA;
 
@@ -1150,8 +1176,8 @@ static int dag_node_print_dependency_recurs(DagNode *node, DagNode *endnode)
 		return 1;
 
 	for (itA = node->parent; itA; itA = itA->next) {
-		if (dag_node_print_dependency_recurs(itA->node, endnode)) {
-			printf("  %s depends on %s through %s.\n", dag_node_name(node), dag_node_name(itA->node), itA->name);
+		if (dag_node_print_dependency_recurs(dag, itA->node, endnode)) {
+			printf("  %s depends on %s through %s.\n", dag_node_name(dag, node), dag_node_name(dag, itA->node), itA->name);
 			return 1;
 		}
 	}
@@ -1166,8 +1192,8 @@ static void dag_node_print_dependency_cycle(DagForest *dag, DagNode *startnode, 
 	for (node = dag->DagNode.first; node; node = node->next)
 		node->color = DAG_WHITE;
 
-	printf("  %s depends on %s through %s.\n", dag_node_name(endnode), dag_node_name(startnode), name);
-	dag_node_print_dependency_recurs(startnode, endnode);
+	printf("  %s depends on %s through %s.\n", dag_node_name(dag, endnode), dag_node_name(dag, startnode), name);
+	dag_node_print_dependency_recurs(dag, startnode, endnode);
 	printf("\n");
 }
 
@@ -1201,7 +1227,7 @@ static void dag_check_cycle(DagForest *dag)
 	/* debugging print */
 	if (dag_print_dependencies)
 		for (node = dag->DagNode.first; node; node = node->next)
-			dag_node_print_dependencies(node);
+			dag_node_print_dependencies(dag, node);
 
 	/* tag nodes unchecked */
 	for (node = dag->DagNode.first; node; node = node->next)
@@ -1387,7 +1413,7 @@ static bool check_object_needs_evaluation(Object *object)
 	if (object->type == OB_MESH) {
 		return object->derivedFinal == NULL;
 	}
-	else if (ELEM5(object->type, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
+	else if (ELEM(object->type, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
 		return object->curve_cache == NULL;
 	}
 
@@ -1401,7 +1427,7 @@ static bool check_object_tagged_for_update(Object *object)
 		return true;
 	}
 
-	if (ELEM6(object->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
+	if (ELEM(object->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
 		ID *data_id = object->data;
 		return (data_id->flag & (LIB_ID_RECALC_DATA | LIB_ID_RECALC)) != 0;
 	}
@@ -1748,7 +1774,8 @@ static unsigned int flush_layer_node(Scene *sce, DagNode *node, int curtime)
 }
 
 /* node was checked to have lasttime != curtime, and is of type ID_OB */
-static void flush_pointcache_reset(Main *bmain, Scene *scene, DagNode *node, int curtime, int reset)
+static void flush_pointcache_reset(Main *bmain, Scene *scene, DagNode *node,
+                                   int curtime, unsigned int lay, bool reset)
 {
 	DagAdjList *itA;
 	Object *ob;
@@ -1762,14 +1789,17 @@ static void flush_pointcache_reset(Main *bmain, Scene *scene, DagNode *node, int
 
 				if (reset || (ob->recalc & OB_RECALC_ALL)) {
 					if (BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH)) {
-						ob->recalc |= OB_RECALC_DATA;
-						lib_id_recalc_data_tag(bmain, &ob->id);
+						/* Don't tag nodes which are on invisible layer. */
+						if (itA->node->lay & lay) {
+							ob->recalc |= OB_RECALC_DATA;
+							lib_id_recalc_data_tag(bmain, &ob->id);
+						}
 					}
 
-					flush_pointcache_reset(bmain, scene, itA->node, curtime, 1);
+					flush_pointcache_reset(bmain, scene, itA->node, curtime, lay, true);
 				}
 				else
-					flush_pointcache_reset(bmain, scene, itA->node, curtime, 0);
+					flush_pointcache_reset(bmain, scene, itA->node, curtime, lay, false);
 			}
 		}
 	}
@@ -1886,10 +1916,12 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 						lib_id_recalc_data_tag(bmain, &ob->id);
 					}
 
-					flush_pointcache_reset(bmain, sce, itA->node, lasttime, 1);
+					flush_pointcache_reset(bmain, sce, itA->node, lasttime,
+					                       lay, true);
 				}
 				else
-					flush_pointcache_reset(bmain, sce, itA->node, lasttime, 0);
+					flush_pointcache_reset(bmain, sce, itA->node, lasttime,
+					                       lay, false);
 			}
 		}
 	}
@@ -1978,13 +2010,13 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 	if (ob->constraints.first) {
 		bConstraint *con;
 		for (con = ob->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
 			if (cti) {
 				/* special case for camera tracking -- it doesn't use targets to define relations */
-				if (ELEM3(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
+				if (ELEM(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
 					ob->recalc |= OB_RECALC_OB;
 				}
 				else if (cti->get_constraint_targets) {
@@ -2273,7 +2305,7 @@ static void dag_group_on_visible_update(Group *group)
 	group->id.flag |= LIB_DOIT;
 
 	for (go = group->gobject.first; go; go = go->next) {
-		if (ELEM6(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
+		if (ELEM(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
 			go->ob->recalc |= OB_RECALC_DATA;
 			go->ob->id.flag |= LIB_DOIT;
 			lib_id_recalc_tag(G.main, &go->ob->id);
@@ -2320,7 +2352,7 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 			oblay = (node) ? node->lay : ob->lay;
 
 			if ((oblay & lay) & ~scene->lay_updated) {
-				if (ELEM6(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
+				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
 					ob->recalc |= OB_RECALC_DATA;
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
@@ -2473,6 +2505,14 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 						BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
 		}
 
+		if (ELEM(idtype, ID_MA, ID_TE)) {
+			obt = sce->basact ? sce->basact->object : NULL;
+			if (obt && obt->mode & OB_MODE_TEXTURE_PAINT) {
+				BKE_texpaint_slots_refresh_object(sce, obt);
+				GPU_drawobject_free(obt->derivedFinal);
+			}
+		}
+
 		if (idtype == ID_MC) {
 			MovieClip *clip = (MovieClip *) id;
 
@@ -2481,8 +2521,8 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 			for (obt = bmain->object.first; obt; obt = obt->id.next) {
 				bConstraint *con;
 				for (con = obt->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
-					if (ELEM3(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER,
+					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+					if (ELEM(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER,
 					          CONSTRAINT_TYPE_OBJECTSOLVER))
 					{
 						obt->recalc |= OB_RECALC_OB;
@@ -2501,6 +2541,23 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 					}
 				}
 			}
+		}
+
+		/* Not pretty to iterate all the nodes here, but it's as good as it
+		 * could be with the current depsgraph design/
+		 */
+		if (idtype == ID_IM) {
+			FOREACH_NODETREE(bmain, ntree, parent_id) {
+				if (ntree->type == NTREE_SHADER) {
+					bNode *node;
+					for (node = ntree->nodes.first; node; node = node->next) {
+						if (node->id == id) {
+							lib_id_recalc_tag(bmain, &ntree->id);
+							break;
+						}
+					}
+				}
+			} FOREACH_NODETREE_END
 		}
 
 		if (idtype == ID_MSK) {
@@ -2535,7 +2592,8 @@ void DAG_ids_flush_tagged(Main *bmain)
 	ListBase listbase;
 	DagSceneLayer *dsl;
 	ListBase *lbarray[MAX_LIBARRAY];
-	int a, do_flush = FALSE;
+	int a;
+	bool do_flush = false;
 	
 	/* get list of visible scenes and layers */
 	dag_current_scene_layers(bmain, &listbase);
@@ -2559,7 +2617,7 @@ void DAG_ids_flush_tagged(Main *bmain)
 					for (dsl = listbase.first; dsl; dsl = dsl->next)
 						dag_id_flush_update(bmain, dsl->scene, id);
 					
-					do_flush = TRUE;
+					do_flush = true;
 				}
 			}
 		}
@@ -2574,10 +2632,11 @@ void DAG_ids_flush_tagged(Main *bmain)
 	BLI_freelistN(&listbase);
 }
 
-void DAG_ids_check_recalc(Main *bmain, Scene *scene, int time)
+void DAG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
-	int a, updated = 0;
+	int a;
+	bool updated = false;
 
 	/* loop over all ID types */
 	a  = set_listbasepointers(bmain, lbarray);
@@ -2588,14 +2647,8 @@ void DAG_ids_check_recalc(Main *bmain, Scene *scene, int time)
 
 		/* we tag based on first ID type character to avoid 
 		 * looping over all ID's in case there are no tags */
-		if (id &&
-#ifdef WITH_FREESTYLE
-		    /* XXX very weak... added check for '27' to ignore freestyle added objects */
-		    id->name[2] > 27 &&
-#endif
-		    bmain->id_tag_update[id->name[0]])
-		{
-			updated = 1;
+		if (id && bmain->id_tag_update[id->name[0]]) {
+			updated = true;
 			break;
 		}
 	}
@@ -2747,7 +2800,7 @@ void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 				if (ob->type == OB_FONT) {
 					Curve *cu = ob->data;
 
-					if (ELEM4((struct VFont *)id, cu->vfont, cu->vfontb, cu->vfonti, cu->vfontbi)) {
+					if (ELEM((struct VFont *)id, cu->vfont, cu->vfontb, cu->vfonti, cu->vfontbi)) {
 						ob->recalc |= (flag & OB_RECALC_ALL);
 					}
 				}
@@ -2836,7 +2889,7 @@ void DAG_pose_sort(Object *ob)
 	int skip = 0;
 	
 	dag = dag_init();
-	ugly_hack_sorry = 0;  /* no ID structs */
+	dag->ugly_hack_sorry = false;  /* no ID structs */
 
 	rootnode = dag_add_node(dag, NULL);  /* node->ob becomes NULL */
 	
@@ -2852,7 +2905,7 @@ void DAG_pose_sort(Object *ob)
 			addtoroot = 0;
 		}
 		for (con = pchan->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -2963,8 +3016,6 @@ void DAG_pose_sort(Object *ob)
 	
 	free_forest(dag);
 	MEM_freeN(dag);
-	
-	ugly_hack_sorry = 1;
 }
 
 /* ************************  DAG FOR THREADED UPDATE  ********************* */
@@ -3083,14 +3134,14 @@ Object *DAG_get_node_object(void *node_v)
 }
 
 /* Returns node name, used for debug output only, atm. */
-const char *DAG_get_node_name(void *node_v)
+const char *DAG_get_node_name(Scene *scene, void *node_v)
 {
 	DagNode *node = node_v;
 
-	return dag_node_name(node);
+	return dag_node_name(scene->theDag, node);
 }
 
-short DAG_get_eval_flags_for_object(struct Scene *scene, void *object)
+short DAG_get_eval_flags_for_object(Scene *scene, void *object)
 {
 	DagNode *node;
 
@@ -3113,7 +3164,17 @@ short DAG_get_eval_flags_for_object(struct Scene *scene, void *object)
 		/* Happens when external render engine exports temporary objects
 		 * which are not in the DAG.
 		 */
+
 		/* TODO(sergey): Doublecheck objects with Curve Deform exports all fine. */
+
+		/* TODO(sergey): Weak but currently we can't really access proper DAG from
+		 * the modifiers stack. This is because in most cases modifier is to use
+		 * the foreground scene, but to access evaluation flags we need to know
+		 * active background scene, which we don't know.
+		 */
+		if (scene->set) {
+			return DAG_get_eval_flags_for_object(scene->set, object);
+		}
 		return 0;
 	}
 }

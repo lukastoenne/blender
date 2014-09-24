@@ -76,6 +76,7 @@ enum ShaderNodeSpecialType {
 	SHADER_SPECIAL_TYPE_NONE,
 	SHADER_SPECIAL_TYPE_PROXY,
 	SHADER_SPECIAL_TYPE_MIX_CLOSURE,
+	SHADER_SPECIAL_TYPE_MIX_RGB, /* Only Mix subtype */
 	SHADER_SPECIAL_TYPE_AUTOCONVERT,
 	SHADER_SPECIAL_TYPE_GEOMETRY,
 	SHADER_SPECIAL_TYPE_SCRIPT
@@ -193,6 +194,7 @@ public:
 	virtual bool has_surface_bssrdf() { return false; }
 	virtual bool has_converter_blackbody() { return false; }
 	virtual bool has_bssrdf_bump() { return false; }
+	virtual bool has_spatial_varying() { return false; }
 
 	vector<ShaderInput*> inputs;
 	vector<ShaderOutput*> outputs;
@@ -246,7 +248,7 @@ public:
 	void disconnect(ShaderInput *to);
 
 	void remove_unneeded_nodes();
-	void finalize(bool do_bump = false, bool do_osl = false, bool do_multi_closure = false);
+	void finalize(bool do_bump = false, bool do_osl = false);
 
 protected:
 	typedef pair<ShaderNode* const, ShaderNode*> NodePair;

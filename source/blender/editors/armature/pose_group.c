@@ -62,12 +62,12 @@ static int pose_group_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_pose_object_from_context(C);
 
-	/* only continue if there's an object */
-	if (ob == NULL)
+	/* only continue if there's an object and pose */
+	if (ELEM(NULL, ob, ob->pose))
 		return OPERATOR_CANCELLED;
 	
 	/* for now, just call the API function for this */
-	BKE_pose_add_group(ob);
+	BKE_pose_add_group(ob->pose, NULL);
 	
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
@@ -95,12 +95,12 @@ static int pose_group_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_pose_object_from_context(C);
 	
-	/* only continue if there's an object */
-	if (ob == NULL)
+	/* only continue if there's an object and pose */
+	if (ELEM(NULL, ob, ob->pose))
 		return OPERATOR_CANCELLED;
 	
 	/* for now, just call the API function for this */
-	BKE_pose_remove_group(ob);
+	BKE_pose_remove_group_index(ob->pose, ob->pose->active_group);
 	
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
@@ -176,7 +176,7 @@ static int pose_group_assign_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_pose_object_from_context(C);
 	bPose *pose;
-	short done = FALSE;
+	bool done = false;
 
 	/* only continue if there's an object, and a pose there too */
 	if (ELEM(NULL, ob, ob->pose))
@@ -189,13 +189,13 @@ static int pose_group_assign_exec(bContext *C, wmOperator *op)
 	 */
 	pose->active_group = RNA_int_get(op->ptr, "type");
 	if (pose->active_group == 0)
-		BKE_pose_add_group(ob);
+		BKE_pose_add_group(ob->pose, NULL);
 	
 	/* add selected bones to group then */
 	CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones)
 	{
 		pchan->agrp_index = pose->active_group;
-		done = TRUE;
+		done = true;
 	}
 	CTX_DATA_END;
 
@@ -232,7 +232,7 @@ void POSE_OT_group_assign(wmOperatorType *ot)
 static int pose_group_unassign_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_pose_object_from_context(C);
-	short done = FALSE;
+	bool done = false;
 	
 	/* only continue if there's an object, and a pose there too */
 	if (ELEM(NULL, ob, ob->pose))
@@ -243,7 +243,7 @@ static int pose_group_unassign_exec(bContext *C, wmOperator *UNUSED(op))
 	{
 		if (pchan->agrp_index) {
 			pchan->agrp_index = 0;
-			done = TRUE;
+			done = true;
 		}
 	}
 	CTX_DATA_END;
@@ -438,7 +438,7 @@ void POSE_OT_group_sort(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static void pose_group_select(bContext *C, Object *ob, int select)
+static void pose_group_select(bContext *C, Object *ob, bool select)
 {
 	bPose *pose = ob->pose;
 	

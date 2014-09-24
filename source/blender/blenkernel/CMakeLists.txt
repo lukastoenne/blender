@@ -78,6 +78,7 @@ set(SRC
 	intern/colortools.c
 	intern/constraint.c
 	intern/context.c
+	intern/crazyspace.c
 	intern/curve.c
 	intern/customdata.c
 	intern/customdata_file.c
@@ -107,6 +108,7 @@ set(SRC
 	intern/lamp.c
 	intern/lattice.c
 	intern/library.c
+	intern/library_query.c
 	intern/linestyle.c
 	intern/mask.c
 	intern/mask_evaluate.c
@@ -191,6 +193,7 @@ set(SRC
 	BKE_colortools.h
 	BKE_constraint.h
 	BKE_context.h
+	BKE_crazyspace.h
 	BKE_curve.h
 	BKE_customdata.h
 	BKE_customdata_file.h
@@ -215,6 +218,7 @@ set(SRC
 	BKE_lamp.h
 	BKE_lattice.h
 	BKE_library.h
+	BKE_library_query.h
 	BKE_linestyle.h
 	BKE_main.h
 	BKE_mask.h
@@ -303,6 +307,10 @@ endif()
 
 if(WITH_IMAGE_TIFF)
 	add_definitions(-DWITH_TIFF)
+endif()
+
+if(WITH_OPENIMAGEIO)
+	add_definitions(-DWITH_OPENIMAGEIO)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)

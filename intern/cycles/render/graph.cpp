@@ -227,7 +227,7 @@ void ShaderGraph::disconnect(ShaderInput *to)
 	from->links.erase(remove(from->links.begin(), from->links.end(), to), from->links.end());
 }
 
-void ShaderGraph::finalize(bool do_bump, bool do_osl, bool do_multi_transform)
+void ShaderGraph::finalize(bool do_bump, bool do_osl)
 {
 	/* before compiling, the shader graph may undergo a number of modifications.
 	 * currently we set default geometry shader inputs, and create automatic bump
@@ -242,17 +242,15 @@ void ShaderGraph::finalize(bool do_bump, bool do_osl, bool do_multi_transform)
 		if(do_bump)
 			bump_from_displacement();
 
-		if(do_multi_transform) {
-			ShaderInput *surface_in = output()->input("Surface");
-			ShaderInput *volume_in = output()->input("Volume");
+		ShaderInput *surface_in = output()->input("Surface");
+		ShaderInput *volume_in = output()->input("Volume");
 
-			/* todo: make this work when surface and volume closures are tangled up */
+		/* todo: make this work when surface and volume closures are tangled up */
 
-			if(surface_in->link)
-				transform_multi_closure(surface_in->link->parent, NULL, false);
-			if(volume_in->link)
-				transform_multi_closure(volume_in->link->parent, NULL, true);
-		}
+		if(surface_in->link)
+			transform_multi_closure(surface_in->link->parent, NULL, false);
+		if(volume_in->link)
+			transform_multi_closure(volume_in->link->parent, NULL, true);
 
 		finalized = true;
 	}
@@ -322,20 +320,20 @@ void ShaderGraph::remove_unneeded_nodes()
 {
 	vector<bool> removed(num_node_ids, false);
 	bool any_node_removed = false;
-	
+
 	/* find and unlink proxy nodes */
 	foreach(ShaderNode *node, nodes) {
 		if(node->special_type == SHADER_SPECIAL_TYPE_PROXY) {
 			ProxyNode *proxy = static_cast<ProxyNode*>(node);
 			ShaderInput *input = proxy->inputs[0];
 			ShaderOutput *output = proxy->outputs[0];
-			
+
 			/* temp. copy of the output links list.
 			 * output->links is modified when we disconnect!
 			 */
 			vector<ShaderInput*> links(output->links);
 			ShaderOutput *from = input->link;
-			
+
 			/* bypass the proxy node */
 			if(from) {
 				disconnect(input);
@@ -393,6 +391,8 @@ void ShaderGraph::remove_unneeded_nodes()
 					if(output)
 						connect(output, input);
 				}
+				removed[mix->id] = true;
+				any_node_removed = true;
 			}
 		
 			/* remove unused mix closure input when factor is 0.0 or 1.0 */
@@ -402,7 +402,7 @@ void ShaderGraph::remove_unneeded_nodes()
 				if(mix->inputs[0]->value.x == 0.0f) {
 					ShaderOutput *output = mix->inputs[1]->link;
 					vector<ShaderInput*> inputs = mix->outputs[0]->links;
-					
+
 					foreach(ShaderInput *sock, mix->inputs)
 						if(sock->link)
 							disconnect(sock);
@@ -412,6 +412,8 @@ void ShaderGraph::remove_unneeded_nodes()
 						if(output)
 							connect(output, input);
 					}
+					removed[mix->id] = true;
+					any_node_removed = true;
 				}
 				/* factor 1.0 */
 				else if(mix->inputs[0]->value.x == 1.0f) {
@@ -427,13 +429,57 @@ void ShaderGraph::remove_unneeded_nodes()
 						if(output)
 							connect(output, input);
 					}
+					removed[mix->id] = true;
+					any_node_removed = true;
+				}
+			}
+		}
+		else if(node->special_type == SHADER_SPECIAL_TYPE_MIX_RGB) {
+			MixNode *mix = static_cast<MixNode*>(node);
+
+			/* remove unused Mix RGB inputs when factor is 0.0 or 1.0 */
+			/* check for color links and make sure factor link is disconnected */
+			if(mix->outputs[0]->links.size() && mix->inputs[1]->link && mix->inputs[2]->link && !mix->inputs[0]->link) {
+				/* factor 0.0 */
+				if(mix->inputs[0]->value.x == 0.0f) {
+					ShaderOutput *output = mix->inputs[1]->link;
+					vector<ShaderInput*> inputs = mix->outputs[0]->links;
+
+					foreach(ShaderInput *sock, mix->inputs)
+						if(sock->link)
+							disconnect(sock);
+
+					foreach(ShaderInput *input, inputs) {
+						disconnect(input);
+						if(output)
+							connect(output, input);
+					}
+					removed[mix->id] = true;
+					any_node_removed = true;
+				}
+				/* factor 1.0 */
+				else if(mix->inputs[0]->value.x == 1.0f) {
+					ShaderOutput *output = mix->inputs[2]->link;
+					vector<ShaderInput*> inputs = mix->outputs[0]->links;
+
+					foreach(ShaderInput *sock, mix->inputs)
+						if(sock->link)
+							disconnect(sock);
+
+					foreach(ShaderInput *input, inputs) {
+						disconnect(input);
+						if(output)
+							connect(output, input);
+					}
+					removed[mix->id] = true;
+					any_node_removed = true;
 				}
 			}
 		}
 	}
 
 	/* remove nodes */
-	if (any_node_removed) {
+	if(any_node_removed) {
 		list<ShaderNode*> newnodes;
 
 		foreach(ShaderNode *node, nodes) {

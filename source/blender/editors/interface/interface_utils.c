@@ -43,7 +43,6 @@
 
 #include "BLF_translation.h"
 
-#include "BKE_context.h"
 #include "BKE_report.h"
 
 #include "MEM_guardedalloc.h"
@@ -99,7 +98,7 @@ uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int ind
 			else if (icon)
 				but = uiDefIconTextButR_prop(block, MENU, 0, icon, NULL, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
 			else
-				but = uiDefButR_prop(block, MENU, 0, NULL, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
+				but = uiDefButR_prop(block, MENU, 0, name, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
 			break;
 		case PROP_STRING:
 			if (icon && name && name[0] == '\0')
@@ -152,7 +151,7 @@ int uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr,
 	const char *name;
 	int tot = 0;
 
-	assert(ELEM3(label_align, '\0', 'H', 'V'));
+	assert(ELEM(label_align, '\0', 'H', 'V'));
 
 	RNA_STRUCT_BEGIN (ptr, prop)
 	{
@@ -172,15 +171,13 @@ int uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr,
 				if (!is_boolean)
 					uiItemL(col, name, ICON_NONE);
 			}
-			else if (label_align == 'H') {
+			else {  /* (label_align == 'H') */
+				BLI_assert(label_align == 'H');
 				split = uiLayoutSplit(layout, 0.5f, false);
 
 				col = uiLayoutColumn(split, false);
 				uiItemL(col, (is_boolean) ? "" : name, ICON_NONE);
 				col = uiLayoutColumn(split, false);
-			}
-			else {
-				col = NULL;
 			}
 
 			/* may meed to add more cases here.
@@ -256,7 +253,7 @@ int uiFloatPrecisionCalc(int prec, double value)
 	static const double max_pow = 10000000.0;  /* pow(10, UI_PRECISION_FLOAT_MAX) */
 
 	BLI_assert(prec <= UI_PRECISION_FLOAT_MAX);
-	BLI_assert(pow10_neg[prec] == pow(10, -prec));
+	BLI_assert(fabs(pow10_neg[prec] - pow(10, -prec)) < 1e-16);
 
 	/* check on the number of decimal places need to display the number, this is so 0.00001 is not displayed as 0.00,
 	 * _but_, this is only for small values si 10.0001 will not get the same treatment.
@@ -325,7 +322,7 @@ struct uiButStoreElem {
 };
 
 /**
- * Create a new button sture, the caller must manage and run #UI_butstore_free
+ * Create a new button store, the caller must manage and run #UI_butstore_free
  */
 uiButStore *UI_butstore_create(uiBlock *block)
 {

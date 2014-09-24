@@ -623,7 +623,7 @@ void PARTICLE_OT_disconnect_hair(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "all", 0, "All hair", "Disconnect all hair systems from the emitter mesh");
 }
 
-static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
+static bool connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 	ParticleData *pa;
@@ -633,7 +633,8 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 	HairKey *key;
 	BVHTreeFromMesh bvhtree= {NULL};
 	BVHTreeNearest nearest;
-	MFace *mface, *mf;
+	MFace *mface = NULL, *mf;
+	MEdge *medge = NULL, *me;
 	MVert *mvert;
 	DerivedMesh *dm = NULL;
 	int numverts;
@@ -642,7 +643,7 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 	float v[4][3], vec[3];
 
 	if (!psys || !psys->part || psys->part->type != PART_HAIR || !psmd->dm)
-		return FALSE;
+		return false;
 	
 	edit= psys->edit;
 	point=  edit ? edit->points : NULL;
@@ -663,13 +664,23 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 	numverts = dm->getNumVerts(dm);
 
 	mvert = dm->getVertArray(dm);
-	mface = dm->getTessFaceArray(dm);
 
 	/* convert to global coordinates */
 	for (i=0; i<numverts; i++)
 		mul_m4_v3(ob->obmat, mvert[i].co);
 
-	bvhtree_from_mesh_faces(&bvhtree, dm, 0.0, 2, 6);
+	if (dm->getNumTessFaces(dm) != 0) {
+		mface = dm->getTessFaceArray(dm);
+		bvhtree_from_mesh_faces(&bvhtree, dm, 0.0, 2, 6);
+	}
+	else if (dm->getNumEdges(dm) != 0) {
+		medge = dm->getEdgeArray(dm);
+		bvhtree_from_mesh_edges(&bvhtree, dm, 0.0, 2, 6);
+	}
+	else {
+		dm->release(dm);
+		return false;
+	}
 
 	for (i=0, pa= psys->particles; i<psys->totpart; i++, pa++) {
 		key = pa->hair;
@@ -685,21 +696,35 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 			continue;
 		}
 
-		mf = &mface[nearest.index];
+		if (mface) {
+			mf = &mface[nearest.index];
 
-		copy_v3_v3(v[0], mvert[mf->v1].co);
-		copy_v3_v3(v[1], mvert[mf->v2].co);
-		copy_v3_v3(v[2], mvert[mf->v3].co);
-		if (mf->v4) {
-			copy_v3_v3(v[3], mvert[mf->v4].co);
-			interp_weights_poly_v3(pa->fuv, v, 4, nearest.co);
+			copy_v3_v3(v[0], mvert[mf->v1].co);
+			copy_v3_v3(v[1], mvert[mf->v2].co);
+			copy_v3_v3(v[2], mvert[mf->v3].co);
+			if (mf->v4) {
+				copy_v3_v3(v[3], mvert[mf->v4].co);
+				interp_weights_poly_v3(pa->fuv, v, 4, nearest.co);
+			}
+			else
+				interp_weights_poly_v3(pa->fuv, v, 3, nearest.co);
+
+			pa->num = nearest.index;
+			pa->num_dmcache = psys_particle_dm_face_lookup(ob, psmd->dm, pa->num, pa->fuv, NULL);
 		}
-		else
-			interp_weights_poly_v3(pa->fuv, v, 3, nearest.co);
+		else {
+			me = &medge[nearest.index];
 
-		pa->num = nearest.index;
-		pa->num_dmcache = psys_particle_dm_face_lookup(ob, psmd->dm, pa->num, pa->fuv, NULL);
-		
+			pa->fuv[1] = line_point_factor_v3(nearest.co,
+			                                  mvert[me->v2].co,
+			                                  mvert[me->v2].co);
+			pa->fuv[0] = 1.0f - pa->fuv[1];
+			pa->fuv[2] = pa->fuv[3] = 0.0f;
+
+			pa->num = nearest.index;
+			pa->num_dmcache = -1;
+		}
+
 		psys_mat_hair_to_global(ob, psmd->dm, psys->part->from, pa, hairmat);
 		invert_m4_m4(imat, hairmat);
 
@@ -730,7 +755,7 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 
 	PE_update_object(scene, ob, 0);
 
-	return TRUE;
+	return true;
 }
 
 static int connect_hair_exec(bContext *C, wmOperator *op)
@@ -740,7 +765,7 @@ static int connect_hair_exec(bContext *C, wmOperator *op)
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem);
 	ParticleSystem *psys= NULL;
 	const bool all = RNA_boolean_get(op->ptr, "all");
-	int any_connected = FALSE;
+	bool any_connected = false;
 
 	if (!ob)
 		return OPERATOR_CANCELLED;

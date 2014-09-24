@@ -59,7 +59,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_modifier_types.h"
@@ -67,10 +66,9 @@
 #include "BLI_utildefines.h"
 #include "BLI_array.h"
 #include "BLI_heap.h"
-#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_stack.h"
-#include "BLI_string.h"
+#include "BLI_bitmap.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_deform.h"
@@ -111,9 +109,9 @@ typedef struct Frame {
 	} merge[4];
 
 	/* For hull frames, whether each vertex is detached or not */
-	int inside_hull[4];
+	bool inside_hull[4];
 	/* Whether any part of the frame (corner or edge) is detached */
-	int detached;
+	bool detached;
 } Frame;
 
 #define MAX_SKIN_NODE_FRAMES 2
@@ -174,34 +172,35 @@ static bool is_quad_symmetric(BMVert *quad[4],
 }
 
 /* Returns true if the quad crosses the plane of symmetry, false otherwise */
-static int quad_crosses_symmetry_plane(BMVert *quad[4],
-                                       const SkinModifierData *smd)
+static bool quad_crosses_symmetry_plane(BMVert *quad[4],
+                                        const SkinModifierData *smd)
 {
 	int axis;
 
 	for (axis = 0; axis < 3; axis++) {
 		if (smd->symmetry_axes & (1 << axis)) {
-			int i, left = FALSE, right = FALSE;
+			bool left = false, right = false;
+			int i;
 
 			for (i = 0; i < 4; i++) {
 				if (quad[i]->co[axis] < 0.0f)
-					left = TRUE;
+					left = true;
 				else if (quad[i]->co[axis] > 0.0f)
-					right = TRUE;
+					right = true;
 
 				if (left && right)
-					return TRUE;
+					return true;
 			}
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 /* Returns true if the frame is filled by precisely two faces (and
  * outputs those faces to fill_faces), otherwise returns false. */
-static int skin_frame_find_contained_faces(const Frame *frame,
-                                           BMFace *fill_faces[2])
+static bool skin_frame_find_contained_faces(const Frame *frame,
+                                            BMFace *fill_faces[2])
 {
 	BMEdge *diag;
 
@@ -213,11 +212,11 @@ static int skin_frame_find_contained_faces(const Frame *frame,
 	if (diag)
 		return BM_edge_face_pair(diag, &fill_faces[0], &fill_faces[1]);
 	else
-		return FALSE;
+		return false;
 }
 
-/* Returns TRUE if hull is successfully built, FALSE otherwise */
-static int build_hull(SkinOutput *so, Frame **frames, int totframe)
+/* Returns true if hull is successfully built, false otherwise */
+static bool build_hull(SkinOutput *so, Frame **frames, int totframe)
 {
 	BMesh *bm = so->bm;
 	BMOperator op;
@@ -228,7 +227,7 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 	BMEdge *e;
 	int i, j;
 
-	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, FALSE);
+	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
 	for (i = 0; i < totframe; i++) {
 		for (j = 0; j < 4; j++) {
@@ -246,7 +245,7 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 
 	if (BMO_error_occurred(bm)) {
 		BMO_op_finish(bm, &op);
-		return FALSE;
+		return false;
 	}
 
 	/* Apply face attributes to hull output */
@@ -264,8 +263,8 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 			if (!frame->detached) {
 				for (j = 0; j < 4; j++) {
 					if (frame->verts[j] == v) {
-						frame->inside_hull[j] = TRUE;
-						frame->detached = TRUE;
+						frame->inside_hull[j] = true;
+						frame->detached = true;
 						break;
 					}
 				}
@@ -283,7 +282,7 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 		     !BM_edge_exists(frame->verts[2], frame->verts[3]) ||
 		     !BM_edge_exists(frame->verts[3], frame->verts[0])))
 		{
-			frame->detached = TRUE;
+			frame->detached = true;
 		}
 	}
 	
@@ -304,7 +303,7 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 				BM_elem_flag_enable(fill_faces[1], BM_ELEM_TAG);
 			}
 			else
-				frame->detached = TRUE;
+				frame->detached = true;
 		}
 	}
 
@@ -326,7 +325,7 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 
 	BM_mesh_delete_hflag_tagged(bm, BM_ELEM_TAG, BM_EDGE | BM_FACE);
 
-	return TRUE;
+	return true;
 }
 
 /* Returns the average frame side length (frames are rectangular, so
@@ -643,7 +642,7 @@ typedef struct {
 	int e;
 } EdgeStackElem;
 
-static void build_emats_stack(BLI_Stack *stack, int *visited_e, EMat *emat,
+static void build_emats_stack(BLI_Stack *stack, BLI_bitmap *visited_e, EMat *emat,
                               const MeshElemMap *emap, const MEdge *medge,
                               const MVertSkin *vs, const MVert *mvert)
 {
@@ -656,11 +655,11 @@ static void build_emats_stack(BLI_Stack *stack, int *visited_e, EMat *emat,
 	e = stack_elem.e;
 
 	/* Skip if edge already visited */
-	if (visited_e[e])
+	if (BLI_BITMAP_TEST(visited_e, e))
 		return;
 
 	/* Mark edge as visited */
-	visited_e[e] = TRUE;
+	BLI_BITMAP_ENABLE(visited_e, e);
 	
 	/* Process edge */
 
@@ -706,11 +705,12 @@ static EMat *build_edge_mats(const MVertSkin *vs,
 	BLI_Stack *stack;
 	EMat *emat;
 	EdgeStackElem stack_elem;
-	int *visited_e, i, v;
+	BLI_bitmap *visited_e;
+	int i, v;
 
 	stack = BLI_stack_new(sizeof(stack_elem), "build_edge_mats.stack");
 
-	visited_e = MEM_callocN(sizeof(int) * totedge, "build_edge_mats.visited_e");
+	visited_e = BLI_BITMAP_NEW(totedge, "build_edge_mats.visited_e");
 	emat = MEM_callocN(sizeof(EMat) * totedge, "build_edge_mats.emat");
 
 	/* Edge matrices are built from the root nodes, add all roots with
@@ -732,7 +732,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
 		}
 	}
 
-	while (!BLI_stack_empty(stack)) {
+	while (!BLI_stack_is_empty(stack)) {
 		build_emats_stack(stack, visited_e, emat, emap, medge, vs, mvert);
 	}
 
@@ -751,7 +751,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
  * having any special cases for dealing with sharing a frame between
  * two hulls.) */
 static int calc_edge_subdivisions(const MVert *mvert, const MVertSkin *nodes,
-                                  const MEdge *e, int *degree)
+                                  const MEdge *e, const int *degree)
 {
 	/* prevent memory errors [#38003] */
 #define NUM_SUBDIVISIONS_MAX 128
@@ -1036,7 +1036,7 @@ static int isect_ray_poly(const float ray_start[3],
 	BMVert *v, *v_first = NULL, *v_prev = NULL;
 	BMIter iter;
 	float best_dist = FLT_MAX;
-	int hit = 0;
+	bool hit = false;
 	
 	BM_ITER_ELEM (v, &iter, f, BM_VERTS_OF_FACE) {
 		if (!v_first)
@@ -1049,7 +1049,7 @@ static int isect_ray_poly(const float ray_start[3],
 			                          v_first->co, v_prev->co, v->co,
 			                          &dist, NULL);
 			if (curhit && dist < best_dist) {
-				hit = TRUE;
+				hit = true;
 				best_dist = dist;
 			}
 		}
@@ -1104,15 +1104,16 @@ static BMFace *collapse_face_corners(BMesh *bm, BMFace *f, int n,
 		/* Find the new face */
 		f = NULL;
 		BM_ITER_ELEM (vf, &iter, v_safe, BM_FACES_OF_VERT) {
-			int wrong_face = FALSE;
+			bool wrong_face = false;
 			
 			for (i = 0; i < orig_len; i++) {
-				if (orig_verts[i] == v_merge)
+				if (orig_verts[i] == v_merge) {
 					orig_verts[i] = NULL;
+				}
 				else if (orig_verts[i] &&
 				         !BM_vert_in_face(vf, orig_verts[i]))
 				{
-					wrong_face = TRUE;
+					wrong_face = true;
 					break;
 				}
 			}
@@ -1228,7 +1229,7 @@ static void skin_fix_hole_no_good_verts(BMesh *bm, Frame *frame, BMFace *split_f
 	BLI_assert(split_face->len >= 3);
 
 	/* Extrude the split face */
-	BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, FALSE);
+	BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 	BM_elem_flag_enable(split_face, BM_ELEM_TAG);
 	BMO_op_initf(bm, &op, (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
 	             "extrude_discrete_faces faces=%hf", BM_ELEM_TAG);
@@ -1251,7 +1252,7 @@ static void skin_fix_hole_no_good_verts(BMesh *bm, Frame *frame, BMFace *split_f
 		 * face is a triangle */
 		longest_edge = BM_face_find_longest_loop(split_face)->e;
 		
-		BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, FALSE);
+		BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
 		BM_elem_flag_enable(longest_edge, BM_ELEM_TAG);
 
 		BMO_op_callf(bm, BMO_FLAG_DEFAULTS,
@@ -1378,7 +1379,7 @@ static void hull_merge_triangles(SkinOutput *so, const SkinModifierData *smd)
 
 	heap = BLI_heap_new();
 
-	BM_mesh_elem_hflag_disable_all(so->bm, BM_FACE, BM_ELEM_TAG, FALSE);
+	BM_mesh_elem_hflag_disable_all(so->bm, BM_FACE, BM_ELEM_TAG, false);
 
 	/* Build heap */
 	BM_ITER_MESH (e, &iter, so->bm, BM_EDGES_OF_MESH) {
@@ -1612,7 +1613,7 @@ static void skin_smooth_hulls(BMesh *bm, SkinNode *skin_nodes,
 		return;
 
 	/* Mark all frame vertices */
-	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, FALSE);
+	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 	for (i = 0; i < totvert; i++) {
 		for (j = 0; j < skin_nodes[i].totframe; j++) {
 			Frame *frame = &skin_nodes[i].frames[j];
@@ -1662,12 +1663,13 @@ static void skin_smooth_hulls(BMesh *bm, SkinNode *skin_nodes,
 	BM_data_layer_free_n(bm, &bm->vdata, CD_SHAPEKEY, skey);
 }
 
-/* Returns TRUE if all hulls are successfully built, FALSE otherwise */
-static int skin_output_branch_hulls(SkinOutput *so, SkinNode *skin_nodes,
-                                    int totvert, const MeshElemMap *emap,
-                                    const MEdge *medge)
+/* Returns true if all hulls are successfully built, false otherwise */
+static bool skin_output_branch_hulls(SkinOutput *so, SkinNode *skin_nodes,
+                                     int totvert, const MeshElemMap *emap,
+                                     const MEdge *medge)
 {
-	int result = TRUE, v;
+	bool result = true;
+	int v;
 	
 	for (v = 0; v < totvert; v++) {
 		SkinNode *sn = &skin_nodes[v];
@@ -1681,7 +1683,7 @@ static int skin_output_branch_hulls(SkinOutput *so, SkinNode *skin_nodes,
 			                                  emap, medge,
 			                                  &tothullframe);
 			if (!build_hull(so, hull_frames, tothullframe))
-				result = FALSE;
+				result = false;
 
 			MEM_freeN(hull_frames);
 		}
@@ -1703,6 +1705,11 @@ static BMesh *build_skin(SkinNode *skin_nodes,
 	so.bm = BM_mesh_create(&bm_mesh_allocsize_default);
 	so.mat_nr = 0;
 	
+	/* BMESH_TODO: bumping up the stack level (see MOD_array.c) */
+	BM_mesh_elem_toolflags_ensure(so.bm);
+	BMO_push(so.bm, NULL);
+	bmesh_edit_begin(so.bm, 0);
+
 	if (input_dvert)
 		BM_data_layer_add(so.bm, &so.bm->vdata, CD_MDEFORMVERT);
 
@@ -1750,13 +1757,12 @@ static BMesh *build_skin(SkinNode *skin_nodes,
 
 static void skin_set_orig_indices(DerivedMesh *dm)
 {
-	int *orig, totpoly, i;
+	int *orig, totpoly;
 
 	totpoly = dm->getNumPolys(dm);
 	orig = CustomData_add_layer(&dm->polyData, CD_ORIGINDEX,
 	                            CD_CALLOC, NULL, totpoly);
-	for (i = 0; i < totpoly; i++)
-		orig[i] = ORIGINDEX_NONE;
+	fill_vn_i(orig, totpoly, ORIGINDEX_NONE);
 }
 
 /*

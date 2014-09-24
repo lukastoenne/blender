@@ -34,10 +34,34 @@
 
 /* avoid many includes for now */
 #include "BLI_sys_types.h"
+#include "BLI_compiler_compat.h"
 
 #ifndef NDEBUG /* for BLI_assert */
 #include <stdio.h>
 #endif
+
+
+/* varargs macros (keep first so others can use) */
+/* --- internal helpers --- */
+#define _VA_NARGS_GLUE(x, y) x y
+#define _VA_NARGS_RETURN_COUNT(\
+	_1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, _10_, _11_, _12_, _13_, _14_, _15_, _16_, \
+	_17_, _18_, _19_, _20_, _21_, _22_, _23_, _24_, _25_, _26_, _27_, _28_, _29_, _30_, _31_, _32_, \
+	_33_, _34_, _35_, _36_, _37_, _38_, _39_, _40_, _41_, _42_, _43_, _44_, _45_, _46_, _47_, _48_, \
+	_49_, _50_, _51_, _52_, _53_, _54_, _55_, _56_, _57_, _58_, _59_, _60_, _61_, _62_, _63_, _64_, \
+	count, ...) count
+#define _VA_NARGS_EXPAND(args) _VA_NARGS_RETURN_COUNT args
+#define _VA_NARGS_COUNT_MAX32(...) _VA_NARGS_EXPAND((__VA_ARGS__, \
+	64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, \
+	48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, \
+	32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, \
+	15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define _VA_NARGS_OVERLOAD_MACRO2(name, count) name##count
+#define _VA_NARGS_OVERLOAD_MACRO1(name, count) _VA_NARGS_OVERLOAD_MACRO2(name, count)
+#define _VA_NARGS_OVERLOAD_MACRO(name,  count) _VA_NARGS_OVERLOAD_MACRO1(name, count)
+/* --- expose for re-use --- */
+#define VA_NARGS_CALL_OVERLOAD(name, ...) \
+	_VA_NARGS_GLUE(_VA_NARGS_OVERLOAD_MACRO(name, _VA_NARGS_COUNT_MAX32(__VA_ARGS__)), (__VA_ARGS__))
 
 /* useful for finding bad use of min/max */
 #if 0
@@ -50,26 +74,42 @@
 /* min/max */
 #if defined(__GNUC__) || defined(__clang__)
 
-#define MIN2(x, y)  ({  \
-	typeof(x) x_ = (x); \
-	typeof(y) y_ = (y); \
-	((x_) < (y_) ? (x_) : (y_)); })
+#define MIN2(a, b) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); \
+	((a_) < (b_) ? (a_) : (b_)); })
 
-#define MAX2(x, y)  ({  \
-	typeof(x) x_ = (x); \
-	typeof(y) y_ = (y); \
-	((x_) > (y_) ? (x_) : (y_)); })
+#define MAX2(a, b) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); \
+	((a_) > (b_) ? (a_) : (b_)); })
+
+#define MIN3(a, b, c) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); typeof(c) c_ = (c); \
+	((a_ < b_) ? ((a_ < c_) ? a_ : c_) : ((b_ < c_) ? b_ : c_)); })
+
+#define MAX3(a, b, c) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b);  typeof(c) c_ = (c); \
+	((a_ > b_) ? ((a_ > c_) ? a_ : c_) : ((b_ > c_) ? b_ : c_)); })
+
+#define MIN4(a, b, c, d) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); typeof(c) c_ = (c); typeof(d) d_ = (d); \
+	((a_ < b_) ? ((a_ < c_) ? ((a_ < d_) ? a_ : d_) : ((c_ < d_) ? c_ : d_)) : \
+	             ((b_ < c_) ? ((b_ < d_) ? b_ : d_) : ((c_ < d_) ? c_ : d_))); })
+
+#define MAX4(a, b, c, d) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); typeof(c) c_ = (c); typeof(d) d_ = (d); \
+	((a_ > b_) ? ((a_ > c_) ? ((a_ > d_) ? a_ : d_) : ((c_ > d_) ? c_ : d_)) : \
+	             ((b_ > c_) ? ((b_ > d_) ? b_ : d_) : ((c_ > d_) ? c_ : d_))); })
 
 #else
-#define MIN2(x, y)          ((x) < (y) ? (x) : (y))
-#define MAX2(x, y)          ((x) > (y) ? (x) : (y))
+#define MIN2(a, b)  ((a) < (b) ? (a) : (b))
+#define MAX2(a, b)  ((a) > (b) ? (a) : (b))
+
+#define MIN3(a, b, c)       (MIN2(MIN2((a), (b)), (c)))
+#define MIN4(a, b, c, d)    (MIN2(MIN2((a), (b)), MIN2((c), (d))))
+
+#define MAX3(a, b, c)       (MAX2(MAX2((a), (b)), (c)))
+#define MAX4(a, b, c, d)    (MAX2(MAX2((a), (b)), MAX2((c), (d))))
 #endif
-
-#define MIN3(x, y, z)       (MIN2(MIN2((x), (y)), (z)))
-#define MIN4(x, y, z, a)    (MIN2(MIN2((x), (y)), MIN2((z), (a))))
-
-#define MAX3(x, y, z)       (MAX2(MAX2((x), (y)), (z)))
-#define MAX4(x, y, z, a)    (MAX2(MAX2((x), (y)), MAX2((z), (a))))
 
 /* min/max that return a value of our choice */
 #define MAX3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
@@ -120,24 +160,43 @@
  * ... the compiler optimizes away the temp var */
 #ifdef __GNUC__
 #define CHECK_TYPE(var, type)  {  \
-	__typeof(var) *__tmp;         \
+	typeof(var) *__tmp;           \
 	__tmp = (type *)NULL;         \
 	(void)__tmp;                  \
 } (void)0
 
 #define CHECK_TYPE_PAIR(var_a, var_b)  {  \
-	__typeof(var_a) *__tmp;               \
-	__tmp = (__typeof(var_b) *)NULL;      \
+	typeof(var_a) *__tmp;                 \
+	__tmp = (typeof(var_b) *)NULL;        \
 	(void)__tmp;                          \
 } (void)0
+
+#define CHECK_TYPE_PAIR_INLINE(var_a, var_b)  ((void)({  \
+	typeof(var_a) *__tmp;                                \
+	__tmp = (typeof(var_b) *)NULL;                       \
+	(void)__tmp;                                         \
+}))
+
 #else
 #  define CHECK_TYPE(var, type)
 #  define CHECK_TYPE_PAIR(var_a, var_b)
+#  define CHECK_TYPE_PAIR_INLINE(var_a, var_b) (void)0
 #endif
 
 /* can be used in simple macros */
-#define CHECK_TYPE_INLINE(val, type) \
-	((void)(((type)0) != (val)))
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#  define CHECK_TYPE_INLINE(val, type) \
+	(void)((void)(((type)0) != (0 ? (val) : ((type)0))), \
+	       _Generic((val), type: 0, const type: 0))
+#else
+#  define CHECK_TYPE_INLINE(val, type) \
+	((void)(((type)0) != (0 ? (val) : ((type)0))))
+#endif
+
+#define CHECK_TYPE_NONCONST(var)  {      \
+	void *non_const = 0 ? (var) : NULL;  \
+	(void)non_const;                     \
+} (void)0
 
 #define SWAP(type, a, b)  {    \
 	type sw_ap;                \
@@ -157,17 +216,42 @@
 	(b) = (tval);                 \
 } (void)0
 
-/* ELEM#(a, ...): is the first arg equal any of the others */
-#define ELEM(a, b, c)           ((a) == (b) || (a) == (c))
-#define ELEM3(a, b, c, d)       (ELEM(a, b, c) || (a) == (d) )
-#define ELEM4(a, b, c, d, e)    (ELEM(a, b, c) || ELEM(a, d, e) )
-#define ELEM5(a, b, c, d, e, f) (ELEM(a, b, c) || ELEM3(a, d, e, f) )
-#define ELEM6(a, b, c, d, e, f, g)      (ELEM(a, b, c) || ELEM4(a, d, e, f, g) )
-#define ELEM7(a, b, c, d, e, f, g, h)   (ELEM3(a, b, c, d) || ELEM4(a, e, f, g, h) )
-#define ELEM8(a, b, c, d, e, f, g, h, i)        (ELEM4(a, b, c, d, e) || ELEM4(a, f, g, h, i) )
-#define ELEM9(a, b, c, d, e, f, g, h, i, j)        (ELEM4(a, b, c, d, e) || ELEM5(a, f, g, h, i, j) )
-#define ELEM10(a, b, c, d, e, f, g, h, i, j, k)        (ELEM4(a, b, c, d, e) || ELEM6(a, f, g, h, i, j, k) )
-#define ELEM11(a, b, c, d, e, f, g, h, i, j, k, l)        (ELEM4(a, b, c, d, e) || ELEM7(a, f, g, h, i, j, k, l) )
+/* ELEM#(v, ...): is the first arg equal any others? */
+/* internal helpers*/
+#define _VA_ELEM3(v, a, b) \
+       (((v) == (a)) || ((v) == (b)))
+#define _VA_ELEM4(v, a, b, c) \
+       (_VA_ELEM3(v, a, b) || ((v) == (c)))
+#define _VA_ELEM5(v, a, b, c, d) \
+       (_VA_ELEM4(v, a, b, c) || ((v) == (d)))
+#define _VA_ELEM6(v, a, b, c, d, e) \
+       (_VA_ELEM5(v, a, b, c, d) || ((v) == (e)))
+#define _VA_ELEM7(v, a, b, c, d, e, f) \
+       (_VA_ELEM6(v, a, b, c, d, e) || ((v) == (f)))
+#define _VA_ELEM8(v, a, b, c, d, e, f, g) \
+       (_VA_ELEM7(v, a, b, c, d, e, f) || ((v) == (g)))
+#define _VA_ELEM9(v, a, b, c, d, e, f, g, h) \
+       (_VA_ELEM8(v, a, b, c, d, e, f, g) || ((v) == (h)))
+#define _VA_ELEM10(v, a, b, c, d, e, f, g, h, i) \
+       (_VA_ELEM9(v, a, b, c, d, e, f, g, h) || ((v) == (i)))
+#define _VA_ELEM11(v, a, b, c, d, e, f, g, h, i, j) \
+       (_VA_ELEM10(v, a, b, c, d, e, f, g, h, i) || ((v) == (j)))
+#define _VA_ELEM12(v, a, b, c, d, e, f, g, h, i, j, k) \
+       (_VA_ELEM11(v, a, b, c, d, e, f, g, h, i, j) || ((v) == (k)))
+#define _VA_ELEM13(v, a, b, c, d, e, f, g, h, i, j, k, l) \
+       (_VA_ELEM12(v, a, b, c, d, e, f, g, h, i, j, k) || ((v) == (l)))
+#define _VA_ELEM14(v, a, b, c, d, e, f, g, h, i, j, k, l, m) \
+       (_VA_ELEM13(v, a, b, c, d, e, f, g, h, i, j, k, l) || ((v) == (m)))
+#define _VA_ELEM15(v, a, b, c, d, e, f, g, h, i, j, k, l, m, n) \
+       (_VA_ELEM14(v, a, b, c, d, e, f, g, h, i, j, k, l, m) || ((v) == (n)))
+#define _VA_ELEM16(v, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o) \
+       (_VA_ELEM15(v, a, b, c, d, e, f, g, h, i, j, k, l, m, n) || ((v) == (o)))
+#define _VA_ELEM17(v, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) \
+       (_VA_ELEM16(v, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o) || ((v) == (p)))
+
+/* reusable ELEM macro */
+#define ELEM(...) VA_NARGS_CALL_OVERLOAD(_VA_ELEM, __VA_ARGS__)
+
 
 /* shift around elements */
 #define SHIFT3(type, a, b, c)  {                                              \
@@ -195,8 +279,10 @@
 } (void)0
 
 
-#define FTOCHAR(val) (char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f)))
-#define FTOUSHORT(val) ((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f))
+#define FTOCHAR(val) ((CHECK_TYPE_INLINE(val, float)), \
+		(char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f))))
+#define FTOUSHORT(val) ((CHECK_TYPE_INLINE(val, float)), \
+		((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f)))
 #define USHORTTOUCHAR(val) ((unsigned char)(((val) >= 65535 - 128) ? 255 : ((val) + 128) >> 8))
 #define F3TOCHAR3(v2, v1) {                                                   \
 		(v1)[0] = FTOCHAR((v2[0]));                                           \
@@ -244,9 +330,9 @@
 		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (fac);                            \
 } (void)0
 #define VECMADD(v1, v2, v3, v4) {                                             \
-		*(v1) =   *(v2)   + *(v3) * (*(v4));                                     \
-		*(v1 + 1) = *(v2 + 1) + *(v3 + 1) * (*(v4 + 1));                         \
-		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (*(v4 + 2));                         \
+		*(v1) =   *(v2)   + *(v3) * (*(v4));                                  \
+		*(v1 + 1) = *(v2 + 1) + *(v3 + 1) * (*(v4 + 1));                      \
+		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (*(v4 + 2));                      \
 } (void)0
 #define VECSUBFAC(v1, v2, v3, fac) {                                          \
 		*(v1) =   *(v2)   - *(v3) * (fac);                                    \
@@ -276,57 +362,42 @@
 	else if ((a) > (c)) (a) = (c);  \
 } (void)0
 
+#define CLAMP_MAX(a, c)  {          \
+	if ((a) > (c)) (a) = (c);       \
+} (void)0
+
+#define CLAMP_MIN(a, b)  {          \
+	if      ((a) < (b)) (a) = (b);  \
+} (void)0
 
 #define IS_EQ(a, b)  ( \
 	CHECK_TYPE_INLINE(a, double), CHECK_TYPE_INLINE(b, double), \
-	((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? false : true))
+	((fabs((double)((a) - (b))) >= (double) FLT_EPSILON) ? false : true))
 
 #define IS_EQF(a, b)  ( \
 	CHECK_TYPE_INLINE(a, float), CHECK_TYPE_INLINE(b, float), \
-	((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? false : true))
+	((fabsf((float)((a) - (b))) >= (float) FLT_EPSILON) ? false : true))
 
 #define IS_EQT(a, b, c) ((a > b) ? (((a - b) <= c) ? 1 : 0) : ((((b - a) <= c) ? 1 : 0)))
 #define IN_RANGE(a, b, c) ((b < c) ? ((b < a && a < c) ? 1 : 0) : ((c < a && a < b) ? 1 : 0))
 #define IN_RANGE_INCL(a, b, c) ((b < c) ? ((b <= a && a <= c) ? 1 : 0) : ((c <= a && a <= b) ? 1 : 0))
 
 /* unpack vector for args */
-#define UNPACK2(a)  ((a)[0]), ((a)[1])
-#define UNPACK3(a)  ((a)[0]), ((a)[1]), ((a)[2])
-#define UNPACK4(a)  ((a)[0]), ((a)[1]), ((a)[2]), ((a)[3])
-/* op may be '&' or '*' */
-#define UNPACK2OP(op, a)  op((a)[0]), op((a)[1])
-#define UNPACK3OP(op, a)  op((a)[0]), op((a)[1]), op((a)[2])
-#define UNPACK4OP(op, a)  op((a)[0]), op((a)[1]), op((a)[2]), op((a)[3])
-
-/* simple stack */
-#define STACK_DECLARE(stack)   unsigned int _##stack##_index
-#define STACK_INIT(stack)      ((void)stack, (void)((_##stack##_index) = 0))
-#define STACK_SIZE(stack)      ((void)stack, (_##stack##_index))
-#define STACK_PUSH(stack, val)  (void)((stack)[(_##stack##_index)++] = val)
-#define STACK_PUSH_RET(stack)  ((void)stack, ((stack)[(_##stack##_index)++]))
-#define STACK_PUSH_RET_PTR(stack)  ((void)stack, &((stack)[(_##stack##_index)++]))
-#define STACK_POP(stack)         ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : NULL)
-#define STACK_POP_PTR(stack)     ((_##stack##_index) ? &((stack)[--(_##stack##_index)]) : NULL)
-#define STACK_POP_ELSE(stack, r) ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : r)
-#define STACK_FREE(stack)      ((void)stack)
-#ifdef __GNUC__
-#define STACK_SWAP(stack_a, stack_b) { \
-	SWAP(typeof(stack_a), stack_a, stack_b); \
-	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
-	} (void)0
-#else
-#define STACK_SWAP(stack_a, stack_b) { \
-	SWAP(void *, stack_a, stack_b); \
-	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
-	} (void)0
-#endif
+#define UNPACK2(a)  ((a)[0]),   ((a)[1])
+#define UNPACK3(a)  UNPACK2(a), ((a)[2])
+#define UNPACK4(a)  UNPACK3(a), ((a)[3])
+/* pre may be '&', '*' or func, post may be '->member' */
+#define UNPACK2_EX(pre, a, post)  (pre((a)[0])post),        (pre((a)[1])post)
+#define UNPACK3_EX(pre, a, post)  UNPACK2_EX(pre, a, post), (pre((a)[2])post)
+#define UNPACK4_EX(pre, a, post)  UNPACK3_EX(pre, a, post), (pre((a)[3])post)
 
 /* array helpers */
-#define ARRAY_LAST_ITEM(arr_start, arr_dtype, elem_size, tot) \
-	(arr_dtype *)((char *)arr_start + (elem_size * (tot - 1)))
+#define ARRAY_LAST_ITEM(arr_start, arr_dtype, tot) \
+	(arr_dtype *)((char *)arr_start + (sizeof(*((arr_dtype *)NULL)) * (size_t)(tot - 1)))
 
-#define ARRAY_HAS_ITEM(arr_item, arr_start, tot) \
-	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot))
+#define ARRAY_HAS_ITEM(arr_item, arr_start, tot)  ( \
+	CHECK_TYPE_PAIR_INLINE(arr_start, arr_item), \
+	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot)))
 
 #define ARRAY_DELETE(arr, index, tot_delete, tot)  { \
 		BLI_assert(index + tot_delete <= tot);  \
@@ -335,13 +406,36 @@
 		         (((tot) - (index)) - (tot_delete)) * sizeof(*(arr))); \
 	} (void)0
 
+/* assuming a static array */
+#if defined(__GNUC__) && !defined(__cplusplus)
+#  define ARRAY_SIZE(arr)                                                     \
+	((sizeof(struct {int isnt_array : ((void *)&(arr) == &(arr)[0]);}) * 0) + \
+	 (sizeof(arr) / sizeof(*(arr))))
+#else
+#  define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(*(arr)))
+#endif
+
+/* Like offsetof(typeof(), member), for non-gcc compilers */
+#define OFFSETOF_STRUCT(_struct, _member) \
+	((((char *)&((_struct)->_member)) - ((char *)(_struct))) + sizeof((_struct)->_member))
+
+/* memcpy, skipping the first part of a struct,
+ * ensures 'struct_dst' isn't const and that the offset can be computed at compile time */
+#define MEMCPY_STRUCT_OFS(struct_dst, struct_src, member)  { \
+	CHECK_TYPE_NONCONST(struct_dst); \
+	((void)(struct_dst == struct_src), \
+	 memcpy((char *)(struct_dst)  + OFFSETOF_STRUCT(struct_dst, member), \
+	        (char *)(struct_src)  + OFFSETOF_STRUCT(struct_dst, member), \
+	        sizeof(*(struct_dst)) - OFFSETOF_STRUCT(struct_dst, member))); \
+} (void)0
+
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */
 #define SET_INT_IN_POINTER(i)    ((void *)(intptr_t)(i))
-#define GET_INT_FROM_POINTER(i)  ((int)(intptr_t)(i))
+#define GET_INT_FROM_POINTER(i)  ((void)0, ((int)(intptr_t)(i)))
 
 #define SET_UINT_IN_POINTER(i)    ((void *)(uintptr_t)(i))
-#define GET_UINT_FROM_POINTER(i)  ((unsigned int)(uintptr_t)(i))
+#define GET_UINT_FROM_POINTER(i)  ((void)0, ((unsigned int)(uintptr_t)(i)))
 
 
 /* Macro to convert a value to string in the preprocessor
@@ -361,15 +455,8 @@
 #define STRCASEEQLEN(a, b, n) (strncasecmp(a, b, n) == 0)
 
 #define STRPREFIX(a, b) (strncmp((a), (b), strlen(b)) == 0)
-
-
 /* useful for debugging */
 #define AT __FILE__ ":" STRINGIFY(__LINE__)
-
-/* so we can use __func__ everywhere */
-#if defined(_MSC_VER)
-#  define __func__ __FUNCTION__
-#endif
 
 
 /* UNUSED macro, for function argument */
@@ -435,13 +522,13 @@
 #if (!defined(__cplusplus)) && \
     (!defined(__COVERITY__)) && \
     (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 406))  /* gcc4.6+ only */
-#  define BLI_STATIC_ASSERT(a, msg) _Static_assert(a, msg);
+#  define BLI_STATIC_ASSERT(a, msg) __extension__ _Static_assert(a, msg);
 #else
    /* TODO msvc, clang */
 #  define BLI_STATIC_ASSERT(a, msg)
 #endif
 
-/* hints for branch pradiction, only use in code that runs a _lot_ where */
+/* hints for branch prediction, only use in code that runs a _lot_ where */
 #ifdef __GNUC__
 #  define LIKELY(x)       __builtin_expect(!!(x), 1)
 #  define UNLIKELY(x)     __builtin_expect(!!(x), 0)

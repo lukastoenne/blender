@@ -31,6 +31,7 @@
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
 
+#include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -52,12 +53,12 @@ static void bm_mempool_init(BMesh *bm, const BMAllocTemplate *allocsize)
 	bm->epool = BLI_mempool_create(sizeof(BMEdge), allocsize->totedge,
 	                               bm_mesh_chunksize_default.totedge, BLI_MEMPOOL_ALLOW_ITER);
 	bm->lpool = BLI_mempool_create(sizeof(BMLoop), allocsize->totloop,
-	                               bm_mesh_chunksize_default.totloop, 0);
+	                               bm_mesh_chunksize_default.totloop, BLI_MEMPOOL_NOP);
 	bm->fpool = BLI_mempool_create(sizeof(BMFace), allocsize->totface,
 	                               bm_mesh_chunksize_default.totface, BLI_MEMPOOL_ALLOW_ITER);
 
 #ifdef USE_BMESH_HOLES
-	bm->looplistpool = BLI_mempool_create(sizeof(BMLoopList), 512, 512, 0);
+	bm->looplistpool = BLI_mempool_create(sizeof(BMLoopList), 512, 512, BLI_MEMPOOL_NOP);
 #endif
 }
 
@@ -67,9 +68,9 @@ void BM_mesh_elem_toolflags_ensure(BMesh *bm)
 		return;
 	}
 
-	bm->vtoolflagpool = BLI_mempool_create(sizeof(BMFlagLayer), max_ii(512, bm->totvert), 512, 0);
-	bm->etoolflagpool = BLI_mempool_create(sizeof(BMFlagLayer), max_ii(512, bm->totedge), 512, 0);
-	bm->ftoolflagpool = BLI_mempool_create(sizeof(BMFlagLayer), max_ii(512, bm->totface), 512, 0);
+	bm->vtoolflagpool = BLI_mempool_create(sizeof(BMFlagLayer), bm->totvert, 512, BLI_MEMPOOL_NOP);
+	bm->etoolflagpool = BLI_mempool_create(sizeof(BMFlagLayer), bm->totedge, 512, BLI_MEMPOOL_NOP);
+	bm->ftoolflagpool = BLI_mempool_create(sizeof(BMFlagLayer), bm->totface, 512, BLI_MEMPOOL_NOP);
 
 #pragma omp parallel sections if (bm->totvert + bm->totedge + bm->totface >= BM_OMP_LIMIT)
 	{
@@ -431,6 +432,257 @@ void BM_verts_calc_normal_vcos(BMesh *bm, const float (*fnos)[3], const float (*
 	MEM_freeN(edgevec);
 }
 
+/**
+ * Helpers for #BM_mesh_loop_normals_update and #BM_loops_calc_normals_vnos
+ */
+static void bm_mesh_edges_sharp_tag(BMesh *bm, const float (*vnos)[3], const float (*fnos)[3], float split_angle,
+                                    float (*r_lnos)[3])
+{
+	BMIter eiter;
+	BMEdge *e;
+	int i;
+
+	const bool check_angle = (split_angle < (float)M_PI);
+
+	if (check_angle) {
+		split_angle = cosf(split_angle);
+	}
+
+	{
+		char htype = BM_LOOP;
+		if (vnos) {
+			htype |= BM_VERT;
+		}
+		if (fnos) {
+			htype |= BM_FACE;
+		}
+		BM_mesh_elem_index_ensure(bm, htype);
+	}
+
+	/* This first loop checks which edges are actually smooth, and pre-populate lnos with vnos (as if they were
+	 * all smooth).
+	 */
+	BM_ITER_MESH_INDEX (e, &eiter, bm, BM_EDGES_OF_MESH, i) {
+		BMLoop *l_a, *l_b;
+
+		BM_elem_index_set(e, i); /* set_inline */
+		BM_elem_flag_disable(e, BM_ELEM_TAG); /* Clear tag (means edge is sharp). */
+
+		/* An edge with only two loops, might be smooth... */
+		if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+			bool is_angle_smooth = true;
+			if (check_angle) {
+				const float *no_a = fnos ? fnos[BM_elem_index_get(l_a->f)] : l_a->f->no;
+				const float *no_b = fnos ? fnos[BM_elem_index_get(l_b->f)] : l_b->f->no;
+				is_angle_smooth = (dot_v3v3(no_a, no_b) >= split_angle);
+			}
+
+			/* We only tag edges that are *really* smooth:
+			 * If the angle between both its polys' normals is below split_angle value,
+			 * and it is tagged as such,
+			 * and both its faces are smooth,
+			 * and both its faces have compatible (non-flipped) normals, i.e. both loops on the same edge do not share
+			 *     the same vertex.
+			 */
+			if (is_angle_smooth &&
+			    BM_elem_flag_test_bool(e, BM_ELEM_SMOOTH) &&
+			    BM_elem_flag_test_bool(l_a->f, BM_ELEM_SMOOTH) &&
+			    BM_elem_flag_test_bool(l_b->f, BM_ELEM_SMOOTH) &&
+			    l_a->v != l_b->v)
+			{
+				const float *no;
+				BM_elem_flag_enable(e, BM_ELEM_TAG);
+
+				/* linked vertices might be fully smooth, copy their normals to loop ones. */
+				no = vnos ? vnos[BM_elem_index_get(l_a->v)] : l_a->v->no;
+				copy_v3_v3(r_lnos[BM_elem_index_get(l_a)], no);
+				no = vnos ? vnos[BM_elem_index_get(l_b->v)] : l_b->v->no;
+				copy_v3_v3(r_lnos[BM_elem_index_get(l_b)], no);
+			}
+		}
+	}
+
+	bm->elem_index_dirty &= ~BM_EDGE;
+}
+
+/* BMesh version of BKE_mesh_normals_loop_split() in mesh_evaluate.c */
+static void bm_mesh_loops_calc_normals(BMesh *bm, const float (*vcos)[3], const float (*fnos)[3], float (*r_lnos)[3])
+{
+	BMIter fiter;
+	BMFace *f_curr;
+
+	/* Temp normal stack. */
+	BLI_SMALLSTACK_DECLARE(normal, float *);
+
+	{
+		char htype = BM_LOOP;
+		if (vcos) {
+			htype |= BM_VERT;
+		}
+		if (fnos) {
+			htype |= BM_FACE;
+		}
+		BM_mesh_elem_index_ensure(bm, htype);
+	}
+
+	/* We now know edges that can be smoothed (they are tagged), and edges that will be hard (they aren't).
+	 * Now, time to generate the normals.
+	 */
+	BM_ITER_MESH (f_curr, &fiter, bm, BM_FACES_OF_MESH) {
+		BMLoop *l_curr, *l_first;
+
+		l_curr = l_first = BM_FACE_FIRST_LOOP(f_curr);
+		do {
+			if (BM_elem_flag_test_bool(l_curr->e, BM_ELEM_TAG)) {
+				/* A smooth edge.
+				 * We skip it because it is either:
+				 * - in the middle of a 'smooth fan' already computed (or that will be as soon as we hit
+				 *   one of its ends, i.e. one of its two sharp edges), or...
+				 * - the related vertex is a "full smooth" one, in which case pre-populated normals from vertex
+				 *   are just fine!
+				 */
+			}
+			else if (!BM_elem_flag_test_bool(l_curr->prev->e, BM_ELEM_TAG)) {
+				/* Simple case (both edges around that vertex are sharp in related polygon),
+				 * this vertex just takes its poly normal.
+				 */
+				const float *no = fnos ? fnos[BM_elem_index_get(f_curr)] : f_curr->no;
+				copy_v3_v3(r_lnos[BM_elem_index_get(l_curr)], no);
+			}
+			/* We *do not need* to check/tag loops as already computed!
+			 * Due to the fact a loop only links to one of its two edges, a same fan *will never be walked more than
+			 * once!*
+			 * Since we consider edges having neighbor faces with inverted (flipped) normals as sharp, we are sure that
+			 * no fan will be skipped, even only considering the case (sharp curr_edge, smooth prev_edge), and not the
+			 * alternative (smooth curr_edge, sharp prev_edge).
+			 * All this due/thanks to link between normals and loop ordering.
+			 */
+			else {
+				/* We have to fan around current vertex, until we find the other non-smooth edge,
+				 * and accumulate face normals into the vertex!
+				 * Note in case this vertex has only one sharp edge, this is a waste because the normal is the same as
+				 * the vertex normal, but I do not see any easy way to detect that (would need to count number
+				 * of sharp edges per vertex, I doubt the additional memory usage would be worth it, especially as
+				 * it should not be a common case in real-life meshes anyway).
+				 */
+				BMVert *v_pivot = l_curr->v;
+				BMEdge *e_next;
+				BMLoop *lfan_pivot, *lfan_pivot_next;
+				float lnor[3] = {0.0f, 0.0f, 0.0f};
+				float vec_curr[3], vec_next[3];
+
+				const float *co_pivot = vcos ? vcos[BM_elem_index_get(v_pivot)] : v_pivot->co;
+
+				lfan_pivot = l_curr;
+				e_next = lfan_pivot->e;  /* Current edge here, actually! */
+
+				/* Only need to compute previous edge's vector once, then we can just reuse old current one! */
+				{
+					const BMVert *v_2 = BM_edge_other_vert(e_next, v_pivot);
+					const float *co_2 = vcos ? vcos[BM_elem_index_get(v_2)] : v_2->co;
+
+					sub_v3_v3v3(vec_curr, co_2, co_pivot);
+					normalize_v3(vec_curr);
+				}
+
+				while (true) {
+					/* Much simpler than in sibling code with basic Mesh data! */
+					lfan_pivot_next = BM_vert_step_fan_loop(lfan_pivot, &e_next);
+					if (lfan_pivot_next) {
+						BLI_assert(lfan_pivot_next->v == v_pivot);
+					}
+					else {
+						/* next edge is non-manifold, we have to find it ourselves! */
+						e_next = (lfan_pivot->e == e_next) ? lfan_pivot->prev->e : lfan_pivot->e;
+					}
+
+					/* Compute edge vector.
+					 * NOTE: We could pre-compute those into an array, in the first iteration, instead of computing them
+					 *       twice (or more) here. However, time gained is not worth memory and time lost,
+					 *       given the fact that this code should not be called that much in real-life meshes...
+					 */
+					{
+						const BMVert *v_2 = BM_edge_other_vert(e_next, v_pivot);
+						const float *co_2 = vcos ? vcos[BM_elem_index_get(v_2)] : v_2->co;
+
+						sub_v3_v3v3(vec_next, co_2, co_pivot);
+						normalize_v3(vec_next);
+					}
+
+					{
+						/* Code similar to accumulate_vertex_normals_poly. */
+						/* Calculate angle between the two poly edges incident on this vertex. */
+						const BMFace *f = lfan_pivot->f;
+						const float fac = saacos(dot_v3v3(vec_next, vec_curr));
+						const float *no = fnos ? fnos[BM_elem_index_get(f)] : f->no;
+						/* Accumulate */
+						madd_v3_v3fl(lnor, no, fac);
+					}
+
+					/* We store here a pointer to all loop-normals processed. */
+					BLI_SMALLSTACK_PUSH(normal, (float *)r_lnos[BM_elem_index_get(lfan_pivot)]);
+
+					if (!BM_elem_flag_test_bool(e_next, BM_ELEM_TAG)) {
+						/* Next edge is sharp, we have finished with this fan of faces around this vert! */
+						break;
+					}
+
+					/* Copy next edge vector to current one. */
+					copy_v3_v3(vec_curr, vec_next);
+					/* Next pivot loop to current one. */
+					lfan_pivot = lfan_pivot_next;
+				}
+
+				/* In case we get a zero normal here, just use vertex normal already set! */
+				if (LIKELY(normalize_v3(lnor) != 0.0f)) {
+					/* Copy back the final computed normal into all related loop-normals. */
+					float *nor;
+					while ((nor = BLI_SMALLSTACK_POP(normal))) {
+						copy_v3_v3(nor, lnor);
+					}
+				}
+				else {
+					/* We still have to clear the stack! */
+					while (BLI_SMALLSTACK_POP(normal));
+				}
+			}
+		} while ((l_curr = l_curr->next) != l_first);
+	}
+}
+
+#if 0  /* Unused currently */
+/**
+ * \brief BMesh Compute Loop Normals
+ *
+ * Updates the loop normals of a mesh. Assumes vertex and face normals are valid (else call BM_mesh_normals_update()
+ * first)!
+ */
+void BM_mesh_loop_normals_update(BMesh *bm, const float split_angle, float (*r_lnos)[3])
+{
+	/* Tag smooth edges and set lnos from vnos when they might be completely smooth... */
+	bm_mesh_edges_sharp_tag(bm, NULL, NULL, split_angle, r_lnos);
+
+	/* Finish computing lnos by accumulating face normals in each fan of faces defined by sharp edges. */
+	bm_mesh_loops_calc_normals(bm, NULL, NULL, r_lnos);
+}
+#endif
+
+/**
+ * \brief BMesh Compute Loop Normals from/to external data.
+ *
+ * Compute split normals, i.e. vertex normals associated with each poly (hence 'loop normals').
+ * Useful to materialize sharp edges (or non-smooth faces) without actually modifying the geometry (splitting edges).
+ */
+void BM_loops_calc_normal_vcos(BMesh *bm, const float (*vcos)[3], const float (*vnos)[3], const float (*fnos)[3],
+                                const float split_angle, float (*r_lnos)[3])
+{
+	/* Tag smooth edges and set lnos from vnos when they might be completely smooth... */
+	bm_mesh_edges_sharp_tag(bm, vnos, fnos, split_angle, r_lnos);
+
+	/* Finish computing lnos by accumulating face normals in each fan of faces defined by sharp edges. */
+	bm_mesh_loops_calc_normals(bm, vcos, fnos, r_lnos);
+}
+
 static void UNUSED_FUNCTION(bm_mdisps_space_set)(Object *ob, BMesh *bm, int from, int to)
 {
 	/* switch multires data out of tangent space */
@@ -514,6 +766,8 @@ void bmesh_edit_begin(BMesh *UNUSED(bm), BMOpTypeFlag UNUSED(type_flag))
  */
 void bmesh_edit_end(BMesh *bm, BMOpTypeFlag type_flag)
 {
+	ListBase select_history;
+
 	/* BMO_OPTYPE_FLAG_UNTAN_MULTIRES disabled for now, see comment above in bmesh_edit_begin. */
 #ifdef BMOP_UNTAN_MULTIRES_ENABLED
 	/* switch multires data into tangent space */
@@ -532,22 +786,41 @@ void bmesh_edit_end(BMesh *bm, BMOpTypeFlag type_flag)
 		BM_mesh_normals_update(bm);
 	}
 
+
+	if ((type_flag & BMO_OPTYPE_FLAG_SELECT_VALIDATE) == 0) {
+		select_history = bm->selected;
+		BLI_listbase_clear(&bm->selected);
+	}
+
 	if (type_flag & BMO_OPTYPE_FLAG_SELECT_FLUSH) {
 		BM_mesh_select_mode_flush(bm);
 	}
+
+	if ((type_flag & BMO_OPTYPE_FLAG_SELECT_VALIDATE) == 0) {
+		bm->selected = select_history;
+	}
 }
 
-void BM_mesh_elem_index_ensure(BMesh *bm, const char hflag)
+void BM_mesh_elem_index_ensure(BMesh *bm, const char htype)
 {
+	const char htype_needed = bm->elem_index_dirty & htype;
+
 #ifdef DEBUG
 	BM_ELEM_INDEX_VALIDATE(bm, "Should Never Fail!", __func__);
 #endif
 
-#pragma omp parallel sections if (bm->totvert + bm->totedge + bm->totface >= BM_OMP_LIMIT)
+	if (htype_needed == 0) {
+		goto finally;
+	}
+
+	/* skip if we only need to operate on one element */
+#pragma omp parallel sections if ((!ELEM(htype_needed, BM_VERT, BM_EDGE, BM_FACE, BM_LOOP, BM_FACE | BM_LOOP)) && \
+	                              (bm->totvert + bm->totedge + bm->totface >= BM_OMP_LIMIT))
 	{
 #pragma omp section
+
 		{
-			if (hflag & BM_VERT) {
+			if (htype & BM_VERT) {
 				if (bm->elem_index_dirty & BM_VERT) {
 					BMIter iter;
 					BMElem *ele;
@@ -566,7 +839,7 @@ void BM_mesh_elem_index_ensure(BMesh *bm, const char hflag)
 
 #pragma omp section
 		{
-			if (hflag & BM_EDGE) {
+			if (htype & BM_EDGE) {
 				if (bm->elem_index_dirty & BM_EDGE) {
 					BMIter iter;
 					BMElem *ele;
@@ -585,25 +858,47 @@ void BM_mesh_elem_index_ensure(BMesh *bm, const char hflag)
 
 #pragma omp section
 		{
-			if (hflag & BM_FACE) {
-				if (bm->elem_index_dirty & BM_FACE) {
+			if (htype & (BM_FACE | BM_LOOP)) {
+				if (bm->elem_index_dirty & (BM_FACE | BM_LOOP)) {
 					BMIter iter;
 					BMElem *ele;
 
+					const bool update_face = (htype & BM_FACE) && (bm->elem_index_dirty & BM_FACE);
+					const bool update_loop = (htype & BM_LOOP) && (bm->elem_index_dirty & BM_LOOP);
+
 					int index;
+					int index_loop = 0;
+
 					BM_ITER_MESH_INDEX (ele, &iter, bm, BM_FACES_OF_MESH, index) {
-						BM_elem_index_set(ele, index); /* set_ok */
+						if (update_face) {
+							BM_elem_index_set(ele, index); /* set_ok */
+						}
+
+						if (update_loop) {
+							BMLoop *l_iter, *l_first;
+
+							l_iter = l_first = BM_FACE_FIRST_LOOP((BMFace *)ele);
+							do {
+								BM_elem_index_set(l_iter, index_loop++); /* set_ok */
+							} while ((l_iter = l_iter->next) != l_first);
+						}
 					}
+
 					BLI_assert(index == bm->totface);
+					if (update_loop) {
+						BLI_assert(index_loop == bm->totloop);
+					}
 				}
 				else {
-					// printf("%s: skipping face index calc!\n", __func__);
+					// printf("%s: skipping face/loop index calc!\n", __func__);
 				}
 			}
 		}
 	}
 
-	bm->elem_index_dirty &= ~hflag;
+
+finally:
+	bm->elem_index_dirty &= ~htype;
 }
 
 
@@ -734,6 +1029,10 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
 	/* in debug mode double check we didn't need to recalculate */
 	BLI_assert(BM_mesh_elem_table_check(bm) == true);
 
+	if (htype_needed == 0) {
+		goto finally;
+	}
+
 	if (htype_needed & BM_VERT) {
 		if (bm->vtable && bm->totvert <= bm->vtable_tot && bm->totvert * 2 >= bm->vtable_tot) {
 			/* pass (re-use the array) */
@@ -768,7 +1067,9 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
 		}
 	}
 
-#pragma omp parallel sections if (bm->totvert + bm->totedge + bm->totface >= BM_OMP_LIMIT)
+	/* skip if we only need to operate on one element */
+#pragma omp parallel sections if ((!ELEM(htype_needed, BM_VERT, BM_EDGE, BM_FACE)) && \
+	                              (bm->totvert + bm->totedge + bm->totface >= BM_OMP_LIMIT))
 	{
 #pragma omp section
 		{
@@ -790,19 +1091,12 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
 		}
 	}
 
+finally:
 	/* Only clear dirty flags when all the pointers and data are actually valid.
 	 * This prevents possible threading issues when dirty flag check failed but
 	 * data wasn't ready still.
 	 */
-	if (htype_needed & BM_VERT) {
-		bm->elem_table_dirty &= ~BM_VERT;
-	}
-	if (htype_needed & BM_EDGE) {
-		bm->elem_table_dirty &= ~BM_EDGE;
-	}
-	if (htype_needed & BM_FACE) {
-		bm->elem_table_dirty &= ~BM_FACE;
-	}
+	bm->elem_table_dirty &= ~htype_needed;
 }
 
 /* use BM_mesh_elem_table_ensure where possible to avoid full rebuild */
@@ -899,7 +1193,11 @@ int BM_mesh_elem_count(BMesh *bm, const char htype)
  *
  * WARNING: Be careful if you keep pointers to affected BM elements, or arrays, when using this func!
  */
-void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
+void BM_mesh_remap(
+        BMesh *bm,
+        const unsigned int *vert_idx,
+        const unsigned int *edge_idx,
+        const unsigned int *face_idx)
 {
 	/* Mapping old to new pointers. */
 	GHash *vptr_map = NULL, *eptr_map = NULL, *fptr_map = NULL;
@@ -912,18 +1210,23 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 	if (!(vert_idx || edge_idx || face_idx))
 		return;
 
+	BM_mesh_elem_table_ensure(
+	        bm,
+	        (vert_idx ? BM_VERT : 0) |
+	        (edge_idx ? BM_EDGE : 0) |
+	        (face_idx ? BM_FACE : 0));
+
 	/* Remap Verts */
 	if (vert_idx) {
 		BMVert **verts_pool, *verts_copy, **vep;
 		int i, totvert = bm->totvert;
-		int *new_idx = NULL;
+		const unsigned int *new_idx;
 
 		/* Init the old-to-new vert pointers mapping */
 		vptr_map = BLI_ghash_ptr_new_ex("BM_mesh_remap vert pointers mapping", bm->totvert);
 
 		/* Make a copy of all vertices. */
-		verts_pool = MEM_callocN(sizeof(BMVert *) * totvert, "BM_mesh_remap verts pool");
-		BM_iter_as_array(bm, BM_VERTS_OF_MESH, NULL, (void **)verts_pool, totvert);
+		verts_pool = bm->vtable;
 		verts_copy = MEM_mallocN(sizeof(BMVert) * totvert, "BM_mesh_remap verts copy");
 		for (i = totvert, ve = verts_copy + totvert - 1, vep = verts_pool + totvert - 1; i--; ve--, vep--) {
 			*ve = **vep;
@@ -941,8 +1244,8 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 			BLI_ghash_insert(vptr_map, (void *)*vep, (void *)new_vep);
 		}
 		bm->elem_index_dirty |= BM_VERT;
+		bm->elem_table_dirty |= BM_VERT;
 
-		MEM_freeN(verts_pool);
 		MEM_freeN(verts_copy);
 	}
 
@@ -950,14 +1253,13 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 	if (edge_idx) {
 		BMEdge **edges_pool, *edges_copy, **edp;
 		int i, totedge = bm->totedge;
-		int *new_idx = NULL;
+		const unsigned int *new_idx;
 
 		/* Init the old-to-new vert pointers mapping */
 		eptr_map = BLI_ghash_ptr_new_ex("BM_mesh_remap edge pointers mapping", bm->totedge);
 
 		/* Make a copy of all vertices. */
-		edges_pool = MEM_callocN(sizeof(BMEdge *) * totedge, "BM_mesh_remap edges pool");
-		BM_iter_as_array(bm, BM_EDGES_OF_MESH, NULL, (void **)edges_pool, totedge);
+		edges_pool = bm->etable;
 		edges_copy = MEM_mallocN(sizeof(BMEdge) * totedge, "BM_mesh_remap edges copy");
 		for (i = totedge, ed = edges_copy + totedge - 1, edp = edges_pool + totedge - 1; i--; ed--, edp--) {
 			*ed = **edp;
@@ -974,8 +1276,8 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 /*			printf("mapping edge from %d to %d (%p/%p to %p)\n", i, *new_idx, *edp, edges_pool[i], new_edp);*/
 		}
 		bm->elem_index_dirty |= BM_EDGE;
+		bm->elem_table_dirty |= BM_EDGE;
 
-		MEM_freeN(edges_pool);
 		MEM_freeN(edges_copy);
 	}
 
@@ -983,14 +1285,13 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 	if (face_idx) {
 		BMFace **faces_pool, *faces_copy, **fap;
 		int i, totface = bm->totface;
-		int *new_idx = NULL;
+		const unsigned int *new_idx;
 
 		/* Init the old-to-new vert pointers mapping */
 		fptr_map = BLI_ghash_ptr_new_ex("BM_mesh_remap face pointers mapping", bm->totface);
 
 		/* Make a copy of all vertices. */
-		faces_pool = MEM_callocN(sizeof(BMFace *) * totface, "BM_mesh_remap faces pool");
-		BM_iter_as_array(bm, BM_FACES_OF_MESH, NULL, (void **)faces_pool, totface);
+		faces_pool = bm->ftable;
 		faces_copy = MEM_mallocN(sizeof(BMFace) * totface, "BM_mesh_remap faces copy");
 		for (i = totface, fa = faces_copy + totface - 1, fap = faces_pool + totface - 1; i--; fa--, fap--) {
 			*fa = **fap;
@@ -1006,9 +1307,9 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 			BLI_ghash_insert(fptr_map, (void *)*fap, (void *)new_fap);
 		}
 
-		bm->elem_index_dirty |= BM_FACE;
+		bm->elem_index_dirty |= BM_FACE | BM_LOOP;
+		bm->elem_table_dirty |= BM_FACE;
 
-		MEM_freeN(faces_pool);
 		MEM_freeN(faces_copy);
 	}
 

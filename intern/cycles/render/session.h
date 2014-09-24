@@ -19,6 +19,7 @@
 
 #include "buffers.h"
 #include "device.h"
+#include "shader.h"
 #include "tile.h"
 
 #include "util_progress.h"
@@ -59,7 +60,7 @@ public:
 	double reset_timeout;
 	double text_timeout;
 
-	enum { OSL, SVM } shadingsystem;
+	ShadingSystem shadingsystem;
 
 	SessionParams()
 	{
@@ -80,7 +81,7 @@ public:
 		reset_timeout = 0.1;
 		text_timeout = 1.0;
 
-		shadingsystem = SVM;
+		shadingsystem = SHADINGSYSTEM_SVM;
 		tile_order = TILE_CENTER;
 	}
 
@@ -128,7 +129,7 @@ public:
 	~Session();
 
 	void start();
-	bool draw(BufferParams& params);
+	bool draw(BufferParams& params, DeviceDrawParams& draw_params);
 	void wait();
 
 	bool ready_to_reset();
@@ -136,7 +137,11 @@ public:
 	void set_samples(int samples);
 	void set_pause(bool pause);
 
+	void update_scene();
+	void load_kernels();
+
 	void device_free();
+
 protected:
 	struct DelayedReset {
 		thread_mutex mutex;
@@ -147,19 +152,18 @@ protected:
 
 	void run();
 
-	void update_scene();
 	void update_status_time(bool show_pause = false, bool show_done = false);
 
-	void tonemap();
+	void tonemap(int sample);
 	void path_trace();
 	void reset_(BufferParams& params, int samples);
 
 	void run_cpu();
-	bool draw_cpu(BufferParams& params);
+	bool draw_cpu(BufferParams& params, DeviceDrawParams& draw_params);
 	void reset_cpu(BufferParams& params, int samples);
 
 	void run_gpu();
-	bool draw_gpu(BufferParams& params);
+	bool draw_gpu(BufferParams& params, DeviceDrawParams& draw_params);
 	void reset_gpu(BufferParams& params, int samples);
 
 	bool acquire_tile(Device *tile_device, RenderTile& tile);

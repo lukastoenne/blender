@@ -140,7 +140,32 @@ static char *rna_PoseBone_path(PointerRNA *ptr)
 	return BLI_sprintfN("pose.bones[\"%s\"]", name_esc);
 }
 
+/* Bone groups only. */
+
+static bActionGroup *rna_bone_group_new(ID *id, bPose *pose, const char *name)
+{
+	bActionGroup *grp = BKE_pose_add_group(pose, name);
+	WM_main_add_notifier(NC_OBJECT | ND_POSE | NA_ADDED, id);
+	return grp;
+}
+
+static void rna_bone_group_remove(ID *id, bPose *pose, ReportList *reports, PointerRNA *grp_ptr)
+{
+	bActionGroup *grp = grp_ptr->data;
+	const int grp_idx = BLI_findindex(&pose->agroups, grp);
+
+	if (grp_idx == -1) {
+		BKE_reportf(reports, RPT_ERROR, "Bone group '%s' not found in this object", grp->name);
+		return;
+	}
+
+	BKE_pose_remove_group(pose, grp, grp_idx + 1);
+	WM_main_add_notifier(NC_OBJECT | ND_POSE | NA_REMOVED, id);
+}
+
+
 /* shared for actions groups and bone groups */
+
 void rna_ActionGroup_colorset_set(PointerRNA *ptr, int value)
 {
 	bActionGroup *grp = ptr->data;
@@ -481,14 +506,14 @@ static void rna_pose_pgroup_name_set(PointerRNA *ptr, const char *value, char *r
 static PointerRNA rna_PoseChannel_active_constraint_get(PointerRNA *ptr)
 {
 	bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-	bConstraint *con = BKE_constraints_get_active(&pchan->constraints);
+	bConstraint *con = BKE_constraints_active_get(&pchan->constraints);
 	return rna_pointer_inherit_refine(ptr, &RNA_Constraint, con);
 }
 
 static void rna_PoseChannel_active_constraint_set(PointerRNA *ptr, PointerRNA value)
 {
 	bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-	BKE_constraints_set_active(&pchan->constraints, (bConstraint *)value.data);
+	BKE_constraints_active_set(&pchan->constraints, (bConstraint *)value.data);
 }
 
 static bConstraint *rna_PoseChannel_constraints_new(bPoseChannel *pchan, int type)
@@ -496,7 +521,7 @@ static bConstraint *rna_PoseChannel_constraints_new(bPoseChannel *pchan, int typ
 	/*WM_main_add_notifier(NC_OBJECT|ND_CONSTRAINT|NA_ADDED, object); */
 	/* TODO, pass object also */
 	/* TODO, new pose bones don't have updated draw flags */
-	return BKE_add_pose_constraint(NULL, pchan, NULL, type);
+	return BKE_constraint_add_for_pose(NULL, pchan, NULL, type);
 }
 
 static void rna_PoseChannel_constraints_remove(ID *id, bPoseChannel *pchan, ReportList *reports, PointerRNA *con_ptr)
@@ -510,12 +535,12 @@ static void rna_PoseChannel_constraints_remove(ID *id, bPoseChannel *pchan, Repo
 		return;
 	}
 
-	BKE_remove_constraint(&pchan->constraints, con);
+	BKE_constraint_remove(&pchan->constraints, con);
 	RNA_POINTER_INVALIDATE(con_ptr);
 
 	ED_object_constraint_update(ob);
 
-	BKE_constraints_set_active(&pchan->constraints, NULL);  /* XXX, is this really needed? - Campbell */
+	BKE_constraints_active_set(&pchan->constraints, NULL);  /* XXX, is this really needed? - Campbell */
 
 	WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, id);
 
@@ -605,10 +630,10 @@ static int rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, Pointer
 	bPoseChannel *pchan = BKE_pose_channel_find_name(pose, key);
 	if (pchan) {
 		RNA_pointer_create(ptr->id.data, &RNA_PoseBone, pchan, r_ptr);
-		return TRUE;
+		return true;
 	}
 	else {
-		return FALSE;
+		return false;
 	}
 }
 
@@ -621,7 +646,7 @@ static void rna_PoseChannel_matrix_basis_get(PointerRNA *ptr, float *values)
 static void rna_PoseChannel_matrix_basis_set(PointerRNA *ptr, const float *values)
 {
 	bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-	BKE_pchan_apply_mat4(pchan, (float (*)[4])values, FALSE); /* no compat for predictable result */
+	BKE_pchan_apply_mat4(pchan, (float (*)[4])values, false); /* no compat for predictable result */
 }
 
 static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
@@ -632,7 +657,7 @@ static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
 
 	BKE_armature_mat_pose_to_bone_ex(ob, pchan, (float (*)[4])values, tmat);
 
-	BKE_pchan_apply_mat4(pchan, tmat, FALSE); /* no compat for predictable result */
+	BKE_pchan_apply_mat4(pchan, tmat, false); /* no compat for predictable result */
 }
 
 #else
@@ -1241,13 +1266,29 @@ static void rna_def_bone_groups(BlenderRNA *brna, PropertyRNA *cprop)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-/*	FunctionRNA *func; */
-/*	PropertyRNA *parm; */
+	FunctionRNA *func;
+	PropertyRNA *parm;
 
 	RNA_def_property_srna(cprop, "BoneGroups");
 	srna = RNA_def_struct(brna, "BoneGroups", NULL);
 	RNA_def_struct_sdna(srna, "bPose");
 	RNA_def_struct_ui_text(srna, "Bone Groups", "Collection of bone groups");
+
+	func = RNA_def_function(srna, "new", "rna_bone_group_new");
+	RNA_def_function_ui_description(func, "Add a new bone group to the object");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID); /* ID needed for refresh */
+	RNA_def_string(func, "name", "Group", MAX_NAME, "", "Name of the new group");
+	/* return type */
+	parm = RNA_def_pointer(func, "group", "BoneGroup", "", "New bone group");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_bone_group_remove");
+	RNA_def_function_ui_description(func, "Remove a bone group from this object");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID); /* ID needed for refresh */
+	/* bone group to remove */
+	parm = RNA_def_pointer(func, "group", "BoneGroup", "", "Removed bone group");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 
 	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "BoneGroup");

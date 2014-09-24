@@ -175,7 +175,8 @@ void BKE_tracking_camera_get_reconstructed_interpolate(struct MovieTracking *tra
                                                        int framenr, float mat[4][4]);
 
 /* **** Distortion/Undistortion **** */
-struct MovieDistortion *BKE_tracking_distortion_new(void);
+struct MovieDistortion *BKE_tracking_distortion_new(struct MovieTracking *tracking,
+                                                    int calibration_width, int calibration_height);
 void BKE_tracking_distortion_update(struct MovieDistortion *distortion, struct MovieTracking *tracking,
                                     int calibration_width, int calibration_height);
 void BKE_tracking_distortion_set_threads(struct MovieDistortion *distortion, int threads);
@@ -192,7 +193,8 @@ struct ImBuf *BKE_tracking_undistort_frame(struct MovieTracking *tracking, struc
 struct ImBuf *BKE_tracking_distort_frame(struct MovieTracking *tracking, struct ImBuf *ibuf,
                                          int calibration_width, int calibration_height, float overscan);
 
-void BKE_tracking_max_undistortion_delta_across_bound(struct MovieTracking *tracking, struct rcti *rect, float delta[2]);
+void BKE_tracking_max_distortion_delta_across_bound(struct MovieTracking *tracking, struct rcti *rect,
+                                                    bool undistort, float delta[2]);
 
 /* **** Image sampling **** */
 struct ImBuf *BKE_tracking_sample_pattern(int frame_width, int frame_height,
@@ -270,6 +272,9 @@ void BKE_tracking_dopesheet_update(struct MovieTracking *tracking);
                                              (TRACK_AREA_SELECTED(track, TRACK_AREA_POINT) || \
                                               (((sc)->flag & SC_SHOW_MARKER_PATTERN) && TRACK_AREA_SELECTED(track, TRACK_AREA_PAT)) || \
                                               (((sc)->flag & SC_SHOW_MARKER_SEARCH) && TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH))))
+
+#define PLANE_TRACK_VIEW_SELECTED(plane_track) ((((plane_track)->flag & PLANE_TRACK_HIDDEN) == 0) && \
+                                                 ((plane_track)->flag & SELECT))
 
 #define MARKER_VISIBLE(sc, track, marker)       (((marker)->flag & MARKER_DISABLED) == 0 || ((sc)->flag & SC_HIDE_DISABLED) == 0 || (sc->clip->tracking.act_track == track))
 

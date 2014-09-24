@@ -119,7 +119,7 @@ void EDBM_mesh_reveal(struct BMEditMesh *em);
 
 void EDBM_update_generic(struct BMEditMesh *em, const bool do_tessface, const bool is_destructive);
 
-struct UvElementMap *BM_uv_element_map_create(struct BMesh *em, const bool selected, const bool do_islands);
+struct UvElementMap *BM_uv_element_map_create(struct BMesh *bm, const bool selected, const bool do_islands);
 void                 BM_uv_element_map_free(struct UvElementMap *vmap);
 struct UvElement    *BM_uv_element_get(struct UvElementMap *map, struct BMFace *efa, struct BMLoop *l);
 
@@ -166,7 +166,7 @@ bool EDBM_selectmode_disable(struct Scene *scene, struct BMEditMesh *em,
                              const short selectmode_disable,
                              const short selectmode_fallback);
 
-void EDBM_deselect_by_material(struct BMEditMesh *em, const short index, const short select);
+void EDBM_deselect_by_material(struct BMEditMesh *em, const short index, const bool select);
 
 void EDBM_select_toggle_all(struct BMEditMesh *em);
 
@@ -264,7 +264,6 @@ void ED_mesh_faces_remove(struct Mesh *mesh, struct ReportList *reports, int cou
 void ED_mesh_edges_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 void ED_mesh_vertices_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 
-void ED_mesh_transform(struct Mesh *me, float mat[4][4]);
 void ED_mesh_calc_tessface(struct Mesh *mesh);
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface);
 
@@ -300,8 +299,9 @@ void EDBM_redo_state_free(struct BMBackup *, struct BMEditMesh *em, int recalcte
 int         join_mesh_exec(struct bContext *C, struct wmOperator *op);
 int         join_mesh_shapes_exec(struct bContext *C, struct wmOperator *op);
 
-intptr_t    mesh_octree_table(struct Object *ob, struct BMEditMesh *em, const float co[3], char mode);
-int         mesh_mirrtopo_table(struct Object *ob, char mode);
+/* mirror lookup api */
+int         ED_mesh_mirror_spatial_table(struct Object *ob, struct BMEditMesh *em, const float co[3], char mode);
+int         ED_mesh_mirror_topo_table(struct Object *ob, char mode);
 
 /* retrieves mirrored cache vert, or NULL if there isn't one.
  * note: calling this without ensuring the mirror cache state

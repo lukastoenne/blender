@@ -51,7 +51,6 @@ void    ED_operatormacros_curve(void);
 void    ED_keymap_curve(struct wmKeyConfig *keyconf);
 
 /* editcurve.c */
-void ED_curve_transform(struct Curve *cu, float mat[4][4]);
 void ED_curve_deselect_all(struct EditNurb *editnurb);
 void ED_curve_select_all(struct EditNurb *editnurb);
 void ED_curve_select_swap(struct EditNurb *editnurb, bool hide_handles);
@@ -88,6 +87,8 @@ void ED_curve_bpcpy(struct EditNurb *editnurb, struct BPoint *dst, struct BPoint
 int ED_curve_updateAnimPaths(struct Curve *cu);
 
 bool ED_curve_active_center(struct Curve *cu, float center[3]);
+
+bool    mouse_font(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
 
 /* debug only */
 void printknots(struct Object *obedit);

@@ -43,12 +43,8 @@
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
-#include "BKE_global.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_editmesh.h"
-#include "BKE_sequencer.h"
-#include "BKE_node.h"
 
 #include "IMB_imbuf_types.h"
 
@@ -153,10 +149,10 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 	simage = MEM_callocN(sizeof(SpaceImage), "initimage");
 	simage->spacetype = SPACE_IMAGE;
 	simage->zoom = 1.0f;
-	simage->lock = TRUE;
+	simage->lock = true;
 	simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA;
 
-	simage->iuser.ok = TRUE;
+	simage->iuser.ok = true;
 	simage->iuser.fie_ima = 2;
 	simage->iuser.frames = 100;
 	
@@ -257,6 +253,10 @@ static void image_operatortypes(void)
 
 	WM_operatortype_append(IMAGE_OT_properties);
 	WM_operatortype_append(IMAGE_OT_toolshelf);
+
+	WM_operatortype_append(IMAGE_OT_change_frame);
+
+	WM_operatortype_append(IMAGE_OT_read_renderlayers);
 }
 
 static void image_keymap(struct wmKeyConfig *keyconf)
@@ -268,20 +268,21 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "IMAGE_OT_new", NKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_open", OKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_reload", RKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_add_item(keymap, "IMAGE_OT_read_renderlayers", RKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_save", SKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_save_as", F3KEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_properties", NKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_toolshelf", TKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "IMAGE_OT_cycle_render_slot", JKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "IMAGE_OT_cycle_render_slot", JKEY, KM_PRESS, KM_ALT, 0)->ptr, "reverse", TRUE);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "IMAGE_OT_cycle_render_slot", JKEY, KM_PRESS, KM_ALT, 0)->ptr, "reverse", true);
 	
 	keymap = WM_keymap_find(keyconf, "Image", SPACE_IMAGE, 0);
 	
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "IMAGE_OT_view_all", FKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "fit_view", TRUE);
+	RNA_boolean_set(kmi->ptr, "fit_view", true);
 
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_pan", MIDDLEMOUSE, KM_PRESS, 0, 0);
@@ -312,6 +313,8 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	RNA_float_set(WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom_ratio", PAD4, KM_PRESS, 0, 0)->ptr, "ratio", 0.25f);
 	RNA_float_set(WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom_ratio", PAD8, KM_PRESS, 0, 0)->ptr, "ratio", 0.125f);
 
+	WM_keymap_add_item(keymap, "IMAGE_OT_change_frame", LEFTMOUSE, KM_PRESS, 0, 0);
+
 	WM_keymap_add_item(keymap, "IMAGE_OT_sample", ACTIONMOUSE, KM_PRESS, 0, 0);
 	RNA_enum_set(WM_keymap_add_item(keymap, "IMAGE_OT_curves_point_set", ACTIONMOUSE, KM_PRESS, KM_CTRL, 0)->ptr, "point", 0);
 	RNA_enum_set(WM_keymap_add_item(keymap, "IMAGE_OT_curves_point_set", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0)->ptr, "point", 1);
@@ -319,7 +322,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	/* toggle editmode is handy to have while UV unwrapping */
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, 0, 0);
 	RNA_enum_set(kmi->ptr, "mode", OB_MODE_EDIT);
-	RNA_boolean_set(kmi->ptr, "toggle", TRUE);
+	RNA_boolean_set(kmi->ptr, "toggle", true);
 
 	/* fast switch to render slots */
 	for (i = 0; i < MAX2(IMA_MAX_RENDER_SLOT, 9); i++) {
@@ -346,7 +349,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 static int image_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_PATH)
-		if (ELEM3(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_BLANK)) /* rule might not work? */
+		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_BLANK)) /* rule might not work? */
 			return 1;
 	return 0;
 }
@@ -395,8 +398,8 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	else if (obedit && obedit->type == OB_MESH) {
 		Mesh *me = (Mesh *)obedit->data;
 		struct BMEditMesh *em = me->edit_btmesh;
-		int sloppy = TRUE; /* partially selected face is ok */
-		int selected = !(scene->toolsettings->uv_flag & UV_SYNC_SELECTION); /* only selected active face? */
+		bool sloppy = true; /* partially selected face is ok */
+		bool selected = !(scene->toolsettings->uv_flag & UV_SYNC_SELECTION); /* only selected active face? */
 
 		if (BKE_scene_use_new_shading_nodes(scene)) {
 			/* new shading system does not alter image */
@@ -512,20 +515,36 @@ static void image_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 		}
 		case NC_OBJECT:
 		{
-			Object *ob = OBACT;
 			switch (wmn->data) {
 				case ND_TRANSFORM:
 				case ND_MODIFIER:
-					if (ob == (Object *)wmn->reference && (ob->mode & OB_MODE_EDIT)) {
+				{
+					Object *ob = OBACT;
+					if (ob && (ob == wmn->reference) && (ob->mode & OB_MODE_EDIT)) {
 						if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
 							ED_area_tag_refresh(sa);
 							ED_area_tag_redraw(sa);
 						}
 					}
 					break;
+				}
+			}
+
+			break;
+		}
+		case NC_ID:
+		{
+			if (wmn->action == NA_RENAME) {
+				ED_area_tag_redraw(sa);
 			}
 			break;
 		}
+		case NC_WM:
+			if (wmn->data == ND_UNDO) {
+				ED_area_tag_redraw(sa);
+				ED_area_tag_refresh(sa);
+			}
+			break;
 	}
 }
 
@@ -547,7 +566,7 @@ static int image_context(const bContext *C, const char *member, bContextDataResu
 		if (mask) {
 			CTX_data_id_pointer_set(result, &mask->id);
 		}
-		return TRUE;
+		return true;
 	}
 	return 0;
 }
@@ -620,6 +639,12 @@ static void image_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	/* image paint polls for mode */
+	keymap = WM_keymap_find(wm->defaultconf, "Curve", 0, 0);
+	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
+
+	keymap = WM_keymap_find(wm->defaultconf, "Paint Curve", 0, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+
 	keymap = WM_keymap_find(wm->defaultconf, "Image Paint", 0, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
@@ -644,6 +669,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	Object *obact = CTX_data_active_object(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Mask *mask = NULL;
+	bool curve = false;
 	Scene *scene = CTX_data_scene(C);
 	View2D *v2d = &ar->v2d;
 	//View2DScrollers *scrollers;
@@ -689,12 +715,15 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	else if (sima->mode == SI_MODE_MASK) {
 		mask = ED_space_image_get_mask(sima);
 	}
+	else if (ED_space_image_paint_curve(C)) {
+		curve = true;
+	}
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 
 	if (sima->flag & SI_SHOW_GPENCIL) {
 		/* Grease Pencil too (in addition to UV's) */
-		draw_image_grease_pencil((bContext *)C, TRUE);
+		draw_image_grease_pencil((bContext *)C, true);
 	}
 
 	/* sample line */
@@ -704,7 +733,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 
 	if (sima->flag & SI_SHOW_GPENCIL) {
 		/* draw Grease Pencil - screen space only */
-		draw_image_grease_pencil((bContext *)C, FALSE);
+		draw_image_grease_pencil((bContext *)C, false);
 	}
 
 	if (mask) {
@@ -733,15 +762,20 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 		                    sima->mask_info.overlay_mode,
 		                    width, height,
 		                    aspx, aspy,
-		                    TRUE, FALSE,
+		                    true, false,
 		                    NULL, C);
-
-		ED_mask_draw_frames(mask, ar, CFRA, mask->sfra, mask->efra);
 
 		UI_view2d_view_ortho(v2d);
 		draw_image_cursor(ar, sima->cursor);
 		UI_view2d_view_restore(C);
 	}
+	else if (curve) {
+		UI_view2d_view_ortho(v2d);
+		draw_image_cursor(ar, sima->cursor);
+		UI_view2d_view_restore(C);
+	}
+
+	draw_image_cache(C, ar);
 
 	/* scrollers? */
 #if 0

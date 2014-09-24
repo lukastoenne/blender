@@ -26,6 +26,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -36,7 +37,6 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_armature.h"
 #include "BKE_report.h"
 
 #include "RNA_access.h"
@@ -50,12 +50,13 @@
 #include "UI_resources.h"
 
 #include "ED_screen.h"
+/* for USE_LOOPSLIDE_HACK only */
 #include "ED_mesh.h"
 
 #include "transform.h"
 
 typedef struct TransformModeItem {
-	char *idname;
+	const char *idname;
 	int mode;
 	void (*opfunc)(wmOperatorType *);
 } TransformModeItem;
@@ -283,10 +284,10 @@ static void TRANSFORM_OT_create_orientation(struct wmOperatorType *ot)
 	ot->poll   = ED_operator_areaactive;
 
 	RNA_def_string(ot->srna, "name", NULL, MAX_NAME, "Name", "Name of the new custom orientation");
-	RNA_def_boolean(ot->srna, "use_view", FALSE, "Use View",
+	RNA_def_boolean(ot->srna, "use_view", false, "Use View",
 	                "Use the current view instead of the active object to create the new orientation");
-	RNA_def_boolean(ot->srna, "use", FALSE, "Use after creation", "Select orientation after its creation");
-	RNA_def_boolean(ot->srna, "overwrite", FALSE, "Overwrite previous",
+	RNA_def_boolean(ot->srna, "use", false, "Use after creation", "Select orientation after its creation");
+	RNA_def_boolean(ot->srna, "overwrite", false, "Overwrite previous",
 	                "Overwrite previously created orientation with same name");
 }
 
@@ -393,6 +394,15 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	exit_code = transformEvent(t, event);
 	t->context = NULL;
 
+	/* XXX, workaround: active needs to be calculated before transforming,
+	 * since we're not reading from 'td->center' in this case. see: T40241 */
+	if (t->tsnap.target == SCE_SNAP_TARGET_ACTIVE) {
+		/* In camera view, tsnap callback is not set (see initSnappingMode() in transfrom_snap.c, and T40348). */
+		if (t->tsnap.targetSnap && ((t->tsnap.status & TARGET_INIT) == 0)) {
+			t->tsnap.targetSnap(t);
+		}
+	}
+
 	transformApply(C, t);
 
 	exit_code |= transformEnd(C, t);
@@ -405,7 +415,7 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		if (mode_prev != t->mode) {
 			/* WARNING: this is not normal to switch operator types
 			 * normally it would not be supported but transform happens
-			 * to share callbacks between differernt operators. */
+			 * to share callbacks between different operators. */
 			wmOperatorType *ot_new = NULL;
 			TransformModeItem *item = transform_modes;
 			while (item->idname) {
@@ -874,6 +884,27 @@ static void TRANSFORM_OT_edge_crease(struct wmOperatorType *ot)
 	Transform_Properties(ot, P_SNAP);
 }
 
+static int edge_bevelweight_exec(bContext *C, wmOperator *op)
+{
+	Mesh *me = (Mesh *)CTX_data_edit_object(C)->data;
+
+	/* auto-enable bevel edge weight drawing, then chain to common transform code */
+	me->drawflag |= ME_DRAWBWEIGHTS;
+
+	return transform_exec(C, op);
+}
+
+static int edge_bevelweight_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Mesh *me = (Mesh *)CTX_data_edit_object(C)->data;
+
+	/* auto-enable bevel edge weight drawing, then chain to common transform code */
+	me->drawflag |= ME_DRAWBWEIGHTS;
+
+	return transform_invoke(C, op, event);
+}
+
+
 static void TRANSFORM_OT_edge_bevelweight(struct wmOperatorType *ot)
 {
 	/* identifiers */
@@ -883,8 +914,8 @@ static void TRANSFORM_OT_edge_bevelweight(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	/* api callbacks */
-	ot->invoke = transform_invoke;
-	ot->exec   = transform_exec;
+	ot->invoke = edge_bevelweight_invoke;
+	ot->exec   = edge_bevelweight_exec;
 	ot->modal  = transform_modal;
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_editmesh;
@@ -991,7 +1022,7 @@ void transform_keymap_for_space(wmKeyConfig *keyconf, wmKeyMap *keymap, int spac
 			WM_keymap_add_item(keymap, "TRANSFORM_OT_select_orientation", SPACEKEY, KM_PRESS, KM_ALT, 0);
 
 			kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_create_orientation", SPACEKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
-			RNA_boolean_set(kmi->ptr, "use", TRUE);
+			RNA_boolean_set(kmi->ptr, "use", true);
 
 			WM_keymap_add_item(keymap, OP_MIRROR, MKEY, KM_PRESS, KM_CTRL, 0);
 
@@ -1003,10 +1034,10 @@ void transform_keymap_for_space(wmKeyConfig *keyconf, wmKeyMap *keymap, int spac
 
 
 			kmi = WM_keymap_add_item(keymap, OP_TRANSLATION, TKEY, KM_PRESS, KM_SHIFT, 0);
-			RNA_boolean_set(kmi->ptr, "texture_space", TRUE);
+			RNA_boolean_set(kmi->ptr, "texture_space", true);
 
 			kmi = WM_keymap_add_item(keymap, OP_RESIZE, TKEY, KM_PRESS, KM_SHIFT | KM_ALT, 0);
-			RNA_boolean_set(kmi->ptr, "texture_space", TRUE);
+			RNA_boolean_set(kmi->ptr, "texture_space", true);
 
 			WM_keymap_add_item(keymap, OP_SKIN_RESIZE, AKEY, KM_PRESS, KM_CTRL, 0);
 
@@ -1060,11 +1091,11 @@ void transform_keymap_for_space(wmKeyConfig *keyconf, wmKeyMap *keymap, int spac
 			 * in that case the secondary regular operators are called with same keymap.
 			 */
 			kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
-			RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+			RNA_boolean_set(kmi->ptr, "release_confirm", true);
 			kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, 0, 0);
-			RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+			RNA_boolean_set(kmi->ptr, "release_confirm", true);
 			kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_S, KM_ANY, 0, 0);
-			RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+			RNA_boolean_set(kmi->ptr, "release_confirm", true);
 
 			WM_keymap_add_item(keymap, OP_ROTATION, RKEY, KM_PRESS, 0, 0);
 

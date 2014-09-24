@@ -39,7 +39,6 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
-#include "BLI_ghash.h"
 #include "BLI_mempool.h"
 
 #include "BLF_translation.h"
@@ -481,7 +480,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					char newname[sizeof(bone->name)];
 					
 					/* always make current object active */
-					tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL);
+					tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL, true);
 					ob = OBACT;
 					
 					/* restore bone name */
@@ -498,8 +497,10 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					char newname[sizeof(pchan->name)];
 					
 					/* always make current pose-bone active */
-					tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL);
+					tree_element_active(C, scene, soops, te, OL_SETSEL_NORMAL, true);
 					ob = OBACT;
+
+					BLI_assert(ob->type == OB_ARMATURE);
 					
 					/* restore bone name */
 					BLI_strncpy(newname, pchan->name, sizeof(pchan->name));
@@ -637,7 +638,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 				uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
 				
 				layflag++;  /* is lay_xor */
-				if (ELEM8(passflag, SCE_PASS_SPEC, SCE_PASS_SHADOW, SCE_PASS_AO, SCE_PASS_REFLECT, SCE_PASS_REFRACT,
+				if (ELEM(passflag, SCE_PASS_SPEC, SCE_PASS_SHADOW, SCE_PASS_AO, SCE_PASS_REFLECT, SCE_PASS_REFRACT,
 				          SCE_PASS_INDIRECT, SCE_PASS_EMIT, SCE_PASS_ENVIRONMENT))
 				{
 					bt = uiDefIconButBitI(block, TOG, passflag, 0, (*layflag & passflag) ? ICON_DOT : ICON_BLANK1,
@@ -753,10 +754,21 @@ static void outliner_draw_rnabuts(uiBlock *block, Scene *scene, ARegion *ar, Spa
 			if (tselem->type == TSE_RNA_PROPERTY) {
 				ptr = &te->rnaptr;
 				prop = te->directdata;
-				
-				if (!(RNA_property_type(prop) == PROP_POINTER && (TSELEM_OPEN(tselem, soops)))) {
-					uiDefAutoButR(block, ptr, prop, -1, "", ICON_NONE, sizex, te->ys, OL_RNA_COL_SIZEX,
-					              UI_UNIT_Y - 1);
+
+				if (!TSELEM_OPEN(tselem, soops)) {
+					if (RNA_property_type(prop) == PROP_POINTER) {
+						uiBut *but = uiDefAutoButR(block, ptr, prop, -1, "", ICON_NONE, sizex, te->ys,
+						                           OL_RNA_COL_SIZEX, UI_UNIT_Y - 1);
+						uiButSetFlag(but, UI_BUT_DISABLED);
+					}
+					else if (RNA_property_type(prop) == PROP_ENUM) {
+						uiDefAutoButR(block, ptr, prop, -1, NULL, ICON_NONE, sizex, te->ys, OL_RNA_COL_SIZEX,
+						              UI_UNIT_Y - 1);
+					}
+					else {
+						uiDefAutoButR(block, ptr, prop, -1, "", ICON_NONE, sizex, te->ys, OL_RNA_COL_SIZEX,
+						              UI_UNIT_Y - 1);
+					}
 				}
 			}
 			else if (tselem->type == TSE_RNA_ARRAY_ELEM) {
@@ -1122,7 +1134,7 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 			case ID_LI:
 				tselem_draw_icon_uibut(&arg, ICON_LIBRARY_DATA_DIRECT); break;
 			case ID_LS:
-				tselem_draw_icon_uibut(&arg, ICON_BRUSH_DATA); break; /* FIXME proper icon */
+				tselem_draw_icon_uibut(&arg, ICON_LINE_DATA); break;
 		}
 	}
 }
@@ -1154,7 +1166,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Spa
 					active = OL_DRAWSEL_NORMAL;
 				}
 				else {
-					active = tree_element_active(C, scene, soops, te, OL_SETSEL_NONE);
+					active = tree_element_active(C, scene, soops, te, OL_SETSEL_NONE, false);
 				}
 			}
 			else {
@@ -1295,7 +1307,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 				active = OL_DRAWSEL_ACTIVE;
 			}
 			else {
-				if (tree_element_active(C, scene, soops, te, OL_SETSEL_NONE)) {
+				if (tree_element_active(C, scene, soops, te, OL_SETSEL_NONE, false)) {
 					glColor4ub(220, 220, 255, alpha);
 					active = OL_DRAWSEL_ACTIVE;
 				}

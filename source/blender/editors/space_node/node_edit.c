@@ -32,30 +32,24 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_text_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_material.h"
 #include "BKE_node.h"
-#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_texture.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -99,7 +93,7 @@ typedef struct CompoJob {
 	Scene *scene;
 	bNodeTree *ntree;
 	bNodeTree *localtree;
-	short *stop;
+	const short *stop;
 	short *do_update;
 	float *progress;
 	short need_sync;
@@ -176,8 +170,8 @@ static void compo_statsdrawjob(void *cjv, char *UNUSED(str))
 {
 	CompoJob *cj = cjv;
 	
-	*(cj->do_update) = TRUE;
-	cj->need_sync = TRUE;
+	*(cj->do_update) = true;
+	cj->need_sync = true;
 }
 
 /* called by compo, wmJob sends notifier */
@@ -185,7 +179,7 @@ static void compo_redrawjob(void *cjv)
 {
 	CompoJob *cj = cjv;
 	
-	*(cj->do_update) = TRUE;
+	*(cj->do_update) = true;
 }
 
 static void compo_freejob(void *cjv)
@@ -219,7 +213,7 @@ static void compo_updatejob(void *cjv)
 		/* was used by old compositor system only */
 		ntreeLocalSync(cj->localtree, cj->ntree);
 
-		cj->need_sync = FALSE;
+		cj->need_sync = false;
 	}
 
 	WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, NULL);
@@ -240,7 +234,7 @@ static void compo_startjob(void *cjv, short *stop, short *do_update, float *prog
 	bNodeTree *ntree = cj->localtree;
 	Scene *scene = cj->scene;
 
-	if (scene->use_nodes == FALSE)
+	if (scene->use_nodes == false)
 		return;
 	
 	cj->stop = stop;
@@ -257,9 +251,8 @@ static void compo_startjob(void *cjv, short *stop, short *do_update, float *prog
 	ntree->udh = cj;
 
 	// XXX BIF_store_spare();
-	
 	/* 1 is do_previews */
-	ntreeCompositExecTree(cj->scene, ntree, &cj->scene->r, FALSE, TRUE, &scene->view_settings, &scene->display_settings);
+	ntreeCompositExecTree(cj->scene, ntree, &cj->scene->r, false, true, &scene->view_settings, &scene->display_settings);
 
 	ntree->test_break = NULL;
 	ntree->stats_draw = NULL;
@@ -278,6 +271,7 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
 {
 	wmJob *wm_job;
 	CompoJob *cj;
+	Scene *scene = CTX_data_scene(C);
 
 	/* to fix bug: [#32272] */
 	if (G.is_rendering) {
@@ -285,15 +279,17 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
 	}
 
 #ifdef USE_ESC_COMPO
-	G.is_break = FALSE;
+	G.is_break = false;
 #endif
+
+	BKE_image_backup_render(scene, BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result"));
 
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene_owner, "Compositing",
 	                     WM_JOB_EXCL_RENDER | WM_JOB_PROGRESS, WM_JOB_TYPE_COMPOSITE);
 	cj = MEM_callocN(sizeof(CompoJob), "compo job");
 
 	/* customdata for preview thread */
-	cj->scene = CTX_data_scene(C);
+	cj->scene = scene;
 	cj->ntree = nodetree;
 	cj->recalc_flags = compo_get_recalc_flags(C);
 
@@ -586,6 +582,14 @@ void snode_set_context(const bContext *C)
 	if (snode->nodetree != ntree || snode->id != id || snode->from != from) {
 		ED_node_tree_start(snode, ntree, id, from);
 	}
+	
+	/* XXX Legacy hack to update render layer node outputs.
+	 * This should be handled by the depsgraph eventually ...
+	 */
+	if (ED_node_is_compositor(snode) && snode->nodetree) {
+		/* update output sockets based on available layers */
+		ntreeCompositForceHidden(snode->nodetree);
+	}
 }
 
 void snode_update(SpaceNode *snode, bNode *node)
@@ -619,7 +623,7 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 	
 	if (node->type != NODE_GROUP) {
 		const bool was_output = (node->flag & NODE_DO_OUTPUT) != 0;
-		int do_update = 0;
+		bool do_update = false;
 		
 		/* generic node group output: set node as active output */
 		if (node->type == NODE_GROUP_OUTPUT) {
@@ -636,11 +640,11 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 		/* tree specific activate calls */
 		if (ntree->type == NTREE_SHADER) {
 			/* when we select a material, active texture is cleared, for buttons */
-			if (node->id && ELEM3(GS(node->id->name), ID_MA, ID_LA, ID_WO))
+			if (node->id && ELEM(GS(node->id->name), ID_MA, ID_LA, ID_WO))
 				nodeClearActiveID(ntree, ID_TE);
 			
-			if (ELEM4(node->type, SH_NODE_OUTPUT, SH_NODE_OUTPUT_MATERIAL,
-			          SH_NODE_OUTPUT_WORLD, SH_NODE_OUTPUT_LAMP))
+			if (ELEM(node->type, SH_NODE_OUTPUT, SH_NODE_OUTPUT_MATERIAL,
+			         SH_NODE_OUTPUT_WORLD, SH_NODE_OUTPUT_LAMP, SH_NODE_OUTPUT_LINESTYLE))
 			{
 				bNode *tnode;
 				
@@ -691,7 +695,12 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 				for (scene = bmain->scene.first; scene; scene = scene->id.next) {
 					if (scene->nodetree && scene->use_nodes && ntreeHasTree(scene->nodetree, ntree)) {
 						if (node->id == NULL || node->id == (ID *)scene) {
+							int num_layers = BLI_countlist(&scene->r.layers);
 							scene->r.actlay = node->custom1;
+							/* Clamp the value, because it might have come from a different
+							 * scene which could have more render layers than new one.
+							 */
+							scene->r.actlay = min_ff(scene->r.actlay, num_layers - 1);
 						}
 					}
 				}
@@ -870,37 +879,38 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			dy = (my - nsw->mystart) / UI_DPI_FAC;
 			
 			if (node) {
-				if (node->flag & NODE_HIDDEN) {
-					float widthmin = 0.0f;
-					float widthmax = 100.0f;
-					if (nsw->directions & NODE_RESIZE_RIGHT) {
-						node->miniwidth = nsw->oldminiwidth + dx;
-						CLAMP(node->miniwidth, widthmin, widthmax);
-					}
-					if (nsw->directions & NODE_RESIZE_LEFT) {
-						float locmax = nsw->oldlocx + nsw->oldminiwidth;
-						
-						node->locx = nsw->oldlocx + dx;
-						CLAMP(node->locx, locmax - widthmax, locmax - widthmin);
-						node->miniwidth = locmax - node->locx;
-					}
+				/* width can use node->width or node->miniwidth (hidden nodes) */
+				float *pwidth;
+				float oldwidth, widthmin, widthmax;
+				/* ignore hidden flag for frame nodes */
+				bool use_hidden = (node->type != NODE_FRAME);
+				if (use_hidden && node->flag & NODE_HIDDEN) {
+					pwidth = &node->miniwidth;
+					oldwidth = nsw->oldminiwidth;
+					widthmin = 0.0f;
+					widthmax = 100.0f;
 				}
 				else {
-					float widthmin = node->typeinfo->minwidth;
-					float widthmax = node->typeinfo->maxwidth;
+					pwidth = &node->width;
+					oldwidth = nsw->oldwidth;
+					widthmin = node->typeinfo->minwidth;
+					widthmax = node->typeinfo->maxwidth;
+				}
+				
+				{
 					if (nsw->directions & NODE_RESIZE_RIGHT) {
-						node->width = nsw->oldwidth + dx;
-						CLAMP(node->width, widthmin, widthmax);
+						*pwidth = oldwidth + dx;
+						CLAMP(*pwidth, widthmin, widthmax);
 					}
 					if (nsw->directions & NODE_RESIZE_LEFT) {
-						float locmax = nsw->oldlocx + nsw->oldwidth;
+						float locmax = nsw->oldlocx + oldwidth;
 						
 						node->locx = nsw->oldlocx + dx;
 						CLAMP(node->locx, locmax - widthmax, locmax - widthmin);
-						node->width = locmax - node->locx;
+						*pwidth = locmax - node->locx;
 					}
 				}
-			
+				
 				/* height works the other way round ... */
 				{
 					float heightmin = UI_DPI_FAC * node->typeinfo->minheight;
@@ -1205,9 +1215,9 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
 			/* has been set during copy above */
 			newnode = node->new_node;
 			
-			nodeSetSelected(node, FALSE);
+			nodeSetSelected(node, false);
 			node->flag &= ~NODE_ACTIVE;
-			nodeSetSelected(newnode, TRUE);
+			nodeSetSelected(newnode, true);
 		}
 		
 		/* make sure we don't copy new nodes again! */
@@ -1248,11 +1258,11 @@ bool ED_node_select_check(ListBase *lb)
 
 	for (node = lb->first; node; node = node->next) {
 		if (node->flag & NODE_SELECT) {
-			return TRUE;
+			return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 /* ******************************** */
@@ -2012,15 +2022,15 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 	}
 
 	/* only warn */
-	if (is_clipboard_valid == FALSE) {
+	if (is_clipboard_valid == false) {
 		BKE_report(op->reports, RPT_WARNING, "Some nodes references could not be restored, will be left empty");
 	}
 
 	/* make sure all clipboard nodes would be valid in the target tree */
-	all_nodes_valid = TRUE;
+	all_nodes_valid = true;
 	for (node = clipboard_nodes_lb->first; node; node = node->next) {
 		if (!node->typeinfo->poll_instance(node, ntree)) {
-			all_nodes_valid = FALSE;
+			all_nodes_valid = false;
 			BKE_reportf(op->reports, RPT_ERROR, "Cannot add node %s into node tree %s", node->name, ntree->id.name + 2);
 		}
 	}
@@ -2048,7 +2058,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 		id_us_plus(node->id);
 
 		/* pasted nodes are selected */
-		nodeSetSelected(new_node, TRUE);
+		nodeSetSelected(new_node, true);
 	}
 	
 	/* reparent copied nodes */
@@ -2315,12 +2325,12 @@ static int node_shader_script_update_poll(bContext *C)
 }
 
 /* recursively check for script nodes in groups using this text and update */
-static int node_shader_script_update_text_recursive(RenderEngine *engine, RenderEngineType *type, bNodeTree *ntree, Text *text)
+static bool node_shader_script_update_text_recursive(RenderEngine *engine, RenderEngineType *type, bNodeTree *ntree, Text *text)
 {
-	int found = FALSE;
+	bool found = false;
 	bNode *node;
 	
-	ntree->done = TRUE;
+	ntree->done = true;
 	
 	/* update each script that is using this text datablock */
 	for (node = ntree->nodes.first; node; node = node->next) {
@@ -2331,7 +2341,7 @@ static int node_shader_script_update_text_recursive(RenderEngine *engine, Render
 		}
 		else if (node->type == SH_NODE_SCRIPT && node->id == &text->id) {
 			type->update_script_node(engine, ntree, node);
-			found = TRUE;
+			found = true;
 		}
 	}
 	
@@ -2348,7 +2358,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 	bNode *node = NULL;
 	RenderEngine *engine;
 	RenderEngineType *type;
-	int found = FALSE;
+	bool found = false;
 
 	/* setup render engine */
 	type = RE_engines_find(scene->r.engine);
@@ -2369,7 +2379,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 		/* update single node */
 		type->update_script_node(engine, ntree, node);
 
-		found = TRUE;
+		found = true;
 	}
 	else {
 		/* update all nodes using text datablock */
@@ -2379,7 +2389,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 			/* clear flags for recursion check */
 			FOREACH_NODETREE(bmain, ntree, id) {
 				if (ntree->type == NTREE_SHADER)
-					ntree->done = FALSE;
+					ntree->done = false;
 			} FOREACH_NODETREE_END
 			
 			FOREACH_NODETREE(bmain, ntree, id) {
@@ -2472,14 +2482,6 @@ static int viewer_border_exec(bContext *C, wmOperator *op)
 				btree->flag &= ~NTREE_VIEWER_BORDER;
 			}
 			else {
-				if (ibuf->rect)
-					memset(ibuf->rect, 0, 4 * ibuf->x * ibuf->y);
-
-				if (ibuf->rect_float)
-					memset(ibuf->rect_float, 0, 4 * ibuf->x * ibuf->y * sizeof(float));
-
-				ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-
 				btree->flag |= NTREE_VIEWER_BORDER;
 			}
 
@@ -2514,5 +2516,32 @@ void NODE_OT_viewer_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_border(ot, TRUE);
+	WM_operator_properties_gesture_border(ot, true);
+}
+
+static int clear_viewer_border_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	bNodeTree *btree = snode->nodetree;
+
+	btree->flag &= ~NTREE_VIEWER_BORDER;
+	snode_notify(C, snode);
+	WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void NODE_OT_clear_viewer_border(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Clear Viewer Border";
+	ot->description = "Clear the boundaries for viewer operations";
+	ot->idname = "NODE_OT_clear_viewer_border";
+
+	/* api callbacks */
+	ot->exec = clear_viewer_border_exec;
+	ot->poll = composite_node_active;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

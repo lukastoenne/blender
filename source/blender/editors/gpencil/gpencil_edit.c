@@ -52,7 +52,6 @@
 #include "DNA_view3d_types.h"
 #include "DNA_gpencil_types.h"
 
-#include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
@@ -63,6 +62,7 @@
 #include "BKE_object.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
+#include "BKE_screen.h"
 #include "BKE_tracking.h"
 
 #include "UI_interface.h"
@@ -87,7 +87,7 @@
 /* Context Wrangling... */
 
 /* Get pointer to active Grease Pencil datablock, and an RNA-pointer to trace back to whatever owns it */
-bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
+bGPdata **ED_gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 {
 	ID *screen_id = (ID *)CTX_wm_screen(C);
 	Scene *scene = CTX_data_scene(C);
@@ -181,21 +181,21 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 }
 
 /* Get the active Grease Pencil datablock */
-bGPdata *gpencil_data_get_active(const bContext *C)
+bGPdata *ED_gpencil_data_get_active(const bContext *C)
 {
-	bGPdata **gpd_ptr = gpencil_data_get_pointers(C, NULL);
+	bGPdata **gpd_ptr = ED_gpencil_data_get_pointers(C, NULL);
 	return (gpd_ptr) ? *(gpd_ptr) : NULL;
 }
 
-/* needed for offscreen rendering */
-bGPdata *gpencil_data_get_active_v3d(Scene *scene)
+bGPdata *ED_gpencil_data_get_active_v3d(Scene *scene, View3D *v3d)
 {
 	Base *base = scene->basact;
 	bGPdata *gpd = NULL;
 	/* We have to make sure active object is actually visible and selected, else we must use default scene gpd,
-	 * to be consistent with gpencil_data_get_active's behavior.
+	 * to be consistent with ED_gpencil_data_get_active's behavior.
 	 */
-	if (base && (scene->lay & base->lay) && (base->object->flag & SELECT)) {
+
+	if (base && TESTBASE(v3d, base)) {
 		gpd = base->object->gpd;
 	}
 	return gpd ? gpd : scene->gpd;
@@ -208,7 +208,7 @@ bGPdata *gpencil_data_get_active_v3d(Scene *scene)
 static int gp_add_poll(bContext *C)
 {
 	/* the base line we have is that we have somewhere to add Grease Pencil data */
-	return gpencil_data_get_pointers(C, NULL) != NULL;
+	return ED_gpencil_data_get_pointers(C, NULL) != NULL;
 }
 
 /* ******************* Add New Data ************************ */
@@ -216,7 +216,7 @@ static int gp_add_poll(bContext *C)
 /* add new datablock - wrapper around API */
 static int gp_data_add_exec(bContext *C, wmOperator *op)
 {
-	bGPdata **gpd_ptr = gpencil_data_get_pointers(C, NULL);
+	bGPdata **gpd_ptr = ED_gpencil_data_get_pointers(C, NULL);
 
 	if (gpd_ptr == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Nowhere for grease pencil data to go");
@@ -254,7 +254,7 @@ void GPENCIL_OT_data_add(wmOperatorType *ot)
 /* poll callback for adding data/layers - special */
 static int gp_data_unlink_poll(bContext *C)
 {
-	bGPdata **gpd_ptr = gpencil_data_get_pointers(C, NULL);
+	bGPdata **gpd_ptr = ED_gpencil_data_get_pointers(C, NULL);
 
 	/* if we have access to some active data, make sure there's a datablock before enabling this */
 	return (gpd_ptr && *gpd_ptr);
@@ -264,7 +264,7 @@ static int gp_data_unlink_poll(bContext *C)
 /* unlink datablock - wrapper around API */
 static int gp_data_unlink_exec(bContext *C, wmOperator *op)
 {
-	bGPdata **gpd_ptr = gpencil_data_get_pointers(C, NULL);
+	bGPdata **gpd_ptr = ED_gpencil_data_get_pointers(C, NULL);
 
 	if (gpd_ptr == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Nowhere for grease pencil data to go");
@@ -302,7 +302,7 @@ void GPENCIL_OT_data_unlink(wmOperatorType *ot)
 /* add new layer - wrapper around API */
 static int gp_layer_add_exec(bContext *C, wmOperator *op)
 {
-	bGPdata **gpd_ptr = gpencil_data_get_pointers(C, NULL);
+	bGPdata **gpd_ptr = ED_gpencil_data_get_pointers(C, NULL);
 
 	/* if there's no existing Grease-Pencil data there, add some */
 	if (gpd_ptr == NULL) {
@@ -338,7 +338,7 @@ void GPENCIL_OT_layer_add(wmOperatorType *ot)
 
 static int gp_actframe_delete_poll(bContext *C)
 {
-	bGPdata *gpd = gpencil_data_get_active(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
 
 	/* only if there's an active layer with an active frame */
@@ -349,7 +349,7 @@ static int gp_actframe_delete_poll(bContext *C)
 static int gp_actframe_delete_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	bGPdata *gpd = gpencil_data_get_active(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
 	bGPDframe *gpf = gpencil_layer_getframe(gpl, CFRA, 0);
 
@@ -456,10 +456,8 @@ static void gp_strokepoint_convertcoords(bContext *C, bGPDstroke *gps, bGPDspoin
 
 		/* get screen coordinate */
 		if (gps->flag & GP_STROKE_2DSPACE) {
-			int mvali[2];
 			View2D *v2d = &ar->v2d;
-			UI_view2d_view_to_region(v2d, pt->x, pt->y, mvali, mvali + 1);
-			VECCOPY2D(mvalf, mvali);
+			UI_view2d_view_to_region_fl(v2d, pt->x, pt->y, &mvalf[0], &mvalf[1]);
 		}
 		else {
 			if (subrect) {
@@ -472,9 +470,6 @@ static void gp_strokepoint_convertcoords(bContext *C, bGPDstroke *gps, bGPDspoin
 			}
 		}
 
-		/* convert screen coordinate to 3d coordinates 
-		 *	- method taken from editview.c - mouse_cursor() 
-		 */
 		ED_view3d_win_to_3d(ar, fp, mvalf, p3d);
 	}
 }
@@ -757,8 +752,8 @@ static void gp_stroke_path_animation(bContext *C, ReportList *reports, Curve *cu
 	prop = RNA_struct_find_property(&ptr, "eval_time");
 
 	/* Ensure we have an F-Curve to add keyframes to */
-	act = verify_adt_action((ID *)cu, TRUE);
-	fcu = verify_fcurve(act, NULL, &ptr, "eval_time", 0, TRUE);
+	act = verify_adt_action((ID *)cu, true);
+	fcu = verify_fcurve(act, NULL, &ptr, "eval_time", 0, true);
 
 	if (G.debug & G_DEBUG) {
 		printf("%s: tot len: %f\t\ttot time: %f\n", __func__, gtd->tot_dist, gtd->tot_time);
@@ -1392,7 +1387,7 @@ static int gp_camera_view_subrect(bContext *C, rctf *subrect)
 		/* for camera view set the subrect */
 		if (rv3d->persp == RV3D_CAMOB) {
 			Scene *scene = CTX_data_scene(C);
-			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, subrect, TRUE); /* no shift */
+			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, subrect, true); /* no shift */
 			return 1;
 		}
 	}
@@ -1405,6 +1400,7 @@ static void gp_layer_to_curve(bContext *C, ReportList *reports, bGPdata *gpd, bG
                               const bool norm_weights, const float rad_fac, const bool link_strokes, tGpTimingData *gtd)
 {
 	struct Main *bmain = CTX_data_main(C);
+	View3D *v3d = CTX_wm_view3d(C);  /* may be NULL */
 	Scene *scene = CTX_data_scene(C);
 	bGPDframe *gpf = gpencil_layer_getframe(gpl, CFRA, 0);
 	bGPDstroke *gps, *prev_gps = NULL;
@@ -1418,7 +1414,7 @@ static void gp_layer_to_curve(bContext *C, ReportList *reports, bGPdata *gpd, bG
 	rctf subrect, *subrect_ptr = NULL;
 
 	/* error checking */
-	if (ELEM3(NULL, gpd, gpl, gpf))
+	if (ELEM(NULL, gpd, gpl, gpf))
 		return;
 
 	/* only convert if there are any strokes on this layer's frame to convert */
@@ -1499,7 +1495,7 @@ static void gp_layer_to_curve(bContext *C, ReportList *reports, bGPdata *gpd, bG
 	}
 
 	/* set the layer and select */
-	base_new->lay  = ob->lay  = base_orig ? base_orig->lay : scene->lay;
+	base_new->lay  = ob->lay  = base_orig ? base_orig->lay : BKE_screen_view3d_layer_active(v3d, scene);
 	base_new->flag = ob->flag = base_new->flag | SELECT;
 }
 
@@ -1565,7 +1561,7 @@ static void gp_convert_set_end_frame(struct Main *UNUSED(main), struct Scene *UN
 
 static int gp_convert_poll(bContext *C)
 {
-	bGPdata *gpd = gpencil_data_get_active(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl = NULL;
 	bGPDframe *gpf = NULL;
 	ScrArea *sa = CTX_wm_area(C);
@@ -1584,7 +1580,7 @@ static int gp_convert_poll(bContext *C)
 static int gp_convert_layer_exec(bContext *C, wmOperator *op)
 {
 	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_timing_data");
-	bGPdata *gpd = gpencil_data_get_active(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
 	Scene *scene = CTX_data_scene(C);
 	const int mode = RNA_enum_get(op->ptr, "type");
@@ -1673,7 +1669,7 @@ static bool gp_convert_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop)
 
 	/* Never show this prop */
 	if (strcmp(prop_id, "use_timing_data") == 0)
-		return FALSE;
+		return false;
 
 	if (link_strokes) {
 		/* Only show when link_stroke is true */
@@ -1749,11 +1745,11 @@ void GPENCIL_OT_convert(wmOperatorType *ot)
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_gpencil_convertmodes, 0, "Type", "Which type of curve to convert to");
 
-	RNA_def_boolean(ot->srna, "use_normalize_weights", TRUE, "Normalize Weight",
+	RNA_def_boolean(ot->srna, "use_normalize_weights", true, "Normalize Weight",
 	                "Normalize weight (set from stroke width)");
 	RNA_def_float(ot->srna, "radius_multiplier", 1.0f, 0.0f, 1000.0f, "Radius Fac",
 	              "Multiplier for the points' radii (set from stroke width)", 0.0f, 10.0f);
-	RNA_def_boolean(ot->srna, "use_link_strokes", TRUE, "Link Strokes",
+	RNA_def_boolean(ot->srna, "use_link_strokes", true, "Link Strokes",
 	                "Whether to link strokes with zero-radius sections of curves");
 
 	prop = RNA_def_enum(ot->srna, "timing_mode", prop_gpencil_convert_timingmodes, GP_STROKECONVERT_TIMING_FULL,
@@ -1764,7 +1760,7 @@ void GPENCIL_OT_convert(wmOperatorType *ot)
 	            "The duration of evaluation of the path control curve", 1, 1000);
 	RNA_def_int(ot->srna, "start_frame", 1, 1, 100000, "Start Frame",
 	            "The start frame of the path control curve", 1, 100000);
-	RNA_def_boolean(ot->srna, "use_realtime", FALSE, "Realtime",
+	RNA_def_boolean(ot->srna, "use_realtime", false, "Realtime",
 	                "Whether the path control curve reproduces the drawing in realtime, starting from Start Frame");
 	prop = RNA_def_int(ot->srna, "end_frame", 250, 1, 100000, "End Frame",
 	                   "The end frame of the path control curve (if Realtime is not set)", 1, 100000);
@@ -1779,7 +1775,7 @@ void GPENCIL_OT_convert(wmOperatorType *ot)
 	            "Custom Gap mode: Random generator seed", 0, 100);
 
 	/* Note: Internal use, this one will always be hidden by UI code... */
-	prop = RNA_def_boolean(ot->srna, "use_timing_data", FALSE, "Has Valid Timing",
+	prop = RNA_def_boolean(ot->srna, "use_timing_data", false, "Has Valid Timing",
 	                       "Whether the converted Grease Pencil layer has valid timing data (internal use)");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }

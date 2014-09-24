@@ -34,18 +34,17 @@ public:
 	int max_glossy_bounce;
 	int max_transmission_bounce;
 	int max_volume_bounce;
-	bool probalistic_termination;
 
 	int transparent_min_bounce;
 	int transparent_max_bounce;
-	bool transparent_probalistic;
 	bool transparent_shadows;
 
 	int volume_homogeneous_sampling;
 	int volume_max_steps;
 	float volume_step_size;
 
-	bool no_caustics;
+	bool caustics_reflective;
+	bool caustics_refractive;
 	float filter_glossy;
 
 	int seed;
@@ -63,6 +62,8 @@ public:
 	int mesh_light_samples;
 	int subsurface_samples;
 	int volume_samples;
+	bool sample_all_lights_direct;
+	bool sample_all_lights_indirect;
 
 	enum Method {
 		BRANCHED_PATH = 0,

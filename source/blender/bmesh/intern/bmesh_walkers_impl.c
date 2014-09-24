@@ -93,9 +93,12 @@ static bool bmw_mask_check_face(BMWalker *walker, BMFace *f)
  * Starts at a vertex on the mesh and walks over the 'shell' it belongs
  * to via visiting connected edges.
  *
+ * takes an edge or vertex as an argument, and spits out edges,
+ * restrict flag acts on the edges as well.
+ *
  * \todo Add restriction flag/callback for wire edges.
  */
-static void bmw_ShellWalker_visitEdge(BMWalker *walker, BMEdge *e)
+static void bmw_VertShellWalker_visitEdge(BMWalker *walker, BMEdge *e)
 {
 	BMwShellWalker *shellWalk = NULL;
 
@@ -112,7 +115,7 @@ static void bmw_ShellWalker_visitEdge(BMWalker *walker, BMEdge *e)
 	BLI_gset_insert(walker->visit_set, e);
 }
 
-static void bmw_ShellWalker_begin(BMWalker *walker, void *data)
+static void bmw_VertShellWalker_begin(BMWalker *walker, void *data)
 {
 	BMIter eiter;
 	BMHeader *h = data;
@@ -130,7 +133,7 @@ static void bmw_ShellWalker_begin(BMWalker *walker, void *data)
 			 * to the worklist */
 			v = (BMVert *)h;
 			BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-				bmw_ShellWalker_visitEdge(walker, e);
+				bmw_VertShellWalker_visitEdge(walker, e);
 			}
 			break;
 		}
@@ -140,19 +143,21 @@ static void bmw_ShellWalker_begin(BMWalker *walker, void *data)
 			/* starting the walk at an edge, add the single edge
 			 * to the worklist */
 			e = (BMEdge *)h;
-			bmw_ShellWalker_visitEdge(walker, e);
+			bmw_VertShellWalker_visitEdge(walker, e);
 			break;
 		}
+		default:
+			BLI_assert(0);
 	}
 }
 
-static void *bmw_ShellWalker_yield(BMWalker *walker)
+static void *bmw_VertShellWalker_yield(BMWalker *walker)
 {
 	BMwShellWalker *shellWalk = BMW_current_state(walker);
 	return shellWalk->curedge;
 }
 
-static void *bmw_ShellWalker_step(BMWalker *walker)
+static void *bmw_VertShellWalker_step(BMWalker *walker)
 {
 	BMwShellWalker *swalk, owalk;
 	BMEdge *e, *e2;
@@ -168,7 +173,7 @@ static void *bmw_ShellWalker_step(BMWalker *walker)
 	for (i = 0; i < 2; i++) {
 		v = i ? e->v2 : e->v1;
 		BM_ITER_ELEM (e2, &iter, v, BM_EDGES_OF_VERT) {
-			bmw_ShellWalker_visitEdge(walker, e2);
+			bmw_VertShellWalker_visitEdge(walker, e2);
 		}
 	}
 
@@ -176,7 +181,7 @@ static void *bmw_ShellWalker_step(BMWalker *walker)
 }
 
 #if 0
-static void *bmw_ShellWalker_step(BMWalker *walker)
+static void *bmw_VertShellWalker_step(BMWalker *walker)
 {
 	BMEdge *curedge, *next = NULL;
 	BMVert *v_old = NULL;
@@ -211,8 +216,7 @@ static void *bmw_ShellWalker_step(BMWalker *walker)
 				newState->curedge = curedge;
 			}
 		}
-		curedge = bmesh_disk_edge_next(curedge, shellWalk.base);
-	} while (curedge != shellWalk.curedge);
+	} while ((curedge = bmesh_disk_edge_next(curedge, shellWalk.base)) != shellWalk.curedge);
 	
 	return shellWalk.curedge;
 }
@@ -221,10 +225,77 @@ static void *bmw_ShellWalker_step(BMWalker *walker)
 /** \} */
 
 
+/** \name FaceShell Walker
+ * \{
+ *
+ * Starts at an edge on the mesh and walks over the 'shell' it belongs
+ * to via visiting connected faces.
+ */
+static void bmw_FaceShellWalker_visitEdge(BMWalker *walker, BMEdge *e)
+{
+	BMwShellWalker *shellWalk = NULL;
+
+	if (BLI_gset_haskey(walker->visit_set, e)) {
+		return;
+	}
+
+	if (!bmw_mask_check_edge(walker, e)) {
+		return;
+	}
+
+	shellWalk = BMW_state_add(walker);
+	shellWalk->curedge = e;
+	BLI_gset_insert(walker->visit_set, e);
+}
+
+static void bmw_FaceShellWalker_begin(BMWalker *walker, void *data)
+{
+	BMEdge *e = data;
+	bmw_FaceShellWalker_visitEdge(walker, e);
+}
+
+static void *bmw_FaceShellWalker_yield(BMWalker *walker)
+{
+	BMwShellWalker *shellWalk = BMW_current_state(walker);
+	return shellWalk->curedge;
+}
+
+static void *bmw_FaceShellWalker_step(BMWalker *walker)
+{
+	BMwShellWalker *swalk, owalk;
+	BMEdge *e, *e2;
+	BMIter iter;
+
+	BMW_state_remove_r(walker, &owalk);
+	swalk = &owalk;
+
+	e = swalk->curedge;
+
+	if (e->l) {
+		BMLoop *l_iter, *l_first;
+
+		l_iter = l_first = e->l;
+		do {
+			BM_ITER_ELEM (e2, &iter, l_iter->f, BM_EDGES_OF_FACE) {
+				if (e2 != e) {
+					bmw_FaceShellWalker_visitEdge(walker, e2);
+				}
+			}
+		} while ((l_iter = l_iter->radial_next) != l_first);
+	}
+
+	return e;
+}
+/** \} */
+
+
 /** \name Connected Vertex Walker
  * \{
  *
  * Similar to shell walker, but visits vertices instead of edges.
+ *
+ * Walk from a vertex to all connected vertices.
+ *
  */
 static void bmw_ConnectedVertexWalker_visitVertex(BMWalker *walker, BMVert *v)
 {
@@ -286,6 +357,11 @@ static void *bmw_ConnectedVertexWalker_step(BMWalker *walker)
  * \{
  *
  * Starts at a edge on the mesh and walks over the boundary of an island it belongs to.
+ *
+ * \note that this doesn't work on non-manifold geometry.
+ * it might be better to rewrite this to extract
+ * boundary info from the island walker, rather then directly walking
+ * over the boundary.  raises an error if it encounters nonmanifold geometry.
  *
  * \todo Add restriction flag/callback for wire edges.
  */
@@ -457,6 +533,7 @@ static void *bmw_IslandWalker_step(BMWalker *walker)
  * \{
  *
  * Starts at a tool-flagged edge and walks over the edge loop
+ *
  */
 
 /* utility function to see if an edge is apart of an ngon boundary */
@@ -472,8 +549,10 @@ static void bmw_LoopWalker_begin(BMWalker *walker, void *data)
 	BMwLoopWalker *lwalk = NULL, owalk, *owalk_pt;
 	BMEdge *e = data;
 	BMVert *v;
-	int vert_edge_count[2] = {BM_vert_edge_count_nonwire(e->v1),
-	                          BM_vert_edge_count_nonwire(e->v2)};
+	const int vert_edge_count[2] = {
+	    BM_vert_edge_count_nonwire(e->v1),
+	    BM_vert_edge_count_nonwire(e->v2),
+	};
 
 	v = e->v1;
 
@@ -659,7 +738,7 @@ static void *bmw_LoopWalker_step(BMWalker *walker)
 		    (owalk.is_single == false && vert_edge_tot > 2) ||
 
 		    /* initial edge was a boundary, so is this edge and vertex is only apart of this face
-		    * this lets us walk over the the boundary of an ngon which is handy */
+		     * this lets us walk over the the boundary of an ngon which is handy */
 		    (owalk.is_single == true && vert_edge_tot == 2 && BM_edge_is_boundary(e)))
 		{
 			/* find next boundary edge in the fan */
@@ -840,8 +919,8 @@ static void *bmw_FaceLoopWalker_step(BMWalker *walker)
 		}
 
 		/* both may already exist */
-		BLI_gset_reinsert(walker->visit_set_alt, l->e, NULL);
-		BLI_gset_reinsert(walker->visit_set, l->f, NULL);
+		BLI_gset_add(walker->visit_set_alt, l->e);
+		BLI_gset_add(walker->visit_set, l->f);
 	}
 
 	return f;
@@ -993,7 +1072,85 @@ static void *bmw_EdgeringWalker_step(BMWalker *walker)
 /** \} */
 
 
+/** \name Boundary Edge Walker
+ * \{ */
+
+static void bmw_EdgeboundaryWalker_begin(BMWalker *walker, void *data)
+{
+	BMwEdgeboundaryWalker *lwalk;
+	BMEdge *e = data;
+
+	BLI_assert(BM_edge_is_boundary(e));
+
+	if (BLI_gset_haskey(walker->visit_set, e))
+		return;
+
+	lwalk = BMW_state_add(walker);
+	lwalk->e = e;
+	BLI_gset_insert(walker->visit_set, e);
+}
+
+static void *bmw_EdgeboundaryWalker_yield(BMWalker *walker)
+{
+	BMwEdgeboundaryWalker *lwalk = BMW_current_state(walker);
+
+	if (!lwalk) {
+		return NULL;
+	}
+
+	return lwalk->e;
+}
+
+static void *bmw_EdgeboundaryWalker_step(BMWalker *walker)
+{
+	BMwEdgeboundaryWalker *lwalk, owalk;
+	BMEdge *e, *e_other;
+	BMVert *v;
+	BMIter eiter;
+	BMIter viter;
+
+	BMW_state_remove_r(walker, &owalk);
+	lwalk = &owalk;
+
+	e = lwalk->e;
+
+	if (!bmw_mask_check_edge(walker, e)) {
+		return e;
+	}
+
+	BM_ITER_ELEM (v, &viter, e, BM_VERTS_OF_EDGE) {
+		BM_ITER_ELEM (e_other, &eiter, v, BM_EDGES_OF_VERT) {
+			if (e != e_other && BM_edge_is_boundary(e_other)) {
+				if (BLI_gset_haskey(walker->visit_set, e_other)) {
+					continue;
+				}
+
+				if (!bmw_mask_check_edge(walker, e_other)) {
+					continue;
+				}
+
+				lwalk = BMW_state_add(walker);
+				BLI_gset_insert(walker->visit_set, e_other);
+
+				lwalk->e = e_other;
+			}
+		}
+	}
+
+	return e;
+}
+
+/** \} */
+
+
 /** \name UV Edge Walker
+ *
+ * walk over uv islands; takes a loop as input.  restrict flag
+ * restricts the walking to loops whose vert has restrict flag set as a
+ * tool flag.
+ *
+ * the flag parameter to BMW_init maps to a loop customdata layer index.
+ *
  * \{ */
 
 static void bmw_UVEdgeWalker_begin(BMWalker *walker, void *data)
@@ -1082,16 +1239,28 @@ static void *bmw_UVEdgeWalker_step(BMWalker *walker)
 /** \} */
 
 
-static BMWalker bmw_ShellWalker_Type = {
-	bmw_ShellWalker_begin,
-	bmw_ShellWalker_step,
-	bmw_ShellWalker_yield,
+static BMWalker bmw_VertShellWalker_Type = {
+	BM_VERT | BM_EDGE,
+	bmw_VertShellWalker_begin,
+	bmw_VertShellWalker_step,
+	bmw_VertShellWalker_yield,
+	sizeof(BMwShellWalker),
+	BMW_BREADTH_FIRST,
+	BM_EDGE, /* valid restrict masks */
+};
+
+static BMWalker bmw_FaceShellWalker_Type = {
+	BM_EDGE,
+	bmw_FaceShellWalker_begin,
+	bmw_FaceShellWalker_step,
+	bmw_FaceShellWalker_yield,
 	sizeof(BMwShellWalker),
 	BMW_BREADTH_FIRST,
 	BM_EDGE, /* valid restrict masks */
 };
 
 static BMWalker bmw_IslandboundWalker_Type = {
+	BM_LOOP,
 	bmw_IslandboundWalker_begin,
 	bmw_IslandboundWalker_step,
 	bmw_IslandboundWalker_yield,
@@ -1101,6 +1270,7 @@ static BMWalker bmw_IslandboundWalker_Type = {
 };
 
 static BMWalker bmw_IslandWalker_Type = {
+	BM_FACE,
 	bmw_IslandWalker_begin,
 	bmw_IslandWalker_step,
 	bmw_IslandWalker_yield,
@@ -1110,6 +1280,7 @@ static BMWalker bmw_IslandWalker_Type = {
 };
 
 static BMWalker bmw_LoopWalker_Type = {
+	BM_EDGE,
 	bmw_LoopWalker_begin,
 	bmw_LoopWalker_step,
 	bmw_LoopWalker_yield,
@@ -1119,6 +1290,7 @@ static BMWalker bmw_LoopWalker_Type = {
 };
 
 static BMWalker bmw_FaceLoopWalker_Type = {
+	BM_EDGE,
 	bmw_FaceLoopWalker_begin,
 	bmw_FaceLoopWalker_step,
 	bmw_FaceLoopWalker_yield,
@@ -1128,15 +1300,27 @@ static BMWalker bmw_FaceLoopWalker_Type = {
 };
 
 static BMWalker bmw_EdgeringWalker_Type = {
+	BM_EDGE,
 	bmw_EdgeringWalker_begin,
 	bmw_EdgeringWalker_step,
 	bmw_EdgeringWalker_yield,
 	sizeof(BMwEdgeringWalker),
 	BMW_DEPTH_FIRST,
-	0, /* valid restrict masks */ /* could add flags here but so far none are used */
+	BM_EDGE, /* valid restrict masks */
+};
+
+static BMWalker bmw_EdgeboundaryWalker_Type = {
+	BM_EDGE,
+	bmw_EdgeboundaryWalker_begin,
+	bmw_EdgeboundaryWalker_step,
+	bmw_EdgeboundaryWalker_yield,
+	sizeof(BMwEdgeboundaryWalker),
+	BMW_DEPTH_FIRST,
+	0,
 };
 
 static BMWalker bmw_UVEdgeWalker_Type = {
+	BM_LOOP,
 	bmw_UVEdgeWalker_begin,
 	bmw_UVEdgeWalker_step,
 	bmw_UVEdgeWalker_yield,
@@ -1146,6 +1330,7 @@ static BMWalker bmw_UVEdgeWalker_Type = {
 };
 
 static BMWalker bmw_ConnectedVertexWalker_Type = {
+	BM_VERT,
 	bmw_ConnectedVertexWalker_begin,
 	bmw_ConnectedVertexWalker_step,
 	bmw_ConnectedVertexWalker_yield,
@@ -1155,14 +1340,16 @@ static BMWalker bmw_ConnectedVertexWalker_Type = {
 };
 
 BMWalker *bm_walker_types[] = {
-	&bmw_ShellWalker_Type,              /* BMW_SHELL */
+	&bmw_VertShellWalker_Type,          /* BMW_VERT_SHELL */
+	&bmw_FaceShellWalker_Type,          /* BMW_FACE_SHELL */
 	&bmw_LoopWalker_Type,               /* BMW_LOOP */
 	&bmw_FaceLoopWalker_Type,           /* BMW_FACELOOP */
 	&bmw_EdgeringWalker_Type,           /* BMW_EDGERING */
+	&bmw_EdgeboundaryWalker_Type,       /* BMW_EDGEBOUNDARY */
 	&bmw_UVEdgeWalker_Type,             /* BMW_LOOPDATA_ISLAND */
 	&bmw_IslandboundWalker_Type,        /* BMW_ISLANDBOUND */
 	&bmw_IslandWalker_Type,             /* BMW_ISLAND */
 	&bmw_ConnectedVertexWalker_Type,    /* BMW_CONNECTED_VERTEX */
 };
 
-const int bm_totwalkers = sizeof(bm_walker_types) / sizeof(*bm_walker_types);
+const int bm_totwalkers = ARRAY_SIZE(bm_walker_types);

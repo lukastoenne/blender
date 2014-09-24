@@ -829,7 +829,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 				for (i = 0; i < 3; i++) {
 					if ( (ob->dsize[i] == 0.0f) || /* simple case, user never touched dsize */
 					     (ob->size[i]  == 0.0f))   /* cant scale the dsize to give a non zero result,
-					                                  so fallback to 1.0f */
+					                                * so fallback to 1.0f */
 					{
 						ob->dscale[i] = 1.0f;
 					}
@@ -1198,7 +1198,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 					if (sl->spacetype == SPACE_CLIP) {
 						SpaceClip *sclip = (SpaceClip *)sl;
 						ARegion *ar;
-						int hide = FALSE;
+						bool hide = false;
 
 						for (ar = sa->regionbase.first; ar; ar = ar->next) {
 							if (ar->regiontype == RGN_TYPE_PREVIEW) {
@@ -1207,7 +1207,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 									ar->v2d.flag &= ~V2D_IS_INITIALISED;
 									ar->alignment = RGN_ALIGN_NONE;
 
-									hide = TRUE;
+									hide = true;
 								}
 							}
 						}
@@ -1530,7 +1530,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 19)) {
 		Scene *scene;
 		Image *ima;
-		int colormanagement_disabled = FALSE;
+		bool colormanagement_disabled = false;
 
 		/* make scenes which are not using color management have got None as display device,
 		 * so they wouldn't perform linear-to-sRGB conversion on display
@@ -1544,7 +1544,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 
 				}
 
-				colormanagement_disabled = TRUE;
+				colormanagement_disabled = true;
 			}
 		}
 
@@ -2454,9 +2454,9 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 					if (sl->spacetype == SPACE_OUTLINER) {
 						SpaceOops *so = (SpaceOops *)sl;
 
-						if (!ELEM11(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
-						                            SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
-						                            SO_USERDEF))
+						if (!ELEM(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
+						                          SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
+						                          SO_USERDEF))
 						{
 							so->outlinevis = SO_ALL_SCENES;
 						}
@@ -2704,61 +2704,6 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 					}
 				}
 			}
-		}
-	}
-
-	if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "float", "profile")) {
-		Object *ob;
-
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			ModifierData *md;
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Bevel) {
-					BevelModifierData *bmd = (BevelModifierData *)md;
-					bmd->profile = 0.5f;
-					bmd->val_flags = MOD_BEVEL_AMT_OFFSET;
-				}
-			}
-		}
-	}
-
-	{
-		/* nodes don't use fixed node->id any more, clean up */
-		FOREACH_NODETREE(main, ntree, id) {
-			if (ntree->type == NTREE_COMPOSIT) {
-				bNode *node;
-				for (node = ntree->nodes.first; node; node = node->next) {
-					if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
-						node->id = NULL;
-					}
-				}
-			}
-		} FOREACH_NODETREE_END
-
-		{
-			bScreen *screen;
-
-			for (screen = main->screen.first; screen; screen = screen->id.next) {
-				ScrArea *area;
-				for (area = screen->areabase.first; area; area = area->next) {
-					SpaceLink *space_link;
-					for (space_link = area->spacedata.first; space_link; space_link = space_link->next) {
-						if (space_link->spacetype == SPACE_CLIP) {
-							SpaceClip *space_clip = (SpaceClip *) space_link;
-							if (space_clip->mode != SC_MODE_MASKEDIT) {
-								space_clip->mode = SC_MODE_TRACKING;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingSettings", "float", "default_weight")) {
-		MovieClip *clip;
-		for (clip = main->movieclip.first; clip; clip = clip->id.next) {
-			clip->tracking.settings.default_weight = 1.0f;
 		}
 	}
 }

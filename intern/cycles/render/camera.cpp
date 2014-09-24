@@ -38,14 +38,16 @@ Camera::Camera()
 	motion.post = transform_identity();
 	use_motion = false;
 
+	aperture_ratio = 1.0f;
+
 	type = CAMERA_PERSPECTIVE;
 	panorama_type = PANORAMA_EQUIRECTANGULAR;
 	fisheye_fov = M_PI_F;
 	fisheye_lens = 10.5f;
 	fov = M_PI_4_F;
 
-	sensorwidth = 0.036;
-	sensorheight = 0.024;
+	sensorwidth = 0.036f;
+	sensorheight = 0.024f;
 
 	nearclip = 1e-5f;
 	farclip = 1e5f;
@@ -241,6 +243,9 @@ void Camera::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	/* type */
 	kcam->type = type;
 
+	/* anamorphic lens bokeh */
+	kcam->inv_aperture_ratio = 1.0f / aperture_ratio;
+
 	/* panorama */
 	kcam->panorama_type = panorama_type;
 	kcam->fisheye_fov = fisheye_fov;
@@ -291,6 +296,7 @@ bool Camera::modified(const Camera& cam)
 		(viewplane == cam.viewplane) &&
 		(border == cam.border) &&
 		(matrix == cam.matrix) &&
+		(aperture_ratio == cam.aperture_ratio) &&
 		(panorama_type == cam.panorama_type) &&
 		(fisheye_fov == cam.fisheye_fov) &&
 		(fisheye_lens == cam.fisheye_lens));

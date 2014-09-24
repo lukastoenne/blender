@@ -30,7 +30,6 @@
 //#define NDOF_WALK_DRAW_TOOMUCH  /* is this needed for ndof? - commented so redraw doesnt thrash - campbell */
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
-#include "DNA_camera_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -57,12 +56,12 @@
 
 #include "PIL_time.h" /* smoothview */
 
+#include "UI_resources.h"
+
 #include "view3d_intern.h"  /* own include */
 
-#define EARTH_GRAVITY 9.80668f /* m/s2 */
-
 /* prototypes */
-static float getVelocityZeroTime(float velocity);
+static float getVelocityZeroTime(const float gravity, const float velocity);
 
 /* NOTE: these defines are saved in keymap files, do not change values but just add new ones */
 enum {
@@ -279,7 +278,8 @@ typedef struct WalkInfo {
 	bool is_reversed;
 
 	/* gravity system */
-	eWalkGravityState gravity;
+	eWalkGravityState gravity_state;
+	float gravity;
 
 	/* height to use in walk mode */
 	float view_height;
@@ -315,8 +315,7 @@ static void drawWalkPixel(const struct bContext *UNUSED(C), ARegion *ar, void *a
 		yoff = walk->ar->winy / 2;
 	}
 
-	cpack(0);
-
+	UI_ThemeColor(TH_VIEW_OVERLAY);
 	glBegin(GL_LINES);
 	/* North */
 	glVertex2i(xoff, yoff + inner_length);
@@ -360,20 +359,20 @@ static void walk_navigation_mode_set(bContext *C, WalkInfo *walk, eWalkMethod mo
 {
 	if (mode == WALK_MODE_FREE) {
 		walk->navigation_mode = WALK_MODE_FREE;
-		walk->gravity = WALK_GRAVITY_STATE_OFF;
+		walk->gravity_state = WALK_GRAVITY_STATE_OFF;
 	}
 	else { /* WALK_MODE_GRAVITY */
 		walk->navigation_mode = WALK_MODE_GRAVITY;
-		walk->gravity = WALK_GRAVITY_STATE_START;
+		walk->gravity_state = WALK_GRAVITY_STATE_START;
 	}
 
 	walk_update_header(C, walk);
 }
 
 /**
- * \param ray_distance  Distance to the hit point
+ * \param r_distance  Distance to the hit point
  */
-static bool walk_floor_distance_get(bContext *C, RegionView3D *rv3d, WalkInfo *walk, float dvec[3], float *ray_distance)
+static bool walk_floor_distance_get(bContext *C, RegionView3D *rv3d, WalkInfo *walk, const float dvec[3], float *r_distance)
 {
 	float dummy_dist_px = 0;
 	float ray_normal[3] = {0, 0, -1}; /* down */
@@ -383,22 +382,20 @@ static bool walk_floor_distance_get(bContext *C, RegionView3D *rv3d, WalkInfo *w
 	float dvec_tmp[3];
 	bool ret;
 
-	*ray_distance = TRANSFORM_DIST_MAX_RAY;
+	*r_distance = TRANSFORM_DIST_MAX_RAY;
 
 	copy_v3_v3(ray_start, rv3d->viewinv[3]);
 
-	if (dvec) {
-		mul_v3_v3fl(dvec_tmp, dvec, walk->grid);
-		add_v3_v3(ray_start, dvec_tmp);
-	}
+	mul_v3_v3fl(dvec_tmp, dvec, walk->grid);
+	add_v3_v3(ray_start, dvec_tmp);
 
 	ret = snapObjectsRayEx(CTX_data_scene(C), NULL, NULL, NULL, NULL, SCE_SNAP_MODE_FACE,
 	                       NULL, NULL,
-	                       ray_start, ray_normal, ray_distance,
+	                       ray_start, ray_normal, r_distance,
 	                       NULL, &dummy_dist_px, r_location, r_normal, SNAP_ALL);
 
 	/* artifically scale the distance to the scene size */
-	*ray_distance /= walk->grid;
+	*r_distance /= walk->grid;
 	return ret;
 }
 
@@ -512,7 +509,14 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 	walk->speed = U.walk_navigation.walk_speed;
 	walk->speed_factor = U.walk_navigation.walk_speed_factor;
 
-	walk->gravity = WALK_GRAVITY_STATE_OFF;
+	walk->gravity_state = WALK_GRAVITY_STATE_OFF;
+
+	if ((walk->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY)) {
+		walk->gravity = fabsf(walk->scene->physics_settings.gravity[2]);
+	}
+	else {
+		walk->gravity = 9.80668f; /* m/s2 */
+	}
 
 	walk->is_reversed = ((U.walk_navigation.flag & USER_WALK_MOUSE_REVERSE) != 0);
 
@@ -534,7 +538,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 	walk->rv3d->rflag |= RV3D_NAVIGATING;
 
 
-	walk->v3d_camera_control = ED_view3d_cameracontrol_aquire(
+	walk->v3d_camera_control = ED_view3d_cameracontrol_acquire(
 	        walk->scene, walk->v3d, walk->rv3d,
 	        (U.uiflag & USER_CAM_LOCK_NO_PARENT) == 0);
 
@@ -544,7 +548,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 
 	copy_v2_v2_int(walk->prev_mval, walk->center_mval);
 
-	WM_cursor_warp(CTX_wm_window(C),
+	WM_cursor_warp(win,
 	               walk->ar->winrct.xmin + walk->center_mval[0],
 	               walk->ar->winrct.ymin + walk->center_mval[1]);
 
@@ -757,10 +761,10 @@ static void walkEvent(bContext *C, wmOperator *UNUSED(op), WalkInfo *walk, const
 
 #define JUMP_SPEED_MIN 1.0f
 #define JUMP_TIME_MAX 0.2f /* s */
-#define JUMP_SPEED_MAX sqrtf(2.0f * EARTH_GRAVITY * walk->jump_height)
+#define JUMP_SPEED_MAX sqrtf(2.0f * walk->gravity * walk->jump_height)
 
 			case WALK_MODAL_JUMP_STOP:
-				if (walk->gravity == WALK_GRAVITY_STATE_JUMP) {
+				if (walk->gravity_state == WALK_GRAVITY_STATE_JUMP) {
 					float t;
 
 					/* delta time */
@@ -771,21 +775,21 @@ static void walkEvent(bContext *C, wmOperator *UNUSED(op), WalkInfo *walk, const
 					walk->speed_jump = JUMP_SPEED_MIN + t * (JUMP_SPEED_MAX - JUMP_SPEED_MIN) / JUMP_TIME_MAX;
 
 					/* when jumping, duration is how long it takes before we start going down */
-					walk->teleport.duration = getVelocityZeroTime(walk->speed_jump);
+					walk->teleport.duration = getVelocityZeroTime(walk->gravity, walk->speed_jump);
 
 					/* no more increase of jump speed */
-					walk->gravity = WALK_GRAVITY_STATE_ON;
+					walk->gravity_state = WALK_GRAVITY_STATE_ON;
 				}
 				break;
 			case WALK_MODAL_JUMP:
 				if ((walk->navigation_mode == WALK_MODE_GRAVITY) &&
-				    (walk->gravity == WALK_GRAVITY_STATE_OFF) &&
+				    (walk->gravity_state == WALK_GRAVITY_STATE_OFF) &&
 				    (walk->teleport.state == WALK_TELEPORT_STATE_OFF))
 				{
 					/* no need to check for ground,
 					 * walk->gravity wouldn't be off
 					 * if we were over a hole */
-					walk->gravity = WALK_GRAVITY_STATE_JUMP;
+					walk->gravity_state = WALK_GRAVITY_STATE_JUMP;
 					walk->speed_jump = JUMP_SPEED_MAX;
 
 					walk->teleport.initial_time = PIL_check_seconds_timer();
@@ -795,7 +799,7 @@ static void walkEvent(bContext *C, wmOperator *UNUSED(op), WalkInfo *walk, const
 					copy_v2_v2(walk->teleport.direction, walk->dvec_prev);
 
 					/* when jumping, duration is how long it takes before we start going down */
-					walk->teleport.duration = getVelocityZeroTime(walk->speed_jump);
+					walk->teleport.duration = getVelocityZeroTime(walk->gravity, walk->speed_jump);
 				}
 
 				break;
@@ -855,14 +859,14 @@ static void walkMoveCamera(bContext *C, WalkInfo *walk,
 	ED_view3d_cameracontrol_update(walk->v3d_camera_control, true, C, do_rotate, do_translate);
 }
 
-static float getFreeFallDistance(const float time)
+static float getFreeFallDistance(const float gravity, const float time)
 {
-	return EARTH_GRAVITY * (time * time) * 0.5f;
+	return gravity * (time * time) * 0.5f;
 }
 
-static float getVelocityZeroTime(float velocity)
+static float getVelocityZeroTime(const float gravity, const float velocity)
 {
-	return velocity / EARTH_GRAVITY;
+	return velocity / gravity;
 }
 
 static int walkApply(bContext *C, WalkInfo *walk)
@@ -912,7 +916,7 @@ static int walkApply(bContext *C, WalkInfo *walk)
 		if ((walk->active_directions) ||
 		    moffset[0] || moffset[1] ||
 		    walk->teleport.state == WALK_TELEPORT_STATE_ON ||
-		    walk->gravity != WALK_GRAVITY_STATE_OFF)
+		    walk->gravity_state != WALK_GRAVITY_STATE_OFF)
 		{
 			float dvec_tmp[3];
 
@@ -957,7 +961,7 @@ static int walkApply(bContext *C, WalkInfo *walk)
 
 					/* clamp the angle limits */
 					/* it ranges from 90.0f to -90.0f */
-					angle = -asin(rv3d->viewmat[2][2]);
+					angle = -asinf(rv3d->viewmat[2][2]);
 
 					if (angle > WALK_TOP_LIMIT && y > 0.0f)
 						y = 0.0f;
@@ -1002,7 +1006,7 @@ static int walkApply(bContext *C, WalkInfo *walk)
 
 			/* WASD - 'move' translation code */
 			if ((walk->active_directions) &&
-			    (walk->gravity == WALK_GRAVITY_STATE_OFF))
+			    (walk->gravity_state == WALK_GRAVITY_STATE_OFF))
 			{
 
 				short direction;
@@ -1078,7 +1082,7 @@ static int walkApply(bContext *C, WalkInfo *walk)
 
 			/* stick to the floor */
 			if (walk->navigation_mode == WALK_MODE_GRAVITY &&
-			    ELEM(walk->gravity,
+			    ELEM(walk->gravity_state,
 			         WALK_GRAVITY_STATE_OFF,
 			         WALK_GRAVITY_STATE_START))
 			{
@@ -1095,7 +1099,7 @@ static int walkApply(bContext *C, WalkInfo *walk)
 				}
 
 				/* the distance we would fall naturally smoothly enough that we
-				   can manually drop the object without activating gravity */
+				 * can manually drop the object without activating gravity */
 				fall_distance = time_redraw * walk->speed * WALK_BOOST_FACTOR;
 
 				if (fabsf(difference) < fall_distance) {
@@ -1103,13 +1107,13 @@ static int walkApply(bContext *C, WalkInfo *walk)
 					dvec[2] -= difference;
 
 					/* in case we switched from FREE to GRAVITY too close to the ground */
-					if (walk->gravity == WALK_GRAVITY_STATE_START)
-						walk->gravity = WALK_GRAVITY_STATE_OFF;
+					if (walk->gravity_state == WALK_GRAVITY_STATE_START)
+						walk->gravity_state = WALK_GRAVITY_STATE_OFF;
 				}
 				else {
 					/* hijack the teleport variables */
 					walk->teleport.initial_time = PIL_check_seconds_timer();
-					walk->gravity = WALK_GRAVITY_STATE_ON;
+					walk->gravity_state = WALK_GRAVITY_STATE_ON;
 					walk->teleport.duration = 0.0f;
 
 					copy_v3_v3(walk->teleport.origin, walk->rv3d->viewinv[3]);
@@ -1119,9 +1123,9 @@ static int walkApply(bContext *C, WalkInfo *walk)
 			}
 
 			/* Falling or jumping) */
-			if (ELEM(walk->gravity, WALK_GRAVITY_STATE_ON, WALK_GRAVITY_STATE_JUMP)) {
+			if (ELEM(walk->gravity_state, WALK_GRAVITY_STATE_ON, WALK_GRAVITY_STATE_JUMP)) {
 				float t;
-				float z_old, z_new;
+				float z_cur, z_new;
 				bool ret;
 				float ray_distance, difference = -100.0f;
 
@@ -1131,16 +1135,15 @@ static int walkApply(bContext *C, WalkInfo *walk)
 				/* keep moving if we were moving */
 				copy_v2_v2(dvec, walk->teleport.direction);
 
-				z_old = walk->rv3d->viewinv[3][2];
-				z_new = walk->teleport.origin[2] - getFreeFallDistance(t) * walk->grid;
+				z_cur = walk->rv3d->viewinv[3][2];
+				z_new = walk->teleport.origin[2] - getFreeFallDistance(walk->gravity, t) * walk->grid;
 
 				/* jump */
 				z_new += t * walk->speed_jump * walk->grid;
 
-				dvec[2] = z_old - z_new;
-
 				/* duration is the jump duration */
 				if (t > walk->teleport.duration) {
+
 					/* check to see if we are landing */
 					ret = walk_floor_distance_get(C, rv3d, walk, dvec, &ray_distance);
 
@@ -1148,12 +1151,20 @@ static int walkApply(bContext *C, WalkInfo *walk)
 						difference = walk->view_height - ray_distance;
 					}
 
-					if (ray_distance < walk->view_height) {
-						/* quit falling */
+					if (difference > 0.0f) {
+						/* quit falling, lands at "view_height" from the floor */
 						dvec[2] -= difference;
-						walk->gravity = WALK_GRAVITY_STATE_OFF;
+						walk->gravity_state = WALK_GRAVITY_STATE_OFF;
 						walk->speed_jump = 0.0f;
 					}
+					else {
+						/* keep falling */
+						dvec[2] = z_cur - z_new;
+					}
+				}
+				else {
+					/* keep going up (jump) */
+					dvec[2] = z_cur - z_new;
 				}
 			}
 
@@ -1329,5 +1340,3 @@ void VIEW3D_OT_walk(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_BLOCKING;
 }
-
-#undef EARTH_GRAVITY

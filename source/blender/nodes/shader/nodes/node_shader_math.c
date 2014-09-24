@@ -74,25 +74,25 @@ static void node_shader_exec_math(void *UNUSED(data), int UNUSED(thread), bNode 
 		case 4: /* Sine */
 		{
 			if (in[0]->hasinput || !in[1]->hasinput)  /* This one only takes one input, so we've got to choose. */
-				r = sin(a);
+				r = sinf(a);
 			else
-				r = sin(b);
+				r = sinf(b);
 			break;
 		}
 		case 5: /* Cosine */
 		{
 			if (in[0]->hasinput || !in[1]->hasinput)  /* This one only takes one input, so we've got to choose. */
-				r = cos(a);
+				r = cosf(a);
 			else
-				r = cos(b);
+				r = cosf(b);
 			break;
 		}
 		case 6: /* Tangent */
 		{
 			if (in[0]->hasinput || !in[1]->hasinput)  /* This one only takes one input, so we've got to choose. */
-				r = tan(a);
+				r = tanf(a);
 			else
-				r = tan(b);
+				r = tanf(b);
 			break;
 		}
 		case 7: /* Arc-Sine */
@@ -100,14 +100,14 @@ static void node_shader_exec_math(void *UNUSED(data), int UNUSED(thread), bNode 
 			if (in[0]->hasinput || !in[1]->hasinput) { /* This one only takes one input, so we've got to choose. */
 				/* Can't do the impossible... */
 				if (a <= 1 && a >= -1)
-					r = asin(a);
+					r = asinf(a);
 				else
 					r = 0.0;
 			}
 			else {
 				/* Can't do the impossible... */
 				if (b <= 1 && b >= -1)
-					r = asin(b);
+					r = asinf(b);
 				else
 					r = 0.0;
 			}
@@ -118,14 +118,14 @@ static void node_shader_exec_math(void *UNUSED(data), int UNUSED(thread), bNode 
 			if (in[0]->hasinput || !in[1]->hasinput) { /* This one only takes one input, so we've got to choose. */
 				/* Can't do the impossible... */
 				if (a <= 1 && a >= -1)
-					r = acos(a);
+					r = acosf(a);
 				else
 					r = 0.0;
 			}
 			else {
 				/* Can't do the impossible... */
 				if (b <= 1 && b >= -1)
-					r = acos(b);
+					r = acosf(b);
 				else
 					r = 0.0;
 			}
@@ -216,6 +216,11 @@ static void node_shader_exec_math(void *UNUSED(data), int UNUSED(thread), bNode 
 				r = fmod(a, b);
 			break;
 		}
+		case 18: /* Absolute */
+		{
+			r = fabsf(a);
+			break;
+		}
 	}
 	
 	out[0]->vec[0] = r;
@@ -226,7 +231,7 @@ static int gpu_shader_math(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(
 	static const char *names[] = {"math_add", "math_subtract", "math_multiply",
 		                          "math_divide", "math_sine", "math_cosine", "math_tangent", "math_asin",
 		                          "math_acos", "math_atan", "math_pow", "math_log", "math_min", "math_max",
-		                          "math_round", "math_less_than", "math_greater_than", "math_modulo"};
+                                  "math_round", "math_less_than", "math_greater_than", "math_modulo", "math_absolute"};
 
 	switch (node->custom1) {
 		case 0:
@@ -279,7 +284,7 @@ void register_node_type_sh_math(void)
 	node_type_compatibility(&ntype, NODE_OLD_SHADING | NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_math_in, sh_node_math_out);
 	node_type_label(&ntype, node_math_label);
-	node_type_storage(&ntype, "node_math", NULL, NULL);
+	node_type_storage(&ntype, "", NULL, NULL);
 	node_type_exec(&ntype, NULL, NULL, node_shader_exec_math);
 	node_type_gpu(&ntype, gpu_shader_math);
 

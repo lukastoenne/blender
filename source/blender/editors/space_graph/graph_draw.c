@@ -32,26 +32,16 @@
 #include <string.h>
 #include <float.h>
 
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
-
-
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
-#include "BKE_curve.h"
 #include "BKE_fcurve.h"
 
 
@@ -215,7 +205,7 @@ static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2
 	
 	/* get view settings */
 	hsize = UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE) * U.pixelsize;
-	UI_view2d_getscale(v2d, &xscale, &yscale);
+	UI_view2d_scale_get(v2d, &xscale, &yscale);
 
 	/* Compensate OGL scale sued for unit mapping, so circle will be circle, not ellipse */
 	yscale *= units_scale;
@@ -345,7 +335,7 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 	for (sel = 0; sel < 2; sel++) {
 		BezTriple *bezt = fcu->bezt, *prevbezt = NULL;
 		int basecol = (sel) ? TH_HANDLE_SEL_FREE : TH_HANDLE_FREE;
-		float *fp;
+		const float *fp;
 		unsigned char col[4];
 		
 		for (b = 0; b < fcu->totvert; b++, prevbezt = bezt, bezt++) {
@@ -456,7 +446,7 @@ static void draw_fcurve_samples(SpaceIpo *sipo, ARegion *ar, FCurve *fcu)
 	
 	/* get view settings */
 	hsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
-	UI_view2d_getscale(&ar->v2d, &xscale, &yscale);
+	UI_view2d_scale_get(&ar->v2d, &xscale, &yscale);
 	
 	/* set vertex color */
 	if (fcu->flag & (FCURVE_ACTIVE | FCURVE_SELECTED)) UI_ThemeColor(TH_TEXT_HI);
@@ -486,11 +476,12 @@ static void draw_fcurve_samples(SpaceIpo *sipo, ARegion *ar, FCurve *fcu)
 static void draw_fcurve_curve(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d, View2DGrid *grid)
 {
 	ChannelDriver *driver;
-	float samplefreq, ctime;
+	float samplefreq;
 	float stime, etime;
 	float unitFac;
 	float dx, dy;
 	short mapping_flag = ANIM_get_normalization_flags(ac);
+	int i, n;
 
 	/* when opening a blend file on a different sized screen or while dragging the toolbar this can happen
 	 * best just bail out in this case */
@@ -534,10 +525,12 @@ static void draw_fcurve_curve(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d
 	 *	  the displayed values appear correctly in the viewport
 	 */
 	glBegin(GL_LINE_STRIP);
-	
-	for (ctime = stime; ctime <= etime; ctime += samplefreq)
+
+	for (i = 0, n = (etime - stime) / samplefreq + 0.5f; i < n; ++i) {
+		float ctime = stime + i * samplefreq;
 		glVertex2f(ctime, evaluate_fcurve(fcu, ctime) * unitFac);
-	
+	}
+
 	glEnd();
 	
 	/* restore driver */
@@ -571,7 +564,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 			v[1] = prevfpt->vec[1];
 		}
 		else {
-			/* extrapolate linear dosnt use the handle, use the next points center instead */
+			/* extrapolate linear doesn't use the handle, use the next points center instead */
 			fac = (prevfpt->vec[0] - fpt->vec[0]) / (prevfpt->vec[0] - v[0]);
 			if (fac) fac = 1.0f / fac;
 			v[1] = prevfpt->vec[1] - fac * (prevfpt->vec[1] - fpt->vec[1]);
@@ -609,7 +602,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 			v[1] = prevfpt->vec[1];
 		}
 		else {
-			/* extrapolate linear dosnt use the handle, use the previous points center instead */
+			/* extrapolate linear doesn't use the handle, use the previous points center instead */
 			fpt = prevfpt - 1;
 			fac = (prevfpt->vec[0] - fpt->vec[0]) / (prevfpt->vec[0] - v[0]);
 			if (fac) fac = 1.0f / fac;
@@ -623,6 +616,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	glPopMatrix();
 }
 
+#if 0
 /* helper func - draw one repeat of an F-Curve */
 static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d)
 {
@@ -778,7 +772,8 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	
 	glEnd();
 	glPopMatrix();
-} 
+}
+#endif
 
 /* Debugging -------------------------------- */
 
@@ -995,7 +990,8 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			else if (((fcu->bezt) || (fcu->fpt)) && (fcu->totvert)) {
 				/* just draw curve based on defined data (i.e. no modifiers) */
 				if (fcu->bezt)
-					draw_fcurve_curve_bezts(ac, ale->id, fcu, &ar->v2d);
+					//draw_fcurve_curve_bezts(ac, ale->id, fcu, &ar->v2d);
+					draw_fcurve_curve(ac, ale->id, fcu, &ar->v2d, grid);  // XXX: better to do an optimised integration here instead, but for now, this works
 				else if (fcu->fpt)
 					draw_fcurve_curve_samples(ac, ale->id, fcu, &ar->v2d);
 			}
@@ -1030,7 +1026,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 				glScalef(1.0f, unit_scale, 1.0f);
 
 				if (fcu->bezt) {
-					int do_handles = draw_fcurve_handles_check(sipo, fcu);
+					bool do_handles = draw_fcurve_handles_check(sipo, fcu);
 					
 					if (do_handles) {
 						/* only draw handles/vertices on keyframes */
@@ -1061,7 +1057,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 	}
 	
 	/* free list of curves */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ************************************************************************* */
@@ -1146,5 +1142,5 @@ void graph_draw_channel_names(bContext *C, bAnimContext *ac, ARegion *ar)
 	}
 	
 	/* free tempolary channels */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }

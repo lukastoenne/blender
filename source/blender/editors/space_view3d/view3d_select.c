@@ -66,7 +66,6 @@
 #include "BKE_depsgraph.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
-#include "BKE_movieclip.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
@@ -97,6 +96,11 @@
 #include "UI_resources.h"
 
 #include "view3d_intern.h"  /* own include */
+
+float ED_view3d_select_dist_px(void)
+{
+	return 75.0f * U.pixelsize;
+}
 
 /* TODO: should return whether there is valid context to continue */
 void view3d_set_viewcontext(bContext *C, ViewContext *vc)
@@ -568,8 +572,10 @@ static void do_lasso_select_curve(ViewContext *vc, const int mcords[][2], short 
 
 	view3d_userdata_lassoselect_init(&data, vc, &rect, mcords, moves, select);
 
-	if (extend == false && select)
-		ED_curve_deselect_all(vc->obedit->data);
+	if (extend == false && select) {
+		Curve *curve = (Curve *) vc->obedit->data;
+		ED_curve_deselect_all(curve->editnurb);
+	}
 
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 	nurbs_foreachScreenVert(vc, do_lasso_select_curve__doSelect, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
@@ -1059,7 +1065,7 @@ void VIEW3D_OT_select_menu(wmOperatorType *ot)
 	/* keyingset to use (dynamic enum) */
 	prop = RNA_def_enum(ot->srna, "name", DummyRNA_NULL_items, 0, "Object Name", "");
 	RNA_def_enum_funcs(prop, object_select_menu_enum_itemf);
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 
 	RNA_def_boolean(ot->srna, "toggle", 0, "Toggle", "Toggle selection instead of deselecting everything first");
@@ -1134,18 +1140,19 @@ static Base *object_mouse_select_menu(bContext *C, ViewContext *vc, unsigned int
 		for (node = linklist, i = 0; node; node = node->next, i++) {
 			Base *base = node->link;
 			Object *ob = base->object;
-			char *name = ob->id.name + 2;
+			const char *name = ob->id.name + 2;
 
 			BLI_strncpy(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
 			object_mouse_select_menu_data[i].icon = uiIconFromID(&ob->id);
 		}
 
 		{
+			wmOperatorType *ot = WM_operatortype_find("VIEW3D_OT_select_menu", false);
 			PointerRNA ptr;
 
-			WM_operator_properties_create(&ptr, "VIEW3D_OT_select_menu");
+			WM_operator_properties_create_ptr(&ptr, ot);
 			RNA_boolean_set(&ptr, "toggle", toggle);
-			WM_operator_name_call(C, "VIEW3D_OT_select_menu", WM_OP_INVOKE_DEFAULT, &ptr);
+			WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr);
 			WM_operator_properties_free(&ptr);
 		}
 
@@ -1174,28 +1181,45 @@ static short selectbuffer_ret_hits_15(unsigned int *UNUSED(buffer), const short 
 static short selectbuffer_ret_hits_9(unsigned int *buffer, const short hits15, const short hits9)
 {
 	const int offs = 4 * hits15;
-	memcpy(buffer, buffer + offs, 4 * offs);
+	memcpy(buffer, buffer + offs, 4 * hits9);
 	return hits9;
 }
 
 static short selectbuffer_ret_hits_5(unsigned int *buffer, const short hits15, const short hits9, const short hits5)
 {
 	const int offs = 4 * hits15 + 4 * hits9;
-	memcpy(buffer, buffer + offs, 4 * offs);
+	memcpy(buffer, buffer + offs, 4 * hits5);
 	return hits5;
 }
 
 /* we want a select buffer with bones, if there are... */
 /* so check three selection levels and compare */
-static short mixed_bones_object_selectbuffer(ViewContext *vc, unsigned int *buffer, const int mval[2])
+static short mixed_bones_object_selectbuffer(ViewContext *vc, unsigned int *buffer, const int mval[2], bool *p_do_nearest, bool enumerate)
 {
 	rcti rect;
 	int offs;
 	short hits15, hits9 = 0, hits5 = 0;
 	bool has_bones15 = false, has_bones9 = false, has_bones5 = false;
-	
+	static int last_mval[2] = {-100, -100};
+	bool do_nearest = false;
+	View3D *v3d = vc->v3d;
+
+	/* define if we use solid nearest select or not */
+	if (v3d->drawtype > OB_WIRE) {
+		do_nearest = true;
+		if (len_manhattan_v2v2_int(mval, last_mval) < 3) {
+			do_nearest = false;
+		}
+	}
+	copy_v2_v2_int(last_mval, mval);
+
+	if (p_do_nearest)
+		*p_do_nearest = do_nearest;
+
+	do_nearest = do_nearest && !enumerate;
+
 	BLI_rcti_init(&rect, mval[0] - 14, mval[0] + 14, mval[1] - 14, mval[1] + 14);
-	hits15 = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect);
+	hits15 = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect, do_nearest);
 	if (hits15 == 1) {
 		return selectbuffer_ret_hits_15(buffer, hits15);
 	}
@@ -1204,7 +1228,7 @@ static short mixed_bones_object_selectbuffer(ViewContext *vc, unsigned int *buff
 
 		offs = 4 * hits15;
 		BLI_rcti_init(&rect, mval[0] - 9, mval[0] + 9, mval[1] - 9, mval[1] + 9);
-		hits9 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect);
+		hits9 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect, do_nearest);
 		if (hits9 == 1) {
 			return selectbuffer_ret_hits_9(buffer, hits15, hits9);
 		}
@@ -1213,7 +1237,7 @@ static short mixed_bones_object_selectbuffer(ViewContext *vc, unsigned int *buff
 
 			offs += 4 * hits9;
 			BLI_rcti_init(&rect, mval[0] - 5, mval[0] + 5, mval[1] - 5, mval[1] + 5);
-			hits5 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect);
+			hits5 = view3d_opengl_select(vc, buffer + offs, MAXPICKBUF - offs, &rect, do_nearest);
 			if (hits5 == 1) {
 				return selectbuffer_ret_hits_5(buffer, hits15, hits9, hits5);
 			}
@@ -1235,25 +1259,13 @@ static short mixed_bones_object_selectbuffer(ViewContext *vc, unsigned int *buff
 }
 
 /* returns basact */
-static Base *mouse_select_eval_buffer(ViewContext *vc, unsigned int *buffer, int hits, const int mval[2],
-                                      Base *startbase, bool has_bones)
+static Base *mouse_select_eval_buffer(ViewContext *vc, unsigned int *buffer, int hits,
+                                      Base *startbase, bool has_bones, bool do_nearest)
 {
 	Scene *scene = vc->scene;
 	View3D *v3d = vc->v3d;
 	Base *base, *basact = NULL;
-	static int lastmval[2] = {-100, -100};
 	int a;
-	bool do_nearest = false;
-	
-	/* define if we use solid nearest select or not */
-	if (v3d->drawtype > OB_WIRE) {
-		do_nearest = true;
-		if (ABS(mval[0] - lastmval[0]) < 3 && ABS(mval[1] - lastmval[1]) < 3) {
-			if (!has_bones) /* hrms, if theres bones we always do nearest */
-				do_nearest = false;
-		}
-	}
-	lastmval[0] = mval[0]; lastmval[1] = mval[1];
 	
 	if (do_nearest) {
 		unsigned int min = 0xFFFFFFFF;
@@ -1336,16 +1348,17 @@ Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2])
 	Base *basact = NULL;
 	unsigned int buffer[4 * MAXPICKBUF];
 	int hits;
+	bool do_nearest;
 	
 	/* setup view context for argument to callbacks */
 	view3d_operator_needs_opengl(C);
 	view3d_set_viewcontext(C, &vc);
 	
-	hits = mixed_bones_object_selectbuffer(&vc, buffer, mval);
+	hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, &do_nearest, false);
 	
 	if (hits > 0) {
 		const bool has_bones = selectbuffer_has_bones(buffer, hits);
-		basact = mouse_select_eval_buffer(&vc, buffer, hits, mval, vc.scene->base.first, has_bones);
+		basact = mouse_select_eval_buffer(&vc, buffer, hits, vc.scene->base.first, has_bones, do_nearest);
 	}
 	
 	return basact;
@@ -1380,8 +1393,8 @@ static bool mouse_select(bContext *C, const int mval[2],
 	Scene *scene = CTX_data_scene(C);
 	Base *base, *startbase = NULL, *basact = NULL, *oldbasact = NULL;
 	bool is_obedit;
-	float dist = 100.0f;
-	int retval = false;
+	float dist = ED_view3d_select_dist_px() * 1.3333f;
+	bool retval = false;
 	short hits;
 	const float mval_fl[2] = {(float)mval[0], (float)mval[1]};
 
@@ -1432,10 +1445,11 @@ static bool mouse_select(bContext *C, const int mval[2],
 	}
 	else {
 		unsigned int buffer[4 * MAXPICKBUF];
+		bool do_nearest;
 
 		/* if objects have posemode set, the bones are in the same selection buffer */
 		
-		hits = mixed_bones_object_selectbuffer(&vc, buffer, mval);
+		hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, &do_nearest, enumerate);
 		
 		if (hits > 0) {
 			/* note: bundles are handling in the same way as bones */
@@ -1446,7 +1460,7 @@ static bool mouse_select(bContext *C, const int mval[2],
 				basact = object_mouse_select_menu(C, &vc, buffer, hits, mval, toggle);
 			}
 			else {
-				basact = mouse_select_eval_buffer(&vc, buffer, hits, mval, startbase, has_bones);
+				basact = mouse_select_eval_buffer(&vc, buffer, hits, startbase, has_bones, do_nearest);
 			}
 			
 			if (has_bones && basact) {
@@ -1504,7 +1518,7 @@ static bool mouse_select(bContext *C, const int mval[2],
 						if (!changed) {
 							/* fallback to regular object selection if no new bundles were selected,
 							 * allows to select object parented to reconstruction object */
-							basact = mouse_select_eval_buffer(&vc, buffer, hits, mval, startbase, 0);
+							basact = mouse_select_eval_buffer(&vc, buffer, hits, startbase, 0, do_nearest);
 						}
 					}
 				}
@@ -1735,8 +1749,10 @@ static int do_nurbs_box_select(ViewContext *vc, rcti *rect, bool select, bool ex
 	
 	view3d_userdata_boxselect_init(&data, vc, rect, select);
 
-	if (extend == false && select)
-		ED_curve_deselect_all(vc->obedit->data);
+	if (extend == false && select) {
+		Curve *curve = (Curve *) vc->obedit->data;
+		ED_curve_deselect_all(curve->editnurb);
+	}
 
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 	nurbs_foreachScreenVert(vc, do_nurbs_box_select__doSelect, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
@@ -1864,7 +1880,7 @@ static int do_meta_box_select(ViewContext *vc, rcti *rect, bool select, bool ext
 	unsigned int buffer[4 * MAXPICKBUF];
 	short hits;
 
-	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect);
+	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect, false);
 
 	if (extend == false && select)
 		BKE_mball_deselect_all(mb);
@@ -1898,7 +1914,7 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 	unsigned int buffer[4 * MAXPICKBUF];
 	short hits;
 
-	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect);
+	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect, false);
 	
 	/* clear flag we use to detect point was affected */
 	for (ebone = arm->edbo->first; ebone; ebone = ebone->next)
@@ -1992,7 +2008,7 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, b
 
 	/* selection buffer now has bones potentially too, so we add MAXPICKBUF */
 	vbuffer = MEM_mallocN(4 * (totobj + MAXPICKBUF) * sizeof(unsigned int), "selection buffer");
-	hits = view3d_opengl_select(vc, vbuffer, 4 * (totobj + MAXPICKBUF), rect);
+	hits = view3d_opengl_select(vc, vbuffer, 4 * (totobj + MAXPICKBUF), rect, false);
 	/*
 	 * LOGIC NOTES (theeth):
 	 * The buffer and ListBase have the same relative order, which makes the selection
@@ -2120,7 +2136,7 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 	}
 	else {  /* no editmode, unified for bones and objects */
 		if (vc.obact && vc.obact->mode & OB_MODE_SCULPT) {
-			ret = do_sculpt_mask_box_select(&vc, &rect, select, extend);
+			ret = ED_sculpt_mask_box_select(C, &vc, &rect, select, extend);
 		}
 		else if (vc.obact && BKE_paint_select_face_test(vc.obact)) {
 			ret = do_paintface_box_select(&vc, &rect, select, extend);
@@ -2255,6 +2271,8 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
 			retval = mouse_nurb(C, location, extend, deselect, toggle);
 		else if (obedit->type == OB_MBALL)
 			retval = mouse_mball(C, location, extend, deselect, toggle);
+		else if (obedit->type == OB_FONT)
+			retval = mouse_font(C, location, extend, deselect, toggle);
 			
 	}
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT)
@@ -2831,6 +2849,6 @@ void VIEW3D_OT_select_circle(wmOperatorType *ot)
 	
 	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "radius", 0, INT_MIN, INT_MAX, "Radius", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "radius", 1, 1, INT_MAX, "Radius", "", 1, INT_MAX);
 	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Event Type", "", INT_MIN, INT_MAX);
 }

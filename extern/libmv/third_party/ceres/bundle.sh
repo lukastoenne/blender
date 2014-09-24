@@ -123,6 +123,7 @@ set(INC
 	.
 	include
 	internal
+	config
 	../gflags
 	../../
 )
@@ -174,59 +175,26 @@ if(WITH_OPENMP)
 	)
 endif()
 
-include(CheckIncludeFileCXX)
-CHECK_INCLUDE_FILE_CXX(unordered_map HAVE_STD_UNORDERED_MAP_HEADER)
+TEST_UNORDERED_MAP_SUPPORT()
 if(HAVE_STD_UNORDERED_MAP_HEADER)
-	# Even so we've found unordered_map header file it doesn't
-	# mean unordered_map and unordered_set will be declared in
-	# std namespace.
-	#
-	# Namely, MSVC 2008 have unordered_map header which declares
-	# unordered_map class in std::tr1 namespace. In order to support
-	# this, we do extra check to see which exactly namespace is
-	# to be used.
-
-	include(CheckCXXSourceCompiles)
-	CHECK_CXX_SOURCE_COMPILES("#include <unordered_map>
-	                          int main() {
-	                            std::unordered_map<int, int> map;
-	                            return 0;
-	                          }"
-	                          HAVE_UNURDERED_MAP_IN_STD_NAMESPACE)
-	if(HAVE_UNURDERED_MAP_IN_STD_NAMESPACE)
+	if(HAVE_UNORDERED_MAP_IN_STD_NAMESPACE)
 		add_definitions(-DCERES_STD_UNORDERED_MAP)
-		message(STATUS "Found unordered_map/set in std namespace.")
 	else()
-		CHECK_CXX_SOURCE_COMPILES("#include <unordered_map>
-		                          int main() {
-		                            std::tr1::unordered_map<int, int> map;
-		                            return 0;
-		                          }"
-		                          HAVE_UNURDERED_MAP_IN_TR1_NAMESPACE)
-		if(HAVE_UNURDERED_MAP_IN_TR1_NAMESPACE)
+		if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
 			add_definitions(-DCERES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
-			message(STATUS "Found unordered_map/set in std::tr1 namespace.")
 		else()
-			message(STATUS "Found <unordered_map> but cannot find either std::unordered_map "
-			        "or std::tr1::unordered_map.")
-			message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
 			add_definitions(-DCERES_NO_UNORDERED_MAP)
+			message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
 		endif()
 	endif()
 else()
-	CHECK_INCLUDE_FILE_CXX("tr1/unordered_map" UNORDERED_MAP_IN_TR1_NAMESPACE)
-	if(UNORDERED_MAP_IN_TR1_NAMESPACE)
+	if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
 		add_definitions(-DCERES_TR1_UNORDERED_MAP)
-		message(STATUS "Found unordered_map/set in std::tr1 namespace.")
 	else()
-		message(STATUS "Unable to find <unordered_map> or <tr1/unordered_map>. ")
-		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
 		add_definitions(-DCERES_NO_UNORDERED_MAP)
+		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
 	endif()
 endif()
-
-unset(HAVE_UNURDERED_MAP_IN_TR1_NAMESPACE)
-unset(HAVE_STD_UNORDERED_MAP_HEADER)
 
 blender_add_lib(extern_ceres "\${SRC}" "\${INC}" "\${INC_SYS}")
 EOF
@@ -261,38 +229,28 @@ defs.append('CERES_HAVE_RWLOCK')
 if env['WITH_BF_OPENMP']:
     defs.append('CERES_USE_OPENMP')
 
-conf = Configure(env)
-if conf.CheckCXXHeader("unordered_map"):
-    # Even so we've found unordered_map header file it doesn't
-    # mean unordered_map and unordered_set will be declared in
-    # std namespace.
-    #
-    # Namely, MSVC 2008 have unordered_map header which declares
-    # unordered_map class in std::tr1 namespace. In order to support
-    # this, we do extra check to see which exactly namespace is
-    # to be used.
-
-    if conf.CheckType('std::unordered_map<int, int>', language = 'CXX', includes="#include <unordered_map>"):
-        defs.append('CERES_STD_UNORDERED_MAP')
-        print("-- Found unordered_map/set in std namespace.")
-    elif conf.CheckType('std::tr1::unordered_map<int, int>', language = 'CXX', includes="#include <unordered_map>"):
-        defs.append('CERES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE')
-        print("-- Found unordered_map/set in std::tr1 namespace.")
-    else:
-        print("-- Found <unordered_map> but can not find neither std::unordered_map nor std::tr1::unordered_map.")
-        print("-- Replacing unordered_map/set with map/set (warning: slower!)")
-        defs.append('CERES_NO_UNORDERED_MAP')
-elif conf.CheckCXXHeader("tr1/unordered_map"):
-    defs.append('CERES_TR1_UNORDERED_MAP')
-    print("-- Found unordered_map/set in std::tr1 namespace.")
+if env['WITH_UNORDERED_MAP_SUPPORT']:
+    if env['UNORDERED_MAP_HEADER'] == 'unordered_map':
+        if env['UNORDERED_MAP_NAMESPACE'] == 'std':
+            defs.append('CERES_STD_UNORDERED_MAP')
+        elif env['UNORDERED_MAP_NAMESPACE'] == 'std::tr1':
+            defs.append('CERES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE')
+    elif env['UNORDERED_MAP_NAMESPACE'] == 'std::tr1':
+        defs.append('CERES_TR1_UNORDERED_MAP')
 else:
-    print("-- Unable to find <unordered_map> or <tr1/unordered_map>. ")
     print("-- Replacing unordered_map/set with map/set (warning: slower!)")
     defs.append('CERES_NO_UNORDERED_MAP')
 
-env = conf.Finish()
+if not env['WITH_SHARED_PTR_SUPPORT']:
+    print("-- Unable to find shared_ptr which is required for compilation.")
+    exit(1)
 
-incs = '. ../../ ../../../Eigen3 ./include ./internal ../gflags'
+if env['SHARED_PTR_HEADER'] == 'tr1/memory':
+    defs.append('CERES_TR1_MEMORY_HEADER')
+if env['SHARED_PTR_NAMESPACE'] == 'std::tr1':
+    defs.append('CERES_TR1_SHARED_PTR')
+
+incs = '. ../../ ../../../Eigen3 ./include ./internal ../gflags ./config'
 
 # work around broken hashtable in 10.5 SDK
 if env['OURPLATFORM'] == 'darwin' and env['WITH_BF_BOOST']:

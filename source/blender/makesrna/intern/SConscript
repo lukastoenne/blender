@@ -141,6 +141,9 @@ if env['WITH_BF_COLLADA']:
 if env['WITH_BF_CYCLES']:
     defs.append('WITH_CYCLES')
 
+if env['WITH_BF_FREESTYLE']:
+    defs.append('WITH_FREESTYLE')
+
 if env['OURPLATFORM'] == 'linux':
     cflags='-pthread'
 
@@ -211,10 +214,7 @@ if env['OURPLATFORM'] != 'linuxcross':
     else:
         rna.Command (generated_files, '', "\"" + root_build_dir+os.sep+"makesrna\" \""  + build_dir + '"' )
 else:
-    if USE_WINE:
-        rna.Command (generated_files, '', 'wine ' + root_build_dir+os.sep+"makesrna.exe "  + build_dir)
-    else:
-        rna.Command (generated_files, '', root_build_dir+os.sep+"makesrna.exe "  + build_dir)
+    rna.Command (generated_files, '', ('', 'wine ')[USE_WINE] + root_build_dir+os.sep+"makesrna.exe "  + build_dir)
 
 
 obj = ['intern/rna_access.c']

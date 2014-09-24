@@ -29,16 +29,15 @@
  *  \ingroup imbuf
  */
 
-
 #include <stdio.h>
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 #include "BLI_path_util.h"
 #include "BLI_fileops.h"
 #include "BLI_md5.h"
+#include "BLI_system.h"
+#include BLI_SYSTEM_PID_H
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -59,17 +58,27 @@
 #  endif
 #  include <shlobj.h>  /* for SHGetSpecialFolderPath, has to be done before BLI_winstuff
                         * because 'near' is disabled through BLI_windstuff */
-#  include <process.h> /* getpid */
 #  include <direct.h> /* chdir */
 #  include "BLI_winstuff.h"
 #  include "utfconv.h"
+#endif
+
+#if defined(WIN32) || defined(__APPLE__)
+   /* pass */
 #else
-#  include <unistd.h>
+#  define USE_FREEDESKTOP
+#endif
+
+/* '$HOME/.cache/thumbnails' or '$HOME/.thumbnails' */
+#ifdef USE_FREEDESKTOP
+#  define THUMBNAILS "thumbnails"
+#else
+#  define THUMBNAILS ".thumbnails"
 #endif
 
 #define URI_MAX (FILE_MAX * 3 + 8)
 
-static int get_thumb_dir(char *dir, ThumbSize size)
+static bool get_thumb_dir(char *dir, ThumbSize size)
 {
 	char *s = dir;
 	const char *subdir;
@@ -80,19 +89,30 @@ static int get_thumb_dir(char *dir, ThumbSize size)
 	conv_utf_16_to_8(dir_16, dir, FILE_MAX);
 	s += strlen(dir);
 #else
+#if defined(USE_FREEDESKTOP)
+	const char *home_cache = getenv("XDG_CACHE_HOME");
+	const char *home = home_cache ? home_cache : getenv("HOME");
+#else
 	const char *home = getenv("HOME");
+#endif
 	if (!home) return 0;
 	s += BLI_strncpy_rlen(s, home, FILE_MAX);
+
+#ifdef USE_FREEDESKTOP
+	if (!home_cache) {
+		s += BLI_strncpy_rlen(s, "/.cache", FILE_MAX - (s - dir));
+	}
+#endif
 #endif
 	switch (size) {
 		case THB_NORMAL:
-			subdir = "/.thumbnails/normal/";
+			subdir = "/" THUMBNAILS "/normal/";
 			break;
 		case THB_LARGE:
-			subdir = "/.thumbnails/large/";
+			subdir = "/" THUMBNAILS "/large/";
 			break;
 		case THB_FAIL:
-			subdir = "/.thumbnails/fail/blender/";
+			subdir = "/" THUMBNAILS "/fail/blender/";
 			break;
 		default:
 			return 0; /* unknown size */
@@ -103,6 +123,9 @@ static int get_thumb_dir(char *dir, ThumbSize size)
 
 	return 1;
 }
+
+#undef THUMBNAILS
+
 
 /** ----- begin of adapted code from glib ---
  * The following code is adapted from function g_escape_uri_string from the gnome glib
@@ -137,7 +160,7 @@ static const char hex[17] = "0123456789abcdef";
 
 /* Note: This escape function works on file: URIs, but if you want to
  * escape something else, please read RFC-2396 */
-static void escape_uri_string(const char *string, char *escaped_string, int len, UnsafeCharacterSet mask)
+static void escape_uri_string(const char *string, char *escaped_string, int escaped_string_size, UnsafeCharacterSet mask)
 {
 #define ACCEPTABLE(a) ((a) >= 32 && (a) < 128 && (acceptable[(a) - 32] & use_mask))
 
@@ -147,34 +170,31 @@ static void escape_uri_string(const char *string, char *escaped_string, int len,
 	UnsafeCharacterSet use_mask;
 	use_mask = mask;
 
-	for (q = escaped_string, p = string; (*p != '\0') && len; p++) {
+	BLI_assert(escaped_string_size > 0);
+
+	/* space for \0 */
+	escaped_string_size -= 1;
+
+	for (q = escaped_string, p = string; (*p != '\0') && escaped_string_size; p++) {
 		c = (unsigned char) *p;
-		len--;
 
 		if (!ACCEPTABLE(c)) {
+			if (escaped_string_size < 3) {
+				break;
+			}
+
 			*q++ = '%'; /* means hex coming */
 			*q++ = hex[c >> 4];
 			*q++ = hex[c & 15];
+			escaped_string_size -= 3;
 		}
 		else {
 			*q++ = *p;
+			escaped_string_size -= 1;
 		}
 	}
 
 	*q = '\0';
-}
-
-static void to_hex_char(char *hexbytes, const unsigned char *bytes, int len)
-{
-	const unsigned char *p;
-	char *q;
-
-	for (q = hexbytes, p = bytes; len; p++) {
-		const unsigned char c = (unsigned char) *p;
-		len--;
-		*q++ = hex[c >> 4];
-		*q++ = hex[c & 15];
-	}
 }
 
 /** ----- end of adapted code from glib --- */
@@ -225,9 +245,7 @@ static void thumbname_from_uri(const char *uri, char *thumb, const int thumb_len
 
 	md5_buffer(uri, strlen(uri), digest);
 	hexdigest[0] = '\0';
-	to_hex_char(hexdigest, digest, 16);
-	hexdigest[32] = '\0';
-	BLI_snprintf(thumb, thumb_len, "%s.png", hexdigest);
+	BLI_snprintf(thumb, thumb_len, "%s.png", md5_to_hexdigest(digest, hexdigest));
 
 	// printf("%s: '%s' --> '%s'\n", __func__, uri, thumb);
 }
@@ -272,7 +290,7 @@ ImBuf *IMB_thumb_create(const char *path, ThumbSize size, ThumbSource source, Im
 	short tsize = 128;
 	short ex, ey;
 	float scaledx, scaledy;
-	struct stat info;
+	BLI_stat_t info;
 
 	switch (size) {
 		case THB_NORMAL:
@@ -439,7 +457,7 @@ ImBuf *IMB_thumb_manage(const char *path, ThumbSize size, ThumbSource source)
 {
 	char thumb[FILE_MAX];
 	char uri[URI_MAX];
-	struct stat st;
+	BLI_stat_t st;
 	ImBuf *img = NULL;
 	
 	if (BLI_stat(path, &st)) {

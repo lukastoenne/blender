@@ -53,6 +53,7 @@
 #include "ED_mesh.h"
 #include "ED_node.h"
 #include "ED_object.h"
+#include "ED_paint.h"
 #include "ED_physics.h"
 #include "ED_render.h"
 #include "ED_screen.h"
@@ -60,6 +61,7 @@
 #include "ED_space_api.h"
 #include "ED_sound.h"
 #include "ED_uvedit.h"
+#include "ED_view3d.h"
 #include "ED_mball.h"
 #include "ED_logic.h"
 #include "ED_clip.h"
@@ -119,7 +121,7 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_mask();
 	ED_operatortypes_io();
 	
-	UI_view2d_operatortypes();
+	ED_operatortypes_view2d();
 	UI_buttons_operatortypes();
 	
 	/* register operators */
@@ -129,8 +131,17 @@ void ED_spacetypes_init(void)
 			type->operatortypes();
 	}
 
-	/* Macros's must go last since they reference other operators
-	 * maybe we'll need to have them go after python operators too? */
+	/* register internal render callbacks */
+	ED_render_internal_init();
+}
+
+void ED_spacemacros_init(void)
+{
+	const ListBase *spacetypes;
+	SpaceType *type;
+
+	/* Macros's must go last since they reference other operators.
+	 * We need to have them go after python operators too */
 	ED_operatormacros_armature();
 	ED_operatormacros_mesh();
 	ED_operatormacros_metaball();
@@ -143,6 +154,7 @@ void ED_spacetypes_init(void)
 	ED_operatormacros_curve();
 	ED_operatormacros_mask();
 	ED_operatormacros_sequencer();
+	ED_operatormacros_paint();
 
 	/* register dropboxes (can use macros) */
 	spacetypes = BKE_spacetypes_list();
@@ -150,9 +162,6 @@ void ED_spacetypes_init(void)
 		if (type->dropboxes)
 			type->dropboxes();
 	}
-	
-	/* register internal render callbacks */
-	ED_render_internal_init();
 }
 
 /* called in wm.c */
@@ -177,9 +186,9 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
 	ED_keymap_metaball(keyconf);
 	ED_keymap_paint(keyconf);
 	ED_keymap_mask(keyconf);
-	ED_marker_keymap(keyconf);
+	ED_keymap_marker(keyconf);
 
-	UI_view2d_keymap(keyconf);
+	ED_keymap_view2d(keyconf);
 
 	spacetypes = BKE_spacetypes_list();
 	for (stype = spacetypes->first; stype; stype = stype->next) {

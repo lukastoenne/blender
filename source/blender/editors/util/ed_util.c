@@ -41,7 +41,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_packedFile_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+#include "BLI_string.h"
+#include "BLI_path_util.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -59,7 +61,7 @@
 #include "ED_image.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
-#include "ED_sculpt.h"
+#include "ED_paint.h"
 #include "ED_space_api.h"
 #include "ED_util.h"
 
@@ -82,14 +84,20 @@ void ED_editors_init(bContext *C)
 	Object *ob, *obact = (sce && sce->basact) ? sce->basact->object : NULL;
 	ID *data;
 
+	/* This is called during initialization, so we don't want to store any reports */
+	ReportList *reports = CTX_wm_reports(C);
+	int reports_flag_prev = reports->flag & ~RPT_STORE;
+
+	SWAP(int, reports->flag, reports_flag_prev);
+
 	/* toggle on modes for objects that were saved with these enabled. for
 	 * e.g. linked objects we have to ensure that they are actually the
 	 * active object in this scene. */
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		int mode = ob->mode;
 
-		if (mode && (mode != OB_MODE_POSE)) {
-			ob->mode = 0;
+		if (!ELEM(mode, OB_MODE_OBJECT, OB_MODE_POSE)) {
+			ob->mode = OB_MODE_OBJECT;
 			data = ob->data;
 
 			if (ob == obact && !ob->id.lib && !(data && data->lib))
@@ -101,6 +109,8 @@ void ED_editors_init(bContext *C)
 	if (sce) {
 		ED_space_image_paint_update(wm, sce->toolsettings);
 	}
+
+	SWAP(int, reports->flag, reports_flag_prev);
 }
 
 /* frees all editmode stuff */
@@ -137,33 +147,35 @@ void ED_editors_exit(bContext *C)
 	}
 
 	/* global in meshtools... */
-	mesh_octree_table(NULL, NULL, NULL, 'e');
-	mesh_mirrtopo_table(NULL, 'e');
+	ED_mesh_mirror_spatial_table(NULL, NULL, NULL, 'e');
+	ED_mesh_mirror_topo_table(NULL, 'e');
 }
 
 /* flush any temp data from object editing to DNA before writing files,
  * rendering, copying, etc. */
 void ED_editors_flush_edits(const bContext *C, bool for_render)
 {
-	Object *obact = CTX_data_active_object(C);
+	Object *ob;
 	Object *obedit = CTX_data_edit_object(C);
-
+	Main *bmain = CTX_data_main(C);
 	/* get editmode results */
 	if (obedit)
 		ED_object_editmode_load(obedit);
 
-	if (obact && (obact->mode & OB_MODE_SCULPT)) {
-		/* flush multires changes (for sculpt) */
-		multires_force_update(obact);
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
+		if (ob && (ob->mode & OB_MODE_SCULPT)) {
+			/* flush multires changes (for sculpt) */
+			multires_force_update(ob);
 
-		if (for_render) {
-			/* flush changes from dynamic topology sculpt */
-			sculptsession_bm_to_me_for_render(obact);
-		}
-		else {
-			/* Set reorder=false so that saving the file doesn't reorder
+			if (for_render) {
+				/* flush changes from dynamic topology sculpt */
+				BKE_sculptsession_bm_to_me_for_render(ob);
+			}
+			else {
+				/* Set reorder=false so that saving the file doesn't reorder
 			 * the BMesh's elements */
-			sculptsession_bm_to_me(obact, FALSE);
+				BKE_sculptsession_bm_to_me(ob, false);
+			}
 		}
 	}
 }
@@ -290,7 +302,7 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 	const int mval_dst[2] = {win->eventstate->x - ar->winrct.xmin,
 	                         win->eventstate->y - ar->winrct.ymin};
 
-	UI_ThemeColor(TH_WIRE);
+	UI_ThemeColor(TH_VIEW_OVERLAY);
 	setlinestyle(3);
 	glBegin(GL_LINE_STRIP);
 	glVertex2iv(mval_dst);

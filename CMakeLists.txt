@@ -47,6 +47,11 @@ endif()
 
 cmake_minimum_required(VERSION 2.8)
 
+if(NOT (${CMAKE_VERSION} VERSION_LESS 3.0))
+	# keep until CMake-3.0 is min requirement
+	cmake_policy(SET CMP0043 OLD)
+endif()
+
 if(NOT EXECUTABLE_OUTPUT_PATH)
 	set(FIRST_RUN "TRUE")
 endif()
@@ -104,6 +109,7 @@ enable_testing()
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE INTERNAL "" FORCE)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib CACHE INTERNAL "" FORCE)
+set(TESTS_OUTPUT_DIR ${EXECUTABLE_OUTPUT_PATH}/tests CACHE INTERNAL "" FORCE)
 
 #-----------------------------------------------------------------------------
 # Set default config options
@@ -130,6 +136,11 @@ if(APPLE)
 endif()
 
 option(WITH_BUILDINFO     "Include extra build details (only disable for development & faster builds)" ON)
+if(${CMAKE_VERSION} VERSION_LESS 2.8.8)
+	# add_library OBJECT arg unsupported
+	set(WITH_BUILDINFO OFF)
+endif()
+
 option(WITH_IK_ITASC      "Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)" ON)
 option(WITH_IK_SOLVER     "Enable Legacy IK solver (only disable for development)" ON)
 option(WITH_FFTW3         "Enable FFTW3 support (Used for smoke and audio effects)" ON)
@@ -155,18 +166,7 @@ mark_as_advanced(WITH_HEADLESS)
 option(WITH_AUDASPACE    "Build with blenders audio library (only disable if you know what you're doing!)" ON)
 mark_as_advanced(WITH_AUDASPACE)
 
-option(WITH_BOOL_COMPAT "Continue defining \"TRUE\" and \"FALSE\" until these can be replaced with \"true\" and \"false\" from stdbool.h" ON)
-mark_as_advanced(WITH_BOOL_COMPAT)
-
-# (unix defaults to OpenMP On)
-if((UNIX AND NOT APPLE) OR (MINGW))
-	set(PLATFORM_DEFAULT ON)
-else()
-	set(PLATFORM_DEFAULT OFF)
-endif()
-option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ${PLATFORM_DEFAULT})
-unset(PLATFORM_DEFAULT)
-
+option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
 
 if(UNIX AND NOT APPLE)
 	option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)"	ON)
@@ -262,8 +262,14 @@ if(UNIX AND NOT APPLE)
 endif()
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
 option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
-set(PYTHON_NUMPY_PATH            "" CACHE PATH "Python to python site-packages or dist-packages containing 'numpy' module")
+set(PYTHON_NUMPY_PATH            "" CACHE PATH "Path to python site-packages or dist-packages containing 'numpy' module")
 mark_as_advanced(PYTHON_NUMPY_PATH)
+
+if(UNIX AND NOT APPLE)
+	option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
+	set(PYTHON_REQUESTS_PATH "" CACHE PATH "Path to python site-packages or dist-packages containing 'requests' module")
+	mark_as_advanced(PYTHON_REQUESTS_PATH)
+endif()
 
 # Cycles
 option(WITH_CYCLES					"Enable cycles Render Engine" ON)
@@ -271,13 +277,17 @@ option(WITH_CYCLES_STANDALONE		"Build cycles standalone application" OFF)
 option(WITH_CYCLES_STANDALONE_GUI	"Build cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" OFF)
 option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
-set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 CACHE STRING "CUDA architectures to build binaries for")
+set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_50 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 
 # LLVM
 option(WITH_LLVM					"Use LLVM" OFF)
-option(LLVM_STATIC					"Link with LLVM static libraries" ON)
+if(APPLE)
+	option(LLVM_STATIC					"Link with LLVM static libraries" ON) # we prefer static llvm build on Apple, dyn build possible though
+else()
+	option(LLVM_STATIC					"Link with LLVM static libraries" OFF)
+endif()
 mark_as_advanced(LLVM_STATIC)
 
 # disable for now, but plan to support on all platforms eventually
@@ -302,9 +312,14 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	mark_as_advanced(WITH_GCC_MUDFLAP)
 endif()
 
+# Unit testsing
+option(WITH_GTESTS "Enable GTest unit testing" OFF)
+
 if(APPLE)
-	cmake_minimum_required(VERSION 2.8.8)
-	cmake_policy(VERSION 2.8.8)
+	if(${CMAKE_VERSION} VERSION_LESS 3.0) # else breaks setting CMP0043 policy
+		cmake_minimum_required(VERSION 2.8.8)
+		cmake_policy(VERSION 2.8.8)
+	endif()
 
 	if(NOT CMAKE_OSX_ARCHITECTURES)
 		set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING
@@ -313,7 +328,11 @@ if(APPLE)
 	endif()
 	
 	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if(${MAC_SYS} MATCHES 13)
+	if(${MAC_SYS} MATCHES 14)
+		set(OSX_SYSTEM 10.10)
+		# throw an error here, older cmake cannot handle 2 digit subversion!
+		cmake_minimum_required(VERSION 3.0.0)
+	elseif(${MAC_SYS} MATCHES 13)
 		set(OSX_SYSTEM 10.9)
 	elseif(${MAC_SYS} MATCHES 12)
 		set(OSX_SYSTEM 10.8)
@@ -505,9 +524,6 @@ TEST_STDBOOL_SUPPORT()
 if(HAVE_STDBOOL_H)
 	add_definitions(-DHAVE_STDBOOL_H)
 endif()
-if(WITH_BOOL_COMPAT)
-	add_definitions(-DWITH_BOOL_COMPAT)
-endif()
 
 #-----------------------------------------------------------------------------
 # Check for valid directories
@@ -566,14 +582,14 @@ set(PLATFORM_LINKFLAGS_DEBUG "")
 # For alternate Python locations the commandline can be used to override detected/default cache settings, e.g:
 # On Unix:
 #   cmake ../blender \
-#         -D PYTHON_VERSION=3.3 \
-#         -D PYTHON_INCLUDE_DIR=/opt/py33/include/python3.3d \
-#         -D PYTHON_LIBRARY=/opt/py33/lib/libpython3.3d.so
+#         -D PYTHON_VERSION=3.4 \
+#         -D PYTHON_INCLUDE_DIR=/opt/py34/include/python3.4d \
+#         -D PYTHON_LIBRARY=/opt/py34/lib/libpython3.4d.so
 #
 # On Macs:
 #   cmake ../blender \
-#         -D PYTHON_INCLUDE_DIR=/System/Library/Frameworks/Python.framework/Versions/3.3/include/python3.3 \
-#         -D PYTHON_LIBPATH=/System/Library/Frameworks/Python.framework/Versions/3.3/lib/python3.3/config \
+#         -D PYTHON_INCLUDE_DIR=/System/Library/Frameworks/Python.framework/Versions/3.4/include/python3.4 \
+#         -D PYTHON_LIBPATH=/System/Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/config \
 #         -G Xcode
 #
 # When changing any of this remember to update the notes in doc/build_systems/cmake.txt
@@ -601,7 +617,7 @@ if(UNIX AND NOT APPLE)
 	find_package_wrapper(Freetype REQUIRED)
 
 	if(WITH_PYTHON)
-		# No way to set py33. remove for now.
+		# No way to set py34. remove for now.
 		# find_package(PythonLibs)
 
 		# Use our own instead, since wothout py is such a rare case,
@@ -830,6 +846,7 @@ if(UNIX AND NOT APPLE)
 							OUTPUT_VARIABLE LLVM_LIBPATH
 							OUTPUT_STRIP_TRAILING_WHITESPACE)
 			set(LLVM_LIBPATH ${LLVM_LIBPATH} CACHE PATH "Path to the LLVM library path")
+			mark_as_advanced(LLVM_LIBPATH)
 		endif()
 
 		if(LLVM_STATIC)
@@ -886,18 +903,18 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread")
+	list(APPEND PLATFORM_LINKLIBS -lutil -lc -lm -lpthread)
 
 	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL))
 		find_package(X11 REQUIRED)
 		find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
 		mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
 
-		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_X11_LIB}")
+		list(APPEND PLATFORM_LINKLIBS ${X11_X11_LIB})
 
 		if(WITH_X11_XINPUT)
 			if(X11_Xinput_LIB)
-				set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xinput_LIB}")
+				list(APPEND PLATFORM_LINKLIBS ${X11_Xinput_LIB})
 			else()
 				set(WITH_X11_XINPUT OFF)
 			endif()
@@ -905,10 +922,10 @@ if(UNIX AND NOT APPLE)
 
 		if(WITH_X11_XF86VMODE)
 			# XXX, why dont cmake make this available?
-			FIND_LIBRARY(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
+			find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
 			mark_as_advanced(X11_Xxf86vmode_LIB)
 			if(X11_Xxf86vmode_LIB)
-				set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xxf86vmode_LIB}")
+				list(APPEND PLATFORM_LINKLIBS ${X11_Xxf86vmode_LIB})
 			else()
 				set(WITH_X11_XF86VMODE OFF)
 			endif()
@@ -924,6 +941,9 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -pthread")
+	if(CMAKE_DL_LIBS)
+		list(APPEND PLATFORM_LINKLIBS ${CMAKE_DL_LIBS})
+	endif()
 
 	# lfs on glibc, all compilers should use
 	add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE)
@@ -966,12 +986,13 @@ elseif(WIN32)
 	add_definitions(-DWIN32)
 
 	if(MSVC)
-		set(PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
 
-		# MSVC11 SDL is not hard linked to dxguid.lib
-		if(MSVC11 AND WITH_SDL)
-			set(PLATFORM_LINKLIBS ${PLATFORM_LINKLIBS} dxguid)
-		endif()
+		# needed for some MSVC installations
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
+		set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO")
+		set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+
+		list(APPEND PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
 
 		add_definitions(
 			-D_CRT_NONSTDC_NO_DEPRECATE
@@ -992,6 +1013,8 @@ elseif(WIN32)
 				add_definitions(-D_WIN32_WINNT=0x600)
 			endif()
 		endif()
+
+		add_definitions(-DOIIO_STATIC_BUILD)
 
 		set(CMAKE_CXX_FLAGS "/nologo /J /Gd /EHsc /MP" CACHE STRING "MSVC MT C++ flags " FORCE)
 		set(CMAKE_C_FLAGS   "/nologo /J /Gd /MP"       CACHE STRING "MSVC MT C++ flags " FORCE)
@@ -1047,7 +1070,7 @@ elseif(WIN32)
 			set(PLATFORM_LINKFLAGS "/MACHINE:IX86 /LARGEADDRESSAWARE ${PLATFORM_LINKFLAGS}")
 		endif()
 
-		set(PLATFORM_LINKFLAGS_DEBUG "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libc.lib")
+		set(PLATFORM_LINKFLAGS_DEBUG "/IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libc.lib")
 
 		if(NOT DEFINED LIBDIR)
 			# Setup 64bit and 64bit windows systems
@@ -1061,9 +1084,6 @@ elseif(WIN32)
 			if(MSVC12)
 				message(STATUS "Visual C++ 2013 detected.")
 				set(LIBDIR ${LIBDIR_BASE}_vc12)
-			elseif(MSVC11)
-				message(STATUS "Visual C++ 2012 detected.")
-				set(LIBDIR ${LIBDIR_BASE}_vc11)
 			else()
 				set(LIBDIR ${LIBDIR_BASE})
 			endif()
@@ -1084,7 +1104,7 @@ elseif(WIN32)
 		set(ZLIB_INCLUDE_DIR ${LIBDIR}/zlib/include)
 		set(ZLIB_LIBRARY ${LIBDIR}/zlib/lib/libz_st.lib)
 		set(ZLIB_DIR ${LIBDIR}/zlib)
-		find_package(zlib) # we want to find before finding things that depend on it like png
+		#find_package(zlib) # we want to find before finding things that depend on it like png
 
 
 		find_package(png)
@@ -1093,10 +1113,13 @@ elseif(WIN32)
 			message(WARNING "Using HARDCODED libpng locations")
 			set(PNG_LIBRARIES libpng)
 			set(PNG "${LIBDIR}/png")
-			set(PNG_INCLUDE_DIR "${PNG}/include")
+			set(PNG_INCLUDE_DIRS "${PNG}/include")
 			set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 		endif()
 
+		if(MSVC)
+			set(JPEG_NAMES ${JPEG_NAMES} libjpeg)
+		endif()
 		find_package(jpeg REQUIRED)
 
 		set(PTHREADS_INCLUDE_DIRS ${LIBDIR}/pthreads/include)
@@ -1138,8 +1161,12 @@ elseif(WIN32)
 				${OPENCOLLADA}/lib/opencollada/xml.lib
 				${OPENCOLLADA}/lib/opencollada/buffer.lib
 				${OPENCOLLADA}/lib/opencollada/ftoa.lib
-				${OPENCOLLADA}/lib/opencollada/UTF.lib
 			)
+
+			if(NOT WITH_LLVM)
+				list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/UTF.lib)
+			endif()
+
 			set(PCRE_LIBRARIES
 				${OPENCOLLADA}/lib/opencollada/pcre.lib
 			)
@@ -1153,14 +1180,8 @@ elseif(WIN32)
 			find_package(FFMPEG)
 			if(NOT FFMPEG_FOUND)
 				message(WARNING "Using HARDCODED ffmpeg locations")
-				# MSVC11 FFMPEG libs are newer
-				if(MSVC11)
-					set(FFMPEG_LIBRARY_VERSION 54)
-					set(FFMPEG_LIBRARY_VERSION_AVU 52)
-				else()
-					set(FFMPEG_LIBRARY_VERSION 53)
-					set(FFMPEG_LIBRARY_VERSION_AVU 51)
-				endif()
+				set(FFMPEG_LIBRARY_VERSION 55)
+				set(FFMPEG_LIBRARY_VERSION_AVU 52)
 				set(FFMPEG_LIBRARIES
 					${LIBDIR}/ffmpeg/lib/avcodec-${FFMPEG_LIBRARY_VERSION}.lib
 					${LIBDIR}/ffmpeg/lib/avformat-${FFMPEG_LIBRARY_VERSION}.lib
@@ -1181,13 +1202,23 @@ elseif(WIN32)
 			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
 			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
-			set(OPENEXR_LIBRARIES
-				${OPENEXR_LIBPATH}/Iex.lib
-				${OPENEXR_LIBPATH}/Half.lib
-				${OPENEXR_LIBPATH}/IlmImf.lib
-				${OPENEXR_LIBPATH}/Imath.lib
-				${OPENEXR_LIBPATH}/IlmThread.lib
-			)
+			if(MSVC12)
+				set(OPENEXR_LIBRARIES
+					${OPENEXR_LIBPATH}/Iex-2_1.lib
+					${OPENEXR_LIBPATH}/Half.lib
+					${OPENEXR_LIBPATH}/IlmImf-2_1.lib
+					${OPENEXR_LIBPATH}/Imath-2_1.lib
+					${OPENEXR_LIBPATH}/IlmThread-2_1.lib
+				)
+			else()
+				set(OPENEXR_LIBRARIES
+					${OPENEXR_LIBPATH}/Iex.lib
+					${OPENEXR_LIBPATH}/Half.lib
+					${OPENEXR_LIBPATH}/IlmImf.lib
+					${OPENEXR_LIBPATH}/Imath.lib
+					${OPENEXR_LIBPATH}/IlmThread.lib
+				)
+			endif()
 			endif(NOT OPENEXR_FOUND)
 		endif()
 
@@ -1206,11 +1237,11 @@ elseif(WIN32)
 				${LIBDIR}/jack/include/jack
 				${LIBDIR}/jack/include
 			)
-			set(JACK_LIBRARIES ${LIBDIR}/jack/lib/libjack.lib)
+			set(JACK_LIBRARIES optimized ${LIBDIR}/jack/lib/libjack.lib debug ${LIBDIR}/jack/lib/libjack_d.lib)
 		endif()
 
 		if(WITH_PYTHON)
-			set(PYTHON_VERSION 3.3) # CACHE STRING)
+			set(PYTHON_VERSION 3.4) # CACHE STRING)
 
 			string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 			# Use shared libs for vc2008 and vc2010 until we actually have vc2010 libs
@@ -1232,6 +1263,9 @@ elseif(WIN32)
 			if(WITH_INTERNATIONAL)
 				list(APPEND boost_extra_libs locale)
 			endif(WITH_INTERNATIONAL)
+			set(Boost_USE_STATIC_RUNTIME ON) # prefix lib
+			set(Boost_USE_MULTITHREADED ON) # suffix -mt
+			set(Boost_USE_STATIC_LIBS ON) # suffix -s
 			find_package(Boost COMPONENTS date_time filesystem thread regex system ${boost_extra_libs})
 			IF(NOT Boost_FOUND)
 				message(WARNING "USING HARDCODED boost locations")
@@ -1241,10 +1275,6 @@ elseif(WIN32)
 					set(BOOST_LIBPATH ${BOOST}/lib)
 					set(BOOST_POSTFIX "vc120-mt-s-1_55.lib")
 					set(BOOST_DEBUG_POSTFIX "vc120-mt-sgd-1_55.lib")
-				elseif(MSVC11)
-					set(BOOST_LIBPATH ${BOOST}/lib)
-					set(BOOST_POSTFIX "vc110-mt-s-1_53.lib")
-					set(BOOST_DEBUG_POSTFIX "vc110-mt-sgd-1_53.lib")
 				else()
 					set(BOOST_LIBPATH ${BOOST}/lib)
 					set(BOOST_POSTFIX "vc90-mt-s-1_49.lib")
@@ -1279,14 +1309,36 @@ elseif(WIN32)
 			find_package(OpenImageIO)
 			set(OPENIMAGEIO ${LIBDIR}/openimageio)
 			set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
-			set(OPENIMAGEIO_LIBRARIES optimized OpenImageIO debug OpenImageIO_d)
+			set(OIIO_OPTIMIZED optimized OpenImageIO optimized OpenImageIO_Util)
+			set(OIIO_DEBUG debug OpenImageIO_d debug OpenImageIO_Util_d)
+			set(OPENIMAGEIO_LIBRARIES ${OIIO_OPTIMIZED} ${OIIO_DEBUG})
 			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
 			set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
 		endif()
 
 		if(WITH_LLVM)
 			set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-			file(GLOB LLVM_LIBRARY ${LLVM_DIRECTORY}/lib/*.lib)
+			file(GLOB LLVM_LIBRARY_OPTIMIZED ${LLVM_DIRECTORY}/lib/*.lib)
+
+			if(EXISTS ${LLVM_DIRECTORY}/debug/lib)
+				foreach(LLVM_OPTIMIZED_LIB ${LLVM_LIBRARY_OPTIMIZED})
+					get_filename_component(LIBNAME ${LLVM_OPTIMIZED_LIB} ABSOLUTE)
+					list(APPEND LLVM_LIBS optimized ${LIBNAME})
+				endforeach(LLVM_OPTIMIZED_LIB)
+			
+				file(GLOB LLVM_LIBRARY_DEBUG ${LLVM_DIRECTORY}/debug/lib/*.lib)
+
+				foreach(LLVM_DEBUG_LIB ${LLVM_LIBRARY_DEBUG})
+					get_filename_component(LIBNAME ${LLVM_DEBUG_LIB} ABSOLUTE)
+					list(APPEND LLVM_LIBS debug ${LIBNAME})
+				endforeach(LLVM_DEBUG_LIB)
+
+				set(LLVM_LIBRARY ${LLVM_LIBS})
+			else()
+				message(WARNING "LLVM debug libs not present on this system. Using release libs for debug builds.")
+				set(LLVM_LIBRARY ${LLVM_LIBRARY_OPTIMIZED})
+			endif()
+			
 		endif()
 	
 		if(WITH_OPENCOLORIO)
@@ -1336,16 +1388,14 @@ elseif(WIN32)
 			endif()
 		endif()
 		
-		set(PLATFORM_LINKLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi")
+		list(APPEND PLATFORM_LINKLIBS -lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi)
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
 		if(WITH_MINGW64)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
-			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lpthread")
+			list(APPEND PLATFORM_LINKLIBS -lpthread)
 			
 			add_definitions(-DFREE_WINDOWS64 -DMS_WIN64)
-			# Turn off OpenMP since it causes crashes on render for subsurfed/multiresolution meshes
-			set(WITH_OPENMP OFF)
 		endif()
 
 		add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE)
@@ -1353,7 +1403,7 @@ elseif(WIN32)
 		add_definitions(-DFREE_WINDOWS)
 
 		set(PNG "${LIBDIR}/png")
-		set(PNG_INCLUDE_DIR "${PNG}/include")
+		set(PNG_INCLUDE_DIRS "${PNG}/include")
 		set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 
 		if(WITH_MINGW64)
@@ -1412,7 +1462,7 @@ elseif(WIN32)
 			if(WITH_MINGW64)
 				set(FFMPEG_LIBRARIES avcodec.dll avformat.dll avdevice.dll avutil.dll swscale.dll swresample.dll)
 			else()
-				set(FFMPEG_LIBRARIES avcodec-53 avformat-53 avdevice-53 avutil-51 swscale-2)
+				set(FFMPEG_LIBRARIES avcodec-55 avformat-55 avdevice-55 avutil-52 swscale-2)
 			endif()
 			set(FFMPEG_LIBPATH ${FFMPEG}/lib)
 		endif()
@@ -1444,9 +1494,11 @@ elseif(WIN32)
 
 		if(WITH_PYTHON)
 			# normally cached but not since we include them with blender
-			set(PYTHON_VERSION 3.3) #  CACHE STRING)
+			set(PYTHON_VERSION 3.4) #  CACHE STRING)
+			string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}")  # CACHE PATH)
-			set(PYTHON_LIBRARY "${LIBDIR}/python/lib/python33mw.lib")  # CACHE FILEPATH)
+			set(PYTHON_LIBRARY "${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}mw.lib")  # CACHE FILEPATH)
+			unset(_PYTHON_VERSION_NO_DOTS)
 
 			# uncached vars
 			set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIR}")
@@ -1516,7 +1568,7 @@ elseif(WIN32)
 				LLVMX86Utils LLVMipa
 				LLVMipo LLVMCore)
 			# imagehelp is needed by LLVM 3.1 on MinGW, check lib\Support\Windows\Signals.inc
-			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -limagehlp")
+			list(APPEND PLATFORM_LINKLIBS -limagehlp)
 		endif()
 		
 		if(WITH_OPENCOLORIO)
@@ -1543,7 +1595,7 @@ elseif(WIN32)
 		set(OPENAL ${LIBDIR}/openal)
 		set(OPENALDIR ${LIBDIR}/openal)
 		set(OPENAL_INCLUDE_DIR ${OPENAL}/include)
-		if(MSVC11 OR MSVC12)
+		if(MSVC12)
 			set(OPENAL_LIBRARY openal32)
 		else()
 			set(OPENAL_LIBRARY wrap_oal)
@@ -1575,7 +1627,10 @@ elseif(WIN32)
 		find_library(OSL_LIB_EXEC NAMES oslexec PATHS ${CYCLES_OSL}/lib)
 		find_library(OSL_LIB_COMP NAMES oslcomp PATHS ${CYCLES_OSL}/lib)
 		find_library(OSL_LIB_QUERY NAMES oslquery PATHS ${CYCLES_OSL}/lib)
-		list(APPEND OSL_LIBRARIES ${OSL_LIB_COMP} ${OSL_LIB_EXEC} ${OSL_LIB_QUERY})
+		find_library(OSL_LIB_EXEC_DEBUG NAMES oslexec_d PATHS ${CYCLES_OSL}/lib)
+		find_library(OSL_LIB_COMP_DEBUG NAMES oslcomp_d PATHS ${CYCLES_OSL}/lib)
+		find_library(OSL_LIB_QUERY_DEBUG NAMES oslquery_d PATHS ${CYCLES_OSL}/lib)
+		list(APPEND OSL_LIBRARIES optimized ${OSL_LIB_COMP} optimized ${OSL_LIB_EXEC} optimized ${OSL_LIB_QUERY} debug ${OSL_LIB_EXEC_DEBUG} debug ${OSL_LIB_COMP_DEBUG} debug ${OSL_LIB_QUERY_DEBUG})
 		find_path(OSL_INCLUDES OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
 		find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
 	
@@ -1631,8 +1686,8 @@ elseif(APPLE)
 	endif()
 
 	if(WITH_PYTHON)
-		# we use precompiled libraries for py 3.3 and up by default
-		set(PYTHON_VERSION 3.3)
+		# we use precompiled libraries for py 3.4 and up by default
+		set(PYTHON_VERSION 3.4)
 		if(NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 			# normally cached but not since we include them with blender
 			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")
@@ -1696,9 +1751,9 @@ elseif(APPLE)
 	)
 	mark_as_advanced(SYSTEMSTUBS_LIBRARY)
 	if(SYSTEMSTUBS_LIBRARY)
-		set(PLATFORM_LINKLIBS stdc++ SystemStubs)
+		list(APPEND PLATFORM_LINKLIBS stdc++ SystemStubs)
 	else()
-		set(PLATFORM_LINKLIBS stdc++)
+		list(APPEND PLATFORM_LINKLIBS stdc++)
 	endif()
 
 	set(PLATFORM_CFLAGS "-pipe -funsigned-char")
@@ -1749,7 +1804,11 @@ elseif(APPLE)
 		)
 
 		set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
-		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lUTF -lxml2 -lbuffer -lftoa")
+		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lxml2 -lbuffer -lftoa")
+		# Use UTF functions from collada if LLVM is not enabled
+		if(NOT WITH_LLVM)
+			set(OPENCOLLADA_LIBRARIES "${OPENCOLLADA_LIBRARIES} -lUTF")
+		endif()
 		# pcre is bundled with openCollada
 		#set(PCRE ${LIBDIR}/pcre)
 		#set(PCRE_LIBPATH ${PCRE}/lib)
@@ -1768,7 +1827,7 @@ elseif(APPLE)
 	endif()
 
 	set(PNG "${LIBDIR}/png")
-	set(PNG_INCLUDE_DIR "${PNG}/include")
+	set(PNG_INCLUDE_DIRS "${PNG}/include")
 	set(PNG_LIBPATH ${PNG}/lib)
 
 	set(JPEG "${LIBDIR}/jpeg")
@@ -1792,13 +1851,16 @@ elseif(APPLE)
 		set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt boost_wave-mt)
 		if(WITH_INTERNATIONAL)
 			list(APPEND BOOST_LIBRARIES boost_locale-mt)
-			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale needs it !
 		endif()
 		if(WITH_CYCLES_NETWORK)
 			list(APPEND BOOST_LIBRARIES boost_serialization-mt)
 		endif()
 		set(BOOST_LIBPATH ${BOOST}/lib)
 		set(BOOST_DEFINITIONS)
+	endif()
+	
+	if(WITH_INTERNATIONAL OR WITH_CODEC_FFMPEG)
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale and ffmpeg needs it !
 	endif()
 
 	if(WITH_OPENIMAGEIO)
@@ -1819,7 +1881,7 @@ elseif(APPLE)
 
 	if(WITH_LLVM)
 		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-		set(LLVM_VERSION "3.1" CACHE STRING	"Version of LLVM to use")
+		set(LLVM_VERSION "3.4" CACHE STRING	"Version of LLVM to use")
 		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
 			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
 		else()
@@ -1847,6 +1909,8 @@ elseif(APPLE)
 				                OUTPUT_VARIABLE LLVM_LIBRARY
 				                OUTPUT_STRIP_TRAILING_WHITESPACE)
 				string(REPLACE " " ";" LLVM_LIBRARY ${LLVM_LIBRARY})
+			else()
+				set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -lLLVM-3.4")
 			endif()
 		else()
 			message(FATAL_ERROR "LLVM not found.")
@@ -1871,16 +1935,24 @@ elseif(APPLE)
 		endif()
 	endif()
 	
-	if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
-		set(OPENMP_FOUND ON)
-		set(OpenMP_C_FLAGS "-fopenmp" CACHE STRING "C compiler flags for OpenMP parallization" FORCE)
-		set(OpenMP_CXX_FLAGS "-fopenmp" CACHE STRING "C++ compiler flags for OpenMP parallization" FORCE)
-		include_directories(${LIBDIR}/openmp/include)
-		LINK_DIRECTORIES(${LIBDIR}/openmp/lib)
-		execute_process(COMMAND cp ${LIBDIR}/openmp/lib/libiomp5.dylib ${CMAKE_BINARY_DIR}/bin/libiomp5.dylib) # for intermediate binaries, lib id is @loader_path
-	else()
-		set(OpenMP_C_FLAGS "" CACHE STRING "C compiler flags for OpenMP parallization" FORCE) # unset
-		set(OpenMP_CXX_FLAGS "" CACHE STRING "C++ compiler flags for OpenMP parallization" FORCE) # unset
+	if(WITH_OPENMP)
+		execute_process(COMMAND ${CMAKE_C_COMPILER} --version OUTPUT_VARIABLE COMPILER_VENDOR)
+		string(SUBSTRING "${COMPILER_VENDOR}" 0 5 VENDOR_NAME) # truncate output
+		if(${VENDOR_NAME} MATCHES "Apple") # Apple does not support OpenMP reliable with gcc and not with clang
+			set(WITH_OPENMP OFF)
+		else() # vanilla gcc or clang_omp support OpenMP
+			message(STATUS "Using special OpenMP enabled compiler !") # letting find_package(OpenMP) module work for gcc
+			if(CMAKE_C_COMPILER_ID MATCHES "Clang") # clang-omp in darwin libs
+				set(OPENMP_FOUND ON)
+				set(OpenMP_C_FLAGS "-fopenmp" CACHE STRING "C compiler flags for OpenMP parallization" FORCE)
+				set(OpenMP_CXX_FLAGS "-fopenmp" CACHE STRING "C++ compiler flags for OpenMP parallization" FORCE)
+				include_directories(${LIBDIR}/openmp/include)
+				link_directories(${LIBDIR}/openmp/lib)
+				# This is a workaround for our helperbinaries ( datatoc, masgfmt, ... ),
+				# They are linked also to omp lib, so we need it in builddir for runtime exexcution, TODO: remove all unneeded dependencies from these
+				execute_process(COMMAND ditto -arch ${CMAKE_OSX_ARCHITECTURES} ${LIBDIR}/openmp/lib/libiomp5.dylib ${CMAKE_BINARY_DIR}/bin/libiomp5.dylib) # for intermediate binaries, lib id @loader_path
+			endif()
+		endif()
 	endif()
 
 	set(EXETYPE MACOSX_BUNDLE)
@@ -1903,6 +1975,8 @@ elseif(APPLE)
 		# Xcode 5 is always using CLANG, which has too low template depth of 128 for libmv
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 	endif()
+	# Get rid of eventually clashes, we export some symbols explicite as local
+	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker ${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map")
 endif()
 
 #-----------------------------------------------------------------------------
@@ -2011,10 +2085,6 @@ if(WITH_OPENMP)
 	if(OPENMP_FOUND)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-
-		if(APPLE AND ${CMAKE_GENERATOR} MATCHES "Xcode")
-			set(CMAKE_XCODE_ATTRIBUTE_ENABLE_OPENMP_SUPPORT "YES")
-		endif()
 	else()
 		set(WITH_OPENMP OFF)
 	endif()
@@ -2035,10 +2105,7 @@ if(WITH_SYSTEM_GLEW)
 		message(FATAL_ERROR "GLEW is required to build blender, install it or disable WITH_SYSTEM_GLEW")
 	endif()
 
-	mark_as_advanced(
-		GLEW_LIBRARY
-		GLEW_INCLUDE_PATH
-	)
+	set(GLEW_INCLUDE_PATH "${GLEW_INCLUDE_DIRS}")
 else()
 	# set(GLEW_LIBRARY "")  # unused
 	set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
@@ -2139,6 +2206,10 @@ if(CMAKE_COMPILER_IS_GNUCC)
 
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 
+	if(APPLE AND WITH_OPENMP) # we need the Intel omp lib linked here to not fail all tests due presence of -fopenmp !
+		set(CMAKE_REQUIRED_FLAGS "-L${LIBDIR}/openmp/lib -liomp5") # these are only used for the checks
+	endif()
+
 	# strange, clang complains these are not supported, but then yses them.
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ERROR_DECLARATION_AFTER_STATEMENT -Werror=declaration-after-statement)
@@ -2209,49 +2280,16 @@ if(WITH_PYTHON)
 							"Python.h for python version \"${PYTHON_VERSION}\"")
 	endif()
 
-	if(WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY)
-		# set but invalid
-		# -- disabled until we make numpy bundled with blender - campbell
-		if((NOT ${PYTHON_NUMPY_PATH} STREQUAL "") AND (NOT ${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
-#			if(NOT EXISTS "${PYTHON_NUMPY_PATH}/numpy")
-#				message(WARNING "PYTHON_NUMPY_PATH is invalid, numpy not found in '${PYTHON_NUMPY_PATH}' "
-#				                "WITH_PYTHON_INSTALL_NUMPY option will be ignored when installing python")
-#				set(WITH_PYTHON_INSTALL_NUMPY OFF)
-#			endif()
-		# not set, so initialize
-		else()
-			string(REPLACE "." ";" _PY_VER_SPLIT "${PYTHON_VERSION}")
-			list(GET _PY_VER_SPLIT 0 _PY_VER_MAJOR)
+	if(WIN32)
+		# pass, we have this in an archive to extract
+	elseif(WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY)
+		find_python_package(numpy)
+	endif()
 
-			# re-cache
-			unset(PYTHON_NUMPY_PATH CACHE)
-			find_path(PYTHON_NUMPY_PATH
-			  NAMES
-			    numpy
-			  HINTS
-			    "${PYTHON_LIBPATH}/python${PYTHON_VERSION}/"
-			    "${PYTHON_LIBPATH}/python${_PY_VER_MAJOR}/"
-			  PATH_SUFFIXES
-			    site-packages
-			    dist-packages
-			   NO_DEFAULT_PATH
-			)
-
-			if(NOT EXISTS "${PYTHON_NUMPY_PATH}")
-				message(WARNING "'numpy' path could not be found in:\n"
-				                "'${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/numpy', "
-				                "'${PYTHON_LIBPATH}/python${_PY_VER_MAJOR}/site-packages/numpy', "
-				                "'${PYTHON_LIBPATH}/python${PYTHON_VERSION}/dist-packages/numpy', "
-				                "'${PYTHON_LIBPATH}/python${_PY_VER_MAJOR}/dist-packages/numpy', "
-				                "WITH_PYTHON_INSTALL_NUMPY option will be ignored when installing python")
-				set(WITH_PYTHON_INSTALL_NUMPY OFF)
-			else()
-				message(STATUS "numpy found at '${PYTHON_NUMPY_PATH}'")
-			endif()
-
-			unset(_PY_VER_SPLIT)
-			unset(_PY_VER_MAJOR)
-		endif()
+	if(WIN32 OR APPLE)
+		# pass, we have this in lib/python/site-packages
+	elseif(WITH_PYTHON_INSTALL_REQUESTS)
+		find_python_package(requests)
 	endif()
 endif()
 
@@ -2303,12 +2341,21 @@ endif()
 #-----------------------------------------------------------------------------
 # Libraries
 
+if(WITH_GTESTS)
+	include(GTestTesting)
+endif()
+
 if(WITH_BLENDER OR WITH_PLAYER)
-	add_subdirectory(source)
 	add_subdirectory(intern)
 	add_subdirectory(extern)
+
+	# source after intern and extern to gather all
+	# internal and external library information first, for test linking
+	add_subdirectory(source)
 elseif(WITH_CYCLES_STANDALONE)
 	add_subdirectory(intern/cycles)
+	add_subdirectory(extern/clew)
+	add_subdirectory(extern/cuew)
 	if(NOT WITH_SYSTEM_GLEW)
 		add_subdirectory(extern/glew)
 	endif()
@@ -2326,6 +2373,12 @@ endif()
 if(WITH_PLAYER)
 	add_subdirectory(source/blenderplayer)
 endif()
+
+
+#-----------------------------------------------------------------------------
+# Testing
+add_subdirectory(tests)
+
 
 #-----------------------------------------------------------------------------
 # CPack for generating packages

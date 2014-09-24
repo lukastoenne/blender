@@ -52,7 +52,7 @@ struct ARegion *sequencer_has_buttons_region(struct ScrArea *sa);
 
 /* sequencer_draw.c */
 void draw_timeline_seq(const struct bContext *C, struct ARegion *ar);
-void draw_image_seq(const struct bContext *C, struct Scene *scene, struct  ARegion *ar, struct SpaceSeq *sseq, int cfra, int offset, int draw_overlay);
+void draw_image_seq(const struct bContext *C, struct Scene *scene, struct  ARegion *ar, struct SpaceSeq *sseq, int cfra, int offset, bool draw_overlay);
 
 /* UNUSED */
 // void seq_reset_imageofs(struct SpaceSeq *sseq);
@@ -163,6 +163,13 @@ enum {
 enum {
 	SEQ_SELECTED,
 	SEQ_UNSELECTED
+};
+
+enum {
+	SEQ_SELECT_LR_NONE = 0,
+	SEQ_SELECT_LR_MOUSE,
+	SEQ_SELECT_LR_LEFT,
+	SEQ_SELECT_LR_RIGHT	
 };
 
 /* defines used internally */

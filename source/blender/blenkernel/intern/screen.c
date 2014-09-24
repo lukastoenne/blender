@@ -193,7 +193,10 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	
 	BLI_listbase_clear(&newar->panels);
 	BLI_duplicatelist(&newar->panels, &ar->panels);
-	
+
+	BLI_listbase_clear(&newar->ui_previews);
+	BLI_duplicatelist(&newar->ui_previews, &ar->ui_previews);
+
 	/* copy panel pointers */
 	for (newpa = newar->panels.first; newpa; newpa = newpa->next) {
 		patab = newar->panels.first;
@@ -261,7 +264,7 @@ void BKE_spacedata_draw_locks(int set)
 			if (set) 
 				art->do_lock = art->lock;
 			else 
-				art->do_lock = FALSE;
+				art->do_lock = false;
 		}
 	}
 }
@@ -308,6 +311,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 		}
 	}
 	BLI_freelistN(&ar->ui_lists);
+	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);
 	BLI_freelistN(&ar->panels_category_active);
 }
@@ -419,6 +423,32 @@ ScrArea *BKE_screen_find_big_area(bScreen *sc, const int spacetype, const short 
 	}
 
 	return big;
+}
+
+/**
+ * Utility function to get the active layer to use when adding new objects.
+ */
+unsigned int BKE_screen_view3d_layer_active_ex(const View3D *v3d, const Scene *scene, bool use_localvd)
+{
+	unsigned int lay;
+	if ((v3d == NULL) || (v3d->scenelock && !v3d->localvd)) {
+		lay = scene->layact;
+	}
+	else {
+		lay = v3d->layact;
+	}
+
+	if (use_localvd) {
+		if (v3d && v3d->localvd) {
+			lay |= v3d->lay;
+		}
+	}
+
+	return lay;
+}
+unsigned int BKE_screen_view3d_layer_active(const struct View3D *v3d, const struct Scene *scene)
+{
+	return BKE_screen_view3d_layer_active_ex(v3d, scene, true);
 }
 
 void BKE_screen_view3d_sync(View3D *v3d, struct Scene *scene)

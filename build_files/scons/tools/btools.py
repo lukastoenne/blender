@@ -14,6 +14,21 @@ import sys
 Variables = SCons.Variables
 BoolVariable = SCons.Variables.BoolVariable
 
+def get_command_output(*popenargs, **kwargs):
+    if hasattr(subprocess, "check_output"):
+        return subprocess.check_output(*popenargs, **kwargs)
+    if 'stdout' in kwargs:
+        raise ValueError('stdout argument not allowed, it will be overridden.')
+    process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+    output, unused_err = process.communicate()
+    retcode = process.poll()
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        raise subprocess.CalledProcessError(retcode, cmd)
+    return output
+
 def get_version():
     import re
 
@@ -56,7 +71,14 @@ def get_version():
     raise Exception("%s: missing version string" % fname)
 
 def get_hash():
-    build_hash = os.popen('git rev-parse --short HEAD').read().strip()
+    try:
+        build_hash = get_command_output(['git', 'rev-parse', '--short', 'HEAD']).strip()
+    except OSError:
+        build_hash = None
+        print("WARNING: could not use git to retrieve current Blender repository hash...")
+    except subprocess.CalledProcessError as e:
+        build_hash = None
+        print("WARNING: git errored while retrieving current Blender repository hash (%d)..." % e.returncode)
     if build_hash == '' or build_hash == None:
         build_hash = 'UNKNOWN'
 
@@ -124,7 +146,8 @@ def validate_arguments(args, bc):
             'BF_CXX', 'WITH_BF_STATICCXX', 'BF_CXX_LIB_STATIC',
             'BF_TWEAK_MODE', 'BF_SPLIT_SRC',
             'WITHOUT_BF_INSTALL',
-            'WITHOUT_BF_PYTHON_INSTALL', 'WITHOUT_BF_PYTHON_UNPACK', 'WITH_BF_PYTHON_INSTALL_NUMPY',
+            'WITHOUT_BF_PYTHON_INSTALL', 'WITHOUT_BF_PYTHON_UNPACK',
+            'WITH_BF_PYTHON_INSTALL_NUMPY', 'WITH_BF_PYTHON_INSTALL_REQUESTS',
             'WITHOUT_BF_OVERWRITE_INSTALL',
             'WITH_BF_OPENMP', 'BF_OPENMP', 'BF_OPENMP_LIBPATH', 'WITH_BF_STATICOPENMP', 'BF_OPENMP_STATIC_STATIC',
             'WITH_GHOST_SDL',
@@ -520,7 +543,8 @@ def read_opts(env, cfg, args):
         (BoolVariable('BF_SPLIT_SRC', 'Split src lib into several chunks if true', False)),
         (BoolVariable('WITHOUT_BF_INSTALL', 'dont install if true', False)),
         (BoolVariable('WITHOUT_BF_PYTHON_INSTALL', 'dont install Python modules if true', False)),
-        (BoolVariable('WITH_BF_PYTHON_INSTALL_NUMPY', 'install Python mumpy module', False)),
+        (BoolVariable('WITH_BF_PYTHON_INSTALL_NUMPY', 'install Python numpy module', False)),
+        (BoolVariable('WITH_BF_PYTHON_INSTALL_REQUESTS', 'install Python requests module', False)),
         (BoolVariable('WITHOUT_BF_PYTHON_UNPACK', 'dont remove and unpack Python modules everytime if true', False)),
         (BoolVariable('WITHOUT_BF_OVERWRITE_INSTALL', 'dont remove existing files before breating the new install directory (set to False when making packages for others)', False)),
         (BoolVariable('BF_FANCY', 'Enable fancy output if true', True)),
@@ -678,10 +702,6 @@ def buildslave(target=None, source=None, env=None):
     if platform == 'darwin':
         platform = 'OSX-' + env['MACOSX_DEPLOYMENT_TARGET'] + '-' + env['MACOSX_ARCHITECTURE']
 
-    if env['MSVC_VERSION'] == '11.0':
-        platform = env['OURPLATFORM'] + '11'
-    if env['MSVC_VERSION'] == '12.0':
-        platform = env['OURPLATFORM'] + '12'
 
     branch = env['BUILDBOT_BRANCH']
 

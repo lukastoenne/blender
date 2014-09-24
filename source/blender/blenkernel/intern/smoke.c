@@ -42,12 +42,8 @@
 #include <stdio.h>
 #include <string.h> /* memset */
 
-#include "BLI_linklist.h"
-#include "BLI_rand.h"
-#include "BLI_jitter.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_edgehash.h"
 #include "BLI_kdtree.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_threads.h"
@@ -58,9 +54,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_customdata_types.h"
-#include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -211,7 +205,7 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 	/* smoke_turbulence_init uses non-threadsafe functions from fftw3 lib (like fftw_plan & co). */
 	BLI_lock_thread(LOCK_FFTW);
 
-	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BLI_temporary_dir(), use_fire, use_colors);
+	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BLI_temp_dir_session(), use_fire, use_colors);
 
 	BLI_unlock_thread(LOCK_FFTW);
 
@@ -233,7 +227,7 @@ static void smoke_pos_to_cell(SmokeDomainSettings *sds, float pos[3])
 }
 
 /* set domain transformations and base resolution from object derivedmesh */
-static void smoke_set_domain_from_derivedmesh(SmokeDomainSettings *sds, Object *ob, DerivedMesh *dm, int init_resolution)
+static void smoke_set_domain_from_derivedmesh(SmokeDomainSettings *sds, Object *ob, DerivedMesh *dm, bool init_resolution)
 {
 	size_t i;
 	float min[3] = {FLT_MAX, FLT_MAX, FLT_MAX}, max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
@@ -318,7 +312,7 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 		SmokeDomainSettings *sds = smd->domain;
 		int res[3];
 		/* set domain dimensions from derivedmesh */
-		smoke_set_domain_from_derivedmesh(sds, ob, dm, TRUE);
+		smoke_set_domain_from_derivedmesh(sds, ob, dm, true);
 		/* reset domain values */
 		zero_v3_int(sds->shift);
 		zero_v3(sds->shift_f);
@@ -934,7 +928,7 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
  **********************************************************/
 
 /* set "ignore cache" flag for all caches on this object */
-static void object_cacheIgnoreClear(Object *ob, int state)
+static void object_cacheIgnoreClear(Object *ob, bool state)
 {
 	ListBase pidlist;
 	PTCacheID *pid;
@@ -952,7 +946,7 @@ static void object_cacheIgnoreClear(Object *ob, int state)
 	BLI_freelistN(&pidlist);
 }
 
-static int subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int parent_recursion, float frame, bool for_render)
+static bool subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int parent_recursion, float frame, bool for_render)
 {
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	bConstraint *con;
@@ -964,9 +958,9 @@ static int subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int 
 	/* if object has parents, update them too */
 	if (parent_recursion) {
 		int recursion = parent_recursion - 1;
-		int is_domain = 0;
-		if (ob->parent) is_domain += subframe_updateObject(scene, ob->parent, 0, recursion, frame, for_render);
-		if (ob->track) is_domain += subframe_updateObject(scene, ob->track, 0, recursion, frame, for_render);
+		bool is_domain = false;
+		if (ob->parent) is_domain |= subframe_updateObject(scene, ob->parent, 0, recursion, frame, for_render);
+		if (ob->track) is_domain |= subframe_updateObject(scene, ob->track, 0, recursion, frame, for_render);
 
 		/* skip subframe if object is parented
 		 *  to vertex of a dynamic paint canvas */
@@ -975,7 +969,7 @@ static int subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int 
 
 		/* also update constraint targets */
 		for (con = ob->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 
 			if (cti && cti->get_constraint_targets) {
@@ -1074,7 +1068,7 @@ static void clampBoundsInDomain(SmokeDomainSettings *sds, int min[3], int max[3]
 	}
 }
 
-static void em_allocateData(EmissionMap *em, int use_velocity, int hires_mul)
+static void em_allocateData(EmissionMap *em, bool use_velocity, int hires_mul)
 {
 	int i, res[3];
 
@@ -1297,7 +1291,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 			mul_mat3_m4_v3(sds->imat, &particle_vel[valid_particles * 3]);
 
 			if (sfs->flags & MOD_SMOKE_FLOW_USE_PART_SIZE) {
-				BLI_kdtree_insert(tree, valid_particles, pos, NULL);
+				BLI_kdtree_insert(tree, valid_particles, pos);
 			}
 
 			/* calculate emission map bounds */
@@ -1379,7 +1373,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 							/* find particle distance from the kdtree */
 							KDTreeNearest nearest;
 							float range = solid + smooth;
-							BLI_kdtree_find_nearest(tree, ray_start, NULL, &nearest);
+							BLI_kdtree_find_nearest(tree, ray_start, &nearest);
 
 							if (nearest.dist < range) {
 								em->influence[index] = (nearest.dist < solid) ? 1.0f : (1.0f - (nearest.dist-solid) / smooth);
@@ -1404,7 +1398,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 							/* find particle distance from the kdtree */
 							KDTreeNearest nearest;
 							float range = solid + hr_smooth;
-							BLI_kdtree_find_nearest(tree, ray_start, NULL, &nearest);
+							BLI_kdtree_find_nearest(tree, ray_start, &nearest);
 
 							if (nearest.dist < range) {
 								em->influence_high[index] = (nearest.dist < solid) ? 1.0f : (1.0f - (nearest.dist-solid) / smooth);
@@ -1428,8 +1422,11 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 	}
 }
 
-static void sample_derivedmesh(SmokeFlowSettings *sfs, MVert *mvert, MTFace *tface, MFace *mface, float *influence_map, float *velocity_map, int index, int base_res[3], float flow_center[3], BVHTreeFromMesh *treeData, float ray_start[3],
-								float *vert_vel, int has_velocity, int defgrp_index, MDeformVert *dvert, float x, float y, float z)
+static void sample_derivedmesh(
+        SmokeFlowSettings *sfs, MVert *mvert, MTFace *tface, MFace *mface,
+        float *influence_map, float *velocity_map, int index, int base_res[3], float flow_center[3],
+        BVHTreeFromMesh *treeData, const float ray_start[3], const float *vert_vel,
+        bool has_velocity, int defgrp_index, MDeformVert *dvert, float x, float y, float z)
 {
 	float ray_dir[3] = {1.0f, 0.0f, 0.0f};
 	BVHTreeRayHit hit = {0};
@@ -1555,8 +1552,7 @@ static void sample_derivedmesh(SmokeFlowSettings *sfs, MVert *mvert, MTFace *tfa
 
 static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, SmokeFlowSettings *sfs, EmissionMap *em, float dt)
 {
-	if (!sfs->dm) return;
-	{
+	if (sfs->dm) {
 		DerivedMesh *dm;
 		int defgrp_index = sfs->vgroup_density - 1;
 		MDeformVert *dvert = NULL;
@@ -1687,10 +1683,16 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 		free_bvhtree_from_mesh(&treeData);
 		/* restore original mverts */
 		CustomData_set_layer(&dm->vertData, CD_MVERT, mvert_orig);
-		if (mvert)
-			MEM_freeN(mvert);
 
-		if (vert_vel) MEM_freeN(vert_vel);
+		if (mvert) {
+			MEM_freeN(mvert);
+		}
+		if (vert_vel) {
+			MEM_freeN(vert_vel);
+		}
+
+		dm->needsFree = 1;
+		dm->release(dm);
 	}
 }
 
@@ -2469,7 +2471,7 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 	/* update object state */
 	invert_m4_m4(sds->imat, ob->obmat);
 	copy_m4_m4(sds->obmat, ob->obmat);
-	smoke_set_domain_from_derivedmesh(sds, ob, domain_dm, (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN));
+	smoke_set_domain_from_derivedmesh(sds, ob, domain_dm, (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) != 0);
 
 	/* use global gravity if enabled */
 	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {

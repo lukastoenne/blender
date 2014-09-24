@@ -39,7 +39,6 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
@@ -47,11 +46,7 @@
 #include "DNA_texture_types.h"
 #include "DNA_lamp_types.h"
 
-#include "BKE_colortools.h"
-#include "BKE_image.h"
-#include "BKE_global.h"
 #include "BKE_material.h"
-#include "BKE_texture.h"
 
 
 /* own module */
@@ -165,7 +160,7 @@ static void render_lighting_halo(HaloRen *har, float col_r[3])
 					x = max_ff(fabsf(lvrot[0]/lvrot[2]), fabsf(lvrot[1]/lvrot[2]));
 					/* 1.0/(sqrt(1+x*x)) is equivalent to cos(atan(x)) */
 					
-					inpr= 1.0/(sqrt(1.0f+x*x));
+					inpr = 1.0 / (sqrtf(1.0f + x * x));
 				}
 				else inpr= 0.0;
 			}
@@ -211,7 +206,7 @@ static void render_lighting_halo(HaloRen *har, float col_r[3])
 		
 		/* dot product and  reflectivity*/
 		
-		inp = 1.0 - fabs(dot_v3v3(vn, lv));
+		inp = 1.0 - fabsf(dot_v3v3(vn, lv));
 		
 		/* inp= cos(0.5*M_PI-acos(inp)); */
 		
@@ -334,7 +329,7 @@ int shadeHaloFloat(HaloRen *har, float col[4], int zz,
 		}
 	}
 
-	radist= sqrt(dist);
+	radist = sqrtf(dist);
 
 	/* watch it: not used nicely: flarec is set at zero in pixstruct */
 	if (flarec) har->pixels+= (int)(har->rad-radist);
@@ -371,17 +366,15 @@ int shadeHaloFloat(HaloRen *har, float col[4], int zz,
 	else dist= dist/har->radsq;
 
 	if (har->type & HA_FLARECIRC) {
-		
-		dist= 0.5+fabs(dist-0.5f);
-		
+		dist = 0.5 + fabsf(dist - 0.5f);
 	}
 
 	if (har->hard>=30) {
-		dist= sqrt(dist);
+		dist = sqrtf(dist);
 		if (har->hard>=40) {
-			dist= sinf(dist*(float)M_PI_2);
+			dist = sinf(dist*(float)M_PI_2);
 			if (har->hard>=50) {
-				dist= sqrt(dist);
+				dist = sqrtf(dist);
 			}
 		}
 	}
@@ -404,7 +397,7 @@ int shadeHaloFloat(HaloRen *har, float col[4], int zz,
 			
 			rc= hashvectf + (ofs % 768);
 			
-			fac= fabs( (xn)*rc[0]+(yn)*rc[1]);
+			fac = fabsf((xn) * rc[0] + (yn) * rc[1]);
 			
 			if (fac< 1.0f )
 				linef+= (1.0f-fac);
@@ -416,15 +409,15 @@ int shadeHaloFloat(HaloRen *har, float col[4], int zz,
 	if (har->starpoints) {
 		float ster, angle;
 		/* rotation */
-		angle= atan2(yn, xn);
-		angle*= (1.0f+0.25f*har->starpoints);
+		angle = atan2f(yn, xn);
+		angle *= (1.0f+0.25f*har->starpoints);
 		
 		co= cosf(angle);
 		si= sinf(angle);
 		
 		angle= (co*xn+si*yn)*(co*yn-si*xn);
 		
-		ster= fabs(angle);
+		ster = fabsf(angle);
 		if (ster>1.0f) {
 			ster= (har->rad)/(ster);
 			
@@ -567,7 +560,7 @@ void shadeSunView(float col_r[3], const float view[3])
 	GroupObject *go;
 	LampRen *lar;
 	float sview[3];
-	int do_init = TRUE;
+	bool do_init = true;
 	
 	for (go=R.lights.first; go; go= go->next) {
 		lar= go->lampren;
@@ -582,11 +575,11 @@ void shadeSunView(float col_r[3], const float view[3])
 				if (sview[2] < 0.0f)
 					sview[2] = 0.0f;
 				normalize_v3(sview);
-				do_init = FALSE;
+				do_init = false;
 			}
 			
 			GetSkyXYZRadiancef(lar->sunsky, sview, colorxyz);
-			xyz_to_rgb(colorxyz[0], colorxyz[1], colorxyz[2], &sun_collector[0], &sun_collector[1], &sun_collector[2], 
+			xyz_to_rgb(colorxyz[0], colorxyz[1], colorxyz[2], &sun_collector[0], &sun_collector[1], &sun_collector[2],
 					   lar->sunsky->sky_colorspace);
 			
 			ramp_blend(lar->sunsky->skyblendtype, col_r, lar->sunsky->skyblendfac, sun_collector);

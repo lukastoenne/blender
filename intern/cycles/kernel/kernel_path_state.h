@@ -18,15 +18,11 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_inline void path_state_init(KernelGlobals *kg, PathState *state, RNG *rng, int sample)
 {
-	state->flag = PATH_RAY_CAMERA|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP;
+	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP;
 
 	state->rng_offset = PRNG_BASE_NUM;
 	state->sample = sample;
-#ifdef __CMJ__
 	state->num_samples = kernel_data.integrator.aa_samples;
-#else
-	state->num_samples = 0;
-#endif
 
 	state->bounce = 0;
 	state->diffuse_bounce = 0;
@@ -50,7 +46,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg, PathState *state, RNG 
 		state->rng_congruential = lcg_init(*rng + sample*0x51633e2d);
 	}
 	else {
-		state->volume_stack[0].shader = SHADER_NO_ID;
+		state->volume_stack[0].shader = SHADER_NONE;
 	}
 #endif
 }
@@ -63,8 +59,8 @@ ccl_device_inline void path_state_next(KernelGlobals *kg, PathState *state, int 
 		state->flag |= PATH_RAY_TRANSPARENT;
 		state->transparent_bounce++;
 
-		/* random number generator next bounce */
-		state->rng_offset += PRNG_BOUNCE_NUM;
+		/* don't increase random number generator offset here, to avoid some
+		 * unwanted patterns, see path_state_rng_1D_for_decision */
 
 		if(!kernel_data.integrator.transparent_shadows)
 			state->flag |= PATH_RAY_MIS_SKIP;
@@ -132,6 +128,9 @@ ccl_device_inline uint path_state_ray_visibility(KernelGlobals *kg, PathState *s
 	/* for visibility, diffuse/glossy are for reflection only */
 	if(flag & PATH_RAY_TRANSMIT)
 		flag &= ~(PATH_RAY_DIFFUSE|PATH_RAY_GLOSSY);
+	/* todo: this is not supported as its own ray visibility yet */
+	if(state->flag & PATH_RAY_VOLUME_SCATTER)
+		flag |= PATH_RAY_DIFFUSE;
 	/* for camera visibility, use render layer flags */
 	if(flag & PATH_RAY_CAMERA)
 		flag |= kernel_data.integrator.layer_flag;

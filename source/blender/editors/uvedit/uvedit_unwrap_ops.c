@@ -46,10 +46,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_alloca.h"
 #include "BLI_math.h"
-#include "BLI_edgehash.h"
 #include "BLI_uvproject.h"
 #include "BLI_string.h"
-#include "BLI_scanfill.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_subsurf.h"
@@ -58,7 +56,6 @@
 #include "BKE_depsgraph.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
@@ -91,9 +88,9 @@ static void modifier_unwrap_state(Object *obedit, Scene *scene, bool *r_use_subs
 	/* subsurf will take the modifier settings only if modifier is first or right after mirror */
 	if (subsurf) {
 		if (md && md->type == eModifierType_Subsurf)
-			subsurf = TRUE;
+			subsurf = true;
 		else
-			subsurf = FALSE;
+			subsurf = false;
 	}
 
 	*r_use_subsurf = subsurf;
@@ -195,8 +192,8 @@ static bool uvedit_have_selection(Scene *scene, BMEditMesh *em, bool implicit)
 
 void uvedit_get_aspect(Scene *scene, Object *ob, BMEditMesh *em, float *aspx, float *aspy)
 {
-	int sloppy = TRUE;
-	int selected = FALSE;
+	bool sloppy = true;
+	bool selected = false;
 	BMFace *efa;
 	Image *ima;
 
@@ -204,7 +201,7 @@ void uvedit_get_aspect(Scene *scene, Object *ob, BMEditMesh *em, float *aspx, fl
 
 	if (efa) {
 		if (BKE_scene_use_new_shading_nodes(scene)) {
-			ED_object_get_active_image(ob, efa->mat_nr + 1, &ima, NULL, NULL);
+			ED_object_get_active_image(ob, efa->mat_nr + 1, &ima, NULL, NULL, NULL);
 		}
 		else {
 			MTexPoly *tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
@@ -361,7 +358,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	/* Used to hold subsurfed Mesh */
 	DerivedMesh *derivedMesh, *initialDerived;
 	/* holds original indices for subsurfed mesh */
-	int *origVertIndices, *origEdgeIndices, *origFaceIndices, *origPolyIndices;
+	const int *origVertIndices, *origEdgeIndices, *origFaceIndices, *origPolyIndices;
 	/* Holds vertices of subsurfed mesh */
 	MVert *subsurfedVerts;
 	MEdge *subsurfedEdges;
@@ -808,9 +805,9 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 	}
 
 	if (use_subsurf)
-		liveHandle = construct_param_handle_subsurfed(scene, obedit, em, fillholes, FALSE, TRUE);
+		liveHandle = construct_param_handle_subsurfed(scene, obedit, em, fillholes, false, true);
 	else
-		liveHandle = construct_param_handle(scene, obedit, em, FALSE, fillholes, FALSE, TRUE);
+		liveHandle = construct_param_handle(scene, obedit, em, false, fillholes, false, true);
 
 	param_lscm_begin(liveHandle, PARAM_TRUE, abf);
 }
@@ -841,7 +838,7 @@ void ED_uvedit_live_unwrap(Scene *scene, Object *obedit)
 	if (scene->toolsettings->edge_mode_live_unwrap &&
 	    CustomData_has_layer(&em->bm->ldata, CD_MLOOPUV))
 	{
-		ED_unwrap_lscm(scene, obedit, FALSE); /* unwrap all not just sel */
+		ED_unwrap_lscm(scene, obedit, false); /* unwrap all not just sel */
 	}
 }
 
@@ -941,7 +938,7 @@ static void uv_map_rotation_matrix(float result[4][4], RegionView3D *rv3d, Objec
 	rotup[0][0] =  1.0f / radius;
 
 	/* calculate transforms*/
-	mul_serie_m4(result, rotup, rotside, viewmatrix, rotobj, NULL, NULL, NULL, NULL);
+	mul_m4_series(result, rotup, rotside, viewmatrix, rotobj);
 }
 
 static void uv_map_transform(bContext *C, wmOperator *op, float center[3], float rotmat[4][4])
@@ -1139,7 +1136,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	if (use_subsurf)
 		handle = construct_param_handle_subsurfed(scene, obedit, em, fill_holes, sel, correct_aspect);
 	else
-		handle = construct_param_handle(scene, obedit, em, FALSE, fill_holes, sel, correct_aspect);
+		handle = construct_param_handle(scene, obedit, em, false, fill_holes, sel, correct_aspect);
 
 	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper == 0);
 	param_lscm_solve(handle);
@@ -1211,7 +1208,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_INFO, "Subsurf modifier needs to be first to work with unwrap");
 
 	/* execute unwrap */
-	ED_unwrap_lscm(scene, obedit, TRUE);
+	ED_unwrap_lscm(scene, obedit, true);
 
 	DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);

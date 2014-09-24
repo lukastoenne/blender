@@ -462,6 +462,13 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_float(func, "percentage", 0.0f, 0.0f, 1.0f, "Percentage", "Percentage of width to split at", 0.0f, 1.0f);
 	RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
 
+	/* radial/pie layout */
+	func = RNA_def_function(srna, "menu_pie", "uiLayoutRadial");
+	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
+	RNA_def_function_return(func, parm);
+	RNA_def_function_ui_description(func, "Sublayout. Items placed in this sublayout are placed "
+	                                "in a radial fashion around the menu center)");
+
 	/* Icon of a rna pointer */
 	func = RNA_def_function(srna, "icon", "rna_ui_get_rnaptr_icon");
 	parm = RNA_def_int(func, "icon_value", ICON_NONE, 0, INT_MAX, "", "Icon identifier", 0, INT_MAX);
@@ -683,12 +690,16 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "template_preview", "uiTemplatePreview");
-	RNA_def_function_ui_description(func, "Item. A preview window for materials, textures, lamps, etc");
+	RNA_def_function_ui_description(func, "Item. A preview window for materials, textures, lamps or worlds");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	parm = RNA_def_pointer(func, "id", "ID", "", "ID datablock");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_boolean(func, "show_buttons", true, "", "Show preview buttons?");
 	RNA_def_pointer(func, "parent", "ID", "", "ID datablock");
 	RNA_def_pointer(func, "slot", "TextureSlot", "", "Texture slot");
+	RNA_def_string(func, "preview_id", NULL, 0, "",
+	               "Identifier of this preview widget, if not set the ID type will be used "
+	               "(i.e. all previews of materials without explicit ID will have the same size...)");
 
 	func = RNA_def_function(srna, "template_curve_mapping", "uiTemplateCurveMapping");
 	RNA_def_function_ui_description(func, "Item. A curve mapping widget used for e.g falloff curves for lamps");
@@ -696,6 +707,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_enum(func, "type", curve_type_items, 0, "Type", "Type of curves to display");
 	RNA_def_boolean(func, "levels", false, "", "Show black/white levels");
 	RNA_def_boolean(func, "brush", false, "", "Show brush options");
+	RNA_def_boolean(func, "use_negative_slope", false, "", "Use a negative slope by default");
 
 	func = RNA_def_function(srna, "template_color_ramp", "uiTemplateColorRamp");
 	RNA_def_function_ui_description(func, "Item. A color ramp widget");
@@ -733,7 +745,12 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_boolean(func, "value_slider", false, "", "Display the value slider to the right of the color wheel");
 	RNA_def_boolean(func, "lock", false, "", "Lock the color wheel display to value 1.0 regardless of actual color");
 	RNA_def_boolean(func, "lock_luminosity", false, "", "Keep the color at its original vector length");
-	RNA_def_boolean(func, "cubic", true, "", "Cubic saturation for picking values close to white");
+	RNA_def_boolean(func, "cubic", false, "", "Cubic saturation for picking values close to white");
+
+	func = RNA_def_function(srna, "template_palette", "uiTemplatePalette");
+	RNA_def_function_ui_description(func, "Item. A palette used to pick colors");
+	api_ui_item_rna_common(func);
+	RNA_def_boolean(func, "color", 0, "", "Display the colors as colors or values");
 
 	func = RNA_def_function(srna, "template_image_layers", "uiTemplateImageLayers");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);

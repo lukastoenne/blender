@@ -50,9 +50,10 @@ class TextureNodeCategory(NodeCategory):
         return context.space_data.tree_type == 'TextureNodeTree'
 
 
-# menu entry for making a new group from selected nodes
-def group_make_draw(self, layout, context):
+# menu entry for node group tools
+def group_tools_draw(self, layout, context):
     layout.operator("node.group_make")
+    layout.operator("node.group_ungroup")
     layout.separator()
 
 # maps node tree type to group node type
@@ -72,7 +73,7 @@ def node_group_items(context):
     if not ntree:
         return
 
-    yield NodeItemCustom(draw=group_make_draw)
+    yield NodeItemCustom(draw=group_tools_draw)
 
     def contains_group(nodetree, group):
         if nodetree == group:
@@ -102,6 +103,13 @@ def group_input_output_item_poll(context):
     if space.edit_tree in bpy.data.node_groups.values():
         return True
     return False
+
+
+# only show input/output nodes when editing line style node trees
+def line_style_shader_nodes_poll(context):
+    snode = context.space_data
+    return (snode.tree_type == 'ShaderNodeTree' and
+            snode.shader_type == 'LINESTYLE')
 
 
 # All standard node categories currently used in nodes.
@@ -167,12 +175,15 @@ shader_node_categories = [
         NodeItem("ShaderNodeHairInfo"),
         NodeItem("ShaderNodeParticleInfo"),
         NodeItem("ShaderNodeCameraData"),
+        NodeItem("ShaderNodeUVMap"),
+        NodeItem("ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_OUTPUT", "Output", items=[
         NodeItem("ShaderNodeOutputMaterial"),
         NodeItem("ShaderNodeOutputLamp"),
         NodeItem("ShaderNodeOutputWorld"),
+        NodeItem("ShaderNodeOutputLineStyle", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_SHADER", "Shader", items=[
@@ -233,6 +244,8 @@ shader_node_categories = [
         NodeItem("ShaderNodeVectorMath"),
         NodeItem("ShaderNodeSeparateRGB"),
         NodeItem("ShaderNodeCombineRGB"),
+        NodeItem("ShaderNodeSeparateXYZ"),
+        NodeItem("ShaderNodeCombineXYZ"),
         NodeItem("ShaderNodeSeparateHSV"),
         NodeItem("ShaderNodeCombineHSV"),
         NodeItem("ShaderNodeWavelength"),
@@ -314,6 +327,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeInpaint"),
         NodeItem("CompositorNodeDBlur"),
         NodeItem("CompositorNodePixelate"),
+        NodeItem("CompositorNodeSunBeams"),
         ]),
     CompositorNodeCategory("CMP_OP_VECTOR", "Vector", items=[
         NodeItem("CompositorNodeNormal"),
@@ -349,6 +363,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeTransform"),
         NodeItem("CompositorNodeStabilize"),
         NodeItem("CompositorNodePlaneTrackDeform"),
+        NodeItem("CompositorNodeCornerPin"),
         ]),
     CompositorNodeCategory("CMP_GROUP", "Group", items=node_group_items),
     CompositorNodeCategory("CMP_LAYOUT", "Layout", items=[

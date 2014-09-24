@@ -757,7 +757,7 @@ static int view_zoomin_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		ARegion *ar = CTX_wm_region(C);
 		
 		/* store initial mouse position (in view space) */
-		UI_view2d_region_to_view(&ar->v2d, 
+		UI_view2d_region_to_view(&ar->v2d,
 		                         event->mval[0], event->mval[1],
 		                         &vzd->mx_2d, &vzd->my_2d);
 	}
@@ -767,6 +767,8 @@ static int view_zoomin_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static void VIEW2D_OT_zoom_in(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Zoom In";
 	ot->description = "Zoom in the view";
@@ -778,10 +780,12 @@ static void VIEW2D_OT_zoom_in(wmOperatorType *ot)
 	ot->poll = view_zoom_poll;
 	
 	/* rna - must keep these in sync with the other operators */
-	RNA_def_float(ot->srna, "zoomfacx", 0, -FLT_MAX, FLT_MAX, "Zoom Factor X", "", -FLT_MAX, FLT_MAX);
-	RNA_def_float(ot->srna, "zoomfacy", 0, -FLT_MAX, FLT_MAX, "Zoom Factor Y", "", -FLT_MAX, FLT_MAX);
+	prop = RNA_def_float(ot->srna, "zoomfacx", 0, -FLT_MAX, FLT_MAX, "Zoom Factor X", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop = RNA_def_float(ot->srna, "zoomfacy", 0, -FLT_MAX, FLT_MAX, "Zoom Factor Y", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
-	
+
 /* this operator only needs this single callback, where it calls the view_zoom_*() methods */
 static int view_zoomout_exec(bContext *C, wmOperator *op)
 {
@@ -828,6 +832,8 @@ static int view_zoomout_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 static void VIEW2D_OT_zoom_out(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Zoom Out";
 	ot->description = "Zoom out the view";
@@ -839,8 +845,10 @@ static void VIEW2D_OT_zoom_out(wmOperatorType *ot)
 	ot->poll = view_zoom_poll;
 	
 	/* rna - must keep these in sync with the other operators */
-	RNA_def_float(ot->srna, "zoomfacx", 0, -FLT_MAX, FLT_MAX, "Zoom Factor X", "", -FLT_MAX, FLT_MAX);
-	RNA_def_float(ot->srna, "zoomfacy", 0, -FLT_MAX, FLT_MAX, "Zoom Factor Y", "", -FLT_MAX, FLT_MAX);
+	prop = RNA_def_float(ot->srna, "zoomfacx", 0, -FLT_MAX, FLT_MAX, "Zoom Factor X", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop = RNA_def_float(ot->srna, "zoomfacy", 0, -FLT_MAX, FLT_MAX, "Zoom Factor Y", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* ********************************************************* */
@@ -1033,7 +1041,7 @@ static int view_zoomdrag_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
 	if (U.viewzoom == USER_ZOOM_CONT) {
 		/* needs a timer to continue redrawing */
-		vzd->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+		vzd->timer = WM_event_add_timer(CTX_wm_manager(C), window, TIMER, 0.01f);
 		vzd->timer_lastdraw = PIL_check_seconds_timer();
 	}
 
@@ -1139,6 +1147,7 @@ static int view_zoomdrag_modal(bContext *C, wmOperator *op, const wmEvent *event
 
 static void VIEW2D_OT_zoom(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
 	/* identifiers */
 	ot->name = "Zoom 2D View";
 	ot->description = "Zoom in/out the view";
@@ -1156,8 +1165,10 @@ static void VIEW2D_OT_zoom(wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER;
 	
 	/* rna - must keep these in sync with the other operators */
-	RNA_def_float(ot->srna, "deltax", 0, -FLT_MAX, FLT_MAX, "Delta X", "", -FLT_MAX, FLT_MAX);
-	RNA_def_float(ot->srna, "deltay", 0, -FLT_MAX, FLT_MAX, "Delta Y", "", -FLT_MAX, FLT_MAX);
+	prop = RNA_def_float(ot->srna, "deltax", 0, -FLT_MAX, FLT_MAX, "Delta X", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop = RNA_def_float(ot->srna, "deltay", 0, -FLT_MAX, FLT_MAX, "Delta Y", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* ********************************************************* */
@@ -1182,8 +1193,8 @@ static int view_borderzoom_exec(bContext *C, wmOperator *op)
 	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 	
 	/* convert coordinates of rect to 'tot' rect coordinates */
-	UI_view2d_region_to_view(v2d, RNA_int_get(op->ptr, "xmin"), RNA_int_get(op->ptr, "ymin"), &rect.xmin, &rect.ymin);
-	UI_view2d_region_to_view(v2d, RNA_int_get(op->ptr, "xmax"), RNA_int_get(op->ptr, "ymax"), &rect.xmax, &rect.ymax);
+	WM_operator_properties_border_to_rctf(op, &rect);
+	UI_view2d_region_to_view_rctf(v2d, &rect, &rect);
 	
 	/* check if zooming in/out view */
 	gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
@@ -1348,14 +1359,14 @@ struct SmoothView2DStore {
  */
 static float smooth_view_rect_to_fac(const rctf *rect_a, const rctf *rect_b)
 {
-	float size_a[2] = {BLI_rctf_size_x(rect_a),
-	                   BLI_rctf_size_y(rect_a)};
-	float size_b[2] = {BLI_rctf_size_x(rect_b),
-	                   BLI_rctf_size_y(rect_b)};
-	float cent_a[2] = {BLI_rctf_cent_x(rect_a),
-	                   BLI_rctf_cent_y(rect_a)};
-	float cent_b[2] = {BLI_rctf_cent_x(rect_b),
-	                   BLI_rctf_cent_y(rect_b)};
+	const float size_a[2] = {BLI_rctf_size_x(rect_a),
+	                         BLI_rctf_size_y(rect_a)};
+	const float size_b[2] = {BLI_rctf_size_x(rect_b),
+	                         BLI_rctf_size_y(rect_b)};
+	const float cent_a[2] = {BLI_rctf_cent_x(rect_a),
+	                         BLI_rctf_cent_y(rect_a)};
+	const float cent_b[2] = {BLI_rctf_cent_x(rect_b),
+	                         BLI_rctf_cent_y(rect_b)};
 
 	float fac_max = 0.0f;
 	float tfac;
@@ -1522,6 +1533,7 @@ typedef struct v2dScrollerMove {
 	short zone; /* -1 is min zoomer, 0 is bar, 1 is max zoomer */             // XXX find some way to provide visual feedback of this (active color?)
 	
 	float fac;              /* view adjustment factor, based on size of region */
+	float fac_round;        /* for pixel rounding (avoid visible UI jitter) */
 	float delta;            /* amount moved by mouse on axis of interest */
 	
 	float scrollbarwidth;   /* width of the scrollbar itself, used for page up/down clicks */
@@ -1560,7 +1572,7 @@ enum {
  */
 static short mouse_in_scroller_handle(int mouse, int sc_min, int sc_max, int sh_min, int sh_max)
 {
-	short in_min, in_max, in_bar, out_min, out_max, in_view = 1;
+	bool in_min, in_max, in_bar, out_min, out_max, in_view = 1;
 	
 	/* firstly, check if 
 	 *	- 'bubble' fills entire scroller 
@@ -1583,9 +1595,9 @@ static short mouse_in_scroller_handle(int mouse, int sc_min, int sc_max, int sh_
 	
 	/* check if mouse is in or past either handle */
 	/* TODO: check if these extents are still valid or not */
-	in_max = ( (mouse >= (sh_max - V2D_SCROLLER_HANDLE_SIZE)) && (mouse <= (sh_max + V2D_SCROLLER_HANDLE_SIZE)) );
-	in_min = ( (mouse <= (sh_min + V2D_SCROLLER_HANDLE_SIZE)) && (mouse >= (sh_min - V2D_SCROLLER_HANDLE_SIZE)) );
-	in_bar = ( (mouse < (sh_max - V2D_SCROLLER_HANDLE_SIZE)) && (mouse > (sh_min + V2D_SCROLLER_HANDLE_SIZE)) );
+	in_max = ((mouse >= (sh_max - V2D_SCROLLER_HANDLE_SIZE)) && (mouse <= (sh_max + V2D_SCROLLER_HANDLE_SIZE)));
+	in_min = ((mouse <= (sh_min + V2D_SCROLLER_HANDLE_SIZE)) && (mouse >= (sh_min - V2D_SCROLLER_HANDLE_SIZE)));
+	in_bar = ((mouse < (sh_max - V2D_SCROLLER_HANDLE_SIZE)) && (mouse > (sh_min + V2D_SCROLLER_HANDLE_SIZE)));
 	out_min = mouse < (sh_min - V2D_SCROLLER_HANDLE_SIZE);
 	out_max = mouse > (sh_max + V2D_SCROLLER_HANDLE_SIZE);
 	
@@ -1640,7 +1652,10 @@ static void scroller_activate_init(bContext *C, wmOperator *op, const wmEvent *e
 		/* horizontal scroller - calculate adjustment factor first */
 		mask_size = (float)BLI_rcti_size_x(&v2d->hor);
 		vsm->fac = BLI_rctf_size_x(&tot_cur_union) / mask_size;
-		
+
+		/* pixel rounding */
+		vsm->fac_round = (BLI_rctf_size_x(&v2d->cur)) / (float)(BLI_rcti_size_x(&ar->winrct) + 1);
+
 		/* get 'zone' (i.e. which part of scroller is activated) */
 		vsm->zone = mouse_in_scroller_handle(event->mval[0],
 		                                     v2d->hor.xmin, v2d->hor.xmax,
@@ -1659,6 +1674,9 @@ static void scroller_activate_init(bContext *C, wmOperator *op, const wmEvent *e
 		mask_size = (float)BLI_rcti_size_y(&v2d->vert);
 		vsm->fac = BLI_rctf_size_y(&tot_cur_union) / mask_size;
 		
+		/* pixel rounding */
+		vsm->fac_round = (BLI_rctf_size_y(&v2d->cur)) / (float)(BLI_rcti_size_y(&ar->winrct) + 1);
+
 		/* get 'zone' (i.e. which part of scroller is activated) */
 		vsm->zone = mouse_in_scroller_handle(event->mval[1],
 		                                     v2d->vert.ymin, v2d->vert.ymax,
@@ -1706,6 +1724,9 @@ static void scroller_activate_apply(bContext *C, wmOperator *op)
 	
 	/* calculate amount to move view by */
 	temp = vsm->fac * vsm->delta;
+
+	/* round to pixel */
+	temp = roundf(temp / vsm->fac_round) * vsm->fac_round;
 	
 	/* type of movement */
 	switch (vsm->zone) {
@@ -1992,7 +2013,7 @@ static void VIEW2D_OT_reset(wmOperatorType *ot)
 /* ********************************************************* */
 /* Registration */
 
-void UI_view2d_operatortypes(void)
+void ED_operatortypes_view2d(void)
 {
 	WM_operatortype_append(VIEW2D_OT_pan);
 	
@@ -2016,7 +2037,7 @@ void UI_view2d_operatortypes(void)
 	WM_operatortype_append(VIEW2D_OT_reset);
 }
 
-void UI_view2d_keymap(wmKeyConfig *keyconf)
+void ED_keymap_view2d(wmKeyConfig *keyconf)
 {
 	wmKeyMap *keymap = WM_keymap_find(keyconf, "View2D", 0, 0);
 	wmKeyMapItem *kmi;

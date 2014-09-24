@@ -49,7 +49,6 @@
 
 #include "RNA_access.h"
 
-#include "ED_object.h"
 #include "ED_armature.h"
 
 #include "WM_api.h"
@@ -357,7 +356,7 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		return 1;
 	}
 	else if (CTX_data_equals(member, "sequences")) {
-		Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
 		if (ed) {
 			Sequence *seq;
 			for (seq = ed->seqbasep->first; seq; seq = seq->next) {
@@ -368,7 +367,7 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "selected_sequences")) {
-		Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
 		if (ed) {
 			Sequence *seq;
 			for (seq = ed->seqbasep->first; seq; seq = seq->next) {
@@ -381,7 +380,7 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "selected_editable_sequences")) {
-		Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
 		if (ed) {
 			Sequence *seq;
 			for (seq = ed->seqbasep->first; seq; seq = seq->next) {

@@ -105,7 +105,7 @@ static bool xml_read_float(float *value, pugi::xml_node node, const char *name)
 	pugi::xml_attribute attr = node.attribute(name);
 
 	if(attr) {
-		*value = atof(attr.value());
+		*value = (float)atof(attr.value());
 		return true;
 	}
 
@@ -121,7 +121,7 @@ static bool xml_read_float_array(vector<float>& value, pugi::xml_node node, cons
 		string_split(tokens, attr.value());
 
 		foreach(const string& token, tokens)
-			value.push_back(atof(token.c_str()));
+			value.push_back((float)atof(token.c_str()));
 
 		return true;
 	}
@@ -280,6 +280,8 @@ static void xml_read_integrator(const XMLReadState& state, pugi::xml_node node)
 		xml_read_int(&integrator->mesh_light_samples, node, "mesh_light_samples");
 		xml_read_int(&integrator->subsurface_samples, node, "subsurface_samples");
 		xml_read_int(&integrator->volume_samples, node, "volume_samples");
+		xml_read_bool(&integrator->sample_all_lights_direct, node, "sample_all_lights_direct");
+		xml_read_bool(&integrator->sample_all_lights_indirect, node, "sample_all_lights_indirect");
 	}
 	
 	/* Bounces */
@@ -302,7 +304,8 @@ static void xml_read_integrator(const XMLReadState& state, pugi::xml_node node)
 	xml_read_int(&integrator->volume_max_steps, node, "volume_max_steps");
 	
 	/* Various Settings */
-	xml_read_bool(&integrator->no_caustics, node, "no_caustics");
+	xml_read_bool(&integrator->caustics_reflective, node, "caustics_reflective");
+	xml_read_bool(&integrator->caustics_refractive, node, "caustics_refractive");
 	xml_read_float(&integrator->filter_glossy, node, "filter_glossy");
 	
 	xml_read_int(&integrator->seed, node, "seed");
@@ -320,13 +323,14 @@ static void xml_read_camera(const XMLReadState& state, pugi::xml_node node)
 	xml_read_int(&cam->height, node, "height");
 
 	if(xml_read_float(&cam->fov, node, "fov"))
-		cam->fov *= M_PI/180.0f;
+		cam->fov = DEG2RADF(cam->fov);
 
 	xml_read_float(&cam->nearclip, node, "nearclip");
 	xml_read_float(&cam->farclip, node, "farclip");
 	xml_read_float(&cam->aperturesize, node, "aperturesize"); // 0.5*focallength/fstop
 	xml_read_float(&cam->focaldistance, node, "focaldistance");
 	xml_read_float(&cam->shuttertime, node, "shuttertime");
+	xml_read_float(&cam->aperture_ratio, node, "aperture_ratio");
 
 	if(xml_equal_string(node, "type", "orthographic"))
 		cam->type = CAMERA_ORTHOGRAPHIC;
@@ -406,7 +410,9 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 
 			/* Source */
 			xml_read_string(&osl->filepath, node, "src");
-			osl->filepath = path_join(state.base, osl->filepath);
+			if(path_is_relative(osl->filepath)) {
+				osl->filepath = path_join(state.base, osl->filepath);
+			}
 
 			/* Generate inputs/outputs from node sockets
 			 *
@@ -505,8 +511,10 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "mapping")) {
 			snode = new MappingNode();
 		}
-		else if(string_iequals(node.name(), "ward_bsdf")) {
-			snode = new WardBsdfNode();
+		else if(string_iequals(node.name(), "anisotropic_bsdf")) {
+			AnisotropicBsdfNode *aniso = new AnisotropicBsdfNode();
+			xml_read_enum(&aniso->distribution, AnisotropicBsdfNode::distribution_enum, node, "distribution");
+			snode = aniso;
 		}
 		else if(string_iequals(node.name(), "diffuse_bsdf")) {
 			snode = new DiffuseBsdfNode();
@@ -546,9 +554,7 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			snode = hair;
 		}
 		else if(string_iequals(node.name(), "emission")) {
-			EmissionNode *emission = new EmissionNode();
-			xml_read_bool(&emission->total_power, node, "total_power");
-			snode = emission;
+			snode = new EmissionNode();
 		}
 		else if(string_iequals(node.name(), "ambient_occlusion")) {
 			snode = new AmbientOcclusionNode();
@@ -631,6 +637,12 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "separate_hsv")) {
 			snode = new SeparateHSVNode();
 		}
+		else if(string_iequals(node.name(), "combine_xyz")) {
+			snode = new CombineHSVNode();
+		}
+		else if(string_iequals(node.name(), "separate_xyz")) {
+			snode = new SeparateHSVNode();
+		}
 		else if(string_iequals(node.name(), "hsv")) {
 			snode = new HSVNode();
 		}
@@ -644,6 +656,11 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			AttributeNode *attr = new AttributeNode();
 			xml_read_ustring(&attr->attribute, node, "attribute");
 			snode = attr;
+		}
+		else if(string_iequals(node.name(), "uv_map")) {
+			UVMapNode *uvm = new UVMapNode();
+			xml_read_ustring(&uvm->attribute, node, "uv_map");
+			snode = uvm;
 		}
 		else if(string_iequals(node.name(), "camera")) {
 			snode = new CameraNode();
@@ -763,6 +780,9 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 							case SHADER_SOCKET_NORMAL:
 								xml_read_float3(&in->value, node, attr.name());
 								break;
+							case SHADER_SOCKET_STRING:
+								xml_read_ustring( &in->value_string, node, attr.name() );
+								break;
 							default:
 								break;
 						}
@@ -877,7 +897,7 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 		SubdParams sdparams(mesh, shader, smooth);
 		xml_read_float(&sdparams.dicing_rate, node, "dicing_rate");
 
-		DiagSplit dsplit(sdparams);;
+		DiagSplit dsplit(sdparams);
 		sdmesh.tessellate(&dsplit);
 	}
 	else {
@@ -1020,7 +1040,7 @@ static void xml_read_transform(pugi::xml_node node, Transform& tfm)
 	if(node.attribute("rotate")) {
 		float4 rotate = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 		xml_read_float4(&rotate, node, "rotate");
-		tfm = tfm * transform_rotate(rotate.x*M_PI/180.0f, make_float3(rotate.y, rotate.z, rotate.w));
+		tfm = tfm * transform_rotate(DEG2RADF(rotate.x), make_float3(rotate.y, rotate.z, rotate.w));
 	}
 
 	if(node.attribute("scale")) {

@@ -29,6 +29,7 @@ MapUVOperation::MapUVOperation() : NodeOperation()
 	this->addOutputSocket(COM_DT_COLOR);
 	this->m_alpha = 0.0f;
 	this->setComplex(true);
+	setResolutionInputSocketIndex(1);
 
 	this->m_inputUVProgram = NULL;
 	this->m_inputColorProgram = NULL;
@@ -61,7 +62,7 @@ void MapUVOperation::executePixelSampled(float output[4], float x, float y, Pixe
 	 */
 	float du = len_v2(deriv[0]);
 	float dv = len_v2(deriv[1]);
-	float factor = 1.0f - threshold * (du + dv);
+	float factor = 1.0f - threshold * (du / m_inputColorProgram->getWidth() + dv / m_inputColorProgram->getHeight());
 	if (factor < 0.f) alpha = 0.f;
 	else alpha *= factor;
 
@@ -84,8 +85,8 @@ bool MapUVOperation::read_uv(float x, float y, float &r_u, float &r_v, float &r_
 	else {
 		float col[4];
 		m_inputUVProgram->readSampled(col, x, y, COM_PS_BILINEAR);
-		r_u = col[0] * width;
-		r_v = col[1] * height;
+		r_u = col[0] * m_inputColorProgram->getWidth();
+		r_v = col[1] * m_inputColorProgram->getHeight();
 		r_alpha = col[2];
 		return true;
 	}

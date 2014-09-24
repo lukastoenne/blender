@@ -110,7 +110,7 @@ void ED_keymap_proportional_cycle(struct wmKeyConfig *keyconf, struct wmKeyMap *
 void ED_keymap_proportional_obmode(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap);
 void ED_keymap_proportional_maskmode(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap);
 void ED_keymap_proportional_editmode(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap,
-                                     const short do_connected);
+                                     const bool do_connected);
 
 /* send your own notifier for select! */
 void ED_base_object_select(struct Base *base, short mode);
@@ -150,8 +150,9 @@ bool ED_object_add_generic_get_opts(struct bContext *C, struct wmOperator *op, c
                                     float loc[3], float rot[3],
                                     bool *enter_editmode, unsigned int *layer, bool *is_view_aligned);
 
-struct Object *ED_object_add_type(struct bContext *C, int type, const float loc[3], const float rot[3],
-                                  bool enter_editmode, unsigned int layer);
+struct Object *ED_object_add_type(
+        struct bContext *C, int type, const float loc[3], const float rot[3],
+        bool enter_editmode, unsigned int layer) ATTR_RETURNS_NONNULL;
 
 void ED_object_single_users(struct Main *bmain, struct Scene *scene, bool full, bool copy_groups);
 void ED_object_single_user(struct Main *bmain, struct Scene *scene, struct Object *ob);
@@ -162,7 +163,7 @@ void ED_objects_recalculate_paths(struct bContext *C, struct Scene *scene);
 
 /* constraints */
 struct ListBase *get_active_constraints(struct Object *ob);
-struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **pchan_r);
+struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **r_pchan);
 struct bConstraint *get_active_constraint(struct Object *ob);
 
 void object_test_constraints(struct Object *ob);

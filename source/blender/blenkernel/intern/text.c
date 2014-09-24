@@ -267,14 +267,77 @@ static void cleanup_textline(TextLine *tl)
 	tl->len += txt_extended_ascii_as_utf8(&tl->line);
 }
 
+/**
+ * used for load and reload (unlike txt_insert_buf)
+ * assumes all fields are empty
+ */
+static void text_from_buf(Text *text, const unsigned char *buffer, const int len)
+{
+	int i, llen;
+
+	BLI_assert(BLI_listbase_is_empty(&text->lines));
+
+	text->nlines = 0;
+	llen = 0;
+	for (i = 0; i < len; i++) {
+		if (buffer[i] == '\n') {
+			TextLine *tmp;
+
+			tmp = (TextLine *) MEM_mallocN(sizeof(TextLine), "textline");
+			tmp->line = (char *) MEM_mallocN(llen + 1, "textline_string");
+			tmp->format = NULL;
+
+			if (llen) memcpy(tmp->line, &buffer[i - llen], llen);
+			tmp->line[llen] = 0;
+			tmp->len = llen;
+
+			cleanup_textline(tmp);
+
+			BLI_addtail(&text->lines, tmp);
+			text->nlines++;
+
+			llen = 0;
+			continue;
+		}
+		llen++;
+	}
+
+	/* create new line in cases:
+	 * - rest of line (if last line in file hasn't got \n terminator).
+	 *   in this case content of such line would be used to fill text line buffer
+	 * - file is empty. in this case new line is needed to start editing from.
+	 * - last characted in buffer is \n. in this case new line is needed to
+	 *   deal with newline at end of file. (see [#28087]) (sergey) */
+	if (llen != 0 || text->nlines == 0 || buffer[len - 1] == '\n') {
+		TextLine *tmp;
+
+		tmp = (TextLine *) MEM_mallocN(sizeof(TextLine), "textline");
+		tmp->line = (char *) MEM_mallocN(llen + 1, "textline_string");
+		tmp->format = NULL;
+
+		if (llen) memcpy(tmp->line, &buffer[i - llen], llen);
+
+		tmp->line[llen] = 0;
+		tmp->len = llen;
+
+		cleanup_textline(tmp);
+
+		BLI_addtail(&text->lines, tmp);
+		text->nlines++;
+	}
+
+	text->curl = text->sell = text->lines.first;
+	text->curc = text->selc = 0;
+}
+
 int BKE_text_reload(Text *text)
 {
 	FILE *fp;
-	int i, llen, len;
+	int len;
 	unsigned char *buffer;
 	TextLine *tmp;
 	char str[FILE_MAX];
-	struct stat st;
+	BLI_stat_t st;
 
 	if (!text || !text->name) return 0;
 	
@@ -299,13 +362,12 @@ int BKE_text_reload(Text *text)
 	/* clear undo buffer */
 	MEM_freeN(text->undo_buf);
 	init_undo_text(text);
-	
+
 	fseek(fp, 0L, SEEK_END);
 	len = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
 
-	text->undo_pos = -1;
-	
+
 	buffer = MEM_mallocN(len, "text_buffer");
 	// under windows fread can return less then len bytes because
 	// of CR stripping
@@ -313,51 +375,11 @@ int BKE_text_reload(Text *text)
 
 	fclose(fp);
 
-	stat(str, &st);
+	BLI_stat(str, &st);
 	text->mtime = st.st_mtime;
-	
-	text->nlines = 0;
-	llen = 0;
-	for (i = 0; i < len; i++) {
-		if (buffer[i] == '\n') {
-			tmp = (TextLine *) MEM_mallocN(sizeof(TextLine), "textline");
-			tmp->line = (char *) MEM_mallocN(llen + 1, "textline_string");
-			tmp->format = NULL;
 
-			if (llen) memcpy(tmp->line, &buffer[i - llen], llen);
-			tmp->line[llen] = 0;
-			tmp->len = llen;
-				
-			cleanup_textline(tmp);
+	text_from_buf(text, buffer, len);
 
-			BLI_addtail(&text->lines, tmp);
-			text->nlines++;
-				
-			llen = 0;
-			continue;
-		}
-		llen++;
-	}
-
-	if (llen != 0 || text->nlines == 0) {
-		tmp = (TextLine *) MEM_mallocN(sizeof(TextLine), "textline");
-		tmp->line = (char *) MEM_mallocN(llen + 1, "textline_string");
-		tmp->format = NULL;
-		
-		if (llen) memcpy(tmp->line, &buffer[i - llen], llen);
-
-		tmp->line[llen] = 0;
-		tmp->len = llen;
-		
-		cleanup_textline(tmp);
-
-		BLI_addtail(&text->lines, tmp);
-		text->nlines++;
-	}
-	
-	text->curl = text->sell = text->lines.first;
-	text->curc = text->selc = 0;
-	
 	MEM_freeN(buffer);
 	return 1;
 }
@@ -365,12 +387,11 @@ int BKE_text_reload(Text *text)
 Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const bool is_internal)
 {
 	FILE *fp;
-	int i, llen, len;
+	int len;
 	unsigned char *buffer;
-	TextLine *tmp;
 	Text *ta;
 	char str[FILE_MAX];
-	struct stat st;
+	BLI_stat_t st;
 
 	BLI_strncpy(str, file, FILE_MAX);
 	if (relpath) /* can be NULL (bg mode) */
@@ -388,10 +409,6 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
 	if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0)
 		ta->flags = TXT_TABSTOSPACES;
 
-	fseek(fp, 0L, SEEK_END);
-	len = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);
-
 	if (is_internal == false) {
 		ta->name = MEM_mallocN(strlen(file) + 1, "text_name");
 		strcpy(ta->name, file);
@@ -400,7 +417,12 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
 		ta->flags |= TXT_ISMEM | TXT_ISDIRTY;
 	}
 
+	/* clear undo buffer */
 	init_undo_text(ta);
+
+	fseek(fp, 0L, SEEK_END);
+	len = ftell(fp);
+	fseek(fp, 0L, SEEK_SET);
 	
 	buffer = MEM_mallocN(len, "text_buffer");
 	// under windows fread can return less then len bytes because
@@ -409,56 +431,10 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
 
 	fclose(fp);
 
-	stat(str, &st);
+	BLI_stat(str, &st);
 	ta->mtime = st.st_mtime;
 	
-	ta->nlines = 0;
-	llen = 0;
-	for (i = 0; i < len; i++) {
-		if (buffer[i] == '\n') {
-			tmp = (TextLine *) MEM_mallocN(sizeof(TextLine), "textline");
-			tmp->line = (char *) MEM_mallocN(llen + 1, "textline_string");
-			tmp->format = NULL;
-
-			if (llen) memcpy(tmp->line, &buffer[i - llen], llen);
-			tmp->line[llen] = 0;
-			tmp->len = llen;
-			
-			cleanup_textline(tmp);
-
-			BLI_addtail(&ta->lines, tmp);
-			ta->nlines++;
-				
-			llen = 0;
-			continue;
-		}
-		llen++;
-	}
-
-	/* create new line in cases:
-	 * - rest of line (if last line in file hasn't got \n terminator).
-	 *   in this case content of such line would be used to fill text line buffer
-	 * - file is empty. in this case new line is needed to start editing from.
-	 * - last characted in buffer is \n. in this case new line is needed to
-	 *   deal with newline at end of file. (see [#28087]) (sergey) */
-	if (llen != 0 || ta->nlines == 0 || buffer[len - 1] == '\n') {
-		tmp = (TextLine *) MEM_mallocN(sizeof(TextLine), "textline");
-		tmp->line = (char *) MEM_mallocN(llen + 1, "textline_string");
-		tmp->format = NULL;
-		
-		if (llen) memcpy(tmp->line, &buffer[i - llen], llen);
-
-		tmp->line[llen] = 0;
-		tmp->len = llen;
-		
-		cleanup_textline(tmp);
-
-		BLI_addtail(&ta->lines, tmp);
-		ta->nlines++;
-	}
-	
-	ta->curl = ta->sell = ta->lines.first;
-	ta->curc = ta->selc = 0;
+	text_from_buf(ta, buffer, len);
 	
 	MEM_freeN(buffer);
 
@@ -667,7 +643,7 @@ void BKE_text_write(Text *text, const char *str) /* called directly from rna */
 
 int BKE_text_file_modified_check(Text *text)
 {
-	struct stat st;
+	BLI_stat_t st;
 	int result;
 	char file[FILE_MAX];
 
@@ -696,7 +672,7 @@ int BKE_text_file_modified_check(Text *text)
 
 void BKE_text_file_modified_ignore(Text *text)
 {
-	struct stat st;
+	BLI_stat_t st;
 	int result;
 	char file[FILE_MAX];
 
@@ -996,7 +972,8 @@ void txt_move_left(Text *text, const bool sel)
 void txt_move_right(Text *text, const bool sel)
 {
 	TextLine **linep;
-	int *charp, do_tab = FALSE, i;
+	int *charp, i;
+	bool do_tab = false;
 	
 	if (!text) return;
 	if (sel) txt_curs_sel(text, &linep, &charp);
@@ -1013,10 +990,10 @@ void txt_move_right(Text *text, const bool sel)
 		// do nice right only if there are only spaces
 		// spaces hardcoded in DNA_text_types.h
 		if (text->flags & TXT_TABSTOSPACES && (*linep)->line[*charp] == ' ') {
-			do_tab = TRUE;
+			do_tab = true;
 			for (i = 0; i < *charp; i++)
 				if ((*linep)->line[i] != ' ') {
-					do_tab = FALSE;
+					do_tab = false;
 					break;
 				}
 		}
@@ -1285,6 +1262,19 @@ void txt_sel_all(Text *text)
 	text->selc = text->sell->len;
 }
 
+/**
+ * Reverse of #txt_pop_sel
+ * Clears the selection and ensures the cursor is located
+ * at the selection (where the cursor is visually while editing).
+ */
+void txt_sel_clear(Text *text)
+{
+	if (text->sell) {
+		text->curl = text->sell;
+		text->curc = text->selc;
+	}
+}
+
 void txt_sel_line(Text *text)
 {
 	if (!text) return;
@@ -1366,7 +1356,7 @@ char *txt_to_buf(Text *text)
 int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
 {
 	TextLine *tl, *startl;
-	char *s = NULL;
+	const char *s = NULL;
 
 	if (!text || !text->curl || !text->sell) return 0;
 	
@@ -2536,7 +2526,7 @@ void txt_backspace_char(Text *text)
 	}
 	else { /* Just backspacing a char */
 		size_t c_len = 0;
-		char *prev = BLI_str_prev_char_utf8(text->curl->line + text->curc);
+		const char *prev = BLI_str_prev_char_utf8(text->curl->line + text->curc);
 		c = BLI_str_utf8_as_unicode_and_size(prev, &c_len);
 		
 		/* source and destination overlap, don't use memcpy() */
@@ -2573,11 +2563,11 @@ static void txt_convert_tab_to_spaces(Text *text)
 	 * is added so that the indention of the line is the right width (i.e. aligned
 	 * to multiples of TXT_TABSIZE)
 	 */
-	char *sb = &tab_to_spaces[text->curc % TXT_TABSIZE];
+	const char *sb = &tab_to_spaces[text->curc % TXT_TABSIZE];
 	txt_insert_buf(text, sb);
 }
 
-static int txt_add_char_intern(Text *text, unsigned int add, int replace_tabs)
+static bool txt_add_char_intern(Text *text, unsigned int add, bool replace_tabs)
 {
 	char *tmp, ch[BLI_UTF8_MAX];
 	size_t add_len;
@@ -2620,12 +2610,12 @@ static int txt_add_char_intern(Text *text, unsigned int add, int replace_tabs)
 	return 1;
 }
 
-int txt_add_char(Text *text, unsigned int add)
+bool txt_add_char(Text *text, unsigned int add)
 {
-	return txt_add_char_intern(text, add, text->flags & TXT_TABSTOSPACES);
+	return txt_add_char_intern(text, add, (text->flags & TXT_TABSTOSPACES) != 0);
 }
 
-int txt_add_raw_char(Text *text, unsigned int add)
+bool txt_add_raw_char(Text *text, unsigned int add)
 {
 	return txt_add_char_intern(text, add, 0);
 }
@@ -2636,7 +2626,7 @@ void txt_delete_selected(Text *text)
 	txt_make_dirty(text);
 }
 
-int txt_replace_char(Text *text, unsigned int add)
+bool txt_replace_char(Text *text, unsigned int add)
 {
 	unsigned int del;
 	size_t del_size = 0, add_size;
@@ -2696,7 +2686,7 @@ void txt_indent(Text *text)
 	/* hardcoded: TXT_TABSIZE = 4 spaces: */
 	int spaceslen = TXT_TABSIZE;
 
-	if (ELEM3(NULL, text, text->curl, text->sell)) {
+	if (ELEM(NULL, text, text->curl, text->sell)) {
 		return;
 	}
 
@@ -2709,7 +2699,7 @@ void txt_indent(Text *text)
 	curc_old = text->curc;
 
 	num = 0;
-	while (TRUE) {
+	while (true) {
 
 		/* don't indent blank lines */
 		if (text->curl->len != 0) {
@@ -2758,12 +2748,12 @@ void txt_unindent(Text *text)
 	int num = 0;
 	const char *remove = "\t";
 	int indentlen = 1;
-	int unindented_first = FALSE;
+	bool unindented_first = false;
 	
 	/* hardcoded: TXT_TABSIZE = 4 spaces: */
 	int spaceslen = TXT_TABSIZE;
 
-	if (ELEM3(NULL, text, text->curl, text->sell)) {
+	if (ELEM(NULL, text, text->curl, text->sell)) {
 		return;
 	}
 
@@ -2773,23 +2763,22 @@ void txt_unindent(Text *text)
 		indentlen = spaceslen;
 	}
 
-	while (TRUE) {
-		int i = 0;
-		
-		if (BLI_strncasecmp(text->curl->line, remove, indentlen) == 0) {
-			if (num == 0) unindented_first = TRUE;
-			while (i < text->curl->len) {
-				text->curl->line[i] = text->curl->line[i + indentlen];
-				i++;
-			}
+	while (true) {
+		bool changed = false;
+		if (strncmp(text->curl->line, remove, indentlen) == 0) {
+			if (num == 0)
+				unindented_first = true;
 			text->curl->len -= indentlen;
+			memmove(text->curl->line, text->curl->line + indentlen, text->curl->len + 1);
+			changed = true;
 		}
 	
 		txt_make_dirty(text);
 		txt_clean_text(text);
 		
 		if (text->curl == text->sell) {
-			if (i > 0) text->selc = MAX2(text->selc - indentlen, 0);
+			if (changed)
+				text->selc = MAX2(text->selc - indentlen, 0);
 			break;
 		}
 		else {
@@ -2799,7 +2788,8 @@ void txt_unindent(Text *text)
 		
 	}
 
-	if (unindented_first) text->curc = MAX2(text->curc - indentlen, 0);
+	if (unindented_first)
+		text->curc = MAX2(text->curc - indentlen, 0);
 
 	while (num > 0) {
 		text->curl = text->curl->prev;
@@ -2822,7 +2812,7 @@ void txt_comment(Text *text)
 	if (!text->sell) return;  // Need to change this need to check if only one line is selected to more than one
 
 	num = 0;
-	while (TRUE) {
+	while (true) {
 		tmp = MEM_mallocN(text->curl->len + 2, "textline_string");
 		
 		text->curc = 0; 
@@ -2869,7 +2859,7 @@ void txt_uncomment(Text *text)
 	if (!text->curl) return;
 	if (!text->sell) return;
 
-	while (TRUE) {
+	while (true) {
 		int i = 0;
 		
 		if (text->curl->line[i] == remove) {
@@ -2961,7 +2951,8 @@ int txt_setcurr_tab_spaces(Text *text, int space)
 		 *  2) within an identifier
 		 *	3) after the cursor (text->curc), i.e. when creating space before a function def [#25414] 
 		 */
-		int a, is_indent = 0;
+		int a;
+		bool is_indent = false;
 		for (a = 0; (a < text->curc) && (text->curl->line[a] != '\0'); a++) {
 			char ch = text->curl->line[a];
 			if (ch == '#') {

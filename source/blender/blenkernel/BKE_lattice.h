@@ -73,7 +73,7 @@ void armature_deform_verts(struct Object *armOb, struct Object *target,
                            float (*defMats)[3][3], int numVerts, int deformflag,
                            float (*prevCos)[3], const char *defgrp_name);
 
-float (*BKE_lattice_vertexcos_get(struct Object *ob, int *numVerts_r))[3];
+float (*BKE_lattice_vertexcos_get(struct Object *ob, int *r_numVerts))[3];
 void    BKE_lattice_vertexcos_apply(struct Object *ob, float (*vertexCos)[3]);
 void    BKE_lattice_modifiers_calc(struct Scene *scene, struct Object *ob);
 
@@ -84,6 +84,7 @@ void BKE_lattice_minmax(struct Lattice *lt, float min[3], float max[3]);
 void BKE_lattice_center_median(struct Lattice *lt, float cent[3]);
 void BKE_lattice_center_bounds(struct Lattice *lt, float cent[3]);
 void BKE_lattice_translate(struct Lattice *lt, float offset[3], bool do_keys);
+void BKE_lattice_transform(struct Lattice *lt, float mat[4][4], bool do_keys);
 
 int  BKE_lattice_index_from_uvw(struct Lattice *lt, const int u, const int v, const int w);
 void BKE_lattice_index_to_uvw(struct Lattice *lt, const int index, int *r_u, int *r_v, int *r_w);

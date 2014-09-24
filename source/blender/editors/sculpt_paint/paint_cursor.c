@@ -44,7 +44,9 @@
 
 #include "BKE_brush.h"
 #include "BKE_context.h"
+#include "BKE_curve.h"
 #include "BKE_image.h"
+#include "BKE_node.h"
 #include "BKE_paint.h"
 #include "BKE_colortools.h"
 
@@ -53,12 +55,20 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "IMB_imbuf_types.h"
+
 #include "ED_view3d.h"
+
+#include "UI_resources.h"
 
 #include "paint_intern.h"
 /* still needed for sculpt_stroke_get_location, should be
  * removed eventually (TODO) */
 #include "sculpt_intern.h"
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 /* TODOs:
  *
@@ -154,6 +164,8 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 	if (refresh) {
 		struct ImagePool *pool = NULL;
+		bool convert_to_linear = false;
+		struct ColorSpace *colorspace;
 		/* stencil is rotated later */
 		const float rotation = (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL) ?
 		                       -mtex->rot : 0;
@@ -197,11 +209,32 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 		pool = BKE_image_pool_new();
 
+		if (mtex->tex && mtex->tex->nodetree)
+			ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
+
 #pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {
 			int i;
 			float y;
 			float len;
+			int thread_num;
+
+#ifdef _OPENMP
+			thread_num = omp_get_thread_num();
+#else
+			thread_num = 0;
+#endif
+
+			if (mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
+				ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
+				/* For consistency, sampling always returns color in linear space */
+				if (tex_ibuf && tex_ibuf->rect_float == NULL) {
+					convert_to_linear = true;
+					colorspace = tex_ibuf->rect_colorspace;
+				}
+				BKE_image_pool_release_ibuf(mtex->tex->ima, tex_ibuf, pool);
+			}
+
 
 			for (i = 0; i < size; i++) {
 
@@ -241,7 +274,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 					if (col) {
 						float rgba[4];
 
-						paint_get_tex_pixel_col(mtex, x, y, rgba, pool);
+						paint_get_tex_pixel_col(mtex, x, y, rgba, pool, thread_num, convert_to_linear, colorspace);
 
 						buffer[index * 4]     = rgba[0] * 255;
 						buffer[index * 4 + 1] = rgba[1] * 255;
@@ -249,7 +282,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 						buffer[index * 4 + 3] = rgba[3] * 255;
 					}
 					else {
-						float avg = paint_get_tex_pixel(mtex, x, y, pool);
+						float avg = paint_get_tex_pixel(mtex, x, y, pool, thread_num);
 
 						avg += br->texture_sample_bias;
 
@@ -271,6 +304,9 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 				}
 			}
 		}
+
+		if (mtex->tex && mtex->tex->nodetree)
+			ntreeTexEndExecTree(mtex->tex->nodetree->execdata);
 
 		if (pool)
 			BKE_image_pool_free(pool);
@@ -565,7 +601,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			/* scale based on tablet pressure */
 			if (primary && ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush)) {
 				glTranslatef(0.5f, 0.5f, 0);
-				glScalef(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
+				glScalef(1.0f / ups->size_pressure_value, 1.0f / ups->size_pressure_value, 1);
 				glTranslatef(-0.5f, -0.5f, 0);
 			}
 
@@ -693,7 +729,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			glPushMatrix();
 			glLoadIdentity();
 			glTranslatef(center[0], center[1], 0);
-			glScalef(ups->pressure_value, ups->pressure_value, 1);
+			glScalef(ups->size_pressure_value, ups->size_pressure_value, 1);
 			glTranslatef(-center[0], -center[1], 0);
 		}
 
@@ -723,7 +759,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
                                      ViewContext *vc, int x, int y, float zoom, PaintMode mode)
 {
 	/* color means that primary brush texture is colured and secondary is used for alpha/mask control */
-	bool col = ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX) ? true : false;
+	bool col = ELEM(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX) ? true : false;
 	OverlayControlFlags flags = BKE_paint_get_overlay_flags();
 	/* save lots of GL state
 	 * TODO: check on whether all of these are needed? */
@@ -758,6 +794,138 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 	glPopAttrib();
 }
 
+
+BLI_INLINE void draw_tri_point(float *co, float width, bool selected)
+{
+	float w = width / 2.0f;
+	if (selected)
+		UI_ThemeColor4(TH_VERTEX_SELECT);
+	else
+		UI_ThemeColor4(TH_PAINT_CURVE_PIVOT);
+
+	glLineWidth(3.0);
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(co[0], co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glEnd();
+
+	glColor4f(1.0, 1.0, 1.0, 0.5);
+	glLineWidth(1.0);
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(co[0], co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glEnd();
+}
+
+BLI_INLINE void draw_rect_point(float *co, float width, bool selected)
+{
+	float w = width / 2.0f;
+	if (selected)
+		UI_ThemeColor4(TH_VERTEX_SELECT);
+	else
+		UI_ThemeColor4(TH_PAINT_CURVE_HANDLE);
+	glLineWidth(3.0);
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(co[0] + w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glEnd();
+
+	glColor4f(1.0, 1.0, 1.0, 0.5);
+	glLineWidth(1.0);
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(co[0] + w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glEnd();
+}
+
+
+BLI_INLINE void draw_bezier_handle_lines(BezTriple *bez)
+{
+	short line1[] = {0, 1};
+	short line2[] = {1, 2};
+
+	glVertexPointer(2, GL_FLOAT, 3 * sizeof(float), bez->vec);
+	glColor4f(0.0, 0.0, 0.0, 0.5);
+	glLineWidth(3.0);
+	glDrawArrays(GL_LINE_STRIP, 0, 3);
+
+	glLineWidth(1.0);
+	if (bez->f1 || bez->f2)
+		UI_ThemeColor4(TH_VERTEX_SELECT);
+	else
+		glColor4f(1.0, 1.0, 1.0, 0.5);
+	glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line1);
+	if (bez->f3 || bez->f2)
+		UI_ThemeColor4(TH_VERTEX_SELECT);
+	else
+		glColor4f(1.0, 1.0, 1.0, 0.5);
+	glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line2);
+}
+
+static void paint_draw_curve_cursor(Brush *brush)
+{
+	if (brush->paint_curve && brush->paint_curve->points) {
+		int i;
+		PaintCurve *pc = brush->paint_curve;
+		PaintCurvePoint *cp = pc->points;
+
+		glEnable(GL_LINE_SMOOTH);
+		glEnable(GL_BLEND);
+		glEnableClientState(GL_VERTEX_ARRAY);
+
+		/* draw the bezier handles and the curve segment between the current and next point */
+		for (i = 0; i < pc->tot_points - 1; i++, cp++) {
+			int j;
+			PaintCurvePoint *cp_next = cp + 1;
+			float data[(PAINT_CURVE_NUM_SEGMENTS + 1) * 2];
+			/* use color coding to distinguish handles vs curve segments  */
+			draw_bezier_handle_lines(&cp->bez);
+			draw_tri_point(&cp->bez.vec[1][0], 10.0, cp->bez.f2);
+			draw_rect_point(&cp->bez.vec[0][0], 8.0, cp->bez.f1 || cp->bez.f2);
+			draw_rect_point(&cp->bez.vec[2][0], 8.0, cp->bez.f3 || cp->bez.f2);
+
+			for (j = 0; j < 2; j++)
+				BKE_curve_forward_diff_bezier(
+				        cp->bez.vec[1][j],
+				        cp->bez.vec[2][j],
+				        cp_next->bez.vec[0][j],
+				        cp_next->bez.vec[1][j],
+				        data + j, PAINT_CURVE_NUM_SEGMENTS, sizeof(float[2]));
+
+			glVertexPointer(2, GL_FLOAT, 0, data);
+			glLineWidth(3.0);
+			glColor4f(0.0, 0.0, 0.0, 0.5);
+			glDrawArrays(GL_LINE_STRIP, 0, PAINT_CURVE_NUM_SEGMENTS + 1);
+
+			glLineWidth(1.0);
+			glColor4f(0.9, 0.9, 1.0, 0.5);
+			glDrawArrays(GL_LINE_STRIP, 0, PAINT_CURVE_NUM_SEGMENTS + 1);
+		}
+
+		/* draw last line segment */
+		draw_bezier_handle_lines(&cp->bez);
+		draw_tri_point(&cp->bez.vec[1][0], 10.0, cp->bez.f2);
+		draw_rect_point(&cp->bez.vec[0][0], 8.0, cp->bez.f1 || cp->bez.f2);
+		draw_rect_point(&cp->bez.vec[2][0], 8.0, cp->bez.f3 || cp->bez.f2);
+
+		glLineWidth(1.0);
+
+		glDisable(GL_BLEND);
+		glDisable(GL_LINE_SMOOTH);
+		glDisableClientState(GL_VERTEX_ARRAY);
+	}
+}
+
 /* Special actions taken when paint cursor goes over mesh */
 /* TODO: sculpt only for now */
 static void paint_cursor_on_hit(UnifiedPaintSettings *ups, Brush *brush, ViewContext *vc,
@@ -783,7 +951,7 @@ static void paint_cursor_on_hit(UnifiedPaintSettings *ups, Brush *brush, ViewCon
 
 		/* scale 3D brush radius by pressure */
 		if (ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush))
-			unprojected_radius *= ups->pressure_value;
+			unprojected_radius *= ups->size_pressure_value;
 
 		/* set cached value in either Brush or UnifiedPaintSettings */
 		BKE_brush_unprojected_radius_set(vc->scene, brush, unprojected_radius);
@@ -815,6 +983,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	zoomx = max_ff(zoomx, zoomy);
 	mode = BKE_paintmode_get_active_from_context(C);
 
+	/* skip everything and draw brush here */
+	if (brush->flag & BRUSH_CURVE) {
+		paint_draw_curve_cursor(brush);
+		return;
+	}
+
 	/* set various defaults */
 	translation[0] = x;
 	translation[1] = y;
@@ -824,8 +998,11 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	/* don't calculate rake angles while a stroke is active because the rake variables are global and
 	 * we may get interference with the stroke itself. For line strokes, such interference is visible */
-	if (!ups->stroke_active && (brush->flag & BRUSH_RAKE))
-		paint_calculate_rake_rotation(ups, translation);
+	if (!ups->stroke_active) {
+		if (brush->flag & BRUSH_RAKE)
+			/* here, translation contains the mouse coordinates. */
+			paint_calculate_rake_rotation(ups, translation);
+	}
 
 	/* draw overlay */
 	paint_draw_alpha_overlay(ups, brush, &vc, x, y, zoomx, mode);
@@ -845,9 +1022,9 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		/* check if brush is subtracting, use different color then */
 		/* TODO: no way currently to know state of pen flip or
 		 * invert key modifier without starting a stroke */
-		if ((!(brush->flag & BRUSH_INVERTED) ^
+		if ((!(ups->draw_inverted) ^
 		     !(brush->flag & BRUSH_DIR_IN)) &&
-		    ELEM5(brush->sculpt_tool, SCULPT_TOOL_DRAW,
+		    ELEM(brush->sculpt_tool, SCULPT_TOOL_DRAW,
 		          SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY,
 		          SCULPT_TOOL_PINCH, SCULPT_TOOL_CREASE))
 		{
@@ -857,12 +1034,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		/* only do if brush is over the mesh */
 		if (hit)
 			paint_cursor_on_hit(ups, brush, &vc, location);
+	}
 
-		if (ups->draw_anchored) {
-			final_radius = ups->anchored_size;
-			translation[0] = ups->anchored_initial_mouse[0];
-			translation[1] = ups->anchored_initial_mouse[1];
-		}
+	if (ups->draw_anchored) {
+		final_radius = ups->anchored_size;
+		translation[0] = ups->anchored_initial_mouse[0];
+		translation[1] = ups->anchored_initial_mouse[1];
 	}
 
 	/* make lines pretty */
@@ -878,7 +1055,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	/* draw an inner brush */
 	if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
 		/* inner at full alpha */
-		glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius * ups->pressure_value, 40);
+		glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius * ups->size_pressure_value, 40);
 		/* outer at half alpha */
 		glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha * 0.5f);
 	}

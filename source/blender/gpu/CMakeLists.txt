@@ -51,12 +51,14 @@ set(SRC
 	intern/gpu_extensions.c
 	intern/gpu_material.c
 	intern/gpu_simple_shader.c
+	intern/gpu_select.c
 
 	GPU_buffers.h
 	GPU_draw.h
 	GPU_extensions.h
 	GPU_material.h
 	GPU_simple_shader.h
+	GPU_select.h
 	intern/gpu_codegen.h
 )
 
@@ -68,6 +70,10 @@ data_to_c_simple(shaders/gpu_shader_simple_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
+
+if(WITH_GAMEENGINE)
+	add_definitions(-DWITH_GAMEENGINE)
+endif()
 
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)
