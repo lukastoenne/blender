@@ -46,6 +46,7 @@
 #include <cstring>
 #include <cmath>
 #include <sstream>
+#include <iostream>
 
 #include "AUD_NULLDevice.h"
 #include "AUD_I3DDevice.h"
