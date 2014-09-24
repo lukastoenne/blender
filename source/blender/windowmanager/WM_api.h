@@ -472,8 +472,8 @@ void WM_widgets_delete(struct wmWidget *widget);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_widget_handler_register(struct ARegion *ar);
 
-void WM_widget_register(struct ARegion *ar, struct wmWidget *widget);
-void WM_widget_unregister(struct ARegion *ar, struct wmWidget *widget);
+void WM_widget_register(ListBase *widgetlist, struct wmWidget *widget);
+void WM_widget_unregister(ListBase *widgetlist, struct wmWidget *widget);
 struct ListBase *WM_widgetmap_find(const char *idname, int spaceid, int regionid);
 
 #ifdef __cplusplus

@@ -133,10 +133,10 @@ void WM_widgets_delete(wmWidget *widget)
 
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 {
-	if (ar->widgets.first) {
+	if (ar->widgets->first) {
 		wmWidget *widget;
 		
-		for (widget = ar->widgets.first; widget; widget = widget->next) {
+		for (widget = ar->widgets->first; widget; widget = widget->next) {
 			if ((widget->draw || widget->draw_highlighted) &&
 				(widget->poll == NULL || widget->poll(C, widget->customdata))) 
 			{
@@ -156,36 +156,28 @@ void WM_widget_handler_register(ARegion *ar)
 	wmEventHandler *handler;
 	
 	for (handler = ar->handlers.first; handler; handler = handler->next)
-		if (handler->widgets == &ar->widgets)
+		if (handler->widgets == ar->widgets)
 			return;
 	
 	handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
 	
-	handler->widgets = &ar->widgets;
+	handler->widgets = ar->widgets;
 	BLI_addtail(&ar->handlers, handler);
 }
 
 
-void WM_widget_register(ARegion *ar, wmWidget *widget)
+void WM_widget_register(ListBase *widgetlist, wmWidget *widget)
 {
-	BLI_addtail(&ar->widgets, widget);
+	BLI_addtail(widgetlist, widget);
 }
 
-void WM_widget_unregister(ARegion *ar, wmWidget *widget)
+void WM_widget_unregister(ListBase *widgetlist, wmWidget *widget)
 {
-	wmEventHandler *handler;
 	wmWidget *widget_iter;
 	
-	for (handler = ar->handlers.first; handler; handler = handler->next) {
-		if (handler->widgets == &ar->widgets) {
-			BLI_remlink(&ar->handlers, handler);
-			break;
-		}
-	}
-	
-	for (widget_iter = ar->widgets.first; widget_iter; widget_iter = widget_iter->next) {
+	for (widget_iter = widgetlist->first; widget_iter; widget_iter = widget_iter->next) {
 		if (widget_iter == widget) {
-			BLI_remlink(&ar->widgets, widget);
+			BLI_remlink(widgetlist, widget);
 		}
 	}
 }
