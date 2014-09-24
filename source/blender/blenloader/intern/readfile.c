@@ -1447,7 +1447,9 @@ void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
 		if (sound->handle)
 			oldnewmap_insert(fd->soundmap, sound->handle, sound->handle, 0);	
 		if (sound->cache)
-			oldnewmap_insert(fd->soundmap, sound->cache, sound->cache, 0);	
+			oldnewmap_insert(fd->soundmap, sound->cache, sound->cache, 0);
+		if (sound->waveform)
+			oldnewmap_insert(fd->soundmap, sound->waveform, sound->waveform, 0);			
 	}
 }
 
@@ -1468,6 +1470,7 @@ void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
 	for (; sound; sound = sound->id.next) {
 		sound->cache = newsoundadr(fd, sound->cache);
 		sound->handle = newsoundadr(fd, sound->handle);
+		sound->waveform = newsoundadr(fd, sound->waveform);
 	}
 }
 
@@ -6743,19 +6746,19 @@ static void direct_link_speaker(FileData *fd, Speaker *spk)
 
 static void direct_link_sound(FileData *fd, bSound *sound)
 {
-	/* reload waveforms for now */
-	sound->waveform = NULL;
-	
 	// versioning stuff, if there was a cache, then we enable caching:
 	if (sound->cache) sound->flags |= SOUND_FLAGS_CACHING;
 
 	if (fd->soundmap) {
 		sound->cache = newsoundadr(fd, sound->cache);
 		sound->handle = newsoundadr(fd, sound->handle);
+		sound->waveform = newsoundadr(fd, sound->waveform);
 	
 		/* if there was a cache it's also used for playback */
 		if (sound->cache)
 			sound->playback_handle = sound->cache;
+		else if (sound->handle)
+			sound->playback_handle = sound->handle;
 		else
 			sound->playback_handle = NULL;
 	}	
@@ -6763,6 +6766,7 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 		sound->cache = NULL;
 		sound->handle = NULL;
 		sound->playback_handle = NULL;
+		sound->waveform = NULL;		
 	}
 		
 	if (sound->mutex)
