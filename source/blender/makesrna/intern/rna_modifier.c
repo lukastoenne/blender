@@ -636,7 +636,7 @@ static void rna_HairModifier_show_debug_update(Main *bmain, Scene *scene, Pointe
 	HairModifierData *hmd = (HairModifierData *)ptr->data;
 	
 	if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
-		BKE_hair_debug_data_free(hmd->debug_data);
+		BKE_sim_debug_data_free(hmd->debug_data);
 		hmd->debug_data = NULL;
 	}
 	

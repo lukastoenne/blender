@@ -390,7 +390,7 @@ void BKE_particlesettings_free(ParticleSettings *part)
 	}
 }
 
-void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int UNUSED(dynamics))
+void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
 {
 	PARTICLE_P;
 
@@ -403,7 +403,6 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int UNUSED(dynamics))
 
 	psys->flag &= ~PSYS_HAIR_DONE;
 
-#if 0
 	if (psys->clmd) {
 		if (dynamics) {
 			BKE_ptcache_free_list(&psys->ptcaches);
@@ -419,7 +418,7 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int UNUSED(dynamics))
 			cloth_free_modifier(psys->clmd);
 		}
 	}
-#endif
+
 	if (psys->hair_in_dm)
 		psys->hair_in_dm->release(psys->hair_in_dm);
 	psys->hair_in_dm = NULL;
@@ -428,7 +427,6 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int UNUSED(dynamics))
 		psys->hair_out_dm->release(psys->hair_out_dm);
 	psys->hair_out_dm = NULL;
 }
-
 void free_keyed_keys(ParticleSystem *psys)
 {
 	PARTICLE_P;

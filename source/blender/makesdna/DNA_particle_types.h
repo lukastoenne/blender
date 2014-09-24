@@ -37,7 +37,6 @@
 #include "DNA_boid_types.h"
 
 struct AnimData;
-struct HAIR_Solver;
 
 typedef struct HairKey {
 	float co[3];	/* location of hair vertex */

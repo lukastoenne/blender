@@ -1176,14 +1176,12 @@ static void write_particlesystems(WriteData *wd, ListBase *particles)
 
 		if (psys->child) writestruct(wd, DATA, "ChildParticle", psys->totchild, psys->child);
 
-#if 0
 		if (psys->clmd) {
 			writestruct(wd, DATA, "ClothModifierData", 1, psys->clmd);
 			writestruct(wd, DATA, "ClothSimSettings", 1, psys->clmd->sim_parms);
 			writestruct(wd, DATA, "ClothCollSettings", 1, psys->clmd->coll_parms);
 		}
-#endif
-		
+
 		write_pointcaches(wd, &psys->ptcaches);
 	}
 }

@@ -252,8 +252,9 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, Panel):
 
 
 class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
-    bl_label = "Hair Simulation"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'CYCLES'}
+    bl_label = "Hair dynamics"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -271,22 +272,28 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+
         psys = context.particle_system
 
-        if not psys.params:
+        if not psys.cloth:
             return
 
-        params = psys.params
         cloth_md = psys.cloth
         cloth = cloth_md.settings
         result = cloth_md.solver_result
 
-        layout.enabled = psys.use_hair_dynamics
+        layout.enabled = psys.use_hair_dynamics and psys.point_cache.is_baked is False
 
         split = layout.split()
 
         col = split.column()
-        col.prop(params, "substeps_forces")
+        col.label(text="Material:")
+        sub = col.column(align=True)
+        sub.prop(cloth, "pin_stiffness", text="Stiffness")
+        sub.prop(cloth, "mass")
+        sub.prop(cloth, "bending_stiffness", text="Bending")
+        sub.prop(cloth, "internal_friction", slider=True)
+        sub.prop(cloth, "collider_friction", slider=True)
         sub.prop(cloth, "pressure", slider=True)
         sub.prop(cloth, "pressure_threshold", slider=True)
 
@@ -295,20 +302,15 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
         sub.prop(cloth, "voxel_resolution")
 
         col = split.column()
-        col.prop(params, "substeps_damping")
+        col.label(text="Damping:")
+        sub = col.column(align=True)
+        sub.prop(cloth, "spring_damping", text="Spring")
+        sub.prop(cloth, "air_damping", text="Air")
 
-        split = layout.split()
+        col.label(text="Quality:")
+        col.prop(cloth, "quality", text="Steps", slider=True)
 
-        col = split.column()
-        col.prop(params, "stretch_stiffness")
-        col.prop(params, "bend_stiffness")
-        col.prop(params, "bend_smoothing")
-
-        col = split.column()
-        col.prop(params, "stretch_damping")
-        col.prop(params, "bend_damping")
-
-        layout.prop(cloth_md, "show_debug_data", text="Debug")
+        col.prop(cloth_md, "show_debug_data", text="Debug")
 
         if result:
             box = layout.box()
@@ -328,36 +330,6 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
             box.label(label, icon=icon)
             box.label("Iterations: %d .. %d (avg. %d)" % (result.min_iterations, result.max_iterations, result.avg_iterations))
             box.label("Error: %.5f .. %.5f (avg. %.5f)" % (result.min_error, result.max_error, result.avg_error))
-
-
-class PARTICLE_PT_hair_collision(ParticleButtonsPanel, Panel):
-    bl_label = "Hair Collision"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'CYCLES'}
-
-    @classmethod
-    def poll(cls, context):
-        psys = context.particle_system
-        engine = context.scene.render.engine
-        if psys is None:
-            return False
-        if psys.settings is None:
-            return False
-        return psys.settings.type == 'HAIR' and (engine in cls.COMPAT_ENGINES) and psys.use_hair_dynamics
-
-    def draw(self, context):
-        layout = self.layout
-        psys = context.particle_system
-        params = psys.params
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(params, "restitution")
-        col.prop(params, "friction")
-        col.prop(params, "margin")
-
-        col = split.column()
-        col.prop(params, "drag")
 
 
 class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):

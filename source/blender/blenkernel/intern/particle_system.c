@@ -48,7 +48,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_boid_types.h"
-#include "DNA_hair_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -56,7 +55,6 @@
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_listBase.h"
@@ -78,7 +76,6 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
-#include "BKE_hair.h"
 #include "BKE_particle.h"
 #include "BKE_global.h"
 
@@ -4052,7 +4049,6 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	float (*deformedVerts)[3];
 	float max_length;
 
-#if 0
 	if (!psys->clmd) {
 		psys->clmd = (ClothModifierData*)modifier_new(eModifierType_Cloth);
 		psys->clmd->sim_parms->goalspring = 0.0f;
@@ -4071,8 +4067,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 				max_length = length;
 		}
 	}
-#endif
-	
+
 	/* create a dm from hair vertices */
 	LOOP_PARTICLES
 		totpoint += pa->totkey;
@@ -4101,11 +4096,8 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	medge = CDDM_get_edges(dm);
 	dvert = DM_get_vert_data_layer(dm, CD_MDEFORMVERT);
 
-/* not supported yet for new solver */
-#if 0
 	psys->clmd->sim_parms->vgroup_mass = 1;
-#endif
-	
+
 	/* make vgroup for pin roots etc.. */
 	psys->particles->hair_index = 1;
 	LOOP_PARTICLES {
@@ -4168,26 +4160,21 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	if (psys->hair_out_dm)
 		psys->hair_out_dm->release(psys->hair_out_dm);
 
-#if 0
 	psys->clmd->point_cache = psys->pointcache;
 	psys->clmd->sim_parms->effector_weights = psys->part->effector_weights;
-#endif
-	
+
 	deformedVerts = MEM_mallocN(sizeof(*deformedVerts) * dm->getNumVerts(dm), "do_hair_dynamics vertexCos");
 	psys->hair_out_dm = CDDM_copy(dm);
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 
-	//clothModifier_do(psys->clmd, sim->scene, sim->ob, dm, deformedVerts);
+	clothModifier_do(psys->clmd, sim->scene, sim->ob, dm, deformedVerts);
 
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
 
 	MEM_freeN(deformedVerts);
 
-#if 0
 	psys->clmd->sim_parms->effector_weights = NULL;
-#endif
 }
-
 static void hair_step(ParticleSimulationData *sim, float cfra)
 {
 	ParticleSystem *psys = sim->psys;
@@ -4209,6 +4196,9 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 	if (psys->recalc & PSYS_RECALC_RESET) {
 		/* need this for changing subsurf levels */
 		psys_calc_dmcache(sim->ob, sim->psmd->dm, psys);
+
+		if (psys->clmd)
+			cloth_free_modifier(psys->clmd);
 	}
 
 	/* dynamics with cloth simulation, psys->particles can be NULL with 0 particles [#25519] */
