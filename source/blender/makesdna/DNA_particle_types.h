@@ -271,7 +271,7 @@ typedef struct ParticleSystem {
 
 	struct HAIR_Solver *solver;
 	struct HairParams *params;
-//struct ClothModifierData *clmd;					/* cloth simulation for hair */
+	struct ClothModifierData *clmd;					/* cloth simulation for hair */
 	struct DerivedMesh *hair_in_dm, *hair_out_dm;	/* input/output for cloth simulation */
 
 	struct Object *target_ob;

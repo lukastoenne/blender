@@ -15,10 +15,11 @@
  */
 
 #include "attribute.h"
+#include "camera.h"
+#include "curves.h"
 #include "mesh.h"
 #include "object.h"
 #include "scene.h"
-#include "curves.h"
 
 #include "blender_sync.h"
 #include "blender_util.h"
@@ -38,7 +39,7 @@ void InterpolateKeySegments(int seg, int segno, int key, int curve, float3 *keyl
 bool ObtainCacheParticleUV(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int uv_num);
 bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int vcol_num);
 bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background);
-void ExportParticleCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotCam);
+void ExportParticleCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotCam, bool is_ortho);
 void ExportParticleCurveTriangleGeometry(Mesh *mesh, ParticleCurveData *CData, int resolution);
 void ExportParticleCurveTriangleUV(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata);
 void ExportParticleCurveTriangleVcol(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, uchar4 *cdata);
@@ -327,7 +328,7 @@ static void set_resolution(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, BL::S
 	}
 }
 
-void ExportParticleCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotCam)
+void ExportParticleCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotCam, bool is_ortho)
 {
 	int vertexno = mesh->verts.size();
 	int vertexindex = vertexno;
@@ -361,7 +362,10 @@ void ExportParticleCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, flo
 			float3 ickey_loc = CData->curvekey_co[CData->curve_firstkey[curve]];
 			float radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], CData->psys_tipradius[sys], 0.0f);
 			v1 = CData->curvekey_co[CData->curve_firstkey[curve] + 1] - CData->curvekey_co[CData->curve_firstkey[curve]];
-			xbasis = normalize(cross(RotCam - ickey_loc,v1));
+			if(is_ortho)
+				xbasis = normalize(cross(RotCam, v1));
+			else
+				xbasis = normalize(cross(RotCam - ickey_loc, v1));
 			float3 ickey_loc_shfl = ickey_loc - radius * xbasis;
 			float3 ickey_loc_shfr = ickey_loc + radius * xbasis;
 			mesh->verts.push_back(ickey_loc_shfl);
@@ -385,7 +389,10 @@ void ExportParticleCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, flo
 				if(CData->psys_closetip[sys] && (curvekey == CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1))
 					radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], 0.0f, 0.95f);
 
-				xbasis = normalize(cross(RotCam - ickey_loc,v1));
+				if(is_ortho)
+					xbasis = normalize(cross(RotCam, v1));
+				else
+					xbasis = normalize(cross(RotCam - ickey_loc, v1));
 				float3 ickey_loc_shfl = ickey_loc - radius * xbasis;
 				float3 ickey_loc_shfr = ickey_loc + radius * xbasis;
 				mesh->verts.push_back(ickey_loc_shfl);
@@ -730,7 +737,7 @@ static void hair_curve_triangle_step(int step, BL::HairRenderStepIterator b_step
 	}
 }
 
-static void ExportHairCurveTrianglePlanes(Mesh *mesh, BL::HairSystem b_hsys, float3 RotCam)
+static void ExportHairCurveTrianglePlanes(Mesh *mesh, BL::HairSystem b_hsys, float3 RotCam, bool is_ortho)
 {
 	BL::HairRenderSettings b_render(b_hsys.params().render());
 	float shape = b_render.shape();
@@ -775,7 +782,11 @@ static void ExportHairCurveTrianglePlanes(Mesh *mesh, BL::HairSystem b_hsys, flo
 				radius = 0.0f;
 			
 			float3 ickey_loc = v;
-			float3 xbasis = normalize(cross(RotCam - ickey_loc, d));
+			float3 xbasis;
+			if(is_ortho)
+				xbasis = normalize(cross(RotCam, d));
+			else
+				xbasis = normalize(cross(RotCam - ickey_loc, d));
 			float3 ickey_loc_shfl = ickey_loc - radius * xbasis;
 			float3 ickey_loc_shfr = ickey_loc + radius * xbasis;
 			mesh->verts.push_back(ickey_loc_shfl);
@@ -1184,20 +1195,26 @@ bool BlenderSync::sync_particle_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b
 	ParticleCurveData CData;
 	ObtainCacheParticleData(mesh, &b_mesh, &b_ob, &CData, !preview);
 
-	/* obtain camera parameters */
-	BL::Object b_CamOb = b_scene.camera();
-	float3 RotCam = make_float3(0.0f, 0.0f, 0.0f);
-	if(b_CamOb) {
-		Transform ctfm = get_transform(b_CamOb.matrix_world());
-		Transform tfm = get_transform(b_ob.matrix_world());
-		Transform itfm = transform_quick_inverse(tfm);
-		RotCam = transform_point(&itfm, make_float3(ctfm.x.w, ctfm.y.w, ctfm.z.w));
-	}
-
 	/* add hair geometry to mesh */
 	if(primitive == CURVE_TRIANGLES) {
-		if(triangle_method == CURVE_CAMERA_TRIANGLES)
-			ExportParticleCurveTrianglePlanes(mesh, &CData, RotCam);
+		if(triangle_method == CURVE_CAMERA_TRIANGLES) {
+			/* obtain camera parameters */
+			float3 RotCam;
+			Camera *camera = scene->camera;
+			Transform &ctfm = camera->matrix;
+			if(camera->type == CAMERA_ORTHOGRAPHIC) {
+				RotCam = -make_float3(ctfm.x.z, ctfm.y.z, ctfm.z.z);
+			}
+			else {
+				Transform tfm = get_transform(b_ob.matrix_world());
+				Transform itfm = transform_quick_inverse(tfm);
+				RotCam = transform_point(&itfm, make_float3(ctfm.x.w,
+				                                            ctfm.y.w,
+				                                            ctfm.z.w));
+			}
+			bool is_ortho = camera->type == CAMERA_ORTHOGRAPHIC;
+			ExportParticleCurveTrianglePlanes(mesh, &CData, RotCam, is_ortho);
+		}
 		else {
 			ExportParticleCurveTriangleGeometry(mesh, &CData, resolution);
 			used_res = resolution;
@@ -1335,22 +1352,34 @@ bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob,
 	size_t vert_num = mesh->verts.size();
 	size_t tri_num = mesh->triangles.size();
 	int used_res = 1;
+	bool is_ortho = false;
+	float3 RotCam;
 
 	/* extract hair data - should be combined with connecting to mesh later*/
 
 //	ParticleCurveData CData;
 //	ObtainCacheParticleData(mesh, &b_mesh, &b_ob, &CData, !preview);
 
-	/* obtain camera parameters */
-	BL::Object b_CamOb = b_scene.camera();
-	float3 RotCam = make_float3(0.0f, 0.0f, 0.0f);
-	if(b_CamOb) {
-		Transform ctfm = get_transform(b_CamOb.matrix_world());
-		Transform tfm = get_transform(b_ob.matrix_world());
-		Transform itfm = transform_quick_inverse(tfm);
-		RotCam = transform_point(&itfm, make_float3(ctfm.x.w, ctfm.y.w, ctfm.z.w));
+	/* add hair geometry to mesh */
+	if(primitive == CURVE_TRIANGLES) {
+		if(triangle_method == CURVE_CAMERA_TRIANGLES) {
+			/* obtain camera parameters */
+			Camera *camera = scene->camera;
+			Transform &ctfm = camera->matrix;
+			if(camera->type == CAMERA_ORTHOGRAPHIC) {
+				RotCam = -make_float3(ctfm.x.z, ctfm.y.z, ctfm.z.z);
+			}
+			else {
+				Transform tfm = get_transform(b_ob.matrix_world());
+				Transform itfm = transform_quick_inverse(tfm);
+				RotCam = transform_point(&itfm, make_float3(ctfm.x.w,
+				                                            ctfm.y.w,
+				                                            ctfm.z.w));
+			}
+			is_ortho = camera->type == CAMERA_ORTHOGRAPHIC;
+		}
 	}
-
+	
 	BL::Object::modifiers_iterator b_mod_iter;
 	for (b_ob.modifiers.begin(b_mod_iter); b_mod_iter != b_ob.modifiers.end(); ++b_mod_iter) {
 		if (b_mod_iter->type() != BL::Modifier::type_HAIR)
@@ -1360,8 +1389,9 @@ bool BlenderSync::sync_hair_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob,
 		
 		/* add hair geometry to mesh */
 		if(primitive == CURVE_TRIANGLES) {
-			if(triangle_method == CURVE_CAMERA_TRIANGLES)
-				ExportHairCurveTrianglePlanes(mesh, b_mod_hair.hair_system(), RotCam);
+			if(triangle_method == CURVE_CAMERA_TRIANGLES) {
+				ExportHairCurveTrianglePlanes(mesh, b_mod_hair.hair_system(), RotCam, is_ortho);
+			}
 			else {
 				ExportHairCurveTriangleGeometry(mesh, b_mod_hair.hair_system(), resolution);
 				used_res = resolution;

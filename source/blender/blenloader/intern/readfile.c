@@ -1864,6 +1864,7 @@ static void direct_link_palette(FileData *fd, Palette *palette)
 {
 	/* palette itself has been read */
 	link_list(fd, &palette->colors);
+	BLI_listbase_clear(&palette->deleted);
 }
 
 static void lib_link_paint_curve(FileData *UNUSED(fd), Main *main)
@@ -5188,6 +5189,14 @@ static void lib_link_scene(FileData *fd, Main *main)
 				sce->toolsettings->imapaint.stencil =
 				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.stencil);
 
+			if (sce->toolsettings->imapaint.clone)
+				sce->toolsettings->imapaint.clone =
+				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.clone);
+
+			if (sce->toolsettings->imapaint.canvas)
+				sce->toolsettings->imapaint.canvas =
+				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.canvas);
+			
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 			
 			for (base = sce->base.first; base; base = next) {
@@ -5394,6 +5403,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		
 		sce->toolsettings->imapaint.paintcursor = NULL;
 		sce->toolsettings->particle.paintcursor = NULL;
+		sce->toolsettings->particle.scene = NULL;
+		sce->toolsettings->particle.object = NULL;
 
 		/* in rare cases this is needed, see [#33806] */
 		if (sce->toolsettings->vpaint) {

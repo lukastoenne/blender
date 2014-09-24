@@ -154,6 +154,7 @@ class IMAGE_MT_brush(Menu):
         ups = context.tool_settings.unified_paint_settings
         layout.prop(ups, "use_unified_size", text="Unified Size")
         layout.prop(ups, "use_unified_strength", text="Unified Strength")
+        layout.prop(ups, "use_unified_color", text="Unified Color")
         layout.separator()
 
         # brush tool
@@ -175,6 +176,8 @@ class IMAGE_MT_image(Menu):
         show_render = sima.show_render
 
         layout.operator("image.read_renderlayers")
+
+        layout.operator("image.save_dirty", text="Save All Images")
 
         if ima:
             if not show_render:
@@ -1068,7 +1071,7 @@ class IMAGE_PT_view_waveform(Panel):
         layout.template_waveform(sima, "scopes")
         row = layout.split(percentage=0.75)
         row.prop(sima.scopes, "waveform_alpha")
-        row.prop(sima.scopes, "waveform_mode", icon_only=True)
+        row.prop(sima.scopes, "waveform_mode", text="")
 
 
 class IMAGE_PT_view_vectorscope(Panel):
