@@ -39,7 +39,7 @@
 
 #include "BLI_strict_flags.h"
 
-/* Evaluate */
+/* ==== Evaluate ==== */
 
 bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float loc[3], float nor[3])
 {
@@ -77,100 +77,77 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float l
 }
 
 
-/* Iterators */
+/* ==== Sampling ==== */
 
-#if 0
-static void mesh_sample_surface_array_iterator_next(MSurfaceSampleArrayIterator *iter)
+static bool mesh_sample_store_array_sample(void *vdata, int capacity, int index, const MSurfaceSample *sample)
 {
-	++iter->cur;
-	--iter->remaining;
-}
-
-static bool mesh_sample_surface_array_iterator_valid(MSurfaceSampleArrayIterator *iter)
-{
-	return (iter->remaining > 0);
-}
-
-static void mesh_sample_surface_array_iterator_free(MSurfaceSampleArrayIterator *iter)
-{
-}
-
-void BKE_mesh_sample_surface_array_begin(MSurfaceSampleArrayIterator *iter, MSurfaceSample *array, int totarray)
-{
-	iter->cur = array;
-	iter->remaining = totarray;
+	MSurfaceSample *data = vdata;
+	if (index >= capacity)
+		return false;
 	
-	iter->base.next = 
-}
-#endif
-
-
-/* Sampling */
-
-void BKE_mesh_sample_info_random(MSurfaceSampleInfo *info, DerivedMesh *dm, unsigned int seed)
-{
-	info->algorithm = MSS_RANDOM;
-	info->dm = dm;
-	
-	info->rng = BLI_rng_new(seed);
+	data[index] = *sample;
+	return true;
 }
 
-void BKE_mesh_sample_info_release(MSurfaceSampleInfo *info)
+void BKE_mesh_sample_storage_array(MSurfaceSampleStorage *storage, MSurfaceSample *samples, int capacity)
 {
-	if (info->rng) {
-		BLI_rng_free(info->rng);
-		info->rng = NULL;
-	}
+	storage->store_sample = mesh_sample_store_array_sample;
+	storage->capacity = capacity;
+	storage->data = samples;
+	storage->free_data = false;
+}
+
+void BKE_mesh_sample_storage_release(MSurfaceSampleStorage *storage)
+{
+	if (storage->free_data)
+		MEM_freeN(storage->data);
 }
 
 
-static void mesh_sample_surface_random(const MSurfaceSampleInfo *info, MSurfaceSample *sample)
+void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm, unsigned int seed, int totsample)
 {
-	MFace *mfaces = info->dm->getTessFaceArray(info->dm);
-	int totfaces = info->dm->getNumTessFaces(info->dm);
+	MFace *mfaces;
+	int totfaces;
+	RNG *rng;
 	MFace *mface;
 	float a, b;
-	
-	mface = &mfaces[BLI_rng_get_int(info->rng) % totfaces];
-	
-	if (mface->v4 && BLI_rng_get_int(info->rng) % 2 == 0) {
-		sample->orig_verts[0] = mface->v3;
-		sample->orig_verts[1] = mface->v4;
-		sample->orig_verts[2] = mface->v1;
-	}
-	else {
-		sample->orig_verts[0] = mface->v1;
-		sample->orig_verts[1] = mface->v2;
-		sample->orig_verts[2] = mface->v3;
-	}
-	
-	a = BLI_rng_get_float(info->rng);
-	b = BLI_rng_get_float(info->rng);
-	if (a + b > 1.0f) {
-		a = 1.0f - a;
-		b = 1.0f - b;
-	}
-	sample->orig_weights[0] = 1.0f - (a + b);
-	sample->orig_weights[1] = a;
-	sample->orig_weights[2] = b;
-}
-
-void BKE_mesh_sample_surface_array(const MSurfaceSampleInfo *info, MSurfaceSample *samples, int totsample)
-{
-	BKE_mesh_sample_surface_array_stride(info, samples, (int)sizeof(MSurfaceSample), totsample);
-}
-
-void BKE_mesh_sample_surface_array_stride(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *first, int stride, int totsample)
-{
-	MSurfaceSample *sample;
 	int i;
 	
-	switch (info->algorithm) {
-		case MSS_RANDOM: {
-			DM_ensure_tessface(info->dm);
-			for (sample = first, i = 0; i < totsample; sample = (MSurfaceSample *)((char *)sample + stride), ++i)
-				mesh_sample_surface_random(info, sample);
-			break;
+	rng = BLI_rng_new(seed);
+	
+	DM_ensure_tessface(dm);
+	mfaces = dm->getTessFaceArray(dm);
+	totfaces = dm->getNumTessFaces(dm);
+	
+	for (i = 0; i < totsample; ++i) {
+		MSurfaceSample sample = {0};
+		
+		mface = &mfaces[BLI_rng_get_int(rng) % totfaces];
+		
+		if (mface->v4 && BLI_rng_get_int(rng) % 2 == 0) {
+			sample.orig_verts[0] = mface->v3;
+			sample.orig_verts[1] = mface->v4;
+			sample.orig_verts[2] = mface->v1;
 		}
+		else {
+			sample.orig_verts[0] = mface->v1;
+			sample.orig_verts[1] = mface->v2;
+			sample.orig_verts[2] = mface->v3;
+		}
+		
+		a = BLI_rng_get_float(rng);
+		b = BLI_rng_get_float(rng);
+		if (a + b > 1.0f) {
+			a = 1.0f - a;
+			b = 1.0f - b;
+		}
+		sample.orig_weights[0] = 1.0f - (a + b);
+		sample.orig_weights[1] = a;
+		sample.orig_weights[2] = b;
+		
+		if (!dst->store_sample(dst->data, dst->capacity, i, &sample))
+			break;
 	}
+	
+	BLI_rng_free(rng);
 }
