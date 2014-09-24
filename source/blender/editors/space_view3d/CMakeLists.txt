@@ -45,6 +45,7 @@ set(SRC
 	drawhair.c
 	drawmesh.c
 	drawobject.c
+	drawsimdebug.c
 	drawvolume.c
 	space_view3d.c
 	view3d_buttons.c

@@ -46,6 +46,7 @@
 
 #include "BKE_cloth.h"
 #include "BKE_cdderivedmesh.h"
+#include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_modifier.h"
@@ -68,6 +69,8 @@ static void initData(ModifierData *md)
 		return;
 	
 	cloth_init(clmd);
+	
+	clmd->debug_data = NULL;
 }
 
 static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, float (*vertexCos)[3],
@@ -175,6 +178,9 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tclmd->point_cache = BKE_ptcache_add(&tclmd->ptcaches);
 	tclmd->point_cache->step = 1;
 	tclmd->clothObject = NULL;
+	tclmd->roots = NULL;
+	tclmd->solver_result = NULL;
+	tclmd->debug_data = NULL;
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
@@ -202,6 +208,14 @@ static void freeData(ModifierData *md)
 		
 		BKE_ptcache_free_list(&clmd->ptcaches);
 		clmd->point_cache = NULL;
+		
+		if (clmd->roots)
+			MEM_freeN(clmd->roots);
+		
+		if (clmd->solver_result)
+			MEM_freeN(clmd->solver_result);
+		
+		BKE_sim_debug_data_free(clmd->debug_data);
 	}
 }
 

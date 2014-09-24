@@ -44,6 +44,7 @@
 
 #include "BKE_animsys.h"
 #include "BKE_dynamicpaint.h"
+#include "BKE_effect.h"
 #include "BKE_multires.h"
 #include "BKE_smoke.h" /* For smokeModifier_free & smokeModifier_createType */
 
@@ -606,6 +607,28 @@ static int rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
 {
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
 	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->cache_system != NULL));
+}
+
+static int rna_ClothModifier_show_debug_data_get(PointerRNA *ptr)
+{
+	ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+	return clmd->debug_data != NULL;
+}
+
+static void rna_ClothModifier_show_debug_data_set(PointerRNA *ptr, int value)
+{
+	ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+	if (value) {
+		if (!clmd->debug_data) {
+			clmd->debug_data = BKE_sim_debug_data_new();
+		}
+	}
+	else {
+		if (clmd->debug_data) {
+			BKE_sim_debug_data_free(clmd->debug_data);
+			clmd->debug_data = NULL;
+		}
+	}
 }
 
 static void rna_HairModifier_show_debug_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -2073,9 +2096,19 @@ static void rna_def_modifier_cloth(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "coll_parms");
 	RNA_def_property_ui_text(prop, "Cloth Collision Settings", "");
 	
+	prop = RNA_def_property(srna, "solver_result", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ClothSolverResult");
+	RNA_def_property_pointer_sdna(prop, NULL, "solver_result");
+	RNA_def_property_ui_text(prop, "Solver Result", "");
+	
 	prop = RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_ui_text(prop, "Point Cache", "");
+	
+	prop = RNA_def_property(srna, "show_debug_data", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_ClothModifier_show_debug_data_get", "rna_ClothModifier_show_debug_data_set");
+	RNA_def_property_ui_text(prop, "Debug", "Show debug info");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 static void rna_def_modifier_smoke(BlenderRNA *brna)

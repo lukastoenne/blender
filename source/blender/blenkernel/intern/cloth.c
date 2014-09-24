@@ -47,6 +47,8 @@
 #include "BKE_modifier.h"
 #include "BKE_pointcache.h"
 
+#include "BPH_mass_spring.h"
+
 // #include "PIL_time.h"  /* timing for debug prints */
 
 /* Our available solvers. */
@@ -54,8 +56,8 @@
 // 254 = MAX!
 static CM_SOLVER_DEF	solvers [] =
 {
-	{ "Implicit", CM_IMPLICIT, implicit_init, implicit_solver, implicit_free },
-		// { "Implicit C++", CM_IMPLICITCPP, implicitcpp_init, implicitcpp_solver, implicitcpp_free },
+	{ "Implicit", CM_IMPLICIT, BPH_cloth_solver_init, BPH_cloth_solve, BPH_cloth_solver_free },
+	// { "Implicit C++", CM_IMPLICITCPP, implicitcpp_init, implicitcpp_solver, implicitcpp_free },
 };
 
 /* ********** cloth engine ******* */
@@ -129,6 +131,8 @@ void cloth_init(ClothModifierData *clmd )
 	clmd->sim_parms->goalspring = 1.0f;
 	clmd->sim_parms->goalfrict = 0.0f;
 	clmd->sim_parms->velocity_smooth = 0.0f;
+
+	clmd->sim_parms->voxel_res = 32;
 
 	if (!clmd->sim_parms->effector_weights)
 		clmd->sim_parms->effector_weights = BKE_add_effector_weights(NULL);
@@ -343,7 +347,7 @@ static int do_init_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 			return 0;
 		}
 	
-		implicit_set_positions(clmd);
+		BKE_cloth_solver_set_positions(clmd);
 
 		clmd->clothObject->last_frame= MINFRAME-1;
 	}
@@ -526,7 +530,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	cache_result = BKE_ptcache_read(&pid, (float)framenr+scene->r.subframe);
 
 	if (cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED) {
-		implicit_set_positions(clmd);
+		BKE_cloth_solver_set_positions(clmd);
 		cloth_to_object (ob, clmd, vertexCos);
 
 		BKE_ptcache_validate(cache, framenr);
@@ -539,7 +543,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		return;
 	}
 	else if (cache_result==PTCACHE_READ_OLD) {
-		implicit_set_positions(clmd);
+		BKE_cloth_solver_set_positions(clmd);
 	}
 	else if ( /*ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
 		/* if baked and nothing in cache, do nothing */
@@ -936,7 +940,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	}
 	
 	if (!first)
-		implicit_set_positions(clmd);
+		BKE_cloth_solver_set_positions(clmd);
 
 	clmd->clothObject->bvhtree = bvhtree_build_from_cloth ( clmd, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel) );
 	
@@ -1283,39 +1287,71 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 		}
 	}
 	else if (struct_springs > 2) {
-		/* bending springs for hair strands */
-		/* The current algorightm only goes through the edges in order of the mesh edges list	*/
-		/* and makes springs between the outer vert of edges sharing a vertice. This works just */
-		/* fine for hair, but not for user generated string meshes. This could/should be later	*/
-		/* extended to work with non-ordered edges so that it can be used for general "rope		*/
-		/* dynamics" without the need for the vertices or edges to be ordered through the length*/
-		/* of the strands. -jahka */
-		search = cloth->springs;
-		search2 = search->next;
-		while (search && search2) {
-			tspring = search->link;
-			tspring2 = search2->link;
-
-			if (tspring->ij == tspring2->kl) {
-				spring = (ClothSpring *)MEM_callocN ( sizeof ( ClothSpring ), "cloth spring" );
+		if (G.debug_value != 1112) {
+			search = cloth->springs;
+			search2 = search->next;
+			while (search && search2) {
+				tspring = search->link;
+				tspring2 = search2->link;
 				
-				if (!spring) {
-					cloth_free_errorsprings(cloth, edgelist);
-					return 0;
+				if (tspring->ij == tspring2->kl) {
+					spring = (ClothSpring *)MEM_callocN ( sizeof ( ClothSpring ), "cloth spring" );
+					
+					if (!spring) {
+						cloth_free_errorsprings(cloth, edgelist);
+						return 0;
+					}
+					
+					spring->ij = tspring2->ij;
+					spring->kl = tspring->ij;
+					spring->mn = tspring->kl;
+					spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest);
+					spring->type = CLOTH_SPRING_TYPE_BENDING_ANG;
+					spring->stiffness = (cloth->verts[spring->kl].bend_stiff + cloth->verts[spring->ij].bend_stiff) / 2.0f;
+					bend_springs++;
+					
+					BLI_linklist_prepend ( &cloth->springs, spring );
 				}
-
-				spring->ij = tspring2->ij;
-				spring->kl = tspring->kl;
-				spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest);
-				spring->type = CLOTH_SPRING_TYPE_BENDING;
-				spring->stiffness = (cloth->verts[spring->kl].bend_stiff + cloth->verts[spring->ij].bend_stiff) / 2.0f;
-				bend_springs++;
-
-				BLI_linklist_prepend ( &cloth->springs, spring );
+				
+				search = search->next;
+				search2 = search2->next;
 			}
-			
-			search = search->next;
-			search2 = search2->next;
+		}
+		else {
+			/* bending springs for hair strands */
+			/* The current algorightm only goes through the edges in order of the mesh edges list	*/
+			/* and makes springs between the outer vert of edges sharing a vertice. This works just */
+			/* fine for hair, but not for user generated string meshes. This could/should be later	*/
+			/* extended to work with non-ordered edges so that it can be used for general "rope		*/
+			/* dynamics" without the need for the vertices or edges to be ordered through the length*/
+			/* of the strands. -jahka */
+			search = cloth->springs;
+			search2 = search->next;
+			while (search && search2) {
+				tspring = search->link;
+				tspring2 = search2->link;
+				
+				if (tspring->ij == tspring2->kl) {
+					spring = (ClothSpring *)MEM_callocN ( sizeof ( ClothSpring ), "cloth spring" );
+					
+					if (!spring) {
+						cloth_free_errorsprings(cloth, edgelist);
+						return 0;
+					}
+					
+					spring->ij = tspring2->ij;
+					spring->kl = tspring->kl;
+					spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest);
+					spring->type = CLOTH_SPRING_TYPE_BENDING;
+					spring->stiffness = (cloth->verts[spring->kl].bend_stiff + cloth->verts[spring->ij].bend_stiff) / 2.0f;
+					bend_springs++;
+					
+					BLI_linklist_prepend ( &cloth->springs, spring );
+				}
+				
+				search = search->next;
+				search2 = search2->next;
+			}
 		}
 	}
 	

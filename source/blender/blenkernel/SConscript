@@ -64,6 +64,7 @@ incs = [
     '../makesrna',
     '../modifiers',
     '../nodes',
+    '../physics',
     '../render/extern/include',
     '../windowmanager',
     env['BF_OPENGL_INC'],

@@ -639,7 +639,16 @@ void mul_mat3_m4_fl(float m[4][4], float f)
 			m[i][j] *= f;
 }
 
-void negate_m3(float m[4][4])
+void negate_m3(float m[3][3])
+{
+	int i, j;
+
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 3; j++)
+			m[i][j] *= -1.0f;
+}
+
+void negate_mat3_m4(float m[4][4])
 {
 	int i, j;
 

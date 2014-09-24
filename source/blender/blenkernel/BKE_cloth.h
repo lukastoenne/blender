@@ -41,7 +41,10 @@ struct Scene;
 struct MFace;
 struct DerivedMesh;
 struct ClothModifierData;
+struct CollisionModifierData;
 struct CollisionTree;
+struct VoxelData;
+struct PartDeflect;
 
 #define DO_INLINE MALWAYS_INLINE
 
@@ -55,6 +58,19 @@ struct CollisionTree;
 /* Bits to or into the ClothVertex.flags. */
 #define CLOTH_VERT_FLAG_PINNED 1
 #define CLOTH_VERT_FLAG_NOSELFCOLL 2 /* vertex NOT used for self collisions */
+
+typedef struct ClothHairRoot {
+	float loc[3];
+	float rot[3][3];
+} ClothHairRoot;
+
+typedef struct ClothSolverResult {
+	int status;
+	
+	int max_iterations, min_iterations;
+	float avg_iterations;
+	float max_error, min_error, avg_error;
+} ClothSolverResult;
 
 /**
  * This structure describes a cloth object against which the
@@ -116,8 +132,12 @@ ClothVertex;
 typedef struct ClothSpring {
 	int	ij;		/* Pij from the paper, one end of the spring.	*/
 	int	kl;		/* Pkl from the paper, one end of the spring.	*/
+	int mn;
 	float	restlen;	/* The original length of the spring.	*/
-	int	matrix_index; 	/* needed for implicit solver (fast lookup) */
+	/* needed for implicit solver (fast lookup) */
+	int	matrix_ij_kl;
+	int	matrix_kl_mn;
+	int	matrix_ij_mn;
 	int	type;		/* types defined in BKE_cloth.h ("springType") */
 	int	flags; 		/* defined in BKE_cloth.h, e.g. deactivated due to tearing */
 	float dfdx[3][3];
@@ -158,6 +178,7 @@ typedef enum {
 typedef enum {
 	CLOTH_COLLSETTINGS_FLAG_ENABLED = ( 1 << 1 ), /* enables cloth - object collisions */
 	CLOTH_COLLSETTINGS_FLAG_SELF = ( 1 << 2 ), /* enables selfcollisions */
+	CLOTH_COLLSETTINGS_FLAG_POINTS = ( 1 << 3 ), /* enables point collisions (hair) */
 } CLOTH_COLLISIONSETTINGS_FLAGS;
 
 /* Spring types as defined in the paper.*/
@@ -166,7 +187,8 @@ typedef enum {
 	CLOTH_SPRING_TYPE_SHEAR       = (1 << 2),
 	CLOTH_SPRING_TYPE_BENDING     = (1 << 3),
 	CLOTH_SPRING_TYPE_GOAL        = (1 << 4),
-	CLOTH_SPRING_TYPE_SEWING      = (1 << 5)
+	CLOTH_SPRING_TYPE_SEWING      = (1 << 5),
+	CLOTH_SPRING_TYPE_BENDING_ANG = (1 << 6),
 } CLOTH_SPRING_TYPES;
 
 /* SPRING FLAGS */
@@ -180,21 +202,25 @@ typedef enum {
 // collision.c
 ////////////////////////////////////////////////
 
+struct CollPair;
+
+typedef struct ColliderContacts {
+	struct Object *ob;
+	struct CollisionModifierData *collmd;
+	
+	struct CollPair *collisions;
+	int totcollisions;
+} ColliderContacts;
+
 // needed for implicit.c
 int cloth_bvh_objcollision (struct Object *ob, struct ClothModifierData *clmd, float step, float dt );
+int cloth_points_objcollision(struct Object *ob, struct ClothModifierData *clmd, float step, float dt);
+
+void cloth_find_point_contacts(struct Object *ob, struct ClothModifierData *clmd, float step, float dt,
+                               ColliderContacts **r_collider_contacts, int *r_totcolliders);
+void cloth_free_contacts(ColliderContacts *collider_contacts, int totcolliders);
 
 ////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////
-// implicit.c
-////////////////////////////////////////////////
-
-// needed for cloth.c
-int implicit_init (struct Object *ob, struct ClothModifierData *clmd );
-int implicit_free (struct ClothModifierData *clmd );
-int implicit_solver (struct Object *ob, float frame, struct ClothModifierData *clmd, struct ListBase *effectors );
-void implicit_set_positions (struct ClothModifierData *clmd );
 
 /////////////////////////////////////////////////
 // cloth.c
@@ -233,9 +259,9 @@ typedef enum {
 typedef struct {
 	const char		*name;
 	CM_SOLVER_ID	id;
-	int	( *init ) (struct Object *ob, struct ClothModifierData *clmd );
-	int	( *solver ) (struct Object *ob, float framenr, struct ClothModifierData *clmd, struct ListBase *effectors );
-	int	( *free ) (struct ClothModifierData *clmd );
+	int ( *init ) (struct Object *ob, struct ClothModifierData *clmd );
+	int ( *solver ) (struct Object *ob, float framenr, struct ClothModifierData *clmd, struct ListBase *effectors );
+	void ( *free ) (struct ClothModifierData *clmd );
 }
 CM_SOLVER_DEF;
 
