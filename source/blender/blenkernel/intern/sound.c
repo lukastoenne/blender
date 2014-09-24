@@ -243,7 +243,7 @@ bSound *sound_new_buffer(struct Main *bmain, bSound *source)
 	sound->child_sound = source;
 	sound->type = SOUND_TYPE_BUFFER;
 
-	sound_load(bmain, sound, true);
+	sound_load(bmain, sound);
 
 	if (!sound->playback_handle)
 	{
@@ -269,7 +269,7 @@ bSound *sound_new_limiter(struct Main *bmain, bSound *source, float start, float
 	sound->end = end;
 	sound->type = SOUND_TYPE_LIMITER;
 
-	sound_load(bmain, sound, true);
+	sound_load(bmain, sound);
 
 	if (!sound->playback_handle)
 	{
@@ -303,12 +303,6 @@ void sound_cache(bSound *sound)
 		sound->playback_handle = sound->handle;
 }
 
-void sound_cache_notifying(struct Main *main, bSound *sound)
-{
-	sound_cache(sound);
-	sound_update_sequencer(main, sound);
-}
-
 void sound_delete_cache(bSound *sound)
 {
 	sound->flags &= ~SOUND_FLAGS_CACHING;
@@ -321,6 +315,7 @@ void sound_delete_cache(bSound *sound)
 
 void sound_load(struct Main *bmain, bSound *sound)
 {
+	
 	if (sound) {
 		if (sound->cache) {
 			AUD_unload(sound->cache);
@@ -386,8 +381,6 @@ void sound_load(struct Main *bmain, bSound *sound)
 			sound->playback_handle = sound->cache;
 		else
 			sound->playback_handle = sound->handle;
-
-		sound_update_sequencer(bmain, sound);
 	}
 }
 
@@ -460,10 +453,16 @@ void *sound_scene_add_scene_sound_defaults(struct Scene *scene, struct Sequence 
 	                                   sequence->startofs + sequence->anim_startofs);
 }
 
-void *sound_add_scene_sound(struct Scene *scene, struct Sequence *sequence, int startframe, int endframe, int frameskip)
+void *sound_add_scene_sound(struct Main *bmain, struct Scene *scene, struct Sequence *sequence, int startframe, int endframe, int frameskip)
 {
 	const double fps = FPS;
-	void *handle = AUD_addSequence(scene->sound_scene, sequence->sound->playback_handle,
+	void *handle;
+	
+	/* try to load sound here if not initialized yet. */
+	if (!sequence->sound->playback_handle) {
+		sound_load(bmain, sequence->sound);
+	}
+	handle = AUD_addSequence(scene->sound_scene, sequence->sound->playback_handle,
 	                               startframe / fps, endframe / fps, frameskip / fps);
 	AUD_muteSequence(handle, (sequence->flag & SEQ_MUTE) != 0);
 	AUD_setSequenceAnimData(handle, AUD_AP_VOLUME, CFRA, &sequence->volume, 0);
@@ -472,9 +471,9 @@ void *sound_add_scene_sound(struct Scene *scene, struct Sequence *sequence, int 
 	return handle;
 }
 
-void *sound_add_scene_sound_defaults(struct Scene *scene, struct Sequence *sequence)
+void *sound_add_scene_sound_defaults(struct Main *bmain, struct Scene *scene, struct Sequence *sequence)
 {
-	return sound_add_scene_sound(scene, sequence,
+	return sound_add_scene_sound(bmain, scene, sequence,
 	                             sequence->startdisp, sequence->enddisp,
 	                             sequence->startofs + sequence->anim_startofs);
 }
@@ -533,15 +532,6 @@ void sound_set_scene_sound_pitch(void *handle, float pitch, char animated)
 void sound_set_scene_sound_pan(void *handle, float pan, char animated)
 {
 	AUD_setSequenceAnimData(handle, AUD_AP_PANNING, sound_cfra, &pan, animated);
-}
-
-void sound_update_sequencer(struct Main *main, bSound *sound)
-{
-	struct Scene *scene;
-
-	for (scene = main->scene.first; scene; scene = scene->id.next) {
-		BKE_sequencer_update_sound(scene, sound);
-	}
 }
 
 static void sound_start_play_scene(struct Scene *scene)
@@ -690,7 +680,7 @@ void sound_free_waveform(bSound *sound)
 void sound_read_waveform(bSound *sound, bool locked, short *stop)
 {
 	AUD_SoundInfo info;
-
+		
 	info = AUD_getInfo(sound->playback_handle);
 
 	if (info.length > 0) {
@@ -851,7 +841,6 @@ int sound_scene_playing(struct Scene *UNUSED(scene)) { return -1; }
 void sound_read_waveform(struct bSound *UNUSED(sound), bool locked) {}
 void sound_init_main(struct Main *UNUSED(bmain)) {}
 void sound_set_cfra(int UNUSED(cfra)) {}
-void sound_update_sequencer(struct Main *UNUSED(main), struct bSound *UNUSED(sound)) {}
 void sound_update_scene(struct Main *UNUSED(bmain), struct Scene *UNUSED(scene)) {}
 void sound_update_scene_sound(void *UNUSED(handle), struct bSound *UNUSED(sound)) {}
 void sound_update_scene_listener(struct Scene *UNUSED(scene)) {}

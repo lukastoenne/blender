@@ -146,7 +146,7 @@ static void remove_sequencer_fcurves(Scene *sce)
 	}
 }
 
-Scene *BKE_scene_copy(Scene *sce, int type)
+Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 {
 	Scene *scen;
 	SceneRenderLayer *srl, *new_srl;
@@ -303,7 +303,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		if (sce->ed) {
 			scen->ed = MEM_callocN(sizeof(Editing), "addseq");
 			scen->ed->seqbasep = &scen->ed->seqbase;
-			BKE_sequence_base_dupli_recursive(sce, scen, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
+			BKE_sequence_base_dupli_recursive(bmain, sce, scen, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
 		}
 	}
 
@@ -1716,7 +1716,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	 * we need to do it here to avoid rebuilding the world on every simulation change, which can be very expensive
 	 */
 	scene_rebuild_rbw_recursive(sce, ctime);
-
+	
 	sound_set_cfra(sce->r.cfra);
 	
 	/* clear animation overrides */

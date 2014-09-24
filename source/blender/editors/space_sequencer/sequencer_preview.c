@@ -61,6 +61,7 @@ typedef struct PreviewJobAudio {
 	bSound *sound;
 	int lr; /* sample left or right */
 	int startframe;
+	bool waveform; /* reload sound or waveform */
 } PreviewJobAudio;
 
 static void free_preview_job(void *data)

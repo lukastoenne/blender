@@ -299,7 +299,7 @@ bool BKE_sequence_single_check(struct Sequence *seq);
 void BKE_sequence_single_fix(struct Sequence *seq);
 bool BKE_sequence_test_overlap(struct ListBase *seqbasep, struct Sequence *test);
 void BKE_sequence_translate(struct Scene *scene, struct Sequence *seq, int delta);
-void BKE_sequence_sound_init(struct Scene *scene, struct Sequence *seq);
+void BKE_sequence_sound_init(struct Main *bmain, struct Scene *scene, struct Sequence *seq);
 struct Sequence *BKE_sequencer_foreground_frame_get(struct Scene *scene, int frame);
 struct ListBase *BKE_sequence_seqbase(struct ListBase *seqbase, struct Sequence *seq);
 struct Sequence *BKE_sequence_metastrip(ListBase *seqbase /* = ed->seqbase */, struct Sequence *meta /* = NULL */, struct Sequence *seq);
@@ -310,7 +310,7 @@ bool BKE_sequence_base_shuffle(struct ListBase *seqbasep, struct Sequence *test,
 bool BKE_sequence_base_shuffle_time(ListBase *seqbasep, struct Scene *evil_scene);
 bool BKE_sequence_base_isolated_sel_check(struct ListBase *seqbase, bool one_only);
 void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, bool for_render);
-struct Sequence *BKE_sequence_dupli_recursive(struct Scene *scene, struct Scene *scene_to, struct Sequence *seq, int dupe_flag);
+struct Sequence *BKE_sequence_dupli_recursive(struct Main *main, struct Scene *scene, struct Scene *scene_to, struct Sequence *seq, int dupe_flag);
 int BKE_sequence_swap(struct Sequence *seq_a, struct Sequence *seq_b, const char **error_str);
 
 bool BKE_sequence_check_depend(struct Sequence *seq, struct Sequence *cur);
@@ -326,7 +326,7 @@ void BKE_sequencer_update_sound(struct Scene *scene, struct bSound *sound);
 void BKE_sequencer_refresh_sound_length(struct Scene *scene);
 
 void BKE_sequence_base_unique_name_recursive(ListBase *seqbasep, struct Sequence *seq);
-void BKE_sequence_base_dupli_recursive(struct Scene *scene, struct Scene *scene_to, ListBase *nseqbase, ListBase *seqbase, int dupe_flag);
+void BKE_sequence_base_dupli_recursive(struct Main *bmain, struct Scene *scene, struct Scene *scene_to, ListBase *nseqbase, ListBase *seqbase, int dupe_flag);
 bool BKE_sequence_is_valid_check(struct Sequence *seq);
 
 void BKE_sequencer_clear_scene_in_allseqs(struct Main *bmain, struct Scene *sce);

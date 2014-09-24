@@ -1122,6 +1122,8 @@ void blo_freefiledata(FileData *fd)
 			oldnewmap_free(fd->imamap);
 		if (fd->movieclipmap)
 			oldnewmap_free(fd->movieclipmap);
+		if (fd->soundmap)
+			oldnewmap_free(fd->soundmap);
 		if (fd->packedmap)
 			oldnewmap_free(fd->packedmap);
 		if (fd->libmap && !(fd->flags & FD_FLAGS_NOT_MY_LIBMAP))
@@ -1209,6 +1211,13 @@ static void *newmclipadr(FileData *fd, void *adr)      /* used to restore movie 
 {
 	if (fd->movieclipmap && adr)
 		return oldnewmap_lookup_and_inc(fd->movieclipmap, adr, true);
+	return NULL;
+}
+
+static void *newsoundadr(FileData *fd, void *adr)      /* used to restore sound data after undo */
+{
+	if (fd->soundmap && adr)
+		return oldnewmap_lookup_and_inc(fd->soundmap, adr, true);
 	return NULL;
 }
 
@@ -1425,6 +1434,40 @@ void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 				if (node->type == CMP_NODE_MOVIEDISTORTION)
 					node->storage = newmclipadr(fd, node->storage);
 		}
+	}
+}
+
+void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
+{
+	bSound *sound = oldmain->sound.first;
+	
+	fd->soundmap = oldnewmap_new();
+	
+	for (; sound; sound = sound->id.next) {
+		if (sound->handle)
+			oldnewmap_insert(fd->soundmap, sound->handle, sound->handle, 0);	
+		if (sound->cache)
+			oldnewmap_insert(fd->soundmap, sound->cache, sound->cache, 0);	
+	}
+}
+
+/* set old main sound caches to zero if it has been restored */
+/* this works because freeing old main only happens after this call */
+void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
+{
+	OldNew *entry = fd->soundmap->entries;
+	bSound *sound = oldmain->sound.first;
+	int i;
+	
+	/* used entries were restored, so we put them to zero */
+	for (i=0; i < fd->soundmap->nentries; i++, entry++) {
+		if (entry->nr > 0)
+			entry->newp = NULL;
+	}
+	
+	for (; sound; sound = sound->id.next) {
+		sound->cache = newsoundadr(fd, sound->cache);
+		sound->handle = newsoundadr(fd, sound->handle);
 	}
 }
 
@@ -5213,7 +5256,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 					}
 					if (seq->sound) {
 						seq->sound->id.us++;
-						seq->scene_sound = sound_add_scene_sound_defaults(sce, seq);
+						seq->scene_sound = sound_add_scene_sound_defaults(main, sce, seq);
 					}
 				}
 				seq->anim = NULL;
@@ -6700,16 +6743,28 @@ static void direct_link_speaker(FileData *fd, Speaker *spk)
 
 static void direct_link_sound(FileData *fd, bSound *sound)
 {
-	sound->handle = NULL;
-	sound->playback_handle = NULL;
+	/* reload waveforms for now */
 	sound->waveform = NULL;
-
-	// versioning stuff, if there was a cache, then we enable caching:
-	if (sound->cache) {
-		sound->flags |= SOUND_FLAGS_CACHING;
-		sound->cache = NULL;
-	}
 	
+	// versioning stuff, if there was a cache, then we enable caching:
+	if (sound->cache) sound->flags |= SOUND_FLAGS_CACHING;
+
+	if (fd->soundmap) {
+		sound->cache = newsoundadr(fd, sound->cache);
+		sound->handle = newsoundadr(fd, sound->handle);
+	
+		/* if there was a cache it's also used for playback */
+		if (sound->cache)
+			sound->playback_handle = sound->cache;
+		else
+			sound->playback_handle = NULL;
+	}	
+	else {
+		sound->cache = NULL;
+		sound->handle = NULL;
+		sound->playback_handle = NULL;
+	}
+		
 	if (sound->mutex)
 		sound->mutex = BLI_mutex_alloc();
 	
@@ -6728,8 +6783,6 @@ static void lib_link_sound(FileData *fd, Main *main)
 		if (sound->id.flag & LIB_NEED_LINK) {
 			sound->id.flag -= LIB_NEED_LINK;
 			sound->ipo = newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX deprecated - old animation system
-			
-			sound_load(main, sound);
 		}
 	}
 }

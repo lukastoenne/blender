@@ -310,8 +310,9 @@ AUD_SoundInfo AUD_getInfo(AUD_Sound *sound)
 			info.length = reader->getLength() / (float) info.specs.rate;
 		}
 	}
-	catch(AUD_Exception&)
+	catch(AUD_Exception &ae)
 	{
+		std::cout << ae.str << std::endl;
 	}
 
 	return info;

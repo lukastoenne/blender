@@ -644,7 +644,7 @@ static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short de
 }
 
 
-static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
+static Sequence *cut_seq_hard(struct Main *bmain, Scene *scene, Sequence *seq, int cutframe)
 {
 	TransSeq ts;
 	Sequence *seqn = NULL;
@@ -699,7 +699,7 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 
 	if (!skip_dup) {
 		/* Duplicate AFTER the first change */
-		seqn = BKE_sequence_dupli_recursive(scene, NULL, seq, SEQ_DUPE_UNIQUE_NAME | SEQ_DUPE_ANIM);
+		seqn = BKE_sequence_dupli_recursive(bmain, scene, NULL, seq, SEQ_DUPE_UNIQUE_NAME | SEQ_DUPE_ANIM);
 	}
 	
 	if (seqn) {
@@ -740,7 +740,7 @@ static Sequence *cut_seq_hard(Scene *scene, Sequence *seq, int cutframe)
 	return seqn;
 }
 
-static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
+static Sequence *cut_seq_soft(struct Main *bmain, Scene *scene, Sequence *seq, int cutframe)
 {
 	TransSeq ts;
 	Sequence *seqn = NULL;
@@ -792,7 +792,7 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
 
 	if (!skip_dup) {
 		/* Duplicate AFTER the first change */
-		seqn = BKE_sequence_dupli_recursive(scene, NULL, seq, SEQ_DUPE_UNIQUE_NAME | SEQ_DUPE_ANIM);
+		seqn = BKE_sequence_dupli_recursive(bmain, scene, NULL, seq, SEQ_DUPE_UNIQUE_NAME | SEQ_DUPE_ANIM);
 	}
 	
 	if (seqn) {
@@ -837,8 +837,8 @@ static Sequence *cut_seq_soft(Scene *scene, Sequence *seq, int cutframe)
  * may generate strips with the same name (which will mess up animdata)
  */
 
-static bool cut_seq_list(Scene *scene, ListBase *slist, int cutframe,
-                         Sequence * (*cut_seq)(Scene *, Sequence *, int))
+static bool cut_seq_list(Main *bmain, Scene *scene, ListBase *slist, int cutframe,
+                         Sequence * (*cut_seq)(Main *, Scene *, Sequence *, int))
 {
 	Sequence *seq, *seq_next_iter;
 	Sequence *seq_first_new = NULL;
@@ -852,7 +852,7 @@ static bool cut_seq_list(Scene *scene, ListBase *slist, int cutframe,
 			if (cutframe > seq->startdisp && 
 			    cutframe < seq->enddisp)
 			{
-				Sequence *seqn = cut_seq(scene, seq, cutframe);
+				Sequence *seqn = cut_seq(bmain, scene, seq, cutframe);
 				if (seqn) {
 					BLI_addtail(slist, seqn);
 					if (seq_first_new == NULL) {
@@ -1616,6 +1616,7 @@ static EnumPropertyItem prop_cut_types[] = {
 
 static int sequencer_cut_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	int cut_side, cut_hard, cut_frame;
@@ -1627,10 +1628,10 @@ static int sequencer_cut_exec(bContext *C, wmOperator *op)
 	cut_side = RNA_enum_get(op->ptr, "side");
 	
 	if (cut_hard == SEQ_CUT_HARD) {
-		changed = cut_seq_list(scene, ed->seqbasep, cut_frame, cut_seq_hard);
+		changed = cut_seq_list(bmain, scene, ed->seqbasep, cut_frame, cut_seq_hard);
 	}
 	else {
-		changed = cut_seq_list(scene, ed->seqbasep, cut_frame, cut_seq_soft);
+		changed = cut_seq_list(bmain, scene, ed->seqbasep, cut_frame, cut_seq_soft);
 	}
 	
 	if (changed) { /* got new strips ? */
@@ -1952,13 +1953,14 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
+	Main *bmain = CTX_data_main(C);
 
 	ListBase nseqbase = {NULL, NULL};
 
 	if (ed == NULL)
 		return OPERATOR_CANCELLED;
 
-	BKE_sequence_base_dupli_recursive(scene, NULL, &nseqbase, ed->seqbasep, SEQ_DUPE_CONTEXT);
+	BKE_sequence_base_dupli_recursive(bmain, scene, NULL, &nseqbase, ed->seqbasep, SEQ_DUPE_CONTEXT);
 
 	if (nseqbase.first) {
 		Sequence *seq = nseqbase.first;
@@ -2140,6 +2142,7 @@ void SEQUENCER_OT_offset_clear(wmOperatorType *ot)
 /* separate_images operator */
 static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	
@@ -2168,7 +2171,7 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
 				/* new seq */
 				se = BKE_sequencer_give_stripelem(seq, cfra);
 
-				seq_new = BKE_sequence_dupli_recursive(scene, scene, seq, SEQ_DUPE_UNIQUE_NAME);
+				seq_new = BKE_sequence_dupli_recursive(bmain, scene, scene, seq, SEQ_DUPE_UNIQUE_NAME);
 				BLI_addtail(ed->seqbasep, seq_new);
 
 				seq_new->start = start_ofs;
@@ -3023,6 +3026,7 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
+	Main *bmain = CTX_data_main(C);
 
 	ListBase nseqbase = {NULL, NULL};
 
@@ -3033,7 +3037,7 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	BKE_sequence_base_dupli_recursive(scene, NULL, &nseqbase, ed->seqbasep, SEQ_DUPE_UNIQUE_NAME);
+	BKE_sequence_base_dupli_recursive(bmain, scene, NULL, &nseqbase, ed->seqbasep, SEQ_DUPE_UNIQUE_NAME);
 
 	/* To make sure the copied strips have unique names between each other add
 	 * them temporarily to the end of the original seqbase. (bug 25932)
@@ -3102,7 +3106,7 @@ static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
 	ED_sequencer_deselect_all(scene);
 	ofs = scene->r.cfra - seqbase_clipboard_frame;
 
-	BKE_sequence_base_dupli_recursive(scene, NULL, &nseqbase, &seqbase_clipboard, SEQ_DUPE_UNIQUE_NAME);
+	BKE_sequence_base_dupli_recursive(bmain, scene, NULL, &nseqbase, &seqbase_clipboard, SEQ_DUPE_UNIQUE_NAME);
 
 	/* transform pasted strips before adding */
 	if (ofs) {
@@ -3116,7 +3120,7 @@ static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	for (iseq = nseqbase.first; iseq; iseq = iseq->next) {
-		BKE_sequence_sound_init(scene, iseq);
+		BKE_sequence_sound_init(bmain, scene, iseq);
 	}
 
 	iseq_first = nseqbase.first;
@@ -3160,6 +3164,7 @@ void SEQUENCER_OT_paste(wmOperatorType *ot)
 static int sequencer_swap_data_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
+	Main *bmain = CTX_data_main(C);
 	Sequence *seq_act;
 	Sequence *seq_other;
 	const char *error_msg;
@@ -3186,8 +3191,8 @@ static int sequencer_swap_data_exec(bContext *C, wmOperator *op)
 	BKE_sequence_calc(scene, seq_act);
 	BKE_sequence_calc(scene, seq_other);
 
-	if (seq_act->sound) sound_add_scene_sound_defaults(scene, seq_act);
-	if (seq_other->sound) sound_add_scene_sound_defaults(scene, seq_other);
+	if (seq_act->sound) sound_add_scene_sound_defaults(bmain, scene, seq_act);
+	if (seq_other->sound) sound_add_scene_sound_defaults(bmain, scene, seq_other);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 

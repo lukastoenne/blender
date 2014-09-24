@@ -197,7 +197,7 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		bSound *sound = seq->sound;
 
 		SoundWaveform *waveform;
-		
+				
 		if (!sound->mutex)
 			sound->mutex = BLI_mutex_alloc();
 		
@@ -864,8 +864,10 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	generate_strip_vertices(x1, y1, x2, y2, aspect);
 
 	/* draw sound wave */
-	if ((seq->type == SEQ_TYPE_SOUND_RAM) && !(sseq->flag & SEQ_NO_WAVEFORMS)) {
-		drawseqwave(C, sseq, scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
+	if (seq->type == SEQ_TYPE_SOUND_RAM) {
+		if(!(sseq->flag & SEQ_NO_WAVEFORMS)) {
+			drawseqwave(C, sseq, scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
+		}
 	}
 
 	/* draw lock */

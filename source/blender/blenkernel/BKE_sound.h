@@ -71,8 +71,6 @@ void sound_delete(struct Main *bmain, struct bSound *sound);
 
 void sound_cache(struct bSound *sound);
 
-void sound_cache_notifying(struct Main *main, struct bSound *sound);
-
 void sound_delete_cache(struct bSound *sound);
 
 void sound_load(struct Main *main, struct bSound *sound);
@@ -96,8 +94,8 @@ void sound_update_scene_listener(struct Scene *scene);
 void *sound_scene_add_scene_sound(struct Scene *scene, struct Sequence *sequence, int startframe, int endframe, int frameskip);
 void *sound_scene_add_scene_sound_defaults(struct Scene *scene, struct Sequence *sequence);
 
-void *sound_add_scene_sound(struct Scene *scene, struct Sequence *sequence, int startframe, int endframe, int frameskip);
-void *sound_add_scene_sound_defaults(struct Scene *scene, struct Sequence *sequence);
+void *sound_add_scene_sound(struct Main *bmain, struct Scene *scene, struct Sequence *sequence, int startframe, int endframe, int frameskip);
+void *sound_add_scene_sound_defaults(struct Main *bmain, struct Scene *scene, struct Sequence *sequence);
 
 void sound_remove_scene_sound(struct Scene *scene, void *handle);
 
@@ -117,8 +115,6 @@ void sound_set_scene_sound_volume(void *handle, float volume, char animated);
 void sound_set_scene_sound_pitch(void *handle, float pitch, char animated);
 
 void sound_set_scene_sound_pan(void *handle, float pan, char animated);
-
-void sound_update_sequencer(struct Main *main, struct bSound *sound);
 
 void sound_play_scene(struct Scene *scene);
 
