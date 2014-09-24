@@ -29,53 +29,24 @@ struct DerivedMesh;
 
 struct MSurfaceSample;
 
-/* Evaluate */
+/* ==== Evaluate ==== */
 
 bool BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MSurfaceSample *sample, float loc[3], float nor[3]);
 
 
-/* Iterators */
+/* ==== Sampling ==== */
 
-#if 0
-struct MSampleIterator;
+/* Storage descriptor to allow generic data storage by arbitrary algorithms */
+typedef struct MSurfaceSampleStorage {
+	bool (*store_sample)(void *data, int capacity, int index, const struct MSurfaceSample *sample);
+	void *data;
+	int capacity;
+	int free_data;
+} MSurfaceSampleStorage;
 
-typedef void (*MSampleIteratorNextFunc)(MSampleIterator *iter);
-typedef bool (*MSampleIteratorValidFunc)(MSampleIterator *iter);
-typedef void (*MSampleIteratorFreeFunc)(MSampleIterator *iter);
+void BKE_mesh_sample_storage_array(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *samples, int capacity);
+void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
 
-typedef struct MSampleIterator {
-	MSampleIteratorNextFunc next;
-	MSampleIteratorValidFunc valid;
-	MSampleIteratorFreeFunc free;
-} MSampleIterator;
-
-typedef struct MSampleArrayIterator {
-	MSampleIterator base;
-	
-	MSurfaceSample *cur;
-	int remaining;
-} MSampleArrayIterator;
-
-void BKE_mesh_sample_surface_array_begin(MSurfaceSampleArrayIterator *iter, MSurfaceSample *array, int totarray);
-#endif
-
-/* Sampling */
-
-typedef enum eMSurfaceSampleAlgorithm {
-	MSS_RANDOM
-} eMSurfaceSampleAlgorithm;
-
-typedef struct MSurfaceSampleInfo {
-	eMSurfaceSampleAlgorithm algorithm;
-	struct DerivedMesh *dm;
-	
-	struct RNG *rng;
-} MSurfaceSampleInfo;
-
-void BKE_mesh_sample_info_random(struct MSurfaceSampleInfo *info, struct DerivedMesh *dm, unsigned int seed);
-void BKE_mesh_sample_info_release(struct MSurfaceSampleInfo *info);
-
-void BKE_mesh_sample_surface_array(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *samples, int totsample);
-void BKE_mesh_sample_surface_array_stride(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *first, int stride, int totsample);
+void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
 
 #endif  /* __BKE_MESH_SAMPLE_H__ */
