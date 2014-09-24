@@ -247,13 +247,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		int i;
 		
 		if (!smd->samples) {
-			MSurfaceSampleInfo info;
+			MSurfaceSampleStorage storage;
 			
 			smd->samples = MEM_callocN(sizeof(MSurfaceSample) * (unsigned int)smd->totsamples, "test samples");
 			
-			BKE_mesh_sample_info_random(&info, dm, smd->seed);
-			BKE_mesh_sample_surface_array(&info, smd->samples, smd->totsamples);
-			BKE_mesh_sample_info_release(&info);
+			BKE_mesh_sample_storage_array(&storage, smd->samples, smd->totsamples);
+			BKE_mesh_sample_generate_random(&storage, dm, smd->seed, smd->totsamples);
+			BKE_mesh_sample_storage_release(&storage);
 		}
 		
 		notch_size(&notch_verts, &notch_edges, &notch_loops, &notch_polys);
