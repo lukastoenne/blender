@@ -76,5 +76,6 @@ void BKE_mesh_sample_info_random(struct MSurfaceSampleInfo *info, struct Derived
 void BKE_mesh_sample_info_release(struct MSurfaceSampleInfo *info);
 
 void BKE_mesh_sample_surface_array(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *samples, int totsample);
+void BKE_mesh_sample_surface_array_stride(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *first, int stride, int totsample);
 
 #endif  /* __BKE_MESH_SAMPLE_H__ */

@@ -44,7 +44,7 @@
 bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float loc[3], float nor[3])
 {
 	MVert *mverts = dm->getVertArray(dm);
-	int totverts = dm->getNumVerts(dm);
+	unsigned int totverts = (unsigned int)dm->getNumVerts(dm);
 	MVert *v1, *v2, *v3;
 	float vnor[3];
 	
@@ -157,13 +157,18 @@ static void mesh_sample_surface_random(const MSurfaceSampleInfo *info, MSurfaceS
 
 void BKE_mesh_sample_surface_array(const MSurfaceSampleInfo *info, MSurfaceSample *samples, int totsample)
 {
+	BKE_mesh_sample_surface_array_stride(info, samples, (int)sizeof(MSurfaceSample), totsample);
+}
+
+void BKE_mesh_sample_surface_array_stride(const struct MSurfaceSampleInfo *info, struct MSurfaceSample *first, int stride, int totsample)
+{
 	MSurfaceSample *sample;
 	int i;
 	
 	switch (info->algorithm) {
 		case MSS_RANDOM: {
 			DM_ensure_tessface(info->dm);
-			for (sample = samples, i = 0; i < totsample; ++sample, ++i)
+			for (sample = first, i = 0; i < totsample; sample = (MSurfaceSample *)((char *)sample + stride), ++i)
 				mesh_sample_surface_random(info, sample);
 			break;
 		}
