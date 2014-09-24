@@ -1183,9 +1183,6 @@ static void write_particlesystems(WriteData *wd, ListBase *particles)
 			writestruct(wd, DATA, "ClothCollSettings", 1, psys->clmd->coll_parms);
 		}
 #endif
-		if (psys->params) {
-			writestruct(wd, DATA, "HairParams", 1, psys->params);
-		}
 		
 		write_pointcaches(wd, &psys->ptcaches);
 	}

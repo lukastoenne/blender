@@ -3826,7 +3826,6 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				psys->clmd->debug_data = NULL;
 			}
 #endif
-			psys->solver = NULL;
 		}
 		else {
 			/* particle modifier must be removed before particle system */
@@ -3914,11 +3913,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			psys->clmd->point_cache = psys->pointcache;
 		}
 #endif
-		if (psys->params) {
-			psys->params = newdataadr(fd, psys->params);
-		}
 		
-		psys->solver = NULL;
 		psys->hair_in_dm = psys->hair_out_dm = NULL;
 		
 		psys->tree = NULL;
@@ -4887,9 +4882,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			if (hmd->hairsys)
 				direct_link_hair_system(fd, hmd->hairsys);
 
-			hmd->solver = NULL;
-
-			hmd->debug_data = NULL;
+			hmd->solver_data = NULL;
 		}
 	}
 }

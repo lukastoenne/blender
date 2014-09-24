@@ -43,9 +43,6 @@
 #include "BKE_hair.h"
 #include "BKE_mesh_sample.h"
 
-#include "HAIR_capi.h"
-#include "HAIR_debug_types.h"
-
 void BKE_hairparams_init(HairParams *params)
 {
 	params->substeps_forces = 30;
@@ -247,67 +244,6 @@ void BKE_hair_calculate_rest(HairSystem *hsys)
 }
 
 
-static unsigned int debug_element_hash(const void *key)
-{
-	const HAIR_SolverDebugElement *elem = key;
-	return elem->hash;
-}
-
-static int debug_element_compare(const void *a, const void *b)
-{
-	const HAIR_SolverDebugElement *elem1 = a;
-	const HAIR_SolverDebugElement *elem2 = b;
-
-	if (elem1->hash == elem2->hash) {
-		return 0;
-	}
-	return 1;
-}
-
-static void debug_element_free(void *val)
-{
-	HAIR_SolverDebugElement *elem = val;
-	MEM_freeN(elem);
-}
-
-HairDebugData *BKE_hair_debug_data_new(void)
-{
-	HairDebugData *debug_data = MEM_callocN(sizeof(HairDebugData), "hair debug data");
-	debug_data->gh = BLI_ghash_new(debug_element_hash, debug_element_compare, "hair debug element hash");
-	return debug_data;
-}
-
-void BKE_hair_debug_data_insert(HairDebugData *debug_data, HAIR_SolverDebugElement *elem)
-{
-	HAIR_SolverDebugElement *old_elem = BLI_ghash_lookup(debug_data->gh, elem);
-	if (old_elem) {
-		*old_elem = *elem;
-		MEM_freeN(elem);
-	}
-	else
-		BLI_ghash_insert(debug_data->gh, elem, elem);
-}
-
-void BKE_hair_debug_data_clear(HairDebugData *debug_data)
-{
-	if (!debug_data)
-		return;
-	
-	if (debug_data->gh)
-		BLI_ghash_clear(debug_data->gh, NULL, debug_element_free);
-}
-
-void BKE_hair_debug_data_free(HairDebugData *debug_data)
-{
-	if (!debug_data)
-		return;
-	
-	if (debug_data->gh)
-		BLI_ghash_free(debug_data->gh, NULL, debug_element_free);
-	MEM_freeN(debug_data);
-}
-
-
 /* ================ Render ================ */
 
 static int hair_maxpoints(HairSystem *hsys)
@@ -370,6 +306,7 @@ static void hair_precalc_cache(HairRenderIterator *iter)
 	if (!BKE_hair_render_iter_valid_hair(iter))
 		return;
 	
+#if 0 // TODO
 	frame_iter = HAIR_frame_iter_new();
 	get_hair_root_frame(iter->hair, initial_frame);
 	
@@ -398,6 +335,7 @@ static void hair_precalc_cache(HairRenderIterator *iter)
 		
 		++cache;
 	}
+#endif
 }
 
 void BKE_hair_render_iter_init(HairRenderIterator *iter, HairSystem *hsys)

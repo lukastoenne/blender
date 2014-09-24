@@ -496,7 +496,6 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		bf_freestyle
 		bf_ikplugin
 		bf_modifiers
-		bf_hair
 		bf_bmesh
 		bf_blenkernel
 		bf_physics

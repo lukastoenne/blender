@@ -59,8 +59,6 @@
 #include "BKE_modifier.h"
 
 #include "smoke_API.h"
-#include "HAIR_capi.h"
-#include "HAIR_debug_types.h"
 
 #include "DNA_texture_types.h"
 #include "DNA_object_force.h"

@@ -113,8 +113,6 @@
 #include "BKE_camera.h"
 #include "BKE_image.h"
 
-#include "HAIR_capi.h"
-
 #ifdef WITH_MOD_FLUID
 #include "LBM_fluidsim.h"
 #endif
@@ -1280,9 +1278,6 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	}
 #endif
 
-	psysn->solver = NULL;
-	*psysn->params = *psys->params;
-	
 	BLI_duplicatelist(&psysn->targets, &psys->targets);
 
 	psysn->pathcache = NULL;
@@ -3184,48 +3179,21 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 			HairSystem *hsys = hmd->hairsys;
 			DerivedMesh *dm = ob->derivedFinal;
 			
-			if (!hmd->solver) {
-				hmd->solver = HAIR_solver_new();
+			if (!hmd->solver_data) {
+				hmd->solver_data = HAIR_solver_new();
 				hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
 			}
 			
-			HAIR_solver_set_params(hmd->solver, &hsys->params);
+			HAIR_solver_set_params(hmd->solver_data, &hsys->params);
 			
 			if (!hmd->flag & MOD_HAIR_SOLVER_DATA_VALID) {
-				HAIR_solver_build_modifier_data(hmd->solver, scene, ob, dm, hsys, ctime);
+				HAIR_solver_build_modifier_data(hmd->solver_data, scene, ob, dm, hsys, ctime);
 				BKE_hair_debug_data_clear(hmd->debug_data);
 				hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
 			}
 			
-			HAIR_solver_update_modifier_externals(hmd->solver, scene, ob, dm, hsys, ctime);
+			HAIR_solver_update_modifier_externals(hmd->solver_data, scene, ob, dm, hsys, ctime);
 		}
-		else if (md->type == eModifierType_ParticleSystem) {
-			ParticleSystem *psys = ((ParticleSystemModifierData *) md)->psys;
-			
-			if (psys && psys->part && psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS && psys->particles) {
-				/* This, strictly speaking, is not so correct */
-				DerivedMesh *dm = ob->derivedFinal;
-				
-				if (!psys->solver) {
-					psys->solver = HAIR_solver_new();
-					
-					/* it should never happen actually */
-					if (!psys->params) {
-						psys->params = MEM_mallocN(sizeof(HairParams), "particle_system_hair_params");
-						BKE_hairparams_init(psys->params);
-					}
-					
-					HAIR_solver_set_params(psys->solver, psys->params);
-					
-					HAIR_solver_build_particle_data(psys->solver, scene, ob, dm, psys, ctime);
-				}
-				else {
-					HAIR_solver_set_params(psys->solver, psys->params);
-				}
-								
-				HAIR_solver_update_particle_externals(psys->solver, scene, ob, dm, psys, ctime);
-			}
-		}		
 	}
 }
 
@@ -3243,7 +3211,7 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 					hmd->debug_data = NULL;
 				}
 				
-				HAIR_solver_step(hmd->solver, ctime, timestep);
+				HAIR_solver_step(hmd->solver_data, ctime, timestep);
 			}
 			else {
 				float imat[4][4];
@@ -3252,14 +3220,7 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 				if (!hmd->debug_data)
 					hmd->debug_data = BKE_hair_debug_data_new();
 				
-				HAIR_solver_step_debug(hmd->solver, ctime, timestep, imat, hmd->debug_data);
-			}
-		}
-		else if (md->type == eModifierType_ParticleSystem) {
-			ParticleSystem *psys = ((ParticleSystemModifierData *) md)->psys;
-			
-			if (psys->solver) {
-				HAIR_solver_step(psys->solver, ctime, timestep);
+				HAIR_solver_step_debug(hmd->solver_data, ctime, timestep, imat, hmd->debug_data);
 			}
 		}
 	}
@@ -3272,7 +3233,7 @@ void BKE_object_sim_post_step(Scene *scene, Object *ob, float UNUSED(ctime))
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
-			HAIR_solver_apply(hmd->solver, scene, ob, hmd->hairsys);
+			HAIR_solver_apply(hmd->solver_data, scene, ob, hmd->hairsys);
 		}
 	}
 }

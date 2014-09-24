@@ -118,8 +118,4 @@ typedef struct HairSystem {
 	struct HairRenderIterator *render_iter; /* runtime RNA utility pointer */
 } HairSystem;
 
-typedef struct HairDebugData {
-	struct GHash *gh;
-} HairDebugData;
-
 #endif

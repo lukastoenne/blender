@@ -1377,15 +1377,13 @@ typedef struct HairModifierData {
 	ModifierData modifier;
 	
 	struct HairSystem *hairsys;
-	
-	struct HAIR_Solver *solver;     /* runtime instance */
+	struct HairSolverData *solver_data;     /* runtime instance */
 	
 	int flag;
 
 	int debug_flag;
 	int debug_flag_forces;
 	int pad;
-	struct HairDebugData *debug_data;
 } HairModifierData;
 
 enum {

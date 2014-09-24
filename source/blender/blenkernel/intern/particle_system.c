@@ -93,8 +93,6 @@
 #include "BKE_scene.h"
 #include "BKE_bvhutils.h"
 
-#include "HAIR_capi.h"
-
 #include "PIL_time.h"
 
 #include "RE_shader_ext.h"
@@ -4179,9 +4177,6 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	psys->hair_out_dm = CDDM_copy(dm);
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 
-	if (psys->solver) {
-		HAIR_solver_get_derived_verts(psys->solver, psys, sim->ob, deformedVerts);				
-	}
 	//clothModifier_do(psys->clmd, sim->scene, sim->ob, dm, deformedVerts);
 
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
@@ -4214,16 +4209,6 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 	if (psys->recalc & PSYS_RECALC_RESET) {
 		/* need this for changing subsurf levels */
 		psys_calc_dmcache(sim->ob, sim->psmd->dm, psys);
-
-		if (psys->solver) {
-			RigidBodyWorld *rbw = sim->scene->rigidbody_world;
-						
-			if (rbw)
-				HAIR_solver_remove_from_rigidbodyworld(psys->solver, rbw->physics_world);
-
-			HAIR_solver_free(psys->solver);
-			psys->solver = NULL;
-		}
 	}
 
 	/* dynamics with cloth simulation, psys->particles can be NULL with 0 particles [#25519] */

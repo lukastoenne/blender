@@ -42,8 +42,6 @@
 
 #include "depsgraph_private.h"
 
-#include "HAIR_capi.h"
-
 #include "MOD_util.h"
 #include "MEM_guardedalloc.h"
 
@@ -58,8 +56,8 @@ static void freeData(ModifierData *md)
 {
 	HairModifierData *hmd = (HairModifierData *) md;
 	
-	if (hmd->solver)
-		HAIR_solver_free(hmd->solver);
+	if (hmd->solver_data)
+		HAIR_solver_free(hmd->solver_data);
 	
 	BKE_hairsys_free(hmd->hairsys);
 	
@@ -76,7 +74,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	
 	thmd->hairsys = BKE_hairsys_copy(hmd->hairsys);
 	
-	thmd->solver = NULL;
+	thmd->solver_data = NULL;
 	thmd->debug_data = NULL;
 }
 

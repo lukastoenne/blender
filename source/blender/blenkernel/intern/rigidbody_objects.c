@@ -261,8 +261,8 @@ static void rigidbody_object_build_components(Scene *UNUSED(scene), RigidBodyWor
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
 			
-			if (rebuild && hmd->solver)
-				HAIR_solver_rebuild_rigidbodyworld(hmd->solver, rbw->physics_world);
+			if (rebuild && hmd->solver_data)
+				HAIR_solver_rebuild_rigidbodyworld(hmd->solver_data, rbw->physics_world);
 		}
 	}
 }

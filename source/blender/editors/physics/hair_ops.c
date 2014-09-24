@@ -51,8 +51,6 @@
 #include "BKE_particle.h"
 #include "BKE_report.h"
 
-#include "HAIR_capi.h"
-
 #include "RNA_access.h"
 #include "RNA_define.h"
 

@@ -45,8 +45,6 @@
 
 #include "BKE_hair.h"
 
-#include "HAIR_capi.h"
-
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 

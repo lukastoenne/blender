@@ -84,8 +84,6 @@
 #include "ED_screen.h"
 #include "ED_mesh.h"
 
-#include "HAIR_capi.h"
-
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -283,13 +281,6 @@ static bool object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
 	/* special cases */
 	if (md->type == eModifierType_ParticleSystem) {
 		ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
-
-		if (psmd->psys && psmd->psys->solver) {
-			RigidBodyWorld *rbw = md->scene->rigidbody_world;
-			
-			if (rbw)
-				HAIR_solver_remove_from_rigidbodyworld(psmd->psys->solver, rbw->physics_world);
-		}		
 		
 		BLI_remlink(&ob->particlesystem, psmd->psys);
 		psys_free(ob, psmd->psys);
@@ -320,15 +311,6 @@ static bool object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
 		/* Delete MVertSkin layer if not used by another skin modifier */
 		if (object_modifier_safe_to_delete(bmain, ob, md, eModifierType_Skin))
 			modifier_skin_customdata_delete(ob);
-	}
-	else if (md->type == eModifierType_Hair) {
-		HairModifierData *hmd = (HairModifierData *)md;
-		if (hmd->solver) {
-			RigidBodyWorld *rbw = md->scene->rigidbody_world;
-			
-			if (rbw)
-				HAIR_solver_remove_from_rigidbodyworld(hmd->solver, rbw->physics_world);
-		}
 	}
 
 	if (ELEM(md->type, eModifierType_Softbody, eModifierType_Cloth) &&
