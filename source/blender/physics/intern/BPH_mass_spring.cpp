@@ -51,6 +51,8 @@ extern "C" {
 #include "BPH_mass_spring.h"
 #include "implicit.h"
 
+/* ======== Cloth Solver ======== */
+
 /* Number of off-diagonal non-zero matrix blocks.
  * Basically there is one of these for each vertex-vertex interaction.
  */
@@ -715,4 +717,50 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 	BPH_mass_spring_solver_debug_data(id, NULL);
 	
 	return 1;
+}
+
+/* ======== Cloth Solver ======== */
+
+struct HairSolverData {
+	Implicit_Data *id;
+	ListBase *effectors;
+};
+
+HairSolverData *BPH_hair_solver_create(void)
+{
+	HairSolverData *data = (HairSolverData *)MEM_callocN(sizeof(HairSolverData), "hair solver data");
+	
+	return data;
+}
+
+void BPH_hair_solver_free(HairSolverData *data)
+{
+	if (data) {
+		MEM_freeN(data);
+	}
+}
+
+void BPH_hair_solver_set_externals(HairSolverData *data, Scene *scene, Object *ob, DerivedMesh *dm, EffectorWeights *effector_weights)
+{
+	data->effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
+}
+
+void BPH_hair_solver_free_effectors(HairSolverData *data)
+{
+	pdEndEffectors(&data->effectors);
+}
+
+void BPH_hair_solver_set_positions(HairSolverData *data, Scene *scene, Object *ob, HairSystem *hsys)
+{
+	// XXX TODO
+}
+
+void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time, float timestep, SimDebugData *debug_data)
+{
+	// XXX TODO
+}
+
+void BPH_hair_solver_apply_positions(HairSolverData *data, Scene *scene, Object *ob, HairSystem *hsys)
+{
+	// XXX TODO
 }

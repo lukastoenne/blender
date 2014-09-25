@@ -135,7 +135,6 @@ void draw_motion_paths_cleanup(View3D *v3d);
 
 /* drawhair.c */
 bool draw_hair_system(Scene *scene, View3D *v3d, ARegion *ar, Base *base, struct HairSystem *hsys);
-void draw_hair_debug_info(Scene *scene, View3D *v3d, ARegion *ar, Base *base, struct HairModifierData *hmd);
 
 /* drawobject.c */
 void draw_object(Scene *scene, struct ARegion *ar, View3D *v3d, Base *base, const short dflag);

@@ -7633,8 +7633,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		HairModifierData *hmd = (HairModifierData *)modifiers_findByType(ob, eModifierType_Hair);
 		if (hmd) {
 			draw_hair_system(scene, v3d, ar, base, hmd->hairsys);
-			if (hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)
-				draw_hair_debug_info(scene, v3d, ar, base, hmd);
 		}
 	}
 
