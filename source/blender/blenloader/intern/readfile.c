@@ -6746,8 +6746,11 @@ static void direct_link_speaker(FileData *fd, Speaker *spk)
 
 static void direct_link_sound(FileData *fd, bSound *sound)
 {
-	// versioning stuff, if there was a cache, then we enable caching:
+	/* versioning stuff, if there was a cache, then we enable caching: */
 	if (sound->cache) sound->flags |= SOUND_FLAGS_CACHING;
+	
+	/* get rid of temporary flags */
+	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
 
 	if (fd->soundmap) {
 		sound->cache = newsoundadr(fd, sound->cache);
