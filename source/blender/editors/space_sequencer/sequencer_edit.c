@@ -1984,6 +1984,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 			if (sa) {
 				ED_area_headerprint(sa, NULL);
 			}
+			WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 			return OPERATOR_FINISHED;
 		}
 		case RIGHTMOUSE:
