@@ -2620,9 +2620,9 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Overlay Type", "Overlay draw type");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 
-	prop = RNA_def_property(srna, "overlay_viewer", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "overlay_viewer", 1);
-	RNA_def_property_ui_text(prop, "Overlay", "Overlay result under strips");
+	prop = RNA_def_property(srna, "backdrop", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "backdrop", 1);
+	RNA_def_property_ui_text(prop, "Use Backdrop", "Display result under strips");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 }
 

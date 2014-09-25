@@ -498,7 +498,7 @@ typedef struct SpaceSeq {
 	float zoom DNA_DEPRECATED;  /* deprecated, handled by View2D now */
 	int view; /* see SEQ_VIEW_* below */
 	int overlay_type;
-	int overlay_viewer; /* overlay an image of the editing on below the strips */
+	int backdrop; /* overlay an image of the editing on below the strips */
 	int pad;
 	
 	struct bGPdata *gpd;        /* grease-pencil data */

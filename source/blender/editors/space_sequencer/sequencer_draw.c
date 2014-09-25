@@ -537,9 +537,9 @@ static char strip_color_storage[36][3];
 const static unsigned short strip_element_buffer[] = {9, 10, 8, 11, 7, 12, 6, 13, 5, 14, 4, 15, 3, 16, 2, 17, 1, 18, 0, 19, 35, 20,
                                        34, 21, 33, 22, 32, 23, 31, 24, 30, 25, 29, 26, 28, 27};
 
-static float calculate_cuddly_radius_x(float x1, float x2, float h, float aspect)
+static float calculate_cuddly_radius_x(float x1, float x2, float aspect)
 {
-	return 0.25f * min_ff(h * 0.25f / aspect, (x2 - x1));	
+	return 0.25f * min_ff((SEQ_STRIP_OFSTOP - SEQ_STRIP_OFSBOTTOM) * 0.25f / aspect, 2.0 * (x2 - x1));	
 }
 
 static void generate_strip_vertices(float x1, float y1, float x2, float y2, float aspect)
@@ -549,7 +549,7 @@ static void generate_strip_vertices(float x1, float y1, float x2, float y2, floa
 	int i;
 	float h = (y2 - y1);
 	float cuddly_radius = h * 0.25f;
-	float cuddly_radius_x = calculate_cuddly_radius_x(x1, x2, h, aspect);
+	float cuddly_radius_x = calculate_cuddly_radius_x(x1, x2, aspect);
 	
 	ymid1 = h * 0.25f + y1;
 	ymid2 = h * 0.65f + y1;
@@ -730,7 +730,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	x2 = (seq->endstill) ? (seq->start + seq->len) : seq->enddisp;
 	y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
-	xchild = x1 + calculate_cuddly_radius_x(x1, x2, SEQ_STRIP_OFSTOP - SEQ_STRIP_OFSBOTTOM, aspect);
+	xchild = x1 + calculate_cuddly_radius_x(x1, x2, aspect);
 	/* get the correct color per strip type*/
 	//get_seq_color3ubv(scene, seq, col);
 	get_seq_color3ubv(scene, seq, background_col);
@@ -848,7 +848,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
 		y2 = seq->machine + SEQ_STRIP_OFSTOP;
 		
-		cuddly_par = calculate_cuddly_radius_x(x1_par, x2_par, SEQ_STRIP_OFSTOP - SEQ_STRIP_OFSBOTTOM, aspect);
+		cuddly_par = calculate_cuddly_radius_x(x1_par, x2_par, aspect);
 		
 		xpar = max_ff(x1_par + cuddly_par, xchild);
 		xpar = min_ff(x2_par - cuddly_par, xpar);
@@ -979,7 +979,7 @@ static ImBuf *sequencer_make_scope(Scene *scene, ImBuf *ibuf, ImBuf *(*make_scop
 	return scope;
 }
 
-void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay)
+void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_backdrop)
 {
 	struct Main *bmain = CTX_data_main(C);
 	struct ImBuf *ibuf = NULL;
@@ -1035,7 +1035,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		viewrecty /= proxy_size / 100.0f;
 	}
 
-	if (!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) {
+	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_backdrop) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
 		glClearColor(col[0], col[1], col[2], 0.0);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -1110,23 +1110,25 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	/* without this colors can flicker from previous opengl state */
 	glColor4ub(255, 255, 255, 255);
 
-	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
-	UI_view2d_curRect_validate(v2d);
-
-	/* setting up the view - actual drawing starts here */
-	UI_view2d_view_ortho(v2d);
-
-	/* only draw alpha for main buffer */
-	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
-		if (sseq->flag & SEQ_USE_ALPHA) {
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			fdrawcheckerboard(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
-			glColor4f(1.0, 1.0, 1.0, 1.0);
+	if (!draw_backdrop) {
+		UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
+		UI_view2d_curRect_validate(v2d);
+		
+		/* setting up the view - actual drawing starts here */
+		UI_view2d_view_ortho(v2d);
+		
+		/* only draw alpha for main buffer */
+		if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+			if (sseq->flag & SEQ_USE_ALPHA) {
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				
+				fdrawcheckerboard(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
+				glColor4f(1.0, 1.0, 1.0, 1.0);
+			}
 		}
 	}
-
+	
 	if (scope) {
 		IMB_freeImBuf(ibuf);
 		ibuf = scope;
@@ -1216,6 +1218,14 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	else
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
+	if (draw_backdrop) {
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();		
+	}
 	glBegin(GL_QUADS);
 
 	if (draw_overlay) {
@@ -1238,6 +1248,25 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 		}
 	}
+	else if (draw_backdrop) {
+		float aspect = BLI_rcti_size_x(&ar->winrct) / (float)BLI_rcti_size_y(&ar->winrct);	
+		float image_aspect = viewrectx/viewrecty;
+		float imagex, imagey;
+		
+		if (aspect >= image_aspect) {
+			imagex = image_aspect/aspect;
+			imagey = 1.0f;
+		}
+		else {
+			imagex = 1.0f;	
+			imagey = aspect/image_aspect;
+		}
+		
+		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex, -imagey);
+		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex, imagey);
+		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex, imagey);
+		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex, -imagey);		
+	}
 	else {
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymax);
@@ -1245,6 +1274,15 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 	}
 	glEnd();
+	
+	if (draw_backdrop) {
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glMatrixMode(GL_MODELVIEW);
+		
+	}
+	
 	glBindTexture(GL_TEXTURE_2D, last_texid);
 	glDisable(GL_TEXTURE_2D);
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA)
@@ -1254,6 +1292,16 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (glsl_used)
 		IMB_colormanagement_finish_glsl_draw();
 
+	if (cache_handle)
+		IMB_display_buffer_release(cache_handle);
+
+	if (!scope)
+		IMB_freeImBuf(ibuf);
+	
+	if (draw_backdrop) {
+		return;
+	}
+	
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 
 		float x1 = v2d->tot.xmin;
@@ -1303,9 +1351,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			ED_gpencil_draw_2dimage(C);
 		}
 	}
-
-	if (!scope)
-		IMB_freeImBuf(ibuf);
 	
 	/* ortho at pixel level */
 	UI_view2d_view_restore(C);
@@ -1342,9 +1387,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			                    NULL, C);
 		}
 	}
-
-	if (cache_handle)
-		IMB_display_buffer_release(cache_handle);
 }
 
 #if 0
@@ -1518,9 +1560,12 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
 
-	if (sseq->overlay_viewer)
-		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false);
-	
+	if (sseq->backdrop) {
+		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false, true);
+		UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);		
+		UI_view2d_view_ortho(v2d);
+	}
+		
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 	
 	seq_draw_sfra_efra(scene, v2d);
