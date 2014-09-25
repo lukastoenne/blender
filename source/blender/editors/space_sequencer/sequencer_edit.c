@@ -62,8 +62,13 @@
 #include "ED_screen.h"
 #include "ED_transform.h"
 #include "ED_sequencer.h"
+#include "ED_space_api.h"
 
 #include "UI_view2d.h"
+#include "UI_resources.h"
+
+#include "GL/glew.h"
+#include "BIF_glutil.h"
 
 /* own include */
 #include "sequencer_intern.h"
@@ -1721,14 +1726,124 @@ typedef struct TrimData {
 	TransSeq ts;
 	bool slow;
 	int slow_offset; /* offset at the point where offset was turned on */
+	Sequence *seq;
+	void *draw_handle;
 } TrimData;
 
+static void draw_trim_extensions(const bContext *C, ARegion *ar, void *data)
+{
+	Scene *scene = CTX_data_scene(C);
+	float x1, x2, y1, y2, pixely, a;
+	unsigned char col[3], blendcol[3];
+	View2D *v2d = &ar->v2d;
+	Sequence *seq = ((TrimData *)data)->seq;
+	
+	if (seq->type >= SEQ_TYPE_EFFECT) return;
+
+	x1 = seq->startdisp;
+	x2 = seq->enddisp;
+	
+	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
+	y2 = seq->machine + SEQ_STRIP_OFSTOP;
+
+	pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+	
+	if (pixely <= 0) return;  /* can happen when the view is split/resized */
+	
+	blendcol[0] = blendcol[1] = blendcol[2] = 120;
+
+	if (seq->startofs) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		get_seq_color3ubv(scene, seq, col);
+		
+		if (seq->flag & SELECT) {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+			glColor4ub(col[0], col[1], col[2], 170);
+		}
+		else {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+			glColor4ub(col[0], col[1], col[2], 110);
+		}
+		
+		glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
+		
+		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+		else glColor4ub(col[0], col[1], col[2], 160);
+
+		fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
+		
+		glDisable(GL_BLEND);
+	}
+	if (seq->endofs) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		get_seq_color3ubv(scene, seq, col);
+		
+		if (seq->flag & SELECT) {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+			glColor4ub(col[0], col[1], col[2], 170);
+		}
+		else {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+			glColor4ub(col[0], col[1], col[2], 110);
+		}
+		
+		glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
+		
+		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+		else glColor4ub(col[0], col[1], col[2], 160);
+
+		fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
+		
+		glDisable(GL_BLEND);
+	}
+	if (seq->startstill) {
+		get_seq_color3ubv(scene, seq, col);
+		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+		glColor3ubv((GLubyte *)col);
+		
+		draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
+		
+		/* feint pinstripes, helps see exactly which is extended and which isn't,
+		 * especially when the extension is very small */ 
+		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
+		
+		glColor3ubv((GLubyte *)col);
+		
+		for (a = y1; a < y2; a += pixely * 2.0f) {
+			fdrawline(x1,  a,  (float)(seq->start),  a);
+		}
+	}
+	if (seq->endstill) {
+		get_seq_color3ubv(scene, seq, col);
+		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+		glColor3ubv((GLubyte *)col);
+		
+		draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
+		
+		/* feint pinstripes, helps see exactly which is extended and which isn't,
+		 * especially when the extension is very small */ 
+		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
+		
+		glColor3ubv((GLubyte *)col);
+		
+		for (a = y1; a < y2; a += pixely * 2.0f) {
+			fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
+		}
+	}
+}
 
 static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	TrimData *data = op->customdata = MEM_mallocN(sizeof(TrimData), "trimdata");	
 	Scene *scene = CTX_data_scene(C);
 	Sequence *seq = BKE_sequencer_active_get(scene);
+	ARegion *ar = CTX_wm_region(C);
 	float mouseloc[2];
 	View2D *v2d = UI_view2d_fromcontext(C);
 
@@ -1744,7 +1859,10 @@ static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	data->ts.anim_startofs = seq->anim_startofs;
 	data->ts.anim_endofs = seq->anim_endofs;
 	data->ts.len = seq->len;
+	data->seq = seq;
 
+	data->draw_handle = ED_region_draw_cb_activate(ar->type, draw_trim_extensions, data, REGION_DRAW_POST_VIEW);
+	
 	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
 	
 	copy_v2_v2_int(data->init_mouse, event->mval);
@@ -1818,6 +1936,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 	Sequence *seq = BKE_sequencer_active_get(scene);
 	TrimData *data = (TrimData *)op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
 
 	switch (event->type) {
 		case MOUSEMOVE:
@@ -1859,6 +1978,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 		
 		case LEFTMOUSE:
 		{
+			ED_region_draw_cb_exit(ar->type, data->draw_handle);
 			MEM_freeN(data);
 			op->customdata = NULL;
 			if (sa) {
@@ -1884,6 +2004,8 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 			
 			BKE_sequence_reload_new_file(scene, seq, false);				
 			BKE_sequence_calc(scene, seq);
+
+			ED_region_draw_cb_exit(ar->type, data->draw_handle);
 			
 			MEM_freeN(data);
 			op->customdata = NULL;
@@ -1895,7 +2017,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 			if (sa) {
 				ED_area_headerprint(sa, NULL);
 			}
-			
+						
 			return OPERATOR_CANCELLED;
 		}
 			

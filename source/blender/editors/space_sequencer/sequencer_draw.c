@@ -86,9 +86,8 @@
 
 /* Note, Don't use SEQ_BEGIN/SEQ_END while drawing!
  * it messes up transform, - Campbell */
-static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2);
 
-static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[3])
+void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[3])
 {
 	unsigned char blendcol[3];
 	SolidColorVars *colvars = (SolidColorVars *)seq->effectdata;
@@ -427,112 +426,6 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	}
 }
 
-static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
-{
-	float x1, x2, y1, y2, pixely, a;
-	unsigned char col[3], blendcol[3];
-	View2D *v2d = &ar->v2d;
-	
-	if (seq->type >= SEQ_TYPE_EFFECT) return;
-
-	x1 = seq->startdisp;
-	x2 = seq->enddisp;
-	
-	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
-	y2 = seq->machine + SEQ_STRIP_OFSTOP;
-
-	pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
-	
-	if (pixely <= 0) return;  /* can happen when the view is split/resized */
-	
-	blendcol[0] = blendcol[1] = blendcol[2] = 120;
-
-	if (seq->startofs) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
-		get_seq_color3ubv(scene, seq, col);
-		
-		if (seq->flag & SELECT) {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			glColor4ub(col[0], col[1], col[2], 170);
-		}
-		else {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			glColor4ub(col[0], col[1], col[2], 110);
-		}
-		
-		glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
-		
-		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-		else glColor4ub(col[0], col[1], col[2], 160);
-
-		fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
-		
-		glDisable(GL_BLEND);
-	}
-	if (seq->endofs) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
-		get_seq_color3ubv(scene, seq, col);
-		
-		if (seq->flag & SELECT) {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			glColor4ub(col[0], col[1], col[2], 170);
-		}
-		else {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			glColor4ub(col[0], col[1], col[2], 110);
-		}
-		
-		glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
-		
-		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-		else glColor4ub(col[0], col[1], col[2], 160);
-
-		fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
-		
-		glDisable(GL_BLEND);
-	}
-	if (seq->startstill) {
-		get_seq_color3ubv(scene, seq, col);
-		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		glColor3ubv((GLubyte *)col);
-		
-		draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
-		
-		/* feint pinstripes, helps see exactly which is extended and which isn't,
-		 * especially when the extension is very small */ 
-		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
-		else UI_GetColorPtrShade3ubv(col, col, -16);
-		
-		glColor3ubv((GLubyte *)col);
-		
-		for (a = y1; a < y2; a += pixely * 2.0f) {
-			fdrawline(x1,  a,  (float)(seq->start),  a);
-		}
-	}
-	if (seq->endstill) {
-		get_seq_color3ubv(scene, seq, col);
-		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		glColor3ubv((GLubyte *)col);
-		
-		draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
-		
-		/* feint pinstripes, helps see exactly which is extended and which isn't,
-		 * especially when the extension is very small */ 
-		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
-		else UI_GetColorPtrShade3ubv(col, col, -16);
-		
-		glColor3ubv((GLubyte *)col);
-		
-		for (a = y1; a < y2; a += pixely * 2.0f) {
-			fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
-		}
-	}
-}
-
 /* draw info text on a sequence strip */
 static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float y1, float y2, const unsigned char background_col[3])
 {
@@ -699,7 +592,7 @@ static void generate_strip_vertices(float x1, float y1, float x2, float y2, floa
 }
 
 /* draws a shaded strip, made from gradient + flat color + gradient */
-static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
+void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
 {
 	float ymid1, ymid2;
 
@@ -851,10 +744,6 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		generate_strip_vertices(x1, y1, x2, y2, aspect);
 		draw_shaded_cuddly_strip(seq, background_col);
 	}
-	
-	/* draw additional info and controls */
-	if (!is_single_image)
-		draw_seq_extensions(scene, ar, seq);
 	
 	draw_seq_handle(v2d, seq, handsize_clamped, SEQ_LEFTHANDLE);
 	draw_seq_handle(v2d, seq, handsize_clamped, SEQ_RIGHTHANDLE);
