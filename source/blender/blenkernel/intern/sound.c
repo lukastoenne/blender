@@ -680,30 +680,37 @@ void sound_free_waveform(bSound *sound)
 void sound_read_waveform(bSound *sound, bool locked, short *stop)
 {
 	AUD_SoundInfo info;
-		
+	SoundWaveform *waveform = NULL;
+	
 	info = AUD_getInfo(sound->playback_handle);
-
+	
 	if (info.length > 0) {
-		SoundWaveform *waveform = MEM_mallocN(sizeof(SoundWaveform), "SoundWaveform");
 		int length = info.length * SOUND_WAVE_SAMPLES_PER_SECOND;
-
+		
+		waveform = MEM_mallocN(sizeof(SoundWaveform), "SoundWaveform");
 		waveform->data = MEM_mallocN(length * sizeof(float) * 3, "SoundWaveform.samples");
 		waveform->length = AUD_readSound(sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND, stop);
-
+		
 		if (*stop) {
 			MEM_freeN(waveform->data);
 			MEM_freeN(waveform);
+			if (locked)
+				BLI_mutex_lock(sound->mutex);
+			sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
+			if (locked)
+				BLI_mutex_unlock(sound->mutex);
 			return;
 		}
 		
 		sound_free_waveform(sound);
-		
-		if (locked)
-			BLI_mutex_lock(sound->mutex);
-		sound->waveform = waveform;
-		if (locked)
-			BLI_mutex_unlock(sound->mutex);
 	}
+	
+	if (locked)
+		BLI_mutex_lock(sound->mutex);
+	sound->waveform = waveform;
+	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
+	if (locked)
+		BLI_mutex_unlock(sound->mutex);
 }
 
 void sound_update_scene(Main *bmain, struct Scene *scene)

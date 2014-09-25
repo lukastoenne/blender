@@ -195,16 +195,17 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		float startsample, endsample;
 		float value;
 		bSound *sound = seq->sound;
-
+		
 		SoundWaveform *waveform;
-				
+		
 		if (!sound->mutex)
 			sound->mutex = BLI_mutex_alloc();
 		
 		BLI_mutex_lock(sound->mutex);
-		waveform = seq->sound->waveform;
-		if (!waveform) {
+		if (!seq->sound->waveform) {
 			if(!(sound->flags & SOUND_FLAGS_WAVEFORM_LOADING)) {
+				/* prevent sounds from reloading */
+				seq->sound->flags |= SOUND_FLAGS_WAVEFORM_LOADING;
 				BLI_mutex_unlock(sound->mutex);
 				sequencer_preview_add_sound(C, seq);
 			}
@@ -215,7 +216,8 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		}
 		BLI_mutex_unlock(sound->mutex);
 		
-
+		waveform = seq->sound->waveform;
+		
 		startsample = floor((seq->startofs + seq->anim_startofs) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
 		endsample = ceil((seq->startofs + seq->anim_startofs + seq->enddisp - seq->startdisp) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
 		samplestep = (endsample - startsample) * stepsize / (x2 - x1);

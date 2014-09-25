@@ -91,15 +91,28 @@ static void preview_startjob(void *data, short *stop, short *do_update, float *p
 
 		if (*stop || G.is_break) {
 			BLI_mutex_lock(pj->mutex);
+			previewjb = previewjb->next;
+			BLI_mutex_unlock(pj->mutex);
+			while (previewjb) {
+				sound = previewjb->sound;
+
+				/* make sure we cleanup the loading flag! */
+				BLI_mutex_lock(sound->mutex);
+				sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
+				BLI_mutex_unlock(sound->mutex);
+				
+				BLI_mutex_lock(pj->mutex);
+				previewjb = previewjb->next;
+				BLI_mutex_unlock(pj->mutex);				
+			}
+			
+			BLI_mutex_lock(pj->mutex);
 			BLI_freelistN(&pj->previews);
 			pj->total = 0;
 			pj->processed = 0;
 			BLI_mutex_unlock(pj->mutex);
-			sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
 			break;
 		}
-		
-		sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
 		
 		BLI_mutex_lock(pj->mutex);
 		preview_next = previewjb->next;
@@ -144,9 +157,7 @@ void sequencer_preview_add_sound(const bContext *C, Sequence *seq)
 	}
 	
 	/* attempt to lock mutex of job here */
-	
-	seq->sound->flags |= SOUND_FLAGS_WAVEFORM_LOADING;
-	
+		
 	audiojob->sound = seq->sound;
 	
 	BLI_mutex_lock(pj->mutex);
