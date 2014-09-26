@@ -199,12 +199,18 @@ typedef struct MetaStack {
 } MetaStack;
 
 typedef struct Editing {
+
+	/* old data format */		
 	ListBase *seqbasep; /* pointer to the current list of seq's being edited (can be within a meta strip) */
 	ListBase seqbase;   /* pointer to the top-most seq's */
 	ListBase metastack;
 	
 	/* Context vars, used to be static */
 	Sequence *act_seq;
+
+	/* new data */
+	ListBase nstripbase;
+	
 	char act_imagedir[1024]; /* 1024 = FILE_MAX */
 	char act_sounddir[1024]; /* 1024 = FILE_MAX */
 
@@ -468,5 +474,218 @@ enum {
 	SEQUENCE_MASK_INPUT_STRIP   = 0,
 	SEQUENCE_MASK_INPUT_ID      = 1
 };
+
+/************************* NEW DATA TYPES **********************************/
+
+#define STRIP_NAME_MAXSTR         64
+
+/* nstrip->type */
+enum {
+	NCLIP_TYPE_DATA = 1,
+	NCLIP_TYPE_FX,
+};
+
+/* ndatastrip->subtype */
+enum {
+	NDATASTRIP_TYPE_MOVIE = 1,
+	NDATASTRIP_TYPE_MOVIECLIP,
+	NDATASTRIP_TYPE_MASK,
+	NDATASTRIP_TYPE_IMAGE,
+	NDATASTRIP_TYPE_SOUND,
+	NDATASTRIP_TYPE_SCENE,
+};
+
+/* nfxstrip->subtype */
+enum {
+	NFXSTRIP_TYPE_EFFECT      = 1,
+	NFXSTRIP_TYPE_CROSS,
+	NFXSTRIP_TYPE_ADD,
+	NFXSTRIP_TYPE_SUB,
+	NFXSTRIP_TYPE_ALPHAOVER,
+	NFXSTRIP_TYPE_ALPHAUNDER,
+	NFXSTRIP_TYPE_GAMCROSS,
+	NFXSTRIP_TYPE_MUL,
+	NFXSTRIP_TYPE_OVERDROP,
+	NFXSTRIP_TYPE_WIPE,
+	NFXSTRIP_TYPE_GLOW,
+	NFXSTRIP_TYPE_TRANSFORM,
+	NFXSTRIP_TYPE_COLOR,
+	NFXSTRIP_TYPE_SPEED,
+	NFXSTRIP_TYPE_MULTICAM,
+	NFXSTRIP_TYPE_ADJUSTMENT,
+	NFXSTRIP_TYPE_GAUSSIAN_BLUR,
+};
+
+/* nclip->flag */
+enum {
+	NSTRIP_LEFTSEL                 = (1 << 1),
+	NSTRIP_RIGHTSEL                = (1 << 2),
+	NSTRIP_OVERLAP                 = (1 << 3),
+	NSTRIP_FILTERY                 = (1 << 4),
+	NSTRIP_MUTE                    = (1 << 5),
+	NSTRIP_REVERSE_FRAMES          = (1 << 6),
+	NSTRIP_IPO_FRAME_LOCKED        = (1 << 7),
+	NSTRIP_EFFECT_NOT_LOADED       = (1 << 8),
+	NSTRIP_FLAG_DELETE             = (1 << 9),
+	NSTRIP_FLIPX                   = (1 << 10),
+	NSTRIP_FLIPY                   = (1 << 11),
+	NSTRIP_MAKE_FLOAT              = (1 << 12),
+	NSTRIP_LOCK                    = (1 << 13),
+	NSTRIP_USE_PROXY               = (1 << 14),
+	NSTRIP_USE_TRANSFORM           = (1 << 15),
+	NSTRIP_USE_CROP                = (1 << 16),
+	NSTRIP_USE_PROXY_CUSTOM_DIR    = (1 << 17),
+
+	NSTRIP_USE_PROXY_CUSTOM_FILE   = (1 << 18),
+	NSTRIP_USE_EFFECT_DEFAULT_FADE = (1 << 19),
+	NSTRIP_USE_LINEAR_MODIFIERS    = (1 << 20),
+
+	/* flags for whether those properties are animated or not */
+	NSTRIP_AUDIO_VOLUME_ANIMATED   = (1 << 21),
+	NSTRIP_AUDIO_PITCH_ANIMATED    = (1 << 22),
+	NSTRIP_AUDIO_PAN_ANIMATED      = (1 << 23),
+	NSTRIP_AUDIO_DRAW_WAVEFORM     = (1 << 24),
+
+	NCLIP_INVALID_EFFECT          = (1 << 25),
+};
+/* This is the base class and it's strictly related to the visual clip in the sequencer */
+typedef struct NStrip {
+	struct NStrip *next, *prev;
+	char name[64]; /* STRIP_NAME_MAXSTR - name, set by default and needs to be unique, for RNA paths */
+	
+	/* general use flags */
+	int flag;
+
+	/* the track this clip exists in (used to be "machine" in the old code) */
+	int track;
+	
+	/* depth in the sequence (how many levels of clip inclusion deep the strip is) */
+	int depth;
+
+	/* main type, data or fx */
+	int type;
+	
+	/* frame position in the timeline */
+	int start;
+	int end;
+	
+	/* attachments point of clip. if the clip moves, the attachments do too */
+	ListBase attachments;
+} NStrip;
+
+/* a data clip, it includes movies, sounds or image sequences */
+typedef struct NDataStrip {
+	NStrip clip;
+
+	/* subtype of data (movie, sound) */
+	int subtype;
+	
+	/* length of source data (depends on source data type) */
+	int len;
+	
+	/* offset of data from start of the clip */
+	int offset;
+	int pad;
+} NDataStrip;
+
+/* a data clip, it includes movies, sounds or image sequences */
+typedef struct NFXStrip {
+	NStrip clip;
+	/* subtype of fx (blur, alpha over, etc) */
+	int subtype;
+	
+	/* fader of the effect */
+	float effect_fader;
+	
+	/* specialize those per fx */
+	struct NStrip *clip1, *clip2, *clip3;	
+} NFXStrip;
+
+/* old metastrip, a clip that contains other clips */
+typedef struct NContainerStrip {
+	NStrip clip;
+	
+	/* list of contained clips */
+	ListBase clips;
+} NContainerStrip;
+
+typedef struct NMovieStrip {
+	NDataStrip data;
+	
+	/* render flags */
+	int render_flag;
+
+	int blend_mode;
+		
+	/* saturation */
+	float saturation;
+	
+	float blend_opacity;	
+	
+	/* streamindex for sound files with several streams */
+	short streamindex;
+	
+	/* animation movie preseek */
+	short anim_preseek;
+
+	int pad;
+	
+	/* modifiers */
+	ListBase modifiers;
+} NMovieStrip;
+
+typedef struct NAnimStrip {
+	NMovieStrip movie;
+	
+	/* for amination file */
+	struct anim *anim;	
+} NAnimStrip;
+
+typedef struct NTrackerStrip {
+	NMovieStrip movie;
+	
+	/* source MovieClip strip */
+	struct MovieClip *clip;
+} NTrackerStrip;
+
+typedef struct NMaskStrip {
+	NDataStrip data;
+	
+	/* source mask */
+	struct Mask *mask;	
+} NMaskStrip;
+
+/* sound clip */
+typedef struct NSoundStrip {
+	NDataStrip data;
+	
+	/* streamindex for sound files with several streams */
+	int streamindex;
+	
+	/* sound volume */
+	float volume;
+
+	/* pitch (-0.1..10) */
+	float pitch;
+	
+	/* pan -2..2 */
+	float pan;
+	
+	/* the linked "bSound" object */
+	struct bSound *sound;
+} NSoundStrip;
+
+/* scene strip */
+typedef struct NSceneStrip {
+	NDataStrip data;
+	
+	/* the linked scene */
+	struct Scene     *scene;
+
+	/* override of scene camera */
+	struct Object *scene_camera;	
+} NSceneStrip;
+
+
 
 #endif  /* __DNA_SEQUENCE_TYPES_H__ */
