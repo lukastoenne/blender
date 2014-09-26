@@ -1440,6 +1440,8 @@ void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
 {
 	bSound *sound = oldmain->sound.first;
+	Scene *sce = oldmain->scene.first;
+	Editing *ed;
 	
 	fd->soundmap = oldnewmap_new();
 	
@@ -1451,6 +1453,17 @@ void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
 		if (sound->waveform)
 			oldnewmap_insert(fd->soundmap, sound->waveform, sound->waveform, 0);			
 	}
+	
+	for (; sce; sce = sce->id.next) {
+		Sequence *seq;
+		ed = sce->ed;
+		
+		SEQ_BEGIN (ed, seq)
+		{
+			oldnewmap_insert(fd->soundmap, seq->scene_sound, seq->scene_sound, 0);	
+		}
+		SEQ_END
+	}
 }
 
 /* set old main sound caches to zero if it has been restored */
@@ -1459,10 +1472,12 @@ void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
 {
 	OldNew *entry = fd->soundmap->entries;
 	bSound *sound = oldmain->sound.first;
+	Scene *sce = oldmain->scene.first;
+	Editing *ed;
 	int i;
 	
 	/* used entries were restored, so we put them to zero */
-	for (i=0; i < fd->soundmap->nentries; i++, entry++) {
+	for (i = 0; i < fd->soundmap->nentries; i++, entry++) {
 		if (entry->nr > 0)
 			entry->newp = NULL;
 	}
@@ -1471,6 +1486,17 @@ void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
 		sound->cache = newsoundadr(fd, sound->cache);
 		sound->handle = newsoundadr(fd, sound->handle);
 		sound->waveform = newsoundadr(fd, sound->waveform);
+	}
+	
+	for (; sce; sce = sce->id.next) {
+		Sequence *seq;
+		ed = sce->ed;
+		
+		SEQ_BEGIN (ed, seq)
+		{
+			seq->scene_sound = newsoundadr(fd, seq->scene_sound);
+		}
+		SEQ_END
 	}
 }
 
@@ -5250,16 +5276,19 @@ static void lib_link_scene(FileData *fd, Main *main)
 					seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
 				}
 				if (seq->sound) {
-					seq->scene_sound = NULL;
 					if (seq->type == SEQ_TYPE_SOUND_HD) {
 						seq->type = SEQ_TYPE_SOUND_RAM;
 					}
 					else {
 						seq->sound = newlibadr(fd, sce->id.lib, seq->sound);
 					}
+					
 					if (seq->sound) {
 						seq->sound->id.us++;
-						seq->scene_sound = sound_add_scene_sound_defaults(main, sce, seq);
+
+						/* create the scene sequence if needed */
+						if (!seq->scene_sound)
+							seq->scene_sound = sound_add_scene_sound_defaults(main, sce, seq);
 					}
 				}
 				seq->anim = NULL;
@@ -5426,7 +5455,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	}
 
 	if (sce->ed) {
-		ListBase *old_seqbasep = &((Editing *)sce->ed)->seqbase;
+		ListBase *old_seqbasep = &sce->ed->seqbase;
 		
 		ed = sce->ed = newdataadr(fd, sce->ed);
 		
@@ -5442,6 +5471,11 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			seq->seq3 = newdataadr(fd, seq->seq3);
 			if (seq->parent)
 				seq->parent = newdataadr(fd, seq->parent);
+			
+			if (fd->soundmap)
+				seq->scene_sound = newsoundadr(fd, seq->scene_sound);
+			else
+				seq->scene_sound = NULL;
 			/* a patch: after introduction of effects with 3 input strips */
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
