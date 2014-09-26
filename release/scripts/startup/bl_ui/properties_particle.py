@@ -306,6 +306,7 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.prop(cloth, "spring_damping", text="Spring")
         sub.prop(cloth, "air_damping", text="Air")
+        sub.prop(cloth, "bending_damping", text="Bending")
 
         col.label(text="Quality:")
         col.prop(cloth, "quality", text="Steps", slider=True)
