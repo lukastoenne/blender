@@ -481,39 +481,36 @@ enum {
 
 /* nstrip->type */
 enum {
-	NCLIP_TYPE_DATA = 1,
-	NCLIP_TYPE_FX,
+	NSTRIP_TYPE_DATA = 1,
+	NSTRIP_TYPE_FX,
+	NSTRIP_TYPE_CONTAINER,	
 };
 
-/* ndatastrip->subtype */
+/* nstrip->classtype */
 enum {
-	NDATASTRIP_TYPE_MOVIE = 1,
-	NDATASTRIP_TYPE_MOVIECLIP,
-	NDATASTRIP_TYPE_MASK,
-	NDATASTRIP_TYPE_IMAGE,
-	NDATASTRIP_TYPE_SOUND,
-	NDATASTRIP_TYPE_SCENE,
-};
-
-/* nfxstrip->subtype */
-enum {
-	NFXSTRIP_TYPE_EFFECT      = 1,
-	NFXSTRIP_TYPE_CROSS,
-	NFXSTRIP_TYPE_ADD,
-	NFXSTRIP_TYPE_SUB,
-	NFXSTRIP_TYPE_ALPHAOVER,
-	NFXSTRIP_TYPE_ALPHAUNDER,
-	NFXSTRIP_TYPE_GAMCROSS,
-	NFXSTRIP_TYPE_MUL,
-	NFXSTRIP_TYPE_OVERDROP,
-	NFXSTRIP_TYPE_WIPE,
-	NFXSTRIP_TYPE_GLOW,
-	NFXSTRIP_TYPE_TRANSFORM,
-	NFXSTRIP_TYPE_COLOR,
-	NFXSTRIP_TYPE_SPEED,
-	NFXSTRIP_TYPE_MULTICAM,
-	NFXSTRIP_TYPE_ADJUSTMENT,
-	NFXSTRIP_TYPE_GAUSSIAN_BLUR,
+	NSTRIP_CLASS_MOVIE = 1,
+	NSTRIP_CLASS_MOVIECLIP,
+	NSTRIP_CLASS_MASK,
+	NSTRIP_CLASS_IMAGE,
+	NSTRIP_CLASS_SOUND,
+	NSTRIP_CLASS_SCENE,
+	NSTRIP_CLASS_EFFECT,
+	NSTRIP_CLASS_CROSS,
+	NSTRIP_CLASS_ADD,
+	NSTRIP_CLASS_SUB,
+	NSTRIP_CLASS_ALPHAOVER,
+	NSTRIP_CLASS_ALPHAUNDER,
+	NSTRIP_CLASS_GAMCROSS,
+	NSTRIP_CLASS_MUL,
+	NSTRIP_CLASS_OVERDROP,
+	NSTRIP_CLASS_WIPE,
+	NSTRIP_CLASS_GLOW,
+	NSTRIP_CLASS_TRANSFORM,
+	NSTRIP_CLASS_COLOR,
+	NSTRIP_CLASS_SPEED,
+	NSTRIP_CLASS_MULTICAM,
+	NSTRIP_CLASS_ADJUSTMENT,
+	NSTRIP_CLASS_GAUSSIAN_BLUR,
 };
 
 /* nclip->flag */
@@ -563,7 +560,10 @@ typedef struct NStrip {
 	int depth;
 
 	/* main type, data or fx */
-	int type;
+	short type;
+	
+	/* classtype identifier, to quickly determine the type of strip */
+	short classtype;
 	
 	/* frame position in the timeline */
 	int start;
@@ -577,25 +577,20 @@ typedef struct NStrip {
 typedef struct NDataStrip {
 	NStrip clip;
 
-	/* subtype of data (movie, sound) */
-	int subtype;
-	
 	/* length of source data (depends on source data type) */
 	int len;
 	
 	/* offset of data from start of the clip */
 	int offset;
-	int pad;
 } NDataStrip;
 
 /* a data clip, it includes movies, sounds or image sequences */
 typedef struct NFXStrip {
 	NStrip clip;
-	/* subtype of fx (blur, alpha over, etc) */
-	int subtype;
 	
 	/* fader of the effect */
 	float effect_fader;
+	float pad;
 	
 	/* specialize those per fx */
 	struct NStrip *clip1, *clip2, *clip3;	
