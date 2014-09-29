@@ -1829,7 +1829,6 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmWidget *UNUSE
 	// find the hotspots first test narrow hotspot
 	val = manipulator_selectbuf(sa, ar, event->mval, 0.5f * (float)U.tw_hotspot);
 	if (val) {
-
 		// drawflags still global, for drawing call above
 		drawflags = manipulator_selectbuf(sa, ar, event->mval, 0.2f * (float)U.tw_hotspot);
 		if (drawflags == 0) drawflags = val;
@@ -1946,5 +1945,5 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmWidget *UNUSE
 		MEM_freeN(ptr);
 	}
 
-	return val;
+	return (val) ? OPERATOR_FINISHED : OPERATOR_PASS_THROUGH;
 }

@@ -1972,11 +1972,15 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			}
 			else if (handler->widgets) {
 				wmWidget *widget;
+				int ret;
 				
 				/* similar interface to operators */
 				for (widget = handler->widgets->first; widget; widget = widget->next) {
 					if (widget->handler && (!widget->poll || widget->poll(C, widget))) {
-						action |= widget->handler(C, event, widget);
+						if ((ret = widget->handler(C, event, widget)) == OPERATOR_FINISHED) {
+							action |= WM_HANDLER_BREAK;
+							break;
+						}
 					}
 				}
 			}

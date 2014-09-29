@@ -469,7 +469,7 @@ struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWi
 
 void WM_widgets_delete(ListBase *widgetlist, struct wmWidget *widget);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
-void WM_widget_handler_register(struct ARegion *ar);
+void WM_event_add_widget_handler(struct ARegion *ar);
 
 bool WM_widget_register(ListBase *widgetlist, struct wmWidget *widget);
 void WM_widget_unregister(ListBase *widgetlist, struct wmWidget *widget);

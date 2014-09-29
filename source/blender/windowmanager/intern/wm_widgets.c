@@ -131,7 +131,7 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 	}
 }
 
-void WM_widget_handler_register(ARegion *ar)
+void WM_event_add_widget_handler(ARegion *ar)
 {
 	wmEventHandler *handler;
 	
@@ -142,7 +142,7 @@ void WM_widget_handler_register(ARegion *ar)
 	handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
 	
 	handler->widgets = ar->widgets;
-	BLI_addtail(&ar->handlers, handler);
+	BLI_addhead(&ar->handlers, handler);
 }
 
 

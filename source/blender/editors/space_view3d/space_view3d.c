@@ -559,7 +559,8 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
 	ar->widgets = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
-	WM_widget_handler_register(ar);
+	
+	WM_event_add_widget_handler(ar);
 }
 
 static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
