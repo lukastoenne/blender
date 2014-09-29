@@ -1971,7 +1971,14 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else if (handler->widgets) {
+				wmWidget *widget;
 				
+				/* similar interface to operators */
+				for (widget = handler->widgets->first; widget; widget = widget->next) {
+					if (widget->handler && (!widget->poll || widget->poll(C, widget))) {
+						action |= widget->handler(C, event, widget);
+					}
+				}
 			}
 			else {
 				/* modal, swallows all */

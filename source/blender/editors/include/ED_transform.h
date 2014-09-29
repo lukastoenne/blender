@@ -111,6 +111,7 @@ struct ScrArea;
 struct Base;
 struct Scene;
 struct Object;
+struct wmWidget;
 
 /* UNUSED */
 // int BIF_snappingSupported(struct Object *obedit);
@@ -151,8 +152,9 @@ void Transform_Properties(struct wmOperatorType *ot, int flags);
 
 /* view3d manipulators */
 
-int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmOperator *op);
-void BIF_draw_manipulator(const struct bContext *C, void *customdata);
+int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+void BIF_draw_manipulator(const struct bContext *C, struct wmWidget *customdata);
+bool BIF_manipulator_poll(const struct bContext *C, struct wmWidget *customdata);
 
 /* Snapping */
 

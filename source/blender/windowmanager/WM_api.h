@@ -461,12 +461,11 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
 /* widget API */
-struct wmWidget *WM_widget_new(int (*poll)(const struct bContext *C, void *customdata),
-						void (*draw)(const struct bContext *C, void *customdata),
-						void (*draw_highlighted)(const struct bContext *C, void *customdata),
-						void (*interact)(struct bContext *C, struct wmEvent *event, void *customdata),
-						void (*handler)(struct bContext *C, struct wmEvent *event, void *customdata),
-						void *customdata, bool free_data, bool requires_ogl);
+struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWidget *),
+                               void (*draw)(const struct bContext *, struct wmWidget *),
+                               void (*draw_highlighted)(const struct bContext *, struct wmWidget *),
+                               int  (*handler)(struct bContext *, struct wmEvent *, struct wmWidget *),
+                               void *customdata, bool free_data, bool requires_ogl);
 
 void WM_widgets_delete(ListBase *widgetlist, struct wmWidget *widget);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);

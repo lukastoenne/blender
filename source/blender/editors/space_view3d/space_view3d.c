@@ -430,7 +430,7 @@ static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 	if (!manipulator_widget) {
 		ListBase *widgets = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 		
-		manipulator_widget = WM_widget_new(NULL, BIF_draw_manipulator, NULL, NULL, NULL, NULL, 0, 0);
+		manipulator_widget = WM_widget_new(BIF_manipulator_poll, BIF_draw_manipulator, NULL, BIF_do_manipulator, NULL, 0, 0);
 		
 		WM_widget_register(widgets, manipulator_widget);
 	}

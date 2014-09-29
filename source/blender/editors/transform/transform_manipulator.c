@@ -72,6 +72,8 @@
 /* local module include */
 #include "transform.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "GPU_select.h"
 
 /* return codes for select, and drawing flags */
@@ -1604,7 +1606,7 @@ static void draw_manipulator_rotate_cyl(
 /* main call, does calc centers & orientation too */
 static int drawflags = 0xFFFF;       // only for the calls below, belongs in scene...?
 
-void BIF_draw_manipulator(const bContext *C, void *UNUSED(customdata))
+void BIF_draw_manipulator(const bContext *C, wmWidget *UNUSED(customdata))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1614,8 +1616,6 @@ void BIF_draw_manipulator(const bContext *C, void *UNUSED(customdata))
 	int totsel;
 
 	const bool is_picksel = false;
-
-	if (!(v3d->twflag & V3D_USE_MANIPULATOR)) return;
 
 	{
 		v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
@@ -1687,6 +1687,15 @@ void BIF_draw_manipulator(const bContext *C, void *UNUSED(customdata))
 		glDisable(GL_BLEND);
 	}
 }
+
+bool BIF_manipulator_poll(const struct bContext *C, wmWidget *UNUSED(customdata))
+{
+	ScrArea *sa = CTX_wm_area(C);
+	View3D *v3d = sa->spacedata.first;
+
+	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
+}
+
 
 static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], float hotspot)
 {
@@ -1796,7 +1805,7 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 
 
 /* return 0; nothing happened */
-int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
+int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
@@ -1805,12 +1814,18 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 	int val;
 	int shift = event->shift;
 
-	if (!(v3d->twflag & V3D_USE_MANIPULATOR)) return 0;
-	if (!(v3d->twflag & V3D_DRAW_MANIPULATOR)) return 0;
-
-	/* Force orientation */
-	RNA_enum_set(op->ptr, "constraint_orientation", v3d->twmode);
-
+	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
+	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
+		
+	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
+	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) || 
+		!((event->val == KM_PRESS) && (event->type == LEFTMOUSE)))
+	{
+		return OPERATOR_PASS_THROUGH;
+	}
+	
+	view3d_operator_needs_opengl(C);
+	
 	// find the hotspots first test narrow hotspot
 	val = manipulator_selectbuf(sa, ar, event->mval, 0.5f * (float)U.tw_hotspot);
 	if (val) {
@@ -1848,8 +1863,12 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 						constraint_axis[2] = 1;
 					break;
 			}
-			RNA_boolean_set_array(op->ptr, "constraint_axis", constraint_axis);
-			WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, op->ptr);
+			WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_translate");
+			/* Force orientation */
+			RNA_boolean_set(ptr, "release_confirm", true);
+			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
+			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+			WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
 			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_translate", 0), event, op->ptr, NULL, false);
 		}
 		else if (drawflags & MAN_SCALE_C) {
@@ -1879,8 +1898,12 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 						constraint_axis[2] = 1;
 					break;
 			}
-			RNA_boolean_set_array(op->ptr, "constraint_axis", constraint_axis);
-			WM_operator_name_call(C, "TRANSFORM_OT_resize", WM_OP_INVOKE_DEFAULT, op->ptr);
+			WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_resize");
+			/* Force orientation */
+			RNA_boolean_set(ptr, "release_confirm", true);
+			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
+			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+			WM_operator_name_call(C, "TRANSFORM_OT_resize", WM_OP_INVOKE_DEFAULT, ptr);
 			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_resize", 0), event, op->ptr, NULL, false);
 		}
 		else if (drawflags == MAN_ROT_T) { /* trackball need special case, init is different */
@@ -1888,12 +1911,8 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 			 * See [#34621], it's a miracle it did not cause more problems!!! */
 			/* However, we need to copy the "release_confirm" property, but only if defined, see T41112. */
 			PointerRNA props_ptr;
-			PropertyRNA *prop;
 			wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_trackball", true);
 			WM_operator_properties_create_ptr(&props_ptr, ot);
-			if ((prop = RNA_struct_find_property(op->ptr, "release_confirm")) && RNA_property_is_set(op->ptr, prop)) {
-				RNA_property_boolean_set(&props_ptr, prop, RNA_property_boolean_get(op->ptr, prop));
-			}
 			WM_operator_name_call(C, ot->idname, WM_OP_INVOKE_DEFAULT, &props_ptr);
 			//wm_operator_invoke(C, WM_operatortype_find(ot->idname, 0), event, NULL, NULL, false);
 			WM_operator_properties_free(&props_ptr);
@@ -1910,13 +1929,22 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 					constraint_axis[2] = 1;
 					break;
 			}
-			RNA_boolean_set_array(op->ptr, "constraint_axis", constraint_axis);
-			WM_operator_name_call(C, "TRANSFORM_OT_rotate", WM_OP_INVOKE_DEFAULT, op->ptr);
+			WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_rotate");
+			/* Force orientation */
+			RNA_boolean_set(ptr, "release_confirm", true);
+			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
+			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+			WM_operator_name_call(C, "TRANSFORM_OT_rotate", WM_OP_INVOKE_DEFAULT, ptr);
 			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_rotate", 0), event, op->ptr, NULL, false);
 		}
 	}
 	/* after transform, restore drawflags */
 	drawflags = 0xFFFF;
+	
+	if (ptr) {
+		WM_operator_properties_free(ptr);
+		MEM_freeN(ptr);
+	}
 
 	return val;
 }

@@ -63,24 +63,6 @@
 #  include "RNA_enum_types.h"
 #endif
 
-typedef struct wmWidget {
-	struct wmWidget *next, *prev;
-
-	void *customdata;
-	
-	/* poll if widget should be active */
-	int (*poll)(const struct bContext *C, void *customdata);
-	/* draw widget in screen space */
-	void (*draw)(const struct bContext *C, void *customdata);
-	/* draw widget highlight */
-	void (*draw_highlighted)(const struct bContext *C, void *customdata);
-	/* draw widget in 3d space */
-	void (*interact)(struct bContext *C, struct wmEvent *event, void *customdata);
-	void (*handler)(struct bContext *C, struct wmEvent *event, void *customdata);
-	int flag; /* flags set by drawing and interaction, such as highlighting */
-} wmWidget;
-
-
 typedef struct wmWidgetMap {
 	struct wmWidgetMap *next, *prev;
 	
@@ -95,19 +77,17 @@ typedef struct wmWidgetMap {
 static ListBase widgetmaps = {NULL, NULL};
 
 
-wmWidget *WM_widget_new(int (*poll)(const struct bContext *C, void *customdata),
-						void (*draw)(const struct bContext *C, void *customdata),
-						void (*draw_highlighted)(const struct bContext *C, void *customdata),
-						void (*interact)(struct bContext *C, struct wmEvent *event, void *customdata),
-						void (*handler)(struct bContext *C, struct wmEvent *event, void *customdata),
-						void *customdata, bool free_data, bool requires_ogl)
+wmWidget *WM_widget_new(bool (*poll)(const struct bContext *C, struct wmWidget *customdata),
+                        void (*draw)(const struct bContext *C, struct wmWidget *customdata),
+                        void (*draw_highlighted)(const struct bContext *C, struct wmWidget *customdata),
+                        int  (*handler)(struct bContext *C, struct wmEvent *event, struct wmWidget *customdata),
+                        void *customdata, bool free_data, bool requires_ogl)
 {
 	wmWidget *widget = MEM_callocN(sizeof(wmWidget), "widget");
 	
 	widget->poll = poll;
 	widget->draw = draw;
 	widget->draw_highlighted = draw_highlighted;
-	widget->interact = interact;
 	widget->handler = handler;
 	widget->customdata = customdata;
 	
@@ -175,7 +155,7 @@ bool WM_widget_register(ListBase *widgetlist, wmWidget *widget)
 			return false;
 	}
 	
-	BLI_addhead(widgetlist, widget);
+	BLI_addtail(widgetlist, widget);
 	return true;
 }
 

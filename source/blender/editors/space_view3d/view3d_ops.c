@@ -168,7 +168,6 @@ void view3d_operatortypes(void)
 	WM_operatortype_append(VIEW3D_OT_render_border);
 	WM_operatortype_append(VIEW3D_OT_clear_render_border);
 	WM_operatortype_append(VIEW3D_OT_zoom_border);
-	WM_operatortype_append(VIEW3D_OT_manipulator);
 	WM_operatortype_append(VIEW3D_OT_enable_manipulator);
 	WM_operatortype_append(VIEW3D_OT_cursor3d);
 	WM_operatortype_append(VIEW3D_OT_select_lasso);
@@ -211,13 +210,6 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	
 	/* only for region 3D window */
 	keymap = WM_keymap_find(keyconf, "3D View", SPACE_VIEW3D, 0);
-
-	kmi = WM_keymap_verify_item(keymap, "VIEW3D_OT_manipulator", LEFTMOUSE, KM_PRESS, KM_ANY, 0);
-	RNA_boolean_set(kmi->ptr, "release_confirm", true);
-	/*
-	 * Doesn't work with KM_SHIFT, have to use KM_ANY and filter in invoke
-	 * */
-	// WM_keymap_verify_item(keymap, "VIEW3D_OT_manipulator", LEFTMOUSE, KM_PRESS, KM_SHIFT, 0);
 	
 	WM_keymap_verify_item(keymap, "VIEW3D_OT_cursor3d", ACTIONMOUSE, KM_PRESS, 0, 0);
 	
