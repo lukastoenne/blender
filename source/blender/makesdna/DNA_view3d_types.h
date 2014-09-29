@@ -218,9 +218,6 @@ typedef struct View3D {
 
 	/* XXX deprecated? */
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
-
-	
-	void *manipulator_widget;	
 } View3D;
 
 

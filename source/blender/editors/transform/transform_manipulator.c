@@ -1604,7 +1604,7 @@ static void draw_manipulator_rotate_cyl(
 /* main call, does calc centers & orientation too */
 static int drawflags = 0xFFFF;       // only for the calls below, belongs in scene...?
 
-void BIF_draw_manipulator(const bContext *C)
+void BIF_draw_manipulator(const bContext *C, void *UNUSED(customdata))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);

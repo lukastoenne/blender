@@ -53,6 +53,7 @@
 
 #include "ED_space_api.h"
 #include "ED_screen.h"
+#include "ED_transform.h"
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -343,9 +344,6 @@ static SpaceLink *view3d_new(const bContext *C)
 	
 	v3d->bundle_size = 0.2f;
 	v3d->bundle_drawtype = OB_PLAINAXES;
-
-	/* add the generic manipulator widget here */
-	v3d->manipulator_widget = WM_widget_new(NULL, NULL, NULL, NULL, NULL, NULL, 0, 0);
 	
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for view3d");
@@ -427,7 +425,15 @@ static void view3d_free(SpaceLink *sl)
 /* spacetype; init callback */
 static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
-
+	static wmWidget *manipulator_widget = NULL;
+	
+	if (!manipulator_widget) {
+		ListBase *widgets = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+		
+		manipulator_widget = WM_widget_new(NULL, BIF_draw_manipulator, NULL, NULL, NULL, NULL, 0, 0);
+		
+		WM_widget_register(widgets, manipulator_widget);
+	}
 }
 
 static SpaceLink *view3d_duplicate(SpaceLink *sl)

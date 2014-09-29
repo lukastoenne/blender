@@ -468,13 +468,15 @@ struct wmWidget *WM_widget_new(int (*poll)(const struct bContext *C, void *custo
 						void (*handler)(struct bContext *C, struct wmEvent *event, void *customdata),
 						void *customdata, bool free_data, bool requires_ogl);
 
-void WM_widgets_delete(struct wmWidget *widget);
+void WM_widgets_delete(ListBase *widgetlist, struct wmWidget *widget);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_widget_handler_register(struct ARegion *ar);
 
-void WM_widget_register(ListBase *widgetlist, struct wmWidget *widget);
+bool WM_widget_register(ListBase *widgetlist, struct wmWidget *widget);
 void WM_widget_unregister(ListBase *widgetlist, struct wmWidget *widget);
 struct ListBase *WM_widgetmap_find(const char *idname, int spaceid, int regionid);
+void WM_widgetmaps_free(void);
+
 
 #ifdef __cplusplus
 }

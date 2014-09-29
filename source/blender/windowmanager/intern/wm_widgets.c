@@ -122,12 +122,12 @@ wmWidget *WM_widget_new(int (*poll)(const struct bContext *C, void *customdata),
 	return NULL;
 }
 
-void WM_widgets_delete(wmWidget *widget)
+void WM_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 {
 	if (widget->flag & WM_WIDGET_FREE_DATA)
 		MEM_freeN(widget->customdata);
 	
-	MEM_freeN(widget);
+	BLI_freelinkN(widgetlist, widget);
 }
 
 
@@ -166,51 +166,55 @@ void WM_widget_handler_register(ARegion *ar)
 }
 
 
-void WM_widget_register(ListBase *widgetlist, wmWidget *widget)
+bool WM_widget_register(ListBase *widgetlist, wmWidget *widget)
 {
-	BLI_addtail(widgetlist, widget);
+	wmWidget *widget_iter;
+	/* search list, might already be registered */	
+	for (widget_iter = widgetlist->first; widget_iter; widget_iter = widget_iter->next) {
+		if (widget_iter == widget)
+			return false;
+	}
+	
+	BLI_addhead(widgetlist, widget);
+	return true;
 }
 
 void WM_widget_unregister(ListBase *widgetlist, wmWidget *widget)
 {
-	wmWidget *widget_iter;
-	
-	for (widget_iter = widgetlist->first; widget_iter; widget_iter = widget_iter->next) {
-		if (widget_iter == widget) {
-			BLI_remlink(widgetlist, widget);
-		}
-	}
+	BLI_remlink(widgetlist, widget);
 }
 
 ListBase *WM_widgetmap_find(const char *idname, int spaceid, int regionid)
 {
-	wmWidgetMap *widgetm;
+	wmWidgetMap *wmap;
 	
-	for (widgetm = widgetmaps.first; widgetm; widgetm = widgetm->next)
-		if (widgetm->spaceid == spaceid && widgetm->regionid == regionid)
-			if (0 == strncmp(idname, widgetm->idname, KMAP_MAX_NAME))
-				return &widgetm->widgets;
+	for (wmap = widgetmaps.first; wmap; wmap = wmap->next)
+		if (wmap->spaceid == spaceid && wmap->regionid == regionid)
+			if (0 == strncmp(idname, wmap->idname, KMAP_MAX_NAME))
+				return &wmap->widgets;
 	
-	widgetm = MEM_callocN(sizeof(struct wmWidgetMap), "widget list");
-	BLI_strncpy(widgetm->idname, idname, KMAP_MAX_NAME);
-	widgetm->spaceid = spaceid;
-	widgetm->regionid = regionid;
-	BLI_addtail(&widgetmaps, widgetm);
+	wmap = MEM_callocN(sizeof(struct wmWidgetMap), "widget list");
+	BLI_strncpy(wmap->idname, idname, KMAP_MAX_NAME);
+	wmap->spaceid = spaceid;
+	wmap->regionid = regionid;
+	BLI_addhead(&widgetmaps, wmap);
 	
-	return &widgetm->widgets;
+	return &wmap->widgets;
 }
 
-void wm_widgetmap_free(void)
+void WM_widgetmaps_free(void)
 {
-	wmWidgetMap *widgetm;
+	wmWidgetMap *wmap;
 	
-	for (widgetm = widgetmaps.first; widgetm; widgetm = widgetm->next) {
+	for (wmap = widgetmaps.first; wmap; wmap = wmap->next) {
 		wmWidget *widget;
 		
-		for (widget = widgetm->widgets.first; widget; widget = widget->next) {
-			WM_widgets_delete(widget);
+		for (widget = wmap->widgets.first; widget;) {
+			wmWidget *widget_next = widget->next;
+			WM_widgets_delete(&wmap->widgets, widget);
+			widget = widget_next;
 		}
-		BLI_freelistN(&widgetm->widgets);
+		BLI_freelistN(&wmap->widgets);
 	}
 	
 	BLI_freelistN(&widgetmaps);
