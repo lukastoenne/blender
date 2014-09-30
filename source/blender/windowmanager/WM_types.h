@@ -661,9 +661,11 @@ typedef struct wmWidget {
 	bool (*poll)(const struct bContext *C, struct wmWidget *customdata);
 	/* draw widget in screen space */
 	void (*draw)(const struct bContext *C, struct wmWidget *customdata);
-	/* draw widget highlight */
-	void (*draw_highlighted)(const struct bContext *C, struct wmWidget *customdata);
-	int (*handler)(struct bContext *C, struct wmEvent *event, struct wmWidget *customdata);
+	/* determine if the mouse intersects with the widget */
+	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata);
+	/* renders 3d intersetion in selection routine */
+	void  (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata);
+	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata);
 	int flag; /* flags set by drawing and interaction, such as highlighting */
 } wmWidget;
 

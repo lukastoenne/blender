@@ -1804,6 +1804,29 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 }
 
 
+void BIF_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget))
+{
+	ScrArea *sa = CTX_wm_area(C);
+	View3D *v3d = sa->spacedata.first;
+	ARegion *ar = CTX_wm_region(C);
+	RegionView3D *rv3d = ar->regiondata;
+
+	/* when looking through a selected camera, the manipulator can be at the
+	 * exact same position as the view, skip so we don't break selection */
+	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f)
+		return;
+	
+	/* do the drawing */
+	if (v3d->twtype & V3D_MANIP_ROTATE) {
+		if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, true);
+		else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, true);
+	}
+	if (v3d->twtype & V3D_MANIP_SCALE)
+		draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, true);
+	if (v3d->twtype & V3D_MANIP_TRANSLATE)
+		draw_manipulator_translate(v3d, rv3d, MAN_TRANS_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, true);
+}
+
 /* return 0; nothing happened */
 int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
 {

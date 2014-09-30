@@ -36,11 +36,13 @@
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_view3d_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_math.h"
 
 #include "BKE_context.h"
 #include "BKE_idprop.h"
@@ -58,6 +60,9 @@
 #include "wm_event_system.h"
 #include "wm_event_types.h"
 #include "wm_draw.h"
+
+#include "GL/glew.h"
+#include "GPU_select.h"
 
 #ifndef NDEBUG
 #  include "RNA_enum_types.h"
@@ -79,16 +84,18 @@ static ListBase widgetmaps = {NULL, NULL};
 
 wmWidget *WM_widget_new(bool (*poll)(const struct bContext *C, struct wmWidget *customdata),
                         void (*draw)(const struct bContext *C, struct wmWidget *customdata),
-                        void (*draw_highlighted)(const struct bContext *C, struct wmWidget *customdata),
-                        int  (*handler)(struct bContext *C, struct wmEvent *event, struct wmWidget *customdata),
+                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata),
+						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
+                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                         void *customdata, bool free_data, bool requires_ogl)
 {
 	wmWidget *widget = MEM_callocN(sizeof(wmWidget), "widget");
 	
 	widget->poll = poll;
 	widget->draw = draw;
-	widget->draw_highlighted = draw_highlighted;
 	widget->handler = handler;
+	widget->intersect = intersect;
+	widget->render_3d_intersection = render_3d_intersection;
 	widget->customdata = customdata;
 	
 	if (free_data)
@@ -117,15 +124,10 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 		wmWidget *widget;
 		
 		for (widget = ar->widgets->first; widget; widget = widget->next) {
-			if ((widget->draw || widget->draw_highlighted) &&
+			if ((widget->draw) &&
 				(widget->poll == NULL || widget->poll(C, widget->customdata))) 
 			{
-				if (widget->draw_highlighted && (widget->flag & WM_WIDGET_HIGHLIGHT)) {
-					widget->draw_highlighted(C, widget->customdata);
-				}
-				else if (widget->draw) {
-					widget->draw(C, widget->customdata);
-				}				
+				widget->draw(C, widget->customdata);			
 			}
 		}
 	}
@@ -200,3 +202,48 @@ void WM_widgetmaps_free(void)
 	BLI_freelistN(&widgetmaps);
 }
 
+wmWidget *WM_widget_find_active_3D (bContext *C, const struct wmEvent *event, float hotspot)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	View3D *v3d = sa->spacedata.first;
+	ARegion *ar = CTX_wm_region(C);
+	RegionView3D *rv3d = ar->regiondata;
+	rctf rect, selrect;
+	GLuint buffer[64];      // max 4 items per select, so large enuf
+	short hits;
+	const bool do_passes = GPU_select_query_check_active();
+	
+	/* XXX check a bit later on this... (ton) */
+	extern void view3d_winmatrix_set(ARegion *ar, View3D *v3d, rctf *rect);
+		
+	rect.xmin = event->mval[0] - hotspot;
+	rect.xmax = event->mval[0] + hotspot;
+	rect.ymin = event->mval[1] - hotspot;
+	rect.ymax = event->mval[1] + hotspot;
+	
+	selrect = rect;
+	
+	view3d_winmatrix_set(ar, v3d, &rect);
+	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
+	
+	if (do_passes)
+		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_FIRST_PASS, 0);
+	else
+		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_ALL, 0);
+	
+	/* do the drawing */
+	
+	hits = GPU_select_end();
+	
+	if (do_passes) {
+		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_SECOND_PASS, hits);
+		
+		
+		GPU_select_end();
+	}
+	
+	view3d_winmatrix_set(ar, v3d, NULL);
+	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
+	
+	return 0;
+}
