@@ -95,6 +95,9 @@ typedef struct SpaceType {
 	/* on startup, define dropboxes for spacetype+regions */
 	void (*dropboxes)(void);
 
+	/* on startup define areas with widget types */
+	void (*widgets)(void);
+	
 	/* return context data */
 	int (*context)(const struct bContext *, const char *, struct bContextDataResult *);
 

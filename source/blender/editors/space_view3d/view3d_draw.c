@@ -2763,10 +2763,6 @@ static void view3d_draw_objects(
 		view3d_draw_bgpic_test(scene, ar, v3d, true, do_camera_frame);
 	}
 
-	if (!draw_offscreen) {
-		WM_widgets_draw(C, ar);		
-	}
-
 	/* cleanup */
 	if (v3d->zbuf) {
 		v3d->zbuf = false;
@@ -3428,7 +3424,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* main drawing call */
 	view3d_draw_objects(C, scene, v3d, ar, grid_unit, true, false);
-
+	
 	/* Disable back anti-aliasing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
 		glDisable(GL_MULTISAMPLE_ARB);
@@ -3545,12 +3541,15 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 #ifdef DEBUG_DRAW
 		bl_debug_draw();
 #endif
-		ED_region_pixelspace(ar);
 	}
 
 	/* draw viewport using external renderer */
 	if (v3d->drawtype == OB_RENDER)
 		view3d_main_area_draw_engine(C, scene, ar, v3d, clip_border, &border_rect);
+	
+	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);	
+	WM_widgets_draw(C, ar);
+	ED_region_pixelspace(ar);
 	
 	view3d_main_area_draw_info(C, scene, ar, v3d, grid_unit, render_border);
 

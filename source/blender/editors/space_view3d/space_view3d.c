@@ -424,22 +424,7 @@ static void view3d_free(SpaceLink *sl)
 
 /* spacetype; init callback */
 static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
-{
-	static wmWidget *manipulator_widget = NULL;
-	
-	if (!manipulator_widget) {
-		struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-		int *realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
-		*realtimeflags = 0;
-		
-		manipulator_widget = WM_widget_new(BIF_manipulator_poll, 
-										   BIF_draw_manipulator, 
-										   BIF_manipulator_render_3d_intersect, 
-										   NULL, 
-										   BIF_manipulator_handler, realtimeflags, true);
-		
-		WM_widget_register(wmap, manipulator_widget);
-	}
+{	
 }
 
 static SpaceLink *view3d_duplicate(SpaceLink *sl)
@@ -705,6 +690,28 @@ static void view3d_dropboxes(void)
 	WM_dropbox_add(lb, "OBJECT_OT_group_instance_add", view3d_group_drop_poll, view3d_group_drop_copy);	
 }
 
+static void view3d_widgets(void)
+{
+	wmWidget *widget = NULL;
+	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	int *realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
+	*realtimeflags = 0;
+	
+	widget = WM_widget_new(BIF_manipulator_poll, 
+	                       BIF_draw_manipulator, 
+	                       BIF_manipulator_render_3d_intersect, 
+	                       NULL, 
+	                       BIF_manipulator_handler, realtimeflags, true);
+	
+	WM_widget_register(wmap, widget);
+	
+	widget = WM_widget_new(NULL, 
+	                       NULL, 
+	                       NULL, 
+	                       NULL, 
+	                       NULL, NULL, false);	
+	WM_widget_register(wmap, widget);
+}
 
 
 /* type callback, not region itself */
@@ -1369,6 +1376,7 @@ void ED_spacetype_view3d(void)
 	st->operatortypes = view3d_operatortypes;
 	st->keymap = view3d_keymap;
 	st->dropboxes = view3d_dropboxes;
+	st->widgets = view3d_widgets;
 	st->context = view3d_context;
 	
 	/* regions: main window */

@@ -162,6 +162,11 @@ void ED_spacemacros_init(void)
 		if (type->dropboxes)
 			type->dropboxes();
 	}
+	
+	for (type = spacetypes->first; type; type = type->next) {
+		if (type->widgets)
+			type->widgets();
+	}
 }
 
 /* called in wm.c */
