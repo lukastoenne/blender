@@ -54,6 +54,7 @@
 #include "BKE_screen.h"
 
 #include "ED_view3d.h"
+#include "ED_screen.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -78,6 +79,9 @@ typedef struct wmWidgetMap {
 	char idname[KMAP_MAX_NAME];
 	/* check if widgetmap does 3D drawing */
 	bool is_3d;
+	
+	/* active widget for this map. We redraw the widgetmap when this changes  */
+	wmWidget *active_widget;
 } wmWidgetMap;
 
 /* store all widgetboxmaps here. Anyone who wants to register a widget for a certain 
@@ -315,4 +319,22 @@ int wm_widget_find_active_3D (struct wmWidgetMap *wmap, bContext *C, const struc
 	}
 	
 	return -1;
+}
+
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)
+{
+	ARegion *ar = CTX_wm_region(C);
+		
+	if (widget != wmap->active_widget) {
+		if (wmap->active_widget) {
+			wmap->active_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
+		}
+		wmap->active_widget = widget;
+		
+		if (widget)
+			widget->flag |= WM_WIDGET_HIGHLIGHT;
+
+		/* tag the region for redraw */		
+		ED_region_tag_redraw(ar);
+	}
 }

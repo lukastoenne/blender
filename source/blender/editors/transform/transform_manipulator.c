@@ -891,7 +891,7 @@ static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int co
 					else if (flagx & MAN_TRANS_X) GPU_select_load_id(selectionbase + MAN_SEL_TRANS_X);
 				}
 				else {
-					manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]), (highlight & MAN_TRANS_X) != 0);
+					manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]), (highlight & (MAN_TRANS_X | MAN_SCALE_X)) != 0);
 				}
 				glBegin(GL_LINES);
 				glVertex3f(0.2f, 0.0f, 0.0f);
@@ -906,7 +906,7 @@ static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int co
 					else if (flagy & MAN_TRANS_Y) GPU_select_load_id(selectionbase + MAN_SEL_TRANS_Y);
 				}
 				else {
-					manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->tw_idot[1]), (highlight & MAN_TRANS_Y) != 0);
+					manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->tw_idot[1]), (highlight & (MAN_TRANS_Y | MAN_SCALE_Y)) != 0);
 				}
 				glBegin(GL_LINES);
 				glVertex3f(0.0f, 0.2f, 0.0f);
@@ -921,7 +921,7 @@ static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int co
 					else if (flagz & MAN_TRANS_Z) GPU_select_load_id(selectionbase + MAN_SEL_TRANS_Z);
 				}
 				else {
-					manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]), (highlight & MAN_TRANS_Y) != 0);
+					manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]), (highlight & (MAN_TRANS_Z | MAN_SCALE_Z)) != 0);
 				}
 				glBegin(GL_LINES);
 				glVertex3f(0.0f, 0.0f, 0.2f);
@@ -1636,7 +1636,10 @@ void BIF_draw_manipulator(const bContext *C, wmWidget *widget)
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 	int totsel;
-	int highlight = *((int *)widget->customdata);
+	int highlight = 0;
+	
+	if (widget->flag & WM_WIDGET_HIGHLIGHT)
+		highlight = *((int *)widget->customdata);
 	
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 	
@@ -1748,6 +1751,7 @@ int BIF_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *
 	int constraint_axis[3] = {0, 0, 0};
 	int val;
 	int shift = event->shift;
+	int *prevval = ((int *)widget->customdata);
 
 	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
 	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
@@ -1766,8 +1770,10 @@ int BIF_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *
 	else 
 		val = 0;
 	
-	ED_region_tag_redraw(ar);
-	*((int *)widget->customdata) = val;
+	if (*prevval != val) {
+		*prevval = val;
+		ED_region_tag_redraw(ar);
+	}
 	
 	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
 	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) || 

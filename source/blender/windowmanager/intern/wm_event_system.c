@@ -1972,19 +1972,23 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			}
 			else if (handler->widgetmap) {
 				int ret;
+				struct wmWidgetMap *wmap = handler->widgetmap;
+				wmWidget *widget = NULL;
 				
-				if (wm_widgetmap_is_3d(handler->widgetmap)) {
+				if (wm_widgetmap_is_3d(wmap)) {
 					/* similar interface to operators */
-					if ((ret = wm_widget_find_active_3D (handler->widgetmap, C, event)) != -1)
+					if ((ret = wm_widget_find_active_3D (wmap, C, event)) != -1)
 					{
-						ListBase *widgets = wm_widgetmap_widget_list(handler->widgetmap);
-						wmWidget *widget = BLI_findlink(widgets, ret >> 8);
-						
+						ListBase *widgets = wm_widgetmap_widget_list(wmap);
+						widget = BLI_findlink(widgets, ret >> 8);
+												
 						if ((ret = widget->handler(C, event, widget, ret & 0xFF)) == OPERATOR_FINISHED) {
 							action |= WM_HANDLER_BREAK;
 						}
 					}
 				}
+
+				wm_widgetmap_set_active_widget(wmap, C, widget);
 			}
 			else {
 				/* modal, swallows all */
