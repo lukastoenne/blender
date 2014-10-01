@@ -4002,7 +4002,7 @@ static bool psys_hair_use_simulation(ParticleData *pa, float max_length)
 	 * The hair system should always make sure the hair segments have reasonable length ratios,
 	 * but this can happen in old files when e.g. cutting hair.
 	 */
-	const float min_length = 0.01f * max_length;
+	const float min_length = 0.1f * max_length;
 	
 	HairKey *key;
 	int k;
@@ -4048,6 +4048,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	float hairmat[4][4];
 	float (*deformedVerts)[3];
 	float max_length;
+	bool realloc_roots;
 
 	if (!psys->clmd) {
 		psys->clmd = (ClothModifierData*)modifier_new(eModifierType_Cloth);
@@ -4075,20 +4076,24 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	totedge = totpoint;
 	totpoint += psys->totpart;
 
+	realloc_roots = false; /* whether hair root info array has to be reallocated */
 	if (dm && (totpoint != dm->getNumVerts(dm) || totedge != dm->getNumEdges(dm))) {
 		dm->release(dm);
 		dm = psys->hair_in_dm = NULL;
 		
-		MEM_freeN(psys->clmd->roots);
-		psys->clmd->roots = NULL;
+		realloc_roots = true;
 	}
 
 	if (!dm) {
 		dm = psys->hair_in_dm = CDDM_new(totpoint, totedge, 0, 0, 0);
 		DM_add_vert_layer(dm, CD_MDEFORMVERT, CD_CALLOC, NULL);
+		
+		realloc_roots = true;
 	}
 	
-	if (!psys->clmd->roots) {
+	if (!psys->clmd->roots || realloc_roots) {
+		if (psys->clmd->roots)
+			MEM_freeN(psys->clmd->roots);
 		psys->clmd->roots = MEM_mallocN(sizeof(ClothHairRoot) * totpoint, "hair roots");
 	}
 
@@ -4109,6 +4114,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 
 		psys_mat_hair_to_object(sim->ob, sim->psmd->dm, psys->part->from, pa, hairmat);
 		mul_m4_m4m4(root_mat, sim->ob->obmat, hairmat);
+		normalize_m4(root_mat);
 
 		for (k=0, key=pa->hair; k<pa->totkey; k++,key++) {
 			ClothHairRoot *root;

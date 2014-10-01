@@ -412,7 +412,10 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 		
 		scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
-		cb = kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+		kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+		
+		scaling = parms->bending_damping;
+		cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 		
 		BPH_mass_spring_force_spring_bending(data, s->ij, s->kl, s->matrix_ij_kl, s->restlen, kb, cb, s->f, s->dfdx, s->dfdv);
 #endif
@@ -424,10 +427,29 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 		
 		scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
-		cb = kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+		kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+		
+		scaling = parms->bending_damping;
+		cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 		
 		/* XXX assuming same restlen for ij and jk segments here, this can be done correctly for hair later */
-		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->matrix_ij_kl, s->matrix_kl_mn, s->matrix_ij_mn, s->restlen, s->restlen, kb, cb);
+		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->matrix_ij_kl, s->matrix_kl_mn, s->matrix_ij_mn, s->target, kb, cb);
+		
+		{
+			float x_kl[3], x_mn[3], v[3], d[3];
+			
+			BPH_mass_spring_get_motion_state(data, s->kl, x_kl, v);
+			BPH_mass_spring_get_motion_state(data, s->mn, x_mn, v);
+			
+			BKE_sim_debug_data_add_dot(clmd->debug_data, x_kl, 0.9, 0.9, 0.9, "target", hash_vertex(7980, s->kl));
+			BKE_sim_debug_data_add_line(clmd->debug_data, x_kl, x_mn, 0.8, 0.8, 0.8, "target", hash_vertex(7981, s->kl));
+			
+			copy_v3_v3(d, s->target);
+			BKE_sim_debug_data_add_vector(clmd->debug_data, x_kl, d, 0.8, 0.8, 0.2, "target", hash_vertex(7982, s->kl));
+			
+//			copy_v3_v3(d, s->target_ij);
+//			BKE_sim_debug_data_add_vector(clmd->debug_data, x, d, 1, 0.4, 0.4, "target", hash_vertex(7983, s->kl));
+		}
 #endif
 	}
 }
@@ -634,7 +656,7 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 	
 	if (clmd->debug_data) {
 		for (i = 0; i < numverts; i++) {
-			BKE_sim_debug_data_add_dot(clmd->debug_data, verts[i].x, 1.0f, 0.1f, 1.0f, "points", hash_vertex(583, i));
+//			BKE_sim_debug_data_add_dot(clmd->debug_data, verts[i].x, 1.0f, 0.1f, 1.0f, "points", hash_vertex(583, i));
 		}
 	}
 	
