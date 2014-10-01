@@ -2764,7 +2764,7 @@ static void view3d_draw_objects(
 	}
 
 	if (!draw_offscreen) {
-		BIF_draw_manipulator(C);
+		WM_widgets_draw(C, ar);		
 	}
 
 	/* cleanup */

@@ -1970,6 +1970,26 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					}
 				}
 			}
+			else if (handler->widgetmap) {
+				int ret;
+				struct wmWidgetMap *wmap = handler->widgetmap;
+				wmWidget *widget = NULL;
+				
+				if (wm_widgetmap_is_3d(wmap)) {
+					/* similar interface to operators */
+					if ((ret = wm_widget_find_active_3D (wmap, C, event)) != -1)
+					{
+						ListBase *widgets = wm_widgetmap_widget_list(wmap);
+						widget = BLI_findlink(widgets, ret >> 8);
+												
+						if ((ret = widget->handler(C, event, widget, ret & 0xFF)) == OPERATOR_FINISHED) {
+							action |= WM_HANDLER_BREAK;
+						}
+					}
+				}
+
+				wm_widgetmap_set_active_widget(wmap, C, widget);
+			}
 			else {
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
@@ -3415,6 +3435,7 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	angle = WM_event_ndof_to_axis_angle(ndof, axis);
 	axis_angle_to_quat(q, axis, angle);
 }
+/** \} */
 
 /* if this is a tablet event, return tablet pressure and set *pen_flip
  * to 1 if the eraser tool is being used, 0 otherwise */
@@ -3449,6 +3470,3 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 {
 	return (event->tablet_data) ? true : false;
 }
-
-
-/** \} */

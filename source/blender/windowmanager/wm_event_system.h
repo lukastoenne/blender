@@ -39,6 +39,7 @@
 
 struct ScrArea;
 struct ARegion;
+struct wmWidgetMap;
 
 /* wmKeyMap is in DNA_windowmanager.h, it's savable */
 
@@ -70,6 +71,8 @@ typedef struct wmEventHandler {
 
 	/* drop box handler */
 	ListBase *dropboxes;
+	/* widget handler */
+	struct wmWidgetMap *widgetmap;
 
 } wmEventHandler;
 
@@ -104,6 +107,10 @@ void        wm_event_do_notifiers   (bContext *C);
 void        wm_dropbox_free(void);
 void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
+
+/* wm_widgets.c */
+int wm_widget_find_active_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event);
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

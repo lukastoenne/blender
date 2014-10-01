@@ -55,6 +55,8 @@ struct wmJob;
 struct wmNotifier;
 struct wmOperatorType;
 struct wmOperator;
+struct wmWidget;
+struct wmWidgetMap;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -457,6 +459,25 @@ void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4
 
 float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]);
 bool        WM_event_is_tablet(const struct wmEvent *event);
+
+
+/* widget API */
+struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWidget *),
+                               void (*draw)(const struct bContext *, struct wmWidget *),
+							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
+							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
+                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, int active),
+                               void *customdata, bool free_data);
+
+void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
+void WM_event_add_widget_handler(struct ARegion *ar);
+
+bool WM_widget_register(struct wmWidgetMap *wmap, struct wmWidget *widget);
+void WM_widget_unregister(struct wmWidgetMap *wmap, struct wmWidget *widget);
+
+struct wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d);
+void WM_widgetmaps_free(void);
+
 
 #ifdef __cplusplus
 }
