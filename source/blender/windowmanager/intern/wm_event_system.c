@@ -1971,18 +1971,17 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else if (handler->widgets) {
-				wmWidget *widget;
 				int ret;
 				
 				/* similar interface to operators */
-				for (widget = handler->widgets->first; widget; widget = widget->next) {
-					if (widget->handler && (!widget->poll || widget->poll(C, widget))) {
-						if ((ret = widget->handler(C, event, widget)) == OPERATOR_FINISHED) {
-							action |= WM_HANDLER_BREAK;
-							break;
-						}
+				if ((ret = WM_widget_find_active_3D (handler->widgets, C, event)) != -1)
+				{
+					wmWidget *widget = BLI_findlink(handler->widgets, ret >> 8);
+					
+					if ((ret = widget->handler(C, event, widget, ret & 0xFF)) == OPERATOR_FINISHED) {
+						action |= WM_HANDLER_BREAK;
 					}
-				}
+				}				
 			}
 			else {
 				/* modal, swallows all */

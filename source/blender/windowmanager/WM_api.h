@@ -463,9 +463,9 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 /* widget API */
 struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWidget *),
                                void (*draw)(const struct bContext *, struct wmWidget *),
-							   void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
+							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
 							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
-                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *),
+                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, int active),
                                void *customdata, bool free_data, bool requires_ogl);
 
 void WM_widgets_delete(ListBase *widgetlist, struct wmWidget *widget);
@@ -475,6 +475,7 @@ void WM_event_add_widget_handler(struct ARegion *ar);
 bool WM_widget_register(ListBase *widgetlist, struct wmWidget *widget);
 void WM_widget_unregister(ListBase *widgetlist, struct wmWidget *widget);
 struct ListBase *WM_widgetmap_find(const char *idname, int spaceid, int regionid);
+int WM_widget_find_active_3D (ListBase *widgetlist, struct bContext *C, const struct wmEvent *event);
 void WM_widgetmaps_free(void);
 
 

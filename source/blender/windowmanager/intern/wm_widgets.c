@@ -37,6 +37,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -52,6 +53,7 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
+#include "ED_view3d.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -86,10 +88,12 @@ wmWidget *WM_widget_new(bool (*poll)(const struct bContext *C, struct wmWidget *
                         void (*draw)(const struct bContext *C, struct wmWidget *customdata),
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
-                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
+                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata, int active),
                         void *customdata, bool free_data, bool requires_ogl)
 {
-	wmWidget *widget = MEM_callocN(sizeof(wmWidget), "widget");
+	wmWidget *widget;
+	
+	widget = MEM_callocN(sizeof(wmWidget), "widget");
 	
 	widget->poll = poll;
 	widget->draw = draw;
@@ -202,23 +206,32 @@ void WM_widgetmaps_free(void)
 	BLI_freelistN(&widgetmaps);
 }
 
-wmWidget *WM_widget_find_active_3D (bContext *C, const struct wmEvent *event, float hotspot)
+static void widget_find_active_3D_loop(bContext *C, ListBase *widgetlist)
+{
+	int selectionbase = 0;
+	wmWidget *widget;
+	
+	for (widget = widgetlist->first; widget; widget = widget->next) {
+		if (widget->render_3d_intersection && (!widget->poll || widget->poll(C, widget))) {
+			/* we use only 8 bits as free ids for per widget handles */
+			widget->render_3d_intersection(C, widget, selectionbase << 8);
+		}
+		selectionbase++;		
+	}
+}
+
+static int WM_widget_find_active_3D_intern (ListBase *widgetlist, bContext *C, const struct wmEvent *event, float hotspot)
 {
 	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = sa->spacedata.first;
 	ARegion *ar = CTX_wm_region(C);
+	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 	rctf rect, selrect;
 	GLuint buffer[64];      // max 4 items per select, so large enuf
 	short hits;
 	const bool do_passes = GPU_select_query_check_active();
-	
-	/* XXX check a bit later on this... (ton) */
-	extern void view3d_winmatrix_set(ARegion *ar, View3D *v3d, rctf *rect);
-	extern void view3d_operator_needs_opengl(bContext *C);
 
-	/* set up view matrices */	
-	view3d_operator_needs_opengl(C);
+	extern void view3d_winmatrix_set(ARegion *ar, View3D *v3d, rctf *rect);
 	
 	rect.xmin = event->mval[0] - hotspot;
 	rect.xmax = event->mval[0] + hotspot;
@@ -234,20 +247,64 @@ wmWidget *WM_widget_find_active_3D (bContext *C, const struct wmEvent *event, fl
 		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_FIRST_PASS, 0);
 	else
 		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_ALL, 0);
-	
 	/* do the drawing */
+	widget_find_active_3D_loop(C, widgetlist);
 	
 	hits = GPU_select_end();
 	
 	if (do_passes) {
 		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_SECOND_PASS, hits);
-		
-		
+		widget_find_active_3D_loop(C, widgetlist);		
 		GPU_select_end();
 	}
 	
 	view3d_winmatrix_set(ar, v3d, NULL);
 	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
+
+	if (hits == 1) {
+		return buffer[3];
+
+		/* find the widget the value belongs to */		
+	}
+	else if (hits > 1) {
+		GLuint val, dep, mindep = 0, minval = -1;
+		int a;
+
+		/* we compare the hits in buffer, but value centers highest */
+		/* we also store the rotation hits separate (because of arcs) and return hits on other widgets if there are */
+
+		for (a = 0; a < hits; a++) {
+			dep = buffer[4 * a + 1];
+			val = buffer[4 * a + 3];
+
+			if (minval == -1 || dep < mindep) {
+				mindep = dep;
+				minval = val;
+			}
+		}
+
+		return minval;
+	}
+	return -1;
+}
+
+
+int WM_widget_find_active_3D (ListBase *widgetlist, bContext *C, const struct wmEvent *event)
+{
+	int ret, retsec;
+	/* set up view matrices */	
+	view3d_operator_needs_opengl(C);
 	
-	return 0;
+	ret = WM_widget_find_active_3D_intern(widgetlist, C, event, 0.5f * (float)U.tw_hotspot);
+	
+	if (ret != -1) {
+		retsec = WM_widget_find_active_3D_intern(widgetlist, C, event, 0.2f * (float)U.tw_hotspot);
+		
+		if (retsec == -1)
+			return ret;
+		else
+			return retsec;
+	}
+	
+	return -1;
 }

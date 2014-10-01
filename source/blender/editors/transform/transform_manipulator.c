@@ -114,6 +114,8 @@ enum {
 	/* those two stay at the end so the rest can be inferred with bitshifting */
 	MAN_SEL_SCALE_C,
 	MAN_SEL_TRANS_C,
+	
+	MAN_SEL_MAX
 };
 
 /* color codes */
@@ -1710,119 +1712,6 @@ bool BIF_manipulator_poll(const struct bContext *C, wmWidget *UNUSED(customdata)
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
 
-static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], float hotspot)
-{
-	View3D *v3d = sa->spacedata.first;
-	RegionView3D *rv3d = ar->regiondata;
-	rctf rect, selrect;
-	GLuint buffer[64];      // max 4 items per select, so large enuf
-	short hits;
-	const bool selectionbase = 0;
-	const bool do_passes = GPU_select_query_check_active();
-
-	/* XXX check a bit later on this... (ton) */
-	extern void view3d_winmatrix_set(ARegion *ar, View3D *v3d, rctf *rect);
-
-	/* when looking through a selected camera, the manipulator can be at the
-	 * exact same position as the view, skip so we don't break selection */
-	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f)
-		return 0;
-
-	rect.xmin = mval[0] - hotspot;
-	rect.xmax = mval[0] + hotspot;
-	rect.ymin = mval[1] - hotspot;
-	rect.ymax = mval[1] + hotspot;
-
-	selrect = rect;
-
-	view3d_winmatrix_set(ar, v3d, &rect);
-	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
-
-	if (do_passes)
-		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_FIRST_PASS, 0);
-	else
-		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_ALL, 0);
-
-	/* do the drawing */
-	if (v3d->twtype & V3D_MANIP_ROTATE) {
-		if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
-		else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, selectionbase);
-	}
-	if (v3d->twtype & V3D_MANIP_SCALE)
-		draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
-	if (v3d->twtype & V3D_MANIP_TRANSLATE)
-		draw_manipulator_translate(v3d, rv3d, MAN_TRANS_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
-
-	hits = GPU_select_end();
-
-	if (do_passes) {
-		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_SECOND_PASS, hits);
-
-		/* do the drawing */
-		if (v3d->twtype & V3D_MANIP_ROTATE) {
-			if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
-			else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, selectionbase);
-		}
-		if (v3d->twtype & V3D_MANIP_SCALE)
-			draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
-		if (v3d->twtype & V3D_MANIP_TRANSLATE)
-			draw_manipulator_translate(v3d, rv3d, MAN_TRANS_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
-
-		GPU_select_end();
-	}
-
-	view3d_winmatrix_set(ar, v3d, NULL);
-	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
-
-	if (hits == 1) {
-		int val = buffer[3] - selectionbase;
-		
-		if (val == MAN_SEL_TRANS_C) return MAN_TRANS_C;
-		else if (val == MAN_SEL_SCALE_C) return MAN_SCALE_C;
-		else return 1 << val;
-	}
-	else if (hits > 1) {
-		GLuint val, dep, mindep = 0, mindeprot = 0, minval = 0, minvalrot = 0;
-		int a;
-
-		/* we compare the hits in buffer, but value centers highest */
-		/* we also store the rotation hits separate (because of arcs) and return hits on other widgets if there are */
-
-		for (a = 0; a < hits; a++) {
-			dep = buffer[4 * a + 1];
-			val = buffer[4 * a + 3] - selectionbase;
-
-			if (val == MAN_SEL_TRANS_C) {
-				return MAN_TRANS_C;
-			}
-			else if (val == MAN_SEL_SCALE_C) {
-				return MAN_SCALE_C;
-			}
-			else {
-				if (val >= MAN_SEL_ROT_X && val <= MAN_SEL_ROT_T) {
-					if (minvalrot == 0 || dep < mindeprot) {
-						mindeprot = dep;
-						minvalrot = 1 << val;
-					}
-				}
-				else {
-					if (minval == 0 || dep < mindep) {
-						mindep = dep;
-						minval = 1 << val;
-					}
-				}
-			}
-		}
-
-		if (minval)
-			return minval;
-		else
-			return minvalrot;
-	}
-	return 0;
-}
-
-
 void BIF_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget), int selectionbase)
 {
 	ScrArea *sa = CTX_wm_area(C);
@@ -1837,21 +1726,20 @@ void BIF_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(wid
 	
 	/* do the drawing */
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
-		if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, true);
-		else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, true);
+		if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
+		else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, selectionbase);
 	}
 	if (v3d->twtype & V3D_MANIP_SCALE)
-		draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, true);
+		draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
 	if (v3d->twtype & V3D_MANIP_TRANSLATE)
 		draw_manipulator_translate(v3d, rv3d, MAN_TRANS_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, selectionbase);
 }
 
 /* return 0; nothing happened */
-int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
+int BIF_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget), int active)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
-	ARegion *ar = CTX_wm_region(C);
 	int constraint_axis[3] = {0, 0, 0};
 	int val;
 	int shift = event->shift;
@@ -1866,14 +1754,23 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmWidget *UNUSE
 		return OPERATOR_PASS_THROUGH;
 	}
 	
-	view3d_operator_needs_opengl(C);
+	if (active != -1) {
+		if (active == MAN_SEL_TRANS_C) {
+			val = MAN_TRANS_C;
+		}
+		else if (active == MAN_SEL_SCALE_C) {
+			val = MAN_SCALE_C;
+		}
+		else {
+			val = 1 << active;
+		}
+	}
+	else 
+		val = 0;
 	
-	// find the hotspots first test narrow hotspot
-	val = manipulator_selectbuf(sa, ar, event->mval, 0.5f * (float)U.tw_hotspot);
 	if (val) {
 		// drawflags still global, for drawing call above
-		drawflags = manipulator_selectbuf(sa, ar, event->mval, 0.2f * (float)U.tw_hotspot);
-		if (drawflags == 0) drawflags = val;
+		drawflags = val;//manipulator_selectbuf(sa, ar, event->mval, 0.2f * (float)U.tw_hotspot);
 
 		if (drawflags & MAN_TRANS_C) {
 			switch (drawflags) {
