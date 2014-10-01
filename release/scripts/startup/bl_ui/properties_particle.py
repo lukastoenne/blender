@@ -278,7 +278,9 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
         if not psys.cloth:
             return
 
-        cloth = psys.cloth.settings
+        cloth_md = psys.cloth
+        cloth = cloth_md.settings
+        result = cloth_md.solver_result
 
         layout.enabled = psys.use_hair_dynamics and psys.point_cache.is_baked is False
 
@@ -292,15 +294,43 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
         sub.prop(cloth, "bending_stiffness", text="Bending")
         sub.prop(cloth, "internal_friction", slider=True)
         sub.prop(cloth, "collider_friction", slider=True)
+        sub.prop(cloth, "pressure", slider=True)
+        sub.prop(cloth, "pressure_threshold", slider=True)
+
+        sub.separator()
+        
+        sub.prop(cloth, "voxel_resolution")
 
         col = split.column()
         col.label(text="Damping:")
         sub = col.column(align=True)
         sub.prop(cloth, "spring_damping", text="Spring")
         sub.prop(cloth, "air_damping", text="Air")
+        sub.prop(cloth, "bending_damping", text="Bending")
 
         col.label(text="Quality:")
         col.prop(cloth, "quality", text="Steps", slider=True)
+
+        col.prop(cloth_md, "show_debug_data", text="Debug")
+
+        if result:
+            box = layout.box()
+
+            if not result.status:
+                label = " "
+                icon = 'NONE'
+            elif result.status == {'SUCCESS'}:
+                label = "Success"
+                icon = 'NONE'
+            elif result.status - {'SUCCESS'} == {'NO_CONVERGENCE'}:
+                label = "No Convergence"
+                icon = 'ERROR'
+            else:
+                label = "ERROR"
+                icon = 'ERROR'
+            box.label(label, icon=icon)
+            box.label("Iterations: %d .. %d (avg. %d)" % (result.min_iterations, result.max_iterations, result.avg_iterations))
+            box.label("Error: %.5f .. %.5f (avg. %.5f)" % (result.min_error, result.max_error, result.avg_error))
 
 
 class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):
