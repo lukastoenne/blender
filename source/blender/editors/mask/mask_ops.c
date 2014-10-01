@@ -2294,6 +2294,10 @@ static int copy_splines_exec(bContext *C, wmOperator *UNUSED(op))
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *mask_layer = BKE_mask_layer_active(mask);
 
+	if (mask_layer == NULL) {
+		return OPERATOR_CANCELLED;
+	}
+
 	BKE_mask_clipboard_copy_from_layer(mask_layer);
 
 	return OPERATOR_FINISHED;
@@ -2330,6 +2334,10 @@ static int paste_splines_exec(bContext *C, wmOperator *UNUSED(op))
 	Scene *scene = CTX_data_scene(C);
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *mask_layer = BKE_mask_layer_active(mask);
+
+	if (mask_layer == NULL) {
+		mask_layer = BKE_mask_layer_new(mask, "");
+	}
 
 	BKE_mask_clipboard_paste_to_layer(CTX_data_main(C), mask_layer);
 
