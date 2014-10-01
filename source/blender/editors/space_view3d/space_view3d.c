@@ -428,15 +428,15 @@ static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 	static wmWidget *manipulator_widget = NULL;
 	
 	if (!manipulator_widget) {
-		ListBase *widgets = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+		struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 		
 		manipulator_widget = WM_widget_new(BIF_manipulator_poll, 
 										   BIF_draw_manipulator, 
 										   BIF_manipulator_render_3d_intersect, 
 										   NULL, 
-										   BIF_manipulator_handler, NULL, 0, 0);
+										   BIF_manipulator_handler, NULL, true, true);
 		
-		WM_widget_register(widgets, manipulator_widget);
+		WM_widget_register(wmap, manipulator_widget);
 	}
 }
 
@@ -562,7 +562,7 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
-	ar->widgets = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+	ar->widgetmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	
 	WM_event_add_widget_handler(ar);
 }

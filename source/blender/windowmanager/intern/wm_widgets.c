@@ -76,7 +76,8 @@ typedef struct wmWidgetMap {
 	ListBase widgets;
 	short spaceid, regionid;
 	char idname[KMAP_MAX_NAME];
-	
+	/* check if widgetmap does 3D drawing */
+	bool is_3d;
 } wmWidgetMap;
 
 /* store all widgetboxmaps here. Anyone who wants to register a widget for a certain 
@@ -113,7 +114,7 @@ wmWidget *WM_widget_new(bool (*poll)(const struct bContext *C, struct wmWidget *
 	return NULL;
 }
 
-void WM_widgets_delete(ListBase *widgetlist, wmWidget *widget)
+static void WM_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 {
 	if (widget->flag & WM_WIDGET_FREE_DATA)
 		MEM_freeN(widget->customdata);
@@ -124,10 +125,11 @@ void WM_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 {
-	if (ar->widgets->first) {
+	wmWidgetMap *wmap = ar->widgetmap;
+	if (wmap->widgets.first) {
 		wmWidget *widget;
 		
-		for (widget = ar->widgets->first; widget; widget = widget->next) {
+		for (widget = wmap->widgets.first; widget; widget = widget->next) {
 			if ((widget->draw) &&
 				(widget->poll == NULL || widget->poll(C, widget->customdata))) 
 			{
@@ -142,50 +144,51 @@ void WM_event_add_widget_handler(ARegion *ar)
 	wmEventHandler *handler;
 	
 	for (handler = ar->handlers.first; handler; handler = handler->next)
-		if (handler->widgets == ar->widgets)
+		if (handler->widgetmap == ar->widgetmap)
 			return;
 	
 	handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
 	
-	handler->widgets = ar->widgets;
+	handler->widgetmap = ar->widgetmap;
 	BLI_addhead(&ar->handlers, handler);
 }
 
 
-bool WM_widget_register(ListBase *widgetlist, wmWidget *widget)
+bool WM_widget_register(struct wmWidgetMap *wmap, wmWidget *widget)
 {
 	wmWidget *widget_iter;
 	/* search list, might already be registered */	
-	for (widget_iter = widgetlist->first; widget_iter; widget_iter = widget_iter->next) {
+	for (widget_iter = wmap->widgets.first; widget_iter; widget_iter = widget_iter->next) {
 		if (widget_iter == widget)
 			return false;
 	}
 	
-	BLI_addtail(widgetlist, widget);
+	BLI_addtail(&wmap->widgets, widget);
 	return true;
 }
 
-void WM_widget_unregister(ListBase *widgetlist, wmWidget *widget)
+void WM_widget_unregister(struct wmWidgetMap *wmap, wmWidget *widget)
 {
-	BLI_remlink(widgetlist, widget);
+	BLI_remlink(&wmap->widgets, widget);
 }
 
-ListBase *WM_widgetmap_find(const char *idname, int spaceid, int regionid)
+wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d)
 {
 	wmWidgetMap *wmap;
 	
 	for (wmap = widgetmaps.first; wmap; wmap = wmap->next)
-		if (wmap->spaceid == spaceid && wmap->regionid == regionid)
+		if (wmap->spaceid == spaceid && wmap->regionid == regionid && wmap->is_3d == is_3d)
 			if (0 == strncmp(idname, wmap->idname, KMAP_MAX_NAME))
-				return &wmap->widgets;
+				return wmap;
 	
 	wmap = MEM_callocN(sizeof(struct wmWidgetMap), "widget list");
 	BLI_strncpy(wmap->idname, idname, KMAP_MAX_NAME);
 	wmap->spaceid = spaceid;
 	wmap->regionid = regionid;
+	wmap->is_3d = is_3d;
 	BLI_addhead(&widgetmaps, wmap);
 	
-	return &wmap->widgets;
+	return wmap;
 }
 
 void WM_widgetmaps_free(void)
@@ -204,6 +207,16 @@ void WM_widgetmaps_free(void)
 	}
 	
 	BLI_freelistN(&widgetmaps);
+}
+
+ListBase *wm_widgetmap_widget_list(struct wmWidgetMap *wmap)
+{
+	return &wmap->widgets;
+}
+
+bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap)
+{
+	return wmap->is_3d;
 }
 
 static void widget_find_active_3D_loop(bContext *C, ListBase *widgetlist)
@@ -289,16 +302,16 @@ static int WM_widget_find_active_3D_intern (ListBase *widgetlist, bContext *C, c
 }
 
 
-int WM_widget_find_active_3D (ListBase *widgetlist, bContext *C, const struct wmEvent *event)
+int wm_widget_find_active_3D (struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event)
 {
 	int ret, retsec;
 	/* set up view matrices */	
 	view3d_operator_needs_opengl(C);
 	
-	ret = WM_widget_find_active_3D_intern(widgetlist, C, event, 0.5f * (float)U.tw_hotspot);
+	ret = WM_widget_find_active_3D_intern(&wmap->widgets, C, event, 0.5f * (float)U.tw_hotspot);
 	
 	if (ret != -1) {
-		retsec = WM_widget_find_active_3D_intern(widgetlist, C, event, 0.2f * (float)U.tw_hotspot);
+		retsec = WM_widget_find_active_3D_intern(&wmap->widgets, C, event, 0.2f * (float)U.tw_hotspot);
 		
 		if (retsec == -1)
 			return ret;

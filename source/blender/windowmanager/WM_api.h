@@ -56,6 +56,7 @@ struct wmNotifier;
 struct wmOperatorType;
 struct wmOperator;
 struct wmWidget;
+struct wmWidgetMap;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -468,14 +469,13 @@ struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWi
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, int active),
                                void *customdata, bool free_data, bool requires_ogl);
 
-void WM_widgets_delete(ListBase *widgetlist, struct wmWidget *widget);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_event_add_widget_handler(struct ARegion *ar);
 
-bool WM_widget_register(ListBase *widgetlist, struct wmWidget *widget);
-void WM_widget_unregister(ListBase *widgetlist, struct wmWidget *widget);
-struct ListBase *WM_widgetmap_find(const char *idname, int spaceid, int regionid);
-int WM_widget_find_active_3D (ListBase *widgetlist, struct bContext *C, const struct wmEvent *event);
+bool WM_widget_register(struct wmWidgetMap *wmap, struct wmWidget *widget);
+void WM_widget_unregister(struct wmWidgetMap *wmap, struct wmWidget *widget);
+
+struct wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d);
 void WM_widgetmaps_free(void);
 
 
