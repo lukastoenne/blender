@@ -1865,6 +1865,7 @@ int BIF_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *
 			PointerRNA props_ptr;
 			wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_trackball", true);
 			WM_operator_properties_create_ptr(&props_ptr, ot);
+			RNA_boolean_set(&props_ptr, "release_confirm", true);
 			WM_operator_name_call(C, ot->idname, WM_OP_INVOKE_DEFAULT, &props_ptr);
 			//wm_operator_invoke(C, WM_operatortype_find(ot->idname, 0), event, NULL, NULL, false);
 			WM_operator_properties_free(&props_ptr);
