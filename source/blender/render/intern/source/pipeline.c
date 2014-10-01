@@ -699,25 +699,27 @@ static void render_result_rescale(Render *re)
 		                               RR_USE_MEM,
 		                               RR_ALL_LAYERS);
 
-		dst_rectf = re->result->rectf;
-		if (dst_rectf == NULL) {
-			RenderLayer *rl;
-			rl = render_get_active_layer(re, re->result);
-			if (rl != NULL) {
-				dst_rectf = rl->rectf;
+		if (re->result != NULL) {
+			dst_rectf = re->result->rectf;
+			if (dst_rectf == NULL) {
+				RenderLayer *rl;
+				rl = render_get_active_layer(re, re->result);
+				if (rl != NULL) {
+					dst_rectf = rl->rectf;
+				}
 			}
-		}
 
-		scale_x = (float) result->rectx / re->result->rectx;
-		scale_y = (float) result->recty / re->result->recty;
-		for (x = 0; x < re->result->rectx; ++x) {
-			for (y = 0; y < re->result->recty; ++y) {
-				int src_x = x * scale_x,
-				    src_y = y * scale_y;
-				int dst_index = y * re->result->rectx + x,
-				    src_index = src_y * result->rectx + src_x;
-				copy_v4_v4(dst_rectf + dst_index * 4,
-				           src_rectf + src_index * 4);
+			scale_x = (float) result->rectx / re->result->rectx;
+			scale_y = (float) result->recty / re->result->recty;
+			for (x = 0; x < re->result->rectx; ++x) {
+				for (y = 0; y < re->result->recty; ++y) {
+					int src_x = x * scale_x,
+					    src_y = y * scale_y;
+					int dst_index = y * re->result->rectx + x,
+					    src_index = src_y * result->rectx + src_x;
+					copy_v4_v4(dst_rectf + dst_index * 4,
+					           src_rectf + src_index * 4);
+				}
 			}
 		}
 	}
@@ -1013,8 +1015,8 @@ static bool find_next_pano_slice(Render *re, int *slice, int *minx, rctf *viewpl
 		
 		/* rotate database according to part coordinates */
 		project_renderdata(re, projectverto, 1, -R.panodxp * phi, 1);
-		R.panosi = sin(R.panodxp * phi);
-		R.panoco = cos(R.panodxp * phi);
+		R.panosi = sinf(R.panodxp * phi);
+		R.panoco = cosf(R.panodxp * phi);
 	}
 	
 	(*slice)++;
