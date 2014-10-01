@@ -463,7 +463,7 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 /* widget API */
 struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWidget *),
                                void (*draw)(const struct bContext *, struct wmWidget *),
-							   void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata),
+							   void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
 							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *),
                                void *customdata, bool free_data, bool requires_ogl);

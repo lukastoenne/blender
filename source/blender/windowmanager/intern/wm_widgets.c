@@ -84,7 +84,7 @@ static ListBase widgetmaps = {NULL, NULL};
 
 wmWidget *WM_widget_new(bool (*poll)(const struct bContext *C, struct wmWidget *customdata),
                         void (*draw)(const struct bContext *C, struct wmWidget *customdata),
-                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata),
+                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                         void *customdata, bool free_data, bool requires_ogl)
@@ -215,7 +215,11 @@ wmWidget *WM_widget_find_active_3D (bContext *C, const struct wmEvent *event, fl
 	
 	/* XXX check a bit later on this... (ton) */
 	extern void view3d_winmatrix_set(ARegion *ar, View3D *v3d, rctf *rect);
-		
+	extern void view3d_operator_needs_opengl(bContext *C);
+
+	/* set up view matrices */	
+	view3d_operator_needs_opengl(C);
+	
 	rect.xmin = event->mval[0] - hotspot;
 	rect.xmax = event->mval[0] + hotspot;
 	rect.ymin = event->mval[1] - hotspot;
