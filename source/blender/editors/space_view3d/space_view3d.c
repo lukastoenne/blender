@@ -429,12 +429,14 @@ static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 	
 	if (!manipulator_widget) {
 		struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+		int *realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
+		*realtimeflags = 0;
 		
 		manipulator_widget = WM_widget_new(BIF_manipulator_poll, 
 										   BIF_draw_manipulator, 
 										   BIF_manipulator_render_3d_intersect, 
 										   NULL, 
-										   BIF_manipulator_handler, NULL, true, true);
+										   BIF_manipulator_handler, realtimeflags, true);
 		
 		WM_widget_register(wmap, manipulator_widget);
 	}

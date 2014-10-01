@@ -90,7 +90,7 @@ wmWidget *WM_widget_new(bool (*poll)(const struct bContext *C, struct wmWidget *
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata, int active),
-                        void *customdata, bool free_data, bool requires_ogl)
+                        void *customdata, bool free_data)
 {
 	wmWidget *widget;
 	
@@ -106,12 +106,7 @@ wmWidget *WM_widget_new(bool (*poll)(const struct bContext *C, struct wmWidget *
 	if (free_data)
 		widget->flag |= WM_WIDGET_FREE_DATA;
 
-	if (requires_ogl)
-		widget->flag |= WM_WIDGET_REQUIRES_OGL;
-	
 	return widget;
-	
-	return NULL;
 }
 
 static void WM_widgets_delete(ListBase *widgetlist, wmWidget *widget)
@@ -131,9 +126,9 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 		
 		for (widget = wmap->widgets.first; widget; widget = widget->next) {
 			if ((widget->draw) &&
-				(widget->poll == NULL || widget->poll(C, widget->customdata))) 
+				(widget->poll == NULL || widget->poll(C, widget))) 
 			{
-				widget->draw(C, widget->customdata);			
+				widget->draw(C, widget);			
 			}
 		}
 	}

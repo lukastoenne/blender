@@ -507,7 +507,6 @@ typedef struct wmTimer {
 
 #define WM_WIDGET_HIGHLIGHT    (1 << 0)
 #define WM_WIDGET_FREE_DATA    (1 << 1)
-#define WM_WIDGET_REQUIRES_OGL (1 << 2)
 
 typedef struct wmWidget wmWidget;
 

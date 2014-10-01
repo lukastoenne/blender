@@ -467,7 +467,7 @@ struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWi
 							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
 							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, int active),
-                               void *customdata, bool free_data, bool requires_ogl);
+                               void *customdata, bool free_data);
 
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_event_add_widget_handler(struct ARegion *ar);
