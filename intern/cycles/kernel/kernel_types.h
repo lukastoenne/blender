@@ -616,7 +616,7 @@ enum ShaderDataFlag {
 	SD_TRANSFORM_APPLIED = 2097152,		/* vertices have transform applied */
 	SD_NEGATIVE_SCALE_APPLIED = 4194304,	/* vertices have negative scale applied */
 
-	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED)
+	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED|SD_NEGATIVE_SCALE_APPLIED)
 };
 
 struct KernelGlobals;
@@ -784,7 +784,7 @@ typedef struct KernelCamera {
 	/* anamorphic lens bokeh */
 	float inv_aperture_ratio;
 
-	int pad1;
+	int is_inside_volume;
 	int pad2;
 
 	/* more matrices */

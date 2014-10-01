@@ -2717,7 +2717,7 @@ static unsigned int poly_gset_hash_fn(const void *key)
 	return pk->hash_sum;
 }
 
-static int poly_gset_compare_fn(const void *k1, const void *k2)
+static bool poly_gset_compare_fn(const void *k1, const void *k2)
 {
 	const PolyKey *pk1 = k1;
 	const PolyKey *pk2 = k2;
@@ -3088,7 +3088,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	MEM_freeN(oldv);
 	MEM_freeN(olde);
 	MEM_freeN(oldl);
-	MEM_freeN(oldp);;
+	MEM_freeN(oldp);
 
 	BLI_edgehash_free(ehash, NULL);
 
