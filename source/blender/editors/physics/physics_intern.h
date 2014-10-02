@@ -75,6 +75,13 @@ void PARTICLE_OT_dupliob_remove(struct wmOperatorType *ot);
 void PARTICLE_OT_dupliob_move_up(struct wmOperatorType *ot);
 void PARTICLE_OT_dupliob_move_down(struct wmOperatorType *ot);
 
+/* particle_key.c */
+void PARTICLE_OT_shape_key_add(struct wmOperatorType *ot);
+void PARTICLE_OT_shape_key_remove(struct wmOperatorType *ot);
+void PARTICLE_OT_shape_key_clear(struct wmOperatorType *ot);
+void PARTICLE_OT_shape_key_retime(struct wmOperatorType *ot);
+void PARTICLE_OT_shape_key_move(struct wmOperatorType *ot);
+
 /* particle_boids.c */
 void BOID_OT_rule_add(struct wmOperatorType *ot);
 void BOID_OT_rule_del(struct wmOperatorType *ot);

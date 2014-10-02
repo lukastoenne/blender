@@ -257,6 +257,9 @@ typedef struct ParticleSystem {
 	struct ParticleSystem *next, *prev;
 
 	ParticleSettings *part;					/* particle settings */
+	struct Key *key;						/* hair goal shape keys */
+	short shapenr;							/* current shape key for menu or pinned */
+	short pad[3];
 
 	ParticleData *particles;				/* (parent) particles */
 	ChildParticle *child;					/* child particles */
@@ -310,7 +313,7 @@ typedef struct ParticleSystem {
 	struct ParticleDrawData *pdd;
 
 	float dt_frac;							/* current time step, as a fraction of a frame */
-	float _pad;								/* spare capacity */
+	float pad2;
 } ParticleSystem;
 
 /* part->type */

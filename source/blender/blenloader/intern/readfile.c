@@ -3832,6 +3832,8 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			BLI_remlink(particles, psys);
 			MEM_freeN(psys);
 		}
+		
+		psys->key = newlibadr_us(fd, id->lib, psys->key);
 	}
 }
 static void direct_link_particlesystems(FileData *fd, ListBase *particles)

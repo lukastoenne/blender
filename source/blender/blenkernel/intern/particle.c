@@ -358,6 +358,34 @@ int psys_uses_gravity(ParticleSimulationData *sim)
 {
 	return sim->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY && sim->psys->part && sim->psys->part->effector_weights->global_gravity != 0.0f;
 }
+
+KeyBlock *BKE_psys_insert_shape_key(Scene *scene, Object *ob, ParticleSystem *psys, const char *name, const bool from_mix)
+{
+	Key *key = psys->key;
+	KeyBlock *kb;
+	int newkey = 0;
+
+	if (key == NULL) {
+		key = psys->key = BKE_key_add_particles((ID *)ob);
+		key->type = KEY_RELATIVE;
+		newkey = 1;
+	}
+
+	if (newkey || !from_mix) {
+		/* create from mesh */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		BKE_key_convert_from_hair_keys(ob, psys, kb);
+	}
+	else {
+		/* create new block with prepared data */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		kb->data = NULL;
+		kb->totelem = 0;
+	}
+
+	return kb;
+}
+
 /************************************************/
 /*			Freeing stuff						*/
 /************************************************/
@@ -560,6 +588,10 @@ void psys_free(Object *ob, ParticleSystem *psys)
 		if (psys->part) {
 			psys->part->id.us--;
 			psys->part = NULL;
+		}
+		if (psys->key) {
+			id_us_min(&psys->key->id);
+			psys->key = NULL;
 		}
 
 		BKE_ptcache_free_list(&psys->ptcaches);
@@ -3498,6 +3530,8 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	BLI_addtail(&ob->particlesystem, psys);
 
 	psys->part = psys_new_settings(DATA_("ParticleSettings"), NULL);
+	psys->key = BKE_key_add_particles((ID *)ob);
+	psys->key->type = KEY_RELATIVE;
 
 	if (BLI_countlist(&ob->particlesystem) > 1)
 		BLI_snprintf(psys->name, sizeof(psys->name), DATA_("ParticleSystem %i"), BLI_countlist(&ob->particlesystem));

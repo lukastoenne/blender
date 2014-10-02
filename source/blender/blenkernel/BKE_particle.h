@@ -295,6 +295,8 @@ int psys_check_edited(struct ParticleSystem *psys);
 void psys_check_group_weights(struct ParticleSettings *part);
 int psys_uses_gravity(struct ParticleSimulationData *sim);
 
+struct KeyBlock *BKE_psys_insert_shape_key(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, const char *name, const bool from_mix);
+
 /* free */
 void BKE_particlesettings_free(struct ParticleSettings *part);
 void psys_free_path_cache(struct ParticleSystem *psys, struct PTCacheEdit *edit);

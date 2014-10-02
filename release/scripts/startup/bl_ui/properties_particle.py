@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel
+from bpy.types import Panel, UIList
 from rna_prop_ui import PropertyPanel
 from bpy.app.translations import pgettext_iface as iface_
 
@@ -331,6 +331,118 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
             box.label(label, icon=icon)
             box.label("Iterations: %d .. %d (avg. %d)" % (result.min_iterations, result.max_iterations, result.avg_iterations))
             box.label("Error: %.5f .. %.5f (avg. %.5f)" % (result.min_error, result.max_error, result.avg_error))
+
+
+class PARTICLE_UL_shape_keys(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.ShapeKey))
+        obj = active_data
+        # key = data
+        key_block = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            split = layout.split(0.66, False)
+            split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
+            row = split.row(align=True)
+            if key_block.mute or (obj.mode == 'PARTICLE_EDIT' and not obj.use_shape_key_edit_mode):
+                row.active = False
+            if not item.id_data.use_relative:
+                row.prop(key_block, "frame", text="", emboss=False)
+            elif index > 0:
+                row.prop(key_block, "value", text="", emboss=False)
+            else:
+                row.label(text="")
+            row.prop(key_block, "mute", text="", emboss=False)
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
+class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
+    bl_label = "Shape Keys"
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        psys = context.particle_system
+        key = psys.shape_keys
+        kb = psys.active_shape_key
+
+        enable_edit = ob.mode != 'PARTICLE_EDIT'
+
+        if ob.show_only_shape_key is False:
+            if enable_edit or (ob.type == 'MESH' and ob.use_shape_key_edit_mode):
+                enable_edit_value = True
+
+        row = layout.row()
+
+        rows = 2
+        if kb:
+            rows = 4
+        row.template_list("PARTICLE_UL_shape_keys", "", key, "key_blocks", ob, "active_shape_key_index", rows=rows)
+
+        col = row.column()
+
+        sub = col.column(align=True)
+        sub.operator("particle.shape_key_add", icon='ZOOMIN', text="").from_mix = False
+        sub.operator("particle.shape_key_remove", icon='ZOOMOUT', text="").all = False
+        #sub.menu("MESH_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
+
+        if kb:
+            col.separator()
+
+            sub = col.column(align=True)
+            sub.operator("particle.shape_key_move", icon='TRIA_UP', text="").type = 'UP'
+            sub.operator("particle.shape_key_move", icon='TRIA_DOWN', text="").type = 'DOWN'
+
+            split = layout.split(percentage=0.4)
+            row = split.row()
+            row.enabled = enable_edit
+            row.prop(key, "use_relative")
+
+            row = split.row()
+            row.alignment = 'RIGHT'
+
+            sub = row.row(align=True)
+            sub.label()  # XXX, for alignment only
+            subsub = sub.row(align=True)
+            subsub.active = enable_edit_value
+            subsub.prop(ob, "show_only_shape_key", text="")
+            sub.prop(ob, "use_shape_key_edit_mode", text="")
+
+            sub = row.row()
+            if key.use_relative:
+                sub.operator("particle.shape_key_clear", icon='X', text="")
+            else:
+                sub.operator("particle.shape_key_retime", icon='RECOVER_LAST', text="")
+
+            if key.use_relative:
+                if ob.active_shape_key_index != 0:
+                    row = layout.row()
+                    row.active = enable_edit_value
+                    row.prop(kb, "value")
+
+                    split = layout.split()
+
+                    col = split.column(align=True)
+                    col.active = enable_edit_value
+                    col.label(text="Range:")
+                    col.prop(kb, "slider_min", text="Min")
+                    col.prop(kb, "slider_max", text="Max")
+
+                    col = split.column(align=True)
+                    col.active = enable_edit_value
+                    col.label(text="Blend:")
+                    col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="")
+                    col.prop_search(kb, "relative_key", key, "key_blocks", text="")
+
+            else:
+                layout.prop(kb, "interpolation")
+                row = layout.column()
+                row.active = enable_edit_value
+                row.prop(key, "eval_time")
+                row.prop(key, "slurph")
 
 
 class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):

@@ -48,6 +48,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_animsys.h"
@@ -146,6 +147,30 @@ Key *BKE_key_add(ID *id)    /* common function */
 
 			break;
 	}
+	
+	return key;
+}
+
+Key *BKE_key_add_particles(ID *id)    /* particles are "special" */
+{
+	Key *key;
+	char *el;
+	
+	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
+	
+	key->type = KEY_NORMAL;
+	key->from = id;
+	
+	key->uidgen = 1;
+	
+	BLI_assert(GS(id->name) == ID_OB);
+	el = key->elemstr;
+	
+	el[0] = 3;
+	el[1] = IPO_FLOAT;
+	el[2] = 0;
+	
+	key->elemsize = 12;
 	
 	return key;
 }
@@ -1604,6 +1629,29 @@ KeyBlock *BKE_keyblock_from_object_reference(Object *ob)
 	return NULL;
 }
 
+/* only the active keyblock */
+KeyBlock *BKE_keyblock_from_particles(ParticleSystem *psys) 
+{
+	Key *key = psys->key;
+	
+	if (key) {
+		KeyBlock *kb = BLI_findlink(&key->block, psys->shapenr - 1);
+		return kb;
+	}
+
+	return NULL;
+}
+
+KeyBlock *BKE_keyblock_from_particles_reference(ParticleSystem *psys)
+{
+	Key *key = psys->key;
+	
+	if (key)
+		return key->refkey;
+
+	return NULL;
+}
+
 /* get the appropriate KeyBlock given an index */
 KeyBlock *BKE_keyblock_from_key(Key *key, int index)
 {
@@ -2054,4 +2102,34 @@ void BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 			nu = nu->next;
 		}
 	}
+}
+
+/************************* Mesh ************************/
+
+void BKE_key_convert_to_hair_keys(struct KeyBlock *kb, struct Object *ob, struct ParticleSystem *psys)
+{
+}
+
+void BKE_key_convert_from_hair_keys(struct Object *ob, struct ParticleSystem *psys, struct KeyBlock *kb)
+{
+#if 0
+	ParticleData *pa;
+	MVert *mvert;
+	float *fp;
+	int a;
+
+	if (me->totvert == 0) return;
+
+	if (kb->data) MEM_freeN(kb->data);
+
+	kb->data = MEM_mallocN(me->key->elemsize * me->totvert, "kb->data");
+	kb->totelem = me->totvert;
+
+	mvert = me->mvert;
+	fp = kb->data;
+	for (a = 0; a < kb->totelem; a++, fp += 3, mvert++) {
+		copy_v3_v3(fp, mvert->co);
+
+	}
+#endif
 }

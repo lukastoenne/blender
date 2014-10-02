@@ -38,6 +38,7 @@ set(SRC
 	dynamicpaint_ops.c
 	particle_boids.c
 	particle_edit.c
+	particle_key.c
 	particle_object.c
 	physics_fluid.c
 	physics_ops.c
