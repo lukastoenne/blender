@@ -2106,30 +2106,42 @@ void BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 
 /************************* Mesh ************************/
 
-void BKE_key_convert_to_hair_keys(struct KeyBlock *kb, struct Object *ob, struct ParticleSystem *psys)
+void BKE_key_convert_to_hair_keys(struct KeyBlock *kb, struct Object *UNUSED(ob), struct ParticleSystem *psys)
 {
+	ParticleData *pa;
+	HairKey *hkey;
+	float *fp;
+	int i, k;
+	
+	fp = kb->data;
+	for (i = 0, pa = psys->particles; i < psys->totpart; ++i, ++pa) {
+		for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+			copy_v3_v3(hkey->co, fp);
+			fp += 3;
+		}
+	}
 }
 
-void BKE_key_convert_from_hair_keys(struct Object *ob, struct ParticleSystem *psys, struct KeyBlock *kb)
+void BKE_key_convert_from_hair_keys(struct Object *UNUSED(ob), struct ParticleSystem *psys, struct KeyBlock *kb)
 {
-#if 0
 	ParticleData *pa;
-	MVert *mvert;
+	HairKey *hkey;
 	float *fp;
-	int a;
-
-	if (me->totvert == 0) return;
+	int i, k;
 
 	if (kb->data) MEM_freeN(kb->data);
 
-	kb->data = MEM_mallocN(me->key->elemsize * me->totvert, "kb->data");
-	kb->totelem = me->totvert;
-
-	mvert = me->mvert;
-	fp = kb->data;
-	for (a = 0; a < kb->totelem; a++, fp += 3, mvert++) {
-		copy_v3_v3(fp, mvert->co);
-
+	kb->totelem = 0;
+	for (i = 0, pa = psys->particles; i < psys->totpart; ++i, ++pa) {
+		kb->totelem += pa->totkey;
 	}
-#endif
+	kb->data = MEM_mallocN(psys->key->elemsize * kb->totelem, "kb->data");
+
+	fp = kb->data;
+	for (i = 0, pa = psys->particles; i < psys->totpart; ++i, ++pa) {
+		for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+			copy_v3_v3(fp, hkey->co);
+			fp += 3;
+		}
+	}
 }
