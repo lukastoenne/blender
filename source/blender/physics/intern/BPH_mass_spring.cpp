@@ -33,6 +33,7 @@ extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "DNA_cloth_types.h"
+#include "DNA_hair_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
@@ -748,9 +749,33 @@ struct HairSolverData {
 	ListBase *effectors;
 };
 
-HairSolverData *BPH_hair_solver_create(void)
+static void hair_solver_count(HairSystem *hsys, int *totverts, int *totsprings)
+{
+	int i;
+	int totsprings = 0;
+	
+	for (i = 0; i < hsys->totcurves; ++i) {
+		HairCurve *curve = &hsys->curves[i];
+		if (curve->totpoints > 1) {
+			/* for each segment, add
+			 *   + 1 spring for stretch
+			 *   + 3 springs for bend
+			 *   + 1 spring for goals
+			 */
+			totsprings += (curve->totpoints-1) * (1 + 3 + 1);
+		}
+	}
+	
+	return totsprings;
+}
+
+HairSolverData *BPH_hair_solver_create(Object *UNUSED(ob), HairSystem *hsys)
 {
 	HairSolverData *data = (HairSolverData *)MEM_callocN(sizeof(HairSolverData), "hair solver data");
+	int totverts, totsprings;
+	
+	hair_solver_count(hsys, &totverts, &totsprings);
+	data->id = BPH_mass_spring_solver_create(totverts, totsprings);
 	
 	return data;
 }
@@ -758,6 +783,8 @@ HairSolverData *BPH_hair_solver_create(void)
 void BPH_hair_solver_free(HairSolverData *data)
 {
 	if (data) {
+		if (data->id)
+			BPH_mass_spring_solver_free(data->id);
 		MEM_freeN(data);
 	}
 }
