@@ -83,6 +83,7 @@
 #include "BKE_object.h"
 #include "BKE_material.h"
 #include "BKE_cloth.h"
+#include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_pointcache.h"
 #include "BKE_mesh.h"
@@ -4049,6 +4050,8 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	float (*deformedVerts)[3];
 	float max_length;
 	bool realloc_roots;
+	float *shapekey_data, *shapekey;
+	int totshapekey;
 
 	if (!psys->clmd) {
 		psys->clmd = (ClothModifierData*)modifier_new(eModifierType_Cloth);
@@ -4103,6 +4106,8 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 
 	psys->clmd->sim_parms->vgroup_mass = 1;
 
+	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, &totshapekey);
+
 	/* make vgroup for pin roots etc.. */
 	psys->particles->hair_index = 1;
 	LOOP_PARTICLES {
@@ -4118,18 +4123,26 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 
 		for (k=0, key=pa->hair; k<pa->totkey; k++,key++) {
 			ClothHairRoot *root;
+			float *co, *co_next;
+			
+			if (shapekey) {
+				co = shapekey;
+				co_next = shapekey + 3;
+				shapekey += 3;
+			}
+			else {
+				co = key->co;
+				co_next = (key+1)->co;
+			}
 			
 			/* create fake root before actual root to resist bending */
 			if (k==0) {
-				float temp[3];
-				
 				root = &psys->clmd->roots[pa->hair_index - 1];
 				copy_v3_v3(root->loc, root_mat[3]);
 				copy_m3_m4(root->rot, root_mat);
 				
-				sub_v3_v3v3(temp, key->co, (key+1)->co);
-				copy_v3_v3(mvert->co, key->co);
-				add_v3_v3v3(mvert->co, mvert->co, temp);
+				add_v3_v3v3(mvert->co, co, co);
+				sub_v3_v3(mvert->co, co_next);
 				mul_m4_v3(hairmat, mvert->co);
 				mvert++;
 
@@ -4145,7 +4158,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 			copy_v3_v3(root->loc, root_mat[3]);
 			copy_m3_m4(root->rot, root_mat);
 
-			copy_v3_v3(mvert->co, key->co);
+			copy_v3_v3(mvert->co, co);
 			mul_m4_v3(hairmat, mvert->co);
 			mvert++;
 			
