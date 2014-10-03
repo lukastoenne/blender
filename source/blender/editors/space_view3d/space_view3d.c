@@ -69,6 +69,7 @@
 #include "RNA_access.h"
 
 #include "UI_resources.h"
+#include "UI_interface.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -697,19 +698,20 @@ static void view3d_widgets(void)
 	int *realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
 	*realtimeflags = 0;
 	
-	widget = WM_widget_new(BIF_manipulator_poll, 
-	                       BIF_draw_manipulator, 
-	                       BIF_manipulator_render_3d_intersect, 
+	widget = WM_widget_new(WIDGET_manipulator_poll, 
+	                       WIDGET_manipulator_draw, 
+	                       WIDGET_manipulator_render_3d_intersect, 
 	                       NULL, 
-	                       BIF_manipulator_handler, realtimeflags, true);
+	                       WIDGET_manipulator_handler, realtimeflags, true);
 	
 	WM_widget_register(wmap, widget);
 	
-	widget = WM_widget_new(NULL, 
+	realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
+	widget = WM_widget_new(WIDGET_lamp_poll, 
+	                       WIDGET_lamp_draw,
+	                       WIDGET_manipulator_render_3d_intersect, 
 	                       NULL, 
-	                       NULL, 
-	                       NULL, 
-	                       NULL, NULL, false);	
+	                       WIDGET_lamp_handler, realtimeflags, true);	
 	WM_widget_register(wmap, widget);
 }
 

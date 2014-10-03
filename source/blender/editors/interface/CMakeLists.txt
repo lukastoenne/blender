@@ -51,6 +51,7 @@ set(SRC
 	interface_templates.c
 	interface_utils.c
 	interface_widgets.c
+    interface_generic_widgets.c
 	resources.c
 	view2d.c
 	view2d_ops.c

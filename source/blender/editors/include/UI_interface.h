@@ -996,4 +996,10 @@ void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
 
 int uiFloatPrecisionCalc(int prec, double value);
 
+/* ui_generic_widgets.c */
+int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int active);
+void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
+void WIDGET_lamp_draw(const struct bContext *C, struct wmWidget *widget);
+bool WIDGET_lamp_poll(const struct bContext *C, struct wmWidget *widget);
+
 #endif  /* __UI_INTERFACE_H__ */

@@ -1437,6 +1437,7 @@ static void draw_manipulator_translate(
 	drawcircball(GL_LINE_LOOP, unitmat[3], 0.2f * size, unitmat);
 	glPopMatrix();
 
+	glPushMatrix();
 	/* and now apply matrix, we move to local matrix drawing */
 	glMultMatrixf(rv3d->twmat);
 
@@ -1493,7 +1494,7 @@ static void draw_manipulator_translate(
 	}
 
 	gluDeleteQuadric(qobj);
-	glLoadMatrixf(rv3d->viewmat);
+	glPopMatrix();
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
@@ -1628,7 +1629,7 @@ static void draw_manipulator_rotate_cyl(
 /* main call, does calc centers & orientation too */
 static int drawflags = 0xFFFF;       // only for the calls below, belongs in scene...?
 
-void BIF_draw_manipulator(const bContext *C, wmWidget *widget)
+void WIDGET_manipulator_draw(const bContext *C, wmWidget *widget)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1710,7 +1711,7 @@ void BIF_draw_manipulator(const bContext *C, wmWidget *widget)
 	}
 }
 
-bool BIF_manipulator_poll(const struct bContext *C, wmWidget *UNUSED(widget))
+bool WIDGET_manipulator_poll(const struct bContext *C, wmWidget *UNUSED(widget))
 {
 	/* it's a given we only use this in 3D view */
 	ScrArea *sa = CTX_wm_area(C);
@@ -1719,7 +1720,7 @@ bool BIF_manipulator_poll(const struct bContext *C, wmWidget *UNUSED(widget))
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
 
-void BIF_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget), int selectionbase)
+void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget), int selectionbase)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
@@ -1743,7 +1744,7 @@ void BIF_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(wid
 }
 
 /* return 0; nothing happened */
-int BIF_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *widget, int active)
+int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *widget, int active)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
