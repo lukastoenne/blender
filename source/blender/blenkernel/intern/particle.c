@@ -2959,10 +2959,11 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleCacheKey *ca, **cache;
+	const bool keyed = psys->flag & PSYS_KEYED;
+	const bool baked = psys->pointcache->mem_cache.first && psys->part->type != PART_HAIR;
+	const bool edit = psys->edit;
 
 	DerivedMesh *hair_dm = (psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS) ? psys->hair_out_dm : NULL;
-	
-	ParticleKey result;
 	
 	Material *ma;
 	ParticleInterpolationData pind;
@@ -2981,7 +2982,8 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	float length, vec[3];
 	float *vg_effector = NULL;
 	float *vg_length = NULL, pa_length = 1.0f;
-	int keyed, baked;
+	float *shapekey_data, *shapekey;
+	int totshapekey;
 
 	/* we don't have anything valid to create paths from so let's quit here */
 	if ((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache) == 0)
@@ -2990,9 +2992,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	if (psys_in_edit_mode(sim->scene, psys))
 		if (psys->renderdata == 0 && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
 			return;
-
-	keyed = psys->flag & PSYS_KEYED;
-	baked = psys->pointcache->mem_cache.first && psys->part->type != PART_HAIR;
 
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);
@@ -3015,6 +3014,8 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	if (part->from != PART_FROM_VERT) {
 		DM_ensure_tessface(psmd->dm);
 	}
+
+	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, &totshapekey);
 
 	/*---first main loop: create all actual particles' paths---*/
 	LOOP_SHOWN_PARTICLES {
@@ -3063,11 +3064,19 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 		/*--interpolate actual path from data points--*/
 		for (k = 0, ca = cache[p]; k <= steps; k++, ca++) {
-			time = (float)k / (float)steps;
-			t = birthtime + time * (dietime - birthtime);
-			result.time = -t;
-			do_particle_interpolation(psys, p, pa, t, &pind, &result);
-			copy_v3_v3(ca->co, result.co);
+			if (edit && shapekey) {
+				copy_v3_v3(ca->co, shapekey);
+				shapekey += 3;
+			}
+			else {
+				ParticleKey result;
+				
+				time = (float)k / (float)steps;
+				t = birthtime + time * (dietime - birthtime);
+				result.time = -t;
+				do_particle_interpolation(psys, p, pa, t, &pind, &result);
+				copy_v3_v3(ca->co, result.co);
+			}
 
 			/* dynamic hair is in object space */
 			/* keyed and baked are already in global space */
@@ -3146,6 +3155,9 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 	if (vg_length)
 		MEM_freeN(vg_length);
+
+	if (shapekey_data)
+		MEM_freeN(shapekey_data);
 }
 void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cfra)
 {

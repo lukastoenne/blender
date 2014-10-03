@@ -1075,7 +1075,7 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 	if (freek4) MEM_freeN(freek4);
 }
 
-static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cache)
+static float *get_object_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cache)
 {
 	MDeformVert *dvert = NULL;
 	BMEditMesh *em = NULL;
@@ -1147,7 +1147,7 @@ static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cac
 	return NULL;
 }
 
-float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCache *cache)
+float **BKE_key_get_per_block_object_weights(Object *ob, Key *key, WeightsArrayCache *cache)
 {
 	KeyBlock *keyblock;
 	float **per_keyblock_weights;
@@ -1161,7 +1161,40 @@ float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCac
 	     keyblock;
 	     keyblock = keyblock->next, keyblock_index++)
 	{
-		per_keyblock_weights[keyblock_index] = get_weights_array(ob, keyblock->vgroup, cache);
+		per_keyblock_weights[keyblock_index] = get_object_weights_array(ob, keyblock->vgroup, cache);
+	}
+
+	return per_keyblock_weights;
+}
+
+static float *get_particle_weights_array(ParticleSystem *psys, char *vgroup, WeightsArrayCache *cache)
+{
+//	MDeformVert *dvert = NULL;
+//	int totvert = 0, defgrp_index = 0;
+	
+	/* no vgroup string set? */
+	if (vgroup[0] == 0) return NULL;
+	
+	// XXX TODO
+	
+	return NULL;
+}
+
+float **BKE_key_get_per_block_particle_weights(ParticleSystem *psys, Key *key, WeightsArrayCache *cache)
+{
+	KeyBlock *keyblock;
+	float **per_keyblock_weights;
+	int keyblock_index;
+
+	per_keyblock_weights =
+		MEM_mallocN(sizeof(*per_keyblock_weights) * key->totkey,
+		            "per keyblock weights");
+
+	for (keyblock = key->block.first, keyblock_index = 0;
+	     keyblock;
+	     keyblock = keyblock->next, keyblock_index++)
+	{
+		per_keyblock_weights[keyblock_index] = get_particle_weights_array(psys, keyblock->vgroup, cache);
 	}
 
 	return per_keyblock_weights;
@@ -1227,7 +1260,7 @@ static void do_mesh_key(Scene *scene, Object *ob, Key *key, char *out, const int
 		if (key->type == KEY_RELATIVE) {
 			WeightsArrayCache cache = {0, NULL};
 			float **per_keyblock_weights;
-			per_keyblock_weights = BKE_keyblock_get_per_block_weights(ob, key, &cache);
+			per_keyblock_weights = BKE_key_get_per_block_object_weights(ob, key, &cache);
 			BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
 			BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
 		}
@@ -1391,7 +1424,7 @@ static void do_latt_key(Scene *scene, Object *ob, Key *key, char *out, const int
 	else {
 		if (key->type == KEY_RELATIVE) {
 			float **per_keyblock_weights;
-			per_keyblock_weights = BKE_keyblock_get_per_block_weights(ob, key, NULL);
+			per_keyblock_weights = BKE_key_get_per_block_object_weights(ob, key, NULL);
 			BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
 			BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, NULL);
 		}
@@ -1408,6 +1441,32 @@ static void do_latt_key(Scene *scene, Object *ob, Key *key, char *out, const int
 	}
 	
 	if (lt->flag & LT_OUTSIDE) outside_lattice(lt);
+}
+
+static void do_psys_key(ParticleSystem *psys, Key *key, char *out, const int tot)
+{
+	KeyBlock *k[4], *actkb = BKE_keyblock_from_particles(psys);
+	float t[4];
+	int flag = 0;
+	
+	if (key->type == KEY_RELATIVE) {
+		WeightsArrayCache cache = {0, NULL};
+		float **per_keyblock_weights;
+		
+		per_keyblock_weights = BKE_key_get_per_block_particle_weights(psys, key, &cache);
+		BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
+		BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
+	}
+	else {
+		const float ctime_scaled = key->ctime / 100.0f;
+		
+		flag = setkeys(ctime_scaled, &key->block, k, t, 0);
+		
+		if (flag == 0)
+			do_key(0, tot, tot, (char *)out, key, actkb, k, t, KEY_MODE_DUMMY);
+		else
+			cp_key(0, tot, tot, (char *)out, key, actkb, k[2], NULL, KEY_MODE_DUMMY);
+	}
 }
 
 /* returns key coordinates (+ tilt) when key applied, NULL otherwise */
@@ -1483,7 +1542,7 @@ float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
 		}
 		
 		if (OB_TYPE_SUPPORT_VGROUP(ob->type)) {
-			float *weights = get_weights_array(ob, kb->vgroup, NULL);
+			float *weights = get_object_weights_array(ob, kb->vgroup, NULL);
 
 			cp_key(0, tot, tot, out, key, actkb, kb, weights, 0);
 
@@ -1509,6 +1568,78 @@ float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
 float *BKE_key_evaluate_object(Scene *scene, Object *ob, int *r_totelem)
 {
 	return BKE_key_evaluate_object_ex(scene, ob, r_totelem, NULL, 0);
+}
+
+/* returns key coordinates when key applied, NULL otherwise */
+float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, int *r_totelem,
+                                     float *arr, size_t arr_size)
+{
+	Key *key = psys->key;
+	KeyBlock *actkb = BKE_keyblock_from_particles(psys);
+	char *out;
+	int tot = 0, size = 0;
+	int i;
+	
+	if (key == NULL || BLI_listbase_is_empty(&key->block))
+		return NULL;
+	
+	/* compute size of output array */
+	tot = 0;
+	for (i = 0; i < psys->totpart; ++i)
+		tot += psys->particles[i].totkey;
+	size = tot * 3 * sizeof(float);
+	
+	/* if nothing to interpolate, cancel */
+	if (tot == 0 || size == 0)
+		return NULL;
+	
+	/* allocate array */
+	if (arr == NULL) {
+		out = MEM_callocN(size, "BKE_key_evaluate_object out");
+	}
+	else {
+		if (arr_size != size) {
+			return NULL;
+		}
+		
+		out = (char *)arr;
+	}
+	
+	/* prevent python from screwing this up? anyhoo, the from pointer could be dropped */
+	key->from = (ID *)ob; // XXX the "from" pointer needs to be amended to support particle system properly
+	
+	if (ob->shapeflag & OB_SHAPE_LOCK) {
+		/* shape locked, copy the locked shape instead of blending */
+		KeyBlock *kb = BLI_findlink(&key->block, psys->shapenr - 1);
+		float *weights;
+		
+		if (kb && (kb->flag & KEYBLOCK_MUTE))
+			kb = key->refkey;
+		
+		if (kb == NULL) {
+			kb = key->block.first;
+			psys->shapenr = 1;
+		}
+		
+		weights = get_particle_weights_array(psys, kb->vgroup, NULL);
+		
+		cp_key(0, tot, tot, out, key, actkb, kb, weights, 0);
+		
+		if (weights) MEM_freeN(weights);
+	}
+	else {
+		do_psys_key(psys, key, out, tot);
+	}
+	
+	if (r_totelem) {
+		*r_totelem = tot;
+	}
+	return (float *)out;
+}
+
+float *BKE_key_evaluate_particles(Object *ob, ParticleSystem *psys, int *r_totelem)
+{
+	return BKE_key_evaluate_particles_ex(ob, psys, r_totelem, NULL, 0);
 }
 
 Key *BKE_key_from_object(Object *ob)
