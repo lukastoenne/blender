@@ -45,16 +45,99 @@
 #include "ED_view3d.h"
 
 #include "WM_types.h"
+#include "WM_api.h"
 
 #include "GL/glew.h"
 #include "GPU_select.h"
 
 #include "BIF_glutil.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "UI_interface.h"
+#include "interface_intern.h"
+
+
+typedef struct LampPositionData {
+	int pos[2];
+	float quat[4];
+} LampPositionData;
+
+/* Modal Operator init */
+static int lamp_position_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Object *ob = CTX_data_active_object(C);	
+	LampPositionData *data;
+	data = op->customdata = MEM_mallocN(sizeof (LampPositionData), "lamp_position_data");
+	
+	copy_v2_v2_int(data->pos, event->mval);
+
+	mat4_to_quat(data->quat, ob->obmat);
+	
+	WM_event_add_modal_handler(C, op);
+	
+	return OPERATOR_RUNNING_MODAL;
+}
+
+/* Repeat operator */
+static int lamp_position_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	switch (event->type) {
+		case MOUSEMOVE:
+		{
+			Object *ob = CTX_data_active_object(C);	
+			Lamp *la = ob->data;
+			
+			break;
+		}
+			
+		case LEFTMOUSE:
+			if (event->val == KM_RELEASE) {
+				MEM_freeN(op->customdata);
+				return OPERATOR_FINISHED;
+			}
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int lamp_position_poll(bContext *C)
+{
+	return CTX_wm_region_view3d(C) != NULL;
+}
+
+
+void UI_OT_lamp_position(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Lamp Position";
+	ot->idname = "UI_OT_lamp_position";
+	ot->description = "Sample a color from the Blender Window to store in a property";
+
+	/* api callbacks */
+	ot->invoke = lamp_position_invoke;
+	ot->modal = lamp_position_modal;
+	ot->poll = lamp_position_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_BLOCKING;
+
+	/* properties */	
+}
 
 int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int active)
 {	
+	
+	if (event->type == LEFTMOUSE && event->val == KM_PRESS && active == 1) {
+		struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
+		struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
+
+		WM_operator_properties_alloc(&ptr, &properties, "UI_OT_lamp_position");
+		WM_operator_name_call(C, "UI_OT_lamp_position", WM_OP_INVOKE_DEFAULT, ptr);
+		WM_operator_properties_free(ptr);
+		MEM_freeN(ptr);
+	}
+
 	return OPERATOR_FINISHED;
 }
 
