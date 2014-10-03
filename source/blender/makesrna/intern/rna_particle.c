@@ -777,9 +777,9 @@ static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerR
 				break;
 		}
 	}
-
-	rna_Object_internal_update_data(bmain, scene, ptr);
 #endif
+	
+	rna_Particle_redo(bmain, scene, ptr);
 }
 
 static void rna_Particle_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max,

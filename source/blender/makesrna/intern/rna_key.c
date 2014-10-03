@@ -32,6 +32,7 @@
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_particle_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -376,11 +377,29 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 	Key *key = ptr->id.data;
 	Object *ob;
 
-	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (BKE_key_from_object(ob) == key) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-			WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+	switch (key->owner.type) {
+	case KEY_OWNER_MESH:
+	case KEY_OWNER_CURVE:
+	case KEY_OWNER_LATTICE:
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (BKE_key_from_object(ob) == key) {
+				DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+				WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+			}
 		}
+		break;
+	case KEY_OWNER_PARTICLES:
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			ParticleSystem *psys;
+			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+				if (psys->key == key) {
+					psys->recalc |= PSYS_RECALC_REDO;
+					DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+					WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_EDITED, ob);
+				}
+			}
+		}
+		break;
 	}
 }
 
