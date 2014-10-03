@@ -3064,19 +3064,12 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 		/*--interpolate actual path from data points--*/
 		for (k = 0, ca = cache[p]; k <= steps; k++, ca++) {
-			if (edit && shapekey) {
-				copy_v3_v3(ca->co, shapekey);
-				shapekey += 3;
-			}
-			else {
-				ParticleKey result;
-				
-				time = (float)k / (float)steps;
-				t = birthtime + time * (dietime - birthtime);
-				result.time = -t;
-				do_particle_interpolation(psys, p, pa, t, &pind, &result);
-				copy_v3_v3(ca->co, result.co);
-			}
+			ParticleKey result;
+			time = (float)k / (float)steps;
+			t = birthtime + time * (dietime - birthtime);
+			result.time = -t;
+			do_particle_interpolation(psys, p, pa, t, &pind, &result);
+			copy_v3_v3(ca->co, result.co);
 
 			/* dynamic hair is in object space */
 			/* keyed and baked are already in global space */
@@ -3087,7 +3080,24 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 			copy_v3_v3(ca->col, col);
 		}
-		
+
+		if (part->type == PART_HAIR) {
+			HairKey *hkey;
+			
+			for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+				float co[3];
+				if (edit && shapekey) {
+					copy_v3_v3(co, shapekey);
+					shapekey += 3;
+				}
+				else {
+					copy_v3_v3(co, hkey->co);
+				}
+				
+				mul_v3_m4v3(hkey->world_co, hairmat, co);
+			}
+		}
+
 		/*--modify paths and calculate rotation & velocity--*/
 
 		if (!(psys->flag & PSYS_GLOBAL_HAIR)) {
