@@ -336,14 +336,15 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
 class PARTICLE_UL_shape_keys(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.ShapeKey))
-        obj = active_data
+        psys = active_data
+        ob = psys.id_data
         # key = data
         key_block = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             split = layout.split(0.66, False)
             split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
             row = split.row(align=True)
-            if key_block.mute or (obj.mode == 'PARTICLE_EDIT' and not obj.use_shape_key_edit_mode):
+            if key_block.mute or (ob.mode == 'PARTICLE_EDIT' and not ob.use_shape_key_edit_mode):
                 row.active = False
             if not item.id_data.use_relative:
                 row.prop(key_block, "frame", text="", emboss=False)
@@ -385,6 +386,7 @@ class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
         kb = psys.active_shape_key
 
         enable_edit = ob.mode != 'PARTICLE_EDIT'
+        enable_edit_value = False
 
         if ob.show_only_shape_key is False:
             if enable_edit or (ob.type == 'MESH' and ob.use_shape_key_edit_mode):
