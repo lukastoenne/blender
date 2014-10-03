@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel, UIList
+from bpy.types import Panel, UIList, Menu
 from rna_prop_ui import PropertyPanel
 from bpy.app.translations import pgettext_iface as iface_
 
@@ -357,6 +357,21 @@ class PARTICLE_UL_shape_keys(UIList):
             layout.label(text="", icon_value=icon)
 
 
+class PARTICLE_MT_shape_key_specials(Menu):
+    bl_label = "Shape Key Specials"
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        #layout.operator("particle.shape_key_transfer", icon='COPY_ID')  # icon is not ideal
+        #layout.operator("particle.join_shapes", icon='COPY_ID')  # icon is not ideal
+        #layout.operator("particle.shape_key_mirror", icon='ARROW_LEFTRIGHT').use_topology = False
+        #layout.operator("particle.shape_key_mirror", text="Mirror Shape Key (Topology)", icon='ARROW_LEFTRIGHT').use_topology = True
+        layout.operator("particle.shape_key_add", icon='ZOOMIN', text="New Shape From Mix").from_mix = True
+        layout.operator("particle.shape_key_remove", icon='X', text="Delete All Shapes").all = True
+
+
 class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
     bl_label = "Shape Keys"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
@@ -387,7 +402,7 @@ class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.operator("particle.shape_key_add", icon='ZOOMIN', text="").from_mix = False
         sub.operator("particle.shape_key_remove", icon='ZOOMOUT', text="").all = False
-        #sub.menu("MESH_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
+        sub.menu("PARTICLE_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
 
         if kb:
             col.separator()
