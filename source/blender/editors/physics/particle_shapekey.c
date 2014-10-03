@@ -68,7 +68,7 @@ static void ED_particles_shape_key_add(bContext *C, Scene *scene, Object *ob, Pa
 	if ((kb = BKE_psys_insert_shape_key(scene, ob, psys, NULL, from_mix))) {
 		Key *key = psys->key;
 		/* for absolute shape keys, new keys may not be added last */
-		ob->shapenr = BLI_findindex(&key->block, kb) + 1;
+		psys->shapenr = BLI_findindex(&key->block, kb) + 1;
 
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	}
@@ -96,11 +96,11 @@ static bool ED_particles_shape_key_remove(Main *bmain, Object *ob, ParticleSyste
 	if (key == NULL)
 		return false;
 	
-	kb = BLI_findlink(&key->block, ob->shapenr - 1);
+	kb = BLI_findlink(&key->block, psys->shapenr - 1);
 	
 	if (kb) {
 		for (rkb = key->block.first; rkb; rkb = rkb->next)
-			if (rkb->relative == ob->shapenr - 1)
+			if (rkb->relative == psys->shapenr - 1)
 				rkb->relative = 0;
 		
 		BLI_remlink(&key->block, kb);
@@ -117,8 +117,8 @@ static bool ED_particles_shape_key_remove(Main *bmain, Object *ob, ParticleSyste
 		if (kb->data) MEM_freeN(kb->data);
 		MEM_freeN(kb);
 		
-		if (ob->shapenr > 1) {
-			ob->shapenr--;
+		if (psys->shapenr > 1) {
+			psys->shapenr--;
 		}
 	}
 	
