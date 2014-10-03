@@ -754,7 +754,7 @@ static void rna_particle_settings_set(PointerRNA *ptr, PointerRNA value)
 
 static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	ParticleSystem *psys = ptr->id.data;
+	ParticleSystem *psys = ptr->data;
 	
 #if 0 /* XXX equivalent needed for particles? */
 	if (scene->obedit == ob) {
@@ -785,7 +785,7 @@ static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerR
 static void rna_Particle_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max,
                                                       int *UNUSED(softmin), int *UNUSED(softmax))
 {
-	ParticleSystem *psys = ptr->id.data;
+	ParticleSystem *psys = ptr->data;
 	Key *key = psys->key;
 
 	*min = 0;
@@ -800,21 +800,21 @@ static void rna_Particle_active_shape_key_index_range(PointerRNA *ptr, int *min,
 
 static int rna_Particle_active_shape_key_index_get(PointerRNA *ptr)
 {
-	ParticleSystem *psys = ptr->id.data;
+	ParticleSystem *psys = ptr->data;
 
 	return MAX2(psys->shapenr - 1, 0);
 }
 
 static void rna_Particle_active_shape_key_index_set(PointerRNA *ptr, int value)
 {
-	ParticleSystem *psys = ptr->id.data;
+	ParticleSystem *psys = ptr->data;
 
 	psys->shapenr = value + 1;
 }
 
 static PointerRNA rna_Particle_active_shape_key_get(PointerRNA *ptr)
 {
-	ParticleSystem *psys = ptr->id.data;
+	ParticleSystem *psys = ptr->data;
 	Key *key = psys->key;
 	KeyBlock *kb;
 	PointerRNA keyptr;

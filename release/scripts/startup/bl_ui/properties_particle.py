@@ -380,7 +380,7 @@ class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
         rows = 2
         if kb:
             rows = 4
-        row.template_list("PARTICLE_UL_shape_keys", "", key, "key_blocks", ob, "active_shape_key_index", rows=rows)
+        row.template_list("PARTICLE_UL_shape_keys", "", key, "key_blocks", psys, "active_shape_key_index", rows=rows)
 
         col = row.column()
 
