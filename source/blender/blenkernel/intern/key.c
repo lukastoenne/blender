@@ -110,7 +110,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
 	
 	key->type = KEY_NORMAL;
-	key->from = id;
+	BKE_key_set_from_id(key, id);
 
 	key->uidgen = 1;
 	
@@ -151,7 +151,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 	return key;
 }
 
-Key *BKE_key_add_particles(ID *id)    /* particles are "special" */
+Key *BKE_key_add_particles(Object *ob, ParticleSystem *psys)    /* particles are "special" */
 {
 	Key *key;
 	char *el;
@@ -159,11 +159,10 @@ Key *BKE_key_add_particles(ID *id)    /* particles are "special" */
 	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
 	
 	key->type = KEY_NORMAL;
-	key->from = id;
+	BKE_key_set_from_particles(key, ob, psys);
 	
 	key->uidgen = 1;
 	
-	BLI_assert(GS(id->name) == ID_OB);
 	el = key->elemstr;
 	
 	el[0] = 3;
@@ -273,6 +272,28 @@ void BKE_key_sort(Key *key)
 
 	/* new rule; first key is refkey, this to match drawing channels... */
 	key->refkey = key->block.first;
+}
+
+void BKE_key_set_from_id(Key *key, ID *id)
+{
+	if (key) {
+		switch (GS(id->name)) {
+			case ID_ME: key->owner.type = KEY_OWNER_MESH; break;
+			case ID_CU: key->owner.type = KEY_OWNER_CURVE; break;
+			case ID_LT: key->owner.type = KEY_OWNER_LATTICE; break;
+		}
+		key->owner.id = id;
+		key->owner.index = -1;
+	}
+}
+
+void BKE_key_set_from_particles(Key *key, Object *ob, ParticleSystem *psys)
+{
+	if (key) {
+		key->owner.type = KEY_OWNER_PARTICLES;
+		key->owner.id = (ID *)ob;
+		key->owner.index = BLI_findindex(&ob->particlesystem, psys);
+	}
 }
 
 /**************** do the key ****************/
@@ -539,14 +560,14 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 	if (kb == actkb) {
 		/* this hack makes it possible to edit shape keys in
 		 * edit mode with shape keys blending applied */
-		if (GS(key->from->name) == ID_ME) {
+		if (key->owner.type == KEY_OWNER_MESH) {
 			Mesh *me;
 			BMVert *eve;
 			BMIter iter;
 			float (*co)[3];
 			int a;
 
-			me = (Mesh *)key->from;
+			me = (Mesh *)key->owner.id;
 
 			if (me->edit_btmesh && me->edit_btmesh->bm->totvert == kb->totelem) {
 				a = 0;
@@ -571,20 +592,16 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 /* currently only the first value of 'ofs' may be set. */
 static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
 {
-	if (key->from == NULL) {
-		return false;
-	}
-
-	switch (GS(key->from->name)) {
-		case ID_ME:
+	switch (key->owner.type) {
+		case KEY_OWNER_MESH:
 			*ofs = sizeof(float) * 3;
 			*poinsize = *ofs;
 			break;
-		case ID_LT:
+		case KEY_OWNER_LATTICE:
 			*ofs = sizeof(float) * 3;
 			*poinsize = *ofs;
 			break;
-		case ID_CU:
+		case KEY_OWNER_CURVE:
 			if (mode == KEY_MODE_BPOINT) {
 				*ofs = sizeof(float) * 4;
 				*poinsize = *ofs;
@@ -593,13 +610,17 @@ static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int 
 				ofs[0] = sizeof(float) * 12;
 				*poinsize = (*ofs) / 3;
 			}
-
 			break;
+		case KEY_OWNER_PARTICLES:
+			*ofs = sizeof(float) * 3;
+			*poinsize = *ofs;
+			break;
+		
 		default:
 			BLI_assert(!"invalid 'key->from' ID type");
 			return false;
 	}
-
+	
 	return true;
 }
 
@@ -1527,7 +1548,7 @@ float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
 	}
 
 	/* prevent python from screwing this up? anyhoo, the from pointer could be dropped */
-	key->from = (ID *)ob->data;
+	BKE_key_set_from_id(key, (ID *)ob->data);
 		
 	if (ob->shapeflag & OB_SHAPE_LOCK) {
 		/* shape locked, copy the locked shape instead of blending */
@@ -1606,7 +1627,7 @@ float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, int *r_to
 	}
 	
 	/* prevent python from screwing this up? anyhoo, the from pointer could be dropped */
-	key->from = (ID *)ob; // XXX the "from" pointer needs to be amended to support particle system properly
+	BKE_key_set_from_particles(key, ob, psys);
 	
 	if (ob->shapeflag & OB_SHAPE_LOCK) {
 		/* shape locked, copy the locked shape instead of blending */

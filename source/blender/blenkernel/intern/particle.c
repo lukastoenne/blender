@@ -359,14 +359,14 @@ int psys_uses_gravity(ParticleSimulationData *sim)
 	return sim->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY && sim->psys->part && sim->psys->part->effector_weights->global_gravity != 0.0f;
 }
 
-KeyBlock *BKE_psys_insert_shape_key(Scene *scene, Object *ob, ParticleSystem *psys, const char *name, const bool from_mix)
+KeyBlock *BKE_psys_insert_shape_key(Scene *UNUSED(scene), Object *ob, ParticleSystem *psys, const char *name, const bool from_mix)
 {
 	Key *key = psys->key;
 	KeyBlock *kb;
 	int newkey = 0;
 
 	if (key == NULL) {
-		key = psys->key = BKE_key_add_particles((ID *)ob);
+		key = psys->key = BKE_key_add_particles(ob, psys);
 		key->type = KEY_RELATIVE;
 		newkey = 1;
 	}
@@ -3542,7 +3542,7 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	BLI_addtail(&ob->particlesystem, psys);
 
 	psys->part = psys_new_settings(DATA_("ParticleSettings"), NULL);
-	psys->key = BKE_key_add_particles((ID *)ob);
+	psys->key = BKE_key_add_particles(ob, psys);
 	psys->key->type = KEY_RELATIVE;
 
 	if (BLI_countlist(&ob->particlesystem) > 1)

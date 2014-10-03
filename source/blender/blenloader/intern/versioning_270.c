@@ -37,6 +37,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_key_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
@@ -52,6 +53,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
+#include "BKE_key.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 
@@ -412,6 +414,13 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 					}
 				}
 			}
+		}
+	}
+	
+	if (!DNA_struct_elem_find(fd->filesdna, "Key", "KeyOwner", "owner")) {
+		Key *key;
+		for (key = main->key.first; key; key = key->id.next) {
+			BKE_key_set_from_id(key, key->from);
 		}
 	}
 }

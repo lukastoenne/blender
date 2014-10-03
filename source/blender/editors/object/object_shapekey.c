@@ -48,6 +48,7 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
@@ -92,19 +93,19 @@ static void ED_object_shape_key_add(bContext *C, Scene *scene, Object *ob, const
 static bool ED_object_shape_key_remove_all(Main *bmain, Object *ob)
 {
 	Key *key;
-
+	
 	key = BKE_key_from_object(ob);
 	if (key == NULL)
 		return false;
-
-	switch (GS(key->from->name)) {
-		case ID_ME: ((Mesh *)key->from)->key    = NULL; break;
-		case ID_CU: ((Curve *)key->from)->key   = NULL; break;
-		case ID_LT: ((Lattice *)key->from)->key = NULL; break;
+	
+	switch (key->owner.type) {
+		case KEY_OWNER_MESH: ((Mesh *)key->owner.id)->key       = NULL; break;
+		case KEY_OWNER_CURVE: ((Curve *)key->owner.id)->key     = NULL; break;
+		case KEY_OWNER_LATTICE: ((Lattice *)key->owner.id)->key = NULL; break;
 	}
-
+	
 	BKE_libblock_free_us(bmain, key);
-
+	
 	return true;
 }
 
@@ -155,10 +156,10 @@ static bool ED_object_shape_key_remove(Main *bmain, Object *ob)
 	}
 	
 	if (key->totkey == 0) {
-		switch (GS(key->from->name)) {
-			case ID_ME: ((Mesh *)key->from)->key    = NULL; break;
-			case ID_CU: ((Curve *)key->from)->key   = NULL; break;
-			case ID_LT: ((Lattice *)key->from)->key = NULL; break;
+		switch (key->owner.type) {
+			case KEY_OWNER_MESH: ((Mesh *)key->owner.id)->key       = NULL; break;
+			case KEY_OWNER_CURVE: ((Curve *)key->owner.id)->key     = NULL; break;
+			case KEY_OWNER_LATTICE: ((Lattice *)key->owner.id)->key = NULL; break;
 		}
 
 		BKE_libblock_free_us(bmain, key);

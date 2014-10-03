@@ -52,11 +52,14 @@ extern "C" {
 void        BKE_key_free(struct Key *sc);
 void        BKE_key_free_nolib(struct Key *key);
 struct Key *BKE_key_add(struct ID *id);
-struct Key *BKE_key_add_particles(struct ID *id);
+struct Key *BKE_key_add_particles(struct Object *ob, struct ParticleSystem *psys);
 struct Key *BKE_key_copy(struct Key *key);
 struct Key *BKE_key_copy_nolib(struct Key *key);
 void        BKE_key_make_local(struct Key *key);
 void        BKE_key_sort(struct Key *key);
+
+void        BKE_key_set_from_id(struct Key *key, struct ID *id);
+void        BKE_key_set_from_particles(struct Key *key, struct Object *ob, struct ParticleSystem *psys);
 
 void key_curve_position_weights(float t, float data[4], int type);
 void key_curve_tangent_weights(float t, float data[4], int type);
