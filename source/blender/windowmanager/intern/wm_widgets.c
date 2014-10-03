@@ -304,6 +304,7 @@ static int WM_widget_find_active_3D_intern (ListBase *widgetlist, bContext *C, c
 int wm_widget_find_active_3D (struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event)
 {
 	int ret, retsec;
+	
 	/* set up view matrices */	
 	view3d_operator_needs_opengl(C);
 	
@@ -321,20 +322,27 @@ int wm_widget_find_active_3D (struct wmWidgetMap *wmap, bContext *C, const struc
 	return -1;
 }
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, int handle)
 {
 	ARegion *ar = CTX_wm_region(C);
 		
 	if (widget != wmap->active_widget) {
 		if (wmap->active_widget) {
+			wmap->active_widget->active_handle = -1;
 			wmap->active_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
 		}
 		wmap->active_widget = widget;
 		
-		if (widget)
+		if (widget) {
+			widget->active_handle = handle;
 			widget->flag |= WM_WIDGET_HIGHLIGHT;
-
+		}
+		
 		/* tag the region for redraw */		
 		ED_region_tag_redraw(ar);
+	}
+	else if (widget && widget->active_handle != handle) {
+		ED_region_tag_redraw(ar);
+		widget->active_handle = handle;
 	}
 }

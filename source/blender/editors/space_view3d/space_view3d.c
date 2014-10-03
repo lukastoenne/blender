@@ -695,23 +695,19 @@ static void view3d_widgets(void)
 {
 	wmWidget *widget = NULL;
 	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	int *realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
-	*realtimeflags = 0;
-	
 	widget = WM_widget_new(WIDGET_manipulator_poll, 
 	                       WIDGET_manipulator_draw, 
 	                       WIDGET_manipulator_render_3d_intersect, 
 	                       NULL, 
-	                       WIDGET_manipulator_handler, realtimeflags, true);
+	                       WIDGET_manipulator_handler, NULL, false);
 	
 	WM_widget_register(wmap, widget);
 	
-	realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
 	widget = WM_widget_new(WIDGET_lamp_poll, 
 	                       WIDGET_lamp_draw,
-	                       WIDGET_manipulator_render_3d_intersect, 
+	                       WIDGET_lamp_render_3d_intersect, 
 	                       NULL, 
-	                       WIDGET_lamp_handler, realtimeflags, true);	
+	                       WIDGET_lamp_handler, NULL, false);	
 	WM_widget_register(wmap, widget);
 }
 

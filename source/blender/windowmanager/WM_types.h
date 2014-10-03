@@ -669,6 +669,7 @@ typedef struct wmWidget {
 	
 	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata, int active);
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
+	int  active_handle; /* stores id of handle being highlighted */
 } wmWidget;
 
 

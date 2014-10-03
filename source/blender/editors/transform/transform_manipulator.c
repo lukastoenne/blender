@@ -1629,6 +1629,27 @@ static void draw_manipulator_rotate_cyl(
 /* main call, does calc centers & orientation too */
 static int drawflags = 0xFFFF;       // only for the calls below, belongs in scene...?
 
+static int manipulator_flags_from_active(int active)
+{
+	int val;
+	
+	if (active != -1) {
+		if (active == MAN_SEL_TRANS_C) {
+			val = MAN_TRANS_C;
+		}
+		else if (active == MAN_SEL_SCALE_C) {
+			val = MAN_SCALE_C;
+		}
+		else {
+			val = 1 << active;
+		}
+	}
+	else 
+		val = 0;
+
+	return val;
+}
+
 void WIDGET_manipulator_draw(const bContext *C, wmWidget *widget)
 {
 	ScrArea *sa = CTX_wm_area(C);
@@ -1640,7 +1661,7 @@ void WIDGET_manipulator_draw(const bContext *C, wmWidget *widget)
 	int highlight = 0;
 	
 	if (widget->flag & WM_WIDGET_HIGHLIGHT)
-		highlight = *((int *)widget->customdata);
+		highlight = manipulator_flags_from_active(widget->active_handle);
 	
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 	
@@ -1744,38 +1765,19 @@ void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(
 }
 
 /* return 0; nothing happened */
-int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *widget, int active)
+int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget), int active)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
-	ARegion *ar = CTX_wm_region(C);
 	int constraint_axis[3] = {0, 0, 0};
 	int val;
 	int shift = event->shift;
-	int *prevval = ((int *)widget->customdata);
 
 	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
 	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
+	
+	val = manipulator_flags_from_active(active);
 		
-	if (active != -1) {
-		if (active == MAN_SEL_TRANS_C) {
-			val = MAN_TRANS_C;
-		}
-		else if (active == MAN_SEL_SCALE_C) {
-			val = MAN_SCALE_C;
-		}
-		else {
-			val = 1 << active;
-		}
-	}
-	else 
-		val = 0;
-	
-	if (*prevval != val) {
-		*prevval = val;
-		ED_region_tag_redraw(ar);
-	}
-	
 	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
 	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) || 
 		!((event->val == KM_PRESS) && (event->type == LEFTMOUSE)))
@@ -1784,11 +1786,8 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 	}
 	
 	if (val) {
-		// drawflags still global, for drawing call above
-		drawflags = val;//manipulator_selectbuf(sa, ar, event->mval, 0.2f * (float)U.tw_hotspot);
-
-		if (drawflags & MAN_TRANS_C) {
-			switch (drawflags) {
+		if (val & MAN_TRANS_C) {
+			switch (val) {
 				case MAN_TRANS_C:
 					break;
 				case MAN_TRANS_X:
@@ -1824,8 +1823,8 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
 			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_translate", 0), event, op->ptr, NULL, false);
 		}
-		else if (drawflags & MAN_SCALE_C) {
-			switch (drawflags) {
+		else if (val & MAN_SCALE_C) {
+			switch (val) {
 				case MAN_SCALE_X:
 					if (shift) {
 						constraint_axis[1] = 1;
@@ -1859,7 +1858,7 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			WM_operator_name_call(C, "TRANSFORM_OT_resize", WM_OP_INVOKE_DEFAULT, ptr);
 			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_resize", 0), event, op->ptr, NULL, false);
 		}
-		else if (drawflags == MAN_ROT_T) { /* trackball need special case, init is different */
+		else if (val == MAN_ROT_T) { /* trackball need special case, init is different */
 			/* Do not pass op->ptr!!! trackball has no "constraint" properties!
 			 * See [#34621], it's a miracle it did not cause more problems!!! */
 			/* However, we need to copy the "release_confirm" property, but only if defined, see T41112. */
@@ -1871,8 +1870,8 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			//wm_operator_invoke(C, WM_operatortype_find(ot->idname, 0), event, NULL, NULL, false);
 			WM_operator_properties_free(&props_ptr);
 		}
-		else if (drawflags & MAN_ROT_C) {
-			switch (drawflags) {
+		else if (val & MAN_ROT_C) {
+			switch (val) {
 				case MAN_ROT_X:
 					constraint_axis[0] = 1;
 					break;
@@ -1892,8 +1891,6 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_rotate", 0), event, op->ptr, NULL, false);
 		}
 	}
-	/* after transform, restore drawflags */
-	drawflags = 0xFFFF;
 	
 	if (ptr) {
 		WM_operator_properties_free(ptr);
