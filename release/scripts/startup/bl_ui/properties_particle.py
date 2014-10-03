@@ -435,7 +435,7 @@ class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
                 sub.operator("particle.shape_key_retime", icon='RECOVER_LAST', text="")
 
             if key.use_relative:
-                if ob.active_shape_key_index != 0:
+                if psys.active_shape_key_index != 0:
                     row = layout.row()
                     row.active = enable_edit_value
                     row.prop(kb, "value")
@@ -451,7 +451,7 @@ class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
                     col = split.column(align=True)
                     col.active = enable_edit_value
                     col.label(text="Blend:")
-                    col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="")
+                    #col.prop_search(kb, "vertex_group", psys, "vertex_groups", text="")
                     col.prop_search(kb, "relative_key", key, "key_blocks", text="")
 
             else:
