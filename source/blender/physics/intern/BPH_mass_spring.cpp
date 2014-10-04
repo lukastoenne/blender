@@ -749,13 +749,15 @@ struct HairSolverData {
 	ListBase *effectors;
 };
 
-static void hair_solver_count(HairSystem *hsys, int *totverts, int *totsprings)
+static void hair_solver_count(HairSystem *hsys, int *r_totverts, int *r_totsprings)
 {
 	int i;
-	int totsprings = 0;
+	int totverts = 0, totsprings = 0;
 	
-	for (i = 0; i < hsys->totcurves; ++i) {
-		HairCurve *curve = &hsys->curves[i];
+	HairCurve *curve = hsys->curves;
+	for (i = 0; i < hsys->totcurves; ++i, ++curve) {
+		totverts += curve->totpoints;
+		
 		if (curve->totpoints > 1) {
 			/* for each segment, add
 			 *   + 1 spring for stretch
@@ -766,7 +768,8 @@ static void hair_solver_count(HairSystem *hsys, int *totverts, int *totsprings)
 		}
 	}
 	
-	return totsprings;
+	*r_totverts = totverts;
+	*r_totsprings = totsprings;
 }
 
 HairSolverData *BPH_hair_solver_create(Object *UNUSED(ob), HairSystem *hsys)
@@ -801,7 +804,34 @@ void BPH_hair_solver_free_effectors(HairSolverData *data)
 
 void BPH_hair_solver_set_positions(HairSolverData *data, Scene *scene, Object *ob, HairSystem *hsys)
 {
-	// XXX TODO
+	float obmat[4][4];
+	copy_m4_m4(obmat, ob->obmat);
+	
+	int ktot = 0;
+	HairCurve *curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		float rot[3][3];
+		
+		/* hair orientation matrix (root rest frame) */
+		copy_v3_v3(rot[0], curve->rest_tan);
+		cross_v3_v3v3(rot[1], curve->rest_nor, curve->rest_tan);
+		copy_v3_v3(rot[2], curve->rest_nor);
+		mul_mat3_m4_v3(obmat, rot[0]);
+		mul_mat3_m4_v3(obmat, rot[1]);
+		mul_mat3_m4_v3(obmat, rot[2]);
+		
+		HairPoint *point = curve->points;
+		for (int k = 0; k < curve->totpoints; ++k, ++ktot, ++point) {
+			float x[3], v[3];
+			copy_v3_v3(x, point->co);
+			copy_v3_v3(v, point->vel);
+			mul_m4_v3(obmat, x);
+			mul_mat3_m4_v3(obmat, v);
+			
+			BPH_mass_spring_set_rest_transform(data->id, ktot, rot);
+			BPH_mass_spring_set_motion_state(data->id, ktot, x, v);
+		}
+	}
 }
 
 void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time, float timestep, SimDebugData *debug_data)
@@ -811,5 +841,21 @@ void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time,
 
 void BPH_hair_solver_apply_positions(HairSolverData *data, Scene *scene, Object *ob, HairSystem *hsys)
 {
-	// XXX TODO
+	float imat[4][4];
+	invert_m4_m4(imat, ob->obmat);
+	
+	int ktot = 0;
+	HairCurve *curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		HairPoint *point = curve->points;
+		for (int k = 0; k < curve->totpoints; ++k, ++ktot, ++point) {
+			float x[3], v[3];
+			BPH_mass_spring_get_motion_state(data->id, ktot, x, v);
+			mul_m4_v3(imat, x);
+			mul_mat3_m4_v3(imat, v);
+			
+			copy_v3_v3(point->co, x);
+			copy_v3_v3(point->vel, v);
+		}
+	}
 }
