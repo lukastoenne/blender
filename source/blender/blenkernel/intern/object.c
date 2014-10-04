@@ -3196,7 +3196,7 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 			
 			BPH_hair_solver_set_externals(hmd->solver_data, scene, ob, dm, hsys->params.effector_weights);
 			
-			BPH_hair_solver_set_positions(hmd->solver_data, scene, ob, hmd->hairsys);
+			BPH_hair_solver_set_positions(hmd->solver_data, ob, hmd->hairsys);
 			
 			if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
 				if (hmd->debug_data) {
@@ -3222,7 +3222,7 @@ void BKE_object_sim_tick(Scene *UNUSED(scene), Object *ob, float ctime, float ti
 			HairModifierData *hmd = (HairModifierData*) md;
 			HairSystem *hsys = hmd->hairsys;
 			
-			BPH_hair_solve(hmd->solver_data, &hsys->params, ctime, timestep, hmd->debug_data);
+			BPH_hair_solve(hmd->solver_data, ob, hsys, ctime, timestep, hmd->debug_data);
 		}
 	}
 }

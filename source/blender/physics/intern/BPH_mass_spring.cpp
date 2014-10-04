@@ -820,7 +820,7 @@ void BPH_hair_solver_clear_externals(HairSolverData *data)
 	pdEndEffectors(&data->effectors);
 }
 
-void BPH_hair_solver_set_positions(HairSolverData *data, Scene *scene, Object *ob, HairSystem *hsys)
+void BPH_hair_solver_set_positions(HairSolverData *data, Object *ob, HairSystem *hsys)
 {
 	float obmat[4][4];
 	copy_m4_m4(obmat, ob->obmat);
@@ -917,8 +917,72 @@ static void hair_calc_force(HairSolverData *data, HairParams *params, float time
 #endif
 }
 
-void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time, float timestep, SimDebugData *debug_data)
+/* Init constraint matrix
+ * This is part of the modified CG method suggested by Baraff/Witkin in
+ * "Large Steps in Cloth Simulation" (Siggraph 1998)
+ */
+static void hair_setup_constraints(HairSolverData *data, Object *ob, HairSystem *hsys, ColliderContacts *contacts, int totcolliders, float dt)
 {
+	const float ZERO[3] = {0.0f, 0.0f, 0.0f};
+	
+	int ktot = 0;
+	HairCurve *curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		if (curve->totpoints == 0)
+			continue;
+		
+		/* hair root is always pinned in root space */
+		BPH_mass_spring_add_constraint_ndof0(data->id, ktot, ZERO);
+		
+		ktot += curve->totpoints;
+	}
+	
+#if 0
+	for (i = 0; i < totcolliders; ++i) {
+		ColliderContacts *ct = &contacts[i];
+		for (j = 0; j < ct->totcollisions; ++j) {
+			CollPair *collpair = &ct->collisions[j];
+//			float restitution = (1.0f - clmd->coll_parms->damping) * (1.0f - ct->ob->pd->pdef_sbdamp);
+			float restitution = 0.0f;
+			int v = collpair->face1;
+			float impulse[3];
+			
+			/* pinned verts handled separately */
+			if (verts[v].flags & CLOTH_VERT_FLAG_PINNED)
+				continue;
+			
+			/* XXX cheap way of avoiding instability from multiple collisions in the same step
+			 * this should eventually be supported ...
+			 */
+			if (verts[v].impulse_count > 0)
+				continue;
+			
+			/* calculate collision response */
+			if (!collision_response(clmd, ct->collmd, collpair, dt, restitution, impulse))
+				continue;
+			
+			BPH_mass_spring_add_constraint_ndof2(data, v, collpair->normal, impulse);
+			++verts[v].impulse_count;
+			
+			BKE_sim_debug_data_add_dot(clmd->debug_data, collpair->pa, 0, 1, 0, "collision", hash_collpair(936, collpair));
+//			BKE_sim_debug_data_add_dot(clmd->debug_data, collpair->pb, 1, 0, 0, "collision", hash_collpair(937, collpair));
+//			BKE_sim_debug_data_add_line(clmd->debug_data, collpair->pa, collpair->pb, 0.7, 0.7, 0.7, "collision", hash_collpair(938, collpair));
+			
+			{ /* DEBUG */
+				float nor[3];
+				mul_v3_v3fl(nor, collpair->normal, -collpair->distance);
+				BKE_sim_debug_data_add_vector(clmd->debug_data, collpair->pa, nor, 1, 1, 0, "collision", hash_collpair(939, collpair));
+//				BKE_sim_debug_data_add_vector(clmd->debug_data, collpair->pb, impulse, 1, 1, 0, "collision", hash_collpair(940, collpair));
+//				BKE_sim_debug_data_add_vector(clmd->debug_data, collpair->pb, collpair->normal, 1, 1, 0, "collision", hash_collpair(941, collpair));
+			}
+		}
+	}
+#endif
+}
+
+void BPH_hair_solve(HairSolverData *data, Object *ob, HairSystem *hsys, float time, float timestep, SimDebugData *debug_data)
+{
+	HairParams *params = &hsys->params;
 	float dt = timestep / (float)params->substeps;
 	int s;
 	ColliderContacts *contacts = NULL;
@@ -960,10 +1024,10 @@ void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time,
 				cloth_find_point_contacts(ob, clmd, 0.0f, tf, &contacts, &totcolliders);
 			}
 		}
+#endif
 		
 		/* setup vertex constraints for pinned vertices and contacts */
-		cloth_setup_constraints(clmd, contacts, totcolliders, dt);
-#endif
+		hair_setup_constraints(data, ob, hsys, contacts, totcolliders, dt);
 		
 		// calculate forces
 		hair_calc_force(data, params, time, debug_data);
