@@ -36,11 +36,13 @@ struct HairCurve;
 struct HairPoint;
 struct HairParams;
 
-struct HairSystem *BKE_hairsys_new(void);
-void BKE_hairsys_free(struct HairSystem *hsys);
-struct HairSystem *BKE_hairsys_copy(struct HairSystem *hsys);
+struct HairSystem *BKE_hair_system_new(void);
+void BKE_hair_system_free(struct HairSystem *hsys);
+struct HairSystem *BKE_hair_system_copy(struct HairSystem *hsys);
 
-void BKE_hairparams_init(struct HairParams *params);
+void BKE_hair_params_init(struct HairParams *params);
+void BKE_hair_params_free(struct HairParams *params);
+void BKE_hair_params_copy(struct HairParams *to, struct HairParams *from);
 
 void BKE_hairsys_clear(struct HairSystem *hsys);
 

@@ -4605,6 +4605,8 @@ static void direct_link_hair_system(FileData *fd, HairSystem *hsys)
 		hair->points = newdataadr(fd, hair->points);
 	}
 	
+	hsys->params.effector_weights = newdataadr(fd, hsys->params.effector_weights);
+	
 	hsys->render_iter = NULL;
 }
 

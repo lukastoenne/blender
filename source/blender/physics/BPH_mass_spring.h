@@ -58,7 +58,7 @@ void BPH_cloth_solver_free(struct ClothModifierData *clmd);
 int BPH_cloth_solve(struct Object *ob, float frame, struct ClothModifierData *clmd, struct ListBase *effectors);
 void BKE_cloth_solver_set_positions(struct ClothModifierData *clmd);
 
-struct HairSolverData *BPH_hair_solver_create(void);
+struct HairSolverData *BPH_hair_solver_create(struct Object *ob, struct HairSystem *hsys);
 void BPH_hair_solver_free(struct HairSolverData *data);
 
 void BPH_hair_solver_set_externals(struct HairSolverData *data, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct EffectorWeights *effector_weights);

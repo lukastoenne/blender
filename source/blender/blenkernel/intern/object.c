@@ -3188,7 +3188,7 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 				if (hmd->solver_data) {
 					BPH_hair_solver_free(hmd->solver_data);
 				}
-				hmd->solver_data = BPH_hair_solver_create();
+				hmd->solver_data = BPH_hair_solver_create(ob, hsys);
 				
 				hmd->flag |= MOD_HAIR_SOLVER_DATA_VALID;
 				BKE_sim_debug_data_clear(hmd->debug_data);

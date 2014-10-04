@@ -1479,6 +1479,8 @@ static void write_hair_system(WriteData *wd, HairSystem *hsys)
 	writestruct(wd, DATA, "HairCurve", hsys->totcurves, hsys->curves);
 	for (hair = hsys->curves, i = 0; i < hsys->totcurves; ++hair, ++i)
 		writestruct(wd, DATA, "HairPoint", hair->totpoints, hair->points);
+	
+	writestruct(wd, DATA, "EffectorWeights", 1, hsys->params.effector_weights);
 }
 
 static void write_modifiers(WriteData *wd, ListBase *modbase)

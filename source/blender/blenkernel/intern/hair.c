@@ -39,11 +39,13 @@
 #include "BLI_ghash.h"
 
 #include "DNA_hair_types.h"
+#include "DNA_object_force.h"
 
+#include "BKE_effect.h"
 #include "BKE_hair.h"
 #include "BKE_mesh_sample.h"
 
-void BKE_hairparams_init(HairParams *params)
+void BKE_hair_params_init(HairParams *params)
 {
 	params->substeps_forces = 30;
 	params->substeps_damping = 10;
@@ -51,15 +53,33 @@ void BKE_hairparams_init(HairParams *params)
 	params->stretch_damping = 10.0f;
 	params->bend_stiffness = 40.0f;
 	params->bend_damping = 10.0f;
+	
+	params->effector_weights = BKE_add_effector_weights(NULL);
 }
 
-HairSystem *BKE_hairsys_new(void)
+void BKE_hair_params_free(HairParams *params)
+{
+	if (params->effector_weights) {
+		MEM_freeN(params->effector_weights);
+		params->effector_weights = NULL;
+	}
+}
+
+void BKE_hair_params_copy(HairParams *to, HairParams *from)
+{
+	memcpy(to, from, sizeof(HairParams));
+	
+	if (from->effector_weights)
+		to->effector_weights = MEM_dupallocN(from->effector_weights);
+}
+
+HairSystem *BKE_hair_system_new(void)
 {
 	HairSystem *hsys = MEM_callocN(sizeof(HairSystem), "hair system");
 	HairParams *params = &hsys->params;
 	HairRenderSettings *render = &params->render;
 	
-	BKE_hairparams_init(params);
+	BKE_hair_params_init(params);
 	render->flag = HAIR_RENDER_CLOSE_TIP;
 	render->num_render_hairs = 100;
 	render->interpolation_steps = 4;
@@ -73,13 +93,15 @@ HairSystem *BKE_hairsys_new(void)
 	return hsys;
 }
 
-void BKE_hairsys_free(HairSystem *hsys)
+void BKE_hair_system_free(HairSystem *hsys)
 {
+	BKE_hair_params_free(&hsys->params);
+	
 	BKE_hairsys_clear(hsys);
 	MEM_freeN(hsys);
 }
 
-HairSystem *BKE_hairsys_copy(HairSystem *hsys)
+HairSystem *BKE_hair_system_copy(HairSystem *hsys)
 {
 	int totcurves = hsys->totcurves, i;
 	HairSystem *thsys = MEM_dupallocN(hsys);
@@ -87,6 +109,8 @@ HairSystem *BKE_hairsys_copy(HairSystem *hsys)
 	thsys->curves = MEM_dupallocN(hsys->curves);
 	for (i = 0; i < totcurves; ++i)
 		thsys->curves[i].points = MEM_dupallocN(hsys->curves[i].points);
+	
+	BKE_hair_params_copy(&thsys->params, &hsys->params);
 	
 	thsys->render_iter = NULL;
 	

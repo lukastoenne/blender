@@ -52,7 +52,7 @@ static void initData(ModifierData *md)
 {
 	HairModifierData *hmd = (HairModifierData *) md;
 	
-	hmd->hairsys = BKE_hairsys_new();
+	hmd->hairsys = BKE_hair_system_new();
 }
 
 static void freeData(ModifierData *md)
@@ -62,7 +62,7 @@ static void freeData(ModifierData *md)
 	if (hmd->solver_data)
 		BPH_hair_solver_free(hmd->solver_data);
 	
-	BKE_hairsys_free(hmd->hairsys);
+	BKE_hair_system_free(hmd->hairsys);
 	
 	BKE_sim_debug_data_free(hmd->debug_data);
 }
@@ -73,9 +73,9 @@ static void copyData(ModifierData *md, ModifierData *target)
 	HairModifierData *thmd = (HairModifierData *) target;
 	
 	if (thmd->hairsys)
-		BKE_hairsys_free(thmd->hairsys);
+		BKE_hair_system_free(thmd->hairsys);
 	
-	thmd->hairsys = BKE_hairsys_copy(hmd->hairsys);
+	thmd->hairsys = BKE_hair_system_copy(hmd->hairsys);
 	
 	thmd->solver_data = NULL;
 	thmd->debug_data = NULL;
