@@ -360,7 +360,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_KE:
 		{
 			Key *key = (Key *) id;
-			CALLBACK_INVOKE_ID(key->from, IDWALK_NOP);
+			CALLBACK_INVOKE_ID(key->owner.id, IDWALK_NOP);
 			break;
 		}
 

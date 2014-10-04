@@ -87,6 +87,12 @@ static void operatortypes_particle(void)
 	WM_operatortype_append(PARTICLE_OT_dupliob_move_up);
 	WM_operatortype_append(PARTICLE_OT_dupliob_move_down);
 
+	WM_operatortype_append(PARTICLE_OT_shape_key_add);
+	WM_operatortype_append(PARTICLE_OT_shape_key_remove);
+	WM_operatortype_append(PARTICLE_OT_shape_key_clear);
+	WM_operatortype_append(PARTICLE_OT_shape_key_retime);
+	WM_operatortype_append(PARTICLE_OT_shape_key_move);
+
 	WM_operatortype_append(RIGIDBODY_OT_object_add);
 	WM_operatortype_append(RIGIDBODY_OT_object_remove);
 

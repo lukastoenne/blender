@@ -41,6 +41,7 @@ struct Object;
 struct Scene;
 struct Lattice;
 struct Mesh;
+struct ParticleSystem;
 struct WeightsArrayCache;
 
 /* Kernel prototypes */
@@ -51,10 +52,14 @@ extern "C" {
 void        BKE_key_free(struct Key *sc);
 void        BKE_key_free_nolib(struct Key *key);
 struct Key *BKE_key_add(struct ID *id);
+struct Key *BKE_key_add_particles(struct Object *ob, struct ParticleSystem *psys);
 struct Key *BKE_key_copy(struct Key *key);
 struct Key *BKE_key_copy_nolib(struct Key *key);
 void        BKE_key_make_local(struct Key *key);
 void        BKE_key_sort(struct Key *key);
+
+void        BKE_key_set_from_id(struct Key *key, struct ID *id);
+void        BKE_key_set_from_particles(struct Key *key, struct Object *ob, struct ParticleSystem *psys);
 
 void key_curve_position_weights(float t, float data[4], int type);
 void key_curve_tangent_weights(float t, float data[4], int type);
@@ -63,10 +68,15 @@ void key_curve_normal_weights(float t, float data[4], int type);
 float *BKE_key_evaluate_object_ex(struct Scene *scene, struct Object *ob, int *r_totelem,
                                   float *arr, size_t arr_size);
 float *BKE_key_evaluate_object(struct Scene *scene, struct Object *ob, int *r_totelem);
+float *BKE_key_evaluate_particles_ex(struct Object *ob, struct ParticleSystem *psys, int *r_totelem,
+                                     float *arr, size_t arr_size);
+float *BKE_key_evaluate_particles(struct Object *ob, struct ParticleSystem *psys, int *r_totelem);
 
 struct Key      *BKE_key_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object_reference(struct Object *ob);
+struct KeyBlock *BKE_keyblock_from_particles(struct ParticleSystem *psys);
+struct KeyBlock *BKE_keyblock_from_particles_reference(struct ParticleSystem *psys);
 
 struct KeyBlock *BKE_keyblock_add(struct Key *key, const char *name);
 struct KeyBlock *BKE_keyblock_add_ctime(struct Key *key, const char *name, const bool do_force);
@@ -81,7 +91,8 @@ typedef struct WeightsArrayCache {
 	float **defgroup_weights;
 } WeightsArrayCache;
 
-float **BKE_keyblock_get_per_block_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
+float **BKE_key_get_per_block_object_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
+float **BKE_key_get_per_block_particle_weights(struct ParticleSystem *psys, struct Key *key, struct WeightsArrayCache *cache);
 void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_weights, struct WeightsArrayCache *cache);
 void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode);
@@ -96,6 +107,8 @@ void    BKE_key_convert_from_curve(struct Curve *cu, struct KeyBlock *kb, struct
 float (*BKE_key_convert_to_vertcos(struct Object *ob, struct KeyBlock *kb))[3];
 void    BKE_key_convert_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
 void    BKE_key_convert_from_offset(struct Object *ob, struct KeyBlock *kb, float (*ofs)[3]);
+void    BKE_key_convert_to_hair_keys(struct KeyBlock *kb, struct Object *ob, struct ParticleSystem *psys);
+void    BKE_key_convert_from_hair_keys(struct Object *ob, struct ParticleSystem *psys, struct KeyBlock *kb);
 
 /* key.c */
 extern int slurph_opt;

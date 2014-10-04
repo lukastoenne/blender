@@ -358,6 +358,34 @@ int psys_uses_gravity(ParticleSimulationData *sim)
 {
 	return sim->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY && sim->psys->part && sim->psys->part->effector_weights->global_gravity != 0.0f;
 }
+
+KeyBlock *BKE_psys_insert_shape_key(Scene *UNUSED(scene), Object *ob, ParticleSystem *psys, const char *name, const bool from_mix)
+{
+	Key *key = psys->key;
+	KeyBlock *kb;
+	int newkey = 0;
+
+	if (key == NULL) {
+		key = psys->key = BKE_key_add_particles(ob, psys);
+		key->type = KEY_RELATIVE;
+		newkey = 1;
+	}
+
+	if (newkey || !from_mix) {
+		/* create from mesh */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		BKE_key_convert_from_hair_keys(ob, psys, kb);
+	}
+	else {
+		/* create new block with prepared data */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		kb->data = NULL;
+		kb->totelem = 0;
+	}
+
+	return kb;
+}
+
 /************************************************/
 /*			Freeing stuff						*/
 /************************************************/
@@ -560,6 +588,10 @@ void psys_free(Object *ob, ParticleSystem *psys)
 		if (psys->part) {
 			psys->part->id.us--;
 			psys->part = NULL;
+		}
+		if (psys->key) {
+			id_us_min(&psys->key->id);
+			psys->key = NULL;
 		}
 
 		BKE_ptcache_free_list(&psys->ptcaches);
@@ -2932,10 +2964,11 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleCacheKey *ca, **cache;
+	const bool keyed = psys->flag & PSYS_KEYED;
+	const bool baked = psys->pointcache->mem_cache.first && psys->part->type != PART_HAIR;
+	const bool edit = psys->edit;
 
 	DerivedMesh *hair_dm = (psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS) ? psys->hair_out_dm : NULL;
-	
-	ParticleKey result;
 	
 	Material *ma;
 	ParticleInterpolationData pind;
@@ -2954,7 +2987,8 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	float length, vec[3];
 	float *vg_effector = NULL;
 	float *vg_length = NULL, pa_length = 1.0f;
-	int keyed, baked;
+	float *shapekey_data, *shapekey;
+	int totshapekey;
 
 	/* we don't have anything valid to create paths from so let's quit here */
 	if ((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache) == 0)
@@ -2963,9 +2997,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	if (psys_in_edit_mode(sim->scene, psys))
 		if (psys->renderdata == 0 && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
 			return;
-
-	keyed = psys->flag & PSYS_KEYED;
-	baked = psys->pointcache->mem_cache.first && psys->part->type != PART_HAIR;
 
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);
@@ -2988,6 +3019,8 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	if (part->from != PART_FROM_VERT) {
 		DM_ensure_tessface(psmd->dm);
 	}
+
+	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, &totshapekey);
 
 	/*---first main loop: create all actual particles' paths---*/
 	LOOP_SHOWN_PARTICLES {
@@ -3036,6 +3069,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 		/*--interpolate actual path from data points--*/
 		for (k = 0, ca = cache[p]; k <= steps; k++, ca++) {
+			ParticleKey result;
 			time = (float)k / (float)steps;
 			t = birthtime + time * (dietime - birthtime);
 			result.time = -t;
@@ -3051,7 +3085,24 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 			copy_v3_v3(ca->col, col);
 		}
-		
+
+		if (part->type == PART_HAIR) {
+			HairKey *hkey;
+			
+			for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+				float co[3];
+				if (edit && shapekey) {
+					copy_v3_v3(co, shapekey);
+					shapekey += 3;
+				}
+				else {
+					copy_v3_v3(co, hkey->co);
+				}
+				
+				mul_v3_m4v3(hkey->world_co, hairmat, co);
+			}
+		}
+
 		/*--modify paths and calculate rotation & velocity--*/
 
 		if (!(psys->flag & PSYS_GLOBAL_HAIR)) {
@@ -3119,6 +3170,9 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 	if (vg_length)
 		MEM_freeN(vg_length);
+
+	if (shapekey_data)
+		MEM_freeN(shapekey_data);
 }
 void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cfra)
 {
@@ -3503,6 +3557,8 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	BLI_addtail(&ob->particlesystem, psys);
 
 	psys->part = psys_new_settings(DATA_("ParticleSettings"), NULL);
+	psys->key = BKE_key_add_particles(ob, psys);
+	psys->key->type = KEY_RELATIVE;
 
 	if (BLI_countlist(&ob->particlesystem) > 1)
 		BLI_snprintf(psys->name, sizeof(psys->name), DATA_("ParticleSystem %i"), BLI_countlist(&ob->particlesystem));

@@ -222,7 +222,7 @@ Curve *BKE_curve_copy(Curve *cu)
 	cun->bb = MEM_dupallocN(cu->bb);
 
 	cun->key = BKE_key_copy(cu->key);
-	if (cun->key) cun->key->from = (ID *)cun;
+	BKE_key_set_from_id(cun->key, (ID *)cun);
 
 	cun->editnurb = NULL;
 	cun->editfont = NULL;

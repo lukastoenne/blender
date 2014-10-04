@@ -69,6 +69,18 @@ typedef struct KeyBlock {
 
 } KeyBlock;
 
+typedef struct KeyOwner {
+	ID *id;
+	int type;
+	int index; /* index of owner in the id */
+} KeyOwner;
+
+typedef enum eKeyOwnerType {
+	KEY_OWNER_MESH          = 1,
+	KEY_OWNER_CURVE         = 2,
+	KEY_OWNER_LATTICE       = 3,
+	KEY_OWNER_PARTICLES     = 4,
+} eKeyOwnerType;
 
 typedef struct Key {
 	ID id;
@@ -89,7 +101,8 @@ typedef struct Key {
 	ListBase block;  /* list of KeyBlock's */
 	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 
-	ID *from;
+	KeyOwner owner;
+	ID *from DNA_DEPRECATED; /* included in owner */
 
 	short type;    /* absolute or relative shape key */
 	short totkey;  /* (totkey == BLI_countlist(&key->block)) */

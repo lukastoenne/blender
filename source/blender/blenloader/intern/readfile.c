@@ -3072,7 +3072,7 @@ static void lib_link_key(FileData *fd, Main *main)
 			if (key->adt) lib_link_animdata(fd, &key->id, key->adt);
 			
 			key->ipo = newlibadr_us(fd, key->id.lib, key->ipo); // XXX deprecated - old animation system
-			key->from = newlibadr(fd, key->id.lib, key->from);
+			key->owner.id = newlibadr(fd, key->id.lib, key->owner.id);
 			
 			key->id.flag -= LIB_NEED_LINK;
 		}
@@ -3116,7 +3116,7 @@ static void direct_link_key(FileData *fd, Key *key)
 	
 	key->adt = newdataadr(fd, key->adt);
 	direct_link_animdata(fd, key->adt);
-		
+	
 	key->refkey= newdataadr(fd, key->refkey);
 	
 	for (kb = key->block.first; kb; kb = kb->next) {
@@ -3834,6 +3834,8 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			BLI_remlink(particles, psys);
 			MEM_freeN(psys);
 		}
+		
+		psys->key = newlibadr_us(fd, id->lib, psys->key);
 	}
 }
 static void direct_link_particlesystems(FileData *fd, ListBase *particles)
