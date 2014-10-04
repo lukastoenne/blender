@@ -839,8 +839,121 @@ void BPH_hair_solver_set_positions(HairSolverData *data, Object *ob, HairSystem 
 	}
 }
 
-static void hair_calc_force(HairSolverData *data, HairParams *params, float time, SimDebugData *debug_data)
+static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem *hsys, float time, SimDebugData *debug_data)
 {
+	HairParams *params = &hsys->params;
+	const bool no_compress = true;
+	
+	float obmat[4][4];
+	copy_m4_m4(obmat, ob->obmat);
+	
+	int max_points = 0;
+	HairCurve *curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		if (curve->totpoints > max_points)
+			max_points = curve->totpoints;
+	}
+	if (max_points < 2)
+		return;
+	/* local caching of rest length for each hair */
+	float *restlen = (float *)MEM_mallocN(sizeof(float) * max_points, "hair rest length");
+	
+	int kstart = 0;
+	curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		HairPoint *point;
+
+		/* precalculate segment rest lengths */
+		point = curve->points;
+		for (int k = 0; k < curve->totpoints - 1; ++k, ++point) {
+			float a[3], b[3];
+			mul_v3_m4v3(a, obmat, point->rest_co);
+			mul_v3_m4v3(b, obmat, (point+1)->rest_co);
+			restlen[k] = len_v3v3(a, b);
+		}
+
+#ifdef CLOTH_FORCE_SPRING_STRUCTURAL
+		point = curve->points;
+		for (int k = 0; k < curve->totpoints - 1; ++k, ++point) {
+			BPH_mass_spring_force_spring_linear(data->id, kstart + k, kstart + k + 1, restlen[k],
+			                                    params->stretch_stiffness, params->stretch_damping, no_compress, 0.0f,
+			                                    NULL, NULL, NULL);
+		}
+#endif
+
+#if 0
+#ifdef CLOTH_FORCE_SPRING_GOAL
+			float goal_x[3], goal_v[3];
+			float k, scaling;
+			
+			s->flags |= CLOTH_SPRING_FLAG_NEEDED;
+			
+			// current_position = xold + t * (newposition - xold)
+			interp_v3_v3v3(goal_x, verts[s->ij].xold, verts[s->ij].xconst, time);
+			sub_v3_v3v3(goal_v, verts[s->ij].xconst, verts[s->ij].xold); // distance covered over dt==1
+			
+			scaling = parms->goalspring + s->stiffness * fabsf(parms->max_struct - parms->goalspring);
+			k = verts[s->ij].goal * scaling / (parms->avg_spring_len + FLT_EPSILON);
+			
+			BPH_mass_spring_force_spring_goal(data, s->ij, s->matrix_ij_kl, goal_x, goal_v, k, parms->goalfrict * 0.01f, s->f, s->dfdx, s->dfdv);
+#endif
+
+#ifdef CLOTH_FORCE_SPRING_BEND
+			float kb, cb, scaling;
+			
+			s->flags |= CLOTH_SPRING_FLAG_NEEDED;
+			
+			scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
+			kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+			
+			scaling = parms->bending_damping;
+			cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+			
+			BPH_mass_spring_force_spring_bending(data, s->ij, s->kl, s->matrix_ij_kl, s->restlen, kb, cb, s->f, s->dfdx, s->dfdv);
+#endif
+
+#ifdef CLOTH_FORCE_SPRING_BEND
+			float kb, cb, scaling;
+			
+			s->flags |= CLOTH_SPRING_FLAG_NEEDED;
+			
+			scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
+			kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+			
+			scaling = parms->bending_damping;
+			cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+			
+			/* XXX assuming same restlen for ij and jk segments here, this can be done correctly for hair later */
+			BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->matrix_ij_kl, s->matrix_kl_mn, s->matrix_ij_mn, s->target, kb, cb);
+			
+			{
+				float x_kl[3], x_mn[3], v[3], d[3];
+				
+				BPH_mass_spring_get_motion_state(data, s->kl, x_kl, v);
+				BPH_mass_spring_get_motion_state(data, s->mn, x_mn, v);
+				
+				BKE_sim_debug_data_add_dot(clmd->debug_data, x_kl, 0.9, 0.9, 0.9, "target", hash_vertex(7980, s->kl));
+				BKE_sim_debug_data_add_line(clmd->debug_data, x_kl, x_mn, 0.8, 0.8, 0.8, "target", hash_vertex(7981, s->kl));
+				
+				copy_v3_v3(d, s->target);
+				BKE_sim_debug_data_add_vector(clmd->debug_data, x_kl, d, 0.8, 0.8, 0.2, "target", hash_vertex(7982, s->kl));
+				
+//				copy_v3_v3(d, s->target_ij);
+//				BKE_sim_debug_data_add_vector(clmd->debug_data, x, d, 1, 0.4, 0.4, "target", hash_vertex(7983, s->kl));
+			}
+#endif
+#endif
+
+		kstart += curve->totpoints;
+	}
+	
+	MEM_freeN(restlen);
+}
+
+static void hair_calc_force(HairSolverData *data, Object *ob, HairSystem *hsys, float time, SimDebugData *debug_data)
+{
+	HairParams *params = &hsys->params;
+	
 #ifdef CLOTH_FORCE_GRAVITY
 	/* global acceleration (gravitation) */
 	float gravity[3];
@@ -885,15 +998,9 @@ static void hair_calc_force(HairSolverData *data, HairParams *params, float time
 
 		MEM_freeN(winvec);
 	}
-	
-	// calculate spring forces
-	for (LinkNode *link = cloth->springs; link; link = link->next) {
-		ClothSpring *spring = (ClothSpring *)link->link;
-		// only handle active springs
-		if (!(spring->flags & CLOTH_SPRING_FLAG_DEACTIVATE))
-			cloth_calc_spring_force(clmd, spring, time);
-	}
 #endif
+	
+	hair_calc_spring_force(data, ob, hsys, time, debug_data);
 }
 
 /* Init constraint matrix
@@ -1009,7 +1116,7 @@ void BPH_hair_solve(HairSolverData *data, Object *ob, HairSystem *hsys, float ti
 		hair_setup_constraints(data, ob, hsys, contacts, totcolliders, dt);
 		
 		// calculate forces
-		hair_calc_force(data, params, time, debug_data);
+		hair_calc_force(data, ob, hsys, time, debug_data);
 		
 		// calculate new velocity and position
 		BPH_mass_spring_solve(data->id, dt, &result);
