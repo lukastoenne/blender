@@ -854,29 +854,21 @@ void BPH_hair_solver_set_positions(HairSolverData *data, Object *ob, HairSystem 
 
 static void hair_calc_force(HairSolverData *data, HairParams *params, float time, SimDebugData *debug_data)
 {
-	/* Collect forces and derivatives:  F, dFdX, dFdV */
-//	Cloth *cloth = clmd->clothObject;
-//	Implicit_Data *data = cloth->implicit;
-//	unsigned int i	= 0;
-//	MFace 		*mfaces 	= cloth->mfaces;
-//	unsigned int numverts = cloth->numverts;
-	
 #ifdef CLOTH_FORCE_GRAVITY
 	/* global acceleration (gravitation) */
 	float gravity[3];
-//	mul_v3_v3fl(gravity, data->gravity, 0.001f * params->effector_weights->global_gravity);
 	mul_v3_v3fl(gravity, data->gravity, params->effector_weights->global_gravity);
 	BPH_mass_spring_force_gravity(data->id, gravity);
 #endif
-
-#if 0
-	cloth_calc_volume_force(clmd);
-
+	
+//	cloth_calc_volume_force(clmd);
+	
 #ifdef CLOTH_FORCE_DRAG
 	float drag = params->drag;
 	BPH_mass_spring_force_drag(data->id, drag);
 #endif
 	
+#if 0
 	/* handle external forces like wind */
 	if (effectors) {
 		/* cache per-vertex forces to avoid redundant calculation */

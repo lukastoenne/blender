@@ -72,6 +72,11 @@ class PHYSICS_PT_hair_simulation(PhysicButtonsPanel, Panel):
         col.prop(params, "stretch_damping")
         col.prop(params, "bend_damping")
 
+        split = layout.split()
+
+        col = split.column()
+        col.prop(params, "drag")
+
 class PHYSICS_PT_hair_field_weights(PhysicButtonsPanel, Panel):
     bl_label = "Field Weights"
     bl_options = {'DEFAULT_CLOSED'}
@@ -101,9 +106,6 @@ class PHYSICS_PT_hair_collision(PhysicButtonsPanel, Panel):
         col.prop(params, "restitution")
         col.prop(params, "friction")
         col.prop(params, "margin")
-
-        col = split.column()
-        col.prop(params, "drag")
 
 
 class PHYSICS_PT_hair_render(PhysicButtonsPanel, Panel):
