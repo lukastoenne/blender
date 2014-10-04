@@ -742,10 +742,13 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 	return 1;
 }
 
-/* ======== Cloth Solver ======== */
+/* ======== Hair Solver ======== */
 
 struct HairSolverData {
-	Implicit_Data *id;
+	Implicit_Data *id; /* internal solver data */
+	
+	/* externals (updated for every step) */
+	float gravity[3];
 	ListBase *effectors;
 };
 
@@ -780,6 +783,16 @@ HairSolverData *BPH_hair_solver_create(Object *UNUSED(ob), HairSystem *hsys)
 	hair_solver_count(hsys, &totverts, &totsprings);
 	data->id = BPH_mass_spring_solver_create(totverts, totsprings);
 	
+	int ktot = 0;
+	HairCurve *curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		HairPoint *point = curve->points;
+		for (int k = 0; k < curve->totpoints; ++k, ++ktot, ++point) {
+			/* XXX is individual hair point mass needed? */
+			BPH_mass_spring_set_vertex_mass(data->id, ktot, 1.0f);
+		}
+	}
+	
 	return data;
 }
 
@@ -795,9 +808,14 @@ void BPH_hair_solver_free(HairSolverData *data)
 void BPH_hair_solver_set_externals(HairSolverData *data, Scene *scene, Object *ob, DerivedMesh *dm, EffectorWeights *effector_weights)
 {
 	data->effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
+	
+	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY)
+		copy_v3_v3(data->gravity, scene->physics_settings.gravity);
+	else
+		zero_v3(data->gravity);
 }
 
-void BPH_hair_solver_free_effectors(HairSolverData *data)
+void BPH_hair_solver_clear_externals(HairSolverData *data)
 {
 	pdEndEffectors(&data->effectors);
 }
@@ -834,6 +852,71 @@ void BPH_hair_solver_set_positions(HairSolverData *data, Scene *scene, Object *o
 	}
 }
 
+static void hair_calc_force(HairSolverData *data, HairParams *params, float time, SimDebugData *debug_data)
+{
+	/* Collect forces and derivatives:  F, dFdX, dFdV */
+//	Cloth *cloth = clmd->clothObject;
+//	Implicit_Data *data = cloth->implicit;
+//	unsigned int i	= 0;
+//	MFace 		*mfaces 	= cloth->mfaces;
+//	unsigned int numverts = cloth->numverts;
+	
+#ifdef CLOTH_FORCE_GRAVITY
+	/* global acceleration (gravitation) */
+	float gravity[3];
+//	mul_v3_v3fl(gravity, data->gravity, 0.001f * params->effector_weights->global_gravity);
+	mul_v3_v3fl(gravity, data->gravity, params->effector_weights->global_gravity);
+	BPH_mass_spring_force_gravity(data->id, gravity);
+#endif
+
+#if 0
+	cloth_calc_volume_force(clmd);
+
+#ifdef CLOTH_FORCE_DRAG
+	float drag = params->drag;
+	BPH_mass_spring_force_drag(data->id, drag);
+#endif
+	
+	/* handle external forces like wind */
+	if (effectors) {
+		/* cache per-vertex forces to avoid redundant calculation */
+		float (*winvec)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
+		for (i = 0; i < cloth->numverts; i++) {
+			float x[3], v[3];
+			EffectedPoint epoint;
+			
+			BPH_mass_spring_get_motion_state(data, i, x, v);
+			pd_point_from_loc(clmd->scene, x, v, i, &epoint);
+			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
+		}
+		
+		for (i = 0; i < cloth->numfaces; i++) {
+			MFace *mf = &mfaces[i];
+			BPH_mass_spring_force_face_wind(data, mf->v1, mf->v2, mf->v3, mf->v4, winvec);
+		}
+
+		/* Hair has only edges */
+		if (cloth->numfaces == 0) {
+			for (LinkNode *link = cloth->springs; link; link = link->next) {
+				ClothSpring *spring = (ClothSpring *)link->link;
+				if (spring->type == CLOTH_SPRING_TYPE_STRUCTURAL)
+					BPH_mass_spring_force_edge_wind(data, spring->ij, spring->kl, winvec);
+			}
+		}
+
+		MEM_freeN(winvec);
+	}
+	
+	// calculate spring forces
+	for (LinkNode *link = cloth->springs; link; link = link->next) {
+		ClothSpring *spring = (ClothSpring *)link->link;
+		// only handle active springs
+		if (!(spring->flags & CLOTH_SPRING_FLAG_DEACTIVATE))
+			cloth_calc_spring_force(clmd, spring, time);
+	}
+#endif
+}
+
 void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time, float timestep, SimDebugData *debug_data)
 {
 	float dt = timestep / (float)params->substeps;
@@ -841,9 +924,9 @@ void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time,
 	ColliderContacts *contacts = NULL;
 	int totcolliders = 0;
 	
-//	BPH_mass_spring_solver_debug_data(id, clmd->debug_data);
+	BPH_mass_spring_solver_debug_data(data->id, debug_data);
 	
-//	BKE_sim_debug_data_clear_category(clmd->debug_data, "collision");
+	BKE_sim_debug_data_clear_category(debug_data, "collision");
 	
 //	if (!clmd->solver_result)
 //		clmd->solver_result = (ClothSolverResult *)MEM_callocN(sizeof(ClothSolverResult), "cloth solver result");
@@ -883,7 +966,7 @@ void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time,
 #endif
 		
 		// calculate forces
-//		cloth_calc_force(clmd, frame, effectors, step);
+		hair_calc_force(data, params, time, debug_data);
 		
 		// calculate new velocity and position
 		BPH_mass_spring_solve(data->id, dt, &result);
@@ -912,7 +995,7 @@ void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time,
 		}
 	}
 	
-//	BPH_mass_spring_solver_debug_data(id, NULL);
+	BPH_mass_spring_solver_debug_data(data->id, NULL);
 }
 
 void BPH_hair_solver_apply_positions(HairSolverData *data, Scene *scene, Object *ob, HairSystem *hsys)

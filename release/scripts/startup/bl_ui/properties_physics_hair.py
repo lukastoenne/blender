@@ -72,6 +72,19 @@ class PHYSICS_PT_hair_simulation(PhysicButtonsPanel, Panel):
         col.prop(params, "stretch_damping")
         col.prop(params, "bend_damping")
 
+class PHYSICS_PT_hair_field_weights(PhysicButtonsPanel, Panel):
+    bl_label = "Field Weights"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    def draw(self, context):
+        layout = self.layout
+        md = context.hair
+        hsys = md.hair_system
+        params = hsys.params
+
+        effector_weights_ui(self, context, params.effector_weights, 'HAIR')
+
 
 class PHYSICS_PT_hair_collision(PhysicButtonsPanel, Panel):
     bl_label = "Hair Collision"

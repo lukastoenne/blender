@@ -3235,7 +3235,7 @@ void BKE_object_sim_post_step(Scene *scene, Object *ob, float UNUSED(ctime))
 		if (md->type == eModifierType_Hair) {
 			HairModifierData *hmd = (HairModifierData*) md;
 			
-			BPH_hair_solver_free_effectors(hmd->solver_data);
+			BPH_hair_solver_clear_externals(hmd->solver_data);
 			
 			BPH_hair_solver_apply_positions(hmd->solver_data, scene, ob, hmd->hairsys);
 		}

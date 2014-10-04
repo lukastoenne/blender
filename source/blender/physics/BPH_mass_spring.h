@@ -62,7 +62,7 @@ struct HairSolverData *BPH_hair_solver_create(struct Object *ob, struct HairSyst
 void BPH_hair_solver_free(struct HairSolverData *data);
 
 void BPH_hair_solver_set_externals(struct HairSolverData *data, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, struct EffectorWeights *effector_weights);
-void BPH_hair_solver_free_effectors(struct HairSolverData *data);
+void BPH_hair_solver_clear_externals(struct HairSolverData *data);
 
 void BPH_hair_solver_set_positions(struct HairSolverData *data, struct Scene *scene, struct Object *ob, struct HairSystem *hsys);
 void BPH_hair_solve(struct HairSolverData *data, struct HairParams *params, float time, float timestep, struct SimDebugData *debug_data);
