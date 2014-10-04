@@ -405,6 +405,8 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		Image *image;
 		for (image = main->image.first; image != NULL; image = image->id.next) {
 			image->gen_color[3] = 1.0f;
+		}
+	}
 
 	if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "int", "voxel_res")) {
 		Object *ob;
