@@ -171,10 +171,10 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 		export_transformation_type,
 		open_sim);
 
-	if(export_count == 0) {
+	if (export_count == 0) {
 		BKE_report(op->reports, RPT_WARNING, "Export file is empty");
 		return OPERATOR_CANCELLED;
-		}
+	}
 	else {
 		char buff[100];
 		sprintf(buff, "Exported %d Objects", export_count);
@@ -355,8 +355,8 @@ void WM_OT_collada_export(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "export_transformation_type_selection", prop_bc_export_transformation_type, 0,
 	             "Transform", "Transformation type for translation, scale and rotation");
 
-	RNA_def_boolean(ot->srna, "open_sim", 0, "Export for OpenSim",
-	                "Compatibility mode for OpenSim and compatible online worlds");
+	RNA_def_boolean(ot->srna, "open_sim", 0, "Export to SL/OpenSim",
+	                "Compatibility mode for SL, OpenSim and other compatible online worlds");
 }
 
 
