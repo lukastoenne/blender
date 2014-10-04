@@ -76,8 +76,7 @@ typedef enum eHairRenderSettings_Flag {
 } eHairRenderSettings_Flag;
 
 typedef struct HairParams {
-	int substeps_forces;
-	int substeps_damping;
+	int substeps;
 	
 	float stretch_stiffness;
 	float stretch_damping;
@@ -91,7 +90,6 @@ typedef struct HairParams {
 	float restitution;
 	float friction;
 	float margin;
-	int pad;
 	
 	struct EffectorWeights *effector_weights;
 	

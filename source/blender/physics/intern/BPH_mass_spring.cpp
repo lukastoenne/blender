@@ -836,7 +836,83 @@ void BPH_hair_solver_set_positions(HairSolverData *data, Scene *scene, Object *o
 
 void BPH_hair_solve(struct HairSolverData *data, HairParams *params, float time, float timestep, SimDebugData *debug_data)
 {
-	// XXX TODO
+	float dt = timestep / (float)params->substeps;
+	int s;
+	ColliderContacts *contacts = NULL;
+	int totcolliders = 0;
+	
+//	BPH_mass_spring_solver_debug_data(id, clmd->debug_data);
+	
+//	BKE_sim_debug_data_clear_category(clmd->debug_data, "collision");
+	
+//	if (!clmd->solver_result)
+//		clmd->solver_result = (ClothSolverResult *)MEM_callocN(sizeof(ClothSolverResult), "cloth solver result");
+//	cloth_clear_result(clmd);
+	
+#if 0
+	if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) { /* do goal stuff */
+		for (i = 0; i < numverts; i++) {
+			// update velocities with constrained velocities from pinned verts
+			if (verts [i].flags & CLOTH_VERT_FLAG_PINNED) {
+				float v[3];
+				sub_v3_v3v3(v, verts[i].xconst, verts[i].xold);
+				// mul_v3_fl(v, clmd->sim_parms->stepsPerFrame);
+				BPH_mass_spring_set_velocity(id, i, v);
+			}
+		}
+	}
+#endif
+	
+	for (s = 0; s < params->substeps; ++s, time += dt) {
+		ImplicitSolverResult result;
+		
+		/* initialize forces to zero */
+		BPH_mass_spring_clear_forces(data->id);
+		BPH_mass_spring_clear_constraints(data->id);
+		
+#if 0
+		/* determine contact points */
+		if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) {
+			if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_POINTS) {
+				cloth_find_point_contacts(ob, clmd, 0.0f, tf, &contacts, &totcolliders);
+			}
+		}
+		
+		/* setup vertex constraints for pinned vertices and contacts */
+		cloth_setup_constraints(clmd, contacts, totcolliders, dt);
+#endif
+		
+		// calculate forces
+//		cloth_calc_force(clmd, frame, effectors, step);
+		
+		// calculate new velocity and position
+		BPH_mass_spring_solve(data->id, dt, &result);
+//		cloth_record_result(clmd, &result, clmd->sim_parms->stepsPerFrame);
+		
+		BPH_mass_spring_apply_result(data->id);
+		
+#if 0
+		/* move pinned verts to correct position */
+		for (i = 0; i < numverts; i++) {
+			if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) {
+				if (verts[i].flags & CLOTH_VERT_FLAG_PINNED) {
+					float x[3];
+					interp_v3_v3v3(x, verts[i].xold, verts[i].xconst, step + dt);
+					BPH_mass_spring_set_position(id, i, x);
+				}
+			}
+			
+			BPH_mass_spring_get_motion_state(id, i, verts[i].txold, NULL);
+		}
+#endif
+		
+		/* free contact points */
+		if (contacts) {
+			cloth_free_contacts(contacts, totcolliders);
+		}
+	}
+	
+//	BPH_mass_spring_solver_debug_data(id, NULL);
 }
 
 void BPH_hair_solver_apply_positions(HairSolverData *data, Scene *scene, Object *ob, HairSystem *hsys)

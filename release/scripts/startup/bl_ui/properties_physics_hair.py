@@ -59,11 +59,7 @@ class PHYSICS_PT_hair_simulation(PhysicButtonsPanel, Panel):
 
         split = layout.split()
 
-        col = split.column()
-        col.prop(params, "substeps_forces")
-
-        col = split.column()
-        col.prop(params, "substeps_damping")
+        split.prop(params, "substeps")
 
         split = layout.split()
 

@@ -47,8 +47,7 @@
 
 void BKE_hair_params_init(HairParams *params)
 {
-	params->substeps_forces = 30;
-	params->substeps_damping = 10;
+	params->substeps = 5;
 	params->stretch_stiffness = 2000.0f;
 	params->stretch_damping = 10.0f;
 	params->bend_stiffness = 40.0f;
