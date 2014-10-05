@@ -47,6 +47,7 @@ extern "C" {
 #include "BKE_cloth.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
+#include "BKE_hair.h"
 }
 
 #include "BPH_mass_spring.h"
@@ -119,7 +120,6 @@ void BKE_cloth_solver_set_positions(ClothModifierData *clmd)
 	unsigned int numverts = cloth->numverts, i;
 	ClothHairRoot *cloth_roots = clmd->roots;
 	Implicit_Data *id = cloth->implicit;
-	const float ZERO[3] = {0.0f, 0.0f, 0.0f};
 	
 	for (i = 0; i < numverts; i++) {
 		ClothHairRoot *root = &cloth_roots[i];
@@ -815,16 +815,6 @@ void BPH_hair_solver_set_positions(HairSolverData *data, Object *ob, HairSystem 
 	int ktot = 0;
 	HairCurve *curve = hsys->curves;
 	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
-		float rot[3][3];
-		
-		/* hair orientation matrix (root rest frame) */
-		copy_v3_v3(rot[0], curve->rest_tan);
-		cross_v3_v3v3(rot[1], curve->rest_nor, curve->rest_tan);
-		copy_v3_v3(rot[2], curve->rest_nor);
-		mul_mat3_m4_v3(obmat, rot[0]);
-		mul_mat3_m4_v3(obmat, rot[1]);
-		mul_mat3_m4_v3(obmat, rot[2]);
-		
 		HairPoint *point = curve->points;
 		for (int k = 0; k < curve->totpoints; ++k, ++ktot, ++point) {
 			float x[3], v[3];
@@ -833,7 +823,7 @@ void BPH_hair_solver_set_positions(HairSolverData *data, Object *ob, HairSystem 
 			mul_m4_v3(obmat, x);
 			mul_mat3_m4_v3(obmat, v);
 			
-			BPH_mass_spring_set_rest_transform(data->id, ktot, rot);
+			BPH_mass_spring_set_rest_transform(data->id, ktot, curve->root_frame); /* hair orientation matrix (root frame) */
 			BPH_mass_spring_set_motion_state(data->id, ktot, x, v);
 		}
 	}
@@ -847,35 +837,15 @@ static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem 
 	float obmat[4][4];
 	copy_m4_m4(obmat, ob->obmat);
 	
-	int max_points = 0;
+	int kstart = 0;
 	HairCurve *curve = hsys->curves;
 	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
-		if (curve->totpoints > max_points)
-			max_points = curve->totpoints;
-	}
-	if (max_points < 2)
-		return;
-	/* local caching of rest length for each hair */
-	float *restlen = (float *)MEM_mallocN(sizeof(float) * max_points, "hair rest length");
-	
-	int kstart = 0;
-	curve = hsys->curves;
-	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
 		HairPoint *point;
-
-		/* precalculate segment rest lengths */
-		point = curve->points;
-		for (int k = 0; k < curve->totpoints - 1; ++k, ++point) {
-			float a[3], b[3];
-			mul_v3_m4v3(a, obmat, point->rest_co);
-			mul_v3_m4v3(b, obmat, (point+1)->rest_co);
-			restlen[k] = len_v3v3(a, b);
-		}
 
 #ifdef CLOTH_FORCE_SPRING_STRUCTURAL
 		point = curve->points;
 		for (int k = 0; k < curve->totpoints - 1; ++k, ++point) {
-			BPH_mass_spring_force_spring_linear(data->id, kstart + k, kstart + k + 1, restlen[k],
+			BPH_mass_spring_force_spring_linear(data->id, kstart + k, kstart + k + 1, point->rest_length,
 			                                    params->stretch_stiffness, params->stretch_damping, no_compress, 0.0f,
 			                                    NULL, NULL, NULL);
 		}
@@ -883,71 +853,72 @@ static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem 
 
 #if 0
 #ifdef CLOTH_FORCE_SPRING_GOAL
-			float goal_x[3], goal_v[3];
-			float k, scaling;
-			
-			s->flags |= CLOTH_SPRING_FLAG_NEEDED;
-			
-			// current_position = xold + t * (newposition - xold)
-			interp_v3_v3v3(goal_x, verts[s->ij].xold, verts[s->ij].xconst, time);
-			sub_v3_v3v3(goal_v, verts[s->ij].xconst, verts[s->ij].xold); // distance covered over dt==1
-			
-			scaling = parms->goalspring + s->stiffness * fabsf(parms->max_struct - parms->goalspring);
-			k = verts[s->ij].goal * scaling / (parms->avg_spring_len + FLT_EPSILON);
-			
-			BPH_mass_spring_force_spring_goal(data, s->ij, s->matrix_ij_kl, goal_x, goal_v, k, parms->goalfrict * 0.01f, s->f, s->dfdx, s->dfdv);
+		float goal_x[3], goal_v[3];
+		float k, scaling;
+		
+		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
+		
+		// current_position = xold + t * (newposition - xold)
+		interp_v3_v3v3(goal_x, verts[s->ij].xold, verts[s->ij].xconst, time);
+		sub_v3_v3v3(goal_v, verts[s->ij].xconst, verts[s->ij].xold); // distance covered over dt==1
+		
+		scaling = parms->goalspring + s->stiffness * fabsf(parms->max_struct - parms->goalspring);
+		k = verts[s->ij].goal * scaling / (parms->avg_spring_len + FLT_EPSILON);
+		
+		BPH_mass_spring_force_spring_goal(data, s->ij, s->matrix_ij_kl, goal_x, goal_v, k, parms->goalfrict * 0.01f, s->f, s->dfdx, s->dfdv);
+#endif
 #endif
 
 #ifdef CLOTH_FORCE_SPRING_BEND
-			float kb, cb, scaling;
+		if (curve->totpoints >= 2) {
+			HairFrameIterator iter;
+			float x[3], x_prev[3], frame[3][3], rot[3][3], target[3];
 			
-			s->flags |= CLOTH_SPRING_FLAG_NEEDED;
+			/* frame starts in current root position */
+			copy_m3_m3(frame, curve->root_frame);
+			mul_mat3_m4_v3(obmat, frame[0]);
+			mul_mat3_m4_v3(obmat, frame[1]);
+			mul_mat3_m4_v3(obmat, frame[2]);
+			normalize_m3(frame); /* avoid scaling from obmat */
 			
-			scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
-			kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+			/* initialize frame iterator */
+			BKE_hair_frame_init(&iter, frame[2]);
 			
-			scaling = parms->bending_damping;
-			cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
+			/* special handling of root point bending:
+			 * use the first point twice
+			 */
+			point = curve->points;
+			mul_v3_m3v3(target, frame, point->rest_target); /* target expressed in the current frame */
+			BPH_mass_spring_force_spring_bending_angular(data->id, kstart, kstart, kstart + 1, target,
+			                                             params->bend_stiffness, params->bend_damping);
 			
-			BPH_mass_spring_force_spring_bending(data, s->ij, s->kl, s->matrix_ij_kl, s->restlen, kb, cb, s->f, s->dfdx, s->dfdv);
-#endif
-
-#ifdef CLOTH_FORCE_SPRING_BEND
-			float kb, cb, scaling;
+			/* initialize x as the first point */
+			BPH_mass_spring_get_motion_state(data->id, kstart, x, NULL);
 			
-			s->flags |= CLOTH_SPRING_FLAG_NEEDED;
-			
-			scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
-			kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
-			
-			scaling = parms->bending_damping;
-			cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
-			
-			/* XXX assuming same restlen for ij and jk segments here, this can be done correctly for hair later */
-			BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->matrix_ij_kl, s->matrix_kl_mn, s->matrix_ij_mn, s->target, kb, cb);
-			
-			{
-				float x_kl[3], x_mn[3], v[3], d[3];
+			++point;
+			for (int k = 1; k < curve->totpoints - 1; ++k, ++point) {
+				/* transport the frame to the next segment */
+				copy_v3_v3(x_prev, x);
+				BPH_mass_spring_get_motion_state(data->id, kstart + k, x, NULL);
 				
-				BPH_mass_spring_get_motion_state(data, s->kl, x_kl, v);
-				BPH_mass_spring_get_motion_state(data, s->mn, x_mn, v);
+				BKE_hair_frame_next_from_points(&iter, x_prev, x, rot);
+				mul_m3_m3m3(frame, rot, frame);
 				
-				BKE_sim_debug_data_add_dot(clmd->debug_data, x_kl, 0.9, 0.9, 0.9, "target", hash_vertex(7980, s->kl));
-				BKE_sim_debug_data_add_line(clmd->debug_data, x_kl, x_mn, 0.8, 0.8, 0.8, "target", hash_vertex(7981, s->kl));
+				/* calculate bending target and build angular spring */
+				mul_v3_m3v3(target, frame, point->rest_target); /* target expressed in the current frame */
+				BPH_mass_spring_force_spring_bending_angular(data->id, kstart + k - 1, kstart + k, kstart + k + 1, target,
+				                                             params->bend_stiffness, params->bend_damping);
 				
-				copy_v3_v3(d, s->target);
-				BKE_sim_debug_data_add_vector(clmd->debug_data, x_kl, d, 0.8, 0.8, 0.2, "target", hash_vertex(7982, s->kl));
-				
-//				copy_v3_v3(d, s->target_ij);
-//				BKE_sim_debug_data_add_vector(clmd->debug_data, x, d, 1, 0.4, 0.4, "target", hash_vertex(7983, s->kl));
+				{ /* XXX DEBUG */
+					BKE_sim_debug_data_add_m3(debug_data, x, frame, 0.2f, 0.3f, 1.0f, "bending", hash_vertex(935, kstart + k));
+					BKE_sim_debug_data_add_vector(debug_data, x, target, 0.7, 0.8, 0.0, "bending", hash_vertex(945, kstart + k));
+				}
 			}
-#endif
+		}
 #endif
 
 		kstart += curve->totpoints;
 	}
-	
-	MEM_freeN(restlen);
 }
 
 static void hair_calc_force(HairSolverData *data, Object *ob, HairSystem *hsys, float time, SimDebugData *debug_data)

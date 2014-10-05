@@ -37,21 +37,22 @@
 
 typedef struct HairPoint {
 	float rest_co[3];           /* rest location in object space */
+	float rest_length;          /* segment rest length */
+	float rest_target[3];       /* local rest target vector */
+	
 	float co[3];                /* location in object space */
 	float vel[3];               /* velocity */
 	float radius;               /* thickness of a hair wisp */
-	
-	int pad[2];
 } HairPoint;
 
 typedef struct HairCurve {
 	HairPoint *points;          /* point data */
 	int totpoints;              /* number of points in the curve */
-	float avg_rest_length;      /* average segment rest length */
 	
+	float avg_rest_length;      /* average segment rest length */
 	MSurfaceSample root;
-	float rest_nor[3];          /* rest normal */
-	float rest_tan[3];          /* rest tangent */
+	float root_rest_frame[3][3]; /* rest root frame */
+	float root_frame[3][3];     /* current root frame */
 } HairCurve;
 
 typedef struct HairRenderSettings {

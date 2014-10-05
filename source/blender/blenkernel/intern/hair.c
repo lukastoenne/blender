@@ -247,27 +247,132 @@ void BKE_hair_point_remove_position(HairSystem *UNUSED(hsys), HairCurve *hair, i
 	hair->totpoints = ntotpoints;
 }
 
-void BKE_hair_calculate_rest(HairSystem *hsys)
+static void get_hair_frame(float frame[3][3], const float normal[3], const float tangent[3])
 {
-	HairCurve *hair;
-	int i;
+	copy_v3_v3(frame[2], normal);
 	
-	for (i = 0, hair = hsys->curves; i < hsys->totcurves; ++i, ++hair) {
-		HairPoint *point;
-		int k;
-		float tot_rest_length;
-		
-		tot_rest_length = 0.0f;
-		for (k = 1, point = hair->points + 1; k < hair->totpoints; ++k, ++point) {
-			tot_rest_length += len_v3v3((point-1)->rest_co, point->rest_co);
-		}
-		if (hair->totpoints > 1)
-			hair->avg_rest_length = tot_rest_length / (float)(hair->totpoints-1);
+	if (tangent) {
+		copy_v3_v3(frame[0], tangent);
 	}
+	else {
+		const float up[3] = {0.0f, 0.0f, 1.0f};
+		
+		madd_v3_v3v3fl(frame[0], up, normal, -dot_v3v3(up, normal));
+		normalize_v3(frame[0]);
+	}
+	
+	cross_v3_v3v3(frame[1], frame[2], frame[0]);
 }
 
+void BKE_hair_get_mesh_frame(struct DerivedMesh *dm, HairCurve *curve, float frame[3][3])
+{
+	float vloc[3], vnor[3];
+	
+	bool ok = BKE_mesh_sample_eval(dm, &curve->root, vloc, vnor);
+	if (ok)
+		get_hair_frame(frame, vnor, NULL);
+	else
+		unit_m3(frame);
+}
 
-/* ================ Render ================ */
+void BKE_hair_calculate_rest(struct DerivedMesh *dm, HairCurve *curve)
+{
+	HairPoint *point;
+	int k;
+	float tot_rest_length;
+	HairFrameIterator iter;
+	float frame[3][3], rot[3][3];
+	
+	if (curve->totpoints < 2) {
+		point = curve->points;
+		for (k = 0; k < curve->totpoints; ++k, ++point) {
+			point->rest_length = 0.0f;
+			zero_v3(point->rest_target);
+		}
+		
+		curve->avg_rest_length = 0.0f;
+		zero_m3(curve->root_rest_frame);
+		
+		return;
+	}
+	
+	tot_rest_length = 0.0f;
+	point = curve->points;
+	for (k = 0; k < curve->totpoints - 1; ++k, ++point) {
+		point->rest_length = len_v3v3(point->rest_co, (point+1)->rest_co);
+		tot_rest_length += point->rest_length;
+	}
+	curve->avg_rest_length = tot_rest_length / (float)(curve->totpoints-1);
+	
+	/* frame starts in root rest position
+	 * note: not using obmat here, doesn't matter for rest calculation
+	 */
+	BKE_hair_get_mesh_frame(dm, curve, curve->root_rest_frame);
+	copy_m3_m3(frame, curve->root_rest_frame);
+	
+	/* initialize frame iterator */
+	BKE_hair_frame_init(&iter, frame[2]);
+	
+	point = curve->points;
+	/* target is the edge vector in frame space */
+	sub_v3_v3v3(point->rest_target, (point+1)->rest_co, point->rest_co);
+	mul_transposed_m3_v3(frame, point->rest_target);
+	
+	++point;
+	for (k = 1; k < curve->totpoints - 1; ++k, ++point) {
+		/* transport the frame to the next segment */
+		BKE_hair_frame_next_from_points(&iter, (point-1)->rest_co, point->rest_co, rot);
+		mul_m3_m3m3(frame, rot, frame);
+		
+		/* target is the edge vector in frame space */
+		sub_v3_v3v3(point->rest_target, (point+1)->rest_co, point->rest_co);
+		mul_transposed_m3_v3(frame, point->rest_target);
+	}
+	
+	/* last point */
+	point->rest_length = 0.0f;
+	zero_v3(point->rest_target);
+}
+
+/* ==== Hair Framing ==== */
+
+void BKE_hair_frame_init(HairFrameIterator *iter, const float dir0[3])
+{
+	copy_v3_v3(iter->prev_dir, dir0);
+	copy_v3_v3(iter->dir, dir0);
+}
+
+void BKE_hair_frame_init_from_points(HairFrameIterator *iter, const float x0[3], const float x1[3])
+{
+	float dir0[3];
+	sub_v3_v3v3(dir0, x1, x0);
+	normalize_v3(dir0);
+	
+	BKE_hair_frame_init(iter, dir0);
+}
+
+void BKE_hair_frame_next(HairFrameIterator *iter, const float dir[3], float rot[3][3])
+{
+	/* TODO implement optional smoothing function here, as described in "Artistic Simulation of Curly Hair" */
+	
+	/* rotation between segments */
+	rotation_between_vecs_to_mat3(rot, iter->dir, dir);
+	
+	/* advance iterator state */
+	copy_v3_v3(iter->prev_dir, iter->dir);
+	copy_v3_v3(iter->dir, dir);
+}
+
+void BKE_hair_frame_next_from_points(HairFrameIterator *iter, const float x0[3], const float x1[3], float rot[3][3])
+{
+	float dir[3];
+	sub_v3_v3v3(dir, x1, x0);
+	normalize_v3(dir);
+	
+	BKE_hair_frame_next(iter, dir, rot);
+}
+
+/* ================ Render Hair Iterator ================ */
 
 static int hair_maxpoints(HairSystem *hsys)
 {
@@ -298,25 +403,6 @@ static HairRenderChildData *hair_gen_child_data(HairParams *params, unsigned int
 	BLI_rng_free(rng);
 	
 	return data;
-}
-
-static void get_hair_root_frame(HairCurve *hair, float frame[3][3])
-{
-	const float up[3] = {0.0f, 0.0f, 1.0f};
-	float normal[3];
-	
-	if (hair->totpoints >= 2) {
-		sub_v3_v3v3(normal, hair->points[1].co, hair->points[0].co);
-		normalize_v3(normal);
-		
-		copy_v3_v3(frame[0], normal);
-		madd_v3_v3v3fl(frame[1], up, normal, -dot_v3v3(up, normal));
-		normalize_v3(frame[1]);
-		cross_v3_v3v3(frame[2], frame[0], frame[1]);
-	}
-	else {
-		unit_m3(frame);
-	}
 }
 
 static void hair_precalc_cache(HairRenderIterator *iter)
@@ -599,4 +685,23 @@ void BKE_hair_render_iter_get_frame(HairRenderIterator *iter, float nor[3], floa
 float BKE_hair_render_iter_param(HairRenderIterator *iter)
 {
 	return iter->totsteps > 1 ? (float)iter->step / (float)(iter->totsteps-1) : 0.0f;
+}
+
+/* ==== Hair Modifier ==== */
+
+void BKE_hair_mod_verify_debug_data(HairModifierData *hmd)
+{
+	if (hmd) {
+		if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
+			if (hmd->debug_data) {
+				BKE_sim_debug_data_free(hmd->debug_data);
+				hmd->debug_data = NULL;
+			}
+		}
+		else {
+			if (!hmd->debug_data) {
+				hmd->debug_data = BKE_sim_debug_data_new();
+			}
+		}
+	}
 }

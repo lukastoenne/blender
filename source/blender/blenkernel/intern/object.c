@@ -95,6 +95,7 @@
 #include "BKE_library.h"
 #include "BKE_linestyle.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_editmesh.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
@@ -3183,6 +3184,8 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 			HairModifierData *hmd = (HairModifierData*) md;
 			HairSystem *hsys = hmd->hairsys;
 			DerivedMesh *dm = ob->derivedFinal; // XXX TODO this should be more flexible, use modifier position in the stack?
+			HairCurve *curve;
+			int i;
 			
 			if (!hmd->solver_data || !(hmd->flag & MOD_HAIR_SOLVER_DATA_VALID)) {
 				if (hmd->solver_data) {
@@ -3196,19 +3199,17 @@ void BKE_object_sim_pre_step(Scene *scene, Object *ob, float ctime)
 			
 			BPH_hair_solver_set_externals(hmd->solver_data, scene, ob, dm, hsys->params.effector_weights);
 			
+			/* calculate current root orientations
+			 * (note: has to happen before setting solver positions!)
+			 */
+			curve = hsys->curves;
+			for (i = 0; i < hsys->totcurves; ++i, ++curve) {
+				BKE_hair_get_mesh_frame(dm, curve, curve->root_frame);
+			}
+			
 			BPH_hair_solver_set_positions(hmd->solver_data, ob, hmd->hairsys);
 			
-			if (!(hmd->debug_flag & MOD_HAIR_DEBUG_SHOW)) {
-				if (hmd->debug_data) {
-					BKE_sim_debug_data_free(hmd->debug_data);
-					hmd->debug_data = NULL;
-				}
-			}
-			else {
-				if (!hmd->debug_data) {
-					hmd->debug_data = BKE_sim_debug_data_new();
-				}
-			}
+			BKE_hair_mod_verify_debug_data(hmd);
 		}
 	}
 }

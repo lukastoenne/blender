@@ -44,6 +44,7 @@
 
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_effect.h"
 #include "BKE_hair.h"
 #include "BKE_mesh_sample.h"
 #include "BKE_modifier.h"
@@ -60,6 +61,31 @@
 #include "WM_api.h"
 
 #include "physics_intern.h" // own include
+
+/* ==== hash functions for debugging ==== */
+BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+/* ================ */
 
 static bool ED_hair_get(bContext *C, Object **r_ob, HairSystem **r_hsys, HairModifierData **r_hmd)
 {
@@ -184,17 +210,8 @@ static bool hair_copy_particle_emitter_location(Object *UNUSED(ob), ParticleSyst
 static void hair_copy_root(Object *ob, HairSystem *UNUSED(hsys), ParticleSystem *psys, struct DerivedMesh *dm, HairCurve *hair, int index)
 {
 	ParticleData *root = &psys->particles[index];
-	float loc[3], nor[3], tan[3];
 	
 	hair_copy_particle_emitter_location(ob, psys, root, dm, &hair->root);
-	
-	BKE_mesh_sample_eval(dm, &hair->root, loc, nor);
-	
-	copy_v3_v3(hair->rest_nor, nor);
-	
-	tan[0] = 0.0f; tan[1] = 0.0f; tan[2] = 1.0f;
-	madd_v3_v3v3fl(hair->rest_tan, tan, hair->rest_nor, -dot_v3v3(tan, hair->rest_nor));
-	normalize_v3(hair->rest_tan);
 }
 
 #if 0
@@ -243,7 +260,7 @@ static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, s
 }
 #else
 /* base particle data */
-static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm, float UNUSED(mat[4][4]), HairCurve *hair, int index)
+static void hair_copy_data(Object *ob, HairSystem *hsys, ParticleSystem *psys, struct DerivedMesh *dm, HairCurve *hair, int index)
 {
 	/* scale of segment lengths to get point radius */
 	const float seglen_to_radius = 2.0f / 3.0f;
@@ -297,11 +314,7 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 	HairCurve *hairs;
 	PointerRNA part_ptr, cycles_ptr;
 	int tothairs;
-	float mat[4][4];
 	int i;
-	
-	/* matrix for bringing hairs from pob to ob space */
-	invert_m4_m4(mat, ob->obmat);
 	
 	/* particle emitter mesh data */
 	DM_ensure_tessface(dm);
@@ -335,7 +348,9 @@ static void hair_copy_from_particles_psys(Object *ob, HairSystem *hsys, Particle
 	hairs = BKE_hair_curve_add_multi(hsys, tothairs);
 	
 	for (i = 0; i < tothairs; ++i) {
-		hair_copy_data(ob, hsys, psys, dm, mat, hairs + i, i);
+		hair_copy_data(ob, hsys, psys, dm, hairs + i, i);
+		
+		BKE_hair_calculate_rest(dm, hairs + i);
 	}
 }
 
@@ -346,6 +361,9 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 	HairSystem *hsys = NULL;
 	HairModifierData *hmd = NULL;
 	ED_hair_get(C, &ob, &hsys, &hmd);
+	
+	/* we may want to add some debug info in this operator */
+	BKE_hair_mod_verify_debug_data(hmd);
 	
 	BKE_hairsys_clear(hsys);
 	
@@ -367,11 +385,44 @@ static int hair_copy_from_particles_exec(bContext *C, wmOperator *op)
 		}
 		
 		hair_copy_from_particles_psys(ob, hsys, psys, psmd->dm);
+		{ /* DEBUG */
+			float obmat[4][4], obmat3[3][3];
+			int i, k;
+			HairCurve *curve;
+			HairPoint *point;
+			
+			copy_m4_m4(obmat, ob->obmat);
+			copy_m3_m4(obmat3, obmat);
+			
+			curve = hsys->curves;
+			for (i = 0; i < hsys->totcurves; ++i, ++curve) {
+				if (curve->totpoints > 0) {
+					float p[3], v[3], m[3][3];
+					
+#if 0
+					mul_v3_m4v3(p, obmat, curve->points[0].rest_co);
+					
+					mul_m3_m3m3(m, obmat3, curve->root_rest_frame);
+					BKE_sim_debug_data_add_m3(hmd->debug_data, p, m, 0.333f, 0.0f, 0.8f, "rest", hash_int_2d(9335, i));
+#endif
+					
+					point = curve->points;
+					for (k = 0; k < curve->totpoints; ++k, ++point) {
+#if 0
+						mul_v3_m4v3(p, obmat, point->rest_co);
+						
+						/* XXX warning! only correct for straight hair, would actually have to propagate the frame again! */
+						mul_v3_m3v3(v, curve->root_rest_frame, point->rest_target);
+						mul_m3_v3(obmat3, v);
+						BKE_sim_debug_data_add_vector(hmd->debug_data, p, v, 0.7f, 0.8f, 0.0f, "rest", hash_int_2d(35, hash_int_2d(i, k)));
+#endif
+					}
+				}
+			}
+		}
 	}
 	
 	hmd->flag &= ~MOD_HAIR_SOLVER_DATA_VALID;
-	
-	BKE_hair_calculate_rest(hsys);
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	return OPERATOR_FINISHED;

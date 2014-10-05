@@ -31,10 +31,13 @@
  *  \ingroup bke
  */
 
+struct DerivedMesh;
+
 struct HairSystem;
 struct HairCurve;
 struct HairPoint;
 struct HairParams;
+struct HairModifierData;
 
 struct HairSystem *BKE_hair_system_new(void);
 void BKE_hair_system_free(struct HairSystem *hsys);
@@ -57,7 +60,23 @@ struct HairPoint *BKE_hair_point_insert_multi(struct HairSystem *hsys, struct Ha
 void BKE_hair_point_remove(struct HairSystem *hsys, struct HairCurve *hair, struct HairPoint *point);
 void BKE_hair_point_remove_position(struct HairSystem *hsys, struct HairCurve *hair, int pos);
 
-void BKE_hair_calculate_rest(struct HairSystem *hsys);
+void BKE_hair_get_mesh_frame(struct DerivedMesh *dm, struct HairCurve *curve, float frame[3][3]);
+void BKE_hair_calculate_rest(struct DerivedMesh *dm, struct HairCurve *curve);
+
+/* ==== Hair Framing ==== */
+
+/* Smoothed parallel transport of coordinate frames */
+typedef struct HairFrameIterator {
+	float dir[3], prev_dir[3];
+} HairFrameIterator;
+
+void BKE_hair_frame_init(struct HairFrameIterator *iter, const float dir0[3]);
+void BKE_hair_frame_next(struct HairFrameIterator *iter, const float dir[3], float rot[3][3]);
+
+void BKE_hair_frame_init_from_points(struct HairFrameIterator *iter, const float x0[3], const float x1[3]);
+void BKE_hair_frame_next_from_points(struct HairFrameIterator *iter, const float x0[3], const float x1[3], float rot[3][3]);
+
+/* ==== Render Hair Iterator ==== */
 
 /* cached per-hair data */
 typedef struct HairPointRenderCache {
@@ -107,5 +126,9 @@ void BKE_hair_render_iter_next_step(struct HairRenderIterator *iter);
 void BKE_hair_render_iter_get(struct HairRenderIterator *iter, float co[3], float *radius);
 void BKE_hair_render_iter_get_frame(struct HairRenderIterator *iter, float nor[3], float tan[3], float cotan[3]);
 float BKE_hair_render_iter_param(struct HairRenderIterator *iter);
+
+/* ==== Hair Modifier ==== */
+
+void BKE_hair_mod_verify_debug_data(struct HairModifierData *hmd);
 
 #endif

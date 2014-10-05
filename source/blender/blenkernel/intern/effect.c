@@ -1028,13 +1028,36 @@ void pdDoEffectors(ListBase *effectors, ListBase *colliders, EffectorWeights *we
 
 /* ======== Simulation Debugging ======== */
 
+BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
 static unsigned int debug_element_hash(const void *key)
 {
 	const SimDebugElement *elem = key;
 	return elem->hash;
 }
 
-static int debug_element_compare(const void *a, const void *b)
+static bool debug_element_compare(const void *a, const void *b)
 {
 	const SimDebugElement *elem1 = a;
 	const SimDebugElement *elem2 = b;
@@ -1056,7 +1079,6 @@ SimDebugData *BKE_sim_debug_data_new(void)
 	SimDebugData *debug_data = MEM_callocN(sizeof(SimDebugData), "sim debug data");
 	debug_data->gh = BLI_ghash_new(debug_element_hash, debug_element_compare, "sim debug element hash");
 	return debug_data;
-	
 }
 
 static void debug_data_insert(SimDebugData *debug_data, SimDebugElement *elem)
@@ -1127,6 +1149,20 @@ void BKE_sim_debug_data_add_vector(struct SimDebugData *debug_data, const float 
 	copy_v3_v3(elem->v2, d);
 	
 	debug_data_insert(debug_data, elem);
+}
+
+void BKE_sim_debug_data_add_m3(struct SimDebugData *debug_data, const float p[3], float m[3][3], float scale, float black, float white, const char *category, int hash)
+{
+	float v[3];
+	
+	mul_v3_v3fl(v, m[0], scale);
+	BKE_sim_debug_data_add_vector(debug_data, p, v, white, black, black, category, hash_int_2d(hash, 1));
+	
+	mul_v3_v3fl(v, m[1], scale);
+	BKE_sim_debug_data_add_vector(debug_data, p, v, black, white, black, category, hash_int_2d(hash, 2));
+	
+	mul_v3_v3fl(v, m[2], scale);
+	BKE_sim_debug_data_add_vector(debug_data, p, v, black, black, white, category, hash_int_2d(hash, 3));
 }
 
 void BKE_sim_debug_data_remove(SimDebugData *debug_data, int hash)
