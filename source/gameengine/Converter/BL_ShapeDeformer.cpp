@@ -191,7 +191,7 @@ bool BL_ShapeDeformer::Update(void)
 			/* store verts locally */
 			VerifyStorage();
 
-			per_keyblock_weights = BKE_keyblock_get_per_block_weights(blendobj, m_key, &cache);
+			per_keyblock_weights = BKE_key_get_per_block_object_weights(blendobj, m_key, &cache);
 			BKE_key_evaluate_relative(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts,
 			                          m_key, NULL, per_keyblock_weights, 0); /* last arg is ignored */
 			BKE_keyblock_free_per_block_weights(m_key, per_keyblock_weights, &cache);

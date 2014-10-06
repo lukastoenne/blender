@@ -32,6 +32,7 @@
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_particle_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -303,8 +304,8 @@ static void rna_ShapeKey_data_begin(CollectionPropertyIterator *iter, PointerRNA
 	Nurb *nu;
 	int tot = kb->totelem, size = key->elemsize;
 	
-	if (GS(key->from->name) == ID_CU) {
-		cu = (Curve *)key->from;
+	if (key->owner.type == KEY_OWNER_CURVE) {
+		cu = (Curve *)key->owner.id;
 		nu = cu->nurb.first;
 		
 		if (nu->bezt) {
@@ -324,8 +325,8 @@ static int rna_ShapeKey_data_length(PointerRNA *ptr)
 	Nurb *nu;
 	int tot = kb->totelem;
 	
-	if (GS(key->from->name) == ID_CU) {
-		cu = (Curve *)key->from;
+	if (key->owner.type == KEY_OWNER_CURVE) {
+		cu = (Curve *)key->owner.id;
 		nu = cu->nurb.first;
 		
 		if (nu->bezt)
@@ -342,8 +343,8 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
 	Curve *cu;
 	Nurb *nu;
 	
-	if (GS(key->from->name) == ID_CU) {
-		cu = (Curve *)key->from;
+	if (key->owner.type == KEY_OWNER_CURVE) {
+		cu = (Curve *)key->owner.id;
 		nu = cu->nurb.first;
 		
 		if (nu->bezt)
@@ -376,11 +377,29 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 	Key *key = ptr->id.data;
 	Object *ob;
 
-	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (BKE_key_from_object(ob) == key) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-			WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+	switch (key->owner.type) {
+	case KEY_OWNER_MESH:
+	case KEY_OWNER_CURVE:
+	case KEY_OWNER_LATTICE:
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (BKE_key_from_object(ob) == key) {
+				DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+				WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+			}
 		}
+		break;
+	case KEY_OWNER_PARTICLES:
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			ParticleSystem *psys;
+			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+				if (psys->key == key) {
+					psys->recalc |= PSYS_RECALC_REDO;
+					DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+					WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_EDITED, ob);
+				}
+			}
+		}
+		break;
 	}
 }
 
@@ -660,7 +679,7 @@ static void rna_def_key(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "user", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_pointer_sdna(prop, NULL, "from");
+	RNA_def_property_pointer_sdna(prop, NULL, "owner.id");
 	RNA_def_property_ui_text(prop, "User", "Datablock using these shape keys");
 
 	prop = RNA_def_property(srna, "use_relative", PROP_BOOLEAN, PROP_NONE);

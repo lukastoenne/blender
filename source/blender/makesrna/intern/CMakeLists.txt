@@ -155,6 +155,9 @@ set(INC_SYS
 
 if(WITH_CYCLES)
 	add_definitions(-DWITH_CYCLES)
+	if(WITH_CYCLES_DEBUG)
+		add_definitions(-DWITH_CYCLES_DEBUG)
+	endif()
 endif()
 
 if(WITH_PYTHON)
@@ -265,6 +268,9 @@ if(WITH_BULLET)
 endif()
 
 if(WITH_FREESTYLE)
+	list(APPEND INC
+		../../freestyle
+	)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 

@@ -23,6 +23,16 @@
  *
  * Given a contiguous region of faces,
  * find multiple matching regions (based on topology) and return them.
+ *
+ * Implementation:
+ *
+ * - Given a face region, find its topological center.
+ * - Compare this with other vertices surrounding geometry with this ones.
+ *   (reduce the search space by creating a connectivity ID per vertex
+ *   and only run comprehensive tests on those).
+ * - All hashes must be order independent so matching topology can be identified.
+ * - The term UUID here doesn't mean each ID is initially unique.
+ *   (uniqueness is improved by re-hashing with connected data).
  */
 
 #include <string.h>
@@ -983,14 +993,14 @@ static SUID_Int bm_face_region_vert_boundary_id(BMVert *v)
 #define PRIME_VERT_MID_A    103
 #define PRIME_VERT_MID_B    131
 
-	unsigned int tot = 0;
+	int tot = 0;
 	BMIter iter;
 	BMLoop *l;
 	SUID_Int id = PRIME_VERT_MID_A;
 
 	BM_ITER_ELEM (l, &iter, v, BM_LOOPS_OF_VERT) {
 		const bool is_boundary_vert = (bm_edge_is_region_boundary(l->e) || bm_edge_is_region_boundary(l->prev->e));
-		id ^= (unsigned int)l->f->len * (is_boundary_vert ? PRIME_VERT_SMALL_A : PRIME_VERT_SMALL_B);
+		id ^= l->f->len * (is_boundary_vert ? PRIME_VERT_SMALL_A : PRIME_VERT_SMALL_B);
 		tot += 1;
 	}
 

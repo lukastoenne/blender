@@ -1297,6 +1297,7 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	}
 
 	id_us_plus((ID *)psysn->part);
+	id_us_plus((ID *)psysn->key);
 
 	return psysn;
 }
@@ -1550,8 +1551,10 @@ static void extern_local_object(Object *ob)
 
 	extern_local_matarar(ob->mat, ob->totcol);
 
-	for (psys = ob->particlesystem.first; psys; psys = psys->next)
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 		id_lib_extern((ID *)psys->part);
+		id_lib_extern((ID *)psys->key);
+	}
 
 	modifiers_foreachIDLink(ob, extern_local_object__modifiersForeachIDLink, NULL);
 }

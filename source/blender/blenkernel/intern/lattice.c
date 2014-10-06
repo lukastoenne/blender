@@ -274,7 +274,7 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 	ltn->def = MEM_dupallocN(lt->def);
 
 	ltn->key = BKE_key_copy(ltn->key);
-	if (ltn->key) ltn->key->from = (ID *)ltn;
+	BKE_key_set_from_id(ltn->key, (ID *)ltn);
 	
 	if (lt->dvert) {
 		int tot = lt->pntsu * lt->pntsv * lt->pntsw;

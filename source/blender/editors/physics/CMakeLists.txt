@@ -39,6 +39,7 @@ set(SRC
 	particle_boids.c
 	particle_edit.c
 	particle_object.c
+	particle_shapekey.c
 	physics_fluid.c
 	physics_ops.c
 	physics_pointcache.c

@@ -160,11 +160,11 @@ typedef struct ParticleThreadContext {
 	float *vg_effector;
 } ParticleThreadContext;
 
-typedef struct ParticleThread {
+typedef struct ParticleTask {
 	ParticleThreadContext *ctx;
 	struct RNG *rng, *rng_path;
-	int num, tot;
-} ParticleThread;
+	int begin, end;
+} ParticleTask;
 
 typedef struct ParticleBillboardData {
 	struct Object *ob;
@@ -295,6 +295,8 @@ int psys_check_edited(struct ParticleSystem *psys);
 void psys_check_group_weights(struct ParticleSettings *part);
 int psys_uses_gravity(struct ParticleSimulationData *sim);
 
+struct KeyBlock *BKE_psys_insert_shape_key(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, const char *name, const bool from_mix);
+
 /* free */
 void BKE_particlesettings_free(struct ParticleSettings *part);
 void psys_free_path_cache(struct ParticleSystem *psys, struct PTCacheEdit *edit);
@@ -347,8 +349,9 @@ void psys_get_dupli_texture(struct ParticleSystem *psys, struct ParticleSettings
 void psys_get_dupli_path_transform(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ChildParticle *cpa,
                                    struct ParticleCacheKey *cache, float mat[4][4], float *scale);
 
-ParticleThread *psys_threads_create(struct ParticleSimulationData *sim);
-void psys_threads_free(ParticleThread *threads);
+void psys_thread_context_init(struct ParticleThreadContext *ctx, struct ParticleSimulationData *sim);
+void psys_tasks_create(struct ParticleThreadContext *ctx, int totpart, struct ParticleTask **r_tasks, int *r_numtasks);
+void psys_tasks_free(struct ParticleTask *tasks, int numtasks);
 
 void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3], float zvec[3], float center[3]);
 void psys_apply_hair_lattice(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);

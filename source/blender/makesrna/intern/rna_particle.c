@@ -35,6 +35,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_cloth_types.h"
+#include "DNA_key_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
@@ -136,11 +137,14 @@ static EnumPropertyItem part_hair_ren_as_items[] = {
 #include "BKE_DerivedMesh.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
+#include "BKE_key.h"
 #include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_texture.h"
+
+#include "RNA_access.h"
 
 /* use for object space hair get/set */
 static void rna_ParticleHairKey_location_object_info(PointerRNA *ptr, ParticleSystemModifierData **psmd_pt,
@@ -718,6 +722,7 @@ static void rna_Particle_hair_dynamics(Main *bmain, Scene *scene, PointerRNA *pt
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
+
 static PointerRNA rna_particle_settings_get(PointerRNA *ptr)
 {
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
@@ -746,6 +751,82 @@ static void rna_particle_settings_set(PointerRNA *ptr, PointerRNA value)
 			psys->recalc |= PSYS_RECALC_TYPE;
 	}
 }
+
+static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	ParticleSystem *psys = ptr->data;
+	
+#if 0 /* XXX equivalent needed for particles? */
+	if (scene->obedit == ob) {
+		/* exit/enter editmode to get new shape */
+		switch (ob->type) {
+			case OB_MESH:
+				EDBM_mesh_load(ob);
+				EDBM_mesh_make(scene->toolsettings, ob);
+				EDBM_mesh_normals_update(((Mesh *)ob->data)->edit_btmesh);
+				BKE_editmesh_tessface_calc(((Mesh *)ob->data)->edit_btmesh);
+				break;
+			case OB_CURVE:
+			case OB_SURF:
+				load_editNurb(ob);
+				make_editNurb(ob);
+				break;
+			case OB_LATTICE:
+				load_editLatt(ob);
+				make_editLatt(ob);
+				break;
+		}
+	}
+#endif
+	
+	rna_Particle_redo(bmain, scene, ptr);
+}
+
+static void rna_Particle_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max,
+                                                      int *UNUSED(softmin), int *UNUSED(softmax))
+{
+	ParticleSystem *psys = ptr->data;
+	Key *key = psys->key;
+
+	*min = 0;
+	if (key) {
+		*max = BLI_countlist(&key->block) - 1;
+		if (*max < 0) *max = 0;
+	}
+	else {
+		*max = 0;
+	}
+}
+
+static int rna_Particle_active_shape_key_index_get(PointerRNA *ptr)
+{
+	ParticleSystem *psys = ptr->data;
+
+	return MAX2(psys->shapenr - 1, 0);
+}
+
+static void rna_Particle_active_shape_key_index_set(PointerRNA *ptr, int value)
+{
+	ParticleSystem *psys = ptr->data;
+
+	psys->shapenr = value + 1;
+}
+
+static PointerRNA rna_Particle_active_shape_key_get(PointerRNA *ptr)
+{
+	ParticleSystem *psys = ptr->data;
+	Key *key = psys->key;
+	KeyBlock *kb;
+	PointerRNA keyptr;
+
+	if (key == NULL)
+		return PointerRNA_NULL;
+	
+	kb = BLI_findlink(&key->block, psys->shapenr - 1);
+	RNA_pointer_create((ID *)key, &RNA_ShapeKey, kb, &keyptr);
+	return keyptr;
+}
+
 static void rna_Particle_abspathtime_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	ParticleSettings *settings = (ParticleSettings *)ptr->data;
@@ -2171,6 +2252,11 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	/*draw flag*/
+	prop = RNA_def_property(srna, "show_guide_hairs", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "draw", PART_DRAW_GUIDE_HAIRS);
+	RNA_def_property_ui_text(prop, "Guide Hairs", "Show guide hairs");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo");
+
 	prop = RNA_def_property(srna, "show_velocity", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "draw", PART_DRAW_VEL);
 	RNA_def_property_ui_text(prop, "Velocity", "Show particle velocity");
@@ -3130,6 +3216,23 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PSYS_HAIR_DYNAMICS);
 	RNA_def_property_ui_text(prop, "Hair Dynamics", "Enable hair dynamics using cloth simulation");
 	RNA_def_property_update(prop, 0, "rna_Particle_hair_dynamics");
+
+	prop = RNA_def_property(srna, "shape_keys", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "key");
+	RNA_def_property_ui_text(prop, "Shape Keys", "");
+
+	prop = RNA_def_property(srna, "active_shape_key", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ShapeKey");
+	RNA_def_property_pointer_funcs(prop, "rna_Particle_active_shape_key_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Active Shape Key", "Current shape key");
+
+	prop = RNA_def_property(srna, "active_shape_key_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "shapenr");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_int_funcs(prop, "rna_Particle_active_shape_key_index_get", "rna_Particle_active_shape_key_index_set",
+	                           "rna_Particle_active_shape_key_index_range");
+	RNA_def_property_ui_text(prop, "Active Shape Key Index", "Current shape key index");
+	RNA_def_property_update(prop, 0, "rna_Particle_active_shape_update");
 
 	prop = RNA_def_property(srna, "cloth", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "clmd");
