@@ -735,7 +735,7 @@ struct HairSolverData {
 	Implicit_Data *id; /* internal solver data */
 	
 	/* externals (updated for every step) */
-	float gravity[3];
+	Scene *scene;
 	ListBase *effectors;
 };
 
@@ -794,16 +794,13 @@ void BPH_hair_solver_free(HairSolverData *data)
 
 void BPH_hair_solver_set_externals(HairSolverData *data, Scene *scene, Object *ob, DerivedMesh *dm, EffectorWeights *effector_weights)
 {
+	data->scene = scene;
 	data->effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
-	
-	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY)
-		copy_v3_v3(data->gravity, scene->physics_settings.gravity);
-	else
-		zero_v3(data->gravity);
 }
 
 void BPH_hair_solver_clear_externals(HairSolverData *data)
 {
+	data->scene = NULL;
 	pdEndEffectors(&data->effectors);
 }
 
@@ -932,6 +929,45 @@ static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem 
 	}
 }
 
+static void hair_calc_effector_force(HairSolverData *data, Object *ob, HairSystem *hsys, float time, SimDebugData *debug_data)
+{
+	if (!data->effectors)
+		return;
+	
+	int totpoints = 0;
+	HairCurve *curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve)
+		totpoints += curve->totpoints;
+	
+	/* cache per-vertex forces to avoid redundant calculation */
+	float (*winvec)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * totpoints, "effector forces");
+	
+	int ktot = 0;
+	curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		HairPoint *point = curve->points;
+		for (int k = 0; k < curve->totpoints; ++k, ++point, ++ktot) {
+			float x[3], v[3];
+			EffectedPoint epoint;
+			
+			BPH_mass_spring_get_motion_state(data->id, ktot, x, v);
+			pd_point_from_loc(data->scene, x, v, ktot, &epoint);
+			pdDoEffectors(data->effectors, NULL, hsys->params.effector_weights, &epoint, winvec[ktot], NULL);
+		}
+	}
+	
+	ktot = 0;
+	curve = hsys->curves;
+	for (int i = 0; i < hsys->totcurves; ++i, ++curve) {
+		HairPoint *point = curve->points;
+		for (int k = 0; k < curve->totpoints - 1; ++k, ++point, ++ktot) {
+			BPH_mass_spring_force_edge_wind(data->id, ktot, ktot + 1, winvec);
+		}
+	}
+	
+	MEM_freeN(winvec);
+}
+
 static void hair_calc_force(HairSolverData *data, Object *ob, HairSystem *hsys, float time, SimDebugData *debug_data)
 {
 	HairParams *params = &hsys->params;
@@ -939,7 +975,11 @@ static void hair_calc_force(HairSolverData *data, Object *ob, HairSystem *hsys, 
 #ifdef CLOTH_FORCE_GRAVITY
 	/* global acceleration (gravitation) */
 	float gravity[3];
-	mul_v3_v3fl(gravity, data->gravity, params->effector_weights->global_gravity);
+	if (data->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY)
+		copy_v3_v3(gravity, data->scene->physics_settings.gravity);
+	else
+		zero_v3(gravity);
+	mul_v3_fl(gravity, params->effector_weights->global_gravity);
 	BPH_mass_spring_force_gravity(data->id, gravity);
 #endif
 	
@@ -950,37 +990,8 @@ static void hair_calc_force(HairSolverData *data, Object *ob, HairSystem *hsys, 
 	BPH_mass_spring_force_drag(data->id, drag);
 #endif
 	
-#if 0
 	/* handle external forces like wind */
-	if (effectors) {
-		/* cache per-vertex forces to avoid redundant calculation */
-		float (*winvec)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
-		for (i = 0; i < cloth->numverts; i++) {
-			float x[3], v[3];
-			EffectedPoint epoint;
-			
-			BPH_mass_spring_get_motion_state(data, i, x, v);
-			pd_point_from_loc(clmd->scene, x, v, i, &epoint);
-			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
-		}
-		
-		for (i = 0; i < cloth->numfaces; i++) {
-			MFace *mf = &mfaces[i];
-			BPH_mass_spring_force_face_wind(data, mf->v1, mf->v2, mf->v3, mf->v4, winvec);
-		}
-
-		/* Hair has only edges */
-		if (cloth->numfaces == 0) {
-			for (LinkNode *link = cloth->springs; link; link = link->next) {
-				ClothSpring *spring = (ClothSpring *)link->link;
-				if (spring->type == CLOTH_SPRING_TYPE_STRUCTURAL)
-					BPH_mass_spring_force_edge_wind(data, spring->ij, spring->kl, winvec);
-			}
-		}
-
-		MEM_freeN(winvec);
-	}
-#endif
+	hair_calc_effector_force(data, ob, hsys, time, debug_data);
 	
 	hair_calc_spring_force(data, ob, hsys, time, debug_data);
 }
