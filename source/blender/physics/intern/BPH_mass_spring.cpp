@@ -872,7 +872,7 @@ static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem 
 #ifdef CLOTH_FORCE_SPRING_BEND
 		if (curve->totpoints >= 2) {
 			HairFrameIterator iter;
-			float x[3], x_prev[3], frame[3][3], rot[3][3], target[3];
+			float x[3], x_prev[3], dir[3], frame[3][3], rot[3][3], target[3];
 			
 			/* frame starts in current root position */
 			copy_m3_m3(frame, curve->root_frame);
@@ -880,9 +880,6 @@ static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem 
 			mul_mat3_m4_v3(obmat, frame[1]);
 			mul_mat3_m4_v3(obmat, frame[2]);
 			normalize_m3(frame); /* avoid scaling from obmat */
-			
-			/* initialize frame iterator */
-			BKE_hair_frame_init(&iter, frame[2]);
 			
 			/* special handling of root point bending:
 			 * use the first point twice
@@ -894,6 +891,20 @@ static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem 
 			
 			/* initialize x as the first point */
 			BPH_mass_spring_get_motion_state(data->id, kstart, x, NULL);
+			BPH_mass_spring_get_motion_state(data->id, kstart + 1, dir, NULL);
+			sub_v3_v3(dir, x);
+			normalize_v3(dir);
+			
+			/* align frame to first segment */
+			rotation_between_vecs_to_mat3(rot, frame[2], dir);
+			mul_m3_m3m3(frame, rot, frame);
+			/* initialize frame iterator */
+			BKE_hair_frame_init(&iter, dir);
+			
+			{ /* XXX DEBUG */
+				BKE_sim_debug_data_add_m3(debug_data, x, frame, 0.8f*curve->avg_rest_length, 0.3f, 1.0f, "bending", hash_vertex(935, kstart));
+				BKE_sim_debug_data_add_vector(debug_data, x, target, 0.7, 0.8, 0.0, "bending", hash_vertex(945, kstart));
+			}
 			
 			++point;
 			for (int k = 1; k < curve->totpoints - 1; ++k, ++point) {
@@ -910,7 +921,7 @@ static void hair_calc_spring_force(HairSolverData *data, Object *ob, HairSystem 
 				                                             params->bend_stiffness, params->bend_damping);
 				
 				{ /* XXX DEBUG */
-					BKE_sim_debug_data_add_m3(debug_data, x, frame, 0.2f, 0.3f, 1.0f, "bending", hash_vertex(935, kstart + k));
+					BKE_sim_debug_data_add_m3(debug_data, x, frame, 0.8f*curve->avg_rest_length, 0.3f, 1.0f, "bending", hash_vertex(935, kstart + k));
 					BKE_sim_debug_data_add_vector(debug_data, x, target, 0.7, 0.8, 0.0, "bending", hash_vertex(945, kstart + k));
 				}
 			}

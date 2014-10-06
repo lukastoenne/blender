@@ -281,7 +281,7 @@ void BKE_hair_calculate_rest(struct DerivedMesh *dm, HairCurve *curve)
 	int k;
 	float tot_rest_length;
 	HairFrameIterator iter;
-	float frame[3][3], rot[3][3];
+	float frame[3][3], dir[3], rot[3][3];
 	
 	if (curve->totpoints < 2) {
 		point = curve->points;
@@ -310,13 +310,19 @@ void BKE_hair_calculate_rest(struct DerivedMesh *dm, HairCurve *curve)
 	BKE_hair_get_mesh_frame(dm, curve, curve->root_rest_frame);
 	copy_m3_m3(frame, curve->root_rest_frame);
 	
-	/* initialize frame iterator */
-	BKE_hair_frame_init(&iter, frame[2]);
-	
 	point = curve->points;
+	
 	/* target is the edge vector in frame space */
 	sub_v3_v3v3(point->rest_target, (point+1)->rest_co, point->rest_co);
 	mul_transposed_m3_v3(frame, point->rest_target);
+	
+	/* align frame to first segment */
+	sub_v3_v3v3(dir, (point+1)->rest_co, point->rest_co);
+	normalize_v3(dir);
+	rotation_between_vecs_to_mat3(rot, frame[2], dir);
+	mul_m3_m3m3(frame, rot, frame);
+	/* initialize frame iterator */
+	BKE_hair_frame_init(&iter, dir);
 	
 	++point;
 	for (k = 1; k < curve->totpoints - 1; ++k, ++point) {
