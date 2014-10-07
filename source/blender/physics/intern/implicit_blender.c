@@ -915,6 +915,14 @@ void BPH_mass_spring_solver_free(Implicit_Data *id)
 	MEM_freeN(id);
 }
 
+int BPH_mass_spring_solver_numvert(Implicit_Data *id)
+{
+	if (id)
+		return id->A[0].vcount;
+	else
+		return 0;
+}
+
 void BPH_mass_spring_solver_debug_data(Implicit_Data *id, struct SimDebugData *debug_data)
 {
 	id->debug_data = debug_data;

@@ -1402,7 +1402,14 @@ void cloth_find_point_contacts(Object *ob, ClothModifierData *clmd, float step, 
 	unsigned int numcollobj = 0;
 	
 	verts = cloth->verts;
-	numverts = cloth->numverts;
+	
+	numverts = 0;
+	for (i = 0; i < cloth->numverts; ++i) {
+		/* avoid costly collision detection for points that are excluded anyway */
+		if (verts[i].flags & CLOTH_VERT_FLAG_EXCLUDE)
+			continue;
+		++numverts;
+	}
 	
 	////////////////////////////////////////////////////////////
 	// static collisions
@@ -1411,8 +1418,11 @@ void cloth_find_point_contacts(Object *ob, ClothModifierData *clmd, float step, 
 	// create temporary cloth points bvh
 	cloth_bvh = BLI_bvhtree_new(numverts, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel), 4, 6);
 	/* fill tree */
-	for (i = 0; i < numverts; i++) {
+	for (i = 0; i < cloth->numverts; i++) {
 		float co[6];
+		/* avoid costly collision detection for points that are excluded anyway */
+		if (verts[i].flags & CLOTH_VERT_FLAG_EXCLUDE)
+			continue;
 		
 		copy_v3_v3(&co[0*3], verts[i].x);
 		copy_v3_v3(&co[1*3], verts[i].tx);

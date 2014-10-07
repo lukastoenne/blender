@@ -3217,6 +3217,13 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Hair Dynamics", "Enable hair dynamics using cloth simulation");
 	RNA_def_property_update(prop, 0, "rna_Particle_hair_dynamics");
 
+	prop = RNA_def_property(srna, "hair_preview_factor", PROP_FLOAT, PROP_PERCENTAGE);
+	RNA_def_property_float_sdna(prop, NULL, "hair_preview_factor");
+	RNA_def_property_range(prop, 0.0f, 100.0f);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_ui_text(prop, "Preview Factor", "Part of hair particles to use for simulation preview");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo");
+
 	prop = RNA_def_property(srna, "shape_keys", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "key");
 	RNA_def_property_ui_text(prop, "Shape Keys", "");

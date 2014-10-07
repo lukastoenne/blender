@@ -284,6 +284,8 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
 
         layout.enabled = psys.use_hair_dynamics and psys.point_cache.is_baked is False
 
+        layout.prop(psys, "hair_preview_factor")
+
         split = layout.split()
 
         col = split.column()

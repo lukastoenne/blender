@@ -377,7 +377,7 @@ static int do_init_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 			return 0;
 		}
 	
-		BKE_cloth_solver_set_positions(clmd);
+		BPH_cloth_solver_set_positions(clmd);
 
 		clmd->clothObject->last_frame= MINFRAME-1;
 	}
@@ -560,7 +560,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	cache_result = BKE_ptcache_read(&pid, (float)framenr+scene->r.subframe);
 
 	if (cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED) {
-		BKE_cloth_solver_set_positions(clmd);
+		BPH_cloth_solver_set_positions(clmd);
 		cloth_to_object (ob, clmd, vertexCos);
 
 		BKE_ptcache_validate(cache, framenr);
@@ -573,7 +573,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		return;
 	}
 	else if (cache_result==PTCACHE_READ_OLD) {
-		BKE_cloth_solver_set_positions(clmd);
+		BPH_cloth_solver_set_positions(clmd);
 	}
 	else if ( /*ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
 		/* if baked and nothing in cache, do nothing */
@@ -785,6 +785,7 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 {
 	int i = 0;
 	int j = 0;
+	MVert *mvert;
 	MDeformVert *dvert = NULL;
 	Cloth *clothObj = NULL;
 	int numverts;
@@ -795,11 +796,11 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 
 	clothObj = clmd->clothObject;
 
-	numverts = dm->getNumVerts (dm);
+	numverts = dm->getNumVerts(dm);
+	mvert = dm->getVertArray(dm);
 
-	verts = clothObj->verts;
-	
 	if (cloth_uses_vgroup(clmd)) {
+		verts = clothObj->verts;
 		for ( i = 0; i < numverts; i++, verts++ ) {
 
 			/* Reset Goal values to standard */
@@ -861,6 +862,12 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 				}
 			}
 		}
+	}
+	
+	verts = clothObj->verts;
+	for ( i = 0; i < numverts; i++, verts++ ) {
+		if (mvert[i].flag & ME_VERT_TMP_TAG)
+			verts->flags |= CLOTH_VERT_FLAG_EXCLUDE;
 	}
 }
 
@@ -970,7 +977,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	}
 	
 	if (!first)
-		BKE_cloth_solver_set_positions(clmd);
+		BPH_cloth_solver_set_positions(clmd);
 
 	clmd->clothObject->bvhtree = bvhtree_build_from_cloth ( clmd, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel) );
 	

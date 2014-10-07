@@ -325,6 +325,7 @@ void BKE_particlesettings_make_local(struct ParticleSettings *part);
 
 void psys_reset(struct ParticleSystem *psys, int mode);
 
+void psys_hair_update_preview(struct ParticleSimulationData *sim);
 void psys_find_parents(struct ParticleSimulationData *sim);
 
 void psys_cache_paths(struct ParticleSimulationData *sim, float cfra);
