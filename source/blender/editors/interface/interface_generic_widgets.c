@@ -42,9 +42,11 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
+#include "BKE_depsgraph.h"
 #include "BKE_object.h"
 
 #include "ED_view3d.h"
+#include "ED_screen.h"
 
 #include "WM_types.h"
 #include "WM_api.h"
@@ -100,27 +102,40 @@ static int lamp_position_modal(bContext *C, wmOperator *op, const wmEvent *event
 			ARegion *ar = CTX_wm_region(C);
 			View3D *v3d = CTX_wm_view3d(C);
 			float world_pos[3];
-					
+			int flag = v3d->flag2;
+			
+			v3d->flag2 |= V3D_RENDER_OVERRIDE;
+
 			view3d_operator_needs_opengl(C);
 			if (ED_view3d_autodist(scene, ar, v3d, event->mval, world_pos, true, NULL)) {
 				float axis[3];
+
+				/* restore the floag here */				
+				v3d->flag2 = flag;
+				
 				sub_v3_v3(world_pos, ob->obmat[3]);
 				normalize_v3(world_pos);
 				
 				cross_v3_v3v3(axis, data->lvec, world_pos);
-				if (normalize_v3(axis) > 0.001) {
+				if (normalize_v3(axis) > 0.0001) {
 					float mat[4][4];
 					float quat[4], qfinal[4];
+					float angle = saacos(dot_v3v3(world_pos, data->lvec));
 
 					/* transform the initial rotation quaternion to the new position and set the matrix to the lamp */
-					axis_angle_to_quat(quat, axis, saacos(dot_v3v3(axis, data->lvec)));
+					axis_angle_to_quat(quat, axis, angle);
 					mul_qt_qtqt(qfinal, quat, data->quat);
 					quat_to_mat4(mat, qfinal);
 					copy_v3_v3(mat[3], ob->obmat[3]);
 					
-					BKE_object_apply_mat4(ob, mat, true, true);
+					BKE_object_apply_mat4(ob, mat, true, false);
+					DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+					
+					ED_region_tag_redraw(ar);
 				}
 			}
+			
+			v3d->flag2 = flag;
 			
 			break;
 		}
