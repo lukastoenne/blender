@@ -507,6 +507,7 @@ typedef struct wmTimer {
 
 #define WM_WIDGET_HIGHLIGHT    (1 << 0)
 #define WM_WIDGET_FREE_DATA    (1 << 1)
+#define WM_WIDGET_SKIP_DRAW    (1 << 2)
 
 typedef struct wmWidget wmWidget;
 
@@ -656,21 +657,34 @@ typedef struct wmWidget {
 
 	void *customdata;
 	
-	/* poll if widget should be active */
-	bool (*poll)(const struct bContext *C, struct wmWidget *customdata);
-	/* draw widget in screen space */
-	void (*draw)(const struct bContext *C, struct wmWidget *customdata);
+	/* draw widget */
+	void (*draw)(struct wmWidget *widget, const struct bContext *C);
 	/* determine if the mouse intersects with the widget. The calculation should be done in the callback itself */
-	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata);
+	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 	
 	/* determines 3d intersetion by rendering the widget in a selection routine. Returns number of max selection ids that
 	 * will be used by the widget */
-	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase);
+	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, int selectionbase);
 	
-	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata, int active);
+	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
-	int  active_handle; /* stores id of handle being highlighted */
 } wmWidget;
+
+/* WidgetGroups store and manage groups of widgets.
+ * They are responsible for drawing necessary widgets and updating their state and position. 
+ * Also they */
+typedef struct wmWidgetGroup {
+	struct wmWidgetGroup *next, *prev;
+	ListBase widgets;
+		
+	void *customdata;
+	
+	/* poll if widgetmap should be active */
+	bool (*poll)(struct wmWidgetGroup *widget, const struct bContext *C);
+
+	/* update widgets, called right before drawing */
+	void (*update)(struct wmWidgetGroup *widget, const struct bContext *C);
+} wmWidgetGroup;
 
 
 /* *************** migrated stuff, clean later? ************** */

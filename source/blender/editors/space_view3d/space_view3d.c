@@ -695,20 +695,26 @@ static void view3d_widgets(void)
 {
 	wmWidget *widget = NULL;
 	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	widget = WM_widget_new(WIDGET_manipulator_poll, 
-	                       WIDGET_manipulator_draw, 
+	struct wmWidgetGroup *wgroup_manipulator = WM_widgetgroup_new(WIDGETGROUP_manipulator_poll, NULL);
+	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, NULL);
+	
+	widget = WM_widget_new(WIDGET_manipulator_draw, 
 	                       WIDGET_manipulator_render_3d_intersect, 
 	                       NULL, 
 	                       WIDGET_manipulator_handler, NULL, false);
 	
-	WM_widget_register(wmap, widget);
+	WM_widget_register(wgroup_manipulator, widget);
+
+	WM_widget_register(wgroup_manipulator, WIDGET_arrow_new(0, NULL));
 	
-	widget = WM_widget_new(WIDGET_lamp_poll, 
-	                       WIDGET_lamp_draw,
+	widget = WM_widget_new(WIDGET_lamp_draw,
 	                       WIDGET_lamp_render_3d_intersect, 
 	                       NULL, 
 	                       WIDGET_lamp_handler, NULL, false);	
-	WM_widget_register(wmap, widget);
+	WM_widget_register(wgroup_light, widget);
+	
+	WM_widgetgroup_register(wmap, wgroup_manipulator);
+	WM_widgetgroup_register(wmap, wgroup_light);
 }
 
 

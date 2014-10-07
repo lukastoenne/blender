@@ -112,6 +112,7 @@ struct Base;
 struct Scene;
 struct Object;
 struct wmWidget;
+struct wmWidgetGroup;
 
 /* UNUSED */
 // int BIF_snappingSupported(struct Object *obedit);
@@ -152,10 +153,10 @@ void Transform_Properties(struct wmOperatorType *ot, int flags);
 
 /* view3d manipulators */
 
-int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int active);
+int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
-void WIDGET_manipulator_draw(const struct bContext *C, struct wmWidget *widget);
-bool WIDGET_manipulator_poll(const struct bContext *C, struct wmWidget *widget);
+void WIDGET_manipulator_draw(struct wmWidget *widget, const struct bContext *C);
+bool WIDGETGROUP_manipulator_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C);
 
 /* Snapping */
 

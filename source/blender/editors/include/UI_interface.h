@@ -79,6 +79,7 @@ struct wmDropBox;
 struct wmDrag;
 struct wmEvent;
 struct wmWidget;
+struct wmWidgetGroup;
 
 typedef struct uiBut uiBut;
 typedef struct uiBlock uiBlock;
@@ -998,9 +999,16 @@ void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
 int uiFloatPrecisionCalc(int prec, double value);
 
 /* ui_generic_widgets.c */
-int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int active);
+int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
-void WIDGET_lamp_draw(const struct bContext *C, struct wmWidget *widget);
-bool WIDGET_lamp_poll(const struct bContext *C, struct wmWidget *widget);
+void WIDGET_lamp_draw(struct wmWidget *widget, const struct bContext *C);
+bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *widget, const struct bContext *C);
+
+enum {
+	UI_ARROW_STYLE_SHADED = 0,
+	UI_ARROW_STYLE_COLORED = 0,
+};
+
+struct wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget));
 
 #endif  /* __UI_INTERFACE_H__ */

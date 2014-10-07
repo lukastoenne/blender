@@ -109,8 +109,8 @@ void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 
 /* wm_widgets.c */
-int wm_widget_find_active_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event);
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, int handle);
+struct wmWidget *wm_widget_find_active_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event);
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

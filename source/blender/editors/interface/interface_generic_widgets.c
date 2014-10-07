@@ -97,7 +97,7 @@ static int lamp_position_modal(bContext *C, wmOperator *op, const wmEvent *event
 		case MOUSEMOVE:
 		{
 			Object *ob = CTX_data_active_object(C);	
-			
+			Lamp *la = ob->data;			
 			Scene *scene = CTX_data_scene(C);
 			ARegion *ar = CTX_wm_region(C);
 			View3D *v3d = CTX_wm_view3d(C);
@@ -114,7 +114,7 @@ static int lamp_position_modal(bContext *C, wmOperator *op, const wmEvent *event
 				v3d->flag2 = flag;
 				
 				sub_v3_v3(world_pos, ob->obmat[3]);
-				normalize_v3(world_pos);
+				la->dist = normalize_v3(world_pos);
 				
 				cross_v3_v3v3(axis, data->lvec, world_pos);
 				if (normalize_v3(axis) > 0.0001) {
@@ -129,10 +129,11 @@ static int lamp_position_modal(bContext *C, wmOperator *op, const wmEvent *event
 					copy_v3_v3(mat[3], ob->obmat[3]);
 					
 					BKE_object_apply_mat4(ob, mat, true, false);
-					DAG_id_tag_update(&ob->id, OB_RECALC_OB);
-					
-					ED_region_tag_redraw(ar);
 				}
+				
+				DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+				
+				ED_region_tag_redraw(ar);
 			}
 			
 			v3d->flag2 = flag;
@@ -174,10 +175,10 @@ void UI_OT_lamp_position(struct wmOperatorType *ot)
 	/* properties */	
 }
 
-int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *UNUSED(widget), int active)
+int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
 {	
 	
-	if (event->type == LEFTMOUSE && event->val == KM_PRESS && active == 1) {
+	if (event->type == LEFTMOUSE && event->val == KM_PRESS && (widget->flag & WM_WIDGET_HIGHLIGHT)) {
 		struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
 		struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
 
@@ -195,7 +196,6 @@ static void intern_lamp_draw(const struct bContext *C, int selectoffset, wmWidge
 	ARegion *ar = CTX_wm_region(C);
 	RegionView3D *rv3d = ar->regiondata;
 	float size = 0.30f;
-	int highlight = widget->active_handle;
 
 	Object *ob = CTX_data_active_object(C);	
 	Lamp *la = ob->data;
@@ -211,16 +211,16 @@ static void intern_lamp_draw(const struct bContext *C, int selectoffset, wmWidge
 	glEnable(GL_BLEND);
 
 	if (selectoffset != -1)
-		GPU_select_load_id(selectoffset + 1);
+		GPU_select_load_id(selectoffset);
 	glShadeModel(GL_SMOOTH);
 	glBegin(GL_LINES);
 	
-	if (highlight == 1)
+	if (widget->flag & WM_WIDGET_HIGHLIGHT)
 		glColor4f(1.0, 1.0, 0.4, 1.0);
 	else
 		glColor4f(1.0, 1.0, 1.0, 1.0);
 	glVertex3f(0.0, 0.0, 0.0);
-	if (highlight == 1)
+	if (widget->flag & WM_WIDGET_HIGHLIGHT)
 		glColor4f(1.0, 1.0, 2.0, 1.0);
 	else
 		glColor4f(0.0, 0.0, 0.0, 0.0);
@@ -235,13 +235,6 @@ static void intern_lamp_draw(const struct bContext *C, int selectoffset, wmWidge
 	glPushMatrix();
 	glMultMatrixf(&widgetmat[0][0]);
 
-	if (highlight == 2)
-		glColor4f(1.0, 1.0, 1.0, 1.0);
-	else
-		glColor4f(0.8, 0.8, 0.8, 1.0);
-
-	if (selectoffset != -1)
-		GPU_select_load_id(selectoffset + 2);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glBegin(GL_QUAD_STRIP);
 	glVertex3f(size, size, 3.0 * size);
@@ -314,12 +307,12 @@ void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *
 	intern_lamp_draw(C, selectionbase, widget);	
 }
 
-void WIDGET_lamp_draw(const struct bContext *C, wmWidget *widget)
+void WIDGET_lamp_draw(wmWidget *widget, const struct bContext *C)
 {
 	intern_lamp_draw(C, -1, widget);
 }
 
-bool WIDGET_lamp_poll(const struct bContext *C, struct wmWidget *UNUSED(widget))
+bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(widget), const struct bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	
@@ -329,3 +322,173 @@ bool WIDGET_lamp_poll(const struct bContext *C, struct wmWidget *UNUSED(widget))
 	}
 	return false;
 }
+
+
+
+/******************************************************
+ *            GENERIC WIDGET LIBRARY                  *
+ ******************************************************/
+
+typedef struct ArrowWidget {
+	wmWidget widget;
+	float color;
+	int style;
+	float origin[3];
+	float direction[3];
+} ArrowWidget;
+
+#define ARROW_RESOLUTION 16
+#define NUMVERTS (ARROW_RESOLUTION * 5 + 4)
+static void widget_draw_intern(bool select, bool highlight)
+{
+	GLuint buf[3];
+	static float verts[NUMVERTS][3];
+	static float normals[NUMVERTS][3];
+	static unsigned short indices[2*ARROW_RESOLUTION + 4];
+	static bool gen = false;
+		
+	if (!gen) {
+		int i;
+		float height = 1.0;
+		float width = 1.0;
+		float angle_inclination = atan2(height, width);
+		float incl_cos = cos(angle_inclination);
+		float incl_sin = sin(angle_inclination);
+		
+		verts[0][0] = 0.0f;
+		verts[0][1] = 0.0f;
+		verts[0][2] = height;
+			
+		normals[0][0] = 0.0f;
+		normals[0][1] = 0.0f;
+		normals[0][2] = 1.0f;
+
+		verts[1][0] = 0.0f;
+		verts[1][1] = 0.0f;
+		verts[1][2] = 0.0f;
+			
+		normals[1][0] = 0.0f;
+		normals[1][1] = 0.0f;
+		normals[1][2] = -1.0f;
+		
+		for (i = 0; i < ARROW_RESOLUTION; i++) {
+			float angle = 2.0f * M_PI * i / ARROW_RESOLUTION;
+			verts[2 + i][0] = width * cos (angle);
+			verts[2 + i][1] = width * sin (angle);
+			verts[2 + i][2] = 0.0f;
+
+			normals[2 + i][0] = incl_cos * cos(angle);
+			normals[2 + i][1] = incl_cos * sin(angle);
+			normals[2 + i][2] = incl_sin;			
+
+			verts[2 + i + ARROW_RESOLUTION][0] = width * cos (angle);
+			verts[2 + i + ARROW_RESOLUTION][1] = width * sin (angle);
+			verts[2 + i + ARROW_RESOLUTION][2] = 0.0f;
+
+			normals[2 + i + ARROW_RESOLUTION][0] = 0.0f;
+			normals[2 + i + ARROW_RESOLUTION][1] = 0.0f;
+			normals[2 + i + ARROW_RESOLUTION][2] = -1.0f;		
+		}
+		
+		/* cone generation */
+		indices[0] = 0;
+		for (i = 0; i < ARROW_RESOLUTION + 1; i++) {
+			indices[i + 1] = 2 + (i) % (ARROW_RESOLUTION);
+		}
+
+		indices[ARROW_RESOLUTION + 2] = 1;
+		for (i = 0; i < ARROW_RESOLUTION + 1; i++) {
+			indices[ARROW_RESOLUTION + 3 + i] = ARROW_RESOLUTION + 2 + (2 * ARROW_RESOLUTION - i) % (ARROW_RESOLUTION);
+		}
+		
+		gen = true;
+	}
+
+	if (!select)
+		glGenBuffers(3, buf);
+	else
+		glGenBuffers(2, buf);
+	
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, buf[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * NUMVERTS, verts, GL_STATIC_DRAW);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);	
+
+	if (!select) {
+		float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
+		float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glBindBuffer(GL_ARRAY_BUFFER, buf[2]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * NUMVERTS, normals, GL_STATIC_DRAW);
+		glNormalPointer(GL_FLOAT, 0, NULL);	
+
+		glPushAttrib(GL_LIGHTING_BIT | GL_ENABLE_BIT);		
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT0);
+		glEnable(GL_COLOR_MATERIAL);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glPushMatrix();
+		glLoadIdentity();
+		glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+		glPopMatrix();
+		glShadeModel(GL_SMOOTH);
+	}
+	
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf[1]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (2 * ARROW_RESOLUTION + 4), indices, GL_STATIC_DRAW);
+		
+	glEnable(GL_CULL_FACE);
+	if (highlight)
+		glColor3f(1.0, 1.0, 0.0);
+	else 
+		glColor3f(0.0, 1.0, 0.0);
+	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, NULL);
+	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, (GLubyte *)NULL + sizeof(unsigned short) * (ARROW_RESOLUTION + 2));
+	glDisable(GL_CULL_FACE);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	
+	glDisableClientState(GL_VERTEX_ARRAY);
+		
+	if (!select) {
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glPopAttrib();
+		glShadeModel(GL_FLAT);
+		glDeleteBuffers(3, buf);
+	}
+	else {
+		glDeleteBuffers(2, buf);
+	}
+}
+
+static void widget_arrow_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase)
+{
+	GPU_select_load_id(selectionbase);
+	widget_draw_intern(true, false);
+}
+
+static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *C)
+{
+	widget_draw_intern(false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
+}
+
+
+wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))
+{
+	ArrowWidget *arrow;
+	
+	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
+	
+	arrow->widget.draw = widget_arrow_draw;
+	arrow->widget.handler = handler;
+	arrow->widget.intersect = NULL;
+	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
+	arrow->widget.customdata = NULL;
+	
+	arrow->style = style;
+	
+	return (wmWidget *)arrow;
+}
+
