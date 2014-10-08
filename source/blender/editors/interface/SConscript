@@ -28,6 +28,7 @@
 Import ('env')
 
 sources = env.Glob('*.c')
+sources += env.Glob('3d_widgets/*.c')
 
 incs = [
     '#/intern/guardedalloc',
@@ -44,6 +45,7 @@ incs = [
     # python button eval
     '../../python',
     '../../windowmanager',
+    '3d_widgets'
     ]
 
 defs = env['BF_GL_DEFINITIONS']

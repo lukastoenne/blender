@@ -70,6 +70,7 @@
 #include "ED_screen.h"
 
 #include "UI_resources.h"
+#include "UI_interface.h"
 
 /* local module include */
 #include "transform.h"
@@ -1685,6 +1686,11 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 	}
 }
 
+static void manipulator_unregister(wmWidgetGroup *wgroup, ManipulatorGroup *manipulator)
+{
+	WM_widget_unregister(wgroup, manipulator->translate_y);	
+}
+
 void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
@@ -1695,6 +1701,8 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	ManipulatorGroup *manipulator = WM_widgetgroup_customdata(wgroup);
 
 	int totsel;
+	
+	manipulator_unregister(wgroup, manipulator);
 	
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 	
@@ -1737,11 +1745,14 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 
 	test_manipulator_axis(C);
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */	
-	
-	if (drawflags & MAN_TRANS_Y)
-		WM_widget_register(wgroup, manipulator->translate_y);
-	else
-		WM_widget_unregister(wgroup, manipulator->translate_y);	
+
+	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
+		if (drawflags & MAN_TRANS_Y) {
+			WM_widget_register(wgroup, manipulator->translate_y);
+			WIDGET_arrow_set_origin(manipulator->translate_y, rv3d->twmat[3]);
+			WIDGET_arrow_set_direction(manipulator->translate_y, rv3d->twmat[1]);
+		}
+	}
 }
 
 

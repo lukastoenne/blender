@@ -171,7 +171,7 @@ void UI_OT_lamp_position(struct wmOperatorType *ot)
 	ot->poll = lamp_position_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_UNDO;
 
 	/* properties */	
 }
@@ -338,13 +338,20 @@ typedef struct ArrowWidget {
 	float color[4];
 } ArrowWidget;
 
-static void widget_draw_intern(ArrowWidget *widget, bool select, bool highlight)
+static void widget_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 {
+	float rot[3][3];
+	float mat[4][4];
+	float up[3] = {0.0f, 0.0f, 1.0f};
 	GLuint buf[3];
 	if (!select)
 		glGenBuffers(3, buf);
 	else
 		glGenBuffers(2, buf);
+	
+	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
+	copy_m4_m3(mat, rot);
+	copy_v3_v3(mat[3], arrow->origin);
 	
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glBindBuffer(GL_ARRAY_BUFFER, buf[0]);
@@ -378,11 +385,16 @@ static void widget_draw_intern(ArrowWidget *widget, bool select, bool highlight)
 	if (highlight)
 		glColor3f(1.0, 1.0, 0.0);
 	else 
-		glColor3fv(widget->color);
+		glColor3fv(arrow->color);
 
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
+	glPushMatrix();
+	glMultMatrixf(&mat[0][0]);	
+	
 	glDrawElements(GL_TRIANGLES, _WIDGET_nfaces_arrow * 3, GL_UNSIGNED_SHORT, NULL);
+
+	glPopMatrix();
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 
@@ -416,6 +428,7 @@ static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UN
 
 wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))
 {
+	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
 	
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
@@ -427,6 +440,7 @@ wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const s
 	arrow->widget.customdata = NULL;
 	
 	arrow->style = style;
+	copy_v3_v3(arrow->direction, dir_default);
 	
 	return (wmWidget *)arrow;
 }
@@ -436,4 +450,19 @@ void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4])
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	
 	copy_v4_v4(arrow->color, color);
+}
+
+void WIDGET_arrow_set_origin(struct wmWidget *widget, float origin[3])
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+	
+	copy_v3_v3(arrow->origin, origin);	
+}
+
+void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3])
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+	
+	copy_v3_v3(arrow->direction, direction);
+	normalize_v3(arrow->direction);
 }
