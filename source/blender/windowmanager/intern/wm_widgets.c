@@ -84,12 +84,31 @@ typedef struct wmWidgetMap {
 	wmWidget *active_widget;
 } wmWidgetMap;
 
+
+struct wmWidgetGroup {
+	struct wmWidgetGroup *next, *prev;
+	ListBase widgets;
+		
+	void *customdata;
+
+	/* free the widgetmap. Should take care of any customdata too */
+	void (*free)(struct wmWidgetGroup *wgroup);
+	
+	/* poll if widgetmap should be active */
+	bool (*poll)(struct wmWidgetGroup *wgroup, const struct bContext *C);
+
+	/* update widgets, called right before drawing */
+	void (*update)(struct wmWidgetGroup *wgroup, const struct bContext *C);
+};
+
+
 /* store all widgetboxmaps here. Anyone who wants to register a widget for a certain 
  * area type can query the widgetbox to do so */
 static ListBase widgetmaps = {NULL, NULL};
 
 struct wmWidgetGroup *WM_widgetgroup_new(bool (*poll)(struct wmWidgetGroup *, const struct bContext *C),
-                                         void (*update)(struct wmWidgetGroup *, const struct bContext *))
+                                         void (*update)(struct wmWidgetGroup *, const struct bContext *),
+                                         void (*free)(struct wmWidgetGroup *wgroup), void *customdata)
 {
 	wmWidgetGroup *wgroup;
 	
@@ -97,8 +116,15 @@ struct wmWidgetGroup *WM_widgetgroup_new(bool (*poll)(struct wmWidgetGroup *, co
 	
 	wgroup->poll = poll;
 	wgroup->update = update;
+	wgroup->free = free;
+	wgroup->customdata = customdata;
 	
 	return wgroup;
+}
+
+void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup)
+{
+	return wgroup->customdata;
 }
 
 
@@ -124,7 +150,7 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
 	return widget;
 }
 
-static void WM_widgets_delete(ListBase *widgetlist, wmWidget *widget)
+static void wm_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 {
 	if (widget->flag & WM_WIDGET_FREE_DATA)
 		MEM_freeN(widget->customdata);
@@ -175,6 +201,7 @@ void WM_event_add_widget_handler(ARegion *ar)
 bool WM_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)
 {
 	wmWidget *widget_iter;
+	
 	/* search list, might already be registered */	
 	for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
 		if (widget_iter == widget)
@@ -237,9 +264,12 @@ void WM_widgetmaps_free(void)
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 			wmWidget *widget;
 			
+			if (wgroup->free)
+				wgroup->free(wgroup);
+			
 			for (widget = wgroup->widgets.first; widget;) {
 				wmWidget *widget_next = widget->next;
-				WM_widgets_delete(&wgroup->widgets, widget);
+				wm_widgets_delete(&wgroup->widgets, widget);
 				widget = widget_next;
 			}
 			BLI_freelistN(&wgroup->widgets);

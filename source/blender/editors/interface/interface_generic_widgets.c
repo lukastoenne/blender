@@ -335,7 +335,7 @@ typedef struct ArrowWidget {
 	int style;
 	float origin[3];
 	float direction[3];
-	float color[3];
+	float color[4];
 } ArrowWidget;
 
 static void widget_draw_intern(ArrowWidget *widget, bool select, bool highlight)

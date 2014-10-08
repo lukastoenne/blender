@@ -464,7 +464,9 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 
 /* widget API */
 struct wmWidgetGroup *WM_widgetgroup_new(bool (*poll)(struct wmWidgetGroup *, const struct bContext *),
-                                         void (*update)(struct wmWidgetGroup *, const struct bContext *));
+                                         void (*update)(struct wmWidgetGroup *, const struct bContext *),
+                                         void (*free)(struct wmWidgetGroup *),
+                                         void *customdata);
 
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
 							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
@@ -477,6 +479,8 @@ void WM_event_add_widget_handler(struct ARegion *ar);
 
 bool WM_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
 void WM_widget_unregister(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
+
+void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
 
 bool WM_widgetgroup_register(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);
 void WM_widgetgroup_unregister(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);

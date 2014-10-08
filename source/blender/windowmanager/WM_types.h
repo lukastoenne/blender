@@ -673,19 +673,7 @@ typedef struct wmWidget {
 /* WidgetGroups store and manage groups of widgets.
  * They are responsible for drawing necessary widgets and updating their state and position. 
  * Also they */
-typedef struct wmWidgetGroup {
-	struct wmWidgetGroup *next, *prev;
-	ListBase widgets;
-		
-	void *customdata;
-	
-	/* poll if widgetmap should be active */
-	bool (*poll)(struct wmWidgetGroup *widget, const struct bContext *C);
-
-	/* update widgets, called right before drawing */
-	void (*update)(struct wmWidgetGroup *widget, const struct bContext *C);
-} wmWidgetGroup;
-
+typedef struct wmWidgetGroup wmWidgetGroup;
 
 /* *************** migrated stuff, clean later? ************** */
 

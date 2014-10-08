@@ -695,10 +695,12 @@ static void view3d_widgets(void)
 {
 	float color_green[4] = {0.0f, 1.0f, 0.0f, 1.0f};
 	wmWidget *widget = NULL;
+	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
 	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	struct wmWidgetGroup *wgroup_manipulator = WM_widgetgroup_new(WIDGETGROUP_manipulator_poll, 
-	                                                              WIDGETGROUP_manipulator_update);
-	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, NULL);
+	                                                              WIDGETGROUP_manipulator_update,
+	                                                              WIDGETGROUP_manipulator_free, manipulator);
+	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, NULL, NULL, NULL);
 	
 	widget = WM_widget_new(WIDGET_manipulator_draw, 
 	                       WIDGET_manipulator_render_3d_intersect, 
@@ -707,9 +709,8 @@ static void view3d_widgets(void)
 	
 	WM_widget_register(wgroup_manipulator, widget);
 
-	widget = WIDGET_arrow_new(0, NULL);
-	WIDGET_arrow_set_color(widget, color_green);
-	WM_widget_register(wgroup_manipulator, widget);
+	manipulator->translate_y = WIDGET_arrow_new(0, NULL);
+	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
 	
 	widget = WM_widget_new(WIDGET_lamp_draw,
 	                       WIDGET_lamp_render_3d_intersect, 

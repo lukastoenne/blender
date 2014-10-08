@@ -45,6 +45,7 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 
 #include "RNA_access.h"
 
@@ -1903,4 +1904,21 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 	}
 
 	return (val) ? OPERATOR_FINISHED : OPERATOR_PASS_THROUGH;
+}
+
+
+void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
+{
+	ManipulatorGroup *manipulator = WM_widgetgroup_customdata(wgroup);
+
+	/* register all widgets for destruction */
+	WM_widget_register(wgroup, manipulator->translate_x);
+	WM_widget_register(wgroup, manipulator->translate_y);
+	WM_widget_register(wgroup, manipulator->translate_z);
+
+	WM_widget_register(wgroup, manipulator->translate_x);
+	WM_widget_register(wgroup, manipulator->translate_y);
+	WM_widget_register(wgroup, manipulator->translate_z);
+	
+	MEM_freeN(manipulator);
 }
