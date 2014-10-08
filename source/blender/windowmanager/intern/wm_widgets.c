@@ -261,11 +261,13 @@ static void widget_find_active_3D_loop(bContext *C, wmWidgetMap *wmap)
 	wmWidgetGroup *wgroup;
 	
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-			if (widget->render_3d_intersection) {
-				/* we use only 8 bits as free ids for per widget handles */
-				widget->render_3d_intersection(C, widget, selectionbase);
-				selectionbase++;
+		if (!wgroup->poll || wgroup->poll(wgroup, C)) {
+			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
+				if (widget->render_3d_intersection) {
+					/* we use only 8 bits as free ids for per widget handles */
+					widget->render_3d_intersection(C, widget, selectionbase);
+					selectionbase++;
+				}
 			}
 		}
 	}

@@ -61,6 +61,7 @@
 #include "UI_interface.h"
 #include "interface_intern.h"
 
+#include "3d_widgets/ui_widget_library.h"
 
 typedef struct LampPositionData {
 	int pos[2];
@@ -197,9 +198,9 @@ static void intern_lamp_draw(const struct bContext *C, int selectoffset, wmWidge
 	RegionView3D *rv3d = ar->regiondata;
 	float size = 0.30f;
 
-	Object *ob = CTX_data_active_object(C);	
+	Object *ob = CTX_data_active_object(C);
 	Lamp *la = ob->data;
-
+	
 	float widgetmat[4][4];	
 
 	copy_m4_m4(widgetmat, ob->obmat);	
@@ -337,123 +338,9 @@ typedef struct ArrowWidget {
 	float direction[3];
 } ArrowWidget;
 
-#define ARROW_RESOLUTION 16
-#define POLE_POINTS 3
-#define NUMVERTS (ARROW_RESOLUTION * 5 + POLE_POINTS)
-#define NUM_INDICES (5 * ARROW_RESOLUTION + 8)
 static void widget_draw_intern(bool select, bool highlight)
 {
 	GLuint buf[3];
-	static float verts[NUMVERTS][3];
-	static float normals[NUMVERTS][3];
-	static unsigned short indices[NUM_INDICES];
-	static bool gen = false;
-		
-	if (!gen) {
-		int i, j;
-		float height = 1.0;
-		float width = 0.4;
-		float angle_inclination = atan2(height, width);
-		float incl_cos = cos(angle_inclination);
-		float incl_sin = sin(angle_inclination);
-		int offset = 0;
-		
-		verts[0][0] = 0.0f;
-		verts[0][1] = 0.0f;
-		verts[0][2] = height;
-			
-		normals[0][0] = 0.0f;
-		normals[0][1] = 0.0f;
-		normals[0][2] = 1.0f;
-
-		verts[1][0] = 0.0f;
-		verts[1][1] = 0.0f;
-		verts[1][2] = 0.0f;
-			
-		normals[1][0] = 0.0f;
-		normals[1][1] = 0.0f;
-		normals[1][2] = -1.0f;
-
-		verts[2][0] = 0.0f;
-		verts[2][1] = 0.0f;
-		verts[2][2] = -2.0f;
-			
-		normals[2][0] = 0.0f;
-		normals[2][1] = 0.0f;
-		normals[2][2] = -1.0f;
-		
-		for (i = 0; i < ARROW_RESOLUTION; i++) {
-			float angle = 2.0f * M_PI * i / ARROW_RESOLUTION;
-			verts[POLE_POINTS + i][0] = width * cos (angle);
-			verts[POLE_POINTS + i][1] = width * sin (angle);
-			verts[POLE_POINTS + i][2] = 0.0f;
-
-			normals[POLE_POINTS + i][0] = incl_cos * cos(angle);
-			normals[POLE_POINTS + i][1] = incl_cos * sin(angle);
-			normals[POLE_POINTS + i][2] = incl_sin;			
-
-			verts[POLE_POINTS + i + ARROW_RESOLUTION][0] = width * cos (angle);
-			verts[POLE_POINTS + i + ARROW_RESOLUTION][1] = width * sin (angle);
-			verts[POLE_POINTS + i + ARROW_RESOLUTION][2] = 0.0f;
-
-			normals[POLE_POINTS + i + ARROW_RESOLUTION][0] = 0.0f;
-			normals[POLE_POINTS + i + ARROW_RESOLUTION][1] = 0.0f;
-			normals[POLE_POINTS + i + ARROW_RESOLUTION][2] = -1.0f;
-			
-			verts[POLE_POINTS + i + 2 * ARROW_RESOLUTION][0] = 0.25 * width * cos (angle);
-			verts[POLE_POINTS + i + 2 * ARROW_RESOLUTION][1] = 0.25 * width * sin (angle);
-			verts[POLE_POINTS + i + 2 * ARROW_RESOLUTION][2] = 0.0f;
-
-			normals[POLE_POINTS + i + 2 * ARROW_RESOLUTION][0] = cos(angle);
-			normals[POLE_POINTS + i + 2 * ARROW_RESOLUTION][1] = sin(angle);
-			normals[POLE_POINTS + i + 2 * ARROW_RESOLUTION][2] = 0.0f;			
-
-			verts[POLE_POINTS + i + 3 * ARROW_RESOLUTION][0] = 0.25 * width * cos (angle);
-			verts[POLE_POINTS + i + 3 * ARROW_RESOLUTION][1] = 0.25 * width * sin (angle);
-			verts[POLE_POINTS + i + 3 * ARROW_RESOLUTION][2] = -2.0f;
-
-			normals[POLE_POINTS + i + 3 * ARROW_RESOLUTION][0] = cos(angle);
-			normals[POLE_POINTS + i + 3 * ARROW_RESOLUTION][1] = sin(angle);
-			normals[POLE_POINTS + i + 3 * ARROW_RESOLUTION][2] = 0.0f;
-			
-			verts[POLE_POINTS + i + 4 * ARROW_RESOLUTION][0] = 0.25 * width * cos (angle);
-			verts[POLE_POINTS + i + 4 * ARROW_RESOLUTION][1] = 0.25 * width * sin (angle);
-			verts[POLE_POINTS + i + 4 * ARROW_RESOLUTION][2] = -2.0f;
-
-			normals[POLE_POINTS + i + 4 * ARROW_RESOLUTION][0] = 0.0f;
-			normals[POLE_POINTS + i + 4 * ARROW_RESOLUTION][1] = 0.0f;
-			normals[POLE_POINTS + i + 4 * ARROW_RESOLUTION][2] = -1.0f;						
-		}
-		
-		/* cone generation */
-		indices[0] = 0;
-		for (i = 0; i < ARROW_RESOLUTION + 1; i++) {
-			indices[i + 1] = POLE_POINTS + (i) % (ARROW_RESOLUTION);
-		}
-		offset += ARROW_RESOLUTION + 2;
-
-		indices[offset] = 1;
-		for (i = 0; i < ARROW_RESOLUTION + 1; i++) {
-			indices[offset + 1 + i] = ARROW_RESOLUTION + POLE_POINTS + (2 * ARROW_RESOLUTION - i) % (ARROW_RESOLUTION);
-		}
-
-		offset += ARROW_RESOLUTION + 2;
-		j = 0;
-		for (i = 0; i < ARROW_RESOLUTION + 1; i++) {
-			indices[offset + j] = 2 * ARROW_RESOLUTION + POLE_POINTS + (i) % (ARROW_RESOLUTION);
-			indices[offset + j + 1] = 3 * ARROW_RESOLUTION + POLE_POINTS + (i) % (ARROW_RESOLUTION);
-			j += 2;
-		}		
-		offset += 2 * ARROW_RESOLUTION + 2;		
-
-		indices[offset] = 2;
-		for (i = 0; i < ARROW_RESOLUTION + 1; i++) {
-			indices[offset + 1 + i] = 4 * ARROW_RESOLUTION + POLE_POINTS + (2 * ARROW_RESOLUTION - i) % (ARROW_RESOLUTION);
-		}
-		
-		gen = true;
-	}
-
 	if (!select)
 		glGenBuffers(3, buf);
 	else
@@ -461,7 +348,7 @@ static void widget_draw_intern(bool select, bool highlight)
 	
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glBindBuffer(GL_ARRAY_BUFFER, buf[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * NUMVERTS, verts, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * _WIDGET_nverts_arrow, _WIDGET_verts_arrow, GL_STATIC_DRAW);
 	glVertexPointer(3, GL_FLOAT, 0, NULL);	
 
 	if (!select) {
@@ -469,7 +356,7 @@ static void widget_draw_intern(bool select, bool highlight)
 		float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
 		glEnableClientState(GL_NORMAL_ARRAY);
 		glBindBuffer(GL_ARRAY_BUFFER, buf[2]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * NUMVERTS, normals, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * _WIDGET_nverts_arrow, _WIDGET_normals_arrow, GL_STATIC_DRAW);
 		glNormalPointer(GL_FLOAT, 0, NULL);	
 
 		glPushAttrib(GL_LIGHTING_BIT | GL_ENABLE_BIT);		
@@ -486,8 +373,8 @@ static void widget_draw_intern(bool select, bool highlight)
 	}
 	
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf[1]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (NUM_INDICES), indices, GL_STATIC_DRAW);
-	
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (3 * _WIDGET_nfaces_arrow), _WIDGET_indices_arrow, GL_STATIC_DRAW);
+
 	if (highlight)
 		glColor3f(1.0, 1.0, 0.0);
 	else 
@@ -495,10 +382,7 @@ static void widget_draw_intern(bool select, bool highlight)
 
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
-	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, NULL);
-	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, (GLubyte *)NULL + sizeof(unsigned short) * (ARROW_RESOLUTION + 2));
-	glDrawElements(GL_TRIANGLE_STRIP, (2 * ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, (GLubyte *)NULL + sizeof(unsigned short) * (2 * ARROW_RESOLUTION + 4));
-	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, (GLubyte *)NULL + sizeof(unsigned short) * (4 * ARROW_RESOLUTION + 6));
+	glDrawElements(GL_TRIANGLES, _WIDGET_nfaces_arrow * 3, GL_UNSIGNED_SHORT, NULL);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 
