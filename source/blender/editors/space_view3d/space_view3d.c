@@ -709,7 +709,7 @@ static void view3d_widgets(void)
 	
 	WM_widget_register(wgroup_manipulator, widget);
 
-	manipulator->translate_y = WIDGET_arrow_new(0, NULL);
+	manipulator->translate_y = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans_y);
 	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
 	
 	widget = WM_widget_new(WIDGET_lamp_draw,

@@ -228,11 +228,13 @@ bool WM_widgetgroup_register(struct wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 void WM_widgetgroup_unregister(struct wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 {
 	BLI_remlink(&wmap->widgetgroups, wgroup);
+	wmap->prev = wmap->next = NULL;
 }
 
 void WM_widget_unregister(struct wmWidgetGroup *wgroup, wmWidget *widget)
 {
 	BLI_remlink(&wgroup->widgets, widget);
+	widget->prev = widget->next = NULL;
 }
 
 wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d)

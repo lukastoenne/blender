@@ -1685,13 +1685,15 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 	}
 }
 
-void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
+	ManipulatorGroup *manipulator = WM_widgetgroup_customdata(wgroup);
+
 	int totsel;
 	
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
@@ -1735,6 +1737,11 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *UNUSED(wgroup), const 
 
 	test_manipulator_axis(C);
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */	
+	
+	if (drawflags & MAN_TRANS_Y)
+		WM_widget_register(wgroup, manipulator->translate_y);
+	else
+		WM_widget_unregister(wgroup, manipulator->translate_y);	
 }
 
 
@@ -1904,6 +1911,47 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 	}
 
 	return (val) ? OPERATOR_FINISHED : OPERATOR_PASS_THROUGH;
+}
+
+/* return 0; nothing happened */
+int WIDGET_manipulator_handler_trans_y(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
+{
+	ScrArea *sa = CTX_wm_area(C);
+	View3D *v3d = sa->spacedata.first;
+	int constraint_axis[3] = {0, 0, 0};
+	int shift = event->shift;
+
+	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
+	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
+	
+	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
+	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) || 
+		!((event->val == KM_PRESS) && (event->type == LEFTMOUSE)))
+	{
+		return OPERATOR_PASS_THROUGH;
+	}
+	
+	if (shift) {
+		constraint_axis[1] = 1;
+		constraint_axis[0] = 1;
+	}
+	else
+		constraint_axis[1] = 1;
+	
+	WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_translate");
+	/* Force orientation */
+	RNA_boolean_set(ptr, "release_confirm", true);
+	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
+	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+	WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
+	//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_translate", 0), event, op->ptr, NULL, false);
+	
+	if (ptr) {
+		WM_operator_properties_free(ptr);
+		MEM_freeN(ptr);
+	}
+	
+	return OPERATOR_FINISHED;
 }
 
 
