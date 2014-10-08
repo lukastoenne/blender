@@ -1443,10 +1443,11 @@ static void draw_manipulator_translate(
 	/* and now apply matrix, we move to local matrix drawing */
 	glMultMatrixf(rv3d->twmat);
 
+#if 0
 	// translate drawn as last, only axis when no combo with scale, or for ghosting
 	if ((combo & V3D_MANIP_SCALE) == 0 || colcode == MAN_GHOST) {
 		draw_manipulator_axes(v3d, rv3d, colcode,
-		                      drawflags & MAN_TRANS_X, drawflags & MAN_TRANS_Y, drawflags & MAN_TRANS_Z,
+		                      drawflags & MAN_TRANS_X, 0, drawflags & MAN_TRANS_Z,
 		                      axis_order, selectionbase, highlightflags);
 	}
 
@@ -1494,8 +1495,10 @@ static void draw_manipulator_translate(
 				break;
 		}
 	}
-
+	
 	gluDeleteQuadric(qobj);
+#endif
+
 	glPopMatrix();
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
@@ -1688,11 +1691,17 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 
 static void manipulator_unregister(wmWidgetGroup *wgroup, ManipulatorGroup *manipulator)
 {
+	WM_widget_unregister(wgroup, manipulator->translate_x);	
 	WM_widget_unregister(wgroup, manipulator->translate_y);	
+	WM_widget_unregister(wgroup, manipulator->translate_z);	
 }
 
 void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
+	float color_green[4] = {0.0f, 1.0f, 0.0f, 1.0f};
+	float color_red[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+	float color_blue[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+	
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
@@ -1747,10 +1756,27 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */	
 
 	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
+		/* should be added according to the order of axis */
+		
+		if (drawflags & MAN_TRANS_X) {
+			WM_widget_register(wgroup, manipulator->translate_x);
+			WIDGET_arrow_set_origin(manipulator->translate_x, rv3d->twmat[3]);
+			WIDGET_arrow_set_direction(manipulator->translate_x, rv3d->twmat[0]);
+			WIDGET_arrow_set_color(manipulator->translate_x, color_red);			
+		}
+		
 		if (drawflags & MAN_TRANS_Y) {
 			WM_widget_register(wgroup, manipulator->translate_y);
 			WIDGET_arrow_set_origin(manipulator->translate_y, rv3d->twmat[3]);
 			WIDGET_arrow_set_direction(manipulator->translate_y, rv3d->twmat[1]);
+			WIDGET_arrow_set_color(manipulator->translate_y, color_green);			
+		}
+		
+		if (drawflags & MAN_TRANS_Z) {
+			WM_widget_register(wgroup, manipulator->translate_z);
+			WIDGET_arrow_set_origin(manipulator->translate_z, rv3d->twmat[3]);
+			WIDGET_arrow_set_direction(manipulator->translate_z, rv3d->twmat[2]);
+			WIDGET_arrow_set_color(manipulator->translate_z, color_blue);			
 		}
 	}
 }
@@ -1772,11 +1798,6 @@ void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(
 	ARegion *ar = CTX_wm_region(C);
 	RegionView3D *rv3d = ar->regiondata;
 
-	/* when looking through a selected camera, the manipulator can be at the
-	 * exact same position as the view, skip so we don't break selection */
-	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f)
-		return;
-	
 	/* do the drawing */
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
 		if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, 0, v3d->twtype, MAN_RGB, false, selectionbase);
@@ -1784,8 +1805,8 @@ void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(
 	}
 	if (v3d->twtype & V3D_MANIP_SCALE)
 		draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, 0, v3d->twtype, MAN_RGB, false, selectionbase);
-	if (v3d->twtype & V3D_MANIP_TRANSLATE)
-		draw_manipulator_translate(v3d, rv3d, MAN_TRANS_C & rv3d->twdrawflag, 0, v3d->twtype, MAN_RGB, false, selectionbase);
+	//if (v3d->twtype & V3D_MANIP_TRANSLATE)
+	//	draw_manipulator_translate(v3d, rv3d, MAN_TRANS_C & rv3d->twdrawflag, 0, v3d->twtype, MAN_RGB, false, selectionbase);
 }
 
 /* return 0; nothing happened */
@@ -1925,12 +1946,13 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 }
 
 /* return 0; nothing happened */
-int WIDGET_manipulator_handler_trans_y(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
+int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, wmWidget *widget)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
 	int constraint_axis[3] = {0, 0, 0};
 	int shift = event->shift;
+	int direction = GET_INT_FROM_POINTER(widget->customdata);
 
 	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
 	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
@@ -1943,11 +1965,14 @@ int WIDGET_manipulator_handler_trans_y(bContext *C, const struct wmEvent *event,
 	}
 	
 	if (shift) {
-		constraint_axis[1] = 1;
-		constraint_axis[0] = 1;
+		int d = 0;
+		for (; d < 3; d++) {
+			if (d + 1 != direction) 
+				constraint_axis[d] = 1;
+		}
 	}
 	else
-		constraint_axis[1] = 1;
+		constraint_axis[direction] = 1;
 	
 	WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_translate");
 	/* Force orientation */
@@ -1964,7 +1989,6 @@ int WIDGET_manipulator_handler_trans_y(bContext *C, const struct wmEvent *event,
 	
 	return OPERATOR_FINISHED;
 }
-
 
 void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
 {

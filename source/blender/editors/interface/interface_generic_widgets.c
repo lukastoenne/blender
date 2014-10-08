@@ -338,7 +338,7 @@ typedef struct ArrowWidget {
 	float color[4];
 } ArrowWidget;
 
-static void widget_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
+static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 {
 	float rot[3][3];
 	float mat[4][4];
@@ -417,12 +417,12 @@ static void widget_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, int selectionbase)
 {
 	GPU_select_load_id(selectionbase);
-	widget_draw_intern((ArrowWidget *)widget, true, false);
+	arrow_draw_intern((ArrowWidget *)widget, true, false);
 }
 
 static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
-	widget_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
+	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
 
