@@ -488,15 +488,18 @@ static void widget_draw_intern(bool select, bool highlight)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf[1]);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (NUM_INDICES), indices, GL_STATIC_DRAW);
 	
-	glEnable(GL_CULL_FACE);
 	if (highlight)
 		glColor3f(1.0, 1.0, 0.0);
 	else 
 		glColor3f(0.0, 1.0, 0.0);
+
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
 	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, NULL);
 	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, (GLubyte *)NULL + sizeof(unsigned short) * (ARROW_RESOLUTION + 2));
 	glDrawElements(GL_TRIANGLE_STRIP, (2 * ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, (GLubyte *)NULL + sizeof(unsigned short) * (2 * ARROW_RESOLUTION + 4));
 	glDrawElements(GL_TRIANGLE_FAN, (ARROW_RESOLUTION + 2), GL_UNSIGNED_SHORT, (GLubyte *)NULL + sizeof(unsigned short) * (4 * ARROW_RESOLUTION + 6));
+	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
