@@ -203,7 +203,12 @@ class USERPREF_PT_interface(Panel):
         sub.prop(view, "manipulator_size", text="Size")
         sub.prop(view, "manipulator_handle_size", text="Handle Size")
         sub.prop(view, "manipulator_hotspot", text="Hotspot")
+        col.separator()
 
+        sub = col.column()
+        sub.prop(view, "shaded_widgets")
+        sub.prop(view, "widgets_3d")
+ 
         col.separator()
         col.separator()
         col.separator()

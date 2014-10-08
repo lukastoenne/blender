@@ -36,6 +36,7 @@
 #include "DNA_lamp_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_math_matrix.h"
@@ -344,7 +345,10 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	float mat[4][4];
 	float up[3] = {0.0f, 0.0f, 1.0f};
 	GLuint buf[3];
-	if (!select)
+	
+	bool use_lighting = !select && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
+	
+	if (use_lighting)
 		glGenBuffers(3, buf);
 	else
 		glGenBuffers(2, buf);
@@ -358,7 +362,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * _WIDGET_nverts_arrow, _WIDGET_verts_arrow, GL_STATIC_DRAW);
 	glVertexPointer(3, GL_FLOAT, 0, NULL);	
 
-	if (!select) {
+	if (use_lighting) {
 		float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
 		float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
 		glEnableClientState(GL_NORMAL_ARRAY);
@@ -383,9 +387,9 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (3 * _WIDGET_nfaces_arrow), _WIDGET_indices_arrow, GL_STATIC_DRAW);
 
 	if (highlight)
-		glColor3f(1.0, 1.0, 0.0);
+		glColor4f(1.0, 1.0, 0.0, 1.0);
 	else 
-		glColor3fv(arrow->color);
+		glColor4fv(arrow->color);
 
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
@@ -403,10 +407,10 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	
 	glDisableClientState(GL_VERTEX_ARRAY);
 		
-	if (!select) {
+	if (use_lighting) {
 		glDisableClientState(GL_NORMAL_ARRAY);
-		glPopAttrib();
 		glShadeModel(GL_FLAT);
+		glPopAttrib();
 		glDeleteBuffers(3, buf);
 	}
 	else {
