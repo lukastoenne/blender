@@ -157,7 +157,7 @@ int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, 
 void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
 void WIDGET_manipulator_draw(struct wmWidget *widget, const struct bContext *C);
 bool WIDGETGROUP_manipulator_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C);
-
+void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C);
 /* Snapping */
 
 

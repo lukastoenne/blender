@@ -693,9 +693,11 @@ static void view3d_dropboxes(void)
 
 static void view3d_widgets(void)
 {
+	float color_green[4] = {0.0f, 1.0f, 0.0f, 1.0f};
 	wmWidget *widget = NULL;
 	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	struct wmWidgetGroup *wgroup_manipulator = WM_widgetgroup_new(WIDGETGROUP_manipulator_poll, NULL);
+	struct wmWidgetGroup *wgroup_manipulator = WM_widgetgroup_new(WIDGETGROUP_manipulator_poll, 
+	                                                              WIDGETGROUP_manipulator_update);
 	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, NULL);
 	
 	widget = WM_widget_new(WIDGET_manipulator_draw, 
@@ -705,7 +707,9 @@ static void view3d_widgets(void)
 	
 	WM_widget_register(wgroup_manipulator, widget);
 
-	WM_widget_register(wgroup_manipulator, WIDGET_arrow_new(0, NULL));
+	widget = WIDGET_arrow_new(0, NULL);
+	WIDGET_arrow_set_color(widget, color_green);
+	WM_widget_register(wgroup_manipulator, widget);
 	
 	widget = WM_widget_new(WIDGET_lamp_draw,
 	                       WIDGET_lamp_render_3d_intersect, 

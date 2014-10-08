@@ -1654,11 +1654,44 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
+	View3D *v3d = sa->spacedata.first;
+	RegionView3D *rv3d = ar->regiondata;
+
+	if (v3d->twflag & V3D_DRAW_MANIPULATOR) {
+
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND);
+		if (v3d->twtype & V3D_MANIP_ROTATE) {
+
+			if (G.debug_value == 3) {
+				if (G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT))
+					draw_manipulator_rotate_cyl(v3d, rv3d, drawflags, 0, v3d->twtype, MAN_MOVECOL, true, -1);
+				else
+					draw_manipulator_rotate_cyl(v3d, rv3d, drawflags, 0, v3d->twtype, MAN_RGB, false, -1);
+			}
+			else {
+				draw_manipulator_rotate(v3d, rv3d, drawflags, 0, v3d->twtype, false, -1);
+			}
+		}
+		if (v3d->twtype & V3D_MANIP_SCALE) {
+			draw_manipulator_scale(v3d, rv3d, drawflags, 0, v3d->twtype, MAN_RGB, false, -1);
+		}
+		if (v3d->twtype & V3D_MANIP_TRANSLATE) {
+			draw_manipulator_translate(v3d, rv3d, drawflags, 0, v3d->twtype, MAN_RGB, false, -1);
+		}
+
+		glDisable(GL_BLEND);
+	}
+}
+
+void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 	int totsel;
-	int highlight = 0;
 	
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 	
@@ -1700,34 +1733,9 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 		return;
 
 	test_manipulator_axis(C);
-	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
-
-	if (v3d->twflag & V3D_DRAW_MANIPULATOR) {
-
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_BLEND);
-		if (v3d->twtype & V3D_MANIP_ROTATE) {
-
-			if (G.debug_value == 3) {
-				if (G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT))
-					draw_manipulator_rotate_cyl(v3d, rv3d, drawflags, highlight, v3d->twtype, MAN_MOVECOL, true, -1);
-				else
-					draw_manipulator_rotate_cyl(v3d, rv3d, drawflags, highlight, v3d->twtype, MAN_RGB, false, -1);
-			}
-			else {
-				draw_manipulator_rotate(v3d, rv3d, drawflags, highlight, v3d->twtype, false, -1);
-			}
-		}
-		if (v3d->twtype & V3D_MANIP_SCALE) {
-			draw_manipulator_scale(v3d, rv3d, drawflags, highlight, v3d->twtype, MAN_RGB, false, -1);
-		}
-		if (v3d->twtype & V3D_MANIP_TRANSLATE) {
-			draw_manipulator_translate(v3d, rv3d, drawflags, highlight, v3d->twtype, MAN_RGB, false, -1);
-		}
-
-		glDisable(GL_BLEND);
-	}
+	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */	
 }
+
 
 bool WIDGETGROUP_manipulator_poll(wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
 {

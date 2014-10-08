@@ -332,13 +332,13 @@ bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(widget), const struct bC
 
 typedef struct ArrowWidget {
 	wmWidget widget;
-	float color;
 	int style;
 	float origin[3];
 	float direction[3];
+	float color[3];
 } ArrowWidget;
 
-static void widget_draw_intern(bool select, bool highlight)
+static void widget_draw_intern(ArrowWidget *widget, bool select, bool highlight)
 {
 	GLuint buf[3];
 	if (!select)
@@ -378,7 +378,7 @@ static void widget_draw_intern(bool select, bool highlight)
 	if (highlight)
 		glColor3f(1.0, 1.0, 0.0);
 	else 
-		glColor3f(0.0, 1.0, 0.0);
+		glColor3fv(widget->color);
 
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
@@ -402,15 +402,15 @@ static void widget_draw_intern(bool select, bool highlight)
 	}
 }
 
-static void widget_arrow_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase)
+static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, int selectionbase)
 {
 	GPU_select_load_id(selectionbase);
-	widget_draw_intern(true, false);
+	widget_draw_intern((ArrowWidget *)widget, true, false);
 }
 
-static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *C)
+static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
-	widget_draw_intern(false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
+	widget_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
 
@@ -431,3 +431,9 @@ wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const s
 	return (wmWidget *)arrow;
 }
 
+void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4])
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+	
+	copy_v4_v4(arrow->color, color);
+}
