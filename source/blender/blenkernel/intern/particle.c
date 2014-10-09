@@ -3556,6 +3556,8 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	psys->flag = PSYS_CURRENT;
 	psys->cfra = BKE_scene_frame_get_from_ctime(scene, CFRA + 1);
 
+	psys->hair_preview_factor = 100.0f;
+
 	DAG_relations_tag_update(G.main);
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 

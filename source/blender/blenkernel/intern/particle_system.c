@@ -4059,25 +4059,40 @@ static MDeformVert *hair_set_pinning(MDeformVert *dvert, float weight)
 	return dvert;
 }
 
-void psys_hair_update_preview(ParticleSimulationData *sim)
+bool psys_hair_update_preview(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
-	float factor = psys->hair_preview_factor * 0.01f;
+	const float ratio = psys->hair_preview_factor * 0.01f;
+	/* target number of simulated hairs
+	 * NOTE: this has to be reached exactly, in order to allow
+	 * comparison with the psys->hair_num_simulated value!
+	 */
+	const int num_simulated = psys->totpart * ratio;
 	
-	if (!part->type == PART_HAIR)
-		return;
+	if (!(part->type == PART_HAIR))
+		return false;
+	if (num_simulated == psys->hair_num_simulated)
+		return false;
 	
 	{ /* Random hair selection method */
 		RNG *rng = BLI_rng_new(98250 + psys->seed);
 		ParticleData *pa;
+		int cur_simulated = 0;
 		int i;
 		
 		pa = psys->particles;
 		for (i = 0; i < psys->totpart; ++i, ++pa) {
-			if (BLI_rng_get_float(rng) < factor) {
-				pa->flag |= PARS_HAIR_BLEND;
-				// XXX TODO
+			bool simulate = true;
+			/* only allow disabling if the target sim number
+			 * can be reached with the remaining hairs
+			 */
+			if (num_simulated - cur_simulated <= psys->totpart - i) {
+				simulate = BLI_rng_get_float(rng) < ratio;
+			}
+			
+			if (simulate) {
+				pa->flag &= ~PARS_HAIR_BLEND;
 				pa->blend_index[0] = -1;
 				pa->blend_index[1] = -1;
 				pa->blend_index[2] = -1;
@@ -4088,7 +4103,8 @@ void psys_hair_update_preview(ParticleSimulationData *sim)
 				pa->blend_weight[3] = 0.0f;
 			}
 			else {
-				pa->flag &= ~PARS_HAIR_BLEND;
+				pa->flag |= PARS_HAIR_BLEND;
+				// XXX TODO
 				pa->blend_index[0] = -1;
 				pa->blend_index[1] = -1;
 				pa->blend_index[2] = -1;
@@ -4102,6 +4118,9 @@ void psys_hair_update_preview(ParticleSimulationData *sim)
 		
 		BLI_rng_free(rng);
 	}
+	
+	psys->hair_num_simulated = num_simulated;
+	return true;
 }
 
 static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int totedge, DerivedMesh **r_dm, ClothHairRoot **r_roots)
@@ -4243,8 +4262,10 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	float (*deformedVerts)[3];
 	bool realloc_roots;
 	
-	if (psys->recalc & PSYS_RECALC_REDO) {
-		psys_hair_update_preview(sim);
+	if (psys_hair_update_preview(sim)) {
+		printf("updating cloth ...\n");
+		if (psys->clmd)
+			cloth_free_modifier(psys->clmd);
 	}
 	
 	if (!psys->clmd) {

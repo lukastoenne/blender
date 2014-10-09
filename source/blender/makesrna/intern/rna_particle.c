@@ -3222,7 +3222,7 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 100.0f);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Preview Factor", "Part of hair particles to use for simulation preview");
-	RNA_def_property_update(prop, 0, "rna_Particle_redo");
+	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "shape_keys", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "key");

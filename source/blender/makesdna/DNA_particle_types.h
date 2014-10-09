@@ -293,8 +293,8 @@ typedef struct ParticleSystem {
 	int seed, child_seed;
 	int flag, totpart, totunexist, totchild, totcached, totchildcache;
 	short recalc, target_psys, totkeyed, bakespace;
-	float hair_preview_factor;
-	int pad3;
+	float hair_preview_factor;				/* ratio of simulated to overall hairs */
+	int hair_num_simulated;					/* current number of hairs tagged for simulation (for update check) */
 
 	char bb_uvname[3][64];					/* billboard uv name, MAX_CUSTOMDATA_LAYER_NAME */
 
