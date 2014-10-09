@@ -4063,6 +4063,7 @@ bool psys_hair_update_preview(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
+	DerivedMesh *dm = sim->psmd->dm;
 	const float ratio = psys->hair_preview_factor * 0.01f;
 	/* target number of simulated hairs
 	 * NOTE: this has to be reached exactly, in order to allow
@@ -4076,35 +4077,72 @@ bool psys_hair_update_preview(ParticleSimulationData *sim)
 		return false;
 	
 	{ /* Random hair selection method */
+		KDTree *tree = BLI_kdtree_new(num_simulated); /* kdtree for finding nearest simulated hairs for blending */
 		RNG *rng = BLI_rng_new(98250 + psys->seed);
 		ParticleData *pa;
 		int cur_simulated = 0;
 		int i;
 		
+		/* construct a kd-tree of all simulated hairs */
 		pa = psys->particles;
 		for (i = 0; i < psys->totpart; ++i, ++pa) {
 			bool simulate = true;
-			/* only allow disabling if the target sim number
-			 * can be reached with the remaining hairs
-			 */
-			if (num_simulated - cur_simulated <= psys->totpart - i) {
+			if (cur_simulated == num_simulated) {
+				/* don't simulate more than the total number */
+				simulate = false;
+			}
+			else if (num_simulated - cur_simulated <= psys->totpart - i) {
+				/* only allow disabling if the target sim number
+				 * can be reached with the remaining hairs
+				 */
 				simulate = BLI_rng_get_float(rng) < ratio;
 			}
 			
 			if (simulate) {
+				float co[3];
+				
 				pa->flag &= ~PARS_HAIR_BLEND;
-				pa->blend_index[0] = -1;
-				pa->blend_index[1] = -1;
-				pa->blend_index[2] = -1;
-				pa->blend_index[3] = -1;
-				pa->blend_weight[0] = 0.0f;
-				pa->blend_weight[1] = 0.0f;
-				pa->blend_weight[2] = 0.0f;
-				pa->blend_weight[3] = 0.0f;
+				
+				psys_particle_on_dm(dm, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, 0, 0);
+				BLI_kdtree_insert(tree, i, co);
+				
+				++cur_simulated;
 			}
 			else {
 				pa->flag |= PARS_HAIR_BLEND;
-				// XXX TODO
+			}
+		}
+		
+		BLI_kdtree_balance(tree);
+		
+		/* look up nearest simulated hairs for preview hairs and calculate blending weights */
+		pa = psys->particles;
+		for (i = 0; i < psys->totpart; ++i, ++pa) {
+			if (pa->flag & PARS_HAIR_BLEND) {
+				float co[3];
+				int maxw, w;
+				KDTreeNearest nearest[4];
+				float totdist, norm;
+				
+				psys_particle_on_dm(dm, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, 0, 0);
+				maxw = BLI_kdtree_find_nearest_n(tree, co, nearest, 4);
+				
+				totdist = 0.0f;
+				for (w = 0; w < maxw; ++w)
+					totdist += nearest[w].dist;
+				norm = totdist > 0.0f ? 1.0f / totdist : 0.0f;
+				
+				for (w = 0; w < maxw; ++w) {
+					pa->blend_index[w] = nearest[w].index;
+					pa->blend_weight[w] = nearest[w].dist * norm;
+				}
+				/* clear unused weights */
+				for (w = maxw; w < 4; ++w) {
+					pa->blend_index[w] = -1;
+					pa->blend_weight[w] = 0.0f;
+				}
+			}
+			else {
 				pa->blend_index[0] = -1;
 				pa->blend_index[1] = -1;
 				pa->blend_index[2] = -1;
@@ -4116,6 +4154,7 @@ bool psys_hair_update_preview(ParticleSimulationData *sim)
 			}
 		}
 		
+		BLI_kdtree_free(tree);
 		BLI_rng_free(rng);
 	}
 	
