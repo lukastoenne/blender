@@ -33,20 +33,13 @@
 
 #include "hair_intern.h"
 
-HairEditData *hair_edit_create(int totcurves, int totverts)
+HairEditData *ED_hair_edit_create(void)
 {
 	HairEditData *hedit = MEM_callocN(sizeof(HairEditData), "hair edit data");
-	
-	hedit->curves = MEM_callocN(sizeof(HairEditCurve) * totcurves, "hair edit curves");
-	hedit->totcurves = totcurves;
-	
-	hedit->verts = MEM_callocN(sizeof(HairEditVertex) * totverts, "hair edit verts");
-	hedit->totverts = totverts;
-	
 	return hedit;
 }
 
-HairEditData *hair_edit_copy(HairEditData *hedit)
+HairEditData *ED_hair_edit_copy(HairEditData *hedit)
 {
 	HairEditData *thedit = MEM_dupallocN(hedit);
 	
@@ -61,7 +54,7 @@ HairEditData *hair_edit_copy(HairEditData *hedit)
 	return thedit;
 }
 
-void hair_edit_free(HairEditData *hedit)
+void ED_hair_edit_free(HairEditData *hedit)
 {
 	if (hedit->curves) {
 		MEM_freeN(hedit->curves);
@@ -72,4 +65,26 @@ void hair_edit_free(HairEditData *hedit)
 	}
 	
 	MEM_freeN(hedit);
+}
+
+void ED_hair_edit_clear(HairEditData *hedit)
+{
+	if (hedit->curves) {
+		MEM_freeN(hedit->curves);
+		hedit->curves = NULL;
+	}
+	hedit->totcurves = 0;
+	hedit->alloc_curves = 0;
+	
+	if (hedit->verts) {
+		MEM_freeN(hedit->verts);
+		hedit->verts = NULL;
+	}
+	hedit->totverts = 0;
+	hedit->alloc_verts = 0;
+}
+
+void ED_hair_edit_reserve(HairEditData *hedit, int alloc_curves, int alloc_verts, bool shrink)
+{
+	if (hedit)
 }
