@@ -40,6 +40,7 @@ struct ParticleSystem;
 /* hair curve */
 typedef struct HairEditCurve {
 	int start;          /* first vertex index */
+	int numverts;       /* number of vertices in the curve */
 } HairEditCurve;
 
 typedef struct HairEditVertex {
@@ -50,20 +51,23 @@ typedef struct HairEditData {
 	HairEditCurve *curves;
 	HairEditVertex *verts;
 	
-	int totcurves;
-	int totverts;
+	int totcurves, alloc_curves;
+	int totverts, alloc_verts;
 	
 	CustomData hdata;   /* curve data */
 	CustomData vdata;   /* vertex data */
 } HairEditData;
 
-struct HairEditData *hair_edit_create(int totcurves, int totverts);
-struct HairEditData *hair_edit_copy(struct HairEditData *hedit);
-void hair_edit_free(struct HairEditData *hedit);
+struct HairEditData *ED_hair_edit_create(void);
+struct HairEditData *ED_hair_edit_copy(struct HairEditData *hedit);
+void ED_hair_edit_free(struct HairEditData *hedit);
+
+void ED_hair_edit_clear(struct HairEditData *hedit);
+void ED_hair_edit_reserve(struct HairEditData *hedit, int alloc_curves, int alloc_verts, bool shrink);
 
 /* === particle conversion === */
 
-struct HairEditData *hair_edit_from_particles(struct Object *ob, struct ParticleSystem *psys);
+void hair_edit_from_particles(struct HairEditData *hedit, struct Object *ob, struct ParticleSystem *psys);
 void hair_edit_to_particles(struct HairEditData *hedit, struct Object *ob, struct ParticleSystem *psys);
 
 #endif
