@@ -4263,7 +4263,6 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	bool realloc_roots;
 	
 	if (psys_hair_update_preview(sim)) {
-		printf("updating cloth ...\n");
 		if (psys->clmd)
 			cloth_free_modifier(psys->clmd);
 	}

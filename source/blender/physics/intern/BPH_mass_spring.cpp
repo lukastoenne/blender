@@ -739,8 +739,6 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 	ColliderContacts *contacts = NULL;
 	int totcolliders = 0;
 	
-	printf("solving %d\n", BPH_mass_spring_solver_numvert(cloth->implicit));
-	
 	BPH_mass_spring_solver_debug_data(id, clmd->debug_data);
 	
 	BKE_sim_debug_data_clear_category(clmd->debug_data, "collision");
