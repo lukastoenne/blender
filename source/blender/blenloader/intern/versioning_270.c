@@ -452,4 +452,13 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			BKE_key_set_from_id(key, key->from);
 		}
 	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSystem", "float", "hair_preview_factor")) {
+		Object *ob;
+		ParticleSystem *psys;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			for(psys = ob->particlesystem.first; psys; psys = psys->next)
+				psys->hair_preview_factor = 100.0f;
+		}
+	}
 }

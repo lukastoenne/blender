@@ -123,6 +123,9 @@ typedef struct ParticleData {
 	int hair_index;
 	short flag;
 	short alive;			/* the life state of a particle */
+	
+	int blend_index[4];		/* particle indices for non-simulated hair */
+	float blend_weight[4];	/* blending weights for non-simulated hair */
 } ParticleData;
 
 typedef struct SPHFluidSettings {
@@ -247,7 +250,7 @@ typedef struct ParticleSettings {
 
 	/* modified dm support */
 	short use_modifier_stack;
-	short pad[3];
+	short pad4[3];
 
 } ParticleSettings;
 
@@ -290,6 +293,8 @@ typedef struct ParticleSystem {
 	int seed, child_seed;
 	int flag, totpart, totunexist, totchild, totcached, totchildcache;
 	short recalc, target_psys, totkeyed, bakespace;
+	float hair_preview_factor;				/* ratio of simulated to overall hairs */
+	int hair_num_simulated;					/* current number of hairs tagged for simulation (for update check) */
 
 	char bb_uvname[3][64];					/* billboard uv name, MAX_CUSTOMDATA_LAYER_NAME */
 
@@ -525,11 +530,13 @@ typedef enum eParticleDrawFlag {
 #define PSYS_DISABLED			8192
 #define PSYS_OB_ANIM_RESTORE	16384 /* runtime flag */
 
-/* pars->flag */
-#define PARS_UNEXIST		1
-#define PARS_NO_DISP		2
-//#define PARS_STICKY			4 /* deprecated */
-#define PARS_REKEY			8
+typedef enum eParticleDataFlag {
+	PARS_UNEXIST        = 1,
+	PARS_NO_DISP        = 2,
+//	PARS_STICKY         = 4, /* deprecated */
+	PARS_REKEY          = 8,
+	PARS_HAIR_BLEND     = 16, /* exclude from simulation and instead blend result from surrounding hairs */
+} eParticleDataFlag;
 
 /* pars->alive */
 //#define PARS_KILLED			0 /* deprecated */

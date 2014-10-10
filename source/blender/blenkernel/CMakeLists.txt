@@ -39,6 +39,7 @@ set(INC
 	../physics
 	../render/extern/include
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 	../../../intern/iksolver/extern
 	../../../intern/memutil
 	../../../intern/mikktspace
@@ -272,7 +273,7 @@ set(SRC
 	intern/pbvh_intern.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_AUDASPACE)
 	list(APPEND INC
