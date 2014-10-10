@@ -79,7 +79,12 @@ static int assign_solver_indices(Cloth *cloth)
 	si = 0;
 	vert = cloth->verts;
 	for (i = 0; i < cloth->numverts; ++i, ++vert) {
-		vert->solver_index = exclude_vertex(cloth, i) ? -1 : si++;
+		if (exclude_vertex(cloth, i))
+			vert->solver_index = -1;
+		else {
+			vert->solver_index = si;
+			++si;
+		}
 	}
 	
 	/* first element of solver data matrices is used to store numbers ...

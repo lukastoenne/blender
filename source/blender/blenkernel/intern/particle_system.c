@@ -107,6 +107,36 @@
 
 static ThreadRWMutex psys_bvhtree_rwlock = BLI_RWLOCK_INITIALIZER;
 
+/* ==== hash functions for debugging ==== */
+BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
+BLI_INLINE int hash_vertex(int type, int vertex)
+{
+	return hash_int_2d((unsigned int)type, (unsigned int)vertex);
+}
+/* ================ */
+
 /************************************************/
 /*			Reacting to system events			*/
 /************************************************/
@@ -4103,8 +4133,10 @@ bool psys_hair_update_preview(ParticleSimulationData *sim)
 				
 				pa->flag &= ~PARS_HAIR_BLEND;
 				
-				psys_particle_on_dm(dm, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, 0, 0);
-				BLI_kdtree_insert(tree, i, co);
+				if (pa->totkey >= 2) {
+					psys_particle_on_dm(dm, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, 0, 0);
+					BLI_kdtree_insert(tree, i, co);
+				}
 				
 				++cur_simulated;
 			}
@@ -4122,19 +4154,23 @@ bool psys_hair_update_preview(ParticleSimulationData *sim)
 				float co[3];
 				int maxw, w;
 				KDTreeNearest nearest[4];
-				float totdist, norm;
 				
 				psys_particle_on_dm(dm, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, 0, 0);
 				maxw = BLI_kdtree_find_nearest_n(tree, co, nearest, 4);
-				
-				totdist = 0.0f;
-				for (w = 0; w < maxw; ++w)
-					totdist += nearest[w].dist;
-				norm = totdist > 0.0f ? 1.0f / totdist : 0.0f;
-				
-				for (w = 0; w < maxw; ++w) {
-					pa->blend_index[w] = nearest[w].index;
-					pa->blend_weight[w] = nearest[w].dist * norm;
+				if (maxw == 1) {
+					pa->blend_index[0] = nearest[0].index;
+					pa->blend_weight[0] = 1.0f;
+				}
+				else if (maxw > 1) {
+					float norm, totdist = 0.0f;
+					for (w = 0; w < maxw; ++w)
+						totdist += nearest[w].dist;
+					norm = totdist > 0.0f ? 1.0f / (totdist * (float)(maxw - 1)) : 0.0f;
+					
+					for (w = 0; w < maxw; ++w) {
+						pa->blend_index[w] = nearest[w].index;
+						pa->blend_weight[w] = (totdist - nearest[w].dist) * norm;
+					}
 				}
 				/* clear unused weights */
 				for (w = maxw; w < 4; ++w) {
@@ -4292,6 +4328,113 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	}
 }
 
+static void hair_deform_preview_curve(ParticleSystem *psys, ParticleData *pa, float (*deformedVerts)[3], ClothHairRoot *roots)
+{
+	ParticleData *particles = psys->particles;
+	HairKey *hkey;
+	float (*vert)[3];
+	ClothHairRoot *root;
+	int k;
+	float totlen, norm;
+	
+	/* first key is root, no blending for them */
+	if (pa->totkey < 2)
+		return;
+	
+	/* calculate normalization factor to equally parameterize hairs */
+	totlen = 0.0f;
+	hkey = pa->hair;
+	for (k = 0; k < pa->totkey - 1; ++k, ++hkey)
+		totlen += len_v3v3((hkey+1)->co, hkey->co);
+	norm = totlen > 0.0f ? 1.0f / totlen : 0.0f;
+	
+	totlen = 0.0f;
+	hkey = pa->hair;
+	vert = deformedVerts + pa->hair_index;
+	root = roots + pa->hair_index;
+	for (k = 0; k < pa->totkey; ++k, ++hkey, ++vert, ++root) {
+		float param;
+		int w;
+		
+		if (k == 0) /* skip root vertex */
+			continue;
+		param = totlen * norm;
+		totlen += len_v3v3(hkey->co, (hkey-1)->co);
+		
+		zero_v3(vert[0]);
+		for (w = 0; w < 4; ++w) {
+			ParticleData *blend_pa;
+			float (*blend_vert)[3];
+			ClothHairRoot *blend_root;
+			float blend_key, blend_factor;
+			int blend_totkey, blend_index;
+			float co[3];
+			
+			if (pa->blend_index[w] < 0)
+				continue;
+			
+			blend_pa = particles + pa->blend_index[w];
+			blend_totkey = blend_pa->totkey;
+			
+			blend_key = param * (float)blend_totkey;
+			blend_index = (int)blend_key;
+			if (blend_index >= blend_totkey - 1) {
+				blend_index = blend_totkey - 2;
+				blend_factor = 1.0f;
+			}
+			else {
+				blend_factor = blend_key - floorf(blend_key);
+			}
+			
+			/* pa->hair_index is set when creating input_dm,
+			 * use it here to map to output mvert index
+			 */
+			blend_vert = deformedVerts + blend_pa->hair_index + blend_index;
+			blend_root = roots + blend_pa->hair_index + blend_index;
+			
+#if 0
+			if (k == 1) {
+				float d[3];
+				sub_v3_v3v3(d, blend_root->loc, root->loc);
+				mul_v3_fl(d, 0.95f);
+				BKE_sim_debug_data_add_vector(psys->clmd->debug_data, root->loc, d, 1.0f - pa->blend_weight[w], pa->blend_weight[w], 0.0f,
+				                              "blending", hash_vertex(8467, hash_int_2d(pa->hair_index, w)));
+			}
+#endif
+			
+			interp_v3_v3v3(co, blend_vert[0], blend_vert[1], blend_factor);
+			
+			/* transform parent vector from world to root space, then back into root space of the blended hair */
+			sub_v3_v3(co, blend_root->loc);
+			/* note: rotation transform disabled, this does not work nicely with global force directions (gravity, wind etc.)
+			 * these forces would also get rotated, giving movement in a different direction than the force would actually incur.
+			 * would have to split internal (stretch, bend) and external forces somehow to make this plausible
+			 */
+#if 0
+			mul_transposed_m3_v3(blend_root->rot, co);
+			mul_m3_v3(root->rot, co);
+#endif
+			add_v3_v3(co, root->loc);
+			
+			madd_v3_v3fl(vert[0], co, pa->blend_weight[w]);
+		}
+	}
+}
+
+static void hair_deform_preview_hairs(ParticleSimulationData *sim, float (*deformedVerts)[3], ClothHairRoot *roots)
+{
+	ParticleSystem *psys = sim->psys;
+	ParticleData *pa;
+	int p;
+	
+	pa = psys->particles;
+	for (p = 0; p < psys->totpart; ++p, ++pa) {
+		if (pa->flag & PARS_HAIR_BLEND) {
+			hair_deform_preview_curve(psys, pa, deformedVerts, roots);
+		}
+	}
+}
+
 static void do_hair_dynamics(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
@@ -4334,7 +4477,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 		}
 	}
 	
-	if (psys->hair_in_dm || !psys->clmd->roots || realloc_roots) {
+	if (!psys->hair_in_dm || !psys->clmd->roots || realloc_roots) {
 		if (psys->clmd->roots) {
 			MEM_freeN(psys->clmd->roots);
 			psys->clmd->roots = NULL;
@@ -4354,6 +4497,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 	
 	clothModifier_do(psys->clmd, sim->scene, sim->ob, psys->hair_in_dm, deformedVerts);
+	hair_deform_preview_hairs(sim, deformedVerts, psys->clmd->roots);
 	
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
 	
