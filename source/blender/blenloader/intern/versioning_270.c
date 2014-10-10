@@ -446,13 +446,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 	
-	if (!DNA_struct_elem_find(fd->filesdna, "Key", "KeyOwner", "owner")) {
-		Key *key;
-		for (key = main->key.first; key; key = key->id.next) {
-			BKE_key_set_from_id(key, key->from);
-		}
-	}
-
 	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSystem", "float", "hair_preview_factor")) {
 		Object *ob;
 		ParticleSystem *psys;

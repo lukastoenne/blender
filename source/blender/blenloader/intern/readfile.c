@@ -124,6 +124,7 @@
 #include "BKE_group.h"
 #include "BKE_library.h" // for which_libbase
 #include "BKE_idcode.h"
+#include "BKE_key.h"
 #include "BKE_material.h"
 #include "BKE_main.h" // for Main
 #include "BKE_mesh.h" // for ME_ defines (patching)
@@ -3071,6 +3072,12 @@ static void lib_link_key(FileData *fd, Main *main)
 			
 			key->ipo = newlibadr_us(fd, key->id.lib, key->ipo); // XXX deprecated - old animation system
 			key->owner.id = newlibadr(fd, key->id.lib, key->owner.id);
+			/* versioning: initialize owner */
+			if (!key->owner.id && key->from) {
+				ID *id = newlibadr(fd, key->id.lib, key->from);
+				BKE_key_set_from_id(key, id);
+				key->from = NULL;
+			}
 			
 			key->id.flag -= LIB_NEED_LINK;
 		}
