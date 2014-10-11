@@ -277,22 +277,22 @@ void BKE_key_sort(Key *key)
 void BKE_key_set_from_id(Key *key, ID *id)
 {
 	if (key) {
+		key->from = id;
 		switch (GS(id->name)) {
-			case ID_ME: key->owner.type = KEY_OWNER_MESH; break;
-			case ID_CU: key->owner.type = KEY_OWNER_CURVE; break;
-			case ID_LT: key->owner.type = KEY_OWNER_LATTICE; break;
+			case ID_ME: key->from_extra.type = KEY_OWNER_MESH; break;
+			case ID_CU: key->from_extra.type = KEY_OWNER_CURVE; break;
+			case ID_LT: key->from_extra.type = KEY_OWNER_LATTICE; break;
 		}
-		key->owner.id = id;
-		key->owner.index = -1;
+		key->from_extra.index = -1;
 	}
 }
 
 void BKE_key_set_from_particles(Key *key, Object *ob, ParticleSystem *psys)
 {
 	if (key) {
-		key->owner.type = KEY_OWNER_PARTICLES;
-		key->owner.id = (ID *)ob;
-		key->owner.index = BLI_findindex(&ob->particlesystem, psys);
+		key->from = (ID *)ob;
+		key->from_extra.type = KEY_OWNER_PARTICLES;
+		key->from_extra.index = BLI_findindex(&ob->particlesystem, psys);
 	}
 }
 
@@ -560,14 +560,14 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 	if (kb == actkb) {
 		/* this hack makes it possible to edit shape keys in
 		 * edit mode with shape keys blending applied */
-		if (key->owner.type == KEY_OWNER_MESH) {
+		if (key->from_extra.type == KEY_OWNER_MESH) {
 			Mesh *me;
 			BMVert *eve;
 			BMIter iter;
 			float (*co)[3];
 			int a;
 
-			me = (Mesh *)key->owner.id;
+			me = (Mesh *)key->from;
 
 			if (me->edit_btmesh && me->edit_btmesh->bm->totvert == kb->totelem) {
 				a = 0;
@@ -592,7 +592,7 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 /* currently only the first value of 'ofs' may be set. */
 static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
 {
-	switch (key->owner.type) {
+	switch (key->from_extra.type) {
 		case KEY_OWNER_MESH:
 			*ofs = sizeof(float) * 3;
 			*poinsize = *ofs;
