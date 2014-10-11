@@ -3071,12 +3071,10 @@ static void lib_link_key(FileData *fd, Main *main)
 			if (key->adt) lib_link_animdata(fd, &key->id, key->adt);
 			
 			key->ipo = newlibadr_us(fd, key->id.lib, key->ipo); // XXX deprecated - old animation system
-			key->owner.id = newlibadr(fd, key->id.lib, key->owner.id);
-			/* versioning: initialize owner */
-			if (!key->owner.id && key->from) {
-				ID *id = newlibadr(fd, key->id.lib, key->from);
-				BKE_key_set_from_id(key, id);
-				key->from = NULL;
+			key->from = newlibadr(fd, key->id.lib, key->from);
+			/* versioning: initialize from_extra */
+			if (!key->from_extra.type && key->from) {
+				BKE_key_set_from_id(key, key->from);
 			}
 			
 			key->id.flag -= LIB_NEED_LINK;
