@@ -3250,6 +3250,10 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 1000);
 	RNA_def_property_ui_text(prop, "Threshold", "Distance from center needed before a selection can be made");
 
+	prop = RNA_def_property(srna, "pie_menu_confirm", PROP_INT, PROP_PIXEL);
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_text(prop, "Confirm Threshold", "Distance from center after which selection is made");
+
 	prop = RNA_def_property(srna, "use_quit_dialog", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_QUIT_PROMPT);
 	RNA_def_property_ui_text(prop, "Prompt Quit",
@@ -4398,7 +4402,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_auto_save_temporary_files", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_AUTOSAVE);
 	RNA_def_property_ui_text(prop, "Auto Save Temporary Files",
-	                         "Automatic saving of temporary files in temp directory, uses process ID");
+	                         "Automatic saving of temporary files in temp directory, uses process ID (Sculpt or edit mode data won't be saved!')");
 	RNA_def_property_update(prop, 0, "rna_userdef_autosave_update");
 
 	prop = RNA_def_property(srna, "auto_save_time", PROP_INT, PROP_NONE);
