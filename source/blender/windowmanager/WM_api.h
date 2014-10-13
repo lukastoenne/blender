@@ -468,8 +468,8 @@ struct wmWidgetGroup *WM_widgetgroup_new(bool (*poll)(struct wmWidgetGroup *, co
                                          void (*free)(struct wmWidgetGroup *),
                                          void *customdata);
 
-struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
-							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
+struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *, float scale),
+							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, float, int),
 							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *),
                                void *customdata, bool free_data);

@@ -658,16 +658,19 @@ typedef struct wmWidget {
 	void *customdata;
 	
 	/* draw widget */
-	void (*draw)(struct wmWidget *widget, const struct bContext *C);
+	void (*draw)(struct wmWidget *widget, const struct bContext *C, float scale);
 	/* determine if the mouse intersects with the widget. The calculation should be done in the callback itself */
 	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 	
 	/* determines 3d intersetion by rendering the widget in a selection routine. Returns number of max selection ids that
 	 * will be used by the widget */
-	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, int selectionbase);
+	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
 	
 	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
+
+	/* position in space, 2d or 3d */
+	float origin[3];
 } wmWidget;
 
 /* WidgetGroups store and manage groups of widgets.

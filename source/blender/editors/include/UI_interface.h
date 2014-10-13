@@ -1000,8 +1000,8 @@ int uiFloatPrecisionCalc(int prec, double value);
 
 /* ui_generic_widgets.c */
 int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
-void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
-void WIDGET_lamp_draw(struct wmWidget *widget, const struct bContext *C);
+void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
+void WIDGET_lamp_draw(struct wmWidget *widget, const struct bContext *C, float scale);
 bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *widget, const struct bContext *C);
 
 enum {
@@ -1011,7 +1011,6 @@ enum {
 
 struct wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget));
 void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
-void WIDGET_arrow_set_origin(struct wmWidget *widget, float origin[3]);
 void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
 
 #endif  /* __UI_INTERFACE_H__ */

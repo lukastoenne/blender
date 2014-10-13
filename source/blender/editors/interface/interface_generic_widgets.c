@@ -304,12 +304,12 @@ static void intern_lamp_draw(const struct bContext *C, int selectoffset, wmWidge
 	glPopMatrix();	
 }
 
-void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase)
+void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, float UNUSED(scale), int selectionbase)
 {
 	intern_lamp_draw(C, selectionbase, widget);	
 }
 
-void WIDGET_lamp_draw(wmWidget *widget, const struct bContext *C)
+void WIDGET_lamp_draw(wmWidget *widget, const struct bContext *C, float UNUSED(scale))
 {
 	intern_lamp_draw(C, -1, widget);
 }
@@ -334,12 +334,11 @@ bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(widget), const struct bC
 typedef struct ArrowWidget {
 	wmWidget widget;
 	int style;
-	float origin[3];
 	float direction[3];
 	float color[4];
 } ArrowWidget;
 
-static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
+static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, float scale)
 {
 	float rot[3][3];
 	float mat[4][4];
@@ -355,8 +354,10 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	
 	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
 	copy_m4_m3(mat, rot);
-	copy_v3_v3(mat[3], arrow->origin);
+	copy_v3_v3(mat[3], arrow->widget.origin);
 	
+	mul_mat3_m4_fl(mat, scale);
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glBindBuffer(GL_ARRAY_BUFFER, buf[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * _WIDGET_nverts_arrow, _WIDGET_verts_arrow, GL_STATIC_DRAW);
@@ -418,15 +419,15 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	}
 }
 
-static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, int selectionbase)
+static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, float scale, int selectionbase)
 {
 	GPU_select_load_id(selectionbase);
-	arrow_draw_intern((ArrowWidget *)widget, true, false);
+	arrow_draw_intern((ArrowWidget *)widget, true, false, scale);
 }
 
-static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
+static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C), float scale)
 {
-	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
+	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
 }
 
 
@@ -454,13 +455,6 @@ void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4])
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	
 	copy_v4_v4(arrow->color, color);
-}
-
-void WIDGET_arrow_set_origin(struct wmWidget *widget, float origin[3])
-{
-	ArrowWidget *arrow = (ArrowWidget *)widget;
-	
-	copy_v3_v3(arrow->origin, origin);	
 }
 
 void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3])

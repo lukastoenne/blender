@@ -1655,7 +1655,7 @@ static int manipulator_flags_from_active(int active)
 	return val;
 }
 
-void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
+void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C, float UNUSED(scale))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1760,21 +1760,21 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 		
 		if (drawflags & MAN_TRANS_X) {
 			WM_widget_register(wgroup, manipulator->translate_x);
-			WIDGET_arrow_set_origin(manipulator->translate_x, rv3d->twmat[3]);
+			copy_v3_v3(manipulator->translate_x->origin, rv3d->twmat[3]);
 			WIDGET_arrow_set_direction(manipulator->translate_x, rv3d->twmat[0]);
 			WIDGET_arrow_set_color(manipulator->translate_x, color_red);			
 		}
 		
 		if (drawflags & MAN_TRANS_Y) {
 			WM_widget_register(wgroup, manipulator->translate_y);
-			WIDGET_arrow_set_origin(manipulator->translate_y, rv3d->twmat[3]);
+			copy_v3_v3(manipulator->translate_y->origin, rv3d->twmat[3]);
 			WIDGET_arrow_set_direction(manipulator->translate_y, rv3d->twmat[1]);
 			WIDGET_arrow_set_color(manipulator->translate_y, color_green);			
 		}
 		
 		if (drawflags & MAN_TRANS_Z) {
 			WM_widget_register(wgroup, manipulator->translate_z);
-			WIDGET_arrow_set_origin(manipulator->translate_z, rv3d->twmat[3]);
+			copy_v3_v3(manipulator->translate_z->origin, rv3d->twmat[3]);
 			WIDGET_arrow_set_direction(manipulator->translate_z, rv3d->twmat[2]);
 			WIDGET_arrow_set_color(manipulator->translate_z, color_blue);			
 		}
@@ -1791,7 +1791,7 @@ bool WIDGETGROUP_manipulator_poll(wmWidgetGroup *UNUSED(wgroup), const struct bC
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
 
-void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget), int selectionbase)
+void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget), float UNUSED(scale), int selectionbase)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;

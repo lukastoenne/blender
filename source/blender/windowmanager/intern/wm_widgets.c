@@ -128,8 +128,8 @@ void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup)
 }
 
 
-wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C),
-                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
+wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C, float scale),
+                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, float scale, int selectionbase),
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                         void *customdata, bool free_data)
@@ -161,6 +161,8 @@ static void wm_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 {
+	RegionView3D *rv3d = ar->regiondata;
+
 	wmWidgetMap *wmap = ar->widgetmap;
 	if (wmap->widgetgroups.first) {
 		wmWidgetGroup *wgroup;
@@ -172,10 +174,15 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 
 				if (wgroup->update)
 					wgroup->update(wgroup, C);
-				
-				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
+
+			for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
 					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW)) {
-						widget_iter->draw(widget_iter, C);
+						float scale = 1.0;
+
+						if (!(U.tw_flag & V3D_3D_WIDGETS))
+							scale = ED_view3d_pixel_size(rv3d, widget_iter->origin) * U.tw_size;
+
+						widget_iter->draw(widget_iter, C, scale);
 					}
 				}				
 			}
@@ -291,13 +298,18 @@ static void widget_find_active_3D_loop(bContext *C, wmWidgetMap *wmap)
 	int selectionbase = 0;
 	wmWidget *widget;
 	wmWidgetGroup *wgroup;
-	
+	RegionView3D *rv3d = CTX_wm_region(C)->regiondata;
+
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		if (!wgroup->poll || wgroup->poll(wgroup, C)) {
 			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 				if (widget->render_3d_intersection) {
+					float scale = 1.0;
+
+					if (!(U.tw_flag & V3D_3D_WIDGETS))
+						scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
 					/* we use only 8 bits as free ids for per widget handles */
-					widget->render_3d_intersection(C, widget, selectionbase);
+					widget->render_3d_intersection(C, widget, scale, selectionbase);
 					selectionbase++;
 				}
 			}
