@@ -1694,6 +1694,10 @@ static void manipulator_unregister(wmWidgetGroup *wgroup, ManipulatorGroup *mani
 	WM_widget_unregister(wgroup, manipulator->translate_x);	
 	WM_widget_unregister(wgroup, manipulator->translate_y);	
 	WM_widget_unregister(wgroup, manipulator->translate_z);	
+
+	WM_widget_unregister(wgroup, manipulator->rotate_x);
+	WM_widget_unregister(wgroup, manipulator->rotate_y);
+	WM_widget_unregister(wgroup, manipulator->rotate_z);
 }
 
 void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
@@ -1779,6 +1783,32 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 			WIDGET_arrow_set_color(manipulator->translate_z, color_blue);			
 		}
 	}
+
+	if (v3d->twtype & V3D_MANIP_ROTATE) {
+		/* should be added according to the order of axis */
+
+		if (drawflags & MAN_ROT_X) {
+			WM_widget_register(wgroup, manipulator->rotate_x);
+			copy_v3_v3(manipulator->rotate_x->origin, rv3d->twmat[3]);
+			WIDGET_dial_set_direction(manipulator->rotate_x, rv3d->twmat[0]);
+			WIDGET_dial_set_color(manipulator->rotate_x, color_red);
+		}
+
+		if (drawflags & MAN_ROT_Y) {
+			WM_widget_register(wgroup, manipulator->rotate_y);
+			copy_v3_v3(manipulator->rotate_y->origin, rv3d->twmat[3]);
+			WIDGET_dial_set_direction(manipulator->rotate_y, rv3d->twmat[1]);
+			WIDGET_dial_set_color(manipulator->rotate_y, color_green);
+		}
+
+		if (drawflags & MAN_ROT_Z) {
+			WM_widget_register(wgroup, manipulator->rotate_z);
+			copy_v3_v3(manipulator->rotate_z->origin, rv3d->twmat[3]);
+			WIDGET_dial_set_direction(manipulator->rotate_z, rv3d->twmat[2]);
+			WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
+		}
+	}
+
 }
 
 
@@ -1980,13 +2010,47 @@ int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, w
 	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
 	WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
-	//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_translate", 0), event, op->ptr, NULL, false);
 	
 	if (ptr) {
 		WM_operator_properties_free(ptr);
 		MEM_freeN(ptr);
 	}
 	
+	return OPERATOR_FINISHED;
+}
+
+/* return 0; nothing happened */
+int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *event, wmWidget *widget)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	View3D *v3d = sa->spacedata.first;
+	int constraint_axis[3] = {0, 0, 0};
+	int direction = GET_INT_FROM_POINTER(widget->customdata);
+
+	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
+	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
+
+	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
+	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) ||
+		!((event->val == KM_PRESS) && (event->type == LEFTMOUSE)))
+	{
+		return OPERATOR_PASS_THROUGH;
+	}
+
+	constraint_axis[direction] = 1;
+
+	WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_rotate");
+	/* Force orientation */
+	RNA_boolean_set(ptr, "release_confirm", true);
+	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
+	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+	WM_operator_name_call(C, "TRANSFORM_OT_rotate", WM_OP_INVOKE_DEFAULT, ptr);
+
+	if (ptr) {
+		WM_operator_properties_free(ptr);
+		MEM_freeN(ptr);
+	}
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1999,9 +2063,9 @@ void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
 	WM_widget_register(wgroup, manipulator->translate_y);
 	WM_widget_register(wgroup, manipulator->translate_z);
 
-	WM_widget_register(wgroup, manipulator->translate_x);
-	WM_widget_register(wgroup, manipulator->translate_y);
-	WM_widget_register(wgroup, manipulator->translate_z);
+	WM_widget_register(wgroup, manipulator->rotate_x);
+	WM_widget_register(wgroup, manipulator->rotate_y);
+	WM_widget_register(wgroup, manipulator->rotate_z);
 	
 	MEM_freeN(manipulator);
 }

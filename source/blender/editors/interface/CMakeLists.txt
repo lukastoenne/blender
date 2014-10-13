@@ -58,6 +58,7 @@ set(SRC
 	view2d_ops.c
 
 	3d_widgets/arrow_widget.c
+	3d_widgets/dial_widget.c
 
 	interface_intern.h
 	3d_widgets/ui_widget_library.h

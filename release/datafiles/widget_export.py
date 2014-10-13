@@ -45,7 +45,7 @@ class ExportWidget(Operator, ExportHelper):
         name = ob.name
         f = open(self.filepath, 'w')
         f.write("int _WIDGET_nverts_%s = %d;\n" % (name, len(me.vertices)))
-        f.write("int _WIDGET_nfaces_%s = %d;\n\n" % (name, len(me.polygons)))
+        f.write("int _WIDGET_ntris_%s = %d;\n\n" % (name, len(me.polygons)))
         f.write("float _WIDGET_verts_%s[][3] = {\n" % name)
         for v in me.vertices:
             f.write("    {%.6f, %.6f, %.6f},\n" % v.co[:])            

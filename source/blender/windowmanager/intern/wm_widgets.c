@@ -162,8 +162,26 @@ static void wm_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
-
 	wmWidgetMap *wmap = ar->widgetmap;
+
+	bool use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
+
+	if (use_lighting) {
+		float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
+		float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
+
+		glPushAttrib(GL_LIGHTING_BIT | GL_ENABLE_BIT);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT0);
+		glEnable(GL_COLOR_MATERIAL);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glPushMatrix();
+		glLoadIdentity();
+		glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+		glPopMatrix();
+	}
+
 	if (wmap->widgetgroups.first) {
 		wmWidgetGroup *wgroup;
 		
@@ -175,7 +193,7 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 				if (wgroup->update)
 					wgroup->update(wgroup, C);
 
-			for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
+				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
 					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW)) {
 						float scale = 1.0;
 
@@ -184,10 +202,13 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 
 						widget_iter->draw(widget_iter, C, scale);
 					}
-				}				
+				}
 			}
 		}
 	}
+
+	if (use_lighting)
+		glPopAttrib();
 }
 
 void WM_event_add_widget_handler(ARegion *ar)

@@ -166,6 +166,7 @@ typedef struct ManipulatorGroup {
 int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
 int WIDGET_manipulator_handler_trans(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+int WIDGET_manipulator_handler_rot(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
 void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
 void WIDGET_manipulator_draw(struct wmWidget *widget, const struct bContext *C, float scale);

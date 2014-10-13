@@ -331,6 +331,71 @@ bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(widget), const struct bC
  *            GENERIC WIDGET LIBRARY                  *
  ******************************************************/
 
+typedef struct WidgetDrawInfo {
+	int nverts;
+	int ntris;
+	float (*verts)[3];
+	float (*normals)[3];
+	unsigned short *indices;
+	bool init;
+} WidgetDrawInfo;
+
+
+WidgetDrawInfo arraw_draw_info = {0};
+WidgetDrawInfo dial_draw_info = {0};
+
+static void widget_draw_intern(WidgetDrawInfo *info, bool select)
+{
+	GLuint buf[3];
+
+	bool use_lighting = !select && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
+
+	if (use_lighting)
+		glGenBuffers(3, buf);
+	else
+		glGenBuffers(2, buf);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, buf[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * info->nverts, info->verts, GL_STATIC_DRAW);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
+
+	if (use_lighting) {
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glBindBuffer(GL_ARRAY_BUFFER, buf[2]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * info->nverts, info->normals, GL_STATIC_DRAW);
+		glNormalPointer(GL_FLOAT, 0, NULL);
+		glShadeModel(GL_SMOOTH);
+	}
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf[1]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (3 * info->ntris), info->indices, GL_STATIC_DRAW);
+
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+
+	glDrawElements(GL_TRIANGLES, info->ntris * 3, GL_UNSIGNED_SHORT, NULL);
+
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	if (use_lighting) {
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glShadeModel(GL_FLAT);
+		glDeleteBuffers(3, buf);
+	}
+	else {
+		glDeleteBuffers(2, buf);
+	}
+}
+
+/* Arrow widget */
+
 typedef struct ArrowWidget {
 	wmWidget widget;
 	int style;
@@ -343,80 +408,24 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	float rot[3][3];
 	float mat[4][4];
 	float up[3] = {0.0f, 0.0f, 1.0f};
-	GLuint buf[3];
-	
-	bool use_lighting = !select && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
-	
-	if (use_lighting)
-		glGenBuffers(3, buf);
-	else
-		glGenBuffers(2, buf);
-	
+
 	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
 	copy_m4_m3(mat, rot);
 	copy_v3_v3(mat[3], arrow->widget.origin);
-	
 	mul_mat3_m4_fl(mat, scale);
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, buf[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * _WIDGET_nverts_arrow, _WIDGET_verts_arrow, GL_STATIC_DRAW);
-	glVertexPointer(3, GL_FLOAT, 0, NULL);	
-
-	if (use_lighting) {
-		float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
-		float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
-		glEnableClientState(GL_NORMAL_ARRAY);
-		glBindBuffer(GL_ARRAY_BUFFER, buf[2]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * _WIDGET_nverts_arrow, _WIDGET_normals_arrow, GL_STATIC_DRAW);
-		glNormalPointer(GL_FLOAT, 0, NULL);	
-
-		glPushAttrib(GL_LIGHTING_BIT | GL_ENABLE_BIT);		
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
-		glEnable(GL_COLOR_MATERIAL);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-		glPushMatrix();
-		glLoadIdentity();
-		glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
-		glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
-		glPopMatrix();
-		glShadeModel(GL_SMOOTH);
-	}
-	
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf[1]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (3 * _WIDGET_nfaces_arrow), _WIDGET_indices_arrow, GL_STATIC_DRAW);
+	glPushMatrix();
+	glMultMatrixf(&mat[0][0]);
 
 	if (highlight)
 		glColor4f(1.0, 1.0, 0.0, 1.0);
-	else 
+	else
 		glColor4fv(arrow->color);
 
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
-	glPushMatrix();
-	glMultMatrixf(&mat[0][0]);	
-	
-	glDrawElements(GL_TRIANGLES, _WIDGET_nfaces_arrow * 3, GL_UNSIGNED_SHORT, NULL);
+	widget_draw_intern(&arraw_draw_info, select);
 
 	glPopMatrix();
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	
-	glDisableClientState(GL_VERTEX_ARRAY);
-		
-	if (use_lighting) {
-		glDisableClientState(GL_NORMAL_ARRAY);
-		glShadeModel(GL_FLAT);
-		glPopAttrib();
-		glDeleteBuffers(3, buf);
-	}
-	else {
-		glDeleteBuffers(2, buf);
-	}
 }
 
 static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, float scale, int selectionbase)
@@ -435,6 +444,15 @@ wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const s
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
+
+	if (!arraw_draw_info.init) {
+		arraw_draw_info.nverts = _WIDGET_nverts_arrow,
+		arraw_draw_info.ntris = _WIDGET_ntris_arrow,
+		arraw_draw_info.verts = _WIDGET_verts_arrow,
+		arraw_draw_info.normals = _WIDGET_normals_arrow,
+		arraw_draw_info.indices = _WIDGET_indices_arrow,
+		arraw_draw_info.init = true;
+	}
 	
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 	
@@ -461,6 +479,94 @@ void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3])
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	
+	copy_v3_v3(arrow->direction, direction);
+	normalize_v3(arrow->direction);
+}
+
+/* Dial widget */
+
+typedef struct DialWidget {
+	wmWidget widget;
+	int style;
+	float direction[3];
+	float color[4];
+} DialWidget;
+
+static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, float scale)
+{
+	float rot[3][3];
+	float mat[4][4];
+	float up[3] = {0.0f, 0.0f, 1.0f};
+
+	rotation_between_vecs_to_mat3(rot, up, dial->direction);
+	copy_m4_m3(mat, rot);
+	copy_v3_v3(mat[3], dial->widget.origin);
+	mul_mat3_m4_fl(mat, scale);
+
+	glPushMatrix();
+	glMultMatrixf(&mat[0][0]);
+
+	if (highlight)
+		glColor4f(1.0, 1.0, 0.0, 1.0);
+	else
+		glColor4fv(dial->color);
+
+	widget_draw_intern(&dial_draw_info, select);
+
+	glPopMatrix();
+
+}
+
+static void widget_dial_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, float scale, int selectionbase)
+{
+	GPU_select_load_id(selectionbase);
+	dial_draw_intern((DialWidget *)widget, true, false, scale);
+}
+
+static void widget_dial_draw(struct wmWidget *widget, const struct bContext *UNUSED(C), float scale)
+{
+	dial_draw_intern((DialWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
+}
+
+wmWidget *WIDGET_dial_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))
+{
+	float dir_default[3] = {0.0f, 0.0f, 1.0f};
+	DialWidget *dial;
+
+	if (!dial_draw_info.init) {
+		dial_draw_info.nverts = _WIDGET_nverts_dial,
+		dial_draw_info.ntris = _WIDGET_ntris_dial,
+		dial_draw_info.verts = _WIDGET_verts_dial,
+		dial_draw_info.normals = _WIDGET_normals_dial,
+		dial_draw_info.indices = _WIDGET_indices_dial,
+		dial_draw_info.init = true;
+	}
+
+	dial = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
+
+	dial->widget.draw = widget_dial_draw;
+	dial->widget.handler = handler;
+	dial->widget.intersect = NULL;
+	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
+	dial->widget.customdata = NULL;
+
+	dial->style = style;
+	copy_v3_v3(dial->direction, dir_default);
+
+	return (wmWidget *)dial;
+}
+
+void WIDGET_dial_set_color(struct wmWidget *widget, float color[4])
+{
+	DialWidget *arrow = (DialWidget *)widget;
+
+	copy_v4_v4(arrow->color, color);
+}
+
+void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
+{
+	DialWidget *arrow = (DialWidget *)widget;
+
 	copy_v3_v3(arrow->direction, direction);
 	normalize_v3(arrow->direction);
 }

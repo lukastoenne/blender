@@ -1,5 +1,5 @@
 int _WIDGET_nverts_arrow = 81;
-int _WIDGET_nfaces_arrow = 76;
+int _WIDGET_ntris_arrow = 76;
 
 float _WIDGET_verts_arrow[][3] = {
     {0.023005, 0.023005, 0.000524},

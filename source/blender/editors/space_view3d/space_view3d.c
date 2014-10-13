@@ -711,7 +711,13 @@ static void view3d_widgets(void)
 	manipulator->translate_y->customdata = SET_INT_IN_POINTER(1);
 	manipulator->translate_z = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
 	manipulator->translate_z->customdata = SET_INT_IN_POINTER(2);
-	
+
+	manipulator->rotate_x = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
+	manipulator->rotate_y = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
+	manipulator->rotate_y->customdata = SET_INT_IN_POINTER(1);
+	manipulator->rotate_z = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
+	manipulator->rotate_z->customdata = SET_INT_IN_POINTER(2);
+
 	widget = WM_widget_new(WIDGET_lamp_draw,
 	                       WIDGET_lamp_render_3d_intersect, 
 	                       NULL, 
