@@ -1662,6 +1662,7 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C, float 
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 
+
 	if (v3d->twflag & V3D_DRAW_MANIPULATOR) {
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1830,8 +1831,8 @@ void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(
 
 	/* do the drawing */
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
-		if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, 0, v3d->twtype, MAN_RGB, false, selectionbase);
-		else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, 0, v3d->twtype, false, selectionbase);
+		//if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, 0, v3d->twtype, MAN_RGB, false, selectionbase);
+		//else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, 0, v3d->twtype, false, selectionbase);
 	}
 	if (v3d->twtype & V3D_MANIP_SCALE)
 		draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, 0, v3d->twtype, MAN_RGB, false, selectionbase);
