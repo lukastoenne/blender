@@ -258,7 +258,15 @@ static void get_hair_frame(float frame[3][3], const float normal[3], const float
 		const float up[3] = {0.0f, 0.0f, 1.0f};
 		
 		madd_v3_v3v3fl(frame[0], up, normal, -dot_v3v3(up, normal));
-		normalize_v3(frame[0]);
+		if (!is_zero_v3(frame[0])) {
+			normalize_v3(frame[0]);
+		}
+		else {
+			const float up[3] = {0.0f, 1.0f, 0.0f};
+			
+			madd_v3_v3v3fl(frame[0], up, normal, -dot_v3v3(up, normal));
+			normalize_v3(frame[0]);
+		}
 	}
 	
 	cross_v3_v3v3(frame[1], frame[2], frame[0]);
