@@ -39,6 +39,7 @@
 
 /* dna-savable wmStructs here */
 #include "DNA_windowmanager_types.h"
+#include "DNA_listBase.h"
 #include "WM_keymap.h"
 #include "BLI_compiler_attrs.h"
 
@@ -481,6 +482,7 @@ bool WM_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
 void WM_widget_unregister(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
 
 void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
+ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup);
 
 bool WM_widgetgroup_register(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);
 void WM_widgetgroup_unregister(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);

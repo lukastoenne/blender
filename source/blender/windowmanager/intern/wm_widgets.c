@@ -127,6 +127,10 @@ void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup)
 	return wgroup->customdata;
 }
 
+ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup)
+{
+	return &wgroup->widgets;
+}
 
 wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C, float scale),
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, float scale, int selectionbase),
@@ -314,50 +318,28 @@ bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap)
 	return wmap->is_3d;
 }
 
-static void widget_find_active_3D_loop(bContext *C, wmWidgetMap *wmap)
+static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
 {
 	int selectionbase = 0;
+	LinkData *link;
 	wmWidget *widget;
-	wmWidgetGroup *wgroup;
 	RegionView3D *rv3d = CTX_wm_region(C)->regiondata;
 
-	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		if (!wgroup->poll || wgroup->poll(wgroup, C)) {
-			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if (widget->render_3d_intersection) {
-					float scale = 1.0;
+	for (link = visible_widgets->first; link; link = link->next) {
+		float scale = 1.0;
 
-					if (!(U.tw_flag & V3D_3D_WIDGETS))
-						scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
-					/* we use only 8 bits as free ids for per widget handles */
-					widget->render_3d_intersection(C, widget, scale, selectionbase);
-					selectionbase++;
-				}
-			}
-		}
+		widget = link->data;
+
+		if (!(U.tw_flag & V3D_3D_WIDGETS))
+			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
+		/* we use only 8 bits as free ids for per widget handles */
+		widget->render_3d_intersection(C, widget, scale, selectionbase);
+
+		selectionbase++;
 	}
 }
 
-static wmWidget *widget_find_active_3D_index(wmWidgetMap *wmap, int index)
-{
-	int selectionbase = 0;
-	wmWidget *widget;
-	wmWidgetGroup *wgroup;
-	
-	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-			if (widget->render_3d_intersection) {
-				if (selectionbase == index) {
-					return widget;
-				}
-				selectionbase++;
-			}
-		}
-	}
-	return NULL;
-}
-
-static int wm_widget_find_active_3D_intern (wmWidgetMap *wmap, bContext *C, const struct wmEvent *event, float hotspot)
+static int wm_widget_find_active_3D_intern (ListBase *visible_widgets, bContext *C, const struct wmEvent *event, float hotspot)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -385,13 +367,13 @@ static int wm_widget_find_active_3D_intern (wmWidgetMap *wmap, bContext *C, cons
 	else
 		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_ALL, 0);
 	/* do the drawing */
-	widget_find_active_3D_loop(C, wmap);
+	widget_find_active_3D_loop(C, visible_widgets);
 	
 	hits = GPU_select_end();
 	
 	if (do_passes) {
 		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_SECOND_PASS, hits);
-		widget_find_active_3D_loop(C, wmap);		
+		widget_find_active_3D_loop(C, visible_widgets);
 		GPU_select_end();
 	}
 	
@@ -425,29 +407,53 @@ static int wm_widget_find_active_3D_intern (wmWidgetMap *wmap, bContext *C, cons
 	return -1;
 }
 
+static void wm_prepare_visible_widgets(struct wmWidgetMap *wmap, ListBase *visible_widgets, bContext *C)
+{
+	wmWidget *widget;
+	wmWidgetGroup *wgroup;
+
+	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
+		if (!wgroup->poll || wgroup->poll(wgroup, C)) {
+			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
+				if (!(widget->flag & WM_WIDGET_SKIP_DRAW) && widget->render_3d_intersection) {
+					BLI_addhead(visible_widgets, BLI_genericNodeN(widget));
+				}
+			}
+		}
+	}
+}
 
 wmWidget *wm_widget_find_active_3D(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event)
 {
 	int ret, retsec;
+	wmWidget *result = NULL;
 	
+	ListBase visible_widgets = {0};
+
+	wm_prepare_visible_widgets(wmap, &visible_widgets, C);
+
 	/* set up view matrices */	
 	view3d_operator_needs_opengl(C);
 	
-	ret = wm_widget_find_active_3D_intern(wmap, C, event, 0.5f * (float)U.tw_hotspot);
+	ret = wm_widget_find_active_3D_intern(&visible_widgets, C, event, 0.5f * (float)U.tw_hotspot);
 	
 	if (ret != -1) {
+		LinkData *link;
 		int retfinal;
-		retsec = wm_widget_find_active_3D_intern(wmap, C, event, 0.2f * (float)U.tw_hotspot);
+		retsec = wm_widget_find_active_3D_intern(&visible_widgets, C, event, 0.2f * (float)U.tw_hotspot);
 		
 		if (retsec == -1)
 			retfinal = ret;
 		else
 			retfinal = retsec;
 		
-		return widget_find_active_3D_index(wmap, retfinal);
+		link = BLI_findlink(&visible_widgets, retfinal);
+		result = link->data;
 	}
+
+	BLI_freelistN(&visible_widgets);
 	
-	return NULL;
+	return result;
 }
 
 void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)

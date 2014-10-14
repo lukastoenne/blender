@@ -999,10 +999,6 @@ void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
 int uiFloatPrecisionCalc(int prec, double value);
 
 /* ui_generic_widgets.c */
-int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
-void WIDGET_lamp_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
-void WIDGET_lamp_draw(struct wmWidget *widget, const struct bContext *C, float scale);
-bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *widget, const struct bContext *C);
 
 enum {
 	UI_ARROW_STYLE_SHADED = 0,

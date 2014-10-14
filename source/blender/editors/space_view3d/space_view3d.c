@@ -54,6 +54,7 @@
 #include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
+#include "ED_view3d.h"
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -695,13 +696,15 @@ static void view3d_widgets(void)
 	float color_red[4] = {1.0f, 0.0f, 0.0f, 1.0f};
 	float color_blue[4] = {0.0f, 0.0f, 1.0f, 1.0f};
 
+	float color_lamp[4] = {0.5f, 0.5f, 1.0f, 1.0f};
+
 	wmWidget *widget = NULL;
 	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
 	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	struct wmWidgetGroup *wgroup_manipulator = WM_widgetgroup_new(WIDGETGROUP_manipulator_poll, 
 	                                                              WIDGETGROUP_manipulator_update,
 	                                                              WIDGETGROUP_manipulator_free, manipulator);
-	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, NULL, NULL, NULL);
+	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_update, NULL, NULL);
 	
 	widget = WM_widget_new(WIDGET_manipulator_draw, 
 	                       WIDGET_manipulator_render_3d_intersect, 
@@ -711,17 +714,17 @@ static void view3d_widgets(void)
 	WM_widget_register(wgroup_manipulator, widget);
 
 	manipulator->translate_x = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
-	WIDGET_dial_set_color(manipulator->translate_x, color_red);
+	WIDGET_arrow_set_color(manipulator->translate_x, color_red);
 	WM_widget_register(wgroup_manipulator, manipulator->translate_x);
 
 	manipulator->translate_y = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
 	manipulator->translate_y->customdata = SET_INT_IN_POINTER(1);
-	WIDGET_dial_set_color(manipulator->translate_y, color_green);
+	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
 	WM_widget_register(wgroup_manipulator, manipulator->translate_y);
 
 	manipulator->translate_z = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
 	manipulator->translate_z->customdata = SET_INT_IN_POINTER(2);
-	WIDGET_dial_set_color(manipulator->translate_z, color_blue);
+	WIDGET_arrow_set_color(manipulator->translate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->translate_z);
 
 	manipulator->rotate_x = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
@@ -738,13 +741,10 @@ static void view3d_widgets(void)
 	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_z);
 
+	widget = WIDGET_arrow_new(0, WIDGET_lamp_handler);
+	WM_widget_register(wgroup_light,  widget);
+	WIDGET_arrow_set_color(widget, color_lamp);
 
-	widget = WM_widget_new(WIDGET_lamp_draw,
-	                       WIDGET_lamp_render_3d_intersect, 
-	                       NULL, 
-	                       WIDGET_lamp_handler, NULL, false);	
-	WM_widget_register(wgroup_light, widget);
-	
 	WM_widgetgroup_register(wmap, wgroup_manipulator);
 	WM_widgetgroup_register(wmap, wgroup_light);
 }

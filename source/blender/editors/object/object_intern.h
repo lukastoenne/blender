@@ -266,5 +266,8 @@ void OBJECT_OT_lod_remove(struct wmOperatorType *ot);
 /* object_random.c */
 void OBJECT_OT_vertex_random(struct wmOperatorType *ot);
 
+/* object_lamp.c */
+void LAMP_OT_lamp_position(struct wmOperatorType *ot);
+
 #endif /* __OBJECT_INTERN_H__ */
 
