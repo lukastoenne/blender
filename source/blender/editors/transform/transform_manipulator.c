@@ -1690,23 +1690,8 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C, float 
 	}
 }
 
-static void manipulator_unregister(wmWidgetGroup *wgroup, ManipulatorGroup *manipulator)
-{
-	WM_widget_unregister(wgroup, manipulator->translate_x);	
-	WM_widget_unregister(wgroup, manipulator->translate_y);	
-	WM_widget_unregister(wgroup, manipulator->translate_z);	
-
-	WM_widget_unregister(wgroup, manipulator->rotate_x);
-	WM_widget_unregister(wgroup, manipulator->rotate_y);
-	WM_widget_unregister(wgroup, manipulator->rotate_z);
-}
-
 void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
-	float color_green[4] = {0.0f, 1.0f, 0.0f, 1.0f};
-	float color_red[4] = {1.0f, 0.0f, 0.0f, 1.0f};
-	float color_blue[4] = {0.0f, 0.0f, 1.0f, 1.0f};
-	
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
@@ -1715,9 +1700,7 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	ManipulatorGroup *manipulator = WM_widgetgroup_customdata(wgroup);
 
 	int totsel;
-	
-	manipulator_unregister(wgroup, manipulator);
-	
+		
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 	
 	totsel = calc_manipulator_stats(C);
@@ -1762,54 +1745,46 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 
 	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
 		/* should be added according to the order of axis */
+		copy_v3_v3(manipulator->translate_x->origin, rv3d->twmat[3]);
+		WIDGET_arrow_set_direction(manipulator->translate_x, rv3d->twmat[0]);
 		
-		if (drawflags & MAN_TRANS_X) {
-			WM_widget_register(wgroup, manipulator->translate_x);
-			copy_v3_v3(manipulator->translate_x->origin, rv3d->twmat[3]);
-			WIDGET_arrow_set_direction(manipulator->translate_x, rv3d->twmat[0]);
-			WIDGET_arrow_set_color(manipulator->translate_x, color_red);			
-		}
-		
-		if (drawflags & MAN_TRANS_Y) {
-			WM_widget_register(wgroup, manipulator->translate_y);
-			copy_v3_v3(manipulator->translate_y->origin, rv3d->twmat[3]);
-			WIDGET_arrow_set_direction(manipulator->translate_y, rv3d->twmat[1]);
-			WIDGET_arrow_set_color(manipulator->translate_y, color_green);			
-		}
-		
-		if (drawflags & MAN_TRANS_Z) {
-			WM_widget_register(wgroup, manipulator->translate_z);
-			copy_v3_v3(manipulator->translate_z->origin, rv3d->twmat[3]);
-			WIDGET_arrow_set_direction(manipulator->translate_z, rv3d->twmat[2]);
-			WIDGET_arrow_set_color(manipulator->translate_z, color_blue);			
-		}
+		copy_v3_v3(manipulator->translate_y->origin, rv3d->twmat[3]);
+		WIDGET_arrow_set_direction(manipulator->translate_y, rv3d->twmat[1]);
+
+		copy_v3_v3(manipulator->translate_z->origin, rv3d->twmat[3]);
+		WIDGET_arrow_set_direction(manipulator->translate_z, rv3d->twmat[2]);
+
+		manipulator->translate_x->flag &= ~WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_y->flag &= ~WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_z->flag &= ~WM_WIDGET_SKIP_DRAW;
+	}
+	else {
+		manipulator->translate_x->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_y->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_z->flag |= WM_WIDGET_SKIP_DRAW;
 	}
 
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
 		/* should be added according to the order of axis */
 
-		if (drawflags & MAN_ROT_X) {
-			WM_widget_register(wgroup, manipulator->rotate_x);
-			copy_v3_v3(manipulator->rotate_x->origin, rv3d->twmat[3]);
-			WIDGET_dial_set_direction(manipulator->rotate_x, rv3d->twmat[0]);
-			WIDGET_dial_set_color(manipulator->rotate_x, color_red);
-		}
+		copy_v3_v3(manipulator->rotate_x->origin, rv3d->twmat[3]);
+		WIDGET_dial_set_direction(manipulator->rotate_x, rv3d->twmat[0]);
 
-		if (drawflags & MAN_ROT_Y) {
-			WM_widget_register(wgroup, manipulator->rotate_y);
-			copy_v3_v3(manipulator->rotate_y->origin, rv3d->twmat[3]);
-			WIDGET_dial_set_direction(manipulator->rotate_y, rv3d->twmat[1]);
-			WIDGET_dial_set_color(manipulator->rotate_y, color_green);
-		}
+		copy_v3_v3(manipulator->rotate_y->origin, rv3d->twmat[3]);
+		WIDGET_dial_set_direction(manipulator->rotate_y, rv3d->twmat[1]);
 
-		if (drawflags & MAN_ROT_Z) {
-			WM_widget_register(wgroup, manipulator->rotate_z);
-			copy_v3_v3(manipulator->rotate_z->origin, rv3d->twmat[3]);
-			WIDGET_dial_set_direction(manipulator->rotate_z, rv3d->twmat[2]);
-			WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
-		}
+		copy_v3_v3(manipulator->rotate_z->origin, rv3d->twmat[3]);
+		WIDGET_dial_set_direction(manipulator->rotate_z, rv3d->twmat[2]);
+
+		manipulator->rotate_x->flag &= ~WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_y->flag &= ~WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_z->flag &= ~WM_WIDGET_SKIP_DRAW;
 	}
-
+	else {
+		manipulator->rotate_x->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_y->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_z->flag |= WM_WIDGET_SKIP_DRAW;
+	}
 }
 
 
@@ -2010,6 +1985,8 @@ int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, w
 	RNA_boolean_set(ptr, "release_confirm", true);
 	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+	RNA_boolean_set(ptr, "use_widget_input", true);
+
 	WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
 	
 	if (ptr) {
@@ -2045,6 +2022,7 @@ int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *event, wmW
 	RNA_boolean_set(ptr, "release_confirm", true);
 	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+	RNA_boolean_set(ptr, "use_widget_input", true);
 	WM_operator_name_call(C, "TRANSFORM_OT_rotate", WM_OP_INVOKE_DEFAULT, ptr);
 
 	if (ptr) {
@@ -2059,14 +2037,5 @@ void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
 {
 	ManipulatorGroup *manipulator = WM_widgetgroup_customdata(wgroup);
 
-	/* register all widgets for destruction */
-	WM_widget_register(wgroup, manipulator->translate_x);
-	WM_widget_register(wgroup, manipulator->translate_y);
-	WM_widget_register(wgroup, manipulator->translate_z);
-
-	WM_widget_register(wgroup, manipulator->rotate_x);
-	WM_widget_register(wgroup, manipulator->rotate_y);
-	WM_widget_register(wgroup, manipulator->rotate_z);
-	
 	MEM_freeN(manipulator);
 }

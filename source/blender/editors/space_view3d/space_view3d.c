@@ -691,6 +691,10 @@ static void view3d_dropboxes(void)
 
 static void view3d_widgets(void)
 {
+	float color_green[4] = {0.0f, 1.0f, 0.0f, 1.0f};
+	float color_red[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+	float color_blue[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+
 	wmWidget *widget = NULL;
 	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
 	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
@@ -707,16 +711,33 @@ static void view3d_widgets(void)
 	WM_widget_register(wgroup_manipulator, widget);
 
 	manipulator->translate_x = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
+	WIDGET_dial_set_color(manipulator->translate_x, color_red);
+	WM_widget_register(wgroup_manipulator, manipulator->translate_x);
+
 	manipulator->translate_y = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
 	manipulator->translate_y->customdata = SET_INT_IN_POINTER(1);
+	WIDGET_dial_set_color(manipulator->translate_y, color_green);
+	WM_widget_register(wgroup_manipulator, manipulator->translate_y);
+
 	manipulator->translate_z = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
 	manipulator->translate_z->customdata = SET_INT_IN_POINTER(2);
+	WIDGET_dial_set_color(manipulator->translate_z, color_blue);
+	WM_widget_register(wgroup_manipulator, manipulator->translate_z);
 
 	manipulator->rotate_x = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
+	WIDGET_dial_set_color(manipulator->rotate_x, color_red);
+	WM_widget_register(wgroup_manipulator, manipulator->rotate_x);
+
 	manipulator->rotate_y = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
 	manipulator->rotate_y->customdata = SET_INT_IN_POINTER(1);
+	WIDGET_dial_set_color(manipulator->rotate_y, color_green);
+	WM_widget_register(wgroup_manipulator, manipulator->rotate_y);
+
 	manipulator->rotate_z = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
 	manipulator->rotate_z->customdata = SET_INT_IN_POINTER(2);
+	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
+	WM_widget_register(wgroup_manipulator, manipulator->rotate_z);
+
 
 	widget = WM_widget_new(WIDGET_lamp_draw,
 	                       WIDGET_lamp_render_3d_intersect, 
