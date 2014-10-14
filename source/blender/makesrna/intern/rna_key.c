@@ -304,8 +304,8 @@ static void rna_ShapeKey_data_begin(CollectionPropertyIterator *iter, PointerRNA
 	Nurb *nu;
 	int tot = kb->totelem, size = key->elemsize;
 	
-	if (key->owner.type == KEY_OWNER_CURVE) {
-		cu = (Curve *)key->owner.id;
+	if (key->from_extra.type == KEY_OWNER_CURVE) {
+		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
 		if (nu->bezt) {
@@ -325,8 +325,8 @@ static int rna_ShapeKey_data_length(PointerRNA *ptr)
 	Nurb *nu;
 	int tot = kb->totelem;
 	
-	if (key->owner.type == KEY_OWNER_CURVE) {
-		cu = (Curve *)key->owner.id;
+	if (key->from_extra.type == KEY_OWNER_CURVE) {
+		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
 		if (nu->bezt)
@@ -343,8 +343,8 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
 	Curve *cu;
 	Nurb *nu;
 	
-	if (key->owner.type == KEY_OWNER_CURVE) {
-		cu = (Curve *)key->owner.id;
+	if (key->from_extra.type == KEY_OWNER_CURVE) {
+		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
 		if (nu->bezt)
@@ -377,7 +377,7 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 	Key *key = ptr->id.data;
 	Object *ob;
 
-	switch (key->owner.type) {
+	switch (key->from_extra.type) {
 	case KEY_OWNER_MESH:
 	case KEY_OWNER_CURVE:
 	case KEY_OWNER_LATTICE:
@@ -679,7 +679,7 @@ static void rna_def_key(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "user", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_pointer_sdna(prop, NULL, "owner.id");
+	RNA_def_property_pointer_sdna(prop, NULL, "from");
 	RNA_def_property_ui_text(prop, "User", "Datablock using these shape keys");
 
 	prop = RNA_def_property(srna, "use_relative", PROP_BOOLEAN, PROP_NONE);

@@ -125,6 +125,7 @@
 #include "BKE_group.h"
 #include "BKE_library.h" // for which_libbase
 #include "BKE_idcode.h"
+#include "BKE_key.h"
 #include "BKE_material.h"
 #include "BKE_main.h" // for Main
 #include "BKE_mesh.h" // for ME_ defines (patching)
@@ -3072,7 +3073,11 @@ static void lib_link_key(FileData *fd, Main *main)
 			if (key->adt) lib_link_animdata(fd, &key->id, key->adt);
 			
 			key->ipo = newlibadr_us(fd, key->id.lib, key->ipo); // XXX deprecated - old animation system
-			key->owner.id = newlibadr(fd, key->id.lib, key->owner.id);
+			key->from = newlibadr(fd, key->id.lib, key->from);
+			/* versioning: initialize from_extra */
+			if (!key->from_extra.type && key->from) {
+				BKE_key_set_from_id(key, key->from);
+			}
 			
 			key->id.flag -= LIB_NEED_LINK;
 		}
@@ -6281,7 +6286,6 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 
 				rv3d->depths = NULL;
 				rv3d->gpuoffscreen = NULL;
-				rv3d->ri = NULL;
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;

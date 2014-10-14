@@ -116,6 +116,19 @@ static void do_version_constraints_radians_degrees_270_5(ListBase *lb)
 	}
 }
 
+static void do_version_constraints_stretch_to_limits(ListBase *lb)
+{
+	bConstraint *con;
+
+	for (con = lb->first; con; con = con->next) {
+		if (con->type == CONSTRAINT_TYPE_STRETCHTO) {
+			bStretchToConstraint *data = (bStretchToConstraint *)con->data;
+			data->bulge_min = 1.0f;
+			data->bulge_max = 1.0f;
+		}
+	}
+}
+
 void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 {
 	if (!MAIN_VERSION_ATLEAST(main, 270, 0)) {
@@ -408,20 +421,18 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "int", "voxel_res")) {
+	if (!DNA_struct_elem_find(fd->filesdna, "bStretchToConstraint", "float", "bulge_min")) {
 		Object *ob;
-		ModifierData *md;
+
+		/* Update Transform constraint (again :|). */
 		for (ob = main->object.first; ob; ob = ob->id.next) {
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Cloth) {
-					ClothModifierData *clmd = (ClothModifierData*) md;
-					clmd->sim_parms->voxel_res = 32;
-				}
-				else if (md->type == eModifierType_ParticleSystem) {
-					ParticleSystemModifierData *pmd = (ParticleSystemModifierData*) md;
-					if (pmd->psys->clmd) {
-						pmd->psys->clmd->sim_parms->voxel_res = 32;
-					}
+			do_version_constraints_stretch_to_limits(&ob->constraints);
+
+			if (ob->pose) {
+				/* Bones constraints! */
+				bPoseChannel *pchan;
+				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+					do_version_constraints_stretch_to_limits(&pchan->constraints);
 				}
 			}
 		}
@@ -446,10 +457,12 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 	
-	if (!DNA_struct_elem_find(fd->filesdna, "Key", "KeyOwner", "owner")) {
-		Key *key;
-		for (key = main->key.first; key; key = key->id.next) {
-			BKE_key_set_from_id(key, key->from);
+	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSystem", "float", "hair_preview_factor")) {
+		Object *ob;
+		ParticleSystem *psys;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			for(psys = ob->particlesystem.first; psys; psys = psys->next)
+				psys->hair_preview_factor = 100.0f;
 		}
 	}
 }

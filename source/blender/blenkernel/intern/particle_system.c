@@ -68,6 +68,7 @@
 #include "BLI_kdtree.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_sort.h"
+#include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_linklist.h"
 
@@ -105,6 +106,36 @@
 #endif // WITH_MOD_FLUID
 
 static ThreadRWMutex psys_bvhtree_rwlock = BLI_RWLOCK_INITIALIZER;
+
+/* ==== hash functions for debugging ==== */
+BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
+BLI_INLINE int hash_vertex(int type, int vertex)
+{
+	return hash_int_2d((unsigned int)type, (unsigned int)vertex);
+}
+/* ================ */
 
 /************************************************/
 /*			Reacting to system events			*/
@@ -790,7 +821,7 @@ static int distribute_binary_search(float *sum, int n, float value)
 
 /* note: this function must be thread safe, for from == PART_FROM_CHILD */
 #define ONLY_WORKING_WITH_PA_VERTS 0
-static void distribute_threads_exec(ParticleThread *thread, ParticleData *pa, ChildParticle *cpa, int p)
+static void distribute_threads_exec(ParticleTask *thread, ParticleData *pa, ChildParticle *cpa, int p)
 {
 	ParticleThreadContext *ctx= thread->ctx;
 	Object *ob= ctx->sim.ob;
@@ -980,36 +1011,40 @@ static void distribute_threads_exec(ParticleThread *thread, ParticleData *pa, Ch
 		BLI_rng_skip(thread->rng, rng_skip_tot);
 }
 
-static void *distribute_threads_exec_cb(void *data)
+static void exec_distribute_parent(TaskPool *UNUSED(pool), void *taskdata, int UNUSED(threadid))
 {
-	ParticleThread *thread= (ParticleThread*)data;
-	ParticleSystem *psys= thread->ctx->sim.psys;
+	ParticleTask *task = taskdata;
+	ParticleSystem *psys= task->ctx->sim.psys;
 	ParticleData *pa;
+	int p;
+	
+	pa= psys->particles + task->begin;
+	for (p = task->begin; p < task->end; ++p, ++pa)
+		distribute_threads_exec(task, pa, NULL, p);
+}
+
+static void exec_distribute_child(TaskPool *UNUSED(pool), void *taskdata, int UNUSED(threadid))
+{
+	ParticleTask *task = taskdata;
+	ParticleSystem *psys = task->ctx->sim.psys;
 	ChildParticle *cpa;
-	int p, totpart;
-
-	if (thread->ctx->from == PART_FROM_CHILD) {
-		totpart= psys->totchild;
-		cpa= psys->child;
-
-		for (p=0; p<totpart; p++, cpa++) {
-			if (thread->ctx->skip) /* simplification skip */
-				BLI_rng_skip(thread->rng, PSYS_RND_DIST_SKIP * thread->ctx->skip[p]);
-
-			if ((p+thread->num) % thread->tot == 0)
-				distribute_threads_exec(thread, NULL, cpa, p);
-			else /* thread skip */
-				BLI_rng_skip(thread->rng, PSYS_RND_DIST_SKIP);
-		}
+	int p;
+	
+	/* RNG skipping at the beginning */
+	cpa = psys->child;
+	for (p = 0; p < task->begin; ++p, ++cpa) {
+		if (task->ctx->skip) /* simplification skip */
+			BLI_rng_skip(task->rng, PSYS_RND_DIST_SKIP * task->ctx->skip[p]);
+		
+		BLI_rng_skip(task->rng, PSYS_RND_DIST_SKIP);
 	}
-	else {
-		totpart= psys->totpart;
-		pa= psys->particles + thread->num;
-		for (p=thread->num; p<totpart; p+=thread->tot, pa+=thread->tot)
-			distribute_threads_exec(thread, pa, NULL, p);
+		
+	for (; p < task->end; ++p, ++cpa) {
+		if (task->ctx->skip) /* simplification skip */
+			BLI_rng_skip(task->rng, PSYS_RND_DIST_SKIP * task->ctx->skip[p]);
+		
+		distribute_threads_exec(task, NULL, cpa, p);
 	}
-
-	return 0;
 }
 
 static int distribute_compare_orig_index(const void *p1, const void *p2, void *user_data)
@@ -1062,18 +1097,19 @@ static void distribute_invalid(Scene *scene, ParticleSystem *psys, int from)
 
 /* Creates a distribution of coordinates on a DerivedMesh	*/
 /* This is to denote functionality that does not yet work with mesh - only derived mesh */
-static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, DerivedMesh *finaldm, int from)
+static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, ParticleSimulationData *sim, int from)
 {
-	ParticleThreadContext *ctx= threads[0].ctx;
-	Object *ob= ctx->sim.ob;
-	ParticleSystem *psys= ctx->sim.psys;
+	Scene *scene = sim->scene;
+	DerivedMesh *finaldm = sim->psmd->dm;
+	Object *ob = sim->ob;
+	ParticleSystem *psys= sim->psys;
 	ParticleData *pa=0, *tpars= 0;
 	ParticleSettings *part;
 	ParticleSeam *seams= 0;
 	KDTree *tree=0;
 	DerivedMesh *dm= NULL;
 	float *jit= NULL;
-	int i, seed, p=0, totthread= threads[0].tot;
+	int i, p=0;
 	int cfrom=0;
 	int totelem=0, totpart, *particle_element=0, children=0, totseam=0;
 	int jitlevel= 1, distr;
@@ -1082,18 +1118,20 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 	
 	if (ELEM(NULL, ob, psys, psys->part))
 		return 0;
-
+	
 	part=psys->part;
 	totpart=psys->totpart;
 	if (totpart==0)
 		return 0;
-
+	
 	if (!finaldm->deformedOnly && !finaldm->getTessFaceDataArray(finaldm, CD_ORIGINDEX)) {
 		printf("Can't create particles with the current modifier stack, disable destructive modifiers\n");
 // XXX		error("Can't paint with the current modifier stack, disable destructive modifiers");
 		return 0;
 	}
-
+	
+	psys_thread_context_init(ctx, sim);
+	
 	/* First handle special cases */
 	if (from == PART_FROM_CHILD) {
 		/* Simple children */
@@ -1393,52 +1431,54 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 		alloc_child_particles(psys, totpart);
 	}
 
-	if (!children || psys->totchild < 10000)
-		totthread= 1;
-	
-	seed= 31415926 + ctx->sim.psys->seed;
-	for (i=0; i<totthread; i++) {
-		threads[i].rng= BLI_rng_new(seed);
-		threads[i].tot= totthread;
-	}
-
 	return 1;
+}
+
+static void psys_task_init_distribute(ParticleTask *task, ParticleSimulationData *sim)
+{
+	/* init random number generator */
+	int seed = 31415926 + sim->psys->seed;
+	
+	task->rng = BLI_rng_new(seed);
 }
 
 static void distribute_particles_on_dm(ParticleSimulationData *sim, int from)
 {
+	TaskScheduler *task_scheduler;
+	TaskPool *task_pool;
+	ParticleThreadContext ctx;
+	ParticleTask *tasks;
 	DerivedMesh *finaldm = sim->psmd->dm;
-	ListBase threads;
-	ParticleThread *pthreads;
-	ParticleThreadContext *ctx;
-	int i, totthread;
-
-	pthreads= psys_threads_create(sim);
-
-	if (!distribute_threads_init_data(pthreads, sim->scene, finaldm, from)) {
-		psys_threads_free(pthreads);
+	int i, totpart, numtasks;
+	
+	/* create a task pool for distribution tasks */
+	if (!psys_thread_context_init_distribute(&ctx, sim, from))
 		return;
+	
+	task_scheduler = BLI_task_scheduler_get();
+	task_pool = BLI_task_pool_create(task_scheduler, &ctx);
+	
+	totpart = (from == PART_FROM_CHILD ? sim->psys->totchild : sim->psys->totpart);
+	psys_tasks_create(&ctx, totpart, &tasks, &numtasks);
+	for (i = 0; i < numtasks; ++i) {
+		ParticleTask *task = &tasks[i];
+		
+		psys_task_init_distribute(task, sim);
+		if (from == PART_FROM_CHILD)
+			BLI_task_pool_push(task_pool, exec_distribute_child, task, false, TASK_PRIORITY_LOW);
+		else
+			BLI_task_pool_push(task_pool, exec_distribute_parent, task, false, TASK_PRIORITY_LOW);
 	}
-
-	totthread= pthreads[0].tot;
-	if (totthread > 1) {
-		BLI_init_threads(&threads, distribute_threads_exec_cb, totthread);
-
-		for (i=0; i<totthread; i++)
-			BLI_insert_thread(&threads, &pthreads[i]);
-
-		BLI_end_threads(&threads);
-	}
-	else
-		distribute_threads_exec_cb(&pthreads[0]);
-
+	BLI_task_pool_work_and_wait(task_pool);
+	
+	BLI_task_pool_free(task_pool);
+	
 	psys_calc_dmcache(sim->ob, finaldm, sim->psys);
-
-	ctx= pthreads[0].ctx;
-	if (ctx->dm != finaldm)
-		ctx->dm->release(ctx->dm);
-
-	psys_threads_free(pthreads);
+	
+	if (ctx.dm != finaldm)
+		ctx.dm->release(ctx.dm);
+	
+	psys_tasks_free(tasks, numtasks);
 }
 
 /* ready for future use, to emit particles without geometry */
@@ -1471,35 +1511,51 @@ static void distribute_particles(ParticleSimulationData *sim, int from)
 }
 
 /* threaded child particle distribution and path caching */
-ParticleThread *psys_threads_create(ParticleSimulationData *sim)
+void psys_thread_context_init(ParticleThreadContext *ctx, ParticleSimulationData *sim)
 {
-	ParticleThread *threads;
-	ParticleThreadContext *ctx;
-	int i, totthread = BKE_scene_num_threads(sim->scene);
-	
-	threads= MEM_callocN(sizeof(ParticleThread)*totthread, "ParticleThread");
-	ctx= MEM_callocN(sizeof(ParticleThreadContext), "ParticleThreadContext");
-
+	memset(ctx, 0, sizeof(ParticleThreadContext));
 	ctx->sim = *sim;
-	ctx->dm= ctx->sim.psmd->dm;
-	ctx->ma= give_current_material(sim->ob, sim->psys->part->omat);
-
-	memset(threads, 0, sizeof(ParticleThread)*totthread);
-
-	for (i=0; i<totthread; i++) {
-		threads[i].ctx= ctx;
-		threads[i].num= i;
-		threads[i].tot= totthread;
-	}
-
-	return threads;
+	ctx->dm = ctx->sim.psmd->dm;
+	ctx->ma = give_current_material(sim->ob, sim->psys->part->omat);
 }
 
-void psys_threads_free(ParticleThread *threads)
-{
-	ParticleThreadContext *ctx= threads[0].ctx;
-	int i, totthread= threads[0].tot;
+#define MAX_PARTICLES_PER_TASK 256 /* XXX arbitrary - maybe use at least number of points instead for better balancing? */
 
+BLI_INLINE int ceil_ii(int a, int b)
+{
+	return (a + b - 1) / b;
+}
+
+void psys_tasks_create(ParticleThreadContext *ctx, int totpart, ParticleTask **r_tasks, int *r_numtasks)
+{
+	ParticleTask *tasks;
+	int numtasks = ceil_ii(totpart, MAX_PARTICLES_PER_TASK);
+	float particles_per_task = (float)totpart / (float)numtasks, p, pnext;
+	int i;
+	
+	tasks = MEM_callocN(sizeof(ParticleTask) * numtasks, "ParticleThread");
+	*r_numtasks = numtasks;
+	*r_tasks = tasks;
+	
+	p = 0.0f;
+	for (i = 0; i < numtasks; i++, p = pnext) {
+		pnext = p + particles_per_task;
+		
+		tasks[i].ctx = ctx;
+		tasks[i].begin = (int)p;
+		tasks[i].end = min_ii((int)pnext, totpart);
+	}
+}
+
+void psys_tasks_free(ParticleTask *tasks, int numtasks)
+{
+	ParticleThreadContext *ctx;
+	int i;
+	
+	if (numtasks == 0)
+		return;
+	
+	ctx = tasks[0].ctx;
 	/* path caching */
 	if (ctx->vg_length)
 		MEM_freeN(ctx->vg_length);
@@ -1530,15 +1586,14 @@ void psys_threads_free(ParticleThread *threads)
 	BLI_kdtree_free(ctx->tree);
 
 	/* threads */
-	for (i=0; i<totthread; i++) {
-		if (threads[i].rng)
-			BLI_rng_free(threads[i].rng);
-		if (threads[i].rng_path)
-			BLI_rng_free(threads[i].rng_path);
+	for (i = 0; i < numtasks; ++i) {
+		if (tasks[i].rng)
+			BLI_rng_free(tasks[i].rng);
+		if (tasks[i].rng_path)
+			BLI_rng_free(tasks[i].rng_path);
 	}
 
-	MEM_freeN(ctx);
-	MEM_freeN(threads);
+	MEM_freeN(tasks);
 }
 
 static void initialize_particle_texture(ParticleSimulationData *sim, ParticleData *pa, int p)
@@ -4034,34 +4089,145 @@ static MDeformVert *hair_set_pinning(MDeformVert *dvert, float weight)
 	return dvert;
 }
 
-static void do_hair_dynamics(ParticleSimulationData *sim)
+bool psys_hair_update_preview(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
-	DerivedMesh *dm = psys->hair_in_dm;
-	MVert *mvert = NULL;
-	MEdge *medge = NULL;
-	MDeformVert *dvert = NULL;
+	ParticleSettings *part = psys->part;
+	DerivedMesh *dm = sim->psmd->dm;
+	const float ratio = psys->hair_preview_factor * 0.01f;
+	/* target number of simulated hairs
+	 * NOTE: this has to be reached exactly, in order to allow
+	 * comparison with the psys->hair_num_simulated value!
+	 */
+	const int num_simulated = psys->totpart * ratio;
+	
+	if (!(part->type == PART_HAIR))
+		return false;
+	if (num_simulated == psys->hair_num_simulated)
+		return false;
+	
+	{ /* Random hair selection method */
+		KDTree *tree = BLI_kdtree_new(num_simulated); /* kdtree for finding nearest simulated hairs for blending */
+		RNG *rng = BLI_rng_new(98250 + psys->seed);
+		ParticleData *pa;
+		int cur_simulated = 0;
+		int i;
+		
+		/* construct a kd-tree of all simulated hairs */
+		pa = psys->particles;
+		for (i = 0; i < psys->totpart; ++i, ++pa) {
+			bool simulate = true;
+			if (cur_simulated == num_simulated) {
+				/* don't simulate more than the total number */
+				simulate = false;
+			}
+			else if (num_simulated - cur_simulated <= psys->totpart - i) {
+				/* only allow disabling if the target sim number
+				 * can be reached with the remaining hairs
+				 */
+				simulate = BLI_rng_get_float(rng) < ratio;
+			}
+			
+			if (simulate) {
+				float co[3];
+				
+				pa->flag &= ~PARS_HAIR_BLEND;
+				
+				if (pa->totkey >= 2) {
+					psys_particle_on_dm(dm, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, 0, 0);
+					BLI_kdtree_insert(tree, i, co);
+				}
+				
+				++cur_simulated;
+			}
+			else {
+				pa->flag |= PARS_HAIR_BLEND;
+			}
+		}
+		
+		BLI_kdtree_balance(tree);
+		
+		/* look up nearest simulated hairs for preview hairs and calculate blending weights */
+		pa = psys->particles;
+		for (i = 0; i < psys->totpart; ++i, ++pa) {
+			if (pa->flag & PARS_HAIR_BLEND) {
+				float co[3];
+				int maxw, w;
+				KDTreeNearest nearest[4];
+				
+				psys_particle_on_dm(dm, part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, 0, 0);
+				maxw = BLI_kdtree_find_nearest_n(tree, co, nearest, 4);
+				if (maxw == 1) {
+					pa->blend_index[0] = nearest[0].index;
+					pa->blend_weight[0] = 1.0f;
+				}
+				else if (maxw > 1) {
+					float norm, totdist = 0.0f;
+					for (w = 0; w < maxw; ++w)
+						totdist += nearest[w].dist;
+					norm = totdist > 0.0f ? 1.0f / (totdist * (float)(maxw - 1)) : 0.0f;
+					
+					for (w = 0; w < maxw; ++w) {
+						pa->blend_index[w] = nearest[w].index;
+						pa->blend_weight[w] = (totdist - nearest[w].dist) * norm;
+					}
+				}
+				/* clear unused weights */
+				for (w = maxw; w < 4; ++w) {
+					pa->blend_index[w] = -1;
+					pa->blend_weight[w] = 0.0f;
+				}
+			}
+			else {
+				pa->blend_index[0] = -1;
+				pa->blend_index[1] = -1;
+				pa->blend_index[2] = -1;
+				pa->blend_index[3] = -1;
+				pa->blend_weight[0] = 0.0f;
+				pa->blend_weight[1] = 0.0f;
+				pa->blend_weight[2] = 0.0f;
+				pa->blend_weight[3] = 0.0f;
+			}
+		}
+		
+		BLI_kdtree_free(tree);
+		BLI_rng_free(rng);
+	}
+	
+	psys->hair_num_simulated = num_simulated;
+	return true;
+}
+
+static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int totedge, DerivedMesh **r_dm, ClothHairRoot **r_roots)
+{
+	ParticleSystem *psys = sim->psys;
+	DerivedMesh *dm;
+	ClothHairRoot *roots;
+	MVert *mvert;
+	MEdge *medge;
+	MDeformVert *dvert;
 	HairKey *key;
 	PARTICLE_P;
-	int totpoint = 0;
-	int totedge;
-	int k;
+	int k, hair_index;
 	float hairmat[4][4];
-	float (*deformedVerts)[3];
 	float max_length;
-	bool realloc_roots;
 	float *shapekey_data, *shapekey;
 	int totshapekey;
-
-	if (!psys->clmd) {
-		psys->clmd = (ClothModifierData*)modifier_new(eModifierType_Cloth);
-		psys->clmd->sim_parms->goalspring = 0.0f;
-		psys->clmd->sim_parms->vel_damping = 1.0f;
-		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL|CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
-		psys->clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
-		psys->clmd->coll_parms->flags |= CLOTH_COLLSETTINGS_FLAG_POINTS;
+	
+	dm = *r_dm;
+	if (!dm) {
+		*r_dm = dm = CDDM_new(totpoint, totedge, 0, 0, 0);
+		DM_add_vert_layer(dm, CD_MDEFORMVERT, CD_CALLOC, NULL);
 	}
-
+	mvert = CDDM_get_verts(dm);
+	medge = CDDM_get_edges(dm);
+	dvert = DM_get_vert_data_layer(dm, CD_MDEFORMVERT);
+	
+	roots = *r_roots;
+	if (!roots) {
+		*r_roots = roots = MEM_mallocN(sizeof(ClothHairRoot) * totpoint, "hair roots");
+	}
+	
 	/* calculate maximum segment length */
 	max_length = 0.0f;
 	LOOP_PARTICLES {
@@ -4071,56 +4237,24 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 				max_length = length;
 		}
 	}
-
-	/* create a dm from hair vertices */
-	LOOP_PARTICLES
-		totpoint += pa->totkey;
-
-	totedge = totpoint;
-	totpoint += psys->totpart;
-
-	realloc_roots = false; /* whether hair root info array has to be reallocated */
-	if (dm && (totpoint != dm->getNumVerts(dm) || totedge != dm->getNumEdges(dm))) {
-		dm->release(dm);
-		dm = psys->hair_in_dm = NULL;
-		
-		realloc_roots = true;
-	}
-
-	if (!dm) {
-		dm = psys->hair_in_dm = CDDM_new(totpoint, totedge, 0, 0, 0);
-		DM_add_vert_layer(dm, CD_MDEFORMVERT, CD_CALLOC, NULL);
-		
-		realloc_roots = true;
-	}
 	
-	if (!psys->clmd->roots || realloc_roots) {
-		if (psys->clmd->roots)
-			MEM_freeN(psys->clmd->roots);
-		psys->clmd->roots = MEM_mallocN(sizeof(ClothHairRoot) * totpoint, "hair roots");
-	}
-
-	mvert = CDDM_get_verts(dm);
-	medge = CDDM_get_edges(dm);
-	dvert = DM_get_vert_data_layer(dm, CD_MDEFORMVERT);
-
 	psys->clmd->sim_parms->vgroup_mass = 1;
-
-	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, &totshapekey);
-
+	
+	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, psys, &totshapekey);
+	
 	/* make vgroup for pin roots etc.. */
-	psys->particles->hair_index = 1;
+	hair_index = 1;
 	LOOP_PARTICLES {
 		float root_mat[4][4];
-		bool use_hair = psys_hair_use_simulation(pa, max_length);
-
-		if (p)
-			pa->hair_index = (pa-1)->hair_index + (pa-1)->totkey + 1;
-
+		bool use_hair;
+		
+		pa->hair_index = hair_index;
+		use_hair = psys_hair_use_simulation(pa, max_length);
+		
 		psys_mat_hair_to_object(sim->ob, sim->psmd->dm, psys->part->from, pa, hairmat);
 		mul_m4_m4m4(root_mat, sim->ob->obmat, hairmat);
 		normalize_m4(root_mat);
-
+		
 		for (k=0, key=pa->hair; k<pa->totkey; k++,key++) {
 			ClothHairRoot *root;
 			float *co, *co_next;
@@ -4144,54 +4278,231 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 				add_v3_v3v3(mvert->co, co, co);
 				sub_v3_v3(mvert->co, co_next);
 				mul_m4_v3(hairmat, mvert->co);
-				mvert++;
-
+				
 				medge->v1 = pa->hair_index - 1;
 				medge->v2 = pa->hair_index;
-				medge++;
-
+				
 				dvert = hair_set_pinning(dvert, 1.0f);
+				
+				/* tag vert if hair is not simulated */
+				if (pa->flag & PARS_HAIR_BLEND)
+					mvert->flag |= ME_VERT_TMP_TAG;
+				else
+					mvert->flag &= ~ME_VERT_TMP_TAG;
+				
+				mvert++;
+				medge++;
 			}
-
+			
 			/* store root transform in cloth data */
 			root = &psys->clmd->roots[pa->hair_index + k];
 			copy_v3_v3(root->loc, root_mat[3]);
 			copy_m3_m4(root->rot, root_mat);
-
+			
 			copy_v3_v3(mvert->co, co);
 			mul_m4_v3(hairmat, mvert->co);
-			mvert++;
 			
 			if (k) {
 				medge->v1 = pa->hair_index + k - 1;
 				medge->v2 = pa->hair_index + k;
-				medge++;
 			}
-
+			
 			/* roots and disabled hairs should be 1.0, the rest can be anything from 0.0 to 1.0 */
 			if (use_hair)
 				dvert = hair_set_pinning(dvert, key->weight);
 			else
 				dvert = hair_set_pinning(dvert, 1.0f);
+			
+			/* tag vert if hair is not simulated */
+			if (pa->flag & PARS_HAIR_BLEND)
+				mvert->flag |= ME_VERT_TMP_TAG;
+			else
+				mvert->flag &= ~ME_VERT_TMP_TAG;
+			
+			mvert++;
+			if (k)
+				medge++;
+		}
+		
+		hair_index += pa->totkey + 1;
+	}
+}
+
+static void hair_deform_preview_curve(ParticleSystem *psys, ParticleData *pa, float (*deformedVerts)[3], ClothHairRoot *roots)
+{
+	ParticleData *particles = psys->particles;
+	HairKey *hkey;
+	float (*vert)[3];
+	ClothHairRoot *root;
+	int k;
+	float totlen, norm;
+	
+	/* first key is root, no blending for them */
+	if (pa->totkey < 2)
+		return;
+	
+	/* calculate normalization factor to equally parameterize hairs */
+	totlen = 0.0f;
+	hkey = pa->hair;
+	for (k = 0; k < pa->totkey - 1; ++k, ++hkey)
+		totlen += len_v3v3((hkey+1)->co, hkey->co);
+	norm = totlen > 0.0f ? 1.0f / totlen : 0.0f;
+	
+	totlen = 0.0f;
+	hkey = pa->hair;
+	vert = deformedVerts + pa->hair_index;
+	root = roots + pa->hair_index;
+	for (k = 0; k < pa->totkey; ++k, ++hkey, ++vert, ++root) {
+		float param;
+		int w;
+		
+		if (k == 0) /* skip root vertex */
+			continue;
+		param = totlen * norm;
+		totlen += len_v3v3(hkey->co, (hkey-1)->co);
+		
+		zero_v3(vert[0]);
+		for (w = 0; w < 4; ++w) {
+			ParticleData *blend_pa;
+			float (*blend_vert)[3];
+			ClothHairRoot *blend_root;
+			float blend_key, blend_factor;
+			int blend_totkey, blend_index;
+			float co[3];
+			
+			if (pa->blend_index[w] < 0)
+				continue;
+			
+			blend_pa = particles + pa->blend_index[w];
+			blend_totkey = blend_pa->totkey;
+			
+			blend_key = param * (float)blend_totkey;
+			blend_index = (int)blend_key;
+			if (blend_index >= blend_totkey - 1) {
+				blend_index = blend_totkey - 2;
+				blend_factor = 1.0f;
+			}
+			else {
+				blend_factor = blend_key - floorf(blend_key);
+			}
+			
+			/* pa->hair_index is set when creating input_dm,
+			 * use it here to map to output mvert index
+			 */
+			blend_vert = deformedVerts + blend_pa->hair_index + blend_index;
+			blend_root = roots + blend_pa->hair_index + blend_index;
+			
+#if 0
+			if (k == 1) {
+				float d[3];
+				sub_v3_v3v3(d, blend_root->loc, root->loc);
+				mul_v3_fl(d, 0.95f);
+				BKE_sim_debug_data_add_vector(psys->clmd->debug_data, root->loc, d, 1.0f - pa->blend_weight[w], pa->blend_weight[w], 0.0f,
+				                              "blending", hash_vertex(8467, hash_int_2d(pa->hair_index, w)));
+			}
+#endif
+			
+			interp_v3_v3v3(co, blend_vert[0], blend_vert[1], blend_factor);
+			
+			/* transform parent vector from world to root space, then back into root space of the blended hair */
+			sub_v3_v3(co, blend_root->loc);
+			/* note: rotation transform disabled, this does not work nicely with global force directions (gravity, wind etc.)
+			 * these forces would also get rotated, giving movement in a different direction than the force would actually incur.
+			 * would have to split internal (stretch, bend) and external forces somehow to make this plausible
+			 */
+#if 0
+			mul_transposed_m3_v3(blend_root->rot, co);
+			mul_m3_v3(root->rot, co);
+#endif
+			add_v3_v3(co, root->loc);
+			
+			madd_v3_v3fl(vert[0], co, pa->blend_weight[w]);
 		}
 	}
+}
 
+static void hair_deform_preview_hairs(ParticleSimulationData *sim, float (*deformedVerts)[3], ClothHairRoot *roots)
+{
+	ParticleSystem *psys = sim->psys;
+	ParticleData *pa;
+	int p;
+	
+	pa = psys->particles;
+	for (p = 0; p < psys->totpart; ++p, ++pa) {
+		if (pa->flag & PARS_HAIR_BLEND) {
+			hair_deform_preview_curve(psys, pa, deformedVerts, roots);
+		}
+	}
+}
+
+static void do_hair_dynamics(ParticleSimulationData *sim)
+{
+	ParticleSystem *psys = sim->psys;
+	PARTICLE_P;
+	int totpoint;
+	int totedge;
+	float (*deformedVerts)[3];
+	bool realloc_roots;
+	
+	if (psys_hair_update_preview(sim)) {
+		if (psys->clmd)
+			cloth_free_modifier(psys->clmd);
+	}
+	
+	if (!psys->clmd) {
+		psys->clmd = (ClothModifierData*)modifier_new(eModifierType_Cloth);
+		psys->clmd->sim_parms->goalspring = 0.0f;
+		psys->clmd->sim_parms->vel_damping = 1.0f;
+		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL|CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
+		psys->clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
+		psys->clmd->coll_parms->flags |= CLOTH_COLLSETTINGS_FLAG_POINTS;
+	}
+	
+	/* count simulated points */
+	totpoint = 0;
+	totedge = 0;
+	LOOP_PARTICLES {
+		/* "out" dm contains all hairs */
+		totedge += pa->totkey;
+		totpoint += pa->totkey + 1; /* +1 for virtual root point */
+	}
+	
+	realloc_roots = false; /* whether hair root info array has to be reallocated */
+	if (psys->hair_in_dm) {
+		DerivedMesh *dm = psys->hair_in_dm;
+		if (totpoint != dm->getNumVerts(dm) || totedge != dm->getNumEdges(dm)) {
+			dm->release(dm);
+			psys->hair_in_dm = NULL;
+			realloc_roots = true;
+		}
+	}
+	
+	if (!psys->hair_in_dm || !psys->clmd->roots || realloc_roots) {
+		if (psys->clmd->roots) {
+			MEM_freeN(psys->clmd->roots);
+			psys->clmd->roots = NULL;
+		}
+	}
+	
+	hair_create_input_dm(sim, totpoint, totedge, &psys->hair_in_dm, &psys->clmd->roots);
+	
 	if (psys->hair_out_dm)
 		psys->hair_out_dm->release(psys->hair_out_dm);
-
+	
 	psys->clmd->point_cache = psys->pointcache;
 	psys->clmd->sim_parms->effector_weights = psys->part->effector_weights;
-
-	deformedVerts = MEM_mallocN(sizeof(*deformedVerts) * dm->getNumVerts(dm), "do_hair_dynamics vertexCos");
-	psys->hair_out_dm = CDDM_copy(dm);
+	
+	deformedVerts = MEM_mallocN(sizeof(*deformedVerts) * psys->hair_in_dm->getNumVerts(psys->hair_in_dm), "do_hair_dynamics vertexCos");
+	psys->hair_out_dm = CDDM_copy(psys->hair_in_dm);
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
-
-	clothModifier_do(psys->clmd, sim->scene, sim->ob, dm, deformedVerts);
-
+	
+	clothModifier_do(psys->clmd, sim->scene, sim->ob, psys->hair_in_dm, deformedVerts);
+	hair_deform_preview_hairs(sim, deformedVerts, psys->clmd->roots);
+	
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
-
+	
 	MEM_freeN(deformedVerts);
-
+	
 	psys->clmd->sim_parms->effector_weights = NULL;
 }
 static void hair_step(ParticleSimulationData *sim, float cfra)

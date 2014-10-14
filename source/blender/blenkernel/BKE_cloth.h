@@ -56,8 +56,14 @@ struct PartDeflect;
 #define ALMOST_ZERO		FLT_EPSILON
 
 /* Bits to or into the ClothVertex.flags. */
-#define CLOTH_VERT_FLAG_PINNED 1
-#define CLOTH_VERT_FLAG_NOSELFCOLL 2 /* vertex NOT used for self collisions */
+//typedef enum eClothVertexFlag {
+//	CLOTH_VERT_FLAG_PINNED      = 1,
+//	CLOTH_VERT_FLAG_NOSELFCOLL  = 2, /* vertex NOT used for self collisions */
+//	CLOTH_VERT_FLAG_EXCLUDE     = 4, /* exclude vertex from the simulation */
+//} eClothVertexFlag;
+#define CLOTH_VERT_FLAG_PINNED      1
+#define CLOTH_VERT_FLAG_NOSELFCOLL  2 /* vertex NOT used for self collisions */
+#define CLOTH_VERT_FLAG_EXCLUDE     4 /* exclude vertex from the simulation */
 
 typedef struct ClothHairRoot {
 	float loc[3];
@@ -105,6 +111,7 @@ typedef struct Cloth {
  */
 typedef struct ClothVertex {
 	int	flags;		/* General flags per vertex.		*/
+	int solver_index;	/* index in internal solver data */
 	float	v[3];		/* The velocity of the point.		*/
 	float	xconst[3];	/* constrained position			*/
 	float	x[3];		/* The current position of this vertex.	*/
@@ -246,26 +253,6 @@ int cloth_add_spring (struct ClothModifierData *clmd, unsigned int indexA, unsig
 void cloth_parallel_transport_hair_frame(float mat[3][3], const float dir_old[3], const float dir_new[3]);
 
 ////////////////////////////////////////////////
-
-
-/* This enum provides the IDs for our solvers. */
-// only one available in the moment
-typedef enum {
-	CM_IMPLICIT = 0,
-} CM_SOLVER_ID;
-
-
-/* This structure defines how to call the solver.
- */
-typedef struct {
-	const char		*name;
-	CM_SOLVER_ID	id;
-	int ( *init ) (struct Object *ob, struct ClothModifierData *clmd );
-	int ( *solver ) (struct Object *ob, float framenr, struct ClothModifierData *clmd, struct ListBase *effectors );
-	void ( *free ) (struct ClothModifierData *clmd );
-}
-CM_SOLVER_DEF;
-
 
 #endif
 
