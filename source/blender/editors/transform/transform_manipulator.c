@@ -1704,8 +1704,16 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 	
 	totsel = calc_manipulator_stats(C);
-	if (totsel == 0) return;
-	
+	if (totsel == 0) {
+		manipulator->translate_x->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_y->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_z->flag |= WM_WIDGET_SKIP_DRAW;
+
+		manipulator->rotate_x->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_y->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_z->flag |= WM_WIDGET_SKIP_DRAW;
+		return;
+	}
 	v3d->twflag |= V3D_DRAW_MANIPULATOR;
 	
 	/* now we can define center */
@@ -1737,8 +1745,17 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	
 	/* when looking through a selected camera, the manipulator can be at the
 	 * exact same position as the view, skip so we don't break selection */
-	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f)
+	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
+		manipulator->translate_x->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_y->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->translate_z->flag |= WM_WIDGET_SKIP_DRAW;
+
+		manipulator->rotate_x->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_y->flag |= WM_WIDGET_SKIP_DRAW;
+		manipulator->rotate_z->flag |= WM_WIDGET_SKIP_DRAW;
+
 		return;
+	}
 
 	test_manipulator_axis(C);
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */	
@@ -1972,7 +1989,7 @@ int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, w
 	if (shift) {
 		int d = 0;
 		for (; d < 3; d++) {
-			if (d + 1 != direction) 
+			if (d != direction)
 				constraint_axis[d] = 1;
 		}
 	}
