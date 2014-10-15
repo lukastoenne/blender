@@ -1972,38 +1972,45 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			}
 			else if (handler->widgetmap) {
 				struct wmWidgetMap *wmap = handler->widgetmap;
+				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 				
 				switch (event->type) {
-
 					case MOUSEMOVE:
-						if (wm_widgetmap_is_3d(wmap)) {
-							wmWidget *widget;
-							/* similar interface to operators */
-							if ((widget = wm_widget_find_active_3D (wmap, C, event)))
-							{
-								wm_widgetmap_set_active_widget(wmap, C, widget);
-							}
-							else {
-								wm_widgetmap_set_active_widget(wmap, C, NULL);
-							}
+						if (widget) {
+							widget->handler(C, event, widget);
+							action |= WM_HANDLER_BREAK;
+						}
+						else if (wm_widgetmap_is_3d(wmap)) {
+							widget = wm_widget_find_highlighted_3D (wmap, C, event);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget);
 						}
 						else {
-							wm_widgetmap_set_active_widget(wmap, C, NULL);
+							wm_widgetmap_set_highlighted_widget(wmap, C, NULL);
 						}
-						action |= WM_HANDLER_BREAK;
 						break;
 
 					case LEFTMOUSE:
-						if (event->val == KM_PRESS) {
-							int ret = -1;
-							wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
-
-							if (widget && widget->handler && (ret = widget->handler(C, event, widget)) == OPERATOR_FINISHED) {
+					{
+						if (widget) {
+							if (event->val == KM_RELEASE) {
+								wm_widgetmap_set_active_widget(wmap, C, NULL);
 								action |= WM_HANDLER_BREAK;
 							}
+							else {
+								widget->handler(C, event, widget);
+								action |= WM_HANDLER_BREAK;
+							}
+						}
+						else if (event->val == KM_PRESS) {
+							widget = wm_widgetmap_get_highlighted_widget(wmap);
 
+							if (widget) {
+								wm_widgetmap_set_active_widget(wmap, C, widget);
+								action |= WM_HANDLER_BREAK;
+							}
 						}
 						break;
+					}
 				}
 			}
 			else {

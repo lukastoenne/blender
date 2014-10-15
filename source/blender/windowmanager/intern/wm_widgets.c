@@ -80,7 +80,10 @@ typedef struct wmWidgetMap {
 	/* check if widgetmap does 3D drawing */
 	bool is_3d;
 	
-	/* active widget for this map. We redraw the widgetmap when this changes  */
+	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
+	wmWidget *highlighted_widget;
+
+	/* active widget for this map. User has clicked and is currently this widget  */
 	wmWidget *active_widget;
 } wmWidgetMap;
 
@@ -167,7 +170,7 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	wmWidgetMap *wmap = ar->widgetmap;
-
+	wmWidget *widget = wmap->active_widget;
 	bool use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
 
 	if (use_lighting) {
@@ -186,7 +189,17 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 		glPopMatrix();
 	}
 
-	if (wmap->widgetgroups.first) {
+	if (widget) {
+		float scale = 1.0;
+
+		if (!(U.tw_flag & V3D_3D_WIDGETS))
+			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
+
+		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
+		 * relevant data to update itself */
+		widget->draw(widget, C, scale);
+	}
+	else if (wmap->widgetgroups.first) {
 		wmWidgetGroup *wgroup;
 		
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
@@ -339,7 +352,7 @@ static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
 	}
 }
 
-static int wm_widget_find_active_3D_intern (ListBase *visible_widgets, bContext *C, const struct wmEvent *event, float hotspot)
+static int wm_widget_find_highlighted_3D_intern (ListBase *visible_widgets, bContext *C, const struct wmEvent *event, float hotspot)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -423,7 +436,7 @@ static void wm_prepare_visible_widgets(struct wmWidgetMap *wmap, ListBase *visib
 	}
 }
 
-wmWidget *wm_widget_find_active_3D(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event)
+wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event)
 {
 	int ret, retsec;
 	wmWidget *result = NULL;
@@ -435,12 +448,12 @@ wmWidget *wm_widget_find_active_3D(struct wmWidgetMap *wmap, bContext *C, const 
 	/* set up view matrices */	
 	view3d_operator_needs_opengl(C);
 	
-	ret = wm_widget_find_active_3D_intern(&visible_widgets, C, event, 0.5f * (float)U.tw_hotspot);
+	ret = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.5f * (float)U.tw_hotspot);
 	
 	if (ret != -1) {
 		LinkData *link;
 		int retfinal;
-		retsec = wm_widget_find_active_3D_intern(&visible_widgets, C, event, 0.2f * (float)U.tw_hotspot);
+		retsec = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.2f * (float)U.tw_hotspot);
 		
 		if (retsec == -1)
 			retfinal = ret;
@@ -456,21 +469,58 @@ wmWidget *wm_widget_find_active_3D(struct wmWidgetMap *wmap, bContext *C, const 
 	return result;
 }
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)
+void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)
 {
-	ARegion *ar = CTX_wm_region(C);
-		
-	if (widget != wmap->active_widget) {
-		if (wmap->active_widget) {
-			wmap->active_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
+	if (widget != wmap->highlighted_widget) {
+		ARegion *ar = CTX_wm_region(C);
+
+		if (wmap->highlighted_widget) {
+			wmap->highlighted_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
 		}
-		wmap->active_widget = widget;
+		wmap->highlighted_widget = widget;
 		
 		if (widget) {
 			widget->flag |= WM_WIDGET_HIGHLIGHT;
 		}
 		
-		/* tag the region for redraw */		
+		/* tag the region for redraw */
+		ED_region_tag_redraw(ar);
+	}
+}
+
+struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap)
+{
+	return wmap->highlighted_widget;
+}
+
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)
+{
+	if (widget) {
+		if (widget->opname) {
+			wmOperatorType *ot = widget->ot = WM_operatortype_find(widget->opname, 0);
+
+			if (ot) {
+				WM_operator_properties_create_ptr(&widget->opptr, ot);
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
+				wmap->active_widget = widget;
+				return;
+			}
+			else {
+				printf("Widget error: operator not found");
+				wmap->active_widget = NULL;
+				return;
+			}
+		}
+		else {
+			/* widget does nothing, pass */
+			wmap->active_widget = NULL;
+		}
+	}
+	else {
+		ARegion *ar = CTX_wm_region(C);
+		/* deactivate, widget but first take care of some stuff */
+
+		wmap->active_widget = NULL;
 		ED_region_tag_redraw(ar);
 	}
 }

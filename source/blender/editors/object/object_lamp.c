@@ -200,13 +200,16 @@ void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext
 int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *UNUSED(event), struct wmWidget *UNUSED(widget))
 {
 
-	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
-	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
+	struct PointerRNA ptr;
+	wmOperatorType *ot = WM_operatortype_find("UI_OT_lamp_position", 0);
 
-	WM_operator_properties_alloc(&ptr, &properties, "UI_OT_lamp_position");
-	WM_operator_name_call(C, "UI_OT_lamp_position", WM_OP_INVOKE_DEFAULT, ptr);
-	WM_operator_properties_free(ptr);
-	MEM_freeN(ptr);
+	if (ot) {
+		WM_operator_properties_create_ptr(&ptr, ot);
+		WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr);
 
-	return OPERATOR_FINISHED;
+		return OPERATOR_FINISHED;
+	}
+
+	printf("Widget error: operator not found");
+	return OPERATOR_CANCELLED;
 }
