@@ -1440,29 +1440,12 @@ void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
 {
 	bSound *sound = oldmain->sound.first;
-	Scene *sce = oldmain->scene.first;
-	Editing *ed;
 	
 	fd->soundmap = oldnewmap_new();
 	
 	for (; sound; sound = sound->id.next) {
-		if (sound->handle)
-			oldnewmap_insert(fd->soundmap, sound->handle, sound->handle, 0);	
-		if (sound->cache)
-			oldnewmap_insert(fd->soundmap, sound->cache, sound->cache, 0);
 		if (sound->waveform)
 			oldnewmap_insert(fd->soundmap, sound->waveform, sound->waveform, 0);			
-	}
-	
-	for (; sce; sce = sce->id.next) {
-		Sequence *seq;
-		ed = sce->ed;
-		
-		SEQ_BEGIN (ed, seq)
-		{
-			oldnewmap_insert(fd->soundmap, seq->scene_sound, seq->scene_sound, 0);	
-		}
-		SEQ_END
 	}
 }
 
@@ -1472,8 +1455,6 @@ void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
 {
 	OldNew *entry = fd->soundmap->entries;
 	bSound *sound = oldmain->sound.first;
-	Scene *sce = oldmain->scene.first;
-	Editing *ed;
 	int i;
 	
 	/* used entries were restored, so we put them to zero */
@@ -1483,20 +1464,7 @@ void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
 	}
 	
 	for (; sound; sound = sound->id.next) {
-		sound->cache = newsoundadr(fd, sound->cache);
-		sound->handle = newsoundadr(fd, sound->handle);
 		sound->waveform = newsoundadr(fd, sound->waveform);
-	}
-	
-	for (; sce; sce = sce->id.next) {
-		Sequence *seq;
-		ed = sce->ed;
-		
-		SEQ_BEGIN (ed, seq)
-		{
-			seq->scene_sound = newsoundadr(fd, seq->scene_sound);
-		}
-		SEQ_END
 	}
 }
 
@@ -5276,19 +5244,16 @@ static void lib_link_scene(FileData *fd, Main *main)
 					seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
 				}
 				if (seq->sound) {
+					seq->scene_sound = NULL;
 					if (seq->type == SEQ_TYPE_SOUND_HD) {
 						seq->type = SEQ_TYPE_SOUND_RAM;
 					}
 					else {
 						seq->sound = newlibadr(fd, sce->id.lib, seq->sound);
 					}
-					
 					if (seq->sound) {
 						seq->sound->id.us++;
-
-						/* create the scene sequence if needed */
-						if (!seq->scene_sound)
-							seq->scene_sound = sound_add_scene_sound_defaults(main, sce, seq);
+						seq->scene_sound = sound_add_scene_sound_defaults(sce, seq);
 					}
 				}
 				seq->anim = NULL;
@@ -5466,16 +5431,12 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		
 		SEQ_BEGIN (ed, seq)
 		{
-			seq->seq1 = newdataadr(fd, seq->seq1);
-			seq->seq2 = newdataadr(fd, seq->seq2);
-			seq->seq3 = newdataadr(fd, seq->seq3);
+			seq->seq1= newdataadr(fd, seq->seq1);
+			seq->seq2= newdataadr(fd, seq->seq2);
+			seq->seq3= newdataadr(fd, seq->seq3);
 			if (seq->parent)
 				seq->parent = newdataadr(fd, seq->parent);
 			
-			if (fd->soundmap)
-				seq->scene_sound = newsoundadr(fd, seq->scene_sound);
-			else
-				seq->scene_sound = NULL;
 			/* a patch: after introduction of effects with 3 input strips */
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
@@ -6779,29 +6740,19 @@ static void direct_link_speaker(FileData *fd, Speaker *spk)
 
 static void direct_link_sound(FileData *fd, bSound *sound)
 {
+	sound->handle = NULL;
+	sound->playback_handle = NULL;
+
 	/* versioning stuff, if there was a cache, then we enable caching: */
-	if (sound->cache) sound->flags |= SOUND_FLAGS_CACHING;
-	
-	/* get rid of temporary flags */
-	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
+	if (sound->cache) {
+		sound->flags |= SOUND_FLAGS_CACHING;
+		sound->cache = NULL;
+	}
 
 	if (fd->soundmap) {
-		sound->cache = newsoundadr(fd, sound->cache);
-		sound->handle = newsoundadr(fd, sound->handle);
-		sound->waveform = newsoundadr(fd, sound->waveform);
-	
-		/* if there was a cache it's also used for playback */
-		if (sound->cache)
-			sound->playback_handle = sound->cache;
-		else if (sound->handle)
-			sound->playback_handle = sound->handle;
-		else
-			sound->playback_handle = NULL;
+		sound->waveform = newsoundadr(fd, sound->waveform);	
 	}	
 	else {
-		sound->cache = NULL;
-		sound->handle = NULL;
-		sound->playback_handle = NULL;
 		sound->waveform = NULL;		
 	}
 		
@@ -6823,6 +6774,8 @@ static void lib_link_sound(FileData *fd, Main *main)
 		if (sound->id.flag & LIB_NEED_LINK) {
 			sound->id.flag -= LIB_NEED_LINK;
 			sound->ipo = newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX deprecated - old animation system
+			
+			sound_load(main, sound);
 		}
 	}
 }

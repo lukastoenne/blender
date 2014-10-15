@@ -2344,7 +2344,7 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 			SEQ_BEGIN (ed, seq)
 			{
 				if (seq->strip) seq->strip->done = false;
-				writestruct(wd, DATA, "Sequence", 1, seq);			
+				writestruct(wd, DATA, "Sequence", 1, seq);
 			}
 			SEQ_END
 			
@@ -2375,7 +2375,7 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 							break;
 						}
 					}
-										
+					
 					strip= seq->strip;
 					writestruct(wd, DATA, "Strip", 1, strip);
 					if (seq->flag & SEQ_USE_CROP && strip->crop) {

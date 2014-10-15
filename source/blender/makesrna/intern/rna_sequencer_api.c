@@ -236,7 +236,7 @@ static Sequence *rna_Sequences_new_sound(ID *id, Editing *ed, Main *bmain, Repor
 	seq->sound = sound;
 	seq->len = ceil((double)sound_get_length(sound) * FPS);
 
-	seq->scene_sound = sound_add_scene_sound(bmain, scene, seq, frame_start, frame_start + seq->len, 0);
+	seq->scene_sound = sound_add_scene_sound(scene, seq, frame_start, frame_start + seq->len, 0);
 
 	BKE_sequence_calc_disp(scene, seq);
 
