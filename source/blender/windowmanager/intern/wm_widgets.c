@@ -474,3 +474,8 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 		ED_region_tag_redraw(ar);
 	}
 }
+
+struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap)
+{
+	return wmap->active_widget;
+}

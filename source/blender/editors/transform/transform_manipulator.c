@@ -1964,8 +1964,7 @@ int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, w
 	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
 	
 	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
-	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) || 
-		!((event->val == KM_PRESS) && (event->type == LEFTMOUSE)))
+	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT))
 	{
 		return OPERATOR_PASS_THROUGH;
 	}
@@ -2009,8 +2008,7 @@ int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *event, wmW
 	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
 
 	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
-	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) ||
-		!((event->val == KM_PRESS) && (event->type == LEFTMOUSE)))
+	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT))
 	{
 		return OPERATOR_PASS_THROUGH;
 	}

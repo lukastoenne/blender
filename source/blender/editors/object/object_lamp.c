@@ -197,18 +197,16 @@ void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext
 }
 
 
-int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
+int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *UNUSED(event), struct wmWidget *UNUSED(widget))
 {
 
-	if (event->type == LEFTMOUSE && event->val == KM_PRESS && (widget->flag & WM_WIDGET_HIGHLIGHT)) {
-		struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
-		struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
+	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
+	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
 
-		WM_operator_properties_alloc(&ptr, &properties, "UI_OT_lamp_position");
-		WM_operator_name_call(C, "UI_OT_lamp_position", WM_OP_INVOKE_DEFAULT, ptr);
-		WM_operator_properties_free(ptr);
-		MEM_freeN(ptr);
-	}
+	WM_operator_properties_alloc(&ptr, &properties, "UI_OT_lamp_position");
+	WM_operator_name_call(C, "UI_OT_lamp_position", WM_OP_INVOKE_DEFAULT, ptr);
+	WM_operator_properties_free(ptr);
+	MEM_freeN(ptr);
 
 	return OPERATOR_FINISHED;
 }
