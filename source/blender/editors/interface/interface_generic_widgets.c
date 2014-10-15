@@ -253,15 +253,49 @@ static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, floa
 
 }
 
-static void widget_dial_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, float scale, int selectionbase)
+static void widget_dial_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase)
 {
+	DialWidget *dial = (DialWidget *)widget;
+	ARegion *ar = CTX_wm_region(C);
+	RegionView3D *rv3d = ar->regiondata;
+
+	/* enable clipping if needed */
+	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+		double plane[4];
+		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
+		plane[3] = -dot_v3v3(rv3d->viewinv[2], widget->origin);
+		glClipPlane(GL_CLIP_PLANE0, plane);
+		glEnable(GL_CLIP_PLANE0);
+	}
+
 	GPU_select_load_id(selectionbase);
-	dial_draw_intern((DialWidget *)widget, true, false, scale);
+	dial_draw_intern(dial, true, false, scale);
+
+	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+		glDisable(GL_CLIP_PLANE0);
+	}
 }
 
-static void widget_dial_draw(struct wmWidget *widget, const struct bContext *UNUSED(C), float scale)
+static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C, float scale)
 {
-	dial_draw_intern((DialWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
+	DialWidget *dial = (DialWidget *)widget;
+	ARegion *ar = CTX_wm_region(C);
+	RegionView3D *rv3d = ar->regiondata;
+
+	/* enable clipping if needed */
+	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+		double plane[4];
+		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
+		plane[3] = -dot_v3v3(rv3d->viewinv[2], widget->origin);
+		glClipPlane(GL_CLIP_PLANE0, plane);
+		glEnable(GL_CLIP_PLANE0);
+	}
+
+	dial_draw_intern(dial, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
+
+	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+		glDisable(GL_CLIP_PLANE0);
+	}
 }
 
 wmWidget *WIDGET_dial_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))

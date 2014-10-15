@@ -727,16 +727,16 @@ static void view3d_widgets(void)
 	WIDGET_arrow_set_color(manipulator->translate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->translate_z);
 
-	manipulator->rotate_x = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
+	manipulator->rotate_x = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot);
 	WIDGET_dial_set_color(manipulator->rotate_x, color_red);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_x);
 
-	manipulator->rotate_y = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
+	manipulator->rotate_y = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot);
 	manipulator->rotate_y->customdata = SET_INT_IN_POINTER(1);
 	WIDGET_dial_set_color(manipulator->rotate_y, color_green);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_y);
 
-	manipulator->rotate_z = WIDGET_dial_new(0, WIDGET_manipulator_handler_rot);
+	manipulator->rotate_z = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot);
 	manipulator->rotate_z->customdata = SET_INT_IN_POINTER(2);
 	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_z);

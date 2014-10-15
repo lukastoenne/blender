@@ -1001,8 +1001,13 @@ int uiFloatPrecisionCalc(int prec, double value);
 /* ui_generic_widgets.c */
 
 enum {
-	UI_ARROW_STYLE_SHADED = 0,
-	UI_ARROW_STYLE_COLORED = 0,
+	UI_ARROW_STYLE_NORMAL = 0,
+	UI_ARROW_STYLE_NO_AXIS = 1,
+};
+
+enum {
+	UI_DIAL_STYLE_RING = 0,
+	UI_DIAL_STYLE_RING_CLIPPED = 1,
 };
 
 struct wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget));
