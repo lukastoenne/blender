@@ -421,7 +421,8 @@ class VIEW3D_MT_view(Menu):
 
         layout.operator("screen.area_dupli")
         layout.operator("screen.region_quadview")
-        layout.operator("screen.screen_full_area")
+        layout.operator("screen.screen_full_area", text="Toggle Maximize Area")
+        layout.operator("screen.screen_full_area").use_hide_panels = True
 
 
 class VIEW3D_MT_view_navigation(Menu):
@@ -604,8 +605,25 @@ class VIEW3D_MT_select_particle(Menu):
 
         layout.separator()
 
+        layout.operator("particle.select_random")
+
+        layout.separator()
+
         layout.operator("particle.select_roots", text="Roots")
         layout.operator("particle.select_tips", text="Tips")
+
+
+class VIEW3D_MT_edit_mesh_select_similar(Menu):
+    bl_label = "Select Similar"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_enum("mesh.select_similar", "type")
+
+        layout.separator()
+
+        layout.operator("mesh.select_similar_region", text="Face Regions")
 
 
 class VIEW3D_MT_select_edit_mesh(Menu):
@@ -647,7 +665,7 @@ class VIEW3D_MT_select_edit_mesh(Menu):
         layout.separator()
 
         # other ...
-        layout.operator_menu_enum("mesh.select_similar", "type", text="Similar")
+        layout.menu("VIEW3D_MT_edit_mesh_select_similar")
         layout.operator("mesh.select_ungrouped", text="Ungrouped Verts")
 
         layout.separator()
@@ -1709,6 +1727,10 @@ class VIEW3D_MT_particle_specials(Menu):
             layout.separator()
             layout.operator("particle.select_roots")
             layout.operator("particle.select_tips")
+
+            layout.separator()
+
+            layout.operator("particle.select_random")
 
             layout.separator()
 

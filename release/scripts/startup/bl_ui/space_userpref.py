@@ -223,6 +223,7 @@ class USERPREF_PT_interface(Panel):
         sub.prop(view, "pie_initial_timeout")
         sub.prop(view, "pie_menu_radius")
         sub.prop(view, "pie_menu_threshold")
+        sub.prop(view, "pie_menu_confirm")
         col.separator()
         col.separator()
         col.separator()
@@ -383,6 +384,11 @@ class USERPREF_PT_system(Panel):
         col = colsplit.column()
         col.label(text="General:")
         col.prop(system, "dpi")
+        col.label("Virtual Pixel Mode:")
+        col.prop(system, "virtual_pixel_mode", text="")
+
+        col.separator()
+
         col.prop(system, "frame_server_port")
         col.prop(system, "scrollback", text="Console Scrollback")
 

@@ -251,7 +251,7 @@ static MDisps *multires_mdisps_initialize_hidden(Mesh *me, int level)
 	                                      CD_CALLOC, NULL, me->totloop);
 	int gridsize = BKE_ccg_gridsize(level);
 	int gridarea = gridsize * gridsize;
-	int i, j, k;
+	int i, j;
 	
 	for (i = 0; i < me->totpoly; i++) {
 		int hide = 0;
@@ -272,9 +272,7 @@ static MDisps *multires_mdisps_initialize_hidden(Mesh *me, int level)
 			BLI_assert(!md->hidden);
 
 			md->hidden = BLI_BITMAP_NEW(gridarea, "MDisps.hidden initialize");
-
-			for (k = 0; k < gridarea; k++)
-				BLI_BITMAP_ENABLE(md->hidden, k);
+			BLI_BITMAP_SET_ALL(md->hidden, true, gridarea);
 		}
 	}
 
