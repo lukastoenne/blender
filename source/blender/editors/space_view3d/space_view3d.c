@@ -713,35 +713,31 @@ static void view3d_widgets(void)
 	
 	WM_widget_register(wgroup_manipulator, widget);
 
-	manipulator->translate_x = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
+	manipulator->translate_x = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans, NULL);
 	WIDGET_arrow_set_color(manipulator->translate_x, color_red);
 	WM_widget_register(wgroup_manipulator, manipulator->translate_x);
 
-	manipulator->translate_y = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
-	manipulator->translate_y->customdata = SET_INT_IN_POINTER(1);
+	manipulator->translate_y = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans, SET_INT_IN_POINTER(1));
 	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
 	WM_widget_register(wgroup_manipulator, manipulator->translate_y);
 
-	manipulator->translate_z = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans);
-	manipulator->translate_z->customdata = SET_INT_IN_POINTER(2);
+	manipulator->translate_z = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans, SET_INT_IN_POINTER(2));
 	WIDGET_arrow_set_color(manipulator->translate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->translate_z);
 
-	manipulator->rotate_x = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot);
+	manipulator->rotate_x = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot, NULL);
 	WIDGET_dial_set_color(manipulator->rotate_x, color_red);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_x);
 
-	manipulator->rotate_y = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot);
-	manipulator->rotate_y->customdata = SET_INT_IN_POINTER(1);
+	manipulator->rotate_y = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot, SET_INT_IN_POINTER(1));
 	WIDGET_dial_set_color(manipulator->rotate_y, color_green);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_y);
 
-	manipulator->rotate_z = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot);
-	manipulator->rotate_z->customdata = SET_INT_IN_POINTER(2);
+	manipulator->rotate_z = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot, SET_INT_IN_POINTER(2));
 	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_z);
 
-	widget = WIDGET_arrow_new(0, WIDGET_lamp_handler);
+	widget = WIDGET_arrow_new(0, WIDGET_lamp_handler, NULL);
 	WM_widget_register(wgroup_light,  widget);
 	WIDGET_arrow_set_color(widget, color_lamp);
 

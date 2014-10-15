@@ -282,6 +282,27 @@ void WM_widget_unregister(struct wmWidgetGroup *wgroup, wmWidget *widget)
 	widget->prev = widget->next = NULL;
 }
 
+void *WM_widget_customdata(struct wmWidget *widget)
+{
+	return widget->customdata;
+}
+
+void WM_widget_set_origin(struct wmWidget *widget, float origin[3])
+{
+	copy_v3_v3(widget->origin, origin);
+}
+
+void WM_widget_set_draw(struct wmWidget *widget, bool draw)
+{
+	if (draw) {
+		widget->flag &= ~WM_WIDGET_SKIP_DRAW;
+	}
+	else {
+		widget->flag |= WM_WIDGET_SKIP_DRAW;
+	}
+}
+
+
 wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d)
 {
 	wmWidgetMap *wmap;

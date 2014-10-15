@@ -191,7 +191,7 @@ void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext
 	wmWidget *lamp = WM_widgetgroup_widgets(wgroup)->first;
 	float dir[3];
 
-	copy_v3_v3(lamp->origin, ob->obmat[3]);
+	WM_widget_set_origin(lamp, ob->obmat[3]);
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(lamp, dir);
 }

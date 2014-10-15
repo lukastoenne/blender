@@ -481,6 +481,10 @@ void WM_event_add_widget_handler(struct ARegion *ar);
 bool WM_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
 void WM_widget_unregister(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
 
+void *WM_widget_customdata(struct wmWidget *widget);
+void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
+void WM_widget_set_draw(struct wmWidget *widget, bool draw);
+
 void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
 ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup);
 
@@ -490,6 +494,25 @@ void WM_widgetgroup_unregister(struct wmWidgetMap *wmap, struct wmWidgetGroup *w
 struct wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d);
 void WM_widgetmaps_free(void);
 
+/* wm_generic_widgets.c */
+
+enum {
+	UI_ARROW_STYLE_NORMAL = 0,
+	UI_ARROW_STYLE_NO_AXIS = 1,
+};
+
+enum {
+	UI_DIAL_STYLE_RING = 0,
+	UI_DIAL_STYLE_RING_CLIPPED = 1,
+};
+
+struct wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget), void *customdata);
+void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
+void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
+
+struct wmWidget *WIDGET_dial_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget), void *customdata);
+void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
+void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
 #ifdef __cplusplus
 }

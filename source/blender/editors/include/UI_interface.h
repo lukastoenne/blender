@@ -998,24 +998,4 @@ void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
 
 int uiFloatPrecisionCalc(int prec, double value);
 
-/* ui_generic_widgets.c */
-
-enum {
-	UI_ARROW_STYLE_NORMAL = 0,
-	UI_ARROW_STYLE_NO_AXIS = 1,
-};
-
-enum {
-	UI_DIAL_STYLE_RING = 0,
-	UI_DIAL_STYLE_RING_CLIPPED = 1,
-};
-
-struct wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget));
-void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
-void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
-
-struct wmWidget *WIDGET_dial_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget));
-void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
-void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
-
 #endif  /* __UI_INTERFACE_H__ */

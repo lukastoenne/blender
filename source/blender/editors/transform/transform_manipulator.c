@@ -1705,13 +1705,13 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	
 	totsel = calc_manipulator_stats(C);
 	if (totsel == 0) {
-		manipulator->translate_x->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_y->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_z->flag |= WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->translate_x, false);
+		WM_widget_set_draw(manipulator->translate_y, false);
+		WM_widget_set_draw(manipulator->translate_z, false);
 
-		manipulator->rotate_x->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_y->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_z->flag |= WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->rotate_x, false);
+		WM_widget_set_draw(manipulator->rotate_y, false);
+		WM_widget_set_draw(manipulator->rotate_z, false);
 		return;
 	}
 	v3d->twflag |= V3D_DRAW_MANIPULATOR;
@@ -1746,13 +1746,13 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	/* when looking through a selected camera, the manipulator can be at the
 	 * exact same position as the view, skip so we don't break selection */
 	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
-		manipulator->translate_x->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_y->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_z->flag |= WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->translate_x, false);
+		WM_widget_set_draw(manipulator->translate_y, false);
+		WM_widget_set_draw(manipulator->translate_z, false);
 
-		manipulator->rotate_x->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_y->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_z->flag |= WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->rotate_x, false);
+		WM_widget_set_draw(manipulator->rotate_y, false);
+		WM_widget_set_draw(manipulator->rotate_z, false);
 
 		return;
 	}
@@ -1762,45 +1762,45 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 
 	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
 		/* should be added according to the order of axis */
-		copy_v3_v3(manipulator->translate_x->origin, rv3d->twmat[3]);
+		WM_widget_set_origin(manipulator->translate_x, rv3d->twmat[3]);
 		WIDGET_arrow_set_direction(manipulator->translate_x, rv3d->twmat[0]);
 		
-		copy_v3_v3(manipulator->translate_y->origin, rv3d->twmat[3]);
+		WM_widget_set_origin(manipulator->translate_y, rv3d->twmat[3]);
 		WIDGET_arrow_set_direction(manipulator->translate_y, rv3d->twmat[1]);
 
-		copy_v3_v3(manipulator->translate_z->origin, rv3d->twmat[3]);
+		WM_widget_set_origin(manipulator->translate_z, rv3d->twmat[3]);
 		WIDGET_arrow_set_direction(manipulator->translate_z, rv3d->twmat[2]);
 
-		manipulator->translate_x->flag &= ~WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_y->flag &= ~WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_z->flag &= ~WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->translate_x, true);
+		WM_widget_set_draw(manipulator->translate_y, true);
+		WM_widget_set_draw(manipulator->translate_z, true);
 	}
 	else {
-		manipulator->translate_x->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_y->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->translate_z->flag |= WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->translate_x, false);
+		WM_widget_set_draw(manipulator->translate_y, false);
+		WM_widget_set_draw(manipulator->translate_z, false);
 	}
 
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
 		/* should be added according to the order of axis */
 
-		copy_v3_v3(manipulator->rotate_x->origin, rv3d->twmat[3]);
+		WM_widget_set_origin(manipulator->rotate_x, rv3d->twmat[3]);
 		WIDGET_dial_set_direction(manipulator->rotate_x, rv3d->twmat[0]);
 
-		copy_v3_v3(manipulator->rotate_y->origin, rv3d->twmat[3]);
+		WM_widget_set_origin(manipulator->rotate_y, rv3d->twmat[3]);
 		WIDGET_dial_set_direction(manipulator->rotate_y, rv3d->twmat[1]);
 
-		copy_v3_v3(manipulator->rotate_z->origin, rv3d->twmat[3]);
+		WM_widget_set_origin(manipulator->rotate_z, rv3d->twmat[3]);
 		WIDGET_dial_set_direction(manipulator->rotate_z, rv3d->twmat[2]);
 
-		manipulator->rotate_x->flag &= ~WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_y->flag &= ~WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_z->flag &= ~WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->rotate_x, true);
+		WM_widget_set_draw(manipulator->rotate_y, true);
+		WM_widget_set_draw(manipulator->rotate_z, true);
 	}
 	else {
-		manipulator->rotate_x->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_y->flag |= WM_WIDGET_SKIP_DRAW;
-		manipulator->rotate_z->flag |= WM_WIDGET_SKIP_DRAW;
+		WM_widget_set_draw(manipulator->rotate_x, false);
+		WM_widget_set_draw(manipulator->rotate_y, false);
+		WM_widget_set_draw(manipulator->rotate_z, false);
 	}
 }
 
@@ -1975,7 +1975,7 @@ int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, w
 	View3D *v3d = sa->spacedata.first;
 	int constraint_axis[3] = {0, 0, 0};
 	int shift = event->shift;
-	int direction = GET_INT_FROM_POINTER(widget->customdata);
+	int direction = GET_INT_FROM_POINTER(WM_widget_customdata(widget));
 
 	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
 	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
@@ -2019,7 +2019,7 @@ int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *event, wmW
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
 	int constraint_axis[3] = {0, 0, 0};
-	int direction = GET_INT_FROM_POINTER(widget->customdata);
+	int direction = GET_INT_FROM_POINTER(WM_widget_customdata(widget));
 
 	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
 	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */

@@ -52,16 +52,11 @@ set(SRC
 	interface_templates.c
 	interface_utils.c
 	interface_widgets.c
-	interface_generic_widgets.c
 	resources.c
 	view2d.c
 	view2d_ops.c
 
-	3d_widgets/arrow_widget.c
-	3d_widgets/dial_widget.c
-
 	interface_intern.h
-	3d_widgets/ui_widget_library.h
 )
 
 if(WITH_INTERNATIONAL)

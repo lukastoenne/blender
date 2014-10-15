@@ -27,7 +27,7 @@
  *  \ingroup edinterface
  */
 
-#include "WM_types.h"
+#include "RNA_types.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -58,9 +58,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "UI_interface.h"
-#include "interface_intern.h"
 
 #include "3d_widgets/ui_widget_library.h"
+
+#include "wm.h"
+#include "WM_types.h"
 
 
 /******************************************************
@@ -176,7 +178,7 @@ static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UN
 }
 
 
-wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))
+wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget), void *customdata)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
@@ -196,7 +198,7 @@ wmWidget *WIDGET_arrow_new(int style, int (*handler)(struct bContext *C, const s
 	arrow->widget.handler = handler;
 	arrow->widget.intersect = NULL;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
-	arrow->widget.customdata = NULL;
+	arrow->widget.customdata = customdata;
 	
 	arrow->style = style;
 	copy_v3_v3(arrow->direction, dir_default);
@@ -298,7 +300,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C, 
 	}
 }
 
-wmWidget *WIDGET_dial_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))
+wmWidget *WIDGET_dial_new(int style, int (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget), void *customdata)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	DialWidget *dial;
@@ -318,7 +320,7 @@ wmWidget *WIDGET_dial_new(int style, int (*handler)(struct bContext *C, const st
 	dial->widget.handler = handler;
 	dial->widget.intersect = NULL;
 	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
-	dial->widget.customdata = NULL;
+	dial->widget.customdata = customdata;
 
 	dial->style = style;
 	copy_v3_v3(dial->direction, dir_default);
