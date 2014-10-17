@@ -40,6 +40,7 @@
 struct ScrArea;
 struct ARegion;
 struct wmWidgetMap;
+struct wmWidget;
 
 /* wmKeyMap is in DNA_windowmanager.h, it's savable */
 
@@ -57,6 +58,7 @@ typedef struct wmEventHandler {
 	wmOperator *op;                     /* for derived/modal handlers */
 	struct ScrArea *op_area;            /* for derived/modal handlers */
 	struct ARegion *op_region;          /* for derived/modal handlers */
+	struct wmWidget *op_widget;         /* widget that called an operator */
 
 	/* ui handler */
 	wmUIHandlerFunc ui_handle;          /* callback receiving events */

@@ -541,7 +541,8 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					widget->initialize_op(C, event, widget, &widget->opptr);
 				}
 
-				//WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
+				CTX_wm_widget_set(C, widget);
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
 				wmap->active_widget = widget;
 				return;
 			}
@@ -570,6 +571,8 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 
 			WM_operator_properties_free(&widget->opptr);
 		}
+
+		CTX_wm_widget_set(C, NULL);
 
 		wmap->active_widget = NULL;
 		ED_region_tag_redraw(ar);

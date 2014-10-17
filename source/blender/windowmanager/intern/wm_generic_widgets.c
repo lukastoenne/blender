@@ -28,6 +28,7 @@
  */
 
 #include "RNA_types.h"
+#include "RNA_access.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -227,6 +228,11 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	sub_v3_v3(orig_origin, data->orig_origin);
 	project_v3_v3v3(orig_origin, orig_origin, arrow->direction);
 	add_v3_v3v3(widget->origin, orig_origin, data->orig_origin);
+
+	/* set the property for the operator and call its modal function */
+	if (widget->prop) {
+		RNA_float_set_array(&widget->opptr, widget->prop, widget->origin);
+	}
 
 	/* tag the region for redraw */
 	ED_region_tag_redraw(ar);

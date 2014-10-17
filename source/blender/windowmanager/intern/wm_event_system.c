@@ -2559,7 +2559,7 @@ wmEventHandler *WM_event_add_modal_handler(bContext *C, wmOperator *op)
 {
 	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event modal handler");
 	wmWindow *win = CTX_wm_window(C);
-	
+
 	/* operator was part of macro */
 	if (op->opm) {
 		/* give the mother macro to the handler */
@@ -2572,6 +2572,7 @@ wmEventHandler *WM_event_add_modal_handler(bContext *C, wmOperator *op)
 	
 	handler->op_area = CTX_wm_area(C);       /* means frozen screen context for modal handlers! */
 	handler->op_region = CTX_wm_region(C);
+	handler->op_widget = CTX_wm_widget(C);
 	
 	BLI_addhead(&win->modalhandlers, handler);
 
