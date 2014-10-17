@@ -342,3 +342,8 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 	copy_v3_v3(arrow->direction, direction);
 	normalize_v3(arrow->direction);
 }
+
+void fix_linking_widget_lib(void)
+{
+	(void) 0;
+}

@@ -342,9 +342,11 @@ void WM_widgetmaps_free(void)
 			}
 			BLI_freelistN(&wgroup->widgets);
 		}
-		BLI_freelistN(&wmap->widgetgroups);					
+		BLI_freelistN(&wmap->widgetgroups);
 	}
 	BLI_freelistN(&widgetmaps);
+
+	fix_linking_widget_lib();
 }
 
 bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap)

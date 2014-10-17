@@ -134,5 +134,7 @@ bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap);
 extern int circle_select_size;
 #endif
 
+void fix_linking_widget_lib(void);
+
 #endif /* __WM_H__ */
 
