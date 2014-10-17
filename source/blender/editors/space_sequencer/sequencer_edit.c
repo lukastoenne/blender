@@ -1993,6 +1993,7 @@ static int sequencer_meta_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 		BLI_addtail(&ed->metastack, ms);
 		ms->parseq = last_seq;
 		ms->oldbasep = ed->seqbasep;
+		copy_v2_v2_int(ms->disp_range, &ms->parseq->startdisp);
 
 		ed->seqbasep = &last_seq->seqbase;
 
@@ -2012,12 +2013,25 @@ static int sequencer_meta_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 
 		ed->seqbasep = ms->oldbasep;
 
+		/* for old files, update from meta */
+		if (ms->disp_range[0] ==  ms->disp_range[1]) {
+			copy_v2_v2_int(ms->disp_range, &ms->parseq->startdisp);
+		}
+
 		/* recalc all: the meta can have effects connected to it */
 		for (seq = ed->seqbasep->first; seq; seq = seq->next)
 			BKE_sequence_calc(scene, seq);
 
+		/* 2.73+, keeping endpoings is important!
+		 * moving them around means you can't usefully use metas in a complex edit */
+#if 1
+		BKE_sequence_tx_set_final_left(ms->parseq, ms->disp_range[0]);
+		BKE_sequence_tx_set_final_right(ms->parseq, ms->disp_range[1]);
+		BKE_sequence_calc(scene, ms->parseq);
+#else
 		if (BKE_sequence_test_overlap(ed->seqbasep, ms->parseq))
 			BKE_sequence_base_shuffle(ed->seqbasep, ms->parseq, scene);
+#endif
 
 		BKE_sequencer_active_set(scene, ms->parseq);
 
@@ -2445,73 +2459,59 @@ static int find_next_prev_edit(Scene *scene, int cfra,
                                const bool do_skip_mute, const bool do_center)
 {
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
-	Sequence *seq, *best_seq = NULL, *frame_seq = NULL;
+	Sequence *seq;
 	
-	int dist, best_dist;
+	int dist, best_dist, best_frame = cfra;
+	int seq_frames[2], seq_frames_tot;
+
 	best_dist = MAXFRAME * 2;
 
 	if (ed == NULL) return cfra;
 	
 	for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-		int seq_frame;
+		int i;
 
 		if (do_skip_mute && (seq->flag & SEQ_MUTE)) {
 			continue;
 		}
 
 		if (do_center) {
-			seq_frame = (seq->startdisp + seq->enddisp) / 2;
+			seq_frames[0] = (seq->startdisp + seq->enddisp) / 2;
+			seq_frames_tot = 1;
 		}
 		else {
-			seq_frame = seq->startdisp;
+			seq_frames[0] = seq->startdisp;
+			seq_frames[1] = seq->enddisp;
+
+			seq_frames_tot = 2;
 		}
 
-		dist = MAXFRAME * 2;
-			
-		switch (side) {
-			case SEQ_SIDE_LEFT:
-				if (seq_frame < cfra) {
-					dist = cfra - seq_frame;
-				}
-				break;
-			case SEQ_SIDE_RIGHT:
-				if (seq_frame > cfra) {
-					dist = seq_frame - cfra;
-				}
-				else if (seq_frame == cfra) {
-					frame_seq = seq;
-				}
-				break;
-		}
+		for (i = 0; i < seq_frames_tot; i++) {
+			const int seq_frame = seq_frames[i];
 
-		if (dist < best_dist) {
-			best_dist = dist;
-			best_seq = seq;
+			dist = MAXFRAME * 2;
+
+			switch (side) {
+				case SEQ_SIDE_LEFT:
+					if (seq_frame < cfra) {
+						dist = cfra - seq_frame;
+					}
+					break;
+				case SEQ_SIDE_RIGHT:
+					if (seq_frame > cfra) {
+						dist = seq_frame - cfra;
+					}
+					break;
+			}
+
+			if (dist < best_dist) {
+				best_frame = seq_frame;
+				best_dist = dist;
+			}
 		}
 	}
 
-	/* if no sequence to the right is found and the
-	 * frame is on the start of the last sequence,
-	 * move to the end of the last sequence */
-	if (frame_seq) {
-		if (do_center) {
-			cfra = (frame_seq->startdisp + frame_seq->enddisp) / 2;
-		}
-		else {
-			cfra = frame_seq->enddisp;
-		}
-	}
-
-	if (best_seq) {
-		if (do_center) {
-			cfra = (best_seq->startdisp + best_seq->enddisp) / 2;
-		}
-		else {
-			cfra = best_seq->startdisp;
-		}
-	}
-
-	return cfra;
+	return best_frame;
 }
 
 static bool strip_jump_internal(Scene *scene,
