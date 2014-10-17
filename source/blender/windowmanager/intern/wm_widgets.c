@@ -138,7 +138,7 @@ ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup)
 wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C, float scale),
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, float scale, int selectionbase),
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
-                        int  (*activate)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
+                        int  (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
                         void *customdata, bool free_data, char *opname, char *prop)
 {
@@ -147,7 +147,7 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
 	widget = MEM_callocN(sizeof(wmWidget), "widget");
 	
 	widget->draw = draw;
-	widget->activate = activate;
+	widget->initialize_op = initialize_op;
 	widget->handler = handler;
 	widget->intersect = intersect;
 	widget->render_3d_intersection = render_3d_intersection;
@@ -528,11 +528,17 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 			wmOperatorType *ot = widget->ot = WM_operatortype_find(widget->opname, 0);
 
 			if (ot) {
+				widget->flag |= WM_WIDGET_ACTIVE;
+				/* first activate the widget itself */
+				if (widget->activate_state) {
+					widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
+				}
+
 				WM_operator_properties_create_ptr(&widget->opptr, ot);
 
 				/* time to initialize those properties now */
-				if (widget->activate) {
-					widget->activate(C, event, widget, &widget->opptr);
+				if (widget->initialize_op) {
+					widget->initialize_op(C, event, widget, &widget->opptr);
 				}
 
 				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
@@ -552,7 +558,18 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 	}
 	else {
 		ARegion *ar = CTX_wm_region(C);
+		widget = wmap->active_widget;
+
 		/* deactivate, widget but first take care of some stuff */
+		if (widget) {
+			widget->flag &= ~WM_WIDGET_ACTIVE;
+			/* first activate the widget itself */
+			if (widget->activate_state) {
+				widget->activate_state(C, event, widget, WIDGET_DEACTIVATE);
+			}
+
+			WM_operator_properties_clear(&widget->opptr);
+		}
 
 		wmap->active_widget = NULL;
 		ED_region_tag_redraw(ar);

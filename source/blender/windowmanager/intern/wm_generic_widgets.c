@@ -177,9 +177,13 @@ static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UN
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
 }
 
+static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
+{
+	return OPERATOR_FINISHED;
+}
 
 wmWidget *WIDGET_arrow_new(int style,
-                           int (*activate)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
+                           int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
                            const char *opname, const char *prop, void *customdata)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
@@ -197,8 +201,9 @@ wmWidget *WIDGET_arrow_new(int style,
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 	
 	arrow->widget.draw = widget_arrow_draw;
-	arrow->widget.activate = activate;
+	arrow->widget.initialize_op = initialize_op;
 	arrow->widget.intersect = NULL;
+	arrow->widget.handler = widget_arrow_handler;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.opname = opname;
 	arrow->widget.prop = prop;
@@ -305,7 +310,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C, 
 }
 
 wmWidget *WIDGET_dial_new(int style,
-                          int (*activate)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
+                          int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
                           const char *opname, const char *prop, void *customdata)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
@@ -323,7 +328,7 @@ wmWidget *WIDGET_dial_new(int style,
 	dial = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 
 	dial->widget.draw = widget_dial_draw;
-	dial->widget.activate = activate;
+	dial->widget.initialize_op = initialize_op;
 	dial->widget.intersect = NULL;
 	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
 	dial->widget.opname = opname;

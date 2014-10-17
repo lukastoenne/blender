@@ -61,13 +61,16 @@ typedef struct wmWidget {
 	/* determines 3d intersection by rendering the widget in a selection routine. */
 	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
 
-	/* activate the widget when the user clicks on it */
-	int (*activate)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *opptr);
+	/* initialize the operator properties when the user clicks the widget */
+	int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *opptr);
 
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
 	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
+
+	/* activate a widget state when the user clicks on it */
+	int (*activate_state)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int state);
 
 	/* position in space, 2d or 3d */
 	float origin[3];
@@ -88,10 +91,19 @@ typedef struct wmWidget {
 	struct PointerRNA opptr;
 } wmWidget;
 
+#define WIDGET_ACTIVATE 1
+#define WIDGET_DEACTIVATE 2
+
 /* wmWidget->flag */
-#define WM_WIDGET_HIGHLIGHT    (1 << 0)
-#define WM_WIDGET_FREE_DATA    (1 << 1)
-#define WM_WIDGET_SKIP_DRAW    (1 << 2)
+enum widgetflags {
+	/* states */
+	WM_WIDGET_HIGHLIGHT  = (1 << 0),
+	WM_WIDGET_ACTIVE     = (1 << 1),
+
+	/* other stuff */
+	WM_WIDGET_FREE_DATA  = (1 << 2),
+	WM_WIDGET_SKIP_DRAW  = (1 << 3)
+};
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);
 extern void wm_close_and_free_all(bContext *C, ListBase *);
