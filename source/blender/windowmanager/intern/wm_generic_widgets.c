@@ -187,7 +187,7 @@ typedef struct ArrowInteraction {
 	float proj_direction[2];
 } ArrowInteraction;
 
-static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
+static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	ArrowInteraction *data = widget->interaction_data;
@@ -230,14 +230,14 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	add_v3_v3v3(widget->origin, orig_origin, data->orig_origin);
 
 	/* set the property for the operator and call its modal function */
-	if (widget->prop) {
-		RNA_float_set_array(&widget->opptr, widget->prop, widget->origin);
+	if (op && widget->prop) {
+		RNA_float_set_array(op->ptr, widget->prop, widget->origin);
 	}
 
 	/* tag the region for redraw */
 	ED_region_tag_redraw(ar);
 
-	return OPERATOR_FINISHED;
+	return OPERATOR_PASS_THROUGH;
 }
 
 

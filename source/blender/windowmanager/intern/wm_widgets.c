@@ -139,7 +139,7 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, float scale, int selectionbase),
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
                         int  (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
-                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
+                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op),
                         void *customdata, bool free_data, char *opname, char *prop)
 {
 	wmWidget *widget;
@@ -534,15 +534,15 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
 				}
 
-				WM_operator_properties_create_ptr(&widget->opptr, ot);
+				WM_operator_properties_create_ptr(&widget->propptr, ot);
 
 				/* time to initialize those properties now */
 				if (widget->initialize_op) {
-					widget->initialize_op(C, event, widget, &widget->opptr);
+					widget->initialize_op(C, event, widget, &widget->propptr);
 				}
 
 				CTX_wm_widget_set(C, widget);
-				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->propptr);
 				wmap->active_widget = widget;
 				return;
 			}
@@ -569,7 +569,7 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				widget->activate_state(C, event, widget, WIDGET_DEACTIVATE);
 			}
 
-			WM_operator_properties_free(&widget->opptr);
+			WM_operator_properties_free(&widget->propptr);
 		}
 
 		CTX_wm_widget_set(C, NULL);

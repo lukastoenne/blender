@@ -37,6 +37,7 @@ struct wmEvent;
 struct wmWidgetMap;
 struct wmOperatorType;
 struct PointerRNA;
+struct wmOperator;
 
 typedef struct wmPaintCursor {
 	struct wmPaintCursor *next, *prev;
@@ -62,10 +63,10 @@ typedef struct wmWidget {
 	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
 
 	/* initialize the operator properties when the user clicks the widget */
-	int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *opptr);
+	int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *propptr);
 
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
-	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op);
 
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
 
@@ -88,7 +89,7 @@ typedef struct wmWidget {
 	wmOperatorType *ot;
 
 	/* operator properties, stored if widget spawns and controls an operator */
-	struct PointerRNA opptr;
+	struct PointerRNA propptr;
 } wmWidget;
 
 #define WIDGET_ACTIVATE 1

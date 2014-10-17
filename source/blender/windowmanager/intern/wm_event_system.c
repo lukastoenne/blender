@@ -1581,7 +1581,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 				switch (event->type) {
 					case MOUSEMOVE:
-						if (widget->handler(C, event, widget) == OPERATOR_PASS_THROUGH) {
+						if (widget->handler(C, event, widget, op) == OPERATOR_PASS_THROUGH) {
 							event->type = EVT_WIDGET_UPDATE;
 							retval = ot->modal(C, op, event);
 						}
@@ -2004,7 +2004,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				switch (event->type) {
 					case MOUSEMOVE:
 						if (widget) {
-							widget->handler(C, event, widget);
+							widget->handler(C, event, widget, NULL);
 							action |= WM_HANDLER_BREAK;
 						}
 						else if (wm_widgetmap_is_3d(wmap)) {
@@ -2024,7 +2024,6 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 								action |= WM_HANDLER_BREAK;
 							}
 							else {
-								widget->handler(C, event, widget);
 								action |= WM_HANDLER_BREAK;
 							}
 						}

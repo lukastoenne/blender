@@ -60,6 +60,8 @@
 #include "UI_interface.h"
 #include "object_intern.h"
 
+#include "RNA_define.h"
+#include "RNA_access.h"
 
 typedef struct LampPositionData {
 	int pos[2];
@@ -145,6 +147,32 @@ static int lamp_position_modal(bContext *C, wmOperator *op, const wmEvent *event
 				MEM_freeN(op->customdata);
 				return OPERATOR_FINISHED;
 			}
+
+		case EVT_WIDGET_UPDATE:
+		{
+			ARegion *ar = CTX_wm_region(C);
+			Object *ob = CTX_data_active_object(C);
+			Lamp *la = ob->data;
+			float value[3], len;
+
+			RNA_float_get_array(op->ptr, "value", value);
+
+			sub_v3_v3(value, ob->obmat[3]);
+
+			len = len_v3(value);
+
+			la->spotsize = len * 0.1f;
+			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
+
+			ED_region_tag_redraw(ar);
+			break;
+		}
+
+		case EVT_WIDGET_RELEASED:
+		{
+			MEM_freeN(op->customdata);
+			return OPERATOR_FINISHED;
+		}
 	}
 
 	return OPERATOR_RUNNING_MODAL;
@@ -172,6 +200,7 @@ void LAMP_OT_lamp_position(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING | OPTYPE_UNDO;
 
 	/* properties */
+	RNA_def_float_vector_xyz(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 }
 
 bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)

@@ -474,7 +474,7 @@ struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bCon
 							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, float, int),
 							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                                int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
-                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *),
+                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct wmOperator *op),
                                void *customdata, bool free_data, char *opname, char *prop);
 
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);

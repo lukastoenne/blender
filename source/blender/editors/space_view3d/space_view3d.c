@@ -738,7 +738,7 @@ static void view3d_widgets(void)
 	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_z);
 
-	widget = WIDGET_arrow_new(0, NULL, "UI_OT_lamp_position", NULL, NULL);
+	widget = WIDGET_arrow_new(0, NULL, "UI_OT_lamp_position", "value", NULL);
 	WM_widget_register(wgroup_light,  widget);
 	WIDGET_arrow_set_color(widget, color_lamp);
 
