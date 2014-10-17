@@ -39,6 +39,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -177,10 +178,81 @@ static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UN
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
 }
 
+typedef struct ArrowInteraction {
+	float orig_origin[3];
+	float orig_mouse[2];
+
+	/* direction vector, projected in screen space */
+	float proj_direction[2];
+} ArrowInteraction;
+
 static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
 {
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+	ArrowInteraction *data = widget->interaction_data;
+	ARegion *ar = CTX_wm_region(C);
+	RegionView3D *rv3d = ar->regiondata;
+
+	float homogenous_coord;
+	float orig_origin[4];
+	float m_diff[2];
+
+	copy_v3_v3(orig_origin, data->orig_origin);
+	orig_origin[3] = 1.0f;
+
+	/* multiply to projection space */
+	mul_m4_v4(rv3d->persmat, orig_origin);
+
+	homogenous_coord = orig_origin[3];
+
+	mul_v2_fl(orig_origin, 1.0f/homogenous_coord);
+
+	/* find mouse difference */
+	m_diff[0] = event->mval[0] - data->orig_mouse[0];
+	m_diff[1] = event->mval[1] - data->orig_mouse[1];
+
+	/* express it as difference in normalized screen space */
+	m_diff[0] /= (BLI_rcti_size_x(&ar->winrct) * 0.5f);
+	m_diff[1] /= (BLI_rcti_size_y(&ar->winrct) * 0.5f);
+
+	/* now mouse difference is in normalized coordinates, add it to orig_origin */
+	add_v2_v2(orig_origin, m_diff);
+
+	mul_v2_fl(orig_origin, homogenous_coord);
+
+	/* project back to world space */
+	mul_m4_v4(rv3d->persinv, orig_origin);
+
+	/* project to the line formed by original point and direction */
+	sub_v3_v3(orig_origin, data->orig_origin);
+	project_v3_v3v3(orig_origin, orig_origin, arrow->direction);
+	add_v3_v3v3(widget->origin, orig_origin, data->orig_origin);
+
+	/* tag the region for redraw */
+	ED_region_tag_redraw(ar);
+
 	return OPERATOR_FINISHED;
 }
+
+
+static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
+{
+	if (state == WIDGET_ACTIVATE) {
+		ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
+		data->orig_mouse[0] = event->mval[0];
+		data->orig_mouse[1] = event->mval[1];
+
+		copy_v3_v3(data->orig_origin, widget->origin);
+
+		widget->interaction_data = data;
+	}
+	else if (state == WIDGET_DEACTIVATE) {
+		MEM_freeN(widget->interaction_data);
+		widget->interaction_data = NULL;
+	}
+	return OPERATOR_FINISHED;
+}
+
 
 wmWidget *WIDGET_arrow_new(int style,
                            int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
@@ -204,6 +276,7 @@ wmWidget *WIDGET_arrow_new(int style,
 	arrow->widget.initialize_op = initialize_op;
 	arrow->widget.intersect = NULL;
 	arrow->widget.handler = widget_arrow_handler;
+	arrow->widget.activate_state = widget_arrow_activate;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.opname = opname;
 	arrow->widget.prop = prop;
