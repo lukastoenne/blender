@@ -1575,10 +1575,37 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			if (ot->flag & OPTYPE_UNDO)
 				wm->op_undo_depth++;
 
-			/* warning, after this call all context data and 'event' may be freed. see check below */
-			retval = ot->modal(C, op, event);
+			/* if a widget has called the operator, it swallows all events here */
+			if (handler->op_widget) {
+				wmWidget *widget = handler->op_widget;
+
+				switch (event->type) {
+					case MOUSEMOVE:
+						if (widget->handler(C, event, widget) == OPERATOR_PASS_THROUGH) {
+							event->type = EVT_WIDGET_UPDATE;
+							retval = ot->modal(C, op, event);
+						}
+						break;
+
+					case LEFTMOUSE:
+					{
+						if (event->val == KM_RELEASE) {
+							ARegion *ar = CTX_wm_region(C);
+							event->type = EVT_WIDGET_RELEASED;
+							retval = ot->modal(C, op, event);
+							wm_widgetmap_set_active_widget(ar->widgetmap, C, event, NULL);
+							handler->op_widget = NULL;
+						}
+						break;
+					}
+				}
+			}
+			else {
+				/* warning, after this call all context data and 'event' may be freed. see check below */
+				retval = ot->modal(C, op, event);
+			}
+
 			OPERATOR_RETVAL_CHECK(retval);
-			
 			/* when this is _not_ the case the modal modifier may have loaded
 			 * a new blend file (demo mode does this), so we have to assume
 			 * the event, operator etc have all been freed. - campbell */
@@ -2014,6 +2041,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else {
+				/* handle the widget first, before passing the event down */
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
 			}
