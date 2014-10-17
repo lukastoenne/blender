@@ -36,6 +36,7 @@ struct ReportList;
 struct wmEvent;
 struct wmWidgetMap;
 struct wmOperatorType;
+struct PointerRNA;
 
 typedef struct wmPaintCursor {
 	struct wmPaintCursor *next, *prev;
@@ -57,8 +58,11 @@ typedef struct wmWidget {
 	/* determine if the mouse intersects with the widget. The calculation should be done in the callback itself */
 	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
-	/* determines 3d intersetion by rendering the widget in a selection routine. */
+	/* determines 3d intersection by rendering the widget in a selection routine. */
 	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
+
+	/* activate the widget when the user clicks on it */
+	int (*activate)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *opptr);
 
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
 	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
@@ -72,9 +76,11 @@ typedef struct wmWidget {
 	void *interaction_data;
 
 	/* name of operator to spawn when activating the widget */
-	char *opname;
+	const char *opname;
+
 	/* property name of the operator that the widget controls */
-	char *oppropname;
+	const char *prop;
+
 	/* operator type that will be called */
 	wmOperatorType *ot;
 

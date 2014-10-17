@@ -1833,7 +1833,7 @@ void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(
 }
 
 /* return 0; nothing happened */
-int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
+int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget), struct PointerRNA *opptr)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
@@ -1969,7 +1969,7 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 }
 
 /* return 0; nothing happened */
-int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, wmWidget *widget)
+int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, wmWidget *widget, struct PointerRNA *ptr)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
@@ -1977,13 +1977,10 @@ int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, w
 	int shift = event->shift;
 	int direction = GET_INT_FROM_POINTER(WM_widget_customdata(widget));
 
-	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
-	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
-	
 	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
 	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT))
 	{
-		return OPERATOR_PASS_THROUGH;
+		;//return OPERATOR_PASS_THROUGH;
 	}
 	
 	if (shift) {
@@ -1996,54 +1993,35 @@ int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, w
 	else
 		constraint_axis[direction] = 1;
 	
-	WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_translate");
 	/* Force orientation */
 	RNA_boolean_set(ptr, "release_confirm", true);
 	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
 	RNA_boolean_set(ptr, "use_widget_input", true);
 
-	WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
-	
-	if (ptr) {
-		WM_operator_properties_free(ptr);
-		MEM_freeN(ptr);
-	}
-	
 	return OPERATOR_FINISHED;
 }
 
 /* return 0; nothing happened */
-int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *event, wmWidget *widget)
+int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *UNUSED(event), wmWidget *widget, struct PointerRNA *ptr)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
 	int constraint_axis[3] = {0, 0, 0};
 	int direction = GET_INT_FROM_POINTER(WM_widget_customdata(widget));
 
-	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
-	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
-
-	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
-	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT))
+	if (!(v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR))
 	{
-		return OPERATOR_PASS_THROUGH;
+		;//return OPERATOR_PASS_THROUGH;
 	}
 
 	constraint_axis[direction] = 1;
 
-	WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_rotate");
 	/* Force orientation */
 	RNA_boolean_set(ptr, "release_confirm", true);
 	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
 	RNA_boolean_set(ptr, "use_widget_input", true);
-	WM_operator_name_call(C, "TRANSFORM_OT_rotate", WM_OP_INVOKE_DEFAULT, ptr);
-
-	if (ptr) {
-		WM_operator_properties_free(ptr);
-		MEM_freeN(ptr);
-	}
 
 	return OPERATOR_FINISHED;
 }

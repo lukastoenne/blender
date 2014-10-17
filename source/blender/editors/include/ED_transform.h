@@ -46,6 +46,7 @@ struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
 struct wmWindowManager;
+struct PointerRNA;
 
 void transform_keymap_for_space(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap, int spaceid);
 void transform_operatortypes(void);
@@ -164,10 +165,10 @@ typedef struct ManipulatorGroup {
 	struct wmWidget *rotate_z;
 } ManipulatorGroup;
 
-int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
 
-int WIDGET_manipulator_handler_trans(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
-int WIDGET_manipulator_handler_rot(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+int WIDGET_manipulator_handler_trans(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
+int WIDGET_manipulator_handler_rot(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
 
 void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
 void WIDGET_manipulator_draw(struct wmWidget *widget, const struct bContext *C, float scale);

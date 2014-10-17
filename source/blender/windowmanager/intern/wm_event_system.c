@@ -1993,7 +1993,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					{
 						if (widget) {
 							if (event->val == KM_RELEASE) {
-								wm_widgetmap_set_active_widget(wmap, C, NULL);
+								wm_widgetmap_set_active_widget(wmap, C, event, NULL);
 								action |= WM_HANDLER_BREAK;
 							}
 							else {
@@ -2005,7 +2005,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							widget = wm_widgetmap_get_highlighted_widget(wmap);
 
 							if (widget) {
-								wm_widgetmap_set_active_widget(wmap, C, widget);
+								wm_widgetmap_set_active_widget(wmap, C, event, widget);
 								action |= WM_HANDLER_BREAK;
 							}
 						}

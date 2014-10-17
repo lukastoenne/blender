@@ -113,7 +113,7 @@ struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct 
 void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
 struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget);
 struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */

@@ -137,20 +137,25 @@ ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup)
 
 wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C, float scale),
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, float scale, int selectionbase),
-						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
-                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
-                        void *customdata, bool free_data)
+						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
+                        int  (*activate)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
+                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
+                        void *customdata, bool free_data, char *opname, char *prop)
 {
 	wmWidget *widget;
 	
 	widget = MEM_callocN(sizeof(wmWidget), "widget");
 	
 	widget->draw = draw;
+	widget->activate = activate;
 	widget->handler = handler;
 	widget->intersect = intersect;
 	widget->render_3d_intersection = render_3d_intersection;
 	widget->customdata = customdata;
 	
+	widget->opname = opname;
+	widget->prop = prop;
+
 	if (free_data)
 		widget->flag |= WM_WIDGET_FREE_DATA;
 
@@ -516,14 +521,20 @@ struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap)
 	return wmap->highlighted_widget;
 }
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget)
 {
 	if (widget) {
-		if (widget->opname) {
+		if (widget->opname && widget->handler) {
 			wmOperatorType *ot = widget->ot = WM_operatortype_find(widget->opname, 0);
 
 			if (ot) {
 				WM_operator_properties_create_ptr(&widget->opptr, ot);
+
+				/* time to initialize those properties now */
+				if (widget->activate) {
+					widget->activate(C, event, widget, &widget->opptr);
+				}
+
 				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
 				wmap->active_widget = widget;
 				return;

@@ -195,21 +195,3 @@ void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(lamp, dir);
 }
-
-
-int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *UNUSED(event), struct wmWidget *UNUSED(widget))
-{
-
-	struct PointerRNA ptr;
-	wmOperatorType *ot = WM_operatortype_find("UI_OT_lamp_position", 0);
-
-	if (ot) {
-		WM_operator_properties_create_ptr(&ptr, ot);
-		WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr);
-
-		return OPERATOR_FINISHED;
-	}
-
-	printf("Widget error: operator not found");
-	return OPERATOR_CANCELLED;
-}

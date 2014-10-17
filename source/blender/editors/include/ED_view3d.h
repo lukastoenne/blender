@@ -371,7 +371,6 @@ void ED_view3d_operator_properties_viewmat_get(struct wmOperator *op, int *winx,
 #endif
 
 bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *wgroup, const struct bContext *C);
-int WIDGET_lamp_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext *C);
 
 /* render */
