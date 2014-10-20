@@ -1722,12 +1722,45 @@ void SEQUENCER_OT_cut(struct wmOperatorType *ot)
 typedef struct TrimData {
 	int init_mouse[2];
 	float init_mouseloc[2];
-	TransSeq ts;
+	TransSeq *ts;
+	Sequence **seq_array;
+	bool *trim;
+	int num_seq;
 	bool slow;
 	int slow_offset; /* offset at the point where offset was turned on */
-	Sequence *seq;
 	void *draw_handle;
 } TrimData;
+
+static void transseq_backup(TransSeq *ts, Sequence *seq)
+{
+	ts->start = seq->start;
+	ts->machine = seq->machine;
+	ts->startstill = seq->startstill;
+	ts->endstill = seq->endstill;
+	ts->startdisp = seq->startdisp;
+	ts->enddisp = seq->enddisp;
+	ts->startofs = seq->startofs;
+	ts->endofs = seq->endofs;
+	ts->anim_startofs = seq->anim_startofs;
+	ts->anim_endofs = seq->anim_endofs;
+	ts->len = seq->len;
+}
+
+
+static void transseq_restore(TransSeq *ts, Sequence *seq)
+{
+	seq->start = ts->start;
+	seq->machine = ts->machine;
+	seq->startstill = ts->startstill;
+	seq->endstill = ts->endstill;
+	seq->startdisp = ts->startdisp;
+	seq->enddisp = ts->enddisp;
+	seq->startofs = ts->startofs;
+	seq->endofs = ts->endofs;
+	seq->anim_startofs = ts->anim_startofs;
+	seq->anim_endofs = ts->anim_endofs;
+	seq->len = ts->len;
+}
 
 static void draw_trim_extensions(const bContext *C, ARegion *ar, void *data)
 {
@@ -1735,130 +1768,181 @@ static void draw_trim_extensions(const bContext *C, ARegion *ar, void *data)
 	float x1, x2, y1, y2, pixely, a;
 	unsigned char col[3], blendcol[3];
 	View2D *v2d = &ar->v2d;
-	Sequence *seq = ((TrimData *)data)->seq;
-	
-	if (seq->type >= SEQ_TYPE_EFFECT) return;
+	TrimData *td = data;
+	int i;
 
-	x1 = seq->startdisp;
-	x2 = seq->enddisp;
-	
-	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
-	y2 = seq->machine + SEQ_STRIP_OFSTOP;
+	for (i = 0; i < td->num_seq; i++) {
+		Sequence *seq = td->seq_array[i];
 
-	pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
-	
-	if (pixely <= 0) return;  /* can happen when the view is split/resized */
-	
-	blendcol[0] = blendcol[1] = blendcol[2] = 120;
+		if ((seq->type != SEQ_TYPE_META) && td->trim[i]) {
 
-	if (seq->startofs) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
-		get_seq_color3ubv(scene, seq, col);
-		
-		if (seq->flag & SELECT) {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			glColor4ub(col[0], col[1], col[2], 170);
-		}
-		else {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			glColor4ub(col[0], col[1], col[2], 110);
-		}
-		
-		glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
-		
-		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-		else glColor4ub(col[0], col[1], col[2], 160);
+			x1 = seq->startdisp;
+			x2 = seq->enddisp;
 
-		fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
-		
-		glDisable(GL_BLEND);
-	}
-	if (seq->endofs) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
-		get_seq_color3ubv(scene, seq, col);
-		
-		if (seq->flag & SELECT) {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			glColor4ub(col[0], col[1], col[2], 170);
-		}
-		else {
-			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			glColor4ub(col[0], col[1], col[2], 110);
-		}
-		
-		glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
-		
-		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-		else glColor4ub(col[0], col[1], col[2], 160);
+			y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
+			y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
-		fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
-		
-		glDisable(GL_BLEND);
-	}
-	if (seq->startstill) {
-		get_seq_color3ubv(scene, seq, col);
-		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		glColor3ubv((GLubyte *)col);
-		
-		draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
-		
-		/* feint pinstripes, helps see exactly which is extended and which isn't,
-		 * especially when the extension is very small */ 
-		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
-		else UI_GetColorPtrShade3ubv(col, col, -16);
-		
-		glColor3ubv((GLubyte *)col);
-		
-		for (a = y1; a < y2; a += pixely * 2.0f) {
-			fdrawline(x1,  a,  (float)(seq->start),  a);
-		}
-	}
-	if (seq->endstill) {
-		get_seq_color3ubv(scene, seq, col);
-		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		glColor3ubv((GLubyte *)col);
-		
-		draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
-		
-		/* feint pinstripes, helps see exactly which is extended and which isn't,
-		 * especially when the extension is very small */ 
-		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
-		else UI_GetColorPtrShade3ubv(col, col, -16);
-		
-		glColor3ubv((GLubyte *)col);
-		
-		for (a = y1; a < y2; a += pixely * 2.0f) {
-			fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
+			pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+
+			if (pixely <= 0) return;  /* can happen when the view is split/resized */
+
+			blendcol[0] = blendcol[1] = blendcol[2] = 120;
+
+			if (seq->startofs) {
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				get_seq_color3ubv(scene, seq, col);
+
+				if (seq->flag & SELECT) {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+					glColor4ub(col[0], col[1], col[2], 170);
+				}
+				else {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+					glColor4ub(col[0], col[1], col[2], 110);
+				}
+
+				glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
+
+				if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+				else glColor4ub(col[0], col[1], col[2], 160);
+
+				fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
+
+				glDisable(GL_BLEND);
+			}
+			if (seq->endofs) {
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				get_seq_color3ubv(scene, seq, col);
+
+				if (seq->flag & SELECT) {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+					glColor4ub(col[0], col[1], col[2], 170);
+				}
+				else {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+					glColor4ub(col[0], col[1], col[2], 110);
+				}
+
+				glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
+
+				if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+				else glColor4ub(col[0], col[1], col[2], 160);
+
+				fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
+
+				glDisable(GL_BLEND);
+			}
+			if (seq->startstill) {
+				get_seq_color3ubv(scene, seq, col);
+				UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+				glColor3ubv((GLubyte *)col);
+
+				draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
+
+				/* feint pinstripes, helps see exactly which is extended and which isn't,
+				 * especially when the extension is very small */
+				if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
+				else UI_GetColorPtrShade3ubv(col, col, -16);
+
+				glColor3ubv((GLubyte *)col);
+
+				for (a = y1; a < y2; a += pixely * 2.0f) {
+					fdrawline(x1,  a,  (float)(seq->start),  a);
+				}
+			}
+			if (seq->endstill) {
+				get_seq_color3ubv(scene, seq, col);
+				UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+				glColor3ubv((GLubyte *)col);
+
+				draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
+
+				/* feint pinstripes, helps see exactly which is extended and which isn't,
+		 * especially when the extension is very small */
+				if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
+				else UI_GetColorPtrShade3ubv(col, col, -16);
+
+				glColor3ubv((GLubyte *)col);
+
+				for (a = y1; a < y2; a += pixely * 2.0f) {
+					fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
+				}
+			}
 		}
 	}
 }
 
+static int trim_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool *trim, int offset, bool do_trim) {
+	Sequence *seq;
+	int num_items = 0;
+
+	for (seq = seqbasep->first; seq; seq = seq->next) {
+		if (((seq->type & SEQ_TYPE_EFFECT) == 0) && (seq->flag & SELECT)) {
+			if (seq->type == SEQ_TYPE_META) {
+				/* trim the sub-sequences */
+				num_items += trim_add_sequences_rec(&seq->seqbase, seq_array, trim, num_items + offset, false);
+			}
+			else {
+				seq_array[offset + num_items] = seq;
+				trim[offset + num_items] = do_trim;
+				num_items++;
+			}
+		}
+	}
+
+	return num_items;
+}
+
+static int trim_count_sequences_rec(ListBase *seqbasep) {
+	Sequence *seq;
+	int trimmed_sequences = 0;
+
+	for (seq = seqbasep->first; seq; seq = seq->next) {
+		if (((seq->type & SEQ_TYPE_EFFECT) == 0) && (seq->flag & SELECT)) {
+			if (seq->type == SEQ_TYPE_META) {
+				/* trim the sub-sequences */
+				trimmed_sequences += trim_count_sequences_rec(&seq->seqbase);
+			}
+			else {
+				trimmed_sequences++;
+			}
+		}
+	}
+
+	return trimmed_sequences;
+}
+
 static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	TrimData *data = op->customdata = MEM_mallocN(sizeof(TrimData), "trimdata");	
+	TrimData *data;
 	Scene *scene = CTX_data_scene(C);
-	Sequence *seq = BKE_sequencer_active_get(scene);
+	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	ARegion *ar = CTX_wm_region(C);
 	float mouseloc[2];
+	int num_seq, i;
 	View2D *v2d = UI_view2d_fromcontext(C);
 
-	/* backup values */
-	data->ts.start = seq->start;
-	data->ts.machine = seq->machine;
-	data->ts.startstill = seq->startstill;
-	data->ts.endstill = seq->endstill;
-	data->ts.startdisp = seq->startdisp;
-	data->ts.enddisp = seq->enddisp;
-	data->ts.startofs = seq->startofs;
-	data->ts.endofs = seq->endofs;
-	data->ts.anim_startofs = seq->anim_startofs;
-	data->ts.anim_endofs = seq->anim_endofs;
-	data->ts.len = seq->len;
-	data->seq = seq;
+	/* first recursively cound the trimmed elements */
+	num_seq = trim_count_sequences_rec(ed->seqbasep);
+
+	if (num_seq == 0)
+		return OPERATOR_CANCELLED;
+
+	data = op->customdata = MEM_mallocN(sizeof(TrimData), "trimdata");
+	data->ts = MEM_mallocN(num_seq * sizeof(TransSeq), "trimdata_transform");
+	data->seq_array = MEM_mallocN(num_seq * sizeof(Sequence *), "trimdata_sequences");
+	data->trim = MEM_mallocN(num_seq * sizeof(bool), "trimdata_trim");
+	data->num_seq = num_seq;
+
+	trim_add_sequences_rec(ed->seqbasep, data->seq_array, data->trim, 0, true);
+
+	for (i = 0; i < num_seq; i++) {
+		transseq_backup(data->ts + i, data->seq_array[i]);
+	}
 
 	data->draw_handle = ED_region_draw_cb_activate(ar->type, draw_trim_extensions, data, REGION_DRAW_POST_VIEW);
 	
@@ -1874,51 +1958,57 @@ static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static bool sequencer_trim_recursively(Scene *scene, Sequence *seq, int offset, int old_start)
+static bool sequencer_trim_recursively(Scene *scene, TrimData *data, int offset)
 {
+
 	/* only data types supported for now */
 	if (offset != 0) {
-		if (!(seq->type & SEQ_TYPE_EFFECT) && (seq->type != SEQ_TYPE_META)) {
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
+		int i;
+
+		for (i = 0; i < data->num_seq; i++) {
+			Sequence *seq = data->seq_array[i];
 			int endframe;
-			Editing *ed = BKE_sequencer_editing_get(scene, false);
 			/* we have the offset, do the terrible math */
 
 			/* first, do the offset */
-			seq->start = old_start + offset;
+			seq->start = data->ts[i].start + offset;
 
-			/* find the endframe */
-			endframe = seq->start + seq->len;
+			if (data->trim[i]) {
+				/* find the endframe */
+				endframe = seq->start + seq->len;
 
-			/* now compute the terrible offsets */
-			if (endframe > seq->enddisp) {
-				seq->endstill = 0;
-				seq->endofs = endframe - seq->enddisp;
-			}
-			else if (endframe <= seq->enddisp) {
-				seq->endstill = seq->enddisp - endframe;
-				seq->endofs = 0;
-			}
+				/* now compute the terrible offsets */
+				if (endframe > seq->enddisp) {
+					seq->endstill = 0;
+					seq->endofs = endframe - seq->enddisp;
+				}
+				else if (endframe <= seq->enddisp) {
+					seq->endstill = seq->enddisp - endframe;
+					seq->endofs = 0;
+				}
 
-			if (seq->start > seq->startdisp) {
-				seq->startstill = seq->start - seq->startdisp;
-				seq->startofs = 0;
+				if (seq->start > seq->startdisp) {
+					seq->startstill = seq->start - seq->startdisp;
+					seq->startofs = 0;
+				}
+				else if (seq->start <= seq->startdisp) {
+					seq->startstill = 0;
+					seq->startofs = seq->startdisp - seq->start;
+				}
 			}
-			else if (seq->start <= seq->startdisp) {
-				seq->startstill = 0;
-				seq->startofs = seq->startdisp - seq->start;
+			else {
+				/* if no real trim, don't change the data, rather transform the strips themselves */
+				seq->startdisp = data->ts[i].startdisp + offset;
+				seq->enddisp = data->ts[i].enddisp + offset;
 			}
 
 			BKE_sequence_reload_new_file(scene, seq, false);
 			BKE_sequence_calc(scene, seq);
-
-			BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
-
-			return true;
 		}
-		/* handle metas recursively here */
-		else if (seq->type == SEQ_TYPE_META) {
+		BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
 
-		}
+		return true;
 	}
 	
 	return false;
@@ -1926,19 +2016,45 @@ static bool sequencer_trim_recursively(Scene *scene, Sequence *seq, int offset, 
 
 static int sequencer_trim_exec(bContext *C, wmOperator *op)
 {
+	TrimData *data;
 	Scene *scene = CTX_data_scene(C);
-	Sequence *seq = BKE_sequencer_active_get(scene);
+	Editing *ed = BKE_sequencer_editing_get(scene, false);
+	int num_seq, i;
 	int offset = RNA_int_get(op->ptr, "offset");
-	if(sequencer_trim_recursively(scene, seq, offset, seq->start))
-		return OPERATOR_FINISHED;
-	
-	return OPERATOR_CANCELLED;
+	bool success = false;
+
+	/* first recursively cound the trimmed elements */
+	num_seq = trim_count_sequences_rec(ed->seqbasep);
+
+	if (num_seq == 0)
+		return OPERATOR_CANCELLED;
+
+	data = op->customdata = MEM_mallocN(sizeof(TrimData), "trimdata");
+	data->ts = MEM_mallocN(num_seq * sizeof(TransSeq), "trimdata_transform");
+	data->seq_array = MEM_mallocN(num_seq * sizeof(Sequence *), "trimdata_sequences");
+	data->trim = MEM_mallocN(num_seq * sizeof(bool), "trimdata_trim");
+	data->num_seq = num_seq;
+
+	trim_add_sequences_rec(ed->seqbasep, data->seq_array, data->trim, 0, true);
+
+	for (i = 0; i < num_seq; i++) {
+		transseq_backup(data->ts + i, data->seq_array[i]);
+	}
+
+	success = sequencer_trim_recursively(scene, data, offset);
+
+	MEM_freeN(data->seq_array);
+	MEM_freeN(data->trim);
+	MEM_freeN(data->ts);
+	MEM_freeN(data);
+
+	if (success) return OPERATOR_FINISHED;
+	else return OPERATOR_CANCELLED;
 }
 
 static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Scene *scene = CTX_data_scene(C);
-	Sequence *seq = BKE_sequencer_active_get(scene);
 	TrimData *data = (TrimData *)op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1975,7 +2091,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 				ED_area_headerprint(sa, msg);
 			}
 			
-			if (sequencer_trim_recursively(scene, seq, offset, data->ts.start)) {
+			if (sequencer_trim_recursively(scene, data, offset)) {
 				WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 			}
 			break;			
@@ -1984,6 +2100,9 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 		case LEFTMOUSE:
 		{
 			ED_region_draw_cb_exit(ar->type, data->draw_handle);
+			MEM_freeN(data->seq_array);
+			MEM_freeN(data->trim);
+			MEM_freeN(data->ts);
 			MEM_freeN(data);
 			op->customdata = NULL;
 			if (sa) {
@@ -1994,25 +2113,24 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 		}
 		case RIGHTMOUSE:
 		{
+			int i;
 			Editing *ed = BKE_sequencer_editing_get(scene, false);
-
-			seq->start = data->ts.start;
-			seq->machine = data->ts.machine;
-			seq->startstill = data->ts.startstill;
-			seq->endstill = data->ts.endstill;
-			seq->startdisp = data->ts.startdisp;
-			seq->enddisp = data->ts.enddisp;
-			seq->startofs = data->ts.startofs;
-			seq->endofs = data->ts.endofs;
-			seq->anim_startofs = data->ts.anim_startofs;
-			seq->anim_endofs = data->ts.anim_endofs;
-			seq->len = data->ts.len;
 			
-			BKE_sequence_reload_new_file(scene, seq, false);				
-			BKE_sequence_calc(scene, seq);
+			for (i = 0; i < data->num_seq; i++) {
+				transseq_restore(data->ts + i, data->seq_array[i]);
+			}
+
+			for (i = 0; i < data->num_seq; i++) {
+				Sequence *seq = data->seq_array[i];
+				BKE_sequence_reload_new_file(scene, seq, false);
+				BKE_sequence_calc(scene, seq);
+			}
 
 			ED_region_draw_cb_exit(ar->type, data->draw_handle);
 			
+			MEM_freeN(data->seq_array);
+			MEM_freeN(data->ts);
+			MEM_freeN(data->trim);
 			MEM_freeN(data);
 			op->customdata = NULL;
 		
