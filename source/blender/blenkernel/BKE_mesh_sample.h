@@ -34,7 +34,7 @@ struct MSurfaceSample;
 bool BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MSurfaceSample *sample, float loc[3], float nor[3]);
 
 
-/* ==== Sampling ==== */
+/* ==== Sample Storage ==== */
 
 /* Storage descriptor to allow generic data storage by arbitrary algorithms */
 typedef struct MSurfaceSampleStorage {
@@ -47,6 +47,10 @@ typedef struct MSurfaceSampleStorage {
 void BKE_mesh_sample_storage_array(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *samples, int capacity);
 void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
 
+/* ==== Sample Generators ==== */
+
 void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
+void BKE_mesh_sample_generate_poisson_disk_by_radius(MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, float radius);
+void BKE_mesh_sample_generate_poisson_disk_by_amount(MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
 
 #endif  /* __BKE_MESH_SAMPLE_H__ */

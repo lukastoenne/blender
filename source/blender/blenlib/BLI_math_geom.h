@@ -192,6 +192,25 @@ typedef struct {
 void isect_ray_aabb_initialize(IsectRayAABBData *data, const float ray_start[3], const float ray_direction[3]);
 bool isect_ray_aabb(const IsectRayAABBData *data, const float bb_min[3], const float bb_max[3], float *tmin);
 
+/* defines polygon corners of triangle/AABB intersection */
+typedef struct IsectTriAABBData {
+	float co[3];    /* 3D space location */
+	float uv[2];    /* triangle space coordinates by edges (v1, v2) and (v1, v3) */
+	int orig_index; /* original index of the corner vertex, -1 if it is a new intersection vertex */
+} IsectTriAABBData;
+
+/* Intersection of a triangle with an axis-aligned box
+ * The result of this is a convex polygon of degree between 3 and 6 (from triangle up to hexagon)
+ *
+ * tri must be an array of float[3] vectors
+ * bb_min/bb_max is the aabb extent
+ * 
+ * corners is the resulting corner data, 6 at most.
+ * num_corners is the actual number of valid corners.
+ */
+bool isect_tri_aabb(const float (*tri)[3], const float bb_min[3], const float bb_max[3],
+                    IsectTriAABBData corners[6], int *num_corners);
+
 /* other */
 bool isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const float radius,
                                   const float v0[3], const float v1[3], const float v2[3], float *r_lambda, float ipoint[3]);
