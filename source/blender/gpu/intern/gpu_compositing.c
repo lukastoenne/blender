@@ -167,7 +167,6 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 }
 
 
-
 bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 	GPUShader *fx_shader;
 	int numslots = 0, i;

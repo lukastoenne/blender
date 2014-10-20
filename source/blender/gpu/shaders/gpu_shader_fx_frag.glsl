@@ -32,8 +32,8 @@ vec4 calculate_view_space_position(in vec2 uvcoords, float depth)
 {	
     //First we need to calculate the view space distance from the shader inputs
     //This will unfortunately depend on the precision of the depth buffer which is not linear
-    vec2 norm_scr = uvcoords * 2.0 - 1.0;
-    vec4 viewposition = vec4(norm_scr.x, norm_scr.y, depth, 1.0);
+    vec4 viewposition = vec4(uvcoords.x, uvcoords.y, depth, 1.0);
+    viewposition = viewposition * 2.0 - 1.0;
 
     // convert to view space now
     viewposition = gl_ProjectionMatrixInverse * viewposition;
