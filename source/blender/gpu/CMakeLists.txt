@@ -57,6 +57,17 @@ set(SRC
 	intern/gpu_compositing.c
 	intern/gpu_renderer.c
 
+	shaders/gpu_shader_fx_frag.glsl
+	shaders/gpu_shader_fx_vert.glsl
+	shaders/gpu_shader_material.glsl
+	shaders/gpu_shader_sep_gaussian_blur_frag.glsl
+	shaders/gpu_shader_sep_gaussian_blur_vert.glsl
+	shaders/gpu_shader_simple_frag.glsl
+	shaders/gpu_shader_simple_vert.glsl
+	shaders/gpu_shader_vertex.glsl
+	shaders/gpu_shader_vsm_store_frag.glsl
+	shaders/gpu_shader_vsm_store_vert.glsl
+
 	GPU_buffers.h
 	GPU_draw.h
 	GPU_extensions.h
