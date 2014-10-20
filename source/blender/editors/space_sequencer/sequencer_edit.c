@@ -1874,45 +1874,51 @@ static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static bool sequencer_trim(Scene *scene, Sequence *seq, int offset, int old_start)
+static bool sequencer_trim_recursively(Scene *scene, Sequence *seq, int offset, int old_start)
 {
 	/* only data types supported for now */
-	if ((offset != 0) && !(seq->type & SEQ_TYPE_EFFECT) && (seq->type != SEQ_TYPE_META)) {
-		int endframe;
-		Editing *ed = BKE_sequencer_editing_get(scene, false);
-		/* we have the offset, do the terrible math */
+	if (offset != 0) {
+		if (!(seq->type & SEQ_TYPE_EFFECT) && (seq->type != SEQ_TYPE_META)) {
+			int endframe;
+			Editing *ed = BKE_sequencer_editing_get(scene, false);
+			/* we have the offset, do the terrible math */
 
-		/* first, do the offset */
-		seq->start = old_start + offset;
-	
-		/* find the endframe */
-		endframe = seq->start + seq->len;
-		
-		/* now compute the terrible offsets */
-		if (endframe > seq->enddisp) {
-			seq->endstill = 0;
-			seq->endofs = endframe - seq->enddisp;
+			/* first, do the offset */
+			seq->start = old_start + offset;
+
+			/* find the endframe */
+			endframe = seq->start + seq->len;
+
+			/* now compute the terrible offsets */
+			if (endframe > seq->enddisp) {
+				seq->endstill = 0;
+				seq->endofs = endframe - seq->enddisp;
+			}
+			else if (endframe <= seq->enddisp) {
+				seq->endstill = seq->enddisp - endframe;
+				seq->endofs = 0;
+			}
+
+			if (seq->start > seq->startdisp) {
+				seq->startstill = seq->start - seq->startdisp;
+				seq->startofs = 0;
+			}
+			else if (seq->start <= seq->startdisp) {
+				seq->startstill = 0;
+				seq->startofs = seq->startdisp - seq->start;
+			}
+
+			BKE_sequence_reload_new_file(scene, seq, false);
+			BKE_sequence_calc(scene, seq);
+
+			BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
+
+			return true;
 		}
-		else if (endframe <= seq->enddisp) {
-			seq->endstill = seq->enddisp - endframe;
-			seq->endofs = 0;
+		/* handle metas recursively here */
+		else if (seq->type == SEQ_TYPE_META) {
+
 		}
-		
-		if (seq->start > seq->startdisp) {
-			seq->startstill = seq->start - seq->startdisp;
-			seq->startofs = 0;
-		}
-		else if (seq->start <= seq->startdisp) {
-			seq->startstill = 0;
-			seq->startofs = seq->startdisp - seq->start;
-		}
-		
-		BKE_sequence_reload_new_file(scene, seq, false);				
-		BKE_sequence_calc(scene, seq);
-	
-		BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
-		
-		return true;
 	}
 	
 	return false;
@@ -1923,7 +1929,7 @@ static int sequencer_trim_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Sequence *seq = BKE_sequencer_active_get(scene);
 	int offset = RNA_int_get(op->ptr, "offset");
-	if(sequencer_trim(scene, seq, offset, seq->start))
+	if(sequencer_trim_recursively(scene, seq, offset, seq->start))
 		return OPERATOR_FINISHED;
 	
 	return OPERATOR_CANCELLED;
@@ -1969,7 +1975,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 				ED_area_headerprint(sa, msg);
 			}
 			
-			if (sequencer_trim(scene, seq, offset, data->ts.start)) {
+			if (sequencer_trim_recursively(scene, seq, offset, data->ts.start)) {
 				WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 			}
 			break;			
