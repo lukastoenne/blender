@@ -490,6 +490,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col = split.column()
         col.prop(md, "amount")
+        col.prop(md, "seed")
 
     def MIRROR(self, layout, ob, md):
         split = layout.split(percentage=0.25)

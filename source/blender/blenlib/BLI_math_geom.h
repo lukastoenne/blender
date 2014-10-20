@@ -195,7 +195,6 @@ bool isect_ray_aabb(const IsectRayAABBData *data, const float bb_min[3], const f
 /* defines polygon corners of triangle/AABB intersection */
 typedef struct IsectTriAABBData {
 	float co[3];    /* 3D space location */
-	float uv[2];    /* triangle space coordinates by edges (v1, v2) and (v1, v3) */
 	int orig_index; /* original index of the corner vertex, -1 if it is a new intersection vertex */
 } IsectTriAABBData;
 
@@ -208,7 +207,7 @@ typedef struct IsectTriAABBData {
  * corners is the resulting corner data, 6 at most.
  * num_corners is the actual number of valid corners.
  */
-bool isect_tri_aabb(const float (*tri)[3], const float bb_min[3], const float bb_max[3],
+bool isect_tri_aabb(float (*tri)[3], const float bb_min[3], const float bb_max[3],
                     IsectTriAABBData corners[6], int *num_corners);
 
 /* other */

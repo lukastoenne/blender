@@ -43,6 +43,7 @@
 #include "MOD_modifiertypes.h"
 #include "MEM_guardedalloc.h"
 
+#include "BLI_rand.h"
 #include "BLI_strict_flags.h"
 
 static void initData(ModifierData *md)
@@ -223,6 +224,24 @@ static void add_notch(const float loc[3], const float nor[3],
 #endif
 }
 
+typedef struct IsectTest {
+	IsectTriAABBData isect[6];
+	int num_isect;
+	float tri[3][3];
+} IsectTest;
+
+static void make_isect_test(IsectTest *test, RNG *rng, const float bbmin[3], const float bbmax[3])
+{
+	BLI_rng_get_float_unit_v3(rng, test->tri[0]);
+	mul_v3_fl(test->tri[0], BLI_rng_get_float(rng) * 3.0f);
+	BLI_rng_get_float_unit_v3(rng, test->tri[1]);
+	mul_v3_fl(test->tri[1], BLI_rng_get_float(rng) * 3.0f);
+	BLI_rng_get_float_unit_v3(rng, test->tri[2]);
+	mul_v3_fl(test->tri[2], BLI_rng_get_float(rng) * 3.0f);
+	
+	isect_tri_aabb(test->tri, bbmin, bbmax, test->isect, &test->num_isect);
+}
+
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   DerivedMesh *derivedData,
                                   ModifierApplyFlag flag)
@@ -233,6 +252,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	
 	result = dm;
 	
+#if 0
 	if (smd->totsamples > 0) {
 		int num_verts = dm->getNumVerts(dm);
 		int num_edges = dm->getNumEdges(dm);
@@ -300,7 +320,63 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		
 		result->dirty |= DM_DIRTY_NORMALS;
 	}
-	
+#else
+	{
+		const int numtest = 100;
+		IsectTest test[numtest];
+		RNG *rng = BLI_rng_new(smd->seed);
+		float bbmin[3], bbmax[3];
+		int i, totvert, totpoly;
+		
+		bbmin[0] = -1.3f;
+		bbmin[1] = 0.16f;
+		bbmin[2] = -0.5f;
+		bbmax[0] = 3.0f;
+		bbmax[1] = 1.0f;
+		bbmax[2] = 1.1f;
+		
+		totvert = 0;
+		totpoly = 0;
+		for (i = 0; i < numtest; ++i) {
+			make_isect_test(&test[i], rng, bbmin, bbmax);
+			totvert += test[i].num_isect;
+			totpoly += test[i].num_isect > 0 ? 1 : 0;
+		}
+		
+		{
+			MVert *mv;
+			MLoop *ml;
+			MPoly *mp;
+			int k, kstart;
+			
+			result = CDDM_new(totvert, 0, 0, totvert, totpoly);
+			mv = result->getVertArray(result);
+			ml = result->getLoopArray(result);
+			mp = result->getPolyArray(result);
+			
+			kstart = 0;
+			for (i = 0; i < numtest; ++i) {
+				if (test[i].num_isect > 0) {
+					for (k = 0; k < test[i].num_isect; ++k, ++mv, ++ml) {
+						copy_v3_v3(mv->co, test[i].isect[k].co);
+						ml->v = (unsigned int)(kstart + k);
+					}
+					mp->loopstart = kstart;
+					mp->totloop = test[i].num_isect;
+					++mp;
+					
+					kstart += test[i].num_isect;
+				}
+			}
+		}
+		
+		result->dirty |= DM_DIRTY_NORMALS;
+		CDDM_calc_edges(result);
+		CDDM_calc_normals(result);
+		
+		BLI_rng_free(rng);
+	}
+#endif
 	
 //	if (result != dm)
 //		dm->release(dm);

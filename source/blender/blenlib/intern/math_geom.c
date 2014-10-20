@@ -1766,6 +1766,134 @@ bool isect_ray_aabb(const IsectRayAABBData *data, const float bb_min[3],
 	return true;
 }
 
+BLI_INLINE bool isect_aabb_v3(const float bb_min[3], const float bb_max[3], const float v[3])
+{
+	return (v[0] >= bb_min[0] && v[1] >= bb_min[1] && v[2] >= bb_min[2] &&
+	        v[0] <= bb_max[0] && v[1] <= bb_max[1] && v[2] <= bb_max[2]);
+}
+
+bool isect_tri_aabb(float (*tri)[3], const float bb_min[3], const float bb_max[3],
+                    IsectTriAABBData r_corners[6], int *r_num_corners)
+{
+	const float plane_normal[6][3] = {{-1,0,0}, {0,-1,0}, {0,0,-1}, {1,0,0}, {0,1,0}, {0,0,1}};
+	const float plane_offset[6] = {-bb_min[0], -bb_min[1], -bb_min[2], bb_max[0], bb_max[1], bb_max[2]};
+	
+	IsectTriAABBData corners[6];
+	int num_corners;
+	int p, v;
+	
+	num_corners = 3;
+	copy_v3_v3(corners[0].co, tri[0]);
+	corners[0].orig_index = 0;
+	copy_v3_v3(corners[1].co, tri[1]);
+	corners[1].orig_index = 1;
+	copy_v3_v3(corners[2].co, tri[2]);
+	corners[2].orig_index = 2;
+	
+	/* This intersection test works by exploiting the fact that both shapes (triangle and AABB)
+	 * are convex shapes, and that the intersection of a convex polygon with a plane can have
+	 * at most 2 intersection points (entering and exiting edge).
+	 */
+	
+	for (p = 0; p < 3; ++p) {
+		float vert_distance[6];
+		bool vert_outside[6];
+		bool has_isect = false;	/* intersections found (2 in total) */
+		int isect_index[2];		/* index of first edge vertex */
+		float isect_co[2][3];		/* location of the intersection point */
+		
+		const int ENTER = 0;
+		const int EXIT = 1;
+		
+		/* test for vertices on the "outside" of the plane */
+		{
+			bool all_verts_outside = true;
+			bool all_verts_inside = true;
+			for (v = 0; v < num_corners; ++v) {
+				vert_distance[v] = dot_v3v3(corners[v].co, plane_normal[p]) - plane_offset[p];
+				vert_outside[v] = vert_distance[v] > 0.0f;
+				all_verts_outside &= vert_outside[v];
+				all_verts_inside &= !vert_outside[v];
+			}
+			if (all_verts_outside) {
+				/* early exit if all points are outside the AABB (one plane is sufficient due to convexity) */
+				*r_num_corners = 0;
+				return false;
+			}
+			else if (all_verts_inside) {
+				/* skip detailed checks if all points are on the inside */
+				continue;
+			}
+		}
+		
+		for (v = 0; v < num_corners; ++v) {
+			const int v_next = (v + 1) % num_corners;
+			
+			if (vert_outside[v] && !vert_outside[v_next]) {
+				/* edge entering the box */
+				float factor = vert_distance[v] / (vert_distance[v_next] - vert_distance[v]);
+				
+				isect_index[ENTER] = v;
+				interp_v3_v3v3(isect_co[ENTER], corners[v].co, corners[v_next].co, factor);
+				has_isect = true;
+			}
+			else if (!vert_outside[v] && vert_outside[v_next]) {
+				/* edge exiting the box */
+				float factor = vert_distance[v] / (vert_distance[v_next] - vert_distance[v]);
+				
+				isect_index[EXIT] = v;
+				interp_v3_v3v3(isect_co[EXIT], corners[v].co, corners[v_next].co, factor);
+				has_isect = true;
+			}
+		}
+		
+		/* update the corners list */
+		if (has_isect) {
+			int nv = 0;
+			for (v = 0; v < num_corners; ++v) {
+				
+				if (isect_index[ENTER] == v) {
+					/* edge entering the box:
+					 *   insert new intersection vertex
+					 *   outside vertex ignored (removed, number stays the same)
+					 */
+					
+					copy_v3_v3(corners[nv].co, isect_co[EXIT]);
+					corners[nv].orig_index = -1; /* new vertex */
+					++nv;
+				}
+				else if (isect_index[EXIT] == v) {
+					/* edge exiting the box:
+					 *   keep outside vertex
+					 *   insert new intersection vertex
+					 */
+					
+					copy_v3_v3(corners[nv].co, corners[v].co);
+					corners[nv].orig_index = corners[v].orig_index;
+					++nv;
+					
+					copy_v3_v3(corners[nv].co, isect_co[EXIT]);
+					corners[nv].orig_index = -1; /* new vertex */
+					++nv;
+				}
+				else {
+					copy_v3_v3(corners[nv].co, corners[v].co);
+					corners[nv].orig_index = corners[v].orig_index;
+					++nv;
+				}
+			}
+			
+			num_corners = nv;
+		}
+	}
+	
+	for (v = 0; v < num_corners; ++v)
+		r_corners[v] = corners[v];
+	*r_num_corners = num_corners;
+	
+	return true;
+}
+
 /* find closest point to p on line through (l1, l2) and return lambda,
  * where (0 <= lambda <= 1) when cp is in the line segment (l1, l2)
  */
