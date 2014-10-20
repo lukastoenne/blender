@@ -50,6 +50,7 @@ struct PaintCurve;
 struct Palette;
 struct PaletteColor;
 struct PBVH;
+struct ReportList;
 struct Scene;
 struct Sculpt;
 struct StrokeCache;
@@ -100,7 +101,6 @@ void BKE_paint_set_overlay_override(enum OverlayFlags flag);
 void                 BKE_palette_free(struct Palette *palette);
 struct Palette      *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
-void                 BKE_palette_color_delete(struct Palette *palette);
 bool                 BKE_palette_is_empty(const struct Palette *palette);
 void                 BKE_palette_color_remove(struct Palette *palette, struct PaletteColor *color);
 void                 BKE_palette_cleanup(struct Palette *palette);
@@ -121,6 +121,9 @@ void BKE_paint_brush_set(struct Paint *paint, struct Brush *br);
 struct Palette *BKE_paint_palette(struct Paint *paint);
 void BKE_paint_palette_set(struct Paint *p, struct Palette *palette);
 void BKE_paint_curve_set(struct Brush *br, struct PaintCurve *pc);
+
+void BKE_paint_data_warning(struct ReportList *reports, bool uvs, bool mat, bool tex, bool stencil);
+bool BKE_paint_proj_mesh_data_check(struct Scene *scene, struct Object *ob, bool *uvs, bool *mat, bool *tex, bool *stencil);
 
 /* testing face select mode
  * Texture paint could be removed since selected faces are not used

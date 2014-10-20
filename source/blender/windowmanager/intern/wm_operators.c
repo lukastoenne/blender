@@ -1893,7 +1893,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	col = uiLayoutColumn(split, false);
 	uiItemL(col, IFACE_("Links"), ICON_NONE);
 	uiItemStringO(col, IFACE_("Support an Open Animation Movie"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://cloud.blender.org/gooseberry");
+	              "https://cloud.blender.org/join");
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://www.blender.org/foundation/donation-payment/");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
@@ -2098,7 +2098,7 @@ static int wm_operator_winactive_normal(bContext *C)
 {
 	wmWindow *win = CTX_wm_window(C);
 
-	if (win == NULL || win->screen == NULL || win->screen->full != SCREENNORMAL)
+	if (win == NULL || win->screen == NULL || win->screen->state != SCREENNORMAL)
 		return 0;
 
 	return 1;
@@ -2208,7 +2208,7 @@ static void WM_OT_read_homefile(wmOperatorType *ot)
 	                       "Load user interface setup from the .blend file");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
-	/* ommit poll to run in background mode */
+	/* omit poll to run in background mode */
 }
 
 static void WM_OT_read_factory_settings(wmOperatorType *ot)
@@ -2219,7 +2219,7 @@ static void WM_OT_read_factory_settings(wmOperatorType *ot)
 	
 	ot->invoke = WM_operator_confirm;
 	ot->exec = wm_homefile_read_exec;
-	/* ommit poll to run in background mode */
+	/* omit poll to run in background mode */
 }
 
 /* *************** open file **************** */
@@ -2372,7 +2372,7 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	ot->exec = wm_open_mainfile_exec;
 	ot->check = wm_open_mainfile_check;
 	ot->ui = wm_open_mainfile_ui;
-	/* ommit window poll so this can work in background mode */
+	/* omit window poll so this can work in background mode */
 
 	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
@@ -2860,7 +2860,7 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	ot->invoke = wm_save_as_mainfile_invoke;
 	ot->exec = wm_save_as_mainfile_exec;
 	ot->check = blend_save_check;
-	/* ommit window poll so this can work in background mode */
+	/* omit window poll so this can work in background mode */
 
 	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
@@ -2936,7 +2936,7 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 	ot->invoke = wm_save_mainfile_invoke;
 	ot->exec = wm_save_as_mainfile_exec;
 	ot->check = blend_save_check;
-	/* ommit window poll so this can work in background mode */
+	/* omit window poll so this can work in background mode */
 	
 	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
@@ -2946,7 +2946,7 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 
 static void WM_OT_window_fullscreen_toggle(wmOperatorType *ot)
 {
-	ot->name = "Toggle Fullscreen";
+	ot->name = "Toggle Window Fullscreen";
 	ot->idname = "WM_OT_window_fullscreen_toggle";
 	ot->description = "Toggle the current window fullscreen";
 
@@ -3749,8 +3749,8 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
 			d[0] = (1 - rc->initial_value) * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
 			break;
 		case PROP_ANGLE:
-			d[0] = WM_RADIAL_CONTROL_DISPLAY_SIZE * cos(rc->initial_value);
-			d[1] = WM_RADIAL_CONTROL_DISPLAY_SIZE * sin(rc->initial_value);
+			d[0] = WM_RADIAL_CONTROL_DISPLAY_SIZE * cosf(rc->initial_value);
+			d[1] = WM_RADIAL_CONTROL_DISPLAY_SIZE * sinf(rc->initial_value);
 			break;
 		default:
 			return;
@@ -4251,7 +4251,7 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 					if (snap) new_value = ((int)ceil(new_value * 10.f) * 10.0f) / 100.f;
 					break;
 				case PROP_ANGLE:
-					new_value = atan2(delta[1], delta[0]) + M_PI + angle_precision;
+					new_value = atan2f(delta[1], delta[0]) + M_PI + angle_precision;
 					new_value = fmod(new_value, 2.0f * (float)M_PI);
 					if (new_value < 0.0f)
 						new_value += 2.0f * (float)M_PI;
@@ -4354,6 +4354,7 @@ static void redraw_timer_window_swap(bContext *C)
 {
 	wmWindow *win = CTX_wm_window(C);
 	ScrArea *sa;
+	CTX_wm_menu_set(C, NULL);
 
 	for (sa = CTX_wm_screen(C)->areabase.first; sa; sa = sa->next)
 		ED_area_tag_redraw(sa);
@@ -4392,7 +4393,8 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 		}
 		else if (type == 1) {
 			wmWindow *win = CTX_wm_window(C);
-			
+			CTX_wm_menu_set(C, NULL);
+		
 			ED_region_tag_redraw(ar);
 			wm_draw_update(C);
 			
@@ -4405,6 +4407,8 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 			ScrArea *sa_back = CTX_wm_area(C);
 			ARegion *ar_back = CTX_wm_region(C);
 
+			CTX_wm_menu_set(C, NULL);
+			
 			for (sa = CTX_wm_screen(C)->areabase.first; sa; sa = sa->next) {
 				ARegion *ar_iter;
 				CTX_wm_area_set(C, sa);
@@ -4736,6 +4740,7 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_render_border");
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_select_border");
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom_border"); /* XXX TODO: zoom border should perhaps map rightmouse to zoom out instead of in+cancel */
+	WM_modalkeymap_assign(keymap, "IMAGE_OT_render_border");
 }
 
 /* zoom to border modal operators */

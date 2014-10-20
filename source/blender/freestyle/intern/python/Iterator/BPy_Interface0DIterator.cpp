@@ -120,14 +120,20 @@ static PyObject *Interface0DIterator_iternext(BPy_Interface0DIterator *self)
 		self->if0D_it->decrement();
 	}
 	else {
-		if (self->if0D_it->atLast() || self->if0D_it->isEnd()) {
+		if (self->if0D_it->isEnd()) {
 			PyErr_SetNone(PyExc_StopIteration);
 			return NULL;
 		}
-		if (self->at_start)
+		else if (self->at_start) {
 			self->at_start = false;
-		else
+		}
+		else if (self->if0D_it->atLast()) {
+			PyErr_SetNone(PyExc_StopIteration);
+			return NULL;
+		}
+		else {
 			self->if0D_it->increment();
+		}
 	}
 	Interface0D *if0D = self->if0D_it->operator->();
 	return Any_BPy_Interface0D_from_Interface0D(*if0D);
@@ -138,8 +144,8 @@ static PyObject *Interface0DIterator_iternext(BPy_Interface0DIterator *self)
 PyDoc_STRVAR(Interface0DIterator_object_doc,
 "The 0D object currently pointed to by this iterator.  Note that the object\n"
 "may be an instance of an Interface0D subclass. For example if the iterator\n"
-"has been created from :method:`Stroke.vertices_begin`, the .object property\n"
-"refers to a :class:`StrokeVertex` object.\n"
+"has been created from the `vertices_begin()` method of the :class:`Stroke`\n"
+"class, the .object property refers to a :class:`StrokeVertex` object.\n"
 "\n"
 ":type: :class:`Interface0D` or one of its subclasses.");
 

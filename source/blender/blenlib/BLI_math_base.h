@@ -83,8 +83,8 @@ static const int NAN_INT = 0x7FC00000;
 #  define NAN_FLT  (*((float *)(&NAN_INT)))
 #endif
 
-/* do not redefine functions from C99 or POSIX.1-2001 */
-#if !(defined(_ISOC99_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L))
+/* do not redefine functions from C99, POSIX.1-2001 or MSVC12 (partial C99) */
+#if !(defined(_ISOC99_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) || (defined(_MSC_VER) && _MSC_VER >= 1800))
 
 #ifndef sqrtf
 #define sqrtf(a) ((float)sqrt(a))
@@ -138,38 +138,12 @@ static const int NAN_INT = 0x7FC00000;
 #define copysignf(a, b) ((float)copysign(a, b))
 #endif
 
-#endif  /* C99 or POSIX.1-2001 */
+#endif  /* C99, POSIX.1-2001 or MSVC12 (partial C99) */
 
 #ifdef WIN32
 #  if defined(_MSC_VER)
 #    define finite(n) _finite(n)
 #  endif
-#endif
-
-/* Causes warning:
- * incompatible types when assigning to type 'Foo' from type 'Bar'
- * ... the compiler optimizes away the temp var */
-#ifndef CHECK_TYPE
-#ifdef __GNUC__
-#define CHECK_TYPE(var, type)  {  \
-	typeof(var) *__tmp;           \
-	__tmp = (type *)NULL;         \
-	(void)__tmp;                  \
-} (void)0
-#else
-#define CHECK_TYPE(var, type)
-#endif
-#endif
-
-#ifndef SWAP
-#  define SWAP(type, a, b)  {  \
-	type sw_ap;                \
-	CHECK_TYPE(a, type);       \
-	CHECK_TYPE(b, type);       \
-	sw_ap = (a);               \
-	(a) = (b);                 \
-	(b) = sw_ap;               \
-} (void)0
 #endif
 
 #if BLI_MATH_DO_INLINE

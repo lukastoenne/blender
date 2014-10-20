@@ -38,7 +38,7 @@ CCL_NAMESPACE_BEGIN
 #define BSSRDF_MIN_RADIUS			1e-8f
 #define BSSRDF_MAX_HITS				4
 
-#define BB_DRAPPER				800.0f
+#define BB_DRAPER				800.0f
 #define BB_MAX_TABLE_RANGE		12000.0f
 #define BB_TABLE_XPOWER			1.5f
 #define BB_TABLE_YPOWER			5.0f
@@ -155,6 +155,10 @@ CCL_NAMESPACE_BEGIN
 #define __CAMERA_MOTION__
 #define __OBJECT_MOTION__
 #define __HAIR__
+#endif
+
+#ifdef WITH_CYCLES_DEBUG
+#  define __KERNEL_DEBUG__
 #endif
 
 /* Random Numbers */
@@ -313,6 +317,9 @@ typedef enum PassType {
 	PASS_SUBSURFACE_INDIRECT = 8388608,
 	PASS_SUBSURFACE_COLOR = 16777216,
 	PASS_LIGHT = 33554432, /* no real pass, used to force use_light_pass */
+#ifdef __KERNEL_DEBUG__
+	PASS_BVH_TRAVERSAL_STEPS = 67108864,
+#endif
 } PassType;
 
 #define PASS_ALL (~0)
@@ -453,6 +460,10 @@ typedef struct Intersection {
 	int prim;
 	int object;
 	int type;
+
+#ifdef __KERNEL_DEBUG__
+	int num_traversal_steps;
+#endif
 } Intersection;
 
 /* Primitives */
@@ -530,7 +541,7 @@ typedef enum AttributeStandard {
 
 /* TODO(sergey): This is rather nasty bug happening in here, which
  * could be simply a compilers bug for which we can't find a generic
- * platform indipendent workaround. Also even if it's a compiler
+ * platform independent workaround. Also even if it's a compiler
  * issue, it's not so simple to upgrade the compiler in the release
  * environment for linux and doing it so closer to the release is
  * rather a risky business.
@@ -615,8 +626,12 @@ enum ShaderDataFlag {
 	SD_OBJECT_MOTION = 1048576,			/* has object motion blur */
 	SD_TRANSFORM_APPLIED = 2097152,		/* vertices have transform applied */
 	SD_NEGATIVE_SCALE_APPLIED = 4194304,	/* vertices have negative scale applied */
+	SD_OBJECT_HAS_VOLUME = 8388608,		/* object has a volume shader */
+	SD_OBJECT_INTERSECTS_VOLUME = 16777216, /* object intersects AABB of an object with volume shader */
 
-	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED)
+	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED|
+	                   SD_NEGATIVE_SCALE_APPLIED|SD_OBJECT_HAS_VOLUME|
+	                   SD_OBJECT_INTERSECTS_VOLUME)
 };
 
 struct KernelGlobals;
@@ -784,7 +799,7 @@ typedef struct KernelCamera {
 	/* anamorphic lens bokeh */
 	float inv_aperture_ratio;
 
-	int pad1;
+	int is_inside_volume;
 	int pad2;
 
 	/* more matrices */
@@ -846,6 +861,11 @@ typedef struct KernelFilm {
 	float mist_start;
 	float mist_inv_depth;
 	float mist_falloff;
+
+#ifdef __KERNEL_DEBUG__
+	int pass_bvh_traversal_steps;
+	int pass_pad3, pass_pad4, pass_pad5;
+#endif
 } KernelFilm;
 
 typedef struct KernelBackground {
@@ -971,6 +991,14 @@ typedef struct KernelData {
 	KernelCurves curve;
 	KernelTables tables;
 } KernelData;
+
+#ifdef __KERNEL_DEBUG__
+typedef struct DebugData {
+	// Total number of BVH node travesal steps and primitives intersections
+	// for the camera rays.
+	int num_bvh_traversal_steps;
+} DebugData;
+#endif
 
 CCL_NAMESPACE_END
 

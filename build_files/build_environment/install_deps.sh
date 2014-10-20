@@ -25,10 +25,12 @@
 ARGS=$( \
 getopt \
 -o s:i:t:h \
---long source:,install:,tmp:,threads:,help,no-sudo,with-all,with-opencollada,ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
+--long source:,install:,tmp:,info:,threads:,help,no-sudo,with-all,with-opencollada,\
+ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
 force-all,force-python,force-numpy,force-boost,force-ocio,force-oiio,force-llvm,force-osl,force-opencollada,\
-force-ffmpeg,skip-python,skip-numpy,skip-boost,skip-ocio,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,\
-skip-opencollada,required-numpy: \
+force-ffmpeg,\
+skip-python,skip-numpy,skip-boost,skip-ocio,skip-openexr,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,skip-opencollada,\
+required-numpy: \
 -- "$@" \
 )
 
@@ -38,6 +40,7 @@ SRC="$HOME/src/blender-deps"
 INST="/opt/lib"
 TMP="/tmp"
 CWD=$PWD
+INFO_PATH=$CWD
 
 # Do not install some optional, potentially conflicting libs by default...
 WITH_ALL=false
@@ -74,10 +77,13 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --tmp=<path>
         Use a specific temp path (defaults to '\$TMP').
 
+    --info=<path>
+        Use a specific info path (to store BUILD_NOTES.txt, defaults to '\$INFO_PATH').
+
     -t n, --threads=n
         Use a specific number of threads when building the libraries (auto-detected as '\$THREADS').
 
-    --no_sudo
+    --no-sudo
         Disable use of sudo (this script won't be able to do much though, will just print needed packages...).
 
     --with-all
@@ -320,6 +326,9 @@ while true; do
     --tmp)
       TMP="$2"; shift; shift; continue
     ;;
+    --info)
+      INFO_PATH="$2"; shift; shift; continue
+    ;;
     -t|--threads)
       THREADS="$2"; shift; shift; continue
     ;;
@@ -462,9 +471,10 @@ while true; do
   esac
 done
 
-if $WITH_ALL; then
+if [ $WITH_ALL == true -a $OPENCOLLADA_SKIP == false ]; then
   WITH_OPENCOLLADA=true
 fi
+
 
 
 # This has to be done here, because user might force some versions...
@@ -1786,7 +1796,7 @@ install_DEB() {
   _packages="gawk cmake cmake-curses-gui scons build-essential libjpeg-dev libpng-dev \
              libfreetype6-dev libx11-dev libxi-dev wget libsqlite3-dev libbz2-dev \
              libncurses5-dev libssl-dev liblzma-dev libreadline-dev $OPENJPEG_DEV \
-             libopenal-dev libglew-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \
+             libopenal-dev libglew-dev libglewmx-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \
              libsdl1.2-dev libfftw3-dev patch bzip2 libxml2-dev libtinyxml-dev"
 
   OPENJPEG_USE=true
@@ -3098,9 +3108,9 @@ else
   exit 1
 fi
 
-print_info | tee BUILD_NOTES.txt
+print_info | tee $INFO_PATH/BUILD_NOTES.txt
 PRINT ""
-PRINT "This information has been written to BUILD_NOTES.txt"
+PRINT "This information has been written to $INFO_PATH/BUILD_NOTES.txt"
 PRINT ""
 
 # Switch back to user language.

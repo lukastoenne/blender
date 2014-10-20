@@ -120,6 +120,16 @@ static void rna_userdef_dpi_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Po
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);    /* refresh region sizes */
 }
 
+static void rna_userdef_virtual_pixel_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+	/* font's are stored at each DPI level, without this we can easy load 100's of fonts */
+	BLF_cache_clear();
+	
+	BKE_userdef_state();
+	WM_main_add_notifier(NC_WINDOW, NULL);      /* full redraw */
+	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);    /* refresh region sizes */
+}
+
 static void rna_userdef_language_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 	BLF_cache_clear();
@@ -2024,6 +2034,12 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Wires", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+	prop = RNA_def_property(srna, "wire_inner", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "syntaxr");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Wire Color", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
 	prop = RNA_def_property(srna, "wire_select", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "edge_select");
 	RNA_def_property_array(prop, 3);
@@ -2774,11 +2790,6 @@ static void rna_def_userdef_theme_space_clip(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Path After", "Color of path after current frame");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Grid", "");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
 	prop = RNA_def_property(srna, "frame_current", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "cframe");
 	RNA_def_property_array(prop, 3);
@@ -3239,6 +3250,10 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "pie_menu_threshold", PROP_INT, PROP_PIXEL);
 	RNA_def_property_range(prop, 0, 1000);
 	RNA_def_property_ui_text(prop, "Threshold", "Distance from center needed before a selection can be made");
+
+	prop = RNA_def_property(srna, "pie_menu_confirm", PROP_INT, PROP_PIXEL);
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_text(prop, "Confirm Threshold", "Distance after threshold after which selection is made (zero disables)");
 
 	prop = RNA_def_property(srna, "use_quit_dialog", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_QUIT_PROMPT);
@@ -3743,6 +3758,12 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	    {0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem virtual_pixel_mode_items[] = {
+		{VIRTUAL_PIXEL_NATIVE, "NATIVE", 0, "Native", "Use native pixel size of the display"},
+		{VIRTUAL_PIXEL_DOUBLE, "DOUBLE", 0, "Double", "Use double the native pixel size of the display"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "UserPreferencesSystem", NULL);
 	RNA_def_struct_sdna(srna, "UserDef");
 	RNA_def_struct_nested(brna, srna, "UserPreferences");
@@ -3761,6 +3782,12 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_range(prop, 48, 144);
 	RNA_def_property_ui_text(prop, "DPI", "Font size and resolution for display");
 	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
+
+	prop = RNA_def_property(srna, "virtual_pixel_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "virtual_pixel");
+	RNA_def_property_enum_items(prop, virtual_pixel_mode_items);
+	RNA_def_property_ui_text(prop, "Virtual Pixel Mode", "Modify the pixel size for hi-res devices");
+	RNA_def_property_update(prop, 0, "rna_userdef_virtual_pixel_update");
 
 	prop = RNA_def_property(srna, "font_path_ui", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "font_path_ui");
@@ -4366,7 +4393,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_auto_save_temporary_files", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_AUTOSAVE);
 	RNA_def_property_ui_text(prop, "Auto Save Temporary Files",
-	                         "Automatic saving of temporary files in temp directory, uses process ID");
+	                         "Automatic saving of temporary files in temp directory, uses process ID (Sculpt or edit mode data won't be saved!')");
 	RNA_def_property_update(prop, 0, "rna_userdef_autosave_update");
 
 	prop = RNA_def_property(srna, "auto_save_time", PROP_INT, PROP_NONE);

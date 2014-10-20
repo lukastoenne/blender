@@ -567,7 +567,7 @@ class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
         layout = self.layout
 
         rd = context.scene.render
-        scene = context.scene
+        # scene = context.scene
 
         layout.active = rd.use_motion_blur
 
@@ -580,7 +580,7 @@ class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
         layout = self.layout
 
         rd = context.scene.render
-        scene = context.scene
+        # scene = context.scene
 
         ob = context.object
         cob = ob.cycles
@@ -982,7 +982,7 @@ class CyclesMaterial_PT_volume(CyclesButtonsPanel, Panel):
         layout = self.layout
 
         mat = context.material
-        cmat = mat.cycles
+        # cmat = mat.cycles
 
         panel_node_draw(layout, mat, 'OUTPUT_MATERIAL', 'Volume')
 
@@ -1209,7 +1209,6 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
         psys = context.particle_system
         return CyclesButtonsPanel.poll(context) and psys and psys.settings.type == 'HAIR'
 
@@ -1284,7 +1283,7 @@ class CyclesRender_PT_bake(CyclesButtonsPanel, Panel):
             box.prop(cbk, "normal_space", text="Space")
 
             row = box.row(align=True)
-            row.label(text = "Swizzle:")
+            row.label(text="Swizzle:")
             row.prop(cbk, "normal_r", text="")
             row.prop(cbk, "normal_g", text="")
             row.prop(cbk, "normal_b", text="")
@@ -1382,7 +1381,11 @@ def get_panels():
         "RENDER_PT_encoding",
         "RENDER_PT_dimensions",
         "RENDER_PT_stamp",
+        "RENDER_PT_freestyle",
         "RENDERLAYER_PT_layers",
+        "RENDERLAYER_PT_freestyle",
+        "RENDERLAYER_PT_freestyle_lineset",
+        "RENDERLAYER_PT_freestyle_linestyle",
         "SCENE_PT_scene",
         "SCENE_PT_color_management",
         "SCENE_PT_custom_props",
@@ -1420,6 +1423,7 @@ def get_panels():
         "DATA_PT_custom_props_curve",
         "DATA_PT_custom_props_lattice",
         "DATA_PT_custom_props_metaball",
+        "TEXTURE_PT_preview",
         "TEXTURE_PT_custom_props",
         "TEXTURE_PT_clouds",
         "TEXTURE_PT_wood",
@@ -1437,6 +1441,7 @@ def get_panels():
         "TEXTURE_PT_pointdensity",
         "TEXTURE_PT_pointdensity_turbulence",
         "TEXTURE_PT_mapping",
+        "TEXTURE_PT_ocean",
         "TEXTURE_PT_influence",
         "TEXTURE_PT_colors",
         "PARTICLE_PT_context_particles",
@@ -1458,6 +1463,7 @@ def get_panels():
         "PARTICLE_PT_force_fields",
         "PARTICLE_PT_vertexgroups",
         "MATERIAL_PT_custom_props",
+        "MATERIAL_PT_freestyle_line",
         "BONE_PT_custom_props",
         "OBJECT_PT_custom_props",
         ]

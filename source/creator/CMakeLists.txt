@@ -27,6 +27,7 @@ setup_libdirs()
 
 blender_include_dirs(
 	../../intern/guardedalloc
+	../../intern/glew-mx
 	../blender/blenlib
 	../blender/blenkernel
 	../blender/blenloader
@@ -39,6 +40,9 @@ blender_include_dirs(
 	../blender/windowmanager
 )
 
+add_definitions(${GL_DEFINITIONS})
+blender_include_dirs("${GLEW_INCLUDE_PATH}")
+
 if(WIN32)
 	blender_include_dirs(../../intern/utfconv)
 endif()
@@ -46,6 +50,11 @@ endif()
 if(WITH_LIBMV)
 	blender_include_dirs(../../extern/libmv)
 	add_definitions(-DWITH_LIBMV)
+endif()
+
+if(WITH_CYCLES AND WITH_CYCLES_LOGGING)
+	blender_include_dirs(../../intern/cycles/blender)
+	add_definitions(-DWITH_CYCLES_LOGGING)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -671,6 +680,18 @@ elseif(WIN32)
 		unset(_PYTHON_VERSION_NO_DOTS)
 	endif()
 
+	# EGL Runtime Components
+	if(WITH_GL_EGL)
+		if(WIN32)
+			install(FILES "${OPENGLES_DLL}"     DESTINATION ${TARGETDIR})
+			install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ${TARGETDIR})
+
+			if(WITH_GL_ANGLE)
+				install(FILES "${D3DCOMPILER_DLL}" DESTINATION ${TARGETDIR})
+			endif()
+		endif()
+	endif()
+
 	if(MSVC)
 		install(
 			FILES ${LIBDIR}/pthreads/lib/pthreadVC2.dll
@@ -880,7 +901,7 @@ elseif(APPLE)
 	if(WITH_GAMEENGINE AND WITH_PLAYER)
 		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
 		set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
-		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/MacOS/${BLENDER_VERSION})
+		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
 
 
 		# important to make a clean  install each time else old scripts get loaded.
