@@ -485,6 +485,12 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.prop(md, "precision")
             row.prop(md, "use_dynamic_bind")
 
+    def MESHSAMPLETEST(self, layout, ob, md):
+        split = layout.split()
+
+        col = split.column()
+        col.prop(md, "amount")
+
     def MIRROR(self, layout, ob, md):
         split = layout.split(percentage=0.25)
 

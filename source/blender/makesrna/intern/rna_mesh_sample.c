@@ -50,14 +50,14 @@
 
 #else
 
-static void rna_def_mesh_sample(BlenderRNA *brna)
+static void rna_def_mesh_surface_sample(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna = RNA_def_struct(brna, "MeshSample", NULL);
+	srna = RNA_def_struct(brna, "MeshSurfaceSample", NULL);
 	RNA_def_struct_sdna(srna, "MSurfaceSample");
-	RNA_def_struct_ui_text(srna, "Mesh Sample", "Point on a mesh that follows deformation");
+	RNA_def_struct_ui_text(srna, "Mesh Surface Sample", "Point on a mesh that follows deformation");
 
 	prop = RNA_def_property(srna, "vertex_indices", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "orig_verts");
@@ -67,7 +67,7 @@ static void rna_def_mesh_sample(BlenderRNA *brna)
 
 void RNA_def_mesh_sample(BlenderRNA *brna)
 {
-	rna_def_mesh_sample(brna);
+	rna_def_mesh_surface_sample(brna);
 }
 
 #endif

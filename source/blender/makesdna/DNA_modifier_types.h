@@ -82,6 +82,7 @@ typedef enum ModifierType {
 	eModifierType_MeshCache         = 46,
 	eModifierType_LaplacianDeform   = 47,
 	eModifierType_Wireframe         = 48,
+	eModifierType_MeshSampleTest    = 49,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1365,6 +1366,14 @@ enum {
 	MOD_WIREFRAME_OFS_RELATIVE  = (1 << 4),
 	MOD_WIREFRAME_CREASE        = (1 << 5),
 };
+
+typedef struct MeshSampleTestModifierData {
+	ModifierData modifier;
+
+	unsigned int seed;
+	int totsamples;
+	struct MSurfaceSample *samples;
+} MeshSampleTestModifierData;
 
 
 

@@ -1591,6 +1591,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			writedata(wd, DATA, sizeof(float)*lmd->total_verts * 3, lmd->vertexco);
 		}
+		else if (md->type==eModifierType_MeshSampleTest) {
+			MeshSampleTestModifierData *smd = (MeshSampleTestModifierData*) md;
+
+			writedata(wd, DATA, sizeof(MSurfaceSample) * smd->totsamples, smd->samples);
+		}
 	}
 }
 

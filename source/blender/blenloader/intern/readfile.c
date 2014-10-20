@@ -4843,6 +4843,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			}
 			lmd->cache_system = NULL;
 		}
+		else if (md->type == eModifierType_MeshSampleTest) {
+			MeshSampleTestModifierData *smd = (MeshSampleTestModifierData *)md;
+
+			smd->samples = newdataadr(fd, smd->samples);
+		}
 	}
 }
 
