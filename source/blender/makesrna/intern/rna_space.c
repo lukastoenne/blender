@@ -2200,14 +2200,9 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Darkening", "Darken the ssao effect");
 	RNA_def_property_range(prop, 0.0f, 250.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
-	prop = RNA_def_property(srna, "ssao_scale", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Scale", "Scale the SSAO search area");
-	RNA_def_property_range(prop, 0.0f, 100000.0f);
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
-	prop = RNA_def_property(srna, "ssao_distance_atten", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Attenuation", "Attenuate the SSAO distance");
+	prop = RNA_def_property(srna, "ssao_distance_max", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Distance", "Distance of object that contribute to the SSAO effect");
 	RNA_def_property_range(prop, 0.0f, 100000.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	

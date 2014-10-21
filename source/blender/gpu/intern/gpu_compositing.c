@@ -167,7 +167,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 }
 
 
-bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
+bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D *rv3d) {
 	GPUShader *fx_shader;
 	int numslots = 0, i;
 	
@@ -187,14 +187,38 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 	/* set up the shader */
 	fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
 	if (fx_shader) {
-		int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform; 
-		int ssao_uniform, ssao_color_uniform;
+		/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
+		float ssao_viewvecs[3][4] = {
+		    {-1.0f, -1.0f, -1.0f, 1.0f},
+		    {1.0f, -1.0f, -1.0f, 1.0f},
+		    {-1.0f, 1.0f, -1.0f, 1.0f}
+		};
+		int i;
+		int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform;
+		int ssao_uniform, ssao_color_uniform, ssao_viewvecs_uniform;
 		float fac = v3d->dof_fstop * v3d->dof_aperture;
 		float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
 							   v3d->dof_focal_distance};
-		float ssao_params[4] = {v3d->ssao_scale, v3d->ssao_darkening, v3d->ssao_distance_atten, 0.0};
+		float ssao_params[4] = {v3d->ssao_distance_max, v3d->ssao_darkening, 0.0f, 0.0f};
 		float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
 		
+		float invproj[4][4];
+
+		/* invert the view matrix */
+		invert_m4_m4(invproj, rv3d->winmat);
+
+		/* convert the view vectors to view space */
+		for (i = 0; i < 3; i++) {
+			mul_m4_v4(invproj, ssao_viewvecs[i]);
+			/* normalized trick see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
+			mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][3]);
+			mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][2]);
+		}
+
+		/* we need to store the differences */
+		ssao_viewvecs[1][0] -= ssao_viewvecs[0][0];
+		ssao_viewvecs[1][1] = ssao_viewvecs[2][1] - ssao_viewvecs[0][1];
+
 		dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
 		ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
 		ssao_color_uniform = GPU_shader_get_uniform(fx_shader, "ssao_color");
@@ -202,6 +226,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 		screendim_uniform = GPU_shader_get_uniform(fx_shader, "screendim");
 		color_uniform = GPU_shader_get_uniform(fx_shader, "colorbuffer");
 		depth_uniform = GPU_shader_get_uniform(fx_shader, "depthbuffer");
+		ssao_viewvecs_uniform = GPU_shader_get_uniform(fx_shader, "ssao_viewvecs");
 		
 		GPU_shader_bind(fx_shader);
 		
@@ -209,7 +234,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d) {
 		GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
 		GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
 		GPU_shader_uniform_vector(fx_shader, ssao_color_uniform, 4, 1, v3d->ssao_color);
-		
+		GPU_shader_uniform_vector(fx_shader, ssao_viewvecs_uniform, 4, 3, ssao_viewvecs[0]);
+
 		GPU_texture_bind(fx->color_buffer, numslots++);
 		GPU_shader_uniform_texture(fx_shader, blurred_uniform, fx->color_buffer);
 		/* generate mipmaps for the color buffer */

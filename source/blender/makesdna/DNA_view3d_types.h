@@ -224,10 +224,10 @@ typedef struct View3D {
 	float dof_aperture;           /* aperture for dof lens (could use fstop as well) */
 	float dof_fstop;
 	float ssao_darkening;
-	float ssao_scale;
-	float ssao_distance_atten;
-	float ssao_color[4];
-	
+	float ssao_color[3];
+	float ssao_distance_max;
+	float pad4[2];
+
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */
 

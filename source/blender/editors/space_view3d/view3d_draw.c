@@ -3449,7 +3449,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* post process */
 	if (do_compositing) {
-		GPU_fx_do_composite_pass(rv3d->compositor, v3d);
+		GPU_fx_do_composite_pass(rv3d->compositor, v3d, rv3d);
 	}
 	
 	/* Disable back anti-aliasing */

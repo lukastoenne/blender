@@ -2900,9 +2900,8 @@ class VIEW3D_PT_view3d_shading(Panel):
             col.prop(view, "ssao")
             if view.ssao:
                 subcol = col.column(align=True)
-                subcol.prop(view, "ssao_scale")
                 subcol.prop(view, "ssao_darkening")
-                subcol.prop(view, "ssao_distance_atten")
+                subcol.prop(view, "ssao_distance_max")
                 subcol.prop(view, "ssao_color")
 
 
