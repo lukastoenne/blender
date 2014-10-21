@@ -213,6 +213,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			/* normalized trick see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
 			mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][3]);
 			mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][2]);
+			ssao_viewvecs[i][2] = 1.0;
 		}
 
 		/* we need to store the differences */
