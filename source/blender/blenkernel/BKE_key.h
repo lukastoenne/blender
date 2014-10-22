@@ -110,6 +110,10 @@ void    BKE_key_convert_from_offset(struct Object *ob, struct KeyBlock *kb, floa
 void    BKE_key_convert_to_hair_keys(struct KeyBlock *kb, struct Object *ob, struct ParticleSystem *psys);
 void    BKE_key_convert_from_hair_keys(struct Object *ob, struct ParticleSystem *psys, struct KeyBlock *kb);
 
+/* other management */
+bool    BKE_keyblock_move(struct Object *ob, int org_index, int new_index);
+
+
 /* key.c */
 extern int slurph_opt;
 

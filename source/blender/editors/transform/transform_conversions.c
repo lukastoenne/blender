@@ -1056,11 +1056,13 @@ static void createTransPose(TransInfo *t, Object *ob)
 
 void restoreBones(TransInfo *t)
 {
+	bArmature *arm = t->obedit->data;
 	BoneInitData *bid = t->customData;
-	EditBone *ebo;
+	EditBone *ebo, *children;
 
 	while (bid->bone) {
 		ebo = bid->bone;
+		
 		ebo->dist = bid->dist;
 		ebo->rad_tail = bid->rad_tail;
 		ebo->roll = bid->roll;
@@ -1068,7 +1070,22 @@ void restoreBones(TransInfo *t)
 		ebo->zwidth = bid->zwidth;
 		copy_v3_v3(ebo->head, bid->head);
 		copy_v3_v3(ebo->tail, bid->tail);
-
+		
+		/* Also move connected children, in case children's name aren't mirrored properly */
+		for (children = arm->edbo->first; children; children = children->next) {
+			if (children->parent == ebo && children->flag & BONE_CONNECTED) {
+				copy_v3_v3(children->head, ebo->tail);
+				children->rad_head = ebo->rad_tail;
+			}
+		}
+		
+		/* Also move connected parent, in case parent's name isn't mirrored properly */
+		if (ebo->parent && ebo->flag & BONE_CONNECTED) {
+			EditBone *parent = ebo->parent;
+			copy_v3_v3(parent->tail, ebo->head);
+			parent->rad_tail = ebo->rad_head;
+		}
+		
 		bid++;
 	}
 }
@@ -4771,7 +4788,6 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 				/* (affirmative) returns for specific constraints here... */
 				/* constraints that require this regardless  */
 				if (ELEM(con->type,
-				         CONSTRAINT_TYPE_CHILDOF,
 				         CONSTRAINT_TYPE_FOLLOWPATH,
 				         CONSTRAINT_TYPE_CLAMPTO,
 				         CONSTRAINT_TYPE_OBJECTSOLVER,
@@ -4781,7 +4797,14 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 				}
 				
 				/* constraints that require this only under special conditions */
-				if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
+				if (con->type == CONSTRAINT_TYPE_CHILDOF) {
+					/* ChildOf constraint only works when using all location components, see T42256. */
+					bChildOfConstraint *data = (bChildOfConstraint *)con->data;
+					
+					if ((data->flag & CHILDOF_LOCX) && (data->flag & CHILDOF_LOCY) && (data->flag & CHILDOF_LOCZ))
+						return true;
+				}
+				else if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
 					/* CopyRot constraint only does this when rotating, and offset is on */
 					bRotateLikeConstraint *data = (bRotateLikeConstraint *)con->data;
 					
