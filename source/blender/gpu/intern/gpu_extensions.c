@@ -699,6 +699,22 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 	return tex;
 }
 
+GPUTexture *GPU_texture_create_2D_procedural(int w, int h, float *pixels, char err_out[256])
+{
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 0, err_out);
+
+	if (tex) {
+		/* Now we tweak some of the settings */
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, w, h, 0, GL_RG, GL_FLOAT, pixels);
+
+		GPU_texture_unbind(tex);
+	}
+
+	return tex;
+}
+
 void GPU_invalid_tex_init(void)
 {
 	float color[4] = {1.0f, 0.0f, 1.0f, 1.0};

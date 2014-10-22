@@ -227,7 +227,7 @@ typedef struct View3D {
 	float ssao_color[3];
 	float ssao_distance_max;
 	float ssao_attenuation;
-	float pad4;
+	int ssao_ray_sample_mode; /* ray samples, we use presets here for easy control instead of */
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */

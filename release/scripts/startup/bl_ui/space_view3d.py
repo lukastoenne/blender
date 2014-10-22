@@ -2903,6 +2903,7 @@ class VIEW3D_PT_view3d_shading(Panel):
                 subcol.prop(view, "ssao_darkening")
                 subcol.prop(view, "ssao_distance_max")
                 subcol.prop(view, "ssao_attenuation")
+                subcol.prop(view, "ssao_ray_sample_mode")
                 subcol.prop(view, "ssao_color")
 
 

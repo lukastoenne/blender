@@ -1840,6 +1840,13 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	};
 	
 
+	static EnumPropertyItem view3d_ssao_sample_items[] = {
+	    {0, "LOW", 0, "Low Quality", ""},
+	    {1, "MEDIUM", 0, "Medium Quality", ""},
+	    {2, "HIGH", 0, "High Quality", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SpaceView3D", "Space");
 	RNA_def_struct_sdna(srna, "View3D");
 	RNA_def_struct_ui_text(srna, "3D View Space", "3D View space data");
@@ -2211,6 +2218,11 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Attenuation", "Attenuation constant");
 	RNA_def_property_range(prop, 1.0f, 100000.0f);
 	RNA_def_property_ui_range(prop, 1.0f, 100.0f, 1, 3);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "ssao_ray_sample_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Sample mode", "Attenuation constant");
+	RNA_def_property_enum_items(prop, view3d_ssao_sample_items);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "ssao", PROP_BOOLEAN, PROP_NONE);
