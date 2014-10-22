@@ -54,6 +54,7 @@ enum_bvh_types = (
 enum_filter_types = (
     ('BOX', "Box", "Box filter"),
     ('GAUSSIAN', "Gaussian", "Gaussian filter"),
+    ('MITCHELL', "Mitchell-Netravali", "Mitchell-Netravali filter"),
     )
 
 enum_aperture_types = (
@@ -112,6 +113,11 @@ enum_volume_sampling = (
     ('DISTANCE', "Distance", "Use distance sampling, best for dense volumes with lights far away"),
     ('EQUIANGULAR', "Equiangular", "Use equiangular sampling, best for volumes with low density with light inside or near the volume"),
     ('MULTIPLE_IMPORTANCE', "Multiple Importance", "Combine distance and equi-angular sampling for volumes where neither method is ideal"),
+    )
+
+enum_volume_interpolation = (
+    ('LINEAR', "Linear", "Good smoothness and speed"),
+    ('CUBIC', 'Cubic', 'Smoothed high quality interpolation, but slower')
     )
 
 
@@ -617,6 +623,13 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
                 default='DISTANCE',
                 )
 
+        cls.volume_interpolation = EnumProperty(
+                name="Volume Interpolation",
+                description="Interpolation method to use for volumes",
+                items=enum_volume_interpolation,
+                default='LINEAR',
+                )
+
     @classmethod
     def unregister(cls):
         del bpy.types.Material.cycles
@@ -691,6 +704,13 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                 description="Sampling method to use for volumes",
                 items=enum_volume_sampling,
                 default='EQUIANGULAR',
+                )
+
+        cls.volume_interpolation = EnumProperty(
+                name="Volume Interpolation",
+                description="Interpolation method to use for volumes",
+                items=enum_volume_interpolation,
+                default='LINEAR',
                 )
 
     @classmethod
