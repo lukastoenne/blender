@@ -35,16 +35,20 @@ vec3 calculate_view_space_normal(in vec3 viewposition)
 /* projective matrix version */
 vec3 get_view_space_from_depth(in vec2 uvcoords, float depth)
 {
-    /* convert depth to non-normalized range */
+    /* simple depth reconstruction, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer
+     * we change the factors from the article to fit the OpennGL model.
     float d = 2.0 * depth - 1.0;
 
-    /* simple depth reconstruction, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer
-     * we change the factors from the article to fit the OpennGL model. */
     float zview = -gl_ProjectionMatrix[2][3] / (d + gl_ProjectionMatrix[2][2]);
 
     vec3 pos = vec3(zview * (ssao_viewvecs[0].xy + uvcoords * ssao_viewvecs[1].xy), zview);
+    */
+    vec4 pos = 2.0 * vec4(uvcoords.xy, depth, 1.0) - vec4(1.0);
 
-    return pos;
+    pos = gl_ProjectionMatrixInverse * pos;
+    pos /= pos.w;
+
+    return pos.xyz;
 }
 
 float calculate_dof_coc(in vec4 viewposition, inout vec3 normal)
@@ -56,6 +60,7 @@ float calculate_dof_coc(in vec4 viewposition, inout vec3 normal)
     
     return coc;
 }
+
 
 
 float calculate_ssao_factor(float depth)
@@ -73,25 +78,29 @@ float calculate_ssao_factor(float depth)
     int x, y;
     
     /* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
-    offset = (offset / offset.w) * 0.5 + vec4(0.5);
+    offset = (offset / offset.w) * 0.5;
 
     for (x = 0; x < NUM_SAMPLES; x++) {
         for (y = 0; y < NUM_SAMPLES; y++) {
-            vec2 uvcoords = uvcoordsvar.xy + (vec2(x,y) - vec2(4.0)) * offset.xy;
+            vec2 uvcoords = uvcoordsvar.xy + (vec2(x,y) - vec2(3.5)) * offset.xy;
 	
-            float depth = texture2D(depthbuffer, uvcoords).r;
-            if (depth != 1.0) {
-                vec3 pos_new = get_view_space_from_depth(uvcoords, depth);
+            float depth_new = texture2D(depthbuffer, uvcoords).r;
+            if (depth_new != 1.0) {
+                vec3 pos_new = get_view_space_from_depth(uvcoords, depth_new);
                 vec3 dir = pos_new - position;
                 float len = length(dir);
-                factor += max(dot(dir, normal) * max(1.0 - len / ssao_params.x, 0.0), 0.0);
+                float f = dot(dir, normal);
+
+                /* use minor bias here to avoid self shadowing */
+                if (f > 0.15 * len)
+                    factor += f / len * 1.0/(1.0 + len * len * ssao_params.z);
             }
         }
     }
 
-    factor /= float(NUM_SAMPLES * NUM_SAMPLES);    
+    factor /= float(NUM_SAMPLES * NUM_SAMPLES);
     
-    return max(0.0, factor * ssao_params.y);
+    return clamp(factor * ssao_params.y, 0.0, 1.0);
 }
 
 void main()
@@ -108,6 +117,6 @@ void main()
 //   vec3 normal = calculate_view_space_normal(position);
 
     vec4 color = mix(texture2D(colorbuffer, uvcoordsvar.xy), ssao_color, calculate_ssao_factor(depth));
-    gl_FragColor = vec4(color.xyz, 1.0);
+    gl_FragColor = vec4(color.rgb, 1.0);
 //    gl_FragColor = vec4(normal * 0.5 + vec3(0.5), 1.0);
 }

@@ -199,7 +199,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 		float fac = v3d->dof_fstop * v3d->dof_aperture;
 		float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
 							   v3d->dof_focal_distance};
-		float ssao_params[4] = {v3d->ssao_distance_max, v3d->ssao_darkening, 0.0f, 0.0f};
+		float ssao_params[4] = {v3d->ssao_distance_max, v3d->ssao_darkening, v3d->ssao_attenuation, 0.0f};
 		float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
 		
 		float invproj[4][4];
