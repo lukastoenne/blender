@@ -70,7 +70,7 @@ float calculate_ssao_factor(float depth)
 {
     /* take the normalized ray direction here */
     vec2 rotX = texture2D(jitter_tex, uvcoordsvar.xy * ssao_sample_params.zw).rg;
-    vec2 rotY = vec2(rotX.y, -rotX.x);
+    vec2 rotY = vec2(-rotX.y, rotX.x);
 
     /* occlusion is zero in full depth */
     if (depth == 1.0)
@@ -105,13 +105,13 @@ float calculate_ssao_factor(float depth)
                 float f = dot(dir, normal);
 
                 /* use minor bias here to avoid self shadowing */
-                if (f > 0.15 * len)
+                if (f > 0.01)
                     factor += f / len * 1.0/(1.0 + len * len * ssao_params.z);
             }
         }
     }
 
-    factor /= ssao_sample_params.y * ssao_sample_params.x;
+    factor /= (ssao_sample_params.y * ssao_sample_params.x);
     
     return clamp(factor * ssao_params.y, 0.0, 1.0);
 }

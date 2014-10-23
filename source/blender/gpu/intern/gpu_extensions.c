@@ -707,6 +707,8 @@ GPUTexture *GPU_texture_create_2D_procedural(int w, int h, float *pixels, char e
 		/* Now we tweak some of the settings */
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, w, h, 0, GL_RG, GL_FLOAT, pixels);
 
 		GPU_texture_unbind(tex);
@@ -803,7 +805,7 @@ void GPU_texture_unbind(GPUTexture *tex)
 	GPU_print_error("Post Texture Unbind");
 }
 
-void GPU_depth_texture_mode(GPUTexture *tex, bool compare)
+void GPU_depth_texture_mode(GPUTexture *tex, bool compare, bool use_filter)
 {
 	GLenum arbnumber;
 
@@ -828,7 +830,15 @@ void GPU_depth_texture_mode(GPUTexture *tex, bool compare)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
 	else
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-	
+
+	if (use_filter) {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	}
+	else {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	}
 	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
 
 	GPU_print_error("Post Texture Unbind");

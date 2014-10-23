@@ -264,7 +264,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 							   v3d->dof_focal_distance};
 		float ssao_params[4] = {v3d->ssao_distance_max, v3d->ssao_darkening, v3d->ssao_attenuation, 0.0f};
 		float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
-		float sample_params[4] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
+		float sample_params[4];
 
 		float invproj[4][4];
 
@@ -298,7 +298,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 				break;
 			case 2:
 				sample_params[0] = 16;
-				sample_params[1] = 6;
+				sample_params[1] = 10;
 				break;
 		}
 
@@ -340,7 +340,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 		GPU_shader_uniform_texture(fx_shader, color_uniform, fx->color_buffer);
 		
 		GPU_texture_bind(fx->depth_buffer, numslots++);
-		GPU_depth_texture_mode(fx->depth_buffer, false);
+		GPU_depth_texture_mode(fx->depth_buffer, false, true);
 		GPU_shader_uniform_texture(fx_shader, depth_uniform, fx->depth_buffer);
 
 		GPU_texture_bind(fx->jitter_buffer, numslots++);
@@ -361,7 +361,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	
 	/* disable bindings */
 	GPU_texture_unbind(fx->color_buffer);
-	GPU_depth_texture_mode(fx->depth_buffer, true);
+	GPU_depth_texture_mode(fx->depth_buffer, true, false);
 	GPU_texture_unbind(fx->depth_buffer);
 
 	/* same texture may be bound to more than one slot. Use this to explicitly disable texturing everywhere */

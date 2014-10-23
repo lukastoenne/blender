@@ -127,7 +127,7 @@ void GPU_texture_ref(GPUTexture *tex);
 void GPU_texture_bind(GPUTexture *tex, int number);
 void GPU_texture_unbind(GPUTexture *tex);
 
-void GPU_depth_texture_mode(GPUTexture *tex, bool compare);
+void GPU_depth_texture_mode(GPUTexture *tex, bool compare, bool use_filter);
 
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 
