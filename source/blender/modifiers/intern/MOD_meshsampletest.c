@@ -232,12 +232,25 @@ typedef struct IsectTest {
 
 static void make_isect_test(IsectTest *test, RNG *rng, const float bbmin[3], const float bbmax[3])
 {
+#if 1
 	BLI_rng_get_float_unit_v3(rng, test->tri[0]);
-	mul_v3_fl(test->tri[0], BLI_rng_get_float(rng) * 3.0f);
+	mul_v3_fl(test->tri[0], BLI_rng_get_float(rng) * 5.0f);
 	BLI_rng_get_float_unit_v3(rng, test->tri[1]);
-	mul_v3_fl(test->tri[1], BLI_rng_get_float(rng) * 3.0f);
+	mul_v3_fl(test->tri[1], BLI_rng_get_float(rng) * 5.0f);
 	BLI_rng_get_float_unit_v3(rng, test->tri[2]);
-	mul_v3_fl(test->tri[2], BLI_rng_get_float(rng) * 3.0f);
+	mul_v3_fl(test->tri[2], BLI_rng_get_float(rng) * 5.0f);
+#else
+	float u[2];
+	BLI_rng_get_float_unit_v2(rng, u);
+	mul_v2_fl(u, 3.0f);
+	test->tri[0][0] = u[0]; test->tri[0][1] = u[1]; test->tri[0][2] = 0.5f;
+	BLI_rng_get_float_unit_v2(rng, u);
+	mul_v2_fl(u, 3.0f);
+	test->tri[1][0] = u[0]; test->tri[1][1] = u[1]; test->tri[1][2] = 0.5f;
+	BLI_rng_get_float_unit_v2(rng, u);
+	mul_v2_fl(u, 3.0f);
+	test->tri[2][0] = u[0]; test->tri[2][1] = u[1]; test->tri[2][2] = 0.5f;
+#endif
 	
 	isect_tri_aabb(test->tri, bbmin, bbmax, test->isect, &test->num_isect);
 }
@@ -322,8 +335,23 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	}
 #else
 	{
-		const int numtest = 100;
-		IsectTest test[numtest];
+#if 0
+		IsectTest test;
+		RNG *rng = BLI_rng_new(smd->seed);
+		float bbmin[3], bbmax[3];
+		
+		bbmin[0] = -1.3f;
+		bbmin[1] = 0.16f;
+		bbmin[2] = -0.5f;
+		bbmax[0] = 3.0f;
+		bbmax[1] = 1.0f;
+		bbmax[2] = 1.1f;
+		make_isect_test(&test, rng, bbmin, bbmax);
+		
+		BLI_rng_free(rng);
+#else
+		const int numtest = smd->totsamples;
+		IsectTest *test = MEM_callocN(sizeof(IsectTest) * (size_t)numtest, "test");
 		RNG *rng = BLI_rng_new(smd->seed);
 		float bbmin[3], bbmax[3];
 		int i, totvert, totpoly;
@@ -344,6 +372,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		}
 		
 		{
+#if 0
 			MVert *mv;
 			MLoop *ml;
 			MPoly *mp;
@@ -368,13 +397,38 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					kstart += test[i].num_isect;
 				}
 			}
+#elif 1
+			MVert *mv;
+			MEdge *me;
+			int k, kstart;
+			
+			result = CDDM_new(totvert, totvert, 0, 0, 0);
+			mv = result->getVertArray(result);
+			me = result->getEdgeArray(result);
+			
+			kstart = 0;
+			for (i = 0; i < numtest; ++i) {
+				if (test[i].num_isect > 0) {
+					for (k = 0; k < test[i].num_isect; ++k, ++mv, ++me) {
+						copy_v3_v3(mv->co, test[i].isect[k].co);
+						me->v1 = (unsigned int)(kstart + k);
+						me->v2 = (unsigned int)(kstart + (k + 1) % test[i].num_isect);
+						if (me->v2 < me->v1)
+							SWAP(unsigned int, me->v1, me->v2);
+					}
+					
+					kstart += test[i].num_isect;
+				}
+			}
+#endif
 		}
 		
 		result->dirty |= DM_DIRTY_NORMALS;
-		CDDM_calc_edges(result);
 		CDDM_calc_normals(result);
 		
+		MEM_freeN(test);
 		BLI_rng_free(rng);
+#endif
 	}
 #endif
 	

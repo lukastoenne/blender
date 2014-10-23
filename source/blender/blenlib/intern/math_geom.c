@@ -1772,15 +1772,23 @@ BLI_INLINE bool isect_aabb_v3(const float bb_min[3], const float bb_max[3], cons
 	        v[0] <= bb_max[0] && v[1] <= bb_max[1] && v[2] <= bb_max[2]);
 }
 
-bool isect_tri_aabb(float (*tri)[3], const float bb_min[3], const float bb_max[3],
-                    IsectTriAABBData r_corners[6], int *r_num_corners)
+/* just a utility function so SWAP can be used in for loop */
+BLI_INLINE void swap_corner_buffers(IsectTriAABBData *a, IsectTriAABBData *b)
 {
-	const float plane_normal[6][3] = {{-1,0,0}, {0,-1,0}, {0,0,-1}, {1,0,0}, {0,1,0}, {0,0,1}};
+	SWAP(IsectTriAABBData*, a, b);
+}
+
+bool isect_tri_aabb(float (*tri)[3], const float bb_min[3], const float bb_max[3],
+                    IsectTriAABBData r_corners[9], int *r_num_corners)
+{
+	const float plane_normal[6][3] = {{-1.0f,0.0f,0.0f}, {0.0f,-1.0f,0.0f}, {0.0f,0.0f,-1.0f}, {1.0f,0.0f,0.0f}, {0.0f,1.0f,0.0f}, {0.0f,0.0f,1.0f}};
 	const float plane_offset[6] = {-bb_min[0], -bb_min[1], -bb_min[2], bb_max[0], bb_max[1], bb_max[2]};
 	
-	IsectTriAABBData corners[6];
+	IsectTriAABBData corners_a[9], corners_b[9]; /* buffers for corner data */
+	IsectTriAABBData *corners = corners_a; /* read buffer pointer */
+	IsectTriAABBData *corners_next = corners_b; /* write buffer pointer */
 	int num_corners;
-	int p, v;
+	int p, v, vn;
 	
 	num_corners = 3;
 	copy_v3_v3(corners[0].co, tri[0]);
@@ -1793,17 +1801,16 @@ bool isect_tri_aabb(float (*tri)[3], const float bb_min[3], const float bb_max[3
 	/* This intersection test works by exploiting the fact that both shapes (triangle and AABB)
 	 * are convex shapes, and that the intersection of a convex polygon with a plane can have
 	 * at most 2 intersection points (entering and exiting edge).
+	 * 
+	 * The intersection of an infinite plane with the AABB has at most 6 sides.
+	 * Then the intersection of that convex hexagon with the triangle leads to
+	 * a convex polygon with a maximum of 6 + 3 = 9 sides.
 	 */
 	
-	for (p = 0; p < 3; ++p) {
+	printf("================\n");
+	for (p = 0; p < 6; ++p, swap_corner_buffers(corners, corners_next)) {
 		float vert_distance[6];
 		bool vert_outside[6];
-		bool has_isect = false;	/* intersections found (2 in total) */
-		int isect_index[2];		/* index of first edge vertex */
-		float isect_co[2][3];		/* location of the intersection point */
-		
-		const int ENTER = 0;
-		const int EXIT = 1;
 		
 		/* test for vertices on the "outside" of the plane */
 		{
@@ -1826,69 +1833,66 @@ bool isect_tri_aabb(float (*tri)[3], const float bb_min[3], const float bb_max[3
 			}
 		}
 		
+		printf("---- plane %d: ----\n", p);
+		vn = 0;
 		for (v = 0; v < num_corners; ++v) {
 			const int v_next = (v + 1) % num_corners;
+			bool a_outside = vert_outside[v];
+			bool b_outside = vert_outside[v_next];
 			
-			if (vert_outside[v] && !vert_outside[v_next]) {
-				/* edge entering the box */
-				float factor = vert_distance[v] / (vert_distance[v_next] - vert_distance[v]);
-				
-				isect_index[ENTER] = v;
-				interp_v3_v3v3(isect_co[ENTER], corners[v].co, corners[v_next].co, factor);
-				has_isect = true;
+			if (!a_outside && !b_outside) {
+				printf("%d: keep\n", v);
+				copy_v3_v3(corners_next[vn].co, corners[v].co);
+				corners_next[vn].orig_index = corners[v].orig_index;
+				++vn;
 			}
-			else if (!vert_outside[v] && vert_outside[v_next]) {
-				/* edge exiting the box */
-				float factor = vert_distance[v] / (vert_distance[v_next] - vert_distance[v]);
+			else if (a_outside && !b_outside) {
+				/* edge entering the box, discard original and add intersection */
+				float factor = - vert_distance[v] / (vert_distance[v_next] - vert_distance[v]);
 				
-				isect_index[EXIT] = v;
-				interp_v3_v3v3(isect_co[EXIT], corners[v].co, corners[v_next].co, factor);
-				has_isect = true;
+				interp_v3_v3v3(corners_next[vn].co, corners[v].co, corners[v_next].co, factor);
+				corners_next[vn].orig_index = -1;
+				printf("%d: replace (%.3f, %.3f, %.3f)--%.4f--(%.3f, %.3f, %.3f) = (%.3f, %.3f, %.3f)\n", v,
+				       corners[v].co[0], corners[v].co[1], corners[v].co[2],
+				       factor,
+				       corners[v_next].co[0], corners[v_next].co[1], corners[v_next].co[2],
+				       corners_next[vn].co[0], corners_next[vn].co[1], corners_next[vn].co[2]);
+				++vn;
 			}
+			else if (!a_outside && b_outside) {
+				/* edge exiting the box, keep it and add intersection */
+				float factor = - vert_distance[v] / (vert_distance[v_next] - vert_distance[v]);
+				
+				copy_v3_v3(corners_next[vn].co, corners[v].co);
+				corners_next[vn].orig_index = corners[v].orig_index;
+				++vn;
+				
+				interp_v3_v3v3(corners_next[vn].co, corners[v].co, corners[v_next].co, factor);
+				corners_next[vn].orig_index = -1;
+				printf("%d: extend (%.3f, %.3f, %.3f)--%.4f--(%.3f, %.3f, %.3f) = (%.3f, %.3f, %.3f)\n", v,
+				       corners[v].co[0], corners[v].co[1], corners[v].co[2],
+				       factor,
+				       corners[v_next].co[0], corners[v_next].co[1], corners[v_next].co[2],
+				       corners_next[vn].co[0], corners_next[vn].co[1], corners_next[vn].co[2]);
+				++vn;
+			}
+			else {
+				/* edge outside, discard vertex */
+				printf("%d: discard\n", v);
+			}
+			if (vn > num_corners+1)
+				printf("!!! %d > %d + 1\n", vn, num_corners);
+			BLI_assert(vn >= 0);
+			BLI_assert(vn <= num_corners+1);
 		}
-		
-		/* update the corners list */
-		if (has_isect) {
-			int nv = 0;
-			for (v = 0; v < num_corners; ++v) {
-				
-				if (isect_index[ENTER] == v) {
-					/* edge entering the box:
-					 *   insert new intersection vertex
-					 *   outside vertex ignored (removed, number stays the same)
-					 */
-					
-					copy_v3_v3(corners[nv].co, isect_co[EXIT]);
-					corners[nv].orig_index = -1; /* new vertex */
-					++nv;
-				}
-				else if (isect_index[EXIT] == v) {
-					/* edge exiting the box:
-					 *   keep outside vertex
-					 *   insert new intersection vertex
-					 */
-					
-					copy_v3_v3(corners[nv].co, corners[v].co);
-					corners[nv].orig_index = corners[v].orig_index;
-					++nv;
-					
-					copy_v3_v3(corners[nv].co, isect_co[EXIT]);
-					corners[nv].orig_index = -1; /* new vertex */
-					++nv;
-				}
-				else {
-					copy_v3_v3(corners[nv].co, corners[v].co);
-					corners[nv].orig_index = corners[v].orig_index;
-					++nv;
-				}
-			}
-			
-			num_corners = nv;
-		}
+		num_corners = vn;
 	}
 	
-	for (v = 0; v < num_corners; ++v)
-		r_corners[v] = corners[v];
+	for (v = 0; v < num_corners; ++v) {
+		/* note buffers have been swapped, use corners_next here */
+		copy_v3_v3(r_corners[v].co, corners_next[v].co);
+		r_corners[v].orig_index = corners_next[v].orig_index;
+	}
 	*r_num_corners = num_corners;
 	
 	return true;
