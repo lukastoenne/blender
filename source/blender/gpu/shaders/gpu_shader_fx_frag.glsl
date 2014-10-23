@@ -83,18 +83,19 @@ float calculate_ssao_factor(float depth)
     vec4 offset = gl_ProjectionMatrix * vec4(ssao_params.x, ssao_params.x, position.z, 1.0);
     float factor = 0.0;
     int x, y;
-    
+    int radial_samples = int(ssao_sample_params.y);
+    int azimuth_samples = int(ssao_sample_params.x);
     /* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
     offset = (offset / offset.w) * 0.5;
 
-    for (x = 0; x < ssao_sample_params.x; x++) {
+    for (x = 0; x < azimuth_samples; x++) {
         vec2 dir_sample = sample_directions[x];
 
         /* rotate with random direction to get jittered result */
         vec2 dir_jittered = vec2(dot(dir_sample, rotX), dot(dir_sample, rotY));
 
-        for (y = 0; y < ssao_sample_params.y; y++) {
-            vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset.xy * (y + 1) / ssao_sample_params.y;
+        for (y = 0; y < radial_samples; y++) {
+            vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset.xy * float(y + 1) / ssao_sample_params.y;
 
             float depth_new = texture2D(depthbuffer, uvcoords).r;
             if (depth_new != 1.0) {
