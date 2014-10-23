@@ -81,7 +81,7 @@ extern char datatoc_gpu_shader_vsm_store_frag_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_vert_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
 extern char datatoc_gpu_shader_fx_vert_glsl[];
-extern char datatoc_gpu_shader_fx_frag_glsl[];
+extern char datatoc_gpu_shader_fx_ssao_frag_glsl[];
 
 typedef struct GPUShaders {
 	GPUShader *vsm_store;
@@ -1569,7 +1569,10 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects)
 		return NULL;
 	
 	if (!GG.shaders.fx_shaders[effects]) {
-		GG.shaders.fx_shaders[effects] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_frag_glsl, NULL, NULL);
+		if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD)
+			GG.shaders.fx_shaders[effects] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, NULL, NULL);
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD)
+			GG.shaders.fx_shaders[effects] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, NULL, NULL);
 	}
 	
 	return GG.shaders.fx_shaders[effects];

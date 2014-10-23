@@ -241,136 +241,138 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	glPopAttrib();
 	GPU_framebuffer_restore();
 	
-	/* full screen FX pass */
-	
-	/* first we need to blur the color pass */
-	
-	
-	/* set up the shader */
-	fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
-	if (fx_shader) {
-		/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
-		float ssao_viewvecs[3][4] = {
-		    {-1.0f, -1.0f, -1.0f, 1.0f},
-		    {1.0f, -1.0f, -1.0f, 1.0f},
-		    {-1.0f, 1.0f, -1.0f, 1.0f}
-		};
-		int i;
-		int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform;
-		int ssao_uniform, ssao_color_uniform, ssao_viewvecs_uniform, ssao_sample_params_uniform;
-		int ssao_jitter_uniform, ssao_direction_uniform;
-		float fac = v3d->dof_fstop * v3d->dof_aperture;
-		float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)), 
-							   v3d->dof_focal_distance};
-		float ssao_params[4] = {v3d->ssao_distance_max, v3d->ssao_darkening, v3d->ssao_attenuation, 0.0f};
-		float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
-		float sample_params[4];
 
-		float invproj[4][4];
-
-		if (!init)
-			create_sample_directions();
-
-		/* invert the view matrix */
-		invert_m4_m4(invproj, rv3d->winmat);
-
-		/* convert the view vectors to view space */
-		for (i = 0; i < 3; i++) {
-			mul_m4_v4(invproj, ssao_viewvecs[i]);
-			/* normalized trick see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
-			mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][3]);
-			mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][2]);
-			ssao_viewvecs[i][2] = 1.0;
-		}
-
-		/* we need to store the differences */
-		ssao_viewvecs[1][0] -= ssao_viewvecs[0][0];
-		ssao_viewvecs[1][1] = ssao_viewvecs[2][1] - ssao_viewvecs[0][1];
-
-		switch (v3d->ssao_ray_sample_mode) {
-			case 0:
-				sample_params[0] = 4;
-				sample_params[1] = 4;
-				break;
-			case 1:
-				sample_params[0] = 8;
-				sample_params[1] = 5;
-				break;
-			case 2:
-				sample_params[0] = 16;
-				sample_params[1] = 10;
-				break;
-		}
-
-		/* multiplier so we tile the random texture on screen */
-		sample_params[2] = fx->gbuffer_dim[0] / 64.0;
-		sample_params[3] = fx->gbuffer_dim[1] / 64.0;
-
-		dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
-		blurred_uniform = GPU_shader_get_uniform(fx_shader, "blurredcolorbuffer");
-		screendim_uniform = GPU_shader_get_uniform(fx_shader, "screendim");
-
-		ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
-		ssao_color_uniform = GPU_shader_get_uniform(fx_shader, "ssao_color");
-		color_uniform = GPU_shader_get_uniform(fx_shader, "colorbuffer");
-		depth_uniform = GPU_shader_get_uniform(fx_shader, "depthbuffer");
-		ssao_viewvecs_uniform = GPU_shader_get_uniform(fx_shader, "ssao_viewvecs");
-		ssao_sample_params_uniform = GPU_shader_get_uniform(fx_shader, "ssao_sample_params");
-		ssao_jitter_uniform = GPU_shader_get_uniform(fx_shader, "jitter_tex");
-		ssao_direction_uniform = GPU_shader_get_uniform(fx_shader, "sample_directions");
-
-		GPU_shader_bind(fx_shader);
-		
-		GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screen_dim);
-		GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
-		GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
-		GPU_shader_uniform_vector(fx_shader, ssao_color_uniform, 4, 1, v3d->ssao_color);
-		GPU_shader_uniform_vector(fx_shader, ssao_viewvecs_uniform, 4, 3, ssao_viewvecs[0]);
-		GPU_shader_uniform_vector(fx_shader, ssao_sample_params_uniform, 4, 1, sample_params);
-		GPU_shader_uniform_vector(fx_shader, ssao_direction_uniform, 2, 16, ssao_sample_directions[0]);
-
-		GPU_texture_bind(fx->color_buffer, numslots++);
-		GPU_shader_uniform_texture(fx_shader, blurred_uniform, fx->color_buffer);
-		/* generate mipmaps for the color buffer */
-//		glGenerateMipmapEXT(GL_TEXTURE_2D);
-//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-//		glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 2.0);
-		
-		GPU_texture_bind(fx->color_buffer, numslots++);
-		GPU_shader_uniform_texture(fx_shader, color_uniform, fx->color_buffer);
-		
-		GPU_texture_bind(fx->depth_buffer, numslots++);
-		GPU_depth_texture_mode(fx->depth_buffer, false, true);
-		GPU_shader_uniform_texture(fx_shader, depth_uniform, fx->depth_buffer);
-
-		GPU_texture_bind(fx->jitter_buffer, numslots++);
-		GPU_shader_uniform_texture(fx_shader, ssao_jitter_uniform, fx->jitter_buffer);
-	}
 	/* set up quad buffer */
 	glVertexPointer(2, GL_FLOAT, 0, fullscreencos);
 	glTexCoordPointer(2, GL_FLOAT, 0, fullscreenuvs);
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);		
-	
-	/* set invalid color in case shader fails */
-	glColor3f(1.0, 0.0, 1.0);
-	
-	/* draw */
-	glDisable(GL_DEPTH_TEST);
-	glDrawArrays(GL_QUADS, 0, 4);
-	
-	/* disable bindings */
-	GPU_texture_unbind(fx->color_buffer);
-	GPU_depth_texture_mode(fx->depth_buffer, true, false);
-	GPU_texture_unbind(fx->depth_buffer);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	/* same texture may be bound to more than one slot. Use this to explicitly disable texturing everywhere */
-	for (i = numslots; i > 0; i--) {
-		glActiveTexture(GL_TEXTURE0 + i - 1);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glDisable(GL_TEXTURE_2D);
-	}
+	/* full screen FX pass */
 	
+	/* ssao pass */
+	if (fx->effects & V3D_FX_SSAO) {
+		fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
+		if (fx_shader) {
+			/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
+			float ssao_viewvecs[3][4] = {
+			    {-1.0f, -1.0f, -1.0f, 1.0f},
+			    {1.0f, -1.0f, -1.0f, 1.0f},
+			    {-1.0f, 1.0f, -1.0f, 1.0f}
+			};
+			int i;
+			int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform;
+			int ssao_uniform, ssao_color_uniform, ssao_viewvecs_uniform, ssao_sample_params_uniform;
+			int ssao_jitter_uniform, ssao_direction_uniform;
+			float fac = v3d->dof_fstop * v3d->dof_aperture;
+			float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)),
+			                       v3d->dof_focal_distance};
+			float ssao_params[4] = {v3d->ssao_distance_max, v3d->ssao_darkening, v3d->ssao_attenuation, 0.0f};
+			float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
+			float sample_params[4];
+
+			float invproj[4][4];
+
+			if (!init)
+				create_sample_directions();
+
+			/* invert the view matrix */
+			invert_m4_m4(invproj, rv3d->winmat);
+
+			/* convert the view vectors to view space */
+			for (i = 0; i < 3; i++) {
+				mul_m4_v4(invproj, ssao_viewvecs[i]);
+				/* normalized trick see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
+				mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][3]);
+				mul_v3_fl(ssao_viewvecs[i], 1.0f / ssao_viewvecs[i][2]);
+				ssao_viewvecs[i][2] = 1.0;
+			}
+
+			/* we need to store the differences */
+			ssao_viewvecs[1][0] -= ssao_viewvecs[0][0];
+			ssao_viewvecs[1][1] = ssao_viewvecs[2][1] - ssao_viewvecs[0][1];
+
+			switch (v3d->ssao_ray_sample_mode) {
+				case 0:
+					sample_params[0] = 4;
+					sample_params[1] = 4;
+					break;
+				case 1:
+					sample_params[0] = 8;
+					sample_params[1] = 5;
+					break;
+				case 2:
+					sample_params[0] = 16;
+					sample_params[1] = 10;
+					break;
+			}
+
+			/* multiplier so we tile the random texture on screen */
+			sample_params[2] = fx->gbuffer_dim[0] / 64.0;
+			sample_params[3] = fx->gbuffer_dim[1] / 64.0;
+
+			dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
+			blurred_uniform = GPU_shader_get_uniform(fx_shader, "blurredcolorbuffer");
+			screendim_uniform = GPU_shader_get_uniform(fx_shader, "screendim");
+
+			ssao_uniform = GPU_shader_get_uniform(fx_shader, "ssao_params");
+			ssao_color_uniform = GPU_shader_get_uniform(fx_shader, "ssao_color");
+			color_uniform = GPU_shader_get_uniform(fx_shader, "colorbuffer");
+			depth_uniform = GPU_shader_get_uniform(fx_shader, "depthbuffer");
+			ssao_viewvecs_uniform = GPU_shader_get_uniform(fx_shader, "ssao_viewvecs");
+			ssao_sample_params_uniform = GPU_shader_get_uniform(fx_shader, "ssao_sample_params");
+			ssao_jitter_uniform = GPU_shader_get_uniform(fx_shader, "jitter_tex");
+			ssao_direction_uniform = GPU_shader_get_uniform(fx_shader, "sample_directions");
+
+			GPU_shader_bind(fx_shader);
+
+			GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screen_dim);
+			GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
+			GPU_shader_uniform_vector(fx_shader, ssao_uniform, 4, 1, ssao_params);
+			GPU_shader_uniform_vector(fx_shader, ssao_color_uniform, 4, 1, v3d->ssao_color);
+			GPU_shader_uniform_vector(fx_shader, ssao_viewvecs_uniform, 4, 3, ssao_viewvecs[0]);
+			GPU_shader_uniform_vector(fx_shader, ssao_sample_params_uniform, 4, 1, sample_params);
+			GPU_shader_uniform_vector(fx_shader, ssao_direction_uniform, 2, 16, ssao_sample_directions[0]);
+
+			GPU_texture_bind(fx->color_buffer, numslots++);
+			GPU_shader_uniform_texture(fx_shader, blurred_uniform, fx->color_buffer);
+			/* generate mipmaps for the color buffer */
+			//		glGenerateMipmapEXT(GL_TEXTURE_2D);
+			//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			//		glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 2.0);
+
+			GPU_texture_bind(fx->color_buffer, numslots++);
+			GPU_shader_uniform_texture(fx_shader, color_uniform, fx->color_buffer);
+
+			GPU_texture_bind(fx->depth_buffer, numslots++);
+			GPU_depth_texture_mode(fx->depth_buffer, false, true);
+			GPU_shader_uniform_texture(fx_shader, depth_uniform, fx->depth_buffer);
+
+			GPU_texture_bind(fx->jitter_buffer, numslots++);
+			GPU_shader_uniform_texture(fx_shader, ssao_jitter_uniform, fx->jitter_buffer);
+		}
+
+		/* set invalid color in case shader fails */
+		glColor3f(1.0, 0.0, 1.0);
+
+		/* draw */
+		glDisable(GL_DEPTH_TEST);
+		glDrawArrays(GL_QUADS, 0, 4);
+
+		/* disable bindings */
+		GPU_texture_unbind(fx->color_buffer);
+		GPU_depth_texture_mode(fx->depth_buffer, true, false);
+		GPU_texture_unbind(fx->depth_buffer);
+
+		/* same texture may be bound to more than one slot. Use this to explicitly disable texturing everywhere */
+		for (i = numslots; i > 0; i--) {
+			glActiveTexture(GL_TEXTURE0 + i - 1);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			glDisable(GL_TEXTURE_2D);
+		}
+		numslots = 0;
+	}
+
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	
