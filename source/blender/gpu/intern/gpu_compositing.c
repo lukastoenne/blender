@@ -60,6 +60,9 @@ struct GPUFX {
 	/* texture bound to the first color attachment of the gbuffer */
 	GPUTexture *color_buffer;
 
+	/* texture used for coc and color blurring */
+	GPUTexture *blur_buffer;
+
 	/* texture bound to the depth attachment of the gbuffer */
 	GPUTexture *depth_buffer;
 
@@ -364,9 +367,10 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	if (fx->effects & V3D_FX_DEPTH_OF_FIELD) {
 		fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
 		if (fx_shader) {
-			float fac = v3d->dof_fstop * v3d->dof_aperture;
-			float dof_params[2] = {v3d->dof_aperture * fabs(fac / (v3d->dof_focal_distance - fac)),
-			                       v3d->dof_focal_distance};
+			int i;
+			float aperture = 0.001 * v3d->dof_focal_length / v3d->dof_fstop; // * v3d->dof_aperture;
+			float dof_params[2] = {aperture * fabs(0.001  * v3d->dof_focal_length / (0.1 * v3d->dof_focus_distance - 0.001 * v3d->dof_focal_length)),
+			                       0.1 * v3d->dof_focus_distance};
 			int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform;
 
 			dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
@@ -375,9 +379,10 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			color_uniform = GPU_shader_get_uniform(fx_shader, "colorbuffer");
 			depth_uniform = GPU_shader_get_uniform(fx_shader, "depthbuffer");
 
+			GPU_shader_bind(fx_shader);
+
 			GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
 			GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screen_dim);
-
 
 			GPU_texture_bind(fx->color_buffer, numslots++);
 			GPU_shader_uniform_texture(fx_shader, blurred_uniform, fx->color_buffer);
@@ -392,6 +397,21 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_texture_bind(fx->depth_buffer, numslots++);
 			GPU_depth_texture_mode(fx->depth_buffer, false, true);
 			GPU_shader_uniform_texture(fx_shader, depth_uniform, fx->depth_buffer);
+
+			glDisable(GL_DEPTH_TEST);
+			glDrawArrays(GL_QUADS, 0, 4);
+			/* disable bindings */
+			GPU_texture_unbind(fx->color_buffer);
+			GPU_depth_texture_mode(fx->depth_buffer, true, false);
+			GPU_texture_unbind(fx->depth_buffer);
+
+			/* same texture may be bound to more than one slot. Use this to explicitly disable texturing everywhere */
+			for (i = numslots; i > 0; i--) {
+				glActiveTexture(GL_TEXTURE0 + i - 1);
+				glBindTexture(GL_TEXTURE_2D, 0);
+				glDisable(GL_TEXTURE_2D);
+			}
+			numslots = 0;
 		}
 	}
 

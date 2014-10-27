@@ -2188,19 +2188,27 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Depth Of Field", "Use depth of field on viewport using the values from active camera");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
-	prop = RNA_def_property(srna, "dof_focal_distance", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Focal distance", "Viewport dof focal distance");
-	RNA_def_property_range(prop, 0.0f, 100000.0f);
+	prop = RNA_def_property(srna, "dof_focus_distance", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_ui_text(prop, "Focus distance", "Viewport depth of field focus distance");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 5000.0f, 1, 2);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "dof_aperture", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "dof_aperture", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_ui_text(prop, "Aperture", "Aperture for dof effect");
 	RNA_def_property_range(prop, 0.0f, 250.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	prop = RNA_def_property(srna, "dof_focal_length", PROP_FLOAT, PROP_DISTANCE_CAMERA);
+	RNA_def_property_ui_text(prop, "Focal Length", "Foca Length for dof effect");
+	RNA_def_property_range(prop, 1.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 1.0f, 5000.0f, 1, 2);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
 	prop = RNA_def_property(srna, "dof_fstop", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "FStop", "FStop for dof effect");
-	RNA_def_property_range(prop, 0.0f, 250.0f);
+	RNA_def_property_ui_text(prop, "F/Stop", "FStop for dof effect");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.1f, 64.0f, 10, 1);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "ssao_darkening", PROP_FLOAT, PROP_NONE);

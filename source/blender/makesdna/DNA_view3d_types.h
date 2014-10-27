@@ -220,14 +220,16 @@ typedef struct View3D {
 	/* built-in shader effects */
 	int shader_fx;
 
-	float dof_focal_distance; /* focal distance for depth of field */
+	float dof_focus_distance; /* focal distance for depth of field */
 	float dof_aperture;           /* aperture for dof lens (could use fstop as well) */
 	float dof_fstop;
+	float dof_focal_length;
 	float ssao_darkening;
 	float ssao_color[3];
 	float ssao_distance_max;
 	float ssao_attenuation;
 	int ssao_ray_sample_mode; /* ray samples, we use presets here for easy control instead of */
+	int pad4;
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */

@@ -2896,9 +2896,10 @@ class VIEW3D_PT_view3d_shading(Panel):
             col.prop(view, "depth_of_field")
             if view.depth_of_field:
                 subcol = col.column(align=True)
-                subcol.prop(view, "dof_focal_distance")
+                subcol.prop(view, "dof_focus_distance")
                 subcol.prop(view, "dof_aperture")
                 subcol.prop(view, "dof_fstop")
+                subcol.prop(view, "dof_focal_length")
             col.prop(view, "ssao")
             if view.ssao:
                 subcol = col.column(align=True)

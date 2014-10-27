@@ -32,9 +32,9 @@ vec3 get_view_space_from_depth(in vec2 uvcoords, float depth)
     return pos.xyz;
 }
 
-float calculate_dof_coc(in vec4 viewposition)
+float calculate_dof_coc(in vec3 viewposition)
 {
-    float dist = length(viewposition);
+    float dist = 0.1 * length(viewposition);
     float coc = dof_params.x * abs(1.0 - dof_params.y / dist);
     
     coc = clamp(coc, 0.0, 1.0);
@@ -46,11 +46,8 @@ void main()
 {
     float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
 
-    vec4 position = get_view_space_from_depth(uvcoordsvar, depth);
+    vec3 position = get_view_space_from_depth(uvcoordsvar.xy, depth);
     float coc = calculate_dof_coc(position);
-    // blend between blurred-non blurred images based on coc	
-    //vec4 color = coc * texture2D(blurredcolorbuffer, framecoords.xy) +
-    //       (1.0 - coc) * texture2D(colorbuffer, framecoords.xy);
 
-    gl_FragColor = vec4(vec3(coc), 1.0);
+    gl_FragColor = vec4(coc, coc, coc, 1.0);
 }
