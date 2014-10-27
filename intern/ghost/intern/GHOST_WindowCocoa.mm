@@ -23,6 +23,7 @@
  * Contributor(s): Maarten Gribnau 05/2001
  *                 Damien Plisson  10/2009
  *                 Jason Wilkins   02/2014
+ *                 Jens Verwiebe   10/2014
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -45,8 +46,6 @@
 #  include <Carbon/Carbon.h>
 #endif
 
-
- 
 #include <sys/sysctl.h>
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
@@ -76,7 +75,6 @@ enum {
 - (BOOL)windowShouldClose:(id)sender;	
 - (void)windowDidChangeBackingProperties:(NSNotification *)notification;
 @end
-
 
 @implementation CocoaWindowDelegate : NSObject
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa
@@ -171,6 +169,7 @@ enum {
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa;
 - (GHOST_SystemCocoa*)systemCocoa;
 @end
+
 @implementation CocoaWindow
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa
 {
@@ -261,8 +260,6 @@ enum {
 
 @end
 
-
-
 #pragma mark NSOpenGLView subclass
 //We need to subclass it in order to give Cocoa the feeling key events are trapped
 @interface CocoaOpenGLView : NSOpenGLView <NSTextInput>
@@ -277,6 +274,7 @@ enum {
 }
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa;
 @end
+
 @implementation CocoaOpenGLView
 
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa
@@ -1326,7 +1324,16 @@ GHOST_TSuccess GHOST_WindowCocoa::setProgressBar(float progress)
 	return GHOST_kSuccess;
 }
 
-
+static void postNotification()
+{
+	NSUserNotification *notification = [[NSUserNotification alloc] init];
+	notification.title = @"Blender progress notification";
+	notification.informativeText = @"Calculation is finished";
+	notification.soundName = NSUserNotificationDefaultSoundName;
+	[[NSUserNotificationCenter defaultUserNotificationCenter] deliverNotification:notification];
+	[notification release];
+}
+	
 GHOST_TSuccess GHOST_WindowCocoa::endProgressBar()
 {
 	if (!m_progressBarVisible) return GHOST_kFailure;
@@ -1339,13 +1346,21 @@ GHOST_TSuccess GHOST_WindowCocoa::endProgressBar()
 	[[NSImage imageNamed:@"NSApplicationIcon"] drawAtPoint:NSZeroPoint fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
 	[dockIcon unlockFocus];
 	[NSApp setApplicationIconImage:dockIcon];
+	
+	
+	// With OSX 10.8 and later, we can use notifications to inform the user when the progress reached 100%
+	// Atm. just fire this when the progressbar ends, the behavior is controlled in the NotificationCenter
+	// If Blender is not frontmost window, a message pops up with sound, in any case an entry in notifications
+	
+	if ([NSUserNotificationCenter respondsToSelector:@selector(defaultUserNotificationCenter)]) {
+		postNotification();
+	}
+	
 	[dockIcon release];
 	
 	[pool drain];
 	return GHOST_kSuccess;
 }
-
-
 
 #pragma mark Cursor handling
 
