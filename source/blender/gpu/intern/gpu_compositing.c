@@ -63,8 +63,10 @@ struct GPUFX {
 	/* texture bound to the first color attachment of the gbuffer */
 	GPUTexture *color_buffer;
 
-	/* all those buffers below have to coexist. Fortunately they are all quarter sized (1/16th of memory) of original framebuffer */
+	/* second texture used for ping-pong compositing */
+	GPUTexture *color_buffer_sec;
 
+	/* all those buffers below have to coexist. Fortunately they are all quarter sized (1/16th of memory) of original framebuffer */
 	float dof_near_w;
 	float dof_near_h;
 
@@ -86,6 +88,9 @@ struct GPUFX {
 	
 	/* or-ed flags of enabled effects */
 	int effects;
+
+	/* number of passes, needed to detect if ping pong buffer allocation is needed */
+	int num_passes;
 };
 
 
@@ -105,6 +110,13 @@ static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 		GPU_texture_free(fx->color_buffer);
 		fx->color_buffer = NULL;
 	}
+
+	if (fx->color_buffer_sec) {
+		GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer_sec);
+		GPU_texture_free(fx->color_buffer_sec);
+		fx->color_buffer_sec = NULL;
+	}
+
 	if (fx->depth_buffer) {
 		GPU_framebuffer_texture_detach(fx->gbuffer, fx->depth_buffer);
 		GPU_texture_free(fx->depth_buffer);
@@ -214,38 +226,47 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 		
 		if (!(fx->color_buffer = GPU_texture_create_2D(w, h, NULL, err_out))) {
 			printf(".256%s\n", err_out);
-		}
-		
-		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, err_out))) {
-			printf("%.256s\n", err_out);
-		}
-
-		/* create textures for dof effect */
-		if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
-			fx->dof_near_w = w / 4;
-			fx->dof_near_h = h / 4;
-
-			if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
-				printf("%.256s\n", err_out);
-			}
-			if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
-				printf("%.256s\n", err_out);
-			}
-			if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
-				printf("%.256s\n", err_out);
-			}
-		}
-		
-		/* in case of failure, cleanup */
-		if (!fx->color_buffer || !fx->depth_buffer) {
 			cleanup_fx_gl_data(fx, true);
 			return false;
 		}
 		
-		fx->gbuffer_dim[0] = w;
-		fx->gbuffer_dim[1] = h;		
+		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, err_out))) {
+			printf("%.256s\n", err_out);
+			cleanup_fx_gl_data(fx, true);
+			return false;
+		}
 	}
 	
+	/* create textures for dof effect */
+	if ((fxflags & V3D_FX_DEPTH_OF_FIELD) &&
+	     (!fx->color_buffer_sec || !fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer ||
+	      w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]))
+	{
+		fx->dof_near_w = w / 4;
+		fx->dof_near_h = h / 4;
+
+		if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, err_out))) {
+			printf(".256%s\n", err_out);
+			cleanup_fx_gl_data(fx, true);
+			return false;
+		}
+
+		if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+			printf("%.256s\n", err_out);
+			cleanup_fx_gl_data(fx, true);
+			return false;
+		}
+		if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+			printf("%.256s\n", err_out);
+			cleanup_fx_gl_data(fx, true);
+			return false;
+		}
+		if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+			printf("%.256s\n", err_out);
+			cleanup_fx_gl_data(fx, true);
+			return false;
+		}
+	}
 	/* bind the buffers */
 	
 	/* first depth buffer, because system assumes read/write buffers */
@@ -268,6 +289,16 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 				  w_sc, h_sc);
 	}
 	fx->effects = fxflags;
+	fx->num_passes = 0;
+	/* dof really needs a ping-pong buffer to work */
+	if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
+		fx->num_passes++;
+	}
+	if (fxflags & V3D_FX_SSAO)
+		fx->num_passes++;
+
+	fx->gbuffer_dim[0] = w;
+	fx->gbuffer_dim[1] = h;
 
 	return true;
 }
@@ -275,11 +306,12 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 
 bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D *rv3d, struct Scene *scene) {
 	GPUShader *fx_shader;
+	GPUTexture *src, *target;
 	int numslots = 0;
 	float invproj[4][4];
 	int i;
 	/* number of passes left. when there are no more passes, the result is passed to the frambuffer */
-	int passes_left;
+	int passes_left = fx->num_passes;
 	/* dimensions of screen (used in many shaders)*/
 	float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
 	/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
@@ -293,10 +325,12 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 		return false;
 	
 	/* first, unbind the render-to-texture framebuffer */
-	GPU_framebuffer_texture_unbind(fx->gbuffer, fx->color_buffer);
+	GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer);
 	glPopAttrib();
-	GPU_framebuffer_restore();
-	
+
+	src = fx->color_buffer;
+	target = fx->color_buffer_sec;
+
 	/* set up quad buffer */
 	glVertexPointer(2, GL_FLOAT, 0, fullscreencos);
 	glTexCoordPointer(2, GL_FLOAT, 0, fullscreenuvs);
@@ -381,8 +415,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_shader_uniform_vector(fx_shader, ssao_sample_params_uniform, 4, 1, sample_params);
 			GPU_shader_uniform_vector(fx_shader, ssao_direction_uniform, 2, 16, ssao_sample_directions[0]);
 
-			GPU_texture_bind(fx->color_buffer, numslots++);
-			GPU_shader_uniform_texture(fx_shader, color_uniform, fx->color_buffer);
+			GPU_texture_bind(src, numslots++);
+			GPU_shader_uniform_texture(fx_shader, color_uniform, src);
 
 			GPU_texture_bind(fx->depth_buffer, numslots++);
 			GPU_depth_texture_mode(fx->depth_buffer, false, true);
@@ -395,12 +429,22 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			glColor3f(1.0, 0.0, 1.0);
 
 			/* draw */
+			if (passes_left-- == 1)
+				GPU_framebuffer_restore();
+			else {
+				/* bind the ping buffer to the color buffer */
+				GPU_framebuffer_texture_attach(fx->gbuffer, target, NULL);
+			}
 			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_QUADS, 0, 4);
+
 			/* disable bindings */
-			GPU_texture_unbind(fx->color_buffer);
+			GPU_texture_unbind(src);
 			GPU_depth_texture_mode(fx->depth_buffer, true, false);
 			GPU_texture_unbind(fx->depth_buffer);
+
+			/* swap here, after src/target have been unbound */
+			SWAP(GPUTexture *, target, src);
 
 			/* same texture may be bound to more than one slot. Use this to explicitly disable texturing everywhere */
 			for (i = numslots; i > 0; i--) {
@@ -409,9 +453,9 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 				glDisable(GL_TEXTURE_2D);
 			}
 			numslots = 0;
+
 		}
 	}
-
 
 	/* second pass, dof */
 	if (fx->effects & V3D_FX_DEPTH_OF_FIELD) {
@@ -443,26 +487,35 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screen_dim);
 			GPU_shader_uniform_vector(fx_shader, viewvecs_uniform, 4, 3, viewvecs[0]);
 
-			GPU_texture_bind(fx->color_buffer, numslots++);
-			GPU_shader_uniform_texture(fx_shader, blurred_uniform, fx->color_buffer);
+			GPU_texture_bind(src, numslots++);
+			GPU_shader_uniform_texture(fx_shader, blurred_uniform, src);
 			/* generate mipmaps for the color buffer */
 			//		glGenerateMipmapEXT(GL_TEXTURE_2D);
 			//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 			//		glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 2.0);
 
-			GPU_texture_bind(fx->color_buffer, numslots++);
-			GPU_shader_uniform_texture(fx_shader, color_uniform, fx->color_buffer);
+			GPU_texture_bind(src, numslots++);
+			GPU_shader_uniform_texture(fx_shader, color_uniform, src);
 
 			GPU_texture_bind(fx->depth_buffer, numslots++);
 			GPU_depth_texture_mode(fx->depth_buffer, false, true);
 			GPU_shader_uniform_texture(fx_shader, depth_uniform, fx->depth_buffer);
 
+			/* if this is the last pass, prepare for rendering on the frambuffer */
+			if (passes_left-- == 1)
+				GPU_framebuffer_restore();
+			else {
+				/* bind the ping buffer to the color buffer */
+				GPU_framebuffer_texture_attach(fx->gbuffer, target, NULL);
+			}
 			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_QUADS, 0, 4);
 			/* disable bindings */
-			GPU_texture_unbind(fx->color_buffer);
+			GPU_texture_unbind(src);
 			GPU_depth_texture_mode(fx->depth_buffer, true, false);
 			GPU_texture_unbind(fx->depth_buffer);
+
+			SWAP(GPUTexture *, target, src);
 
 			/* same texture may be bound to more than one slot. Use this to explicitly disable texturing everywhere */
 			for (i = numslots; i > 0; i--) {
@@ -478,6 +531,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	
 	GPU_shader_unbind();
-	
+	GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
+
 	return true;
 }
