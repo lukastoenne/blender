@@ -278,6 +278,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	int numslots = 0;
 	float invproj[4][4];
 	int i;
+	/* number of passes left. when there are no more passes, the result is passed to the frambuffer */
+	int passes_left;
 	/* dimensions of screen (used in many shaders)*/
 	float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
 	/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
@@ -311,13 +313,22 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 		mul_m4_v4(invproj, viewvecs[i]);
 		/* normalized trick see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
 		mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][3]);
-		mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
-		viewvecs[i][2] = 1.0;
+		if (rv3d->is_persp)
+			mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
+		viewvecs[i][3] = 1.0;
 	}
 
 	/* we need to store the differences */
 	viewvecs[1][0] -= viewvecs[0][0];
 	viewvecs[1][1] = viewvecs[2][1] - viewvecs[0][1];
+
+	/* calculate a depth offset as well */
+	if (!rv3d->is_persp) {
+		float vec_far[] = {-1.0f, -1.0f, 1.0f, 1.0f};
+		mul_m4_v4(invproj, vec_far);
+		mul_v3_fl(vec_far, 1.0f / vec_far[3]);
+		viewvecs[1][2] = vec_far[2] - viewvecs[0][2];
+	}
 
 	/* ssao pass */
 	if (fx->effects & V3D_FX_SSAO) {

@@ -32,7 +32,7 @@ float calculate_ssao_factor(float depth)
     if (depth == 1.0)
         return 0.0;
 
-    vec3 position = get_view_space_from_depth(uvcoordsvar.xy, viewvecs[0].xy, viewvecs[1].xy, depth);
+    vec3 position = get_view_space_from_depth(uvcoordsvar.xy, viewvecs[0].xyz, viewvecs[1].xyz, depth);
     vec3 normal = calculate_view_space_normal(position);
 
     // find the offset in screen space by multiplying a point in camera space at the depth of the point by the projection matrix.
@@ -55,7 +55,7 @@ float calculate_ssao_factor(float depth)
 
             float depth_new = texture2D(depthbuffer, uvcoords).r;
             if (depth_new != 1.0) {
-                vec3 pos_new = get_view_space_from_depth(uvcoords, viewvecs[0].xy, viewvecs[1].xy, depth_new);
+                vec3 pos_new = get_view_space_from_depth(uvcoords, viewvecs[0].xyz, viewvecs[1].xyz, depth_new);
                 vec3 dir = pos_new - position;
                 float len = length(dir);
                 float f = dot(dir, normal);
