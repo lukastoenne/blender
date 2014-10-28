@@ -13,24 +13,7 @@ varying vec4 uvcoordsvar;
 // this includes focal distance in x and aperture size in y
 uniform vec4 dof_params;
 
-/* projective matrix version */
-vec3 get_view_space_from_depth(in vec2 uvcoords, float depth)
-{
-    /* simple depth reconstruction, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer
-     * we change the factors from the article to fit the OpennGL model.
-    float d = 2.0 * depth - 1.0;
-
-    float zview = -gl_ProjectionMatrix[2][3] / (d + gl_ProjectionMatrix[2][2]);
-
-    vec3 pos = vec3(zview * (ssao_viewvecs[0].xy + uvcoords * ssao_viewvecs[1].xy), zview);
-    */
-    vec4 pos = 2.0 * vec4(uvcoords.xy, depth, 1.0) - vec4(1.0);
-
-    pos = gl_ProjectionMatrixInverse * pos;
-    pos /= pos.w;
-
-    return pos.xyz;
-}
+uniform vec4 viewvecs[3];
 
 float calculate_dof_coc(in vec3 viewposition)
 {
@@ -45,7 +28,7 @@ void main()
 {
     float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
 
-    vec3 position = get_view_space_from_depth(uvcoordsvar.xy, depth);
+    vec3 position = get_view_space_from_depth(uvcoordsvar.xy, viewvecs[0].xy, viewvecs[1].xy, depth);
     float coc = calculate_dof_coc(position);
 
     gl_FragColor = vec4(coc, coc, coc, 1.0);

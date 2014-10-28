@@ -57,6 +57,7 @@ set(SRC
 	intern/gpu_compositing.c
 	intern/gpu_renderer.c
 
+	shaders/gpu_shader_fx_lib.glsl
 	shaders/gpu_shader_fx_ssao_frag.glsl
 	shaders/gpu_shader_fx_dof_frag.glsl
 	shaders/gpu_shader_fx_vert.glsl
@@ -94,6 +95,7 @@ data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_ssao_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_dof_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_fx_lib.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)

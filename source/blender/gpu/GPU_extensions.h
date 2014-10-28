@@ -190,7 +190,7 @@ typedef enum GPUBuiltinShader {
 } GPUBuiltinShader;
 
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader);
-GPUShader *GPU_shader_get_builtin_fx_shader(int effects);
+GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp);
 
 void GPU_shader_free_builtin_shaders(void);
 

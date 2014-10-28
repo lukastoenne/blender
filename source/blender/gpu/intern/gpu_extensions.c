@@ -83,12 +83,13 @@ extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
 extern char datatoc_gpu_shader_fx_vert_glsl[];
 extern char datatoc_gpu_shader_fx_ssao_frag_glsl[];
 extern char datatoc_gpu_shader_fx_dof_frag_glsl[];
+extern char datatoc_gpu_shader_fx_lib_glsl[];
 
 typedef struct GPUShaders {
 	GPUShader *vsm_store;
 	GPUShader *sep_gaussian_blur;
 	/* cache for shader fx. Those can exist in combinations so store them here */
-	GPUShader *fx_shaders[MAX_FX_SHADERS];
+	GPUShader *fx_shaders[MAX_FX_SHADERS * 2];
 } GPUShaders;
 
 static struct GPUGlobal {
@@ -1563,20 +1564,29 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	return retval;
 }
 
-GPUShader *GPU_shader_get_builtin_fx_shader(int effects)
+GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 {
+	int offset;
+	const char *defines = NULL;
 	/* avoid shaders out of range */
 	if (effects >= MAX_FX_SHADERS)
 		return NULL;
 	
-	if (!GG.shaders.fx_shaders[effects]) {
+	offset = 2 * effects;
+
+	if (persp) {
+		offset += 1;
+		defines = "#define PERSP_MATRIX\n";
+	}
+
+	if (!GG.shaders.fx_shaders[offset]) {
 		if (effects == GPU_SHADER_FX_SSAO)
-			GG.shaders.fx_shaders[effects] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, NULL, NULL);
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD)
-			GG.shaders.fx_shaders[effects] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, NULL, NULL);
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 	}
 	
-	return GG.shaders.fx_shaders[effects];
+	return GG.shaders.fx_shaders[offset];
 }
 
 
@@ -1594,7 +1604,7 @@ void GPU_shader_free_builtin_shaders(void)
 		GG.shaders.sep_gaussian_blur = NULL;
 	}
 	
-	for (i = 0; i < MAX_FX_SHADERS; i++) {
+	for (i = 0; i < 2 * MAX_FX_SHADERS; i++) {
 		if (GG.shaders.fx_shaders[i]) {
 			MEM_freeN(GG.shaders.fx_shaders[i]);
 			GG.shaders.fx_shaders[i] = NULL;
