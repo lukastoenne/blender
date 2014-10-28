@@ -11,7 +11,7 @@ uniform sampler2D depthbuffer;
 varying vec4 uvcoordsvar;
 
 // this includes focal distance in x and aperture size in y
-uniform vec2 dof_params;
+uniform vec4 dof_params;
 
 /* projective matrix version */
 vec3 get_view_space_from_depth(in vec2 uvcoords, float depth)
@@ -34,12 +34,11 @@ vec3 get_view_space_from_depth(in vec2 uvcoords, float depth)
 
 float calculate_dof_coc(in vec3 viewposition)
 {
-    float dist = 0.1 * length(viewposition);
+    float dist = length(viewposition);
     float coc = dof_params.x * abs(1.0 - dof_params.y / dist);
     
-    coc = clamp(coc, 0.0, 1.0);
-    
-    return coc;
+    /* multiply by 1.0 / sensor size to get the normalized size */
+    return coc * dof_params.z;
 }
 
 void main()

@@ -38,6 +38,9 @@
 
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_object_types.h"
+#include "DNA_camera_types.h"
 
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
@@ -60,8 +63,17 @@ struct GPUFX {
 	/* texture bound to the first color attachment of the gbuffer */
 	GPUTexture *color_buffer;
 
-	/* texture used for coc and color blurring */
-	GPUTexture *blur_buffer;
+	/* all those buffers below have to coexist. Fortunately they are all quarter sized (1/16th of memory) of original framebuffer */
+
+	float dof_near_w;
+	float dof_near_h;
+
+	/* texture used for near coc and color blurring calculation */
+	GPUTexture *dof_near_coc_buffer;
+	/* blurred near coc buffer. */
+	GPUTexture *dof_near_coc_blurred_buffer;
+	/* final near coc buffer. */
+	GPUTexture *dof_near_coc_final_buffer;
 
 	/* texture bound to the depth attachment of the gbuffer */
 	GPUTexture *depth_buffer;
@@ -98,6 +110,19 @@ static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 		GPU_texture_free(fx->depth_buffer);
 		fx->depth_buffer = NULL;
 	}		
+
+	if (fx->dof_near_coc_blurred_buffer) {
+		GPU_texture_free(fx->dof_near_coc_blurred_buffer);
+		fx->dof_near_coc_blurred_buffer = NULL;
+	}
+	if (fx->dof_near_coc_buffer) {
+		GPU_texture_free(fx->dof_near_coc_buffer);
+		fx->dof_near_coc_buffer = NULL;
+	}
+	if (fx->dof_near_coc_final_buffer) {
+		GPU_texture_free(fx->dof_near_coc_final_buffer);
+		fx->dof_near_coc_final_buffer = NULL;
+	}
 
 	if (fx->jitter_buffer && do_fbo) {
 		GPU_texture_free(fx->jitter_buffer);
@@ -194,6 +219,22 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, err_out))) {
 			printf("%.256s\n", err_out);
 		}
+
+		/* create textures for dof effect */
+		if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
+			fx->dof_near_w = w / 4;
+			fx->dof_near_h = h / 4;
+
+			if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				printf("%.256s\n", err_out);
+			}
+			if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				printf("%.256s\n", err_out);
+			}
+			if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				printf("%.256s\n", err_out);
+			}
+		}
 		
 		/* in case of failure, cleanup */
 		if (!fx->color_buffer || !fx->depth_buffer) {
@@ -227,12 +268,12 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 				  w_sc, h_sc);
 	}
 	fx->effects = fxflags;
-	
+
 	return true;
 }
 
 
-bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D *rv3d) {
+bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D *rv3d, struct Scene *scene) {
 	GPUShader *fx_shader;
 	int numslots = 0;
 
@@ -368,10 +409,17 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 		fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD);
 		if (fx_shader) {
 			int i;
-			float aperture = 0.001 * v3d->dof_focal_length / v3d->dof_fstop; // * v3d->dof_aperture;
-			float dof_params[2] = {aperture * fabs(0.001  * v3d->dof_focal_length / (0.1 * v3d->dof_focus_distance - 0.001 * v3d->dof_focal_length)),
-			                       0.1 * v3d->dof_focus_distance};
+			float dof_params[4];
 			int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform;
+
+			float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
+			float scale_camera = 0.001f / scale;
+			float aperture = 2.0f * scale_camera * v3d->dof_focal_length / v3d->dof_fstop; // * v3d->dof_aperture;
+
+			dof_params[0] = aperture * fabs(scale_camera * v3d->dof_focal_length / (v3d->dof_focus_distance - scale_camera * v3d->dof_focal_length));
+			dof_params[1] = v3d->dof_focus_distance;
+			dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * v3d->dof_sensor);
+			dof_params[3] = 0.0f;
 
 			dof_uniform = GPU_shader_get_uniform(fx_shader, "dof_params");
 			blurred_uniform = GPU_shader_get_uniform(fx_shader, "blurredcolorbuffer");
@@ -381,7 +429,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 
 			GPU_shader_bind(fx_shader);
 
-			GPU_shader_uniform_vector(fx_shader, dof_uniform, 2, 1, dof_params);
+			GPU_shader_uniform_vector(fx_shader, dof_uniform, 4, 1, dof_params);
 			GPU_shader_uniform_vector(fx_shader, screendim_uniform, 2, 1, screen_dim);
 
 			GPU_texture_bind(fx->color_buffer, numslots++);

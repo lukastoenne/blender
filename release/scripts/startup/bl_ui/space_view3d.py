@@ -2900,6 +2900,7 @@ class VIEW3D_PT_view3d_shading(Panel):
                 subcol.prop(view, "dof_aperture")
                 subcol.prop(view, "dof_fstop")
                 subcol.prop(view, "dof_focal_length")
+                subcol.prop(view, "dof_sensor")
             col.prop(view, "ssao")
             if view.ssao:
                 subcol = col.column(align=True)

@@ -38,6 +38,7 @@ typedef struct GPUFX GPUFX;
 struct RegionView3D;
 struct View3D;
 struct rcti;
+struct Scene;
 
 /**** Public API *****/
 
@@ -59,6 +60,6 @@ void GPU_destroy_fx_compositor(GPUFX *fx);
 bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, rcti *scissor_rect, int fxflags);
 
 /* do compositing on the fx passes that have been initialized */
-bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D *rv3d);
+bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D *rv3d, struct Scene *scene);
 
 #endif // __GPU_COMPOSITING_H__
