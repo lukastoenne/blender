@@ -326,6 +326,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	
 	/* first, unbind the render-to-texture framebuffer */
 	GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer);
+	GPU_framebuffer_texture_detach(fx->gbuffer, fx->depth_buffer);
 	glPopAttrib();
 
 	src = fx->color_buffer;
@@ -429,8 +430,10 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			glColor3f(1.0, 0.0, 1.0);
 
 			/* draw */
-			if (passes_left-- == 1)
+			if (passes_left-- == 1) {
+				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
 				GPU_framebuffer_restore();
+			}
 			else {
 				/* bind the ping buffer to the color buffer */
 				GPU_framebuffer_texture_attach(fx->gbuffer, target, NULL);
@@ -502,8 +505,10 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_shader_uniform_texture(fx_shader, depth_uniform, fx->depth_buffer);
 
 			/* if this is the last pass, prepare for rendering on the frambuffer */
-			if (passes_left-- == 1)
+			if (passes_left-- == 1) {
+				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
 				GPU_framebuffer_restore();
+			}
 			else {
 				/* bind the ping buffer to the color buffer */
 				GPU_framebuffer_texture_attach(fx->gbuffer, target, NULL);
@@ -531,7 +536,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	
 	GPU_shader_unbind();
-	GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
 
 	return true;
 }
