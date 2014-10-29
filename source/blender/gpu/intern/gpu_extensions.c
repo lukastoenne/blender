@@ -1588,6 +1588,10 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 			strcat(defines, "#define FIRST_PASS\n");
 			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 		}
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_TWO) {
+			strcat(defines, "#define SECOND_PASS\n");
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		}
 	}
 	
 	return GG.shaders.fx_shaders[offset];

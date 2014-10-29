@@ -24,6 +24,8 @@ float calculate_dof_coc(in vec3 viewposition)
     return coc * dof_params.z;
 }
 
+/* first pass blurs the color buffer heavily and gets the near coc only. There are too many texture accesses here but they are done on a
+ * lower resolution image */
 void first_pass()
 {
     float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
@@ -35,11 +37,22 @@ void first_pass()
     gl_FragColor = vec4(coc * color.rgb, 1.0);
 }
 
+
+/* second pass, just visualize the first pass contents */
+void second_pass()
+{
+    vec4 color = texture2D(colorbuffer, uvcoordsvar.xy);
+
+    gl_FragColor = vec4(color.a * color.rgb, 1.0);
+}
+
+
 void main()
 {
 #ifdef FIRST_PASS
     first_pass();
 #elif defined(SECOND_PASS)
+    second_pass();
 #elif defined(THIRD_PASS)
 #elif defined(FOURTH_PASS)
 #endif
