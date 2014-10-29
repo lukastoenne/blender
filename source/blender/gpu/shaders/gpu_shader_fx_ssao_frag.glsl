@@ -1,5 +1,3 @@
-// amount of offset to move one pixel left-right
-uniform vec2 screendim;
 // color buffer
 uniform sampler2D colorbuffer;
 
@@ -24,57 +22,57 @@ uniform vec4 viewvecs[3];
 
 float calculate_ssao_factor(float depth)
 {
-    /* take the normalized ray direction here */
-    vec2 rotX = texture2D(jitter_tex, uvcoordsvar.xy * ssao_sample_params.zw).rg;
-    vec2 rotY = vec2(-rotX.y, rotX.x);
+	/* take the normalized ray direction here */
+	vec2 rotX = texture2D(jitter_tex, uvcoordsvar.xy * ssao_sample_params.zw).rg;
+	vec2 rotY = vec2(-rotX.y, rotX.x);
 
-    /* occlusion is zero in full depth */
-    if (depth == 1.0)
-        return 0.0;
+	/* occlusion is zero in full depth */
+	if (depth == 1.0)
+		return 0.0;
 
-    vec3 position = get_view_space_from_depth(uvcoordsvar.xy, viewvecs[0].xyz, viewvecs[1].xyz, depth);
-    vec3 normal = calculate_view_space_normal(position);
+	vec3 position = get_view_space_from_depth(uvcoordsvar.xy, viewvecs[0].xyz, viewvecs[1].xyz, depth);
+	vec3 normal = calculate_view_space_normal(position);
 
-    // find the offset in screen space by multiplying a point in camera space at the depth of the point by the projection matrix.
-    vec4 offset = gl_ProjectionMatrix * vec4(ssao_params.x, ssao_params.x, position.z, 1.0);
-    float factor = 0.0;
-    int x, y;
-    int radial_samples = int(ssao_sample_params.y);
-    int azimuth_samples = int(ssao_sample_params.x);
-    /* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
-    offset = (offset / offset.w) * 0.5;
+	// find the offset in screen space by multiplying a point in camera space at the depth of the point by the projection matrix.
+	vec4 offset = gl_ProjectionMatrix * vec4(ssao_params.x, ssao_params.x, position.z, 1.0);
+	float factor = 0.0;
+	int x, y;
+	int radial_samples = int(ssao_sample_params.y);
+	int azimuth_samples = int(ssao_sample_params.x);
+	/* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
+	offset = (offset / offset.w) * 0.5;
 
-    for (x = 0; x < azimuth_samples; x++) {
-        vec2 dir_sample = sample_directions[x];
+	for (x = 0; x < azimuth_samples; x++) {
+		vec2 dir_sample = sample_directions[x];
 
-        /* rotate with random direction to get jittered result */
-        vec2 dir_jittered = vec2(dot(dir_sample, rotX), dot(dir_sample, rotY));
+		/* rotate with random direction to get jittered result */
+		vec2 dir_jittered = vec2(dot(dir_sample, rotX), dot(dir_sample, rotY));
 
-        for (y = 0; y < radial_samples; y++) {
-            vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset.xy * float(y + 1) / ssao_sample_params.y;
+		for (y = 0; y < radial_samples; y++) {
+			vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset.xy * float(y + 1) / ssao_sample_params.y;
 
-            float depth_new = texture2D(depthbuffer, uvcoords).r;
-            if (depth_new != 1.0) {
-                vec3 pos_new = get_view_space_from_depth(uvcoords, viewvecs[0].xyz, viewvecs[1].xyz, depth_new);
-                vec3 dir = pos_new - position;
-                float len = length(dir);
-                float f = dot(dir, normal);
+			float depth_new = texture2D(depthbuffer, uvcoords).r;
+			if (depth_new != 1.0) {
+				vec3 pos_new = get_view_space_from_depth(uvcoords, viewvecs[0].xyz, viewvecs[1].xyz, depth_new);
+				vec3 dir = pos_new - position;
+				float len = length(dir);
+				float f = dot(dir, normal);
 
-                /* use minor bias here to avoid self shadowing */
-                if (f > 0.05 * len)
-                    factor += f / len * 1.0/(1.0 + len * len * ssao_params.z);
-            }
-        }
-    }
+				/* use minor bias here to avoid self shadowing */
+				if (f > 0.05 * len)
+					factor += f / len * 1.0/(1.0 + len * len * ssao_params.z);
+			}
+		}
+	}
 
-    factor /= (ssao_sample_params.y * ssao_sample_params.x);
-    
-    return clamp(factor * ssao_params.y, 0.0, 1.0);
+	factor /= (ssao_sample_params.y * ssao_sample_params.x);
+
+	return clamp(factor * ssao_params.y, 0.0, 1.0);
 }
 
 void main()
 {
-    float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
-    vec4 color = mix(texture2D(colorbuffer, uvcoordsvar.xy), ssao_color, calculate_ssao_factor(depth));
-    gl_FragColor = vec4(color.rgb, 1.0);
+	float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
+	vec4 color = mix(texture2D(colorbuffer, uvcoordsvar.xy), ssao_color, calculate_ssao_factor(depth));
+	gl_FragColor = vec4(color.rgb, 1.0);
 }

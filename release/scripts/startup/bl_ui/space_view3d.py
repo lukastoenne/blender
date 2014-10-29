@@ -2897,7 +2897,8 @@ class VIEW3D_PT_view3d_shading(Panel):
             if view.depth_of_field:
                 subcol = col.column(align=True)
                 subcol.prop(view, "dof_focus_distance")
-                subcol.prop(view, "dof_aperture")
+                #fstop is preferable?..
+                #subcol.prop(view, "dof_aperture")
                 subcol.prop(view, "dof_fstop")
                 subcol.prop(view, "dof_focal_length")
                 subcol.prop(view, "dof_sensor")

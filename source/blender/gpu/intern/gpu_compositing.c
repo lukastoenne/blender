@@ -335,8 +335,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	int i;
 	/* number of passes left. when there are no more passes, the result is passed to the frambuffer */
 	int passes_left = fx->num_passes;
-	/* dimensions of screen (used in many shaders)*/
-	float screen_dim[2] = {fx->gbuffer_dim[0], fx->gbuffer_dim[1]};
 	/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
 	float viewvecs[3][4] = {
 	    {-1.0f, -1.0f, -1.0f, 1.0f},
@@ -499,12 +497,14 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 		/* pass first, first level of blur in low res buffer */
 		{
 			float dof_params[4];
-			int screendim_uniform, color_uniform, depth_uniform, dof_uniform;
+			int invrendertargetdim_uniform, color_uniform, depth_uniform, dof_uniform;
 			int viewvecs_uniform;
 
 			float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
 			float scale_camera = 0.001f / scale;
 			float aperture = 2.0f * scale_camera * v3d->dof_focal_length / v3d->dof_fstop; // * v3d->dof_aperture;
+
+			float invrendertargetdim[2] = {1.0f / fx->gbuffer_dim[0], 1.0f / fx->gbuffer_dim[1]};
 
 			dof_params[0] = aperture * fabs(scale_camera * v3d->dof_focal_length / (v3d->dof_focus_distance - scale_camera * v3d->dof_focal_length));
 			dof_params[1] = v3d->dof_focus_distance;
@@ -512,7 +512,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			dof_params[3] = 0.0f;
 
 			dof_uniform = GPU_shader_get_uniform(dof_shader_pass1, "dof_params");
-			screendim_uniform = GPU_shader_get_uniform(dof_shader_pass1, "screendim");
+			invrendertargetdim_uniform = GPU_shader_get_uniform(dof_shader_pass1, "invrendertargetdim");
 			color_uniform = GPU_shader_get_uniform(dof_shader_pass1, "colorbuffer");
 			depth_uniform = GPU_shader_get_uniform(dof_shader_pass1, "depthbuffer");
 			viewvecs_uniform = GPU_shader_get_uniform(dof_shader_pass1, "viewvecs");
@@ -520,7 +520,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_shader_bind(dof_shader_pass1);
 
 			GPU_shader_uniform_vector(dof_shader_pass1, dof_uniform, 4, 1, dof_params);
-			GPU_shader_uniform_vector(dof_shader_pass1, screendim_uniform, 2, 1, screen_dim);
+			GPU_shader_uniform_vector(dof_shader_pass1, invrendertargetdim_uniform, 2, 1, invrendertargetdim);
 			GPU_shader_uniform_vector(dof_shader_pass1, viewvecs_uniform, 4, 3, viewvecs[0]);
 
 			GPU_texture_bind(src, numslots++);

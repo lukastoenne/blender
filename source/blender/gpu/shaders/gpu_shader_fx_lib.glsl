@@ -1,36 +1,47 @@
 vec3 calculate_view_space_normal(in vec3 viewposition)
 {
-    vec3 normal = cross(normalize(dFdx(viewposition)),
-                        normalize(dFdy(viewposition)));
-    normalize(normal);
-    return normal;
+	vec3 normal = cross(normalize(dFdx(viewposition)),
+	                    normalize(dFdy(viewposition)));
+	normalize(normal);
+	return normal;
 }
 
+/* simple depth reconstruction, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer
+ * we change the factors from the article to fit the OpennGL model.  */
 #ifdef PERSP_MATRIX
 
-vec3 get_view_space_from_depth(in vec2 uvcoords, in vec3 viewvec_origin, in vec3 viewvec_diff, float depth)
+/* perspective camera code */
+
+vec3 get_view_space_from_depth(in vec2 uvcoords, in vec3 viewvec_origin, in vec3 viewvec_diff, in float depth)
 {
-    /* simple depth reconstruction, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer
-     * we change the factors from the article to fit the OpennGL model.  */
+	float d = 2.0 * depth - 1.0;
 
-    float d = 2.0 * depth - 1.0;
+	float zview = -gl_ProjectionMatrix[3][2] / (d + gl_ProjectionMatrix[2][2]);
 
-    float zview = -gl_ProjectionMatrix[3][2] / (d + gl_ProjectionMatrix[2][2]);
+	return zview * (viewvec_origin + vec3(uvcoords, 0.0) * viewvec_diff);
+}
 
-    return zview * (viewvec_origin + vec3(uvcoords, 0.0) * viewvec_diff);
+float get_view_space_z_from_depth(in float near, in float range, in float depth)
+{
+	float d = 2.0 * depth - 1.0;
+
+	/* return positive value, so sign differs! */
+	return gl_ProjectionMatrix[3][2] / (d + gl_ProjectionMatrix[2][2]);
 }
 
 #else
+/* orthographic camera code */
 
-vec3 get_view_space_from_depth(in vec2 uvcoords, in vec3 viewvec_origin, in vec3 viewvec_diff, float depth)
+vec3 get_view_space_from_depth(in vec2 uvcoords, in vec3 viewvec_origin, in vec3 viewvec_diff, in float depth)
 {
-    /* simple depth reconstruction, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer
-     * we change the factors from the article to fit the OpennGL model.  */
+	vec3 offset = vec3(uvcoords, depth);
 
-    float d = 2.0 * depth - 1.0;
-    vec3 offset = vec3(uvcoords, d);
+	return vec3(viewvec_origin + offset * viewvec_diff);
+}
 
-    return vec3(viewvec_origin + offset * viewvec_diff);
+float get_view_space_z_from_depth(in float near, in float range, in float depth)
+{
+	return -(near + depth * range);
 }
 
 #endif
