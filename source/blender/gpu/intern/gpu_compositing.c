@@ -102,6 +102,21 @@ GPUFX *GPU_create_fx_compositor(void)
 	return fx;
 }
 
+static void cleanup_fx_dof_buffers(GPUFX *fx)
+{
+	if (fx->dof_near_coc_blurred_buffer) {
+		GPU_texture_free(fx->dof_near_coc_blurred_buffer);
+		fx->dof_near_coc_blurred_buffer = NULL;
+	}
+	if (fx->dof_near_coc_buffer) {
+		GPU_texture_free(fx->dof_near_coc_buffer);
+		fx->dof_near_coc_buffer = NULL;
+	}
+	if (fx->dof_near_coc_final_buffer) {
+		GPU_texture_free(fx->dof_near_coc_final_buffer);
+		fx->dof_near_coc_final_buffer = NULL;
+	}
+}
 
 static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 {
@@ -123,18 +138,7 @@ static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 		fx->depth_buffer = NULL;
 	}		
 
-	if (fx->dof_near_coc_blurred_buffer) {
-		GPU_texture_free(fx->dof_near_coc_blurred_buffer);
-		fx->dof_near_coc_blurred_buffer = NULL;
-	}
-	if (fx->dof_near_coc_buffer) {
-		GPU_texture_free(fx->dof_near_coc_buffer);
-		fx->dof_near_coc_buffer = NULL;
-	}
-	if (fx->dof_near_coc_final_buffer) {
-		GPU_texture_free(fx->dof_near_coc_final_buffer);
-		fx->dof_near_coc_final_buffer = NULL;
-	}
+	cleanup_fx_dof_buffers(fx);
 
 	if (fx->jitter_buffer && do_fbo) {
 		GPU_texture_free(fx->jitter_buffer);
@@ -202,6 +206,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 {
 	int w = BLI_rcti_size_x(rect) + 1, h = BLI_rcti_size_y(rect) + 1;
 	char err_out[256];
+	int num_passes = 0;
 
 	fx->effects = 0;
 
@@ -210,6 +215,14 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 		return false;
 	}
 	
+	fx->num_passes = 0;
+	/* dof really needs a ping-pong buffer to work */
+	if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
+		num_passes++;
+	}
+	if (fxflags & V3D_FX_SSAO)
+		num_passes++;
+
 	if (!fx->gbuffer) 
 		fx->gbuffer = GPU_framebuffer_create();
 	
@@ -238,35 +251,51 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	}
 	
 	/* create textures for dof effect */
-	if ((fxflags & V3D_FX_DEPTH_OF_FIELD) &&
-	     (!fx->color_buffer_sec || !fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer ||
-	      w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]))
-	{
-		fx->dof_near_w = w / 4;
-		fx->dof_near_h = h / 4;
+	if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
+		if (!fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer) {
+			fx->dof_near_w = w / 4;
+			fx->dof_near_h = h / 4;
 
-		if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, err_out))) {
-			printf(".256%s\n", err_out);
-			cleanup_fx_gl_data(fx, true);
-			return false;
-		}
-
-		if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
-			printf("%.256s\n", err_out);
-			cleanup_fx_gl_data(fx, true);
-			return false;
-		}
-		if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
-			printf("%.256s\n", err_out);
-			cleanup_fx_gl_data(fx, true);
-			return false;
-		}
-		if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
-			printf("%.256s\n", err_out);
-			cleanup_fx_gl_data(fx, true);
-			return false;
+			if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				printf("%.256s\n", err_out);
+				cleanup_fx_gl_data(fx, true);
+				return false;
+			}
+			if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				printf("%.256s\n", err_out);
+				cleanup_fx_gl_data(fx, true);
+				return false;
+			}
+			if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				printf("%.256s\n", err_out);
+				cleanup_fx_gl_data(fx, true);
+				return false;
+			}
 		}
 	}
+	else {
+		/* cleanup unnecessary buffers */
+		cleanup_fx_dof_buffers(fx);
+	}
+
+	/* we need to pass data between shader stages, allocate an extra color buffer */
+	if (num_passes > 1) {
+		if(!fx->color_buffer_sec) {
+			if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, err_out))) {
+				printf(".256%s\n", err_out);
+				cleanup_fx_gl_data(fx, true);
+				return false;
+			}
+		}
+	}
+	else {
+		if (fx->color_buffer_sec) {
+			GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer_sec);
+			GPU_texture_free(fx->color_buffer_sec);
+			fx->color_buffer_sec = NULL;
+		}
+	}
+
 	/* bind the buffers */
 	
 	/* first depth buffer, because system assumes read/write buffers */
@@ -289,16 +318,11 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 				  w_sc, h_sc);
 	}
 	fx->effects = fxflags;
-	fx->num_passes = 0;
-	/* dof really needs a ping-pong buffer to work */
-	if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
-		fx->num_passes++;
-	}
-	if (fxflags & V3D_FX_SSAO)
-		fx->num_passes++;
 
 	fx->gbuffer_dim[0] = w;
 	fx->gbuffer_dim[1] = h;
+
+	fx->num_passes = num_passes;
 
 	return true;
 }
@@ -462,7 +486,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 
 	/* second pass, dof */
 	if (fx->effects & V3D_FX_DEPTH_OF_FIELD) {
-		fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD, rv3d->is_persp);
+		fx_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE, rv3d->is_persp);
 		if (fx_shader) {
 			float dof_params[4];
 			int screendim_uniform, color_uniform, depth_uniform, dof_uniform, blurred_uniform;

@@ -1564,10 +1564,12 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	return retval;
 }
 
+#define MAX_DEFINES 100
+
 GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 {
 	int offset;
-	const char *defines = NULL;
+	char defines[MAX_DEFINES] = "";
 	/* avoid shaders out of range */
 	if (effects >= MAX_FX_SHADERS)
 		return NULL;
@@ -1576,14 +1578,16 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 
 	if (persp) {
 		offset += 1;
-		defines = "#define PERSP_MATRIX\n";
+		strcat(defines, "#define PERSP_MATRIX\n");
 	}
 
 	if (!GG.shaders.fx_shaders[offset]) {
 		if (effects == GPU_SHADER_FX_SSAO)
 			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
-		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD)
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE) {
+			strcat(defines, "#define FIRST_PASS\n");
 			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		}
 	}
 	
 	return GG.shaders.fx_shaders[offset];

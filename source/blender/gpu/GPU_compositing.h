@@ -43,12 +43,18 @@ struct Scene;
 /**** Public API *****/
 
 typedef enum GPUFXShaderEffect {
-	GPU_SHADER_FX_SSAO           =	(1<<0),
-	GPU_SHADER_FX_DEPTH_OF_FIELD =	(1<<1),
-	GPU_SHADER_FX_MAX            =	(1<<2),
+	/* Screen space ambient occlusion shader */
+	GPU_SHADER_FX_SSAO           = 1,
+
+	/* depth of field passes. Yep, quite a complex effect */
+	GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE = 2,
+	GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_TWO = 3,
+	GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE = 4,
+	GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR = 5,
 } GPUFXShaderEffect;
 
-#define MAX_FX_SHADERS (GPU_SHADER_FX_MAX - 1)
+/* keep in synch with enum above! */
+#define MAX_FX_SHADERS 6
 
 /* generate a new FX compositor */
 GPUFX *GPU_create_fx_compositor(void);

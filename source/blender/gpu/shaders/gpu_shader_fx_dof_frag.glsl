@@ -24,7 +24,7 @@ float calculate_dof_coc(in vec3 viewposition)
     return coc * dof_params.z;
 }
 
-void main()
+void first_pass()
 {
     float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
     vec4 color = texture2D(colorbuffer, uvcoordsvar.xy);
@@ -33,4 +33,14 @@ void main()
     float coc = calculate_dof_coc(position);
 
     gl_FragColor = vec4(coc * color.rgb, 1.0);
+}
+
+void main()
+{
+#ifdef FIRST_PASS
+    first_pass();
+#elif defined(SECOND_PASS)
+#elif defined(THIRD_PASS)
+#elif defined(FOURTH_PASS)
+#endif
 }
