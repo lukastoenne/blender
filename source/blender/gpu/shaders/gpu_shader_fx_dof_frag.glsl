@@ -19,6 +19,11 @@ uniform vec4 viewvecs[3];
 varying vec2 color_uv1;
 varying vec2 color_uv2;
 
+varying vec2 depth_uv1;
+varying vec2 depth_uv2;
+varying vec2 depth_uv3;
+varying vec2 depth_uv4;
+
 float calculate_dof_coc(in float zdepth)
 {
 	float coc = dof_params.x * abs(1.0 - dof_params.y / zdepth);
@@ -28,9 +33,9 @@ float calculate_dof_coc(in float zdepth)
 }
 
 /* near coc only! when distance is nearer than focus plane first term is bigger than one */
-float calculate_near_coc(in float zdepth)
+vec4 calculate_near_coc(in vec4 zdepth)
 {
-	float coc = dof_params.x * max(dof_params.y / zdepth - 1.0, 0.0);
+	vec4 coc = dof_params.x * max(vec4(dof_params.y) / zdepth - vec4(1.0), vec4(0.0));
 
 	/* multiply by 1.0 / sensor size to get the normalized size */
 	return coc * dof_params.z;
@@ -40,22 +45,58 @@ float calculate_near_coc(in float zdepth)
  * lower resolution image */
 void first_pass()
 {
-	float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
+	vec4 depth;
+	vec4 zdepth;
+	vec4 coc;
+	float final_coc;
 
 	/* amount to add to uvs so that they move one row further */
-	vec2 offset_row = vec2(0.0, 2.0 * invrendertargetdim.y);
+	vec2 offset_row[3];
+	offset_row[0] = vec2(0.0, invrendertargetdim.y);
+	offset_row[1] = 2 * offset_row[0];
+	offset_row[2] = 3 * offset_row[0];
 
 	/* heavily blur the image */
 	vec4 color = texture2D(colorbuffer, color_uv1);
-	color += texture2D(colorbuffer, color_uv1 + offset_row);
+	color += texture2D(colorbuffer, color_uv1 + offset_row[1]);
 	color += texture2D(colorbuffer, color_uv2);
-	color += texture2D(colorbuffer, color_uv2 + offset_row);
+	color += texture2D(colorbuffer, color_uv2 + offset_row[1]);
 	color /= 4.0;
 
-	float zdepth = get_view_space_z_from_depth(viewvecs[0].z, viewvecs[1].z, depth);
-	float coc = calculate_near_coc(zdepth);
+	depth.r = texture2D(depthbuffer, depth_uv1).r;
+	depth.g = texture2D(depthbuffer, depth_uv2).r;
+	depth.b = texture2D(depthbuffer, depth_uv3).r;
+	depth.a = texture2D(depthbuffer, depth_uv4).r;
 
-	gl_FragColor = vec4(color.rgb, coc);
+	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
+	coc = calculate_near_coc(zdepth);
+
+	depth.r = texture2D(depthbuffer, depth_uv1 + offset_row[0]).r;
+	depth.g = texture2D(depthbuffer, depth_uv2 + offset_row[0]).r;
+	depth.b = texture2D(depthbuffer, depth_uv3 + offset_row[0]).r;
+	depth.a = texture2D(depthbuffer, depth_uv4 + offset_row[0]).r;
+
+	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
+	coc = max(calculate_near_coc(zdepth), coc);
+
+	depth.r = texture2D(depthbuffer, depth_uv1 + offset_row[1]).r;
+	depth.g = texture2D(depthbuffer, depth_uv2 + offset_row[1]).r;
+	depth.b = texture2D(depthbuffer, depth_uv3 + offset_row[1]).r;
+	depth.a = texture2D(depthbuffer, depth_uv4 + offset_row[1]).r;
+
+	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
+	coc = max(calculate_near_coc(zdepth), coc);
+
+	depth.r = texture2D(depthbuffer, depth_uv1 + offset_row[2]).r;
+	depth.g = texture2D(depthbuffer, depth_uv2 + offset_row[2]).r;
+	depth.b = texture2D(depthbuffer, depth_uv3 + offset_row[2]).r;
+	depth.a = texture2D(depthbuffer, depth_uv4 + offset_row[2]).r;
+
+	zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depth);
+	coc = max(calculate_near_coc(zdepth), coc);
+
+	final_coc = max(max(coc.x, coc.y), max(coc.z, coc.w));
+	gl_FragColor = vec4(color.rgb, final_coc);
 }
 
 
@@ -75,7 +116,7 @@ void third_pass()
 {
 	vec4 color = texture2D(colorbuffer, uvcoordsvar.xy);
 
-	gl_FragColor = vec4(color.a * color.rgb, 1.0);
+	gl_FragColor = vec4(color.a, color.a, color.a, 1.0);
 }
 
 void main()

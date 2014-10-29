@@ -21,12 +21,12 @@ vec3 get_view_space_from_depth(in vec2 uvcoords, in vec3 viewvec_origin, in vec3
 	return zview * (viewvec_origin + vec3(uvcoords, 0.0) * viewvec_diff);
 }
 
-float get_view_space_z_from_depth(in float near, in float range, in float depth)
+vec4 get_view_space_z_from_depth(in vec4 near, in vec4 range, in vec4 depth)
 {
-	float d = 2.0 * depth - 1.0;
+	vec4 d = 2.0 * depth - vec4(1.0);
 
 	/* return positive value, so sign differs! */
-	return gl_ProjectionMatrix[3][2] / (d + gl_ProjectionMatrix[2][2]);
+	return vec4(gl_ProjectionMatrix[3][2]) / (d + vec4(gl_ProjectionMatrix[2][2]));
 }
 
 #else
@@ -39,7 +39,7 @@ vec3 get_view_space_from_depth(in vec2 uvcoords, in vec3 viewvec_origin, in vec3
 	return vec3(viewvec_origin + offset * viewvec_diff);
 }
 
-float get_view_space_z_from_depth(in float near, in float range, in float depth)
+vec4 get_view_space_z_from_depth(in vec4 near, in vec4 range, in vec4 depth)
 {
 	return -(near + depth * range);
 }
