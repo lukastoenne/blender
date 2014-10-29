@@ -26,13 +26,22 @@ void vert_dof_first_pass()
 	gl_Position = gl_Vertex;
 }
 
+void vert_dof_second_pass()
+{
+	vec4 halfpixel = vec4(-0.5, 0.5, -0.5, 0.5);
+	uvcoordsvar = gl_MultiTexCoord0.xxyy + halfpixel * vec4(invrendertargetdim.x, invrendertargetdim.x, invrendertargetdim.y, invrendertargetdim.y);
+
+	gl_Position = gl_Vertex;
+}
+
 void main()
 {
 #ifdef FIRST_PASS
 	vert_dof_first_pass();
 #elif defined(SECOND_PASS)
-	vert_generic();
+	vert_dof_second_pass();
 #elif defined(THIRD_PASS)
+	vert_generic();
 #elif defined(FOURTH_PASS)
 #else
 	vert_generic();

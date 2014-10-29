@@ -59,14 +59,24 @@ void first_pass()
 }
 
 
-/* second pass, just visualize the first pass contents */
+/* second pass, blur the near coc texture and calculate the coc */
 void second_pass()
+{
+	vec4 color =  texture2D(colorbuffer, uvcoordsvar.xz);
+	color += texture2D(colorbuffer, uvcoordsvar.yz);
+	color += texture2D(colorbuffer, uvcoordsvar.xw);
+	color += texture2D(colorbuffer, uvcoordsvar.yw);
+
+	gl_FragColor = color/4.0;
+}
+
+/* second pass, just visualize the first pass contents */
+void third_pass()
 {
 	vec4 color = texture2D(colorbuffer, uvcoordsvar.xy);
 
 	gl_FragColor = vec4(color.a * color.rgb, 1.0);
 }
-
 
 void main()
 {
@@ -75,6 +85,7 @@ void main()
 #elif defined(SECOND_PASS)
 	second_pass();
 #elif defined(THIRD_PASS)
+	third_pass();
 #elif defined(FOURTH_PASS)
 #endif
 }
