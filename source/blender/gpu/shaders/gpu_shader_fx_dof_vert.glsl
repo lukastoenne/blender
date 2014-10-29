@@ -21,7 +21,7 @@ void vert_dof_first_pass()
 
 	/* we offset the texture coordinates by 1.5 pixel, then we reuse that to sample the surrounding pixels */
 	color_uv1 = gl_MultiTexCoord0.xy + vec2(-1.5, -1.5) * invrendertargetdim;
-	color_uv1 = gl_MultiTexCoord0.xy + vec2(0.5, -1.5) * invrendertargetdim;
+	color_uv2 = gl_MultiTexCoord0.xy + vec2(0.5, -1.5) * invrendertargetdim;
 
 	gl_Position = gl_Vertex;
 }

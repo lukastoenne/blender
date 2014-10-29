@@ -46,10 +46,10 @@ void first_pass()
 	vec2 offset_row = vec2(0.0, 2.0 * invrendertargetdim.y);
 
 	/* heavily blur the image */
-	vec4 color = texture2D(colorbuffer, color_uv1.xy);
-	color += texture2D(colorbuffer, color_uv1.xy + offset_row);
-	color += texture2D(colorbuffer, color_uv2.xy);
-	color += texture2D(colorbuffer, color_uv2.xy + offset_row);
+	vec4 color = texture2D(colorbuffer, color_uv1);
+	color += texture2D(colorbuffer, color_uv1 + offset_row);
+	color += texture2D(colorbuffer, color_uv2);
+	color += texture2D(colorbuffer, color_uv2 + offset_row);
 	color /= 4.0;
 
 	float zdepth = get_view_space_z_from_depth(viewvecs[0].z, viewvecs[1].z, depth);

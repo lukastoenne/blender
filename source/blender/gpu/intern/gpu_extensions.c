@@ -83,6 +83,7 @@ extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
 extern char datatoc_gpu_shader_fx_vert_glsl[];
 extern char datatoc_gpu_shader_fx_ssao_frag_glsl[];
 extern char datatoc_gpu_shader_fx_dof_frag_glsl[];
+extern char datatoc_gpu_shader_fx_dof_vert_glsl[];
 extern char datatoc_gpu_shader_fx_lib_glsl[];
 
 typedef struct GPUShaders {
@@ -1586,11 +1587,11 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE) {
 			strcat(defines, "#define FIRST_PASS\n");
-			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 		}
 		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_TWO) {
 			strcat(defines, "#define SECOND_PASS\n");
-			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 		}
 	}
 	
