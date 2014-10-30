@@ -796,6 +796,7 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 			/* Reset vertex flags */
 			verts->flags &= ~CLOTH_VERT_FLAG_PINNED;
 			verts->flags &= ~CLOTH_VERT_FLAG_NOSELFCOLL;
+			verts->flags &= ~CLOTH_VERT_FLAG_EXCLUDE;
 
 			dvert = dm->getVertData ( dm, i, CD_MDEFORMVERT );
 			if ( dvert ) {
@@ -848,11 +849,13 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 		}
 	}
 	
+#ifdef USE_PARTICLE_PREVIEW
 	verts = clothObj->verts;
 	for ( i = 0; i < numverts; i++, verts++ ) {
 		if (mvert[i].flag & ME_VERT_TMP_TAG)
 			verts->flags |= CLOTH_VERT_FLAG_EXCLUDE;
 	}
+#endif
 }
 
 

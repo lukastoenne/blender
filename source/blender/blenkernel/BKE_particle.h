@@ -65,6 +65,9 @@ struct BVHTreeRay;
 struct BVHTreeRayHit; 
 struct EdgeHash;
 
+/* XXX disabled for now due to stability issues and limited usefulness */
+//#define USE_PARTICLE_PREVIEW
+
 #define PARTICLE_P              ParticleData * pa; int p
 #define LOOP_PARTICLES  for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++)
 #define LOOP_EXISTING_PARTICLES for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++) if (!(pa->flag & PARS_UNEXIST))
