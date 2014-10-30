@@ -412,7 +412,7 @@ int ED_operator_posemode_exclusive(bContext *C)
 }
 
 /* allows for pinned pose objects to be used in the object buttons
- * and the the non-active pose object to be used in the 3D view */
+ * and the non-active pose object to be used in the 3D view */
 int ED_operator_posemode_context(bContext *C)
 {
 	Object *obpose = ED_pose_object_from_context(C);
@@ -2759,7 +2759,7 @@ static int screen_area_options_invoke(bContext *C, wmOperator *op, const wmEvent
 	
 	uiPupMenuEnd(C, pup);
 	
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 static void SCREEN_OT_area_options(wmOperatorType *ot)
@@ -2866,7 +2866,7 @@ static int repeat_history_invoke(bContext *C, wmOperator *op, const wmEvent *UNU
 	
 	uiPupMenuEnd(C, pup);
 	
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 static int repeat_history_exec(bContext *C, wmOperator *op)
@@ -3141,7 +3141,7 @@ static void SCREEN_OT_header(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Header";
-	ot->description = "Display display header";
+	ot->description = "Display header";
 	ot->idname = "SCREEN_OT_header";
 
 	/* api callbacks */
@@ -3262,7 +3262,7 @@ static int header_toolbox_invoke(bContext *C, wmOperator *UNUSED(op), const wmEv
 
 	uiPupMenuEnd(C, pup);
 
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 static void SCREEN_OT_header_toolbox(wmOperatorType *ot)
