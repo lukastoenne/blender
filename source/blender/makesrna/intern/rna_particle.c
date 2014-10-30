@@ -784,7 +784,7 @@ static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerR
 		}
 	}
 #endif
-	
+	(void)psys;
 	rna_Particle_redo(bmain, scene, ptr);
 }
 

@@ -3286,6 +3286,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	}
 }
 
+#ifdef USE_PARTICLE_PREVIEW
 static void hair_deform_preview_curve(ParticleSystem *psys, ParticleData *pa, float (*deformedVerts)[3], ClothHairRoot *roots)
 {
 	ParticleData *particles = psys->particles;
@@ -3384,7 +3385,7 @@ static void hair_deform_preview_hairs(ParticleSimulationData *sim, float (*defor
 	ParticleSystem *psys = sim->psys;
 	ParticleData *pa;
 	int p;
-	
+
 	pa = psys->particles;
 	for (p = 0; p < psys->totpart; ++p, ++pa) {
 		if (pa->flag & PARS_HAIR_BLEND) {
@@ -3392,6 +3393,7 @@ static void hair_deform_preview_hairs(ParticleSimulationData *sim, float (*defor
 		}
 	}
 }
+#endif
 
 static void do_hair_dynamics(ParticleSimulationData *sim)
 {

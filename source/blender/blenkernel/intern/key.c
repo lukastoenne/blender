@@ -1188,7 +1188,7 @@ float **BKE_key_get_per_block_object_weights(Object *ob, Key *key, WeightsArrayC
 	return per_keyblock_weights;
 }
 
-static float *get_particle_weights_array(ParticleSystem *psys, char *vgroup, WeightsArrayCache *cache)
+static float *get_particle_weights_array(ParticleSystem *UNUSED(psys), char *vgroup, WeightsArrayCache *UNUSED(cache))
 {
 //	MDeformVert *dvert = NULL;
 //	int totvert = 0, defgrp_index = 0;
