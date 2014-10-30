@@ -2130,17 +2130,27 @@ static void draw_dupli_objects_color(
 		glDeleteLists(displist, 1);
 }
 
-static void draw_dupli_objects(Scene *scene, ARegion *ar, View3D *v3d, Base *base)
+static void draw_dupli_objects(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const bool is_wire_color)
 {
 	/* define the color here so draw_dupli_objects_color can be called
 	 * from the set loop */
-	
-	int color = (base->flag & SELECT) ? TH_SELECT : TH_WIRE;
-	/* debug */
-	if (base->object->dup_group && base->object->dup_group->id.us < 1)
-		color = TH_REDALERT;
-	
-	draw_dupli_objects_color(scene, ar, v3d, base, 0, color);
+	short dflag;
+	int color;
+
+	if (is_wire_color) {
+		glColor3fv(base->object->col);
+		color = TH_UNDEFINED;
+		dflag = DRAW_CONSTCOLOR;
+	}
+	else {
+		color = (base->flag & SELECT) ? TH_SELECT : TH_WIRE;
+		/* debug */
+		if (base->object->dup_group && base->object->dup_group->id.us < 1)
+			color = TH_REDALERT;
+		dflag = 0;
+	}
+
+	draw_dupli_objects_color(scene, ar, v3d, base, dflag, color);
 }
 
 /* XXX warning, not using gpu offscreen here */
@@ -2614,6 +2624,7 @@ static void view3d_draw_objects(
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
 	const bool do_camera_frame = !draw_offscreen;
+	const bool is_wire_color = V3D_IS_WIRECOLOR(scene, v3d);
 
 	if (!draw_offscreen) {
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
@@ -2702,7 +2713,7 @@ static void view3d_draw_objects(
 			if (v3d->lay & base->lay) {
 				/* dupli drawing */
 				if (base->object->transflag & OB_DUPLI)
-					draw_dupli_objects(scene, ar, v3d, base);
+					draw_dupli_objects(scene, ar, v3d, base, is_wire_color && (base->object->dtx & OB_DRAW_WIRECOLOR));
 
 				draw_object(scene, ar, v3d, base, 0);
 			}
@@ -2719,7 +2730,7 @@ static void view3d_draw_objects(
 
 				/* dupli drawing */
 				if (base->object->transflag & OB_DUPLI) {
-					draw_dupli_objects(scene, ar, v3d, base);
+					draw_dupli_objects(scene, ar, v3d, base, is_wire_color && (base->object->dtx & OB_DRAW_WIRECOLOR));
 				}
 				if ((base->flag & SELECT) == 0) {
 					if (base->object != scene->obedit)
@@ -2730,6 +2741,10 @@ static void view3d_draw_objects(
 
 		/* mask out localview */
 		v3d->lay_used = lay_used & ((1 << 20) - 1);
+
+		if (is_wire_color && (v3d->drawtype <= OB_WIRE)) {
+			glClear(GL_DEPTH_BUFFER_BIT);
+		}
 
 		/* draw selected and editmode */
 		for (base = scene->base.first; base; base = base->next) {
@@ -3210,6 +3225,8 @@ static void view3d_main_area_draw_engine_info(View3D *v3d, RegionView3D *rv3d, A
  */
 static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 {
+	const bool is_wire_color = V3D_IS_WIRECOLOR(scene, v3d);
+
 	/* clear background */
 	if (scene->world && (v3d->flag2 & V3D_RENDER_OVERRIDE)) {  /* clear with solid color */
 		if (scene->world->skytype & WO_SKYBLEND) {  /* blend sky */
@@ -3328,6 +3345,12 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 
 #undef VIEWGRAD_RES_X
 #undef VIEWGRAD_RES_Y
+
+			if (is_wire_color) {
+				float col_mid[3];
+				mid_v3_v3v3(col_mid, col_hor, col_zen);
+				draw_object_bg_wire_color_set(col_mid);
+			}
 		}
 		else {  /* solid sky */
 			float col_hor[3];
@@ -3336,10 +3359,19 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 
 			glClearColor(col_hor[0], col_hor[1], col_hor[2], 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			if (is_wire_color) {
+				draw_object_bg_wire_color_set(col_hor);
+			}
 		}
 	}
 	else {
 		if (UI_GetThemeValue(TH_SHOW_BACK_GRAD)) {
+			float col_low[3], col_high[3];
+
+			UI_GetThemeColor3fv(TH_HIGH_GRAD, col_high);
+			UI_GetThemeColor3fv(TH_LOW_GRAD, col_low);
+
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
 			glLoadIdentity();
@@ -3351,10 +3383,10 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glDepthFunc(GL_ALWAYS);
 			glShadeModel(GL_SMOOTH);
 			glBegin(GL_QUADS);
-			UI_ThemeColor(TH_LOW_GRAD);
+			glColor3fv(col_low);
 			glVertex3f(-1.0, -1.0, 1.0);
 			glVertex3f(1.0, -1.0, 1.0);
-			UI_ThemeColor(TH_HIGH_GRAD);
+			glColor3fv(col_high);
 			glVertex3f(1.0, 1.0, 1.0);
 			glVertex3f(-1.0, 1.0, 1.0);
 			glEnd();
@@ -3368,10 +3400,24 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 
 			glMatrixMode(GL_MODELVIEW);
 			glPopMatrix();
+
+			if (is_wire_color) {
+				float col_mid[3];
+				mid_v3_v3v3(col_mid, col_low, col_high);
+				draw_object_bg_wire_color_set(col_mid);
+			}
 		}
 		else {
-			UI_ThemeClearColor(TH_HIGH_GRAD);
+			float col[3];
+
+			UI_GetThemeColor3fv(TH_HIGH_GRAD, col);
+
+			glClearColor(col[0], col[1], col[2], 0.0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			if (is_wire_color) {
+				draw_object_bg_wire_color_set(col);
+			}
 		}
 	}
 }

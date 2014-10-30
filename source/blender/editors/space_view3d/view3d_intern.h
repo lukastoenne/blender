@@ -135,6 +135,7 @@ void draw_motion_paths_cleanup(View3D *v3d);
 
 
 /* drawobject.c */
+void draw_object_bg_wire_color_set(const float color[3]);
 void draw_object(Scene *scene, struct ARegion *ar, View3D *v3d, Base *base, const short dflag);
 bool draw_glsl_material(Scene *scene, struct Object *ob, View3D *v3d, const char dt);
 void draw_object_instance(Scene *scene, View3D *v3d, RegionView3D *rv3d, struct Object *ob, const char dt, int outline);

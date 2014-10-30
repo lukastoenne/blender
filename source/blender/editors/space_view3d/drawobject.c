@@ -7093,6 +7093,52 @@ static void draw_object_wire_color(Scene *scene, Base *base, unsigned char r_ob_
 	r_ob_wire_col[3] = 255;
 }
 
+static float draw_object_wire_grey = -1.0f;
+void draw_object_bg_wire_color_set(const float color[3])
+{
+	float hsv[3];
+	rgb_to_hsv_v(color, hsv);
+	draw_object_wire_grey = hsv[2];
+}
+
+static void draw_object_wire_color_adjust_contrast(
+        unsigned char ob_wire_col[3],
+        /* 0 == normal, 1 == select, 2 == obact */
+        const int select_state,
+        const short draw_type)
+{
+	const float tint[3] = {0.0, 0.65f, 1.0f};
+	const float fac[3] = {0.666f, 0.75f, 1.0f};
+	const float contrast = 0.075f;
+
+	float hsv[3];
+
+	BLI_assert(draw_object_wire_grey != -1.0);
+
+	rgb_uchar_to_float(hsv, ob_wire_col);
+	rgb_to_hsv_v(hsv, hsv);
+
+	hsv[2] = interpf(tint[select_state], hsv[2], fac[select_state]);
+
+	/* when no solid --- ensure contrast */
+	if (draw_type <= OB_WIRE) {
+		const float fill_bw = draw_object_wire_grey;
+
+		if (fabsf(fill_bw - hsv[2]) < contrast) {
+			if (fill_bw < hsv[2]) {
+				hsv[2] = fill_bw + contrast;
+			}
+			else {
+				hsv[2] = fill_bw - contrast;
+			}
+		}
+
+	}
+
+	hsv_to_rgb_v(hsv, hsv);
+	rgb_float_to_uchar(ob_wire_col, hsv);
+}
+
 static void draw_object_matcap_check(View3D *v3d, Object *ob)
 {
 	/* fixed rule, active object draws as matcap */
@@ -7178,6 +7224,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	const bool render_override = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	const bool has_particles = (ob->particlesystem.first != NULL);
+	const bool is_wire_color = V3D_IS_WIRECOLOR_OBJECT(scene, v3d, ob);
 	bool particle_skip_object = false;  /* Draw particles but not their emitter object. */
 
 	if (ob != scene->obedit) {
@@ -7256,20 +7303,31 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		draw_motion_paths_cleanup(v3d);
 	}
 
-	/* multiply view with object matrix.
-	 * local viewmat and persmat, to calculate projections */
-	ED_view3d_init_mats_rv3d_gl(ob, rv3d);
-
 	/* which wire color */
 	if ((dflag & DRAW_CONSTCOLOR) == 0) {
 
 		ED_view3d_project_base(ar, base);
 
-		draw_object_wire_color(scene, base, _ob_wire_col);
+		if (is_wire_color) {
+			rgb_float_to_uchar(_ob_wire_col, ob->col);
+			_ob_wire_col[3] = 255;
+
+			draw_object_wire_color_adjust_contrast(
+			        _ob_wire_col,
+			        (ob->flag & SELECT) ? (is_obact ? 2 : 1) : 0,
+			        v3d->drawtype);
+		}
+		else {
+			draw_object_wire_color(scene, base, _ob_wire_col);
+		}
 		ob_wire_col = _ob_wire_col;
 
 		glColor3ubv(ob_wire_col);
 	}
+
+	/* multiply view with object matrix.
+	 * local viewmat and persmat, to calculate projections */
+	ED_view3d_init_mats_rv3d_gl(ob, rv3d);
 
 	/* maximum drawtype */
 	dt = v3d->drawtype;

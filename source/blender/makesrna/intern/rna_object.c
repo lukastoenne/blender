@@ -2711,6 +2711,11 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Draw All Edges", "Display all edges for mesh objects");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
+	prop = RNA_def_property(srna, "show_wire_color", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "dtx", OB_DRAW_WIRECOLOR);
+	RNA_def_property_ui_text(prop, "Draw Wire Color", "Use custom wire color");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
 	prop = RNA_def_property(srna, "show_transparent", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "dtx", OB_DRAWTRANSP);
 	RNA_def_property_ui_text(prop, "Draw Transparent",
