@@ -3044,6 +3044,7 @@ static MDeformVert *hair_set_pinning(MDeformVert *dvert, float weight)
 
 bool psys_hair_update_preview(ParticleSimulationData *sim)
 {
+#ifdef USE_PARTICLE_PREVIEW
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	DerivedMesh *dm = sim->psmd->dm;
@@ -3149,6 +3150,10 @@ bool psys_hair_update_preview(ParticleSimulationData *sim)
 	
 	psys->hair_num_simulated = num_simulated;
 	return true;
+#else
+	(void)sim;
+	return false;
+#endif
 }
 
 static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int totedge, DerivedMesh **r_dm, ClothHairRoot **r_roots)
@@ -3450,7 +3455,9 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 	
 	clothModifier_do(psys->clmd, sim->scene, sim->ob, psys->hair_in_dm, deformedVerts);
+#ifdef USE_PARTICLE_PREVIEW
 	hair_deform_preview_hairs(sim, deformedVerts, psys->clmd->roots);
+#endif
 	
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
 	
