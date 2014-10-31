@@ -1,19 +1,23 @@
-// amount of offset to move one pixel left-right
+/* amount of offset to move one pixel left-right.
+ * In second pass some dimensions are zero to control verical/horizontal convolution */
 uniform vec2 invrendertargetdim;
 // color buffer
 uniform sampler2D colorbuffer;
 //blurred color buffer for DOF effect
 uniform sampler2D blurredcolorbuffer;
-
+// slightly blurred buffer
+uniform sampler2D mblurredcolorbuffer;
 // depth buffer
 uniform sampler2D depthbuffer;
-// coordinates on framebuffer in normalized (0.0-1.0) uv space
-varying vec4 uvcoordsvar;
 
 // this includes focal distance in x and aperture size in y
 uniform vec4 dof_params;
 
+// viewvectors for reconstruction of world space
 uniform vec4 viewvecs[3];
+
+// coordinates on framebuffer in normalized (0.0-1.0) uv space
+varying vec4 uvcoordsvar;
 
 /* color texture coordinates, offset by a small amount */
 varying vec2 color_uv1;
@@ -24,9 +28,10 @@ varying vec2 depth_uv2;
 varying vec2 depth_uv3;
 varying vec2 depth_uv4;
 
-float calculate_dof_coc(in float zdepth)
+
+float calculate_far_coc(in float zdepth)
 {
-	float coc = dof_params.x * abs(1.0 - dof_params.y / zdepth);
+	float coc = dof_params.x * max(1.0 - dof_params.y / zdepth, 0.0);
 
 	/* multiply by 1.0 / sensor size to get the normalized size */
 	return coc * dof_params.z;
@@ -99,11 +104,38 @@ void first_pass()
 	gl_FragColor = vec4(color.rgb, final_coc);
 }
 
-
-/* second pass, blur the near coc texture and calculate the coc */
+/* second pass, gaussian blur the downsampled image */
 void second_pass()
 {
-	vec4 color =  texture2D(colorbuffer, uvcoordsvar.xz);
+	vec4 depth = vec4(texture2D(depthbuffer, uvcoordsvar.xy).r);
+
+	/* clever sampling to sample 2 pixels at once. Of course it's not real gaussian sampling this way */
+	vec4 color =  texture2D(colorbuffer, uvcoordsvar.xy) * 0.3125;
+	color += texture2D(colorbuffer, uvcoordsvar.xy + invrendertargetdim) * 0.234375;
+	color += texture2D(colorbuffer, uvcoordsvar.xy + 2.5 * invrendertargetdim) * 0.09375;
+	color += texture2D(colorbuffer, uvcoordsvar.xy + 4.5 * invrendertargetdim) * 0.015625;
+	color += texture2D(colorbuffer, uvcoordsvar.xy -invrendertargetdim) * 0.234375;
+	color += texture2D(colorbuffer, uvcoordsvar.xy -2.5 * invrendertargetdim) * 0.09375;
+	color += texture2D(colorbuffer, uvcoordsvar.xy -4.5 * invrendertargetdim) * 0.015625;
+
+	gl_FragColor = color;
+}
+
+
+/* third pass, calculate the final coc from blurred and unblurred images */
+void third_pass()
+{
+	vec4 color =  texture2D(colorbuffer, uvcoordsvar.xy);
+	vec4 color_blurred =  texture2D(blurredcolorbuffer, uvcoordsvar.xy);
+	float coc = 2.0 * max(color_blurred.a, color.a); - color.a;
+	gl_FragColor = vec4(color.rgb, coc);
+}
+
+
+/* fourth pass, blur the final coc once to get rid of discontinuities */
+void fourth_pass()
+{
+	vec4 color = texture2D(colorbuffer, uvcoordsvar.xz);
 	color += texture2D(colorbuffer, uvcoordsvar.yz);
 	color += texture2D(colorbuffer, uvcoordsvar.xw);
 	color += texture2D(colorbuffer, uvcoordsvar.yw);
@@ -111,13 +143,32 @@ void second_pass()
 	gl_FragColor = color/4.0;
 }
 
-/* second pass, just visualize the first pass contents */
-void third_pass()
-{
-	vec4 color = texture2D(colorbuffer, uvcoordsvar.xy);
 
-	gl_FragColor = vec4(color.a, color.a, color.a, 1.0);
+/* fourth pass, just visualize the third pass contents */
+void fifth_pass()
+{
+	vec4 factors;
+	vec4 color_orig = texture2D(colorbuffer, uvcoordsvar.xy);
+	vec4 highblurred = texture2D(blurredcolorbuffer, uvcoordsvar.xy);
+	vec4 mediumblurred = texture2D(mblurredcolorbuffer, uvcoordsvar.xy);
+	float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
+
+	float zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), vec4(depth)).r;
+	float coc_far = clamp(calculate_far_coc(zdepth), 0.0, 1.0);
+
+	/* calculate final coc here */
+	float coc = max(max(coc_far, mediumblurred.a), 0.0);
+
+	factors.x = 1.0 - clamp(2.0 * coc, 0.0, 1.0);
+	factors.y = 1.0 - clamp(abs(2.0 * (coc - 0.5)), 0.0, 1.0);
+	factors.z = clamp(5.0 * (coc - 0.5), 0.0, 1.0);
+	/* blend! */
+	vec4 color = factors.x * color_orig + factors.y * mediumblurred + factors.z * highblurred;
+
+	color /= (factors.x + factors.y + factors.z);
+	gl_FragColor = vec4(color.rgb, 1.0);
 }
+
 
 void main()
 {
@@ -128,5 +179,8 @@ void main()
 #elif defined(THIRD_PASS)
 	third_pass();
 #elif defined(FOURTH_PASS)
+	fourth_pass();
+#elif defined(FIFTH_PASS)
+	fifth_pass();
 #endif
 }
