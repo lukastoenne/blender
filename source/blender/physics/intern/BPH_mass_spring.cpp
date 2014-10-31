@@ -734,7 +734,8 @@ static void cloth_continuum_step(ClothModifierData *clmd)
 				copy_v3_v3(v, vert->v);
 			}
 			else {
-				BPH_mass_spring_get_motion_state(data, vert->solver_index, x, v);
+				BPH_mass_spring_get_position(data, vert->solver_index, x);
+				BPH_mass_spring_get_new_velocity(data, vert->solver_index, v);
 			}
 			BPH_hair_volume_add_vertex(vertex_grid, x, v);
 		}
