@@ -7093,12 +7093,30 @@ static void draw_object_wire_color(Scene *scene, Base *base, unsigned char r_ob_
 	r_ob_wire_col[3] = 255;
 }
 
+
 static float draw_object_wire_grey = -1.0f;
 void draw_object_bg_wire_color_set(const float color[3])
 {
-	float hsv[3];
-	rgb_to_hsv_v(color, hsv);
-	draw_object_wire_grey = hsv[2];
+	draw_object_wire_grey = rgb_to_grayscale(color);
+}
+
+
+static void tint_neg(float rgb[3], float fac)
+{
+	mul_v3_fl(rgb, fac);
+}
+
+static void tint_pos(float rgb[3], float fac)
+{
+	rgb[0] = 1.0 - rgb[0];
+	rgb[1] = 1.0 - rgb[1];
+	rgb[2] = 1.0 - rgb[2];
+
+	mul_v3_fl(rgb, fac);
+
+	rgb[0] = 1.0 - rgb[0];
+	rgb[1] = 1.0 - rgb[1];
+	rgb[2] = 1.0 - rgb[2];
 }
 
 static void draw_object_wire_color_adjust_contrast(
@@ -7107,36 +7125,39 @@ static void draw_object_wire_color_adjust_contrast(
         const int select_state,
         const short draw_type)
 {
-	const float tint[3] = {0.0, 0.65f, 1.0f};
-	const float fac[3] = {0.666f, 0.75f, 1.0f};
-	const float contrast = 0.075f;
+	const float contrast = 0.1f;
 
-	float hsv[3];
+	float rgb[3];
 
 	BLI_assert(draw_object_wire_grey != -1.0);
 
-	rgb_uchar_to_float(hsv, ob_wire_col);
-	rgb_to_hsv_v(hsv, hsv);
+	rgb_uchar_to_float(rgb, ob_wire_col);
 
-	hsv[2] = interpf(tint[select_state], hsv[2], fac[select_state]);
+	if (select_state == 0) {
+		tint_neg(rgb, 0.5f);
+	}
+	else {
+		tint_pos(rgb, select_state == 2 ? 0.15f : 0.35f);
+	}
+
 
 	/* when no solid --- ensure contrast */
 	if (draw_type <= OB_WIRE) {
 		const float fill_bw = draw_object_wire_grey;
+		const float wire_bw = rgb_to_grayscale(rgb);
+		const float delta = wire_bw - fill_bw;
 
-		if (fabsf(fill_bw - hsv[2]) < contrast) {
-			if (fill_bw < hsv[2]) {
-				hsv[2] = fill_bw + contrast;
+		if (fabsf(delta) < contrast) {
+			if (delta > 0.0f) {
+				tint_neg(rgb, 1.0f - (delta * 2.0f));
 			}
 			else {
-				hsv[2] = fill_bw - contrast;
+				tint_pos(rgb, 1.0f - (delta * -2.0f));
+
 			}
 		}
-
 	}
-
-	hsv_to_rgb_v(hsv, hsv);
-	rgb_float_to_uchar(ob_wire_col, hsv);
+	rgb_float_to_uchar(ob_wire_col, rgb);
 }
 
 static void draw_object_matcap_check(View3D *v3d, Object *ob)
