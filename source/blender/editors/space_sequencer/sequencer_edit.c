@@ -1438,9 +1438,9 @@ static int slip_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool
 	int num_items = 0;
 
 	for (seq = seqbasep->first; seq; seq = seq->next) {
-		if (!first_level || (!(seq->type & SEQ_TYPE_EFFECT) && (seq->flag & SELECT))) {
+		if (!do_trim || (!(seq->type & SEQ_TYPE_EFFECT) && (seq->flag & SELECT))) {
 			seq_array[offset + num_items] = seq;
-			trim[offset + num_items] = first_level;
+			trim[offset + num_items] = do_trim;
 			num_items++;
 
 			if (seq->type == SEQ_TYPE_META) {
@@ -1503,7 +1503,7 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 		transseq_backup(data->ts + i, data->seq_array[i]);
 	}
 
-	data->draw_handle = ED_region_draw_cb_activate(ar->type, draw_trim_extensions, data, REGION_DRAW_POST_VIEW);
+	data->draw_handle = ED_region_draw_cb_activate(ar->type, draw_slip_extensions, data, REGION_DRAW_POST_VIEW);
 
 	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
 
