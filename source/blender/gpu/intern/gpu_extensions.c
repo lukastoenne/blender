@@ -1036,6 +1036,12 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUS
 	glEnable(GL_SCISSOR_TEST);
 }
 
+void GPU_framebuffer_bind(GPUFrameBuffer *fb)
+{
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	GG.currentfb = fb->object;
+}
+
 void GPU_framebuffer_free(GPUFrameBuffer *fb)
 {
 	if (fb->depthtex)
@@ -1191,15 +1197,21 @@ void GPU_offscreen_free(GPUOffScreen *ofs)
 	MEM_freeN(ofs);
 }
 
-void GPU_offscreen_bind(GPUOffScreen *ofs)
+void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
 {
 	glDisable(GL_SCISSOR_TEST);
-	GPU_framebuffer_texture_bind(ofs->fb, ofs->color, ofs->w, ofs->h);
+	if (save)
+		GPU_framebuffer_texture_bind(ofs->fb, ofs->color, ofs->w, ofs->h);
+	else {
+		GPU_framebuffer_bind(ofs->fb);
+		glViewport(0, 0, ofs->w, ofs->h);
+	}
 }
 
-void GPU_offscreen_unbind(GPUOffScreen *ofs)
+void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore)
 {
-	GPU_framebuffer_texture_unbind(ofs->fb, ofs->color);
+	if (restore)
+		GPU_framebuffer_texture_unbind(ofs->fb, ofs->color);
 	GPU_framebuffer_restore();
 	glEnable(GL_SCISSOR_TEST);
 }

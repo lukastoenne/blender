@@ -397,6 +397,19 @@ typedef enum BakeSaveMode {
 	R_BAKE_SAVE_EXTERNAL = 1,
 } BakeSaveMode;
 
+typedef struct GPUFXOptions {
+	float dof_focus_distance; /* focal distance for depth of field */
+	float dof_aperture;           /* aperture for dof lens (could use fstop as well) */
+	float dof_fstop;
+	float dof_focal_length;
+	float dof_sensor;
+	float ssao_darkening;
+	float ssao_color[3];
+	float ssao_distance_max;
+	float ssao_attenuation;
+	int ssao_ray_sample_mode; /* ray samples, we use presets here for easy control instead of */
+} GPUFXOptions;
+
 /* *************************************************************** */
 /* Render Data */
 

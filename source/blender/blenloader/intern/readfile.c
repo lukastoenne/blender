@@ -6355,7 +6355,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 		/* add local view3d too */
 		else if (sa->spacetype == SPACE_VIEW3D)
 			blo_do_versions_view3d_split_250(sa->spacedata.first, &sa->regionbase);
-		
+
 		/* incase we set above */
 		sa->butspacetype = sa->spacetype;
 
@@ -6403,6 +6403,10 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				/* render can be quite heavy, set to solid on load */
 				if (v3d->drawtype == OB_RENDER)
 					v3d->drawtype = OB_SOLID;
+
+				if (v3d->fxoptions) {
+					v3d->fxoptions = newdataadr(fd, v3d->fxoptions);
+				}
 				
 				blo_do_versions_view3d_split_250(v3d, &sl->regionbase);
 			}

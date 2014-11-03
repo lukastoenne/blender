@@ -86,6 +86,8 @@ struct GPUFX {
 	/* dimensions of the gbuffer */
 	int gbuffer_dim[2];
 	
+	GPUFXOptions options;
+
 	/* or-ed flags of enabled effects */
 	int effects;
 
@@ -202,7 +204,7 @@ static void create_sample_directions(void)
 	init = true;
 }
 
-bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxflags)
+bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxflags, GPUFXOptions *options)
 {
 	int w = BLI_rcti_size_x(rect) + 1, h = BLI_rcti_size_y(rect) + 1;
 	char err_out[256];
@@ -319,6 +321,8 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	}
 	fx->effects = fxflags;
 
+	if (options)
+		fx->options = *options;
 	fx->gbuffer_dim[0] = w;
 	fx->gbuffer_dim[1] = h;
 
@@ -328,11 +332,12 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 }
 
 
-bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D *rv3d, struct Scene *scene) {
+bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs) {
 	GPUTexture *src, *target;
 	int numslots = 0;
 	float invproj[4][4];
 	int i;
+	GPUFXOptions *options = &fx->options;
 	/* number of passes left. when there are no more passes, the result is passed to the frambuffer */
 	int passes_left = fx->num_passes;
 	/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
@@ -362,14 +367,14 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	/* full screen FX pass */
 
 	/* invert the view matrix */
-	invert_m4_m4(invproj, rv3d->winmat);
+	invert_m4_m4(invproj, projmat);
 
 	/* convert the view vectors to view space */
 	for (i = 0; i < 3; i++) {
 		mul_m4_v4(invproj, viewvecs[i]);
 		/* normalized trick see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
 		mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][3]);
-		if (rv3d->is_persp)
+		if (is_persp)
 			mul_v3_fl(viewvecs[i], 1.0f / viewvecs[i][2]);
 		viewvecs[i][3] = 1.0;
 	}
@@ -379,7 +384,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	viewvecs[1][1] = viewvecs[2][1] - viewvecs[0][1];
 
 	/* calculate a depth offset as well */
-	if (!rv3d->is_persp) {
+	if (!is_persp) {
 		float vec_far[] = {-1.0f, -1.0f, 1.0f, 1.0f};
 		mul_m4_v4(invproj, vec_far);
 		mul_v3_fl(vec_far, 1.0f / vec_far[3]);
@@ -389,18 +394,18 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 	/* ssao pass */
 	if (fx->effects & V3D_FX_SSAO) {
 		GPUShader *ssao_shader;
-		ssao_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_SSAO, rv3d->is_persp);
+		ssao_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_SSAO, is_persp);
 		if (ssao_shader) {
 			int color_uniform, depth_uniform;
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
 			int ssao_jitter_uniform, ssao_direction_uniform;
-			float ssao_params[4] = {v3d->ssao_distance_max, v3d->ssao_darkening, v3d->ssao_attenuation, 0.0f};
+			float ssao_params[4] = {options->ssao_distance_max, options->ssao_darkening, options->ssao_attenuation, 0.0f};
 			float sample_params[4];
 
 			if (!init)
 				create_sample_directions();
 
-			switch (v3d->ssao_ray_sample_mode) {
+			switch (options->ssao_ray_sample_mode) {
 				case 0:
 					sample_params[0] = 4;
 					sample_params[1] = 4;
@@ -431,7 +436,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_shader_bind(ssao_shader);
 
 			GPU_shader_uniform_vector(ssao_shader, ssao_uniform, 4, 1, ssao_params);
-			GPU_shader_uniform_vector(ssao_shader, ssao_color_uniform, 4, 1, v3d->ssao_color);
+			GPU_shader_uniform_vector(ssao_shader, ssao_color_uniform, 4, 1, options->ssao_color);
 			GPU_shader_uniform_vector(ssao_shader, viewvecs_uniform, 4, 3, viewvecs[0]);
 			GPU_shader_uniform_vector(ssao_shader, ssao_sample_params_uniform, 4, 1, sample_params);
 			GPU_shader_uniform_vector(ssao_shader, ssao_direction_uniform, 2, 16, ssao_sample_directions[0]);
@@ -452,7 +457,11 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			/* draw */
 			if (passes_left-- == 1) {
 				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
-				GPU_framebuffer_restore();
+				if (ofs) {
+					GPU_offscreen_bind(ofs, false);
+				}
+				else
+					GPU_framebuffer_restore();
 			}
 			else {
 				/* bind the ping buffer to the color buffer */
@@ -467,8 +476,15 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_texture_unbind(fx->depth_buffer);
 
 			/* may not be attached, in that case this just returns */
-			if (target)
+			if (target) {
 				GPU_framebuffer_texture_detach(fx->gbuffer, target);
+				if (ofs) {
+					GPU_offscreen_bind(ofs, false);
+				}
+				else {
+					GPU_framebuffer_restore();
+				}
+			}
 
 			/* swap here, after src/target have been unbound */
 			SWAP(GPUTexture *, target, src);
@@ -482,21 +498,21 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 		float dof_params[4];
 		float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
 		float scale_camera = 0.001f / scale;
-		float aperture = 2.0f * scale_camera * v3d->dof_focal_length / v3d->dof_fstop; // * v3d->dof_aperture;
+		float aperture = 2.0f * scale_camera * options->dof_focal_length / options->dof_fstop; // * v3d->dof_aperture;
 
-		dof_params[0] = aperture * fabs(scale_camera * v3d->dof_focal_length / (v3d->dof_focus_distance - scale_camera * v3d->dof_focal_length));
-		dof_params[1] = v3d->dof_focus_distance;
-		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * v3d->dof_sensor);
+		dof_params[0] = aperture * fabs(scale_camera * options->dof_focal_length / (options->dof_focus_distance - scale_camera * options->dof_focal_length));
+		dof_params[1] = options->dof_focus_distance;
+		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
 		dof_params[3] = 0.0f;
 
 		/* DOF effect has many passes but most of them are performed on a texture whose dimensions are 4 times less than the original
 		 * (16 times lower than original screen resolution). Technique used is not very exact but should be fast enough and is based
 		 * on "Practical Post-Process Depth of Field" see http://http.developer.nvidia.com/GPUGems3/gpugems3_ch28.html */
-		dof_shader_pass1 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE, rv3d->is_persp);
-		dof_shader_pass2 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_TWO, rv3d->is_persp);
-		dof_shader_pass3 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE, rv3d->is_persp);
-		dof_shader_pass4 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR, rv3d->is_persp);
-		dof_shader_pass5 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE, rv3d->is_persp);
+		dof_shader_pass1 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE, is_persp);
+		dof_shader_pass2 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_TWO, is_persp);
+		dof_shader_pass3 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE, is_persp);
+		dof_shader_pass4 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR, is_persp);
+		dof_shader_pass5 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE, is_persp);
 
 		/* error occured, restore framebuffers and return */
 		if (!dof_shader_pass1 || !(dof_shader_pass2) || (!dof_shader_pass3) || (!dof_shader_pass4)) {
@@ -557,7 +573,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			float tmp = invrendertargetdim[0];
 			invrendertargetdim[0] = 0.0f;
 
-			dof_params[2] = GPU_texture_opengl_width(fx->dof_near_coc_blurred_buffer) / (scale_camera * v3d->dof_sensor);
+			dof_params[2] = GPU_texture_opengl_width(fx->dof_near_coc_blurred_buffer) / (scale_camera * options->dof_sensor);
 
 			dof_uniform = GPU_shader_get_uniform(dof_shader_pass2, "dof_params");
 			invrendertargetdim_uniform = GPU_shader_get_uniform(dof_shader_pass2, "invrendertargetdim");
@@ -607,7 +623,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_texture_unbind(fx->dof_near_coc_final_buffer);
 			GPU_framebuffer_texture_detach(fx->gbuffer, fx->dof_near_coc_blurred_buffer);
 
-			dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * v3d->dof_sensor);
+			dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
 
 			numslots = 0;
 		}
@@ -707,7 +723,11 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			/* if this is the last pass, prepare for rendering on the frambuffer */
 			if (passes_left-- == 1) {
 				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
-				GPU_framebuffer_restore();
+				if (ofs) {
+					GPU_offscreen_bind(ofs, false);
+				}
+				else
+					GPU_framebuffer_restore();
 			}
 			else {
 				/* bind the ping buffer to the color buffer */
@@ -723,8 +743,15 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, struct View3D *v3d, struct RegionView3D
 			GPU_texture_unbind(fx->depth_buffer);
 
 			/* may not be attached, in that case this just returns */
-			if (target)
+			if (target) {
 				GPU_framebuffer_texture_detach(fx->gbuffer, target);
+				if (ofs) {
+					GPU_offscreen_bind(ofs, false);
+				}
+				else {
+					GPU_framebuffer_restore();
+				}
+			}
 
 			SWAP(GPUTexture *, target, src);
 			numslots = 0;

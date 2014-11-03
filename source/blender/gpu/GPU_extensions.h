@@ -150,6 +150,8 @@ void GPU_framebuffer_texture_bind(GPUFrameBuffer *fb, GPUTexture *tex, int w, in
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
 
+void GPU_framebuffer_bind(GPUFrameBuffer *fb);
+
 void GPU_framebuffer_restore(void);
 void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *blurfb, GPUTexture *blurtex);
 
@@ -159,8 +161,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 GPUOffScreen *GPU_offscreen_create(int width, int height, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
-void GPU_offscreen_bind(GPUOffScreen *ofs);
-void GPU_offscreen_unbind(GPUOffScreen *ofs);
+void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
+void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);
 void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
 int GPU_offscreen_width(GPUOffScreen *ofs);
 int GPU_offscreen_height(GPUOffScreen *ofs);

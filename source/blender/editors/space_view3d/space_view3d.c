@@ -419,6 +419,9 @@ static void view3d_free(SpaceLink *sl)
 		BKE_previewimg_free(&vd->defmaterial->preview);
 		MEM_freeN(vd->defmaterial);
 	}
+
+	if (vd->fxoptions)
+		MEM_freeN(vd->fxoptions);
 }
 
 
@@ -460,7 +463,8 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	}
 
 	v3dn->properties_storage = NULL;
-	
+	v3dn->fxoptions = MEM_dupallocN(v3do->fxoptions);
+
 	return (SpaceLink *)v3dn;
 }
 
@@ -741,6 +745,7 @@ static void *view3d_main_area_duplicate(void *poin)
 		new->render_engine = NULL;
 		new->sms = NULL;
 		new->smooth_timer = NULL;
+		new->compositor = NULL;
 		
 		return new;
 	}

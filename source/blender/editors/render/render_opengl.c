@@ -68,6 +68,7 @@
 
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
+#include "GPU_compositing.h"
 
 #include "wm_window.h"
 
@@ -93,6 +94,7 @@ typedef struct OGLRender {
 	ImageUser iuser;
 
 	GPUOffScreen *ofs;
+	GPUFX *fx;
 	int sizex, sizey;
 	int write_still;
 
@@ -179,7 +181,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			int i;
 			unsigned char *gp_rect;
 
-			GPU_offscreen_bind(oglrender->ofs);
+			GPU_offscreen_bind(oglrender->ofs, true);
 
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -197,22 +199,23 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 				rgba_uchar_to_float(col_src, &gp_rect[i]);
 				blend_color_mix_float(&rr->rectf[i], &rr->rectf[i], col_src);
 			}
-			GPU_offscreen_unbind(oglrender->ofs);
+			GPU_offscreen_unbind(oglrender->ofs, true);
 
 			MEM_freeN(gp_rect);
 		}
 	}
 	else if (view_context) {
+		bool is_persp;
 		ED_view3d_draw_offscreen_init(scene, v3d);
 
-		GPU_offscreen_bind(oglrender->ofs); /* bind */
+		GPU_offscreen_bind(oglrender->ofs, true); /* bind */
 
 		/* render 3d view */
 		if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
 			/*int is_ortho = scene->r.mode & R_ORTHO;*/
 			camera = v3d->camera;
 			RE_GetCameraWindow(oglrender->re, camera, scene->r.cfra, winmat);
-			
+			is_persp = true;
 		}
 		else {
 			rctf viewplane;
@@ -221,12 +224,14 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			bool is_ortho = ED_view3d_viewplane_get(v3d, rv3d, sizex, sizey, &viewplane, &clipsta, &clipend, NULL);
 			if (is_ortho) orthographic_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, -clipend, clipend);
 			else perspective_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, clipsta, clipend);
+
+			is_persp = !is_ortho;
 		}
 
 		rect = MEM_mallocN(sizex * sizey * sizeof(unsigned char) * 4, "offscreen rect");
 
 		if ((scene->r.mode & R_OSA) == 0) {
-			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, draw_bgpic, draw_sky);
+			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, draw_bgpic, draw_sky, oglrender->fx, is_persp, oglrender->ofs);
 			GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, rect);
 		}
 		else {
@@ -239,7 +244,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			BLI_jitter_init(jit_ofs, scene->r.osa);
 
 			/* first sample buffer, also initializes 'rv3d->persmat' */
-			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, draw_bgpic, draw_sky);
+			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, draw_bgpic, draw_sky, oglrender->fx, is_persp, oglrender->ofs);
 			GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, rect);
 
 			for (i = 0; i < sizex * sizey * 4; i++)
@@ -252,7 +257,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 				                    (jit_ofs[j][0] * 2.0f) / sizex,
 				                    (jit_ofs[j][1] * 2.0f) / sizey);
 
-				ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat_jitter, draw_bgpic, draw_sky);
+				ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat_jitter, draw_bgpic, draw_sky, oglrender->fx, is_persp, oglrender->ofs);
 				GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, rect);
 
 				for (i = 0; i < sizex * sizey * 4; i++)
@@ -265,7 +270,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			MEM_freeN(accum_buffer);
 		}
 
-		GPU_offscreen_unbind(oglrender->ofs); /* unbind */
+		GPU_offscreen_unbind(oglrender->ofs, true); /* unbind */
 	}
 	else {
 		/* shouldnt suddenly give errors mid-render but possible */
@@ -443,6 +448,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 		 * running notifiers again will overwrite */
 		oglrender->scene->customdata_mask |= oglrender->scene->customdata_mask_modal;
 
+		if (oglrender->v3d->shader_fx & (V3D_FX_DEPTH_OF_FIELD | V3D_FX_DEPTH_OF_FIELD)) {
+			oglrender->fx = GPU_create_fx_compositor();
+		}
 	}
 
 	/* create render */
@@ -491,6 +499,9 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 	WM_cursor_modal_restore(oglrender->win);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
+
+	if (oglrender->fx)
+		GPU_destroy_fx_compositor(oglrender->fx);
 
 	GPU_offscreen_free(oglrender->ofs);
 
