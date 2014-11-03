@@ -107,6 +107,7 @@
 #include "BKE_sequencer.h"
 #include "BKE_speaker.h"
 #include "BKE_softbody.h"
+#include "BKE_subsurf.h"
 #include "BKE_material.h"
 #include "BKE_camera.h"
 #include "BKE_image.h"
@@ -118,6 +119,8 @@
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
+
+#include "CCGSubSurf.h"
 
 #include "GPU_material.h"
 
@@ -185,6 +188,7 @@ void BKE_object_free_curve_cache(Object *ob)
 		if (ob->curve_cache->path) {
 			free_path(ob->curve_cache->path);
 		}
+		BKE_nurbList_free(&ob->curve_cache->deformed_nurbs);
 		MEM_freeN(ob->curve_cache);
 		ob->curve_cache = NULL;
 	}
@@ -321,18 +325,7 @@ void BKE_object_free_derived_caches(Object *ob)
 		ob->derivedDeform = NULL;
 	}
 	
-	if (ob->curve_cache) {
-		BKE_displist_free(&ob->curve_cache->disp);
-		BKE_curve_bevelList_free(&ob->curve_cache->bev);
-		if (ob->curve_cache->path) {
-			free_path(ob->curve_cache->path);
-			ob->curve_cache->path = NULL;
-		}
-
-		/* Signal for viewport to run DAG workarounds. */
-		MEM_freeN(ob->curve_cache);
-		ob->curve_cache = NULL;
-	}
+	BKE_object_free_curve_cache(ob);
 }
 
 /* do not free object itself */
@@ -2161,26 +2154,59 @@ static void give_parvert(Object *par, int nr, float vec[3])
 			int numVerts = dm->getNumVerts(dm);
 
 			if (nr < numVerts) {
-				/* avoid dm->getVertDataArray() since it allocates arrays in the dm (not thread safe) */
-				int i;
+				bool use_special_ss_case = false;
 
-				if (em && dm->type == DM_TYPE_EDITBMESH) {
-					if (em->bm->elem_table_dirty & BM_VERT) {
-#ifdef VPARENT_THREADING_HACK
-						BLI_mutex_lock(&vparent_lock);
-						if (em->bm->elem_table_dirty & BM_VERT) {
-							BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+				if (dm->type == DM_TYPE_CCGDM) {
+					ModifierData *md;
+					VirtualModifierData virtualModifierData;
+					use_special_ss_case = true;
+					for (md = modifiers_getVirtualModifierList(par, &virtualModifierData);
+					     md != NULL;
+					     md = md->next)
+					{
+						ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+						/* TODO(sergey): Check for disabled modifiers. */
+						if (mti->type != eModifierTypeType_OnlyDeform && md->next != NULL) {
+							use_special_ss_case = false;
+							break;
 						}
-						BLI_mutex_unlock(&vparent_lock);
-#else
-						BLI_assert(!"Not safe for threading");
-						BM_mesh_elem_table_ensure(em->bm, BM_VERT);
-#endif
 					}
 				}
 
-				/* get the average of all verts with (original index == nr) */
-				if (CustomData_has_layer(&dm->vertData, CD_ORIGINDEX)) {
+				if (!use_special_ss_case) {
+					/* avoid dm->getVertDataArray() since it allocates arrays in the dm (not thread safe) */
+					if (em && dm->type == DM_TYPE_EDITBMESH) {
+						if (em->bm->elem_table_dirty & BM_VERT) {
+#ifdef VPARENT_THREADING_HACK
+							BLI_mutex_lock(&vparent_lock);
+							if (em->bm->elem_table_dirty & BM_VERT) {
+								BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+							}
+							BLI_mutex_unlock(&vparent_lock);
+#else
+							BLI_assert(!"Not safe for threading");
+							BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+#endif
+						}
+					}
+				}
+
+				if (use_special_ss_case) {
+					/* Special case if the last modifier is SS and no constructive modifier
+					 * are in front of it.
+					 */
+					CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
+					CCGVert *ccg_vert = ccgSubSurf_getVert(ccgdm->ss, SET_INT_IN_POINTER(nr));
+					float *co = ccgSubSurf_getVertData(ccgdm->ss, ccg_vert);
+					add_v3_v3(vec, co);
+					count++;
+				}
+				else if (CustomData_has_layer(&dm->vertData, CD_ORIGINDEX) &&
+				         !(em && dm->type == DM_TYPE_EDITBMESH))
+				{
+					int i;
+
+					/* Get the average of all verts with (original index == nr). */
 					for (i = 0; i < numVerts; i++) {
 						const int *index = dm->getVertData(dm, i, CD_ORIGINDEX);
 						if (*index == nr) {
@@ -2219,8 +2245,18 @@ static void give_parvert(Object *par, int nr, float vec[3])
 		}
 	}
 	else if (ELEM(par->type, OB_CURVE, OB_SURF)) {
-		Curve *cu       = par->data;
-		ListBase *nurb  = BKE_curve_nurbs_get(cu);
+		ListBase *nurb;
+
+		/* Unless there's some weird depsgraph failure the cache should exist. */
+		BLI_assert(par->curve_cache != NULL);
+
+		if (par->curve_cache->deformed_nurbs.first != NULL) {
+			nurb = &par->curve_cache->deformed_nurbs;
+		}
+		else {
+			Curve *cu = par->data;
+			nurb = BKE_curve_nurbs_get(cu);
+		}
 
 		BKE_nurbList_index_get_co(nurb, nr, vec);
 	}
