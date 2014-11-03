@@ -42,12 +42,23 @@ void vert_dof_fourth_pass()
 	gl_Position = gl_Vertex;
 }
 
+void vert_dof_fifth_pass()
+{
+	vec4 halfpixel = vec4(-0.5, 0.5, -0.5, 0.5);
+	color_uv1 = vec2(0.5, 1.5) * invrendertargetdim;
+
+	uvcoordsvar = gl_MultiTexCoord0;
+	gl_Position = gl_Vertex;
+}
+
 void main()
 {
 #ifdef FIRST_PASS
 	vert_dof_first_pass();
 #elif defined(FOURTH_PASS)
 	vert_dof_fourth_pass();
+#elif defined(FIFTH_PASS)
+	vert_dof_fifth_pass();
 #else
 	vert_generic();
 #endif

@@ -58,8 +58,8 @@ void first_pass()
 	/* amount to add to uvs so that they move one row further */
 	vec2 offset_row[3];
 	offset_row[0] = vec2(0.0, invrendertargetdim.y);
-	offset_row[1] = 2 * offset_row[0];
-	offset_row[2] = 3 * offset_row[0];
+	offset_row[1] = 2.0 * offset_row[0];
+	offset_row[2] = 3.0 * offset_row[0];
 
 	/* heavily blur the image */
 	vec4 color = texture2D(colorbuffer, color_uv1);
@@ -140,7 +140,21 @@ void fourth_pass()
 	color += texture2D(colorbuffer, uvcoordsvar.xw);
 	color += texture2D(colorbuffer, uvcoordsvar.yw);
 
-	gl_FragColor = color/4.0;
+	gl_FragColor = color / 4.0;
+}
+
+vec4 small_sample_blur(in sampler2D colorbuffer, in vec2 uv, in vec4 color)
+{
+	float weight = 1.0/ 17.0;
+	vec4 result = weight * color;
+	weight *= 4.0;
+
+	result += weight * texture2D(colorbuffer, uv + color_uv1.xy);
+	result += weight * texture2D(colorbuffer, uv - color_uv1.xy);
+	result += weight * texture2D(colorbuffer, uv + color_uv2.yx);
+	result += weight * texture2D(colorbuffer, uv - color_uv2.yx);
+
+	return result;
 }
 
 
@@ -151,6 +165,7 @@ void fifth_pass()
 	vec4 color_orig = texture2D(colorbuffer, uvcoordsvar.xy);
 	vec4 highblurred = texture2D(blurredcolorbuffer, uvcoordsvar.xy);
 	vec4 mediumblurred = texture2D(mblurredcolorbuffer, uvcoordsvar.xy);
+	vec4 smallblurred = small_sample_blur(colorbuffer, uvcoordsvar.xy, color_orig);
 	float depth = texture2D(depthbuffer, uvcoordsvar.xy).r;
 
 	float zdepth = get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), vec4(depth)).r;
@@ -159,13 +174,17 @@ void fifth_pass()
 	/* calculate final coc here */
 	float coc = max(max(coc_far, mediumblurred.a), 0.0);
 
-	factors.x = 1.0 - clamp(2.0 * coc, 0.0, 1.0);
-	factors.y = 1.0 - clamp(abs(2.0 * (coc - 0.5)), 0.0, 1.0);
-	factors.z = clamp(5.0 * (coc - 0.5), 0.0, 1.0);
-	/* blend! */
-	vec4 color = factors.x * color_orig + factors.y * mediumblurred + factors.z * highblurred;
+	float width = 2.5;
+	float radius = 0.2;
 
-	color /= (factors.x + factors.y + factors.z);
+	factors.x = 1.0 - clamp(width * coc, 0.0, 1.0);
+	factors.y = 1.0 - clamp(abs(width * (coc - 2.0 * radius)), 0.0, 1.0);
+	factors.z = 1.0 - clamp(abs(width * (coc - 3.0 * radius)), 0.0, 1.0);
+	factors.w = 1.0 - clamp(abs(width * (coc - 4.0 * radius)), 0.0, 1.0);
+	/* blend! */
+	vec4 color = factors.x * color_orig + factors.y * smallblurred + factors.z * mediumblurred + factors.w * highblurred;
+
+	color /= dot(factors, vec4(1.0));
 	gl_FragColor = vec4(color.rgb, 1.0);
 }
 
