@@ -2907,14 +2907,15 @@ class VIEW3D_PT_view3d_shading(Panel):
 
             col.prop(view, "depth_of_field")
             if view.depth_of_field:
-                dof_options = fxoptions.dof_options
-                subcol = col.column(align=True)
-                subcol.prop(dof_options, "dof_focus_distance")
-                #fstop is preferable?..
-                #subcol.prop(view, "dof_aperture")
-                subcol.prop(dof_options, "dof_fstop")
-                subcol.prop(dof_options, "dof_focal_length")
-                subcol.prop(dof_options, "dof_sensor")
+                if (view.region_3d.view_perspective == 'CAMERA'):
+                    col.label("check dof properties in camera settings", icon='INFO')
+                else:
+                    dof_options = fxoptions.dof_options
+                    subcol = col.column(align=True)
+                    subcol.prop(dof_options, "dof_focus_distance")
+                    subcol.prop(dof_options, "dof_fstop")
+                    subcol.prop(dof_options, "dof_focal_length")
+                    subcol.prop(dof_options, "dof_sensor")
             col.prop(view, "ssao")
             if view.ssao:
                 ssao_options = fxoptions.ssao_options
