@@ -3806,31 +3806,19 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	rna_def_scene_game_recast_data(brna);
 }
 
-static void rna_def_gpu_fx(BlenderRNA *brna)
+static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem view3d_ssao_sample_items[] = {
-	    {0, "LOW", 0, "Low Quality", ""},
-	    {1, "MEDIUM", 0, "Medium Quality", ""},
-	    {2, "HIGH", 0, "High Quality", ""},
-	    {0, NULL, 0, NULL, NULL}
-	};
-
-	srna = RNA_def_struct(brna, "GPUFXOptions", NULL);
-	RNA_def_struct_ui_text(srna, "GPU FX Options", "Options for GPU based compositing");
+	srna = RNA_def_struct(brna, "GPUDOFOptions", NULL);
+	RNA_def_struct_ui_text(srna, "GPU DOF", "Options for GPU based depth of field");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 
 	prop = RNA_def_property(srna, "dof_focus_distance", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_ui_text(prop, "Focus distance", "Viewport depth of field focus distance");
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.0f, 5000.0f, 1, 2);
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
-	prop = RNA_def_property(srna, "dof_aperture", PROP_FLOAT, PROP_DISTANCE);
-	RNA_def_property_ui_text(prop, "Aperture", "Aperture for dof effect");
-	RNA_def_property_range(prop, 0.0f, 250.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "dof_focal_length", PROP_FLOAT, PROP_DISTANCE_CAMERA);
@@ -3850,6 +3838,23 @@ static void rna_def_gpu_fx(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.1f, 64.0f, 10, 1);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+}
+
+static void rna_def_gpu_ssao_fx(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem view3d_ssao_sample_items[] = {
+	    {0, "LOW", 0, "Low Quality", ""},
+	    {1, "MEDIUM", 0, "Medium Quality", ""},
+	    {2, "HIGH", 0, "High Quality", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
+	srna = RNA_def_struct(brna, "GPUSSAOOptions", NULL);
+	RNA_def_struct_ui_text(srna, "GPU SSAO", "Options for GPU based screen space ambient occlusion");
+	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 
 	prop = RNA_def_property(srna, "ssao_darkening", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Darkening", "Darken the ssao effect");
@@ -3877,6 +3882,30 @@ static void rna_def_gpu_fx(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "SSAO Color", "Color for screen space ambient occlusion effect");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+}
+
+
+static void rna_def_gpu_fx(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	rna_def_gpu_ssao_fx(brna);
+	rna_def_gpu_dof_fx(brna);
+
+	srna = RNA_def_struct(brna, "GPUFXOptions", NULL);
+	RNA_def_struct_ui_text(srna, "GPU FX Options", "Options for GPU based compositing");
+	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
+
+	prop = RNA_def_property(srna, "dof_options", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "GPUDOFOptions");
+	RNA_def_property_ui_text(prop, "Depth Of Field Options", "");
+
+	prop = RNA_def_property(srna, "ssao_options", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "GPUSSAOOptions");
+	RNA_def_property_ui_text(prop, "Screen Space Ambient Occlusion Options", "");
 }
 
 

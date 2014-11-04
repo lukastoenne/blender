@@ -172,6 +172,36 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         col.active = cam.dof_object is None
         col.prop(cam, "dof_distance", text="Distance")
 
+        col.label("Real Time Viewport values")
+        dof_options = cam.gpu_dof
+        subcol = col.column(align=True)
+        subcol.prop(dof_options, "dof_focus_distance")
+        subcol.prop(dof_options, "dof_fstop")
+        subcol.prop(dof_options, "dof_focal_length")
+        subcol.prop(dof_options, "dof_sensor")
+
+
+class DATA_PT_camera_gpu_dof(Panel):
+    bl_label = "GPU Depth of Field"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "data"
+
+    def draw(self, context):
+        layout = self.layout
+
+        cam = context.camera
+
+        dof_options = cam.gpu_dof
+        col = layout.column(align=True)
+        col.prop(dof_options, "dof_fstop")
+        col.prop(dof_options, "dof_focal_length")
+        col.prop(dof_options, "dof_sensor")
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera
+
 
 class DATA_PT_camera_display(CameraButtonsPanel, Panel):
     bl_label = "Display"

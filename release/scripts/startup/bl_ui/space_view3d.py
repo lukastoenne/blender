@@ -2907,21 +2907,23 @@ class VIEW3D_PT_view3d_shading(Panel):
 
             col.prop(view, "depth_of_field")
             if view.depth_of_field:
+                dof_options = fxoptions.dof_options
                 subcol = col.column(align=True)
-                subcol.prop(fxoptions, "dof_focus_distance")
+                subcol.prop(dof_options, "dof_focus_distance")
                 #fstop is preferable?..
                 #subcol.prop(view, "dof_aperture")
-                subcol.prop(fxoptions, "dof_fstop")
-                subcol.prop(fxoptions, "dof_focal_length")
-                subcol.prop(fxoptions, "dof_sensor")
+                subcol.prop(dof_options, "dof_fstop")
+                subcol.prop(dof_options, "dof_focal_length")
+                subcol.prop(dof_options, "dof_sensor")
             col.prop(view, "ssao")
             if view.ssao:
+                ssao_options = fxoptions.ssao_options
                 subcol = col.column(align=True)
-                subcol.prop(fxoptions, "ssao_darkening")
-                subcol.prop(fxoptions, "ssao_distance_max")
-                subcol.prop(fxoptions, "ssao_attenuation")
-                subcol.prop(fxoptions, "ssao_ray_sample_mode")
-                subcol.prop(fxoptions, "ssao_color")
+                subcol.prop(ssao_options, "ssao_darkening")
+                subcol.prop(ssao_options, "ssao_distance_max")
+                subcol.prop(ssao_options, "ssao_attenuation")
+                subcol.prop(ssao_options, "ssao_ray_sample_mode")
+                subcol.prop(ssao_options, "ssao_color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):
