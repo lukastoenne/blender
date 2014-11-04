@@ -423,8 +423,10 @@ static void view3d_free(SpaceLink *sl)
 
 	if (vd->fxoptions) {
 		MEM_freeN(vd->fxoptions->dof_options);
-		MEM_freeN(vd->fxoptions->ssao_options);
-		MEM_freeN(vd->fxoptions);
+		if (vd->fxoptions->ssao_options)
+			MEM_freeN(vd->fxoptions->ssao_options);
+		if (vd->fxoptions->dof_options)
+			MEM_freeN(vd->fxoptions);
 	}
 }
 

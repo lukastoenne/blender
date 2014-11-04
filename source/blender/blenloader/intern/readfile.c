@@ -6471,8 +6471,10 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				if (v3d->fxoptions) {
 					v3d->fxoptions = newdataadr(fd, v3d->fxoptions);
 
-					v3d->fxoptions->dof_options = newdataadr(fd, v3d->fxoptions->dof_options);
-					v3d->fxoptions->ssao_options = newdataadr(fd, v3d->fxoptions->ssao_options);
+					if (v3d->fxoptions->dof_options)
+						v3d->fxoptions->dof_options = newdataadr(fd, v3d->fxoptions->dof_options);
+					if (v3d->fxoptions->ssao_options)
+						v3d->fxoptions->ssao_options = newdataadr(fd, v3d->fxoptions->ssao_options);
 				}
 				
 				blo_do_versions_view3d_split_250(v3d, &sl->regionbase);

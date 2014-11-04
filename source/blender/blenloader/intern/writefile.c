@@ -2643,8 +2643,10 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					if (v3d->localvd) writestruct(wd, DATA, "View3D", 1, v3d->localvd);
 					if (v3d->fxoptions) {
 						writestruct(wd, DATA, "GPUFXOptions", 1, v3d->fxoptions);
-						writestruct(wd, DATA, "GPUDOFOptions", 1, v3d->fxoptions->dof_options);
-						writestruct(wd, DATA, "GPUSSAOOptions", 1, v3d->fxoptions->ssao_options);
+						if (v3d->fxoptions->dof_options)
+							writestruct(wd, DATA, "GPUDOFOptions", 1, v3d->fxoptions->dof_options);
+						if (v3d->fxoptions->ssao_options)
+							writestruct(wd, DATA, "GPUSSAOOptions", 1, v3d->fxoptions->ssao_options);
 					}
 				}
 				else if (sl->spacetype==SPACE_IPO) {
