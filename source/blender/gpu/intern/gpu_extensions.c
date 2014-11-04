@@ -47,6 +47,7 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_compositing.h"
 #include "GPU_simple_shader.h"
 
 #include "intern/gpu_codegen.h"
@@ -79,10 +80,17 @@ extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
 extern char datatoc_gpu_shader_vsm_store_frag_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_vert_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
+extern char datatoc_gpu_shader_fx_vert_glsl[];
+extern char datatoc_gpu_shader_fx_ssao_frag_glsl[];
+extern char datatoc_gpu_shader_fx_dof_frag_glsl[];
+extern char datatoc_gpu_shader_fx_dof_vert_glsl[];
+extern char datatoc_gpu_shader_fx_lib_glsl[];
 
 typedef struct GPUShaders {
 	GPUShader *vsm_store;
 	GPUShader *sep_gaussian_blur;
+	/* cache for shader fx. Those can exist in combinations so store them here */
+	GPUShader *fx_shaders[MAX_FX_SHADERS * 2];
 } GPUShaders;
 
 static struct GPUGlobal {
@@ -694,6 +702,24 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 	return tex;
 }
 
+GPUTexture *GPU_texture_create_2D_procedural(int w, int h, float *pixels, char err_out[256])
+{
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 0, err_out);
+
+	if (tex) {
+		/* Now we tweak some of the settings */
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, w, h, 0, GL_RG, GL_FLOAT, pixels);
+
+		GPU_texture_unbind(tex);
+	}
+
+	return tex;
+}
+
 void GPU_invalid_tex_init(void)
 {
 	float color[4] = {1.0f, 0.0f, 1.0f, 1.0};
@@ -778,6 +804,45 @@ void GPU_texture_unbind(GPUTexture *tex)
 	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
 
 	tex->number = -1;
+
+	GPU_print_error("Post Texture Unbind");
+}
+
+void GPU_depth_texture_mode(GPUTexture *tex, bool compare, bool use_filter)
+{
+	GLenum arbnumber;
+
+	if (tex->number >= GG.maxtextures) {
+		GPU_print_error("Not enough texture slots.");
+		return;
+	}
+	
+	if (!tex->depth) {
+		GPU_print_error("Not a depth texture.");
+		return;
+	}
+	
+	if (tex->number == -1)
+		return;
+	
+	GPU_print_error("Pre Texture Unbind");
+
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
+	if (tex->number != 0) glActiveTextureARB(arbnumber);
+	if (compare)
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
+	else
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+
+	if (use_filter) {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	}
+	else {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	}
+	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
 
 	GPU_print_error("Post Texture Unbind");
 }
@@ -971,6 +1036,12 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUS
 	glEnable(GL_SCISSOR_TEST);
 }
 
+void GPU_framebuffer_bind(GPUFrameBuffer *fb)
+{
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	GG.currentfb = fb->object;
+}
+
 void GPU_framebuffer_free(GPUFrameBuffer *fb)
 {
 	if (fb->depthtex)
@@ -1126,15 +1197,21 @@ void GPU_offscreen_free(GPUOffScreen *ofs)
 	MEM_freeN(ofs);
 }
 
-void GPU_offscreen_bind(GPUOffScreen *ofs)
+void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
 {
 	glDisable(GL_SCISSOR_TEST);
-	GPU_framebuffer_texture_bind(ofs->fb, ofs->color, ofs->w, ofs->h);
+	if (save)
+		GPU_framebuffer_texture_bind(ofs->fb, ofs->color, ofs->w, ofs->h);
+	else {
+		GPU_framebuffer_bind(ofs->fb);
+		glViewport(0, 0, ofs->w, ofs->h);
+	}
 }
 
-void GPU_offscreen_unbind(GPUOffScreen *ofs)
+void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore)
 {
-	GPU_framebuffer_texture_unbind(ofs->fb, ofs->color);
+	if (restore)
+		GPU_framebuffer_texture_unbind(ofs->fb, ofs->color);
 	GPU_framebuffer_restore();
 	glEnable(GL_SCISSOR_TEST);
 }
@@ -1500,8 +1577,56 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	return retval;
 }
 
+#define MAX_DEFINES 100
+
+GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
+{
+	int offset;
+	char defines[MAX_DEFINES] = "";
+	/* avoid shaders out of range */
+	if (effects >= MAX_FX_SHADERS)
+		return NULL;
+	
+	offset = 2 * effects;
+
+	if (persp) {
+		offset += 1;
+		strcat(defines, "#define PERSP_MATRIX\n");
+	}
+
+	if (!GG.shaders.fx_shaders[offset]) {
+		if (effects == GPU_SHADER_FX_SSAO)
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE) {
+			strcat(defines, "#define FIRST_PASS\n");
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		}
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_TWO) {
+			strcat(defines, "#define SECOND_PASS\n");
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		}
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE) {
+			strcat(defines, "#define THIRD_PASS\n");
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		}
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR) {
+			strcat(defines, "#define FOURTH_PASS\n");
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		}
+		else if (effects == GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE) {
+			strcat(defines, "#define FIFTH_PASS\n");
+			GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+		}
+	}
+	
+	return GG.shaders.fx_shaders[offset];
+}
+
+
 void GPU_shader_free_builtin_shaders(void)
 {
+	int i;
+	
 	if (GG.shaders.vsm_store) {
 		MEM_freeN(GG.shaders.vsm_store);
 		GG.shaders.vsm_store = NULL;
@@ -1510,6 +1635,13 @@ void GPU_shader_free_builtin_shaders(void)
 	if (GG.shaders.sep_gaussian_blur) {
 		MEM_freeN(GG.shaders.sep_gaussian_blur);
 		GG.shaders.sep_gaussian_blur = NULL;
+	}
+	
+	for (i = 0; i < 2 * MAX_FX_SHADERS; i++) {
+		if (GG.shaders.fx_shaders[i]) {
+			MEM_freeN(GG.shaders.fx_shaders[i]);
+			GG.shaders.fx_shaders[i] = NULL;
+		}
 	}
 }
 

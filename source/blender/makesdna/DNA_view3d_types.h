@@ -46,6 +46,8 @@ struct bGPdata;
 struct SmoothView3DStore;
 struct wmTimer;
 struct Material;
+struct GPUFX;
+struct GPUFXOptions;
 
 /* This is needed to not let VC choke on near and far... old
  * proprietary MS extensions... */
@@ -144,6 +146,8 @@ typedef struct RegionView3D {
 	/* active rotation from NDOF or elsewhere */
 	float rot_angle;
 	float rot_axis[3];
+
+	struct GPUFX *compositor;
 } RegionView3D;
 
 /* 3D ViewPort Struct */
@@ -206,10 +210,18 @@ typedef struct View3D {
 	struct ListBase afterdraw_transp;
 	struct ListBase afterdraw_xray;
 	struct ListBase afterdraw_xraytransp;
+
+	/* list of gpu materials to draw */
+	struct ListBase gpu_material;
 	
 	/* drawflags, denoting state */
 	char zbuf, transp, xray;
-	char pad3[5];
+	char pad3;
+
+	/* built-in shader effects */
+	int shader_fx;
+
+	struct GPUFXOptions *fxoptions;
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */
@@ -218,6 +230,10 @@ typedef struct View3D {
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
 } View3D;
 
+
+/* View3D->shaderfx */
+#define V3D_FX_DEPTH_OF_FIELD  1
+#define V3D_FX_SSAO           (1 << 1)
 
 /* View3D->flag (short) */
 /*#define V3D_DISPIMAGE		1*/ /*UNUSED*/

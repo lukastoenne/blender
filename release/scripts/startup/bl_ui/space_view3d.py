@@ -2898,8 +2898,30 @@ class VIEW3D_PT_view3d_shading(Panel):
                 col.prop(view, "show_textured_shadeless")
 
         col.prop(view, "show_backface_culling")
-        if obj and obj.mode == 'EDIT' and view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
-            col.prop(view, "show_occlude_wire")
+
+        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
+            if obj and obj.mode == 'EDIT':
+                col.prop(view, "show_occlude_wire")
+
+            fxoptions = view.fxoptions
+
+            col.prop(view, "depth_of_field")
+            if view.depth_of_field:
+                subcol = col.column(align=True)
+                subcol.prop(fxoptions, "dof_focus_distance")
+                #fstop is preferable?..
+                #subcol.prop(view, "dof_aperture")
+                subcol.prop(fxoptions, "dof_fstop")
+                subcol.prop(fxoptions, "dof_focal_length")
+                subcol.prop(fxoptions, "dof_sensor")
+            col.prop(view, "ssao")
+            if view.ssao:
+                subcol = col.column(align=True)
+                subcol.prop(fxoptions, "ssao_darkening")
+                subcol.prop(fxoptions, "ssao_distance_max")
+                subcol.prop(fxoptions, "ssao_attenuation")
+                subcol.prop(fxoptions, "ssao_ray_sample_mode")
+                subcol.prop(fxoptions, "ssao_color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):

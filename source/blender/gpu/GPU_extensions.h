@@ -112,6 +112,7 @@ GPUTexture *GPU_texture_create_2D(int w, int h, float *pixels, char err_out[256]
 GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *fpixels);
 GPUTexture *GPU_texture_create_depth(int w, int h, char err_out[256]);
 GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256]);
+GPUTexture *GPU_texture_create_2D_procedural(int w, int h, float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_from_blender(struct Image *ima,
 	struct ImageUser *iuser, bool is_data, double time, int mipmap);
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
@@ -125,6 +126,8 @@ void GPU_texture_ref(GPUTexture *tex);
 
 void GPU_texture_bind(GPUTexture *tex, int number);
 void GPU_texture_unbind(GPUTexture *tex);
+
+void GPU_depth_texture_mode(GPUTexture *tex, bool compare, bool use_filter);
 
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 
@@ -147,6 +150,8 @@ void GPU_framebuffer_texture_bind(GPUFrameBuffer *fb, GPUTexture *tex, int w, in
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
 
+void GPU_framebuffer_bind(GPUFrameBuffer *fb);
+
 void GPU_framebuffer_restore(void);
 void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *blurfb, GPUTexture *blurtex);
 
@@ -156,8 +161,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 GPUOffScreen *GPU_offscreen_create(int width, int height, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
-void GPU_offscreen_bind(GPUOffScreen *ofs);
-void GPU_offscreen_unbind(GPUOffScreen *ofs);
+void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
+void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);
 void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
 int GPU_offscreen_width(GPUOffScreen *ofs);
 int GPU_offscreen_height(GPUOffScreen *ofs);
@@ -187,6 +192,8 @@ typedef enum GPUBuiltinShader {
 } GPUBuiltinShader;
 
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader);
+GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp);
+
 void GPU_shader_free_builtin_shaders(void);
 
 /* Vertex attributes for shaders */
