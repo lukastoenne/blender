@@ -502,7 +502,7 @@ static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int to
 
 /* see GPUDrawObject's structure definition for a description of the
  * data being initialized here */
-GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm, GPUSortType type)
+GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm, GPUSortType UNUSED(type))
 {
 	GPUDrawObject *gdo;
 	MFace *mface;

@@ -849,7 +849,7 @@ void sound_stop_scene(struct Scene *UNUSED(scene)) {}
 void sound_seek_scene(struct Main *UNUSED(bmain), struct Scene *UNUSED(scene)) {}
 float sound_sync_scene(struct Scene *UNUSED(scene)) { return NAN_FLT; }
 int sound_scene_playing(struct Scene *UNUSED(scene)) { return -1; }
-void sound_read_waveform(struct bSound *UNUSED(sound), bool locked) {}
+void sound_read_waveform(struct bSound *UNUSED(sound), bool UNUSED(locked), short *UNUSED(stop)) {}
 void sound_init_main(struct Main *UNUSED(bmain)) {}
 void sound_set_cfra(int UNUSED(cfra)) {}
 void sound_update_sequencer(struct Main *UNUSED(main), struct bSound *UNUSED(sound)) {}

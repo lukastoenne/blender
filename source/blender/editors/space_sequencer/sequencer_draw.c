@@ -534,8 +534,9 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 /* draw code vertex array storage */
 static float strip_vertex_storage[36][2];
 static char strip_color_storage[36][3];
-const static unsigned short strip_element_buffer[] = {9, 10, 8, 11, 7, 12, 6, 13, 5, 14, 4, 15, 3, 16, 2, 17, 1, 18, 0, 19, 35, 20,
-                                       34, 21, 33, 22, 32, 23, 31, 24, 30, 25, 29, 26, 28, 27};
+static const unsigned short strip_element_buffer[] = {
+    9, 10, 8, 11, 7, 12, 6, 13, 5, 14, 4, 15, 3, 16, 2, 17, 1, 18, 0, 19, 35, 20,
+    34, 21, 33, 22, 32, 23, 31, 24, 30, 25, 29, 26, 28, 27};
 
 static float calculate_cuddly_radius_x(float x1, float x2, float aspect)
 {

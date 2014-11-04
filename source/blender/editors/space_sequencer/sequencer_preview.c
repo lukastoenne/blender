@@ -44,7 +44,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "AUD_C-API.h"
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#endif
 
 #include "sequencer_intern.h"
 

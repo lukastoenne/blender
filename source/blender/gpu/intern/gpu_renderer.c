@@ -32,5 +32,5 @@
 /* iterates through all added materials, prepares data if needed and draws their meshes */
 void GPU_renderer_material_draw(struct ListBase *materials)
 {
-	
+	(void)materials;
 }
