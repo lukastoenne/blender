@@ -1691,6 +1691,21 @@ static void rna_FreestyleSettings_module_remove(ID *id, FreestyleSettings *confi
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
 }
 
+char *rna_GPUDOF_path(PointerRNA *ptr)
+{
+	/* if there is ID-data, resolve the path using the index instead of by name,
+	 * since the name used is the name of the texture assigned, but the texture
+	 * may be used multiple times in the same stack
+	 */
+	if (ptr->id.data) {
+		if (GS(((ID *)ptr->id.data)->name) == ID_CA) {
+			return BLI_strdup("gpu_dof");
+		}
+	}
+
+	return BLI_strdup("");;
+}
+
 #else
 
 static void rna_def_transform_orientation(BlenderRNA *brna)
@@ -3814,6 +3829,7 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "GPUDOFOptions", NULL);
 	RNA_def_struct_ui_text(srna, "GPU DOF", "Options for GPU based depth of field");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
+	RNA_def_struct_path_func(srna, "rna_GPUDOF_path");
 
 	prop = RNA_def_property(srna, "dof_focus_distance", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_ui_text(prop, "Focus distance", "Viewport depth of field focus distance");
