@@ -46,6 +46,7 @@ struct RenderData;
 struct Scene;
 struct rctf;
 struct View3D;
+struct GPUFXOptions;
 
 /* Camera Datablock */
 
@@ -119,6 +120,8 @@ void BKE_camera_view_frame(struct Scene *scene, struct Camera *camera, float r_v
 
 bool BKE_camera_view_frame_fit_to_scene(struct Scene *scene, struct View3D *v3d, struct Object *camera_ob,
                                         float r_co[3]);
+
+void BKE_GPU_dof_from_camera(struct Object *camera, struct GPUFXOptions *options);
 
 #ifdef __cplusplus
 }

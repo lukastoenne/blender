@@ -593,3 +593,19 @@ bool BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object
 		}
 	}
 }
+
+void BKE_GPU_dof_from_camera(struct Object *camera, struct GPUFXOptions *options)
+{
+	if (camera->type == OB_CAMERA) {
+		Camera *cam = camera->data;
+		options->dof_options = &cam->gpu_dof;
+		if (cam->dof_ob) {
+			float vec[3];
+			sub_v3_v3v3(vec, cam->dof_ob->obmat[3], camera->obmat[3]);
+			options->dof_options->dof_focus_distance = len_v3(vec);
+		}
+		else {
+			options->dof_options->dof_focus_distance = cam->YF_dofdist;
+		}
+	}
+}

@@ -232,10 +232,6 @@ typedef struct View3D {
 } View3D;
 
 
-/* View3D->shaderfx */
-#define V3D_FX_DEPTH_OF_FIELD  1
-#define V3D_FX_SSAO           (1 << 1)
-
 /* View3D->flag (short) */
 /*#define V3D_DISPIMAGE		1*/ /*UNUSED*/
 #define V3D_DISPBGPICS		2

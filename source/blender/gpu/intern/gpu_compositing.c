@@ -94,6 +94,9 @@ struct GPUFX {
 
 	/* number of passes, needed to detect if ping pong buffer allocation is needed */
 	int num_passes;
+
+	/* we have a stencil, restore the previous state */
+	bool restore_stencil;
 };
 
 
@@ -213,26 +216,30 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 
 	fx->effects = 0;
 
-	if (!fxflags || !options) {
+	if (!options) {
 		cleanup_fx_gl_data(fx, true);
 		return false;
 	}
 
 	/* disable effects if no options passed for them */
 	if (!options->dof_options) {
-		fxflags &= ~V3D_FX_DEPTH_OF_FIELD;
+		fxflags &= ~GPU_FX_DEPTH_OF_FIELD;
 	}
 	if (!options->ssao_options) {
-		fxflags &= ~V3D_FX_SSAO;
+		fxflags &= ~GPU_FX_SSAO;
 	}
 
+	if (!fxflags) {
+		cleanup_fx_gl_data(fx, true);
+		return false;
+	}
 	
 	fx->num_passes = 0;
 	/* dof really needs a ping-pong buffer to work */
-	if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
+	if (fxflags & GPU_FX_DEPTH_OF_FIELD) {
 		num_passes++;
 	}
-	if (fxflags & V3D_FX_SSAO)
+	if (fxflags & GPU_FX_SSAO)
 		num_passes++;
 
 	if (!fx->gbuffer) 
@@ -263,7 +270,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	}
 	
 	/* create textures for dof effect */
-	if (fxflags & V3D_FX_DEPTH_OF_FIELD) {
+	if (fxflags & GPU_FX_DEPTH_OF_FIELD) {
 		if (!fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer) {
 			fx->dof_near_w = w / 4;
 			fx->dof_near_h = h / 4;
@@ -328,7 +335,12 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 		glEnable(GL_SCISSOR_TEST);
 		glScissor(scissor_rect->xmin - rect->xmin, scissor_rect->ymin - rect->ymin, 
 				  w_sc, h_sc);
+		fx->restore_stencil = true;
 	}
+	else {
+		fx->restore_stencil = false;
+	}
+
 	fx->effects = fxflags;
 
 	if (options)
@@ -362,7 +374,9 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 	/* first, unbind the render-to-texture framebuffer */
 	GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer);
 	GPU_framebuffer_texture_detach(fx->gbuffer, fx->depth_buffer);
-	glPopAttrib();
+
+	if (fx->restore_stencil)
+		glPopAttrib();
 
 	src = fx->color_buffer;
 	target = fx->color_buffer_sec;
@@ -401,7 +415,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 	}
 
 	/* ssao pass */
-	if (fx->effects & V3D_FX_SSAO) {
+	if (fx->effects & GPU_FX_SSAO) {
 		GPUShader *ssao_shader;
 		ssao_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_SSAO, is_persp);
 		if (ssao_shader) {
@@ -503,7 +517,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 	}
 
 	/* second pass, dof */
-	if (fx->effects & V3D_FX_DEPTH_OF_FIELD) {
+	if (fx->effects & GPU_FX_DEPTH_OF_FIELD) {
 		GPUDOFOptions *options = fx->options.dof_options;
 		GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4, *dof_shader_pass5;
 		float dof_params[4];
