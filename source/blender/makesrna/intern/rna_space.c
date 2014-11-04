@@ -503,8 +503,17 @@ static void rna_SpaceView3D_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 {
 	View3D *v3d = (View3D *)(ptr->data);
 
-	if (!v3d->fxoptions)
+	if (!v3d->fxoptions) {
 		v3d->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
+	}
+
+	if (!v3d->fxoptions->dof_options) {
+		v3d->fxoptions->dof_options = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
+	}
+
+	if (!v3d->fxoptions->ssao_options) {
+		v3d->fxoptions->ssao_options = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
+	}
 }
 
 static void rna_SpaceView3D_pivot_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)

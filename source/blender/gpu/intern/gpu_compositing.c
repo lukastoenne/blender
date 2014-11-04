@@ -41,6 +41,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_gpu_types.h"
 
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
@@ -212,10 +213,19 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 
 	fx->effects = 0;
 
-	if (!fxflags) {
+	if (!fxflags || !options) {
 		cleanup_fx_gl_data(fx, true);
 		return false;
 	}
+
+	/* disable effects if no options passed for them */
+	if (!options->dof_options) {
+		fxflags &= ~V3D_FX_DEPTH_OF_FIELD;
+	}
+	if (!options->ssao_options) {
+		fxflags &= ~V3D_FX_SSAO;
+	}
+
 	
 	fx->num_passes = 0;
 	/* dof really needs a ping-pong buffer to work */
@@ -337,7 +347,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 	int numslots = 0;
 	float invproj[4][4];
 	int i;
-	GPUFXOptions *options = &fx->options;
 	/* number of passes left. when there are no more passes, the result is passed to the frambuffer */
 	int passes_left = fx->num_passes;
 	/* view vectors for the corners of the view frustum. Can be used to recreate the world space position easily */
@@ -396,6 +405,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		GPUShader *ssao_shader;
 		ssao_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_SSAO, is_persp);
 		if (ssao_shader) {
+			GPUSSAOOptions *options = fx->options.ssao_options;
 			int color_uniform, depth_uniform;
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
 			int ssao_jitter_uniform, ssao_direction_uniform;
@@ -494,6 +504,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 	/* second pass, dof */
 	if (fx->effects & V3D_FX_DEPTH_OF_FIELD) {
+		GPUDOFOptions *options = fx->options.dof_options;
 		GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4, *dof_shader_pass5;
 		float dof_params[4];
 		float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
