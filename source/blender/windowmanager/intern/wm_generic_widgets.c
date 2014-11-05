@@ -143,6 +143,14 @@ typedef struct ArrowWidget {
 	float color[4];
 } ArrowWidget;
 
+typedef struct ArrowInteraction {
+	float orig_origin[3];
+	float orig_mouse[2];
+
+	/* direction vector, projected in screen space */
+	float proj_direction[2];
+} ArrowInteraction;
+
 static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, float scale)
 {
 	float rot[3][3];
@@ -166,6 +174,23 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 
 	glPopMatrix();
 
+	if (arrow->widget.interaction_data) {
+		ArrowInteraction *data = arrow->widget.interaction_data;
+
+		copy_m4_m3(mat, rot);
+		copy_v3_v3(mat[3], data->orig_origin);
+		mul_mat3_m4_fl(mat, scale);
+
+		glPushMatrix();
+		glMultMatrixf(&mat[0][0]);
+
+		glEnable(GL_BLEND);
+		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
+		widget_draw_intern(&arraw_draw_info, select);
+		glDisable(GL_BLEND);
+
+		glPopMatrix();
+	}
 }
 
 static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, float scale, int selectionbase)
@@ -178,14 +203,6 @@ static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UN
 {
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
 }
-
-typedef struct ArrowInteraction {
-	float orig_origin[3];
-	float orig_mouse[2];
-
-	/* direction vector, projected in screen space */
-	float proj_direction[2];
-} ArrowInteraction;
 
 static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
 {
