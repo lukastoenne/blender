@@ -700,17 +700,20 @@ static void view3d_widgets(void)
 
 	wmWidget *widget = NULL;
 	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
+	WidgetGroupLamp *lampgroup = MEM_callocN(sizeof(ManipulatorGroup), "lamp_manipulator_data");
 	struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	struct wmWidgetGroup *wgroup_manipulator = WM_widgetgroup_new(WIDGETGROUP_manipulator_poll, 
 	                                                              WIDGETGROUP_manipulator_update,
 	                                                              WIDGETGROUP_manipulator_free, manipulator);
-	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_update, NULL, NULL);
-	
+	struct wmWidgetGroup *wgroup_light = WM_widgetgroup_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_update, WIDGETGROUP_lamp_free, lampgroup);
+
+	lampgroup->lamp = MEM_callocN(sizeof(PointerRNA), "lampwidgetptr");
+
 	widget = WM_widget_new(WIDGET_manipulator_draw, 
 	                       WIDGET_manipulator_render_3d_intersect,
 	                       NULL,
 	                       WIDGET_manipulator_handler,
-	                       NULL, NULL, false, NULL, NULL, NULL);
+	                       NULL, NULL, false, NULL, NULL);
 	
 	WM_widget_register(wgroup_manipulator, widget);
 
@@ -738,7 +741,7 @@ static void view3d_widgets(void)
 	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
 	WM_widget_register(wgroup_manipulator, manipulator->rotate_z);
 
-	widget = WIDGET_arrow_new(0, NULL, "UI_OT_lamp_position", "value", NULL);
+	widget = WIDGET_arrow_new(0, NULL, NULL, NULL, NULL);
 	WM_widget_register(wgroup_light,  widget);
 	WIDGET_arrow_set_color(widget, color_lamp);
 

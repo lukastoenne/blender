@@ -67,9 +67,7 @@
 #include "GL/glew.h"
 #include "GPU_select.h"
 
-#ifndef NDEBUG
-#  include "RNA_enum_types.h"
-#endif
+#include "RNA_access.h"
 
 typedef struct wmWidgetMap {
 	struct wmWidgetMap *next, *prev;
@@ -140,7 +138,7 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
                         int  (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op),
-                        void *customdata, bool free_data, char *opname, char *prop, PointerRNA *ptr)
+                        void *customdata, bool free_data, char *opname, char *prop)
 {
 	wmWidget *widget;
 	
@@ -152,17 +150,26 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
 	widget->intersect = intersect;
 	widget->render_3d_intersection = render_3d_intersection;
 	widget->customdata = customdata;
-	
-	if (!ptr)
-		widget->opname = opname;
-	widget->prop = prop;
-	widget->ptr = ptr;
+	widget->opname = opname;
+	widget->propname = prop;
 
 	if (free_data)
 		widget->flag |= WM_WIDGET_FREE_DATA;
 
 	return widget;
 }
+
+void WM_widget_bind_to_prop(struct wmWidget *widget, struct PointerRNA *ptr, const char *propname)
+{
+	/* if widget evokes an operator we cannot use it for property manipulation */
+	if (widget->opname)
+		return;
+
+	widget->ptr = ptr;
+	widget->propname = propname;
+	widget->prop = RNA_struct_find_property(ptr, propname);
+}
+
 
 static void wm_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 {
@@ -526,7 +533,11 @@ struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap)
 void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget)
 {
 	if (widget) {
-		if (widget->opname && widget->handler) {
+		if (!widget->handler) {
+			/* widget does nothing, pass */
+			wmap->active_widget = NULL;
+		}
+		else if (widget->opname) {
 			wmOperatorType *ot = WM_operatortype_find(widget->opname, 0);
 
 			if (ot) {
@@ -553,6 +564,16 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				wmap->active_widget = NULL;
 				return;
 			}
+		}
+		/* no operator, but we have a pointer */
+		else if (widget->ptr) {
+			/* first activate the widget itself */
+			if (widget->activate_state) {
+				widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
+			}
+
+			CTX_wm_widget_set(C, widget);
+			wmap->active_widget = widget;
 		}
 		else {
 			/* widget does nothing, pass */

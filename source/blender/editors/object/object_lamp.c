@@ -218,9 +218,21 @@ void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext
 {
 	Object *ob = CTX_data_active_object(C);
 	wmWidget *lamp = WM_widgetgroup_widgets(wgroup)->first;
+	WidgetGroupLamp *data = WM_widgetgroup_customdata(wgroup);
 	float dir[3];
 
+	RNA_pointer_create(&ob->id, &RNA_Lamp, ob->data, data->lamp);
 	WM_widget_set_origin(lamp, ob->obmat[3]);
+	WM_widget_bind_to_prop(lamp, data->lamp, "spot_size");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(lamp, dir);
 }
+
+
+void WIDGETGROUP_lamp_free(struct wmWidgetGroup *wgroup)
+{
+	WidgetGroupLamp *data = WM_widgetgroup_customdata(wgroup);
+	MEM_freeN(data->lamp);
+	MEM_freeN(data);
+}
+

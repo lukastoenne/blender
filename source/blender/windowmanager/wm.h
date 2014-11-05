@@ -37,6 +37,7 @@ struct wmEvent;
 struct wmWidgetMap;
 struct wmOperatorType;
 struct PointerRNA;
+struct PropertyRNA;
 struct wmOperator;
 
 typedef struct wmPaintCursor {
@@ -83,11 +84,12 @@ typedef struct wmWidget {
 	const char *opname;
 
 	/* property name of the operator or pointer that the widget controls */
-	const char *prop;
+	const char *propname;
 
 	/* operator properties if widget spawns and controls an operator, or owner pointer if widget spawns and controls a property */
 	struct PointerRNA *ptr;
 	struct IDProperty *properties;	/* operator properties, assigned to ptr->data and can be written to a file */
+	struct PropertyRNA *prop;
 } wmWidget;
 
 #define WIDGET_ACTIVATE 1
@@ -102,9 +104,6 @@ enum widgetflags {
 	/* other stuff */
 	WM_WIDGET_FREE_DATA  = (1 << 2),
 	WM_WIDGET_SKIP_DRAW  = (1 << 3),
-
-	/* bound to property instead of operator */
-	WM_WIDGET_PROPERTY    = (1 << 4)
 };
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);

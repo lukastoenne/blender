@@ -472,12 +472,13 @@ struct wmWidgetGroup *WM_widgetgroup_new(bool (*poll)(struct wmWidgetGroup *, co
                                          void *customdata);
 
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *, float scale),
-							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, float, int),
-							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
+                               void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, float, int),
+                               int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                                int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct wmOperator *op),
-                               void *customdata, bool free_data, char *opname, char *prop, struct PointerRNA *ptr);
+                               void *customdata, bool free_data, char *opname, char *prop);
 
+void WM_widget_bind_to_prop(struct wmWidget *, struct PointerRNA *ptr, const char *propname);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_event_add_widget_handler(struct ARegion *ar);
 

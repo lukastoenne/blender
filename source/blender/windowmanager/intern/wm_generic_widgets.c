@@ -146,6 +146,7 @@ typedef struct ArrowWidget {
 typedef struct ArrowInteraction {
 	float orig_origin[3];
 	float orig_mouse[2];
+	float orig_value;
 
 	/* direction vector, projected in screen space */
 	float proj_direction[2];
@@ -156,10 +157,20 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	float rot[3][3];
 	float mat[4][4];
 	float up[3] = {0.0f, 0.0f, 1.0f};
+	float final_pos[3];
+
+	if (arrow->widget.prop) {
+		copy_v3_v3(final_pos, arrow->direction);
+		mul_v3_fl(final_pos, RNA_property_float_get(arrow->widget.ptr, arrow->widget.prop));
+		add_v3_v3(final_pos, arrow->widget.origin);
+	}
+	else {
+		copy_v3_v3(final_pos, arrow->widget.origin);
+	}
 
 	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
 	copy_m4_m3(mat, rot);
-	copy_v3_v3(mat[3], arrow->widget.origin);
+	copy_v3_v3(mat[3], final_pos);
 	mul_mat3_m4_fl(mat, scale);
 
 	glPushMatrix();
@@ -216,6 +227,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	float m_diff[2];
 	float dir_2d[2], dir2d_final[2];
 	float fac;
+	float facdir = 1.0f;
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
@@ -256,13 +268,23 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	project_v3_v3v3(offset, arrow->direction, orig_origin);
 	fac = len_v3(orig_origin) / len_v3(offset);
 	if (dot_v3v3(offset, orig_origin) < 0.0f)
-		fac *= -1.0;
-	mul_v3_v3fl(widget->origin, offset, fac);
-	add_v3_v3(widget->origin, data->orig_origin);
+		facdir = -1.0;
+	fac *= facdir;
+	mul_v3_v3fl(orig_origin, offset, fac);
+	add_v3_v3(orig_origin, data->orig_origin);
 
 	/* set the property for the operator and call its modal function */
-	if (op && widget->prop) {
-		RNA_float_set_array(op->ptr, widget->prop, widget->origin);
+	if (op && widget->propname) {
+		copy_v3_v3(widget->origin, orig_origin);
+		RNA_float_set_array(op->ptr, widget->propname, widget->origin);
+	}
+	else if (widget->prop) {
+		float value;
+		sub_v3_v3(orig_origin, data->orig_origin);
+
+		value = data->orig_value + facdir * len_v3(orig_origin);
+		RNA_property_float_set(widget->ptr, widget->prop, value);
+		RNA_property_update(C, widget->ptr, widget->prop);
 	}
 
 	/* tag the region for redraw */
@@ -275,11 +297,25 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
 {
 	if (state == WIDGET_ACTIVATE) {
+		ArrowWidget *arrow = (ArrowWidget *)widget;
 		ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
+		float final_pos[3];
+
+		if (widget->prop) {
+			float val = RNA_property_float_get(widget->ptr, widget->prop);
+			copy_v3_v3(final_pos, arrow->direction);
+			mul_v3_fl(final_pos, RNA_property_float_get(widget->ptr, widget->prop));
+			add_v3_v3(final_pos, widget->origin);
+			data->orig_value = val;
+		}
+		else {
+			copy_v3_v3(final_pos, widget->origin);
+		}
+
 		data->orig_mouse[0] = event->mval[0];
 		data->orig_mouse[1] = event->mval[1];
 
-		copy_v3_v3(data->orig_origin, widget->origin);
+		copy_v3_v3(data->orig_origin, final_pos);
 
 		widget->interaction_data = data;
 	}
@@ -316,7 +352,7 @@ wmWidget *WIDGET_arrow_new(int style,
 	arrow->widget.activate_state = widget_arrow_activate;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.opname = opname;
-	arrow->widget.prop = prop;
+	arrow->widget.propname = prop;
 	arrow->widget.customdata = customdata;
 
 	arrow->style = style;
@@ -442,7 +478,7 @@ wmWidget *WIDGET_dial_new(int style,
 	dial->widget.intersect = NULL;
 	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
 	dial->widget.opname = opname;
-	dial->widget.prop = prop;
+	dial->widget.propname = prop;
 	dial->widget.customdata = customdata;
 
 	dial->style = style;

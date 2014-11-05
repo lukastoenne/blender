@@ -370,8 +370,13 @@ void ED_view3d_operator_properties_viewmat_set(struct bContext *C, struct wmOper
 void ED_view3d_operator_properties_viewmat_get(struct wmOperator *op, int *winx, int *winy, float persmat[4][4]);
 #endif
 
+typedef struct WidgetGroupLamp {
+	struct PointerRNA *lamp;
+} WidgetGroupLamp;
+
 bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *wgroup, const struct bContext *C);
 void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext *C);
+void WIDGETGROUP_lamp_free(struct wmWidgetGroup *wgroup);
 
 /* render */
 void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View3D *v3d, struct ScrArea *sa);
