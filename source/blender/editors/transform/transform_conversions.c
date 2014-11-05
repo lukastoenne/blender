@@ -1056,11 +1056,13 @@ static void createTransPose(TransInfo *t, Object *ob)
 
 void restoreBones(TransInfo *t)
 {
+	bArmature *arm = t->obedit->data;
 	BoneInitData *bid = t->customData;
 	EditBone *ebo;
 
 	while (bid->bone) {
 		ebo = bid->bone;
+		
 		ebo->dist = bid->dist;
 		ebo->rad_tail = bid->rad_tail;
 		ebo->roll = bid->roll;
@@ -1068,7 +1070,26 @@ void restoreBones(TransInfo *t)
 		ebo->zwidth = bid->zwidth;
 		copy_v3_v3(ebo->head, bid->head);
 		copy_v3_v3(ebo->tail, bid->tail);
+		
+		if (arm->flag & ARM_MIRROR_EDIT) {
+			EditBone *ebo_child;
 
+			/* Also move connected ebo_child, in case ebo_child's name aren't mirrored properly */
+			for (ebo_child = arm->edbo->first; ebo_child; ebo_child = ebo_child->next) {
+				if ((ebo_child->flag & BONE_CONNECTED) && (ebo_child->parent == ebo)) {
+					copy_v3_v3(ebo_child->head, ebo->tail);
+					ebo_child->rad_head = ebo->rad_tail;
+				}
+			}
+
+			/* Also move connected parent, in case parent's name isn't mirrored properly */
+			if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
+				EditBone *parent = ebo->parent;
+				copy_v3_v3(parent->tail, ebo->head);
+				parent->rad_tail = ebo->rad_head;
+			}
+		}
+		
 		bid++;
 	}
 }
@@ -2615,7 +2636,7 @@ static void UVsToTransData(SpaceImage *sima, TransData *td, TransData2D *td2d, f
 	/* uv coords are scaled by aspects. this is needed for rotations and
 	 * proportional editing to be consistent with the stretched uv coords
 	 * that are displayed. this also means that for display and numinput,
-	 * and when the the uv coords are flushed, these are converted each time */
+	 * and when the uv coords are flushed, these are converted each time */
 	td2d->loc[0] = uv[0] * aspx;
 	td2d->loc[1] = uv[1] * aspy;
 	td2d->loc[2] = 0.0f;
@@ -6777,7 +6798,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 			/* CV coords are scaled by aspects. this is needed for rotations and
 			 * proportional editing to be consistent with the stretched CV coords
 			 * that are displayed. this also means that for display and numinput,
-			 * and when the the CV coords are flushed, these are converted each time */
+			 * and when the CV coords are flushed, these are converted each time */
 			mul_v2_m3v2(td2d->loc, parent_matrix, bezt->vec[i]);
 			td2d->loc[0] *= asp[0];
 			td2d->loc[1] *= asp[1];

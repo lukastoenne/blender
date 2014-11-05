@@ -722,6 +722,16 @@ void invert(float fac, vec4 col, out vec4 outcol)
 	outcol.w = col.w;
 }
 
+void clamp_val(vec3 vec, vec3 min, vec3 max, out vec3 out_vec)
+{
+	out_vec = clamp(vec, min, max);
+}
+
+void clamp_val(float value, float min, float max, out float out_value)
+{
+	out_value = clamp(value, min, max);
+}
+
 void hue_sat(float hue, float sat, float value, float fac, vec4 col, out vec4 outcol)
 {
 	vec4 hsv;
@@ -1507,9 +1517,9 @@ void mtex_nspace_world(mat4 viewmat, vec3 texnormal, out vec3 outnormal)
 	outnormal = normalize((viewmat*vec4(texnormal, 0.0)).xyz);
 }
 
-void mtex_nspace_object(mat4 viewmat, mat4 obmat, vec3 texnormal, out vec3 outnormal)
+void mtex_nspace_object(vec3 texnormal, out vec3 outnormal)
 {
-	outnormal = normalize((viewmat*(obmat*vec4(texnormal, 0.0))).xyz);
+	outnormal = normalize(gl_NormalMatrix * texnormal);
 }
 
 void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)

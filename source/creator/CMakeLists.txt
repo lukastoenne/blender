@@ -414,10 +414,14 @@ if(UNIX AND NOT APPLE)
 
 	# there are a few differences between portable and system install
 	if(WITH_INSTALL_PORTABLE)
-		install(
-			FILES ${TARGETDIR}/blender.1
-			DESTINATION ${TARGETDIR}
-		)
+		if(WITH_PYTHON_MODULE)
+			# pass
+		else()
+			install(
+				FILES ${TARGETDIR}/blender.1
+				DESTINATION ${TARGETDIR}
+			)
+		endif()
 
 		install(
 			FILES
@@ -901,7 +905,7 @@ elseif(APPLE)
 	if(WITH_GAMEENGINE AND WITH_PLAYER)
 		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
 		set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
-		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/MacOS/${BLENDER_VERSION})
+		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
 
 
 		# important to make a clean  install each time else old scripts get loaded.
