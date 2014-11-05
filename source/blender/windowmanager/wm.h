@@ -63,7 +63,7 @@ typedef struct wmWidget {
 	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
 
 	/* initialize the operator properties when the user clicks the widget */
-	int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *propptr);
+	int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
 
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
 	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op);
@@ -82,14 +82,12 @@ typedef struct wmWidget {
 	/* name of operator to spawn when activating the widget */
 	const char *opname;
 
-	/* property name of the operator that the widget controls */
+	/* property name of the operator or pointer that the widget controls */
 	const char *prop;
 
-	/* operator type that will be called */
-	wmOperatorType *ot;
-
-	/* operator properties, stored if widget spawns and controls an operator */
-	struct PointerRNA propptr;
+	/* operator properties if widget spawns and controls an operator, or owner pointer if widget spawns and controls a property */
+	struct PointerRNA *ptr;
+	struct IDProperty *properties;	/* operator properties, assigned to ptr->data and can be written to a file */
 } wmWidget;
 
 #define WIDGET_ACTIVATE 1
@@ -103,7 +101,10 @@ enum widgetflags {
 
 	/* other stuff */
 	WM_WIDGET_FREE_DATA  = (1 << 2),
-	WM_WIDGET_SKIP_DRAW  = (1 << 3)
+	WM_WIDGET_SKIP_DRAW  = (1 << 3),
+
+	/* bound to property instead of operator */
+	WM_WIDGET_PROPERTY    = (1 << 4)
 };
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);

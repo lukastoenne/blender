@@ -710,7 +710,7 @@ static void view3d_widgets(void)
 	                       WIDGET_manipulator_render_3d_intersect,
 	                       NULL,
 	                       WIDGET_manipulator_handler,
-	                       NULL, NULL, false, NULL, NULL);
+	                       NULL, NULL, false, NULL, NULL, NULL);
 	
 	WM_widget_register(wgroup_manipulator, widget);
 

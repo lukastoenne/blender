@@ -194,40 +194,54 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	ARegion *ar = CTX_wm_region(C);
 	RegionView3D *rv3d = ar->regiondata;
 
-	float homogenous_coord;
 	float orig_origin[4];
+	float offset[4];
 	float m_diff[2];
+	float dir_2d[2], dir2d_final[2];
+	float fac;
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
+	add_v3_v3v3(offset, orig_origin, arrow->direction);
+	offset[3] = 1.0f;
 
 	/* multiply to projection space */
 	mul_m4_v4(rv3d->persmat, orig_origin);
+	mul_m4_v4(rv3d->persmat, offset);
 
-	homogenous_coord = orig_origin[3];
+	mul_v4_fl(orig_origin, 1.0f/orig_origin[3]);
+	mul_v4_fl(offset, 1.0f/offset[3]);
+	sub_v2_v2v2(dir_2d, offset, orig_origin);
+	normalize_v2(dir_2d);
 
-	mul_v2_fl(orig_origin, 1.0f/homogenous_coord);
+	dir_2d[0] *= BLI_rcti_size_x(&ar->winrct) * 0.5f;
+	dir_2d[1] *= BLI_rcti_size_y(&ar->winrct) * 0.5f;
 
 	/* find mouse difference */
 	m_diff[0] = event->mval[0] - data->orig_mouse[0];
 	m_diff[1] = event->mval[1] - data->orig_mouse[1];
 
-	/* express it as difference in normalized screen space */
-	m_diff[0] /= (BLI_rcti_size_x(&ar->winrct) * 0.5f);
-	m_diff[1] /= (BLI_rcti_size_y(&ar->winrct) * 0.5f);
+	/* project the displacement on the screen space arrow direction */
+	project_v2_v2v2(dir2d_final, m_diff, dir_2d);
 
-	/* now mouse difference is in normalized coordinates, add it to orig_origin */
-	add_v2_v2(orig_origin, m_diff);
+	dir2d_final[0] /= (BLI_rcti_size_x(&ar->winrct) * 0.5f);
+	dir2d_final[1] /= (BLI_rcti_size_y(&ar->winrct) * 0.5f);
 
-	mul_v2_fl(orig_origin, homogenous_coord);
+	add_v2_v2(orig_origin, dir2d_final);
 
-	/* project back to world space */
+	/* project back to world space and find world space displacement direction */
 	mul_m4_v4(rv3d->persinv, orig_origin);
+	mul_v4_fl(orig_origin, 1.0f/orig_origin[3]);
 
-	/* project to the line formed by original point and direction */
 	sub_v3_v3(orig_origin, data->orig_origin);
-	project_v3_v3v3(orig_origin, orig_origin, arrow->direction);
-	add_v3_v3v3(widget->origin, orig_origin, data->orig_origin);
+
+	/* reuse offset, project direction to displacement */
+	project_v3_v3v3(offset, arrow->direction, orig_origin);
+	fac = len_v3(orig_origin) / len_v3(offset);
+	if (dot_v3v3(offset, orig_origin) < 0.0f)
+		fac *= -1.0;
+	mul_v3_v3fl(widget->origin, offset, fac);
+	add_v3_v3(widget->origin, data->orig_origin);
 
 	/* set the property for the operator and call its modal function */
 	if (op && widget->prop) {

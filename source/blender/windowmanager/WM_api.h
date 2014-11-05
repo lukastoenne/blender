@@ -71,7 +71,6 @@ struct ImBuf;
 struct ImageFormatData;
 struct ARegion;
 struct wmNDOFMotionData;
-struct PointerRNA;
 
 typedef struct wmJob wmJob;
 
@@ -477,7 +476,7 @@ struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bCon
 							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                                int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct wmOperator *op),
-                               void *customdata, bool free_data, char *opname, char *prop);
+                               void *customdata, bool free_data, char *opname, char *prop, struct PointerRNA *ptr);
 
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_event_add_widget_handler(struct ARegion *ar);

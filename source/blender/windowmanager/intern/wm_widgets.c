@@ -140,7 +140,7 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
                         int  (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op),
-                        void *customdata, bool free_data, char *opname, char *prop)
+                        void *customdata, bool free_data, char *opname, char *prop, PointerRNA *ptr)
 {
 	wmWidget *widget;
 	
@@ -153,8 +153,10 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
 	widget->render_3d_intersection = render_3d_intersection;
 	widget->customdata = customdata;
 	
-	widget->opname = opname;
+	if (!ptr)
+		widget->opname = opname;
 	widget->prop = prop;
+	widget->ptr = ptr;
 
 	if (free_data)
 		widget->flag |= WM_WIDGET_FREE_DATA;
@@ -525,7 +527,7 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 {
 	if (widget) {
 		if (widget->opname && widget->handler) {
-			wmOperatorType *ot = widget->ot = WM_operatortype_find(widget->opname, 0);
+			wmOperatorType *ot = WM_operatortype_find(widget->opname, 0);
 
 			if (ot) {
 				widget->flag |= WM_WIDGET_ACTIVE;
@@ -534,15 +536,15 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
 				}
 
-				WM_operator_properties_create_ptr(&widget->propptr, ot);
+				WM_operator_properties_alloc(&widget->ptr, &widget->properties, widget->opname);
 
 				/* time to initialize those properties now */
 				if (widget->initialize_op) {
-					widget->initialize_op(C, event, widget, &widget->propptr);
+					widget->initialize_op(C, event, widget, widget->ptr);
 				}
 
 				CTX_wm_widget_set(C, widget);
-				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->propptr);
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, widget->ptr);
 				wmap->active_widget = widget;
 				return;
 			}
@@ -569,13 +571,19 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				widget->activate_state(C, event, widget, WIDGET_DEACTIVATE);
 			}
 
-			WM_operator_properties_free(&widget->propptr);
+			if (widget->opname && widget->ptr) {
+				WM_operator_properties_free(widget->ptr);
+				MEM_freeN(widget->ptr);
+				widget->properties = NULL;
+				widget->ptr = NULL;
+			}
 		}
 
 		CTX_wm_widget_set(C, NULL);
 
 		wmap->active_widget = NULL;
 		ED_region_tag_redraw(ar);
+		WM_event_add_mousemove(C);
 	}
 }
 
