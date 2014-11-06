@@ -471,8 +471,8 @@ struct wmWidgetGroup *WM_widgetgroup_new(bool (*poll)(struct wmWidgetGroup *, co
                                          void (*free)(struct wmWidgetGroup *),
                                          void *customdata);
 
-struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *, float scale),
-                               void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, float, int),
+struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
+                               void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
                                int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
                                int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct wmOperator *op),
@@ -495,6 +495,8 @@ ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup);
 bool WM_widgetgroup_register(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);
 void WM_widgetgroup_unregister(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);
 
+void WM_widgetgroups_invalidate(void);
+
 struct wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d);
 void WM_widgetmaps_free(void);
 
@@ -503,6 +505,7 @@ void WM_widgetmaps_free(void);
 enum {
 	UI_ARROW_STYLE_NORMAL = 0,
 	UI_ARROW_STYLE_NO_AXIS = 1,
+	UI_ARROW_STYLE_INVERTED = 2,
 };
 
 enum {

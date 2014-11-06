@@ -616,6 +616,9 @@ static int read_undosave(bContext *C, UndoElem *uel)
 	else
 		success = BKE_read_file_from_memfile(C, &uel->memfile, NULL);
 
+	/* when reading from memory all references get invalidated so invalidate all widgets */
+	WM_widgetgroups_invalidate();
+
 	/* restore */
 	BLI_strncpy(G.main->name, mainstr, sizeof(G.main->name)); /* restore */
 	G.fileflags = fileflags;

@@ -55,6 +55,7 @@
 
 #include "ED_view3d.h"
 #include "ED_screen.h"
+#include "ED_util.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -100,7 +101,12 @@ struct wmWidgetGroup {
 
 	/* update widgets, called right before drawing */
 	void (*update)(struct wmWidgetGroup *wgroup, const struct bContext *C);
+
+	/* general flag */
+	int flag;
 };
+
+#define WGROUP_FLAG_INVALID 1
 
 
 /* store all widgetboxmaps here. Anyone who wants to register a widget for a certain 
@@ -133,8 +139,8 @@ ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup)
 	return &wgroup->widgets;
 }
 
-wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C, float scale),
-                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, float scale, int selectionbase),
+wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C),
+                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
 						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
                         int  (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op),
@@ -211,7 +217,8 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
 		 * relevant data to update itself */
-		widget->draw(widget, C, scale);
+		widget->scale = scale;
+		widget->draw(widget, C);
 	}
 	else if (wmap->widgetgroups.first) {
 		wmWidgetGroup *wgroup;
@@ -221,8 +228,10 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 			{
 				wmWidget *widget_iter;
 
-				if (wgroup->update)
+				if (wgroup->update) {
 					wgroup->update(wgroup, C);
+					wgroup->flag &= ~WGROUP_FLAG_INVALID;
+				}
 
 				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
 					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW)) {
@@ -231,7 +240,8 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 						if (!(U.tw_flag & V3D_3D_WIDGETS))
 							scale = ED_view3d_pixel_size(rv3d, widget_iter->origin) * U.tw_size;
 
-						widget_iter->draw(widget_iter, C, scale);
+						widget_iter->scale = scale;
+						widget_iter->draw(widget_iter, C);
 					}
 				}
 			}
@@ -363,6 +373,20 @@ void WM_widgetmaps_free(void)
 	fix_linking_widget_lib();
 }
 
+void WM_widgetgroups_invalidate(void)
+{
+	wmWidgetMap *wmap;
+
+	for (wmap = widgetmaps.first; wmap; wmap = wmap->next) {
+		wmWidgetGroup *wgroup;
+
+		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
+			wgroup->flag |= WGROUP_FLAG_INVALID;
+		}
+	}
+}
+
+
 bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap)
 {
 	return wmap->is_3d;
@@ -382,8 +406,10 @@ static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
 
 		if (!(U.tw_flag & V3D_3D_WIDGETS))
 			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
-		/* we use only 8 bits as free ids for per widget handles */
-		widget->render_3d_intersection(C, widget, scale, selectionbase);
+		/* reset the scale here. We might have more than one 3d view so scale is not guaranteed to
+		 * have stayed the same */
+		widget->scale = scale;
+		widget->render_3d_intersection(C, widget, selectionbase);
 
 		selectionbase++;
 	}
@@ -464,6 +490,12 @@ static void wm_prepare_visible_widgets(struct wmWidgetMap *wmap, ListBase *visib
 
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		if (!wgroup->poll || wgroup->poll(wgroup, C)) {
+			/* update if needed, data may become invalid after undoing */
+			if (wgroup->update && (wgroup->flag & WGROUP_FLAG_INVALID)) {
+				wgroup->update(wgroup, C);
+				wgroup->flag &= ~WGROUP_FLAG_INVALID;
+			}
+
 			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 				if (!(widget->flag & WM_WIDGET_SKIP_DRAW) && widget->render_3d_intersection) {
 					BLI_addhead(visible_widgets, BLI_genericNodeN(widget));
@@ -597,6 +629,9 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				MEM_freeN(widget->ptr);
 				widget->properties = NULL;
 				widget->ptr = NULL;
+			}
+			else if (widget->prop) {
+				ED_undo_push(C, "widget_undo");
 			}
 		}
 

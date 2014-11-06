@@ -56,12 +56,12 @@ typedef struct wmWidget {
 	void *customdata;
 
 	/* draw widget */
-	void (*draw)(struct wmWidget *widget, const struct bContext *C, float scale);
+	void (*draw)(struct wmWidget *widget, const struct bContext *C);
 	/* determine if the mouse intersects with the widget. The calculation should be done in the callback itself */
 	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
 	/* determines 3d intersection by rendering the widget in a selection routine. */
-	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase);
+	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, int selectionbase);
 
 	/* initialize the operator properties when the user clicks the widget */
 	int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
@@ -76,6 +76,9 @@ typedef struct wmWidget {
 
 	/* position in space, 2d or 3d */
 	float origin[3];
+
+	/* runtime property, set the scale while drawing on the viewport */
+	float scale;
 
 	/* data used during interaction */
 	void *interaction_data;

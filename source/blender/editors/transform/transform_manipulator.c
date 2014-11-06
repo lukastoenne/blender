@@ -1655,7 +1655,7 @@ static int manipulator_flags_from_active(int active)
 	return val;
 }
 
-void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C, float UNUSED(scale))
+void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1813,7 +1813,7 @@ bool WIDGETGROUP_manipulator_poll(wmWidgetGroup *UNUSED(wgroup), const struct bC
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
 
-void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget), float UNUSED(scale), int selectionbase)
+void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(widget), int selectionbase)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;

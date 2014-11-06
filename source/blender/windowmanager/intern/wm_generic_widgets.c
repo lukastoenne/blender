@@ -81,7 +81,7 @@ typedef struct WidgetDrawInfo {
 } WidgetDrawInfo;
 
 
-WidgetDrawInfo arraw_draw_info = {0};
+WidgetDrawInfo arraw_head_draw_info = {0};
 WidgetDrawInfo dial_draw_info = {0};
 
 static void widget_draw_intern(WidgetDrawInfo *info, bool select)
@@ -161,7 +161,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 
 	if (arrow->widget.prop) {
 		copy_v3_v3(final_pos, arrow->direction);
-		mul_v3_fl(final_pos, RNA_property_float_get(arrow->widget.ptr, arrow->widget.prop));
+		mul_v3_fl(final_pos, scale * RNA_property_float_get(arrow->widget.ptr, arrow->widget.prop));
 		add_v3_v3(final_pos, arrow->widget.origin);
 	}
 	else {
@@ -181,15 +181,23 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	else
 		glColor4fv(arrow->color);
 
-	widget_draw_intern(&arraw_draw_info, select);
+	widget_draw_intern(&arraw_head_draw_info, select);
 
 	glPopMatrix();
 
 	if (arrow->widget.interaction_data) {
 		ArrowInteraction *data = arrow->widget.interaction_data;
 
+		if (arrow->widget.prop) {
+			copy_v3_v3(final_pos, arrow->direction);
+			mul_v3_fl(final_pos, scale * data->orig_value);
+			add_v3_v3(final_pos, arrow->widget.origin);
+		}
+		else {
+			copy_v3_v3(final_pos, arrow->widget.origin);
+		}
 		copy_m4_m3(mat, rot);
-		copy_v3_v3(mat[3], data->orig_origin);
+		copy_v3_v3(mat[3], final_pos);
 		mul_mat3_m4_fl(mat, scale);
 
 		glPushMatrix();
@@ -197,22 +205,22 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
-		widget_draw_intern(&arraw_draw_info, select);
+		widget_draw_intern(&arraw_head_draw_info, select);
 		glDisable(GL_BLEND);
 
 		glPopMatrix();
 	}
 }
 
-static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, float scale, int selectionbase)
+static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, int selectionbase)
 {
 	GPU_select_load_id(selectionbase);
-	arrow_draw_intern((ArrowWidget *)widget, true, false, scale);
+	arrow_draw_intern((ArrowWidget *)widget, true, false, widget->scale);
 }
 
-static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C), float scale)
+static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
-	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
+	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, widget->scale);
 }
 
 static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
@@ -297,25 +305,16 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
 {
 	if (state == WIDGET_ACTIVATE) {
-		ArrowWidget *arrow = (ArrowWidget *)widget;
 		ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
-		float final_pos[3];
 
 		if (widget->prop) {
-			float val = RNA_property_float_get(widget->ptr, widget->prop);
-			copy_v3_v3(final_pos, arrow->direction);
-			mul_v3_fl(final_pos, RNA_property_float_get(widget->ptr, widget->prop));
-			add_v3_v3(final_pos, widget->origin);
-			data->orig_value = val;
-		}
-		else {
-			copy_v3_v3(final_pos, widget->origin);
+			data->orig_value = RNA_property_float_get(widget->ptr, widget->prop);
 		}
 
 		data->orig_mouse[0] = event->mval[0];
 		data->orig_mouse[1] = event->mval[1];
 
-		copy_v3_v3(data->orig_origin, final_pos);
+		copy_v3_v3(data->orig_origin, widget->origin);
 
 		widget->interaction_data = data;
 	}
@@ -334,13 +333,13 @@ wmWidget *WIDGET_arrow_new(int style,
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
 
-	if (!arraw_draw_info.init) {
-		arraw_draw_info.nverts = _WIDGET_nverts_arrow,
-		arraw_draw_info.ntris = _WIDGET_ntris_arrow,
-		arraw_draw_info.verts = _WIDGET_verts_arrow,
-		arraw_draw_info.normals = _WIDGET_normals_arrow,
-		arraw_draw_info.indices = _WIDGET_indices_arrow,
-		arraw_draw_info.init = true;
+	if (!arraw_head_draw_info.init) {
+		arraw_head_draw_info.nverts = _WIDGET_nverts_arrow,
+		arraw_head_draw_info.ntris = _WIDGET_ntris_arrow,
+		arraw_head_draw_info.verts = _WIDGET_verts_arrow,
+		arraw_head_draw_info.normals = _WIDGET_normals_arrow,
+		arraw_head_draw_info.indices = _WIDGET_indices_arrow,
+		arraw_head_draw_info.init = true;
 	}
 	
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
@@ -410,7 +409,7 @@ static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, floa
 
 }
 
-static void widget_dial_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, float scale, int selectionbase)
+static void widget_dial_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase)
 {
 	DialWidget *dial = (DialWidget *)widget;
 	ARegion *ar = CTX_wm_region(C);
@@ -426,14 +425,14 @@ static void widget_dial_render_3d_intersect(const struct bContext *C, struct wmW
 	}
 
 	GPU_select_load_id(selectionbase);
-	dial_draw_intern(dial, true, false, scale);
+	dial_draw_intern(dial, true, false, dial->widget.scale);
 
 	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
 		glDisable(GL_CLIP_PLANE0);
 	}
 }
 
-static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C, float scale)
+static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C)
 {
 	DialWidget *dial = (DialWidget *)widget;
 	ARegion *ar = CTX_wm_region(C);
@@ -448,7 +447,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C, 
 		glEnable(GL_CLIP_PLANE0);
 	}
 
-	dial_draw_intern(dial, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, scale);
+	dial_draw_intern(dial, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, widget->scale);
 
 	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
 		glDisable(GL_CLIP_PLANE0);
