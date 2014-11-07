@@ -60,6 +60,8 @@ struct wmOperator;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetMap;
+struct wmWidgetGroupType;
+struct wmWidgetMapType;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -466,10 +468,10 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
 /* widget API */
-struct wmWidgetGroup *WM_widgetgroup_new(bool (*poll)(struct wmWidgetGroup *, const struct bContext *),
-                                         void (*update)(struct wmWidgetGroup *, const struct bContext *),
-                                         void (*free)(struct wmWidgetGroup *),
-                                         void *customdata);
+struct wmWidgetGroupType *WM_widgetgrouptype_new(void (*create)(struct wmWidgetGroup *wgroup),
+                                                 bool (*poll)(struct wmWidgetGroup *, const struct bContext *),
+                                                 void (*update)(struct wmWidgetGroup *, const struct bContext *),
+                                                 void (*free)(struct wmWidgetGroup *));
 
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
@@ -490,15 +492,19 @@ void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
 void WM_widget_set_draw(struct wmWidget *widget, bool draw);
 
 void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
+void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
 ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup);
 
-bool WM_widgetgroup_register(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);
-void WM_widgetgroup_unregister(struct wmWidgetMap *wmap, struct wmWidgetGroup *wgroup);
+struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d);
 
-void WM_widgetgroups_invalidate(void);
+bool WM_widgetgrouptype_register(struct wmWidgetMapType *wmap, struct wmWidgetGroupType *wgroup);
+void WM_widgetgrouptype_unregister(struct wmWidgetMapType *wmap, struct wmWidgetGroupType *wgroup);
 
-struct wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d);
-void WM_widgetmaps_free(void);
+/* creates a widgetmap with all registered widgets for that type */
+struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int regionid, bool is_3d);
+void WM_widgetmap_delete(struct wmWidgetMap *);
+
+void WM_widgetmaptypes_free(void);
 
 /* wm_generic_widgets.c */
 

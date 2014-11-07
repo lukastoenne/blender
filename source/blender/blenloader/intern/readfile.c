@@ -6258,6 +6258,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	BLI_listbase_clear(&ar->panels_category);
 	BLI_listbase_clear(&ar->handlers);
 	BLI_listbase_clear(&ar->uiblocks);
+	ar->widgetmap = NULL;
 	ar->headerstr = NULL;
 	ar->swinid = 0;
 	ar->type = NULL;

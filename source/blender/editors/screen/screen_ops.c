@@ -3977,8 +3977,10 @@ void region_blend_start(bContext *C, ScrArea *sa, ARegion *ar)
 	/* blend in, reinitialize regions because it got unhidden */
 	if (rgi->hidden == 0)
 		ED_area_initialize(wm, win, sa);
-	else
+	else {
 		WM_event_remove_handlers(C, &ar->handlers);
+		WM_widgetmap_delete(ar->widgetmap);
+	}
 
 	if (ar->next) {
 		if (ar->next->alignment & RGN_SPLIT_PREV) {

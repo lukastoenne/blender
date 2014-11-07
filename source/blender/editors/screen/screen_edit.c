@@ -1270,6 +1270,7 @@ void ED_region_exit(bContext *C, ARegion *ar)
 
 	CTX_wm_region_set(C, ar);
 	WM_event_remove_handlers(C, &ar->handlers);
+	WM_widgetmap_delete(ar->widgetmap);
 	if (ar->swinid)
 		wm_subwindow_close(CTX_wm_window(C), ar->swinid);
 	ar->swinid = 0;
