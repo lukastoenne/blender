@@ -297,7 +297,7 @@ ccl_device float area_light_pdf(float3 P,
 	float k = M_2PI_F - g2 - g3;
 	/* Compute solid angle from internal angles. */
 	float S = g0 + g1 - k;
-    return 1.0f / S;
+	return 1.0f / S;
 }
 
 ccl_device float spot_light_attenuation(float4 data1, float4 data2, LightSample *ls)
@@ -488,9 +488,6 @@ ccl_device bool lamp_light_eval(KernelGlobals *kg, int lamp, float3 P, float3 D,
 		/* compute pdf */
 		float invarea = data1.w;
 		ls->pdf = invarea/(costheta*costheta*costheta);
-		if(ls->t != FLT_MAX)
-			ls->pdf *= lamp_light_pdf(kg, ls->Ng, -ls->D, ls->t);
-
 		ls->eval_fac = ls->pdf;
 	}
 	else if(type == LIGHT_POINT || type == LIGHT_SPOT) {

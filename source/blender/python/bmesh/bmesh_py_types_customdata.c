@@ -115,6 +115,9 @@ PyDoc_STRVAR(bpy_bmlayeraccess_collection__color_doc,
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__skin_doc,
 "Accessor for skin layer.\n\ntype: :class:`BMLayerCollection`"
 );
+PyDoc_STRVAR(bpy_bmlayeraccess_collection__paint_mask_doc,
+"Accessor for paint mask layer.\n\ntype: :class:`BMLayerCollection`"
+);
 #ifdef WITH_FREESTYLE
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__freestyle_edge_doc,
 "Accessor for Freestyle edge layer.\n\ntype: :class:`BMLayerCollection`"
@@ -195,6 +198,7 @@ static PyGetSetDef bpy_bmlayeraccess_vert_getseters[] = {
 	{(char *)"shape",        (getter)bpy_bmlayeraccess_collection_get, (setter)NULL, (char *)bpy_bmlayeraccess_collection__shape_doc, (void *)CD_SHAPEKEY},
 	{(char *)"bevel_weight", (getter)bpy_bmlayeraccess_collection_get, (setter)NULL, (char *)bpy_bmlayeraccess_collection__bevel_weight_doc, (void *)CD_BWEIGHT},
 	{(char *)"skin",         (getter)bpy_bmlayeraccess_collection_get, (setter)NULL, (char *)bpy_bmlayeraccess_collection__skin_doc, (void *)CD_MVERT_SKIN},
+	{(char *)"paint_mask",   (getter)bpy_bmlayeraccess_collection_get, (setter)NULL, (char *)bpy_bmlayeraccess_collection__paint_mask_doc, (void *)CD_PAINT_MASK},
 
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
@@ -981,6 +985,7 @@ PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
 			ret = BPy_BMDeformVert_CreatePyObject(value);
 			break;
 		}
+		case CD_PAINT_MASK:
 		case CD_PROP_FLT:
 		{
 			ret = PyFloat_FromDouble(*(float *)value);
@@ -1058,6 +1063,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
 			ret = BPy_BMDeformVert_AssignPyObject(value, py_value);
 			break;
 		}
+		case CD_PAINT_MASK:
 		case CD_PROP_FLT:
 		{
 			float tmp_val = PyFloat_AsDouble(py_value);
