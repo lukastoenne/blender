@@ -722,6 +722,16 @@ void invert(float fac, vec4 col, out vec4 outcol)
 	outcol.w = col.w;
 }
 
+void clamp_vec3(vec3 vec, vec3 min, vec3 max, out vec3 out_vec)
+{
+	out_vec = clamp(vec, min, max);
+}
+
+void clamp_val(float value, float min, float max, out float out_value)
+{
+	out_value = clamp(value, min, max);
+}
+
 void hue_sat(float hue, float sat, float value, float fac, vec4 col, out vec4 outcol)
 {
 	vec4 hsv;
@@ -2264,10 +2274,12 @@ void node_layer_weight(float blend, vec3 N, vec3 I, out float fresnel, out float
 {
 	/* fresnel */
 	float eta = max(1.0 - blend, 0.00001);
-	fresnel = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? 1.0/eta : eta );
+	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(I): vec3(0.0, 0.0, -1.0);
+
+	fresnel = fresnel_dielectric(I_view, N, (gl_FrontFacing)? 1.0/eta : eta );
 
 	/* facing */
-	facing = abs(dot(normalize(I), N));
+	facing = abs(dot(I_view, N));
 	if(blend != 0.5) {
 		blend = clamp(blend, 0.0, 0.99999);
 		blend = (blend < 0.5)? 2.0*blend: 0.5/(1.0 - blend);
