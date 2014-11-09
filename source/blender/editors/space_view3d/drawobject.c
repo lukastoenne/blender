@@ -7125,8 +7125,6 @@ static void draw_object_wire_color_adjust_contrast(
         const int select_state,
         const short draw_type)
 {
-	const float contrast = 0.1f;
-
 	float rgb[3];
 
 	BLI_assert(draw_object_wire_grey != -1.0);
@@ -7143,17 +7141,18 @@ static void draw_object_wire_color_adjust_contrast(
 
 	/* when no solid --- ensure contrast */
 	if (draw_type <= OB_WIRE) {
+		const float contrast = 0.1f;
+
 		const float fill_bw = draw_object_wire_grey;
 		const float wire_bw = rgb_to_grayscale(rgb);
 		const float delta = wire_bw - fill_bw;
 
 		if (fabsf(delta) < contrast) {
 			if (delta > 0.0f) {
-				tint_neg(rgb, 1.0f - (delta * 2.0f));
+				add_v3_fl(rgb, (contrast - delta) / 2.0f);
 			}
 			else {
-				tint_pos(rgb, 1.0f - (delta * -2.0f));
-
+				add_v3_fl(rgb, (contrast + delta) / -2.0f);
 			}
 		}
 	}
