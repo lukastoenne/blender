@@ -80,8 +80,8 @@ typedef struct ClothSimSettings {
 	 * should really be separate, this struct is a horrible mess already
 	 */
 	float	bending_damping;	/* damping of bending springs */
-	int		voxel_res;          /* resolution of voxel grid for interaction */
-	int		voxel_filter_size;  /* filter size for voxel grid */
+	float	voxel_cell_size;    /* size of voxel grid cells for continuum dynamics */
+	int		pad;
 
 	int 	stepsPerFrame;	/* Number of time steps per frame.		*/
 	int	flags;		/* flags, see CSIMSETT_FLAGS enum above.	*/
