@@ -50,6 +50,8 @@
 #include "BKE_idprop.h"
 #include "BKE_screen.h"
 
+#include "WM_api.h"
+
 /* ************ Spacetype/regiontype handling ************** */
 
 /* keep global; this has to be accessible outside of windowmanager */
@@ -311,6 +313,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 			MEM_freeN(uilst->properties);
 		}
 	}
+	WM_widgetmap_delete(ar->widgetmap);
 	BLI_freelistN(&ar->ui_lists);
 	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);

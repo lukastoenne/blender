@@ -141,6 +141,7 @@ typedef struct ArrowWidget {
 	int style;
 	float direction[3];
 	float color[4];
+	float offset;
 } ArrowWidget;
 
 typedef struct ArrowInteraction {
@@ -161,7 +162,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 
 	if (arrow->widget.prop) {
 		copy_v3_v3(final_pos, arrow->direction);
-		mul_v3_fl(final_pos, scale * RNA_property_float_get(arrow->widget.ptr, arrow->widget.prop));
+		mul_v3_fl(final_pos, scale * arrow->offset);
 		add_v3_v3(final_pos, arrow->widget.origin);
 	}
 	else {
@@ -293,6 +294,9 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		value = data->orig_value + facdir * len_v3(orig_origin);
 		RNA_property_float_set(widget->ptr, widget->prop, value);
 		RNA_property_update(C, widget->ptr, widget->prop);
+
+		/* accounts for clamping properly */
+		arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
 	}
 
 	/* tag the region for redraw */
@@ -305,10 +309,11 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
 {
 	if (state == WIDGET_ACTIVATE) {
+		ArrowWidget *arrow = (ArrowWidget *) widget;
 		ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
 
 		if (widget->prop) {
-			data->orig_value = RNA_property_float_get(widget->ptr, widget->prop);
+			data->orig_value = arrow->offset;
 		}
 
 		data->orig_mouse[0] = event->mval[0];
@@ -323,6 +328,14 @@ static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEven
 		widget->interaction_data = NULL;
 	}
 	return OPERATOR_FINISHED;
+}
+
+static void widget_arrow_bind_to_prop(struct wmWidget *widget)
+{
+	ArrowWidget *arrow = (ArrowWidget *) widget;
+
+	/* we'd need to check the property type here but for now assume always float */
+	arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
 }
 
 
@@ -348,7 +361,7 @@ wmWidget *WIDGET_arrow_new(int style, void *customdata)
 	arrow->widget.activate_state = widget_arrow_activate;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.customdata = customdata;
-
+	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
 	arrow->style = style;
 	copy_v3_v3(arrow->direction, dir_default);
 	

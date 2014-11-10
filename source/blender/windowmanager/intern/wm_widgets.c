@@ -194,6 +194,9 @@ void WM_widget_property(struct wmWidget *widget, struct PointerRNA *ptr, const c
 	widget->ptr = ptr;
 	widget->propname = propname;
 	widget->prop = RNA_struct_find_property(ptr, propname);
+
+	if (widget->bind_to_prop)
+		widget->bind_to_prop(widget);
 }
 
 void WM_widget_operator(struct wmWidget *widget,
@@ -220,8 +223,13 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	wmWidgetMap *wmap = ar->widgetmap;
-	wmWidget *widget = wmap->active_widget;
-	bool use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
+	wmWidget *widget;;
+	bool use_lighting;
+
+	if (!wmap)
+		return;
+
+	use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
 
 	if (use_lighting) {
 		float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
@@ -238,6 +246,8 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 		glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
 		glPopMatrix();
 	}
+
+	widget = wmap->active_widget;
 
 	if (widget) {
 		float scale = 1.0;

@@ -69,6 +69,9 @@ typedef struct wmWidget {
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
 	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op);
 
+	/* widget-specific handler to update widget attributes when a property is bound */
+	void (*bind_to_prop)(struct wmWidget *widget);
+
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
 
 	/* activate a widget state when the user clicks on it */

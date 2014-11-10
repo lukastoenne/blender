@@ -3979,7 +3979,6 @@ void region_blend_start(bContext *C, ScrArea *sa, ARegion *ar)
 		ED_area_initialize(wm, win, sa);
 	else {
 		WM_event_remove_handlers(C, &ar->handlers);
-		WM_widgetmap_delete(ar->widgetmap);
 	}
 
 	if (ar->next) {

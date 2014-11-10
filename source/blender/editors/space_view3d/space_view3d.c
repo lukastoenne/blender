@@ -383,6 +383,7 @@ static SpaceLink *view3d_new(const bContext *C)
 	
 	BLI_addtail(&v3d->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
+	ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	
 	ar->regiondata = MEM_callocN(sizeof(RegionView3D), "region view3d");
 
@@ -550,7 +551,9 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
-	ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
+	if (!ar->widgetmap)
+		ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 	WM_event_add_widget_handler(ar);
 }
