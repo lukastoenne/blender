@@ -223,7 +223,7 @@ void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext
 
 	RNA_pointer_create(&ob->id, &RNA_Lamp, ob->data, data->lamp);
 	WM_widget_set_origin(lamp, ob->obmat[3]);
-	WM_widget_bind_to_prop(lamp, data->lamp, "spot_size");
+	WM_widget_property(lamp, data->lamp, "spot_size");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(lamp, dir);
 }

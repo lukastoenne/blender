@@ -705,31 +705,31 @@ static void WIDGETGROUP_manipulator_create(struct wmWidgetGroup *wgroup)
 	                       WIDGET_manipulator_render_3d_intersect,
 	                       NULL,
 	                       WIDGET_manipulator_handler,
-	                       NULL, NULL, false, NULL, NULL);
+	                       NULL, false);
 
 	WM_widget_register(wgroup, widget);
 
-	manipulator->translate_x = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans, "TRANSFORM_OT_translate", NULL, NULL);
+	manipulator->translate_x = WIDGET_arrow_new(0, NULL);
 	WIDGET_arrow_set_color(manipulator->translate_x, color_red);
 	WM_widget_register(wgroup, manipulator->translate_x);
 
-	manipulator->translate_y = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans, "TRANSFORM_OT_translate", NULL, SET_INT_IN_POINTER(1));
+	manipulator->translate_y = WIDGET_arrow_new(0, SET_INT_IN_POINTER(1));
 	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
 	WM_widget_register(wgroup, manipulator->translate_y);
 
-	manipulator->translate_z = WIDGET_arrow_new(0, WIDGET_manipulator_handler_trans, "TRANSFORM_OT_translate", NULL, SET_INT_IN_POINTER(2));
+	manipulator->translate_z = WIDGET_arrow_new(0, SET_INT_IN_POINTER(2));
 	WIDGET_arrow_set_color(manipulator->translate_z, color_blue);
 	WM_widget_register(wgroup, manipulator->translate_z);
 
-	manipulator->rotate_x = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot, "TRANSFORM_OT_rotate", NULL, NULL);
+	manipulator->rotate_x = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, NULL);
 	WIDGET_dial_set_color(manipulator->rotate_x, color_red);
 	WM_widget_register(wgroup, manipulator->rotate_x);
 
-	manipulator->rotate_y = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot, "TRANSFORM_OT_rotate", NULL, SET_INT_IN_POINTER(1));
+	manipulator->rotate_y = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, SET_INT_IN_POINTER(1));
 	WIDGET_dial_set_color(manipulator->rotate_y, color_green);
 	WM_widget_register(wgroup, manipulator->rotate_y);
 
-	manipulator->rotate_z = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, WIDGET_manipulator_handler_rot, "TRANSFORM_OT_rotate", NULL, SET_INT_IN_POINTER(2));
+	manipulator->rotate_z = WIDGET_dial_new(UI_DIAL_STYLE_RING_CLIPPED, SET_INT_IN_POINTER(2));
 	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
 	WM_widget_register(wgroup, manipulator->rotate_z);
 
@@ -744,7 +744,7 @@ static void WIDGETGROUP_lamp_create(struct wmWidgetGroup *wgroup)
 
 	lampgroup->lamp = MEM_callocN(sizeof(PointerRNA), "lampwidgetptr");
 
-	widget = WIDGET_arrow_new(UI_ARROW_STYLE_INVERTED, NULL, NULL, NULL, NULL);
+	widget = WIDGET_arrow_new(UI_ARROW_STYLE_INVERTED, NULL);
 	WM_widget_register(wgroup, widget);
 	WIDGET_arrow_set_color(widget, color_lamp);
 

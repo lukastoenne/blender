@@ -476,11 +476,14 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(void (*create)(struct wmWidgetG
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
                                int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
-                               int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct wmOperator *op),
-                               void *customdata, bool free_data, char *opname, char *prop);
+                               void *customdata, bool free_data);
 
-void WM_widget_bind_to_prop(struct wmWidget *, struct PointerRNA *ptr, const char *propname);
+void WM_widget_property(struct wmWidget *, struct PointerRNA *ptr, const char *propname);
+void WM_widget_operator(struct wmWidget *,
+                        int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
+                        const char *opname,
+                        const char *propname);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_event_add_widget_handler(struct ARegion *ar);
 
@@ -519,18 +522,11 @@ enum {
 	UI_DIAL_STYLE_RING_CLIPPED = 1,
 };
 
-struct wmWidget *WIDGET_arrow_new(int style,
-                                  int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
-                                  const char *opname,
-                                  const char *prop,
-                                  void *customdata);
+struct wmWidget *WIDGET_arrow_new(int style, void *customdata);
 void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
 
 struct wmWidget *WIDGET_dial_new(int style,
-                                 int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
-                                 const char *opname,
-                                 const char *prop,
                                  void *customdata);
 void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);

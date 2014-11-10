@@ -326,9 +326,7 @@ static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEven
 }
 
 
-wmWidget *WIDGET_arrow_new(int style,
-                           int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
-                           const char *opname, const char *prop, void *customdata)
+wmWidget *WIDGET_arrow_new(int style, void *customdata)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
@@ -345,13 +343,10 @@ wmWidget *WIDGET_arrow_new(int style,
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 	
 	arrow->widget.draw = widget_arrow_draw;
-	arrow->widget.initialize_op = initialize_op;
 	arrow->widget.intersect = NULL;
 	arrow->widget.handler = widget_arrow_handler;
 	arrow->widget.activate_state = widget_arrow_activate;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
-	arrow->widget.opname = opname;
-	arrow->widget.propname = prop;
 	arrow->widget.customdata = customdata;
 
 	arrow->style = style;
@@ -454,9 +449,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C)
 	}
 }
 
-wmWidget *WIDGET_dial_new(int style,
-                          int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr),
-                          const char *opname, const char *prop, void *customdata)
+wmWidget *WIDGET_dial_new(int style, void *customdata)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	DialWidget *dial;
@@ -473,11 +466,8 @@ wmWidget *WIDGET_dial_new(int style,
 	dial = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 
 	dial->widget.draw = widget_dial_draw;
-	dial->widget.initialize_op = initialize_op;
 	dial->widget.intersect = NULL;
 	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
-	dial->widget.opname = opname;
-	dial->widget.propname = prop;
 	dial->widget.customdata = customdata;
 
 	dial->style = style;

@@ -165,7 +165,7 @@ typedef struct ManipulatorGroup {
 	struct wmWidget *rotate_z;
 } ManipulatorGroup;
 
-int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
+int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *ptr);
 
 int WIDGET_manipulator_handler_trans(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
 int WIDGET_manipulator_handler_rot(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);

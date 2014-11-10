@@ -1759,6 +1759,13 @@ void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct b
 	test_manipulator_axis(C);
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */	
 
+	WM_widget_operator(manipulator->translate_x, WIDGET_manipulator_handler_trans, "TRANSFORM_OT_translate", NULL);
+	WM_widget_operator(manipulator->translate_y, WIDGET_manipulator_handler_trans, "TRANSFORM_OT_translate", NULL);
+	WM_widget_operator(manipulator->translate_z, WIDGET_manipulator_handler_trans, "TRANSFORM_OT_translate", NULL);
+	WM_widget_operator(manipulator->rotate_x, WIDGET_manipulator_handler_rot, "TRANSFORM_OT_rotate", NULL);
+	WM_widget_operator(manipulator->rotate_y, WIDGET_manipulator_handler_rot, "TRANSFORM_OT_rotate", NULL);
+	WM_widget_operator(manipulator->rotate_z, WIDGET_manipulator_handler_rot, "TRANSFORM_OT_rotate", NULL);
+
 	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
 		/* should be added according to the order of axis */
 		WM_widget_set_origin(manipulator->translate_x, rv3d->twmat[3]);
@@ -1832,7 +1839,7 @@ void WIDGET_manipulator_render_3d_intersect(const bContext *C, wmWidget *UNUSED(
 }
 
 /* return 0; nothing happened */
-int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget), struct PointerRNA *UNUSED(opptr))
+int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget), wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;

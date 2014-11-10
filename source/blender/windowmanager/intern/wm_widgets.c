@@ -167,23 +167,19 @@ ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup)
 
 wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C),
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
-						int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
-                        int  (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *),
+                        int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op),
-                        void *customdata, bool free_data, char *opname, char *prop)
+                        void *customdata, bool free_data)
 {
 	wmWidget *widget;
 	
 	widget = MEM_callocN(sizeof(wmWidget), "widget");
 	
 	widget->draw = draw;
-	widget->initialize_op = initialize_op;
 	widget->handler = handler;
 	widget->intersect = intersect;
 	widget->render_3d_intersection = render_3d_intersection;
 	widget->customdata = customdata;
-	widget->opname = opname;
-	widget->propname = prop;
 
 	if (free_data)
 		widget->flag |= WM_WIDGET_FREE_DATA;
@@ -191,15 +187,23 @@ wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct b
 	return widget;
 }
 
-void WM_widget_bind_to_prop(struct wmWidget *widget, struct PointerRNA *ptr, const char *propname)
+void WM_widget_property(struct wmWidget *widget, struct PointerRNA *ptr, const char *propname)
 {
 	/* if widget evokes an operator we cannot use it for property manipulation */
-	if (widget->opname)
-		return;
-
+	widget->opname = NULL;
 	widget->ptr = ptr;
 	widget->propname = propname;
 	widget->prop = RNA_struct_find_property(ptr, propname);
+}
+
+void WM_widget_operator(struct wmWidget *widget,
+                        int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
+                        const char *opname,
+                        const char *propname)
+{
+	widget->initialize_op = initialize_op;
+	widget->opname = opname;
+	widget->propname = propname;
 }
 
 
