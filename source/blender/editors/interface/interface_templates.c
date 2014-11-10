@@ -863,6 +863,7 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 		uiBlockSetEmboss(block, UI_EMBOSS);
 		
 		/* modifier name */
+		md->scene = scene;
 		if (mti->isDisabled && mti->isDisabled(md, 0)) {
 			uiLayoutSetRedAlert(row, true);
 		}
@@ -2278,6 +2279,7 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 	uiBlock *block = uiLayoutGetBlock(layout);
 	uiLayout *col, *row;
 	uiBut *but = NULL;
+	ColorPicker *cpicker = ui_block_picker_new(block);
 	float softmin, softmax, step, precision;
 
 	if (!prop) {
@@ -2314,6 +2316,8 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 
 	}
 
+	but->custom_data = cpicker;
+
 	if (lock) {
 		but->flag |= UI_BUT_COLOR_LOCK;
 	}
@@ -2333,33 +2337,35 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 		switch (U.color_picker_type) {
 			case USER_CP_CIRCLE_HSL:
 				uiItemS(row);
-				uiDefButR_prop(block, HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
-				               -1, softmin, softmax, UI_GRAD_L_ALT, 0, "");
+				but = uiDefButR_prop(block, HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
+				                     -1, softmin, softmax, UI_GRAD_L_ALT, 0, "");
 				break;
 			case USER_CP_SQUARE_SV:
 				uiItemS(col);
-				uiDefButR_prop(block, HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
-				               -1, softmin, softmax, UI_GRAD_SV + 3, 0, "");
+				but = uiDefButR_prop(block, HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
+				                     -1, softmin, softmax, UI_GRAD_SV + 3, 0, "");
 				break;
 			case USER_CP_SQUARE_HS:
 				uiItemS(col);
-				uiDefButR_prop(block, HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
-				               -1, softmin, softmax, UI_GRAD_HS + 3, 0, "");
+				but = uiDefButR_prop(block, HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
+				                     -1, softmin, softmax, UI_GRAD_HS + 3, 0, "");
 				break;
 			case USER_CP_SQUARE_HV:
 				uiItemS(col);
-				uiDefButR_prop(block, HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
-				               -1, softmin, softmax, UI_GRAD_HV + 3, 0, "");
+				but = uiDefButR_prop(block, HSVCUBE, 0, "", 0, 4, WHEEL_SIZE, 18, ptr, prop,
+				                     -1, softmin, softmax, UI_GRAD_HV + 3, 0, "");
 				break;
 
 			/* user default */
 			case USER_CP_CIRCLE_HSV:
 			default:
 				uiItemS(row);
-				uiDefButR_prop(block, HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
-				               -1, softmin, softmax, UI_GRAD_V_ALT, 0, "");
+				but = uiDefButR_prop(block, HSVCUBE, 0, "", WHEEL_SIZE + 6, 0, 14, WHEEL_SIZE, ptr, prop,
+				                     -1, softmin, softmax, UI_GRAD_V_ALT, 0, "");
 				break;
 		}
+
+		but->custom_data = cpicker;
 	}
 }
 
