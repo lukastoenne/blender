@@ -2442,11 +2442,11 @@ int snapSequenceBounds(TransInfo *t, const int mval[2])
 	startdist = abs(mframe - frame_left);
 	/* check which is nearest */
 	if (enddist > startdist) {
-		frame = frame_left - (ts->max - ts->min);;
+		frame = frame_left - (ts->max - ts->min);
 	}
 	else if (enddist == startdist) {
 		if (mframe < frame_left) {
-			frame = frame_left - (ts->max - ts->min);;
+			frame = frame_left - (ts->max - ts->min);
 		}
 	}
 

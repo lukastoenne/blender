@@ -4505,18 +4505,22 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 				if (flag & SEQ_LEFTSEL) {
 					SeqToTransData(td++, td2d++, tdsq++, seq, flag, SEQ_LEFTSEL);
 					tot++;
+					min = min_ii(seq->startdisp, min);
+					max = max_ii(seq->startdisp, max);
 				}
 				if (flag & SEQ_RIGHTSEL) {
 					SeqToTransData(td++, td2d++, tdsq++, seq, flag, SEQ_RIGHTSEL);
 					tot++;
+					min = min_ii(seq->enddisp, min);
+					max = max_ii(seq->enddisp, max);
 				}
 			}
 			else {
 				SeqToTransData(td++, td2d++, tdsq++, seq, flag, SELECT);
 				tot++;
+				min = min_ii(seq->startdisp, min);
+				max = max_ii(seq->enddisp, max);
 			}
-			min = min_ii(seq->startdisp, min);
-			max = max_ii(seq->enddisp, max);
 		}
 	}
 
