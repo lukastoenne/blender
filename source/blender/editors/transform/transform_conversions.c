@@ -4477,11 +4477,12 @@ static TransData *SeqToTransData(TransData *td, TransData2D *td2d, TransDataSeq 
 	return td;
 }
 
-static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *td, TransData2D *td2d, TransDataSeq *tdsq)
+static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *td, TransData2D *td2d, TransDataSeq *tdsq, TransSeq *ts)
 {
 	Sequence *seq;
 	int recursive, count, flag;
 	int tot = 0;
+	int max = INT32_MIN, min = INT32_MAX;
 
 	for (seq = seqbase->first; seq; seq = seq->next) {
 
@@ -4489,7 +4490,7 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 
 		/* add children first so recalculating metastrips does nested strips first */
 		if (recursive) {
-			int tot_children = SeqToTransData_Recursive(t, &seq->seqbase, td, td2d, tdsq);
+			int tot_children = SeqToTransData_Recursive(t, &seq->seqbase, td, td2d, tdsq, NULL);
 
 			td =     td +    tot_children;
 			td2d =   td2d +  tot_children;
@@ -4514,9 +4515,15 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 				SeqToTransData(td++, td2d++, tdsq++, seq, flag, SELECT);
 				tot++;
 			}
+			min = min_ii(seq->startdisp, min);
+			max = max_ii(seq->enddisp, max);
 		}
 	}
 
+	if (ts) {
+		ts->max = max;
+		ts->min = min;
+	}
 	return tot;
 }
 
@@ -4682,6 +4689,8 @@ static void freeSeqData(TransInfo *t)
 	}
 
 	if ((t->customData != NULL) && (t->flag & T_FREE_CUSTOMDATA)) {
+		TransSeq *ts = t->customData;
+		MEM_freeN(ts->tdseq);
 		MEM_freeN(t->customData);
 		t->customData = NULL;
 	}
@@ -4701,6 +4710,7 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 	TransData *td = NULL;
 	TransData2D *td2d = NULL;
 	TransDataSeq *tdsq = NULL;
+	TransSeq *ts = NULL;
 
 	int count = 0;
 
@@ -4756,15 +4766,14 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 		return;
 	}
 
+	t->customData = ts = MEM_mallocN(sizeof(TransSeq), "transseq");
 	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransSeq TransData");
 	td2d = t->data2d = MEM_callocN(t->total * sizeof(TransData2D), "TransSeq TransData2D");
-	tdsq = t->customData = MEM_callocN(t->total * sizeof(TransDataSeq), "TransSeq TransDataSeq");
+	ts->tdseq = tdsq = MEM_callocN(t->total * sizeof(TransDataSeq), "TransSeq TransDataSeq");
 	t->flag |= T_FREE_CUSTOMDATA;
 
-
-
 	/* loop 2: build transdata array */
-	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq);
+	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq, ts);
 
 #undef XXX_DURIAN_ANIM_TX_HACK
 }

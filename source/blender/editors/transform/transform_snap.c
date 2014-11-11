@@ -59,6 +59,7 @@
 #include "BKE_anim.h"  /* for duplis */
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
+#include "BKE_sequencer.h"
 #include "BKE_main.h"
 #include "BKE_tracking.h"
 
@@ -2419,6 +2420,38 @@ void snapGridIncrement(TransInfo *t, float *val)
 	snapGridIncrementAction(t, val, action);
 }
 
+int snapSequenceBounds(TransInfo *t, const int mval[2])
+{
+	float xmouse, ymouse;
+	int frame;
+	int mframe;
+	int frame_left;
+	int enddist, startdist;
+	TransSeq *ts = t->customData;
+	/* reuse increment, strictly speaking could be another snap mode, but leave as is */
+	if (!(t->modifiers & MOD_SNAP_INVERT))
+		return 0;
+
+	/* convert to frame range */
+	UI_view2d_region_to_view(&t->ar->v2d, mval[0], mval[1], &xmouse, &ymouse);
+	mframe = (int)xmouse;
+	/* now find the closest sequence */
+	frame = BKE_seq_find_next_prev_edit(t->scene, mframe, SEQ_SIDE_BOTH, true, false, true, &frame_left);
+
+	enddist = abs(frame - mframe);
+	startdist = abs(mframe - frame_left);
+	/* check which is nearest */
+	if (enddist > startdist) {
+		frame = frame_left - (ts->max - ts->min);;
+	}
+	else if (enddist == startdist) {
+		if (mframe < frame_left) {
+			frame = frame_left - (ts->max - ts->min);;
+		}
+	}
+
+	return frame;
+}
 
 static void applyGridIncrement(TransInfo *t, float *val, int max_index, const float fac[3], GearsType action)
 {

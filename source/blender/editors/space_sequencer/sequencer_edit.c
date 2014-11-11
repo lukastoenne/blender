@@ -2969,74 +2969,13 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER;
 }
 
-
-static int find_next_prev_edit(Scene *scene, int cfra,
-                               const short side,
-                               const bool do_skip_mute, const bool do_center)
-{
-	Editing *ed = BKE_sequencer_editing_get(scene, false);
-	Sequence *seq;
-	
-	int dist, best_dist, best_frame = cfra;
-	int seq_frames[2], seq_frames_tot;
-
-	best_dist = MAXFRAME * 2;
-
-	if (ed == NULL) return cfra;
-	
-	for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-		int i;
-
-		if (do_skip_mute && (seq->flag & SEQ_MUTE)) {
-			continue;
-		}
-
-		if (do_center) {
-			seq_frames[0] = (seq->startdisp + seq->enddisp) / 2;
-			seq_frames_tot = 1;
-		}
-		else {
-			seq_frames[0] = seq->startdisp;
-			seq_frames[1] = seq->enddisp;
-
-			seq_frames_tot = 2;
-		}
-
-		for (i = 0; i < seq_frames_tot; i++) {
-			const int seq_frame = seq_frames[i];
-
-			dist = MAXFRAME * 2;
-
-			switch (side) {
-				case SEQ_SIDE_LEFT:
-					if (seq_frame < cfra) {
-						dist = cfra - seq_frame;
-					}
-					break;
-				case SEQ_SIDE_RIGHT:
-					if (seq_frame > cfra) {
-						dist = seq_frame - cfra;
-					}
-					break;
-			}
-
-			if (dist < best_dist) {
-				best_frame = seq_frame;
-				best_dist = dist;
-			}
-		}
-	}
-
-	return best_frame;
-}
-
 static bool strip_jump_internal(Scene *scene,
                                 const short side,
                                 const bool do_skip_mute, const bool do_center)
 {
 	bool changed = false;
 	int cfra = CFRA;
-	int nfra = find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center);
+	int nfra = BKE_seq_find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center, false, NULL);
 	
 	if (nfra != cfra) {
 		CFRA = nfra;
