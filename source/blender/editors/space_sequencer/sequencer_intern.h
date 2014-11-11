@@ -154,13 +154,6 @@ void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_effect_strip_add(struct wmOperatorType *ot);
 
-/* RNA enums, just to be more readable */
-enum {
-	SEQ_SIDE_NONE = 0,
-	SEQ_SIDE_LEFT,
-	SEQ_SIDE_RIGHT,
-	SEQ_SIDE_BOTH
-};
 enum {
 	SEQ_CUT_SOFT,
 	SEQ_CUT_HARD
