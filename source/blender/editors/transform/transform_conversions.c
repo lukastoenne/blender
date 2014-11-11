@@ -4715,6 +4715,7 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 	TransData2D *td2d = NULL;
 	TransDataSeq *tdsq = NULL;
 	TransSeq *ts = NULL;
+	float xmouse, ymouse;
 
 	int count = 0;
 
@@ -4725,12 +4726,11 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 
 	t->customFree = freeSeqData;
 
+	UI_view2d_region_to_view(v2d, t->imval[0], t->imval[1], &xmouse, &ymouse);
+
 	/* which side of the current frame should be allowed */
 	if (t->mode == TFM_TIME_EXTEND) {
 		/* only side on which mouse is gets transformed */
-		float xmouse, ymouse;
-
-		UI_view2d_region_to_view(v2d, t->imval[0], t->imval[1], &xmouse, &ymouse);
 		t->frame_side = (xmouse > CFRA) ? 'R' : 'L';
 	}
 	else {
@@ -4778,6 +4778,10 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 
 	/* loop 2: build transdata array */
 	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq, ts);
+
+	/* set the snap mode based on how close the mouse is at the end/start points */
+	if (abs(xmouse - ts->max) > abs(xmouse - ts->min))
+		ts->snap_left = true;
 
 #undef XXX_DURIAN_ANIM_TX_HACK
 }

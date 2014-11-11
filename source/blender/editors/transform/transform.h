@@ -177,6 +177,7 @@ typedef struct TransSeq {
 	TransDataSeq *tdseq;
 	int min;
 	int max;
+	bool snap_left;
 } TransSeq;
 
 /* for NLA transform (stored in td->extra pointer) */

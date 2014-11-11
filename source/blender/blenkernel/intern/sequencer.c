@@ -4688,19 +4688,17 @@ bool BKE_sequence_is_valid_check(Sequence *seq)
 
 int BKE_seq_find_next_prev_edit(Scene *scene, int cfra,
                                 const short side,
-                                const bool do_skip_mute, const bool do_center, const bool do_unselected, int *bfl)
+                                const bool do_skip_mute, const bool do_center, const bool do_unselected)
 {
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	Sequence *seq;
 
 	int dist, best_dist, best_frame = cfra;
-	int dist_left, best_dist_left, best_frame_left = cfra;
 	int seq_frames[2], seq_frames_tot;
 
 	/* in case where both is passed, frame just finds the nearest end while frame_left the nearest start */
 
 	best_dist = MAXFRAME * 2;
-	best_dist_left = MAXFRAME * 2;
 
 	if (ed == NULL) return cfra;
 
@@ -4729,7 +4727,6 @@ int BKE_seq_find_next_prev_edit(Scene *scene, int cfra,
 			const int seq_frame = seq_frames[i];
 
 			dist = MAXFRAME * 2;
-			dist_left = MAXFRAME * 2;
 
 			switch (side) {
 				case SEQ_SIDE_LEFT:
@@ -4743,12 +4740,7 @@ int BKE_seq_find_next_prev_edit(Scene *scene, int cfra,
 					}
 					break;
 				case SEQ_SIDE_BOTH:
-					if (i == 1) {
-						dist = abs(seq_frame - cfra);
-					}
-					else {
-						dist_left = abs(cfra - seq_frame);
-					}
+					dist = abs(seq_frame - cfra);
 					break;
 			}
 
@@ -4756,17 +4748,8 @@ int BKE_seq_find_next_prev_edit(Scene *scene, int cfra,
 				best_frame = seq_frame;
 				best_dist = dist;
 			}
-
-			if (dist_left < best_dist_left) {
-				best_frame_left = seq_frame;
-				best_dist_left = dist_left;
-			}
-
 		}
 	}
 
-	if (bfl) {
-		*bfl = best_frame_left;
-	}
 	return best_frame;
 }

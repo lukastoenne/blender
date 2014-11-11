@@ -2975,7 +2975,7 @@ static bool strip_jump_internal(Scene *scene,
 {
 	bool changed = false;
 	int cfra = CFRA;
-	int nfra = BKE_seq_find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center, false, NULL);
+	int nfra = BKE_seq_find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center, false);
 	
 	if (nfra != cfra) {
 		CFRA = nfra;

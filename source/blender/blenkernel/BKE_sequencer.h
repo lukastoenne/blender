@@ -384,7 +384,7 @@ enum {
 	SEQ_SIDE_RIGHT,
 	SEQ_SIDE_BOTH
 };
-int BKE_seq_find_next_prev_edit(struct Scene *scene, int cfra, const short side, const bool do_skip_mute, const bool do_center, const bool do_unselected, int *bfl);
+int BKE_seq_find_next_prev_edit(struct Scene *scene, int cfra, const short side, const bool do_skip_mute, const bool do_center, const bool do_unselected);
 
 struct Sequence *BKE_sequencer_add_image_strip(struct bContext *C, ListBase *seqbasep, struct SeqLoadInfo *seq_load);
 struct Sequence *BKE_sequencer_add_sound_strip(struct bContext *C, ListBase *seqbasep, struct SeqLoadInfo *seq_load);
