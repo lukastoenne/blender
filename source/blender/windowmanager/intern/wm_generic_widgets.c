@@ -162,14 +162,9 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	float up[3] = {0.0f, 0.0f, 1.0f};
 	float final_pos[3];
 
-	if (arrow->widget.prop) {
-		copy_v3_v3(final_pos, arrow->direction);
-		mul_v3_fl(final_pos, scale * arrow->offset);
-		add_v3_v3(final_pos, arrow->widget.origin);
-	}
-	else {
-		copy_v3_v3(final_pos, arrow->widget.origin);
-	}
+	copy_v3_v3(final_pos, arrow->direction);
+	mul_v3_fl(final_pos, scale * arrow->offset);
+	add_v3_v3(final_pos, arrow->widget.origin);
 
 	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
 	copy_m4_m3(mat, rot);
@@ -191,14 +186,10 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	if (arrow->widget.interaction_data) {
 		ArrowInteraction *data = arrow->widget.interaction_data;
 
-		if (arrow->widget.prop) {
-			copy_v3_v3(final_pos, arrow->direction);
-			mul_v3_fl(final_pos, scale * data->orig_offset);
-			add_v3_v3(final_pos, arrow->widget.origin);
-		}
-		else {
-			copy_v3_v3(final_pos, arrow->widget.origin);
-		}
+		copy_v3_v3(final_pos, arrow->direction);
+		mul_v3_fl(final_pos, scale * data->orig_offset);
+		add_v3_v3(final_pos, arrow->widget.origin);
+
 		copy_m4_m3(mat, rot);
 		copy_v3_v3(mat[3], final_pos);
 		mul_mat3_m4_fl(mat, scale);
@@ -282,20 +273,17 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	fac = len_v3(orig_origin) / len_v3(offset);
 	if (dot_v3v3(offset, orig_origin) < 0.0f)
 		facdir = -1.0;
-	fac *= facdir / widget->scale;
+	fac *= facdir;
 	mul_v3_v3fl(orig_origin, offset, fac);
-	add_v3_v3(orig_origin, data->orig_origin);
 
 	/* set the property for the operator and call its modal function */
 	if (op && widget->propname) {
-		copy_v3_v3(widget->origin, orig_origin);
-		RNA_float_set_array(op->ptr, widget->propname, widget->origin);
+
 	}
 	else if (widget->prop) {
 		float value;
-		sub_v3_v3(orig_origin, data->orig_origin);
 
-		value = data->orig_offset + facdir * len_v3(orig_origin);
+		value = data->orig_offset + facdir / widget->scale * len_v3(orig_origin);
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
 				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
@@ -316,6 +304,9 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		}
 		else
 			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
+	}
+	else {
+		arrow->offset = facdir / widget->scale * len_v3(orig_origin);
 	}
 
 	/* tag the region for redraw */
@@ -353,21 +344,25 @@ static void widget_arrow_bind_to_prop(struct wmWidget *widget)
 {
 	ArrowWidget *arrow = (ArrowWidget *) widget;
 
-	if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
-		float min, max, step, precision;
+	if (widget->prop) {
+		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
+			float min, max, step, precision;
 
-		RNA_property_float_ui_range(widget->ptr, widget->prop, &min, &max, &step, &precision);
-		arrow->range = max - min;
-		arrow->min = min;
-		if (arrow->style & UI_ARROW_STYLE_INVERTED)
-			arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
-		else
-			arrow->offset = ARROW_RANGE * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+			RNA_property_float_ui_range(widget->ptr, widget->prop, &min, &max, &step, &precision);
+			arrow->range = max - min;
+			arrow->min = min;
+			if (arrow->style & UI_ARROW_STYLE_INVERTED)
+				arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
+			else
+				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+		}
+		else {
+			/* we'd need to check the property type here but for now assume always float */
+			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
+		}
 	}
-	else {
-		/* we'd need to check the property type here but for now assume always float */
-		arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
-	}
+	else
+		arrow->offset = 0.0f;
 }
 
 wmWidget *WIDGET_arrow_new(int style, void *customdata)

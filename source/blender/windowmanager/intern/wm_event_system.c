@@ -1578,11 +1578,13 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			/* if a widget has called the operator, it swallows all events here */
 			if (handler->op_widget) {
 				wmWidget *widget = handler->op_widget;
+				retval = OPERATOR_RUNNING_MODAL;
 
 				switch (event->type) {
 					case MOUSEMOVE:
 						if (widget->handler(C, event, widget, op) == OPERATOR_PASS_THROUGH) {
-							event->type = EVT_WIDGET_UPDATE;
+							if (widget->prop)
+								event->type = EVT_WIDGET_UPDATE;
 							retval = ot->modal(C, op, event);
 						}
 						break;
@@ -1591,13 +1593,19 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 					{
 						if (event->val == KM_RELEASE) {
 							ARegion *ar = CTX_wm_region(C);
-							event->type = EVT_WIDGET_RELEASED;
+							if (widget->prop)
+								event->type = EVT_WIDGET_RELEASED;
 							retval = ot->modal(C, op, event);
 							wm_widgetmap_set_active_widget(ar->widgetmap, C, event, NULL);
 							handler->op_widget = NULL;
 						}
 						break;
 					}
+					default:
+						if (!widget->prop) {
+							retval = ot->modal(C, op, event);
+						}
+						break;
 				}
 			}
 			else {

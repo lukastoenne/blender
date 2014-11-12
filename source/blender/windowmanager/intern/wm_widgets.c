@@ -207,6 +207,9 @@ void WM_widget_operator(struct wmWidget *widget,
 	widget->initialize_op = initialize_op;
 	widget->opname = opname;
 	widget->propname = propname;
+
+	if (widget->bind_to_prop)
+		widget->bind_to_prop(widget);
 }
 
 
