@@ -134,7 +134,7 @@ static void widget_draw_intern(WidgetDrawInfo *info, bool select)
 	}
 }
 
-/* Arrow widget */
+/********* Arrow widget ************/
 
 typedef struct ArrowWidget {
 	wmWidget widget;
@@ -413,7 +413,7 @@ void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3])
 	normalize_v3(arrow->direction);
 }
 
-/* Dial widget */
+/********* Dial widget ************/
 
 typedef struct DialWidget {
 	wmWidget widget;
@@ -533,6 +533,69 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 	copy_v3_v3(arrow->direction, direction);
 	normalize_v3(arrow->direction);
 }
+
+/********* Cage widget ************/
+
+
+typedef struct CageWidget {
+	wmWidget widget;
+	float rotation;
+	rctf bound;
+	int style;
+} CageWidget;
+
+static void widget_cage_draw(struct wmWidget *widget, const struct bContext *C)
+{
+	CageWidget *cage = (CageWidget *)widget;
+
+	glColor3f(1.0, 1.0, 1.0);
+	glRectf(cage->bound.xmin, cage->bound.ymin, cage->bound.xmax, cage->bound.ymax);
+
+}
+
+int widget_cage_intersect(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
+{
+	CageWidget *cage = (CageWidget *)widget;
+	float mouse[2] = {event->mval[0], event->mval[1]};
+	float pointrot[2];
+	float matrot[2][2];
+
+	/* rotate mouse in relation to the center and relocate it */
+	sub_v2_v2v2(pointrot, mouse, widget->origin);
+
+	rotate_m2(matrot, -cage->rotation);
+
+	add_v2_v2(pointrot, widget->origin);
+
+	return BLI_rctf_isect_pt_v(&cage->bound, pointrot);
+}
+
+struct wmWidget *WIDGET_cage_new(int style, void *customdata)
+{
+	CageWidget *cage = MEM_callocN(sizeof(CageWidget), "CageWidget");
+
+	cage->widget.customdata = customdata;
+	cage->widget.draw = widget_cage_draw;
+	cage->widget.intersect = widget_cage_intersect;
+	cage->style = style;
+
+	return (wmWidget *)cage;
+}
+
+void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation)
+{
+
+}
+
+void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h)
+{
+	CageWidget *cage = (CageWidget *)widget;
+	cage->bound.xmax = w/2;
+	cage->bound.ymax = h/2;
+	cage->bound.xmin = -w/2;
+	cage->bound.ymin = h/2;
+}
+
 
 void fix_linking_widget_lib(void)
 {

@@ -166,7 +166,7 @@ static SpaceLink *sequencer_new(const bContext *C)
 	BLI_addtail(&sseq->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
 	
-	
+
 	/* seq space goes from (0,8) to (0, efra) */
 	
 	ar->v2d.tot.xmin = 0.0f;

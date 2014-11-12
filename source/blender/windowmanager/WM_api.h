@@ -484,7 +484,7 @@ void WM_widget_operator(struct wmWidget *,
                         int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
                         const char *opname,
                         const char *propname);
-void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
+void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d);
 void WM_event_add_widget_handler(struct ARegion *ar);
 
 bool WM_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
@@ -533,6 +533,10 @@ struct wmWidget *WIDGET_dial_new(int style,
                                  void *customdata);
 void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
+
+struct wmWidget *WIDGET_cage_new(int style, void *customdata);
+void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation);
+void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h);
 
 #ifdef __cplusplus
 }

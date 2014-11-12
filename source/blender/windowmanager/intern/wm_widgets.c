@@ -222,15 +222,22 @@ static void wm_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 }
 
 
-void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
+void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d)
 {
-	RegionView3D *rv3d = ar->regiondata;
+	RegionView3D *rv3d;
 	wmWidgetMap *wmap = ar->widgetmap;
-	wmWidget *widget;;
+	wmWidget *widget;
 	bool use_lighting;
+	bool do_scale = false;
 
 	if (!wmap)
 		return;
+
+	if (is_3d) {
+		if (!(U.tw_flag & V3D_3D_WIDGETS))
+			do_scale = true;
+		rv3d = ar->regiondata;
+	}
 
 	use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
 
@@ -255,7 +262,7 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 	if (widget) {
 		float scale = 1.0;
 
-		if (!(U.tw_flag & V3D_3D_WIDGETS))
+		if (do_scale)
 			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
 
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
@@ -280,7 +287,7 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar)
 					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW)) {
 						float scale = 1.0;
 
-						if (!(U.tw_flag & V3D_3D_WIDGETS))
+						if (do_scale)
 							scale = ED_view3d_pixel_size(rv3d, widget_iter->origin) * U.tw_size;
 
 						widget_iter->scale = scale;
