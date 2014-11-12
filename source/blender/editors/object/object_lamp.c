@@ -217,15 +217,16 @@ bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bC
 void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
-	wmWidget *lamp = WM_widgetgroup_widgets(wgroup)->first;
+	Lamp *la = ob->data;
+	wmWidget *widget = WM_widgetgroup_widgets(wgroup)->first;
 	WidgetGroupLamp *data = WM_widgetgroup_customdata(wgroup);
 	float dir[3];
 
-	RNA_pointer_create(&ob->id, &RNA_Lamp, ob->data, data->lamp);
-	WM_widget_set_origin(lamp, ob->obmat[3]);
-	WM_widget_property(lamp, data->lamp, "spot_size");
+	RNA_pointer_create(&la->id, &RNA_Lamp, la, data->lamp);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, data->lamp, "spot_size");
 	negate_v3_v3(dir, ob->obmat[2]);
-	WIDGET_arrow_set_direction(lamp, dir);
+	WIDGET_arrow_set_direction(widget, dir);
 }
 
 
