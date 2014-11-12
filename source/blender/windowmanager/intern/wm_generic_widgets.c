@@ -278,7 +278,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	fac = len_v3(orig_origin) / len_v3(offset);
 	if (dot_v3v3(offset, orig_origin) < 0.0f)
 		facdir = -1.0;
-	fac *= facdir;
+	fac *= facdir / widget->scale;
 	mul_v3_v3fl(orig_origin, offset, fac);
 	add_v3_v3(orig_origin, data->orig_origin);
 
