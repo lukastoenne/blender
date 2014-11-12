@@ -226,6 +226,8 @@ static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UN
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, widget->scale);
 }
 
+#define ARROW_RANGE 1.5f
+
 static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
@@ -296,9 +298,9 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		value = data->orig_offset + facdir * len_v3(orig_origin);
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
-				value = arrow->min + arrow->range - (value * arrow->range * 0.5);
+				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
 			else
-				value = arrow->min + (value * arrow->range * 0.5);
+				value = arrow->min + (value * arrow->range / ARROW_RANGE);
 		}
 
 		RNA_property_float_set(widget->ptr, widget->prop, value);
@@ -308,9 +310,9 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		/* accounts for clamping properly */
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
-				arrow->offset = 2.0 * (arrow->min + arrow->range - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
+				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
 			else
-				arrow->offset = 2.0 * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
 		}
 		else
 			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
@@ -358,9 +360,9 @@ static void widget_arrow_bind_to_prop(struct wmWidget *widget)
 		arrow->range = max - min;
 		arrow->min = min;
 		if (arrow->style & UI_ARROW_STYLE_INVERTED)
-			arrow->offset = 2.0 * (max - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
+			arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
 		else
-			arrow->offset = 2.0 * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+			arrow->offset = ARROW_RANGE * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
 	}
 	else {
 		/* we'd need to check the property type here but for now assume always float */
