@@ -377,6 +377,7 @@ typedef struct WidgetGroupLamp {
 bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *wgroup, const struct bContext *C);
 void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext *C);
 void WIDGETGROUP_lamp_free(struct wmWidgetGroup *wgroup);
+void WIDGETGROUP_lamp_create(struct wmWidgetGroup *wgroup);
 
 /* render */
 void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View3D *v3d, struct ScrArea *sa);

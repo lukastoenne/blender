@@ -142,12 +142,14 @@ typedef struct ArrowWidget {
 	float direction[3];
 	float color[4];
 	float offset;
+	/* property range and minimum for constrained arrows */
+	float range, min;
 } ArrowWidget;
 
 typedef struct ArrowInteraction {
 	float orig_origin[3];
 	float orig_mouse[2];
-	float orig_value;
+	float orig_offset;
 
 	/* direction vector, projected in screen space */
 	float proj_direction[2];
@@ -191,7 +193,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 
 		if (arrow->widget.prop) {
 			copy_v3_v3(final_pos, arrow->direction);
-			mul_v3_fl(final_pos, scale * data->orig_value);
+			mul_v3_fl(final_pos, scale * data->orig_offset);
 			add_v3_v3(final_pos, arrow->widget.origin);
 		}
 		else {
@@ -291,12 +293,27 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		float value;
 		sub_v3_v3(orig_origin, data->orig_origin);
 
-		value = data->orig_value + facdir * len_v3(orig_origin);
+		value = data->orig_offset + facdir * len_v3(orig_origin);
+		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
+			if (arrow->style & UI_ARROW_STYLE_INVERTED)
+				value = arrow->min + arrow->range - (value * arrow->range * 0.5);
+			else
+				value = arrow->min + (value * arrow->range * 0.5);
+		}
+
 		RNA_property_float_set(widget->ptr, widget->prop, value);
 		RNA_property_update(C, widget->ptr, widget->prop);
 
+
 		/* accounts for clamping properly */
-		arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
+		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
+			if (arrow->style & UI_ARROW_STYLE_INVERTED)
+				arrow->offset = 2.0 * (arrow->min + arrow->range - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
+			else
+				arrow->offset = 2.0 * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+		}
+		else
+			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
 	}
 
 	/* tag the region for redraw */
@@ -313,7 +330,7 @@ static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEven
 		ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
 
 		if (widget->prop) {
-			data->orig_value = arrow->offset;
+			data->orig_offset = arrow->offset;
 		}
 
 		data->orig_mouse[0] = event->mval[0];
@@ -334,10 +351,22 @@ static void widget_arrow_bind_to_prop(struct wmWidget *widget)
 {
 	ArrowWidget *arrow = (ArrowWidget *) widget;
 
-	/* we'd need to check the property type here but for now assume always float */
-	arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
-}
+	if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
+		float min, max, step, precision;
 
+		RNA_property_float_ui_range(widget->ptr, widget->prop, &min, &max, &step, &precision);
+		arrow->range = max - min;
+		arrow->min = min;
+		if (arrow->style & UI_ARROW_STYLE_INVERTED)
+			arrow->offset = 2.0 * (max - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
+		else
+			arrow->offset = 2.0 * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+	}
+	else {
+		/* we'd need to check the property type here but for now assume always float */
+		arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
+	}
+}
 
 wmWidget *WIDGET_arrow_new(int style, void *customdata)
 {
@@ -352,6 +381,10 @@ wmWidget *WIDGET_arrow_new(int style, void *customdata)
 		arraw_head_draw_info.indices = _WIDGET_indices_arrow,
 		arraw_head_draw_info.init = true;
 	}
+
+	/* inverted only makes sense in a constrained arrow */
+	if (style & UI_ARROW_STYLE_INVERTED)
+		style |= UI_ARROW_STYLE_CONSTRAINED;
 	
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 	

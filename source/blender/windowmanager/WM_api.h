@@ -512,9 +512,12 @@ void WM_widgetmaptypes_free(void);
 /* wm_generic_widgets.c */
 
 enum {
-	UI_ARROW_STYLE_NORMAL = 0,
-	UI_ARROW_STYLE_NO_AXIS = 1,
-	UI_ARROW_STYLE_INVERTED = 2,
+	UI_ARROW_STYLE_NORMAL        =  0,
+	UI_ARROW_STYLE_NO_AXIS       = (1 << 1),
+	/* inverted offset during interaction - if set it also sets constrained below */
+	UI_ARROW_STYLE_INVERTED      = (1 << 2),
+	/* clamp arrow interaction to property width */
+	UI_ARROW_STYLE_CONSTRAINED   = (1 << 4)
 };
 
 enum {

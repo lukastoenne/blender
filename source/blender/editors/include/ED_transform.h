@@ -175,6 +175,7 @@ void WIDGET_manipulator_draw(struct wmWidget *widget, const struct bContext *C);
 bool WIDGETGROUP_manipulator_poll(struct wmWidgetGroup *wgroup, const struct bContext *C);
 void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C);
 void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup);
+void WIDGETGROUP_manipulator_create(struct wmWidgetGroup *wgroup);
 
 /* Snapping */
 

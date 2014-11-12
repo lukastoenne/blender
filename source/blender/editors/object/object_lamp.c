@@ -236,3 +236,17 @@ void WIDGETGROUP_lamp_free(struct wmWidgetGroup *wgroup)
 	MEM_freeN(data);
 }
 
+void WIDGETGROUP_lamp_create(struct wmWidgetGroup *wgroup)
+{
+	float color_lamp[4] = {0.5f, 0.5f, 1.0f, 1.0f};
+	wmWidget *widget = NULL;
+	WidgetGroupLamp *lampgroup = MEM_callocN(sizeof(WidgetGroupLamp), "lamp_manipulator_data");
+
+	lampgroup->lamp = MEM_callocN(sizeof(PointerRNA), "lampwidgetptr");
+
+	widget = WIDGET_arrow_new(UI_ARROW_STYLE_INVERTED, NULL);
+	WM_widget_register(wgroup, widget);
+	WIDGET_arrow_set_color(widget, color_lamp);
+
+	WM_widgetgroup_customdata_set(wgroup, lampgroup);
+}
