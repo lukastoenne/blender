@@ -876,7 +876,7 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 	const float fluid_factor = 0.95f; /* blend between PIC and FLIP methods */
 	float smoothfac = parms->velocity_smooth;
 	float pressfac = parms->pressure;
-	float minpress = parms->pressure_threshold;
+//	float minpress = parms->pressure_threshold;
 	float gmin[3], gmax[3];
 	int i;
 	

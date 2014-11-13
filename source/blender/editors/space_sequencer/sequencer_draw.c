@@ -34,6 +34,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_threads.h"
 
 #include "IMB_imbuf_types.h"
 
@@ -1338,8 +1339,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-			uiSetRoundBox(UI_CNR_ALL);
-			uiDrawBox(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
+			UI_draw_roundbox_corner_set(UI_CNR_ALL);
+			UI_draw_roundbox_gl_mode(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
