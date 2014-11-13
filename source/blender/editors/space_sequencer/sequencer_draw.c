@@ -34,7 +34,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_threads.h"
 
 #include "IMB_imbuf_types.h"
 
@@ -86,6 +85,9 @@
 
 /* Note, Don't use SEQ_BEGIN/SEQ_END while drawing!
  * it messes up transform, - Campbell */
+#undef SEQ_BEGIN
+#undef SEQP_BEGIN
+#undef SEQ_END
 
 void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[3])
 {
@@ -216,7 +218,7 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		BLI_mutex_unlock(sound->mutex);
 		
 		waveform = seq->sound->waveform;
-		
+
 		startsample = floor((seq->startofs + seq->anim_startofs) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
 		endsample = ceil((seq->startofs + seq->anim_startofs + seq->enddisp - seq->startdisp) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
 		samplestep = (endsample - startsample) * stepsize / (x2 - x1);
@@ -629,7 +631,7 @@ void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, f
 	glEnd();
 	
 	glRectf(x1,  ymid1,  x2,  ymid2);
-
+	
 	glBegin(GL_QUADS);
 	
 	glVertex2f(x1, ymid2);
@@ -814,7 +816,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	
 	glDrawArrays(GL_LINE_LOOP, 0, 36);
 
-	//uiDrawBoxShade(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
+	// UI_draw_roundbox_shade_x(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
 	
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_LINE_STIPPLE);
@@ -1572,7 +1574,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	
 	/* draw backdrop */
 	draw_seq_backdrop(v2d);
-
+	
 	/* regular grid-pattern over the rest of the view (i.e. 25-frame grid lines) */
 	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
