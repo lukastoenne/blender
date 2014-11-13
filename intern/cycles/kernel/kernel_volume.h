@@ -581,7 +581,8 @@ ccl_device_noinline VolumeIntegrateResult kernel_volume_integrate(KernelGlobals 
  * through a volume. This can then latter be used for decoupled sampling as in:
  * "Importance Sampling Techniques for Path Tracing in Participating Media"
  *
- * On the GPU this is only supported for homogeneous volumes (1 step), due to
+ * On the GPU this is only supported (but currently not enabled)
+ * for homogeneous volumes (1 step), due to
  * no support for malloc/free and too much stack usage with a fix size array. */
 
 typedef struct VolumeStep {
@@ -595,7 +596,7 @@ typedef struct VolumeStep {
 } VolumeStep;
 
 typedef struct VolumeSegment {
-	VolumeStep stack_step;      /* stack storage for homogenous step, to avoid malloc */
+	VolumeStep stack_step;      /* stack storage for homogeneous step, to avoid malloc */
 	VolumeStep *steps;			/* recorded steps */
 	int numsteps;				/* number of steps */
 	int closure_flag;			/* accumulated closure flags from all steps */
@@ -735,12 +736,8 @@ ccl_device void kernel_volume_decoupled_free(KernelGlobals *kg, VolumeSegment *s
 }
 
 /* scattering for homogeneous and heterogeneous volumes, using decoupled ray
- * marching. unlike the non-decoupled functions, these do not do probalistic
- * scattering, they always scatter if there is any non-zero scattering
- * coefficient.
+ * marching. this function does not do emission or modify throughput. 
  *
- * these also do not do emission or modify throughput. 
- * 
  * function is expected to return VOLUME_PATH_SCATTERED when probalistic_scatter is false */
 ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 	KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd,
@@ -1013,7 +1010,7 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 		}
 		else {
 			/* If ray from camera enters the volume, this volume shouldn't
-			 * be added to the stak on exit.
+			 * be added to the stack on exit.
 			 */
 			enclosed_volumes[enclosed_index++] = sd.object;
 		}
