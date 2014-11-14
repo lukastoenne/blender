@@ -151,8 +151,8 @@ vec4 small_sample_blur(in sampler2D colorbuffer, in vec2 uv, in vec4 color)
 
 	result += weight * texture2D(colorbuffer, uv + color_uv1.xy);
 	result += weight * texture2D(colorbuffer, uv - color_uv1.xy);
-	result += weight * texture2D(colorbuffer, uv + color_uv2.yx);
-	result += weight * texture2D(colorbuffer, uv - color_uv2.yx);
+	result += weight * texture2D(colorbuffer, uv + color_uv1.yx);
+	result += weight * texture2D(colorbuffer, uv - color_uv1.yx);
 
 	return result;
 }
