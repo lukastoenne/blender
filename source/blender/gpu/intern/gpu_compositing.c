@@ -540,7 +540,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		dof_shader_pass5 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE, is_persp);
 
 		/* error occured, restore framebuffers and return */
-		if (!dof_shader_pass1 || !(dof_shader_pass2) || (!dof_shader_pass3) || (!dof_shader_pass4)) {
+		if (!dof_shader_pass1 || !dof_shader_pass2 || !dof_shader_pass3 || !dof_shader_pass4 || !dof_shader_pass5) {
 			GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
 			GPU_framebuffer_restore();
 			return false;
