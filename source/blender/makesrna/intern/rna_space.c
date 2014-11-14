@@ -34,6 +34,7 @@
 #include "BKE_key.h"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
+#include "BKE_screen.h"
 
 #include "DNA_action_types.h"
 #include "DNA_key_types.h"
@@ -503,17 +504,7 @@ static void rna_SpaceView3D_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 {
 	View3D *v3d = (View3D *)(ptr->data);
 
-	if (!v3d->fxoptions) {
-		v3d->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
-	}
-
-	if (!v3d->fxoptions->dof_options) {
-		v3d->fxoptions->dof_options = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
-	}
-
-	if (!v3d->fxoptions->ssao_options) {
-		v3d->fxoptions->ssao_options = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
-	}
+	BKE_screen_view3d_ensure_FX(v3d);
 }
 
 static void rna_SpaceView3D_pivot_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)

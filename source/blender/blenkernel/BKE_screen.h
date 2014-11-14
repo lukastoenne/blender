@@ -292,6 +292,7 @@ void BKE_screen_view3d_scene_sync(struct bScreen *sc);
 void BKE_screen_view3d_main_sync(ListBase *screen_lb, struct Scene *scene);
 void BKE_screen_view3d_twmode_remove(struct View3D *v3d, const int i);
 void BKE_screen_view3d_main_twmode_remove(ListBase *screen_lb, struct Scene *scene, const int i);
+void BKE_screen_view3d_ensure_FX(struct View3D *v3d);
 
 /* zoom factor conversion */
 float BKE_screen_view3d_zoom_to_fac(float camzoom);

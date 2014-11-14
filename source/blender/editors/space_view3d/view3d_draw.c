@@ -3446,7 +3446,9 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->shader_fx) {
-		GPUFXOptions options = *v3d->fxoptions;
+		GPUFXOptions options;
+		BKE_screen_view3d_ensure_FX(v3d);
+		options = *v3d->fxoptions;
 		if (!rv3d->compositor)
 			rv3d->compositor = GPU_create_fx_compositor();
 		
