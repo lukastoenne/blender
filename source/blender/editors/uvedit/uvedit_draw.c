@@ -325,7 +325,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 					BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 						a = fabsf(uvang[i] - ang[i]) / (float)M_PI;
-						weight_to_rgb(col, 1.0f - powf((1.0f - a), 2.0f));
+						weight_to_rgb(col, 1.0f - pow2f(1.0f - a));
 						glColor3fv(col);
 						glVertex2fv(luv->uv);
 					}
@@ -506,6 +506,8 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 		mloopuv_base = mloopuv;
 
 		for (a = me->totpoly; a > 0; a--, mpoly++) {
+			if ((scene->toolsettings->uv_flag & UV_SHOW_SAME_IMAGE) && mpoly->mat_nr != ob->actcol - 1)
+				continue;
 			glBegin(GL_LINE_LOOP);
 
 			mloopuv = mloopuv_base + mpoly->loopstart;

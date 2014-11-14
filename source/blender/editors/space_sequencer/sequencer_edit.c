@@ -1514,6 +1514,9 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 
 	WM_event_add_modal_handler(C, op);
 
+	/* notify so we draw extensions immediately */
+	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1610,8 +1613,13 @@ static int sequencer_slip_exec(bContext *C, wmOperator *op)
 	MEM_freeN(data->ts);
 	MEM_freeN(data);
 
-	if (success) return OPERATOR_FINISHED;
-	else return OPERATOR_CANCELLED;
+	if (success) {
+		WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2589,8 +2597,8 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
 	Sequence *seq, *seqm, *next, *last_seq = BKE_sequencer_active_get(scene);
 	int channel_max = 1;
 
-	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep, false) == false) {
-		BKE_report(op->reports, RPT_ERROR, "Please select more than one or all related strips");
+	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep) == false) {
+		BKE_report(op->reports, RPT_ERROR, "Please select all related strips");
 		return OPERATOR_CANCELLED;
 	}
 
@@ -3222,7 +3230,7 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
 
 	BKE_sequencer_free_clipboard();
 
-	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep, true) == false) {
+	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep) == false) {
 		BKE_report(op->reports, RPT_ERROR, "Please select all related strips");
 		return OPERATOR_CANCELLED;
 	}

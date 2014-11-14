@@ -86,6 +86,9 @@
 
 /* Note, Don't use SEQ_BEGIN/SEQ_END while drawing!
  * it messes up transform, - Campbell */
+#undef SEQ_BEGIN
+#undef SEQP_BEGIN
+#undef SEQ_END
 
 void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[3])
 {
@@ -813,7 +816,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	
 	glDrawArrays(GL_LINE_LOOP, 0, 36);
 
-	//uiDrawBoxShade(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
+	//UI_draw_roundbox_shade_x(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
 	
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_LINE_STIPPLE);
@@ -1335,8 +1338,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-			uiSetRoundBox(UI_CNR_ALL);
-			uiDrawBox(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
+			UI_draw_roundbox_corner_set(UI_CNR_ALL);
+			UI_draw_roundbox_gl_mode(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
