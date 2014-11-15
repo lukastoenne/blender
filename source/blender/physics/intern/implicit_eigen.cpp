@@ -888,18 +888,14 @@ BLI_INLINE void dfdv_damp(float to[3][3], const float dir[3], float damping)
 BLI_INLINE float fb(float length, float L)
 {
 	float x = length / L;
-	float xx = x * x;
-	float xxx = xx * x;
-	float xxxx = xxx * x;
-	return (-11.541f * xxxx + 34.193f * xxx - 39.083f * xx + 23.116f * x - 9.713f);
+	return (-11.541f * powf(x, 4) + 34.193f * powf(x, 3) - 39.083f * powf(x, 2) + 23.116f * x - 9.713f);
 }
 
 BLI_INLINE float fbderiv(float length, float L)
 {
 	float x = length/L;
-	float xx = x * x;
-	float xxx = xx * x;
-	return (-46.164f * xxx + 102.579f * xx - 78.166f * x + 23.116f);
+
+	return (-46.164f * powf(x, 3) + 102.579f * powf(x, 2) - 78.166f * x + 23.116f);
 }
 
 BLI_INLINE float fbstar(float length, float L, float kb, float cb)

@@ -174,8 +174,9 @@ struct VoxelData;
 
 struct HairGrid *BPH_hair_volume_create_vertex_grid(float cellsize, const float gmin[3], const float gmax[3]);
 void BPH_hair_volume_free_vertex_grid(struct HairGrid *grid);
-void BPH_hair_volume_set_debug_data(struct HairGrid *grid, struct SimDebugData *debug_data);
 void BPH_hair_volume_grid_geometry(struct HairGrid *grid, float *cellsize, int res[3], float gmin[3], float gmax[3]);
+void BPH_hair_volume_set_debug_data(struct HairGrid *grid, struct SimDebugData *debug_data);
+void BPH_hair_volume_set_debug_value(struct HairGrid *grid, float debug1, float debug2, int debug3, int debug4);
 
 void BPH_hair_volume_grid_clear(struct HairGrid *grid);
 void BPH_hair_volume_add_vertex(struct HairGrid *grid, const float x[3], const float v[3]);
@@ -186,7 +187,7 @@ void BPH_hair_volume_add_segment(struct HairGrid *grid,
 
 void BPH_hair_volume_normalize_vertex_grid(struct HairGrid *grid);
 
-bool BPH_hair_volume_solve_divergence(struct HairGrid *grid, float dt);
+bool BPH_hair_volume_solve_divergence(struct HairGrid *grid, float dt, float target_density, float target_strength);
 #if 0 /* XXX weighting is incorrect, disabled for now */
 void BPH_hair_volume_vertex_grid_filter_box(struct HairVertexGrid *grid, int kernel_size);
 #endif

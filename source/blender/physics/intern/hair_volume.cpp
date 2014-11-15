@@ -31,12 +31,14 @@
 
 #include "MEM_guardedalloc.h"
 
+extern "C" {
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_texture_types.h"
 
 #include "BKE_effect.h"
+}
 
 #include "implicit.h"
 #include "eigen_utils.h"
@@ -61,12 +63,23 @@
 
 static float I[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
 
+BLI_INLINE int floor_int(float value)
+{
+	return value > 0.0f ? (int)value : ((int)value) - 1;
+}
+
+BLI_INLINE float floor_mod(float value)
+{
+	return value - floorf(value);
+}
+
 BLI_INLINE int hair_grid_size(const int res[3])
 {
 	return res[0] * res[1] * res[2];
 }
 
 typedef struct HairGridVert {
+	int samples;
 	float velocity[3];
 	float density;
 	
@@ -80,6 +93,8 @@ typedef struct HairGrid {
 	float cellsize, inv_cellsize;
 	
 	struct SimDebugData *debug_data;
+	float debug1, debug2;
+	int debug3, debug4;
 } HairGrid;
 
 #define HAIR_GRID_INDEX_AXIS(vec, res, gmin, scale, axis) ( min_ii( max_ii( (int)((vec[axis] - gmin[axis]) * scale), 0), res[axis]-2 ) )
@@ -242,6 +257,7 @@ void BPH_hair_volume_grid_clear(HairGrid *grid)
 		zero_v3(grid->verts[i].velocity);
 		zero_v3(grid->verts[i].velocity_smooth);
 		grid->verts[i].density = 0.0f;
+		grid->verts[i].samples = 0;
 	}
 }
 
@@ -295,6 +311,13 @@ BLI_INLINE int hair_grid_weights(const int res[3], const float gmin[3], float sc
 	return offset;
 }
 
+BLI_INLINE void grid_to_world(HairGrid *grid, float vecw[3], const float vec[3])
+{
+	copy_v3_v3(vecw, vec);
+	mul_v3_fl(vecw, grid->cellsize);
+	add_v3_v3(vecw, grid->gmin);
+}
+
 void BPH_hair_volume_add_vertex(HairGrid *grid, const float x[3], const float v[3])
 {
 	const int res[3] = { grid->res[0], grid->res[1], grid->res[2] };
@@ -320,6 +343,7 @@ void BPH_hair_volume_add_vertex(HairGrid *grid, const float x[3], const float v[
 	}
 }
 
+#if 0
 BLI_INLINE void hair_volume_eval_grid_vertex(HairGridVert *vert, const float loc[3], float radius, float dist_scale,
                                              const float x2[3], const float v2[3], const float x3[3], const float v3[3])
 {
@@ -336,19 +360,71 @@ BLI_INLINE void hair_volume_eval_grid_vertex(HairGridVert *vert, const float loc
 		interp_v3_v3v3(vel, v2, v3, lambda);
 		madd_v3_v3fl(vert->velocity, vel, weight);
 		vert->density += weight;
+		vert->samples += 1;
 	}
 }
 
 BLI_INLINE int major_axis_v3(const float v[3])
 {
-	return v[0] > v[1] ? (v[0] > v[2] ? 0 : 2) : (v[1] > v[2] ? 1 : 2);
+	const float a = fabsf(v[0]);
+	const float b = fabsf(v[1]);
+	const float c = fabsf(v[2]);
+	return a > b ? (a > c ? 0 : 2) : (b > c ? 1 : 2);
 }
 
-BLI_INLINE void grid_to_world(HairGrid *grid, float vecw[3], const float vec[3])
+BLI_INLINE void hair_volume_add_segment_2D(HairGrid *grid,
+                                           const float UNUSED(x1[3]), const float UNUSED(v1[3]), const float x2[3], const float v2[3],
+                                           const float x3[3], const float v3[3], const float UNUSED(x4[3]), const float UNUSED(v4[3]),
+                                           const float UNUSED(dir1[3]), const float dir2[3], const float UNUSED(dir3[3]),
+                                           int resj, int resk, int jmin, int jmax, int kmin, int kmax,
+                                           HairGridVert *vert, int stride_j, int stride_k, const float loc[3], int axis_j, int axis_k,
+                                           int debug_i)
 {
-	copy_v3_v3(vecw, vec);
-	mul_v3_fl(vecw, grid->cellsize);
-	add_v3_v3(vecw, grid->gmin);
+	const float radius = 1.5f;
+	const float dist_scale = grid->inv_cellsize;
+	
+	int j, k;
+	
+	/* boundary checks to be safe */
+	CLAMP_MIN(jmin, 0);
+	CLAMP_MAX(jmax, resj-1);
+	CLAMP_MIN(kmin, 0);
+	CLAMP_MAX(kmax, resk-1);
+	
+	HairGridVert *vert_j = vert + jmin * stride_j;
+	float loc_j[3] = { loc[0], loc[1], loc[2] };
+	loc_j[axis_j] += (float)jmin;
+	for (j = jmin; j <= jmax; ++j, vert_j += stride_j, loc_j[axis_j] += 1.0f) {
+		
+		HairGridVert *vert_k = vert_j + kmin * stride_k;
+		float loc_k[3] = { loc_j[0], loc_j[1], loc_j[2] };
+		loc_k[axis_k] += (float)kmin;
+		for (k = kmin; k <= kmax; ++k, vert_k += stride_k, loc_k[axis_k] += 1.0f) {
+			
+			hair_volume_eval_grid_vertex(vert_k, loc_k, radius, dist_scale, x2, v2, x3, v3);
+			
+#if 0
+			{
+				SimDebugData *debug_data = grid->debug_data;
+				float wloc[3], x2w[3], x3w[3];
+				grid_to_world(grid, wloc, loc_k);
+				grid_to_world(grid, x2w, x2);
+				grid_to_world(grid, x3w, x3);
+				
+				if (vert_k->samples > 0)
+					BKE_sim_debug_data_add_circle(debug_data, wloc, 0.01f, 1.0, 1.0, 0.3, "grid", hash_vertex(2525, hash_int_2d(debug_i, hash_int_2d(j, k))));
+				
+				if (grid->debug_value) {
+					BKE_sim_debug_data_add_dot(debug_data, wloc, 1, 0, 0, "grid", hash_vertex(93, hash_int_2d(debug_i, hash_int_2d(j, k))));
+					BKE_sim_debug_data_add_dot(debug_data, x2w, 0.1, 0.1, 0.7, "grid", hash_vertex(649, hash_int_2d(debug_i, hash_int_2d(j, k))));
+					BKE_sim_debug_data_add_line(debug_data, wloc, x2w, 0.3, 0.8, 0.3, "grid", hash_vertex(253, hash_int_2d(debug_i, hash_int_2d(j, k))));
+					BKE_sim_debug_data_add_line(debug_data, wloc, x3w, 0.8, 0.3, 0.3, "grid", hash_vertex(254, hash_int_2d(debug_i, hash_int_2d(j, k))));
+//					BKE_sim_debug_data_add_circle(debug_data, x2w, len_v3v3(wloc, x2w), 0.2, 0.7, 0.2, "grid", hash_vertex(255, hash_int_2d(i, hash_int_2d(j, k))));
+				}
+			}
+#endif
+		}
+	}
 }
 
 /* Uses a variation of Bresenham's algorithm for rasterizing a 3D grid with a line segment.
@@ -359,9 +435,9 @@ BLI_INLINE void grid_to_world(HairGrid *grid, float vecw[3], const float vec[3])
  * 
  */
 void BPH_hair_volume_add_segment(HairGrid *grid,
-                                 const float UNUSED(x1[3]), const float UNUSED(v1[3]), const float x2[3], const float v2[3],
-                                 const float x3[3], const float v3[3], const float UNUSED(x4[3]), const float UNUSED(v4[3]),
-                                 const float UNUSED(dir1[3]), const float dir2[3], const float UNUSED(dir3[3]))
+                                 const float x1[3], const float v1[3], const float x2[3], const float v2[3],
+                                 const float x3[3], const float v3[3], const float x4[3], const float v4[3],
+                                 const float dir1[3], const float dir2[3], const float dir3[3])
 {
 	SimDebugData *debug_data = grid->debug_data;
 	
@@ -372,115 +448,135 @@ void BPH_hair_volume_add_segment(HairGrid *grid,
 	const int axis1 = (axis0 + 1) % 3;
 	const int axis2 = (axis0 + 2) % 3;
 	
-	/* range along primary direction */
-	const float h2 = x2[axis0], h3 = x3[axis0];
-	const float hmin = min_ff(h2, h3);
-	const float hmax = max_ff(h2, h3);
-	const int imin = max_ii((int)hmin, 0);
-	const int imax = min_ii((int)hmax + 1, res[axis0]);
-	
-	const float inc[2] = { dir2[axis1], dir2[axis2] };          /* increment of secondary directions per step in the primary direction */
-	const int grid_start1 = (int)x2[axis1];                     /* offset of cells on minor axes */
-	const int grid_start2 = (int)x2[axis2];                     /* offset of cells on minor axes */
-	
-	const float cellsize = grid->cellsize;
-	float shift[2] = { x2[axis1] - floorf(x2[axis1]),           /* fraction of a full cell shift [0.0, 1.0) */
-	                   x2[axis2] - floorf(x2[axis2]) };
-	
 	/* vertex buffer offset factors along cardinal axes */
 	const int strides[3] = { 1, res[0], res[0] * res[1] };
-	/* change in offset when incrementing one of the axes */
 	const int stride0 = strides[axis0];
 	const int stride1 = strides[axis1];
 	const int stride2 = strides[axis2];
 	
-	const float radius = 1.5f;
-	/* XXX cell size should be fixed and uniform! */
-	const float dist_scale = grid->inv_cellsize;
+	/* increment of secondary directions per step in the primary direction
+	 * note: we always go in the positive direction along axis0, so the sign can be inverted
+	 */
+	const float inc1 = dir2[axis1] / dir2[axis0];
+	const float inc2 = dir2[axis2] / dir2[axis0];
 	
+	/* start/end points, so increment along axis0 is always positive */
+	const float *start = x2[axis0] < x3[axis0] ? x2 : x3;
+	const float *end   = x2[axis0] < x3[axis0] ? x3 : x2;
+	const float start0 = start[axis0], start1 = start[axis1], start2 = start[axis2];
+	const float end0 = end[axis0];
+	
+	/* range along primary direction */
+	const int imin = max_ii(floor_int(start[axis0]) - 1, 0);
+	const int imax = min_ii(floor_int(end[axis0]) + 2, res[axis0]-1);
+	
+	float h = 0.0f;
 	HairGridVert *vert0;
 	float loc0[3];
-	int j0, k0;
+	int j0, k0, j0_prev, k0_prev;
 	int i;
 	
 	(void)debug_data;
 	
-	j0 = grid_start1 - 1;
-	k0 = grid_start2 - 1;
-	vert0 = grid->verts + stride0 * imin + stride1 * j0 + stride2 * k0;
-	loc0[axis0] = (float)imin;
-	loc0[axis1] = (float)j0;
-	loc0[axis2] = (float)k0;
+	for (i = imin; i <= imax; ++i) {
+		float shift1, shift2; /* fraction of a full cell shift [0.0, 1.0) */
+		int jmin, jmax, kmin, kmax;
+		
+		h = CLAMPIS((float)i, start0, end0);
+		
+		shift1 = start1 + (h - start0) * inc1;
+		shift2 = start2 + (h - start0) * inc2;
+		
+		j0_prev = j0;
+		j0 = floor_int(shift1);
+		
+		k0_prev = k0;
+		k0 = floor_int(shift2);
+		
+		if (i > imin) {
+			jmin = min_ii(j0, j0_prev);
+			jmax = max_ii(j0, j0_prev);
+			kmin = min_ii(k0, k0_prev);
+			kmax = max_ii(k0, k0_prev);
+		}
+		else {
+			jmin = jmax = j0;
+			kmin = kmax = k0;
+		}
+		
+		vert0 = grid->verts + i * stride0;
+		loc0[axis0] = (float)i;
+		loc0[axis1] = 0.0f;
+		loc0[axis2] = 0.0f;
+		
+		hair_volume_add_segment_2D(grid, x1, v1, x2, v2, x3, v3, x4, v4, dir1, dir2, dir3,
+		                           res[axis1], res[axis2], jmin-1, jmax+2, kmin-1, kmax+2,
+		                           vert0, stride1, stride2, loc0, axis1, axis2,
+		                           i);
+	}
+}
+#else
+BLI_INLINE void hair_volume_eval_grid_vertex_sample(HairGridVert *vert, const float loc[3], float radius, float dist_scale,
+                                                    const float x[3], const float v[3])
+{
+	float dist, weight;
 	
-	/* loop over all planes crossed along the primary direction */
-	for (i = imin; i < imax; ++i, vert0 += stride0, loc0[axis0] += cellsize) {
-		const int jmin = max_ii(j0, 0);
-		const int jmax = min_ii(j0 + 5, res[axis1]);
-		const int kmin = max_ii(k0, 0);
-		const int kmax = min_ii(k0 + 5, res[axis2]);
+	dist = len_v3v3(x, loc);
+	
+	weight = (radius - dist) * dist_scale;
+	
+	if (weight > 0.0f) {
+		madd_v3_v3fl(vert->velocity, v, weight);
+		vert->density += weight;
+		vert->samples += 1;
+	}
+}
+
+/* XXX simplified test implementation using a series of discrete sample along the segment,
+ * instead of finding the closest point for all affected grid vertices.
+ */
+void BPH_hair_volume_add_segment(HairGrid *grid,
+                                 const float UNUSED(x1[3]), const float UNUSED(v1[3]), const float x2[3], const float v2[3],
+                                 const float x3[3], const float v3[3], const float UNUSED(x4[3]), const float UNUSED(v4[3]),
+                                 const float UNUSED(dir1[3]), const float UNUSED(dir2[3]), const float UNUSED(dir3[3]))
+{
+	const float radius = 1.5f;
+	const float dist_scale = grid->inv_cellsize;
+	
+	const int res[3] = { grid->res[0], grid->res[1], grid->res[2] };
+	const int stride[3] = { 1, res[0], res[0] * res[1] };
+	const int num_samples = 10;
+	
+	int s;
+	
+	for (s = 0; s < num_samples; ++s) {
+		float x[3], v[3];
+		int i, j, k;
 		
-		/* XXX problem: this can be offset beyond range of this plane when jmin/kmin gets clamped,
-		 * for now simply calculate in outer loop with multiplication once
-		 */
-//		HairGridVert *vert1 = vert0;
-//		float loc1[3] = { loc0[0], loc0[1], loc0[2] };
-		HairGridVert *vert1 = grid->verts + stride0 * i + stride1 * jmin + stride2 * kmin;
-		float loc1[3];
-		int j, k;
+		float f = (float)s / (float)(num_samples-1);
+		interp_v3_v3v3(x, x2, x3, f);
+		interp_v3_v3v3(v, v2, v3, f);
 		
-		/* note: loc is in grid cell units,
-		 * distances are be scaled by cell size for weighting
-		 */
-		loc1[axis0] = (float)i;
-		loc1[axis1] = (float)jmin;
-		loc1[axis2] = (float)kmin;
+		int imin = max_ii(floor_int(x[0]) - 2, 0);
+		int imax = min_ii(floor_int(x[0]) + 2, res[0]-1);
+		int jmin = max_ii(floor_int(x[1]) - 2, 0);
+		int jmax = min_ii(floor_int(x[1]) + 2, res[1]-1);
+		int kmin = max_ii(floor_int(x[2]) - 2, 0);
+		int kmax = min_ii(floor_int(x[2]) + 2, res[2]-1);
 		
-		/* 2x2 cells can be hit directly by the segment between two planes,
-		 * margin is 1 cell, i.e. 4x4 cells are influenced at most,
-		 * -> evaluate 5x5 grid vertices on cell borders
-		 */
-		
-		for (j = jmin; j < jmax; ++j, vert1 += stride1, loc1[axis1] += 1.0f) {
-			HairGridVert *vert2 = vert1;
-			float loc2[3] = { loc1[0], loc1[1], loc1[2] };
-			
-			for (k = kmin; k < kmax; ++k, vert2 += stride2, loc2[axis2] += 1.0f) {
-				hair_volume_eval_grid_vertex(vert2, loc2, radius, dist_scale, x2, v2, x3, v3);
+		for (k = kmin; k <= kmax; ++k) {
+			for (j = jmin; j <= jmax; ++j) {
+				for (i = imin; i <= imax; ++i) {
+					float loc[3] = { (float)i, (float)j, (float)k };
+					HairGridVert *vert = grid->verts + i * stride[0] + j * stride[1] + k * stride[2];
+					
+					hair_volume_eval_grid_vertex_sample(vert, loc, radius, dist_scale, x, v);
+				}
 			}
-		}
-		
-		/* increment */
-		add_v2_v2(shift, inc);
-		if (shift[0] > 1.0f) {
-			shift[0] -= 1.0f;
-			
-			j0 += 1;
-			vert0 += stride1;
-			loc0[axis1] += 1.0f;
-		}
-		else if (shift[0] < -1.0f) {
-			shift[0] += 1.0f;
-			
-			j0 -= 1;
-			vert0 -= stride1;
-			loc0[axis1] -= 1.0f;
-		}
-		if (shift[1] > 1.0f) {
-			shift[1] -= 1.0f;
-			
-			k0 += 1;
-			vert0 += stride2;
-			loc0[axis2] += 1.0f;
-		}
-		else if (shift[1] < -1.0f) {
-			shift[1] += 1.0f;
-			
-			k0 -= 1;
-			vert0 -= stride2;
-			loc0[axis2] -= 1.0f;
 		}
 	}
 }
+#endif
 
 void BPH_hair_volume_normalize_vertex_grid(HairGrid *grid)
 {
@@ -493,58 +589,127 @@ void BPH_hair_volume_normalize_vertex_grid(HairGrid *grid)
 	}
 }
 
-bool BPH_hair_volume_solve_divergence(HairGrid *grid, float dt)
+static const float density_threshold = 0.001f; /* cells with density below this are considered empty */
+
+/* Contribution of target density pressure to the laplacian in the pressure poisson equation.
+ * This is based on the model found in
+ * "Two-way Coupled SPH and Particle Level Set Fluid Simulation" (Losasso et al., 2008)
+ */
+BLI_INLINE float hair_volume_density_divergence(float density, float target_density, float strength)
 {
-	const float density_threshold = 0.001f; /* cells with density below this are considered empty */
-	
-	const float flowfac = grid->cellsize / dt;
-	const float inv_flowfac = dt / grid->cellsize;
+	if (density > density_threshold && density > target_density)
+		return strength * logf(target_density / density);
+	else
+		return 0.0f;
+}
+
+bool BPH_hair_volume_solve_divergence(HairGrid *grid, float dt, float target_density, float target_strength)
+{
+	const float flowfac = grid->cellsize;
+	const float inv_flowfac = 1.0f / grid->cellsize;
 	
 	/*const int num_cells = hair_grid_size(grid->res);*/
-	const int inner_res[3] = { grid->res[0] - 2, grid->res[1] - 2, grid->res[2] - 2 };
+	const int res[3] = { grid->res[0], grid->res[1], grid->res[2] };
+	const int resA[3] = { grid->res[0] + 2, grid->res[1] + 2, grid->res[2] + 2 };
 	
 	const int stride0 = 1;
 	const int stride1 = grid->res[0];
 	const int stride2 = grid->res[1] * grid->res[0];
-	
 	const int strideA0 = 1;
-	const int strideA1 = grid->res[0]-2;
-	const int strideA2 = (grid->res[1]-2) * (grid->res[0]-2);
+	const int strideA1 = grid->res[0] + 2;
+	const int strideA2 = (grid->res[1] + 2) * (grid->res[0] + 2);
 	
-	/* NB: to avoid many boundary checks, we only solve the system
-	 * for the inner vertices, excluding a 1-cell margin.
-	 */
-	const int inner_cells_start = stride0 + stride1 + stride2;
-	const int num_inner_cells = inner_res[0] * inner_res[1] * inner_res[2];
+	const int num_cells = res[0] * res[1] * res[2];
+	const int num_cellsA = (res[0] + 2) * (res[1] + 2) * (res[2] + 2);
 	
+	HairGridVert *vert_start = grid->verts - (stride0 + stride1 + stride2);
 	HairGridVert *vert;
-	int i, j, k, u;
+	int i, j, k;
 	
-	BLI_assert(num_inner_cells >= 1);
+	#define MARGIN_i0 (i < 1)
+	#define MARGIN_j0 (j < 1)
+	#define MARGIN_k0 (k < 1)
+	#define MARGIN_i1 (i >= resA[0]-1)
+	#define MARGIN_j1 (j >= resA[1]-1)
+	#define MARGIN_k1 (k >= resA[2]-1)
+	
+	#define NEIGHBOR_MARGIN_i0 (i < 2)
+	#define NEIGHBOR_MARGIN_j0 (j < 2)
+	#define NEIGHBOR_MARGIN_k0 (k < 2)
+	#define NEIGHBOR_MARGIN_i1 (i >= resA[0]-2)
+	#define NEIGHBOR_MARGIN_j1 (j >= resA[1]-2)
+	#define NEIGHBOR_MARGIN_k1 (k >= resA[2]-2)
+	
+	BLI_assert(num_cells >= 1);
 	
 	/* Calculate divergence */
-	lVector B(num_inner_cells);
-	for (k = 0; k < inner_res[2]; ++k) {
-		for (j = 0; j < inner_res[1]; ++j) {
-			for (i = 0; i < inner_res[0]; ++i) {
-				u = i * strideA0 + j * strideA1 + k * strideA2;
-				vert = grid->verts + inner_cells_start + i * stride0 + j * stride1 + k * stride2;
+	lVector B(num_cellsA);
+	for (k = 0; k < resA[2]; ++k) {
+		for (j = 0; j < resA[1]; ++j) {
+			for (i = 0; i < resA[0]; ++i) {
+				int u = i * strideA0 + j * strideA1 + k * strideA2;
+				bool is_margin = MARGIN_i0 || MARGIN_i1 || MARGIN_j0 || MARGIN_j1 || MARGIN_k0 || MARGIN_k1;
 				
-				HairGridVert *vert_px = vert + stride0;
-				HairGridVert *vert_py = vert + stride1;
-				HairGridVert *vert_pz = vert + stride2;
+				if (is_margin) {
+					B[u] = 0.0f;
+					continue;
+				}
 				
-				const float *v = vert->velocity;
-				float dx = vert_px->velocity[0] - v[0];
-				float dy = vert_py->velocity[1] - v[1];
-				float dz = vert_pz->velocity[2] - v[2];
+				vert = vert_start + i * stride0 + j * stride1 + k * stride2;
+				
+				const float *v0 = vert->velocity;
+				float dx = 0.0f, dy = 0.0f, dz = 0.0f;
+				if (!NEIGHBOR_MARGIN_i0)
+					dx += v0[0] - (vert - stride0)->velocity[0];
+				if (!NEIGHBOR_MARGIN_i1)
+					dx += (vert + stride0)->velocity[0] - v0[0];
+				if (!NEIGHBOR_MARGIN_j0)
+					dy += v0[1] - (vert - stride1)->velocity[1];
+				if (!NEIGHBOR_MARGIN_j1)
+					dy += (vert + stride1)->velocity[1] - v0[1];
+				if (!NEIGHBOR_MARGIN_k0)
+					dz += v0[2] - (vert - stride2)->velocity[2];
+				if (!NEIGHBOR_MARGIN_k1)
+					dz += (vert + stride2)->velocity[2] - v0[2];
+				
+				float divergence = -0.5f * flowfac * (dx + dy + dz);
+				
+				/* adjustment term for target density */
+				float target = hair_volume_density_divergence(vert->density, target_density, target_strength);
 				
 				/* B vector contains the finite difference approximation of the velocity divergence.
 				 * Note: according to the discretized Navier-Stokes equation the rhs vector
 				 * and resulting pressure gradient should be multiplied by the (inverse) density;
 				 * however, this is already included in the weighting of hair velocities on the grid!
 				 */
-				B[u] = (dx + dy + dz) * flowfac;
+				B[u] = divergence - target;
+				
+#if 0
+				{
+					float wloc[3], loc[3];
+					float col0[3] = {0.0, 0.0, 0.0};
+					float colp[3] = {0.0, 1.0, 1.0};
+					float coln[3] = {1.0, 0.0, 1.0};
+					float col[3];
+					float fac;
+					
+					loc[0] = (float)(i - 1);
+					loc[1] = (float)(j - 1);
+					loc[2] = (float)(k - 1);
+					grid_to_world(grid, wloc, loc);
+					
+					if (divergence > 0.0f) {
+						fac = CLAMPIS(divergence * target_strength, 0.0, 1.0);
+						interp_v3_v3v3(col, col0, colp, fac);
+					}
+					else {
+						fac = CLAMPIS(-divergence * target_strength, 0.0, 1.0);
+						interp_v3_v3v3(col, col0, coln, fac);
+					}
+					if (fac > 0.05f)
+						BKE_sim_debug_data_add_circle(grid->debug_data, wloc, 0.01f, col[0], col[1], col[2], "grid", hash_int_2d(5522, hash_int_2d(i, hash_int_2d(j, k))));
+				}
+#endif
 			}
 		}
 	}
@@ -556,20 +721,21 @@ bool BPH_hair_volume_solve_divergence(HairGrid *grid, float dt)
 	 * The finite difference approximation yields the linear equation system described here:
 	 * http://en.wikipedia.org/wiki/Discrete_Poisson_equation
 	 */
-	lMatrix A(num_inner_cells, num_inner_cells);
+	lMatrix A(num_cellsA, num_cellsA);
 	/* Reserve space for the base equation system (without boundary conditions).
 	 * Each column contains a factor 6 on the diagonal
 	 * and up to 6 factors -1 on other places.
 	 */
-	A.reserve(Eigen::VectorXi::Constant(num_inner_cells, 7));
+	A.reserve(Eigen::VectorXi::Constant(num_cellsA, 7));
 	
-	for (k = 0; k < inner_res[2]; ++k) {
-		for (j = 0; j < inner_res[1]; ++j) {
-			for (i = 0; i < inner_res[0]; ++i) {
-				u = i * strideA0 + j * strideA1 + k * strideA2;
-				vert = grid->verts + inner_cells_start + i * stride0 + j * stride1 + k * stride2;
+	for (k = 0; k < resA[2]; ++k) {
+		for (j = 0; j < resA[1]; ++j) {
+			for (i = 0; i < resA[0]; ++i) {
+				int u = i * strideA0 + j * strideA1 + k * strideA2;
+				bool is_margin = MARGIN_i0 || MARGIN_i1 || MARGIN_j0 || MARGIN_j1 || MARGIN_k0 || MARGIN_k1;
 				
-				if (vert->density > density_threshold) {
+				vert = vert_start + i * stride0 + j * stride1 + k * stride2;
+				if (!is_margin && vert->density > density_threshold) {
 					int neighbors_lo = 0;
 					int neighbors_hi = 0;
 					int non_solid_neighbors = 0;
@@ -581,30 +747,18 @@ bool BPH_hair_volume_solve_divergence(HairGrid *grid, float dt)
 					 * to get the correct number of neighbors,
 					 * needed for the diagonal element
 					 */
-					if (k >= 1) {
-						if ((vert - stride2)->density > density_threshold)
-							neighbor_lo_index[neighbors_lo++] = u - strideA2;
-					}
-					if (j >= 1) {
-						if ((vert - stride1)->density > density_threshold)
-							neighbor_lo_index[neighbors_lo++] = u - strideA1;
-					}
-					if (i >= 1) {
-						if ((vert - stride0)->density > density_threshold)
-							neighbor_lo_index[neighbors_lo++] = u - strideA0;
-					}
-					if (i < inner_res[0] - 1) {
-						if ((vert + stride0)->density > density_threshold)
-							neighbor_hi_index[neighbors_hi++] = u + strideA0;
-					}
-					if (j < inner_res[1] - 1) {
-						if ((vert + stride1)->density > density_threshold)
-							neighbor_hi_index[neighbors_hi++] = u + strideA1;
-					}
-					if (k < inner_res[2] - 1) {
-						if ((vert + stride2)->density > density_threshold)
-							neighbor_hi_index[neighbors_hi++] = u + strideA2;
-					}
+					if (!NEIGHBOR_MARGIN_k0 && (vert - stride2)->density > density_threshold)
+						neighbor_lo_index[neighbors_lo++] = u - strideA2;
+					if (!NEIGHBOR_MARGIN_j0 && (vert - stride1)->density > density_threshold)
+						neighbor_lo_index[neighbors_lo++] = u - strideA1;
+					if (!NEIGHBOR_MARGIN_i0 && (vert - stride0)->density > density_threshold)
+						neighbor_lo_index[neighbors_lo++] = u - strideA0;
+					if (!NEIGHBOR_MARGIN_i1 && (vert + stride0)->density > density_threshold)
+						neighbor_hi_index[neighbors_hi++] = u + strideA0;
+					if (!NEIGHBOR_MARGIN_j1 && (vert + stride1)->density > density_threshold)
+						neighbor_hi_index[neighbors_hi++] = u + strideA1;
+					if (!NEIGHBOR_MARGIN_k1 && (vert + stride2)->density > density_threshold)
+						neighbor_hi_index[neighbors_hi++] = u + strideA2;
 					
 					/*int liquid_neighbors = neighbors_lo + neighbors_hi;*/
 					non_solid_neighbors = 6;
@@ -632,23 +786,32 @@ bool BPH_hair_volume_solve_divergence(HairGrid *grid, float dt)
 	
 	if (cg.info() == Eigen::Success) {
 		/* Calculate velocity = grad(p) */
-		for (k = 0; k < inner_res[2]; ++k) {
-			for (j = 0; j < inner_res[1]; ++j) {
-				for (i = 0; i < inner_res[0]; ++i) {
-					u = i * strideA0 + j * strideA1 + k * strideA2;
-					vert = grid->verts + inner_cells_start + i * stride0 + j * stride1 + k * stride2;
+		for (k = 0; k < resA[2]; ++k) {
+			for (j = 0; j < resA[1]; ++j) {
+				for (i = 0; i < resA[0]; ++i) {
+					int u = i * strideA0 + j * strideA1 + k * strideA2;
+					bool is_margin = MARGIN_i0 || MARGIN_i1 || MARGIN_j0 || MARGIN_j1 || MARGIN_k0 || MARGIN_k1;
+					if (is_margin)
+						continue;
 					
+					vert = vert_start + i * stride0 + j * stride1 + k * stride2;
 					if (vert->density > density_threshold) {
-						float p0 = p[u];
+						float p_left   = p[u - strideA0];
+						float p_right  = p[u + strideA0];
+						float p_down   = p[u - strideA1];
+						float p_up     = p[u + strideA1];
+						float p_bottom = p[u - strideA2];
+						float p_top    = p[u + strideA2];
 						
 						/* finite difference estimate of pressure gradient */
-						float grad_p[3];
-						grad_p[0] = i >= 1 ? p0 - p[u - strideA0] : 0.0f;
-						grad_p[1] = j >= 1 ? p0 - p[u - strideA1] : 0.0f;
-						grad_p[2] = k >= 1 ? p0 - p[u - strideA2] : 0.0f;
+						float dvel[3];
+						dvel[0] = p_right - p_left;
+						dvel[1] = p_up - p_down;
+						dvel[2] = p_top - p_bottom;
+						mul_v3_fl(dvel, -0.5f * inv_flowfac);
 						
 						/* pressure gradient describes velocity delta */
-						madd_v3_v3v3fl(vert->velocity_smooth, vert->velocity, grad_p, inv_flowfac);
+						add_v3_v3v3(vert->velocity_smooth, vert->velocity, dvel);
 					}
 					else {
 						zero_v3(vert->velocity_smooth);
@@ -657,11 +820,74 @@ bool BPH_hair_volume_solve_divergence(HairGrid *grid, float dt)
 			}
 		}
 		
+#if 0
+		{
+			int axis = 0;
+			float offset = 0.0f;
+			
+			int slice = (offset - grid->gmin[axis]) / grid->cellsize;
+			
+			for (k = 0; k < resA[2]; ++k) {
+				for (j = 0; j < resA[1]; ++j) {
+					for (i = 0; i < resA[0]; ++i) {
+						int u = i * strideA0 + j * strideA1 + k * strideA2;
+						bool is_margin = MARGIN_i0 || MARGIN_i1 || MARGIN_j0 || MARGIN_j1 || MARGIN_k0 || MARGIN_k1;
+						if (i != slice)
+							continue;
+						
+						vert = vert_start + i * stride0 + j * stride1 + k * stride2;
+						
+						float wloc[3], loc[3];
+						float col0[3] = {0.0, 0.0, 0.0};
+						float colp[3] = {0.0, 1.0, 1.0};
+						float coln[3] = {1.0, 0.0, 1.0};
+						float col[3];
+						float fac;
+						
+						loc[0] = (float)(i - 1);
+						loc[1] = (float)(j - 1);
+						loc[2] = (float)(k - 1);
+						grid_to_world(grid, wloc, loc);
+						
+						float pressure = p[u];
+						if (pressure > 0.0f) {
+							fac = CLAMPIS(pressure * grid->debug1, 0.0, 1.0);
+							interp_v3_v3v3(col, col0, colp, fac);
+						}
+						else {
+							fac = CLAMPIS(-pressure * grid->debug1, 0.0, 1.0);
+							interp_v3_v3v3(col, col0, coln, fac);
+						}
+						if (fac > 0.05f)
+							BKE_sim_debug_data_add_circle(grid->debug_data, wloc, 0.01f, col[0], col[1], col[2], "grid", hash_int_2d(5533, hash_int_2d(i, hash_int_2d(j, k))));
+						
+						if (!is_margin) {
+							float dvel[3];
+							sub_v3_v3v3(dvel, vert->velocity_smooth, vert->velocity);
+//							BKE_sim_debug_data_add_vector(grid->debug_data, wloc, dvel, 1, 1, 1, "grid", hash_int_2d(5566, hash_int_2d(i, hash_int_2d(j, k))));
+						}
+						
+						if (!is_margin) {
+							float d = CLAMPIS(vert->density * grid->debug2, 0.0f, 1.0f);
+							float col0[3] = {0.3, 0.3, 0.3};
+							float colp[3] = {0.0, 0.0, 1.0};
+							float col[3];
+							
+							interp_v3_v3v3(col, col0, colp, d);
+//							if (d > 0.05f)
+//								BKE_sim_debug_data_add_dot(grid->debug_data, wloc, col[0], col[1], col[2], "grid", hash_int_2d(5544, hash_int_2d(i, hash_int_2d(j, k))));
+						}
+					}
+				}
+			}
+		}
+#endif
+		
 		return true;
 	}
 	else {
 		/* Clear result in case of error */
-		for (i = inner_cells_start, vert = grid->verts + inner_cells_start; i < num_inner_cells; ++i, ++vert) {
+		for (i = 0, vert = grid->verts; i < num_cells; ++i, ++vert) {
 			zero_v3(vert->velocity_smooth);
 		}
 		
@@ -757,18 +983,18 @@ HairGrid *BPH_hair_volume_create_vertex_grid(float cellsize, const float gmin[3]
 	
 	sub_v3_v3v3(extent, gmax, gmin);
 	for (i = 0; i < 3; ++i) {
-		resmin[i] = (int)(gmin[i] * scale);
-		resmax[i] = (int)(gmax[i] * scale) + 1;
+		resmin[i] = floor_int(gmin[i] * scale);
+		resmax[i] = floor_int(gmax[i] * scale) + 1;
 		
 		/* add margin of 1 cell */
 		resmin[i] -= 1;
 		resmax[i] += 1;
 		
-		res[i] = resmax[i] - resmin[i];
+		res[i] = resmax[i] - resmin[i] + 1;
 		/* sanity check: avoid null-sized grid */
-		if (res[i] < 3) {
-			res[i] = 3;
-			resmax[i] = resmin[i] + 3;
+		if (res[i] < 4) {
+			res[i] = 4;
+			resmax[i] = resmin[i] + 4;
 		}
 		/* sanity check: avoid too large grid size */
 		if (res[i] > MAX_HAIR_GRID_RES) {
@@ -806,6 +1032,15 @@ void BPH_hair_volume_free_vertex_grid(HairGrid *grid)
 void BPH_hair_volume_set_debug_data(HairGrid *grid, SimDebugData *debug_data)
 {
 	grid->debug_data = debug_data;
+	BKE_sim_debug_data_clear_category(grid->debug_data, "grid");
+}
+
+void BPH_hair_volume_set_debug_value(HairGrid *grid, float debug1, float debug2, int debug3, int debug4)
+{
+	grid->debug1 = debug1;
+	grid->debug2 = debug2;
+	grid->debug3 = debug3;
+	grid->debug4 = debug4;
 }
 
 void BPH_hair_volume_grid_geometry(HairGrid *grid, float *cellsize, int res[3], float gmin[3], float gmax[3])

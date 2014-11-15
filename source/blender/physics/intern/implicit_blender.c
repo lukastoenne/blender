@@ -149,6 +149,14 @@ DO_INLINE void mul_fvector_S(float to[3], float from[3], float scalar)
 	to[1] = from[1] * scalar;
 	to[2] = from[2] * scalar;
 }
+/* simple cross product */
+/* STATUS: verified */
+DO_INLINE void cross_fvector(float to[3], float vectorA[3], float vectorB[3])
+{
+	to[0] = vectorA[1] * vectorB[2] - vectorA[2] * vectorB[1];
+	to[1] = vectorA[2] * vectorB[0] - vectorA[0] * vectorB[2];
+	to[2] = vectorA[0] * vectorB[1] - vectorA[1] * vectorB[0];
+}
 /* simple v^T * v product ("outer product") */
 /* STATUS: HAS TO BE verified (*should* work) */
 DO_INLINE void mul_fvectorT_fvector(float to[3][3], float vectorA[3], float vectorB[3])
@@ -326,8 +334,6 @@ static void print_sparse_matrix(fmatrix3x3 *m)
 }
 #endif
 
-
-#if 0
 static void print_lvector(lfVector *v, int numverts)
 {
 	int i;
@@ -340,9 +346,7 @@ static void print_lvector(lfVector *v, int numverts)
 		printf("%f,\n", v[i][2]);
 	}
 }
-#endif
 
-#if 0
 static void print_bfmatrix(fmatrix3x3 *m)
 {
 	int tot = m[0].vcount + m[0].scount;
@@ -385,7 +389,6 @@ static void print_bfmatrix(fmatrix3x3 *m)
 	
 	MEM_freeN(t);
 }
-#endif
 
 /* copy 3x3 matrix */
 DO_INLINE void cp_fmatrix(float to[3][3], float from[3][3])
@@ -1521,7 +1524,7 @@ BLI_INLINE float fb(float length, float L)
 
 BLI_INLINE float fbderiv(float length, float L)
 {
-	float x = length/L;
+	float x = length / L;
 	float xx = x * x;
 	float xxx = xx * x;
 	return (-46.164f * xxx + 102.579f * xx - 78.166f * x + 23.116f);

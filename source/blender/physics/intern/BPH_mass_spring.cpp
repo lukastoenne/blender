@@ -802,28 +802,6 @@ static LinkNode *cloth_continuum_add_hair_segments(HairGrid *grid, const float c
 		                            spring3 ? dir3 : NULL);
 	}
 	
-	/* last segment */
-	spring1 = spring2;
-	spring2 = spring3;
-	spring3 = NULL;
-	
-	vert3 = vert4;
-	vert4 = NULL;
-	
-	copy_v3_v3(x1, x2); copy_v3_v3(v1, v2);
-	copy_v3_v3(x2, x3); copy_v3_v3(v2, v3);
-	copy_v3_v3(x3, x4); copy_v3_v3(v3, v4);
-	zero_v3(x4);        zero_v3(v4);
-	
-	copy_v3_v3(dir1, dir2);
-	copy_v3_v3(dir2, dir3);
-	zero_v3(dir3);
-	
-	BPH_hair_volume_add_segment(grid, x1, v1, x2, v2, x3, v3, x4, v4,
-	                            spring1 ? dir1 : NULL,
-	                            dir2,
-	                            NULL);
-	
 	return next_spring_link;
 }
 
@@ -875,8 +853,11 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 	
 	const float fluid_factor = 0.95f; /* blend between PIC and FLIP methods */
 	float smoothfac = parms->velocity_smooth;
-	float pressfac = parms->pressure;
-//	float minpress = parms->pressure_threshold;
+	/* XXX FIXME arbitrary factor!!! this should be based on some intuitive value instead,
+	 * like number of hairs per cell and time decay instead of "strength"
+	 */
+	float denstarget = parms->density_target;
+	float densfac = parms->density_strength;
 	float gmin[3], gmax[3];
 	int i;
 	
@@ -884,18 +865,21 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 	zero_v3_int(clmd->hair_grid_res);
 	zero_v3(clmd->hair_grid_min);
 	zero_v3(clmd->hair_grid_max);
+	clmd->hair_grid_cellsize = 0.0f;
 	
 	hair_get_boundbox(clmd, gmin, gmax);
 	
 	/* gather velocities & density */
-	if (smoothfac > 0.0f || pressfac > 0.0f) {
+	if (smoothfac > 0.0f || densfac > 0.0f) {
 		HairGrid *grid = BPH_hair_volume_create_vertex_grid(clmd->sim_parms->voxel_cell_size, gmin, gmax);
+		
 		BPH_hair_volume_set_debug_data(grid, clmd->debug_data);
+		BPH_hair_volume_set_debug_value(grid, parms->debug1, parms->debug2, parms->debug3, parms->debug4);
 		
 		cloth_continuum_fill_grid(grid, cloth);
 		
 		/* main hair continuum solver */
-		BPH_hair_volume_solve_divergence(grid, dt);
+		BPH_hair_volume_solve_divergence(grid, dt, denstarget, densfac);
 		
 		for (i = 0, vert = cloth->verts; i < numverts; i++, vert++) {
 			float x[3], v[3], nv[3];
@@ -916,7 +900,7 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 		}
 		
 		/* store basic grid info in the modifier data */
-		BPH_hair_volume_grid_geometry(grid, NULL, clmd->hair_grid_res, clmd->hair_grid_min, clmd->hair_grid_max);
+		BPH_hair_volume_grid_geometry(grid, &clmd->hair_grid_cellsize, clmd->hair_grid_res, clmd->hair_grid_min, clmd->hair_grid_max);
 		
 #if 0 /* DEBUG hair velocity vector field */
 		{
@@ -924,13 +908,13 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 			int i, j;
 			float offset[3], a[3], b[3];
 			const int axis = 0;
-			const float shift = 0.45f;
+			const float shift = 0.0f;
 			
 			copy_v3_v3(offset, clmd->hair_grid_min);
 			zero_v3(a);
 			zero_v3(b);
 			
-			offset[axis] = interpf(clmd->hair_grid_max[axis], clmd->hair_grid_min[axis], shift);
+			offset[axis] = shift * clmd->hair_grid_cellsize;
 			a[(axis+1) % 3] = clmd->hair_grid_max[(axis+1) % 3] - clmd->hair_grid_min[(axis+1) % 3];
 			b[(axis+2) % 3] = clmd->hair_grid_max[(axis+2) % 3] - clmd->hair_grid_min[(axis+2) % 3];
 			
@@ -947,8 +931,23 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 					
 //					BKE_sim_debug_data_add_circle(clmd->debug_data, x, gdensity, 0.7, 0.3, 1, "grid density", hash_int_2d(hash_int_2d(i, j), 3111));
 					if (!is_zero_v3(gvel) || !is_zero_v3(gvel_smooth)) {
-						BKE_sim_debug_data_add_vector(clmd->debug_data, x, gvel, 0.4, 0, 1, "grid velocity", hash_int_2d(hash_int_2d(i, j), 3112));
-						BKE_sim_debug_data_add_vector(clmd->debug_data, x, gvel_smooth, 0.6, 4, 1, "grid velocity", hash_int_2d(hash_int_2d(i, j), 3113));
+						float dvel[3];
+						sub_v3_v3v3(dvel, gvel_smooth, gvel);
+//						BKE_sim_debug_data_add_vector(clmd->debug_data, x, gvel, 0.4, 0, 1, "grid velocity", hash_int_2d(hash_int_2d(i, j), 3112));
+//						BKE_sim_debug_data_add_vector(clmd->debug_data, x, gvel_smooth, 0.6, 1, 1, "grid velocity", hash_int_2d(hash_int_2d(i, j), 3113));
+						BKE_sim_debug_data_add_vector(clmd->debug_data, x, dvel, 0.4, 1, 0.7, "grid velocity", hash_int_2d(hash_int_2d(i, j), 3114));
+#if 0
+						if (gdensity > 0.0f) {
+							float col0[3] = {0.0, 0.0, 0.0};
+							float col1[3] = {0.0, 1.0, 0.0};
+							float col[3];
+							
+							interp_v3_v3v3(col, col0, col1, CLAMPIS(gdensity * clmd->sim_parms->density_strength, 0.0, 1.0));
+//							BKE_sim_debug_data_add_circle(clmd->debug_data, x, gdensity * clmd->sim_parms->density_strength, 0, 1, 0.4, "grid velocity", hash_int_2d(hash_int_2d(i, j), 3115));
+//							BKE_sim_debug_data_add_dot(clmd->debug_data, x, col[0], col[1], col[2], "grid velocity", hash_int_2d(hash_int_2d(i, j), 3115));
+							BKE_sim_debug_data_add_circle(clmd->debug_data, x, 0.01f, col[0], col[1], col[2], "grid velocity", hash_int_2d(hash_int_2d(i, j), 3115));
+						}
+#endif
 					}
 				}
 			}
