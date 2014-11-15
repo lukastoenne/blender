@@ -72,12 +72,12 @@ static int toolbox_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UN
 
 	RNA_pointer_create(&sc->id, &RNA_SpaceProperties, sbuts, &ptr);
 
-	pup = uiPupMenuBegin(C, IFACE_("Align"), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, IFACE_("Align"), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 	uiItemsEnumR(layout, &ptr, "align");
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 void BUTTONS_OT_toolbox(wmOperatorType *ot)
@@ -176,7 +176,7 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_CANCELLED;
 	}
 
-	uiFileBrowseContextProperty(C, &ptr, &prop);
+	UI_context_active_but_prop_get_filebrowser(C, &ptr, &prop);
 
 	if (!prop)
 		return OPERATOR_CANCELLED;

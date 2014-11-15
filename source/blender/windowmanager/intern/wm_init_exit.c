@@ -440,6 +440,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	BKE_addon_pref_type_free();
 	wm_operatortype_free();
 	wm_dropbox_free();
+	WM_widgetmaps_free();
 	WM_menutype_free();
 	WM_uilisttype_free();
 	

@@ -1132,6 +1132,8 @@ void blo_freefiledata(FileData *fd)
 			oldnewmap_free(fd->imamap);
 		if (fd->movieclipmap)
 			oldnewmap_free(fd->movieclipmap);
+		if (fd->soundmap)
+			oldnewmap_free(fd->soundmap);
 		if (fd->packedmap)
 			oldnewmap_free(fd->packedmap);
 		if (fd->libmap && !(fd->flags & FD_FLAGS_NOT_MY_LIBMAP))
@@ -1159,6 +1161,9 @@ bool BLO_is_a_library(const char *path, char *dir, char *group)
 	int len;
 	char *fd;
 	
+	/* if path leads to a directory we can be sure we're not in a library */
+	if (BLI_is_dir(path)) return 0;
+
 	strcpy(dir, path);
 	len = strlen(dir);
 	if (len < 7) return 0;
@@ -1219,6 +1224,13 @@ static void *newmclipadr(FileData *fd, void *adr)      /* used to restore movie 
 {
 	if (fd->movieclipmap && adr)
 		return oldnewmap_lookup_and_inc(fd->movieclipmap, adr, true);
+	return NULL;
+}
+
+static void *newsoundadr(FileData *fd, void *adr)      /* used to restore sound data after undo */
+{
+	if (fd->soundmap && adr)
+		return oldnewmap_lookup_and_inc(fd->soundmap, adr, true);
 	return NULL;
 }
 
@@ -1435,6 +1447,37 @@ void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 				if (node->type == CMP_NODE_MOVIEDISTORTION)
 					node->storage = newmclipadr(fd, node->storage);
 		}
+	}
+}
+
+void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
+{
+	bSound *sound = oldmain->sound.first;
+	
+	fd->soundmap = oldnewmap_new();
+	
+	for (; sound; sound = sound->id.next) {
+		if (sound->waveform)
+			oldnewmap_insert(fd->soundmap, sound->waveform, sound->waveform, 0);			
+	}
+}
+
+/* set old main sound caches to zero if it has been restored */
+/* this works because freeing old main only happens after this call */
+void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
+{
+	OldNew *entry = fd->soundmap->entries;
+	bSound *sound = oldmain->sound.first;
+	int i;
+	
+	/* used entries were restored, so we put them to zero */
+	for (i = 0; i < fd->soundmap->nentries; i++, entry++) {
+		if (entry->nr > 0)
+			entry->newp = NULL;
+	}
+	
+	for (; sound; sound = sound->id.next) {
+		sound->waveform = newsoundadr(fd, sound->waveform);
 	}
 }
 
@@ -5167,6 +5210,36 @@ static void lib_link_sequence_modifiers(FileData *fd, Scene *scene, ListBase *lb
 	}
 }
 
+/* check for cyclic set-scene,
+ * libs can cause this case which is normally prevented, see (T#####) */
+#define USE_SETSCENE_CHECK
+
+#ifdef USE_SETSCENE_CHECK
+/**
+ * A version of #BKE_scene_validate_setscene with special checks for linked libs.
+ */
+static bool scene_validate_setscene__liblink(Scene *sce, const int totscene)
+{
+	Scene *sce_iter;
+	int a;
+
+	if (sce->set == NULL) return 1;
+
+	for (a = 0, sce_iter = sce; sce_iter->set; sce_iter = sce_iter->set, a++) {
+		if (sce_iter->id.flag & LIB_NEED_LINK) {
+			return 1;
+		}
+
+		if (a > totscene) {
+			sce->set = NULL;
+			return 0;
+		}
+	}
+
+	return 1;
+}
+#endif
+
 static void lib_link_scene(FileData *fd, Main *main)
 {
 	Scene *sce;
@@ -5176,6 +5249,11 @@ static void lib_link_scene(FileData *fd, Main *main)
 	TimeMarker *marker;
 	FreestyleModuleConfig *fmc;
 	FreestyleLineSet *fls;
+
+#ifdef USE_SETSCENE_CHECK
+	bool need_check_set = false;
+	int totscene = 0;
+#endif
 	
 	for (sce = main->scene.first; sce; sce = sce->id.next) {
 		if (sce->id.flag & LIB_NEED_LINK) {
@@ -5325,11 +5403,44 @@ static void lib_link_scene(FileData *fd, Main *main)
 			
 			/* Motion Tracking */
 			sce->clip = newlibadr_us(fd, sce->id.lib, sce->clip);
-			
-			sce->id.flag -= LIB_NEED_LINK;
+
+#ifdef USE_SETSCENE_CHECK
+			if (sce->set != NULL) {
+				/* link flag for scenes with set would be reset later,
+				 * so this way we only check cyclic for newly linked scenes.
+				 */
+				need_check_set = true;
+			}
+			else {
+				/* postpone un-setting the flag until we've checked the set-scene */
+				sce->id.flag &= ~LIB_NEED_LINK;
+			}
+#else
+			sce->id.flag &= ~LIB_NEED_LINK;
+#endif
+		}
+
+#ifdef USE_SETSCENE_CHECK
+		totscene++;
+#endif
+	}
+
+#ifdef USE_SETSCENE_CHECK
+	if (need_check_set) {
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
+			if (sce->id.flag & LIB_NEED_LINK) {
+				sce->id.flag &= ~LIB_NEED_LINK;
+				if (!scene_validate_setscene__liblink(sce, totscene)) {
+					printf("Found cyclic background scene when linking %s\n", sce->id.name + 2);
+				}
+			}
 		}
 	}
+#endif
 }
+
+#undef USE_SETSCENE_CHECK
+
 
 static void link_recurs_seq(FileData *fd, ListBase *lb)
 {
@@ -5436,7 +5547,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	}
 
 	if (sce->ed) {
-		ListBase *old_seqbasep = &((Editing *)sce->ed)->seqbase;
+		ListBase *old_seqbasep = &sce->ed->seqbase;
 		
 		ed = sce->ed = newdataadr(fd, sce->ed);
 		
@@ -5450,6 +5561,9 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			seq->seq1= newdataadr(fd, seq->seq1);
 			seq->seq2= newdataadr(fd, seq->seq2);
 			seq->seq3= newdataadr(fd, seq->seq3);
+			if (seq->parent)
+				seq->parent = newdataadr(fd, seq->parent);
+			
 			/* a patch: after introduction of effects with 3 input strips */
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
@@ -6297,6 +6411,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
+				rv3d->compositor = NULL;
 			}
 		}
 	}
@@ -6404,7 +6519,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 		/* add local view3d too */
 		else if (sa->spacetype == SPACE_VIEW3D)
 			blo_do_versions_view3d_split_250(sa->spacedata.first, &sa->regionbase);
-		
+
 		/* incase we set above */
 		sa->butspacetype = sa->spacetype;
 
@@ -6443,6 +6558,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				}
 				v3d->localvd = newdataadr(fd, v3d->localvd);
 				BLI_listbase_clear(&v3d->afterdraw_transp);
+				BLI_listbase_clear(&v3d->gpu_material);
 				BLI_listbase_clear(&v3d->afterdraw_xray);
 				BLI_listbase_clear(&v3d->afterdraw_xraytransp);
 				v3d->properties_storage = NULL;
@@ -6451,6 +6567,15 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				/* render can be quite heavy, set to solid on load */
 				if (v3d->drawtype == OB_RENDER)
 					v3d->drawtype = OB_SOLID;
+
+				if (v3d->fxoptions) {
+					v3d->fxoptions = newdataadr(fd, v3d->fxoptions);
+
+					if (v3d->fxoptions->dof_options)
+						v3d->fxoptions->dof_options = newdataadr(fd, v3d->fxoptions->dof_options);
+					if (v3d->fxoptions->ssao_options)
+						v3d->fxoptions->ssao_options = newdataadr(fd, v3d->fxoptions->ssao_options);
+				}
 				
 				blo_do_versions_view3d_split_250(v3d, &sl->regionbase);
 			}
@@ -6755,13 +6880,25 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 {
 	sound->handle = NULL;
 	sound->playback_handle = NULL;
-	sound->waveform = NULL;
 
-	// versioning stuff, if there was a cache, then we enable caching:
+	/* versioning stuff, if there was a cache, then we enable caching: */
 	if (sound->cache) {
 		sound->flags |= SOUND_FLAGS_CACHING;
 		sound->cache = NULL;
 	}
+
+	if (fd->soundmap) {
+		sound->waveform = newsoundadr(fd, sound->waveform);	
+	}	
+	else {
+		sound->waveform = NULL;		
+	}
+		
+	if (sound->mutex)
+		sound->mutex = BLI_mutex_alloc();
+	
+	/* clear waveform loading flag */
+	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
 
 	sound->packedfile = direct_link_packedfile(fd, sound->packedfile);
 	sound->newpackedfile = direct_link_packedfile(fd, sound->newpackedfile);

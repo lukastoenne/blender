@@ -4799,7 +4799,7 @@ bool ed_editnurb_spin(float viewmat[4][4], Object *obedit, const float axis[3], 
 	ok = true;
 
 	for (a = 0; a < 7; a++) {
-		ok = ed_editnurb_extrude_flag(cu->editnurb, 1);
+		ok = ed_editnurb_extrude_flag(cu->editnurb, SELECT);
 
 		if (ok == false)
 			return changed;
@@ -5260,7 +5260,7 @@ static int extrude_exec(bContext *C, wmOperator *UNUSED(op))
 		addvert_Nurb(C, 'e', NULL);
 	}
 	else {
-		if (ed_editnurb_extrude_flag(editnurb, 1)) { /* '1'= flag */
+		if (ed_editnurb_extrude_flag(editnurb, SELECT)) {
 			if (ED_curve_updateAnimPaths(obedit->data))
 				WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
 
@@ -5382,11 +5382,11 @@ static int toggle_cyclic_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 		for (nu = editnurb->first; nu; nu = nu->next) {
 			if (nu->pntsu > 1 || nu->pntsv > 1) {
 				if (nu->type == CU_NURBS) {
-					pup = uiPupMenuBegin(C, IFACE_("Direction"), ICON_NONE);
-					layout = uiPupMenuLayout(pup);
+					pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
+					layout = UI_popup_menu_layout(pup);
 					uiItemsEnumO(layout, op->type->idname, "direction");
-					uiPupMenuEnd(C, pup);
-					return OPERATOR_CANCELLED;
+					UI_popup_menu_end(C, pup);
+					return OPERATOR_INTERFACE;
 				}
 			}
 		}

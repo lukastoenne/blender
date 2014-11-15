@@ -302,7 +302,7 @@ typedef struct ParticleSystem {
 	short vgroup[12], vg_neg, rt3;			/* vertex groups, 0==disable, 1==starting index */
 
 	/* temporary storage during render */
-	void *renderdata;
+	struct ParticleRenderData *renderdata;
 
 	/* point cache */
 	struct PointCache *pointcache;
@@ -342,6 +342,7 @@ typedef enum eParticleDrawFlag {
 	PART_DRAW_REN_STRAND    = (1 << 15),
 	PART_DRAW_NO_SCALE_OB   = (1 << 16), /* used with dupliobjects/groups */
 	PART_DRAW_GUIDE_HAIRS   = (1 << 17),
+	PART_DRAW_HAIR_GRID     = (1 << 18),
 } eParticleDrawFlag;
 
 /* part->type */

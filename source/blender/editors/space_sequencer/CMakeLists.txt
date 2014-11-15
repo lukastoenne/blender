@@ -46,6 +46,7 @@ set(SRC
 	sequencer_scopes.c
 	sequencer_select.c
 	sequencer_view.c
+	sequencer_preview.c
 	space_sequencer.c
 
 	sequencer_intern.h

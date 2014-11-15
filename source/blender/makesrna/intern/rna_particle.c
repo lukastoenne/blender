@@ -593,8 +593,14 @@ static void rna_ParticleSystem_set_resolution(ParticleSystem *particlesystem, Sc
 		particle_system_update(scene, object, particlesystem);
 	}
 	else {
-		if (particlesystem->renderdata)
+		ParticleSystemModifierData *psmd = psys_get_modifier(object, particlesystem);
+		
+		if (particlesystem->renderdata) {
 			psys_render_restore(object, particlesystem);
+		}
+		
+		psmd->flag &= ~eParticleSystemFlag_psys_updated;
+		particle_system_update(scene, object, particlesystem);
 	}
 }
 
@@ -778,7 +784,7 @@ static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerR
 		}
 	}
 #endif
-	
+	(void)psys;
 	rna_Particle_redo(bmain, scene, ptr);
 }
 
@@ -2254,6 +2260,11 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	/*draw flag*/
 	prop = RNA_def_property(srna, "show_guide_hairs", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "draw", PART_DRAW_GUIDE_HAIRS);
+	RNA_def_property_ui_text(prop, "Guide Hairs", "Show guide hairs");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo");
+
+	prop = RNA_def_property(srna, "show_hair_grid", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "draw", PART_DRAW_HAIR_GRID);
 	RNA_def_property_ui_text(prop, "Guide Hairs", "Show guide hairs");
 	RNA_def_property_update(prop, 0, "rna_Particle_redo");
 

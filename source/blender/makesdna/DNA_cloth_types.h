@@ -69,19 +69,25 @@ typedef struct ClothSimSettings {
 	float	goalspring;
 	float	goalfrict;
 	float	velocity_smooth; /* smoothing of velocities for hair */
-	float	pressure;			/* pressure factor from hair density */
-	float	pressure_threshold;	/* minimum density for hair pressure */
+	float	density_target;		/* minimum density for hair */
+	float	density_strength;	/* influence of hair density */
 	float	collider_friction; /* friction with colliders */
 	float	vel_damping; /* damp the velocity to speed up getting to the resting position */
 	float	shrink_min;  /* min amount to shrink cloth by 0.0f (no shrink) - 1.0f (shrink to nothing) */
 	float	shrink_max;  /* max amount to shrink cloth by 0.0f (no shrink) - 1.0f (shrink to nothing) */
 	
+	/* XXX generic debug values, could be done nicer as id props */
+	float debug1;
+	float debug2;
+	int debug3;
+	int debug4;
+	
 	/* XXX various hair stuff
 	 * should really be separate, this struct is a horrible mess already
 	 */
 	float	bending_damping;	/* damping of bending springs */
-	int		voxel_res;          /* resolution of voxel grid for interaction */
-	int		voxel_filter_size;  /* filter size for voxel grid */
+	float	voxel_cell_size;    /* size of voxel grid cells for continuum dynamics */
+	int		pad;
 
 	int 	stepsPerFrame;	/* Number of time steps per frame.		*/
 	int	flags;		/* flags, see CSIMSETT_FLAGS enum above.	*/

@@ -54,7 +54,6 @@ enum_bvh_types = (
 enum_filter_types = (
     ('BOX', "Box", "Box filter"),
     ('GAUSSIAN', "Gaussian", "Gaussian filter"),
-    ('MITCHELL', "Mitchell-Netravali", "Mitchell-Netravali filter"),
     )
 
 enum_aperture_types = (
@@ -351,7 +350,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Distance between volume shader samples when rendering the volume "
                             "(lower values give more accurate and detailed results, but also increased render time)",
                 default=0.1,
-                min=0.0000001, max=100000.0
+                min=0.0000001, max=100000.0, soft_min=0.01, soft_max=1.0
                 )
 
         cls.volume_max_steps = IntProperty(
@@ -653,6 +652,12 @@ class CyclesLampSettings(bpy.types.PropertyGroup):
                 description="Number of light samples to render for each AA sample",
                 min=1, max=10000,
                 default=1,
+                )
+        cls.max_bounces = IntProperty(
+                name="Max Bounces",
+                description="Maximum number of bounces the light will contribute to the render",
+                min=0, max=1024,
+                default=1024,
                 )
         cls.use_multiple_importance_sampling = BoolProperty(
                 name="Multiple Importance Sample",

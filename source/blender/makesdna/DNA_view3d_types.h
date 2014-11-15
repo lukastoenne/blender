@@ -46,6 +46,8 @@ struct bGPdata;
 struct SmoothView3DStore;
 struct wmTimer;
 struct Material;
+struct GPUFX;
+struct GPUFXOptions;
 
 /* This is needed to not let VC choke on near and far... old
  * proprietary MS extensions... */
@@ -145,6 +147,7 @@ typedef struct RegionView3D {
 	float rot_angle;
 	float rot_axis[3];
 
+	struct GPUFX *compositor;
 } RegionView3D;
 
 /* 3D ViewPort Struct */
@@ -207,17 +210,24 @@ typedef struct View3D {
 	struct ListBase afterdraw_transp;
 	struct ListBase afterdraw_xray;
 	struct ListBase afterdraw_xraytransp;
+
+	/* list of gpu materials to draw */
+	struct ListBase gpu_material;
 	
 	/* drawflags, denoting state */
 	char zbuf, transp, xray;
-	char pad3[5];
+	char pad3;
+
+	/* built-in shader effects */
+	int shader_fx;
+
+	struct GPUFXOptions *fxoptions;
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */
 
 	/* XXX deprecated? */
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
-
 } View3D;
 
 
@@ -267,6 +277,7 @@ typedef struct View3D {
 	((view >= RV3D_VIEW_FRONT) && (view <= RV3D_VIEW_BOTTOM))
 
 /* View3d->flag2 (short) */
+#define V3D_WIRE_COLOR_NOCUSTOM	2
 #define V3D_RENDER_OVERRIDE		4
 #define V3D_SOLID_TEX			8
 #define V3D_SHOW_GPENCIL		16
@@ -339,6 +350,13 @@ enum {
 };
 
 #define V3D_BGPIC_EXPANDED (V3D_BGPIC_EXPANDED | V3D_BGPIC_CAMERACLIP)
+
+#define V3D_IS_WIRECOLOR(scene, v3d) \
+	(((v3d)->drawtype <= OB_SOLID) && \
+	 (((v3d)->flag2 & V3D_WIRE_COLOR_NOCUSTOM) == 0))
+
+#define V3D_IS_WIRECOLOR_OBJECT(scene, v3d, ob) \
+	V3D_IS_WIRECOLOR(scene, v3d) && ((ob)->dtx & OB_DRAW_WIRECOLOR)
 
 /* BGPic->source */
 /* may want to use 1 for select ?*/

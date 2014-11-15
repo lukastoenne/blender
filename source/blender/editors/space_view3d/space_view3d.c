@@ -53,9 +53,11 @@
 
 #include "ED_space_api.h"
 #include "ED_screen.h"
+#include "ED_transform.h"
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_compositing.h"
 
 #include "BIF_gl.h"
 
@@ -387,7 +389,7 @@ static SpaceLink *view3d_new(const bContext *C)
 	rv3d->persp = RV3D_PERSP;
 	rv3d->view = RV3D_VIEW_PERSPORTHO;
 	rv3d->dist = 10.0;
-	
+		
 	return (SpaceLink *)v3d;
 }
 
@@ -418,13 +420,35 @@ static void view3d_free(SpaceLink *sl)
 		BKE_previewimg_free(&vd->defmaterial->preview);
 		MEM_freeN(vd->defmaterial);
 	}
+
+	if (vd->fxoptions) {
+		MEM_freeN(vd->fxoptions->dof_options);
+		if (vd->fxoptions->ssao_options)
+			MEM_freeN(vd->fxoptions->ssao_options);
+		if (vd->fxoptions->dof_options)
+			MEM_freeN(vd->fxoptions);
+	}
 }
 
 
 /* spacetype; init callback */
 static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
-
+	static wmWidget *manipulator_widget = NULL;
+	
+	if (!manipulator_widget) {
+		struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+		int *realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
+		*realtimeflags = 0;
+		
+		manipulator_widget = WM_widget_new(BIF_manipulator_poll, 
+										   BIF_draw_manipulator, 
+										   BIF_manipulator_render_3d_intersect, 
+										   NULL, 
+										   BIF_manipulator_handler, realtimeflags, true);
+		
+		WM_widget_register(wmap, manipulator_widget);
+	}
 }
 
 static SpaceLink *view3d_duplicate(SpaceLink *sl)
@@ -459,7 +483,13 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	}
 
 	v3dn->properties_storage = NULL;
-	
+	if (v3do->fxoptions)
+	{
+		v3dn->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
+		v3dn->fxoptions->dof_options = MEM_dupallocN(v3do->fxoptions->dof_options);
+		v3dn->fxoptions->ssao_options = MEM_dupallocN(v3do->fxoptions->ssao_options);
+	}
+
 	return (SpaceLink *)v3dn;
 }
 
@@ -468,7 +498,7 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	ListBase *lb;
 	wmKeyMap *keymap;
-
+	
 	/* object ops. */
 	
 	/* important to be before Pose keymap since they can both be enabled at once */
@@ -546,7 +576,10 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
+
+	ar->widgetmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	
+	WM_event_add_widget_handler(ar);
 }
 
 static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
@@ -558,6 +591,11 @@ static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
 	if (rv3d->gpuoffscreen) {
 		GPU_offscreen_free(rv3d->gpuoffscreen);
 		rv3d->gpuoffscreen = NULL;
+	}
+	
+	if (rv3d->compositor) {
+		GPU_destroy_fx_compositor(rv3d->compositor);
+		rv3d->compositor = NULL;
 	}
 }
 
@@ -709,6 +747,9 @@ static void view3d_main_area_free(ARegion *ar)
 		if (rv3d->gpuoffscreen) {
 			GPU_offscreen_free(rv3d->gpuoffscreen);
 		}
+		if (rv3d->compositor) {
+			GPU_destroy_fx_compositor(rv3d->compositor);
+		}
 
 		MEM_freeN(rv3d);
 		ar->regiondata = NULL;
@@ -732,6 +773,7 @@ static void *view3d_main_area_duplicate(void *poin)
 		new->render_engine = NULL;
 		new->sms = NULL;
 		new->smooth_timer = NULL;
+		new->compositor = NULL;
 		
 		return new;
 	}

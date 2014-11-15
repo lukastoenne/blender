@@ -1331,7 +1331,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		/* draw the circle/square representing spotbl */
 		if (la->type == LA_SPOT) {
-			float spotblcirc = fabsf(z) * (1.0f - powf(la->spotblend, 2));
+			float spotblcirc = fabsf(z) * (1.0f - pow2f(la->spotblend));
 			/* hide line if it is zero size or overlaps with outer border,
 			 * previously it adjusted to always to show it but that seems
 			 * confusing because it doesn't show the actual blend size */
@@ -2153,8 +2153,7 @@ static void calcDrawDMNormalScale(Object *ob, drawDMNormal_userData *data)
 		invert_m3_m3(data->imat, obmat);
 
 		/* transposed inverted matrix */
-		copy_m3_m3(data->tmat, data->imat);
-		transpose_m3(data->tmat);
+		transpose_m3_m3(data->tmat, data->imat);
 	}
 }
 
@@ -5162,10 +5161,13 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 		if (part->type ==  PART_HAIR) {
 			if (part->draw & PART_DRAW_GUIDE_HAIRS) {
+				DerivedMesh *hair_dm = psys->hair_out_dm;
+				
 				glDisable(GL_LIGHTING);
 				glDisable(GL_COLOR_MATERIAL);
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_COLOR_ARRAY);
+				
 				for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
 					if (pa->totkey > 1) {
 						HairKey *hkey = pa->hair;
@@ -5179,12 +5181,110 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 						glDrawArrays(GL_LINE_STRIP, 0, pa->totkey);
 					}
 				}
+				
+				if (hair_dm) {
+					MVert *mvert = hair_dm->getVertArray(hair_dm);
+					int i;
+					
+					glColor3f(0.9f, 0.4f, 0.4f);
+					
+					glBegin(GL_LINES);
+					for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
+						for (i = 1; i < pa->totkey; ++i) {
+							float v1[3], v2[3];
+							
+							copy_v3_v3(v1, mvert[pa->hair_index + i - 1].co);
+							copy_v3_v3(v2, mvert[pa->hair_index + i].co);
+							
+							mul_m4_v3(ob->obmat, v1);
+							mul_m4_v3(ob->obmat, v2);
+							
+							glVertex3fv(v1);
+							glVertex3fv(v2);
+						}
+					}
+					glEnd();
+				}
+				
 				glEnable(GL_LIGHTING);
 				glEnable(GL_COLOR_MATERIAL);
 				glEnableClientState(GL_NORMAL_ARRAY);
 				if ((dflag & DRAW_CONSTCOLOR) == 0)
 					if (part->draw_col == PART_DRAW_COL_MAT)
 						glEnableClientState(GL_COLOR_ARRAY);
+			}
+			
+			if (part->draw & PART_DRAW_HAIR_GRID) {
+				ClothModifierData *clmd = psys->clmd;
+				if (clmd) {
+					float *a = clmd->hair_grid_min;
+					float *b = clmd->hair_grid_max;
+					int *res = clmd->hair_grid_res;
+					int i;
+					
+					glDisable(GL_LIGHTING);
+					glDisable(GL_COLOR_MATERIAL);
+					glDisableClientState(GL_NORMAL_ARRAY);
+					glDisableClientState(GL_COLOR_ARRAY);
+					
+					if (select)
+						UI_ThemeColor(TH_ACTIVE);
+					else
+						UI_ThemeColor(TH_WIRE);
+					glBegin(GL_LINES);
+					glVertex3f(a[0], a[1], a[2]); glVertex3f(b[0], a[1], a[2]);
+					glVertex3f(b[0], a[1], a[2]); glVertex3f(b[0], b[1], a[2]);
+					glVertex3f(b[0], b[1], a[2]); glVertex3f(a[0], b[1], a[2]);
+					glVertex3f(a[0], b[1], a[2]); glVertex3f(a[0], a[1], a[2]);
+					
+					glVertex3f(a[0], a[1], b[2]); glVertex3f(b[0], a[1], b[2]);
+					glVertex3f(b[0], a[1], b[2]); glVertex3f(b[0], b[1], b[2]);
+					glVertex3f(b[0], b[1], b[2]); glVertex3f(a[0], b[1], b[2]);
+					glVertex3f(a[0], b[1], b[2]); glVertex3f(a[0], a[1], b[2]);
+					
+					glVertex3f(a[0], a[1], a[2]); glVertex3f(a[0], a[1], b[2]);
+					glVertex3f(b[0], a[1], a[2]); glVertex3f(b[0], a[1], b[2]);
+					glVertex3f(a[0], b[1], a[2]); glVertex3f(a[0], b[1], b[2]);
+					glVertex3f(b[0], b[1], a[2]); glVertex3f(b[0], b[1], b[2]);
+					glEnd();
+					
+					if (select)
+						UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -100);
+					else
+						UI_ThemeColorShadeAlpha(TH_WIRE, 0, -100);
+					glEnable(GL_BLEND);
+					glBegin(GL_LINES);
+					for (i = 1; i < res[0]-1; ++i) {
+						float f = interpf(b[0], a[0], (float)i / (float)(res[0]-1));
+						glVertex3f(f, a[1], a[2]); glVertex3f(f, b[1], a[2]);
+						glVertex3f(f, b[1], a[2]); glVertex3f(f, b[1], b[2]);
+						glVertex3f(f, b[1], b[2]); glVertex3f(f, a[1], b[2]);
+						glVertex3f(f, a[1], b[2]); glVertex3f(f, a[1], a[2]);
+					}
+					for (i = 1; i < res[1]-1; ++i) {
+						float f = interpf(b[1], a[1], (float)i / (float)(res[1]-1));
+						glVertex3f(a[0], f, a[2]); glVertex3f(b[0], f, a[2]);
+						glVertex3f(b[0], f, a[2]); glVertex3f(b[0], f, b[2]);
+						glVertex3f(b[0], f, b[2]); glVertex3f(a[0], f, b[2]);
+						glVertex3f(a[0], f, b[2]); glVertex3f(a[0], f, a[2]);
+					}
+					for (i = 1; i < res[2]-1; ++i) {
+						float f = interpf(b[2], a[2], (float)i / (float)(res[2]-1));
+						glVertex3f(a[0], a[1], f); glVertex3f(b[0], a[1], f);
+						glVertex3f(b[0], a[1], f); glVertex3f(b[0], b[1], f);
+						glVertex3f(b[0], b[1], f); glVertex3f(a[0], b[1], f);
+						glVertex3f(a[0], b[1], f); glVertex3f(a[0], a[1], f);
+					}
+					glEnd();
+					glDisable(GL_BLEND);
+					
+					glEnable(GL_LIGHTING);
+					glEnable(GL_COLOR_MATERIAL);
+					glEnableClientState(GL_NORMAL_ARRAY);
+					if ((dflag & DRAW_CONSTCOLOR) == 0)
+						if (part->draw_col == PART_DRAW_COL_MAT)
+							glEnableClientState(GL_COLOR_ARRAY);
+				}
 			}
 		}
 		
@@ -7094,6 +7194,72 @@ static void draw_object_wire_color(Scene *scene, Base *base, unsigned char r_ob_
 	r_ob_wire_col[3] = 255;
 }
 
+
+static float draw_object_wire_grey = -1.0f;
+void draw_object_bg_wire_color_set(const float color[3])
+{
+	draw_object_wire_grey = rgb_to_grayscale(color);
+}
+
+
+static void tint_neg(float rgb[3], float fac)
+{
+	mul_v3_fl(rgb, fac);
+}
+
+static void tint_pos(float rgb[3], float fac)
+{
+	rgb[0] = 1.0 - rgb[0];
+	rgb[1] = 1.0 - rgb[1];
+	rgb[2] = 1.0 - rgb[2];
+
+	mul_v3_fl(rgb, fac);
+
+	rgb[0] = 1.0 - rgb[0];
+	rgb[1] = 1.0 - rgb[1];
+	rgb[2] = 1.0 - rgb[2];
+}
+
+static void draw_object_wire_color_adjust_contrast(
+        unsigned char ob_wire_col[3],
+        /* 0 == normal, 1 == select, 2 == obact */
+        const int select_state,
+        const short draw_type)
+{
+	float rgb[3];
+
+	BLI_assert(draw_object_wire_grey != -1.0);
+
+	rgb_uchar_to_float(rgb, ob_wire_col);
+
+	if (select_state == 0) {
+		tint_neg(rgb, 0.5f);
+	}
+	else {
+		tint_pos(rgb, select_state == 2 ? 0.15f : 0.35f);
+	}
+
+
+	/* when no solid --- ensure contrast */
+	if (draw_type <= OB_WIRE) {
+		const float contrast = 0.1f;
+
+		const float fill_bw = draw_object_wire_grey;
+		const float wire_bw = rgb_to_grayscale(rgb);
+		const float delta = wire_bw - fill_bw;
+
+		if (fabsf(delta) < contrast) {
+			if (delta > 0.0f) {
+				add_v3_fl(rgb, (contrast - delta) / 2.0f);
+			}
+			else {
+				add_v3_fl(rgb, (contrast + delta) / -2.0f);
+			}
+		}
+	}
+	rgb_float_to_uchar(ob_wire_col, rgb);
+}
+
 static void draw_object_matcap_check(View3D *v3d, Object *ob)
 {
 	/* fixed rule, active object draws as matcap */
@@ -7179,6 +7345,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	const bool render_override = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	const bool has_particles = (ob->particlesystem.first != NULL);
+	const bool is_wire_color = V3D_IS_WIRECOLOR_OBJECT(scene, v3d, ob);
 	bool particle_skip_object = false;  /* Draw particles but not their emitter object. */
 
 	if (ob != scene->obedit) {
@@ -7257,20 +7424,31 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		draw_motion_paths_cleanup(v3d);
 	}
 
-	/* multiply view with object matrix.
-	 * local viewmat and persmat, to calculate projections */
-	ED_view3d_init_mats_rv3d_gl(ob, rv3d);
-
 	/* which wire color */
 	if ((dflag & DRAW_CONSTCOLOR) == 0) {
 
 		ED_view3d_project_base(ar, base);
 
-		draw_object_wire_color(scene, base, _ob_wire_col);
+		if (is_wire_color) {
+			rgb_float_to_uchar(_ob_wire_col, ob->col);
+			_ob_wire_col[3] = 255;
+
+			draw_object_wire_color_adjust_contrast(
+			        _ob_wire_col,
+			        (ob->flag & SELECT) ? (is_obact ? 2 : 1) : 0,
+			        v3d->drawtype);
+		}
+		else {
+			draw_object_wire_color(scene, base, _ob_wire_col);
+		}
 		ob_wire_col = _ob_wire_col;
 
 		glColor3ubv(ob_wire_col);
 	}
+
+	/* multiply view with object matrix.
+	 * local viewmat and persmat, to calculate projections */
+	ED_view3d_init_mats_rv3d_gl(ob, rv3d);
 
 	/* maximum drawtype */
 	dt = v3d->drawtype;
@@ -7285,7 +7463,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) {
 			if (ob->type == OB_MESH) {
 				if (dt < OB_SOLID) {
-					zbufoff = 1;
+					zbufoff = true;
 					dt = OB_SOLID;
 				}
 

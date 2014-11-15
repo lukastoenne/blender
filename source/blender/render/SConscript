@@ -41,6 +41,7 @@ incs = [
     '../include',
     '../makesdna',
     '../makesrna',
+    '../physics',
     '../../../intern/mikktspace',
     '../../../intern/smoke/extern',
     ]

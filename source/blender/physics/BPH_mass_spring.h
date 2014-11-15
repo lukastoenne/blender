@@ -42,6 +42,8 @@ struct HairParams;
 struct Object;
 struct Scene;
 struct SimDebugData;
+struct ListBase;
+struct VoxelData;
 
 typedef enum eMassSpringSolverStatus {
 	BPH_SOLVER_SUCCESS              = (1 << 0),
@@ -58,6 +60,8 @@ int BPH_cloth_solver_init(struct Object *ob, struct ClothModifierData *clmd);
 void BPH_cloth_solver_free(struct ClothModifierData *clmd);
 int BPH_cloth_solve(struct Object *ob, float frame, struct ClothModifierData *clmd, struct ListBase *effectors);
 void BPH_cloth_solver_set_positions(struct ClothModifierData *clmd);
+
+bool BPH_cloth_solver_get_texture_data(struct Object *ob, struct ClothModifierData *clmd, struct VoxelData *vd);
 
 struct HairSolverData *BPH_hair_solver_create(struct Object *ob, struct HairSystem *hsys);
 void BPH_hair_solver_free(struct HairSolverData *data);

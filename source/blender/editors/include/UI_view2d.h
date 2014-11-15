@@ -161,8 +161,8 @@ bool UI_view2d_tab_set(struct View2D *v2d, int tab);
 void UI_view2d_zoom_cache_reset(void);
 
 /* view matrix operations */
-void UI_view2d_view_ortho(struct View2D *v2d);
-void UI_view2d_view_orthoSpecial(struct ARegion *ar, struct View2D *v2d, short xaxis);
+float UI_view2d_view_ortho(struct View2D *v2d);
+void UI_view2d_view_orthoSpecial(struct ARegion *ar, struct View2D *v2d, const bool xaxis);
 void UI_view2d_view_restore(const struct bContext *C);
 
 /* grid drawing */
@@ -234,5 +234,6 @@ void ED_keymap_view2d(struct wmKeyConfig *keyconf);
 void UI_view2d_smooth_view(struct bContext *C, struct ARegion *ar,
                            const struct rctf *cur, const int smooth_viewtx);
 
-#endif /* __UI_VIEW2D_H__ */
+#define UI_MARKER_MARGIN_Y (42 * UI_DPI_FAC)
 
+#endif /* __UI_VIEW2D_H__ */

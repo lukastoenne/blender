@@ -4561,43 +4561,6 @@ void VIEW3D_OT_cursor3d(wmOperatorType *ot)
 
 /* ***************** manipulator op ******************* */
 
-
-static int manipulator_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	View3D *v3d = CTX_wm_view3d(C);
-
-	if (!(v3d->twflag & V3D_USE_MANIPULATOR)) return OPERATOR_PASS_THROUGH;
-	if (!(v3d->twflag & V3D_DRAW_MANIPULATOR)) return OPERATOR_PASS_THROUGH;
-
-	/* only no modifier or shift */
-	if (event->keymodifier != 0 && event->keymodifier != KM_SHIFT) return OPERATOR_PASS_THROUGH;
-
-	/* note; otherwise opengl won't work */
-	view3d_operator_needs_opengl(C);
-
-	if (0 == BIF_do_manipulator(C, event, op))
-		return OPERATOR_PASS_THROUGH;
-
-	return OPERATOR_FINISHED;
-}
-
-void VIEW3D_OT_manipulator(wmOperatorType *ot)
-{
-
-	/* identifiers */
-	ot->name = "3D Manipulator";
-	ot->description = "Manipulate selected item by axis";
-	ot->idname = "VIEW3D_OT_manipulator";
-
-	/* api callbacks */
-	ot->invoke = manipulator_invoke;
-
-	ot->poll = ED_operator_view3d_active;
-
-	/* properties to pass to transform */
-	Transform_Properties(ot, P_CONSTRAINT);
-}
-
 static int enable_manipulator_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	View3D *v3d = CTX_wm_view3d(C);

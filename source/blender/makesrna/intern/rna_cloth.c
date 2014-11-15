@@ -385,16 +385,36 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Collider Friction", "");
 	RNA_def_property_update(prop, 0, "rna_cloth_update");
 
-	prop = RNA_def_property(srna, "pressure", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "pressure");
-	RNA_def_property_range(prop, 0.0f, 1000.0f);
-	RNA_def_property_ui_text(prop, "Internal Pressure", "Generate outward force based on hair density");
+	prop = RNA_def_property(srna, "density_target", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "density_target");
+	RNA_def_property_range(prop, 0.0f, 10000.0f);
+	RNA_def_property_ui_text(prop, "Target Density", "Maximum density of hair");
 	RNA_def_property_update(prop, 0, "rna_cloth_update");
 
-	prop = RNA_def_property(srna, "pressure_threshold", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "pressure_threshold");
-	RNA_def_property_range(prop, 0.0f, 1000.0f);
-	RNA_def_property_ui_text(prop, "Internal Pressure Threshold", "No pressure force is generated below this pressure value");
+	prop = RNA_def_property(srna, "density_strength", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "density_strength");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Target Density Strength", "Influence of target density on the simulation");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
+
+	prop = RNA_def_property(srna, "debug1", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1000000.0f);
+	RNA_def_property_ui_text(prop, "Debug1", "");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
+
+	prop = RNA_def_property(srna, "debug2", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1000000.0f);
+	RNA_def_property_ui_text(prop, "Debug2", "");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
+
+	prop = RNA_def_property(srna, "debug3", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1000000.0f);
+	RNA_def_property_ui_text(prop, "Debug3", "");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
+
+	prop = RNA_def_property(srna, "debug4", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1000000.0f);
+	RNA_def_property_ui_text(prop, "Debug4", "");
 	RNA_def_property_update(prop, 0, "rna_cloth_update");
 
 	/* mass */
@@ -470,21 +490,12 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Shrink Factor Max", "Max amount to shrink cloth by");
 	RNA_def_property_update(prop, 0, "rna_cloth_update");
 
-	prop = RNA_def_property(srna, "voxel_resolution", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "voxel_res");
-	RNA_def_property_range(prop, 1, 128);
-	RNA_def_property_int_default(prop, 32);
-	RNA_def_property_ui_text(prop, "Voxel Grid Resolution", "Resolution of the voxel grid for interaction effects");
+	prop = RNA_def_property(srna, "voxel_cell_size", PROP_FLOAT, PROP_UNSIGNED);
+	RNA_def_property_float_sdna(prop, NULL, "voxel_cell_size");
+	RNA_def_property_range(prop, 0.0001f, 10000.0f);
+	RNA_def_property_float_default(prop, 0.1f);
+	RNA_def_property_ui_text(prop, "Voxel Grid Cell Size", "Size of the voxel grid cells for interaction effects");
 	RNA_def_property_update(prop, 0, "rna_cloth_update");
-
-#if 0 /* disabled */
-	prop = RNA_def_property(srna, "voxel_filter_size", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "voxel_filter_size");
-	RNA_def_property_range(prop, 0, 8);
-	RNA_def_property_int_default(prop, 0);
-	RNA_def_property_ui_text(prop, "Voxel Grid Filter Size", "Number of cells to use for filtering grid velocity");
-	RNA_def_property_update(prop, 0, "rna_cloth_update");
-#endif
 
 	/* springs */
 

@@ -409,6 +409,7 @@ DO_INLINE void initdiag_fmatrixS(float to[3][3], float aS)
 	to[2][2] = aS;
 }
 
+#if 0
 /* calculate determinant of 3x3 matrix */
 DO_INLINE float det_fmatrix(float m[3][3])
 {
@@ -443,6 +444,7 @@ DO_INLINE void inverse_fmatrix(float to[3][3], float from[3][3])
 	}
 
 }
+#endif
 
 /* 3x3 matrix multiplied by a scalar */
 /* STATUS: verified */
@@ -470,41 +472,12 @@ DO_INLINE void mul_fmatrix_fvector(float *to, float matrix[3][3], float from[3])
 	to[1] = dot_v3v3(matrix[1], from);
 	to[2] = dot_v3v3(matrix[2], from);
 }
-/* 3x3 matrix multiplied by a 3x3 matrix */
-/* STATUS: verified */
-DO_INLINE void mul_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float matrixB[3][3])
-{
-	mul_fvector_fmatrix(to[0], matrixA[0], matrixB);
-	mul_fvector_fmatrix(to[1], matrixA[1], matrixB);
-	mul_fvector_fmatrix(to[2], matrixA[2], matrixB);
-}
 /* 3x3 matrix addition with 3x3 matrix */
 DO_INLINE void add_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float matrixB[3][3])
 {
 	VECADD(to[0], matrixA[0], matrixB[0]);
 	VECADD(to[1], matrixA[1], matrixB[1]);
 	VECADD(to[2], matrixA[2], matrixB[2]);
-}
-/* 3x3 matrix add-addition with 3x3 matrix */
-DO_INLINE void addadd_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float matrixB[3][3])
-{
-	VECADDADD(to[0], matrixA[0], matrixB[0]);
-	VECADDADD(to[1], matrixA[1], matrixB[1]);
-	VECADDADD(to[2], matrixA[2], matrixB[2]);
-}
-/* 3x3 matrix sub-addition with 3x3 matrix */
-DO_INLINE void addsub_fmatrixS_fmatrixS(float to[3][3], float matrixA[3][3], float aS, float matrixB[3][3], float bS)
-{
-	VECADDSUBSS(to[0], matrixA[0], aS, matrixB[0], bS);
-	VECADDSUBSS(to[1], matrixA[1], aS, matrixB[1], bS);
-	VECADDSUBSS(to[2], matrixA[2], aS, matrixB[2], bS);
-}
-/* A -= B + C (3x3 matrix sub-addition with 3x3 matrix) */
-DO_INLINE void subadd_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float matrixB[3][3])
-{
-	VECSUBADD(to[0], matrixA[0], matrixB[0]);
-	VECSUBADD(to[1], matrixA[1], matrixB[1]);
-	VECSUBADD(to[2], matrixA[2], matrixB[2]);
 }
 /* A -= B*x + C*y (3x3 matrix sub-addition with 3x3 matrix) */
 DO_INLINE void subadd_fmatrixS_fmatrixS(float to[3][3], float matrixA[3][3], float aS, float matrixB[3][3], float bS)
@@ -520,44 +493,9 @@ DO_INLINE void sub_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float ma
 	sub_v3_v3v3(to[1], matrixA[1], matrixB[1]);
 	sub_v3_v3v3(to[2], matrixA[2], matrixB[2]);
 }
-/* A += B - C (3x3 matrix add-subtraction with 3x3 matrix) */
-DO_INLINE void addsub_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float matrixB[3][3])
-{
-	VECADDSUB(to[0], matrixA[0], matrixB[0]);
-	VECADDSUB(to[1], matrixA[1], matrixB[1]);
-	VECADDSUB(to[2], matrixA[2], matrixB[2]);
-}
 /////////////////////////////////////////////////////////////////
 // special functions
 /////////////////////////////////////////////////////////////////
-/* a vector multiplied and added to/by a 3x3 matrix */
-DO_INLINE void muladd_fvector_fmatrix(float to[3], float from[3], float matrix[3][3])
-{
-	to[0] += matrix[0][0]*from[0] + matrix[1][0]*from[1] + matrix[2][0]*from[2];
-	to[1] += matrix[0][1]*from[0] + matrix[1][1]*from[1] + matrix[2][1]*from[2];
-	to[2] += matrix[0][2]*from[0] + matrix[1][2]*from[1] + matrix[2][2]*from[2];
-}
-/* 3x3 matrix multiplied and added  to/by a 3x3 matrix  and added to another 3x3 matrix */
-DO_INLINE void muladd_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float matrixB[3][3])
-{
-	muladd_fvector_fmatrix(to[0], matrixA[0], matrixB);
-	muladd_fvector_fmatrix(to[1], matrixA[1], matrixB);
-	muladd_fvector_fmatrix(to[2], matrixA[2], matrixB);
-}
-/* a vector multiplied and sub'd to/by a 3x3 matrix */
-DO_INLINE void mulsub_fvector_fmatrix(float to[3], float from[3], float matrix[3][3])
-{
-	to[0] -= matrix[0][0]*from[0] + matrix[1][0]*from[1] + matrix[2][0]*from[2];
-	to[1] -= matrix[0][1]*from[0] + matrix[1][1]*from[1] + matrix[2][1]*from[2];
-	to[2] -= matrix[0][2]*from[0] + matrix[1][2]*from[1] + matrix[2][2]*from[2];
-}
-/* 3x3 matrix multiplied and sub'd  to/by a 3x3 matrix  and added to another 3x3 matrix */
-DO_INLINE void mulsub_fmatrix_fmatrix(float to[3][3], float matrixA[3][3], float matrixB[3][3])
-{
-	mulsub_fvector_fmatrix(to[0], matrixA[0], matrixB);
-	mulsub_fvector_fmatrix(to[1], matrixA[1], matrixB);
-	mulsub_fvector_fmatrix(to[2], matrixA[2], matrixB);
-}
 /* 3x3 matrix multiplied+added by a vector */
 /* STATUS: verified */
 DO_INLINE void muladd_fmatrix_fvector(float to[3], float matrix[3][3], float from[3])
@@ -565,13 +503,6 @@ DO_INLINE void muladd_fmatrix_fvector(float to[3], float matrix[3][3], float fro
 	to[0] += dot_v3v3(matrix[0], from);
 	to[1] += dot_v3v3(matrix[1], from);
 	to[2] += dot_v3v3(matrix[2], from);
-}
-/* 3x3 matrix multiplied+sub'ed by a vector */
-DO_INLINE void mulsub_fmatrix_fvector(float to[3], float matrix[3][3], float from[3])
-{
-	to[0] -= dot_v3v3(matrix[0], from);
-	to[1] -= dot_v3v3(matrix[1], from);
-	to[2] -= dot_v3v3(matrix[2], from);
 }
 
 BLI_INLINE void outerproduct(float r[3][3], const float a[3], const float b[3])
@@ -702,15 +633,6 @@ DO_INLINE void initdiag_bfmatrix(fmatrix3x3 *matrix, float m3[3][3])
 	}
 }
 
-/* multiply big matrix with scalar*/
-DO_INLINE void mul_bfmatrix_S(fmatrix3x3 *matrix, float scalar)
-{
-	unsigned int i = 0;
-	for (i = 0; i < matrix[0].vcount+matrix[0].scount; i++) {
-		mul_fmatrix_S(matrix[i].m, scalar);
-	}
-}
-
 /* SPARSE SYMMETRIC multiply big matrix with long vector*/
 /* STATUS: verified */
 DO_INLINE void mul_bfmatrix_lfvector( float (*to)[3], fmatrix3x3 *from, lfVector *fLongVector)
@@ -743,83 +665,6 @@ DO_INLINE void mul_bfmatrix_lfvector( float (*to)[3], fmatrix3x3 *from, lfVector
 	
 }
 
-/* SPARSE SYMMETRIC multiply big matrix with long vector (for diagonal preconditioner) */
-/* STATUS: verified */
-DO_INLINE void mul_prevfmatrix_lfvector( float (*to)[3], fmatrix3x3 *from, lfVector *fLongVector)
-{
-	unsigned int i = 0;
-	
-	for (i = 0; i < from[0].vcount; i++) {
-		mul_fmatrix_fvector(to[from[i].r], from[i].m, fLongVector[from[i].c]);
-	}
-}
-
-/* SPARSE SYMMETRIC add big matrix with big matrix: A = B + C*/
-DO_INLINE void add_bfmatrix_bfmatrix( fmatrix3x3 *to, fmatrix3x3 *from,  fmatrix3x3 *matrix)
-{
-	unsigned int i = 0;
-
-	/* process diagonal elements */
-	for (i = 0; i < matrix[0].vcount+matrix[0].scount; i++) {
-		add_fmatrix_fmatrix(to[i].m, from[i].m, matrix[i].m);
-	}
-
-}
-/* SPARSE SYMMETRIC add big matrix with big matrix: A += B + C */
-DO_INLINE void addadd_bfmatrix_bfmatrix( fmatrix3x3 *to, fmatrix3x3 *from,  fmatrix3x3 *matrix)
-{
-	unsigned int i = 0;
-
-	/* process diagonal elements */
-	for (i = 0; i < matrix[0].vcount+matrix[0].scount; i++) {
-		addadd_fmatrix_fmatrix(to[i].m, from[i].m, matrix[i].m);
-	}
-
-}
-/* SPARSE SYMMETRIC subadd big matrix with big matrix: A -= B + C */
-DO_INLINE void subadd_bfmatrix_bfmatrix( fmatrix3x3 *to, fmatrix3x3 *from,  fmatrix3x3 *matrix)
-{
-	unsigned int i = 0;
-
-	/* process diagonal elements */
-	for (i = 0; i < matrix[0].vcount+matrix[0].scount; i++) {
-		subadd_fmatrix_fmatrix(to[i].m, from[i].m, matrix[i].m);
-	}
-
-}
-/*  A = B - C (SPARSE SYMMETRIC sub big matrix with big matrix) */
-DO_INLINE void sub_bfmatrix_bfmatrix( fmatrix3x3 *to, fmatrix3x3 *from,  fmatrix3x3 *matrix)
-{
-	unsigned int i = 0;
-
-	/* process diagonal elements */
-	for (i = 0; i < matrix[0].vcount+matrix[0].scount; i++) {
-		sub_fmatrix_fmatrix(to[i].m, from[i].m, matrix[i].m);
-	}
-
-}
-/* SPARSE SYMMETRIC sub big matrix with big matrix S (special constraint matrix with limited entries) */
-DO_INLINE void sub_bfmatrix_Smatrix( fmatrix3x3 *to, fmatrix3x3 *from,  fmatrix3x3 *matrix)
-{
-	unsigned int i = 0;
-
-	/* process diagonal elements */
-	for (i = 0; i < matrix[0].vcount; i++) {
-		sub_fmatrix_fmatrix(to[matrix[i].c].m, from[matrix[i].c].m, matrix[i].m);
-	}
-
-}
-/* A += B - C (SPARSE SYMMETRIC addsub big matrix with big matrix) */
-DO_INLINE void addsub_bfmatrix_bfmatrix( fmatrix3x3 *to, fmatrix3x3 *from,  fmatrix3x3 *matrix)
-{
-	unsigned int i = 0;
-
-	/* process diagonal elements */
-	for (i = 0; i < matrix[0].vcount+matrix[0].scount; i++) {
-		addsub_fmatrix_fmatrix(to[i].m, from[i].m, matrix[i].m);
-	}
-
-}
 /* SPARSE SYMMETRIC sub big matrix with big matrix*/
 /* A -= B * float + C * float --> for big matrix */
 /* VERIFIED */
@@ -1121,6 +966,7 @@ static int cg_filtered(lfVector *ldV, fmatrix3x3 *lA, lfVector *lB, lfVector *z,
 	return conjgrad_loopcount < conjgrad_looplimit;  // true means we reached desired accuracy in given time - ie stable
 }
 
+#if 0
 // block diagonalizer
 DO_INLINE void BuildPPinv(fmatrix3x3 *lA, fmatrix3x3 *P, fmatrix3x3 *Pinv)
 {
@@ -1135,7 +981,6 @@ DO_INLINE void BuildPPinv(fmatrix3x3 *lA, fmatrix3x3 *P, fmatrix3x3 *Pinv)
 		
 	}
 }
-#if 0
 /*
 // version 1.3
 static int cg_filtered_pre(lfVector *dv, fmatrix3x3 *lA, lfVector *lB, lfVector *z, fmatrix3x3 *S, fmatrix3x3 *P, fmatrix3x3 *Pinv)
@@ -1309,7 +1154,7 @@ static int cg_filtered_pre(lfVector *dv, fmatrix3x3 *lA, lfVector *lB, lfVector 
 }
 #endif
 
-bool BPH_mass_spring_solve(Implicit_Data *data, float dt, ImplicitSolverResult *result)
+bool BPH_mass_spring_solve_velocities(Implicit_Data *data, float dt, ImplicitSolverResult *result)
 {
 	unsigned int numverts = data->dFdV[0].vcount;
 
@@ -1334,12 +1179,20 @@ bool BPH_mass_spring_solve(Implicit_Data *data, float dt, ImplicitSolverResult *
 
 	// advance velocities
 	add_lfvector_lfvector(data->Vnew, data->V, data->dV, numverts);
-	// advance positions
-	add_lfvector_lfvectorS(data->Xnew, data->X, data->Vnew, dt, numverts);
 
 	del_lfvector(dFdXmV);
 	
 	return result->status == BPH_SOLVER_SUCCESS;
+}
+
+bool BPH_mass_spring_solve_positions(Implicit_Data *data, float dt)
+{
+	int numverts = data->M[0].vcount;
+	
+	// advance positions
+	add_lfvector_lfvectorS(data->Xnew, data->X, data->Vnew, dt, numverts);
+	
+	return true;
 }
 
 void BPH_mass_spring_apply_result(Implicit_Data *data)
@@ -1347,6 +1200,12 @@ void BPH_mass_spring_apply_result(Implicit_Data *data)
 	int numverts = data->M[0].vcount;
 	cp_lfvector(data->X, data->Xnew, numverts);
 	cp_lfvector(data->V, data->Vnew, numverts);
+}
+
+void BPH_mass_spring_set_vertex_mass(Implicit_Data *data, int index, float mass)
+{
+	unit_m3(data->M[index].m);
+	mul_m3_fl(data->M[index].m, mass);
 }
 
 void BPH_mass_spring_set_rest_transform(Implicit_Data *data, int index, float tfm[3][3])
@@ -1381,11 +1240,22 @@ void BPH_mass_spring_get_motion_state(struct Implicit_Data *data, int index, flo
 	if (v) root_to_world_v3(data, index, v, data->V[index]);
 }
 
-void BPH_mass_spring_set_vertex_mass(Implicit_Data *data, int index, float mass)
+void BPH_mass_spring_get_position(struct Implicit_Data *data, int index, float x[3])
 {
-	unit_m3(data->M[index].m);
-	mul_m3_fl(data->M[index].m, mass);
+	root_to_world_v3(data, index, x, data->X[index]);
 }
+
+void BPH_mass_spring_get_new_velocity(struct Implicit_Data *data, int index, float v[3])
+{
+	root_to_world_v3(data, index, v, data->Vnew[index]);
+}
+
+void BPH_mass_spring_set_new_velocity(struct Implicit_Data *data, int index, const float v[3])
+{
+	world_to_root_v3(data, index, data->Vnew[index], v);
+}
+
+/* -------------------------------- */
 
 static int BPH_mass_spring_add_block(Implicit_Data *data, int v1, int v2)
 {
@@ -1636,18 +1506,6 @@ BLI_INLINE void dfdx_spring(float to[3][3], const float dir[3], float length, fl
 	mul_m3_fl(to, k);
 }
 
-/* unused */
-#if 0
-BLI_INLINE void dfdx_damp(float to[3][3], const float dir[3], float length, const float vel[3], float rest, float damping)
-{
-	// inner spring damping   vel is the relative velocity  of the endpoints.  
-	// 	return (I-outerprod(dir, dir)) * (-damping * -(dot(dir, vel)/Max(length, rest)));
-	mul_fvectorT_fvector(to, dir, dir);
-	sub_fmatrix_fmatrix(to, I, to);
-	mul_fmatrix_S(to,  (-damping * -(dot_v3v3(dir, vel)/MAX2(length, rest))));
-}
-#endif
-
 BLI_INLINE void dfdv_damp(float to[3][3], const float dir[3], float damping)
 {
 	// derivative of force wrt velocity
@@ -1658,14 +1516,18 @@ BLI_INLINE void dfdv_damp(float to[3][3], const float dir[3], float damping)
 BLI_INLINE float fb(float length, float L)
 {
 	float x = length / L;
-	return (-11.541f * powf(x, 4) + 34.193f * powf(x, 3) - 39.083f * powf(x, 2) + 23.116f * x - 9.713f);
+	float xx = x * x;
+	float xxx = xx * x;
+	float xxxx = xxx * x;
+	return (-11.541f * xxxx + 34.193f * xxx - 39.083f * xx + 23.116f * x - 9.713f);
 }
 
 BLI_INLINE float fbderiv(float length, float L)
 {
-	float x = length/L;
-
-	return (-46.164f * powf(x, 3) + 102.579f * powf(x, 2) - 78.166f * x + 23.116f);
+	float x = length / L;
+	float xx = x * x;
+	float xxx = xx * x;
+	return (-46.164f * xxx + 102.579f * xx - 78.166f * x + 23.116f);
 }
 
 BLI_INLINE float fbstar(float length, float L, float kb, float cb)

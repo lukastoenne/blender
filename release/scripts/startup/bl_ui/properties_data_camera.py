@@ -173,6 +173,29 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         col.prop(cam, "dof_distance", text="Distance")
 
 
+class DATA_PT_camera_gpu_dof(Panel):
+    bl_label = "GPU Depth of Field"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "data"
+
+    def draw(self, context):
+        layout = self.layout
+
+        cam = context.camera
+
+        dof_options = cam.gpu_dof
+        col = layout.column(align=True)
+        col.label("Focus object or distance is set in Depth Of Field Panel")
+        col.prop(dof_options, "dof_fstop")
+        col.prop(dof_options, "dof_focal_length")
+        col.prop(dof_options, "dof_sensor")
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera
+
+
 class DATA_PT_camera_display(CameraButtonsPanel, Panel):
     bl_label = "Display"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}

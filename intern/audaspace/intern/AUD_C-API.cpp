@@ -46,6 +46,7 @@
 #include <cstring>
 #include <cmath>
 #include <sstream>
+#include <iostream>
 
 #include "AUD_NULLDevice.h"
 #include "AUD_I3DDevice.h"
@@ -310,8 +311,9 @@ AUD_SoundInfo AUD_getInfo(AUD_Sound *sound)
 			info.length = reader->getLength() / (float) info.specs.rate;
 		}
 	}
-	catch(AUD_Exception&)
+	catch(AUD_Exception &ae)
 	{
+		std::cout << ae.str << std::endl;
 	}
 
 	return info;
@@ -1077,7 +1079,7 @@ int AUD_doesPlayback()
 	return -1;
 }
 
-int AUD_readSound(AUD_Sound *sound, sample_t *buffer, int length, int samples_per_second)
+int AUD_readSound(AUD_Sound *sound, sample_t *buffer, int length, int samples_per_second, short *interrupt)
 {
 	AUD_DeviceSpecs specs;
 	sample_t *buf;
@@ -1100,6 +1102,9 @@ int AUD_readSound(AUD_Sound *sound, sample_t *buffer, int length, int samples_pe
 	for (int i = 0; i < length; i++) {
 		len = floor(samplejump * (i+1)) - floor(samplejump * i);
 
+		if (*interrupt) {
+			return 0;
+		}
 		aBuffer.assureSize(len * AUD_SAMPLE_SIZE(specs));
 		buf = aBuffer.getBuffer();
 

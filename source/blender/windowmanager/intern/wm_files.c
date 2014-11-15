@@ -476,6 +476,8 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 		BPY_python_reset(C);
 #endif
 
+		WM_operatortype_last_properties_clear_all();
+
 		/* important to do before NULL'ing the context */
 		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
 		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
@@ -667,6 +669,8 @@ int wm_homefile_read(bContext *C, ReportList *reports, bool from_memory, const c
 		BPY_python_reset(C);
 	}
 #endif
+
+	WM_operatortype_last_properties_clear_all();
 
 	/* important to do before NULL'ing the context */
 	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
@@ -1011,6 +1015,8 @@ int wm_homefile_write_exec(bContext *C, wmOperator *op)
 	char filepath[FILE_MAX];
 	int fileflags;
 
+	BLI_callback_exec(G.main, NULL, BLI_CB_EVT_SAVE_PRE);
+
 	/* check current window and close it if temp */
 	if (win && win->screen->temp)
 		wm_window_close(C, wm, win);
@@ -1034,6 +1040,8 @@ int wm_homefile_write_exec(bContext *C, wmOperator *op)
 	printf("ok\n");
 
 	G.save_over = 0;
+
+	BLI_callback_exec(G.main, NULL, BLI_CB_EVT_SAVE_POST);
 
 	return OPERATOR_FINISHED;
 }
@@ -1064,12 +1072,20 @@ int wm_userpref_write_exec(bContext *C, wmOperator *op)
 
 void wm_autosave_location(char *filepath)
 {
-	char pidstr[32];
+	const int pid = abs(getpid());
+	char path[1024];
 #ifdef WIN32
 	const char *savedir;
 #endif
 
-	BLI_snprintf(pidstr, sizeof(pidstr), "%d.blend", abs(getpid()));
+	if (G.main && G.relbase_valid) {
+		const char *basename = BLI_path_basename(G.main->name);
+		int len = strlen(basename) - 6;
+		BLI_snprintf(path, sizeof(path), "%.*s-%d.blend", len, basename, pid);
+	}
+	else {
+		BLI_snprintf(path, sizeof(path), "%d.blend", pid);
+	}
 
 #ifdef WIN32
 	/* XXX Need to investigate how to handle default location of '/tmp/'
@@ -1082,12 +1098,12 @@ void wm_autosave_location(char *filepath)
 	 * If there is no C:\tmp autosave fails. */
 	if (!BLI_exists(BLI_temp_dir_base())) {
 		savedir = BLI_get_folder_create(BLENDER_USER_AUTOSAVE, NULL);
-		BLI_make_file_string("/", filepath, savedir, pidstr);
+		BLI_make_file_string("/", filepath, savedir, path);
 		return;
 	}
 #endif
 
-	BLI_make_file_string("/", filepath, BLI_temp_dir_base(), pidstr);
+	BLI_make_file_string("/", filepath, BLI_temp_dir_base(), path);
 }
 
 void WM_autosave_init(wmWindowManager *wm)

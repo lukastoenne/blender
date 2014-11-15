@@ -157,6 +157,7 @@
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
+#include "BKE_sound.h"
 #include "BKE_subsurf.h"
 #include "BKE_modifier.h"
 #include "BKE_fcurve.h"
@@ -2661,6 +2662,13 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					for (bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next)
 						writestruct(wd, DATA, "BGpic", 1, bgpic);
 					if (v3d->localvd) writestruct(wd, DATA, "View3D", 1, v3d->localvd);
+					if (v3d->fxoptions) {
+						writestruct(wd, DATA, "GPUFXOptions", 1, v3d->fxoptions);
+						if (v3d->fxoptions->dof_options)
+							writestruct(wd, DATA, "GPUDOFOptions", 1, v3d->fxoptions->dof_options);
+						if (v3d->fxoptions->ssao_options)
+							writestruct(wd, DATA, "GPUSSAOOptions", 1, v3d->fxoptions->ssao_options);
+					}
 				}
 				else if (sl->spacetype==SPACE_IPO) {
 					SpaceIpo *sipo= (SpaceIpo *)sl;

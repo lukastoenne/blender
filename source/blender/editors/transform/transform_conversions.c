@@ -2167,6 +2167,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
                              BMEditMesh *em, BMVert *eve, float *bweight,
                              struct TransIslandData *v_island)
 {
+	float *no, _no[3];
 	BLI_assert(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) == 0);
 
 	td->flag = 0;
@@ -2176,19 +2177,30 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	td->loc = eve->co;
 	copy_v3_v3(td->iloc, td->loc);
 
+	if ((t->mode == TFM_SHRINKFATTEN) &&
+	    (em->selectmode & SCE_SELECT_FACE) &&
+	    BM_elem_flag_test(eve, BM_ELEM_SELECT) &&
+	    (BM_vert_normal_update_ex(eve, BM_ELEM_SELECT, _no)))
+	{
+		no = _no;
+	}
+	else {
+		no = eve->no;
+	}
+
 	if (v_island) {
 		copy_v3_v3(td->center, v_island->co);
 		copy_m3_m3(td->axismtx, v_island->axismtx);
 	}
 	else if (t->around == V3D_LOCAL) {
 		copy_v3_v3(td->center, td->loc);
-		createSpaceNormal(td->axismtx, eve->no);
+		createSpaceNormal(td->axismtx, no);
 	}
 	else {
 		copy_v3_v3(td->center, td->loc);
 
 		/* Setting normals */
-		copy_v3_v3(td->axismtx[2], eve->no);
+		copy_v3_v3(td->axismtx[2], no);
 		td->axismtx[0][0]        =
 		    td->axismtx[0][1]    =
 		    td->axismtx[0][2]    =
@@ -2217,7 +2229,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	}
 	else if (t->mode == TFM_SHRINKFATTEN) {
 		td->ext = tx;
-		tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, BM_ELEM_SELECT);
+		tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
 	}
 }
 
@@ -2636,7 +2648,7 @@ static void UVsToTransData(SpaceImage *sima, TransData *td, TransData2D *td2d, f
 	/* uv coords are scaled by aspects. this is needed for rotations and
 	 * proportional editing to be consistent with the stretched uv coords
 	 * that are displayed. this also means that for display and numinput,
-	 * and when the the uv coords are flushed, these are converted each time */
+	 * and when the uv coords are flushed, these are converted each time */
 	td2d->loc[0] = uv[0] * aspx;
 	td2d->loc[1] = uv[1] * aspy;
 	td2d->loc[2] = 0.0f;
@@ -4477,11 +4489,12 @@ static TransData *SeqToTransData(TransData *td, TransData2D *td2d, TransDataSeq 
 	return td;
 }
 
-static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *td, TransData2D *td2d, TransDataSeq *tdsq)
+static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *td, TransData2D *td2d, TransDataSeq *tdsq, TransSeq *ts)
 {
 	Sequence *seq;
 	int recursive, count, flag;
 	int tot = 0;
+	int max = INT32_MIN, min = INT32_MAX;
 
 	for (seq = seqbase->first; seq; seq = seq->next) {
 
@@ -4489,7 +4502,7 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 
 		/* add children first so recalculating metastrips does nested strips first */
 		if (recursive) {
-			int tot_children = SeqToTransData_Recursive(t, &seq->seqbase, td, td2d, tdsq);
+			int tot_children = SeqToTransData_Recursive(t, &seq->seqbase, td, td2d, tdsq, NULL);
 
 			td =     td +    tot_children;
 			td2d =   td2d +  tot_children;
@@ -4504,19 +4517,29 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 				if (flag & SEQ_LEFTSEL) {
 					SeqToTransData(td++, td2d++, tdsq++, seq, flag, SEQ_LEFTSEL);
 					tot++;
+					min = min_ii(seq->startdisp, min);
+					max = max_ii(seq->startdisp, max);
 				}
 				if (flag & SEQ_RIGHTSEL) {
 					SeqToTransData(td++, td2d++, tdsq++, seq, flag, SEQ_RIGHTSEL);
 					tot++;
+					min = min_ii(seq->enddisp, min);
+					max = max_ii(seq->enddisp, max);
 				}
 			}
 			else {
 				SeqToTransData(td++, td2d++, tdsq++, seq, flag, SELECT);
 				tot++;
+				min = min_ii(seq->startdisp, min);
+				max = max_ii(seq->enddisp, max);
 			}
 		}
 	}
 
+	if (ts) {
+		ts->max = max;
+		ts->min = min;
+	}
 	return tot;
 }
 
@@ -4682,6 +4705,8 @@ static void freeSeqData(TransInfo *t)
 	}
 
 	if ((t->customData != NULL) && (t->flag & T_FREE_CUSTOMDATA)) {
+		TransSeq *ts = t->customData;
+		MEM_freeN(ts->tdseq);
 		MEM_freeN(t->customData);
 		t->customData = NULL;
 	}
@@ -4701,6 +4726,8 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 	TransData *td = NULL;
 	TransData2D *td2d = NULL;
 	TransDataSeq *tdsq = NULL;
+	TransSeq *ts = NULL;
+	float xmouse, ymouse;
 
 	int count = 0;
 
@@ -4711,12 +4738,11 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 
 	t->customFree = freeSeqData;
 
+	UI_view2d_region_to_view(v2d, t->imval[0], t->imval[1], &xmouse, &ymouse);
+
 	/* which side of the current frame should be allowed */
 	if (t->mode == TFM_TIME_EXTEND) {
 		/* only side on which mouse is gets transformed */
-		float xmouse, ymouse;
-
-		UI_view2d_region_to_view(v2d, t->imval[0], t->imval[1], &xmouse, &ymouse);
 		t->frame_side = (xmouse > CFRA) ? 'R' : 'L';
 	}
 	else {
@@ -4756,15 +4782,18 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 		return;
 	}
 
+	t->customData = ts = MEM_mallocN(sizeof(TransSeq), "transseq");
 	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransSeq TransData");
 	td2d = t->data2d = MEM_callocN(t->total * sizeof(TransData2D), "TransSeq TransData2D");
-	tdsq = t->customData = MEM_callocN(t->total * sizeof(TransDataSeq), "TransSeq TransDataSeq");
+	ts->tdseq = tdsq = MEM_callocN(t->total * sizeof(TransDataSeq), "TransSeq TransDataSeq");
 	t->flag |= T_FREE_CUSTOMDATA;
 
-
-
 	/* loop 2: build transdata array */
-	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq);
+	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq, ts);
+
+	/* set the snap mode based on how close the mouse is at the end/start points */
+	if (abs(xmouse - ts->max) > abs(xmouse - ts->min))
+		ts->snap_left = true;
 
 #undef XXX_DURIAN_ANIM_TX_HACK
 }
@@ -6798,7 +6827,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 			/* CV coords are scaled by aspects. this is needed for rotations and
 			 * proportional editing to be consistent with the stretched CV coords
 			 * that are displayed. this also means that for display and numinput,
-			 * and when the the CV coords are flushed, these are converted each time */
+			 * and when the CV coords are flushed, these are converted each time */
 			mul_v2_m3v2(td2d->loc, parent_matrix, bezt->vec[i]);
 			td2d->loc[0] *= asp[0];
 			td2d->loc[1] *= asp[1];

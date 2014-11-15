@@ -85,10 +85,12 @@ static unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
 #undef rot
 }
 
+#if 0
 static int hash_vertex(int type, int vertex)
 {
 	return hash_int_2d((unsigned int)type, (unsigned int)vertex);
 }
+#endif
 
 static int hash_collpair(int type, CollPair *collpair)
 {
@@ -685,7 +687,7 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 {
 	int i;
 	
-	*collisions = (CollPair *) MEM_mallocN(sizeof(CollPair) * numresult * 64, "collision array" ); // * 4 since cloth_collision_static can return more than 1 collision
+	*collisions = (CollPair *) MEM_mallocN(sizeof(CollPair) * numresult * 4, "collision array" ); // * 4 since cloth_collision_static can return more than 1 collision
 	*collisions_index = *collisions;
 
 	for ( i = 0; i < numresult; i++ ) {
@@ -1059,6 +1061,7 @@ static bool cloth_points_collision_response_static(ClothModifierData *clmd, Coll
 				bounce = 0.0f;
 				mul_v3_v3fl(impulse, collpair->normal, repulse);
 			}
+#if 0
 			{
 				float d[3], md[3];
 				mul_v3_v3fl(d, collpair->normal, -collpair->distance);
@@ -1070,8 +1073,9 @@ static bool cloth_points_collision_response_static(ClothModifierData *clmd, Coll
 				BKE_sim_debug_data_add_line(clmd->debug_data, collmd->current_x[collpair->bp2].co, collmd->current_x[collpair->bp3].co, 0, 0, 1, "collision", hash_collpair(86, collpair));
 				BKE_sim_debug_data_add_line(clmd->debug_data, collmd->current_x[collpair->bp3].co, collmd->current_x[collpair->bp1].co, 0, 0, 1, "collision", hash_collpair(87, collpair));
 			}
+#endif
 			cloth1->verts[collpair->ap1].impulse_count++;
-			BKE_sim_debug_data_add_vector(clmd->debug_data, collpair->pa, impulse, 1.0, 1.0, 1.0, "collision", hash_collpair(873, collpair));
+//			BKE_sim_debug_data_add_vector(clmd->debug_data, collpair->pa, impulse, 1.0, 1.0, 1.0, "collision", hash_collpair(873, collpair));
 			
 			result = true;
 		}
@@ -1154,7 +1158,7 @@ BLI_INLINE bool cloth_point_face_collision_params(const float p1[3], const float
 }
 
 static CollPair *cloth_point_collpair(float p1[3], float p2[3], MVert *mverts, int bp1, int bp2, int bp3,
-                                      int index_cloth, int index_coll, float epsilon, CollPair *collpair, SimDebugData *debug_data)
+                                      int index_cloth, int index_coll, float epsilon, CollPair *collpair, SimDebugData *UNUSED(debug_data))
 {
 	float *co1 = mverts[bp1].co, *co2 = mverts[bp2].co, *co3 = mverts[bp3].co;
 	float lambda, distance1, distance2;

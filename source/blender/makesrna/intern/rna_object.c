@@ -941,6 +941,7 @@ static void rna_MaterialSlot_name_get(PointerRNA *ptr, char *str)
 static void rna_MaterialSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_Object_internal_update(bmain, scene, ptr);
+
 	WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, ptr->id.data);
 	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, NULL);
 }
@@ -2709,6 +2710,11 @@ static void rna_def_object(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_all_edges", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "dtx", OB_DRAW_ALL_EDGES);
 	RNA_def_property_ui_text(prop, "Draw All Edges", "Display all edges for mesh objects");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "show_wire_color", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "dtx", OB_DRAW_WIRECOLOR);
+	RNA_def_property_ui_text(prop, "Draw Wire Color", "Use custom wire color");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
 	prop = RNA_def_property(srna, "show_transparent", PROP_BOOLEAN, PROP_NONE);

@@ -153,7 +153,7 @@ void cloth_init(ClothModifierData *clmd )
 	clmd->sim_parms->goalfrict = 0.0f;
 	clmd->sim_parms->velocity_smooth = 0.0f;
 
-	clmd->sim_parms->voxel_res = 32;
+	clmd->sim_parms->voxel_cell_size = 0.1f;
 
 	if (!clmd->sim_parms->effector_weights)
 		clmd->sim_parms->effector_weights = BKE_add_effector_weights(NULL);
@@ -796,6 +796,7 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 			/* Reset vertex flags */
 			verts->flags &= ~CLOTH_VERT_FLAG_PINNED;
 			verts->flags &= ~CLOTH_VERT_FLAG_NOSELFCOLL;
+			verts->flags &= ~CLOTH_VERT_FLAG_EXCLUDE;
 
 			dvert = dm->getVertData ( dm, i, CD_MDEFORMVERT );
 			if ( dvert ) {
@@ -808,7 +809,7 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 						// Kicking goal factor to simplify things...who uses that anyway?
 						// ABS ( clmd->sim_parms->maxgoal - clmd->sim_parms->mingoal );
 						
-						verts->goal  = powf(verts->goal, 4.0f);
+						verts->goal  = pow4f(verts->goal);
 						if ( verts->goal >= SOFTGOALSNAP )
 							verts->flags |= CLOTH_VERT_FLAG_PINNED;
 					}
@@ -848,11 +849,13 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 		}
 	}
 	
+#ifdef USE_PARTICLE_PREVIEW
 	verts = clothObj->verts;
 	for ( i = 0; i < numverts; i++, verts++ ) {
 		if (mvert[i].flag & ME_VERT_TMP_TAG)
 			verts->flags |= CLOTH_VERT_FLAG_EXCLUDE;
 	}
+#endif
 }
 
 

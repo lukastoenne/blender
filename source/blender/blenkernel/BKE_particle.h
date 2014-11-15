@@ -65,6 +65,9 @@ struct BVHTreeRay;
 struct BVHTreeRayHit; 
 struct EdgeHash;
 
+/* XXX disabled for now due to stability issues and limited usefulness */
+//#define USE_PARTICLE_PREVIEW
+
 #define PARTICLE_P              ParticleData * pa; int p
 #define LOOP_PARTICLES  for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++)
 #define LOOP_EXISTING_PARTICLES for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++) if (!(pa->flag & PARS_UNEXIST))
@@ -145,7 +148,7 @@ typedef struct ParticleThreadContext {
 	float maxweight;
 	int *index, *skip, jitlevel;
 
-	int from, cfrom, distr;
+	int cfrom, distr;
 
 	struct ParticleData *tpars;
 
@@ -279,6 +282,9 @@ BLI_INLINE void psys_frand_vec(ParticleSystem *psys, unsigned int seed, float ve
 int count_particles(struct ParticleSystem *psys);
 int count_particles_mod(struct ParticleSystem *psys, int totgr, int cur);
 
+int psys_get_child_number(struct Scene *scene, struct ParticleSystem *psys);
+int psys_get_tot_child(struct Scene *scene, struct ParticleSystem *psys);
+
 struct ParticleSystem *psys_get_current(struct Object *ob);
 /* for rna */
 short psys_get_current_num(struct Object *ob);
@@ -304,7 +310,6 @@ void psys_free(struct Object *ob, struct ParticleSystem *psys);
 
 void psys_render_set(struct Object *ob, struct ParticleSystem *psys, float viewmat[4][4], float winmat[4][4], int winx, int winy, int timeoffset);
 void psys_render_restore(struct Object *ob, struct ParticleSystem *psys);
-int psys_render_simplify_distribution(struct ParticleThreadContext *ctx, int tot);
 bool psys_render_simplify_params(struct ParticleSystem *psys, struct ChildParticle *cpa, float *params);
 
 void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float uvco[2]);
@@ -382,7 +387,7 @@ void free_keyed_keys(struct ParticleSystem *psys);
 void psys_free_particles(struct ParticleSystem *psys);
 void psys_free_children(struct ParticleSystem *psys);
 
-void psys_interpolate_particle(short type, struct ParticleKey keys[4], float dt, struct ParticleKey *result, int velocity);
+void psys_interpolate_particle(short type, struct ParticleKey keys[4], float dt, struct ParticleKey *result, bool velocity);
 void psys_vec_rot_to_face(struct DerivedMesh *dm, struct ParticleData *pa, float vec[3]);
 void psys_mat_hair_to_object(struct Object *ob, struct DerivedMesh *dm, short from, struct ParticleData *pa, float hairmat[4][4]);
 void psys_mat_hair_to_global(struct Object *ob, struct DerivedMesh *dm, short from, struct ParticleData *pa, float hairmat[4][4]);
@@ -408,6 +413,7 @@ void psys_particle_on_dm(struct DerivedMesh *dm, int from, int index, int index_
                          float orco[3], float ornor[3]);
 
 /* particle_system.c */
+void distribute_particles(struct ParticleSimulationData *sim, int from);
 void initialize_particle(struct ParticleSimulationData *sim, struct ParticleData *pa);
 void psys_calc_dmcache(struct Object *ob, struct DerivedMesh *dm, struct ParticleSystem *psys);
 int psys_particle_dm_face_lookup(struct Object *ob, struct DerivedMesh *dm, int index, const float fw[4], struct LinkNode *node);
@@ -415,6 +421,33 @@ int psys_particle_dm_face_lookup(struct Object *ob, struct DerivedMesh *dm, int 
 void reset_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, float dtime, float cfra);
 
 float psys_get_current_display_percentage(struct ParticleSystem *psys);
+
+typedef struct ParticleRenderElem {
+	int curchild, totchild, reduce;
+	float lambda, t, scalemin, scalemax;
+} ParticleRenderElem;
+
+typedef struct ParticleRenderData {
+	ChildParticle *child;
+	ParticleCacheKey **pathcache;
+	ParticleCacheKey **childcache;
+	ListBase pathcachebufs, childcachebufs;
+	int totchild, totcached, totchildcache;
+	struct DerivedMesh *dm;
+	int totdmvert, totdmedge, totdmface;
+
+	float mat[4][4];
+	float viewmat[4][4], winmat[4][4];
+	int winx, winy;
+
+	int do_simplify;
+	int timeoffset;
+	ParticleRenderElem *elems;
+
+	/* ORIGINDEX */
+	const int *index_mf_to_mpoly;
+	const int *index_mp_to_orig;
+} ParticleRenderData;
 
 /* psys_reset */
 #define PSYS_RESET_ALL          1

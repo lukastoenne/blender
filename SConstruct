@@ -754,6 +754,11 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vertex.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_ssao_frag.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_frag.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_lib.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_vert.glsl")
     data_to_c_simple("intern/opencolorio/gpu_shader_display_transform.glsl")
 
     # --- blender ---
@@ -1180,7 +1185,7 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
         dllsources += ['${BF_PTHREADS_LIBPATH}/${BF_PTHREADS_LIB}.dll']
 
     if env['WITH_BF_SDL']:
-        dllsources.append('${BF_SDL_LIBPATH}/SDL.dll')
+        dllsources.append('${BF_SDL_LIBPATH}/SDL2.dll')
 
     if env['WITH_BF_PYTHON']:
         if env['BF_DEBUG']:

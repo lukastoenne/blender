@@ -59,6 +59,7 @@
 #include "BKE_anim.h"  /* for duplis */
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
+#include "BKE_sequencer.h"
 #include "BKE_main.h"
 #include "BKE_tracking.h"
 
@@ -341,22 +342,15 @@ void applyProject(TransInfo *t)
 					if (t->tsnap.align && (t->flag & T_OBJECT)) {
 						/* handle alignment as well */
 						const float *original_normal;
-						float axis[3];
 						float mat[3][3];
-						float angle;
 						float totmat[3][3], smat[3][3];
-						float eul[3], fmat[3][3], quat[4];
+						float eul[3], fmat[3][3];
 						float obmat[3][3];
 
 						/* In pose mode, we want to align normals with Y axis of bones... */
 						original_normal = td->axismtx[2];
 
-						cross_v3_v3v3(axis, original_normal, no);
-						angle = saacos(dot_v3v3(original_normal, no));
-
-						axis_angle_to_quat(quat, axis, angle);
-
-						quat_to_mat3(mat, quat);
+						rotation_between_vecs_to_mat3(mat, original_normal, no);
 
 						mul_m3_m3m3(totmat, mat, td->mtx);
 						mul_m3_m3m3(smat, td->smtx, totmat);
@@ -1543,8 +1537,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 		float ray_start_local[3], ray_normal_local[3], local_scale, len_diff = TRANSFORM_DIST_MAX_RAY;
 
 		invert_m4_m4(imat, obmat);
-		copy_m3_m4(timat, imat);
-		transpose_m3(timat);
+		transpose_m3_m4(timat, imat);
 
 		copy_v3_v3(ray_start_local, ray_start);
 		copy_v3_v3(ray_normal_local, ray_normal);
@@ -1956,21 +1949,32 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
 		     (ELEM(mode, SNAP_ALL, SNAP_NOT_OBEDIT) && base != base_act)))
 		{
 			Object *ob = base->object;
-			
+			Object *ob_snap = ob;
+			bool use_obedit = false;
+
+			/* for linked objects, use the same object but a different matrix */
+			if (obedit && ob->data == obedit->data) {
+				use_obedit = true;
+				ob_snap = obedit;
+			}
+
 			if (ob->transflag & OB_DUPLI) {
 				DupliObject *dupli_ob;
 				ListBase *lb = object_duplilist(G.main->eval_ctx, scene, ob);
 				
 				for (dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next) {
-					retval |= snapObject(scene, snap_mode, ar, dupli_ob->ob, dupli_ob->mat, false,
+					bool use_obedit_dupli = (obedit && dupli_ob->ob->data == obedit->data);
+					Object *dupli_snap = (use_obedit_dupli) ? obedit : dupli_ob->ob;
+
+					retval |= snapObject(scene, snap_mode, ar, dupli_snap, dupli_ob->mat, use_obedit_dupli,
 					                     r_ob, r_obmat,
 					                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist);
 				}
 				
 				free_object_duplilist(lb);
 			}
-			
-			retval |= snapObject(scene, snap_mode, ar, ob, ob->obmat, false,
+
+			retval |= snapObject(scene, snap_mode, ar, ob_snap, ob->obmat, use_obedit,
 			                     r_ob, r_obmat,
 			                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist);
 		}
@@ -2101,8 +2105,7 @@ static bool peelDerivedMesh(Object *ob, DerivedMesh *dm, float obmat[4][4],
 
 		invert_m4_m4(imat, obmat);
 
-		copy_m3_m4(timat, imat);
-		transpose_m3(timat);
+		transpose_m3_m4(timat, imat);
 		
 		copy_v3_v3(ray_start_local, ray_start);
 		copy_v3_v3(ray_normal_local, ray_normal);
@@ -2428,6 +2431,27 @@ void snapGridIncrement(TransInfo *t, float *val)
 	snapGridIncrementAction(t, val, action);
 }
 
+int snapSequenceBounds(TransInfo *t, const int mval[2])
+{
+	float xmouse, ymouse;
+	int frame;
+	int mframe;
+	TransSeq *ts = t->customData;
+	/* reuse increment, strictly speaking could be another snap mode, but leave as is */
+	if (!(t->modifiers & MOD_SNAP_INVERT))
+		return 0;
+
+	/* convert to frame range */
+	UI_view2d_region_to_view(&t->ar->v2d, mval[0], mval[1], &xmouse, &ymouse);
+	mframe = (int)xmouse;
+	/* now find the closest sequence */
+	frame = BKE_seq_find_next_prev_edit(t->scene, mframe, SEQ_SIDE_BOTH, true, false, true);
+
+	if (!ts->snap_left)
+		frame = frame - (ts->max - ts->min);
+
+	return frame;
+}
 
 static void applyGridIncrement(TransInfo *t, float *val, int max_index, const float fac[3], GearsType action)
 {

@@ -597,7 +597,7 @@ void RE_FreePersistentData(void) RET_NONE
 
 /* python */
 struct wmOperatorType *WM_operatortype_find(const char *idname, bool quiet) RET_NULL
-struct GHashIterator *WM_operatortype_iter() RET_NULL
+void WM_operatortype_iter(struct GHashIterator *ghi) RET_NONE
 struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *ot, const char *idname) RET_NULL
 int WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short context, struct PointerRNA *properties, struct ReportList *reports, const bool is_undo) RET_ZERO
 void WM_operatortype_remove_ptr(struct wmOperatorType *ot) RET_NONE
@@ -622,16 +622,16 @@ char *WM_operator_pystring(struct bContext *C, struct wmOperator *op, const bool
 struct wmKeyMapItem *WM_modalkeymap_add_item(struct wmKeyMap *km, int type, int val, int modifier, int keymodifier, int value) RET_NULL
 struct wmKeyMapItem *WM_modalkeymap_add_item_str(struct wmKeyMap *km, int type, int val, int modifier, int keymodifier, const char *value) RET_NULL
 struct wmKeyMap *WM_modalkeymap_add(struct wmKeyConfig *keyconf, const char *idname, struct EnumPropertyItem *items) RET_NULL
-struct uiPopupMenu *uiPupMenuBegin(struct bContext *C, const char *title, int icon) RET_NULL
-void uiPupMenuEnd(struct bContext *C, struct uiPopupMenu *head) RET_NONE
-struct uiLayout *uiPupMenuLayout(struct uiPopupMenu *head) RET_NULL
-struct uiLayout *uiPieMenuLayout(struct uiPieMenu *pie) RET_NULL
-void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event) RET_NONE
-struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) RET_NULL
-void uiPieMenuEnd(struct bContext *C, uiPieMenu *pie) RET_NONE
+struct uiPopupMenu *UI_popup_menu_begin(struct bContext *C, const char *title, int icon) RET_NULL
+void UI_popup_menu_end(struct bContext *C, struct uiPopupMenu *head) RET_NONE
+struct uiLayout *UI_popup_menu_layout(struct uiPopupMenu *head) RET_NULL
+struct uiLayout *UI_pie_menu_layout(struct uiPieMenu *pie) RET_NULL
+int UI_pie_menu_invoke(struct bContext *C, const char *idname, const struct wmEvent *event) RET_ZERO
+struct uiPieMenu *UI_pie_menu_begin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) RET_NULL
+void UI_pie_menu_end(struct bContext *C, uiPieMenu *pie) RET_NONE
 struct uiLayout *uiLayoutRadial(struct uiLayout *layout) RET_NULL
-void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
-                             const char *propname, const struct wmEvent *event) RET_NONE
+int UI_pie_menu_invoke_from_operator_enum(struct bContext *C, const char *title, const char *opname,
+                             const char *propname, const struct wmEvent *event) RET_ZERO
 
 /* RNA COLLADA dependency */
 int collada_export(struct Scene *sce,

@@ -454,6 +454,7 @@ enum {
 	/* enable transparent draw */
 	OB_DRAWTRANSP     = 1 << 7,
 	OB_DRAW_ALL_EDGES = 1 << 8,  /* only for meshes currently */
+	OB_DRAW_WIRECOLOR = 1 << 9,
 };
 
 /* empty_drawtype: no flags */

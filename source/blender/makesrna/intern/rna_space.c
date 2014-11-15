@@ -499,6 +499,23 @@ static void rna_SpaceView3D_matcap_enable(Main *UNUSED(bmain), Scene *UNUSED(sce
 		v3d->matcap_icon = ICON_MATCAP_01;
 }
 
+static void rna_SpaceView3D_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	View3D *v3d = (View3D *)(ptr->data);
+
+	if (!v3d->fxoptions) {
+		v3d->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
+	}
+
+	if (!v3d->fxoptions->dof_options) {
+		v3d->fxoptions->dof_options = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
+	}
+
+	if (!v3d->fxoptions->ssao_options) {
+		v3d->fxoptions->ssao_options = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
+	}
+}
+
 static void rna_SpaceView3D_pivot_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	if (U.uiflag & USER_LOCKAROUND) {
@@ -1117,12 +1134,12 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *UNUSED(bmain), Scene *s
 		
 		if (saction->mode == SACTCONT_ACTION) {
 			/* TODO: context selector could help decide this with more control? */
-			adt = BKE_id_add_animdata(&obact->id); /* this only adds if non-existant */
+			adt = BKE_id_add_animdata(&obact->id); /* this only adds if non-existent */
 		}
 		else if (saction->mode == SACTCONT_SHAPEKEY) {
 			Key *key = BKE_key_from_object(obact);
 			if (key)
-				adt = BKE_id_add_animdata(&key->id);  /* this only adds if non-existant */
+				adt = BKE_id_add_animdata(&key->id);  /* this only adds if non-existent */
 		}
 		
 		/* set action */
@@ -1839,7 +1856,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 	
-
 	srna = RNA_def_struct(brna, "SpaceView3D", "Space");
 	RNA_def_struct_sdna(srna, "View3D");
 	RNA_def_struct_ui_text(srna, "3D View Space", "3D View space data");
@@ -2165,6 +2181,11 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show 3D Marker Names", "Show names for reconstructed tracks objects");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
+	prop = RNA_def_property(srna, "use_wire_color", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag2", V3D_WIRE_COLOR_NOCUSTOM);
+	RNA_def_property_ui_text(prop, "Color Wire", "Draw wireframes using object color");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
 	prop = RNA_def_property(srna, "use_matcap", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag2", V3D_SOLID_MATCAP);
 	RNA_def_property_ui_text(prop, "Matcap", "Active Objects draw images mapped on normals, enhancing Solid Draw Mode");
@@ -2175,6 +2196,20 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, view3d_matcap_items);
 	RNA_def_property_ui_text(prop, "Matcap", "Image to use for Material Capture, active objects only");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_matcap_update");
+
+	prop = RNA_def_property(srna, "depth_of_field", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", GPU_FX_DEPTH_OF_FIELD);
+	RNA_def_property_ui_text(prop, "Depth Of Field", "Use depth of field on viewport using the values from active camera");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_fx_update");
+	
+	prop = RNA_def_property(srna, "ssao", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", GPU_FX_SSAO);
+	RNA_def_property_ui_text(prop, "SSAO", "Use screen space ambient occlusion of field on viewport");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_fx_update");
+	
+	prop = RNA_def_property(srna, "fxoptions", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "FX Options", "Options used for real time compositing");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	/* region */
 
@@ -2509,6 +2544,16 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem waveform_draw_items[] = {
+		{SEQ_NO_WAVEFORMS, "NO_WAVEFORMS", 0, "Waveforms Off",
+		                "No waveforms drawn for all sound strips"},
+		{SEQ_ALL_WAVEFORMS, "ALL_WAVEFORMS", 0, "Waveforms On",
+		                "Waveforms drawn for all sound strips"},
+		{0, "DEFAULT_WAVEFORMS", 0, "Use Strip Option",
+		                "Waveforms drawn according to strip setting"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	
 	srna = RNA_def_struct(brna, "SpaceSequenceEditor", "Space");
 	RNA_def_struct_sdna(srna, "SpaceSeq");
 	RNA_def_struct_ui_text(srna, "Space Sequence Editor", "Sequence editor space data");
@@ -2578,6 +2623,12 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Draw Channels", "Channels of the preview to draw");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 
+	prop = RNA_def_property(srna, "waveform_draw", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, waveform_draw_items);
+	RNA_def_property_ui_text(prop, "Waveform Drawing", "How Waveforms are drawn");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
+
 	prop = RNA_def_property(srna, "draw_overexposed", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "zebra");
 	RNA_def_property_ui_text(prop, "Show Overexposed", "Show overexposed areas with zebra stripes");
@@ -2603,6 +2654,11 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "overlay_type");
 	RNA_def_property_enum_items(prop, overlay_type_items);
 	RNA_def_property_ui_text(prop, "Overlay Type", "Overlay draw type");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
+
+	prop = RNA_def_property(srna, "backdrop", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "backdrop", 1);
+	RNA_def_property_ui_text(prop, "Use Backdrop", "Display result under strips");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 }
 

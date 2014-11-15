@@ -47,6 +47,7 @@ extern "C" {
 #endif
 
 struct bContext;
+struct GHashIterator;
 struct IDProperty;
 struct wmEvent;
 struct wmEventHandler;
@@ -55,6 +56,8 @@ struct wmJob;
 struct wmNotifier;
 struct wmOperatorType;
 struct wmOperator;
+struct wmWidget;
+struct wmWidgetMap;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -223,12 +226,13 @@ void		WM_operator_stack_clear(struct wmWindowManager *wm);
 void		WM_operator_handlers_clear(wmWindowManager *wm, struct wmOperatorType *ot);
 
 struct wmOperatorType *WM_operatortype_find(const char *idname, bool quiet);
-struct GHashIterator  *WM_operatortype_iter(void);
+void        WM_operatortype_iter(struct GHashIterator *ghi);
 void		WM_operatortype_append(void (*opfunc)(struct wmOperatorType *));
 void		WM_operatortype_append_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 void		WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 void        WM_operatortype_remove_ptr(struct wmOperatorType *ot);
 bool        WM_operatortype_remove(const char *idname);
+void        WM_operatortype_last_properties_clear_all(void);
 
 struct wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag);
 struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *ot, const char *idname);
@@ -395,6 +399,7 @@ enum {
 	WM_JOB_TYPE_CLIP_SOLVE_CAMERA,
 	WM_JOB_TYPE_CLIP_PREFETCH,
 	WM_JOB_TYPE_SEQ_BUILD_PROXY,
+	WM_JOB_TYPE_SEQ_BUILD_PREVIEW,
 	/* add as needed, screencast, seq proxy build
 	 * if having hard coded values is a problem */
 };
@@ -457,6 +462,25 @@ void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4
 
 float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]);
 bool        WM_event_is_tablet(const struct wmEvent *event);
+
+
+/* widget API */
+struct wmWidget *WM_widget_new(bool (*poll)(const struct bContext *, struct wmWidget *),
+                               void (*draw)(const struct bContext *, struct wmWidget *),
+							   void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
+							   int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
+                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, int active),
+                               void *customdata, bool free_data);
+
+void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
+void WM_event_add_widget_handler(struct ARegion *ar);
+
+bool WM_widget_register(struct wmWidgetMap *wmap, struct wmWidget *widget);
+void WM_widget_unregister(struct wmWidgetMap *wmap, struct wmWidget *widget);
+
+struct wmWidgetMap *WM_widgetmap_find(const char *idname, int spaceid, int regionid, bool is_3d);
+void WM_widgetmaps_free(void);
+
 
 #ifdef __cplusplus
 }

@@ -2308,6 +2308,8 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.faces_shade_smooth")
         layout.operator("mesh.faces_shade_flat")
 
+        layout.operator("mesh.normals_make_consistent", text="Recalculate Normals")
+
         layout.separator()
 
         layout.operator("mesh.edge_rotate", text="Rotate Edge CW").use_ccw = False
@@ -2764,7 +2766,8 @@ class VIEW3D_PT_view3d_cursor(Panel):
         layout = self.layout
 
         view = context.space_data
-        layout.column().prop(view, "cursor_location", text="Location")
+        col = layout.column()
+        col.prop(view, "cursor_location", text="Location")
 
 
 class VIEW3D_PT_view3d_name(Panel):
@@ -2779,6 +2782,7 @@ class VIEW3D_PT_view3d_name(Panel):
     def draw(self, context):
         layout = self.layout
 
+        view = context.space_data
         ob = context.active_object
         row = layout.row()
         row.label(text="", icon='OBJECT_DATA')
@@ -2790,6 +2794,10 @@ class VIEW3D_PT_view3d_name(Panel):
                 row = layout.row()
                 row.label(text="", icon='BONE_DATA')
                 row.prop(bone, "name", text="")
+
+        row = layout.row(align=True)
+        row.prop(ob, "color", text="")
+        row.prop(ob, "show_wire_color", text="", toggle=True, icon='WIRE')
 
 
 class VIEW3D_PT_view3d_display(Panel):
@@ -2877,6 +2885,9 @@ class VIEW3D_PT_view3d_shading(Panel):
         if not scene.render.use_shading_nodes:
             col.prop(gs, "material_mode", text="")
 
+        if view.viewport_shade in {'BOUNDBOX', 'WIREFRAME', 'SOLID'}:
+            col.prop(view, "use_wire_color")
+
         if view.viewport_shade == 'SOLID':
             col.prop(view, "show_textured_solid")
             col.prop(view, "use_matcap")
@@ -2887,8 +2898,33 @@ class VIEW3D_PT_view3d_shading(Panel):
                 col.prop(view, "show_textured_shadeless")
 
         col.prop(view, "show_backface_culling")
-        if obj and obj.mode == 'EDIT' and view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
-            col.prop(view, "show_occlude_wire")
+
+        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
+            if obj and obj.mode == 'EDIT':
+                col.prop(view, "show_occlude_wire")
+
+            fxoptions = view.fxoptions
+
+            col.prop(view, "depth_of_field")
+            if view.depth_of_field:
+                if (view.region_3d.view_perspective == 'CAMERA'):
+                    col.label("check dof properties in camera settings", icon='INFO')
+                else:
+                    dof_options = fxoptions.dof_options
+                    subcol = col.column(align=True)
+                    subcol.prop(dof_options, "dof_focus_distance")
+                    subcol.prop(dof_options, "dof_fstop")
+                    subcol.prop(dof_options, "dof_focal_length")
+                    subcol.prop(dof_options, "dof_sensor")
+            col.prop(view, "ssao")
+            if view.ssao:
+                ssao_options = fxoptions.ssao_options
+                subcol = col.column(align=True)
+                subcol.prop(ssao_options, "ssao_darkening")
+                subcol.prop(ssao_options, "ssao_distance_max")
+                subcol.prop(ssao_options, "ssao_attenuation")
+                subcol.prop(ssao_options, "ssao_ray_sample_mode")
+                subcol.prop(ssao_options, "ssao_color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):
@@ -3275,3 +3311,4 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+

@@ -503,7 +503,7 @@ static void pose_copy_menu(Scene *scene)
 		/* build the puplist of constraints */
 		for (con = pchanact->constraints.first, i = 0; con; con = con->next, i++) {
 			const_toggle[i] = 1;
-//			add_numbut(i, TOG|INT, con->name, 0, 0, &(const_toggle[i]), "");
+//			add_numbut(i, UI_BTYPE_TOGGLE|INT, con->name, 0, 0, &(const_toggle[i]), "");
 		}
 		
 //		if (!do_clever_numbuts("Select Constraints", i, REDRAW)) {
@@ -595,7 +595,7 @@ void POSE_OT_flip_names(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Flip Names";
 	ot->idname = "POSE_OT_flip_names";
-	ot->description = "Flips (and corrects) the axis suffixes of the the names of selected bones";
+	ot->description = "Flips (and corrects) the axis suffixes of the names of selected bones";
 	
 	/* api callbacks */
 	ot->exec = pose_flip_names_exec;

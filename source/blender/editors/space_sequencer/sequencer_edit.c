@@ -62,8 +62,13 @@
 #include "ED_screen.h"
 #include "ED_transform.h"
 #include "ED_sequencer.h"
+#include "ED_space_api.h"
 
 #include "UI_view2d.h"
+#include "UI_resources.h"
+
+#include "GL/glew.h"
+#include "BIF_glutil.h"
 
 /* own include */
 #include "sequencer_intern.h"
@@ -1231,8 +1236,46 @@ void SEQUENCER_OT_snap(struct wmOperatorType *ot)
 	RNA_def_int(ot->srna, "frame", 0, INT_MIN, INT_MAX, "Frame", "Frame where selected strips will be snapped", INT_MIN, INT_MAX);
 }
 
+static int sequencer_parent_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	
+	if (scene) {
+		Editing *ed = BKE_sequencer_editing_get(scene, false);
+		Sequence *seq, *active_seq = ed->act_seq;
+		
+		for (seq = ed->seqbasep->first; seq; seq = seq->next) {
+			if (seq == active_seq)
+				continue;
+			
+			if (seq->flag & SELECT) {
+				seq->parent = active_seq;
+			}
+		}
+	}
+	
+	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+	
+	return OPERATOR_FINISHED;
+}
 
-typedef struct TrimData {
+void SEQUENCER_OT_parent(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Parent Strips";
+	ot->idname = "SEQUENCER_OT_parent";
+	ot->description = "";
+
+	/* api callbacks */
+	ot->exec = sequencer_parent_exec;
+	ot->poll = sequencer_edit_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+
+typedef struct SlipData {
 	int init_mouse[2];
 	float init_mouseloc[2];
 	TransSeq *ts;
@@ -1241,7 +1284,8 @@ typedef struct TrimData {
 	int num_seq;
 	bool slow;
 	int slow_offset; /* offset at the point where offset was turned on */
-} TrimData;
+	void *draw_handle;
+} SlipData;
 
 static void transseq_backup(TransSeq *ts, Sequence *seq)
 {
@@ -1274,20 +1318,134 @@ static void transseq_restore(TransSeq *ts, Sequence *seq)
 	seq->len = ts->len;
 }
 
-static int trim_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool *trim, int offset, bool first_level)
+static void draw_slip_extensions(const bContext *C, ARegion *ar, void *data)
+{
+	Scene *scene = CTX_data_scene(C);
+	float x1, x2, y1, y2, pixely, a;
+	unsigned char col[3], blendcol[3];
+	View2D *v2d = &ar->v2d;
+	SlipData *td = data;
+	int i;
+
+	for (i = 0; i < td->num_seq; i++) {
+		Sequence *seq = td->seq_array[i];
+
+		if ((seq->type != SEQ_TYPE_META) && td->trim[i]) {
+
+			x1 = seq->startdisp;
+			x2 = seq->enddisp;
+
+			y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
+			y2 = seq->machine + SEQ_STRIP_OFSTOP;
+
+			pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+
+			if (pixely <= 0) return;  /* can happen when the view is split/resized */
+
+			blendcol[0] = blendcol[1] = blendcol[2] = 120;
+
+			if (seq->startofs) {
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				get_seq_color3ubv(scene, seq, col);
+
+				if (seq->flag & SELECT) {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+					glColor4ub(col[0], col[1], col[2], 170);
+				}
+				else {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+					glColor4ub(col[0], col[1], col[2], 110);
+				}
+
+				glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
+
+				if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+				else glColor4ub(col[0], col[1], col[2], 160);
+
+				fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
+
+				glDisable(GL_BLEND);
+			}
+			if (seq->endofs) {
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				get_seq_color3ubv(scene, seq, col);
+
+				if (seq->flag & SELECT) {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+					glColor4ub(col[0], col[1], col[2], 170);
+				}
+				else {
+					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+					glColor4ub(col[0], col[1], col[2], 110);
+				}
+
+				glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
+
+				if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+				else glColor4ub(col[0], col[1], col[2], 160);
+
+				fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
+
+				glDisable(GL_BLEND);
+			}
+			if (seq->startstill) {
+				get_seq_color3ubv(scene, seq, col);
+				UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+				glColor3ubv((GLubyte *)col);
+
+				draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
+
+				/* feint pinstripes, helps see exactly which is extended and which isn't,
+				 * especially when the extension is very small */
+				if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
+				else UI_GetColorPtrShade3ubv(col, col, -16);
+
+				glColor3ubv((GLubyte *)col);
+
+				for (a = y1; a < y2; a += pixely * 2.0f) {
+					fdrawline(x1,  a,  (float)(seq->start),  a);
+				}
+			}
+			if (seq->endstill) {
+				get_seq_color3ubv(scene, seq, col);
+				UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+				glColor3ubv((GLubyte *)col);
+
+				draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
+
+				/* feint pinstripes, helps see exactly which is extended and which isn't,
+		 * especially when the extension is very small */
+				if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
+				else UI_GetColorPtrShade3ubv(col, col, -16);
+
+				glColor3ubv((GLubyte *)col);
+
+				for (a = y1; a < y2; a += pixely * 2.0f) {
+					fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
+				}
+			}
+		}
+	}
+}
+
+static int slip_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool *trim, int offset, bool do_trim)
 {
 	Sequence *seq;
 	int num_items = 0;
 
 	for (seq = seqbasep->first; seq; seq = seq->next) {
-		if (!first_level || (!(seq->type & SEQ_TYPE_EFFECT) && (seq->flag & SELECT))) {
+		if (!do_trim || (!(seq->type & SEQ_TYPE_EFFECT) && (seq->flag & SELECT))) {
 			seq_array[offset + num_items] = seq;
-			trim[offset + num_items] = first_level;
+			trim[offset + num_items] = do_trim;
 			num_items++;
 
 			if (seq->type == SEQ_TYPE_META) {
 				/* trim the sub-sequences */
-				num_items += trim_add_sequences_rec(&seq->seqbase, seq_array, trim, num_items + offset, false);
+				num_items += slip_add_sequences_rec(&seq->seqbase, seq_array, trim, num_items + offset, false);
 			}
 			else if (seq->type & SEQ_TYPE_EFFECT) {
 				trim[offset + num_items] = false;
@@ -1298,7 +1456,7 @@ static int trim_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool
 	return num_items;
 }
 
-static int trim_count_sequences_rec(ListBase *seqbasep, bool first_level)
+static int slip_count_sequences_rec(ListBase *seqbasep, bool first_level)
 {
 	Sequence *seq;
 	int trimmed_sequences = 0;
@@ -1309,7 +1467,7 @@ static int trim_count_sequences_rec(ListBase *seqbasep, bool first_level)
 
 			if (seq->type == SEQ_TYPE_META) {
 				/* trim the sub-sequences */
-				trimmed_sequences += trim_count_sequences_rec(&seq->seqbase, false);
+				trimmed_sequences += slip_count_sequences_rec(&seq->seqbase, false);
 			}
 		}
 	}
@@ -1317,32 +1475,35 @@ static int trim_count_sequences_rec(ListBase *seqbasep, bool first_level)
 	return trimmed_sequences;
 }
 
-static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	TrimData *data;
+	SlipData *data;
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
+	ARegion *ar = CTX_wm_region(C);
 	float mouseloc[2];
 	int num_seq, i;
 	View2D *v2d = UI_view2d_fromcontext(C);
 
 	/* first recursively cound the trimmed elements */
-	num_seq = trim_count_sequences_rec(ed->seqbasep, true);
+	num_seq = slip_count_sequences_rec(ed->seqbasep, true);
 
 	if (num_seq == 0)
 		return OPERATOR_CANCELLED;
 
-	data = op->customdata = MEM_mallocN(sizeof(TrimData), "trimdata");
+	data = op->customdata = MEM_mallocN(sizeof(SlipData), "trimdata");
 	data->ts = MEM_mallocN(num_seq * sizeof(TransSeq), "trimdata_transform");
 	data->seq_array = MEM_mallocN(num_seq * sizeof(Sequence *), "trimdata_sequences");
 	data->trim = MEM_mallocN(num_seq * sizeof(bool), "trimdata_trim");
 	data->num_seq = num_seq;
 
-	trim_add_sequences_rec(ed->seqbasep, data->seq_array, data->trim, 0, true);
+	slip_add_sequences_rec(ed->seqbasep, data->seq_array, data->trim, 0, true);
 
 	for (i = 0; i < num_seq; i++) {
 		transseq_backup(data->ts + i, data->seq_array[i]);
 	}
+
+	data->draw_handle = ED_region_draw_cb_activate(ar->type, draw_slip_extensions, data, REGION_DRAW_POST_VIEW);
 
 	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
 
@@ -1353,10 +1514,13 @@ static int sequencer_trim_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 
 	WM_event_add_modal_handler(C, op);
 
+	/* notify so we draw extensions immediately */
+	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static bool sequencer_trim_recursively(Scene *scene, TrimData *data, int offset)
+static bool sequencer_slip_recursively(Scene *scene, SlipData *data, int offset)
 {
 
 	/* only data types supported for now */
@@ -1415,9 +1579,9 @@ static bool sequencer_trim_recursively(Scene *scene, TrimData *data, int offset)
 	return false;
 }
 
-static int sequencer_trim_exec(bContext *C, wmOperator *op)
+static int sequencer_slip_exec(bContext *C, wmOperator *op)
 {
-	TrimData *data;
+	SlipData *data;
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	int num_seq, i;
@@ -1425,39 +1589,45 @@ static int sequencer_trim_exec(bContext *C, wmOperator *op)
 	bool success = false;
 
 	/* first recursively cound the trimmed elements */
-	num_seq = trim_count_sequences_rec(ed->seqbasep, true);
+	num_seq = slip_count_sequences_rec(ed->seqbasep, true);
 
 	if (num_seq == 0)
 		return OPERATOR_CANCELLED;
 
-	data = op->customdata = MEM_mallocN(sizeof(TrimData), "trimdata");
+	data = op->customdata = MEM_mallocN(sizeof(SlipData), "trimdata");
 	data->ts = MEM_mallocN(num_seq * sizeof(TransSeq), "trimdata_transform");
 	data->seq_array = MEM_mallocN(num_seq * sizeof(Sequence *), "trimdata_sequences");
 	data->trim = MEM_mallocN(num_seq * sizeof(bool), "trimdata_trim");
 	data->num_seq = num_seq;
 
-	trim_add_sequences_rec(ed->seqbasep, data->seq_array, data->trim, 0, true);
+	slip_add_sequences_rec(ed->seqbasep, data->seq_array, data->trim, 0, true);
 
 	for (i = 0; i < num_seq; i++) {
 		transseq_backup(data->ts + i, data->seq_array[i]);
 	}
 
-	success = sequencer_trim_recursively(scene, data, offset);
+	success = sequencer_slip_recursively(scene, data, offset);
 
 	MEM_freeN(data->seq_array);
 	MEM_freeN(data->trim);
 	MEM_freeN(data->ts);
 	MEM_freeN(data);
 
-	if (success) return OPERATOR_FINISHED;
-	else return OPERATOR_CANCELLED;
+	if (success) {
+		WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
-static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Scene *scene = CTX_data_scene(C);
-	TrimData *data = (TrimData *)op->customdata;
+	SlipData *data = (SlipData *)op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
 
 	switch (event->type) {
 		case MOUSEMOVE:
@@ -1491,7 +1661,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 				ED_area_headerprint(sa, msg);
 			}
 
-			if (sequencer_trim_recursively(scene, data, offset)) {
+			if (sequencer_slip_recursively(scene, data, offset)) {
 				WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 			}
 			break;
@@ -1499,6 +1669,7 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 
 		case LEFTMOUSE:
 		{
+			ED_region_draw_cb_exit(ar->type, data->draw_handle);
 			MEM_freeN(data->seq_array);
 			MEM_freeN(data->trim);
 			MEM_freeN(data->ts);
@@ -1526,6 +1697,8 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 				BKE_sequence_reload_new_file(scene, seq, false);
 				BKE_sequence_calc(scene, seq);
 			}
+
+			ED_region_draw_cb_exit(ar->type, data->draw_handle);
 
 			MEM_freeN(data->seq_array);
 			MEM_freeN(data->ts);
@@ -1562,25 +1735,25 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 	return OPERATOR_RUNNING_MODAL;
 }
 
-void SEQUENCER_OT_trim(struct wmOperatorType *ot)
+void SEQUENCER_OT_slip(struct wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Trim Strips";
-	ot->idname = "SEQUENCER_OT_trim";
+	ot->idname = "SEQUENCER_OT_slip";
 	ot->description = "Trim the contents of the active strip";
 
 	/* api callbacks */
-	ot->invoke = sequencer_trim_invoke;
-	ot->modal = sequencer_trim_modal;
-	ot->exec = sequencer_trim_exec;
+	ot->invoke = sequencer_slip_invoke;
+	ot->modal = sequencer_slip_modal;
+	ot->exec = sequencer_slip_exec;
 	ot->poll = sequencer_edit_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "offset", 0, INT32_MIN, INT32_MAX, "Offset", "offset to the data of the strip", INT32_MIN, INT32_MAX);
+	RNA_def_int(ot->srna, "offset", 0, INT32_MIN, INT32_MAX, "Offset", "Offset to the data of the strip",
+	            INT32_MIN, INT32_MAX);
 }
-
 
 /* mute operator */
 static int sequencer_mute_exec(bContext *C, wmOperator *op)
@@ -2424,8 +2597,8 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
 	Sequence *seq, *seqm, *next, *last_seq = BKE_sequencer_active_get(scene);
 	int channel_max = 1;
 
-	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep, false) == false) {
-		BKE_report(op->reports, RPT_ERROR, "Please select more than one or all related strips");
+	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep) == false) {
+		BKE_report(op->reports, RPT_ERROR, "Please select all related strips");
 		return OPERATOR_CANCELLED;
 	}
 
@@ -2804,74 +2977,13 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER;
 }
 
-
-static int find_next_prev_edit(Scene *scene, int cfra,
-                               const short side,
-                               const bool do_skip_mute, const bool do_center)
-{
-	Editing *ed = BKE_sequencer_editing_get(scene, false);
-	Sequence *seq;
-	
-	int dist, best_dist, best_frame = cfra;
-	int seq_frames[2], seq_frames_tot;
-
-	best_dist = MAXFRAME * 2;
-
-	if (ed == NULL) return cfra;
-	
-	for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-		int i;
-
-		if (do_skip_mute && (seq->flag & SEQ_MUTE)) {
-			continue;
-		}
-
-		if (do_center) {
-			seq_frames[0] = (seq->startdisp + seq->enddisp) / 2;
-			seq_frames_tot = 1;
-		}
-		else {
-			seq_frames[0] = seq->startdisp;
-			seq_frames[1] = seq->enddisp;
-
-			seq_frames_tot = 2;
-		}
-
-		for (i = 0; i < seq_frames_tot; i++) {
-			const int seq_frame = seq_frames[i];
-
-			dist = MAXFRAME * 2;
-
-			switch (side) {
-				case SEQ_SIDE_LEFT:
-					if (seq_frame < cfra) {
-						dist = cfra - seq_frame;
-					}
-					break;
-				case SEQ_SIDE_RIGHT:
-					if (seq_frame > cfra) {
-						dist = seq_frame - cfra;
-					}
-					break;
-			}
-
-			if (dist < best_dist) {
-				best_frame = seq_frame;
-				best_dist = dist;
-			}
-		}
-	}
-
-	return best_frame;
-}
-
 static bool strip_jump_internal(Scene *scene,
                                 const short side,
                                 const bool do_skip_mute, const bool do_center)
 {
 	bool changed = false;
 	int cfra = CFRA;
-	int nfra = find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center);
+	int nfra = BKE_seq_find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center, false);
 	
 	if (nfra != cfra) {
 		CFRA = nfra;
@@ -3118,7 +3230,7 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
 
 	BKE_sequencer_free_clipboard();
 
-	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep, true) == false) {
+	if (BKE_sequence_base_isolated_sel_check(ed->seqbasep) == false) {
 		BKE_report(op->reports, RPT_ERROR, "Please select all related strips");
 		return OPERATOR_CANCELLED;
 	}
@@ -3617,4 +3729,3 @@ void SEQUENCER_OT_change_path(struct wmOperatorType *ot)
 	                               WM_FILESEL_DIRECTORY | WM_FILESEL_RELPATH | WM_FILESEL_FILEPATH | WM_FILESEL_FILES,
 	                               FILE_DEFAULTDISPLAY);
 }
-
