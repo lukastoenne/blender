@@ -1070,7 +1070,14 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	list(APPEND PLATFORM_LINKLIBS -lutil -lc -lm -lpthread)
+	list(APPEND PLATFORM_LINKLIBS -lutil -lc -lm)
+
+	find_package(Threads REQUIRED)
+	list(APPEND PLATFORM_LINKLIBS ${CMAKE_THREAD_LIBS_INIT})
+
+	if(CMAKE_DL_LIBS)
+		list(APPEND PLATFORM_LINKLIBS ${CMAKE_DL_LIBS})
+	endif()
 
 	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		if(NOT WITH_PYTHON_MODULE)
@@ -1078,11 +1085,6 @@ if(UNIX AND NOT APPLE)
 			set(BINRELOC_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/binreloc/include)
 			set(WITH_BINRELOC ON)
 		endif()
-	endif()
-
-	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -pthread")
-	if(CMAKE_DL_LIBS)
-		list(APPEND PLATFORM_LINKLIBS ${CMAKE_DL_LIBS})
 	endif()
 
 	# lfs on glibc, all compilers should use
@@ -1190,16 +1192,10 @@ elseif(WIN32)
 			# Setup 64bit and 64bit windows systems
 			if(CMAKE_CL_64)
 				message(STATUS "64 bit compiler detected.")
-				set(LIBDIR_BASE ${CMAKE_SOURCE_DIR}/../lib/win64)
+				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/win64_vc12)
 			else()
 				message(STATUS "32 bit compiler detected.")
-				set(LIBDIR_BASE ${CMAKE_SOURCE_DIR}/../lib/windows)
-			endif()
-			if(MSVC12)
-				message(STATUS "Visual C++ 2013 detected.")
-				set(LIBDIR ${LIBDIR_BASE}_vc12)
-			else()
-				set(LIBDIR ${LIBDIR_BASE})
+				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/windows_vc12)
 			endif()
 		else()
 			message(STATUS using LIBDIR  ${LIBDIR})
@@ -1316,23 +1312,13 @@ elseif(WIN32)
 			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
 			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
-			if(MSVC12)
-				set(OPENEXR_LIBRARIES
-					${OPENEXR_LIBPATH}/Iex-2_1.lib
-					${OPENEXR_LIBPATH}/Half.lib
-					${OPENEXR_LIBPATH}/IlmImf-2_1.lib
-					${OPENEXR_LIBPATH}/Imath-2_1.lib
-					${OPENEXR_LIBPATH}/IlmThread-2_1.lib
-				)
-			else()
-				set(OPENEXR_LIBRARIES
-					${OPENEXR_LIBPATH}/Iex.lib
-					${OPENEXR_LIBPATH}/Half.lib
-					${OPENEXR_LIBPATH}/IlmImf.lib
-					${OPENEXR_LIBPATH}/Imath.lib
-					${OPENEXR_LIBPATH}/IlmThread.lib
-				)
-			endif()
+			set(OPENEXR_LIBRARIES
+				${OPENEXR_LIBPATH}/Iex-2_1.lib
+				${OPENEXR_LIBPATH}/Half.lib
+				${OPENEXR_LIBPATH}/IlmImf-2_1.lib
+				${OPENEXR_LIBPATH}/Imath-2_1.lib
+				${OPENEXR_LIBPATH}/IlmThread-2_1.lib
+			)
 			endif(NOT OPENEXR_FOUND)
 		endif()
 
@@ -1428,6 +1414,8 @@ elseif(WIN32)
 			set(OPENIMAGEIO_LIBRARIES ${OIIO_OPTIMIZED} ${OIIO_DEBUG})
 			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
 			set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
+			set(OPENCOLORIO_DEFINITIONS "-DOCIO_STATIC_BUILD")
+			add_definitions(-DOIIO_STATIC_BUILD)
 		endif()
 
 		if(WITH_LLVM)
@@ -1982,7 +1970,6 @@ elseif(APPLE)
 		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO}/lib/libOpenImageIO.a ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
 		set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib ${JPEG_LIBPATH} ${PNG_LIBPATH} ${TIFF_LIBPATH} ${OPENEXR_LIBPATH} ${ZLIB_LIBPATH})
 		set(OPENIMAGEIO_DEFINITIONS "-DOIIO_STATIC_BUILD")
-		add_definitions(-DOIIO_STATIC_BUILD)
 	endif()
 
 	if(WITH_OPENCOLORIO)
@@ -1990,7 +1977,6 @@ elseif(APPLE)
 		set(OPENCOLORIO_INCLUDE_DIRS ${OPENCOLORIO}/include)
 		set(OPENCOLORIO_LIBRARIES OpenColorIO tinyxml yaml-cpp)
 		set(OPENCOLORIO_LIBPATH ${OPENCOLORIO}/lib)
-		set(OPENCOLORIO_DEFINITIONS "-DOCIO_STATIC_BUILD")
 	endif()
 
 	if(WITH_LLVM)
