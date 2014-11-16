@@ -107,36 +107,6 @@
 
 static ThreadRWMutex psys_bvhtree_rwlock = BLI_RWLOCK_INITIALIZER;
 
-/* ==== hash functions for debugging ==== */
-BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
-{
-#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
-
-	unsigned int a, b, c;
-
-	a = b = c = 0xdeadbeef + (2 << 2) + 13;
-	a += kx;
-	b += ky;
-
-	c ^= b; c -= rot(b,14);
-	a ^= c; a -= rot(c,11);
-	b ^= a; b -= rot(a,25);
-	c ^= b; c -= rot(b,16);
-	a ^= c; a -= rot(c,4);
-	b ^= a; b -= rot(a,14);
-	c ^= b; c -= rot(b,24);
-
-	return c;
-
-#undef rot
-}
-
-BLI_INLINE int hash_vertex(int type, int vertex)
-{
-	return hash_int_2d((unsigned int)type, (unsigned int)vertex);
-}
-/* ================ */
-
 /************************************************/
 /*			Reacting to system events			*/
 /************************************************/
@@ -3332,16 +3302,6 @@ static void hair_deform_preview_curve(ParticleSystem *psys, ParticleData *pa, fl
 			 */
 			blend_vert = deformedVerts + blend_pa->hair_index + blend_index;
 			blend_root = roots + blend_pa->hair_index + blend_index;
-			
-#if 0
-			if (k == 1) {
-				float d[3];
-				sub_v3_v3v3(d, blend_root->loc, root->loc);
-				mul_v3_fl(d, 0.95f);
-				BKE_sim_debug_data_add_vector(psys->clmd->debug_data, root->loc, d, 1.0f - pa->blend_weight[w], pa->blend_weight[w], 0.0f,
-				                              "blending", hash_vertex(8467, hash_int_2d(pa->hair_index, w)));
-			}
-#endif
 			
 			interp_v3_v3v3(co, blend_vert[0], blend_vert[1], blend_factor);
 			
