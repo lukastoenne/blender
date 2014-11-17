@@ -321,8 +321,8 @@ static IDProperty *IDP_CopyArray(const IDProperty *prop)
  *
  * \param st  The string to assign.
  * \param name  The property name.
- * \param maxlen  The size of the new string (including the \0 terminator)
- * \return
+ * \param maxlen  The size of the new string (including the \0 terminator).
+ * \return The new string property.
  */
 IDProperty *IDP_NewString(const char *st, const char *name, int maxlen)
 {
@@ -571,23 +571,30 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, const IDProperty *src)
  * Checks if a property with the same name as prop exists, and if so replaces it.
  * Use this to preserve order!
  */
-void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
+void IDP_ReplaceInGroup_ex(IDProperty *group, IDProperty *prop, IDProperty *prop_exist)
 {
-	IDProperty *loop;
-
 	BLI_assert(group->type == IDP_GROUP);
 
-	if ((loop = IDP_GetPropertyFromGroup(group, prop->name))) {
-		BLI_insertlinkafter(&group->data.group, loop, prop);
+	BLI_assert(prop_exist == IDP_GetPropertyFromGroup(group, prop->name));
+
+	if ((prop_exist = IDP_GetPropertyFromGroup(group, prop->name))) {
+		BLI_insertlinkafter(&group->data.group, prop_exist, prop);
 		
-		BLI_remlink(&group->data.group, loop);
-		IDP_FreeProperty(loop);
-		MEM_freeN(loop);
+		BLI_remlink(&group->data.group, prop_exist);
+		IDP_FreeProperty(prop_exist);
+		MEM_freeN(prop_exist);
 	}
 	else {
 		group->len++;
 		BLI_addtail(&group->data.group, prop);
 	}
+}
+
+void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
+{
+	IDProperty *prop_exist = IDP_GetPropertyFromGroup(group, prop->name);
+
+	IDP_ReplaceInGroup_ex(group, prop, prop_exist);
 }
 
 /**
@@ -623,8 +630,8 @@ void IDP_MergeGroup(IDProperty *dest, const IDProperty *src, const bool do_overw
  *
  * The sanity check just means the property is not added to the group if another property
  * exists with the same name; the client code using ID properties then needs to detect this
- * (the function that adds new properties to groups, IDP_AddToGroup,returns 0 if a property can't
- * be added to the group, and 1 if it can) and free the property.
+ * (the function that adds new properties to groups, IDP_AddToGroup, returns false if a property can't
+ * be added to the group, and true if it can) and free the property.
  *
  * Currently the code to free ID properties is designed to leave the actual struct
  * you pass it un-freed, this is needed for how the system works.  This means
@@ -639,10 +646,10 @@ bool IDP_AddToGroup(IDProperty *group, IDProperty *prop)
 	if (IDP_GetPropertyFromGroup(group, prop->name) == NULL) {
 		group->len++;
 		BLI_addtail(&group->data.group, prop);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /**
@@ -656,10 +663,10 @@ bool IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew
 	if (IDP_GetPropertyFromGroup(group, pnew->name) == NULL) {
 		group->len++;
 		BLI_insertlinkafter(&group->data.group, previous, pnew);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /**
@@ -761,11 +768,11 @@ IDProperty *IDP_GetProperties(ID *id, const bool create_if_needed)
 bool IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const bool is_strict)
 {
 	if (prop1 == NULL && prop2 == NULL)
-		return 1;
+		return true;
 	else if (prop1 == NULL || prop2 == NULL)
-		return is_strict ? 0 : 1;
+		return is_strict ? false : true;
 	else if (prop1->type != prop2->type)
-		return 0;
+		return false;
 
 	switch (prop1->type) {
 		case IDP_INT:
@@ -793,22 +800,22 @@ bool IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const bool is
 			if (prop1->len == prop2->len && prop1->subtype == prop2->subtype) {
 				return memcmp(IDP_Array(prop1), IDP_Array(prop2), idp_size_table[(int)prop1->subtype] * prop1->len);
 			}
-			return 0;
+			return false;
 		case IDP_GROUP:
 		{
 			IDProperty *link1, *link2;
 
 			if (is_strict && prop1->len != prop2->len)
-				return 0;
+				return false;
 
 			for (link1 = prop1->data.group.first; link1; link1 = link1->next) {
 				link2 = IDP_GetPropertyFromGroup(prop2, link1->name);
 
 				if (!IDP_EqualsProperties_ex(link1, link2, is_strict))
-					return 0;
+					return false;
 			}
 
-			return 1;
+			return true;
 		}
 		case IDP_IDPARRAY:
 		{
@@ -817,12 +824,12 @@ bool IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const bool is
 			int i;
 
 			if (prop1->len != prop2->len)
-				return 0;
+				return false;
 
 			for (i = 0; i < prop1->len; i++)
 				if (!IDP_EqualsProperties(&array1[i], &array2[i]))
-					return 0;
-			return 1;
+					return false;
+			return true;
 		}
 		default:
 			/* should never get here */
@@ -830,7 +837,7 @@ bool IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const bool is
 			break;
 	}
 
-	return 1;
+	return true;
 }
 
 bool IDP_EqualsProperties(IDProperty *prop1, IDProperty *prop2)

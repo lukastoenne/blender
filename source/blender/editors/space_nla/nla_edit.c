@@ -1436,7 +1436,9 @@ static int nlaedit_swap_exec(bContext *C, wmOperator *op)
 		if (BLI_listbase_is_empty(&nlt->strips) == false) {
 			NlaStrip *mstrip = (NlaStrip *)nlt->strips.first;
 			
-			if ((mstrip->flag & NLASTRIP_FLAG_TEMP_META) && (BLI_countlist(&mstrip->strips) == 2)) {
+			if ((mstrip->flag & NLASTRIP_FLAG_TEMP_META) &&
+			    (BLI_listbase_count_ex(&mstrip->strips, 3) == 2))
+			{
 				/* remove this temp meta, so that we can see the strips inside */
 				BKE_nlastrips_clear_metas(&nlt->strips, 0, 1);
 			}
@@ -2174,8 +2176,8 @@ static int nla_fmodifier_add_invoke(bContext *C, wmOperator *UNUSED(op), const w
 	uiLayout *layout;
 	int i;
 	
-	pup = uiPupMenuBegin(C, IFACE_("Add F-Modifier"), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, IFACE_("Add F-Modifier"), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 	
 	/* start from 1 to skip the 'Invalid' modifier type */
 	for (i = 1; i < FMODIFIER_NUM_TYPES; i++) {
@@ -2192,7 +2194,7 @@ static int nla_fmodifier_add_invoke(bContext *C, wmOperator *UNUSED(op), const w
 	}
 	uiItemS(layout);
 	
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 	
 	return OPERATOR_INTERFACE;
 }

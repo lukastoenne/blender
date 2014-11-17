@@ -82,6 +82,10 @@
 
 /* Note, Don't use SEQ_BEGIN/SEQ_END while drawing!
  * it messes up transform, - Campbell */
+#undef SEQ_BEGIN
+#undef SEQP_BEGIN
+#undef SEQ_END
+
 static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2);
 
 static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[3])
@@ -332,7 +336,10 @@ static float draw_seq_handle_size_get_clamped(Sequence *seq, const float pixelx)
 {
 	const float minhandle = pixelx * SEQ_HANDLE_SIZE_MIN;
 	const float maxhandle = pixelx * SEQ_HANDLE_SIZE_MAX;
-	return CLAMPIS(seq->handsize, minhandle, maxhandle);
+	float size = CLAMPIS(seq->handsize, minhandle, maxhandle);
+
+	/* ensure we're not greater then half width */
+	return min_ff(size, ((float)(seq->enddisp - seq->startdisp) / 2.0f) / pixelx);
 }
 
 /* draw a handle, for each end of a sequence strip */
@@ -784,7 +791,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		glLineStipple(1, 0x8888);
 	}
 	
-	uiDrawBoxShade(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
+	UI_draw_roundbox_shade_x(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
 	
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_LINE_STIPPLE);
@@ -1225,8 +1232,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-			uiSetRoundBox(UI_CNR_ALL);
-			uiDrawBox(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
+			UI_draw_roundbox_corner_set(UI_CNR_ALL);
+			UI_draw_roundbox_gl_mode(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 

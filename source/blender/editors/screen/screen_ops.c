@@ -2320,7 +2320,7 @@ static int screen_set_exec(bContext *C, wmOperator *op)
 	bScreen *screen_prev = screen;
 	
 	ScrArea *sa = CTX_wm_area(C);
-	int tot = BLI_countlist(&bmain->screen);
+	int tot = BLI_listbase_count(&bmain->screen);
 	int delta = RNA_int_get(op->ptr, "delta");
 	
 	/* temp screens are for userpref or render display */
@@ -2737,8 +2737,8 @@ static int screen_area_options_invoke(bContext *C, wmOperator *op, const wmEvent
 	
 	if (actedge == NULL) return OPERATOR_CANCELLED;
 	
-	pup = uiPupMenuBegin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 	
 	WM_operator_properties_create(&ptr1, "SCREEN_OT_area_join");
 	
@@ -2757,7 +2757,7 @@ static int screen_area_options_invoke(bContext *C, wmOperator *op, const wmEvent
 	uiItemFullO(layout, "SCREEN_OT_area_split", NULL, ICON_NONE, ptr2.data, WM_OP_INVOKE_DEFAULT, 0);
 	uiItemFullO(layout, "SCREEN_OT_area_join", NULL, ICON_NONE, ptr1.data, WM_OP_INVOKE_DEFAULT, 0);
 	
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 	
 	return OPERATOR_INTERFACE;
 }
@@ -2795,7 +2795,7 @@ static int spacedata_cleanup_exec(bContext *C, wmOperator *op)
 				SpaceLink *sl = sa->spacedata.first;
 
 				BLI_remlink(&sa->spacedata, sl);
-				tot += BLI_countlist(&sa->spacedata);
+				tot += BLI_listbase_count(&sa->spacedata);
 				BKE_spacedata_freelist(&sa->spacedata);
 				BLI_addtail(&sa->spacedata, sl);
 			}
@@ -2853,18 +2853,18 @@ static int repeat_history_invoke(bContext *C, wmOperator *op, const wmEvent *UNU
 	uiLayout *layout;
 	int items, i;
 	
-	items = BLI_countlist(&wm->operators);
+	items = BLI_listbase_count(&wm->operators);
 	if (items == 0)
 		return OPERATOR_CANCELLED;
 	
-	pup = uiPupMenuBegin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 	
 	for (i = items - 1, lastop = wm->operators.last; lastop; lastop = lastop->prev, i--)
 		if (WM_operator_repeat_check(C, lastop))
 			uiItemIntO(layout, RNA_struct_ui_name(lastop->type->srna), ICON_NONE, op->type->idname, "index", i);
 	
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 	
 	return OPERATOR_INTERFACE;
 }
@@ -3255,12 +3255,12 @@ static int header_toolbox_invoke(bContext *C, wmOperator *UNUSED(op), const wmEv
 	uiPopupMenu *pup;
 	uiLayout *layout;
 
-	pup = uiPupMenuBegin(C, IFACE_("Header"), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, IFACE_("Header"), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 
 	ED_screens_header_tools_menu_create(C, layout, NULL);
 
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 
 	return OPERATOR_INTERFACE;
 }
@@ -3525,9 +3525,10 @@ bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 {
 	wmWindow *window;
 
-	for (window = wm->windows.first; window; window = window->next)
-		if (window->screen->animtimer)
-			return window->screen;
+	if (wm)
+		for (window = wm->windows.first; window; window = window->next)
+			if (window->screen->animtimer)
+				return window->screen;
 	
 	return NULL;
 }

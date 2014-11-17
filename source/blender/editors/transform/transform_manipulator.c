@@ -1895,7 +1895,6 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
 			WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
-			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_translate", 0), event, op->ptr, NULL, false);
 		}
 		else if (val & MAN_SCALE_C) {
 			switch (val) {
@@ -1930,7 +1929,6 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
 			WM_operator_name_call(C, "TRANSFORM_OT_resize", WM_OP_INVOKE_DEFAULT, ptr);
-			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_resize", 0), event, op->ptr, NULL, false);
 		}
 		else if (val == MAN_ROT_T) { /* trackball need special case, init is different */
 			/* Do not pass op->ptr!!! trackball has no "constraint" properties!
@@ -1940,8 +1938,7 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_trackball", true);
 			WM_operator_properties_create_ptr(&props_ptr, ot);
 			RNA_boolean_set(&props_ptr, "release_confirm", true);
-			WM_operator_name_call(C, ot->idname, WM_OP_INVOKE_DEFAULT, &props_ptr);
-			//wm_operator_invoke(C, WM_operatortype_find(ot->idname, 0), event, NULL, NULL, false);
+			WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr);
 			WM_operator_properties_free(&props_ptr);
 		}
 		else if (val & MAN_ROT_C) {
@@ -1962,7 +1959,6 @@ int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidge
 			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
 			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
 			WM_operator_name_call(C, "TRANSFORM_OT_rotate", WM_OP_INVOKE_DEFAULT, ptr);
-			//wm_operator_invoke(C, WM_operatortype_find("TRANSFORM_OT_rotate", 0), event, op->ptr, NULL, false);
 		}
 	}
 	

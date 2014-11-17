@@ -914,7 +914,7 @@ DerivedMesh *mesh_create_derived_for_modifier(Scene *scene, Object *ob,
 	if (mti->isDisabled && mti->isDisabled(md, 0)) return NULL;
 	
 	if (build_shapekey_layers && me->key && (kb = BLI_findlink(&me->key->block, ob->shapenr - 1))) {
-		BKE_key_convert_to_mesh(kb, me);
+		BKE_keyblock_convert_to_mesh(kb, me);
 	}
 	
 	if (mti->type == eModifierTypeType_OnlyDeform) {
@@ -1221,7 +1221,7 @@ static void calc_weightpaint_vert_array(Object *ob, DerivedMesh *dm, int const d
 		unsigned int i;
 
 		/* variables for multipaint */
-		const int defbase_tot = BLI_countlist(&ob->defbase);
+		const int defbase_tot = BLI_listbase_count(&ob->defbase);
 		const int defbase_act = ob->actdef - 1;
 
 		int defbase_sel_tot = 0;
@@ -2960,7 +2960,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				a = attribs->tottface++;
 
 				if (layer != -1) {
-					attribs->tface[a].array = tfdata->layers[layer].data;
+					attribs->tface[a].array = NULL;
 					attribs->tface[a].em_offset = ldata->layers[layer].offset;
 				}
 				else {
@@ -3007,7 +3007,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				a = attribs->totmcol++;
 
 				if (layer != -1) {
-					attribs->mcol[a].array = tfdata->layers[layer].data;
+					attribs->mcol[a].array = NULL;
 					/* odd, store the offset for a different layer type here, but editmode draw code expects it */
 					attribs->mcol[a].em_offset = ldata->layers[layer].offset;
 				}

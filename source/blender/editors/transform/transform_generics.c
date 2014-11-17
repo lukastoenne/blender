@@ -109,21 +109,7 @@
 void getViewVector(TransInfo *t, float coord[3], float vec[3])
 {
 	if (t->persp != RV3D_ORTHO) {
-		float p1[4], p2[4];
-		
-		copy_v3_v3(p1, coord);
-		p1[3] = 1.0f;
-		copy_v3_v3(p2, p1);
-		p2[3] = 1.0f;
-		mul_m4_v4(t->viewmat, p2);
-		
-		p2[0] = 2.0f * p2[0];
-		p2[1] = 2.0f * p2[1];
-		p2[2] = 2.0f * p2[2];
-		
-		mul_m4_v4(t->viewinv, p2);
-		
-		sub_v3_v3v3(vec, p1, p2);
+		sub_v3_v3v3(vec, coord, t->viewinv[3]);
 	}
 	else {
 		copy_v3_v3(vec, t->viewinv[2]);
@@ -1209,7 +1195,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		}
 
 		/* exceptional case */
-		if (t->around == V3D_LOCAL && (t->settings->selectmode & SCE_SELECT_FACE)) {
+		if (t->around == V3D_LOCAL) {
 			if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
 				t->options |= CTX_NO_PET;
 			}
