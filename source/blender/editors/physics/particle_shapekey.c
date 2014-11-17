@@ -110,7 +110,7 @@ static bool ED_particles_shape_key_remove(Main *bmain, Object *ob, ParticleSyste
 			
 			if (key->refkey) {
 				/* apply new basis key on original data */
-				BKE_key_convert_to_hair_keys(key->refkey, ob, psys);
+				BKE_keyblock_convert_to_hair_keys(key->refkey, ob, psys);
 			}
 		}
 			
