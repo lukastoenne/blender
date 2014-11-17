@@ -35,6 +35,7 @@
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_camera_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -694,6 +695,54 @@ static void view3d_dropboxes(void)
 	WM_dropbox_add(lb, "OBJECT_OT_group_instance_add", view3d_group_drop_poll, view3d_group_drop_copy);	
 }
 
+
+static bool WIDGETGROUP_camera_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_CAMERA) {
+		return true;
+	}
+	return false;
+}
+
+static void WIDGETGROUP_camera_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	Camera *ca = ob->data;
+	wmWidget *widget = WM_widgetgroup_widgets(wgroup)->first;
+	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
+	float dir[3];
+
+	RNA_pointer_create(&ca->id, &RNA_Camera, ca, cameraptr);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, cameraptr, "dof_distance");
+	negate_v3_v3(dir, ob->obmat[2]);
+	WIDGET_arrow_set_direction(widget, dir);
+}
+
+
+static void WIDGETGROUP_camera_free(struct wmWidgetGroup *wgroup)
+{
+	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
+
+	MEM_freeN(cameraptr);
+}
+
+static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
+{
+	float color_camera[4] = {1.0f, 0.7f, 0.2f, 1.0f};
+	wmWidget *widget = NULL;
+	PointerRNA *cameraptr = MEM_callocN(sizeof(PointerRNA), "camerawidgetptr");
+
+	widget = WIDGET_arrow_new(UI_ARROW_STYLE_OFFSET_3D, NULL);
+	WM_widget_register(wgroup, widget);
+	WIDGET_arrow_set_color(widget, color_camera);
+
+	WM_widgetgroup_customdata_set(wgroup, cameraptr);
+}
+
+
 static void view3d_widgets(void)
 {
 	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
@@ -706,8 +755,14 @@ static void view3d_widgets(void)
 	                                                                WIDGETGROUP_lamp_update,
 	                                                                WIDGETGROUP_lamp_free);
 
+	struct wmWidgetGroupType *wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_create,
+	                                                                WIDGETGROUP_camera_poll,
+	                                                                WIDGETGROUP_camera_update,
+	                                                                WIDGETGROUP_camera_free);
+
 	WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
 	WM_widgetgrouptype_register(wmaptype, wgroup_light);
+	WM_widgetgrouptype_register(wmaptype, wgroup_camera);
 }
 
 
