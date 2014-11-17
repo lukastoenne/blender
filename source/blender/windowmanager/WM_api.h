@@ -517,7 +517,9 @@ enum {
 	/* inverted offset during interaction - if set it also sets constrained below */
 	UI_ARROW_STYLE_INVERTED      = (1 << 2),
 	/* clamp arrow interaction to property width */
-	UI_ARROW_STYLE_CONSTRAINED   = (1 << 4)
+	UI_ARROW_STYLE_CONSTRAINED   = (1 << 3),
+	/* force offset to be in 3D space, even if widget system is not 3D */
+	UI_ARROW_STYLE_OFFSET_3D   = (1 << 4),
 };
 
 enum {

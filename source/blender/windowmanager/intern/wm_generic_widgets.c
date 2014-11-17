@@ -162,8 +162,10 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	float up[3] = {0.0f, 0.0f, 1.0f};
 	float final_pos[3];
 
-	copy_v3_v3(final_pos, arrow->direction);
-	mul_v3_fl(final_pos, scale * arrow->offset);
+	if (arrow->style & UI_ARROW_STYLE_OFFSET_3D)
+		mul_v3_v3fl(final_pos, arrow->direction, arrow->offset);
+	else
+		mul_v3_v3fl(final_pos, arrow->direction, scale * arrow->offset);
 	add_v3_v3(final_pos, arrow->widget.origin);
 
 	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
@@ -186,8 +188,10 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	if (arrow->widget.interaction_data) {
 		ArrowInteraction *data = arrow->widget.interaction_data;
 
-		copy_v3_v3(final_pos, arrow->direction);
-		mul_v3_fl(final_pos, scale * data->orig_offset);
+		if (arrow->style & UI_ARROW_STYLE_OFFSET_3D)
+			mul_v3_v3fl(final_pos, arrow->direction, data->orig_offset);
+		else
+			mul_v3_v3fl(final_pos, arrow->direction, scale * data->orig_offset);
 		add_v3_v3(final_pos, arrow->widget.origin);
 
 		copy_m4_m3(mat, rot);
@@ -231,8 +235,10 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	float offset[4];
 	float m_diff[2];
 	float dir_2d[2], dir2d_final[2];
-	float fac, zfac;
+	float fac, zfac, widget_scale;
 	float facdir = 1.0f;
+
+	widget_scale = (arrow->style & UI_ARROW_STYLE_OFFSET_3D) ? 1.0 : widget->scale;
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
@@ -286,7 +292,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	else if (widget->prop) {
 		float value;
 
-		value = data->orig_offset + facdir / widget->scale * len_v3(offset);
+		value = data->orig_offset + facdir / widget_scale * len_v3(offset);
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
 				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
@@ -308,7 +314,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
 	}
 	else {
-		arrow->offset = facdir / widget->scale * len_v3(offset);
+		arrow->offset = facdir / widget_scale * len_v3(offset);
 	}
 
 	/* tag the region for redraw */
