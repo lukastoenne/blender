@@ -227,16 +227,19 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	RegionView3D *rv3d = ar->regiondata;
 
 	float orig_origin[4];
+	float viewvec[3], tangent[3], plane[3];
 	float offset[4];
 	float m_diff[2];
 	float dir_2d[2], dir2d_final[2];
-	float fac;
+	float fac, zfac;
 	float facdir = 1.0f;
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
 	add_v3_v3v3(offset, orig_origin, arrow->direction);
 	offset[3] = 1.0f;
+
+	zfac = ED_view3d_calc_zfac(rv3d, orig_origin, NULL);
 
 	/* multiply to projection space */
 	mul_m4_v4(rv3d->persmat, orig_origin);
@@ -245,10 +248,9 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	mul_v4_fl(orig_origin, 1.0f/orig_origin[3]);
 	mul_v4_fl(offset, 1.0f/offset[3]);
 	sub_v2_v2v2(dir_2d, offset, orig_origin);
+	dir_2d[0] *= ar->winx;
+	dir_2d[1] *= ar->winy;
 	normalize_v2(dir_2d);
-
-	dir_2d[0] *= BLI_rcti_size_x(&ar->winrct) * 0.5f;
-	dir_2d[1] *= BLI_rcti_size_y(&ar->winrct) * 0.5f;
 
 	/* find mouse difference */
 	m_diff[0] = event->mval[0] - data->orig_mouse[0];
@@ -257,24 +259,25 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	/* project the displacement on the screen space arrow direction */
 	project_v2_v2v2(dir2d_final, m_diff, dir_2d);
 
-	dir2d_final[0] /= (BLI_rcti_size_x(&ar->winrct) * 0.5f);
-	dir2d_final[1] /= (BLI_rcti_size_y(&ar->winrct) * 0.5f);
+	ED_view3d_win_to_delta(ar, dir2d_final, offset, zfac);
 
-	add_v2_v2(orig_origin, dir2d_final);
+	add_v3_v3v3(orig_origin, offset, data->orig_origin);
 
-	/* project back to world space and find world space displacement direction */
-	mul_m4_v4(rv3d->persinv, orig_origin);
-	mul_v4_fl(orig_origin, 1.0f/orig_origin[3]);
+	/* calculate view vector */
+	if (rv3d->is_persp) {
+		sub_v3_v3v3(viewvec, orig_origin, rv3d->viewinv[3]);
+	}
+	else {
+		copy_v3_v3(viewvec, rv3d->viewinv[2]);
+	}
 
-	sub_v3_v3(orig_origin, data->orig_origin);
+	/* now find a plane parallel to the view vector so we can intersect with the arrow direction */
+	cross_v3_v3v3(tangent, viewvec, offset);
+	cross_v3_v3v3(plane, tangent, viewvec);
+	fac = dot_v3v3(plane, offset) / dot_v3v3(arrow->direction, plane);
 
-	/* reuse offset, project direction to displacement */
-	project_v3_v3v3(offset, arrow->direction, orig_origin);
-	fac = len_v3(orig_origin) / len_v3(offset);
-	if (dot_v3v3(offset, orig_origin) < 0.0f)
-		facdir = -1.0;
-	fac *= facdir;
-	mul_v3_v3fl(orig_origin, offset, fac);
+	facdir = (fac < 0.0) ? -1.0 : 1.0;
+	mul_v3_v3fl(offset, arrow->direction, fac);
 
 	/* set the property for the operator and call its modal function */
 	if (op && widget->propname) {
@@ -283,7 +286,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	else if (widget->prop) {
 		float value;
 
-		value = data->orig_offset + facdir / widget->scale * len_v3(orig_origin);
+		value = data->orig_offset + facdir / widget->scale * len_v3(offset);
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
 				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
@@ -293,7 +296,6 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 
 		RNA_property_float_set(widget->ptr, widget->prop, value);
 		RNA_property_update(C, widget->ptr, widget->prop);
-
 
 		/* accounts for clamping properly */
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
@@ -306,7 +308,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
 	}
 	else {
-		arrow->offset = facdir / widget->scale * len_v3(orig_origin);
+		arrow->offset = facdir / widget->scale * len_v3(offset);
 	}
 
 	/* tag the region for redraw */
