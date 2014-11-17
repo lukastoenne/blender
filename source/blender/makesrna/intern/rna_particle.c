@@ -128,6 +128,7 @@ static EnumPropertyItem part_hair_ren_as_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
 #include "BKE_context.h"
@@ -796,7 +797,7 @@ static void rna_Particle_active_shape_key_index_range(PointerRNA *ptr, int *min,
 
 	*min = 0;
 	if (key) {
-		*max = BLI_countlist(&key->block) - 1;
+		*max = BLI_listbase_count(&key->block) - 1;
 		if (*max < 0) *max = 0;
 	}
 	else {
@@ -974,7 +975,7 @@ static void rna_ParticleSystem_active_particle_target_index_range(PointerRNA *pt
 {
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&psys->targets) - 1);
+	*max = max_ii(0, BLI_listbase_count(&psys->targets) - 1);
 }
 
 static int rna_ParticleSystem_active_particle_target_index_get(PointerRNA *ptr)
@@ -1097,7 +1098,7 @@ static void rna_ParticleDupliWeight_active_index_range(PointerRNA *ptr, int *min
 {
 	ParticleSettings *part = (ParticleSettings *)ptr->id.data;
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&part->dupliweights) - 1);
+	*max = max_ii(0, BLI_listbase_count(&part->dupliweights) - 1);
 }
 
 static int rna_ParticleDupliWeight_active_index_get(PointerRNA *ptr)

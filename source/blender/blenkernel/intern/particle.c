@@ -375,7 +375,7 @@ KeyBlock *BKE_psys_insert_shape_key(Scene *UNUSED(scene), Object *ob, ParticleSy
 	if (newkey || !from_mix) {
 		/* create from mesh */
 		kb = BKE_keyblock_add_ctime(key, name, false);
-		BKE_key_convert_from_hair_keys(ob, psys, kb);
+		BKE_keyblock_convert_from_hair_keys(ob, psys, kb);
 	}
 	else {
 		/* create new block with prepared data */
@@ -3266,8 +3266,8 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	psys->key = BKE_key_add_particles(ob, psys);
 	psys->key->type = KEY_RELATIVE;
 
-	if (BLI_countlist(&ob->particlesystem) > 1)
-		BLI_snprintf(psys->name, sizeof(psys->name), DATA_("ParticleSystem %i"), BLI_countlist(&ob->particlesystem));
+	if (BLI_listbase_count_ex(&ob->particlesystem, 2) > 1)
+		BLI_snprintf(psys->name, sizeof(psys->name), DATA_("ParticleSystem %i"), BLI_listbase_count(&ob->particlesystem));
 	else
 		BLI_strncpy(psys->name, DATA_("ParticleSystem"), sizeof(psys->name));
 
@@ -3276,7 +3276,7 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	if (name)
 		BLI_strncpy_utf8(md->name, name, sizeof(md->name));
 	else
-		BLI_snprintf(md->name, sizeof(md->name), DATA_("ParticleSystem %i"), BLI_countlist(&ob->particlesystem));
+		BLI_snprintf(md->name, sizeof(md->name), DATA_("ParticleSystem %i"), BLI_listbase_count(&ob->particlesystem));
 	modifier_unique_name(&ob->modifiers, md);
 
 	psmd = (ParticleSystemModifierData *) md;
