@@ -652,7 +652,9 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				widget->ptr = NULL;
 			}
 			else if (widget->prop) {
-				ED_undo_push(C, "widget_undo");
+				char undo_str[256];
+				BLI_snprintf(undo_str, 256, "widget_undo: %s", RNA_property_ui_name(widget->prop));
+				ED_undo_push(C, undo_str);
 			}
 		}
 
