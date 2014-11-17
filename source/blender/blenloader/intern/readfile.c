@@ -3945,7 +3945,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);
 			psys->clmd->clothObject = NULL;
-			psys->clmd->roots = NULL;
+			psys->clmd->hairdata = NULL;
 			
 			psys->clmd->sim_parms= newdataadr(fd, psys->clmd->sim_parms);
 			psys->clmd->coll_parms= newdataadr(fd, psys->clmd->coll_parms);
@@ -4675,7 +4675,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			ClothModifierData *clmd = (ClothModifierData *)md;
 			
 			clmd->clothObject = NULL;
-			clmd->roots = NULL;
+			clmd->hairdata = NULL;
 			
 			clmd->sim_parms= newdataadr(fd, clmd->sim_parms);
 			clmd->coll_parms= newdataadr(fd, clmd->coll_parms);

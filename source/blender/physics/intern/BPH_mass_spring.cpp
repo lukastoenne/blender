@@ -176,12 +176,12 @@ void BPH_cloth_solver_set_positions(ClothModifierData *clmd)
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *vert;
 	unsigned int numverts = cloth->numverts, i;
-	ClothHairRoot *cloth_roots = clmd->roots;
+	ClothHairData *cloth_hairdata = clmd->hairdata;
 	Implicit_Data *id = cloth_solver_init_data(cloth);
 	
 	vert = cloth->verts;
 	for (i = 0; i < numverts; ++i, ++vert) {
-		ClothHairRoot *root = &cloth_roots[i];
+		ClothHairData *root = &cloth_hairdata[i];
 		
 		if (vert->solver_index < 0)
 			continue;
