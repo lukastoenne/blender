@@ -1364,7 +1364,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	else
 		glScissor(ar->winrct.xmin, ar->winrct.ymin, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
 
-	glClearColor(0.0, 0.0, 0.0, 0.0); 
+	glClearColor(0.0, 0.0, 0.0, 0.0);
 	if (v3d->zbuf) {
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -3492,7 +3492,9 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->shader_fx) {
-		GPUFXOptions options = *v3d->fxoptions;
+		GPUFXOptions options;
+		BKE_screen_view3d_ensure_FX(v3d);
+		options = *v3d->fxoptions;
 		if (!rv3d->compositor)
 			rv3d->compositor = GPU_create_fx_compositor();
 		

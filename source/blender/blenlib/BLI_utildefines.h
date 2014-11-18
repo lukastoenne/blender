@@ -32,6 +32,10 @@
  *  \ingroup bli
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* avoid many includes for now */
 #include "BLI_sys_types.h"
 #include "BLI_compiler_compat.h"
@@ -510,6 +514,7 @@
  * for aborting need to define WITH_ASSERT_ABORT
  */
 #ifndef NDEBUG
+extern void BLI_system_backtrace(FILE *fp);
 #  ifdef WITH_ASSERT_ABORT
 #    define _BLI_DUMMY_ABORT abort
 #  else
@@ -519,6 +524,7 @@
 #    define BLI_assert(a)                                                     \
 	(void)((!(a)) ?  (                                                        \
 		(                                                                     \
+		BLI_system_backtrace(stderr),                                         \
 		fprintf(stderr,                                                       \
 			"BLI_assert failed: %s:%d, %s(), at \'%s\'\n",                    \
 			__FILE__, __LINE__, __func__, STRINGIFY(a)),                      \
@@ -556,6 +562,10 @@
 #else
 #  define LIKELY(x)       (x)
 #  define UNLIKELY(x)     (x)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif  /* __BLI_UTILDEFINES_H__ */
