@@ -1103,7 +1103,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
 	int a, totscene;
 
 	if (sce->set == NULL) return 1;
-	totscene = BLI_countlist(&bmain->scene);
+	totscene = BLI_listbase_count(&bmain->scene);
 	
 	for (a = 0, sce_iter = sce; sce_iter->set; sce_iter = sce_iter->set, a++) {
 		/* more iterations than scenes means we have a cycle */
@@ -1261,7 +1261,7 @@ static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scen
 static void scene_armature_depsgraph_workaround(Main *bmain)
 {
 	Object *ob;
-	if (!DAG_id_type_tagged(bmain, ID_OB)) {
+	if (BLI_listbase_is_empty(&bmain->armature) || !DAG_id_type_tagged(bmain, ID_OB)) {
 		return;
 	}
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {

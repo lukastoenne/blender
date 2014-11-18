@@ -127,19 +127,19 @@ static void cleanup_fx_dof_buffers(GPUFX *fx)
 static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 {
 	if (fx->color_buffer) {
-		GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer);
+		GPU_framebuffer_texture_detach(fx->color_buffer);
 		GPU_texture_free(fx->color_buffer);
 		fx->color_buffer = NULL;
 	}
 
 	if (fx->color_buffer_sec) {
-		GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer_sec);
+		GPU_framebuffer_texture_detach(fx->color_buffer_sec);
 		GPU_texture_free(fx->color_buffer_sec);
 		fx->color_buffer_sec = NULL;
 	}
 
 	if (fx->depth_buffer) {
-		GPU_framebuffer_texture_detach(fx->gbuffer, fx->depth_buffer);
+		GPU_framebuffer_texture_detach(fx->depth_buffer);
 		GPU_texture_free(fx->depth_buffer);
 		fx->depth_buffer = NULL;
 	}		
@@ -309,7 +309,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	}
 	else {
 		if (fx->color_buffer_sec) {
-			GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer_sec);
+			GPU_framebuffer_texture_detach(fx->color_buffer_sec);
 			GPU_texture_free(fx->color_buffer_sec);
 			fx->color_buffer_sec = NULL;
 		}
@@ -318,14 +318,13 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	/* bind the buffers */
 	
 	/* first depth buffer, because system assumes read/write buffers */
-	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->depth_buffer, err_out))
+	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->depth_buffer, 0, err_out))
 		printf("%.256s\n", err_out);
 	
-	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->color_buffer, err_out))
+	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->color_buffer, 0, err_out))
 		printf("%.256s\n", err_out);
 	
-	GPU_framebuffer_texture_bind(fx->gbuffer, fx->color_buffer, 
-								 GPU_texture_opengl_width(fx->color_buffer), GPU_texture_opengl_height(fx->color_buffer));
+	GPU_texture_bind_as_framebuffer(fx->color_buffer);
 
 	/* enable scissor test. It's needed to ensure sculpting works correctly */
 	if (scissor_rect) {
@@ -372,8 +371,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		return false;
 	
 	/* first, unbind the render-to-texture framebuffer */
-	GPU_framebuffer_texture_detach(fx->gbuffer, fx->color_buffer);
-	GPU_framebuffer_texture_detach(fx->gbuffer, fx->depth_buffer);
+	GPU_framebuffer_texture_detach(fx->color_buffer);
+	GPU_framebuffer_texture_detach(fx->depth_buffer);
 
 	if (fx->restore_stencil)
 		glPopAttrib();
@@ -489,7 +488,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			}
 			else {
 				/* bind the ping buffer to the color buffer */
-				GPU_framebuffer_texture_attach(fx->gbuffer, target, NULL);
+				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
 			}
 			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_QUADS, 0, 4);
@@ -501,7 +500,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 			/* may not be attached, in that case this just returns */
 			if (target) {
-				GPU_framebuffer_texture_detach(fx->gbuffer, target);
+				GPU_framebuffer_texture_detach(target);
 				if (ofs) {
 					GPU_offscreen_bind(ofs, false);
 				}
@@ -573,10 +572,9 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_texture(dof_shader_pass1, depth_uniform, fx->depth_buffer);
 
 			/* target is the downsampled coc buffer */
-			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_buffer, NULL);
+			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_buffer, 0, NULL);
 			/* binding takes care of setting the viewport to the downsampled size */
-			GPU_framebuffer_texture_bind(fx->gbuffer, fx->dof_near_coc_buffer,
-			                             GPU_texture_opengl_width(fx->dof_near_coc_buffer), GPU_texture_opengl_height(fx->dof_near_coc_buffer));
+			GPU_texture_bind_as_framebuffer(fx->dof_near_coc_buffer);
 
 			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_QUADS, 0, 4);
@@ -585,7 +583,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_depth_texture_mode(fx->depth_buffer, true, false);
 			GPU_texture_unbind(fx->depth_buffer);
 
-			GPU_framebuffer_texture_detach(fx->gbuffer, fx->dof_near_coc_buffer);
+			GPU_framebuffer_texture_detach(fx->dof_near_coc_buffer);
 			numslots = 0;
 		}
 
@@ -621,14 +619,14 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_texture(dof_shader_pass2, color_uniform, fx->dof_near_coc_buffer);
 
 			/* use final buffer as a temp here */
-			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, NULL);
+			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, 0, NULL);
 
 			/* Drawing quad */
 			glDrawArrays(GL_QUADS, 0, 4);
 
 			/* *unbind/detach */
 			GPU_texture_unbind(fx->dof_near_coc_buffer);
-			GPU_framebuffer_texture_detach(fx->gbuffer, fx->dof_near_coc_final_buffer);
+			GPU_framebuffer_texture_detach(fx->dof_near_coc_final_buffer);
 
 			/* Blurring horizontally */
 			invrendertargetdim[0] = tmp;
@@ -638,7 +636,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_bind(fx->dof_near_coc_final_buffer, numslots++);
 			GPU_shader_uniform_texture(dof_shader_pass2, color_uniform, fx->dof_near_coc_final_buffer);
 
-			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_blurred_buffer, NULL);
+			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_blurred_buffer, 0, NULL);
 			glDrawArrays(GL_QUADS, 0, 4);
 
 			/* *unbind/detach */
@@ -646,7 +644,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_unbind(fx->depth_buffer);
 
 			GPU_texture_unbind(fx->dof_near_coc_final_buffer);
-			GPU_framebuffer_texture_detach(fx->gbuffer, fx->dof_near_coc_blurred_buffer);
+			GPU_framebuffer_texture_detach(fx->dof_near_coc_blurred_buffer);
 
 			dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
 
@@ -668,7 +666,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_bind(fx->dof_near_coc_blurred_buffer, numslots++);
 			GPU_shader_uniform_texture(dof_shader_pass3, near_coc_blurred, fx->dof_near_coc_blurred_buffer);
 
-			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, NULL);
+			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, 0, NULL);
 
 			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_QUADS, 0, 4);
@@ -677,7 +675,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_unbind(fx->dof_near_coc_blurred_buffer);
 
 			/* unbinding here restores the size to the original */
-			GPU_framebuffer_texture_detach(fx->gbuffer, fx->dof_near_coc_final_buffer);
+			GPU_framebuffer_texture_detach(fx->dof_near_coc_final_buffer);
 
 			numslots = 0;
 		}
@@ -698,7 +696,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_texture(dof_shader_pass4, near_coc_downsampled, fx->dof_near_coc_final_buffer);
 			GPU_shader_uniform_vector(dof_shader_pass4, invrendertargetdim_uniform, 2, 1, invrendertargetdim);
 
-			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_buffer, NULL);
+			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_buffer, 0, NULL);
 
 			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_QUADS, 0, 4);
@@ -707,7 +705,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 			/* unbinding here restores the size to the original */
 			GPU_framebuffer_texture_unbind(fx->gbuffer, fx->dof_near_coc_buffer);
-			GPU_framebuffer_texture_detach(fx->gbuffer, fx->dof_near_coc_buffer);
+			GPU_framebuffer_texture_detach(fx->dof_near_coc_buffer);
 
 			numslots = 0;
 		}
@@ -756,7 +754,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			}
 			else {
 				/* bind the ping buffer to the color buffer */
-				GPU_framebuffer_texture_attach(fx->gbuffer, target, NULL);
+				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
 			}
 			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_QUADS, 0, 4);
@@ -769,7 +767,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 			/* may not be attached, in that case this just returns */
 			if (target) {
-				GPU_framebuffer_texture_detach(fx->gbuffer, target);
+				GPU_framebuffer_texture_detach(target);
 				if (ofs) {
 					GPU_offscreen_bind(ofs, false);
 				}
