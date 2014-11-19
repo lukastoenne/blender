@@ -169,7 +169,7 @@ static void widget_arrow_get_final_pos(struct wmWidget *widget, float pos[3])
 	add_v3_v3(pos, arrow->widget.origin);
 }
 
-static void arrow_draw_geom(ArrowWidget *arrow, bool select, bool highlight)
+static void arrow_draw_geom(ArrowWidget *arrow, bool select)
 {
 	if (arrow->style & UI_ARROW_STYLE_CROSS) {
 		glPushAttrib(GL_ENABLE_BIT);
@@ -217,7 +217,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	else
 		glColor4fv(arrow->color);
 
-	arrow_draw_geom(arrow, select, highlight);
+	arrow_draw_geom(arrow, select);
 
 	glPopMatrix();
 
@@ -233,7 +233,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
-		arrow_draw_geom(arrow, select, highlight);
+		arrow_draw_geom(arrow, select);
 
 		glDisable(GL_BLEND);
 
@@ -268,28 +268,43 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	float dir_2d[2], dir2d_final[2];
 	float fac, zfac;
 	float facdir = 1.0f;
-	bool flip;
+	bool use_vertical = false;
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
 	add_v3_v3v3(offset, orig_origin, arrow->direction);
 	offset[3] = 1.0f;
 
-	zfac = ED_view3d_calc_zfac(rv3d, orig_origin, &flip);
+	/* calculate view vector */
+	if (rv3d->is_persp) {
+		sub_v3_v3v3(viewvec, orig_origin, rv3d->viewinv[3]);
+	}
+	else {
+		copy_v3_v3(viewvec, rv3d->viewinv[2]);
+	}
+	normalize_v3(viewvec);
 
-	if (flip)
-		zfac *= -1.0;
+	zfac = ED_view3d_calc_zfac(rv3d, orig_origin, NULL);
 
-	/* multiply to projection space */
-	mul_m4_v4(rv3d->persmat, orig_origin);
-	mul_m4_v4(rv3d->persmat, offset);
+	/* first determine if view vector is really close to the direction. If it is, we use vertical movement to determine offset,
+	 * just like transform system does */
+	if (RAD2DEG(acos(dot_v3v3(viewvec, arrow->direction))) > 5.0f) {
+		/* multiply to projection space */
+		mul_m4_v4(rv3d->persmat, orig_origin);
+		mul_v4_fl(orig_origin, 1.0f/orig_origin[3]);
+		mul_m4_v4(rv3d->persmat, offset);
+		mul_v4_fl(offset, 1.0f/offset[3]);
 
-	mul_v4_fl(orig_origin, 1.0f/orig_origin[3]);
-	mul_v4_fl(offset, 1.0f/offset[3]);
-	sub_v2_v2v2(dir_2d, offset, orig_origin);
-	dir_2d[0] *= ar->winx;
-	dir_2d[1] *= ar->winy;
-	normalize_v2(dir_2d);
+		sub_v2_v2v2(dir_2d, offset, orig_origin);
+		dir_2d[0] *= ar->winx;
+		dir_2d[1] *= ar->winy;
+		normalize_v2(dir_2d);
+	}
+	else {
+		dir_2d[0] = 0.0f;
+		dir_2d[1] = 1.0f;
+		use_vertical = true;
+	}
 
 	/* find mouse difference */
 	m_diff[0] = event->mval[0] - data->orig_mouse[0];
@@ -302,7 +317,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 
 	add_v3_v3v3(orig_origin, offset, data->orig_origin);
 
-	/* calculate view vector */
+	/* calculate view vector for the new position */
 	if (rv3d->is_persp) {
 		sub_v3_v3v3(viewvec, orig_origin, rv3d->viewinv[3]);
 	}
@@ -310,13 +325,19 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		copy_v3_v3(viewvec, rv3d->viewinv[2]);
 	}
 
-	/* now find a plane parallel to the view vector so we can intersect with the arrow direction */
-	cross_v3_v3v3(tangent, viewvec, offset);
-	cross_v3_v3v3(plane, tangent, viewvec);
-	fac = dot_v3v3(plane, offset) / dot_v3v3(arrow->direction, plane);
+	normalize_v3(viewvec);
+	if (!use_vertical) {
+		/* now find a plane parallel to the view vector so we can intersect with the arrow direction */
+		cross_v3_v3v3(tangent, viewvec, offset);
+		cross_v3_v3v3(plane, tangent, viewvec);
+		fac = dot_v3v3(plane, offset) / dot_v3v3(arrow->direction, plane);
 
-	facdir = (fac < 0.0) ? -1.0 : 1.0;
-	mul_v3_v3fl(offset, arrow->direction, fac);
+		facdir = (fac < 0.0) ? -1.0 : 1.0;
+		mul_v3_v3fl(offset, arrow->direction, fac);
+	}
+	else {
+		facdir = (m_diff[1] < 0.0) ? -1.0 : 1.0;
+	}
 
 	/* set the property for the operator and call its modal function */
 	if (op && widget->propname) {
