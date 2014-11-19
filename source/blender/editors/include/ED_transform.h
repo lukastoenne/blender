@@ -155,6 +155,7 @@ void Transform_Properties(struct wmOperatorType *ot, int flags);
 
 /* view3d manipulators */
 
+/*
 typedef struct ManipulatorGroup {
 	struct wmWidget *translate_x;
 	struct wmWidget *translate_y;
@@ -176,7 +177,10 @@ bool WIDGETGROUP_manipulator_poll(struct wmWidgetGroup *wgroup, const struct bCo
 void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C);
 void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup);
 void WIDGETGROUP_manipulator_create(struct wmWidgetGroup *wgroup);
+*/
 
+void BIF_draw_manipulator(const struct bContext *C);
+int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmOperator *op);
 /* Snapping */
 
 

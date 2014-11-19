@@ -751,10 +751,12 @@ static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
 static void view3d_widgets(void)
 {
 	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	/*
 	struct wmWidgetGroupType *wgroup_manipulator = WM_widgetgrouptype_new(WIDGETGROUP_manipulator_create,
 	                                                                      WIDGETGROUP_manipulator_poll,
 	                                                                      WIDGETGROUP_manipulator_update,
 	                                                                      WIDGETGROUP_manipulator_free);
+	*/
 	struct wmWidgetGroupType *wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_create,
 	                                                                WIDGETGROUP_lamp_poll,
 	                                                                WIDGETGROUP_lamp_update,
@@ -765,7 +767,7 @@ static void view3d_widgets(void)
 	                                                                WIDGETGROUP_camera_update,
 	                                                                WIDGETGROUP_camera_free);
 
-	WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
+	//WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
 	WM_widgetgrouptype_register(wmaptype, wgroup_light);
 	WM_widgetgrouptype_register(wmaptype, wgroup_camera);
 }
