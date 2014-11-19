@@ -291,7 +291,9 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d)
 				}
 
 				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
-					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW)) {
+					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW) &&
+					    (!(widget_iter->flag & WM_WIDGET_DRAW_HOVER) || (widget_iter->flag & WM_WIDGET_HIGHLIGHT)))
+					{
 						float scale = 1.0;
 
 						if (do_scale) {
@@ -388,6 +390,16 @@ void WM_widget_set_draw(struct wmWidget *widget, bool draw)
 	}
 	else {
 		widget->flag |= WM_WIDGET_SKIP_DRAW;
+	}
+}
+
+void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw)
+{
+	if (draw) {
+		widget->flag |= WM_WIDGET_DRAW_HOVER;
+	}
+	else {
+		widget->flag &= ~WM_WIDGET_DRAW_HOVER;
 	}
 }
 

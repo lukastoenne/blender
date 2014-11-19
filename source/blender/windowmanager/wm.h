@@ -114,6 +114,8 @@ enum widgetflags {
 	/* other stuff */
 	WM_WIDGET_FREE_DATA  = (1 << 2),
 	WM_WIDGET_SKIP_DRAW  = (1 << 3),
+
+	WM_WIDGET_DRAW_HOVER  = (1 << 4),
 };
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);

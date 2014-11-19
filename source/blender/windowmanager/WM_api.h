@@ -494,6 +494,8 @@ void *WM_widget_customdata(struct wmWidget *widget);
 void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
 void WM_widget_set_draw(struct wmWidget *widget, bool draw);
 
+void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw);
+
 void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
 void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
 ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup);

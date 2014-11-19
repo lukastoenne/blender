@@ -701,7 +701,8 @@ static bool WIDGETGROUP_camera_poll(struct wmWidgetGroup *UNUSED(wgroup), const 
 	Object *ob = CTX_data_active_object(C);
 
 	if (ob && ob->type == OB_CAMERA) {
-		return true;
+		Camera *ca = ob->data;
+		return (ca->flag & CAM_SHOWLIMITS) != 0;
 	}
 	return false;
 }
@@ -716,6 +717,7 @@ static void WIDGETGROUP_camera_update(struct wmWidgetGroup *wgroup, const struct
 
 	RNA_pointer_create(&ca->id, &RNA_Camera, ca, cameraptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_property(widget, cameraptr, "dof_distance");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
