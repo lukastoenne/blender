@@ -35,6 +35,7 @@
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_camera_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -54,6 +55,7 @@
 #include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
+#include "ED_view3d.h"
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -70,6 +72,7 @@
 #include "RNA_access.h"
 
 #include "UI_resources.h"
+#include "UI_interface.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -382,8 +385,10 @@ static SpaceLink *view3d_new(const bContext *C)
 	
 	BLI_addtail(&v3d->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
+	ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	
 	ar->regiondata = MEM_callocN(sizeof(RegionView3D), "region view3d");
+
 	rv3d = ar->regiondata;
 	rv3d->viewquat[0] = 1.0f;
 	rv3d->persp = RV3D_PERSP;
@@ -433,22 +438,7 @@ static void view3d_free(SpaceLink *sl)
 
 /* spacetype; init callback */
 static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
-{
-	static wmWidget *manipulator_widget = NULL;
-	
-	if (!manipulator_widget) {
-		struct wmWidgetMap *wmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-		int *realtimeflags = MEM_mallocN(sizeof(int), "manipulator_display_flags");
-		*realtimeflags = 0;
-		
-		manipulator_widget = WM_widget_new(BIF_manipulator_poll, 
-										   BIF_draw_manipulator, 
-										   BIF_manipulator_render_3d_intersect, 
-										   NULL, 
-										   BIF_manipulator_handler, realtimeflags, true);
-		
-		WM_widget_register(wmap, manipulator_widget);
-	}
+{	
 }
 
 static SpaceLink *view3d_duplicate(SpaceLink *sl)
@@ -577,8 +567,10 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
-	ar->widgetmap = WM_widgetmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	
+	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
+	if (!ar->widgetmap)
+		ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+
 	WM_event_add_widget_handler(ar);
 }
 
@@ -723,6 +715,82 @@ static void view3d_dropboxes(void)
 	WM_dropbox_add(lb, "OBJECT_OT_group_instance_add", view3d_group_drop_poll, view3d_group_drop_copy);	
 }
 
+
+static bool WIDGETGROUP_camera_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_CAMERA) {
+		Camera *ca = ob->data;
+		return (ca->flag & CAM_SHOWLIMITS) != 0;
+	}
+	return false;
+}
+
+static void WIDGETGROUP_camera_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	Camera *ca = ob->data;
+	wmWidget *widget = WM_widgetgroup_widgets(wgroup)->first;
+	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
+	float dir[3];
+
+	RNA_pointer_create(&ca->id, &RNA_Camera, ca, cameraptr);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, cameraptr, "dof_distance");
+	negate_v3_v3(dir, ob->obmat[2]);
+	WIDGET_arrow_set_direction(widget, dir);
+	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+	WM_widget_set_scale(widget, ca->drawsize);
+}
+
+
+static void WIDGETGROUP_camera_free(struct wmWidgetGroup *wgroup)
+{
+	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
+
+	MEM_freeN(cameraptr);
+}
+
+static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
+{
+	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	wmWidget *widget = NULL;
+	PointerRNA *cameraptr = MEM_callocN(sizeof(PointerRNA), "camerawidgetptr");
+
+	widget = WIDGET_arrow_new(UI_ARROW_STYLE_CROSS, NULL);
+	WM_widget_set_draw_on_hover_only(widget, true);
+	WM_widget_set_3d_scale(widget, false);
+	WM_widget_register(wgroup, widget);
+	WIDGET_arrow_set_color(widget, color_camera);
+
+	WM_widgetgroup_customdata_set(wgroup, cameraptr);
+}
+
+
+static void view3d_widgets(void)
+{
+	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	/*
+	struct wmWidgetGroupType *wgroup_manipulator = WM_widgetgrouptype_new(WIDGETGROUP_manipulator_create,
+	                                                                      WIDGETGROUP_manipulator_poll,
+	                                                                      WIDGETGROUP_manipulator_update,
+	                                                                      WIDGETGROUP_manipulator_free);
+	*/
+	struct wmWidgetGroupType *wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_create,
+	                                                                WIDGETGROUP_lamp_poll,
+	                                                                WIDGETGROUP_lamp_update,
+	                                                                WIDGETGROUP_lamp_free);
+
+	struct wmWidgetGroupType *wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_create,
+	                                                                WIDGETGROUP_camera_poll,
+	                                                                WIDGETGROUP_camera_update,
+	                                                                WIDGETGROUP_camera_free);
+
+	//WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
+	WM_widgetgrouptype_register(wmaptype, wgroup_light);
+	WM_widgetgrouptype_register(wmaptype, wgroup_camera);
+}
 
 
 /* type callback, not region itself */
@@ -1386,6 +1454,7 @@ void ED_spacetype_view3d(void)
 	st->operatortypes = view3d_operatortypes;
 	st->keymap = view3d_keymap;
 	st->dropboxes = view3d_dropboxes;
+	st->widgets = view3d_widgets;
 	st->context = view3d_context;
 	
 	/* regions: main window */

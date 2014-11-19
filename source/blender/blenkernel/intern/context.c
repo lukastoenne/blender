@@ -57,6 +57,8 @@
 
 /* struct */
 
+struct wmWidget;
+
 struct bContext {
 	int thread;
 
@@ -64,6 +66,7 @@ struct bContext {
 	struct {
 		struct wmWindowManager *manager;
 		struct wmWindow *window;
+		struct wmWidget *widget;
 		struct bScreen *screen;
 		struct ScrArea *area;
 		struct ARegion *region;
@@ -625,6 +628,11 @@ wmWindow *CTX_wm_window(const bContext *C)
 	return ctx_wm_python_context_get(C, "window", &RNA_Window, C->wm.window);
 }
 
+struct wmWidget *CTX_wm_widget(const bContext *C)
+{
+	return C->wm.widget;
+}
+
 bScreen *CTX_wm_screen(const bContext *C)
 {
 	return ctx_wm_python_context_get(C, "screen", &RNA_Screen, C->wm.screen);
@@ -829,6 +837,11 @@ void CTX_wm_window_set(bContext *C, wmWindow *win)
 		C->data.scene = C->wm.screen->scene;
 	C->wm.area = NULL;
 	C->wm.region = NULL;
+}
+
+void CTX_wm_widget_set(bContext *C, struct wmWidget *widget)
+{
+	C->wm.widget = widget;
 }
 
 void CTX_wm_screen_set(bContext *C, bScreen *screen)

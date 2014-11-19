@@ -1206,6 +1206,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(float[4]), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 40: CD_TESSLOOPNORMAL */
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
+    /* 41: CD_MASK_FACEGROUP */
+	{sizeof(int), "", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
@@ -1221,7 +1223,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 25-29 */ "CDMPoly", "CDMLoop", "CDShapeKeyIndex", "CDShapeKey", "CDBevelWeight",
 	/* 30-34 */ "CDSubSurfCrease", "CDOrigSpaceLoop", "CDPreviewLoopCol", "CDBMElemPyPtr", "CDPaintMask",
 	/* 35-36 */ "CDGridPaintMask", "CDMVertSkin",
-	/* 37-40 */ "CDFreestyleEdge", "CDFreestyleFace", "CDMLoopTangent", "CDTessLoopNormal",
+	/* 37-41 */ "CDFreestyleEdge", "CDFreestyleFace", "CDMLoopTangent", "CDTessLoopNormal", "CDFaceGroup",
 };
 
 

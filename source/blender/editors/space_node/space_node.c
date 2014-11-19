@@ -40,7 +40,10 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
+#include "IMB_imbuf_types.h"
+
 #include "BKE_context.h"
+#include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
@@ -57,6 +60,8 @@
 #include "UI_view2d.h"
 
 #include "RNA_access.h"
+
+#include "WM_api.h"
 
 #include "node_intern.h"  /* own include */
 
@@ -339,6 +344,7 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 
 	/* main area */
 	ar = MEM_callocN(sizeof(ARegion), "main area for node");
+	ar->widgetmap = WM_widgetmap_from_type("Node", SPACE_NODE, RGN_TYPE_WINDOW, true);
 
 	BLI_addtail(&snode->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
@@ -652,6 +658,13 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 	lb = WM_dropboxmap_find("Node Editor", SPACE_NODE, RGN_TYPE_WINDOW);
 
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
+
+	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
+	if (!ar->widgetmap)
+		ar->widgetmap = WM_widgetmap_from_type("Node", SPACE_NODE, RGN_TYPE_WINDOW, false);
+
+	WM_event_add_widget_handler(ar);
+
 }
 
 static void node_main_area_draw(const bContext *C, ARegion *ar)
@@ -816,6 +829,59 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
+static void WIDGETGROUP_node_transform_create(struct wmWidgetGroup *wgroup)
+{
+	wmWidget *widget = WIDGET_cage_new(0, NULL);
+	WM_widget_register(wgroup, widget);
+}
+
+static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+
+	if (snode->edittree->type == NTREE_COMPOSIT) {
+		bNode *node = nodeGetActive(snode->edittree);
+
+		if (node->type == CMP_NODE_TRANSFORM)
+			return true;
+	}
+
+	return false;
+}
+
+static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+{
+	/* temporarily get the first */
+	SpaceNode *snode = CTX_wm_space_node(C);
+	wmWidget *cage = WM_widgetgroup_widgets(wgroup)->first;
+	bNode *node = nodeGetActive(snode->edittree);
+	Image *ima;
+	ImBuf *ibuf;
+	void *lock;
+	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
+	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
+	if (ibuf) {
+		WIDGET_cage_bounds_set(cage, ibuf->x, ibuf->y);
+	}
+	BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+static void WIDGETGROUP_node_transform_free(struct wmWidgetGroup *wgroup)
+{
+
+}
+
+static void node_widgets(void)
+{
+	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("Node", SPACE_NODE, RGN_TYPE_WINDOW, false);
+	struct wmWidgetGroupType *wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_create,
+	                                                                         WIDGETGROUP_node_transform_poll,
+	                                                                         WIDGETGROUP_node_transform_update,
+	                                                                         WIDGETGROUP_node_transform_free);
+
+	WM_widgetgrouptype_register(wmaptype, wgroup_node_transform);
+}
+
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_node(void)
 {
@@ -835,6 +901,7 @@ void ED_spacetype_node(void)
 	st->refresh = node_area_refresh;
 	st->context = node_context;
 	st->dropboxes = node_dropboxes;
+	st->widgets = node_widgets;
 
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype node region");

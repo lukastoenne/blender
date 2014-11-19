@@ -64,7 +64,10 @@ set(SRC
 	intern/wm_operators.c
 	intern/wm_subwindow.c
 	intern/wm_window.c
-        intern/wm_widgets.c
+	intern/wm_widgets.c
+	intern/wm_generic_widgets.c
+	3d_widgets/arrow_widget.c
+	3d_widgets/dial_widget.c
 
 	WM_api.h
 	WM_keymap.h
@@ -77,6 +80,7 @@ set(SRC
 	wm_files.h
 	wm_subwindow.h
 	wm_window.h
+	3d_widgets/ui_widget_library.h
 )
 
 add_definitions(${GL_DEFINITIONS})

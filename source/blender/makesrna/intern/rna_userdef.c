@@ -3376,6 +3376,16 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Manipulator", "Use 3D transform manipulator");
 	RNA_def_property_update(prop, 0, "rna_userdef_show_manipulator_update");
 
+	prop = RNA_def_property(srna, "shaded_widgets", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_SHADED_WIDGETS);
+	RNA_def_property_ui_text(prop, "Shaded Widgets", "3D shading for widgets");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "widgets_3d", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_3D_WIDGETS);
+	RNA_def_property_ui_text(prop, "3D widgets", "Widgets size stays constant in world space");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+	
 	prop = RNA_def_property(srna, "manipulator_size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "tw_size");
 	RNA_def_property_range(prop, 10, 200);

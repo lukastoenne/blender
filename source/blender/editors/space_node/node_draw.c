@@ -1335,6 +1335,27 @@ void drawnodespace(const bContext *C, ARegion *ar)
 			/* backdrop */
 			draw_nodespace_back_pix(C, ar, snode, path->parent_key);
 			
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glLoadIdentity();
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadIdentity();
+
+			/* somehow the offset has to be calculated inverse */
+
+			//glaDefine2DArea(&ar->winrct);
+			/* ortho at pixel level curarea */
+			/* almost #wmOrtho2_region_pixelspace, but no +1 px */
+			//wmOrtho2_pixelspace(ar->winx, ar->winy);
+
+			WM_widgets_draw(C, ar);
+
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+
 			draw_nodetree(C, ar, ntree, path->parent_key);
 		}
 		
