@@ -136,10 +136,15 @@ static void widget_draw_intern(WidgetDrawInfo *info, bool select)
 
 /********* Arrow widget ************/
 
+#define ARROW_UP_VECTOR_SET 1
+
 typedef struct ArrowWidget {
 	wmWidget widget;
 	int style;
+	int flag;
 	float direction[3];
+	float up[3];
+	float scale;
 	float color[4];
 	float offset;
 	/* property range and minimum for constrained arrows */
@@ -165,20 +170,45 @@ static void widget_arrow_get_final_pos(struct wmWidget *widget, float pos[3])
 	add_v3_v3(pos, arrow->widget.origin);
 }
 
+static void arrow_draw_geom(ArrowWidget *arrow, bool select, bool highlight)
+{
+	if (arrow->style & UI_ARROW_STYLE_CROSS) {
+		glPushAttrib(GL_ENABLE_BIT);
+		glDisable(GL_LIGHTING);
+		glBegin(GL_LINES);
+		glVertex2f(-1.0, 0.f);
+		glVertex2f(1.0, 0.f);
+		glVertex2f(0.f, -1.0);
+		glVertex2f(0.f, 1.0);
+		glEnd();
 
-static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, float scale)
+		glPopAttrib();
+	}
+	else {
+		widget_draw_intern(&arraw_head_draw_info, select);
+	}
+}
+
+static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 {
 	float rot[3][3];
 	float mat[4][4];
 	float up[3] = {0.0f, 0.0f, 1.0f};
 	float final_pos[3];
 
-	widget_arrow_get_final_pos((wmWidget *)arrow, final_pos);
+	widget_arrow_get_final_pos(&arrow->widget, final_pos);
 
-	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
+	if (arrow->flag & ARROW_UP_VECTOR_SET) {
+		copy_v3_v3(rot[2], arrow->direction);
+		copy_v3_v3(rot[1], arrow->up);
+		cross_v3_v3v3(rot[0], arrow->up, arrow->direction);
+	}
+	else {
+		rotation_between_vecs_to_mat3(rot, up, arrow->direction);
+	}
 	copy_m4_m3(mat, rot);
 	copy_v3_v3(mat[3], final_pos);
-	mul_mat3_m4_fl(mat, scale);
+	mul_mat3_m4_fl(mat, arrow->widget.scale * arrow->scale);
 
 	glPushMatrix();
 	glMultMatrixf(&mat[0][0]);
@@ -188,7 +218,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	else
 		glColor4fv(arrow->color);
 
-	widget_draw_intern(&arraw_head_draw_info, select);
+	arrow_draw_geom(arrow, select, highlight);
 
 	glPopMatrix();
 
@@ -197,14 +227,15 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 
 		copy_m4_m3(mat, rot);
 		copy_v3_v3(mat[3], data->orig_origin);
-		mul_mat3_m4_fl(mat, data->orig_scale);
+		mul_mat3_m4_fl(mat, data->orig_scale * arrow->scale);
 
 		glPushMatrix();
 		glMultMatrixf(&mat[0][0]);
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
-		widget_draw_intern(&arraw_head_draw_info, select);
+		arrow_draw_geom(arrow, select, highlight);
+
 		glDisable(GL_BLEND);
 
 		glPopMatrix();
@@ -214,12 +245,12 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), struct wmWidget *widget, int selectionbase)
 {
 	GPU_select_load_id(selectionbase);
-	arrow_draw_intern((ArrowWidget *)widget, true, false, widget->scale);
+	arrow_draw_intern((ArrowWidget *)widget, true, false);
 }
 
 static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
-	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, widget->scale);
+	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
 #define ARROW_RANGE 1.5f
@@ -398,6 +429,7 @@ wmWidget *WIDGET_arrow_new(int style, void *customdata)
 	
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 	
+
 	arrow->widget.draw = widget_arrow_draw;
 	arrow->widget.get_final_position = 	widget_arrow_get_final_pos;
 	arrow->widget.intersect = NULL;
@@ -407,6 +439,7 @@ wmWidget *WIDGET_arrow_new(int style, void *customdata)
 	arrow->widget.customdata = customdata;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
 	arrow->style = style;
+	arrow->scale = 1.0f;
 	copy_v3_v3(arrow->direction, dir_default);
 	
 	return (wmWidget *)arrow;
@@ -426,6 +459,28 @@ void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3])
 	copy_v3_v3(arrow->direction, direction);
 	normalize_v3(arrow->direction);
 }
+
+void WIDGET_arrow_set_up_vector(struct wmWidget *widget, float direction[3])
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	if (direction) {
+		copy_v3_v3(arrow->up, direction);
+		normalize_v3(arrow->up);
+		arrow->flag |= ARROW_UP_VECTOR_SET;
+	}
+	else {
+		arrow->flag &= ~ARROW_UP_VECTOR_SET;
+	}
+}
+
+void WIDGET_arrow_set_scale(struct wmWidget *widget, float scale)
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	arrow->scale = scale;
+}
+
 
 /********* Dial widget ************/
 

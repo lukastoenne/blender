@@ -717,10 +717,11 @@ static void WIDGETGROUP_camera_update(struct wmWidgetGroup *wgroup, const struct
 
 	RNA_pointer_create(&ca->id, &RNA_Camera, ca, cameraptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_property(widget, cameraptr, "dof_distance");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
+	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+	WIDGET_arrow_set_scale(widget, ca->drawsize);
 }
 
 
@@ -733,11 +734,12 @@ static void WIDGETGROUP_camera_free(struct wmWidgetGroup *wgroup)
 
 static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
 {
-	float color_camera[4] = {1.0f, 0.7f, 0.2f, 1.0f};
+	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	wmWidget *widget = NULL;
 	PointerRNA *cameraptr = MEM_callocN(sizeof(PointerRNA), "camerawidgetptr");
 
-	widget = WIDGET_arrow_new(0, NULL);
+	widget = WIDGET_arrow_new(UI_ARROW_STYLE_CROSS, NULL);
+	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_register(wgroup, widget);
 	WIDGET_arrow_set_color(widget, color_camera);
 

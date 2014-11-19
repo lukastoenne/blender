@@ -516,10 +516,11 @@ void WM_widgetmaptypes_free(void);
 enum {
 	UI_ARROW_STYLE_NORMAL        =  0,
 	UI_ARROW_STYLE_NO_AXIS       = (1 << 1),
+	UI_ARROW_STYLE_CROSS         = (1 << 2),
 	/* inverted offset during interaction - if set it also sets constrained below */
-	UI_ARROW_STYLE_INVERTED      = (1 << 2),
+	UI_ARROW_STYLE_INVERTED      = (1 << 3),
 	/* clamp arrow interaction to property width */
-	UI_ARROW_STYLE_CONSTRAINED   = (1 << 3),
+	UI_ARROW_STYLE_CONSTRAINED   = (1 << 4),
 };
 
 enum {
@@ -530,6 +531,8 @@ enum {
 struct wmWidget *WIDGET_arrow_new(int style, void *customdata);
 void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
+void WIDGET_arrow_set_up_vector(struct wmWidget *widget, float direction[3]);
+void WIDGET_arrow_set_scale(struct wmWidget *widget, float scale);
 
 struct wmWidget *WIDGET_dial_new(int style,
                                  void *customdata);
