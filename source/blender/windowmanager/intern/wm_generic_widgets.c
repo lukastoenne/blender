@@ -150,10 +150,21 @@ typedef struct ArrowInteraction {
 	float orig_origin[3];
 	float orig_mouse[2];
 	float orig_offset;
+	float orig_scale;
 
 	/* direction vector, projected in screen space */
 	float proj_direction[2];
 } ArrowInteraction;
+
+
+static void widget_arrow_get_final_pos(struct wmWidget *widget, float pos[3])
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	mul_v3_v3fl(pos, arrow->direction, arrow->offset);
+	add_v3_v3(pos, arrow->widget.origin);
+}
+
 
 static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, float scale)
 {
@@ -162,11 +173,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	float up[3] = {0.0f, 0.0f, 1.0f};
 	float final_pos[3];
 
-	if (arrow->style & UI_ARROW_STYLE_OFFSET_3D)
-		mul_v3_v3fl(final_pos, arrow->direction, arrow->offset);
-	else
-		mul_v3_v3fl(final_pos, arrow->direction, scale * arrow->offset);
-	add_v3_v3(final_pos, arrow->widget.origin);
+	widget_arrow_get_final_pos((wmWidget *)arrow, final_pos);
 
 	rotation_between_vecs_to_mat3(rot, up, arrow->direction);
 	copy_m4_m3(mat, rot);
@@ -188,15 +195,9 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight, f
 	if (arrow->widget.interaction_data) {
 		ArrowInteraction *data = arrow->widget.interaction_data;
 
-		if (arrow->style & UI_ARROW_STYLE_OFFSET_3D)
-			mul_v3_v3fl(final_pos, arrow->direction, data->orig_offset);
-		else
-			mul_v3_v3fl(final_pos, arrow->direction, scale * data->orig_offset);
-		add_v3_v3(final_pos, arrow->widget.origin);
-
 		copy_m4_m3(mat, rot);
-		copy_v3_v3(mat[3], final_pos);
-		mul_mat3_m4_fl(mat, scale);
+		copy_v3_v3(mat[3], data->orig_origin);
+		mul_mat3_m4_fl(mat, data->orig_scale);
 
 		glPushMatrix();
 		glMultMatrixf(&mat[0][0]);
@@ -235,17 +236,19 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	float offset[4];
 	float m_diff[2];
 	float dir_2d[2], dir2d_final[2];
-	float fac, zfac, widget_scale;
+	float fac, zfac;
 	float facdir = 1.0f;
-
-	widget_scale = (arrow->style & UI_ARROW_STYLE_OFFSET_3D) ? 1.0 : widget->scale;
+	bool flip;
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
 	add_v3_v3v3(offset, orig_origin, arrow->direction);
 	offset[3] = 1.0f;
 
-	zfac = ED_view3d_calc_zfac(rv3d, orig_origin, NULL);
+	zfac = ED_view3d_calc_zfac(rv3d, orig_origin, &flip);
+
+	if (flip)
+		zfac *= -1.0;
 
 	/* multiply to projection space */
 	mul_m4_v4(rv3d->persmat, orig_origin);
@@ -292,7 +295,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	else if (widget->prop) {
 		float value;
 
-		value = data->orig_offset + facdir / widget_scale * len_v3(offset);
+		value = data->orig_offset + facdir * len_v3(offset);
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
 				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
@@ -314,7 +317,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
 	}
 	else {
-		arrow->offset = facdir / widget_scale * len_v3(offset);
+		arrow->offset = facdir * len_v3(offset);
 	}
 
 	/* tag the region for redraw */
@@ -337,7 +340,9 @@ static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEven
 		data->orig_mouse[0] = event->mval[0];
 		data->orig_mouse[1] = event->mval[1];
 
-		copy_v3_v3(data->orig_origin, widget->origin);
+		data->orig_scale = widget->scale;
+
+		widget_arrow_get_final_pos(widget, data->orig_origin);
 
 		widget->interaction_data = data;
 	}
@@ -394,6 +399,7 @@ wmWidget *WIDGET_arrow_new(int style, void *customdata)
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 	
 	arrow->widget.draw = widget_arrow_draw;
+	arrow->widget.get_final_position = 	widget_arrow_get_final_pos;
 	arrow->widget.intersect = NULL;
 	arrow->widget.handler = widget_arrow_handler;
 	arrow->widget.activate_state = widget_arrow_activate;
@@ -536,10 +542,10 @@ void WIDGET_dial_set_color(struct wmWidget *widget, float color[4])
 
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 {
-	DialWidget *arrow = (DialWidget *)widget;
+	DialWidget *dial = (DialWidget *)widget;
 
-	copy_v3_v3(arrow->direction, direction);
-	normalize_v3(arrow->direction);
+	copy_v3_v3(dial->direction, direction);
+	normalize_v3(dial->direction);
 }
 
 /********* Cage widget ************/
@@ -552,7 +558,7 @@ typedef struct CageWidget {
 	int style;
 } CageWidget;
 
-static void widget_cage_draw(struct wmWidget *widget, const struct bContext *C)
+static void widget_cage_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
 	CageWidget *cage = (CageWidget *)widget;
 

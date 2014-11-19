@@ -262,9 +262,16 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d)
 	if (widget) {
 		float scale = 1.0;
 
-		if (do_scale)
-			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
-
+		if (do_scale) {
+			if (widget->get_final_position) {
+				float position[3];
+				widget->get_final_position(widget, position);
+				scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
+			}
+			else {
+				scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
+			}
+		}
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
 		 * relevant data to update itself */
 		widget->scale = scale;
@@ -287,8 +294,16 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d)
 					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW)) {
 						float scale = 1.0;
 
-						if (do_scale)
-							scale = ED_view3d_pixel_size(rv3d, widget_iter->origin) * U.tw_size;
+						if (do_scale) {
+							if (widget_iter->get_final_position) {
+								float position[3];
+								widget_iter->get_final_position(widget_iter, position);
+								scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
+							}
+							else {
+								scale = ED_view3d_pixel_size(rv3d, widget_iter->origin) * U.tw_size;
+							}
+						}
 
 						widget_iter->scale = scale;
 						widget_iter->draw(widget_iter, C);
@@ -425,8 +440,16 @@ static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
 
 		widget = link->data;
 
-		if (!(U.tw_flag & V3D_3D_WIDGETS))
-			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
+		if (!(U.tw_flag & V3D_3D_WIDGETS)) {
+			if (widget->get_final_position) {
+				float position[3];
+				widget->get_final_position(widget, position);
+				scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
+			}
+			else {
+				scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
+			}
+		}
 		/* reset the scale here. We might have more than one 3d view so scale is not guaranteed to
 		 * have stayed the same */
 		widget->scale = scale;

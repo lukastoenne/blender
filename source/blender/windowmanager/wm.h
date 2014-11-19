@@ -72,12 +72,16 @@ typedef struct wmWidget {
 	/* widget-specific handler to update widget attributes when a property is bound */
 	void (*bind_to_prop)(struct wmWidget *widget);
 
+	/* returns the final position which may be different from the origin, depending on the widget.
+	 * used in calculations of scale */
+	void (*get_final_position)(struct wmWidget *widget, float vec[3]);
+
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
 
 	/* activate a widget state when the user clicks on it */
 	int (*activate_state)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int state);
 
-	/* position in space, 2d or 3d */
+	/* center of widget in space, 2d or 3d */
 	float origin[3];
 
 	/* runtime property, set the scale while drawing on the viewport */

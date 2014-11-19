@@ -735,7 +735,7 @@ static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
 	wmWidget *widget = NULL;
 	PointerRNA *cameraptr = MEM_callocN(sizeof(PointerRNA), "camerawidgetptr");
 
-	widget = WIDGET_arrow_new(UI_ARROW_STYLE_OFFSET_3D, NULL);
+	widget = WIDGET_arrow_new(0, NULL);
 	WM_widget_register(wgroup, widget);
 	WIDGET_arrow_set_color(widget, color_camera);
 
