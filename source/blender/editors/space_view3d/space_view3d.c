@@ -721,7 +721,7 @@ static void WIDGETGROUP_camera_update(struct wmWidgetGroup *wgroup, const struct
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
-	WIDGET_arrow_set_scale(widget, ca->drawsize);
+	WM_widget_set_scale(widget, ca->drawsize);
 }
 
 
@@ -740,6 +740,7 @@ static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
 
 	widget = WIDGET_arrow_new(UI_ARROW_STYLE_CROSS, NULL);
 	WM_widget_set_draw_on_hover_only(widget, true);
+	WM_widget_set_3d_scale(widget, false);
 	WM_widget_register(wgroup, widget);
 	WIDGET_arrow_set_color(widget, color_camera);
 

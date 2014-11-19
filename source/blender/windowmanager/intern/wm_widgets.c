@@ -222,22 +222,33 @@ static void wm_widgets_delete(ListBase *widgetlist, wmWidget *widget)
 }
 
 
-void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d)
+static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 {
-	RegionView3D *rv3d;
+	float scale = 1.0f;
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	if (rv3d && !(U.tw_flag & V3D_3D_WIDGETS) && (widget->flag & WM_WIDGET_SCALE_3D)) {
+		if (widget->get_final_position) {
+			float position[3];
+
+			widget->get_final_position(widget, position);
+			scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
+		}
+		else {
+			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
+		}
+	}
+
+	widget->scale = scale * widget->user_scale;
+}
+
+void WM_widgets_draw(const bContext *C, struct ARegion *ar)
+{
 	wmWidgetMap *wmap = ar->widgetmap;
 	wmWidget *widget;
 	bool use_lighting;
-	bool do_scale = false;
 
 	if (!wmap)
 		return;
-
-	if (is_3d) {
-		if (!(U.tw_flag & V3D_3D_WIDGETS))
-			do_scale = true;
-		rv3d = ar->regiondata;
-	}
 
 	use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
 
@@ -260,21 +271,9 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d)
 	widget = wmap->active_widget;
 
 	if (widget) {
-		float scale = 1.0;
-
-		if (do_scale) {
-			if (widget->get_final_position) {
-				float position[3];
-				widget->get_final_position(widget, position);
-				scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
-			}
-			else {
-				scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
-			}
-		}
+		widget_calculate_scale(widget, C);
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
 		 * relevant data to update itself */
-		widget->scale = scale;
 		widget->draw(widget, C);
 	}
 	else if (wmap->widgetgroups.first) {
@@ -294,20 +293,7 @@ void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d)
 					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW) &&
 					    (!(widget_iter->flag & WM_WIDGET_DRAW_HOVER) || (widget_iter->flag & WM_WIDGET_HIGHLIGHT)))
 					{
-						float scale = 1.0;
-
-						if (do_scale) {
-							if (widget_iter->get_final_position) {
-								float position[3];
-								widget_iter->get_final_position(widget_iter, position);
-								scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
-							}
-							else {
-								scale = ED_view3d_pixel_size(rv3d, widget_iter->origin) * U.tw_size;
-							}
-						}
-
-						widget_iter->scale = scale;
+						widget_calculate_scale(widget_iter, C);
 						widget_iter->draw(widget_iter, C);
 					}
 				}
@@ -393,6 +379,17 @@ void WM_widget_set_draw(struct wmWidget *widget, bool draw)
 	}
 }
 
+void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale)
+{
+	if (scale) {
+		widget->flag |= WM_WIDGET_SCALE_3D;
+	}
+	else {
+		widget->flag &= ~WM_WIDGET_SCALE_3D;
+	}
+}
+
+
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw)
 {
 	if (draw) {
@@ -401,6 +398,11 @@ void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw)
 	else {
 		widget->flag &= ~WM_WIDGET_DRAW_HOVER;
 	}
+}
+
+void WM_widget_set_scale(struct wmWidget *widget, float scale)
+{
+	widget->user_scale = scale;
 }
 
 
@@ -445,26 +447,9 @@ static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
 	int selectionbase = 0;
 	LinkData *link;
 	wmWidget *widget;
-	RegionView3D *rv3d = CTX_wm_region(C)->regiondata;
 
 	for (link = visible_widgets->first; link; link = link->next) {
-		float scale = 1.0;
-
 		widget = link->data;
-
-		if (!(U.tw_flag & V3D_3D_WIDGETS)) {
-			if (widget->get_final_position) {
-				float position[3];
-				widget->get_final_position(widget, position);
-				scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
-			}
-			else {
-				scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
-			}
-		}
-		/* reset the scale here. We might have more than one 3d view so scale is not guaranteed to
-		 * have stayed the same */
-		widget->scale = scale;
 		widget->render_3d_intersection(C, widget, selectionbase);
 
 		selectionbase++;

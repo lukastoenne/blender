@@ -144,7 +144,6 @@ typedef struct ArrowWidget {
 	int flag;
 	float direction[3];
 	float up[3];
-	float scale;
 	float color[4];
 	float offset;
 	/* property range and minimum for constrained arrows */
@@ -208,7 +207,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	}
 	copy_m4_m3(mat, rot);
 	copy_v3_v3(mat[3], final_pos);
-	mul_mat3_m4_fl(mat, arrow->widget.scale * arrow->scale);
+	mul_mat3_m4_fl(mat, arrow->widget.scale);
 
 	glPushMatrix();
 	glMultMatrixf(&mat[0][0]);
@@ -227,7 +226,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 
 		copy_m4_m3(mat, rot);
 		copy_v3_v3(mat[3], data->orig_origin);
-		mul_mat3_m4_fl(mat, data->orig_scale * arrow->scale);
+		mul_mat3_m4_fl(mat, data->orig_scale);
 
 		glPushMatrix();
 		glMultMatrixf(&mat[0][0]);
@@ -438,8 +437,9 @@ wmWidget *WIDGET_arrow_new(int style, void *customdata)
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.customdata = customdata;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
+	arrow->widget.user_scale = 1.0f;
+	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
 	arrow->style = style;
-	arrow->scale = 1.0f;
 	copy_v3_v3(arrow->direction, dir_default);
 	
 	return (wmWidget *)arrow;
@@ -472,13 +472,6 @@ void WIDGET_arrow_set_up_vector(struct wmWidget *widget, float direction[3])
 	else {
 		arrow->flag &= ~ARROW_UP_VECTOR_SET;
 	}
-}
-
-void WIDGET_arrow_set_scale(struct wmWidget *widget, float scale)
-{
-	ArrowWidget *arrow = (ArrowWidget *)widget;
-
-	arrow->scale = scale;
 }
 
 

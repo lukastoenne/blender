@@ -484,7 +484,7 @@ void WM_widget_operator(struct wmWidget *,
                         int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
                         const char *opname,
                         const char *propname);
-void WM_widgets_draw(const struct bContext *C, struct ARegion *ar, bool is_3d);
+void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_event_add_widget_handler(struct ARegion *ar);
 
 bool WM_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
@@ -493,8 +493,9 @@ void WM_widget_unregister(struct wmWidgetGroup *wgroup, struct wmWidget *widget)
 void *WM_widget_customdata(struct wmWidget *widget);
 void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
 void WM_widget_set_draw(struct wmWidget *widget, bool draw);
-
+void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale);
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw);
+void WM_widget_set_scale(struct wmWidget *widget, float scale);
 
 void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
 void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);

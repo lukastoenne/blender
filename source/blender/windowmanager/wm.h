@@ -87,6 +87,9 @@ typedef struct wmWidget {
 	/* runtime property, set the scale while drawing on the viewport */
 	float scale;
 
+	/* user defined scale, in addition to the original one */
+	float user_scale;
+
 	/* data used during interaction */
 	void *interaction_data;
 
@@ -115,7 +118,9 @@ enum widgetflags {
 	WM_WIDGET_FREE_DATA  = (1 << 2),
 	WM_WIDGET_SKIP_DRAW  = (1 << 3),
 
-	WM_WIDGET_DRAW_HOVER  = (1 << 4),
+	WM_WIDGET_DRAW_HOVER = (1 << 4),
+
+	WM_WIDGET_SCALE_3D   = (1 << 5),
 };
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);

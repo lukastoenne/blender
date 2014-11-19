@@ -3552,7 +3552,7 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);	
 	glClear(GL_DEPTH_BUFFER_BIT);
-	WM_widgets_draw(C, ar, true);
+	WM_widgets_draw(C, ar);
 	ED_region_pixelspace(ar);
 	
 	view3d_main_area_draw_info(C, scene, ar, v3d, grid_unit, render_border);
