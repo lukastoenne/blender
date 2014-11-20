@@ -839,10 +839,10 @@ static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 
-	if (snode->edittree->type == NTREE_COMPOSIT) {
+	if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
 		bNode *node = nodeGetActive(snode->edittree);
 
-		if (node->type == CMP_NODE_TRANSFORM)
+		if (node && node->type == CMP_NODE_TRANSFORM)
 			return true;
 	}
 
