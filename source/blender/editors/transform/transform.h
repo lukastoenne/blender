@@ -332,6 +332,7 @@ typedef struct TransInfo {
 	short		event_type;		/* event->type used to invoke transform */
 	short       idx_max;		/* maximum index on the input vector	*/
 	float		snap[3];		/* Snapping Gears						*/
+	float		snap_aspect[3];	/* snapping aspect correction			*/
 	char		frame_side;		/* Mouse side of the cfra, 'L', 'R' or 'B' */
 
 	float		viewmat[4][4];	/* copy from G.vd, prevents feedback,   */

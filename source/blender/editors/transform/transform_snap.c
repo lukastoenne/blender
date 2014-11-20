@@ -2456,7 +2456,6 @@ int snapSequenceBounds(TransInfo *t, const int mval[2])
 static void applyGridIncrement(TransInfo *t, float *val, int max_index, const float fac[3], GearsType action)
 {
 	int i;
-	float asp[3] = {1.0f, 1.0f, 1.0f}; // TODO: Remove hard coded limit here (3)
 
 	if (max_index > 2) {
 		printf("applyGridIncrement: invalid index %d, clamping\n", max_index);
@@ -2466,34 +2465,8 @@ static void applyGridIncrement(TransInfo *t, float *val, int max_index, const fl
 	// Early bailing out if no need to snap
 	if (fac[action] == 0.0f)
 		return;
-	
-	/* evil hack - snapping needs to be adapted for image aspect ratio */
-	if ((t->spacetype == SPACE_IMAGE) && (t->mode == TFM_TRANSLATION)) {
-		if (t->options & CTX_MASK) {
-			ED_space_image_get_aspect(t->sa->spacedata.first, asp, asp + 1);
-		}
-		else if (t->options & CTX_PAINT_CURVE) {
-			asp[0] = asp[1] = 1.0;
-		}
-		else {
-			ED_space_image_get_uv_aspect(t->sa->spacedata.first, asp, asp + 1);
-		}
-	}
-	else if ((t->spacetype == SPACE_IPO) && (t->mode == TFM_TRANSLATION)) {
-		View2D *v2d = &t->ar->v2d;
-		View2DGrid *grid;
-		SpaceIpo *sipo = t->sa->spacedata.first;
-		int unity = V2D_UNIT_VALUES;
-		int unitx = (sipo->flag & SIPO_DRAWTIME) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMESCALE;
-
-		/* grid */
-		grid = UI_view2d_grid_calc(t->scene, v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP, t->ar->winx, t->ar->winy);
-
-		UI_view2d_grid_size(grid, &asp[0], &asp[1]);
-		UI_view2d_grid_free(grid);
-	}
 
 	for (i = 0; i <= max_index; i++) {
-		val[i] = fac[action] * asp[i] * floorf(val[i] / (fac[action] * asp[i]) + 0.5f);
+		val[i] = fac[action] * t->snap_aspect[i] * floorf(val[i] / (fac[action] * t->snap_aspect[i]) + 0.5f);
 	}
 }
