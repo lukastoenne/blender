@@ -627,16 +627,55 @@ typedef struct CageWidget {
 	int style;
 } CageWidget;
 
+static void cage_draw_corners(rctf *r, float offsetx, float offsety)
+{
+	glBegin(GL_LINES);
+	glVertex2f(r->xmin, r->ymin + offsety);
+	glVertex2f(r->xmin, r->ymin);
+	glVertex2f(r->xmin, r->ymin);
+	glVertex2f(r->xmin + offsetx, r->ymin);
+
+	glVertex2f(r->xmax, r->ymin + offsety);
+	glVertex2f(r->xmax, r->ymin);
+	glVertex2f(r->xmax, r->ymin);
+	glVertex2f(r->xmax - offsetx, r->ymin);
+
+	glVertex2f(r->xmax, r->ymax - offsety);
+	glVertex2f(r->xmax, r->ymax);
+	glVertex2f(r->xmax, r->ymax);
+	glVertex2f(r->xmax - offsetx, r->ymax);
+
+	glVertex2f(r->xmin, r->ymax - offsety);
+	glVertex2f(r->xmin, r->ymax);
+	glVertex2f(r->xmin, r->ymax);
+	glVertex2f(r->xmin + offsetx, r->ymax);
+	glEnd();	
+}
+
 static void widget_cage_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
 	CageWidget *cage = (CageWidget *)widget;
+	float w = BLI_rctf_size_x(&cage->bound);
+	float h = BLI_rctf_size_y(&cage->bound);
+	
+	glColor4f(1.0f, 0.6f, 0.0f, 0.1f);
 
+//	glEnable(GL_BLEND);
+//	glRectf(cage->bound.xmin, cage->bound.ymin, cage->bound.xmax, cage->bound.ymax);
+//	glDisable(GL_BLEND);
+	
+	/* corner widgets */
+	glColor3f(0.0, 0.0, 0.0);
+	glLineWidth(3.0);
+	cage_draw_corners(&cage->bound, w/8.0f, h/8.0f);
+
+	/* corner widgets */
 	glColor3f(1.0, 1.0, 1.0);
-	glRectf(cage->bound.xmin, cage->bound.ymin, cage->bound.xmax, cage->bound.ymax);
-
+	glLineWidth(1.0);
+	cage_draw_corners(&cage->bound, w/8.0f, h/8.0f);
 }
 
-int widget_cage_intersect(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
+static int widget_cage_intersect(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
 {
 	CageWidget *cage = (CageWidget *)widget;
 	float mouse[2] = {event->mval[0], event->mval[1]};
@@ -660,6 +699,7 @@ struct wmWidget *WIDGET_cage_new(int style, void *customdata)
 	cage->widget.customdata = customdata;
 	cage->widget.draw = widget_cage_draw;
 	cage->widget.intersect = widget_cage_intersect;
+	cage->widget.user_scale = 1.0f;
 	cage->style = style;
 
 	return (wmWidget *)cage;
@@ -667,7 +707,9 @@ struct wmWidget *WIDGET_cage_new(int style, void *customdata)
 
 void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation)
 {
-
+	CageWidget *cage = (CageWidget *)widget;
+	
+	cage->rotation = rotation;
 }
 
 void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h)
@@ -676,7 +718,7 @@ void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h)
 	cage->bound.xmax = w/2;
 	cage->bound.ymax = h/2;
 	cage->bound.xmin = -w/2;
-	cage->bound.ymin = h/2;
+	cage->bound.ymin = -h/2;
 }
 
 

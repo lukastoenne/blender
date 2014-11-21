@@ -842,7 +842,7 @@ static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup)
 	if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
 		bNode *node = nodeGetActive(snode->edittree);
 
-		if (node && node->type == CMP_NODE_TRANSFORM)
+		if (node && node->type == CMP_NODE_VIEWER)
 			return true;
 	}
 
@@ -851,22 +851,36 @@ static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup)
 
 static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
-	/* temporarily get the first */
-	SpaceNode *snode = CTX_wm_space_node(C);
 	wmWidget *cage = WM_widgetgroup_widgets(wgroup)->first;
-	bNode *node = nodeGetActive(snode->edittree);
 	Image *ima;
 	ImBuf *ibuf;
 	void *lock;
+	
 	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 	if (ibuf) {
-		WIDGET_cage_bounds_set(cage, ibuf->x, ibuf->y);
+		SpaceNode *snode = CTX_wm_space_node(C);
+		ARegion *ar = CTX_wm_region(C);
+		float origin[3];
+		float xsize, ysize;
+
+		xsize = snode->zoom * ibuf->x / ar->winx;
+		ysize = snode->zoom * ibuf->y / ar->winy;
+		
+		origin[0] = (ar->winx - xsize) / 2 + snode->xof;
+		origin[1] = (ar->winy - ysize) / 2 + snode->yof;
+
+		WIDGET_cage_bounds_set(cage, 2.0 * xsize, 2.0 * ysize);
+		WM_widget_set_origin(cage, origin);
+		WM_widget_set_draw(cage, true);
+	}
+	else {
+		WM_widget_set_draw(cage, false);
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-static void WIDGETGROUP_node_transform_free(struct wmWidgetGroup *wgroup)
+static void WIDGETGROUP_node_transform_free(struct wmWidgetGroup *UNUSED(wgroup))
 {
 
 }
