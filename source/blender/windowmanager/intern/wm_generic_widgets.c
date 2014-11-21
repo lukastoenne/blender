@@ -623,6 +623,7 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 typedef struct CageWidget {
 	wmWidget widget;
 	float rotation;
+	float offset;
 	rctf bound;
 	int style;
 } CageWidget;
@@ -696,15 +697,78 @@ static int widget_cage_intersect(struct bContext *UNUSED(C), const struct wmEven
 	float mouse[2] = {event->mval[0], event->mval[1]};
 	float pointrot[2];
 	float matrot[2][2];
+	bool isect;
 
 	/* rotate mouse in relation to the center and relocate it */
 	sub_v2_v2v2(pointrot, mouse, widget->origin);
 
 	rotate_m2(matrot, -cage->rotation);
 
-	add_v2_v2(pointrot, widget->origin);
+	isect = BLI_rctf_isect_pt_v(&cage->bound, pointrot);
+	
+	return isect;
+}
 
-	return BLI_rctf_isect_pt_v(&cage->bound, pointrot);
+typedef struct CageInteraction {
+	float orig_offset;
+	float orig_mouse[2];
+	float orig_origin[2];
+} CageInteraction;
+
+static int widget_cage_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
+{
+	if (state == WIDGET_ACTIVATE) {
+		CageWidget *cage = (CageWidget *) widget;
+		CageInteraction *data = MEM_callocN(sizeof (CageInteraction), "cage_interaction");
+
+		if (widget->prop) {
+			data->orig_offset = cage->offset;
+		}
+
+		data->orig_mouse[0] = event->mval[0];
+		data->orig_mouse[1] = event->mval[1];
+
+		data->orig_origin[0] = widget->origin[0];
+		data->orig_origin[1] = widget->origin[1];
+		
+		widget->interaction_data = data;
+	}
+	else if (state == WIDGET_DEACTIVATE) {
+		MEM_freeN(widget->interaction_data);
+		widget->interaction_data = NULL;
+	}
+	
+	return OPERATOR_FINISHED;
+}
+
+static int widget_cage_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
+{
+//	CageWidget *cage = (CageWidget *) widget;
+	CageInteraction *data = widget->interaction_data;
+	ARegion *ar = CTX_wm_region(C);
+	
+	if (widget->prop) {
+		float value;
+		
+		value = data->orig_offset + (event->mval[0] - data->orig_mouse[0]);
+		
+		RNA_property_float_set(widget->ptr, widget->prop, value);
+		RNA_property_update(C, widget->ptr, widget->prop);
+		
+		widget->origin[0] = data->orig_origin[0] + (event->mval[0] - data->orig_mouse[0]);
+	}
+	
+	
+	/* tag the region for redraw */
+	ED_region_tag_redraw(ar);
+	
+	return OPERATOR_PASS_THROUGH;
+}
+
+static void widget_cage_bind_to_prop(struct wmWidget *widget)
+{
+	CageWidget *cage = (CageWidget *) widget;
+	cage->offset = RNA_property_float_get(widget->ptr, widget->prop);
 }
 
 struct wmWidget *WIDGET_cage_new(int style, void *customdata)
@@ -713,6 +777,9 @@ struct wmWidget *WIDGET_cage_new(int style, void *customdata)
 
 	cage->widget.customdata = customdata;
 	cage->widget.draw = widget_cage_draw;
+	cage->widget.activate_state = widget_cage_activate;
+	cage->widget.bind_to_prop = widget_cage_bind_to_prop;
+	cage->widget.handler = widget_cage_handler;
 	cage->widget.intersect = widget_cage_intersect;
 	cage->widget.user_scale = 1.0f;
 	cage->style = style;

@@ -738,13 +738,13 @@ static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
 	wmWidget *widget = NULL;
 	PointerRNA *cameraptr = MEM_callocN(sizeof(PointerRNA), "camerawidgetptr");
 
+	WM_widgetgroup_customdata_set(wgroup, cameraptr);
+	
 	widget = WIDGET_arrow_new(UI_ARROW_STYLE_CROSS, NULL);
 	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_set_3d_scale(widget, false);
 	WM_widget_register(wgroup, widget);
 	WIDGET_arrow_set_color(widget, color_camera);
-
-	WM_widgetgroup_customdata_set(wgroup, cameraptr);
 }
 
 

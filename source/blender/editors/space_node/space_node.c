@@ -832,6 +832,10 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 static void WIDGETGROUP_node_transform_create(struct wmWidgetGroup *wgroup)
 {
 	wmWidget *widget = WIDGET_cage_new(0, NULL);
+	PointerRNA *nodeptr = MEM_callocN(sizeof(PointerRNA), "nodewidgetptr");
+
+	WM_widgetgroup_customdata_set(wgroup, nodeptr);
+	
 	WM_widget_register(wgroup, widget);
 }
 
@@ -863,6 +867,7 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 		ARegion *ar = CTX_wm_region(C);
 		float origin[3];
 		float xsize, ysize;
+		PointerRNA *nodeptr = WM_widgetgroup_customdata(wgroup);
 
 		xsize = snode->zoom * ibuf->x;
 		ysize = snode->zoom * ibuf->y;
@@ -870,9 +875,12 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 		origin[0] = (ar->winx - xsize) / 2 + snode->xof;
 		origin[1] = (ar->winy - ysize) / 2 + snode->yof;
 
+		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, nodeptr);
+		
 		WIDGET_cage_bounds_set(cage, xsize, ysize);
 		WM_widget_set_origin(cage, origin);
 		WM_widget_set_draw(cage, true);
+		WM_widget_property(cage, nodeptr, "backdrop_x");
 	}
 	else {
 		WM_widget_set_draw(cage, false);
@@ -880,9 +888,11 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-static void WIDGETGROUP_node_transform_free(struct wmWidgetGroup *UNUSED(wgroup))
+static void WIDGETGROUP_node_transform_free(struct wmWidgetGroup *wgroup)
 {
+	PointerRNA *nodeptr = WM_widgetgroup_customdata(wgroup);
 
+	MEM_freeN(nodeptr);
 }
 
 static void node_widgets(void)
