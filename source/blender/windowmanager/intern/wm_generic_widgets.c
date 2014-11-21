@@ -657,6 +657,10 @@ static void widget_cage_draw(struct wmWidget *widget, const struct bContext *UNU
 	CageWidget *cage = (CageWidget *)widget;
 	float w = BLI_rctf_size_x(&cage->bound);
 	float h = BLI_rctf_size_y(&cage->bound);
+	float aspx = 1.0f, aspy = 1.0f;
+	
+	glPushMatrix();
+	glTranslatef(widget->origin[0], widget->origin[1], 0.0f);
 	
 	glColor4f(1.0f, 0.6f, 0.0f, 0.1f);
 
@@ -664,15 +668,24 @@ static void widget_cage_draw(struct wmWidget *widget, const struct bContext *UNU
 //	glRectf(cage->bound.xmin, cage->bound.ymin, cage->bound.xmax, cage->bound.ymax);
 //	glDisable(GL_BLEND);
 	
+	if (w > h)
+		aspx = h / w;
+	else if (w < h)
+		aspy = w / h;
+	w = aspx * w / 8.0f;
+	h = aspy * h / 8.0f;
+
 	/* corner widgets */
 	glColor3f(0.0, 0.0, 0.0);
 	glLineWidth(3.0);
-	cage_draw_corners(&cage->bound, w/8.0f, h/8.0f);
+	cage_draw_corners(&cage->bound, w, h);
 
 	/* corner widgets */
 	glColor3f(1.0, 1.0, 1.0);
 	glLineWidth(1.0);
-	cage_draw_corners(&cage->bound, w/8.0f, h/8.0f);
+	cage_draw_corners(&cage->bound, w, h);
+	
+	glPopMatrix();
 }
 
 static int widget_cage_intersect(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
@@ -715,10 +728,10 @@ void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation)
 void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h)
 {
 	CageWidget *cage = (CageWidget *)widget;
-	cage->bound.xmax = w/2;
-	cage->bound.ymax = h/2;
-	cage->bound.xmin = -w/2;
-	cage->bound.ymin = -h/2;
+	cage->bound.xmax = w;
+	cage->bound.ymax = h;
+	cage->bound.xmin = 0.0;
+	cage->bound.ymin = 0.0;
 }
 
 

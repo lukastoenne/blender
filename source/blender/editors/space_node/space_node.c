@@ -864,13 +864,13 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 		float origin[3];
 		float xsize, ysize;
 
-		xsize = snode->zoom * ibuf->x / ar->winx;
-		ysize = snode->zoom * ibuf->y / ar->winy;
+		xsize = snode->zoom * ibuf->x;
+		ysize = snode->zoom * ibuf->y;
 		
 		origin[0] = (ar->winx - xsize) / 2 + snode->xof;
 		origin[1] = (ar->winy - ysize) / 2 + snode->yof;
 
-		WIDGET_cage_bounds_set(cage, 2.0 * xsize, 2.0 * ysize);
+		WIDGET_cage_bounds_set(cage, xsize, ysize);
 		WM_widget_set_origin(cage, origin);
 		WM_widget_set_draw(cage, true);
 	}
