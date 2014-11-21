@@ -125,9 +125,6 @@ typedef struct wmWidgetMapType {
 } wmWidgetMapType;
 
 
-#define WGROUP_FLAG_INVALID 1
-
-
 /* store all widgetboxmaps here. Anyone who wants to register a widget for a certain
  * area type can query the widgetbox to do so */
 static ListBase widgetmaptypes = {NULL, NULL};
@@ -286,7 +283,6 @@ void WM_widgets_draw(const bContext *C, struct ARegion *ar)
 
 				if (wgroup->type->update) {
 					wgroup->type->update(wgroup, C);
-					wgroup->flag &= ~WGROUP_FLAG_INVALID;
 				}
 
 				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
@@ -524,19 +520,13 @@ static int wm_widget_find_highlighted_3D_intern (ListBase *visible_widgets, bCon
 	return -1;
 }
 
-static void wm_prepare_visible_widgets(struct wmWidgetMap *wmap, ListBase *visible_widgets, bContext *C)
+static void wm_prepare_visible_widgets_3D(struct wmWidgetMap *wmap, ListBase *visible_widgets, bContext *C)
 {
 	wmWidget *widget;
 	wmWidgetGroup *wgroup;
 
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		if (!wgroup->type->poll || wgroup->type->poll(wgroup, C)) {
-			/* update if needed, data may become invalid after undoing */
-			if (wgroup->type->update && (wgroup->flag & WGROUP_FLAG_INVALID)) {
-				wgroup->type->update(wgroup, C);
-				wgroup->flag &= ~WGROUP_FLAG_INVALID;
-			}
-
 			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 				if (!(widget->flag & WM_WIDGET_SKIP_DRAW) && widget->render_3d_intersection) {
 					BLI_addhead(visible_widgets, BLI_genericNodeN(widget));
@@ -548,12 +538,12 @@ static void wm_prepare_visible_widgets(struct wmWidgetMap *wmap, ListBase *visib
 
 wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event)
 {
-	int ret, retsec;
+	int ret;
 	wmWidget *result = NULL;
 	
 	ListBase visible_widgets = {0};
 
-	wm_prepare_visible_widgets(wmap, &visible_widgets, C);
+	wm_prepare_visible_widgets_3D(wmap, &visible_widgets, C);
 
 	/* set up view matrices */	
 	view3d_operator_needs_opengl(C);
@@ -562,7 +552,7 @@ wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, bContext *C, c
 	
 	if (ret != -1) {
 		LinkData *link;
-		int retfinal;
+		int retfinal, retsec;
 		retsec = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.2f * (float)U.tw_hotspot);
 		
 		if (retsec == -1)
@@ -578,6 +568,26 @@ wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, bContext *C, c
 	
 	return result;
 }
+
+wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event)
+{
+	wmWidget *widget;
+	wmWidgetGroup *wgroup;
+
+	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
+		if (!wgroup->type->poll || wgroup->type->poll(wgroup, C)) {
+			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
+				if (!(widget->flag & WM_WIDGET_SKIP_DRAW) && widget->intersect) {
+					if (widget->intersect(C, event, widget))
+						return widget;
+				}
+			}
+		}
+	}
+	
+	return NULL;
+}
+
 
 void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget)
 {

@@ -664,9 +664,11 @@ static void widget_cage_draw(struct wmWidget *widget, const struct bContext *UNU
 	
 	glColor4f(1.0f, 0.6f, 0.0f, 0.1f);
 
-//	glEnable(GL_BLEND);
-//	glRectf(cage->bound.xmin, cage->bound.ymin, cage->bound.xmax, cage->bound.ymax);
-//	glDisable(GL_BLEND);
+	if (widget->flag & WM_WIDGET_HIGHLIGHT) {
+		glEnable(GL_BLEND);
+		glRectf(cage->bound.xmin, cage->bound.ymin, cage->bound.xmax, cage->bound.ymax);
+		glDisable(GL_BLEND);
+	}
 	
 	if (w > h)
 		aspx = h / w;
