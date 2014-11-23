@@ -61,6 +61,7 @@
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 
+#include "BKE_anim.h"
 #include "BKE_blender.h"
 #include "BKE_bpath.h"
 #include "BKE_brush.h"
@@ -117,6 +118,7 @@ void free_blender(void)
 	
 	IMB_exit();
 	BKE_images_exit();
+	object_duplilist_free_types();
 	DAG_exit();
 
 	BKE_brush_system_exit();

@@ -32,6 +32,9 @@
  *  \author nzc
  *  \since March 2001
  */
+
+#include "RNA_types.h"
+
 struct EvaluationContext;
 struct Path;
 struct Object;
@@ -65,6 +68,27 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
+
+typedef struct ObjectDuplicatorType {
+	char idname[64]; /* identifier name */
+	
+	char ui_name[64];
+	char ui_description[256];
+	int ui_icon;
+	
+	/* RNA integration */
+	ExtensionRNA ext;
+} ObjectDuplicatorType;
+
+typedef struct ObjectDuplicator {
+	struct ObjectDuplicatorType *type;
+} ObjectDuplicator;
+
+void object_duplilist_init_types(void);
+void object_duplilist_free_types(void);
+void object_duplilist_add_type(struct ObjectDuplicatorType *duptype);
+void object_duplilist_free_type(struct ObjectDuplicatorType *duptype);
+struct ObjectDuplicatorType *object_duplilist_find_type(const char *idname);
 
 struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);
 struct ListBase *object_duplilist(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);

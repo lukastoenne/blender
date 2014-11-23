@@ -75,6 +75,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_blender.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -1565,6 +1566,7 @@ int main(
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
+	object_duplilist_init_types();
 	DAG_init();
 
 	BKE_brush_system_init();

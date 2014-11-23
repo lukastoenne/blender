@@ -38,6 +38,7 @@
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
 
+#include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
@@ -1282,4 +1283,48 @@ void duplilist_free_apply_data(DupliApplyData *apply_data)
 {
 	MEM_freeN(apply_data->extra);
 	MEM_freeN(apply_data);
+}
+
+/* ---- type registration ---- */
+
+static GHash *duplicator_type_hash = NULL;
+
+/* callback for hash value free function */
+static void object_duplicator_type_free(void *vduptype)
+{
+	ObjectDuplicatorType *duptype = vduptype;
+	MEM_freeN(duptype);
+}
+
+void object_duplilist_init_types(void)
+{
+	duplicator_type_hash = BLI_ghash_str_new("duplicator_type_hash gh");
+}
+
+void object_duplilist_free_types(void)
+{
+	BLI_ghash_free(duplicator_type_hash, NULL, object_duplicator_type_free);
+	duplicator_type_hash = NULL;
+}
+
+void object_duplilist_add_type(ObjectDuplicatorType *duptype)
+{
+	BLI_ghash_insert(duplicator_type_hash, (void *)duptype->idname, duptype);
+}
+
+void object_duplilist_free_type(ObjectDuplicatorType *duptype)
+{
+	BLI_ghash_remove(duplicator_type_hash, duptype->idname, NULL, object_duplicator_type_free);
+}
+
+ObjectDuplicatorType *object_duplilist_find_type(const char *idname)
+{
+	ObjectDuplicatorType *duptype;
+	
+	if (idname[0]) {
+		duptype = BLI_ghash_lookup(duplicator_type_hash, idname);
+		if (duptype)
+			return duptype;
+	}
+	return NULL;
 }

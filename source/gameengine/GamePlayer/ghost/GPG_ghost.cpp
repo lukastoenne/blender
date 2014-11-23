@@ -64,6 +64,7 @@ extern "C"
 #include "BLO_readfile.h"
 #include "BLO_runtime.h"
 
+#include "BKE_anim.h"
 #include "BKE_blender.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
@@ -452,6 +453,7 @@ int main(int argc, char** argv)
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
+	object_duplilist_init_types();
 	DAG_init();
 
 #ifdef WITH_FFMPEG
@@ -1130,6 +1132,7 @@ int main(int argc, char** argv)
 
 	IMB_exit();
 	BKE_images_exit();
+	object_duplilist_free_types();
 	DAG_exit();
 	IMB_moviecache_destruct();
 
