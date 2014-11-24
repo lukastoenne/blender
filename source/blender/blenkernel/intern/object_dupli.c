@@ -84,9 +84,6 @@ typedef struct DupliContext {
 	int index;
 
 	const struct ObjectDuplicatorType *duptype;
-
-	/* result containers */
-	ListBase *duplilist; /* legacy doubly-linked list */
 } DupliContext;
 
 Scene *BKE_dupli_context_scene(const DupliContext *ctx)
@@ -98,6 +95,11 @@ Object *BKE_dupli_context_object(const DupliContext *ctx)
 {
 	return ctx->object;
 }
+
+typedef struct DupliResult {
+	/* result containers */
+	ListBase *duplilist; /* legacy doubly-linked list */
+} DupliResult;
 
 static const ObjectDuplicatorType *get_duplicator(const DupliContext *ctx);
 
@@ -120,8 +122,6 @@ static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene
 	r_ctx->level = 0;
 
 	r_ctx->duptype = get_duplicator(r_ctx);
-
-	r_ctx->duplilist = NULL;
 }
 
 /* create sub-context for recursive duplis */
@@ -144,10 +144,15 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 	r_ctx->duptype = get_duplicator(r_ctx);
 }
 
+static void init_result(DupliResult *result)
+{
+	result->duplilist = NULL;
+}
+
 /* generate a dupli instance
  * mat is transform of the object relative to current context (including object obmat)
  */
-static DupliObject *make_dupli(const DupliContext *ctx,
+static DupliObject *make_dupli(const DupliContext *ctx, DupliResult *result,
                                Object *ob, float mat[4][4], int index,
                                bool animated, bool hide)
 {
@@ -155,9 +160,9 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 	int i;
 
 	/* add a DupliObject instance to the result container */
-	if (ctx->duplilist) {
+	if (result->duplilist) {
 		dob = MEM_callocN(sizeof(DupliObject), "dupli object");
-		BLI_addtail(ctx->duplilist, dob);
+		BLI_addtail(result->duplilist, dob);
 	}
 	else {
 		return NULL;
@@ -193,21 +198,21 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 /* recursive dupli objects
  * space_mat is the local dupli space (excluding dupli object obmat!)
  */
-static void make_recursive_duplis(const DupliContext *ctx, Object *ob, float space_mat[4][4], int index, bool animated)
+static void make_recursive_duplis(const DupliContext *ctx, DupliResult *result, Object *ob, float space_mat[4][4], int index, bool animated)
 {
 	/* simple preventing of too deep nested groups with MAX_DUPLI_RECUR */
 	if (ctx->level < MAX_DUPLI_RECUR) {
 		DupliContext rctx;
 		copy_dupli_context(&rctx, ctx, ob, space_mat, index, animated);
 		if (rctx.duptype) {
-			rctx.duptype->make_duplis(&rctx);
+			rctx.duptype->make_duplis(&rctx, result);
 		}
 	}
 }
 
 /* ---- Child Duplis ---- */
 
-typedef void (*MakeChildDuplisFunc)(const DupliContext *ctx, void *userdata, Object *child);
+typedef void (*MakeChildDuplisFunc)(const DupliContext *ctx, DupliResult *result, void *userdata, Object *child);
 
 static bool is_child(const Object *ob, const Object *parent)
 {
@@ -221,7 +226,7 @@ static bool is_child(const Object *ob, const Object *parent)
 }
 
 /* create duplis from every child in scene or group */
-static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChildDuplisFunc make_child_duplis_cb)
+static void make_child_duplis(const DupliContext *ctx, DupliResult *result, void *userdata, MakeChildDuplisFunc make_child_duplis_cb)
 {
 	Object *parent = ctx->object;
 	Object *obedit = ctx->scene->obedit;
@@ -237,7 +242,7 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 				if (ob->type != OB_MBALL)
 					ob->flag |= OB_DONE;  /* doesnt render */
 
-				make_child_duplis_cb(ctx, userdata, ob);
+				make_child_duplis_cb(ctx, result, userdata, ob);
 			}
 		}
 	}
@@ -252,7 +257,7 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 				if (ob->type != OB_MBALL)
 					ob->flag |= OB_DONE;  /* doesnt render */
 
-				make_child_duplis_cb(ctx, userdata, ob);
+				make_child_duplis_cb(ctx, result, userdata, ob);
 			}
 		}
 	}
@@ -262,7 +267,7 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 /*---- Implementations ----*/
 
 /* OB_DUPLIGROUP */
-static void make_duplis_group(const DupliContext *ctx)
+static void make_duplis_group(const DupliContext *ctx, DupliResult *result)
 {
 	bool for_render = (ctx->eval_ctx->mode == DAG_EVAL_RENDER);
 	Object *ob = ctx->object;
@@ -316,16 +321,16 @@ static void make_duplis_group(const DupliContext *ctx)
 			hide = (go->ob->lay & group->layer) == 0 ||
 			       (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
 
-			make_dupli(ctx, go->ob, mat, id, animated, hide);
+			make_dupli(ctx, result, go->ob, mat, id, animated, hide);
 
 			/* recursion */
-			make_recursive_duplis(ctx, go->ob, group_mat, id, animated);
+			make_recursive_duplis(ctx, result, go->ob, group_mat, id, animated);
 		}
 	}
 }
 
 /* OB_DUPLIFRAMES */
-static void make_duplis_frames(const DupliContext *ctx)
+static void make_duplis_frames(const DupliContext *ctx, DupliResult *result)
 {
 	Scene *scene = ctx->scene;
 	Object *ob = ctx->object;
@@ -377,7 +382,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 			BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
 			BKE_object_where_is_calc_time(scene, ob, (float)scene->r.cfra);
 
-			make_dupli(ctx, ob, ob->obmat, scene->r.cfra, false, false);
+			make_dupli(ctx, result, ob, ob->obmat, scene->r.cfra, false, false);
 		}
 	}
 
@@ -407,6 +412,7 @@ typedef struct VertexDupliData {
 	bool use_rotation;
 
 	const DupliContext *ctx;
+	DupliResult *result;
 	Object *inst_ob; /* object to instantiate (argument for vertex map callback) */
 	float child_imat[4][4];
 } VertexDupliData;
@@ -458,16 +464,16 @@ static void vertex_dupli__mapFunc(void *userData, int index, const float co[3],
 	 */
 	mul_m4_m4m4(space_mat, obmat, inst_ob->imat);
 
-	dob = make_dupli(vdd->ctx, vdd->inst_ob, obmat, index, false, false);
+	dob = make_dupli(vdd->ctx, vdd->result, vdd->inst_ob, obmat, index, false, false);
 
 	if (vdd->orco)
 		copy_v3_v3(dob->orco, vdd->orco[index]);
 
 	/* recursion */
-	make_recursive_duplis(vdd->ctx, vdd->inst_ob, space_mat, index, false);
+	make_recursive_duplis(vdd->ctx, vdd->result, vdd->inst_ob, space_mat, index, false);
 }
 
-static void make_child_duplis_verts(const DupliContext *ctx, void *userdata, Object *child)
+static void make_child_duplis_verts(const DupliContext *ctx, DupliResult *UNUSED(result), void *userdata, Object *child)
 {
 	VertexDupliData *vdd = userdata;
 	DerivedMesh *dm = vdd->dm;
@@ -503,7 +509,7 @@ static void make_child_duplis_verts(const DupliContext *ctx, void *userdata, Obj
 	}
 }
 
-static void make_duplis_verts(const DupliContext *ctx)
+static void make_duplis_verts(const DupliContext *ctx, DupliResult *result)
 {
 	Scene *scene = ctx->scene;
 	Object *parent = ctx->object;
@@ -511,6 +517,7 @@ static void make_duplis_verts(const DupliContext *ctx)
 	VertexDupliData vdd;
 
 	vdd.ctx = ctx;
+	vdd.result = result;
 	vdd.use_rotation = parent->transflag & OB_DUPLIROT;
 
 	/* gather mesh info */
@@ -533,7 +540,7 @@ static void make_duplis_verts(const DupliContext *ctx)
 		vdd.totvert = vdd.dm->getNumVerts(vdd.dm);
 	}
 
-	make_child_duplis(ctx, &vdd, make_child_duplis_verts);
+	make_child_duplis(ctx, result, &vdd, make_child_duplis_verts);
 
 	vdd.dm->release(vdd.dm);
 }
@@ -572,7 +579,7 @@ static Object *find_family_object(const char *family, size_t family_len, unsigne
 	return ob;
 }
 
-static void make_duplis_font(const DupliContext *ctx)
+static void make_duplis_font(const DupliContext *ctx, DupliResult *result)
 {
 	Object *par = ctx->object;
 	GHash *family_gh;
@@ -635,7 +642,7 @@ static void make_duplis_font(const DupliContext *ctx)
 
 			copy_v3_v3(obmat[3], vec);
 
-			make_dupli(ctx, ob, obmat, a, false, false);
+			make_dupli(ctx, result, ob, obmat, a, false, false);
 		}
 	}
 
@@ -690,7 +697,7 @@ static void get_dupliface_transform(MPoly *mpoly, MLoop *mloop, MVert *mvert,
 	loc_quat_size_to_mat4(mat, loc, quat, size);
 }
 
-static void make_child_duplis_faces(const DupliContext *ctx, void *userdata, Object *inst_ob)
+static void make_child_duplis_faces(const DupliContext *ctx, DupliResult *result, void *userdata, Object *inst_ob)
 {
 	FaceDupliData *fdd = userdata;
 	MPoly *mpoly = fdd->mpoly, *mp;
@@ -737,7 +744,7 @@ static void make_child_duplis_faces(const DupliContext *ctx, void *userdata, Obj
 		 */
 		mul_m4_m4m4(space_mat, obmat, inst_ob->imat);
 
-		dob = make_dupli(ctx, inst_ob, obmat, a, false, false);
+		dob = make_dupli(ctx, result, inst_ob, obmat, a, false, false);
 		if (use_texcoords) {
 			float w = 1.0f / (float)mp->totloop;
 
@@ -757,11 +764,11 @@ static void make_child_duplis_faces(const DupliContext *ctx, void *userdata, Obj
 		}
 
 		/* recursion */
-		make_recursive_duplis(ctx, inst_ob, space_mat, a, false);
+		make_recursive_duplis(ctx, result, inst_ob, space_mat, a, false);
 	}
 }
 
-static void make_duplis_faces(const DupliContext *ctx)
+static void make_duplis_faces(const DupliContext *ctx, DupliResult *result)
 {
 	Scene *scene = ctx->scene;
 	Object *parent = ctx->object;
@@ -795,14 +802,14 @@ static void make_duplis_faces(const DupliContext *ctx)
 		fdd.mvert = fdd.dm->getVertArray(fdd.dm);
 	}
 
-	make_child_duplis(ctx, &fdd, make_child_duplis_faces);
+	make_child_duplis(ctx, result, &fdd, make_child_duplis_faces);
 
 	fdd.dm->release(fdd.dm);
 }
 
 
 /* OB_DUPLIPARTS */
-static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem *psys)
+static void make_duplis_particle_system(const DupliContext *ctx, DupliResult *result, ParticleSystem *psys)
 {
 	Scene *scene = ctx->scene;
 	Object *par = ctx->object;
@@ -1022,7 +1029,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 					/* individual particle transform */
 					mul_m4_m4m4(mat, pamat, tmat);
 
-					dob = make_dupli(ctx, go->ob, mat, a, false, false);
+					dob = make_dupli(ctx, result, go->ob, mat, a, false, false);
 					dob->particle_system = psys;
 					if (use_texcoords)
 						psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
@@ -1071,7 +1078,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 				if (part->draw & PART_DRAW_GLOBAL_OB)
 					add_v3_v3v3(mat[3], mat[3], vec);
 
-				dob = make_dupli(ctx, ob, mat, a, false, false);
+				dob = make_dupli(ctx, result, ob, mat, a, false, false);
 				dob->particle_system = psys;
 				if (use_texcoords)
 					psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
@@ -1103,7 +1110,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 	}
 }
 
-static void make_duplis_particles(const DupliContext *ctx)
+static void make_duplis_particles(const DupliContext *ctx, DupliResult *result)
 {
 	ParticleSystem *psys;
 	int psysid;
@@ -1113,7 +1120,7 @@ static void make_duplis_particles(const DupliContext *ctx)
 		/* particles create one more level for persistent psys index */
 		DupliContext pctx;
 		copy_dupli_context(&pctx, ctx, ctx->object, NULL, psysid, false);
-		make_duplis_particle_system(&pctx, psys);
+		make_duplis_particle_system(&pctx, result, psys);
 	}
 }
 
@@ -1121,7 +1128,7 @@ static void make_duplis_particles(const DupliContext *ctx)
 
 static ObjectDuplicatorType *make_dupli_type(const char *idname, short idtype,
                                              const char *name, const char *description, int icon, 
-											 void (*make_duplis)(const struct DupliContext *ctx))
+											 void (*make_duplis)(const DupliContext *ctx, DupliResult *result))
 {
 	ObjectDuplicatorType *duptype = MEM_callocN(sizeof(ObjectDuplicatorType), "object duplicator type");
 	strcpy(duptype->idname, idname);
@@ -1201,10 +1208,12 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 {
 	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
 	DupliContext ctx;
+	DupliResult result;
 	init_context(&ctx, eval_ctx, scene, ob, NULL, update);
+	init_result(&result);
 	if (ctx.duptype) {
-		ctx.duplilist = duplilist;
-		ctx.duptype->make_duplis(&ctx);
+		result.duplilist = duplilist;
+		ctx.duptype->make_duplis(&ctx, &result);
 	}
 
 	return duplilist;

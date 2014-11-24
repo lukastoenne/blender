@@ -70,6 +70,7 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 /* Dupli-Geometry */
 
 struct DupliContext;
+struct DupliResult;
 
 typedef struct ObjectDuplicatorType {
 	char idname[64];    /* identifier name */
@@ -79,7 +80,7 @@ typedef struct ObjectDuplicatorType {
 	char ui_description[256];
 	int ui_icon;
 
-	void (*make_duplis)(const struct DupliContext *ctx);
+	void (*make_duplis)(const struct DupliContext *ctx, struct DupliResult *result);
 
 	/* RNA integration */
 	ExtensionRNA ext;
