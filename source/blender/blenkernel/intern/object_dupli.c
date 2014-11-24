@@ -152,9 +152,9 @@ static void init_result(DupliResult *result)
 /* generate a dupli instance
  * mat is transform of the object relative to current context (including object obmat)
  */
-static DupliObject *make_dupli(const DupliContext *ctx, DupliResult *result,
-                               Object *ob, float mat[4][4], int index,
-                               bool animated, bool hide)
+DupliObject *BKE_dupli_result_add(const DupliContext *ctx, DupliResult *result,
+                                  Object *ob, float mat[4][4], int index,
+                                  bool animated, bool hide)
 {
 	DupliObject *dob;
 	int i;
@@ -321,7 +321,7 @@ static void make_duplis_group(const DupliContext *ctx, DupliResult *result)
 			hide = (go->ob->lay & group->layer) == 0 ||
 			       (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
 
-			make_dupli(ctx, result, go->ob, mat, id, animated, hide);
+			BKE_dupli_result_add(ctx, result, go->ob, mat, id, animated, hide);
 
 			/* recursion */
 			make_recursive_duplis(ctx, result, go->ob, group_mat, id, animated);
@@ -382,7 +382,7 @@ static void make_duplis_frames(const DupliContext *ctx, DupliResult *result)
 			BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
 			BKE_object_where_is_calc_time(scene, ob, (float)scene->r.cfra);
 
-			make_dupli(ctx, result, ob, ob->obmat, scene->r.cfra, false, false);
+			BKE_dupli_result_add(ctx, result, ob, ob->obmat, scene->r.cfra, false, false);
 		}
 	}
 
@@ -464,7 +464,7 @@ static void vertex_dupli__mapFunc(void *userData, int index, const float co[3],
 	 */
 	mul_m4_m4m4(space_mat, obmat, inst_ob->imat);
 
-	dob = make_dupli(vdd->ctx, vdd->result, vdd->inst_ob, obmat, index, false, false);
+	dob = BKE_dupli_result_add(vdd->ctx, vdd->result, vdd->inst_ob, obmat, index, false, false);
 
 	if (vdd->orco)
 		copy_v3_v3(dob->orco, vdd->orco[index]);
@@ -642,7 +642,7 @@ static void make_duplis_font(const DupliContext *ctx, DupliResult *result)
 
 			copy_v3_v3(obmat[3], vec);
 
-			make_dupli(ctx, result, ob, obmat, a, false, false);
+			BKE_dupli_result_add(ctx, result, ob, obmat, a, false, false);
 		}
 	}
 
@@ -744,7 +744,7 @@ static void make_child_duplis_faces(const DupliContext *ctx, DupliResult *result
 		 */
 		mul_m4_m4m4(space_mat, obmat, inst_ob->imat);
 
-		dob = make_dupli(ctx, result, inst_ob, obmat, a, false, false);
+		dob = BKE_dupli_result_add(ctx, result, inst_ob, obmat, a, false, false);
 		if (use_texcoords) {
 			float w = 1.0f / (float)mp->totloop;
 
@@ -1029,7 +1029,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, DupliResult *re
 					/* individual particle transform */
 					mul_m4_m4m4(mat, pamat, tmat);
 
-					dob = make_dupli(ctx, result, go->ob, mat, a, false, false);
+					dob = BKE_dupli_result_add(ctx, result, go->ob, mat, a, false, false);
 					dob->particle_system = psys;
 					if (use_texcoords)
 						psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
@@ -1078,7 +1078,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, DupliResult *re
 				if (part->draw & PART_DRAW_GLOBAL_OB)
 					add_v3_v3v3(mat[3], mat[3], vec);
 
-				dob = make_dupli(ctx, result, ob, mat, a, false, false);
+				dob = BKE_dupli_result_add(ctx, result, ob, mat, a, false, false);
 				dob->particle_system = psys;
 				if (use_texcoords)
 					psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);

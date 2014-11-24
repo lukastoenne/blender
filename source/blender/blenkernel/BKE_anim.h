@@ -99,6 +99,10 @@ struct ObjectDuplicatorType *object_duplilist_find_type(const char *idname);
 struct Scene *BKE_dupli_context_scene(const struct DupliContext *ctx);
 struct Object *BKE_dupli_context_object(const struct DupliContext *ctx);
 
+struct DupliObject *BKE_dupli_result_add(const struct DupliContext *ctx, struct DupliResult *result,
+                                         struct Object *ob, float mat[4][4], int index,
+                                         bool animated, bool hide);
+
 struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);
 struct ListBase *object_duplilist(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);
 void free_object_duplilist(struct ListBase *lb);
