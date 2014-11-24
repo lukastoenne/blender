@@ -34,6 +34,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -42,7 +43,78 @@
 
 #ifdef RNA_RUNTIME
 
+#include "BLI_ghash.h"
+
 #include "BKE_anim.h"
+
+int object_duplicator_idname_to_enum(const char *value)
+{
+	GHashIterator *iter;
+	int i, found = -1;
+	
+	for (iter = object_duplilist_type_iterator(), i = 0; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter), ++i) {
+		ObjectDuplicatorType *duptype = BLI_ghashIterator_getValue(iter);
+		if (STREQ(duptype->idname, value)) {
+			found = i;
+			break;
+		}
+	}
+	BLI_ghashIterator_free(iter);
+	
+	return found;
+}
+
+const char *object_duplicator_idname_from_enum(int value)
+{
+	const char *found = "";
+	GHashIterator *iter;
+	int i;
+	
+	for (iter = object_duplilist_type_iterator(), i = 0; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter), ++i) {
+		if (i == value) {
+			ObjectDuplicatorType *duptype = BLI_ghashIterator_getValue(iter);
+			found = duptype->idname;
+			break;
+		}
+	}
+	BLI_ghashIterator_free(iter);
+	
+	return found;
+}
+
+EnumPropertyItem *object_duplicator_type_itemf(struct bContext *UNUSED(C), struct PointerRNA *UNUSED(ptr), struct PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	EnumPropertyItem *item = NULL;
+	EnumPropertyItem tmp;
+	int totitem = 0;
+	GHashIterator *iter;
+	
+	tmp.value = 0;
+	tmp.identifier = "NONE";
+	tmp.name = "None";
+	tmp.description = "";
+	tmp.icon = ICON_NONE;
+	RNA_enum_item_add(&item, &totitem, &tmp);
+	
+	for (iter = object_duplilist_type_iterator(); !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
+		ObjectDuplicatorType *duptype = BLI_ghashIterator_getValue(iter);
+		StructRNA *srna = duptype->ext.srna;
+		
+		tmp.value = totitem;
+		tmp.identifier = duptype->idname;
+		tmp.icon = RNA_struct_ui_icon(srna);
+		tmp.name = RNA_struct_ui_name(srna);
+		tmp.description = RNA_struct_ui_description(srna);
+		
+		RNA_enum_item_add(&item, &totitem, &tmp);
+	}
+	BLI_ghashIterator_free(iter);
+	
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+	
+	return item;
+}
 
 static PointerRNA rna_DupliContext_scene_get(PointerRNA *ptr)
 {

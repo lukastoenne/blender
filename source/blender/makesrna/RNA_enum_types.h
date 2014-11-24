@@ -191,6 +191,10 @@ EnumPropertyItem *rna_TransformOrientation_itemf(struct bContext *C, struct Poin
 EnumPropertyItem *rna_Sensor_type_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 EnumPropertyItem *rna_Actuator_type_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 
+int object_duplicator_idname_to_enum(const char *value);
+const char *object_duplicator_idname_from_enum(int value);
+EnumPropertyItem *object_duplicator_type_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+
 /* Generic functions, return an enum from library data, index is the position
  * in the linked list can add more for different types as needed */
 EnumPropertyItem *RNA_action_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);

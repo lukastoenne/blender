@@ -179,6 +179,7 @@ EnumPropertyItem object_axis_unsigned_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "DNA_key_types.h"
 #include "DNA_constraint_types.h"
@@ -544,6 +545,18 @@ static void rna_Object_dup_group_set(PointerRNA *ptr, PointerRNA value)
 	else
 		BKE_report(NULL, RPT_ERROR,
 		           "Cannot set dupli-group as object belongs in group being instanced, thus causing a cycle");
+}
+
+static int rna_Object_dup_custom_type_get(PointerRNA *ptr)
+{
+	Object *ob = ptr->data;
+	return object_duplicator_idname_to_enum(ob->dup_custom_type);
+}
+
+static void rna_Object_dup_custom_type_set(PointerRNA *ptr, int value)
+{
+	Object *ob = ptr->data;
+	BLI_strncpy(ob->dup_custom_type, object_duplicator_idname_from_enum(value), sizeof(ob->dup_custom_type));
 }
 
 static void rna_VertexGroup_name_set(PointerRNA *ptr, const char *value)
@@ -2152,7 +2165,12 @@ static void rna_def_object(BlenderRNA *brna)
 		                     "Axis Angle (W+XYZ), defines a rotation around some axis defined by 3D-Vector"},
 		{0, NULL, 0, NULL, NULL}
 	};
-	
+
+	static EnumPropertyItem dummy_items[] = {
+		{1, "DUMMY", 0, "Dummy", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static float default_quat[4] = {1, 0, 0, 0};    /* default quaternion values */
 	static float default_axisAngle[4] = {0, 0, 1, 0};   /* default axis-angle rotation values */
 	static float default_scale[3] = {1, 1, 1}; /* default scale values */
@@ -2634,6 +2652,20 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_Object_dup_group_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Dupli Group", "Instance an existing group");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
+
+	prop = RNA_def_property(srna, "dupli_custom_idname", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Custom Duplicator Type", "Custom duplicator type identifier");
+	RNA_def_property_string_sdna(prop, NULL, "dup_custom_type");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
+
+	/* enum wrapper for nicer dupli type access */
+	prop = RNA_def_property(srna, "dupli_custom_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Custom Duplicator Type", "Custom duplicator type");
+	RNA_def_property_enum_items(prop, dummy_items);
+	RNA_def_property_enum_funcs(prop, "rna_Object_dup_custom_type_get", "rna_Object_dup_custom_type_set", "object_duplicator_type_itemf");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
 
 	prop = RNA_def_property(srna, "dupli_frames_start", PROP_INT, PROP_NONE | PROP_UNIT_TIME);

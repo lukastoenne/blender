@@ -71,6 +71,7 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 
 struct DupliContext;
 struct DupliResult;
+struct GHashIterator;
 
 typedef struct ObjectDuplicatorType {
 	char idname[64];    /* identifier name */
@@ -95,6 +96,7 @@ void object_duplilist_free_types(void);
 void object_duplilist_add_type(struct ObjectDuplicatorType *duptype);
 void object_duplilist_free_type(struct ObjectDuplicatorType *duptype);
 struct ObjectDuplicatorType *object_duplilist_find_type(const char *idname);
+struct GHashIterator *object_duplilist_type_iterator(void);
 
 struct Scene *BKE_dupli_context_scene(const struct DupliContext *ctx);
 struct Object *BKE_dupli_context_object(const struct DupliContext *ctx);

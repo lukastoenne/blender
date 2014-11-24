@@ -1354,3 +1354,8 @@ ObjectDuplicatorType *object_duplilist_find_type(const char *idname)
 	}
 	return NULL;
 }
+
+GHashIterator *object_duplilist_type_iterator(void)
+{
+	return BLI_ghashIterator_new(duplicator_type_hash);
+}

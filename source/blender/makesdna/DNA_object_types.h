@@ -263,6 +263,7 @@ typedef struct Object {
 	struct PartDeflect *pd;		/* particle deflector/attractor/collision data */
 	struct SoftBody *soft;		/* if exists, saved in file */
 	struct Group *dup_group;	/* object duplicator for group */
+	char dup_custom_type[64];	/* custom duplicator type */
 
 	char  body_type;			/* for now used to temporarily holds the type of collision object */
 	char  shapeflag;			/* flag for pinning */
@@ -398,6 +399,7 @@ enum {
 	OB_DUPLIROT         = 1 << 5,
 	OB_DUPLINOSPEED     = 1 << 6,
 /*	OB_POWERTRACK       = 1 << 7,*/ /*UNUSED*/
+	OB_DUPLICUSTOM      = 1 << 7,
 	OB_DUPLIGROUP       = 1 << 8,
 	OB_DUPLIFACES       = 1 << 9,
 	OB_DUPLIFACES_SCALE = 1 << 10,
