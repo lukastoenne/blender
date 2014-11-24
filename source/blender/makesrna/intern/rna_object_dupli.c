@@ -64,6 +64,13 @@ static PointerRNA rna_DupliContext_object_get(PointerRNA *ptr)
 
 /* ------------------------------------------------------------------------- */
 
+static void rna_DupliResult_add(struct DupliResult *result, struct DupliContext *ctx, struct Object *ob, float mat[16], int index, int animated, int hide)
+{
+	BKE_dupli_result_add(ctx, result, ob, (float (*)[4])mat, index, animated, hide);
+}
+
+/* ------------------------------------------------------------------------- */
+
 static StructRNA *rna_ObjectDuplicator_refine(struct PointerRNA *ptr)
 {
 	ObjectDuplicator *dup = ptr->data;
@@ -227,6 +234,32 @@ static void rna_def_dupli_context(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Object", "");
 }
 
+static void rna_def_dupli_result(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	srna = RNA_def_struct(brna, "DupliResult", NULL);
+	RNA_def_struct_ui_text(srna, "Dupli Result", "Object dupli instance storage");
+
+	func = RNA_def_function(srna, "add", "rna_DupliResult_add");
+	RNA_def_function_ui_description(func, "Add a new dupli instance to the result");
+	
+	parm = RNA_def_pointer(func, "context", "DupliContext", "Context", "Context for object duplication");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "Object to instance");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_property(func, "matrix", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(parm, "Matrix", "Worldspace transformation matrix");
+	RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_int(func, "index", 0, INT_MIN, INT_MAX, "Index", "Index for identifying a dupli instance", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_boolean(func, "animated", false, "Animated", "True if the dupli instance is animated");
+	RNA_def_boolean(func, "hide", false, "Hide", "True if the dupli instance itself should be hidden (only showing child duplis)");
+}
+
 static void rna_def_object_duplicator(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -273,6 +306,7 @@ static void rna_def_object_duplicator(BlenderRNA *brna)
 void RNA_def_object_dupli(BlenderRNA *brna)
 {
 	rna_def_dupli_context(brna);
+	rna_def_dupli_result(brna);
 	rna_def_object_duplicator(brna);
 }
 
