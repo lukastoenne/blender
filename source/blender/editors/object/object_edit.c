@@ -1508,7 +1508,7 @@ static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *UNUSED(
 			    (input->value == OB_MODE_POSE && (ob->type == OB_ARMATURE)) ||
 			    (input->value == OB_MODE_PARTICLE_EDIT && use_mode_particle_edit) ||
 			    (ELEM(input->value, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT,
-			           OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT) && (ob->type == OB_MESH)) ||
+			           OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT, OB_MODE_HAIR_EDIT) && (ob->type == OB_MESH)) ||
 			    (input->value == OB_MODE_OBJECT))
 			{
 				RNA_enum_item_add(&item, &totitem, input);
@@ -1542,6 +1542,8 @@ static const char *object_mode_op_string(int mode)
 		return "PAINT_OT_texture_paint_toggle";
 	if (mode == OB_MODE_PARTICLE_EDIT)
 		return "PARTICLE_OT_particle_edit_toggle";
+	if (mode == OB_MODE_HAIR_EDIT)
+		return "HAIR_OT_hair_edit_toggle";
 	if (mode == OB_MODE_POSE)
 		return "OBJECT_OT_posemode_toggle";
 	return NULL;
@@ -1559,7 +1561,7 @@ static bool object_mode_compat_test(Object *ob, ObjectMode mode)
 		switch (ob->type) {
 			case OB_MESH:
 				if (mode & (OB_MODE_EDIT | OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT |
-				            OB_MODE_TEXTURE_PAINT | OB_MODE_PARTICLE_EDIT))
+				            OB_MODE_TEXTURE_PAINT | OB_MODE_PARTICLE_EDIT | OB_MODE_HAIR_EDIT))
 				{
 					return true;
 				}
