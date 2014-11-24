@@ -69,6 +69,7 @@ EnumPropertyItem object_mode_items[] = {
 	{OB_MODE_WEIGHT_PAINT, "WEIGHT_PAINT", ICON_WPAINT_HLT, "Weight Paint", ""},
 	{OB_MODE_TEXTURE_PAINT, "TEXTURE_PAINT", ICON_TPAINT_HLT, "Texture Paint", ""},
 	{OB_MODE_PARTICLE_EDIT, "PARTICLE_EDIT", ICON_PARTICLEMODE, "Particle Edit", ""},
+	{OB_MODE_HAIR_EDIT, "HAIR_EDIT", ICON_PARTICLEMODE, "Hair Edit", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

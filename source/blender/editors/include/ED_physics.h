@@ -56,5 +56,9 @@ void ED_rigidbody_constraint_remove(struct Scene *scene, struct Object *ob);
 void ED_operatortypes_physics(void);
 void ED_keymap_physics(struct wmKeyConfig *keyconf);
 
+/* hair edit */
+void ED_operatortypes_hair(void);
+void ED_keymap_hair(struct wmKeyConfig *keyconf);
+
 #endif /* __ED_PHYSICS_H__ */
 
