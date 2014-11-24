@@ -205,7 +205,7 @@ static void make_recursive_duplis(const DupliContext *ctx, DupliResult *result, 
 		DupliContext rctx;
 		copy_dupli_context(&rctx, ctx, ob, space_mat, index, animated);
 		if (rctx.duptype) {
-			rctx.duptype->make_duplis(&rctx, result);
+			rctx.duptype->make_duplis(rctx.duptype, &rctx, result);
 		}
 	}
 }
@@ -267,7 +267,7 @@ static void make_child_duplis(const DupliContext *ctx, DupliResult *result, void
 /*---- Implementations ----*/
 
 /* OB_DUPLIGROUP */
-static void make_duplis_group(const DupliContext *ctx, DupliResult *result)
+static void make_duplis_group(const ObjectDuplicatorType *UNUSED(duptype), const DupliContext *ctx, DupliResult *result)
 {
 	bool for_render = (ctx->eval_ctx->mode == DAG_EVAL_RENDER);
 	Object *ob = ctx->object;
@@ -330,7 +330,7 @@ static void make_duplis_group(const DupliContext *ctx, DupliResult *result)
 }
 
 /* OB_DUPLIFRAMES */
-static void make_duplis_frames(const DupliContext *ctx, DupliResult *result)
+static void make_duplis_frames(const ObjectDuplicatorType *UNUSED(duptype), const DupliContext *ctx, DupliResult *result)
 {
 	Scene *scene = ctx->scene;
 	Object *ob = ctx->object;
@@ -509,7 +509,7 @@ static void make_child_duplis_verts(const DupliContext *ctx, DupliResult *UNUSED
 	}
 }
 
-static void make_duplis_verts(const DupliContext *ctx, DupliResult *result)
+static void make_duplis_verts(const ObjectDuplicatorType *UNUSED(duptype), const DupliContext *ctx, DupliResult *result)
 {
 	Scene *scene = ctx->scene;
 	Object *parent = ctx->object;
@@ -579,7 +579,7 @@ static Object *find_family_object(const char *family, size_t family_len, unsigne
 	return ob;
 }
 
-static void make_duplis_font(const DupliContext *ctx, DupliResult *result)
+static void make_duplis_font(const ObjectDuplicatorType *UNUSED(duptype), const DupliContext *ctx, DupliResult *result)
 {
 	Object *par = ctx->object;
 	GHash *family_gh;
@@ -768,7 +768,7 @@ static void make_child_duplis_faces(const DupliContext *ctx, DupliResult *result
 	}
 }
 
-static void make_duplis_faces(const DupliContext *ctx, DupliResult *result)
+static void make_duplis_faces(const ObjectDuplicatorType *UNUSED(duptype), const DupliContext *ctx, DupliResult *result)
 {
 	Scene *scene = ctx->scene;
 	Object *parent = ctx->object;
@@ -1110,7 +1110,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, DupliResult *re
 	}
 }
 
-static void make_duplis_particles(const DupliContext *ctx, DupliResult *result)
+static void make_duplis_particles(const ObjectDuplicatorType *UNUSED(duptype), const DupliContext *ctx, DupliResult *result)
 {
 	ParticleSystem *psys;
 	int psysid;
@@ -1128,7 +1128,7 @@ static void make_duplis_particles(const DupliContext *ctx, DupliResult *result)
 
 static ObjectDuplicatorType *make_dupli_type(const char *idname, short idtype,
                                              const char *name, const char *description, int icon, 
-											 void (*make_duplis)(const DupliContext *ctx, DupliResult *result))
+											 void (*make_duplis)(const ObjectDuplicatorType *duptype, const DupliContext *ctx, DupliResult *result))
 {
 	ObjectDuplicatorType *duptype = MEM_callocN(sizeof(ObjectDuplicatorType), "object duplicator type");
 	strcpy(duptype->idname, idname);
@@ -1213,7 +1213,7 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 	init_result(&result);
 	if (ctx.duptype) {
 		result.duplilist = duplilist;
-		ctx.duptype->make_duplis(&ctx, &result);
+		ctx.duptype->make_duplis(ctx.duptype, &ctx, &result);
 	}
 
 	return duplilist;

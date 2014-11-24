@@ -95,6 +95,27 @@ static void rna_ObjectDuplicator_unregister(Main *UNUSED(bmain), StructRNA *type
 	RNA_struct_free(&BLENDER_RNA, type);
 }
 
+static void rna_ObjectDuplicator_make_duplis(const ObjectDuplicatorType *duptype, const struct DupliContext *context, struct DupliResult *result)
+{
+	extern FunctionRNA rna_ObjectDuplicator_make_duplis_func;
+
+	ObjectDuplicator dup;
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+
+	dup.type = (ObjectDuplicatorType *)duptype;
+	RNA_pointer_create(NULL, duptype->ext.srna, &dup, &ptr); /* dummy */
+	func = &rna_ObjectDuplicator_make_duplis_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "context", &context);
+	RNA_parameter_set_lookup(&list, "result", &result);
+	duptype->ext.call(NULL, &ptr, func, &list);
+
+	RNA_parameter_list_free(&list);
+}
+
 static StructRNA *rna_ObjectDuplicator_register(
         Main *bmain, ReportList *reports, void *data, const char *identifier,
         StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
@@ -138,9 +159,7 @@ static StructRNA *rna_ObjectDuplicator_register(
 	RNA_def_struct_ui_text(duptype->ext.srna, duptype->ui_name, duptype->ui_description);
 	RNA_def_struct_ui_icon(duptype->ext.srna, duptype->ui_icon);
 
-//	nt->poll = (have_function[0]) ? rna_NodeTree_poll : NULL;
-//	nt->update = (have_function[1]) ? rna_NodeTree_update_reg : NULL;
-//	nt->get_from_context = (have_function[2]) ? rna_NodeTree_get_from_context : NULL;
+	duptype->make_duplis = (have_function[0]) ? rna_ObjectDuplicator_make_duplis : NULL;
 
 	object_duplilist_add_type(duptype);
 
@@ -245,7 +264,6 @@ static void rna_def_dupli_result(BlenderRNA *brna)
 
 	func = RNA_def_function(srna, "add", "rna_DupliResult_add");
 	RNA_def_function_ui_description(func, "Add a new dupli instance to the result");
-	
 	parm = RNA_def_pointer(func, "context", "DupliContext", "Context", "Context for object duplication");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "object", "Object", "Object", "Object to instance");
@@ -264,6 +282,8 @@ static void rna_def_object_duplicator(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 
 	#define DEF_ICON_BLANK_SKIP
 	#define DEF_ICON(name) {ICON_##name, (#name), 0, (#name), ""},
@@ -301,6 +321,15 @@ static void rna_def_object_duplicator(BlenderRNA *brna)
 	RNA_def_property_enum_default(prop, ICON_NONE);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 	RNA_def_property_ui_text(prop, "Icon", "Icon for UI");
+
+	/* make duplis */
+	func = RNA_def_function(srna, "make_duplis", NULL);
+	RNA_def_function_ui_description(func, "Create a number of duplis for the given context");
+	RNA_def_function_flag(func, FUNC_REGISTER);
+	parm = RNA_def_pointer(func, "context", "DupliContext", "Context", "Context for object duplication");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "result", "DupliResult", "Result", "Storage for dupli instances");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
 }
 
 void RNA_def_object_dupli(BlenderRNA *brna)

@@ -80,7 +80,7 @@ typedef struct ObjectDuplicatorType {
 	char ui_description[256];
 	int ui_icon;
 
-	void (*make_duplis)(const struct DupliContext *ctx, struct DupliResult *result);
+	void (*make_duplis)(const struct ObjectDuplicatorType *duptype, const struct DupliContext *ctx, struct DupliResult *result);
 
 	/* RNA integration */
 	ExtensionRNA ext;
