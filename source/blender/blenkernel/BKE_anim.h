@@ -69,13 +69,18 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
 
+struct DupliContext;
+
 typedef struct ObjectDuplicatorType {
-	char idname[64]; /* identifier name */
+	char idname[64];    /* identifier name */
+	short idtype;       /* DNA identifier (for static duplicator types) */
 	
 	char ui_name[64];
 	char ui_description[256];
 	int ui_icon;
-	
+
+	void (*make_duplis)(const struct DupliContext *ctx);
+
 	/* RNA integration */
 	ExtensionRNA ext;
 } ObjectDuplicatorType;
@@ -89,6 +94,9 @@ void object_duplilist_free_types(void);
 void object_duplilist_add_type(struct ObjectDuplicatorType *duptype);
 void object_duplilist_free_type(struct ObjectDuplicatorType *duptype);
 struct ObjectDuplicatorType *object_duplilist_find_type(const char *idname);
+
+struct Scene *BKE_dupli_context_scene(const struct DupliContext *ctx);
+struct Object *BKE_dupli_context_object(const struct DupliContext *ctx);
 
 struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);
 struct ListBase *object_duplilist(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);

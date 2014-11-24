@@ -83,18 +83,23 @@ typedef struct DupliContext {
 	int level;
 	int index;
 
-	const struct DupliGenerator *gen;
+	const struct ObjectDuplicatorType *duptype;
 
 	/* result containers */
 	ListBase *duplilist; /* legacy doubly-linked list */
 } DupliContext;
 
-typedef struct DupliGenerator {
-	short type;				/* dupli type */
-	void (*make_duplis)(const DupliContext *ctx);
-} DupliGenerator;
+Scene *BKE_dupli_context_scene(const DupliContext *ctx)
+{
+	return ctx->scene;
+}
 
-static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
+Object *BKE_dupli_context_object(const DupliContext *ctx)
+{
+	return ctx->object;
+}
+
+static const ObjectDuplicatorType *get_duplicator(const DupliContext *ctx);
 
 /* create initial context for root object */
 static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene *scene, Object *ob, float space_mat[4][4], bool update)
@@ -114,7 +119,7 @@ static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene
 	r_ctx->lay = ob->lay;
 	r_ctx->level = 0;
 
-	r_ctx->gen = get_dupli_generator(r_ctx);
+	r_ctx->duptype = get_duplicator(r_ctx);
 
 	r_ctx->duplilist = NULL;
 }
@@ -127,7 +132,7 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 	r_ctx->animated |= animated; /* object animation makes all children animated */
 
 	/* XXX annoying, previously was done by passing an ID* argument, this at least is more explicit */
-	if (ctx->gen->type == OB_DUPLIGROUP)
+	if (ctx->duptype->idtype == OB_DUPLIGROUP)
 		r_ctx->group = ctx->object->dup_group;
 
 	r_ctx->object = ob;
@@ -136,7 +141,7 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 	r_ctx->persistent_id[r_ctx->level] = index;
 	++r_ctx->level;
 
-	r_ctx->gen = get_dupli_generator(r_ctx);
+	r_ctx->duptype = get_duplicator(r_ctx);
 }
 
 /* generate a dupli instance
@@ -160,7 +165,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
 	dob->ob = ob;
 	mul_m4_m4m4(dob->mat, (float (*)[4])ctx->space_mat, mat);
-	dob->type = ctx->gen->type;
+	dob->type = ctx->duptype->idtype;
 	dob->animated = animated || ctx->animated; /* object itself or some parent is animated */
 
 	/* set persistent id, which is an array with a persistent index for each level
@@ -194,8 +199,8 @@ static void make_recursive_duplis(const DupliContext *ctx, Object *ob, float spa
 	if (ctx->level < MAX_DUPLI_RECUR) {
 		DupliContext rctx;
 		copy_dupli_context(&rctx, ctx, ob, space_mat, index, animated);
-		if (rctx.gen) {
-			rctx.gen->make_duplis(&rctx);
+		if (rctx.duptype) {
+			rctx.duptype->make_duplis(&rctx);
 		}
 	}
 }
@@ -319,11 +324,6 @@ static void make_duplis_group(const DupliContext *ctx)
 	}
 }
 
-const DupliGenerator gen_dupli_group = {
-    OB_DUPLIGROUP,                  /* type */
-    make_duplis_group               /* make_duplis */
-};
-
 /* OB_DUPLIFRAMES */
 static void make_duplis_frames(const DupliContext *ctx)
 {
@@ -397,10 +397,6 @@ static void make_duplis_frames(const DupliContext *ctx)
 	*ob = copyob;
 }
 
-const DupliGenerator gen_dupli_frames = {
-    OB_DUPLIFRAMES,                 /* type */
-    make_duplis_frames              /* make_duplis */
-};
 
 /* OB_DUPLIVERTS */
 typedef struct VertexDupliData {
@@ -542,10 +538,6 @@ static void make_duplis_verts(const DupliContext *ctx)
 	vdd.dm->release(vdd.dm);
 }
 
-const DupliGenerator gen_dupli_verts = {
-    OB_DUPLIVERTS,                  /* type */
-    make_duplis_verts               /* make_duplis */
-};
 
 /* OB_DUPLIVERTS - FONT */
 static Object *find_family_object(const char *family, size_t family_len, unsigned int ch, GHash *family_gh)
@@ -656,10 +648,6 @@ static void make_duplis_font(const DupliContext *ctx)
 	MEM_freeN(chartransdata);
 }
 
-const DupliGenerator gen_dupli_verts_font = {
-    OB_DUPLIVERTS,                  /* type */
-    make_duplis_font                /* make_duplis */
-};
 
 /* OB_DUPLIFACES */
 typedef struct FaceDupliData {
@@ -812,10 +800,6 @@ static void make_duplis_faces(const DupliContext *ctx)
 	fdd.dm->release(fdd.dm);
 }
 
-const DupliGenerator gen_dupli_faces = {
-    OB_DUPLIFACES,                  /* type */
-    make_duplis_faces               /* make_duplis */
-};
 
 /* OB_DUPLIPARTS */
 static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem *psys)
@@ -1133,15 +1117,46 @@ static void make_duplis_particles(const DupliContext *ctx)
 	}
 }
 
-const DupliGenerator gen_dupli_particles = {
-    OB_DUPLIPARTS,                  /* type */
-    make_duplis_particles           /* make_duplis */
-};
+/* register static types */
+
+static ObjectDuplicatorType *make_dupli_type(const char *idname, short idtype,
+                                             const char *name, const char *description, int icon, 
+											 void (*make_duplis)(const struct DupliContext *ctx))
+{
+	ObjectDuplicatorType *duptype = MEM_callocN(sizeof(ObjectDuplicatorType), "object duplicator type");
+	strcpy(duptype->idname, idname);
+	duptype->idtype = idtype;
+	strcpy(duptype->ui_name, name);
+	strcpy(duptype->ui_description, description);
+	duptype->ui_icon = icon;
+	duptype->make_duplis = make_duplis;
+	
+	object_duplilist_add_type(duptype);
+	
+	return duptype;
+}
+
+static const ObjectDuplicatorType *gen_dupli_group = NULL;
+static const ObjectDuplicatorType *gen_dupli_frames = NULL;
+static const ObjectDuplicatorType *gen_dupli_verts = NULL;
+static const ObjectDuplicatorType *gen_dupli_verts_font = NULL;
+static const ObjectDuplicatorType *gen_dupli_faces = NULL;
+static const ObjectDuplicatorType *gen_dupli_particles = NULL;
+
+static void register_default_types(void)
+{
+	gen_dupli_group = make_dupli_type("DUPLI_GROUP", OB_DUPLIGROUP, "Dupli Group", "", 0, make_duplis_group);
+	gen_dupli_frames = make_dupli_type("DUPLI_FRAMES", OB_DUPLIFRAMES, "Dupli Frame", "", 0, make_duplis_frames);
+	gen_dupli_verts = make_dupli_type("DUPLI_VERTS", OB_DUPLIVERTS, "Dupli Vertices", "", 0, make_duplis_verts);
+	gen_dupli_verts_font = make_dupli_type("DUPLI_VERTS_FONT", OB_DUPLIVERTS, "Dupli Font", "", 0, make_duplis_font);
+	gen_dupli_faces = make_dupli_type("DUPLI_FACES", OB_DUPLIFACES, "Dupli Faces", "", 0, make_duplis_faces);
+	gen_dupli_particles = make_dupli_type("DUPLI_PARTICLES", OB_DUPLIPARTS, "Dupli Particles", "", 0, make_duplis_particles);
+}
 
 /* ------------- */
 
 /* select dupli generator from given context */
-static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
+static const ObjectDuplicatorType *get_duplicator(const DupliContext *ctx)
 {
 	int transflag = ctx->object->transflag;
 	int restrictflag = ctx->object->restrictflag;
@@ -1154,25 +1169,25 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 		return NULL;
 
 	if (transflag & OB_DUPLIPARTS) {
-		return &gen_dupli_particles;
+		return gen_dupli_particles;
 	}
 	else if (transflag & OB_DUPLIVERTS) {
 		if (ctx->object->type == OB_MESH) {
-			return &gen_dupli_verts;
+			return gen_dupli_verts;
 		}
 		else if (ctx->object->type == OB_FONT) {
-			return &gen_dupli_verts_font;
+			return gen_dupli_verts_font;
 		}
 	}
 	else if (transflag & OB_DUPLIFACES) {
 		if (ctx->object->type == OB_MESH)
-			return &gen_dupli_faces;
+			return gen_dupli_faces;
 	}
 	else if (transflag & OB_DUPLIFRAMES) {
-		return &gen_dupli_frames;
+		return gen_dupli_frames;
 	}
 	else if (transflag & OB_DUPLIGROUP) {
-		return &gen_dupli_group;
+		return gen_dupli_group;
 	}
 
 	return NULL;
@@ -1187,9 +1202,9 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
 	DupliContext ctx;
 	init_context(&ctx, eval_ctx, scene, ob, NULL, update);
-	if (ctx.gen) {
+	if (ctx.duptype) {
 		ctx.duplilist = duplilist;
-		ctx.gen->make_duplis(&ctx);
+		ctx.duptype->make_duplis(&ctx);
 	}
 
 	return duplilist;
@@ -1299,6 +1314,8 @@ static void object_duplicator_type_free(void *vduptype)
 void object_duplilist_init_types(void)
 {
 	duplicator_type_hash = BLI_ghash_str_new("duplicator_type_hash gh");
+	
+	register_default_types();
 }
 
 void object_duplilist_free_types(void)

@@ -44,6 +44,26 @@
 
 #include "BKE_anim.h"
 
+static PointerRNA rna_DupliContext_scene_get(PointerRNA *ptr)
+{
+	struct DupliContext *ctx = ptr->data;
+	Scene *scene = BKE_dupli_context_scene(ctx);
+	PointerRNA r_ptr;
+	RNA_id_pointer_create(&scene->id, &r_ptr);
+	return r_ptr;
+}
+
+static PointerRNA rna_DupliContext_object_get(PointerRNA *ptr)
+{
+	struct DupliContext *ctx = ptr->data;
+	Object *ob = BKE_dupli_context_object(ctx);
+	PointerRNA r_ptr;
+	RNA_id_pointer_create(&ob->id, &r_ptr);
+	return r_ptr;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static StructRNA *rna_ObjectDuplicator_refine(struct PointerRNA *ptr)
 {
 	ObjectDuplicator *dup = ptr->data;
@@ -188,6 +208,25 @@ static void rna_ObjectDuplicator_icon_set(PointerRNA *ptr, int value)
 
 #else
 
+static void rna_def_dupli_context(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "DupliContext", NULL);
+	RNA_def_struct_ui_text(srna, "Dupli Context", "Context data for dupli generation");
+
+	prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Scene");
+	RNA_def_property_pointer_funcs(prop, "rna_DupliContext_scene_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Scene", "");
+
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_pointer_funcs(prop, "rna_DupliContext_object_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Object", "");
+}
+
 static void rna_def_object_duplicator(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -233,6 +272,7 @@ static void rna_def_object_duplicator(BlenderRNA *brna)
 
 void RNA_def_object_dupli(BlenderRNA *brna)
 {
+	rna_def_dupli_context(brna);
 	rna_def_object_duplicator(brna);
 }
 
