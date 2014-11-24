@@ -70,4 +70,10 @@ void ED_hair_edit_reserve(struct HairEditData *hedit, int alloc_curves, int allo
 void hair_edit_from_particles(struct HairEditData *hedit, struct Object *ob, struct ParticleSystem *psys);
 void hair_edit_to_particles(struct HairEditData *hedit, struct Object *ob, struct ParticleSystem *psys);
 
+/* === operators === */
+
+struct wmOperatorType;
+
+void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
+
 #endif

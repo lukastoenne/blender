@@ -103,6 +103,7 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_anim();
 	ED_operatortypes_animchannels();
 	ED_operatortypes_gpencil();
+	ED_operatortypes_hair();
 	ED_operatortypes_object();
 	ED_operatortypes_mesh();
 	ED_operatortypes_sculpt();
@@ -176,6 +177,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
 	ED_keymap_anim(keyconf);
 	ED_keymap_animchannels(keyconf);
 	ED_keymap_gpencil(keyconf);
+	ED_keymap_hair(keyconf);
 	ED_keymap_object(keyconf); /* defines lattice also */
 	ED_keymap_mesh(keyconf);
 	ED_keymap_uvedit(keyconf);
