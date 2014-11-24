@@ -42,9 +42,73 @@
 
 /* ==== convert particle data to hair edit ==== */
 
+static int particle_totverts(ParticleSystem *psys)
+{
+	ParticleData *pa;
+	int p;
+	int totverts = 0;
+	
+	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa)
+		totverts += pa->totkey;
+	
+	return totverts;
+}
+
+static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleData *pa, int start)
+{
+	int totverts = pa->totkey;
+	HairKey *hair = pa->hair;
+	HairEditVertex *vert;
+	HairKey *hkey;
+	int k;
+	
+	BLI_assert(start + totverts < hedit->alloc_verts);
+	
+	curve->start = start;
+	curve->numverts = totverts;
+	
+	for (k = 0, vert = hedit->verts + start, hkey = hair;
+	     k < totverts;
+	     ++k, ++vert, ++hkey) {
+		
+		copy_v3_v3(vert->co, hkey->co);
+		// TODO define other key stuff ...
+	}
+}
+
 void hair_edit_from_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleSystem *psys)
 {
+	int totverts = particle_totverts(psys);
+	
+	HairEditCurve *curve;
+	int i;
+	ParticleData *pa;
+	int p;
+	int vert_start;
+	
 	ED_hair_edit_clear(hedit);
+	
+	ED_hair_edit_reserve(hedit, psys->totpart, totverts, true);
+	
+	/* TODO we should have a clean input stream API for hair edit data
+	 * to avoid implicit size and index calculations here and make the code
+	 * as fool proof as possible.
+	 */
+	
+	hedit->totcurves = psys->totpart;
+	hedit->totverts = totverts;
+	
+	vert_start = 0;
+	for (i = 0, curve = hedit->curves, p = 0, pa = psys->particles;
+	     i < hedit->totcurves;
+	     ++i, ++curve, ++p, ++pa) {
+		
+		copy_edit_curve(hedit, curve, pa, vert_start);
+		
+		// TODO copy particle stuff ...
+		
+		vert_start += curve->numverts;
+	}
 }
 
 /* ==== convert hair edit to particle data ==== */
@@ -71,13 +135,12 @@ static void create_particle_curve(ParticleData *pa, HairEditData *hedit, HairEdi
 	int ntotkey = curve->numverts;
 	HairKey *nhair = MEM_callocN(sizeof(HairKey) * ntotkey, "hair keys");
 	HairEditVertex *vert;
-	int k;
 	HairKey *hkey;
-	int j;
+	int k;
 	
-	for (k = 0, vert = hedit->verts + curve->start, j = 0, hkey = nhair;
+	for (k = 0, vert = hedit->verts + curve->start, hkey = nhair;
 	     k < curve->numverts;
-	     ++k, ++vert, ++j, ++hkey) {
+	     ++k, ++vert, ++hkey) {
 		
 		copy_v3_v3(hkey->co, vert->co);
 		// TODO define other key stuff ...
