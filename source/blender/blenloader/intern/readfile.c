@@ -4932,7 +4932,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	 *
 	 * Also when linking in a file don't allow editmode: [#34776] */
 	if (fd->memfile || (ob->id.flag & (LIB_EXTERN | LIB_INDIRECT))) {
-		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
+		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT | OB_MODE_HAIR_EDIT);
 	}
 	
 	ob->adt = newdataadr(fd, ob->adt);

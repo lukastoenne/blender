@@ -62,7 +62,7 @@ static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleD
 	HairKey *hkey;
 	int k;
 	
-	BLI_assert(start + totverts < hedit->alloc_verts);
+	BLI_assert(start + totverts <= hedit->alloc_verts);
 	
 	curve->start = start;
 	curve->numverts = totverts;

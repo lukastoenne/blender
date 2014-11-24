@@ -928,6 +928,7 @@ int CTX_data_mode_enum(const bContext *C)
 			else if (ob->mode & OB_MODE_VERTEX_PAINT) return CTX_MODE_PAINT_VERTEX;
 			else if (ob->mode & OB_MODE_TEXTURE_PAINT) return CTX_MODE_PAINT_TEXTURE;
 			else if (ob->mode & OB_MODE_PARTICLE_EDIT) return CTX_MODE_PARTICLE;
+			else if (ob->mode & OB_MODE_HAIR_EDIT) return CTX_MODE_HAIR;
 		}
 	}
 
@@ -951,6 +952,7 @@ static const char *data_mode_strings[] = {
 	"vertexpaint",
 	"imagepaint",
 	"particlemode",
+	"hairmode",
 	"objectmode",
 	NULL
 };
