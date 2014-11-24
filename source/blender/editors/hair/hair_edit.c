@@ -31,6 +31,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math.h"
+
 #include "hair_intern.h"
 
 HairEditData *ED_hair_edit_create(void)
@@ -86,5 +88,26 @@ void ED_hair_edit_clear(HairEditData *hedit)
 
 void ED_hair_edit_reserve(HairEditData *hedit, int alloc_curves, int alloc_verts, bool shrink)
 {
-	if (hedit)
+	if (!hedit)
+		return;
+	
+	if ((alloc_curves > hedit->alloc_curves) || (alloc_curves < hedit->alloc_curves && shrink)) {
+		size_t size_curves = sizeof(HairEditCurve) * alloc_curves;
+		if (hedit->curves)
+			hedit->curves = MEM_recallocN_id(hedit->curves, size_curves, "hair edit curves");
+		else
+			hedit->curves = MEM_callocN(size_curves, "hair edit curves");
+		hedit->alloc_curves = alloc_curves;
+		CLAMP_MAX(hedit->totcurves, alloc_curves);
+	}
+	
+	if ((alloc_verts > hedit->alloc_verts) || (alloc_verts < hedit->alloc_verts && shrink)) {
+		size_t size_verts = sizeof(HairEditVertex) * alloc_verts;
+		if (hedit->verts)
+			hedit->verts = MEM_recallocN_id(hedit->verts, size_verts, "hair edit verts");
+		else
+			hedit->verts = MEM_callocN(size_verts, "hair edit verts");
+		hedit->alloc_verts = alloc_verts;
+		CLAMP_MAX(hedit->totverts, alloc_verts);
+	}
 }
