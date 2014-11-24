@@ -34,13 +34,17 @@ float calculate_ssao_factor(float depth)
 	vec3 normal = calculate_view_space_normal(position);
 
 	// find the offset in screen space by multiplying a point in camera space at the depth of the point by the projection matrix.
-	vec4 offset = gl_ProjectionMatrix * vec4(ssao_params.x, ssao_params.x, position.z, 1.0);
+	vec2 offset;
+	float homcoord = gl_ProjectionMatrix[2][3] * position.z + gl_ProjectionMatrix[3][3];
+	offset.x = gl_ProjectionMatrix[0][0] * ssao_params.x / homcoord;
+	offset.y = gl_ProjectionMatrix[1][1] * ssao_params.x / homcoord;
+	/* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
+	offset *= 0.5;
+
 	float factor = 0.0;
 	int x, y;
 	int radial_samples = int(ssao_sample_params.y);
 	int azimuth_samples = int(ssao_sample_params.x);
-	/* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
-	offset = (offset / offset.w) * 0.5;
 
 	for (x = 0; x < azimuth_samples; x++) {
 		vec2 dir_sample = sample_directions[x];
@@ -49,7 +53,7 @@ float calculate_ssao_factor(float depth)
 		vec2 dir_jittered = vec2(dot(dir_sample, rotX), dot(dir_sample, rotY));
 
 		for (y = 0; y < radial_samples; y++) {
-			vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset.xy * float(y + 1) / ssao_sample_params.y;
+			vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset * float(y + 1) / ssao_sample_params.y;
 
 			float depth_new = texture2D(depthbuffer, uvcoords).r;
 			if (depth_new != 1.0) {

@@ -689,4 +689,8 @@ void ui_but_anim_autokey(struct bContext *C, uiBut *but, struct Scene *scene, fl
 void UI_OT_eyedropper_color(struct wmOperatorType *ot);
 void UI_OT_eyedropper_id(struct wmOperatorType *ot);
 
+
+/* interface_generic_widgets.c */
+void UI_OT_lamp_position(struct wmOperatorType *ot);
+
 #endif  /* __INTERFACE_INTERN_H__ */

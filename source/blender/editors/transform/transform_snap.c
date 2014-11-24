@@ -2268,7 +2268,7 @@ static bool peelObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit,
 		}
 	}
 	
-	BLI_sortlist(depth_peels, cmpPeel);
+	BLI_listbase_sort(depth_peels, cmpPeel);
 	removeDoublesPeel(depth_peels);
 	
 	return retval;
@@ -2456,7 +2456,6 @@ int snapSequenceBounds(TransInfo *t, const int mval[2])
 static void applyGridIncrement(TransInfo *t, float *val, int max_index, const float fac[3], GearsType action)
 {
 	int i;
-	float asp[3] = {1.0f, 1.0f, 1.0f}; // TODO: Remove hard coded limit here (3)
 
 	if (max_index > 2) {
 		printf("applyGridIncrement: invalid index %d, clamping\n", max_index);
@@ -2466,21 +2465,8 @@ static void applyGridIncrement(TransInfo *t, float *val, int max_index, const fl
 	// Early bailing out if no need to snap
 	if (fac[action] == 0.0f)
 		return;
-	
-	/* evil hack - snapping needs to be adapted for image aspect ratio */
-	if ((t->spacetype == SPACE_IMAGE) && (t->mode == TFM_TRANSLATION)) {
-		if (t->options & CTX_MASK) {
-			ED_space_image_get_aspect(t->sa->spacedata.first, asp, asp + 1);
-		}
-		else if (t->options & CTX_PAINT_CURVE) {
-			asp[0] = asp[1] = 1.0;
-		}
-		else {
-			ED_space_image_get_uv_aspect(t->sa->spacedata.first, asp, asp + 1);
-		}
-	}
 
 	for (i = 0; i <= max_index; i++) {
-		val[i] = fac[action] * asp[i] * floorf(val[i] / (fac[action] * asp[i]) + 0.5f);
+		val[i] = fac[action] * t->snap_aspect[i] * floorf(val[i] / (fac[action] * t->snap_aspect[i]) + 0.5f);
 	}
 }

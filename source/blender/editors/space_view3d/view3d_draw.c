@@ -1364,7 +1364,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	else
 		glScissor(ar->winrct.xmin, ar->winrct.ymin, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
 
-	glClearColor(0.0, 0.0, 0.0, 0.0); 
+	glClearColor(0.0, 0.0, 0.0, 0.0);
 	if (v3d->zbuf) {
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -2005,7 +2005,7 @@ static void draw_dupli_objects_color(
 
 	tbase.flag = OB_FROMDUPLI | base->flag;
 	lb = object_duplilist(G.main->eval_ctx, scene, base->object);
-	// BLI_sortlist(lb, dupli_ob_sort); /* might be nice to have if we have a dupli list with mixed objects. */
+	// BLI_listbase_sort(lb, dupli_ob_sort); /* might be nice to have if we have a dupli list with mixed objects. */
 
 	apply_data = duplilist_apply(base->object, lb);
 
@@ -2786,10 +2786,6 @@ static void view3d_draw_objects(
 		view3d_draw_bgpic_test(scene, ar, v3d, true, do_camera_frame);
 	}
 
-	if (!draw_offscreen) {
-		WM_widgets_draw(C, ar);		
-	}
-
 	/* cleanup */
 	if (v3d->zbuf) {
 		v3d->zbuf = false;
@@ -3492,7 +3488,9 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->shader_fx) {
-		GPUFXOptions options = *v3d->fxoptions;
+		GPUFXOptions options;
+		BKE_screen_view3d_ensure_FX(v3d);
+		options = *v3d->fxoptions;
 		if (!rv3d->compositor)
 			rv3d->compositor = GPU_create_fx_compositor();
 		
@@ -3634,12 +3632,17 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 #ifdef DEBUG_DRAW
 		bl_debug_draw();
 #endif
-		ED_region_pixelspace(ar);
 	}
 
 	/* draw viewport using external renderer */
 	if (v3d->drawtype == OB_RENDER)
 		view3d_main_area_draw_engine(C, scene, ar, v3d, clip_border, &border_rect);
+	
+	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);	
+	glClear(GL_DEPTH_BUFFER_BIT);
+	WM_widgets_draw(C, ar);
+	BIF_draw_manipulator(C);
+	ED_region_pixelspace(ar);
 	
 	view3d_main_area_draw_info(C, scene, ar, v3d, grid_unit, render_border);
 

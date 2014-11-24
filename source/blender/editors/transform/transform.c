@@ -1990,6 +1990,35 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 	}
 }
 
+static void initSnappingAspect(TransInfo *t)
+{
+	if ((t->spacetype == SPACE_IMAGE) && (t->mode == TFM_TRANSLATION)) {
+		if (t->options & CTX_MASK) {
+			ED_space_image_get_aspect(t->sa->spacedata.first, t->snap_aspect, t->snap_aspect + 1);
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			t->snap_aspect[0] = t->snap_aspect[1] = 1.0;
+		}
+		else {
+			ED_space_image_get_uv_aspect(t->sa->spacedata.first, t->snap_aspect, t->snap_aspect + 1);
+		}
+	}
+	else if ((t->spacetype == SPACE_IPO) && (t->mode == TFM_TRANSLATION)) {
+		View2D *v2d = &t->ar->v2d;
+		View2DGrid *grid;
+		SpaceIpo *sipo = t->sa->spacedata.first;
+		int unity = V2D_UNIT_VALUES;
+		int unitx = (sipo->flag & SIPO_DRAWTIME) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMESCALE;
+
+		/* grid */
+		grid = UI_view2d_grid_calc(t->scene, v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP, t->ar->winx, t->ar->winy);
+
+		UI_view2d_grid_size(grid, t->snap_aspect, t->snap_aspect + 1);
+		UI_view2d_grid_free(grid);
+	}
+}
+
+
 /* note: caller needs to free 't' on a 0 return */
 bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event, int mode)
 {
@@ -2057,6 +2086,11 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	else
 		unit_m3(t->spacemtx);
 
+	/* initialize snapping factors */
+	t->snap_aspect[0] = t->snap_aspect[1] = t->snap_aspect[2] = 1.0f;
+
+	initSnappingAspect(t);
+	
 	createTransData(C, t);          // make TransData structs from selection
 
 	if (t->total == 0) {
@@ -4060,6 +4094,11 @@ static void initTranslation(TransInfo *t)
 		t->snap[0] = 0.0f;
 		t->snap[1] = ED_node_grid_size() * NODE_GRID_STEPS;
 		t->snap[2] = ED_node_grid_size();
+	}
+	else if (t->spacetype == SPACE_IPO) {
+		t->snap[0] = 0.0f;
+		t->snap[1] = 1.0;
+		t->snap[2] = 0.1f;
 	}
 	else {
 		t->snap[0] = 0.0f;

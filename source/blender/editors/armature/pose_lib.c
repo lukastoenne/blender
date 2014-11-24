@@ -472,7 +472,7 @@ static int poselib_add_exec(bContext *C, wmOperator *op)
 	ANIM_apply_keyingset(C, NULL, act, ks, MODIFYKEY_MODE_INSERT, (float)frame);
 	
 	/* store new 'active' pose number */
-	act->active_marker = BLI_countlist(&act->markers);
+	act->active_marker = BLI_listbase_count(&act->markers);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -916,7 +916,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, tPoseLib_PreviewData 
 	
 	KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
 	ListBase dsources = {NULL, NULL};
-	short autokey = autokeyframe_cfra_can_key(scene, &pld->ob->id);
+	bool autokey = autokeyframe_cfra_can_key(scene, &pld->ob->id);
 	
 	/* start tagging/keying */
 	for (agrp = act->groups.first; agrp; agrp = agrp->next) {
@@ -1348,7 +1348,7 @@ static int poselib_preview_handle_event(bContext *UNUSED(C), wmOperator *op, con
 			else {
 				/* change to last pose */
 				pld->marker = pld->act->markers.last;
-				pld->act->active_marker = BLI_countlist(&pld->act->markers);
+				pld->act->active_marker = BLI_listbase_count(&pld->act->markers);
 				
 				pld->redraw = PL_PREVIEW_REDRAWALL;
 			}

@@ -46,6 +46,7 @@ struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
 struct wmWindowManager;
+struct PointerRNA;
 
 void transform_keymap_for_space(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap, int spaceid);
 void transform_operatortypes(void);
@@ -112,6 +113,7 @@ struct Base;
 struct Scene;
 struct Object;
 struct wmWidget;
+struct wmWidgetGroup;
 
 /* UNUSED */
 // int BIF_snappingSupported(struct Object *obedit);
@@ -147,16 +149,38 @@ int BIF_countTransformOrientation(const struct bContext *C);
 #define P_CORRECT_UV    (1 << 8)
 #define P_NO_DEFAULTS   (1 << 10)
 #define P_NO_TEXSPACE   (1 << 11)
+#define P_WIDGET_DRIVEN (1 << 12)
 
 void Transform_Properties(struct wmOperatorType *ot, int flags);
 
 /* view3d manipulators */
 
-int BIF_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int active);
-void BIF_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
-void BIF_draw_manipulator(const struct bContext *C, struct wmWidget *widget);
-bool BIF_manipulator_poll(const struct bContext *C, struct wmWidget *widget);
+/*
+typedef struct ManipulatorGroup {
+	struct wmWidget *translate_x;
+	struct wmWidget *translate_y;
+	struct wmWidget *translate_z;
 
+	struct wmWidget *rotate_x;
+	struct wmWidget *rotate_y;
+	struct wmWidget *rotate_z;
+} ManipulatorGroup;
+
+int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *ptr);
+
+int WIDGET_manipulator_handler_trans(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
+int WIDGET_manipulator_handler_rot(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
+
+void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
+void WIDGET_manipulator_draw(struct wmWidget *widget, const struct bContext *C);
+bool WIDGETGROUP_manipulator_poll(struct wmWidgetGroup *wgroup, const struct bContext *C);
+void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C);
+void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup);
+void WIDGETGROUP_manipulator_create(struct wmWidgetGroup *wgroup);
+*/
+
+void BIF_draw_manipulator(const struct bContext *C);
+int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmOperator *op);
 /* Snapping */
 
 

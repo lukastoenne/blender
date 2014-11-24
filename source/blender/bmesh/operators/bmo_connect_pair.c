@@ -141,7 +141,7 @@ static void state_calc_co_pair(const PathContext *pc,
 
 /**
  * Ideally we wouldn't need this and for most cases we don't.
- * But when a face has vertices that are on the boundary more then once this becomes tricky.
+ * But when a face has vertices that are on the boundary more than once this becomes tricky.
  */
 static bool state_link_find(PathLinkState *state, BMElem *ele)
 {
@@ -496,7 +496,7 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 		PathLinkState *state, *state_next;
 		found_all = true;
 #ifdef DEBUG_PRINT
-		printf("\n%s: stepping %d\n", __func__, BLI_countlist(&pc.state_lb));
+		printf("\n%s: stepping %d\n", __func__, BLI_listbase_count(&pc.state_lb));
 #endif
 		for (state = pc.state_lb.first; state; state = state_next) {
 			state_next = state->next;

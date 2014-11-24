@@ -28,6 +28,7 @@
 Import ('env')
 
 sources = env.Glob('*.c')
+sources.remove('manipulator_widget.c')
 
 incs = [
     '#/intern/guardedalloc',

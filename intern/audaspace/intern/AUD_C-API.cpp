@@ -76,6 +76,7 @@
 #include "AUD_MutexLock.h"
 
 #ifdef WITH_SDL
+#include <SDL.h>
 #include "AUD_SDLDevice.h"
 #endif
 
@@ -144,8 +145,14 @@ int AUD_init(AUD_DeviceType device, AUD_DeviceSpecs specs, int buffersize)
 			break;
 #ifdef WITH_SDL
 		case AUD_SDL_DEVICE:
-			dev = boost::shared_ptr<AUD_IDevice>(new AUD_SDLDevice(specs, buffersize));
-			break;
+			if (SDL_Init == (void *)0) {
+				printf("Warning: SDL libraries are not installed\n");
+				// No break, fall through to default, to return false
+			}
+			else {
+				dev = boost::shared_ptr<AUD_IDevice>(new AUD_SDLDevice(specs, buffersize));
+				break;
+			}
 #endif
 #ifdef WITH_OPENAL
 		case AUD_OPENAL_DEVICE:
@@ -163,7 +170,7 @@ int AUD_init(AUD_DeviceType device, AUD_DeviceSpecs specs, int buffersize)
 			else
 #endif
 			if (!AUD_jack_supported()) {
-				printf("Warning: Jack cllient not installed\n");
+				printf("Warning: Jack client not installed\n");
 				// No break, fall through to default, to return false
 			}
 			else {

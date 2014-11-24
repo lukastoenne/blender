@@ -214,7 +214,7 @@ void ED_node_sort(bNodeTree *ntree)
 {
 	/* merge sort is the algorithm of choice here */
 	bNode *first_a, *first_b, *node_a, *node_b, *tmp;
-	int totnodes = BLI_countlist(&ntree->nodes);
+	int totnodes = BLI_listbase_count(&ntree->nodes);
 	int k, a, b;
 	
 	k = 1;
@@ -1334,7 +1334,25 @@ void drawnodespace(const bContext *C, ARegion *ar)
 			
 			/* backdrop */
 			draw_nodespace_back_pix(C, ar, snode, path->parent_key);
+
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
 			
+			glaDefine2DArea(&ar->winrct);
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+
+			WM_widgets_draw(C, ar);
+
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+
 			draw_nodetree(C, ar, ntree, path->parent_key);
 		}
 		

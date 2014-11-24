@@ -29,6 +29,7 @@ Import ('env')
 import os
 
 sources = env.Glob('intern/*.c')
+sources += env.Glob('3d_widgets/*.c')
 
 incs = [
     '.',
@@ -51,6 +52,7 @@ incs = [
     '../nodes',
     '../python',
     '../render/extern/include',
+    '3d_widgets',
     env['BF_ZLIB_INC'],
     ]
 incs = ' '.join(incs)

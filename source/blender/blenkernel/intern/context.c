@@ -57,6 +57,8 @@
 
 /* struct */
 
+struct wmWidget;
+
 struct bContext {
 	int thread;
 
@@ -64,6 +66,7 @@ struct bContext {
 	struct {
 		struct wmWindowManager *manager;
 		struct wmWindow *window;
+		struct wmWidget *widget;
 		struct bScreen *screen;
 		struct ScrArea *area;
 		struct ARegion *region;
@@ -588,7 +591,7 @@ int ctx_data_list_count(const bContext *C, int (*func)(const bContext *, ListBas
 	ListBase list;
 
 	if (func(C, &list)) {
-		int tot = BLI_countlist(&list);
+		int tot = BLI_listbase_count(&list);
 		BLI_freelistN(&list);
 		return tot;
 	}
@@ -623,6 +626,11 @@ wmWindowManager *CTX_wm_manager(const bContext *C)
 wmWindow *CTX_wm_window(const bContext *C)
 {
 	return ctx_wm_python_context_get(C, "window", &RNA_Window, C->wm.window);
+}
+
+struct wmWidget *CTX_wm_widget(const bContext *C)
+{
+	return C->wm.widget;
 }
 
 bScreen *CTX_wm_screen(const bContext *C)
@@ -829,6 +837,11 @@ void CTX_wm_window_set(bContext *C, wmWindow *win)
 		C->data.scene = C->wm.screen->scene;
 	C->wm.area = NULL;
 	C->wm.region = NULL;
+}
+
+void CTX_wm_widget_set(bContext *C, struct wmWidget *widget)
+{
+	C->wm.widget = widget;
 }
 
 void CTX_wm_screen_set(bContext *C, bScreen *screen)

@@ -1575,10 +1575,45 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			if (ot->flag & OPTYPE_UNDO)
 				wm->op_undo_depth++;
 
-			/* warning, after this call all context data and 'event' may be freed. see check below */
-			retval = ot->modal(C, op, event);
+			/* if a widget has called the operator, it swallows all events here */
+			if (handler->op_widget) {
+				wmWidget *widget = handler->op_widget;
+				retval = OPERATOR_RUNNING_MODAL;
+
+				switch (event->type) {
+					case MOUSEMOVE:
+						if (widget->handler(C, event, widget, op) == OPERATOR_PASS_THROUGH) {
+							if (widget->prop)
+								event->type = EVT_WIDGET_UPDATE;
+							retval = ot->modal(C, op, event);
+						}
+						break;
+
+					case LEFTMOUSE:
+					{
+						if (event->val == KM_RELEASE) {
+							ARegion *ar = CTX_wm_region(C);
+							if (widget->prop)
+								event->type = EVT_WIDGET_RELEASED;
+							retval = ot->modal(C, op, event);
+							wm_widgetmap_set_active_widget(ar->widgetmap, C, event, NULL);
+							handler->op_widget = NULL;
+						}
+						break;
+					}
+					default:
+						if (!widget->prop) {
+							retval = ot->modal(C, op, event);
+						}
+						break;
+				}
+			}
+			else {
+				/* warning, after this call all context data and 'event' may be freed. see check below */
+				retval = ot->modal(C, op, event);
+			}
+
 			OPERATOR_RETVAL_CHECK(retval);
-			
 			/* when this is _not_ the case the modal modifier may have loaded
 			 * a new blend file (demo mode does this), so we have to assume
 			 * the event, operator etc have all been freed. - campbell */
@@ -1955,7 +1990,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 									event->customdata = NULL;
 									event->custom = 0;
 									
-									WM_operator_name_call(C, drop->ot->idname, drop->opcontext, drop->ptr);
+									WM_operator_name_call_ptr(C, drop->ot, drop->opcontext, drop->ptr);
 									action |= WM_HANDLER_BREAK;
 									
 									/* XXX fileread case */
@@ -1971,26 +2006,49 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else if (handler->widgetmap) {
-				int ret;
 				struct wmWidgetMap *wmap = handler->widgetmap;
-				wmWidget *widget = NULL;
+				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 				
-				if (wm_widgetmap_is_3d(wmap)) {
-					/* similar interface to operators */
-					if ((ret = wm_widget_find_active_3D (wmap, C, event)) != -1)
-					{
-						ListBase *widgets = wm_widgetmap_widget_list(wmap);
-						widget = BLI_findlink(widgets, ret >> 8);
-												
-						if ((ret = widget->handler(C, event, widget, ret & 0xFF)) == OPERATOR_FINISHED) {
+				switch (event->type) {
+					case MOUSEMOVE:
+						if (widget) {
+							widget->handler(C, event, widget, NULL);
 							action |= WM_HANDLER_BREAK;
 						}
+						else if (wm_widgetmap_is_3d(wmap)) {
+							widget = wm_widget_find_highlighted_3D (wmap, C, event);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget);
+						}
+						else {
+							wm_widgetmap_set_highlighted_widget(wmap, C, NULL);
+						}
+						break;
+
+					case LEFTMOUSE:
+					{
+						if (widget) {
+							if (event->val == KM_RELEASE) {
+								wm_widgetmap_set_active_widget(wmap, C, event, NULL);
+								action |= WM_HANDLER_BREAK;
+							}
+							else {
+								action |= WM_HANDLER_BREAK;
+							}
+						}
+						else if (event->val == KM_PRESS) {
+							widget = wm_widgetmap_get_highlighted_widget(wmap);
+
+							if (widget) {
+								wm_widgetmap_set_active_widget(wmap, C, event, widget);
+								action |= WM_HANDLER_BREAK;
+							}
+						}
+						break;
 					}
 				}
-
-				wm_widgetmap_set_active_widget(wmap, C, widget);
 			}
 			else {
+				/* handle the widget first, before passing the event down */
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
 			}
@@ -2536,7 +2594,7 @@ wmEventHandler *WM_event_add_modal_handler(bContext *C, wmOperator *op)
 {
 	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event modal handler");
 	wmWindow *win = CTX_wm_window(C);
-	
+
 	/* operator was part of macro */
 	if (op->opm) {
 		/* give the mother macro to the handler */
@@ -2549,6 +2607,7 @@ wmEventHandler *WM_event_add_modal_handler(bContext *C, wmOperator *op)
 	
 	handler->op_area = CTX_wm_area(C);       /* means frozen screen context for modal handlers! */
 	handler->op_region = CTX_wm_region(C);
+	handler->op_widget = CTX_wm_widget(C);
 	
 	BLI_addhead(&win->modalhandlers, handler);
 

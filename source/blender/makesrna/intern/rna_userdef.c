@@ -104,6 +104,10 @@ EnumPropertyItem navigation_mode_items[] = {
 
 #include "BKE_addon.h"
 
+#ifdef WITH_SDL_DYNLOAD
+#  include "sdlew.h"
+#endif
+
 static void rna_userdef_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 	WM_main_add_notifier(NC_WINDOW, NULL);
@@ -510,37 +514,38 @@ static EnumPropertyItem *rna_userdef_compute_device_itemf(bContext *UNUSED(C), P
 static EnumPropertyItem *rna_userdef_audio_device_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
                                                         PropertyRNA *UNUSED(prop), bool *r_free)
 {
-#ifdef WITH_JACK
-	int jack_supported = sound_is_jack_supported();
+	int index = 0;
+	int totitem = 0;
+	EnumPropertyItem *item = NULL;
 
-	if (jack_supported) {
-		return audio_device_items;
-	}
-	else {
-		int index = 0;
-		int totitem = 0;
-		EnumPropertyItem *item = NULL;
-
-		/* NONE */
-		RNA_enum_item_add(&item, &totitem, &audio_device_items[index++]);
+	/* NONE */
+	RNA_enum_item_add(&item, &totitem, &audio_device_items[index++]);
 
 #ifdef WITH_SDL
-		RNA_enum_item_add(&item, &totitem, &audio_device_items[index++]);
+#  ifdef WITH_SDL_DYNLOAD
+	if (sdlewInit() == SDLEW_SUCCESS)
+#  endif
+	{
+		RNA_enum_item_add(&item, &totitem, &audio_device_items[index]);
+	}
+	index++;
 #endif
 
 #ifdef WITH_OPENAL
-		RNA_enum_item_add(&item, &totitem, &audio_device_items[index++]);
+	RNA_enum_item_add(&item, &totitem, &audio_device_items[index++]);
 #endif
 
-		RNA_enum_item_end(&item, &totitem);
-		*r_free = true;
-
-		return item;
+#ifdef WITH_JACK
+	if (sound_is_jack_supported()) {
+		RNA_enum_item_add(&item, &totitem, &audio_device_items[index]);
 	}
-#else
-	(void)r_free;
-	return audio_device_items;
+	index++;
 #endif
+
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
 }
 
 #ifdef WITH_INTERNATIONAL
@@ -3371,6 +3376,16 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Manipulator", "Use 3D transform manipulator");
 	RNA_def_property_update(prop, 0, "rna_userdef_show_manipulator_update");
 
+	prop = RNA_def_property(srna, "shaded_widgets", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_SHADED_WIDGETS);
+	RNA_def_property_ui_text(prop, "Shaded Widgets", "3D shading for widgets");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "widgets_3d", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_3D_WIDGETS);
+	RNA_def_property_ui_text(prop, "3D widgets", "Widgets size stays constant in world space");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+	
 	prop = RNA_def_property(srna, "manipulator_size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "tw_size");
 	RNA_def_property_range(prop, 10, 200);

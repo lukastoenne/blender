@@ -50,6 +50,8 @@
 #include "BKE_idprop.h"
 #include "BKE_screen.h"
 
+#include "WM_api.h"
+
 /* ************ Spacetype/regiontype handling ************** */
 
 /* keep global; this has to be accessible outside of windowmanager */
@@ -177,6 +179,7 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	BLI_listbase_clear(&newar->panels_category_active);
 	BLI_listbase_clear(&newar->ui_lists);
 	newar->swinid = 0;
+	newar->widgetmap = NULL;
 	
 	/* use optional regiondata callback */
 	if (ar->regiondata) {
@@ -310,6 +313,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 			MEM_freeN(uilst->properties);
 		}
 	}
+	WM_widgetmap_delete(ar->widgetmap);
 	BLI_freelistN(&ar->ui_lists);
 	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);
@@ -562,4 +566,12 @@ float BKE_screen_view3d_zoom_to_fac(float camzoom)
 float BKE_screen_view3d_zoom_from_fac(float zoomfac)
 {
 	return ((sqrtf(4.0f * zoomfac) - (float)M_SQRT2) * 50.0f);
+}
+
+void BKE_screen_view3d_ensure_FX(View3D *v3d) {
+	if (!v3d->fxoptions) {
+		v3d->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
+		v3d->fxoptions->dof_options = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
+		v3d->fxoptions->ssao_options = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
+	}
 }

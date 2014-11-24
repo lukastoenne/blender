@@ -128,6 +128,7 @@ static EnumPropertyItem part_hair_ren_as_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
 #include "BKE_context.h"
@@ -649,6 +650,15 @@ static void rna_Particle_redo_child(Main *bmain, Scene *scene, PointerRNA *ptr)
 	particle_recalc(bmain, scene, ptr, PSYS_RECALC_CHILD);
 }
 
+static void rna_Particle_cloth_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	Object *ob = (Object *)ptr->id.data;
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+}
+
+
 static ParticleSystem *rna_particle_system_for_target(Object *ob, ParticleTarget *target)
 {
 	ParticleSystem *psys;
@@ -796,7 +806,7 @@ static void rna_Particle_active_shape_key_index_range(PointerRNA *ptr, int *min,
 
 	*min = 0;
 	if (key) {
-		*max = BLI_countlist(&key->block) - 1;
+		*max = BLI_listbase_count(&key->block) - 1;
 		if (*max < 0) *max = 0;
 	}
 	else {
@@ -974,7 +984,7 @@ static void rna_ParticleSystem_active_particle_target_index_range(PointerRNA *pt
 {
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&psys->targets) - 1);
+	*max = max_ii(0, BLI_listbase_count(&psys->targets) - 1);
 }
 
 static int rna_ParticleSystem_active_particle_target_index_get(PointerRNA *ptr)
@@ -1097,7 +1107,7 @@ static void rna_ParticleDupliWeight_active_index_range(PointerRNA *ptr, int *min
 {
 	ParticleSettings *part = (ParticleSettings *)ptr->id.data;
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&part->dupliweights) - 1);
+	*max = max_ii(0, BLI_listbase_count(&part->dupliweights) - 1);
 }
 
 static int rna_ParticleDupliWeight_active_index_get(PointerRNA *ptr)
@@ -2399,6 +2409,11 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Segments", "Number of hair segments");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
+	prop = RNA_def_property(srna, "bending_random", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bending_random");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Random Bending Stiffness", "Random stiffness of hairs");
+	RNA_def_property_update(prop, 0, "rna_Particle_cloth_update");
 
 	/*TODO: not found in UI, readonly? */
 	prop = RNA_def_property(srna, "keys_step", PROP_INT, PROP_NONE);

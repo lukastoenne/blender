@@ -323,6 +323,8 @@ enum {
 	EVT_DROP              = 0x5023,
 	EVT_BUT_CANCEL        = 0x5024,
 
+	EVT_WIDGET_UPDATE     = 0x5024,
+	EVT_WIDGET_RELEASED   = 0x5025,
 	/* ********** End of Blender internal events. ********** */
 };
 

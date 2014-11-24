@@ -332,6 +332,7 @@ typedef struct TransInfo {
 	short		event_type;		/* event->type used to invoke transform */
 	short       idx_max;		/* maximum index on the input vector	*/
 	float		snap[3];		/* Snapping Gears						*/
+	float		snap_aspect[3];	/* snapping aspect correction			*/
 	char		frame_side;		/* Mouse side of the cfra, 'L', 'R' or 'B' */
 
 	float		viewmat[4][4];	/* copy from G.vd, prevents feedback,   */
@@ -445,6 +446,8 @@ typedef struct TransInfo {
 
 	/* alternative transformation. used to add offset to tracking markers */
 #define T_ALT_TRANSFORM		(1 << 24)
+
+#define T_USE_WIDGET		(1 << 24)
 
 /* TransInfo->modifiers */
 #define	MOD_CONSTRAINT_SELECT	0x01

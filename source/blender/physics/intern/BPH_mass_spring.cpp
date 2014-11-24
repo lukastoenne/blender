@@ -180,12 +180,12 @@ void BPH_cloth_solver_set_positions(ClothModifierData *clmd)
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *vert;
 	unsigned int numverts = cloth->numverts, i;
-	ClothHairRoot *cloth_roots = clmd->roots;
+	ClothHairData *cloth_hairdata = clmd->hairdata;
 	Implicit_Data *id = cloth_solver_init_data(cloth);
 	
 	vert = cloth->verts;
 	for (i = 0; i < numverts; ++i, ++vert) {
-		ClothHairRoot *root = &cloth_roots[i];
+		ClothHairData *root = &cloth_hairdata[i];
 		
 		if (vert->solver_index < 0)
 			continue;
@@ -486,7 +486,11 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 		
-		scaling = parms->bending + s->stiffness * fabsf(parms->max_bend - parms->bending);
+		/* XXX WARNING: angular bending springs for hair apply stiffness factor as an overall factor, unlike cloth springs!
+		 * this is crap, but needed due to cloth/hair mixing ...
+		 * max_bend factor is not even used for hair, so ...
+		 */
+		scaling = s->stiffness * parms->bending;
 		kb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 		
 		scaling = parms->bending_damping;

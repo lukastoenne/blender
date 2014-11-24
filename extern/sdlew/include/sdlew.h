@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Blender Foundation
+ * Copyright 2014 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,24 @@
  * limitations under the License
  */
 
-#ifndef __UTIL_DYNLIB_H__
-#define __UTIL_DYNLIB_H__
+#ifndef __SDL_EW_H__
+#define __SDL_EW_H__
 
-CCL_NAMESPACE_BEGIN
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-struct DynamicLibrary;
+enum {
+  SDLEW_SUCCESS = 0,
+  SDLEW_ERROR_OPEN_FAILED = -1,
+  SDLEW_ERROR_ATEXIT_FAILED = -2,
+  SDLEW_ERROR_VERSION = -3,
+};
 
-DynamicLibrary *dynamic_library_open(const char *name);
-void *dynamic_library_find(DynamicLibrary *lib, const char *name);
-void dynamic_library_close(DynamicLibrary *lib);
+int sdlewInit(void);
 
-CCL_NAMESPACE_END
+#ifdef __cplusplus
+}
+#endif
 
-#endif /* __UTIL_DYNLIB_H__ */
-
+#endif  /* __SDL_EW_H__ */

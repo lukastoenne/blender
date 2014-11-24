@@ -81,6 +81,7 @@ static char OP_EDGE_CREASE[] = "TRANSFORM_OT_edge_crease";
 static char OP_EDGE_BWEIGHT[] = "TRANSFORM_OT_edge_bevelweight";
 static char OP_SEQ_SLIDE[] = "TRANSFORM_OT_seq_slide";
 
+
 static void TRANSFORM_OT_translate(struct wmOperatorType *ot);
 static void TRANSFORM_OT_rotate(struct wmOperatorType *ot);
 static void TRANSFORM_OT_tosphere(struct wmOperatorType *ot);
@@ -508,6 +509,11 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 		RNA_def_enum_funcs(prop, rna_TransformOrientation_itemf);
 	}
 
+	if (flags & P_WIDGET_DRIVEN) {
+		prop = RNA_def_boolean(ot->srna, "use_widget_input", false, "Use Widget Input", "");
+		RNA_def_property_flag(prop, PROP_HIDDEN);
+	}
+
 	if (flags & P_MIRROR) {
 		prop = RNA_def_boolean(ot->srna, "mirror", 0, "Mirror Editing", "");
 		if (flags & P_MIRROR_DUMMY) {
@@ -578,7 +584,7 @@ static void TRANSFORM_OT_translate(struct wmOperatorType *ot)
 
 	RNA_def_float_vector_xyz(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP | P_OPTIONS);
+	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP | P_OPTIONS | P_WIDGET_DRIVEN);
 }
 
 static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
@@ -598,7 +604,7 @@ static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
 
 	RNA_def_float_vector(ot->srna, "value", 3, VecOne, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_OPTIONS);
+	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_OPTIONS | P_WIDGET_DRIVEN);
 }
 
 static int skin_resize_poll(bContext *C)
@@ -652,7 +658,7 @@ static void TRANSFORM_OT_trackball(struct wmOperatorType *ot)
 	prop = RNA_def_float_vector(ot->srna, "value", 2, NULL, -FLT_MAX, FLT_MAX, "Angle", "", -FLT_MAX, FLT_MAX);
 	RNA_def_property_subtype(prop, PROP_ANGLE);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_WIDGET_DRIVEN);
 }
 
 static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
@@ -675,7 +681,7 @@ static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
 	prop = RNA_def_float(ot->srna, "value", 0.0f, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 	RNA_def_property_subtype(prop, PROP_ANGLE);
 
-	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP);
+	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_WIDGET_DRIVEN);
 }
 
 static void TRANSFORM_OT_tilt(struct wmOperatorType *ot)
@@ -967,7 +973,7 @@ static void TRANSFORM_OT_transform(struct wmOperatorType *ot)
 
 	RNA_def_float_vector(ot->srna, "value", 4, NULL, -FLT_MAX, FLT_MAX, "Values", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP);
+	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP | P_WIDGET_DRIVEN);
 }
 
 void transform_operatortypes(void)

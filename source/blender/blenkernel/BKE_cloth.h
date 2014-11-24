@@ -65,11 +65,12 @@ struct PartDeflect;
 #define CLOTH_VERT_FLAG_NOSELFCOLL  2 /* vertex NOT used for self collisions */
 #define CLOTH_VERT_FLAG_EXCLUDE     4 /* exclude vertex from the simulation */
 
-typedef struct ClothHairRoot {
+typedef struct ClothHairData {
 	float loc[3];
 	float rot[3][3];
 	float rest_target[3]; /* rest target direction for each segment */
-} ClothHairRoot;
+	float bending_stiffness;
+} ClothHairData;
 
 typedef struct ClothSolverResult {
 	int status;
