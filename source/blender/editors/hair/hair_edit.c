@@ -29,85 +29,116 @@
  *  \ingroup edhair
  */
 
-#include "MEM_guardedalloc.h"
+#include <stdlib.h>
 
-#include "BLI_math.h"
+#include "BLI_utildefines.h"
+
+#include "DNA_object_types.h"
+#include "DNA_particle_types.h"
+#include "DNA_scene_types.h"
+
+#include "BKE_context.h"
+#include "BKE_depsgraph.h"
+#include "BKE_edithair.h"
+
+#include "RNA_access.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
+
+#include "ED_object.h"
+#include "ED_physics.h"
 
 #include "hair_intern.h"
 
-HairEditData *ED_hair_edit_create(void)
+static bool has_hair_data(Object *ob)
 {
-	HairEditData *hedit = MEM_callocN(sizeof(HairEditData), "hair edit data");
-	return hedit;
+	ParticleSystem *psys;
+	
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+		if (psys->part->type == PART_HAIR)
+			return true;
+	}
+	
+	return false;
 }
 
-HairEditData *ED_hair_edit_copy(HairEditData *hedit)
+static bool init_hair_edit(Object *ob, HairEditData *hedit)
 {
-	HairEditData *thedit = MEM_dupallocN(hedit);
+	ParticleSystem *psys;
 	
-	if (hedit->curves) {
-		thedit->curves = MEM_dupallocN(hedit->curves);
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+		if (psys->part->type == PART_HAIR) {
+			BKE_edithair_from_particles(hedit, ob, psys);
+			return true;
+		}
 	}
 	
-	if (hedit->verts) {
-		thedit->verts = MEM_dupallocN(hedit->verts);
-	}
-	
-	return thedit;
+	return false;
 }
 
-void ED_hair_edit_free(HairEditData *hedit)
+
+/* ==== edit mode toggle ==== */
+
+static int hair_edit_toggle_poll(bContext *C)
 {
-	if (hedit->curves) {
-		MEM_freeN(hedit->curves);
-	}
-	
-	if (hedit->verts) {
-		MEM_freeN(hedit->verts);
-	}
-	
-	MEM_freeN(hedit);
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob == NULL)
+		return false;
+	if (!ob->data || ((ID *)ob->data)->lib)
+		return false;
+	if (CTX_data_edit_object(C))
+		return false;
+
+	return has_hair_data(ob);
 }
 
-void ED_hair_edit_clear(HairEditData *hedit)
+static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 {
-	if (hedit->curves) {
-		MEM_freeN(hedit->curves);
-		hedit->curves = NULL;
+	Object *ob = CTX_data_active_object(C);
+	const int mode_flag = OB_MODE_HAIR_EDIT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
+
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
+		}
 	}
-	hedit->totcurves = 0;
-	hedit->alloc_curves = 0;
-	
-	if (hedit->verts) {
-		MEM_freeN(hedit->verts);
-		hedit->verts = NULL;
+
+	if (!is_mode_set) {
+		HairEditData *hedit = BKE_edithair_create();
+		
+		ob->mode |= mode_flag;
+		init_hair_edit(ob, hedit);
+		
+//		toggle_particle_cursor(C, 1);
+		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
-	hedit->totverts = 0;
-	hedit->alloc_verts = 0;
+	else {
+//		hair_edit_to_particles();
+		ob->mode &= ~mode_flag;
+		
+//		toggle_particle_cursor(C, 0);
+		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
+	}
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+
+	return OPERATOR_FINISHED;
 }
 
-void ED_hair_edit_reserve(HairEditData *hedit, int alloc_curves, int alloc_verts, bool shrink)
+void HAIR_OT_hair_edit_toggle(wmOperatorType *ot)
 {
-	if (!hedit)
-		return;
+	/* identifiers */
+	ot->name = "Hair Edit Toggle";
+	ot->idname = "HAIR_OT_hair_edit_toggle";
+	ot->description = "Toggle hair edit mode";
 	
-	if ((alloc_curves > hedit->alloc_curves) || (alloc_curves < hedit->alloc_curves && shrink)) {
-		size_t size_curves = sizeof(HairEditCurve) * alloc_curves;
-		if (hedit->curves)
-			hedit->curves = MEM_recallocN_id(hedit->curves, size_curves, "hair edit curves");
-		else
-			hedit->curves = MEM_callocN(size_curves, "hair edit curves");
-		hedit->alloc_curves = alloc_curves;
-		CLAMP_MAX(hedit->totcurves, alloc_curves);
-	}
-	
-	if ((alloc_verts > hedit->alloc_verts) || (alloc_verts < hedit->alloc_verts && shrink)) {
-		size_t size_verts = sizeof(HairEditVertex) * alloc_verts;
-		if (hedit->verts)
-			hedit->verts = MEM_recallocN_id(hedit->verts, size_verts, "hair edit verts");
-		else
-			hedit->verts = MEM_callocN(size_verts, "hair edit verts");
-		hedit->alloc_verts = alloc_verts;
-		CLAMP_MAX(hedit->totverts, alloc_verts);
-	}
+	/* api callbacks */
+	ot->exec = hair_edit_toggle_exec;
+	ot->poll = hair_edit_toggle_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
