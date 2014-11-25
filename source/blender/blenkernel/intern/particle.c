@@ -65,6 +65,7 @@
 #include "BKE_boids.h"
 #include "BKE_cloth.h"
 #include "BKE_colortools.h"
+#include "BKE_edithair.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -546,6 +547,8 @@ void psys_free(Object *ob, ParticleSystem *psys)
 
 		if (psys->edit && psys->free_edit)
 			psys->free_edit(psys->edit);
+		if (psys->hairedit)
+			BKE_edithair_free(psys->hairedit);
 
 		if (psys->child) {
 			MEM_freeN(psys->child);

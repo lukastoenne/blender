@@ -274,6 +274,7 @@ typedef struct ParticleSystem {
 
 	struct PTCacheEdit *edit;						/* particle editmode (runtime) */
 	void (*free_edit)(struct PTCacheEdit *edit);	/* free callback */
+	struct HairEditData *hairedit;			/* hair edit data (runtime) */
 
 	struct ParticleCacheKey **pathcache;	/* path cache (runtime) */
 	struct ParticleCacheKey **childcache;	/* child cache (runtime) */
