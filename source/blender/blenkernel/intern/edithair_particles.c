@@ -71,6 +71,7 @@ static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleD
 	     ++k, ++vert, ++hkey) {
 		
 		copy_v3_v3(vert->co, hkey->co);
+		
 		// TODO define other key stuff ...
 	}
 }
@@ -129,7 +130,7 @@ static void free_particle_data(ParticleSystem *psys)
 	}
 }
 
-static void create_particle_curve(ParticleData *pa, HairEditData *hedit, HairEditCurve *curve)
+static void create_particle_curve(ParticleSystem *psys, ParticleData *pa, HairEditData *hedit, HairEditCurve *curve)
 {
 	int ntotkey = curve->numverts;
 	HairKey *nhair = MEM_callocN(sizeof(HairKey) * ntotkey, "hair keys");
@@ -137,11 +138,27 @@ static void create_particle_curve(ParticleData *pa, HairEditData *hedit, HairEdi
 	HairKey *hkey;
 	int k;
 	
+	pa->alive = PARS_ALIVE;
+	pa->flag = 0;
+	
+	pa->time = 0.0f;
+	pa->lifetime = 100.0f;
+	pa->dietime = 100.0f;
+	
+	pa->fuv[0] = 1.0f;
+	pa->fuv[1] = 0.0f;
+	pa->fuv[2] = 0.0f;
+	pa->fuv[3] = 0.0f;
+	
+	pa->size = psys->part->size;
+	
 	for (k = 0, vert = hedit->verts + curve->start, hkey = nhair;
 	     k < curve->numverts;
 	     ++k, ++vert, ++hkey) {
 		
 		copy_v3_v3(hkey->co, vert->co);
+		hkey->time = ntotkey > 0 ? (float)k / (float)(ntotkey - 1) : 0.0f;
+		hkey->weight = 1.0f;
 		// TODO define other key stuff ...
 	}
 	
@@ -164,7 +181,7 @@ static void create_particle_data(ParticleSystem *psys, HairEditData *hedit)
 		
 		// TODO copy particle stuff ...
 		
-		create_particle_curve(pa, hedit, curve);
+		create_particle_curve(psys, pa, hedit, curve);
 	}
 	
 	psys->particles = nparticles;
