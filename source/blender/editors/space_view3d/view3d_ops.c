@@ -42,6 +42,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_main.h"
@@ -76,8 +77,8 @@ static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
 		BKE_copybuffer_tag_ID(&ob->id);
 	}
 	CTX_DATA_END;
-
-	BLI_make_file_string("/", str, BLI_temp_dir_base(), "copybuffer.blend");
+	
+	BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
 	BKE_copybuffer_save(str, op->reports);
 
 	BKE_report(op->reports, RPT_INFO, "Copied selected objects to buffer");
@@ -102,7 +103,7 @@ static int view3d_pastebuffer_exec(bContext *C, wmOperator *op)
 {
 	char str[FILE_MAX];
 
-	BLI_make_file_string("/", str, BLI_temp_dir_base(), "copybuffer.blend");
+	BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
 	if (BKE_copybuffer_paste(C, str, op->reports)) {
 		WM_event_add_notifier(C, NC_WINDOW, NULL);
 

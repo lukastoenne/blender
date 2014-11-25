@@ -90,7 +90,7 @@
 #undef SEQP_BEGIN
 #undef SEQ_END
 
-void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[3])
+void color3ubv_from_seq(Scene *curscene, Sequence *seq, unsigned char col[3])
 {
 	unsigned char blendcol[3];
 	SolidColorVars *colvars = (SolidColorVars *)seq->effectdata;
@@ -212,14 +212,14 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 				sequencer_preview_add_sound(C, seq);
 			}
 			else {
-				BLI_mutex_unlock(sound->mutex);				
+				BLI_mutex_unlock(sound->mutex);
 			}
 			return;  /* nothing to draw */
 		}
 		BLI_mutex_unlock(sound->mutex);
 		
 		waveform = seq->sound->waveform;
-
+		
 		startsample = floor((seq->startofs + seq->anim_startofs) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
 		endsample = ceil((seq->startofs + seq->anim_startofs + seq->enddisp - seq->startdisp) / FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
 		samplestep = (endsample - startsample) * stepsize / (x2 - x1);
@@ -315,7 +315,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 			if ((seqm->flag & SEQ_MUTE) == 0 && (seq->flag & SEQ_MUTE))
 				drawmeta_stipple(1);
 
-			get_seq_color3ubv(scene, seq, col);
+			color3ubv_from_seq(scene, seq, col);
 
 			glColor4ubv(col);
 			
@@ -357,7 +357,7 @@ static float draw_seq_handle_size_get_clamped(Sequence *seq, const float pixelx)
 /* draw a handle, for each end of a sequence strip */
 static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_clamped, const short direction)
 {
-	float v1[2], v2[2], v3[2], rx1 = 0; //for triangles and rect
+	float v1[2], v2[2], v3[2], rx1 = 0, rx2 = 0; //for triangles and rect
 	float x1, x2, y1, y2;
 	unsigned int whichsel = 0;
 	
@@ -370,6 +370,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	/* set up co-ordinates/dimensions for either left or right handle */
 	if (direction == SEQ_LEFTHANDLE) {
 		rx1 = x1;
+		rx2 = x1 + handsize_clamped * 0.75f;
 		
 		v1[0] = x1 + handsize_clamped / 4; v1[1] = y1 + ( ((y1 + y2) / 2.0f - y1) / 2);
 		v2[0] = x1 + handsize_clamped / 4; v2[1] = y2 - ( ((y1 + y2) / 2.0f - y1) / 2);
@@ -379,6 +380,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	}
 	else if (direction == SEQ_RIGHTHANDLE) {
 		rx1 = x2 - handsize_clamped * 0.75f;
+		rx2 = x2;
 		
 		v1[0] = x2 - handsize_clamped / 4; v1[1] = y1 + ( ((y1 + y2) / 2.0f - y1) / 2);
 		v2[0] = x2 - handsize_clamped / 4; v2[1] = y2 - ( ((y1 + y2) / 2.0f - y1) / 2);
@@ -399,7 +401,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 		else if (seq->flag & SELECT) glColor4ub(255, 255, 255, 30);
 		else glColor4ub(0, 0, 0, 22);
 		
-		//glRectf(rx1, y1, rx2, y2);
+		glRectf(rx1, y1, rx2, y2);
 		
 		if (seq->flag & whichsel) glColor4ub(255, 255, 255, 200);
 		else glColor4ub(0, 0, 0, 50);
@@ -537,79 +539,18 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 	UI_view2d_text_cache_add_rectf(v2d, &rect, str, str_len, col);
 }
 
-/* draw code vertex array storage */
-static float strip_vertex_storage[36][2];
-static char strip_color_storage[36][3];
-static const unsigned short strip_element_buffer[] = {
-    9, 10, 8, 11, 7, 12, 6, 13, 5, 14, 4, 15, 3, 16, 2, 17, 1, 18, 0, 19, 35, 20,
-    34, 21, 33, 22, 32, 23, 31, 24, 30, 25, 29, 26, 28, 27};
-
-static float calculate_cuddly_radius_x(float x1, float x2, float aspect)
-{
-	return 0.25f * min_ff((SEQ_STRIP_OFSTOP - SEQ_STRIP_OFSBOTTOM) * 0.25f / aspect, 2.0 * (x2 - x1));	
-}
-
-static void generate_strip_vertices(float x1, float y1, float x2, float y2, float aspect)
-{
-	float ymid1, ymid2;
-
-	int i;
-	float h = (y2 - y1);
-	float cuddly_radius = h * 0.25f;
-	float cuddly_radius_x = calculate_cuddly_radius_x(x1, x2, aspect);
-	
-	ymid1 = h * 0.25f + y1;
-	ymid2 = h * 0.65f + y1;
-
-	/* center of polygon */
-	strip_vertex_storage[0][0] = x1;
-	strip_vertex_storage[0][1] = ymid1;
-
-	strip_vertex_storage[1][0] = x1;
-	strip_vertex_storage[1][1] = ymid2;
-
-	strip_vertex_storage[18][0] = x2;
-	strip_vertex_storage[18][1] = ymid2;
-
-	strip_vertex_storage[19][0] = x2;
-	strip_vertex_storage[19][1] = ymid1;
-
-	/* corners of polygon */
-	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 2][0] = x1 + cuddly_radius_x - cuddly_radius_x * cos(i * M_PI / 14.0);
-		strip_vertex_storage[i + 2][1] = y2 - cuddly_radius + cuddly_radius * sin(i * M_PI / 14.0);
-	}
-
-	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 10][0] = x2 - cuddly_radius_x + cuddly_radius_x * sin(i * M_PI / 14.0);
-		strip_vertex_storage[i + 10][1] = y2 - cuddly_radius + cuddly_radius * cos(i * M_PI / 14.0);
-	}
-
-	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 20][0] = x2 - cuddly_radius_x + cuddly_radius_x * cos(i * M_PI / 14.0);
-		strip_vertex_storage[i + 20][1] = y1 + cuddly_radius - cuddly_radius * sin(i * M_PI / 14.0);
-	}
-
-	for (i = 0; i < 8; i++) {
-		strip_vertex_storage[i + 28][0] = x1 + cuddly_radius_x - cuddly_radius_x * sin(i * M_PI / 14.0);
-		strip_vertex_storage[i + 28][1] = y1 + cuddly_radius - cuddly_radius * cos(i * M_PI / 14.0);
-	}
-
-	glVertexPointer(2, GL_FLOAT, 0, strip_vertex_storage);
-}
-
 /* draws a shaded strip, made from gradient + flat color + gradient */
 void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
 {
 	float ymid1, ymid2;
-
-	ymid1 = (y2 - y1) * 0.25f + y1;
-	ymid2 = (y2 - y1) * 0.65f + y1;
-
+	
 	if (seq->flag & SEQ_MUTE) {
 		glEnable(GL_POLYGON_STIPPLE);
 		glPolygonStipple(stipple_halftone);
 	}
+	
+	ymid1 = (y2 - y1) * 0.25f + y1;
+	ymid2 = (y2 - y1) * 0.65f + y1;
 	
 	glShadeModel(GL_SMOOTH);
 	glBegin(GL_QUADS);
@@ -650,81 +591,126 @@ void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, f
 	glVertex2f(x1, y2);
 	
 	glEnd();
-
+	
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_POLYGON_STIPPLE);
 	}
 }
 
-static void draw_shaded_cuddly_strip(Sequence *seq, unsigned char col[3])
+void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 {
-	unsigned char center_col[3];
-	unsigned char lower_col[3];
-	int i;
-
-	/* calculate strip colors (must take care to properly update col, since it will be returned to other functions later) */
-	if (seq->flag & SEQ_INVALID_EFFECT) { lower_col[0] = 255; lower_col[1] = 0; lower_col[2] = 255; }
-	else if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, lower_col, -50);
-	else copy_v3_v3_char((char *)lower_col, (char *)col);
-
-	if (seq->flag & SEQ_INVALID_EFFECT) { center_col[0] = 255; center_col[1] = 0; center_col[2] = 255; }
-	else if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(lower_col, lower_col, center_col, 0.0, 5);
-	else UI_GetColorPtrShade3ubv(lower_col, center_col, -5);
-
-	if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(center_col, col, -15);
-	else UI_GetColorPtrShade3ubv(center_col, col, 25);
-
-	if (seq->flag & SEQ_MUTE) {
-		glEnable(GL_POLYGON_STIPPLE);
-		glPolygonStipple(stipple_halftone);
+	float x1, x2, y1, y2, pixely, a;
+	unsigned char col[3], blendcol[3];
+	View2D *v2d = &ar->v2d;
+	
+	x1 = seq->startdisp;
+	x2 = seq->enddisp;
+	
+	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
+	y2 = seq->machine + SEQ_STRIP_OFSTOP;
+	
+	pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+	
+	if (pixely <= 0) return;  /* can happen when the view is split/resized */
+	
+	blendcol[0] = blendcol[1] = blendcol[2] = 120;
+	
+	if (seq->startofs) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		color3ubv_from_seq(scene, seq, col);
+		
+		if (seq->flag & SELECT) {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+			glColor4ub(col[0], col[1], col[2], 170);
+		}
+		else {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+			glColor4ub(col[0], col[1], col[2], 110);
+		}
+		
+		glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
+		
+		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+		else glColor4ub(col[0], col[1], col[2], 160);
+		
+		fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
+		
+		glDisable(GL_BLEND);
 	}
-
-	glShadeModel(GL_SMOOTH);
-
-	/* first copy the color to the central part of the polygon */
-	copy_v3_v3_char((char *)strip_color_storage[0], (char *)center_col);
-	copy_v3_v3_char((char *)strip_color_storage[1], (char *)center_col);
-	copy_v3_v3_char((char *)strip_color_storage[18], (char *)center_col);
-	copy_v3_v3_char((char *)strip_color_storage[19], (char *)center_col);
-
-	/* handle the corners */
-
-	/* lower part */
-	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[20 + i], (char *)center_col, (char *)lower_col, sin(i * M_PI / 14.0));
-
-	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[28 + i], (char *)center_col, (char *)lower_col, cos(i * M_PI / 14.0));
-
-
-	/* high part */
-	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[2 + i], (char *)center_col, (char *)col, sin(i * M_PI / 14.0));
-
-	for (i = 0; i < 8; i++)
-		interp_v3_v3v3_char((char *)strip_color_storage[10 + i], (char *)center_col, (char *)col, cos(i * M_PI / 14.0));
-
-	glColorPointer(3, GL_UNSIGNED_BYTE, 0, strip_color_storage);
-	glEnableClientState(GL_COLOR_ARRAY);
-
-	glDrawRangeElements(GL_TRIANGLE_STRIP, 0, 35, ARRAY_SIZE(strip_element_buffer), GL_UNSIGNED_SHORT, strip_element_buffer);
-
-	glDisableClientState(GL_COLOR_ARRAY);
-
-	if (seq->flag & SEQ_MUTE) {
-		glDisable(GL_POLYGON_STIPPLE);
+	if (seq->endofs) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		color3ubv_from_seq(scene, seq, col);
+		
+		if (seq->flag & SELECT) {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+			glColor4ub(col[0], col[1], col[2], 170);
+		}
+		else {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+			glColor4ub(col[0], col[1], col[2], 110);
+		}
+		
+		glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
+		
+		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+		else glColor4ub(col[0], col[1], col[2], 160);
+		
+		fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
+		
+		glDisable(GL_BLEND);
+	}
+	if (seq->startstill) {
+		color3ubv_from_seq(scene, seq, col);
+		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+		glColor3ubv((GLubyte *)col);
+		
+		draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
+		
+		/* feint pinstripes, helps see exactly which is extended and which isn't,
+			 * especially when the extension is very small */
+		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
+		
+		glColor3ubv((GLubyte *)col);
+		
+		for (a = y1; a < y2; a += pixely * 2.0f) {
+			fdrawline(x1,  a,  (float)(seq->start),  a);
+		}
+	}
+	if (seq->endstill) {
+		color3ubv_from_seq(scene, seq, col);
+		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+		glColor3ubv((GLubyte *)col);
+		
+		draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
+		
+		/* feint pinstripes, helps see exactly which is extended and which isn't,
+			 * especially when the extension is very small */
+		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
+		
+		glColor3ubv((GLubyte *)col);
+		
+		for (a = y1; a < y2; a += pixely * 2.0f) {
+			fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
+		}
 	}
 }
+
 
 /*
  * Draw a sequence strip, bounds check already made
  * ARegion is currently only used to get the windows width in pixels
  * so wave file sample drawing precision is zoom adjusted
  */
-static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx, float aspect)
+static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx)
 {
 	View2D *v2d = &ar->v2d;
-	float x1, x2, y1, y2, xchild;
+	float x1, x2, y1, y2;
 	unsigned char col[3], background_col[3], is_single_image;
 	const float handsize_clamped = draw_seq_handle_size_get_clamped(seq, pixelx);
 
@@ -737,19 +723,19 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	x2 = (seq->endstill) ? (seq->start + seq->len) : seq->enddisp;
 	y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
-	xchild = x1 + calculate_cuddly_radius_x(x1, x2, aspect);
+
 	/* get the correct color per strip type*/
-	//get_seq_color3ubv(scene, seq, col);
-	get_seq_color3ubv(scene, seq, background_col);
+	//color3ubv_from_seq(scene, seq, col);
+	color3ubv_from_seq(scene, seq, background_col);
 	
 	/* draw the main strip body */
 	if (is_single_image) {  /* single image */
-		generate_strip_vertices(BKE_sequence_tx_get_final_left(seq, false), y1, BKE_sequence_tx_get_final_right(seq, false), y2, aspect);
-		draw_shaded_cuddly_strip(seq, background_col);
+		draw_shadedstrip(seq, background_col,
+		                 BKE_sequence_tx_get_final_left(seq, false), y1,
+		                 BKE_sequence_tx_get_final_right(seq, false), y2);
 	}
 	else {  /* normal operation */
-		generate_strip_vertices(x1, y1, x2, y2, aspect);
-		draw_shaded_cuddly_strip(seq, background_col);
+		draw_shadedstrip(seq, background_col, x1, y1, x2, y2);
 	}
 	
 	draw_seq_handle(v2d, seq, handsize_clamped, SEQ_LEFTHANDLE);
@@ -759,8 +745,6 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	x1 = seq->startdisp;
 	x2 = seq->enddisp;
 	
-	generate_strip_vertices(x1, y1, x2, y2, aspect);
-
 	/* draw sound wave */
 	if (seq->type == SEQ_TYPE_SOUND_RAM) {
 		if(!(sseq->flag & SEQ_NO_WAVEFORMS)) {
@@ -776,9 +760,8 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		/* light stripes */
 		glColor4ub(255, 255, 255, 32);
 		glPolygonStipple(stipple_diag_stripes_pos);
-		//glRectf(x1, y1, x2, y2);
+		glRectf(x1, y1, x2, y2);
 
-		glDrawArrays(GL_POLYGON, 0, 36);
 		/* dark stripes */
 		glColor4ub(0, 0, 0, 32);
 		glPolygonStipple(stipple_diag_stripes_neg);
@@ -794,13 +777,12 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		/* panic! */
 		glColor4ub(255, 0, 0, 255);
 		glPolygonStipple(stipple_diag_stripes_pos);
-		//glRectf(x1, y1, x2, y2);
-		glDrawArrays(GL_POLYGON, 0, 36);
+		glRectf(x1, y1, x2, y2);
 
 		glDisable(GL_POLYGON_STIPPLE);
 	}
 
-	get_seq_color3ubv(scene, seq, col);
+	color3ubv_from_seq(scene, seq, col);
 	if ((G.moving & G_TRANSFORM_SEQ) && (seq->flag & SELECT)) {
 		if (seq->flag & SEQ_OVERLAP) {
 			col[0] = 255; col[1] = col[2] = 40;
@@ -818,9 +800,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		glLineStipple(1, 0x8888);
 	}
 	
-	glDrawArrays(GL_LINE_LOOP, 0, 36);
-
-	// UI_draw_roundbox_shade_x(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
+	UI_draw_roundbox_shade_x(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
 	
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_LINE_STIPPLE);
@@ -843,39 +823,6 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	/* nice text here would require changing the view matrix for texture text */
 	if ((x2 - x1) / pixelx > 32) {
 		draw_seq_text(v2d, seq, x1, x2, y1, y2, background_col);
-	}
-	
-	/* lastly, draw strip parent indicator */
-	if (seq->parent && seq->parent->machine != seq->machine) {
-		Sequence *parent = seq->parent;
-		float x1_par, x2_par, xpar;
-		float ypar, yseq, cuddly_par;
-		x1_par = parent->startdisp;
-		x2_par = parent->enddisp;
-		y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
-		y2 = seq->machine + SEQ_STRIP_OFSTOP;
-		
-		cuddly_par = calculate_cuddly_radius_x(x1_par, x2_par, aspect);
-		
-		xpar = max_ff(x1_par + cuddly_par, xchild);
-		xpar = min_ff(x2_par - cuddly_par, xpar);
-
-		if (seq->machine > parent->machine) {
-			yseq = seq->machine + SEQ_STRIP_OFSBOTTOM;
-			ypar = parent->machine + SEQ_STRIP_OFSTOP;
-		}		
-		else {
-			yseq = seq->machine + SEQ_STRIP_OFSTOP;
-			ypar = parent->machine + SEQ_STRIP_OFSBOTTOM;	
-		}
-		
-		glBegin(GL_TRIANGLES);
-		glColor3f(0.5f, 0.5f, 0.5f);
-		glVertex2f(xpar, ypar);
-		glColor3f(0.9f, 0.9f, 1.0f);
-		glVertex2f(xchild + 0.05f / aspect, yseq);
-		glVertex2f(xchild, yseq);
-		glEnd();
 	}
 }
 
@@ -1231,7 +1178,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glLoadIdentity();
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
-		glLoadIdentity();		
+		glLoadIdentity();
 	}
 	glBegin(GL_QUADS);
 
@@ -1466,7 +1413,7 @@ static void draw_seq_backdrop(View2D *v2d)
 }
 
 /* draw the contents of the sequencer strips view */
-static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar, float aspect)
+static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 {
 	Scene *scene = CTX_data_scene(C);
 	View2D *v2d = &ar->v2d;
@@ -1475,8 +1422,6 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar, float a
 	int sel = 0, j;
 	float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
 	
-	glEnableClientState(GL_VERTEX_ARRAY);
-
 	/* loop through twice, first unselected, then selected */
 	for (j = 0; j < 2; j++) {
 		Sequence *seq;
@@ -1493,7 +1438,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar, float a
 			else if (seq->machine > v2d->cur.ymax) continue;
 			
 			/* strip passed all tests unscathed... so draw it now */
-			draw_seq_strip(C, sseq, scene, ar, seq, outline_tint, pixelx, aspect);
+			draw_seq_strip(C, sseq, scene, ar, seq, outline_tint, pixelx);
 		}
 		
 		/* draw selected next time round */
@@ -1502,9 +1447,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar, float a
 	
 	/* draw the last selected last (i.e. 'active' in other parts of Blender), removes some overlapping error */
 	if (last_seq)
-		draw_seq_strip(C, sseq, scene, ar, last_seq, 120, pixelx, aspect);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
+		draw_seq_strip(C, sseq, scene, ar, last_seq, 120, pixelx);
 }
 
 static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
@@ -1557,7 +1500,6 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	View2DScrollers *scrollers;
 	short unit = 0, flag = 0;
 	float col[3];
-	float aspect;
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
@@ -1567,7 +1509,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 		glClearColor(col[0], col[1], col[2], 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	aspect = UI_view2d_view_ortho(v2d);
+	UI_view2d_view_ortho(v2d);
 	
 	
 	/* calculate extents of sequencer strips/data 
@@ -1583,9 +1525,9 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
 
-	if (sseq->backdrop) {
+	if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
 		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false, true);
-		UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);		
+		UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);
 		UI_view2d_view_ortho(v2d);
 	}
 		
@@ -1596,7 +1538,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* sequence strips (if there is data available to be drawn) */
 	if (ed) {
 		/* draw the data */
-		draw_seq_strips(C, ed, ar, aspect);
+		draw_seq_strips(C, ed, ar);
 		
 		/* text draw cached (for sequence names), in pixelspace now */
 		UI_view2d_text_cache_draw(ar);

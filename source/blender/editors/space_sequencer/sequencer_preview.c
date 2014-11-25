@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  *
- * Contributor(s): Blender Foundation, 2003-2009, Campbell Barton
+ * Contributor(s): Blender Foundation, 2003-2009, Antony Riakiotakis
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -43,10 +43,6 @@
 #include "ED_screen.h"
 
 #include "MEM_guardedalloc.h"
-
-#ifdef WITH_AUDASPACE
-#  include "AUD_C-API.h"
-#endif
 
 #include "sequencer_intern.h"
 
@@ -105,7 +101,7 @@ static void preview_startjob(void *data, short *stop, short *do_update, float *p
 				
 				BLI_mutex_lock(pj->mutex);
 				previewjb = previewjb->next;
-				BLI_mutex_unlock(pj->mutex);				
+				BLI_mutex_unlock(pj->mutex);
 			}
 			
 			BLI_mutex_lock(pj->mutex);

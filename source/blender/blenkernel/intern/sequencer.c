@@ -4674,9 +4674,9 @@ bool BKE_sequence_is_valid_check(Sequence *seq)
 	return true;
 }
 
-int BKE_seq_find_next_prev_edit(Scene *scene, int cfra,
-                                const short side,
-                                const bool do_skip_mute, const bool do_center, const bool do_unselected)
+int BKE_sequencer_find_next_prev_edit(
+        Scene *scene, int cfra, const short side,
+        const bool do_skip_mute, const bool do_center, const bool do_unselected)
 {
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	Sequence *seq;

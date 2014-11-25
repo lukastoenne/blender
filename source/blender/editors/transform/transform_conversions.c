@@ -4489,7 +4489,7 @@ static TransData *SeqToTransData(TransData *td, TransData2D *td2d, TransDataSeq 
 	return td;
 }
 
-static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *td, TransData2D *td2d, TransDataSeq *tdsq, TransSeq *ts)
+static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *td, TransData2D *td2d, TransDataSeq *tdsq)
 {
 	Sequence *seq;
 	int recursive, count, flag;
@@ -4502,7 +4502,7 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 
 		/* add children first so recalculating metastrips does nested strips first */
 		if (recursive) {
-			int tot_children = SeqToTransData_Recursive(t, &seq->seqbase, td, td2d, tdsq, NULL);
+			int tot_children = SeqToTransData_Recursive(t, &seq->seqbase, td, td2d, tdsq);
 
 			td =     td +    tot_children;
 			td2d =   td2d +  tot_children;
@@ -4535,13 +4535,46 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 			}
 		}
 	}
+	return tot;
+}
+
+
+static void SeqTransDataBounds(TransInfo *t, ListBase *seqbase, TransSeq *ts)
+{
+	Sequence *seq;
+	int recursive, count, flag;
+	int max = INT32_MIN, min = INT32_MAX;
+
+	for (seq = seqbase->first; seq; seq = seq->next) {
+
+		/* just to get the flag since there are corner cases where this isn't totally obvious */
+		SeqTransInfo(t, seq, &recursive, &count, &flag);
+
+		/* use 'flag' which is derived from seq->flag but modified for special cases */
+		if (flag & SELECT) {
+			if (flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) {
+				if (flag & SEQ_LEFTSEL) {
+					min = min_ii(seq->startdisp, min);
+					max = max_ii(seq->startdisp, max);
+				}
+				if (flag & SEQ_RIGHTSEL) {
+					min = min_ii(seq->enddisp, min);
+					max = max_ii(seq->enddisp, max);
+				}
+			}
+			else {
+				min = min_ii(seq->startdisp, min);
+				max = max_ii(seq->enddisp, max);
+			}
+		}
+	}
 
 	if (ts) {
 		ts->max = max;
 		ts->min = min;
 	}
-	return tot;
 }
+
 
 static void freeSeqData(TransInfo *t)
 {
@@ -4789,8 +4822,9 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 	t->flag |= T_FREE_CUSTOMDATA;
 
 	/* loop 2: build transdata array */
-	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq, ts);
-
+	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq);
+	SeqTransDataBounds(t, ed->seqbasep, ts);
+	
 	/* set the snap mode based on how close the mouse is at the end/start points */
 	if (abs(xmouse - ts->max) > abs(xmouse - ts->min))
 		ts->snap_left = true;

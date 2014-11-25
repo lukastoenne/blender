@@ -2443,9 +2443,9 @@ int snapSequenceBounds(TransInfo *t, const int mval[2])
 
 	/* convert to frame range */
 	UI_view2d_region_to_view(&t->ar->v2d, mval[0], mval[1], &xmouse, &ymouse);
-	mframe = (int)xmouse;
+	mframe = iroundf(xmouse);
 	/* now find the closest sequence */
-	frame = BKE_seq_find_next_prev_edit(t->scene, mframe, SEQ_SIDE_BOTH, true, false, true);
+	frame = BKE_sequencer_find_next_prev_edit(t->scene, mframe, SEQ_SIDE_BOTH, true, false, true);
 
 	if (!ts->snap_left)
 		frame = frame - (ts->max - ts->min);

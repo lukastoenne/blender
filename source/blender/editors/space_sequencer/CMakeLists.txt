@@ -43,10 +43,10 @@ set(SRC
 	sequencer_edit.c
 	sequencer_modifier.c
 	sequencer_ops.c
+	sequencer_preview.c
 	sequencer_scopes.c
 	sequencer_select.c
 	sequencer_view.c
-	sequencer_preview.c
 	space_sequencer.c
 
 	sequencer_intern.h

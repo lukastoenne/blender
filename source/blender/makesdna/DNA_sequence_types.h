@@ -162,8 +162,6 @@ typedef struct Sequence {
 	/* pointers for effects: */
 	struct Sequence *seq1, *seq2, *seq3;
 	
-	struct Sequence *parent; /* parent strip */
-
 	ListBase seqbase;       /* list of strips for metastrips */
 
 	struct bSound *sound;   /* the linked "bSound" object */

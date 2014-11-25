@@ -54,8 +54,9 @@ struct ARegion *sequencer_has_buttons_region(struct ScrArea *sa);
 /* sequencer_draw.c */
 void draw_timeline_seq(const struct bContext *C, struct ARegion *ar);
 void draw_image_seq(const struct bContext *C, struct Scene *scene, struct  ARegion *ar, struct SpaceSeq *sseq, int cfra, int offset, bool draw_overlay, bool draw_backdrop);
-void get_seq_color3ubv(struct Scene *curscene, struct Sequence *seq, unsigned char col[3]);
+void color3ubv_from_seq(struct Scene *curscene, struct Sequence *seq, unsigned char col[3]);
 void draw_shadedstrip(struct Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2);
+void draw_sequence_extensions(struct Scene *scene, struct ARegion *ar, struct Sequence *seq);
 
 /* UNUSED */
 // void seq_reset_imageofs(struct SpaceSeq *sseq);
@@ -103,7 +104,6 @@ void SEQUENCER_OT_images_separate(struct wmOperatorType *ot);
 void SEQUENCER_OT_meta_toggle(struct wmOperatorType *ot);
 void SEQUENCER_OT_meta_make(struct wmOperatorType *ot);
 void SEQUENCER_OT_meta_separate(struct wmOperatorType *ot);
-void SEQUENCER_OT_parent(struct wmOperatorType *ot);
 
 void SEQUENCER_OT_gap_remove(struct wmOperatorType *ot);
 void SEQUENCER_OT_gap_insert(struct wmOperatorType *ot);

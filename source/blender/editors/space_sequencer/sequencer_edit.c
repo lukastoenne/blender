@@ -1236,44 +1236,6 @@ void SEQUENCER_OT_snap(struct wmOperatorType *ot)
 	RNA_def_int(ot->srna, "frame", 0, INT_MIN, INT_MAX, "Frame", "Frame where selected strips will be snapped", INT_MIN, INT_MAX);
 }
 
-static int sequencer_parent_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	Scene *scene = CTX_data_scene(C);
-	
-	if (scene) {
-		Editing *ed = BKE_sequencer_editing_get(scene, false);
-		Sequence *seq, *active_seq = ed->act_seq;
-		
-		for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-			if (seq == active_seq)
-				continue;
-			
-			if (seq->flag & SELECT) {
-				seq->parent = active_seq;
-			}
-		}
-	}
-	
-	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-	
-	return OPERATOR_FINISHED;
-}
-
-void SEQUENCER_OT_parent(struct wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Parent Strips";
-	ot->idname = "SEQUENCER_OT_parent";
-	ot->description = "";
-
-	/* api callbacks */
-	ot->exec = sequencer_parent_exec;
-	ot->poll = sequencer_edit_poll;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
 
 typedef struct SlipData {
 	int init_mouse[2];
@@ -1321,9 +1283,6 @@ static void transseq_restore(TransSeq *ts, Sequence *seq)
 static void draw_slip_extensions(const bContext *C, ARegion *ar, void *data)
 {
 	Scene *scene = CTX_data_scene(C);
-	float x1, x2, y1, y2, pixely, a;
-	unsigned char col[3], blendcol[3];
-	View2D *v2d = &ar->v2d;
 	SlipData *td = data;
 	int i;
 
@@ -1331,103 +1290,7 @@ static void draw_slip_extensions(const bContext *C, ARegion *ar, void *data)
 		Sequence *seq = td->seq_array[i];
 
 		if ((seq->type != SEQ_TYPE_META) && td->trim[i]) {
-
-			x1 = seq->startdisp;
-			x2 = seq->enddisp;
-
-			y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
-			y2 = seq->machine + SEQ_STRIP_OFSTOP;
-
-			pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
-
-			if (pixely <= 0) return;  /* can happen when the view is split/resized */
-
-			blendcol[0] = blendcol[1] = blendcol[2] = 120;
-
-			if (seq->startofs) {
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-				get_seq_color3ubv(scene, seq, col);
-
-				if (seq->flag & SELECT) {
-					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-					glColor4ub(col[0], col[1], col[2], 170);
-				}
-				else {
-					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-					glColor4ub(col[0], col[1], col[2], 110);
-				}
-
-				glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
-
-				if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-				else glColor4ub(col[0], col[1], col[2], 160);
-
-				fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
-
-				glDisable(GL_BLEND);
-			}
-			if (seq->endofs) {
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-				get_seq_color3ubv(scene, seq, col);
-
-				if (seq->flag & SELECT) {
-					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-					glColor4ub(col[0], col[1], col[2], 170);
-				}
-				else {
-					UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-					glColor4ub(col[0], col[1], col[2], 110);
-				}
-
-				glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
-
-				if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-				else glColor4ub(col[0], col[1], col[2], 160);
-
-				fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
-
-				glDisable(GL_BLEND);
-			}
-			if (seq->startstill) {
-				get_seq_color3ubv(scene, seq, col);
-				UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-				glColor3ubv((GLubyte *)col);
-
-				draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
-
-				/* feint pinstripes, helps see exactly which is extended and which isn't,
-				 * especially when the extension is very small */
-				if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
-				else UI_GetColorPtrShade3ubv(col, col, -16);
-
-				glColor3ubv((GLubyte *)col);
-
-				for (a = y1; a < y2; a += pixely * 2.0f) {
-					fdrawline(x1,  a,  (float)(seq->start),  a);
-				}
-			}
-			if (seq->endstill) {
-				get_seq_color3ubv(scene, seq, col);
-				UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-				glColor3ubv((GLubyte *)col);
-
-				draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
-
-				/* feint pinstripes, helps see exactly which is extended and which isn't,
-		 * especially when the extension is very small */
-				if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
-				else UI_GetColorPtrShade3ubv(col, col, -16);
-
-				glColor3ubv((GLubyte *)col);
-
-				for (a = y1; a < y2; a += pixely * 2.0f) {
-					fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
-				}
-			}
+			draw_sequence_extensions(scene, ar, seq);
 		}
 	}
 }
@@ -2983,7 +2846,7 @@ static bool strip_jump_internal(Scene *scene,
 {
 	bool changed = false;
 	int cfra = CFRA;
-	int nfra = BKE_seq_find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center, false);
+	int nfra = BKE_sequencer_find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center, false);
 	
 	if (nfra != cfra) {
 		CFRA = nfra;

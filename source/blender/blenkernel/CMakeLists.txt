@@ -38,6 +38,7 @@ set(INC
 	../nodes
 	../physics
 	../render/extern/include
+	../../../intern/ghost
 	../../../intern/guardedalloc
 	../../../intern/glew-mx
 	../../../intern/iksolver/extern
@@ -64,6 +65,7 @@ set(SRC
 	intern/addon.c
 	intern/anim.c
 	intern/anim_sys.c
+	intern/appdir.c
 	intern/armature.c
 	intern/autoexec.c
 	intern/blender.c
@@ -177,6 +179,7 @@ set(SRC
 	BKE_addon.h
 	BKE_anim.h
 	BKE_animsys.h
+	BKE_appdir.h
 	BKE_armature.h
 	BKE_autoexec.h
 	BKE_blender.h
@@ -276,6 +279,12 @@ set(SRC
 )
 
 add_definitions(${GL_DEFINITIONS})
+
+if(WIN32)
+	list(APPEND INC
+		../../../intern/utfconv
+	)
+endif()
 
 if(WITH_AUDASPACE)
 	list(APPEND INC
