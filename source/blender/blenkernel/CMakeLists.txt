@@ -91,6 +91,8 @@ set(SRC
 	intern/displist.c
 	intern/dynamicpaint.c
 	intern/editderivedmesh.c
+	intern/edithair.c
+	intern/edithair_particles.c
 	intern/editmesh.c
 	intern/editmesh_bvh.c
 	intern/effect.c
@@ -206,6 +208,7 @@ set(SRC
 	BKE_depsgraph.h
 	BKE_displist.h
 	BKE_dynamicpaint.h
+	BKE_edithair.h
 	BKE_effect.h
 	BKE_fcurve.h
 	BKE_fluidsim.h
