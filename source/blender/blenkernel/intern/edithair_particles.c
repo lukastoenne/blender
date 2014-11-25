@@ -173,9 +173,6 @@ static void create_particle_data(ParticleSystem *psys, HairEditData *hedit)
 
 void BKE_edithair_to_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleSystem *psys)
 {
-	psys->flag |= PSYS_EDITED;
-	
 	free_particle_data(psys);
-	
 	create_particle_data(psys, hedit);
 }
