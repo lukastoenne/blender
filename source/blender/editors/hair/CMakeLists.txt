@@ -35,7 +35,6 @@ set(INC_SYS
 set(SRC
 	hair_edit.c
 	hair_ops.c
-	hair_particles.c
 
 	hair_intern.h
 )
