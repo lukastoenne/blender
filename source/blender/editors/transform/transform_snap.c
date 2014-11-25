@@ -59,6 +59,7 @@
 #include "BKE_anim.h"  /* for duplis */
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
+#include "BKE_sequencer.h"
 #include "BKE_main.h"
 #include "BKE_tracking.h"
 
@@ -2430,6 +2431,27 @@ void snapGridIncrement(TransInfo *t, float *val)
 	snapGridIncrementAction(t, val, action);
 }
 
+int snapSequenceBounds(TransInfo *t, const int mval[2])
+{
+	float xmouse, ymouse;
+	int frame;
+	int mframe;
+	TransSeq *ts = t->customData;
+	/* reuse increment, strictly speaking could be another snap mode, but leave as is */
+	if (!(t->modifiers & MOD_SNAP_INVERT))
+		return 0;
+
+	/* convert to frame range */
+	UI_view2d_region_to_view(&t->ar->v2d, mval[0], mval[1], &xmouse, &ymouse);
+	mframe = iroundf(xmouse);
+	/* now find the closest sequence */
+	frame = BKE_sequencer_find_next_prev_edit(t->scene, mframe, SEQ_SIDE_BOTH, true, false, true);
+
+	if (!ts->snap_left)
+		frame = frame - (ts->max - ts->min);
+
+	return frame;
+}
 
 static void applyGridIncrement(TransInfo *t, float *val, int max_index, const float fac[3], GearsType action)
 {
@@ -2456,6 +2478,19 @@ static void applyGridIncrement(TransInfo *t, float *val, int max_index, const fl
 		else {
 			ED_space_image_get_uv_aspect(t->sa->spacedata.first, asp, asp + 1);
 		}
+	}
+	else if ((t->spacetype == SPACE_IPO) && (t->mode == TFM_TRANSLATION)) {
+		View2D *v2d = &t->ar->v2d;
+		View2DGrid *grid;
+		SpaceIpo *sipo = t->sa->spacedata.first;
+		int unity = V2D_UNIT_VALUES;
+		int unitx = (sipo->flag & SIPO_DRAWTIME) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMESCALE;
+
+		/* grid */
+		grid = UI_view2d_grid_calc(t->scene, v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP, t->ar->winx, t->ar->winy);
+
+		UI_view2d_grid_size(grid, &asp[0], &asp[1]);
+		UI_view2d_grid_free(grid);
 	}
 
 	for (i = 0; i <= max_index; i++) {
