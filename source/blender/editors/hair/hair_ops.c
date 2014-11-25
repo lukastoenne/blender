@@ -29,119 +29,12 @@
  *  \ingroup edhair
  */
 
-#include <stdlib.h>
-
 #include "BLI_utildefines.h"
-
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
-#include "DNA_scene_types.h"
-
-#include "BKE_context.h"
-#include "BKE_depsgraph.h"
-
-#include "RNA_access.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "ED_object.h"
-#include "ED_physics.h"
-
 #include "hair_intern.h"
-
-/* ==== edit mode toggle ==== */
-
-static bool has_hair_data(Object *ob)
-{
-	ParticleSystem *psys;
-	
-	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		if (psys->part->type == PART_HAIR)
-			return true;
-	}
-	
-	return false;
-}
-
-static bool init_hair_edit(Object *ob, HairEditData *hedit)
-{
-	ParticleSystem *psys;
-	
-	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		if (psys->part->type == PART_HAIR) {
-			hair_edit_from_particles(hedit, ob, psys);
-			return true;
-		}
-	}
-	
-	return false;
-}
-
-static int hair_edit_toggle_poll(bContext *C)
-{
-	Object *ob = CTX_data_active_object(C);
-
-	if (ob == NULL)
-		return false;
-	if (!ob->data || ((ID *)ob->data)->lib)
-		return false;
-	if (CTX_data_edit_object(C))
-		return false;
-
-	return has_hair_data(ob);
-}
-
-static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
-{
-	Object *ob = CTX_data_active_object(C);
-	const int mode_flag = OB_MODE_HAIR_EDIT;
-	const bool is_mode_set = (ob->mode & mode_flag) != 0;
-
-	if (!is_mode_set) {
-		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
-			return OPERATOR_CANCELLED;
-		}
-	}
-
-	if (!is_mode_set) {
-		HairEditData *hedit = ED_hair_edit_create();
-		
-		ob->mode |= mode_flag;
-		init_hair_edit(ob, hedit);
-		
-//		toggle_particle_cursor(C, 1);
-		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
-	}
-	else {
-//		hair_edit_to_particles();
-		ob->mode &= ~mode_flag;
-		
-//		toggle_particle_cursor(C, 0);
-		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
-	}
-
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-
-	return OPERATOR_FINISHED;
-}
-
-void HAIR_OT_hair_edit_toggle(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Hair Edit Toggle";
-	ot->idname = "HAIR_OT_hair_edit_toggle";
-	ot->description = "Toggle hair edit mode";
-	
-	/* api callbacks */
-	ot->exec = hair_edit_toggle_exec;
-	ot->poll = hair_edit_toggle_poll;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/* ==== register ==== */
 
 void ED_operatortypes_hair(void)
 {

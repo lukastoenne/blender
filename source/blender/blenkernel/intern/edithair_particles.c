@@ -36,9 +36,8 @@
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 
+#include "BKE_edithair.h"
 #include "BKE_particle.h"
-
-#include "hair_intern.h"
 
 /* ==== convert particle data to hair edit ==== */
 
@@ -76,7 +75,7 @@ static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleD
 	}
 }
 
-void hair_edit_from_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleSystem *psys)
+void BKE_edithair_from_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleSystem *psys)
 {
 	int totverts = particle_totverts(psys);
 	
@@ -86,9 +85,9 @@ void hair_edit_from_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleS
 	int p;
 	int vert_start;
 	
-	ED_hair_edit_clear(hedit);
+	BKE_edithair_clear(hedit);
 	
-	ED_hair_edit_reserve(hedit, psys->totpart, totverts, true);
+	BKE_edithair_reserve(hedit, psys->totpart, totverts, true);
 	
 	/* TODO we should have a clean input stream API for hair edit data
 	 * to avoid implicit size and index calculations here and make the code
@@ -172,7 +171,7 @@ static void create_particle_data(ParticleSystem *psys, HairEditData *hedit)
 	psys->totpart = hedit->totcurves;
 }
 
-void hair_edit_to_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleSystem *psys)
+void BKE_edithair_to_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleSystem *psys)
 {
 	psys->flag |= PSYS_EDITED;
 	
