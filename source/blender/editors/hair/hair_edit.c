@@ -40,6 +40,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_edithair.h"
+#include "BKE_particle.h"
 
 #include "RNA_access.h"
 
@@ -53,25 +54,42 @@
 
 static bool has_hair_data(Object *ob)
 {
-	ParticleSystem *psys;
+	ParticleSystem *psys = psys_get_current(ob);
+	if (psys->part->type == PART_HAIR)
+		return true;
 	
-	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		if (psys->part->type == PART_HAIR)
-			return true;
+	return false;
+}
+
+static bool init_hair_edit(Object *ob)
+{
+	ParticleSystem *psys = psys_get_current(ob);
+	if (psys->part->type == PART_HAIR) {
+		HairEditData *hedit = psys->hairedit;
+		if (!hedit)
+			psys->hairedit = hedit = BKE_edithair_create();
+		
+		BKE_edithair_from_particles(hedit, ob, psys);
+		
+		return true;
 	}
 	
 	return false;
 }
 
-static bool init_hair_edit(Object *ob, HairEditData *hedit)
+static bool apply_hair_edit(Object *ob)
 {
-	ParticleSystem *psys;
-	
-	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		if (psys->part->type == PART_HAIR) {
-			BKE_edithair_from_particles(hedit, ob, psys);
-			return true;
+	ParticleSystem *psys = psys_get_current(ob);
+	if (psys->part->type == PART_HAIR) {
+		if (psys->hairedit) {
+			BKE_edithair_to_particles(psys->hairedit, ob, psys);
+			psys->flag |= PSYS_EDITED;
+			
+			BKE_edithair_free(psys->hairedit);
+			psys->hairedit = NULL;
 		}
+		
+		return true;
 	}
 	
 	return false;
@@ -107,16 +125,14 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 	}
 
 	if (!is_mode_set) {
-		HairEditData *hedit = BKE_edithair_create();
-		
+		init_hair_edit(ob);
 		ob->mode |= mode_flag;
-		init_hair_edit(ob, hedit);
 		
 //		toggle_particle_cursor(C, 1);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
 	else {
-//		hair_edit_to_particles();
+		apply_hair_edit(ob);
 		ob->mode &= ~mode_flag;
 		
 //		toggle_particle_cursor(C, 0);
