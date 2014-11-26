@@ -29,6 +29,8 @@
 #ifndef __BMESH_ITERATORS_INLINE_H__
 #define __BMESH_ITERATORS_INLINE_H__
 
+#include "BLI_mempool.h"
+
 /* inline here optimizes out the switch statement when called with
  * constant values (which is very common), nicer for loop-in-loop situations */
 
@@ -41,7 +43,6 @@ BLI_INLINE void *BM_iter_step(BMIter *iter)
 {
 	return iter->step(iter);
 }
-
 
 /**
  * \brief Iterator Init

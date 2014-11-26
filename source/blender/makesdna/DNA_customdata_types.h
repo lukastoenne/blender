@@ -63,7 +63,7 @@ typedef struct CustomDataExternal {
  * layers, each with a data type (e.g. MTFace, MDeformVert, etc.). */
 typedef struct CustomData {
 	CustomDataLayer *layers;      /* CustomDataLayers, ordered by type */
-	int typemap[42]; int pad;     /* runtime only! - maps types to indices of first layer of that type,
+	int typemap[44]; int pad;     /* runtime only! - maps types to indices of first layer of that type,
 	                               * MUST be >= CD_NUMTYPES, but we cant use a define here.
 	                               * Correct size is ensured in CustomData_update_typemap assert() */
 	int totlayer, maxlayer;       /* number of layers, size of layers array */
@@ -121,7 +121,10 @@ enum {
 	CD_TESSLOOPNORMAL   = 40,
 	CD_FACEGROUP        = 41, /* exclusive face group, each face can only be part of one */
 
-	CD_NUMTYPES         = 42
+	CD_HAIR_CURVE       = 42,
+	CD_HAIR_VERT        = 43,
+
+	CD_NUMTYPES         = 44
 };
 
 /* Bits for CustomDataMask */
@@ -169,6 +172,9 @@ enum {
 #define CD_MASK_MLOOPTANGENT    (1LL << CD_MLOOPTANGENT)
 #define CD_MASK_TESSLOOPNORMAL  (1LL << CD_TESSLOOPNORMAL)
 #define CD_MASK_FACEGROUP       (1LL << CD_FACEGROUP)
+
+#define CD_MASK_HAIR_CURVE      (1LL << CD_HAIR_CURVE)
+#define CD_MASK_HAIR_VERT       (1LL << CD_HAIR_VERT)
 
 /* CustomData.flag */
 enum {

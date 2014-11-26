@@ -34,6 +34,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_physics.h"
+
 #include "hair_intern.h"
 
 void ED_operatortypes_hair(void)
