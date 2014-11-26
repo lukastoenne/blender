@@ -41,34 +41,17 @@
 
 /* ==== convert particle data to hair edit ==== */
 
-static int particle_totverts(ParticleSystem *psys)
-{
-	ParticleData *pa;
-	int p;
-	int totverts = 0;
-	
-	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa)
-		totverts += pa->totkey;
-	
-	return totverts;
-}
-
-static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleData *pa, int start)
+static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleData *pa)
 {
 	int totverts = pa->totkey;
-	HairKey *hair = pa->hair;
 	HairEditVertex *vert;
 	HairKey *hkey;
 	int k;
 	
-	BLI_assert(start + totverts <= hedit->alloc_verts);
-	
-	curve->start = start;
-	curve->numverts = totverts;
-	
-	for (k = 0, vert = hedit->verts + start, hkey = hair;
+	vert = BKE_edithair_curve_extend(hedit, curve, NULL, totverts);
+	for (k = 0, hkey = pa->hair;
 	     k < totverts;
-	     ++k, ++vert, ++hkey) {
+	     ++k, ++hkey, vert = vert->next) {
 		
 		copy_v3_v3(vert->co, hkey->co);
 		
@@ -78,36 +61,21 @@ static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleD
 
 void BKE_edithair_from_particles(HairEditData *hedit, Object *UNUSED(ob), ParticleSystem *psys)
 {
-	int totverts = particle_totverts(psys);
-	
 	HairEditCurve *curve;
-	int i;
 	ParticleData *pa;
 	int p;
-	int vert_start;
 	
 	BKE_edithair_clear(hedit);
 	
-	BKE_edithair_reserve(hedit, psys->totpart, totverts, true);
-	
-	/* TODO we should have a clean input stream API for hair edit data
-	 * to avoid implicit size and index calculations here and make the code
-	 * as fool proof as possible.
-	 */
-	
-	hedit->totcurves = psys->totpart;
-	hedit->totverts = totverts;
-	
-	vert_start = 0;
-	for (i = 0, curve = hedit->curves, p = 0, pa = psys->particles;
-	     i < hedit->totcurves;
-	     ++i, ++curve, ++p, ++pa) {
+	for (p = 0, pa = psys->particles;
+	     p < psys->totpart;
+	     ++p, ++pa) {
 		
-		copy_edit_curve(hedit, curve, pa, vert_start);
+		curve = BKE_edithair_curve_create(hedit, NULL);
+		
+		copy_edit_curve(hedit, curve, pa);
 		
 		// TODO copy particle stuff ...
-		
-		vert_start += curve->numverts;
 	}
 }
 
@@ -132,8 +100,10 @@ static void free_particle_data(ParticleSystem *psys)
 
 static void create_particle_curve(ParticleSystem *psys, ParticleData *pa, HairEditData *hedit, HairEditCurve *curve)
 {
-	int ntotkey = curve->numverts;
+	int ntotkey = BKE_edithair_curve_vertex_count(hedit, curve);
 	HairKey *nhair = MEM_callocN(sizeof(HairKey) * ntotkey, "hair keys");
+	
+	HairEditIter iter;
 	HairEditVertex *vert;
 	HairKey *hkey;
 	int k;
@@ -152,14 +122,16 @@ static void create_particle_curve(ParticleSystem *psys, ParticleData *pa, HairEd
 	
 	pa->size = psys->part->size;
 	
-	for (k = 0, vert = hedit->verts + curve->start, hkey = nhair;
-	     k < curve->numverts;
-	     ++k, ++vert, ++hkey) {
-		
+	k = 0;
+	hkey = nhair;
+	HAIREDIT_ITER_ELEM(vert, &iter, curve, HAIREDIT_VERTS_OF_CURVE) {
 		copy_v3_v3(hkey->co, vert->co);
 		hkey->time = ntotkey > 0 ? (float)k / (float)(ntotkey - 1) : 0.0f;
 		hkey->weight = 1.0f;
 		// TODO define other key stuff ...
+		
+		++k;
+		++hkey;
 	}
 	
 	pa->totkey = ntotkey;
@@ -170,18 +142,22 @@ static void create_particle_data(ParticleSystem *psys, HairEditData *hedit)
 {
 	int ntotpart = hedit->totcurves;
 	ParticleData *nparticles = MEM_callocN(sizeof(ParticleData) * ntotpart, "particle data");
+	
 	HairEditCurve *curve;
-	int i;
+	HairEditIter iter;
 	ParticleData *pa;
 	int p;
 	
-	for (i = 0, curve = hedit->curves, p = 0, pa = nparticles;
-	     i < hedit->totcurves;
-	     ++i, ++curve, ++p, ++pa) {
+	p = 0;
+	pa = nparticles;
+	HAIREDIT_ITER(curve, &iter, hedit, HAIREDIT_CURVES_OF_MESH) {
 		
 		// TODO copy particle stuff ...
 		
 		create_particle_curve(psys, pa, hedit, curve);
+		
+		++p;
+		++pa;
 	}
 	
 	psys->particles = nparticles;

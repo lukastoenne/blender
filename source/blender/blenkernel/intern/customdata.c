@@ -54,6 +54,7 @@
 
 #include "BKE_customdata.h"
 #include "BKE_customdata_file.h"
+#include "BKE_edithair.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_multires.h"
@@ -1218,6 +1219,10 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
 	/* 41: CD_MASK_FACEMAP */
 	{sizeof(int), "", 1, NULL, NULL, NULL, NULL, NULL, layerDefault_fmap, NULL},
+	/* 42: CD_HAIR_CURVE */
+	{sizeof(HairEditCurve), "HairEditCurve", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 43: CD_HAIR_VERT */
+	{sizeof(HairEditVertex), "HairEditVertex", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
