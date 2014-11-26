@@ -205,7 +205,7 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		
 		BLI_mutex_lock(sound->mutex);
 		if (!seq->sound->waveform) {
-			if(!(sound->flags & SOUND_FLAGS_WAVEFORM_LOADING)) {
+			if (!(sound->flags & SOUND_FLAGS_WAVEFORM_LOADING)) {
 				/* prevent sounds from reloading */
 				seq->sound->flags |= SOUND_FLAGS_WAVEFORM_LOADING;
 				BLI_mutex_unlock(sound->mutex);
@@ -597,6 +597,111 @@ void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, f
 	}
 }
 
+void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq)
+{
+	float x1, x2, y1, y2, pixely, a;
+	unsigned char col[3], blendcol[3];
+	View2D *v2d = &ar->v2d;
+	
+	x1 = seq->startdisp;
+	x2 = seq->enddisp;
+	
+	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
+	y2 = seq->machine + SEQ_STRIP_OFSTOP;
+	
+	pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+	
+	if (pixely <= 0) return;  /* can happen when the view is split/resized */
+	
+	blendcol[0] = blendcol[1] = blendcol[2] = 120;
+	
+	if (seq->startofs) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		color3ubv_from_seq(scene, seq, col);
+		
+		if (seq->flag & SELECT) {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+			glColor4ub(col[0], col[1], col[2], 170);
+		}
+		else {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+			glColor4ub(col[0], col[1], col[2], 110);
+		}
+		
+		glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
+		
+		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+		else glColor4ub(col[0], col[1], col[2], 160);
+		
+		fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
+		
+		glDisable(GL_BLEND);
+	}
+	if (seq->endofs) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		color3ubv_from_seq(scene, seq, col);
+		
+		if (seq->flag & SELECT) {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
+			glColor4ub(col[0], col[1], col[2], 170);
+		}
+		else {
+			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
+			glColor4ub(col[0], col[1], col[2], 110);
+		}
+		
+		glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
+		
+		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
+		else glColor4ub(col[0], col[1], col[2], 160);
+		
+		fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
+		
+		glDisable(GL_BLEND);
+	}
+	if (seq->startstill) {
+		color3ubv_from_seq(scene, seq, col);
+		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+		glColor3ubv((GLubyte *)col);
+		
+		draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
+		
+		/* feint pinstripes, helps see exactly which is extended and which isn't,
+			 * especially when the extension is very small */
+		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
+		
+		glColor3ubv((GLubyte *)col);
+		
+		for (a = y1; a < y2; a += pixely * 2.0f) {
+			fdrawline(x1,  a,  (float)(seq->start),  a);
+		}
+	}
+	if (seq->endstill) {
+		color3ubv_from_seq(scene, seq, col);
+		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
+		glColor3ubv((GLubyte *)col);
+		
+		draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
+		
+		/* feint pinstripes, helps see exactly which is extended and which isn't,
+			 * especially when the extension is very small */
+		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
+		
+		glColor3ubv((GLubyte *)col);
+		
+		for (a = y1; a < y2; a += pixely * 2.0f) {
+			fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
+		}
+	}
+}
+
+
 /*
  * Draw a sequence strip, bounds check already made
  * ARegion is currently only used to get the windows width in pixels
@@ -642,7 +747,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	
 	/* draw sound wave */
 	if (seq->type == SEQ_TYPE_SOUND_RAM) {
-		if(!(sseq->flag & SEQ_NO_WAVEFORMS)) {
+		if (!(sseq->flag & SEQ_NO_WAVEFORMS)) {
 			drawseqwave(C, sseq, scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
 		}
 	}
@@ -1099,22 +1204,22 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 	else if (draw_backdrop) {
 		float aspect = BLI_rcti_size_x(&ar->winrct) / (float)BLI_rcti_size_y(&ar->winrct);	
-		float image_aspect = viewrectx/viewrecty;
+		float image_aspect = viewrectx / viewrecty;
 		float imagex, imagey;
 		
 		if (aspect >= image_aspect) {
-			imagex = image_aspect/aspect;
+			imagex = image_aspect / aspect;
 			imagey = 1.0f;
 		}
 		else {
-			imagex = 1.0f;	
-			imagey = aspect/image_aspect;
+			imagex = 1.0f;
+			imagey = aspect / image_aspect;
 		}
 		
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex, -imagey);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex, imagey);
 		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex, imagey);
-		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex, -imagey);		
+		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex, -imagey);
 	}
 	else {
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
