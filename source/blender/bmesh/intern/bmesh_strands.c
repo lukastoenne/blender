@@ -67,8 +67,13 @@ void *bmstranditer__verts_of_strand_step(struct BMIter__vert_of_edge *iter)
 		 * with the root being v1 of the first edge.
 		 */
 		BMVert *v_curr = iter->edata->v1;
+		BMEdge *e_first = iter->edata;
 		
 		iter->edata = bmesh_disk_edge_next(iter->edata, iter->edata->v2);
+		if (iter->edata == e_first) {
+			/* only one edge means the last segment, terminate */
+			iter->edata = NULL;
+		}
 		
 		return v_curr;
 	}
