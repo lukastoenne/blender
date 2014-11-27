@@ -65,12 +65,10 @@ static bool init_hair_edit(Object *ob)
 {
 	ParticleSystem *psys = psys_get_current(ob);
 	if (psys->part->type == PART_HAIR) {
-		HairEditData *hedit = psys->hairedit;
-		if (!hedit)
-			psys->hairedit = hedit = BKE_edithair_create();
-		
-		BKE_edithair_from_particles(hedit, ob, psys);
-		
+		if (!psys->hairedit) {
+			BMesh *bm = BKE_particles_to_bmesh(ob, psys);
+			psys->hairedit = BKE_editstrands_create(bm);
+		}
 		return true;
 	}
 	
@@ -82,10 +80,10 @@ static bool apply_hair_edit(Object *ob)
 	ParticleSystem *psys = psys_get_current(ob);
 	if (psys->part->type == PART_HAIR) {
 		if (psys->hairedit) {
-			BKE_edithair_to_particles(psys->hairedit, ob, psys);
+			BKE_particles_from_bmesh(ob, psys);
 			psys->flag |= PSYS_EDITED;
 			
-			BKE_edithair_free(psys->hairedit);
+			BKE_editstrands_free(psys->hairedit);
 			psys->hairedit = NULL;
 		}
 		

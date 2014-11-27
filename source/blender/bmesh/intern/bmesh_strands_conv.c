@@ -15,91 +15,46 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Geoffrey Bantle.
+ * Contributor(s): Lukas Toenne.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/bmesh/intern/bmesh_mesh_conv.c
+/** \file blender/bmesh/intern/bmesh_strands_conv.c
  *  \ingroup bmesh
  *
  * BM mesh conversion functions.
- *
- * \section bm_mesh_conv_shapekey Converting Shape Keys
- *
- * When converting to/from a Mesh/BMesh you can optionally pass a shape key to edit.
- * This has the effect of editing the shape key-block rather then the original mesh vertex coords
- * (although additional geometry is still allowed and uses fallback locations on converting).
- *
- * While this works for any mesh/bmesh this is made use of by entering and exiting edit-mode.
- *
- * There are comments in code but this should help explain the general
- * intention as to how this works converting from/to bmesh.
- *
- *
- * \subsection user_pov User Perspective
- *
- * - Editmode operations when a shape key-block is active edits only that key-block.
- * - The first Basis key-block always matches the Mesh verts.
- * - Changing vertex locations of _any_ Basis will apply offsets to those shape keys using this as their Basis.
- *
- *
- * \subsection enter_editmode Entering EditMode - #BM_mesh_bm_from_me
- *
- * - the active key-block is used for BMesh vertex locations on entering edit-mode.
- * So obviously the meshes vertex locations remain unchanged and the shape key its self is not being edited directly.
- * Simply the #BMVert.co is a initialized from active shape key (when its set).
- * - all key-blocks are added as CustomData layers (read code for details).
- *
- *
- * \subsection exit_editmode Exiting EditMode - #BM_mesh_bm_to_me
- *
- * This is where the most confusing code is! Won't attempt to document the details here, for that read the code.
- * But basics are as follows.
- *
- * - Vertex locations (possibly modified from initial active key-block) are copied directly into #MVert.co
- * (special confusing note that these may be restored later, when editing the 'Basis', read on).
- * - if the 'Key' is relative, and the active key-block is the basis for ANY other key-blocks - get an array of offsets
- * between the new vertex locations and the original shape key (before entering edit-mode),
- * these offsets get applied later on to inactive key-blocks using the active one (which we are editing) as their Basis.
- *
- * Copying the locations back to the shape keys is quite confusing...
- * One main area of confusion is that when editing a 'Basis' key-block 'me->key->refkey'
- * The coords are written into the mesh, from the users perspective the Basis coords are written into the mesh
- * when exiting edit-mode.
- *
- * When _not_ editing the 'Basis', the original vertex locations (stored in the mesh and unchanged during edit-mode),
- * are copied back into the mesh.
- *
- * This has the effect from the users POV of leaving the mesh un-touched, and only editing the active shape key-block.
- *
  */
 
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_modifier_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_key_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_alloca.h"
-#include "BLI_math_vector.h"
+#include "BLI_math.h"
 
-#include "BKE_mesh.h"
 #include "BKE_customdata.h"
-#include "BKE_multires.h"
-
-#include "BKE_global.h" /* ugh - for looping over all objects */
-#include "BKE_main.h"
 #include "BKE_key.h"
+#include "BKE_main.h"
+#include "BKE_particle.h"
 
 #include "bmesh.h"
 #include "intern/bmesh_private.h" /* for element checking */
 
-/* XXX stupid hack: linker otherwise strips bmesh_strands_conv.c because it is not used inside bmesh */
-void *__dummy_hack__ = &BM_strands_count_psys_keys;
+int BM_strands_count_psys_keys(ParticleSystem *psys)
+{
+	ParticleData *pa;
+	int p;
+	int totkeys = 0;
+	
+	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa)
+		totkeys += pa->totkey;
+	
+	return totkeys;
+}
 
 /**
  * Currently this is only used for Python scripts
@@ -109,343 +64,203 @@ void *__dummy_hack__ = &BM_strands_count_psys_keys;
  * if we need this to be faster we could inline #BM_data_layer_add and only
  * call #update_data_blocks once at the end.
  */
-void BM_mesh_cd_validate(BMesh *bm)
+void BM_strands_cd_validate(BMesh *UNUSED(bm))
 {
-	int totlayer_mtex = CustomData_number_of_layers(&bm->pdata, CD_MTEXPOLY);
-	int totlayer_uv = CustomData_number_of_layers(&bm->ldata, CD_MLOOPUV);
-
-	if (LIKELY(totlayer_mtex == totlayer_uv)) {
-		/* pass */
-	}
-	else if (totlayer_mtex < totlayer_uv) {
-		const int uv_index_first = CustomData_get_layer_index(&bm->ldata, CD_MLOOPUV);
-		do {
-			const char *from_name =  bm->ldata.layers[uv_index_first + totlayer_mtex].name;
-			BM_data_layer_add_named(bm, &bm->pdata, CD_MTEXPOLY, from_name);
-			CustomData_set_layer_unique_name(&bm->pdata, totlayer_mtex);
-		} while (totlayer_uv != ++totlayer_mtex);
-	}
-	else if (totlayer_uv < totlayer_mtex) {
-		const int mtex_index_first = CustomData_get_layer_index(&bm->pdata, CD_MTEXPOLY);
-		do {
-			const char *from_name = bm->pdata.layers[mtex_index_first + totlayer_uv].name;
-			BM_data_layer_add_named(bm, &bm->ldata, CD_MLOOPUV, from_name);
-			CustomData_set_layer_unique_name(&bm->ldata, totlayer_uv);
-		} while (totlayer_mtex != ++totlayer_uv);
-	}
-
-	BLI_assert(totlayer_mtex == totlayer_uv);
 }
 
-void BM_mesh_cd_flag_ensure(BMesh *bm, Mesh *mesh, const char cd_flag)
+void BM_strands_cd_flag_ensure(BMesh *bm, ParticleSystem *psys, const char cd_flag)
 {
-	const char cd_flag_all = BM_mesh_cd_flag_from_bmesh(bm) | cd_flag;
-	BM_mesh_cd_flag_apply(bm, cd_flag_all);
-	if (mesh) {
-		mesh->cd_flag = cd_flag_all;
+	const char cd_flag_all = BM_strands_cd_flag_from_bmesh(bm) | cd_flag;
+	BM_strands_cd_flag_apply(bm, cd_flag_all);
+	if (psys) {
+//		psys->cd_flag = cd_flag_all;
 	}
 }
 
-void BM_mesh_cd_flag_apply(BMesh *bm, const char cd_flag)
+void BM_strands_cd_flag_apply(BMesh *bm, const char UNUSED(cd_flag))
 {
 	/* CustomData_bmesh_init_pool() must run first */
 	BLI_assert(bm->vdata.totlayer == 0 || bm->vdata.pool != NULL);
 	BLI_assert(bm->edata.totlayer == 0 || bm->edata.pool != NULL);
-	BLI_assert(bm->pdata.totlayer == 0 || bm->pdata.pool != NULL);
-
-	if (cd_flag & ME_CDFLAG_VERT_BWEIGHT) {
-		if (!CustomData_has_layer(&bm->vdata, CD_BWEIGHT)) {
-			BM_data_layer_add(bm, &bm->vdata, CD_BWEIGHT);
-		}
-	}
-	else {
-		if (CustomData_has_layer(&bm->vdata, CD_BWEIGHT)) {
-			BM_data_layer_free(bm, &bm->vdata, CD_BWEIGHT);
-		}
-	}
-
-	if (cd_flag & ME_CDFLAG_EDGE_BWEIGHT) {
-		if (!CustomData_has_layer(&bm->edata, CD_BWEIGHT)) {
-			BM_data_layer_add(bm, &bm->edata, CD_BWEIGHT);
-		}
-	}
-	else {
-		if (CustomData_has_layer(&bm->edata, CD_BWEIGHT)) {
-			BM_data_layer_free(bm, &bm->edata, CD_BWEIGHT);
-		}
-	}
-
-	if (cd_flag & ME_CDFLAG_EDGE_CREASE) {
-		if (!CustomData_has_layer(&bm->edata, CD_CREASE)) {
-			BM_data_layer_add(bm, &bm->edata, CD_CREASE);
-		}
-	}
-	else {
-		if (CustomData_has_layer(&bm->edata, CD_CREASE)) {
-			BM_data_layer_free(bm, &bm->edata, CD_CREASE);
-		}
-	}
 }
 
-char BM_mesh_cd_flag_from_bmesh(BMesh *bm)
+char BM_strands_cd_flag_from_bmesh(BMesh *UNUSED(bm))
 {
 	char cd_flag = 0;
-	if (CustomData_has_layer(&bm->vdata, CD_BWEIGHT)) {
-		cd_flag |= ME_CDFLAG_VERT_BWEIGHT;
-	}
-	if (CustomData_has_layer(&bm->edata, CD_BWEIGHT)) {
-		cd_flag |= ME_CDFLAG_EDGE_BWEIGHT;
-	}
-	if (CustomData_has_layer(&bm->edata, CD_CREASE)) {
-		cd_flag |= ME_CDFLAG_EDGE_CREASE;
-	}
 	return cd_flag;
 }
 
-/* Static function for alloc (duplicate in modifiers_bmesh.c) */
-static BMFace *bm_face_create_from_mpoly(MPoly *mp, MLoop *ml,
-                                         BMesh *bm, BMVert **vtable, BMEdge **etable)
+
+static KeyBlock *bm_set_shapekey_from_psys(BMesh *bm, ParticleSystem *psys, int totvert, int act_key_nr)
 {
-	BMVert **verts = BLI_array_alloca(verts, mp->totloop);
-	BMEdge **edges = BLI_array_alloca(edges, mp->totloop);
-	int j;
-
-	for (j = 0; j < mp->totloop; j++, ml++) {
-		verts[j] = vtable[ml->v];
-		edges[j] = etable[ml->e];
+	KeyBlock *actkey, *block;
+	int i, j;
+	
+	if (!psys->key) {
+		return NULL;
 	}
-
-	return BM_face_create(bm, verts, edges, mp->totloop, NULL, BM_CREATE_SKIP_CD);
+	
+	if (act_key_nr != 0)
+		actkey = BLI_findlink(&psys->key->block, act_key_nr - 1);
+	else
+		actkey = NULL;
+	
+	CustomData_add_layer(&bm->vdata, CD_SHAPE_KEYINDEX, CD_ASSIGN, NULL, 0);
+	
+	/* check if we need to generate unique ids for the shapekeys.
+		 * this also exists in the file reading code, but is here for
+		 * a sanity check */
+	if (!psys->key->uidgen) {
+		fprintf(stderr,
+		        "%s had to generate shape key uid's in a situation we shouldn't need to! "
+		        "(bmesh internal error)\n",
+		        __func__);
+		
+		psys->key->uidgen = 1;
+		for (block = psys->key->block.first; block; block = block->next) {
+			block->uid = psys->key->uidgen++;
+		}
+	}
+	
+	if (actkey && actkey->totelem == totvert) {
+		bm->shapenr = act_key_nr;
+	}
+	
+	for (i = 0, block = psys->key->block.first; block; block = block->next, i++) {
+		CustomData_add_layer_named(&bm->vdata, CD_SHAPEKEY,
+		                           CD_ASSIGN, NULL, 0, block->name);
+		
+		j = CustomData_get_layer_index_n(&bm->vdata, CD_SHAPEKEY, i);
+		bm->vdata.layers[j].uid = block->uid;
+	}
+	
+	return actkey;
 }
 
+/* create vertex and edge data for BMesh based on particle hair keys */
+static void bm_make_particles(BMesh *bm, ParticleSystem *psys, int totvert, float (*keyco)[3], int cd_shape_keyindex_offset)
+{
+	KeyBlock *block;
+	ParticleData *pa;
+	HairKey *hkey;
+	int p, k, j;
+	int vindex;
+	BMVert *v = NULL, *v_prev;
+	BMEdge *e;
+	
+	vindex = 0;
+	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+		
+		for (k = 0, hkey = pa->hair; k < totvert; ++k, ++hkey, ++vindex) {
+		
+			v_prev = v;
+			v = BM_vert_create(bm, keyco ? keyco[vindex] : hkey->co, NULL, BM_CREATE_SKIP_CD);
+			BM_elem_index_set(v, vindex); /* set_ok */
+			
+			/* transfer flag */
+//			v->head.hflag = BM_vert_flag_from_mflag(mvert->flag & ~SELECT);
+			
+			/* this is necessary for selection counts to work properly */
+//			if (hkey->editflag & SELECT) {
+//				BM_vert_select_set(bm, v, true);
+//			}
+			
+//			normal_short_to_float_v3(v->no, mvert->no);
+			
+			/* Copy Custom Data */
+//			CustomData_to_bmesh_block(&me->vdata, &bm->vdata, vindex, &v->head.data, true);
+			CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
+			
+			/* set shapekey data */
+			if (psys->key) {
+				/* set shape key original index */
+				if (cd_shape_keyindex_offset != -1) BM_ELEM_CD_SET_INT(v, cd_shape_keyindex_offset, vindex);
+				
+				for (block = psys->key->block.first, j = 0; block; block = block->next, j++) {
+					float *co = CustomData_bmesh_get_n(&bm->vdata, v->head.data, CD_SHAPEKEY, j);
+					
+					if (co) {
+						copy_v3_v3(co, ((float *)block->data) + 3 * vindex);
+					}
+				}
+			}
+			
+			if (k > 0) {
+				e = BM_edge_create(bm, v_prev, v, NULL, BM_CREATE_SKIP_CD);
+				BM_elem_index_set(e, vindex - p); /* set_ok; one less edge than vertices for each particle */
+				
+				/* transfer flags */
+//				e->head.hflag = BM_edge_flag_from_mflag(medge->flag & ~SELECT);
+				
+				/* this is necessary for selection counts to work properly */
+//				if (medge->flag & SELECT) {
+//					BM_edge_select_set(bm, e, true);
+//				}
+				
+				/* Copy Custom Data */
+//				CustomData_to_bmesh_block(&me->edata, &bm->edata, vindex, &e->head.data, true);
+				CustomData_bmesh_set_default(&bm->edata, &e->head.data);
+			}
+		
+		} /* hair keys */
+	
+	} /* particles */
+	
+	bm->elem_index_dirty &= ~(BM_VERT | BM_EDGE); /* added in order, clear dirty flag */
+}
 
 /**
- * \brief Mesh -> BMesh
- *
- * \warning This function doesn't calculate face normals.
+ * \brief ParticleSystem -> BMesh
  */
-void BM_mesh_bm_from_me(BMesh *bm, Mesh *me,
-                        const bool calc_face_normal, const bool set_key, int act_key_nr)
+void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys,
+                             const bool set_key, int act_key_nr)
 {
-	MVert *mvert;
-	MEdge *medge;
-	MLoop *mloop;
-	MPoly *mp;
-	KeyBlock *actkey, *block;
-	BMVert *v, **vtable = NULL;
-	BMEdge *e, **etable = NULL;
-	BMFace *f;
+	KeyBlock *actkey;
 	float (*keyco)[3] = NULL;
-	int totuv, totloops, i, j;
-
-	int cd_vert_bweight_offset;
-	int cd_edge_bweight_offset;
-	int cd_edge_crease_offset;
+	int totvert, totedge;
+	
 	int cd_shape_keyindex_offset;
-
+	
 	/* free custom data */
 	/* this isnt needed in most cases but do just incase */
 	CustomData_free(&bm->vdata, bm->totvert);
 	CustomData_free(&bm->edata, bm->totedge);
 	CustomData_free(&bm->ldata, bm->totloop);
 	CustomData_free(&bm->pdata, bm->totface);
+	
+	totvert = BM_strands_count_psys_keys(psys);
+	totedge = totvert - psys->totpart;
+	
+	if (!psys || !totvert || !totedge) {
+		if (psys) { /*no verts? still copy customdata layout*/
+//			CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_ASSIGN, 0);
+//			CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_ASSIGN, 0);
 
-	if (!me || !me->totvert) {
-		if (me) { /*no verts? still copy customdata layout*/
-			CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->ldata, &bm->ldata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->pdata, &bm->pdata, CD_MASK_BMESH, CD_ASSIGN, 0);
-
-			CustomData_bmesh_init_pool(&bm->vdata, me->totvert, BM_VERT);
-			CustomData_bmesh_init_pool(&bm->edata, me->totedge, BM_EDGE);
-			CustomData_bmesh_init_pool(&bm->ldata, me->totloop, BM_LOOP);
-			CustomData_bmesh_init_pool(&bm->pdata, me->totpoly, BM_FACE);
+			CustomData_bmesh_init_pool(&bm->vdata, totvert, BM_VERT);
+			CustomData_bmesh_init_pool(&bm->edata, totedge, BM_EDGE);
+			CustomData_bmesh_init_pool(&bm->ldata, 0, BM_LOOP);
+			CustomData_bmesh_init_pool(&bm->pdata, 0, BM_FACE);
 		}
 		return; /* sanity check */
 	}
 
-	vtable = MEM_mallocN(sizeof(void **) * me->totvert, "mesh to bmesh vtable");
+//	vtable = MEM_mallocN(sizeof(void **) * me->totvert, "mesh to bmesh vtable");
 
-	CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->ldata, &bm->ldata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->pdata, &bm->pdata, CD_MASK_BMESH, CD_CALLOC, 0);
+	actkey = bm_set_shapekey_from_psys(bm, psys, totvert, act_key_nr);
+	if (actkey)
+		keyco = actkey->data;
 
-	/* make sure uv layer names are consisten */
-	totuv = CustomData_number_of_layers(&bm->pdata, CD_MTEXPOLY);
-	for (i = 0; i < totuv; i++) {
-		int li = CustomData_get_layer_index_n(&bm->pdata, CD_MTEXPOLY, i);
-		CustomData_set_layer_name(&bm->ldata, CD_MLOOPUV, i, bm->pdata.layers[li].name);
-	}
+	CustomData_bmesh_init_pool(&bm->vdata, totvert, BM_VERT);
+	CustomData_bmesh_init_pool(&bm->edata, totedge, BM_EDGE);
 
-	if ((act_key_nr != 0) && (me->key != NULL)) {
-		actkey = BLI_findlink(&me->key->block, act_key_nr - 1);
-	}
-	else {
-		actkey = NULL;
-	}
+//	BM_mesh_cd_flag_apply(bm, psys->cd_flag);
 
-	if (me->key) {
-		CustomData_add_layer(&bm->vdata, CD_SHAPE_KEYINDEX, CD_ASSIGN, NULL, 0);
+	cd_shape_keyindex_offset = psys->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
 
-		/* check if we need to generate unique ids for the shapekeys.
-		 * this also exists in the file reading code, but is here for
-		 * a sanity check */
-		if (!me->key->uidgen) {
-			fprintf(stderr,
-			        "%s had to generate shape key uid's in a situation we shouldn't need to! "
-			        "(bmesh internal error)\n",
-			        __func__);
+	bm_make_particles(bm, psys, totvert, set_key ? keyco : NULL, cd_shape_keyindex_offset);
 
-			me->key->uidgen = 1;
-			for (block = me->key->block.first; block; block = block->next) {
-				block->uid = me->key->uidgen++;
-			}
-		}
 
-		if (actkey && actkey->totelem == me->totvert) {
-			keyco = actkey->data;
-			bm->shapenr = act_key_nr;
-		}
-
-		for (i = 0, block = me->key->block.first; block; block = block->next, i++) {
-			CustomData_add_layer_named(&bm->vdata, CD_SHAPEKEY,
-			                           CD_ASSIGN, NULL, 0, block->name);
-
-			j = CustomData_get_layer_index_n(&bm->vdata, CD_SHAPEKEY, i);
-			bm->vdata.layers[j].uid = block->uid;
-		}
-	}
-
-	CustomData_bmesh_init_pool(&bm->vdata, me->totvert, BM_VERT);
-	CustomData_bmesh_init_pool(&bm->edata, me->totedge, BM_EDGE);
-	CustomData_bmesh_init_pool(&bm->ldata, me->totloop, BM_LOOP);
-	CustomData_bmesh_init_pool(&bm->pdata, me->totpoly, BM_FACE);
-
-	BM_mesh_cd_flag_apply(bm, me->cd_flag);
-
-	cd_vert_bweight_offset = CustomData_get_offset(&bm->vdata, CD_BWEIGHT);
-	cd_edge_bweight_offset = CustomData_get_offset(&bm->edata, CD_BWEIGHT);
-	cd_edge_crease_offset  = CustomData_get_offset(&bm->edata, CD_CREASE);
-	cd_shape_keyindex_offset = me->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
-
-	for (i = 0, mvert = me->mvert; i < me->totvert; i++, mvert++) {
-		v = vtable[i] = BM_vert_create(bm, keyco && set_key ? keyco[i] : mvert->co, NULL, BM_CREATE_SKIP_CD);
-		BM_elem_index_set(v, i); /* set_ok */
-
-		/* transfer flag */
-		v->head.hflag = BM_vert_flag_from_mflag(mvert->flag & ~SELECT);
-
-		/* this is necessary for selection counts to work properly */
-		if (mvert->flag & SELECT) {
-			BM_vert_select_set(bm, v, true);
-		}
-
-		normal_short_to_float_v3(v->no, mvert->no);
-
-		/* Copy Custom Data */
-		CustomData_to_bmesh_block(&me->vdata, &bm->vdata, i, &v->head.data, true);
-
-		if (cd_vert_bweight_offset != -1) BM_ELEM_CD_SET_FLOAT(v, cd_vert_bweight_offset, (float)mvert->bweight / 255.0f);
-
-		/* set shapekey data */
-		if (me->key) {
-			/* set shape key original index */
-			if (cd_shape_keyindex_offset != -1) BM_ELEM_CD_SET_INT(v, cd_shape_keyindex_offset, i);
-
-			for (block = me->key->block.first, j = 0; block; block = block->next, j++) {
-				float *co = CustomData_bmesh_get_n(&bm->vdata, v->head.data, CD_SHAPEKEY, j);
-
-				if (co) {
-					copy_v3_v3(co, ((float *)block->data) + 3 * i);
-				}
-			}
-		}
-	}
-
-	bm->elem_index_dirty &= ~BM_VERT; /* added in order, clear dirty flag */
-
-	if (!me->totedge) {
-		MEM_freeN(vtable);
-		return;
-	}
-
-	etable = MEM_mallocN(sizeof(void **) * me->totedge, "mesh to bmesh etable");
-
-	medge = me->medge;
-	for (i = 0; i < me->totedge; i++, medge++) {
-		e = etable[i] = BM_edge_create(bm, vtable[medge->v1], vtable[medge->v2], NULL, BM_CREATE_SKIP_CD);
-		BM_elem_index_set(e, i); /* set_ok */
-
-		/* transfer flags */
-		e->head.hflag = BM_edge_flag_from_mflag(medge->flag & ~SELECT);
-
-		/* this is necessary for selection counts to work properly */
-		if (medge->flag & SELECT) {
-			BM_edge_select_set(bm, e, true);
-		}
-
-		/* Copy Custom Data */
-		CustomData_to_bmesh_block(&me->edata, &bm->edata, i, &e->head.data, true);
-
-		if (cd_edge_bweight_offset != -1) BM_ELEM_CD_SET_FLOAT(e, cd_edge_bweight_offset, (float)medge->bweight / 255.0f);
-		if (cd_edge_crease_offset  != -1) BM_ELEM_CD_SET_FLOAT(e, cd_edge_crease_offset,  (float)medge->crease  / 255.0f);
-
-	}
-
-	bm->elem_index_dirty &= ~BM_EDGE; /* added in order, clear dirty flag */
-
-	mloop = me->mloop;
-	mp = me->mpoly;
-	for (i = 0, totloops = 0; i < me->totpoly; i++, mp++) {
-		BMLoop *l_iter;
-		BMLoop *l_first;
-
-		f = bm_face_create_from_mpoly(mp, mloop + mp->loopstart,
-		                              bm, vtable, etable);
-
-		if (UNLIKELY(f == NULL)) {
-			printf("%s: Warning! Bad face in mesh"
-			       " \"%s\" at index %d!, skipping\n",
-			       __func__, me->id.name + 2, i);
-			continue;
-		}
-
-		/* don't use 'i' since we may have skipped the face */
-		BM_elem_index_set(f, bm->totface - 1); /* set_ok */
-
-		/* transfer flag */
-		f->head.hflag = BM_face_flag_from_mflag(mp->flag & ~ME_FACE_SEL);
-
-		/* this is necessary for selection counts to work properly */
-		if (mp->flag & ME_FACE_SEL) {
-			BM_face_select_set(bm, f, true);
-		}
-
-		f->mat_nr = mp->mat_nr;
-		if (i == me->act_face) bm->act_face = f;
-
-		j = mp->loopstart;
-		l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-		do {
-			/* don't use 'j' since we may have skipped some faces, hence some loops. */
-			BM_elem_index_set(l_iter, totloops++); /* set_ok */
-
-			/* Save index of correspsonding MLoop */
-			CustomData_to_bmesh_block(&me->ldata, &bm->ldata, j++, &l_iter->head.data, true);
-		} while ((l_iter = l_iter->next) != l_first);
-
-		/* Copy Custom Data */
-		CustomData_to_bmesh_block(&me->pdata, &bm->pdata, i, &f->head.data, true);
-
-		if (calc_face_normal) {
-			BM_face_normal_update(f);
-		}
-	}
-
-	bm->elem_index_dirty &= ~(BM_FACE | BM_LOOP); /* added in order, clear dirty flag */
-
+#if 0 /* TODO */
 	if (me->mselect && me->totselect != 0) {
 
 		BMVert **vert_array = MEM_mallocN(sizeof(BMVert *) * bm->totvert, "VSelConv");
@@ -488,12 +303,10 @@ void BM_mesh_bm_from_me(BMesh *bm, Mesh *me,
 			me->mselect = NULL;
 		}
 	}
-
-	MEM_freeN(vtable);
-	MEM_freeN(etable);
+#endif
 }
 
-
+#if 0
 /**
  * \brief BMesh -> Mesh
  */
@@ -568,9 +381,38 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 		med->flag |= ME_EDGEDRAW;
 	}
 }
+#endif
 
-void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, bool do_tessface)
+static int bm_strands_count(BMesh *bm)
 {
+	BMVert *v;
+	BMIter iter;
+	
+	int count = 0;
+	BM_ITER_STRANDS(v, &iter, bm, BM_STRANDS_OF_MESH) {
+		++count;
+	}
+	
+	return count;
+}
+
+void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys)
+{
+	ParticleData *particles;
+	int ototpart, ototkey, ntotpart;
+	
+	ototpart = psys->totpart;
+	ototkey = BM_strands_count_psys_keys(psys);
+	
+	ntotpart = bm_strands_count(bm);
+	printf("has %d strands\n", ntotpart);
+	
+	/* new particles block */
+//	if (bm->totvert == 0) particles = NULL;
+//	else particles = MEM_callocN(bm->totvert * sizeof(MVert), "BM_strands_bm_to_psys particles");
+
+
+#if 0
 	MLoop *mloop;
 	MPoly *mpoly;
 	MVert *mvert, *oldverts;
@@ -954,4 +796,5 @@ void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, bool do_tessface)
 
 	/* topology could be changed, ensure mdisps are ok */
 	multires_topology_changed(me);
+#endif
 }

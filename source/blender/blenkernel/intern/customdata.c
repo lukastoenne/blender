@@ -1219,11 +1219,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
 	/* 41: CD_MASK_FACEMAP */
 	{sizeof(int), "", 1, NULL, NULL, NULL, NULL, NULL, layerDefault_fmap, NULL},
-	/* 42: CD_HAIR_CURVE */
-	{sizeof(HairEditCurve), "HairEditCurve", 1, NULL, NULL, NULL, NULL, NULL, NULL},
-	/* 43: CD_HAIR_VERT */
-	{sizeof(HairEditVertex), "HairEditVertex", 1, NULL, NULL, NULL, NULL, NULL, NULL},
-	/* 44: CD_MESH_SAMPLE */
+	/* 42: CD_MESH_SAMPLE */
 	{sizeof(MSurfaceSample), "MSurfaceSample", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
