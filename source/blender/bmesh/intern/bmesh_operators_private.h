@@ -54,6 +54,7 @@ void bmo_create_icosphere_exec(BMesh *bm, BMOperator *op);
 void bmo_create_monkey_exec(BMesh *bm, BMOperator *op);
 void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op);
 void bmo_create_vert_exec(BMesh *bm, BMOperator *op);
+//void bmo_create_strand_exec(BMesh *bm, BMOperator *op);
 void bmo_delete_exec(BMesh *bm, BMOperator *op);
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op);
 void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op);

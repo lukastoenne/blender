@@ -548,7 +548,7 @@ void psys_free(Object *ob, ParticleSystem *psys)
 		if (psys->edit && psys->free_edit)
 			psys->free_edit(psys->edit);
 		if (psys->hairedit)
-			BKE_edithair_free(psys->hairedit);
+			BKE_editstrands_free(psys->hairedit);
 
 		if (psys->child) {
 			MEM_freeN(psys->child);

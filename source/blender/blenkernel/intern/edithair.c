@@ -39,6 +39,41 @@
 #include "BKE_customdata.h"
 #include "BKE_edithair.h"
 
+BMEditStrands *BKE_editstrands_create(BMesh *bm)
+{
+	BMEditStrands *es = MEM_callocN(sizeof(BMEditStrands), __func__);
+	
+	es->bm = bm;
+	
+	return es;
+}
+
+BMEditStrands *BKE_editstrands_copy(BMEditStrands *em)
+{
+	BMEditStrands *es_copy = MEM_callocN(sizeof(BMEditStrands), __func__);
+	*es_copy = *em;
+	
+	es_copy->bm = BM_mesh_copy(em->bm);
+	
+	return es_copy;
+}
+
+void BKE_editstrands_update_linked_customdata(BMEditStrands *em)
+{
+	BMesh *bm = em->bm;
+	
+	/* this is done for BMEditMesh, but should never exist for strands */
+	BLI_assert(!CustomData_has_layer(&bm->pdata, CD_MTEXPOLY));
+}
+
+/*does not free the BMEditStrands struct itself*/
+void BKE_editstrands_free(BMEditStrands *em)
+{
+	if (em->bm)
+		BM_mesh_free(em->bm);
+}
+
+#if 0
 static const int chunksize_default_totcurve = 512;
 static const int allocsize_default_totcurve = 512;
 
@@ -255,3 +290,4 @@ void  *hairedit_iter__vert_of_curve_step(struct HairEditIter__vert_of_curve *ite
 }
 
 /* =================== */
+#endif

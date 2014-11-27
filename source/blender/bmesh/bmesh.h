@@ -256,6 +256,8 @@ extern "C" {
 #include "intern/bmesh_mesh_validate.h"
 #include "intern/bmesh_mods.h"
 #include "intern/bmesh_operators.h"
+#include "intern/bmesh_strands.h"
+#include "intern/bmesh_strands_conv.h"
 #include "intern/bmesh_polygon.h"
 #include "intern/bmesh_queries.h"
 #include "intern/bmesh_walkers.h"
