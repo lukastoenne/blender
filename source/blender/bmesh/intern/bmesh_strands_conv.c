@@ -396,241 +396,108 @@ static int bm_strands_count(BMesh *bm)
 	return count;
 }
 
+static int bm_keys_count(BMVert *root)
+{
+	BMVert *v;
+	BMIter iter;
+	
+	int count = 0;
+	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
+		++count;
+	}
+	
+	return count;
+}
+
+static void make_particle_hair(BMesh *UNUSED(bm), BMVert *root, ParticleSystem *psys, ParticleData *pa)
+{
+	int totkey = bm_keys_count(root);
+	HairKey *hair;
+	
+	BMVert *v;
+	BMIter iter;
+	HairKey *hkey;
+	int k;
+	
+	pa->alive = PARS_ALIVE;
+	pa->flag = 0;
+	
+	pa->time = 0.0f;
+	pa->lifetime = 100.0f;
+	pa->dietime = 100.0f;
+	
+	pa->fuv[0] = 1.0f;
+	pa->fuv[1] = 0.0f;
+	pa->fuv[2] = 0.0f;
+	pa->fuv[3] = 0.0f;
+	
+	pa->size = psys->part->size;
+	
+	// TODO define other particle stuff ...
+	
+	hair = MEM_callocN(totkey * sizeof(HairKey), "hair keys");
+	
+	hkey = hair;
+	k = 0;
+	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
+		copy_v3_v3(hkey->co, v->co);
+		hkey->time = totkey > 0 ? (float)k / (float)(totkey - 1) : 0.0f;
+		hkey->weight = 1.0f;
+		// TODO define other key stuff ...
+		
+		++hkey;
+		++k;
+		
+		BM_CHECK_ELEMENT(v);
+	}
+	
+	if (pa->hair)
+		MEM_freeN(pa->hair);
+	
+	pa->hair = hair;
+	pa->totkey = totkey;
+}
+
 void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys)
 {
-	ParticleData *particles;
+	ParticleData *particles, *oldparticles;
 	int ototpart, ototkey, ntotpart;
+	
+	BMVert *root;
+	BMIter iter;
+	ParticleData *pa;
+	int p;
 	
 	ototpart = psys->totpart;
 	ototkey = BM_strands_count_psys_keys(psys);
 	
 	ntotpart = bm_strands_count(bm);
-	printf("has %d strands\n", ntotpart);
 	
 	/* new particles block */
-//	if (bm->totvert == 0) particles = NULL;
-//	else particles = MEM_callocN(bm->totvert * sizeof(MVert), "BM_strands_bm_to_psys particles");
-
-
-#if 0
-	MLoop *mloop;
-	MPoly *mpoly;
-	MVert *mvert, *oldverts;
-	MEdge *med, *medge;
-	BMVert *v, *eve;
-	BMEdge *e;
-	BMFace *f;
-	BMIter iter;
-	int i, j, ototvert;
-
-	const int cd_vert_bweight_offset = CustomData_get_offset(&bm->vdata, CD_BWEIGHT);
-	const int cd_edge_bweight_offset = CustomData_get_offset(&bm->edata, CD_BWEIGHT);
-	const int cd_edge_crease_offset  = CustomData_get_offset(&bm->edata, CD_CREASE);
-
-	ototvert = me->totvert;
-
-	/* new vertex block */
-	if (bm->totvert == 0) mvert = NULL;
-	else mvert = MEM_callocN(bm->totvert * sizeof(MVert), "loadeditbMesh vert");
-
-	/* new edge block */
-	if (bm->totedge == 0) medge = NULL;
-	else medge = MEM_callocN(bm->totedge * sizeof(MEdge), "loadeditbMesh edge");
-
-	/* new ngon face block */
-	if (bm->totface == 0) mpoly = NULL;
-	else mpoly = MEM_callocN(bm->totface * sizeof(MPoly), "loadeditbMesh poly");
-
-	/* new loop block */
-	if (bm->totloop == 0) mloop = NULL;
-	else mloop = MEM_callocN(bm->totloop * sizeof(MLoop), "loadeditbMesh loop");
-
-	/* lets save the old verts just in case we are actually working on
+	if (bm->totvert == 0) particles = NULL;
+	else particles = MEM_callocN(ntotpart * sizeof(ParticleData), "particles");
+	
+	/* lets save the old particles just in case we are actually working on
 	 * a key ... we now do processing of the keys at the end */
-	oldverts = me->mvert;
-
-	/* don't free this yet */
-	if (oldverts) {
-		CustomData_set_layer(&me->vdata, CD_MVERT, NULL);
-	}
-
-	/* free custom data */
-	CustomData_free(&me->vdata, me->totvert);
-	CustomData_free(&me->edata, me->totedge);
-	CustomData_free(&me->fdata, me->totface);
-	CustomData_free(&me->ldata, me->totloop);
-	CustomData_free(&me->pdata, me->totpoly);
-
-	/* add new custom data */
-	me->totvert = bm->totvert;
-	me->totedge = bm->totedge;
-	me->totloop = bm->totloop;
-	me->totpoly = bm->totface;
-	/* will be overwritten with a valid value if 'dotess' is set, otherwise we
-	 * end up with 'me->totface' and me->mface == NULL which can crash [#28625]
-	 */
-	me->totface = 0;
-	me->act_face = -1;
-
-	CustomData_copy(&bm->vdata, &me->vdata, CD_MASK_MESH, CD_CALLOC, me->totvert);
-	CustomData_copy(&bm->edata, &me->edata, CD_MASK_MESH, CD_CALLOC, me->totedge);
-	CustomData_copy(&bm->ldata, &me->ldata, CD_MASK_MESH, CD_CALLOC, me->totloop);
-	CustomData_copy(&bm->pdata, &me->pdata, CD_MASK_MESH, CD_CALLOC, me->totpoly);
-
-	CustomData_add_layer(&me->vdata, CD_MVERT, CD_ASSIGN, mvert, me->totvert);
-	CustomData_add_layer(&me->edata, CD_MEDGE, CD_ASSIGN, medge, me->totedge);
-	CustomData_add_layer(&me->ldata, CD_MLOOP, CD_ASSIGN, mloop, me->totloop);
-	CustomData_add_layer(&me->pdata, CD_MPOLY, CD_ASSIGN, mpoly, me->totpoly);
-
-	me->cd_flag = BM_mesh_cd_flag_from_bmesh(bm);
-
-	/* this is called again, 'dotess' arg is used there */
-	BKE_mesh_update_customdata_pointers(me, 0);
-
-	i = 0;
-	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-		copy_v3_v3(mvert->co, v->co);
-		normal_float_to_short_v3(mvert->no, v->no);
-
-		mvert->flag = BM_vert_flag_to_mflag(v);
-
-		BM_elem_index_set(v, i); /* set_inline */
-
-		/* copy over customdat */
-		CustomData_from_bmesh_block(&bm->vdata, &me->vdata, v->head.data, i);
-
-		if (cd_vert_bweight_offset != -1) mvert->bweight = BM_ELEM_CD_GET_FLOAT_AS_UCHAR(v, cd_vert_bweight_offset);
-
-		i++;
-		mvert++;
-
-		BM_CHECK_ELEMENT(v);
+	oldparticles = psys->particles;
+	
+	psys->totpart = ntotpart;
+	
+//	psys->cd_flag = BM_strands_cd_flag_from_bmesh(bm);
+	
+	pa = particles;
+	p = 0;
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		
+		make_particle_hair(bm, root, psys, pa);
+		
+		++pa;
+		++p;
 	}
 	bm->elem_index_dirty &= ~BM_VERT;
 
-	med = medge;
-	i = 0;
-	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-		med->v1 = BM_elem_index_get(e->v1);
-		med->v2 = BM_elem_index_get(e->v2);
 
-		med->flag = BM_edge_flag_to_mflag(e);
-
-		BM_elem_index_set(e, i); /* set_inline */
-
-		/* copy over customdata */
-		CustomData_from_bmesh_block(&bm->edata, &me->edata, e->head.data, i);
-
-		bmesh_quick_edgedraw_flag(med, e);
-
-		if (cd_edge_crease_offset  != -1) med->crease  = BM_ELEM_CD_GET_FLOAT_AS_UCHAR(e, cd_edge_crease_offset);
-		if (cd_edge_bweight_offset != -1) med->bweight = BM_ELEM_CD_GET_FLOAT_AS_UCHAR(e, cd_edge_bweight_offset);
-
-		i++;
-		med++;
-		BM_CHECK_ELEMENT(e);
-	}
-	bm->elem_index_dirty &= ~BM_EDGE;
-
-	i = 0;
-	j = 0;
-	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-		BMLoop *l_iter, *l_first;
-		mpoly->loopstart = j;
-		mpoly->totloop = f->len;
-		mpoly->mat_nr = f->mat_nr;
-		mpoly->flag = BM_face_flag_to_mflag(f);
-
-		l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-		do {
-			mloop->e = BM_elem_index_get(l_iter->e);
-			mloop->v = BM_elem_index_get(l_iter->v);
-
-			/* copy over customdata */
-			CustomData_from_bmesh_block(&bm->ldata, &me->ldata, l_iter->head.data, j);
-
-			j++;
-			mloop++;
-			BM_CHECK_ELEMENT(l_iter);
-			BM_CHECK_ELEMENT(l_iter->e);
-			BM_CHECK_ELEMENT(l_iter->v);
-		} while ((l_iter = l_iter->next) != l_first);
-
-		if (f == bm->act_face) me->act_face = i;
-
-		/* copy over customdata */
-		CustomData_from_bmesh_block(&bm->pdata, &me->pdata, f->head.data, i);
-
-		i++;
-		mpoly++;
-		BM_CHECK_ELEMENT(f);
-	}
-
-	/* patch hook indices and vertex parents */
-	if (ototvert > 0) {
-		Object *ob;
-		ModifierData *md;
-		BMVert **vertMap = NULL;
-		int i, j;
-
-		for (ob = G.main->object.first; ob; ob = ob->id.next) {
-			if ((ob->parent) && (ob->parent->data == me) && ELEM(ob->partype, PARVERT1, PARVERT3)) {
-
-				if (vertMap == NULL) {
-					vertMap = bm_to_mesh_vertex_map(bm, ototvert);
-				}
-
-				if (ob->par1 < ototvert) {
-					eve = vertMap[ob->par1];
-					if (eve) ob->par1 = BM_elem_index_get(eve);
-				}
-				if (ob->par2 < ototvert) {
-					eve = vertMap[ob->par2];
-					if (eve) ob->par2 = BM_elem_index_get(eve);
-				}
-				if (ob->par3 < ototvert) {
-					eve = vertMap[ob->par3];
-					if (eve) ob->par3 = BM_elem_index_get(eve);
-				}
-
-			}
-			if (ob->data == me) {
-				for (md = ob->modifiers.first; md; md = md->next) {
-					if (md->type == eModifierType_Hook) {
-						HookModifierData *hmd = (HookModifierData *) md;
-
-						if (vertMap == NULL) {
-							vertMap = bm_to_mesh_vertex_map(bm, ototvert);
-						}
-
-						for (i = j = 0; i < hmd->totindex; i++) {
-							if (hmd->indexar[i] < ototvert) {
-								eve = vertMap[hmd->indexar[i]];
-
-								if (eve) {
-									hmd->indexar[j++] = BM_elem_index_get(eve);
-								}
-							}
-							else {
-								j++;
-							}
-						}
-
-						hmd->totindex = j;
-					}
-				}
-			}
-		}
-
-		if (vertMap) MEM_freeN(vertMap);
-	}
-
-	if (do_tessface) {
-		BKE_mesh_tessface_calc(me);
-	}
-
-	BKE_mesh_update_customdata_pointers(me, do_tessface);
-
+#if 0 // TODO
 	{
 		BMEditSelection *selected;
 		me->totselect = BLI_listbase_count(&(bm->selected));
@@ -656,7 +523,9 @@ void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys)
 			me->mselect[i].index = BM_elem_index_get(selected->ele);
 		}
 	}
+#endif
 
+#if 0 // TODO
 	/* see comment below, this logic is in twice */
 
 	if (me->key) {
@@ -791,10 +660,16 @@ void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys)
 
 		if (ofs) MEM_freeN(ofs);
 	}
-
-	if (oldverts) MEM_freeN(oldverts);
-
-	/* topology could be changed, ensure mdisps are ok */
-	multires_topology_changed(me);
+#else
+	psys->particles = particles;
 #endif
+
+	if (oldparticles) {
+		ParticleData *pa;
+		int p;
+		for (p = 0, pa = oldparticles; p < ototpart; ++p, ++pa)
+			if (pa->hair)
+				MEM_freeN(pa->hair);
+		MEM_freeN(oldparticles);
+	}
 }
