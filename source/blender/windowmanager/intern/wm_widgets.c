@@ -620,9 +620,12 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 			/* widget does nothing, pass */
 			wmap->active_widget = NULL;
 		}
-		else if (widget->opname) {
-			wmOperatorType *ot = WM_operatortype_find(widget->opname, 0);
-
+		else if (widget->opname || widget->ptr) {
+			wmOperatorType *ot;
+			const char *opname = (widget->opname) ? widget->opname : "WM_OT_widget_tweak";
+			
+			ot = WM_operatortype_find(opname, 0);
+			
 			if (ot) {
 				widget->flag |= WM_WIDGET_ACTIVE;
 				/* first activate the widget itself */
@@ -630,15 +633,15 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
 				}
 
-				WM_operator_properties_alloc(&widget->ptr, &widget->properties, widget->opname);
+				WM_operator_properties_alloc(&widget->opptr, &widget->properties, opname);
 
 				/* time to initialize those properties now */
 				if (widget->initialize_op) {
-					widget->initialize_op(C, event, widget, widget->ptr);
+					widget->initialize_op(C, event, widget, widget->opptr);
 				}
 
 				CTX_wm_widget_set(C, widget);
-				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, widget->ptr);
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, widget->opptr);
 				wmap->active_widget = widget;
 				return;
 			}
@@ -647,16 +650,6 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				wmap->active_widget = NULL;
 				return;
 			}
-		}
-		/* no operator, but we have a pointer */
-		else if (widget->ptr) {
-			/* first activate the widget itself */
-			if (widget->activate_state) {
-				widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
-			}
-
-			CTX_wm_widget_set(C, widget);
-			wmap->active_widget = widget;
 		}
 		else {
 			/* widget does nothing, pass */
@@ -675,16 +668,11 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				widget->activate_state(C, event, widget, WIDGET_DEACTIVATE);
 			}
 
-			if (widget->opname && widget->ptr) {
-				WM_operator_properties_free(widget->ptr);
-				MEM_freeN(widget->ptr);
+			if (widget->opptr) {
+				WM_operator_properties_free(widget->opptr);
+				MEM_freeN(widget->opptr);
 				widget->properties = NULL;
-				widget->ptr = NULL;
-			}
-			else if (widget->prop) {
-				char undo_str[256];
-				BLI_snprintf(undo_str, 256, "widget_undo: %s", RNA_property_ui_name(widget->prop));
-				ED_undo_push(C, undo_str);
+				widget->opptr = NULL;
 			}
 		}
 

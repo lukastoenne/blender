@@ -340,10 +340,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	}
 
 	/* set the property for the operator and call its modal function */
-	if (op && widget->propname) {
-
-	}
-	else if (widget->prop) {
+	if (widget->prop) {
 		float value;
 
 		value = data->orig_offset + facdir * len_v3(offset);
@@ -366,6 +363,9 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		}
 		else
 			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
+	}
+	else if (op && widget->propname) {
+
 	}
 	else {
 		arrow->offset = facdir * len_v3(offset);

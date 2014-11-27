@@ -101,6 +101,7 @@ typedef struct wmWidget {
 
 	/* operator properties if widget spawns and controls an operator, or owner pointer if widget spawns and controls a property */
 	struct PointerRNA *ptr;
+	struct PointerRNA *opptr;
 	struct IDProperty *properties;	/* operator properties, assigned to ptr->data and can be written to a file */
 	struct PropertyRNA *prop;
 } wmWidget;

@@ -4498,6 +4498,36 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "secondary_tex", false, "Secondary Texture", "Tweak brush secondary/mask texture");
 }
 
+/* ************************** widget property tweak *************** */
+
+static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	WM_event_add_modal_handler(C, op);
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int widget_tweak_modal(bContext *UNUSED(C), wmOperator *UNUSED(op), const wmEvent *event)
+{
+	if (event->type == EVT_WIDGET_RELEASED)
+		return OPERATOR_FINISHED;
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static void WM_OT_widget_tweak(wmOperatorType *ot)
+{
+	ot->name = "Radial Control";
+	ot->idname = "WM_OT_widget_tweak";
+	ot->description = "Tweak property attached to a widget";
+
+	ot->invoke = widget_tweak_invoke;
+	ot->modal = widget_tweak_modal;
+
+	ot->flag = OPTYPE_REGISTER | OPTYPE_BLOCKING | OPTYPE_UNDO;
+}
+
+
+
 /* ************************** timer for testing ***************** */
 
 /* uses no type defines, fully local testing function anyway... ;) */
@@ -4737,6 +4767,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_call_menu);
 	WM_operatortype_append(WM_OT_call_menu_pie);
 	WM_operatortype_append(WM_OT_radial_control);
+	WM_operatortype_append(WM_OT_widget_tweak);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif

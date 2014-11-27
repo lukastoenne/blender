@@ -1590,7 +1590,6 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 						break;
 
 					case LEFTMOUSE:
-					{
 						if (event->val == KM_RELEASE) {
 							ARegion *ar = CTX_wm_region(C);
 							if (widget->prop)
@@ -1600,7 +1599,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 							handler->op_widget = NULL;
 						}
 						break;
-					}
+
 					default:
 						if (!widget->prop) {
 							retval = ot->modal(C, op, event);
