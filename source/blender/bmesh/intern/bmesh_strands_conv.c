@@ -138,7 +138,7 @@ static KeyBlock *bm_set_shapekey_from_psys(BMesh *bm, ParticleSystem *psys, int 
 }
 
 /* create vertex and edge data for BMesh based on particle hair keys */
-static void bm_make_particles(BMesh *bm, ParticleSystem *psys, int totvert, float (*keyco)[3], int cd_shape_keyindex_offset)
+static void bm_make_particles(BMesh *bm, ParticleSystem *psys, float (*keyco)[3], int cd_shape_keyindex_offset)
 {
 	KeyBlock *block;
 	ParticleData *pa;
@@ -151,7 +151,7 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, int totvert, floa
 	vindex = 0;
 	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
 		
-		for (k = 0, hkey = pa->hair; k < totvert; ++k, ++hkey, ++vindex) {
+		for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey, ++vindex) {
 		
 			v_prev = v;
 			v = BM_vert_create(bm, keyco ? keyco[vindex] : hkey->co, NULL, BM_CREATE_SKIP_CD);
@@ -257,7 +257,7 @@ void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys,
 
 	cd_shape_keyindex_offset = psys->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
 
-	bm_make_particles(bm, psys, totvert, set_key ? keyco : NULL, cd_shape_keyindex_offset);
+	bm_make_particles(bm, psys, set_key ? keyco : NULL, cd_shape_keyindex_offset);
 
 
 #if 0 /* TODO */
