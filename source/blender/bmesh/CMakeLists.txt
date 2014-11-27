@@ -113,6 +113,10 @@ set(SRC
 	intern/bmesh_queries.c
 	intern/bmesh_queries.h
 	intern/bmesh_queries_inline.h
+	intern/bmesh_strands.c
+	intern/bmesh_strands.h
+	intern/bmesh_strands_conv.c
+	intern/bmesh_strands_conv.h
 	intern/bmesh_structure.c
 	intern/bmesh_structure.h
 	intern/bmesh_structure_inline.h

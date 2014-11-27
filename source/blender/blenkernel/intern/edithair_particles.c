@@ -39,6 +39,30 @@
 #include "BKE_edithair.h"
 #include "BKE_particle.h"
 
+#include "intern/bmesh_strands_conv.h"
+
+BMesh *BKE_particles_to_bmesh(Object *UNUSED(ob), ParticleSystem *psys)
+{
+	BMesh *bm;
+	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_PSYS(psys);
+
+	bm = BM_mesh_create(&allocsize);
+
+	BM_strands_bm_from_psys(bm, psys, true, psys->shapenr);
+
+	return bm;
+}
+
+void BKE_particles_from_bmesh(Object *UNUSED(ob), ParticleSystem *psys)
+{
+	BMesh *bm = psys->hairedit ? psys->hairedit->bm : NULL;
+	
+	if (bm)
+		BM_strands_bm_to_psys(bm, psys);
+}
+
+
+#if 0
 /* ==== convert particle data to hair edit ==== */
 
 static void copy_edit_curve(HairEditData *hedit, HairEditCurve *curve, ParticleData *pa)
@@ -169,3 +193,4 @@ void BKE_edithair_to_particles(HairEditData *hedit, Object *UNUSED(ob), Particle
 	free_particle_data(psys);
 	create_particle_data(psys, hedit);
 }
+#endif
