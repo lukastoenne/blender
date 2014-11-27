@@ -63,10 +63,9 @@ typedef struct CustomDataExternal {
  * layers, each with a data type (e.g. MTFace, MDeformVert, etc.). */
 typedef struct CustomData {
 	CustomDataLayer *layers;      /* CustomDataLayers, ordered by type */
-	int typemap[44];              /* runtime only! - maps types to indices of first layer of that type,
+	int typemap[45];              /* runtime only! - maps types to indices of first layer of that type,
 	                               * MUST be >= CD_NUMTYPES, but we cant use a define here.
 	                               * Correct size is ensured in CustomData_update_typemap assert() */
-	int pad_i1;
 	int totlayer, maxlayer;       /* number of layers, size of layers array */
 	int totsize;                  /* in editmode, total size of all data layers */
 	struct BLI_mempool *pool;     /* (BMesh Only): Memory pool for allocation of blocks */
@@ -125,7 +124,9 @@ typedef enum CustomDataType {
 	CD_HAIR_CURVE       = 42,
 	CD_HAIR_VERT        = 43,
 
-	CD_NUMTYPES         = 44
+	CD_MESH_SAMPLE      = 44,
+
+	CD_NUMTYPES         = 45
 
 /* Bits for CustomDataMask */
 #define CD_MASK_MVERT		(1 << CD_MVERT)
@@ -175,6 +176,8 @@ typedef enum CustomDataType {
 
 #define CD_MASK_HAIR_CURVE      (1LL << CD_HAIR_CURVE)
 #define CD_MASK_HAIR_VERT       (1LL << CD_HAIR_VERT)
+
+#define CD_MASK_MESH_SAMPLE     (1LL << CD_MESH_SAMPLE)
 
 /* CustomData.flag */
 enum {

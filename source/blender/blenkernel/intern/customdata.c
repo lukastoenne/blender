@@ -1317,6 +1317,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(HairEditCurve), "HairEditCurve", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 43: CD_HAIR_VERT */
 	{sizeof(HairEditVertex), "HairEditVertex", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 44: CD_MESH_SAMPLE */
+	{sizeof(MSurfaceSample), "MSurfaceSample", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
