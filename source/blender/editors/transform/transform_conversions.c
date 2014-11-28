@@ -218,6 +218,9 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 	float _proj_vec[3];
 	const float *proj_vec = NULL;
 
+	/* support for face-islands */
+	const bool use_island = transdata_check_local_islands(t, t->around);
+
 	if (t->flag & T_PROP_PROJECTED) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
 			RegionView3D *rv3d = t->ar->regiondata;
@@ -239,7 +242,12 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
 			for (i = 0, td = t->data; i < t->total; i++, td++) {
 				if (td->flag & TD_SELECTED) {
-					sub_v3_v3v3(vec, tob->center, td->center);
+					if (use_island) {
+						sub_v3_v3v3(vec, tob->iloc, td->iloc);
+					}
+					else {
+						sub_v3_v3v3(vec, tob->center, td->center);
+					}
 					mul_m3_v3(tob->mtx, vec);
 
 					if (proj_vec) {
@@ -251,6 +259,10 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 					dist_sq = len_squared_v3(vec);
 					if ((tob->rdist == -1.0f) || (dist_sq < SQUARE(tob->rdist))) {
 						tob->rdist = sqrtf(dist_sq);
+						if (use_island) {
+							copy_v3_v3(tob->center, td->center);
+							copy_m3_m3(tob->axismtx, td->axismtx);
+						}
 					}
 				}
 				else {
@@ -3769,7 +3781,6 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	
 	BezTriple *bezt;
 	int count = 0, i;
-	float cfra;
 	float mtx[3][3], smtx[3][3];
 	const bool is_translation_mode = graph_edit_is_translation_mode(t);
 	const bool use_handle = !(sipo->flag & SIPO_NOHANDLES);
@@ -3804,7 +3815,12 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
-		
+		float cfra;
+
+		/* F-Curve may not have any keyframes */
+		if (fcu->bezt == NULL)
+			continue;
+
 		/* convert current-frame to action-time (slightly less accurate, especially under
 		 * higher scaling ratios, but is faster than converting all points)
 		 */
@@ -3812,11 +3828,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 			cfra = BKE_nla_tweakedit_remap(adt, (float)CFRA, NLATIME_CONVERT_UNMAP);
 		else
 			cfra = (float)CFRA;
-		
-		/* F-Curve may not have any keyframes */
-		if (fcu->bezt == NULL)
-			continue;
-		
+
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse */
 		for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 			if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
@@ -3824,33 +3836,19 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				const bool sel1 = use_handle ? bezt->f1 & SELECT : sel2;
 				const bool sel3 = use_handle ? bezt->f3 & SELECT : sel2;
 
-				if (is_translation_mode) {
-					/* for 'normal' pivots - just include anything that is selected.
-					 * this works a bit differently in translation modes */
-					if (sel2) {
+				if (!is_translation_mode || !(sel2)) {
+					if (sel1) {
 						count++;
 					}
-					else {
-						if (sel1) count++;
-						if (sel3) count++;
+
+					if (sel3) {
+						count++;
 					}
 				}
-				else if (use_local_center) {
-					/* for local-pivot we only need to count the number of selected handles only,
-					 * so that centerpoints don't get moved wrong
-					 */
-					if (bezt->ipo == BEZT_IPO_BEZ) {
-						if (sel1) count++;
-						if (sel3) count++;
-					}
-					/* else if (sel2) count++; // TODO: could this cause problems? */
-					/* - yes this causes problems, because no td is created for the center point */
-				}
-				else {
-					/* for 'normal' pivots - just include anything that is selected */
-					if (sel1) count++;
-					if (sel2) count++;
-					if (sel3) count++;
+
+				/* only include main vert if selected */
+				if (sel2 && !use_local_center) {
+					count++;
 				}
 			}
 		}
@@ -3899,8 +3897,13 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
-		bool intvals = (fcu->flag & FCURVE_INT_VALUES);
+		bool intvals = (fcu->flag & FCURVE_INT_VALUES) != 0;
 		float unit_scale;
+		float cfra;
+
+		/* F-Curve may not have any keyframes */
+		if (fcu->bezt == NULL)
+			continue;
 
 		/* convert current-frame to action-time (slightly less accurate, especially under
 		 * higher scaling ratios, but is faster than converting all points)
@@ -3909,11 +3912,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 			cfra = BKE_nla_tweakedit_remap(adt, (float)CFRA, NLATIME_CONVERT_UNMAP);
 		else
 			cfra = (float)CFRA;
-			
-		/* F-Curve may not have any keyframes */
-		if (fcu->bezt == NULL)
-			continue;
-		
+
 		unit_scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, ale->key_data, anim_map_flag);
 
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse (if applicable) */

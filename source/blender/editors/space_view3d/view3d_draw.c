@@ -2812,10 +2812,34 @@ void ED_view3d_draw_offscreen_init(Scene *scene, View3D *v3d)
 static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool force)
 {
 	/* clear background */
-	if (scene->world && ((v3d->flag3 & V3D_SHOW_WORLD) || force)) {  /* clear with solid color */
+	if (scene->world && ((v3d->flag3 & V3D_SHOW_WORLD) || force)) {
 		float alpha = (force) ? 1.0f : 0.0;
+		bool glsl = GPU_glsl_support() && BKE_scene_use_new_shading_nodes(scene) && scene->world->nodetree && scene->world->use_nodes;
 		
-		if (scene->world->skytype & WO_SKYBLEND) {  /* blend sky */
+		if (glsl) {
+			RegionView3D *rv3d = ar->regiondata;
+			GPUMaterial *gpumat = GPU_material_world(scene, scene->world);
+			
+			/* calculate full shader for background */
+			GPU_material_bind(gpumat, 1, 1, 1.0, false, rv3d->viewmat, rv3d->viewinv, (v3d->scenelock != 0));
+			
+			glEnable(GL_DEPTH_TEST);
+			glDepthFunc(GL_ALWAYS);
+			glShadeModel(GL_SMOOTH);
+			glBegin(GL_QUADS);
+			glVertex3f(-1.0, -1.0, 1.0);
+			glVertex3f(1.0, -1.0, 1.0);
+			glVertex3f(1.0, 1.0, 1.0);
+			glVertex3f(-1.0, 1.0, 1.0);
+			glEnd();
+			glShadeModel(GL_FLAT);
+
+			GPU_material_unbind(gpumat);
+			
+			glDepthFunc(GL_LEQUAL);
+			glDisable(GL_DEPTH_TEST);
+		}
+		else if (scene->world->skytype & WO_SKYBLEND) {  /* blend sky */
 			int x, y;
 			float col_hor[3];
 			float col_zen[3];
