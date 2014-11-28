@@ -31,6 +31,8 @@
 
 #include <stdlib.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
@@ -84,6 +86,7 @@ static bool apply_hair_edit(Object *ob)
 			psys->flag |= PSYS_EDITED;
 			
 			BKE_editstrands_free(psys->hairedit);
+			MEM_freeN(psys->hairedit);
 			psys->hairedit = NULL;
 		}
 		
