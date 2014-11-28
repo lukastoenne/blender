@@ -65,7 +65,7 @@ static void setup_gpu_buffers(BMEditStrands *edit)
 	glBindBuffer(GL_ARRAY_BUFFER, edit->vertex_glbuf);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edit->elem_glbuf);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * totvert, NULL, GL_DYNAMIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * totedge, NULL, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * totedge * 2, NULL, GL_DYNAMIC_DRAW);
 	
 	glEnableClientState(GL_VERTEX_ARRAY);
 	
@@ -85,7 +85,6 @@ void draw_strands_edit(Scene *UNUSED(scene), View3D *v3d, BMEditStrands *edit)
 	
 	float (*vertex_data)[3];
 	unsigned int *elem_data;
-	unsigned int vertex_offset, elem_offset;
 	BMVert *v;
 	BMEdge *e;
 	BMIter iter;
@@ -109,25 +108,23 @@ void draw_strands_edit(Scene *UNUSED(scene), View3D *v3d, BMEditStrands *edit)
 	/* initialize buffers */
 	vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
-	vertex_offset = 0;
-	elem_offset = 0;
 	
 	BM_mesh_elem_index_ensure(edit->bm, BM_VERT);
 	
 	BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
-		copy_v3_v3(vertex_data[vertex_offset], v->co);
-		vertex_offset += 1;
+		int offset = BM_elem_index_get(v);
+		copy_v3_v3(vertex_data[offset], v->co);
 	}
 	
 	BM_ITER_MESH(e, &iter, edit->bm, BM_EDGES_OF_MESH) {
-		elem_data[elem_offset + 0] = BM_elem_index_get(e->v1);
-		elem_data[elem_offset + 1] = BM_elem_index_get(e->v2);
-		elem_offset += 2;
+		int offset = BM_elem_index_get(e) * 2;
+		elem_data[offset + 0] = BM_elem_index_get(e->v1);
+		elem_data[offset + 1] = BM_elem_index_get(e->v2);
 	}
 	
 	release_gpu_buffers();
 	
-	glDrawElements(GL_LINES, elem_offset, GL_UNSIGNED_INT, NULL);
+	glDrawElements(GL_LINES, edit->bm->totedge * 2, GL_UNSIGNED_INT, NULL);
 	
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_VERTEX_ARRAY);
