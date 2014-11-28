@@ -404,6 +404,7 @@ void psys_interpolate_face(struct MVert *mvert, struct MFace *mface, struct MTFa
                            float orco[3], float ornor[3]);
 float psys_particle_value_from_verts(struct DerivedMesh *dm, short from, struct ParticleData *pa, float *values);
 void psys_get_from_key(struct ParticleKey *key, float loc[3], float vel[3], float rot[4], float *time);
+int psys_get_index_on_dm(struct ParticleSystem *psys, struct DerivedMesh *dm, ParticleData *pa, int *mapindex, float mapfw[4]);
 
 /* BLI_bvhtree_ray_cast callback */
 void BKE_psys_collision_neartest_cb(void *userdata, int index, const struct BVHTreeRay *ray, struct BVHTreeRayHit *hit);

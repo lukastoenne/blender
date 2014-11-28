@@ -39,6 +39,7 @@
 #include "BKE_customdata.h"
 #include "BKE_key.h"
 #include "BKE_main.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_particle.h"
 
 #include "bmesh.h"
@@ -46,6 +47,25 @@
 
 const char *CD_PSYS_MASS = "PSYS_MASS";
 const char *CD_PSYS_WEIGHT = "PSYS_WEIGHT";
+const char *CD_PSYS_ROOT_LOCATION = "PSYS_ROOT_LOCATION";
+
+static void BM_elem_msample_data_named_get(CustomData *cd, void *element, int type, const char *name, MSurfaceSample *val)
+{
+	const MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	if (s)
+		memcpy(val, s, sizeof(MSurfaceSample));
+	else
+		memset(val, 0, sizeof(MSurfaceSample));
+}
+
+static void BM_elem_msample_data_named_set(CustomData *cd, void *element, int type, const char *name, const MSurfaceSample *val)
+{
+	MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	if (s)
+		memcpy(s, val, sizeof(MSurfaceSample));
+}
+
+/* ------------------------------------------------------------------------- */
 
 int BM_strands_count_psys_keys(ParticleSystem *psys)
 {
@@ -91,6 +111,9 @@ void BM_strands_cd_flag_apply(BMesh *bm, const char UNUSED(cd_flag))
 	}
 	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_PSYS_WEIGHT) < 0) {
 		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_PSYS_WEIGHT);
+	}
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION);
 	}
 }
 
@@ -148,7 +171,7 @@ static KeyBlock *bm_set_shapekey_from_psys(BMesh *bm, ParticleSystem *psys, int 
 }
 
 /* create vertex and edge data for BMesh based on particle hair keys */
-static void bm_make_particles(BMesh *bm, ParticleSystem *psys, float (*keyco)[3], int cd_shape_keyindex_offset)
+static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *emitter_dm, float (*keyco)[3], int cd_shape_keyindex_offset)
 {
 	KeyBlock *block;
 	ParticleData *pa;
@@ -186,6 +209,14 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, float (*keyco)[3]
 			
 			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_MASS, mass);
 			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT, hkey->weight);
+			
+			/* root */
+			if (k == 0) {
+				MSurfaceSample root_loc;
+				if (BKE_mesh_sample_from_particle(&root_loc, psys, emitter_dm, pa)) {
+					BM_elem_msample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION, &root_loc);
+				}
+			}
 			
 			/* set shapekey data */
 			if (psys->key) {
@@ -228,7 +259,7 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, float (*keyco)[3]
 /**
  * \brief ParticleSystem -> BMesh
  */
-void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys,
+void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *emitter_dm,
                              const bool set_key, int act_key_nr)
 {
 	KeyBlock *actkey;
@@ -271,7 +302,7 @@ void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys,
 
 	cd_shape_keyindex_offset = psys->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
 
-	bm_make_particles(bm, psys, set_key ? keyco : NULL, cd_shape_keyindex_offset);
+	bm_make_particles(bm, psys, emitter_dm, set_key ? keyco : NULL, cd_shape_keyindex_offset);
 
 
 #if 0 /* TODO */
@@ -423,7 +454,7 @@ static int bm_keys_count(BMVert *root)
 	return count;
 }
 
-static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, ParticleData *pa)
+static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree, struct ParticleData *pa)
 {
 	int totkey = bm_keys_count(root);
 	HairKey *hair;
@@ -457,7 +488,18 @@ static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, Pa
 		copy_v3_v3(hkey->co, v->co);
 		hkey->time = totkey > 0 ? (float)k / (float)(totkey - 1) : 0.0f;
 		hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT);
-		// TODO define other key stuff ...
+		
+		/* root */
+		if (k == 0) {
+			MSurfaceSample root_loc;
+			BM_elem_msample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION, &root_loc);
+			if (!BKE_mesh_sample_to_particle(&root_loc, psys, emitter_dm, emitter_bvhtree, pa)) {
+				pa->num = 0;
+				pa->num_dmcache = DMCACHE_NOTFOUND;
+				zero_v4(pa->fuv);
+				pa->foffset = 0.0f;
+			}
+		}
 		
 		++hkey;
 		++k;
@@ -472,7 +514,7 @@ static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, Pa
 	pa->totkey = totkey;
 }
 
-void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys)
+void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
 {
 	ParticleData *particles, *oldparticles;
 	int ototpart, ototkey, ntotpart;
@@ -503,7 +545,7 @@ void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys)
 	p = 0;
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		
-		make_particle_hair(bm, root, psys, pa);
+		make_particle_hair(bm, root, psys, emitter_dm, emitter_bvhtree, pa);
 		
 		++pa;
 		++p;

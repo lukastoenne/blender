@@ -121,7 +121,7 @@ enum {
 	CD_TESSLOOPNORMAL   = 40,
 	CD_FACEGROUP        = 41, /* exclusive face group, each face can only be part of one */
 
-	CD_MESH_SAMPLE      = 42,
+	CD_MSURFACE_SAMPLE  = 42,
 
 	CD_NUMTYPES         = 43
 };
@@ -172,7 +172,7 @@ enum {
 #define CD_MASK_TESSLOOPNORMAL  (1LL << CD_TESSLOOPNORMAL)
 #define CD_MASK_FACEGROUP       (1LL << CD_FACEGROUP)
 
-#define CD_MASK_MESH_SAMPLE     (1LL << CD_MESH_SAMPLE)
+#define CD_MASK_MSURFACE_SAMPLE (1LL << CD_MSURFACE_SAMPLE)
 
 /* CustomData.flag */
 enum {
