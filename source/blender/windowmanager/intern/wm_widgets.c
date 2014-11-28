@@ -188,7 +188,7 @@ void WM_widget_property(struct wmWidget *widget, struct PointerRNA *ptr, const c
 {
 	/* if widget evokes an operator we cannot use it for property manipulation */
 	widget->opname = NULL;
-	widget->ptr = ptr;
+	widget->ptr = *ptr;
 	widget->propname = propname;
 	widget->prop = RNA_struct_find_property(ptr, propname);
 
@@ -280,10 +280,55 @@ void WM_widgets_draw(const bContext *C, struct ARegion *ar)
 			if (!wgroup->type->poll || wgroup->type->poll(wgroup, C))
 			{
 				wmWidget *widget_iter;
-
+				wmWidget *highlighted = NULL;
+				
+				/* first delete and recreate the widgets */
+				for (widget_iter = wgroup->widgets.first; widget_iter;) {
+					wmWidget *widget_next = widget_iter->next;
+					
+					/* do not delete the highlighted widget, instead keep it to compare with the new one */
+					if (widget_iter->flag & WM_WIDGET_HIGHLIGHT) {
+						highlighted = widget_iter;
+						BLI_remlink(&wgroup->widgets, widget_iter);
+					}
+					else {
+						wm_widgets_delete(&wgroup->widgets, widget_iter);
+					}
+					widget_iter = widget_next;
+				}
+				
+				if (wgroup->type->free)
+					wgroup->type->free(wgroup);
+				
+				wgroup->type->create(wgroup);
+				
 				if (wgroup->type->update) {
 					wgroup->type->update(wgroup, C);
 				}
+				
+				if (highlighted) {
+					for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
+						if (widget_iter->ptr.data == highlighted->ptr.data &&
+						    widget_iter->opptr.data == highlighted->opptr.data &&
+						    widget_iter->prop == highlighted->prop) 
+						{
+							widget_iter->flag |= WM_WIDGET_HIGHLIGHT;
+							wmap->highlighted_widget = widget_iter;
+							wm_widgets_delete(&wgroup->widgets, highlighted);
+							highlighted = NULL;
+						}
+					}
+				}
+				
+				/* if we don't find a highlighted widget, delete the old one here */
+				if (highlighted) {
+					if (highlighted->flag & WM_WIDGET_FREE_DATA)
+						MEM_freeN(highlighted->customdata);
+					MEM_freeN(highlighted);
+					highlighted = NULL;
+					wmap->highlighted_widget = NULL;
+				}
+				
 
 				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
 					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW) &&
@@ -620,7 +665,7 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 			/* widget does nothing, pass */
 			wmap->active_widget = NULL;
 		}
-		else if (widget->opname || widget->ptr) {
+		else if (widget->opname || widget->ptr.data) {
 			wmOperatorType *ot;
 			const char *opname = (widget->opname) ? widget->opname : "WM_OT_widget_tweak";
 			
@@ -633,15 +678,15 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
 				}
 
-				WM_operator_properties_alloc(&widget->opptr, &widget->properties, opname);
+				WM_operator_properties_create_ptr(&widget->opptr, ot);
 
 				/* time to initialize those properties now */
 				if (widget->initialize_op) {
-					widget->initialize_op(C, event, widget, widget->opptr);
+					widget->initialize_op(C, event, widget, &widget->opptr);
 				}
 
 				CTX_wm_widget_set(C, widget);
-				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, widget->opptr);
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
 				wmap->active_widget = widget;
 				return;
 			}
@@ -668,11 +713,8 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				widget->activate_state(C, event, widget, WIDGET_DEACTIVATE);
 			}
 
-			if (widget->opptr) {
-				WM_operator_properties_free(widget->opptr);
-				MEM_freeN(widget->opptr);
-				widget->properties = NULL;
-				widget->opptr = NULL;
+			if (widget->opptr.data) {
+				WM_operator_properties_free(&widget->opptr);
 			}
 		}
 

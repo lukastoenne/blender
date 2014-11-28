@@ -36,6 +36,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_key_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -46,6 +47,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_icons.h"
+#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
@@ -748,6 +750,64 @@ static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
 }
 
 
+static bool WIDGETGROUP_shapekey_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_MESH) {
+		Key *key = BKE_key_from_object(ob);
+		KeyBlock *kb;
+	
+		if (key == NULL)
+			return false;
+		
+		kb = BLI_findlink(&key->block, ob->shapenr - 1);
+		
+		if (kb)
+			return true;
+	}
+	return false;
+}
+
+static void WIDGETGROUP_shapekey_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	Camera *ca = ob->data;
+	wmWidget *widget = WM_widgetgroup_widgets(wgroup)->first;
+	PointerRNA *shapeptr = WM_widgetgroup_customdata(wgroup);
+	float dir[3];
+
+	RNA_pointer_create(&ca->id, &RNA_ShapeKey, ca, shapeptr);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, shapeptr, "value");
+	negate_v3_v3(dir, ob->obmat[2]);
+	WIDGET_arrow_set_direction(widget, dir);
+}
+
+
+static void WIDGETGROUP_shapekey_free(struct wmWidgetGroup *wgroup)
+{
+	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
+
+	MEM_freeN(cameraptr);
+}
+
+static void WIDGETGROUP_shapekey_create(struct wmWidgetGroup *wgroup)
+{
+	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	wmWidget *widget = NULL;
+	PointerRNA *shapeptr = MEM_callocN(sizeof(PointerRNA), "shapekeywidgetrna");
+
+	WM_widgetgroup_customdata_set(wgroup, shapeptr);
+	
+	widget = WIDGET_arrow_new(UI_ARROW_STYLE_NORMAL, NULL);
+	WM_widget_set_3d_scale(widget, false);
+	WM_widget_register(wgroup, widget);
+	WIDGET_arrow_set_color(widget, color_shape);
+}
+
+
+
 static void view3d_widgets(void)
 {
 	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
@@ -767,9 +827,15 @@ static void view3d_widgets(void)
 	                                                                WIDGETGROUP_camera_update,
 	                                                                WIDGETGROUP_camera_free);
 
+	struct wmWidgetGroupType *wgroup_shapekey = WM_widgetgrouptype_new(WIDGETGROUP_shapekey_create,
+	                                                                WIDGETGROUP_shapekey_poll,
+	                                                                WIDGETGROUP_shapekey_update,
+	                                                                WIDGETGROUP_shapekey_free);
+	
 	//WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
 	WM_widgetgrouptype_register(wmaptype, wgroup_light);
 	WM_widgetgrouptype_register(wmaptype, wgroup_camera);
+	WM_widgetgrouptype_register(wmaptype, wgroup_shapekey);
 }
 
 

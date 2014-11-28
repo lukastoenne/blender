@@ -351,18 +351,18 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 				value = arrow->min + (value * arrow->range / ARROW_RANGE);
 		}
 
-		RNA_property_float_set(widget->ptr, widget->prop, value);
-		RNA_property_update(C, widget->ptr, widget->prop);
+		RNA_property_float_set(&widget->ptr, widget->prop, value);
+		RNA_property_update(C, &widget->ptr, widget->prop);
 
 		/* accounts for clamping properly */
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
-				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
+				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - (RNA_property_float_get(&widget->ptr, widget->prop))) / arrow->range;
 			else
-				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr, widget->prop) - arrow->min) / arrow->range);
 		}
 		else
-			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
+			arrow->offset = RNA_property_float_get(&widget->ptr, widget->prop);
 	}
 	else if (op && widget->propname) {
 
@@ -412,17 +412,17 @@ static void widget_arrow_bind_to_prop(struct wmWidget *widget)
 		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
 			float min, max, step, precision;
 
-			RNA_property_float_ui_range(widget->ptr, widget->prop, &min, &max, &step, &precision);
+			RNA_property_float_ui_range(&widget->ptr, widget->prop, &min, &max, &step, &precision);
 			arrow->range = max - min;
 			arrow->min = min;
 			if (arrow->style & UI_ARROW_STYLE_INVERTED)
-				arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(widget->ptr, widget->prop))) / arrow->range;
+				arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(&widget->ptr, widget->prop))) / arrow->range;
 			else
-				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(widget->ptr, widget->prop) - arrow->min) / arrow->range);
+				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr, widget->prop) - arrow->min) / arrow->range);
 		}
 		else {
 			/* we'd need to check the property type here but for now assume always float */
-			arrow->offset = RNA_property_float_get(widget->ptr, widget->prop);
+			arrow->offset = RNA_property_float_get(&widget->ptr, widget->prop);
 		}
 	}
 	else
@@ -752,8 +752,8 @@ static int widget_cage_handler(struct bContext *C, const struct wmEvent *event, 
 		
 		value = data->orig_offset + (event->mval[0] - data->orig_mouse[0]);
 		
-		RNA_property_float_set(widget->ptr, widget->prop, value);
-		RNA_property_update(C, widget->ptr, widget->prop);
+		RNA_property_float_set(&widget->ptr, widget->prop, value);
+		RNA_property_update(C, &widget->ptr, widget->prop);
 		
 		widget->origin[0] = data->orig_origin[0] + (event->mval[0] - data->orig_mouse[0]);
 	}
@@ -768,7 +768,7 @@ static int widget_cage_handler(struct bContext *C, const struct wmEvent *event, 
 static void widget_cage_bind_to_prop(struct wmWidget *widget)
 {
 	CageWidget *cage = (CageWidget *) widget;
-	cage->offset = RNA_property_float_get(widget->ptr, widget->prop);
+	cage->offset = RNA_property_float_get(&widget->ptr, widget->prop);
 }
 
 struct wmWidget *WIDGET_cage_new(int style, void *customdata)
