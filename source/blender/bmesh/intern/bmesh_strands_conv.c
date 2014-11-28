@@ -171,15 +171,18 @@ static KeyBlock *bm_set_shapekey_from_psys(BMesh *bm, ParticleSystem *psys, int 
 }
 
 /* create vertex and edge data for BMesh based on particle hair keys */
-static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *emitter_dm, float (*keyco)[3], int cd_shape_keyindex_offset)
+static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm, float (*keyco)[3], int cd_shape_keyindex_offset)
 {
 	KeyBlock *block;
 	ParticleData *pa;
 	HairKey *hkey;
 	int p, k, j;
+	
 	int vindex, eindex;
 	BMVert *v = NULL, *v_prev;
 	BMEdge *e;
+	
+	float hairmat[4][4];
 	
 	/* XXX currently all particles and keys have the same mass, this may change */
 	float mass = psys->part->mass;
@@ -188,11 +191,18 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMes
 	eindex = 0;
 	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
 		
-		for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+		/* hair keys are in a local "hair space", but edit data should be in object space */
+		psys_mat_hair_to_object(ob, emitter_dm, psys->part->from, pa, hairmat);
 		
+		for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+			float co[3];
+			
+			copy_v3_v3(co, keyco ? keyco[vindex] : hkey->co);
+			mul_m4_v3(hairmat, co);
+			
 			v_prev = v;
-			v = BM_vert_create(bm, keyco ? keyco[vindex] : hkey->co, NULL, BM_CREATE_SKIP_CD);
-			BM_elem_index_set(v, vindex++); /* set_ok */
+			v = BM_vert_create(bm, co, NULL, BM_CREATE_SKIP_CD);
+			BM_elem_index_set(v, vindex); /* set_ok */
 			
 			/* transfer flag */
 //			v->head.hflag = BM_vert_flag_from_mflag(mvert->flag & ~SELECT);
@@ -233,9 +243,11 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMes
 				}
 			}
 			
+			vindex += 1;
+			
 			if (k > 0) {
 				e = BM_edge_create(bm, v_prev, v, NULL, BM_CREATE_SKIP_CD);
-				BM_elem_index_set(e, eindex++); /* set_ok; one less edge than vertices for each particle */
+				BM_elem_index_set(e, eindex); /* set_ok; one less edge than vertices for each particle */
 				
 				/* transfer flags */
 //				e->head.hflag = BM_edge_flag_from_mflag(medge->flag & ~SELECT);
@@ -246,10 +258,12 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMes
 //				}
 				
 				/* Copy Custom Data */
-//				CustomData_to_bmesh_block(&me->edata, &bm->edata, vindex, &e->head.data, true);
+//				CustomData_to_bmesh_block(&me->edata, &bm->edata, eindex, &e->head.data, true);
 				CustomData_bmesh_set_default(&bm->edata, &e->head.data);
+				
+				eindex += 1;
 			}
-		
+			
 		} /* hair keys */
 	
 	} /* particles */
@@ -260,7 +274,7 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMes
 /**
  * \brief ParticleSystem -> BMesh
  */
-void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *emitter_dm,
+void BM_strands_bm_from_psys(BMesh *bm, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm,
                              const bool set_key, int act_key_nr)
 {
 	KeyBlock *actkey;
@@ -303,7 +317,7 @@ void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys, struct DerivedMesh
 
 	cd_shape_keyindex_offset = psys->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
 
-	bm_make_particles(bm, psys, emitter_dm, set_key ? keyco : NULL, cd_shape_keyindex_offset);
+	bm_make_particles(bm, ob, psys, emitter_dm, set_key ? keyco : NULL, cd_shape_keyindex_offset);
 
 
 #if 0 /* TODO */
@@ -429,7 +443,7 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 }
 #endif
 
-static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree, struct ParticleData *pa)
+static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree, struct ParticleData *pa)
 {
 	int totkey = BM_strands_keys_count(root);
 	HairKey *hair;
@@ -438,6 +452,8 @@ static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, st
 	BMIter iter;
 	HairKey *hkey;
 	int k;
+	
+	float inv_hairmat[4][4];
 	
 	pa->alive = PARS_ALIVE;
 	pa->flag = 0;
@@ -460,10 +476,6 @@ static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, st
 	hkey = hair;
 	k = 0;
 	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
-		copy_v3_v3(hkey->co, v->co);
-		hkey->time = totkey > 0 ? (float)k / (float)(totkey - 1) : 0.0f;
-		hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT);
-		
 		/* root */
 		if (k == 0) {
 			MSurfaceSample root_loc;
@@ -474,7 +486,16 @@ static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, st
 				zero_v4(pa->fuv);
 				pa->foffset = 0.0f;
 			}
+			
+			/* edit data is in object space, hair keys must be converted back into "hair space" */
+			psys_mat_hair_to_object(ob, emitter_dm, psys->part->from, pa, inv_hairmat);
+			invert_m4(inv_hairmat);
 		}
+		
+		mul_v3_m4v3(hkey->co, inv_hairmat, v->co);
+		
+		hkey->time = totkey > 0 ? (float)k / (float)(totkey - 1) : 0.0f;
+		hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT);
 		
 		++hkey;
 		++k;
@@ -489,7 +510,7 @@ static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, st
 	pa->totkey = totkey;
 }
 
-void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
+void BM_strands_bm_to_psys(BMesh *bm, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
 {
 	ParticleData *particles, *oldparticles;
 	int ototpart, ototkey, ntotpart;
@@ -520,7 +541,7 @@ void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *
 	p = 0;
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		
-		make_particle_hair(bm, root, psys, emitter_dm, emitter_bvhtree, pa);
+		make_particle_hair(bm, root, ob, psys, emitter_dm, emitter_bvhtree, pa);
 		
 		++pa;
 		++p;
