@@ -177,7 +177,7 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMes
 	ParticleData *pa;
 	HairKey *hkey;
 	int p, k, j;
-	int vindex;
+	int vindex, eindex;
 	BMVert *v = NULL, *v_prev;
 	BMEdge *e;
 	
@@ -185,13 +185,14 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMes
 	float mass = psys->part->mass;
 	
 	vindex = 0;
+	eindex = 0;
 	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
 		
-		for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey, ++vindex) {
+		for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 		
 			v_prev = v;
 			v = BM_vert_create(bm, keyco ? keyco[vindex] : hkey->co, NULL, BM_CREATE_SKIP_CD);
-			BM_elem_index_set(v, vindex); /* set_ok */
+			BM_elem_index_set(v, vindex++); /* set_ok */
 			
 			/* transfer flag */
 //			v->head.hflag = BM_vert_flag_from_mflag(mvert->flag & ~SELECT);
@@ -234,7 +235,7 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, struct DerivedMes
 			
 			if (k > 0) {
 				e = BM_edge_create(bm, v_prev, v, NULL, BM_CREATE_SKIP_CD);
-				BM_elem_index_set(e, vindex - p); /* set_ok; one less edge than vertices for each particle */
+				BM_elem_index_set(e, eindex++); /* set_ok; one less edge than vertices for each particle */
 				
 				/* transfer flags */
 //				e->head.hflag = BM_edge_flag_from_mflag(medge->flag & ~SELECT);
@@ -428,35 +429,9 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 }
 #endif
 
-static int bm_strands_count(BMesh *bm)
-{
-	BMVert *v;
-	BMIter iter;
-	
-	int count = 0;
-	BM_ITER_STRANDS(v, &iter, bm, BM_STRANDS_OF_MESH) {
-		++count;
-	}
-	
-	return count;
-}
-
-static int bm_keys_count(BMVert *root)
-{
-	BMVert *v;
-	BMIter iter;
-	
-	int count = 0;
-	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
-		++count;
-	}
-	
-	return count;
-}
-
 static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree, struct ParticleData *pa)
 {
-	int totkey = bm_keys_count(root);
+	int totkey = BM_strands_keys_count(root);
 	HairKey *hair;
 	
 	BMVert *v;
@@ -527,7 +502,7 @@ void BM_strands_bm_to_psys(BMesh *bm, ParticleSystem *psys, struct DerivedMesh *
 	ototpart = psys->totpart;
 	ototkey = BM_strands_count_psys_keys(psys);
 	
-	ntotpart = bm_strands_count(bm);
+	ntotpart = BM_strands_count(bm);
 	
 	/* new particles block */
 	if (bm->totvert == 0) particles = NULL;
