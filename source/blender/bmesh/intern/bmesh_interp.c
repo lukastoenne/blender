@@ -893,3 +893,15 @@ void BM_elem_float_data_set(CustomData *cd, void *element, int type, const float
 	float *f = CustomData_bmesh_get(cd, ((BMHeader *)element)->data, type);
 	if (f) *f = val;
 }
+
+float BM_elem_float_data_named_get(CustomData *cd, void *element, int type, const char *name)
+{
+	const float *f = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	return f ? *f : 0.0f;
+}
+
+void BM_elem_float_data_named_set(CustomData *cd, void *element, int type, const char *name, const float val)
+{
+	float *f = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	if (f) *f = val;
+}
