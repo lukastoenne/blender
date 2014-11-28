@@ -37,6 +37,7 @@ struct Mesh;
 struct ParticleSystem;
 
 extern const char *CD_PSYS_MASS;
+extern const char *CD_PSYS_WEIGHT;
 
 void BM_strands_cd_validate(struct BMesh *bm);
 void BM_strands_cd_flag_ensure(struct BMesh *bm, struct ParticleSystem *psys, const char cd_flag);
