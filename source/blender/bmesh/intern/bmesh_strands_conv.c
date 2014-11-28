@@ -44,6 +44,8 @@
 #include "bmesh.h"
 #include "intern/bmesh_private.h" /* for element checking */
 
+const char *CD_PSYS_MASS = "PSYS_MASS";
+
 int BM_strands_count_psys_keys(ParticleSystem *psys)
 {
 	ParticleData *pa;
@@ -82,6 +84,10 @@ void BM_strands_cd_flag_apply(BMesh *bm, const char UNUSED(cd_flag))
 	/* CustomData_bmesh_init_pool() must run first */
 	BLI_assert(bm->vdata.totlayer == 0 || bm->vdata.pool != NULL);
 	BLI_assert(bm->edata.totlayer == 0 || bm->edata.pool != NULL);
+	
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_PSYS_MASS) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_PSYS_MASS);
+	}
 }
 
 char BM_strands_cd_flag_from_bmesh(BMesh *UNUSED(bm))
@@ -148,6 +154,9 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, float (*keyco)[3]
 	BMVert *v = NULL, *v_prev;
 	BMEdge *e;
 	
+	/* XXX currently all particles and keys have the same mass, this may change */
+	float mass = psys->part->mass;
+	
 	vindex = 0;
 	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
 		
@@ -170,6 +179,8 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, float (*keyco)[3]
 			/* Copy Custom Data */
 //			CustomData_to_bmesh_block(&me->vdata, &bm->vdata, vindex, &v->head.data, true);
 			CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
+			
+			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_MASS, mass);
 			
 			/* set shapekey data */
 			if (psys->key) {
@@ -244,8 +255,6 @@ void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys,
 		return; /* sanity check */
 	}
 
-//	vtable = MEM_mallocN(sizeof(void **) * me->totvert, "mesh to bmesh vtable");
-
 	actkey = bm_set_shapekey_from_psys(bm, psys, totvert, act_key_nr);
 	if (actkey)
 		keyco = actkey->data;
@@ -253,7 +262,7 @@ void BM_strands_bm_from_psys(BMesh *bm, ParticleSystem *psys,
 	CustomData_bmesh_init_pool(&bm->vdata, totvert, BM_VERT);
 	CustomData_bmesh_init_pool(&bm->edata, totedge, BM_EDGE);
 
-//	BM_mesh_cd_flag_apply(bm, psys->cd_flag);
+	BM_strands_cd_flag_apply(bm, /*psys->cd_flag*/0);
 
 	cd_shape_keyindex_offset = psys->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
 

@@ -2829,6 +2829,18 @@ void *CustomData_bmesh_get_layer_n(const CustomData *data, void *block, int n)
 	return POINTER_OFFSET(block, data->layers[n].offset);
 }
 
+/*Bmesh Custom Data Functions. Should replace editmesh ones with these as well, due to more effecient memory alloc*/
+void *CustomData_bmesh_get_named(const CustomData *data, void *block, int type, const char *name)
+{
+	int layer_index;
+	
+	/* get the layer index of the named layer of type */
+	layer_index = CustomData_get_named_layer_index(data, type, name);
+	if (layer_index == -1) return NULL;
+
+	return (char *)block + data->layers[layer_index].offset;
+}
+
 bool CustomData_layer_has_math(const struct CustomData *data, int layer_n)
 {
 	const LayerTypeInfo *typeInfo = layerType_getInfo(data->layers[layer_n].type);
