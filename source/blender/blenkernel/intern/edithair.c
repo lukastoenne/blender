@@ -56,29 +56,41 @@ BMEditStrands *BKE_editstrands_create(BMesh *bm)
 	return es;
 }
 
-BMEditStrands *BKE_editstrands_copy(BMEditStrands *em)
+BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
 {
 	BMEditStrands *es_copy = MEM_callocN(sizeof(BMEditStrands), __func__);
-	*es_copy = *em;
+	*es_copy = *es;
 	
-	es_copy->bm = BM_mesh_copy(em->bm);
+	es_copy->bm = BM_mesh_copy(es->bm);
 	
 	return es_copy;
 }
 
-void BKE_editstrands_update_linked_customdata(BMEditStrands *em)
+/**
+ * \brief Return the BMEditStrands for a given object
+ */
+BMEditStrands *BKE_editstrands_from_object(Object *ob)
 {
-	BMesh *bm = em->bm;
+	ParticleSystem *psys = psys_get_current(ob);
+	if (psys) {
+		return psys->hairedit;
+	}
+	return NULL;
+}
+
+void BKE_editstrands_update_linked_customdata(BMEditStrands *es)
+{
+	BMesh *bm = es->bm;
 	
 	/* this is done for BMEditMesh, but should never exist for strands */
 	BLI_assert(!CustomData_has_layer(&bm->pdata, CD_MTEXPOLY));
 }
 
 /*does not free the BMEditStrands struct itself*/
-void BKE_editstrands_free(BMEditStrands *em)
+void BKE_editstrands_free(BMEditStrands *es)
 {
-	if (em->bm)
-		BM_mesh_free(em->bm);
+	if (es->bm)
+		BM_mesh_free(es->bm);
 }
 
 /* === particle conversion === */

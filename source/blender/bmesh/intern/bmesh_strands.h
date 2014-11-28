@@ -51,6 +51,9 @@ BLI_INLINE bool BM_strands_vert_is_root(BMVert *v)
 	return false;
 }
 
+int BM_strands_count(BMesh *bm);
+int BM_strands_keys_count(BMVert *root);
+
 /* ==== Iterators ==== */
 
 typedef enum BMStrandsIterType {
