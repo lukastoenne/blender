@@ -58,6 +58,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
+#include "BKE_edithair.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -7925,14 +7926,16 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		view3d_cached_text_draw_begin();
 
 		for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-			/* run this so that possible child particles get cached */
-			if (ob->mode & OB_MODE_PARTICLE_EDIT && is_obact) {
-				PTCacheEdit *edit = PE_create_current(scene, ob);
-				if (edit && edit->psys == psys)
-					draw_update_ptcache_edit(scene, ob, edit);
+			if (!(ob->mode & OB_MODE_HAIR_EDIT)) {
+				/* run this so that possible child particles get cached */
+				if (ob->mode & OB_MODE_PARTICLE_EDIT && is_obact) {
+					PTCacheEdit *edit = PE_create_current(scene, ob);
+					if (edit && edit->psys == psys)
+						draw_update_ptcache_edit(scene, ob, edit);
+				}
+				
+				draw_new_particle_system(scene, v3d, rv3d, base, psys, dt, dflag);
 			}
-
-			draw_new_particle_system(scene, v3d, rv3d, base, psys, dt, dflag);
 		}
 		invert_m4_m4(ob->imat, ob->obmat);
 		view3d_cached_text_draw_end(v3d, ar, 0, NULL);
@@ -7955,6 +7958,13 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				draw_update_ptcache_edit(scene, ob, edit);
 				draw_ptcache_edit(scene, v3d, edit);
 				glMultMatrixf(ob->obmat);
+			}
+		}
+
+		if (ob->mode & OB_MODE_HAIR_EDIT && is_obact) {
+			BMEditStrands *edit = BKE_editstrands_from_object(ob);
+			if (edit) {
+				draw_strands_edit(scene, v3d, edit);
 			}
 		}
 	}

@@ -86,3 +86,32 @@ void *bmstranditer__verts_of_strand_step(struct BMIter__vert_of_strand *iter)
 	
 	return v_curr;
 }
+
+/* ------------------------------------------------------------------------- */
+
+int BM_strands_count(BMesh *bm)
+{
+	BMVert *v;
+	BMIter iter;
+	
+	int count = 0;
+	BM_ITER_STRANDS(v, &iter, bm, BM_STRANDS_OF_MESH) {
+		++count;
+	}
+	
+	return count;
+}
+
+int BM_strands_keys_count(BMVert *root)
+{
+	BMVert *v;
+	BMIter iter;
+	
+	int count = 0;
+	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
+		++count;
+	}
+	
+	return count;
+}
+
