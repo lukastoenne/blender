@@ -45,6 +45,7 @@
 #include "intern/bmesh_private.h" /* for element checking */
 
 const char *CD_PSYS_MASS = "PSYS_MASS";
+const char *CD_PSYS_WEIGHT = "PSYS_WEIGHT";
 
 int BM_strands_count_psys_keys(ParticleSystem *psys)
 {
@@ -87,6 +88,9 @@ void BM_strands_cd_flag_apply(BMesh *bm, const char UNUSED(cd_flag))
 	
 	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_PSYS_MASS) < 0) {
 		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_PSYS_MASS);
+	}
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_PSYS_WEIGHT) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_PSYS_WEIGHT);
 	}
 }
 
@@ -181,6 +185,7 @@ static void bm_make_particles(BMesh *bm, ParticleSystem *psys, float (*keyco)[3]
 			CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
 			
 			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_MASS, mass);
+			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT, hkey->weight);
 			
 			/* set shapekey data */
 			if (psys->key) {
@@ -418,7 +423,7 @@ static int bm_keys_count(BMVert *root)
 	return count;
 }
 
-static void make_particle_hair(BMesh *UNUSED(bm), BMVert *root, ParticleSystem *psys, ParticleData *pa)
+static void make_particle_hair(BMesh *bm, BMVert *root, ParticleSystem *psys, ParticleData *pa)
 {
 	int totkey = bm_keys_count(root);
 	HairKey *hair;
@@ -451,7 +456,7 @@ static void make_particle_hair(BMesh *UNUSED(bm), BMVert *root, ParticleSystem *
 	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
 		copy_v3_v3(hkey->co, v->co);
 		hkey->time = totkey > 0 ? (float)k / (float)(totkey - 1) : 0.0f;
-		hkey->weight = 1.0f;
+		hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT);
 		// TODO define other key stuff ...
 		
 		++hkey;
