@@ -33,32 +33,53 @@
 
 #include "BLI_math.h"
 
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 
+#include "BKE_bvhutils.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_edithair.h"
 #include "BKE_particle.h"
 
 #include "intern/bmesh_strands_conv.h"
 
-BMesh *BKE_particles_to_bmesh(Object *UNUSED(ob), ParticleSystem *psys)
+BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 {
-	BMesh *bm;
+	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
+	
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_PSYS(psys);
+	BMesh *bm;
 
 	bm = BM_mesh_create(&allocsize);
 
-	BM_strands_bm_from_psys(bm, psys, true, psys->shapenr);
+	if (psmd && psmd->dm) {
+		DM_ensure_tessface(psmd->dm);
+		
+		BM_strands_bm_from_psys(bm, psys, psmd->dm, true, psys->shapenr);
+	}
 
 	return bm;
 }
 
-void BKE_particles_from_bmesh(Object *UNUSED(ob), ParticleSystem *psys)
+void BKE_particles_from_bmesh(Object *ob, ParticleSystem *psys)
 {
+	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 	BMesh *bm = psys->hairedit ? psys->hairedit->bm : NULL;
 	
-	if (bm)
-		BM_strands_bm_to_psys(bm, psys);
+	if (bm) {
+		if (psmd && psmd->dm) {
+			BVHTreeFromMesh bvhtree = {NULL};
+			
+			DM_ensure_tessface(psmd->dm);
+			
+			bvhtree_from_mesh_faces(&bvhtree, psmd->dm, 0.0, 2, 6);
+			
+			BM_strands_bm_to_psys(bm, psys, psmd->dm, &bvhtree);
+			
+			free_bvhtree_from_mesh(&bvhtree);
+		}
+	}
 }
 
 

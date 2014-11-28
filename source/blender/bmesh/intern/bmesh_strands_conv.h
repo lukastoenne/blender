@@ -35,9 +35,12 @@
 struct BMesh;
 struct Mesh;
 struct ParticleSystem;
+struct DerivedMesh;
+struct BVHTreeFromMesh;
 
 extern const char *CD_PSYS_MASS;
 extern const char *CD_PSYS_WEIGHT;
+extern const char *CD_PSYS_ROOT_LOCATION;
 
 void BM_strands_cd_validate(struct BMesh *bm);
 void BM_strands_cd_flag_ensure(struct BMesh *bm, struct ParticleSystem *psys, const char cd_flag);
@@ -45,9 +48,9 @@ void BM_strands_cd_flag_apply(struct BMesh *bm, const char cd_flag);
 char BM_strands_cd_flag_from_bmesh(struct BMesh *bm);
 
 int BM_strands_count_psys_keys(struct ParticleSystem *psys);
-void BM_strands_bm_from_psys(struct BMesh *bm, struct ParticleSystem *psys,
+void BM_strands_bm_from_psys(struct BMesh *bm, struct ParticleSystem *psys, struct DerivedMesh *emitter_dm,
                              const bool set_key, int act_key_nr);
-void BM_strands_bm_to_psys(struct BMesh *bm, struct ParticleSystem *psys);
+void BM_strands_bm_to_psys(struct BMesh *bm, struct ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree);
 
 #define BMALLOC_TEMPLATE_FROM_PSYS(psys) { (CHECK_TYPE_INLINE(psys, ParticleSystem *), \
 	BM_strands_count_psys_keys(psys)), (BM_strands_count_psys_keys(psys) - (psys)->totpart), 0, 0 }
