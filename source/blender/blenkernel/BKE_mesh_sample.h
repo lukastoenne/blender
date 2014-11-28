@@ -49,4 +49,13 @@ void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
 
 void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
 
+/* ==== Utilities ==== */
+
+struct ParticleSystem;
+struct ParticleData;
+struct BVHTreeFromMesh;
+
+bool BKE_mesh_sample_from_particle(struct MSurfaceSample *sample, struct ParticleSystem *psys, struct DerivedMesh *dm, struct ParticleData *pa);
+bool BKE_mesh_sample_to_particle(struct MSurfaceSample *sample, struct ParticleSystem *psys, struct DerivedMesh *dm, struct BVHTreeFromMesh *bvhtree, struct ParticleData *pa);
+
 #endif  /* __BKE_MESH_SAMPLE_H__ */

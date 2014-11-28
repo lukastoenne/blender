@@ -121,7 +121,7 @@ typedef enum CustomDataType {
 	CD_TESSLOOPNORMAL   = 40,
 	CD_CUSTOMLOOPNORMAL = 41,
 
-	CD_MESH_SAMPLE      = 42,
+	CD_MSURFACE_SAMPLE  = 42,
 
 	CD_NUMTYPES         = 43
 
@@ -171,7 +171,7 @@ typedef enum CustomDataType {
 #define CD_MASK_TESSLOOPNORMAL  (1LL << CD_TESSLOOPNORMAL)
 #define CD_MASK_CUSTOMLOOPNORMAL (1LL << CD_CUSTOMLOOPNORMAL)
 
-#define CD_MASK_MESH_SAMPLE     (1LL << CD_MESH_SAMPLE)
+#define CD_MASK_MSURFACE_SAMPLE (1LL << CD_MSURFACE_SAMPLE)
 
 /* CustomData.flag */
 enum {

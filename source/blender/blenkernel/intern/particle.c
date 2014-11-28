@@ -1523,6 +1523,11 @@ static int psys_map_index_on_dm(DerivedMesh *dm, int from, int index, int index_
 	return 1;
 }
 
+int psys_get_index_on_dm(ParticleSystem *psys, DerivedMesh *dm, ParticleData *pa, int *mapindex, float mapfw[4])
+{
+	return psys_map_index_on_dm(dm, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, mapindex, mapfw);
+}
+
 /* interprets particle data to get a point on a mesh in object space */
 void psys_particle_on_dm(DerivedMesh *dm, int from, int index, int index_dmcache,
                          const float fw[4], float foffset, float vec[3], float nor[3], float utan[3], float vtan[3],

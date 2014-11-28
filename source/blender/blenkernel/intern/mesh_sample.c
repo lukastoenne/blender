@@ -151,3 +151,93 @@ void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm
 	
 	BLI_rng_free(rng);
 }
+
+/* ==== Utilities ==== */
+
+#include "DNA_particle_types.h"
+
+#include "BKE_bvhutils.h"
+#include "BKE_particle.h"
+
+bool BKE_mesh_sample_from_particle(MSurfaceSample *sample, ParticleSystem *psys, DerivedMesh *dm, ParticleData *pa)
+{
+	MVert *mverts;
+	MFace *mface;
+	float mapfw[4];
+	int mapindex;
+	float *co1 = NULL, *co2 = NULL, *co3 = NULL, *co4 = NULL;
+	float vec[3];
+	float w[4];
+	
+	if (!psys_get_index_on_dm(psys, dm, pa, &mapindex, mapfw))
+		return false;
+	
+	mface = dm->getTessFaceData(dm, mapindex, CD_MFACE);
+	mverts = dm->getVertDataArray(dm, CD_MVERT);
+	
+	co1 = mverts[mface->v1].co;
+	co2 = mverts[mface->v2].co;
+	co3 = mverts[mface->v3].co;
+	
+	if (mface->v4) {
+		co4 = mverts[mface->v4].co;
+		
+		interp_v3_v3v3v3v3(vec, co1, co2, co3, co4, mapfw);
+	}
+	else {
+		interp_v3_v3v3v3(vec, co1, co2, co3, mapfw);
+	}
+	
+	/* test both triangles of the face */
+	interp_weights_face_v3(w, co1, co2, co3, NULL, vec);
+	if (w[0] <= 1.0f && w[1] <= 1.0f && w[2] <= 1.0f) {
+		sample->orig_verts[0] = mface->v1;
+		sample->orig_verts[1] = mface->v2;
+		sample->orig_verts[2] = mface->v3;
+	
+		copy_v3_v3(sample->orig_weights, w);
+		return true;
+	}
+	else if (mface->v4) {
+		interp_weights_face_v3(w, co3, co4, co1, NULL, vec);
+		sample->orig_verts[0] = mface->v3;
+		sample->orig_verts[1] = mface->v4;
+		sample->orig_verts[2] = mface->v1;
+	
+		copy_v3_v3(sample->orig_weights, w);
+		return true;
+	}
+	else
+		return false;
+}
+
+bool BKE_mesh_sample_to_particle(MSurfaceSample *sample, ParticleSystem *UNUSED(psys), DerivedMesh *dm, BVHTreeFromMesh *bvhtree, ParticleData *pa)
+{
+	BVHTreeNearest nearest;
+	float vec[3], nor[3];
+	
+	BKE_mesh_sample_eval(dm, sample, vec, nor);
+	
+	nearest.index = -1;
+	nearest.dist_sq = FLT_MAX;
+	BLI_bvhtree_find_nearest(bvhtree->tree, vec, &nearest, bvhtree->nearest_callback, bvhtree);
+	if (nearest.index >= 0) {
+		MFace *mface = dm->getTessFaceData(dm, nearest.index, CD_MFACE);
+		MVert *mverts = dm->getVertDataArray(dm, CD_MVERT);
+		
+		float *co1 = mverts[mface->v1].co;
+		float *co2 = mverts[mface->v2].co;
+		float *co3 = mverts[mface->v3].co;
+		float *co4 = mface->v4 ? mverts[mface->v4].co : NULL;
+		
+		pa->num = nearest.index;
+		pa->num_dmcache = DMCACHE_NOTFOUND;
+		
+		interp_weights_face_v3(pa->fuv, co1, co2, co3, co4, vec);
+		pa->foffset = 0.0f; /* XXX any sensible way to reconstruct this? */
+		
+		return true;
+	}
+	else
+		return false;
+}
