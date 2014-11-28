@@ -92,9 +92,7 @@ set(SRC
 	intern/displist.c
 	intern/dynamicpaint.c
 	intern/editderivedmesh.c
-	intern/edithair_inline.h
 	intern/edithair.c
-	intern/edithair_particles.c
 	intern/editmesh.c
 	intern/editmesh_bvh.c
 	intern/effect.c
