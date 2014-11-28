@@ -64,11 +64,16 @@ typedef enum BMStrandsIterType {
 #define BM_ITER_STRANDS_ELEM(ele, iter, data, itype) \
 	for (ele = BM_strand_iter_new(iter, NULL, itype, data); ele; ele = BM_iter_step(iter))
 
+typedef struct BMIter__vert_of_strand {
+	BMVert *v_next;
+	BMEdge *e_next;
+} BMIter__vert_of_strand;
+
 void  bmstranditer__strands_of_mesh_begin(struct BMIter__elem_of_mesh *iter);
 void *bmstranditer__strands_of_mesh_step(struct BMIter__elem_of_mesh *iter);
 
-void  bmstranditer__verts_of_strand_begin(struct BMIter__vert_of_edge *iter);
-void *bmstranditer__verts_of_strand_step(struct BMIter__vert_of_edge *iter);
+void  bmstranditer__verts_of_strand_begin(struct BMIter__vert_of_strand *iter);
+void *bmstranditer__verts_of_strand_step(struct BMIter__vert_of_strand *iter);
 
 BLI_INLINE bool BM_strand_iter_init(BMIter *iter, BMesh *bm, const char itype, void *data)
 {
@@ -93,10 +98,7 @@ BLI_INLINE bool BM_strand_iter_init(BMIter *iter, BMesh *bm, const char itype, v
 			BLI_assert(BM_strands_vert_is_root(root));
 			iter->begin = (BMIter__begin_cb)bmstranditer__verts_of_strand_begin;
 			iter->step  = (BMIter__step_cb)bmstranditer__verts_of_strand_step;
-			/* Note: Iterating over a strand is in fact more like a vertices-of-vertex iterator,
-			 * but due to strand topology we can start with the first edge as well.
-			 */
-			iter->data.vert_of_edge.edata = root->e;
+			((BMIter__vert_of_strand *)(&iter->data))->v_next = root;
 			break;
 		}
 		default:

@@ -56,27 +56,33 @@ void *bmstranditer__strands_of_mesh_step(struct BMIter__elem_of_mesh *iter)
  * VERTS OF STRAND CALLBACKS
  */
 
-void  bmstranditer__verts_of_strand_begin(struct BMIter__vert_of_edge *UNUSED(iter))
+/* BMIter__vert_of_strand is not included in the union in BMIter, just make sure it is big enough */
+BLI_STATIC_ASSERT(sizeof(BMIter__vert_of_strand) <= sizeof(BMIter), "BMIter must be at least as large as BMIter__vert_of_strand")
+
+void  bmstranditer__verts_of_strand_begin(struct BMIter__vert_of_strand *iter)
 {
+	iter->e_next = iter->v_next->e;
 }
 
-void *bmstranditer__verts_of_strand_step(struct BMIter__vert_of_edge *iter)
+void *bmstranditer__verts_of_strand_step(struct BMIter__vert_of_strand *iter)
 {
-	if (iter->edata) {
-		/* by definition the all strand edges run in the same direction,
-		 * with the root being v1 of the first edge.
-		 */
-		BMVert *v_curr = iter->edata->v1;
-		BMEdge *e_first = iter->edata;
+	BMVert *v_curr = iter->v_next;
+	
+	if (iter->e_next) {
+		BMEdge *e_first = iter->e_next;
 		
-		iter->edata = bmesh_disk_edge_next(iter->edata, iter->edata->v2);
-		if (iter->edata == e_first) {
+		/* select the other vertex of the current edge */
+		iter->v_next = (iter->v_next == iter->e_next->v1 ? iter->e_next->v2 : iter->e_next->v1);
+		
+		/* select the next edge of the current vertex */
+		iter->e_next = bmesh_disk_edge_next(iter->e_next, iter->v_next);
+		if (iter->e_next == e_first) {
 			/* only one edge means the last segment, terminate */
-			iter->edata = NULL;
+			iter->e_next = NULL;
 		}
-		
-		return v_curr;
 	}
 	else
-		return NULL;
+		iter->v_next = NULL; /* last vertex, terminate */
+	
+	return v_curr;
 }
