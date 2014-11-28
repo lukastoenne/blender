@@ -72,7 +72,6 @@
 #include "GPU_glew.h"
 #include "GPU_compositing.h"
 
-#include "wm_window.h"
 
 #include "render_intern.h"
 
