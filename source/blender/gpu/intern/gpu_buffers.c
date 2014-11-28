@@ -502,7 +502,7 @@ static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int to
 
 /* see GPUDrawObject's structure definition for a description of the
  * data being initialized here */
-GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm, GPUSortType type)
+GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
 {
 	GPUDrawObject *gdo;
 	MFace *mface;
@@ -1086,12 +1086,12 @@ static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type)
 
 /* get the buffer of `type', initializing the GPUDrawObject and
  * buffer if needed */
-static GPUBuffer *gpu_buffer_setup_common(DerivedMesh *dm, GPUBufferType type, GPUSortType sort_type)
+static GPUBuffer *gpu_buffer_setup_common(DerivedMesh *dm, GPUBufferType type)
 {
 	GPUBuffer **buf;
 
 	if (!dm->drawObject)
-		dm->drawObject = GPU_drawobject_new(dm, sort_type);
+		dm->drawObject = GPU_drawobject_new(dm);
 
 	buf = gpu_drawobject_buffer_from_type(dm->drawObject, type);
 	if (!(*buf))
@@ -1100,9 +1100,9 @@ static GPUBuffer *gpu_buffer_setup_common(DerivedMesh *dm, GPUBufferType type, G
 	return *buf;
 }
 
-void GPU_vertex_setup(DerivedMesh *dm, GPUSortType type)
+void GPU_vertex_setup(DerivedMesh *dm)
 {
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -1117,9 +1117,9 @@ void GPU_vertex_setup(DerivedMesh *dm, GPUSortType type)
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
 
-void GPU_normal_setup(DerivedMesh *dm, GPUSortType type)
+void GPU_normal_setup(DerivedMesh *dm)
 {
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_NORMAL, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_NORMAL))
 		return;
 
 	glEnableClientState(GL_NORMAL_ARRAY);
@@ -1134,9 +1134,9 @@ void GPU_normal_setup(DerivedMesh *dm, GPUSortType type)
 	GLStates |= GPU_BUFFER_NORMAL_STATE;
 }
 
-void GPU_uv_setup(DerivedMesh *dm, GPUSortType type)
+void GPU_uv_setup(DerivedMesh *dm)
 {
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV))
 		return;
 
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1151,9 +1151,9 @@ void GPU_uv_setup(DerivedMesh *dm, GPUSortType type)
 	GLStates |= GPU_BUFFER_TEXCOORD_UNIT_0_STATE;
 }
 
-void GPU_texpaint_uv_setup(DerivedMesh *dm, GPUSortType type)
+void GPU_texpaint_uv_setup(DerivedMesh *dm)
 {
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV_TEXPAINT, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV_TEXPAINT))
 		return;
 
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1177,12 +1177,12 @@ void GPU_texpaint_uv_setup(DerivedMesh *dm, GPUSortType type)
 }
 
 
-void GPU_color_setup(DerivedMesh *dm, int colType, GPUSortType type)
+void GPU_color_setup(DerivedMesh *dm, int colType)
 {
 	if (!dm->drawObject) {
 		/* XXX Not really nice, but we need a valid gpu draw object to set the colType...
 		 *     Else we would have to add a new param to gpu_buffer_setup_common. */
-		dm->drawObject = GPU_drawobject_new(dm, type);
+		dm->drawObject = GPU_drawobject_new(dm);
 		dm->dirty &= ~DM_DIRTY_MCOL_UPDATE_DRAW;
 		dm->drawObject->colType = colType;
 	}
@@ -1199,7 +1199,7 @@ void GPU_color_setup(DerivedMesh *dm, int colType, GPUSortType type)
 		dm->drawObject->colType = colType;
 	}
 
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_COLOR, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_COLOR))
 		return;
 
 	glEnableClientState(GL_COLOR_ARRAY);
@@ -1214,12 +1214,12 @@ void GPU_color_setup(DerivedMesh *dm, int colType, GPUSortType type)
 	GLStates |= GPU_BUFFER_COLOR_STATE;
 }
 
-void GPU_edge_setup(DerivedMesh *dm, GPUSortType type)
+void GPU_edge_setup(DerivedMesh *dm)
 {
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_EDGE, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_EDGE))
 		return;
 
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -1239,9 +1239,9 @@ void GPU_edge_setup(DerivedMesh *dm, GPUSortType type)
 	GLStates |= GPU_BUFFER_ELEMENT_STATE;
 }
 
-void GPU_uvedge_setup(DerivedMesh *dm, GPUSortType type)
+void GPU_uvedge_setup(DerivedMesh *dm)
 {
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UVEDGE, type))
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UVEDGE))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -1380,14 +1380,14 @@ void GPU_color_switch(int mode)
 
 /* return 1 if drawing should be done using old immediate-mode
  * code, 0 otherwise */
-bool GPU_buffer_legacy(DerivedMesh *dm, GPUSortType type)
+bool GPU_buffer_legacy(DerivedMesh *dm)
 {
 	int test = (U.gameflags & USER_DISABLE_VBO);
 	if (test)
 		return 1;
 
 	if (dm->drawObject == NULL)
-		dm->drawObject = GPU_drawobject_new(dm, type);
+		dm->drawObject = GPU_drawobject_new(dm);
 	return dm->drawObject->legacy;
 }
 
