@@ -20,6 +20,7 @@
 
 set(INC
 	../include
+	../sculpt_paint
 	../../blenfont
 	../../blenkernel
 	../../blenlib

@@ -462,11 +462,6 @@ static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSyst
 	pa->lifetime = 100.0f;
 	pa->dietime = 100.0f;
 	
-	pa->fuv[0] = 1.0f;
-	pa->fuv[1] = 0.0f;
-	pa->fuv[2] = 0.0f;
-	pa->fuv[3] = 0.0f;
-	
 	pa->size = psys->part->size;
 	
 	// TODO define other particle stuff ...
