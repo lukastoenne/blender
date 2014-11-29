@@ -34,6 +34,10 @@
 
 struct wmOperatorType;
 
+int hair_edit_toggle_poll(bContext *C);
+
 void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
+
+void HAIR_OT_stroke(struct wmOperatorType *ot);
 
 #endif
