@@ -40,6 +40,7 @@
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -48,7 +49,10 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 
+#include "bmesh.h"
+
 #include "RNA_access.h"
+#include "RNA_define.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -100,6 +104,27 @@ static bool apply_hair_edit(Object *ob)
 	}
 	
 	return false;
+}
+
+
+/* ==== BMesh utilities ==== */
+
+void hair_bm_min_max(BMEditStrands *edit, float min[3], float max[3])
+{
+	BMVert *v;
+	BMIter iter;
+	
+	if (edit->bm->totvert > 0) {
+		INIT_MINMAX(min, max);
+		
+		BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			minmax_v3v3_v3(min, max, v->co);
+		}
+	}
+	else {
+		zero_v3(min);
+		zero_v3(max);
+	}
 }
 
 
@@ -169,265 +194,375 @@ void HAIR_OT_hair_edit_toggle(wmOperatorType *ot)
 
 /* ==== brush stroke ==== */
 
-typedef struct HairStrokeOperation {
-	void *custom_paint;
-
-	float prevmouse[2];
-	float startmouse[2];
-	double starttime;
-
-	void *cursor;
-	ViewContext vc;
-} HairStrokeOperation;
-
-static HairStrokeOperation *hair_stroke_init(bContext *C, wmOperator *op, const float mouse[2])
-{
-	Scene *scene = CTX_data_scene(C);
-//	ToolSettings *settings = scene->toolsettings;
-	HairStrokeOperation *pop = MEM_callocN(sizeof(HairStrokeOperation), "PaintOperation"); /* caller frees */
-//	Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
-	int mode = RNA_enum_get(op->ptr, "mode");
-	view3d_set_viewcontext(C, &pop->vc);
-
-	copy_v2_v2(pop->prevmouse, mouse);
-	copy_v2_v2(pop->startmouse, mouse);
-
-	/* initialize from context */
-	if (CTX_wm_region_view3d(C)) {
-		Object *ob = OBACT;
-		
-		pop->custom_paint = paint_proj_new_stroke(C, ob, mouse, mode);
-	}
-
-	if (!pop->custom_paint) {
-		MEM_freeN(pop);
-		return NULL;
-	}
-
-//	if ((brush->imagepaint_tool == PAINT_TOOL_FILL) && (brush->flag & BRUSH_USE_GRADIENT)) {
-//		pop->cursor = WM_paint_cursor_activate(CTX_wm_manager(C), image_paint_poll, gradient_draw_line, pop);
-//	}
-	
-//	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-//	                         ED_image_undo_restore, ED_image_undo_free, NULL);
-
-	return pop;
-}
-
-/* restore painting image to previous state. Used for anchored and drag-dot style brushes*/
-static void hair_stroke_restore(void)
-{
-	/* XXX TODO */
-//	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
-//	image_undo_restore_runtime(lb);
-//	image_undo_invalidate();
-}
-
-static void hair_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)
-{
-	HairStrokeOperation *pop = paint_stroke_mode_data(stroke);
-	Scene *scene = CTX_data_scene(C);
-	ToolSettings *toolsettings = CTX_data_tool_settings(C);
-	UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
-	Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
-
-	float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? ups->overlap_factor : 1.0f;
-
-	/* initial brush values. Maybe it should be considered moving these to stroke system */
-	float startalpha = BKE_brush_alpha_get(scene, brush);
-
-	float mouse[2];
-	float pressure;
-	float size;
-	float distance = paint_stroke_distance_get(stroke);
-	int eraser;
-
-	RNA_float_get_array(itemptr, "mouse", mouse);
-	pressure = RNA_float_get(itemptr, "pressure");
-	eraser = RNA_boolean_get(itemptr, "pen_flip");
-	size = max_ff(1.0f, RNA_float_get(itemptr, "size"));
-
-	/* stroking with fill tool only acts on stroke end */
-	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
-		copy_v2_v2(pop->prevmouse, mouse);
-		return;
-	}
-
-	if (BKE_brush_use_alpha_pressure(scene, brush))
-		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * alphafac));
-	else
-		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * alphafac));
-
-	if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
-		hair_stroke_restore();
-	}
-
-	paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse, eraser, pressure, distance, size);
-
-	copy_v2_v2(pop->prevmouse, mouse);
-
-	/* restore brush values */
-	BKE_brush_alpha_set(scene, brush, startalpha);
-}
-
-static void hair_stroke_redraw(const bContext *C, struct PaintStroke *stroke, bool final)
-{
-	HairStrokeOperation *pop = paint_stroke_mode_data(stroke);
-
-	paint_proj_redraw(C, pop->custom_paint, final);
-}
-
-static void hair_stroke_done(const bContext *C, struct PaintStroke *stroke)
-{
-	Scene *scene = CTX_data_scene(C);
-	ToolSettings *toolsettings = scene->toolsettings;
-	HairStrokeOperation *pop = paint_stroke_mode_data(stroke);
-	Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
-
-	toolsettings->imapaint.flag &= ~IMAGEPAINT_DRAWING;
-
-	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
-		if (brush->flag & BRUSH_USE_GRADIENT) {
-			paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, paint_stroke_flipped(stroke),
-			                  1.0, 0.0, BKE_brush_size_get(scene, brush));
-			/* two redraws, one for GPU update, one for notification */
-			paint_proj_redraw(C, pop->custom_paint, false);
-			paint_proj_redraw(C, pop->custom_paint, true);
-		}
-		else {
-			paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, paint_stroke_flipped(stroke),
-			                  1.0, 0.0, BKE_brush_size_get(scene, brush));
-			/* two redraws, one for GPU update, one for notification */
-			paint_proj_redraw(C, pop->custom_paint, false);
-			paint_proj_redraw(C, pop->custom_paint, true);
-		}
-	}
-	paint_proj_stroke_done(pop->custom_paint);
-
-	if (pop->cursor) {
-		WM_paint_cursor_end(CTX_wm_manager(C), pop->cursor);
-	}
-
-	// XXX TODO
-//	image_undo_end();
-
-	/* duplicate warning, see texpaint_init */
-#if 0
-	if (pop->s.warnmultifile)
-		BKE_reportf(op->reports, RPT_WARNING, "Image requires 4 color channels to paint: %s", pop->s.warnmultifile);
-	if (pop->s.warnpackedfile)
-		BKE_reportf(op->reports, RPT_WARNING, "Packed MultiLayer files cannot be painted: %s", pop->s.warnpackedfile);
-#endif
-	MEM_freeN(pop);
-}
-
-static bool hair_stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
-{
-	HairStrokeOperation *pop;
-
-	/* TODO Should avoid putting this here. Instead, last position should be requested
-	 * from stroke system. */
-
-//	if (!(pop = texture_paint_init(C, op, mouse))) {
-		return false;
-//	}
-
-	paint_stroke_set_mode_data(op->customdata, pop);
-
-	return true;
-}
-
-/* ------------------------------------------------------------------------- */
-
-static Brush *hair_stroke_brush(bContext *C)
-{
-	Scene *scene = CTX_data_scene(C);
-	ToolSettings *settings = scene->toolsettings;
-
-	return BKE_paint_brush(&settings->imapaint.paint);
-}
-
 static int hair_stroke_poll(bContext *C)
 {
 	Object *obact;
-
-	if (!hair_stroke_brush(C))
-		return false;
-
+	
 	obact = CTX_data_active_object(C);
 	if ((obact && obact->mode & OB_MODE_HAIR_EDIT) && CTX_wm_region_view3d(C)) {
 		return true;
 	}
-
+	
 	return false;
 }
 
-static int hair_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+typedef struct HairStroke {
+	Scene *scene;
+	Object *ob;
+	BMEditStrands *edit;
+	
+	bool first;
+	int lastmouse[2];
+	float zfac;
+	
+	/* optional cached view settings to avoid setting on every mousemove */
+//	PEData data;
+} HairStroke;
+
+static int hair_stroke_init(bContext *C, wmOperator *op)
 {
-	int retval;
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+//	ParticleEditSettings *pset = PE_settings(scene);
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	ARegion *ar = CTX_wm_region(C);
+	
+	HairStroke *stroke;
+	float min[3], max[3], center[3];
+	
+//	if (pset->brushtype < 0)
+//		return 0;
 
-	op->customdata = paint_stroke_new(C, op, NULL, hair_stroke_test_start,
-	                                  hair_stroke_update_step,
-	                                  hair_stroke_redraw,
-	                                  hair_stroke_done, event->type);
+	/* set the 'distance factor' for grabbing (used in comb etc) */
+	hair_bm_min_max(edit, min, max);
+	mid_v3_v3v3(center, min, max);
 
-	if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
-		paint_stroke_data_free(op);
-		return OPERATOR_FINISHED;
+	stroke = MEM_callocN(sizeof(HairStroke), "HairStroke");
+	stroke->first = true;
+	op->customdata = stroke;
+
+	stroke->scene = scene;
+	stroke->ob = ob;
+	stroke->edit = edit;
+
+	stroke->zfac = ED_view3d_calc_zfac(ar->regiondata, center, NULL);
+
+	/* cache view depths and settings for re-use */
+//	PE_set_view3d_data(C, &stroke->data);
+
+	return 1;
+}
+
+static void hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
+{
+	HairStroke *stroke = op->customdata;
+	Scene *scene = stroke->scene;
+	Object *ob = stroke->ob;
+	BMEditStrands *edit = stroke->edit;
+//	ParticleEditSettings *pset= PE_settings(scene);
+//	ParticleSystemModifierData *psmd= edit->psys ? psys_get_modifier(ob, edit->psys) : NULL;
+//	ParticleBrushData *brush = &pset->brush[pset->brushtype];
+	ARegion *ar = CTX_wm_region(C);
+	
+	float /*vec[3],*/ mouse[2];
+	int mval[2];
+	int flip;
+//	int removed= 0, added=0, selected= 0, tot_steps= 1, step= 1;
+	float dx, dy/*, dmax*/;
+//	int lock_root = pset->flag & PE_LOCK_FIRST;
+
+//	if (!PE_start_edit(edit))
+//		return;
+
+	RNA_float_get_array(itemptr, "mouse", mouse);
+	flip = RNA_boolean_get(itemptr, "pen_flip");
+
+	if (stroke->first) {
+		stroke->lastmouse[0] = mouse[0];
+		stroke->lastmouse[1] = mouse[1];
 	}
-	/* add modal handler */
-	WM_event_add_modal_handler(C, op);
 
-	OPERATOR_RETVAL_CHECK(retval);
-	BLI_assert(retval == OPERATOR_RUNNING_MODAL);
+	dx = mouse[0] - stroke->lastmouse[0];
+	dy = mouse[1] - stroke->lastmouse[1];
 
-	return OPERATOR_RUNNING_MODAL;
+	mval[0] = mouse[0];
+	mval[1] = mouse[1];
+
+	/* disable locking temporatily for disconnected hair */
+//	if (edit->psys && edit->psys->flag & PSYS_GLOBAL_HAIR)
+//		pset->flag &= ~PE_LOCK_FIRST;
+
+//	if (((pset->brushtype == PE_BRUSH_ADD) ?
+//	     (sqrtf(dx * dx + dy * dy) > pset->brush[PE_BRUSH_ADD].step) : (dx != 0 || dy != 0)) || stroke->first)
+	{
+#if 0
+		PEData data= stroke->data;
+
+		view3d_operator_needs_opengl(C);
+		selected= (short)count_selected_keys(scene, edit);
+
+		dmax = max_ff(fabsf(dx), fabsf(dy));
+		tot_steps = dmax/(0.2f * pe_brush_size_get(scene, brush)) + 1;
+
+		dx /= (float)tot_steps;
+		dy /= (float)tot_steps;
+
+		for (step = 1; step<=tot_steps; step++) {
+			mval[0] = stroke->lastmouse[0] + step*dx;
+			mval[1] = stroke->lastmouse[1] + step*dy;
+
+			switch (pset->brushtype) {
+				case PE_BRUSH_COMB:
+				{
+					const float mval_f[2] = {dx, dy};
+					data.mval= mval;
+					data.rad= pe_brush_size_get(scene, brush);
+
+					data.combfac= (brush->strength - 0.5f) * 2.0f;
+					if (data.combfac < 0.0f)
+						data.combfac= 1.0f - 9.0f * data.combfac;
+					else
+						data.combfac= 1.0f - data.combfac;
+
+					invert_m4_m4(ob->imat, ob->obmat);
+
+					ED_view3d_win_to_delta(ar, mval_f, vec, stroke->zfac);
+					data.dvec= vec;
+
+					foreach_mouse_hit_key(&data, brush_comb, selected);
+					break;
+				}
+				case PE_BRUSH_CUT:
+				{
+					if (edit->psys && edit->pathcache) {
+						data.mval= mval;
+						data.rad= pe_brush_size_get(scene, brush);
+						data.cutfac= brush->strength;
+
+						if (selected)
+							foreach_selected_point(&data, brush_cut);
+						else
+							foreach_point(&data, brush_cut);
+
+						removed= remove_tagged_particles(ob, edit->psys, pe_x_mirror(ob));
+						if (pset->flag & PE_KEEP_LENGTHS)
+							recalc_lengths(edit);
+					}
+					else
+						removed= 0;
+
+					break;
+				}
+				case PE_BRUSH_LENGTH:
+				{
+					data.mval= mval;
+				
+					data.rad= pe_brush_size_get(scene, brush);
+					data.growfac= brush->strength / 50.0f;
+
+					if (brush->invert ^ flip)
+						data.growfac= 1.0f - data.growfac;
+					else
+						data.growfac= 1.0f + data.growfac;
+
+					foreach_mouse_hit_point(&data, brush_length, selected);
+
+					if (pset->flag & PE_KEEP_LENGTHS)
+						recalc_lengths(edit);
+					break;
+				}
+				case PE_BRUSH_PUFF:
+				{
+					if (edit->psys) {
+						data.dm= psmd->dm;
+						data.mval= mval;
+						data.rad= pe_brush_size_get(scene, brush);
+						data.select= selected;
+
+						data.pufffac= (brush->strength - 0.5f) * 2.0f;
+						if (data.pufffac < 0.0f)
+							data.pufffac= 1.0f - 9.0f * data.pufffac;
+						else
+							data.pufffac= 1.0f - data.pufffac;
+
+						data.invert= (brush->invert ^ flip);
+						invert_m4_m4(ob->imat, ob->obmat);
+
+						foreach_mouse_hit_point(&data, brush_puff, selected);
+					}
+					break;
+				}
+				case PE_BRUSH_ADD:
+				{
+					if (edit->psys && edit->psys->part->from==PART_FROM_FACE) {
+						data.mval= mval;
+
+						added= brush_add(&data, brush->count);
+
+						if (pset->flag & PE_KEEP_LENGTHS)
+							recalc_lengths(edit);
+					}
+					else
+						added= 0;
+					break;
+				}
+				case PE_BRUSH_SMOOTH:
+				{
+					data.mval= mval;
+					data.rad= pe_brush_size_get(scene, brush);
+
+					data.vec[0] = data.vec[1] = data.vec[2] = 0.0f;
+					data.tot= 0;
+
+					data.smoothfac= brush->strength;
+
+					invert_m4_m4(ob->imat, ob->obmat);
+
+					foreach_mouse_hit_key(&data, brush_smooth_get, selected);
+
+					if (data.tot) {
+						mul_v3_fl(data.vec, 1.0f / (float)data.tot);
+						foreach_mouse_hit_key(&data, brush_smooth_do, selected);
+					}
+
+					break;
+				}
+				case PE_BRUSH_WEIGHT:
+				{
+					if (edit->psys) {
+						data.dm= psmd->dm;
+						data.mval= mval;
+						data.rad= pe_brush_size_get(scene, brush);
+
+						data.weightfac = brush->strength; /* note that this will never be zero */
+
+						foreach_mouse_hit_key(&data, BKE_brush_weight_get, selected);
+					}
+
+					break;
+				}
+			}
+			if ((pset->flag & PE_KEEP_LENGTHS)==0)
+				recalc_lengths(edit);
+
+			if (ELEM(pset->brushtype, PE_BRUSH_ADD, PE_BRUSH_CUT) && (added || removed)) {
+				if (pset->brushtype == PE_BRUSH_ADD && pe_x_mirror(ob))
+					PE_mirror_x(scene, ob, 1);
+
+				update_world_cos(ob, edit);
+				psys_free_path_cache(NULL, edit);
+				DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			}
+			else
+				PE_update_object(scene, ob, 1);
+		}
+#endif
+
+//		if (edit->psys) {
+//			WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_EDITED, ob);
+//		}
+//		else {
+//			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+//			WM_event_add_notifier(C, NC_OBJECT|ND_MODIFIER, ob);
+//		}
+
+		stroke->lastmouse[0] = mouse[0];
+		stroke->lastmouse[1] = mouse[1];
+		stroke->first = false;
+	}
+
+//	pset->flag |= lock_root;
+}
+
+static void hair_stroke_exit(wmOperator *op)
+{
+	HairStroke *stroke = op->customdata;
+	MEM_freeN(stroke);
 }
 
 static int hair_stroke_exec(bContext *C, wmOperator *op)
 {
-	HairStrokeOperation *pop;
-	PropertyRNA *strokeprop;
-	PointerRNA firstpoint;
-	float mouse[2];
-
-	strokeprop = RNA_struct_find_property(op->ptr, "stroke");
-
-	if (!RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint))
+	if (!hair_stroke_init(C, op))
 		return OPERATOR_CANCELLED;
 
-	RNA_float_get_array(&firstpoint, "mouse", mouse);
-
-	if (!(pop = hair_stroke_init(C, op, mouse))) {
-		return OPERATOR_CANCELLED;
+	RNA_BEGIN (op->ptr, itemptr, "stroke")
+	{
+		hair_stroke_apply(C, op, &itemptr);
 	}
+	RNA_END;
 
-	op->customdata = paint_stroke_new(C, op, NULL, hair_stroke_test_start,
-	                                  hair_stroke_update_step,
-	                                  hair_stroke_redraw,
-	                                  hair_stroke_done, 0);
-	/* frees op->customdata */
-	paint_stroke_exec(C, op);
+	hair_stroke_exit(op);
 
 	return OPERATOR_FINISHED;
+}
+
+static void hair_stroke_apply_event(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	PointerRNA itemptr;
+	float mouse[2];
+
+	VECCOPY2D(mouse, event->mval);
+
+	/* fill in stroke */
+	RNA_collection_add(op->ptr, "stroke", &itemptr);
+
+	RNA_float_set_array(&itemptr, "mouse", mouse);
+	RNA_boolean_set(&itemptr, "pen_flip", event->shift != false); // XXX hardcoded
+
+	/* apply */
+	hair_stroke_apply(C, op, &itemptr);
+}
+
+static int hair_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	if (!hair_stroke_init(C, op))
+		return OPERATOR_CANCELLED;
+	
+	hair_stroke_apply_event(C, op, event);
+
+	WM_event_add_modal_handler(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int hair_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	switch (event->type) {
+		case LEFTMOUSE:
+		case MIDDLEMOUSE:
+		case RIGHTMOUSE: // XXX hardcoded
+			hair_stroke_exit(op);
+			return OPERATOR_FINISHED;
+		case MOUSEMOVE:
+			hair_stroke_apply_event(C, op, event);
+			break;
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static void hair_stroke_cancel(bContext *UNUSED(C), wmOperator *op)
+{
+	hair_stroke_exit(op);
 }
 
 void HAIR_OT_stroke(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Brush Stroke";
+	ot->name = "Hair Stroke";
 	ot->idname = "HAIR_OT_stroke";
-	ot->description = "Use a brush tool on hair";
+	ot->description = "Use a stroke tool on hair strands";
 
 	/* api callbacks */
-	ot->invoke = hair_stroke_invoke;
-	ot->modal = paint_stroke_modal;
 	ot->exec = hair_stroke_exec;
+	ot->invoke = hair_stroke_invoke;
+	ot->modal = hair_stroke_modal;
+	ot->cancel = hair_stroke_cancel;
 	ot->poll = hair_stroke_poll;
-	ot->cancel = paint_stroke_cancel;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
-	paint_stroke_operator_properties(ot);
+	/* properties */
+	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
 }

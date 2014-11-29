@@ -69,6 +69,6 @@ void ED_keymap_hair(wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Hair", 0, 0);
 	keymap->poll = hair_poll;
 	
-	kmi = WM_keymap_add_item(keymap, "HAIR_OT_brush", LEFTMOUSE, KM_PRESS, 0,        0);
+	kmi = WM_keymap_add_item(keymap, "HAIR_OT_stroke", LEFTMOUSE, KM_PRESS, 0,        0);
 	RNA_enum_set(kmi->ptr, "mode", BRUSH_STROKE_NORMAL);
 }

@@ -40,4 +40,11 @@ void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
 
 void HAIR_OT_stroke(struct wmOperatorType *ot);
 
+
+/* ==== BMesh utilities ==== */
+
+struct BMEditStrands;
+
+void hair_bm_min_max(struct BMEditStrands *edit, float min[3], float max[3]);
+
 #endif
