@@ -90,7 +90,6 @@
 #include "renderdatabase.h"
 #include "rendercore.h"
 #include "initrender.h"
-#include "shadbuf.h"
 #include "pixelblending.h"
 #include "zbuf.h"
 
@@ -492,6 +491,12 @@ static int check_mode_full_sample(RenderData *rd)
 {
 	int scemode = rd->scemode;
 
+	if (!STREQ(rd->engine, RE_engine_id_BLENDER_RENDER) &&
+	    !STREQ(rd->engine, RE_engine_id_BLENDER_GAME))
+	{
+		scemode &= ~R_FULL_SAMPLE;
+	}
+
 	if ((rd->mode & R_OSA) == 0)
 		scemode &= ~R_FULL_SAMPLE;
 
@@ -699,25 +704,27 @@ static void render_result_rescale(Render *re)
 		                               RR_USE_MEM,
 		                               RR_ALL_LAYERS);
 
-		dst_rectf = re->result->rectf;
-		if (dst_rectf == NULL) {
-			RenderLayer *rl;
-			rl = render_get_active_layer(re, re->result);
-			if (rl != NULL) {
-				dst_rectf = rl->rectf;
+		if (re->result != NULL) {
+			dst_rectf = re->result->rectf;
+			if (dst_rectf == NULL) {
+				RenderLayer *rl;
+				rl = render_get_active_layer(re, re->result);
+				if (rl != NULL) {
+					dst_rectf = rl->rectf;
+				}
 			}
-		}
 
-		scale_x = (float) result->rectx / re->result->rectx;
-		scale_y = (float) result->recty / re->result->recty;
-		for (x = 0; x < re->result->rectx; ++x) {
-			for (y = 0; y < re->result->recty; ++y) {
-				int src_x = x * scale_x,
-				    src_y = y * scale_y;
-				int dst_index = y * re->result->rectx + x,
-				    src_index = src_y * result->rectx + src_x;
-				copy_v4_v4(dst_rectf + dst_index * 4,
-				           src_rectf + src_index * 4);
+			scale_x = (float) result->rectx / re->result->rectx;
+			scale_y = (float) result->recty / re->result->recty;
+			for (x = 0; x < re->result->rectx; ++x) {
+				for (y = 0; y < re->result->recty; ++y) {
+					int src_x = x * scale_x,
+					    src_y = y * scale_y;
+					int dst_index = y * re->result->rectx + x,
+					    src_index = src_y * result->rectx + src_x;
+					copy_v4_v4(dst_rectf + dst_index * 4,
+					           src_rectf + src_index * 4);
+				}
 			}
 		}
 	}
@@ -3096,7 +3103,8 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 			if (G.is_break == true) {
 				/* remove touched file */
 				if (BKE_imtype_is_movie(scene->r.im_format.imtype) == 0) {
-					if (scene->r.mode & R_TOUCH && BLI_exists(name) && BLI_file_size(name) == 0) {
+					if ((scene->r.mode & R_TOUCH) && (BLI_file_size(name) == 0)) {
+						/* BLI_exists(name) is implicit */
 						BLI_delete(name, false, false);
 					}
 				}

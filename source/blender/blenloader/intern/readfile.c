@@ -141,13 +141,9 @@
 #include "BKE_treehash.h"
 #include "BKE_sound.h"
 
-#include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
 
 #include "NOD_common.h"
 #include "NOD_socket.h"
-#include "NOD_composite.h"
-#include "NOD_shader.h"
-#include "NOD_texture.h"
 
 #include "BLO_readfile.h"
 #include "BLO_undofile.h"
@@ -157,7 +153,6 @@
 
 #include "readfile.h"
 
-#include "PIL_time.h"
 
 #include <errno.h>
 
@@ -254,6 +249,12 @@ void blo_reportf_wrap(ReportList *reports, ReportType type, const char *format, 
 	if (G.background == 0) {
 		printf("%s\n", fixed_buf);
 	}
+}
+
+/* for reporting linking messages */
+static const char *library_parent_filepath(Library *lib)
+{
+	return lib->parent ? lib->parent->filepath : "<direct>";
 }
 
 static OldNewMap *oldnewmap_new(void) 
@@ -1122,6 +1123,8 @@ void blo_freefiledata(FileData *fd)
 			oldnewmap_free(fd->imamap);
 		if (fd->movieclipmap)
 			oldnewmap_free(fd->movieclipmap);
+		if (fd->soundmap)
+			oldnewmap_free(fd->soundmap);
 		if (fd->packedmap)
 			oldnewmap_free(fd->packedmap);
 		if (fd->libmap && !(fd->flags & FD_FLAGS_NOT_MY_LIBMAP))
@@ -1149,6 +1152,9 @@ bool BLO_is_a_library(const char *path, char *dir, char *group)
 	int len;
 	char *fd;
 	
+	/* if path leads to a directory we can be sure we're not in a library */
+	if (BLI_is_dir(path)) return 0;
+
 	strcpy(dir, path);
 	len = strlen(dir);
 	if (len < 7) return 0;
@@ -1209,6 +1215,13 @@ static void *newmclipadr(FileData *fd, void *adr)      /* used to restore movie 
 {
 	if (fd->movieclipmap && adr)
 		return oldnewmap_lookup_and_inc(fd->movieclipmap, adr, true);
+	return NULL;
+}
+
+static void *newsoundadr(FileData *fd, void *adr)      /* used to restore sound data after undo */
+{
+	if (fd->soundmap && adr)
+		return oldnewmap_lookup_and_inc(fd->soundmap, adr, true);
 	return NULL;
 }
 
@@ -1425,6 +1438,37 @@ void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 				if (node->type == CMP_NODE_MOVIEDISTORTION)
 					node->storage = newmclipadr(fd, node->storage);
 		}
+	}
+}
+
+void blo_make_sound_pointer_map(FileData *fd, Main *oldmain)
+{
+	bSound *sound = oldmain->sound.first;
+	
+	fd->soundmap = oldnewmap_new();
+	
+	for (; sound; sound = sound->id.next) {
+		if (sound->waveform)
+			oldnewmap_insert(fd->soundmap, sound->waveform, sound->waveform, 0);			
+	}
+}
+
+/* set old main sound caches to zero if it has been restored */
+/* this works because freeing old main only happens after this call */
+void blo_end_sound_pointer_map(FileData *fd, Main *oldmain)
+{
+	OldNew *entry = fd->soundmap->entries;
+	bSound *sound = oldmain->sound.first;
+	int i;
+	
+	/* used entries were restored, so we put them to zero */
+	for (i = 0; i < fd->soundmap->nentries; i++, entry++) {
+		if (entry->nr > 0)
+			entry->newp = NULL;
+	}
+	
+	for (; sound; sound = sound->id.next) {
+		sound->waveform = newsoundadr(fd, sound->waveform);
 	}
 }
 
@@ -3211,6 +3255,7 @@ static void direct_link_world(FileData *fd, World *wrld)
 	}
 	
 	wrld->preview = direct_link_preview_image(fd, wrld->preview);
+	BLI_listbase_clear(&wrld->gpumaterial);
 }
 
 
@@ -3305,7 +3350,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 {
 	/* for undo system, pointers could be restored */
 	if (fd->imamap)
-		ima->cache = newmclipadr(fd, ima->cache);
+		ima->cache = newimaadr(fd, ima->cache);
 	else
 		ima->cache = NULL;
 
@@ -5115,6 +5160,36 @@ static void lib_link_sequence_modifiers(FileData *fd, Scene *scene, ListBase *lb
 	}
 }
 
+/* check for cyclic set-scene,
+ * libs can cause this case which is normally prevented, see (T#####) */
+#define USE_SETSCENE_CHECK
+
+#ifdef USE_SETSCENE_CHECK
+/**
+ * A version of #BKE_scene_validate_setscene with special checks for linked libs.
+ */
+static bool scene_validate_setscene__liblink(Scene *sce, const int totscene)
+{
+	Scene *sce_iter;
+	int a;
+
+	if (sce->set == NULL) return 1;
+
+	for (a = 0, sce_iter = sce; sce_iter->set; sce_iter = sce_iter->set, a++) {
+		if (sce_iter->id.flag & LIB_NEED_LINK) {
+			return 1;
+		}
+
+		if (a > totscene) {
+			sce->set = NULL;
+			return 0;
+		}
+	}
+
+	return 1;
+}
+#endif
+
 static void lib_link_scene(FileData *fd, Main *main)
 {
 	Scene *sce;
@@ -5124,6 +5199,11 @@ static void lib_link_scene(FileData *fd, Main *main)
 	TimeMarker *marker;
 	FreestyleModuleConfig *fmc;
 	FreestyleLineSet *fls;
+
+#ifdef USE_SETSCENE_CHECK
+	bool need_check_set = false;
+	int totscene = 0;
+#endif
 	
 	for (sce = main->scene.first; sce; sce = sce->id.next) {
 		if (sce->id.flag & LIB_NEED_LINK) {
@@ -5269,11 +5349,44 @@ static void lib_link_scene(FileData *fd, Main *main)
 			
 			/* Motion Tracking */
 			sce->clip = newlibadr_us(fd, sce->id.lib, sce->clip);
-			
-			sce->id.flag -= LIB_NEED_LINK;
+
+#ifdef USE_SETSCENE_CHECK
+			if (sce->set != NULL) {
+				/* link flag for scenes with set would be reset later,
+				 * so this way we only check cyclic for newly linked scenes.
+				 */
+				need_check_set = true;
+			}
+			else {
+				/* postpone un-setting the flag until we've checked the set-scene */
+				sce->id.flag &= ~LIB_NEED_LINK;
+			}
+#else
+			sce->id.flag &= ~LIB_NEED_LINK;
+#endif
+		}
+
+#ifdef USE_SETSCENE_CHECK
+		totscene++;
+#endif
+	}
+
+#ifdef USE_SETSCENE_CHECK
+	if (need_check_set) {
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
+			if (sce->id.flag & LIB_NEED_LINK) {
+				sce->id.flag &= ~LIB_NEED_LINK;
+				if (!scene_validate_setscene__liblink(sce, totscene)) {
+					printf("Found cyclic background scene when linking %s\n", sce->id.name + 2);
+				}
+			}
 		}
 	}
+#endif
 }
+
+#undef USE_SETSCENE_CHECK
+
 
 static void link_recurs_seq(FileData *fd, ListBase *lb)
 {
@@ -5380,7 +5493,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	}
 
 	if (sce->ed) {
-		ListBase *old_seqbasep = &((Editing *)sce->ed)->seqbase;
+		ListBase *old_seqbasep = &sce->ed->seqbase;
 		
 		ed = sce->ed = newdataadr(fd, sce->ed);
 		
@@ -5394,6 +5507,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			seq->seq1= newdataadr(fd, seq->seq1);
 			seq->seq2= newdataadr(fd, seq->seq2);
 			seq->seq3= newdataadr(fd, seq->seq3);
+			
 			/* a patch: after introduction of effects with 3 input strips */
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
@@ -6238,7 +6352,6 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 
 				rv3d->depths = NULL;
 				rv3d->gpuoffscreen = NULL;
-				rv3d->ri = NULL;
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
@@ -6700,13 +6813,25 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 {
 	sound->handle = NULL;
 	sound->playback_handle = NULL;
-	sound->waveform = NULL;
 
-	// versioning stuff, if there was a cache, then we enable caching:
+	/* versioning stuff, if there was a cache, then we enable caching: */
 	if (sound->cache) {
 		sound->flags |= SOUND_FLAGS_CACHING;
 		sound->cache = NULL;
 	}
+
+	if (fd->soundmap) {
+		sound->waveform = newsoundadr(fd, sound->waveform);
+	}	
+	else {
+		sound->waveform = NULL;
+	}
+		
+	if (sound->mutex)
+		sound->mutex = BLI_mutex_alloc();
+	
+	/* clear waveform loading flag */
+	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
 
 	sound->packedfile = direct_link_packedfile(fd, sound->packedfile);
 	sound->newpackedfile = direct_link_packedfile(fd, sound->newpackedfile);
@@ -8996,10 +9121,10 @@ static ID *append_named_part_ex(const bContext *C, Main *mainl, FileData *fd, co
 			
 			ob = (Object *)id;
 			
-			/* link at active layer (view3d->lay if in context, else scene->lay */
+			/* link at active layer (view3d if available in context, else scene one */
 			if ((flag & FILE_ACTIVELAY)) {
 				View3D *v3d = CTX_wm_view3d(C);
-				ob->lay = v3d ? v3d->layact : scene->lay;
+				ob->lay = BKE_screen_view3d_layer_active(v3d, scene);
 			}
 			
 			ob->mode = OB_MODE_OBJECT;
@@ -9220,8 +9345,10 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					if (mainptr->curlib->packedfile) {
 						PackedFile *pf = mainptr->curlib->packedfile;
 						
-						blo_reportf_wrap(basefd->reports, RPT_INFO, TIP_("Read packed library:  '%s'"),
-						                 mainptr->curlib->name);
+						blo_reportf_wrap(
+						        basefd->reports, RPT_INFO, TIP_("Read packed library:  '%s', parent '%s'"),
+						        mainptr->curlib->name,
+						        library_parent_filepath(mainptr->curlib));
 						fd = blo_openblendermemory(pf->data, pf->size, basefd->reports);
 						
 						
@@ -9229,8 +9356,11 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 						BLI_strncpy(fd->relabase, mainptr->curlib->filepath, sizeof(fd->relabase));
 					}
 					else {
-						blo_reportf_wrap(basefd->reports, RPT_INFO, TIP_("Read library:  '%s', '%s'"),
-						                 mainptr->curlib->filepath, mainptr->curlib->name);
+						blo_reportf_wrap(
+						        basefd->reports, RPT_INFO, TIP_("Read library:  '%s', '%s', parent '%s'"),
+						        mainptr->curlib->filepath,
+						        mainptr->curlib->name,
+						        library_parent_filepath(mainptr->curlib));
 						fd = blo_openblenderfile(mainptr->curlib->filepath, basefd->reports);
 					}
 					/* allow typing in a new lib path */
@@ -9301,10 +9431,13 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 								
 								append_id_part(fd, mainptr, id, &realid);
 								if (!realid) {
-									blo_reportf_wrap(fd->reports, RPT_WARNING,
-									                 TIP_("LIB ERROR: %s: '%s' missing from '%s'"),
-									                 BKE_idcode_to_name(GS(id->name)),
-									                 id->name + 2, mainptr->curlib->filepath);
+									blo_reportf_wrap(
+									        fd->reports, RPT_WARNING,
+									        TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
+									        BKE_idcode_to_name(GS(id->name)),
+									        id->name + 2,
+									        mainptr->curlib->filepath,
+									        library_parent_filepath(mainptr->curlib));
 								}
 								
 								change_idid_adr(mainlist, basefd, id, realid);
@@ -9333,9 +9466,13 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 				idn = id->next;
 				if (id->flag & LIB_READ) {
 					BLI_remlink(lbarray[a], id);
-					blo_reportf_wrap(basefd->reports, RPT_WARNING,
-					                 TIP_("LIB ERROR: %s: '%s' unread lib block missing from '%s'"),
-					                 BKE_idcode_to_name(GS(id->name)), id->name + 2, mainptr->curlib->filepath);
+					blo_reportf_wrap(
+					        basefd->reports, RPT_WARNING,
+					        TIP_("LIB ERROR: %s: '%s' unread lib block missing from '%s', parent '%s'"),
+					        BKE_idcode_to_name(GS(id->name)),
+					        id->name + 2,
+					        mainptr->curlib->filepath,
+					        library_parent_filepath(mainptr->curlib));
 					change_idid_adr(mainlist, basefd, id, NULL);
 					
 					MEM_freeN(id);

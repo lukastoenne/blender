@@ -41,7 +41,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -135,8 +134,7 @@ Lamp *localize_lamp(Lamp *la)
 	Lamp *lan;
 	int a;
 	
-	lan = BKE_libblock_copy(&la->id);
-	BLI_remlink(&G.main->lamp, lan);
+	lan = BKE_libblock_copy_nolib(&la->id, false);
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		if (lan->mtex[a]) {

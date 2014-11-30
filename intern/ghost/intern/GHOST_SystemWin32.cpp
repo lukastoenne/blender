@@ -231,44 +231,36 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(
         GHOST_TInt32 left, GHOST_TInt32 top,
         GHOST_TUns32 width, GHOST_TUns32 height,
         GHOST_TWindowState state, GHOST_TDrawingContextType type,
-        bool stereoVisual,
+        bool wantStereoVisual,
         const bool exclusive,
-        const GHOST_TUns16 numOfAASamples,
+        const GHOST_TUns16 wantNumOfAASamples,
         const GHOST_TEmbedderWindowID parentWindow)
 {
-	GHOST_Window *window = 0;
-	window = new GHOST_WindowWin32(this, title, left, top, width, height, state, type, stereoVisual, numOfAASamples, parentWindow);
-	if (window) {
-		if (window->getValid()) {
-			// Store the pointer to the window
-//			if (state != GHOST_kWindowStateFullScreen) {
-			m_windowManager->addWindow(window);
-			m_windowManager->setActiveWindow(window);
-//			}
-		}
-		else {
+	GHOST_Window *window =
+		new GHOST_WindowWin32(
+		        this,
+		        title,
+		        left,
+		        top,
+		        width,
+		        height,
+		        state,
+		        type,
+		        wantStereoVisual,
+		        wantNumOfAASamples,
+		        parentWindow);
 
-			// Invalid parent window hwnd
-			if (((GHOST_WindowWin32 *)window)->getNextWindow() == NULL) {
-				delete window;
-				window = 0;
-				return window;
-			}
-
-			// An invalid window could be one that was used to test for AA
-			window = ((GHOST_WindowWin32 *)window)->getNextWindow();
-			
-			// If another window is found, let the wm know about that one, but not the old one
-			if (window->getValid()) {
-				m_windowManager->addWindow(window);
-			}
-			else {
-				delete window;
-				window = 0;
-			}
-
-		}
+	if (window->getValid()) {
+		// Store the pointer to the window
+		m_windowManager->addWindow(window);
+		m_windowManager->setActiveWindow(window);
 	}
+	else {
+		GHOST_PRINT("GHOST_SystemWin32::createWindow(): window invalid\n");
+		delete window;
+		window = 0;
+	}
+
 	return window;
 }
 
@@ -1068,17 +1060,13 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
 					/* Get the winow under the mouse and send event to it's queue. */
 					POINT mouse_pos = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-					HWND mouse_hwnd = WindowFromPoint(mouse_pos);
+					HWND mouse_hwnd = ChildWindowFromPoint(HWND_DESKTOP, mouse_pos);
 					GHOST_WindowWin32 *mouse_window = (GHOST_WindowWin32 *)::GetWindowLongPtr(mouse_hwnd, GWLP_USERDATA);
 					if (mouse_window != NULL) {
 						event = processWheelEvent(mouse_window, wParam, lParam);
 					}
 					else {
-						/* If it happened so window under the mouse is not found (which i'm not
-						 * really sure might happen), then we add event to the focused window
-						 * in order to avoid some possible negative side effects.
-						 *                                                    - sergey -
-						 */
+						/* Happens when wmouse is not over of any of blender windows. */
 						event = processWheelEvent(window, wParam, lParam);
 					}
 

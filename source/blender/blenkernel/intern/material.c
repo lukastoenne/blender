@@ -116,7 +116,7 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 		MEM_freeN(ma->texpaintslot);
 
 	if (ma->gpumaterial.first)
-		GPU_material_free(ma);
+		GPU_material_free(&ma->gpumaterial);
 }
 
 void init_material(Material *ma)
@@ -1320,7 +1320,7 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
 	short index = 0, i;
 
 	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
-	bool is_bi = BKE_scene_uses_blender_internal(scene);
+	bool is_bi = BKE_scene_uses_blender_internal(scene) || BKE_scene_uses_blender_game(scene);
 	
 	if (!ma)
 		return;
@@ -1724,7 +1724,7 @@ void paste_matcopybuf(Material *ma)
 		MEM_freeN(ma->nodetree);
 	}
 
-	GPU_material_free(ma);
+	GPU_material_free(&ma->gpumaterial);
 
 	id = (ma->id);
 	memcpy(ma, &matcopybuf, sizeof(Material));

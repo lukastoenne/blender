@@ -60,7 +60,6 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_enum_types.h"
 
 #include "paint_intern.h"
 #include "uvedit_intern.h"
@@ -563,7 +562,7 @@ static unsigned int uv_edge_hash(const void *key)
 	        BLI_ghashutil_uinthash(edge->uv1));
 }
 
-static int uv_edge_compare(const void *a, const void *b)
+static bool uv_edge_compare(const void *a, const void *b)
 {
 	UvEdge *edge1 = (UvEdge *)a;
 	UvEdge *edge2 = (UvEdge *)b;

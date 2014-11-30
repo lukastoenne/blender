@@ -257,7 +257,7 @@ static void *ctx_wm_python_context_get(
 		}
 	}
 #else
-	(void)C, (void)member, (void)member_type;
+	UNUSED_VARS(C, member, member_type);
 #endif
 
 	/* don't allow UI context access from non-main threads */
@@ -588,7 +588,7 @@ int ctx_data_list_count(const bContext *C, int (*func)(const bContext *, ListBas
 	ListBase list;
 
 	if (func(C, &list)) {
-		int tot = BLI_countlist(&list);
+		int tot = BLI_listbase_count(&list);
 		BLI_freelistN(&list);
 		return tot;
 	}

@@ -54,7 +54,6 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_smallhash.h"
 #include "BLI_listbase.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_string.h"
@@ -90,7 +89,6 @@
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
 #include "BKE_mask.h"
-#include "BKE_lattice.h"
 
 #include "BIK_api.h"
 
@@ -218,6 +216,9 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 	float _proj_vec[3];
 	const float *proj_vec = NULL;
 
+	/* support for face-islands */
+	const bool use_island = transdata_check_local_islands(t, t->around);
+
 	if (t->flag & T_PROP_PROJECTED) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
 			RegionView3D *rv3d = t->ar->regiondata;
@@ -239,7 +240,12 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
 			for (i = 0, td = t->data; i < t->total; i++, td++) {
 				if (td->flag & TD_SELECTED) {
-					sub_v3_v3v3(vec, tob->center, td->center);
+					if (use_island) {
+						sub_v3_v3v3(vec, tob->iloc, td->iloc);
+					}
+					else {
+						sub_v3_v3v3(vec, tob->center, td->center);
+					}
 					mul_m3_v3(tob->mtx, vec);
 
 					if (proj_vec) {
@@ -249,8 +255,12 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 					}
 
 					dist_sq = len_squared_v3(vec);
-					if ((tob->rdist == -1.0f) || (dist_sq < (tob->rdist * tob->rdist))) {
+					if ((tob->rdist == -1.0f) || (dist_sq < SQUARE(tob->rdist))) {
 						tob->rdist = sqrtf(dist_sq);
+						if (use_island) {
+							copy_v3_v3(tob->center, td->center);
+							copy_m3_m3(tob->axismtx, td->axismtx);
+						}
 					}
 				}
 				else {
@@ -1056,11 +1066,13 @@ static void createTransPose(TransInfo *t, Object *ob)
 
 void restoreBones(TransInfo *t)
 {
+	bArmature *arm = t->obedit->data;
 	BoneInitData *bid = t->customData;
 	EditBone *ebo;
 
 	while (bid->bone) {
 		ebo = bid->bone;
+		
 		ebo->dist = bid->dist;
 		ebo->rad_tail = bid->rad_tail;
 		ebo->roll = bid->roll;
@@ -1068,7 +1080,26 @@ void restoreBones(TransInfo *t)
 		ebo->zwidth = bid->zwidth;
 		copy_v3_v3(ebo->head, bid->head);
 		copy_v3_v3(ebo->tail, bid->tail);
+		
+		if (arm->flag & ARM_MIRROR_EDIT) {
+			EditBone *ebo_child;
 
+			/* Also move connected ebo_child, in case ebo_child's name aren't mirrored properly */
+			for (ebo_child = arm->edbo->first; ebo_child; ebo_child = ebo_child->next) {
+				if ((ebo_child->flag & BONE_CONNECTED) && (ebo_child->parent == ebo)) {
+					copy_v3_v3(ebo_child->head, ebo->tail);
+					ebo_child->rad_head = ebo->rad_tail;
+				}
+			}
+
+			/* Also move connected parent, in case parent's name isn't mirrored properly */
+			if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
+				EditBone *parent = ebo->parent;
+				copy_v3_v3(parent->tail, ebo->head);
+				parent->rad_tail = ebo->rad_head;
+			}
+		}
+		
 		bid++;
 	}
 }
@@ -1711,7 +1742,9 @@ static void createTransLatticeVerts(TransInfo *t)
 				if (bp->f1 & SELECT) {
 					td->flag = TD_SELECTED;
 				}
-				else td->flag = 0;
+				else {
+					td->flag = 0;
+				}
 				copy_m3_m3(td->smtx, smtx);
 				copy_m3_m3(td->mtx, mtx);
 
@@ -2144,6 +2177,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
                              BMEditMesh *em, BMVert *eve, float *bweight,
                              struct TransIslandData *v_island)
 {
+	float *no, _no[3];
 	BLI_assert(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) == 0);
 
 	td->flag = 0;
@@ -2153,19 +2187,30 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	td->loc = eve->co;
 	copy_v3_v3(td->iloc, td->loc);
 
+	if ((t->mode == TFM_SHRINKFATTEN) &&
+	    (em->selectmode & SCE_SELECT_FACE) &&
+	    BM_elem_flag_test(eve, BM_ELEM_SELECT) &&
+	    (BM_vert_normal_update_ex(eve, BM_ELEM_SELECT, _no)))
+	{
+		no = _no;
+	}
+	else {
+		no = eve->no;
+	}
+
 	if (v_island) {
 		copy_v3_v3(td->center, v_island->co);
 		copy_m3_m3(td->axismtx, v_island->axismtx);
 	}
 	else if (t->around == V3D_LOCAL) {
 		copy_v3_v3(td->center, td->loc);
-		createSpaceNormal(td->axismtx, eve->no);
+		createSpaceNormal(td->axismtx, no);
 	}
 	else {
 		copy_v3_v3(td->center, td->loc);
 
 		/* Setting normals */
-		copy_v3_v3(td->axismtx[2], eve->no);
+		copy_v3_v3(td->axismtx[2], no);
 		td->axismtx[0][0]        =
 		    td->axismtx[0][1]    =
 		    td->axismtx[0][2]    =
@@ -2194,7 +2239,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	}
 	else if (t->mode == TFM_SHRINKFATTEN) {
 		td->ext = tx;
-		tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, BM_ELEM_SELECT);
+		tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
 	}
 }
 
@@ -2613,7 +2658,7 @@ static void UVsToTransData(SpaceImage *sima, TransData *td, TransData2D *td2d, f
 	/* uv coords are scaled by aspects. this is needed for rotations and
 	 * proportional editing to be consistent with the stretched uv coords
 	 * that are displayed. this also means that for display and numinput,
-	 * and when the the uv coords are flushed, these are converted each time */
+	 * and when the uv coords are flushed, these are converted each time */
 	td2d->loc[0] = uv[0] * aspx;
 	td2d->loc[1] = uv[1] * aspy;
 	td2d->loc[2] = 0.0f;
@@ -2771,8 +2816,8 @@ void flushTransUVs(TransInfo *t)
 		td->loc2d[1] = td->loc[1] * invy;
 
 		if ((sima->flag & SI_PIXELSNAP) && (t->state != TRANS_CANCEL)) {
-			td->loc2d[0] = (float)floor(width * td->loc2d[0] + 0.5f) / width;
-			td->loc2d[1] = (float)floor(height * td->loc2d[1] + 0.5f) / height;
+			td->loc2d[0] = floorf(width * td->loc2d[0] + 0.5f) / width;
+			td->loc2d[1] = floorf(height * td->loc2d[1] + 0.5f) / height;
 		}
 	}
 }
@@ -3115,7 +3160,7 @@ static void posttrans_gpd_clean(bGPdata *gpd)
 		bGPDframe *gpf, *gpfn;
 		bool is_double = false;
 
-		BLI_sortlist_r(&gpl->frames, &is_double, gpf_cmp_frame);
+		BLI_listbase_sort_r(&gpl->frames, &is_double, gpf_cmp_frame);
 
 		if (is_double) {
 			for (gpf = gpl->frames.first; gpf; gpf = gpfn) {
@@ -3142,7 +3187,7 @@ static void posttrans_mask_clean(Mask *mask)
 		MaskLayerShape *masklay_shape, *masklay_shape_next;
 		bool is_double = false;
 
-		BLI_sortlist_r(&masklay->splines_shapes, &is_double, masklay_shape_cmp_frame);
+		BLI_listbase_sort_r(&masklay->splines_shapes, &is_double, masklay_shape_cmp_frame);
 
 		if (is_double) {
 			for (masklay_shape = masklay->splines_shapes.first; masklay_shape; masklay_shape = masklay_shape_next) {
@@ -3734,7 +3779,6 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	
 	BezTriple *bezt;
 	int count = 0, i;
-	float cfra;
 	float mtx[3][3], smtx[3][3];
 	const bool is_translation_mode = graph_edit_is_translation_mode(t);
 	const bool use_handle = !(sipo->flag & SIPO_NOHANDLES);
@@ -3769,7 +3813,12 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
-		
+		float cfra;
+
+		/* F-Curve may not have any keyframes */
+		if (fcu->bezt == NULL)
+			continue;
+
 		/* convert current-frame to action-time (slightly less accurate, especially under
 		 * higher scaling ratios, but is faster than converting all points)
 		 */
@@ -3777,11 +3826,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 			cfra = BKE_nla_tweakedit_remap(adt, (float)CFRA, NLATIME_CONVERT_UNMAP);
 		else
 			cfra = (float)CFRA;
-		
-		/* F-Curve may not have any keyframes */
-		if (fcu->bezt == NULL)
-			continue;
-		
+
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse */
 		for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 			if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
@@ -3789,33 +3834,19 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				const bool sel1 = use_handle ? bezt->f1 & SELECT : sel2;
 				const bool sel3 = use_handle ? bezt->f3 & SELECT : sel2;
 
-				if (is_translation_mode) {
-					/* for 'normal' pivots - just include anything that is selected.
-					 * this works a bit differently in translation modes */
-					if (sel2) {
+				if (!is_translation_mode || !(sel2)) {
+					if (sel1) {
 						count++;
 					}
-					else {
-						if (sel1) count++;
-						if (sel3) count++;
+
+					if (sel3) {
+						count++;
 					}
 				}
-				else if (use_local_center) {
-					/* for local-pivot we only need to count the number of selected handles only,
-					 * so that centerpoints don't get moved wrong
-					 */
-					if (bezt->ipo == BEZT_IPO_BEZ) {
-						if (sel1) count++;
-						if (sel3) count++;
-					}
-					/* else if (sel2) count++; // TODO: could this cause problems? */
-					/* - yes this causes problems, because no td is created for the center point */
-				}
-				else {
-					/* for 'normal' pivots - just include anything that is selected */
-					if (sel1) count++;
-					if (sel2) count++;
-					if (sel3) count++;
+
+				/* only include main vert if selected */
+				if (sel2 && !use_local_center) {
+					count++;
 				}
 			}
 		}
@@ -3864,8 +3895,13 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
-		bool intvals = (fcu->flag & FCURVE_INT_VALUES);
+		bool intvals = (fcu->flag & FCURVE_INT_VALUES) != 0;
 		float unit_scale;
+		float cfra;
+
+		/* F-Curve may not have any keyframes */
+		if (fcu->bezt == NULL)
+			continue;
 
 		/* convert current-frame to action-time (slightly less accurate, especially under
 		 * higher scaling ratios, but is faster than converting all points)
@@ -3874,11 +3910,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 			cfra = BKE_nla_tweakedit_remap(adt, (float)CFRA, NLATIME_CONVERT_UNMAP);
 		else
 			cfra = (float)CFRA;
-			
-		/* F-Curve may not have any keyframes */
-		if (fcu->bezt == NULL)
-			continue;
-		
+
 		unit_scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, ale->key_data, anim_map_flag);
 
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse (if applicable) */
@@ -4493,9 +4525,46 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 			}
 		}
 	}
-
 	return tot;
 }
+
+
+static void SeqTransDataBounds(TransInfo *t, ListBase *seqbase, TransSeq *ts)
+{
+	Sequence *seq;
+	int recursive, count, flag;
+	int max = INT32_MIN, min = INT32_MAX;
+
+	for (seq = seqbase->first; seq; seq = seq->next) {
+
+		/* just to get the flag since there are corner cases where this isn't totally obvious */
+		SeqTransInfo(t, seq, &recursive, &count, &flag);
+
+		/* use 'flag' which is derived from seq->flag but modified for special cases */
+		if (flag & SELECT) {
+			if (flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) {
+				if (flag & SEQ_LEFTSEL) {
+					min = min_ii(seq->startdisp, min);
+					max = max_ii(seq->startdisp, max);
+				}
+				if (flag & SEQ_RIGHTSEL) {
+					min = min_ii(seq->enddisp, min);
+					max = max_ii(seq->enddisp, max);
+				}
+			}
+			else {
+				min = min_ii(seq->startdisp, min);
+				max = max_ii(seq->enddisp, max);
+			}
+		}
+	}
+
+	if (ts) {
+		ts->max = max;
+		ts->min = min;
+	}
+}
+
 
 static void freeSeqData(TransInfo *t)
 {
@@ -4659,6 +4728,8 @@ static void freeSeqData(TransInfo *t)
 	}
 
 	if ((t->customData != NULL) && (t->flag & T_FREE_CUSTOMDATA)) {
+		TransSeq *ts = t->customData;
+		MEM_freeN(ts->tdseq);
 		MEM_freeN(t->customData);
 		t->customData = NULL;
 	}
@@ -4678,6 +4749,8 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 	TransData *td = NULL;
 	TransData2D *td2d = NULL;
 	TransDataSeq *tdsq = NULL;
+	TransSeq *ts = NULL;
+	float xmouse, ymouse;
 
 	int count = 0;
 
@@ -4688,12 +4761,11 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 
 	t->customFree = freeSeqData;
 
+	UI_view2d_region_to_view(v2d, t->imval[0], t->imval[1], &xmouse, &ymouse);
+
 	/* which side of the current frame should be allowed */
 	if (t->mode == TFM_TIME_EXTEND) {
 		/* only side on which mouse is gets transformed */
-		float xmouse, ymouse;
-
-		UI_view2d_region_to_view(v2d, t->imval[0], t->imval[1], &xmouse, &ymouse);
 		t->frame_side = (xmouse > CFRA) ? 'R' : 'L';
 	}
 	else {
@@ -4733,15 +4805,19 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 		return;
 	}
 
+	t->customData = ts = MEM_mallocN(sizeof(TransSeq), "transseq");
 	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransSeq TransData");
 	td2d = t->data2d = MEM_callocN(t->total * sizeof(TransData2D), "TransSeq TransData2D");
-	tdsq = t->customData = MEM_callocN(t->total * sizeof(TransDataSeq), "TransSeq TransDataSeq");
+	ts->tdseq = tdsq = MEM_callocN(t->total * sizeof(TransDataSeq), "TransSeq TransDataSeq");
 	t->flag |= T_FREE_CUSTOMDATA;
-
-
 
 	/* loop 2: build transdata array */
 	SeqToTransData_Recursive(t, ed->seqbasep, td, td2d, tdsq);
+	SeqTransDataBounds(t, ed->seqbasep, ts);
+	
+	/* set the snap mode based on how close the mouse is at the end/start points */
+	if (abs(xmouse - ts->max) > abs(xmouse - ts->min))
+		ts->snap_left = true;
 
 #undef XXX_DURIAN_ANIM_TX_HACK
 }
@@ -4769,7 +4845,6 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 				/* (affirmative) returns for specific constraints here... */
 				/* constraints that require this regardless  */
 				if (ELEM(con->type,
-				         CONSTRAINT_TYPE_CHILDOF,
 				         CONSTRAINT_TYPE_FOLLOWPATH,
 				         CONSTRAINT_TYPE_CLAMPTO,
 				         CONSTRAINT_TYPE_OBJECTSOLVER,
@@ -4779,7 +4854,14 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 				}
 				
 				/* constraints that require this only under special conditions */
-				if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
+				if (con->type == CONSTRAINT_TYPE_CHILDOF) {
+					/* ChildOf constraint only works when using all location components, see T42256. */
+					bChildOfConstraint *data = (bChildOfConstraint *)con->data;
+					
+					if ((data->flag & CHILDOF_LOCX) && (data->flag & CHILDOF_LOCY) && (data->flag & CHILDOF_LOCZ))
+						return true;
+				}
+				else if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
 					/* CopyRot constraint only does this when rotating, and offset is on */
 					bRotateLikeConstraint *data = (bRotateLikeConstraint *)con->data;
 					
@@ -6769,7 +6851,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 			/* CV coords are scaled by aspects. this is needed for rotations and
 			 * proportional editing to be consistent with the stretched CV coords
 			 * that are displayed. this also means that for display and numinput,
-			 * and when the the CV coords are flushed, these are converted each time */
+			 * and when the CV coords are flushed, these are converted each time */
 			mul_v2_m3v2(td2d->loc, parent_matrix, bezt->vec[i]);
 			td2d->loc[0] *= asp[0];
 			td2d->loc[1] *= asp[1];

@@ -72,12 +72,9 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
-#include "GL/glew.h"
-
 #include "GPU_buffers.h"
-#include "GPU_draw.h"
 #include "GPU_extensions.h"
-#include "GPU_material.h"
+#include "GPU_glew.h"
 
 /* very slow! enable for testing only! */
 // #define USE_MODIFIER_VALIDATE
@@ -915,7 +912,7 @@ DerivedMesh *mesh_create_derived_for_modifier(Scene *scene, Object *ob,
 	if (mti->isDisabled && mti->isDisabled(md, 0)) return NULL;
 	
 	if (build_shapekey_layers && me->key && (kb = BLI_findlink(&me->key->block, ob->shapenr - 1))) {
-		BKE_key_convert_to_mesh(kb, me);
+		BKE_keyblock_convert_to_mesh(kb, me);
 	}
 	
 	if (mti->type == eModifierTypeType_OnlyDeform) {
@@ -1222,14 +1219,14 @@ static void calc_weightpaint_vert_array(Object *ob, DerivedMesh *dm, int const d
 		unsigned int i;
 
 		/* variables for multipaint */
-		const int defbase_tot = BLI_countlist(&ob->defbase);
+		const int defbase_tot = BLI_listbase_count(&ob->defbase);
 		const int defbase_act = ob->actdef - 1;
 
 		int defbase_sel_tot = 0;
 		bool *defbase_sel = NULL;
 
 		if (draw_flag & CALC_WP_MULTIPAINT) {
-			defbase_sel = BKE_objdef_selected_get(ob, defbase_tot, &defbase_sel_tot);
+			defbase_sel = BKE_object_defgroup_selected_get(ob, defbase_tot, &defbase_sel_tot);
 		}
 
 		for (i = numVerts; i != 0; i--, wc++, dv++) {
@@ -2603,8 +2600,6 @@ static void make_vertexcos__mapFunc(void *userData, int index, const float co[3]
 
 void mesh_get_mapped_verts_coords(DerivedMesh *dm, float (*r_cos)[3], const int totcos)
 {
-	float (*vertexcos)[3];
-
 	if (dm->foreachMappedVert) {
 		MappedUserData userData;
 		memset(r_cos, 0, sizeof(*r_cos) * totcos);
@@ -2616,7 +2611,7 @@ void mesh_get_mapped_verts_coords(DerivedMesh *dm, float (*r_cos)[3], const int 
 	else {
 		int i;
 		for (i = 0; i < totcos; i++) {
-			dm->getVertCo(dm, i, vertexcos[i]);
+			dm->getVertCo(dm, i, r_cos[i]);
 		}
 	}
 }
@@ -2963,7 +2958,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				a = attribs->tottface++;
 
 				if (layer != -1) {
-					attribs->tface[a].array = tfdata->layers[layer].data;
+					attribs->tface[a].array = NULL;
 					attribs->tface[a].em_offset = ldata->layers[layer].offset;
 				}
 				else {
@@ -3010,7 +3005,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				a = attribs->totmcol++;
 
 				if (layer != -1) {
-					attribs->mcol[a].array = tfdata->layers[layer].data;
+					attribs->mcol[a].array = NULL;
 					/* odd, store the offset for a different layer type here, but editmode draw code expects it */
 					attribs->mcol[a].em_offset = ldata->layers[layer].offset;
 				}

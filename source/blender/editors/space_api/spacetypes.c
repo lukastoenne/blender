@@ -32,7 +32,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -61,7 +60,6 @@
 #include "ED_space_api.h"
 #include "ED_sound.h"
 #include "ED_uvedit.h"
-#include "ED_view3d.h"
 #include "ED_mball.h"
 #include "ED_logic.h"
 #include "ED_clip.h"
@@ -122,7 +120,7 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_io();
 	
 	ED_operatortypes_view2d();
-	UI_buttons_operatortypes();
+	ED_button_operatortypes();
 	
 	/* register operators */
 	spacetypes = BKE_spacetypes_list();

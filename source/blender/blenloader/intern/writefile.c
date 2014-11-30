@@ -79,9 +79,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "zlib.h"
-
 #ifdef WIN32
+#  include <zlib.h>  /* odd include order-issue */
 #  include "winsock2.h"
 #  include <io.h>
 #  include "BLI_winstuff.h"
@@ -163,11 +162,9 @@
 #include "BKE_mesh.h"
 
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
-#include "NOD_common.h"
 #include "NOD_socket.h"	/* for sock->default_value data */
 #endif
 
-#include "RNA_access.h"
 
 #include "BLO_writefile.h"
 #include "BLO_readfile.h"

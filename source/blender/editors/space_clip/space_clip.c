@@ -55,7 +55,7 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 #include "ED_transform.h"
-#include "ED_uvedit.h"  /* just for draw_image_cursor */
+#include "ED_uvedit.h"  /* just for ED_image_draw_cursor */
 
 #include "IMB_imbuf.h"
 
@@ -754,6 +754,10 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
 	RNA_string_set(kmi->ptr, "value", "INDIVIDUAL_ORIGINS");
 
+	/* Copy-paste */
+	WM_keymap_add_item(keymap, "CLIP_OT_copy_tracks", CKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "CLIP_OT_paste_tracks", VKEY, KM_PRESS, KM_CTRL, 0);
+
 	/* ******** Hotkeys avalaible for preview region only ******** */
 
 	keymap = WM_keymap_find(keyconf, "Clip Graph Editor", SPACE_CLIP, 0);
@@ -1155,7 +1159,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	/* if tracking is in progress, we should synchronize framenr from clipuser
 	 * so latest tracked frame would be shown */
 	if (clip && clip->tracking_context)
-		BKE_tracking_context_sync_user(clip->tracking_context, &sc->user);
+		BKE_autotrack_context_sync_user(clip->tracking_context, &sc->user);
 
 	if (sc->flag & SC_LOCK_SELECTION) {
 		ImBuf *tmpibuf = NULL;
@@ -1214,7 +1218,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 		glScalef(zoomx, zoomy, 0);
 		glMultMatrixf(sc->stabmat);
 		glScalef(width, height, 0);
-		draw_image_cursor(ar, sc->cursor);
+		ED_image_draw_cursor(ar, sc->cursor);
 		glPopMatrix();
 	}
 

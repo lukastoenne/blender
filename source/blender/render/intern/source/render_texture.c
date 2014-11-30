@@ -48,7 +48,6 @@
 #include "DNA_node_types.h"
 
 #include "IMB_imbuf_types.h"
-#include "IMB_imbuf.h"
 #include "IMB_colormanagement.h"
 
 #include "BKE_image.h"
@@ -68,9 +67,7 @@
 #include "envmap.h"
 #include "pointdensity.h"
 #include "voxeldata.h"
-#include "renderpipeline.h"
 #include "render_types.h"
-#include "rendercore.h"
 #include "shading.h"
 #include "texture.h"
 #include "texture_ocean.h"
@@ -85,7 +82,18 @@
 extern struct Render R;
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
+static RNG_THREAD_ARRAY *random_tex_array;
 
+
+void RE_init_texture_rng(void)
+{
+	random_tex_array = BLI_rng_threaded_new();
+}
+
+void RE_exit_texture_rng(void)
+{
+	BLI_rng_threaded_free(random_tex_array);
+}
 
 
 static void init_render_texture(Render *re, Tex *tex)
@@ -709,19 +717,22 @@ static float voronoiTex(Tex *tex, const float texvec[3], TexResult *texres)
 
 /* ------------------------------------------------------------------------- */
 
-static int texnoise(Tex *tex, TexResult *texres)
+static int texnoise(Tex *tex, TexResult *texres, int thread)
 {
 	float div=3.0;
-	int val, ran, loop;
+	int val, ran, loop, shift = 29;
 	
-	ran= BLI_rand();
-	val= (ran & 3);
+	ran=  BLI_rng_thread_rand(random_tex_array, thread);
 	
 	loop= tex->noisedepth;
+
+	/* start from top bits since they have more variance */
+	val= ((ran >> shift) & 3);
+	
 	while (loop--) {
-		ran= (ran>>2);
-		val*= (ran & 3);
-		div*= 3.0f;
+		shift -= 2;		
+		val *= ((ran >> shift) & 3);
+		div *= 3.0f;
 	}
 	
 	texres->tin= ((float)val)/div;
@@ -1127,7 +1138,7 @@ static int multitex(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int o
 				retval = stucci(tex, texvec, texres);
 				break;
 			case TEX_NOISE:
-				retval = texnoise(tex, texres);
+				retval = texnoise(tex, texres, thread);
 				break;
 			case TEX_IMAGE:
 				if (osatex) retval = imagewraposa(tex, tex->ima, NULL, texvec, dxt, dyt, texres, pool);
@@ -3039,7 +3050,7 @@ void do_sky_tex(const float rco[3], float lo[3], const float dxyview[2], float h
 			switch (mtex->texco) {
 			case TEXCO_ANGMAP:
 				/* only works with texture being "real" */
-				/* use saacos(), fixes bug [#22398], float precision caused lo[2] to be slightly less then -1.0 */
+				/* use saacos(), fixes bug [#22398], float precision caused lo[2] to be slightly less than -1.0 */
 				if (lo[0] || lo[1]) { /* check for zero case [#24807] */
 					fact= (1.0f/(float)M_PI)*saacos(lo[2])/(sqrtf(lo[0]*lo[0] + lo[1]*lo[1]));
 					tempvec[0]= lo[0]*fact;
@@ -3396,8 +3407,11 @@ void do_lamp_tex(LampRen *la, const float lavec[3], ShadeInput *shi, float col_r
 				col[0]= texres.tr*la->energy;
 				col[1]= texres.tg*la->energy;
 				col[2]= texres.tb*la->energy;
-				
-				texture_rgb_blend(col_r, col, col_r, texres.tin, mtex->colfac, mtex->blendtype);
+
+				if (effect & LA_SHAD_TEX)
+					texture_rgb_blend(col_r, col, col_r, texres.tin, mtex->shadowfac, mtex->blendtype);
+				else
+					texture_rgb_blend(col_r, col, col_r, texres.tin, mtex->colfac, mtex->blendtype);
 			}
 		}
 	}

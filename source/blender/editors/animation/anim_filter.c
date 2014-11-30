@@ -216,7 +216,7 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
 /* Get data being edited in Graph Editor (depending on current 'mode') */
 static bool graphedit_get_context(bAnimContext *ac, SpaceIpo *sipo)
 {
-	/* init dopesheet data if non-existant (i.e. for old files) */
+	/* init dopesheet data if non-existent (i.e. for old files) */
 	if (sipo->ads == NULL) {
 		sipo->ads = MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet");
 		sipo->ads->source = (ID *)ac->scene;
@@ -267,7 +267,7 @@ static bool graphedit_get_context(bAnimContext *ac, SpaceIpo *sipo)
 /* Get data being edited in Graph Editor (depending on current 'mode') */
 static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
 {
-	/* init dopesheet data if non-existant (i.e. for old files) */
+	/* init dopesheet data if non-existent (i.e. for old files) */
 	if (snla->ads == NULL)
 		snla->ads = MEM_callocN(sizeof(bDopeSheet), "NlaEdit DopeSheet");
 	ac->ads = snla->ads;
@@ -1255,7 +1255,7 @@ static size_t animfilter_nla(bAnimContext *UNUSED(ac), ListBase *anim_data, bDop
 		first = adt->nla_tracks.last;
 	}
 	else {
-		/* first track to include will the the first one (as per normal) */
+		/* first track to include will the first one (as per normal) */
 		first = adt->nla_tracks.first;
 	}
 	
@@ -1699,6 +1699,12 @@ static size_t animdata_filter_ds_textures(bAnimContext *ac, ListBase *anim_data,
 			mtex = (MTex **)(&wo->mtex);
 			break;
 		}
+		case ID_PA:
+		{
+			ParticleSettings *part = (ParticleSettings *)owner_id;
+			mtex = (MTex **)(&part->mtex);
+			break;
+		}
 		default: 
 		{
 			/* invalid/unsupported option */
@@ -1910,8 +1916,12 @@ static size_t animdata_filter_ds_particles(bAnimContext *ac, ListBase *anim_data
 		/* add particle-system's animation data to temp collection */
 		BEGIN_ANIMFILTER_SUBCHANNELS(FILTER_PART_OBJD(psys->part))
 		{
-			/* material's animation data */
+			/* particle system's animation data */
 			tmp_items += animfilter_block_data(ac, &tmp_data, ads, (ID *)psys->part, filter_mode);
+			
+			/* textures */
+			if (!(ads->filterflag & ADS_FILTER_NOTEX))
+				tmp_items += animdata_filter_ds_textures(ac, &tmp_data, ads, (ID *)psys->part, filter_mode);
 		}
 		END_ANIMFILTER_SUBCHANNELS;
 		
@@ -2257,7 +2267,7 @@ static size_t animdata_filter_ds_world(bAnimContext *ac, ListBase *anim_data, bD
 		
 		/* textures for world */
 		if (!(ads->filterflag & ADS_FILTER_NOTEX))
-			items += animdata_filter_ds_textures(ac, &tmp_data, ads, (ID *)wo, filter_mode);
+			tmp_items += animdata_filter_ds_textures(ac, &tmp_data, ads, (ID *)wo, filter_mode);
 			
 		/* nodes */
 		if ((wo->nodetree) && !(ads->filterflag & ADS_FILTER_NONTREE)) 

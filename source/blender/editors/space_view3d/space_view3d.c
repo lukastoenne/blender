@@ -414,7 +414,7 @@ static void view3d_free(SpaceLink *sl)
 	/* matcap material, its preview rect gets freed via icons */
 	if (vd->defmaterial) {
 		if (vd->defmaterial->gpumaterial.first)
-			GPU_material_free(vd->defmaterial);
+			GPU_material_free(&vd->defmaterial->gpumaterial);
 		BKE_previewimg_free(&vd->defmaterial->preview);
 		MEM_freeN(vd->defmaterial);
 	}
@@ -434,9 +434,7 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	BGpic *bgpic;
 	
 	/* clear or remove stuff from old */
-	
-// XXX	BIF_view3d_previewrender_free(v3do);
-	
+
 	if (v3dn->localvd) {
 		v3dn->localvd = NULL;
 		v3dn->properties_storage = NULL;
@@ -698,10 +696,6 @@ static void view3d_main_area_free(ARegion *ar)
 		if (rv3d->localvd) MEM_freeN(rv3d->localvd);
 		if (rv3d->clipbb) MEM_freeN(rv3d->clipbb);
 
-		if (rv3d->ri) {
-			// XXX		BIF_view3d_previewrender_free(rv3d);
-		}
-
 		if (rv3d->render_engine)
 			RE_engine_free(rv3d->render_engine);
 		
@@ -735,7 +729,6 @@ static void *view3d_main_area_duplicate(void *poin)
 		
 		new->depths = NULL;
 		new->gpuoffscreen = NULL;
-		new->ri = NULL;
 		new->render_engine = NULL;
 		new->sms = NULL;
 		new->smooth_timer = NULL;
@@ -1175,7 +1168,8 @@ static void space_view3d_listener(bScreen *UNUSED(sc), ScrArea *sa, struct wmNot
 		case NC_WORLD:
 			switch (wmn->data) {
 				case ND_WORLD_DRAW:
-					if (v3d->flag2 & V3D_RENDER_OVERRIDE)
+				case ND_WORLD:
+					if (v3d->flag3 & V3D_SHOW_WORLD)
 						ED_area_tag_redraw_regiontype(sa, RGN_TYPE_WINDOW);
 					break;
 			}

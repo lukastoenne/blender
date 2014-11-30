@@ -41,9 +41,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
-#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 
 #include "BKE_fcurve.h"
 
@@ -643,7 +641,7 @@ static short snap_bezier_nearestsec(KeyframeEditData *ked, BezTriple *bezt)
 	const float secf = (float)FPS;
 	
 	if (bezt->f2 & SELECT)
-		bezt->vec[1][0] = ((float)floor(bezt->vec[1][0] / secf + 0.5f) * secf);
+		bezt->vec[1][0] = (floorf(bezt->vec[1][0] / secf + 0.5f) * secf);
 	return 0;
 }
 

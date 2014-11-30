@@ -60,7 +60,7 @@ static void rna_ActionGroup_channels_next(CollectionPropertyIterator *iter)
 	FCurve *fcu = (FCurve *)internal->link;
 	bActionGroup *grp = fcu->grp;
 	
-	/* only continue if the next F-Curve (if existant) belongs in the same group */
+	/* only continue if the next F-Curve (if existent) belongs in the same group */
 	if ((fcu->next) && (fcu->next->grp == grp))
 		internal->link = (Link *)fcu->next;
 	else
@@ -197,7 +197,7 @@ static void rna_Action_active_pose_marker_index_range(PointerRNA *ptr, int *min,
 	bAction *act = (bAction *)ptr->data;
 
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&act->markers) - 1);
+	*max = max_ii(0, BLI_listbase_count(&act->markers) - 1);
 }
 
 

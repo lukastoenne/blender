@@ -29,7 +29,6 @@ set(INC
 	.
 	# ../blenkernel  # dont add this back!
 	../makesdna
-	../../../intern/ghost
 	../../../intern/guardedalloc
 	../../../extern/wcwidth
 )
@@ -65,6 +64,8 @@ set(SRC
 	intern/freetypefont.c
 	intern/graph.c
 	intern/gsqueue.c
+	intern/hash_md5.c
+	intern/hash_mm2a.c
 	intern/jitter.c
 	intern/lasso.c
 	intern/listbase.c
@@ -80,7 +81,6 @@ set(SRC
 	intern/math_rotation.c
 	intern/math_vector.c
 	intern/math_vector_inline.c
-	intern/md5.c
 	intern/noise.c
 	intern/path_util.c
 	intern/polyfill2d.c
@@ -118,6 +118,7 @@ set(SRC
 	BLI_callbacks.h
 	BLI_compiler_attrs.h
 	BLI_compiler_compat.h
+	BLI_compiler_typecheck.h
 	BLI_convexhull2d.h
 	BLI_dial.h
 	BLI_dlrbTree.h
@@ -133,6 +134,8 @@ set(SRC
 	BLI_ghash.h
 	BLI_graph.h
 	BLI_gsqueue.h
+	BLI_hash_md5.h
+	BLI_hash_mm2a.h
 	BLI_heap.h
 	BLI_jitter.h
 	BLI_kdopbvh.h
@@ -152,7 +155,6 @@ set(SRC
 	BLI_math_matrix.h
 	BLI_math_rotation.h
 	BLI_math_vector.h
-	BLI_md5.h
 	BLI_memarena.h
 	BLI_mempool.h
 	BLI_noise.h

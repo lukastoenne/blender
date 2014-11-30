@@ -75,10 +75,8 @@
 #include "RE_engine.h"
 
 #include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "GPU_extensions.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -86,7 +84,6 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "wm_window.h"
 
 #include "render_intern.h"
 
@@ -1551,10 +1548,10 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 	RE_ReleaseResultImage(re);
 }
 
-void ED_viewport_render_kill_jobs(const bContext *C, bool free_database)
+void ED_viewport_render_kill_jobs(wmWindowManager *wm,
+                                  Main *bmain,
+                                  bool free_database)
 {
-	wmWindowManager *wm = CTX_wm_manager(C);
-	Main *bmain = CTX_data_main(C);
 	bScreen *sc;
 	ScrArea *sa;
 	ARegion *ar;

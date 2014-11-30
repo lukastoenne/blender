@@ -422,6 +422,43 @@ void BM_edge_normals_update(BMEdge *e)
 	BM_vert_normal_update(e->v2);
 }
 
+bool BM_vert_normal_update_ex(BMVert *v, const char hflag, float r_no[3])
+{
+	/* TODO, we can normalize each edge only once, then compare with previous edge */
+
+	BMIter liter;
+	BMLoop *l;
+	int len = 0;
+
+	zero_v3(r_no);
+
+	BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
+		if (BM_elem_flag_test(l->f, hflag)) {
+			float vec1[3], vec2[3], fac;
+
+			/* Same calculation used in BM_mesh_normals_update */
+			sub_v3_v3v3(vec1, l->v->co, l->prev->v->co);
+			sub_v3_v3v3(vec2, l->next->v->co, l->v->co);
+			normalize_v3(vec1);
+			normalize_v3(vec2);
+
+			fac = saacos(-dot_v3v3(vec1, vec2));
+
+			madd_v3_v3fl(r_no, l->f->no, fac);
+
+			len++;
+		}
+	}
+
+	if (len) {
+		normalize_v3(r_no);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 /**
  * update a vert normal (but not the faces incident on it)
  */
@@ -431,12 +468,13 @@ void BM_vert_normal_update(BMVert *v)
 
 	BMIter liter;
 	BMLoop *l;
-	float vec1[3], vec2[3], fac;
 	int len = 0;
 
 	zero_v3(v->no);
 
 	BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
+		float vec1[3], vec2[3], fac;
+
 		/* Same calculation used in BM_mesh_normals_update */
 		sub_v3_v3v3(vec1, l->v->co, l->prev->v->co);
 		sub_v3_v3v3(vec2, l->next->v->co, l->v->co);
@@ -666,49 +704,25 @@ static bool line_crosses_v2f(const float v1[2], const float v2[2], const float v
  */
 bool BM_face_point_inside_test(BMFace *f, const float co[3])
 {
-	int ax, ay;
-	float co2[2], cent[2] = {0.0f, 0.0f}, out[2] = {FLT_MAX * 0.5f, FLT_MAX * 0.5f};
+	float axis_mat[3][3];
+	float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
+
+	float co_2d[2];
 	BMLoop *l_iter;
-	BMLoop *l_first;
-	int crosses = 0;
-	float onepluseps = 1.0f + (float)FLT_EPSILON * 150.0f;
+	int i;
 	
 	if (is_zero_v3(f->no))
 		BM_face_normal_update(f);
-	
-	/* find best projection of face XY, XZ or YZ: barycentric weights of
-	 * the 2d projected coords are the same and faster to compute
-	 *
-	 * this probably isn't all that accurate, but it has the advantage of
-	 * being fast (especially compared to projecting into the face orientation)
-	 */
-	axis_dominant_v3(&ax, &ay, f->no);
 
-	co2[0] = co[ax];
-	co2[1] = co[ay];
-	
-	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-	do {
-		cent[0] += l_iter->v->co[ax];
-		cent[1] += l_iter->v->co[ay];
-	} while ((l_iter = l_iter->next) != l_first);
-	
-	mul_v2_fl(cent, 1.0f / (float)f->len);
-	
-	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-	do {
-		float v1[2], v2[2];
-		
-		v1[0] = (l_iter->prev->v->co[ax] - cent[0]) * onepluseps + cent[0];
-		v1[1] = (l_iter->prev->v->co[ay] - cent[1]) * onepluseps + cent[1];
-		
-		v2[0] = (l_iter->v->co[ax] - cent[0]) * onepluseps + cent[0];
-		v2[1] = (l_iter->v->co[ay] - cent[1]) * onepluseps + cent[1];
-		
-		crosses += line_crosses_v2f(v1, v2, co2, out) != 0;
-	} while ((l_iter = l_iter->next) != l_first);
-	
-	return crosses % 2 != 0;
+	axis_dominant_v3_to_m3(axis_mat, f->no);
+
+	mul_v2_m3v3(co_2d, axis_mat, co);
+
+	for (i = 0, l_iter = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l_iter = l_iter->next) {
+		mul_v2_m3v3(projverts[i], axis_mat, l_iter->v->co);
+	}
+
+	return isect_point_poly_v2(co_2d, (const float (*)[2])projverts, f->len, false);
 }
 
 /**
