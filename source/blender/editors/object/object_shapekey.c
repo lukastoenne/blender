@@ -51,14 +51,17 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_bvhutils.h"
 #include "BKE_context.h"
+#include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_key.h"
+#include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_object.h"
-#include "BKE_lattice.h"
-#include "BKE_curve.h"
 
 #include "BLI_sys_types.h" // for intptr_t support
 
@@ -574,8 +577,10 @@ typedef struct GoalWeightsData {
 	float mval[2];      /* mouse value with snapping applied */
 	//bContext *C;
 
+	Scene *scene;
 	Object *ob;
 	Key *key;
+	float imat[4][4];
 	
 	/* run by the UI or not */
 	bool is_interactive;
@@ -638,10 +643,39 @@ static void shape_key_goal_weights_draw(const bContext *C, ARegion *UNUSED(ar), 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 }
 
+static bool shape_key_goal_weights_mouse_ray(void *userdata, float ray_start[3], float ray_end[3])
+{
+	GoalWeightsData *sgw = userdata;
+	ViewContext *vc = &sgw->vc;
+	
+	ED_view3d_win_to_segment(vc->ar, vc->v3d, sgw->mval, ray_start, ray_end, true);
+
+	mul_m4_v3(sgw->imat, ray_start);
+	mul_m4_v3(sgw->imat, ray_end);
+	
+	return true;
+}
+
 /* called on tool confirmation */
 static void shape_key_goal_weights_finish_ex(GoalWeightsData *sgw)
 {
-//	knife_make_cuts(sgw);
+	Scene *scene = sgw->scene;
+	Object *ob = sgw->ob;
+	DerivedMesh *dm;
+	MSurfaceSample sample;
+	MSurfaceSampleStorage sample_storage;
+	
+	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	
+	BKE_mesh_sample_storage_single(&sample_storage, &sample);
+	BKE_mesh_sample_generate_raycast(&sample_storage, dm, shape_key_goal_weights_mouse_ray, sgw);
+	BKE_mesh_sample_storage_release(&sample_storage);
+	
+	{
+		float loc[3], nor[3];
+		BKE_mesh_sample_eval(dm, &sample, loc, nor);
+		printf("MADE SAMPLE at (%f, %f, %f)\n", loc[0], loc[1], loc[2]);
+	}
 }
 
 static void shape_key_goal_weights_finish(wmOperator *op)
@@ -692,13 +726,16 @@ static void shape_key_goal_weights_update_mval_i(GoalWeightsData *sgw, const int
 /* called when modal loop selection gets set up... */
 static void shape_key_goal_weights_init(bContext *C, GoalWeightsData *sgw, bool is_interactive)
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
 	Key *key = BKE_key_from_object(ob);
 	
 	/* assign the drawing handle for drawing preview line... */
+	sgw->scene = scene;
 	sgw->ob = ob;
 	sgw->key = key;
 	sgw->ar = CTX_wm_region(C);
+	invert_m4_m4(sgw->imat, ob->obmat);
 	
 	em_setup_viewcontext(C, &sgw->vc);
 	

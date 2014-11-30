@@ -47,6 +47,7 @@ typedef struct MSurfaceSampleStorage {
 	int free_data;
 } MSurfaceSampleStorage;
 
+void BKE_mesh_sample_storage_single(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *sample);
 void BKE_mesh_sample_storage_array(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *samples, int capacity);
 void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
 
