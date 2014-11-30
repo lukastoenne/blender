@@ -74,6 +74,8 @@
 #include "ED_space_api.h"
 #include "ED_view3d.h"
 
+#include "UI_resources.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 
@@ -584,6 +586,13 @@ typedef struct GoalWeightsData {
 	
 	/* run by the UI or not */
 	bool is_interactive;
+	
+	enum {
+		MODE_IDLE = 0,
+		MODE_DRAGGING,
+	} mode;
+	
+	MSurfaceSample sample;
 } GoalWeightsData;
 
 static void shape_key_goal_weights_update_header(bContext *C, GoalWeightsData *UNUSED(sgw))
@@ -603,31 +612,35 @@ static void shape_key_goal_weights_draw(const bContext *C, ARegion *UNUSED(ar), 
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	const GoalWeightsData *sgw = arg;
+	Object *ob = sgw->ob;
 	
 	if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 	
-	glPolygonOffset(1.0f, 1.0f);
-	
 	glPushMatrix();
-	glMultMatrixf(sgw->ob->obmat);
 	
-#if 0
-	if (sgw->mode == MODE_DRAGGING) {
-		if (sgw->angle_snapping != ANGLE_FREE)
-			knifetool_draw_angle_snapping(sgw);
-
-		glColor3ubv(sgw->colors.line);
+	if (sgw->mode == MODE_DRAGGING && ob->derivedDeform) {
+		float start[3], end[3], nor[3];
 		
-		glLineWidth(2.0);
-
-		glBegin(GL_LINES);
-		glVertex3fv(sgw->prev.cage);
-		glVertex3fv(sgw->curr.cage);
-		glEnd();
-
-		glLineWidth(1.0);
+		if (BKE_mesh_sample_eval(ob->derivedDeform, &sgw->sample, start, nor)) {
+			
+			mul_m4_v3(sgw->ob->obmat, start);
+			
+			ED_view3d_win_to_3d(sgw->ar, start, sgw->mval, end);
+			
+			UI_ThemeColor(TH_WIRE);
+			
+			glLineWidth(2.0);
+			
+			glBegin(GL_LINES);
+			glVertex3fv(start);
+			glVertex3fv(end);
+			glEnd();
+			
+			glLineWidth(1.0);
+		}
 	}
 	
+#if 0
 	if (sgw->curr.vert) {
 		glColor3ubv(sgw->colors.point);
 		glPointSize(11);
@@ -637,8 +650,6 @@ static void shape_key_goal_weights_draw(const bContext *C, ARegion *UNUSED(ar), 
 		glEnd();
 	}
 #endif
-
-	glPopMatrix();
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 }
@@ -657,31 +668,29 @@ static bool shape_key_goal_weights_mouse_ray(void *userdata, float ray_start[3],
 }
 
 /* called on tool confirmation */
-static void shape_key_goal_weights_finish_ex(GoalWeightsData *sgw)
+static void shape_key_goal_weights_pick_sample(GoalWeightsData *sgw)
 {
 	Scene *scene = sgw->scene;
 	Object *ob = sgw->ob;
 	DerivedMesh *dm;
-	MSurfaceSample sample;
 	MSurfaceSampleStorage sample_storage;
+	int tot;
+	
+	BLI_assert(sgw->mode == MODE_IDLE);
 	
 	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	
-	BKE_mesh_sample_storage_single(&sample_storage, &sample);
-	BKE_mesh_sample_generate_raycast(&sample_storage, dm, shape_key_goal_weights_mouse_ray, sgw);
+	BKE_mesh_sample_storage_single(&sample_storage, &sgw->sample);
+	tot = BKE_mesh_sample_generate_raycast(&sample_storage, dm, shape_key_goal_weights_mouse_ray, sgw, 1);
 	BKE_mesh_sample_storage_release(&sample_storage);
 	
-	{
-		float loc[3], nor[3];
-		BKE_mesh_sample_eval(dm, &sample, loc, nor);
-		printf("MADE SAMPLE at (%f, %f, %f)\n", loc[0], loc[1], loc[2]);
-	}
+	if (tot > 0)
+		sgw->mode = MODE_DRAGGING;
 }
 
 static void shape_key_goal_weights_finish(wmOperator *op)
 {
-	GoalWeightsData *kcd = op->customdata;
-	shape_key_goal_weights_finish_ex(kcd);
+//	GoalWeightsData *sgw = op->customdata;
 }
 
 /* called when modal loop selection is done... */
@@ -721,6 +730,8 @@ static void shape_key_goal_weights_update_mval_i(GoalWeightsData *sgw, const int
 {
 	float mval[2] = {UNPACK2(mval_i)};
 	shape_key_goal_weights_update_mval(sgw, mval);
+	
+	ED_region_tag_redraw(sgw->ar);
 }
 
 /* called when modal loop selection gets set up... */
@@ -800,6 +811,7 @@ wmKeyMap *ED_keymap_shape_key_goal_weights(wmKeyConfig *keyconf)
 	/* items for modal map */
 	WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, SGW_MODAL_CANCEL);
 	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, SGW_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_ANY, 0, SGW_MODAL_CONFIRM);
 	WM_modalkeymap_add_item(keymap, RETKEY, KM_PRESS, KM_ANY, 0, SGW_MODAL_CONFIRM);
 	WM_modalkeymap_add_item(keymap, PADENTER, KM_PRESS, KM_ANY, 0, SGW_MODAL_CONFIRM);
 	WM_modalkeymap_add_item(keymap, SPACEKEY, KM_PRESS, KM_ANY, 0, SGW_MODAL_CONFIRM);
@@ -831,20 +843,36 @@ static int shape_key_goal_weights_modal(bContext *C, wmOperator *op, const wmEve
 			case SGW_MODAL_CANCEL:
 				/* finish */
 				ED_region_tag_redraw(sgw->ar);
-
+				
 				shape_key_goal_weights_exit(C, op);
 				ED_area_headerprint(CTX_wm_area(C), NULL);
-
+				
 				return OPERATOR_CANCELLED;
 			case SGW_MODAL_CONFIRM:
 				/* finish */
 				ED_region_tag_redraw(sgw->ar);
-
-				shape_key_goal_weights_finish(op);
-				shape_key_goal_weights_exit(C, op);
-				ED_area_headerprint(CTX_wm_area(C), NULL);
-
-				return OPERATOR_FINISHED;
+				
+				switch (sgw->mode) {
+					case MODE_IDLE:
+						shape_key_goal_weights_pick_sample(sgw);
+						break;
+					
+					case MODE_DRAGGING:
+						shape_key_goal_weights_finish(op);
+						
+						shape_key_goal_weights_exit(C, op);
+						ED_area_headerprint(CTX_wm_area(C), NULL);
+						
+						return OPERATOR_FINISHED;
+						break;
+					
+					default:
+						BLI_assert(0); /* should never happen */
+						return OPERATOR_CANCELLED;
+						break;
+				}
+				
+				return OPERATOR_RUNNING_MODAL;
 		}
 	}
 	else { /* non-modal-mapped events */
