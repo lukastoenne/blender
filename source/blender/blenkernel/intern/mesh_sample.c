@@ -26,6 +26,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
@@ -73,6 +74,27 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float l
 	
 	normalize_v3(nor);
 	
+	return true;
+}
+
+bool BKE_mesh_sample_shapekey(Key *key, KeyBlock *kb, const MSurfaceSample *sample, float loc[3])
+{
+	float *v1, *v2, *v3;
+	
+	BLI_assert(key->elemsize == 3 * sizeof(float));
+	BLI_assert(sample->orig_verts[0] < (unsigned int)kb->totelem);
+	BLI_assert(sample->orig_verts[1] < (unsigned int)kb->totelem);
+	BLI_assert(sample->orig_verts[2] < (unsigned int)kb->totelem);
+	
+	v1 = (float *)kb->data + sample->orig_verts[0] * 3;
+	v2 = (float *)kb->data + sample->orig_verts[1] * 3;
+	v3 = (float *)kb->data + sample->orig_verts[2] * 3;
+	
+	madd_v3_v3fl(loc, v1, sample->orig_weights[0]);
+	madd_v3_v3fl(loc, v2, sample->orig_weights[1]);
+	madd_v3_v3fl(loc, v3, sample->orig_weights[2]);
+	
+	/* TODO use optional vgroup weights to determine if a shapeky actually affects the sample */
 	return true;
 }
 
