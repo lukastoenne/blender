@@ -215,6 +215,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_shape_key_retime);
 	WM_operatortype_append(OBJECT_OT_shape_key_mirror);
 	WM_operatortype_append(OBJECT_OT_shape_key_move);
+	WM_operatortype_append(OBJECT_OT_shape_key_goal_weights);
 
 	WM_operatortype_append(LATTICE_OT_select_all);
 	WM_operatortype_append(LATTICE_OT_select_more);
@@ -448,6 +449,7 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 
 	ED_keymap_proportional_cycle(keyconf, keymap);
 	ED_keymap_proportional_editmode(keyconf, keymap, false);
+	ED_keymap_shape_key_goal_weights(keyconf);
 }
 
 void ED_keymap_proportional_cycle(struct wmKeyConfig *UNUSED(keyconf), struct wmKeyMap *keymap)

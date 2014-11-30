@@ -248,6 +248,10 @@ void OBJECT_OT_shape_key_retime(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_mirror(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_move(struct wmOperatorType *ot);
 
+void OBJECT_OT_shape_key_goal_weights(struct wmOperatorType *ot);
+
+struct wmKeyMap *ED_keymap_shape_key_goal_weights(struct wmKeyConfig *keyconf);
+
 /* object_group.c */
 void OBJECT_OT_group_add(struct wmOperatorType *ot);
 void OBJECT_OT_group_link(struct wmOperatorType *ot);
