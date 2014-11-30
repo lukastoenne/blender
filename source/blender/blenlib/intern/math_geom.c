@@ -2310,6 +2310,71 @@ void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], co
 	}
 }
 
+void interp_weights_face_v3_index(int tri[3], float w[4], const float v1[3], const float v2[3], const float v3[3], const float v4[3], const float co[3])
+{
+	float w2[3];
+
+	w[0] = w[1] = w[2] = w[3] = 0.0f;
+	tri[0] = tri[1] = tri[2] = -1;
+
+	/* first check for exact match */
+	if (equals_v3v3(co, v1)) {
+		w[0] = 1.0f;
+		tri[0] = 0; tri[1] = 1; tri[2] = 3;
+	}
+	else if (equals_v3v3(co, v2)) {
+		w[1] = 1.0f;
+		tri[0] = 0; tri[1] = 1; tri[2] = 3;
+	}
+	else if (equals_v3v3(co, v3)) {
+		w[2] = 1.0f;
+		tri[0] = 1; tri[1] = 2; tri[2] = 3;
+	}
+	else if (v4 && equals_v3v3(co, v4)) {
+		w[3] = 1.0f;
+		tri[0] = 1; tri[1] = 2; tri[2] = 3;
+	}
+	else {
+		/* otherwise compute barycentric interpolation weights */
+		float n1[3], n2[3], n[3];
+		bool degenerate;
+
+		sub_v3_v3v3(n1, v1, v3);
+		if (v4) {
+			sub_v3_v3v3(n2, v2, v4);
+		}
+		else {
+			sub_v3_v3v3(n2, v2, v3);
+		}
+		cross_v3_v3v3(n, n1, n2);
+
+		/* OpenGL seems to split this way, so we do too */
+		if (v4) {
+			degenerate = barycentric_weights(v1, v2, v4, co, n, w);
+			SWAP(float, w[2], w[3]);
+			tri[0] = 0; tri[1] = 1; tri[2] = 3;
+
+			if (degenerate || (w[0] < 0.0f)) {
+				/* if w[1] is negative, co is on the other side of the v1-v3 edge,
+				 * so we interpolate using the other triangle */
+				degenerate = barycentric_weights(v2, v3, v4, co, n, w2);
+
+				if (!degenerate) {
+					w[0] = 0.0f;
+					w[1] = w2[0];
+					w[2] = w2[1];
+					w[3] = w2[2];
+					tri[0] = 1; tri[1] = 2; tri[2] = 3;
+				}
+			}
+		}
+		else {
+			barycentric_weights(v1, v2, v3, co, n, w);
+			tri[0] = 0; tri[1] = 1; tri[2] = 2;
+		}
+	}
+}
+
 /* return 1 of point is inside triangle, 2 if it's on the edge, 0 if point is outside of triangle */
 int barycentric_inside_triangle_v2(const float w[3])
 {
