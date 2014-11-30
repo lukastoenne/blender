@@ -34,6 +34,7 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
+#include "BKE_bvhutils.h"
 #include "BKE_mesh_sample.h"
 #include "BKE_customdata.h"
 #include "BKE_DerivedMesh.h"
@@ -98,6 +99,31 @@ bool BKE_mesh_sample_shapekey(Key *key, KeyBlock *kb, const MSurfaceSample *samp
 	return true;
 }
 
+
+/* ==== Sampling Utilities ==== */
+
+BLI_INLINE void mesh_sample_weights_from_loc(MSurfaceSample *sample, DerivedMesh *dm, int face_index, const float loc[3])
+{
+	MFace *face = &dm->getTessFaceArray(dm)[face_index];
+	unsigned int index[4] = { face->v1, face->v2, face->v3, face->v4 };
+	MVert *mverts = dm->getVertArray(dm);
+	
+	float *v1 = mverts[face->v1].co;
+	float *v2 = mverts[face->v2].co;
+	float *v3 = mverts[face->v3].co;
+	float *v4 = face->v4 ? mverts[face->v4].co : NULL;
+	float w[4];
+	int tri[3];
+	
+	interp_weights_face_v3_index(tri, w, v1, v2, v3, v4, loc);
+	
+	sample->orig_verts[0] = index[tri[0]];
+	sample->orig_verts[1] = index[tri[1]];
+	sample->orig_verts[2] = index[tri[2]];
+	sample->orig_weights[0] = w[tri[0]];
+	sample->orig_weights[1] = w[tri[1]];
+	sample->orig_weights[2] = w[tri[2]];
+}
 
 /* ==== Sampling ==== */
 
@@ -172,4 +198,55 @@ void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm
 	}
 	
 	BLI_rng_free(rng);
+}
+
+
+static bool sample_bvh_raycast(MSurfaceSample *sample, DerivedMesh *dm, BVHTreeFromMesh *bvhdata, const float ray_start[3], const float ray_end[3])
+{
+	BVHTreeRayHit hit;
+	float ray_normal[3], dist;
+
+	sub_v3_v3v3(ray_normal, ray_end, ray_start);
+	dist = normalize_v3(ray_normal);
+	
+	hit.index = -1;
+	hit.dist = dist;
+
+	if (BLI_bvhtree_ray_cast(bvhdata->tree, ray_start, ray_normal, 0.0f,
+	                         &hit, bvhdata->raycast_callback, bvhdata) >= 0) {
+		
+		mesh_sample_weights_from_loc(sample, dm, hit.index, hit.co);
+		
+		return true;
+	}
+	else
+		return false;
+}
+
+void BKE_mesh_sample_generate_raycast(MSurfaceSampleStorage *dst, DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata)
+{
+	BVHTreeFromMesh bvhdata;
+	float ray_start[3], ray_end[3];
+	int i;
+	
+	DM_ensure_tessface(dm);
+	
+	memset(&bvhdata, 0, sizeof(BVHTreeFromMesh));
+	bvhtree_from_mesh_faces(&bvhdata, dm, 0.0f, 4, 6);
+	
+	if (bvhdata.tree) {
+		i = 0;
+		while (ray_cb(userdata, ray_start, ray_end)) {
+			MSurfaceSample sample;
+			
+			sample_bvh_raycast(&sample, dm, &bvhdata, ray_start, ray_end);
+			
+			if (!dst->store_sample(dst->data, dst->capacity, i, &sample))
+				break;
+			
+			++i;
+		}
+	}
+	
+	free_bvhtree_from_mesh(&bvhdata);
 }
