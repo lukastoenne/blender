@@ -26,12 +26,15 @@
  */
 
 struct DerivedMesh;
+struct Key;
+struct KeyBlock;
 
 struct MSurfaceSample;
 
 /* ==== Evaluate ==== */
 
 bool BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MSurfaceSample *sample, float loc[3], float nor[3]);
+bool BKE_mesh_sample_shapekey(struct Key *key, struct KeyBlock *kb, const struct MSurfaceSample *sample, float loc[3]);
 
 
 /* ==== Sampling ==== */
