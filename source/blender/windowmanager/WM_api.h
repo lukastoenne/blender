@@ -494,7 +494,6 @@ void WM_widget_unregister(struct wmWidgetGroup *wgroup, struct wmWidget *widget)
 
 void *WM_widget_customdata(struct wmWidget *widget);
 void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
-void WM_widget_set_draw(struct wmWidget *widget, bool draw);
 void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale);
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);

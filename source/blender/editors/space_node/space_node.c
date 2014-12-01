@@ -879,11 +879,7 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 		
 		WIDGET_cage_bounds_set(cage, xsize, ysize);
 		WM_widget_set_origin(cage, origin);
-		WM_widget_set_draw(cage, true);
 		WM_widget_property(cage, nodeptr, "backdrop_x");
-	}
-	else {
-		WM_widget_set_draw(cage, false);
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }

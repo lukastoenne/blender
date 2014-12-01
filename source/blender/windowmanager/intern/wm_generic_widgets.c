@@ -212,7 +212,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	glPushMatrix();
 	glMultMatrixf(&mat[0][0]);
 
-	if (highlight)
+	if (highlight && !(arrow->widget.flag & WM_WIDGET_DRAW_HOVER))
 		glColor4f(1.0, 1.0, 0.0, 1.0);
 	else
 		glColor4fv(arrow->color);

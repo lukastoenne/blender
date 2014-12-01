@@ -331,12 +331,10 @@ void WM_widgets_draw(const bContext *C, struct ARegion *ar)
 				
 
 				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
-					if (!(widget_iter->flag & WM_WIDGET_SKIP_DRAW) &&
-					    (!(widget_iter->flag & WM_WIDGET_DRAW_HOVER) || (widget_iter->flag & WM_WIDGET_HIGHLIGHT)))
-					{
-						widget_calculate_scale(widget_iter, C);
+					widget_calculate_scale(widget_iter, C);
+					/* scale must be calculated still for hover widgets, we just avoid drawing */
+					if (!(widget_iter->flag & WM_WIDGET_DRAW_HOVER) || (widget_iter->flag & WM_WIDGET_HIGHLIGHT))
 						widget_iter->draw(widget_iter, C);
-					}
 				}
 			}
 		}
@@ -408,16 +406,6 @@ void *WM_widget_customdata(struct wmWidget *widget)
 void WM_widget_set_origin(struct wmWidget *widget, float origin[3])
 {
 	copy_v3_v3(widget->origin, origin);
-}
-
-void WM_widget_set_draw(struct wmWidget *widget, bool draw)
-{
-	if (draw) {
-		widget->flag &= ~WM_WIDGET_SKIP_DRAW;
-	}
-	else {
-		widget->flag |= WM_WIDGET_SKIP_DRAW;
-	}
 }
 
 void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale)
@@ -573,7 +561,7 @@ static void wm_prepare_visible_widgets_3D(struct wmWidgetMap *wmap, ListBase *vi
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		if (!wgroup->type->poll || wgroup->type->poll(wgroup, C)) {
 			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if (!(widget->flag & WM_WIDGET_SKIP_DRAW) && widget->render_3d_intersection) {
+				if (widget->render_3d_intersection) {
 					BLI_addhead(visible_widgets, BLI_genericNodeN(widget));
 				}
 			}
@@ -622,7 +610,7 @@ wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, cons
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		if (!wgroup->type->poll || wgroup->type->poll(wgroup, C)) {
 			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if (!(widget->flag & WM_WIDGET_SKIP_DRAW) && widget->intersect) {
+				if (widget->intersect) {
 					if (widget->intersect(C, event, widget))
 						return widget;
 				}
