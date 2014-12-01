@@ -37,7 +37,9 @@ set(INC
 	../modifiers
 	../nodes
 	../render/extern/include
+	../../../intern/ghost
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 	../../../intern/iksolver/extern
 	../../../intern/memutil
 	../../../intern/mikktspace
@@ -62,6 +64,7 @@ set(SRC
 	intern/addon.c
 	intern/anim.c
 	intern/anim_sys.c
+	intern/appdir.c
 	intern/armature.c
 	intern/autoexec.c
 	intern/blender.c
@@ -158,6 +161,7 @@ set(SRC
 	intern/text.c
 	intern/texture.c
 	intern/tracking.c
+	intern/tracking_auto.c
 	intern/tracking_detect.c
 	intern/tracking_plane_tracker.c
 	intern/tracking_region_tracker.c
@@ -175,6 +179,7 @@ set(SRC
 	BKE_addon.h
 	BKE_anim.h
 	BKE_animsys.h
+	BKE_appdir.h
 	BKE_armature.h
 	BKE_autoexec.h
 	BKE_blender.h
@@ -274,7 +279,13 @@ set(SRC
 	intern/pbvh_intern.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
+
+if(WIN32)
+	list(APPEND INC
+		../../../intern/utfconv
+	)
+endif()
 
 if(WITH_AUDASPACE)
 	list(APPEND INC

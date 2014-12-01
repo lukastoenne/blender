@@ -69,7 +69,6 @@
 #include "BKE_effect.h"
 #include "BKE_font.h"
 #include "BKE_group.h"
-#include "BKE_image.h"
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
@@ -97,7 +96,6 @@
 
 #include "ED_armature.h"
 #include "ED_curve.h"
-#include "ED_lattice.h"
 #include "ED_mball.h"
 #include "ED_mesh.h"
 #include "ED_node.h"
@@ -108,7 +106,6 @@
 #include "ED_transform.h"
 #include "ED_view3d.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 
 #include "GPU_material.h"
@@ -449,14 +446,23 @@ static int object_add_exec(bContext *C, wmOperator *op)
 	Object *ob;
 	bool enter_editmode;
 	unsigned int layer;
-	float loc[3], rot[3];
+	float loc[3], rot[3], radius;
 
 	WM_operator_view3d_unit_defaults(C, op);
 	if (!ED_object_add_generic_get_opts(C, op, 'Z', loc, rot, &enter_editmode, &layer, NULL))
 		return OPERATOR_CANCELLED;
 
+	radius = RNA_float_get(op->ptr, "radius");
 	ob = ED_object_add_type(C, RNA_enum_get(op->ptr, "type"), loc, rot, enter_editmode, layer);
-	BKE_object_obdata_size_init(ob, RNA_float_get(op->ptr, "radius"));
+
+	if (ob->type == OB_LATTICE) {
+		/* lattice is a special case!
+		 * we never want to scale the obdata since that is the rest-state */
+		copy_v3_fl(ob->size, radius);
+	}
+	else {
+		BKE_object_obdata_size_init(ob, radius);
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -824,24 +830,12 @@ static int empty_drop_named_image_invoke(bContext *C, wmOperator *op, const wmEv
 	Image *ima = NULL;
 	Object *ob = NULL;
 
-	/* check image input variables */
-	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
-		char path[FILE_MAX];
-
-		RNA_string_get(op->ptr, "filepath", path);
-		ima = BKE_image_load_exists(path);
-	}
-	else if (RNA_struct_property_is_set(op->ptr, "name")) {
-		char name[MAX_ID_NAME - 2];
-
-		RNA_string_get(op->ptr, "name", name);
-		ima = (Image *)BKE_libblock_find_name(ID_IM, name);
-	}
-
-	if (ima == NULL) {
-		BKE_report(op->reports, RPT_ERROR, "Not an image");
+	ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+	if (!ima) {
 		return OPERATOR_CANCELLED;
 	}
+	/* handled below */
+	id_us_min((ID *)ima);
 
 	base = ED_view3d_give_base_under_cursor(C, event->mval);
 
@@ -892,6 +886,8 @@ void OBJECT_OT_drop_named_image(wmOperatorType *ot)
 
 	/* properties */
 	prop = RNA_def_string(ot->srna, "filepath", NULL, FILE_MAX, "Filepath", "Path to image file");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	RNA_def_boolean(ot->srna, "relative_path", true, "Relative Path", "Select the file relative to the blend file");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	prop = RNA_def_string(ot->srna, "name", NULL, MAX_ID_NAME - 2, "Name", "Image name to assign");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);

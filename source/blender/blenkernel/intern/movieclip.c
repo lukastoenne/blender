@@ -69,7 +69,6 @@
 #include "BKE_image.h"  /* openanim */
 #include "BKE_tracking.h"
 
-#include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
@@ -77,8 +76,6 @@
 #ifdef WITH_OPENEXR
 #  include "intern/openexr/openexr_multi.h"
 #endif
-
-#include "NOD_composite.h"
 
 /*********************** movieclip buffer loaders *************************/
 
@@ -406,27 +403,14 @@ static unsigned int moviecache_hashhash(const void *keyv)
 	return rval;
 }
 
-static int moviecache_hashcmp(const void *av, const void *bv)
+static bool moviecache_hashcmp(const void *av, const void *bv)
 {
 	const MovieClipImBufCacheKey *a = (MovieClipImBufCacheKey *)av;
 	const MovieClipImBufCacheKey *b = (MovieClipImBufCacheKey *)bv;
 
-	if (a->framenr < b->framenr)
-		return -1;
-	else if (a->framenr > b->framenr)
-		return 1;
-
-	if (a->proxy < b->proxy)
-		return -1;
-	else if (a->proxy > b->proxy)
-		return 1;
-
-	if (a->render_flag < b->render_flag)
-		return -1;
-	else if (a->render_flag > b->render_flag)
-		return 1;
-
-	return 0;
+	return ((a->framenr != b->framenr) ||
+	        (a->proxy != b->proxy) ||
+	        (a->render_flag != b->render_flag));
 }
 
 static void *moviecache_getprioritydata(void *key_v)
@@ -1274,7 +1258,7 @@ void BKE_movieclip_update_scopes(MovieClip *clip, MovieClipUser *user, MovieClip
 					scopes->frame_width = ibuf->x;
 					scopes->frame_height = ibuf->y;
 
-					scopes->use_track_mask = track->flag & TRACK_PREVIEW_ALPHA;
+					scopes->use_track_mask = (track->flag & TRACK_PREVIEW_ALPHA) != 0;
 				}
 
 				IMB_freeImBuf(ibuf);

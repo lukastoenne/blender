@@ -93,6 +93,8 @@ Mesh::Mesh()
 
 	attributes.triangle_mesh = this;
 	curve_attributes.curve_mesh = this;
+
+	has_volume = false;
 }
 
 Mesh::~Mesh()
@@ -1032,11 +1034,16 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	if(!need_update)
 		return;
 
-	/* update normals */
+	/* update normals and flags */
 	foreach(Mesh *mesh, scene->meshes) {
-		foreach(uint shader, mesh->used_shaders)
+		mesh->has_volume = false;
+		foreach(uint shader, mesh->used_shaders) {
 			if(scene->shaders[shader]->need_update_attributes)
 				mesh->need_update = true;
+			if(scene->shaders[shader]->has_volume) {
+				mesh->has_volume = true;
+			}
+		}
 
 		if(mesh->need_update) {
 			mesh->add_face_normals();
@@ -1104,6 +1111,8 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	bool motion_blur = false;
 #endif
 
+	/* update obejcts */
+	vector<Object *> volume_objects;
 	foreach(Object *object, scene->objects)
 		object->compute_bounds(motion_blur);
 

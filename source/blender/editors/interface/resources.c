@@ -45,6 +45,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
+#include "BKE_appdir.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -271,6 +272,8 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->view_overlay; break;
 				case TH_WIRE:
 					cp = ts->wire; break;
+				case TH_WIRE_INNER:
+					cp = ts->syntaxr; break;
 				case TH_WIRE_EDIT:
 					cp = ts->wire_edit; break;
 				case TH_LAMP:
@@ -617,6 +620,9 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->nla_sound_sel;
 					break;
 					
+				case TH_EMBOSS:
+					cp = btheme->tui.emboss; break;
+
 				case TH_AXIS_X:
 					cp = btheme->tui.xaxis; break;
 				case TH_AXIS_Y:
@@ -813,6 +819,10 @@ void ui_theme_init_default(void)
 	btheme->tui.panel.show_header = false;
 	rgba_char_args_set(btheme->tui.panel.header, 0, 0, 0, 25);
 	
+	rgba_char_args_set(btheme->tui.wcol_tooltip.text, 255, 255, 255, 255);
+	
+	rgba_char_args_set_fl(btheme->tui.emboss, 1.0f, 1.0f, 1.0f, 0.02f);
+
 	rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
 	rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
 	rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
@@ -1104,6 +1114,7 @@ void ui_theme_init_default(void)
 	
 	/* space node, re-uses syntax and console color storage */
 	btheme->tnode = btheme->tv3d;
+	rgba_char_args_set(btheme->tnode.syntaxr, 115, 115, 115, 255);  /* wire inner color */
 	rgba_char_args_set(btheme->tnode.edge_select, 255, 255, 255, 255);  /* wire selected */
 	rgba_char_args_set(btheme->tnode.syntaxl, 155, 155, 155, 160);  /* TH_NODE, backdrop */
 	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in */
@@ -1524,7 +1535,7 @@ void init_userdef_do_versions(void)
 	}
 	if (U.mixbufsize == 0) U.mixbufsize = 2048;
 	if (strcmp(U.tempdir, "/") == 0) {
-		BLI_system_temporary_dir(U.tempdir);
+		BKE_tempdir_system_init(U.tempdir);
 	}
 	if (U.autokey_mode == 0) {
 		/* 'add/replace' but not on */
@@ -2444,6 +2455,7 @@ void init_userdef_do_versions(void)
 			rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
 			rgba_char_args_set_fl(btheme->tima.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
 			rgba_char_args_set_fl(btheme->tima.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
+			rgba_char_args_set(btheme->tnode.syntaxr, 115, 115, 115, 255);
 		}
 	}
 
@@ -2484,6 +2496,13 @@ void init_userdef_do_versions(void)
 			if (btheme->tv3d.loop_normal[3] == 0) {
 				rgba_char_args_set(btheme->tv3d.loop_normal, 0xDD, 0x23, 0xDD, 255);
 			}
+		}
+	}
+
+	if (U.versionfile < 272 || (U.versionfile == 272 && U.subversionfile < 2)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set_fl(btheme->tui.emboss, 1.0f, 1.0f, 1.0f, 0.02f);
 		}
 	}
 

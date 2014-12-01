@@ -248,22 +248,34 @@ static bool node_select_grouped_name(SpaceNode *snode, bNode *node_act, const bo
 	bNode *node;
 	bool changed = false;
 	const unsigned int delims[] = {'.', '-', '_', '\0'};
-	size_t index_act, index_curr;
+	size_t pref_len_act, pref_len_curr;
 	char *sep, *suf_act, *suf_curr;
 
-	index_act = BLI_str_partition_ex_utf8(node_act->name, delims, &sep, &suf_act, from_right);
+	pref_len_act = BLI_str_partition_ex_utf8(node_act->name, delims, &sep, &suf_act, from_right);
 
-	if (index_act > 0) {
-		for (node = snode->edittree->nodes.first; node; node = node->next) {
-			if ((node->flag & SELECT) == 0) {
-				index_curr = BLI_str_partition_ex_utf8(node->name, delims, &sep, &suf_curr, from_right);
-				if ((from_right && STREQ(suf_act, suf_curr)) ||
-				    (!from_right && (index_act == index_curr) && STREQLEN(node_act->name, node->name, index_act)))
-				{
-					nodeSetSelected(node, true);
-					changed = true;
-				}
-			}
+	/* Note: in case we are searching for suffix, and found none, use whole name as suffix. */
+	if (from_right && !(sep && suf_act)) {
+		pref_len_act = 0;
+		suf_act = node_act->name;
+	}
+
+	for (node = snode->edittree->nodes.first; node; node = node->next) {
+		if (node->flag & SELECT) {
+			continue;
+		}
+		pref_len_curr = BLI_str_partition_ex_utf8(node->name, delims, &sep, &suf_curr, from_right);
+
+		/* Same as with active node name! */
+		if (from_right && !(sep && suf_curr)) {
+			pref_len_curr = 0;
+			suf_curr = node->name;
+		}
+
+		if ((from_right && STREQ(suf_act, suf_curr)) ||
+		    (!from_right && (pref_len_act == pref_len_curr) && STREQLEN(node_act->name, node->name, pref_len_act)))
+		{
+			nodeSetSelected(node, true);
+			changed = true;
 		}
 	}
 
@@ -960,7 +972,7 @@ static void node_find_cb(const struct bContext *C, void *UNUSED(arg), const char
 				BLI_snprintf(name, 256, "%s (%s)", node->name, node->label);
 			else
 				BLI_strncpy(name, node->name, 256);
-			if (false == uiSearchItemAdd(items, name, node, 0))
+			if (false == UI_search_item_add(items, name, node, 0))
 				break;
 		}
 	}
@@ -994,18 +1006,18 @@ static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
 	uiBut *but;
 	wmOperator *op = (wmOperator *)arg_op;
 	
-	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
-	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
+	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
 	
 	but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 10, 9 * UI_UNIT_X, UI_UNIT_Y, 0, 0, "");
-	uiButSetSearchFunc(but, node_find_cb, op->type, node_find_call_cb, NULL);
+	UI_but_func_search_set(but, node_find_cb, op->type, node_find_call_cb, NULL);
 	
 	/* fake button, it holds space for search items */
-	uiDefBut(block, LABEL, 0, "", 10, 10 - uiSearchBoxHeight(), uiSearchBoxWidth(), uiSearchBoxHeight(), NULL, 0, 0, 0, 0, NULL);
+	uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 10 - UI_searchbox_size_y(), UI_searchbox_size_x(), UI_searchbox_size_y(), NULL, 0, 0, 0, 0, NULL);
 	
-	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
+	UI_block_bounds_set_popup(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
 	
-	//	uiButActiveOnly(C, ar, block, but); XXX using this here makes Blender hang - investigate
+	//	UI_but_active_only(C, ar, block, but); XXX using this here makes Blender hang - investigate
 	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
 	event.val = KM_PRESS;
@@ -1019,7 +1031,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
 
 static int node_find_node_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	uiPupBlock(C, node_find_menu, op);
+	UI_popup_block_invoke(C, node_find_menu, op);
 	return OPERATOR_CANCELLED;
 }
 

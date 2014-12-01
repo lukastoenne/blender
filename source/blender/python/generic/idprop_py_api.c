@@ -510,7 +510,26 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *name_obj, IDProperty *group,
 		MEM_freeN(prop);
 	}
 	else {
-		IDP_ReplaceInGroup(group, prop);
+		IDProperty *prop_exist;
+
+		/* avoid freeing when types match in case they are referenced by the UI, see: T37073
+		 * obviously this isn't a complete solution, but helps for common cases. */
+		prop_exist = IDP_GetPropertyFromGroup(group, prop->name);
+		if ((prop_exist != NULL) &&
+		    (prop_exist->type == prop->type) &&
+		    (prop_exist->subtype == prop->subtype))
+		{
+			/* Preserve prev/next links!!! See T42593. */
+			prop->prev = prop_exist->prev;
+			prop->next = prop_exist->next;
+
+			IDP_FreeProperty(prop_exist);
+			*prop_exist = *prop;
+			MEM_freeN(prop);
+		}
+		else {
+			IDP_ReplaceInGroup_ex(group, prop, prop_exist);
+		}
 	}
 
 	return true;

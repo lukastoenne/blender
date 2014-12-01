@@ -24,7 +24,6 @@
  *  \ingroup edtransform
  */
 
-
 #include <string.h>
 #include <stddef.h>
 #include <ctype.h>
@@ -56,10 +55,6 @@
 #include "BLF_translation.h"
 
 #include "ED_armature.h"
-
-#include "RNA_define.h"
-
-#include "UI_interface.h"
 
 #include "transform.h"
 
@@ -392,7 +387,7 @@ void BIF_selectTransformOrientationValue(bContext *C, int orientation)
 int BIF_countTransformOrientation(const bContext *C)
 {
 	ListBase *transform_spaces = &CTX_data_scene(C)->transform_spaces;
-	return BLI_countlist(transform_spaces);
+	return BLI_listbase_count(transform_spaces);
 }
 
 bool applyTransformOrientation(const bContext *C, float mat[3][3], char *r_name)

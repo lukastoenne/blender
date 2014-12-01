@@ -60,6 +60,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_appdir.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_colortools.h"
@@ -78,16 +79,14 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-#include "IMB_colormanagement.h"
 
-#include "GPU_extensions.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "PIL_time.h"
 
 #include "RE_pipeline.h"
+#include "RE_engine.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -95,9 +94,7 @@
 #include "ED_datafiles.h"
 #include "ED_render.h"
 
-#include "UI_interface.h"
 
-#include "render_intern.h"
 
 ImBuf *get_brush_icon(Brush *brush)
 {
@@ -120,7 +117,7 @@ ImBuf *get_brush_icon(Brush *brush)
 
 				// otherwise lets try to find it in other directories
 				if (!(brush->icon_imbuf)) {
-					folder = BLI_get_folder(BLENDER_DATAFILES, "brushicons");
+					folder = BKE_appdir_folder_id(BLENDER_DATAFILES, "brushicons");
 
 					BLI_make_file_string(G.main->name, path, folder, brush->icon_filepath);
 
@@ -213,6 +210,12 @@ void ED_preview_init_dbase(void)
 #endif
 }
 
+static bool check_engine_supports_textures(Scene *scene)
+{
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	return type->flag & RE_USE_TEXTURE_PREVIEW;
+}
+
 void ED_preview_free_dbase(void)
 {
 	if (G_pr_main)
@@ -299,12 +302,12 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 
 		sce->r.cfra = scene->r.cfra;
 
-		if (id_type == ID_TE) {
+		if (id_type == ID_TE && !check_engine_supports_textures(scene)) {
 			/* Force blender internal for texture icons and nodes render,
 			 * seems commonly used render engines does not support
 			 * such kind of rendering.
 			 */
-			BLI_strncpy(sce->r.engine, "BLENDER_RENDER", sizeof(sce->r.engine));
+			BLI_strncpy(sce->r.engine, RE_engine_id_BLENDER_RENDER, sizeof(sce->r.engine));
 		}
 		else {
 			BLI_strncpy(sce->r.engine, scene->r.engine, sizeof(sce->r.engine));
@@ -518,7 +521,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 }
 
 /* new UI convention: draw is in pixel space already. */
-/* uses ROUNDBOX button in block to get the rect */
+/* uses UI_BTYPE_ROUNDBOX button in block to get the rect */
 static bool ed_preview_draw_rect(ScrArea *sa, int split, int first, rcti *rect, rcti *newrect)
 {
 	Render *re;
@@ -750,12 +753,6 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 		
 		if (sp->pr_rect)
 			RE_ResultGet32(re, sp->pr_rect);
-	}
-	else {
-		/* validate owner */
-		//if (ri->rect == NULL)
-		//	ri->rect= MEM_mallocN(sizeof(int) * ri->pr_rectx*ri->pr_recty, "BIF_previewrender");
-		//RE_ResultGet32(re, ri->rect);
 	}
 
 	/* unassign the pointers, reset vars */
@@ -1179,12 +1176,11 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
-void ED_preview_kill_jobs(const struct bContext *C)
+void ED_preview_kill_jobs(wmWindowManager *wm, Main *bmain)
 {
-	wmWindowManager *wm = CTX_wm_manager(C);
 	if (wm)
 		WM_jobs_kill(wm, NULL, common_preview_startjob);
-	
-	ED_viewport_render_kill_jobs(C, false);
+
+	ED_viewport_render_kill_jobs(wm, bmain, false);
 }
 

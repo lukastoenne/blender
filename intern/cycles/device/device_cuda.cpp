@@ -202,9 +202,25 @@ public:
 		/* compute cubin name */
 		int major, minor;
 		cuDeviceComputeCapability(&major, &minor, cuDevId);
+		
+		string cubin;
+
+		/* ToDo: We don't bundle sm_52 kernel yet */
+		if(major == 5 && minor == 2) {
+			if(experimental)
+				cubin = path_get(string_printf("lib/kernel_experimental_sm_%d%d.cubin", major, minor));
+			else
+				cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin", major, minor));
+
+			if(path_exists(cubin))
+				/* self build sm_52 kernel? Use it. */
+				return cubin;
+			else
+				/* use 5.0 kernel as workaround */
+				minor = 0;
+		}
 
 		/* attempt to use kernel provided with blender */
-		string cubin;
 		if(experimental)
 			cubin = path_get(string_printf("lib/kernel_experimental_sm_%d%d.cubin", major, minor));
 		else
@@ -273,6 +289,10 @@ public:
 		
 		if(experimental)
 			command += " -D__KERNEL_CUDA_EXPERIMENTAL__";
+
+#ifdef WITH_CYCLES_DEBUG
+		command += " -D__KERNEL_DEBUG__";
+#endif
 
 		printf("%s\n", command.c_str());
 
@@ -355,7 +375,7 @@ public:
 		cuda_push_context();
 		if(mem.device_pointer) {
 			cuda_assert(cuMemcpyDtoH((uchar*)mem.data_pointer + offset,
-			                         (CUdeviceptr)((uchar*)mem.device_pointer + offset), size));
+			                         (CUdeviceptr)(mem.device_pointer + offset), size));
 		}
 		else {
 			memset((char*)mem.data_pointer + offset, 0, size);

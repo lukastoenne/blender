@@ -684,7 +684,7 @@ void ShaderGraph::bump_from_displacement()
 	 * different shifted coordinates.
 	 *
 	 * these 3 displacement values are then fed into the bump node, which will
-	 * output the the perturbed normal. */
+	 * output the perturbed normal. */
 
 	ShaderInput *displacement_in = output()->input("Displacement");
 
@@ -833,6 +833,48 @@ void ShaderGraph::transform_multi_closure(ShaderNode *node, ShaderOutput *weight
 		else
 			weight_in->value.x += 1.0f;
 	}
+}
+
+void ShaderGraph::dump_graph(const char *filename)
+{
+	FILE *fd = fopen(filename, "w");
+
+	if(fd == NULL) {
+		printf("Error opening file for dumping the graph: %s\n", filename);
+		return;
+	}
+
+	fprintf(fd, "digraph shader_graph {\n");
+	fprintf(fd, "ranksep=1.5\n");
+	fprintf(fd, "splines=false\n");
+
+	foreach(ShaderNode *node, nodes) {
+		fprintf(fd, "// NODE: %p\n", node);
+		fprintf(fd,
+		        "\"%p\" [shape=record,label=\"%s\"]\n",
+		        node,
+		        node->name.c_str());
+	}
+
+	foreach(ShaderNode *node, nodes) {
+		foreach(ShaderOutput *output, node->outputs) {
+			foreach(ShaderInput *input, output->links) {
+				fprintf(fd,
+				        "// CONNECTION: %p->%p (%s:%s)\n",
+				        output,
+				        input,
+				        output->name, input->name);
+				fprintf(fd,
+				        "\"%p\":s -> \"%p\":n [label=\"%s:%s\"]\n",
+				        output->parent,
+				        input->parent,
+				        output->name, input->name);
+			}
+		}
+	}
+
+	fprintf(fd, "}\n");
+	fclose(fd);
 }
 
 CCL_NAMESPACE_END

@@ -302,8 +302,8 @@ bool draw_glsl_material(Scene *scene, Object *ob, View3D *v3d, const char dt)
 	if (BKE_scene_use_new_shading_nodes(scene))
 		return false;
 	
-	return ((scene->gm.matmode == GAME_MAT_GLSL && v3d->drawtype == OB_TEXTURE) || 
-			(v3d->drawtype == OB_MATERIAL)) && (dt > OB_SOLID);
+	return ((scene->gm.matmode == GAME_MAT_GLSL && v3d->drawtype == OB_TEXTURE) ||
+	        (v3d->drawtype == OB_MATERIAL)) && (dt > OB_SOLID);
 }
 
 static bool check_alpha_pass(Base *base)
@@ -1331,7 +1331,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		/* draw the circle/square representing spotbl */
 		if (la->type == LA_SPOT) {
-			float spotblcirc = fabsf(z) * (1.0f - powf(la->spotblend, 2));
+			float spotblcirc = fabsf(z) * (1.0f - pow2f(la->spotblend));
 			/* hide line if it is zero size or overlaps with outer border,
 			 * previously it adjusted to always to show it but that seems
 			 * confusing because it doesn't show the actual blend size */
@@ -2153,8 +2153,7 @@ static void calcDrawDMNormalScale(Object *ob, drawDMNormal_userData *data)
 		invert_m3_m3(data->imat, obmat);
 
 		/* transposed inverted matrix */
-		copy_m3_m3(data->tmat, data->imat);
-		transpose_m3(data->tmat);
+		transpose_m3_m3(data->tmat, data->imat);
 	}
 }
 
@@ -2497,7 +2496,7 @@ static void draw_dm_edges_weight_interp(BMEditMesh *em, DerivedMesh *dm, const c
 
 	data.bm = em->bm;
 	data.cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
-	data.defgroup_tot = BLI_countlist(&ob->defbase);
+	data.defgroup_tot = BLI_listbase_count(&ob->defbase);
 	data.vgroup_index = ob->actdef - 1;
 	data.weight_user = weight_user;
 	UI_GetThemeColor3fv(TH_VERTEX_UNREFERENCED, data.alert_color);
@@ -3375,7 +3374,6 @@ static DMDrawOption draw_em_fancy__setFaceOpts(void *userData, int index)
 
 	efa = BM_face_at_index(em->bm, index);
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-		GPU_enable_material(efa->mat_nr + 1, NULL);
 		return DM_DRAW_OPTION_NORMAL;
 	}
 	else {
@@ -5182,7 +5180,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		/* restore & clean up */
 		if (1) { //ob_dt > OB_WIRE) {
 			if (part->draw_col == PART_DRAW_COL_MAT)
-				glDisable(GL_COLOR_ARRAY);
+				glDisableClientState(GL_COLOR_ARRAY);
 			glDisable(GL_COLOR_MATERIAL);
 		}
 
@@ -7512,7 +7510,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	/* draw code for smoke */
-	if ((md = modifiers_findByType(ob, eModifierType_Smoke))) {
+	if ((md = modifiers_findByType(ob, eModifierType_Smoke)) && (modifier_isEnabled(scene, md, eModifierMode_Realtime))) {
 		SmokeModifierData *smd = (SmokeModifierData *)md;
 
 		// draw collision objects
