@@ -109,6 +109,7 @@ extern EnumPropertyItem operator_return_items[];
 extern EnumPropertyItem brush_sculpt_tool_items[];
 extern EnumPropertyItem brush_vertex_tool_items[];
 extern EnumPropertyItem brush_image_tool_items[];
+extern EnumPropertyItem brush_hair_tool_items[];
 
 extern EnumPropertyItem symmetrize_direction_items[];
 
