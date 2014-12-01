@@ -829,16 +829,6 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
-static void WIDGETGROUP_node_transform_create(struct wmWidgetGroup *wgroup)
-{
-	wmWidget *widget = WIDGET_cage_new(0, NULL);
-	PointerRNA *nodeptr = MEM_callocN(sizeof(PointerRNA), "nodewidgetptr");
-
-	WM_widgetgroup_customdata_set(wgroup, nodeptr);
-	
-	WM_widget_register(wgroup, widget);
-}
-
 static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
@@ -855,7 +845,6 @@ static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup)
 
 static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
-	wmWidget *cage = WM_widgetgroup_widgets(wgroup)->first;
 	Image *ima;
 	ImBuf *ibuf;
 	void *lock;
@@ -863,11 +852,13 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 	if (ibuf) {
+		wmWidget *cage = WIDGET_cage_new(wgroup, 0, NULL);
+		
 		SpaceNode *snode = CTX_wm_space_node(C);
 		ARegion *ar = CTX_wm_region(C);
 		float origin[3];
 		float xsize, ysize;
-		PointerRNA *nodeptr = WM_widgetgroup_customdata(wgroup);
+		PointerRNA nodeptr;
 
 		xsize = snode->zoom * ibuf->x;
 		ysize = snode->zoom * ibuf->y;
@@ -875,29 +866,20 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 		origin[0] = (ar->winx - xsize) / 2 + snode->xof;
 		origin[1] = (ar->winy - ysize) / 2 + snode->yof;
 
-		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, nodeptr);
+		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		
 		WIDGET_cage_bounds_set(cage, xsize, ysize);
 		WM_widget_set_origin(cage, origin);
-		WM_widget_property(cage, nodeptr, "backdrop_x");
+		WM_widget_property(cage, &nodeptr, "backdrop_x");
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
-}
-
-static void WIDGETGROUP_node_transform_free(struct wmWidgetGroup *wgroup)
-{
-	PointerRNA *nodeptr = WM_widgetgroup_customdata(wgroup);
-
-	MEM_freeN(nodeptr);
 }
 
 static void node_widgets(void)
 {
 	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("Node", SPACE_NODE, RGN_TYPE_WINDOW, false);
-	struct wmWidgetGroupType *wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_create,
-	                                                                         WIDGETGROUP_node_transform_poll,
-	                                                                         WIDGETGROUP_node_transform_update,
-	                                                                         WIDGETGROUP_node_transform_free);
+	struct wmWidgetGroupType *wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll,
+	                                                                         WIDGETGROUP_node_transform_update);
 
 	WM_widgetgrouptype_register(wmaptype, wgroup_node_transform);
 }

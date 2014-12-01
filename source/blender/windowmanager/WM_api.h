@@ -470,10 +470,9 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
 /* widget API */
-struct wmWidgetGroupType *WM_widgetgrouptype_new(void (*create)(struct wmWidgetGroup *wgroup),
-                                                 bool (*poll)(struct wmWidgetGroup *, const struct bContext *),
-                                                 void (*update)(struct wmWidgetGroup *, const struct bContext *),
-                                                 void (*free)(struct wmWidgetGroup *));
+struct wmWidgetGroupType *WM_widgetgrouptype_new(bool (*poll)(struct wmWidgetGroup *, const struct bContext *),
+                                                 void (*draw)(struct wmWidgetGroup *, const struct bContext *)
+                                                 );
 
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
@@ -500,7 +499,6 @@ void WM_widget_set_scale(struct wmWidget *widget, float scale);
 
 void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
 void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
-ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup);
 
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d);
 
@@ -530,7 +528,7 @@ enum {
 	UI_DIAL_STYLE_RING_CLIPPED = 1,
 };
 
-struct wmWidget *WIDGET_arrow_new(int style, void *customdata);
+struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, int style, void *customdata);
 void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
 void WIDGET_arrow_set_up_vector(struct wmWidget *widget, float direction[3]);
@@ -541,7 +539,7 @@ struct wmWidget *WIDGET_dial_new(int style,
 void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
-struct wmWidget *WIDGET_cage_new(int style, void *customdata);
+struct wmWidget *WIDGET_cage_new(struct wmWidgetGroup *wgroup, int style, void *customdata);
 void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation);
 void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h);
 

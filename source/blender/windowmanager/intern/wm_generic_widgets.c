@@ -429,7 +429,7 @@ static void widget_arrow_bind_to_prop(struct wmWidget *widget)
 		arrow->offset = 0.0f;
 }
 
-wmWidget *WIDGET_arrow_new(int style, void *customdata)
+wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style, void *customdata)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
@@ -462,6 +462,8 @@ wmWidget *WIDGET_arrow_new(int style, void *customdata)
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
 	arrow->style = style;
 	copy_v3_v3(arrow->direction, dir_default);
+	
+	WM_widget_register(wgroup, &arrow->widget);
 	
 	return (wmWidget *)arrow;
 }
@@ -771,7 +773,7 @@ static void widget_cage_bind_to_prop(struct wmWidget *widget)
 	cage->offset = RNA_property_float_get(&widget->ptr, widget->prop);
 }
 
-struct wmWidget *WIDGET_cage_new(int style, void *customdata)
+struct wmWidget *WIDGET_cage_new(struct wmWidgetGroup *wgroup, int style, void *customdata)
 {
 	CageWidget *cage = MEM_callocN(sizeof(CageWidget), "CageWidget");
 
@@ -784,6 +786,8 @@ struct wmWidget *WIDGET_cage_new(int style, void *customdata)
 	cage->widget.user_scale = 1.0f;
 	cage->style = style;
 
+	WM_widget_register(wgroup, &cage->widget);
+	
 	return (wmWidget *)cage;
 }
 

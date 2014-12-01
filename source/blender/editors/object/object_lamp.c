@@ -214,40 +214,22 @@ bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bC
 	return false;
 }
 
-void WIDGETGROUP_lamp_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
-{
-	Object *ob = CTX_data_active_object(C);
-	Lamp *la = ob->data;
-	wmWidget *widget = WM_widgetgroup_widgets(wgroup)->first;
-	WidgetGroupLamp *data = WM_widgetgroup_customdata(wgroup);
-	float dir[3];
-
-	RNA_pointer_create(&la->id, &RNA_Lamp, la, data->lamp);
-	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, data->lamp, "spot_size");
-	negate_v3_v3(dir, ob->obmat[2]);
-	WIDGET_arrow_set_direction(widget, dir);
-}
-
-
-void WIDGETGROUP_lamp_free(struct wmWidgetGroup *wgroup)
-{
-	WidgetGroupLamp *data = WM_widgetgroup_customdata(wgroup);
-	MEM_freeN(data->lamp);
-	MEM_freeN(data);
-}
-
-void WIDGETGROUP_lamp_create(struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_lamp_draw(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
 	float color_lamp[4] = {0.5f, 0.5f, 1.0f, 1.0f};
-	wmWidget *widget = NULL;
-	WidgetGroupLamp *lampgroup = MEM_callocN(sizeof(WidgetGroupLamp), "lamp_manipulator_data");
+	Object *ob = CTX_data_active_object(C);
+	Lamp *la = ob->data;
+	wmWidget *widget;
+	PointerRNA ptr;
+	float dir[3];
 
-	lampgroup->lamp = MEM_callocN(sizeof(PointerRNA), "lampwidgetptr");
+	widget = WIDGET_arrow_new(wgroup, UI_ARROW_STYLE_INVERTED, NULL);
 
-	widget = WIDGET_arrow_new(UI_ARROW_STYLE_INVERTED, NULL);
-	WM_widget_register(wgroup, widget);
 	WIDGET_arrow_set_color(widget, color_lamp);
-
-	WM_widgetgroup_customdata_set(wgroup, lampgroup);
+	
+	RNA_pointer_create(&la->id, &RNA_Lamp, la, &ptr);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, &ptr, "spot_size");
+	negate_v3_v3(dir, ob->obmat[2]);
+	WIDGET_arrow_set_direction(widget, dir);
 }

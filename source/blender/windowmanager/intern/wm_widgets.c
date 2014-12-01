@@ -98,17 +98,11 @@ struct wmWidgetGroup {
 typedef struct wmWidgetGroupType {
 	struct wmWidgetGroupType *next, *prev;
 
-	/* create a new widgetgroup */
-	void (*create)(wmWidgetGroup *);
-
-	/* free the widgetmap. Should take care of any customdata too */
-	void (*free)(struct wmWidgetGroup *wgroup);
-
 	/* poll if widgetmap should be active */
 	bool (*poll)(struct wmWidgetGroup *wgroup, const struct bContext *C);
 
 	/* update widgets, called right before drawing */
-	void (*update)(struct wmWidgetGroup *wgroup, const struct bContext *C);
+	void (*draw)(struct wmWidgetGroup *wgroup, const struct bContext *C);
 
 	/* general flag */
 	int flag;
@@ -129,19 +123,15 @@ typedef struct wmWidgetMapType {
  * area type can query the widgetbox to do so */
 static ListBase widgetmaptypes = {NULL, NULL};
 
-struct wmWidgetGroupType *WM_widgetgrouptype_new(void (*create)(struct wmWidgetGroup *wgroup),
-                                                 bool (*poll)(struct wmWidgetGroup *, const struct bContext *C),
-                                                 void (*update)(struct wmWidgetGroup *, const struct bContext *),
-                                                 void (*free)(struct wmWidgetGroup *wgroup))
+struct wmWidgetGroupType *WM_widgetgrouptype_new(bool (*poll)(struct wmWidgetGroup *, const struct bContext *C),
+                                                 void (*draw)(struct wmWidgetGroup *, const struct bContext *))
 {
 	wmWidgetGroupType *wgrouptype;
 	
 	wgrouptype = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
 	
-	wgrouptype->create = create;
 	wgrouptype->poll = poll;
-	wgrouptype->update = update;
-	wgrouptype->free = free;
+	wgrouptype->draw = draw;
 	
 	return wgrouptype;
 }
@@ -154,12 +144,6 @@ void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup)
 void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data)
 {
 	wgroup->customdata = data;
-}
-
-
-ListBase *WM_widgetgroup_widgets(struct wmWidgetGroup *wgroup)
-{
-	return &wgroup->widgets;
 }
 
 wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C),
@@ -297,13 +281,8 @@ void WM_widgets_draw(const bContext *C, struct ARegion *ar)
 					widget_iter = widget_next;
 				}
 				
-				if (wgroup->type->free)
-					wgroup->type->free(wgroup);
-				
-				wgroup->type->create(wgroup);
-				
-				if (wgroup->type->update) {
-					wgroup->type->update(wgroup, C);
+				if (wgroup->type->draw) {
+					wgroup->type->draw(wgroup, C);
 				}
 				
 				if (highlighted) {
@@ -736,7 +715,6 @@ struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int 
 	/* create all widgetgroups for this widgetmap */
 	for (; wgrouptype; wgrouptype = wgrouptype->next) {
 		wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
-		wgrouptype->create(wgroup);
 		wgroup->type = wgrouptype;
 		BLI_addtail(&wmap->widgetgroups, wgroup);
 	}
@@ -753,9 +731,7 @@ void WM_widgetmap_delete(struct wmWidgetMap *wmap)
 
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		wmWidget *widget;
-		if (wgroup->type->free)
-			wgroup->type->free(wgroup);
-
+		
 		for (widget = wgroup->widgets.first; widget;) {
 			wmWidget *widget_next = widget->next;
 			wm_widgets_delete(&wgroup->widgets, widget);

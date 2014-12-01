@@ -709,44 +709,27 @@ static bool WIDGETGROUP_camera_poll(struct wmWidgetGroup *UNUSED(wgroup), const 
 	return false;
 }
 
-static void WIDGETGROUP_camera_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+static void WIDGETGROUP_camera_draw(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
+	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
 	Camera *ca = ob->data;
-	wmWidget *widget = WM_widgetgroup_widgets(wgroup)->first;
-	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
+	wmWidget *widget;
+	PointerRNA cameraptr;
 	float dir[3];
 
-	RNA_pointer_create(&ca->id, &RNA_Camera, ca, cameraptr);
+	widget = WIDGET_arrow_new(wgroup, UI_ARROW_STYLE_CROSS, NULL);
+	WM_widget_set_draw_on_hover_only(widget, true);
+	WM_widget_set_3d_scale(widget, false);
+	WIDGET_arrow_set_color(widget, color_camera);
+	
+	RNA_pointer_create(&ca->id, &RNA_Camera, ca, &cameraptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, cameraptr, "dof_distance");
+	WM_widget_property(widget, &cameraptr, "dof_distance");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
 	WM_widget_set_scale(widget, ca->drawsize);
-}
-
-
-static void WIDGETGROUP_camera_free(struct wmWidgetGroup *wgroup)
-{
-	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
-
-	MEM_freeN(cameraptr);
-}
-
-static void WIDGETGROUP_camera_create(struct wmWidgetGroup *wgroup)
-{
-	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
-	wmWidget *widget = NULL;
-	PointerRNA *cameraptr = MEM_callocN(sizeof(PointerRNA), "camerawidgetptr");
-
-	WM_widgetgroup_customdata_set(wgroup, cameraptr);
-	
-	widget = WIDGET_arrow_new(UI_ARROW_STYLE_CROSS, NULL);
-	WM_widget_set_draw_on_hover_only(widget, true);
-	WM_widget_set_3d_scale(widget, false);
-	WM_widget_register(wgroup, widget);
-	WIDGET_arrow_set_color(widget, color_camera);
 }
 
 
@@ -769,43 +752,24 @@ static bool WIDGETGROUP_shapekey_poll(struct wmWidgetGroup *UNUSED(wgroup), cons
 	return false;
 }
 
-static void WIDGETGROUP_shapekey_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+static void WIDGETGROUP_shapekey_draw(struct wmWidgetGroup *wgroup, const struct bContext *C)
 {
+	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
 	Camera *ca = ob->data;
-	wmWidget *widget = WM_widgetgroup_widgets(wgroup)->first;
-	PointerRNA *shapeptr = WM_widgetgroup_customdata(wgroup);
+	wmWidget *widget;
+	PointerRNA shapeptr;
 	float dir[3];
 
-	RNA_pointer_create(&ca->id, &RNA_ShapeKey, ca, shapeptr);
+	widget = WIDGET_arrow_new(wgroup, UI_ARROW_STYLE_NORMAL, NULL);
+	WM_widget_set_3d_scale(widget, false);
+	WIDGET_arrow_set_color(widget, color_shape);
+	RNA_pointer_create(&ca->id, &RNA_ShapeKey, ca, &shapeptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, shapeptr, "value");
+	WM_widget_property(widget, &shapeptr, "value");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 }
-
-
-static void WIDGETGROUP_shapekey_free(struct wmWidgetGroup *wgroup)
-{
-	PointerRNA *cameraptr = WM_widgetgroup_customdata(wgroup);
-
-	MEM_freeN(cameraptr);
-}
-
-static void WIDGETGROUP_shapekey_create(struct wmWidgetGroup *wgroup)
-{
-	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
-	wmWidget *widget = NULL;
-	PointerRNA *shapeptr = MEM_callocN(sizeof(PointerRNA), "shapekeywidgetrna");
-
-	WM_widgetgroup_customdata_set(wgroup, shapeptr);
-	
-	widget = WIDGET_arrow_new(UI_ARROW_STYLE_NORMAL, NULL);
-	WM_widget_set_3d_scale(widget, false);
-	WM_widget_register(wgroup, widget);
-	WIDGET_arrow_set_color(widget, color_shape);
-}
-
 
 
 static void view3d_widgets(void)
@@ -817,20 +781,14 @@ static void view3d_widgets(void)
 	                                                                      WIDGETGROUP_manipulator_update,
 	                                                                      WIDGETGROUP_manipulator_free);
 	*/
-	struct wmWidgetGroupType *wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_create,
-	                                                                WIDGETGROUP_lamp_poll,
-	                                                                WIDGETGROUP_lamp_update,
-	                                                                WIDGETGROUP_lamp_free);
+	struct wmWidgetGroupType *wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll,
+	                                                                WIDGETGROUP_lamp_draw);
 
-	struct wmWidgetGroupType *wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_create,
-	                                                                WIDGETGROUP_camera_poll,
-	                                                                WIDGETGROUP_camera_update,
-	                                                                WIDGETGROUP_camera_free);
+	struct wmWidgetGroupType *wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_poll,
+	                                                                 WIDGETGROUP_camera_draw);
 
-	struct wmWidgetGroupType *wgroup_shapekey = WM_widgetgrouptype_new(WIDGETGROUP_shapekey_create,
-	                                                                WIDGETGROUP_shapekey_poll,
-	                                                                WIDGETGROUP_shapekey_update,
-	                                                                WIDGETGROUP_shapekey_free);
+	struct wmWidgetGroupType *wgroup_shapekey = WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll,
+	                                                                   WIDGETGROUP_shapekey_draw);
 	
 	//WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
 	WM_widgetgrouptype_register(wmaptype, wgroup_light);
