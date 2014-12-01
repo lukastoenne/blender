@@ -887,6 +887,17 @@ typedef struct ParticleEditSettings {
 } ParticleEditSettings;
 
 /* ------------------------------------------- */
+/* Hair Edit */
+
+typedef struct HairEditSettings {
+	int flag;
+	int select_mode;
+	
+	struct Brush *brush;
+	struct Object *shape_object;
+} HairEditSettings;
+
+/* ------------------------------------------- */
 /* Sculpt */
 
 /* Sculpt */
@@ -1105,7 +1116,10 @@ typedef struct ToolSettings {
 
 	/* Particle Editing */
 	struct ParticleEditSettings particle;
-	
+
+	/* Hair Editing */
+	struct HairEditSettings hair_edit;
+
 	/* Transform Proportional Area of Effect */
 	float proportional_size;
 
