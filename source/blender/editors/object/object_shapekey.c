@@ -690,7 +690,37 @@ static void shape_key_goal_weights_pick_sample(GoalWeightsData *sgw)
 
 static void shape_key_goal_weights_finish(wmOperator *op)
 {
-//	GoalWeightsData *sgw = op->customdata;
+	GoalWeightsData *sgw = op->customdata;
+	ViewContext *vc = &sgw->vc;
+	Scene *scene = sgw->scene;
+	Object *ob = sgw->ob;
+	
+	DerivedMesh *dm;
+	float loc[3], goal[3], nor[3];
+	float *weights;
+	
+	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	
+	/* get sample location for depth reference */
+	BKE_mesh_sample_eval(dm, &sgw->sample, loc, nor);
+	
+	/* determine goal for the shape key sample */
+	ED_view3d_win_to_3d(vc->ar, loc, sgw->mval, goal);
+	
+	weights = shape_key_goal_weights_solve(sgw->key, &sgw->sample, &goal, 1);
+	if (weights) {
+		KeyBlock *kb;
+		float *w;
+		printf("success!\n");
+		for (kb = sgw->key->block.first, w = weights; kb; kb = kb->next, ++w) {
+			kb->curval = *w;
+		}
+		
+		MEM_freeN(weights);
+		
+		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+	}
 }
 
 /* called when modal loop selection is done... */

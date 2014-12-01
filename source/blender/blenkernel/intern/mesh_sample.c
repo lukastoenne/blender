@@ -91,6 +91,7 @@ bool BKE_mesh_sample_shapekey(Key *key, KeyBlock *kb, const MSurfaceSample *samp
 	v2 = (float *)kb->data + sample->orig_verts[1] * 3;
 	v3 = (float *)kb->data + sample->orig_verts[2] * 3;
 	
+	zero_v3(loc);
 	madd_v3_v3fl(loc, v1, sample->orig_weights[0]);
 	madd_v3_v3fl(loc, v2, sample->orig_weights[1]);
 	madd_v3_v3fl(loc, v3, sample->orig_weights[2]);

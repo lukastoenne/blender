@@ -32,12 +32,14 @@
 #define __OBJECT_INTERN_H__
 
 struct wmOperatorType;
+struct Key;
 struct KeyBlock;
 struct Lattice;
 struct Curve;
 struct Object;
 struct Mesh;
 struct HookModifierData;
+struct MSurfaceSample;
 
 /* add hook menu */
 enum eObject_Hook_Add_Mode {
@@ -45,6 +47,8 @@ enum eObject_Hook_Add_Mode {
 	OBJECT_ADDHOOK_SELOB,
 	OBJECT_ADDHOOK_SELOB_BONE
 };
+
+float *shape_key_goal_weights_solve(struct Key *key, struct MSurfaceSample *samples, float (*goals)[3], int totgoals);
 
 /* internal exports only */
 

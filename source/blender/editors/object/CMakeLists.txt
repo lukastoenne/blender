@@ -34,6 +34,7 @@ set(INC
 	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
+	../../../../extern/Eigen3
 )
 
 set(INC_SYS
@@ -56,6 +57,7 @@ set(SRC
 	object_relations.c
 	object_select.c
 	object_shapekey.c
+	object_shapekey_eigen.cpp
 	object_transform.c
 	object_warp.c
 	object_vgroup.c
