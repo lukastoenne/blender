@@ -93,7 +93,6 @@ typedef struct Brush {
 
 	float plane_offset;     /* offset for plane brushes (clay, flatten, fill, scrape) */
 
-	float pad;
 	int gradient_spacing;
 	int gradient_stroke_mode; /* source for stroke color gradient application */
 	int gradient_fill_mode;   /* source for fill tool color gradient application */
@@ -102,6 +101,8 @@ typedef struct Brush {
 	char vertexpaint_tool;  /* active vertex/weight paint blend mode (poorly named) */
 	char imagepaint_tool;   /* active image paint tool */
 	char mask_tool;         /* enum BrushMaskTool, only used if sculpt_tool is SCULPT_TOOL_MASK */
+	char hair_tool;         /* active hair tool */
+	char pad2[3];
 
 	float autosmooth_factor;
 
