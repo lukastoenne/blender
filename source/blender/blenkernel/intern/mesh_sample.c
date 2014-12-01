@@ -137,6 +137,15 @@ static bool mesh_sample_store_array_sample(void *vdata, int capacity, int index,
 	return true;
 }
 
+void BKE_mesh_sample_storage_single(MSurfaceSampleStorage *storage, MSurfaceSample *sample)
+{
+	/* handled as just a special array case with capacity = 1 */
+	storage->store_sample = mesh_sample_store_array_sample;
+	storage->capacity = 1;
+	storage->data = sample;
+	storage->free_data = false;
+}
+
 void BKE_mesh_sample_storage_array(MSurfaceSampleStorage *storage, MSurfaceSample *samples, int capacity)
 {
 	storage->store_sample = mesh_sample_store_array_sample;
