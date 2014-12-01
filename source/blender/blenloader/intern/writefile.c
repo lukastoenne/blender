@@ -80,6 +80,7 @@
 #include <stdlib.h>
 
 #ifdef WIN32
+#  include <zlib.h>  /* odd include order-issue */
 #  include "winsock2.h"
 #  include <io.h>
 #  include "BLI_winstuff.h"
@@ -2463,6 +2464,8 @@ static void write_gpencils(WriteData *wd, ListBase *lb)
 		if (gpd->id.us>0 || wd->current) {
 			/* write gpd data block to file */
 			writestruct(wd, ID_GD, "bGPdata", 1, gpd);
+			
+			if (gpd->adt) write_animdata(wd, gpd->adt);
 			
 			/* write grease-pencil layers to file */
 			writelist(wd, DATA, "bGPDlayer", &gpd->layers);

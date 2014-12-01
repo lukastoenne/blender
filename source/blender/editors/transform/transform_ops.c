@@ -552,7 +552,11 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 			}
 		}
 	}
-
+	
+	if (flags & P_GPENCIL_EDIT) {
+		RNA_def_boolean(ot->srna, "gpencil_strokes", 0, "Edit Grease Pencil", "Edit selected Grease Pencil strokes");
+	}
+	
 	if ((flags & P_OPTIONS) && !(flags & P_NO_TEXSPACE)) {
 		RNA_def_boolean(ot->srna, "texture_space", 0, "Edit Texture Space", "Edit Object data texture space");
 		prop = RNA_def_boolean(ot->srna, "remove_on_cancel", 0, "Remove on Cancel", "Remove elements on cancel");
@@ -587,7 +591,7 @@ static void TRANSFORM_OT_translate(struct wmOperatorType *ot)
 
 	RNA_def_float_vector_xyz(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP | P_OPTIONS | P_WIDGET_DRIVEN);
+	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP | P_OPTIONS | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
@@ -607,7 +611,7 @@ static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
 
 	RNA_def_float_vector(ot->srna, "value", 3, VecOne, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_OPTIONS | P_WIDGET_DRIVEN);
+	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_OPTIONS | P_GPENCIL_EDIT);
 }
 
 static int skin_resize_poll(bContext *C)
@@ -661,7 +665,7 @@ static void TRANSFORM_OT_trackball(struct wmOperatorType *ot)
 	prop = RNA_def_float_vector(ot->srna, "value", 2, NULL, -FLT_MAX, FLT_MAX, "Angle", "", -FLT_MAX, FLT_MAX);
 	RNA_def_property_subtype(prop, PROP_ANGLE);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_WIDGET_DRIVEN);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
@@ -684,7 +688,7 @@ static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
 	prop = RNA_def_float(ot->srna, "value", 0.0f, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 	RNA_def_property_subtype(prop, PROP_ANGLE);
 
-	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_WIDGET_DRIVEN);
+	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_tilt(struct wmOperatorType *ot)
@@ -730,7 +734,7 @@ static void TRANSFORM_OT_bend(struct wmOperatorType *ot)
 
 	RNA_def_float_rotation(ot->srna, "value", 1, NULL, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_shear(struct wmOperatorType *ot)
@@ -750,7 +754,7 @@ static void TRANSFORM_OT_shear(struct wmOperatorType *ot)
 
 	RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT);
 	// XXX Shear axis?
 }
 
@@ -812,7 +816,7 @@ static void TRANSFORM_OT_tosphere(struct wmOperatorType *ot)
 
 	RNA_def_float_factor(ot->srna, "value", 0, 0, 1, "Factor", "", 0, 1);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_mirror(struct wmOperatorType *ot)
@@ -830,7 +834,7 @@ static void TRANSFORM_OT_mirror(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_screenactive;
 
-	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL);
+	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_edge_slide(struct wmOperatorType *ot)

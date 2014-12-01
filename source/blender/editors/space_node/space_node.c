@@ -519,6 +519,11 @@ static void node_area_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 				ED_area_tag_refresh(sa);
 			}
 			break;
+		case NC_GPENCIL:
+			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+				ED_area_tag_redraw(sa);
+			}
+			break;
 	}
 }
 
@@ -681,7 +686,7 @@ static int node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *
 			return 1;
 	}
 	else if (drag->type == WM_DRAG_PATH) {
-		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE))   /* rule might not work? */
+		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE))   /* rule might not work? */
 			return 1;
 	}
 	return 0;
@@ -710,9 +715,11 @@ static void node_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
 
 	if (id) {
 		RNA_string_set(drop->ptr, "name", id->name + 2);
+		RNA_struct_property_unset(drop->ptr, "filepath");
 	}
-	if (drag->path[0]) {
+	else if (drag->path[0]) {
 		RNA_string_set(drop->ptr, "filepath", drag->path);
+		RNA_struct_property_unset(drop->ptr, "name");
 	}
 }
 
@@ -778,6 +785,8 @@ static void node_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegi
 			break;
 		case NC_GPENCIL:
 			if (wmn->action == NA_EDITED)
+				ED_region_tag_redraw(ar);
+			else if (wmn->data & ND_GPENCIL_EDITMODE)
 				ED_region_tag_redraw(ar);
 			break;
 	}

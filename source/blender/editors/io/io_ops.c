@@ -30,6 +30,11 @@
 
 #include "io_ops.h"  /* own include */
 
+#ifdef WITH_COLLADA
+#  include "io_collada.h"
+#  include "WM_api.h"
+#endif
+
 void ED_operatortypes_io(void) 
 {
 #ifdef WITH_COLLADA
