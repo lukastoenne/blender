@@ -161,14 +161,14 @@ void BKE_mesh_sample_storage_release(MSurfaceSampleStorage *storage)
 }
 
 
-void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm, unsigned int seed, int totsample)
+int BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm, unsigned int seed, int totsample)
 {
 	MFace *mfaces;
 	int totfaces;
 	RNG *rng;
 	MFace *mface;
 	float a, b;
-	int i;
+	int i, stored = 0;
 	
 	rng = BLI_rng_new(seed);
 	
@@ -202,11 +202,15 @@ void BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm
 		sample.orig_weights[1] = a;
 		sample.orig_weights[2] = b;
 		
-		if (!dst->store_sample(dst->data, dst->capacity, i, &sample))
+		if (dst->store_sample(dst->data, dst->capacity, i, &sample))
+			++stored;
+		else
 			break;
 	}
 	
 	BLI_rng_free(rng);
+	
+	return stored;
 }
 
 
@@ -232,11 +236,11 @@ static bool sample_bvh_raycast(MSurfaceSample *sample, DerivedMesh *dm, BVHTreeF
 		return false;
 }
 
-void BKE_mesh_sample_generate_raycast(MSurfaceSampleStorage *dst, DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata)
+int BKE_mesh_sample_generate_raycast(MSurfaceSampleStorage *dst, DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata, int totsample)
 {
 	BVHTreeFromMesh bvhdata;
 	float ray_start[3], ray_end[3];
-	int i;
+	int i, stored = 0;
 	
 	DM_ensure_tessface(dm);
 	
@@ -244,18 +248,20 @@ void BKE_mesh_sample_generate_raycast(MSurfaceSampleStorage *dst, DerivedMesh *d
 	bvhtree_from_mesh_faces(&bvhdata, dm, 0.0f, 4, 6);
 	
 	if (bvhdata.tree) {
-		i = 0;
-		while (ray_cb(userdata, ray_start, ray_end)) {
-			MSurfaceSample sample;
-			
-			sample_bvh_raycast(&sample, dm, &bvhdata, ray_start, ray_end);
-			
-			if (!dst->store_sample(dst->data, dst->capacity, i, &sample))
-				break;
-			
-			++i;
+		for (i = 0; i < totsample; ++i) {
+			if (ray_cb(userdata, ray_start, ray_end)) {
+				MSurfaceSample sample;
+				if (sample_bvh_raycast(&sample, dm, &bvhdata, ray_start, ray_end)) {
+					if (dst->store_sample(dst->data, dst->capacity, i, &sample))
+						++stored;
+					else
+						break;
+				}
+			}
 		}
 	}
 	
 	free_bvhtree_from_mesh(&bvhdata);
+	
+	return stored;
 }

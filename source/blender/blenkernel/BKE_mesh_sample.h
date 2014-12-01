@@ -51,9 +51,9 @@ void BKE_mesh_sample_storage_single(struct MSurfaceSampleStorage *storage, struc
 void BKE_mesh_sample_storage_array(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *samples, int capacity);
 void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
 
-void BKE_mesh_sample_generate_random(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
+int BKE_mesh_sample_generate_random(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
 
 typedef bool (*MeshSampleRayCallback)(void *userdata, float ray_start[3], float ray_end[3]);
-void BKE_mesh_sample_generate_raycast(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata);
+int BKE_mesh_sample_generate_raycast(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata, int totsample);
 
 #endif  /* __BKE_MESH_SAMPLE_H__ */
