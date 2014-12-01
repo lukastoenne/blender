@@ -584,6 +584,8 @@ typedef struct GoalWeightsData {
 	Key *key;
 	float imat[4][4];
 	
+	float *orig_weights; /* original key values for restoring after cancel */
+	
 	/* run by the UI or not */
 	bool is_interactive;
 	
@@ -747,6 +749,8 @@ static void shape_key_goal_weights_exit_ex(bContext *C, GoalWeightsData *sgw)
 	}
 
 	/* free the custom data */
+	if (sgw->orig_weights)
+		MEM_freeN(sgw->orig_weights);
 
 	/* tag for redraw */
 	ED_region_tag_redraw(sgw->ar);
@@ -774,6 +778,21 @@ static void shape_key_goal_weights_update_mval_i(GoalWeightsData *sgw, const int
 	ED_region_tag_redraw(sgw->ar);
 }
 
+static void shape_key_goal_weights_restore(GoalWeightsData *sgw)
+{
+	Object *ob = sgw->ob;
+	
+	KeyBlock *kb;
+	float *w;
+	
+	for (kb = sgw->key->block.first, w = sgw->orig_weights; kb; kb = kb->next, ++w) {
+		kb->curval = *w;
+	}
+	
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+}
+
 /* called when modal loop selection gets set up... */
 static void shape_key_goal_weights_init(bContext *C, GoalWeightsData *sgw, bool is_interactive)
 {
@@ -781,12 +800,20 @@ static void shape_key_goal_weights_init(bContext *C, GoalWeightsData *sgw, bool 
 	Object *ob = ED_object_context(C);
 	Key *key = BKE_key_from_object(ob);
 	
+	KeyBlock *kb;
+	float *w;
+	
 	/* assign the drawing handle for drawing preview line... */
 	sgw->scene = scene;
 	sgw->ob = ob;
 	sgw->key = key;
 	sgw->ar = CTX_wm_region(C);
 	invert_m4_m4(sgw->imat, ob->obmat);
+	
+	sgw->orig_weights = MEM_mallocN(key->totkey * sizeof(float), "original shape key weights");
+	for (kb = key->block.first, w = sgw->orig_weights; kb; kb = kb->next, ++w) {
+		*w = kb->curval;
+	}
 	
 	em_setup_viewcontext(C, &sgw->vc);
 	
@@ -884,6 +911,7 @@ static int shape_key_goal_weights_modal(bContext *C, wmOperator *op, const wmEve
 				/* finish */
 				ED_region_tag_redraw(sgw->ar);
 				
+				shape_key_goal_weights_restore(sgw);
 				shape_key_goal_weights_exit(C, op);
 				ED_area_headerprint(CTX_wm_area(C), NULL);
 				
@@ -908,6 +936,7 @@ static int shape_key_goal_weights_modal(bContext *C, wmOperator *op, const wmEve
 					
 					default:
 						BLI_assert(0); /* should never happen */
+						shape_key_goal_weights_exit(C, op);
 						return OPERATOR_CANCELLED;
 						break;
 				}
