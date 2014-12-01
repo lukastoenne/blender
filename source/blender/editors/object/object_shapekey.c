@@ -688,9 +688,8 @@ static void shape_key_goal_weights_pick_sample(GoalWeightsData *sgw)
 		sgw->mode = MODE_DRAGGING;
 }
 
-static void shape_key_goal_weights_finish(wmOperator *op)
+static bool shape_key_goal_weights_apply(GoalWeightsData *sgw)
 {
-	GoalWeightsData *sgw = op->customdata;
 	ViewContext *vc = &sgw->vc;
 	Scene *scene = sgw->scene;
 	Object *ob = sgw->ob;
@@ -711,13 +710,24 @@ static void shape_key_goal_weights_finish(wmOperator *op)
 	if (weights) {
 		KeyBlock *kb;
 		float *w;
-		printf("success!\n");
 		for (kb = sgw->key->block.first, w = weights; kb; kb = kb->next, ++w) {
 			kb->curval = *w;
 		}
 		
 		MEM_freeN(weights);
 		
+		return true;
+	}
+	else
+		return false;
+}
+
+static void shape_key_goal_weights_finish(wmOperator *op)
+{
+	GoalWeightsData *sgw = op->customdata;
+	Object *ob = sgw->ob;
+	
+	if (shape_key_goal_weights_apply(sgw)) {
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 	}
@@ -915,6 +925,13 @@ static int shape_key_goal_weights_modal(bContext *C, wmOperator *op, const wmEve
 				return OPERATOR_PASS_THROUGH;
 			case MOUSEMOVE: /* move the goal */
 				shape_key_goal_weights_update_mval_i(sgw, event->mval);
+				
+				if (sgw->mode == MODE_DRAGGING) {
+					if (shape_key_goal_weights_apply(sgw)) {
+						DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+						WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+					}
+				}
 				break;
 		}
 	}
