@@ -25,46 +25,20 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/hair/hair_intern.h
+/** \file blender/editors/hair/hair_edit.c
  *  \ingroup edhair
  */
 
-#ifndef __HAIR_INTERN_H__
-#define __HAIR_INTERN_H__
+#include <stdlib.h>
 
-struct bContext;
-struct wmOperatorType;
+#include "MEM_guardedalloc.h"
 
-int hair_edit_toggle_poll(struct bContext *C);
+#include "BLI_utildefines.h"
 
-void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
-
-void HAIR_OT_stroke(struct wmOperatorType *ot);
+#include "hair_intern.h"
 
 
-/* ==== Hair Brush ==== */
-
-typedef struct HairToolData {
-	/* context */
-	struct Scene *scene;
-	struct Object *ob;
-	struct BMEditStrands *edit;
+void hair_brush_step(HairToolData *data)
+{
 	
-	/* view space */
-	float mval[2];      /* mouse coordinates */
-	float mdepth;       /* mouse z depth */
-	
-	/* object space */
-	float loc[3];       /* start location */
-	float delta[3];     /* stroke step */
-} HairToolData;
-
-void hair_brush_step(struct HairToolData *data);
-
-/* ==== BMesh utilities ==== */
-
-struct BMEditStrands;
-
-void hair_bm_min_max(struct BMEditStrands *edit, float min[3], float max[3]);
-
-#endif
+}
