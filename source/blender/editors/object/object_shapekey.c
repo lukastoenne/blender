@@ -53,6 +53,7 @@
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_editmesh.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -558,3 +559,47 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }
 
+static int shape_key_dorito_set_poll(bContext *C)
+{
+	/* Same as shape_key_mode_exists_poll above, but ensure we have at least two shapes! */
+	Object *ob = ED_object_context(C);
+	ID *data = (ob) ? ob->data : NULL;
+	Key *key = BKE_key_from_object(ob);
+
+	return (ob && !ob->id.lib && data && !data->lib && ob->mode == OB_MODE_EDIT && key && key->totkey > 1);
+}
+
+static int shape_key_dorito_set_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_context(C);
+	BMesh *bm = BKE_editmesh_from_object(ob)->bm;
+	BMVert *v = BM_mesh_active_vert_get(bm);
+
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BKE_keyblock_from_object(ob);
+	
+	const int totkey = key->totkey;
+	const int act_index = ob->shapenr - 1;
+	int new_index;
+
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_shape_key_dorito_set(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Set Dorito";
+	ot->idname = "OBJECT_OT_shape_key_dorito_set";
+	ot->description = "Set vertex that influences the dorito";
+
+	/* api callbacks */
+	ot->poll = shape_key_dorito_set_poll;
+	ot->exec = shape_key_dorito_set_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

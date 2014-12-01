@@ -66,7 +66,10 @@ typedef struct KeyBlock {
 	/* ranges, for RNA and UI only to clamp 'curval' */
 	float slidermin;
 	float slidermax;
-
+	
+	/* dorito relevant code */
+	int dorito_index; 	/* index of dorito vertex in mesh */
+	int pad;
 } KeyBlock;
 
 

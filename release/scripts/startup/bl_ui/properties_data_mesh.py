@@ -297,6 +297,8 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                     row = layout.row()
                     row.active = enable_edit_value
                     row.prop(kb, "value")
+                    if ob.mode == 'EDIT':
+                        row.operator("OBJECT_OT_shape_key_dorito_set")
 
                     split = layout.split()
 
