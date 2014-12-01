@@ -67,7 +67,7 @@
 static bool has_hair_data(Object *ob)
 {
 	ParticleSystem *psys = psys_get_current(ob);
-	if (psys->part->type == PART_HAIR)
+	if (psys && psys->part->type == PART_HAIR)
 		return true;
 	
 	return false;
@@ -259,43 +259,58 @@ static void hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	Scene *scene = stroke->scene;
 	Object *ob = stroke->ob;
 	BMEditStrands *edit = stroke->edit;
-//	ParticleEditSettings *pset= PE_settings(scene);
-//	ParticleSystemModifierData *psmd= edit->psys ? psys_get_modifier(ob, edit->psys) : NULL;
-//	ParticleBrushData *brush = &pset->brush[pset->brushtype];
 	ARegion *ar = CTX_wm_region(C);
 	
-	float /*vec[3],*/ mouse[2];
-	int mval[2];
-	int flip;
-//	int removed= 0, added=0, selected= 0, tot_steps= 1, step= 1;
-	float dx, dy/*, dmax*/;
-//	int lock_root = pset->flag & PE_LOCK_FIRST;
-
-//	if (!PE_start_edit(edit))
-//		return;
-
+	float mouse[2], mdelta[2], zvec[3], delta_max;
+	int totsteps, step;
+	HairToolData tool_data;
+	
 	RNA_float_get_array(itemptr, "mouse", mouse);
-	flip = RNA_boolean_get(itemptr, "pen_flip");
-
+	
 	if (stroke->first) {
 		stroke->lastmouse[0] = mouse[0];
 		stroke->lastmouse[1] = mouse[1];
 	}
+	
+	mdelta[0] = mouse[0] - stroke->lastmouse[0];
+	mdelta[1] = mouse[1] - stroke->lastmouse[1];
+	delta_max = max_ff(fabsf(mdelta[0]), fabsf(mdelta[1]));
+	
+//	totsteps = delta_max / (0.2f * pe_brush_size_get(scene, brush)) + 1;
+	totsteps = 1; // XXX TODO determine brush size for the above
+	mul_v2_fl(mdelta, 1.0f / (float)totsteps);
+	
+	tool_data.scene = scene;
+	tool_data.ob = ob;
+	tool_data.edit = edit;
+	
+	copy_v2_v2(tool_data.mval, mouse);
+	tool_data.mdepth = stroke->zfac;
+	
+	zvec[0] = 0.0f; zvec[1] = 0.0f; zvec[2] = stroke->zfac;
+	ED_view3d_win_to_3d(ar, zvec, mouse, tool_data.loc);
+	ED_view3d_win_to_delta(ar, mdelta, tool_data.delta, stroke->zfac);
 
-	dx = mouse[0] - stroke->lastmouse[0];
-	dy = mouse[1] - stroke->lastmouse[1];
+	for (step = 0; step < totsteps; ++step) {
+		hair_brush_step(&tool_data);
+	}
+	
+	stroke->lastmouse[0] = mouse[0];
+	stroke->lastmouse[1] = mouse[1];
+	stroke->first = false;
+	
+//	if (edit->psys) {
+//		WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_EDITED, ob);
+//	}
+//	else {
+//		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+//		WM_event_add_notifier(C, NC_OBJECT|ND_MODIFIER, ob);
+//	}
 
-	mval[0] = mouse[0];
-	mval[1] = mouse[1];
 
-	/* disable locking temporatily for disconnected hair */
-//	if (edit->psys && edit->psys->flag & PSYS_GLOBAL_HAIR)
-//		pset->flag &= ~PE_LOCK_FIRST;
-
-//	if (((pset->brushtype == PE_BRUSH_ADD) ?
-//	     (sqrtf(dx * dx + dy * dy) > pset->brush[PE_BRUSH_ADD].step) : (dx != 0 || dy != 0)) || stroke->first)
-	{
 #if 0
+	if (((pset->brushtype == PE_BRUSH_ADD) ?
+	     (sqrtf(dx * dx + dy * dy) > pset->brush[PE_BRUSH_ADD].step) : (dx != 0 || dy != 0)) || stroke->first)
 		PEData data= stroke->data;
 
 		view3d_operator_needs_opengl(C);
@@ -456,22 +471,8 @@ static void hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 			else
 				PE_update_object(scene, ob, 1);
 		}
-#endif
-
-//		if (edit->psys) {
-//			WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_EDITED, ob);
-//		}
-//		else {
-//			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-//			WM_event_add_notifier(C, NC_OBJECT|ND_MODIFIER, ob);
-//		}
-
-		stroke->lastmouse[0] = mouse[0];
-		stroke->lastmouse[1] = mouse[1];
-		stroke->first = false;
 	}
-
-//	pset->flag |= lock_root;
+#endif
 }
 
 static void hair_stroke_exit(wmOperator *op)
@@ -507,7 +508,6 @@ static void hair_stroke_apply_event(bContext *C, wmOperator *op, const wmEvent *
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
 
 	RNA_float_set_array(&itemptr, "mouse", mouse);
-	RNA_boolean_set(&itemptr, "pen_flip", event->shift != false); // XXX hardcoded
 
 	/* apply */
 	hair_stroke_apply(C, op, &itemptr);
