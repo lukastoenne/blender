@@ -102,7 +102,10 @@ typedef struct Brush {
 	char vertexpaint_tool;  /* active vertex/weight paint blend mode (poorly named) */
 	char imagepaint_tool;   /* active image paint tool */
 	char mask_tool;         /* enum BrushMaskTool, only used if sculpt_tool is SCULPT_TOOL_MASK */
-	
+	char hair_tool;         /* active hair tool */
+	char pad2[3];
+	int pad3;
+
 	float autosmooth_factor;
 
 	float crease_pinch_factor;

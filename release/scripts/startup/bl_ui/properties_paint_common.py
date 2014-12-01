@@ -38,10 +38,10 @@ class UnifiedPaintPanel:
         elif context.image_paint_object:
             if (toolsettings.image_paint and toolsettings.image_paint.detect_data()):
                 return toolsettings.image_paint
-
-            return None
         elif context.particle_edit_object:
             return toolsettings.particle_edit
+        elif context.hair_edit_object:
+            return toolsettings.hair_edit
 
         return None
 
