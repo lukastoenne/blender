@@ -270,6 +270,16 @@ typedef enum BrushImagePaintTool {
 	PAINT_TOOL_MASK = 5
 } BrushImagePaintTool;
 
+typedef enum BrushHairTool {
+	HAIR_TOOL_COMB      = 1,
+	HAIR_TOOL_CUT       = 2,
+	HAIR_TOOL_LENGTH    = 3,
+	HAIR_TOOL_PUFF      = 4,
+	HAIR_TOOL_ADD       = 5,
+	HAIR_TOOL_SMOOTH    = 6,
+	HAIR_TOOL_WEIGHT    = 7,
+} BrushHairTool;
+
 /* direction that the brush displaces along */
 enum {
 	SCULPT_DISP_DIR_AREA = 0,
