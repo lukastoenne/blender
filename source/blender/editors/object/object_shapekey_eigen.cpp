@@ -157,10 +157,10 @@ float *shape_key_goal_weights_solve(Key *key, MSurfaceSample *samples, float (*g
 	float *weights = (float *)MEM_mallocN(key->totkey * sizeof(float), "shape key goal weights");
 	float totweight = 0.0f;
 	for (int i = 0; i < key->totkey - 1; ++i) {
-		weights[i + 1] = x[i];
+		weights[i + 1] = CLAMPIS(x[i], 0.0f, 1.0f);
 		totweight += x[i];
 	}
-	weights[0] = 1.0f - totweight;
+	weights[0] = CLAMPIS(1.0f - totweight, 0.0f, 1.0f);
 	
 	return weights;
 }
