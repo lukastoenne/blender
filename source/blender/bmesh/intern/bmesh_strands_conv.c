@@ -45,9 +45,10 @@
 #include "bmesh.h"
 #include "intern/bmesh_private.h" /* for element checking */
 
-const char *CD_PSYS_MASS = "PSYS_MASS";
-const char *CD_PSYS_WEIGHT = "PSYS_WEIGHT";
-const char *CD_PSYS_ROOT_LOCATION = "PSYS_ROOT_LOCATION";
+const char *CD_HAIR_SEGMENT_LENGTH = "HAIR_SEGMENT_LENGTH";
+const char *CD_HAIR_MASS = "HAIR_MASS";
+const char *CD_HAIR_WEIGHT = "HAIR_WEIGHT";
+const char *CD_HAIR_ROOT_LOCATION = "HAIR_ROOT_LOCATION";
 
 static void BM_elem_msample_data_named_get(CustomData *cd, void *element, int type, const char *name, MSurfaceSample *val)
 {
@@ -106,14 +107,17 @@ void BM_strands_cd_flag_apply(BMesh *bm, const char UNUSED(cd_flag))
 	BLI_assert(bm->vdata.totlayer == 0 || bm->vdata.pool != NULL);
 	BLI_assert(bm->edata.totlayer == 0 || bm->edata.pool != NULL);
 	
-	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_PSYS_MASS) < 0) {
-		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_PSYS_MASS);
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_HAIR_MASS) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_HAIR_MASS);
 	}
-	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_PSYS_WEIGHT) < 0) {
-		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_PSYS_WEIGHT);
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_HAIR_WEIGHT) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_HAIR_WEIGHT);
 	}
-	if (CustomData_get_named_layer_index(&bm->vdata, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION) < 0) {
-		BM_data_layer_add_named(bm, &bm->vdata, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION);
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION);
+	}
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
 	}
 }
 
@@ -218,14 +222,14 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 //			CustomData_to_bmesh_block(&me->vdata, &bm->vdata, vindex, &v->head.data, true);
 			CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
 			
-			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_MASS, mass);
-			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT, hkey->weight);
+			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_MASS, mass);
+			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_WEIGHT, hkey->weight);
 			
 			/* root */
 			if (k == 0) {
 				MSurfaceSample root_loc;
 				if (BKE_mesh_sample_from_particle(&root_loc, psys, emitter_dm, pa)) {
-					BM_elem_msample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION, &root_loc);
+					BM_elem_msample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
 				}
 			}
 			
@@ -474,7 +478,7 @@ static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSyst
 		/* root */
 		if (k == 0) {
 			MSurfaceSample root_loc;
-			BM_elem_msample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_PSYS_ROOT_LOCATION, &root_loc);
+			BM_elem_msample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
 			if (!BKE_mesh_sample_to_particle(&root_loc, psys, emitter_dm, emitter_bvhtree, pa)) {
 				pa->num = 0;
 				pa->num_dmcache = DMCACHE_NOTFOUND;
@@ -490,7 +494,7 @@ static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSyst
 		mul_v3_m4v3(hkey->co, inv_hairmat, v->co);
 		
 		hkey->time = totkey > 0 ? (float)k / (float)(totkey - 1) : 0.0f;
-		hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_PSYS_WEIGHT);
+		hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_WEIGHT);
 		
 		++hkey;
 		++k;

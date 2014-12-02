@@ -39,6 +39,7 @@
 #include "BKE_customdata.h"
 #include "bmesh.h"
 
+struct BMesh;
 struct Object;
 
 typedef struct BMEditStrands {
@@ -59,10 +60,16 @@ typedef struct BMEditStrands {
 } BMEditStrands;
 
 struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm);
-struct BMEditStrands *BKE_editstrands_copy(struct BMEditStrands *em);
+struct BMEditStrands *BKE_editstrands_copy(struct BMEditStrands *es);
 struct BMEditStrands *BKE_editstrands_from_object(struct Object *ob);
-void BKE_editstrands_update_linked_customdata(struct BMEditStrands *em);
-void BKE_editstrands_free(struct BMEditStrands *em);
+void BKE_editstrands_update_linked_customdata(struct BMEditStrands *es);
+void BKE_editstrands_free(struct BMEditStrands *es);
+
+/* === constraints === */
+
+void BKE_editstrands_calc_segment_lengths(struct BMesh *bm);
+
+void BKE_editstrands_solve_constraints(struct BMEditStrands *es);
 
 /* === particle conversion === */
 

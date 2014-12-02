@@ -93,6 +93,56 @@ void BKE_editstrands_free(BMEditStrands *es)
 		BM_mesh_free(es->bm);
 }
 
+/* === constraints === */
+
+void BKE_editstrands_calc_segment_lengths(BMesh *bm)
+{
+	BMVert *root, *v, *vprev;
+	BMIter iter, iter_strand;
+	int k;
+	
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
+			if (k > 0) {
+				float length = len_v3v3(v->co, vprev->co);
+				BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH, length);
+			}
+			vprev = v;
+		}
+	}
+}
+
+void BKE_editstrands_solve_constraints(BMEditStrands *es)
+{
+	/* XXX Simplistic implementation from particles:
+	 * adjust segment lengths starting from the root.
+	 * This should be replaced by a more advanced method using a least-squares
+	 * error metric with length and root location constraints
+	 */
+	
+	BMesh *bm = es->bm;
+	BMVert *root, *v, *vprev;
+	BMIter iter, iter_strand;
+	int k;
+	
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
+			if (k > 0) {
+				float base_length = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+				float dist[3];
+				float length;
+				
+				sub_v3_v3v3(dist, v->co, vprev->co);
+				length = len_v3(dist);
+				if (length > 0.0f)
+					madd_v3_v3v3fl(v->co, vprev->co, dist, base_length / length);
+			}
+			vprev = v;
+		}
+	}
+}
+
+
 /* === particle conversion === */
 
 BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
@@ -108,6 +158,8 @@ BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 		DM_ensure_tessface(psmd->dm);
 		
 		BM_strands_bm_from_psys(bm, ob, psys, psmd->dm, true, psys->shapenr);
+		
+		BKE_editstrands_calc_segment_lengths(bm);
 	}
 
 	return bm;
