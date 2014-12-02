@@ -214,9 +214,6 @@ typedef struct HairStroke {
 	bool first;
 	float lastmouse[2];
 	float zfac;
-	
-	/* optional cached view settings to avoid setting on every mousemove */
-//	PEData data;
 } HairStroke;
 
 static int hair_stroke_init(bContext *C, wmOperator *op)
@@ -262,12 +259,15 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	ARegion *ar = CTX_wm_region(C);
 	
+	float imat[4][4];
 	float mouse[2], mdelta[2], zvec[3], delta_max;
 	int totsteps, step;
 	HairToolData tool_data;
 	bool updated = false;
 	
 	RNA_float_get_array(itemptr, "mouse", mouse);
+	
+	invert_m4_m4(imat, ob->obmat);
 	
 	if (stroke->first) {
 		copy_v2_v2(stroke->lastmouse, mouse);
@@ -295,6 +295,9 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	zvec[0] = 0.0f; zvec[1] = 0.0f; zvec[2] = stroke->zfac;
 	ED_view3d_win_to_3d(ar, zvec, mouse, tool_data.loc);
 	ED_view3d_win_to_delta(ar, mdelta, tool_data.delta, stroke->zfac);
+	/* tools work in object space */
+	mul_m4_v3(imat, tool_data.loc);
+	mul_mat3_m4_v3(imat, tool_data.delta);
 
 	for (step = 0; step < totsteps; ++step) {
 		updated |= hair_brush_step(&tool_data);
@@ -346,7 +349,8 @@ static void hair_stroke_apply_event(bContext *C, wmOperator *op, const wmEvent *
 	float mouse[2];
 	bool updated = false;
 
-	copy_v2_v2(mouse, event->mval);
+	mouse[0] = event->mval[0];
+	mouse[1] = event->mval[1];
 
 	/* fill in stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
