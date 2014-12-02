@@ -49,6 +49,7 @@ typedef struct HairToolData {
 	struct Scene *scene;
 	struct Object *ob;
 	struct BMEditStrands *edit;
+	struct HairEditSettings *settings;
 	
 	/* view space */
 	float mval[2];      /* mouse coordinates */
@@ -59,7 +60,7 @@ typedef struct HairToolData {
 	float delta[3];     /* stroke step */
 } HairToolData;
 
-void hair_brush_step(struct HairToolData *data);
+bool hair_brush_step(struct HairToolData *data);
 
 /* ==== BMesh utilities ==== */
 
