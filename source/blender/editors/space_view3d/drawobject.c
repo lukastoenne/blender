@@ -3649,7 +3649,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 {
 	if ((v3d->transp == false) &&  /* not when we draw the transparent pass */
-	    (ob->mode & OB_MODE_ALL_PAINT) == false) /* not when painting (its distracting) - campbell */
+	    (ob->mode & OB_MODE_ALL_BRUSH) == false) /* not when painting (its distracting) - campbell */
 	{
 		glLineWidth(UI_GetThemeValuef(TH_OUTLINE_WIDTH) * 2.0f);
 		glDepthMask(0);
@@ -7941,7 +7941,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	/* object centers, need to be drawn in viewmat space for speed, but OK for picking select */
-	if (!is_obact || !(ob->mode & OB_MODE_ALL_PAINT)) {
+	if (!is_obact || !(ob->mode & OB_MODE_ALL_BRUSH)) {
 		int do_draw_center = -1; /* defines below are zero or positive... */
 
 		if (render_override) {

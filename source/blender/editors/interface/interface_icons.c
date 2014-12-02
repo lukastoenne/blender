@@ -1222,6 +1222,8 @@ static int ui_id_brush_get_icon(bContext *C, ID *id)
 				mode = OB_MODE_VERTEX_PAINT;
 			else if (ob->mode & OB_MODE_TEXTURE_PAINT)
 				mode = OB_MODE_TEXTURE_PAINT;
+			else if (ob->mode & OB_MODE_HAIR_EDIT)
+				mode = OB_MODE_HAIR_EDIT;
 		}
 		else if ((sima = CTX_wm_space_image(C)) &&
 		         (sima->mode == SI_MODE_PAINT))
@@ -1241,6 +1243,10 @@ static int ui_id_brush_get_icon(bContext *C, ID *id)
 		else if (mode == OB_MODE_TEXTURE_PAINT) {
 			items = brush_image_tool_items;
 			tool = br->imagepaint_tool;
+		}
+		else if (mode == OB_MODE_HAIR_EDIT) {
+			items = brush_hair_tool_items;
+			tool = br->hair_tool;
 		}
 
 		if (!items || !RNA_enum_icon_from_value(items, tool, &id->icon_id))

@@ -1003,7 +1003,7 @@ int getTransformOrientation(const bContext *C, float normal[3], float plane[3], 
 			result = ORIENTATION_EDGE;
 		}
 	}
-	else if (ob && (ob->mode & (OB_MODE_ALL_PAINT | OB_MODE_PARTICLE_EDIT))) {
+	else if (ob && (ob->mode & (OB_MODE_ALL_BRUSH | OB_MODE_PARTICLE_EDIT))) {
 		/* pass */
 	}
 	else {
