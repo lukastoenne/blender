@@ -259,16 +259,12 @@ static int hair_stroke_init(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
-//	ParticleEditSettings *pset = PE_settings(scene);
 	BMEditStrands *edit = BKE_editstrands_from_object(ob);
 	ARegion *ar = CTX_wm_region(C);
 	
 	HairStroke *stroke;
 	float min[3], max[3], center[3];
 	
-//	if (pset->brushtype < 0)
-//		return 0;
-
 	/* set the 'distance factor' for grabbing (used in comb etc) */
 	hair_bm_min_max(edit, min, max);
 	mid_v3_v3v3(center, min, max);
@@ -282,9 +278,6 @@ static int hair_stroke_init(bContext *C, wmOperator *op)
 	stroke->edit = edit;
 
 	stroke->zfac = ED_view3d_calc_zfac(ar->regiondata, center, NULL);
-
-	/* cache view depths and settings for re-use */
-//	PE_set_view3d_data(C, &stroke->data);
 
 	return 1;
 }
@@ -319,8 +312,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	sub_v2_v2v2(mdelta, mouse, stroke->lastmouse);
 	delta_max = max_ff(fabsf(mdelta[0]), fabsf(mdelta[1]));
 	
-//	totsteps = delta_max / (0.2f * pe_brush_size_get(scene, brush)) + 1;
-	totsteps = 1; // XXX TODO determine brush size for the above
+	totsteps = delta_max / (0.2f * BKE_brush_size_get(scene, settings->brush)) + 1;
 	mul_v2_fl(mdelta, 1.0f / (float)totsteps);
 	
 	hair_set_view3d_data(C, &tool_data);
