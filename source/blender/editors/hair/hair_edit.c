@@ -43,8 +43,10 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_brush.h"
+#include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_edithair.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
@@ -73,13 +75,22 @@ static bool has_hair_data(Object *ob)
 	return false;
 }
 
-static bool init_hair_edit(Object *ob)
+static bool init_hair_edit(Scene *scene, Object *ob)
 {
 	ParticleSystem *psys = psys_get_current(ob);
-	if (psys->part->type == PART_HAIR) {
+	BMesh *bm;
+	DerivedMesh *dm;
+	
+	if (psys && psys->part->type == PART_HAIR) {
 		if (!psys->hairedit) {
-			BMesh *bm = BKE_particles_to_bmesh(ob, psys);
-			psys->hairedit = BKE_editstrands_create(bm);
+			bm = BKE_particles_to_bmesh(ob, psys);
+			
+			if (ob->type == OB_MESH || ob->derivedFinal)
+				dm = ob->derivedFinal ? ob->derivedFinal : mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+			else
+				dm = NULL;
+			
+			psys->hairedit = BKE_editstrands_create(bm, dm);
 		}
 		return true;
 	}
@@ -146,6 +157,7 @@ int hair_edit_toggle_poll(bContext *C)
 
 static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	const int mode_flag = OB_MODE_HAIR_EDIT;
 	const bool is_mode_set = (ob->mode & mode_flag) != 0;
@@ -157,7 +169,7 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 	}
 
 	if (!is_mode_set) {
-		init_hair_edit(ob);
+		init_hair_edit(scene, ob);
 		ob->mode |= mode_flag;
 		
 //		toggle_particle_cursor(C, 1);

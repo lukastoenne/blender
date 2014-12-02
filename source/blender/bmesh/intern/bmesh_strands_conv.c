@@ -50,22 +50,6 @@ const char *CD_HAIR_MASS = "HAIR_MASS";
 const char *CD_HAIR_WEIGHT = "HAIR_WEIGHT";
 const char *CD_HAIR_ROOT_LOCATION = "HAIR_ROOT_LOCATION";
 
-static void BM_elem_msample_data_named_get(CustomData *cd, void *element, int type, const char *name, MSurfaceSample *val)
-{
-	const MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
-	if (s)
-		memcpy(val, s, sizeof(MSurfaceSample));
-	else
-		memset(val, 0, sizeof(MSurfaceSample));
-}
-
-static void BM_elem_msample_data_named_set(CustomData *cd, void *element, int type, const char *name, const MSurfaceSample *val)
-{
-	MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
-	if (s)
-		memcpy(s, val, sizeof(MSurfaceSample));
-}
-
 /* ------------------------------------------------------------------------- */
 
 int BM_strands_count_psys_keys(ParticleSystem *psys)
@@ -229,7 +213,7 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 			if (k == 0) {
 				MSurfaceSample root_loc;
 				if (BKE_mesh_sample_from_particle(&root_loc, psys, emitter_dm, pa)) {
-					BM_elem_msample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
+					BM_elem_meshsample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
 				}
 			}
 			
@@ -478,7 +462,7 @@ static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSyst
 		/* root */
 		if (k == 0) {
 			MSurfaceSample root_loc;
-			BM_elem_msample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
+			BM_elem_meshsample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
 			if (!BKE_mesh_sample_to_particle(&root_loc, psys, emitter_dm, emitter_bvhtree, pa)) {
 				pa->num = 0;
 				pa->num_dmcache = DMCACHE_NOTFOUND;
