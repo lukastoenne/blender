@@ -41,6 +41,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BKE_brush.h"
 #include "BKE_cdderivedmesh.h"
@@ -206,6 +207,32 @@ void HAIR_OT_hair_edit_toggle(wmOperatorType *ot)
 
 /* ==== brush stroke ==== */
 
+static void hair_set_view3d_data(bContext *C, HairToolData *data)
+{
+	View3D *v3d;
+	bool has_zbuf;
+	
+	view3d_set_viewcontext(C, &data->vc);
+	
+	v3d = data->vc.v3d;
+	has_zbuf = (v3d->drawtype > OB_WIRE) && (v3d->flag & V3D_ZBUF_SELECT);
+	
+	view3d_get_transformation(data->vc.ar, data->vc.rv3d, NULL, &data->mats);
+	
+	if (has_zbuf) {
+		if (v3d->flag & V3D_INVALID_BACKBUF) {
+			/* needed or else the draw matrix can be incorrect */
+			view3d_operator_needs_opengl(C);
+			
+			view3d_validate_backbuf(&data->vc);
+			/* we may need to force an update here by setting the rv3d as dirty
+			 * for now it seems ok, but take care!:
+			 * rv3d->depths->dirty = 1; */
+			ED_view3d_depth_update(data->vc.ar);
+		}
+	}
+}
+
 static int hair_stroke_poll(bContext *C)
 {
 	Object *obact;
@@ -296,6 +323,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	totsteps = 1; // XXX TODO determine brush size for the above
 	mul_v2_fl(mdelta, 1.0f / (float)totsteps);
 	
+	hair_set_view3d_data(C, &tool_data);
 	tool_data.scene = scene;
 	tool_data.ob = ob;
 	tool_data.edit = edit;
