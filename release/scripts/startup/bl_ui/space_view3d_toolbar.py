@@ -884,6 +884,21 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 layout.prop(brush, "puff_mode", expand=True)
                 layout.prop(brush, "use_puff_volume")
 
+        # Hair Mode #
+
+        elif context.hair_edit_object and brush:
+            col = layout.column()
+
+            row = col.row(align=True)
+            self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
+            self.prop_unified_size(row, context, brush, "use_pressure_size")
+
+            row = col.row(align=True)
+            self.prop_unified_strength(row, context, brush, "strength", text="Strength")
+            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
+
+            col.prop(brush, "hair_tool", text="Tool")
+
         # Sculpt Mode #
 
         elif context.sculpt_object and brush:
