@@ -212,7 +212,7 @@ typedef struct HairStroke {
 	BMEditStrands *edit;
 	
 	bool first;
-	int lastmouse[2];
+	float lastmouse[2];
 	float zfac;
 	
 	/* optional cached view settings to avoid setting on every mousemove */
@@ -270,15 +270,14 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	RNA_float_get_array(itemptr, "mouse", mouse);
 	
 	if (stroke->first) {
-		stroke->lastmouse[0] = mouse[0];
-		stroke->lastmouse[1] = mouse[1];
+		copy_v2_v2(stroke->lastmouse, mouse);
+		stroke->first = false;
 	}
 	
 	if (!settings->brush)
 		return false;
 	
-	mdelta[0] = mouse[0] - stroke->lastmouse[0];
-	mdelta[1] = mouse[1] - stroke->lastmouse[1];
+	sub_v2_v2v2(mdelta, mouse, stroke->lastmouse);
 	delta_max = max_ff(fabsf(mdelta[0]), fabsf(mdelta[1]));
 	
 //	totsteps = delta_max / (0.2f * pe_brush_size_get(scene, brush)) + 1;
@@ -301,9 +300,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 		updated |= hair_brush_step(&tool_data);
 	}
 	
-	stroke->lastmouse[0] = mouse[0];
-	stroke->lastmouse[1] = mouse[1];
-	stroke->first = false;
+	copy_v2_v2(stroke->lastmouse, mouse);
 	
 	return updated;
 }
