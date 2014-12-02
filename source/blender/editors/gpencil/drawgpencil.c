@@ -957,8 +957,11 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	/* turn on smooth lines (i.e. anti-aliasing) */
 	glEnable(GL_LINE_SMOOTH);
 	
+	glEnable(GL_POLYGON_SMOOTH);
+	glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+	
 	/* turn on alpha-blending */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 		
 	/* loop over layers, drawing them */
@@ -1055,6 +1058,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	/* turn off alpha blending, then smooth lines */
 	glDisable(GL_BLEND); // alpha blending
 	glDisable(GL_LINE_SMOOTH); // smooth lines
+	glDisable(GL_POLYGON_SMOOTH); // smooth poly lines
 		
 	/* restore initial gl conditions */
 	glLineWidth(1.0);
