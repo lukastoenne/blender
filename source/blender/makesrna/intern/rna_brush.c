@@ -108,13 +108,13 @@ EnumPropertyItem brush_image_tool_items[] = {
 };
 
 EnumPropertyItem brush_hair_tool_items[] = {
-	{HAIR_TOOL_COMB, "COMB", ICON_BRUSH_TEXDRAW, "Draw", ""},
-	{HAIR_TOOL_CUT, "CUT", ICON_BRUSH_SOFTEN, "Soften", ""},
-	{HAIR_TOOL_LENGTH, "LENGTH", ICON_BRUSH_SMEAR, "Smear", ""},
-	{HAIR_TOOL_PUFF, "PUFF", ICON_BRUSH_CLONE, "Clone", ""},
-	{HAIR_TOOL_ADD, "ADD", ICON_BRUSH_TEXFILL, "Fill", ""},
-	{HAIR_TOOL_SMOOTH, "SMOOTH", ICON_BRUSH_TEXFILL, "Fill", ""},
-	{HAIR_TOOL_WEIGHT, "WEIGHT", ICON_BRUSH_TEXMASK, "Mask", ""},
+	{HAIR_TOOL_COMB, "COMB", ICON_BRUSH_HAIR_COMB, "Comb", "Align hairs to the stroke direction"},
+	{HAIR_TOOL_CUT, "CUT", ICON_BRUSH_HAIR_CUT, "Cut", "Shorten and/or remove hairs"},
+	{HAIR_TOOL_LENGTH, "LENGTH", ICON_BRUSH_HAIR_LENGTH, "Length", "Increase hair length"},
+	{HAIR_TOOL_PUFF, "PUFF", ICON_BRUSH_HAIR_PUFF, "Puff", "Increase spacing between hairs"},
+	{HAIR_TOOL_ADD, "ADD", ICON_BRUSH_HAIR_ADD, "Add", "Add more hairs on the object"},
+	{HAIR_TOOL_SMOOTH, "SMOOTH", ICON_BRUSH_HAIR_SMOOTH, "Smooth", "Align hairs in the same direction"},
+	{HAIR_TOOL_WEIGHT, "WEIGHT", ICON_BRUSH_HAIR_WEIGHT, "Weight", "Set hair vertex weights"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -1344,6 +1344,10 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_paint_image", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ob_mode", OB_MODE_TEXTURE_PAINT);
 	RNA_def_property_ui_text(prop, "Use Texture", "Use this brush in texture paint mode");
+
+	prop = RNA_def_property(srna, "use_hair_edit", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ob_mode", OB_MODE_HAIR_EDIT);
+	RNA_def_property_ui_text(prop, "Use Hair", "Use this brush in hair edit mode");
 
 	/* texture */
 	prop = RNA_def_property(srna, "texture_slot", PROP_POINTER, PROP_NONE);
