@@ -39,9 +39,10 @@ struct ParticleSystem;
 struct DerivedMesh;
 struct BVHTreeFromMesh;
 
-extern const char *CD_PSYS_MASS;
-extern const char *CD_PSYS_WEIGHT;
-extern const char *CD_PSYS_ROOT_LOCATION;
+extern const char *CD_HAIR_SEGMENT_LENGTH;
+extern const char *CD_HAIR_MASS;
+extern const char *CD_HAIR_WEIGHT;
+extern const char *CD_HAIR_ROOT_LOCATION;
 
 void BM_strands_cd_validate(struct BMesh *bm);
 void BM_strands_cd_flag_ensure(struct BMesh *bm, struct ParticleSystem *psys, const char cd_flag);

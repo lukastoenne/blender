@@ -300,7 +300,12 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	mul_mat3_m4_v3(imat, tool_data.delta);
 
 	for (step = 0; step < totsteps; ++step) {
-		updated |= hair_brush_step(&tool_data);
+		bool step_updated = hair_brush_step(&tool_data);
+		
+		if (step_updated)
+			BKE_editstrands_solve_constraints(edit);
+		
+		updated |= step_updated;
 	}
 	
 	copy_v2_v2(stroke->lastmouse, mouse);
