@@ -562,7 +562,7 @@ static int calc_manipulator_stats(const bContext *C)
 			mul_m4_v3(ob->obmat, scene->twmax);
 		}
 	}
-	else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
+	else if (ob && (ob->mode & OB_MODE_ALL_BRUSH)) {
 		/* pass */
 	}
 	else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
