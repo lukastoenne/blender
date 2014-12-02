@@ -32,6 +32,11 @@
 #ifndef __HAIR_INTERN_H__
 #define __HAIR_INTERN_H__
 
+#include "BIF_glutil.h"
+
+#include "ED_view3d.h"
+
+struct ARegion;
 struct bContext;
 struct wmOperatorType;
 
@@ -46,6 +51,8 @@ void HAIR_OT_stroke(struct wmOperatorType *ot);
 
 typedef struct HairToolData {
 	/* context */
+	ViewContext vc;
+	bglMats mats;
 	struct Scene *scene;
 	struct Object *ob;
 	struct BMEditStrands *edit;
