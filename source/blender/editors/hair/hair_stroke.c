@@ -41,6 +41,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BKE_brush.h"
 #include "BKE_edithair.h"
 
 #include "bmesh.h"
@@ -110,7 +111,7 @@ BLI_INLINE bool test_inside_circle(HairToolData *data, BMVert *v, float radsq, f
 
 BLI_INLINE float factor_vertex(HairToolData *data, BMVert *v)
 {
-	const float rad = data->settings->brush->size * 0.5f;
+	const float rad = BKE_brush_size_get(data->scene, data->settings->brush) * 0.5f;
 	const float radsq = rad*rad;
 	
 	float dist;
