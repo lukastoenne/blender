@@ -40,6 +40,7 @@
 #include "bmesh.h"
 
 struct BMesh;
+struct DerivedMesh;
 struct Object;
 
 typedef struct BMEditStrands {
@@ -54,12 +55,13 @@ typedef struct BMEditStrands {
 	
 	/* Object this editmesh came from (if it came from one) */
 	struct Object *ob;
+	struct DerivedMesh *root_dm;
 	
 	unsigned int vertex_glbuf;
 	unsigned int elem_glbuf;
 } BMEditStrands;
 
-struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm);
+struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm, struct DerivedMesh *root_dm);
 struct BMEditStrands *BKE_editstrands_copy(struct BMEditStrands *es);
 struct BMEditStrands *BKE_editstrands_from_object(struct Object *ob);
 void BKE_editstrands_update_linked_customdata(struct BMEditStrands *es);

@@ -49,11 +49,6 @@ typedef void (*VertexToolCb)(HairToolData *data, BMVert *v, float factor);
 
 BLI_INLINE float hair_tool_filter_vertex(HairToolData *data, BMVert *v)
 {
-	// XXX for testing only, roots should be constrained instead by
-	// re-adjusting their location _after_ applying the tool,
-	// during the general process of constraint solving for strands
-//	if (BM_strands_vert_is_root(v))
-//		return 0.0f;
 	return 1.0f; // TODO
 }
 
