@@ -905,3 +905,19 @@ void BM_elem_float_data_named_set(CustomData *cd, void *element, int type, const
 	float *f = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
 	if (f) *f = val;
 }
+
+void BM_elem_meshsample_data_named_get(CustomData *cd, void *element, int type, const char *name, MSurfaceSample *val)
+{
+	const MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	if (s)
+		memcpy(val, s, sizeof(MSurfaceSample));
+	else
+		memset(val, 0, sizeof(MSurfaceSample));
+}
+
+void BM_elem_meshsample_data_named_set(CustomData *cd, void *element, int type, const char *name, const MSurfaceSample *val)
+{
+	MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	if (s)
+		memcpy(s, val, sizeof(MSurfaceSample));
+}

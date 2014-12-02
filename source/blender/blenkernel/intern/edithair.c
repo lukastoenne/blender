@@ -41,17 +41,20 @@
 
 #include "BKE_bvhutils.h"
 #include "BKE_customdata.h"
+#include "BKE_cdderivedmesh.h"
 #include "BKE_edithair.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_particle.h"
 
 #include "intern/bmesh_strands_conv.h"
 
-BMEditStrands *BKE_editstrands_create(BMesh *bm)
+BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm)
 {
 	BMEditStrands *es = MEM_callocN(sizeof(BMEditStrands), __func__);
 	
 	es->bm = bm;
+	es->root_dm = CDDM_copy(root_dm);
 	
 	return es;
 }
@@ -62,6 +65,7 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
 	*es_copy = *es;
 	
 	es_copy->bm = BM_mesh_copy(es->bm);
+	es_copy->root_dm = CDDM_copy(es->root_dm);
 	
 	return es_copy;
 }
@@ -91,6 +95,8 @@ void BKE_editstrands_free(BMEditStrands *es)
 {
 	if (es->bm)
 		BM_mesh_free(es->bm);
+	if (es->root_dm)
+		es->root_dm->release(es->root_dm);
 }
 
 /* === constraints === */
@@ -112,19 +118,36 @@ void BKE_editstrands_calc_segment_lengths(BMesh *bm)
 	}
 }
 
-void BKE_editstrands_solve_constraints(BMEditStrands *es)
+static void editstrands_apply_root_locations(BMesh *bm, DerivedMesh *root_dm)
 {
+	BMVert *root;
+	BMIter iter;
+	
+	if (!root_dm)
+		return;
+	
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		MSurfaceSample root_sample;
+		float loc[3], nor[3];
+		
+		BM_elem_meshsample_data_named_get(&bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
+		if (BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor)) {
+			copy_v3_v3(root->co, loc);
+		}
+	}
+}
+
+static void editstrands_solve_segment_lengths(BMesh *bm)
+{
+	BMVert *root, *v, *vprev;
+	BMIter iter, iter_strand;
+	int k;
+	
 	/* XXX Simplistic implementation from particles:
 	 * adjust segment lengths starting from the root.
 	 * This should be replaced by a more advanced method using a least-squares
 	 * error metric with length and root location constraints
 	 */
-	
-	BMesh *bm = es->bm;
-	BMVert *root, *v, *vprev;
-	BMIter iter, iter_strand;
-	int k;
-	
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
 			if (k > 0) {
@@ -140,6 +163,12 @@ void BKE_editstrands_solve_constraints(BMEditStrands *es)
 			vprev = v;
 		}
 	}
+}
+
+void BKE_editstrands_solve_constraints(BMEditStrands *es)
+{
+	editstrands_apply_root_locations(es->bm, es->root_dm);
+	editstrands_solve_segment_lengths(es->bm);
 }
 
 

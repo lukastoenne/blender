@@ -27,6 +27,8 @@
  *  \ingroup bmesh
  */
 
+struct MSurfaceSample;
+
 void  BM_loop_interp_multires(BMesh *bm, BMLoop *target, BMFace *source);
 void  BM_vert_interp_from_face(BMesh *bm, BMVert *v, BMFace *source);
 
@@ -43,6 +45,8 @@ float BM_elem_float_data_get(CustomData *cd, void *element, int type);
 void  BM_elem_float_data_set(CustomData *cd, void *element, int type, const float val);
 float BM_elem_float_data_named_get(CustomData *cd, void *element, int type, const char *name);
 void BM_elem_float_data_named_set(CustomData *cd, void *element, int type, const char *name, const float val);
+void BM_elem_meshsample_data_named_get(CustomData *cd, void *element, int type, const char *name, struct MSurfaceSample *val);
+void BM_elem_meshsample_data_named_set(CustomData *cd, void *element, int type, const char *name, const struct MSurfaceSample *val);
 
 void BM_face_interp_from_face_ex(BMesh *bm, BMFace *target, BMFace *source, const bool do_vertex,
                                  void **blocks, void **blocks_v, float (*cos_2d)[2], float axis_mat[3][3]);
