@@ -34,11 +34,65 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
+
+#include "DNA_brush_types.h"
+#include "DNA_scene_types.h"
+
+#include "BKE_edithair.h"
+
+#include "bmesh.h"
 
 #include "hair_intern.h"
 
+typedef void (*VertexToolCb)(HairToolData *data, BMVert *v, float factor);
 
-void hair_brush_step(HairToolData *data)
+BLI_INLINE float hair_tool_filter_vertex(HairToolData *data, BMVert *v)
 {
+	return 1.0f; // TODO
+}
+
+static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb)
+{
+	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
 	
+	BMVert *v;
+	BMIter iter;
+	int tot = 0;
+	
+	BM_ITER_MESH(v, &iter, data->edit->bm, BM_VERTS_OF_MESH) {
+		float factor = hair_tool_filter_vertex(data, v);
+		if (factor > threshold) {
+			cb(data, v, factor);
+			++tot;
+		}
+	}
+	
+	return tot;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void hair_vertex_comb(HairToolData *data, BMVert *v, float factor)
+{
+	madd_v3_v3fl(v->co, data->delta, factor);
+}
+
+bool hair_brush_step(HairToolData *data)
+{
+	Brush *brush = data->settings->brush;
+	BrushHairTool hair_tool = brush->hair_tool;
+	int tot = 0;
+	
+	switch (hair_tool) {
+		case HAIR_TOOL_COMB:    tot = hair_tool_apply_vertex(data, hair_vertex_comb);       break;
+		case HAIR_TOOL_CUT:     break;
+		case HAIR_TOOL_LENGTH:  break;
+		case HAIR_TOOL_PUFF:    break;
+		case HAIR_TOOL_ADD:     break;
+		case HAIR_TOOL_SMOOTH:  break;
+		case HAIR_TOOL_WEIGHT:  break;
+	}
+	
+	return tot > 0;
 }
