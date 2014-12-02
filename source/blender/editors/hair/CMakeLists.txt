@@ -25,13 +25,16 @@ set(INC
 	../../blenkernel
 	../../blenlib
 	../../bmesh
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -41,5 +44,7 @@ set(SRC
 
 	hair_intern.h
 )
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_hair "${SRC}" "${INC}" "${INC_SYS}")
