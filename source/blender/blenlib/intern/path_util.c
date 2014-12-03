@@ -939,8 +939,6 @@ bool BLI_path_abs(char *path, const char *basepath)
 		BLI_strncpy(path, tmp, FILE_MAX);
 	}
 
-	BLI_cleanup_path(NULL, path);
-
 #ifdef WIN32
 	/* skip first two chars, which in case of
 	 * absolute path will be drive:/blabla and
@@ -950,7 +948,10 @@ bool BLI_path_abs(char *path, const char *basepath)
 	 */
 	BLI_char_switch(path + 2, '/', '\\');
 #endif
-	
+
+	/* ensure this is after correcting for path switch */
+	BLI_cleanup_path(NULL, path);
+
 	return wasrelative;
 }
 
@@ -1022,8 +1023,6 @@ void BLI_getlastdir(const char *dir, char *last, const size_t maxlen)
 		BLI_strncpy(last, dir, maxlen);
 	}
 }
-
-
 
 
 /**
@@ -1254,11 +1253,10 @@ bool BLI_testextensie_n(const char *str, ...)
 	while ((ext = (const char *) va_arg(args, void *))) {
 		if (testextensie_ex(str, str_len, ext, strlen(ext))) {
 			ret = true;
-			goto finally;
+			break;
 		}
 	}
 
-finally:
 	va_end(args);
 
 	return ret;

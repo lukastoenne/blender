@@ -66,8 +66,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "GPU_buffers.h"
-
 #include "ED_armature.h"
 #include "ED_object.h"
 #include "ED_mesh.h"
@@ -3024,7 +3022,7 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 		 * avoid this if we can! */
 		DAG_id_tag_update(ob->data, 0);
 	}
-	else if (!GPU_buffer_legacy(ob->derivedFinal)) {
+	else {
 		/* If using new VBO drawing, mark mcol as dirty to force colors gpu buffer refresh! */
 		ob->derivedFinal->dirty |= DM_DIRTY_MCOL_UPDATE_DRAW;
 	}

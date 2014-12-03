@@ -41,7 +41,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -66,8 +65,6 @@
 #include "BKE_scene.h"
 #include "BKE_subsurf.h"
 
-#include "PIL_time.h"
-
 #ifndef USE_DYNSIZE
 #  include "BLI_array.h"
 #endif
@@ -75,7 +72,6 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
-#include "GPU_material.h"
 
 #include "CCGSubSurf.h"
 
@@ -2289,7 +2285,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 
 static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
                                       DMSetDrawOptionsTex drawParams,
-                                      DMSetDrawOptions drawParamsMapped,
+                                      DMSetDrawOptionsMappedTex drawParamsMapped,
                                       DMCompareDrawOptions compareDrawOptions,
                                       void *userData, DMDrawFlag flag)
 {
@@ -2361,7 +2357,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		if (drawParams)
 			draw_option = drawParams(tf, (mcol != NULL), mat_nr);
 		else if (index != ORIGINDEX_NONE)
-			draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index) : DM_DRAW_OPTION_NORMAL;
+			draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index, mat_nr) : DM_DRAW_OPTION_NORMAL;
 		else
 			draw_option = GPU_enable_material(mat_nr, NULL) ? DM_DRAW_OPTION_NORMAL : DM_DRAW_OPTION_SKIP;
 
@@ -2530,7 +2526,7 @@ static void ccgDM_drawFacesTex(DerivedMesh *dm,
 }
 
 static void ccgDM_drawMappedFacesTex(DerivedMesh *dm,
-                                     DMSetDrawOptions setDrawOptions,
+                                     DMSetDrawOptionsMappedTex setDrawOptions,
                                      DMCompareDrawOptions compareDrawOptions,
                                      void *userData, DMDrawFlag flag)
 {
@@ -2586,6 +2582,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
 	int useColors = flag & DM_DRAW_USE_COLORS;
 	int gridFaces = gridSize - 1, totface;
+	int prev_mat_nr = -1;
 
 	CCG_key_top_level(&key, ss);
 
@@ -2626,9 +2623,16 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		{
 			DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
 
-			if (index == ORIGINDEX_NONE)
-				draw_option = setMaterial(faceFlags ? faceFlags[origIndex].mat_nr + 1 : 1, NULL);  /* XXX, no faceFlags no material */
-			else if (setDrawOptions)
+			if (setMaterial) {
+				int mat_nr = faceFlags ? faceFlags[origIndex].mat_nr + 1 : 1;
+				
+				if (mat_nr != prev_mat_nr) {
+					setMaterial(mat_nr, NULL);  /* XXX, no faceFlags no material */
+					prev_mat_nr = mat_nr;
+				}
+			}
+			
+			if (setDrawOptions && (index != ORIGINDEX_NONE))
 				draw_option = setDrawOptions(userData, index);
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
