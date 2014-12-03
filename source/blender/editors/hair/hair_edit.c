@@ -156,6 +156,23 @@ int hair_edit_toggle_poll(bContext *C)
 	return has_hair_data(ob);
 }
 
+static void toggle_hair_cursor(bContext *C, bool enable)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	Scene *scene = CTX_data_scene(C);
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+
+	if (enable) {
+		hair_edit_cursor_start(C, hair_edit_toggle_poll);
+	}
+	else {
+		if (settings->paint_cursor) {
+			WM_paint_cursor_end(wm, settings->paint_cursor);
+			settings->paint_cursor = NULL;
+		}
+	}
+}
+
 static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -173,14 +190,14 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 		init_hair_edit(scene, ob);
 		ob->mode |= mode_flag;
 		
-//		toggle_particle_cursor(C, 1);
+		toggle_hair_cursor(C, true);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
 	else {
 		apply_hair_edit(ob);
 		ob->mode &= ~mode_flag;
 		
-//		toggle_particle_cursor(C, 0);
+		toggle_hair_cursor(C, false);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
 
@@ -400,6 +417,12 @@ static void hair_stroke_apply_event(bContext *C, wmOperator *op, const wmEvent *
 	if (updated) {
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT|ND_MODIFIER, ob);
+	}
+	else {
+		/* even if nothing was changed, still trigger redraw
+		 * for brush drawing during the modal operator
+		 */
+		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	}
 }
 

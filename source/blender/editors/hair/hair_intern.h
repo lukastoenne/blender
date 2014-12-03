@@ -69,6 +69,10 @@ typedef struct HairToolData {
 
 bool hair_brush_step(struct HairToolData *data);
 
+/* ==== Cursor ==== */
+
+void hair_edit_cursor_start(struct bContext *C, int (*poll)(struct bContext *C));
+
 /* ==== BMesh utilities ==== */
 
 struct BMEditStrands;
