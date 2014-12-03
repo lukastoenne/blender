@@ -61,6 +61,59 @@ static int hair_poll(bContext *C)
 	return false;
 }
 
+static void ed_keymap_hair_brush_switch(wmKeyMap *keymap, const char *mode)
+{
+	wmKeyMapItem *kmi;
+	int i;
+	/* index 0-9 (zero key is tenth), shift key for index 10-19 */
+	for (i = 0; i < 20; i++) {
+		kmi = WM_keymap_add_item(keymap, "BRUSH_OT_active_index_set",
+		                         ZEROKEY + ((i + 1) % 10), KM_PRESS, i < 10 ? 0 : KM_SHIFT, 0);
+		RNA_string_set(kmi->ptr, "mode", mode);
+		RNA_int_set(kmi->ptr, "index", i);
+	}
+}
+
+static void ed_keymap_hair_brush_size(wmKeyMap *keymap, const char *UNUSED(path))
+{
+	wmKeyMapItem *kmi;
+
+	kmi = WM_keymap_add_item(keymap, "BRUSH_OT_scale_size", LEFTBRACKETKEY, KM_PRESS, 0, 0);
+	RNA_float_set(kmi->ptr, "scalar", 0.9);
+
+	kmi = WM_keymap_add_item(keymap, "BRUSH_OT_scale_size", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
+	RNA_float_set(kmi->ptr, "scalar", 10.0 / 9.0); // 1.1111....
+}
+
+static void ed_keymap_hair_brush_radial_control(wmKeyMap *keymap, const char *settings, RCFlags flags)
+{
+	wmKeyMapItem *kmi;
+	/* only size needs to follow zoom, strength shows fixed size circle */
+	int flags_nozoom = flags & (~RC_ZOOM);
+	int flags_noradial_secondary = flags & (~(RC_SECONDARY_ROTATION | RC_ZOOM));
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, 0, 0);
+	set_brush_rc_props(kmi->ptr, settings, "size", "use_unified_size", flags);
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
+	set_brush_rc_props(kmi->ptr, settings, "strength", "use_unified_strength", flags_nozoom);
+
+	if (flags & RC_WEIGHT) {
+		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", WKEY, KM_PRESS, 0, 0);
+		set_brush_rc_props(kmi->ptr, settings, "weight", "use_unified_weight", flags_nozoom);
+	}
+
+	if (flags & RC_ROTATION) {
+		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
+		set_brush_rc_props(kmi->ptr, settings, "texture_slot.angle", NULL, flags_noradial_secondary);
+	}
+
+	if (flags & RC_SECONDARY_ROTATION) {
+		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
+		set_brush_rc_props(kmi->ptr, settings, "mask_texture_slot.angle", NULL, flags_nozoom);
+	}
+}
+
 void ED_keymap_hair(wmKeyConfig *keyconf)
 {
 	wmKeyMap *keymap;
@@ -70,4 +123,8 @@ void ED_keymap_hair(wmKeyConfig *keyconf)
 	keymap->poll = hair_poll;
 	
 	kmi = WM_keymap_add_item(keymap, "HAIR_OT_stroke", LEFTMOUSE, KM_PRESS, 0,        0);
+	
+	ed_keymap_hair_brush_switch(keymap, "hair_edit");
+	ed_keymap_hair_brush_size(keymap, "tool_settings.hair_edit.brush.size");
+	ed_keymap_hair_brush_radial_control(keymap, "hair_edit", 0);
 }

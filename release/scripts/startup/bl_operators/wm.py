@@ -142,6 +142,7 @@ class BRUSH_OT_active_index_set(Operator):
                   "vertex_paint": "use_paint_vertex",
                   "weight_paint": "use_paint_weight",
                   "image_paint": "use_paint_image",
+                  "hair_edit": "use_hair_edit",
                   }
 
     def execute(self, context):
