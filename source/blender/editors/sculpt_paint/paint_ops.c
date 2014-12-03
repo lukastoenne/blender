@@ -116,10 +116,19 @@ static void BRUSH_OT_add(wmOperatorType *ot)
 static int brush_scale_size_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Paint  *paint =  BKE_paint_get_active_from_context(C);
-	Brush  *brush =  BKE_paint_brush(paint);
-	// Object *ob = CTX_data_active_object(C);
+	Object *ob = CTX_data_active_object(C);
+	Brush  *brush;
 	float scalar = RNA_float_get(op->ptr, "scalar");
+
+	/* get active brush context */
+	if (ob->mode == OB_MODE_HAIR_EDIT) {
+		HairEditSettings *hair_edit = &scene->toolsettings->hair_edit;
+		brush = hair_edit->brush;
+	}
+	else {
+		Paint  *paint = BKE_paint_get_active_from_context(C);
+		brush = BKE_paint_brush(paint);
+	}
 
 	if (brush) {
 		// pixel radius
