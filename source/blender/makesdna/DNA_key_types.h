@@ -62,14 +62,11 @@ typedef struct KeyBlock {
 	void  *data;       /* array of shape key values, size is (Key->elemsize * KeyBlock->totelem) */
 	char   name[64];   /* MAX_NAME (unique name, user assigned) */
 	char   vgroup[64]; /* MAX_VGROUP_NAME (optional vertex group), array gets allocated into 'weights' when set */
+	char   facemap[64]; /* facemap name, if applicable */
 
 	/* ranges, for RNA and UI only to clamp 'curval' */
 	float slidermin;
 	float slidermax;
-	
-	/* dorito relevant code */
-	int dorito_index; 	/* index of dorito vertex in mesh */
-	int pad;
 } KeyBlock;
 
 

@@ -223,7 +223,6 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_shape_key_retime);
 	WM_operatortype_append(OBJECT_OT_shape_key_mirror);
 	WM_operatortype_append(OBJECT_OT_shape_key_move);
-	WM_operatortype_append(OBJECT_OT_shape_key_dorito_set);
 
 	WM_operatortype_append(LATTICE_OT_select_all);
 	WM_operatortype_append(LATTICE_OT_select_more);
