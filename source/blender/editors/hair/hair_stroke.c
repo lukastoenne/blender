@@ -121,14 +121,14 @@ BLI_INLINE float factor_vertex(HairToolData *data, BMVert *v)
 	if (!test_inside_circle(data, v, radsq, &dist))
 		return 0.0f;
 	
-	return 1.0f; // TODO
+	return 1.0f - dist / rad;
 }
 
 /* ------------------------------------------------------------------------- */
 
-typedef void (*VertexToolCb)(HairToolData *data, BMVert *v, float factor);
+typedef void (*VertexToolCb)(HairToolData *data, void *userdata, BMVert *v, float factor);
 
-static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb)
+static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *userdata)
 {
 	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
 	
@@ -139,7 +139,7 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb)
 	BM_ITER_MESH(v, &iter, data->edit->bm, BM_VERTS_OF_MESH) {
 		float factor = factor_vertex(data, v);
 		if (factor > threshold) {
-			cb(data, v, factor);
+			cb(data, userdata, v, factor);
 			++tot;
 		}
 	}
@@ -149,9 +149,17 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb)
 
 /* ------------------------------------------------------------------------- */
 
-static void hair_vertex_comb(HairToolData *data, BMVert *v, float factor)
+typedef struct CombData {
+	float power;
+} CombData;
+
+static void hair_vertex_comb(HairToolData *data, void *userdata, BMVert *v, float factor)
 {
-	madd_v3_v3fl(v->co, data->delta, factor);
+	CombData *combdata = userdata;
+	
+	float combfactor = powf(factor, combdata->power);
+	
+	madd_v3_v3fl(v->co, data->delta, combfactor);
 }
 
 bool hair_brush_step(HairToolData *data)
@@ -161,7 +169,17 @@ bool hair_brush_step(HairToolData *data)
 	int tot = 0;
 	
 	switch (hair_tool) {
-		case HAIR_TOOL_COMB:    tot = hair_tool_apply_vertex(data, hair_vertex_comb);       break;
+		case HAIR_TOOL_COMB: {
+			CombData combdata;
+			combdata.power = (brush->alpha - 0.5f) * 2.0f;
+			if (combdata.power < 0.0f)
+				combdata.power = 1.0f - 9.0f * combdata.power;
+			else
+				combdata.power = 1.0f - combdata.power;
+			
+			tot = hair_tool_apply_vertex(data, hair_vertex_comb, &combdata);
+			break;
+		}
 		case HAIR_TOOL_CUT:     break;
 		case HAIR_TOOL_LENGTH:  break;
 		case HAIR_TOOL_PUFF:    break;
