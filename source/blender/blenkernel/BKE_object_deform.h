@@ -33,10 +33,12 @@
 extern "C" {
 #endif
 
-struct Object;
-struct ID;
-struct MDeformVert;
 struct bDeformGroup;
+struct bFaceMap;
+struct ID;
+struct ListBase;
+struct MDeformVert;
+struct Object;
 
 /* General vgroup operations */
 void BKE_object_defgroup_remap_update_users(struct Object *ob, int *map);
@@ -53,6 +55,19 @@ bool BKE_object_defgroup_clear_all(struct Object *ob, const bool use_selection);
 void BKE_object_defgroup_remove(struct Object *ob, struct bDeformGroup *defgroup);
 void BKE_object_defgroup_remove_all(struct Object *ob);
 
+/* Face map operations */
+struct bFaceMap *BKE_object_facemap_add(struct Object *ob);
+struct bFaceMap *BKE_object_facemap_add_name(struct Object *ob, const char *name);
+void BKE_object_facemap_remove(struct Object *ob, struct bFaceMap *fmap);
+void BKE_object_fmap_remove_all(struct Object *ob);
+
+void ED_fmap_face_add(struct Object *ob, struct bFaceMap *fmap, int facenum);
+void ED_fmap_face_remove(struct Object *ob, struct bFaceMap *fmap, int facenum);
+
+int fmap_name_index(struct Object *ob, const char *name);
+void fmap_unique_name(struct bFaceMap *fmap, struct Object *ob);
+struct bFaceMap *fmap_find_name(struct Object *ob, const char *name);
+void fmap_copy_list(struct ListBase *outbase, struct ListBase *inbase);
 
 /* Select helpers */
 enum eVGroupSelect;
