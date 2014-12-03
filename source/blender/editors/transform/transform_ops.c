@@ -512,11 +512,6 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 		RNA_def_enum_funcs(prop, rna_TransformOrientation_itemf);
 	}
 
-	if (flags & P_WIDGET_DRIVEN) {
-		prop = RNA_def_boolean(ot->srna, "use_widget_input", false, "Use Widget Input", "");
-		RNA_def_property_flag(prop, PROP_HIDDEN);
-	}
-
 	if (flags & P_MIRROR) {
 		prop = RNA_def_boolean(ot->srna, "mirror", 0, "Mirror Editing", "");
 		if (flags & P_MIRROR_DUMMY) {
@@ -980,7 +975,7 @@ static void TRANSFORM_OT_transform(struct wmOperatorType *ot)
 
 	RNA_def_float_vector(ot->srna, "value", 4, NULL, -FLT_MAX, FLT_MAX, "Values", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP | P_WIDGET_DRIVEN);
+	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP);
 }
 
 void transform_operatortypes(void)
