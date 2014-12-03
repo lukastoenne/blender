@@ -111,7 +111,9 @@ BLI_INLINE bool test_inside_circle(HairToolData *data, BMVert *v, float radsq, f
 
 BLI_INLINE float factor_vertex(HairToolData *data, BMVert *v)
 {
-	const float rad = BKE_brush_size_get(data->scene, data->settings->brush) * 0.5f;
+	Scene *scene = data->scene;
+	Brush *brush = data->settings->brush;
+	const float rad = BKE_brush_size_get(scene, brush);
 	const float radsq = rad*rad;
 	
 	float dist;
