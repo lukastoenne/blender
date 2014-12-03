@@ -895,6 +895,9 @@ typedef struct HairEditSettings {
 	
 	struct Brush *brush;
 	struct Object *shape_object;
+	
+	/* WM Paint cursor */
+	void *paint_cursor;
 } HairEditSettings;
 
 /* ------------------------------------------- */
