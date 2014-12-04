@@ -111,6 +111,7 @@ static void restore_opengl_state(const StrandsDrawInfo *info)
 	
 	glDisable(GL_BLEND);
 	glDisable(GL_LIGHTING);
+	glDisable(GL_COLOR_MATERIAL);
 	glShadeModel(GL_FLAT);
 	if (info->has_zbuf)
 		glEnable(GL_DEPTH_TEST);
