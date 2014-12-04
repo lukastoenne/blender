@@ -51,6 +51,24 @@ BLI_INLINE bool BM_strands_vert_is_root(BMVert *v)
 	return false;
 }
 
+/* True if v is the tip of a strand */
+BLI_INLINE bool BM_strands_vert_is_tip(BMVert *v)
+{
+	BMEdge *e_first = v->e;
+	BMEdge *e_next;
+	
+	e_next = bmesh_disk_edge_next(e_first, v);
+	
+	/* with a single edge, the vertex is either first or last of the curve;
+	 * last vertex is defined as the tip
+	 */
+	if (e_next == e_first) {
+		if (e_first->v2 == v)
+			return true;
+	}
+	return false;
+}
+
 int BM_strands_count(BMesh *bm);
 int BM_strands_keys_count(BMVert *root);
 

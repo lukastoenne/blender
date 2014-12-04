@@ -947,9 +947,9 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem select_mode_items[] = {
-		{SCE_SELECT_PATH, "PATH", ICON_PARTICLE_PATH, "Path", "Path edit mode"},
-		{SCE_SELECT_POINT, "POINT", ICON_PARTICLE_POINT, "Point", "Point select mode"},
-		{SCE_SELECT_END, "TIP", ICON_PARTICLE_TIP, "Tip", "Tip select mode"},
+		{HAIR_SELECT_STRAND, "STRAND", ICON_PARTICLE_PATH, "Strand", "Strand edit mode"},
+		{HAIR_SELECT_VERTEX, "VERTEX", ICON_PARTICLE_POINT, "Vertex", "Vertex select mode"},
+		{HAIR_SELECT_TIP, "TIP", ICON_PARTICLE_TIP, "Tip", "Tip select mode"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
