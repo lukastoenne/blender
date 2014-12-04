@@ -53,10 +53,10 @@
 
 #include "hair_intern.h"
 
-BLI_INLINE bool test_depth(HairToolData *data, const float co[3], const int screen_co[2])
+bool hair_test_depth(HairViewData *viewdata, const float co[3], const int screen_co[2])
 {
-	View3D *v3d = data->vc.v3d;
-	ViewDepths *vd = data->vc.rv3d->depths;
+	View3D *v3d = viewdata->vc.v3d;
+	ViewDepths *vd = viewdata->vc.rv3d->depths;
 	const bool has_zbuf = (v3d->drawtype > OB_WIRE) && (v3d->flag & V3D_ZBUF_SELECT);
 	
 	double ux, uy, uz;
@@ -67,7 +67,7 @@ BLI_INLINE bool test_depth(HairToolData *data, const float co[3], const int scre
 		return true;
 	
 	gluProject(co[0], co[1], co[2],
-	           data->mats.modelview, data->mats.projection, data->mats.viewport,
+	           viewdata->mats.modelview, viewdata->mats.projection, viewdata->mats.viewport,
 	           &ux, &uy, &uz);
 	
 	/* check if screen_co is within bounds because brush_cut uses out of screen coords */
@@ -82,26 +82,27 @@ BLI_INLINE bool test_depth(HairToolData *data, const float co[3], const int scre
 	return false;
 }
 
-BLI_INLINE bool test_inside_circle(HairToolData *data, BMVert *v, float radsq, float *r_dist)
+bool hair_test_inside_circle(HairViewData *viewdata, const float mval[2], float radsq, BMVert *v, float *r_dist)
 {
+	float (*obmat)[4] = viewdata->vc.obact->obmat;
 	float co_world[3];
 	float dx, dy, distsq;
 	int screen_co[2];
 	
-	mul_v3_m4v3(co_world, data->ob->obmat, v->co);
+	mul_v3_m4v3(co_world, obmat, v->co);
 	
 	/* TODO, should this check V3D_PROJ_TEST_CLIP_BB too? */
-	if (ED_view3d_project_int_global(data->vc.ar, co_world, screen_co, V3D_PROJ_TEST_CLIP_WIN) != V3D_PROJ_RET_OK)
+	if (ED_view3d_project_int_global(viewdata->vc.ar, co_world, screen_co, V3D_PROJ_TEST_CLIP_WIN) != V3D_PROJ_RET_OK)
 		return false;
 	
-	dx = data->mval[0] - (float)screen_co[0];
-	dy = data->mval[1] - (float)screen_co[1];
+	dx = mval[0] - (float)screen_co[0];
+	dy = mval[1] - (float)screen_co[1];
 	distsq = dx * dx + dy * dy;
 	
 	if (distsq > radsq)
 		return false;
 	
-	if (test_depth(data, v->co, screen_co)) {
+	if (hair_test_depth(viewdata, v->co, screen_co)) {
 		*r_dist = sqrtf(distsq);
 		return true;
 	}
@@ -118,7 +119,7 @@ BLI_INLINE float factor_vertex(HairToolData *data, BMVert *v)
 	
 	float dist;
 	
-	if (!test_inside_circle(data, v, radsq, &dist))
+	if (!hair_test_inside_circle(&data->viewdata, data->mval, radsq, v, &dist))
 		return 0.0f;
 	
 	return 1.0f - dist / rad;

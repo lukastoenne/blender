@@ -35,6 +35,7 @@
 struct bContext;
 struct ReportList;
 struct wmKeyConfig;
+struct ViewContext;
 
 struct Scene;
 struct Object;
@@ -57,6 +58,8 @@ void ED_operatortypes_physics(void);
 void ED_keymap_physics(struct wmKeyConfig *keyconf);
 
 /* hair edit */
+int ED_hair_circle_select(struct bContext *C, bool select, const int mval[2], float radius);
+
 void ED_operatortypes_hair(void);
 void ED_keymap_hair(struct wmKeyConfig *keyconf);
 

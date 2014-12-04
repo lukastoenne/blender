@@ -88,6 +88,7 @@
 #include "ED_particle.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
+#include "ED_physics.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_mball.h"
@@ -2792,7 +2793,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 	                     RNA_int_get(op->ptr, "y")};
 
 	if (CTX_data_edit_object(C) || BKE_paint_select_elem_test(obact) ||
-	    (obact && (obact->mode & (OB_MODE_PARTICLE_EDIT | OB_MODE_POSE))) )
+	    (obact && (obact->mode & (OB_MODE_PARTICLE_EDIT | OB_MODE_POSE | OB_MODE_HAIR_EDIT))) )
 	{
 		ViewContext vc;
 		
@@ -2812,10 +2813,16 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 			paint_vertsel_circle_select(&vc, select, mval, (float)radius);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
 		}
-		else if (obact->mode & OB_MODE_POSE)
+		else if (obact->mode & OB_MODE_POSE) {
 			pose_circle_select(&vc, select, mval, (float)radius);
-		else
+		}
+		else if (obact->mode & OB_MODE_HAIR_EDIT) {
+			ED_hair_circle_select(C, select, mval, (float)radius);
+			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
+		}
+		else {
 			return PE_circle_select(C, select, mval, (float)radius);
+		}
 	}
 	else if (obact && obact->mode & OB_MODE_SCULPT) {
 		return OPERATOR_CANCELLED;
