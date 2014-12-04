@@ -182,6 +182,8 @@ static int write_gpu_buffers_strands(BMEditStrands *edit, const StrandsDrawInfo 
 	
 	vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	elem_data = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+	if (!vertex_data || !elem_data)
+		return 0;
 	
 	BM_mesh_elem_index_ensure(edit->bm, BM_VERT);
 	
@@ -231,10 +233,11 @@ static int write_gpu_buffers_strands(BMEditStrands *edit, const StrandsDrawInfo 
 /* ------------------------------------------------------------------------- */
 /* dots */
 
-static void setup_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *info)
+static void setup_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *info, bool selected)
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = size_v3;
+	BMesh *bm = edit->bm;
 	
 	BMVert *v;
 	BMIter iter;
@@ -245,13 +248,17 @@ static void setup_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *i
 			totvert = 0;
 			break;
 		case HAIR_SELECT_VERTEX:
-			totvert = edit->bm->totvert;
+			totvert = selected ? bm->totvertsel : bm->totvert - bm->totvertsel;
 			break;
 		case HAIR_SELECT_TIP:
 			totvert = 0;
-			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
-				if (BM_strands_vert_is_tip(v))
-					++totvert;
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+				if (BM_elem_flag_test_bool(v, BM_ELEM_SELECT) != selected)
+					continue;
+				if (!BM_strands_vert_is_tip(v))
+					continue;
+				
+				++totvert;
 			}
 			break;
 	}
@@ -273,7 +280,7 @@ static void unbind_gpu_buffers_dots(void)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *info)
+static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *info, bool selected)
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = size_v3;
@@ -287,6 +294,8 @@ static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *in
 		return 0;
 	
 	vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	if (!vertex_data)
+		return 0;
 	
 	BM_mesh_elem_index_ensure(edit->bm, BM_VERT);
 	
@@ -297,18 +306,28 @@ static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *in
 			break;
 		case HAIR_SELECT_VERTEX:
 			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
-				size_t offset_co = index_dot * size_vertex;
+				size_t offset_co;
+				
+				if (BM_elem_flag_test_bool(v, BM_ELEM_SELECT) != selected)
+					continue;
+				
+				offset_co = index_dot * size_vertex;
 				copy_v3_v3((float *)(vertex_data + offset_co), v->co);
 				++index_dot;
 			}
 			break;
 		case HAIR_SELECT_TIP:
 			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
-				if (BM_strands_vert_is_tip(v)) {
-					size_t offset_co = index_dot * size_vertex;
-					copy_v3_v3((float *)(vertex_data + offset_co), v->co);
-					++index_dot;
-				}
+				size_t offset_co;
+				
+				if (BM_elem_flag_test_bool(v, BM_ELEM_SELECT) != selected)
+					continue;
+				if (!BM_strands_vert_is_tip(v))
+					continue;
+				
+				offset_co = index_dot * size_vertex;
+				copy_v3_v3((float *)(vertex_data + offset_co), v->co);
+				++index_dot;
 			}
 			break;
 	}
@@ -319,6 +338,21 @@ static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *in
 }
 
 /* ------------------------------------------------------------------------- */
+
+static void draw_dots(BMEditStrands *edit, const StrandsDrawInfo *info, bool selected)
+{
+	int totelem;
+	
+	if (selected)
+		glColor3fv(info->col_select);
+	else
+		glColor3fv(info->col_base);
+	
+	setup_gpu_buffers_dots(edit, info, selected);
+	totelem = write_gpu_buffers_dots(edit, info, selected);
+	if (totelem > 0)
+		glDrawArrays(GL_POINTS, 0, totelem);
+}
 
 void draw_strands_edit_hair(Scene *scene, View3D *v3d, BMEditStrands *edit)
 {
@@ -337,10 +371,8 @@ void draw_strands_edit_hair(Scene *scene, View3D *v3d, BMEditStrands *edit)
 	unbind_gpu_buffers_strands();
 	
 	set_opengl_state_dots(&info);
-	setup_gpu_buffers_dots(edit, &info);
-	totelem = write_gpu_buffers_dots(edit, &info);
-	if (totelem > 0)
-		glDrawArrays(GL_POINTS, 0, totelem);
+	draw_dots(edit, &info, false);
+	draw_dots(edit, &info, true);
 	unbind_gpu_buffers_dots();
 	
 	restore_opengl_state(&info);
