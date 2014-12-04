@@ -224,28 +224,28 @@ void HAIR_OT_hair_edit_toggle(wmOperatorType *ot)
 
 /* ==== brush stroke ==== */
 
-static void hair_set_view3d_data(bContext *C, HairToolData *data)
+void hair_init_viewdata(bContext *C, HairViewData *viewdata)
 {
 	View3D *v3d;
 	bool has_zbuf;
 	
-	view3d_set_viewcontext(C, &data->vc);
+	view3d_set_viewcontext(C, &viewdata->vc);
 	
-	v3d = data->vc.v3d;
+	v3d = viewdata->vc.v3d;
 	has_zbuf = (v3d->drawtype > OB_WIRE) && (v3d->flag & V3D_ZBUF_SELECT);
 	
-	view3d_get_transformation(data->vc.ar, data->vc.rv3d, NULL, &data->mats);
+	view3d_get_transformation(viewdata->vc.ar, viewdata->vc.rv3d, NULL, &viewdata->mats);
 	
 	if (has_zbuf) {
 		if (v3d->flag & V3D_INVALID_BACKBUF) {
 			/* needed or else the draw matrix can be incorrect */
 			view3d_operator_needs_opengl(C);
 			
-			view3d_validate_backbuf(&data->vc);
+			view3d_validate_backbuf(&viewdata->vc);
 			/* we may need to force an update here by setting the rv3d as dirty
 			 * for now it seems ok, but take care!:
 			 * rv3d->depths->dirty = 1; */
-			ED_view3d_depth_update(data->vc.ar);
+			ED_view3d_depth_update(viewdata->vc.ar);
 		}
 	}
 }
@@ -332,7 +332,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	totsteps = delta_max / (0.2f * BKE_brush_size_get(scene, settings->brush)) + 1;
 	mul_v2_fl(mdelta, 1.0f / (float)totsteps);
 	
-	hair_set_view3d_data(C, &tool_data);
+	hair_init_viewdata(C, &tool_data.viewdata);
 	tool_data.scene = scene;
 	tool_data.ob = ob;
 	tool_data.edit = edit;

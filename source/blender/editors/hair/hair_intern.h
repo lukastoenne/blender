@@ -49,14 +49,24 @@ void HAIR_OT_stroke(struct wmOperatorType *ot);
 
 /* ==== Hair Brush ==== */
 
-typedef struct HairToolData {
-	/* context */
+typedef struct HairViewData {
 	ViewContext vc;
 	bglMats mats;
+} HairViewData;
+
+void hair_init_viewdata(struct bContext *C, struct HairViewData *viewdata);
+
+bool hair_test_depth(struct HairViewData *viewdata, const float co[3], const int screen_co[2]);
+bool hair_test_inside_circle(struct HairViewData *viewdata, const float mval[2], float radsq,
+                             struct BMVert *v, float *r_dist);
+
+typedef struct HairToolData {
+	/* context */
 	struct Scene *scene;
 	struct Object *ob;
 	struct BMEditStrands *edit;
 	struct HairEditSettings *settings;
+	HairViewData viewdata;
 	
 	/* view space */
 	float mval[2];      /* mouse coordinates */

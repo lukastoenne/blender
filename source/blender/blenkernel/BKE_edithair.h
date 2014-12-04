@@ -50,9 +50,6 @@ typedef struct BMEditStrands {
 	struct BMEditStrands *emcopy;
 	int emcopyusers;
 	
-	/*selection mode*/
-	short selectmode;
-	
 	/* Object this editmesh came from (if it came from one) */
 	struct Object *ob;
 	struct DerivedMesh *root_dm;
