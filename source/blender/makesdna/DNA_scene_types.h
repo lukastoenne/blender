@@ -889,6 +889,12 @@ typedef struct ParticleEditSettings {
 /* ------------------------------------------- */
 /* Hair Edit */
 
+typedef enum HairEditSelectMode {
+	HAIR_SELECT_STRAND  = 0,
+	HAIR_SELECT_VERTEX  = 1,
+	HAIR_SELECT_TIP     = 2,
+} HairEditSelectMode;
+
 typedef struct HairEditSettings {
 	int flag;
 	int select_mode;

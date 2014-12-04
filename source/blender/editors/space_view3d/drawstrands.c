@@ -61,6 +61,7 @@ typedef struct StrandsDrawInfo {
 	bool use_zbuf_select;
 	
 	StrandsShadeMode shade_mode;
+	int select_mode;
 	
 	float col_base[4];
 	float col_select[4];
@@ -71,19 +72,21 @@ BLI_INLINE bool strands_use_normals(const StrandsDrawInfo *info)
 	return ELEM(info->shade_mode, STRANDS_SHADE_HAIR);
 }
 
-static void init_draw_info(StrandsDrawInfo *info, View3D *v3d)
+static void init_draw_info(StrandsDrawInfo *info, View3D *v3d,
+                           StrandsShadeMode shade_mode, int select_mode)
 {
 	info->has_zbuf = v3d->zbuf;
 	info->use_zbuf_select = (v3d->flag & V3D_ZBUF_SELECT);
 	
-	info->shade_mode = STRANDS_SHADE_HAIR;
+	info->shade_mode = shade_mode;
+	info->select_mode = select_mode;
 	
 	/* get selection theme colors */
 	UI_GetThemeColor4fv(TH_VERTEX, info->col_base);
 	UI_GetThemeColor4fv(TH_VERTEX_SELECT, info->col_select);
 }
 
-static void set_opengl_state(const StrandsDrawInfo *info)
+static void set_opengl_state_strands(const StrandsDrawInfo *info)
 {
 	if (!info->use_zbuf_select)
 		glDisable(GL_DEPTH_TEST);
@@ -104,6 +107,18 @@ static void set_opengl_state(const StrandsDrawInfo *info)
 		glEnableClientState(GL_NORMAL_ARRAY);
 }
 
+static void set_opengl_state_dots(const StrandsDrawInfo *info)
+{
+	if (!info->use_zbuf_select)
+		glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	
+	glDisable(GL_LIGHTING);
+	
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glPointSize(3.0);
+}
+
 static void restore_opengl_state(const StrandsDrawInfo *info)
 {
 	glDisableClientState(GL_NORMAL_ARRAY);
@@ -120,8 +135,9 @@ static void restore_opengl_state(const StrandsDrawInfo *info)
 }
 
 /* ------------------------------------------------------------------------- */
+/* strands */
 
-static void setup_gpu_buffers(BMEditStrands *edit, const StrandsDrawInfo *info)
+static void setup_gpu_buffers_strands(BMEditStrands *edit, const StrandsDrawInfo *info)
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = (strands_use_normals(info) ? 2*size_v3 : size_v3);
@@ -136,8 +152,9 @@ static void setup_gpu_buffers(BMEditStrands *edit, const StrandsDrawInfo *info)
 		glGenBuffers(1, &edit->elem_glbuf);
 	
 	glBindBuffer(GL_ARRAY_BUFFER, edit->vertex_glbuf);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edit->elem_glbuf);
 	glBufferData(GL_ARRAY_BUFFER, size_vertex * totvert, NULL, GL_DYNAMIC_DRAW);
+	
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edit->elem_glbuf);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * totedge * 2, NULL, GL_DYNAMIC_DRAW);
 	
 	glVertexPointer(3, GL_FLOAT, size_vertex, NULL);
@@ -145,13 +162,13 @@ static void setup_gpu_buffers(BMEditStrands *edit, const StrandsDrawInfo *info)
 		glNormalPointer(GL_FLOAT, size_vertex, (GLubyte *)NULL + size_v3);
 }
 
-static void unbind_gpu_buffers(void)
+static void unbind_gpu_buffers_strands(void)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-static void write_gpu_buffers(BMEditStrands *edit, const StrandsDrawInfo *info)
+static int write_gpu_buffers_strands(BMEditStrands *edit, const StrandsDrawInfo *info)
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = (strands_use_normals(info) ? 2*size_v3 : size_v3);
@@ -207,20 +224,124 @@ static void write_gpu_buffers(BMEditStrands *edit, const StrandsDrawInfo *info)
 	
 	glUnmapBuffer(GL_ARRAY_BUFFER);
 	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+	
+	return index_edge;
 }
 
-void draw_strands_edit(Scene *UNUSED(scene), View3D *v3d, BMEditStrands *edit)
+/* ------------------------------------------------------------------------- */
+/* dots */
+
+static void setup_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *info)
 {
+	const size_t size_v3 = sizeof(float) * 3;
+	const size_t size_vertex = size_v3;
+	
+	BMVert *v;
+	BMIter iter;
+	int totvert;
+	
+	switch (info->select_mode) {
+		case HAIR_SELECT_STRAND:
+			totvert = 0;
+			break;
+		case HAIR_SELECT_VERTEX:
+			totvert = edit->bm->totvert;
+			break;
+		case HAIR_SELECT_TIP:
+			totvert = 0;
+			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+				if (BM_strands_vert_is_tip(v))
+					++totvert;
+			}
+			break;
+	}
+	
+	if (totvert == 0)
+		return;
+	
+	if (!edit->dot_glbuf)
+		glGenBuffers(1, &edit->dot_glbuf);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, edit->dot_glbuf);
+	glBufferData(GL_ARRAY_BUFFER, size_vertex * totvert, NULL, GL_DYNAMIC_DRAW);
+	
+	glVertexPointer(3, GL_FLOAT, size_vertex, NULL);
+}
+
+static void unbind_gpu_buffers_dots(void)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *info)
+{
+	const size_t size_v3 = sizeof(float) * 3;
+	const size_t size_vertex = size_v3;
+	
+	GLubyte *vertex_data;
+	BMVert *v;
+	BMIter iter;
+	int index_dot;
+	
+	if (info->select_mode == HAIR_SELECT_STRAND)
+		return 0;
+	
+	vertex_data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	
+	BM_mesh_elem_index_ensure(edit->bm, BM_VERT);
+	
+	index_dot = 0;
+	switch (info->select_mode) {
+		case HAIR_SELECT_STRAND:
+			/* already exited, but keep the case for the compiler */
+			break;
+		case HAIR_SELECT_VERTEX:
+			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+				size_t offset_co = index_dot * size_vertex;
+				copy_v3_v3((float *)(vertex_data + offset_co), v->co);
+				++index_dot;
+			}
+			break;
+		case HAIR_SELECT_TIP:
+			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+				if (BM_strands_vert_is_tip(v)) {
+					size_t offset_co = index_dot * size_vertex;
+					copy_v3_v3((float *)(vertex_data + offset_co), v->co);
+					++index_dot;
+				}
+			}
+			break;
+	}
+	
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+	
+	return index_dot;
+}
+
+/* ------------------------------------------------------------------------- */
+
+void draw_strands_edit_hair(Scene *scene, View3D *v3d, BMEditStrands *edit)
+{
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	
 	StrandsDrawInfo info;
+	int totelem;
 	
-	init_draw_info(&info, v3d);
+	init_draw_info(&info, v3d, STRANDS_SHADE_HAIR, settings->select_mode);
 	
-	set_opengl_state(&info);
+	set_opengl_state_strands(&info);
+	setup_gpu_buffers_strands(edit, &info);
+	totelem = write_gpu_buffers_strands(edit, &info);
+	if (totelem > 0)
+		glDrawElements(GL_LINES, totelem, GL_UNSIGNED_INT, NULL);
+	unbind_gpu_buffers_strands();
 	
-	setup_gpu_buffers(edit, &info);
-	write_gpu_buffers(edit, &info);
-	glDrawElements(GL_LINES, edit->bm->totedge * 2, GL_UNSIGNED_INT, NULL);
-	unbind_gpu_buffers();
+	set_opengl_state_dots(&info);
+	setup_gpu_buffers_dots(edit, &info);
+	totelem = write_gpu_buffers_dots(edit, &info);
+	if (totelem > 0)
+		glDrawArrays(GL_POINTS, 0, totelem);
+	unbind_gpu_buffers_dots();
 	
 	restore_opengl_state(&info);
 }

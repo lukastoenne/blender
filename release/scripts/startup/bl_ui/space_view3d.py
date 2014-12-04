@@ -49,6 +49,8 @@ class VIEW3D_HT_header(Header):
             # Particle edit
             if mode == 'PARTICLE_EDIT':
                 row.prop(toolsettings.particle_edit, "select_mode", text="", expand=True)
+            elif mode == 'HAIR_EDIT':
+                row.prop(toolsettings.hair_edit, "select_mode", text="", expand=True)
 
             # Occlude geometry
             if ((view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'} and (mode == 'PARTICLE_EDIT' or (mode == 'EDIT' and obj.type == 'MESH'))) or

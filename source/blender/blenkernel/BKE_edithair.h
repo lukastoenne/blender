@@ -59,6 +59,7 @@ typedef struct BMEditStrands {
 	
 	unsigned int vertex_glbuf;
 	unsigned int elem_glbuf;
+	unsigned int dot_glbuf;
 } BMEditStrands;
 
 struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm, struct DerivedMesh *root_dm);
