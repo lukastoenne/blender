@@ -111,9 +111,9 @@ void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 
 /* wm_widgets.c */
-struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event);
-wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event);
-void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
+struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, unsigned char *part);
+wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event, unsigned char *part);
+void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part);
 struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
 
 void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget);

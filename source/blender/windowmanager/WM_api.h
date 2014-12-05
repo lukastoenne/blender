@@ -482,7 +482,6 @@ struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bCon
 
 void WM_widget_property(struct wmWidget *, struct PointerRNA *ptr, const char *propname);
 void WM_widget_operator(struct wmWidget *,
-                        int  (*initialize_op)(struct bContext *, const struct wmEvent *, struct wmWidget *, struct PointerRNA *),
                         const char *opname,
                         const char *propname);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);

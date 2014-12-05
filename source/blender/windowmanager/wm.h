@@ -63,9 +63,6 @@ typedef struct wmWidget {
 	/* determines 3d intersection by rendering the widget in a selection routine. */
 	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, int selectionbase);
 
-	/* initialize the operator properties when the user clicks the widget */
-	int (*initialize_op)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
-
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
 	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op);
 
@@ -76,10 +73,12 @@ typedef struct wmWidget {
 	 * used in calculations of scale */
 	void (*get_final_position)(struct wmWidget *widget, float vec[3]);
 
-	int  flag; /* flags set by drawing and interaction, such as highlighting */
-
 	/* activate a widget state when the user clicks on it */
 	int (*activate_state)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int state);
+	
+	int  flag; /* flags set by drawing and interaction, such as highlighting */
+
+	unsigned char highlighted_part;
 
 	/* center of widget in space, 2d or 3d */
 	float origin[3];

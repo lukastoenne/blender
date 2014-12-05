@@ -2005,6 +2005,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			}
 			else if (handler->widgetmap) {
 				struct wmWidgetMap *wmap = handler->widgetmap;
+				unsigned char part;
 				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 				
 				switch (event->type) {
@@ -2014,12 +2015,12 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							action |= WM_HANDLER_BREAK;
 						}
 						else if (wm_widgetmap_is_3d(wmap)) {
-							widget = wm_widget_find_highlighted_3D(wmap, C, event);
-							wm_widgetmap_set_highlighted_widget(wmap, C, widget);
+							widget = wm_widget_find_highlighted_3D(wmap, C, event, &part);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
 						}
 						else {
-							widget = wm_widget_find_highlighted(wmap, C, event);
-							wm_widgetmap_set_highlighted_widget(wmap, C, widget);
+							widget = wm_widget_find_highlighted(wmap, C, event, &part);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
 						}
 						break;
 
