@@ -77,7 +77,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #include "GPU_glew.h"
 
 /* very slow! enable for testing only! */
-// #define USE_MODIFIER_VALIDATE
+//#define USE_MODIFIER_VALIDATE
 
 #ifdef USE_MODIFIER_VALIDATE
 #  define ASSERT_IS_VALID_DM(dm) (BLI_assert((dm == NULL) || (DM_is_valid(dm) == true)))
@@ -1975,10 +1975,10 @@ bool editbmesh_modifier_is_enabled(Scene *scene, ModifierData *md, DerivedMesh *
 	if (!modifier_isEnabled(scene, md, required_mode)) return 0;
 	if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) && dm) {
 		modifier_setError(md, "Modifier requires original data, bad stack position");
-		return 0;
+		return false;
 	}
 	
-	return 1;
+	return true;
 }
 
 static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, DerivedMesh **cage_r,
