@@ -273,7 +273,13 @@ void BKE_image_free_buffers(Image *ima)
 		ima->rr = NULL;
 	}
 
-	GPU_free_image(ima);
+	if (!G.background) {
+		/* Background mode doesn't use opnegl,
+		 * so we can avoid freeing GPU images and save some
+		 * time by skipping mutex lock.
+		 */
+		GPU_free_image(ima);
+	}
 
 	ima->ok = IMA_OK;
 }
@@ -3401,9 +3407,9 @@ bool BKE_image_has_alpha(struct Image *image)
 	BKE_image_release_ibuf(image, ibuf, lock);
 
 	if (planes == 32)
-		return 1;
+		return true;
 	else
-		return 0;
+		return false;
 }
 
 void BKE_image_get_size(Image *image, ImageUser *iuser, int *width, int *height)
