@@ -446,7 +446,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 					if (sl->spacetype == SPACE_NODE) {
 						SpaceNode *snode = (SpaceNode *)sl;
 						snode->backdrop.scalex = 1.0;
-						snode->backdrop.scalex = 1.0;
 					}
 				}
 			}
