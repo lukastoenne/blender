@@ -859,7 +859,7 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 	if (ibuf) {
-		wmWidget *cage = WIDGET_cage_new(wgroup, 0, NULL);
+		wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM, NULL);
 		
 		SpaceNode *snode = CTX_wm_space_node(C);
 		ARegion *ar = CTX_wm_region(C);
@@ -875,7 +875,7 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 
 		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		
-		WIDGET_cage_bounds_set(cage, xsize, ysize);
+		WIDGET_rect_transform_bounds_set(cage, xsize, ysize);
 		WM_widget_set_origin(cage, origin);
 		WM_widget_property(cage, &nodeptr, "backdrop_x");
 	}

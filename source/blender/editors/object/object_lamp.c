@@ -223,7 +223,7 @@ void WIDGETGROUP_lamp_draw(struct wmWidgetGroup *wgroup, const struct bContext *
 	PointerRNA ptr;
 	float dir[3];
 
-	widget = WIDGET_arrow_new(wgroup, UI_ARROW_STYLE_INVERTED, NULL);
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_INVERTED, NULL);
 
 	WIDGET_arrow_set_color(widget, color_lamp);
 	

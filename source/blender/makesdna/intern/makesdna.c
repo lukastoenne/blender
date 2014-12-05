@@ -124,6 +124,7 @@ static const char *includefiles[] = {
 	/* if you add files here, please add them at the end
 	 * of makesdna.c (this file) as well */
 	"DNA_windowmanager_types.h",
+	"DNA_widget_types.h",
 	"DNA_anim_types.h",
 	"DNA_boid_types.h",
 	"DNA_smoke_types.h",
@@ -1275,6 +1276,7 @@ int main(int argc, char **argv)
 #include "DNA_cloth_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_widget_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_boid_types.h"
 #include "DNA_smoke_types.h"

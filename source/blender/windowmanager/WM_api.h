@@ -514,18 +514,23 @@ void WM_widgetmaptypes_free(void);
 /* wm_generic_widgets.c */
 
 enum {
-	UI_ARROW_STYLE_NORMAL        =  0,
-	UI_ARROW_STYLE_NO_AXIS       = (1 << 1),
-	UI_ARROW_STYLE_CROSS         = (1 << 2),
-	/* inverted offset during interaction - if set it also sets constrained below */
-	UI_ARROW_STYLE_INVERTED      = (1 << 3),
-	/* clamp arrow interaction to property width */
-	UI_ARROW_STYLE_CONSTRAINED   = (1 << 4),
+	WIDGET_ARROW_STYLE_NORMAL        =  1,
+	WIDGET_ARROW_STYLE_NO_AXIS       = (1 << 1),
+	WIDGET_ARROW_STYLE_CROSS         = (1 << 2),
+	WIDGET_ARROW_STYLE_INVERTED      = (1 << 3), /* inverted offset during interaction - if set it also sets constrained below */
+	WIDGET_ARROW_STYLE_CONSTRAINED   = (1 << 4), /* clamp arrow interaction to property width */
 };
 
 enum {
-	UI_DIAL_STYLE_RING = 0,
-	UI_DIAL_STYLE_RING_CLIPPED = 1,
+	WIDGET_DIAL_STYLE_RING = 0,
+	WIDGET_DIAL_STYLE_RING_CLIPPED = 1,
+};
+
+enum {
+	WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE       =  1,       /* widget translates */
+	WIDGET_RECT_TRANSFORM_STYLE_ROTATE          = (1 << 1), /* widget rotates */
+	WIDGET_RECT_TRANSFORM_STYLE_SCALE           = (1 << 2), /* widget scales */
+	WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM   = (1 << 3), /* widget scales uniformly */
 };
 
 struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, int style, void *customdata);
@@ -539,9 +544,9 @@ struct wmWidget *WIDGET_dial_new(int style,
 void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
-struct wmWidget *WIDGET_cage_new(struct wmWidgetGroup *wgroup, int style, void *customdata);
-void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation);
-void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h);
+struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, void *customdata);
+void WIDGET_rect_transform_bind_to_rotation(struct wmWidget *widget, float rotation);
+void WIDGET_rect_transform_bounds_set(struct wmWidget *widget, float w, float h);
 
 #ifdef __cplusplus
 }

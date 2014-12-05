@@ -722,7 +722,7 @@ static void WIDGETGROUP_camera_draw(struct wmWidgetGroup *wgroup, const struct b
 	PointerRNA cameraptr;
 	float dir[3];
 
-	widget = WIDGET_arrow_new(wgroup, UI_ARROW_STYLE_CROSS, NULL);
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_CROSS, NULL);
 	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_set_3d_scale(widget, false);
 	WIDGET_arrow_set_color(widget, color_camera);
@@ -766,7 +766,7 @@ static void WIDGETGROUP_shapekey_draw(struct wmWidgetGroup *wgroup, const struct
 	PointerRNA shapeptr;
 	float dir[3];
 
-	widget = WIDGET_arrow_new(wgroup, UI_ARROW_STYLE_NORMAL, NULL);
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL, NULL);
 	WM_widget_set_3d_scale(widget, false);
 	WIDGET_arrow_set_color(widget, color_shape);
 	RNA_pointer_create(&key->id, &RNA_ShapeKey, kb, &shapeptr);

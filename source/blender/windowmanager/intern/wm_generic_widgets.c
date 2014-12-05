@@ -171,7 +171,7 @@ static void widget_arrow_get_final_pos(struct wmWidget *widget, float pos[3])
 
 static void arrow_draw_geom(ArrowWidget *arrow, bool select)
 {
-	if (arrow->style & UI_ARROW_STYLE_CROSS) {
+	if (arrow->style & WIDGET_ARROW_STYLE_CROSS) {
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_LIGHTING);
 		glBegin(GL_LINES);
@@ -344,8 +344,8 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		float value;
 
 		value = data->orig_offset + facdir * len_v3(offset);
-		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
-			if (arrow->style & UI_ARROW_STYLE_INVERTED)
+		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
+			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
 				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
 			else
 				value = arrow->min + (value * arrow->range / ARROW_RANGE);
@@ -355,8 +355,8 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 		RNA_property_update(C, &widget->ptr, widget->prop);
 
 		/* accounts for clamping properly */
-		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
-			if (arrow->style & UI_ARROW_STYLE_INVERTED)
+		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
+			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
 				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - (RNA_property_float_get(&widget->ptr, widget->prop))) / arrow->range;
 			else
 				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr, widget->prop) - arrow->min) / arrow->range);
@@ -409,13 +409,13 @@ static void widget_arrow_bind_to_prop(struct wmWidget *widget)
 	ArrowWidget *arrow = (ArrowWidget *) widget;
 
 	if (widget->prop) {
-		if (arrow->style & UI_ARROW_STYLE_CONSTRAINED) {
+		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			float min, max, step, precision;
 
 			RNA_property_float_ui_range(&widget->ptr, widget->prop, &min, &max, &step, &precision);
 			arrow->range = max - min;
 			arrow->min = min;
-			if (arrow->style & UI_ARROW_STYLE_INVERTED)
+			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
 				arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(&widget->ptr, widget->prop))) / arrow->range;
 			else
 				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr, widget->prop) - arrow->min) / arrow->range);
@@ -444,8 +444,8 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style, void *customdata)
 	}
 
 	/* inverted only makes sense in a constrained arrow */
-	if (style & UI_ARROW_STYLE_INVERTED)
-		style |= UI_ARROW_STYLE_CONSTRAINED;
+	if (style & WIDGET_ARROW_STYLE_INVERTED)
+		style |= WIDGET_ARROW_STYLE_CONSTRAINED;
 	
 	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
 	
@@ -539,7 +539,7 @@ static void widget_dial_render_3d_intersect(const struct bContext *C, struct wmW
 	RegionView3D *rv3d = ar->regiondata;
 
 	/* enable clipping if needed */
-	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
 		double plane[4];
 		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
 		plane[3] = -dot_v3v3(rv3d->viewinv[2], widget->origin);
@@ -550,7 +550,7 @@ static void widget_dial_render_3d_intersect(const struct bContext *C, struct wmW
 	GPU_select_load_id(selectionbase);
 	dial_draw_intern(dial, true, false, dial->widget.scale);
 
-	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
 		glDisable(GL_CLIP_PLANE0);
 	}
 }
@@ -562,7 +562,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C)
 	RegionView3D *rv3d = ar->regiondata;
 
 	/* enable clipping if needed */
-	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
 		double plane[4];
 		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
 		plane[3] = -dot_v3v3(rv3d->viewinv[2], widget->origin);
@@ -572,7 +572,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C)
 
 	dial_draw_intern(dial, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, widget->scale);
 
-	if (dial->style == UI_DIAL_STYLE_RING_CLIPPED) {
+	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
 		glDisable(GL_CLIP_PLANE0);
 	}
 }
@@ -622,15 +622,15 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 /********* Cage widget ************/
 
 
-typedef struct CageWidget {
+typedef struct RectTransformWidget {
 	wmWidget widget;
 	float rotation;
 	float offset;
 	rctf bound;
 	int style;
-} CageWidget;
+} RectTransformWidget;
 
-static void cage_draw_corners(rctf *r, float offsetx, float offsety)
+static void rect_transform_draw_corners(rctf *r, float offsetx, float offsety)
 {
 	glBegin(GL_LINES);
 	glVertex2f(r->xmin, r->ymin + offsety);
@@ -655,9 +655,9 @@ static void cage_draw_corners(rctf *r, float offsetx, float offsety)
 	glEnd();	
 }
 
-static void widget_cage_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
+static void widget_rect_transform_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
-	CageWidget *cage = (CageWidget *)widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	float w = BLI_rctf_size_x(&cage->bound);
 	float h = BLI_rctf_size_y(&cage->bound);
 	float aspx = 1.0f, aspy = 1.0f;
@@ -683,19 +683,19 @@ static void widget_cage_draw(struct wmWidget *widget, const struct bContext *UNU
 	/* corner widgets */
 	glColor3f(0.0, 0.0, 0.0);
 	glLineWidth(3.0);
-	cage_draw_corners(&cage->bound, w, h);
+	rect_transform_draw_corners(&cage->bound, w, h);
 
 	/* corner widgets */
 	glColor3f(1.0, 1.0, 1.0);
 	glLineWidth(1.0);
-	cage_draw_corners(&cage->bound, w, h);
+	rect_transform_draw_corners(&cage->bound, w, h);
 	
 	glPopMatrix();
 }
 
-static int widget_cage_intersect(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
+static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
 {
-	CageWidget *cage = (CageWidget *)widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	float mouse[2] = {event->mval[0], event->mval[1]};
 	float pointrot[2];
 	float matrot[2][2];
@@ -711,17 +711,17 @@ static int widget_cage_intersect(struct bContext *UNUSED(C), const struct wmEven
 	return isect;
 }
 
-typedef struct CageInteraction {
+typedef struct RectTransformInteraction {
 	float orig_offset;
 	float orig_mouse[2];
 	float orig_origin[2];
-} CageInteraction;
+} RectTransformInteraction;
 
-static int widget_cage_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
+static int widget_rect_transform_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
 {
 	if (state == WIDGET_ACTIVATE) {
-		CageWidget *cage = (CageWidget *) widget;
-		CageInteraction *data = MEM_callocN(sizeof (CageInteraction), "cage_interaction");
+		RectTransformWidget *cage = (RectTransformWidget *) widget;
+		RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
 
 		if (widget->prop) {
 			data->orig_offset = cage->offset;
@@ -743,10 +743,9 @@ static int widget_cage_activate(struct bContext *UNUSED(C), const struct wmEvent
 	return OPERATOR_FINISHED;
 }
 
-static int widget_cage_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
+static int widget_rect_transform_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
 {
-//	CageWidget *cage = (CageWidget *) widget;
-	CageInteraction *data = widget->interaction_data;
+	RectTransformInteraction *data = widget->interaction_data;
 	ARegion *ar = CTX_wm_region(C);
 	
 	if (widget->prop) {
@@ -769,20 +768,20 @@ static int widget_cage_handler(struct bContext *C, const struct wmEvent *event, 
 
 static void widget_cage_bind_to_prop(struct wmWidget *widget)
 {
-	CageWidget *cage = (CageWidget *) widget;
+	RectTransformWidget *cage = (RectTransformWidget *) widget;
 	cage->offset = RNA_property_float_get(&widget->ptr, widget->prop);
 }
 
-struct wmWidget *WIDGET_cage_new(struct wmWidgetGroup *wgroup, int style, void *customdata)
+struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, void *customdata)
 {
-	CageWidget *cage = MEM_callocN(sizeof(CageWidget), "CageWidget");
+	RectTransformWidget *cage = MEM_callocN(sizeof(RectTransformWidget), "CageWidget");
 
 	cage->widget.customdata = customdata;
-	cage->widget.draw = widget_cage_draw;
-	cage->widget.activate_state = widget_cage_activate;
+	cage->widget.draw = widget_rect_transform_draw;
+	cage->widget.activate_state = widget_rect_transform_activate;
 	cage->widget.bind_to_prop = widget_cage_bind_to_prop;
-	cage->widget.handler = widget_cage_handler;
-	cage->widget.intersect = widget_cage_intersect;
+	cage->widget.handler = widget_rect_transform_handler;
+	cage->widget.intersect = widget_rect_tranfrorm_intersect;
 	cage->widget.user_scale = 1.0f;
 	cage->style = style;
 
@@ -791,16 +790,16 @@ struct wmWidget *WIDGET_cage_new(struct wmWidgetGroup *wgroup, int style, void *
 	return (wmWidget *)cage;
 }
 
-void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation)
+void WIDGET_rect_transform_bind_to_rotation(struct wmWidget *widget, float rotation)
 {
-	CageWidget *cage = (CageWidget *)widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	
 	cage->rotation = rotation;
 }
 
-void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h)
+void WIDGET_rect_transform_bounds_set(struct wmWidget *widget, float w, float h)
 {
-	CageWidget *cage = (CageWidget *)widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	cage->bound.xmax = w;
 	cage->bound.ymax = h;
 	cage->bound.xmin = 0.0;

@@ -30,6 +30,7 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_widget_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -1885,6 +1886,37 @@ static void rna_def_wm_keymaps(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_api_keymaps(srna);
 }
 
+static void rna_def_widgets(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	/* KeyConfig */
+	srna = RNA_def_struct(brna, "WidgetRectTransform", NULL);
+	RNA_def_struct_sdna(srna, "wmRectTransformWidget");
+	RNA_def_struct_ui_text(srna, "Rect Transform Widget Data", "State for rectangle transform widget interaction");
+	
+	prop = RNA_def_property(srna, "xmin", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bounds.xmin");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "X Position Minimum", "The minimum X boundary for the rectangle");
+
+	prop = RNA_def_property(srna, "ymin", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bounds.ymin");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Y Position Minimum", "The minimum Y boundary for the rectangle");
+
+	prop = RNA_def_property(srna, "xmax", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bounds.xmax");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "X Position Maximum", "The maximum X boundary for the rectangle");
+
+	prop = RNA_def_property(srna, "ymax", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bounds.ymax");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Y Position Maximum", "The maximum Y boundary for the rectangle");
+}
+
 static void rna_def_keyconfig(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2114,6 +2146,7 @@ void RNA_def_wm(BlenderRNA *brna)
 	rna_def_window(brna);
 	rna_def_windowmanager(brna);
 	rna_def_keyconfig(brna);
+	rna_def_widgets(brna);
 }
 
 #endif /* RNA_RUNTIME */
