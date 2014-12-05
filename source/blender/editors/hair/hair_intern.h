@@ -73,6 +73,7 @@ typedef struct HairToolData {
 	float mdepth;       /* mouse z depth */
 	
 	/* object space */
+	float imat[4][4];   /* obmat inverse */
 	float loc[3];       /* start location */
 	float delta[3];     /* stroke step */
 } HairToolData;

@@ -45,7 +45,7 @@ extern const char *CD_HAIR_WEIGHT;
 extern const char *CD_HAIR_ROOT_LOCATION;
 
 void BM_strands_cd_validate(struct BMesh *bm);
-void BM_strands_cd_flag_ensure(struct BMesh *bm, struct ParticleSystem *psys, const char cd_flag);
+void BM_strands_cd_flag_ensure(struct BMesh *bm, const char cd_flag);
 void BM_strands_cd_flag_apply(struct BMesh *bm, const char cd_flag);
 char BM_strands_cd_flag_from_bmesh(struct BMesh *bm);
 

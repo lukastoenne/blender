@@ -37,12 +37,15 @@
 #include "BLI_math.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
 #include "BKE_brush.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_edithair.h"
+#include "BKE_mesh_sample.h"
 
 #include "bmesh.h"
 
@@ -163,10 +166,102 @@ static void hair_vertex_comb(HairToolData *data, void *userdata, BMVert *v, floa
 	madd_v3_v3fl(v->co, data->delta, combfactor);
 }
 
+
+BLI_INLINE void construct_m4_loc_nor_tan(float mat[4][4], const float loc[3], const float nor[3], const float tang[3])
+{
+	float cotang[3];
+	
+	cross_v3_v3v3(cotang, nor, tang);
+	
+	copy_v3_v3(mat[0], tang);
+	copy_v3_v3(mat[1], cotang);
+	copy_v3_v3(mat[2], nor);
+	copy_v3_v3(mat[3], loc);
+	mat[0][3] = 0.0f;
+	mat[1][3] = 0.0f;
+	mat[2][3] = 0.0f;
+	mat[3][3] = 1.0f;
+}
+
+static void grow_hair(BMEditStrands *edit, MSurfaceSample *sample)
+{
+	DerivedMesh *dm = edit->root_dm;
+	const float len = 1.5f;
+	
+	float root_mat[4][4];
+	BMVert *root, *v;
+	BMIter iter;
+	int i;
+	
+	{
+		float co[3], nor[3], tang[3];
+		BKE_mesh_sample_eval(dm, sample, co, nor, tang);
+		construct_m4_loc_nor_tan(root_mat, co, nor, tang);
+	}
+	
+	root = BM_strands_create(edit->bm, 5, true);
+	
+	BM_elem_meshsample_data_named_set(&edit->bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, sample);
+	
+	BM_ITER_STRANDS_ELEM_INDEX(v, &iter, root, BM_VERTS_OF_STRAND, i) {
+		float co[3];
+		
+		co[0] = co[1] = 0.0f;
+		co[2] = len * (float)i / (float)(len - 1);
+		
+		mul_m4_v3(root_mat, co);
+		
+		copy_v3_v3(v->co, co);
+	}
+	
+	BM_mesh_elem_index_ensure(edit->bm, BM_ALL);
+}
+
+static bool hair_add_ray_cb(void *vdata, float ray_start[3], float ray_end[3])
+{
+	HairToolData *data = vdata;
+	ViewContext *vc = &data->viewdata.vc;
+	
+	ED_view3d_win_to_segment(vc->ar, vc->v3d, data->mval, ray_start, ray_end, true);
+	
+	mul_m4_v3(data->imat, ray_start);
+	mul_m4_v3(data->imat, ray_end);
+	
+	return true;
+}
+
+static bool hair_get_surface_sample(HairToolData *data, MSurfaceSample *sample)
+{
+	DerivedMesh *dm = data->edit->root_dm;
+	
+	MSurfaceSampleStorage dst;
+	int tot;
+	
+	BKE_mesh_sample_storage_single(&dst, sample);
+	tot = BKE_mesh_sample_generate_raycast(&dst, dm, hair_add_ray_cb, data, 1);
+	BKE_mesh_sample_storage_release(&dst);
+	
+	return tot > 0;
+}
+
+static bool hair_add(HairToolData *data)
+{
+	MSurfaceSample sample;
+	
+	if (!hair_get_surface_sample(data, &sample))
+		return false;
+	
+	grow_hair(data->edit, &sample);
+	
+	return true;
+}
+
+
 bool hair_brush_step(HairToolData *data)
 {
 	Brush *brush = data->settings->brush;
 	BrushHairTool hair_tool = brush->hair_tool;
+	BMEditStrands *edit = data->edit;
 	int tot = 0;
 	
 	switch (hair_tool) {
@@ -181,12 +276,20 @@ bool hair_brush_step(HairToolData *data)
 			tot = hair_tool_apply_vertex(data, hair_vertex_comb, &combdata);
 			break;
 		}
-		case HAIR_TOOL_CUT:     break;
-		case HAIR_TOOL_LENGTH:  break;
-		case HAIR_TOOL_PUFF:    break;
-		case HAIR_TOOL_ADD:     break;
-		case HAIR_TOOL_SMOOTH:  break;
-		case HAIR_TOOL_WEIGHT:  break;
+		case HAIR_TOOL_CUT:
+			break;
+		case HAIR_TOOL_LENGTH:
+			break;
+		case HAIR_TOOL_PUFF:
+			break;
+		case HAIR_TOOL_ADD:
+			if (hair_add(data))
+				edit->flag |= BM_STRANDS_DIRTY_SEGLEN;
+			break;
+		case HAIR_TOOL_SMOOTH:
+			break;
+		case HAIR_TOOL_WEIGHT:
+			break;
 	}
 	
 	return tot > 0;
