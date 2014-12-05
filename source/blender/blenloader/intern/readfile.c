@@ -5267,6 +5267,14 @@ static void lib_link_scene(FileData *fd, Main *main)
 			
 			sce->toolsettings->particle.shape_object = newlibadr(fd, sce->id.lib, sce->toolsettings->particle.shape_object);
 			
+			{
+				HairEditSettings *hair_edit = &sce->toolsettings->hair_edit;
+				if (hair_edit->brush)
+					hair_edit->brush = newlibadr(fd, sce->id.lib, hair_edit->brush);
+				if (hair_edit->shape_object)
+					hair_edit->shape_object = newlibadr(fd, sce->id.lib, hair_edit->shape_object);
+			}
+			
 			for (base = sce->base.first; base; base = next) {
 				next = base->next;
 				
@@ -5504,7 +5512,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		sce->toolsettings->particle.paintcursor = NULL;
 		sce->toolsettings->particle.scene = NULL;
 		sce->toolsettings->particle.object = NULL;
-
+		sce->toolsettings->hair_edit.paint_cursor = NULL;
+		
 		/* in rare cases this is needed, see [#33806] */
 		if (sce->toolsettings->vpaint) {
 			sce->toolsettings->vpaint->vpaint_prev = NULL;
