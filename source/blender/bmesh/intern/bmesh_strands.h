@@ -72,6 +72,9 @@ BLI_INLINE bool BM_strands_vert_is_tip(BMVert *v)
 int BM_strands_count(BMesh *bm);
 int BM_strands_keys_count(BMVert *root);
 
+/* Create a new strand */
+struct BMVert *BM_strands_create(struct BMesh *bm, int len, bool set_defaults);
+
 /* ==== Iterators ==== */
 
 typedef enum BMStrandsIterType {

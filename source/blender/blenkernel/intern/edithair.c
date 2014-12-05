@@ -101,7 +101,7 @@ void BKE_editstrands_free(BMEditStrands *es)
 
 /* === constraints === */
 
-void BKE_editstrands_calc_segment_lengths(BMesh *bm)
+static void editstrands_calc_segment_lengths(BMesh *bm)
 {
 	BMVert *root, *v, *vprev;
 	BMIter iter, iter_strand;
@@ -128,10 +128,10 @@ static void editstrands_apply_root_locations(BMesh *bm, DerivedMesh *root_dm)
 	
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		MSurfaceSample root_sample;
-		float loc[3], nor[3];
+		float loc[3], nor[3], tang[3];
 		
 		BM_elem_meshsample_data_named_get(&bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
-		if (BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor)) {
+		if (BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor, tang)) {
 			copy_v3_v3(root->co, loc);
 		}
 	}
@@ -167,8 +167,21 @@ static void editstrands_solve_segment_lengths(BMesh *bm)
 
 void BKE_editstrands_solve_constraints(BMEditStrands *es)
 {
+	BKE_editstrands_ensure(es);
+	
 	editstrands_apply_root_locations(es->bm, es->root_dm);
 	editstrands_solve_segment_lengths(es->bm);
+}
+
+void BKE_editstrands_ensure(BMEditStrands *es)
+{
+	BM_strands_cd_flag_ensure(es->bm, 0);
+	
+	if (es->flag & BM_STRANDS_DIRTY_SEGLEN) {
+		editstrands_calc_segment_lengths(es->bm);
+		
+		es->flag &= ~BM_STRANDS_DIRTY_SEGLEN;
+	}
 }
 
 
@@ -188,7 +201,7 @@ BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 		
 		BM_strands_bm_from_psys(bm, ob, psys, psmd->dm, true, psys->shapenr);
 		
-		BKE_editstrands_calc_segment_lengths(bm);
+		editstrands_calc_segment_lengths(bm);
 	}
 
 	return bm;

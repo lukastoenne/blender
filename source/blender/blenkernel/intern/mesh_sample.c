@@ -43,15 +43,15 @@
 
 /* ==== Evaluate ==== */
 
-bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float loc[3], float nor[3])
+bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float loc[3], float nor[3], float tang[3])
 {
 	MVert *mverts = dm->getVertArray(dm);
 	unsigned int totverts = (unsigned int)dm->getNumVerts(dm);
 	MVert *v1, *v2, *v3;
-	float vnor[3];
 	
 	zero_v3(loc);
 	zero_v3(nor);
+	zero_v3(tang);
 	
 	if (sample->orig_verts[0] >= totverts ||
 	    sample->orig_verts[1] >= totverts ||
@@ -62,18 +62,39 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float l
 	v2 = &mverts[sample->orig_verts[1]];
 	v3 = &mverts[sample->orig_verts[2]];
 	
-	madd_v3_v3fl(loc, v1->co, sample->orig_weights[0]);
-	madd_v3_v3fl(loc, v2->co, sample->orig_weights[1]);
-	madd_v3_v3fl(loc, v3->co, sample->orig_weights[2]);
+	{ /* location */
+		madd_v3_v3fl(loc, v1->co, sample->orig_weights[0]);
+		madd_v3_v3fl(loc, v2->co, sample->orig_weights[1]);
+		madd_v3_v3fl(loc, v3->co, sample->orig_weights[2]);
+	}
 	
-	normal_short_to_float_v3(vnor, v1->no);
-	madd_v3_v3fl(nor, vnor, sample->orig_weights[0]);
-	normal_short_to_float_v3(vnor, v2->no);
-	madd_v3_v3fl(nor, vnor, sample->orig_weights[1]);
-	normal_short_to_float_v3(vnor, v3->no);
-	madd_v3_v3fl(nor, vnor, sample->orig_weights[2]);
+	{ /* normal */
+		float vnor[3];
+		
+		normal_short_to_float_v3(vnor, v1->no);
+		madd_v3_v3fl(nor, vnor, sample->orig_weights[0]);
+		normal_short_to_float_v3(vnor, v2->no);
+		madd_v3_v3fl(nor, vnor, sample->orig_weights[1]);
+		normal_short_to_float_v3(vnor, v3->no);
+		madd_v3_v3fl(nor, vnor, sample->orig_weights[2]);
+		
+		normalize_v3(nor);
+	}
 	
-	normalize_v3(nor);
+	{ /* tangent */
+		float edge[3];
+		
+		/* XXX simply using the v1-v2 edge as a tangent vector for now ...
+		 * Eventually mikktspace generated tangents (CD_TANGENT tessface layer)
+		 * should be used for consistency, but requires well-defined tessface
+		 * indices for the mesh surface samples.
+		 */
+		
+		sub_v3_v3v3(edge, v2->co, v1->co);
+		/* make edge orthogonal to nor */
+		madd_v3_v3fl(edge, nor, -dot_v3v3(edge, nor));
+		normalize_v3_v3(tang, edge);
+	}
 	
 	return true;
 }
@@ -329,9 +350,9 @@ bool BKE_mesh_sample_from_particle(MSurfaceSample *sample, ParticleSystem *psys,
 bool BKE_mesh_sample_to_particle(MSurfaceSample *sample, ParticleSystem *UNUSED(psys), DerivedMesh *dm, BVHTreeFromMesh *bvhtree, ParticleData *pa)
 {
 	BVHTreeNearest nearest;
-	float vec[3], nor[3];
+	float vec[3], nor[3], tang[3];
 	
-	BKE_mesh_sample_eval(dm, sample, vec, nor);
+	BKE_mesh_sample_eval(dm, sample, vec, nor, tang);
 	
 	nearest.index = -1;
 	nearest.dist_sq = FLT_MAX;

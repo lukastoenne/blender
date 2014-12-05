@@ -76,13 +76,10 @@ void BM_strands_cd_validate(BMesh *UNUSED(bm))
 {
 }
 
-void BM_strands_cd_flag_ensure(BMesh *bm, ParticleSystem *psys, const char cd_flag)
+void BM_strands_cd_flag_ensure(BMesh *bm, const char cd_flag)
 {
 	const char cd_flag_all = BM_strands_cd_flag_from_bmesh(bm) | cd_flag;
 	BM_strands_cd_flag_apply(bm, cd_flag_all);
-	if (psys) {
-//		psys->cd_flag = cd_flag_all;
-	}
 }
 
 void BM_strands_cd_flag_apply(BMesh *bm, const char UNUSED(cd_flag))
