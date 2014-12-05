@@ -50,8 +50,6 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 
-#include "MOD_util.h"
-
 #include "depsgraph_private.h"
 
 

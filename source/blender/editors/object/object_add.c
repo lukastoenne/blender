@@ -69,7 +69,6 @@
 #include "BKE_effect.h"
 #include "BKE_font.h"
 #include "BKE_group.h"
-#include "BKE_image.h"
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
@@ -97,7 +96,6 @@
 
 #include "ED_armature.h"
 #include "ED_curve.h"
-#include "ED_lattice.h"
 #include "ED_mball.h"
 #include "ED_mesh.h"
 #include "ED_node.h"
@@ -108,7 +106,6 @@
 #include "ED_transform.h"
 #include "ED_view3d.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 
 #include "GPU_material.h"
@@ -889,6 +886,8 @@ void OBJECT_OT_drop_named_image(wmOperatorType *ot)
 
 	/* properties */
 	prop = RNA_def_string(ot->srna, "filepath", NULL, FILE_MAX, "Filepath", "Path to image file");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	RNA_def_boolean(ot->srna, "relative_path", true, "Relative Path", "Select the file relative to the blend file");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	prop = RNA_def_string(ot->srna, "name", NULL, MAX_ID_NAME - 2, "Name", "Image name to assign");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);

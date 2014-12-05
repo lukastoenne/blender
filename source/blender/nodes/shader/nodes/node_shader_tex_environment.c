@@ -27,8 +27,6 @@
 
 #include "../node_shader_util.h"
 
-#include "IMB_colormanagement.h"
-
 /* **************** OUTPUT ******************** */
 
 static bNodeSocketTemplate sh_node_tex_environment_in[] = {
@@ -67,9 +65,15 @@ static int node_shader_gpu_tex_environment(GPUMaterial *mat, bNode *node, bNodeE
 	if (!ima)
 		return GPU_stack_link(mat, "node_tex_environment_empty", in, out);
 
-	if (!in[0].link)
-		in[0].link = GPU_builtin(GPU_VIEW_POSITION);
-
+	if (!in[0].link) {
+		GPUMatType type = GPU_Material_get_type(mat);
+		
+		if (type == GPU_MATERIAL_TYPE_MESH)
+			in[0].link = GPU_builtin(GPU_VIEW_POSITION);
+		else
+			GPU_link(mat, "background_transform_to_world", GPU_builtin(GPU_VIEW_POSITION), &in[0].link);
+	}
+	
 	node_shader_gpu_tex_mapping(mat, node, in, out);
 
 	if (tex->projection == SHD_PROJ_EQUIRECTANGULAR)

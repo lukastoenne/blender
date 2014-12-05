@@ -3375,7 +3375,6 @@ static DMDrawOption draw_em_fancy__setFaceOpts(void *userData, int index)
 
 	efa = BM_face_at_index(em->bm, index);
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-		GPU_enable_material(efa->mat_nr + 1, NULL);
 		return DM_DRAW_OPTION_NORMAL;
 	}
 	else {
@@ -3773,7 +3772,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glFrontFace(GL_CCW);
 
 			if (draw_flags & DRAW_FACE_SELECT)
-				draw_mesh_face_select(rv3d, me, dm);
+				draw_mesh_face_select(rv3d, me, dm, false);
 		}
 		else {
 			draw_mesh_textured(scene, v3d, rv3d, ob, dm, draw_flags);

@@ -178,6 +178,15 @@ if(UNIX AND NOT APPLE)
 	set(_init_GAMEENGINE                     OFF)
 endif()
 
+
+#-----------------------------------------------------------------------------
+# Options
+
+# First platform spesific non-cached vars
+if(UNIX AND NOT APPLE)
+	set(WITH_X11 ON)
+endif()
+
 # Blender internal features
 option(WITH_BLENDER "Build blender (disable to build only the blender player)" ON)
 mark_as_advanced(WITH_BLENDER)
@@ -232,10 +241,6 @@ option(WITH_AUDASPACE    "Build with blenders audio library (only disable if you
 mark_as_advanced(WITH_AUDASPACE)
 
 option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
-
-if(UNIX AND NOT APPLE)
-	set(WITH_X11 ON)
-endif()
 
 if(WITH_X11)
 	option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)"  ON)
@@ -346,7 +351,7 @@ option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
 set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_50 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
-option(WITH_CYCLES_LOGGING	"Build cycles with logging support" OFF)
+option(WITH_CYCLES_LOGGING	"Build cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG	"Build cycles with extra debug capabilities" OFF)
 mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG)

@@ -79,9 +79,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "zlib.h"
-
 #ifdef WIN32
+#  include <zlib.h>  /* odd include order-issue */
 #  include "winsock2.h"
 #  include <io.h>
 #  include "BLI_winstuff.h"
@@ -156,7 +155,6 @@
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
-#include "BKE_sound.h"
 #include "BKE_subsurf.h"
 #include "BKE_modifier.h"
 #include "BKE_fcurve.h"
@@ -164,11 +162,9 @@
 #include "BKE_mesh.h"
 
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
-#include "NOD_common.h"
 #include "NOD_socket.h"	/* for sock->default_value data */
 #endif
 
-#include "RNA_access.h"
 
 #include "BLO_writefile.h"
 #include "BLO_readfile.h"
@@ -2468,6 +2464,8 @@ static void write_gpencils(WriteData *wd, ListBase *lb)
 		if (gpd->id.us>0 || wd->current) {
 			/* write gpd data block to file */
 			writestruct(wd, ID_GD, "bGPdata", 1, gpd);
+			
+			if (gpd->adt) write_animdata(wd, gpd->adt);
 			
 			/* write grease-pencil layers to file */
 			writelist(wd, DATA, "bGPDlayer", &gpd->layers);

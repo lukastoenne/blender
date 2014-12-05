@@ -486,7 +486,7 @@ static void rna_SpaceView3D_matcap_update(Main *UNUSED(bmain), Scene *UNUSED(sce
 			BKE_previewimg_free(&ma->preview);
 		
 		if (ma->gpumaterial.first)
-			GPU_material_free(ma);
+			GPU_material_free(&ma->gpumaterial);
 		
 		WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, ma);
 	}
@@ -2456,8 +2456,8 @@ static void rna_def_space_image(BlenderRNA *brna)
 	/* grease pencil */
 	prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "gpd");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "GreasePencil");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
 	RNA_def_property_ui_text(prop, "Grease Pencil", "Grease pencil data for this space");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 	
@@ -2542,7 +2542,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 
 	static EnumPropertyItem waveform_type_draw_items[] = {
 		{SEQ_NO_WAVEFORMS, "NO_WAVEFORMS", 0, "Waveforms Off",
-		 "No waveforms drawn for all sound strips"},
+		 "No waveforms drawn for any sound strips"},
 		{SEQ_ALL_WAVEFORMS, "ALL_WAVEFORMS", 0, "Waveforms On",
 		 "Waveforms drawn for all sound strips"},
 		{0, "DEFAULT_WAVEFORMS", 0, "Use Strip Option",
@@ -2641,8 +2641,8 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	/* grease pencil */
 	prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "gpd");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "GreasePencil");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
 	RNA_def_property_ui_text(prop, "Grease Pencil", "Grease pencil data for this space");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 

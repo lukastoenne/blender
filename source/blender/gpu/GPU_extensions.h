@@ -151,6 +151,7 @@ void GPU_framebuffer_texture_detach(GPUTexture *tex);
 void GPU_framebuffer_slot_bind(GPUFrameBuffer *fb, int slot);
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
+bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256]);
 
 void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot);
 

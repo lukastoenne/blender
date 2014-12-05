@@ -103,7 +103,7 @@ typedef struct Brush {
 	char mask_tool;         /* enum BrushMaskTool, only used if sculpt_tool is SCULPT_TOOL_MASK */
 	char hair_tool;         /* active hair tool */
 	char pad2[3];
-
+	
 	float autosmooth_factor;
 
 	float crease_pinch_factor;

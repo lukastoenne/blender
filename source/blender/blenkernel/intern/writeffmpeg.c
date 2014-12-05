@@ -57,7 +57,6 @@
 #include "BKE_sound.h"
 #include "BKE_writeffmpeg.h"
 
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
 #include "ffmpeg_compat.h"
@@ -494,7 +493,7 @@ static void set_ffmpeg_properties(RenderData *rd, AVCodecContext *c, const char 
 	 *
 	 * For as long we don't allow editing properties in the interface
 	 * it's all good. bug if we allow editing them, we'll need to
-	 * repace it with some smarter code which would port settings
+	 * replace it with some smarter code which would port settings
 	 * from deprecated to new one.
 	 */
 	ffmpeg_set_expert_options(rd);

@@ -324,6 +324,9 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->color_buffer, 0, err_out))
 		printf("%.256s\n", err_out);
 	
+	if(!GPU_framebuffer_check_valid(fx->gbuffer, err_out))
+		printf("%.256s\n", err_out);
+	
 	GPU_texture_bind_as_framebuffer(fx->color_buffer);
 
 	/* enable scissor test. It's needed to ensure sculpting works correctly */
