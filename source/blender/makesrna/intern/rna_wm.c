@@ -1896,25 +1896,30 @@ static void rna_def_widgets(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "wmRectTransformWidget");
 	RNA_def_struct_ui_text(srna, "Rect Transform Widget Data", "State for rectangle transform widget interaction");
 	
-	prop = RNA_def_property(srna, "xmin", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "bounds.xmin");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	prop = RNA_def_property(srna, "offset_x", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ofx");
 	RNA_def_property_ui_text(prop, "X Position Minimum", "The minimum X boundary for the rectangle");
 
-	prop = RNA_def_property(srna, "ymin", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "bounds.ymin");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	prop = RNA_def_property(srna, "offset_y", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ofy");
 	RNA_def_property_ui_text(prop, "Y Position Minimum", "The minimum Y boundary for the rectangle");
 
-	prop = RNA_def_property(srna, "xmax", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "bounds.xmax");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "X Position Maximum", "The maximum X boundary for the rectangle");
+	prop = RNA_def_property(srna, "width", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "w");
+	RNA_def_property_ui_text(prop, "Width", "The width of the rectangle");
 
-	prop = RNA_def_property(srna, "ymax", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "bounds.ymax");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Y Position Maximum", "The maximum Y boundary for the rectangle");
+	prop = RNA_def_property(srna, "height", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "h");
+	RNA_def_property_ui_text(prop, "Height", "The height of the rectangle");
+
+	prop = RNA_def_property(srna, "scalex", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "X Scale", "Scale of widget in the X direction");
+
+	prop = RNA_def_property(srna, "scaley", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Y Scale", "Scale of widget in the Y direction");
+
+	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Rotation", "Rotation of widget");
 }
 
 static void rna_def_keyconfig(BlenderRNA *brna)

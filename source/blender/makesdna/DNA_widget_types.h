@@ -36,8 +36,10 @@
 
 /* struct used directly for interaction with a rectangle widget */
 typedef struct wmRectTransformWidget {
-	rctf bounds;    /* unrotated bounds of the rectangle */
-	float rotation; /* rotation of the rectangle */
+	float ofx, ofy; /* position of widget */
+	float w, h;     /* dimensions of widget */
+	float rotation;       /* rotation of the rectangle */
+	float scalex, scaley; /* scaling for the widget for non-destructive editing. */
 	float pad;
 } wmRectTransformWidget;
 

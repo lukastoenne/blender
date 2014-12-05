@@ -46,6 +46,7 @@
 #include "DNA_node_types.h"         /* for bNodeInstanceKey */
 /* Hum ... Not really nice... but needed for spacebuts. */
 #include "DNA_view2d_types.h"
+#include "DNA_widget_types.h"
 
 struct ID;
 struct Text;
@@ -944,11 +945,11 @@ typedef struct SpaceNode {
 	
 	struct ID *id, *from;       /* context, no need to save in file? well... pinning... */
 	short flag, pad1;           /* menunr: browse id block in header */
-	float aspect, pad2;	/* internal state variables */
+	float aspect;	/* internal state variables */
 	
-	float xof, yof;     /* offset for drawing the backdrop */
-	float zoom;   /* zoom for backdrop */
 	float cursor[2];    /* mouse pos for drawing socketless link and adding nodes */
+
+	wmRectTransformWidget backdrop;
 	
 	/* XXX nodetree pointer info is all in the path stack now,
 	 * remove later on and use bNodeTreePath instead. For now these variables are set when pushing/popping

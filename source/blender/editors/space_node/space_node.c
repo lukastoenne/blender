@@ -307,7 +307,8 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 	snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
 
 	/* backdrop */
-	snode->zoom = 1.0f;
+	snode->backdrop.scalex = 1.0f;
+	snode->backdrop.w = snode->backdrop.h = 64.0f;
 
 	/* select the first tree type for valid type */
 	NODE_TREE_TYPES_BEGIN (treetype)
@@ -867,17 +868,19 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 		float xsize, ysize;
 		PointerRNA nodeptr;
 
-		xsize = snode->zoom * ibuf->x;
-		ysize = snode->zoom * ibuf->y;
+		xsize = snode->backdrop.scalex * ibuf->x;
+		ysize = snode->backdrop.scalex * ibuf->y;
 		
-		origin[0] = (ar->winx - xsize) / 2 + snode->xof;
-		origin[1] = (ar->winy - ysize) / 2 + snode->yof;
+		origin[0] = (ar->winx - xsize) / 2;
+		origin[1] = (ar->winy - ysize) / 2;
+
+		snode->backdrop.w = xsize;
+		snode->backdrop.h = ysize;
 
 		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		
-		WIDGET_rect_transform_bounds_set(cage, xsize, ysize);
 		WM_widget_set_origin(cage, origin);
-		WM_widget_property(cage, &nodeptr, "backdrop_x");
+		WM_widget_property(cage, &nodeptr, "backdrop");
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }

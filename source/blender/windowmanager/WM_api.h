@@ -545,8 +545,6 @@ void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
 struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, void *customdata);
-void WIDGET_rect_transform_bind_to_rotation(struct wmWidget *widget, float rotation);
-void WIDGET_rect_transform_bounds_set(struct wmWidget *widget, float w, float h);
 
 #ifdef __cplusplus
 }

@@ -663,6 +663,7 @@ extern StructRNA RNA_WaveModifier;
 extern StructRNA RNA_VertexWeightEditModifier;
 extern StructRNA RNA_VertexWeightMixModifier;
 extern StructRNA RNA_VertexWeightProximityModifier;
+extern StructRNA RNA_WidgetRectTransform;
 extern StructRNA RNA_Window;
 extern StructRNA RNA_WindowManager;
 extern StructRNA RNA_WipeSequence;

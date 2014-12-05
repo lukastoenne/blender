@@ -36,6 +36,7 @@
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_widget_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_math_matrix.h"
@@ -624,9 +625,7 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 
 typedef struct RectTransformWidget {
 	wmWidget widget;
-	float rotation;
-	float offset;
-	rctf bound;
+	wmRectTransformWidget transform;
 	int style;
 } RectTransformWidget;
 
@@ -658,18 +657,23 @@ static void rect_transform_draw_corners(rctf *r, float offsetx, float offsety)
 static void widget_rect_transform_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
-	float w = BLI_rctf_size_x(&cage->bound);
-	float h = BLI_rctf_size_y(&cage->bound);
+	rctf r;
+	float w = cage->transform.w;
+	float h = cage->transform.h;
 	float aspx = 1.0f, aspy = 1.0f;
+	
+	r.xmin = cage->transform.ofx;
+	r.ymin = cage->transform.ofy;
+	r.xmax = cage->transform.ofx + w;
+	r.ymax = cage->transform.ofy + h;
 	
 	glPushMatrix();
 	glTranslatef(widget->origin[0], widget->origin[1], 0.0f);
 	
-	glColor4f(1.0f, 0.6f, 0.0f, 0.1f);
-
 	if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 		glEnable(GL_BLEND);
-		glRectf(cage->bound.xmin, cage->bound.ymin, cage->bound.xmax, cage->bound.ymax);
+		glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
+		glRectf(cage->transform.ofx, cage->transform.ofy, cage->transform.ofx + w, cage->transform.ofy + h);
 		glDisable(GL_BLEND);
 	}
 	
@@ -683,12 +687,13 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 	/* corner widgets */
 	glColor3f(0.0, 0.0, 0.0);
 	glLineWidth(3.0);
-	rect_transform_draw_corners(&cage->bound, w, h);
+		
+	rect_transform_draw_corners(&r, w, h);
 
 	/* corner widgets */
 	glColor3f(1.0, 1.0, 1.0);
 	glLineWidth(1.0);
-	rect_transform_draw_corners(&cage->bound, w, h);
+	rect_transform_draw_corners(&r, w, h);
 	
 	glPopMatrix();
 }
@@ -700,22 +705,52 @@ static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const str
 	float pointrot[2];
 	float matrot[2][2];
 	bool isect;
+	rctf r;
 
+	r.xmin = cage->transform.ofx;
+	r.ymin = cage->transform.ofy;
+	r.xmax = cage->transform.ofx + cage->transform.w;
+	r.ymax = cage->transform.ofy + cage->transform.h;
+	
 	/* rotate mouse in relation to the center and relocate it */
 	sub_v2_v2v2(pointrot, mouse, widget->origin);
 
-	rotate_m2(matrot, -cage->rotation);
+	rotate_m2(matrot, -cage->transform.rotation);
 
-	isect = BLI_rctf_isect_pt_v(&cage->bound, pointrot);
+	isect = BLI_rctf_isect_pt_v(&r, pointrot);
 	
 	return isect;
 }
 
 typedef struct RectTransformInteraction {
-	float orig_offset;
+	float orig_ofx;
+	float orig_ofy;
 	float orig_mouse[2];
-	float orig_origin[2];
+	wmRectTransformWidget *tw;
 } RectTransformInteraction;
+
+static wmRectTransformWidget *widget_rect_transform_get_property(struct wmWidget *widget)
+{
+	PropertyType type = RNA_property_type(widget->prop);
+	StructRNA *srna;
+
+	if (type != PROP_POINTER) {
+		fprintf(stderr, "Rect Transform widget can only be bound to WidgetRectTransform properties");
+		return NULL;
+	}
+	else if ((srna = RNA_property_pointer_type(&widget->ptr, widget->prop))) {
+		if (RNA_struct_is_a(srna, &RNA_WidgetRectTransform)) {
+			PointerRNA ptr = RNA_property_pointer_get(&widget->ptr, widget->prop);
+			return (wmRectTransformWidget *)ptr.data;
+		}
+		else {
+			fprintf(stderr, "Rect Transform widget can only be bound to WidgetRectTransform properties");
+		}
+	}
+
+	fprintf(stderr, "Could not determine struct type");	
+	return NULL;
+}
 
 static int widget_rect_transform_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
 {
@@ -724,15 +759,15 @@ static int widget_rect_transform_activate(struct bContext *UNUSED(C), const stru
 		RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
 
 		if (widget->prop) {
-			data->orig_offset = cage->offset;
+			data->orig_ofx = cage->transform.ofx;
+			data->orig_ofy = cage->transform.ofy;
+			
+			data->tw = widget_rect_transform_get_property(widget);
 		}
 
 		data->orig_mouse[0] = event->mval[0];
 		data->orig_mouse[1] = event->mval[1];
 
-		data->orig_origin[0] = widget->origin[0];
-		data->orig_origin[1] = widget->origin[1];
-		
 		widget->interaction_data = data;
 	}
 	else if (state == WIDGET_DEACTIVATE) {
@@ -743,22 +778,24 @@ static int widget_rect_transform_activate(struct bContext *UNUSED(C), const stru
 	return OPERATOR_FINISHED;
 }
 
-static int widget_rect_transform_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
+static int widget_rect_transform_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *UNUSED(op))
 {
+	RectTransformWidget *cage = (RectTransformWidget *) widget;
 	RectTransformInteraction *data = widget->interaction_data;
 	ARegion *ar = CTX_wm_region(C);
+	float valuex, valuey;
+	
+	valuex = data->orig_ofx + (event->mval[0] - data->orig_mouse[0]);
+	valuey = data->orig_ofy + (event->mval[1] - data->orig_mouse[1]);
+	
+	cage->transform.ofx = valuex;
+	cage->transform.ofy = valuey;
 	
 	if (widget->prop) {
-		float value;
-		
-		value = data->orig_offset + (event->mval[0] - data->orig_mouse[0]);
-		
-		RNA_property_float_set(&widget->ptr, widget->prop, value);
+		data->tw->ofx = valuex;
+		data->tw->ofy = valuey;
 		RNA_property_update(C, &widget->ptr, widget->prop);
-		
-		widget->origin[0] = data->orig_origin[0] + (event->mval[0] - data->orig_mouse[0]);
 	}
-	
 	
 	/* tag the region for redraw */
 	ED_region_tag_redraw(ar);
@@ -766,10 +803,11 @@ static int widget_rect_transform_handler(struct bContext *C, const struct wmEven
 	return OPERATOR_PASS_THROUGH;
 }
 
-static void widget_cage_bind_to_prop(struct wmWidget *widget)
+static void widget_rect_transform_bind_to_prop(struct wmWidget *widget)
 {
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
-	cage->offset = RNA_property_float_get(&widget->ptr, widget->prop);
+	
+	cage->transform = *widget_rect_transform_get_property(widget);
 }
 
 struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, void *customdata)
@@ -779,7 +817,7 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	cage->widget.customdata = customdata;
 	cage->widget.draw = widget_rect_transform_draw;
 	cage->widget.activate_state = widget_rect_transform_activate;
-	cage->widget.bind_to_prop = widget_cage_bind_to_prop;
+	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
 	cage->widget.handler = widget_rect_transform_handler;
 	cage->widget.intersect = widget_rect_tranfrorm_intersect;
 	cage->widget.user_scale = 1.0f;
@@ -789,23 +827,6 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	
 	return (wmWidget *)cage;
 }
-
-void WIDGET_rect_transform_bind_to_rotation(struct wmWidget *widget, float rotation)
-{
-	RectTransformWidget *cage = (RectTransformWidget *)widget;
-	
-	cage->rotation = rotation;
-}
-
-void WIDGET_rect_transform_bounds_set(struct wmWidget *widget, float w, float h)
-{
-	RectTransformWidget *cage = (RectTransformWidget *)widget;
-	cage->bound.xmax = w;
-	cage->bound.ymax = h;
-	cage->bound.xmin = 0.0;
-	cage->bound.ymin = 0.0;
-}
-
 
 void fix_linking_widget_lib(void)
 {
