@@ -54,10 +54,17 @@ typedef struct BMEditStrands {
 	struct Object *ob;
 	struct DerivedMesh *root_dm;
 	
+	int flag;
+	
 	unsigned int vertex_glbuf;
 	unsigned int elem_glbuf;
 	unsigned int dot_glbuf;
 } BMEditStrands;
+
+/* BMEditStrands->flag */
+typedef enum BMEditStrandsFlag {
+	BM_STRANDS_DIRTY_SEGLEN     = 1,
+} BMEditStrandsFlag;
 
 struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm, struct DerivedMesh *root_dm);
 struct BMEditStrands *BKE_editstrands_copy(struct BMEditStrands *es);
@@ -67,9 +74,8 @@ void BKE_editstrands_free(struct BMEditStrands *es);
 
 /* === constraints === */
 
-void BKE_editstrands_calc_segment_lengths(struct BMesh *bm);
-
 void BKE_editstrands_solve_constraints(struct BMEditStrands *es);
+void BKE_editstrands_ensure(struct BMEditStrands *es);
 
 /* === particle conversion === */
 

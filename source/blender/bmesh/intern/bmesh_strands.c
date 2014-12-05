@@ -27,6 +27,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 #include "BLI_mempool.h"
 
 #include "bmesh.h"
@@ -115,3 +116,30 @@ int BM_strands_keys_count(BMVert *root)
 	return count;
 }
 
+/* ------------------------------------------------------------------------- */
+
+/* Create a new strand */
+BMVert *BM_strands_create(BMesh *bm, int len, bool set_defaults)
+{
+	float co[3] = {0.0f, 0.0f, 0.0f};
+	
+	BMVert *root, *v, *vprev;
+	int k;
+	
+	for (k = 0; k < len; ++k) {
+		vprev = v;
+		v = BM_vert_create(bm, co, NULL, set_defaults ? BM_CREATE_NOP : BM_CREATE_SKIP_CD);
+		
+		zero_v3(v->no);
+		
+		/* root */
+		if (k == 0) {
+			root = v;
+		}
+		else {
+			/*BMEdge *e =*/ BM_edge_create(bm, vprev, v, NULL, set_defaults ? BM_CREATE_NOP : BM_CREATE_SKIP_CD);
+		}
+	}
+	
+	return root;
+}

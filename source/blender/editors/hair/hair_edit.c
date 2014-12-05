@@ -308,15 +308,12 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	ARegion *ar = CTX_wm_region(C);
 	
-	float imat[4][4];
 	float mouse[2], mdelta[2], zvec[3], delta_max;
 	int totsteps, step;
 	HairToolData tool_data;
 	bool updated = false;
 	
 	RNA_float_get_array(itemptr, "mouse", mouse);
-	
-	invert_m4_m4(imat, ob->obmat);
 	
 	if (stroke->first) {
 		copy_v2_v2(stroke->lastmouse, mouse);
@@ -338,6 +335,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	tool_data.edit = edit;
 	tool_data.settings = settings;
 	
+	invert_m4_m4(tool_data.imat, ob->obmat);
 	copy_v2_v2(tool_data.mval, mouse);
 	tool_data.mdepth = stroke->zfac;
 	
@@ -345,8 +343,8 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	ED_view3d_win_to_3d(ar, zvec, mouse, tool_data.loc);
 	ED_view3d_win_to_delta(ar, mdelta, tool_data.delta, stroke->zfac);
 	/* tools work in object space */
-	mul_m4_v3(imat, tool_data.loc);
-	mul_mat3_m4_v3(imat, tool_data.delta);
+	mul_m4_v3(tool_data.imat, tool_data.loc);
+	mul_mat3_m4_v3(tool_data.imat, tool_data.delta);
 
 	for (step = 0; step < totsteps; ++step) {
 		bool step_updated = hair_brush_step(&tool_data);
