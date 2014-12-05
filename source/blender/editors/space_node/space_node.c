@@ -866,17 +866,14 @@ static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct w
 		SpaceNode *snode = CTX_wm_space_node(C);
 		ARegion *ar = CTX_wm_region(C);
 		float origin[3];
-		float xsize, ysize;
 		PointerRNA nodeptr;
 
-		xsize = snode->backdrop.scalex * ibuf->x;
-		ysize = snode->backdrop.scalex * ibuf->y;
-		
-		origin[0] = (ar->winx - xsize) / 2;
-		origin[1] = (ar->winy - ysize) / 2;
+		/* center is always at the origin */
+		origin[0] = ar->winx / 2;
+		origin[1] = ar->winy / 2;
 
-		snode->backdrop.w = xsize;
-		snode->backdrop.h = ysize;
+		snode->backdrop.w = ibuf->x;
+		snode->backdrop.h = ibuf->y;
 
 		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		

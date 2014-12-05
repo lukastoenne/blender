@@ -622,6 +622,11 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 
 /********* Cage widget ************/
 
+#define WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE      1
+#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT    2
+#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT   3
+#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP      4
+#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN    5
 
 typedef struct RectTransformWidget {
 	wmWidget widget;
@@ -654,33 +659,83 @@ static void rect_transform_draw_corners(rctf *r, float offsetx, float offsety)
 	glEnd();	
 }
 
+static void rect_transform_draw_interaction(int highlighted, float half_w, float half_h, float w, float h)
+{
+	rctf r;
+	
+	
+	switch (highlighted) {
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
+			r.xmin = -half_w;
+			r.ymin = -half_h;
+			r.xmax = -half_w + w;
+			r.ymax = half_h;
+			break;
+			
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT:
+			r.xmin = half_w - w;
+			r.ymin = -half_h;
+			r.xmax = half_w;
+			r.ymax = half_h;
+			break;
+			
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN:
+			r.xmin = -half_w;
+			r.ymin = -half_h;
+			r.xmax = half_w;
+			r.ymax = -half_h + h;
+			break;
+			
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP:
+			r.xmin = -half_w;
+			r.ymin = half_h - h;
+			r.xmax = half_w;
+			r.ymax = half_h;
+			break;
+			
+		default:
+			return;
+	}
+	
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glRectf(r.xmin, r.ymin, r.xmax, r.ymax);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
 static void widget_rect_transform_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	rctf r;
 	float w = cage->transform.w;
-	float h = cage->transform.h;
+	float h = cage->transform.h;	
+	float half_w = w / 2.0f;
+	float half_h = h / 2.0f;
 	float aspx = 1.0f, aspy = 1.0f;
 	
-	r.xmin = cage->transform.ofx;
-	r.ymin = cage->transform.ofy;
-	r.xmax = cage->transform.ofx + w;
-	r.ymax = cage->transform.ofy + h;
+	r.xmin = -half_w;
+	r.ymin = -half_h;
+	r.xmax = half_w;
+	r.ymax = half_h;
 	
 	glPushMatrix();
-	glTranslatef(widget->origin[0], widget->origin[1], 0.0f);
+	glTranslatef(widget->origin[0] + cage->transform.ofx, widget->origin[1] + cage->transform.ofy, 0.0f);
+	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
+		glScalef(cage->transform.scalex, cage->transform.scalex, 1.0);
+	else
+		glScalef(cage->transform.scalex, cage->transform.scaley, 1.0);
 	
 	if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 		glEnable(GL_BLEND);
 		glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
-		glRectf(cage->transform.ofx, cage->transform.ofy, cage->transform.ofx + w, cage->transform.ofy + h);
+		glRectf(r.xmin, r.ymin, r.xmax, r.ymax);
 		glDisable(GL_BLEND);
 	}
 	
 	if (w > h)
 		aspx = h / w;
-	else if (w < h)
+	else
 		aspy = w / h;
+	
 	w = aspx * w / 8.0f;
 	h = aspy * h / 8.0f;
 
@@ -695,6 +750,7 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 	glLineWidth(1.0);
 	rect_transform_draw_corners(&r, w, h);
 	
+	rect_transform_draw_interaction(widget->highlighted_part, half_w, half_h, w, h);
 	glPopMatrix();
 }
 
@@ -702,30 +758,92 @@ static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const str
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	float mouse[2] = {event->mval[0], event->mval[1]};
-	float pointrot[2];
-	float matrot[2][2];
+	float point_local[2];
+	float w = cage->transform.w;
+	float h = cage->transform.h;
+	float half_w = w / 2.0f;
+	float half_h = h / 2.0f;
+	//float matrot[2][2];
 	bool isect;
 	rctf r;
-
-	r.xmin = cage->transform.ofx;
-	r.ymin = cage->transform.ofy;
-	r.xmax = cage->transform.ofx + cage->transform.w;
-	r.ymax = cage->transform.ofy + cage->transform.h;
+	float aspx = 1.0f, aspy = 1.0f;
 	
 	/* rotate mouse in relation to the center and relocate it */
-	sub_v2_v2v2(pointrot, mouse, widget->origin);
+	sub_v2_v2v2(point_local, mouse, widget->origin);
+	point_local[0] -= cage->transform.ofx;
+	point_local[1] -= cage->transform.ofy;
+	//rotate_m2(matrot, -cage->transform.rotation);
 
-	rotate_m2(matrot, -cage->transform.rotation);
-
-	isect = BLI_rctf_isect_pt_v(&r, pointrot);
+	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
+		mul_v2_fl(point_local, 1.0f/cage->transform.scalex);
+	else {
+		point_local[0] /= cage->transform.scalex;
+		point_local[1] /= cage->transform.scaley;
+	}
 	
-	return isect;
+	if (cage->transform.w > cage->transform.h)
+		aspx = h / w;
+	else
+		aspy = w / h;
+	w = aspx * w / 8.0f;
+	h = aspy * h / 8.0f;
+
+	r.xmin = -half_w + w;
+	r.ymin = -half_h + h;
+	r.xmax = half_w - w;
+	r.ymax = half_h - h;
+	
+	isect = BLI_rctf_isect_pt_v(&r, point_local);
+	
+	if (isect)
+		return WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE;
+
+	r.xmin = -half_w;
+	r.ymin = -half_h;
+	r.xmax = -half_w + w;
+	r.ymax = half_h;
+	
+	isect = BLI_rctf_isect_pt_v(&r, point_local);
+
+	if (isect)
+		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT;
+	
+	r.xmin = half_w - w;
+	r.ymin = -half_h;
+	r.xmax = half_w;
+	r.ymax = half_h;
+	
+	isect = BLI_rctf_isect_pt_v(&r, point_local);
+	
+	if (isect)
+		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT;
+
+	r.xmin = -half_w;
+	r.ymin = -half_h;
+	r.xmax = half_w;
+	r.ymax = -half_h + h;
+	
+	isect = BLI_rctf_isect_pt_v(&r, point_local);
+
+	if (isect)
+		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN;
+	
+	r.xmin = -half_w;
+	r.ymin = half_h - h;
+	r.xmax = half_w;
+	r.ymax = half_h;
+
+	isect = BLI_rctf_isect_pt_v(&r, point_local);
+	
+	if (isect)
+		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP;
+	
+	return 0;
 }
 
 typedef struct RectTransformInteraction {
-	float orig_ofx;
-	float orig_ofy;
 	float orig_mouse[2];
+	wmRectTransformWidget orig_tw;
 	wmRectTransformWidget *tw;
 } RectTransformInteraction;
 
@@ -759,8 +877,7 @@ static int widget_rect_transform_activate(struct bContext *UNUSED(C), const stru
 		RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
 
 		if (widget->prop) {
-			data->orig_ofx = cage->transform.ofx;
-			data->orig_ofy = cage->transform.ofy;
+			data->orig_tw = cage->transform;
 			
 			data->tw = widget_rect_transform_get_property(widget);
 		}
@@ -785,15 +902,44 @@ static int widget_rect_transform_handler(struct bContext *C, const struct wmEven
 	ARegion *ar = CTX_wm_region(C);
 	float valuex, valuey;
 	
-	valuex = data->orig_ofx + (event->mval[0] - data->orig_mouse[0]);
-	valuey = data->orig_ofy + (event->mval[1] - data->orig_mouse[1]);
+	valuex = (event->mval[0] - data->orig_mouse[0]);
+	valuey = (event->mval[1] - data->orig_mouse[1]);
 	
-	cage->transform.ofx = valuex;
-	cage->transform.ofy = valuey;
+	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
+		cage->transform.ofx = data->orig_tw.ofx + valuex;
+		cage->transform.ofy = data->orig_tw.ofy + valuey;
+	}
+	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT) {
+		cage->transform.ofx = data->orig_tw.ofx + valuex / 2.0;
+		cage->transform.scalex = (data->orig_tw.w * data->orig_tw.scalex - valuex) / data->orig_tw.w;
+	}
+	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT) {
+		cage->transform.ofx = data->orig_tw.ofx + valuex / 2.0;
+		cage->transform.scalex = (data->orig_tw.w * data->orig_tw.scalex + valuex) / data->orig_tw.w;
+	}
+	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN) {
+		cage->transform.ofy = data->orig_tw.ofy + valuey / 2.0;
+		
+		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
+			cage->transform.scalex = (data->orig_tw.h * data->orig_tw.scalex - valuey) / data->orig_tw.h;
+		}
+		else {
+			cage->transform.scaley = (data->orig_tw.h * data->orig_tw.scaley - valuey) / data->orig_tw.h;
+		}
+	}
+	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP) {
+		cage->transform.ofy = data->orig_tw.ofy + valuey / 2.0;
+		
+		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
+			cage->transform.scalex = (data->orig_tw.h * data->orig_tw.scalex + valuey) / data->orig_tw.h;
+		}
+		else {
+			cage->transform.scaley = (data->orig_tw.h * data->orig_tw.scaley + valuey) / data->orig_tw.h;
+		}
+	}
 	
 	if (widget->prop) {
-		data->tw->ofx = valuex;
-		data->tw->ofy = valuey;
+		*data->tw = cage->transform;
 		RNA_property_update(C, &widget->ptr, widget->prop);
 	}
 	

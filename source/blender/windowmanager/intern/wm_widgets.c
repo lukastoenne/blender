@@ -276,6 +276,7 @@ void WM_widgets_draw(const bContext *C, struct ARegion *ar)
 						{
 							widget_iter->flag |= WM_WIDGET_HIGHLIGHT;
 							wmap->highlighted_widget = widget_iter;
+							widget_iter->highlighted_part = highlighted->highlighted_part;
 							wm_widget_delete(&wgroup->widgets, highlighted);
 							highlighted = NULL;
 						}
@@ -591,7 +592,7 @@ wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, cons
 
 void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part)
 {
-	if (widget != wmap->highlighted_widget) {
+	if (widget != wmap->highlighted_widget || (widget && part != widget->highlighted_part)) {
 		ARegion *ar = CTX_wm_region(C);
 
 		if (wmap->highlighted_widget) {
