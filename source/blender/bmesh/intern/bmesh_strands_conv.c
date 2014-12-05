@@ -473,9 +473,16 @@ static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSyst
 		}
 		
 		mul_v3_m4v3(hkey->co, inv_hairmat, v->co);
+		mul_v3_m4v3(hkey->world_co, ob->obmat, v->co);
 		
 		hkey->time = totkey > 0 ? (float)k / (float)(totkey - 1) : 0.0f;
-		hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_WEIGHT);
+		if (k == 0) {
+			/* weight 1.0 is used for pinning hair roots in particles */
+			hkey->weight = 1.0f;
+		}
+		else {
+			hkey->weight = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_WEIGHT);
+		}
 		
 		++hkey;
 		++k;
