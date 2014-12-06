@@ -39,6 +39,8 @@ BLI_INLINE bool BM_strands_vert_is_root(BMVert *v)
 	BMEdge *e_first = v->e;
 	BMEdge *e_next;
 	
+	if (!e_first)
+		return true; /* single vertex is both root and tip */
 	e_next = bmesh_disk_edge_next(e_first, v);
 	
 	/* with a single edge, the vertex is either first or last of the curve;
@@ -57,6 +59,8 @@ BLI_INLINE bool BM_strands_vert_is_tip(BMVert *v)
 	BMEdge *e_first = v->e;
 	BMEdge *e_next;
 	
+	if (!e_first)
+		return true; /* single vertex is both root and tip */
 	e_next = bmesh_disk_edge_next(e_first, v);
 	
 	/* with a single edge, the vertex is either first or last of the curve;
