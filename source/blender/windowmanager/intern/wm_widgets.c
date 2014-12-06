@@ -108,7 +108,7 @@ typedef struct wmWidgetGroupType {
 } wmWidgetGroupType;
 
 /**
- * This is a container for all widget types that can be instansiated in a area.
+ * This is a container for all widget types that can be instantiated in a region.
  * (similar to dropboxes).
  *
  * \note There is only ever one of these for every (area, region) combination.
@@ -436,12 +436,14 @@ wmWidgetMapType *WM_widgetmaptype_find(int spaceid, int regionid, bool is_3d)
 	wmWidgetMapType *wmaptype;
 	
 	for (wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
-		if (wmaptype->spaceid == spaceid && wmaptype->regionid == regionid && wmaptype->is_3d == is_3d) {
-			return wmaptype;
+		if (wmaptype->spaceid == spaceid && wmaptype->regionid == regionid) {
+			if (wmaptype->is_3d == is_3d) {
+				return wmaptype;
+			}
 		}
 	}
 	
-	wmaptype = MEM_callocN(sizeof(struct wmWidgetMapType), "widgettype list");
+	wmaptype = MEM_callocN(sizeof(wmWidgetMapType), "widgettype list");
 	wmaptype->spaceid = spaceid;
 	wmaptype->regionid = regionid;
 	wmaptype->is_3d = is_3d;
