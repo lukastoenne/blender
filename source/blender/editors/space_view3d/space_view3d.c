@@ -386,7 +386,7 @@ static SpaceLink *view3d_new(const bContext *C)
 	
 	BLI_addtail(&v3d->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
-	ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	ar->widgetmap = WM_widgetmap_from_type(SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	
 	ar->regiondata = MEM_callocN(sizeof(RegionView3D), "region view3d");
 
@@ -555,8 +555,9 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
 	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
-	if (!ar->widgetmap)
-		ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	if (!ar->widgetmap) {
+		ar->widgetmap = WM_widgetmap_from_type(SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	}
 
 	WM_event_add_widget_handler(ar);
 }
@@ -779,21 +780,21 @@ static void WIDGETGROUP_shapekey_draw(struct wmWidgetGroup *wgroup, const struct
 
 static void view3d_widgets(void)
 {
-	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	/*
-	struct wmWidgetGroupType *wgroup_manipulator = WM_widgetgrouptype_new(WIDGETGROUP_manipulator_create,
-	                                                                      WIDGETGROUP_manipulator_poll,
-	                                                                      WIDGETGROUP_manipulator_update,
-	                                                                      WIDGETGROUP_manipulator_free);
-	*/
-	struct wmWidgetGroupType *wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll,
-	                                                                WIDGETGROUP_lamp_draw);
+	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	wmWidgetGroupType *wgroup_light,*wgroup_camera, *wgroup_shapekey;
+	// struct wmWidgetGroupType *wgroup_manipulator;
 
-	struct wmWidgetGroupType *wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_poll,
-	                                                                 WIDGETGROUP_camera_draw);
+	wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_draw);
+	wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_draw);
+	wgroup_shapekey = WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll, WIDGETGROUP_shapekey_draw);
 
-	struct wmWidgetGroupType *wgroup_shapekey = WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll,
-	                                                                   WIDGETGROUP_shapekey_draw);
+#if 0
+	wgroup_manipulator = WM_widgetgrouptype_new(
+	        WIDGETGROUP_manipulator_create,
+	        WIDGETGROUP_manipulator_poll,
+	        WIDGETGROUP_manipulator_update,
+	        WIDGETGROUP_manipulator_free);
+#endif
 	
 	//WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
 	WM_widgetgrouptype_register(wmaptype, wgroup_light);

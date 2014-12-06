@@ -343,7 +343,7 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 
 	/* main area */
 	ar = MEM_callocN(sizeof(ARegion), "main area for node");
-	ar->widgetmap = WM_widgetmap_from_type("Node", SPACE_NODE, RGN_TYPE_WINDOW, true);
+	ar->widgetmap = WM_widgetmap_from_type(SPACE_NODE, RGN_TYPE_WINDOW, true);
 
 	BLI_addtail(&snode->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
@@ -664,8 +664,9 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
 	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
-	if (!ar->widgetmap)
-		ar->widgetmap = WM_widgetmap_from_type("Node", SPACE_NODE, RGN_TYPE_WINDOW, false);
+	if (!ar->widgetmap) {
+		ar->widgetmap = WM_widgetmap_from_type(SPACE_NODE, RGN_TYPE_WINDOW, false);
+	}
 
 	WM_event_add_widget_handler(ar);
 
@@ -887,9 +888,11 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 
 static void node_widgets(void)
 {
-	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("Node", SPACE_NODE, RGN_TYPE_WINDOW, false);
-	struct wmWidgetGroupType *wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll,
-	                                                                         WIDGETGROUP_node_transform_update);
+	struct wmWidgetMapType *wmaptype;
+	struct wmWidgetGroupType *wgroup_node_transform;
+
+	wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update);
+	wmaptype = WM_widgetmaptype_find(SPACE_NODE, RGN_TYPE_WINDOW, false);
 
 	WM_widgetgrouptype_register(wmaptype, wgroup_node_transform);
 }

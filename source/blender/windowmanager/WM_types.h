@@ -508,8 +508,6 @@ typedef struct wmTimer {
 	int sleep;				/* internal, put timers to sleep when needed */
 } wmTimer;
 
-typedef struct wmWidget wmWidget;
-
 typedef struct wmOperatorType {
 	const char *name;		/* text for ui, undo */
 	const char *idname;		/* unique identifier */
@@ -655,6 +653,8 @@ typedef struct wmDropBox {
  * Also they */
 typedef struct wmWidget wmWidget;
 typedef struct wmWidgetGroup wmWidgetGroup;
+typedef struct wmWidgetMapType wmWidgetMapType;
+typedef struct wmWidgetGroupType wmWidgetGroupType;
 
 /* *************** migrated stuff, clean later? ************** */
 
