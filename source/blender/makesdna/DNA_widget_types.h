@@ -43,4 +43,17 @@ typedef struct wmRectTransformWidget {
 	float pad;
 } wmRectTransformWidget;
 
+struct wmWidgetGroup {
+	struct wmWidgetGroup *next, *prev;
+
+	struct wmWidgetGroupType *type;
+	ListBase widgets;
+
+	void *py_instance;            /* python stores the class instance here */
+	struct ReportList *reports;   /* errors and warnings storage */
+
+	int flag;
+	int pad;
+};
+
 #endif

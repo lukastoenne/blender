@@ -64,6 +64,7 @@ struct wmOperatorType;
 struct wmWindow;
 struct wmWidget;
 struct wmWidgetGroup;
+struct wmWidgetGroupType;
 
 /* for derivedmesh drawing callbacks, for view3d_select, .... */
 typedef struct ViewContext {
@@ -370,8 +371,8 @@ void ED_view3d_operator_properties_viewmat_set(struct bContext *C, struct wmOper
 void ED_view3d_operator_properties_viewmat_get(struct wmOperator *op, int *winx, int *winy, float persmat[4][4]);
 #endif
 
-bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *wgroup, const struct bContext *C);
-void WIDGETGROUP_lamp_draw(struct wmWidgetGroup *wgroup, const struct bContext *C);
+int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
+void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
 /* render */
 void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View3D *v3d, struct ScrArea *sa);

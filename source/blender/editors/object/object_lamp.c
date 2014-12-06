@@ -203,7 +203,7 @@ void LAMP_OT_lamp_position(struct wmOperatorType *ot)
 	RNA_def_float_vector_xyz(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 }
 
-bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -214,7 +214,7 @@ bool WIDGETGROUP_lamp_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bC
 	return false;
 }
 
-void WIDGETGROUP_lamp_draw(struct wmWidgetGroup *wgroup, const struct bContext *C)
+void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_lamp[4] = {0.5f, 0.5f, 1.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);

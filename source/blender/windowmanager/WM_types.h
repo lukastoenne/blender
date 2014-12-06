@@ -656,6 +656,33 @@ typedef struct wmWidgetGroup wmWidgetGroup;
 typedef struct wmWidgetMapType wmWidgetMapType;
 typedef struct wmWidgetGroupType wmWidgetGroupType;
 
+/* factory class for a widgetgroup type, gets called every time a new area is spawned */
+typedef struct wmWidgetGroupType {
+	struct wmWidgetGroupType *next, *prev;
+
+	char idname[64];
+
+	/* poll if widgetmap should be active */
+	int (*poll)(const struct bContext *C, struct wmWidgetGroupType *wgrouptype) ATTR_WARN_UNUSED_RESULT;
+
+	/* update widgets, called right before drawing */
+	void (*draw)(const struct bContext *C, struct wmWidgetGroup *wgroup);
+
+	/* rna for properties */
+	struct StructRNA *srna;
+
+	/* RNA integration */
+	ExtensionRNA ext;
+
+	/* general flag */
+	int flag;
+
+	/* same as widgetmaps, so registering/unregistering goes to the correct region */
+	short spaceid, regionid;
+	bool is_3d;
+
+} wmWidgetGroupType;
+
 /* *************** migrated stuff, clean later? ************** */
 
 typedef struct RecentFile {

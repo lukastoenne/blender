@@ -703,7 +703,7 @@ static void view3d_dropboxes(void)
 }
 
 
-static bool WIDGETGROUP_camera_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+static int WIDGETGROUP_camera_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -714,7 +714,7 @@ static bool WIDGETGROUP_camera_poll(struct wmWidgetGroup *UNUSED(wgroup), const 
 	return false;
 }
 
-static void WIDGETGROUP_camera_draw(struct wmWidgetGroup *wgroup, const struct bContext *C)
+static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
@@ -738,7 +738,7 @@ static void WIDGETGROUP_camera_draw(struct wmWidgetGroup *wgroup, const struct b
 }
 
 
-static bool WIDGETGROUP_shapekey_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+static int WIDGETGROUP_shapekey_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -757,7 +757,7 @@ static bool WIDGETGROUP_shapekey_poll(struct wmWidgetGroup *UNUSED(wgroup), cons
 	return false;
 }
 
-static void WIDGETGROUP_shapekey_draw(struct wmWidgetGroup *wgroup, const struct bContext *C)
+static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
@@ -780,7 +780,7 @@ static void WIDGETGROUP_shapekey_draw(struct wmWidgetGroup *wgroup, const struct
 
 static void view3d_widgets(void)
 {
-	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
 	wmWidgetGroupType *wgroup_light,*wgroup_camera, *wgroup_shapekey;
 	// struct wmWidgetGroupType *wgroup_manipulator;
 

@@ -73,6 +73,7 @@ struct ImBuf;
 struct ImageFormatData;
 struct ARegion;
 struct wmNDOFMotionData;
+struct Main;
 
 typedef struct wmJob wmJob;
 
@@ -471,8 +472,8 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 
 /* widget API */
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
-        bool (*poll)(struct wmWidgetGroup *, const struct bContext *),
-        void (*draw)(struct wmWidgetGroup *, const struct bContext *));
+        int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+        void (*draw)(const struct bContext *, struct wmWidgetGroup *));
 
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
@@ -496,13 +497,11 @@ void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale);
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
 
-void *WM_widgetgroup_customdata(struct wmWidgetGroup *wgroup);
-void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
-
-struct wmWidgetMapType *WM_widgetmaptype_find(int spaceid, int regionid, bool is_3d);
+struct wmWidgetMapType *WM_widgetmaptype_find(int spaceid, int regionid, bool is_3d, bool create);
 
 bool WM_widgetgrouptype_register(struct wmWidgetMapType *wmap, struct wmWidgetGroupType *wgroup);
 void WM_widgetgrouptype_unregister(struct wmWidgetMapType *wmap, struct wmWidgetGroupType *wgroup);
+void WM_widgetgrouptype_free(struct Main *bmain, struct wmWidgetGroupType *wgroup);
 
 /* creates a widgetmap with all registered widgets for that type */
 struct wmWidgetMap *WM_widgetmap_from_type(int spaceid, int regionid, bool is_3d);

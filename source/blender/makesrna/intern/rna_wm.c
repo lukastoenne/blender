@@ -518,6 +518,26 @@ static PointerRNA rna_Operator_properties_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, op->type->srna, op->properties);
 }
 
+static void rna_WidgetGroup_name_get(PointerRNA *ptr, char *value)
+{
+	wmWidgetGroup *wgroup = ptr->data;
+	strcpy(value, "Dummy_XXX" /*wgroup->type->name*/);
+	(void)wgroup;
+}
+
+static int rna_WidgetGroup_name_length(PointerRNA *ptr)
+{
+	wmWidgetGroup *wgroup = ptr->data;
+	return strlen("Dummy_XXX" /*wgroup->type->name*/);
+	(void)wgroup;
+}
+
+static int rna_WidgetGroup_has_reports_get(PointerRNA *ptr)
+{
+	wmWidgetGroup *wgroup = ptr->data;
+	return (wgroup->reports && wgroup->reports->list.first);
+}
+
 static PointerRNA rna_OperatorMacro_properties_get(PointerRNA *ptr)
 {
 	wmOperatorTypeMacro *otmacro = (wmOperatorTypeMacro *)ptr->data;
@@ -1360,6 +1380,175 @@ static void rna_Operator_bl_description_set(PointerRNA *ptr, const char *value)
 		assert(!"setting the bl_description on a non-builtin operator");
 }
 
+#ifdef WITH_PYTHON
+static void rna_WidgetGroup_unregister(struct Main *bmain, StructRNA *type)
+{
+	//const char *idname;
+	wmWidgetGroupType *wgrouptype = RNA_struct_blender_type_get(type);
+	//wmWindowManager *wm;
+	//wmWidgetMapType *wmap = NULL;
+
+	if (!wgrouptype)
+		return;
+
+	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
+
+	//RNA_struct_free_extension(type, &wgrouptype->ext);
+
+	WM_widgetgrouptype_free(bmain, wgrouptype);
+	//WM_operatortype_remove_ptr(ot);
+	//WM_widgetgrouptype_unregister(wmap, wgrouptype);
+
+	/* not to be confused with the RNA_struct_free that WM_operatortype_remove calls, they are 2 different srna's */
+	RNA_struct_free(&BLENDER_RNA, type);
+}
+
+static int widgetgroup_poll(const bContext *C, wmWidgetGroupType *wgrouptype)
+{
+
+	extern FunctionRNA rna_WidgetGroup_poll_func;
+
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	void *ret;
+	int visible;
+
+	RNA_pointer_create(NULL, wgrouptype->ext.srna, NULL, &ptr); /* dummy */
+	func = &rna_WidgetGroup_poll_func; /* RNA_struct_find_function(&ptr, "poll"); */
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "context", &C);
+	wgrouptype->ext.call((bContext *)C, &ptr, func, &list);
+
+	RNA_parameter_get_lookup(&list, "visible", &ret);
+	visible = *(int *)ret;
+
+	RNA_parameter_list_free(&list);
+
+	return visible;
+}
+
+static void widgetgroup_draw(const bContext *C, wmWidgetGroup *wgroup)
+{
+	extern FunctionRNA rna_WidgetGroup_draw_func;
+
+	PointerRNA wgroup_ptr;
+	ParameterList list;
+	FunctionRNA *func;
+
+	RNA_pointer_create(NULL, wgroup->type->ext.srna, wgroup, &wgroup_ptr);
+	func = &rna_WidgetGroup_draw_func; /* RNA_struct_find_function(&wgroupr, "draw"); */
+
+	RNA_parameter_list_create(&list, &wgroup_ptr, func);
+	RNA_parameter_set_lookup(&list, "context", &C);
+	wgroup->type->ext.call((bContext *)C, &wgroup_ptr, func, &list);
+
+	RNA_parameter_list_free(&list);
+}
+#if 0
+
+/* same as exec(), but call cancel */
+static void operator_cancel(bContext *C, wmWidgetGroup *op)
+{
+	extern FunctionRNA rna_WidgetGroup_cancel_func;
+
+	PointerRNA opr;
+	ParameterList list;
+	FunctionRNA *func;
+
+	RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
+	func = &rna_WidgetGroup_cancel_func; /* RNA_struct_find_function(&opr, "cancel"); */
+
+	RNA_parameter_list_create(&list, &opr, func);
+	RNA_parameter_set_lookup(&list, "context", &C);
+	op->type->ext.call(C, &opr, func, &list);
+
+	RNA_parameter_list_free(&list);
+}
+#endif
+
+void widgetgroup_wrapper(wmWidgetGroupType *ot, void *userdata);
+
+static char _widgetgroup_idname[OP_MAX_TYPENAME];
+//static char _widgetgroup_name[OP_MAX_TYPENAME];
+//static char _widgetgroup_descr[RNA_DYN_DESCR_MAX];
+//static char _widgetgroup_ctxt[RNA_DYN_DESCR_MAX];
+static StructRNA *rna_WidgetGroup_register(Main *UNUSED(bmain), ReportList *reports, void *data, const char *identifier,
+                                        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+{
+
+	wmWidgetGroupType *wgrouptype, dummywgt = {NULL};
+	wmWidgetGroup dummywg = {NULL};
+	PointerRNA wgptr;
+	int have_function[2];
+
+	/* setup dummy widgetgroup & widgetgroup type to store static properties in */
+	dummywg.type = &dummywgt;
+	RNA_pointer_create(NULL, &RNA_WidgetGroup, &dummywg, &wgptr);
+
+	/* clear in case they are left unset */
+	_widgetgroup_idname[0] = '\0';
+
+	/* validate the python class */
+	if (validate(&wgptr, data, have_function) != 0)
+		return NULL;
+
+	if (strlen(identifier) >= sizeof(dummywgt.idname)) {
+		BKE_reportf(reports, RPT_ERROR, "Registering widgetgroup class: '%s' is too long, maximum length is %d",
+		            identifier, (int)sizeof(dummywgt.idname));
+		return NULL;
+	}
+
+#if 0
+	/* check if we have registered this widgetgroup type before, and remove it */
+	{
+		//wmWidgetGroupType *ot = WM_widgetgrouptype_find(dummywgt.idname, true);
+		if (ot && ot->ext.srna)
+			rna_WidgetGroup_unregister(bmain, ot->ext.srna);
+	}
+
+#endif
+	/* XXX, this doubles up with the widgetgroup name [#29666]
+	 * for now just remove from dir(bpy.types) */
+
+	/* create a new widgetgroup type */
+	dummywgt.ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummywgt.idname, &RNA_WidgetGroup);
+	RNA_def_struct_flag(dummywgt.ext.srna, STRUCT_NO_IDPROPERTIES); /* widgetgroup properties are registered separately */
+	dummywgt.ext.data = data;
+	dummywgt.ext.call = call;
+	dummywgt.ext.free = free;
+
+	dummywgt.poll = (have_function[0]) ? widgetgroup_poll : NULL;
+	dummywgt.draw = (have_function[1]) ? widgetgroup_draw : NULL;
+
+	wgrouptype = WM_widgetgrouptype_new(NULL, NULL);
+	memcpy(wgrouptype, &dummywgt, sizeof(dummywgt));
+
+	/* update while blender is running */
+	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
+
+	dummywgt.ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummywgt.idname, &RNA_WidgetGroup);
+
+	return dummywgt.ext.srna;
+}
+
+//RNA_struct_blender_type_set(pt->ext.srna, pt);
+
+static void **rna_WidgetGroup_instance(PointerRNA *ptr)
+{
+	wmWidgetGroup *wgroup = ptr->data;
+	return &wgroup->py_instance;
+}
+
+static StructRNA *rna_WidgetGroup_refine(PointerRNA *wgroup_ptr)
+{
+	wmWidgetGroup *wgroup = wgroup_ptr->data;
+	return (wgroup->type && wgroup->type->ext.srna) ? wgroup->type->ext.srna : &RNA_WidgetGroup;
+}
+
+#endif
+
 static void rna_KeyMapItem_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	wmKeyMapItem *kmi = ptr->data;
@@ -1570,7 +1759,62 @@ static void rna_def_operator_filelist_element(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_IDPROPERTY);
 	RNA_def_property_ui_text(prop, "Name", "Name of a file or directory within a file list");
 }
-	
+
+static void rna_def_widgetgroup(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "WidgetGroup", NULL);
+	RNA_def_struct_ui_text(srna, "WidgetGroup", "Storage of an operator being executed, or registered after execution");
+	RNA_def_struct_sdna(srna, "wmWidgetGroup");
+	RNA_def_struct_refine_func(srna, "rna_WidgetGroup_refine");
+#ifdef WITH_PYTHON
+	RNA_def_struct_register_funcs(srna, "rna_WidgetGroup_register", "rna_WidgetGroup_unregister", "rna_WidgetGroup_instance");
+#endif
+	RNA_def_struct_translation_context(srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_string_funcs(prop, "rna_WidgetGroup_name_get", "rna_WidgetGroup_name_length", NULL);
+	RNA_def_property_ui_text(prop, "Name", "");
+
+	prop = RNA_def_property(srna, "has_reports", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* this is 'virtual' property */
+	RNA_def_property_boolean_funcs(prop, "rna_WidgetGroup_has_reports_get", NULL);
+	RNA_def_property_ui_text(prop, "Has Reports",
+	                         "WidgetGroup has a set of reports (warnings and errors) from last execution");
+
+	/* Registration */
+	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "type->idname");
+	/* RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
+	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_struct_name_property(srna, prop);
+
+	prop = RNA_def_property(srna, "bl_space_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type->spaceid");
+	RNA_def_property_enum_items(prop, space_type_items);
+	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_ui_text(prop, "Space type", "The space where the panel is going to be used in");
+
+	prop = RNA_def_property(srna, "bl_region_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type->regionid");
+	RNA_def_property_enum_items(prop, region_type_items);
+	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_ui_text(prop, "Region Type", "The region where the panel is going to be used in");
+
+#if 0
+	prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type->flag");
+	RNA_def_property_enum_items(prop, operator_flag_items);
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Options",  "Options for this operator type");
+#endif
+
+	RNA_api_widgetgroup(srna);
+}
+
 static void rna_def_event(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2144,6 +2388,7 @@ void RNA_def_wm(BlenderRNA *brna)
 	rna_def_operator_filelist_element(brna);
 	rna_def_macro_operator(brna);
 	rna_def_operator_type_macro(brna);
+	rna_def_widgetgroup(brna);
 	rna_def_event(brna);
 	rna_def_timer(brna);
 	rna_def_popupmenu(brna);

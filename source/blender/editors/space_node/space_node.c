@@ -838,7 +838,7 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
-static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+static int WIDGETGROUP_node_transform_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -852,7 +852,7 @@ static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup)
 	return false;
 }
 
-static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	Image *ima;
 	ImBuf *ibuf;
@@ -892,7 +892,7 @@ static void node_widgets(void)
 	struct wmWidgetGroupType *wgroup_node_transform;
 
 	wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update);
-	wmaptype = WM_widgetmaptype_find(SPACE_NODE, RGN_TYPE_WINDOW, false);
+	wmaptype = WM_widgetmaptype_find(SPACE_NODE, RGN_TYPE_WINDOW, false, true);
 
 	WM_widgetgrouptype_register(wmaptype, wgroup_node_transform);
 }
