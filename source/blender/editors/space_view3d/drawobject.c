@@ -7964,7 +7964,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->mode & OB_MODE_HAIR_EDIT && is_obact) {
 			BMEditStrands *edit = BKE_editstrands_from_object(ob);
 			if (edit) {
-				draw_strands_edit_hair(scene, v3d, edit);
+				draw_strands_edit_hair(scene, v3d, ar, edit);
 			}
 		}
 	}

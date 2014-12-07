@@ -354,7 +354,7 @@ static void draw_dots(BMEditStrands *edit, const StrandsDrawInfo *info, bool sel
 		glDrawArrays(GL_POINTS, 0, totelem);
 }
 
-void draw_strands_edit_hair(Scene *scene, View3D *v3d, BMEditStrands *edit)
+void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *ar, BMEditStrands *edit)
 {
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	
@@ -376,4 +376,10 @@ void draw_strands_edit_hair(Scene *scene, View3D *v3d, BMEditStrands *edit)
 	unbind_gpu_buffers_dots();
 	
 	restore_opengl_state(&info);
+	
+	/* debugging */
+	if (edit->debug_data) {
+		Base *base = BASACT;
+		draw_sim_debug_data(scene, v3d, ar, base, edit->debug_data);
+	}
 }
