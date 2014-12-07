@@ -42,8 +42,9 @@
 #include "BKE_bvhutils.h"
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
-#include "BKE_editstrands.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_editstrands.h"
+#include "BKE_effect.h"
 #include "BKE_mesh_sample.h"
 #include "BKE_particle.h"
 
@@ -66,6 +67,7 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
 	
 	es_copy->bm = BM_mesh_copy(es->bm);
 	es_copy->root_dm = CDDM_copy(es->root_dm);
+	es_copy->debug_data = NULL;
 	
 	return es_copy;
 }
@@ -97,6 +99,8 @@ void BKE_editstrands_free(BMEditStrands *es)
 		BM_mesh_free(es->bm);
 	if (es->root_dm)
 		es->root_dm->release(es->root_dm);
+	if (es->debug_data)
+		BKE_sim_debug_data_free(es->debug_data);
 }
 
 /* === constraints === */
