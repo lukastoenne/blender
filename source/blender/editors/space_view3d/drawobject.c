@@ -57,7 +57,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
-#include "BKE_edithair.h"
+#include "BKE_editstrands.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_image.h"

@@ -31,7 +31,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_edithair.h"
+#include "BKE_editstrands.h"
 #include "BKE_main.h"
 
 #include "bmesh.h"
