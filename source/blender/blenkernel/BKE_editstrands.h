@@ -25,10 +25,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BKE_EDITHAIR_H__
-#define __BKE_EDITHAIR_H__
+#ifndef __BKE_EDITSTRANDS_H__
+#define __BKE_EDITSTRANDS_H__
 
-/** \file blender/editors/hair/BKE_edithair.h
+/** \file blender/blenkernel/BKE_editstrands.h
  *  \ingroup bke
  */
 

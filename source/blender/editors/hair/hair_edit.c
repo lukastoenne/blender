@@ -48,7 +48,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_edithair.h"
+#include "BKE_editstrands.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 

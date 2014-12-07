@@ -54,7 +54,7 @@
 
 #include "BKE_customdata.h"
 #include "BKE_customdata_file.h"
-#include "BKE_edithair.h"
+#include "BKE_editstrands.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_multires.h"
