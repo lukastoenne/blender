@@ -44,7 +44,7 @@
 
 #include "BKE_brush.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_edithair.h"
+#include "BKE_editstrands.h"
 #include "BKE_mesh_sample.h"
 
 #include "bmesh.h"

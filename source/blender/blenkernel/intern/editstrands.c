@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/hair/edithair.c
+/** \file blender/blenkernel/intern/editstrands.c
  *  \ingroup bke
  */
 
@@ -42,7 +42,7 @@
 #include "BKE_bvhutils.h"
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
-#include "BKE_edithair.h"
+#include "BKE_editstrands.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
 #include "BKE_particle.h"

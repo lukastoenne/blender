@@ -43,7 +43,7 @@
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_edithair.h"
+#include "BKE_editstrands.h"
 
 #include "bmesh.h"
 
