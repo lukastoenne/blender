@@ -185,7 +185,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 void draw_sim_debug_data(Scene *scene, View3D *v3d, ARegion *ar, Base *base, struct SimDebugData *debug_data);
 
 /* drawstrands.c */
-void draw_strands_edit_hair(Scene *scene, View3D *v3d, struct BMEditStrands *edit);
+void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *ar, struct BMEditStrands *edit);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);

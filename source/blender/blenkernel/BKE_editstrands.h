@@ -59,6 +59,8 @@ typedef struct BMEditStrands {
 	unsigned int vertex_glbuf;
 	unsigned int elem_glbuf;
 	unsigned int dot_glbuf;
+	
+	struct SimDebugData *debug_data;
 } BMEditStrands;
 
 /* BMEditStrands->flag */

@@ -77,6 +77,8 @@ EnumPropertyItem symmetrize_direction_items[] = {
 
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_editstrands.h"
+#include "BKE_effect.h"
 #include "BKE_pointcache.h"
 #include "BKE_particle.h"
 #include "BKE_depsgraph.h"
@@ -372,7 +374,30 @@ static void rna_HairEdit_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *U
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
 
-static void rna_Hair_brush_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_HairEdit_show_debug_data_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	HairEditSettings *settings = ptr->data;
+	Object *ob = OBACT;
+	
+	if (ob) {
+		BMEditStrands *edit = BKE_editstrands_from_object(ob);
+		if (edit) {
+			if (edit->debug_data) {
+				/* always free debug data, that way resetting acts as a forced clear */
+				BKE_sim_debug_data_free(edit->debug_data);
+				edit->debug_data = NULL;
+			}
+			
+			if (settings->flag & HAIR_EDIT_SHOW_DEBUG) {
+				edit->debug_data = BKE_sim_debug_data_new();
+			}
+		}
+	}
+	
+	rna_HairEdit_update(bmain, scene, ptr);
+}
+
+static void rna_HairEdit_brush_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	HairEditSettings *settings = ptr->data;
 	Brush *brush = settings->brush;
@@ -984,7 +1009,7 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Brush_mode_poll");
 	RNA_def_property_ui_text(prop, "Brush", "Active Brush");
-	RNA_def_property_update(prop, 0, "rna_Hair_brush_update");
+	RNA_def_property_update(prop, 0, "rna_HairEdit_brush_update");
 
 	prop = RNA_def_property(srna, "select_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "select_mode");
@@ -996,6 +1021,11 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Shape Object", "Outer shape to use for tools");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_HairEdit_update");
+
+	prop = RNA_def_property(srna, "show_debug_data", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_EDIT_SHOW_DEBUG);
+	RNA_def_property_ui_text(prop, "Show Debug Data", "");
+	RNA_def_property_update(prop, 0, "rna_HairEdit_show_debug_data_update");
 }
 
 void RNA_def_sculpt_paint(BlenderRNA *brna)

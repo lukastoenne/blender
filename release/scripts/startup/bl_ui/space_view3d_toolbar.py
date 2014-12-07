@@ -1826,6 +1826,22 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
             sub.prop(pe, "fade_frames", slider=True)
 
 
+class VIEW3D_PT_tools_hairmode(View3DPanel, Panel):
+    """Tools for hair mode"""
+    bl_context = "hairmode"
+    bl_label = "Options"
+    bl_category = "Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = context.tool_settings.hair_edit
+        ob = context.active_object
+
+        col = layout.column(align=True)
+        col.prop(settings, "show_debug_data", text="Debug")
+
+
 # Grease Pencil drawing tools
 class VIEW3D_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):
     bl_space_type = 'VIEW_3D'
