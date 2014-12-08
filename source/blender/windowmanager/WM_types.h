@@ -676,6 +676,9 @@ typedef struct wmWidgetGroupType {
 
 	/* general flag */
 	int flag;
+	
+	/* if type is spawned from operator this is set here */
+	void *op;
 
 	/* same as widgetmaps, so registering/unregistering goes to the correct region */
 	short spaceid, regionid;

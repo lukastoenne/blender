@@ -723,14 +723,14 @@ static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGro
 	PointerRNA cameraptr;
 	float dir[3];
 
-	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_CROSS, NULL);
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_CROSS);
 	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_set_3d_scale(widget, false);
 	WIDGET_arrow_set_color(widget, color_camera);
 	
 	RNA_pointer_create(&ca->id, &RNA_Camera, ca, &cameraptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, &cameraptr, "dof_distance");
+	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, "dof_distance");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
@@ -767,12 +767,12 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 	PointerRNA shapeptr;
 	float dir[3];
 
-	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL, NULL);
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
 	WM_widget_set_3d_scale(widget, false);
 	WIDGET_arrow_set_color(widget, color_shape);
 	RNA_pointer_create(&key->id, &RNA_ShapeKey, kb, &shapeptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, &shapeptr, "value");
+	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &shapeptr, "value");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 }

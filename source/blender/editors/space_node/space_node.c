@@ -307,8 +307,7 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 	snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
 
 	/* backdrop */
-	snode->backdrop.scalex = 1.0f;
-	snode->backdrop.w = snode->backdrop.h = 64.0f;
+	snode->backdrop_zoom = 1.0f;
 
 	/* select the first tree type for valid type */
 	NODE_TREE_TYPES_BEGIN (treetype)
@@ -861,24 +860,26 @@ static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct w
 	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 	if (ibuf) {
-		wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM, NULL);
-		
+		wmWidget *cage;
 		SpaceNode *snode = CTX_wm_space_node(C);
 		ARegion *ar = CTX_wm_region(C);
 		float origin[3];
+		float w, h;
 		PointerRNA nodeptr;
 
 		/* center is always at the origin */
 		origin[0] = ar->winx / 2;
 		origin[1] = ar->winy / 2;
 
-		snode->backdrop.w = ibuf->x;
-		snode->backdrop.h = ibuf->y;
+		w = (ibuf->x > 0) ? ibuf->x : 64.0f;
+		h = (ibuf->y > 0) ? ibuf->y : 64.0f;
 
+		cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM, w, h);
 		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		
 		WM_widget_set_origin(cage, origin);
-		WM_widget_property(cage, &nodeptr, "backdrop");
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, &nodeptr, "backdrop_offset");
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, &nodeptr, "backdrop_zoom");
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }

@@ -52,8 +52,8 @@ typedef struct wmPaintCursor {
 /* widgets are set per screen/area/region by registering them on widgetmaps */
 typedef struct wmWidget {
 	struct wmWidget *next, *prev;
-
-	void *customdata;
+	
+	char idname[64];
 
 	/* draw widget */
 	void (*draw)(struct wmWidget *widget, const struct bContext *C);
@@ -64,10 +64,10 @@ typedef struct wmWidget {
 	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, int selectionbase);
 
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
-	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op);
+	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
 	/* widget-specific handler to update widget attributes when a property is bound */
-	void (*bind_to_prop)(struct wmWidget *widget);
+	void (*bind_to_prop)(struct wmWidget *widget, int slot);
 
 	/* returns the final position which may be different from the origin, depending on the widget.
 	 * used in calculations of scale */
@@ -95,14 +95,28 @@ typedef struct wmWidget {
 	/* name of operator to spawn when activating the widget */
 	const char *opname;
 
-	/* property name of the operator or pointer that the widget controls */
-	const char *propname;
-
 	/* operator properties if widget spawns and controls an operator, or owner pointer if widget spawns and controls a property */
-	struct PointerRNA ptr;
 	struct PointerRNA opptr;
-	struct PropertyRNA *prop;
+
+	/* maximum number of properties attached to the widget */
+	int max_prop;
+	
+	/* arrays of properties attached to various widget parameters. As the widget is interacted with, those properties get updated */
+	struct PointerRNA *ptr;
+	struct PropertyRNA **props;
 } wmWidget;
+
+typedef struct wmWidgetMap {
+	struct wmWidgetMap *next, *prev;
+	
+	struct wmWidgetMapType *type;
+	ListBase widgetgroups;
+	
+	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
+	wmWidget *highlighted_widget;
+	/* active widget for this map. User has clicked and is currently this widget  */
+	wmWidget *active_widget;
+} wmWidgetMap;
 
 #define WIDGET_ACTIVATE 1
 #define WIDGET_DEACTIVATE 2
@@ -113,12 +127,9 @@ enum widgetflags {
 	WM_WIDGET_HIGHLIGHT  = (1 << 0),
 	WM_WIDGET_ACTIVE     = (1 << 1),
 
-	/* other stuff */
-	WM_WIDGET_FREE_DATA  = (1 << 2),
+	WM_WIDGET_DRAW_HOVER = (1 << 2),
 
-	WM_WIDGET_DRAW_HOVER = (1 << 3),
-
-	WM_WIDGET_SCALE_3D   = (1 << 4),
+	WM_WIDGET_SCALE_3D   = (1 << 3),
 };
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);

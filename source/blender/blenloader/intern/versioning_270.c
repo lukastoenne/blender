@@ -445,7 +445,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
 					if (sl->spacetype == SPACE_NODE) {
 						SpaceNode *snode = (SpaceNode *)sl;
-						snode->backdrop.scalex = 1.0;
+						snode->backdrop_zoom = 1.0;
 					}
 				}
 			}

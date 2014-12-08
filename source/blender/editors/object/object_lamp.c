@@ -223,13 +223,13 @@ void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgrou
 	PointerRNA ptr;
 	float dir[3];
 
-	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_INVERTED, NULL);
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_INVERTED);
 
 	WIDGET_arrow_set_color(widget, color_lamp);
 	
 	RNA_pointer_create(&la->id, &RNA_Lamp, la, &ptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, &ptr, "spot_size");
+	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, "spot_size");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 }

@@ -4520,7 +4520,7 @@ static int widget_tweak_modal(bContext *UNUSED(C), wmOperator *UNUSED(op), const
 
 static void WM_OT_widget_tweak(wmOperatorType *ot)
 {
-	ot->name = "Radial Control";
+	ot->name = "Widget Tweak";
 	ot->idname = "WM_OT_widget_tweak";
 	ot->description = "Tweak property attached to a widget";
 

@@ -255,7 +255,7 @@ static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UN
 
 #define ARROW_RANGE 1.5f
 
-static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *op)
+static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	ArrowInteraction *data = widget->interaction_data;
@@ -341,7 +341,7 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 	}
 
 	/* set the property for the operator and call its modal function */
-	if (widget->prop) {
+	if (widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) {
 		float value;
 
 		value = data->orig_offset + facdir * len_v3(offset);
@@ -352,21 +352,18 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 				value = arrow->min + (value * arrow->range / ARROW_RANGE);
 		}
 
-		RNA_property_float_set(&widget->ptr, widget->prop, value);
-		RNA_property_update(C, &widget->ptr, widget->prop);
+		RNA_property_float_set(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE], value);
+		RNA_property_update(C, &widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]);
 
 		/* accounts for clamping properly */
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - (RNA_property_float_get(&widget->ptr, widget->prop))) / arrow->range;
+				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - (RNA_property_float_get(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]))) / arrow->range;
 			else
-				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr, widget->prop) - arrow->min) / arrow->range);
+				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) - arrow->min) / arrow->range);
 		}
 		else
-			arrow->offset = RNA_property_float_get(&widget->ptr, widget->prop);
-	}
-	else if (op && widget->propname) {
-
+			arrow->offset = RNA_property_float_get(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]);
 	}
 	else {
 		arrow->offset = facdir * len_v3(offset);
@@ -385,9 +382,7 @@ static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEven
 		ArrowWidget *arrow = (ArrowWidget *) widget;
 		ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
 
-		if (widget->prop) {
-			data->orig_offset = arrow->offset;
-		}
+		data->orig_offset = arrow->offset;
 
 		data->orig_mouse[0] = event->mval[0];
 		data->orig_mouse[1] = event->mval[1];
@@ -405,32 +400,32 @@ static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEven
 	return OPERATOR_FINISHED;
 }
 
-static void widget_arrow_bind_to_prop(struct wmWidget *widget)
+static void widget_arrow_bind_to_prop(struct wmWidget *widget, int UNUSED(slot))
 {
 	ArrowWidget *arrow = (ArrowWidget *) widget;
 
-	if (widget->prop) {
+	if (widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) {
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			float min, max, step, precision;
 
-			RNA_property_float_ui_range(&widget->ptr, widget->prop, &min, &max, &step, &precision);
+			RNA_property_float_ui_range(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE], &min, &max, &step, &precision);
 			arrow->range = max - min;
 			arrow->min = min;
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(&widget->ptr, widget->prop))) / arrow->range;
+				arrow->offset = ARROW_RANGE * (max - (RNA_property_float_get(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]))) / arrow->range;
 			else
-				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr, widget->prop) - arrow->min) / arrow->range);
+				arrow->offset = ARROW_RANGE * ((RNA_property_float_get(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) - arrow->min) / arrow->range);
 		}
 		else {
 			/* we'd need to check the property type here but for now assume always float */
-			arrow->offset = RNA_property_float_get(&widget->ptr, widget->prop);
+			arrow->offset = RNA_property_float_get(&widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE], widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]);
 		}
 	}
 	else
 		arrow->offset = 0.0f;
 }
 
-wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style, void *customdata)
+wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
@@ -457,9 +452,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style, void *customdata)
 	arrow->widget.handler = widget_arrow_handler;
 	arrow->widget.activate_state = widget_arrow_activate;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
-	arrow->widget.customdata = customdata;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
-	arrow->widget.user_scale = 1.0f;
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
 	arrow->style = style;
 	copy_v3_v3(arrow->direction, dir_default);
@@ -578,7 +571,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C)
 	}
 }
 
-wmWidget *WIDGET_dial_new(int style, void *customdata)
+wmWidget *WIDGET_dial_new(int style)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	DialWidget *dial;
@@ -597,7 +590,6 @@ wmWidget *WIDGET_dial_new(int style, void *customdata)
 	dial->widget.draw = widget_dial_draw;
 	dial->widget.intersect = NULL;
 	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
-	dial->widget.customdata = customdata;
 
 	dial->style = style;
 	copy_v3_v3(dial->direction, dir_default);
@@ -633,7 +625,10 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 
 typedef struct RectTransformWidget {
 	wmWidget widget;
-	wmRectTransformWidget transform;
+	float offset[2]; /* position of widget */
+	float w, h;      /* dimensions of widget */
+	float rotation;  /* rotation of the rectangle */
+	float scale[2]; /* scaling for the widget for non-destructive editing. */
 	int style;
 } RectTransformWidget;
 
@@ -709,8 +704,8 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	rctf r;
-	float w = cage->transform.w;
-	float h = cage->transform.h;	
+	float w = cage->w;
+	float h = cage->h;	
 	float half_w = w / 2.0f;
 	float half_h = h / 2.0f;
 	float aspx = 1.0f, aspy = 1.0f;
@@ -721,11 +716,11 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 	r.ymax = half_h;
 	
 	glPushMatrix();
-	glTranslatef(widget->origin[0] + cage->transform.ofx, widget->origin[1] + cage->transform.ofy, 0.0f);
+	glTranslatef(widget->origin[0] + cage->offset[0], widget->origin[1] + cage->offset[1], 0.0f);
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
-		glScalef(cage->transform.scalex, cage->transform.scalex, 1.0);
+		glScalef(cage->scale[0], cage->scale[0], 1.0);
 	else
-		glScalef(cage->transform.scalex, cage->transform.scaley, 1.0);
+		glScalef(cage->scale[0], cage->scale[1], 1.0);
 	
 	if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 		glEnable(GL_BLEND);
@@ -738,9 +733,9 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 		aspx = h / w;
 	else
 		aspy = w / h;
-	w = min_ff(aspx * w / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / cage->transform.scalex);
+	w = min_ff(aspx * w / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / cage->scale[0]);
 	h = min_ff(aspy * h / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / 
-	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->transform.scalex : cage->transform.scaley));
+	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->scale[0] : cage->scale[1]));
 
 	/* corner widgets */
 	glColor3f(0.0, 0.0, 0.0);
@@ -762,8 +757,8 @@ static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const str
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	float mouse[2] = {event->mval[0], event->mval[1]};
 	float point_local[2];
-	float w = cage->transform.w;
-	float h = cage->transform.h;
+	float w = cage->w;
+	float h = cage->h;
 	float half_w = w / 2.0f;
 	float half_h = h / 2.0f;
 	//float matrot[2][2];
@@ -773,24 +768,24 @@ static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const str
 	
 	/* rotate mouse in relation to the center and relocate it */
 	sub_v2_v2v2(point_local, mouse, widget->origin);
-	point_local[0] -= cage->transform.ofx;
-	point_local[1] -= cage->transform.ofy;
+	point_local[0] -= cage->offset[0];
+	point_local[1] -= cage->offset[1];
 	//rotate_m2(matrot, -cage->transform.rotation);
 
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
-		mul_v2_fl(point_local, 1.0f/cage->transform.scalex);
+		mul_v2_fl(point_local, 1.0f/cage->scale[0]);
 	else {
-		point_local[0] /= cage->transform.scalex;
-		point_local[1] /= cage->transform.scaley;
+		point_local[0] /= cage->scale[0];
+		point_local[1] /= cage->scale[0];
 	}
 	
-	if (cage->transform.w > cage->transform.h)
+	if (cage->w > cage->h)
 		aspx = h / w;
 	else
 		aspy = w / h;
-	w = min_ff(aspx * w / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / cage->transform.scalex);
+	w = min_ff(aspx * w / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / cage->scale[0]);
 	h = min_ff(aspy * h / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / 
-	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->transform.scalex : cage->transform.scaley));
+	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->scale[0] : cage->scale[1]));
 
 	r.xmin = -half_w + w;
 	r.ymin = -half_h + h;
@@ -847,31 +842,42 @@ static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const str
 
 typedef struct RectTransformInteraction {
 	float orig_mouse[2];
-	wmRectTransformWidget orig_tw;
-	wmRectTransformWidget *tw;
+	float orig_offset[2];
+	float orig_scale[2];
 } RectTransformInteraction;
 
-static wmRectTransformWidget *widget_rect_transform_get_property(struct wmWidget *widget)
+static bool widget_rect_transform_get_property(struct wmWidget *widget, int slot, float *value)
 {
-	PropertyType type = RNA_property_type(widget->prop);
-	StructRNA *srna;
+	PropertyType type = RNA_property_type(widget->props[slot]);
 
-	if (type != PROP_POINTER) {
-		fprintf(stderr, "Rect Transform widget can only be bound to WidgetRectTransform properties");
-		return NULL;
+	if (type != PROP_FLOAT) {
+		fprintf(stderr, "Rect Transform widget can only be bound to float properties");
+		return false;
 	}
-	else if ((srna = RNA_property_pointer_type(&widget->ptr, widget->prop))) {
-		if (RNA_struct_is_a(srna, &RNA_WidgetRectTransform)) {
-			PointerRNA ptr = RNA_property_pointer_get(&widget->ptr, widget->prop);
-			return (wmRectTransformWidget *)ptr.data;
+	else {
+		if (slot == RECT_TRANSFORM_SLOT_OFFSET) {
+			if (RNA_property_array_length(&widget->ptr[slot], widget->props[slot]) != 2) {
+				fprintf(stderr, "Rect Transform widget offset not only be bound to array float property");
+				return false;
+			}
+			
+			RNA_property_float_get_array(&widget->ptr[slot], widget->props[slot], value);
 		}
-		else {
-			fprintf(stderr, "Rect Transform widget can only be bound to WidgetRectTransform properties");
+		else if (slot == RECT_TRANSFORM_SLOT_SCALE) {
+			RectTransformWidget *cage = (RectTransformWidget *)widget;
+			if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
+				*value = RNA_property_float_get(&widget->ptr[slot], widget->props[slot]);
+			else {
+				if (RNA_property_array_length(&widget->ptr[slot], widget->props[slot]) != 2) {
+					fprintf(stderr, "Rect Transform widget scale not only be bound to array float property");
+					return false;
+				}
+				RNA_property_float_get_array(&widget->ptr[slot], widget->props[slot], value);
+			}
 		}
 	}
-
-	fprintf(stderr, "Could not determine struct type");	
-	return NULL;
+	
+	return true;
 }
 
 static int widget_rect_transform_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
@@ -880,11 +886,8 @@ static int widget_rect_transform_activate(struct bContext *UNUSED(C), const stru
 		RectTransformWidget *cage = (RectTransformWidget *) widget;
 		RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
 
-		if (widget->prop) {
-			data->orig_tw = cage->transform;
-			
-			data->tw = widget_rect_transform_get_property(widget);
-		}
+		copy_v2_v2(data->orig_offset, cage->offset);
+		copy_v2_v2(data->orig_scale, cage->scale);
 
 		data->orig_mouse[0] = event->mval[0];
 		data->orig_mouse[1] = event->mval[1];
@@ -899,75 +902,83 @@ static int widget_rect_transform_activate(struct bContext *UNUSED(C), const stru
 	return OPERATOR_FINISHED;
 }
 
-static int widget_rect_transform_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *UNUSED(op))
+static int widget_rect_transform_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
 {
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
 	RectTransformInteraction *data = widget->interaction_data;
 	ARegion *ar = CTX_wm_region(C);
 	float valuex, valuey;
 	/* needed here as well in case clamping occurs */
-	float orig_ofx = cage->transform.ofx, orig_ofy = cage->transform.ofy;
+	float orig_ofx = cage->offset[0], orig_ofy = cage->offset[1];
 	
 	valuex = (event->mval[0] - data->orig_mouse[0]);
 	valuey = (event->mval[1] - data->orig_mouse[1]);
 	
 	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
-		cage->transform.ofx = data->orig_tw.ofx + valuex;
-		cage->transform.ofy = data->orig_tw.ofy + valuey;
+		cage->offset[0] = data->orig_offset[0] + valuex;
+		cage->offset[1] = data->orig_offset[1] + valuey;
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT) {
-		cage->transform.ofx = data->orig_tw.ofx + valuex / 2.0;
-		cage->transform.scalex = (data->orig_tw.w * data->orig_tw.scalex - valuex) / data->orig_tw.w;
+		cage->offset[0] = data->orig_offset[0] + valuex / 2.0;
+		cage->scale[0] = (cage->w * data->orig_scale[0] - valuex) / cage->w;
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT) {
-		cage->transform.ofx = data->orig_tw.ofx + valuex / 2.0;
-		cage->transform.scalex = (data->orig_tw.w * data->orig_tw.scalex + valuex) / data->orig_tw.w;
+		cage->offset[0] = data->orig_offset[0] + valuex / 2.0;
+		cage->scale[0] = (cage->w * data->orig_scale[0] + valuex) / cage->w;
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN) {
-		cage->transform.ofy = data->orig_tw.ofy + valuey / 2.0;
+		cage->offset[1] = data->orig_offset[1] + valuey / 2.0;
 		
 		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
-			cage->transform.scalex = (data->orig_tw.h * data->orig_tw.scalex - valuey) / data->orig_tw.h;
+			cage->scale[0] = (cage->h * data->orig_scale[0] - valuey) / cage->h;
 		}
 		else {
-			cage->transform.scaley = (data->orig_tw.h * data->orig_tw.scaley - valuey) / data->orig_tw.h;
+			cage->scale[1] = (cage->h * data->orig_scale[1] - valuey) / cage->h;
 		}
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP) {
-		cage->transform.ofy = data->orig_tw.ofy + valuey / 2.0;
+		cage->offset[1] = data->orig_offset[1] + valuey / 2.0;
 		
 		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
-			cage->transform.scalex = (data->orig_tw.h * data->orig_tw.scalex + valuey) / data->orig_tw.h;
+			cage->scale[0] = (cage->h * data->orig_scale[0] + valuey) / cage->h;
 		}
 		else {
-			cage->transform.scaley = (data->orig_tw.h * data->orig_tw.scaley + valuey) / data->orig_tw.h;
+			cage->scale[1] = (cage->h * data->orig_scale[1] + valuey) / cage->h;
 		}
 	}
 	
 	/* clamping - make sure widget is at least 5 pixels wide */
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
-		if (cage->transform.scalex < WIDGET_RECT_MIN_WIDTH / data->orig_tw.h || 
-		    cage->transform.scalex < WIDGET_RECT_MIN_WIDTH / data->orig_tw.w) 
+		if (cage->scale[0] < WIDGET_RECT_MIN_WIDTH / cage->h || 
+		    cage->scale[0] < WIDGET_RECT_MIN_WIDTH / cage->w) 
 		{
-			cage->transform.scalex = max_ff(WIDGET_RECT_MIN_WIDTH / data->orig_tw.h, WIDGET_RECT_MIN_WIDTH / data->orig_tw.w);
-			cage->transform.ofx = orig_ofx;
-			cage->transform.ofy = orig_ofy;
+			cage->scale[0] = max_ff(WIDGET_RECT_MIN_WIDTH / cage->h, WIDGET_RECT_MIN_WIDTH / cage->w);
+			cage->offset[0] = orig_ofx;
+			cage->offset[1] = orig_ofy;
 		}
 	}
 	else {
-		if (cage->transform.scalex < WIDGET_RECT_MIN_WIDTH / data->orig_tw.w) {
-			cage->transform.scalex = WIDGET_RECT_MIN_WIDTH / data->orig_tw.w;
-			cage->transform.ofx = orig_ofx;
+		if (cage->scale[0] < WIDGET_RECT_MIN_WIDTH / cage->w) {
+			cage->scale[0] = WIDGET_RECT_MIN_WIDTH / cage->w;
+			cage->offset[0] = orig_ofx;
 		}
-		if (cage->transform.scaley < WIDGET_RECT_MIN_WIDTH / data->orig_tw.h) {
-			cage->transform.scaley = WIDGET_RECT_MIN_WIDTH / data->orig_tw.h;
-			cage->transform.ofy = orig_ofy;
+		if (cage->scale[1] < WIDGET_RECT_MIN_WIDTH / cage->h) {
+			cage->scale[1] = WIDGET_RECT_MIN_WIDTH / cage->h;
+			cage->offset[1] = orig_ofy;
 		}
 	}
 	
-	if (widget->prop) {
-		*data->tw = cage->transform;
-		RNA_property_update(C, &widget->ptr, widget->prop);
+	if (widget->props[RECT_TRANSFORM_SLOT_OFFSET]) {
+		RNA_property_float_set_array(&widget->ptr[RECT_TRANSFORM_SLOT_OFFSET], widget->props[RECT_TRANSFORM_SLOT_OFFSET], cage->offset);
+		RNA_property_update(C, &widget->ptr[RECT_TRANSFORM_SLOT_OFFSET], widget->props[RECT_TRANSFORM_SLOT_OFFSET]);
+	}
+
+	if (widget->props[RECT_TRANSFORM_SLOT_SCALE]) {
+		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
+			RNA_property_float_set(&widget->ptr[RECT_TRANSFORM_SLOT_SCALE], widget->props[RECT_TRANSFORM_SLOT_SCALE], cage->scale[0]);
+		else
+			RNA_property_float_set_array(&widget->ptr[RECT_TRANSFORM_SLOT_SCALE], widget->props[RECT_TRANSFORM_SLOT_SCALE], cage->scale);
+		RNA_property_update(C, &widget->ptr[RECT_TRANSFORM_SLOT_SCALE], widget->props[RECT_TRANSFORM_SLOT_SCALE]);
 	}
 	
 	/* tag the region for redraw */
@@ -976,26 +987,31 @@ static int widget_rect_transform_handler(struct bContext *C, const struct wmEven
 	return OPERATOR_PASS_THROUGH;
 }
 
-static void widget_rect_transform_bind_to_prop(struct wmWidget *widget)
+static void widget_rect_transform_bind_to_prop(struct wmWidget *widget, int slot)
 {
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
 	
-	cage->transform = *widget_rect_transform_get_property(widget);
+	if (slot == RECT_TRANSFORM_SLOT_OFFSET)
+		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_OFFSET, cage->offset);
+	if (slot == RECT_TRANSFORM_SLOT_SCALE)
+		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_SCALE, cage->scale);
 }
 
-struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, void *customdata)
+struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, float width, float height)
 {
 	RectTransformWidget *cage = MEM_callocN(sizeof(RectTransformWidget), "CageWidget");
 
-	cage->widget.customdata = customdata;
 	cage->widget.draw = widget_rect_transform_draw;
 	cage->widget.activate_state = widget_rect_transform_activate;
 	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
 	cage->widget.handler = widget_rect_transform_handler;
 	cage->widget.intersect = widget_rect_tranfrorm_intersect;
-	cage->widget.user_scale = 1.0f;
+	cage->widget.max_prop = 2;
+	cage->scale[0] = cage->scale[1] = 1.0f;
 	cage->style = style;
-
+	cage->w = width;
+	cage->h = height;
+	
 	WM_widget_register(wgroup, &cage->widget);
 	
 	return (wmWidget *)cage;

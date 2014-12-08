@@ -949,7 +949,9 @@ typedef struct SpaceNode {
 	
 	float cursor[2];    /* mouse pos for drawing socketless link and adding nodes */
 
-	wmRectTransformWidget backdrop;
+	float backdrop_offset[2];
+	float backdrop_zoom;
+	float pad;
 	
 	/* XXX nodetree pointer info is all in the path stack now,
 	 * remove later on and use bNodeTreePath instead. For now these variables are set when pushing/popping

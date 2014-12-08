@@ -55,6 +55,8 @@
 
 #include "UI_view2d.h"
 
+#include "RNA_define.h"
+
 /* own include */
 #include "sequencer_intern.h"
 
@@ -240,28 +242,36 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING;
 }
 
-int sequencer_backdrop_transform_poll(bContext *C)
+static int sequencer_backdrop_transform_poll(bContext *C)
 {
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
+	ARegion *ar = CTX_wm_region(C);
 
-	return (sseq && (sseq->draw_flag & SEQ_DRAW_BACKDROP));
+	return (sseq && ar && ar->type == RGN_TYPE_WINDOW && (sseq->draw_flag & SEQ_DRAW_BACKDROP));
 }
 
-void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
-	wmRectTransformWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, NULL);
+	wmOperator *op = wgroup->type->op;
+	ImBuf *ibuf;
+	Scene *scene = CTX_data_scene(C);
 	
+	ibuf = sequencer_ibuf_get(CTX_data_main(C), scene, CTX_wm_space_seq(C), scene->r.cfra, 0);
+	
+	if (ibuf) {
+		wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | 
+		                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, ibuf->x, ibuf->y);
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+	}
 }
-
 
 static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	/* no poll, lives always for the duration of the operator */
 	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, SPACE_SEQ, RGN_TYPE_WINDOW, false);
-	op->customdata = cagetype;
-	WM_widgetgrouptype_register(CTX_data_main(C), cagetype);
 	
 	WM_event_add_modal_handler(C, op);
+	WM_event_add_widget_modal_handler(C, cagetype, op);
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -271,10 +281,12 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 		case EVT_WIDGET_UPDATE:
 			break;
 			
-		case RETKEY:
-			WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
-			break;
+		case LEFTMOUSE:
+			if (event->val == KM_DBL_CLICK)
+				return OPERATOR_FINISHED;
 			
+		case RETKEY:
+			return OPERATOR_FINISHED;
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -293,6 +305,6 @@ void SEQUENCER_OT_backdrop_transform(struct wmOperatorType *ot)
 	ot->poll = sequencer_backdrop_transform_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;	
 }
 

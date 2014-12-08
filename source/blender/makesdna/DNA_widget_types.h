@@ -34,15 +34,6 @@
 
 #include "DNA_vec_types.h"
 
-/* struct used directly for interaction with a rectangle widget */
-typedef struct wmRectTransformWidget {
-	float ofx, ofy; /* position of widget */
-	float w, h;     /* dimensions of widget */
-	float rotation;       /* rotation of the rectangle */
-	float scalex, scaley; /* scaling for the widget for non-destructive editing. */
-	float pad;
-} wmRectTransformWidget;
-
 struct wmWidgetGroup {
 	struct wmWidgetGroup *next, *prev;
 
