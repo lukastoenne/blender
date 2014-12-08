@@ -76,7 +76,7 @@ void BKE_editstrands_free(struct BMEditStrands *es);
 
 /* === constraints === */
 
-void BKE_editstrands_solve_constraints(struct BMEditStrands *es);
+void BKE_editstrands_solve_constraints(struct Object *ob, struct BMEditStrands *es);
 void BKE_editstrands_ensure(struct BMEditStrands *es);
 
 /* === particle conversion === */

@@ -39,6 +39,7 @@
 #endif
 
 #include <Eigen/Sparse>
+#include <Eigen/SVD>
 #include <Eigen/src/Core/util/DisableStupidWarnings.h>
 
 #ifdef __GNUC__
@@ -146,6 +147,7 @@ public:
 typedef Eigen::Triplet<Scalar> Triplet;
 typedef std::vector<Triplet> TripletList;
 
+typedef Eigen::MatrixXf MatrixX;
 typedef Eigen::SparseMatrix<Scalar> lMatrix;
 
 /* Constructor type that provides more convenient handling of Eigen triplets
@@ -201,6 +203,33 @@ typedef Eigen::ConjugateGradient<lMatrix, Eigen::Lower, Eigen::DiagonalPrecondit
 
 using Eigen::ComputationInfo;
 
+template <typename MatrixType>
+BLI_INLINE MatrixType pseudo_inverse(const MatrixType& mat, double epsilon = std::numeric_limits<double>::epsilon())
+{
+	typedef Eigen::JacobiSVD<MatrixType> SVD;
+//	typedef typename SVD::SingularValuesType SingularValues;
+	
+	SVD svd(mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	
+	double tolerance = epsilon * std::max(mat.cols(), mat.rows()) * svd.singularValues().array().abs()(0);
+	return svd.matrixV() * (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
+	
+//	const double  pinvtoler=1.e-6; // choose your tolerance wisely!
+//	SingularValues singularValues_inv = svd.singularValues();
+//	for (long i = 0; i < mat.cols(); ++i) {
+//		if (svd.singularValues(i) > pinvtoler )
+//			singularValues_inv(i) = 1.0 / svd.singularValues(i);
+//		else singularValues_inv(i) = 0;
+//	}
+	
+//	return (svd.matrixV() * singularValues_inv.asDiagonal() * svd.matrixU().transpose());
+}
+
+BLI_INLINE void print_matrix_elem(float v)
+{
+	printf("%-8.3f", v);
+}
+
 BLI_INLINE void print_lvector(const lVector3f &v)
 {
 	for (int i = 0; i < v.rows(); ++i) {
@@ -221,7 +250,7 @@ BLI_INLINE void print_lmatrix(const lMatrix &m)
 			if (i > 0 && i % 3 == 0)
 				printf("  ");
 			
-			implicit_print_matrix_elem(m.coeff(j, i));
+			print_matrix_elem(m.coeff(j, i));
 		}
 		printf("\n");
 	}

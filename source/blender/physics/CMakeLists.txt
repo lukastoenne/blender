@@ -28,6 +28,7 @@ set(INC
 	intern
 	../blenlib
 	../blenkernel
+	../bmesh
 	../imbuf
 	../makesdna
 	../../../intern/guardedalloc
@@ -46,8 +47,10 @@ set(SRC
 	intern/implicit_blender.c
 	intern/implicit_eigen.cpp
 	intern/eigen_utils.h
+	intern/strands.cpp
 
 	BPH_mass_spring.h
+	BPH_strands.h
 )
 
 blender_add_lib(bf_physics "${SRC}" "${INC}" "${INC_SYS}")

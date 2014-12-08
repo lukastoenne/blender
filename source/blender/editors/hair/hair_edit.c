@@ -350,7 +350,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 		bool step_updated = hair_brush_step(&tool_data);
 		
 		if (step_updated)
-			BKE_editstrands_solve_constraints(edit);
+			BKE_editstrands_solve_constraints(ob, edit);
 		
 		updated |= step_updated;
 	}

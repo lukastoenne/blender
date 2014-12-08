@@ -69,11 +69,6 @@ typedef struct ImplicitSolverResult {
 	float error;
 } ImplicitSolverResult;
 
-BLI_INLINE void implicit_print_matrix_elem(float v)
-{
-    printf("%-8.3f", v);
-}
-
 void BPH_mass_spring_solver_debug_data(struct Implicit_Data *id, struct SimDebugData *debug_data);
 
 void BPH_mass_spring_set_vertex_mass(struct Implicit_Data *data, int index, float mass);
