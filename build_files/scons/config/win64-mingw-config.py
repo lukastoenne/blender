@@ -142,6 +142,7 @@ BF_OPENCOLLADA_LIBPATH = '${BF_OPENCOLLADA}/lib/opencollada'
 
 #Cycles
 WITH_BF_CYCLES = True
+WITH_BF_CYCLES_LOGGING = False
 WITH_BF_CYCLES_CUDA_BINARIES = False
 BF_CYCLES_CUDA_NVCC = "" # Path to the NVIDIA CUDA compiler
 BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35', 'sm_50']
@@ -169,6 +170,8 @@ BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 WITH_BF_RAYOPTIMIZATION = True
 BF_RAYOPTIMIZATION_SSE_FLAGS = ['-mmmx', '-msse', '-msse2']
 
+WITH_BF_IME = True
+
 WITH_BF_OPENMP = True
 
 #Freestyle
@@ -191,6 +194,9 @@ C_WARN = ['-Wno-char-subscripts', '-Wdeclaration-after-statement', '-Wstrict-pro
 CC_WARN = [ '-Wall' ]
 
 LLIBS = ['-lshell32', '-lshfolder', '-lgdi32', '-lmsvcrt', '-lwinmm', '-lmingw32', '-lm', '-lws2_32', '-lz', '-lstdc++','-lole32','-luuid', '-lwsock32', '-lpsapi', '-lpthread']
+
+if WITH_BF_IME:
+    LLIBS.append('-limm32')
 
 PLATFORM_LINKFLAGS = ['-Xlinker', '--stack=2097152']
 

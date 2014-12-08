@@ -546,6 +546,10 @@ struct wmWidget *WIDGET_cage_new(int style, void *customdata);
 void WIDGET_cage_bind_to_rotation(struct wmWidget *widget, float rotation);
 void WIDGET_cage_bounds_set(struct wmWidget *widget, float w, float h);
 
+#ifdef WITH_INPUT_IME
+bool        WM_event_is_ime_switch(const struct wmEvent *event);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
