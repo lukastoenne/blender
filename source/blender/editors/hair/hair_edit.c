@@ -270,6 +270,8 @@ typedef struct HairStroke {
 	bool first;
 	float lastmouse[2];
 	float zfac;
+	
+	float smoothdir[2];
 } HairStroke;
 
 static int hair_stroke_init(bContext *C, wmOperator *op)
@@ -307,6 +309,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	BMEditStrands *edit = stroke->edit;
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	ARegion *ar = CTX_wm_region(C);
+	const float smoothfac = 0.9f; /* XXX should this be configurable? */
 	
 	float mouse[2], mdelta[2], zvec[3], delta_max;
 	int totsteps, step;
@@ -317,6 +320,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	
 	if (stroke->first) {
 		copy_v2_v2(stroke->lastmouse, mouse);
+		zero_v2(stroke->smoothdir);
 		stroke->first = false;
 	}
 	
@@ -328,6 +332,9 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	
 	totsteps = delta_max / (0.2f * BKE_brush_size_get(scene, settings->brush)) + 1;
 	mul_v2_fl(mdelta, 1.0f / (float)totsteps);
+	
+	/* low-pass filter to smooth out jittery pixel increments in the direction */
+	interp_v2_v2v2(stroke->smoothdir, mdelta, stroke->smoothdir, smoothfac);
 	
 	hair_init_viewdata(C, &tool_data.viewdata);
 	tool_data.scene = scene;
@@ -341,7 +348,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	
 	zvec[0] = 0.0f; zvec[1] = 0.0f; zvec[2] = stroke->zfac;
 	ED_view3d_win_to_3d(ar, zvec, mouse, tool_data.loc);
-	ED_view3d_win_to_delta(ar, mdelta, tool_data.delta, stroke->zfac);
+	ED_view3d_win_to_delta(ar, stroke->smoothdir, tool_data.delta, stroke->zfac);
 	/* tools work in object space */
 	mul_m4_v3(tool_data.imat, tool_data.loc);
 	mul_mat3_m4_v3(tool_data.imat, tool_data.delta);
