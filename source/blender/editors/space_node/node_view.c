@@ -351,15 +351,15 @@ static int backimage_fit_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 	}
 
-	facx = 1.0f * (ar->sizex - pad) / (ibuf->x * snode->backdrop.scalex);
-	facy = 1.0f * (ar->sizey - pad) / (ibuf->y * snode->backdrop.scalex);
+	facx = 1.0f * (ar->sizex - pad) / (ibuf->x);
+	facy = 1.0f * (ar->sizey - pad) / (ibuf->y);
 
 	BKE_image_release_ibuf(ima, ibuf, lock);
 	
 	fac = min_ff(facx, facy);
 
-	snode->backdrop.scalex *= fac;
-	snode->backdrop.scalex *= fac;
+	snode->backdrop.scalex = fac;
+	snode->backdrop.scalex = fac;
 	
 	snode->backdrop.ofx = 0;
 	snode->backdrop.ofy = 0;
