@@ -45,6 +45,7 @@
 #include "BKE_brush.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_editstrands.h"
+#include "BKE_effect.h"
 #include "BKE_mesh_sample.h"
 
 #include "bmesh.h"
@@ -85,7 +86,7 @@ bool hair_test_depth(HairViewData *viewdata, const float co[3], const int screen
 	return false;
 }
 
-bool hair_test_inside_circle(HairViewData *viewdata, const float mval[2], float radsq, BMVert *v, float *r_dist)
+bool hair_test_vertex_inside_circle(HairViewData *viewdata, const float mval[2], float radsq, BMVert *v, float *r_dist)
 {
 	float (*obmat)[4] = viewdata->vc.obact->obmat;
 	float co_world[3];
@@ -113,35 +114,76 @@ bool hair_test_inside_circle(HairViewData *viewdata, const float mval[2], float 
 		return false;
 }
 
-BLI_INLINE float factor_vertex(HairToolData *data, BMVert *v)
+bool hair_test_edge_inside_circle(HairViewData *viewdata, const float mval[2], float radsq, BMVert *v1, BMVert *v2, float *r_dist, float *r_lambda)
 {
-	Scene *scene = data->scene;
-	Brush *brush = data->settings->brush;
-	const float rad = BKE_brush_size_get(scene, brush);
-	const float radsq = rad*rad;
+	float (*obmat)[4] = viewdata->vc.obact->obmat;
+	float world_co1[3], world_co2[3];
+	float dx, dy, distsq;
+	int screen_co1[2], screen_co2[2], screen_cp[2];
+	float lambda, world_cp[3], screen_cpf[2], screen_co1f[2], screen_co2f[2];
 	
-	float dist;
+	mul_v3_m4v3(world_co1, obmat, v1->co);
+	mul_v3_m4v3(world_co2, obmat, v2->co);
 	
-	if (!hair_test_inside_circle(&data->viewdata, data->mval, radsq, v, &dist))
-		return 0.0f;
+	/* TODO, should this check V3D_PROJ_TEST_CLIP_BB too? */
+	if (ED_view3d_project_int_global(viewdata->vc.ar, world_co1, screen_co1, V3D_PROJ_TEST_CLIP_WIN) != V3D_PROJ_RET_OK)
+		return false;
+	if (ED_view3d_project_int_global(viewdata->vc.ar, world_co2, screen_co2, V3D_PROJ_TEST_CLIP_WIN) != V3D_PROJ_RET_OK)
+		return false;
 	
-	return 1.0f - dist / rad;
+	screen_co1f[0] = screen_co1[0];
+	screen_co1f[1] = screen_co1[1];
+	screen_co2f[0] = screen_co2[0];
+	screen_co2f[1] = screen_co2[1];
+	lambda = closest_to_line_v2(screen_cpf, mval, screen_co1f, screen_co2f);
+	if (lambda < 0.0f || lambda > 1.0f) {
+		CLAMP(lambda, 0.0f, 1.0f);
+		interp_v2_v2v2(screen_cpf, screen_co1f, screen_co2f, lambda);
+	}
+	
+	dx = mval[0] - screen_cpf[0];
+	dy = mval[1] - screen_cpf[1];
+	distsq = dx * dx + dy * dy;
+	
+	if (distsq > radsq)
+		return false;
+	
+	interp_v3_v3v3(world_cp, world_co1, world_co2, lambda);
+	
+	screen_cp[0] = screen_cpf[0];
+	screen_cp[1] = screen_cpf[1];
+	if (hair_test_depth(viewdata, world_cp, screen_cp)) {
+		*r_dist = sqrtf(distsq);
+		*r_lambda = lambda;
+		return true;
+	}
+	else
+		return false;
 }
 
 /* ------------------------------------------------------------------------- */
 
 typedef void (*VertexToolCb)(HairToolData *data, void *userdata, BMVert *v, float factor);
 
+/* apply tool directly to each vertex inside the filter area */
 static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *userdata)
 {
+	Scene *scene = data->scene;
+	Brush *brush = data->settings->brush;
+	const float rad = BKE_brush_size_get(scene, brush);
+	const float radsq = rad*rad;
 	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
 	
 	BMVert *v;
 	BMIter iter;
 	int tot = 0;
+	float dist, factor;
 	
 	BM_ITER_MESH(v, &iter, data->edit->bm, BM_VERTS_OF_MESH) {
-		float factor = factor_vertex(data, v);
+		if (!hair_test_vertex_inside_circle(&data->viewdata, data->mval, radsq, v, &dist))
+			continue;
+		
+		factor = 1.0f - dist / rad;
 		if (factor > threshold) {
 			cb(data, userdata, v, factor);
 			++tot;
@@ -153,17 +195,103 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *use
 
 /* ------------------------------------------------------------------------- */
 
+typedef void (*EdgeToolCb)(HairToolData *data, void *userdata, BMVert *v1, BMVert *v2, float factor, float edge_param);
+
+static int hair_tool_apply_strand_edges(HairToolData *data, EdgeToolCb cb, void *userdata, BMVert *root)
+{
+	Scene *scene = data->scene;
+	Brush *brush = data->settings->brush;
+	const float rad = BKE_brush_size_get(scene, brush);
+	const float radsq = rad*rad;
+	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
+	
+	BMVert *v, *vprev;
+	BMIter iter;
+	int k;
+	int tot = 0;
+	
+	BM_ITER_STRANDS_ELEM_INDEX(v, &iter, root, BM_VERTS_OF_STRAND, k) {
+		if (k > 0) {
+			float dist, lambda;
+			
+			if (hair_test_edge_inside_circle(&data->viewdata, data->mval, radsq, vprev, v, &dist, &lambda)) {
+				float factor = 1.0f - dist / rad;
+				if (factor > threshold) {
+					cb(data, userdata, vprev, v, factor, lambda);
+					++tot;
+				}
+			}
+		}
+		
+		vprev = v;
+	}
+	
+	return tot;
+}
+
+/* apply tool to vertices of edges inside the filter area,
+ * using the closest edge point for weighting
+ */
+static int hair_tool_apply_edge(HairToolData *data, EdgeToolCb cb, void *userdata)
+{
+	BMVert *root;
+	BMIter iter;
+	int tot = 0;
+	
+	BM_ITER_STRANDS(root, &iter, data->edit->bm, BM_STRANDS_OF_MESH) {
+		tot += hair_tool_apply_strand_edges(data, cb, userdata, root);
+	}
+	
+	return tot;
+}
+
+/* ------------------------------------------------------------------------- */
+
 typedef struct CombData {
 	float power;
 } CombData;
 
-static void hair_vertex_comb(HairToolData *data, void *userdata, BMVert *v, float factor)
+static void UNUSED_FUNCTION(hair_vertex_comb)(HairToolData *data, void *userdata, BMVert *v, float factor)
 {
 	CombData *combdata = userdata;
 	
 	float combfactor = powf(factor, combdata->power);
 	
 	madd_v3_v3fl(v->co, data->delta, combfactor);
+}
+
+/* Edge-based combing tool:
+ * Unlike the vertex tool (which simply displaces vertices), the edge tool
+ * adjusts edge orientations to follow the stroke direction.
+ */
+static void hair_edge_comb(HairToolData *data, void *userdata, BMVert *v1, BMVert *v2, float factor, float UNUSED(edge_param))
+{
+	CombData *combdata = userdata;
+	float strokedir[3], edge[3], edgedir[3], strokelen, edgelen;
+	float edge_proj[3];
+	
+	float combfactor = powf(factor, combdata->power);
+	float effect;
+	
+	strokelen = normalize_v3_v3(strokedir, data->delta);
+	BKE_sim_debug_data_add_vector(data->edit->debug_data, v1->co, strokedir, 1,0,0, "comb", 12345, BM_elem_index_get(v1));
+	
+	sub_v3_v3v3(edge, v2->co, v1->co);
+	edgelen = normalize_v3_v3(edgedir, edge);
+	if (edgelen == 0.0f)
+		return;
+	
+	/* This factor prevents sudden changes in direction with small stroke lengths.
+	 * The arctan maps the 0..inf range of the length ratio to 0..1 smoothly.
+	 */
+	effect = atan(strokelen / edgelen * 4.0f / (0.5f*M_PI));
+	
+	mul_v3_v3fl(edge_proj, strokedir, edgelen);
+	
+	interp_v3_v3v3(edge, edge, edge_proj, combfactor * effect);
+	BKE_sim_debug_data_add_vector(data->edit->debug_data, v1->co, edge, 1,1,0, "comb", 3, BM_elem_index_get(v1));
+	
+	add_v3_v3v3(v2->co, v1->co, edge);
 }
 
 
@@ -273,7 +401,8 @@ bool hair_brush_step(HairToolData *data)
 			else
 				combdata.power = 1.0f - combdata.power;
 			
-			tot = hair_tool_apply_vertex(data, hair_vertex_comb, &combdata);
+			/*tot = hair_tool_apply_vertex(data, hair_vertex_comb, &combdata);*/ /* UNUSED */
+			tot = hair_tool_apply_edge(data, hair_edge_comb, &combdata);
 			break;
 		}
 		case HAIR_TOOL_CUT:

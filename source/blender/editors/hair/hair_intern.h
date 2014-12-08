@@ -57,8 +57,10 @@ typedef struct HairViewData {
 void hair_init_viewdata(struct bContext *C, struct HairViewData *viewdata);
 
 bool hair_test_depth(struct HairViewData *viewdata, const float co[3], const int screen_co[2]);
-bool hair_test_inside_circle(struct HairViewData *viewdata, const float mval[2], float radsq,
+bool hair_test_vertex_inside_circle(struct HairViewData *viewdata, const float mval[2], float radsq,
                              struct BMVert *v, float *r_dist);
+bool hair_test_edge_inside_circle(struct HairViewData *viewdata, const float mval[2], float radsq,
+                                  struct BMVert *v1, struct BMVert *v2, float *r_dist, float *r_lambda);
 
 typedef struct HairToolData {
 	/* context */

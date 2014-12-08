@@ -115,7 +115,7 @@ static bool test_vertex_circle(void *userdata, struct BMVert *v)
 	TestVertexCirleData *data = userdata;
 	float dist;
 	
-	return hair_test_inside_circle(&data->viewdata, data->mval, data->radsq, v, &dist);
+	return hair_test_vertex_inside_circle(&data->viewdata, data->mval, data->radsq, v, &dist);
 }
 
 int ED_hair_circle_select(bContext *C, bool select, const int mval[2], float radius)
