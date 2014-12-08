@@ -186,7 +186,8 @@ BLI_INLINE void construct_m4_loc_nor_tan(float mat[4][4], const float loc[3], co
 static void grow_hair(BMEditStrands *edit, MSurfaceSample *sample)
 {
 	DerivedMesh *dm = edit->root_dm;
-	const float len = 1.5f;
+	const float len = 0.1f;
+	const int num_verts = 2;
 	
 	float root_mat[4][4];
 	BMVert *root, *v;
@@ -199,7 +200,7 @@ static void grow_hair(BMEditStrands *edit, MSurfaceSample *sample)
 		construct_m4_loc_nor_tan(root_mat, co, nor, tang);
 	}
 	
-	root = BM_strands_create(edit->bm, 5, true);
+	root = BM_strands_create(edit->bm, 2, true);
 	
 	BM_elem_meshsample_data_named_set(&edit->bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, sample);
 	
@@ -207,7 +208,7 @@ static void grow_hair(BMEditStrands *edit, MSurfaceSample *sample)
 		float co[3];
 		
 		co[0] = co[1] = 0.0f;
-		co[2] = len * (float)i / (float)(len - 1);
+		co[2] = len * (float)i / (float)(num_verts-1);
 		
 		mul_m4_v3(root_mat, co);
 		
@@ -246,12 +247,29 @@ static bool hair_get_surface_sample(HairToolData *data, MSurfaceSample *sample)
 
 static bool hair_add(HairToolData *data)
 {
+#if 0
 	MSurfaceSample sample;
 	
 	if (!hair_get_surface_sample(data, &sample))
 		return false;
 	
 	grow_hair(data->edit, &sample);
+#else
+	DerivedMesh *dm = data->edit->root_dm;
+	
+	MSurfaceSample samples[100];
+	MSurfaceSampleStorage dst;
+	int i, tot;
+	
+	BKE_mesh_sample_storage_array(&dst, samples, 100);
+	
+	tot = BKE_mesh_sample_generate_darts(&dst, dm, 1234, 100);
+	for (i = 0; i < 100; ++i) {
+		grow_hair(data->edit, &samples[i]);
+	}
+	
+	BKE_mesh_sample_storage_release(&dst);
+#endif
 	
 	return true;
 }

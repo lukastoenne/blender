@@ -37,7 +37,7 @@ bool BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MSurfaceSample *s
 bool BKE_mesh_sample_shapekey(struct Key *key, struct KeyBlock *kb, const struct MSurfaceSample *sample, float loc[3]);
 
 
-/* ==== Sampling ==== */
+/* ==== Storage ==== */
 
 /* Storage descriptor to allow generic data storage by arbitrary algorithms */
 typedef struct MSurfaceSampleStorage {
@@ -51,10 +51,14 @@ void BKE_mesh_sample_storage_single(struct MSurfaceSampleStorage *storage, struc
 void BKE_mesh_sample_storage_array(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *samples, int capacity);
 void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
 
+/* ==== Sampling ==== */
+
 int BKE_mesh_sample_generate_random(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
 
 typedef bool (*MeshSampleRayCallback)(void *userdata, float ray_start[3], float ray_end[3]);
 int BKE_mesh_sample_generate_raycast(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata, int totsample);
+
+int BKE_mesh_sample_generate_darts(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
 
 /* ==== Utilities ==== */
 

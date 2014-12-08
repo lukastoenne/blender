@@ -147,7 +147,7 @@ BLI_INLINE void mesh_sample_weights_from_loc(MSurfaceSample *sample, DerivedMesh
 	sample->orig_weights[2] = w[tri[2]];
 }
 
-/* ==== Sampling ==== */
+/* ==== Storage ==== */
 
 static bool mesh_sample_store_array_sample(void *vdata, int capacity, int index, const MSurfaceSample *sample)
 {
@@ -182,6 +182,8 @@ void BKE_mesh_sample_storage_release(MSurfaceSampleStorage *storage)
 		MEM_freeN(storage->data);
 }
 
+
+/* ==== Sampling : Random ==== */
 
 int BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm, unsigned int seed, int totsample)
 {
@@ -235,6 +237,7 @@ int BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm,
 	return stored;
 }
 
+/* ==== Sampling : Ray Cast ==== */
 
 static bool sample_bvh_raycast(MSurfaceSample *sample, DerivedMesh *dm, BVHTreeFromMesh *bvhdata, const float ray_start[3], const float ray_end[3])
 {
@@ -287,6 +290,336 @@ int BKE_mesh_sample_generate_raycast(MSurfaceSampleStorage *dst, DerivedMesh *dm
 	
 	return stored;
 }
+
+/* ==== Sampling : Poisson Disk ==== */
+
+BLI_INLINE int log2_int_fl(float x)
+{
+	/* XXX for now just using int conversion and bit walking,
+	 * there are more efficient methods described here:
+	 * https://graphics.stanford.edu/~seander/bithacks.html
+	 */
+	unsigned int v = (unsigned int)x;
+	unsigned int r = 0;
+	
+	while (v >>= 1)
+		++r;
+	return (int)r;
+}
+
+typedef struct Triangle {
+	float co[3][3];
+	float area;
+} Triangle;
+
+#define TRIANGLE_BIN_ALLOC 256
+
+typedef struct TriangleBin {
+	float areamin, areamax;
+	Triangle *tris;
+	int tot, alloc;
+	float totarea;
+} TriangleBin;
+
+static void triangle_init(Triangle *tri, const float a[3], const float b[3], const float c[3], float area)
+{
+	copy_v3_v3(tri->co[0], a);
+	copy_v3_v3(tri->co[1], b);
+	copy_v3_v3(tri->co[2], c);
+	tri->area = area;
+}
+
+static void triangle_bin_init(TriangleBin *bin, float areamin, float areamax)
+{
+	bin->areamin = areamin;
+	bin->areamax = areamax;
+	bin->tot = 0;
+	bin->alloc = 0;
+	bin->tris = NULL;
+}
+
+static void triangle_bin_free(TriangleBin *bin)
+{
+	if (bin->tris)
+		MEM_freeN(bin->tris);
+}
+
+#if 0
+static void triangle_bin_extend(TriangleBin *bin, int num)
+{
+	int ntot = bin->tot + num;
+	
+	if (num == 0)
+		return;
+	
+	if (UNLIKELY(ntot > bin->alloc)) {
+		int nfill = ntot % TRIANGLE_BIN_ALLOC;
+		int nalloc = (ntot - nfill) + TRIANGLE_BIN_ALLOC;
+		if (bin->tris)
+			bin->tris = MEM_reallocN(bin->tris, sizeof(Triangle) * (unsigned int)nalloc);
+		else
+			bin->tris = MEM_mallocN(sizeof(Triangle) * (unsigned int)nalloc, "triangle bin data");
+		bin->alloc = nalloc;
+	}
+	
+	bin->tot = ntot;
+}
+
+static void triangle_bin_shrink(TriangleBin *bin, int num)
+{
+	int ntot = bin->tot - num;
+	
+	if (num == 0)
+		return;
+	
+	/* note: only free after 2 blocks become unused, to avoid frequent alloc/free
+	 * repetition when size changes by 1 back aand forth
+	 */
+	if (UNLIKELY(ntot < bin->alloc - 2*TRIANGLE_BIN_ALLOC)) {
+		int nfill = ntot % TRIANGLE_BIN_ALLOC;
+		int nalloc = (ntot - nfill) + 2*TRIANGLE_BIN_ALLOC;
+		BLI_assert(bin->tris != NULL);
+		bin->tris = MEM_reallocN(bin->tris, sizeof(Triangle) * (unsigned int)nalloc);
+	}
+}
+#endif
+
+static Triangle *triangle_bin_add(TriangleBin *bin, const float a[3], const float b[3], const float c[3], float area)
+{
+	Triangle *tri;
+	int ntot = bin->tot + 1;
+	
+	BLI_assert(area > bin->areamin && area <= bin->areamax);
+	
+	if (UNLIKELY(ntot > bin->alloc)) {
+		int nfill = ntot % TRIANGLE_BIN_ALLOC;
+		int nalloc = (ntot - nfill) + TRIANGLE_BIN_ALLOC;
+		if (bin->tris)
+			bin->tris = MEM_reallocN(bin->tris, sizeof(Triangle) * (unsigned int)nalloc);
+		else
+			bin->tris = MEM_mallocN(sizeof(Triangle) * (unsigned int)nalloc, "triangle bin data");
+		bin->alloc = nalloc;
+	}
+	
+	BLI_assert(bin->tot <= bin->alloc);
+	tri = &bin->tris[bin->tot];
+	triangle_init(tri, a, b, c, area);
+	++bin->tot;
+	bin->totarea += tri->area;
+	
+	return tri;
+}
+
+static void triangle_bin_remove(TriangleBin *bin, int index)
+{
+	Triangle *tri;
+	int ntot = bin->tot - 1;
+	
+	BLI_assert(bin->tris != NULL);
+	BLI_assert(index >= 0 && index < bin->tot);
+	tri = &bin->tris[index];
+	if (index < ntot) {
+		Triangle *last = &bin->tris[ntot];
+		memcpy(tri, last, sizeof(Triangle));
+	}
+	bin->totarea -= tri->area;
+	--bin->tot;
+	
+	/* note: only free after 2 blocks become unused, to avoid frequent alloc/free
+	 * repetition when size changes by 1 back aand forth
+	 */
+	if (UNLIKELY(ntot < bin->alloc - 2*TRIANGLE_BIN_ALLOC)) {
+		int nfill = ntot % TRIANGLE_BIN_ALLOC;
+		int nalloc = (ntot - nfill) + 2*TRIANGLE_BIN_ALLOC;
+		bin->tris = MEM_reallocN(bin->tris, sizeof(Triangle) * (unsigned int)nalloc);
+	}
+}
+
+#define MAX_TRIANGLE_BINS 64
+BLI_INLINE float pow64f(float x)
+{
+	return pow4f(pow4f(pow4f(x)));
+}
+
+typedef struct TriangleMesh {
+	TriangleBin bins[MAX_TRIANGLE_BINS];
+	int max_bins;
+	float areamax, areamin;
+	float inv_areamax, inv_areamin;
+} TriangleMesh;
+
+static float mesh_get_areamax(MVert *mverts, MFace *mfaces, int totfaces)
+{
+	MFace *mf;
+	int i;
+	
+	float areamax = 0.0;
+	for (i = 0, mf = mfaces; i < totfaces; ++i, ++mf) {
+		if (mf->v4) {
+			const float *v1 = mverts[mf->v1].co;
+			const float *v2 = mverts[mf->v2].co;
+			const float *v3 = mverts[mf->v3].co;
+			const float *v4 = mverts[mf->v4].co;
+			
+			float area124 = area_tri_v3(v1, v2, v4);
+			float area234 = area_tri_v3(v2, v3, v4);
+			if (area124 > areamax)
+				areamax = area124;
+			if (area234 > areamax)
+				areamax = area234;
+		}
+		else {
+			const float *v1 = mverts[mf->v1].co;
+			const float *v2 = mverts[mf->v2].co;
+			const float *v3 = mverts[mf->v3].co;
+			
+			float area123 = area_tri_v3(v1, v2, v3);
+			if (area123 > areamax)
+				areamax = area123;
+		}
+	}
+	return areamax;
+}
+
+static void triangle_mesh_init(TriangleMesh *mesh, int max_bins, float areamax)
+{
+	float bin_areamax, bin_areamin;
+	int i;
+	
+	mesh->areamax = areamax;
+	mesh->areamin = areamax * pow64f(0.5f);
+	mesh->inv_areamax = 1.0f / areamax;
+	mesh->inv_areamin = pow64f(2.0f) / areamax;
+	
+	mesh->max_bins = max_bins;
+	bin_areamin = areamax;
+	for (i = 0; i < max_bins; ++i) {
+		bin_areamax = bin_areamin;
+		bin_areamin = 0.5f * bin_areamin;
+		triangle_bin_init(&mesh->bins[i], bin_areamin, bin_areamax);
+	}
+}
+
+static void triangle_mesh_free(TriangleMesh *mesh)
+{
+	int i;
+	
+	for (i = 0; i < mesh->max_bins; ++i) {
+		triangle_bin_free(&mesh->bins[i]);
+	}
+}
+
+static TriangleBin *triangle_mesh_find_bin(TriangleMesh *mesh, float area)
+{
+	int index = log2_int_fl(mesh->areamax / area);
+	TriangleBin *bin = index < mesh->max_bins ? &mesh->bins[index] : NULL;
+	return bin;
+}
+
+static void triangle_mesh_insert_faces(TriangleMesh *mesh, MVert *mverts, int UNUSED(totverts), MFace *mfaces, int totfaces)
+{
+	MFace *mf;
+	int i;
+	
+	for (i = 0, mf = mfaces; i < totfaces; ++i, ++mf) {
+		if (mf->v4) {
+			const float *v1 = mverts[mf->v1].co;
+			const float *v2 = mverts[mf->v2].co;
+			const float *v3 = mverts[mf->v3].co;
+			const float *v4 = mverts[mf->v4].co;
+			
+			float area124 = area_tri_v3(v1, v2, v4);
+			float area234 = area_tri_v3(v2, v3, v4);
+			
+			TriangleBin *bin124 = triangle_mesh_find_bin(mesh, area124);
+			TriangleBin *bin234 = triangle_mesh_find_bin(mesh, area234);
+			
+			if (bin124)
+				triangle_bin_add(bin124, v1, v2, v4, area124);
+			if (bin234)
+				triangle_bin_add(bin234, v2, v3, v4, area234);
+		}
+		else {
+			const float *v1 = mverts[mf->v1].co;
+			const float *v2 = mverts[mf->v2].co;
+			const float *v3 = mverts[mf->v3].co;
+			
+			float area123 = area_tri_v3(v1, v2, v3);
+			
+			TriangleBin *bin123 = triangle_mesh_find_bin(mesh, area123);
+			
+			if (bin123)
+				triangle_bin_add(bin123, v1, v2, v3, area123);
+		}
+	}
+}
+
+int BKE_mesh_sample_generate_darts(MSurfaceSampleStorage *dst, DerivedMesh *dm, unsigned int seed, int totsample)
+{
+	TriangleMesh *mesh;
+	MVert *mverts;
+	MFace *mfaces;
+	int totverts, totfaces;
+	float areamax;
+	
+//	RNG *rng;
+//	MFace *mface;
+//	float a, b;
+	int i, stored = 0;
+	
+//	rng = BLI_rng_new(seed);
+	
+	DM_ensure_tessface(dm);
+	mverts = dm->getVertArray(dm);
+	totverts = dm->getNumVerts(dm);
+	mfaces = dm->getTessFaceArray(dm);
+	totfaces = dm->getNumTessFaces(dm);
+	
+	areamax = mesh_get_areamax(mverts, mfaces, totfaces);
+	triangle_mesh_init(mesh, 4, areamax);
+	triangle_mesh_insert_faces(mesh, mverts, totverts, mfaces, totfaces);
+	
+	triangle_mesh_free(mesh);
+	
+#if 0
+	for (i = 0; i < totsample; ++i) {
+		MSurfaceSample sample = {{0}};
+		
+		mface = &mfaces[BLI_rng_get_int(rng) % totfaces];
+		
+		if (mface->v4 && BLI_rng_get_int(rng) % 2 == 0) {
+			sample.orig_verts[0] = mface->v3;
+			sample.orig_verts[1] = mface->v4;
+			sample.orig_verts[2] = mface->v1;
+		}
+		else {
+			sample.orig_verts[0] = mface->v1;
+			sample.orig_verts[1] = mface->v2;
+			sample.orig_verts[2] = mface->v3;
+		}
+		
+		a = BLI_rng_get_float(rng);
+		b = BLI_rng_get_float(rng);
+		if (a + b > 1.0f) {
+			a = 1.0f - a;
+			b = 1.0f - b;
+		}
+		sample.orig_weights[0] = 1.0f - (a + b);
+		sample.orig_weights[1] = a;
+		sample.orig_weights[2] = b;
+		
+		if (dst->store_sample(dst->data, dst->capacity, i, &sample))
+			++stored;
+		else
+			break;
+	}
+#endif
+	
+//	BLI_rng_free(rng);
+	
+	return stored;
+}
+
 
 /* ==== Utilities ==== */
 
