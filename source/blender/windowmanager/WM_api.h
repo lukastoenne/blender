@@ -471,9 +471,8 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
 /* widget API */
-struct wmWidgetGroupType *WM_widgetgrouptype_new(
-        int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
-        void (*draw)(const struct bContext *, struct wmWidgetGroup *));
+struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+                                                 void (*draw)(const struct bContext *, struct wmWidgetGroup *), short spaceid, short regionid, bool is_3d);
 
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
@@ -499,9 +498,8 @@ void WM_widget_set_scale(struct wmWidget *widget, float scale);
 
 struct wmWidgetMapType *WM_widgetmaptype_find(int spaceid, int regionid, bool is_3d, bool create);
 
-bool WM_widgetgrouptype_register(struct wmWidgetMapType *wmap, struct wmWidgetGroupType *wgroup);
-void WM_widgetgrouptype_unregister(struct wmWidgetMapType *wmap, struct wmWidgetGroupType *wgroup);
-void WM_widgetgrouptype_free(struct Main *bmain, struct wmWidgetGroupType *wgroup);
+bool WM_widgetgrouptype_register(struct Main *bmain, struct wmWidgetGroupType *wgroup);
+void WM_widgetgrouptype_unregister(struct Main *bmain, struct wmWidgetGroupType *wgroup);
 
 /* creates a widgetmap with all registered widgets for that type */
 struct wmWidgetMap *WM_widgetmap_from_type(int spaceid, int regionid, bool is_3d);

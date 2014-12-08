@@ -1395,9 +1395,9 @@ static void rna_WidgetGroup_unregister(struct Main *bmain, StructRNA *type)
 
 	//RNA_struct_free_extension(type, &wgrouptype->ext);
 
-	WM_widgetgrouptype_free(bmain, wgrouptype);
+	WM_widgetgrouptype_unregister(bmain, wgrouptype);
+	MEM_freeN(wgrouptype);
 	//WM_operatortype_remove_ptr(ot);
-	//WM_widgetgrouptype_unregister(wmap, wgrouptype);
 
 	/* not to be confused with the RNA_struct_free that WM_operatortype_remove calls, they are 2 different srna's */
 	RNA_struct_free(&BLENDER_RNA, type);
@@ -1474,7 +1474,7 @@ static char _widgetgroup_idname[OP_MAX_TYPENAME];
 //static char _widgetgroup_name[OP_MAX_TYPENAME];
 //static char _widgetgroup_descr[RNA_DYN_DESCR_MAX];
 //static char _widgetgroup_ctxt[RNA_DYN_DESCR_MAX];
-static StructRNA *rna_WidgetGroup_register(Main *UNUSED(bmain), ReportList *reports, void *data, const char *identifier,
+static StructRNA *rna_WidgetGroup_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
                                         StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 
@@ -1497,6 +1497,12 @@ static StructRNA *rna_WidgetGroup_register(Main *UNUSED(bmain), ReportList *repo
 	if (strlen(identifier) >= sizeof(dummywgt.idname)) {
 		BKE_reportf(reports, RPT_ERROR, "Registering widgetgroup class: '%s' is too long, maximum length is %d",
 		            identifier, (int)sizeof(dummywgt.idname));
+		return NULL;
+	}
+	
+	/* check if the area supports widgets */
+	if (!WM_widgetmaptype_find(dummywgt.spaceid, dummywgt.regionid, dummywgt.is_3d, false)) {
+		BKE_reportf(reports, RPT_ERROR, "Area type does not support widgets");
 		return NULL;
 	}
 
@@ -1522,9 +1528,10 @@ static StructRNA *rna_WidgetGroup_register(Main *UNUSED(bmain), ReportList *repo
 	dummywgt.poll = (have_function[0]) ? widgetgroup_poll : NULL;
 	dummywgt.draw = (have_function[1]) ? widgetgroup_draw : NULL;
 
-	wgrouptype = WM_widgetgrouptype_new(NULL, NULL);
+	wgrouptype = WM_widgetgrouptype_new(NULL, NULL, 0, 0, 0);
 	memcpy(wgrouptype, &dummywgt, sizeof(dummywgt));
-
+	
+	WM_widgetgrouptype_register(bmain, wgrouptype);
 	/* update while blender is running */
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 

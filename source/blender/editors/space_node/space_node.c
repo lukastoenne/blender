@@ -885,13 +885,13 @@ static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct w
 
 static void node_widgets(void)
 {
-	struct wmWidgetMapType *wmaptype;
 	struct wmWidgetGroupType *wgroup_node_transform;
 
-	wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update);
-	wmaptype = WM_widgetmaptype_find(SPACE_NODE, RGN_TYPE_WINDOW, false, true);
-
-	WM_widgetgrouptype_register(wmaptype, wgroup_node_transform);
+	WM_widgetmaptype_find(SPACE_NODE, RGN_TYPE_WINDOW, false, true);
+	
+	wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update, SPACE_NODE, RGN_TYPE_WINDOW, false);
+	/* create the widgetmap here */
+	WM_widgetgrouptype_register(NULL, wgroup_node_transform);
 }
 
 /* only called once, from space/spacetypes.c */

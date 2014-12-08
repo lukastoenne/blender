@@ -780,26 +780,25 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 
 static void view3d_widgets(void)
 {
-	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
 	wmWidgetGroupType *wgroup_light,*wgroup_camera, *wgroup_shapekey;
 	// struct wmWidgetGroupType *wgroup_manipulator;
 
-	wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_draw);
-	wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_draw);
-	wgroup_shapekey = WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll, WIDGETGROUP_shapekey_draw);
+	WM_widgetmaptype_find(SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
+	
+	wgroup_light = WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_draw, SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	wgroup_camera = WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_draw, SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	wgroup_shapekey = WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll, WIDGETGROUP_shapekey_draw, SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 #if 0
 	wgroup_manipulator = WM_widgetgrouptype_new(
-	        WIDGETGROUP_manipulator_create,
 	        WIDGETGROUP_manipulator_poll,
-	        WIDGETGROUP_manipulator_update,
-	        WIDGETGROUP_manipulator_free);
+	        WIDGETGROUP_manipulator_update);
 #endif
 	
 	//WM_widgetgrouptype_register(wmaptype, wgroup_manipulator);
-	WM_widgetgrouptype_register(wmaptype, wgroup_light);
-	WM_widgetgrouptype_register(wmaptype, wgroup_camera);
-	WM_widgetgrouptype_register(wmaptype, wgroup_shapekey);
+	WM_widgetgrouptype_register(NULL, wgroup_light);
+	WM_widgetgrouptype_register(NULL, wgroup_camera);
+	WM_widgetgrouptype_register(NULL, wgroup_shapekey);
 }
 
 

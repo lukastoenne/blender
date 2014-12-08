@@ -123,6 +123,7 @@ void sequencer_operatortypes(void)
 
 	/* sequencer_view.h */
 	WM_operatortype_append(SEQUENCER_OT_sample);
+	WM_operatortype_append(SEQUENCER_OT_backdrop_transform);	
 }
 
 

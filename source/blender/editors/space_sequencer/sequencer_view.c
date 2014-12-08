@@ -35,6 +35,7 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
+#include "DNA_widget_types.h"
 
 #include "BKE_context.h"
 #include "BKE_main.h"
@@ -238,3 +239,60 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_BLOCKING;
 }
+
+int sequencer_backdrop_transform_poll(bContext *C)
+{
+	SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+	return (sseq && (sseq->draw_flag & SEQ_DRAW_BACKDROP));
+}
+
+void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	wmRectTransformWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, NULL);
+	
+}
+
+
+static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	/* no poll, lives always for the duration of the operator */
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, SPACE_SEQ, RGN_TYPE_WINDOW, false);
+	op->customdata = cagetype;
+	WM_widgetgrouptype_register(CTX_data_main(C), cagetype);
+	
+	WM_event_add_modal_handler(C, op);
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	switch (event->type) {
+		case EVT_WIDGET_UPDATE:
+			break;
+			
+		case RETKEY:
+			WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
+			break;
+			
+	}
+	
+	return OPERATOR_RUNNING_MODAL;
+}
+
+void SEQUENCER_OT_backdrop_transform(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Change Data/Files";
+	ot->idname = "SEQUENCER_OT_backdrop_transform";
+	ot->description = "";
+
+	/* api callbacks */
+	ot->invoke = sequencer_backdrop_transform_invoke;
+	ot->modal = sequencer_backdrop_transform_modal;
+	ot->poll = sequencer_backdrop_transform_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+

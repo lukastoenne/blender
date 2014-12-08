@@ -109,7 +109,9 @@ static ListBase widgetmaptypes = {NULL, NULL};
 
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *C, struct wmWidgetGroupType *),
-        void (*draw)(const struct bContext *, struct wmWidgetGroup *))
+        void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
+        short spaceid, short regionid,bool is_3d
+        )
 {
 	wmWidgetGroupType *wgrouptype;
 	
@@ -117,6 +119,9 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
 	
 	wgrouptype->poll = poll;
 	wgrouptype->draw = draw;
+	wgrouptype->spaceid = spaceid;
+	wgrouptype->regionid = regionid;
+	wgrouptype->is_3d = is_3d;
 	
 	return wgrouptype;
 }
@@ -334,25 +339,6 @@ bool WM_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)
 	
 	BLI_addtail(&wgroup->widgets, widget);
 	return true;
-}
-
-bool WM_widgetgrouptype_register(struct wmWidgetMapType *wmaptype, wmWidgetGroupType *wgrouptype)
-{
-	wmWidgetGroupType *wgrouptype_iter;
-	/* search list, might already be registered */	
-	for (wgrouptype_iter = wmaptype->widgetgrouptypes.first; wgrouptype_iter; wgrouptype_iter = wgrouptype_iter->next) {
-		if (wgrouptype_iter == wgrouptype)
-			return false;
-	}
-	
-	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
-	return true;
-}
-
-void WM_widgetgrouptype_unregister(struct wmWidgetMapType *wmaptype, wmWidgetGroupType *wgrouptype)
-{
-	BLI_remlink(&wmaptype->widgetgrouptypes, wgrouptype);
-	wmaptype->prev = wmaptype->next = NULL;
 }
 
 void WM_widget_unregister(struct wmWidgetGroup *wgroup, wmWidget *widget)
@@ -751,8 +737,49 @@ static void wm_widgetgroup_free(wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 	MEM_freeN(wgroup);
 }
 
+bool WM_widgetgrouptype_register(Main *bmain, wmWidgetGroupType *wgrouptype)
+{
+	wmWidgetGroupType *wgrouptype_iter;
+	bScreen *sc;
+	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(wgrouptype->spaceid, wgrouptype->regionid, wgrouptype->is_3d, false);
+	
+	/* search list, might already be registered */	
+	for (wgrouptype_iter = wmaptype->widgetgrouptypes.first; wgrouptype_iter; wgrouptype_iter = wgrouptype_iter->next) {
+		if (wgrouptype_iter == wgrouptype)
+			return false;
+	}
+	
+	/* add the type for future created areas of the same type  */
+	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
+	
+	/* now create a widget for all existing areas. (main is missing when we create new areas so not needed) */
+	if (bmain) {
+		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					ARegion *ar;
+					ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+					
+					for (ar = lb->first; ar; ar = ar->next) {
+						if (ar->widgetmap) {
+							wmWidgetMap *wmap = ar->widgetmap;
+							wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
+							wgroup->type = wgrouptype;
+							BLI_addtail(&wmap->widgetgroups, wgroup);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return true;
+}
 
-void WM_widgetgrouptype_free(Main *bmain, wmWidgetGroupType *wgrouptype)
+void WM_widgetgrouptype_unregister(Main *bmain, wmWidgetGroupType *wgrouptype)
 {
 	bScreen *sc;
 	wmWidgetMapType *wmaptype;
@@ -783,6 +810,7 @@ void WM_widgetgrouptype_free(Main *bmain, wmWidgetGroupType *wgrouptype)
 
 	wmaptype = WM_widgetmaptype_find(wgrouptype->spaceid, wgrouptype->regionid, wgrouptype->is_3d, false);
 	BLI_remlink(&wmaptype->widgetgrouptypes, wgrouptype);
+	wgrouptype->prev = wgrouptype->next = NULL;
 	MEM_freeN(wgrouptype);
 }
 
