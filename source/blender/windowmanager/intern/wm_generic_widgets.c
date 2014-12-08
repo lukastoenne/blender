@@ -628,6 +628,8 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 #define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP      4
 #define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN    5
 
+#define WIDGET_RECT_MIN_WIDTH 15.0f
+
 typedef struct RectTransformWidget {
 	wmWidget widget;
 	wmRectTransformWidget transform;
@@ -901,6 +903,8 @@ static int widget_rect_transform_handler(struct bContext *C, const struct wmEven
 	RectTransformInteraction *data = widget->interaction_data;
 	ARegion *ar = CTX_wm_region(C);
 	float valuex, valuey;
+	/* needed here as well in case clamping occurs */
+	float orig_ofx = cage->transform.ofx, orig_ofy = cage->transform.ofy;
 	
 	valuex = (event->mval[0] - data->orig_mouse[0]);
 	valuey = (event->mval[1] - data->orig_mouse[1]);
@@ -935,6 +939,27 @@ static int widget_rect_transform_handler(struct bContext *C, const struct wmEven
 		}
 		else {
 			cage->transform.scaley = (data->orig_tw.h * data->orig_tw.scaley + valuey) / data->orig_tw.h;
+		}
+	}
+	
+	/* clamping - make sure widget is at least 5 pixels wide */
+	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
+		if (cage->transform.scalex < WIDGET_RECT_MIN_WIDTH / data->orig_tw.h || 
+		    cage->transform.scalex < WIDGET_RECT_MIN_WIDTH / data->orig_tw.w) 
+		{
+			cage->transform.scalex = max_ff(WIDGET_RECT_MIN_WIDTH / data->orig_tw.h, WIDGET_RECT_MIN_WIDTH / data->orig_tw.w);
+			cage->transform.ofx = orig_ofx;
+			cage->transform.ofy = orig_ofy;
+		}
+	}
+	else {
+		if (cage->transform.scalex < WIDGET_RECT_MIN_WIDTH / data->orig_tw.w) {
+			cage->transform.scalex = WIDGET_RECT_MIN_WIDTH / data->orig_tw.w;
+			cage->transform.ofx = orig_ofx;
+		}
+		if (cage->transform.scaley < WIDGET_RECT_MIN_WIDTH / data->orig_tw.h) {
+			cage->transform.scaley = WIDGET_RECT_MIN_WIDTH / data->orig_tw.h;
+			cage->transform.ofy = orig_ofy;
 		}
 	}
 	
