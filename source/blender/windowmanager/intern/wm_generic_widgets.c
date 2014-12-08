@@ -629,6 +629,7 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 #define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN    5
 
 #define WIDGET_RECT_MIN_WIDTH 15.0f
+#define WIDGET_RESIZER_WIDTH  10.0f
 
 typedef struct RectTransformWidget {
 	wmWidget widget;
@@ -737,9 +738,9 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 		aspx = h / w;
 	else
 		aspy = w / h;
-	
-	w = aspx * w / 8.0f;
-	h = aspy * h / 8.0f;
+	w = min_ff(aspx * w / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / cage->transform.scalex);
+	h = min_ff(aspy * h / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / 
+	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->transform.scalex : cage->transform.scaley));
 
 	/* corner widgets */
 	glColor3f(0.0, 0.0, 0.0);
@@ -787,8 +788,9 @@ static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const str
 		aspx = h / w;
 	else
 		aspy = w / h;
-	w = aspx * w / 8.0f;
-	h = aspy * h / 8.0f;
+	w = min_ff(aspx * w / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / cage->transform.scalex);
+	h = min_ff(aspy * h / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / 
+	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->transform.scalex : cage->transform.scaley));
 
 	r.xmin = -half_w + w;
 	r.ymin = -half_h + h;
