@@ -1489,19 +1489,24 @@ static void seq_proxy_build_frame(const SeqRenderData *context, Sequence *seq, i
 	int quality;
 	int rectx, recty;
 	int ok;
-	ImBuf *ibuf;
+	ImBuf *ibuf_tmp, *ibuf;
 
 	if (!seq_proxy_get_fname(seq, cfra, proxy_render_size, name)) {
 		return;
 	}
 
-	ibuf = seq_render_strip(context, seq, cfra);
+	ibuf_tmp = seq_render_strip(context, seq, cfra);
 
-	rectx = (proxy_render_size * ibuf->x) / 100;
-	recty = (proxy_render_size * ibuf->y) / 100;
+	rectx = (proxy_render_size * ibuf_tmp->x) / 100;
+	recty = (proxy_render_size * ibuf_tmp->y) / 100;
 
-	if (ibuf->x != rectx || ibuf->y != recty) {
+	if (ibuf_tmp->x != rectx || ibuf_tmp->y != recty) {
+		ibuf = IMB_dupImBuf(ibuf_tmp);
+		IMB_freeImBuf(ibuf_tmp);
 		IMB_scalefastImBuf(ibuf, (short)rectx, (short)recty);
+	}
+	else {
+		ibuf = ibuf_tmp;
 	}
 
 	/* depth = 32 is intentionally left in, otherwise ALPHA channels
@@ -2524,6 +2529,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 	int do_seq;
 	// bool have_seq = false;  /* UNUSED */
 	bool have_comp = false;
+	bool use_gpencil = true;
 	Scene *scene;
 	int is_thread_main = BLI_thread_is_main();
 
@@ -2547,6 +2553,10 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 	else {
 		BKE_scene_camera_switch_update(scene);
 		camera = scene->camera;
+	}
+	
+	if (seq->flag & SEQ_SCENE_NO_GPENCIL) {
+		use_gpencil = false;
 	}
 
 	if (have_comp == false && camera == NULL) {
@@ -2581,7 +2591,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 		ibuf = sequencer_view3d_cb(scene, camera, width, height, IB_rect,
 		                           context->scene->r.seq_prev_type,
 		                           (context->scene->r.seq_flag & R_SEQ_SOLID_TEX) != 0,
-		                           true, scene->r.alphamode, err_out);
+		                           use_gpencil, true, scene->r.alphamode, err_out);
 		if (ibuf == NULL) {
 			fprintf(stderr, "seq_render_scene_strip failed to get opengl buffer: %s\n", err_out);
 		}
