@@ -18,26 +18,22 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BLI_POLYFILL2D_H__
-#define __BLI_POLYFILL2D_H__
+#ifndef __BLI_POLYFILL2D_BEAUTIFY_H__
+#define __BLI_POLYFILL2D_BEAUTIFY_H__
 
+struct EdgeHash;
+struct Heap;
 struct MemArena;
 
-void BLI_polyfill_calc_arena(
+void BLI_polyfill_beautify(
         const float (*coords)[2],
         const unsigned int coords_tot,
-        const int coords_sign,
-        unsigned int (*r_tris)[3],
+        unsigned int (*tris)[3],
 
-        struct MemArena *arena);
+        /* structs for reuse */
+        struct MemArena *arena, struct Heap *eheap, struct EdgeHash *eh);
 
-void BLI_polyfill_calc(
-        const float (*coords)[2],
-        const unsigned int coords_tot,
-        const int coords_sign,
-        unsigned int (*r_tris)[3]);
+/* avoid realloc's when creating new structures for polyfill ngons */
+#define BLI_POLYFILL_ALLOC_NGON_RESERVE 64
 
-/* default size of polyfill arena */
-#define BLI_POLYFILL_ARENA_SIZE MEM_SIZE_OPTIMAL(1 << 14)
-
-#endif  /* __BLI_POLYFILL2D_H__ */
+#endif  /* __BLI_POLYFILL2D_BEAUTIFY_H__ */

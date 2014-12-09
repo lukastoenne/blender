@@ -748,19 +748,13 @@ static void knife_add_single_cut(KnifeTool_OpData *kcd, KnifeLineHit *lh1, Knife
 static void knife_cut_face(KnifeTool_OpData *kcd, BMFace *f, ListBase *hits)
 {
 	Ref *r;
-	KnifeLineHit *lh, *prevlh;
 
 	if (BLI_listbase_count_ex(hits, 2) != 2)
 		return;
 
-	prevlh = NULL;
-	for (r = hits->first; r; r = r->next) {
-		lh = (KnifeLineHit *)r->ref;
-		if (prevlh)
-			knife_add_single_cut(kcd, prevlh, lh, f);
-		prevlh = lh;
+	for (r = hits->first; r->next; r = r->next) {
+		knife_add_single_cut(kcd, r->ref, r->next->ref, f);
 	}
-
 }
 
 /* User has just left-clicked after the first time.
@@ -1383,6 +1377,11 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 		ls = (BMLoop **)kcd->em->looptris[result->indexA];
 		f = ls[0]->f;
 		set_lowest_face_tri(kcd, f, result->indexA);
+
+		/* occlude but never cut unselected faces (when only_select is used) */
+		if (kcd->only_select && !BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+			continue;
+		}
 		/* for faces, store index of lowest hit looptri in hash */
 		if (BLI_smallhash_haskey(&faces, (uintptr_t)f)) {
 			continue;
@@ -1589,6 +1588,10 @@ static BMFace *knife_find_closest_face(KnifeTool_OpData *kcd, float co[3], float
 	sub_v3_v3v3(ray, origin_ofs, origin);
 
 	f = BKE_bmbvh_ray_cast(kcd->bmbvh, origin, ray, 0.0f, NULL, co, cageco);
+
+	if (f && kcd->only_select && BM_elem_flag_test(f, BM_ELEM_SELECT) == 0) {
+		f = NULL;
+	}
 
 	if (is_space)
 		*is_space = !f;
@@ -2342,13 +2345,22 @@ static bool knife_verts_edge_in_face(KnifeVert *v1, KnifeVert *v2, BMFace *f)
 {
 	bool v1_inside, v2_inside;
 	bool v1_inface, v2_inface;
+	BMLoop *l1, *l2;
 
 	if (!f || !v1 || !v2)
 		return false;
 
+	l1 = v1->v ? BM_face_vert_share_loop(f, v1->v) : NULL;
+	l2 = v2->v ? BM_face_vert_share_loop(f, v2->v) : NULL;
+
+	if ((l1 && l2) && BM_loop_is_adjacent(l1, l2)) {
+		/* boundary-case, always false to avoid edge-in-face checks below */
+		return false;
+	}
+
 	/* find out if v1 and v2, if set, are part of the face */
-	v1_inface = v1->v ? BM_vert_in_face(f, v1->v) : false;
-	v2_inface = v2->v ? BM_vert_in_face(f, v2->v) : false;
+	v1_inface = (l1 != NULL);
+	v2_inface = (l2 != NULL);
 
 	/* BM_face_point_inside_test uses best-axis projection so this isn't most accurate test... */
 	v1_inside = v1_inface ? false : BM_face_point_inside_test(f, v1->co);
@@ -2760,10 +2772,11 @@ static void knifetool_init(bContext *C, KnifeTool_OpData *kcd,
 
 	kcd->cagecos = (const float (*)[3])BKE_editmesh_vertexCos_get(kcd->em, scene, NULL);
 
-	kcd->bmbvh = BKE_bmbvh_new_from_editmesh(kcd->em,
-	                                         BMBVH_RETURN_ORIG |
-	                                         (only_select ? BMBVH_RESPECT_SELECT : BMBVH_RESPECT_HIDDEN),
-	                                         kcd->cagecos, false);
+	kcd->bmbvh = BKE_bmbvh_new_from_editmesh(
+	        kcd->em,
+	        BMBVH_RETURN_ORIG |
+	        ((only_select && cut_through) ? BMBVH_RESPECT_SELECT : BMBVH_RESPECT_HIDDEN),
+	        kcd->cagecos, false);
 
 	kcd->arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 15), "knife");
 	kcd->vthresh = KMAXDIST - 1;
