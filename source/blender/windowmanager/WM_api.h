@@ -471,9 +471,6 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
 /* widget API */
-struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
-                                                 void (*draw)(const struct bContext *, struct wmWidgetGroup *), short spaceid, short regionid, bool is_3d);
-
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
                                int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
@@ -492,13 +489,15 @@ void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale);
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
 
-struct wmWidgetMapType *WM_widgetmaptype_find(int spaceid, int regionid, bool is_3d, bool create);
+struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create);
 
-bool WM_widgetgrouptype_register(struct Main *bmain, struct wmWidgetGroupType *wgroup);
+struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+                                                 void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
+                                                 struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d);
 void WM_widgetgrouptype_unregister(struct Main *bmain, struct wmWidgetGroupType *wgroup);
 
 /* creates a widgetmap with all registered widgets for that type */
-struct wmWidgetMap *WM_widgetmap_from_type(int spaceid, int regionid, bool is_3d);
+struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int regionid, bool is_3d);
 void WM_widgetmap_delete(struct wmWidgetMap *wmap);
 void WM_widgetmaptype_delete(struct Main *bmain,struct wmWidgetMapType *wmaptype);
 

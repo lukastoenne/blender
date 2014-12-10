@@ -682,8 +682,8 @@ typedef struct wmWidgetGroupType {
 
 	/* same as widgetmaps, so registering/unregistering goes to the correct region */
 	short spaceid, regionid;
+	char mapidname[64];
 	bool is_3d;
-
 } wmWidgetGroupType;
 
 /* *************** migrated stuff, clean later? ************** */

@@ -1396,7 +1396,6 @@ static void rna_WidgetGroup_unregister(struct Main *bmain, StructRNA *type)
 	//RNA_struct_free_extension(type, &wgrouptype->ext);
 
 	WM_widgetgrouptype_unregister(bmain, wgrouptype);
-	MEM_freeN(wgrouptype);
 	//WM_operatortype_remove_ptr(ot);
 
 	/* not to be confused with the RNA_struct_free that WM_operatortype_remove calls, they are 2 different srna's */
@@ -1501,7 +1500,7 @@ static StructRNA *rna_WidgetGroup_register(Main *bmain, ReportList *reports, voi
 	}
 	
 	/* check if the area supports widgets */
-	if (!WM_widgetmaptype_find(dummywgt.spaceid, dummywgt.regionid, dummywgt.is_3d, false)) {
+	if (!WM_widgetmaptype_find(dummywgt.mapidname ,dummywgt.spaceid, dummywgt.regionid, dummywgt.is_3d, false)) {
 		BKE_reportf(reports, RPT_ERROR, "Area type does not support widgets");
 		return NULL;
 	}
@@ -1528,10 +1527,9 @@ static StructRNA *rna_WidgetGroup_register(Main *bmain, ReportList *reports, voi
 	dummywgt.poll = (have_function[0]) ? widgetgroup_poll : NULL;
 	dummywgt.draw = (have_function[1]) ? widgetgroup_draw : NULL;
 
-	wgrouptype = WM_widgetgrouptype_new(NULL, NULL, 0, 0, 0);
+	wgrouptype = WM_widgetgrouptype_new(dummywgt.poll, dummywgt.draw, bmain, dummywgt.mapidname, dummywgt.spaceid, dummywgt.regionid, dummywgt.is_3d);
 	memcpy(wgrouptype, &dummywgt, sizeof(dummywgt));
 	
-	WM_widgetgrouptype_register(bmain, wgrouptype);
 	/* update while blender is running */
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 

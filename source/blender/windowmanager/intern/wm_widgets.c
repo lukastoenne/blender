@@ -79,6 +79,7 @@
  */
 typedef struct wmWidgetMapType {
 	struct wmWidgetMapType *next, *prev;
+	char idname[64];
 	short spaceid, regionid;
 	/**
 	 * Check if widgetmap does 3D drawing
@@ -95,13 +96,21 @@ typedef struct wmWidgetMapType {
  * area type can query the widgetbox to do so */
 static ListBase widgetmaptypes = {NULL, NULL};
 
+
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *C, struct wmWidgetGroupType *),
         void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
-        short spaceid, short regionid,bool is_3d
+        Main *bmain, const char *mapidname, short spaceid, short regionid,bool is_3d
         )
 {
+	bScreen *sc;
+	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid, regionid, is_3d, false);
 	wmWidgetGroupType *wgrouptype;
+	
+	if (!wmaptype) {
+		fprintf(stderr, "widgetgrouptype creation: widgetmap type does not exist");
+		return NULL;
+	}
 	
 	wgrouptype = MEM_callocN(sizeof(wmWidgetGroupType), "widgetgroup");
 	
@@ -110,7 +119,35 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
 	wgrouptype->spaceid = spaceid;
 	wgrouptype->regionid = regionid;
 	wgrouptype->is_3d = is_3d;
+	BLI_strncpy(wgrouptype->mapidname, mapidname, 64);
+
+	/* add the type for future created areas of the same type  */
+	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
 	
+	/* now create a widget for all existing areas. (main is missing when we create new areas so not needed) */
+	if (bmain) {
+		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					ARegion *ar;
+					ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+					
+					for (ar = lb->first; ar; ar = ar->next) {
+						if (ar->widgetmap) {
+							wmWidgetMap *wmap = ar->widgetmap;
+							wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
+							wgroup->type = wgrouptype;
+							BLI_addtail(&wmap->widgetgroups, wgroup);
+						}
+					}
+				}
+			}
+		}
+	}
+		
 	return wgrouptype;
 }
 
@@ -325,18 +362,16 @@ void WM_event_add_widget_handler(ARegion *ar)
 
 wmEventHandler *WM_event_add_widget_modal_handler(struct bContext *C, wmWidgetGroupType *wgrouptype, wmOperator *op)
 {
-	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event modal handler");
-	wmWindow *win = CTX_wm_window(C);
+	wmEventHandler *handler;
+	wmWindow *win;
 
-	/* create a modal widgetmap for the window using the same interaction style */
-	WM_widgetmaptype_find(0, 0, wgrouptype->is_3d, true);
-	
-	/* register the widgetgrouptype on the widgetmap */
-	WM_widgetgrouptype_register(CTX_data_main(C), wgrouptype);
+	handler = MEM_callocN(sizeof(wmEventHandler), "widget modal handler");
+	win = CTX_wm_window(C);
 	
 	/* now instantiate the widgetmap */
 	wgrouptype->op = op;
-	handler->widgetmap = handler->op_widgetmap = WM_widgetmap_from_type(0, 0, wgrouptype->is_3d);
+	handler->widgetmap = handler->op_widgetmap = WM_widgetmap_from_type(wgrouptype->mapidname, wgrouptype->spaceid, 
+	                                                                    wgrouptype->regionid, wgrouptype->is_3d);
 	
 	handler->op_area = CTX_wm_area(C);       /* means frozen screen context for modal handlers! */
 	handler->op_region = CTX_wm_region(C);
@@ -402,15 +437,14 @@ void WM_widget_set_scale(struct wmWidget *widget, float scale)
 }
 
 
-wmWidgetMapType *WM_widgetmaptype_find(int spaceid, int regionid, bool is_3d, bool create)
+wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create)
 {
 	wmWidgetMapType *wmaptype;
 
 	for (wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
-		if (wmaptype->spaceid == spaceid && wmaptype->regionid == regionid) {
-			if (wmaptype->is_3d == is_3d) {
-				return wmaptype;
-			}
+		if (wmaptype->spaceid == spaceid && wmaptype->regionid == regionid && wmaptype->is_3d == is_3d
+		    && strcmp(wmaptype->idname, idname) == 0) {
+			return wmaptype;
 		}
 	}
 
@@ -420,6 +454,7 @@ wmWidgetMapType *WM_widgetmaptype_find(int spaceid, int regionid, bool is_3d, bo
 	wmaptype->spaceid = spaceid;
 	wmaptype->regionid = regionid;
 	wmaptype->is_3d = is_3d;
+	BLI_strncpy(wmaptype->idname, idname, 64);
 	BLI_addhead(&widgetmaptypes, wmaptype);
 	
 	return wmaptype;
@@ -680,9 +715,9 @@ struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap)
 }
 
 
-struct wmWidgetMap *WM_widgetmap_from_type(int spaceid, int regionid, bool is_3d)
+struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int regionid, bool is_3d)
 {
-	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(spaceid, regionid, is_3d, true);
+	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(idname, spaceid, regionid, is_3d, true);
 	wmWidgetGroupType *wgrouptype = wmaptype->widgetgrouptypes.first;
 	wmWidgetMap *wmap;
 
@@ -763,48 +798,6 @@ static void wm_widgetgroup_free(wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 	MEM_freeN(wgroup);
 }
 
-bool WM_widgetgrouptype_register(Main *bmain, wmWidgetGroupType *wgrouptype)
-{
-	wmWidgetGroupType *wgrouptype_iter;
-	bScreen *sc;
-	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(wgrouptype->spaceid, wgrouptype->regionid, wgrouptype->is_3d, false);
-	
-	/* search list, might already be registered */	
-	for (wgrouptype_iter = wmaptype->widgetgrouptypes.first; wgrouptype_iter; wgrouptype_iter = wgrouptype_iter->next) {
-		if (wgrouptype_iter == wgrouptype)
-			return false;
-	}
-	
-	/* add the type for future created areas of the same type  */
-	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
-	
-	/* now create a widget for all existing areas. (main is missing when we create new areas so not needed) */
-	if (bmain) {
-		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
-			ScrArea *sa;
-			for (sa = sc->areabase.first; sa; sa = sa->next) {
-				SpaceLink *sl;
-				
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					ARegion *ar;
-					ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-					
-					for (ar = lb->first; ar; ar = ar->next) {
-						if (ar->widgetmap) {
-							wmWidgetMap *wmap = ar->widgetmap;
-							wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
-							wgroup->type = wgrouptype;
-							BLI_addtail(&wmap->widgetgroups, wgroup);
-						}
-					}
-				}
-			}
-		}
-	}
-	
-	return true;
-}
-
 void WM_widgetgrouptype_unregister(Main *bmain, wmWidgetGroupType *wgrouptype)
 {
 	bScreen *sc;
@@ -834,7 +827,7 @@ void WM_widgetgrouptype_unregister(Main *bmain, wmWidgetGroupType *wgrouptype)
 		}
 	}
 
-	wmaptype = WM_widgetmaptype_find(wgrouptype->spaceid, wgrouptype->regionid, wgrouptype->is_3d, false);
+	wmaptype = WM_widgetmaptype_find(wgrouptype->mapidname, wgrouptype->spaceid, wgrouptype->regionid, wgrouptype->is_3d, false);
 	BLI_remlink(&wmaptype->widgetgrouptypes, wgrouptype);
 	wgrouptype->prev = wgrouptype->next = NULL;
 	MEM_freeN(wgrouptype);

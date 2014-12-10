@@ -342,7 +342,7 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 
 	/* main area */
 	ar = MEM_callocN(sizeof(ARegion), "main area for node");
-	ar->widgetmap = WM_widgetmap_from_type(SPACE_NODE, RGN_TYPE_WINDOW, true);
+	ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_NODE, RGN_TYPE_WINDOW, true);
 
 	BLI_addtail(&snode->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
@@ -664,7 +664,7 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
 	if (!ar->widgetmap) {
-		ar->widgetmap = WM_widgetmap_from_type(SPACE_NODE, RGN_TYPE_WINDOW, false);
+		ar->widgetmap = WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false);
 	}
 
 	WM_event_add_widget_handler(ar);
@@ -886,13 +886,10 @@ static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct w
 
 static void node_widgets(void)
 {
-	struct wmWidgetGroupType *wgroup_node_transform;
-
-	WM_widgetmaptype_find(SPACE_NODE, RGN_TYPE_WINDOW, false, true);
+	/* create the widgetmap for the area here */
+	WM_widgetmaptype_find("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false, true);
 	
-	wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update, SPACE_NODE, RGN_TYPE_WINDOW, false);
-	/* create the widgetmap here */
-	WM_widgetgrouptype_register(NULL, wgroup_node_transform);
+	WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update, NULL, "Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false);
 }
 
 /* only called once, from space/spacetypes.c */

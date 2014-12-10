@@ -247,7 +247,7 @@ static int sequencer_backdrop_transform_poll(bContext *C)
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	ARegion *ar = CTX_wm_region(C);
 
-	return (sseq && ar && ar->type == RGN_TYPE_WINDOW && (sseq->draw_flag & SEQ_DRAW_BACKDROP));
+	return (sseq && ar && ar->type->regionid == RGN_TYPE_WINDOW && (sseq->draw_flag & SEQ_DRAW_BACKDROP));
 }
 
 static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
@@ -268,7 +268,7 @@ static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetG
 static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	/* no poll, lives always for the duration of the operator */
-	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, SPACE_SEQ, RGN_TYPE_WINDOW, false);
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
 	
 	WM_event_add_modal_handler(C, op);
 	WM_event_add_widget_modal_handler(C, cagetype, op);
@@ -294,6 +294,8 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 
 void SEQUENCER_OT_backdrop_transform(struct wmOperatorType *ot)
 {
+	float default_offset[2] = {0.0f, 0.0f};
+	
 	/* identifiers */
 	ot->name = "Change Data/Files";
 	ot->idname = "SEQUENCER_OT_backdrop_transform";
@@ -305,6 +307,8 @@ void SEQUENCER_OT_backdrop_transform(struct wmOperatorType *ot)
 	ot->poll = sequencer_backdrop_transform_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;	
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_float_array(ot->srna, "offset", 2, default_offset, FLT_MIN, FLT_MAX, "Offset", "Offset of the backdrop", FLT_MIN, FLT_MAX);
 }
 
