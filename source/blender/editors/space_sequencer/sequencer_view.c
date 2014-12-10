@@ -262,6 +262,8 @@ static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetG
 		wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | 
 		                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, ibuf->x, ibuf->y);
 		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+		
+		IMB_freeImBuf(ibuf);
 	}
 }
 

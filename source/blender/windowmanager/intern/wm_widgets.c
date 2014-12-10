@@ -144,6 +144,7 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
 								
 								/* just add here, drawing will occur on next update */
 								BLI_addtail(&wmap->widgetgroups, wgroup);
+								ED_region_tag_redraw(ar);
 							}
 						}
 					}
@@ -687,9 +688,19 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					
 					if (handler && handler->op && handler->op->type == ot) {
 						handler->widgetmap = wmap;
+						wmap->active_widget = widget;
 					}
 				}
-				wmap->active_widget = widget;
+				
+				/* we failed to hook the widget to the operator handler or operator was cancelled, return */
+				if (!wmap->active_widget) {
+					widget->flag &= ~WM_WIDGET_ACTIVE;
+					/* first activate the widget itself */
+					if (widget->interaction_data) {
+						MEM_freeN(widget->interaction_data);
+						widget->interaction_data = NULL;
+					}
+				}
 				return;
 			}
 			else {
@@ -730,14 +741,10 @@ struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int 
 	wmWidgetGroupType *wgrouptype = wmaptype->widgetgrouptypes.first;
 	wmWidgetMap *wmap;
 
-	/* no need to create a widgetmap if no types have been registered */
-	if (!wgrouptype)
-		return NULL;
-
 	wmap = MEM_callocN(sizeof(wmWidgetMap), "WidgetMap");
 	wmap->type = wmaptype;
 
-	/* create all widgetgroups for this widgetmap */
+	/* create all widgetgroups for this widgetmap. We may create an empty one too in anticipation of widgets from operators etc */
 	for (; wgrouptype; wgrouptype = wgrouptype->next) {
 		wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
 		wgroup->type = wgrouptype;

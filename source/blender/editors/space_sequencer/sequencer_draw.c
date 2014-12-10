@@ -1177,6 +1177,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
 		glLoadIdentity();
+		
+		WM_widgets_draw(C, ar->widgetmaps.first);
 	}
 	glBegin(GL_QUADS);
 
@@ -1212,8 +1214,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		else {
 			imagex = 1.0f;
 			imagey = aspect / image_aspect;
-		}
-		
+		}		
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex, -imagey);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex, imagey);
 		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex, imagey);
