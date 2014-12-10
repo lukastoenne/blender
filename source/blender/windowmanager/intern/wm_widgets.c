@@ -364,6 +364,11 @@ wmEventHandler *WM_event_add_widget_modal_handler(struct bContext *C, wmWidgetGr
 {
 	wmEventHandler *handler;
 	wmWindow *win;
+	
+	/* maybe overly careful, but widgetgrouptype could come from a failed creation */
+	if (!wgrouptype) {
+		return NULL;
+	}
 
 	handler = MEM_callocN(sizeof(wmEventHandler), "widget modal handler");
 	win = CTX_wm_window(C);

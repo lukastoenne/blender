@@ -667,7 +667,15 @@ static void sequencer_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED
 			break;
 	}
 }
+
 /* ************************************* */
+
+static void sequencer_widgets(void)
+{
+	/* create the widgetmap for the area here */
+	WM_widgetmaptype_find("Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false, true);
+}
+
 
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_sequencer(void)
@@ -688,6 +696,7 @@ void ED_spacetype_sequencer(void)
 	st->dropboxes = sequencer_dropboxes;
 	st->refresh = sequencer_refresh;
 	st->listener = sequencer_listener;
+	st->widgets = sequencer_widgets;
 
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype sequencer region");
