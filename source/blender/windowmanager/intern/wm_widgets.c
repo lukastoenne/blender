@@ -144,6 +144,7 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
 								
 								/* just add here, drawing will occur on next update */
 								BLI_addtail(&wmap->widgetgroups, wgroup);
+								wm_widgetmap_set_highlighted_widget(wmap, NULL, NULL, 0);
 								ED_region_tag_redraw(ar);
 							}
 						}
@@ -636,8 +637,6 @@ wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, cons
 void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part)
 {
 	if (widget != wmap->highlighted_widget || (widget && part != widget->highlighted_part)) {
-		ARegion *ar = CTX_wm_region(C);
-
 		if (wmap->highlighted_widget) {
 			wmap->highlighted_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
 			wmap->highlighted_widget->highlighted_part = 0;
@@ -650,8 +649,11 @@ void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bConte
 			widget->highlighted_part = part;
 		}
 		
-		/* tag the region for redraw */
-		ED_region_tag_redraw(ar);
+		if (C) {
+			ARegion *ar = CTX_wm_region(C);
+			/* tag the region for redraw */
+			ED_region_tag_redraw(ar);
+		}
 	}
 }
 
@@ -819,10 +821,12 @@ void WM_widgetgrouptype_unregister(Main *bmain, wmWidgetGroupType *wgrouptype)
 				for (ar = lb->first; ar; ar = ar->next) {
 					wmWidgetMap *wmap;
 					for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
-						wmWidgetGroup *wgroup;
-						for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
+						wmWidgetGroup *wgroup, *wgroup_tmp;
+						for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup_tmp) {
+							wgroup_tmp = wgroup->next;
 							if (wgroup->type == wgrouptype) {
 								wm_widgetgroup_free(wmap, wgroup);
+								ED_region_tag_redraw(ar);
 							}
 						}
 					}

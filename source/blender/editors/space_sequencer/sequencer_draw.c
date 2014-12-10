@@ -1177,8 +1177,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
 		glLoadIdentity();
-		
-		WM_widgets_draw(C, ar->widgetmaps.first);
 	}
 	glBegin(GL_QUADS);
 
@@ -1233,7 +1231,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glMatrixMode(GL_PROJECTION);
 		glPopMatrix();
 		glMatrixMode(GL_MODELVIEW);
-		
 	}
 	
 	glBindTexture(GL_TEXTURE_2D, last_texid);
@@ -1252,6 +1249,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		IMB_freeImBuf(ibuf);
 	
 	if (draw_backdrop) {
+		UI_view2d_view_restore(C);
+		WM_widgets_draw(C, ar->widgetmaps.first);
 		return;
 	}
 	

@@ -262,6 +262,7 @@ static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetG
 		wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | 
 		                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, ibuf->x, ibuf->y);
 		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 		
 		IMB_freeImBuf(ibuf);
 	}
@@ -284,14 +285,8 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 		case EVT_WIDGET_UPDATE:
 			break;
 			
-		case LEFTMOUSE:
-			if (event->val == KM_DBL_CLICK)
-				/* remove the widgetgroup before exiting */
-				WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
-				return OPERATOR_FINISHED;
-			break;
-			
 		case RETKEY:
+			WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
 			return OPERATOR_FINISHED;
 	}
 	
@@ -316,5 +311,6 @@ void SEQUENCER_OT_backdrop_transform(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	RNA_def_float_array(ot->srna, "offset", 2, default_offset, FLT_MIN, FLT_MAX, "Offset", "Offset of the backdrop", FLT_MIN, FLT_MAX);
+	RNA_def_float(ot->srna, "scale", 1.0f, 0.0f, FLT_MAX, "Scale", "Scale of the backdrop", 0.0f, FLT_MAX);
 }
 
