@@ -33,6 +33,7 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_rect.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_widget_types.h"
@@ -252,28 +253,35 @@ static int sequencer_backdrop_transform_poll(bContext *C)
 
 static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
+	ARegion *ar = CTX_wm_region(C);
 	wmOperator *op = wgroup->type->op;
-	ImBuf *ibuf;
-	Scene *scene = CTX_data_scene(C);
+	Scene *sce = CTX_data_scene(C);
+	int sizex = (sce->r.size * sce->r.xsch) / 100;
+	int sizey = (sce->r.size * sce->r.ysch) / 100;
+	float origin[3];	
 	
-	ibuf = sequencer_ibuf_get(CTX_data_main(C), scene, CTX_wm_space_seq(C), scene->r.cfra, 0);
+	wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | 
+	                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, sizex, sizey);
+	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 	
-	if (ibuf) {
-		wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | 
-		                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, ibuf->x, ibuf->y);
-		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
-		WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
-		
-		IMB_freeImBuf(ibuf);
-	}
+	origin[0] = BLI_rcti_size_x(&ar->winrct)/2.0f;
+	origin[1] = BLI_rcti_size_y(&ar->winrct)/2.0f;
+	
+	WM_widget_set_origin(cage, origin);
 }
 
 static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	/* no poll, lives always for the duration of the operator */
 	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
 	WM_modal_handler_attach_widgetgroup(handler, cagetype, op);
+	WM_event_add_mousemove(C);
+	
+	RNA_float_set_array(op->ptr, "offset", sseq->backdrop_offset);
+	RNA_float_set(op->ptr, "scale", sseq->backdrop_zoom);
 	
 	op->customdata = cagetype;
 	return OPERATOR_RUNNING_MODAL;
@@ -282,12 +290,36 @@ static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, cons
 static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	switch (event->type) {
-		case EVT_WIDGET_UPDATE:
+		case EVT_WIDGET_UPDATE: {
+			SpaceSeq *sseq = CTX_wm_space_seq(C);
+			RNA_float_get_array(op->ptr, "offset", sseq->backdrop_offset);
+			sseq->backdrop_zoom = RNA_float_get(op->ptr, "scale");
 			break;
+		}
 			
+		case RKEY: 
+		{
+			SpaceSeq *sseq = CTX_wm_space_seq(C);
+			ARegion *ar = CTX_wm_region(C);
+			float zero[2] = {0.0f};
+			RNA_float_set_array(op->ptr, "offset", zero);
+			RNA_float_set(op->ptr, "scale", 1.0f);
+			copy_v2_v2(sseq->backdrop_offset, zero);
+			sseq->backdrop_zoom = 1.0;
+			ED_region_tag_redraw(ar);
+			/* add a mousemove to refresh the widget */
+			WM_event_add_mousemove(C);
+			break;
+		}
 		case RETKEY:
+		case PADENTER:
 			WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
 			return OPERATOR_FINISHED;
+			
+		case ESCKEY:
+		case RIGHTMOUSE:
+			WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
+			return OPERATOR_CANCELLED;
 	}
 	
 	return OPERATOR_RUNNING_MODAL;

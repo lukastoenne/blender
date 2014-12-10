@@ -2007,17 +2007,17 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				struct wmWidgetMap *wmap = handler->widgetmap;
 				unsigned char part;
 				short event_processed = 0;
-				short val_processed = event->val;
 				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 				ScrArea *area = CTX_wm_area(C);
 				ARegion *region = CTX_wm_region(C);
 				
 				wm_handler_widgetmap_context(C, handler);
+				wm_region_mouse_co(C, event);
 				
 				switch (event->type) {
 					case MOUSEMOVE:
 						if (widget) {
-							val_processed = widget->handler(C, event, widget);
+							widget->handler(C, event, widget);
 							event_processed = EVT_WIDGET_UPDATE;
 							action |= WM_HANDLER_BREAK;
 						}
@@ -2035,7 +2035,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					{
 						if (widget) {
 							if (event->val == KM_RELEASE) {
-								wm_widgetmap_set_active_widget(wmap, C, event, NULL);
+								wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
 								event_processed = EVT_WIDGET_RELEASED;
 								action |= WM_HANDLER_BREAK;
 							}
@@ -2047,7 +2047,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							widget = wm_widgetmap_get_highlighted_widget(wmap);
 
 							if (widget) {
-								wm_widgetmap_set_active_widget(wmap, C, event, widget);
+								wm_widgetmap_set_active_widget(wmap, C, event, widget, handler->op == NULL);
 								action |= WM_HANDLER_BREAK;
 							}
 						}
@@ -2063,7 +2063,6 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					/* if event was processed by an active widget pass the modified event to the operator */
 					if (event_processed) {
 						event->type = event_processed;
-						event->val = val_processed;
 					}
 					action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
 				}

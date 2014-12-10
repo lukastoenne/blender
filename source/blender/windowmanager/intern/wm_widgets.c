@@ -388,8 +388,6 @@ void WM_modal_handler_attach_widgetgroup(wmEventHandler *handler, wmWidgetGroupT
 
 bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)
 {
-	wmWidget *widget_iter;
-	
 	widget->user_scale = 1.0f;
 
 	/* create at least one property for interaction */
@@ -399,12 +397,6 @@ bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)
 	
 	widget->props = MEM_callocN(sizeof(PropertyRNA *) * widget->max_prop, "widget->props");
 	widget->ptr = MEM_callocN(sizeof(PointerRNA) * widget->max_prop, "widget->ptr");
-
-	/* search list, might already be registered */	
-	for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
-		if (widget_iter == widget)
-			return false;
-	}
 	
 	BLI_addtail(&wgroup->widgets, widget);
 	return true;
@@ -662,14 +654,14 @@ struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap)
 	return wmap->highlighted_widget;
 }
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget)
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget, bool call_op)
 {
 	if (widget) {
 		if (!widget->handler) {
 			/* widget does nothing, pass */
 			wmap->active_widget = NULL;
 		}
-		else {
+		else if (call_op) {
 			wmOperatorType *ot;
 			const char *opname = (widget->opname) ? widget->opname : "WM_OT_widget_tweak";
 			
@@ -711,9 +703,15 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 				return;
 			}
 		}
+		else {
+			widget->flag |= WM_WIDGET_ACTIVE;
+			if (widget->invoke) {
+				widget->invoke(C, event, widget);
+			}
+			wmap->active_widget = widget;
+		}
 	}
 	else {
-		ARegion *ar = CTX_wm_region(C);
 		widget = wmap->active_widget;
 
 		/* deactivate, widget but first take care of some stuff */
@@ -726,8 +724,12 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 			}
 		}
 		wmap->active_widget = NULL;
-		ED_region_tag_redraw(ar);
-		WM_event_add_mousemove(C);
+		
+		if (C) {
+			ARegion *ar = CTX_wm_region(C);
+			ED_region_tag_redraw(ar);
+			WM_event_add_mousemove(C);
+		}
 	}
 }
 
@@ -783,6 +785,12 @@ static void wm_widgetgroup_free(wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 
 	for (widget = wgroup->widgets.first; widget;) {
 		wmWidget *widget_next = widget->next;
+		if (widget->flag & WM_WIDGET_HIGHLIGHT) {
+			wm_widgetmap_set_highlighted_widget(wmap, NULL, NULL, 0);
+		}
+		if (widget->flag & WM_WIDGET_ACTIVE) {
+			wm_widgetmap_set_active_widget(wmap, NULL, NULL, NULL, false);
+		}
 		wm_widget_delete(&wgroup->widgets, widget);
 		widget = widget_next;
 	}

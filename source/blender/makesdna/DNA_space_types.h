@@ -499,7 +499,8 @@ typedef struct SpaceSeq {
 	int view; /* see SEQ_VIEW_* below */
 	int overlay_type;
 	int draw_flag; /* overlay an image of the editing on below the strips */
-	int pad;
+	float backdrop_zoom;
+	float backdrop_offset[2];
 
 	struct bGPdata *gpd;        /* grease-pencil data */
 

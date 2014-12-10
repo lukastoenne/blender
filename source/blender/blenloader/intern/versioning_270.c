@@ -447,6 +447,11 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 						SpaceNode *snode = (SpaceNode *)sl;
 						snode->backdrop_zoom = 1.0;
 					}
+					if (sl->spacetype == SPACE_SEQ) {
+						SpaceSeq *sseq = (SpaceSeq *)sl;
+						sseq->backdrop_zoom = 1.0;
+					}
+					
 				}
 			}
 		}
