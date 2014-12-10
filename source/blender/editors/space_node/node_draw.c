@@ -1346,7 +1346,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
 			glaDefine2DArea(&ar->winrct);
 			wmOrtho2_pixelspace(ar->winx, ar->winy);
 
-			WM_widgets_draw(C, ar);
+			WM_widgets_draw(C, ar->widgetmaps.first);
 
 			glMatrixMode(GL_PROJECTION);
 			glPopMatrix();

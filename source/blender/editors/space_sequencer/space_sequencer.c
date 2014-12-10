@@ -478,8 +478,13 @@ static void sequencer_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 	/* add drop boxes */
 	lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
-
+	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
+	
+	/* no modal keymap here, only operators use this currently */
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false));
+	}
 }
 
 static void sequencer_main_area_draw(const bContext *C, ARegion *ar)

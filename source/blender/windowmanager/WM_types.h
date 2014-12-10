@@ -686,6 +686,21 @@ typedef struct wmWidgetGroupType {
 	bool is_3d;
 } wmWidgetGroupType;
 
+typedef struct wmWidgetMap {
+	struct wmWidgetMap *next, *prev;
+	
+	struct wmWidgetMapType *type;
+	ListBase widgetgroups;
+	
+	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
+	struct wmWidget *highlighted_widget;
+	/* active widget for this map. User has clicked currently this widget and it gets all input */
+	struct wmWidget *active_widget;
+	
+	/* active group is overriding all other widgets while active */
+	struct wmWidgetGroup *activegroup;
+} wmWidgetMap;
+
 /* *************** migrated stuff, clean later? ************** */
 
 typedef struct RecentFile {

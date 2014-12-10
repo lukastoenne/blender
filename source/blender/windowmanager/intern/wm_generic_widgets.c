@@ -376,28 +376,23 @@ static int widget_arrow_handler(struct bContext *C, const struct wmEvent *event,
 }
 
 
-static int widget_arrow_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
+static int widget_arrow_invoke(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
 {
-	if (state == WIDGET_ACTIVATE) {
-		ArrowWidget *arrow = (ArrowWidget *) widget;
-		ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
-
-		data->orig_offset = arrow->offset;
-
-		data->orig_mouse[0] = event->mval[0];
-		data->orig_mouse[1] = event->mval[1];
-
-		data->orig_scale = widget->scale;
-
-		widget_arrow_get_final_pos(widget, data->orig_origin);
-
-		widget->interaction_data = data;
-	}
-	else if (state == WIDGET_DEACTIVATE) {
-		MEM_freeN(widget->interaction_data);
-		widget->interaction_data = NULL;
-	}
-	return OPERATOR_FINISHED;
+	ArrowWidget *arrow = (ArrowWidget *) widget;
+	ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
+	
+	data->orig_offset = arrow->offset;
+	
+	data->orig_mouse[0] = event->mval[0];
+	data->orig_mouse[1] = event->mval[1];
+	
+	data->orig_scale = widget->scale;
+	
+	widget_arrow_get_final_pos(widget, data->orig_origin);
+	
+	widget->interaction_data = data;
+	
+	return OPERATOR_RUNNING_MODAL;
 }
 
 static void widget_arrow_bind_to_prop(struct wmWidget *widget, int UNUSED(slot))
@@ -450,7 +445,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style)
 	arrow->widget.get_final_position = 	widget_arrow_get_final_pos;
 	arrow->widget.intersect = NULL;
 	arrow->widget.handler = widget_arrow_handler;
-	arrow->widget.activate_state = widget_arrow_activate;
+	arrow->widget.invoke = widget_arrow_invoke;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
@@ -880,26 +875,20 @@ static bool widget_rect_transform_get_property(struct wmWidget *widget, int slot
 	return true;
 }
 
-static int widget_rect_transform_activate(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget, int state)
+static int widget_rect_transform_invoke(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
 {
-	if (state == WIDGET_ACTIVATE) {
-		RectTransformWidget *cage = (RectTransformWidget *) widget;
-		RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
-
-		copy_v2_v2(data->orig_offset, cage->offset);
-		copy_v2_v2(data->orig_scale, cage->scale);
-
-		data->orig_mouse[0] = event->mval[0];
-		data->orig_mouse[1] = event->mval[1];
-
-		widget->interaction_data = data;
-	}
-	else if (state == WIDGET_DEACTIVATE) {
-		MEM_freeN(widget->interaction_data);
-		widget->interaction_data = NULL;
-	}
+	RectTransformWidget *cage = (RectTransformWidget *) widget;
+	RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
 	
-	return OPERATOR_FINISHED;
+	copy_v2_v2(data->orig_offset, cage->offset);
+	copy_v2_v2(data->orig_scale, cage->scale);
+	
+	data->orig_mouse[0] = event->mval[0];
+	data->orig_mouse[1] = event->mval[1];
+	
+	widget->interaction_data = data;
+	
+	return OPERATOR_RUNNING_MODAL;
 }
 
 static int widget_rect_transform_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget)
@@ -1002,7 +991,7 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	RectTransformWidget *cage = MEM_callocN(sizeof(RectTransformWidget), "CageWidget");
 
 	cage->widget.draw = widget_rect_transform_draw;
-	cage->widget.activate_state = widget_rect_transform_activate;
+	cage->widget.invoke = widget_rect_transform_invoke;
 	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
 	cage->widget.handler = widget_rect_transform_handler;
 	cage->widget.intersect = widget_rect_tranfrorm_intersect;

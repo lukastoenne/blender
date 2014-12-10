@@ -1425,11 +1425,6 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 				if (handler->op->type->flag & OPTYPE_UNDO)
 					wm->op_undo_depth--;
 				
-				/* if there's a widgetmap and an operator at the same time, we can assume widgetmap 
-				 * was added for operator */
-				if (handler->op_widgetgrouptype)
-					WM_widgetgrouptype_unregister(CTX_data_main(C), handler->op_widgetgrouptype);
-					
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
 			}
@@ -1605,7 +1600,6 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			ScrArea *area = CTX_wm_area(C);
 			ARegion *region = CTX_wm_region(C);
 			bool dbl_click_disabled = false;
-			wmWidget *widget = CTX_wm_widget(C);
 
 			wm_handler_op_context(C, handler);
 			wm_region_mouse_co(C, event);
@@ -1614,37 +1608,8 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			if (ot->flag & OPTYPE_UNDO)
 				wm->op_undo_depth++;
 
-			/* if a widget has called the operator, it swallows all events here */
-			if (widget) {
-				retval = OPERATOR_RUNNING_MODAL;
-
-				switch (event->type) {
-					case MOUSEMOVE:
-						if (widget->handler(C, event, widget) == OPERATOR_PASS_THROUGH) {
-							event->type = EVT_WIDGET_UPDATE;
-							retval = ot->modal(C, op, event);
-						}
-						break;
-
-					case LEFTMOUSE:
-						if (event->val == KM_RELEASE) {
-							/* get the correct region returned by the operator context */
-							ARegion *ar = CTX_wm_region(C);
-							event->type = EVT_WIDGET_RELEASED;
-							retval = ot->modal(C, op, event);
-							wm_widgetmap_set_active_widget(ar->widgetmap, C, event, NULL);
-						}
-						break;
-
-					default:
-						retval = ot->modal(C, op, event);
-						break;
-				}
-			}
-			else {
-				/* warning, after this call all context data and 'event' may be freed. see check below */
-				retval = ot->modal(C, op, event);
-			}
+			/* warning, after this call all context data and 'event' may be freed. see check below */
+			retval = ot->modal(C, op, event);
 
 			OPERATOR_RETVAL_CHECK(retval);
 			/* when this is _not_ the case the modal modifier may have loaded

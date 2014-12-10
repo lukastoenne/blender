@@ -271,6 +271,8 @@ static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, cons
 	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
 	WM_modal_handler_attach_widgetgroup(handler, cagetype, op);
+	
+	op->customdata = cagetype;
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -282,6 +284,8 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 			
 		case LEFTMOUSE:
 			if (event->val == KM_DBL_CLICK)
+				/* remove the widgetgroup before exiting */
+				WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
 				return OPERATOR_FINISHED;
 			break;
 			

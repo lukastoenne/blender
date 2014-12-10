@@ -342,7 +342,6 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 
 	/* main area */
 	ar = MEM_callocN(sizeof(ARegion), "main area for node");
-	ar->widgetmap = WM_widgetmap_from_type("View3D", SPACE_NODE, RGN_TYPE_WINDOW, true);
 
 	BLI_addtail(&snode->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
@@ -663,12 +662,11 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
 	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
-	if (!ar->widgetmap) {
-		ar->widgetmap = WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false);
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
 	}
 
-	WM_event_add_widget_handler(ar);
-
+	WM_event_add_area_widgetmap_handlers(ar);
 }
 
 static void node_main_area_draw(const bContext *C, ARegion *ar)

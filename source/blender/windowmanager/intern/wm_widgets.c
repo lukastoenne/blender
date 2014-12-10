@@ -136,11 +136,15 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
 					ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
 					
 					for (ar = lb->first; ar; ar = ar->next) {
-						if (ar->widgetmap) {
-							wmWidgetMap *wmap = ar->widgetmap;
-							wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
-							wgroup->type = wgrouptype;
-							BLI_addtail(&wmap->widgetgroups, wgroup);
+						wmWidgetMap *wmap;
+						for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+							if (wmap->type == wmaptype) {
+								wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
+								wgroup->type = wgrouptype;
+								
+								/* just add here, drawing will occur on next update */
+								BLI_addtail(&wmap->widgetgroups, wgroup);
+							}
 						}
 					}
 				}
@@ -248,9 +252,8 @@ static bool widgets_compare(wmWidget *widget, wmWidget *widget2)
 }
 
 
-void WM_widgets_draw(const bContext *C, struct ARegion *ar)
+void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap)
 {
-	wmWidgetMap *wmap = ar->widgetmap;
 	wmWidget *widget;
 	bool use_lighting;
 
@@ -346,18 +349,17 @@ void WM_widgets_draw(const bContext *C, struct ARegion *ar)
 		glPopAttrib();
 }
 
-void WM_event_add_widget_handler(ARegion *ar)
+void WM_event_add_area_widgetmap_handlers(ARegion *ar)
 {
+	wmWidgetMap *wmap;
 	wmEventHandler *handler;
 	
-	for (handler = ar->handlers.first; handler; handler = handler->next)
-		if (handler->widgetmap == ar->widgetmap)
-			return;
+	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+		handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
 	
-	handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
-	
-	handler->widgetmap = ar->widgetmap;
-	BLI_addhead(&ar->handlers, handler);
+		handler->widgetmap = wmap;
+		BLI_addhead(&ar->handlers, handler);
+	}
 }
 
 void WM_modal_handler_attach_widgetgroup(wmEventHandler *handler, wmWidgetGroupType *wgrouptype, wmOperator *op)
@@ -369,15 +371,16 @@ void WM_modal_handler_attach_widgetgroup(wmEventHandler *handler, wmWidgetGroupT
 
 	/* now instantiate the widgetmap */
 	wgrouptype->op = op;
-	handler->op_widgetgrouptype = wgrouptype;
-	if (((handler->op_area && handler->op_area->type->spaceid == wgrouptype->spaceid) || wgrouptype->spaceid == 0) &&
-	    (handler->op_region && (handler->op_region->type->regionid == wgrouptype->regionid || wgrouptype->regionid == 0)))
-	{
-		handler->widgetmap = handler->op_region->widgetmap;
-	}
-	else
-	{
-		
+
+	if (handler->op_region && handler->op_region->widgetmaps.first) {
+		wmWidgetMap *wmap;
+		for (wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
+			wmWidgetMapType *wmaptype = wmap->type;
+			
+			if (wmaptype->spaceid == wgrouptype->spaceid && wmaptype->regionid == wgrouptype->regionid) {
+				handler->widgetmap = wmap;
+			}
+		}
 	}
 }
 
@@ -672,12 +675,20 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 			if (ot) {
 				widget->flag |= WM_WIDGET_ACTIVE;
 				/* first activate the widget itself */
-				if (widget->activate_state) {
-					widget->activate_state(C, event, widget, WIDGET_ACTIVATE);
+				if (widget->invoke) {
+					widget->invoke(C, event, widget);
 				}
 
-				CTX_wm_widget_set(C, widget);
-				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
+				/* if operator runs modal, we will need to activate the current widgetmap on the operator handler, so it can
+				 * process events first, then pass them on to the operator */
+				if (WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr) == OPERATOR_RUNNING_MODAL) {
+					/* check if operator added a a modal event handler */
+					wmEventHandler *handler = CTX_wm_window(C)->modalhandlers.first;
+					
+					if (handler && handler->op && handler->op->type == ot) {
+						handler->widgetmap = wmap;
+					}
+				}
 				wmap->active_widget = widget;
 				return;
 			}
@@ -696,13 +707,11 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 		if (widget) {
 			widget->flag &= ~WM_WIDGET_ACTIVE;
 			/* first activate the widget itself */
-			if (widget->activate_state) {
-				widget->activate_state(C, event, widget, WIDGET_DEACTIVATE);
+			if (widget->interaction_data) {
+				MEM_freeN(widget->interaction_data);
+				widget->interaction_data = NULL;
 			}
 		}
-
-		CTX_wm_widget_set(C, NULL);
-
 		wmap->active_widget = NULL;
 		ED_region_tag_redraw(ar);
 		WM_event_add_mousemove(C);
@@ -801,8 +810,8 @@ void WM_widgetgrouptype_unregister(Main *bmain, wmWidgetGroupType *wgrouptype)
 				ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
 
 				for (ar = lb->first; ar; ar = ar->next) {
-					if (ar->widgetmap) {
-						wmWidgetMap *wmap = ar->widgetmap;
+					wmWidgetMap *wmap;
+					for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
 						wmWidgetGroup *wgroup;
 						for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 							if (wgroup->type == wgrouptype) {

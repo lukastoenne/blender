@@ -74,7 +74,7 @@ typedef struct wmWidget {
 	void (*get_final_position)(struct wmWidget *widget, float vec[3]);
 
 	/* activate a widget state when the user clicks on it */
-	int (*activate_state)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, int state);
+	int (*invoke)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 	
 	int  flag; /* flags set by drawing and interaction, such as highlighting */
 
@@ -105,24 +105,6 @@ typedef struct wmWidget {
 	struct PointerRNA *ptr;
 	struct PropertyRNA **props;
 } wmWidget;
-
-typedef struct wmWidgetMap {
-	struct wmWidgetMap *next, *prev;
-	
-	struct wmWidgetMapType *type;
-	ListBase widgetgroups;
-	
-	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
-	wmWidget *highlighted_widget;
-	/* active widget for this map. User has clicked currently this widget and it gets all input */
-	wmWidget *active_widget;
-	
-	/* active group is overriding all other widgets while active */
-	struct wmWidgetGroup *activegroup;
-} wmWidgetMap;
-
-#define WIDGET_ACTIVATE 1
-#define WIDGET_DEACTIVATE 2
 
 /* wmWidget->flag */
 enum widgetflags {
