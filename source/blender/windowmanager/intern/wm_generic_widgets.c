@@ -457,7 +457,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style)
 	arrow->style = style;
 	copy_v3_v3(arrow->direction, dir_default);
 	
-	WM_widget_register(wgroup, &arrow->widget);
+	wm_widget_register(wgroup, &arrow->widget);
 	
 	return (wmWidget *)arrow;
 }
@@ -1012,7 +1012,7 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	cage->w = width;
 	cage->h = height;
 	
-	WM_widget_register(wgroup, &cage->widget);
+	wm_widget_register(wgroup, &cage->widget);
 	
 	return (wmWidget *)cage;
 }

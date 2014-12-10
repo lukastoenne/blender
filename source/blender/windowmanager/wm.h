@@ -114,8 +114,11 @@ typedef struct wmWidgetMap {
 	
 	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
 	wmWidget *highlighted_widget;
-	/* active widget for this map. User has clicked and is currently this widget  */
+	/* active widget for this map. User has clicked currently this widget and it gets all input */
 	wmWidget *active_widget;
+	
+	/* active group is overriding all other widgets while active */
+	struct wmWidgetGroup *activegroup;
 } wmWidgetMap;
 
 #define WIDGET_ACTIVATE 1
@@ -171,6 +174,8 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
 bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap);
+bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
+
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */
 #define GESTURE_MEMORY

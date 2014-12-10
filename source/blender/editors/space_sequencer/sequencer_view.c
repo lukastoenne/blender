@@ -269,9 +269,8 @@ static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, cons
 {
 	/* no poll, lives always for the duration of the operator */
 	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
-	
-	WM_event_add_modal_handler(C, op);
-	WM_event_add_widget_modal_handler(C, cagetype, op);
+	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
+	WM_modal_handler_attach_widgetgroup(handler, cagetype, op);
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -284,6 +283,7 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 		case LEFTMOUSE:
 			if (event->val == KM_DBL_CLICK)
 				return OPERATOR_FINISHED;
+			break;
 			
 		case RETKEY:
 			return OPERATOR_FINISHED;

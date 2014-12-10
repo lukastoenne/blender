@@ -1372,7 +1372,7 @@ static void wm_handler_widgetmap_context(bContext *C, wmEventHandler *handler)
 {
 	bScreen *screen = CTX_wm_screen(C);
 	
-	if (screen && handler->widgetmap) {
+	if (screen) {
 		if (handler->op_area == NULL) {
 			/* do nothing in this context */
 		}
@@ -1424,11 +1424,12 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 
 				if (handler->op->type->flag & OPTYPE_UNDO)
 					wm->op_undo_depth--;
-
-				if (handler->op_widgetmap) {
-					WM_widgetmaptype_delete(CTX_data_main(C), handler->op_widgetmap->type);
-				}
 				
+				/* if there's a widgetmap and an operator at the same time, we can assume widgetmap 
+				 * was added for operator */
+				if (handler->op_widgetgrouptype)
+					WM_widgetgrouptype_unregister(CTX_data_main(C), handler->op_widgetgrouptype);
+					
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
 			}
@@ -2040,6 +2041,8 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			else if (handler->widgetmap) {
 				struct wmWidgetMap *wmap = handler->widgetmap;
 				unsigned char part;
+				short event_processed = 0;
+				short val_processed = event->val;
 				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 				ScrArea *area = CTX_wm_area(C);
 				ARegion *region = CTX_wm_region(C);
@@ -2049,7 +2052,8 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				switch (event->type) {
 					case MOUSEMOVE:
 						if (widget) {
-							widget->handler(C, event, widget);
+							val_processed = widget->handler(C, event, widget);
+							event_processed = EVT_WIDGET_UPDATE;
 							action |= WM_HANDLER_BREAK;
 						}
 						else if (wm_widgetmap_is_3d(wmap)) {
@@ -2067,6 +2071,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 						if (widget) {
 							if (event->val == KM_RELEASE) {
 								wm_widgetmap_set_active_widget(wmap, C, event, NULL);
+								event_processed = EVT_WIDGET_RELEASED;
 								action |= WM_HANDLER_BREAK;
 							}
 							else {
@@ -2088,6 +2093,15 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				/* restore the area */
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
+				
+				if (handler->op) {
+					/* if event was processed by an active widget pass the modified event to the operator */
+					if (event_processed) {
+						event->type = event_processed;
+						event->val = val_processed;
+					}
+					action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
+				}
 			}
 			else {
 				/* handle the widget first, before passing the event down */

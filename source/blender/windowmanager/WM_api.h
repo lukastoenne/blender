@@ -480,9 +480,7 @@ void WM_widget_property(struct wmWidget *, int slot, struct PointerRNA *ptr, con
 struct PointerRNA *WM_widget_operator(struct wmWidget *, const char *opname);
 void WM_widgets_draw(const struct bContext *C, struct ARegion *ar);
 void WM_event_add_widget_handler(struct ARegion *ar);
-struct wmEventHandler *WM_event_add_widget_modal_handler(struct bContext *C, struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
-
-bool WM_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
+void WM_modal_handler_attach_widgetgroup(struct wmEventHandler *handler, struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
 
 void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
 void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale);
@@ -499,7 +497,6 @@ void WM_widgetgrouptype_unregister(struct Main *bmain, struct wmWidgetGroupType 
 /* creates a widgetmap with all registered widgets for that type */
 struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int regionid, bool is_3d);
 void WM_widgetmap_delete(struct wmWidgetMap *wmap);
-void WM_widgetmaptype_delete(struct Main *bmain,struct wmWidgetMapType *wmaptype);
 
 void WM_widgetmaptypes_free(void);
 

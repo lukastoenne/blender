@@ -232,7 +232,7 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 	widget->scale = scale * widget->user_scale;
 }
 
-static bool widget_compare_props(wmWidget *widget, wmWidget *widget2)
+static bool widgets_compare(wmWidget *widget, wmWidget *widget2)
 {
 	int i;
 	
@@ -313,7 +313,7 @@ void WM_widgets_draw(const bContext *C, struct ARegion *ar)
 				
 				if (highlighted) {
 					for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
-						if (widget_compare_props(widget_iter, highlighted))
+						if (widgets_compare(widget_iter, highlighted))
 						{
 							widget_iter->flag |= WM_WIDGET_HIGHLIGHT;
 							wmap->highlighted_widget = widget_iter;
@@ -360,33 +360,28 @@ void WM_event_add_widget_handler(ARegion *ar)
 	BLI_addhead(&ar->handlers, handler);
 }
 
-wmEventHandler *WM_event_add_widget_modal_handler(struct bContext *C, wmWidgetGroupType *wgrouptype, wmOperator *op)
+void WM_modal_handler_attach_widgetgroup(wmEventHandler *handler, wmWidgetGroupType *wgrouptype, wmOperator *op)
 {
-	wmEventHandler *handler;
-	wmWindow *win;
-	
 	/* maybe overly careful, but widgetgrouptype could come from a failed creation */
 	if (!wgrouptype) {
-		return NULL;
+		return;
 	}
 
-	handler = MEM_callocN(sizeof(wmEventHandler), "widget modal handler");
-	win = CTX_wm_window(C);
-	
 	/* now instantiate the widgetmap */
 	wgrouptype->op = op;
-	handler->widgetmap = handler->op_widgetmap = WM_widgetmap_from_type(wgrouptype->mapidname, wgrouptype->spaceid, 
-	                                                                    wgrouptype->regionid, wgrouptype->is_3d);
-	
-	handler->op_area = CTX_wm_area(C);       /* means frozen screen context for modal handlers! */
-	handler->op_region = CTX_wm_region(C);
-	
-	BLI_addhead(&win->modalhandlers, handler);
-
-	return handler;
+	handler->op_widgetgrouptype = wgrouptype;
+	if (((handler->op_area && handler->op_area->type->spaceid == wgrouptype->spaceid) || wgrouptype->spaceid == 0) &&
+	    (handler->op_region && (handler->op_region->type->regionid == wgrouptype->regionid || wgrouptype->regionid == 0)))
+	{
+		handler->widgetmap = handler->op_region->widgetmap;
+	}
+	else
+	{
+		
+	}
 }
 
-bool WM_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)
+bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)
 {
 	wmWidget *widget_iter;
 	
@@ -763,18 +758,6 @@ void WM_widgetmap_delete(struct wmWidgetMap *wmap)
 
 	MEM_freeN(wmap);
 }
-
-void WM_widgetmaptype_delete(Main *bmain, struct wmWidgetMapType *wmaptype)
-{
-	wmWidgetGroupType *wgrouptype, *wgrouptype_tmp;
-	for (wgrouptype = wmaptype->widgetgrouptypes.first; wgrouptype; wgrouptype = wgrouptype_tmp) {
-		wgrouptype_tmp = wgrouptype->next;
-		WM_widgetgrouptype_unregister(bmain, wgrouptype);
-	}
-	
-	BLI_freelinkN(&widgetmaptypes, wmaptype);
-}
-
 
 static void wm_widgetgroup_free(wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 {
