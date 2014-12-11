@@ -469,7 +469,6 @@ void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4
 float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]);
 bool        WM_event_is_tablet(const struct wmEvent *event);
 
-
 /* widget API */
 struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
@@ -543,6 +542,10 @@ void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
 struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, float width, float height);
+
+#ifdef WITH_INPUT_IME
+bool        WM_event_is_ime_switch(const struct wmEvent *event);
+#endif
 
 #ifdef __cplusplus
 }

@@ -198,6 +198,7 @@ class SEQUENCER_MT_view(Menu):
         if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "show_seconds")
             layout.prop(st, "show_frame_indicator")
+            layout.prop(st, "show_strip_offset")
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             if st.display_mode == 'IMAGE':
@@ -792,6 +793,8 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
 
         layout.label(text="Camera Override")
         layout.template_ID(strip, "scene_camera")
+
+        layout.prop(strip, "use_grease_pencil", text="Show Grease Pencil")
 
         if scene:
             layout.prop(scene, "audio_volume", text="Audio Volume")

@@ -209,6 +209,11 @@ void ui_window_to_region(const ARegion *ar, int *x, int *y)
 	*y -= ar->winrct.ymin;
 }
 
+void ui_region_to_window(const ARegion *ar, int *x, int *y)
+{
+	*x += ar->winrct.xmin;
+	*y += ar->winrct.ymin;
+}
 /* ******************* block calc ************************* */
 
 void ui_block_translate(uiBlock *block, int x, int y)
@@ -1714,6 +1719,9 @@ bool ui_but_is_bool(const uiBut *but)
 		return true;
 
 	if (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_BOOLEAN)
+		return true;
+
+	if ((but->rnaprop && RNA_property_type(but->rnaprop) == PROP_ENUM) && (but->type == UI_BTYPE_ROW))
 		return true;
 
 	return false;

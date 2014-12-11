@@ -1990,7 +1990,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	             BLENDER_VERSION / 100, BLENDER_VERSION % 100);
 	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", url);
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://wiki.blender.org/index.php/Doc:2.6/Manual");
+	              "http://www.blender.org/manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
 	if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "release")) {
 		BLI_snprintf(url, sizeof(url), "http://www.blender.org/documentation/blender_python_api_%d_%d"
@@ -4833,6 +4833,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "MASK_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "NODE_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "GPENCIL_OT_select_circle");
+	WM_modalkeymap_assign(keymap, "GRAPH_OT_select_circle");	
 
 }
 
