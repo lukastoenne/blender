@@ -71,6 +71,7 @@
 #include "BKE_armature.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_editstrands.h"
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
 #include "BKE_nla.h"
@@ -891,6 +892,12 @@ static void recalcData_objects(TransInfo *t)
 			applyProject(t);
 		}
 		flushTransParticles(t);
+	}
+	else if (base && (base->object->mode & OB_MODE_HAIR_EDIT) && BKE_editstrands_from_object(base->object)) {
+		if (t->state != TRANS_CANCEL) {
+			applyProject(t);
+		}
+		flushTransStrands(t);
 	}
 	else {
 		int i;

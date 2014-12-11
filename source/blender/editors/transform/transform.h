@@ -564,6 +564,7 @@ void flushTransGraphData(TransInfo *t);
 void remake_graph_transdata(TransInfo *t, struct ListBase *anim_data);
 void flushTransUVs(TransInfo *t);
 void flushTransParticles(TransInfo *t);
+void flushTransStrands(TransInfo *t);
 bool clipUVTransform(TransInfo *t, float vec[2], const bool resize);
 void clipUVData(TransInfo *t);
 void flushTransNodes(TransInfo *t);
