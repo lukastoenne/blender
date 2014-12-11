@@ -67,6 +67,7 @@
 #include "BKE_crazyspace.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_editstrands.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
@@ -1927,6 +1928,203 @@ void flushTransParticles(TransInfo *t)
 	PE_update_object(scene, OBACT, 1);
 }
 
+
+/* ******************* hair edit **************** */
+
+static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float *dists);
+static struct TransIslandData *bmesh_islands_info_calc(BMesh *bm, short selectmode, int *r_island_tot, int **r_island_vert_map);
+
+static void StrandVertsToTransData(TransInfo *t, TransData *td,
+                                 BMEditStrands *UNUSED(edit), BMVert *eve, const float nor[3], const float tang[3],
+                                 struct TransIslandData *v_island)
+{
+	BLI_assert(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) == 0);
+
+	td->flag = 0;
+	td->loc = eve->co;
+	copy_v3_v3(td->iloc, td->loc);
+
+	if (v_island) {
+		copy_v3_v3(td->center, v_island->co);
+		copy_m3_m3(td->axismtx, v_island->axismtx);
+	}
+	else if (t->around == V3D_LOCAL) {
+		copy_v3_v3(td->center, td->loc);
+		createSpaceNormalTangent(td->axismtx, nor, tang);
+	}
+	else {
+		copy_v3_v3(td->center, td->loc);
+
+		/* Setting normals */
+		copy_v3_v3(td->axismtx[2], nor);
+		td->axismtx[0][0]        =
+		    td->axismtx[0][1]    =
+		    td->axismtx[0][2]    =
+		    td->axismtx[1][0]    =
+		    td->axismtx[1][1]    =
+		    td->axismtx[1][2]    = 0.0f;
+	}
+
+	td->ext = NULL;
+	td->val = NULL;
+	td->extra = NULL;
+}
+
+static void createTransStrandVerts(TransInfo *t)
+{
+	Scene *scene = t->scene;
+	Object *ob = OBACT;
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	BMesh *bm = edit->bm;
+	TransData *tob = NULL;
+	BMVert *eve;
+	BMIter iter;
+	float mtx[3][3], smtx[3][3];
+	float *dists = NULL;
+	int a;
+	int propmode = (t->flag & T_PROP_EDIT) ? (t->flag & T_PROP_EDIT_ALL) : 0;
+	int mirror = 0;
+
+	struct TransIslandData *island_info = NULL;
+	int island_info_tot;
+	int *island_vert_map = NULL;
+
+	if (t->flag & T_MIRROR) {
+#if 0 // TODO mirror relies on EDBM functions which don't have an equivalent for editstrands yet
+		EDBM_verts_mirror_cache_begin(em, 0, false, (t->flag & T_PROP_EDIT) == 0, false);
+		mirror = 1;
+#endif
+	}
+
+	/* quick check if we can transform */
+	/* note: in prop mode we need at least 1 selected */
+	if (bm->totvertsel == 0) {
+		goto cleanup;
+	}
+	
+	if (propmode) {
+		unsigned int count = 0;
+		BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+			if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
+				count++;
+			}
+		}
+
+		t->total = count;
+
+		/* allocating scratch arrays */
+		if (propmode & T_PROP_CONNECTED)
+			dists = MEM_mallocN(bm->totvert * sizeof(float), "scratch nears");
+	}
+	else {
+		t->total = bm->totvertsel;
+	}
+
+	tob = t->data = MEM_callocN(t->total * sizeof(TransData), "TransObData(Strands EditMode)");
+
+	copy_m3_m4(mtx, ob->obmat);
+	/* we use a pseudoinverse so that when one of the axes is scaled to 0,
+	 * matrix inversion still works and we can still moving along the other */
+	pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
+
+	if (propmode & T_PROP_CONNECTED) {
+		editmesh_set_connectivity_distance(bm, mtx, dists);
+	}
+
+	if (t->around == V3D_LOCAL) {
+		island_info = bmesh_islands_info_calc(edit->bm, SCE_SELECT_VERTEX, &island_info_tot, &island_vert_map);
+	}
+
+	/* find out which half we do */
+	if (mirror) {
+#if 0 // TODO
+		BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+			if (BM_elem_flag_test(eve, BM_ELEM_SELECT) && eve->co[0] != 0.0f) {
+				if (eve->co[0] < 0.0f) {
+					t->mirror = -1;
+					mirror = -1;
+				}
+				break;
+			}
+		}
+#endif
+	}
+
+	BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
+		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
+			if (propmode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+				struct TransIslandData *v_island = (island_info && island_vert_map[a] != -1) ?
+				                                   &island_info[island_vert_map[a]] : NULL;
+				/* XXX TODO calculate normal and tangent along the strand */
+				float nor[3], tang[3];
+				nor[0] = 0.0f; nor[1] = 0.0f; nor[2] = 1.0f;
+				tang[0] = 0.0f; tang[1] = 1.0f; tang[2] = 0.0f;
+				
+				StrandVertsToTransData(t, tob, edit, eve, nor, tang, v_island);
+
+				/* selected */
+				if (BM_elem_flag_test(eve, BM_ELEM_SELECT))
+					tob->flag |= TD_SELECTED;
+
+				if (propmode) {
+					if (propmode & T_PROP_CONNECTED) {
+						tob->dist = dists[a];
+					}
+					else {
+						tob->flag |= TD_NOTCONNECTED;
+						tob->dist = FLT_MAX;
+					}
+				}
+
+				copy_m3_m3(tob->smtx, smtx);
+				copy_m3_m3(tob->mtx, mtx);
+
+				/* Mirror? */
+				if ((mirror > 0 && tob->iloc[0] > 0.0f) || (mirror < 0 && tob->iloc[0] < 0.0f)) {
+#if 0 // TODO
+					BMVert *vmir = EDBM_verts_mirror_get(em, eve);
+					if (vmir && vmir != eve) {
+						tob->extra = vmir;
+					}
+#endif
+				}
+				tob++;
+			}
+		}
+	}
+	
+	if (island_info) {
+		MEM_freeN(island_info);
+		MEM_freeN(island_vert_map);
+	}
+
+	if (mirror != 0) {
+#if 0 // TODO
+		tob = t->data;
+		for (a = 0; a < t->total; a++, tob++) {
+			if (ABS(tob->loc[0]) <= 0.00001f) {
+				tob->flag |= TD_MIRROR_EDGE;
+			}
+		}
+#endif
+	}
+
+cleanup:
+	if (dists)
+		MEM_freeN(dists);
+
+	if (t->flag & T_MIRROR) {
+#if 0 // TODO
+		EDBM_verts_mirror_cache_end(em);
+#endif
+	}
+}
+
+void flushTransStrands(TransInfo *t)
+{
+//	PE_update_object(scene, OBACT, 1);
+}
+
 /* ********************* mesh ****************** */
 
 static bool bmesh_test_dist_add(BMVert *v, BMVert *v_other,
@@ -2055,9 +2253,8 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 	MEM_freeN(dists_prev);
 }
 
-static struct TransIslandData *editmesh_islands_info_calc(BMEditMesh *em, int *r_island_tot, int **r_island_vert_map)
+static struct TransIslandData *bmesh_islands_info_calc(BMesh *bm, short selectmode, int *r_island_tot, int **r_island_vert_map)
 {
-	BMesh *bm = em->bm;
 	struct TransIslandData *trans_islands;
 	char htype;
 	char itype;
@@ -2071,7 +2268,7 @@ static struct TransIslandData *editmesh_islands_info_calc(BMEditMesh *em, int *r
 
 	int *vert_map;
 
-	if (em->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
+	if (selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
 		groups_array = MEM_mallocN(sizeof(*groups_array) * bm->totedgesel, __func__);
 		group_tot = BM_mesh_calc_edge_groups(bm, groups_array, &group_index,
 		                                     NULL, NULL,
@@ -2335,7 +2532,7 @@ static void createTransEditVerts(TransInfo *t)
 	}
 
 	if (t->around == V3D_LOCAL) {
-		island_info = editmesh_islands_info_calc(em, &island_info_tot, &island_vert_map);
+		island_info = bmesh_islands_info_calc(em->bm, em->selectmode, &island_info_tot, &island_vert_map);
 	}
 
 	/* detect CrazySpace [tm] */
@@ -5952,6 +6149,13 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	{
 		/* do nothing */
 	}
+	else if ((t->scene->basact) &&
+	         (ob = t->scene->basact->object) &&
+	         (ob->mode & OB_MODE_HAIR_EDIT) &&
+	         BKE_editstrands_from_object(ob))
+	{
+		/* do nothing */
+	}
 	else { /* Objects */
 		int i;
 
@@ -7684,6 +7888,16 @@ void createTransData(bContext *C, TransInfo *t)
 	}
 	else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT) && PE_start_edit(PE_get_current(scene, ob))) {
 		createTransParticleVerts(C, t);
+		t->flag |= T_POINTS;
+
+		if (t->data && t->flag & T_PROP_EDIT) {
+			sort_trans_data(t); // makes selected become first in array
+			set_prop_dist(t, 1);
+			sort_trans_data_dist(t);
+		}
+	}
+	else if (ob && (ob->mode & OB_MODE_HAIR_EDIT) && BKE_editstrands_from_object(ob)) {
+		createTransStrandVerts(t);
 		t->flag |= T_POINTS;
 
 		if (t->data && t->flag & T_PROP_EDIT) {
