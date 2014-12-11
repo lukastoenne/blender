@@ -2122,7 +2122,11 @@ cleanup:
 
 void flushTransStrands(TransInfo *t)
 {
-//	PE_update_object(scene, OBACT, 1);
+	Scene *scene = t->scene;
+	Object *ob = OBACT;
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	
+	BKE_editstrands_solve_constraints(edit);
 }
 
 /* ********************* mesh ****************** */

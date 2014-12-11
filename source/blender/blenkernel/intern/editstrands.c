@@ -141,17 +141,75 @@ static void editstrands_apply_root_locations(BMesh *bm, DerivedMesh *root_dm)
 	}
 }
 
-static void editstrands_solve_segment_lengths(BMesh *bm)
+/* try to find a nice solution to keep distances between neighboring keys */
+/* XXX Stub implementation ported from particles:
+ * Successively relax each segment starting from the root,
+ * repeat this for every vertex (O(n^2) !!)
+ * This should be replaced by a more advanced method using a least-squares
+ * error metric with length and root location constraints (IK solver)
+ */
+static void editstrands_solve_targets(BMEditStrands *edit)
+{
+	BMesh *bm = edit->bm;
+	BMVert *root;
+	BMIter iter;
+	
+	if (!edit)
+		return;
+//	if (!(pset->flag & PE_KEEP_LENGTHS)) // XXX TODO
+//		return;
+	
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		const int numvert = BM_strands_keys_count(root);
+		float relax_factor = numvert > 0 ? 1.0f / numvert : 0.0f;
+		
+		BMVert *vj;
+		BMIter iterj;
+		int j;
+		
+		BM_ITER_STRANDS_ELEM_INDEX(vj, &iterj, root, BM_VERTS_OF_STRAND, j) {
+			BMVert *vk, *vk_prev;
+			float lenk, lenk_prev;
+			BMIter iterk;
+			int k;
+			bool skip_first;
+			
+			if (j == 0)
+				continue;
+			
+			if (true /* XXX particles use PE_LOCK_FIRST option */)
+				skip_first = true;
+			else
+				skip_first = false;
+			
+			BM_ITER_STRANDS_ELEM_INDEX(vk, &iterk, root, BM_VERTS_OF_STRAND, k) {
+				float dir[3], tlen, relax;
+				
+				lenk = BM_elem_float_data_named_get(&bm->vdata, vk, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+				
+				if (k > 0) {
+					sub_v3_v3v3(dir, vk->co, vk_prev->co);
+					tlen = normalize_v3(dir);
+					relax = relax_factor * (tlen - lenk_prev);
+					
+					if (!(k == 1 && skip_first))
+						madd_v3_v3fl(vk_prev->co, dir, relax);
+					madd_v3_v3fl(vk->co, dir, -relax);
+				}
+				
+				vk_prev = vk;
+				lenk_prev = lenk;
+			}
+		}
+	}
+}
+
+static void editstrands_adjust_segment_lengths(BMesh *bm)
 {
 	BMVert *root, *v, *vprev;
 	BMIter iter, iter_strand;
 	int k;
 	
-	/* XXX Simplistic implementation from particles:
-	 * adjust segment lengths starting from the root.
-	 * This should be replaced by a more advanced method using a least-squares
-	 * error metric with length and root location constraints
-	 */
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
 			if (k > 0) {
@@ -174,7 +232,10 @@ void BKE_editstrands_solve_constraints(BMEditStrands *es)
 	BKE_editstrands_ensure(es);
 	
 	editstrands_apply_root_locations(es->bm, es->root_dm);
-	editstrands_solve_segment_lengths(es->bm);
+	
+	editstrands_solve_targets(es);
+	
+	editstrands_adjust_segment_lengths(es->bm);
 }
 
 void BKE_editstrands_ensure(BMEditStrands *es)
