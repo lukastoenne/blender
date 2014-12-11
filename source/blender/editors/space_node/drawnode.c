@@ -2051,8 +2051,8 @@ static void node_composit_backdrop_viewer(SpaceNode *snode, ImBuf *backdrop, bNo
 	if (node->custom1 == 0) {
 		const float backdropWidth = backdrop->x;
 		const float backdropHeight = backdrop->y;
-		const float cx  = x + snode->zoom * backdropWidth * node->custom3;
-		const float cy = y + snode->zoom * backdropHeight * node->custom4;
+		const float cx  = x + snode->backdrop_zoom * backdropWidth * node->custom3;
+		const float cy = y + snode->backdrop_zoom * backdropHeight * node->custom4;
 
 		glColor3f(1.0, 1.0, 1.0);
 
@@ -2083,17 +2083,17 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 
 	glColor3f(1.0, 1.0, 1.0);
 
-	cx  = x + snode->zoom * backdropWidth * boxmask->x;
-	cy = y + snode->zoom * backdropHeight * boxmask->y;
+	cx  = x + snode->backdrop_zoom * backdropWidth * boxmask->x;
+	cy = y + snode->backdrop_zoom * backdropHeight * boxmask->y;
 
-	x1 = cx - (cosine * halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-	x2 = cx - (cosine * -halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-	x3 = cx - (cosine * -halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-	x4 = cx - (cosine * halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-	y1 = cy - (-sine * halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-	y2 = cy - (-sine * -halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
-	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
+	x1 = cx - (cosine * halveBoxWidth + sine * halveBoxHeight) * snode->backdrop_zoom;
+	x2 = cx - (cosine * -halveBoxWidth + sine * halveBoxHeight) * snode->backdrop_zoom;
+	x3 = cx - (cosine * -halveBoxWidth + sine * -halveBoxHeight) * snode->backdrop_zoom;
+	x4 = cx - (cosine * halveBoxWidth + sine * -halveBoxHeight) * snode->backdrop_zoom;
+	y1 = cy - (-sine * halveBoxWidth + cosine * halveBoxHeight) * snode->backdrop_zoom;
+	y2 = cy - (-sine * -halveBoxWidth + cosine * halveBoxHeight) * snode->backdrop_zoom;
+	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->backdrop_zoom;
+	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->backdrop_zoom;
 
 	glBegin(GL_LINE_LOOP);
 	glVertex2f(x1, y1);
@@ -2121,17 +2121,17 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 
 	glColor3f(1.0, 1.0, 1.0);
 
-	cx  = x + snode->zoom * backdropWidth * ellipsemask->x;
-	cy = y + snode->zoom * backdropHeight * ellipsemask->y;
+	cx  = x + snode->backdrop_zoom * backdropWidth * ellipsemask->x;
+	cy = y + snode->backdrop_zoom * backdropHeight * ellipsemask->y;
 
-	x1 = cx - (cosine * halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-	x2 = cx - (cosine * -halveBoxWidth + sine * halveBoxHeight) * snode->zoom;
-	x3 = cx - (cosine * -halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-	x4 = cx - (cosine * halveBoxWidth + sine * -halveBoxHeight) * snode->zoom;
-	y1 = cy - (-sine * halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-	y2 = cy - (-sine * -halveBoxWidth + cosine * halveBoxHeight) * snode->zoom;
-	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
-	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
+	x1 = cx - (cosine * halveBoxWidth + sine * halveBoxHeight) * snode->backdrop_zoom;
+	x2 = cx - (cosine * -halveBoxWidth + sine * halveBoxHeight) * snode->backdrop_zoom;
+	x3 = cx - (cosine * -halveBoxWidth + sine * -halveBoxHeight) * snode->backdrop_zoom;
+	x4 = cx - (cosine * halveBoxWidth + sine * -halveBoxHeight) * snode->backdrop_zoom;
+	y1 = cy - (-sine * halveBoxWidth + cosine * halveBoxHeight) * snode->backdrop_zoom;
+	y2 = cy - (-sine * -halveBoxWidth + cosine * halveBoxHeight) * snode->backdrop_zoom;
+	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->backdrop_zoom;
+	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->backdrop_zoom;
 
 	glBegin(GL_LINE_LOOP);
 
@@ -3057,8 +3057,8 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		/* almost #wmOrtho2_region_pixelspace, but no +1 px */
 		wmOrtho2_pixelspace(ar->winx, ar->winy);
 		
-		x = (ar->winx - snode->zoom * ibuf->x) / 2 + snode->xof;
-		y = (ar->winy - snode->zoom * ibuf->y) / 2 + snode->yof;
+		x = (ar->winx - snode->backdrop_zoom * ibuf->x) / 2 + snode->backdrop_offset[0];
+		y = (ar->winy - snode->backdrop_zoom * ibuf->y) / 2 + snode->backdrop_offset[1];
 		
 		if (ibuf->rect || ibuf->rect_float) {
 			unsigned char *display_buffer = NULL;
@@ -3079,7 +3079,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				else                                 ofs = 3;
 #endif
 				
-				glPixelZoom(snode->zoom, snode->zoom);
+				glPixelZoom(snode->backdrop_zoom, snode->backdrop_zoom);
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 				
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT,
@@ -3090,7 +3090,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			else if (snode->flag & SNODE_SHOW_ALPHA) {
 				display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
 				
-				glPixelZoom(snode->zoom, snode->zoom);
+				glPixelZoom(snode->backdrop_zoom, snode->backdrop_zoom);
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 #ifdef __BIG_ENDIAN__
 				glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
@@ -3105,7 +3105,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			else if (snode->flag & SNODE_USE_ALPHA) {
 				glEnable(GL_BLEND);
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				glPixelZoom(snode->zoom, snode->zoom);
+				glPixelZoom(snode->backdrop_zoom, snode->backdrop_zoom);
 				
 				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 				
@@ -3113,7 +3113,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				glDisable(GL_BLEND);
 			}
 			else {
-				glPixelZoom(snode->zoom, snode->zoom);
+				glPixelZoom(snode->backdrop_zoom, snode->backdrop_zoom);
 				
 				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 				
@@ -3144,10 +3144,10 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				rcti pixel_border;
 				UI_ThemeColor(TH_ACTIVE);
 				BLI_rcti_init(&pixel_border,
-				              x + snode->zoom * viewer_border->xmin * ibuf->x,
-				              x + snode->zoom * viewer_border->xmax * ibuf->x,
-				              y + snode->zoom * viewer_border->ymin * ibuf->y,
-				              y + snode->zoom * viewer_border->ymax * ibuf->y);
+				              x + snode->backdrop_zoom * viewer_border->xmin * ibuf->x,
+				              x + snode->backdrop_zoom * viewer_border->xmax * ibuf->x,
+				              y + snode->backdrop_zoom * viewer_border->ymin * ibuf->y,
+				              y + snode->backdrop_zoom * viewer_border->ymax * ibuf->y);
 				glaDrawBorderCorners(&pixel_border, 1.0f, 1.0f);
 			}
 		}

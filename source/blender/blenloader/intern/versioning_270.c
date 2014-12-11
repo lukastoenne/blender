@@ -455,7 +455,28 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
-	
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 3)) {
+		bScreen *sc;
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_NODE) {
+						SpaceNode *snode = (SpaceNode *)sl;
+						snode->backdrop_zoom = 1.0;
+					}
+					if (sl->spacetype == SPACE_SEQ) {
+						SpaceSeq *sseq = (SpaceSeq *)sl;
+						sseq->backdrop_zoom = 1.0;
+					}
+					
+				}
+			}
+		}
+	}
+		
 	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSystem", "float", "hair_preview_factor")) {
 		Object *ob;
 		ParticleSystem *psys;

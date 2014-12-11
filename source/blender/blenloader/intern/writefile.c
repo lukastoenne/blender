@@ -1466,6 +1466,14 @@ static void write_defgroups(WriteData *wd, ListBase *defbase)
 		writestruct(wd, DATA, "bDeformGroup", 1, defgroup);
 }
 
+static void write_fmaps(WriteData *wd, ListBase *fbase)
+{
+	bFaceMap *fmap;
+
+	for (fmap=fbase->first; fmap; fmap=fmap->next)
+		writestruct(wd, DATA, "bFaceMap", 1, fmap);
+}
+
 static void write_modifiers(WriteData *wd, ListBase *modbase)
 {
 	ModifierData *md;
@@ -1625,6 +1633,7 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 
 			write_pose(wd, ob->pose);
 			write_defgroups(wd, &ob->defbase);
+			write_fmaps(wd, &ob->fmaps);
 			write_constraints(wd, &ob->constraints);
 			write_motionpath(wd, ob->mpath);
 			

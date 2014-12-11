@@ -307,7 +307,7 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 	snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
 
 	/* backdrop */
-	snode->zoom = 1.0f;
+	snode->backdrop_zoom = 1.0f;
 
 	/* select the first tree type for valid type */
 	NODE_TREE_TYPES_BEGIN (treetype)
@@ -342,7 +342,6 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 
 	/* main area */
 	ar = MEM_callocN(sizeof(ARegion), "main area for node");
-	ar->widgetmap = WM_widgetmap_from_type("Node", SPACE_NODE, RGN_TYPE_WINDOW, true);
 
 	BLI_addtail(&snode->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
@@ -663,11 +662,11 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 
 	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
-	if (!ar->widgetmap)
-		ar->widgetmap = WM_widgetmap_from_type("Node", SPACE_NODE, RGN_TYPE_WINDOW, false);
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
+	}
 
-	WM_event_add_widget_handler(ar);
-
+	WM_event_add_area_widgetmap_handlers(ar);
 }
 
 static void node_main_area_draw(const bContext *C, ARegion *ar)
@@ -836,13 +835,7 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
-static void WIDGETGROUP_node_transform_create(struct wmWidgetGroup *wgroup)
-{
-	wmWidget *widget = WIDGET_cage_new(0, NULL);
-	WM_widget_register(wgroup, widget);
-}
-
-static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup), const struct bContext *C)
+static int WIDGETGROUP_node_transform_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -856,9 +849,8 @@ static bool WIDGETGROUP_node_transform_poll(struct wmWidgetGroup *UNUSED(wgroup)
 	return false;
 }
 
-static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, const struct bContext *C)
+static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
-	wmWidget *cage = WM_widgetgroup_widgets(wgroup)->first;
 	Image *ima;
 	ImBuf *ibuf;
 	void *lock;
@@ -866,41 +858,36 @@ static void WIDGETGROUP_node_transform_update(struct wmWidgetGroup *wgroup, cons
 	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 	if (ibuf) {
+		wmWidget *cage;
 		SpaceNode *snode = CTX_wm_space_node(C);
 		ARegion *ar = CTX_wm_region(C);
 		float origin[3];
-		float xsize, ysize;
+		float w, h;
+		PointerRNA nodeptr;
 
-		xsize = snode->zoom * ibuf->x / ar->winx;
-		ysize = snode->zoom * ibuf->y / ar->winy;
+		/* center is always at the origin */
+		origin[0] = ar->winx / 2;
+		origin[1] = ar->winy / 2;
+
+		w = (ibuf->x > 0) ? ibuf->x : 64.0f;
+		h = (ibuf->y > 0) ? ibuf->y : 64.0f;
+
+		cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM, w, h);
+		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		
-		origin[0] = (ar->winx - xsize) / 2 + snode->xof;
-		origin[1] = (ar->winy - ysize) / 2 + snode->yof;
-
-		WIDGET_cage_bounds_set(cage, 2.0 * xsize, 2.0 * ysize);
 		WM_widget_set_origin(cage, origin);
-		WM_widget_set_draw(cage, true);
-	}
-	else {
-		WM_widget_set_draw(cage, false);
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, &nodeptr, "backdrop_offset");
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, &nodeptr, "backdrop_zoom");
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
-static void WIDGETGROUP_node_transform_free(struct wmWidgetGroup *UNUSED(wgroup))
-{
-
-}
-
 static void node_widgets(void)
 {
-	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find("Node", SPACE_NODE, RGN_TYPE_WINDOW, false);
-	struct wmWidgetGroupType *wgroup_node_transform = WM_widgetgrouptype_new(WIDGETGROUP_node_transform_create,
-	                                                                         WIDGETGROUP_node_transform_poll,
-	                                                                         WIDGETGROUP_node_transform_update,
-	                                                                         WIDGETGROUP_node_transform_free);
-
-	WM_widgetgrouptype_register(wmaptype, wgroup_node_transform);
+	/* create the widgetmap for the area here */
+	WM_widgetmaptype_find("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false, true);
+	
+	WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update, NULL, "Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false);
 }
 
 /* only called once, from space/spacetypes.c */

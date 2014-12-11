@@ -98,6 +98,7 @@
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
+#include "BKE_object_deform.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
@@ -374,6 +375,8 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	if (ob->gpd) ((ID *)ob->gpd)->us--;
 	if (ob->defbase.first)
 		BLI_freelistN(&ob->defbase);
+	if (ob->fmaps.first)
+		BLI_freelistN(&ob->fmaps);
 	if (ob->pose)
 		BKE_pose_free_ex(ob->pose, do_id_user);
 	if (ob->mpath)
@@ -1480,6 +1483,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 			BKE_pose_rebuild(obn, obn->data);
 	}
 	defgroup_copy_list(&obn->defbase, &ob->defbase);
+	fmap_copy_list(&obn->fmaps, &ob->fmaps);
 	BKE_constraints_copy(&obn->constraints, &ob->constraints, true);
 
 	obn->mode = OB_MODE_OBJECT;

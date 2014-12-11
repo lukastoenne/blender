@@ -1092,6 +1092,16 @@ static void layerSwap_flnor(void *data, const int *corner_indices)
 	memcpy(flnors, nors, sizeof(nors));
 }
 
+static void layerDefault_fmap(void *data, int count)
+{
+	int *fmap_num = (int *)data;
+	int i;
+	for (i = 0; i < count; i++)
+		*fmap_num = -1;
+
+}
+
+
 static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 0: CD_MVERT */
 	{sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -1206,8 +1216,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(float[4]), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 40: CD_TESSLOOPNORMAL */
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
-    /* 41: CD_MASK_FACEGROUP */
-	{sizeof(int), "", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 41: CD_MASK_FACEMAP */
+	{sizeof(int), "", 1, NULL, NULL, NULL, NULL, NULL, layerDefault_fmap, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
@@ -1223,7 +1233,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 25-29 */ "CDMPoly", "CDMLoop", "CDShapeKeyIndex", "CDShapeKey", "CDBevelWeight",
 	/* 30-34 */ "CDSubSurfCrease", "CDOrigSpaceLoop", "CDPreviewLoopCol", "CDBMElemPyPtr", "CDPaintMask",
 	/* 35-36 */ "CDGridPaintMask", "CDMVertSkin",
-	/* 37-41 */ "CDFreestyleEdge", "CDFreestyleFace", "CDMLoopTangent", "CDTessLoopNormal", "CDFaceGroup",
+	/* 37-41 */ "CDFreestyleEdge", "CDFreestyleFace", "CDMLoopTangent", "CDTessLoopNormal", "CDFaceMap",
 };
 
 

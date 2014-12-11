@@ -620,6 +620,11 @@ static void rna_def_keyblock(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vertex Group", "Vertex weight group, to blend with basis shape");
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
+	prop = RNA_def_property(srna, "face_map", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "facemap");
+	RNA_def_property_ui_text(prop, "Face Map", "Face Map used to initiate interpolation for this shapekey");
+	RNA_def_property_update(prop, 0, "rna_Key_update_data");
+	
 	prop = RNA_def_property(srna, "relative_key", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ShapeKey");
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL);

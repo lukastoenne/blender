@@ -2442,11 +2442,11 @@ static void viewer_border_corner_to_backdrop(SpaceNode *snode, ARegion *ar, int 
 {
 	float bufx, bufy;
 
-	bufx = backdrop_width * snode->zoom;
-	bufy = backdrop_height * snode->zoom;
+	bufx = backdrop_width * snode->backdrop_zoom;
+	bufy = backdrop_height * snode->backdrop_zoom;
 
-	*fx = (bufx > 0.0f ? ((float) x - 0.5f * ar->winx - snode->xof) / bufx + 0.5f : 0.0f);
-	*fy = (bufy > 0.0f ? ((float) y - 0.5f * ar->winy - snode->yof) / bufy + 0.5f : 0.0f);
+	*fx = (bufx > 0.0f ? ((float) x - 0.5f * ar->winx - snode->backdrop_offset[0]) / bufx + 0.5f : 0.0f);
+	*fy = (bufy > 0.0f ? ((float) y - 0.5f * ar->winy - snode->backdrop_offset[1]) / bufy + 0.5f : 0.0f);
 }
 
 static int viewer_border_exec(bContext *C, wmOperator *op)

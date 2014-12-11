@@ -1368,6 +1368,40 @@ static void wm_handler_op_context(bContext *C, wmEventHandler *handler)
 	}
 }
 
+static void wm_handler_widgetmap_context(bContext *C, wmEventHandler *handler)
+{
+	bScreen *screen = CTX_wm_screen(C);
+	
+	if (screen) {
+		if (handler->op_area == NULL) {
+			/* do nothing in this context */
+		}
+		else {
+			ScrArea *sa;
+			
+			for (sa = screen->areabase.first; sa; sa = sa->next)
+				if (sa == handler->op_area)
+					break;
+			if (sa == NULL) {
+				/* when changing screen layouts with running modal handlers (like render display), this
+				 * is not an error to print */
+				if (handler->widgetmap == NULL)
+					printf("internal error: modal widgetmap handler has invalid area\n");
+			}
+			else {
+				ARegion *ar;
+				CTX_wm_area_set(C, sa);
+				for (ar = sa->regionbase.first; ar; ar = ar->next)
+					if (ar == handler->op_region)
+						break;
+				/* XXX no warning print here, after full-area and back regions are remade */
+				if (ar)
+					CTX_wm_region_set(C, ar);
+			}
+		}
+	}
+}
+
 /* called on exit or remove area, only here call cancel callback */
 void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 {
@@ -1390,7 +1424,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 
 				if (handler->op->type->flag & OPTYPE_UNDO)
 					wm->op_undo_depth--;
-
+				
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
 			}
@@ -1574,43 +1608,8 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			if (ot->flag & OPTYPE_UNDO)
 				wm->op_undo_depth++;
 
-			/* if a widget has called the operator, it swallows all events here */
-			if (handler->op_widget) {
-				wmWidget *widget = handler->op_widget;
-				retval = OPERATOR_RUNNING_MODAL;
-
-				switch (event->type) {
-					case MOUSEMOVE:
-						if (widget->handler(C, event, widget, op) == OPERATOR_PASS_THROUGH) {
-							if (widget->prop)
-								event->type = EVT_WIDGET_UPDATE;
-							retval = ot->modal(C, op, event);
-						}
-						break;
-
-					case LEFTMOUSE:
-					{
-						if (event->val == KM_RELEASE) {
-							ARegion *ar = CTX_wm_region(C);
-							if (widget->prop)
-								event->type = EVT_WIDGET_RELEASED;
-							retval = ot->modal(C, op, event);
-							wm_widgetmap_set_active_widget(ar->widgetmap, C, event, NULL);
-							handler->op_widget = NULL;
-						}
-						break;
-					}
-					default:
-						if (!widget->prop) {
-							retval = ot->modal(C, op, event);
-						}
-						break;
-				}
-			}
-			else {
-				/* warning, after this call all context data and 'event' may be freed. see check below */
-				retval = ot->modal(C, op, event);
-			}
+			/* warning, after this call all context data and 'event' may be freed. see check below */
+			retval = ot->modal(C, op, event);
 
 			OPERATOR_RETVAL_CHECK(retval);
 			/* when this is _not_ the case the modal modifier may have loaded
@@ -2006,20 +2005,29 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			}
 			else if (handler->widgetmap) {
 				struct wmWidgetMap *wmap = handler->widgetmap;
+				unsigned char part;
+				short event_processed = 0;
 				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
+				ScrArea *area = CTX_wm_area(C);
+				ARegion *region = CTX_wm_region(C);
+				
+				wm_handler_widgetmap_context(C, handler);
+				wm_region_mouse_co(C, event);
 				
 				switch (event->type) {
 					case MOUSEMOVE:
 						if (widget) {
-							widget->handler(C, event, widget, NULL);
+							widget->handler(C, event, widget);
+							event_processed = EVT_WIDGET_UPDATE;
 							action |= WM_HANDLER_BREAK;
 						}
 						else if (wm_widgetmap_is_3d(wmap)) {
-							widget = wm_widget_find_highlighted_3D (wmap, C, event);
-							wm_widgetmap_set_highlighted_widget(wmap, C, widget);
+							widget = wm_widget_find_highlighted_3D(wmap, C, event, &part);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
 						}
 						else {
-							wm_widgetmap_set_highlighted_widget(wmap, C, NULL);
+							widget = wm_widget_find_highlighted(wmap, C, event, &part);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
 						}
 						break;
 
@@ -2027,7 +2035,8 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					{
 						if (widget) {
 							if (event->val == KM_RELEASE) {
-								wm_widgetmap_set_active_widget(wmap, C, event, NULL);
+								wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+								event_processed = EVT_WIDGET_RELEASED;
 								action |= WM_HANDLER_BREAK;
 							}
 							else {
@@ -2038,12 +2047,24 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							widget = wm_widgetmap_get_highlighted_widget(wmap);
 
 							if (widget) {
-								wm_widgetmap_set_active_widget(wmap, C, event, widget);
+								wm_widgetmap_set_active_widget(wmap, C, event, widget, handler->op == NULL);
 								action |= WM_HANDLER_BREAK;
 							}
 						}
 						break;
 					}
+				}
+				
+				/* restore the area */
+				CTX_wm_area_set(C, area);
+				CTX_wm_region_set(C, region);
+				
+				if (handler->op) {
+					/* if event was processed by an active widget pass the modified event to the operator */
+					if (event_processed) {
+						event->type = event_processed;
+					}
+					action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
 				}
 			}
 			else {
@@ -2606,7 +2627,6 @@ wmEventHandler *WM_event_add_modal_handler(bContext *C, wmOperator *op)
 	
 	handler->op_area = CTX_wm_area(C);       /* means frozen screen context for modal handlers! */
 	handler->op_region = CTX_wm_region(C);
-	handler->op_widget = CTX_wm_widget(C);
 	
 	BLI_addhead(&win->modalhandlers, handler);
 
@@ -3594,3 +3614,5 @@ bool WM_event_is_ime_switch(const struct wmEvent *event)
 	       (event->ctrl || event->oskey || event->shift || event->alt);
 }
 #endif
+
+/** \} */

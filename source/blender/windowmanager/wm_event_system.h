@@ -58,7 +58,6 @@ typedef struct wmEventHandler {
 	wmOperator *op;                     /* for derived/modal handlers */
 	struct ScrArea *op_area;            /* for derived/modal handlers */
 	struct ARegion *op_region;          /* for derived/modal handlers */
-	struct wmWidget *op_widget;         /* widget that called an operator */
 
 	/* ui handler */
 	wmUIHandlerFunc ui_handle;          /* callback receiving events */
@@ -111,11 +110,12 @@ void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 
 /* wm_widgets.c */
-struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event);
-void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
+struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, unsigned char *part);
+wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event, unsigned char *part);
+void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part);
 struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget);
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget, bool call_op);
 struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */

@@ -508,8 +508,6 @@ typedef struct wmTimer {
 	int sleep;				/* internal, put timers to sleep when needed */
 } wmTimer;
 
-typedef struct wmWidget wmWidget;
-
 typedef struct wmOperatorType {
 	const char *name;		/* text for ui, undo */
 	const char *idname;		/* unique identifier */
@@ -671,6 +669,53 @@ typedef struct wmDropBox {
  * Also they */
 typedef struct wmWidget wmWidget;
 typedef struct wmWidgetGroup wmWidgetGroup;
+typedef struct wmWidgetMapType wmWidgetMapType;
+typedef struct wmWidgetGroupType wmWidgetGroupType;
+
+/* factory class for a widgetgroup type, gets called every time a new area is spawned */
+typedef struct wmWidgetGroupType {
+	struct wmWidgetGroupType *next, *prev;
+
+	char idname[64];
+
+	/* poll if widgetmap should be active */
+	int (*poll)(const struct bContext *C, struct wmWidgetGroupType *wgrouptype) ATTR_WARN_UNUSED_RESULT;
+
+	/* update widgets, called right before drawing */
+	void (*draw)(const struct bContext *C, struct wmWidgetGroup *wgroup);
+
+	/* rna for properties */
+	struct StructRNA *srna;
+
+	/* RNA integration */
+	ExtensionRNA ext;
+
+	/* general flag */
+	int flag;
+	
+	/* if type is spawned from operator this is set here */
+	void *op;
+
+	/* same as widgetmaps, so registering/unregistering goes to the correct region */
+	short spaceid, regionid;
+	char mapidname[64];
+	bool is_3d;
+} wmWidgetGroupType;
+
+typedef struct wmWidgetMap {
+	struct wmWidgetMap *next, *prev;
+	
+	struct wmWidgetMapType *type;
+	ListBase widgetgroups;
+	
+	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
+	struct wmWidget *highlighted_widget;
+	/* active widget for this map. User has clicked currently this widget and it gets all input */
+	struct wmWidget *active_widget;
+	
+	/* active group is overriding all other widgets while active */
+	struct wmWidgetGroup *activegroup;
+} wmWidgetMap;
 
 /* *************** migrated stuff, clean later? ************** */
 

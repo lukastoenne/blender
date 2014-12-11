@@ -75,6 +75,17 @@ class MESH_UL_vgroups(UIList):
             layout.label(text="", icon_value=icon)
 
 
+class MESH_UL_fmaps(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.VertexGroup))
+        fmap = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.prop(fmap, "name", text="", emboss=False, icon_value=icon)
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
 class MESH_UL_shape_keys(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.ShapeKey))
@@ -226,6 +237,48 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
 
 
+class DATA_PT_face_maps(MeshButtonsPanel, Panel):
+    bl_label = "Face Maps"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        engine = context.scene.render.engine
+        obj = context.object
+        return (obj and obj.type == 'MESH' and (engine in cls.COMPAT_ENGINES))
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        facemap = ob.face_maps.active
+
+        rows = 2
+        if facemap:
+            rows = 4
+
+        row = layout.row()
+        row.template_list("MESH_UL_fmaps", "", ob, "face_maps", ob.face_maps, "active_index", rows=rows)
+
+        col = row.column(align=True)
+        col.operator("object.face_map_add", icon='ZOOMIN', text="")
+        col.operator("object.face_map_remove", icon='ZOOMOUT', text="")
+        if facemap:
+            col.separator()
+            col.operator("object.face_map_move", icon='TRIA_UP', text="").direction = 'UP'
+            col.operator("object.face_map_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+
+        if ob.face_maps and (ob.mode == 'EDIT' and ob.type == 'MESH'):
+            row = layout.row()
+
+            sub = row.row(align=True)
+            sub.operator("object.face_map_assign", text="Assign")
+            sub.operator("object.face_map_remove_from", text="Remove")
+
+            sub = row.row(align=True)
+            sub.operator("object.face_map_select", text="Select")
+            sub.operator("object.face_map_deselect", text="Deselect")
+
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
     bl_label = "Shape Keys"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
@@ -297,7 +350,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                     row = layout.row()
                     row.active = enable_edit_value
                     row.prop(kb, "value")
-
+ 
                     split = layout.split()
 
                     col = split.column(align=True)
@@ -311,7 +364,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                     col.label(text="Blend:")
                     col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="")
                     col.prop_search(kb, "relative_key", key, "key_blocks", text="")
-
+                    col.prop_search(kb, "face_map", ob, "face_maps", text="")
             else:
                 layout.prop(kb, "interpolation")
                 row = layout.column()

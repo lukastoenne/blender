@@ -137,8 +137,8 @@ static int node_view_all_exec(bContext *C, wmOperator *op)
 	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
 	/* is this really needed? */
-	snode->xof = 0;
-	snode->yof = 0;
+	snode->backdrop_offset[0] = 0;
+	snode->backdrop_offset[1] = 0;
 
 	if (space_node_view_flag(C, snode, ar, 0, smooth_viewtx)) {
 		return OPERATOR_FINISHED;
@@ -208,14 +208,14 @@ static int snode_bg_viewmove_modal(bContext *C, wmOperator *op, const wmEvent *e
 	switch (event->type) {
 		case MOUSEMOVE:
 
-			snode->xof -= (nvm->mvalo[0] - event->mval[0]);
-			snode->yof -= (nvm->mvalo[1] - event->mval[1]);
+			snode->backdrop_offset[0] -= (nvm->mvalo[0] - event->mval[0]);
+			snode->backdrop_offset[1] -= (nvm->mvalo[1] - event->mval[1]);
 			nvm->mvalo[0] = event->mval[0];
 			nvm->mvalo[1] = event->mval[1];
 
 			/* prevent dragging image outside of the window and losing it! */
-			CLAMP(snode->xof, nvm->xmin, nvm->xmax);
-			CLAMP(snode->yof, nvm->ymin, nvm->ymax);
+			CLAMP(snode->backdrop_offset[0], nvm->xmin, nvm->xmax);
+			CLAMP(snode->backdrop_offset[1], nvm->ymin, nvm->ymax);
 
 			ED_region_tag_redraw(ar);
 			WM_main_add_notifier(NC_NODE | ND_DISPLAY, NULL);
@@ -259,10 +259,10 @@ static int snode_bg_viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *
 	nvm->mvalo[0] = event->mval[0];
 	nvm->mvalo[1] = event->mval[1];
 
-	nvm->xmin = -(ar->winx / 2) - (ibuf->x * (0.5f * snode->zoom)) + pad;
-	nvm->xmax =  (ar->winx / 2) + (ibuf->x * (0.5f * snode->zoom)) - pad;
-	nvm->ymin = -(ar->winy / 2) - (ibuf->y * (0.5f * snode->zoom)) + pad;
-	nvm->ymax =  (ar->winy / 2) + (ibuf->y * (0.5f * snode->zoom)) - pad;
+	nvm->xmin = -(ar->winx / 2) - (ibuf->x * (0.5f * snode->backdrop_zoom)) + pad;
+	nvm->xmax =  (ar->winx / 2) + (ibuf->x * (0.5f * snode->backdrop_zoom)) - pad;
+	nvm->ymin = -(ar->winy / 2) - (ibuf->y * (0.5f * snode->backdrop_zoom)) + pad;
+	nvm->ymax =  (ar->winy / 2) + (ibuf->y * (0.5f * snode->backdrop_zoom)) - pad;
 
 	BKE_image_release_ibuf(ima, ibuf, lock);
 
@@ -301,7 +301,8 @@ static int backimage_zoom_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	float fac = RNA_float_get(op->ptr, "factor");
 
-	snode->zoom *= fac;
+	snode->backdrop_zoom *= fac;
+	snode->backdrop_zoom *= fac;
 	ED_region_tag_redraw(ar);
 	WM_main_add_notifier(NC_NODE | ND_DISPLAY, NULL);
 
@@ -340,7 +341,7 @@ static int backimage_fit_exec(bContext *C, wmOperator *UNUSED(op))
 
 	void *lock;
 
-	float facx, facy;
+	float facx, facy, fac;
 
 	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
@@ -350,15 +351,18 @@ static int backimage_fit_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 	}
 
-	facx = 1.0f * (ar->sizex - pad) / (ibuf->x * snode->zoom);
-	facy = 1.0f * (ar->sizey - pad) / (ibuf->y * snode->zoom);
+	facx = 1.0f * (ar->sizex - pad) / (ibuf->x);
+	facy = 1.0f * (ar->sizey - pad) / (ibuf->y);
 
 	BKE_image_release_ibuf(ima, ibuf, lock);
+	
+	fac = min_ff(facx, facy);
 
-	snode->zoom *= min_ff(facx, facy);
-
-	snode->xof = 0;
-	snode->yof = 0;
+	snode->backdrop_zoom = fac;
+	snode->backdrop_zoom = fac;
+	
+	snode->backdrop_offset[0] = 0;
+	snode->backdrop_offset[1] = 0;
 
 	ED_region_tag_redraw(ar);
 	WM_main_add_notifier(NC_NODE | ND_DISPLAY, NULL);
@@ -444,10 +448,10 @@ bool ED_space_node_color_sample(Scene *scene, SpaceNode *snode, ARegion *ar, int
 	}
 
 	/* map the mouse coords to the backdrop image space */
-	bufx = ibuf->x * snode->zoom;
-	bufy = ibuf->y * snode->zoom;
-	fx = (bufx > 0.0f ? ((float)mval[0] - 0.5f * ar->winx - snode->xof) / bufx + 0.5f : 0.0f);
-	fy = (bufy > 0.0f ? ((float)mval[1] - 0.5f * ar->winy - snode->yof) / bufy + 0.5f : 0.0f);
+	bufx = ibuf->x * snode->backdrop_zoom;
+	bufy = ibuf->y * snode->backdrop_zoom;
+	fx = (bufx > 0.0f ? ((float)mval[0] - 0.5f * ar->winx - snode->backdrop_offset[0]) / bufx + 0.5f : 0.0f);
+	fy = (bufy > 0.0f ? ((float)mval[1] - 0.5f * ar->winy - snode->backdrop_offset[1]) / bufy + 0.5f : 0.0f);
 
 	if (fx >= 0.0f && fy >= 0.0f && fx < 1.0f && fy < 1.0f) {
 		const float *fp;
@@ -502,10 +506,10 @@ static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	/* map the mouse coords to the backdrop image space */
-	bufx = ibuf->x * snode->zoom;
-	bufy = ibuf->y * snode->zoom;
-	fx = (bufx > 0.0f ? ((float)event->mval[0] - 0.5f * ar->winx - snode->xof) / bufx + 0.5f : 0.0f);
-	fy = (bufy > 0.0f ? ((float)event->mval[1] - 0.5f * ar->winy - snode->yof) / bufy + 0.5f : 0.0f);
+	bufx = ibuf->x * snode->backdrop_zoom;
+	bufy = ibuf->y * snode->backdrop_zoom;
+	fx = (bufx > 0.0f ? ((float)event->mval[0] - 0.5f * ar->winx - snode->backdrop_offset[0]) / bufx + 0.5f : 0.0f);
+	fy = (bufy > 0.0f ? ((float)event->mval[1] - 0.5f * ar->winy - snode->backdrop_offset[1]) / bufy + 0.5f : 0.0f);
 
 	if (fx >= 0.0f && fy >= 0.0f && fx < 1.0f && fy < 1.0f) {
 		const float *fp;

@@ -2656,6 +2656,18 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "draw_flag", SEQ_DRAW_BACKDROP);
 	RNA_def_property_ui_text(prop, "Use Backdrop", "Display result under strips");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
+	
+	prop = RNA_def_property(srna, "backdrop_zoom", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_range(prop, 0.01f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.01, 100, 1, 2);
+	RNA_def_property_ui_text(prop, "Backdrop Zoom", "Backdrop zoom factor");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
+	
+	prop = RNA_def_property(srna, "backdrop_offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_ui_text(prop, "Backdrop Offset", "Backdrop offset");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 
 	prop = RNA_def_property(srna, "show_strip_offset", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "draw_flag", SEQ_DRAW_OFFSET_EXT);
@@ -3573,21 +3585,15 @@ static void rna_def_space_node(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 	
 	prop = RNA_def_property(srna, "backdrop_zoom", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "zoom");
 	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_range(prop, 0.01f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.01, 100, 1, 2);
 	RNA_def_property_ui_text(prop, "Backdrop Zoom", "Backdrop zoom factor");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 	
-	prop = RNA_def_property(srna, "backdrop_x", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "xof");
-	RNA_def_property_ui_text(prop, "Backdrop X", "Backdrop X offset");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
-
-	prop = RNA_def_property(srna, "backdrop_y", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "yof");
-	RNA_def_property_ui_text(prop, "Backdrop Y", "Backdrop Y offset");
+	prop = RNA_def_property(srna, "backdrop_offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_ui_text(prop, "Backdrop Offset", "Backdrop offset");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 
 	prop = RNA_def_property(srna, "backdrop_channels", PROP_ENUM, PROP_NONE);

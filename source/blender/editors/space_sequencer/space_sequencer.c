@@ -121,6 +121,9 @@ static SpaceLink *sequencer_new(const bContext *C)
 	sseq->mainb = SEQ_DRAW_IMG_IMBUF;
 	sseq->flag = SEQ_SHOW_GPENCIL | SEQ_USE_ALPHA;
 
+	/* backdrop */
+	sseq->backdrop_zoom = 1.0f;
+	
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for sequencer");
 	
@@ -478,8 +481,13 @@ static void sequencer_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 	/* add drop boxes */
 	lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
-
+	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
+	
+	/* no modal keymap here, only operators use this currently */
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false));
+	}
 }
 
 static void sequencer_main_area_draw(const bContext *C, ARegion *ar)
@@ -667,7 +675,15 @@ static void sequencer_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED
 			break;
 	}
 }
+
 /* ************************************* */
+
+static void sequencer_widgets(void)
+{
+	/* create the widgetmap for the area here */
+	WM_widgetmaptype_find("Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false, true);
+}
+
 
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_sequencer(void)
@@ -688,6 +704,7 @@ void ED_spacetype_sequencer(void)
 	st->dropboxes = sequencer_dropboxes;
 	st->refresh = sequencer_refresh;
 	st->listener = sequencer_listener;
+	st->widgets = sequencer_widgets;
 
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype sequencer region");

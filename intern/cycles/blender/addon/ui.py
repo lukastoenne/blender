@@ -1412,6 +1412,7 @@ def get_panels():
         "DATA_PT_curve_texture_space",
         "DATA_PT_mball_texture_space",
         "DATA_PT_vertex_groups",
+        "DATA_PT_face_maps",
         "DATA_PT_shape_keys",
         "DATA_PT_uv_texture",
         "DATA_PT_vertex_colors",

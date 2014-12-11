@@ -237,6 +237,15 @@ void OBJECT_OT_vertex_weight_set_active(struct wmOperatorType *ot);
 void OBJECT_OT_vertex_weight_normalize_active_vertex(struct wmOperatorType *ot);
 void OBJECT_OT_vertex_weight_copy(struct wmOperatorType *ot);
 
+/* object_fmap.c */
+void OBJECT_OT_face_map_add(struct wmOperatorType *ot);
+void OBJECT_OT_face_map_remove(struct wmOperatorType *ot);
+void OBJECT_OT_face_map_assign(struct wmOperatorType *ot);
+void OBJECT_OT_face_map_remove_from(struct wmOperatorType *ot);
+void OBJECT_OT_face_map_select(struct wmOperatorType *ot);
+void OBJECT_OT_face_map_deselect(struct wmOperatorType *ot);
+void OBJECT_OT_face_map_move(struct wmOperatorType *ot);
+
 /* object_warp.c */
 void OBJECT_OT_vertex_warp(struct wmOperatorType *ot);
 

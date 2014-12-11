@@ -1194,12 +1194,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
 	if (draw_backdrop) {
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
+		UI_view2d_view_restore(C);
 	}
 	glBegin(GL_QUADS);
 
@@ -1224,23 +1219,15 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 	}
 	else if (draw_backdrop) {
-		float aspect = BLI_rcti_size_x(&ar->winrct) / (float)BLI_rcti_size_y(&ar->winrct);	
-		float image_aspect = viewrectx / viewrecty;
-		float imagex, imagey;
+		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->backdrop_zoom;
+		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->backdrop_zoom;
+		float xofs = BLI_rcti_size_x(&ar->winrct)/2.0f + sseq->backdrop_offset[0];
+		float yofs = BLI_rcti_size_y(&ar->winrct)/2.0f + sseq->backdrop_offset[1];
 		
-		if (aspect >= image_aspect) {
-			imagex = image_aspect / aspect;
-			imagey = 1.0f;
-		}
-		else {
-			imagex = 1.0f;
-			imagey = aspect / image_aspect;
-		}
-		
-		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex, -imagey);
-		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex, imagey);
-		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex, imagey);
-		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex, -imagey);
+		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex + xofs, -imagey + yofs);
+		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex + xofs, imagey + yofs);
+		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex + xofs, imagey + yofs);
+		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex + xofs, -imagey + yofs);
 	}
 	else {
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
@@ -1249,14 +1236,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 	}
 	glEnd();
-	
-	if (draw_backdrop) {
-		glPopMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		
-	}
 	
 	glBindTexture(GL_TEXTURE_2D, last_texid);
 	glDisable(GL_TEXTURE_2D);
@@ -1274,6 +1253,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		IMB_freeImBuf(ibuf);
 	
 	if (draw_backdrop) {
+		WM_widgets_draw(C, ar->widgetmaps.first);
 		return;
 	}
 	
