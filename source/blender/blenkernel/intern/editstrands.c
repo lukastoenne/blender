@@ -48,6 +48,8 @@
 #include "BKE_mesh_sample.h"
 #include "BKE_particle.h"
 
+#include "BPH_strands.h"
+
 #include "intern/bmesh_strands_conv.h"
 
 BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm)
@@ -105,6 +107,34 @@ void BKE_editstrands_free(BMEditStrands *es)
 
 /* === constraints === */
 
+BMEditStrandsLocations BKE_editstrands_get_locations(BMEditStrands *edit)
+{
+	BMesh *bm = edit->bm;
+	BMEditStrandsLocations locs = MEM_mallocN(3*sizeof(float) * bm->totvert, "editstrands locations");
+	
+	BMVert *v;
+	BMIter iter;
+	int i;
+	
+	BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, i) {
+		copy_v3_v3(locs[i], v->co);
+	}
+	
+	return locs;
+}
+
+void BKE_editstrands_free_locations(BMEditStrandsLocations locs)
+{
+	MEM_freeN(locs);
+}
+
+void BKE_editstrands_solve_constraints(Object *ob, BMEditStrands *es, BMEditStrandsLocations orig)
+{
+	BKE_editstrands_ensure(es);
+	
+	BPH_strands_solve_constraints(ob, es, orig);
+}
+
 static void editstrands_calc_segment_lengths(BMesh *bm)
 {
 	BMVert *root, *v, *vprev;
@@ -120,122 +150,6 @@ static void editstrands_calc_segment_lengths(BMesh *bm)
 			vprev = v;
 		}
 	}
-}
-
-static void editstrands_apply_root_locations(BMesh *bm, DerivedMesh *root_dm)
-{
-	BMVert *root;
-	BMIter iter;
-	
-	if (!root_dm)
-		return;
-	
-	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		MSurfaceSample root_sample;
-		float loc[3], nor[3], tang[3];
-		
-		BM_elem_meshsample_data_named_get(&bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
-		if (BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor, tang)) {
-			copy_v3_v3(root->co, loc);
-		}
-	}
-}
-
-/* try to find a nice solution to keep distances between neighboring keys */
-/* XXX Stub implementation ported from particles:
- * Successively relax each segment starting from the root,
- * repeat this for every vertex (O(n^2) !!)
- * This should be replaced by a more advanced method using a least-squares
- * error metric with length and root location constraints (IK solver)
- */
-static void editstrands_solve_targets(BMEditStrands *edit)
-{
-	BMesh *bm = edit->bm;
-	BMVert *root;
-	BMIter iter;
-	
-	if (!edit)
-		return;
-//	if (!(pset->flag & PE_KEEP_LENGTHS)) // XXX TODO
-//		return;
-	
-	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		const int numvert = BM_strands_keys_count(root);
-		float relax_factor = numvert > 0 ? 1.0f / numvert : 0.0f;
-		
-		BMVert *vj;
-		BMIter iterj;
-		int j;
-		
-		BM_ITER_STRANDS_ELEM_INDEX(vj, &iterj, root, BM_VERTS_OF_STRAND, j) {
-			BMVert *vk, *vk_prev;
-			float lenk, lenk_prev;
-			BMIter iterk;
-			int k;
-			bool skip_first;
-			
-			if (j == 0)
-				continue;
-			
-			if (true /* XXX particles use PE_LOCK_FIRST option */)
-				skip_first = true;
-			else
-				skip_first = false;
-			
-			BM_ITER_STRANDS_ELEM_INDEX(vk, &iterk, root, BM_VERTS_OF_STRAND, k) {
-				float dir[3], tlen, relax;
-				
-				lenk = BM_elem_float_data_named_get(&bm->vdata, vk, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
-				
-				if (k > 0) {
-					sub_v3_v3v3(dir, vk->co, vk_prev->co);
-					tlen = normalize_v3(dir);
-					relax = relax_factor * (tlen - lenk_prev);
-					
-					if (!(k == 1 && skip_first))
-						madd_v3_v3fl(vk_prev->co, dir, relax);
-					madd_v3_v3fl(vk->co, dir, -relax);
-				}
-				
-				vk_prev = vk;
-				lenk_prev = lenk;
-			}
-		}
-	}
-}
-
-static void editstrands_adjust_segment_lengths(BMesh *bm)
-{
-	BMVert *root, *v, *vprev;
-	BMIter iter, iter_strand;
-	int k;
-	
-	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
-			if (k > 0) {
-				float base_length = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
-				float dist[3];
-				float length;
-				
-				sub_v3_v3v3(dist, v->co, vprev->co);
-				length = len_v3(dist);
-				if (length > 0.0f)
-					madd_v3_v3v3fl(v->co, vprev->co, dist, base_length / length);
-			}
-			vprev = v;
-		}
-	}
-}
-
-void BKE_editstrands_solve_constraints(BMEditStrands *es)
-{
-	BKE_editstrands_ensure(es);
-	
-	editstrands_apply_root_locations(es->bm, es->root_dm);
-	
-	editstrands_solve_targets(es);
-	
-	editstrands_adjust_segment_lengths(es->bm);
 }
 
 void BKE_editstrands_ensure(BMEditStrands *es)

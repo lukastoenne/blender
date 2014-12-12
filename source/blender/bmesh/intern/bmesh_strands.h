@@ -87,16 +87,24 @@ typedef enum BMStrandsIterType {
 } BMStrandsIterType;
 
 #define BM_ITER_STRANDS(ele, iter, bm, itype) \
-	for (ele = BM_strand_iter_new(iter, bm, itype, NULL); ele; ele = BM_iter_step(iter))
+	for (BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_strand_iter_new(iter, bm, itype, NULL); \
+	     ele; \
+	     BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_iter_step(iter))
 
 #define BM_ITER_STRANDS_INDEX(ele, iter, bm, itype, indexvar) \
-	for (ele = BM_strand_iter_new(iter, bm, itype, NULL), indexvar = 0; ele; ele = BM_iter_step(iter), (indexvar)++)
+	for (BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_strand_iter_new(iter, bm, itype, NULL), indexvar = 0; \
+	     ele; \
+	     BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_iter_step(iter), (indexvar)++)
 
 #define BM_ITER_STRANDS_ELEM(ele, iter, data, itype) \
-	for (ele = BM_strand_iter_new(iter, NULL, itype, data); ele; ele = BM_iter_step(iter))
+	for (BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_strand_iter_new(iter, NULL, itype, data); \
+	     ele; \
+	     BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_iter_step(iter))
 
 #define BM_ITER_STRANDS_ELEM_INDEX(ele, iter, data, itype, indexvar) \
-	for (ele = BM_strand_iter_new(iter, NULL, itype, data), indexvar = 0; ele; ele = BM_iter_step(iter), (indexvar)++)
+	for (BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_strand_iter_new(iter, NULL, itype, data), indexvar = 0; \
+	     ele; \
+	     BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_iter_step(iter), (indexvar)++)
 
 typedef struct BMIter__vert_of_strand {
 	BMVert *v_next;

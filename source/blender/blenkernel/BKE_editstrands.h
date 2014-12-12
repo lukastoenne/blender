@@ -76,7 +76,15 @@ void BKE_editstrands_free(struct BMEditStrands *es);
 
 /* === constraints === */
 
-void BKE_editstrands_solve_constraints(struct BMEditStrands *es);
+/* Stores vertex locations for temporary reference:
+ * Vertex locations get modified by tools, but then need to be corrected
+ * by calculating a smooth solution based on the difference to original pre-tool locations.
+ */
+typedef float (*BMEditStrandsLocations)[3];
+BMEditStrandsLocations BKE_editstrands_get_locations(struct BMEditStrands *edit);
+void BKE_editstrands_free_locations(BMEditStrandsLocations locs);
+
+void BKE_editstrands_solve_constraints(struct Object *ob, struct BMEditStrands *es, BMEditStrandsLocations orig);
 void BKE_editstrands_ensure(struct BMEditStrands *es);
 
 /* === particle conversion === */

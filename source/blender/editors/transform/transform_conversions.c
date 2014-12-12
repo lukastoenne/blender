@@ -2050,7 +2050,10 @@ static void createTransStrandVerts(TransInfo *t)
 		}
 #endif
 	}
-
+	
+	t->customData = BKE_editstrands_get_locations(edit);
+	t->flag |= T_FREE_CUSTOMDATA;
+	
 	BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
 		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 			if (propmode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
@@ -2126,8 +2129,9 @@ void flushTransStrands(TransInfo *t)
 	Scene *scene = t->scene;
 	Object *ob = OBACT;
 	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	BMEditStrandsLocations origlocs = t->customData;
 	
-	BKE_editstrands_solve_constraints(edit);
+	BKE_editstrands_solve_constraints(ob, edit, origlocs);
 }
 
 /* ********************* mesh ****************** */
