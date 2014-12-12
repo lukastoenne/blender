@@ -656,45 +656,72 @@ static void rect_transform_draw_corners(rctf *r, float offsetx, float offsety)
 
 static void rect_transform_draw_interaction(int highlighted, float half_w, float half_h, float w, float h)
 {
-	rctf r;
-	
+	float verts[4][2];
+	unsigned short elems[4] = {0, 1, 3, 2};
 	
 	switch (highlighted) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
-			r.xmin = -half_w;
-			r.ymin = -half_h;
-			r.xmax = -half_w + w;
-			r.ymax = half_h;
+			verts[0][0] = -half_w + w;
+			verts[0][1] = -half_h;
+			verts[1][0] = -half_w;
+			verts[1][1] = -half_h;
+			verts[2][0] = -half_w;
+			verts[2][1] = half_h;
+			verts[3][0] = -half_w + w;
+			verts[3][1] = half_h;
 			break;
 			
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT:
-			r.xmin = half_w - w;
-			r.ymin = -half_h;
-			r.xmax = half_w;
-			r.ymax = half_h;
+			verts[0][0] = half_w - w;
+			verts[0][1] = -half_h;
+			verts[1][0] = half_w;
+			verts[1][1] = -half_h;
+			verts[2][0] = half_w;
+			verts[2][1] = half_h;
+			verts[3][0] = half_w - w;
+			verts[3][1] = half_h;
 			break;
 			
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN:
-			r.xmin = -half_w;
-			r.ymin = -half_h;
-			r.xmax = half_w;
-			r.ymax = -half_h + h;
+			verts[0][0] = -half_w;
+			verts[0][1] = -half_h + h;
+			verts[1][0] = -half_w;
+			verts[1][1] = -half_h;
+			verts[2][0] = half_w;
+			verts[2][1] = -half_h;
+			verts[3][0] = half_w;
+			verts[3][1] = -half_h + h;
 			break;
 			
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP:
-			r.xmin = -half_w;
-			r.ymin = half_h - h;
-			r.xmax = half_w;
-			r.ymax = half_h;
+			verts[0][0] = -half_w;
+			verts[0][1] = half_h - h;
+			verts[1][0] = -half_w;
+			verts[1][1] = half_h;
+			verts[2][0] = half_w;
+			verts[2][1] = half_h;
+			verts[3][0] = half_w;
+			verts[3][1] = half_h - h;
 			break;
 			
 		default:
 			return;
 	}
 	
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glRectf(r.xmin, r.ymin, r.xmax, r.ymax);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(2, GL_FLOAT, 0, verts);
+	glLineWidth(3.0);
+	glColor3f(0.0, 0.0, 0.0);
+	glDrawArrays(GL_LINE_STRIP, 0, 3);
+	glLineWidth(1.0);
+	glColor3f(1.0, 1.0, 1.0);
+	glDrawArrays(GL_LINE_STRIP, 0, 3);
+	
+	glEnable(GL_BLEND);
+	glColor4f(1.0f, 1.0f, 1.0f, 0.2f);
+	glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, elems);
+	glDisable(GL_BLEND);
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 static void widget_rect_transform_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
@@ -719,7 +746,7 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 	else
 		glScalef(cage->scale[0], cage->scale[1], 1.0);
 	
-	if (widget->flag & WM_WIDGET_HIGHLIGHT) {
+	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
 		glEnable(GL_BLEND);
 		glColor4f(1.0f, 1.0f, 1.0f, 0.2f);
 		glRectf(r.xmin, r.ymin, r.xmax, r.ymax);
@@ -747,6 +774,22 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 	
 	rect_transform_draw_interaction(widget->highlighted_part, half_w, half_h, w, h);
 	glPopMatrix();
+}
+
+static int widget_rect_tranfrorm_get_cursor(wmWidget *widget)
+{
+	switch (widget->highlighted_part) {
+		case WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE:
+			return BC_HANDCURSOR;
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT:
+			return CURSOR_X_MOVE;
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN:
+		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP:
+			return CURSOR_Y_MOVE;
+		default:
+			return CURSOR_STD;
+	}
 }
 
 static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const struct wmEvent *event, struct wmWidget *widget)
@@ -1000,6 +1043,7 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
 	cage->widget.handler = widget_rect_transform_handler;
 	cage->widget.intersect = widget_rect_tranfrorm_intersect;
+	cage->widget.get_cursor = widget_rect_tranfrorm_get_cursor;
 	cage->widget.max_prop = 2;
 	cage->scale[0] = cage->scale[1] = 1.0f;
 	cage->style = style;

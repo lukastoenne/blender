@@ -287,7 +287,7 @@ static int sequencer_overdrop_transform_invoke(bContext *C, wmOperator *op, cons
 	/* no poll, lives always for the duration of the operator */
 	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_overdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
-	OverDropTransformData *data = MEM_mallocN(sizeof(OverDropTransformData), "backdrop transform data");
+	OverDropTransformData *data = MEM_mallocN(sizeof(OverDropTransformData), "overdrop transform data");
 	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
 	
 	RNA_float_set_array(op->ptr, "offset", sseq->overdrop_offset);
@@ -309,8 +309,14 @@ static void sequencer_overdrop_finish(bContext *C, OverDropTransformData *data)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ED_area_headerprint(sa, NULL);
-	WM_widgetgrouptype_unregister(CTX_data_main(C), data->cagetype);
+	WM_widgetgrouptype_unregister(C, CTX_data_main(C), data->cagetype);
 	MEM_freeN(data);
+}
+
+static void sequencer_overdrop_cancel(struct bContext *C, struct wmOperator *op)
+{
+	OverDropTransformData *data = op->customdata;
+	sequencer_overdrop_finish(C, data);
 }
 
 static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -380,6 +386,7 @@ void SEQUENCER_OT_overdrop_transform(struct wmOperatorType *ot)
 	ot->invoke = sequencer_overdrop_transform_invoke;
 	ot->modal = sequencer_overdrop_transform_modal;
 	ot->poll = sequencer_overdrop_transform_poll;
+	ot->cancel = sequencer_overdrop_cancel;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

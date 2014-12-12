@@ -487,15 +487,15 @@ void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
 
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create);
-
 struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
                                                  void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
                                                  struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d);
-void WM_widgetgrouptype_unregister(struct Main *bmain, struct wmWidgetGroupType *wgroup);
+void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup);
 
 /* creates a widgetmap with all registered widgets for that type */
 struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int regionid, bool is_3d);
 void WM_widgetmap_delete(struct wmWidgetMap *wmap);
+bool WM_widgetmap_cursor_set(struct wmWidgetMap *wmap, struct wmWindow *win);
 
 void WM_widgetmaptypes_free(void);
 
