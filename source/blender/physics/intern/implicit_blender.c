@@ -381,7 +381,7 @@ static void print_bfmatrix(fmatrix3x3 *m)
 			if (i > 0 && i % 3 == 0)
 				printf("  ");
 			
-			implicit_print_matrix_elem(t[i + j * size]);
+			print_matrix_elem(t[i + j * size]);
 		}
 		printf("\n");
 	}
