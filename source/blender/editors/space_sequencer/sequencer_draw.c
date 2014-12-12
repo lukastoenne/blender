@@ -1233,11 +1233,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (!scope)
 		IMB_freeImBuf(ibuf);
 	
-	if (draw_backdrop) {
-		WM_widgets_draw(C, ar->widgetmaps.first);
-		return;
-	}
-	
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 
 		float x1 = v2d->tot.xmin;
@@ -1558,6 +1553,9 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
+	
+	/* finally draw any widgets here */
+	WM_widgets_draw(C, ar->widgetmaps.first);	
 
 	/* scrollers */
 	unit = (sseq->flag & SEQ_DRAWFRAMES) ? V2D_UNIT_FRAMES : V2D_UNIT_SECONDS;

@@ -479,7 +479,7 @@ void WM_widget_property(struct wmWidget *, int slot, struct PointerRNA *ptr, con
 struct PointerRNA *WM_widget_operator(struct wmWidget *, const char *opname);
 void WM_widgets_draw(const struct bContext *C, struct wmWidgetMap *wmap);
 void WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
-void WM_modal_handler_attach_widgetgroup(struct wmEventHandler *handler, struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
+void WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler, struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
 
 void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
 void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale);

@@ -364,7 +364,7 @@ void WM_event_add_area_widgetmap_handlers(ARegion *ar)
 	}
 }
 
-void WM_modal_handler_attach_widgetgroup(wmEventHandler *handler, wmWidgetGroupType *wgrouptype, wmOperator *op)
+void WM_modal_handler_attach_widgetgroup(bContext *C, wmEventHandler *handler, wmWidgetGroupType *wgrouptype, wmOperator *op)
 {
 	/* maybe overly careful, but widgetgrouptype could come from a failed creation */
 	if (!wgrouptype) {
@@ -384,6 +384,8 @@ void WM_modal_handler_attach_widgetgroup(wmEventHandler *handler, wmWidgetGroupT
 			}
 		}
 	}
+	
+	WM_event_add_mousemove(C);
 }
 
 bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)

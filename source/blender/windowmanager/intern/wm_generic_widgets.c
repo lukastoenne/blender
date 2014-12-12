@@ -609,14 +609,16 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3])
 
 /********* Cage widget ************/
 
-#define WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE      1
-#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT    2
-#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT   3
-#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP      4
-#define WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN    5
+enum {
+	WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE     = 1,
+	WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT   = 2,
+	WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT  = 3,
+	WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP     = 4,
+	WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN   = 5
+};
 
 #define WIDGET_RECT_MIN_WIDTH 15.0f
-#define WIDGET_RESIZER_WIDTH  10.0f
+#define WIDGET_RESIZER_WIDTH  20.0f
 
 typedef struct RectTransformWidget {
 	wmWidget widget;
@@ -719,7 +721,7 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 	
 	if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 		glEnable(GL_BLEND);
-		glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
+		glColor4f(1.0f, 1.0f, 1.0f, 0.2f);
 		glRectf(r.xmin, r.ymin, r.xmax, r.ymax);
 		glDisable(GL_BLEND);
 	}
@@ -792,45 +794,48 @@ static int widget_rect_tranfrorm_intersect(struct bContext *UNUSED(C), const str
 	if (isect)
 		return WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE;
 
-	r.xmin = -half_w;
-	r.ymin = -half_h;
-	r.xmax = -half_w + w;
-	r.ymax = half_h;
-	
-	isect = BLI_rctf_isect_pt_v(&r, point_local);
-
-	if (isect)
-		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT;
-	
-	r.xmin = half_w - w;
-	r.ymin = -half_h;
-	r.xmax = half_w;
-	r.ymax = half_h;
-	
-	isect = BLI_rctf_isect_pt_v(&r, point_local);
-	
-	if (isect)
-		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT;
-
-	r.xmin = -half_w;
-	r.ymin = -half_h;
-	r.xmax = half_w;
-	r.ymax = -half_h + h;
-	
-	isect = BLI_rctf_isect_pt_v(&r, point_local);
-
-	if (isect)
-		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN;
-	
-	r.xmin = -half_w;
-	r.ymin = half_h - h;
-	r.xmax = half_w;
-	r.ymax = half_h;
-
-	isect = BLI_rctf_isect_pt_v(&r, point_local);
-	
-	if (isect)
-		return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP;
+	/* if widget does not have a scale intersection, don't do it */
+	if (cage->style & (WIDGET_RECT_TRANSFORM_STYLE_SCALE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)) {
+		r.xmin = -half_w;
+		r.ymin = -half_h;
+		r.xmax = -half_w + w;
+		r.ymax = half_h;
+		
+		isect = BLI_rctf_isect_pt_v(&r, point_local);
+		
+		if (isect)
+			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT;
+		
+		r.xmin = half_w - w;
+		r.ymin = -half_h;
+		r.xmax = half_w;
+		r.ymax = half_h;
+		
+		isect = BLI_rctf_isect_pt_v(&r, point_local);
+		
+		if (isect)
+			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT;
+		
+		r.xmin = -half_w;
+		r.ymin = -half_h;
+		r.xmax = half_w;
+		r.ymax = -half_h + h;
+		
+		isect = BLI_rctf_isect_pt_v(&r, point_local);
+		
+		if (isect)
+			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN;
+		
+		r.xmin = -half_w;
+		r.ymin = half_h - h;
+		r.xmax = half_w;
+		r.ymax = half_h;
+		
+		isect = BLI_rctf_isect_pt_v(&r, point_local);
+		
+		if (isect)
+			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP;
+	}
 	
 	return 0;
 }
