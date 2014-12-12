@@ -243,6 +243,14 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING;
 }
 
+/******** Backdrop Transform *******/
+
+typedef struct BackDropTransformData {
+	float init_zoom;
+	float init_offset[2];
+	wmWidgetGroupType *cagetype;
+} BackDropTransformData;
+
 static int sequencer_backdrop_transform_poll(bContext *C)
 {
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -273,17 +281,25 @@ static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetG
 
 static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+	ScrArea *sa = CTX_wm_area(C);
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	/* no poll, lives always for the duration of the operator */
 	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
-	WM_modal_handler_attach_widgetgroup(handler, cagetype, op);
-	WM_event_add_mousemove(C);
+	BackDropTransformData *data = MEM_mallocN(sizeof(BackDropTransformData), "backdrop transform data");
+	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
 	
 	RNA_float_set_array(op->ptr, "offset", sseq->backdrop_offset);
 	RNA_float_set(op->ptr, "scale", sseq->backdrop_zoom);
+
+	copy_v2_v2(data->init_offset, sseq->backdrop_offset);
+	data->init_zoom = sseq->backdrop_zoom;
+	data->cagetype = cagetype;
+
+	op->customdata = data;
+
+	ED_area_headerprint(sa, "Drag to place, and scale, Space/Enter to confirm, R to recenter, RClick/Esc to cancel");
 	
-	op->customdata = cagetype;
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -313,13 +329,32 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 		}
 		case RETKEY:
 		case PADENTER:
-			WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
+		case SPACEKEY:
+		{
+			BackDropTransformData *data = op->customdata;
+			ScrArea *sa = CTX_wm_area(C);
+			ED_area_headerprint(sa, NULL);
+			WM_widgetgrouptype_unregister(CTX_data_main(C), data->cagetype);
+			MEM_freeN(data);
 			return OPERATOR_FINISHED;
+		}
 			
 		case ESCKEY:
 		case RIGHTMOUSE:
-			WM_widgetgrouptype_unregister(CTX_data_main(C), op->customdata);
+		{
+			BackDropTransformData *data = op->customdata;
+			SpaceSeq *sseq = CTX_wm_space_seq(C);
+			ScrArea *sa = CTX_wm_area(C);
+
+			copy_v2_v2(sseq->backdrop_offset, data->init_offset);
+			sseq->backdrop_zoom = data->init_zoom;
+			
+			ED_area_headerprint(sa, NULL);
+			WM_widgetgrouptype_unregister(CTX_data_main(C), data->cagetype);
+
+			MEM_freeN(op->customdata);
 			return OPERATOR_CANCELLED;
+		}
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
