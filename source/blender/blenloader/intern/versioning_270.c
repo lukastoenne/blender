@@ -449,7 +449,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 					}
 					if (sl->spacetype == SPACE_SEQ) {
 						SpaceSeq *sseq = (SpaceSeq *)sl;
-						sseq->backdrop_zoom = 1.0;
+						sseq->overdrop_zoom = 1.0;
 					}
 					
 				}

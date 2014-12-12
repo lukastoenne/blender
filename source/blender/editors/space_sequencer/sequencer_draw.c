@@ -935,7 +935,7 @@ static ImBuf *sequencer_make_scope(Scene *scene, ImBuf *ibuf, ImBuf *(*make_scop
 	return scope;
 }
 
-void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_backdrop)
+void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_overdrop)
 {
 	struct Main *bmain = CTX_data_main(C);
 	struct ImBuf *ibuf = NULL;
@@ -991,7 +991,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		viewrecty /= proxy_size / 100.0f;
 	}
 
-	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_backdrop) {
+	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_overdrop) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
 		glClearColor(col[0], col[1], col[2], 0.0);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -1066,7 +1066,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	/* without this colors can flicker from previous opengl state */
 	glColor4ub(255, 255, 255, 255);
 
-	if (!draw_backdrop) {
+	if (!draw_overdrop) {
 		UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 		UI_view2d_curRect_validate(v2d);
 		
@@ -1174,7 +1174,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	else
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
-	if (draw_backdrop) {
+	if (draw_overdrop) {
 		UI_view2d_view_restore(C);
 	}
 	glBegin(GL_QUADS);
@@ -1199,11 +1199,11 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 		}
 	}
-	else if (draw_backdrop) {
-		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->backdrop_zoom;
-		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->backdrop_zoom;
-		float xofs = BLI_rcti_size_x(&ar->winrct)/2.0f + sseq->backdrop_offset[0];
-		float yofs = BLI_rcti_size_y(&ar->winrct)/2.0f + sseq->backdrop_offset[1];
+	else if (draw_overdrop) {
+		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->overdrop_zoom;
+		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->overdrop_zoom;
+		float xofs = BLI_rcti_size_x(&ar->winrct)/2.0f + sseq->overdrop_offset[0];
+		float yofs = BLI_rcti_size_y(&ar->winrct)/2.0f + sseq->overdrop_offset[1];
 		
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex + xofs, -imagey + yofs);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex + xofs, imagey + yofs);
@@ -1502,12 +1502,6 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
 
-	if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
-		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false, true);
-		UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);
-		UI_view2d_view_ortho(v2d);
-	}
-		
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 	
 	seq_draw_sfra_efra(scene, v2d);
@@ -1546,6 +1540,12 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 		glVertex2f(cfra_over, v2d->cur.ymax);
 		glEnd();
 
+	}
+
+	if (sseq->draw_flag & SEQ_DRAW_OVERDROP) {
+		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false, true);
+		UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);
+		UI_view2d_view_ortho(v2d);
 	}
 	
 	/* callback */

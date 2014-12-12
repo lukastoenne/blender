@@ -84,7 +84,7 @@ class SEQUENCER_HT_header(Header):
 
             layout.separator()
             layout.operator("sequencer.refresh_all")
-            layout.prop(st, "show_backdrop")
+            layout.prop(st, "show_overdrop")
         else:
             if st.view_type == 'SEQUENCER_PREVIEW':
                 layout.separator()

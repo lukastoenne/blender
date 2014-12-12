@@ -122,7 +122,7 @@ static SpaceLink *sequencer_new(const bContext *C)
 	sseq->flag = SEQ_SHOW_GPENCIL | SEQ_USE_ALPHA;
 
 	/* backdrop */
-	sseq->backdrop_zoom = 1.0f;
+	sseq->overdrop_zoom = 1.0f;
 	
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for sequencer");

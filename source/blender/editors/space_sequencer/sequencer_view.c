@@ -256,7 +256,7 @@ static int sequencer_backdrop_transform_poll(bContext *C)
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	ARegion *ar = CTX_wm_region(C);
 
-	return (sseq && ar && ar->type->regionid == RGN_TYPE_WINDOW && (sseq->draw_flag & SEQ_DRAW_BACKDROP));
+	return (sseq && ar && ar->type->regionid == RGN_TYPE_WINDOW && (sseq->draw_flag & SEQ_DRAW_OVERDROP));
 }
 
 static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
@@ -289,11 +289,11 @@ static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, cons
 	BackDropTransformData *data = MEM_mallocN(sizeof(BackDropTransformData), "backdrop transform data");
 	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
 	
-	RNA_float_set_array(op->ptr, "offset", sseq->backdrop_offset);
-	RNA_float_set(op->ptr, "scale", sseq->backdrop_zoom);
+	RNA_float_set_array(op->ptr, "offset", sseq->overdrop_offset);
+	RNA_float_set(op->ptr, "scale", sseq->overdrop_zoom);
 
-	copy_v2_v2(data->init_offset, sseq->backdrop_offset);
-	data->init_zoom = sseq->backdrop_zoom;
+	copy_v2_v2(data->init_offset, sseq->overdrop_offset);
+	data->init_zoom = sseq->overdrop_zoom;
 	data->cagetype = cagetype;
 
 	op->customdata = data;
@@ -308,8 +308,8 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 	switch (event->type) {
 		case EVT_WIDGET_UPDATE: {
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
-			RNA_float_get_array(op->ptr, "offset", sseq->backdrop_offset);
-			sseq->backdrop_zoom = RNA_float_get(op->ptr, "scale");
+			RNA_float_get_array(op->ptr, "offset", sseq->overdrop_offset);
+			sseq->overdrop_zoom = RNA_float_get(op->ptr, "scale");
 			break;
 		}
 			
@@ -320,8 +320,8 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 			float zero[2] = {0.0f};
 			RNA_float_set_array(op->ptr, "offset", zero);
 			RNA_float_set(op->ptr, "scale", 1.0f);
-			copy_v2_v2(sseq->backdrop_offset, zero);
-			sseq->backdrop_zoom = 1.0;
+			copy_v2_v2(sseq->overdrop_offset, zero);
+			sseq->overdrop_zoom = 1.0;
 			ED_region_tag_redraw(ar);
 			/* add a mousemove to refresh the widget */
 			WM_event_add_mousemove(C);
@@ -346,8 +346,8 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 			ScrArea *sa = CTX_wm_area(C);
 
-			copy_v2_v2(sseq->backdrop_offset, data->init_offset);
-			sseq->backdrop_zoom = data->init_zoom;
+			copy_v2_v2(sseq->overdrop_offset, data->init_offset);
+			sseq->overdrop_zoom = data->init_zoom;
 			
 			ED_area_headerprint(sa, NULL);
 			WM_widgetgrouptype_unregister(CTX_data_main(C), data->cagetype);
