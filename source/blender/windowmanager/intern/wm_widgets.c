@@ -100,7 +100,7 @@ static ListBase widgetmaptypes = {NULL, NULL};
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *C, struct wmWidgetGroupType *),
         void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
-        Main *bmain, const char *mapidname, short spaceid, short regionid,bool is_3d
+        struct Main *bmain, const char *mapidname, short spaceid, short regionid,bool is_3d
         )
 {
 	bScreen *sc;
@@ -627,10 +627,22 @@ wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, cons
 	return NULL;
 }
 
+bool WM_widgetmap_cursor_set(wmWidgetMap *wmap, wmWindow *win)
+{
+	for (; wmap; wmap = wmap->next) {
+		wmWidget *widget = wmap->highlighted_widget;
+		if (widget && widget->get_cursor) {
+			WM_cursor_set(win, widget->get_cursor(widget));
+			return true;
+		}
+	}
+	
+	return false;
+}
 
 void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part)
 {
-	if (widget != wmap->highlighted_widget || (widget && part != widget->highlighted_part)) {
+	if ((widget != wmap->highlighted_widget) || (widget && part != widget->highlighted_part)) {
 		if (wmap->highlighted_widget) {
 			wmap->highlighted_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
 			wmap->highlighted_widget->highlighted_part = 0;
@@ -641,11 +653,20 @@ void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bConte
 		if (widget) {
 			widget->flag |= WM_WIDGET_HIGHLIGHT;
 			widget->highlighted_part = part;
+			
+			if (C && widget->get_cursor) {
+				wmWindow *win = CTX_wm_window(C);
+				WM_cursor_set(win, widget->get_cursor(widget));
+			}
+		}
+		else if (C) {
+			wmWindow *win = CTX_wm_window(C);
+			WM_cursor_set(win, CURSOR_STD);
 		}
 		
+		/* tag the region for redraw */
 		if (C) {
 			ARegion *ar = CTX_wm_region(C);
-			/* tag the region for redraw */
 			ED_region_tag_redraw(ar);
 		}
 	}
@@ -781,17 +802,17 @@ void WM_widgetmap_delete(struct wmWidgetMap *wmap)
 	MEM_freeN(wmap);
 }
 
-static void wm_widgetgroup_free(wmWidgetMap *wmap, wmWidgetGroup *wgroup)
+static void wm_widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 {
 	wmWidget *widget;
 
 	for (widget = wgroup->widgets.first; widget;) {
 		wmWidget *widget_next = widget->next;
 		if (widget->flag & WM_WIDGET_HIGHLIGHT) {
-			wm_widgetmap_set_highlighted_widget(wmap, NULL, NULL, 0);
+			wm_widgetmap_set_highlighted_widget(wmap, C, NULL, 0);
 		}
 		if (widget->flag & WM_WIDGET_ACTIVE) {
-			wm_widgetmap_set_active_widget(wmap, NULL, NULL, NULL, false);
+			wm_widgetmap_set_active_widget(wmap, C, NULL, NULL, false);
 		}
 		wm_widget_delete(&wgroup->widgets, widget);
 		widget = widget_next;
@@ -814,7 +835,7 @@ static void wm_widgetgroup_free(wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 	MEM_freeN(wgroup);
 }
 
-void WM_widgetgrouptype_unregister(Main *bmain, wmWidgetGroupType *wgrouptype)
+void WM_widgetgrouptype_unregister(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)
 {
 	bScreen *sc;
 	wmWidgetMapType *wmaptype;
@@ -835,7 +856,7 @@ void WM_widgetgrouptype_unregister(Main *bmain, wmWidgetGroupType *wgrouptype)
 						for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup_tmp) {
 							wgroup_tmp = wgroup->next;
 							if (wgroup->type == wgrouptype) {
-								wm_widgetgroup_free(wmap, wgroup);
+								wm_widgetgroup_free(C, wmap, wgroup);
 								ED_region_tag_redraw(ar);
 							}
 						}

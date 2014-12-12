@@ -1395,7 +1395,7 @@ static void rna_WidgetGroup_unregister(struct Main *bmain, StructRNA *type)
 
 	//RNA_struct_free_extension(type, &wgrouptype->ext);
 
-	WM_widgetgrouptype_unregister(bmain, wgrouptype);
+	WM_widgetgrouptype_unregister(NULL, bmain, wgrouptype);
 	//WM_operatortype_remove_ptr(ot);
 
 	/* not to be confused with the RNA_struct_free that WM_operatortype_remove calls, they are 2 different srna's */

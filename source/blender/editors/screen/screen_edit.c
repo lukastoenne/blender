@@ -1078,6 +1078,8 @@ static void region_cursor_set(wmWindow *win, int swinid, int swin_changed)
 		for (; ar; ar = ar->next) {
 			if (ar->swinid == swinid) {
 				if (swin_changed || (ar->type && ar->type->event_cursor)) {
+					if (WM_widgetmap_cursor_set(ar->widgetmaps.first, win))
+						return;
 					if (ar->type && ar->type->cursor)
 						ar->type->cursor(win, sa, ar);
 					else

@@ -245,13 +245,14 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
 
 /******** Backdrop Transform *******/
 
-typedef struct BackDropTransformData {
+typedef struct OverDropTransformData {
 	float init_zoom;
 	float init_offset[2];
+	int event_type;
 	wmWidgetGroupType *cagetype;
-} BackDropTransformData;
+} OverDropTransformData;
 
-static int sequencer_backdrop_transform_poll(bContext *C)
+static int sequencer_overdrop_transform_poll(bContext *C)
 {
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -259,7 +260,7 @@ static int sequencer_backdrop_transform_poll(bContext *C)
 	return (sseq && ar && ar->type->regionid == RGN_TYPE_WINDOW && (sseq->draw_flag & SEQ_DRAW_OVERDROP));
 }
 
-static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+static void widgetgroup_overdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	ARegion *ar = CTX_wm_region(C);
 	wmOperator *op = wgroup->type->op;
@@ -279,14 +280,14 @@ static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetG
 	WM_widget_set_origin(cage, origin);
 }
 
-static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int sequencer_overdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	/* no poll, lives always for the duration of the operator */
-	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_overdrop_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
-	BackDropTransformData *data = MEM_mallocN(sizeof(BackDropTransformData), "backdrop transform data");
+	OverDropTransformData *data = MEM_mallocN(sizeof(OverDropTransformData), "overdrop transform data");
 	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
 	
 	RNA_float_set_array(op->ptr, "offset", sseq->overdrop_offset);
@@ -295,16 +296,38 @@ static int sequencer_backdrop_transform_invoke(bContext *C, wmOperator *op, cons
 	copy_v2_v2(data->init_offset, sseq->overdrop_offset);
 	data->init_zoom = sseq->overdrop_zoom;
 	data->cagetype = cagetype;
+	data->event_type = event->type;
 
 	op->customdata = data;
 
-	ED_area_headerprint(sa, "Drag to place, and scale, Space/Enter to confirm, R to recenter, RClick/Esc to cancel");
+	ED_area_headerprint(sa, "Drag to place, and scale, Space/Enter/Caller key to confirm, R to recenter, RClick/Esc to cancel");
 	
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static void sequencer_overdrop_finish(bContext *C, OverDropTransformData *data)
 {
+	ScrArea *sa = CTX_wm_area(C);
+	ED_area_headerprint(sa, NULL);
+	WM_widgetgrouptype_unregister(C, CTX_data_main(C), data->cagetype);
+	MEM_freeN(data);
+}
+
+static void sequencer_overdrop_cancel(struct bContext *C, struct wmOperator *op)
+{
+	OverDropTransformData *data = op->customdata;
+	sequencer_overdrop_finish(C, data);
+}
+
+static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	OverDropTransformData *data = op->customdata;
+
+	if (event->type == data->event_type && event->val == KM_PRESS) {
+		sequencer_overdrop_finish(C, data);
+		return OPERATOR_FINISHED;
+	}
+	
 	switch (event->type) {
 		case EVT_WIDGET_UPDATE: {
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -331,28 +354,18 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 		case PADENTER:
 		case SPACEKEY:
 		{
-			BackDropTransformData *data = op->customdata;
-			ScrArea *sa = CTX_wm_area(C);
-			ED_area_headerprint(sa, NULL);
-			WM_widgetgrouptype_unregister(CTX_data_main(C), data->cagetype);
-			MEM_freeN(data);
+			sequencer_overdrop_finish(C, data);
 			return OPERATOR_FINISHED;
 		}
 			
 		case ESCKEY:
 		case RIGHTMOUSE:
 		{
-			BackDropTransformData *data = op->customdata;
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
-			ScrArea *sa = CTX_wm_area(C);
-
 			copy_v2_v2(sseq->overdrop_offset, data->init_offset);
 			sseq->overdrop_zoom = data->init_zoom;
 			
-			ED_area_headerprint(sa, NULL);
-			WM_widgetgrouptype_unregister(CTX_data_main(C), data->cagetype);
-
-			MEM_freeN(op->customdata);
+			sequencer_overdrop_finish(C, data);
 			return OPERATOR_CANCELLED;
 		}
 	}
@@ -360,19 +373,20 @@ static int sequencer_backdrop_transform_modal(bContext *C, wmOperator *op, const
 	return OPERATOR_RUNNING_MODAL;
 }
 
-void SEQUENCER_OT_backdrop_transform(struct wmOperatorType *ot)
+void SEQUENCER_OT_overdrop_transform(struct wmOperatorType *ot)
 {
 	float default_offset[2] = {0.0f, 0.0f};
 	
 	/* identifiers */
 	ot->name = "Change Data/Files";
-	ot->idname = "SEQUENCER_OT_backdrop_transform";
+	ot->idname = "SEQUENCER_OT_overdrop_transform";
 	ot->description = "";
 
 	/* api callbacks */
-	ot->invoke = sequencer_backdrop_transform_invoke;
-	ot->modal = sequencer_backdrop_transform_modal;
-	ot->poll = sequencer_backdrop_transform_poll;
+	ot->invoke = sequencer_overdrop_transform_invoke;
+	ot->modal = sequencer_overdrop_transform_modal;
+	ot->poll = sequencer_overdrop_transform_poll;
+	ot->cancel = sequencer_overdrop_cancel;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
