@@ -90,6 +90,7 @@ typedef struct GPUDrawObject {
 	GPUBuffer *colors;
 	GPUBuffer *edges;
 	GPUBuffer *uvedges;
+	GPUBuffer *facemapindices;
 
 	/* for each triangle, the original MFace index */
 	int *triangle_to_mface;
@@ -115,6 +116,10 @@ typedef struct GPUDrawObject {
 	/* caches of the original DerivedMesh values */
 	int totvert;
 	int totedge;
+
+	int totfacemaps;    /* total facemaps */
+	int *facemap_start; /* beginning of facemap */
+	int *facemap_count; /* elements per facemap */
 } GPUDrawObject;
 
 /* used for GLSL materials */

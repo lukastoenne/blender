@@ -8181,6 +8181,23 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 	if (dm) dm->release(dm);
 }
 
+void draw_object_facemap(Scene *scene, struct Object *ob, int UNUSED(facemap))
+{
+	DerivedMesh *dm = NULL;
+	
+	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	DM_update_materials(dm, ob);
+
+	if (dm) {
+		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
+	}
+	
+	dm->drawFacesSolid(dm, NULL, 0, NULL);
+	
+	if (dm) dm->release(dm);
+}
+
+
 void draw_object_instance(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, const char dt, int outline)
 {
 	if (ob == NULL)

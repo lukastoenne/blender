@@ -942,6 +942,8 @@ static void GPU_buffer_copy_edge(DerivedMesh *dm, float *varray_, int *UNUSED(in
 
 	medge = dm->getEdgeArray(dm);
 	totedge = dm->getNumEdges(dm);
+	
+	/* two passes, one to count number of faces per facemap, one to actually copy the data */
 
 	for (i = 0; i < totedge; i++, medge++) {
 		varray[i * 2] = dm->drawObject->vert_points[medge->v1].point_index;
@@ -983,6 +985,29 @@ static void GPU_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(i
 	}
 }
 
+static void GPU_buffer_copy_facemap(DerivedMesh *dm, float *varray_, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+{
+	int *facemap = DM_get_tessface_data_layer(dm, CD_FACEMAP);
+	unsigned int *varray = (unsigned int *)varray_;
+	int i, totface;
+	MFace *f = dm->getTessFaceArray(dm);
+
+	totface = dm->getNumTessFaces(dm);
+
+	for (i = 0; i < totface; i++, facemap++, f++) {
+		varray[i * 2] = dm->drawObject->vert_points[f->v1].point_index;
+		varray[i * 2 + 1] = dm->drawObject->vert_points[f->v2].point_index;
+		varray[i * 2 + 2] = dm->drawObject->vert_points[f->v3].point_index;			
+		
+		if (f->v4) {
+			varray[i * 2 + 3] = dm->drawObject->vert_points[f->v3].point_index;
+			varray[i * 2 + 4] = dm->drawObject->vert_points[f->v4].point_index;
+			varray[i * 2 + 5] = dm->drawObject->vert_points[f->v1].point_index;
+		}
+	}
+}
+
+
 typedef enum {
 	GPU_BUFFER_VERTEX = 0,
 	GPU_BUFFER_NORMAL,
@@ -991,6 +1016,7 @@ typedef enum {
 	GPU_BUFFER_UV_TEXPAINT,
 	GPU_BUFFER_EDGE,
 	GPU_BUFFER_UVEDGE,
+	GPU_BUFFER_FACEMAP,
 } GPUBufferType;
 
 typedef struct {
@@ -1006,7 +1032,8 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
 	{GPU_buffer_copy_uv, GL_ARRAY_BUFFER_ARB, 2},
     {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 4},
 	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
-	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4}
+	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4},
+	{GPU_buffer_copy_facemap, GL_ELEMENT_ARRAY_BUFFER_ARB, 2}
 };
 
 /* get the GPUDrawObject buffer associated with a type */
@@ -1027,6 +1054,8 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 			return &gdo->edges;
 		case GPU_BUFFER_UVEDGE:
 			return &gdo->uvedges;
+		case GPU_BUFFER_FACEMAP:
+			return &gdo->facemapindices;
 		default:
 			return NULL;
 	}
@@ -1055,6 +1084,8 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 			 * less so here we can over allocate and assume all
 			 * tris. */
 			return sizeof(float) * 4 * dm->drawObject->tot_triangle_point;
+		case GPU_BUFFER_FACEMAP:
+			return sizeof(int) * 3 * dm->drawObject->tot_triangle_point;
 		default:
 			return -1;
 	}
