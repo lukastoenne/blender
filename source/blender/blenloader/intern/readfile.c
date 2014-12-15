@@ -2945,6 +2945,7 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 		pchan->bone = BKE_armature_find_bone_name(arm, pchan->name);
 		
 		pchan->custom = newlibadr_us(fd, arm->id.lib, pchan->custom);
+		pchan->custom_fmap = newlibadr_us(fd, arm->id.lib, pchan->custom_fmap);
 		if (pchan->bone == NULL)
 			rebuild= 1;
 		else if (ob->id.lib==NULL && arm->id.lib) {
@@ -4945,7 +4946,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 		direct_link_motionpath(fd, ob->mpath);
 	
 	link_list(fd, &ob->defbase);
-	link_list(fd, &ob->fmaps);	
+	link_list(fd, &ob->fmaps);
 // XXX deprecated - old animation system <<<
 	direct_link_nlastrips(fd, &ob->nlastrips);
 	link_list(fd, &ob->constraintChannels);
