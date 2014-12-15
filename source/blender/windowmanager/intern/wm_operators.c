@@ -2643,6 +2643,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	lib = mainl->curlib;
 	BLI_assert(lib);
 
+	if (mainl->versionfile < 250) {
+		BKE_reportf(op->reports, RPT_WARNING,
+		            "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will "
+		            "be done! You may want to re-save your lib file with current Blender",
+		            mainl->versionfile, mainl->subversionfile);
+	}
+
 	if (totfiles == 0) {
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
