@@ -735,7 +735,7 @@ static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGro
 	WM_widget_set_scale(widget, ca->drawsize);
 }
 
-
+#if 0
 static int WIDGETGROUP_shapekey_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
@@ -774,7 +774,7 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 }
-
+#endif
 
 static void view3d_widgets(void)
 {
@@ -789,7 +789,6 @@ static void view3d_widgets(void)
 	        WIDGETGROUP_manipulator_poll,
 	        WIDGETGROUP_manipulator_update);
 #endif
-	
 }
 
 
