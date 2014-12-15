@@ -782,7 +782,7 @@ static void view3d_widgets(void)
 	
 	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll, WIDGETGROUP_shapekey_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+//	WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll, WIDGETGROUP_shapekey_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 #if 0
 	wgroup_manipulator = WM_widgetgrouptype_new(
