@@ -72,6 +72,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
+#include "GPU_buffers.h"
 
 #include "CCGSubSurf.h"
 
@@ -1743,9 +1744,112 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 	glNormal3fv(no);
 }
 
+static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *index,
+                         int *mat_orig_to_new, void *user_data)
+{
+	
+}
+
+
+static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
+	GPUBufferMaterial *mat;
+	int *mat_orig_to_new;
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	GPUDrawObject *gdo;
+	DMFlagMat *faceFlags = ccgdm->faceFlags;
+	int gridSize = ccgSubSurf_getGridSize(ss);
+	int gridFaces = gridSize - 1;
+	int totmat = (faceFlags) ? dm->totmat : 1;
+	int *points_per_mat;
+	int i, curmat, curpoint, totface;
+
+	/* object contains at least one material (default included) so zero means uninitialized dm */
+	BLI_assert(totmat != 0);
+
+	totface = ccgSubSurf_getNumFaces(ss);
+
+	points_per_mat = MEM_callocN(sizeof(*points_per_mat) * totmat, "GPU_drawobject_new.mat_orig_to_new");
+	
+	if (faceFlags) {
+		for (i = 0; i < totface; i++) {
+			CCGFace *f = ccgdm->faceMap[i].face;
+			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+			int new_matnr = faceFlags[index].mat_nr;
+			points_per_mat[new_matnr] += gridFaces * gridFaces * 6;
+		}
+	}
+	else {
+		for (i = 0; i < totface; i++) {
+			points_per_mat[0] += gridFaces * gridFaces * 6;
+		}
+	}
+	
+	/* create the GPUDrawObject */
+	gdo = MEM_callocN(sizeof(GPUDrawObject), "GPUDrawObject");
+	gdo->totvert = totface * gridSize * gridSize;
+	gdo->totedge = totface * 2 * gridFaces * gridFaces;
+
+	/* count the number of materials used by this DerivedMesh */
+	for (i = 0; i < totmat; i++) {
+		if (points_per_mat[i] > 0)
+			gdo->totmaterial++;
+	}
+
+	/* allocate an array of materials used by this DerivedMesh */
+	gdo->materials = MEM_mallocN(sizeof(GPUBufferMaterial) * gdo->totmaterial,
+	                             "GPUDrawObject.materials");
+
+	/* initialize the materials array */
+	for (i = 0, curmat = 0, curpoint = 0; i < totmat; i++) {
+		if (points_per_mat[i] > 0) {
+			gdo->materials[curmat].start = curpoint;
+			gdo->materials[curmat].totpoint = 0;
+			gdo->materials[curmat].mat_nr = i;
+
+			curpoint += points_per_mat[i];
+			curmat++;
+		}
+	}
+
+	/* store total number of points used for triangles */
+	gdo->tot_triangle_point = curpoint;
+
+	mat_orig_to_new = MEM_callocN(sizeof(*mat_orig_to_new) * totmat,
+	                                             "GPUDrawObject.mat_orig_to_new");
+
+	/* build a map from the original material indices to the new
+	 * GPUBufferMaterial indices */
+	for (i = 0; i < gdo->totmaterial; i++)
+		mat_orig_to_new[gdo->materials[i].mat_nr] = i;
+
+	for (i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
+		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+		int new_matnr = faceFlags[index].mat_nr;
+	
+		mat = &gdo->materials[mat_orig_to_new[new_matnr]];
+
+		/* add triangle */
+		mat->totpoint += gridFaces * gridFaces * 6;
+	}
+
+
+	MEM_freeN(mat_orig_to_new);
+	MEM_freeN(points_per_mat);
+
+	return gdo;
+}
+
 /* Only used by non-editmesh types */
 static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)[4], bool fast, DMSetMaterial setMaterial)
 {
+	GPU_vertex_setup(dm);
+	
+	GPU_buffer_unbind();
+
+#if 0
+	
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
@@ -1868,6 +1972,8 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			}
 		}
 	}
+
+#endif
 }
 
 static void ccgdm_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert)
@@ -3544,6 +3650,8 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 	ccgdm->dm.drawMappedEdgesInterp = ccgDM_drawMappedEdgesInterp;
 	ccgdm->dm.drawMappedEdges = ccgDM_drawMappedEdges;
+	ccgdm->dm.gpuObjectNew = ccgDM_GPUObjectNew;
+	ccgdm->dm.copy_gpu_data = ccgDM_copy_gpu_data;
 	
 	ccgdm->dm.release = ccgDM_release;
 	

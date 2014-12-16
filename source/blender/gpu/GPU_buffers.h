@@ -50,6 +50,9 @@ struct GSet;
 struct GPUVertPointLink;
 struct PBVH;
 
+typedef void (*GPUBufferCopyFunc)(DerivedMesh *dm, float *varray, int *index,
+                                  int *mat_orig_to_new, void *user_data);
+
 typedef struct GPUBuffer {
 	int size;	/* in bytes */
 	void *pointer;	/* used with vertex arrays */
@@ -135,7 +138,6 @@ void GPU_global_buffer_pool_free_unused(void);
 GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays);
 void GPU_buffer_free(GPUBuffer *buffer);
 
-GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm);
 void GPU_drawobject_free(struct DerivedMesh *dm);
 
 /* called before drawing */

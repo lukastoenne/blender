@@ -69,6 +69,46 @@ typedef enum {
 	GPU_BUFFER_ELEMENT_STATE = (1 << 5),
 } GPUBufferState;
 
+typedef enum {
+	GPU_BUFFER_VERTEX = 0,
+	GPU_BUFFER_NORMAL,
+	GPU_BUFFER_COLOR,
+	GPU_BUFFER_UV,
+	GPU_BUFFER_UV_TEXPAINT,
+	GPU_BUFFER_EDGE,
+	GPU_BUFFER_UVEDGE,
+	GPU_BUFFER_FACEMAP
+} GPUBufferType;
+
+typedef struct {
+	GPUBufferCopyFunc copy;
+	GLenum gl_buffer_type;
+	int vector_size;
+} GPUBufferTypeSettings;
+
+static void GPU_buffer_copy_vertex(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+static void GPU_buffer_copy_normal(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+static void GPU_buffer_copy_mcol(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+static void GPU_buffer_copy_uv(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+static void GPU_buffer_copy_edge(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+static void GPU_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+static void GPU_buffer_copy_facemap(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *user);
+
+static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type);
+
+const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
+	{GPU_buffer_copy_vertex, GL_ARRAY_BUFFER_ARB, 3},
+	{GPU_buffer_copy_normal, GL_ARRAY_BUFFER_ARB, 3},
+	{GPU_buffer_copy_mcol, GL_ARRAY_BUFFER_ARB, 3},
+	{GPU_buffer_copy_uv, GL_ARRAY_BUFFER_ARB, 2},
+    {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 4},
+	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
+	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4},
+	{GPU_buffer_copy_facemap, GL_ELEMENT_ARRAY_BUFFER_ARB, 4}
+};
+
+
 #define MAX_GPU_ATTRIB_DATA 32
 
 #define BUFFER_OFFSET(n) ((GLubyte *)NULL + (n))
@@ -501,7 +541,7 @@ static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int to
 
 /* see GPUDrawObject's structure definition for a description of the
  * data being initialized here */
-GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
+static GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
 {
 	GPUDrawObject *gdo;
 	MFace *mface;
@@ -605,8 +645,7 @@ typedef void (*GPUBufferCopyFunc)(DerivedMesh *dm, float *varray, int *index,
                                   int *mat_orig_to_new, void *user_data);
 
 static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
-                                   int vector_size, int size, GLenum target,
-                                   void *user, GPUBufferCopyFunc copy_f)
+                                   int type, void *user)
 {
 	GPUBufferPool *pool;
 	GPUBuffer *buffer;
@@ -614,6 +653,10 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int *mat_orig_to_new;
 	int *cur_index_per_mat;
 	int i;
+	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
+	GLenum target = ts->gl_buffer_type;
+	int vector_size = ts->vector_size;
+	int size = gpu_buffer_size_from_type(dm, type);
 	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO);
 	GLboolean uploaded;
 
@@ -670,7 +713,10 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 			uploaded = GL_FALSE;
 			/* attempt to upload the data to the VBO */
 			while (uploaded == GL_FALSE) {
-				(*copy_f)(dm, varray, cur_index_per_mat, mat_orig_to_new, user);
+				if (dm->copy_gpu_data)
+					dm->copy_gpu_data(dm, type, varray, cur_index_per_mat, mat_orig_to_new, user);
+				else
+					ts->copy(dm, varray, cur_index_per_mat, mat_orig_to_new, user);
 				/* glUnmapBuffer returns GL_FALSE if
 				 * the data store is corrupted; retry
 				 * in that case */
@@ -687,7 +733,10 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 		
 		if (buffer) {
 			varray = buffer->pointer;
-			(*copy_f)(dm, varray, cur_index_per_mat, mat_orig_to_new, user);
+			if (dm->copy_gpu_data)
+				dm->copy_gpu_data(dm, type, varray, cur_index_per_mat, mat_orig_to_new, user);
+			else
+				ts->copy(dm, varray, cur_index_per_mat, mat_orig_to_new, user);
 		}
 	}
 
@@ -1007,35 +1056,6 @@ static void GPU_buffer_copy_facemap(DerivedMesh *dm, float *varray_, int *UNUSED
 	}
 }
 
-
-typedef enum {
-	GPU_BUFFER_VERTEX = 0,
-	GPU_BUFFER_NORMAL,
-	GPU_BUFFER_COLOR,
-	GPU_BUFFER_UV,
-	GPU_BUFFER_UV_TEXPAINT,
-	GPU_BUFFER_EDGE,
-	GPU_BUFFER_UVEDGE,
-	GPU_BUFFER_FACEMAP,
-} GPUBufferType;
-
-typedef struct {
-	GPUBufferCopyFunc copy;
-	GLenum gl_buffer_type;
-	int vector_size;
-} GPUBufferTypeSettings;
-
-const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
-	{GPU_buffer_copy_vertex, GL_ARRAY_BUFFER_ARB, 3},
-	{GPU_buffer_copy_normal, GL_ARRAY_BUFFER_ARB, 3},
-	{GPU_buffer_copy_mcol, GL_ARRAY_BUFFER_ARB, 3},
-	{GPU_buffer_copy_uv, GL_ARRAY_BUFFER_ARB, 2},
-    {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 4},
-	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
-	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4},
-	{GPU_buffer_copy_facemap, GL_ELEMENT_ARRAY_BUFFER_ARB, 2}
-};
-
 /* get the GPUDrawObject buffer associated with a type */
 static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBufferType type)
 {
@@ -1094,11 +1114,8 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 /* call gpu_buffer_setup with settings for a particular type of buffer */
 static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type)
 {
-	const GPUBufferTypeSettings *ts;
 	void *user_data = NULL;
 	GPUBuffer *buf;
-
-	ts = &gpu_buffer_type_settings[type];
 
 	/* special handling for MCol and UV buffers */
 	if (type == GPU_BUFFER_COLOR) {
@@ -1110,9 +1127,7 @@ static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type)
 			return NULL;
 	}
 
-	buf = gpu_buffer_setup(dm, dm->drawObject, ts->vector_size,
-	                       gpu_buffer_size_from_type(dm, type),
-	                       ts->gl_buffer_type, user_data, ts->copy);
+	buf = gpu_buffer_setup(dm, dm->drawObject, type, user_data);
 
 	return buf;
 }
@@ -1123,9 +1138,13 @@ static GPUBuffer *gpu_buffer_setup_common(DerivedMesh *dm, GPUBufferType type)
 {
 	GPUBuffer **buf;
 
-	if (!dm->drawObject)
-		dm->drawObject = GPU_drawobject_new(dm);
-
+	if (!dm->drawObject) {
+		if (dm->gpuObjectNew)
+			dm->drawObject = dm->gpuObjectNew(dm);
+		else
+			dm->drawObject = GPU_drawobject_new(dm);
+	}
+	
 	buf = gpu_drawobject_buffer_from_type(dm->drawObject, type);
 	if (!(*buf))
 		*buf = gpu_buffer_setup_type(dm, type);
