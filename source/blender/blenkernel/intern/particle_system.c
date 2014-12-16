@@ -3122,6 +3122,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	int k, hair_index;
 	float hairmat[4][4];
 	float max_length;
+	float hair_radius;
 	float *shapekey_data, *shapekey;
 	int totshapekey;
 	
@@ -3150,6 +3151,9 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	}
 	
 	psys->clmd->sim_parms->vgroup_mass = 1;
+	
+	/* XXX placeholder for more flexible future hair settings */
+	hair_radius = part->size;
 	
 	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, psys, &totshapekey);
 	
@@ -3189,6 +3193,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 				copy_v3_v3(hair->loc, root_mat[3]);
 				copy_m3_m4(hair->rot, root_mat);
 				
+				hair->radius = hair_radius;
 				hair->bending_stiffness = bending_stiffness;
 				
 				add_v3_v3v3(mvert->co, co, co);
@@ -3215,6 +3220,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 			copy_v3_v3(hair->loc, root_mat[3]);
 			copy_m3_m4(hair->rot, root_mat);
 			
+			hair->radius = hair_radius;
 			hair->bending_stiffness = bending_stiffness;
 			
 			copy_v3_v3(mvert->co, co);
