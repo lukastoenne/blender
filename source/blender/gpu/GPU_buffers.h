@@ -50,6 +50,9 @@ struct GSet;
 struct GPUVertPointLink;
 struct PBVH;
 
+typedef void (*GPUBufferCopyFunc)(DerivedMesh *dm, float *varray, int *index,
+                                  int *mat_orig_to_new, void *user_data);
+
 typedef struct GPUBuffer {
 	int size;	/* in bytes */
 	void *pointer;	/* used with vertex arrays */
@@ -135,8 +138,20 @@ void GPU_global_buffer_pool_free_unused(void);
 GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays);
 void GPU_buffer_free(GPUBuffer *buffer);
 
-GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm);
 void GPU_drawobject_free(struct DerivedMesh *dm);
+
+/* flag that controls data type to fill buffer with, a modifier will prepare. */
+typedef enum {
+	GPU_BUFFER_VERTEX = 0,
+	GPU_BUFFER_NORMAL,
+	GPU_BUFFER_COLOR,
+	GPU_BUFFER_UV,
+	GPU_BUFFER_UV_TEXPAINT,
+	GPU_BUFFER_EDGE,
+	GPU_BUFFER_UVEDGE,
+	GPU_BUFFER_FACEMAP
+} GPUBufferType;
+
 
 /* called before drawing */
 void GPU_vertex_setup(struct DerivedMesh *dm);

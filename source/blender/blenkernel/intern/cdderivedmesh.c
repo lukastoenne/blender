@@ -395,7 +395,7 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 	MEdge *medge = cddm->medge;
 	int i;
 	int prevstart = 0;
-	int prevdraw = 1;
+	bool prevdraw = true;
 	bool draw = true;
 	
 	if (cddm->pbvh && cddm->pbvh_draw &&
@@ -417,14 +417,14 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 			draw = false;
 		}
 		if (prevdraw != draw) {
-			if (prevdraw > 0 && (i - prevstart) > 0) {
+			if (prevdraw && (i - prevstart) > 0) {
 				GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, prevstart * 2, (i - prevstart) * 2);
 			}
 			prevstart = i;
 		}
 		prevdraw = draw;
 	}
-	if (prevdraw > 0 && (i - prevstart) > 0) {
+	if (prevdraw && (i - prevstart) > 0) {
 		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, prevstart * 2, (i - prevstart) * 2);
 	}
 	GPU_buffer_unbind();
