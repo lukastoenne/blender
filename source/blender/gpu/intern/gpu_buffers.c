@@ -1337,7 +1337,20 @@ void GPU_facemap_setup(DerivedMesh *dm)
 {
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_FACEMAP))
 		return;
+	
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
+		return;
 
+	glEnableClientState(GL_VERTEX_ARRAY);
+	if (dm->drawObject->points->use_vbo) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->points->id);
+		glVertexPointer(3, GL_FLOAT, 0, 0);
+	}
+	else {
+		glVertexPointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
+	}
+	
+	GLStates |= GPU_BUFFER_VERTEX_STATE;
 	if (dm->drawObject->facemapindices->use_vbo) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->facemapindices->id);
 	}

@@ -4011,8 +4011,11 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 			}
 
 			draw_mesh_fancy(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
-
+			
 			GPU_end_object_materials();
+
+			if (ob->fmaps.first)
+				draw_object_facemap(scene, ob, ob->actfmap - 1);
 			
 			if (me->totvert == 0) retval = true;
 		}
@@ -8182,7 +8185,7 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 	if (dm) dm->release(dm);
 }
 
-void draw_object_facemap(Scene *scene, struct Object *ob, int UNUSED(facemap))
+void draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 {
 	DerivedMesh *dm = NULL;
 	
@@ -8193,9 +8196,22 @@ void draw_object_facemap(Scene *scene, struct Object *ob, int UNUSED(facemap))
 		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 	}
 	
+	/* add polygon offset so we draw above the original surface */
+	glPolygonOffset(1.0, 1.0);
+
+	glEnable(GL_BLEND);
+	glColor4f(0.0, 1.0, 1.0, 0.2);
 	GPU_facemap_setup(dm);
-	dm->drawFacesSolid(dm, NULL, 0, NULL);
+	if (dm->drawObject->facemapindices->use_vbo)
+		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap] * 3, GL_UNSIGNED_INT, 
+		               (GLubyte *)NULL + dm->drawObject->facemap_start[facemap] * 3 * sizeof(float));
+	else
+		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap] * 3, GL_UNSIGNED_INT,
+		               (GLubyte *)dm->drawObject->facemapindices->pointer + dm->drawObject->facemap_start[facemap] * 3 * sizeof(float));
+	glDisable(GL_BLEND);
 	GPU_buffer_unbind();
+
+	glPolygonOffset(0.0, 0.0);
 	
 	if (dm) dm->release(dm);
 }
