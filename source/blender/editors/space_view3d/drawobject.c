@@ -87,6 +87,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_select.h"
+#include "GPU_buffers.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -8192,7 +8193,9 @@ void draw_object_facemap(Scene *scene, struct Object *ob, int UNUSED(facemap))
 		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 	}
 	
+	GPU_facemap_setup(dm);
 	dm->drawFacesSolid(dm, NULL, 0, NULL);
+	GPU_buffer_unbind();
 	
 	if (dm) dm->release(dm);
 }

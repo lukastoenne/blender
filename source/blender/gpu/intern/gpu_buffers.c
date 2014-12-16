@@ -94,7 +94,7 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
     {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 4},
 	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
 	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4},
-	{GPU_buffer_copy_facemap, GL_ELEMENT_ARRAY_BUFFER_ARB, 4}
+	{GPU_buffer_copy_facemap, GL_ELEMENT_ARRAY_BUFFER_ARB, 3}
 };
 
 #define MAX_GPU_ATTRIB_DATA 32
@@ -1026,24 +1026,59 @@ static void GPU_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(i
 
 static void GPU_buffer_copy_facemap(DerivedMesh *dm, float *varray_, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
-	int *facemap = DM_get_tessface_data_layer(dm, CD_FACEMAP);
+	GPUDrawObject *gdo = dm->drawObject;
+	int *facemap_iter, *facemap = DM_get_tessface_data_layer(dm, CD_FACEMAP);
 	unsigned int *varray = (unsigned int *)varray_;
-	int i, totface;
+	int i, totface, offset = 0;
 	MFace *f = dm->getTessFaceArray(dm);
-
+	int *facemap_offset;
+	
 	totface = dm->getNumTessFaces(dm);
 
-	for (i = 0; i < totface; i++, facemap++, f++) {
-		varray[i * 2] = dm->drawObject->vert_points[f->v1].point_index;
-		varray[i * 2 + 1] = dm->drawObject->vert_points[f->v2].point_index;
-		varray[i * 2 + 2] = dm->drawObject->vert_points[f->v3].point_index;			
+	gdo->totfacemaps = 0;
+	
+	facemap_iter = facemap;
+	
+	/* pretty crappy to iterate so many times but it's only being done on creation */
+	for (i = 0; i < totface; i++, facemap_iter++, f++) {
+		gdo->totfacemaps = max_ii(*facemap_iter, gdo->totfacemaps);
+	}
+
+	gdo->totfacemaps++;
+	gdo->facemap_start = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_start), "GDO_facemap_start");
+	gdo->facemap_count = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_count), "GDO_facemap_count");
+	facemap_offset = MEM_callocN(gdo->totfacemaps * sizeof(*facemap_offset), "facemap_offset");
+	
+	facemap_iter = facemap;
+	for (i = 0; i < totface; i++, facemap_iter++, f++) {
+		gdo->facemap_count[*facemap_iter] += (f->v4) ? 6 : 3;
+	}
+	
+	for (i = 0; i < gdo->totfacemaps; i++) {
+		gdo->facemap_start[i] = offset;
+		offset += gdo->facemap_count[i];
+	}
+	
+	facemap_iter = facemap;
+	for (i = 0; i < totface; i++, facemap_iter++, f++) {
+		int fmap_offset = (gdo->facemap_start[*facemap_iter] + facemap_offset[*facemap_iter]) * 3;
+		
+		varray[fmap_offset] = gdo->vert_points[f->v1].point_index;
+		varray[fmap_offset + 1] = gdo->vert_points[f->v2].point_index;
+		varray[fmap_offset + 2] = gdo->vert_points[f->v3].point_index;
+		
+		facemap_offset[*facemap_iter] += 3;
 		
 		if (f->v4) {
-			varray[i * 2 + 3] = dm->drawObject->vert_points[f->v3].point_index;
-			varray[i * 2 + 4] = dm->drawObject->vert_points[f->v4].point_index;
-			varray[i * 2 + 5] = dm->drawObject->vert_points[f->v1].point_index;
+			varray[fmap_offset + 3] = dm->drawObject->vert_points[f->v3].point_index;
+			varray[fmap_offset + 4] = dm->drawObject->vert_points[f->v4].point_index;
+			varray[fmap_offset + 5] = dm->drawObject->vert_points[f->v1].point_index;
+
+			facemap_offset[*facemap_iter] += 3;
 		}
 	}
+	
+	MEM_freeN(facemap_offset);
 }
 
 /* get the GPUDrawObject buffer associated with a type */
@@ -1297,6 +1332,19 @@ void GPU_uvedge_setup(DerivedMesh *dm)
 	
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
+
+void GPU_facemap_setup(DerivedMesh *dm)
+{
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_FACEMAP))
+		return;
+
+	if (dm->drawObject->facemapindices->use_vbo) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->facemapindices->id);
+	}
+	
+	GLStates |= GPU_BUFFER_ELEMENT_STATE;
+}
+
 
 static int GPU_typesize(int type)
 {

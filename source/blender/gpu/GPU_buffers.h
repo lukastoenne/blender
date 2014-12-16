@@ -162,6 +162,7 @@ void GPU_texpaint_uv_setup(struct DerivedMesh *dm);
 void GPU_color_setup(struct DerivedMesh *dm, int colType);
 void GPU_edge_setup(struct DerivedMesh *dm); /* does not mix with other data */
 void GPU_uvedge_setup(struct DerivedMesh *dm);
+void GPU_facemap_setup(struct DerivedMesh *dm);
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
 void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata);
 
