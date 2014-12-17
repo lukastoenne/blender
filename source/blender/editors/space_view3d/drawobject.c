@@ -8204,16 +8204,20 @@ void draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 	
 	GPU_facemap_setup(dm);
 
+	glColor4f(0.7, 1.0, 1.0, 0.5);
+	
 	glPushAttrib(GL_ENABLE_BIT);
 	glEnable(GL_BLEND);
 	glDisable(GL_LIGHTING);
-	glColor4f(0.7, 1.0, 1.0, 0.5);
-	if (dm->drawObject->facemapindices->use_vbo)
-		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT, 
-		               (int *)NULL + dm->drawObject->facemap_start[facemap]);
-	else
-		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT,
-		               (int *)dm->drawObject->facemapindices->pointer + dm->drawObject->facemap_start[facemap]);
+
+	if (dm->drawObject->facemapindices) {
+		if (dm->drawObject->facemapindices->use_vbo)
+			glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT, 
+			               (int *)NULL + dm->drawObject->facemap_start[facemap]);
+		else
+			glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT,
+			               (int *)dm->drawObject->facemapindices->pointer + dm->drawObject->facemap_start[facemap]);
+	}
 	glPopAttrib();
 
 	GPU_buffer_unbind();
