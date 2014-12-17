@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "DNA_armature_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -780,16 +781,9 @@ static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wm
 {
 	Object *ob = CTX_data_active_object(C);
 
-	if (ob && ob->type == OB_MESH) {
-		Key *key = BKE_key_from_object(ob);
-		KeyBlock *kb;
-	
-		if (key == NULL)
-			return false;
-		
-		kb = BLI_findlink(&key->block, ob->shapenr - 1);
-		
-		if (kb)
+	if (ob && ob->type == OB_ARMATURE) {
+		bArmature *arm = ob->data;
+		if (!arm->edbo)
 			return true;
 	}
 	return false;
@@ -799,20 +793,20 @@ static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct w
 {
 	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
-	Key *key = BKE_key_from_object(ob);
-	KeyBlock *kb = BLI_findlink(&key->block, ob->shapenr - 1);
 	wmWidget *widget;
-	PointerRNA shapeptr;
-	float dir[3];
 
-	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	WM_widget_set_3d_scale(widget, false);
-	WIDGET_arrow_set_color(widget, color_shape);
-	RNA_pointer_create(&key->id, &RNA_ShapeKey, kb, &shapeptr);
-	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &shapeptr, "value");
-	negate_v3_v3(dir, ob->obmat[2]);
-	WIDGET_arrow_set_direction(widget, dir);
+	//bArmature *arm = ob->data;
+	bPoseChannel *pchan;
+	
+	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		if (pchan->custom && pchan->custom_fmap) {
+			int index = BLI_findindex(&pchan->custom->fmaps, pchan->custom_fmap);
+			if (index != -1) {
+				widget = WIDGET_facemap_new(wgroup, 0, pchan->custom, index);
+				WIDGET_facemap_set_color(widget, color_shape);
+			}
+		}
+	}
 }
 
 

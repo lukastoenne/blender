@@ -1062,6 +1062,7 @@ typedef struct FacemapWidget {
 	Object *ob;
 	int facemap;
 	int style;
+	float color[4];
 } FacemapWidget;
 
 
@@ -1074,6 +1075,11 @@ static void widget_facemap_draw(struct wmWidget *widget, const struct bContext *
 	glPopMatrix();
 }
 
+void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4])
+{
+	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
+	copy_v4_v4(fmap_widget->color, color);
+}
 
 struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, struct Object *ob, int facemap)
 {
@@ -1084,7 +1090,6 @@ struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, str
 //	fmap_widget->widget.bind_to_prop = NULL;
 //	fmap_widget->widget.handler = NULL;
 	fmap_widget->widget.render_3d_intersection = NULL;
-	fmap_widget->widget.max_prop = 2;
 	fmap_widget->ob = ob;
 	fmap_widget->facemap = facemap;
 	fmap_widget->style = style;

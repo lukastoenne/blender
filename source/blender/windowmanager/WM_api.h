@@ -545,6 +545,7 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, float width, float height);
 
 struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, struct Object *ob, int facemap);
+void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4]);
 
 #ifdef WITH_INPUT_IME
 bool        WM_event_is_ime_switch(const struct wmEvent *event);

@@ -4013,9 +4013,6 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 			draw_mesh_fancy(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
 			
 			GPU_end_object_materials();
-
-			if (ob->fmaps.first)
-				ED_draw_object_facemap(scene, ob, ob->actfmap - 1);
 			
 			if (me->totvert == 0) retval = true;
 		}
