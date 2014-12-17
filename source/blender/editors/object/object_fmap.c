@@ -202,10 +202,12 @@ static void object_fmap_swap_edit_mode(Object *ob, int num1, int num2)
 					map = BM_ELEM_CD_GET_VOID_P(efa, cd_fmap_offset);
 					
 					if (map) {
-						if (*map == num1 && num1 != -1)
-							*map = num2;
-						if (*map == num2 && num2 != -1)
-							*map = num1;
+						if (num1 != -1) {
+							if (*map == num1)
+								*map = num2;
+							else if (*map == num2)
+								*map = num1;
+						}
 					}
 				}
 			}
@@ -224,10 +226,12 @@ static void object_fmap_swap_object_mode(Object *ob, int num1, int num2)
 			
 			if (map) {
 				for (i = 0; i < me->totpoly; i++) {
-					if (map[i] == num1 && num1 != -1)
-						map[i] = num2;
-					if (map[i]== num2 && num2 != -1)
-						map[i] = num1;
+					if (num1 != -1) {
+						if (map[i] == num1)
+							map[i] = num2;
+						else if (map[i]== num2)
+							map[i] = num1;
+					}
 				}
 			}
 		}
