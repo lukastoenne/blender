@@ -246,7 +246,7 @@ static void object_facemap_swap(Object *ob, int num1, int num2)
 		object_fmap_swap_object_mode(ob, num1, num2);
 }
 
-static void object_fmap_remove_edit_mode(Object *ob, bFaceMap *fmap, bool do_selected)
+static void object_fmap_remove_edit_mode(Object *ob, bFaceMap *fmap, bool do_selected, bool purge)
 {
 	const int fmap_nr = BLI_findindex(&ob->fmaps, fmap);
 	
@@ -262,11 +262,25 @@ static void object_fmap_remove_edit_mode(Object *ob, bFaceMap *fmap, bool do_sel
 				BMIter iter;
 				int *map;
 				
-				BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-					map = BM_ELEM_CD_GET_VOID_P(efa, cd_fmap_offset);
-					
-					if (map && *map == fmap_nr && (!do_selected || BM_elem_flag_test(efa, BM_ELEM_SELECT))) {
-						*map = -1;
+				if (purge) {
+					BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+						map = BM_ELEM_CD_GET_VOID_P(efa, cd_fmap_offset);
+						
+						if (map) { 
+							if (*map == fmap_nr)
+								*map = -1;
+							else if (*map > fmap_nr)
+								*map -= 1;
+						}
+					}
+				}
+				else {
+					BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+						map = BM_ELEM_CD_GET_VOID_P(efa, cd_fmap_offset);
+						
+						if (map && *map == fmap_nr && (!do_selected || BM_elem_flag_test(efa, BM_ELEM_SELECT))) {
+							*map = -1;
+						}
 					}
 				}
 			}
@@ -280,7 +294,7 @@ static void object_fmap_remove_edit_mode(Object *ob, bFaceMap *fmap, bool do_sel
 	}
 }
 
-static void object_fmap_remove_object_mode(Object *ob, bFaceMap *fmap)
+static void object_fmap_remove_object_mode(Object *ob, bFaceMap *fmap, bool purge)
 {
 	const int fmap_nr = BLI_findindex(&ob->fmaps, fmap);
 	
@@ -295,6 +309,8 @@ static void object_fmap_remove_object_mode(Object *ob, bFaceMap *fmap)
 				for (i = 0; i < me->totpoly; i++) {
 					if (map[i] == fmap_nr)
 						map[i] = -1;
+					else if (purge && map[i] > fmap_nr)
+						map[i]--;
 				}
 			}
 		}
@@ -310,9 +326,9 @@ static void object_fmap_remove_object_mode(Object *ob, bFaceMap *fmap)
 void BKE_object_facemap_remove(Object *ob, bFaceMap *fmap)
 {
 	if (BKE_object_is_in_editmode(ob))
-		object_fmap_remove_edit_mode(ob, fmap, false);
+		object_fmap_remove_edit_mode(ob, fmap, false, true);
 	else
-		object_fmap_remove_object_mode(ob, fmap);
+		object_fmap_remove_object_mode(ob, fmap, true);
 }
 
 void BKE_object_fmap_remove_all(Object *ob)
@@ -326,9 +342,9 @@ void BKE_object_fmap_remove_all(Object *ob)
 			bFaceMap *next_fmap = fmap->next;
 
 			if (edit_mode)
-				object_fmap_remove_edit_mode(ob, fmap, false);
+				object_fmap_remove_edit_mode(ob, fmap, false, false);
 			else
-				object_fmap_remove_object_mode(ob, fmap);
+				object_fmap_remove_object_mode(ob, fmap, false);
 
 			fmap = next_fmap;
 		}
@@ -412,7 +428,7 @@ void OBJECT_OT_face_map_remove(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Remove Face Map";
 	ot->idname = "OBJECT_OT_face_map_remove";
-	ot->description = "Remove a new face map to the active object";
+	ot->description = "Remove a face map from the active object";
 	
 	/* api callbacks */
 	ot->poll = face_map_supported_poll;
