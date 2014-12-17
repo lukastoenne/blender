@@ -600,6 +600,10 @@ void GPU_drawobject_free(DerivedMesh *dm)
 		MEM_freeN(gdo->triangle_to_mface);
 	if (gdo->vert_points)
 		MEM_freeN(gdo->vert_points);
+	if (gdo->facemap_count)
+		MEM_freeN(gdo->facemap_count);
+	if (gdo->facemap_start)
+		MEM_freeN(gdo->facemap_start);
 #ifdef USE_GPU_POINT_LINK
 	MEM_freeN(gdo->vert_points_mem);
 #endif
@@ -610,6 +614,7 @@ void GPU_drawobject_free(DerivedMesh *dm)
 	GPU_buffer_free(gdo->colors);
 	GPU_buffer_free(gdo->edges);
 	GPU_buffer_free(gdo->uvedges);
+	GPU_buffer_free(gdo->facemapindices);
 
 	MEM_freeN(gdo);
 	dm->drawObject = NULL;
@@ -1027,31 +1032,27 @@ static void GPU_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(i
 static void GPU_buffer_copy_facemap(DerivedMesh *dm, float *varray_, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	GPUDrawObject *gdo = dm->drawObject;
-	int *facemap_iter, *facemap = DM_get_tessface_data_layer(dm, CD_FACEMAP);
+	int facemap;
+	int *facemap_po = CustomData_get_layer(&dm->polyData, CD_FACEMAP);
 	unsigned int *varray = (unsigned int *)varray_;
 	int i, totface, offset = 0;
-	MFace *f = dm->getTessFaceArray(dm);
+	MFace *f, *f_base = dm->getTessFaceArray(dm);
 	int *facemap_offset;
+	int *orig_index = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 	
 	totface = dm->getNumTessFaces(dm);
 
-	gdo->totfacemaps = 0;
-	
-	facemap_iter = facemap;
-	
-	/* pretty crappy to iterate so many times but it's only being done on creation */
-	for (i = 0; i < totface; i++, facemap_iter++, f++) {
-		gdo->totfacemaps = max_ii(*facemap_iter, gdo->totfacemaps);
-	}
+	gdo->totfacemaps = dm->totfmaps;
 
-	gdo->totfacemaps++;
 	gdo->facemap_start = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_start), "GDO_facemap_start");
 	gdo->facemap_count = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_count), "GDO_facemap_count");
 	facemap_offset = MEM_callocN(gdo->totfacemaps * sizeof(*facemap_offset), "facemap_offset");
 	
-	facemap_iter = facemap;
-	for (i = 0; i < totface; i++, facemap_iter++, f++) {
-		gdo->facemap_count[*facemap_iter] += (f->v4) ? 6 : 3;
+	f = f_base;
+	for (i = 0; i < totface; i++, f++) {
+		facemap = facemap_po[orig_index[i]];
+		if (facemap != -1)
+			gdo->facemap_count[facemap] += (f->v4) ? 6 : 3;
 	}
 	
 	for (i = 0; i < gdo->totfacemaps; i++) {
@@ -1059,22 +1060,27 @@ static void GPU_buffer_copy_facemap(DerivedMesh *dm, float *varray_, int *UNUSED
 		offset += gdo->facemap_count[i];
 	}
 	
-	facemap_iter = facemap;
-	for (i = 0; i < totface; i++, facemap_iter++, f++) {
-		int fmap_offset = (gdo->facemap_start[*facemap_iter] + facemap_offset[*facemap_iter]) * 3;
+	f = f_base;
+	for (i = 0; i < totface; i++, f++) {
+		int fmap_offset;
+		facemap = facemap_po[orig_index[i]];
+
+		if (facemap == -1)
+			continue;
+		fmap_offset = gdo->facemap_start[facemap] + facemap_offset[facemap];
 		
 		varray[fmap_offset] = gdo->vert_points[f->v1].point_index;
 		varray[fmap_offset + 1] = gdo->vert_points[f->v2].point_index;
 		varray[fmap_offset + 2] = gdo->vert_points[f->v3].point_index;
 		
-		facemap_offset[*facemap_iter] += 3;
+		facemap_offset[facemap] += 3;
 		
 		if (f->v4) {
 			varray[fmap_offset + 3] = dm->drawObject->vert_points[f->v3].point_index;
 			varray[fmap_offset + 4] = dm->drawObject->vert_points[f->v4].point_index;
 			varray[fmap_offset + 5] = dm->drawObject->vert_points[f->v1].point_index;
 
-			facemap_offset[*facemap_iter] += 3;
+			facemap_offset[facemap] += 3;
 		}
 	}
 	
@@ -1352,7 +1358,7 @@ void GPU_facemap_setup(DerivedMesh *dm)
 	
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 	if (dm->drawObject->facemapindices->use_vbo) {
-		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->facemapindices->id);
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, dm->drawObject->facemapindices->id);
 	}
 	
 	GLStates |= GPU_BUFFER_ELEMENT_STATE;

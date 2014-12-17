@@ -130,8 +130,8 @@ void ED_fmap_face_add(Object *ob, bFaceMap *fmap, int facenum)
 		Mesh *me = ob->data;
 		
 		/* if there's is no facemap layer then create one */
-		if ((facemap = CustomData_get_layer(&me->fdata, CD_FACEMAP)) == NULL)
-			facemap = CustomData_add_layer(&me->fdata, CD_FACEMAP, CD_DEFAULT, NULL, me->totface);
+		if ((facemap = CustomData_get_layer(&me->pdata, CD_FACEMAP)) == NULL)
+			facemap = CustomData_add_layer(&me->pdata, CD_FACEMAP, CD_DEFAULT, NULL, me->totpoly);
 
 		facemap[facenum] = fmap_nr;
 	}
@@ -152,7 +152,7 @@ void ED_fmap_face_remove(Object *ob, bFaceMap *fmap, int facenum)
 		Mesh *me = ob->data;
 		
 		/* if there's is no facemap layer then create one */
-		if ((facemap = CustomData_get_layer(&me->fdata, CD_FACEMAP)) == NULL)
+		if ((facemap = CustomData_get_layer(&me->pdata, CD_FACEMAP)) == NULL)
 			return;
 		
 		facemap[facenum] = -1;
@@ -219,11 +219,11 @@ static void object_fmap_swap_object_mode(Object *ob, int num1, int num2)
 		Mesh *me = ob->data;
 		
 		if (me->mface) {
-			int *map = CustomData_get_layer(&me->fdata, CD_FACEMAP);
+			int *map = CustomData_get_layer(&me->pdata, CD_FACEMAP);
 			int i;
 			
 			if (map) {
-				for (i = 0; i < me->totface; i++) {
+				for (i = 0; i < me->totpoly; i++) {
 					if (map[i] == num1 && num1 != -1)
 						map[i] = num2;
 					if (map[i]== num2 && num2 != -1)
@@ -284,11 +284,11 @@ static void object_fmap_remove_object_mode(Object *ob, bFaceMap *fmap)
 		Mesh *me = ob->data;
 		
 		if (me->mface) {
-			int *map = CustomData_get_layer(&me->fdata, CD_FACEMAP);
+			int *map = CustomData_get_layer(&me->pdata, CD_FACEMAP);
 			int i;
 			
 			if (map) {
-				for (i = 0; i < me->totface; i++) {
+				for (i = 0; i < me->totpoly; i++) {
 					if (map[i] == fmap_nr)
 						map[i] = -1;
 				}
@@ -332,7 +332,7 @@ void BKE_object_fmap_remove_all(Object *ob)
 	/* remove all dverts */
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		CustomData_free_layer(&me->fdata, CD_FACEMAP, me->totface, 0);
+		CustomData_free_layer(&me->pdata, CD_FACEMAP, me->totpoly, 0);
 	}
 	ob->actfmap = 0;
 }

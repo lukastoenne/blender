@@ -1216,8 +1216,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(float[4]), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 40: CD_TESSLOOPNORMAL */
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
-	/* 41: CD_MASK_FACEMAP */
-	{sizeof(int), "", 1, NULL, NULL, NULL, NULL, NULL, layerDefault_fmap, NULL},
+	/* 41: CD_FACEMAP */
+	{sizeof(int), "", 0, NULL, NULL, NULL, NULL, NULL, layerDefault_fmap, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */

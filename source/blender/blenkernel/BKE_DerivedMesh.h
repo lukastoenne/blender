@@ -187,7 +187,8 @@ struct DerivedMesh {
 	DerivedMeshType type;
 	float auto_bump_scale;
 	DMDirtyFlag dirty;
-	int totmat; /* total materials. Will be valid only before object drawing. */
+	short totfmaps;
+	short totmat; /* total materials. Will be valid only before object drawing. */
 	struct Material **mat; /* material array. Will be valid only before object drawing */
 
 	/* use for converting to BMesh which doesn't store bevel weight and edge crease by default */

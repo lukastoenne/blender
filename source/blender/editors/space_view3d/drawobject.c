@@ -8190,30 +8190,36 @@ void draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 	DerivedMesh *dm = NULL;
 	
 	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	if (!dm || !CustomData_has_layer(&dm->polyData, CD_FACEMAP))
+		return;
+	
 	DM_update_materials(dm, ob);
 
-	if (dm) {
-		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
-	}
+	glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 	
 	/* add polygon offset so we draw above the original surface */
 	glPolygonOffset(1.0, 1.0);
 
-	glEnable(GL_BLEND);
-	glColor4f(0.0, 1.0, 1.0, 0.2);
+	dm->totfmaps = BLI_listbase_count(&ob->fmaps);
+	
 	GPU_facemap_setup(dm);
+
+	glPushAttrib(GL_ENABLE_BIT);
+	glEnable(GL_BLEND);
+	glDisable(GL_LIGHTING);
+	glColor4f(0.7, 1.0, 1.0, 0.5);
 	if (dm->drawObject->facemapindices->use_vbo)
-		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap] * 3, GL_UNSIGNED_INT, 
-		               (GLubyte *)NULL + dm->drawObject->facemap_start[facemap] * 3 * sizeof(float));
+		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT, 
+		               (int *)NULL + dm->drawObject->facemap_start[facemap]);
 	else
-		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap] * 3, GL_UNSIGNED_INT,
-		               (GLubyte *)dm->drawObject->facemapindices->pointer + dm->drawObject->facemap_start[facemap] * 3 * sizeof(float));
-	glDisable(GL_BLEND);
+		glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT,
+		               (int *)dm->drawObject->facemapindices->pointer + dm->drawObject->facemap_start[facemap]);
+	glPopAttrib();
+
 	GPU_buffer_unbind();
 
 	glPolygonOffset(0.0, 0.0);
-	
-	if (dm) dm->release(dm);
+	dm->release(dm);
 }
 
 
