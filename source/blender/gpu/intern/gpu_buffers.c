@@ -1300,7 +1300,7 @@ void GPU_edge_setup(DerivedMesh *dm)
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	if (dm->drawObject->edges->use_vbo) {
+	if (dm->drawObject->points->use_vbo) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->points->id);
 		glVertexPointer(3, GL_FLOAT, 0, 0);
 	}
@@ -1521,11 +1521,9 @@ void *GPU_buffer_lock_stream(GPUBuffer *buffer)
 void GPU_buffer_unlock(GPUBuffer *buffer)
 {
 	if (buffer->use_vbo) {
-		if (buffer) {
-			/* note: this operation can fail, could return
-			 * an error code from this function? */
-			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
-		}
+		/* note: this operation can fail, could return
+		 * an error code from this function? */
+		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 }

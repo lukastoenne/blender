@@ -603,6 +603,7 @@ static void prepare_linehits_for_cut(KnifeTool_OpData *kcd)
 {
 	KnifeLineHit *linehits, *lhi, *lhj;
 	int i, j, n;
+	bool is_double = false;
 
 	n = kcd->totlinehit;
 	linehits = kcd->linehits;
@@ -626,7 +627,11 @@ static void prepare_linehits_for_cut(KnifeTool_OpData *kcd)
 				{
 					break;
 				}
-				lhj->l = -1.0f;
+
+				if (lhi->kfe == lhj->kfe) {
+					lhj->l = -1.0f;
+					is_double = true;
+				}
 			}
 			for (j = i + 1; j < n; j++) {
 				lhj = &linehits[j];
@@ -635,37 +640,42 @@ static void prepare_linehits_for_cut(KnifeTool_OpData *kcd)
 				{
 					break;
 				}
-				if (lhj->kfe || lhi->v == lhj->v) {
+				if ((lhj->kfe && (lhi->kfe == lhj->kfe)) ||
+				    (lhi->v == lhj->v))
+				{
 					lhj->l = -1.0f;
+					is_double = true;
 				}
 			}
 		}
 	}
 
-	/* delete-in-place loop: copying from pos j to pos i+1 */
-	i = 0;
-	j = 1;
-	while (j < n) {
-		lhi = &linehits[i];
-		lhj = &linehits[j];
-		if (lhj->l == -1.0f) {
-			j++; /* skip copying this one */
-		}
-		else {
-			/* copy unless a no-op */
-			if (lhi->l == -1.0f) {
-				/* could happen if linehits[0] is being deleted */
-				memcpy(&linehits[i], &linehits[j], sizeof(KnifeLineHit));
+	if (is_double) {
+		/* delete-in-place loop: copying from pos j to pos i+1 */
+		i = 0;
+		j = 1;
+		while (j < n) {
+			lhi = &linehits[i];
+			lhj = &linehits[j];
+			if (lhj->l == -1.0f) {
+				j++; /* skip copying this one */
 			}
 			else {
-				if (i + 1 != j)
-					memcpy(&linehits[i + 1], &linehits[j], sizeof(KnifeLineHit));
-				i++;
+				/* copy unless a no-op */
+				if (lhi->l == -1.0f) {
+					/* could happen if linehits[0] is being deleted */
+					memcpy(&linehits[i], &linehits[j], sizeof(KnifeLineHit));
+				}
+				else {
+					if (i + 1 != j)
+						memcpy(&linehits[i + 1], &linehits[j], sizeof(KnifeLineHit));
+					i++;
+				}
+				j++;
 			}
-			j++;
 		}
+		kcd->totlinehit = i + 1;
 	}
-	kcd->totlinehit = i + 1;
 }
 
 /* Add hit to list of hits in facehits[f], where facehits is a map, if not already there */
@@ -1308,7 +1318,7 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	float vert_tol, vert_tol_sq;
 	float line_tol, line_tol_sq;
 	float face_tol, face_tol_sq;
-	float eps_scale;
+	float eps_scale, eps_scale_px;
 	int isect_kind;
 	unsigned int tot;
 	int i;
@@ -1423,10 +1433,11 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 		        kcd->vc.rv3d->winmat[0][0],
 		        kcd->vc.rv3d->winmat[1][1]};
 		eps_scale = len_v2(zoom_xy);
+		eps_scale_px = eps_scale * (kcd->is_interactive ? KNIFE_FLT_EPS_PX : KNIFE_FLT_EPSBIG);
 	}
 
-	vert_tol = KNIFE_FLT_EPS_PX * eps_scale;
-	line_tol = KNIFE_FLT_EPS_PX * eps_scale;
+	vert_tol = eps_scale_px;
+	line_tol = eps_scale_px;
 	face_tol = max_ff(vert_tol, line_tol);
 
 	vert_tol_sq = vert_tol * vert_tol;
@@ -3167,16 +3178,14 @@ void MESH_OT_knife_tool(wmOperatorType *ot)
  * tessellation here seems way overkill,
  * but without this its very hard to know of a point is inside the face
  */
-static void edvm_mesh_knife_face_point(BMFace *f, float r_cent[3])
+static void edbm_mesh_knife_face_point(BMFace *f, float r_cent[3])
 {
 	const int tottri = f->len - 2;
 	BMLoop **loops = BLI_array_alloca(loops, f->len);
 	unsigned int  (*index)[3] = BLI_array_alloca(index, tottri);
 	int j;
-
-	const float *best_co[3] = {NULL};
-	float best_area  = -1.0f;
-	bool ok = false;
+	int j_best = 0;  /* use as fallback when unset */
+	float area_best  = -1.0f;
 
 	BM_face_calc_tessellation(f, loops, index);
 
@@ -3189,49 +3198,34 @@ static void edvm_mesh_knife_face_point(BMFace *f, float r_cent[3])
 		float cross[3];
 		cross_v3_v3v3(cross, p2, p3);
 		area = fabsf(dot_v3v3(p1, cross));
-		if (area > best_area) {
-			best_co[0] = p1;
-			best_co[1] = p2;
-			best_co[2] = p3;
-			best_area = area;
-			ok = true;
+		if (area > area_best) {
+			j_best = j;
+			area_best = area;
 		}
 	}
 
-	if (ok) {
-		mid_v3_v3v3v3(r_cent, best_co[0], best_co[1], best_co[2]);
-	}
-	else {
-		mid_v3_v3v3v3(r_cent, loops[0]->v->co, loops[1]->v->co, loops[2]->v->co);
-	}
+	mid_v3_v3v3v3(
+	        r_cent,
+	        loops[index[j_best][0]]->v->co,
+	        loops[index[j_best][1]]->v->co,
+	        loops[index[j_best][2]]->v->co);
 }
 
-static bool edbm_mesh_knife_face_isect(ARegion *ar, LinkNode *polys, BMFace *f, float projmat[4][4])
+static bool edbm_mesh_knife_point_isect(LinkNode *polys, const float cent_ss[2])
 {
-	float cent_ss[2];
-	float cent[3];
+	LinkNode *p = polys;
+	int isect = 0;
 
-	edvm_mesh_knife_face_point(f, cent);
-
-	ED_view3d_project_float_v2_m4(ar, cent, cent_ss, projmat);
-
-	/* check */
-	{
-		LinkNode *p = polys;
-		int isect = 0;
-
-		while (p) {
-			const float (*mval_fl)[2] = p->link;
-			const int mval_tot = MEM_allocN_len(mval_fl) / sizeof(*mval_fl);
-			isect += (int)isect_point_poly_v2(cent_ss, mval_fl, mval_tot - 1, false);
-			p = p->next;
-		}
-
-		if (isect % 2) {
-			return true;
-		}
+	while (p) {
+		const float (*mval_fl)[2] = p->link;
+		const int mval_tot = MEM_allocN_len(mval_fl) / sizeof(*mval_fl);
+		isect += (int)isect_point_poly_v2(cent_ss, mval_fl, mval_tot - 1, false);
+		p = p->next;
 	}
 
+	if (isect % 2) {
+		return true;
+	}
 	return false;
 }
 
@@ -3241,6 +3235,7 @@ static bool edbm_mesh_knife_face_isect(ARegion *ar, LinkNode *polys, BMFace *f, 
 void EDBM_mesh_knife(bContext *C, LinkNode *polys, bool use_tag, bool cut_through)
 {
 	KnifeTool_OpData *kcd;
+	bglMats mats;
 
 	view3d_operator_needs_opengl(C);
 
@@ -3258,6 +3253,10 @@ void EDBM_mesh_knife(bContext *C, LinkNode *polys, bool use_tag, bool cut_throug
 
 		if (use_tag) {
 			BM_mesh_elem_hflag_enable_all(kcd->em->bm, BM_EDGE, BM_ELEM_TAG, false);
+		}
+
+		if (kcd->cut_through == false) {
+			bgl_get_mats(&mats);
 		}
 	}
 
@@ -3323,7 +3322,10 @@ void EDBM_mesh_knife(bContext *C, LinkNode *polys, bool use_tag, bool cut_throug
 					BMFace *f;
 					BMIter fiter;
 					BM_ITER_ELEM (f, &fiter, e, BM_FACES_OF_EDGE) {
-						if (edbm_mesh_knife_face_isect(kcd->ar, polys, f, projmat)) {
+						float cent[3], cent_ss[2];
+						edbm_mesh_knife_face_point(f, cent);
+						knife_project_v2(kcd, cent, cent_ss);
+						if (edbm_mesh_knife_point_isect(polys, cent_ss)) {
 							BM_elem_flag_enable(f, BM_ELEM_TAG);
 						}
 					}
@@ -3356,7 +3358,12 @@ void EDBM_mesh_knife(bContext *C, LinkNode *polys, bool use_tag, bool cut_throug
 						} while ((l_iter = l_iter->next) != l_first && (found == false));
 
 						if (found) {
-							if (edbm_mesh_knife_face_isect(kcd->ar, polys, f, projmat)) {
+							float cent[3], cent_ss[2];
+							edbm_mesh_knife_face_point(f, cent);
+							knife_project_v2(kcd, cent, cent_ss);
+							if ((kcd->cut_through || point_is_visible(kcd, cent, cent_ss, &mats)) &&
+							    edbm_mesh_knife_point_isect(polys, cent_ss))
+							{
 								BM_elem_flag_enable(f, BM_ELEM_TAG);
 								keep_search = true;
 							}
