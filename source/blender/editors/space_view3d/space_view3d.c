@@ -776,13 +776,53 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 }
 #endif
 
+static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_MESH) {
+		Key *key = BKE_key_from_object(ob);
+		KeyBlock *kb;
+	
+		if (key == NULL)
+			return false;
+		
+		kb = BLI_findlink(&key->block, ob->shapenr - 1);
+		
+		if (kb)
+			return true;
+	}
+	return false;
+}
+
+static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	Object *ob = CTX_data_active_object(C);
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BLI_findlink(&key->block, ob->shapenr - 1);
+	wmWidget *widget;
+	PointerRNA shapeptr;
+	float dir[3];
+
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	WM_widget_set_3d_scale(widget, false);
+	WIDGET_arrow_set_color(widget, color_shape);
+	RNA_pointer_create(&key->id, &RNA_ShapeKey, kb, &shapeptr);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &shapeptr, "value");
+	negate_v3_v3(dir, ob->obmat[2]);
+	WIDGET_arrow_set_direction(widget, dir);
+}
+
+
 static void view3d_widgets(void)
 {
 	WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
 	
 	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-//	WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll, WIDGETGROUP_shapekey_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll, WIDGETGROUP_armature_facemap_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 #if 0
 	wgroup_manipulator = WM_widgetgrouptype_new(

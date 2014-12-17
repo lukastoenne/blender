@@ -4015,7 +4015,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 			GPU_end_object_materials();
 
 			if (ob->fmaps.first)
-				draw_object_facemap(scene, ob, ob->actfmap - 1);
+				ED_draw_object_facemap(scene, ob, ob->actfmap - 1);
 			
 			if (me->totvert == 0) retval = true;
 		}
@@ -8185,7 +8185,7 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 	if (dm) dm->release(dm);
 }
 
-void draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
+void ED_draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 {
 	DerivedMesh *dm = NULL;
 	

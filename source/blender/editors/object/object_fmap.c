@@ -218,7 +218,7 @@ static void object_fmap_swap_object_mode(Object *ob, int num1, int num2)
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
 		
-		if (me->mface) {
+		if (CustomData_has_layer(&me->pdata, CD_FACEMAP)) {
 			int *map = CustomData_get_layer(&me->pdata, CD_FACEMAP);
 			int i;
 			
@@ -283,7 +283,7 @@ static void object_fmap_remove_object_mode(Object *ob, bFaceMap *fmap)
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
 		
-		if (me->mface) {
+		if (CustomData_has_layer(&me->pdata, CD_FACEMAP)) {
 			int *map = CustomData_get_layer(&me->pdata, CD_FACEMAP);
 			int i;
 			
@@ -605,13 +605,14 @@ static int face_map_move_exec(bContext *C, wmOperator *op)
 	Object *ob = ED_object_context(C);
 	bFaceMap *fmap;
 	int dir = RNA_enum_get(op->ptr, "direction");
-	int pos1, pos2 = -1;
+	int pos1, pos2 = -1, count;
 
 	fmap = BLI_findlink(&ob->fmaps, ob->actfmap - 1);
 	if (!fmap) {
 		return OPERATOR_CANCELLED;
 	}
 
+	count = BLI_listbase_count(&ob->fmaps);
 	pos1 = BLI_findindex(&ob->fmaps, fmap);
 	
 	if (dir == 1) { /*up*/
@@ -619,6 +620,9 @@ static int face_map_move_exec(bContext *C, wmOperator *op)
 
 		if (prev) {
 			pos2 = pos1 - 1;
+		}
+		else {
+			pos2 = count - 1;
 		}
 		
 		BLI_remlink(&ob->fmaps, fmap);
@@ -630,6 +634,9 @@ static int face_map_move_exec(bContext *C, wmOperator *op)
 		if (next) {
 			pos2 = pos1 + 1;
 		}
+		else {
+			pos2 = 0;
+		}
 		
 		BLI_remlink(&ob->fmaps, fmap);
 		BLI_insertlinkafter(&ob->fmaps, next, fmap);
@@ -637,6 +644,8 @@ static int face_map_move_exec(bContext *C, wmOperator *op)
 
 	/* iterate through mesh and substitute the indices as necessary */
 	object_facemap_swap(ob, pos2, pos1);
+	
+	ob->actfmap = pos2 +1;
 	
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
