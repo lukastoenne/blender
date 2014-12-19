@@ -1225,7 +1225,7 @@ void GPU_edge_setup(DerivedMesh *dm)
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	if (dm->drawObject->edges->use_vbo) {
+	if (dm->drawObject->points->use_vbo) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->points->id);
 		glVertexPointer(3, GL_FLOAT, 0, 0);
 	}
@@ -1293,6 +1293,7 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	int i;
 	int elementsize;
 	intptr_t offset = 0;
+	char *basep;
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
 		if (attribData[i].index != -1) {
@@ -1305,26 +1306,24 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 
 	if (buffer->use_vbo) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffer->id);
-		for (i = 0; i < numdata; i++) {
-			glEnableVertexAttribArrayARB(data[i].index);
-			glVertexAttribPointerARB(data[i].index, data[i].size, data[i].type,
-			                         GL_FALSE, elementsize, (void *)offset);
-			offset += data[i].size * GPU_typesize(data[i].type);
-
-			attribData[i].index = data[i].index;
-			attribData[i].size = data[i].size;
-			attribData[i].type = data[i].type;
-		}
-		attribData[numdata].index = -1;
+		basep = NULL;
 	}
 	else {
-		for (i = 0; i < numdata; i++) {
-			glEnableVertexAttribArrayARB(data[i].index);
-			glVertexAttribPointerARB(data[i].index, data[i].size, data[i].type,
-			                         GL_FALSE, elementsize, (char *)buffer->pointer + offset);
-			offset += data[i].size * GPU_typesize(data[i].type);
-		}
+		basep = buffer->pointer;
 	}
+	
+	for (i = 0; i < numdata; i++) {
+		glEnableVertexAttribArrayARB(data[i].index);
+		glVertexAttribPointerARB(data[i].index, data[i].size, data[i].type,
+		                         GL_FALSE, elementsize, (void *)(basep + offset));
+		offset += data[i].size * GPU_typesize(data[i].type);
+		
+		attribData[i].index = data[i].index;
+		attribData[i].size = data[i].size;
+		attribData[i].type = data[i].type;
+	}
+	
+	attribData[numdata].index = -1;	
 }
 
 
@@ -1421,11 +1420,9 @@ void *GPU_buffer_lock_stream(GPUBuffer *buffer)
 void GPU_buffer_unlock(GPUBuffer *buffer)
 {
 	if (buffer->use_vbo) {
-		if (buffer) {
-			/* note: this operation can fail, could return
-			 * an error code from this function? */
-			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
-		}
+		/* note: this operation can fail, could return
+		 * an error code from this function? */
+		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 }
