@@ -860,7 +860,6 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 
 	/* custom shape */
 	pchan->custom = pchan_from->custom;
-	pchan->custom_fmap = pchan_from->custom_fmap;
 	if (pchan->custom) {
 		id_us_plus(&pchan->custom->id);
 	}

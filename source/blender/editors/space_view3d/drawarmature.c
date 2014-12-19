@@ -1730,15 +1730,12 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			index = base->selcol;
 		
 		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-			bool use_custom;
 			bone = pchan->bone;
 			arm->layer_used |= bone->layer;
-			use_custom = (pchan->custom) && !(arm->flag & ARM_NO_CUSTOM);
 			
 			/* 1) bone must be visible, 2) for OpenGL select-drawing cannot have unselectable [#27194] */
 			if (((bone->flag & (BONE_HIDDEN_P | BONE_HIDDEN_PG)) == 0) &&
-			    ((G.f & G_PICKSEL) == 0 || (bone->flag & BONE_UNSELECTABLE) == 0) && 
-			    !(use_custom && pchan->custom_fmap))
+			    ((G.f & G_PICKSEL) == 0 || (bone->flag & BONE_UNSELECTABLE) == 0))
 			{
 				if (bone->layer & arm->layer) {
 					const bool use_custom = (pchan->custom) && !(arm->flag & ARM_NO_CUSTOM);
@@ -1843,7 +1840,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			    ((G.f & G_PICKSEL) == 0 || (bone->flag & BONE_UNSELECTABLE) == 0) )
 			{
 				if (bone->layer & arm->layer) {
-					if (pchan->custom && !pchan->custom_fmap) {
+					if (pchan->custom) {
 						if ((dt < OB_SOLID) || (bone->flag & BONE_DRAWWIRE)) {
 							glPushMatrix();
 							

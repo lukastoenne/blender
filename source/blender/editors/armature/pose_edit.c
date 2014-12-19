@@ -455,7 +455,6 @@ static void pose_copy_menu(Scene *scene)
 					break;
 					case 8: /* Custom Bone Shape */
 						pchan->custom = pchanact->custom;
-						pchan->custom_fmap = pchanact->custom_fmap;
 						if (pchan->custom) {
 							id_us_plus(&pchan->custom->id);
 						}
