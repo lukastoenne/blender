@@ -532,6 +532,10 @@ enum {
 	RECT_TRANSFORM_SLOT_SCALE = 1
 };
 
+enum {
+	FACEMAP_SLOT_FACEMAP = 0,
+};
+
 struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, int style);
 void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);

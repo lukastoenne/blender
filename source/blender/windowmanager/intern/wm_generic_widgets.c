@@ -1075,6 +1075,13 @@ static void widget_facemap_draw(struct wmWidget *widget, const struct bContext *
 	glPopMatrix();
 }
 
+static void widget_facemap_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase)
+{
+	GPU_select_load_id(selectionbase);
+	widget_facemap_draw(widget, C);
+}
+
+
 void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4])
 {
 	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
@@ -1089,7 +1096,7 @@ struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, str
 //	fmap_widget->widget.invoke = NULL;
 //	fmap_widget->widget.bind_to_prop = NULL;
 //	fmap_widget->widget.handler = NULL;
-	fmap_widget->widget.render_3d_intersection = NULL;
+	fmap_widget->widget.render_3d_intersection = widget_facemap_render_3d_intersect;
 	fmap_widget->ob = ob;
 	fmap_widget->facemap = facemap;
 	fmap_widget->style = style;

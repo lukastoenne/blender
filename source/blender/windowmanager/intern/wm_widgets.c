@@ -305,6 +305,7 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap)
 					if (widget_iter->flag & WM_WIDGET_HIGHLIGHT) {
 						highlighted = widget_iter;
 						BLI_remlink(&wgroup->widgets, widget_iter);
+						widget_iter->next = widget_iter->prev = NULL;
 					}
 					else {
 						wm_widget_delete(&wgroup->widgets, widget_iter);
@@ -325,6 +326,7 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap)
 							widget_iter->highlighted_part = highlighted->highlighted_part;
 							wm_widget_delete(&wgroup->widgets, highlighted);
 							highlighted = NULL;
+							break;
 						}
 					}
 				}

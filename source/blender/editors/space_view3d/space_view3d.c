@@ -808,6 +808,7 @@ static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct w
 	Object *ob = CTX_data_active_object(C);
 	wmWidget *widget;
 	Object *armature;
+	PointerRNA famapptr;
 	ModifierData *md;
 	VirtualModifierData virtualModifierData;
 	int index = 0;
@@ -830,8 +831,10 @@ static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct w
 	for (; fmap; fmap = fmap->next, index++) {
 		if (BKE_pose_channel_find_name(armature->pose, fmap->name)) {
 			widget = WIDGET_facemap_new(wgroup, 0, ob, index);
+			RNA_pointer_create(&ob->id, &RNA_FaceMap, fmap, &famapptr);
+			WM_widget_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
 			WIDGET_facemap_set_color(widget, color_shape);
-			
+			WM_widget_set_draw_on_hover_only(widget, true);
 		}
 	}
 }
