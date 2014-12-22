@@ -1064,12 +1064,15 @@ static void cloth_free_errorsprings(Cloth *cloth,  LinkNode **edgelist)
 	}
 }
 
-static void cloth_update_bending_targets(ClothModifierData *clmd)
+static void cloth_hair_update_bending_targets(ClothModifierData *clmd)
 {
 	Cloth *cloth = clmd->clothObject;
 	LinkNode *search = NULL;
 	float hair_frame[3][3], dir_old[3], dir_new[3];
 	int prev_mn; /* to find hair chains */
+	
+	if (!clmd->hairdata)
+		return;
 	
 	/* XXX Note: we need to propagate frames from the root up,
 	 * but structural hair springs are stored in reverse order.
@@ -1136,12 +1139,15 @@ static void cloth_update_bending_targets(ClothModifierData *clmd)
 	}
 }
 
-static void cloth_update_bending_rest_targets(ClothModifierData *clmd)
+static void cloth_hair_update_bending_rest_targets(ClothModifierData *clmd)
 {
 	Cloth *cloth = clmd->clothObject;
 	LinkNode *search = NULL;
 	float hair_frame[3][3], dir_old[3], dir_new[3];
 	int prev_mn; /* to find hair roots */
+	
+	if (!clmd->hairdata)
+		return;
 	
 	/* XXX Note: we need to propagate frames from the root up,
 	 * but structural hair springs are stored in reverse order.
@@ -1235,7 +1241,7 @@ static void cloth_update_springs( ClothModifierData *clmd )
 		search = search->next;
 	}
 	
-	cloth_update_bending_targets(clmd);
+	cloth_hair_update_bending_targets(clmd);
 }
 
 BLI_INLINE void cross_identity_v3(float r[3][3], const float v[3])
@@ -1514,7 +1520,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 			}
 		}
 		
-		cloth_update_bending_rest_targets(clmd);
+		cloth_hair_update_bending_rest_targets(clmd);
 	}
 	
 	/* note: the edges may already exist so run reinsert */
