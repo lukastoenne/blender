@@ -201,6 +201,9 @@ PointerRNA *WM_widget_operator(struct wmWidget *widget, const char *opname)
 		
 		return &widget->opptr;
 	}
+	else {
+		fprintf(stderr, "Error binding operator to widget: operator %s not found!\n", opname);
+	}
 	
 	return NULL;
 }
@@ -242,7 +245,7 @@ static bool widgets_compare(wmWidget *widget, wmWidget *widget2)
 {
 	int i;
 	
-	if (widget->max_prop != widget2->max_prop || widget->opptr.data != widget2->opptr.data)
+	if (widget->max_prop != widget2->max_prop)
 		return false;
 	
 	for (i = 0; i < widget->max_prop; i++) {
@@ -682,21 +685,18 @@ struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap)
 void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget, bool call_op)
 {
 	if (widget) {
-		if (!widget->handler) {
-			/* widget does nothing, pass */
-			wmap->active_widget = NULL;
-		}
-		else if (call_op) {
+		if (call_op) {
 			wmOperatorType *ot;
 			const char *opname = (widget->opname) ? widget->opname : "WM_OT_widget_tweak";
 			
 			ot = WM_operatortype_find(opname, 0);
 			
 			if (ot) {
-				widget->flag |= WM_WIDGET_ACTIVE;
 				/* first activate the widget itself */
-				if (widget->invoke) {
+				if (widget->invoke && widget->handler) {
+					widget->flag |= WM_WIDGET_ACTIVE;
 					widget->invoke(C, event, widget);
+					wmap->active_widget = widget;
 				}
 
 				/* if operator runs modal, we will need to activate the current widgetmap on the operator handler, so it can
@@ -707,7 +707,6 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					
 					if (handler && handler->op && handler->op->type == ot) {
 						handler->widgetmap = wmap;
-						wmap->active_widget = widget;
 					}
 				}
 				
@@ -729,11 +728,11 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 			}
 		}
 		else {
-			widget->flag |= WM_WIDGET_ACTIVE;
-			if (widget->invoke) {
+			if (widget->invoke && widget->handler) {
+				widget->flag |= WM_WIDGET_ACTIVE;
 				widget->invoke(C, event, widget);
+				wmap->active_widget = widget;
 			}
-			wmap->active_widget = widget;
 		}
 	}
 	else {
