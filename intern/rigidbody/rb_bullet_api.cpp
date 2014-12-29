@@ -218,6 +218,11 @@ void RB_dworld_step_simulation(rbDynamicsWorld *world, float timeStep, int maxSu
 	world->dynamicsWorld->stepSimulation(timeStep, maxSubSteps, timeSubStep);
 }
 
+void RB_dworld_test_collision(rbDynamicsWorld *world)
+{
+	world->dynamicsWorld->performDiscreteCollisionDetection();
+}
+
 /* Export -------------------------- */
 
 /**

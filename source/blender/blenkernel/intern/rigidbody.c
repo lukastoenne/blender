@@ -1149,6 +1149,12 @@ void BKE_rigidbody_remove_constraint(Scene *scene, Object *ob)
 /* ************************************** */
 /* Simulation Interface - Bullet */
 
+/* Update mode flags for simulation stepping to indicate needed updates */
+enum eRigidBodyStepMode {
+	RB_STEP_COLLISION = 1,
+	RB_STEP_DYNAMICS = 2 | RB_STEP_COLLISION, /* dynamics time step includes collision detection */
+};
+
 /* Update object array and rigid body count so they're in sync with the rigid body group */
 static void rigidbody_update_ob_array(RigidBodyWorld *rbw)
 {
@@ -1167,6 +1173,8 @@ static void rigidbody_update_ob_array(RigidBodyWorld *rbw)
 		rbw->objects[i] = ob;
 	}
 }
+
+/* -------------------------------------- */
 
 static void rigidbody_update_sim_world(Scene *scene, RigidBodyWorld *rbw)
 {
@@ -1187,6 +1195,24 @@ static void rigidbody_update_sim_world(Scene *scene, RigidBodyWorld *rbw)
 	/* update object array in case there are changes */
 	rigidbody_update_ob_array(rbw);
 }
+
+/**
+ * Updates and validates the collision world.
+ *
+ * \param rebuild Rebuild entire simulation
+ */
+static int rigidbody_update_scene(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+{
+	/* update world */
+	if (rebuild)
+		BKE_rigidbody_validate_sim_world(scene, rbw, true);
+	
+	rigidbody_update_sim_world(scene, rbw);
+	
+	return 0;
+}
+
+/* -------------------------------------- */
 
 static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *ob, RigidBodyOb *rbo)
 {
@@ -1273,18 +1299,14 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 }
 
 /**
- * Updates and validates world, bodies and shapes.
+ * Updates and validates rigid body objects.
  *
  * \param rebuild Rebuild entire simulation
  */
-static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+static int rigidbody_update_objects(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
+	int result = 0;
 	GroupObject *go;
-
-	/* update world */
-	if (rebuild)
-		BKE_rigidbody_validate_sim_world(scene, rbw, true);
-	rigidbody_update_sim_world(scene, rbw);
 
 	/* XXX TODO For rebuild: remove all constraints first.
 	 * Otherwise we can end up deleting objects that are still
@@ -1323,7 +1345,7 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 				 */
 				ob->rigidbody_object = BKE_rigidbody_create_object(scene, ob, RBO_TYPE_ACTIVE);
 				rigidbody_validate_sim_object(rbw, ob, true);
-
+				
 				rbo = ob->rigidbody_object;
 			}
 			else {
@@ -1349,46 +1371,55 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 
 			/* update simulation object... */
 			rigidbody_update_sim_ob(scene, rbw, ob, rbo);
+
+			/* XXX could avoid some unnecessary updates with lower-level testing,
+			 * but this is safer for now.
+			 */
+			result |= RB_STEP_DYNAMICS;
 		}
 	}
 	
 	/* update constraints */
-	if (rbw->constraints == NULL) /* no constraints, move on */
-		return;
-	for (go = rbw->constraints->gobject.first; go; go = go->next) {
-		Object *ob = go->ob;
-
-		if (ob) {
-			/* validate that we've got valid object set up here... */
-			RigidBodyCon *rbc = ob->rigidbody_constraint;
-			/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
-			BKE_object_where_is_calc(scene, ob);
-
-			if (rbc == NULL) {
-				/* Since this object is included in the group but doesn't have
+	if (rbw->constraints) {
+		for (go = rbw->constraints->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			
+			if (ob) {
+				/* validate that we've got valid object set up here... */
+				RigidBodyCon *rbc = ob->rigidbody_constraint;
+				/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
+				BKE_object_where_is_calc(scene, ob);
+				
+				if (rbc == NULL) {
+					/* Since this object is included in the group but doesn't have
 				 * constraint settings (perhaps it was added manually), add!
 				 */
-				ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
-				rigidbody_validate_sim_constraint(rbw, ob, true);
-
-				rbc = ob->rigidbody_constraint;
-			}
-			else {
-				/* perform simulation data updates as tagged */
-				if (rebuild) {
-					/* World has been rebuilt so rebuild constraint */
+					ob->rigidbody_constraint = BKE_rigidbody_create_constraint(scene, ob, RBC_TYPE_FIXED);
 					rigidbody_validate_sim_constraint(rbw, ob, true);
+					
+					rbc = ob->rigidbody_constraint;
 				}
-				else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
-					rigidbody_validate_sim_constraint(rbw, ob, false);
+				else {
+					/* perform simulation data updates as tagged */
+					if (rebuild) {
+						/* World has been rebuilt so rebuild constraint */
+						rigidbody_validate_sim_constraint(rbw, ob, true);
+					}
+					else if (rbc->flag & RBC_FLAG_NEEDS_VALIDATE) {
+						rigidbody_validate_sim_constraint(rbw, ob, false);
+					}
+					rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
 				}
-				rbc->flag &= ~RBC_FLAG_NEEDS_VALIDATE;
+				
+				result |= RB_STEP_DYNAMICS;
 			}
 		}
 	}
+	
+	return result;
 }
 
-static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
+static void rigidbody_update_objects_post_step(RigidBodyWorld *rbw)
 {
 	GroupObject *go;
 
@@ -1408,6 +1439,20 @@ static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
 		}
 	}
 }
+
+/* -------------------------------------- */
+
+/**
+ * Updates and validates collision ghosts.
+ *
+ * \param rebuild Rebuild entire simulation
+ */
+static int rigidbody_update_ghosts(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+{
+	return 0;
+}
+
+/* -------------------------------------- */
 
 bool BKE_rigidbody_check_sim_running(RigidBodyWorld *rbw, float ctime)
 {
@@ -1501,24 +1546,29 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 	}
 
 	if (ctime == startframe + 1 && rbw->ltime == startframe) {
+		
+		rigidbody_update_scene(scene, rbw, true);
+		
 		if (cache->flag & PTCACHE_OUTDATED) {
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-			rigidbody_update_simulation(scene, rbw, true);
+			rigidbody_update_objects(scene, rbw, true);
 			BKE_ptcache_validate(cache, (int)ctime);
 			cache->last_exact = 0;
 			cache->flag &= ~PTCACHE_REDO_NEEDED;
 		}
+		
+		rigidbody_update_ghosts(scene, rbw, true);
 	}
 }
 
 /* Run RigidBody simulation for the specified physics world */
 void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 {
-	float timestep;
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	PointCache *cache;
 	PTCacheID pid;
 	int startframe, endframe;
+	bool cache_baked, cache_valid;
 
 	BKE_ptcache_id_from_rigidbody(&pid, NULL, rbw);
 	BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, NULL);
@@ -1539,38 +1589,60 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	else if (rbw->objects == NULL)
 		rigidbody_update_ob_array(rbw);
 
+	cache_baked = (cache->flag & PTCACHE_BAKED);
+
 	/* try to read from cache */
 	// RB_TODO deal with interpolated, old and baked results
-	if (BKE_ptcache_read(&pid, ctime)) {
+	cache_valid = BKE_ptcache_read(&pid, ctime);
+	if (cache_valid) {
 		BKE_ptcache_validate(cache, (int)ctime);
 		rbw->ltime = ctime;
-		return;
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (ctime == rbw->ltime + 1 && !(cache->flag & PTCACHE_BAKED)) {
-		/* write cache for first frame when on second frame */
-		if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
-			BKE_ptcache_write(&pid, startframe);
+	if (ctime == rbw->ltime + 1) { /* full dynamics step (includes collision) */
+		int stepmode = 0;
+		float timestep, timesubstep;
+		
+		stepmode |= rigidbody_update_scene(scene, rbw, false);
+		
+		if (!cache_baked && !cache_valid) {
+			/* write cache for first frame when on second frame */
+			if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
+				BKE_ptcache_write(&pid, startframe);
+			}
+			
+			/* update and validate simulation */
+			stepmode |= rigidbody_update_objects(scene, rbw, false);
 		}
-
-		/* update and validate simulation */
-		rigidbody_update_simulation(scene, rbw, false);
-
-		/* calculate how much time elapsed since last step in seconds */
-		timestep = 1.0f / (float)FPS * (ctime - rbw->ltime) * rbw->time_scale;
-		/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
-		RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f));
-
-		rigidbody_update_simulation_post_step(rbw);
-
-		/* write cache for current frame */
-		BKE_ptcache_validate(cache, (int)ctime);
-		BKE_ptcache_write(&pid, (unsigned int)ctime);
-
+		
+		/* ghosts are not included in the rigidbody point cache */
+		stepmode |= rigidbody_update_ghosts(scene, rbw, false);
+		
+		if (stepmode & RB_STEP_DYNAMICS) {
+			/* calculate how much time elapsed since last step in seconds */
+			timestep = 1.0f / (float)FPS * (ctime - rbw->ltime) * rbw->time_scale;
+			timesubstep = 1.0f / (float)rbw->steps_per_second * min_ff(rbw->time_scale, 1.0f);
+			/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
+			RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, timesubstep);
+			
+			if (!cache_baked && !cache_valid) {
+				rigidbody_update_objects_post_step(rbw);
+				
+				/* write cache for current frame */
+				BKE_ptcache_validate(cache, (int)ctime);
+				BKE_ptcache_write(&pid, (unsigned int)ctime);
+			}
+		}
+		else if (stepmode & RB_STEP_COLLISION) { /* collision detection only */
+			/* perform collision detection only */
+			RB_dworld_test_collision(rbw->physics_world);
+		}
+		
 		rbw->ltime = ctime;
 	}
 }
+
 /* ************************************** */
 
 #else  /* WITH_BULLET */
