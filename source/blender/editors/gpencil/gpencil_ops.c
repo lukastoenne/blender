@@ -237,7 +237,7 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_active_frame_delete);
 	
 	WM_operatortype_append(GPENCIL_OT_convert);
-	
+
 	/* Editing (Time) --------------- */
 }
 
@@ -245,7 +245,7 @@ void ED_operatormacros_gpencil(void)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
-
+	
 	ot = WM_operatortype_append_macro("GPENCIL_OT_duplicate_move", "Duplicate Strokes",
 	                                  "Make copies of the selected Grease Pencil strokes and move them",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);

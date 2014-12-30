@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __UTIL_MATH_H__
@@ -122,6 +122,24 @@ ccl_device_inline double max(double a, double b)
 ccl_device_inline double min(double a, double b)
 {
 	return (a < b)? a: b;
+}
+
+/* These 2 guys are templated for usage with registers data.
+ *
+ * NOTE: Since this is CPU-only functions it is ok to use references here.
+ * But for other devices we'll need to be careful about this.
+ */
+
+template<typename T>
+ccl_device_inline T min4(const T& a, const T& b, const T& c, const T& d)
+{
+	return min(min(a,b),min(c,d));
+}
+
+template<typename T>
+ccl_device_inline T max4(const T& a, const T& b, const T& c, const T& d)
+{
+	return max(max(a,b),max(c,d));
 }
 
 #endif
@@ -1450,6 +1468,41 @@ ccl_device bool map_to_sphere(float *r_u, float *r_v,
 		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
 		return false;
 	}
+}
+
+ccl_device_inline int util_max_axis(float3 vec)
+{
+	if(vec.x > vec.y) {
+		if(vec.x > vec.z)
+			return 0;
+		else
+			return 2;
+	}
+	else {
+		if(vec.y > vec.z)
+			return 1;
+		else
+			return 2;
+	}
+}
+
+/* NOTE: We don't use std::swap here because of number of reasons:
+ *
+ * - We don't want current context to be polluted with all the templated
+ *   functions from stl which might cause some interference about which
+ *   function is used.
+ *
+ * - Different devices in theory might want to use intrinsics to optimize
+ *   this function for specific type.
+ *
+ * - We don't want ot use references because of OpenCL state at this moment.
+ */
+template <typename T>
+ccl_device_inline void util_swap(T *__restrict a, T *__restrict b)
+{
+	T c = *a;
+	*a = *b;
+	*b = c;
 }
 
 CCL_NAMESPACE_END

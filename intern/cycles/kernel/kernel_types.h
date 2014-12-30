@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __KERNEL_TYPES_H__
@@ -57,6 +57,9 @@ CCL_NAMESPACE_BEGIN
 
 /* device capabilities */
 #ifdef __KERNEL_CPU__
+#ifdef __KERNEL_SSE2__
+#  define __QBVH__
+#endif
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
 #define __BRANCHED_PATH__
@@ -947,8 +950,8 @@ typedef struct KernelBVH {
 	int have_motion;
 	int have_curves;
 	int have_instancing;
-
-	int pad1, pad2, pad3;
+	int use_qbvh;
+	int pad1, pad2;
 } KernelBVH;
 
 typedef enum CurveFlag {

@@ -2027,12 +2027,16 @@ void BKE_object_to_mat4(Object *ob, float mat[4][4])
 	add_v3_v3v3(mat[3], ob->loc, ob->dloc);
 }
 
+static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
+
 void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4])
 {
 	if (ob->parent) {
-		float invmat[4][4]; /* for inverse of parent's matrix */
-		invert_m4_m4(invmat, ob->parent->obmat);
-		mul_m4_m4m4(mat, invmat, ob->obmat);
+		float par_imat[4][4];
+
+		ob_get_parent_matrix(NULL, ob, ob->parent, par_imat);
+		invert_m4(par_imat);
+		mul_m4_m4m4(mat, par_imat, ob->obmat);
 	}
 	else {
 		copy_m4_m4(mat, ob->obmat);
@@ -2542,16 +2546,15 @@ void BKE_object_apply_mat4(Object *ob, float mat[4][4], const bool use_compat, c
 		mul_m4_m4m4(diff_mat, parent_mat, ob->parentinv);
 		invert_m4_m4(imat, diff_mat);
 		mul_m4_m4m4(rmat, imat, mat); /* get the parent relative matrix */
-		BKE_object_apply_mat4(ob, rmat, use_compat, false);
 
 		/* same as below, use rmat rather than mat */
 		mat4_to_loc_rot_size(ob->loc, rot, ob->size, rmat);
-		BKE_object_mat3_to_rot(ob, rot, use_compat);
 	}
 	else {
 		mat4_to_loc_rot_size(ob->loc, rot, ob->size, mat);
-		BKE_object_mat3_to_rot(ob, rot, use_compat);
 	}
+
+	BKE_object_mat3_to_rot(ob, rot, use_compat);
 
 	sub_v3_v3(ob->loc, ob->dloc);
 

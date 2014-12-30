@@ -789,7 +789,16 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
 				if ((v3d->camera) && (v3d->camera->type == OB_CAMERA)) {
 					Camera *cam;
 					cam = v3d->camera->data;
-					name = (cam->type != CAM_ORTHO) ? IFACE_("Camera Persp") : IFACE_("Camera Ortho");
+					if (cam->type == CAM_PERSP) {
+						name = IFACE_("Camera Persp");
+					}
+					else if (cam->type == CAM_ORTHO) {
+						name = IFACE_("Camera Ortho");
+					}
+					else {
+						BLI_assert(cam->type == CAM_PANO);
+						name = IFACE_("Camera Pano");
+					}
 				}
 				else {
 					name = IFACE_("Object as Camera");
@@ -2669,6 +2678,7 @@ static void view3d_draw_objects(
 		else {
 			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 				ED_region_pixelspace(ar);
+				*grid_unit = NULL;  /* drawgrid need this to detect/affect smallest valid unit... */
 				drawgrid(&scene->unit, ar, v3d, grid_unit);
 				/* XXX make function? replaces persp(1) */
 				glMatrixMode(GL_PROJECTION);

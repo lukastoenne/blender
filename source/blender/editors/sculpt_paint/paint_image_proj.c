@@ -1969,7 +1969,6 @@ static void line_rect_clip(
         const float uv1[2], const float uv2[2],
         float uv[2], bool is_ortho)
 {
-	float p[2];
 	float min = FLT_MAX, tmp;
 	if ((l1[0] - rect->xmin) * (l2[0] - rect->xmin) < 0) {
 		tmp = rect->xmin;
@@ -1988,11 +1987,10 @@ static void line_rect_clip(
 		min = min_ff((tmp - l1[1]) / (l2[1] - l1[1]), min);
 	}
 	
-	p[0] = min;
-	p[1] = (is_ortho) ? 1.0f : (l1[3] + p[0] * (l2[3] - l1[3]));
+	tmp = (is_ortho) ? 1.0f : (l1[3] + min * (l2[3] - l1[3]));
 	
-	uv[0] = (uv1[0] + p[0] * (uv2[0] - uv1[0])) / p[1];
-	uv[1] = (uv1[1] + p[0] * (uv2[1] - uv1[1])) / p[1];
+	uv[0] = (uv1[0] + min * (uv2[0] - uv1[0])) / tmp;
+	uv[1] = (uv1[1] + min * (uv2[1] - uv1[1])) / tmp;
 }
 
 
@@ -2891,7 +2889,7 @@ static bool project_bucket_face_isect(ProjPaintState *ps, int bucket_x, int buck
 	int fidx;
 
 	project_bucket_bounds(ps, bucket_x, bucket_y, &bucket_bounds);
-
+	
 	/* Is one of the faces verts in the bucket bounds? */
 
 	fidx = mf->v4 ? 3 : 2;
@@ -4523,7 +4521,34 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
 			touch_any = 1;
 		}
 	}
+	
+	/* calculate pivot for rotation around seletion if needed */
+	if (U.uiflag & USER_ORBIT_SELECTION) {
+		float w[3];
+		int side, index;
+		
+		index = project_paint_PickFace(ps, pos, w, &side);
+		
+		if (index != -1) {
+			MFace *mf;
+			float world[3];
+			UnifiedPaintSettings *ups = &ps->scene->toolsettings->unified_paint_settings;
 
+			mf = ps->dm_mface + index;
+
+			if (side == 0) {
+				interp_v3_v3v3v3(world, ps->dm_mvert[(*(&mf->v1))].co, ps->dm_mvert[(*(&mf->v2))].co, ps->dm_mvert[(*(&mf->v3))].co, w);
+			}
+			else {
+				interp_v3_v3v3v3(world, ps->dm_mvert[(*(&mf->v1))].co, ps->dm_mvert[(*(&mf->v3))].co, ps->dm_mvert[(*(&mf->v4))].co, w);
+			}
+			
+			ups->average_stroke_counter++;
+			add_v3_v3(ups->average_stroke_accum, world);
+			ups->last_stroke_valid = true;
+		}
+	}
+	
 	return touch_any;
 }
 
