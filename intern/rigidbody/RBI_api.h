@@ -57,6 +57,9 @@ typedef struct rbDynamicsWorld rbDynamicsWorld;
 /* Rigid Body */
 typedef struct rbRigidBody rbRigidBody;
 
+/* Ghost Collision Object */
+typedef struct rbGhostObject rbGhostObject;
+
 /* Collision Shape */
 typedef struct rbCollisionShape rbCollisionShape;
 
@@ -190,7 +193,6 @@ void RB_body_set_activation_state(rbRigidBody *body, int use_deactivation);
 void RB_body_activate(rbRigidBody *body);
 void RB_body_deactivate(rbRigidBody *body);
 
-
 /* Simulation ----------------------- */
 
 /* Get current transform matrix of RigidBody to use in Blender (OpenGL format) */
@@ -211,6 +213,27 @@ void RB_body_get_orientation(rbRigidBody *body, float v_out[4]);
 /* ............ */
 
 void RB_body_apply_central_force(rbRigidBody *body, const float v_in[3]);
+
+/* ********************************** */
+/* Ghost Collision Object Methods */
+
+/* Add ghost to dynamics world */
+void RB_dworld_add_ghost(rbDynamicsWorld *world, rbGhostObject *ghost, int col_groups);
+/* Remove ghost from dynamics world */
+void RB_dworld_remove_ghost(rbDynamicsWorld *world, rbGhostObject *ghost);
+
+/* Create new ghost instance */
+rbGhostObject *RB_ghost_new(rbCollisionShape *shape, const float loc[3], const float rot[4]);
+/* Delete the given ghost instance */
+void RB_ghost_delete(rbGhostObject *ghost);
+
+/* Collision Shape */
+void RB_ghost_set_collision_shape(rbGhostObject *body, rbCollisionShape *shape);
+
+/* Transform */
+void RB_ghost_get_transform_matrix(rbGhostObject *object, float m_out[4][4]);
+void RB_ghost_set_loc_rot(rbGhostObject *object, const float loc[3], const float rot[4]);
+void RB_ghost_set_scale(rbGhostObject *object, const float scale[3]);
 
 /* ********************************** */
 /* Collision Shape Methods */

@@ -69,6 +69,7 @@ subject to the following restrictions:
 #include "LinearMath/btTransform.h"
 #include "LinearMath/btConvexHullComputer.h"
 
+#include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactShape.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"
@@ -81,9 +82,20 @@ struct rbDynamicsWorld {
 	btConstraintSolver *constraintSolver;
 	btOverlapFilterCallback *filterCallback;
 };
-struct rbRigidBody {
-	btRigidBody *body;
+
+/* common base for safe casting of user pointers in btCollisionObjects */
+struct rbCollisionObject {
 	int col_groups;
+};
+
+struct rbRigidBody {
+	rbCollisionObject base;
+	btRigidBody *body;
+};
+
+struct rbGhostObject {
+	rbCollisionObject base;
+	btGhostObject *ghost;
 };
 
 struct rbVert {
@@ -110,8 +122,8 @@ struct rbFilterCallback : public btOverlapFilterCallback
 {
 	virtual bool needBroadphaseCollision(btBroadphaseProxy *proxy0, btBroadphaseProxy *proxy1) const
 	{
-		rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)proxy0->m_clientObject)->getUserPointer();
-		rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)proxy1->m_clientObject)->getUserPointer();
+		rbCollisionObject *rb0 = (rbCollisionObject *)((btCollisionObject *)proxy0->m_clientObject)->getUserPointer();
+		rbCollisionObject *rb1 = (rbCollisionObject *)((btCollisionObject *)proxy1->m_clientObject)->getUserPointer();
 		
 		bool collides;
 		collides = (proxy0->m_collisionFilterGroup & proxy1->m_collisionFilterMask) != 0;
@@ -258,7 +270,7 @@ void RB_dworld_export(rbDynamicsWorld *world, const char *filename)
 void RB_dworld_add_body(rbDynamicsWorld *world, rbRigidBody *object, int col_groups)
 {
 	btRigidBody *body = object->body;
-	object->col_groups = col_groups;
+	object->base.col_groups = col_groups;
 	
 	world->dynamicsWorld->addRigidBody(body);
 }
@@ -576,8 +588,6 @@ void RB_body_deactivate(rbRigidBody *object)
 
 /* ............ */
 
-
-
 /* Simulation ----------------------- */
 
 /* The transform matrices Blender uses are OpenGL-style matrices, 
@@ -648,6 +658,84 @@ void RB_body_apply_central_force(rbRigidBody *object, const float v_in[3])
 	btRigidBody *body = object->body;
 	
 	body->applyCentralForce(btVector3(v_in[0], v_in[1], v_in[2]));
+}
+
+/* ********************************** */
+/* Ghost Collision Object Methods */
+
+void RB_dworld_add_ghost(rbDynamicsWorld *world, rbGhostObject *object, int col_groups)
+{
+	object->base.col_groups = col_groups;
+	
+	world->dynamicsWorld->addCollisionObject(object->ghost);
+}
+
+void RB_dworld_remove_ghost(rbDynamicsWorld *world, rbGhostObject *object)
+{
+	world->dynamicsWorld->removeCollisionObject(object->ghost);
+}
+
+rbGhostObject *RB_ghost_new(rbCollisionShape *shape, const float loc[3], const float rot[4])
+{
+	rbGhostObject *object = new rbGhostObject;
+	
+	object->ghost = new btGhostObject();
+	object->ghost->setUserPointer(object);
+	
+	object->ghost->setCollisionShape(shape->cshape);
+	
+	btTransform trans;
+	trans.setOrigin(btVector3(loc[0], loc[1], loc[2]));
+	trans.setRotation(btQuaternion(rot[1], rot[2], rot[3], rot[0]));
+	object->ghost->setWorldTransform(trans);
+	
+	return object;
+}
+
+void RB_ghost_delete(rbGhostObject *object)
+{
+	delete object->ghost;
+	delete object;
+}
+
+void RB_ghost_set_collision_shape(rbGhostObject *body, rbCollisionShape *shape)
+{
+	body->ghost->setCollisionShape(shape->cshape);
+}
+
+void RB_ghost_get_transform_matrix(rbGhostObject *object, float m_out[4][4])
+{
+	btGhostObject *ghost = object->ghost;
+	
+	btTransform trans = ghost->getWorldTransform();
+	trans.getOpenGLMatrix((btScalar *)m_out);
+}
+
+void RB_ghost_set_loc_rot(rbGhostObject *object, const float loc[3], const float rot[4])
+{
+	btGhostObject *ghost = object->ghost;
+	
+	/* set transform matrix */
+	btTransform trans;
+	trans.setOrigin(btVector3(loc[0], loc[1], loc[2]));
+	trans.setRotation(btQuaternion(rot[1], rot[2], rot[3], rot[0]));
+	
+	ghost->setWorldTransform(trans);
+}
+
+void RB_ghost_set_scale(rbGhostObject *object, const float scale[3])
+{
+	btGhostObject *ghost = object->ghost;
+	
+	/* apply scaling factor from matrix above to the collision shape */
+	btCollisionShape *cshape = ghost->getCollisionShape();
+	if (cshape) {
+		cshape->setLocalScaling(btVector3(scale[0], scale[1], scale[2]));
+		
+		/* GIimpact shapes have to be updated to take scaling into account */
+		if (cshape->getShapeType() == GIMPACT_SHAPE_PROXYTYPE)
+			((btGImpactMeshShape *)cshape)->updateBound();
+	}
 }
 
 /* ********************************** */
