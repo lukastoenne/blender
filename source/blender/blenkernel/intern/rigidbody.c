@@ -46,14 +46,18 @@
 #  include "RBI_api.h"
 #endif
 
+#include "DNA_cloth_types.h"
 #include "DNA_group_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
+#include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_cloth.h"
 #include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
@@ -61,9 +65,12 @@
 #include "BKE_library_query.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
+#include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.h"
+
+#include "BPH_mass_spring.h"
 
 #ifdef WITH_BULLET
 
@@ -695,6 +702,53 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 
 	if (rbw && rbw->physics_world)
 		RB_dworld_add_body(rbw->physics_world, rbo->physics_object, rbo->col_groups);
+}
+
+/* --------------------- */
+
+static void rigidbody_validate_sim_hair_shape(Object *UNUSED(ob), ParticleSystem *psys, bool rebuild)
+{
+	ClothModifierData *clmd = psys->clmd;
+	Cloth *cloth = clmd->clothObject;
+	
+	if (clmd->hair_rbshape && rebuild) {
+		RB_shape_delete(clmd->hair_rbshape);
+		clmd->hair_rbshape = NULL;
+	}
+	
+	// XXX TODO add compound shape support in rigidbody API
+//	clmd->hair_rbshape = RB_shape
+}
+
+/**
+ * Create collision ghost representation of a hair system
+ *
+ * \param rebuild Even if an instance already exists, replace it
+ */
+static void rigidbody_validate_sim_hair_particle_system(RigidBodyWorld *rbw, Object *ob, ParticleSystem *psys, bool rebuild)
+{
+	ClothModifierData *clmd = psys->clmd;
+	
+	/* make sure collision shape exists */
+	if (!clmd->hair_rbshape || rebuild) {
+		rigidbody_validate_sim_hair_shape(ob, psys, true);
+	}
+	
+	if (!clmd->hair_rbobject || rebuild) {
+		float loc[3], rot[4];
+		
+		if (clmd->hair_rbobject)
+			RB_ghost_delete(clmd->hair_rbobject);
+		
+		mat4_to_loc_quat(loc, rot, ob->obmat);
+		clmd->hair_rbobject = RB_ghost_new(clmd->hair_rbshape, loc, rot);
+	}
+	else if (clmd->hair_rbobject)
+		RB_dworld_remove_ghost(rbw->physics_world, clmd->hair_rbobject);
+	
+	if (rbw && rbw->physics_world)
+		// XXX TODO define collision groups in the hair settings somewhere
+		RB_dworld_add_ghost(rbw->physics_world, clmd->hair_rbobject, 0xFFFF);
 }
 
 /* --------------------- */
@@ -1467,6 +1521,53 @@ static void rigidbody_update_objects_post_step(RigidBodyWorld *rbw)
 
 /* -------------------------------------- */
 
+static void rigidbody_update_sim_hair_particle_system(Object *ob, ParticleSystem *psys)
+{
+	ClothModifierData *clmd = psys->clmd;
+	
+	float loc[3];
+	float rot[4];
+	float scale[3];
+
+	/* only update if rigid body exists */
+	if (!clmd->hair_rbobject)
+		return;
+
+	// XXX TODO
+//	RB_shape_rods_update();
+
+	mat4_decompose(loc, rot, scale, ob->obmat);
+
+	/* update transform */
+	RB_ghost_set_scale(clmd->hair_rbobject, scale);
+	RB_ghost_set_loc_rot(clmd->hair_rbobject, loc, rot);
+}
+
+static bool hair_particle_system_poll(Object *ob, ParticleSystem *psys)
+{
+	if (!psys_check_enabled(ob, psys))
+		return false;
+	if (psys->part->type != PART_HAIR || !psys->clmd || !psys->clmd->clothObject)
+		return false;
+	if (!(psys->clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED))
+		return false;
+	return true;
+}
+
+static int rigidbody_update_hair_particle_system(RigidBodyWorld *rbw, Object *ob, ParticleSystem *psys, bool rebuild)
+{
+	int result = 0;
+	
+	rigidbody_validate_sim_hair_particle_system(rbw, ob, psys, rebuild);
+	
+	/* update simulation object... */
+	rigidbody_update_sim_hair_particle_system(ob, psys);
+
+	result |= RB_STEP_COLLISION;
+	
+	return result;
+}
+
 /**
  * Updates and validates collision ghosts.
  *
@@ -1474,7 +1575,22 @@ static void rigidbody_update_objects_post_step(RigidBodyWorld *rbw)
  */
 static int rigidbody_update_ghosts(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
 {
-	return 0;
+	int result = 0;
+	
+	Base *base;
+	
+	for (base = scene->base.first; base; base = base->next) {
+		Object *ob = base->object;
+		ParticleSystem *psys;
+		
+		for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+			if (hair_particle_system_poll(ob, psys)) {
+				result |= rigidbody_update_hair_particle_system(rbw, ob, psys, rebuild);
+			}
+		}
+	}
+	
+	return result;
 }
 
 /* -------------------------------------- */

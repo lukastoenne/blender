@@ -596,6 +596,8 @@ typedef struct ClothModifierData {
 	struct ListBase ptcaches;
 	/* XXX nasty hack, remove once hair can be separated from cloth modifier data */
 	struct ClothHairData *hairdata;
+	void *hair_rbshape;
+	void *hair_rbobject;
 	/* grid geometry values of hair continuum */
 	float hair_grid_min[3];
 	float hair_grid_max[3];
