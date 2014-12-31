@@ -262,6 +262,17 @@ rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh);
 /* 2b - GImpact Meshes */
 rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh);
 
+/* Setup (Compound) ---------- */
+
+rbCollisionShape *RB_shape_new_compound(bool enable_dynamic_aabb_tree);
+void RB_shape_compound_add_child_shape(rbCollisionShape *shape, const float loc[3], const float rot[4], rbCollisionShape *child);
+int RB_shape_compound_get_num_child_shapes(rbCollisionShape *shape);
+rbCollisionShape *RB_shape_compound_get_child_shape(rbCollisionShape *shape, int index);
+void RB_shape_compound_get_child_transform(rbCollisionShape *shape, int index, float mat[4][4]);
+/* Note: after updating transforms, RB_shape_compound_update_local_aabb should be called! */
+void RB_shape_compound_set_child_transform(rbCollisionShape *shape, int index, const float loc[3], const float rot[4]);
+void RB_shape_compound_update_local_aabb(rbCollisionShape *shape);
+
 
 /* Cleanup --------------------------- */
 

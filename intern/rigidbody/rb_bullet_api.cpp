@@ -896,6 +896,70 @@ rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)
 	return shape;
 }
 
+/* Setup (Compound) ---------- */
+
+rbCollisionShape *RB_shape_new_compound(bool enable_dynamic_aabb_tree)
+{
+	rbCollisionShape *shape = new rbCollisionShape;
+	shape->cshape = new btCompoundShape(enable_dynamic_aabb_tree);
+	shape->mesh = NULL;
+	return shape;
+}
+
+void RB_shape_compound_add_child_shape(rbCollisionShape *shape, const float loc[3], const float rot[4], rbCollisionShape *child)
+{
+	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	
+	btTransform trans(btQuaternion(rot[1], rot[2], rot[3], rot[0]), btVector3(loc[0], loc[1], loc[2]));
+	cshape->addChildShape(trans, child->cshape);
+}
+
+int RB_shape_compound_get_num_child_shapes(rbCollisionShape *shape)
+{
+	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	
+	return cshape->getNumChildShapes();
+}
+
+rbCollisionShape *RB_shape_compound_get_child_shape(rbCollisionShape *shape, int index)
+{
+	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	
+	/* rbCollisionShape is just a typedef */
+	return reinterpret_cast<rbCollisionShape *>(cshape->getChildShape(index));
+}
+
+void RB_shape_compound_get_child_transform(rbCollisionShape *shape, int index, float mat[4][4])
+{
+	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	
+	const btTransform &trans = cshape->getChildTransform(index);
+	trans.getOpenGLMatrix((btScalar *)mat);
+}
+
+void RB_shape_compound_set_child_transform(rbCollisionShape *shape, int index, const float loc[3], const float rot[4])
+{
+	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	
+	btTransform trans(btQuaternion(rot[1], rot[2], rot[3], rot[0]), btVector3(loc[0], loc[1], loc[2]));
+	/* no AABB update at this point, callers must do this explicitly after updating transforms */
+	cshape->updateChildTransform(index, trans, false);
+}
+
+void RB_shape_compound_update_local_aabb(rbCollisionShape *shape)
+{
+	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	
+	cshape->recalculateLocalAabb();
+}
+
+
 /* Cleanup --------------------------- */
 
 void RB_shape_delete(rbCollisionShape *shape)
