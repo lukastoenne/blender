@@ -144,6 +144,7 @@ struct wmWidgetMap;
 #include "../../intern/elbeem/extern/elbeem.h"
 #include "../blender/blenkernel/BKE_modifier.h"
 #include "../blender/blenkernel/BKE_paint.h"
+#include "../blender/blenkernel/BKE_object_deform.h"
 #include "../blender/collada/collada.h"
 #include "../blender/compositor/COM_compositor.h"
 #include "../blender/editors/include/ED_armature.h"
@@ -255,6 +256,19 @@ float RE_lamp_get_data(struct ShadeInput *shi, struct Object *lamp_obj, float co
 /* blenkernel */
 bool BKE_paint_proj_mesh_data_check(struct Scene *scene, struct Object *ob, bool *uvs, bool *mat, bool *tex, bool *stencil) RET_ZERO
 
+int fmap_name_index(struct Object *ob, const char *name) RET_ZERO
+void fmap_unique_name(struct bFaceMap *fmap, struct Object *ob) RET_NONE
+struct bFaceMap *fmap_find_name(struct Object *ob, const char *name) RET_NULL
+void fmap_copy_list(struct ListBase *outbase, struct ListBase *inbase) RET_NONE
+
+struct bFaceMap *BKE_object_facemap_add(struct Object *ob) RET_NULL
+struct bFaceMap *BKE_object_facemap_add_name(struct Object *ob, const char *name) RET_NULL
+void BKE_object_facemap_remove(struct Object *ob, struct bFaceMap *fmap) RET_NONE
+void BKE_object_fmap_remove_all(struct Object *ob) RET_NONE
+
+void ED_fmap_face_add(struct Object *ob, struct bFaceMap *fmap, int facenum) RET_NONE
+void ED_fmap_face_remove(struct Object *ob, struct bFaceMap *fmap, int facenum) RET_NONE
+
 /* render */
 void RE_FreeRenderResult(struct RenderResult *res) RET_NONE
 void RE_FreeAllRenderResults(void) RET_NONE
@@ -298,6 +312,11 @@ void WM_cursor_time(struct wmWindow *win, int nr) RET_NONE
 void WM_cursor_warp(struct wmWindow *win, int x, int y) RET_NONE
 
 void WM_widgetmap_delete(struct wmWidgetMap *wmap) RET_NONE
+struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create) RET_NULL;
+struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+                                                 void (*draw)(const struct bContext *, struct wmWidgetGroup *),
+                                                 struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d) RET_NULL;
+void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup) RET_NONE;
 
 void                WM_uilisttype_init(void) RET_NONE
 struct uiListType  *WM_uilisttype_find(const char *idname, bool quiet) RET_NULL
