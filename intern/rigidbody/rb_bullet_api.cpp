@@ -114,8 +114,120 @@ struct rbMeshData {
 };
 
 struct rbCollisionShape {
-	btCollisionShape *cshape;
+	virtual ~rbCollisionShape()
+	{}
+	
+	virtual btCollisionShape *get_cshape() = 0;
+};
+
+struct rbBoxShape : public rbCollisionShape {
+	rbBoxShape(float x, float y, float z) :
+		cshape(btVector3(x, y, z))
+	{}
+	
+	btBoxShape cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
+};
+
+struct rbSphereShape : public rbCollisionShape {
+	rbSphereShape(float radius) :
+		cshape(radius)
+	{}
+	
+	btSphereShape cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
+};
+
+struct rbCapsuleShape : public rbCollisionShape {
+	rbCapsuleShape(float radius, float height) :
+		cshape(radius, height)
+	{}
+	
+	btCapsuleShape cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
+};
+
+struct rbConeShape : public rbCollisionShape {
+	rbConeShape(float radius, float height) :
+		cshape(radius, height)
+	{}
+	
+	btConeShapeZ cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
+};
+
+struct rbCylinderShape : public rbCollisionShape {
+	rbCylinderShape(float radius, float height) :
+		cshape(btVector3(radius, radius, height))
+	{}
+	
+	btCylinderShapeZ cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
+};
+
+struct rbConvexHullShape : public rbCollisionShape {
+	rbConvexHullShape(float *verts, int stride, int count, float margin, bool *can_embed) {
+		btConvexHullComputer hull_computer = btConvexHullComputer();
+		
+		// try to embed the margin, if that fails don't shrink the hull
+		if (hull_computer.compute(verts, stride, count, margin, 0.0f) < 0.0f) {
+			hull_computer.compute(verts, stride, count, 0.0f, 0.0f);
+			*can_embed = false;
+		}
+		
+		cshape = btConvexHullShape(&(hull_computer.vertices[0].getX()), hull_computer.vertices.size());
+	}
+	
+	btConvexHullShape cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
+};
+
+struct rbTriangleMeshShape : public rbCollisionShape {
+	rbTriangleMeshShape(rbMeshData *mesh) :
+		cshape_unscaled(mesh->index_array, true, true),
+		cshape(&cshape_unscaled, btVector3(1.0f, 1.0f, 1.0f)),
+		mesh(mesh)
+	{}
+	
+	~rbTriangleMeshShape()
+	{
+		if (mesh)
+			RB_trimesh_data_delete(mesh);
+	}
+	
+	btBvhTriangleMeshShape cshape_unscaled;
+	btScaledBvhTriangleMeshShape cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
 	rbMeshData *mesh;
+};
+
+struct rbGImpactMeshShape : public rbCollisionShape {
+	rbGImpactMeshShape(rbMeshData *mesh) :
+		cshape(mesh->index_array),
+		mesh(mesh)
+	{
+		// TODO: add this to the update collision margin call?
+		cshape.updateBound();
+	}
+	
+	~rbGImpactMeshShape()
+	{
+		if (mesh)
+			RB_trimesh_data_delete(mesh);
+	}
+	
+	btGImpactMeshShape cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
+	rbMeshData *mesh;
+};
+
+struct rbCompoundShape : public rbCollisionShape {
+	rbCompoundShape(bool enable_dynamic_aabb_tree) :
+		cshape(enable_dynamic_aabb_tree)
+	{}
+	
+	btCompoundShape cshape;
+	btCollisionShape *get_cshape() { return &cshape; }
 };
 
 struct rbFilterCallback : public btOverlapFilterCallback
@@ -349,7 +461,7 @@ rbRigidBody *RB_body_new(rbCollisionShape *shape, const float loc[3], const floa
 	btDefaultMotionState *motionState = new btDefaultMotionState(trans);
 	
 	/* make rigidbody */
-	btRigidBody::btRigidBodyConstructionInfo rbInfo(1.0f, motionState, shape->cshape);
+	btRigidBody::btRigidBodyConstructionInfo rbInfo(1.0f, motionState, shape->get_cshape());
 	
 	object->body = new btRigidBody(rbInfo);
 	
@@ -389,7 +501,7 @@ void RB_body_set_collision_shape(rbRigidBody *object, rbCollisionShape *shape)
 	btRigidBody *body = object->body;
 	
 	/* set new collision shape */
-	body->setCollisionShape(shape->cshape);
+	body->setCollisionShape(shape->get_cshape());
 	
 	/* recalculate inertia, since that depends on the collision shape... */
 	RB_body_set_mass(object, RB_body_get_mass(object));
@@ -682,7 +794,7 @@ rbGhostObject *RB_ghost_new(rbCollisionShape *shape, const float loc[3], const f
 	object->ghost = new btGhostObject();
 	object->ghost->setUserPointer(object);
 	
-	object->ghost->setCollisionShape(shape->cshape);
+	object->ghost->setCollisionShape(shape->get_cshape());
 	
 	btTransform trans;
 	trans.setOrigin(btVector3(loc[0], loc[1], loc[2]));
@@ -700,7 +812,7 @@ void RB_ghost_delete(rbGhostObject *object)
 
 void RB_ghost_set_collision_shape(rbGhostObject *body, rbCollisionShape *shape)
 {
-	body->ghost->setCollisionShape(shape->cshape);
+	body->ghost->setCollisionShape(shape->get_cshape());
 }
 
 void RB_ghost_get_transform_matrix(rbGhostObject *object, float m_out[4][4])
@@ -745,62 +857,34 @@ void RB_ghost_set_scale(rbGhostObject *object, const float scale[3])
 
 rbCollisionShape *RB_shape_new_box(float x, float y, float z)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btBoxShape(btVector3(x, y, z));
-	shape->mesh = NULL;
-	return shape;
+	return new rbBoxShape(x, y, z);
 }
 
 rbCollisionShape *RB_shape_new_sphere(float radius)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btSphereShape(radius);
-	shape->mesh = NULL;
-	return shape;
+	return new rbSphereShape(radius);
 }
 
 rbCollisionShape *RB_shape_new_capsule(float radius, float height)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btCapsuleShapeZ(radius, height);
-	shape->mesh = NULL;
-	return shape;
+	return new rbCapsuleShape(radius, height);
 }
 
 rbCollisionShape *RB_shape_new_cone(float radius, float height)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btConeShapeZ(radius, height);
-	shape->mesh = NULL;
-	return shape;
+	return new rbConeShape(radius, height);
 }
 
 rbCollisionShape *RB_shape_new_cylinder(float radius, float height)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btCylinderShapeZ(btVector3(radius, radius, height));
-	shape->mesh = NULL;
-	return shape;
+	return new rbCylinderShape(radius, height);
 }
 
 /* Setup (Convex Hull) ------------ */
 
 rbCollisionShape *RB_shape_new_convex_hull(float *verts, int stride, int count, float margin, bool *can_embed)
 {
-	btConvexHullComputer hull_computer = btConvexHullComputer();
-	
-	// try to embed the margin, if that fails don't shrink the hull
-	if (hull_computer.compute(verts, stride, count, margin, 0.0f) < 0.0f) {
-		hull_computer.compute(verts, stride, count, 0.0f, 0.0f);
-		*can_embed = false;
-	}
-	
-	rbCollisionShape *shape = new rbCollisionShape;
-	btConvexHullShape *hull_shape = new btConvexHullShape(&(hull_computer.vertices[0].getX()), hull_computer.vertices.size());
-	
-	shape->cshape = hull_shape;
-	shape->mesh = NULL;
-	return shape;
+	return new rbConvexHullShape(verts, stride, count, margin, can_embed);
 }
 
 /* Setup (Triangle Mesh) ---------- */
@@ -818,7 +902,7 @@ rbMeshData *RB_trimesh_data_new(int num_tris, int num_verts)
 	return mesh;
 }
 
-static void RB_trimesh_data_delete(rbMeshData *mesh)
+void RB_trimesh_data_delete(rbMeshData *mesh)
 {
 	delete mesh->index_array;
 	delete[] mesh->vertices;
@@ -847,86 +931,78 @@ void RB_trimesh_finish(rbMeshData *mesh)
 	mesh->index_array = new btTriangleIndexVertexArray(mesh->num_triangles, (int*)mesh->triangles, sizeof(rbTri),
 	                                                   mesh->num_vertices, (float*)mesh->vertices, sizeof(rbVert));
 }
- 
+
 rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	
-	/* triangle-mesh we create is a BVH wrapper for triangle mesh data (for faster lookups) */
-	// RB_TODO perhaps we need to allow saving out this for performance when rebuilding?
-	btBvhTriangleMeshShape *unscaledShape = new btBvhTriangleMeshShape(mesh->index_array, true, true);
-	
-	shape->cshape = new btScaledBvhTriangleMeshShape(unscaledShape, btVector3(1.0f, 1.0f, 1.0f));
-	shape->mesh = mesh;
-	return shape;
-}
-
-void RB_shape_trimesh_update(rbCollisionShape *shape, float *vertices, int num_verts, int vert_stride, float min[3], float max[3])
-{
-	if (shape->mesh == NULL || num_verts != shape->mesh->num_vertices)
-		return;
-	
-	for (int i = 0; i < num_verts; i++) {
-		float *vert = (float*)(((char*)vertices + i * vert_stride));
-		shape->mesh->vertices[i].x = vert[0];
-		shape->mesh->vertices[i].y = vert[1];
-		shape->mesh->vertices[i].z = vert[2];
-	}
-	
-	if (shape->cshape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE) {
-		btScaledBvhTriangleMeshShape *scaled_shape = (btScaledBvhTriangleMeshShape *)shape->cshape;
-		btBvhTriangleMeshShape *mesh_shape = scaled_shape->getChildShape();
-		mesh_shape->refitTree(btVector3(min[0], min[1], min[2]), btVector3(max[0], max[1], max[2]));
-	}
-	else if (shape->cshape->getShapeType() == GIMPACT_SHAPE_PROXYTYPE) {
-		btGImpactMeshShape *mesh_shape = (btGImpactMeshShape*)shape->cshape;
-		mesh_shape->updateBound();
-	}
+	return new rbTriangleMeshShape(mesh);
 }
 
 rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
+	return new rbGImpactMeshShape(mesh);
+}
+
+static bool shape_update_mesh_verts(rbMeshData *mesh, float *vertices, int num_verts, int vert_stride)
+{
+	if (mesh == NULL || num_verts != mesh->num_vertices)
+		return false;
 	
-	btGImpactMeshShape *gimpactShape = new btGImpactMeshShape(mesh->index_array);
-	gimpactShape->updateBound(); // TODO: add this to the update collision margin call?
+	for (int i = 0; i < num_verts; i++) {
+		float *vert = (float*)(((char*)vertices + i * vert_stride));
+		mesh->vertices[i].x = vert[0];
+		mesh->vertices[i].y = vert[1];
+		mesh->vertices[i].z = vert[2];
+	}
 	
-	shape->cshape = gimpactShape;
-	shape->mesh = mesh;
-	return shape;
+	return true;
+}
+
+void RB_shape_trimesh_update(rbCollisionShape *shape, float *vertices, int num_verts, int vert_stride, float min[3], float max[3])
+{
+	if (shape->get_cshape()->getShapeType() == TRIANGLE_MESH_SHAPE_PROXYTYPE) {
+		rbTriangleMeshShape *trishape = static_cast<rbTriangleMeshShape *>(shape);
+		if (shape_update_mesh_verts(trishape->mesh, vertices, num_verts, vert_stride))
+			trishape->cshape_unscaled.refitTree(btVector3(min[0], min[1], min[2]), btVector3(max[0], max[1], max[2]));
+	}
+	else if (shape->get_cshape()->getShapeType() == GIMPACT_SHAPE_PROXYTYPE) {
+		rbGImpactMeshShape *impshape = static_cast<rbGImpactMeshShape *>(shape);
+		if (shape_update_mesh_verts(impshape->mesh, vertices, num_verts, vert_stride))
+			impshape->cshape.updateBound();
+	}
+	else {
+		/* should not be called for non-mesh collision shapes */
+		assert(false);
+	}
 }
 
 /* Setup (Compound) ---------- */
 
 rbCollisionShape *RB_shape_new_compound(bool enable_dynamic_aabb_tree)
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btCompoundShape(enable_dynamic_aabb_tree);
-	shape->mesh = NULL;
-	return shape;
+	return new rbCompoundShape(enable_dynamic_aabb_tree);
 }
 
 void RB_shape_compound_add_child_shape(rbCollisionShape *shape, const float loc[3], const float rot[4], rbCollisionShape *child)
 {
-	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
-	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	assert(shape->get_cshape()->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->get_cshape());
 	
 	btTransform trans(btQuaternion(rot[1], rot[2], rot[3], rot[0]), btVector3(loc[0], loc[1], loc[2]));
-	cshape->addChildShape(trans, child->cshape);
+	cshape->addChildShape(trans, child->get_cshape());
 }
 
 int RB_shape_compound_get_num_child_shapes(rbCollisionShape *shape)
 {
-	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
-	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	assert(shape->get_cshape()->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->get_cshape());
 	
 	return cshape->getNumChildShapes();
 }
 
 rbCollisionShape *RB_shape_compound_get_child_shape(rbCollisionShape *shape, int index)
 {
-	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
-	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	assert(shape->get_cshape()->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->get_cshape());
 	
 	/* rbCollisionShape is just a typedef */
 	return reinterpret_cast<rbCollisionShape *>(cshape->getChildShape(index));
@@ -934,8 +1010,8 @@ rbCollisionShape *RB_shape_compound_get_child_shape(rbCollisionShape *shape, int
 
 void RB_shape_compound_get_child_transform(rbCollisionShape *shape, int index, float mat[4][4])
 {
-	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
-	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	assert(shape->get_cshape()->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->get_cshape());
 	
 	const btTransform &trans = cshape->getChildTransform(index);
 	trans.getOpenGLMatrix((btScalar *)mat);
@@ -943,8 +1019,8 @@ void RB_shape_compound_get_child_transform(rbCollisionShape *shape, int index, f
 
 void RB_shape_compound_set_child_transform(rbCollisionShape *shape, int index, const float loc[3], const float rot[4])
 {
-	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
-	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	assert(shape->get_cshape()->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->get_cshape());
 	
 	btTransform trans(btQuaternion(rot[1], rot[2], rot[3], rot[0]), btVector3(loc[0], loc[1], loc[2]));
 	/* no AABB update at this point, callers must do this explicitly after updating transforms */
@@ -953,8 +1029,8 @@ void RB_shape_compound_set_child_transform(rbCollisionShape *shape, int index, c
 
 void RB_shape_compound_update_local_aabb(rbCollisionShape *shape)
 {
-	assert(shape->cshape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
-	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->cshape);
+	assert(shape->get_cshape()->getShapeType() == COMPOUND_SHAPE_PROXYTYPE);
+	btCompoundShape *cshape = static_cast<btCompoundShape *>(shape->get_cshape());
 	
 	cshape->recalculateLocalAabb();
 }
@@ -964,14 +1040,6 @@ void RB_shape_compound_update_local_aabb(rbCollisionShape *shape)
 
 void RB_shape_delete(rbCollisionShape *shape)
 {
-	if (shape->cshape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE) {
-		btBvhTriangleMeshShape *child_shape = ((btScaledBvhTriangleMeshShape *)shape->cshape)->getChildShape();
-		if (child_shape)
-			delete child_shape;
-	}
-	if (shape->mesh)
-		RB_trimesh_data_delete(shape->mesh);
-	delete shape->cshape;
 	delete shape;
 }
 
@@ -979,12 +1047,12 @@ void RB_shape_delete(rbCollisionShape *shape)
 
 float RB_shape_get_margin(rbCollisionShape *shape)
 {
-	return shape->cshape->getMargin();
+	return shape->get_cshape()->getMargin();
 }
 
 void RB_shape_set_margin(rbCollisionShape *shape, float value)
 {
-	shape->cshape->setMargin(value);
+	shape->get_cshape()->setMargin(value);
 }
 
 /* ********************************** */
