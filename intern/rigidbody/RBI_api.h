@@ -254,6 +254,7 @@ rbCollisionShape *RB_shape_new_convex_hull(float *verts, int stride, int count, 
 
 /* 1 */
 rbMeshData *RB_trimesh_data_new(int num_tris, int num_verts);
+void RB_trimesh_data_delete(rbMeshData *mesh);
 void RB_trimesh_add_vertices(rbMeshData *mesh, float *vertices, int num_verts, int vert_stride);
 void RB_trimesh_add_triangle_indices(rbMeshData *mesh, int num, int index0, int index1, int index2);
 void RB_trimesh_finish(rbMeshData *mesh);
