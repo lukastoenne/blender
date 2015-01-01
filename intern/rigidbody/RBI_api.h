@@ -241,10 +241,24 @@ void RB_ghost_set_scale(rbGhostObject *object, const float scale[3]);
 /* Setup (Standard Shapes) ----------- */
 
 rbCollisionShape *RB_shape_new_box(float x, float y, float z);
+rbCollisionShape *RB_shape_init_box(void *mem, float x, float y, float z);
+extern const size_t RB_shape_size_box;
+
 rbCollisionShape *RB_shape_new_sphere(float radius);
+rbCollisionShape *RB_shape_init_sphere(void *mem, float radius);
+extern const size_t RB_shape_size_sphere;
+
 rbCollisionShape *RB_shape_new_capsule(float radius, float height);
+rbCollisionShape *RB_shape_init_capsule(void *mem, float radius, float height);
+extern const size_t RB_shape_size_capsule;
+
 rbCollisionShape *RB_shape_new_cone(float radius, float height);
+rbCollisionShape *RB_shape_init_cone(void *mem, float radius, float height);
+extern const size_t RB_shape_size_cone;
+
 rbCollisionShape *RB_shape_new_cylinder(float radius, float height);
+rbCollisionShape *RB_shape_init_cylinder(void *mem, float radius, float height);
+extern const size_t RB_shape_size_cylinder;
 
 /* Setup (Convex Hull) ------------ */
 

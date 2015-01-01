@@ -860,25 +860,60 @@ rbCollisionShape *RB_shape_new_box(float x, float y, float z)
 	return new rbBoxShape(x, y, z);
 }
 
+rbCollisionShape *RB_shape_init_box(void *mem, float x, float y, float z)
+{
+	return new (mem) rbBoxShape(x, y, z);
+}
+
+const size_t RB_shape_size_box = sizeof(rbBoxShape);
+
 rbCollisionShape *RB_shape_new_sphere(float radius)
 {
 	return new rbSphereShape(radius);
 }
+
+rbCollisionShape *RB_shape_init_sphere(void *mem, float radius)
+{
+	return new (mem) rbSphereShape(radius);
+}
+
+const size_t RB_shape_size_sphere = sizeof(rbSphereShape);
 
 rbCollisionShape *RB_shape_new_capsule(float radius, float height)
 {
 	return new rbCapsuleShape(radius, height);
 }
 
+rbCollisionShape *RB_shape_init_capsule(void *mem, float radius, float height)
+{
+	return new (mem) rbCapsuleShape(radius, height);
+}
+
+const size_t RB_shape_size_capsule = sizeof(rbCapsuleShape);
+
 rbCollisionShape *RB_shape_new_cone(float radius, float height)
 {
 	return new rbConeShape(radius, height);
 }
 
+rbCollisionShape *RB_shape_init_cone(void *mem, float radius, float height)
+{
+	return new (mem) rbConeShape(radius, height);
+}
+
+const size_t RB_shape_size_cone = sizeof(rbConeShape);
+
 rbCollisionShape *RB_shape_new_cylinder(float radius, float height)
 {
 	return new rbCylinderShape(radius, height);
 }
+
+rbCollisionShape *RB_shape_init_cylinder(void *mem, float radius, float height)
+{
+	return new (mem) rbCylinderShape(radius, height);
+}
+
+const size_t RB_shape_size_cylinder = sizeof(rbCylinderShape);
 
 /* Setup (Convex Hull) ------------ */
 
