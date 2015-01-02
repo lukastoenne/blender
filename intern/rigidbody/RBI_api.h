@@ -117,7 +117,7 @@ void RB_dworld_remove_body(rbDynamicsWorld *world, rbRigidBody *body);
 
 /* Collision detection */
 
-void RB_world_convex_sweep_test(
+void RB_dworld_convex_sweep_test_body(
         rbDynamicsWorld *world, rbRigidBody *object,
         const float loc_start[3], const float loc_end[3],
         float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit);
@@ -234,6 +234,12 @@ void RB_ghost_set_collision_shape(rbGhostObject *body, rbCollisionShape *shape);
 void RB_ghost_get_transform_matrix(rbGhostObject *object, float m_out[4][4]);
 void RB_ghost_set_loc_rot(rbGhostObject *object, const float loc[3], const float rot[4]);
 void RB_ghost_set_scale(rbGhostObject *object, const float scale[3]);
+
+/* Collision detection */
+void RB_dworld_convex_sweep_test_ghost(
+        rbDynamicsWorld *world, rbGhostObject *object,
+        const float loc_start[3], const float loc_end[3],
+        float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit);
 
 /* ********************************** */
 /* Collision Shape Methods */

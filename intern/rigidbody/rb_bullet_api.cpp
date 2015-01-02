@@ -396,18 +396,20 @@ void RB_dworld_remove_body(rbDynamicsWorld *world, rbRigidBody *object)
 
 /* Collision detection */
 
-void RB_world_convex_sweep_test(
-        rbDynamicsWorld *world, rbRigidBody *object,
+/* generic implementation for btCollisionObject, also used for ghost objects */
+static void dworld_convex_sweep_test(
+        rbDynamicsWorld *world, btCollisionObject *bt_object,
         const float loc_start[3], const float loc_end[3],
         float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
 {
-	btRigidBody *body = object->body;
-	btCollisionShape *collisionShape = body->getCollisionShape();
+	btCollisionShape *collisionShape = bt_object->getCollisionShape();
 	/* only convex shapes are supported, but user can specify a non convex shape */
 	if (collisionShape->isConvex()) {
-		btCollisionWorld::ClosestConvexResultCallback result(btVector3(loc_start[0], loc_start[1], loc_start[2]), btVector3(loc_end[0], loc_end[1], loc_end[2]));
+		btCollisionWorld::ClosestConvexResultCallback result(
+		    btVector3(loc_start[0], loc_start[1], loc_start[2]),
+		    btVector3(loc_end[0], loc_end[1], loc_end[2]));
 
-		btQuaternion obRot = body->getWorldTransform().getRotation();
+		btQuaternion obRot = bt_object->getWorldTransform().getRotation();
 		
 		btTransform rayFromTrans;
 		rayFromTrans.setIdentity();
@@ -445,6 +447,14 @@ void RB_world_convex_sweep_test(
 		/* we need to return a value if user passes non convex body, to report */
 		*r_hit = -2;
 	}
+}
+
+void RB_dworld_convex_sweep_test_body(
+        rbDynamicsWorld *world, rbRigidBody *object,
+        const float loc_start[3], const float loc_end[3],
+        float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
+{
+	dworld_convex_sweep_test(world, object->body, loc_start, loc_end, v_location, v_hitpoint, v_normal, r_hit);
 }
 
 /* ............ */
@@ -848,6 +858,14 @@ void RB_ghost_set_scale(rbGhostObject *object, const float scale[3])
 		if (cshape->getShapeType() == GIMPACT_SHAPE_PROXYTYPE)
 			((btGImpactMeshShape *)cshape)->updateBound();
 	}
+}
+
+void RB_dworld_convex_sweep_test_ghost(
+        rbDynamicsWorld *world, rbGhostObject *object,
+        const float loc_start[3], const float loc_end[3],
+        float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
+{
+	dworld_convex_sweep_test(world, object->ghost, loc_start, loc_end, v_location, v_hitpoint, v_normal, r_hit);
 }
 
 /* ********************************** */
