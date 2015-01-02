@@ -632,8 +632,8 @@ static void rna_RigidBodyWorld_convex_sweep_test(
 	RigidBodyOb *rob = object->rigidbody_object;
 
 	if (rbw->physics_world != NULL && rob->physics_object != NULL) {
-		RB_dworld_convex_sweep_test_body(rbw->physics_world, rob->physics_object, ray_start, ray_end,
-		                                 r_location, r_hitpoint, r_normal, r_hit);
+		RB_dworld_convex_sweep_closest_body(rbw->physics_world, rob->physics_object, ray_start, ray_end,
+		                                    r_location, r_hitpoint, r_normal, r_hit);
 		if (*r_hit == -2) {
 			BKE_report(reports, RPT_ERROR,
 			           "A non convex collision shape was passed to the function, use only convex collision shapes");

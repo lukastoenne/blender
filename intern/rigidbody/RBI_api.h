@@ -51,6 +51,11 @@ extern "C" {
 
 // ----------
 
+typedef enum rbObjectType {
+	RB_OBJECT_RIGIDBODY,
+	RB_OBJECT_GHOST,
+} rbObjectType;
+
 /* Dynamics World */
 typedef struct rbDynamicsWorld rbDynamicsWorld;
 
@@ -68,6 +73,9 @@ typedef struct rbMeshData rbMeshData;
 
 /* Constraint */
 typedef struct rbConstraint rbConstraint;
+
+/* Manifold Contact Point */
+typedef struct rbManifoldPoint rbManifoldPoint;
 
 /* ********************************** */
 /* Dynamics World Methods */
@@ -105,6 +113,26 @@ void RB_dworld_test_collision(rbDynamicsWorld *world);
 void RB_dworld_export(rbDynamicsWorld *world, const char *filename);
 
 /* ********************************** */
+/* Manifold Point Methods */
+
+void RB_manifold_point_local_A(const rbManifoldPoint *pt, float vec[3]);
+void RB_manifold_point_local_B(const rbManifoldPoint *pt, float vec[3]);
+void RB_manifold_point_world_A(const rbManifoldPoint *pt, float vec[3]);
+void RB_manifold_point_world_B(const rbManifoldPoint *pt, float vec[3]);
+void RB_manifold_point_normal_world_B(const rbManifoldPoint *pt, float vec[3]);
+float RB_manifold_point_distance(const rbManifoldPoint *pt);
+float RB_manifold_point_combined_friction(const rbManifoldPoint *pt);
+float RB_manifold_point_combined_rolling_friction(const rbManifoldPoint *pt);
+float RB_manifold_point_combined_restitution(const rbManifoldPoint *pt);
+int RB_manifold_point_part_id0(const rbManifoldPoint *pt);
+int RB_manifold_point_index0(const rbManifoldPoint *pt);
+int RB_manifold_point_part_id1(const rbManifoldPoint *pt);
+int RB_manifold_point_index1(const rbManifoldPoint *pt);
+void *RB_manifold_point_get_user_persistent_data(const rbManifoldPoint *pt);
+void RB_manifold_point_set_user_persistent_data(const rbManifoldPoint *pt, void *data);
+float RB_manifold_point_lifetime(const rbManifoldPoint *pt);
+
+/* ********************************** */
 /* Rigid Body Methods */
 
 /* Setup ---------------------------- */
@@ -117,10 +145,17 @@ void RB_dworld_remove_body(rbDynamicsWorld *world, rbRigidBody *body);
 
 /* Collision detection */
 
-void RB_dworld_convex_sweep_test_body(
+typedef void (*rbContactCallback)(void *userdata, rbManifoldPoint *cp,
+                                  const void *collob0, rbObjectType type0, int part0, int index0,
+                                  const void *collob1, rbObjectType type1, int part1, int index1);
+
+void RB_dworld_convex_sweep_closest_body(
         rbDynamicsWorld *world, rbRigidBody *object,
         const float loc_start[3], const float loc_end[3],
         float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit);
+
+void RB_dworld_contact_test_body(rbDynamicsWorld *world, rbRigidBody *object, rbContactCallback cb, void *userdata, int col_groups);
+void RB_dworld_contact_test_ghost(rbDynamicsWorld *world, rbGhostObject *object, rbContactCallback cb, void *userdata, int col_groups);
 
 /* ............ */
 
@@ -236,7 +271,7 @@ void RB_ghost_set_loc_rot(rbGhostObject *object, const float loc[3], const float
 void RB_ghost_set_scale(rbGhostObject *object, const float scale[3]);
 
 /* Collision detection */
-void RB_dworld_convex_sweep_test_ghost(
+void RB_dworld_convex_sweep_closest_ghost(
         rbDynamicsWorld *world, rbGhostObject *object,
         const float loc_start[3], const float loc_end[3],
         float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit);
