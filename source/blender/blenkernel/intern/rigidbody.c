@@ -706,6 +706,8 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 
 /* --------------------- */
 
+#if 0
+
 #define HAIR_SHAPE_INIT(clmd) \
 	(clmd)->hair_physics.rb_child_shapes
 #define HAIR_SHAPE_COUNT(clmd) \
@@ -809,6 +811,7 @@ static void rigidbody_validate_sim_hair_particle_system(RigidBodyWorld *rbw, Obj
 		// XXX TODO define collision groups in the hair settings somewhere
 		RB_dworld_add_ghost(rbw->physics_world, clmd->hair_physics.rb_object, 0xFFFF);
 }
+#endif
 
 /* --------------------- */
 
@@ -1580,6 +1583,7 @@ static void rigidbody_update_objects_post_step(RigidBodyWorld *rbw)
 
 /* -------------------------------------- */
 
+#if 0
 static void rigidbody_update_sim_hair_particle_system(Object *ob, ParticleSystem *psys)
 {
 	ClothModifierData *clmd = psys->clmd;
@@ -1626,16 +1630,18 @@ static int rigidbody_update_hair_particle_system(RigidBodyWorld *rbw, Object *ob
 	
 	return result;
 }
+#endif
 
 /**
  * Updates and validates collision ghosts.
  *
  * \param rebuild Rebuild entire simulation
  */
-static int rigidbody_update_ghosts(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+static int rigidbody_update_ghosts(Scene *UNUSED(scene), RigidBodyWorld *UNUSED(rbw), bool UNUSED(rebuild))
 {
 	int result = 0;
 	
+#if 0
 	Base *base;
 	
 	for (base = scene->base.first; base; base = base->next) {
@@ -1648,6 +1654,7 @@ static int rigidbody_update_ghosts(Scene *scene, RigidBodyWorld *rbw, bool rebui
 			}
 		}
 	}
+#endif
 	
 	return result;
 }
