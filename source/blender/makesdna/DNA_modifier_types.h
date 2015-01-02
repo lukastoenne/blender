@@ -585,6 +585,14 @@ typedef struct SoftbodyModifierData {
 	ModifierData modifier;
 } SoftbodyModifierData;
 
+typedef struct ClothHairPhysics {
+	void *rb_object;
+	void *rb_shape;
+	void *rb_child_shapes;
+	int num_child_shapes;
+	int pad;
+} ClothHairPhysics;
+
 typedef struct ClothModifierData {
 	ModifierData modifier;
 
@@ -596,8 +604,7 @@ typedef struct ClothModifierData {
 	struct ListBase ptcaches;
 	/* XXX nasty hack, remove once hair can be separated from cloth modifier data */
 	struct ClothHairData *hairdata;
-	void *hair_rbshape;
-	void *hair_rbobject;
+	ClothHairPhysics hair_physics;
 	/* grid geometry values of hair continuum */
 	float hair_grid_min[3];
 	float hair_grid_max[3];

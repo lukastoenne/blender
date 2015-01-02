@@ -706,18 +706,77 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 
 /* --------------------- */
 
-static void rigidbody_validate_sim_hair_shape(Object *UNUSED(ob), ParticleSystem *psys, bool rebuild)
+#define HAIR_SHAPE_INIT(clmd) \
+	(clmd)->hair_physics.rb_child_shapes
+#define HAIR_SHAPE_COUNT(clmd) \
+	(clmd)->hair_physics.num_child_shapes
+#define HAIR_SHAPE_NEXT(shape) \
+	(void *)((char *)(shape) + RB_shape_size_capsule)
+#define FOREACH_HAIR_SHAPE(clmd, index, shape) \
+	for (index = 0, shape = HAIR_SHAPE_INIT(clmd); \
+         index < HAIR_SHAPE_COUNT(clmd); \
+         ++index, shape = HAIR_SHAPE_NEXT(shape))
+
+static rbCollisionShape *hair_shape_create(Object *UNUSED(ob), ParticleSystem *psys)
 {
 	ClothModifierData *clmd = psys->clmd;
+	ClothHairPhysics *phys = &clmd->hair_physics;
 	Cloth *cloth = clmd->clothObject;
 	
-	if (clmd->hair_rbshape && rebuild) {
-		RB_shape_delete(clmd->hair_rbshape);
-		clmd->hair_rbshape = NULL;
+	rbCollisionShape *shape, *child_shape;
+	int num_capsules;
+	ParticleData *pa;
+	int p, k;
+	
+	phys->rb_shape = shape = RB_shape_new_compound(true);
+	
+	/* Count capsules used for collision:
+	 * Each hair segment is respresented by a capsule (to avoid end-cap collisions on cylinders)
+	 */
+	num_capsules = 0;
+	pa = psys->particles;
+	for (p = 0; p < psys->totpart; ++p, ++pa) {
+		num_capsules += pa->totkey - 1;
 	}
 	
-	// XXX TODO add compound shape support in rigidbody API
-//	clmd->hair_rbshape = RB_shape
+	phys->rb_child_shapes = MEM_mallocN(RB_shape_size_capsule * num_capsules, "hair collision shape capsules");
+	phys->num_child_shapes = num_capsules;
+	
+	pa = psys->particles;
+	for (p = 0, shape = HAIR_SHAPE_INIT(clmd); p < psys->totpart; ++p, ++pa, shape = HAIR_SHAPE_NEXT(shape)) {
+//		for (k = 0; )
+		
+//		RB_shape_init_capsule(child_shape, psys->part->size, )
+		
+//		RB_shape_compound_add_child_shape();
+	}
+	
+	return shape;
+}
+
+static void rigidbody_validate_sim_hair_shape(Object *ob, ParticleSystem *psys, bool rebuild)
+{
+	ClothModifierData *clmd = psys->clmd;
+	ClothHairPhysics *phys = &clmd->hair_physics;
+	
+	if (rebuild) {
+		if (phys->rb_shape) {
+			RB_shape_delete(phys->rb_shape);
+			phys->rb_shape = NULL;
+		}
+		if (phys->rb_child_shapes) {
+			int i;
+			rbCollisionShape *child_shape;
+			FOREACH_HAIR_SHAPE(clmd, i, child_shape) {
+				RB_shape_free(child_shape);
+			}
+			MEM_freeN(phys->rb_child_shapes);
+			phys->rb_child_shapes = NULL;
+			phys->num_child_shapes = 0;
+		}
+	}
+	
+	phys->rb_shape = hair_shape_create(ob, psys);
 }
 
 /**
@@ -730,25 +789,25 @@ static void rigidbody_validate_sim_hair_particle_system(RigidBodyWorld *rbw, Obj
 	ClothModifierData *clmd = psys->clmd;
 	
 	/* make sure collision shape exists */
-	if (!clmd->hair_rbshape || rebuild) {
+	if (!clmd->hair_physics.rb_shape || rebuild) {
 		rigidbody_validate_sim_hair_shape(ob, psys, true);
 	}
 	
-	if (!clmd->hair_rbobject || rebuild) {
+	if (!clmd->hair_physics.rb_object || rebuild) {
 		float loc[3], rot[4];
 		
-		if (clmd->hair_rbobject)
-			RB_ghost_delete(clmd->hair_rbobject);
+		if (clmd->hair_physics.rb_object)
+			RB_ghost_delete(clmd->hair_physics.rb_object);
 		
 		mat4_to_loc_quat(loc, rot, ob->obmat);
-		clmd->hair_rbobject = RB_ghost_new(clmd->hair_rbshape, loc, rot);
+		clmd->hair_physics.rb_object = RB_ghost_new(clmd->hair_physics.rb_shape, loc, rot);
 	}
-	else if (clmd->hair_rbobject)
-		RB_dworld_remove_ghost(rbw->physics_world, clmd->hair_rbobject);
+	else if (clmd->hair_physics.rb_object)
+		RB_dworld_remove_ghost(rbw->physics_world, clmd->hair_physics.rb_object);
 	
 	if (rbw && rbw->physics_world)
 		// XXX TODO define collision groups in the hair settings somewhere
-		RB_dworld_add_ghost(rbw->physics_world, clmd->hair_rbobject, 0xFFFF);
+		RB_dworld_add_ghost(rbw->physics_world, clmd->hair_physics.rb_object, 0xFFFF);
 }
 
 /* --------------------- */
@@ -1530,7 +1589,7 @@ static void rigidbody_update_sim_hair_particle_system(Object *ob, ParticleSystem
 	float scale[3];
 
 	/* only update if rigid body exists */
-	if (!clmd->hair_rbobject)
+	if (!clmd->hair_physics.rb_object)
 		return;
 
 	// XXX TODO
@@ -1539,8 +1598,8 @@ static void rigidbody_update_sim_hair_particle_system(Object *ob, ParticleSystem
 	mat4_decompose(loc, rot, scale, ob->obmat);
 
 	/* update transform */
-	RB_ghost_set_scale(clmd->hair_rbobject, scale);
-	RB_ghost_set_loc_rot(clmd->hair_rbobject, loc, rot);
+	RB_ghost_set_scale(clmd->hair_physics.rb_object, scale);
+	RB_ghost_set_loc_rot(clmd->hair_physics.rb_object, loc, rot);
 }
 
 static bool hair_particle_system_poll(Object *ob, ParticleSystem *psys)
