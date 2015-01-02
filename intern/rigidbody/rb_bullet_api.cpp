@@ -74,6 +74,19 @@ subject to the following restrictions:
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"
 
+static inline rbObjectType rigidbody_get_object_type(int bt_internal_type)
+{
+	switch (bt_internal_type) {
+		case btCollisionObject::CO_RIGID_BODY: return RB_OBJECT_RIGIDBODY;
+		case btCollisionObject::CO_GHOST_OBJECT: return RB_OBJECT_GHOST;
+		
+		default:
+			/* unknown btCollisionObject type, should never happen */
+			assert(false);
+			return RB_OBJECT_RIGIDBODY;
+	}
+}
+
 struct rbDynamicsWorld {
 	btDiscreteDynamicsWorld *dynamicsWorld;
 	btDefaultCollisionConfiguration *collisionConfiguration;
@@ -230,6 +243,10 @@ struct rbCompoundShape : public rbCollisionShape {
 	btCollisionShape *get_cshape() { return &cshape; }
 };
 
+struct rbManifoldPoint {
+	int unused;
+};
+
 struct rbFilterCallback : public btOverlapFilterCallback
 {
 	virtual bool needBroadphaseCollision(btBroadphaseProxy *proxy0, btBroadphaseProxy *proxy1) const
@@ -375,6 +392,30 @@ void RB_dworld_export(rbDynamicsWorld *world, const char *filename)
 }
 
 /* ********************************** */
+/* Manifold Point Methods */
+
+#define BTPT(pt) ((btManifoldPoint *)(pt))
+
+void RB_manifold_point_local_A(const rbManifoldPoint *pt, float vec[3]) { copy_v3_btvec3(vec, BTPT(pt)->m_localPointA); }
+void RB_manifold_point_local_B(const rbManifoldPoint *pt, float vec[3]) { copy_v3_btvec3(vec, BTPT(pt)->m_localPointB); }
+void RB_manifold_point_world_A(const rbManifoldPoint *pt, float vec[3]) { copy_v3_btvec3(vec, BTPT(pt)->m_positionWorldOnA); }
+void RB_manifold_point_world_B(const rbManifoldPoint *pt, float vec[3]) { copy_v3_btvec3(vec, BTPT(pt)->m_positionWorldOnB); }
+void RB_manifold_point_normal_world_B(const rbManifoldPoint *pt, float vec[3]) { copy_v3_btvec3(vec, BTPT(pt)->m_normalWorldOnB); }
+float RB_manifold_point_distance(const rbManifoldPoint *pt) { return BTPT(pt)->m_distance1; }
+float RB_manifold_point_combined_friction(const rbManifoldPoint *pt) { return BTPT(pt)->m_combinedFriction; }
+float RB_manifold_point_combined_rolling_friction(const rbManifoldPoint *pt) { return BTPT(pt)->m_combinedRollingFriction; }
+float RB_manifold_point_combined_restitution(const rbManifoldPoint *pt) { return BTPT(pt)->m_combinedRestitution; }
+int RB_manifold_point_part_id0(const rbManifoldPoint *pt) { return BTPT(pt)->m_partId0; }
+int RB_manifold_point_index0(const rbManifoldPoint *pt) { return BTPT(pt)->m_index0; }
+int RB_manifold_point_part_id1(const rbManifoldPoint *pt) { return BTPT(pt)->m_partId1; }
+int RB_manifold_point_index1(const rbManifoldPoint *pt) { return BTPT(pt)->m_index1; }
+void *RB_manifold_point_get_user_persistent_data(const rbManifoldPoint *pt) { return BTPT(pt)->m_userPersistentData; }
+void RB_manifold_point_set_user_persistent_data(const rbManifoldPoint *pt, void *data) { BTPT(pt)->m_userPersistentData = data; }
+float RB_manifold_point_lifetime(const rbManifoldPoint *pt) { return BTPT(pt)->m_lifeTime; }
+
+#undef BTPT
+
+/* ********************************** */
 /* Rigid Body Methods */
 
 /* Setup ---------------------------- */
@@ -396,8 +437,8 @@ void RB_dworld_remove_body(rbDynamicsWorld *world, rbRigidBody *object)
 
 /* Collision detection */
 
-/* generic implementation for btCollisionObject, also used for ghost objects */
-static void dworld_convex_sweep_test(
+/* generic implementation for btCollisionObject */
+static void dworld_convex_sweep_closest(
         rbDynamicsWorld *world, btCollisionObject *bt_object,
         const float loc_start[3], const float loc_end[3],
         float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
@@ -449,12 +490,59 @@ static void dworld_convex_sweep_test(
 	}
 }
 
-void RB_dworld_convex_sweep_test_body(
+void RB_dworld_convex_sweep_closest_body(
         rbDynamicsWorld *world, rbRigidBody *object,
         const float loc_start[3], const float loc_end[3],
         float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
 {
-	dworld_convex_sweep_test(world, object->body, loc_start, loc_end, v_location, v_hitpoint, v_normal, r_hit);
+	dworld_convex_sweep_closest(world, object->body, loc_start, loc_end, v_location, v_hitpoint, v_normal, r_hit);
+}
+
+struct	rbContactResultCallback : public btCollisionWorld::ContactResultCallback
+{
+	rbContactResultCallback(rbContactCallback cb, void *userdata, int col_groups) :
+		m_collision_filter_group(btBroadphaseProxy::DefaultFilter),
+		m_collision_filter_mask(btBroadphaseProxy::AllFilter),
+		m_callback(cb),
+		m_userdata(userdata),
+		m_col_groups(col_groups)
+	{
+	}
+	
+	short m_collision_filter_group;
+	short m_collision_filter_mask;
+	
+	rbContactCallback m_callback;
+	void *m_userdata;
+	int m_col_groups;
+	
+	bool needsCollision(btBroadphaseProxy *proxy0) const
+	{
+		rbCollisionObject *rb0 = (rbCollisionObject *)((btCollisionObject *)proxy0->m_clientObject)->getUserPointer();
+		
+		bool collides;
+		collides = (m_collision_filter_group & proxy0->m_collisionFilterMask) != 0;
+		collides = collides && (proxy0->m_collisionFilterGroup & m_collision_filter_mask);
+		collides = collides && (m_col_groups & rb0->col_groups);
+		
+		return collides;
+	}
+	
+	btScalar addSingleResult(btManifoldPoint& cp,
+	                         const btCollisionObjectWrapper* colObj0Wrap, int partId0, int index0,
+	                         const btCollisionObjectWrapper* colObj1Wrap, int partId1, int index1)
+	{
+		m_callback(m_userdata, (rbManifoldPoint *)(&cp),
+				   colObj0Wrap, rigidbody_get_object_type(colObj0Wrap->getCollisionObject()->getInternalType()), partId0, index0,
+				   colObj1Wrap, rigidbody_get_object_type(colObj1Wrap->getCollisionObject()->getInternalType()), partId1, index1);
+		return cp.getDistance();
+	}
+};
+
+void RB_dworld_contact_test_body(rbDynamicsWorld *world, rbRigidBody *object, rbContactCallback cb, void *userdata, int col_groups)
+{
+	rbContactResultCallback result(cb, userdata, col_groups);
+	world->dynamicsWorld->contactTest(object->body, result);
 }
 
 /* ............ */
@@ -860,12 +948,18 @@ void RB_ghost_set_scale(rbGhostObject *object, const float scale[3])
 	}
 }
 
-void RB_dworld_convex_sweep_test_ghost(
+void RB_dworld_convex_sweep_closest_ghost(
         rbDynamicsWorld *world, rbGhostObject *object,
         const float loc_start[3], const float loc_end[3],
         float v_location[3],  float v_hitpoint[3],  float v_normal[3], int *r_hit)
 {
-	dworld_convex_sweep_test(world, object->ghost, loc_start, loc_end, v_location, v_hitpoint, v_normal, r_hit);
+	dworld_convex_sweep_closest(world, object->ghost, loc_start, loc_end, v_location, v_hitpoint, v_normal, r_hit);
+}
+
+void RB_dworld_contact_test_ghost(rbDynamicsWorld *world, rbGhostObject *object, rbContactCallback cb, void *userdata, int col_groups)
+{
+	rbContactResultCallback result(cb, userdata, col_groups);
+	world->dynamicsWorld->contactTest(object->ghost, result);
 }
 
 /* ********************************** */
