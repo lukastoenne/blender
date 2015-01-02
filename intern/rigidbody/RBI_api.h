@@ -291,6 +291,9 @@ void RB_shape_compound_update_local_aabb(rbCollisionShape *shape);
 
 /* Cleanup --------------------------- */
 
+/* only free internal data (no dealloc) */
+void RB_shape_free(rbCollisionShape *shape);
+/* free and dealloc */
 void RB_shape_delete(rbCollisionShape *shape);
 
 /* Settings --------------------------- */

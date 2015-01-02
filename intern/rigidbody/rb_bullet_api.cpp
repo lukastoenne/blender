@@ -1073,6 +1073,11 @@ void RB_shape_compound_update_local_aabb(rbCollisionShape *shape)
 
 /* Cleanup --------------------------- */
 
+void RB_shape_free(rbCollisionShape *shape)
+{
+	shape->~rbCollisionShape();
+}
+
 void RB_shape_delete(rbCollisionShape *shape)
 {
 	delete shape;
