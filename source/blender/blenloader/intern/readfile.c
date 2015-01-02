@@ -3130,14 +3130,14 @@ static void lib_link_key(FileData *fd, Main *main)
 static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 {
 	int elemsize, a, b;
-	const char *data, *poin, *cp;
+	char *data;
 	
 	elemsize = key->elemsize;
 	data = kb->data;
 	
 	for (a = 0; a < kb->totelem; a++) {
-		cp = key->elemstr;
-		poin = data;
+		const char *cp = key->elemstr;
+		char *poin = data;
 		
 		while (cp[0]) {  /* cp[0] == amount */
 			switch (cp[1]) {  /* cp[1] = type */
@@ -4930,9 +4930,11 @@ static void direct_link_object(FileData *fd, Object *ob)
 	/* loading saved files with editmode enabled works, but for undo we like
 	 * to stay in object mode during undo presses so keep editmode disabled.
 	 *
-	 * Also when linking in a file don't allow editmode: [#34776] */
+	 * Also when linking in a file don't allow edit and pose modes.
+	 * See [#34776, #42780] for more information.
+	 */
 	if (fd->memfile || (ob->id.flag & (LIB_EXTERN | LIB_INDIRECT))) {
-		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
+		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT | OB_MODE_POSE);
 	}
 	
 	ob->adt = newdataadr(fd, ob->adt);
