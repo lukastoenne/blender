@@ -110,6 +110,7 @@ struct bConstraint;
 struct bConstraintOb;
 struct bConstraintTarget;
 struct bContextDataResult;
+struct bFaceMap;
 struct bNode;
 struct bNodeType;
 struct bNodeSocket;
@@ -298,6 +299,12 @@ void WM_cursor_time(struct wmWindow *win, int nr) RET_NONE
 void WM_cursor_warp(struct wmWindow *win, int x, int y) RET_NONE
 
 void WM_widgetmap_delete(struct wmWidgetMap *wmap) RET_NONE
+struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create) RET_NULL
+struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+                                                 void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
+                                                 struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d) RET_NULL
+void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup) RET_NONE
+
 
 void                WM_uilisttype_init(void) RET_NONE
 struct uiListType  *WM_uilisttype_find(const char *idname, bool quiet) RET_NULL
@@ -472,6 +479,8 @@ void ED_object_constraint_update(struct Object *ob) RET_NONE
 void ED_vgroup_vert_add(struct Object *ob, struct bDeformGroup *dg, int vertnum, float weight, int assignmode) RET_NONE
 void ED_vgroup_vert_remove(struct Object *ob, struct bDeformGroup *dg, int vertnum) RET_NONE
 float ED_vgroup_vert_weight(struct Object *ob, struct bDeformGroup *dg, int vertnum) RET_ZERO
+void ED_fmap_face_add(struct Object *ob, struct bFaceMap *fmap, int facenum) RET_NONE
+void ED_fmap_face_remove(struct Object *ob, struct bFaceMap *fmap, int facenum) RET_NONE
 int ED_mesh_mirror_topo_table(struct Object *ob, char mode) RET_ZERO
 int ED_mesh_mirror_spatial_table(struct Object *ob, struct BMEditMesh *em, const float co[3], char mode) RET_ZERO
 
