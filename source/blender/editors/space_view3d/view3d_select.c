@@ -836,6 +836,8 @@ static void view3d_lasso_select(bContext *C, ViewContext *vc,
 		}
 		else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT))
 			PE_lasso_select(C, mcords, moves, extend, select);
+		else if (ob && (ob->mode & OB_MODE_HAIR_EDIT))
+			ED_hair_lasso_select(C, mcords, moves, extend, select);
 		else {
 			do_lasso_select_objects(vc, mcords, moves, extend, select);
 			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);

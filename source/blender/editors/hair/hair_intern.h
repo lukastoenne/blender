@@ -69,6 +69,7 @@ bool hair_test_vertex_inside_circle(struct HairViewData *viewdata, const float m
 bool hair_test_edge_inside_circle(struct HairViewData *viewdata, const float mval[2], float radsq,
                                   struct BMVert *v1, struct BMVert *v2, float *r_dist, float *r_lambda);
 bool hair_test_vertex_inside_rect(struct HairViewData *viewdata, struct rcti *rect, struct BMVert *v);
+bool hair_test_vertex_inside_lasso(struct HairViewData *viewdata, const int mcoords[][2], short moves, struct BMVert *v);
 
 typedef struct HairToolData {
 	/* context */
