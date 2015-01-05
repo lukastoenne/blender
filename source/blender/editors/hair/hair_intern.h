@@ -41,8 +41,11 @@ struct bContext;
 struct wmOperatorType;
 
 int hair_edit_toggle_poll(struct bContext *C);
+int ED_hair_edit_poll(struct bContext *C);
 
 void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
+
+void HAIR_OT_select_all(struct wmOperatorType *ot);
 
 void HAIR_OT_stroke(struct wmOperatorType *ot);
 
