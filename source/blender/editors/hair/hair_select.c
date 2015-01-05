@@ -380,3 +380,49 @@ int ED_hair_circle_select(bContext *C, bool select, const int mval[2], float rad
 	
 	return tot;
 }
+
+/************************ lasso select operator ************************/
+
+typedef struct PollVertexLassoData {
+	HairViewData viewdata;
+	const int (*mcoords)[2];
+	short moves;
+} PollVertexLassoData;
+
+static bool poll_vertex_inside_lasso(void *userdata, struct BMVert *v)
+{
+	PollVertexLassoData *data = userdata;
+	
+	return hair_test_vertex_inside_lasso(&data->viewdata, data->mcoords, data->moves, v);
+}
+
+int ED_hair_lasso_select(bContext *C, const int mcoords[][2], const short moves, bool extend, bool select)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	
+	PollVertexLassoData data;
+	int action;
+	
+	if (!extend && select)
+		hair_deselect_all(edit);
+	
+	hair_init_viewdata(C, &data.viewdata);
+	data.mcoords = mcoords;
+	data.moves = moves;
+	
+	if (extend)
+		action = SEL_SELECT;
+	else if (select)
+		action = SEL_INVERT;
+	else
+		action = SEL_DESELECT;
+	
+	hair_select_verts_filter(edit, settings->select_mode, action, poll_vertex_inside_lasso, &data);
+	
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
+	
+	return OPERATOR_FINISHED;
+}
