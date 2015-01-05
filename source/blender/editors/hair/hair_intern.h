@@ -39,6 +39,7 @@
 struct ARegion;
 struct bContext;
 struct wmOperatorType;
+struct rcti;
 
 /* hair_edit.c */
 int hair_edit_toggle_poll(struct bContext *C);
@@ -67,6 +68,7 @@ bool hair_test_vertex_inside_circle(struct HairViewData *viewdata, const float m
                              struct BMVert *v, float *r_dist);
 bool hair_test_edge_inside_circle(struct HairViewData *viewdata, const float mval[2], float radsq,
                                   struct BMVert *v1, struct BMVert *v2, float *r_dist, float *r_lambda);
+bool hair_test_vertex_inside_rect(struct HairViewData *viewdata, struct rcti *rect, struct BMVert *v);
 
 typedef struct HairToolData {
 	/* context */

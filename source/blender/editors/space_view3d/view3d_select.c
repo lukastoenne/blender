@@ -2148,6 +2148,9 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 		else if (vc.obact && vc.obact->mode & OB_MODE_PARTICLE_EDIT) {
 			ret = PE_border_select(C, &rect, select, extend);
 		}
+		else if (vc.obact && vc.obact->mode & OB_MODE_HAIR_EDIT) {
+			ret = ED_hair_border_select(C, &rect, select, extend);
+		}
 		else { /* object mode with none active */
 			ret = do_object_pose_box_select(C, &vc, &rect, select, extend);
 		}
