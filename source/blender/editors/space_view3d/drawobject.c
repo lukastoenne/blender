@@ -87,6 +87,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_select.h"
+#include "GPU_buffers.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -4012,7 +4013,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 			}
 
 			draw_mesh_fancy(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
-
+			
 			GPU_end_object_materials();
 			
 			if (me->totvert == 0) retval = true;
@@ -8395,6 +8396,48 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 	if (edm) edm->release(edm);
 	if (dm) dm->release(dm);
 }
+
+void ED_draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
+{
+	DerivedMesh *dm = NULL;
+	
+	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	if (!dm || !CustomData_has_layer(&dm->polyData, CD_FACEMAP))
+		return;
+	
+	DM_update_materials(dm, ob);
+
+	glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
+	
+	/* add polygon offset so we draw above the original surface */
+	glPolygonOffset(1.0, 1.0);
+
+	dm->totfmaps = BLI_listbase_count(&ob->fmaps);
+	
+	GPU_facemap_setup(dm);
+
+	glColor4f(0.7, 1.0, 1.0, 0.5);
+	
+	glPushAttrib(GL_ENABLE_BIT);
+	glEnable(GL_BLEND);
+	glDisable(GL_LIGHTING);
+
+	if (dm->drawObject->facemapindices) {
+		if (dm->drawObject->facemapindices->use_vbo)
+			glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT, 
+			               (int *)NULL + dm->drawObject->facemap_start[facemap]);
+		else
+			glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT,
+			               (int *)dm->drawObject->facemapindices->pointer + dm->drawObject->facemap_start[facemap]);
+	}
+	glPopAttrib();
+
+	GPU_buffer_unbind();
+
+	glPolygonOffset(0.0, 0.0);
+	dm->release(dm);
+}
+
 
 void draw_object_instance(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, const char dt, int outline)
 {

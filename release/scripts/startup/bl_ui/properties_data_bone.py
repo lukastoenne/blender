@@ -229,9 +229,7 @@ class BONE_PT_display(BoneButtonsPanel, Panel):
                 col.label(text="Custom Shape:")
                 col.prop(pchan, "custom_shape", text="")
                 if pchan.custom_shape:
-                    col.prop_search(pchan, "custom_shape_fmap", pchan.custom_shape, "face_maps", text="Face Map")
-                    if not pchan.custom_shape_fmap:
-                        col.prop_search(pchan, "custom_shape_transform", ob.pose, "bones", text="At")
+                    col.prop_search(pchan, "custom_shape_transform", ob.pose, "bones", text="At")
 
 
 class BONE_PT_inverse_kinematics(BoneButtonsPanel, Panel):

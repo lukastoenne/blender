@@ -187,7 +187,8 @@ struct DerivedMesh {
 	DerivedMeshType type;
 	float auto_bump_scale;
 	DMDirtyFlag dirty;
-	int totmat; /* total materials. Will be valid only before object drawing. */
+	short totfmaps;
+	short totmat; /* total materials. Will be valid only before object drawing. */
 	struct Material **mat; /* material array. Will be valid only before object drawing */
 
 	/* use for converting to BMesh which doesn't store bevel weight and edge crease by default */
@@ -466,6 +467,10 @@ struct DerivedMesh {
 	                           void (*setMaterial)(void *userData, int matnr, void *attribs),
 	                           bool (*setFace)(void *userData, int index), void *userData);
 
+	struct GPUDrawObject *(*gpuObjectNew)(DerivedMesh *dm);
+	void (*copy_gpu_data)(DerivedMesh *dm, int type, float *varray, int *index,
+	                      int *mat_orig_to_new, void *user_data);
+	
 	/** Release reference to the DerivedMesh. This function decides internally
 	 * if the DerivedMesh will be freed, or cached for later use. */
 	void (*release)(DerivedMesh *dm);

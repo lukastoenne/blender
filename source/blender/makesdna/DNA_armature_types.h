@@ -154,7 +154,8 @@ typedef enum eArmature_DeformFlag {
 	ARM_DEF_ENVELOPE		= (1<<1),
 	ARM_DEF_QUATERNION		= (1<<2),
 	ARM_DEF_B_BONE_REST		= (1<<3),	/* deprecated */
-	ARM_DEF_INVERT_VGROUP	= (1<<4)
+	ARM_DEF_INVERT_VGROUP	= (1<<4),
+	ARM_DEF_FACEMAPS		= (1<<5)
 } eArmature_DeformFlag;
 
 #if (DNA_DEPRECATED_GCC_POISON == 1)

@@ -85,6 +85,7 @@
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_effect.h"
+#include "BKE_facemap.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
 #include "BKE_key.h"

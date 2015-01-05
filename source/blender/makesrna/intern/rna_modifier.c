@@ -1287,6 +1287,11 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Bone Envelopes", "Bind Bone envelopes to armature modifier");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "use_face_maps", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "deformflag", ARM_DEF_FACEMAPS);
+	RNA_def_property_ui_text(prop, "Use Face Maps", "Create facemap widgets with same name as bones in the armature");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	
 	prop = RNA_def_property(srna, "use_vertex_groups", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "deformflag", ARM_DEF_VGROUP);
 	RNA_def_property_ui_text(prop, "Use Vertex Groups", "Bind vertex groups to armature modifier");

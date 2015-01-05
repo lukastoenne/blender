@@ -61,6 +61,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.label(text="Bind To:")
         col.prop(md, "use_vertex_groups", text="Vertex Groups")
         col.prop(md, "use_bone_envelopes", text="Bone Envelopes")
+        col.prop(md, "use_face_maps", text="Face Maps")
 
         layout.separator()
 

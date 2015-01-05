@@ -1910,6 +1910,10 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 		else if (layer->type == CD_GRID_PAINT_MASK) {
 			write_grid_paint_mask(wd, count, layer->data);
 		}
+		else if (layer->type == CD_FACEMAP) {
+			const int *layer_data = layer->data;
+			writedata(wd, DATA, sizeof(*layer_data) * count, layer_data);
+		}
 		else {
 			CustomData_file_write_info(layer->type, &structname, &structnum);
 			if (structnum) {

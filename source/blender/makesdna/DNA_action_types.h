@@ -212,7 +212,6 @@ typedef struct bPoseChannel {
 	struct bPoseChannel *custom_tx; /* odd feature, display with another bones transform.
 	                                 * needed in rare cases for advanced rigs,
 	                                 * since the alternative is highly complicated - campbell */
-	struct FaceMap *custom_fmap;    /* uses facemap of object to interact with it */
 
 	/* transforms - written in by actions or transform */
 	float loc[3];

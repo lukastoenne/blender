@@ -50,6 +50,9 @@ struct GSet;
 struct GPUVertPointLink;
 struct PBVH;
 
+typedef void (*GPUBufferCopyFunc)(DerivedMesh *dm, float *varray, int *index,
+                                  int *mat_orig_to_new, void *user_data);
+
 typedef struct GPUBuffer {
 	int size;	/* in bytes */
 	void *pointer;	/* used with vertex arrays */
@@ -90,6 +93,7 @@ typedef struct GPUDrawObject {
 	GPUBuffer *colors;
 	GPUBuffer *edges;
 	GPUBuffer *uvedges;
+	GPUBuffer *facemapindices;
 
 	/* for each triangle, the original MFace index */
 	int *triangle_to_mface;
@@ -115,6 +119,10 @@ typedef struct GPUDrawObject {
 	/* caches of the original DerivedMesh values */
 	int totvert;
 	int totedge;
+
+	int totfacemaps;    /* total facemaps */
+	int *facemap_start; /* beginning of facemap */
+	int *facemap_count; /* elements per facemap */
 } GPUDrawObject;
 
 /* used for GLSL materials */
@@ -130,8 +138,20 @@ void GPU_global_buffer_pool_free_unused(void);
 GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays);
 void GPU_buffer_free(GPUBuffer *buffer);
 
-GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm);
 void GPU_drawobject_free(struct DerivedMesh *dm);
+
+/* flag that controls data type to fill buffer with, a modifier will prepare. */
+typedef enum {
+	GPU_BUFFER_VERTEX = 0,
+	GPU_BUFFER_NORMAL,
+	GPU_BUFFER_COLOR,
+	GPU_BUFFER_UV,
+	GPU_BUFFER_UV_TEXPAINT,
+	GPU_BUFFER_EDGE,
+	GPU_BUFFER_UVEDGE,
+	GPU_BUFFER_FACEMAP
+} GPUBufferType;
+
 
 /* called before drawing */
 void GPU_vertex_setup(struct DerivedMesh *dm);
@@ -142,6 +162,7 @@ void GPU_texpaint_uv_setup(struct DerivedMesh *dm);
 void GPU_color_setup(struct DerivedMesh *dm, int colType);
 void GPU_edge_setup(struct DerivedMesh *dm); /* does not mix with other data */
 void GPU_uvedge_setup(struct DerivedMesh *dm);
+void GPU_facemap_setup(struct DerivedMesh *dm);
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
 void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata);
 

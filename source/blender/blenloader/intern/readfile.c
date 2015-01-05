@@ -2945,7 +2945,6 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 		pchan->bone = BKE_armature_find_bone_name(arm, pchan->name);
 		
 		pchan->custom = newlibadr_us(fd, arm->id.lib, pchan->custom);
-		pchan->custom_fmap = newlibadr_us(fd, arm->id.lib, pchan->custom_fmap);
 		if (pchan->bone == NULL)
 			rebuild= 1;
 		else if (ob->id.lib==NULL && arm->id.lib) {

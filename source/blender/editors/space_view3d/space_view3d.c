@@ -32,7 +32,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "DNA_armature_types.h"
 #include "DNA_material_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_camera_types.h"
@@ -44,12 +46,14 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_icons.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
@@ -755,7 +759,7 @@ static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGro
 	WM_widget_set_scale(widget, ca->drawsize);
 }
 
-
+#if 0
 static int WIDGETGROUP_shapekey_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
@@ -794,6 +798,72 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 }
+#endif
+
+static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_MESH && ob->fmaps.first) {
+		ModifierData *md;
+		VirtualModifierData virtualModifierData;
+	
+		md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+	
+		/* exception for shape keys because we can edit those */
+		for (; md; md = md->next) {
+			if (modifier_isEnabled(CTX_data_scene(C), md, eModifierMode_Realtime) && md->type == eModifierType_Armature) {
+				ArmatureModifierData *amd = (ArmatureModifierData *) md;
+				if (amd->object && (amd->deformflag & ARM_DEF_FACEMAPS))
+					return true;
+				}
+			}
+	}
+	return false;
+}
+
+static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	Object *ob = CTX_data_active_object(C);
+	wmWidget *widget;
+	Object *armature;
+	PointerRNA famapptr;
+	PropertyRNA *prop;
+	ModifierData *md;
+	VirtualModifierData virtualModifierData;
+	int index = 0;
+	bFaceMap *fmap = ob->fmaps.first;
+	
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+	
+	/* exception for shape keys because we can edit those */
+	for (; md; md = md->next) {
+		if (modifier_isEnabled(CTX_data_scene(C), md, eModifierMode_Realtime) && md->type == eModifierType_Armature) {
+			ArmatureModifierData *amd = (ArmatureModifierData *) md;
+			if (amd->object && (amd->deformflag & ARM_DEF_FACEMAPS)) {
+				armature = amd->object;
+				break;
+			}
+		}
+	}
+	
+	
+	for (; fmap; fmap = fmap->next, index++) {
+		if (BKE_pose_channel_find_name(armature->pose, fmap->name)) {
+			PointerRNA *opptr;
+			widget = WIDGET_facemap_new(wgroup, 0, ob, index);
+			RNA_pointer_create(&ob->id, &RNA_FaceMap, fmap, &famapptr);
+			WM_widget_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
+			opptr = WM_widget_operator(widget, "TRANSFORM_OT_translate");
+			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
+				RNA_property_boolean_set(opptr, prop, true);
+			}
+			WIDGET_facemap_set_color(widget, color_shape);
+			WM_widget_set_draw_on_hover_only(widget, true);
+		}
+	}
+}
 
 
 static void view3d_widgets(void)
@@ -802,14 +872,13 @@ static void view3d_widgets(void)
 	
 	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-//	WM_widgetgrouptype_new(WIDGETGROUP_shapekey_poll, WIDGETGROUP_shapekey_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll, WIDGETGROUP_armature_facemap_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 #if 0
 	wgroup_manipulator = WM_widgetgrouptype_new(
 	        WIDGETGROUP_manipulator_poll,
 	        WIDGETGROUP_manipulator_update);
 #endif
-	
 }
 
 

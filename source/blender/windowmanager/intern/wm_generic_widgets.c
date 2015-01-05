@@ -1055,6 +1055,58 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	return (wmWidget *)cage;
 }
 
+/********* Facemap widget ************/
+
+typedef struct FacemapWidget {
+	wmWidget widget;
+	Object *ob;
+	int facemap;
+	int style;
+	float color[4];
+} FacemapWidget;
+
+
+static void widget_facemap_draw(struct wmWidget *widget, const struct bContext *C)
+{
+	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
+	glPushMatrix();
+	glMultMatrixf(&fmap_widget->ob->obmat[0][0]);
+	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, fmap_widget->facemap);
+	glPopMatrix();
+}
+
+static void widget_facemap_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase)
+{
+	GPU_select_load_id(selectionbase);
+	widget_facemap_draw(widget, C);
+}
+
+
+void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4])
+{
+	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
+	copy_v4_v4(fmap_widget->color, color);
+}
+
+struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, struct Object *ob, int facemap)
+{
+	FacemapWidget *fmap_widget = MEM_callocN(sizeof(RectTransformWidget), "CageWidget");
+
+	fmap_widget->widget.draw = widget_facemap_draw;
+//	fmap_widget->widget.invoke = NULL;
+//	fmap_widget->widget.bind_to_prop = NULL;
+//	fmap_widget->widget.handler = NULL;
+	fmap_widget->widget.render_3d_intersection = widget_facemap_render_3d_intersect;
+	fmap_widget->ob = ob;
+	fmap_widget->facemap = facemap;
+	fmap_widget->style = style;
+	
+	wm_widget_register(wgroup, &fmap_widget->widget);
+	
+	return (wmWidget *)fmap_widget;
+}
+
+
 void fix_linking_widget_lib(void)
 {
 	(void) 0;

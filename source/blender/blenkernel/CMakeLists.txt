@@ -94,6 +94,7 @@ set(SRC
 	intern/editmesh.c
 	intern/editmesh_bvh.c
 	intern/effect.c
+	intern/facemap.c
 	intern/fcurve.c
 	intern/fluidsim.c
 	intern/fmodifier.c
@@ -207,6 +208,7 @@ set(SRC
 	BKE_displist.h
 	BKE_dynamicpaint.h
 	BKE_effect.h
+	BKE_facemap.h
 	BKE_fcurve.h
 	BKE_fluidsim.h
 	BKE_font.h
