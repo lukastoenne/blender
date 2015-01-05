@@ -40,13 +40,16 @@ struct ARegion;
 struct bContext;
 struct wmOperatorType;
 
+/* hair_edit.c */
 int hair_edit_toggle_poll(struct bContext *C);
-int ED_hair_edit_poll(struct bContext *C);
+int hair_edit_poll(struct bContext *C);
 
 void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
 
+/* hair_select.c */
 void HAIR_OT_select_all(struct wmOperatorType *ot);
 
+/* hair_stroke.c */
 void HAIR_OT_stroke(struct wmOperatorType *ot);
 
 
