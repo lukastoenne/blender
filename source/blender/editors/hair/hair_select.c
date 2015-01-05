@@ -58,8 +58,6 @@
 
 #include "hair_intern.h"
 
-typedef bool (*TestVertexCb)(void *userdata, struct BMVert *v);
-
 BLI_INLINE bool apply_select_action_flag(BMVert *v, int action)
 {
 	bool cursel = BM_elem_flag_test_bool(v, BM_ELEM_SELECT);
@@ -89,7 +87,12 @@ BLI_INLINE bool apply_select_action_flag(BMVert *v, int action)
 		return false;
 }
 
-static int hair_select_verts(BMEditStrands *edit, HairEditSelectMode select_mode, int action, TestVertexCb cb, void *userdata)
+/* poll function */
+typedef bool (*PollVertexCb)(void *userdata, struct BMVert *v);
+/* distance metric function */
+typedef bool (*DistanceVertexCb)(void *userdata, struct BMVert *v, float *dist);
+
+static int hair_select_verts_filter(BMEditStrands *edit, HairEditSelectMode select_mode, int action, PollVertexCb cb, void *userdata)
 {
 	BMesh *bm = edit->bm;
 	
@@ -129,11 +132,64 @@ static int hair_select_verts(BMEditStrands *edit, HairEditSelectMode select_mode
 	return tot;
 }
 
+static int hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode select_mode, int action, DistanceVertexCb cb, void *userdata)
+{
+	BMesh *bm = edit->bm;
+	
+	BMVert *v;
+	BMIter iter;
+	int tot = 0;
+	
+	float dist;
+	BMVert *closest_v = NULL;
+	float closest_dist = FLT_MAX;
+	
+	bm->selectmode = BM_VERT;
+	
+	switch (select_mode) {
+		case HAIR_SELECT_STRAND:
+			break;
+		case HAIR_SELECT_VERTEX:
+			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+				if (!cb(userdata, v, &dist))
+					continue;
+				
+				if (dist < closest_dist) {
+					closest_v = v;
+					closest_dist = dist;
+				}
+			}
+			break;
+		case HAIR_SELECT_TIP:
+			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+				if (!BM_strands_vert_is_tip(v))
+					continue;
+				if (!cb(userdata, v, &dist))
+					continue;
+				
+				if (dist < closest_dist) {
+					closest_v = v;
+					closest_dist = dist;
+				}
+			}
+			break;
+	}
+	
+	if (closest_v) {
+		if (apply_select_action_flag(closest_v, action))
+			++tot;
+	}
+	
+	BM_mesh_select_mode_flush(bm);
+	
+	return tot;
+}
+
 /* ------------------------------------------------------------------------- */
 
 /************************ select/deselect all operator ************************/
 
-static bool test_vertex_all(void *UNUSED(userdata), struct BMVert *UNUSED(v))
+static bool poll_vertex_all(void *UNUSED(userdata), struct BMVert *UNUSED(v))
 {
 	return true;
 }
@@ -157,7 +213,7 @@ static int select_all_exec(bContext *C, wmOperator *op)
 			action = SEL_DESELECT;
 	}
 	
-	hair_select_verts(edit, settings->select_mode, action, test_vertex_all, NULL);
+	hair_select_verts_filter(edit, settings->select_mode, action, poll_vertex_all, NULL);
 	
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
 	
@@ -173,7 +229,7 @@ void HAIR_OT_select_all(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = select_all_exec;
-	ot->poll = ED_hair_edit_poll;
+	ot->poll = hair_edit_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -181,17 +237,70 @@ void HAIR_OT_select_all(wmOperatorType *ot)
 	WM_operator_properties_select_all(ot);
 }
 
-/************************ circle select operator ************************/
+/************************ mouse select operator ************************/
 
-typedef struct TestVertexCirleData {
+typedef struct DistanceVertexCirleData {
 	HairViewData viewdata;
 	float mval[2];
 	float radsq;
-} TestVertexCirleData;
+} DistanceVertexCirleData;
 
-static bool test_vertex_circle(void *userdata, struct BMVert *v)
+static bool distance_vertex_circle(void *userdata, struct BMVert *v, float *dist)
 {
-	TestVertexCirleData *data = userdata;
+	DistanceVertexCirleData *data = userdata;
+	
+	return hair_test_vertex_inside_circle(&data->viewdata, data->mval, data->radsq, v, dist);
+}
+
+int ED_hair_mouse_select(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	float select_radius = ED_view3d_select_dist_px();
+	
+	BMVert *v;
+	BMIter iter;
+	DistanceVertexCirleData data;
+	int action;
+	
+	if (!extend && !deselect && !toggle) {
+		BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			BM_elem_flag_set(v, BM_ELEM_SELECT, false);
+		}
+	}
+	
+	hair_init_viewdata(C, &data.viewdata);
+	data.mval[0] = mval[0];
+	data.mval[1] = mval[1];
+	data.radsq = select_radius * select_radius;
+	
+	if (extend)
+		action = SEL_SELECT;
+	else if (deselect)
+		action = SEL_DESELECT;
+	else
+		action = SEL_INVERT;
+	
+	hair_select_verts_closest(edit, settings->select_mode, action, distance_vertex_circle, &data);
+	
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
+	
+	return OPERATOR_FINISHED;
+}
+
+/************************ circle select operator ************************/
+
+typedef struct PollVertexCirleData {
+	HairViewData viewdata;
+	float mval[2];
+	float radsq;
+} PollVertexCirleData;
+
+static bool poll_vertex_inside_circle(void *userdata, struct BMVert *v)
+{
+	PollVertexCirleData *data = userdata;
 	float dist;
 	
 	return hair_test_vertex_inside_circle(&data->viewdata, data->mval, data->radsq, v, &dist);
@@ -205,7 +314,7 @@ int ED_hair_circle_select(bContext *C, bool select, const int mval[2], float rad
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	int action = select ? SEL_SELECT : SEL_DESELECT;
 	
-	TestVertexCirleData data;
+	PollVertexCirleData data;
 	int tot;
 	
 	if (!edit)
@@ -216,7 +325,7 @@ int ED_hair_circle_select(bContext *C, bool select, const int mval[2], float rad
 	data.mval[1] = mval[1];
 	data.radsq = radius * radius;
 	
-	tot = hair_select_verts(edit, settings->select_mode, action, test_vertex_circle, &data);
+	tot = hair_select_verts_filter(edit, settings->select_mode, action, poll_vertex_inside_circle, &data);
 	
 	return tot;
 }

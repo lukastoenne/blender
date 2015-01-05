@@ -118,7 +118,7 @@ static bool apply_hair_edit(Object *ob)
 	return false;
 }
 
-int ED_hair_edit_poll(bContext *C)
+int hair_edit_poll(bContext *C)
 {
 	Object *obact;
 	
@@ -476,7 +476,7 @@ void HAIR_OT_stroke(wmOperatorType *ot)
 	ot->invoke = hair_stroke_invoke;
 	ot->modal = hair_stroke_modal;
 	ot->cancel = hair_stroke_cancel;
-	ot->poll = ED_hair_edit_poll;
+	ot->poll = hair_edit_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;

@@ -85,6 +85,7 @@
 
 #include "ED_armature.h"
 #include "ED_curve.h"
+#include "ED_physics.h"
 #include "ED_particle.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
@@ -2277,6 +2278,8 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
 	}
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT)
 		return PE_mouse_particles(C, location, extend, deselect, toggle);
+	else if (obact && obact->mode & OB_MODE_HAIR_EDIT)
+		return ED_hair_mouse_select(C, location, extend, deselect, toggle);
 	else if (obact && BKE_paint_select_face_test(obact))
 		retval = paintface_mouse_select(C, obact, location, extend, deselect, toggle);
 	else if (BKE_paint_select_vert_test(obact))
