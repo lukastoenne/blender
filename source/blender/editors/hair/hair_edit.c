@@ -118,6 +118,18 @@ static bool apply_hair_edit(Object *ob)
 	return false;
 }
 
+int ED_hair_edit_poll(bContext *C)
+{
+	Object *obact;
+	
+	obact = CTX_data_active_object(C);
+	if ((obact && obact->mode & OB_MODE_HAIR_EDIT) && CTX_wm_region_view3d(C)) {
+		return true;
+	}
+	
+	return false;
+}
+
 
 /* ==== BMesh utilities ==== */
 
@@ -248,18 +260,6 @@ void hair_init_viewdata(bContext *C, HairViewData *viewdata)
 			ED_view3d_depth_update(viewdata->vc.ar);
 		}
 	}
-}
-
-static int hair_stroke_poll(bContext *C)
-{
-	Object *obact;
-	
-	obact = CTX_data_active_object(C);
-	if ((obact && obact->mode & OB_MODE_HAIR_EDIT) && CTX_wm_region_view3d(C)) {
-		return true;
-	}
-	
-	return false;
 }
 
 typedef struct HairStroke {
@@ -476,7 +476,7 @@ void HAIR_OT_stroke(wmOperatorType *ot)
 	ot->invoke = hair_stroke_invoke;
 	ot->modal = hair_stroke_modal;
 	ot->cancel = hair_stroke_cancel;
-	ot->poll = hair_stroke_poll;
+	ot->poll = ED_hair_edit_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
