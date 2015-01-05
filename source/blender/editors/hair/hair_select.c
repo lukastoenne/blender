@@ -35,6 +35,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -185,6 +186,16 @@ static int hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode sel
 	return tot;
 }
 
+static void hair_deselect_all(BMEditStrands *edit)
+{
+	BMVert *v;
+	BMIter iter;
+	
+	BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+		BM_elem_flag_set(v, BM_ELEM_SELECT, false);
+	}
+}
+
 /* ------------------------------------------------------------------------- */
 
 /************************ select/deselect all operator ************************/
@@ -260,15 +271,11 @@ int ED_hair_mouse_select(bContext *C, const int mval[2], bool extend, bool desel
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	float select_radius = ED_view3d_select_dist_px();
 	
-	BMVert *v;
-	BMIter iter;
 	DistanceVertexCirleData data;
 	int action;
 	
 	if (!extend && !deselect && !toggle) {
-		BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
-			BM_elem_flag_set(v, BM_ELEM_SELECT, false);
-		}
+		hair_deselect_all(edit);
 	}
 	
 	hair_init_viewdata(C, &data.viewdata);
@@ -284,6 +291,50 @@ int ED_hair_mouse_select(bContext *C, const int mval[2], bool extend, bool desel
 		action = SEL_INVERT;
 	
 	hair_select_verts_closest(edit, settings->select_mode, action, distance_vertex_circle, &data);
+	
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
+	
+	return OPERATOR_FINISHED;
+}
+
+/************************ border select operator ************************/
+
+typedef struct PollVertexRectData {
+	HairViewData viewdata;
+	rcti rect;
+} PollVertexRectData;
+
+static bool poll_vertex_inside_rect(void *userdata, struct BMVert *v)
+{
+	PollVertexRectData *data = userdata;
+	
+	return hair_test_vertex_inside_rect(&data->viewdata, &data->rect, v);
+}
+
+int ED_hair_border_select(bContext *C, rcti *rect, bool select, bool extend)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	
+	PollVertexRectData data;
+	int action;
+	
+	if (!extend && select)
+		hair_deselect_all(edit);
+	
+	hair_init_viewdata(C, &data.viewdata);
+	data.rect = *rect;
+	
+	if (extend)
+		action = SEL_SELECT;
+	else if (select)
+		action = SEL_INVERT;
+	else
+		action = SEL_DESELECT;
+	
+	hair_select_verts_filter(edit, settings->select_mode, action, poll_vertex_inside_rect, &data);
 	
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
 	

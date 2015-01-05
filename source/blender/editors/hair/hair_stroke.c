@@ -35,6 +35,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_meshdata_types.h"
@@ -157,6 +158,27 @@ bool hair_test_edge_inside_circle(HairViewData *viewdata, const float mval[2], f
 		*r_lambda = lambda;
 		return true;
 	}
+	else
+		return false;
+}
+
+bool hair_test_vertex_inside_rect(HairViewData *viewdata, rcti *rect, BMVert *v)
+{
+	float (*obmat)[4] = viewdata->vc.obact->obmat;
+	float co_world[3];
+	int screen_co[2];
+	
+	mul_v3_m4v3(co_world, obmat, v->co);
+	
+	/* TODO, should this check V3D_PROJ_TEST_CLIP_BB too? */
+	if (ED_view3d_project_int_global(viewdata->vc.ar, co_world, screen_co, V3D_PROJ_TEST_CLIP_WIN) != V3D_PROJ_RET_OK)
+		return false;
+	
+	if (!BLI_rcti_isect_pt_v(rect, screen_co))
+		return false;
+	
+	if (hair_test_depth(viewdata, v->co, screen_co))
+		return true;
 	else
 		return false;
 }
