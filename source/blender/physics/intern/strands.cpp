@@ -76,7 +76,7 @@ static int strand_count_vertices(BMVert *root)
 	return len;
 }
 
-static int strands_get_max_length(BMEditStrands *edit)
+static int UNUSED_FUNCTION(strands_get_max_length)(BMEditStrands *edit)
 {
 	BMVert *root;
 	BMIter iter;
@@ -351,7 +351,7 @@ static VectorX strand_angles_to_loc(Object *ob, BMEditStrands *edit, BMVert *roo
 	return result;
 }
 
-static void strand_apply_ik_result(Object *UNUSED(ob), BMEditStrands *UNUSED(edit), BMVert *root, const VectorX &solution)
+static void UNUSED_FUNCTION(strand_apply_ik_result)(Object *UNUSED(ob), BMEditStrands *UNUSED(edit), BMVert *root, const VectorX &solution)
 {
 	BMVert *v;
 	BMIter iter_strand;
@@ -413,7 +413,7 @@ void BPH_strands_solve_constraints(Object *ob, BMEditStrands *edit, float (*orig
 {
 	strands_apply_root_locations(edit);
 	
-	if (false) {
+	if (true) {
 		strands_solve_edge_relaxation(edit);
 	}
 	else {
