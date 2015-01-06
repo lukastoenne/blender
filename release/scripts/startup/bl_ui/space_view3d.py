@@ -51,7 +51,10 @@ class VIEW3D_HT_header(Header):
             if mode == 'PARTICLE_EDIT':
                 row.prop(toolsettings.particle_edit, "select_mode", text="", expand=True)
             elif mode == 'HAIR_EDIT':
-                row.prop(toolsettings.hair_edit, "select_mode", text="", expand=True)
+                hair_edit = toolsettings.hair_edit
+                row.prop(hair_edit, "mode", text="")
+                if hair_edit.mode == 'MESH':
+                    row.prop(toolsettings.hair_edit, "select_mode", text="", expand=True)
 
             # Occlude geometry
             if ((view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'} and (mode == 'PARTICLE_EDIT' or (mode == 'EDIT' and obj.type == 'MESH'))) or
@@ -162,8 +165,12 @@ class VIEW3D_MT_editor_menus(Menu):
         elif obj:
             if mode_string not in {'PAINT_TEXTURE'}:
                 layout.menu("VIEW3D_MT_%s" % mode_string.lower())
-            if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE', 'HAIR'}:
+            if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
                 layout.menu("VIEW3D_MT_brush")
+            if mode_string == 'HAIR':
+                hair_edit = context.tool_settings.hair_edit
+                if hair_edit.mode == 'MESH':
+                    layout.menu("VIEW3D_MT_brush")
             if mode_string == 'SCULPT':
                 layout.menu("VIEW3D_MT_hide_mask")
         else:
