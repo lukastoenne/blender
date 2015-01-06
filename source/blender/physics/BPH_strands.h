@@ -45,7 +45,8 @@ struct HairFlowData;
 struct HairFlowData *BPH_strands_solve_hair_flow(struct Scene *scene, struct Object *ob);
 void BPH_strands_free_hair_flow(struct HairFlowData *data);
 
-void BPH_strands_sample_hair_flow(struct Object *ob, struct BMEditStrands *edit, struct HairFlowData *data);
+void BPH_strands_sample_hair_flow(struct Object *ob, struct BMEditStrands *edit, struct HairFlowData *data,
+                                  unsigned int seed, int max_strands, float max_length, int segments);
 
 #ifdef __cplusplus
 }

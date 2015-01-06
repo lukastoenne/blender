@@ -62,13 +62,21 @@ static int hair_solve_flow_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	BMEditStrands *edit = BKE_editstrands_from_object(ob);
-//	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	
+	unsigned int seed = 111;
+	int max_strands = RNA_int_get(op->ptr, "max_strands");
+	float max_length = RNA_float_get(op->ptr, "max_length");
+	int segments = RNA_int_get(op->ptr, "segments");
 	
 	struct HairFlowData *data = BPH_strands_solve_hair_flow(scene, ob);
-	
-	BPH_strands_sample_hair_flow(ob, edit, data);
-	
-	BPH_strands_free_hair_flow(data);
+	if (data) {
+		/* remove existing hair strands */
+		BM_mesh_clear(edit->bm);
+		/* generate new hair strands */
+		BPH_strands_sample_hair_flow(ob, edit, data, seed, max_strands, max_length, segments);
+		
+		BPH_strands_free_hair_flow(data);
+	}
 	
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
 	
@@ -88,4 +96,8 @@ void HAIR_OT_solve_flow(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_int(ot->srna, "max_strands", 1, 1, INT_MAX, "Strands", "Maximum number of strands to generate", 1, 100000);
+	RNA_def_float(ot->srna, "max_length", 1.0f, 0.0f, FLT_MAX, "Length", "Maximum length of strands", 0.0001f, 10000.0f);
+	RNA_def_int(ot->srna, "segments", 5, 1, INT_MAX, "Segments", "Number of segments per strand", 1, 100);
 }
