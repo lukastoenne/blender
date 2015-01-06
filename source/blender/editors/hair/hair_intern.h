@@ -49,6 +49,7 @@ void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
 
 /* hair_select.c */
 void HAIR_OT_select_all(struct wmOperatorType *ot);
+void HAIR_OT_select_linked(struct wmOperatorType *ot);
 
 /* hair_stroke.c */
 void HAIR_OT_stroke(struct wmOperatorType *ot);

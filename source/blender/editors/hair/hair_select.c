@@ -49,6 +49,7 @@
 #include "bmesh.h"
 
 #include "RNA_access.h"
+#include "RNA_define.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -92,6 +93,7 @@ BLI_INLINE bool apply_select_action_flag(BMVert *v, int action)
 typedef bool (*PollVertexCb)(void *userdata, struct BMVert *v);
 /* distance metric function */
 typedef bool (*DistanceVertexCb)(void *userdata, struct BMVert *v, float *dist);
+typedef void (*ActionVertexCb)(void *userdata, struct BMVert *v, int action);
 
 static int hair_select_verts_filter(BMEditStrands *edit, HairEditSelectMode select_mode, int action, PollVertexCb cb, void *userdata)
 {
@@ -133,13 +135,12 @@ static int hair_select_verts_filter(BMEditStrands *edit, HairEditSelectMode sele
 	return tot;
 }
 
-static int hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode select_mode, int action, DistanceVertexCb cb, void *userdata)
+static bool hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode select_mode, int action, DistanceVertexCb cb, ActionVertexCb action_cb, void *userdata)
 {
 	BMesh *bm = edit->bm;
 	
 	BMVert *v;
 	BMIter iter;
-	int tot = 0;
 	
 	float dist;
 	BMVert *closest_v = NULL;
@@ -177,13 +178,13 @@ static int hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode sel
 	}
 	
 	if (closest_v) {
-		if (apply_select_action_flag(closest_v, action))
-			++tot;
+		action_cb(userdata, closest_v, action);
+		
+		BM_mesh_select_mode_flush(bm);
+		return true;
 	}
-	
-	BM_mesh_select_mode_flush(bm);
-	
-	return tot;
+	else
+		return false;
 }
 
 static void hair_deselect_all(BMEditStrands *edit)
@@ -263,6 +264,11 @@ static bool distance_vertex_circle(void *userdata, struct BMVert *v, float *dist
 	return hair_test_vertex_inside_circle(&data->viewdata, data->mval, data->radsq, v, dist);
 }
 
+static void closest_vertex_select(void *UNUSED(userdata), struct BMVert *v, int action)
+{
+	apply_select_action_flag(v, action);
+}
+
 int ED_hair_mouse_select(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -290,11 +296,79 @@ int ED_hair_mouse_select(bContext *C, const int mval[2], bool extend, bool desel
 	else
 		action = SEL_INVERT;
 	
-	hair_select_verts_closest(edit, settings->select_mode, action, distance_vertex_circle, &data);
+	hair_select_verts_closest(edit, settings->select_mode, action, distance_vertex_circle, closest_vertex_select, &data);
 	
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
 	
 	return OPERATOR_FINISHED;
+}
+
+/************************ select linked operator ************************/
+
+static void linked_vertices_select(void *UNUSED(userdata), struct BMVert *v, int action)
+{
+	BMVert *lv;
+	
+	apply_select_action_flag(v, action);
+	
+	for (lv = BM_strands_vert_prev(v); lv; lv = BM_strands_vert_prev(lv))
+		apply_select_action_flag(lv, action);
+	for (lv = BM_strands_vert_next(v); lv; lv = BM_strands_vert_next(lv))
+		apply_select_action_flag(lv, action);
+}
+
+static int select_linked_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	float select_radius = ED_view3d_select_dist_px();
+	
+	DistanceVertexCirleData data;
+	int location[2];
+	int action;
+	
+	RNA_int_get_array(op->ptr, "location", location);
+	
+	hair_init_viewdata(C, &data.viewdata);
+	data.mval[0] = location[0];
+	data.mval[1] = location[1];
+	data.radsq = select_radius * select_radius;
+	
+	action = RNA_boolean_get(op->ptr, "deselect") ? SEL_DESELECT : SEL_SELECT;
+	
+	hair_select_verts_closest(edit, settings->select_mode, action, distance_vertex_circle, linked_vertices_select, &data);
+	
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
+	
+	return OPERATOR_FINISHED;
+}
+
+static int select_linked_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	RNA_int_set_array(op->ptr, "location", event->mval);
+	return select_linked_exec(C, op);
+}
+
+void HAIR_OT_select_linked(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Linked";
+	ot->idname = "HAIR_OT_select_linked";
+	ot->description = "Select connected vertices";
+	
+	/* api callbacks */
+	ot->exec = select_linked_exec;
+	ot->invoke = select_linked_invoke;
+	ot->poll = hair_edit_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Deselect linked keys rather than selecting them");
+	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, INT_MAX, "Location", "", 0, 16384);
 }
 
 /************************ border select operator ************************/

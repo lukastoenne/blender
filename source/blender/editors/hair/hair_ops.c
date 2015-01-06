@@ -50,6 +50,7 @@ void ED_operatortypes_hair(void)
 	WM_operatortype_append(HAIR_OT_hair_edit_toggle);
 	
 	WM_operatortype_append(HAIR_OT_select_all);
+	WM_operatortype_append(HAIR_OT_select_linked);
 	
 	WM_operatortype_append(HAIR_OT_stroke);
 }
@@ -128,6 +129,11 @@ void ED_keymap_hair(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
 	kmi = WM_keymap_add_item(keymap, "HAIR_OT_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
+	
+	kmi = WM_keymap_add_item(keymap, "HAIR_OT_select_linked", LKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
+	kmi = WM_keymap_add_item(keymap, "HAIR_OT_select_linked", LKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "deselect", true);
 	
 	kmi = WM_keymap_add_item(keymap, "HAIR_OT_stroke", LEFTMOUSE, KM_PRESS, 0,        0);
 	
