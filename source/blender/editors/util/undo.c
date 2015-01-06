@@ -104,6 +104,11 @@ void ED_undo_push(bContext *C, const char *str)
 
 		PE_undo_push(CTX_data_scene(C), str);
 	}
+	else if (obact && obact->mode & OB_MODE_HAIR_EDIT) {
+		if (U.undosteps == 0) return;
+
+		/* XXX TODO */
+	}
 	else if (obact && obact->mode & OB_MODE_SCULPT) {
 		/* do nothing for now */
 	}
@@ -188,6 +193,9 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 				PE_undo(scene);
 			else
 				PE_redo(scene);
+		}
+		else if (obact && obact->mode & OB_MODE_HAIR_EDIT) {
+			/* XXX TODO */
 		}
 		else if (U.uiflag & USER_GLOBALUNDO) {
 			// note python defines not valid here anymore.
@@ -280,6 +288,10 @@ int ED_undo_valid(const bContext *C, const char *undoname)
 		}
 		else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
 			return PE_undo_valid(CTX_data_scene(C));
+		}
+		else if (obact && obact->mode & OB_MODE_HAIR_EDIT) {
+			/* XXX TODO */
+			return 1;
 		}
 		
 		if (U.uiflag & USER_GLOBALUNDO) {
@@ -441,7 +453,8 @@ enum {
 	UNDOSYSTEM_GLOBAL   = 1,
 	UNDOSYSTEM_EDITMODE = 2,
 	UNDOSYSTEM_PARTICLE = 3,
-	UNDOSYSTEM_IMAPAINT = 4
+	UNDOSYSTEM_IMAPAINT = 4,
+	UNDOSYSTEM_HAIR = 5,
 };
 
 static int get_undo_system(bContext *C)
@@ -471,6 +484,8 @@ static int get_undo_system(bContext *C)
 		if (obact) {
 			if (obact->mode & OB_MODE_PARTICLE_EDIT)
 				return UNDOSYSTEM_PARTICLE;
+			else if (obact->mode & OB_MODE_HAIR_EDIT)
+				return UNDOSYSTEM_HAIR;
 			else if (obact->mode & OB_MODE_TEXTURE_PAINT) {
 				if (!ED_undo_paint_empty(UNDO_PAINT_IMAGE))
 					return UNDOSYSTEM_IMAPAINT;
