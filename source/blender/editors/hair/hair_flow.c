@@ -1,0 +1,91 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) Blender Foundation
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): Lukas Toenne
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file blender/editors/hair/hair_flow.c
+ *  \ingroup edhair
+ */
+
+#include <stdlib.h>
+
+#include "MEM_guardedalloc.h"
+
+#include "BLI_utildefines.h"
+#include "BLI_math.h"
+
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+
+#include "BKE_context.h"
+#include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_editstrands.h"
+
+#include "BPH_strands.h"
+
+#include "RNA_access.h"
+#include "RNA_define.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
+
+#include "ED_physics.h"
+
+#include "hair_intern.h"
+
+static int hair_solve_flow_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+//	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	
+	struct HairFlowData *data = BPH_strands_solve_hair_flow(scene, ob);
+	
+	BPH_strands_sample_hair_flow(ob, edit, data);
+	
+	BPH_strands_free_hair_flow(data);
+	
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
+	
+	return OPERATOR_FINISHED;
+}
+
+void HAIR_OT_solve_flow(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Solve Hair Flow";
+	ot->idname = "HAIR_OT_solve_flow";
+	ot->description = "Generate hair strands based on flow editing";
+
+	/* api callbacks */
+	ot->exec = hair_solve_flow_exec;
+	ot->poll = hair_edit_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

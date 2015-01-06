@@ -899,6 +899,10 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             col.prop(brush, "hair_tool", text="Tool")
 
+            col.separator()
+
+            col.operator("hair.solve_flow")
+
         # Sculpt Mode #
 
         elif context.sculpt_object and brush:

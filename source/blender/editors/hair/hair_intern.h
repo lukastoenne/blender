@@ -47,6 +47,9 @@ int hair_edit_poll(struct bContext *C);
 
 void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
 
+/* hair_flow.c */
+void HAIR_OT_solve_flow(struct wmOperatorType *ot);
+
 /* hair_select.c */
 void HAIR_OT_select_all(struct wmOperatorType *ot);
 void HAIR_OT_select_linked(struct wmOperatorType *ot);

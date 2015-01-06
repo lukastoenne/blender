@@ -35,7 +35,8 @@ extern "C" {
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_texture_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_effect.h"
 }
@@ -48,7 +49,7 @@ extern "C" {
 struct HairFlowData {
 };
 
-HairFlowData *BPH_strands_solve_hair_flow(Object *ob)
+HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob)
 {
 	return NULL;
 }
@@ -57,7 +58,7 @@ void BPH_strands_free_hair_flow(HairFlowData *data)
 {
 }
 
-void BPH_strands_sample_hair_flow(Object *ob, BMEditStrands *es, HairFlowData *data)
+void BPH_strands_sample_hair_flow(Object *ob, BMEditStrands *edit, HairFlowData *data)
 {
 	
 }

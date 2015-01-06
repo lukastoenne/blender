@@ -28,6 +28,7 @@ set(INC
 	../../gpu
 	../../makesdna
 	../../makesrna
+	../../physics
 	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
@@ -40,6 +41,7 @@ set(INC_SYS
 set(SRC
 	hair_cursor.c
 	hair_edit.c
+	hair_flow.c
 	hair_ops.c
 	hair_select.c
 	hair_stroke.c

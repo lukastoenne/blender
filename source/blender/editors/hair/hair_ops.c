@@ -49,6 +49,8 @@ void ED_operatortypes_hair(void)
 {
 	WM_operatortype_append(HAIR_OT_hair_edit_toggle);
 	
+	WM_operatortype_append(HAIR_OT_solve_flow);
+	
 	WM_operatortype_append(HAIR_OT_select_all);
 	WM_operatortype_append(HAIR_OT_select_linked);
 	
