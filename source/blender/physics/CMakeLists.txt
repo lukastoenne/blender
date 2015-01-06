@@ -42,6 +42,9 @@ set(INC_SYS
 set(SRC
 	intern/BPH_mass_spring.cpp
 	intern/ConstrainedConjugateGradient.h
+	intern/hair_flow.cpp
+	intern/grid.cpp
+	intern/grid.h
 	intern/hair_volume.cpp
 	intern/implicit.h
 	intern/implicit_blender.c

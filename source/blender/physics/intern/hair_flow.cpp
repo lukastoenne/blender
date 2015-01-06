@@ -25,29 +25,39 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BPH_STRANDS_H__
-#define __BPH_STRANDS_H__
+/** \file blender/blenkernel/intern/hair_flow.c
+ *  \ingroup bph
+ */
 
-#ifdef __cplusplus
+#include "MEM_guardedalloc.h"
+
 extern "C" {
-#endif
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
 
-struct Object;
-struct BMEditStrands;
+#include "DNA_texture_types.h"
 
-void BPH_strands_solve_constraints(struct Object *ob, struct BMEditStrands *es, float (*orig)[3]);
-
-/* Hair Flow Solver */
-
-struct HairFlowData;
-
-struct HairFlowData *BPH_strands_solve_hair_flow(struct Object *ob);
-void BPH_strands_free_hair_flow(struct HairFlowData *data);
-
-void BPH_strands_sample_hair_flow(struct Object *ob, struct BMEditStrands *es, struct HairFlowData *data);
-
-#ifdef __cplusplus
+#include "BKE_effect.h"
 }
-#endif
 
-#endif
+#include "BPH_strands.h"
+
+#include "implicit.h"
+#include "eigen_utils.h"
+
+struct HairFlowData {
+};
+
+HairFlowData *BPH_strands_solve_hair_flow(Object *ob)
+{
+	return NULL;
+}
+
+void BPH_strands_free_hair_flow(HairFlowData *data)
+{
+}
+
+void BPH_strands_sample_hair_flow(Object *ob, BMEditStrands *es, HairFlowData *data)
+{
+	
+}
