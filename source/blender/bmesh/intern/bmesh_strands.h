@@ -73,6 +73,42 @@ BLI_INLINE bool BM_strands_vert_is_tip(BMVert *v)
 	return false;
 }
 
+/* Next vertex on a strand */
+BLI_INLINE BMVert *BM_strands_vert_next(BMVert *v)
+{
+	BMEdge *e_first = v->e;
+	BMEdge *e_next;
+	
+	/* one of the edges leads to the previous vertex */
+	if (e_first) {
+		if (e_first->v1 == v)
+			return e_first->v2;
+		
+		e_next = bmesh_disk_edge_next(e_first, v);
+		if (e_next->v1 == v)
+			return e_next->v2;
+	}
+	return NULL;
+}
+
+/* Previous vertex on a strand */
+BLI_INLINE BMVert *BM_strands_vert_prev(BMVert *v)
+{
+	BMEdge *e_first = v->e;
+	BMEdge *e_next;
+	
+	/* one of the edges leads to the previous vertex */
+	if (e_first) {
+		if (e_first->v2 == v)
+			return e_first->v1;
+		
+		e_next = bmesh_disk_edge_next(e_first, v);
+		if (e_next->v2 == v)
+			return e_next->v1;
+	}
+	return NULL;
+}
+
 int BM_strands_count(BMesh *bm);
 int BM_strands_keys_count(BMVert *root);
 
