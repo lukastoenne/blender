@@ -25,31 +25,56 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BPH_STRANDS_H__
-#define __BPH_STRANDS_H__
+/** \file grid.cpp
+ *  \ingroup bph
+ */
 
-#ifdef __cplusplus
+#include "MEM_guardedalloc.h"
+
 extern "C" {
-#endif
-
-struct Object;
-struct Scene;
-struct BMEditStrands;
-
-void BPH_strands_solve_constraints(struct Object *ob, struct BMEditStrands *es, float (*orig)[3]);
-
-/* Hair Flow Solver */
-
-struct HairFlowData;
-
-struct HairFlowData *BPH_strands_solve_hair_flow(struct Scene *scene, struct Object *ob, float max_length, int max_res);
-void BPH_strands_free_hair_flow(struct HairFlowData *data);
-
-void BPH_strands_sample_hair_flow(struct Object *ob, struct BMEditStrands *edit, struct HairFlowData *data,
-                                  unsigned int seed, int max_strands, float max_length, int segments);
-
-#ifdef __cplusplus
+#include "BLI_math.h"
 }
-#endif
 
-#endif
+#include "grid.h"
+
+namespace BPH {
+
+Grid::Grid() :
+    cellsize(0.0f),
+    inv_cellsize(0.0f),
+    num_cells(0)
+{
+	zero_v3(offset);
+	zero_v3_int(res);
+}
+
+Grid::~Grid()
+{
+}
+
+void Grid::resize(float _cellsize, const float _offset[3], const int _res[3])
+{
+	cellsize = _cellsize;
+	inv_cellsize = 1.0f / _cellsize;
+	copy_v3_v3(offset, _offset);
+	copy_v3_v3_int(res, _res);
+	num_cells = _res[0] * _res[1] * _res[2];
+	
+	divergence = lVector(num_cells);
+	pressure = lVector(num_cells);
+}
+
+void Grid::init()
+{
+	divergence.setZero();
+}
+
+void Grid::clear()
+{
+	pressure.setZero();
+}
+
+} /* namespace BPH */
+
+#include "implicit.h"
+

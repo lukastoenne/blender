@@ -67,8 +67,9 @@ static int hair_solve_flow_exec(bContext *C, wmOperator *op)
 	int max_strands = RNA_int_get(op->ptr, "max_strands");
 	float max_length = RNA_float_get(op->ptr, "max_length");
 	int segments = RNA_int_get(op->ptr, "segments");
+	int res = RNA_int_get(op->ptr, "resolution");
 	
-	struct HairFlowData *data = BPH_strands_solve_hair_flow(scene, ob);
+	struct HairFlowData *data = BPH_strands_solve_hair_flow(scene, ob, max_length, res);
 	if (data) {
 		/* remove existing hair strands */
 		BM_mesh_clear(edit->bm);
@@ -100,4 +101,5 @@ void HAIR_OT_solve_flow(wmOperatorType *ot)
 	RNA_def_int(ot->srna, "max_strands", 1, 1, INT_MAX, "Strands", "Maximum number of strands to generate", 1, 100000);
 	RNA_def_float(ot->srna, "max_length", 1.0f, 0.0f, FLT_MAX, "Length", "Maximum length of strands", 0.0001f, 10000.0f);
 	RNA_def_int(ot->srna, "segments", 5, 1, INT_MAX, "Segments", "Number of segments per strand", 1, 100);
+	RNA_def_int(ot->srna, "resolution", 10, 1, INT_MAX, "Resolution", "Resolution of the hair flow grid", 1, 100);
 }

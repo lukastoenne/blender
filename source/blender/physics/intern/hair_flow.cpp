@@ -42,32 +42,98 @@ extern "C" {
 #include "BKE_editstrands.h"
 #include "BKE_effect.h"
 #include "BKE_mesh_sample.h"
+#include "BKE_object.h"
 
 #include "bmesh.h"
 }
 
 #include "BPH_strands.h"
 
-#include "implicit.h"
 #include "eigen_utils.h"
+#include "implicit.h"
+#include "grid.h"
+
+using namespace BPH;
+
+BLI_INLINE int floor_int(float value)
+{
+	return value > 0.0f ? (int)value : ((int)value) - 1;
+}
+
+BLI_INLINE float floor_mod(float value)
+{
+	return value - floorf(value);
+}
 
 struct HairFlowData {
-	float cellsize;
+	HairFlowData()
+	{
+	}
+	
+	~HairFlowData()
+	{
+	}
+	
+	Grid grid;
+	
+	MEM_CXX_CLASS_ALLOC_FUNCS("HairFlowData")
 };
 
-HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob)
+HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_length, int max_res)
 {
-	/* XXX just a dummy for now ... */
-	HairFlowData *data = (HairFlowData *)MEM_callocN(sizeof(HairFlowData), "hair flow data");
+	HairFlowData *data = new HairFlowData();
+	int i, k;
 	
-	data->cellsize = 100.0f;
+	BoundBox *bb = BKE_object_boundbox_get(ob);
+	if (!bb)
+		return NULL;
+	
+	BoundBox bbworld;
+	float bbmin[3], bbmax[3], extent[3];
+	INIT_MINMAX(bbmin, bbmax);
+	for (i = 0; i < 8; ++i) {
+		mul_v3_m4v3(bbworld.vec[i], ob->obmat, bb->vec[i]);
+		for (k = 0; k < 3; ++k) {
+			if (bbmin[k] > bbworld.vec[i][k])
+				bbmin[k] = bbworld.vec[i][k];
+			if (bbmax[k] < bbworld.vec[i][k])
+				bbmax[k] = bbworld.vec[i][k];
+		}
+	}
+	float max_extent = -1.0f;
+	int max_extent_index = -1;
+	for (k = 0; k < 3; ++k) {
+		/* hair can extend at most max_length in either direction from the mesh,
+		 * which defines the maximum extent of the bounding volume we need
+		 */
+		extent[k] = bbmax[k] - bbmin[k] + 2.0f * max_length;
+		if (max_extent < extent[k]) {
+			max_extent = extent[k];
+			max_extent_index = k;
+		}
+	}
+	
+	/* 1-cell margin of the grid means the actual extent uses 2 cells less */
+	float cellsize = max_extent / (max_res - 2);
+	float offset[3] = {(float)(bbmin[0] - max_length - 0.5*cellsize),
+	                   (float)(bbmin[1] - max_length - 0.5*cellsize),
+	                   (float)(bbmin[2] - max_length - 0.5*cellsize)};
+	
+	int res[3];
+	res[max_extent_index] = max_res;
+	k = (max_extent_index + 1) % 3;
+	res[k] = floor_int(extent[k] / cellsize) + 2;
+	k = (max_extent_index + 2) % 3;
+	res[k] = floor_int(extent[k] / cellsize) + 2;
+	
+	data->grid.resize(cellsize, offset, res);
 	
 	return data;
 }
 
 void BPH_strands_free_hair_flow(HairFlowData *data)
 {
-	MEM_freeN(data);
+	delete data;
 }
 
 BLI_INLINE void construct_m4_loc_nor_tan(float mat[4][4], const float loc[3], const float nor[3], const float tang[3])
@@ -161,7 +227,7 @@ void BPH_strands_sample_hair_flow(Object *ob, BMEditStrands *edit, HairFlowData 
 		return;
 	
 	/* integration step size */
-	dt = min_ff(0.5f * data->cellsize, max_length / (float)segments);
+	dt = min_ff(0.5f * data->grid.cellsize, max_length / (float)segments);
 	
 	samples = (MSurfaceSample *)MEM_mallocN(sizeof(MSurfaceSample) * max_strands, "hair flow sampling origins");
 	BKE_mesh_sample_storage_array(&storage, samples, max_strands);

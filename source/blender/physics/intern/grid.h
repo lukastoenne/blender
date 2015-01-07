@@ -25,31 +25,42 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BPH_STRANDS_H__
-#define __BPH_STRANDS_H__
+#ifndef __BPH_GRID_H__
+#define __BPH_GRID_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/** \file grid.h
+ *  \ingroup bph
+ */
 
-struct Object;
-struct Scene;
-struct BMEditStrands;
+#include "BLI_utildefines.h"
 
-void BPH_strands_solve_constraints(struct Object *ob, struct BMEditStrands *es, float (*orig)[3]);
+#include "eigen_utils.h"
 
-/* Hair Flow Solver */
+namespace BPH {
 
-struct HairFlowData;
+typedef struct Grid {
+	Grid();
+	~Grid();
+	
+	void resize(float cellsize, const float offset[3], const int res[3]);
+	
+	void init();
+	void clear();
+	
+	float cellsize, inv_cellsize;
+	float offset[3];
+	int res[3];
+	int num_cells;
+	
+	lVector divergence;
+	lVector pressure;
+	
+	struct SimDebugData *debug_data;
+	float debug1, debug2;
+	int debug3, debug4;
+	
+} Grid;
 
-struct HairFlowData *BPH_strands_solve_hair_flow(struct Scene *scene, struct Object *ob, float max_length, int max_res);
-void BPH_strands_free_hair_flow(struct HairFlowData *data);
-
-void BPH_strands_sample_hair_flow(struct Object *ob, struct BMEditStrands *edit, struct HairFlowData *data,
-                                  unsigned int seed, int max_strands, float max_length, int segments);
-
-#ifdef __cplusplus
-}
-#endif
+} /* namespace BPH */
 
 #endif
