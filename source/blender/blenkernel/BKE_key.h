@@ -65,12 +65,16 @@ void key_curve_position_weights(float t, float data[4], int type);
 void key_curve_tangent_weights(float t, float data[4], int type);
 void key_curve_normal_weights(float t, float data[4], int type);
 
-float *BKE_key_evaluate_object_ex(struct Scene *scene, struct Object *ob, int *r_totelem,
-                                  float *arr, size_t arr_size);
-float *BKE_key_evaluate_object(struct Scene *scene, struct Object *ob, int *r_totelem);
-float *BKE_key_evaluate_particles_ex(struct Object *ob, struct ParticleSystem *psys, int *r_totelem,
-                                     float *arr, size_t arr_size);
-float *BKE_key_evaluate_particles(struct Object *ob, struct ParticleSystem *psys, int *r_totelem);
+float *BKE_key_evaluate_object_ex(
+        struct Object *ob, int *r_totelem,
+        float *arr, size_t arr_size);
+float *BKE_key_evaluate_object(
+        struct Object *ob, int *r_totelem);
+float *BKE_key_evaluate_particles_ex(
+        struct Object *ob, struct ParticleSystem *psys, int *r_totelem,
+        float *arr, size_t arr_size);
+float *BKE_key_evaluate_particles(
+        struct Object *ob, struct ParticleSystem *psys, int *r_totelem);
 
 struct Key      *BKE_key_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
@@ -124,9 +128,6 @@ void    BKE_keyblock_convert_from_hair_keys(struct Object *ob, struct ParticleSy
 bool    BKE_keyblock_move(struct Object *ob, int org_index, int new_index);
 
 bool    BKE_keyblock_is_basis(struct Key *key, const int index);
-
-/* key.c */
-extern int slurph_opt;
 
 #ifdef __cplusplus
 };
