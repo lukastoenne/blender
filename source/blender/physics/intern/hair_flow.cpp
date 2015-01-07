@@ -79,7 +79,7 @@ struct HairFlowData {
 	MEM_CXX_CLASS_ALLOC_FUNCS("HairFlowData")
 };
 
-HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_length, int max_res)
+HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_length, int max_res, SimDebugData *debug_data)
 {
 	HairFlowData *data = new HairFlowData();
 	int i, k;
@@ -107,12 +107,15 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 		 * which defines the maximum extent of the bounding volume we need
 		 */
 		extent[k] = bbmax[k] - bbmin[k] + 2.0f * max_length;
+		BLI_assert(extent[k] >= 0.0f);
 		if (max_extent < extent[k]) {
 			max_extent = extent[k];
 			max_extent_index = k;
 		}
 	}
 	
+	/* make sure a 1-cell margin is supported */
+	CLAMP_MIN(max_res, 3);
 	/* 1-cell margin of the grid means the actual extent uses 2 cells less */
 	float cellsize = max_extent / (max_res - 2);
 	float offset[3] = {(float)(bbmin[0] - max_length - 0.5*cellsize),
@@ -127,6 +130,85 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 	res[k] = floor_int(extent[k] / cellsize) + 2;
 	
 	data->grid.resize(cellsize, offset, res);
+	
+	GridHash<bool> source;
+	GridHash<float3> source_normal;
+	source.resize(data->grid.res);
+	source.clear();
+	source_normal.resize(data->grid.res);
+	source_normal.clear();
+	
+	data->grid.set_inner_cells(source, source_normal, ob);
+	
+	GridHash<float> divergence;
+	divergence.resize(data->grid.res);
+	data->grid.calc_divergence(divergence, source, source_normal);
+	
+	{
+		float col0[3] = {0.0, 0.0, 0.0};
+		float colp[3] = {0.0, 1.0, 1.0};
+		float coln[3] = {1.0, 0.0, 1.0};
+		float divfac = 10.0f;
+		
+		BKE_sim_debug_data_clear_category(debug_data, "hair flow");
+		
+		for (int z = 0; z < res[2]; ++z) {
+			for (int y = 0; y < res[1]; ++y) {
+				for (int x = 0; x < res[0]; ++x) {
+					float vec[3] = {(float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f};
+					mul_v3_fl(vec, cellsize);
+					add_v3_v3(vec, offset);
+					
+					bool is_source = *source.get(x, y, z);
+					float div = *divergence.get(x, y, z);
+					
+//					if (is_source)
+//						BKE_sim_debug_data_add_circle(debug_data, vec, 0.02f, 1,0,0, "hair flow", 111, x, y, z);
+//					else
+//						BKE_sim_debug_data_add_circle(debug_data, vec, 0.02f, 0,1,0, "hair flow", 111, x, y, z);
+					
+					float fac;
+					float col[3];
+					if (div > 0.0f) {
+						fac = CLAMPIS(div * divfac, 0.0, 1.0);
+						interp_v3_v3v3(col, col0, colp, fac);
+					}
+					else {
+						fac = CLAMPIS(-div * divfac, 0.0, 1.0);
+						interp_v3_v3v3(col, col0, coln, fac);
+					}
+					if (fac > 0.05f)
+						BKE_sim_debug_data_add_circle(debug_data, vec, 0.02f, col[0], col[1], col[2], "hair_flow", 5522, x, y, z);
+				}
+			}
+		}
+#if 0
+				{
+					float wloc[3], loc[3];
+					float col0[3] = {0.0, 0.0, 0.0};
+					float colp[3] = {0.0, 1.0, 1.0};
+					float coln[3] = {1.0, 0.0, 1.0};
+					float col[3];
+					float fac;
+					
+					loc[0] = (float)(i - 1);
+					loc[1] = (float)(j - 1);
+					loc[2] = (float)(k - 1);
+					grid_to_world(grid, wloc, loc);
+					
+					if (divergence > 0.0f) {
+						fac = CLAMPIS(divergence * target_strength, 0.0, 1.0);
+						interp_v3_v3v3(col, col0, colp, fac);
+					}
+					else {
+						fac = CLAMPIS(-divergence * target_strength, 0.0, 1.0);
+						interp_v3_v3v3(col, col0, coln, fac);
+					}
+					if (fac > 0.05f)
+						BKE_sim_debug_data_add_circle(grid->debug_data, wloc, 0.01f, col[0], col[1], col[2], "grid", 5522, i, j, k);
+				}
+#endif
+	}
 	
 	return data;
 }

@@ -69,7 +69,7 @@ static int hair_solve_flow_exec(bContext *C, wmOperator *op)
 	int segments = RNA_int_get(op->ptr, "segments");
 	int res = RNA_int_get(op->ptr, "resolution");
 	
-	struct HairFlowData *data = BPH_strands_solve_hair_flow(scene, ob, max_length, res);
+	struct HairFlowData *data = BPH_strands_solve_hair_flow(scene, ob, max_length, res, edit->debug_data);
 	if (data) {
 		/* remove existing hair strands */
 		BM_mesh_clear(edit->bm);

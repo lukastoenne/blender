@@ -145,6 +145,69 @@ public:
 	}
 };
 
+/* utility struct that can be converted to float* implicitly for BLI math */
+struct float3 {
+	float x, y, z;
+	
+	float3() {}
+	float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+	float3(float *data) : x(data[0]), y(data[1]), z(data[2]) {}
+	
+	inline float operator[](int i) const { return *(&x + i); }
+	inline float& operator[](int i) { return *(&x + i); }
+	
+	inline operator float*() { return &x; }
+	inline operator const float*() const { return &x; }
+};
+
+/* Extension of sparse Eigen vectors,
+ * providing 3-float block access for blenlib math functions
+ */
+class sVector3 : public Eigen::SparseVector<Scalar> {
+public:
+	typedef Eigen::SparseVector<Scalar> base_t;
+	
+	struct Iterator {
+		Iterator(const sVector3 &vec) :
+		    m_iter(vec),
+		    m_index(0)
+		{
+		}
+		
+		inline Iterator& operator++() { ++m_iter; ++m_iter; ++m_iter; ++m_index; return *this; }
+		
+		inline const float* value() const { return &const_cast<base_t::InnerIterator&>(m_iter).valueRef(); }
+		inline float* valueRef() { return &m_iter.valueRef(); }
+		
+		inline Index index() const { return m_index; }
+		
+		inline operator bool() const { return m_iter; }
+		
+	private:
+		typename base_t::InnerIterator m_iter;
+		int m_index;
+	};
+	
+	sVector3()
+	{
+	}
+	
+	template <typename T>
+	sVector3& operator = (T rhs)
+	{
+		base_t::operator=(rhs);
+		return *this;
+	}
+	
+	/* Warning: involves a binary search!
+	 * Use the Iterator type if possible.
+	 */
+	float* v3(int vertex)
+	{
+		return &coeffRef(3 * vertex);
+	}
+};
+
 typedef Eigen::Triplet<Scalar> Triplet;
 typedef std::vector<Triplet> TripletList;
 
