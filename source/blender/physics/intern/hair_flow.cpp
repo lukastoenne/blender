@@ -148,6 +148,11 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 	pressure.resize(data->grid.res);
 	data->grid.solve_pressure(pressure, divergence);
 	
+	GridHash<float3> velocity;
+	velocity.resize(data->grid.res);
+	data->grid.calc_gradient(velocity, pressure);
+	data->grid.normalize(velocity);
+	
 	{
 		float col0[3] = {0.0, 0.0, 0.0};
 		float colp[3] = {0.0, 1.0, 1.0};
@@ -185,6 +190,8 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 					}
 					if (fac > 0.05f)
 						BKE_sim_debug_data_add_circle(debug_data, vec, 0.02f, col[0], col[1], col[2], "hair_flow", 5522, x, y, z);
+					
+					BKE_sim_debug_data_add_vector(debug_data, vec, *velocity.get(x, y, z), 1,1,0, "hair_flow", 957, x, y, z);
 				}
 			}
 		}

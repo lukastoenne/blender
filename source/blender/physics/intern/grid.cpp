@@ -66,19 +66,14 @@ void Grid::resize(float _cellsize, const float _offset[3], const int _res[3])
 	copy_v3_v3(offset, _offset);
 	copy_v3_v3_int(res, _res);
 	num_cells = _res[0] * _res[1] * _res[2];
-	
-	divergence.resize(num_cells);
-	pressure.resize(num_cells);
 }
 
 void Grid::init()
 {
-	divergence.setZero();
 }
 
 void Grid::clear()
 {
-	pressure.setZero();
 }
 
 int Grid::set_inner_cells(GridHash<bool> &bounds, GridHash<float3> &normal, Object *ob) const
@@ -224,6 +219,54 @@ void Grid::calc_divergence(GridHash<float> &divergence, const GridHash<bool> &so
 	}
 }
 
+/* Calculate velocity = grad(p) */
+void Grid::calc_gradient(GridHash<float3> &velocity, const GridHash<float> &pressure) const
+{
+	const float inv_flowfac = 1.0f / cellsize;
+	
+	velocity.clear();
+	
+	for (int z = 0; z < res[2]; ++z) {
+		for (int y = 0; y < res[1]; ++y) {
+			for (int x = 0; x < res[0]; ++x) {
+				bool is_margin = !(x > 0 && x < res[0]-1 && y > 0 && y < res[1]-1 && z > 0 && z < res[2]-1);
+				if (is_margin)
+					continue;
+				
+				/*const float *p  = pressure.get(x, y, z);*/
+				const float *pl = pressure.get(x-1, y, z);
+				const float *pr = pressure.get(x+1, y, z);
+				const float *pb = pressure.get(x, y-1, z);
+				const float *pt = pressure.get(x, y+1, z);
+				const float *pd = pressure.get(x, y, z-1);
+				const float *pu = pressure.get(x, y, z+1);
+				
+				/* finite difference estimate of pressure gradient */
+				float dvel[3];
+				dvel[0] = *pr - *pl;
+				dvel[1] = *pt - *pb;
+				dvel[2] = *pu - *pd;
+				mul_v3_fl(dvel, -0.5f * inv_flowfac);
+				
+				velocity.add(x, y, z) = float3(dvel);
+			}
+		}
+	}
+}
+
+void Grid::normalize(GridHash<float3> &velocity) const
+{
+	for (int z = 0; z < res[2]; ++z) {
+		for (int y = 0; y < res[1]; ++y) {
+			for (int x = 0; x < res[0]; ++x) {
+				float3 *v = velocity.get(x, y, z);
+				if (v)
+					normalize_v3(*v);
+			}
+		}
+	}
+}
+
 /* Main Poisson equation system:
  * This is derived from the discretezation of the Poisson equation
  *   div(grad(p)) = div(v)
@@ -234,7 +277,7 @@ void Grid::calc_divergence(GridHash<float> &divergence, const GridHash<bool> &so
  * For a good overview of eulerian fluid sim methods, see
  * http://www.proxyarch.com/util/techpapers/papers/Fluid%20flow%20for%20the%20rest%20of%20us.pdf
  */
-void Grid::solve_pressure(GridHash<float> &pressure, const GridHash<float> &divergence)
+void Grid::solve_pressure(GridHash<float> &pressure, const GridHash<float> &divergence) const
 {
 	int stride[3] = { 1, res[0], res[0] * res[1] };
 	

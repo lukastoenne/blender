@@ -140,17 +140,17 @@ typedef struct Grid {
 	void clear();
 	
 	int set_inner_cells(GridHash<bool> &bounds, GridHash<float3> &normal, struct Object *ob) const;
-	void calc_divergence(GridHash<float> &divergence, const GridHash<bool> &source, const GridHash<float3> &source_normal) const;
 	
-	void solve_pressure(GridHash<float> &pressure, const GridHash<float> &divergence);
+	void calc_divergence(GridHash<float> &divergence, const GridHash<bool> &source, const GridHash<float3> &source_normal) const;
+	void calc_gradient(GridHash<float3> &velocity, const GridHash<float> &pressure) const;
+	void normalize(GridHash<float3> &velocity) const;
+	
+	void solve_pressure(GridHash<float> &pressure, const GridHash<float> &divergence) const;
 	
 	float cellsize, inv_cellsize;
 	float offset[3];
 	int res[3];
 	int num_cells;
-	
-	lVector divergence;
-	lVector pressure;
 	
 	struct SimDebugData *debug_data;
 	float debug1, debug2;
