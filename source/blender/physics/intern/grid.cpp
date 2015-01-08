@@ -213,7 +213,7 @@ void Grid::calc_divergence(GridHash<float> &divergence, const GridHash<bool> &so
 				if (nu)
 					dz += (*nu)[2] - n[2];
 				
-				divergence.add(x, y, z) -= 0.5f * flowfac * (dx + dy + dz);
+				divergence.add(x, y, z) = 0.5f * flowfac * (dx + dy + dz);
 			}
 		}
 	}

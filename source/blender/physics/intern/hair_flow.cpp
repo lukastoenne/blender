@@ -75,6 +75,7 @@ struct HairFlowData {
 	}
 	
 	Grid grid;
+	GridHash<float3> direction;
 	
 	MEM_CXX_CLASS_ALLOC_FUNCS("HairFlowData")
 };
@@ -148,10 +149,10 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 	pressure.resize(data->grid.res);
 	data->grid.solve_pressure(pressure, divergence);
 	
-	GridHash<float3> velocity;
-	velocity.resize(data->grid.res);
-	data->grid.calc_gradient(velocity, pressure);
-	data->grid.normalize(velocity);
+	/* normalized velocity field for defining hair direction */
+	data->direction.resize(data->grid.res);
+	data->grid.calc_gradient(data->direction, pressure);
+	data->grid.normalize(data->direction);
 	
 	{
 		float col0[3] = {0.0, 0.0, 0.0};
@@ -191,7 +192,7 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 					if (fac > 0.05f)
 						BKE_sim_debug_data_add_circle(debug_data, vec, 0.02f, col[0], col[1], col[2], "hair_flow", 5522, x, y, z);
 					
-					BKE_sim_debug_data_add_vector(debug_data, vec, *velocity.get(x, y, z), 1,1,0, "hair_flow", 957, x, y, z);
+					BKE_sim_debug_data_add_vector(debug_data, vec, *data->direction.get(x, y, z), 1,1,0, "hair_flow", 957, x, y, z);
 				}
 			}
 		}
@@ -228,7 +229,7 @@ static void sample_hair_strand(Object *UNUSED(ob), BMEditStrands *edit, HairFlow
 	DerivedMesh *dm = edit->root_dm;
 	const float inv_dt = 1.0f / dt;
 	
-	float co[3], dir[3];
+	float co[3];
 	BMVert *root, *v;
 	
 	const float seglen = max_length / (float)segments;
@@ -236,8 +237,8 @@ static void sample_hair_strand(Object *UNUSED(ob), BMEditStrands *edit, HairFlow
 	int numseg;
 	
 	{
-		float tang[3];
-		BKE_mesh_sample_eval(dm, sample, co, dir, tang);
+		float nor[3], tang[3];
+		BKE_mesh_sample_eval(dm, sample, co, nor, tang);
 	}
 	
 	root = BM_strands_create(edit->bm, segments + 1, true);
@@ -253,8 +254,13 @@ static void sample_hair_strand(Object *UNUSED(ob), BMEditStrands *edit, HairFlow
 		float nt = t + dt;
 		float prev_co[3];
 		
-		/* TODO evaluate direction */
-		//dir = grid_dir(co);
+		/* evaluate direction */
+		float gridco[3];
+		sub_v3_v3v3(gridco, co, data->grid.offset);
+		mul_v3_fl(gridco, data->grid.inv_cellsize);
+		float3 dir = data->direction.interpolate(gridco);
+		BLI_assert(len_v3(dir) <= 1.0f);
+		normalize_v3(dir);
 		
 		/* forward integrate position */
 		copy_v3_v3(prev_co, co);

@@ -41,6 +41,36 @@
 
 namespace BPH {
 
+/* external function for trilinear interpolation of arbitrary types,
+ * with specialization for non-primitive vectors, etc.
+ */
+template <typename T>
+BLI_INLINE T interp_trilinear(const T data[8], const float uvw[3], const float muvw[3])
+{
+	return muvw[2]*( muvw[1]*( muvw[0]*data[0] + uvw[0]*data[1] )   +
+		              uvw[1]*( muvw[0]*data[2] + uvw[0]*data[3] ) ) +
+		    uvw[2]*( muvw[1]*( muvw[0]*data[4] + uvw[0]*data[5] )   +
+		              uvw[1]*( muvw[0]*data[6] + uvw[0]*data[7] ) );
+}
+
+template <>
+float3 interp_trilinear<float3>(const float3 data[8], const float uvw[3], const float muvw[3])
+{
+	float x = muvw[2]*( muvw[1]*( muvw[0]*data[0].x + uvw[0]*data[1].x )   +
+		                 uvw[1]*( muvw[0]*data[2].x + uvw[0]*data[3].x ) ) +
+		       uvw[2]*( muvw[1]*( muvw[0]*data[4].x + uvw[0]*data[5].x )   +
+		                 uvw[1]*( muvw[0]*data[6].x + uvw[0]*data[7].x ) );
+	float y = muvw[2]*( muvw[1]*( muvw[0]*data[0].y + uvw[0]*data[1].y )   +
+		                 uvw[1]*( muvw[0]*data[2].y + uvw[0]*data[3].y ) ) +
+		       uvw[2]*( muvw[1]*( muvw[0]*data[4].y + uvw[0]*data[5].y )   +
+		                 uvw[1]*( muvw[0]*data[6].y + uvw[0]*data[7].y ) );
+	float z = muvw[2]*( muvw[1]*( muvw[0]*data[0].z + uvw[0]*data[1].z )   +
+		                 uvw[1]*( muvw[0]*data[2].z + uvw[0]*data[3].z ) ) +
+		       uvw[2]*( muvw[1]*( muvw[0]*data[4].z + uvw[0]*data[5].z )   +
+		                 uvw[1]*( muvw[0]*data[6].z + uvw[0]*data[7].z ) );
+	return float3(x, y, z);
+}
+
 template <typename T>
 struct GridHash {
 	GridHash() :
@@ -121,6 +151,59 @@ struct GridHash {
 		for (int i = 0; i < m_size; ++i) {
 			r.coeffRef(i) = m_data[i];
 		}
+	}
+	
+	inline T interpolate(const float vec[3])
+	{
+		T data[8];
+		float uvw[3], muvw[3];
+		int stride[3] = { 1, m_res[0], m_res[0] * m_res[1] };
+		
+		int offset = interp_weights(vec, uvw);
+		muvw[0] = 1.0f - uvw[0];
+		muvw[1] = 1.0f - uvw[1];
+		muvw[2] = 1.0f - uvw[2];
+		
+		data[0] = m_data[offset                                    ];
+		data[1] = m_data[offset                         + stride[0]];
+		data[2] = m_data[offset             + stride[1]            ];
+		data[3] = m_data[offset             + stride[1] + stride[0]];
+		data[4] = m_data[offset + stride[2]                        ];
+		data[5] = m_data[offset + stride[2]             + stride[0]];
+		data[6] = m_data[offset + stride[2] + stride[1]            ];
+		data[7] = m_data[offset + stride[2] + stride[1] + stride[0]];
+		
+		return interp_trilinear(data, uvw, muvw);
+	}
+	
+protected:
+	
+	inline int index_axis(const float vec[3], int axis)
+	{
+		return min_ii( max_ii( (int)vec[axis], 0), m_res[axis]-2 );
+	}
+	
+	inline int offset(const float vec[3], const int res[3], const float gmin[3], float scale)
+	{
+		int i, j, k;
+		i = index_axis(vec, 0);
+		j = index_axis(vec, 1);
+		k = index_axis(vec, 2);
+		return i + (j + k*res[1])*res[0];
+	}
+	
+	inline int interp_weights(const float vec[3], float uvw[3])
+	{
+		int i = index_axis(vec, 0);
+		int j = index_axis(vec, 1);
+		int k = index_axis(vec, 2);
+		int offset = i + (j + k*m_res[1])*m_res[0];
+		
+		uvw[0] = vec[0] - (float)i;
+		uvw[1] = vec[1] - (float)j;
+		uvw[2] = vec[2] - (float)k;
+		
+		return offset;
 	}
 	
 private:
