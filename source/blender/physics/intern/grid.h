@@ -57,6 +57,9 @@ struct GridHash {
 			MEM_freeN(m_data);
 	}
 	
+	const int* resolution() const { return m_res; }
+	int size() const { return m_size; }
+	
 	void resize(const int res[3])
 	{
 		if (m_data)
@@ -102,6 +105,22 @@ struct GridHash {
 	{
 		BLI_assert(x >= 0 && x < m_res[0] && y >= 0 && y < m_res[1] && z >= 0 && z < m_res[2]);
 		return *(m_data + x + y * m_stride[1] + z * m_stride[2]);
+	}
+	
+	void from_eigen(lVector &r) const
+	{
+		BLI_assert(r.rows() == m_size);
+		for (int i = 0; i < m_size; ++i) {
+			m_data[i] = r.coeff(i);
+		}
+	}
+	
+	void to_eigen(lVector &r) const
+	{
+		BLI_assert(r.rows() == m_size);
+		for (int i = 0; i < m_size; ++i) {
+			r.coeffRef(i) = m_data[i];
+		}
 	}
 	
 private:

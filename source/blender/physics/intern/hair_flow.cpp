@@ -144,11 +144,15 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 	divergence.resize(data->grid.res);
 	data->grid.calc_divergence(divergence, source, source_normal);
 	
+	GridHash<float> pressure;
+	pressure.resize(data->grid.res);
+	data->grid.solve_pressure(pressure, divergence);
+	
 	{
 		float col0[3] = {0.0, 0.0, 0.0};
 		float colp[3] = {0.0, 1.0, 1.0};
 		float coln[3] = {1.0, 0.0, 1.0};
-		float divfac = 10.0f;
+		float colfac = 10.0f;
 		
 		BKE_sim_debug_data_clear_category(debug_data, "hair flow");
 		
@@ -161,20 +165,22 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 					
 					bool is_source = *source.get(x, y, z);
 					float div = *divergence.get(x, y, z);
+					float prs = *pressure.get(x, y, z);
 					
 //					if (is_source)
 //						BKE_sim_debug_data_add_circle(debug_data, vec, 0.02f, 1,0,0, "hair flow", 111, x, y, z);
 //					else
 //						BKE_sim_debug_data_add_circle(debug_data, vec, 0.02f, 0,1,0, "hair flow", 111, x, y, z);
 					
+					float input = prs;
 					float fac;
 					float col[3];
 					if (div > 0.0f) {
-						fac = CLAMPIS(div * divfac, 0.0, 1.0);
+						fac = CLAMPIS(input * colfac, 0.0, 1.0);
 						interp_v3_v3v3(col, col0, colp, fac);
 					}
 					else {
-						fac = CLAMPIS(-div * divfac, 0.0, 1.0);
+						fac = CLAMPIS(-input * colfac, 0.0, 1.0);
 						interp_v3_v3v3(col, col0, coln, fac);
 					}
 					if (fac > 0.05f)
@@ -182,32 +188,6 @@ HairFlowData *BPH_strands_solve_hair_flow(Scene *scene, Object *ob, float max_le
 				}
 			}
 		}
-#if 0
-				{
-					float wloc[3], loc[3];
-					float col0[3] = {0.0, 0.0, 0.0};
-					float colp[3] = {0.0, 1.0, 1.0};
-					float coln[3] = {1.0, 0.0, 1.0};
-					float col[3];
-					float fac;
-					
-					loc[0] = (float)(i - 1);
-					loc[1] = (float)(j - 1);
-					loc[2] = (float)(k - 1);
-					grid_to_world(grid, wloc, loc);
-					
-					if (divergence > 0.0f) {
-						fac = CLAMPIS(divergence * target_strength, 0.0, 1.0);
-						interp_v3_v3v3(col, col0, colp, fac);
-					}
-					else {
-						fac = CLAMPIS(-divergence * target_strength, 0.0, 1.0);
-						interp_v3_v3v3(col, col0, coln, fac);
-					}
-					if (fac > 0.05f)
-						BKE_sim_debug_data_add_circle(grid->debug_data, wloc, 0.01f, col[0], col[1], col[2], "grid", 5522, i, j, k);
-				}
-#endif
 	}
 	
 	return data;

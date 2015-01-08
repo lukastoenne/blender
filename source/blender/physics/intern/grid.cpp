@@ -224,6 +224,90 @@ void Grid::calc_divergence(GridHash<float> &divergence, const GridHash<bool> &so
 	}
 }
 
+/* Main Poisson equation system:
+ * This is derived from the discretezation of the Poisson equation
+ *   div(grad(p)) = div(v)
+ * 
+ * The finite difference approximation yields the linear equation system described here:
+ * http://en.wikipedia.org/wiki/Discrete_Poisson_equation
+ * 
+ * For a good overview of eulerian fluid sim methods, see
+ * http://www.proxyarch.com/util/techpapers/papers/Fluid%20flow%20for%20the%20rest%20of%20us.pdf
+ */
+void Grid::solve_pressure(GridHash<float> &pressure, const GridHash<float> &divergence)
+{
+	int stride[3] = { 1, res[0], res[0] * res[1] };
+	
+	lMatrix A(num_cells, num_cells);
+	
+	/* Reserve space for the base equation system (without boundary conditions).
+	 * Each column contains a factor 6 on the diagonal
+	 * and up to 6 factors -1 on other places.
+	 */
+	A.reserve(Eigen::VectorXi::Constant(num_cells, 7));
+	
+	for (int x = 0; x < res[0]; ++x) {
+		for (int y = 0; y < res[1]; ++y) {
+			for (int z = 0; z < res[2]; ++z) {
+				int u = x * stride[0] + y * stride[1] + z * stride[2];
+				bool is_margin = !(x > 0 && x < res[0]-1 && y > 0 && y < res[1]-1 && z > 0 && z < res[2]-1);
+				if (is_margin) {
+					A.insert(u, u) = 1.0f;
+					continue;
+				}
+				
+				/* check for upper bounds in advance
+				 * to get the correct number of neighbors,
+				 * needed for the diagonal element
+				 */
+				int neighbors_lo = 0;
+				int neighbors_hi = 0;
+				int non_solid_neighbors = 0;
+				int neighbor_lo_index[3];
+				int neighbor_hi_index[3];
+				if (z > 1)
+					neighbor_lo_index[neighbors_lo++] = u - stride[2];
+				if (y > 1)
+					neighbor_lo_index[neighbors_lo++] = u - stride[1];
+				if (x > 1)
+					neighbor_lo_index[neighbors_lo++] = u - stride[0];
+				if (x < res[0]-2)
+					neighbor_hi_index[neighbors_hi++] = u + stride[0];
+				if (y < res[1]-2)
+					neighbor_hi_index[neighbors_hi++] = u + stride[1];
+				if (z < res[2]-2)
+					neighbor_hi_index[neighbors_hi++] = u + stride[2];
+				
+				/*int liquid_neighbors = neighbors_lo + neighbors_hi;*/
+				non_solid_neighbors = 6;
+				
+				for (int n = 0; n < neighbors_lo; ++n)
+					A.insert(neighbor_lo_index[n], u) = -1.0f;
+				A.insert(u, u) = (float)non_solid_neighbors;
+				for (int n = 0; n < neighbors_hi; ++n)
+					A.insert(neighbor_hi_index[n], u) = -1.0f;
+			}
+		}
+	}
+	
+	ConjugateGradient cg;
+	cg.setMaxIterations(100);
+	cg.setTolerance(0.01f);
+	
+	cg.compute(A);
+	
+	lVector B(num_cells);
+	divergence.to_eigen(B);
+	
+	lVector p = cg.solve(B);
+	
+	if (cg.info() == Eigen::Success) {
+		pressure.from_eigen(p);
+	}
+	else
+		pressure.clear();
+}
+
 } /* namespace BPH */
 
 #include "implicit.h"
