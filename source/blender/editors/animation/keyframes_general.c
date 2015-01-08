@@ -551,9 +551,7 @@ short copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 			char *str_start;
 			
 			if ((str_start = strstr(aci->rna_path, "pose.bones["))) {
-				/* ninja coding, try to change the name */
 				bPoseChannel *pchan;
-				char bname[MAX_VGROUP_NAME];
 				int length = 0;
 				char *str_end;
 				
@@ -561,9 +559,8 @@ short copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 				str_end = strchr(str_start, '\"');
 				length = str_end - str_start;
 				str_start[length] = 0;
-				BKE_deform_flip_side_name(bname, str_start, false);
+				pchan = BKE_pose_channel_find_name(ob->pose, str_start);
 				str_start[length] = '\"';
-				pchan = BKE_pose_channel_find_name(ob->pose, bname);
 		
 				if (pchan) {
 					aci->is_bone = true;
