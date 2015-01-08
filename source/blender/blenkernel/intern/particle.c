@@ -84,6 +84,8 @@
 #include "BKE_scene.h"
 #include "BKE_deform.h"
 
+#include "BPH_strands.h"
+
 #include "RE_render_ext.h"
 
 unsigned int PSYS_FRAND_SEED_OFFSET[PSYS_FRAND_COUNT];
@@ -571,6 +573,10 @@ void psys_free(Object *ob, ParticleSystem *psys)
 			BKE_editstrands_free(psys->hairedit);
 			MEM_freeN(psys->hairedit);
 			psys->hairedit = NULL;
+		}
+		if (psys->hairflow) {
+			BPH_strands_free_hair_flow(psys->hairflow);
+			psys->hairflow = NULL;
 		}
 
 		if (psys->child) {

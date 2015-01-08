@@ -1284,6 +1284,7 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	psysn->childcache = NULL;
 	psysn->edit = NULL;
 	psysn->hairedit = NULL;
+	psysn->hairflow = NULL;
 	psysn->pdd = NULL;
 	psysn->effectors = NULL;
 	psysn->tree = NULL;

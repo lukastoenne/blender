@@ -259,6 +259,32 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, Panel):
         row.prop(part, "use_modifier_stack")
 
 
+class PARTICLE_PT_hair_flow(ParticleButtonsPanel, Panel):
+    bl_label = "Hair Flow"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        psys = context.particle_system
+        if psys is None:
+            return False
+        if psys.settings is None:
+            return False
+        return psys.settings.type == 'HAIR'
+
+#    def draw_header(self, context):
+#        psys = context.particle_system
+#        self.layout.prop(psys, "use_hair_flow", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        psys = context.particle_system
+
+        col = layout.column()
+        col.operator("hair.solve_flow")
+
+
+
 class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
     bl_label = "Hair dynamics"
     bl_options = {'DEFAULT_CLOSED'}

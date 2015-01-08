@@ -90,6 +90,6 @@ void BKE_editstrands_ensure(struct BMEditStrands *es);
 /* === particle conversion === */
 
 struct BMesh *BKE_particles_to_bmesh(struct Object *ob, struct ParticleSystem *psys);
-void BKE_particles_from_bmesh(struct Object *ob, struct ParticleSystem *psys);
+void BKE_particles_from_bmesh(struct Object *ob, struct ParticleSystem *psys, struct BMEditStrands *edit);
 
 #endif

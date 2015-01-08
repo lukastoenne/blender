@@ -186,10 +186,10 @@ BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 	return bm;
 }
 
-void BKE_particles_from_bmesh(Object *ob, ParticleSystem *psys)
+void BKE_particles_from_bmesh(Object *ob, ParticleSystem *psys, BMEditStrands *edit)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
-	BMesh *bm = psys->hairedit ? psys->hairedit->bm : NULL;
+	BMesh *bm = edit->bm;
 	
 	if (bm) {
 		if (psmd && psmd->dm) {

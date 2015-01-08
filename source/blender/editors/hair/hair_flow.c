@@ -44,6 +44,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_editstrands.h"
+#include "BKE_particle.h"
 
 #include "BPH_strands.h"
 
@@ -57,11 +58,17 @@
 
 #include "hair_intern.h"
 
+static int hair_flow_solve_poll(bContext *C)
+{
+	return hair_edit_toggle_poll(C);
+}
+
 static int hair_solve_flow_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
-	BMEditStrands *edit = BKE_editstrands_from_object(ob);
+	ParticleSystem *psys = psys_get_current(ob);
+	struct HairFlowData *data;
 	
 	unsigned int seed = 111;
 	int max_strands = RNA_int_get(op->ptr, "max_strands");
@@ -69,14 +76,27 @@ static int hair_solve_flow_exec(bContext *C, wmOperator *op)
 	int segments = RNA_int_get(op->ptr, "segments");
 	int res = RNA_int_get(op->ptr, "resolution");
 	
-	struct HairFlowData *data = BPH_strands_solve_hair_flow(scene, ob, max_length, res, edit->debug_data);
+	if (!psys || !(ob->type == OB_MESH || ob->derivedFinal))
+		return OPERATOR_CANCELLED;
+	
+	data = BPH_strands_solve_hair_flow(scene, ob, max_length, res, NULL);
 	if (data) {
-		/* remove existing hair strands */
-		BM_mesh_clear(edit->bm);
+		BMesh *bm = BKE_particles_to_bmesh(ob, psys);
+		DerivedMesh *dm = ob->derivedFinal ? ob->derivedFinal : mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+		BMEditStrands *edit = BKE_editstrands_create(bm, dm);
+		
 		/* generate new hair strands */
 		BPH_strands_sample_hair_flow(ob, edit, data, seed, max_strands, max_length, segments);
 		
+		BKE_particles_from_bmesh(ob, psys, edit);
+		psys->flag |= PSYS_EDITED;
+		BKE_editstrands_free(edit);
+		MEM_freeN(edit);
+		
 		BPH_strands_free_hair_flow(data);
+		
+		WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_HAIR, NULL);
+		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
 	
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
@@ -93,7 +113,7 @@ void HAIR_OT_solve_flow(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = hair_solve_flow_exec;
-	ot->poll = hair_edit_poll;
+	ot->poll = hair_flow_solve_poll; /* uses temporary edit data */
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

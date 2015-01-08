@@ -3931,6 +3931,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->edit = NULL;
 		psys->free_edit = NULL;
 		psys->hairedit = NULL;
+		psys->hairflow = NULL;
 		psys->pathcache = NULL;
 		psys->childcache = NULL;
 		BLI_listbase_clear(&psys->pathcachebufs);

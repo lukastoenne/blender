@@ -104,7 +104,7 @@ static bool apply_hair_edit(Object *ob)
 	ParticleSystem *psys = psys_get_current(ob);
 	if (psys->part->type == PART_HAIR) {
 		if (psys->hairedit) {
-			BKE_particles_from_bmesh(ob, psys);
+			BKE_particles_from_bmesh(ob, psys, psys->hairedit);
 			psys->flag |= PSYS_EDITED;
 			
 			BKE_editstrands_free(psys->hairedit);
