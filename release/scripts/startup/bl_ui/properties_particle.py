@@ -279,8 +279,13 @@ class PARTICLE_PT_hair_flow(ParticleButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         psys = context.particle_system
+        part = particle_get_settings(context)
 
         col = layout.column()
+        col.prop(part, "count")
+        col.prop(part, "hair_length")
+        col.prop(part, "hair_flow_resolution")
+
         col.operator("hair.solve_flow")
 
 

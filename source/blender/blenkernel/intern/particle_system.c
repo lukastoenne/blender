@@ -76,6 +76,7 @@
 #include "BKE_boids.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_collision.h"
+#include "BKE_editstrands.h"
 #include "BKE_effect.h"
 #include "BKE_particle.h"
 #include "BKE_global.h"
@@ -91,6 +92,8 @@
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
 #include "BKE_bvhutils.h"
+
+#include "BPH_strands.h"
 
 #include "PIL_time.h"
 
@@ -3507,6 +3510,48 @@ static void save_hair(ParticleSimulationData *sim, float UNUSED(cfra))
 	}
 }
 
+static bool psys_hair_flow_recalc(Scene *scene, Object *ob, ParticleSystem *psys)
+{
+	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
+	
+	unsigned int seed = psys->seed;
+	int max_strands = psys->part->totpart;
+	float max_length = psys->part->normfac * 4.f; /* XXX this is crap, but same as in RNA for the "hair_length" prop */
+	int segments = psys->part->hair_step;
+	int res = psys->part->hair_flow_resolution;
+	
+	struct HairFlowData *data;
+	
+	if (!psmd->dm)
+		return false;
+	
+	data = BPH_strands_solve_hair_flow(scene, ob, max_length, res, NULL);
+	if (data) {
+		BMesh *bm = BKE_particles_to_bmesh(ob, psys);
+		DerivedMesh *dm = psmd->dm;
+		BMEditStrands *edit = BKE_editstrands_create(bm, dm);
+		
+		/* generate new hair strands */
+		BPH_strands_sample_hair_flow(ob, edit, data, seed, max_strands, max_length, segments);
+		
+		BKE_particles_from_bmesh(ob, psys, edit);
+		psys->flag |= PSYS_EDITED;
+		BKE_editstrands_free(edit);
+		MEM_freeN(edit);
+		
+		BPH_strands_free_hair_flow(data);
+		
+//		WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_HAIR, NULL);
+//		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		
+		return true;
+	}
+	else
+		return false;
+	
+//	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | NA_SELECTED, ob);
+}
+
 /* Code for an adaptive time step based on the Courant-Friedrichs-Lewy
  * condition. */
 static const float MIN_TIMESTEP = 1.0f / 101.0f;
@@ -4258,15 +4303,20 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 
 	psys_check_boid_data(sim->psys);
 }
-static int hair_needs_recalc(ParticleSystem *psys)
-{
-	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || !psys->edit->edited) &&
-	    ((psys->flag & PSYS_HAIR_DONE)==0 || psys->recalc & PSYS_RECALC_RESET || (psys->part->flag & PART_HAIR_REGROW && !psys->edit)))
-	{
-		return 1;
-	}
 
-	return 0;
+static bool hair_needs_recalc(ParticleSystem *psys)
+{
+	bool is_done = psys->flag & PSYS_HAIR_DONE;
+	bool is_edited = (psys->flag & PSYS_EDITED) || (psys->edit && psys->edit->edited);
+	bool use_flow = psys->flag & PSYS_HAIR_FLOW;
+	
+	bool needs_reset = psys->recalc & PSYS_RECALC_RESET;
+	bool needs_regrow = (psys->part->flag & PART_HAIR_REGROW) && !psys->edit;
+	
+	if (use_flow)
+		return !is_done || needs_reset || needs_regrow;
+	else
+		return !is_edited && (!is_done || needs_reset || needs_regrow);
 }
 
 /* main particle update call, checks that things are ok on the large scale and
@@ -4331,30 +4381,36 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 			}
 			/* (re-)create hair */
 			else if (hair_needs_recalc(psys)) {
-				float hcfra=0.0f;
-				int i, recalc = psys->recalc;
-
+				int recalc = psys->recalc;
+				
 				free_hair(ob, psys, 0);
-
+				
 				if (psys->edit && psys->free_edit) {
 					psys->free_edit(psys->edit);
 					psys->edit = NULL;
 					psys->free_edit = NULL;
 				}
-
-				/* first step is negative so particles get killed and reset */
-				psys->cfra= 1.0f;
-
-				for (i=0; i<=part->hair_step; i++) {
-					hcfra=100.0f*(float)i/(float)psys->part->hair_step;
-					if ((part->flag & PART_HAIR_REGROW)==0)
-						BKE_animsys_evaluate_animdata(scene, &part->id, part->adt, hcfra, ADT_RECALC_ANIM);
-					system_step(&sim, hcfra);
-					psys->cfra = hcfra;
-					psys->recalc = 0;
-					save_hair(&sim, hcfra);
+				
+				if (psys->flag & PSYS_HAIR_FLOW) {
+					psys_hair_flow_recalc(scene, ob, psys);
 				}
-
+				else {
+					int i;
+					
+					/* first step is negative so particles get killed and reset */
+					psys->cfra= 1.0f;
+					
+					for (i=0; i<=part->hair_step; i++) {
+						float hcfra=100.0f*(float)i/(float)psys->part->hair_step;
+						if ((part->flag & PART_HAIR_REGROW)==0)
+							BKE_animsys_evaluate_animdata(scene, &part->id, part->adt, hcfra, ADT_RECALC_ANIM);
+						system_step(&sim, hcfra);
+						psys->cfra = hcfra;
+						psys->recalc = 0;
+						save_hair(&sim, hcfra);
+					}
+				}
+				
 				psys->flag |= PSYS_HAIR_DONE;
 				psys->recalc = recalc;
 			}

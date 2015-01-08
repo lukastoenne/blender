@@ -173,6 +173,8 @@ typedef struct ParticleSettings {
 	/* number of path segments, power of 2 except */
 	short draw_step, ren_step;
 	short hair_step, keys_step;
+	short hair_flow_resolution;
+	short pad3[3];
 
 	/* adaptive path rendering */
 	short adapt_angle, adapt_pix;
@@ -239,7 +241,7 @@ typedef struct ParticleSettings {
 
 	/* hair dynamics */
 	float bending_random;
-	int pad3;
+	int pad4;
 
 	struct MTex *mtex[18];		/* MAX_MTEX */
 
@@ -254,7 +256,7 @@ typedef struct ParticleSettings {
 
 	/* modified dm support */
 	short use_modifier_stack;
-	short pad4[3];
+	short pad5[3];
 
 } ParticleSettings;
 
