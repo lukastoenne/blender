@@ -58,11 +58,6 @@
 
 #include "hair_intern.h"
 
-static int hair_flow_solve_poll(bContext *C)
-{
-	return hair_edit_toggle_poll(C);
-}
-
 static int hair_solve_flow_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -113,7 +108,7 @@ void HAIR_OT_solve_flow(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = hair_solve_flow_exec;
-	ot->poll = hair_flow_solve_poll; /* uses temporary edit data */
+	ot->poll = hair_flow_poll; /* uses temporary edit data */
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

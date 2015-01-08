@@ -272,9 +272,9 @@ class PARTICLE_PT_hair_flow(ParticleButtonsPanel, Panel):
             return False
         return psys.settings.type == 'HAIR'
 
-#    def draw_header(self, context):
-#        psys = context.particle_system
-#        self.layout.prop(psys, "use_hair_flow", text="")
+    def draw_header(self, context):
+        psys = context.particle_system
+        self.layout.prop(psys, "use_hair_flow", text="")
 
     def draw(self, context):
         layout = self.layout

@@ -44,6 +44,7 @@ struct rcti;
 /* hair_edit.c */
 int hair_edit_toggle_poll(struct bContext *C);
 int hair_edit_poll(struct bContext *C);
+int hair_flow_poll(struct bContext *C);
 
 void HAIR_OT_hair_edit_toggle(struct wmOperatorType *ot);
 

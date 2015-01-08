@@ -3238,6 +3238,11 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Global Hair", "Hair keys are in global coordinate space");
 
+	prop = RNA_def_property(srna, "use_hair_flow", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PSYS_HAIR_FLOW);
+	RNA_def_property_ui_text(prop, "Hair Flow", "Enable hair flow calculation");
+	RNA_def_property_update(prop, 0, "rna_Particle_reset");
+
 	prop = RNA_def_property(srna, "use_hair_dynamics", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PSYS_HAIR_DYNAMICS);
 	RNA_def_property_ui_text(prop, "Hair Dynamics", "Enable hair dynamics using cloth simulation");

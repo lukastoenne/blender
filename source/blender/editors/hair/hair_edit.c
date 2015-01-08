@@ -130,6 +130,25 @@ int hair_edit_poll(bContext *C)
 	return false;
 }
 
+int hair_flow_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	ParticleSystem *psys;
+	
+	if (ob == NULL)
+		return false;
+	if (!ob->data || ((ID *)ob->data)->lib)
+		return false;
+	if (CTX_data_edit_object(C))
+		return false;
+	
+	psys = psys_get_current(ob);
+	if (!(psys && psys->part->type == PART_HAIR))
+		return false;
+	
+	return (bool)(psys->flag & PSYS_HAIR_FLOW);
+}
+
 
 /* ==== BMesh utilities ==== */
 
