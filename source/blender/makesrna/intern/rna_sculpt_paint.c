@@ -993,14 +993,8 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem mode_items[] = {
-		{HAIR_EDIT_MESH, "MESH", ICON_MESH_DATA, "Mesh", "Strand edit mode"},
-		{HAIR_EDIT_FLOW, "FLOW", ICON_SURFACE_DATA, "Flow", "Flow edit mode"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	static EnumPropertyItem select_mode_items[] = {
-		{HAIR_SELECT_STRAND, "STRAND", ICON_PARTICLE_PATH, "Strand", "Strand select mode"},
+		{HAIR_SELECT_STRAND, "STRAND", ICON_PARTICLE_PATH, "Strand", "Strand edit mode"},
 		{HAIR_SELECT_VERTEX, "VERTEX", ICON_PARTICLE_POINT, "Vertex", "Vertex select mode"},
 		{HAIR_SELECT_TIP, "TIP", ICON_PARTICLE_TIP, "Tip", "Tip select mode"},
 		{0, NULL, 0, NULL, NULL}
@@ -1016,12 +1010,6 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Brush_mode_poll");
 	RNA_def_property_ui_text(prop, "Brush", "Active Brush");
 	RNA_def_property_update(prop, 0, "rna_HairEdit_brush_update");
-
-	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_bitflag_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, mode_items);
-	RNA_def_property_ui_text(prop, "Mode", "Hair editing mode");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_HairEdit_update");
 
 	prop = RNA_def_property(srna, "select_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "select_mode");

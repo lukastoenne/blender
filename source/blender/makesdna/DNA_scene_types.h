@@ -889,11 +889,6 @@ typedef struct ParticleEditSettings {
 /* ------------------------------------------- */
 /* Hair Edit */
 
-typedef enum HairEditMode {
-	HAIR_EDIT_MESH      = 0, /* use mesh-based editing */
-	HAIR_EDIT_FLOW      = 1, /* use flow field construction */
-} HairEditMode;
-
 /* HairEditSettings->select_mode */
 typedef enum HairEditSelectMode {
 	HAIR_SELECT_STRAND  = 0,
@@ -908,9 +903,7 @@ typedef enum HairEditFlag {
 
 typedef struct HairEditSettings {
 	int flag;
-	int mode;
 	int select_mode;
-	int pad;
 	
 	struct Brush *brush;
 	struct Object *shape_object;
