@@ -384,6 +384,10 @@ Image *BKE_image_copy(Main *bmain, Image *ima)
 	if (ima->packedfile)
 		nima->packedfile = dupPackedFile(ima->packedfile);
 
+	if (ima->id.lib) {
+		BKE_id_lib_local_paths(bmain, ima->id.lib, &nima->id);
+	}
+
 	return nima;
 }
 

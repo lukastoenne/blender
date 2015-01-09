@@ -562,6 +562,10 @@ Mesh *BKE_mesh_copy_ex(Main *bmain, Mesh *me)
 	men->key = BKE_key_copy(me->key);
 	BKE_key_set_from_id(men->key, (ID *)men);
 
+	if (me->id.lib) {
+		BKE_id_lib_local_paths(bmain, me->id.lib, &men->id);
+	}
+
 	return men;
 }
 
