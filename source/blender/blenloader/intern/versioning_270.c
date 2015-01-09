@@ -126,6 +126,29 @@ static void do_version_constraints_stretch_to_limits(ListBase *lb)
 	}
 }
 
+/* transfer volume settings to new struct */
+static void do_version_constraints_volume_settings(ListBase *lb)
+{
+	bConstraint *con;
+
+	for (con = lb->first; con; con = con->next) {
+		if (con->type == CONSTRAINT_TYPE_STRETCHTO) {
+			bStretchToConstraint *data = (bStretchToConstraint *)con->data;
+			
+			data->volume.mode = data->volmode;
+			data->volume.flag = 0;
+			if (data->flag & _STRETCHTOCON_USE_BULGE_MIN)
+				data->volume.flag |= CONSTRAINT_VOLUME_USE_MIN;
+			if (data->flag & _STRETCHTOCON_USE_BULGE_MAX)
+				data->volume.flag |= CONSTRAINT_VOLUME_USE_MAX;
+			data->volume.bulge = data->bulge;
+			data->volume.bulge_min = data->bulge_min;
+			data->volume.bulge_max = data->bulge_max;
+			data->volume.bulge_smooth = data->bulge_smooth;
+		}
+	}
+}
+
 void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 {
 	if (!MAIN_VERSION_ATLEAST(main, 270, 0)) {
@@ -507,6 +530,22 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 
 #undef BRUSH_RAKE
 #undef BRUSH_RANDOM_ROTATION
+
+		if (!DNA_struct_elem_find(fd->filesdna, "bStretchToConstraint", "bConstraintVolumeSettings", "volume")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				do_version_constraints_volume_settings(&ob->constraints);
+
+				if (ob->pose) {
+					/* Bones constraints! */
+					bPoseChannel *pchan;
+					for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+						do_version_constraints_volume_settings(&pchan->constraints);
+					}
+				}
+			}
+		}
 	}
 
 	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "float", "clumpnoisesize")) {

@@ -75,6 +75,17 @@ typedef struct bConstraint {
 	float       rot_error;		/* residual error on constraint expressed in radiant */
 } bConstraint;
 
+/* Volume Preservation Settings ---------------------  */
+
+typedef struct bConstraintVolumeSettings {
+	int			flag;
+	short		mode;
+	short		pad;
+	float		bulge;
+	float		bulge_min;
+	float		bulge_max;
+	float		bulge_smooth;
+} bConstraintVolumeSettings;
 
 /* Multiple-target constraints ---------------------  */
 
@@ -291,13 +302,14 @@ typedef struct bFollowPathConstraint {
 typedef struct bStretchToConstraint {
 	struct Object		*tar;
 	int			flag;
-	int			volmode; 
+	int			volmode DNA_DEPRECATED;
 	int			plane;
 	float		orglength;
-	float		bulge;
-	float		bulge_min;
-	float		bulge_max;
-	float		bulge_smooth;
+	float		bulge DNA_DEPRECATED;
+	float		bulge_min DNA_DEPRECATED;
+	float		bulge_max DNA_DEPRECATED;
+	float		bulge_smooth DNA_DEPRECATED;
+	bConstraintVolumeSettings volume;
 	char		subtarget[64];	/* MAX_ID_NAME-2 */
 } bStretchToConstraint;
 
@@ -541,6 +553,20 @@ typedef enum eConstraintChannel_Flags {
 	CONSTRAINT_CHANNEL_SELECT =		(1<<0),
 	CONSTRAINT_CHANNEL_PROTECTED =	(1<<1)
 } eConstraintChannel_Flags;
+
+/* bConstraintVolumeSettings->mode */
+typedef enum eConstraintVolumeSettings_Mode {
+	CONSTRAINT_NONE			= 0,
+	CONSTRAINT_VOLUME_XZ	= 1,
+	CONSTRAINT_VOLUME_X		= 2,
+	CONSTRAINT_VOLUME_Z		= 3,
+} eConstraintVolumeSettings_Mode;
+
+/* bConstraintVolumeSettings->flag */
+typedef enum eConstraintVolumeSettings_Flags {
+	CONSTRAINT_VOLUME_USE_MIN = (1 << 0),
+	CONSTRAINT_VOLUME_USE_MAX = (1 << 1),
+} eConstraintVolumeSettings_Flags;
 
 /* -------------------------------------- */
 
@@ -838,8 +864,8 @@ typedef enum eObjectSolver_Flags {
 
 /* ObjectSolver Constraint -> flag */
 typedef enum eStretchTo_Flags {
-	STRETCHTOCON_USE_BULGE_MIN = (1 << 0),
-	STRETCHTOCON_USE_BULGE_MAX = (1 << 1),
+	_STRETCHTOCON_USE_BULGE_MIN = (1 << 0), /* deprecated */
+	_STRETCHTOCON_USE_BULGE_MAX = (1 << 1), /* deprecated */
 } eStretchTo_Flags;
 
 /* important: these defines need to match up with PHY_DynamicTypes headerfile */

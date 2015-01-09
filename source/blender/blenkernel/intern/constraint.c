@@ -578,6 +578,72 @@ static void constraint_target_to_mat4(Object *ob, const char *substring, float m
 	}
 }
 
+/* ------------ Volume Preservation ---------- */
+
+static void constraint_volume_init(bConstraintVolumeSettings *vol)
+{
+	vol->mode = CONSTRAINT_VOLUME_XZ;
+	vol->bulge = 1.0f;
+	vol->bulge_min = 1.0f;
+	vol->bulge_max = 1.0f;
+	vol->bulge_smooth = 0.0f;
+	vol->flag = 0;
+}
+
+static void constraint_volume_eval_scale(float result[3], bConstraintVolumeSettings *vol, float factor)
+{
+	float bulge = powf(factor, vol->bulge);
+	
+	if (bulge > 1.0f) {
+		if (vol->flag & CONSTRAINT_VOLUME_USE_MAX) {
+			float bulge_max = max_ff(vol->bulge_max, 1.0f);
+			float hard = min_ff(bulge, bulge_max);
+			
+			float range = bulge_max - 1.0f;
+			float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
+			float soft = 1.0f + range * atanf((bulge - 1.0f) * scale) / (0.5f * M_PI);
+			
+			bulge = interpf(soft, hard, vol->bulge_smooth);
+		}
+	}
+	if (bulge < 1.0f) {
+		if (vol->flag & CONSTRAINT_VOLUME_USE_MIN) {
+			float bulge_min = CLAMPIS(vol->bulge_max, 0.0f, 1.0f); /* bulge_max is not a mistake: used as upper limit for bulge_min! */
+			float hard = max_ff(bulge, bulge_min);
+			
+			float range = 1.0f - bulge_min;
+			float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
+			float soft = 1.0f - range * atanf((1.0f - bulge) * scale) / (0.5f * M_PI);
+			
+			bulge = interpf(soft, hard, vol->bulge_smooth);
+		}
+	}
+	
+	result[1] = factor;
+	switch (vol->mode) {
+		/* volume preserving scaling */
+		case CONSTRAINT_VOLUME_XZ:
+			result[0] = result[2] = sqrtf(bulge);
+			break;
+		case CONSTRAINT_VOLUME_X:
+			result[0] = bulge;
+			result[2] = 1.0f;
+			break;
+		case CONSTRAINT_VOLUME_Z:
+			result[0] = 1.0f;
+			result[2] = bulge;
+			break;
+		/* don't care for volume */
+		case CONSTRAINT_NONE:
+			result[0] = 1.0f;
+			result[2] = 1.0f;
+			break;
+		default: /* should not happen */
+			BLI_assert(false);
+			break;
+	}
+}
+
 /* ************************* Specific Constraints ***************************** */
 /* Each constraint defines a set of functions, which will be called at the appropriate
  * times. In addition to this, each constraint should have a type-info struct, where
@@ -2626,12 +2692,9 @@ static void stretchto_new_data(void *cdata)
 {
 	bStretchToConstraint *data = (bStretchToConstraint *)cdata;
 	
-	data->volmode = 0;
 	data->plane = 0;
 	data->orglength = 0.0; 
-	data->bulge = 1.0;
-	data->bulge_max = 1.0f;
-	data->bulge_min = 1.0f;
+	constraint_volume_init(&data->volume);
 }
 
 static void stretchto_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -2677,7 +2740,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 	if (VALID_CONS_TARGET(ct)) {
 		float size[3], scale[3], vec[3], xx[3], zz[3], orth[3];
 		float totmat[3][3];
-		float dist, bulge;
+		float dist;
 		
 		/* store scaling before destroying obmat */
 		mat4_to_size(size, cob->matrix);
@@ -2704,57 +2767,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		if (data->orglength == 0)
 			data->orglength = dist;
 
-		scale[1] = dist / data->orglength;
-		
-		bulge = powf(data->orglength / dist, data->bulge);
-		
-		if (bulge > 1.0f) {
-			if (data->flag & STRETCHTOCON_USE_BULGE_MAX) {
-				float bulge_max = max_ff(data->bulge_max, 1.0f);
-				float hard = min_ff(bulge, bulge_max);
-				
-				float range = bulge_max - 1.0f;
-				float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
-				float soft = 1.0f + range * atanf((bulge - 1.0f) * scale) / (0.5f * M_PI);
-				
-				bulge = interpf(soft, hard, data->bulge_smooth);
-			}
-		}
-		if (bulge < 1.0f) {
-			if (data->flag & STRETCHTOCON_USE_BULGE_MIN) {
-				float bulge_min = CLAMPIS(data->bulge_min, 0.0f, 1.0f);
-				float hard = max_ff(bulge, bulge_min);
-				
-				float range = 1.0f - bulge_min;
-				float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
-				float soft = 1.0f - range * atanf((1.0f - bulge) * scale) / (0.5f * M_PI);
-				
-				bulge = interpf(soft, hard, data->bulge_smooth);
-			}
-		}
-		
-		switch (data->volmode) {
-			/* volume preserving scaling */
-			case VOLUME_XZ:
-				scale[0] = sqrtf(bulge);
-				scale[2] = scale[0];
-				break;
-			case VOLUME_X:
-				scale[0] = bulge;
-				scale[2] = 1.0;
-				break;
-			case VOLUME_Z:
-				scale[0] = 1.0;
-				scale[2] = bulge;
-				break;
-			/* don't care for volume */
-			case NO_VOLUME:
-				scale[0] = 1.0;
-				scale[2] = 1.0;
-				break;
-			default: /* should not happen, but in case*/
-				return;
-		} /* switch (data->volmode) */
+		constraint_volume_eval_scale(scale, &data->volume, dist / data->orglength);
 		
 		/* Clear the object's rotation and scale */
 		cob->matrix[0][0] = size[0] * scale[0];

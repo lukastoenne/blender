@@ -89,6 +89,27 @@ class ConstraintButtonsPanel():
         col = split.column()
         col.prop(con, "chain_count")
 
+    def volume_settings_template(self, layout, volume):
+        layout.prop(volume, "bulge", text="Volume Variation")
+        split = layout.split()
+        col = split.column(align=True)
+        col.prop(volume, "use_bulge_min", text="Volume Min")
+        sub = col.column()
+        sub.active = volume.use_bulge_min
+        sub.prop(volume, "bulge_min", text="")
+        col = split.column(align=True)
+        col.prop(volume, "use_bulge_max", text="Volume Max")
+        sub = col.column()
+        sub.active = volume.use_bulge_max
+        sub.prop(volume, "bulge_max", text="")
+        col = layout.column()
+        col.active = volume.use_bulge_min or volume.use_bulge_max
+        col.prop(volume, "bulge_smooth", text="Smooth")
+
+        row = layout.row()
+        row.label(text="Volume:")
+        row.prop(volume, "mode", expand=True)
+
     def CHILD_OF(self, context, layout, con):
         self.target_template(layout, con)
 
@@ -501,25 +522,7 @@ class ConstraintButtonsPanel():
         row.prop(con, "rest_length", text="Rest Length")
         row.operator("constraint.stretchto_reset", text="Reset")
 
-        layout.prop(con, "bulge", text="Volume Variation")
-        split = layout.split()
-        col = split.column(align=True)
-        col.prop(con, "use_bulge_min", text="Volume Min")
-        sub = col.column()
-        sub.active = con.use_bulge_min
-        sub.prop(con, "bulge_min", text="")
-        col = split.column(align=True)
-        col.prop(con, "use_bulge_max", text="Volume Max")
-        sub = col.column()
-        sub.active = con.use_bulge_max
-        sub.prop(con, "bulge_max", text="")
-        col = layout.column()
-        col.active = con.use_bulge_min or con.use_bulge_max
-        col.prop(con, "bulge_smooth", text="Smooth")
-
-        row = layout.row()
-        row.label(text="Volume:")
-        row.prop(con, "volume", expand=True)
+        self.volume_settings_template(layout, con.volume)
 
         row.label(text="Plane:")
         row.prop(con, "keep_axis", expand=True)

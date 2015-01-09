@@ -289,6 +289,12 @@ static void rna_Constraint_influence_update(Main *bmain, Scene *scene, PointerRN
 	rna_Constraint_update(bmain, scene, ptr);
 }
 
+static void rna_ConstraintVolumeSettings_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	/* note: ptr type is bConstraintVolumeSettings, not bConstraint */
+	ED_object_constraint_update(ptr->id.data);
+}
+
 static void rna_Constraint_ik_type_set(struct PointerRNA *ptr, int value)
 {
 	bConstraint *con = ptr->data;
@@ -501,6 +507,59 @@ static void rna_def_constrainttarget(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_dependency_update");
 
 	/* space, flag and type still to do  */
+}
+
+static void rna_def_constraint_volume_settings(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem mode_items[] = {
+		{CONSTRAINT_NONE, "NONE", 0, "None", "No volume adjustment"},
+		{CONSTRAINT_VOLUME_XZ, "VOLUME_XZX", 0, "XZ", "Scale X and Z uniformly"},
+		{CONSTRAINT_VOLUME_X, "VOLUME_X", 0, "X", "Only adjust X scale"},
+		{CONSTRAINT_VOLUME_Z, "VOLUME_Z", 0, "Z", "Only adjust Z scale"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	srna = RNA_def_struct(brna, "ConstraintVolumeSettings", NULL);
+	RNA_def_struct_ui_text(srna, "Constraint Volume Settings", "Volume preservation settings for constraints");
+	RNA_def_struct_sdna(srna, "bConstraintVolumeSettings");
+
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "Maintain the object's volume as it stretches");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
+
+	prop = RNA_def_property(srna, "bulge", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 100.f);
+	RNA_def_property_ui_text(prop, "Volume Variation", "Factor between volume variation and stretching");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
+
+	prop = RNA_def_property(srna, "use_bulge_min", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", CONSTRAINT_VOLUME_USE_MIN);
+	RNA_def_property_ui_text(prop, "Use Volume Variation Minimum", "Use lower limit for volume variation");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
+
+	prop = RNA_def_property(srna, "use_bulge_max", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", CONSTRAINT_VOLUME_USE_MAX);
+	RNA_def_property_ui_text(prop, "Use Volume Variation Maximum", "Use upper limit for volume variation");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
+
+	prop = RNA_def_property(srna, "bulge_min", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 1.0f);
+	RNA_def_property_ui_text(prop, "Volume Variation Minimum", "Minimum volume stretching factor");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
+
+	prop = RNA_def_property(srna, "bulge_max", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 1.0, 100.0f);
+	RNA_def_property_ui_text(prop, "Volume Variation Maximum", "Maximum volume stretching factor");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
+
+	prop = RNA_def_property(srna, "bulge_smooth", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_range(prop, 0.0, 1.0f);
+	RNA_def_property_ui_text(prop, "Volume Variation Smoothness", "");
+	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
 }
 
 static void rna_def_constraint_childof(BlenderRNA *brna)
@@ -1308,14 +1367,6 @@ static void rna_def_constraint_stretch_to(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem volume_items[] = {
-		{VOLUME_XZ, "VOLUME_XZX", 0, "XZ", ""},
-		{VOLUME_X, "VOLUME_X", 0, "X", ""},
-		{VOLUME_Z, "VOLUME_Z", 0, "Z", ""},
-		{NO_VOLUME, "NO_VOLUME", 0, "None", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	static EnumPropertyItem plane_items[] = {
 		{PLANE_X, "PLANE_X", 0, "X", "Keep X Axis"},
 		{PLANE_Z, "PLANE_Z", 0, "Z", "Keep Z Axis"},
@@ -1343,11 +1394,8 @@ static void rna_def_constraint_stretch_to(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Sub-Target", "");
 	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_dependency_update");
 
-	prop = RNA_def_property(srna, "volume", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "volmode");
-	RNA_def_property_enum_items(prop, volume_items);
-	RNA_def_property_ui_text(prop, "Maintain Volume", "Maintain the object's volume as it stretches");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
+	prop = RNA_def_property(srna, "volume", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Volume", "Volume settings");
 
 	prop = RNA_def_property(srna, "keep_axis", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "plane");
@@ -1359,36 +1407,6 @@ static void rna_def_constraint_stretch_to(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "orglength");
 	RNA_def_property_range(prop, 0.0, 100.f);
 	RNA_def_property_ui_text(prop, "Original Length", "Length at rest position");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-	prop = RNA_def_property(srna, "bulge", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0, 100.f);
-	RNA_def_property_ui_text(prop, "Volume Variation", "Factor between volume variation and stretching");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-	prop = RNA_def_property(srna, "use_bulge_min", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", STRETCHTOCON_USE_BULGE_MIN);
-	RNA_def_property_ui_text(prop, "Use Volume Variation Minimum", "Use lower limit for volume variation");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-	prop = RNA_def_property(srna, "use_bulge_max", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", STRETCHTOCON_USE_BULGE_MAX);
-	RNA_def_property_ui_text(prop, "Use Volume Variation Maximum", "Use upper limit for volume variation");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-	prop = RNA_def_property(srna, "bulge_min", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0, 1.0f);
-	RNA_def_property_ui_text(prop, "Volume Variation Minimum", "Minimum volume stretching factor");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-	prop = RNA_def_property(srna, "bulge_max", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 1.0, 100.0f);
-	RNA_def_property_ui_text(prop, "Volume Variation Maximum", "Maximum volume stretching factor");
-	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-	prop = RNA_def_property(srna, "bulge_smooth", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_range(prop, 0.0, 1.0f);
-	RNA_def_property_ui_text(prop, "Volume Variation Smoothness", "Strength of volume stretching clamping");
 	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 }
 
@@ -2668,6 +2686,7 @@ void RNA_def_constraint(BlenderRNA *brna)
 
 	/* pointers */
 	rna_def_constrainttarget(brna);
+	rna_def_constraint_volume_settings(brna);
 
 	rna_def_constraint_childof(brna);
 	rna_def_constraint_python(brna);
