@@ -89,8 +89,10 @@ class ConstraintButtonsPanel():
         col = split.column()
         col.prop(con, "chain_count")
 
-    def volume_settings_template(self, layout, volume):
-        layout.prop(volume, "bulge", text="Volume Variation")
+    def volume_settings_template(self, layout, volume, use_exponent=True):
+        if use_exponent:
+            layout.prop(volume, "bulge", text="Volume Variation")
+
         split = layout.split()
         col = split.column(align=True)
         col.prop(volume, "use_bulge_min", text="Volume Min")
@@ -522,7 +524,7 @@ class ConstraintButtonsPanel():
         row.prop(con, "rest_length", text="Rest Length")
         row.operator("constraint.stretchto_reset", text="Reset")
 
-        self.volume_settings_template(layout, con.volume)
+        self.volume_settings_template(layout, con.volume, use_exponent=True)
 
         row.label(text="Plane:")
         row.prop(con, "keep_axis", expand=True)

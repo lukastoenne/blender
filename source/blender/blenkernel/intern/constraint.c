@@ -590,9 +590,10 @@ static void constraint_volume_init(bConstraintVolumeSettings *vol)
 	vol->flag = 0;
 }
 
-static void constraint_volume_eval_scale(float result[3], bConstraintVolumeSettings *vol, float factor)
+static void constraint_volume_eval_scale(float result[3], bConstraintVolumeSettings *vol, float factor,
+                                         bool use_exponent)
 {
-	float bulge = powf(factor, vol->bulge);
+	float bulge = use_exponent ? powf(factor, vol->bulge) : factor;
 	
 	if (bulge > 1.0f) {
 		if (vol->flag & CONSTRAINT_VOLUME_USE_MAX) {
@@ -2767,7 +2768,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		if (data->orglength == 0)
 			data->orglength = dist;
 
-		constraint_volume_eval_scale(scale, &data->volume, dist / data->orglength);
+		constraint_volume_eval_scale(scale, &data->volume, dist / data->orglength, true);
 		
 		/* Clear the object's rotation and scale */
 		cob->matrix[0][0] = size[0] * scale[0];
