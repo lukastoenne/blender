@@ -105,7 +105,7 @@ static void get_child_modifier_parameters(ParticleSettings *part, ParticleThread
                                           ChildParticle *cpa, short cpa_from, int cpa_num, float *cpa_fuv, float *orco, ParticleTexture *ptex);
 extern void do_child_modifiers(ParticleSimulationData *sim,
                                ParticleTexture *ptex, ParticleKey *par, float *par_rot, const float par_orco[3],
-                               ChildParticle *cpa, const float orco[3], float mat[4][4], ParticleKey *state, float t, float spiral_start[3], float *time_prev, float *co_prev);
+                               ChildParticle *cpa, const float orco[3], float mat[4][4], ParticleKey *state, float t);
 
 /* few helpers for countall etc. */
 int count_particles(ParticleSystem *psys)
@@ -139,7 +139,7 @@ int count_particles_mod(ParticleSystem *psys, int totgr, int cur)
 
 #define PATH_CACHE_BUF_SIZE 1024
 
-static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot, int steps)
+static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot, int totkeys)
 {
 	LinkData *buf;
 	ParticleCacheKey **cache;
@@ -152,10 +152,10 @@ static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot,
 	while (totkey < tot) {
 		totbufkey = MIN2(tot - totkey, PATH_CACHE_BUF_SIZE);
 		buf = MEM_callocN(sizeof(LinkData), "PathCacheLinkData");
-		buf->data = MEM_callocN(sizeof(ParticleCacheKey) * totbufkey * steps, "ParticleCacheKey");
+		buf->data = MEM_callocN(sizeof(ParticleCacheKey) * totbufkey * totkeys, "ParticleCacheKey");
 
 		for (i = 0; i < totbufkey; i++)
-			cache[totkey + i] = ((ParticleCacheKey *)buf->data) + i * steps;
+			cache[totkey + i] = ((ParticleCacheKey *)buf->data) + i * totkeys;
 
 		totkey += totbufkey;
 		BLI_addtail(bufs, buf);
@@ -1171,9 +1171,9 @@ static void interpolate_pathcache(ParticleCacheKey *first, float t, ParticleCach
 	ParticleCacheKey *cur = first;
 
 	/* scale the requested time to fit the entire path even if the path is cut early */
-	t *= (first + first->steps)->time;
+	t *= (first + first->segments)->time;
 
-	while (i < first->steps && cur->time < t)
+	while (i < first->segments && cur->time < t)
 		cur++;
 
 	if (cur->time == t)
@@ -1703,7 +1703,7 @@ void psys_particle_on_emitter(ParticleSystemModifierData *psmd, int from, int in
 /************************************************/
 
 extern void do_kink(ParticleKey *state, ParticleKey *par, float *par_rot, float time, float freq, float shape, float amplitude, float flat,
-                    short type, short axis, float obmat[4][4], int smooth_start, float spiral_start[3], float *time_prev, float *co_prev);
+                    short type, short axis, float obmat[4][4], int smooth_start);
 extern float do_clump(ParticleKey *state, ParticleKey *par, float time, const float orco_offset[3], float clumpfac, float clumppow, float pa_clump,
                       bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve);
 
@@ -1825,11 +1825,10 @@ int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, i
 		{
 			ParticleKey key, par;
 			float orco_offset[3] = {0.0f, 0.0f, 0.0f};
-			float spiral_start[3], time_prev = 0.0f, co_prev[3] = {0,0,0};
 			
 			par.co[0] = par.co[1] = par.co[2] = 0.0f;
 			copy_v3_v3(key.co, vec_to_point);
-			do_kink(&key, &par, 0, guidetime, pd->kink_freq, pd->kink_shape, pd->kink_amp, 0.f, pd->kink, pd->kink_axis, 0, 0, spiral_start, &time_prev, co_prev);
+			do_kink(&key, &par, 0, guidetime, pd->kink_freq, pd->kink_shape, pd->kink_amp, 0.f, pd->kink, pd->kink_axis, 0, 0);
 			do_clump(&key, &par, guidetime, orco_offset, pd->clump_fac, pd->clump_pow, 1.0f,
 			         part->child_flag & PART_CHILD_USE_CLUMP_NOISE, part->clump_noise_size, part->clumpcurve);
 			copy_v3_v3(vec_to_point, key.co);
@@ -1975,7 +1974,7 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	int totparent = 0, between = 0;
-	int steps = 1 << part->draw_step;
+	int segments = 1 << part->draw_step;
 	int totchild = psys->totchild;
 
 	psys_thread_context_init(ctx, sim);
@@ -1987,7 +1986,7 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 		if (psys->renderdata == 0 && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
 			totchild = 0;
 
-		steps = 1 << pset->draw_step;
+		segments = 1 << pset->draw_step;
 	}
 
 	if (totchild && part->childtype == PART_CHILD_FACES) {
@@ -2001,7 +2000,7 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 	}
 
 	if (psys->renderdata)
-		steps = (int)pow(2.0, (double)part->ren_step);
+		segments = 1 << part->ren_step;
 	else {
 		totchild = (int)((float)totchild * (float)part->disp / 100.0f);
 		totparent = MIN2(totparent, totchild);
@@ -2012,7 +2011,11 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 
 	/* fill context values */
 	ctx->between = between;
-	ctx->steps = steps;
+	ctx->segments = segments;
+	if (ELEM(part->kink, PART_KINK_SPIRAL))
+		ctx->extra_segments = max_ii(part->kink_extra_steps, 1);
+	else
+		ctx->extra_segments = 0;
 	ctx->totchild = totchild;
 	ctx->totparent = totparent;
 	ctx->parent_pass = 0;
@@ -2092,7 +2095,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 			if (!needupdate)
 				return;
 			else
-				memset(child_keys, 0, sizeof(*child_keys) * (ctx->steps + 1));
+				memset(child_keys, 0, sizeof(*child_keys) * (ctx->segments + 1));
 		}
 
 		/* get parent paths */
@@ -2115,14 +2118,14 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 					if (part->flag & PART_CHILD_LONG_HAIR) {
 						/* For long hair use tip distance/root distance as parting factor instead of root to tip angle. */
 						float d1 = len_v3v3(key[0]->co, key[w]->co);
-						float d2 = len_v3v3((key[0] + key[0]->steps - 1)->co, (key[w] + key[w]->steps - 1)->co);
+						float d2 = len_v3v3((key[0] + key[0]->segments - 1)->co, (key[w] + key[w]->segments - 1)->co);
 
 						d = d1 > 0.f ? d2 / d1 - 1.f : 10000.f;
 					}
 					else {
 						float v1[3], v2[3];
-						sub_v3_v3v3(v1, (key[0] + key[0]->steps - 1)->co, key[0]->co);
-						sub_v3_v3v3(v2, (key[w] + key[w]->steps - 1)->co, key[w]->co);
+						sub_v3_v3v3(v1, (key[0] + key[0]->segments - 1)->co, key[0]->co);
+						sub_v3_v3v3(v2, (key[w] + key[w]->segments - 1)->co, key[w]->co);
 						normalize_v3(v1);
 						normalize_v3(v2);
 
@@ -2170,7 +2173,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 			if (!(psys->edit->points[cpa->parent].flag & PEP_EDIT_RECALC))
 				return;
 
-			memset(child_keys, 0, sizeof(*child_keys) * (ctx->steps + 1));
+			memset(child_keys, 0, sizeof(*child_keys) * (ctx->segments + 1));
 		}
 
 		/* get the parent path */
@@ -2189,18 +2192,18 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 		psys_mat_hair_to_global(ob, ctx->sim.psmd->dm, psys->part->from, pa, hairmat);
 	}
 
-	child_keys->steps = ctx->steps;
+	child_keys->segments = ctx->segments;
 
 	/* get different child parameters from textures & vgroups */
 	get_child_modifier_parameters(part, ctx, cpa, cpa_from, cpa_num, cpa_fuv, orco, &ptex);
 
 	if (ptex.exist < psys_frand(psys, i + 24)) {
-		child_keys->steps = -1;
+		child_keys->segments = -1;
 		return;
 	}
 
 	/* create the child path */
-	for (k = 0, child = child_keys; k <= ctx->steps; k++, child++) {
+	for (k = 0, child = child_keys; k <= ctx->segments; k++, child++) {
 		if (ctx->between) {
 			int w = 0;
 
@@ -2218,7 +2221,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 
 					/* Fade the effect of rotation for even lengths in the end */
 					project_v3_v3v3(dvec, off2[w], (key[w] + k)->vel);
-					madd_v3_v3fl(off2[w], dvec, -(float)k / (float)ctx->steps);
+					madd_v3_v3fl(off2[w], dvec, -(float)k / (float)ctx->segments);
 				}
 
 				add_v3_v3(off2[w], (key[w] + k)->co);
@@ -2242,14 +2245,14 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 			offset_child(cpa, (ParticleKey *)(key[0] + k), par_rot, (ParticleKey *)child, part->childflat, part->childrad);
 		}
 
-		child->time = (float)k / (float)ctx->steps;
+		child->time = (float)k / (float)ctx->segments;
 	}
 
 	/* apply effectors */
 	if (part->flag & PART_CHILD_EFFECT) {
-		for (k = 0, child = child_keys; k <= ctx->steps; k++, child++) {
+		for (k = 0, child = child_keys; k <= ctx->segments; k++, child++) {
 			if (k) {
-				do_path_effectors(&ctx->sim, cpa->pa[0], child, k, ctx->steps, child_keys->co, ptex.effector, 0.0f, ctx->cfra, &eff_length, eff_vec);
+				do_path_effectors(&ctx->sim, cpa->pa[0], child, k, ctx->segments, child_keys->co, ptex.effector, 0.0f, ctx->cfra, &eff_length, eff_vec);
 			}
 			else {
 				sub_v3_v3v3(eff_vec, (child + 1)->co, child->co);
@@ -2345,7 +2348,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 
 	/* Hide virtual parents */
 	if (i < ctx->totparent)
-		child_keys->steps = -1;
+		child_keys->segments = -1;
 }
 
 static void exec_child_path_cache(TaskPool *UNUSED(pool), void *taskdata, int UNUSED(threadid))
@@ -2390,7 +2393,8 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 	else {
 		/* clear out old and create new empty path cache */
 		free_child_path_cache(sim->psys);
-		sim->psys->childcache = psys_alloc_path_cache_buffers(&sim->psys->childcachebufs, totchild, ctx.steps + 1);
+		
+		sim->psys->childcache = psys_alloc_path_cache_buffers(&sim->psys->childcachebufs, totchild, ctx.segments + ctx.extra_segments + 1);
 		sim->psys->totchildcache = totchild;
 	}
 	
@@ -2492,7 +2496,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	float prev_tangent[3] = {0.0f, 0.0f, 0.0f}, hairmat[4][4];
 	float rotmat[3][3];
 	int k;
-	int steps = (int)pow(2.0, (double)(psys->renderdata ? part->ren_step : part->draw_step));
+	int segments = (int)pow(2.0, (double)(psys->renderdata ? part->ren_step : part->draw_step));
 	int totpart = psys->totpart;
 	float length, vec[3];
 	float *vg_effector = NULL;
@@ -2510,7 +2514,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);
-	cache = psys->pathcache = psys_alloc_path_cache_buffers(&psys->pathcachebufs, totpart, steps + 1);
+	cache = psys->pathcache = psys_alloc_path_cache_buffers(&psys->pathcachebufs, totpart, segments + 1);
 
 	psys->lattice_deform_data = psys_create_lattice_deform_data(sim);
 	ma = give_current_material(sim->ob, psys->part->omat);
@@ -2547,9 +2551,9 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 		pind.bspline = (psys->part->flag & PART_HAIR_BSPLINE);
 		pind.dm = hair_dm;
 
-		memset(cache[p], 0, sizeof(*cache[p]) * (steps + 1));
+		memset(cache[p], 0, sizeof(*cache[p]) * (segments + 1));
 
-		cache[p]->steps = steps;
+		cache[p]->segments = segments;
 
 		/*--get the first data points--*/
 		init_particle_interpolation(sim->ob, sim->psys, pa, &pind);
@@ -2571,16 +2575,16 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 		}
 
 		if (birthtime >= dietime) {
-			cache[p]->steps = -1;
+			cache[p]->segments = -1;
 			continue;
 		}
 
 		dietime = birthtime + pa_length * (dietime - birthtime);
 
 		/*--interpolate actual path from data points--*/
-		for (k = 0, ca = cache[p]; k <= steps; k++, ca++) {
+		for (k = 0, ca = cache[p]; k <= segments; k++, ca++) {
 			ParticleKey result;
-			time = (float)k / (float)steps;
+			time = (float)k / (float)segments;
 			t = birthtime + time * (dietime - birthtime);
 			result.time = -t;
 			do_particle_interpolation(psys, p, pa, t, &pind, &result);
@@ -2625,29 +2629,29 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 				sub_v3_v3v3(vec, (cache[p] + 1)->co, cache[p]->co);
 				length = len_v3(vec);
 
-				for (k = 1, ca = cache[p] + 1; k <= steps; k++, ca++)
-					do_path_effectors(sim, p, ca, k, steps, cache[p]->co, effector, dfra, cfra, &length, vec);
+				for (k = 1, ca = cache[p] + 1; k <= segments; k++, ca++)
+					do_path_effectors(sim, p, ca, k, segments, cache[p]->co, effector, dfra, cfra, &length, vec);
 			}
 
 			/* apply guide curves to path data */
 			if (sim->psys->effectors && (psys->part->flag & PART_CHILD_EFFECT) == 0) {
-				for (k = 0, ca = cache[p]; k <= steps; k++, ca++)
+				for (k = 0, ca = cache[p]; k <= segments; k++, ca++)
 					/* ca is safe to cast, since only co and vel are used */
-					do_guides(sim->psys->part, sim->psys->effectors, (ParticleKey *)ca, p, (float)k / (float)steps);
+					do_guides(sim->psys->part, sim->psys->effectors, (ParticleKey *)ca, p, (float)k / (float)segments);
 			}
 
 			/* lattices have to be calculated separately to avoid mixups between effector calculations */
 			if (psys->lattice_deform_data) {
-				for (k = 0, ca = cache[p]; k <= steps; k++, ca++)
+				for (k = 0, ca = cache[p]; k <= segments; k++, ca++)
 					calc_latt_deform(psys->lattice_deform_data, ca->co, 1.0f);
 			}
 		}
 
 		/* finally do rotation & velocity */
-		for (k = 1, ca = cache[p] + 1; k <= steps; k++, ca++) {
+		for (k = 1, ca = cache[p] + 1; k <= segments; k++, ca++) {
 			cache_key_incremental_rotation(ca, ca - 1, ca - 2, prev_tangent, k);
 
-			if (k == steps)
+			if (k == segments)
 				copy_qt_qt(ca->rot, (ca - 1)->rot);
 
 			/* set velocity */
@@ -2656,7 +2660,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 			if (k == 1)
 				copy_v3_v3((ca - 1)->vel, ca->vel);
 
-			ca->time = (float)k / (float)steps;
+			ca->time = (float)k / (float)segments;
 		}
 		/* First rotation is based on emitting face orientation.
 		 * This is way better than having flipping rotations resulting
@@ -2703,17 +2707,17 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 	float t, time = 0.0f, keytime = 0.0f /*, frs_sec */;
 	float hairmat[4][4], rotmat[3][3], prev_tangent[3] = {0.0f, 0.0f, 0.0f};
 	int k, i;
-	int steps = (int)pow(2.0, (double)pset->draw_step);
+	int segments = 1 << pset->draw_step;
 	int totpart = edit->totpoint, recalc_set = 0;
 	float sel_col[3];
 	float nosel_col[3];
 
-	steps = MAX2(steps, 4);
+	segments = MAX2(segments, 4);
 
 	if (!cache || edit->totpoint != edit->totcached) {
 		/* clear out old and create new empty path cache */
 		psys_free_path_cache(edit->psys, edit);
-		cache = edit->pathcache = psys_alloc_path_cache_buffers(&edit->pathcachebufs, totpart, steps + 1);
+		cache = edit->pathcache = psys_alloc_path_cache_buffers(&edit->pathcachebufs, totpart, segments + 1);
 
 		/* set flag for update (child particles check this too) */
 		for (i = 0, point = edit->points; i < totpart; i++, point++)
@@ -2760,9 +2764,9 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 		}
 
 
-		memset(cache[i], 0, sizeof(*cache[i]) * (steps + 1));
+		memset(cache[i], 0, sizeof(*cache[i]) * (segments + 1));
 
-		cache[i]->steps = steps;
+		cache[i]->segments = segments;
 
 		/*--get the first data points--*/
 		init_particle_interpolation(ob, psys, pa, &pind);
@@ -2778,13 +2782,13 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 		dietime = pind.dietime;
 
 		if (birthtime >= dietime) {
-			cache[i]->steps = -1;
+			cache[i]->segments = -1;
 			continue;
 		}
 
 		/*--interpolate actual path from data points--*/
-		for (k = 0, ca = cache[i]; k <= steps; k++, ca++) {
-			time = (float)k / (float)steps;
+		for (k = 0, ca = cache[i]; k <= segments; k++, ca++) {
+			time = (float)k / (float)segments;
 			t = birthtime + time * (dietime - birthtime);
 			result.time = -t;
 			do_particle_interpolation(psys, i, pa, t, &pind, &result);
@@ -2797,7 +2801,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 				if (k) {
 					cache_key_incremental_rotation(ca, ca - 1, ca - 2, prev_tangent, k);
 
-					if (k == steps)
+					if (k == segments)
 						copy_qt_qt(ca->rot, (ca - 1)->rot);
 
 					/* set velocity */
@@ -2831,7 +2835,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 
 				/* at the moment this is only used for weight painting.
 				 * will need to move out of this check if its used elsewhere. */
-				t2 = birthtime + ((float)k / (float)steps) * (dietime - birthtime);
+				t2 = birthtime + ((float)k / (float)segments) * (dietime - birthtime);
 
 				while (pind.hkey[1]->time < t2) pind.hkey[1]++;
 				pind.hkey[0] = pind.hkey[1] - 1;
@@ -3169,6 +3173,7 @@ static void default_particle_settings(ParticleSettings *part)
 	part->adapt_pix = 3;
 	part->kink_axis = 2;
 	part->kink_amp_clump = 1.f;
+	part->kink_extra_steps = 4;
 	part->clump_noise_size = 1.0f;
 	part->reactevent = PART_EVENT_DEATH;
 	part->disp = 100;
@@ -3867,10 +3872,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 				copy_particle_key(&tstate, state, 1);
 
 			/* apply different deformations to the child path */
-			{
-				float spiral_start[3], time_prev = 0.0f, co_prev[3] = {0,0,0};
-				do_child_modifiers(sim, &ptex, par, par->rot, par_orco, cpa, orco, hairmat, state, t, spiral_start, &time_prev, co_prev);
-			}
+			do_child_modifiers(sim, &ptex, par, par->rot, par_orco, cpa, orco, hairmat, state, t);
 
 			/* try to estimate correct velocity */
 			if (vel) {
@@ -3966,7 +3968,6 @@ int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *sta
 			ParticleKey *key1;
 			float t = (cfra - pa->time) / pa->lifetime;
 			float par_orco[3] = {0.0f, 0.0f, 0.0f};
-			float spiral_start[3], time_prev = 0.0f, co_prev[3] = {0,0,0};
 
 			key1 = &pa->state;
 			offset_child(cpa, key1, key1->rot, state, part->childflat, part->childrad);
@@ -3974,7 +3975,7 @@ int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *sta
 			CLAMP(t, 0.0f, 1.0f);
 
 			unit_m4(mat);
-			do_child_modifiers(sim, NULL, key1, key1->rot, par_orco, cpa, cpa->fuv, mat, state, t, spiral_start, &time_prev, co_prev);
+			do_child_modifiers(sim, NULL, key1, key1->rot, par_orco, cpa, cpa->fuv, mat, state, t);
 
 			if (psys->lattice_deform_data)
 				calc_latt_deform(psys->lattice_deform_data, state->co, 1.0f);
@@ -4102,7 +4103,7 @@ void psys_get_dupli_path_transform(ParticleSimulationData *sim, ParticleData *pa
 	float loc[3], nor[3], vec[3], side[3], len;
 	float xvec[3] = {-1.0, 0.0, 0.0}, nmat[3][3];
 
-	sub_v3_v3v3(vec, (cache + cache->steps)->co, cache->co);
+	sub_v3_v3v3(vec, (cache + cache->segments)->co, cache->co);
 	len = normalize_v3(vec);
 
 	if (pa == NULL && psys->part->childflat != PART_CHILD_FACES)
