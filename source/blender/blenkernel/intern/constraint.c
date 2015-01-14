@@ -2722,7 +2722,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 		}
 		if (bulge < 1.0f) {
 			if (data->flag & STRETCHTOCON_USE_BULGE_MIN) {
-				float bulge_min = CLAMPIS(data->bulge_max, 0.0f, 1.0f);
+				float bulge_min = CLAMPIS(data->bulge_min, 0.0f, 1.0f);
 				float hard = max_ff(bulge, bulge_min);
 				
 				float range = 1.0f - bulge_min;
@@ -3698,6 +3698,9 @@ static void splineik_new_data(void *cdata)
 	bSplineIKConstraint *data = (bSplineIKConstraint *)cdata;
 
 	data->chainlen = 1;
+	data->bulge = 1.0;
+	data->bulge_max = 1.0f;
+	data->bulge_min = 1.0f;
 }
 
 static void splineik_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)

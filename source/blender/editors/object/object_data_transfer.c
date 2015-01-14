@@ -41,7 +41,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
-#include "BKE_object_data_transfer.h"
+#include "BKE_data_transfer.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_remap.h"
@@ -643,7 +643,7 @@ void OBJECT_OT_datalayout_transfer(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 
-	ot->name = "Transfer Mesh Datalayout";
+	ot->name = "Transfer Mesh Data Layout";
 	ot->description = "Transfer layout of data layer(s) from active to selected meshes";
 	ot->idname = "OBJECT_OT_datalayout_transfer";
 

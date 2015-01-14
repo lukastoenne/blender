@@ -101,7 +101,6 @@
 #include "GHOST_Path-api.h"
 
 #include "UI_interface.h"
-#include "UI_interface_icons.h"
 #include "UI_view2d.h"
 
 #include "GPU_draw.h"
@@ -479,7 +478,6 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 		WM_operatortype_last_properties_clear_all();
 
 		/* important to do before NULL'ing the context */
-		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
 		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
 		if (!G.background) {
@@ -673,7 +671,6 @@ int wm_homefile_read(bContext *C, ReportList *reports, bool from_memory, const c
 	WM_operatortype_last_properties_clear_all();
 
 	/* important to do before NULL'ing the context */
-	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
 	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
 	WM_event_add_notifier(C, NC_WM | ND_FILEREAD, NULL);
@@ -892,24 +889,6 @@ bool write_crash_blend(void)
 	else {
 		printf("failed: %s\n", path);
 		return 0;
-	}
-}
-
-static void UNUSED_FUNCTION(wm_ensure_previews)(bContext *C, Main *mainvar)
-{
-	ListBase *lb[] = {&mainvar->mat, &mainvar->tex, &mainvar->image, &mainvar->world, &mainvar->lamp, NULL};
-	ID *id;
-	int i;
-
-	for (i = 0; lb[i]; i++) {
-		for (id = lb[i]->first; id; id = id->next) {
-			/* Only preview non-library datablocks, lib ones do not pertain to this .blend file!
-			 * Same goes for ID with no user. */
-			if (!id->lib && (id->us != 0)) {
-				UI_id_icon_render(C, id, false, false);
-				UI_id_icon_render(C, id, true, false);
-			}
-		}
 	}
 }
 

@@ -541,7 +541,7 @@ void WM_event_print(const wmEvent *event)
 		       event->shift, event->ctrl, event->alt, event->oskey, event->keymodifier,
 		       event->x, event->y, event->ascii,
 		       BLI_str_utf8_size(event->utf8_buf), event->utf8_buf,
-		       event->keymap_idname, (void *)event);
+		       event->keymap_idname, (const void *)event);
 
 		if (ISNDOF(event->type)) {
 			const wmNDOFMotionData *ndof = event->customdata;
@@ -1741,16 +1741,12 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 
 			/* remlink now, for load file case before removing*/
 			BLI_remlink(handlers, handler);
-				
+
 			if (val != EVT_FILESELECT_EXTERNAL_CANCEL) {
-				if (screen != handler->filescreen) {
-					ED_screen_full_prevspace(C, CTX_wm_area(C));
-				}
-				else {
-					ED_area_prevspace(C, CTX_wm_area(C));
-				}
+				ScrArea *sa = CTX_wm_area(C);
+				ED_screen_retore_temp_type(C, sa, screen != handler->filescreen);
 			}
-				
+
 			wm_handler_op_context(C, handler);
 
 			/* needed for UI_popup_menu_reports */
