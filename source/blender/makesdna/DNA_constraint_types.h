@@ -556,10 +556,14 @@ typedef enum eConstraintChannel_Flags {
 
 /* bConstraintVolumeSettings->mode */
 typedef enum eConstraintVolumeSettings_Mode {
-	CONSTRAINT_NONE			= 0,
-	CONSTRAINT_VOLUME_XZ	= 1,
-	CONSTRAINT_VOLUME_X		= 2,
-	CONSTRAINT_VOLUME_Z		= 3,
+	CONSTRAINT_VOLUME_NONE		= 0,
+	CONSTRAINT_VOLUME_ORIG		= 1,
+	CONSTRAINT_VOLUME_YZ		= 2,
+	CONSTRAINT_VOLUME_XZ		= 3,
+	CONSTRAINT_VOLUME_XY		= 4,
+	CONSTRAINT_VOLUME_X			= 5,
+	CONSTRAINT_VOLUME_Y			= 6,
+	CONSTRAINT_VOLUME_Z			= 7,
 } eConstraintVolumeSettings_Mode;
 
 /* bConstraintVolumeSettings->flag */

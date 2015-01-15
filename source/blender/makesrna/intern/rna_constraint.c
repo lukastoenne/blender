@@ -295,6 +295,47 @@ static void rna_ConstraintVolumeSettings_update(Main *UNUSED(bmain), Scene *UNUS
 	ED_object_constraint_update(ptr->id.data);
 }
 
+static EnumPropertyItem *rna_ConstraintVolumeSettings_mode_itemf(bContext *UNUSED(C), PointerRNA *ptr,
+                                                                 PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
+{
+	bConstraint *con = (bConstraint *)ptr->data;
+	
+	static EnumPropertyItem mode_items_all[] = {
+		{CONSTRAINT_VOLUME_NONE,	"NONE",				0,	"None",		"No volume adjustment"},
+		{CONSTRAINT_VOLUME_ORIG,	"ORIG",				0,	"Original",	"Keep original volume"},
+		{CONSTRAINT_VOLUME_XZ,		"VOLUME_UNIFORM",	0,	"Uniform",	"Scale all other axes uniformly"},
+		{CONSTRAINT_VOLUME_X,		"VOLUME_X",			0,	"X",		"Only adjust X scale"},
+		{CONSTRAINT_VOLUME_Y,		"VOLUME_Y",			0,	"Y",		"Only adjust Y scale"},
+		{CONSTRAINT_VOLUME_Z,		"VOLUME_Z",			0,	"Z",		"Only adjust Z scale"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	
+	static EnumPropertyItem mode_items_stretchto[] = {
+		{CONSTRAINT_VOLUME_NONE,	"NONE",				0,	"None",		"No volume adjustment"},
+		{CONSTRAINT_VOLUME_XZ,		"VOLUME_UNIFORM",	0,	"Uniform",	"Scale all other axes uniformly"},
+		{CONSTRAINT_VOLUME_X,		"VOLUME_X",			0,	"X",		"Only adjust X scale"},
+		{CONSTRAINT_VOLUME_Z,		"VOLUME_Z",			0,	"Z",		"Only adjust Z scale"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	
+	static EnumPropertyItem mode_items_splineik[] = {
+		{CONSTRAINT_VOLUME_NONE,	"NONE",				0,	"None",		"No volume adjustment"},
+		{CONSTRAINT_VOLUME_ORIG,	"ORIG",				0,	"Original",	"Keep original volume"},
+		{CONSTRAINT_VOLUME_XZ,		"VOLUME_UNIFORM",	0,	"Uniform",	"Scale all other axes uniformly"},
+		{CONSTRAINT_VOLUME_X,		"VOLUME_X",			0,	"X",		"Only adjust X scale"},
+		{CONSTRAINT_VOLUME_Y,		"VOLUME_Y",			0,	"Y",		"Only adjust Y scale"},
+		{CONSTRAINT_VOLUME_Z,		"VOLUME_Z",			0,	"Z",		"Only adjust Z scale"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	
+	switch (con->type) {
+		case CONSTRAINT_TYPE_STRETCHTO:
+			return mode_items_stretchto;
+		default:
+			return mode_items_all;
+	}
+}
+
 static void rna_Constraint_ik_type_set(struct PointerRNA *ptr, int value)
 {
 	bConstraint *con = ptr->data;
@@ -514,11 +555,8 @@ static void rna_def_constraint_volume_settings(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem mode_items[] = {
-		{CONSTRAINT_NONE, "NONE", 0, "None", "No volume adjustment"},
-		{CONSTRAINT_VOLUME_XZ, "VOLUME_XZX", 0, "XZ", "Scale X and Z uniformly"},
-		{CONSTRAINT_VOLUME_X, "VOLUME_X", 0, "X", "Only adjust X scale"},
-		{CONSTRAINT_VOLUME_Z, "VOLUME_Z", 0, "Z", "Only adjust Z scale"},
+	static EnumPropertyItem dummy_items[] = {
+		{0, "DUMMY", 0, "", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -527,7 +565,8 @@ static void rna_def_constraint_volume_settings(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "bConstraintVolumeSettings");
 
 	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_enum_items(prop, dummy_items);
+	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_ConstraintVolumeSettings_mode_itemf");
 	RNA_def_property_ui_text(prop, "Mode", "Maintain the object's volume as it stretches");
 	RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_ConstraintVolumeSettings_update");
 

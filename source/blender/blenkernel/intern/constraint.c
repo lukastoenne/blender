@@ -620,13 +620,27 @@ static void constraint_volume_eval_scale(float result[3], bConstraintVolumeSetti
 		}
 	}
 	
-	result[1] = factor;
 	switch (vol->mode) {
 		/* volume preserving scaling */
+		case CONSTRAINT_VOLUME_YZ:
+			result[0] = factor;
+			result[1] = result[2] = sqrtf(bulge);
+			break;
 		case CONSTRAINT_VOLUME_XZ:
+			result[1] = factor;
 			result[0] = result[2] = sqrtf(bulge);
 			break;
+		case CONSTRAINT_VOLUME_XY:
+			result[2] = factor;
+			result[0] = result[1] = sqrtf(bulge);
+			break;
+		
 		case CONSTRAINT_VOLUME_X:
+			result[0] = bulge;
+			result[2] = 1.0f;
+			result[2] = 1.0f;
+			break;
+		case CONSTRAINT_VOLUME_Y:
 			result[0] = bulge;
 			result[2] = 1.0f;
 			break;
@@ -634,10 +648,14 @@ static void constraint_volume_eval_scale(float result[3], bConstraintVolumeSetti
 			result[0] = 1.0f;
 			result[2] = bulge;
 			break;
-		/* don't care for volume */
-		case CONSTRAINT_NONE:
+		
+		case CONSTRAINT_VOLUME_NONE:
+			/* no scaling */
 			result[0] = 1.0f;
 			result[2] = 1.0f;
+			break;
+		case CONSTRAINT_VOLUME_ORIG:
+			/* keep original scaling */
 			break;
 		default: /* should not happen */
 			BLI_assert(false);
