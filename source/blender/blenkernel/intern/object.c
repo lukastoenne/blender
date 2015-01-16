@@ -1238,7 +1238,7 @@ BulletSoftBody *copy_bulletsoftbody(BulletSoftBody *bsb)
 	return bsbn;
 }
 
-static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
+ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys)
 {
 	ParticleSystem *psysn;
 	ParticleData *pa;
@@ -1319,7 +1319,7 @@ void BKE_object_copy_particlesystems(Object *obn, Object *ob)
 
 	BLI_listbase_clear(&obn->particlesystem);
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		npsys = copy_particlesystem(psys);
+		npsys = BKE_object_copy_particlesystem(psys);
 
 		BLI_addtail(&obn->particlesystem, npsys);
 
