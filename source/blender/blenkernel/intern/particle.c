@@ -1786,6 +1786,8 @@ void precalc_guides(ParticleSimulationData *sim, ListBase *effectors)
 
 int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, int index, float time)
 {
+	CurveMapping *clumpcurve = (part->child_flag & PART_CHILD_USE_CLUMP_CURVE) ? part->clumpcurve : NULL;
+	CurveMapping *roughcurve = (part->child_flag & PART_CHILD_USE_ROUGH_CURVE) ? part->roughcurve : NULL;
 	EffectorCache *eff;
 	PartDeflect *pd;
 	Curve *cu;
@@ -1853,10 +1855,10 @@ int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, i
 			}
 		}
 		
-		if (part->clumpcurve)
-			curvemapping_changed_all(part->clumpcurve);
-		if (part->roughcurve)
-			curvemapping_changed_all(part->roughcurve);
+		if (clumpcurve)
+			curvemapping_changed_all(clumpcurve);
+		if (roughcurve)
+			curvemapping_changed_all(roughcurve);
 		
 		{
 			ParticleKey key;
@@ -1868,7 +1870,7 @@ int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, i
 			copy_v3_v3(key.co, vec_to_point);
 			do_kink(&key, par_co, par_vel, par_rot, guidetime, pd->kink_freq, pd->kink_shape, pd->kink_amp, 0.f, pd->kink, pd->kink_axis, 0, 0);
 			do_clump(&key, par_co, guidetime, orco_offset, pd->clump_fac, pd->clump_pow, 1.0f,
-			         part->child_flag & PART_CHILD_USE_CLUMP_NOISE, part->clump_noise_size, part->clumpcurve);
+			         part->child_flag & PART_CHILD_USE_CLUMP_NOISE, part->clump_noise_size, clumpcurve);
 			copy_v3_v3(vec_to_point, key.co);
 		}
 		
@@ -2073,9 +2075,9 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 		ctx->vg_effector = psys_cache_vgroup(ctx->dm, psys, PSYS_VG_EFFECTOR);
 
 	/* prepare curvemapping tables */
-	if (part->clumpcurve)
+	if ((part->child_flag & PART_CHILD_USE_CLUMP_CURVE) && part->clumpcurve)
 		curvemapping_changed_all(part->clumpcurve);
-	if (part->roughcurve)
+	if ((part->child_flag & PART_CHILD_USE_ROUGH_CURVE) && part->roughcurve)
 		curvemapping_changed_all(part->roughcurve);
 
 	return true;
