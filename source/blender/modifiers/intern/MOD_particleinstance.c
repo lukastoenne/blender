@@ -365,6 +365,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					unit_qt(state.rot);
 				}
 				else {
+					float cross[3];
 					float temp[3] = {0.0f, 0.0f, 0.0f};
 					temp[axis] = 1.0f;
 					

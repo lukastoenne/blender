@@ -734,7 +734,7 @@ static LinkNode *cloth_continuum_add_hair_segments(HairGrid *grid, const float c
 		spring1 = spring2;
 		spring2 = spring3;
 		
-		vert3 = vert4;
+		// vert3 = vert4;
 		
 		copy_v3_v3(x1, x2); copy_v3_v3(v1, v2);
 		copy_v3_v3(x2, x3); copy_v3_v3(v2, v3);
@@ -749,14 +749,14 @@ static LinkNode *cloth_continuum_add_hair_segments(HairGrid *grid, const float c
 		
 		if (spring_link) {
 			spring3 = (ClothSpring *)spring_link->link;
-			vert4 = &verts[spring3->ij];
+			// vert4 = &verts[spring3->ij];
 			cloth_get_grid_location(data, cell_scale, cell_offset, vert4, x4, v4);
 			sub_v3_v3v3(dir3, x4, x3);
 			normalize_v3(dir3);
 		}
 		else {
 			spring3 = NULL;
-			vert4 = NULL;
+			// vert4 = NULL;
 			zero_v3(x4); zero_v3(v4);
 			zero_v3(dir3);
 		}
