@@ -56,14 +56,11 @@ struct PartDeflect;
 #define ALMOST_ZERO		FLT_EPSILON
 
 /* Bits to or into the ClothVertex.flags. */
-//typedef enum eClothVertexFlag {
-//	CLOTH_VERT_FLAG_PINNED      = 1,
-//	CLOTH_VERT_FLAG_NOSELFCOLL  = 2, /* vertex NOT used for self collisions */
-//	CLOTH_VERT_FLAG_EXCLUDE     = 4, /* exclude vertex from the simulation */
-//} eClothVertexFlag;
-#define CLOTH_VERT_FLAG_PINNED      1
-#define CLOTH_VERT_FLAG_NOSELFCOLL  2 /* vertex NOT used for self collisions */
-#define CLOTH_VERT_FLAG_EXCLUDE     4 /* exclude vertex from the simulation */
+typedef enum eClothVertexFlag {
+	CLOTH_VERT_FLAG_PINNED      = 1,
+	CLOTH_VERT_FLAG_NOSELFCOLL  = 2, /* vertex NOT used for self collisions */
+	CLOTH_VERT_FLAG_EXCLUDE     = 4, /* exclude vertex from the simulation */
+} eClothVertexFlag;
 
 typedef struct ClothHairData {
 	float loc[3];

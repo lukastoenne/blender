@@ -378,6 +378,14 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
 
         split.separator()
 
+        split.separator()
+
+        col = split.column()
+        col.label(text="Pinning")
+        col.prop(cloth, "pin_stiffness", text="Goal Strength")
+
+        split.separator()
+
         col = split.column()
         col.label(text="Quality:")
         col.prop(cloth, "quality", text="Steps", slider=True)

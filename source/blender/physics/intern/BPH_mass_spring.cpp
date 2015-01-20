@@ -661,64 +661,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 	}
 }
 
-#if 0
-static void cloth_calc_volume_force(ClothModifierData *clmd)
-{
-	ClothSimSettings *parms = clmd->sim_parms;
-	Cloth *cloth = clmd->clothObject;
-	Implicit_Data *data = cloth->implicit;
-	int numverts = cloth->numverts;
-	ClothVertex *vert;
-	
-	/* 2.0f is an experimental value that seems to give good results */
-	float smoothfac = 2.0f * parms->velocity_smooth;
-	float collfac = 2.0f * parms->collider_friction;
-	float pressfac = parms->pressure;
-	float minpress = parms->pressure_threshold;
-	float gmin[3], gmax[3];
-	int i;
-	
-	hair_get_boundbox(clmd, gmin, gmax);
-	
-	/* gather velocities & density */
-	if (smoothfac > 0.0f || pressfac > 0.0f) {
-		HairVertexGrid *vertex_grid = BPH_hair_volume_create_vertex_grid(clmd->sim_parms->voxel_res, gmin, gmax);
-		
-		vert = cloth->verts;
-		for (i = 0; i < numverts; i++, vert++) {
-			float x[3], v[3];
-			
-			if (vert->solver_index < 0) {
-				copy_v3_v3(x, vert->x);
-				copy_v3_v3(v, vert->v);
-			}
-			else {
-				BPH_mass_spring_get_motion_state(data, vert->solver_index, x, v);
-			}
-			BPH_hair_volume_add_vertex(vertex_grid, x, v);
-		}
-		BPH_hair_volume_normalize_vertex_grid(vertex_grid);
-		
-		vert = cloth->verts;
-		for (i = 0; i < numverts; i++, vert++) {
-			float x[3], v[3], f[3], dfdx[3][3], dfdv[3][3];
-			
-			if (vert->solver_index < 0)
-				continue;
-			
-			/* calculate volumetric forces */
-			BPH_mass_spring_get_motion_state(data, vert->solver_index, x, v);
-			BPH_hair_volume_vertex_grid_forces(vertex_grid, x, v, smoothfac, pressfac, minpress, f, dfdx, dfdv);
-			/* apply on hair data */
-			BPH_mass_spring_force_extern(data, vert->solver_index, f, dfdx, dfdv);
-		}
-		
-		BPH_hair_volume_free_vertex_grid(vertex_grid);
-	}
-}
-#endif
-
-/* returns active vertexes' motion state, or original location the vertex is disabled */
+/* returns vertexes' motion state */
 BLI_INLINE bool cloth_get_grid_location(Implicit_Data *data, float cell_scale, const float cell_offset[3],
                                         ClothVertex *vert, float x[3], float v[3])
 {
@@ -878,8 +821,8 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 	/* XXX FIXME arbitrary factor!!! this should be based on some intuitive value instead,
 	 * like number of hairs per cell and time decay instead of "strength"
 	 */
-	float denstarget = parms->density_target;
-	float densfac = parms->density_strength;
+	float density_target = parms->density_target;
+	float density_strength = parms->density_strength;
 	float gmin[3], gmax[3];
 	int i;
 	
@@ -892,7 +835,7 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 	hair_get_boundbox(clmd, gmin, gmax);
 	
 	/* gather velocities & density */
-	if (smoothfac > 0.0f || densfac > 0.0f) {
+	if (smoothfac > 0.0f || density_strength > 0.0f) {
 		HairGrid *grid = BPH_hair_volume_create_vertex_grid(clmd->sim_parms->voxel_cell_size, gmin, gmax);
 		
 		BPH_hair_volume_set_debug_data(grid, clmd->debug_data);
@@ -901,7 +844,7 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 		cloth_continuum_fill_grid(grid, cloth);
 		
 		/* main hair continuum solver */
-		BPH_hair_volume_solve_divergence(grid, dt, denstarget, densfac);
+		BPH_hair_volume_solve_divergence(grid, dt, density_target, density_strength);
 		
 		for (i = 0, vert = cloth->verts; i < numverts; i++, vert++) {
 			float x[3], v[3], nv[3];

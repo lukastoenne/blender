@@ -149,14 +149,6 @@ DO_INLINE void mul_fvector_S(float to[3], float from[3], float scalar)
 	to[1] = from[1] * scalar;
 	to[2] = from[2] * scalar;
 }
-/* simple cross product */
-/* STATUS: verified */
-DO_INLINE void cross_fvector(float to[3], float vectorA[3], float vectorB[3])
-{
-	to[0] = vectorA[1] * vectorB[2] - vectorA[2] * vectorB[1];
-	to[1] = vectorA[2] * vectorB[0] - vectorA[0] * vectorB[2];
-	to[2] = vectorA[0] * vectorB[1] - vectorA[1] * vectorB[0];
-}
 /* simple v^T * v product ("outer product") */
 /* STATUS: HAS TO BE verified (*should* work) */
 DO_INLINE void mul_fvectorT_fvector(float to[3][3], float vectorA[3], float vectorB[3])

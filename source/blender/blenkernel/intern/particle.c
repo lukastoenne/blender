@@ -1899,7 +1899,6 @@ int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, i
 	}
 	return 0;
 }
-
 static void do_path_effectors(ParticleSimulationData *sim, int i, ParticleCacheKey *ca, int k, int steps, float *UNUSED(rootco), float effector, float UNUSED(dfra), float UNUSED(cfra), float *length, float *vec)
 {
 	float force[3] = {0.0f, 0.0f, 0.0f};

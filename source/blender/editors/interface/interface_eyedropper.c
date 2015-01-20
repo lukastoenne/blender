@@ -73,10 +73,13 @@
 
 static void eyedropper_draw_cursor_text(const struct bContext *C, ARegion *ar, const char *name)
 {
-	int width;
+	const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 	wmWindow *win = CTX_wm_window(C);
 	int x = win->eventstate->x;
 	int y = win->eventstate->y;
+	const unsigned char fg[4] = {255, 255, 255, 255};
+	const unsigned char bg[4] = {0, 0, 0, 50};
+
 
 	if ((name[0] == '\0') ||
 	    (BLI_rcti_isect_pt(&ar->winrct, x, y) == false))
@@ -84,19 +87,12 @@ static void eyedropper_draw_cursor_text(const struct bContext *C, ARegion *ar, c
 		return;
 	}
 
-	width = UI_fontstyle_string_width(name);
 	x = x - ar->winrct.xmin;
 	y = y - ar->winrct.ymin;
 
-	y += 20;
+	y += U.widget_unit;
 
-	glColor4ub(0, 0, 0, 50);
-
-	UI_draw_roundbox_corner_set(UI_CNR_ALL | UI_RB_ALPHA);
-	UI_draw_roundbox(x, y, x + width + 8, y + 15, 4);
-
-	glColor4ub(255, 255, 255, 255);
-	UI_draw_string(x + 4, y + 4, name);
+	UI_fontstyle_draw_simple_backdrop(fstyle, x, y, name, fg, bg);
 }
 
 /** \} */
@@ -830,8 +826,10 @@ static void depthdropper_depth_set(bContext *C, DepthDropper *ddr, const float d
 /* set sample from accumulated values */
 static void depthdropper_depth_set_accum(bContext *C, DepthDropper *ddr)
 {
-	float depth;
-	depth = ddr->accum_depth * 1.0f / (float)ddr->accum_tot;
+	float depth = ddr->accum_depth;
+	if (ddr->accum_tot) {
+		depth /= (float)ddr->accum_tot;
+	}
 	depthdropper_depth_set(C, ddr, depth);
 }
 
