@@ -37,6 +37,7 @@
 #include "DNA_group_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_meshdata_types.h"
 
@@ -51,6 +52,7 @@
 #include "BKE_scene.h"
 
 #ifdef WITH_BULLET
+#include "RBI_api.h"
 #include "Bullet-C-Api.h"
 #endif
 #include "BLI_kdopbvh.h"
@@ -1433,3 +1435,62 @@ void cloth_free_contacts(ColliderContacts *collider_contacts, int totcolliders)
 		MEM_freeN(collider_contacts);
 	}
 }
+
+/* Bullet collision */
+
+#ifdef WITH_BULLET
+
+static void cloth_strands_contact_cb(void *userdata, rbManifoldPoint *cp,
+                                     const void *collob0, rbObjectType type0, int part0, int index0,
+                                     const void *collob1, rbObjectType type1, int part1, int index1)
+{
+	
+}
+
+void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *clmd, CollisionContactPoint **r_contacts, int *r_numcontacts)
+{
+	rbGhostObject *ghost;
+	rbCollisionShape *shape, *box;
+	float loc[3], rot[4];
+	
+	if (!scene->rigidbody_world || !scene->rigidbody_world->physics_world)
+		return;
+	
+	shape = RB_shape_new_compound(true);
+	box = RB_shape_new_box(1,1,1);
+	loc[0] = 0.0f;
+	loc[1] = 0.0f;
+	loc[2] = 0.2f;
+	unit_qt(rot);
+	
+	RB_shape_compound_add_child_shape(shape, loc, rot, box);
+	
+	ghost = RB_ghost_new(shape, loc, rot);
+	
+	{
+		float a[3] = {0,0,1};
+		float b[3] = {-2, -3, 0.342};
+		
+		BKE_sim_debug_data_clear_category("collision");
+		
+		BKE_sim_debug_data_add_line(a, b, 1,0,1, "collision", 8934);
+	}
+	
+	*r_contacts = NULL;
+	*r_numcontacts = 0;
+	
+	RB_dworld_contact_test_ghost(scene->rigidbody_world->physics_world, ghost, );
+	
+	RB_ghost_delete(ghost);
+	RB_shape_delete(shape);
+}
+
+#else
+
+void cloth_strands_find_contacts(Object *UNUSED(ob), ClothModifierData *UNUSED(clmd), CollisionContactPoint **r_contacts, int *r_numcontacts)
+{
+	*r_contacts = NULL;
+	*r_numcontacts = 0;
+}
+
+#endif

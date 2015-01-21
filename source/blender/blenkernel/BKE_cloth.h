@@ -218,6 +218,21 @@ void cloth_find_point_contacts(struct Object *ob, struct ClothModifierData *clmd
                                ColliderContacts **r_collider_contacts, int *r_totcolliders);
 void cloth_free_contacts(ColliderContacts *collider_contacts, int totcolliders);
 
+
+/* Bullet collision */
+typedef struct CollisionContactPoint {
+	float point_world_a[3];
+	float point_world_b[3];
+	float normal_world_b[3];
+	float distance;
+	float friction, rolling_friction, restitution;
+	int part_id_a, part_id_b;
+	int index_a, index_b;
+	float lifetime;
+} CollisionContactPoint;
+
+void cloth_strands_find_contacts(struct Object *ob, struct ClothModifierData *clmd, struct CollisionContactPoint **r_contacts, int *r_numcontacts);
+
 ////////////////////////////////////////////////
 
 /////////////////////////////////////////////////
