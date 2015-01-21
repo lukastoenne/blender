@@ -2090,52 +2090,25 @@ static void psys_task_init_path(ParticleTask *task, ParticleSimulationData *sim)
 	task->rng_path = BLI_rng_new(seed);
 }
 
-/* note: this function must be thread safe, except for branching! */
-static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cpa, ParticleCacheKey *child_keys, int i)
+static void psys_calc_child_parent_weights(ParticleTask *task, struct ChildParticle *cpa,
+                                           float orco[3], float ornor[3], float hairmat[4][4], int *cpa_num, float **cpa_fuv, short *cpa_from,
+                                           ParticleCacheKey *key[4], float weight[4], float offset[4][3])
 {
 	ParticleThreadContext *ctx = task->ctx;
 	Object *ob = ctx->sim.ob;
 	ParticleSystem *psys = ctx->sim.psys;
 	ParticleSettings *part = psys->part;
-	ParticleCacheKey **cache = psys->childcache;
 	ParticleCacheKey **pcache = psys_in_edit_mode(ctx->sim.scene, psys) && psys->edit ? psys->edit->pathcache : psys->pathcache;
-	ParticleCacheKey *child, *key[4];
-	ParticleTexture ptex;
-	float *cpa_fuv = 0, *par_rot = 0, rot[4];
-	float orco[3], ornor[3], hairmat[4][4], dvec[3], off1[4][3], off2[4][3];
-	float eff_length, eff_vec[3], weight[4];
-	int k, cpa_num;
-	short cpa_from;
-
-	if (!pcache)
-		return;
-
+	
 	if (ctx->between) {
 		ParticleData *pa = psys->particles + cpa->pa[0];
-		int w, needupdate;
-		float foffset, wsum = 0.f;
+		int w;
+		float wsum = 0.f;
 		float co[3];
 		float p_min = part->parting_min;
 		float p_max = part->parting_max;
 		/* Virtual parents don't work nicely with parting. */
 		float p_fac = part->parents > 0.f ? 0.f : part->parting_fac;
-
-		if (ctx->editupdate) {
-			needupdate = 0;
-			w = 0;
-			while (w < 4 && cpa->pa[w] >= 0) {
-				if (psys->edit->points[cpa->pa[w]].flag & PEP_EDIT_RECALC) {
-					needupdate = 1;
-					break;
-				}
-				w++;
-			}
-
-			if (!needupdate)
-				return;
-			else
-				memset(child_keys, 0, sizeof(*child_keys) * (ctx->segments + 1));
-		}
 
 		/* get parent paths */
 		for (w = 0; w < 4; w++) {
@@ -2190,46 +2163,83 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 		}
 
 		/* get the original coordinates (orco) for texture usage */
-		cpa_num = cpa->num;
-		
-		foffset = cpa->foffset;
-		cpa_fuv = cpa->fuv;
-		cpa_from = PART_FROM_FACE;
+		*cpa_from = PART_FROM_FACE;
+		*cpa_num = cpa->num;
+		*cpa_fuv = cpa->fuv;
 
-		psys_particle_on_emitter(ctx->sim.psmd, cpa_from, cpa_num, DMCACHE_ISCHILD, cpa->fuv, foffset, co, ornor, 0, 0, orco, 0);
+		psys_particle_on_emitter(ctx->sim.psmd, *cpa_from, *cpa_num, DMCACHE_ISCHILD, *cpa_fuv, cpa->foffset, co, ornor, 0, 0, orco, 0);
 
 		mul_m4_v3(ob->obmat, co);
 
 		for (w = 0; w < 4; w++)
-			sub_v3_v3v3(off1[w], co, key[w]->co);
+			sub_v3_v3v3(offset[w], co, key[w]->co);
 
 		psys_mat_hair_to_global(ob, ctx->sim.psmd->dm, psys->part->from, pa, hairmat);
 	}
 	else {
 		ParticleData *pa = psys->particles + cpa->parent;
 		float co[3];
-		if (ctx->editupdate) {
-			if (!(psys->edit->points[cpa->parent].flag & PEP_EDIT_RECALC))
-				return;
-
-			memset(child_keys, 0, sizeof(*child_keys) * (ctx->segments + 1));
-		}
 
 		/* get the parent path */
 		key[0] = pcache[cpa->parent];
 
 		/* get the original coordinates (orco) for texture usage */
-		cpa_from = part->from;
-		cpa_num = pa->num;
+		*cpa_from = part->from;
+		*cpa_num = pa->num;
 		/* XXX hack to avoid messed up particle num and subsequent crash (#40733) */
-		if (cpa_num > ctx->sim.psmd->dm->getNumTessFaces(ctx->sim.psmd->dm))
-			cpa_num = 0;
-		cpa_fuv = pa->fuv;
+		if (*cpa_num > ctx->sim.psmd->dm->getNumTessFaces(ctx->sim.psmd->dm))
+			*cpa_num = 0;
+		*cpa_fuv = pa->fuv;
 
-		psys_particle_on_emitter(ctx->sim.psmd, cpa_from, cpa_num, DMCACHE_ISCHILD, cpa_fuv, pa->foffset, co, ornor, 0, 0, orco, 0);
+		psys_particle_on_emitter(ctx->sim.psmd, *cpa_from, *cpa_num, DMCACHE_ISCHILD, *cpa_fuv, pa->foffset, co, ornor, 0, 0, orco, 0);
 
 		psys_mat_hair_to_global(ob, ctx->sim.psmd->dm, psys->part->from, pa, hairmat);
 	}
+}
+
+/* note: this function must be thread safe, except for branching! */
+static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cpa, ParticleCacheKey *child_keys, int i)
+{
+	ParticleThreadContext *ctx = task->ctx;
+	ParticleSystem *psys = ctx->sim.psys;
+	ParticleSettings *part = psys->part;
+	ParticleCacheKey **cache = psys->childcache;
+	ParticleCacheKey **pcache = psys_in_edit_mode(ctx->sim.scene, psys) && psys->edit ? psys->edit->pathcache : psys->pathcache;
+	ParticleCacheKey *child, *key[4];
+	ParticleTexture ptex;
+	float *cpa_fuv = 0, *par_rot = 0, rot[4];
+	float orco[3], ornor[3], hairmat[4][4], dvec[3], off1[4][3], off2[4][3];
+	float eff_length, eff_vec[3], weight[4];
+	int k, cpa_num;
+	short cpa_from;
+
+	if (!pcache)
+		return;
+
+	if (ctx->editupdate) {
+		bool need_update;
+		
+		if (ctx->between) {
+			int w;
+			need_update = false;
+			for (w = 0; w < 4 && cpa->pa[w] >= 0; ++w) {
+				if (psys->edit->points[cpa->pa[w]].flag & PEP_EDIT_RECALC) {
+					need_update = true;
+					break;
+				}
+			}
+		}
+		else {
+			need_update = psys->edit->points[cpa->parent].flag & PEP_EDIT_RECALC;
+		}
+		
+		if (need_update)
+			memset(child_keys, 0, sizeof(*child_keys) * (ctx->segments + 1));
+		else
+			return;
+	}
+
+	psys_calc_child_parent_weights(task, cpa, orco, ornor, hairmat, &cpa_num, &cpa_fuv, &cpa_from, key, weight, off1);
 
 	child_keys->segments = ctx->segments;
 
