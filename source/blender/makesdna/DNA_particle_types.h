@@ -477,18 +477,21 @@ typedef enum eParticleChildFlag {
 
 /* part->draw_as */
 /* part->ren_as*/
-#define PART_DRAW_NOT		0
-#define PART_DRAW_DOT		1
-#define PART_DRAW_HALO		1
-#define PART_DRAW_CIRC		2
-#define PART_DRAW_CROSS		3
-#define PART_DRAW_AXIS		4
-#define PART_DRAW_LINE		5
-#define PART_DRAW_PATH		6
-#define PART_DRAW_OB		7
-#define PART_DRAW_GR		8
-#define PART_DRAW_BB		9
-#define PART_DRAW_REND		10
+typedef enum eParticleDrawMethod {
+	PART_DRAW_NOT		= 0,
+	PART_DRAW_DOT		= 1,
+	PART_DRAW_HALO		= 1,
+	PART_DRAW_CIRC		= 2,
+	PART_DRAW_CROSS		= 3,
+	PART_DRAW_AXIS		= 4,
+	PART_DRAW_LINE		= 5,
+	PART_DRAW_PATH		= 6,
+	PART_DRAW_OB		= 7,
+	PART_DRAW_GR		= 8,
+	PART_DRAW_BB		= 9,
+	PART_DRAW_REND		= 10,
+	PART_DRAW_HULL		= 11,
+} eParticleDrawMethod;
 
 /* part->integrator */
 #define PART_INT_EULER		0

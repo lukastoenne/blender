@@ -98,9 +98,10 @@ static EnumPropertyItem part_draw_as_items[] = {
 
 #ifdef RNA_RUNTIME
 static EnumPropertyItem part_hair_draw_as_items[] = {
-	{PART_DRAW_NOT, "NONE", 0, "None", ""},
-	{PART_DRAW_REND, "RENDER", 0, "Rendered", ""},
-	{PART_DRAW_PATH, "PATH", 0, "Path", ""},
+	{PART_DRAW_NOT, "NONE", 0, "None", "No hair drawing"},
+	{PART_DRAW_REND, "RENDER", 0, "Rendered", "Approximate render result in the viewport"},
+	{PART_DRAW_PATH, "PATH", 0, "Path", "Show path of hair particles"},
+	{PART_DRAW_HULL, "HULL", 0, "Hull", "Show convex hull of child particle paths"},
 	{0, NULL, 0, NULL, NULL}
 };
 #endif

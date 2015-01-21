@@ -4480,6 +4480,77 @@ static bool drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *ba
 }
 
 /* *********** drawing for particles ************* */
+
+static void draw_particle_hair_hull(Scene *scene, View3D *v3d, RegionView3D *rv3d,
+                                    Base *base, ParticleSystem *psys,
+                                    const char ob_dt, const short dflag)
+{
+	Object *ob = base->object;
+	ParticleSettings *part = psys->part;
+	/*Material *ma = give_current_material(ob, part->omat);*/
+	GLint polygonmode[2];
+	int totchild;
+	
+	ParticleData *pa;
+	ParticleCacheKey **cache, *path;
+	int p;
+	
+	if (part->type == PART_HAIR && !psys->childcache)
+		totchild = 0;
+	else
+		totchild = psys->totchild * part->disp / 100;
+	
+	if (v3d->zbuf)
+		glDepthMask(true);
+	
+	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+	
+	glEnable(GL_LIGHTING);
+	glEnable(GL_COLOR_MATERIAL);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	
+	
+#if 0
+	/* draw actual/parent particles */
+	cache = psys->pathcache;
+	for (p = 0, pa = psys->particles; p < totpart; ++p, ++pa) {
+		path = cache[p];
+		if (path->segments > 0) {
+			glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
+			glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
+			
+			glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+		}
+	}
+#endif
+	
+	/* draw child particles */
+	cache = psys->childcache;
+	for (p = 0; p < totchild; ++p) {
+		path = cache[p];
+		
+		glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
+		glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
+		
+		glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+	}
+	
+	
+	glDisable(GL_COLOR_MATERIAL);
+	glDisable(GL_LIGHTING);
+	
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glPolygonMode(GL_FRONT, polygonmode[0]);
+	glPolygonMode(GL_BACK, polygonmode[1]);
+	
+	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
+		glLoadMatrixf(rv3d->viewmat);
+	}
+}
+
 static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int select)
 {
 	/* draw created data arrays */
@@ -4504,6 +4575,7 @@ static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int selec
 			break;
 	}
 }
+
 static void draw_particle(ParticleKey *state, int draw_as, short draw, float pixsize,
                           float imat[4][4], const float draw_line[2], ParticleBillboardData *bb, ParticleDrawData *pdd)
 {
@@ -4654,6 +4726,7 @@ static void draw_particle(ParticleKey *state, int draw_as, short draw, float pix
 		}
 	}
 }
+
 static void draw_particle_data(ParticleSystem *psys, RegionView3D *rv3d,
                                ParticleKey *state, int draw_as,
                                float imat[4][4], ParticleBillboardData *bb, ParticleDrawData *pdd,
@@ -4735,14 +4808,15 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	/* don't draw normal paths in edit mode */
 	if (psys_in_edit_mode(scene, psys) && (pset->flag & PE_DRAW_PART) == 0)
 		return;
-
-	if (part->draw_as == PART_DRAW_REND)
-		draw_as = part->ren_as;
-	else
-		draw_as = part->draw_as;
-
-	if (draw_as == PART_DRAW_NOT)
+	
+	draw_as = part->draw_as == PART_DRAW_REND ? part->ren_as : part->draw_as;
+	if (draw_as == PART_DRAW_NOT) {
 		return;
+	}
+	else if (draw_as == PART_DRAW_HULL) {
+		draw_particle_hair_hull(scene, v3d, rv3d, base, psys, ob_dt, dflag);
+		return;
+	}
 
 /* 2. */
 	sim.scene = scene;
@@ -4943,7 +5017,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	else if (psys->pdd) {
 		psys_free_pdd(psys);
 		MEM_freeN(psys->pdd);
-		pdd = psys->pdd = NULL;
+		psys->pdd = NULL;
 	}
 
 	if (pdd) {
