@@ -3641,7 +3641,8 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 #ifdef DEBUG_DRAW
 		bl_debug_draw();
 #endif
-		draw_sim_debug_data(scene, v3d, ar);
+		if (G.debug & G_DEBUG_SIMDATA)
+			draw_sim_debug_data(scene, v3d, ar);
 		
 	}
 
