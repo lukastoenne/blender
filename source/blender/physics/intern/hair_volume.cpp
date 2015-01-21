@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenkernel/intern/hair_volume.c
+/** \file blender/physics/intern/hair_volume.cpp
  *  \ingroup bph
  */
 
@@ -91,10 +91,6 @@ typedef struct HairGrid {
 	int res[3];
 	float gmin[3], gmax[3];
 	float cellsize, inv_cellsize;
-	
-	struct SimDebugData *debug_data;
-	float debug1, debug2;
-	int debug3, debug4;
 } HairGrid;
 
 #define HAIR_GRID_INDEX_AXIS(vec, res, gmin, scale, axis) ( min_ii( max_ii( (int)((vec[axis] - gmin[axis]) * scale), 0), res[axis]-2 ) )
@@ -405,21 +401,20 @@ BLI_INLINE void hair_volume_add_segment_2D(HairGrid *grid,
 			
 #if 0
 			{
-				SimDebugData *debug_data = grid->debug_data;
 				float wloc[3], x2w[3], x3w[3];
 				grid_to_world(grid, wloc, loc_k);
 				grid_to_world(grid, x2w, x2);
 				grid_to_world(grid, x3w, x3);
 				
 				if (vert_k->samples > 0)
-					BKE_sim_debug_data_add_circle(debug_data, wloc, 0.01f, 1.0, 1.0, 0.3, "grid", 2525, debug_i, j, k);
+					BKE_sim_debug_data_add_circle(wloc, 0.01f, 1.0, 1.0, 0.3, "grid", 2525, debug_i, j, k);
 				
 				if (grid->debug_value) {
-					BKE_sim_debug_data_add_dot(debug_data, wloc, 1, 0, 0, "grid", 93, debug_i, j, k);
-					BKE_sim_debug_data_add_dot(debug_data, x2w, 0.1, 0.1, 0.7, "grid", 649, debug_i, j, k);
-					BKE_sim_debug_data_add_line(debug_data, wloc, x2w, 0.3, 0.8, 0.3, "grid", 253, debug_i, j, k);
-					BKE_sim_debug_data_add_line(debug_data, wloc, x3w, 0.8, 0.3, 0.3, "grid", 254, debug_i, j, k);
-//					BKE_sim_debug_data_add_circle(debug_data, x2w, len_v3v3(wloc, x2w), 0.2, 0.7, 0.2, "grid", 255, i, j, k);
+					BKE_sim_debug_data_add_dot(wloc, 1, 0, 0, "grid", 93, debug_i, j, k);
+					BKE_sim_debug_data_add_dot(x2w, 0.1, 0.1, 0.7, "grid", 649, debug_i, j, k);
+					BKE_sim_debug_data_add_line(wloc, x2w, 0.3, 0.8, 0.3, "grid", 253, debug_i, j, k);
+					BKE_sim_debug_data_add_line(wloc, x3w, 0.8, 0.3, 0.3, "grid", 254, debug_i, j, k);
+//					BKE_sim_debug_data_add_circle(x2w, len_v3v3(wloc, x2w), 0.2, 0.7, 0.2, "grid", 255, i, j, k);
 				}
 			}
 #endif
@@ -439,8 +434,6 @@ void BPH_hair_volume_add_segment(HairGrid *grid,
                                  const float x3[3], const float v3[3], const float x4[3], const float v4[3],
                                  const float dir1[3], const float dir2[3], const float dir3[3])
 {
-	SimDebugData *debug_data = grid->debug_data;
-	
 	const int res[3] = { grid->res[0], grid->res[1], grid->res[2] };
 	
 	/* find the primary direction from the major axis of the direction vector */
@@ -475,8 +468,6 @@ void BPH_hair_volume_add_segment(HairGrid *grid,
 	float loc0[3];
 	int j0, k0, j0_prev, k0_prev;
 	int i;
-	
-	(void)debug_data;
 	
 	for (i = imin; i <= imax; ++i) {
 		float shift1, shift2; /* fraction of a full cell shift [0.0, 1.0) */
@@ -626,19 +617,19 @@ bool BPH_hair_volume_solve_divergence(HairGrid *grid, float dt, float target_den
 	HairGridVert *vert;
 	int i, j, k;
 	
-	#define MARGIN_i0 (i < 1)
-	#define MARGIN_j0 (j < 1)
-	#define MARGIN_k0 (k < 1)
-	#define MARGIN_i1 (i >= resA[0]-1)
-	#define MARGIN_j1 (j >= resA[1]-1)
-	#define MARGIN_k1 (k >= resA[2]-1)
-	
-	#define NEIGHBOR_MARGIN_i0 (i < 2)
-	#define NEIGHBOR_MARGIN_j0 (j < 2)
-	#define NEIGHBOR_MARGIN_k0 (k < 2)
-	#define NEIGHBOR_MARGIN_i1 (i >= resA[0]-2)
-	#define NEIGHBOR_MARGIN_j1 (j >= resA[1]-2)
-	#define NEIGHBOR_MARGIN_k1 (k >= resA[2]-2)
+#define MARGIN_i0 (i < 1)
+#define MARGIN_j0 (j < 1)
+#define MARGIN_k0 (k < 1)
+#define MARGIN_i1 (i >= resA[0]-1)
+#define MARGIN_j1 (j >= resA[1]-1)
+#define MARGIN_k1 (k >= resA[2]-1)
+
+#define NEIGHBOR_MARGIN_i0 (i < 2)
+#define NEIGHBOR_MARGIN_j0 (j < 2)
+#define NEIGHBOR_MARGIN_k0 (k < 2)
+#define NEIGHBOR_MARGIN_i1 (i >= resA[0]-2)
+#define NEIGHBOR_MARGIN_j1 (j >= resA[1]-2)
+#define NEIGHBOR_MARGIN_k1 (k >= resA[2]-2)
 	
 	BLI_assert(num_cells >= 1);
 	
@@ -1027,20 +1018,6 @@ void BPH_hair_volume_free_vertex_grid(HairGrid *grid)
 			MEM_freeN(grid->verts);
 		MEM_freeN(grid);
 	}
-}
-
-void BPH_hair_volume_set_debug_data(HairGrid *grid, SimDebugData *debug_data)
-{
-	grid->debug_data = debug_data;
-	BKE_sim_debug_data_clear_category(grid->debug_data, "grid");
-}
-
-void BPH_hair_volume_set_debug_value(HairGrid *grid, float debug1, float debug2, int debug3, int debug4)
-{
-	grid->debug1 = debug1;
-	grid->debug2 = debug2;
-	grid->debug3 = debug3;
-	grid->debug4 = debug4;
 }
 
 void BPH_hair_volume_grid_geometry(HairGrid *grid, float *cellsize, int res[3], float gmin[3], float gmax[3])

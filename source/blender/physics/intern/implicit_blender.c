@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenkernel/intern/implicit.c
+/** \file blender/physics/intern/implicit_blender.c
  *  \ingroup bph
  */
 
@@ -81,7 +81,7 @@ static void itend(void)
 double itval(void)
 {
 	return ((double)_itend.QuadPart -
-			(double)_itstart.QuadPart)/((double)ifreq.QuadPart);
+	        (double)_itstart.QuadPart)/((double)ifreq.QuadPart);
 }
 #else
 #include <sys/time.h>
@@ -405,8 +405,8 @@ DO_INLINE void initdiag_fmatrixS(float to[3][3], float aS)
 /* calculate determinant of 3x3 matrix */
 DO_INLINE float det_fmatrix(float m[3][3])
 {
-	return  m[0][0]*m[1][1]*m[2][2] + m[1][0]*m[2][1]*m[0][2] + m[0][1]*m[1][2]*m[2][0] 
-			-m[0][0]*m[1][2]*m[2][1] - m[0][1]*m[1][0]*m[2][2] - m[2][0]*m[1][1]*m[0][2];
+	return  m[0][0]*m[1][1]*m[2][2] + m[1][0]*m[2][1]*m[0][2] + m[0][1]*m[1][2]*m[2][0] -
+	        m[0][0]*m[1][2]*m[2][1] - m[0][1]*m[1][0]*m[2][2] - m[2][0]*m[1][1]*m[0][2];
 }
 
 DO_INLINE void inverse_fmatrix(float to[3][3], float from[3][3])
@@ -696,8 +696,6 @@ typedef struct Implicit_Data  {
 	lfVector *z;				/* target velocity in constrained directions */
 	fmatrix3x3 *S;				/* filtering matrix for constraints */
 	fmatrix3x3 *P, *Pinv;		/* pre-conditioning matrix */
-	
-	struct SimDebugData *debug_data;
 } Implicit_Data;
 
 Implicit_Data *BPH_mass_spring_solver_create(int numverts, int numsprings)
@@ -758,12 +756,6 @@ int BPH_mass_spring_solver_numvert(Implicit_Data *id)
 		return id->A[0].vcount;
 	else
 		return 0;
-}
-
-void BPH_mass_spring_solver_debug_data(Implicit_Data *id, struct SimDebugData *debug_data)
-{
-	if (id)
-		id->debug_data = debug_data;
 }
 
 /* ==== Transformation from/to root reference frames ==== */

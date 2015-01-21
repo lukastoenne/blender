@@ -3876,8 +3876,6 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				psys->clmd->ptcaches.first = psys->clmd->ptcaches.last= NULL;
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
 				psys->clmd->modifier.error = NULL;
-				
-				psys->clmd->debug_data = NULL;
 			}
 		}
 		else {
@@ -4699,7 +4697,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			}
 			
 			clmd->solver_result = NULL;
-			clmd->debug_data = NULL;
 		}
 		else if (md->type == eModifierType_Fluidsim) {
 			FluidsimModifierData *fluidmd = (FluidsimModifierData *)md;
