@@ -2876,79 +2876,93 @@ static void collision_check(ParticleSimulationData *sim, int p, float dfra, floa
 /************************************************/
 /*			Hair								*/
 /************************************************/
-/* check if path cache or children need updating and do it if needed */
-static void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
+
+static bool psys_needs_path_cache(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
 	Base *base;
-	int distr=0, alloc=0, skip=0;
-
-	if ((psys->part->childtype && psys->totchild != psys_get_tot_child(sim->scene, psys)) || psys->recalc&PSYS_RECALC_RESET)
-		alloc=1;
-
-	if (alloc || psys->recalc&PSYS_RECALC_CHILD || (psys->vgroup[PSYS_VG_DENSITY] && (sim->ob && sim->ob->mode & OB_MODE_WEIGHT_PAINT)))
-		distr=1;
-
-	if (distr) {
-		if (alloc)
-			realloc_particles(sim, sim->psys->totpart);
-
-		if (psys_get_tot_child(sim->scene, psys)) {
-			/* don't generate children while computing the hair keys */
-			if (!(psys->part->type == PART_HAIR) || (psys->flag & PSYS_HAIR_DONE)) {
-				distribute_particles(sim, PART_FROM_CHILD);
-
-				if (part->childtype==PART_CHILD_FACES && part->parents != 0.0f)
-					psys_find_parents(sim);
-			}
-		}
-		else
-			psys_free_children(psys);
-	}
-
-	if ((part->type==PART_HAIR || psys->flag&PSYS_KEYED || psys->pointcache->flag & PTCACHE_BAKED)==0)
-		skip = 1; /* only hair, keyed and baked stuff can have paths */
-	else if (part->ren_as != PART_DRAW_PATH && !(part->type==PART_HAIR && ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)))
-		skip = 1; /* particle visualization must be set as path */
-	else if (!psys->renderdata) {
-		if (part->draw_as != PART_DRAW_REND)
-			skip = 1; /* draw visualization */
-		else if (psys->pointcache->flag & PTCACHE_BAKING)
-			skip = 1; /* no need to cache paths while baking dynamics */
-		else if (psys_in_edit_mode(sim->scene, psys)) {
-			if ((pset->flag & PE_DRAW_PART)==0)
-				skip = 1;
-			else if (part->childtype==0 && (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->flag & PTCACHE_BAKED)==0)
-				skip = 1; /* in edit mode paths are needed for child particles and dynamic hair */
-		}
-	}
-
-
+	
 	/* particle instance modifier with "path" option need cached paths even if particle system doesn't */
 	for (base = sim->scene->base.first; base; base= base->next) {
 		ModifierData *md = modifiers_findByType(base->object, eModifierType_ParticleInstance);
 		if (md) {
 			ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *)md;
 			if (pimd->flag & eParticleInstanceFlag_Path && pimd->ob == sim->ob && pimd->psys == (psys - (ParticleSystem*)sim->ob->particlesystem.first)) {
-				skip = 0;
-				break;
+				return true;
 			}
 		}
 	}
+	
+	if ((part->type==PART_HAIR || psys->flag&PSYS_KEYED || psys->pointcache->flag & PTCACHE_BAKED)==0)
+		return false; /* only hair, keyed and baked stuff can have paths */
+	else if (part->ren_as != PART_DRAW_PATH && !(part->type==PART_HAIR && ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)))
+		return false; /* particle visualization must be set as path */
+	else if (!psys->renderdata) {
+		if (!ELEM(part->draw_as, PART_DRAW_REND, PART_DRAW_HULL))
+			return false; /* not a mode that requires paths */
+		else if (psys->pointcache->flag & PTCACHE_BAKING)
+			return false; /* no need to cache paths while baking dynamics */
+		else if (psys_in_edit_mode(sim->scene, psys)) {
+			if ((pset->flag & PE_DRAW_PART)==0)
+				return false;
+			else if (part->childtype==0 && (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->flag & PTCACHE_BAKED)==0)
+				return false; /* in edit mode paths are needed for child particles and dynamic hair */
+		}
+	}
+	
+	return true;
+}
 
-	if (!skip) {
+/* check if path cache or children need updating and do it if needed */
+static void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
+{
+	ParticleSystem *psys = sim->psys;
+	ParticleSettings *part = psys->part;
+
+	/* check if particles need to be reallocated or redistributed */
+	{
+		bool alloc = false, distr = false;
+		
+		if ((psys->part->childtype && psys->totchild != psys_get_tot_child(sim->scene, psys)) || psys->recalc&PSYS_RECALC_RESET)
+			alloc = true;
+		
+		if (alloc || psys->recalc&PSYS_RECALC_CHILD || (psys->vgroup[PSYS_VG_DENSITY] && (sim->ob && sim->ob->mode & OB_MODE_WEIGHT_PAINT)))
+			distr = true;
+		
+		if (distr) {
+			if (alloc)
+				realloc_particles(sim, sim->psys->totpart);
+			
+			if (psys_get_tot_child(sim->scene, psys)) {
+				/* don't generate children while computing the hair keys */
+				if (!(psys->part->type == PART_HAIR) || (psys->flag & PSYS_HAIR_DONE)) {
+					distribute_particles(sim, PART_FROM_CHILD);
+					
+					if (part->childtype==PART_CHILD_FACES && part->parents != 0.0f)
+						psys_find_parents(sim);
+				}
+			}
+			else
+				psys_free_children(psys);
+		}
+	}
+
+	if (psys_needs_path_cache(sim)) {
+		
 		psys_cache_paths(sim, cfra);
 
 		/* for render, child particle paths are computed on the fly */
 		if (part->childtype) {
+			bool do_child_paths = true;
+			
 			if (!psys->totchild)
-				skip = 1;
+				do_child_paths = false;
 			else if (psys->part->type == PART_HAIR && (psys->flag & PSYS_HAIR_DONE)==0)
-				skip = 1;
+				do_child_paths = false;
 
-			if (!skip)
+			if (do_child_paths)
 				psys_cache_child_paths(sim, cfra, 0);
 		}
 	}
