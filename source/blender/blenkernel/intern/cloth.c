@@ -739,7 +739,6 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 {
 	int i = 0;
 	int j = 0;
-	MVert *mvert;
 	MDeformVert *dvert = NULL;
 	Cloth *clothObj = NULL;
 	int numverts;
@@ -751,7 +750,6 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 	clothObj = clmd->clothObject;
 
 	numverts = dm->getNumVerts(dm);
-	mvert = dm->getVertArray(dm);
 
 	if (cloth_uses_vgroup(clmd)) {
 		verts = clothObj->verts;
@@ -766,7 +764,6 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 			/* Reset vertex flags */
 			verts->flags &= ~CLOTH_VERT_FLAG_PINNED;
 			verts->flags &= ~CLOTH_VERT_FLAG_NOSELFCOLL;
-			verts->flags &= ~CLOTH_VERT_FLAG_EXCLUDE;
 
 			dvert = dm->getVertData ( dm, i, CD_MDEFORMVERT );
 			if ( dvert ) {
@@ -820,10 +817,13 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 	}
 	
 #ifdef USE_PARTICLE_PREVIEW
-	verts = clothObj->verts;
-	for ( i = 0; i < numverts; i++, verts++ ) {
-		if (mvert[i].flag & ME_VERT_TMP_TAG)
-			verts->flags |= CLOTH_VERT_FLAG_EXCLUDE;
+	{
+		MVert *mvert = dm->getVertArray(dm);
+		verts = clothObj->verts;
+		for ( i = 0; i < numverts; i++, verts++ ) {
+			if (mvert[i].flag & ME_VERT_TMP_TAG)
+				verts->flags |= CLOTH_VERT_FLAG_EXCLUDE;
+		}
 	}
 #endif
 }

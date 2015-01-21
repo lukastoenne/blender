@@ -3206,11 +3206,13 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 				
 				dvert = hair_set_pinning(dvert, 1.0f);
 				
+#ifdef USE_PARTICLE_PREVIEW
 				/* tag vert if hair is not simulated */
 				if (pa->flag & PARS_HAIR_BLEND)
 					mvert->flag |= ME_VERT_TMP_TAG;
 				else
 					mvert->flag &= ~ME_VERT_TMP_TAG;
+#endif
 				
 				mvert++;
 				medge++;
@@ -3238,11 +3240,13 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 			else
 				dvert = hair_set_pinning(dvert, 1.0f);
 			
+#ifdef USE_PARTICLE_PREVIEW
 			/* tag vert if hair is not simulated */
 			if (pa->flag & PARS_HAIR_BLEND)
 				mvert->flag |= ME_VERT_TMP_TAG;
 			else
 				mvert->flag &= ~ME_VERT_TMP_TAG;
+#endif
 			
 			mvert++;
 			if (k)

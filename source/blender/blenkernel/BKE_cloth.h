@@ -59,7 +59,6 @@ struct PartDeflect;
 typedef enum eClothVertexFlag {
 	CLOTH_VERT_FLAG_PINNED      = 1,
 	CLOTH_VERT_FLAG_NOSELFCOLL  = 2, /* vertex NOT used for self collisions */
-	CLOTH_VERT_FLAG_EXCLUDE     = 4, /* exclude vertex from the simulation */
 } eClothVertexFlag;
 
 typedef struct ClothHairData {
@@ -110,7 +109,6 @@ typedef struct Cloth {
  */
 typedef struct ClothVertex {
 	int	flags;		/* General flags per vertex.		*/
-	int solver_index;	/* index in internal solver data */
 	float	v[3];		/* The velocity of the point.		*/
 	float	xconst[3];	/* constrained position			*/
 	float	x[3];		/* The current position of this vertex.	*/

@@ -53,51 +53,6 @@ extern "C" {
 
 static float I3[3][3] = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
-BLI_INLINE bool exclude_vertex(Cloth *cloth, int index)
-{
-	return cloth->verts[index].flags & CLOTH_VERT_FLAG_EXCLUDE;
-}
-
-BLI_INLINE bool exclude_spring(Cloth *cloth, ClothSpring *spring)
-{
-	switch (spring->type) {
-		case CLOTH_SPRING_TYPE_BENDING_ANG:
-			return exclude_vertex(cloth, spring->ij) || exclude_vertex(cloth, spring->kl) || exclude_vertex(cloth, spring->mn);
-			
-		default:
-			return exclude_vertex(cloth, spring->ij) || exclude_vertex(cloth, spring->kl);
-	}
-}
-
-/* Assign a running index to each cloth vertex for mapping to solver data,
- * or -1 if the vertex is to be ignored.
- * Returns the number of solver vertices required.
- */
-static int assign_solver_indices(Cloth *cloth)
-{
-	ClothVertex *vert;
-	int i, si;
-	
-	si = 0;
-	vert = cloth->verts;
-	for (i = 0; i < cloth->numverts; ++i, ++vert) {
-		if (exclude_vertex(cloth, i))
-			vert->solver_index = -1;
-		else {
-			vert->solver_index = si;
-			++si;
-		}
-	}
-	
-	/* first element of solver data matrices is used to store numbers ...
-	 * have to keep at least one
-	 */
-	if (si == 0)
-		si = 1;
-	
-	return si;
-}
-
 /* Number of off-diagonal non-zero matrix blocks.
  * Basically there is one of these for each vertex-vertex interaction.
  */
@@ -108,8 +63,6 @@ static int cloth_count_nondiag_blocks(Cloth *cloth)
 	
 	for (link = cloth->springs; link; link = link->next) {
 		ClothSpring *spring = (ClothSpring *)link->link;
-		if (exclude_spring(cloth, spring))
-			continue;
 		
 		switch (spring->type) {
 			case CLOTH_SPRING_TYPE_BENDING_ANG:
@@ -129,7 +82,7 @@ static int cloth_count_nondiag_blocks(Cloth *cloth)
 
 static struct Implicit_Data *cloth_solver_init_data(Cloth *cloth)
 {
-	int totvert = assign_solver_indices(cloth);
+	int totvert = cloth->numverts;
 	
 	if (cloth->implicit && totvert != BPH_mass_spring_solver_numvert(cloth->implicit)) {
 		BPH_mass_spring_solver_free(cloth->implicit);
@@ -154,10 +107,8 @@ int BPH_cloth_solver_init(Object *UNUSED(ob), ClothModifierData *clmd)
 	
 	vert = cloth->verts;
 	for (i = 0; i < cloth->numverts; ++i, ++vert) {
-		if (vert->solver_index < 0)
-			continue;
-		BPH_mass_spring_set_vertex_mass(id, vert->solver_index, vert->mass);
-		BPH_mass_spring_set_motion_state(id, vert->solver_index, vert->x, ZERO);
+		BPH_mass_spring_set_vertex_mass(id, i, vert->mass);
+		BPH_mass_spring_set_motion_state(id, i, vert->x, ZERO);
 	}
 	
 	return 1;
@@ -183,17 +134,14 @@ void BPH_cloth_solver_set_positions(ClothModifierData *clmd)
 	
 	vert = cloth->verts;
 	for (i = 0; i < numverts; ++i, ++vert) {
-		if (vert->solver_index < 0)
-			continue;
-		
 		if (cloth_hairdata) {
 			ClothHairData *root = &cloth_hairdata[i];
-			BPH_mass_spring_set_rest_transform(id, vert->solver_index, root->rot);
+			BPH_mass_spring_set_rest_transform(id, i, root->rot);
 		}
 		else
-			BPH_mass_spring_set_rest_transform(id, vert->solver_index, I3);
+			BPH_mass_spring_set_rest_transform(id, i, I3);
 		
-		BPH_mass_spring_set_motion_state(id, vert->solver_index, vert->x, vert->v);
+		BPH_mass_spring_set_motion_state(id, i, vert->x, vert->v);
 	}
 }
 
@@ -282,11 +230,9 @@ static void cloth_setup_constraints(ClothModifierData *clmd, ColliderContacts *c
 	
 	vert = cloth->verts;
 	for (v = 0; v < numverts; ++v, ++vert) {
-		if (vert->solver_index < 0)
-			continue;
 		if (vert->flags & CLOTH_VERT_FLAG_PINNED) {
 			/* pinned vertex constraints */
-			BPH_mass_spring_add_constraint_ndof0(data, vert->solver_index, ZERO); /* velocity is defined externally */
+			BPH_mass_spring_add_constraint_ndof0(data, v, ZERO); /* velocity is defined externally */
 		}
 		
 		vert->impulse_count = 0;
@@ -303,8 +249,6 @@ static void cloth_setup_constraints(ClothModifierData *clmd, ColliderContacts *c
 			float restitution = 0.0f;
 			
 			vert = &cloth->verts[v];
-			if (vert->solver_index < 0)
-				continue;
 			/* pinned verts handled separately */
 			if (vert->flags & CLOTH_VERT_FLAG_PINNED)
 				continue;
@@ -319,7 +263,7 @@ static void cloth_setup_constraints(ClothModifierData *clmd, ColliderContacts *c
 			if (!collision_response(clmd, ct->collmd, collpair, dt, restitution, impulse))
 				continue;
 			
-			BPH_mass_spring_add_constraint_ndof2(data, vert->solver_index, collpair->normal, impulse);
+			BPH_mass_spring_add_constraint_ndof2(data, i, collpair->normal, impulse);
 			++vert->impulse_count;
 		}
 	}
@@ -341,9 +285,6 @@ static int UNUSED_FUNCTION(cloth_calc_helper_forces)(Object *UNUSED(ob), ClothMo
 	
 	vert = cloth->verts;
 	for (i=0; i<cloth->numverts; i++, vert++) {
-		if (vert->solver_index < 0)
-			continue;
-		
 		copy_v3_v3(cos[i], vert->tx);
 		
 		if (vert->goal == 1.0f || len_squared_v3v3(initial_cos[i], vert->tx) != 0.0f) {
@@ -362,8 +303,6 @@ static int UNUSED_FUNCTION(cloth_calc_helper_forces)(Object *UNUSED(ob), ClothMo
 			float len, c, l, vec[3];
 			
 			spring = (ClothSpring *)node->link;
-			if (exclude_spring(cloth, spring))
-				continue;
 			if (spring->type != CLOTH_SPRING_TYPE_STRUCTURAL && spring->type != CLOTH_SPRING_TYPE_SHEAR) 
 				continue;
 			
@@ -396,9 +335,6 @@ static int UNUSED_FUNCTION(cloth_calc_helper_forces)(Object *UNUSED(ob), ClothMo
 	for (i=0; i<cloth->numverts; i++, vert++) {
 		float vec[3];
 		
-		if (vert->solver_index < 0)
-			continue;
-		
 		/*compute forces*/
 		sub_v3_v3v3(vec, cos[i], vert->tx);
 		mul_v3_fl(vec, vert->mass*dt*20.0f);
@@ -418,9 +354,6 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 	ClothSimSettings *parms = clmd->sim_parms;
 	Implicit_Data *data = cloth->implicit;
 	ClothVertex *verts = cloth->verts;
-	int solver_ij = s->ij < 0 ? -1 : cloth->verts[s->ij].solver_index;
-	int solver_kl = s->kl < 0 ? -1 : cloth->verts[s->kl].solver_index;
-	int solver_mn = s->mn < 0 ? -1 : cloth->verts[s->mn].solver_index;
 	
 	bool no_compress = parms->flags & CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
 	
@@ -443,10 +376,10 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		if (s->type & CLOTH_SPRING_TYPE_SEWING) {
 			// TODO: verify, half verified (couldn't see error)
 			// sewing springs usually have a large distance at first so clamp the force so we don't get tunnelling through colission objects
-			BPH_mass_spring_force_spring_linear(data, solver_ij, solver_kl, s->restlen, k, parms->Cdis, no_compress, parms->max_sewing, s->f, s->dfdx, s->dfdv);
+			BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen, k, parms->Cdis, no_compress, parms->max_sewing, s->f, s->dfdx, s->dfdv);
 		}
 		else {
-			BPH_mass_spring_force_spring_linear(data, solver_ij, solver_kl, s->restlen, k, parms->Cdis, no_compress, 0.0f, s->f, s->dfdx, s->dfdv);
+			BPH_mass_spring_force_spring_linear(data, s->ij, s->kl, s->restlen, k, parms->Cdis, no_compress, 0.0f, s->f, s->dfdx, s->dfdv);
 		}
 #endif
 	}
@@ -464,7 +397,7 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		scaling = parms->goalspring + s->stiffness * fabsf(parms->max_struct - parms->goalspring);
 		k = verts[s->ij].goal * scaling / (parms->avg_spring_len + FLT_EPSILON);
 		
-		BPH_mass_spring_force_spring_goal(data, solver_ij, goal_x, goal_v, k, parms->goalfrict * 0.01f, s->f, s->dfdx, s->dfdv);
+		BPH_mass_spring_force_spring_goal(data, s->ij, goal_x, goal_v, k, parms->goalfrict * 0.01f, s->f, s->dfdx, s->dfdv);
 #endif
 	}
 	else if (s->type & CLOTH_SPRING_TYPE_BENDING) {  /* calculate force of bending springs */
@@ -479,7 +412,7 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		scaling = parms->bending_damping;
 		cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 		
-		BPH_mass_spring_force_spring_bending(data, solver_ij, solver_kl, s->restlen, kb, cb, s->f, s->dfdx, s->dfdv);
+		BPH_mass_spring_force_spring_bending(data, s->ij, s->kl, s->restlen, kb, cb, s->f, s->dfdx, s->dfdv);
 #endif
 	}
 	else if (s->type & CLOTH_SPRING_TYPE_BENDING_ANG) {
@@ -499,14 +432,14 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 		
 		/* XXX assuming same restlen for ij and jk segments here, this can be done correctly for hair later */
-		BPH_mass_spring_force_spring_bending_angular(data, solver_ij, solver_kl, solver_mn, s->target, kb, cb);
+		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->target, kb, cb);
 		
 #if 0
 		{
 			float x_kl[3], x_mn[3], v[3], d[3];
 			
-			BPH_mass_spring_get_motion_state(data, solver_kl, x_kl, v);
-			BPH_mass_spring_get_motion_state(data, solver_mn, x_mn, v);
+			BPH_mass_spring_get_motion_state(data, s->kl, x_kl, v);
+			BPH_mass_spring_get_motion_state(data, s->mn, x_mn, v);
 			
 			BKE_sim_debug_data_add_dot(clmd->debug_data, x_kl, 0.9, 0.9, 0.9, "target", 7980, s->kl);
 			BKE_sim_debug_data_add_line(clmd->debug_data, x_kl, x_mn, 0.8, 0.8, 0.8, "target", 7981, s->kl);
@@ -534,10 +467,7 @@ static void hair_get_boundbox(ClothModifierData *clmd, float gmin[3], float gmax
 	vert = cloth->verts;
 	for (i = 0; i < numverts; i++, vert++) {
 		float x[3];
-		if (vert->solver_index < 0)
-			copy_v3_v3(x, vert->x); /* use input location as replacement for excluded verts */
-		else
-			BPH_mass_spring_get_motion_state(data, vert->solver_index, x, NULL);
+		BPH_mass_spring_get_motion_state(data, i, x, NULL);
 		DO_MINMAX(x, gmin, gmax);
 	}
 }
@@ -582,26 +512,14 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 			float x[3], v[3];
 			EffectedPoint epoint;
 			
-			if (vert->solver_index < 0)
-				continue;
-			
-			BPH_mass_spring_get_motion_state(data, vert->solver_index, x, v);
+			BPH_mass_spring_get_motion_state(data, i, x, v);
 			pd_point_from_loc(clmd->scene, x, v, i, &epoint);
 			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
 		}
 		
 		for (i = 0; i < cloth->numfaces; i++) {
 			MFace *mf = &mfaces[i];
-			ClothVertex *verts = cloth->verts;
-			int si1 = verts[mf->v1].solver_index;
-			int si2 = verts[mf->v2].solver_index;
-			int si3 = verts[mf->v3].solver_index;
-			int si4 = mf->v4 ? verts[mf->v4].solver_index : -1;
-			
-			if (si1 < 0 || si2 < 0 || si3 < 0 || si4 < 0)
-				continue;
-			
-			BPH_mass_spring_force_face_wind(data, si1, si2, si3, si4, winvec);
+			BPH_mass_spring_force_face_wind(data, mf->v1, mf->v2, mf->v3, mf->v4, winvec);
 		}
 
 		/* Hair has only edges */
@@ -634,9 +552,6 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 			
 			vert = cloth->verts;
 			for (i = 0; i < cloth->numverts; i++, vert++) {
-				if (vert->solver_index < 0)
-					continue;
-				
 				if (hairdata) {
 					ClothHairData *hair = &hairdata[i];
 					BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
@@ -653,8 +568,6 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 	// calculate spring forces
 	for (LinkNode *link = cloth->springs; link; link = link->next) {
 		ClothSpring *spring = (ClothSpring *)link->link;
-		if (exclude_spring(cloth, spring))
-			continue;
 		// only handle active springs
 		if (!(spring->flags & CLOTH_SPRING_FLAG_DEACTIVATE))
 			cloth_calc_spring_force(clmd, spring, time);
@@ -662,25 +575,14 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 }
 
 /* returns vertexes' motion state */
-BLI_INLINE bool cloth_get_grid_location(Implicit_Data *data, float cell_scale, const float cell_offset[3],
-                                        ClothVertex *vert, float x[3], float v[3])
+BLI_INLINE void cloth_get_grid_location(Implicit_Data *data, float cell_scale, const float cell_offset[3],
+                                        int index, float x[3], float v[3])
 {
-	bool is_motion_state;
-	if (vert->solver_index < 0) {
-		copy_v3_v3(x, vert->x);
-		copy_v3_v3(v, vert->v);
-		is_motion_state = false;
-	}
-	else {
-		BPH_mass_spring_get_position(data, vert->solver_index, x);
-		BPH_mass_spring_get_new_velocity(data, vert->solver_index, v);
-		is_motion_state = true;
-	}
+	BPH_mass_spring_get_position(data, index, x);
+	BPH_mass_spring_get_new_velocity(data, index, v);
 	
 	mul_v3_fl(x, cell_scale);
 	add_v3_v3(x, cell_offset);
-	
-	return is_motion_state;
 }
 
 /* returns next spring forming a continous hair sequence */
@@ -708,8 +610,6 @@ static LinkNode *cloth_continuum_add_hair_segments(HairGrid *grid, const float c
 	Implicit_Data *data = cloth->implicit;
 	LinkNode *next_spring_link = NULL; /* return value */
 	ClothSpring *spring1, *spring2, *spring3;
-	ClothVertex *verts = cloth->verts;
-	ClothVertex *vert3, *vert4;
 	float x1[3], v1[3], x2[3], v2[3], x3[3], v3[3], x4[3], v4[3];
 	float dir1[3], dir2[3], dir3[3];
 	
@@ -722,10 +622,8 @@ static LinkNode *cloth_continuum_add_hair_segments(HairGrid *grid, const float c
 	zero_v3(x2); zero_v3(v2);
 	zero_v3(dir2);
 	
-	vert3 = &verts[spring3->kl];
-	cloth_get_grid_location(data, cell_scale, cell_offset, vert3, x3, v3);
-	vert4 = &verts[spring3->ij];
-	cloth_get_grid_location(data, cell_scale, cell_offset, vert4, x4, v4);
+	cloth_get_grid_location(data, cell_scale, cell_offset, spring3->kl, x3, v3);
+	cloth_get_grid_location(data, cell_scale, cell_offset, spring3->ij, x4, v4);
 	sub_v3_v3v3(dir3, x4, x3);
 	normalize_v3(dir3);
 	
@@ -733,8 +631,6 @@ static LinkNode *cloth_continuum_add_hair_segments(HairGrid *grid, const float c
 		/* move on */
 		spring1 = spring2;
 		spring2 = spring3;
-		
-		// vert3 = vert4;
 		
 		copy_v3_v3(x1, x2); copy_v3_v3(v1, v2);
 		copy_v3_v3(x2, x3); copy_v3_v3(v2, v3);
@@ -749,14 +645,12 @@ static LinkNode *cloth_continuum_add_hair_segments(HairGrid *grid, const float c
 		
 		if (spring_link) {
 			spring3 = (ClothSpring *)spring_link->link;
-			// vert4 = &verts[spring3->ij];
-			cloth_get_grid_location(data, cell_scale, cell_offset, vert4, x4, v4);
+			cloth_get_grid_location(data, cell_scale, cell_offset, spring3->ij, x4, v4);
 			sub_v3_v3v3(dir3, x4, x3);
 			normalize_v3(dir3);
 		}
 		else {
 			spring3 = NULL;
-			// vert4 = NULL;
 			zero_v3(x4); zero_v3(v4);
 			zero_v3(dir3);
 		}
@@ -846,19 +740,16 @@ static void cloth_continuum_step(ClothModifierData *clmd, float dt)
 		for (i = 0, vert = cloth->verts; i < numverts; i++, vert++) {
 			float x[3], v[3], nv[3];
 			
-			if (vert->solver_index < 0)
-				continue;
-			
 			/* calculate volumetric velocity influence */
-			BPH_mass_spring_get_position(data, vert->solver_index, x);
-			BPH_mass_spring_get_new_velocity(data, vert->solver_index, v);
+			BPH_mass_spring_get_position(data, i, x);
+			BPH_mass_spring_get_new_velocity(data, i, v);
 			
 			BPH_hair_volume_grid_velocity(grid, x, v, fluid_factor, nv);
 			
 			interp_v3_v3v3(nv, v, nv, smoothfac);
 			
 			/* apply on hair data */
-			BPH_mass_spring_set_new_velocity(data, vert->solver_index, nv);
+			BPH_mass_spring_set_new_velocity(data, i, nv);
 		}
 		
 		/* store basic grid info in the modifier data */
@@ -985,12 +876,9 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 			if (vert->flags & CLOTH_VERT_FLAG_PINNED) {
 				float v[3];
 				
-				if (vert->solver_index < 0)
-					continue;
-				
 				sub_v3_v3v3(v, verts[i].xconst, verts[i].xold);
 				// mul_v3_fl(v, clmd->sim_parms->stepsPerFrame);
-				BPH_mass_spring_set_velocity(id, vert->solver_index, v);
+				BPH_mass_spring_set_velocity(id, i, v);
 			}
 		}
 	}
@@ -1005,9 +893,7 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 		/* copy velocities for collision */
 		vert = verts;
 		for (i = 0; i < numverts; i++, vert++) {
-			if (vert->solver_index < 0)
-				continue;
-			BPH_mass_spring_get_motion_state(id, vert->solver_index, NULL, verts[i].tv);
+			BPH_mass_spring_get_motion_state(id, i, NULL, verts[i].tv);
 			copy_v3_v3(verts[i].v, verts[i].tv);
 		}
 		
@@ -1027,11 +913,9 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 			vert = verts;
 			for (i = 0; i < numverts; i++, vert++) {
 				float v[3];
-				if (vert->solver_index < 0)
-					continue;
-				BPH_mass_spring_get_motion_state(id, vert->solver_index, NULL, v);
+				BPH_mass_spring_get_motion_state(id, i, NULL, v);
 				mul_v3_fl(v, clmd->sim_parms->vel_damping);
-				BPH_mass_spring_set_velocity(id, vert->solver_index, v);
+				BPH_mass_spring_set_velocity(id, i, v);
 			}
 		}
 		
@@ -1051,17 +935,15 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 		/* move pinned verts to correct position */
 		vert = verts;
 		for (i = 0; i < numverts; i++, vert++) {
-			if (vert->solver_index < 0)
-				continue;
 			if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) {
 				if (vert->flags & CLOTH_VERT_FLAG_PINNED) {
 					float x[3];
 					interp_v3_v3v3(x, verts[i].xold, verts[i].xconst, step + dt);
-					BPH_mass_spring_set_position(id, vert->solver_index, x);
+					BPH_mass_spring_set_position(id, i, x);
 				}
 			}
 			
-			BPH_mass_spring_get_motion_state(id, vert->solver_index, verts[i].txold, NULL);
+			BPH_mass_spring_get_motion_state(id, i, verts[i].txold, NULL);
 		}
 		
 		/* free contact points */
@@ -1075,9 +957,7 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 	/* copy results back to cloth data */
 	vert = verts;
 	for (i = 0; i < numverts; i++, vert++) {
-		if (vert->solver_index < 0)
-			continue;
-		BPH_mass_spring_get_motion_state(id, vert->solver_index, vert->x, vert->v);
+		BPH_mass_spring_get_motion_state(id, i, vert->x, vert->v);
 		copy_v3_v3(vert->txold, vert->x);
 	}
 	
