@@ -4503,8 +4503,6 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		glDepthMask(true);
 	
 	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
-//	glEnableClientState(GL_VERTEX_ARRAY);
-//	glEnableClientState(GL_NORMAL_ARRAY);
 	
 	glEnable(GL_LIGHTING);
 	glEnable(GL_COLOR_MATERIAL);
@@ -4578,16 +4576,21 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 					}
 				}
 				else {
-					/* fall back to line drawing */
+					glEnableClientState(GL_VERTEX_ARRAY);
+					glEnableClientState(GL_NORMAL_ARRAY);
+					
+					/* fall back to line drawing in case of only 1 child */
+					glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
+					glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
+					
+					glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+					
+					glDisableClientState(GL_VERTEX_ARRAY);
+					glDisableClientState(GL_NORMAL_ARRAY);
 				}
 				
 				pstart = p+1;
 			}
-			
-//			glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
-//			glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
-			
-//			glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
 		}
 		
 		glEnd();
@@ -4596,8 +4599,6 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	glDisable(GL_COLOR_MATERIAL);
 	glDisable(GL_LIGHTING);
 	
-//	glDisableClientState(GL_VERTEX_ARRAY);
-//	glDisableClientState(GL_NORMAL_ARRAY);
 	glPolygonMode(GL_FRONT, polygonmode[0]);
 	glPolygonMode(GL_BACK, polygonmode[1]);
 	
