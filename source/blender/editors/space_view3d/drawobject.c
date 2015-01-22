@@ -4565,7 +4565,7 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 				}
 			}
 			else {
-				if (p > pstart) {
+				if (p > pstart + 1) {
 					npath = cache[pstart];
 					
 					segments = max_ii(path->segments, npath->segments);
@@ -4590,7 +4590,7 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 					glEnableClientState(GL_VERTEX_ARRAY);
 					glEnableClientState(GL_NORMAL_ARRAY);
 					
-					/* fall back to line drawing in case of only 1 child */
+					/* fall back to line drawing in case of only 1 or 2 children */
 					glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
 					glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
 					
