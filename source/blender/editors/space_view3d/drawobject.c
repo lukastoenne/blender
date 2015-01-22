@@ -4481,9 +4481,9 @@ static bool drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *ba
 
 /* *********** drawing for particles ************* */
 
-static void draw_particle_hair_hull(Scene *scene, View3D *v3d, RegionView3D *rv3d,
+static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionView3D *rv3d,
                                     Base *base, ParticleSystem *psys,
-                                    const char ob_dt, const short dflag)
+                                    const char UNUSED(ob_dt), const short UNUSED(dflag))
 {
 	Object *ob = base->object;
 	ParticleSettings *part = psys->part;
@@ -4491,8 +4491,7 @@ static void draw_particle_hair_hull(Scene *scene, View3D *v3d, RegionView3D *rv3
 	GLint polygonmode[2];
 	int totchild;
 	
-	ParticleData *pa;
-	ParticleCacheKey **cache, *path;
+	ParticleCacheKey **cache;
 	int p;
 	
 	if (part->type == PART_HAIR && !psys->childcache)
@@ -4504,8 +4503,8 @@ static void draw_particle_hair_hull(Scene *scene, View3D *v3d, RegionView3D *rv3
 		glDepthMask(true);
 	
 	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
+//	glEnableClientState(GL_VERTEX_ARRAY);
+//	glEnableClientState(GL_NORMAL_ARRAY);
 	
 	glEnable(GL_LIGHTING);
 	glEnable(GL_COLOR_MATERIAL);
@@ -4527,22 +4526,78 @@ static void draw_particle_hair_hull(Scene *scene, View3D *v3d, RegionView3D *rv3
 #endif
 	
 	/* draw child particles */
-	cache = psys->childcache;
-	for (p = 0; p < totchild; ++p) {
-		path = cache[p];
+	{
+		int pstart = 0;
 		
-		glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
-		glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
+		glBegin(GL_QUADS);
 		
-		glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+		cache = psys->childcache;
+		for (p = 0; p < totchild; ++p) {
+			ParticleCacheKey *path = cache[p], *npath = p+1 < totchild ? cache[p+1] : NULL;
+			int segments, k;
+			
+			if (npath && npath->parent == path->parent) {
+				segments = max_ii(path->segments, npath->segments);
+				
+				for (k = 0; k < segments; ++k) {
+					int k0 = min_ii(k, path->segments);
+					int k1 = min_ii(k+1, path->segments);
+					int nk0 = min_ii(k, npath->segments);
+					int nk1 = min_ii(k+1, npath->segments);
+					float nor[3];
+					
+					glVertex3fv(path[k0].co);
+					glVertex3fv(npath[nk0].co);
+					glVertex3fv(npath[nk1].co);
+					glVertex3fv(path[k1].co);
+					
+					normal_quad_v3(nor, path[k0].co, npath[nk0].co, npath[nk1].co, path[k1].co);
+					glNormal3fv(nor);
+				}
+			}
+			else {
+				if (p > pstart) {
+					npath = cache[pstart];
+					
+					segments = max_ii(path->segments, npath->segments);
+					
+					for (k = 0; k < segments; ++k) {
+						int k0 = min_ii(k, path->segments);
+						int k1 = min_ii(k+1, path->segments);
+						int nk0 = min_ii(k, npath->segments);
+						int nk1 = min_ii(k+1, npath->segments);
+						float nor[3];
+						
+						glVertex3fv(path[k0].co);
+						glVertex3fv(npath[nk0].co);
+						glVertex3fv(npath[nk1].co);
+						glVertex3fv(path[k1].co);
+						
+						normal_quad_v3(nor, path[k0].co, npath[nk0].co, npath[nk1].co, path[k1].co);
+						glNormal3fv(nor);
+					}
+				}
+				else {
+					/* fall back to line drawing */
+				}
+				
+				pstart = p+1;
+			}
+			
+//			glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
+//			glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
+			
+//			glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+		}
+		
+		glEnd();
 	}
-	
 	
 	glDisable(GL_COLOR_MATERIAL);
 	glDisable(GL_LIGHTING);
 	
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
+//	glDisableClientState(GL_VERTEX_ARRAY);
+//	glDisableClientState(GL_NORMAL_ARRAY);
 	glPolygonMode(GL_FRONT, polygonmode[0]);
 	glPolygonMode(GL_BACK, polygonmode[1]);
 	
