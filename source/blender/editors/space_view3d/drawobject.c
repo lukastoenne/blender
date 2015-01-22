@@ -4586,6 +4586,7 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 						glNormal3fv(nor);
 					}
 				}
+#if 0
 				else {
 					glEnableClientState(GL_VERTEX_ARRAY);
 					glEnableClientState(GL_NORMAL_ARRAY);
@@ -4599,6 +4600,7 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 					glDisableClientState(GL_VERTEX_ARRAY);
 					glDisableClientState(GL_NORMAL_ARRAY);
 				}
+#endif
 				
 				pstart = p+1;
 			}
