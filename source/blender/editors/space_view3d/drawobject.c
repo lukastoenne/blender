@@ -4535,12 +4535,15 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 			int segments, k;
 			
 			path = cache[p];
-			if (path->hull_parent < 0) {
+			/* note: hidden hacks in particles: segments == -1 means the child path is hidden (preview feature) ... */
+			if (path->segments < 0 || path->hull_parent < 0) {
 				pstart = p+1;
 				continue;
 			}
 			
 			npath = p+1 < totchild ? cache[p+1] : NULL;
+			if (npath && npath->segments < 0)
+				npath = NULL;
 			
 			if (npath && npath->hull_parent == path->hull_parent) {
 				segments = max_ii(path->segments, npath->segments);
