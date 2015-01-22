@@ -5017,7 +5017,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	else if (psys->pdd) {
 		psys_free_pdd(psys);
 		MEM_freeN(psys->pdd);
-		psys->pdd = NULL;
+		pdd = psys->pdd = NULL;
 	}
 
 	if (pdd) {
