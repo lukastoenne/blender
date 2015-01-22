@@ -4481,6 +4481,49 @@ static bool drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *ba
 
 /* *********** drawing for particles ************* */
 
+static void draw_particle_hull_section(ParticleCacheKey *path, ParticleCacheKey *npath)
+{
+	int segments = max_ii(path->segments, npath->segments);
+	int k;
+	
+	for (k = 0; k < segments; ++k) {
+		int k0 = max_ii(k-1, 0);
+		int k1 = k;
+		int k2 = k+1;
+		int k3 = min_ii(k+2, path->segments);
+		int nk0 = max_ii(min_ii(k-1, npath->segments), 0);
+		int nk1 = min_ii(k, npath->segments);
+		int nk2 = min_ii(k+1, npath->segments);
+		int nk3 = min_ii(k+2, npath->segments);
+		float *co[2][4];
+		
+		float nor01[3], nor11[3], nor02[3], nor12[3];
+		
+		co[0][0] = path[k0].co;
+		co[0][1] = path[k1].co;
+		co[0][2] = path[k2].co;
+		co[0][3] = path[k3].co;
+		co[1][0] = npath[nk0].co;
+		co[1][1] = npath[nk1].co;
+		co[1][2] = npath[nk2].co;
+		co[1][3] = npath[nk3].co;
+		
+		normal_quad_v3(nor01, co[0][1], co[0][0], co[1][1], co[0][2]);
+		normal_quad_v3(nor02, co[0][2], co[0][1], co[1][2], co[0][3]);
+		normal_quad_v3(nor11, co[1][1], co[1][2], co[0][1], co[1][0]);
+		normal_quad_v3(nor12, co[1][2], co[1][3], co[0][2], co[1][1]);
+		
+		glNormal3fv(nor01);
+		glVertex3fv(path[k1].co);
+		glNormal3fv(nor11);
+		glVertex3fv(npath[nk1].co);
+		glNormal3fv(nor12);
+		glVertex3fv(npath[nk2].co);
+		glNormal3fv(nor02);
+		glVertex3fv(path[k2].co);
+	}
+}
+
 static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionView3D *rv3d,
                                     Base *base, ParticleSystem *psys,
                                     const char UNUSED(ob_dt), const short UNUSED(dflag))
@@ -4507,7 +4550,7 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	glEnable(GL_LIGHTING);
 	glEnable(GL_COLOR_MATERIAL);
 	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-	
+	glShadeModel(GL_SMOOTH);
 	
 #if 0
 	/* draw actual/parent particles */
@@ -4532,7 +4575,6 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		cache = psys->childcache;
 		for (p = 0; p < totchild; ++p) {
 			ParticleCacheKey *path, *npath;
-			int segments, k;
 			
 			path = cache[p];
 			/* note: hidden hacks in particles: segments == -1 means the child path is hidden (preview feature) ... */
@@ -4546,45 +4588,12 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 				npath = NULL;
 			
 			if (npath && npath->hull_parent == path->hull_parent) {
-				segments = max_ii(path->segments, npath->segments);
-				
-				for (k = 0; k < segments; ++k) {
-					int k0 = min_ii(k, path->segments);
-					int k1 = min_ii(k+1, path->segments);
-					int nk0 = min_ii(k, npath->segments);
-					int nk1 = min_ii(k+1, npath->segments);
-					float nor[3];
-					
-					glVertex3fv(path[k0].co);
-					glVertex3fv(npath[nk0].co);
-					glVertex3fv(npath[nk1].co);
-					glVertex3fv(path[k1].co);
-					
-					normal_quad_v3(nor, path[k0].co, npath[nk0].co, npath[nk1].co, path[k1].co);
-					glNormal3fv(nor);
-				}
+				draw_particle_hull_section(path, npath);
 			}
 			else {
 				if (p > pstart + 1) {
 					npath = cache[pstart];
-					
-					segments = max_ii(path->segments, npath->segments);
-					
-					for (k = 0; k < segments; ++k) {
-						int k0 = min_ii(k, path->segments);
-						int k1 = min_ii(k+1, path->segments);
-						int nk0 = min_ii(k, npath->segments);
-						int nk1 = min_ii(k+1, npath->segments);
-						float nor[3];
-						
-						glVertex3fv(path[k0].co);
-						glVertex3fv(npath[nk0].co);
-						glVertex3fv(npath[nk1].co);
-						glVertex3fv(path[k1].co);
-						
-						normal_quad_v3(nor, path[k0].co, npath[nk0].co, npath[nk1].co, path[k1].co);
-						glNormal3fv(nor);
-					}
+					draw_particle_hull_section(path, npath);
 				}
 #if 0
 				else {
