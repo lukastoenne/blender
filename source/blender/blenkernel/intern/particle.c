@@ -2242,7 +2242,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 	psys_calc_child_parent_weights(task, cpa, orco, ornor, hairmat, &cpa_num, &cpa_fuv, &cpa_from, key, weight, off1);
 
 	child_keys->segments = ctx->segments;
-	child_keys->parent = ctx->between ? cpa->pa[0] : cpa->parent;
+	child_keys->hull_parent = cpa->hull_parent;
 
 	/* get different child parameters from textures & vgroups */
 	get_child_modifier_parameters(part, ctx, cpa, cpa_from, cpa_num, cpa_fuv, orco, &ptex);

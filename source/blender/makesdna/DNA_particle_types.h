@@ -75,6 +75,7 @@ typedef struct ChildParticle {
 	float w[4];			/* interpolation weights for the above particles */
 	float fuv[4], foffset; /* face vertex weights and offset */
 	float rt;
+	int hull_parent;	/* parent index of hull children, -1 if child is not part of the convex hull */
 } ChildParticle;
 
 typedef struct ParticleTarget {

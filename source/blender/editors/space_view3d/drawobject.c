@@ -4531,10 +4531,18 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		
 		cache = psys->childcache;
 		for (p = 0; p < totchild; ++p) {
-			ParticleCacheKey *path = cache[p], *npath = p+1 < totchild ? cache[p+1] : NULL;
+			ParticleCacheKey *path, *npath;
 			int segments, k;
 			
-			if (npath && npath->parent == path->parent) {
+			path = cache[p];
+			if (path->hull_parent < 0) {
+				pstart = p+1;
+				continue;
+			}
+			
+			npath = p+1 < totchild ? cache[p+1] : NULL;
+			
+			if (npath && npath->hull_parent == path->hull_parent) {
 				segments = max_ii(path->segments, npath->segments);
 				
 				for (k = 0; k < segments; ++k) {
