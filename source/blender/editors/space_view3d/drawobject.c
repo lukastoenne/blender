@@ -4524,6 +4524,11 @@ static void draw_particle_hull_section(ParticleCacheKey *path, ParticleCacheKey 
 	}
 }
 
+BLI_INLINE bool particle_path_valid(ParticleCacheKey **cache, int p)
+{
+	return (cache[p]->segments >= 0 && cache[p]->hull_parent >= 0);
+}
+
 static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionView3D *rv3d,
                                     Base *base, ParticleSystem *psys,
                                     const char UNUSED(ob_dt), const short UNUSED(dflag))
@@ -4535,77 +4540,69 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	int totchild;
 	
 	ParticleCacheKey **cache;
-	int p;
 	
 	if (part->type == PART_HAIR && !psys->childcache)
 		totchild = 0;
 	else
 		totchild = psys->totchild * part->disp / 100;
 	
+	/* --------------------------------------------------------------------- */
+	/* macros for iterating over pairs of connected child paths */
+#define FOREACH_PATH_PAIR_BEGIN(path, npath) \
+	{ \
+		int pstart = 0; \
+		while (pstart < totchild) { \
+			const int parent = cache[pstart]->hull_parent; \
+			int p, prev = pstart; \
+			for (p = pstart+1; p < totchild; ++p) { \
+				if (particle_path_valid(cache, p)) { \
+					ParticleCacheKey *path, *npath; \
+					bool last = false; \
+					if (cache[p]->hull_parent == parent) { \
+						path = cache[prev]; \
+						npath = cache[p]; \
+					} \
+					else { \
+						path = cache[prev]; \
+						npath = cache[pstart]; /* close the loop */ \
+						last = true; /* break after this one */ \
+					} \
+					/* DO STUFF HERE */
+
+#define FOREACH_PATH_PAIR_END \
+					if (last) \
+						break; \
+					prev = p; \
+				} \
+			} \
+			pstart = p; /* advance outer loop to the next valid path */ \
+		} \
+	}
+	/* --------------------------------------------------------------------- */
+
 	if (v3d->zbuf)
 		glDepthMask(true);
 	
 	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
 	
-	glEnable(GL_LIGHTING);
-	glEnable(GL_COLOR_MATERIAL);
-	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-	glShadeModel(GL_SMOOTH);
+	cache = psys->childcache;
 	
 	/* draw child particles */
 	{
-		int pstart = 0;
+		glEnable(GL_LIGHTING);
+		glEnable(GL_COLOR_MATERIAL);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glShadeModel(GL_SMOOTH);
 		
 		glBegin(GL_QUADS);
-		
-		cache = psys->childcache;
-		for (p = 0; p < totchild; ++p) {
-			ParticleCacheKey *path, *npath;
-			
-			path = cache[p];
-			/* note: hidden hacks in particles: segments == -1 means the child path is hidden (preview feature) ... */
-			if (path->segments < 0 || path->hull_parent < 0) {
-				pstart = p+1;
-				continue;
-			}
-			
-			npath = p+1 < totchild ? cache[p+1] : NULL;
-			if (npath && npath->segments < 0)
-				npath = NULL;
-			
-			if (npath && npath->hull_parent == path->hull_parent) {
-				draw_particle_hull_section(path, npath);
-			}
-			else {
-				if (p > pstart + 1) {
-					npath = cache[pstart];
-					draw_particle_hull_section(path, npath);
-				}
-#if 0
-				else {
-					glEnableClientState(GL_VERTEX_ARRAY);
-					glEnableClientState(GL_NORMAL_ARRAY);
-					
-					/* fall back to line drawing in case of only 1 or 2 children */
-					glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
-					glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
-					
-					glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
-					
-					glDisableClientState(GL_VERTEX_ARRAY);
-					glDisableClientState(GL_NORMAL_ARRAY);
-				}
-#endif
-				
-				pstart = p+1;
-			}
-		}
-		
+		FOREACH_PATH_PAIR_BEGIN(path, npath) {
+			draw_particle_hull_section(path, npath);
+		} FOREACH_PATH_PAIR_END
 		glEnd();
+		
+		glDisable(GL_COLOR_MATERIAL);
+		glDisable(GL_LIGHTING);
 	}
-	
-	glDisable(GL_COLOR_MATERIAL);
-	glDisable(GL_LIGHTING);
 	
 	glPolygonMode(GL_FRONT, polygonmode[0]);
 	glPolygonMode(GL_BACK, polygonmode[1]);
@@ -4613,6 +4610,9 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
 		glLoadMatrixf(rv3d->viewmat);
 	}
+	
+#undef FOREACH_PATH_PAIR_BEGIN
+#undef FOREACH_PATH_PAIR_END
 }
 
 static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int select)
