@@ -4552,20 +4552,6 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 	glShadeModel(GL_SMOOTH);
 	
-#if 0
-	/* draw actual/parent particles */
-	cache = psys->pathcache;
-	for (p = 0, pa = psys->particles; p < totpart; ++p, ++pa) {
-		path = cache[p];
-		if (path->segments > 0) {
-			glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
-			glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
-			
-			glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
-		}
-	}
-#endif
-	
 	/* draw child particles */
 	{
 		int pstart = 0;
