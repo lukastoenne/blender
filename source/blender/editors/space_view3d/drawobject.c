@@ -4548,35 +4548,31 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	
 	/* --------------------------------------------------------------------- */
 	/* macros for iterating over pairs of connected child paths */
-#define FOREACH_PATH_PAIR_BEGIN(path, npath) \
+#define FOREACH_PATH_PAIR_BEGIN(pstart, curpath, nextpath) \
 	{ \
-		int pstart = 0; \
-		while (pstart < totchild) { \
-			const int parent = cache[pstart]->hull_parent; \
-			int p, prev = pstart; \
-			for (p = pstart+1; p < totchild; ++p) { \
-				if (particle_path_valid(cache, p)) { \
-					ParticleCacheKey *path, *npath; \
-					bool last = false; \
-					if (cache[p]->hull_parent == parent) { \
-						path = cache[prev]; \
-						npath = cache[p]; \
-					} \
-					else { \
-						path = cache[prev]; \
-						npath = cache[pstart]; /* close the loop */ \
-						last = true; /* break after this one */ \
-					} \
-					/* DO STUFF HERE */
-
-#define FOREACH_PATH_PAIR_END \
-					if (last) \
-						break; \
-					prev = p; \
+		const int parent = cache[(pstart)]->hull_parent; \
+		int p, prev = (pstart); \
+		for (p = (pstart)+1; p < totchild; ++p) { \
+			if (particle_path_valid(cache, p)) { \
+				ParticleCacheKey *curpath, *nextpath; \
+				bool last = false; \
+				if (cache[p]->hull_parent == parent) { \
+					curpath = cache[prev]; \
+					nextpath = cache[p]; \
 				} \
+				else { \
+					curpath = cache[prev]; \
+					nextpath = cache[(pstart)]; /* close the loop */ \
+					last = true; /* break after this one */ \
+				}
+
+#define FOREACH_PATH_PAIR_END(npstart) \
+				if (last) \
+					break; \
+				prev = p; \
 			} \
-			pstart = p; /* advance outer loop to the next valid path */ \
 		} \
+		(npstart) = p; /* advance outer loop to the next valid path */ \
 	}
 	/* --------------------------------------------------------------------- */
 
@@ -4589,15 +4585,20 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	
 	/* draw child particles */
 	{
+		int pstart;
+		
 		glEnable(GL_LIGHTING);
 		glEnable(GL_COLOR_MATERIAL);
 		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 		glShadeModel(GL_SMOOTH);
 		
 		glBegin(GL_QUADS);
-		FOREACH_PATH_PAIR_BEGIN(path, npath) {
-			draw_particle_hull_section(path, npath);
-		} FOREACH_PATH_PAIR_END
+		pstart = 0;
+		while (pstart < totchild) {
+			FOREACH_PATH_PAIR_BEGIN(pstart, path, npath) {
+				draw_particle_hull_section(path, npath);
+			} FOREACH_PATH_PAIR_END(pstart)
+		}
 		glEnd();
 		
 		glDisable(GL_COLOR_MATERIAL);
