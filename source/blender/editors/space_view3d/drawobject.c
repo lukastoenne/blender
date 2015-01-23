@@ -4682,7 +4682,7 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		glShadeModel(GL_SMOOTH);
 		
 		glBegin(GL_QUADS);
-		pstart = 0;
+		pstart = particle_path_next(cache, totchild, -1);
 		while (pstart < totchild) {
 			int p = pstart;
 			int np = particle_path_next(cache, totchild, p);
@@ -4700,7 +4700,7 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		glEnd();
 		
 		glBegin(GL_TRIANGLES);
-		pstart = 0;
+		pstart = particle_path_next(cache, totchild, -1);
 		while (pstart < totchild) {
 			int groupend;
 			{
