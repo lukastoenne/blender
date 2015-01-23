@@ -4524,9 +4524,117 @@ static void draw_particle_hull_section(ParticleCacheKey *path, ParticleCacheKey 
 	}
 }
 
+static void draw_particle_hull_cap(ParticleCacheKey *a0, ParticleCacheKey *a1, ParticleCacheKey *a2, ParticleCacheKey *a3,
+                                   ParticleCacheKey *b0, ParticleCacheKey *b1, ParticleCacheKey *b2, ParticleCacheKey *b3)
+{
+	float *ca[4], *cb[4];
+	
+	float na[4][3], nb[4][3];
+	
+	if (a1 == b1) {
+		ca[1] = cb[1] = a1[a1->segments].co;
+		ca[2] = a2[a2->segments].co;
+		cb[2] = b2[b2->segments].co;
+		ca[3] = a3[a3->segments].co;
+		cb[3] = b3[b3->segments].co;
+		
+		normal_tri_v3(na[1], ca[1], cb[2], ca[2]);
+		normal_quad_v3(na[2], ca[2], ca[1], cb[2], ca[3]);
+		normal_quad_v3(nb[2], cb[2], cb[3], ca[2], cb[1]);
+		
+		glNormal3fv(na[2]);
+		glVertex3fv(ca[2]);
+		
+		glNormal3fv(na[1]);
+		glVertex3fv(ca[1]);
+		
+		glNormal3fv(nb[2]);
+		glVertex3fv(cb[2]);
+	}
+	else if (a2 == b2) {
+		ca[0] = a0[a0->segments].co;
+		cb[0] = b0[b0->segments].co;
+		ca[1] = a1[a1->segments].co;
+		cb[1] = b1[b1->segments].co;
+		ca[2] = cb[2] = a2[a2->segments].co;
+		
+		normal_quad_v3(na[1], ca[1], ca[0], cb[1], ca[2]);
+		normal_quad_v3(nb[1], cb[1], cb[2], ca[1], cb[0]);
+		normal_tri_v3(na[2], ca[2], ca[1], cb[1]);
+		
+		glNormal3fv(na[1]);
+		glVertex3fv(ca[1]);
+		
+		glNormal3fv(nb[1]);
+		glVertex3fv(cb[1]);
+		
+		glNormal3fv(nb[2]);
+		glVertex3fv(cb[2]);
+	}
+	else {
+		ca[0] = a0[a0->segments].co;
+		cb[0] = b0[b0->segments].co;
+		ca[1] = a1[a1->segments].co;
+		cb[1] = b1[b1->segments].co;
+		ca[2] = a2[a2->segments].co;
+		cb[2] = b2[b2->segments].co;
+		ca[3] = a3[a3->segments].co;
+		cb[3] = b3[b3->segments].co;
+		
+		normal_quad_v3(na[1], ca[1], ca[0], cb[1], ca[2]);
+		normal_quad_v3(na[2], ca[2], ca[1], cb[2], ca[3]);
+		normal_quad_v3(nb[1], cb[1], cb[2], ca[1], cb[0]);
+		normal_quad_v3(nb[2], cb[2], cb[3], ca[2], cb[1]);
+		
+		glNormal3fv(na[1]);
+		glVertex3fv(ca[1]);
+		
+		glNormal3fv(nb[1]);
+		glVertex3fv(cb[1]);
+		
+		glNormal3fv(nb[2]);
+		glVertex3fv(cb[2]);
+		
+		glNormal3fv(na[2]);
+		glVertex3fv(ca[2]);
+		
+		glNormal3fv(na[1]);
+		glVertex3fv(ca[1]);
+		
+		glNormal3fv(nb[2]);
+		glVertex3fv(cb[2]);
+	}
+}
+
 BLI_INLINE bool particle_path_valid(ParticleCacheKey **cache, int p)
 {
 	return (cache[p]->segments >= 0 && cache[p]->hull_parent >= 0);
+}
+
+BLI_INLINE int particle_path_next(ParticleCacheKey **cache, int pmax, int p)
+{
+	do {
+		++p;
+		if (p >= pmax)
+			break;
+		if (particle_path_valid(cache, p))
+			break;
+	} while (true);
+	
+	return p;
+}
+
+BLI_INLINE int particle_path_prev(ParticleCacheKey **cache, int pmin, int p)
+{
+	do {
+		--p;
+		if (p < pmin)
+			break;
+		if (particle_path_valid(cache, p))
+			break;
+	} while (true);
+	
+	return p;
 }
 
 static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionView3D *rv3d,
@@ -4546,36 +4654,6 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	else
 		totchild = psys->totchild * part->disp / 100;
 	
-	/* --------------------------------------------------------------------- */
-	/* macros for iterating over pairs of connected child paths */
-#define FOREACH_PATH_PAIR_BEGIN(pstart, curpath, nextpath) \
-	{ \
-		const int parent = cache[(pstart)]->hull_parent; \
-		int p, prev = (pstart); \
-		for (p = (pstart)+1; p < totchild; ++p) { \
-			if (particle_path_valid(cache, p)) { \
-				ParticleCacheKey *curpath, *nextpath; \
-				bool last = false; \
-				if (cache[p]->hull_parent == parent) { \
-					curpath = cache[prev]; \
-					nextpath = cache[p]; \
-				} \
-				else { \
-					curpath = cache[prev]; \
-					nextpath = cache[(pstart)]; /* close the loop */ \
-					last = true; /* break after this one */ \
-				}
-
-#define FOREACH_PATH_PAIR_END(npstart) \
-				if (last) \
-					break; \
-				prev = p; \
-			} \
-		} \
-		(npstart) = p; /* advance outer loop to the next valid path */ \
-	}
-	/* --------------------------------------------------------------------- */
-
 	if (v3d->zbuf)
 		glDepthMask(true);
 	
@@ -4595,9 +4673,85 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		glBegin(GL_QUADS);
 		pstart = 0;
 		while (pstart < totchild) {
-			FOREACH_PATH_PAIR_BEGIN(pstart, path, npath) {
-				draw_particle_hull_section(path, npath);
-			} FOREACH_PATH_PAIR_END(pstart)
+			int p = pstart;
+			int np = particle_path_next(cache, totchild, p);
+			while (np < totchild && cache[np]->hull_parent == cache[pstart]->hull_parent) {
+				draw_particle_hull_section(cache[p], cache[np]);
+				
+				p = np;
+				np = particle_path_next(cache, totchild, np);
+			}
+			if (p > pstart + 1)
+				draw_particle_hull_section(cache[p], cache[pstart]);
+			
+			pstart = np;
+		}
+		glEnd();
+		
+		glBegin(GL_TRIANGLES);
+		pstart = 0;
+		while (pstart < totchild) {
+			int groupend;
+			{
+				int p = particle_path_next(cache, totchild, pstart);
+				while (p < totchild && cache[p]->hull_parent == cache[pstart]->hull_parent) {
+					p = particle_path_next(cache, totchild, p);
+				}
+				groupend = p;
+			}
+			
+			{
+				int a[4], b[4];
+				
+				#define NEXT \
+				a[3] = a[2]; \
+				b[3] = b[2]; \
+				a[2] = a[1]; \
+				b[2] = b[1]; \
+				a[1] = a[0]; \
+				b[1] = b[0]; \
+				a[0] = particle_path_next(cache, groupend, a[0]); \
+				b[0] = particle_path_prev(cache, pstart, b[0]);
+				
+				a[3] = pstart - 1;
+				b[3] = particle_path_prev(cache, pstart, groupend) + 1;
+				a[2] = particle_path_next(cache, groupend, a[3]);
+				b[2] = particle_path_prev(cache, pstart, b[3]);
+				a[1] = particle_path_next(cache, groupend, a[2]);
+				b[1] = particle_path_prev(cache, pstart, b[2]);
+				a[0] = particle_path_next(cache, groupend, a[1]);
+				b[0] = particle_path_prev(cache, pstart, b[1]);
+				
+				/* first element */
+				if (a[1] <= b[1]) {
+					if (a[0] <= b[0])
+						draw_particle_hull_cap(cache[a[0]], cache[a[1]], cache[a[2]], cache[a[2]],
+						                       cache[b[0]], cache[b[1]], cache[b[2]], cache[b[2]]);
+					else
+						draw_particle_hull_cap(cache[a[1]], cache[a[1]], cache[a[2]], cache[a[2]],
+						                       cache[b[1]], cache[b[1]], cache[b[2]], cache[b[2]]);
+				}
+				NEXT
+				
+				while (true) {
+					if (a[1] <= b[1]) {
+						if (a[0] <= b[0])
+							draw_particle_hull_cap(cache[a[0]], cache[a[1]], cache[a[2]], cache[a[3]],
+							                       cache[b[0]], cache[b[1]], cache[b[2]], cache[b[3]]);
+						else
+							draw_particle_hull_cap(cache[a[1]], cache[a[1]], cache[a[2]], cache[a[3]],
+							                       cache[b[1]], cache[b[1]], cache[b[2]], cache[b[3]]);
+					}
+					else
+						break;
+					
+					NEXT
+				}
+				
+				#undef NEXT
+			}
+			
+			pstart = groupend;
 		}
 		glEnd();
 		
