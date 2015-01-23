@@ -48,6 +48,7 @@
 #include "BLI_string.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
+#include "BLI_rand.h"
 
 #include "BKE_anim.h"  /* for the where_on_path function */
 #include "BKE_armature.h"
@@ -4637,6 +4638,42 @@ BLI_INLINE int particle_path_prev(ParticleCacheKey **cache, int pmin, int p)
 	return p;
 }
 
+BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
+BLI_INLINE unsigned int hash_int(unsigned int k)
+{
+	return hash_int_2d(k, 0);
+}
+
+static void particle_path_color(int index, float col[3])
+{
+	unsigned seed = hash_int(index);
+	
+	BLI_srandom(seed);
+	hsv_to_rgb(BLI_frand(), 1.0f, 1.0f, col+0, col+1, col+2);
+}
+
 static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionView3D *rv3d,
                                     Base *base, ParticleSystem *psys,
                                     const char UNUSED(ob_dt), const short dflag)
@@ -4644,10 +4681,11 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	Object *ob = base->object;
 	ParticleSettings *part = psys->part;
 	Material *ma = give_current_material(ob, part->omat);
-	float ma_col[3] = {0.0f, 0.0f, 0.0f};
 	unsigned char tcol[4] = {0, 0, 0, 255};
 	GLint polygonmode[2];
 	int totchild;
+	
+	bool draw_constcolor = dflag & DRAW_CONSTCOLOR;
 	
 	ParticleCacheKey **cache;
 	
@@ -4663,18 +4701,38 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	
 	cache = psys->childcache;
 	
-	if ((ma) && (part->draw_col == PART_DRAW_COL_MAT)) {
-		rgb_float_to_uchar(tcol, &(ma->r));
-		copy_v3_v3(ma_col, &ma->r);
+	switch (part->draw_col) {
+		case PART_DRAW_COL_NONE:
+			draw_constcolor = true;
+			break;
+		case PART_DRAW_COL_MAT:
+			if (ma)
+				rgb_float_to_uchar(tcol, &(ma->r));
+			else
+				tcol[0] = tcol[1] = tcol[2] = 1.0f;
+			break;
+		case PART_DRAW_COL_VEL:
+			tcol[0] = tcol[1] = tcol[2] = 1.0f;
+			break;
+		case PART_DRAW_COL_ACC:
+			tcol[0] = tcol[1] = tcol[2] = 1.0f;
+			break;
+		case PART_DRAW_COL_PARENT:
+			/* handled per child group */
+			break;
+		default:
+			BLI_assert(0); /* should never happen */
+			break;
 	}
-
-	if ((dflag & DRAW_CONSTCOLOR) == 0) {
+	
+	if (!draw_constcolor) {
 		glColor3ubv(tcol);
 	}
 	
 	/* draw child particles */
 	{
 		int pstart;
+		float col[3];
 		
 		glEnable(GL_LIGHTING);
 		glEnable(GL_COLOR_MATERIAL);
@@ -4686,6 +4744,13 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		while (pstart < totchild) {
 			int p = pstart;
 			int np = particle_path_next(cache, totchild, p);
+			
+			if (part->draw_col == PART_DRAW_COL_PARENT) {
+				particle_path_color(pstart, col);
+				rgb_float_to_uchar(tcol, col);
+				glColor3ubv(tcol);
+			}
+			
 			while (np < totchild && cache[np]->hull_parent == cache[pstart]->hull_parent) {
 				draw_particle_hull_section(cache[p], cache[np]);
 				
@@ -4703,6 +4768,13 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 		pstart = particle_path_next(cache, totchild, -1);
 		while (pstart < totchild) {
 			int groupend;
+			
+			if (part->draw_col == PART_DRAW_COL_PARENT) {
+				particle_path_color(pstart, col);
+				rgb_float_to_uchar(tcol, col);
+				glColor3ubv(tcol);
+			}
+			
 			{
 				int p = particle_path_next(cache, totchild, pstart);
 				while (p < totchild && cache[p]->hull_parent == cache[pstart]->hull_parent) {
@@ -5290,6 +5362,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 								break;
 							case PART_DRAW_COL_ACC:
 								intensity = len_v3v3(pa->state.vel, pa->prev_state.vel) / ((pa->state.time - pa->prev_state.time) * part->color_vec_max);
+								break;
+							case PART_DRAW_COL_PARENT:
+								intensity = 1.0f;
 								break;
 							default:
 								intensity = 1.0f; /* should never happen */

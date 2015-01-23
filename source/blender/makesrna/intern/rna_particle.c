@@ -2117,6 +2117,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 		{PART_DRAW_COL_MAT, "MATERIAL", 0, "Material", ""},
 		{PART_DRAW_COL_VEL, "VELOCITY", 0, "Velocity", ""},
 		{PART_DRAW_COL_ACC, "ACCELERATION", 0, "Acceleration", ""},
+		{PART_DRAW_COL_PARENT, "PARENT", 0, "Parent", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 

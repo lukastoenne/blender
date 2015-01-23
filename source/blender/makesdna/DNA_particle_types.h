@@ -445,10 +445,13 @@ typedef enum eParticleChildFlag {
 } eParticleChildFlag;
 
 /* part->draw_col */
-#define PART_DRAW_COL_NONE		0
-#define PART_DRAW_COL_MAT		1
-#define PART_DRAW_COL_VEL		2
-#define PART_DRAW_COL_ACC		3
+typedef enum eParticleDrawColorMode {
+	PART_DRAW_COL_NONE		= 0,
+	PART_DRAW_COL_MAT		= 1,
+	PART_DRAW_COL_VEL		= 2,
+	PART_DRAW_COL_ACC		= 3,
+	PART_DRAW_COL_PARENT	= 4,
+} eParticleDrawColorMode;
 
 
 /* part->simplify_flag */
