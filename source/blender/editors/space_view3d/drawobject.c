@@ -4639,11 +4639,13 @@ BLI_INLINE int particle_path_prev(ParticleCacheKey **cache, int pmin, int p)
 
 static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionView3D *rv3d,
                                     Base *base, ParticleSystem *psys,
-                                    const char UNUSED(ob_dt), const short UNUSED(dflag))
+                                    const char UNUSED(ob_dt), const short dflag)
 {
 	Object *ob = base->object;
 	ParticleSettings *part = psys->part;
-	/*Material *ma = give_current_material(ob, part->omat);*/
+	Material *ma = give_current_material(ob, part->omat);
+	float ma_col[3] = {0.0f, 0.0f, 0.0f};
+	unsigned char tcol[4] = {0, 0, 0, 255};
 	GLint polygonmode[2];
 	int totchild;
 	
@@ -4660,6 +4662,15 @@ static void draw_particle_hair_hull(Scene *UNUSED(scene), View3D *v3d, RegionVie
 	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
 	
 	cache = psys->childcache;
+	
+	if ((ma) && (part->draw_col == PART_DRAW_COL_MAT)) {
+		rgb_float_to_uchar(tcol, &(ma->r));
+		copy_v3_v3(ma_col, &ma->r);
+	}
+
+	if ((dflag & DRAW_CONSTCOLOR) == 0) {
+		glColor3ubv(tcol);
+	}
 	
 	/* draw child particles */
 	{
