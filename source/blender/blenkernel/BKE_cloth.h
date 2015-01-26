@@ -231,7 +231,22 @@ typedef struct CollisionContactPoint {
 	float lifetime;
 } CollisionContactPoint;
 
-void cloth_strands_find_contacts(struct Object *ob, struct ClothModifierData *clmd, struct CollisionContactPoint **r_contacts, int *r_numcontacts);
+typedef struct CollisionContactBuffer {
+	struct CollisionContactCache *next, *prev;
+	CollisionContactPoint *points;
+} CollisionContactBuffer;
+
+typedef struct CollisionContactCache {
+	int buffersize;
+	ListBase buffers;
+	int totpoints;
+} CollisionContactCache;
+
+void cloth_contact_cache_init(struct CollisionContactCache *cache, int buffersize);
+void cloth_contact_cache_free(struct CollisionContactCache *cache);
+struct CollisionContactPoint *cloth_contact_cache_push(struct CollisionContactCache *cache);
+
+void cloth_strands_find_contacts(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd, struct CollisionContactCache *r_contacts);
 
 ////////////////////////////////////////////////
 

@@ -975,6 +975,7 @@ static void cloth_record_result(ClothModifierData *clmd, ImplicitSolverResult *r
 
 int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *effectors)
 {
+	Scene *scene = clmd->scene;
 	/* Hair currently is a cloth sim in disguise ...
 	 * Collision detection and volumetrics work differently then.
 	 * Bad design, TODO
@@ -990,8 +991,7 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 	Implicit_Data *id = cloth->implicit;
 //	ColliderContacts *contacts = NULL;
 //	int totcolliders = 0;
-	CollisionContactPoint *contacts = NULL;
-	int numcontacts = 0;
+	CollisionContactCache contacts;
 	
 	BKE_sim_debug_data_clear_category("collision");
 	
@@ -1022,9 +1022,10 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 		
 		if (is_hair) {
 			/* determine contact points */
+		cloth_contact_cache_init(&contacts, 4096);
 			if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) {
 //				cloth_find_point_contacts(ob, clmd, 0.0f, tf, &contacts, &totcolliders);
-				cloth_strands_find_contacts(ob, clmd, &contacts, &numcontacts);
+				cloth_strands_find_contacts(scene, ob, clmd, &contacts);
 			}
 			
 			/* setup vertex constraints for pinned vertices and contacts */
@@ -1082,12 +1083,7 @@ int BPH_cloth_solve(Object *ob, float frame, ClothModifierData *clmd, ListBase *
 		}
 		
 		/* free contact points */
-		if (contacts) {
-//			cloth_free_contacts(contacts, totcolliders);
-			MEM_freeN(contacts);
-			contacts = NULL;
-			numcontacts = 0;
-		}
+		cloth_contact_cache_free(&contacts);
 		
 		step += dt;
 	}

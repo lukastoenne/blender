@@ -1440,14 +1440,47 @@ void cloth_free_contacts(ColliderContacts *collider_contacts, int totcolliders)
 
 #ifdef WITH_BULLET
 
-static void cloth_strands_contact_cb(void *userdata, rbManifoldPoint *cp,
-                                     const void *collob0, rbObjectType type0, int part0, int index0,
-                                     const void *collob1, rbObjectType type1, int part1, int index1)
+void cloth_contact_cache_init(CollisionContactCache *cache, int buffersize)
 {
-	
+	BLI_assert(buffersize > 0);
+	cache->buffersize = buffersize;
+	BLI_listbase_clear(&cache->buffers);
+	cache->totpoints = 0;
 }
 
-void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *clmd, CollisionContactPoint **r_contacts, int *r_numcontacts)
+void cloth_contact_cache_free(CollisionContactCache *cache)
+{
+	BLI_freelistN(&cache->buffers);
+	cache->totpoints = 0;
+}
+
+CollisionContactPoint *cloth_contact_cache_push(CollisionContactCache *cache)
+{
+	CollisionContactBuffer *buf = cache->buffers.last;
+	
+	int totbuf = cache->totpoints % cache->buffersize;
+	if (totbuf == 0) {
+		buf = MEM_mallocN(sizeof(CollisionContactBuffer), "collision contact buffer");
+		buf->points = MEM_mallocN(sizeof(CollisionContactPoint) * cache->buffersize, "collision contact points");
+		
+		BLI_addtail(&cache->buffers, buf);
+	}
+	
+	return buf->points + totbuf;
+}
+
+static void cloth_strands_contact_cb(void *userdata, rbManifoldPoint *cp,
+                                     const void *UNUSED(collob0), rbObjectType UNUSED(type0), int UNUSED(part0), int UNUSED(index0),
+                                     const void *UNUSED(collob1), rbObjectType UNUSED(type1), int UNUSED(part1), int UNUSED(index1))
+{
+	CollisionContactCache *cache = userdata;
+	
+	CollisionContactPoint *pt = cloth_contact_cache_push(cache);
+	RB_manifold_point_world_A(cp, pt->point_world_a);
+	// TODO add the rest ...
+}
+
+void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *clmd, CollisionContactCache *r_contacts)
 {
 	rbGhostObject *ghost;
 	rbCollisionShape *shape, *box;
@@ -1476,10 +1509,7 @@ void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *cl
 		BKE_sim_debug_data_add_line(a, b, 1,0,1, "collision", 8934);
 	}
 	
-	*r_contacts = NULL;
-	*r_numcontacts = 0;
-	
-	RB_dworld_contact_test_ghost(scene->rigidbody_world->physics_world, ghost, );
+	RB_dworld_contact_test_ghost(scene->rigidbody_world->physics_world, ghost, cloth_strands_contact_cb, r_contacts, 0xFFFFFFFF);
 	
 	RB_ghost_delete(ghost);
 	RB_shape_delete(shape);
