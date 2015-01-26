@@ -355,7 +355,7 @@ static int wm_read_exotic(Scene *UNUSED(scene), const char *name)
 		else {
 			len = gzread(gzfile, header, sizeof(header));
 			gzclose(gzfile);
-			if (len == sizeof(header) && strncmp(header, "BLENDER", 7) == 0) {
+			if (len == sizeof(header) && STREQLEN(header, "BLENDER", 7)) {
 				retval = BKE_READ_EXOTIC_OK_BLEND;
 			}
 			else {
@@ -535,11 +535,13 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 }
 
 
-/* called on startup,  (context entirely filled with NULLs) */
-/* or called for 'New File' */
-/* both startup.blend and userpref.blend are checked */
-/* the optional paramater custom_file points to an alterntive startup page */
-/* custom_file can be NULL */
+/**
+ * called on startup,  (context entirely filled with NULLs)
+ * or called for 'New File'
+ * both startup.blend and userpref.blend are checked
+ * the optional parameter custom_file points to an alterntive startup page
+ * custom_file can be NULL
+ */
 int wm_homefile_read(bContext *C, ReportList *reports, bool from_memory, const char *custom_file)
 {
 	ListBase wmbase;

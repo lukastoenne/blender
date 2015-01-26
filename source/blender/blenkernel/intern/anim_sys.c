@@ -791,7 +791,7 @@ static void fcurves_path_rename_fix(ID *owner_id, const char *prefix, const char
 			if (fcu->rna_path != old_path) {
 				bActionGroup *agrp = fcu->grp;
 				
-				if ((agrp) && strcmp(oldName, agrp->name) == 0) {
+				if ((agrp) && STREQ(oldName, agrp->name)) {
 					BLI_strncpy(agrp->name, newName, sizeof(agrp->name));
 				}
 			}
@@ -828,7 +828,7 @@ static void drivers_path_rename_fix(ID *owner_id, ID *ref_id, const char *prefix
 					/* also fix the bone-name (if applicable) */
 					if (strstr(prefix, "bones")) {
 						if ( ((dtar->id) && (GS(dtar->id->name) == ID_OB) && (!ref_id || ((Object *)(dtar->id))->data == ref_id)) &&
-						     (dtar->pchan_name[0]) && (strcmp(oldName, dtar->pchan_name) == 0) )
+						     (dtar->pchan_name[0]) && STREQ(oldName, dtar->pchan_name) )
 						{
 							BLI_strncpy(dtar->pchan_name, newName, sizeof(dtar->pchan_name));
 						}
@@ -856,6 +856,60 @@ static void nlastrips_path_rename_fix(ID *owner_id, const char *prefix, const ch
 		/* check sub-strips (if metas) */
 		nlastrips_path_rename_fix(owner_id, prefix, oldName, newName, oldKey, newKey, &strip->strips, verify_paths);
 	}
+}
+
+/* ----------------------- */
+
+
+/* Fix up the given RNA-Path
+ *
+ * This is just an external wrapper for the RNA-Path fixing function,
+ * with input validity checks on top of the basic method.
+ *
+ * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
+ *       i.e. pose.bones["Bone"]
+ */
+char *BKE_animsys_fix_rna_path_rename(ID *owner_id, char *old_path, const char *prefix, const char *oldName,
+                                      const char *newName, int oldSubscript, int newSubscript, bool verify_paths)
+{
+	char *oldN, *newN;
+	char *result;
+	
+	/* if no action, no need to proceed */
+	if (ELEM(NULL, owner_id, old_path)) {
+		printf("early abort\n");
+		return old_path;
+	}
+	
+	/* Name sanitation logic - copied from BKE_animdata_fix_paths_rename() */
+	if ((oldName != NULL) && (newName != NULL)) {
+		/* pad the names with [" "] so that only exact matches are made */
+		const size_t name_old_len = strlen(oldName);
+		const size_t name_new_len = strlen(newName);
+		char *name_old_esc = BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1);
+		char *name_new_esc = BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1);
+
+		BLI_strescape(name_old_esc, oldName, (name_old_len * 2) + 1);
+		BLI_strescape(name_new_esc, newName, (name_new_len * 2) + 1);
+		oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
+		newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
+	}
+	else {
+		oldN = BLI_sprintfN("[%d]", oldSubscript);
+		newN = BLI_sprintfN("[%d]", newSubscript);
+	}
+	
+	/* fix given path */
+	printf("%s | %s  | oldpath = %p ", oldN, newN, old_path);
+	result = rna_path_rename_fix(owner_id, prefix, oldN, newN, old_path, verify_paths);
+	printf("result = %p\n", result);
+	
+	/* free the temp names */
+	MEM_freeN(oldN);
+	MEM_freeN(newN);
+	
+	/* return the resulting path - may be the same path again if nothing changed */
+	return result;
 }
 
 /* Fix all RNA_Paths in the given Action, relative to the given ID block 
@@ -1227,7 +1281,7 @@ KS_Path *BKE_keyingset_find_path(KeyingSet *ks, ID *id, const char group_name[],
 			eq_id = 0;
 		
 		/* path */
-		if ((ksp->rna_path == NULL) || strcmp(rna_path, ksp->rna_path))
+		if ((ksp->rna_path == NULL) || !STREQ(rna_path, ksp->rna_path))
 			eq_path = 0;
 			
 		/* index - need to compare whole-array setting too... */
@@ -1263,6 +1317,7 @@ KeyingSet *BKE_keyingset_add(ListBase *list, const char idname[], const char nam
 
 	ks->flag = flag;
 	ks->keyingflag = keyingflag;
+	ks->keyingoverride = keyingflag; /* NOTE: assume that if one is set one way, the other should be too, so that it'll work */
 	
 	/* add KeyingSet to list */
 	BLI_addtail(list, ks);

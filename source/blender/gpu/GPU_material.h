@@ -32,6 +32,7 @@
 #ifndef __GPU_MATERIAL_H__
 #define __GPU_MATERIAL_H__
 
+#include "DNA_customdata_types.h" /* for CustomDataType */
 #include "DNA_listBase.h"
 
 #include "BLI_sys_types.h" /* for bool */
@@ -68,6 +69,7 @@ typedef struct GPULamp GPULamp;
 /* Functions to create GPU Materials nodes */
 
 typedef enum GPUType {
+	/* The value indicates the number of elements in each type */
 	GPU_NONE = 0,
 	GPU_FLOAT = 1,
 	GPU_VEC2 = 2,
@@ -75,6 +77,7 @@ typedef enum GPUType {
 	GPU_VEC4 = 4,
 	GPU_MAT3 = 9,
 	GPU_MAT4 = 16,
+
 	GPU_TEX2D = 1002,
 	GPU_SHADOW2D = 1003,
 	GPU_ATTRIB = 3001
@@ -120,13 +123,40 @@ typedef struct GPUNodeStack {
 	short sockettype;
 } GPUNodeStack;
 
-GPUNodeLink *GPU_attribute(int type, const char *name);
+typedef enum GPUDynamicType {
+	GPU_DYNAMIC_NONE = 0,
+	GPU_DYNAMIC_OBJECT_VIEWMAT = 1,
+	GPU_DYNAMIC_OBJECT_MAT = 2,
+	GPU_DYNAMIC_OBJECT_VIEWIMAT = 3,
+	GPU_DYNAMIC_OBJECT_IMAT = 4,
+	GPU_DYNAMIC_OBJECT_COLOR = 5,
+	GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE = 15,
+
+	GPU_DYNAMIC_LAMP_FIRST = 6,
+	GPU_DYNAMIC_LAMP_DYNVEC = 6,
+	GPU_DYNAMIC_LAMP_DYNCO = 7,
+	GPU_DYNAMIC_LAMP_DYNIMAT = 8,
+	GPU_DYNAMIC_LAMP_DYNPERSMAT = 9,
+	GPU_DYNAMIC_LAMP_DYNENERGY = 10,
+	GPU_DYNAMIC_LAMP_DYNCOL = 11,
+	GPU_DYNAMIC_LAMP_LAST = 11,
+	GPU_DYNAMIC_SAMPLER_2DBUFFER = 12,
+	GPU_DYNAMIC_SAMPLER_2DIMAGE = 13,
+	GPU_DYNAMIC_SAMPLER_2DSHADOW = 14,
+	GPU_DYNAMIC_LAMP_DISTANCE = 16,
+	GPU_DYNAMIC_LAMP_ATT1 = 17,
+	GPU_DYNAMIC_LAMP_ATT2 = 18,
+	GPU_DYNAMIC_LAMP_SPOTSIZE = 19,
+	GPU_DYNAMIC_LAMP_SPOTBLEND = 20,
+} GPUDynamicType;
+
+GPUNodeLink *GPU_attribute(CustomDataType type, const char *name);
 GPUNodeLink *GPU_uniform(float *num);
-GPUNodeLink *GPU_dynamic_uniform(float *num, int dynamictype, void *data);
+GPUNodeLink *GPU_dynamic_uniform(float *num, GPUDynamicType dynamictype, void *data);
 GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser, bool is_data);
 GPUNodeLink *GPU_image_preview(struct PreviewImage *prv);
 GPUNodeLink *GPU_texture(int size, float *pixels);
-GPUNodeLink *GPU_dynamic_texture(struct GPUTexture *tex, int dynamictype, void *data);
+GPUNodeLink *GPU_dynamic_texture(struct GPUTexture *tex, GPUDynamicType dynamictype, void *data);
 GPUNodeLink *GPU_builtin(GPUBuiltin builtin);
 GPUNodeLink *GPU_opengl_builtin(GPUOpenGLBuiltin builtin);
 
@@ -179,33 +209,6 @@ void GPU_shadeinput_set(GPUMaterial *mat, struct Material *ma, GPUShadeInput *sh
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr);
 
 /* Export GLSL shader */
-
-typedef enum GPUDynamicType {
-	GPU_DYNAMIC_NONE = 0,
-	GPU_DYNAMIC_OBJECT_VIEWMAT = 1,
-	GPU_DYNAMIC_OBJECT_MAT = 2,
-	GPU_DYNAMIC_OBJECT_VIEWIMAT = 3,
-	GPU_DYNAMIC_OBJECT_IMAT = 4,
-	GPU_DYNAMIC_OBJECT_COLOR = 5,
-	GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE = 15,
-
-	GPU_DYNAMIC_LAMP_FIRST = 6,
-	GPU_DYNAMIC_LAMP_DYNVEC = 6,
-	GPU_DYNAMIC_LAMP_DYNCO = 7,
-	GPU_DYNAMIC_LAMP_DYNIMAT = 8,
-	GPU_DYNAMIC_LAMP_DYNPERSMAT = 9,
-	GPU_DYNAMIC_LAMP_DYNENERGY = 10,
-	GPU_DYNAMIC_LAMP_DYNCOL = 11,
-	GPU_DYNAMIC_LAMP_LAST = 11,
-	GPU_DYNAMIC_SAMPLER_2DBUFFER = 12,
-	GPU_DYNAMIC_SAMPLER_2DIMAGE = 13,
-	GPU_DYNAMIC_SAMPLER_2DSHADOW = 14,
-	GPU_DYNAMIC_LAMP_DISTANCE = 16,
-	GPU_DYNAMIC_LAMP_ATT1 = 17,
-	GPU_DYNAMIC_LAMP_ATT2 = 18,
-	GPU_DYNAMIC_LAMP_SPOTSIZE = 19,
-	GPU_DYNAMIC_LAMP_SPOTBLEND = 20,
-} GPUDynamicType;
 
 typedef enum GPUDataType {
 	GPU_DATA_NONE = 0,

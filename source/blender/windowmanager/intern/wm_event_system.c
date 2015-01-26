@@ -870,7 +870,7 @@ static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot,
 					break;
 
 				/* skip invalid properties */
-				if (strcmp(RNA_property_identifier(prop), otmacro->idname) == 0) {
+				if (STREQ(RNA_property_identifier(prop), otmacro->idname)) {
 					wmOperatorType *otm = WM_operatortype_find(otmacro->idname, 0);
 					PointerRNA someptr = RNA_property_pointer_get(properties, prop);
 					wmOperator *opm = wm_operator_create(wm, otm, &someptr, NULL);
@@ -1744,7 +1744,7 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 
 			if (val != EVT_FILESELECT_EXTERNAL_CANCEL) {
 				ScrArea *sa = CTX_wm_area(C);
-				ED_screen_retore_temp_type(C, sa, screen != handler->filescreen);
+				ED_screen_restore_temp_type(C, sa, screen != handler->filescreen);
 			}
 
 			wm_handler_op_context(C, handler);
