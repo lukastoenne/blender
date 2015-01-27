@@ -33,6 +33,8 @@
  */
 
 #include <float.h>
+
+#include "BLI_utildefines.h"
 #include "BLI_math_inline.h"
 
 struct Object;
@@ -232,7 +234,7 @@ typedef struct CollisionContactPoint {
 } CollisionContactPoint;
 
 typedef struct CollisionContactBuffer {
-	struct CollisionContactCache *next, *prev;
+	struct CollisionContactBuffer *next, *prev;
 	CollisionContactPoint *points;
 } CollisionContactBuffer;
 
@@ -245,6 +247,49 @@ typedef struct CollisionContactCache {
 void cloth_contact_cache_init(struct CollisionContactCache *cache, int buffersize);
 void cloth_contact_cache_free(struct CollisionContactCache *cache);
 struct CollisionContactPoint *cloth_contact_cache_push(struct CollisionContactCache *cache);
+
+typedef struct CollisionContactIterator {
+	int buffersize;
+	int totpoints;
+	
+	CollisionContactBuffer *buf;
+	int p, totp;
+} CollisionContactIterator;
+
+BLI_INLINE CollisionContactPoint *cloth_contact_iter_init(CollisionContactIterator *iter, CollisionContactCache *cache)
+{
+	iter->buffersize = cache->buffersize;
+	iter->totpoints = cache->totpoints;
+	
+	iter->buf = (CollisionContactBuffer *)cache->buffers.first;
+	iter->p = 0;
+	iter->totp = 0;
+	
+	return &iter->buf->points[iter->p];
+}
+
+BLI_INLINE bool cloth_contact_iter_valid(CollisionContactIterator *iter)
+{
+	return iter->p < iter->totpoints;
+}
+
+BLI_INLINE CollisionContactPoint *cloth_contact_iter_get(CollisionContactIterator *iter)
+{
+	return &iter->buf->points[iter->p];
+}
+
+BLI_INLINE CollisionContactPoint *cloth_contact_iter_next(CollisionContactIterator *iter)
+{
+	++iter->p;
+	++iter->totp;
+	
+	if (iter->p >= iter->buffersize) {
+		iter->buf = iter->buf->next;
+		iter->p -= iter->buffersize;
+	}
+	
+	return &iter->buf->points[iter->p];
+}
 
 void cloth_strands_find_contacts(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd, struct CollisionContactCache *r_contacts);
 

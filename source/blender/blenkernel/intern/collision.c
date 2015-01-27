@@ -1466,6 +1466,7 @@ CollisionContactPoint *cloth_contact_cache_push(CollisionContactCache *cache)
 		BLI_addtail(&cache->buffers, buf);
 	}
 	
+	cache->totpoints += 1;
 	return buf->points + totbuf;
 }
 
@@ -1477,7 +1478,17 @@ static void cloth_strands_contact_cb(void *userdata, rbManifoldPoint *cp,
 	
 	CollisionContactPoint *pt = cloth_contact_cache_push(cache);
 	RB_manifold_point_world_A(cp, pt->point_world_a);
-	// TODO add the rest ...
+	RB_manifold_point_world_B(cp, pt->point_world_b);
+	RB_manifold_point_normal_world_B(cp, pt->normal_world_b);
+	pt->distance = RB_manifold_point_distance(cp);
+	pt->friction = RB_manifold_point_combined_friction(cp);
+	pt->rolling_friction = RB_manifold_point_combined_rolling_friction(cp);
+	pt->restitution = RB_manifold_point_combined_restitution(cp);
+	pt->part_id_a = RB_manifold_point_part_id0(cp);
+	pt->part_id_b = RB_manifold_point_part_id1(cp);
+	pt->index_a = RB_manifold_point_index0(cp);
+	pt->index_b = RB_manifold_point_index1(cp);
+	pt->lifetime = RB_manifold_point_lifetime(cp);
 }
 
 void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *clmd, CollisionContactCache *r_contacts)
@@ -1500,16 +1511,21 @@ void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *cl
 	
 	ghost = RB_ghost_new(shape, loc, rot);
 	
+	RB_dworld_contact_test_ghost(scene->rigidbody_world->physics_world, ghost, cloth_strands_contact_cb, r_contacts, 0xFFFFFFFF);
+	
 	{
-		float a[3] = {0,0,1};
-		float b[3] = {-2, -3, 0.342};
+		CollisionContactIterator iter;
 		
 		BKE_sim_debug_data_clear_category("collision");
 		
-		BKE_sim_debug_data_add_line(a, b, 1,0,1, "collision", 8934);
+		for (cloth_contact_iter_init(&iter, r_contacts); cloth_contact_iter_valid(&iter); cloth_contact_iter_next(&iter)) {
+			CollisionContactPoint *pt = cloth_contact_iter_get(&iter);
+			float vec[3];
+			
+			mul_v3_v3fl(vec, pt->normal_world_b, pt->distance);
+			BKE_sim_debug_data_add_vector(pt->point_world_b, vec, 1,1,0, "collision", 8225);
+		}
 	}
-	
-	RB_dworld_contact_test_ghost(scene->rigidbody_world->physics_world, ghost, cloth_strands_contact_cb, r_contacts, 0xFFFFFFFF);
 	
 	RB_ghost_delete(ghost);
 	RB_shape_delete(shape);
@@ -1517,10 +1533,8 @@ void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *cl
 
 #else
 
-void cloth_strands_find_contacts(Object *UNUSED(ob), ClothModifierData *UNUSED(clmd), CollisionContactPoint **r_contacts, int *r_numcontacts)
+void cloth_strands_find_contacts(Scene *UNUSED(scene), Object *UNUSED(ob), ClothModifierData *UNUSED(clmd), CollisionContactCache *UNUSED(r_contacts))
 {
-	*r_contacts = NULL;
-	*r_numcontacts = 0;
 }
 
 #endif
