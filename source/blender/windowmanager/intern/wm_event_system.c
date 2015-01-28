@@ -1711,8 +1711,12 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 				sa = handler->op_area;
 			}
 					
-			if (val == EVT_FILESELECT_OPEN) {
+			if (val == EVT_FILESELECT_OPEN || sa->full) {
 				ED_area_newspace(C, sa, SPACE_FILE);     /* 'sa' is modified in-place */
+				/* we already had a fullscreen here -> mark new space as a stacked fullscreen */
+				if (sa->full) {
+					sa->flag |= AREA_FLAG_STACKED_FULLSCREEN;
+				}
 			}
 			else {
 				sa = ED_screen_full_newspace(C, sa, SPACE_FILE);    /* sets context */
@@ -1736,15 +1740,11 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 		case EVT_FILESELECT_CANCEL:
 		case EVT_FILESELECT_EXTERNAL_CANCEL:
 		{
-			/* XXX validate area and region? */
-			bScreen *screen = CTX_wm_screen(C);
-
 			/* remlink now, for load file case before removing*/
 			BLI_remlink(handlers, handler);
 
 			if (val != EVT_FILESELECT_EXTERNAL_CANCEL) {
-				ScrArea *sa = CTX_wm_area(C);
-				ED_screen_restore_temp_type(C, sa, screen != handler->filescreen);
+				ED_screen_full_prevspace(C, CTX_wm_area(C));
 			}
 
 			wm_handler_op_context(C, handler);
@@ -2593,7 +2593,6 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
 	handler->op = op;
 	handler->op_area = CTX_wm_area(C);
 	handler->op_region = CTX_wm_region(C);
-	handler->filescreen = CTX_wm_screen(C);
 	
 	BLI_addhead(&win->modalhandlers, handler);
 	
