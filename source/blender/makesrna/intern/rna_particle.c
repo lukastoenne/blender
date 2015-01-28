@@ -779,7 +779,7 @@ static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerR
 	Object *ob = ptr->id.data;
 	ParticleSystem *psys = ptr->data;
 	
-	if (PE_load(scene, ob, psys)) {
+	if (PE_shapekey_load(ob, psys)) {
 		WM_main_add_notifier(NC_SCENE | ND_PARTICLE | NS_MODE_PARTICLE, ptr->id.data);
 	}
 	

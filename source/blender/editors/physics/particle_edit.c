@@ -1202,6 +1202,9 @@ void update_world_cos(Object *ob, PTCacheEdit *edit)
 				mul_m4_v3(hairmat, key->world_co);
 		}
 	}
+
+	/* apply hair changes to the active shape key */
+	PE_shapekey_apply(ob, psys);
 }
 static void update_velocities(PTCacheEdit *edit)
 {
@@ -4555,7 +4558,7 @@ int PE_minmax(Scene *scene, float min[3], float max[3])
 
 /************************ particle edit toggle operator ************************/
 
-bool PE_load(Scene *UNUSED(scene), Object *ob, ParticleSystem *psys)
+bool PE_shapekey_load(Object *ob, ParticleSystem *psys)
 {
 	const int mode_flag = OB_MODE_PARTICLE_EDIT;
 	const bool is_mode_set = (ob->mode & mode_flag) != 0;
@@ -4569,6 +4572,25 @@ bool PE_load(Scene *UNUSED(scene), Object *ob, ParticleSystem *psys)
 		
 		if (actkb)
 			BKE_keyblock_convert_to_hair_keys(actkb, ob, psys);
+	}
+	
+	return true;
+}
+
+bool PE_shapekey_apply(struct Object *ob, struct ParticleSystem *psys)
+{
+	const int mode_flag = OB_MODE_PARTICLE_EDIT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
+	
+	if (!is_mode_set)
+		return false;
+	
+	if (psys->edit) {
+		/* define the active shape key */
+		KeyBlock *actkb = BKE_keyblock_from_particles(psys);
+		
+		if (actkb)
+			BKE_keyblock_convert_from_hair_keys(ob, psys, actkb);
 	}
 	
 	return true;
