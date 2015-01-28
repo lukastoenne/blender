@@ -3447,7 +3447,14 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	PARTICLE_P;
+	PARTICLE_PSMD;
 	float disp = psys_get_current_display_percentage(psys);
+	float *shapekey_data = NULL, *shapekey;
+	int totshapekey;
+
+	if (part->type == PART_HAIR) {
+		shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, &totshapekey);
+	}
 
 	LOOP_PARTICLES {
 		pa->size = part->size;
@@ -3458,7 +3465,34 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 			pa->flag |= PARS_NO_DISP;
 		else
 			pa->flag &= ~PARS_NO_DISP;
+
+		if (part->type == PART_HAIR) {
+			float hairmat[4][4];
+			HairKey *hkey;
+			int k;
+			
+			psys_mat_hair_to_global(sim->ob, psmd->dm, psys->part->from, pa, hairmat);
+			
+			/* update world coordinates and calculate shapekey result if needed */
+			for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+				const float *co;
+				if (shapekey) {
+					co = shapekey;
+					shapekey += 3;
+					
+					copy_v3_v3(hkey->co, co);
+				}
+				else {
+					co = hkey->co;
+				}
+				
+				mul_v3_m4v3(hkey->world_co, hairmat, co);
+			}
+		}
 	}
+
+	if (shapekey_data)
+		MEM_freeN(shapekey_data);
 
 	if (psys->recalc & PSYS_RECALC_RESET) {
 		/* need this for changing subsurf levels */

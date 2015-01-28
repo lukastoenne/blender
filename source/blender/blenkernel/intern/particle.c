@@ -2501,8 +2501,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	float length, vec[3];
 	float *vg_effector = NULL;
 	float *vg_length = NULL, pa_length = 1.0f;
-	float *shapekey_data, *shapekey;
-	int totshapekey;
 
 	/* we don't have anything valid to create paths from so let's quit here */
 	if ((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache) == 0)
@@ -2533,8 +2531,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	if (part->from != PART_FROM_VERT) {
 		DM_ensure_tessface(psmd->dm);
 	}
-
-	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, &totshapekey);
 
 	/*---first main loop: create all actual particles' paths---*/
 	LOOP_PARTICLES {
@@ -2598,23 +2594,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 				mul_m4_v3(hairmat, ca->co);
 
 			copy_v3_v3(ca->col, col);
-		}
-
-		if (part->type == PART_HAIR) {
-			HairKey *hkey;
-			
-			for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
-				float co[3];
-				if (shapekey) {
-					copy_v3_v3(co, shapekey);
-					shapekey += 3;
-				}
-				else {
-					copy_v3_v3(co, hkey->co);
-				}
-				
-				mul_v3_m4v3(hkey->world_co, hairmat, co);
-			}
 		}
 
 		/*--modify paths and calculate rotation & velocity--*/
@@ -2684,9 +2663,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 	if (vg_length)
 		MEM_freeN(vg_length);
-
-	if (shapekey_data)
-		MEM_freeN(shapekey_data);
 }
 void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cfra)
 {
