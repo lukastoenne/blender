@@ -2481,7 +2481,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	ParticleCacheKey *ca, **cache;
 	const bool keyed = psys->flag & PSYS_KEYED;
 	const bool baked = psys->pointcache->mem_cache.first && psys->part->type != PART_HAIR;
-	const bool edit = psys->edit;
 
 	DerivedMesh *hair_dm = (psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS) ? psys->hair_out_dm : NULL;
 	
@@ -2606,7 +2605,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 			
 			for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 				float co[3];
-				if (edit && shapekey) {
+				if (shapekey) {
 					copy_v3_v3(co, shapekey);
 					shapekey += 3;
 				}

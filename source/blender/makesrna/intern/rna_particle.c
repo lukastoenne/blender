@@ -149,6 +149,8 @@ static EnumPropertyItem part_hair_ren_as_items[] = {
 
 #include "RNA_access.h"
 
+#include "ED_particle.h"
+
 /* use for object space hair get/set */
 static void rna_ParticleHairKey_location_object_info(PointerRNA *ptr, ParticleSystemModifierData **psmd_pt,
                                                      ParticleData **pa_pt)
@@ -774,31 +776,13 @@ static void rna_particle_settings_set(PointerRNA *ptr, PointerRNA value)
 
 static void rna_Particle_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
+	Object *ob = ptr->id.data;
 	ParticleSystem *psys = ptr->data;
 	
-#if 0 /* XXX equivalent needed for particles? */
-	if (scene->obedit == ob) {
-		/* exit/enter editmode to get new shape */
-		switch (ob->type) {
-			case OB_MESH:
-				EDBM_mesh_load(ob);
-				EDBM_mesh_make(scene->toolsettings, ob);
-				EDBM_mesh_normals_update(((Mesh *)ob->data)->edit_btmesh);
-				BKE_editmesh_tessface_calc(((Mesh *)ob->data)->edit_btmesh);
-				break;
-			case OB_CURVE:
-			case OB_SURF:
-				load_editNurb(ob);
-				make_editNurb(ob);
-				break;
-			case OB_LATTICE:
-				load_editLatt(ob);
-				make_editLatt(ob);
-				break;
-		}
+	if (PE_load(scene, ob, psys)) {
+		WM_main_add_notifier(NC_SCENE | ND_PARTICLE | NS_MODE_PARTICLE, ptr->id.data);
 	}
-#endif
-	(void)psys;
+	
 	rna_Particle_redo(bmain, scene, ptr);
 }
 

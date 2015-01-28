@@ -45,6 +45,7 @@ struct Scene;
 /* particle edit mode */
 void PE_free_ptcache_edit(struct PTCacheEdit *edit);
 int PE_start_edit(struct PTCacheEdit *edit);
+bool PE_load(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 
 /* access */
 struct PTCacheEdit *PE_get_current(struct Scene *scene, struct Object *ob);
