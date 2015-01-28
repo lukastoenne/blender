@@ -374,15 +374,19 @@ KeyBlock *BKE_psys_insert_shape_key(Scene *UNUSED(scene), Object *ob, ParticleSy
 	}
 
 	if (newkey || !from_mix) {
-		/* create from mesh */
+		/* create from particles */
 		kb = BKE_keyblock_add_ctime(key, name, false);
 		BKE_keyblock_convert_from_hair_keys(ob, psys, kb);
 	}
 	else {
+		/* copy from current values */
+		int totelem;
+		float *data = BKE_key_evaluate_particles(ob, psys, &totelem);
+
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
-		kb->data = NULL;
-		kb->totelem = 0;
+		kb->data = data;
+		kb->totelem = totelem;
 	}
 
 	return kb;
