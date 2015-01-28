@@ -5091,7 +5091,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	Material *ma;
 	float vel[3], imat[4][4];
 	float timestep, pixsize_scale = 1.0f, pa_size, r_tilt, r_length;
-	float pa_time, pa_birthtime, pa_dietime, pa_health, intensity;
+	float pa_time, pa_birthtime, pa_dietime, pa_health;
 	float cfra;
 	float ma_col[3] = {0.0f, 0.0f, 0.0f};
 	int a, totpart, totpoint = 0, totve = 0, drawn, draw_as, totchild = 0;
@@ -5356,23 +5356,26 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					r_length = psys_frand(psys, a + 22);
 
 					if (part->draw_col > PART_DRAW_COL_MAT) {
+						float intensity;
 						switch (part->draw_col) {
 							case PART_DRAW_COL_VEL:
 								intensity = len_v3(pa->state.vel) / part->color_vec_max;
+								CLAMP(intensity, 0.0f, 1.0f);
+								weight_to_rgb(ma_col, intensity);
 								break;
 							case PART_DRAW_COL_ACC:
 								intensity = len_v3v3(pa->state.vel, pa->prev_state.vel) / ((pa->state.time - pa->prev_state.time) * part->color_vec_max);
+								CLAMP(intensity, 0.0f, 1.0f);
+								weight_to_rgb(ma_col, intensity);
 								break;
 							case PART_DRAW_COL_PARENT:
-								intensity = 1.0f;
+								particle_path_color(a, ma_col);
 								break;
 							default:
-								intensity = 1.0f; /* should never happen */
+								weight_to_rgb(ma_col, 1.0f);
 								BLI_assert(0);
 								break;
 						}
-						CLAMP(intensity, 0.f, 1.f);
-						weight_to_rgb(ma_col, intensity);
 					}
 				}
 				else {
@@ -5678,8 +5681,21 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			if (1) { //ob_dt > OB_WIRE) {
 				glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
-					if (part->draw_col == PART_DRAW_COL_MAT) {
-						glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
+					float col[3];
+					
+					switch (part->draw_col) {
+						case PART_DRAW_COL_MAT:
+							glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
+							break;
+						case PART_DRAW_COL_PARENT:
+							/* this switches colors to each new parent because new hull children come first */
+							if (cache[a]->hull_parent >= 0) {
+								particle_path_color(cache[a]->hull_parent, col);
+								glColor3fv(col);
+							}
+							break;
+						default:
+							break;
 					}
 				}
 			}
