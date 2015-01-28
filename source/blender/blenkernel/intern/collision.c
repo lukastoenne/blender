@@ -43,6 +43,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
+#include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 
@@ -1493,22 +1494,52 @@ static void cloth_strands_contact_cb(void *userdata, rbManifoldPoint *cp,
 
 void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *clmd, CollisionContactCache *r_contacts)
 {
+	Cloth *cloth = clmd->clothObject;
+	LinkNode *link;
+	
 	rbGhostObject *ghost;
-	rbCollisionShape *shape, *box;
+	rbCollisionShape *shape;
+	void *spheres;
+	int i, totseg;
 	float loc[3], rot[4];
 	
 	if (!scene->rigidbody_world || !scene->rigidbody_world->physics_world)
 		return;
+	if (!clmd->hairdata)
+		return;
+	
+	totseg = 0;
+	for (link = cloth->springs; link; link = link->next) {
+		ClothSpring *spring = link->link;
+		if (spring->type == CLOTH_SPRING_TYPE_STRUCTURAL) {
+			++totseg;
+		}
+	}
 	
 	shape = RB_shape_new_compound(true);
-	box = RB_shape_new_box(1,1,1);
-	loc[0] = 0.0f;
-	loc[1] = 0.0f;
-	loc[2] = 0.2f;
+	spheres = MEM_mallocN(RB_shape_size_sphere * totseg, "strands collision spheres");
+	
+	i = 0;
+	for (link = cloth->springs; link; link = link->next) {
+		ClothSpring *spring = link->link;
+		if (spring->type == CLOTH_SPRING_TYPE_STRUCTURAL) {
+			rbCollisionShape *sphere = (rbCollisionShape *)((char *)spheres + RB_shape_size_sphere * i);
+			ClothVertex *vert = &cloth->verts[spring->ij];
+			ClothHairData *hair_ij = &clmd->hairdata[spring->ij];
+			ClothHairData *hair_kl = &clmd->hairdata[spring->kl];
+			
+			unit_qt(rot);
+			copy_v3_v3(loc, vert->x);
+			
+			RB_shape_init_sphere(sphere, 0.5f);
+			RB_shape_compound_add_child_shape(shape, loc, rot, sphere);
+			
+			++i;
+		}
+	}
+	
+	zero_v3(loc);
 	unit_qt(rot);
-	
-	RB_shape_compound_add_child_shape(shape, loc, rot, box);
-	
 	ghost = RB_ghost_new(shape, loc, rot);
 	
 	RB_dworld_contact_test_ghost(scene->rigidbody_world->physics_world, ghost, cloth_strands_contact_cb, r_contacts, 0xFFFFFFFF);
@@ -1523,12 +1554,17 @@ void cloth_strands_find_contacts(Scene *scene, Object *ob, ClothModifierData *cl
 			float vec[3];
 			
 			mul_v3_v3fl(vec, pt->normal_world_b, pt->distance);
-			BKE_sim_debug_data_add_vector(pt->point_world_b, vec, 1,1,0, "collision", 8225);
+			BKE_sim_debug_data_add_vector(pt->point_world_b, vec, 1,1,0, "collision", 8225, iter.totp);
 		}
 	}
 	
 	RB_ghost_delete(ghost);
 	RB_shape_delete(shape);
+	for (i = 0; i < totseg; ++i) {
+		rbCollisionShape *sphere = (rbCollisionShape *)((char *)spheres + RB_shape_size_sphere * i);
+		RB_shape_free(sphere);
+	}
+	MEM_freeN(spheres);
 }
 
 #else
