@@ -1861,7 +1861,6 @@ class VIEW3D_PT_tools_hairmode(View3DPanel, Panel):
         ob = context.active_object
 
         col = layout.column(align=True)
-        col.prop(settings, "show_debug_data", text="Debug")
 
 
 # Grease Pencil drawing tools
