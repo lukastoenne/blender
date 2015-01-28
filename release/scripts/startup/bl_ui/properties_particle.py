@@ -52,7 +52,12 @@ def particle_panel_poll(cls, context):
     if not settings:
         return False
 
-    return settings.is_fluid is False and (engine in cls.COMPAT_ENGINES)
+    if settings.is_fluid:
+        return False
+    if hasattr(cls, 'COMPAT_ENGINES') and not (engine in cls.COMPAT_ENGINES):
+        return False
+
+    return True
 
 
 def particle_get_settings(context):
@@ -435,7 +440,6 @@ class PARTICLE_UL_shape_keys(UIList):
 
 class PARTICLE_MT_shape_key_specials(Menu):
     bl_label = "Shape Key Specials"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, context):
         layout = self.layout
@@ -450,7 +454,6 @@ class PARTICLE_MT_shape_key_specials(Menu):
 
 class PARTICLE_PT_shape_keys(ParticleButtonsPanel, Panel):
     bl_label = "Shape Keys"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, context):
         layout = self.layout
