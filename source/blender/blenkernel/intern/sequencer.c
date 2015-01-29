@@ -2856,11 +2856,15 @@ static ImBuf *do_render_strip_uncached(const SeqRenderData *context, Sequence *s
 				                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
 				                         proxy_size);
 
-				/* fetching for requested proxy sze failed, try fetching the original isntead */
+				/* fetching for requested proxy size failed, try fetching the original instead */
 				if (!ibuf && proxy_size != IMB_PROXY_NONE) {
+					IMB_Proxy_Size proxy_sizes = IMB_anim_proxy_get_existing(seq->anim);
+					while (!(proxy_size & proxy_sizes) && proxy_size > 0) {
+						proxy_size <<= 1;
+					}
 					ibuf = IMB_anim_absolute(seq->anim, nr + seq->anim_startofs,
 					                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
-					                         IMB_PROXY_NONE);
+					                         proxy_size);
 				}
 				if (ibuf) {
 					BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
