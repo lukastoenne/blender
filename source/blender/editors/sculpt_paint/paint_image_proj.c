@@ -203,6 +203,7 @@ typedef struct ProjPaintState {
 	/* the paint color. It can change depending of inverted mode or not */
 	float paint_color[3];
 	float paint_color_linear[3];
+	float dither;
 
 	Brush *brush;
 	short tool, blend, mode;
@@ -1989,8 +1990,8 @@ static void line_rect_clip(
 	
 	tmp = (is_ortho) ? 1.0f : (l1[3] + min * (l2[3] - l1[3]));
 	
-	uv[0] = (uv1[0] + min * (uv2[0] - uv1[0])) / tmp;
-	uv[1] = (uv1[1] + min * (uv2[1] - uv1[1])) / tmp;
+	uv[0] = (uv1[0] + min / tmp * (uv2[0] - uv1[0]));
+	uv[1] = (uv1[1] + min / tmp * (uv2[1] - uv1[1]));
 }
 
 
@@ -2076,8 +2077,8 @@ static void project_bucket_clip_face(
 		/* at this point we have all uv points needed in a row. all that's needed is to invert them if necessary */
 		if (flip) {
 			/* flip only to the middle of the array */
-			int i, max = *tot / 2;
-			for (i = 0; i < max; i++) {
+			int i, max = *tot - 1, mid = *tot / 2;
+			for (i = 0; i < mid; i++) {
 				SWAP(float, bucket_bounds_uv[i][0], bucket_bounds_uv[max - i][0]);
 				SWAP(float, bucket_bounds_uv[i][1], bucket_bounds_uv[max - i][1]);
 			}
@@ -4156,20 +4157,21 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 	}
 }
 
-static void do_projectpaint_draw(ProjPaintState *ps, ProjPixel *projPixel, const float texrgb[3], float mask)
+static void do_projectpaint_draw(ProjPaintState *ps, ProjPixel *projPixel, const float texrgb[3], float mask, float dither, float u, float v)
 {
 	float rgb[3];
 	unsigned char rgba_ub[4];
 
-	copy_v3_v3(rgb, ps->paint_color);
-
 	if (ps->is_texbrush) {
-		mul_v3_v3(rgb, texrgb);
+		mul_v3_v3v3(rgb, texrgb, ps->paint_color_linear);
 		/* TODO(sergey): Support texture paint color space. */
 		linearrgb_to_srgb_v3_v3(rgb, rgb);
 	}
+	else {
+		copy_v3_v3(rgb, ps->paint_color);
+	}
 
-	rgb_float_to_uchar(rgba_ub, rgb);
+	float_to_byte_dither_v3(rgba_ub, rgb, dither, u, v);
 	rgba_ub[3] = f_to_char(mask);
 
 	if (ps->do_masking) {
@@ -4350,7 +4352,8 @@ static void *do_projectpaint_thread(void *ph_v)
 						}
 						else {
 							linearrgb_to_srgb_v3_v3(color_f, color_f);
-							rgba_float_to_uchar(projPixel->newColor.ch, color_f);
+							float_to_byte_dither_v3(projPixel->newColor.ch, color_f, ps->dither, projPixel->x_px, projPixel->y_px);
+							projPixel->newColor.ch[3] = FTOCHAR(color_f[3]);
 							IMB_blend_color_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
 							                     projPixel->newColor.ch, ps->blend);
 						}
@@ -4546,7 +4549,7 @@ static void *do_projectpaint_thread(void *ph_v)
 									break;
 								default:
 									if (is_floatbuf) do_projectpaint_draw_f(ps, projPixel, texrgb, mask);
-									else             do_projectpaint_draw(ps, projPixel, texrgb, mask);
+									else             do_projectpaint_draw(ps, projPixel, texrgb, mask, ps->dither, projPixel->x_px, projPixel->y_px);
 									break;
 							}
 						}
@@ -4850,6 +4853,8 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	if (ps->normal_angle_range <= 0.0f)
 		ps->do_mask_normal = false;  /* no need to do blending */
 
+	ps->dither = settings->imapaint.dither;
+	
 	return;
 }
 
