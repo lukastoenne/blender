@@ -69,6 +69,11 @@ struct EdgeHash;
 
 /* XXX disabled for now due to stability issues and limited usefulness */
 //#define USE_PARTICLE_PREVIEW
+/* XXX disabled because this requires sorting of children,
+ * but during render children are constantly recreated based on the deformed mesh,
+ * which leads to different indices every time and therefore different randomization values.
+ */
+//#define USE_PARTICLE_HULL_DRAWING
 
 #define PARTICLE_P              ParticleData * pa; int p
 #define LOOP_PARTICLES  for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++)

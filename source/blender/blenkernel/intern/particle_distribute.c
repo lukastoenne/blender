@@ -1156,6 +1156,7 @@ static void distribute_particles_on_shape(ParticleSimulationData *sim, int UNUSE
 	fprintf(stderr,"Shape emission not yet possible!\n");
 }
 
+#ifdef USE_PARTICLE_HULL_DRAWING
 /* placeholder for child particle sorting, storing emitter hair-space offset */
 typedef struct ChildParticleSort {
 	int index;
@@ -1330,6 +1331,7 @@ static void psys_sort_children(ParticleSimulationData *sim)
 	
 	MEM_freeN(sort);
 }
+#endif
 
 void distribute_particles(ParticleSimulationData *sim, int from)
 {
@@ -1345,8 +1347,10 @@ void distribute_particles(ParticleSimulationData *sim, int from)
 	else
 		distribute_particles_on_shape(sim, from);
 
+#ifdef USE_PARTICLE_HULL_DRAWING
 	if (from == PART_FROM_CHILD)
 		psys_sort_children(sim);
+#endif
 
 	if (distr_error) {
 		distribute_invalid(sim->scene, sim->psys, from);
