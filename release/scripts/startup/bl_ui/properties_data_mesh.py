@@ -122,7 +122,7 @@ class MESH_UL_uvmaps_vcols(UIList):
             layout.label(text="", icon_value=icon)
 
 
-class MeshButtonsPanel():
+class MeshButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"

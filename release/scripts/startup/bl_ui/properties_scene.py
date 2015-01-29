@@ -40,7 +40,7 @@ class SCENE_UL_keying_set_paths(UIList):
             layout.label(text="", icon_value=icon)
 
 
-class SceneButtonsPanel():
+class SceneButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "scene"
@@ -85,7 +85,7 @@ class SCENE_PT_unit(SceneButtonsPanel, Panel):
             row.prop(unit, "use_separate")
 
 
-class SceneKeyingSetsPanel():
+class SceneKeyingSetsPanel:
     def draw_keyframing_settings(self, context, layout, ks, ksp):
         self.draw_keyframing_setting(context, layout, ks, ksp, "Needed",
                                      "use_insertkey_override_needed", "use_insertkey_needed",
@@ -121,7 +121,7 @@ class SceneKeyingSetsPanel():
                 propname = prop
 
         row = layout.row(align=True)
-        row.prop(item, toggle_prop, text="", icon='STYLUS_PRESSURE', toggle=True) # XXX: needs dedicated icon
+        row.prop(item, toggle_prop, text="", icon='STYLUS_PRESSURE', toggle=True)  # XXX: needs dedicated icon
 
         subrow = row.row()
         subrow.active = getattr(item, toggle_prop)
@@ -263,10 +263,11 @@ class SCENE_PT_audio(SceneButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.label("Listener:")
+        col.label("Distance Model:")
         col.prop(scene, "audio_distance_model", text="")
-        col.prop(scene, "audio_doppler_speed", text="Speed")
-        col.prop(scene, "audio_doppler_factor", text="Doppler")
+        sub = col.column(align=True)
+        sub.prop(scene, "audio_doppler_speed", text="Speed")
+        sub.prop(scene, "audio_doppler_factor", text="Doppler")
 
         col = split.column()
         col.label("Format:")
