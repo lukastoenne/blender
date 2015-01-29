@@ -2836,6 +2836,8 @@ void ED_view3d_draw_offscreen_init(Scene *scene, View3D *v3d)
  */
 static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool force)
 {
+	const bool is_wire_color = V3D_IS_WIRECOLOR(scene, v3d);
+
 	/* clear background */
 	if (scene->world && ((v3d->flag3 & V3D_SHOW_WORLD) || force)) {
 		float alpha = (force) ? 1.0f : 0.0;
@@ -2980,6 +2982,12 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
 
 #undef VIEWGRAD_RES_X
 #undef VIEWGRAD_RES_Y
+
+			if (is_wire_color) {
+				float col_mid[3];
+				mid_v3_v3v3(col_mid, col_hor, col_zen);
+				draw_object_bg_wire_color_set(col_mid);
+			}
 		}
 		else {  /* solid sky */
 			float col_hor[3];
@@ -2988,10 +2996,18 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
 
 			glClearColor(col_hor[0], col_hor[1], col_hor[2], alpha);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			if (is_wire_color) {
+				draw_object_bg_wire_color_set(col_hor);
+			}
 		}
 	}
 	else {
 		if (UI_GetThemeValue(TH_SHOW_BACK_GRAD)) {
+			float col_low[3], col_high[3];
+
+			UI_GetThemeColor3fv(TH_HIGH_GRAD, col_high);
+			UI_GetThemeColor3fv(TH_LOW_GRAD, col_low);
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
 			glLoadIdentity();
@@ -3003,10 +3019,10 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
 			glDepthFunc(GL_ALWAYS);
 			glShadeModel(GL_SMOOTH);
 			glBegin(GL_QUADS);
-			UI_ThemeColor(TH_LOW_GRAD);
+			glColor3fv(col_low);
 			glVertex3f(-1.0, -1.0, 1.0);
 			glVertex3f(1.0, -1.0, 1.0);
-			UI_ThemeColor(TH_HIGH_GRAD);
+			glColor3fv(col_high);
 			glVertex3f(1.0, 1.0, 1.0);
 			glVertex3f(-1.0, 1.0, 1.0);
 			glEnd();
@@ -3020,10 +3036,23 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
 
 			glMatrixMode(GL_MODELVIEW);
 			glPopMatrix();
+
+			if (is_wire_color) {
+				float col_mid[3];
+				mid_v3_v3v3(col_mid, col_low, col_high);
+				draw_object_bg_wire_color_set(col_mid);
+			}
 		}
 		else {
+			float col[3];
+
+			UI_GetThemeColor3fv(TH_HIGH_GRAD, col);
 			UI_ThemeClearColor(TH_HIGH_GRAD);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			if (is_wire_color) {
+				draw_object_bg_wire_color_set(col);
+			}
 		}
 	}
 }
