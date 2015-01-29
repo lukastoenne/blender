@@ -64,6 +64,7 @@ bool    ED_undo_is_valid(const struct bContext *C, const char *undoname);
 
 /* undo_editmode.c */
 void undo_editmode_push(struct bContext *C, const char *name, 
+                        struct Object *(*get_object)(const struct bContext * C),
                         void * (*getdata)(struct bContext *C),
                         void (*freedata)(void *),
                         void (*to_editmode)(void *, void *, void *),

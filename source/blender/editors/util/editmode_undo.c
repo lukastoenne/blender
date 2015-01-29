@@ -84,6 +84,7 @@ typedef struct UndoElem {
 	void *undodata;
 	uintptr_t undosize;
 	char name[BKE_UNDO_STR_MAX];
+	Object *(*get_object)(const bContext *C);
 	void * (*getdata)(bContext * C);
 	void (*freedata)(void *);
 	void (*to_editmode)(void *, void *, void *);
@@ -106,14 +107,15 @@ static void undo_restore(UndoElem *undo, void *editdata, void *obdata)
 
 /* name can be a dynamic string */
 void undo_editmode_push(bContext *C, const char *name, 
-                        void * (*getdata)(bContext * C),
+                        Object *(*get_object)(const bContext *C),
+                        void * (*getdata)(bContext *C),
                         void (*freedata)(void *),
                         void (*to_editmode)(void *, void *, void *),
                         void *(*from_editmode)(void *, void *),
                         int (*validate_undo)(void *, void *))
 {
 	UndoElem *uel;
-	Object *obedit = CTX_data_edit_object(C);
+	Object *obedit = get_object(C);
 	void *editdata;
 	int nr;
 	uintptr_t memused, totmem, maxmem;
@@ -133,6 +135,7 @@ void undo_editmode_push(bContext *C, const char *name,
 	BLI_strncpy(uel->name, name, sizeof(uel->name));
 	BLI_addtail(&undobase, uel);
 	
+	uel->get_object = get_object;
 	uel->getdata = getdata;
 	uel->freedata = freedata;
 	uel->to_editmode = to_editmode;
@@ -193,13 +196,13 @@ void undo_editmode_push(bContext *C, const char *name,
 static void undo_clean_stack(bContext *C)
 {
 	UndoElem *uel, *next;
-	Object *obedit = CTX_data_edit_object(C);
 	
 	/* global undo changes pointers, so we also allow identical names */
 	/* side effect: when deleting/renaming object and start editing new one with same name */
 	
 	uel = undobase.first;
 	while (uel) {
+		Object *obedit = uel->get_object(C);
 		void *editdata = uel->getdata(C);
 		bool is_valid = false;
 		next = uel->next;
@@ -232,12 +235,13 @@ static void undo_clean_stack(bContext *C)
 /* 1 = an undo, -1 is a redo. we have to make sure 'curundo' remains at current situation */
 void undo_editmode_step(bContext *C, int step)
 {
-	Object *obedit = CTX_data_edit_object(C);
+	Object *obedit;
 	
 	/* prevent undo to happen on wrong object, stack can be a mix */
 	undo_clean_stack(C);
 	
 	if (step == 0) {
+		obedit = curundo->get_object(C);
 		undo_restore(curundo, curundo->getdata(C), obedit->data);
 	}
 	else if (step == 1) {
@@ -248,6 +252,7 @@ void undo_editmode_step(bContext *C, int step)
 		else {
 			if (G.debug & G_DEBUG) printf("undo %s\n", curundo->name);
 			curundo = curundo->prev;
+			obedit = curundo->get_object(C);
 			undo_restore(curundo, curundo->getdata(C), obedit->data);
 		}
 	}
@@ -258,15 +263,19 @@ void undo_editmode_step(bContext *C, int step)
 			error("No more steps to redo");
 		}
 		else {
+			obedit = curundo->get_object(C);
 			undo_restore(curundo->next, curundo->getdata(C), obedit->data);
 			curundo = curundo->next;
 			if (G.debug & G_DEBUG) printf("redo %s\n", curundo->name);
 		}
 	}
 	
+	obedit = curundo->get_object(C);
+	
 	/* special case for editmesh, mode must be copied back to the scene */
 	if (obedit->type == OB_MESH) {
-		EDBM_selectmode_to_scene(C);
+		if (obedit == CTX_data_edit_object(C))
+			EDBM_selectmode_to_scene(C);
 	}
 
 	DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);

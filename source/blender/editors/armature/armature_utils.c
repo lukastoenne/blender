@@ -785,7 +785,7 @@ static void *get_armature_edit(bContext *C)
 void undo_push_armature(bContext *C, const char *name)
 {
 	// XXX solve getdata()
-	undo_editmode_push(C, name, get_armature_edit, free_undoBones, undoBones_to_editBones, editBones_to_undoBones, NULL);
+	undo_editmode_push(C, name, CTX_data_edit_object, get_armature_edit, free_undoBones, undoBones_to_editBones, editBones_to_undoBones, NULL);
 }
 
 /* *************************************************************** */

@@ -7087,7 +7087,7 @@ static void *get_data(bContext *C)
 /* and this is all the undo system needs to know */
 void undo_push_curve(bContext *C, const char *name)
 {
-	undo_editmode_push(C, name, get_data, free_undoCurve, undoCurve_to_editCurve, editCurve_to_undoCurve, NULL);
+	undo_editmode_push(C, name, CTX_data_edit_object, get_data, free_undoCurve, undoCurve_to_editCurve, editCurve_to_undoCurve, NULL);
 }
 
 void ED_curve_beztcpy(EditNurb *editnurb, BezTriple *dst, BezTriple *src, int count)

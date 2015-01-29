@@ -43,6 +43,7 @@ set(SRC
 	hair_ops.c
 	hair_select.c
 	hair_stroke.c
+	hair_undo.c
 
 	hair_intern.h
 )
