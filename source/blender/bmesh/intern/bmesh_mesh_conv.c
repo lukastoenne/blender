@@ -227,6 +227,17 @@ static BMFace *bm_face_create_from_mpoly(MPoly *mp, MLoop *ml,
 void BM_mesh_bm_from_me(BMesh *bm, Mesh *me,
                         const bool calc_face_normal, const bool set_key, int act_key_nr)
 {
+	BM_mesh_bm_from_me_ex(bm, me, CD_MASK_BMESH, calc_face_normal, set_key, act_key_nr);
+}
+
+/**
+ * \brief Mesh -> BMesh
+ *
+ * \warning This function doesn't calculate face normals.
+ */
+void BM_mesh_bm_from_me_ex(BMesh *bm, Mesh *me, CustomDataMask mask,
+                           const bool calc_face_normal, const bool set_key, int act_key_nr)
+{
 	MVert *mvert;
 	MEdge *medge;
 	MLoop *mloop;
@@ -252,10 +263,10 @@ void BM_mesh_bm_from_me(BMesh *bm, Mesh *me,
 
 	if (!me || !me->totvert) {
 		if (me) { /*no verts? still copy customdata layout*/
-			CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->ldata, &bm->ldata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->pdata, &bm->pdata, CD_MASK_BMESH, CD_ASSIGN, 0);
+			CustomData_copy(&me->vdata, &bm->vdata, mask, CD_ASSIGN, 0);
+			CustomData_copy(&me->edata, &bm->edata, mask, CD_ASSIGN, 0);
+			CustomData_copy(&me->ldata, &bm->ldata, mask, CD_ASSIGN, 0);
+			CustomData_copy(&me->pdata, &bm->pdata, mask, CD_ASSIGN, 0);
 
 			CustomData_bmesh_init_pool(&bm->vdata, me->totvert, BM_VERT);
 			CustomData_bmesh_init_pool(&bm->edata, me->totedge, BM_EDGE);
@@ -267,10 +278,10 @@ void BM_mesh_bm_from_me(BMesh *bm, Mesh *me,
 
 	vtable = MEM_mallocN(sizeof(void **) * me->totvert, "mesh to bmesh vtable");
 
-	CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->ldata, &bm->ldata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->pdata, &bm->pdata, CD_MASK_BMESH, CD_CALLOC, 0);
+	CustomData_copy(&me->vdata, &bm->vdata, mask, CD_CALLOC, 0);
+	CustomData_copy(&me->edata, &bm->edata, mask, CD_CALLOC, 0);
+	CustomData_copy(&me->ldata, &bm->ldata, mask, CD_CALLOC, 0);
+	CustomData_copy(&me->pdata, &bm->pdata, mask, CD_CALLOC, 0);
 
 	/* make sure uv layer names are consisten */
 	totuv = CustomData_number_of_layers(&bm->pdata, CD_MTEXPOLY);
@@ -571,6 +582,11 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 
 void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, bool do_tessface)
 {
+	BM_mesh_bm_to_me_ex(bm, me, CD_MASK_MESH, do_tessface);
+}
+
+void BM_mesh_bm_to_me_ex(BMesh *bm, Mesh *me, CustomDataMask mask, bool do_tessface)
+{
 	MLoop *mloop;
 	MPoly *mpoly;
 	MVert *mvert, *oldverts;
@@ -630,10 +646,10 @@ void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, bool do_tessface)
 	me->totface = 0;
 	me->act_face = -1;
 
-	CustomData_copy(&bm->vdata, &me->vdata, CD_MASK_MESH, CD_CALLOC, me->totvert);
-	CustomData_copy(&bm->edata, &me->edata, CD_MASK_MESH, CD_CALLOC, me->totedge);
-	CustomData_copy(&bm->ldata, &me->ldata, CD_MASK_MESH, CD_CALLOC, me->totloop);
-	CustomData_copy(&bm->pdata, &me->pdata, CD_MASK_MESH, CD_CALLOC, me->totpoly);
+	CustomData_copy(&bm->vdata, &me->vdata, mask, CD_CALLOC, me->totvert);
+	CustomData_copy(&bm->edata, &me->edata, mask, CD_CALLOC, me->totedge);
+	CustomData_copy(&bm->ldata, &me->ldata, mask, CD_CALLOC, me->totloop);
+	CustomData_copy(&bm->pdata, &me->pdata, mask, CD_CALLOC, me->totpoly);
 
 	CustomData_add_layer(&me->vdata, CD_MVERT, CD_ASSIGN, mvert, me->totvert);
 	CustomData_add_layer(&me->edata, CD_MEDGE, CD_ASSIGN, medge, me->totedge);

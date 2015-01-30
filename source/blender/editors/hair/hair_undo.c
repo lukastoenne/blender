@@ -96,7 +96,7 @@ static void *strands_edit_to_undo(void *editv, void *UNUSED(obdata))
 
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
 
-	BM_mesh_bm_to_me(edit->bm, &undo->me, false);
+	BM_mesh_bm_to_me_ex(edit->bm, &undo->me, CD_MASK_STRANDS, false);
 
 	undo->selectmode = edit->bm->selectmode;
 	undo->shapenr = edit->bm->shapenr;
@@ -126,7 +126,7 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	
 	BKE_editstrands_free(edit);
 	
-	BM_mesh_bm_from_me(bm, &undo->me, true, false, undo->shapenr);
+	BM_mesh_bm_from_me_ex(bm, &undo->me, CD_MASK_STRANDS, false, false, undo->shapenr);
 	
 	*edit = *edit_tmp;
 	

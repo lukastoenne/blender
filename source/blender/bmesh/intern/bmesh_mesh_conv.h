@@ -32,7 +32,10 @@
  *  \ingroup bmesh
  */
 
+#include "BLI_sys_types.h"
+
 struct Mesh;
+typedef uint64_t CustomDataMask;
 
 void BM_mesh_cd_validate(BMesh *bm);
 void BM_mesh_cd_flag_ensure(BMesh *bm, struct Mesh *mesh, const char cd_flag);
@@ -41,6 +44,9 @@ char BM_mesh_cd_flag_from_bmesh(BMesh *bm);
 
 void BM_mesh_bm_from_me(BMesh *bm, struct Mesh *me,
                         const bool calc_face_normal, const bool set_key, int act_key_nr);
+void BM_mesh_bm_from_me_ex(BMesh *bm, struct Mesh *me, CustomDataMask mask,
+                        const bool calc_face_normal, const bool set_key, int act_key_nr);
 void BM_mesh_bm_to_me(BMesh *bm, struct Mesh *me, bool do_tessface);
+void BM_mesh_bm_to_me_ex(BMesh *bm, struct Mesh *me, CustomDataMask mask, bool do_tessface);
 
 #endif /* __BMESH_MESH_CONV_H__ */
