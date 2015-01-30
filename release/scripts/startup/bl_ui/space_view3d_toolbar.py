@@ -881,7 +881,11 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.prop(brush, "count")
                 col = layout.column()
                 col.prop(settings, "use_default_interpolate")
-                col.prop(brush, "steps", slider=True)
+                row = col.row()
+                row.prop(brush, "use_add_stroke", text="Stroke")
+                sub = row.row()
+                sub.active = brush.use_add_stroke
+                sub.prop(brush, "steps", slider=True)
                 col.prop(settings, "default_key_count", slider=True)
             elif tool == 'LENGTH':
                 layout.prop(brush, "length_mode", expand=True)

@@ -1824,6 +1824,7 @@ typedef enum eGPencil_Source_3D {
 
 /* ParticleBrushData->flag */
 #define PE_BRUSH_DATA_PUFF_VOLUME 1
+#define PE_BRUSH_DATA_ADD_SINGLE  2
 
 /* tooksettings->particle edittype */
 #define PE_TYPE_PARTICLES	0

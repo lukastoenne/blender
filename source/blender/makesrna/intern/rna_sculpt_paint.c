@@ -935,6 +935,10 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Puff Volume",
 	                         "Apply puff to unselected end-points (helps maintain hair volume when puffing root)");
 
+	prop = RNA_def_property(srna, "use_add_stroke", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", PE_BRUSH_DATA_ADD_SINGLE);
+	RNA_def_property_ui_text(prop, "Add Stroke", "Add multiple particles per brush stroke");
+
 	prop = RNA_def_property(srna, "length_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "invert");
 	RNA_def_property_enum_items(prop, length_mode);

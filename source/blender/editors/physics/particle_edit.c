@@ -3705,6 +3705,7 @@ typedef struct BrushEdit {
 	int first;
 	int lastmouse[2];
 	float zfac;
+	bool done;
 
 	/* optional cached view settings to avoid setting on every mousemove */
 	PEData data;
@@ -3730,6 +3731,7 @@ static int brush_edit_init(bContext *C, wmOperator *op)
 
 	bedit= MEM_callocN(sizeof(BrushEdit), "BrushEdit");
 	bedit->first= 1;
+	bedit->done = false;
 	op->customdata= bedit;
 
 	bedit->scene= scene;
@@ -3885,13 +3887,16 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 				}
 				case PE_BRUSH_ADD:
 				{
-					if (edit->psys && edit->psys->part->from==PART_FROM_FACE) {
+					bool done = (brush->flag & PE_BRUSH_DATA_ADD_SINGLE) && bedit->done;
+					if (!done && edit->psys && edit->psys->part->from==PART_FROM_FACE) {
 						data.mval= mval;
 
 						added= brush_add(&data, brush->count);
 
 						if (pset->flag & PE_KEEP_LENGTHS)
 							recalc_lengths(edit);
+
+						bedit->done = true;
 					}
 					else
 						added= 0;
