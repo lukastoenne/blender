@@ -117,17 +117,15 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	
 	edit->bm->shapenr = undo->shapenr;
 	
-	/* note: have to create the new edit before the old one,
-	 * since it owns the root_dm and we have to copy it before
-	 * it gets released when freeing the old edit.
-	 */
 	bm = BM_mesh_create(&allocsize);
-	edit_tmp = BKE_editstrands_create(bm, dm);
-	
-	BKE_editstrands_free(edit);
-	
 	BM_mesh_bm_from_me_ex(bm, &undo->me, CD_MASK_STRANDS, false, false, undo->shapenr);
 	
+	/* note: have to create the new edit before freeing the old one,
+	 * because it owns the root_dm and we have to copy it before
+	 * it gets released when freeing the old edit.
+	 */
+	edit_tmp = BKE_editstrands_create(bm, dm);
+	BKE_editstrands_free(edit);
 	*edit = *edit_tmp;
 	
 	bm->selectmode = undo->selectmode;
