@@ -82,6 +82,7 @@ struct HookModifierData;
 struct NodeBlurData;
 struct Nurb;
 struct Object;
+struct ParticleSystem;
 struct PBVHNode;
 struct PyObject;
 struct Render;
@@ -369,6 +370,8 @@ void ED_preview_kill_jobs(struct wmWindowManager *wm, struct Main *bmain) RET_NO
 
 struct PTCacheEdit *PE_get_current(struct Scene *scene, struct Object *ob) RET_NULL
 void PE_current_changed(struct Scene *scene, struct Object *ob) RET_NONE
+bool PE_shapekey_load(struct Object *ob, struct ParticleSystem *psys) RET_ZERO
+bool PE_shapekey_apply(struct Object *ob, struct ParticleSystem *psys) RET_ZERO
 
 /* rna keymap */
 struct wmKeyMap *WM_keymap_active(struct wmWindowManager *wm, struct wmKeyMap *keymap) RET_NULL
