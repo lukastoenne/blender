@@ -2108,7 +2108,7 @@ void BKE_image_path_from_imtype(
 }
 
 /* used by sequencer too */
-struct anim *openanim(const char *name, int flags, int streamindex, char colorspace[IMA_MAX_SPACE])
+struct anim *openanim(const char *name, int flags, int streamindex, char colorspace[IMA_MAX_SPACE], bool openfile)
 {
 	struct anim *anim;
 	struct ImBuf *ibuf;
@@ -2116,6 +2116,9 @@ struct anim *openanim(const char *name, int flags, int streamindex, char colorsp
 	anim = IMB_open_anim(name, flags, streamindex, colorspace);
 	if (anim == NULL) return NULL;
 
+	if (!openfile)
+		return(anim);
+		
 	ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
 	if (ibuf == NULL) {
 		if (BLI_exists(name))
@@ -2604,7 +2607,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
 		BKE_image_user_file_path(iuser, ima, str);
 
 		/* FIXME: make several stream accessible in image editor, too*/
-		ima->anim = openanim(str, IB_rect, 0, ima->colorspace_settings.name);
+		ima->anim = openanim(str, IB_rect, 0, ima->colorspace_settings.name, true);
 
 		/* let's initialize this user */
 		if (ima->anim && iuser && iuser->frames == 0)

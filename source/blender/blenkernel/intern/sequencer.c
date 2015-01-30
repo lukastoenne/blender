@@ -808,7 +808,7 @@ void BKE_sequence_reload_new_file(Scene *scene, Sequence *seq, const bool lock_r
 			if (seq->anim) IMB_free_anim(seq->anim);
 
 			seq->anim = openanim(str, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-			                     seq->streamindex, seq->strip->colorspace_settings.name);
+			                     seq->streamindex, seq->strip->colorspace_settings.name, true);
 
 			if (!seq->anim) {
 				return;
@@ -1357,7 +1357,8 @@ static double seq_rendersize_to_scale_factor(int size)
 	return 0.25;
 }
 
-static void seq_open_anim_file(Sequence *seq)
+/* we may just want to generate the anim struct without getting the frame */
+static void seq_open_anim_file(Sequence *seq, bool openfile)
 {
 	char name[FILE_MAX];
 	StripProxy *proxy;
@@ -1371,7 +1372,7 @@ static void seq_open_anim_file(Sequence *seq)
 	BLI_path_abs(name, G.main->name);
 	
 	seq->anim = openanim(name, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-	                     seq->streamindex, seq->strip->colorspace_settings.name);
+	                     seq->streamindex, seq->strip->colorspace_settings.name, openfile);
 
 	if (seq->anim == NULL) {
 		return;
@@ -1479,13 +1480,13 @@ static ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int c
 			}
 
 			seq->strip->proxy->anim = openanim(name, IB_rect, 0,
-			        seq->strip->colorspace_settings.name);
+			        seq->strip->colorspace_settings.name, true);
 		}
 		if (seq->strip->proxy->anim == NULL) {
 			return NULL;
 		}
  
-		seq_open_anim_file(seq);
+		seq_open_anim_file(seq, true);
 
 		frameno = IMB_anim_index_get_frame_index(seq->anim, seq->strip->proxy->tc, frameno);
 
@@ -1587,7 +1588,7 @@ SeqIndexBuildContext *BKE_sequencer_proxy_rebuild_context(Main *bmain, Scene *sc
 	context->seq = nseq;
 
 	if (nseq->type == SEQ_TYPE_MOVIE) {
-		seq_open_anim_file(nseq);
+		seq_open_anim_file(nseq, true);
 
 		if (nseq->anim) {
 			context->index_context = IMB_anim_index_rebuild_context(nseq->anim,
@@ -2846,7 +2847,7 @@ static ImBuf *do_render_strip_uncached(const SeqRenderData *context, Sequence *s
 
 		case SEQ_TYPE_MOVIE:
 		{
-			seq_open_anim_file(seq);
+			seq_open_anim_file(seq, false);
 
 			if (seq->anim) {
 				IMB_Proxy_Size proxy_size = seq_rendersize_to_proxysize(context->preview_render_size);
@@ -4565,7 +4566,7 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 	BLI_strncpy(path, seq_load->path, sizeof(path));
 	BLI_path_abs(path, G.main->name);
 
-	an = openanim(path, IB_rect, 0, colorspace);
+	an = openanim(path, IB_rect, 0, colorspace, true);
 
 	if (an == NULL)
 		return NULL;
