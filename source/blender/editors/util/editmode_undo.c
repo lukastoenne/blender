@@ -208,7 +208,7 @@ static void undo_clean_stack(bContext *C)
 		next = uel->next;
 		
 		/* for when objects are converted, renamed, or global undo changes pointers... */
-		if (uel->type == obedit->type) {
+		if (obedit && uel->type == obedit->type) {
 			if (STREQ(uel->id.name, obedit->id.name)) {
 				if (uel->validate_undo == NULL)
 					is_valid = true;
