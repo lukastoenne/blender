@@ -804,400 +804,6 @@ bool psys_render_simplify_params(ParticleSystem *psys, ChildParticle *cpa, float
 }
 
 /************************************************/
-/*			Interpolation						*/
-/************************************************/
-static float interpolate_particle_value(float v1, float v2, float v3, float v4, const float w[4], int four)
-{
-	float value;
-
-	value = w[0] * v1 + w[1] * v2 + w[2] * v3;
-	if (four)
-		value += w[3] * v4;
-
-	CLAMP(value, 0.f, 1.f);
-	
-	return value;
-}
-
-void psys_interpolate_particle(short type, ParticleKey keys[4], float dt, ParticleKey *result, bool velocity)
-{
-	float t[4];
-
-	if (type < 0) {
-		interp_cubic_v3(result->co, result->vel, keys[1].co, keys[1].vel, keys[2].co, keys[2].vel, dt);
-	}
-	else {
-		key_curve_position_weights(dt, t, type);
-
-		interp_v3_v3v3v3v3(result->co, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
-
-		if (velocity) {
-			float temp[3];
-
-			if (dt > 0.999f) {
-				key_curve_position_weights(dt - 0.001f, t, type);
-				interp_v3_v3v3v3v3(temp, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
-				sub_v3_v3v3(result->vel, result->co, temp);
-			}
-			else {
-				key_curve_position_weights(dt + 0.001f, t, type);
-				interp_v3_v3v3v3v3(temp, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
-				sub_v3_v3v3(result->vel, temp, result->co);
-			}
-		}
-	}
-}
-
-
-typedef struct ParticleInterpolationData {
-	HairKey *hkey[2];
-
-	DerivedMesh *dm;
-	MVert *mvert[2];
-
-	int keyed;
-	ParticleKey *kkey[2];
-
-	PointCache *cache;
-	PTCacheMem *pm;
-
-	PTCacheEditPoint *epoint;
-	PTCacheEditKey *ekey[2];
-
-	float birthtime, dietime;
-	int bspline;
-} ParticleInterpolationData;
-/* Assumes pointcache->mem_cache exists, so for disk cached particles call psys_make_temp_pointcache() before use */
-/* It uses ParticleInterpolationData->pm to store the current memory cache frame so it's thread safe. */
-static void get_pointcache_keys_for_time(Object *UNUSED(ob), PointCache *cache, PTCacheMem **cur, int index, float t, ParticleKey *key1, ParticleKey *key2)
-{
-	static PTCacheMem *pm = NULL;
-	int index1, index2;
-
-	if (index < 0) { /* initialize */
-		*cur = cache->mem_cache.first;
-
-		if (*cur)
-			*cur = (*cur)->next;
-	}
-	else {
-		if (*cur) {
-			while (*cur && (*cur)->next && (float)(*cur)->frame < t)
-				*cur = (*cur)->next;
-
-			pm = *cur;
-
-			index2 = BKE_ptcache_mem_index_find(pm, index);
-			index1 = BKE_ptcache_mem_index_find(pm->prev, index);
-
-			BKE_ptcache_make_particle_key(key2, index2, pm->data, (float)pm->frame);
-			if (index1 < 0)
-				copy_particle_key(key1, key2, 1);
-			else
-				BKE_ptcache_make_particle_key(key1, index1, pm->prev->data, (float)pm->prev->frame);
-		}
-		else if (cache->mem_cache.first) {
-			pm = cache->mem_cache.first;
-			index2 = BKE_ptcache_mem_index_find(pm, index);
-			BKE_ptcache_make_particle_key(key2, index2, pm->data, (float)pm->frame);
-			copy_particle_key(key1, key2, 1);
-		}
-	}
-}
-static int get_pointcache_times_for_particle(PointCache *cache, int index, float *start, float *end)
-{
-	PTCacheMem *pm;
-	int ret = 0;
-
-	for (pm = cache->mem_cache.first; pm; pm = pm->next) {
-		if (BKE_ptcache_mem_index_find(pm, index) >= 0) {
-			*start = pm->frame;
-			ret++;
-			break;
-		}
-	}
-
-	for (pm = cache->mem_cache.last; pm; pm = pm->prev) {
-		if (BKE_ptcache_mem_index_find(pm, index) >= 0) {
-			*end = pm->frame;
-			ret++;
-			break;
-		}
-	}
-
-	return ret == 2;
-}
-
-float psys_get_dietime_from_cache(PointCache *cache, int index)
-{
-	PTCacheMem *pm;
-	int dietime = 10000000; /* some max value so that we can default to pa->time+lifetime */
-
-	for (pm = cache->mem_cache.last; pm; pm = pm->prev) {
-		if (BKE_ptcache_mem_index_find(pm, index) >= 0)
-			return (float)pm->frame;
-	}
-
-	return (float)dietime;
-}
-
-static void init_particle_interpolation(Object *ob, ParticleSystem *psys, ParticleData *pa, ParticleInterpolationData *pind)
-{
-
-	if (pind->epoint) {
-		PTCacheEditPoint *point = pind->epoint;
-
-		pind->ekey[0] = point->keys;
-		pind->ekey[1] = point->totkey > 1 ? point->keys + 1 : NULL;
-
-		pind->birthtime = *(point->keys->time);
-		pind->dietime = *((point->keys + point->totkey - 1)->time);
-	}
-	else if (pind->keyed) {
-		ParticleKey *key = pa->keys;
-		pind->kkey[0] = key;
-		pind->kkey[1] = pa->totkey > 1 ? key + 1 : NULL;
-
-		pind->birthtime = key->time;
-		pind->dietime = (key + pa->totkey - 1)->time;
-	}
-	else if (pind->cache) {
-		float start = 0.0f, end = 0.0f;
-		get_pointcache_keys_for_time(ob, pind->cache, &pind->pm, -1, 0.0f, NULL, NULL);
-		pind->birthtime = pa ? pa->time : pind->cache->startframe;
-		pind->dietime = pa ? pa->dietime : pind->cache->endframe;
-
-		if (get_pointcache_times_for_particle(pind->cache, pa - psys->particles, &start, &end)) {
-			pind->birthtime = MAX2(pind->birthtime, start);
-			pind->dietime = MIN2(pind->dietime, end);
-		}
-	}
-	else {
-		HairKey *key = pa->hair;
-		pind->hkey[0] = key;
-		pind->hkey[1] = key + 1;
-
-		pind->birthtime = key->time;
-		pind->dietime = (key + pa->totkey - 1)->time;
-
-		if (pind->dm) {
-			pind->mvert[0] = CDDM_get_vert(pind->dm, pa->hair_index);
-			pind->mvert[1] = pind->mvert[0] + 1;
-		}
-	}
-}
-static void edit_to_particle(ParticleKey *key, PTCacheEditKey *ekey)
-{
-	copy_v3_v3(key->co, ekey->co);
-	if (ekey->vel) {
-		copy_v3_v3(key->vel, ekey->vel);
-	}
-	key->time = *(ekey->time);
-}
-static void hair_to_particle(ParticleKey *key, HairKey *hkey)
-{
-	copy_v3_v3(key->co, hkey->co);
-	key->time = hkey->time;
-}
-
-static void mvert_to_particle(ParticleKey *key, MVert *mvert, HairKey *hkey)
-{
-	copy_v3_v3(key->co, mvert->co);
-	key->time = hkey->time;
-}
-
-static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData *pa, float t, ParticleInterpolationData *pind, ParticleKey *result)
-{
-	PTCacheEditPoint *point = pind->epoint;
-	ParticleKey keys[4];
-	int point_vel = (point && point->keys->vel);
-	float real_t, dfra, keytime, invdt = 1.f;
-
-	/* billboards wont fill in all of these, so start cleared */
-	memset(keys, 0, sizeof(keys));
-
-	/* interpret timing and find keys */
-	if (point) {
-		if (result->time < 0.0f)
-			real_t = -result->time;
-		else
-			real_t = *(pind->ekey[0]->time) + t * (*(pind->ekey[0][point->totkey - 1].time) - *(pind->ekey[0]->time));
-
-		while (*(pind->ekey[1]->time) < real_t)
-			pind->ekey[1]++;
-
-		pind->ekey[0] = pind->ekey[1] - 1;
-	}
-	else if (pind->keyed) {
-		/* we have only one key, so let's use that */
-		if (pind->kkey[1] == NULL) {
-			copy_particle_key(result, pind->kkey[0], 1);
-			return;
-		}
-
-		if (result->time < 0.0f)
-			real_t = -result->time;
-		else
-			real_t = pind->kkey[0]->time + t * (pind->kkey[0][pa->totkey - 1].time - pind->kkey[0]->time);
-
-		if (psys->part->phystype == PART_PHYS_KEYED && psys->flag & PSYS_KEYED_TIMING) {
-			ParticleTarget *pt = psys->targets.first;
-
-			pt = pt->next;
-
-			while (pt && pa->time + pt->time < real_t)
-				pt = pt->next;
-
-			if (pt) {
-				pt = pt->prev;
-
-				if (pa->time + pt->time + pt->duration > real_t)
-					real_t = pa->time + pt->time;
-			}
-			else
-				real_t = pa->time + ((ParticleTarget *)psys->targets.last)->time;
-		}
-
-		CLAMP(real_t, pa->time, pa->dietime);
-
-		while (pind->kkey[1]->time < real_t)
-			pind->kkey[1]++;
-		
-		pind->kkey[0] = pind->kkey[1] - 1;
-	}
-	else if (pind->cache) {
-		if (result->time < 0.0f) /* flag for time in frames */
-			real_t = -result->time;
-		else
-			real_t = pa->time + t * (pa->dietime - pa->time);
-	}
-	else {
-		if (result->time < 0.0f)
-			real_t = -result->time;
-		else
-			real_t = pind->hkey[0]->time + t * (pind->hkey[0][pa->totkey - 1].time - pind->hkey[0]->time);
-
-		while (pind->hkey[1]->time < real_t) {
-			pind->hkey[1]++;
-			pind->mvert[1]++;
-		}
-
-		pind->hkey[0] = pind->hkey[1] - 1;
-	}
-
-	/* set actual interpolation keys */
-	if (point) {
-		edit_to_particle(keys + 1, pind->ekey[0]);
-		edit_to_particle(keys + 2, pind->ekey[1]);
-	}
-	else if (pind->dm) {
-		pind->mvert[0] = pind->mvert[1] - 1;
-		mvert_to_particle(keys + 1, pind->mvert[0], pind->hkey[0]);
-		mvert_to_particle(keys + 2, pind->mvert[1], pind->hkey[1]);
-	}
-	else if (pind->keyed) {
-		memcpy(keys + 1, pind->kkey[0], sizeof(ParticleKey));
-		memcpy(keys + 2, pind->kkey[1], sizeof(ParticleKey));
-	}
-	else if (pind->cache) {
-		get_pointcache_keys_for_time(NULL, pind->cache, &pind->pm, p, real_t, keys + 1, keys + 2);
-	}
-	else {
-		hair_to_particle(keys + 1, pind->hkey[0]);
-		hair_to_particle(keys + 2, pind->hkey[1]);
-	}
-
-	/* set secondary interpolation keys for hair */
-	if (!pind->keyed && !pind->cache && !point_vel) {
-		if (point) {
-			if (pind->ekey[0] != point->keys)
-				edit_to_particle(keys, pind->ekey[0] - 1);
-			else
-				edit_to_particle(keys, pind->ekey[0]);
-		}
-		else if (pind->dm) {
-			if (pind->hkey[0] != pa->hair)
-				mvert_to_particle(keys, pind->mvert[0] - 1, pind->hkey[0] - 1);
-			else
-				mvert_to_particle(keys, pind->mvert[0], pind->hkey[0]);
-		}
-		else {
-			if (pind->hkey[0] != pa->hair)
-				hair_to_particle(keys, pind->hkey[0] - 1);
-			else
-				hair_to_particle(keys, pind->hkey[0]);
-		}
-
-		if (point) {
-			if (pind->ekey[1] != point->keys + point->totkey - 1)
-				edit_to_particle(keys + 3, pind->ekey[1] + 1);
-			else
-				edit_to_particle(keys + 3, pind->ekey[1]);
-		}
-		else if (pind->dm) {
-			if (pind->hkey[1] != pa->hair + pa->totkey - 1)
-				mvert_to_particle(keys + 3, pind->mvert[1] + 1, pind->hkey[1] + 1);
-			else
-				mvert_to_particle(keys + 3, pind->mvert[1], pind->hkey[1]);
-		}
-		else {
-			if (pind->hkey[1] != pa->hair + pa->totkey - 1)
-				hair_to_particle(keys + 3, pind->hkey[1] + 1);
-			else
-				hair_to_particle(keys + 3, pind->hkey[1]);
-		}
-	}
-
-	dfra = keys[2].time - keys[1].time;
-	keytime = (real_t - keys[1].time) / dfra;
-
-	/* convert velocity to timestep size */
-	if (pind->keyed || pind->cache || point_vel) {
-		invdt = dfra * 0.04f * (psys ? psys->part->timetweak : 1.f);
-		mul_v3_fl(keys[1].vel, invdt);
-		mul_v3_fl(keys[2].vel, invdt);
-		interp_qt_qtqt(result->rot, keys[1].rot, keys[2].rot, keytime);
-	}
-
-	/* now we should have in chronologiacl order k1<=k2<=t<=k3<=k4 with keytime between [0, 1]->[k2, k3] (k1 & k4 used for cardinal & bspline interpolation)*/
-	psys_interpolate_particle((pind->keyed || pind->cache || point_vel) ? -1 /* signal for cubic interpolation */
-	                          : (pind->bspline ? KEY_BSPLINE : KEY_CARDINAL),
-	                          keys, keytime, result, 1);
-
-	/* the velocity needs to be converted back from cubic interpolation */
-	if (pind->keyed || pind->cache || point_vel)
-		mul_v3_fl(result->vel, 1.f / invdt);
-}
-
-static void interpolate_pathcache(ParticleCacheKey *first, float t, ParticleCacheKey *result)
-{
-	int i = 0;
-	ParticleCacheKey *cur = first;
-
-	/* scale the requested time to fit the entire path even if the path is cut early */
-	t *= (first + first->segments)->time;
-
-	while (i < first->segments && cur->time < t)
-		cur++;
-
-	if (cur->time == t)
-		*result = *cur;
-	else {
-		float dt = (t - (cur - 1)->time) / (cur->time - (cur - 1)->time);
-		interp_v3_v3v3(result->co, (cur - 1)->co, cur->co, dt);
-		interp_v3_v3v3(result->vel, (cur - 1)->vel, cur->vel, dt);
-		interp_qt_qtqt(result->rot, (cur - 1)->rot, cur->rot, dt);
-		result->time = t;
-	}
-
-	/* first is actual base rotation, others are incremental from first */
-	if (cur == first || cur - 1 == first)
-		copy_qt_qt(result->rot, first->rot);
-	else
-		mul_qt_qtqt(result->rot, first->rot, result->rot);
-}
-
-/************************************************/
 /*			Particles on a dm					*/
 /************************************************/
 /* interpolate a location on a face based on face coordinates */
@@ -1366,6 +972,19 @@ void psys_interpolate_mcol(const MCol *mcol, int quad, const float w[4], MCol *m
 		cp[2] = (int)(w[0] * cp1[2] + w[1] * cp2[2] + w[2] * cp3[2]);
 		cp[3] = (int)(w[0] * cp1[3] + w[1] * cp2[3] + w[2] * cp3[3]);
 	}
+}
+
+static float interpolate_particle_value(float v1, float v2, float v3, float v4, const float w[4], int four)
+{
+	float value;
+
+	value = w[0] * v1 + w[1] * v2 + w[2] * v3;
+	if (four)
+		value += w[3] * v4;
+
+	CLAMP(value, 0.f, 1.f);
+	
+	return value;
 }
 
 static float psys_interpolate_value_from_verts(DerivedMesh *dm, short from, int index, const float fw[4], const float *values)
@@ -3647,6 +3266,35 @@ static void get_child_modifier_parameters(ParticleSettings *part, ParticleThread
 	if (ctx->vg_effector)
 		ptex->effector *= psys_interpolate_value_from_verts(ctx->dm, cpa_from, cpa_num, cpa_fuv, ctx->vg_effector);
 }
+
+static void interpolate_pathcache(ParticleCacheKey *first, float t, ParticleCacheKey *result)
+{
+	int i = 0;
+	ParticleCacheKey *cur = first;
+
+	/* scale the requested time to fit the entire path even if the path is cut early */
+	t *= (first + first->segments)->time;
+
+	while (i < first->segments && cur->time < t)
+		cur++;
+
+	if (cur->time == t)
+		*result = *cur;
+	else {
+		float dt = (t - (cur - 1)->time) / (cur->time - (cur - 1)->time);
+		interp_v3_v3v3(result->co, (cur - 1)->co, cur->co, dt);
+		interp_v3_v3v3(result->vel, (cur - 1)->vel, cur->vel, dt);
+		interp_qt_qtqt(result->rot, (cur - 1)->rot, cur->rot, dt);
+		result->time = t;
+	}
+
+	/* first is actual base rotation, others are incremental from first */
+	if (cur == first || cur - 1 == first)
+		copy_qt_qt(result->rot, first->rot);
+	else
+		mul_qt_qtqt(result->rot, first->rot, result->rot);
+}
+
 /* get's hair (or keyed) particles state at the "path time" specified in state->time */
 void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *state, const bool vel)
 {

@@ -254,6 +254,25 @@ typedef struct ParticleDrawData {
 	int totpoint, totve;
 } ParticleDrawData;
 
+typedef struct ParticleInterpolationData {
+	struct HairKey *hkey[2];
+
+	struct DerivedMesh *dm;
+	struct MVert *mvert[2];
+
+	int keyed;
+	struct ParticleKey *kkey[2];
+
+	struct PointCache *cache;
+	struct PTCacheMem *pm;
+
+	struct PTCacheEditPoint *epoint;
+	struct PTCacheEditKey *ekey[2];
+
+	float birthtime, dietime;
+	int bspline;
+} ParticleInterpolationData;
+
 #define PARTICLE_DRAW_DATA_UPDATED  1
 
 #define PSYS_FRAND_COUNT    1024
@@ -351,6 +370,10 @@ float psys_get_child_time(struct ParticleSystem *psys, struct ChildParticle *cpa
 float psys_get_child_size(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *pa_time);
 void psys_get_particle_on_path(struct ParticleSimulationData *sim, int pa_num, struct ParticleKey *state, const bool vel);
 int psys_get_particle_state(struct ParticleSimulationData *sim, int p, struct ParticleKey *state, int always);
+
+/* interpolation */
+void init_particle_interpolation(struct Object *ob, struct ParticleSystem *psys, struct ParticleData *pa, struct ParticleInterpolationData *pind);
+void do_particle_interpolation(struct ParticleSystem *psys, int p, struct ParticleData *pa, float t, struct ParticleInterpolationData *pind, struct ParticleKey *result);
 
 /* child paths */
 void BKE_particlesettings_clump_curve_init(struct ParticleSettings *part);
