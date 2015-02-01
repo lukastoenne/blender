@@ -5558,7 +5558,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 				
 				for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
 					if (pa->totkey > 1) {
-						HairKey *hkey = pa->hair;
+						HairKey *hkey = pa->hair_final;
 						
 						glVertexPointer(3, GL_FLOAT, sizeof(HairKey), hkey->world_co);
 						
@@ -5566,7 +5566,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 //						UI_ThemeColor(TH_NORMAL);
 						glColor3f(0.58f, 0.67f, 1.0f);
 						
-						glDrawArrays(GL_LINE_STRIP, 0, pa->totkey);
+						glDrawArrays(GL_LINE_STRIP, 0, pa->totkey_final);
 					}
 				}
 				

@@ -263,8 +263,12 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
 				}
 			}
 
-			for (p=totsaved, pa=psys->particles+totsaved; p<psys->totpart; p++, pa++)
-				if (pa->hair) MEM_freeN(pa->hair);
+			for (p=totsaved, pa=psys->particles+totsaved; p<psys->totpart; p++, pa++) {
+				if (pa->hair)
+					MEM_freeN(pa->hair);
+				if (pa->hair_final)
+					MEM_freeN(pa->hair_final);
+			}
 
 			MEM_freeN(psys->particles);
 			psys_free_pdd(psys);
@@ -2980,10 +2984,10 @@ static bool psys_hair_use_simulation(ParticleData *pa, float max_length)
 	HairKey *key;
 	int k;
 	
-	if (pa->totkey < 2)
+	if (pa->totkey_final < 2)
 		return false;
 	
-	for (k=1, key=pa->hair+1; k<pa->totkey; k++,key++) {
+	for (k=1, key=pa->hair_final+1; k<pa->totkey_final; k++,key++) {
 		float length = len_v3v3(key->co, (key-1)->co);
 		if (length < min_length)
 			return false;
@@ -3155,7 +3159,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	/* calculate maximum segment length */
 	max_length = 0.0f;
 	LOOP_PARTICLES {
-		for (k=1, key=pa->hair+1; k<pa->totkey; k++,key++) {
+		for (k=1, key=pa->hair_final+1; k<pa->totkey_final; k++,key++) {
 			float length = len_v3v3(key->co, (key-1)->co);
 			if (max_length < length)
 				max_length = length;
@@ -3185,7 +3189,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 		
 		bending_stiffness = CLAMPIS(1.0f - part->bending_random * psys_frand(psys, p + 666), 0.0f, 1.0f);
 		
-		for (k=0, key=pa->hair; k<pa->totkey; k++,key++) {
+		for (k=0, key=pa->hair_final; k<pa->totkey_final; k++,key++) {
 			ClothHairData *hair;
 			float *co, *co_next;
 			

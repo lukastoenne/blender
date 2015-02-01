@@ -3901,8 +3901,11 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->particles=newdataadr(fd, psys->particles);
 		
 		if (psys->particles && psys->particles->hair) {
-			for (a=0, pa=psys->particles; a<psys->totpart; a++, pa++)
+			for (a=0, pa=psys->particles; a<psys->totpart; a++, pa++) {
 				pa->hair=newdataadr(fd, pa->hair);
+				pa->hair_final = NULL;
+				pa->totkey_final = 0;
+			}
 		}
 		
 		if (psys->particles && psys->particles->keys) {

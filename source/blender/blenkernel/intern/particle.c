@@ -435,9 +435,14 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
 	PARTICLE_P;
 
 	LOOP_PARTICLES {
-		if (pa->hair)
+		if (pa->hair) {
 			MEM_freeN(pa->hair);
-		pa->hair = NULL;
+			pa->hair = NULL;
+		}
+		if (pa->hair_final) {
+			MEM_freeN(pa->hair_final);
+			pa->hair_final = NULL;
+		}
 		pa->totkey = 0;
 	}
 
@@ -524,6 +529,8 @@ void psys_free_particles(ParticleSystem *psys)
 			LOOP_PARTICLES {
 				if (pa->hair)
 					MEM_freeN(pa->hair);
+				if (pa->hair_final)
+					MEM_freeN(pa->hair_final);
 			}
 		}
 		

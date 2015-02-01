@@ -100,12 +100,15 @@ typedef struct ParticleData {
 	ParticleKey prev_state; /* previous state */
 	
 	HairKey *hair;			/* hair vertices */
+	HairKey *hair_final;	/* hair vertices after applying modifiers */
 
 	ParticleKey *keys;		/* keyed keys */
 
 	BoidParticle *boid;		/* boids data */
 
 	int totkey;				/* amount of hair or keyed keys*/
+	int totkey_final;		/* final hair key amount */
+	int pad1;
 
 	float time, lifetime;	/* dietime is not nescessarily time+lifetime as	*/
 	float dietime;			/* particles can die unnaturally (collision)	*/
@@ -119,7 +122,7 @@ typedef struct ParticleData {
 	float size;				/* size and multiplier so that we can update size when ever */
 
 	float sphdensity;		/* density of sph particle */
-	int pad;
+	int pad2;
 
 	int hair_index;
 	short flag;

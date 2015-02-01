@@ -1249,8 +1249,11 @@ ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys)
 	psysn->child = MEM_dupallocN(psys->child);
 
 	if (psys->part->type == PART_HAIR) {
-		for (p = 0, pa = psysn->particles; p < psysn->totpart; p++, pa++)
+		for (p = 0, pa = psysn->particles; p < psysn->totpart; p++, pa++) {
 			pa->hair = MEM_dupallocN(pa->hair);
+			if (pa->hair_final)
+				pa->hair_final = MEM_dupallocN(pa->hair_final);
+		}
 	}
 
 	if (psysn->particles && (psysn->particles->keys || psysn->particles->boid)) {
