@@ -5557,7 +5557,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 				glDisableClientState(GL_COLOR_ARRAY);
 				
 				for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
-					if (pa->totkey > 1) {
+					if (pa->totkey_final > 1) {
 						HairKey *hkey = pa->hair_final;
 						
 						glVertexPointer(3, GL_FLOAT, sizeof(HairKey), hkey->world_co);
@@ -5578,7 +5578,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					
 					glBegin(GL_LINES);
 					for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
-						for (i = 1; i < pa->totkey; ++i) {
+						for (i = 1; i < pa->totkey_final; ++i) {
 							float v1[3], v2[3];
 							
 							copy_v3_v3(v1, mvert[pa->hair_index + i - 1].co);

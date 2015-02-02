@@ -3324,7 +3324,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 				medge++;
 		}
 		
-		hair_index += pa->totkey + 1;
+		hair_index += pa->totkey_final + 1;
 	}
 }
 
@@ -3456,8 +3456,8 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	totedge = 0;
 	LOOP_PARTICLES {
 		/* "out" dm contains all hairs */
-		totedge += pa->totkey;
-		totpoint += pa->totkey + 1; /* +1 for virtual root point */
+		totedge += pa->totkey_final;
+		totpoint += pa->totkey_final + 1; /* +1 for virtual root point */
 	}
 	
 	realloc_roots = false; /* whether hair root info array has to be reallocated */
