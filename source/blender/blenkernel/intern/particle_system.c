@@ -2878,6 +2878,28 @@ static void collision_check(ParticleSimulationData *sim, int p, float dfra, floa
 /*			Hair								*/
 /************************************************/
 
+/* reset the hair_final keys to the initial state */
+static void psys_hair_final_reset(ParticleSimulationData *sim)
+{
+	ParticleSystem *psys = sim->psys;
+	ParticleData *pa;
+	int p;
+	
+	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+		if (pa->totkey_final != pa->totkey) {
+			if (pa->hair_final)
+				MEM_freeN(pa->hair_final);
+			pa->hair_final = NULL;
+			pa->totkey_final = 0;
+		}
+		
+		if (pa->hair) {
+			pa->hair_final = MEM_dupallocN(pa->hair);
+			pa->totkey_final = pa->totkey;
+		}
+	}
+}
+
 static bool psys_needs_path_cache(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
@@ -3508,6 +3530,8 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 		if (psys->clmd)
 			cloth_free_modifier(psys->clmd);
 	}
+
+	psys_hair_final_reset(sim);
 
 	/* dynamics with cloth simulation, psys->particles can be NULL with 0 particles [#25519] */
 	if (psys->part->type==PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS && psys->particles)
