@@ -204,12 +204,12 @@ void init_particle_interpolation(Object *ob, ParticleSystem *psys, ParticleData 
 		}
 	}
 	else {
-		HairKey *key = pa->hair;
+		HairKey *key = pa->hair_final;
 		pind->hkey[0] = key;
 		pind->hkey[1] = key + 1;
 
 		pind->birthtime = key->time;
-		pind->dietime = (key + pa->totkey - 1)->time;
+		pind->dietime = (key + pa->totkey_final - 1)->time;
 
 		if (pind->dm) {
 			pind->mvert[0] = CDDM_get_vert(pind->dm, pa->hair_index);
@@ -287,7 +287,7 @@ void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData *pa, fl
 		if (result->time < 0.0f)
 			real_t = -result->time;
 		else
-			real_t = pind->hkey[0]->time + t * (pind->hkey[0][pa->totkey - 1].time - pind->hkey[0]->time);
+			real_t = pind->hkey[0]->time + t * (pind->hkey[0][pa->totkey_final - 1].time - pind->hkey[0]->time);
 
 		while (pind->hkey[1]->time < real_t) {
 			pind->hkey[1]++;
@@ -328,13 +328,13 @@ void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData *pa, fl
 				edit_to_particle(keys, pind->ekey[0]);
 		}
 		else if (pind->dm) {
-			if (pind->hkey[0] != pa->hair)
+			if (pind->hkey[0] != pa->hair_final)
 				mvert_to_particle(keys, pind->mvert[0] - 1, pind->hkey[0] - 1);
 			else
 				mvert_to_particle(keys, pind->mvert[0], pind->hkey[0]);
 		}
 		else {
-			if (pind->hkey[0] != pa->hair)
+			if (pind->hkey[0] != pa->hair_final)
 				hair_to_particle(keys, pind->hkey[0] - 1);
 			else
 				hair_to_particle(keys, pind->hkey[0]);
@@ -347,13 +347,13 @@ void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData *pa, fl
 				edit_to_particle(keys + 3, pind->ekey[1]);
 		}
 		else if (pind->dm) {
-			if (pind->hkey[1] != pa->hair + pa->totkey - 1)
+			if (pind->hkey[1] != pa->hair_final + pa->totkey_final - 1)
 				mvert_to_particle(keys + 3, pind->mvert[1] + 1, pind->hkey[1] + 1);
 			else
 				mvert_to_particle(keys + 3, pind->mvert[1], pind->hkey[1]);
 		}
 		else {
-			if (pind->hkey[1] != pa->hair + pa->totkey - 1)
+			if (pind->hkey[1] != pa->hair_final + pa->totkey_final - 1)
 				hair_to_particle(keys + 3, pind->hkey[1] + 1);
 			else
 				hair_to_particle(keys + 3, pind->hkey[1]);
