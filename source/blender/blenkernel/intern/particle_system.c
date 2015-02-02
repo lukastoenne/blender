@@ -2891,11 +2891,16 @@ static void psys_hair_final_reset(ParticleSimulationData *sim)
 				MEM_freeN(pa->hair_final);
 			pa->hair_final = NULL;
 			pa->totkey_final = 0;
+			
+			if (pa->hair) {
+				pa->hair_final = MEM_dupallocN(pa->hair);
+				pa->totkey_final = pa->totkey;
+			}
 		}
-		
-		if (pa->hair) {
-			pa->hair_final = MEM_dupallocN(pa->hair);
-			pa->totkey_final = pa->totkey;
+		else {
+			if (pa->hair && pa->hair_final) {
+				memcpy(pa->hair_final, pa->hair, sizeof(HairKey) * pa->totkey);
+			}
 		}
 	}
 }
