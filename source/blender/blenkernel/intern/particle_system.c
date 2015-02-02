@@ -2879,7 +2879,7 @@ static void collision_check(ParticleSimulationData *sim, int p, float dfra, floa
 /************************************************/
 
 /* reset the hair_final keys to the initial state */
-static void psys_hair_final_reset(ParticleSimulationData *sim)
+static void psys_hair_calc_final(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleData *pa;
@@ -2902,6 +2902,31 @@ static void psys_hair_final_reset(ParticleSimulationData *sim)
 				memcpy(pa->hair_final, pa->hair, sizeof(HairKey) * pa->totkey);
 			}
 		}
+	}
+	
+	/* apply shapekeys */
+	{
+		float *shapekey_data, *shapekey;
+		int totshapekey;
+		
+		shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, psys, &totshapekey);
+		
+		if (shapekey) {
+			for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+				HairKey *key;
+				int k;
+				
+				for (k = 0, key = pa->hair_final; k < pa->totkey_final; ++k, ++key) {
+					BLI_assert(shapekey - shapekey_data < 3*totshapekey);
+					
+					copy_v3_v3(key->co, shapekey);
+					shapekey += 3;
+				}
+			}
+		}
+		
+		if (shapekey_data)
+			MEM_freeN(shapekey_data);
 	}
 }
 
@@ -3166,8 +3191,6 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	float hairmat[4][4];
 	float max_length;
 	float hair_radius;
-	float *shapekey_data, *shapekey;
-	int totshapekey;
 	
 	dm = *r_dm;
 	if (!dm) {
@@ -3198,8 +3221,6 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	/* XXX placeholder for more flexible future hair settings */
 	hair_radius = part->size;
 	
-	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, psys, &totshapekey);
-	
 	/* make vgroup for pin roots etc.. */
 	hair_index = 1;
 	LOOP_PARTICLES {
@@ -3220,15 +3241,8 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 			ClothHairData *hair;
 			float *co, *co_next;
 			
-			if (shapekey) {
-				co = shapekey;
-				co_next = shapekey + 3;
-				shapekey += 3;
-			}
-			else {
-				co = key->co;
-				co_next = (key+1)->co;
-			}
+			co = key->co;
+			co_next = (key+1)->co;
 			
 			/* create fake root before actual root to resist bending */
 			if (k==0) {
@@ -3536,7 +3550,7 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 			cloth_free_modifier(psys->clmd);
 	}
 
-	psys_hair_final_reset(sim);
+	psys_hair_calc_final(sim);
 
 	/* dynamics with cloth simulation, psys->particles can be NULL with 0 particles [#25519] */
 	if (psys->part->type==PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS && psys->particles)
