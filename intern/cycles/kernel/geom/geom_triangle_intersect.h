@@ -50,7 +50,7 @@ typedef struct IsectPrecalc {
 } IsectPrecalc;
 
 /* Workaround for CUDA toolkit 6.5.16. */
-#ifdef __KERNEL_CPU__
+#if defined(__KERNEL_CPU__) || !defined(__KERNEL_CUDA_EXPERIMENTAL__) || __CUDA_ARCH__ < 500
 ccl_device_inline
 #else
 ccl_device_noinline
@@ -309,6 +309,9 @@ ccl_device_inline float3 triangle_refine(KernelGlobals *kg,
 
 #ifdef __INTERSECTION_REFINE__
 	if(isect->object != OBJECT_NONE) {
+		if(UNLIKELY(t == 0.0f)) {
+			return P;
+		}
 #ifdef __OBJECT_MOTION__
 		Transform tfm = sd->ob_itfm;
 #else

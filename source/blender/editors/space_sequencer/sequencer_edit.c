@@ -3427,15 +3427,14 @@ static int sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
 	bool override = RNA_boolean_get(op->ptr, "override");
 	bool turnon = true;
 
-	if (ed == NULL || 
-	    !(proxy_25 || proxy_50 || proxy_75 || proxy_100)) {
+	if (ed == NULL || !(proxy_25 || proxy_50 || proxy_75 || proxy_100)) {
 		turnon = false;
 	}
 
 	SEQP_BEGIN(ed, seq)
 	{
 		if ((seq->flag & SELECT)) {
-			if (seq->type == SEQ_TYPE_MOVIE) {
+			if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE, SEQ_TYPE_META, SEQ_TYPE_SCENE, SEQ_TYPE_MULTICAM)) {
 				BKE_sequencer_proxy_set(seq, turnon);
 				
 				if (proxy_25)
