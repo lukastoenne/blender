@@ -2928,6 +2928,21 @@ static void psys_hair_calc_final(ParticleSimulationData *sim)
 		if (shapekey_data)
 			MEM_freeN(shapekey_data);
 	}
+	
+	/* update world space location */
+	{
+		for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+			HairKey *key;
+			int k;
+			float hairmat[4][4];
+			
+			psys_mat_hair_to_global(sim->ob, sim->psmd->dm, psys->part->from, pa, hairmat);
+			
+			for (k = 0, key = pa->hair_final; k < pa->totkey_final; ++k, ++key) {
+				mul_v3_m4v3(key->world_co, hairmat, key->co);
+			}
+		}
+	}
 }
 
 static bool psys_needs_path_cache(ParticleSimulationData *sim)
