@@ -546,21 +546,23 @@ typedef enum eParticleDrawMethod {
 #define PSYS_RECALC        (PSYS_RECALC_REDO | PSYS_RECALC_RESET | PSYS_RECALC_TYPE | PSYS_RECALC_CHILD | PSYS_RECALC_PHYS)
 
 /* psys->flag */
-#define PSYS_CURRENT		1
-#define PSYS_GLOBAL_HAIR	2
-#define PSYS_HAIR_DYNAMICS	4
-#define	PSYS_KEYED_TIMING	8
-//#define PSYS_ENABLED		16	/* deprecated */
-#define PSYS_HAIR_UPDATED	32  /* signal for updating hair particle mode */
-#define PSYS_DRAWING		64
-#define PSYS_USE_IMAT		128
-#define PSYS_DELETE			256	/* remove particlesystem as soon as possible */
-#define PSYS_HAIR_DONE		512
-#define PSYS_KEYED			1024
-#define PSYS_EDITED			2048
-//#define PSYS_PROTECT_CACHE	4096 /* deprecated */
-#define PSYS_DISABLED			8192
-#define PSYS_OB_ANIM_RESTORE	16384 /* runtime flag */
+typedef enum eParticleSystemFlags {
+	PSYS_CURRENT			= (1 << 0),
+	PSYS_GLOBAL_HAIR		= (1 << 1),
+	PSYS_HAIR_DYNAMICS		= (1 << 2),
+	PSYS_KEYED_TIMING		= (1 << 3),
+	//PSYS_ENABLED			= (1 << 4), /* deprecated */
+	PSYS_HAIR_UPDATED		= (1 << 5), /* signal for updating hair particle mode */
+	PSYS_DRAWING			= (1 << 6),
+	PSYS_USE_IMAT			= (1 << 7),
+	PSYS_DELETE				= (1 << 8), /* remove particlesystem as soon as possible */
+	PSYS_HAIR_DONE			= (1 << 9),
+	PSYS_KEYED				= (1 << 10),
+	PSYS_EDITED				= (1 << 11),
+	//PSYS_PROTECT_CACHE	= (1 << 12), /* deprecated */
+	PSYS_DISABLED			= (1 << 13),
+	PSYS_OB_ANIM_RESTORE	= (1 << 14), /* runtime flag */
+} eParticleSystemFlags;
 
 typedef enum eParticleDataFlag {
 	PARS_UNEXIST        = 1,
