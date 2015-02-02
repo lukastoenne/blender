@@ -463,6 +463,7 @@ int main(int argc, char** argv)
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
+	particle_modifier_types_init();
 	DAG_init();
 
 #ifdef WITH_FFMPEG

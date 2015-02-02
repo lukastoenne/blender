@@ -273,6 +273,17 @@ typedef struct ParticleInterpolationData {
 	int bspline;
 } ParticleInterpolationData;
 
+typedef struct ParticleModifierTypeInfo {
+	/* The user visible name for this modifier */
+	char name[32];
+
+	/* The DNA struct name for the modifier data type, used to write the DNA data out */
+	char structName[32];
+
+	/* The size of the modifier data type, used by allocation. */
+	int structSize;
+} ParticleModifierTypeInfo;
+
 #define PARTICLE_DRAW_DATA_UPDATED  1
 
 #define PSYS_FRAND_COUNT    1024
@@ -305,6 +316,9 @@ BLI_INLINE void psys_frand_vec(ParticleSystem *psys, unsigned int seed, float ve
 
 /* ----------- functions needed outside particlesystem ---------------- */
 /* particle.c */
+void particle_modifier_types_init(void);
+struct ParticleModifierTypeInfo *particle_modifier_type_info_get(ParticleModifierType type);
+
 int count_particles(struct ParticleSystem *psys);
 int count_particles_mod(struct ParticleSystem *psys, int totgr, int cur);
 

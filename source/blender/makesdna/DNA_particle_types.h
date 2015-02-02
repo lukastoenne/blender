@@ -158,6 +158,21 @@ typedef struct SPHFluidSettings {
 #define SPH_SOLVER_DDR					0
 #define SPH_SOLVER_CLASSICAL			1
 
+typedef enum ParticleModifierType {
+	eParticleModifierType_None              = 0,
+	eParticleModifierType_MeshDeform        = 1,
+	NUM_PARTICLE_MODIFIER_TYPES
+} ParticleModifierType;
+
+typedef struct ParticleModifierData {
+	int type;
+	int flag;
+} ParticleModifierData;
+
+typedef struct MeshDeformParticleModifierData {
+	ParticleModifierData md;
+} MeshDeformParticleModifierData;
+
 typedef struct ParticleSettings {
 	ID id;
 	struct AnimData *adt;

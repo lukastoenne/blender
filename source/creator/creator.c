@@ -1582,6 +1582,7 @@ int main(
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
+	particle_modifier_types_init();
 	DAG_init();
 
 	BKE_brush_system_init();
