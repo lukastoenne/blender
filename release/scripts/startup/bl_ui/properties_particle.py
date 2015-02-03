@@ -1334,6 +1334,9 @@ class PARTICLE_PT_children(ParticleButtonsPanel, Panel):
         subsub = sub.column()
         subsub.enabled = part.use_clump_noise
         subsub.prop(part, "clump_noise_size")
+        subsubsub = subsub.column(align=True)
+        subsubsub.prop(part, "clump_noise_random_size")
+        subsubsub.prop(part, "clump_noise_random")
 
         sub = col.column(align=True)
         sub.prop(part, "child_length", slider=True)

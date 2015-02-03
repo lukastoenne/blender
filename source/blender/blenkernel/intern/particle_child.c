@@ -42,7 +42,7 @@ struct Material;
 void do_kink(ParticleKey *state, const float par_co[3], const float par_vel[3], const float par_rot[4], float time, float freq, float shape, float amplitude, float flat,
              short type, short axis, float obmat[4][4], int smooth_start);
 float do_clump(ParticleKey *state, const float par_co[3], float time, const float orco_offset[3], float clumpfac, float clumppow, float pa_clump,
-               bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve);
+               bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve, float clump_noise_random, float clump_noise_random_size, float mat[4][4]);
 void do_child_modifiers(ParticleSimulationData *sim,
                         ParticleTexture *ptex, const float par_co[3], const float par_vel[3], const float par_rot[4], const float par_orco[3],
                         ChildParticle *cpa, const float orco[3], float mat[4][4], ParticleKey *state, float t);
@@ -578,10 +578,27 @@ static float do_clump_level(float result[3], const float co[3], const float par_
 	return clump;
 }
 
+BLI_INLINE void simple_roughness(float mat[4][4], float size, float factor, const float loc[3], float time, float result[3])
+{
+	float turbloc[3], rough[3];
+	
+	mul_v3_v3fl(turbloc, loc, time);
+	rough[0] = -1.0f + 2.0f * BLI_gTurbulence(size, turbloc[0], turbloc[1], turbloc[2], 2, 0, 2);
+	rough[1] = -1.0f + 2.0f * BLI_gTurbulence(size, turbloc[1], turbloc[2], turbloc[0], 2, 0, 2);
+	rough[2] = -1.0f + 2.0f * BLI_gTurbulence(size, turbloc[2], turbloc[0], turbloc[1], 2, 0, 2);
+
+	madd_v3_v3fl(result, mat[0], factor * rough[0]);
+	madd_v3_v3fl(result, mat[1], factor * rough[1]);
+	madd_v3_v3fl(result, mat[2], factor * rough[2]);
+}
+
 float do_clump(ParticleKey *state, const float par_co[3], float time, const float orco_offset[3], float clumpfac, float clumppow, float pa_clump,
-               bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve)
+               bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve, float clump_noise_random, float clump_noise_random_size, float mat[4][4])
 {
 	float clump;
+	float rough_offset[3];
+	
+	zero_v3(rough_offset);
 	
 	if (use_clump_noise && clump_noise_size != 0.0f) {
 		float center[3], noisevec[3];
@@ -592,34 +609,31 @@ float do_clump(ParticleKey *state, const float par_co[3], float time, const floa
 		mul_v3_fl(&pa[0], clump_noise_size);
 		add_v3_v3v3(center, par_co, &pa[0]);
 		
+		if (clump_noise_random != 0.0f && mat) {
+			simple_roughness(mat, clump_noise_random_size, clump_noise_random, center, 1.0f, rough_offset);
+		}
+		
 		do_clump_level(state->co, state->co, center, time, clumpfac, clumppow, pa_clump, clumpcurve);
 	}
 	
 	clump = do_clump_level(state->co, state->co, par_co, time, clumpfac, clumppow, pa_clump, clumpcurve);
+	
+	if (use_clump_noise && clump_noise_size != 0.0f && clump_noise_random != 0.0f && mat) {
+		add_v3_v3(state->co, rough_offset);
+	}
 	
 	return clump;
 }
 
 static void do_rough(const float loc[3], float mat[4][4], float t, float fac, float size, float thres, ParticleKey *state)
 {
-	float rough[3];
-	float rco[3];
-
 	if (thres != 0.0f) {
 		if (fabsf((float)(-1.5f + loc[0] + loc[1] + loc[2])) < 1.5f * thres) {
 			return;
 		}
 	}
 
-	copy_v3_v3(rco, loc);
-	mul_v3_fl(rco, t);
-	rough[0] = -1.0f + 2.0f * BLI_gTurbulence(size, rco[0], rco[1], rco[2], 2, 0, 2);
-	rough[1] = -1.0f + 2.0f * BLI_gTurbulence(size, rco[1], rco[2], rco[0], 2, 0, 2);
-	rough[2] = -1.0f + 2.0f * BLI_gTurbulence(size, rco[2], rco[0], rco[1], 2, 0, 2);
-
-	madd_v3_v3fl(state->co, mat[0], fac * rough[0]);
-	madd_v3_v3fl(state->co, mat[1], fac * rough[1]);
-	madd_v3_v3fl(state->co, mat[2], fac * rough[2]);
+	simple_roughness(mat, size, fac, loc, t, state->co);
 }
 
 static void do_rough_end(const float loc[3], float mat[4][4], float t, float fac, float shape, ParticleKey *state)
@@ -639,23 +653,12 @@ static void do_rough_end(const float loc[3], float mat[4][4], float t, float fac
 
 static void do_rough_curve(const float loc[3], float mat[4][4], float time, float fac, float size, CurveMapping *roughcurve, ParticleKey *state)
 {
-	float rough[3];
-	float rco[3];
-	
 	if (!roughcurve)
 		return;
 	
 	fac *= CLAMPIS(curvemapping_evaluateF(roughcurve, 0, time), 0.0f, 1.0f);
 	
-	copy_v3_v3(rco, loc);
-	mul_v3_fl(rco, time);
-	rough[0] = -1.0f + 2.0f * BLI_gTurbulence(size, rco[0], rco[1], rco[2], 2, 0, 2);
-	rough[1] = -1.0f + 2.0f * BLI_gTurbulence(size, rco[1], rco[2], rco[0], 2, 0, 2);
-	rough[2] = -1.0f + 2.0f * BLI_gTurbulence(size, rco[2], rco[0], rco[1], 2, 0, 2);
-	
-	madd_v3_v3fl(state->co, mat[0], fac * rough[0]);
-	madd_v3_v3fl(state->co, mat[1], fac * rough[1]);
-	madd_v3_v3fl(state->co, mat[2], fac * rough[2]);
+	simple_roughness(mat, size, fac, loc, time, state->co);
 }
 
 void do_child_modifiers(ParticleSimulationData *sim, ParticleTexture *ptex, const float par_co[3], const float par_vel[3], const float par_rot[4], const float par_orco[3],
@@ -693,7 +696,8 @@ void do_child_modifiers(ParticleSimulationData *sim, ParticleTexture *ptex, cons
 		
 		sub_v3_v3v3(orco_offset, orco, par_orco);
 		clump = do_clump(state, par_co, t, orco_offset, part->clumpfac, part->clumppow, ptex ? ptex->clump : 1.f,
-		                 part->child_flag & PART_CHILD_USE_CLUMP_NOISE, part->clump_noise_size, clumpcurve);
+		                 part->child_flag & PART_CHILD_USE_CLUMP_NOISE, part->clump_noise_size, clumpcurve,
+		                 part->clump_noise_random, part->clump_noise_random_size, mat);
 
 		if (kink_freq != 0.f) {
 			kink_amp *= (1.f - kink_amp_clump * clump);

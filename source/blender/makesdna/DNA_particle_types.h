@@ -244,6 +244,7 @@ typedef struct ParticleSettings {
 	struct CurveMapping *clumpcurve;
 	struct CurveMapping *roughcurve;
 	float clump_noise_size;
+	float clump_noise_random, clump_noise_random_size;
 
 	/* hair dynamics */
 	float bending_random;
