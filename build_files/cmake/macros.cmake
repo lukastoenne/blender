@@ -494,6 +494,7 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_metaball
 		bf_editor_object
 		bf_editor_armature
+		bf_rna
 		bf_editor_physics
 		bf_editor_render
 		bf_editor_screen
@@ -516,7 +517,6 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		bf_blenkernel
 		bf_physics
 		bf_nodes
-		bf_rna
 		bf_gpu
 		bf_blenloader
 		bf_imbuf
