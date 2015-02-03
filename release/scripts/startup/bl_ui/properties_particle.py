@@ -1535,6 +1535,60 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel, Panel):
         # row.prop(psys, "invert_vertex_group_field", text="")
 
 
+class PARTICLE_PT_modifiers(ParticleButtonsPanel, Panel):
+    bl_label = "Modifiers"
+    bl_options = {'HIDE_HEADER'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        psys = context.particle_system
+
+        layout.operator_menu_enum("particle.modifier_add", "type")
+
+        for md in psys.modifiers:
+            #box = layout.template_modifier(md)
+            box = layout.box()
+            if box:
+                # match enum type to our functions, avoids a lookup table.
+                getattr(self, md.type)(box, ob, psys, md)
+
+    # the mt.type enum is (ab)used for a lookup on function names
+    # ...to avoid lengthy if statements
+    # so each type must have a function here.
+
+    def MESH_DEFORM(self, layout, ob, psys, md):
+        split = layout.split()
+
+'''
+        col = split.column()
+        col.active = not md.is_bound
+        col.label(text="Object:")
+        col.prop(md, "object", text="")
+
+        col = split.column()
+        col.label(text="Vertex Group:")
+
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        sub = row.row(align=True)
+        sub.active = bool(md.vertex_group)
+        sub.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
+
+        layout.separator()
+
+        if md.is_bound:
+            layout.operator("object.meshdeform_bind", text="Unbind")
+        else:
+            layout.operator("object.meshdeform_bind", text="Bind")
+
+            row = layout.row()
+            row.prop(md, "precision")
+            row.prop(md, "use_dynamic_bind")
+'''
+
+
 class PARTICLE_PT_custom_props(ParticleButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER'}
     _context_path = "particle_system.settings"

@@ -32,6 +32,10 @@
 #ifndef __ED_PARTICLE_H__
 #define __ED_PARTICLE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bContext;
 struct Object;
 struct ParticleEditSettings;
@@ -84,6 +88,10 @@ void PE_redo(struct Scene *scene);
 int PE_undo_valid(struct Scene *scene);
 void PE_undo_number(struct Scene *scene, int nr);
 const char *PE_undo_get_name(struct Scene *scene, int nr, int *active);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* __ED_PARTICLE_H__ */
 

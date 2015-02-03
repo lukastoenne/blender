@@ -241,7 +241,7 @@ void PARTICLE_OT_modifier_add(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Add Modifier";
 	ot->description = "Add a modifier to the active object";
-	ot->idname = "OBJECT_OT_modifier_add";
+	ot->idname = "PARTICLE_OT_modifier_add";
 	
 	/* api callbacks */
 	ot->invoke = WM_menu_invoke;
@@ -343,7 +343,7 @@ void PARTICLE_OT_modifier_remove(wmOperatorType *ot)
 {
 	ot->name = "Remove Particle Modifier";
 	ot->description = "Remove a particle modifier from the active object";
-	ot->idname = "OBJECT_OT_particle_modifier_remove";
+	ot->idname = "PARTICLE_OT_modifier_remove";
 
 	ot->invoke = particle_modifier_remove_invoke;
 	ot->exec = particle_modifier_remove_exec;
@@ -383,7 +383,7 @@ void PARTICLE_OT_modifier_move_up(wmOperatorType *ot)
 {
 	ot->name = "Move Up Particle Modifier";
 	ot->description = "Move particle modifier up in the stack";
-	ot->idname = "OBJECT_OT_particle_modifier_move_up";
+	ot->idname = "PARTICLE_OT_modifier_move_up";
 
 	ot->invoke = particle_modifier_move_up_invoke;
 	ot->exec = particle_modifier_move_up_exec;
@@ -423,7 +423,7 @@ void PARTICLE_OT_modifier_move_down(wmOperatorType *ot)
 {
 	ot->name = "Move Down Particle Modifier";
 	ot->description = "Move particle modifier down in the stack";
-	ot->idname = "OBJECT_OT_particle_modifier_move_down";
+	ot->idname = "PARTICLE_OT_modifier_move_down";
 
 	ot->invoke = particle_modifier_move_down_invoke;
 	ot->exec = particle_modifier_move_down_exec;

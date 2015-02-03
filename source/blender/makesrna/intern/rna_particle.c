@@ -43,10 +43,11 @@
 #include "DNA_boid_types.h"
 #include "DNA_texture_types.h"
 
+#include "BLF_translation.h"
+
+#include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
-
-#include "BLF_translation.h"
 
 #include "rna_internal.h"
 
@@ -157,8 +158,6 @@ static EnumPropertyItem part_hair_ren_as_items[] = {
 #include "BKE_pointcache.h"
 #include "BKE_texture.h"
 
-#include "RNA_access.h"
-
 #include "ED_particle.h"
 
 static StructRNA *rna_ParticleModifier_refine(struct PointerRNA *ptr)
@@ -236,6 +235,35 @@ static void rna_ParticleModifier_dependency_update(Main *bmain, Scene *scene, Po
 {
 	rna_ParticleModifier_update(bmain, scene, ptr);
 	DAG_relations_tag_update(bmain);
+}
+
+static ParticleModifierData *rna_ParticleSystem_modifier_new(ID *id, ParticleSystem *psys, bContext *C, ReportList *reports,
+                                                             const char *name, int type)
+{
+	Object *object = (Object *)id;
+	return ED_particle_modifier_add(reports, CTX_data_main(C), CTX_data_scene(C), object, psys, name, type);
+}
+
+static void rna_ParticleSystem_modifier_remove(ID *id, ParticleSystem *psys, bContext *C, ReportList *reports, PointerRNA *md_ptr)
+{
+	Object *object = (Object *)id;
+	ParticleModifierData *md = md_ptr->data;
+	if (ED_particle_modifier_remove(reports, CTX_data_main(C), object, psys, md) == false) {
+		/* error is already set */
+		return;
+	}
+
+	RNA_POINTER_INVALIDATE(md_ptr);
+
+	WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_REMOVED, object);
+}
+
+static void rna_ParticleSystem_modifier_clear(ID *id, ParticleSystem *psys, bContext *C)
+{
+	Object *object = (Object *)id;
+	ED_particle_modifier_clear(CTX_data_main(C), object, psys);
+
+	WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_REMOVED, object);
 }
 
 /* use for object space hair get/set */
@@ -3441,6 +3469,47 @@ static void rna_def_particle_modifier(BlenderRNA *brna)
 	rna_def_particle_modifier_meshdeform(brna);
 }
 
+/* object.modifiers */
+static void rna_def_particle_system_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "ParticleSystemModifiers");
+	srna = RNA_def_struct(brna, "ParticleSystemModifiers", NULL);
+	RNA_def_struct_sdna(srna, "ParticleSystem");
+	RNA_def_struct_ui_text(srna, "Particle System Modifiers", "Collection of particle system modifiers");
+
+	/* add modifier */
+	func = RNA_def_function(srna, "new", "rna_ParticleSystem_modifier_new");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
+	RNA_def_function_ui_description(func, "Add a new modifier to the particle system");
+	parm = RNA_def_string(func, "name", "Name", 0, "", "New name for the modifier");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* modifier to add */
+	parm = RNA_def_enum(func, "type", particle_modifier_type_items, 1, "", "Modifier type to add");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return type */
+	parm = RNA_def_pointer(func, "modifier", "ParticleModifier", "", "Newly created modifier");
+	RNA_def_function_return(func, parm);
+
+	/* remove modifier */
+	func = RNA_def_function(srna, "remove", "rna_ParticleSystem_modifier_remove");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
+	RNA_def_function_ui_description(func, "Remove an existing modifier from the particle system");
+	/* modifier to remove */
+	parm = RNA_def_pointer(func, "modifier", "ParticleModifier", "", "Modifier to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+
+	/* clear all modifiers */
+	func = RNA_def_function(srna, "clear", "rna_ParticleSystem_modifier_clear");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_SELF_ID);
+	RNA_def_function_ui_description(func, "Remove all modifiers from the particle system");
+}
+
 static void rna_def_particle_system(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3527,6 +3596,12 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	                           "rna_Particle_active_shape_key_index_range");
 	RNA_def_property_ui_text(prop, "Active Shape Key Index", "Current shape key index");
 	RNA_def_property_update(prop, 0, "rna_Particle_active_shape_update");
+
+	/* modifiers */
+	prop = RNA_def_property(srna, "modifiers", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ParticleModifier");
+	RNA_def_property_ui_text(prop, "Modifiers", "Modifiers affecting the particle data");
+	rna_def_particle_system_modifiers(brna, prop);
 
 	prop = RNA_def_property(srna, "cloth", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "clmd");

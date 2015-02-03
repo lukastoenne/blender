@@ -82,6 +82,7 @@ struct HookModifierData;
 struct NodeBlurData;
 struct Nurb;
 struct Object;
+struct ParticleModifierData;
 struct ParticleSystem;
 struct PBVHNode;
 struct PyObject;
@@ -452,6 +453,9 @@ void ED_object_editmode_enter(struct bContext *C, int flag) RET_NONE
 void ED_object_editmode_exit(struct bContext *C, int flag) RET_NONE
 bool ED_object_editmode_load(struct Object *obedit) RET_ZERO
 void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object) RET_NONE
+struct ParticleModifierData *ED_particle_modifier_add(struct ReportList *reports, struct Main *bmain, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, const char *name, int type) RET_NULL
+bool ED_particle_modifier_remove(struct ReportList *reports, struct Main *bmain, struct Object *ob, struct ParticleSystem *psys, struct ParticleModifierData *md) RET_ZERO
+void ED_particle_modifier_clear(struct Main *bmain, struct Object *ob, struct ParticleSystem *psys) RET_NONE
 bool uiLayoutGetActive(struct uiLayout *layout) RET_ZERO
 int uiLayoutGetOperatorContext(struct uiLayout *layout) RET_ZERO
 int uiLayoutGetAlignment(struct uiLayout *layout) RET_ZERO
