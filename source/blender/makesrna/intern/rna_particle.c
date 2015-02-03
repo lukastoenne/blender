@@ -139,7 +139,9 @@ static EnumPropertyItem part_hair_ren_as_items[] = {
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
 
+#include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_cloth.h"
 #include "BKE_colortools.h"
@@ -158,6 +160,83 @@ static EnumPropertyItem part_hair_ren_as_items[] = {
 #include "RNA_access.h"
 
 #include "ED_particle.h"
+
+static StructRNA *rna_ParticleModifier_refine(struct PointerRNA *ptr)
+{
+	ParticleModifierData *md = (ParticleModifierData *)ptr->data;
+
+	switch ((ParticleModifierType)md->type) {
+		case eParticleModifierType_MeshDeform:
+			return &RNA_MeshDeformParticleModifier;
+		/* Default */
+		case eModifierType_None:
+		case NUM_PARTICLE_MODIFIER_TYPES:
+			return &RNA_ParticleModifier;
+	}
+
+	return &RNA_ParticleModifier;
+}
+
+static ParticleSystem *rna_particle_modifier_find_psys(Object *ob, ParticleModifierData *md)
+{
+	ParticleSystem *psys;
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+		if (BLI_findindex(&psys->modifiers, md) >= 0)
+			return psys;
+	}
+	return NULL;
+}
+
+static void rna_ParticleModifier_name_set(PointerRNA *ptr, const char *value)
+{
+	ParticleModifierData *md = ptr->data;
+	Object *ob = ptr->id.data;
+	ParticleSystem *psys = rna_particle_modifier_find_psys(ob, md);
+	char psys_name_esc[sizeof(psys->name) * 2];
+	char prefix[sizeof(psys->name) * 2 + strlen("particle_systems[\"\"].modifiers")];
+	char oldname[sizeof(md->name)];
+	
+	/* make a copy of the old name first */
+	BLI_strncpy(oldname, md->name, sizeof(md->name));
+	
+	/* copy the new name into the name slot */
+	BLI_strncpy_utf8(md->name, value, sizeof(md->name));
+	
+	/* make sure the name is truly unique */
+	if (ptr->id.data) {
+		particle_modifier_unique_name(&psys->modifiers, md);
+	}
+	
+	/* fix all the animation data which may link to this */
+	BLI_strescape(psys_name_esc, psys->name, sizeof(psys_name_esc));
+	BLI_snprintf(prefix, sizeof(prefix), "particle_systems[\"%s\"].modifiers", psys_name_esc);
+	BKE_all_animdata_fix_paths_rename(NULL, prefix, oldname, md->name);
+}
+
+static char *rna_ParticleModifier_path(PointerRNA *ptr)
+{
+	ParticleModifierData *md = ptr->data;
+	Object *ob = ptr->id.data;
+	ParticleSystem *psys = rna_particle_modifier_find_psys(ob, md);
+	char psys_name_esc[sizeof(psys->name) * 2];
+	char name_esc[sizeof(md->name) * 2];
+
+	BLI_strescape(psys_name_esc, psys->name, sizeof(psys_name_esc));
+	BLI_strescape(name_esc, md->name, sizeof(name_esc));
+	return BLI_sprintfN("particle_systems[\"%s\"].modifiers[\"%s\"]", psys_name_esc, name_esc);
+}
+
+static void rna_ParticleModifier_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_PARTICLE, ptr->id.data);
+}
+
+static void rna_ParticleModifier_dependency_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	rna_ParticleModifier_update(bmain, scene, ptr);
+	DAG_relations_tag_update(bmain);
+}
 
 /* use for object space hair get/set */
 static void rna_ParticleHairKey_location_object_info(PointerRNA *ptr, ParticleSystemModifierData **psmd_pt,
@@ -3283,6 +3362,85 @@ static void rna_def_particle_target(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Particle_target_reset");
 
 }
+
+static void rna_def_particle_modifier_meshdeform(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "MeshDeformParticleModifier", "ParticleModifier");
+	RNA_def_struct_ui_text(srna, "MeshDeform Particle Modifier", "Deformation modifier to deform using a cage mesh");
+	RNA_def_struct_sdna(srna, "MeshDeformParticleModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_MESHDEFORM);
+
+#if 0 // TODO
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Object", "Mesh object to deform with");
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_MeshDeformModifier_object_set", NULL, NULL);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+	
+	prop = RNA_def_property(srna, "is_bound", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_MeshDeformModifier_is_bound_get", NULL);
+	RNA_def_property_ui_text(prop, "Bound", "Whether geometry has been bound to control cage");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	
+	prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_MDEF_INVERT_VGROUP);
+	RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "defgrp_name");
+	RNA_def_property_ui_text(prop, "Vertex Group", "Vertex group name");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_MeshDeformModifier_defgrp_name_set");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "precision", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "gridsize");
+	RNA_def_property_range(prop, 2, 10);
+	RNA_def_property_ui_text(prop, "Precision", "The grid size for binding");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "use_dynamic_bind", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_MDEF_DYNAMIC_BIND);
+	RNA_def_property_ui_text(prop, "Dynamic",
+	                         "Recompute binding dynamically on top of other deformers "
+	                         "(slower and more memory consuming)");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+#endif
+}
+
+static void rna_def_particle_modifier(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	/* data */
+	srna = RNA_def_struct(brna, "ParticleModifier", NULL);
+	RNA_def_struct_ui_text(srna, "Particle Modifier", "Modifier affecting a particle system");
+	RNA_def_struct_refine_func(srna, "rna_ParticleModifier_refine");
+	RNA_def_struct_path_func(srna, "rna_ParticleModifier_path");
+	RNA_def_struct_sdna(srna, "ParticleModifierData");
+	
+	/* strings */
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_ParticleModifier_name_set");
+	RNA_def_property_ui_text(prop, "Name", "Modifier name");
+	RNA_def_property_update(prop, NC_OBJECT | ND_PARTICLE | NA_RENAME, NULL);
+	RNA_def_struct_name_property(srna, prop);
+	
+	/* enums */
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, particle_modifier_type_items);
+	RNA_def_property_ui_text(prop, "Type", "");
+	
+	/* types */
+	rna_def_particle_modifier_meshdeform(brna);
+}
+
 static void rna_def_particle_system(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3676,6 +3834,7 @@ void RNA_def_particle(BlenderRNA *brna)
 	rna_def_fluid_settings(brna);
 	rna_def_particle_hair_key(brna);
 	rna_def_particle_key(brna);
+	rna_def_particle_modifier(brna);
 	
 	rna_def_child_particle(brna);
 	rna_def_particle(brna);
