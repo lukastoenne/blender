@@ -29,12 +29,19 @@
  *  \ingroup bke
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
 
 #include "DNA_particle_types.h"
 
 #include "BKE_particle.h"
+
+#include "BLF_translation.h"
 
 static ParticleModifierTypeInfo *particle_modifier_types[NUM_PARTICLE_MODIFIER_TYPES];
 
@@ -79,4 +86,43 @@ void particle_modifier_foreachIDLink(Object *ob, ParticleSystem *psys, IDWalkPar
 		if (mti->foreachIDLink)
 			mti->foreachIDLink(md, ob, psys, walk, userData);
 	}
+}
+
+ParticleModifierData  *particle_modifier_new(int type)
+{
+	ParticleModifierTypeInfo *mti = particle_modifier_type_info_get(type);
+	ParticleModifierData *md = MEM_callocN(mti->structSize, mti->structName);
+	
+	/* note, this name must be made unique later */
+	BLI_strncpy(md->name, DATA_(mti->name), sizeof(md->name));
+
+	md->type = type;
+
+	if (mti->initData) mti->initData(md);
+
+	return md;
+}
+
+void particle_modifier_free(ParticleModifierData *md)
+{
+	ParticleModifierTypeInfo *mti = particle_modifier_type_info_get(md->type);
+
+	if (mti->freeData) mti->freeData(md);
+	if (md->error) MEM_freeN(md->error);
+
+	MEM_freeN(md);
+}
+
+void particle_modifier_unique_name(ListBase *modifiers, ParticleModifierData *md)
+{
+	if (modifiers && md) {
+		ParticleModifierTypeInfo *mti = particle_modifier_type_info_get(md->type);
+		
+		BLI_uniquename(modifiers, md, DATA_(mti->name), '.', offsetof(ModifierData, name), sizeof(md->name));
+	}
+}
+
+ParticleModifierData *particle_modifier_findByName(Object *UNUSED(ob), ParticleSystem *psys, const char *name)
+{
+	return BLI_findstring(&(psys->modifiers), name, offsetof(ParticleModifierData, name));
 }

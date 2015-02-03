@@ -169,6 +169,9 @@ typedef struct ParticleModifierData {
 	
 	int type;
 	int flag;
+	char name[64];  /* MAX_NAME */
+	
+	char *error;
 } ParticleModifierData;
 
 typedef struct MeshDeformParticleModifierData {

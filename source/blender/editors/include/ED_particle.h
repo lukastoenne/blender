@@ -41,6 +41,16 @@ struct rcti;
 struct wmKeyConfig;
 struct PTCacheEdit;
 struct Scene;
+struct Main;
+struct ParticleModifierData;
+struct ReportList;
+
+struct ParticleModifierData *ED_particle_modifier_add(struct ReportList *reports, struct Main *bmain, struct Scene *scene,
+                                                      struct Object *ob, struct ParticleSystem *psys, const char *name, int type);
+bool ED_particle_modifier_remove(struct ReportList *reports, struct Main *bmain, struct Object *ob, struct ParticleSystem *psys, struct ParticleModifierData *md);
+void ED_particle_modifier_clear(struct Main *bmain, struct Object *ob, struct ParticleSystem *psys);
+int ED_particle_modifier_move_up(struct ReportList *reports, struct Object *ob, struct ParticleSystem *psys, struct ParticleModifierData *md);
+int ED_particle_modifier_move_down(struct ReportList *reports, struct Object *ob, struct ParticleSystem *psys, struct ParticleModifierData *md);
 
 /* particle edit mode */
 void PE_free_ptcache_edit(struct PTCacheEdit *edit);

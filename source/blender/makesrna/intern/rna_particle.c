@@ -53,6 +53,12 @@
 #include "WM_types.h"
 #include "WM_api.h"
 
+EnumPropertyItem particle_modifier_type_items[] = {
+	{eParticleModifierType_None, "", 0, N_("Modify"), ""},
+	{eParticleModifierType_MeshDeform, "MESH_DEFORM", ICON_MOD_MESHDEFORM, "Mesh Deform", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 static EnumPropertyItem part_from_items[] = {
 	{PART_FROM_VERT, "VERT", 0, "Verts", ""},

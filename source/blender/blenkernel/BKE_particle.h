@@ -356,6 +356,10 @@ BLI_INLINE void psys_frand_vec(ParticleSystem *psys, unsigned int seed, float ve
 void particle_modifier_types_init(void);
 struct ParticleModifierTypeInfo *particle_modifier_type_info_get(ParticleModifierType type);
 void particle_modifier_foreachIDLink(struct Object *ob, struct ParticleSystem *psys, IDWalkParticleFunc walk, void *userData);
+struct ParticleModifierData *particle_modifier_new(int type);
+void particle_modifier_free(struct ParticleModifierData *md);
+void particle_modifier_unique_name(struct ListBase *modifiers, struct ParticleModifierData *md);
+struct ParticleModifierData *particle_modifier_findByName(struct Object *ob, struct ParticleSystem *psys, const char *name);
 
 int count_particles(struct ParticleSystem *psys);
 int count_particles_mod(struct ParticleSystem *psys, int totgr, int cur);
