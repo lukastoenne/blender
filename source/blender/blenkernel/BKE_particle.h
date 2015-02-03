@@ -309,6 +309,16 @@ typedef struct ParticleModifierTypeInfo {
 	 */
 	void (*freeData)(struct ParticleModifierData *md);
 
+	/* Return a boolean value indicating if this modifier is able to be
+	 * calculated based on the modifier data. This is *not* regarding the
+	 * md->flag, that is tested by the system, this is just if the data
+	 * validates (for example, a lattice will return false if the lattice
+	 * object is not defined).
+	 *
+	 * This function is optional (assumes never disabled if not present).
+	 */
+	bool (*isDisabled)(struct ParticleModifierData *md, bool userRenderParams);
+
 	/* Should call the given walk function with a pointer to each ID
 	 * pointer (i.e. each datablock pointer) that the modifier data
 	 * stores. This is used for linking on file load and for
@@ -360,6 +370,7 @@ struct ParticleModifierData *particle_modifier_new(int type);
 void particle_modifier_free(struct ParticleModifierData *md);
 void particle_modifier_unique_name(struct ListBase *modifiers, struct ParticleModifierData *md);
 struct ParticleModifierData *particle_modifier_findByName(struct Object *ob, struct ParticleSystem *psys, const char *name);
+bool particle_modifier_isEnabled(struct ParticleModifierData *md, int required_mode);
 
 int count_particles(struct ParticleSystem *psys);
 int count_particles_mod(struct ParticleSystem *psys, int totgr, int cur);

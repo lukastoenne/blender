@@ -1539,6 +1539,25 @@ class PARTICLE_PT_modifiers(ParticleButtonsPanel, Panel):
     bl_label = "Modifiers"
     bl_options = {'HIDE_HEADER'}
 
+    def make_modifier_layout(self, context, layout, md):
+        box = layout.box()
+        box.context_pointer_set("particle_modifier", md)
+
+        row = box.row()
+        row.prop(md, "show_expanded", icon_only=True, emboss=False)
+
+        row.label(icon_value=row.icon(md))
+        row.alert = md.is_disabled
+        row.label(md.name)
+        row.alert = False
+
+        sub = row.row(align=True)
+        sub.prop(md, "show_viewport", icon_only=True)
+        sub.prop(md, "show_render", icon_only=True)
+        sub.prop(md, "show_in_editmode", icon_only=True)
+
+        return box
+
     def draw(self, context):
         layout = self.layout
 
@@ -1548,8 +1567,7 @@ class PARTICLE_PT_modifiers(ParticleButtonsPanel, Panel):
         layout.operator_menu_enum("particle.modifier_add", "type")
 
         for md in psys.modifiers:
-            #box = layout.template_modifier(md)
-            box = layout.box()
+            box = self.make_modifier_layout(context, layout, md)
             if box:
                 # match enum type to our functions, avoids a lookup table.
                 getattr(self, md.type)(box, ob, psys, md)

@@ -164,11 +164,17 @@ typedef enum ParticleModifierType {
 	NUM_PARTICLE_MODIFIER_TYPES
 } ParticleModifierType;
 
+typedef enum ParticleModifierMode {
+	eParticleModifierMode_Realtime          = (1 << 0),
+	eParticleModifierMode_Render            = (1 << 1),
+	eParticleModifierMode_Editmode          = (1 << 2),
+	eParticleModifierMode_Expanded          = (1 << 3),
+} ParticleModifierMode;
+
 typedef struct ParticleModifierData {
 	struct ParticleModifierData *next, *prev;
 	
-	int type;
-	int flag;
+	int type, mode;
 	char name[64];  /* MAX_NAME */
 	
 	char *error;

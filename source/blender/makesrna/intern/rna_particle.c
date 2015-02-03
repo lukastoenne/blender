@@ -266,6 +266,12 @@ static void rna_ParticleSystem_modifier_clear(ID *id, ParticleSystem *psys, bCon
 	WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_REMOVED, object);
 }
 
+static int rna_ParticleModifier_is_disabled_get(PointerRNA *ptr)
+{
+	ParticleModifierData *md = ptr->data;
+	return particle_modifier_isEnabled(md, 0);
+}
+
 /* use for object space hair get/set */
 static void rna_ParticleHairKey_location_object_info(PointerRNA *ptr, ParticleSystemModifierData **psmd_pt,
                                                      ParticleData **pa_pt)
@@ -3464,6 +3470,36 @@ static void rna_def_particle_modifier(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "type");
 	RNA_def_property_enum_items(prop, particle_modifier_type_items);
 	RNA_def_property_ui_text(prop, "Type", "");
+	
+	/* flags */
+	prop = RNA_def_property(srna, "show_viewport", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", eParticleModifierMode_Realtime);
+	RNA_def_property_ui_text(prop, "Realtime", "Display modifier in viewport");
+	RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
+	RNA_def_property_update(prop, 0, "rna_ParticleModifier_update");
+	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, 0);
+	
+	prop = RNA_def_property(srna, "show_render", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", eParticleModifierMode_Render);
+	RNA_def_property_ui_text(prop, "Render", "Use modifier during render");
+	RNA_def_property_ui_icon(prop, ICON_SCENE, 0);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
+	
+	prop = RNA_def_property(srna, "show_in_editmode", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", eParticleModifierMode_Editmode);
+	RNA_def_property_ui_text(prop, "Edit Mode", "Display modifier in Edit mode");
+	RNA_def_property_update(prop, 0, "rna_ParticleModifier_update");
+	RNA_def_property_ui_icon(prop, ICON_EDITMODE_HLT, 0);
+	
+	prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", eParticleModifierMode_Expanded);
+	RNA_def_property_ui_text(prop, "Expanded", "Set modifier expanded in the user interface");
+	RNA_def_property_ui_icon(prop, ICON_TRIA_RIGHT, 1);
+	
+	prop = RNA_def_property(srna, "is_disabled", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_ParticleModifier_is_disabled_get", NULL);
+	RNA_def_property_ui_text(prop, "Disabled", "Modifier is disabled due to internal state");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	
 	/* types */
 	rna_def_particle_modifier_meshdeform(brna);

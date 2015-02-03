@@ -126,3 +126,13 @@ ParticleModifierData *particle_modifier_findByName(Object *UNUSED(ob), ParticleS
 {
 	return BLI_findstring(&(psys->modifiers), name, offsetof(ParticleModifierData, name));
 }
+
+bool particle_modifier_isEnabled(ParticleModifierData *md, int required_mode)
+{
+	ParticleModifierTypeInfo *mti = particle_modifier_type_info_get(md->type);
+
+	if ((md->mode & required_mode) != required_mode) return false;
+	if (mti->isDisabled && mti->isDisabled(md, required_mode == eModifierMode_Render)) return false;
+	
+	return true;
+}
