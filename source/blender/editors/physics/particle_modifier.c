@@ -194,29 +194,19 @@ static int particle_modifier_add_exec(bContext *C, wmOperator *op)
 static EnumPropertyItem *particle_modifier_add_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {	
 	Object *ob = ED_object_active_context(C);
+	ParticleSystem *psys = psys_get_current(ob);
 	EnumPropertyItem *item = NULL, *md_item, *group_item = NULL;
-	ModifierTypeInfo *mti;
 	int totitem = 0, a;
 	
-	if (!ob)
+	if (!ob || !psys)
 		return particle_modifier_type_items;
 
-	for (a = 0; modifier_type_items[a].identifier; a++) {
-		md_item = &modifier_type_items[a];
+	for (a = 0; particle_modifier_type_items[a].identifier; a++) {
+		md_item = &particle_modifier_type_items[a];
 
-		if (md_item->identifier[0]) {
-			mti = modifierType_getInfo(md_item->value);
-
-			if (mti->flags & eModifierTypeFlag_NoUserAdd)
-				continue;
-
-			if (!BKE_object_support_modifier_type_check(ob, md_item->value))
-				continue;
-		}
-		else {
+		if (!md_item->identifier[0]) {
 			group_item = md_item;
 			md_item = NULL;
-
 			continue;
 		}
 
