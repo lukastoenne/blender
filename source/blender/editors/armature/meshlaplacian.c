@@ -1091,6 +1091,8 @@ typedef struct MeshDeformBind {
 	
 	BVHTree *bvhtree;
 	BVHTreeFromMesh bvhdata;
+
+	void (*report_error)(void *userdata, const char *message);
 } MeshDeformBind;
 
 typedef struct MeshDeformIsect {
@@ -1604,7 +1606,7 @@ static void meshdeform_matrix_add_exterior_phi(MeshDeformBind *mdb, int x, int y
 		mdb->phi[acenter] = phi / totweight;
 }
 
-static void meshdeform_matrix_solve(MeshDeformModifierData *mmd, MeshDeformBind *mdb)
+static void meshdeform_matrix_solve(void *userdata, MeshDeformBind *mdb)
 {
 	NLContext *context;
 	float vec[3], gridvec[3];
@@ -1706,7 +1708,8 @@ static void meshdeform_matrix_solve(MeshDeformModifierData *mmd, MeshDeformBind 
 			}
 		}
 		else {
-			modifier_setError(&mmd->modifier, "Failed to find bind solution (increase precision?)");
+			if (mdb->report_error)
+				mdb->report_error(userdata, "Failed to find bind solution (increase precision?)");
 			error("Mesh Deform: failed to find bind solution.");
 			break;
 		}
@@ -1941,6 +1944,12 @@ static void heat_weighting_bind(Scene *scene, DerivedMesh *dm, MeshDeformModifie
 }
 #endif
 
+static void mesh_deform_modifier_report_error(void *vmd, const char *message)
+{
+	ModifierData *md = vmd;
+	modifier_setError(md, "%s", message);
+}
+
 void mesh_deform_bind(Scene *scene, MeshDeformModifierData *mmd, float *vertexcos, int totvert, float cagemat[4][4])
 {
 	MeshDeformBind mdb;
@@ -1951,6 +1960,8 @@ void mesh_deform_bind(Scene *scene, MeshDeformModifierData *mmd, float *vertexco
 	start_progress_bar();
 
 	memset(&mdb, 0, sizeof(MeshDeformBind));
+
+	mdb.report_error = mesh_deform_modifier_report_error;
 
 	/* get mesh and cage mesh */
 	mdb.vertexcos = MEM_callocN(sizeof(float) * 3 * totvert, "MeshDeformCos");
