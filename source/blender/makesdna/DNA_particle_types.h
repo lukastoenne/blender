@@ -165,6 +165,8 @@ typedef enum ParticleModifierType {
 } ParticleModifierType;
 
 typedef struct ParticleModifierData {
+	struct ParticleModifierData *next, *prev;
+	
 	int type;
 	int flag;
 } ParticleModifierData;
@@ -270,7 +272,7 @@ typedef struct ParticleSettings {
 	struct MTex *mtex[18];		/* MAX_MTEX */
 
 	struct Group *dup_group;
-	struct ListBase dupliweights;
+	ListBase dupliweights;
 	struct Group *eff_group  DNA_DEPRECATED;		// deprecated
 	struct Object *dup_ob;
 	struct Object *bb_ob;
@@ -307,6 +309,8 @@ typedef struct ParticleSystem {
 
 	struct ClothModifierData *clmd;					/* cloth simulation for hair */
 	struct DerivedMesh *hair_in_dm, *hair_out_dm;	/* input/output for cloth simulation */
+
+	ListBase modifiers;
 
 	struct Object *target_ob;
 

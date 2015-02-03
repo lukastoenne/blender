@@ -3852,6 +3852,58 @@ static void direct_link_particlesettings(FileData *fd, ParticleSettings *part)
 	}
 }
 
+static void lib_link_particle_modifiers__linkModifiers(void *userData, Object *ob, ParticleSystem *UNUSED(psys),
+                                                       ID **idpoin)
+{
+	FileData *fd = userData;
+
+	*idpoin = newlibadr(fd, ob->id.lib, *idpoin);
+	/* hardcoded bad exception; non-object modifier data gets user count (texture, displace) */
+	if (*idpoin && GS((*idpoin)->name) != ID_OB)
+		(*idpoin)->us++;
+}
+static void lib_link_particle_modifiers(FileData *fd, Object *ob, ParticleSystem *psys)
+{
+	particle_modifier_foreachIDLink(ob, psys, lib_link_particle_modifiers__linkModifiers, fd);
+}
+
+static void direct_link_particle_modifiers(FileData *fd, ListBase *lb)
+{
+	ParticleModifierData *md;
+	
+	link_list(fd, lb);
+	
+	for (md = lb->first; md; md = md->next) {
+		/* if modifiers disappear, or for upward compatibility */
+		if (NULL == particle_modifier_type_info_get(md->type))
+			md->type = eModifierType_None;
+		
+		if (md->type == eModifierType_MeshDeform) {
+			MeshDeformParticleModifierData *mmd = (MeshDeformParticleModifierData*) md;
+			
+#if 0 // TODO
+			mmd->bindinfluences = newdataadr(fd, mmd->bindinfluences);
+			mmd->bindoffsets = newdataadr(fd, mmd->bindoffsets);
+			mmd->bindcagecos = newdataadr(fd, mmd->bindcagecos);
+			mmd->dyngrid = newdataadr(fd, mmd->dyngrid);
+			mmd->dyninfluences = newdataadr(fd, mmd->dyninfluences);
+			mmd->dynverts = newdataadr(fd, mmd->dynverts);
+			
+			mmd->bindweights = newdataadr(fd, mmd->bindweights);
+			mmd->bindcos = newdataadr(fd, mmd->bindcos);
+			
+			if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+				if (mmd->bindoffsets)  BLI_endian_switch_int32_array(mmd->bindoffsets, mmd->totvert + 1);
+				if (mmd->bindcagecos)  BLI_endian_switch_float_array(mmd->bindcagecos, mmd->totcagevert * 3);
+				if (mmd->dynverts)     BLI_endian_switch_int32_array(mmd->dynverts, mmd->totvert);
+				if (mmd->bindweights)  BLI_endian_switch_float_array(mmd->bindweights, mmd->totvert);
+				if (mmd->bindcos)      BLI_endian_switch_float_array(mmd->bindcos, mmd->totcagevert * 3);
+			}
+#endif
+		}
+	}
+}
+
 static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase *particles)
 {
 	ParticleSystem *psys, *psysnext;
@@ -3868,6 +3920,8 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			
 			psys->parent = newlibadr(fd, id->lib, psys->parent);
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
+			
+			lib_link_particle_modifiers(fd, ob, psys);
 			
 			if (psys->clmd) {
 				/* XXX - from reading existing code this seems correct but intended usage of
@@ -3945,6 +3999,8 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->renderdata = NULL;
 		
 		direct_link_pointcache_list(fd, &psys->ptcaches, &psys->pointcache, 0);
+		
+		direct_link_particle_modifiers(fd, &psys->modifiers);
 		
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);

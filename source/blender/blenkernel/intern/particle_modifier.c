@@ -68,3 +68,15 @@ ParticleModifierTypeInfo *particle_modifier_type_info_get(ParticleModifierType t
 		return NULL;
 	}
 }
+
+void particle_modifier_foreachIDLink(Object *ob, ParticleSystem *psys, IDWalkParticleFunc walk, void *userData)
+{
+	ParticleModifierData *md = psys->modifiers.first;
+
+	for (; md; md = md->next) {
+		ParticleModifierTypeInfo *mti = particle_modifier_type_info_get(md->type);
+
+		if (mti->foreachIDLink)
+			mti->foreachIDLink(md, ob, psys, walk, userData);
+	}
+}

@@ -40,6 +40,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_customdata.h"
+#include "BKE_modifier.h"
 
 struct ParticleSystemModifierData;
 struct ParticleSystem;
@@ -273,6 +274,8 @@ typedef struct ParticleInterpolationData {
 	int bspline;
 } ParticleInterpolationData;
 
+typedef void (*IDWalkParticleFunc)(void *userData, struct Object *ob, struct ParticleSystem *psys, struct ID **idpoin);
+
 typedef struct ParticleModifierTypeInfo {
 	/* The user visible name for this modifier */
 	char name[32];
@@ -282,6 +285,40 @@ typedef struct ParticleModifierTypeInfo {
 
 	/* The size of the modifier data type, used by allocation. */
 	int structSize;
+
+	/********************* Non-optional functions *********************/
+
+	/* Copy instance data for this modifier type. Should copy all user
+	 * level settings to the target modifier.
+	 */
+	void (*copyData)(struct ParticleModifierData *md, struct ParticleModifierData *target);
+
+	/********************* Optional functions *********************/
+
+	/* Initialize new instance data for this modifier type, this function
+	 * should set modifier variables to their default values.
+	 * 
+	 * This function is optional.
+	 */
+	void (*initData)(struct ParticleModifierData *md);
+
+	/* Free internal modifier data variables, this function should
+	 * not free the md variable itself.
+	 *
+	 * This function is optional.
+	 */
+	void (*freeData)(struct ParticleModifierData *md);
+
+	/* Should call the given walk function with a pointer to each ID
+	 * pointer (i.e. each datablock pointer) that the modifier data
+	 * stores. This is used for linking on file load and for
+	 * unlinking datablocks or forwarding datablock references.
+	 *
+	 * This function is optional. If it is not present, foreachObjectLink
+	 * will be used.
+	 */
+	void (*foreachIDLink)(struct ParticleModifierData *md, struct Object *ob, struct ParticleSystem *psys,
+	                      IDWalkParticleFunc walk, void *userData);
 } ParticleModifierTypeInfo;
 
 #define PARTICLE_DRAW_DATA_UPDATED  1
@@ -318,6 +355,7 @@ BLI_INLINE void psys_frand_vec(ParticleSystem *psys, unsigned int seed, float ve
 /* particle.c */
 void particle_modifier_types_init(void);
 struct ParticleModifierTypeInfo *particle_modifier_type_info_get(ParticleModifierType type);
+void particle_modifier_foreachIDLink(struct Object *ob, struct ParticleSystem *psys, IDWalkParticleFunc walk, void *userData);
 
 int count_particles(struct ParticleSystem *psys);
 int count_particles_mod(struct ParticleSystem *psys, int totgr, int cur);

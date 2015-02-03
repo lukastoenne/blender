@@ -153,6 +153,7 @@
 #include "BKE_library.h" // for  set_listbasepointers
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_particle.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
 #include "BKE_subsurf.h"
@@ -1090,6 +1091,7 @@ static void write_pointcaches(WriteData *wd, ListBase *ptcaches)
 		}
 	}
 }
+
 static void write_particlesettings(WriteData *wd, ListBase *idbase)
 {
 	ParticleSettings *part;
@@ -1146,6 +1148,35 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 		part= part->id.next;
 	}
 }
+
+static void write_particle_modifiers(WriteData *wd, ListBase *modbase)
+{
+	ParticleModifierData *md;
+
+	if (modbase == NULL) return;
+	for (md=modbase->first; md; md= md->next) {
+		ParticleModifierTypeInfo *mti = particle_modifier_type_info_get(md->type);
+		if (mti == NULL) return;
+		
+		writestruct(wd, DATA, mti->structName, 1, md);
+			
+		if (md->type==eParticleModifierType_MeshDeform) {
+			MeshDeformParticleModifierData *mmd = (MeshDeformParticleModifierData*) md;
+#if 0 // TODO
+			int size = mmd->dyngridsize;
+
+			writestruct(wd, DATA, "MDefInfluence", mmd->totinfluence, mmd->bindinfluences);
+			writedata(wd, DATA, sizeof(int) * (mmd->totvert + 1), mmd->bindoffsets);
+			writedata(wd, DATA, sizeof(float) * 3 * mmd->totcagevert,
+				mmd->bindcagecos);
+			writestruct(wd, DATA, "MDefCell", size*size*size, mmd->dyngrid);
+			writestruct(wd, DATA, "MDefInfluence", mmd->totinfluence, mmd->dyninfluences);
+			writedata(wd, DATA, sizeof(int)*mmd->totvert, mmd->dynverts);
+#endif
+		}
+	}
+}
+
 static void write_particlesystems(WriteData *wd, ListBase *particles)
 {
 	ParticleSystem *psys= particles->first;
@@ -1184,6 +1215,8 @@ static void write_particlesystems(WriteData *wd, ListBase *particles)
 		}
 
 		write_pointcaches(wd, &psys->ptcaches);
+
+		write_particle_modifiers(wd, &psys->modifiers);
 	}
 }
 
