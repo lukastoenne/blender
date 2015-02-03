@@ -69,6 +69,10 @@ static void operatortypes_particle(void)
 	WM_operatortype_append(PARTICLE_OT_particle_edit_toggle);
 	WM_operatortype_append(PARTICLE_OT_edited_clear);
 
+	WM_operatortype_append(PARTICLE_OT_modifier_add);
+	WM_operatortype_append(PARTICLE_OT_modifier_remove);
+	WM_operatortype_append(PARTICLE_OT_modifier_move_up);
+	WM_operatortype_append(PARTICLE_OT_modifier_move_down);
 
 	WM_operatortype_append(OBJECT_OT_particle_system_add);
 	WM_operatortype_append(OBJECT_OT_particle_system_remove);
