@@ -27,6 +27,7 @@
  */
 
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "BLI_sys_types.h"  /* for intptr_t */
 #include "BKE_global.h"
@@ -117,6 +118,36 @@ static bool seqcache_hashcmp(const void *a_, const void *b_)
 	        seq_cmp_render_data(&a->context, &b->context));
 }
 
+typedef struct {
+	int framenr;
+} SeqCachePriorityData;
+
+static void *moviecache_getprioritydata(void *key_v)
+{
+	SeqCacheKey *key = (SeqCacheKey *) key_v;
+	SeqCachePriorityData *priority_data;
+
+	priority_data = MEM_callocN(sizeof(*priority_data), "movie cache clip priority data");
+	priority_data->framenr = key->cfra;
+
+	return priority_data;
+}
+
+static int moviecache_getitempriority(void *last_userkey_v, void *priority_data_v)
+{
+	SeqCacheKey *last_userkey = (SeqCacheKey *) last_userkey_v;
+	SeqCachePriorityData *priority_data = (SeqCachePriorityData *) priority_data_v;
+
+	return -abs(last_userkey->cfra - priority_data->framenr);
+}
+
+static void moviecache_prioritydeleter(void *priority_data_v)
+{
+	SeqCachePriorityData *priority_data = (SeqCachePriorityData *) priority_data_v;
+
+	MEM_freeN(priority_data);
+}
+
 void BKE_sequencer_cache_destruct(void)
 {
 	if (moviecache)
@@ -130,6 +161,8 @@ void BKE_sequencer_cache_cleanup(void)
 	if (moviecache) {
 		IMB_moviecache_free(moviecache);
 		moviecache = IMB_moviecache_create("seqcache", sizeof(SeqCacheKey), seqcache_hashhash, seqcache_hashcmp);
+		IMB_moviecache_set_priority_callback(moviecache, moviecache_getprioritydata, moviecache_getitempriority,
+		                                     moviecache_prioritydeleter);
 	}
 
 	BKE_sequencer_preprocessed_cache_cleanup();
@@ -175,6 +208,8 @@ void BKE_sequencer_cache_put(const SeqRenderData *context, Sequence *seq, float 
 
 	if (!moviecache) {
 		moviecache = IMB_moviecache_create("seqcache", sizeof(SeqCacheKey), seqcache_hashhash, seqcache_hashcmp);
+		IMB_moviecache_set_priority_callback(moviecache, moviecache_getprioritydata, moviecache_getitempriority,
+		                                     moviecache_prioritydeleter);
 	}
 
 	key.seq = seq;
