@@ -808,7 +808,7 @@ void BKE_sequence_reload_new_file(Scene *scene, Sequence *seq, const bool lock_r
 			if (seq->anim) IMB_free_anim(seq->anim);
 
 			seq->anim = openanim(str, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-			                     seq->streamindex, seq->strip->colorspace_settings.name, true);
+			                     seq->streamindex, seq->strip->colorspace_settings.name);
 
 			if (!seq->anim) {
 				return;
@@ -1357,7 +1357,6 @@ static double seq_rendersize_to_scale_factor(int size)
 	return 0.25;
 }
 
-/* we may just want to generate the anim struct without getting the frame */
 static void seq_open_anim_file(Sequence *seq, bool openfile)
 {
 	char name[FILE_MAX];
@@ -1371,8 +1370,14 @@ static void seq_open_anim_file(Sequence *seq, bool openfile)
 	                 seq->strip->dir, seq->strip->stripdata->name);
 	BLI_path_abs(name, G.main->name);
 	
-	seq->anim = openanim(name, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-	                     seq->streamindex, seq->strip->colorspace_settings.name, openfile);
+	if (openfile) {
+		seq->anim = openanim(name, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+		                     seq->streamindex, seq->strip->colorspace_settings.name);
+	}
+	else {
+		seq->anim = openanim_noload(name, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+		                            seq->streamindex, seq->strip->colorspace_settings.name);
+	}
 
 	if (seq->anim == NULL) {
 		return;
@@ -1480,7 +1485,7 @@ static ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int c
 			}
 
 			seq->strip->proxy->anim = openanim(name, IB_rect, 0,
-			        seq->strip->colorspace_settings.name, true);
+			        seq->strip->colorspace_settings.name);
 		}
 		if (seq->strip->proxy->anim == NULL) {
 			return NULL;
@@ -2159,7 +2164,6 @@ static ImBuf *input_preprocess(const SeqRenderData *context, Sequence *seq, floa
 		multibuf(ibuf, mul);
 	}
 
-	/* do not scale proxies (happy crash galore here we come!)*/
 	if (!is_proxy_image) {
 		if (ibuf->x != context->rectx || ibuf->y != context->recty) {
 			if (scene->r.mode & R_OSA) {
@@ -4570,7 +4574,7 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 	BLI_strncpy(path, seq_load->path, sizeof(path));
 	BLI_path_abs(path, G.main->name);
 
-	an = openanim(path, IB_rect, 0, colorspace, true);
+	an = openanim(path, IB_rect, 0, colorspace);
 
 	if (an == NULL)
 		return NULL;

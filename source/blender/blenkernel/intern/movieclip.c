@@ -248,7 +248,7 @@ static void movieclip_open_anim_file(MovieClip *clip)
 		BLI_path_abs(str, ID_BLEND_PATH(G.main, &clip->id));
 
 		/* FIXME: make several stream accessible in image editor, too */
-		clip->anim = openanim(str, IB_rect, 0, clip->colorspace_settings.name, true);
+		clip->anim = openanim(str, IB_rect, 0, clip->colorspace_settings.name);
 
 		if (clip->anim) {
 			if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
