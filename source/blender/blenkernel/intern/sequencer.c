@@ -2159,12 +2159,15 @@ static ImBuf *input_preprocess(const SeqRenderData *context, Sequence *seq, floa
 		multibuf(ibuf, mul);
 	}
 
-	if (ibuf->x != context->rectx || ibuf->y != context->recty) {
-		if (scene->r.mode & R_OSA) {
-			IMB_scaleImBuf(ibuf, (short)context->rectx, (short)context->recty);
-		}
-		else {
-			IMB_scalefastImBuf(ibuf, (short)context->rectx, (short)context->recty);
+	/* do not scale proxies (happy crash galore here we come!)*/
+	if (!is_proxy_image) {
+		if (ibuf->x != context->rectx || ibuf->y != context->recty) {
+			if (scene->r.mode & R_OSA) {
+				IMB_scaleImBuf(ibuf, (short)context->rectx, (short)context->recty);
+			}
+			else {
+				IMB_scalefastImBuf(ibuf, (short)context->rectx, (short)context->recty);
+			}
 		}
 	}
 
@@ -2980,8 +2983,7 @@ static ImBuf *seq_render_strip(const SeqRenderData *context, Sequence *seq, floa
 	if (use_preprocess)
 		ibuf = input_preprocess(context, seq, cfra, ibuf, is_proxy_image, is_preprocessed);
 
-	if (G.debug_value != 314)
-		BKE_sequencer_cache_put(context, seq, cfra, SEQ_STRIPELEM_IBUF, ibuf);
+	BKE_sequencer_cache_put(context, seq, cfra, SEQ_STRIPELEM_IBUF, ibuf);
 
 	return ibuf;
 }
