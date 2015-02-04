@@ -721,11 +721,16 @@ typedef enum {
 	eParticleInstanceFlag_UseSize   = (1 << 7),
 } ParticleInstanceModifierFlag;
 
+typedef enum {
+	eParticleInstanceSpace_World    = 0,
+	eParticleInstanceSpace_Local    = 1,
+} ParticleInstanceModifierSpace;
+
 typedef struct ParticleInstanceModifierData {
 	ModifierData modifier;
 
 	struct Object *ob;
-	short psys, flag, axis, pad;
+	short psys, flag, axis, space;
 	float position, random_position;
 } ParticleInstanceModifierData;
 

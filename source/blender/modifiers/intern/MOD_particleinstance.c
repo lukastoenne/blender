@@ -62,7 +62,7 @@ static void initData(ModifierData *md)
 	pimd->psys = 1;
 	pimd->position = 1.0f;
 	pimd->axis = 2;
-
+	pimd->space = eParticleInstanceSpace_Local;
 }
 static void copyData(ModifierData *md, ModifierData *target)
 {
@@ -187,6 +187,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	short track = ob->trackflag % 3, trackneg, axis = pimd->axis;
 	float max_co = 0.0, min_co = 0.0, temp_co[3];
 	float *size = NULL;
+	float spacemat[4][4];
 
 	trackneg = ((ob->trackflag > 2) ? 1 : 0);
 
@@ -236,6 +237,21 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				*si = psys_get_child_size(psys, cpa, 0.0f, NULL);
 			}
 		}
+	}
+
+	switch (pimd->space) {
+		case eParticleInstanceSpace_World:
+			/* particle states are in world space already */
+			unit_m4(spacemat);
+			break;
+		case eParticleInstanceSpace_Local:
+			/* get particle states in the particle object's local space */
+			invert_m4_m4(spacemat, pimd->ob->obmat);
+			break;
+		default:
+			/* should not happen */
+			BLI_assert(false);
+			break;
 	}
 
 	totvert = dm->getNumVerts(dm);
@@ -385,6 +401,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			if (pimd->flag & eParticleInstanceFlag_UseSize)
 				mul_v3_fl(mv->co, size[p]);
 			add_v3_v3(mv->co, state.co);
+			
+			mul_m4_v3(spacemat, mv->co);
 		}
 
 		/* create polys and loops */

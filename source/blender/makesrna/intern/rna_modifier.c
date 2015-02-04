@@ -2345,6 +2345,12 @@ static void rna_def_modifier_particleinstance(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem particleinstance_space[] = {
+		{eParticleInstanceSpace_Local, "LOCAL", 0, "Local", "Use offset from the particle object in the instance object"},
+		{eParticleInstanceSpace_World, "WORLD", 0, "World", "Use world space offset in the instance object"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ParticleInstanceModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "ParticleInstance Modifier", "Particle system instancing modifier");
 	RNA_def_struct_sdna(srna, "ParticleInstanceModifierData");
@@ -2367,7 +2373,13 @@ static void rna_def_modifier_particleinstance(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, particleinstance_axis);
 	RNA_def_property_ui_text(prop, "Axis", "Pole axis for rotation");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
+
+	prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "space");
+	RNA_def_property_enum_items(prop, particleinstance_space);
+	RNA_def_property_ui_text(prop, "Space", "Space to use for copying mesh data");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "use_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", eParticleInstanceFlag_Parents);
 	RNA_def_property_ui_text(prop, "Normal", "Create instances from normal particles");

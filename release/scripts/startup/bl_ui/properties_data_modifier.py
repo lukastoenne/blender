@@ -649,6 +649,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         split = layout.split()
         col = split.column()
         col.label(text="Create From:")
+        layout.prop(md, "space", text="")
         col.prop(md, "use_normal")
         col.prop(md, "use_children")
         col.prop(md, "use_size")
