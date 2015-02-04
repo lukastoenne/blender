@@ -29,6 +29,7 @@
 #include <stddef.h>
 
 #include "BLI_sys_types.h"  /* for intptr_t */
+#include "BKE_global.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -168,7 +169,7 @@ void BKE_sequencer_cache_put(const SeqRenderData *context, Sequence *seq, float 
 {
 	SeqCacheKey key;
 
-	if (i == NULL || context->skip_cache) {
+	if (i == NULL || context->skip_cache || G.debug_value == 314) {
 		return;
 	}
 
@@ -214,7 +215,7 @@ ImBuf *BKE_sequencer_preprocessed_cache_get(const SeqRenderData *context, Sequen
 {
 	SeqPreprocessCacheElem *elem;
 
-	if (!preprocess_cache)
+	if (!preprocess_cache || G.debug_value == 314)
 		return NULL;
 
 	if (preprocess_cache->cfra != cfra)
