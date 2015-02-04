@@ -2934,7 +2934,9 @@ static ImBuf *seq_render_strip(const SeqRenderData *context, Sequence *seq, floa
 		ibuf = copy_from_ibuf_still(context, seq, nr);
 
 		if (ibuf == NULL) {
-			ibuf = BKE_sequencer_preprocessed_cache_get(context, seq, cfra, SEQ_STRIPELEM_IBUF);
+			/* disable caching in that case */
+			if (G.debug_value != 314)
+				ibuf = BKE_sequencer_preprocessed_cache_get(context, seq, cfra, SEQ_STRIPELEM_IBUF);
 
 			if (ibuf == NULL) {
 				/* MOVIECLIPs have their own proxy management */
