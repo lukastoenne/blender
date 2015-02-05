@@ -649,6 +649,13 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
+	/* widgets stay in the background for now - quick patchjob to make sure nodes themselves work */
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
+	}
+
+	WM_event_add_area_widgetmap_handlers(ar);
+
 	/* own keymaps */
 	keymap = WM_keymap_find(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
@@ -660,13 +667,6 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 	lb = WM_dropboxmap_find("Node Editor", SPACE_NODE, RGN_TYPE_WINDOW);
 
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
-
-	/* make sure we have a widgetmap - sucks a bit to do it here, but works for now */
-	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
-		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
-	}
-
-	WM_event_add_area_widgetmap_handlers(ar);
 }
 
 static void node_main_area_draw(const bContext *C, ARegion *ar)

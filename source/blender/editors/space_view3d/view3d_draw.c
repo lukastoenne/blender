@@ -3697,7 +3697,6 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 #endif
 		if (G.debug & G_DEBUG_SIMDATA)
 			draw_sim_debug_data(scene, v3d, ar);
-		
 	}
 
 	/* draw viewport using external renderer */

@@ -493,7 +493,13 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	ListBase *lb;
 	wmKeyMap *keymap;
-	
+
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true));
+	}
+
+	WM_event_add_area_widgetmap_handlers(ar);
+
 	/* object ops. */
 	
 	/* important to be before Pose keymap since they can both be enabled at once */
@@ -571,12 +577,6 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
-
-	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
-		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true));
-	}
-
-	WM_event_add_area_widgetmap_handlers(ar);
 }
 
 static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)

@@ -42,8 +42,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 
-#include "BKE_camera.h"
 #include "BKE_facemap.h"
+#include "BKE_camera.h"
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_group.h" /* needed for BKE_group_object_exists() */
