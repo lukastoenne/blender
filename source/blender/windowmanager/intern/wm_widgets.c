@@ -365,7 +365,7 @@ void WM_event_add_area_widgetmap_handlers(ARegion *ar)
 		handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
 	
 		handler->widgetmap = wmap;
-		BLI_addhead(&ar->handlers, handler);
+		BLI_addtail(&ar->handlers, handler);
 	}
 }
 
