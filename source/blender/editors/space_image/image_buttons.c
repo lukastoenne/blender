@@ -780,7 +780,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 					bool has_alpha = true;
 
 					if (ibuf) {
-						int imtype = BKE_ftype_to_imtype(ibuf->ftype);
+						int imtype = BKE_image_ftype_to_imtype(ibuf->ftype);
 						char valid_channels = BKE_imtype_valid_channels(imtype, false);
 
 						has_alpha = (valid_channels & IMA_CHAN_FLAG_ALPHA) != 0;
@@ -792,6 +792,11 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 						col = uiLayoutColumn(layout, false);
 						uiItemR(col, &imaptr, "use_alpha", 0, NULL, ICON_NONE);
 						uiItemR(col, &imaptr, "alpha_mode", 0, IFACE_("Alpha"), ICON_NONE);
+					}
+
+					if (ima->source == IMA_SRC_MOVIE) {
+						col = uiLayoutColumn(layout, false);
+						uiItemR(col, &imaptr, "use_deinterlace", 0, IFACE_("Deinterlace"), ICON_NONE);
 					}
 
 					uiItemS(layout);

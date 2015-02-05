@@ -43,6 +43,7 @@ struct Object;
 struct bGPdata;
 struct bGPDlayer;
 struct bGPDframe;
+struct bGPDstroke;
 struct PointerRNA;
 struct ImBuf;
 struct wmKeyConfig;
@@ -80,6 +81,11 @@ struct bGPdata *ED_gpencil_data_get_active_direct(struct ID *screen_id, struct S
 /* 3D View */
 struct bGPdata  *ED_gpencil_data_get_active_v3d(struct Scene *scene, struct View3D *v3d);
 
+/* ----------- Stroke Editing Utilities ---------------- */
+
+bool ED_gpencil_stroke_can_use_direct(const struct ScrArea *sa, const struct bGPDstroke *gps);
+bool ED_gpencil_stroke_can_use(const struct bContext *C, const struct bGPDstroke *gps);
+
 /* ----------- Grease Pencil Operators ----------------- */
 
 void ED_keymap_gpencil(struct wmKeyConfig *keyconf);
@@ -87,13 +93,20 @@ void ED_keymap_gpencil(struct wmKeyConfig *keyconf);
 void ED_operatortypes_gpencil(void);
 void ED_operatormacros_gpencil(void);
 
+/* ------------- Copy-Paste Buffers -------------------- */
+
+/* Strokes copybuf */
+void ED_gpencil_strokes_copybuf_free(void);
+
+
 /* ------------ Grease-Pencil Drawing API ------------------ */
 /* drawgpencil.c */
 
 void ED_gpencil_draw_2dimage(const struct bContext *C);
 void ED_gpencil_draw_view2d(const struct bContext *C, bool onlyv2d);
 void ED_gpencil_draw_view3d(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, bool only3d);
-void ED_gpencil_draw_ex(struct bGPdata *gpd, int winx, int winy, const int cfra);
+void ED_gpencil_draw_ex(struct Scene *scene, struct bGPdata *gpd, int winx, int winy,
+                        const int cfra, const char spacetype);
 
 /* ----------- Grease-Pencil AnimEdit API ------------------ */
 bool  ED_gplayer_frames_looper(struct bGPDlayer *gpl, struct Scene *scene,

@@ -74,10 +74,11 @@ typedef struct BGpic {
 	struct ImageUser iuser;
 	struct MovieClip *clip;
 	struct MovieClipUser cuser;
-	float xof, yof, size, blend;
+	float xof, yof, size, blend, rotation;
 	short view;
 	short flag;
-	short source, pad;
+	short source;
+	char pad[6];
 } BGpic;
 
 /* ********************************* */
@@ -89,11 +90,11 @@ typedef struct RegionView3D {
 	float viewinv[4][4];		/* inverse of viewmat */
 	float persmat[4][4];		/* viewmat*winmat */
 	float persinv[4][4];		/* inverse of persmat */
+	float viewcamtexcofac[4];	/* offset/scale for camera glsl texcoords */
 
 	/* viewmat/persmat multiplied with object matrix, while drawing and selection */
 	float viewmatob[4][4];
 	float persmatob[4][4];
-
 
 	/* user defined clipping planes */
 	float clip[6][4];
@@ -339,7 +340,11 @@ enum {
 
 	/* Camera framing options */
 	V3D_BGPIC_CAMERA_ASPECT = (1 << 5),  /* don't stretch to fit the camera view  */
-	V3D_BGPIC_CAMERA_CROP   = (1 << 6)   /* crop out the image */
+	V3D_BGPIC_CAMERA_CROP   = (1 << 6),  /* crop out the image */
+
+	/* Axis flip options */
+	V3D_BGPIC_FLIP_X        = (1 << 7),
+	V3D_BGPIC_FLIP_Y        = (1 << 8),
 };
 
 #define V3D_BGPIC_EXPANDED (V3D_BGPIC_EXPANDED | V3D_BGPIC_CAMERACLIP)

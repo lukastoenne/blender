@@ -388,7 +388,7 @@ static int user_frame_to_cache_frame(MovieClip *clip, int framenr)
 
 static void moviecache_keydata(void *userkey, int *framenr, int *proxy, int *render_flags)
 {
-	MovieClipImBufCacheKey *key = (MovieClipImBufCacheKey *)userkey;
+	const MovieClipImBufCacheKey *key = userkey;
 
 	*framenr = key->framenr;
 	*proxy = key->proxy;
@@ -397,7 +397,7 @@ static void moviecache_keydata(void *userkey, int *framenr, int *proxy, int *ren
 
 static unsigned int moviecache_hashhash(const void *keyv)
 {
-	MovieClipImBufCacheKey *key = (MovieClipImBufCacheKey *)keyv;
+	const MovieClipImBufCacheKey *key = keyv;
 	int rval = key->framenr;
 
 	return rval;
@@ -405,8 +405,8 @@ static unsigned int moviecache_hashhash(const void *keyv)
 
 static bool moviecache_hashcmp(const void *av, const void *bv)
 {
-	const MovieClipImBufCacheKey *a = (MovieClipImBufCacheKey *)av;
-	const MovieClipImBufCacheKey *b = (MovieClipImBufCacheKey *)bv;
+	const MovieClipImBufCacheKey *a = av;
+	const MovieClipImBufCacheKey *b = bv;
 
 	return ((a->framenr != b->framenr) ||
 	        (a->proxy != b->proxy) ||
@@ -621,7 +621,7 @@ MovieClip *BKE_movieclip_file_add(Main *bmain, const char *name)
 		BLI_strncpy(strtest, clip->name, sizeof(clip->name));
 		BLI_path_abs(strtest, G.main->name);
 
-		if (strcmp(strtest, str) == 0) {
+		if (STREQ(strtest, str)) {
 			BLI_strncpy(clip->name, name, sizeof(clip->name));  /* for stringcode */
 			clip->id.us++;  /* officially should not, it doesn't link here! */
 

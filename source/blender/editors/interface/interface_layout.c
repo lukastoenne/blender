@@ -235,9 +235,10 @@ static int ui_text_icon_width(uiLayout *layout, const char *name, int icon, bool
 	variable = (ui_layout_vary_direction(layout) == UI_ITEM_VARY_X);
 
 	if (variable) {
+		const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 		/* it may seem odd that the icon only adds (UI_UNIT_X / 4)
 		 * but taking margins into account its fine */
-		return (UI_fontstyle_string_width(name) +
+		return (UI_fontstyle_string_width(fstyle, name) +
 		        (UI_UNIT_X * ((compact ? 1.25f : 1.50f) +
 		                      (icon    ? 0.25f : 0.0f))));
 	}
@@ -639,7 +640,7 @@ static uiBut *ui_item_with_label(uiLayout *layout, uiBlock *block, const char *n
 	if (name[0]) {
 		/* XXX UI_fontstyle_string_width is not accurate */
 #if 0
-		labelw = UI_fontstyle_string_width(name);
+		labelw = UI_fontstyle_string_width(fstyle, name);
 		CLAMP(labelw, w / 4, 3 * w / 4);
 #endif
 		labelw = w / 3;
@@ -904,7 +905,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 	if (prop && RNA_property_type(prop) == PROP_ENUM) {
 		EnumPropertyItem *item, *item_array = NULL;
 		bool free;
-		uiLayout *split;
+		uiLayout *split = NULL;
 		uiLayout *target;
 
 		if (radial) {
@@ -1450,8 +1451,8 @@ typedef struct CollItemSearch {
 
 static int sort_search_items_list(const void *a, const void *b)
 {
-	CollItemSearch *cis1 = (CollItemSearch *)a;
-	CollItemSearch *cis2 = (CollItemSearch *)b;
+	const CollItemSearch *cis1 = (CollItemSearch *)a;
+	const CollItemSearch *cis2 = (CollItemSearch *)b;
 	
 	if (BLI_strcasecmp(cis1->name, cis2->name) > 0)
 		return 1;
@@ -1492,7 +1493,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 			BLI_strncpy(name_ui, id->name + 2, sizeof(name_ui));
 #endif
 			name = BLI_strdup(name_ui);
-			iconid = ui_id_icon_get((bContext *)C, id, false);
+			iconid = ui_id_icon_get(C, id, false);
 		}
 		else {
 			name = RNA_struct_name_get_alloc(&itemptr, NULL, 0, NULL); /* could use the string length here */

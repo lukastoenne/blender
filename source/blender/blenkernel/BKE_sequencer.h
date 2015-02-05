@@ -34,6 +34,7 @@ struct bContext;
 struct EvaluationContext;
 struct StripColorBalance;
 struct Editing;
+struct GSet;
 struct ImBuf;
 struct Main;
 struct Mask;
@@ -102,8 +103,10 @@ typedef struct SeqRenderData {
 	bool is_proxy_render;
 } SeqRenderData;
 
-SeqRenderData BKE_sequencer_new_render_data(struct EvaluationContext *eval_ctx, struct Main *bmain,
-                                            struct Scene *scene, int rectx, int recty, int preview_render_size);
+void BKE_sequencer_new_render_data(
+        struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *scene,
+        int rectx, int recty, int preview_render_size,
+        SeqRenderData *r_context);
 
 /* Wipe effect */
 enum {
@@ -234,10 +237,11 @@ struct StripElem *BKE_sequencer_give_stripelem(struct Sequence *seq, int cfra);
 void BKE_sequencer_update_changed_seq_and_deps(struct Scene *scene, struct Sequence *changed_seq, int len_change, int ibuf_change);
 bool BKE_sequencer_input_have_to_preprocess(const SeqRenderData *context, struct Sequence *seq, float cfra);
 
-struct SeqIndexBuildContext *BKE_sequencer_proxy_rebuild_context(struct Main *bmain, struct Scene *scene, struct Sequence *seq);
+struct SeqIndexBuildContext *BKE_sequencer_proxy_rebuild_context(struct Main *bmain, struct Scene *scene, struct Sequence *seq, struct GSet *file_list);
 void BKE_sequencer_proxy_rebuild(struct SeqIndexBuildContext *context, short *stop, short *do_update, float *progress);
 void BKE_sequencer_proxy_rebuild_finish(struct SeqIndexBuildContext *context, bool stop);
 
+void BKE_sequencer_proxy_set(struct Sequence *seq, bool value);
 /* **********************************************************************
  * seqcache.c
  *

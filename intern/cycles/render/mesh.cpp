@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #include "bvh.h"
@@ -30,6 +30,7 @@
 
 #include "util_cache.h"
 #include "util_foreach.h"
+#include "util_logging.h"
 #include "util_progress.h"
 #include "util_set.h"
 
@@ -555,6 +556,7 @@ MeshManager::MeshManager()
 {
 	bvh = NULL;
 	need_update = true;
+	need_flags_update = true;
 }
 
 MeshManager::~MeshManager()
@@ -980,6 +982,9 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	/* bvh build */
 	progress.set_status("Updating Scene BVH", "Building");
 
+	VLOG(1) << (scene->params.use_qbvh ? "Using QBVH optimization structure"
+	                                   : "Using regular BVH optimization structure");
+
 	BVHParams bparams;
 	bparams.top_level = true;
 	bparams.use_qbvh = scene->params.use_qbvh;
@@ -1027,6 +1032,24 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	}
 
 	dscene->data.bvh.root = pack.root_index;
+	dscene->data.bvh.use_qbvh = scene->params.use_qbvh;
+}
+
+void MeshManager::device_update_flags(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
+{
+	if(!need_update && !need_flags_update) {
+		return;
+	}
+	/* update flags */
+	foreach(Mesh *mesh, scene->meshes) {
+		mesh->has_volume = false;
+		foreach(uint shader, mesh->used_shaders) {
+			if(scene->shaders[shader]->has_volume) {
+				mesh->has_volume = true;
+			}
+		}
+	}
+	need_flags_update = false;
 }
 
 void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
@@ -1034,15 +1057,11 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	if(!need_update)
 		return;
 
-	/* update normals and flags */
+	/* update normals */
 	foreach(Mesh *mesh, scene->meshes) {
-		mesh->has_volume = false;
 		foreach(uint shader, mesh->used_shaders) {
 			if(scene->shaders[shader]->need_update_attributes)
 				mesh->need_update = true;
-			if(scene->shaders[shader]->has_volume) {
-				mesh->has_volume = true;
-			}
 		}
 
 		if(mesh->need_update) {
@@ -1094,13 +1113,17 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 
 	foreach(Mesh *mesh, scene->meshes) {
 		if(mesh->need_update) {
-			pool.push(function_bind(&Mesh::compute_bvh, mesh, &scene->params, &progress, i, num_bvh));
+			pool.push(function_bind(&Mesh::compute_bvh,
+			                        mesh,
+			                        &scene->params,
+			                        &progress,
+			                        i,
+			                        num_bvh));
 			i++;
 		}
 	}
 
 	pool.wait_work();
-	
 	foreach(Shader *shader, scene->shaders)
 		shader->need_update_attributes = false;
 

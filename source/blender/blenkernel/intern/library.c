@@ -139,7 +139,7 @@ void BKE_id_lib_local_paths(Main *bmain, Library *lib, ID *id)
 	BKE_bpath_traverse_id(bmain, id,
 	                      BKE_bpath_relocate_visitor,
 	                      BKE_BPATH_TRAVERSE_SKIP_MULTIFILE,
-	                      bpath_user_data);
+	                      (void *)bpath_user_data);
 }
 
 void id_lib_extern(ID *id)
@@ -351,7 +351,7 @@ bool id_copy(ID *id, ID **newid, bool test)
 		case ID_VF:
 			return false;  /* not implemented */
 		case ID_TXT:
-			if (!test) *newid = (ID *)BKE_text_copy((Text *)id);
+			if (!test) *newid = (ID *)BKE_text_copy(G.main, (Text *)id);
 			return true;
 		case ID_SCRIPT:
 			return false;  /* deprecated */
@@ -1202,7 +1202,7 @@ static ID *is_dupid(ListBase *lb, ID *id, const char *name)
 			/* do not test alphabetic! */
 			/* optimized */
 			if (idtest->name[2] == name[0]) {
-				if (strcmp(name, idtest->name + 2) == 0) break;
+				if (STREQ(name, idtest->name + 2)) break;
 			}
 		}
 	}
@@ -1260,7 +1260,7 @@ static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 			if ( (id != idtest) &&
 			     (idtest->lib == NULL) &&
 			     (*name == *(idtest->name + 2)) &&
-			     (strncmp(name, idtest->name + 2, left_len) == 0) &&
+			     STREQLEN(name, idtest->name + 2, left_len) &&
 			     (BLI_split_name_num(leftest, &nrtest, idtest->name + 2, '.') == left_len)
 			     )
 			{

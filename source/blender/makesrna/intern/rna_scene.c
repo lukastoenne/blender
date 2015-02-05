@@ -112,6 +112,7 @@ EnumPropertyItem proportional_falloff_items[] = {
 	{PROP_SMOOTH, "SMOOTH", ICON_SMOOTHCURVE, "Smooth", "Smooth falloff"},
 	{PROP_SPHERE, "SPHERE", ICON_SPHERECURVE, "Sphere", "Spherical falloff"},
 	{PROP_ROOT, "ROOT", ICON_ROOTCURVE, "Root", "Root falloff"},
+	{PROP_INVSQUARE, "INVERSE_SQUARE", ICON_ROOTCURVE, "Inverse Square", "Inverse Square falloff"},
 	{PROP_SHARP, "SHARP", ICON_SHARPCURVE, "Sharp", "Sharp falloff"},
 	{PROP_LIN, "LINEAR", ICON_LINCURVE, "Linear", "Linear falloff"},
 	{PROP_CONST, "CONSTANT", ICON_NOCURVE, "Constant", "Constant falloff"},
@@ -385,7 +386,7 @@ static int rna_Scene_object_bases_lookup_string(PointerRNA *ptr, const char *key
 	Base *base;
 
 	for (base = scene->base.first; base; base = base->next) {
-		if (strncmp(base->object->id.name + 2, key, sizeof(base->object->id.name) - 2) == 0) {
+		if (STREQLEN(base->object->id.name + 2, key, sizeof(base->object->id.name) - 2)) {
 			*r_ptr = rna_pointer_inherit_refine(ptr, &RNA_ObjectBase, base);
 			return true;
 		}
@@ -942,7 +943,7 @@ static int rna_SceneRender_file_ext_length(PointerRNA *ptr)
 	RenderData *rd = (RenderData *)ptr->data;
 	char ext[8];
 	ext[0] = '\0';
-	BKE_add_image_extension(ext, &rd->im_format);
+	BKE_image_path_ensure_ext_from_imformat(ext, &rd->im_format);
 	return strlen(ext);
 }
 
@@ -950,7 +951,7 @@ static void rna_SceneRender_file_ext_get(PointerRNA *ptr, char *str)
 {
 	RenderData *rd = (RenderData *)ptr->data;
 	str[0] = '\0';
-	BKE_add_image_extension(str, &rd->im_format);
+	BKE_image_path_ensure_ext_from_imformat(str, &rd->im_format);
 }
 
 #ifdef WITH_QUICKTIME
@@ -1158,7 +1159,7 @@ static int rna_RenderSettings_engine_get(PointerRNA *ptr)
 	int a = 0;
 
 	for (type = R_engines.first; type; type = type->next, a++)
-		if (strcmp(type->idname, rd->engine) == 0)
+		if (STREQ(type->idname, rd->engine))
 			return a;
 	
 	return 0;
@@ -1243,7 +1244,7 @@ static int rna_RenderSettings_use_game_engine_get(PointerRNA *ptr)
 	RenderEngineType *type;
 
 	for (type = R_engines.first; type; type = type->next)
-		if (strcmp(type->idname, rd->engine) == 0)
+		if (STREQ(type->idname, rd->engine))
 			return (type->flag & RE_GAME);
 	
 	return 0;
@@ -3207,7 +3208,7 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "slope_max", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "agentmaxslope");
-	RNA_def_property_range(prop, 0, M_PI / 2);
+	RNA_def_property_range(prop, 0, M_PI_2);
 	RNA_def_property_ui_text(prop, "Max Slope", "Maximum walkable slope angle");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
@@ -3622,8 +3623,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "logic_step_max", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "maxlogicstep");
-	RNA_def_property_ui_range(prop, 1, 5, 1, 1);
-	RNA_def_property_range(prop, 1, 5);
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_range(prop, 1, 50, 1, 1);
 	RNA_def_property_ui_text(prop, "Max Logic Steps",
 	                         "Maximum number of logic frame per game frame if graphics slows down the game, "
 	                         "higher value allows better synchronization with physics");
@@ -3631,8 +3632,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "physics_step_max", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "maxphystep");
-	RNA_def_property_ui_range(prop, 1, 5, 1, 1);
-	RNA_def_property_range(prop, 1, 5);
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_range(prop, 1, 50, 1, 1);
 	RNA_def_property_ui_text(prop, "Max Physics Steps",
 	                         "Maximum number of physics step per game frame if graphics slows down the game, "
 	                         "higher value allows physics to keep up with realtime");
@@ -5390,6 +5391,55 @@ static void rna_def_selected_uv_element(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Face Index", "");
 }
 
+static void rna_def_display_safe_areas(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static float default_title[2] = {0.035f, 0.035f};
+	static float default_action[2] = {0.1f, 0.05f};
+
+	static float default_title_center[2] = {0.175f, 0.05f};
+	static float default_action_center[2] = {0.15f, 0.05f};
+
+	srna = RNA_def_struct(brna, "DisplaySafeAreas", NULL);
+	RNA_def_struct_ui_text(srna, "Safe Areas", "Safe Areas used in 3D view and the VSE");
+	RNA_def_struct_sdna(srna, "DisplaySafeAreas");
+
+	/* SAFE AREAS */
+	prop = RNA_def_property(srna, "title", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_float_sdna(prop, NULL, "title");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_float_array_default(prop, default_title);
+	RNA_def_property_ui_text(prop, "Title Safe margins", "Safe area for text and graphics");
+	RNA_def_property_update(prop, NC_SCENE | ND_DRAW_RENDER_VIEWPORT, NULL);
+
+	prop = RNA_def_property(srna, "action", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_float_sdna(prop, NULL, "action");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_float_array_default(prop, default_action);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Action Safe Margins", "Safe area for general elements");
+	RNA_def_property_update(prop, NC_SCENE | ND_DRAW_RENDER_VIEWPORT, NULL);
+
+
+	prop = RNA_def_property(srna, "title_center", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_float_sdna(prop, NULL, "title_center");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_float_array_default(prop, default_title_center);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Center Title Safe Margins", "Safe area for text and graphics in a different aspect ratio");
+	RNA_def_property_update(prop, NC_SCENE | ND_DRAW_RENDER_VIEWPORT, NULL);
+
+	prop = RNA_def_property(srna, "action_center", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_float_sdna(prop, NULL, "action_center");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_float_array_default(prop, default_action_center);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Center Action Safe Margins", "Safe area for general elements in a different aspect ratio");
+	RNA_def_property_update(prop, NC_SCENE | ND_DRAW_RENDER_VIEWPORT, NULL);
+}
 
 
 void RNA_def_scene(BlenderRNA *brna)
@@ -5685,6 +5735,13 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "RenderSettings");
 	RNA_def_property_ui_text(prop, "Render Data", "");
 	
+	/* Safe Areas */
+	prop = RNA_def_property(srna, "safe_areas", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "safe_areas");
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "DisplaySafeAreas");
+	RNA_def_property_ui_text(prop, "Safe Areas", "");
+
 	/* Markers */
 	prop = RNA_def_property(srna, "timeline_markers", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "markers", NULL);
@@ -5799,6 +5856,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	rna_def_scene_game_data(brna);
 	rna_def_transform_orientation(brna);
 	rna_def_selected_uv_element(brna);
+	rna_def_display_safe_areas(brna);
 	RNA_define_animate_sdna(true);
 	/* *** Animated *** */
 	rna_def_scene_render_data(brna);

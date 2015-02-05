@@ -11,7 +11,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License
+# limitations under the License.
 #
 
 # <pep8 compliant>
@@ -100,3 +100,8 @@ def with_osl():
 def with_network():
     import _cycles
     return _cycles.with_network
+
+
+def system_info():
+    import _cycles
+    return _cycles.system_info()

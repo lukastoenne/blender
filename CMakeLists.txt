@@ -963,6 +963,12 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_OPENIMAGEIO)
 		find_package_wrapper(OpenImageIO)
+		if(NOT OPENIMAGEIO_PUGIXML_FOUND AND WITH_CYCLES_STANDALONE)
+			find_package_wrapper(PugiXML)
+		else()
+			set(PUGIXML_INCLUDE_DIR "${OPENIMAGEIO_INCLUDE_DIR/OpenImageIO}")
+			set(PUGIXML_LIBRARIES "")
+		endif()
 
 		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${ZLIB_LIBRARIES} ${BOOST_LIBRARIES})
 		set(OPENIMAGEIO_LIBPATH)  # TODO, remove and reference the absolute path everywhere
@@ -1076,10 +1082,10 @@ if(UNIX AND NOT APPLE)
 		# Note: --whole-archive is needed to force loading of all symbols in liboslexec,
 		# otherwise LLVM is missing the osl_allocate_closure_component function
 		list(APPEND OSL_LIBRARIES ${OSL_LIB_COMP} -Wl,--whole-archive ${OSL_LIB_EXEC} -Wl,--no-whole-archive ${OSL_LIB_QUERY})
-		find_path(OSL_INCLUDES OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
+		find_path(OSL_INCLUDE_DIR OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
 		find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
 	
-		if(OSL_INCLUDES AND OSL_LIBRARIES AND OSL_COMPILER)
+		if(OSL_INCLUDE_DIR AND OSL_LIBRARIES AND OSL_COMPILER)
 			set(OSL_FOUND TRUE)
 		else()
 			message(STATUS "OSL not found")
@@ -1092,6 +1098,8 @@ if(UNIX AND NOT APPLE)
 
 	find_package(Threads REQUIRED)
 	list(APPEND PLATFORM_LINKLIBS ${CMAKE_THREAD_LIBS_INIT})
+	# used by other platforms
+	set(PTHREADS_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
 
 	if(CMAKE_DL_LIBS)
 		list(APPEND PLATFORM_LINKLIBS ${CMAKE_DL_LIBS})
@@ -1335,11 +1343,11 @@ elseif(WIN32)
 			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 			set(OPENEXR_LIBRARIES
-				${OPENEXR_LIBPATH}/Iex-2_1.lib
+				${OPENEXR_LIBPATH}/Iex-2_2.lib
 				${OPENEXR_LIBPATH}/Half.lib
-				${OPENEXR_LIBPATH}/IlmImf-2_1.lib
-				${OPENEXR_LIBPATH}/Imath-2_1.lib
-				${OPENEXR_LIBPATH}/IlmThread-2_1.lib
+				${OPENEXR_LIBPATH}/IlmImf-2_2.lib
+				${OPENEXR_LIBPATH}/Imath-2_2.lib
+				${OPENEXR_LIBPATH}/IlmThread-2_2.lib
 			)
 			endif(NOT OPENEXR_FOUND)
 		endif()
@@ -1437,6 +1445,7 @@ elseif(WIN32)
 			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
 			set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
 			set(OPENCOLORIO_DEFINITIONS "-DOCIO_STATIC_BUILD")
+			set(OPENIMAGEIO_IDIFF "${OPENIMAGEIO}/bin/idiff.exe")
 			add_definitions(-DOIIO_STATIC_BUILD)
 		endif()
 
@@ -1485,6 +1494,13 @@ elseif(WIN32)
 			)
 		endif()
 
+		if(WITH_SDL)
+			set(SDL ${LIBDIR}/sdl)
+			set(SDL_INCLUDE_DIR ${SDL}/include)
+			set(SDL_LIBRARY SDL2)
+			set(SDL_LIBPATH ${SDL}/lib)
+		endif()
+
 		# used in many places so include globally, like OpenGL
 		blender_include_dirs_sys("${PTHREADS_INCLUDE_DIRS}")
 
@@ -1502,7 +1518,12 @@ elseif(WIN32)
 		
 		if(WITH_MINGW64)
 			message(STATUS "Compiling for 64 bit with MinGW-w64.")
-			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
+			execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
+			if (GCC_VERSION VERSION_GREATER 4.9 OR GCC_VERSION VERSION_EQUAL 4.9)
+				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64_gcc49)
+			else()
+				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
+			endif()
 		else()
 			message(STATUS "Compiling for 32 bit with MinGW-w32.")
 			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw32)
@@ -1671,6 +1692,7 @@ elseif(WIN32)
 			set(OPENIMAGEIO_LIBRARIES OpenImageIO)
 			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
 			set(OPENIMAGEIO_DEFINITIONS "")
+			set(OPENIMAGEIO_IDIFF "${OPENIMAGEIO}/bin/idiff.exe")
 		endif()
 		
 		if(WITH_LLVM)
@@ -1708,6 +1730,13 @@ elseif(WIN32)
 			set(OPENCOLORIO_DEFINITIONS)
 		endif()
 
+		if(WITH_SDL)
+			set(SDL ${LIBDIR}/sdl)
+			set(SDL_INCLUDE_DIR ${SDL}/include)
+			set(SDL_LIBRARY SDL)
+			set(SDL_LIBPATH ${SDL}/lib)
+		endif()
+
 		set(PLATFORM_LINKFLAGS "-Xlinker --stack=2097152")
 
 		## DISABLE - causes linking errors 
@@ -1739,13 +1768,6 @@ elseif(WIN32)
 		set(SNDFILE_LIBPATH ${SNDFILE}/lib) # TODO, deprecate
 	endif()
 
-	if(WITH_SDL)
-		set(SDL ${LIBDIR}/sdl)
-		set(SDL_INCLUDE_DIR ${SDL}/include)
-		set(SDL_LIBRARY SDL2)
-		set(SDL_LIBPATH ${SDL}/lib)
-	endif()
-
 	if(WITH_RAYOPTIMIZATION AND SUPPORT_SSE_BUILD)
 		add_definitions(-D__SSE__ -D__MMX__)
 	endif()
@@ -1760,10 +1782,10 @@ elseif(WIN32)
 		find_library(OSL_LIB_COMP_DEBUG NAMES oslcomp_d PATHS ${CYCLES_OSL}/lib)
 		find_library(OSL_LIB_QUERY_DEBUG NAMES oslquery_d PATHS ${CYCLES_OSL}/lib)
 		list(APPEND OSL_LIBRARIES optimized ${OSL_LIB_COMP} optimized ${OSL_LIB_EXEC} optimized ${OSL_LIB_QUERY} debug ${OSL_LIB_EXEC_DEBUG} debug ${OSL_LIB_COMP_DEBUG} debug ${OSL_LIB_QUERY_DEBUG})
-		find_path(OSL_INCLUDES OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
+		find_path(OSL_INCLUDE_DIR OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
 		find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
 	
-		if(OSL_INCLUDES AND OSL_LIBRARIES AND OSL_COMPILER)
+		if(OSL_INCLUDE_DIR AND OSL_LIBRARIES AND OSL_COMPILER)
 			set(OSL_FOUND TRUE)
 		else()
 			message(STATUS "OSL not found")
@@ -1999,6 +2021,7 @@ elseif(APPLE)
 		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO}/lib/libOpenImageIO.a ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
 		set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib ${JPEG_LIBPATH} ${PNG_LIBPATH} ${TIFF_LIBPATH} ${OPENEXR_LIBPATH} ${ZLIB_LIBPATH})
 		set(OPENIMAGEIO_DEFINITIONS "-DOIIO_STATIC_BUILD")
+		set(OPENIMAGEIO_IDIFF "${LIBDIR}/openimageio/bin/idiff")
 	endif()
 
 	if(WITH_OPENCOLORIO)
@@ -2054,10 +2077,10 @@ elseif(APPLE)
 		find_library(OSL_LIB_QUERY NAMES oslquery PATHS ${CYCLES_OSL}/lib)
 		# WARNING! depends on correct order of OSL libs linking
 		list(APPEND OSL_LIBRARIES ${OSL_LIB_COMP} -force_load ${OSL_LIB_EXEC} ${OSL_LIB_QUERY})
-		find_path(OSL_INCLUDES OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
+		find_path(OSL_INCLUDE_DIR OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
 		find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
 	
-		if(OSL_INCLUDES AND OSL_LIBRARIES AND OSL_COMPILER)
+		if(OSL_INCLUDE_DIR AND OSL_LIBRARIES AND OSL_COMPILER)
 			set(OSL_FOUND TRUE)
 		else()
 			message(STATUS "OSL not found")
@@ -2629,7 +2652,7 @@ mark_as_advanced(
 	OSL_COMPILER
 	OSL_LIB_COMP
 	OSL_LIB_QUERY
-	OSL_INCLUDES
+	OSL_INCLUDE_DIR
 )
 
 mark_as_advanced(

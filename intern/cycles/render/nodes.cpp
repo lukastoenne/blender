@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #include "image.h"
@@ -174,8 +174,10 @@ static ShaderEnum image_projection_init()
 {
 	ShaderEnum enm;
 
-	enm.insert("Flat", 0);
-	enm.insert("Box", 1);
+	enm.insert("Flat", NODE_IMAGE_PROJ_FLAT);
+	enm.insert("Box", NODE_IMAGE_PROJ_BOX);
+	enm.insert("Sphere", NODE_IMAGE_PROJ_SPHERE);
+	enm.insert("Tube", NODE_IMAGE_PROJ_TUBE);
 
 	return enm;
 }
@@ -266,14 +268,15 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 			tex_mapping.compile(compiler, vector_in->stack_offset, vector_offset);
 		}
 
-		if(projection == "Flat") {
+		if(projection != "Box") {
 			compiler.add_node(NODE_TEX_IMAGE,
 				slot,
 				compiler.encode_uchar4(
 					vector_offset,
 					color_out->stack_offset,
 					alpha_out->stack_offset,
-					srgb));
+					srgb),
+				projection_enum[projection]);
 		}
 		else {
 			compiler.add_node(NODE_TEX_IMAGE_BOX,
@@ -285,7 +288,7 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 					srgb),
 				__float_as_int(projection_blend));
 		}
-	
+
 		if(vector_offset != vector_in->stack_offset)
 			compiler.stack_clear_offset(vector_in->type, vector_offset);
 	}
@@ -1946,6 +1949,8 @@ void EmissionNode::compile(OSLCompiler& compiler)
 BackgroundNode::BackgroundNode()
 : ShaderNode("background")
 {
+	special_type = SHADER_SPECIAL_TYPE_BACKGROUND;
+
 	add_input("Color", SHADER_SOCKET_COLOR, make_float3(0.8f, 0.8f, 0.8f));
 	add_input("Strength", SHADER_SOCKET_FLOAT, 1.0f);
 	add_input("SurfaceMixWeight", SHADER_SOCKET_FLOAT, 0.0f, ShaderInput::USE_SVM);
@@ -2258,6 +2263,8 @@ TextureCoordinateNode::TextureCoordinateNode()
 	add_output("Reflection", SHADER_SOCKET_NORMAL);
 
 	from_dupli = false;
+	use_transform = false;
+	ob_tfm = transform_identity();
 }
 
 void TextureCoordinateNode::attributes(Shader *shader, AttributeRequestSet *attributes)
@@ -2345,7 +2352,14 @@ void TextureCoordinateNode::compile(SVMCompiler& compiler)
 	out = output("Object");
 	if(!out->links.empty()) {
 		compiler.stack_assign(out);
-		compiler.add_node(texco_node, NODE_TEXCO_OBJECT, out->stack_offset);
+		compiler.add_node(texco_node, NODE_TEXCO_OBJECT, out->stack_offset, use_transform);
+		if(use_transform) {
+			Transform ob_itfm = transform_inverse(ob_tfm);
+			compiler.add_node(ob_itfm.x);
+			compiler.add_node(ob_itfm.y);
+			compiler.add_node(ob_itfm.z);
+			compiler.add_node(ob_itfm.w);
+		}
 	}
 
 	out = output("Camera");
@@ -2386,7 +2400,10 @@ void TextureCoordinateNode::compile(OSLCompiler& compiler)
 		compiler.parameter("is_background", true);
 	if(compiler.output_type() == SHADER_TYPE_VOLUME)
 		compiler.parameter("is_volume", true);
-	
+	compiler.parameter("use_transform", use_transform);
+	Transform ob_itfm = transform_transpose(transform_inverse(ob_tfm));
+	compiler.parameter("object_itfm", ob_itfm);
+
 	compiler.parameter("from_dupli", from_dupli);
 
 	compiler.add(this, "node_texture_coordinate");
@@ -3754,10 +3771,30 @@ void VectorMathNode::compile(SVMCompiler& compiler)
 	ShaderOutput *value_out = output("Value");
 	ShaderOutput *vector_out = output("Vector");
 
-	compiler.stack_assign(vector1_in);
-	compiler.stack_assign(vector2_in);
 	compiler.stack_assign(value_out);
 	compiler.stack_assign(vector_out);
+
+	/* Optimize vector math node without links to a single value node. */
+	if(vector1_in->link == NULL && vector2_in->link == NULL) {
+		float optimized_value;
+		float3 optimized_vector;
+		svm_vector_math(&optimized_value,
+		                &optimized_vector,
+		                (NodeVectorMath)type_enum[type],
+		                vector1_in->value,
+		                vector2_in->value);
+
+		compiler.add_node(NODE_VALUE_F,
+		                  __float_as_int(optimized_value),
+		                  value_out->stack_offset);
+
+		compiler.add_node(NODE_VALUE_V, vector_out->stack_offset);
+		compiler.add_node(NODE_VALUE_V, optimized_vector);
+		return;
+	}
+
+	compiler.stack_assign(vector1_in);
+	compiler.stack_assign(vector2_in);
 
 	compiler.add_node(NODE_VECTOR_MATH, type_enum[type], vector1_in->stack_offset, vector2_in->stack_offset);
 	compiler.add_node(NODE_VECTOR_MATH, value_out->stack_offset, vector_out->stack_offset);

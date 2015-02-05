@@ -50,6 +50,21 @@ void cent_quad_v3(float cent[3], const float v1[3], const float v2[3], const flo
 	cent[2] = 0.25f * (v1[2] + v2[2] + v3[2] + v4[2]);
 }
 
+void cross_tri_v3(float n[3], const float v1[3], const float v2[3], const float v3[3])
+{
+	float n1[3], n2[3];
+
+	n1[0] = v1[0] - v2[0];
+	n2[0] = v2[0] - v3[0];
+	n1[1] = v1[1] - v2[1];
+	n2[1] = v2[1] - v3[1];
+	n1[2] = v1[2] - v2[2];
+	n2[2] = v2[2] - v3[2];
+	n[0] = n1[1] * n2[2] - n1[2] * n2[1];
+	n[1] = n1[2] * n2[0] - n1[0] * n2[2];
+	n[2] = n1[0] * n2[1] - n1[1] * n2[0];
+}
+
 float normal_tri_v3(float n[3], const float v1[3], const float v2[3], const float v3[3])
 {
 	float n1[3], n2[3];
@@ -94,58 +109,44 @@ float normal_quad_v3(float n[3], const float v1[3], const float v2[3], const flo
  */
 float normal_poly_v3(float n[3], const float verts[][3], unsigned int nr)
 {
-	const float *v_prev = verts[nr - 1];
-	const float *v_curr = verts[0];
-	unsigned int i;
-
-	zero_v3(n);
-
-	/* Newell's Method */
-	for (i = 0; i < nr; v_prev = v_curr, v_curr = verts[++i]) {
-		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
-	}
-
+	cross_poly_v3(n, verts, nr);
 	return normalize_v3(n);
 }
 
-/* only convex Quadrilaterals */
 float area_quad_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
 {
-	float len, vec1[3], vec2[3], n[3];
+	const float verts[4][3] = {{UNPACK3(v1)}, {UNPACK3(v2)}, {UNPACK3(v3)}, {UNPACK3(v4)}};
+	return area_poly_v3(verts, 4);
+}
 
-	sub_v3_v3v3(vec1, v2, v1);
-	sub_v3_v3v3(vec2, v4, v1);
-	cross_v3_v3v3(n, vec1, vec2);
-	len = len_v3(n);
-
-	sub_v3_v3v3(vec1, v4, v3);
-	sub_v3_v3v3(vec2, v2, v3);
-	cross_v3_v3v3(n, vec1, vec2);
-	len += len_v3(n);
-
-	return (len / 2.0f);
+float area_squared_quad_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
+{
+	const float verts[4][3] = {{UNPACK3(v1)}, {UNPACK3(v2)}, {UNPACK3(v3)}, {UNPACK3(v4)}};
+	return area_squared_poly_v3(verts, 4);
 }
 
 /* Triangles */
 float area_tri_v3(const float v1[3], const float v2[3], const float v3[3])
 {
-	float vec1[3], vec2[3], n[3];
+	float n[3];
+	cross_tri_v3(n, v1, v2, v3);
+	return len_v3(n) * 0.5f;
+}
 
-	sub_v3_v3v3(vec1, v3, v2);
-	sub_v3_v3v3(vec2, v1, v2);
-	cross_v3_v3v3(n, vec1, vec2);
-
-	return len_v3(n) / 2.0f;
+float area_squared_tri_v3(const float v1[3], const float v2[3], const float v3[3])
+{
+	float n[3];
+	cross_tri_v3(n, v1, v2, v3);
+	mul_v3_fl(n, 0.5f);
+	return len_squared_v3(n);
 }
 
 float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3], const float normal[3])
 {
-	float area, vec1[3], vec2[3], n[3];
+	float area, n[3];
 
-	sub_v3_v3v3(vec1, v3, v2);
-	sub_v3_v3v3(vec2, v1, v2);
-	cross_v3_v3v3(n, vec1, vec2);
-	area = len_v3(n) / 2.0f;
+	cross_tri_v3(n, v1, v2, v3);
+	area = len_v3(n) * 0.5f;
 
 	/* negate area for flipped triangles */
 	if (dot_v3v3(n, normal) < 0.0f)
@@ -157,7 +158,17 @@ float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3]
 float area_poly_v3(const float verts[][3], unsigned int nr)
 {
 	float n[3];
-	return normal_poly_v3(n, verts, nr) * 0.5f;
+	cross_poly_v3(n, verts, nr);
+	return len_v3(n) * 0.5f;
+}
+
+float area_squared_poly_v3(const float verts[][3], unsigned int nr)
+{
+	float n[3];
+
+	cross_poly_v3(n, verts, nr);
+	mul_v3_fl(n, 0.5f);
+	return len_squared_v3(n);
 }
 
 /**
@@ -185,9 +196,34 @@ float cross_poly_v2(const float verts[][2], unsigned int nr)
 	return cross;
 }
 
+void cross_poly_v3(float n[3], const float verts[][3], unsigned int nr)
+{
+	const float *v_prev = verts[nr - 1];
+	const float *v_curr = verts[0];
+	unsigned int i;
+
+	zero_v3(n);
+
+	/* Newell's Method */
+	for (i = 0; i < nr; v_prev = v_curr, v_curr = verts[++i]) {
+		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
+	}
+}
+
 float area_poly_v2(const float verts[][2], unsigned int nr)
 {
 	return fabsf(0.5f * cross_poly_v2(verts, nr));
+}
+
+float area_poly_signed_v2(const float verts[][2], unsigned int nr)
+{
+	return (0.5f * cross_poly_v2(verts, nr));
+}
+
+float area_squared_poly_v2(const float verts[][2], unsigned int nr)
+{
+	float area = area_poly_signed_v2(verts, nr);
+	return area * area;
 }
 
 float cotangent_tri_weight_v3(const float v1[3], const float v2[3], const float v3[3])
@@ -2350,15 +2386,15 @@ bool barycentric_coords_v2(const float v1[2], const float v2[2], const float v3[
 }
 
 /**
- * \note: using #area_tri_signed_v2 means locations outside the triangle are correctly weighted
+ * \note: using #cross_tri_v2 means locations outside the triangle are correctly weighted
  */
 void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
 {
 	float wtot;
 
-	w[0] = area_tri_signed_v2(v2, v3, co);
-	w[1] = area_tri_signed_v2(v3, v1, co);
-	w[2] = area_tri_signed_v2(v1, v2, co);
+	w[0] = cross_tri_v2(v2, v3, co);
+	w[1] = cross_tri_v2(v3, v1, co);
+	w[2] = cross_tri_v2(v1, v2, co);
 	wtot = w[0] + w[1] + w[2];
 
 	if (wtot != 0.0f) {
@@ -2377,9 +2413,9 @@ void barycentric_weights_v2_persp(const float v1[4], const float v2[4], const fl
 {
 	float wtot;
 
-	w[0] = area_tri_signed_v2(v2, v3, co) / v1[3];
-	w[1] = area_tri_signed_v2(v3, v1, co) / v2[3];
-	w[2] = area_tri_signed_v2(v1, v2, co) / v3[3];
+	w[0] = cross_tri_v2(v2, v3, co) / v1[3];
+	w[1] = cross_tri_v2(v3, v1, co) / v2[3];
+	w[2] = cross_tri_v2(v1, v2, co) / v3[3];
 	wtot = w[0] + w[1] + w[2];
 
 	if (wtot != 0.0f) {
@@ -2602,38 +2638,55 @@ int interp_sparse_array(float *array, const int list_size, const float skipval)
 	return 1;
 }
 
+/** \name interp_weights_poly_v2, v3
+ * \{ */
+
+#define IS_POINT_IX     (1 << 0)
+#define IS_SEGMENT_IX   (1 << 1)
+
+#define DIR_V3_SET(d_len, va, vb)  { \
+	sub_v3_v3v3((d_len)->dir, va, vb); \
+	(d_len)->len = len_v3((d_len)->dir); \
+} (void)0
+
+#define DIR_V2_SET(d_len, va, vb)  { \
+	sub_v2_v2v2((d_len)->dir, va, vb); \
+	(d_len)->len = len_v2((d_len)->dir); \
+} (void)0
+
+struct Float3_Len {
+	float dir[3], len;
+};
+
+struct Float2_Len {
+	float dir[2], len;
+};
+
 /* Mean value weights - smooth interpolation weights for polygons with
  * more than 3 vertices */
-static float mean_value_half_tan_v3(const float v1[3], const float v2[3], const float v3[3])
+static float mean_value_half_tan_v3(const struct Float3_Len *d_curr, const struct Float3_Len *d_next)
 {
-	float d2[3], d3[3], cross[3], area;
-
-	sub_v3_v3v3(d2, v2, v1);
-	sub_v3_v3v3(d3, v3, v1);
-	cross_v3_v3v3(cross, d2, d3);
-
+	float cross[3], area;
+	cross_v3_v3v3(cross, d_curr->dir, d_next->dir);
 	area = len_v3(cross);
 	if (LIKELY(area != 0.0f)) {
-		const float dot = dot_v3v3(d2, d3);
-		const float len = len_v3(d2) * len_v3(d3);
+		const float dot = dot_v3v3(d_curr->dir, d_next->dir);
+		const float len = d_curr->len * d_next->len;
 		return (len - dot) / area;
 	}
 	else {
 		return 0.0f;
 	}
 }
-static float mean_value_half_tan_v2(const float v1[2], const float v2[2], const float v3[2])
+
+static float mean_value_half_tan_v2(const struct Float2_Len *d_curr, const struct Float2_Len *d_next)
 {
-	float d2[2], d3[2], area;
-
-	sub_v2_v2v2(d2, v2, v1);
-	sub_v2_v2v2(d3, v3, v1);
-
+	float area;
 	/* different from the 3d version but still correct */
-	area = cross_v2v2(d2, d3);
+	area = cross_v2v2(d_curr->dir, d_next->dir);
 	if (LIKELY(area != 0.0f)) {
-		const float dot = dot_v2v2(d2, d3);
-		const float len = len_v2(d2) * len_v2(d3);
+		const float dot = dot_v2v2(d_curr->dir, d_next->dir);
+		const float len = d_curr->len * d_next->len;
 		return (len - dot) / area;
 	}
 	else {
@@ -2649,30 +2702,34 @@ void interp_weights_poly_v3(float *w, float v[][3], const int n, const float co[
 	float ht_prev, ht;  /* half tangents */
 	float totweight = 0.0f;
 	int i = 0;
-	bool vert_interp = false;
-	bool edge_interp = false;
+	char ix_flag = 0;
+	struct Float3_Len d_curr, d_next;
 
 	v_curr = v[0];
 	v_next = v[1];
 
-	ht_prev = mean_value_half_tan_v3(co, v[n - 1], v_curr);
+	DIR_V3_SET(&d_curr, v[n - 1], co);
+	DIR_V3_SET(&d_next, v_curr, co);
+	ht_prev = mean_value_half_tan_v3(&d_curr, &d_next);
 
 	while (i < n) {
-		const float len_sq = len_squared_v3v3(co, v_curr);
-
 		/* Mark Mayer et al algorithm that is used here does not operate well if vertex is close
 		 * to borders of face. In that case, do simple linear interpolation between the two edge vertices */
-		if (len_sq < eps_sq) {
-			vert_interp = true;
+
+		/* 'd_next.len' is infact 'd_curr.len', just avoid copy to begin with */
+		if (UNLIKELY(d_next.len < eps)) {
+			ix_flag = IS_POINT_IX;
 			break;
 		}
-		else if (dist_squared_to_line_segment_v3(co, v_curr, v_next) < eps_sq) {
-			edge_interp = true;
+		else if (UNLIKELY(dist_squared_to_line_segment_v3(co, v_curr, v_next) < eps_sq)) {
+			ix_flag = IS_SEGMENT_IX;
 			break;
 		}
 
-		ht = mean_value_half_tan_v3(co, v_curr, v_next);
-		w[i] = (ht_prev + ht) / sqrtf(len_sq);
+		d_curr = d_next;
+		DIR_V3_SET(&d_next, v_next, co);
+		ht = mean_value_half_tan_v3(&d_curr, &d_next);
+		w[i] = (ht_prev + ht) / d_curr.len;
 		totweight += w[i];
 
 		/* step */
@@ -2683,22 +2740,21 @@ void interp_weights_poly_v3(float *w, float v[][3], const int n, const float co[
 		ht_prev = ht;
 	}
 
-	if (vert_interp) {
+	if (ix_flag) {
 		const int i_curr = i;
-		for (i = 0; i < n; i++)
-			w[i] = 0.0;
-		w[i_curr] = 1.0f;
-	}
-	else if (edge_interp) {
-		const int i_curr = i;
-		float len_curr = len_v3v3(co, v_curr);
-		float len_next = len_v3v3(co, v_next);
-		float edge_len = len_curr + len_next;
-		for (i = 0; i < n; i++)
-			w[i] = 0.0;
+		for (i = 0; i < n; i++) {
+			w[i] = 0.0f;
+		}
 
-		w[i_curr] = len_next / edge_len;
-		w[(i_curr + 1) % n] = len_curr / edge_len;
+		if (ix_flag & IS_POINT_IX) {
+			w[i_curr] = 1.0f;
+		}
+		else {
+			float fac = line_point_factor_v3(co, v_curr, v_next);
+			CLAMP(fac, 0.0f, 1.0f);
+			w[i_curr] = 1.0f - fac;
+			w[(i_curr + 1) % n] = fac;
+		}
 	}
 	else {
 		if (totweight != 0.0f) {
@@ -2718,30 +2774,34 @@ void interp_weights_poly_v2(float *w, float v[][2], const int n, const float co[
 	float ht_prev, ht;  /* half tangents */
 	float totweight = 0.0f;
 	int i = 0;
-	bool vert_interp = false;
-	bool edge_interp = false;
+	char ix_flag = 0;
+	struct Float2_Len d_curr, d_next;
 
 	v_curr = v[0];
 	v_next = v[1];
 
-	ht_prev = mean_value_half_tan_v2(co, v[n - 1], v_curr);
+	DIR_V2_SET(&d_curr, v[n - 1], co);
+	DIR_V2_SET(&d_next, v_curr, co);
+	ht_prev = mean_value_half_tan_v2(&d_curr, &d_next);
 
 	while (i < n) {
-		const float len_sq = len_squared_v2v2(co, v_curr);
-
 		/* Mark Mayer et al algorithm that is used here does not operate well if vertex is close
 		 * to borders of face. In that case, do simple linear interpolation between the two edge vertices */
-		if (len_sq < eps_sq) {
-			vert_interp = true;
+
+		/* 'd_next.len' is infact 'd_curr.len', just avoid copy to begin with */
+		if (UNLIKELY(d_next.len < eps)) {
+			ix_flag = IS_POINT_IX;
 			break;
 		}
-		else if (dist_squared_to_line_segment_v2(co, v_curr, v_next) < eps_sq) {
-			edge_interp = true;
+		else if (UNLIKELY(dist_squared_to_line_segment_v2(co, v_curr, v_next) < eps_sq)) {
+			ix_flag = IS_SEGMENT_IX;
 			break;
 		}
 
-		ht = mean_value_half_tan_v2(co, v_curr, v_next);
-		w[i] = (ht_prev + ht) / sqrtf(len_sq);
+		d_curr = d_next;
+		DIR_V2_SET(&d_next, v_next, co);
+		ht = mean_value_half_tan_v2(&d_curr, &d_next);
+		w[i] = (ht_prev + ht) / d_curr.len;
 		totweight += w[i];
 
 		/* step */
@@ -2752,22 +2812,21 @@ void interp_weights_poly_v2(float *w, float v[][2], const int n, const float co[
 		ht_prev = ht;
 	}
 
-	if (vert_interp) {
+	if (ix_flag) {
 		const int i_curr = i;
-		for (i = 0; i < n; i++)
-			w[i] = 0.0;
-		w[i_curr] = 1.0f;
-	}
-	else if (edge_interp) {
-		const int i_curr = i;
-		float len_curr = len_v2v2(co, v_curr);
-		float len_next = len_v2v2(co, v_next);
-		float edge_len = len_curr + len_next;
-		for (i = 0; i < n; i++)
-			w[i] = 0.0;
+		for (i = 0; i < n; i++) {
+			w[i] = 0.0f;
+		}
 
-		w[i_curr] = len_next / edge_len;
-		w[(i_curr + 1) % n] = len_curr / edge_len;
+		if (ix_flag & IS_POINT_IX) {
+			w[i_curr] = 1.0f;
+		}
+		else {
+			float fac = line_point_factor_v2(co, v_curr, v_next);
+			CLAMP(fac, 0.0f, 1.0f);
+			w[i_curr] = 1.0f - fac;
+			w[(i_curr + 1) % n] = fac;
+		}
 	}
 	else {
 		if (totweight != 0.0f) {
@@ -2777,6 +2836,15 @@ void interp_weights_poly_v2(float *w, float v[][2], const int n, const float co[
 		}
 	}
 }
+
+#undef IS_POINT_IX
+#undef IS_SEGMENT_IX
+
+#undef DIR_V3_SET
+#undef DIR_V2_SET
+
+/** \} */
+
 
 /* (x1, v1)(t1=0)------(x2, v2)(t2=1), 0<t<1 --> (x, v)(t) */
 void interp_cubic_v3(float x[3], float v[3], const float x1[3], const float v1[3], const float x2[3], const float v2[3], const float t)
@@ -3054,6 +3122,59 @@ void window_translate_m4(float winmat[4][4], float perspmat[4][4], const float x
 	else {
 		winmat[3][0] += x;
 		winmat[3][1] += y;
+	}
+}
+
+/**
+ * Frustum planes extraction from a projection matrix (homogeneous 4d vector representations of planes).
+ *
+ * plane parameters can be NULL if you do not need them.
+ */
+void planes_from_projmat(float mat[4][4], float left[4], float right[4], float top[4], float bottom[4],
+                         float near[4], float far[4])
+{
+	/* References:
+	 *
+	 * https://fgiesen.wordpress.com/2012/08/31/frustum-planes-from-the-projection-matrix/
+	 * http://www8.cs.umu.se/kurser/5DV051/HT12/lab/plane_extraction.pdf
+	 */
+
+	int i;
+
+	if (left) {
+		for (i = 4; i--; ) {
+			left[i] = mat[i][3] + mat[i][0];
+		}
+	}
+
+	if (right) {
+		for (i = 4; i--; ) {
+			right[i] = mat[i][3] - mat[i][0];
+		}
+	}
+
+	if (bottom) {
+		for (i = 4; i--; ) {
+			bottom[i] = mat[i][3] + mat[i][1];
+		}
+	}
+
+	if (top) {
+		for (i = 4; i--; ) {
+			top[i] = mat[i][3] - mat[i][1];
+		}
+	}
+
+	if (near) {
+		for (i = 4; i--; ) {
+			near[i] = mat[i][3] + mat[i][2];
+		}
+	}
+
+	if (far) {
+		for (i = 4; i--; ) {
+			far[i] = mat[i][3] - mat[i][2];
+		}
 	}
 }
 

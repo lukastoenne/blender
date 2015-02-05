@@ -143,8 +143,10 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		int chanshown = sseq ? sseq->chanshown : 0;
 		struct bGPdata *gpd = (sseq && (sseq->flag & SEQ_SHOW_GPENCIL)) ? sseq->gpd : NULL;
 
-		context = BKE_sequencer_new_render_data(oglrender->bmain->eval_ctx, oglrender->bmain,
-		                                        scene, oglrender->sizex, oglrender->sizey, 100.0f);
+		BKE_sequencer_new_render_data(
+		        oglrender->bmain->eval_ctx, oglrender->bmain, scene,
+		        oglrender->sizex, oglrender->sizey, 100.0f,
+		        &context);
 
 		ibuf = BKE_sequencer_give_ibuf(&context, CFRA, chanshown);
 
@@ -187,7 +189,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			glTranslatef(sizex / 2, sizey / 2, 0.0f);
 
 			G.f |= G_RENDER_OGL;
-			ED_gpencil_draw_ex(gpd, sizex, sizey, scene->r.cfra);
+			ED_gpencil_draw_ex(scene, gpd, sizex, sizey, scene->r.cfra, SPACE_SEQ);
 			G.f &= ~G_RENDER_OGL;
 
 			gp_rect = MEM_mallocN(sizex * sizey * sizeof(unsigned char) * 4, "offscreen rect");
@@ -313,8 +315,9 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 
 	/* rr->rectf is now filled with image data */
 
-	if ((scene->r.stamp & R_STAMP_ALL) && (scene->r.stamp & R_STAMP_DRAW))
-		BKE_stamp_buf(scene, camera, rect, rr->rectf, rr->rectx, rr->recty, 4);
+	if ((scene->r.stamp & R_STAMP_ALL) && (scene->r.stamp & R_STAMP_DRAW)) {
+		BKE_image_stamp_buf(scene, camera, rect, rr->rectf, rr->rectx, rr->recty, 4);
+	}
 
 	RE_ReleaseResult(oglrender->re);
 
@@ -333,8 +336,9 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 				IMB_color_to_bw(ibuf);
 			}
 
-			BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
-			                  &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, false);
+			BKE_image_path_from_imformat(
+			        name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
+			        &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, false);
 			ok = BKE_imbuf_write_as(ibuf, name, &scene->r.im_format, true); /* no need to stamp here */
 			if (ok) printf("OpenGL Render written to '%s'\n", name);
 			else printf("OpenGL Render failed to write '%s'\n", name);
@@ -562,8 +566,9 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
 
 	if (!is_movie) {
-		BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
-		                  &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, true);
+		BKE_image_path_from_imformat(
+		        name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
+		        &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, true);
 
 		if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(name)) {
 			BKE_reportf(op->reports, RPT_INFO, "Skipping existing frame \"%s\"", name);

@@ -228,7 +228,8 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
 		int number;
 		int len = BLI_split_name_num(left, &number, name, delim);
 		do {
-			const int numlen = BLI_snprintf(numstr, sizeof(numstr), "%c%03d", delim, ++number);
+			/* add 1 to account for \0 */
+			const int numlen = BLI_snprintf(numstr, sizeof(numstr), "%c%03d", delim, ++number) + 1;
 
 			/* highly unlikely the string only has enough room for the number
 			 * but support anyway */
@@ -238,9 +239,8 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
 			}
 			else {
 				char *tempname_buf;
-				tempname[0] = '\0';
-				tempname_buf = BLI_strncat_utf8(tempname, left, name_len - numlen);
-				memcpy(tempname_buf, numstr, numlen + 1);
+				tempname_buf = tempname + BLI_strncpy_utf8_rlen(tempname, left, name_len - numlen);
+				memcpy(tempname_buf, numstr, numlen);
 			}
 		} while (unique_check(arg, tempname));
 
@@ -426,6 +426,23 @@ void BLI_cleanup_file(const char *relabase, char *path)
 {
 	BLI_cleanup_path(relabase, path);
 	BLI_del_slash(path);
+}
+
+
+/**
+ * Make given name safe to be used in paths.
+ *
+ * For now, simply replaces reserved chars (as listed in
+ * http://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words )
+ * by underscores ('_').
+ */
+void BLI_filename_make_safe(char *fname)
+{
+	const char *invalid = "/\\?%*:|\"<>. ";
+
+	for (; *fname && (fname = strpbrk(fname, invalid)); fname++) {
+		*fname = '_';
+	}
 }
 
 /**
@@ -1087,18 +1104,22 @@ void BLI_char_switch(char *string, char from, char to)
 }
 
 /**
- * Strips off nonexistent subdirectories from the end of *dir, leaving the path of
- * the lowest-level directory that does exist.
+ * Strips off nonexistent (or non-accessible) subdirectories from the end of *dir, leaving the path of
+ * the lowest-level directory that does exist and we can read.
  */
 void BLI_make_exist(char *dir)
 {
 	int a;
+	char par_path[PATH_MAX + 3];
 
 	BLI_char_switch(dir, ALTSEP, SEP);
 
 	a = strlen(dir);
 
-	while (!BLI_is_dir(dir)) {
+	for (BLI_join_dirfile(par_path, sizeof(par_path), dir, FILENAME_PARENT);
+	     !(BLI_is_dir(dir) && BLI_exists(par_path));
+	     BLI_join_dirfile(par_path, sizeof(par_path), dir, FILENAME_PARENT))
+	{
 		a--;
 		while (dir[a] != SEP) {
 			a--;
@@ -1348,9 +1369,7 @@ bool BLI_ensure_extension(char *path, size_t maxlen, const char *ext)
 	ssize_t a;
 
 	/* first check the extension is already there */
-	if (    (ext_len <= path_len) &&
-	        (strcmp(path + (path_len - ext_len), ext) == 0))
-	{
+	if ((ext_len <= path_len) && (STREQ(path + (path_len - ext_len), ext))) {
 		return true;
 	}
 

@@ -31,12 +31,25 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "../generic/python_utildefines.h"
+
 #ifndef MATH_STANDALONE
 #  include "BLI_dynstr.h"
 #endif
 
 PyDoc_STRVAR(M_Mathutils_doc,
-"This module provides access to matrices, eulers, quaternions and vectors."
+"This module provides access to the math classes:\n"
+"\n"
+"- :class:`Color`,\n"
+"- :class:`Euler`,\n"
+"- :class:`Matrix`,\n"
+"- :class:`Quaternion`,\n"
+"- :class:`Vector`,\n"
+"\n"
+".. note::\n"
+"\n"
+"   Classes, methods and attributes that accept vectors also accept other numeric sequences,\n"
+"   such as tuples, lists."
 );
 static int mathutils_array_parse_fast(float *array,
                                       int size,
@@ -69,7 +82,10 @@ static int mathutils_array_parse_fast(float *array,
 /* helper functionm returns length of the 'value', -1 on error */
 int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *value, const char *error_prefix)
 {
+	const int flag = array_max;
 	int size;
+
+	array_max &= ~MU_ARRAY_FLAGS;
 
 #if 1 /* approx 6x speedup for mathutils types */
 
@@ -80,6 +96,10 @@ int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *
 	{
 		if (BaseMath_ReadCallback((BaseMathObject *)value) == -1) {
 			return -1;
+		}
+
+		if (flag & MU_ARRAY_SPILL) {
+			CLAMP_MAX(size, array_max);
 		}
 
 		if (size > array_max || size < array_min) {
@@ -97,7 +117,6 @@ int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *
 		}
 
 		memcpy(array, ((BaseMathObject *)value)->data, size * sizeof(float));
-		return size;
 	}
 	else
 #endif
@@ -111,6 +130,10 @@ int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *
 		}
 
 		size = PySequence_Fast_GET_SIZE(value_fast);
+
+		if (flag & MU_ARRAY_SPILL) {
+			CLAMP_MAX(size, array_max);
+		}
 
 		if (size > array_max || size < array_min) {
 			if (array_max == array_min) {
@@ -127,8 +150,19 @@ int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *
 			return -1;
 		}
 
-		return mathutils_array_parse_fast(array, size, value_fast, error_prefix);
+		size = mathutils_array_parse_fast(array, size, value_fast, error_prefix);
 	}
+
+	if (size != -1) {
+		if (flag & MU_ARRAY_ZERO) {
+			int size_left = array_max - size;
+			if (size_left) {
+				memset(&array[size], 0, sizeof(float) * size_left);
+			}
+		}
+	}
+
+	return size;
 }
 
 /* on error, -1 is returned and no allocation is made */
@@ -196,6 +230,7 @@ int mathutils_array_parse_alloc(float **array, int array_min, PyObject *value, c
 int mathutils_array_parse_alloc_v(float **array, int array_dim, PyObject *value, const char *error_prefix)
 {
 	PyObject *value_fast = NULL;
+	const int array_dim_flag = array_dim;
 	int i, size;
 
 	/* non list/tuple cases */
@@ -209,12 +244,14 @@ int mathutils_array_parse_alloc_v(float **array, int array_dim, PyObject *value,
 	if (size != 0) {
 		float *fp;
 
+		array_dim &= ~MU_ARRAY_FLAGS;
+
 		fp = *array = PyMem_Malloc(size * array_dim * sizeof(float));
 
 		for (i = 0; i < size; i++, fp += array_dim) {
 			PyObject *item = PySequence_Fast_GET_ITEM(value, i);
 
-			if (mathutils_array_parse(fp, array_dim, array_dim, item, error_prefix) == -1) {
+			if (mathutils_array_parse(fp, array_dim, array_dim_flag, item, error_prefix) == -1) {
 				PyMem_Free(*array);
 				*array = NULL;
 				size = -1;
@@ -420,14 +457,13 @@ char BaseMathObject_owner_doc[] = "The item this is wrapping or None  (read-only
 PyObject *BaseMathObject_owner_get(BaseMathObject *self, void *UNUSED(closure))
 {
 	PyObject *ret = self->cb_user ? self->cb_user : Py_None;
-	Py_INCREF(ret);
-	return ret;
+	return Py_INCREF_RET(ret);
 }
 
 char BaseMathObject_is_wrapped_doc[] = "True when this object wraps external data (read-only).\n\n:type: boolean";
 PyObject *BaseMathObject_is_wrapped_get(BaseMathObject *self, void *UNUSED(closure))
 {
-	return PyBool_FromLong((self->wrapped == Py_WRAP) ? 1 : 0);
+	return PyBool_FromLong((self->flag & BASE_MATH_FLAG_IS_WRAP) != 0);
 }
 
 int BaseMathObject_traverse(BaseMathObject *self, visitproc visit, void *arg)
@@ -445,7 +481,7 @@ int BaseMathObject_clear(BaseMathObject *self)
 void BaseMathObject_dealloc(BaseMathObject *self)
 {
 	/* only free non wrapped */
-	if (self->wrapped != Py_WRAP) {
+	if ((self->flag & BASE_MATH_FLAG_IS_WRAP) == 0) {
 		PyMem_Free(self->data);
 	}
 
@@ -477,6 +513,7 @@ static struct PyModuleDef M_Mathutils_module_def = {
 
 /* submodules only */
 #include "mathutils_geometry.h"
+#include "mathutils_interpolate.h"
 #ifndef MATH_STANDALONE
 #  include "mathutils_kdtree.h"
 #  include "mathutils_noise.h"
@@ -512,6 +549,13 @@ PyMODINIT_FUNC PyInit_mathutils(void)
 	
 	/* submodule */
 	PyModule_AddObject(mod, "geometry",       (submodule = PyInit_mathutils_geometry()));
+	/* XXX, python doesnt do imports with this usefully yet
+	 * 'from mathutils.geometry import PolyFill'
+	 * ...fails without this. */
+	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
+	Py_INCREF(submodule);
+
+	PyModule_AddObject(mod, "interpolate",    (submodule = PyInit_mathutils_interpolate()));
 	/* XXX, python doesnt do imports with this usefully yet
 	 * 'from mathutils.geometry import PolyFill'
 	 * ...fails without this. */

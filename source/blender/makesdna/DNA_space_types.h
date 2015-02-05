@@ -274,6 +274,7 @@ typedef enum eSpaceOutliner_Flag {
 	SO_NEWSELECTED          = (1 << 1),
 	SO_HIDE_RESTRICTCOLS    = (1 << 2),
 	SO_HIDE_KEYINGSETINFO   = (1 << 3),
+	SO_SKIP_SORT_ALPHA      = (1 << 4),
 } eSpaceOutliner_Flag;
 
 /* SpaceOops->outlinevis */
@@ -529,12 +530,13 @@ typedef enum eSpaceSeq_Flag {
 	SEQ_DRAWFRAMES              = (1 << 0),
 	SEQ_MARKER_TRANS            = (1 << 1),
 	SEQ_DRAW_COLOR_SEPARATED    = (1 << 2),
-	SEQ_DRAW_SAFE_MARGINS       = (1 << 3),
+	SEQ_SHOW_SAFE_MARGINS       = (1 << 3),
 	SEQ_SHOW_GPENCIL            = (1 << 4),
 	SEQ_NO_DRAW_CFRANUM         = (1 << 5),
 	SEQ_USE_ALPHA               = (1 << 6), /* use RGBA display mode for preview */
 	SEQ_ALL_WAVEFORMS           = (1 << 7), /* draw all waveforms */
 	SEQ_NO_WAVEFORMS            = (1 << 8), /* draw no waveforms */
+	SEQ_SHOW_SAFE_CENTER        = (1 << 9),
 } eSpaceSeq_Flag;
 
 /* sseq->view */
@@ -586,6 +588,8 @@ typedef struct FileSelectParams {
 	char renameedit[256]; /* annoying but the first is only used for initialization */
 
 	char filter_glob[64]; /* list of filetypes to filter */
+
+	char filter_search[64];  /* text items' name must match to be shown. */
 
 	int active_file;
 	int sel_first;
@@ -694,28 +698,28 @@ typedef enum eFileSel_Params_Flag {
 
 /* files in filesel list: file types */
 typedef enum eFileSel_File_Types {
-	BLENDERFILE         = (1 << 2),
-	BLENDERFILE_BACKUP  = (1 << 3),
-	IMAGEFILE           = (1 << 4),
-	MOVIEFILE           = (1 << 5),
-	PYSCRIPTFILE        = (1 << 6),
-	FTFONTFILE          = (1 << 7),
-	SOUNDFILE           = (1 << 8),
-	TEXTFILE            = (1 << 9),
-	MOVIEFILE_ICON      = (1 << 10), /* movie file that preview can't load */
-	FOLDERFILE          = (1 << 11), /* represents folders for filtering */
-	BTXFILE             = (1 << 12),
-	COLLADAFILE         = (1 << 13),
-	OPERATORFILE        = (1 << 14), /* from filter_glob operator property */
-	APPLICATIONBUNDLE   = (1 << 15),
+	FILE_TYPE_BLENDER           = (1 << 2),
+	FILE_TYPE_BLENDER_BACKUP    = (1 << 3),
+	FILE_TYPE_IMAGE             = (1 << 4),
+	FILE_TYPE_MOVIE             = (1 << 5),
+	FILE_TYPE_PYSCRIPT          = (1 << 6),
+	FILE_TYPE_FTFONT            = (1 << 7),
+	FILE_TYPE_SOUND             = (1 << 8),
+	FILE_TYPE_TEXT              = (1 << 9),
+	FILE_TYPE_MOVIE_ICON        = (1 << 10), /* movie file that preview can't load */
+	FILE_TYPE_FOLDER            = (1 << 11), /* represents folders for filtering */
+	FILE_TYPE_BTX               = (1 << 12),
+	FILE_TYPE_COLLADA           = (1 << 13),
+	FILE_TYPE_OPERATOR          = (1 << 14), /* from filter_glob operator property */
+	FILE_TYPE_APPLICATIONBUNDLE = (1 << 15),
 } eFileSel_File_Types;
 
 /* Selection Flags in filesel: struct direntry, unsigned char selflag */
 typedef enum eDirEntry_SelectFlag {
-/*  ACTIVE_FILE         = (1 << 1), */ /* UNUSED */
-	HILITED_FILE        = (1 << 2),
-	SELECTED_FILE       = (1 << 3),
-	EDITING_FILE        = (1 << 4),
+/*	FILE_SEL_ACTIVE         = (1 << 1), */ /* UNUSED */
+	FILE_SEL_HIGHLIGHTED    = (1 << 2),
+	FILE_SEL_SELECTED       = (1 << 3),
+	FILE_SEL_EDITING        = (1 << 4),
 } eDirEntry_SelectFlag;
 
 /* Image/UV Editor ======================================== */
@@ -932,7 +936,7 @@ typedef struct bNodeTreePath {
 	bNodeInstanceKey parent_key;	/* base key for nodes in this tree instance */
 	int pad;
 	float view_center[2];			/* v2d center point, so node trees can have different offsets in editors */
-	/* XXX this is not automatically updated when node names are changed! */
+	
 	char node_name[64];		/* MAX_NAME */
 } bNodeTreePath;
 
@@ -1201,6 +1205,9 @@ typedef enum eSpace_Type {
 	
 	SPACEICONMAX = SPACE_CLIP
 } eSpace_Type;
+
+/* use for function args */
+#define SPACE_TYPE_ANY -1
 
 // TODO: SPACE_SCRIPT
 #if (DNA_DEPRECATED_GCC_POISON == 1)

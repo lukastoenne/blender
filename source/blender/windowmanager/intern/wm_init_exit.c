@@ -96,6 +96,7 @@
 #include "wm_window.h"
 
 #include "ED_armature.h"
+#include "ED_gpencil.h"
 #include "ED_keyframing.h"
 #include "ED_node.h"
 #include "ED_render.h"
@@ -169,6 +170,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	
 	BLF_lang_set(NULL);
 
+	ED_spacemacros_init();
+
 	/* note: there is a bug where python needs initializing before loading the
 	 * startup.blend because it may contain PyDrivers. It also needs to be after
 	 * initializing space types and other internal data.
@@ -186,8 +189,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 	(void)argc; /* unused */
 	(void)argv; /* unused */
 #endif
-
-	ED_spacemacros_init();
 
 	if (!G.background && !wm_start_with_console)
 		GHOST_toggleConsole(3);
@@ -475,6 +476,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	free_anim_copybuf();
 	free_anim_drivers_copybuf();
 	free_fmodifiers_copybuf();
+	ED_gpencil_strokes_copybuf_free();
 	ED_clipboard_posebuf_free();
 	BKE_node_clipboard_clear();
 

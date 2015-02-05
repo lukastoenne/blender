@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #include "util_debug.h"
@@ -49,6 +49,25 @@ static string from_boost(const boost::filesystem::path& path)
 	return path.string().c_str();
 }
 
+static char *path_specials(const string& sub)
+{
+	static bool env_init = false;
+	static char *env_shader_path;
+	static char *env_kernel_path;
+	if(!env_init) {
+		env_shader_path = getenv("CYCLES_SHADER_PATH");
+		env_kernel_path = getenv("CYCLES_KERNEL_PATH");
+		env_init = true;
+	}
+	if(env_shader_path != NULL && sub == "shader") {
+		return env_shader_path;
+	}
+	else if(env_shader_path != NULL && sub == "kernel") {
+		return env_kernel_path;
+	}
+	return NULL;
+}
+
 void path_init(const string& path, const string& user_path)
 {
 	cached_path = path;
@@ -62,6 +81,10 @@ void path_init(const string& path, const string& user_path)
 
 string path_get(const string& sub)
 {
+	char *special = path_specials(sub);
+	if(special != NULL)
+		return special;
+
 	if(cached_path == "")
 		cached_path = path_dirname(Sysutil::this_program_path());
 

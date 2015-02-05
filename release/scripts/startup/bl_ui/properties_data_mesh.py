@@ -122,7 +122,7 @@ class MESH_UL_uvmaps_vcols(UIList):
             layout.label(text="", icon_value=icon)
 
 
-class MeshButtonsPanel():
+class MeshButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"
@@ -370,7 +370,6 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                 row = layout.column()
                 row.active = enable_edit_value
                 row.prop(key, "eval_time")
-                row.prop(key, "slurph")
 
 
 class DATA_PT_uv_texture(MeshButtonsPanel, Panel):

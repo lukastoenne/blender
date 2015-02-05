@@ -61,6 +61,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_dial.h"
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
+#include "BLI_linklist_stack.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
@@ -76,6 +77,7 @@
 #include "BKE_idprop.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
@@ -100,11 +102,14 @@
 #include "ED_util.h"
 #include "ED_view3d.h"
 
+#include "GPU_material.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 #include "UI_interface.h"
+#include "UI_interface_icons.h"
 #include "UI_resources.h"
 
 #include "WM_api.h"
@@ -1184,7 +1189,7 @@ bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const struct ImageFor
 	/* dont NULL check prop, this can only run on ops with a 'filepath' */
 	prop = RNA_struct_find_property(op->ptr, "filepath");
 	RNA_property_string_get(op->ptr, prop, filepath);
-	if (BKE_add_image_extension(filepath, im_format)) {
+	if (BKE_image_path_ensure_ext_from_imformat(filepath, im_format)) {
 		RNA_property_string_set(op->ptr, prop, filepath);
 		/* note, we could check for and update 'filename' here,
 		 * but so far nothing needs this. */
@@ -1227,27 +1232,27 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	}
 	
-	prop = RNA_def_boolean(ot->srna, "filter_blender", (filter & BLENDERFILE) != 0, "Filter .blend files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_blender", (filter & FILE_TYPE_BLENDER) != 0, "Filter .blend files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_backup", (filter & BLENDERFILE_BACKUP) != 0, "Filter .blend files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_backup", (filter & FILE_TYPE_BLENDER_BACKUP) != 0, "Filter .blend files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_image", (filter & IMAGEFILE) != 0, "Filter image files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_image", (filter & FILE_TYPE_IMAGE) != 0, "Filter image files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_movie", (filter & MOVIEFILE) != 0, "Filter movie files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_movie", (filter & FILE_TYPE_MOVIE) != 0, "Filter movie files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_python", (filter & PYSCRIPTFILE) != 0, "Filter python files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_python", (filter & FILE_TYPE_PYSCRIPT) != 0, "Filter python files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_font", (filter & FTFONTFILE) != 0, "Filter font files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_font", (filter & FILE_TYPE_FTFONT) != 0, "Filter font files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_sound", (filter & SOUNDFILE) != 0, "Filter sound files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_sound", (filter & FILE_TYPE_SOUND) != 0, "Filter sound files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_text", (filter & TEXTFILE) != 0, "Filter text files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_text", (filter & FILE_TYPE_TEXT) != 0, "Filter text files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_btx", (filter & BTXFILE) != 0, "Filter btx files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_btx", (filter & FILE_TYPE_BTX) != 0, "Filter btx files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_collada", (filter & COLLADAFILE) != 0, "Filter COLLADA files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_collada", (filter & FILE_TYPE_COLLADA) != 0, "Filter COLLADA files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_folder", (filter & FOLDERFILE) != 0, "Filter folders", "");
+	prop = RNA_def_boolean(ot->srna, "filter_folder", (filter & FILE_TYPE_FOLDER) != 0, "Filter folders", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
 	prop = RNA_def_int(ot->srna, "filemode", type, FILE_LOADLIB, FILE_SPECIAL,
@@ -2023,6 +2028,14 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemO(col, NULL, ICON_RECOVER_LAST, "WM_OT_recover_last_session");
 	uiItemL(col, "", ICON_NONE);
 	
+	mt = WM_menutype_find("USERPREF_MT_splash_footer", false);
+	if (mt) {
+		Menu menu = {NULL};
+		menu.layout = uiLayoutColumn(layout, false);
+		menu.type = mt;
+		mt->draw(C, &menu);
+	}
+
 	UI_block_bounds_set_centered(block, 0);
 	
 	return block;
@@ -2456,7 +2469,7 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	ot->ui = wm_open_mainfile_ui;
 	/* omit window poll so this can work in background mode */
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 
 	RNA_def_boolean(ot->srna, "load_ui", true, "Load UI", "Load user interface setup in the .blend file");
@@ -2679,7 +2692,9 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 	/* recreate dependency graph to include new objects */
 	DAG_scene_relations_rebuild(bmain, scene);
-
+	
+	/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
+	GPU_materials_free();
 	BLO_blendhandle_close(bh);
 
 	/* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
@@ -2723,7 +2738,7 @@ static void WM_OT_link(wmOperatorType *ot)
 	ot->flag |= OPTYPE_UNDO;
 
 	WM_operator_properties_filesel(
-	        ot, FOLDERFILE | BLENDERFILE, FILE_LOADLIB, FILE_OPENFILE,
+	        ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_LOADLIB, FILE_OPENFILE,
 	        WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_RELPATH | WM_FILESEL_FILES,
 	        FILE_DEFAULTDISPLAY);
 	
@@ -2743,7 +2758,7 @@ static void WM_OT_append(wmOperatorType *ot)
 	ot->flag |= OPTYPE_UNDO;
 
 	WM_operator_properties_filesel(
-		ot, FOLDERFILE | BLENDERFILE, FILE_LOADLIB, FILE_OPENFILE,
+		ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_LOADLIB, FILE_OPENFILE,
 		WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES,
 		FILE_DEFAULTDISPLAY);
 
@@ -2835,7 +2850,7 @@ static void WM_OT_recover_auto_save(wmOperatorType *ot)
 	ot->exec = wm_recover_auto_save_exec;
 	ot->invoke = wm_recover_auto_save_invoke;
 
-	WM_operator_properties_filesel(ot, BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_LONGDISPLAY);
 }
 
@@ -2953,7 +2968,7 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	ot->check = blend_save_check;
 	/* omit window poll so this can work in background mode */
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 	RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", true, "Remap Relative",
@@ -3029,7 +3044,7 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 	ot->check = blend_save_check;
 	/* omit window poll so this can work in background mode */
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 	RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", false, "Remap Relative",
@@ -4319,9 +4334,17 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 	if (event->val == KM_PRESS && has_numInput && handleNumInput(C, &rc->num_input, event)) {
 		handled = true;
 		applyNumInput(&rc->num_input, &numValue);
+
+		if (rc->subtype == PROP_ANGLE) {
+			numValue = DEG2RADF(numValue);
+			numValue = fmod(numValue, 2.0f * (float)M_PI);
+			if (numValue < 0.0f)
+				numValue += 2.0f * (float)M_PI;
+		}
+		
 		CLAMP(numValue, rc->min_value, rc->max_value);
 		new_value = numValue;
-
+		
 		radial_control_set_value(rc, new_value);
 		rc->current_value = new_value;
 		radial_control_update_header(op, C);
@@ -4408,7 +4431,7 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 							if (snap) new_value = ((int)ceil(new_value * 10.f) * 10.0f) / 100.f;
 							break;
 						case PROP_ANGLE:
-							new_value = atan2f(delta[1], delta[0]) + M_PI + angle_precision;
+							new_value = atan2f(delta[1], delta[0]) + (float)M_PI + angle_precision;
 							new_value = fmod(new_value, 2.0f * (float)M_PI);
 							if (new_value < 0.0f)
 								new_value += 2.0f * (float)M_PI;
@@ -4459,10 +4482,19 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 		/* Modal numinput inactive, try to handle numeric inputs last... */
 		if (!handled && event->val == KM_PRESS && handleNumInput(C, &rc->num_input, event)) {
 			applyNumInput(&rc->num_input, &numValue);
+
+			if (rc->subtype == PROP_ANGLE) {
+				numValue = DEG2RADF(numValue);
+				numValue = fmod(numValue, 2.0f * (float)M_PI);
+				if (numValue < 0.0f)
+					numValue += 2.0f * (float)M_PI;
+			}
+
 			CLAMP(numValue, rc->min_value, rc->max_value);
 			new_value = numValue;
-
+			
 			radial_control_set_value(rc, new_value);
+			
 			rc->current_value = new_value;
 			radial_control_update_header(op, C);
 			return OPERATOR_RUNNING_MODAL;
@@ -4718,6 +4750,90 @@ static void WM_OT_dependency_relations(wmOperatorType *ot)
 	ot->exec = dependency_relations_exec;
 }
 
+/* *************************** Mat/tex/etc. previews generation ************* */
+
+typedef struct PreviewsIDEnsureStack {
+	Scene *scene;
+
+	BLI_LINKSTACK_DECLARE(id_stack, ID *);
+} PreviewsIDEnsureStack;
+
+static void previews_id_ensure(bContext *C, Scene *scene, ID *id)
+{
+	BLI_assert(ELEM(GS(id->name), ID_MA, ID_TE, ID_IM, ID_WO, ID_LA));
+
+	/* Only preview non-library datablocks, lib ones do not pertain to this .blend file!
+	 * Same goes for ID with no user. */
+	if (!id->lib && (id->us != 0)) {
+		UI_id_icon_render(C, scene, id, false, false);
+		UI_id_icon_render(C, scene, id, true, false);
+	}
+}
+
+static bool previews_id_ensure_callback(void *todo_v, ID **idptr, int UNUSED(cd_flag))
+{
+	PreviewsIDEnsureStack *todo = todo_v;
+	ID *id = *idptr;
+
+	if (id && (id->flag & LIB_DOIT)) {
+		if (ELEM(GS(id->name), ID_MA, ID_TE, ID_IM, ID_WO, ID_LA)) {
+			previews_id_ensure(NULL, todo->scene, id);
+		}
+		id->flag &= ~LIB_DOIT;  /* Tag the ID as done in any case. */
+		BLI_LINKSTACK_PUSH(todo->id_stack, id);
+	}
+
+	return true;
+}
+
+static int previews_ensure_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Main *bmain = CTX_data_main(C);
+	ListBase *lb[] = {&bmain->mat, &bmain->tex, &bmain->image, &bmain->world, &bmain->lamp, NULL};
+	PreviewsIDEnsureStack preview_id_stack;
+	Scene *scene;
+	ID *id;
+	int i;
+
+	/* We use LIB_DOIT to check whether we have already handled a given ID or not. */
+	BKE_main_id_flag_all(bmain, LIB_DOIT, true);
+
+	BLI_LINKSTACK_INIT(preview_id_stack.id_stack);
+
+	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
+		preview_id_stack.scene = scene;
+		id = (ID *)scene;
+
+		do {
+			/* This will loop over all IDs linked by current one, render icons for them if needed,
+			 * and add them to 'todo' preview_id_stack. */
+			BKE_library_foreach_ID_link(id, previews_id_ensure_callback, &preview_id_stack, IDWALK_READONLY);
+		} while ((id = BLI_LINKSTACK_POP(preview_id_stack.id_stack)));
+	}
+
+	BLI_LINKSTACK_FREE(preview_id_stack.id_stack);
+
+	/* Check a last time for ID not used (fake users only, in theory), and
+	 * do our best for those, using current scene... */
+	for (i = 0; lb[i]; i++) {
+		for (id = lb[i]->first; id; id = id->next) {
+			previews_id_ensure(C, NULL, id);
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static void WM_OT_previews_ensure(wmOperatorType *ot)
+{
+	ot->name = "Refresh DataBlock Previews";
+	ot->idname = "WM_OT_previews_ensure";
+	ot->description = "Ensure datablock previews are available and up-to-date "
+	                  "(to be saved in .blend file, only for some types like materials, textures, etc.)";
+
+	ot->exec = previews_ensure_exec;
+}
+
 /* ******************************************************* */
 
 static void operatortype_ghash_free_cb(wmOperatorType *ot)
@@ -4782,6 +4898,7 @@ void wm_operatortype_init(void)
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif
+	WM_operatortype_append(WM_OT_previews_ensure);
 }
 
 /* circleselect-like modal operators */

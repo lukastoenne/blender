@@ -55,16 +55,16 @@ static EnumPropertyItem actuator_type_items[] = {
 	{ACT_2DFILTER, "FILTER_2D", 0, "Filter 2D", ""},
 	{ACT_GAME, "GAME", 0, "Game", ""},
 	{ACT_MESSAGE, "MESSAGE", 0, "Message", ""},
-    {ACT_MOUSE, "MOUSE", 0, "Mouse", ""},
 	{ACT_OBJECT, "MOTION", 0, "Motion", ""},
+	{ACT_MOUSE, "MOUSE", 0, "Mouse", ""},
 	{ACT_PARENT, "PARENT", 0, "Parent", ""},
 	{ACT_PROPERTY, "PROPERTY", 0, "Property", ""},
 	{ACT_RANDOM, "RANDOM", 0, "Random", ""},
 	{ACT_SCENE, "SCENE", 0, "Scene", ""},
 	{ACT_SOUND, "SOUND", 0, "Sound", ""},
 	{ACT_STATE, "STATE", 0, "State", ""},
-	{ACT_VISIBILITY, "VISIBILITY", 0, "Visibility", ""},
 	{ACT_STEERING, "STEERING", 0, "Steering", ""},
+	{ACT_VISIBILITY, "VISIBILITY", 0, "Visibility", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -120,14 +120,10 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
 
 static void rna_Actuator_name_set(PointerRNA *ptr, const char *value)
 {
-	bActuator *act = (bActuator *)ptr->data;
-
+	Object *ob = ptr->id.data;
+	bActuator *act = ptr->data;
 	BLI_strncpy_utf8(act->name, value, sizeof(act->name));
-
-	if (ptr->id.data) {
-		Object *ob = (Object *)ptr->id.data;
-		BLI_uniquename(&ob->actuators, act, DATA_("Actuator"), '.', offsetof(bActuator, name), sizeof(act->name));
-	}
+	BLI_uniquename(&ob->actuators, act, DATA_("Actuator"), '.', offsetof(bActuator, name), sizeof(act->name));
 }
 
 static void rna_Actuator_type_set(struct PointerRNA *ptr, int value)
@@ -494,11 +490,11 @@ static void rna_Actuator_Armature_update(Main *UNUSED(bmain), Scene *UNUSED(scen
 		bPoseChannel *pchan;
 		bPose *pose = ob->pose;
 		for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-			if (!strcmp(pchan->name, posechannel)) {
+			if (STREQ(pchan->name, posechannel)) {
 				/* found it, now look for constraint channel */
 				bConstraint *con;
 				for (con = pchan->constraints.first; con; con = con->next) {
-					if (!strcmp(con->name, constraint)) {
+					if (STREQ(con->name, constraint)) {
 						/* found it, all ok */
 						return;
 					}

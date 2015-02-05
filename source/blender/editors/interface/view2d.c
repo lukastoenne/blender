@@ -1851,7 +1851,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 			/* draw vertical steps */
 			if (dfac > 0.0f) {
 				
-				BLF_rotation_default(M_PI / 2);
+				BLF_rotation_default(M_PI_2);
 				BLF_enable_default(BLF_ROTATION);
 
 				for (; fac < vert.ymax - 10; fac += dfac, val += grid->dy) {
@@ -2305,7 +2305,7 @@ void UI_view2d_text_cache_add(View2D *v2d, float x, float y,
 
 		BLI_LINKS_PREPEND(g_v2d_strings, v2s);
 
-		v2s->col.pack = *((int *)col);
+		v2s->col.pack = *((const int *)col);
 
 		memset(&v2s->rect, 0, sizeof(v2s->rect));
 
@@ -2336,7 +2336,7 @@ void UI_view2d_text_cache_add_rectf(View2D *v2d, const rctf *rect_view,
 
 		BLI_LINKS_PREPEND(g_v2d_strings, v2s);
 
-		v2s->col.pack = *((int *)col);
+		v2s->col.pack = *((const int *)col);
 
 		v2s->rect = rect;
 
