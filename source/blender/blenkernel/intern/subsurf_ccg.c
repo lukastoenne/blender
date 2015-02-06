@@ -2040,6 +2040,8 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	int a;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 
+	ccgdm_pbvh_update(ccgdm);
+
 	if (ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
 		if (dm->numTessFaceData) {
 			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
