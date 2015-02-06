@@ -164,6 +164,7 @@ static bool bpath_absolute_convert_visit_cb(void *userdata, char *path_dst, cons
 		strcpy(path_dst, path_src);
 		BLI_path_abs(path_dst, data->basedir);
 		if (BLI_path_is_rel(path_dst) == false) {
+			BKE_reportf(data->reports, RPT_INFO, "Path '%s' made absolute to '%s'", path_src, path_dst);
 			data->count_changed++;
 		}
 		else {
