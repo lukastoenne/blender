@@ -2460,17 +2460,26 @@ static int sequencer_meta_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 	MetaStack *ms;
 
 	if (last_seq && last_seq->type == SEQ_TYPE_META && last_seq->flag & SELECT) {
-		/* Enter Metastrip */
-		ms = MEM_mallocN(sizeof(MetaStack), "metastack");
-		BLI_addtail(&ed->metastack, ms);
-		ms->parseq = last_seq;
-		ms->oldbasep = ed->seqbasep;
-		copy_v2_v2_int(ms->disp_range, &ms->parseq->startdisp);
+			/* Enter Metastrip */
+			ms = MEM_mallocN(sizeof(MetaStack), "metastack");
+			BLI_addtail(&ed->metastack, ms);
+			ms->parseq = last_seq;
+			ms->oldbasep = ed->seqbasep;
+			copy_v2_v2_int(ms->disp_range, &ms->parseq->startdisp);
 
-		ed->seqbasep = &last_seq->seqbase;
+			ed->seqbasep = &last_seq->seqbase;
 
-		BKE_sequencer_active_set(scene, NULL);
+			BKE_sequencer_active_set(scene, NULL);
+	}
+	/* scene strip */
+	else if (last_seq && last_seq->type == SEQ_TYPE_SCENE && last_seq->scene &&
+	         (last_seq->flag & SEQ_SCENE_STRIPS) && (last_seq->flag & SELECT))
+	{
+		ED_screen_set_scene(C, CTX_wm_screen(C), last_seq->scene);
 
+		 WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, last_seq->scene);
+
+		 return OPERATOR_FINISHED;
 	}
 	else {
 		/* Exit Metastrip (if possible) */
