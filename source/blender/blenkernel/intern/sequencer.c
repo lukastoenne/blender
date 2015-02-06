@@ -3176,14 +3176,16 @@ static ImBuf *seq_render_strip_stack(const SeqRenderData *context, ListBase *seq
 	for (; i < count; i++) {
 		Sequence *seq = seq_arr[i];
 
-		if (seq_get_early_out_for_blend_mode(seq) == EARLY_DO_EFFECT) {
-			ImBuf *ibuf1 = out;
-			ImBuf *ibuf2 = seq_render_strip(context, seq, cfra);
+		if (context->preview_render_size >= 100) {
+			if (seq_get_early_out_for_blend_mode(seq) == EARLY_DO_EFFECT) {
+				ImBuf *ibuf1 = out;
+				ImBuf *ibuf2 = seq_render_strip(context, seq, cfra);
 
-			out = seq_render_strip_stack_apply_effect(context, seq, cfra, ibuf1, ibuf2);
+				out = seq_render_strip_stack_apply_effect(context, seq, cfra, ibuf1, ibuf2);
 
-			IMB_freeImBuf(ibuf1);
-			IMB_freeImBuf(ibuf2);
+				IMB_freeImBuf(ibuf1);
+				IMB_freeImBuf(ibuf2);
+			}
 		}
 
 		BKE_sequencer_cache_put(context, seq_arr[i], cfra, SEQ_STRIPELEM_IBUF_COMP, out);
