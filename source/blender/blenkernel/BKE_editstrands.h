@@ -60,7 +60,8 @@ typedef struct BMEditStrands {
 	unsigned int elem_glbuf;
 	unsigned int dot_glbuf;
 	
-	struct SimDebugData *debug_data;
+	/*temp variables for x-mirror editing*/
+	int mirror_cdlayer; /* -1 is invalid */
 } BMEditStrands;
 
 /* BMEditStrands->flag */

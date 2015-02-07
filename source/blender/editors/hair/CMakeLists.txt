@@ -40,6 +40,7 @@ set(INC_SYS
 set(SRC
 	hair_cursor.c
 	hair_edit.c
+	hair_mirror.c
 	hair_ops.c
 	hair_select.c
 	hair_stroke.c
