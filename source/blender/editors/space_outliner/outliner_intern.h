@@ -104,6 +104,7 @@ typedef struct TreeElement {
 #define TSE_KEYMAP          34
 #define TSE_KEYMAP_ITEM     35
 #define TSE_ID_BASE			36
+#define TSE_GP_LAYER        37
 
 /* button events */
 #define OL_NAMEBUTTON       1
@@ -205,7 +206,7 @@ void group_toggle_renderability_cb(struct bContext *C, struct Scene *scene, Tree
 
 void item_rename_cb(struct bContext *C, struct Scene *scene, TreeElement *te, struct TreeStoreElem *tsep, struct TreeStoreElem *tselem);
 
-TreeElement *outliner_dropzone_find(const struct SpaceOops *soops, const float fmval[2], const int children);
+TreeElement *outliner_dropzone_find(const struct SpaceOops *soops, const float fmval[2], const bool children);
 /* ...................................................... */
 
 void OUTLINER_OT_item_activate(struct wmOperatorType *ot);
@@ -237,6 +238,7 @@ void OUTLINER_OT_parent_drop(struct wmOperatorType *ot);
 void OUTLINER_OT_parent_clear(struct wmOperatorType *ot);
 void OUTLINER_OT_scene_drop(struct wmOperatorType *ot);
 void OUTLINER_OT_material_drop(struct wmOperatorType *ot);
+void OUTLINER_OT_group_link(struct wmOperatorType *ot);
 
 /* outliner_tools.c ---------------------------------------------- */
 

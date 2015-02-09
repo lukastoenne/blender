@@ -680,7 +680,7 @@ static void node_main_area_draw(const bContext *C, ARegion *ar)
 static int node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
-		ID *id = (ID *)drag->poin;
+		ID *id = drag->poin;
 		if (GS(id->name) == ID_IM)
 			return 1;
 	}
@@ -694,7 +694,7 @@ static int node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *
 static int node_mask_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
-		ID *id = (ID *)drag->poin;
+		ID *id = drag->poin;
 		if (GS(id->name) == ID_MSK)
 			return 1;
 	}
@@ -703,14 +703,14 @@ static int node_mask_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent 
 
 static void node_id_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-	ID *id = (ID *)drag->poin;
+	ID *id = drag->poin;
 
 	RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
 static void node_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-	ID *id = (ID *)drag->poin;
+	ID *id = drag->poin;
 
 	if (id) {
 		RNA_string_set(drop->ptr, "name", id->name + 2);
