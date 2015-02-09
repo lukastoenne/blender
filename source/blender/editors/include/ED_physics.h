@@ -62,17 +62,17 @@ void ED_keymap_physics(struct wmKeyConfig *keyconf);
 /* hair edit */
 void undo_push_strands(struct bContext *C, const char *name);
 
-void           ED_strands_mirror_cache_begin_ex(struct BMEditStrands *em, const int axis,
+void           ED_strands_mirror_cache_begin_ex(struct BMEditStrands *edit, const int axis,
                                                 const bool use_self, const bool use_select,
                                                 const bool use_topology, float maxdist, int *r_index);
-void           ED_strands_mirror_cache_begin(struct BMEditStrands *em, const int axis,
+void           ED_strands_mirror_cache_begin(struct BMEditStrands *edit, const int axis,
                                              const bool use_self, const bool use_select,
                                              const bool use_topology);
-void           ED_strands_mirror_apply(struct BMEditStrands *em, const int sel_from, const int sel_to);
-struct BMVert *ED_strands_mirror_get(struct BMEditStrands *em, struct BMVert *v);
-struct BMEdge *ED_strands_mirror_get_edge(struct BMEditStrands *em, struct BMEdge *e);
-void           ED_strands_mirror_cache_clear(struct BMEditStrands *em, struct BMVert *v);
-void           ED_strands_mirror_cache_end(struct BMEditStrands *em);
+void           ED_strands_mirror_apply(struct BMEditStrands *edit, const int sel_from, const int sel_to);
+struct BMVert *ED_strands_mirror_get(struct BMEditStrands *edit, struct BMVert *v);
+struct BMEdge *ED_strands_mirror_get_edge(struct BMEditStrands *edit, struct BMEdge *e);
+void           ED_strands_mirror_cache_clear(struct BMEditStrands *edit, struct BMVert *v);
+void           ED_strands_mirror_cache_end(struct BMEditStrands *edit);
 
 int ED_hair_mouse_select(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
 int ED_hair_border_select(struct bContext *C, struct rcti *rect, bool select, bool extend);
