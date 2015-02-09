@@ -1801,7 +1801,6 @@ static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray, int *vinde
 
 			if (ln) {
 				/* Can't use quad strips here... */
-				glBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y ++) {
 					for (x = 0; x < gridFaces; x ++) {
 						start = vindex[mat_orig_to_new[matnr]];
@@ -1819,7 +1818,6 @@ static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray, int *vinde
 						ln ++;
 					}
 				}
-				glEnd();
 			}
 			else if (shademodel == GL_SMOOTH) {
 				for (y = 0; y < gridFaces; y ++) {
@@ -1835,8 +1833,8 @@ static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray, int *vinde
 						copy_v3_v3(&varray[start + 3], c);
 						copy_v3_v3(&varray[start + 6], b);
 				
-						copy_v3_v3(&varray[start + 9], b);
-						copy_v3_v3(&varray[start + 12], d);
+						copy_v3_v3(&varray[start + 9], d);
+						copy_v3_v3(&varray[start + 12], b);
 						copy_v3_v3(&varray[start + 15], a);
 						
 						vindex[mat_orig_to_new[matnr]] += 18;
@@ -1915,8 +1913,8 @@ static void ccgDM_prepare_vertex_data(DerivedMesh *dm, float *varray, int *vinde
 					copy_v3_v3(&varray[start + 3], c);
 					copy_v3_v3(&varray[start + 6], b);
 			
-					copy_v3_v3(&varray[start + 9], b);
-					copy_v3_v3(&varray[start + 12], d);
+					copy_v3_v3(&varray[start + 9], d);
+					copy_v3_v3(&varray[start + 12], b);
 					copy_v3_v3(&varray[start + 15], a);
 					
 					vindex[mat_orig_to_new[matnr]] += 18;
