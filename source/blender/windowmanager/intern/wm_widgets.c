@@ -257,7 +257,7 @@ static bool widgets_compare(wmWidget *widget, wmWidget *widget2)
 }
 
 
-void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap)
+void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 {
 	wmWidget *widget;
 	bool use_lighting;
@@ -285,7 +285,7 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap)
 
 	widget = wmap->active_widget;
 
-	if (widget) {
+	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH)!= 0)) {
 		widget_calculate_scale(widget, C);
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
 		 * relevant data to update itself */
@@ -434,6 +434,17 @@ void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw)
 		widget->flag &= ~WM_WIDGET_DRAW_HOVER;
 	}
 }
+
+void WM_widget_set_scene_depth(struct wmWidget *widget, bool scene)
+{
+	if (scene) {
+		widget->flag |= WM_WIDGET_SCENE_DEPTH;
+	}
+	else {
+		widget->flag &= ~WM_WIDGET_SCENE_DEPTH;
+	}
+}
+
 
 void WM_widget_set_scale(struct wmWidget *widget, float scale)
 {

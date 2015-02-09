@@ -3615,9 +3615,9 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	if (v3d->drawtype == OB_RENDER)
 		view3d_main_area_draw_engine(C, scene, ar, v3d, clip_border, &border_rect);
 	
-	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);	
+	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 	glClear(GL_DEPTH_BUFFER_BIT);
-	WM_widgets_draw(C, ar->widgetmaps.first);
+	WM_widgets_draw(C, ar->widgetmaps.first, false);
 	BIF_draw_manipulator(C);
 	ED_region_pixelspace(ar);
 	
