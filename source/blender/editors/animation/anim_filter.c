@@ -90,6 +90,7 @@
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_mask.h"
+#include "BKE_particle.h"
 #include "BKE_sequencer.h"
 
 #include "ED_anim_api.h"
@@ -2260,6 +2261,7 @@ static size_t animdata_filter_dopesheet_ob(bAnimContext *ac, ListBase *anim_data
 	BEGIN_ANIMFILTER_SUBCHANNELS(EXPANDED_OBJC(ob))
 	{
 		Key *key = BKE_key_from_object(ob);
+		ParticleSystem *psys;
 		
 		/* object-level animation */
 		if ((ob->adt) && !(ads->filterflag & ADS_FILTER_NOOBJ)) {
@@ -2269,6 +2271,11 @@ static size_t animdata_filter_dopesheet_ob(bAnimContext *ac, ListBase *anim_data
 		/* shape-key */
 		if ((key && key->adt) && !(ads->filterflag & ADS_FILTER_NOSHAPEKEYS)) {
 			tmp_items += animdata_filter_ds_keyanim(ac, &tmp_data, ads, ob, key, filter_mode);
+		}
+		for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+			if ((psys->key && psys->key->adt) && !(ads->filterflag & ADS_FILTER_NOSHAPEKEYS)) {
+				tmp_items += animdata_filter_ds_keyanim(ac, &tmp_data, ads, ob, psys->key, filter_mode);
+			}
 		}
 		
 		/* modifiers */

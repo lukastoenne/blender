@@ -761,6 +761,10 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			if (!psys_check_enabled(ob, psys))
 				continue;
 
+			key = psys->key;
+			if (key && key->adt)
+				dag_add_driver_relation(key->adt, dag, node, 1);
+
 			if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {
 				ParticleTarget *pt = psys->targets.first;
 
@@ -2496,12 +2500,26 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 		/* set flags based on ShapeKey */
 		if (idtype == ID_KE) {
 			for (obt = bmain->object.first; obt; obt = obt->id.next) {
-				Key *key = BKE_key_from_object(obt);
-				if (!(ob && obt == ob) && ((ID *)key == id)) {
-					obt->flag |= (OB_RECALC_OB | OB_RECALC_DATA);
-					lib_id_recalc_tag(bmain, &obt->id);
-					lib_id_recalc_data_tag(bmain, &obt->id);
-					BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
+				if (!(ob && obt == ob)) {
+					Key *key = BKE_key_from_object(obt);
+					ParticleSystem *psys;
+					
+					if ((ID *)key == id) {
+						obt->flag |= (OB_RECALC_OB | OB_RECALC_DATA);
+						lib_id_recalc_tag(bmain, &obt->id);
+						lib_id_recalc_data_tag(bmain, &obt->id);
+						BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
+					}
+					
+					for (psys = obt->particlesystem.first; psys; psys = psys->next) {
+						key = psys->key;
+						if ((ID *)key == id) {
+							obt->flag |= (OB_RECALC_OB | OB_RECALC_DATA);
+							lib_id_recalc_tag(bmain, &obt->id);
+							lib_id_recalc_data_tag(bmain, &obt->id);
+							BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
+						}
+					}
 				}
 			}
 		}

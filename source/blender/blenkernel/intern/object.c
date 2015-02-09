@@ -3025,6 +3025,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 			ID *data_id = (ID *)ob->data;
 			AnimData *adt = BKE_animdata_from_id(data_id);
 			Key *key;
+			ParticleSystem *psys;
 			float ctime = BKE_scene_frame_get(scene);
 			
 			if (G.debug & G_DEBUG_DEPSGRAPH)
@@ -3040,6 +3041,12 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 			if (key && key->block.first) {
 				if (!(ob->shapeflag & OB_SHAPE_LOCK))
 					BKE_animsys_evaluate_animdata(scene, &key->id, key->adt, ctime, ADT_RECALC_DRIVERS);
+			}
+			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+				key = psys->key;
+				if (key && key->block.first) {
+					BKE_animsys_evaluate_animdata(scene, &key->id, key->adt, ctime, ADT_RECALC_DRIVERS);
+				}
 			}
 
 			/* includes all keys and modifiers */
