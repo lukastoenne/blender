@@ -41,7 +41,12 @@ struct bContext;
 struct wmOperatorType;
 struct rcti;
 
+struct Object;
+
 /* hair_edit.c */
+bool hair_use_mirror_x(struct Object *ob);
+bool hair_use_mirror_topology(struct Object *ob);
+
 int hair_edit_toggle_poll(struct bContext *C);
 int hair_edit_poll(struct bContext *C);
 

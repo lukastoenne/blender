@@ -37,6 +37,7 @@
 #include "BLI_math.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
@@ -128,6 +129,22 @@ int hair_edit_poll(bContext *C)
 	}
 	
 	return false;
+}
+
+bool hair_use_mirror_x(Object *ob)
+{
+	if (ob->type == OB_MESH)
+		return ((Mesh *)ob->data)->editflag & ME_EDIT_MIRROR_X;
+	else
+		return false;
+}
+
+bool hair_use_mirror_topology(Object *ob)
+{
+	if (ob->type == OB_MESH)
+		return ((Mesh *)ob->data)->editflag & ME_EDIT_MIRROR_TOPO;
+	else
+		return false;
 }
 
 

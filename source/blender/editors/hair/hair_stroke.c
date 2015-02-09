@@ -39,6 +39,7 @@
 #include "BLI_rect.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -55,6 +56,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "ED_physics.h"
 #include "ED_view3d.h"
 
 #include "hair_intern.h"
@@ -218,10 +220,13 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *use
 	const float radsq = rad*rad;
 	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
 	
-	BMVert *v;
+	BMVert *v, *v_mirr;
 	BMIter iter;
 	int tot = 0;
 	float dist, factor;
+	
+	if (hair_use_mirror_x(data->ob))
+		ED_strands_mirror_cache_begin(data->edit, 0, false, false, hair_use_mirror_topology(data->ob));
 	
 	BM_ITER_MESH(v, &iter, data->edit->bm, BM_VERTS_OF_MESH) {
 		if (!hair_test_vertex_inside_circle(&data->viewdata, data->mval, radsq, v, &dist))
@@ -231,8 +236,16 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *use
 		if (factor > threshold) {
 			cb(data, userdata, v, factor);
 			++tot;
+			
+			v_mirr = ED_strands_mirror_get(data->edit, v);
+			if (v_mirr)
+				cb(data, userdata, v_mirr, factor);
 		}
 	}
+	
+	/* apply mirror */
+	if (hair_use_mirror_x(data->ob))
+		ED_strands_mirror_cache_end(data->edit);
 	
 	return tot;
 }
@@ -249,7 +262,7 @@ static int hair_tool_apply_strand_edges(HairToolData *data, EdgeToolCb cb, void 
 	const float radsq = rad*rad;
 	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
 	
-	BMVert *v, *vprev;
+	BMVert *v, *vprev, *v_mirr, *vprev_mirr;
 	BMIter iter;
 	int k;
 	int tot = 0;
@@ -263,11 +276,16 @@ static int hair_tool_apply_strand_edges(HairToolData *data, EdgeToolCb cb, void 
 				if (factor > threshold) {
 					cb(data, userdata, vprev, v, factor, lambda);
 					++tot;
+					
+					v_mirr = ED_strands_mirror_get(data->edit, v);
+					if (vprev_mirr && v_mirr)
+						cb(data, userdata, vprev_mirr, v_mirr, factor, lambda);
 				}
 			}
 		}
 		
 		vprev = v;
+		vprev_mirr = v_mirr;
 	}
 	
 	return tot;
@@ -282,9 +300,16 @@ static int hair_tool_apply_edge(HairToolData *data, EdgeToolCb cb, void *userdat
 	BMIter iter;
 	int tot = 0;
 	
+	if (hair_use_mirror_x(data->ob))
+		ED_strands_mirror_cache_begin(data->edit, 0, false, false, hair_use_mirror_topology(data->ob));
+	
 	BM_ITER_STRANDS(root, &iter, data->edit->bm, BM_STRANDS_OF_MESH) {
 		tot += hair_tool_apply_strand_edges(data, cb, userdata, root);
 	}
+	
+	/* apply mirror */
+	if (hair_use_mirror_x(data->ob))
+		ED_strands_mirror_cache_end(data->edit);
 	
 	return tot;
 }
