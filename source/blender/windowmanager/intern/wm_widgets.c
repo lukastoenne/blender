@@ -366,7 +366,7 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 			{
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 					if ((!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
-					    ((widget->flag & WM_WIDGET_SCENE_DEPTH) == 0) == in_scene)
+					    ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0) == in_scene)
 					{
 						widget->draw(widget, C);
 					}
