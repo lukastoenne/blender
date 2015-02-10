@@ -574,8 +574,8 @@ static int wm_widget_find_highlighted_3D_intern (ListBase *visible_widgets, bCon
 	if (hits == 1) {
 		return buffer[3];
 
-		/* find the widget the value belongs to */		
 	}
+	/* find the widget the value belongs to */
 	else if (hits > 1) {
 		GLuint val, dep, mindep = 0, minval = -1;
 		int a;
