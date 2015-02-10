@@ -1904,16 +1904,19 @@ typedef struct View3DAfter {
 	struct View3DAfter *next, *prev;
 	struct Base *base;
 	short dflag;
+	float obmat[4][4];
 } View3DAfter;
 
 /* temp storage of Objects that need to be drawn as last */
 void ED_view3d_after_add(ListBase *lb, Base *base, const short dflag)
 {
 	View3DAfter *v3da = MEM_callocN(sizeof(View3DAfter), "View 3d after");
-	BLI_assert((base->flag & OB_FROMDUPLI) == 0);
 	BLI_addtail(lb, v3da);
 	v3da->base = base;
 	v3da->dflag = dflag;
+	if (base->flag & OB_FROMDUPLI) {
+		copy_m4_m4(v3da->obmat, base->object->obmat);
+	}
 }
 
 /* disables write in zbuffer and draws it over */
@@ -1925,8 +1928,17 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 	v3d->transp = true;
 	
 	for (v3da = v3d->afterdraw_transp.first; v3da; v3da = next) {
+		float obmat[4][4];
 		next = v3da->next;
+		if (v3da->base->flag & OB_FROMDUPLI) {
+			copy_m4_m4(obmat, v3da->base->object->obmat);
+			copy_m4_m4(v3da->base->object->obmat, v3da->obmat);
+		}
 		draw_object(scene, ar, v3d, v3da->base, v3da->dflag);
+		if (v3da->base->flag & OB_FROMDUPLI) {
+			copy_m4_m4(v3da->base->object->obmat, obmat);
+			MEM_freeN(v3da->base);
+		}
 		BLI_remlink(&v3d->afterdraw_transp, v3da);
 		MEM_freeN(v3da);
 	}
@@ -1959,6 +1971,7 @@ static void view3d_draw_xray(Scene *scene, ARegion *ar, View3D *v3d, const bool 
 static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, const bool clear)
 {
 	View3DAfter *v3da, *next;
+	float obmat[4][4];
 
 	if (clear && v3d->zbuf)
 		glClear(GL_DEPTH_BUFFER_BIT);
@@ -1968,7 +1981,15 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, const
 	
 	for (v3da = v3d->afterdraw_xraytransp.first; v3da; v3da = next) {
 		next = v3da->next;
+		if (v3da->base->flag & OB_FROMDUPLI) {
+			copy_m4_m4(obmat, v3da->base->object->obmat);
+			copy_m4_m4(v3da->base->object->obmat, v3da->obmat);
+		}
 		draw_object(scene, ar, v3d, v3da->base, v3da->dflag);
+		if (v3da->base->flag & OB_FROMDUPLI) {
+			copy_m4_m4(v3da->base->object->obmat, obmat);
+			MEM_freeN(v3da->base);
+		}
 		BLI_remlink(&v3d->afterdraw_xraytransp, v3da);
 		MEM_freeN(v3da);
 	}
@@ -2068,7 +2089,7 @@ static void draw_dupli_objects_color(
 		 * slow it down too much */
 		dtx = tbase.object->dtx;
 		if (tbase.object->dt != OB_BOUNDBOX)
-			tbase.object->dtx = base->object->dtx;
+			tbase.object->dtx = base->object->dtx | (dtx & OB_DRAWTRANSP);
 
 		/* negative scale flag has to propagate */
 		transflag = tbase.object->transflag;
@@ -2113,7 +2134,8 @@ static void draw_dupli_objects_color(
 				     !bb_tmp ||
 				     draw_glsl_material(scene, dob->ob, v3d, dt) ||
 				     check_object_draw_texture(scene, v3d, dt) ||
-				     (v3d->flag2 & V3D_SOLID_MATCAP) != 0)
+				     (v3d->flag2 & V3D_SOLID_MATCAP) != 0 ||
+				     ((dtx & OB_DRAWTRANSP) != 0))
 				{
 					// printf("draw_dupli_objects_color: skipping displist for %s\n", dob->ob->id.name + 2);
 					use_displist = false;

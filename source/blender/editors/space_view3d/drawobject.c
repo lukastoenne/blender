@@ -310,9 +310,6 @@ bool draw_glsl_material(Scene *scene, Object *ob, View3D *v3d, const char dt)
 
 static bool check_alpha_pass(Base *base)
 {
-	if (base->flag & OB_FROMDUPLI)
-		return false;
-
 	if (G.f & G_PICKSEL)
 		return false;
 
@@ -4024,14 +4021,22 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 		}
 	}
 	
-	if ((dflag & DRAW_PICKING) == 0 && (base->flag & OB_FROMDUPLI) == 0 && (v3d->flag2 & V3D_RENDER_SHADOW) == 0) {
+	if ((dflag & DRAW_PICKING) == 0 && ((base->flag & OB_FROMDUPLI) == 0 || (ob->dtx & OB_DRAWTRANSP)) && (v3d->flag2 & V3D_RENDER_SHADOW) == 0) {
 		/* GPU_begin_object_materials checked if this is needed */
 		if (do_alpha_after) {
-			if (ob->dtx & OB_DRAWXRAY) {
+			/* duplis only for transparency */
+			if ((ob->dtx & OB_DRAWXRAY) && !(base->flag & OB_FROMDUPLI)) {
 				ED_view3d_after_add(&v3d->afterdraw_xraytransp, base, dflag);
 			}
 			else {
-				ED_view3d_after_add(&v3d->afterdraw_transp, base, dflag);
+				if (base->flag & OB_FROMDUPLI) {
+					Base *nbase = MEM_mallocN(sizeof(Base), "dupli_trans");
+					*nbase = *base;
+					ED_view3d_after_add(&v3d->afterdraw_transp, nbase, dflag);
+				}
+				else {
+					ED_view3d_after_add(&v3d->afterdraw_transp, base, dflag);
+				}
 			}
 		}
 		else if (ob->dtx & OB_DRAWXRAY && ob->dtx & OB_DRAWTRANSP) {
