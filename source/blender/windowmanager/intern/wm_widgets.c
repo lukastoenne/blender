@@ -256,6 +256,74 @@ static bool widgets_compare(wmWidget *widget, wmWidget *widget2)
 	return true;
 }
 
+void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
+{
+	wmWidget *widget;
+
+	if (!wmap)
+		return;
+
+	widget = wmap->active_widget;
+
+	if (widget) {
+		widget_calculate_scale(widget, C);
+	}
+	else if (wmap->widgetgroups.first) {
+		wmWidgetGroup *wgroup;
+
+		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
+			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type))
+			{
+				wmWidget *highlighted = NULL;
+
+				/* first delete and recreate the widgets */
+				for (widget = wgroup->widgets.first; widget;) {
+					wmWidget *widget_next = widget->next;
+
+					/* do not delete the highlighted widget, instead keep it to compare with the new one */
+					if (widget->flag & WM_WIDGET_HIGHLIGHT) {
+						highlighted = widget;
+						BLI_remlink(&wgroup->widgets, widget);
+						widget->next = widget->prev = NULL;
+					}
+					else {
+						wm_widget_delete(&wgroup->widgets, widget);
+					}
+					widget = widget_next;
+				}
+
+				if (wgroup->type->draw) {
+					wgroup->type->draw(C, wgroup);
+				}
+
+				if (highlighted) {
+					for (widget = wgroup->widgets.first; widget; widget = widget->next) {
+						if (widgets_compare(widget, highlighted))
+						{
+							widget->flag |= WM_WIDGET_HIGHLIGHT;
+							wmap->highlighted_widget = widget;
+							widget->highlighted_part = highlighted->highlighted_part;
+							wm_widget_delete(&wgroup->widgets, highlighted);
+							highlighted = NULL;
+							break;
+						}
+					}
+				}
+
+				/* if we don't find a highlighted widget, delete the old one here */
+				if (highlighted) {
+					MEM_freeN(highlighted);
+					highlighted = NULL;
+					wmap->highlighted_widget = NULL;
+				}
+
+				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
+					widget_calculate_scale(widget, C);
+				}
+			}
+		}
+	}
+}
 
 void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 {
@@ -286,7 +354,6 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 	widget = wmap->active_widget;
 
 	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH)!= 0)) {
-		widget_calculate_scale(widget, C);
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
 		 * relevant data to update itself */
 		widget->draw(widget, C);
@@ -297,56 +364,12 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type))
 			{
-				wmWidget *widget_iter;
-				wmWidget *highlighted = NULL;
-				
-				/* first delete and recreate the widgets */
-				for (widget_iter = wgroup->widgets.first; widget_iter;) {
-					wmWidget *widget_next = widget_iter->next;
-					
-					/* do not delete the highlighted widget, instead keep it to compare with the new one */
-					if (widget_iter->flag & WM_WIDGET_HIGHLIGHT) {
-						highlighted = widget_iter;
-						BLI_remlink(&wgroup->widgets, widget_iter);
-						widget_iter->next = widget_iter->prev = NULL;
+				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
+					if ((!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
+					    ((widget->flag & WM_WIDGET_SCENE_DEPTH) == 0) == in_scene)
+					{
+						widget->draw(widget, C);
 					}
-					else {
-						wm_widget_delete(&wgroup->widgets, widget_iter);
-					}
-					widget_iter = widget_next;
-				}
-				
-				if (wgroup->type->draw) {
-					wgroup->type->draw(C, wgroup);
-				}
-				
-				if (highlighted) {
-					for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
-						if (widgets_compare(widget_iter, highlighted))
-						{
-							widget_iter->flag |= WM_WIDGET_HIGHLIGHT;
-							wmap->highlighted_widget = widget_iter;
-							widget_iter->highlighted_part = highlighted->highlighted_part;
-							wm_widget_delete(&wgroup->widgets, highlighted);
-							highlighted = NULL;
-							break;
-						}
-					}
-				}
-				
-				/* if we don't find a highlighted widget, delete the old one here */
-				if (highlighted) {
-					MEM_freeN(highlighted);
-					highlighted = NULL;
-					wmap->highlighted_widget = NULL;
-				}
-				
-
-				for (widget_iter = wgroup->widgets.first; widget_iter; widget_iter = widget_iter->next) {
-					widget_calculate_scale(widget_iter, C);
-					/* scale must be calculated still for hover widgets, we just avoid drawing */
-					if (!(widget_iter->flag & WM_WIDGET_DRAW_HOVER) || (widget_iter->flag & WM_WIDGET_HIGHLIGHT))
-						widget_iter->draw(widget_iter, C);
 				}
 			}
 		}

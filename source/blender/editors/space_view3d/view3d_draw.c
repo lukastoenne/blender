@@ -3617,6 +3617,7 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 	glClear(GL_DEPTH_BUFFER_BIT);
+	WM_widgets_update(C, ar->widgetmaps.first);
 	WM_widgets_draw(C, ar->widgetmaps.first, false);
 	BIF_draw_manipulator(C);
 	ED_region_pixelspace(ar);
