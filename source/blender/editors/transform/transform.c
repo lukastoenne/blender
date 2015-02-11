@@ -1503,7 +1503,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 	if ((t->modifiers   & (MOD_SNAP | MOD_SNAP_INVERT)) !=
 	    (modifiers_prev & (MOD_SNAP | MOD_SNAP_INVERT)))
 	{
-	    applyMouseInput(t, &t->mouse, t->mval, t->values);
+		applyMouseInput(t, &t->mouse, t->mval, t->values);
 	}
 
 	/* Per transform event, if present */
@@ -2342,8 +2342,12 @@ int transformEnd(bContext *C, TransInfo *t)
 		/* handle restoring objects */
 		if (t->state == TRANS_CANCEL) {
 			/* exception, edge slide transformed UVs too */
-			if (t->mode == TFM_EDGE_SLIDE)
+			if (t->mode == TFM_EDGE_SLIDE) {
 				doEdgeSlide(t, 0.0f);
+			}
+			else if (t->mode == TFM_VERT_SLIDE) {
+				doVertSlide(t, 0.0f);
+			}
 			
 			exit_code = OPERATOR_CANCELLED;
 			restoreTransObjects(t); // calls recalcData()

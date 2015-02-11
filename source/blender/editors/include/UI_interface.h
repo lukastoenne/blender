@@ -350,6 +350,9 @@ typedef void (*uiButHandleRenameFunc)(struct bContext *C, void *arg, char *origs
 typedef void (*uiButHandleNFunc)(struct bContext *C, void *argN, void *arg2);
 typedef int (*uiButCompleteFunc)(struct bContext *C, char *str, void *arg);
 typedef void (*uiButSearchFunc)(const struct bContext *C, void *arg, const char *str, uiSearchItems *items);
+/* Must return allocated string. */
+typedef char *(*uiButToolTipFunc)(struct bContext *C, void *argN, const char *tip);
+
 typedef void (*uiBlockHandleFunc)(struct bContext *C, void *arg, int event);
 
 /* Menu Callbacks */
@@ -680,6 +683,8 @@ void    UI_but_func_drawextra_set(
         void (*func)(const struct bContext *C, void *, void *, void *, struct rcti *rect),
         void *arg1, void *arg2);
 
+void    UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *argN);
+
 bool UI_textbutton_activate_rna(const struct bContext *C, struct ARegion *ar,
                                 const void *rna_poin_data, const char *rna_prop_id);
 bool UI_textbutton_activate_but(const struct bContext *C, uiBut *but);
@@ -894,6 +899,7 @@ void uiTemplateGameStates(uiLayout *layout, struct PointerRNA *ptr, const char *
 void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr, int compact);
 void uiTemplateImageSettings(uiLayout *layout, struct PointerRNA *imfptr, int color_management);
 void uiTemplateImageLayers(uiLayout *layout, struct bContext *C, struct Image *ima, struct ImageUser *iuser);
+void uiTemplateImageInfo(uiLayout *layout, struct bContext *C, Image *ima, ImageUser *iuser);
 void uiTemplateRunningJobs(uiLayout *layout, struct bContext *C);
 void UI_but_func_operator_search(uiBut *but);
 void uiTemplateOperatorSearch(uiLayout *layout);
@@ -908,7 +914,8 @@ void uiTemplateNodeSocket(uiLayout *layout, struct bContext *C, float *color);
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"
 void uiTemplateList(uiLayout *layout, struct bContext *C, const char *listtype_name, const char *list_id,
                     struct PointerRNA *dataptr, const char *propname, struct PointerRNA *active_dataptr,
-                    const char *active_propname, int rows, int maxrows, int layout_type, int columns);
+                    const char *active_propname, const char *item_dyntip_propname,
+                    int rows, int maxrows, int layout_type, int columns);
 void uiTemplateNodeLink(uiLayout *layout, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input);
 void uiTemplateNodeView(uiLayout *layout, struct bContext *C, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input);
 void uiTemplateTextureUser(uiLayout *layout, struct bContext *C);

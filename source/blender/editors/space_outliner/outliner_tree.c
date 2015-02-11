@@ -197,7 +197,7 @@ void outliner_cleanup_tree(SpaceOops *soops)
 }
 
 /* Find specific item from the treestore */
-static TreeElement *outliner_find_tree_element(ListBase *lb, TreeStoreElem *store_elem)
+TreeElement *outliner_find_tree_element(ListBase *lb, TreeStoreElem *store_elem)
 {
 	TreeElement *te, *tes;
 	for (te = lb->first; te; te = te->next) {
@@ -828,6 +828,7 @@ static void outliner_add_id_contents(SpaceOops *soops, TreeElement *te, TreeStor
 				outliner_add_element(soops, &te->subtree, gpl, te, TSE_GP_LAYER, a);
 				a++;
 			}
+			break;
 		}
 	}
 }
