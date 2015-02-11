@@ -48,7 +48,7 @@ typedef struct SeqCacheKey {
 	struct Sequence *seq;
 	SeqRenderData context;
 	float cfra;
-	seq_stripelem_ibuf_t type;
+	eSeqStripElemIBuf type;
 } SeqCacheKey;
 
 typedef struct SeqPreprocessCacheElem {
@@ -56,7 +56,7 @@ typedef struct SeqPreprocessCacheElem {
 
 	struct Sequence *seq;
 	SeqRenderData context;
-	seq_stripelem_ibuf_t type;
+	eSeqStripElemIBuf type;
 
 	ImBuf *ibuf;
 } SeqPreprocessCacheElem;
@@ -182,7 +182,7 @@ void BKE_sequencer_cache_cleanup_sequence(Sequence *seq)
 		IMB_moviecache_cleanup(moviecache, seqcache_key_check_seq, seq);
 }
 
-struct ImBuf *BKE_sequencer_cache_get(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
+struct ImBuf *BKE_sequencer_cache_get(const SeqRenderData *context, Sequence *seq, float cfra, eSeqStripElemIBuf type)
 {
 	if (moviecache && seq) {
 		SeqCacheKey key;
@@ -198,7 +198,7 @@ struct ImBuf *BKE_sequencer_cache_get(const SeqRenderData *context, Sequence *se
 	return NULL;
 }
 
-void BKE_sequencer_cache_put(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *i)
+void BKE_sequencer_cache_put(const SeqRenderData *context, Sequence *seq, float cfra, eSeqStripElemIBuf type, ImBuf *i)
 {
 	SeqCacheKey key;
 
@@ -246,7 +246,7 @@ static void preprocessed_cache_destruct(void)
 	preprocess_cache = NULL;
 }
 
-ImBuf *BKE_sequencer_preprocessed_cache_get(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
+ImBuf *BKE_sequencer_preprocessed_cache_get(const SeqRenderData *context, Sequence *seq, float cfra, eSeqStripElemIBuf type)
 {
 	SeqPreprocessCacheElem *elem;
 
@@ -273,7 +273,7 @@ ImBuf *BKE_sequencer_preprocessed_cache_get(const SeqRenderData *context, Sequen
 	return NULL;
 }
 
-void BKE_sequencer_preprocessed_cache_put(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *ibuf)
+void BKE_sequencer_preprocessed_cache_put(const SeqRenderData *context, Sequence *seq, float cfra, eSeqStripElemIBuf type, ImBuf *ibuf)
 {
 	SeqPreprocessCacheElem *elem;
 
