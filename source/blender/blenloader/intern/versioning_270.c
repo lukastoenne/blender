@@ -698,4 +698,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "ParticleInstanceModifierData", "float", "particle_amount")) {
+		Object *ob;
+		ModifierData *md;
+		
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_ParticleInstance) {
+					ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *)md;
+					
+					pimd->particle_amount = 1.0f;
+					pimd->particle_offset = 0.0f;
+				}
+			}
+		}
+	}
 }

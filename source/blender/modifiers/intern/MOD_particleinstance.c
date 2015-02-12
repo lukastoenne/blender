@@ -63,6 +63,8 @@ static void initData(ModifierData *md)
 	pimd->position = 1.0f;
 	pimd->axis = 2;
 	pimd->space = eParticleInstanceSpace_Local;
+	pimd->particle_amount = 1.0f;
+	pimd->particle_offset = 0.0f;
 }
 static void copyData(ModifierData *md, ModifierData *target)
 {
@@ -134,9 +136,10 @@ static void foreachObjectLink(ModifierData *md, Object *ob,
 	walk(userData, ob, &pimd->ob);
 }
 
-static int particle_skip(ParticleInstanceModifierData *pimd, ParticleSystem *psys, int p)
+static bool particle_skip(ParticleInstanceModifierData *pimd, ParticleSystem *psys, int p)
 {
 	ParticleData *pa;
+	int totpart, randp, minp, maxp;
 
 	if (pimd->flag & eParticleInstanceFlag_Parents) {
 		if (p >= psys->totpart) {
@@ -161,12 +164,29 @@ static int particle_skip(ParticleInstanceModifierData *pimd, ParticleSystem *psy
 	}
 
 	if (pa) {
-		if (pa->alive == PARS_UNBORN && (pimd->flag & eParticleInstanceFlag_Unborn) == 0) return 1;
-		if (pa->alive == PARS_ALIVE && (pimd->flag & eParticleInstanceFlag_Alive) == 0) return 1;
-		if (pa->alive == PARS_DEAD && (pimd->flag & eParticleInstanceFlag_Dead) == 0) return 1;
+		if (pa->alive == PARS_UNBORN && (pimd->flag & eParticleInstanceFlag_Unborn) == 0) return true;
+		if (pa->alive == PARS_ALIVE && (pimd->flag & eParticleInstanceFlag_Alive) == 0) return true;
+		if (pa->alive == PARS_DEAD && (pimd->flag & eParticleInstanceFlag_Dead) == 0) return true;
 	}
 	
-	return 0;
+	totpart = psys->totpart + psys->totchild;
+	
+	/* TODO make randomization optional? */
+	randp = (int)(psys_frand(psys, 3578 + p) * totpart) % totpart;
+	
+	minp = (int)(totpart * pimd->particle_offset) % (totpart+1);
+	maxp = (int)(totpart * (pimd->particle_offset + pimd->particle_amount)) % (totpart+1);
+	
+	if (maxp > minp) {
+		return randp < minp || randp >= maxp;
+	}
+	else if (maxp < minp) {
+		return randp < minp && randp >= maxp;
+	}
+	else
+		return true;
+	
+	return false;
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,

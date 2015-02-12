@@ -733,6 +733,7 @@ typedef struct ParticleInstanceModifierData {
 	struct Object *ob;
 	short psys, flag, axis, space;
 	float position, random_position;
+	float particle_amount, particle_offset;
 } ParticleInstanceModifierData;
 
 typedef enum {

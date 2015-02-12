@@ -664,6 +664,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "show_unborn")
         col.prop(md, "show_dead")
 
+        row = layout.row(align=True)
+        row.prop(md, "particle_amount", text="Amount")
+        row.prop(md, "particle_offset", text="Offset")
+
         layout.separator()
 
         layout.prop(md, "use_path", text="Create Along Paths")
