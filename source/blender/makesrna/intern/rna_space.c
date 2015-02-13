@@ -497,13 +497,6 @@ static void rna_SpaceView3D_matcap_enable(Main *UNUSED(bmain), Scene *UNUSED(sce
 		v3d->matcap_icon = ICON_MATCAP_01;
 }
 
-static void rna_SpaceView3D_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
-{
-	View3D *v3d = (View3D *)(ptr->data);
-
-	BKE_screen_view3d_ensure_FX(v3d);
-}
-
 static void rna_SpaceView3D_pivot_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	if (U.uiflag & USER_LOCKAROUND) {
@@ -2482,17 +2475,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Matcap", "Image to use for Material Capture, active objects only");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_matcap_update");
 
-	prop = RNA_def_property(srna, "depth_of_field", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", GPU_FX_DEPTH_OF_FIELD);
-	RNA_def_property_ui_text(prop, "Depth Of Field", "Use depth of field on viewport using the values from active camera");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_fx_update");
-	
-	prop = RNA_def_property(srna, "ssao", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", GPU_FX_SSAO);
-	RNA_def_property_ui_text(prop, "SSAO", "Use screen space ambient occlusion of field on viewport");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_fx_update");
-	
-	prop = RNA_def_property(srna, "fxoptions", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "fx_settings", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "FX Options", "Options used for real time compositing");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
@@ -2912,7 +2895,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "chanshown");
 	RNA_def_property_ui_text(prop, "Display Channel",
 	                         "The channel number shown in the image preview. 0 is the result of all strips combined");
-	RNA_def_property_range(prop, -5, MAXSEQ);
+	RNA_def_property_range(prop, 1, MAXSEQ);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 
 	prop = RNA_def_property(srna, "preview_channels", PROP_ENUM, PROP_NONE);

@@ -32,15 +32,21 @@
 #ifndef __GPU_COMPOSITING_H__
 #define __GPU_COMPOSITING_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* opaque handle for framebuffer compositing effects (defined in gpu_compositing.c )*/
 typedef struct GPUFX GPUFX;
-
+struct GPUDOFSettings;
+struct GPUSSAOSettings;
 struct GPUOffScreen;
-struct GPUFXOptions;
+struct GPUFXSettings;
 struct RegionView3D;
 struct rcti;
 struct Scene;
 struct View3D;
+enum eGPUFXFlags;
 
 /**** Public API *****/
 
@@ -57,18 +63,26 @@ typedef enum GPUFXShaderEffect {
 } GPUFXShaderEffect;
 
 /* keep in synch with enum above! */
-#define MAX_FX_SHADERS 7
+#define MAX_FX_SHADERS 11
 
 /* generate a new FX compositor */
-GPUFX *GPU_create_fx_compositor(void);
+GPUFX *GPU_fx_compositor_create(void);
 
 /* destroy a text compositor */
-void GPU_destroy_fx_compositor(GPUFX *fx);
+void GPU_fx_compositor_destroy(GPUFX *fx);
 
 /* initialize a framebuffer with size taken from the viewport */
-bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, rcti *scissor_rect, int fxflags, struct GPUFXOptions *options);
+bool GPU_fx_compositor_initialize_passes(
+        GPUFX *fx, const struct rcti *rect, const struct rcti *scissor_rect,
+        const struct GPUFXSettings *fx_settings);
 
 /* do compositing on the fx passes that have been initialized */
 bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs);
+
+void GPU_fx_compositor_init_dof_settings(struct GPUDOFSettings *dof);
+void GPU_fx_compositor_init_ssao_settings(struct GPUSSAOSettings *ssao);
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __GPU_COMPOSITING_H__

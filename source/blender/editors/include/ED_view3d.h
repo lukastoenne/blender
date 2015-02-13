@@ -64,7 +64,8 @@ struct wmOperatorType;
 struct wmWindow;
 struct GPUFX;
 struct GPUOffScreen;
-struct GPUFXOptions;
+struct GPUFXSettings;
+enum eGPUFXFlags;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetGroupType;
@@ -312,8 +313,11 @@ void ED_draw_object_facemap(struct Scene *scene, struct Object *ob, int facemap)
 
 bool ED_view3d_context_activate(struct bContext *C);
 void ED_view3d_draw_offscreen_init(struct Scene *scene, struct View3D *v3d);
-void ED_view3d_draw_offscreen(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int winx, int winy, float viewmat[4][4],
-                              float winmat[4][4], bool do_bgpic, bool do_sky, struct GPUFX *fx, bool is_persp, struct GPUOffScreen *ofs, struct GPUFXOptions *fxoptions, int fxflags);
+void ED_view3d_draw_offscreen(
+        struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int winx, int winy, float viewmat[4][4],
+        float winmat[4][4], bool do_bgpic, bool do_sky, bool is_persp,
+        struct GPUOffScreen *ofs,
+        struct GPUFX *fx, struct GPUFXSettings *fx_settings);
 
 struct ImBuf *ED_view3d_draw_offscreen_imbuf(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int sizex, int sizey, unsigned int flag,
                                              bool draw_background, int alpha_mode, char err_out[256]);

@@ -4,6 +4,9 @@ uniform sampler2D colorbuffer;
 // jitter texture for ssao
 uniform sampler2D jitter_tex;
 
+// concentric sample texture for ssao
+uniform sampler1D ssao_concentric_tex;
+
 // depth buffer
 uniform sampler2D depthbuffer;
 // coordinates on framebuffer in normalized (0.0-1.0) uv space
@@ -14,10 +17,10 @@ varying vec4 uvcoordsvar;
 uniform vec4 ssao_params;
 uniform vec4 ssao_sample_params;
 uniform vec4 ssao_color;
-uniform vec2 sample_directions[16];
 
-/* store the view space vectors for the corners of the view frustum here. It helps to quickly reconstruct view space vectors
- * by using uv coordinates, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
+/* store the view space vectors for the corners of the view frustum here.
+ * It helps to quickly reconstruct view space vectors by using uv coordinates,
+ * see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
 uniform vec4 viewvecs[3];
 
 float calculate_ssao_factor(float depth)
@@ -42,34 +45,31 @@ float calculate_ssao_factor(float depth)
 	offset *= 0.5;
 
 	float factor = 0.0;
-	int x, y;
-	int radial_samples = int(ssao_sample_params.y);
-	int azimuth_samples = int(ssao_sample_params.x);
+	int x;
+	int num_samples = int(ssao_sample_params.x);
 
-	for (x = 0; x < azimuth_samples; x++) {
-		vec2 dir_sample = sample_directions[x];
+	for (x = 0; x < num_samples; x++) {
+		vec2 dir_sample = texture1D(ssao_concentric_tex, (float(x) + 0.5) / ssao_sample_params.x).rg;
 
 		/* rotate with random direction to get jittered result */
 		vec2 dir_jittered = vec2(dot(dir_sample, rotX), dot(dir_sample, rotY));
 
-		for (y = 0; y < radial_samples; y++) {
-			vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset * float(y + 1) / ssao_sample_params.y;
+		vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset;
 
-			float depth_new = texture2D(depthbuffer, uvcoords).r;
-			if (depth_new != 1.0) {
-				vec3 pos_new = get_view_space_from_depth(uvcoords, viewvecs[0].xyz, viewvecs[1].xyz, depth_new);
-				vec3 dir = pos_new - position;
-				float len = length(dir);
-				float f = dot(dir, normal);
+		float depth_new = texture2D(depthbuffer, uvcoords).r;
+		if (depth_new != 1.0) {
+			vec3 pos_new = get_view_space_from_depth(uvcoords, viewvecs[0].xyz, viewvecs[1].xyz, depth_new);
+			vec3 dir = pos_new - position;
+			float len = length(dir);
+			float f = dot(dir, normal);
 
-				/* use minor bias here to avoid self shadowing */
-				if (f > 0.05 * len)
-					factor += f / len * 1.0/(1.0 + len * len * ssao_params.z);
-			}
+			/* use minor bias here to avoid self shadowing */
+			if (f > 0.05 * len + 0.0001)
+				factor += f * 1.0/(len * (1.0 + len * len * ssao_params.z));
 		}
 	}
 
-	factor /= (ssao_sample_params.y * ssao_sample_params.x);
+	factor /= ssao_sample_params.x;
 
 	return clamp(factor * ssao_params.y, 0.0, 1.0);
 }

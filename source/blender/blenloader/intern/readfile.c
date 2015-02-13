@@ -6577,7 +6577,6 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				}
 				v3d->localvd = newdataadr(fd, v3d->localvd);
 				BLI_listbase_clear(&v3d->afterdraw_transp);
-				BLI_listbase_clear(&v3d->gpu_material);
 				BLI_listbase_clear(&v3d->afterdraw_xray);
 				BLI_listbase_clear(&v3d->afterdraw_xraytransp);
 				v3d->properties_storage = NULL;
@@ -6587,14 +6586,10 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				if (v3d->drawtype == OB_RENDER)
 					v3d->drawtype = OB_SOLID;
 
-				if (v3d->fxoptions) {
-					v3d->fxoptions = newdataadr(fd, v3d->fxoptions);
-
-					if (v3d->fxoptions->dof_options)
-						v3d->fxoptions->dof_options = newdataadr(fd, v3d->fxoptions->dof_options);
-					if (v3d->fxoptions->ssao_options)
-						v3d->fxoptions->ssao_options = newdataadr(fd, v3d->fxoptions->ssao_options);
-				}
+				if (v3d->fx_settings.dof)
+					v3d->fx_settings.dof = newdataadr(fd, v3d->fx_settings.dof);
+				if (v3d->fx_settings.ssao)
+					v3d->fx_settings.ssao = newdataadr(fd, v3d->fx_settings.ssao);
 				
 				blo_do_versions_view3d_split_250(v3d, &sl->regionbase);
 			}

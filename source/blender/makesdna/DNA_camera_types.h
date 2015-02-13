@@ -65,7 +65,7 @@ typedef struct Camera {
 	struct Ipo *ipo  DNA_DEPRECATED; /* old animation system, deprecated for 2.5 */
 	
 	struct Object *dof_ob;
-	struct GPUDOFOptions gpu_dof;
+	struct GPUDOFSettings gpu_dof;
 
 	char sensor_fit;
 	char pad[7];

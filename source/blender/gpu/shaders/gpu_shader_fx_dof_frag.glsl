@@ -46,8 +46,9 @@ vec4 calculate_near_coc(in vec4 zdepth)
 	return coc * dof_params.z;
 }
 
-/* first pass blurs the color buffer heavily and gets the near coc only. There are too many texture accesses here but they are done on a
- * lower resolution image */
+/* first pass blurs the color buffer heavily and gets the near coc only.
+ * There are many texture accesses here but they are done on a
+ * lower resolution image so overall bandwidth is not a concern */
 void first_pass()
 {
 	vec4 depth;

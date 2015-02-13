@@ -292,7 +292,7 @@ void RNA_def_camera(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
 	prop = RNA_def_property(srna, "gpu_dof", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "GPUDOFOptions");
+	RNA_def_property_struct_type(prop, "GPUDOFSettings");
 	RNA_def_property_ui_text(prop, "GPU Depth Of Field", "");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 

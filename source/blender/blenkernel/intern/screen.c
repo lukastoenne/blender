@@ -39,6 +39,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_compositing.h"
+
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -610,10 +612,25 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac)
 	return ((sqrtf(4.0f * zoomfac) - (float)M_SQRT2) * 50.0f);
 }
 
-void BKE_screen_view3d_ensure_FX(View3D *v3d) {
-	if (!v3d->fxoptions) {
-		v3d->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
-		v3d->fxoptions->dof_options = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
-		v3d->fxoptions->ssao_options = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
+void BKE_screen_gpu_fx_validate(GPUFXSettings *fx_settings)
+{
+	/* currently we use DOF from the camera _only_,
+	 * so we never allocate this, only copy from the Camera */
+#if 0
+	if ((fx_settings->dof == NULL) &&
+	    (fx_settings->fx_flag & GPU_FX_FLAG_DOF))
+	{
+		GPUDOFSettings *fx_dof;
+		fx_dof = fx_settings->dof = MEM_callocN(sizeof(GPUDOFSettings), __func__);
+	}
+#endif
+
+	if ((fx_settings->ssao == NULL) &&
+	    (fx_settings->fx_flag & GPU_FX_FLAG_SSAO))
+	{
+		GPUSSAOSettings *fx_ssao;
+		fx_ssao = fx_settings->ssao = MEM_callocN(sizeof(GPUSSAOSettings), __func__);
+
+		GPU_fx_compositor_init_ssao_settings(fx_ssao);
 	}
 }

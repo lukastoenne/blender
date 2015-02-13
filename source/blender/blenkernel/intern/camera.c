@@ -49,6 +49,8 @@
 #include "BKE_main.h"
 #include "BKE_screen.h"
 
+#include "GPU_compositing.h"
+
 /****************************** Camera Datablock *****************************/
 
 void *BKE_camera_add(Main *bmain, const char *name)
@@ -66,7 +68,9 @@ void *BKE_camera_add(Main *bmain, const char *name)
 	cam->ortho_scale = 6.0;
 	cam->flag |= CAM_SHOWPASSEPARTOUT;
 	cam->passepartalpha = 0.5f;
-	
+
+	GPU_fx_compositor_init_dof_settings(&cam->gpu_dof);
+
 	return cam;
 }
 
@@ -686,18 +690,18 @@ bool BKE_camera_view_frame_fit_to_coords(
 	return camera_frame_fit_calc_from_data(&params, &data_cb, r_co, r_scale);
 }
 
-void BKE_GPU_dof_from_camera(struct Object *camera, struct GPUFXOptions *options)
+void BKE_camera_to_gpu_dof(struct Object *camera, struct GPUFXSettings *r_fx_settings)
 {
 	if (camera->type == OB_CAMERA) {
 		Camera *cam = camera->data;
-		options->dof_options = &cam->gpu_dof;
+		r_fx_settings->dof = &cam->gpu_dof;
+		r_fx_settings->dof->focal_length = cam->lens;
+		r_fx_settings->dof->sensor = BKE_camera_sensor_size(cam->sensor_fit, cam->sensor_x, cam->sensor_y);
 		if (cam->dof_ob) {
-			float vec[3];
-			sub_v3_v3v3(vec, cam->dof_ob->obmat[3], camera->obmat[3]);
-			options->dof_options->dof_focus_distance = len_v3(vec);
+			r_fx_settings->dof->focus_distance = len_v3v3(cam->dof_ob->obmat[3], camera->obmat[3]);
 		}
 		else {
-			options->dof_options->dof_focus_distance = cam->YF_dofdist;
+			r_fx_settings->dof->focus_distance = cam->YF_dofdist;
 		}
 	}
 }

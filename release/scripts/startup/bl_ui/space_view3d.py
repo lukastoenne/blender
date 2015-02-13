@@ -2943,6 +2943,7 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
+<<<<<<< HEAD
             fxoptions = view.fxoptions
 
             col.prop(view, "depth_of_field")
@@ -2965,6 +2966,23 @@ class VIEW3D_PT_view3d_shading(Panel):
                 subcol.prop(ssao_options, "ssao_attenuation")
                 subcol.prop(ssao_options, "ssao_ray_sample_mode")
                 subcol.prop(ssao_options, "ssao_color")
+=======
+            fx_settings = view.fx_settings
+
+            sub = col.column()
+            sub.active = view.region_3d.view_perspective == 'CAMERA'
+            sub.prop(fx_settings, "use_dof")
+
+            col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
+            if fx_settings.use_ssao:
+                ssao_settings = fx_settings.ssao
+                subcol = col.column(align=True)
+                subcol.prop(ssao_settings, "factor")
+                subcol.prop(ssao_settings, "distance_max")
+                subcol.prop(ssao_settings, "attenuation")
+                subcol.prop(ssao_settings, "samples")
+                subcol.prop(ssao_settings, "color")
+>>>>>>> master
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):
@@ -3222,8 +3240,8 @@ class VIEW3D_PT_background_image(Panel):
 
                     row = box.row()
                     if bg.view_axis != 'CAMERA':
-                         row.prop(bg, "rotation")
-                         row.prop(bg, "size")
+                        row.prop(bg, "rotation")
+                        row.prop(bg, "size")
 
 
 class VIEW3D_PT_transform_orientations(Panel):
