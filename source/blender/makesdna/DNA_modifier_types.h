@@ -712,14 +712,14 @@ typedef enum {
 } ParticleSystemModifierFlag;
 
 typedef enum {
-	eParticleInstanceFlag_Parents   = (1 << 0),
-	eParticleInstanceFlag_Children  = (1 << 1),
-	eParticleInstanceFlag_Path      = (1 << 2),
-	eParticleInstanceFlag_Unborn    = (1 << 3),
-	eParticleInstanceFlag_Alive     = (1 << 4),
-	eParticleInstanceFlag_Dead      = (1 << 5),
-	eParticleInstanceFlag_KeepShape = (1 << 6),
-	eParticleInstanceFlag_UseSize   = (1 << 7),
+	eParticleInstanceFlag_Parents       = (1 << 0),
+	eParticleInstanceFlag_Children      = (1 << 1),
+	eParticleInstanceFlag_Path          = (1 << 2),
+	eParticleInstanceFlag_Unborn        = (1 << 3),
+	eParticleInstanceFlag_Alive         = (1 << 4),
+	eParticleInstanceFlag_Dead          = (1 << 5),
+	eParticleInstanceFlag_KeepShape     = (1 << 6),
+	eParticleInstanceFlag_UseSize       = (1 << 7),
 } ParticleInstanceModifierFlag;
 
 typedef enum {
@@ -734,6 +734,8 @@ typedef struct ParticleInstanceModifierData {
 	short psys, flag, axis, space;
 	float position, random_position;
 	float particle_amount, particle_offset;
+	char index_layer_name[64]; /* MAX_CUSTOMDATA_LAYER_NAME */
+	char value_layer_name[64]; /* MAX_CUSTOMDATA_LAYER_NAME */
 } ParticleInstanceModifierData;
 
 typedef enum {

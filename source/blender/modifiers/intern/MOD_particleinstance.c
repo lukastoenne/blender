@@ -40,6 +40,7 @@
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 #include "BLI_rand.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_cdderivedmesh.h"
@@ -65,6 +66,9 @@ static void initData(ModifierData *md)
 	pimd->space = eParticleInstanceSpace_Local;
 	pimd->particle_amount = 1.0f;
 	pimd->particle_offset = 0.0f;
+	
+	BLI_strncpy(pimd->index_layer_name, "particle_index", sizeof(pimd->index_layer_name));
+	BLI_strncpy(pimd->value_layer_name, "particle_value", sizeof(pimd->value_layer_name));
 }
 static void copyData(ModifierData *md, ModifierData *target)
 {
@@ -208,6 +212,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	float max_co = 0.0, min_co = 0.0, temp_co[3];
 	float *size = NULL;
 	float spacemat[4][4];
+	int *cd_index = NULL;
+	float *cd_value = NULL;
 
 	trackneg = ((ob->trackflag > 2) ? 1 : 0);
 
@@ -313,9 +319,18 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	mloop = result->getLoopArray(result);
 	orig_mloop = dm->getLoopArray(dm);
 
+	/* create customdata layer for particle index storage */
+	if (pimd->index_layer_name[0] != '\0')
+		cd_index = CustomData_add_layer_named(&result->vertData, CD_PROP_INT, CD_CALLOC,
+		                                         NULL, maxvert, pimd->index_layer_name);
+	if (pimd->value_layer_name[0] != '\0')
+		cd_value = CustomData_add_layer_named(&result->vertData, CD_PROP_FLT, CD_CALLOC,
+		                                       NULL, maxvert, pimd->value_layer_name);
+
 	for (p = 0, p_skip = 0; p < totpart; p++) {
 		float prev_dir[3];
 		float frame[4]; /* frame orientation quaternion */
+		float p_random = psys_frand(psys, 77091 + 283*p);
 		
 		/* skip particle? */
 		if (particle_skip(pimd, psys, p))
@@ -325,11 +340,17 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		for (k = 0; k < totvert; k++) {
 			ParticleKey state;
 			MVert *inMV;
-			MVert *mv = mvert + p_skip * totvert + k;
+			int vindex = p_skip * totvert + k;
+			MVert *mv = mvert + vindex;
 
 			inMV = orig_mvert + k;
 			DM_copy_vert_data(dm, result, k, p_skip * totvert + k, 1);
 			*mv = *inMV;
+
+			if (cd_index)
+				cd_index[vindex] = p;
+			if (cd_value)
+				cd_value[vindex] = p_random;
 
 			/*change orientation based on object trackflag*/
 			copy_v3_v3(temp_co, mv->co);

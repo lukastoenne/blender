@@ -682,6 +682,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "position", slider=True)
         col.prop(md, "random_position", text="Random", slider=True)
 
+        col = layout.column(align=True)
+        col.prop(md, "index_layer_name", text="Index Layer")
+        col.prop(md, "value_layer_name", text="Value Layer")
+
     def PARTICLE_SYSTEM(self, layout, ob, md):
         layout.label(text="Settings can be found inside the Particle context")
 

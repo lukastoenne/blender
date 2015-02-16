@@ -419,6 +419,52 @@ static void attr_create_pointiness(Scene *scene,
 	}
 }
 
+/* Create vertex custom attributes. */
+static void attr_create_vertex_properties(Scene *scene,
+                                          Mesh *mesh,
+                                          BL::Mesh b_mesh)
+{
+	{
+		BL::Mesh::vertex_layers_float_iterator l;
+		for(b_mesh.vertex_layers_float.begin(l); l != b_mesh.vertex_layers_float.end(); ++l) {
+			if(!mesh->need_attribute(scene, ustring(l->name().c_str())))
+				continue;
+			
+			Attribute *attr = mesh->attributes.add(
+			            ustring(l->name().c_str()), TypeDesc::TypeFloat, ATTR_ELEMENT_VERTEX);
+			
+			BL::MeshVertexFloatPropertyLayer::data_iterator d;
+			float *data = attr->data_float();
+			size_t i = 0;
+			
+			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
+				*data = d->value();
+				data += 1;
+			}
+		}
+	}
+
+	{
+		BL::Mesh::vertex_layers_int_iterator l;
+		for(b_mesh.vertex_layers_int.begin(l); l != b_mesh.vertex_layers_int.end(); ++l) {
+			if(!mesh->need_attribute(scene, ustring(l->name().c_str())))
+				continue;
+			
+			Attribute *attr = mesh->attributes.add(
+			            ustring(l->name().c_str()), TypeDesc::TypeFloat, ATTR_ELEMENT_VERTEX);
+			
+			BL::MeshVertexIntPropertyLayer::data_iterator d;
+			float *data = attr->data_float();
+			size_t i = 0;
+			
+			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
+				*data = (float)d->value();
+				data += 1;
+			}
+		}
+	}
+}
+
 /* Create Mesh */
 
 static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<uint>& used_shaders)
@@ -523,6 +569,7 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 	attr_create_vertex_color(scene, mesh, b_mesh, nverts);
 	attr_create_uv_map(scene, mesh, b_mesh, nverts);
 	attr_create_pointiness(scene, mesh, b_mesh);
+	attr_create_vertex_properties(scene, mesh, b_mesh);
 
 	/* for volume objects, create a matrix to transform from object space to
 	 * mesh texture space. this does not work with deformations but that can

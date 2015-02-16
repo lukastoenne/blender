@@ -2448,6 +2448,16 @@ static void rna_def_modifier_particleinstance(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Particle Offset", "Relative offset of particles to use for instancing, to avoid overlap of multiple instances");
 	RNA_def_property_float_default(prop, 0.0f);
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "index_layer_name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "index_layer_name");
+	RNA_def_property_ui_text(prop, "Index Layer Name", "Custom data layer name for the index");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "value_layer_name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "value_layer_name");
+	RNA_def_property_ui_text(prop, "Value Layer Name", "Custom data layer name for the randomized value");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 static void rna_def_modifier_explode(BlenderRNA *brna)
