@@ -2218,7 +2218,8 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.rip_edge_move")
         layout.operator("mesh.split")
         layout.operator_menu_enum("mesh.separate", "type")
-        layout.operator("mesh.vert_connect", text="Connect")
+        layout.operator("mesh.vert_connect_path", text="Connect Vertex Path")
+        layout.operator("mesh.vert_connect", text="Connect Vertices")
         layout.operator("transform.vert_slide", text="Slide")
 
         layout.separator()
@@ -2943,30 +2944,6 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
-<<<<<<< HEAD
-            fxoptions = view.fxoptions
-
-            col.prop(view, "depth_of_field")
-            if view.depth_of_field:
-                if (view.region_3d.view_perspective == 'CAMERA'):
-                    col.label("check dof properties in camera settings", icon='INFO')
-                else:
-                    dof_options = fxoptions.dof_options
-                    subcol = col.column(align=True)
-                    subcol.prop(dof_options, "dof_focus_distance")
-                    subcol.prop(dof_options, "dof_fstop")
-                    subcol.prop(dof_options, "dof_focal_length")
-                    subcol.prop(dof_options, "dof_sensor")
-            col.prop(view, "ssao")
-            if view.ssao:
-                ssao_options = fxoptions.ssao_options
-                subcol = col.column(align=True)
-                subcol.prop(ssao_options, "ssao_darkening")
-                subcol.prop(ssao_options, "ssao_distance_max")
-                subcol.prop(ssao_options, "ssao_attenuation")
-                subcol.prop(ssao_options, "ssao_ray_sample_mode")
-                subcol.prop(ssao_options, "ssao_color")
-=======
             fx_settings = view.fx_settings
 
             sub = col.column()
@@ -2982,7 +2959,6 @@ class VIEW3D_PT_view3d_shading(Panel):
                 subcol.prop(ssao_settings, "attenuation")
                 subcol.prop(ssao_settings, "samples")
                 subcol.prop(ssao_settings, "color")
->>>>>>> master
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):
