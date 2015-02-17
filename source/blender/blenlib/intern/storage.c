@@ -459,7 +459,9 @@ void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries, void (
 			free_poin(entry->poin);
 	}
 
-	MEM_freeN(filelist);
+	if (filelist != NULL) {
+		MEM_freeN(filelist);
+	}
 }
 
 
@@ -529,6 +531,7 @@ int BLI_exists(const char *name)
 	if (res == -1) return(0);
 #else
 	struct stat st;
+	BLI_assert(name);
 	if (stat(name, &st)) return(0);
 #endif
 	return(st.st_mode);

@@ -36,14 +36,6 @@
 CCL_NAMESPACE_BEGIN
 
 
-ccl_device void bsdf_hair_reflection_blur(ShaderClosure *sc, float roughness)
-{
-}
-
-ccl_device void bsdf_hair_transmission_blur(ShaderClosure *sc, float roughness)
-{
-}
-
 ccl_device int bsdf_hair_reflection_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_BSDF_HAIR_REFLECTION_ID;
@@ -74,7 +66,6 @@ ccl_device float3 bsdf_hair_reflection_eval_reflect(const ShaderClosure *sc, con
 
 	float Iz = dot(Tg, I);
 	float3 locy = normalize(I - Tg * Iz);
-	//float3 locx = cross(locy, Tg);
 
 	float theta_r = M_PI_2_F - fast_acosf(Iz);
 
@@ -132,7 +123,6 @@ ccl_device float3 bsdf_hair_transmission_eval_transmit(const ShaderClosure *sc, 
 	float roughness2 = sc->data1;
 	float Iz = dot(Tg, I);
 	float3 locy = normalize(I - Tg * Iz);
-	//float3 locx = cross(locy, Tg);
 
 	float theta_r = M_PI_2_F - fast_acosf(Iz);
 

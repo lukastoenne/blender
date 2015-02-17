@@ -353,7 +353,7 @@ static void restrictbutton_ebone_visibility_cb(bContext *C, void *UNUSED(poin), 
 
 static void restrictbutton_gp_layer_flag_cb(bContext *C, void *UNUSED(poin), void *UNUSED(poin2))
 {
-	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA, NULL);
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
 }
 
 static int group_restrict_flag(Group *gr, int flag)
@@ -850,10 +850,11 @@ static void outliner_draw_userbuts(uiBlock *block, ARegion *ar, SpaceOops *soops
 				UI_but_flag_enable(bt, but_flag);
 				
 				
-				bt = uiDefButBitS(block, UI_BTYPE_TOGGLE, LIB_FAKEUSER, 1, (id->flag & LIB_FAKEUSER) ? "F" : " ", 
-				                      (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), te->ys, UI_UNIT_X, UI_UNIT_Y, 
-				                      &id->flag, 0, 0, 0, 0,
-				                      TIP_("Datablock has a 'fake' user which will keep it in the flie even if nothing else uses it"));
+				bt = uiDefButBitS(block, UI_BTYPE_TOGGLE, LIB_FAKEUSER, 1, (id->flag & LIB_FAKEUSER) ? "F" : " ",
+				                  (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), te->ys, UI_UNIT_X, UI_UNIT_Y,
+				                  &id->flag, 0, 0, 0, 0,
+				                  TIP_("Datablock has a 'fake' user which will keep it in the file "
+				                       "even if nothing else uses it"));
 				UI_but_func_set(bt, restrictbutton_id_user_toggle, id, NULL);
 				UI_but_flag_enable(bt, but_flag);
 				

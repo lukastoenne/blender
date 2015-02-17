@@ -42,6 +42,7 @@
 #include "DNA_lamp_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
+#include "DNA_brush_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -2687,8 +2688,6 @@ void ED_view3d_update_viewmat(Scene *scene, View3D *v3d, ARegion *ar, float view
 	}
 }
 
-
-
 /**
  * Shared by #ED_view3d_draw_offscreen and #view3d_main_area_draw_objects
  *
@@ -2705,8 +2704,10 @@ static void view3d_draw_objects(
 	Base *base;
 	const bool do_camera_frame = !draw_offscreen;
 	const bool is_wire_color = V3D_IS_WIRECOLOR(scene, v3d);
-	const bool draw_floor = (rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO);
 	const bool draw_grids = !draw_offscreen && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0;
+	const bool draw_floor = (rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO);
+	/* only draw grids after in solid modes, else it hovers over mesh wires */
+	const bool draw_grids_after = draw_grids && draw_floor && (v3d->drawtype > OB_WIRE);
 	bool xrayclear = true;
 
 	if (!draw_offscreen) {
@@ -2753,6 +2754,9 @@ static void view3d_draw_objects(
 			glLoadMatrixf(rv3d->winmat);
 			glMatrixMode(GL_MODELVIEW);
 			glLoadMatrixf(rv3d->viewmat);
+		}
+		else {
+			drawfloor(scene, v3d, grid_unit);
 		}
 	}
 
@@ -2832,17 +2836,17 @@ static void view3d_draw_objects(
 		}
 	}
 
+	/* perspective floor goes last to use scene depth and avoid writing to depth buffer */
+	if (draw_grids_after) {
+		drawfloor(scene, v3d, grid_unit);
+	}
+
 	/* must be before xray draw which clears the depth buffer */
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 		/* must be before xray draw which clears the depth buffer */
 		if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 		ED_gpencil_draw_view3d(scene, v3d, ar, true);
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
-	}
-
-	/* perspective floor goes last to use scene depth and avoid writing to depth buffer */
-	if (draw_grids && draw_floor) {
-		drawfloor(scene, v3d, grid_unit);
 	}
 
 	/* transp and X-ray afterdraw stuff */
@@ -3639,6 +3643,36 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 }
 
+static bool is_cursor_visible(Scene *scene)
+{
+	Object *ob = OBACT;
+
+	/* don't draw cursor in paint modes, but with a few exceptions */
+	if (ob && ob->mode & OB_MODE_ALL_PAINT) {
+		/* exception: object is in weight paint and has deforming armature in pose mode */
+		if (ob->mode & OB_MODE_WEIGHT_PAINT) {
+			if (BKE_object_pose_armature_get(ob) != NULL) {
+				return true;
+			}
+		}
+		/* exception: object in texture paint mode, clone brush, use_clone_layer disabled */
+		else if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+			const Paint *p = BKE_paint_get_active(scene);
+
+			if (p && p->brush->imagepaint_tool == PAINT_TOOL_CLONE) {
+				if ((scene->toolsettings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE) == 0) {
+					return true;
+				}
+			}
+		}
+
+		/* no exception met? then don't draw cursor! */
+		return false;
+	}
+
+	return true;
+}
+
 static void view3d_main_area_draw_info(const bContext *C, Scene *scene,
                                        ARegion *ar, View3D *v3d,
                                        const char *grid_unit, bool render_border)
@@ -3672,7 +3706,10 @@ static void view3d_main_area_draw_info(const bContext *C, Scene *scene,
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 		Object *ob;
 
-		drawcursor(scene, ar, v3d);
+		/* 3d cursor */
+		if (is_cursor_visible(scene)) {
+			drawcursor(scene, ar, v3d);
+		}
 
 		if (U.uiflag & USER_SHOW_ROTVIEWICON)
 			draw_view_axis(rv3d, &rect);
