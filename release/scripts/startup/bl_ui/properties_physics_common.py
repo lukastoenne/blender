@@ -315,5 +315,8 @@ def basic_force_field_falloff_ui(self, context, field):
     sub.active = field.use_max_distance
     sub.prop(field, "distance_max", text="Maximum")
 
+    if field.shape == 'SURFACE':
+        layout.prop(field, "use_signed_distance")
+
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

@@ -1337,6 +1337,11 @@ static void rna_def_field(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Max", "Use a maximum distance for the field to work");
 	RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
 	
+	prop = RNA_def_property(srna, "use_signed_distance", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PFIELD_USE_SIGNED_DISTANCE);
+	RNA_def_property_ui_text(prop, "Use Signed Distance", "Use negative distance on the interior of surface shapes");
+	RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
+	
 	prop = RNA_def_property(srna, "use_radial_min", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PFIELD_USEMINR);
 	RNA_def_property_ui_text(prop, "Use Min", "Use a minimum radial distance for the field's fall-off");

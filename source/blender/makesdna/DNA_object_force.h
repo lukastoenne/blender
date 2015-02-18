@@ -370,6 +370,7 @@ typedef struct SoftBody {
 #define PFIELD_DO_ROTATION		(1<<15)
 #define PFIELD_GUIDE_PATH_WEIGHT (1<<16)	/* apply curve weights */
 #define PFIELD_SMOKE_DENSITY    (1<<17)		/* multiply smoke force by density */
+#define PFIELD_USE_SIGNED_DISTANCE (1<<18)	/* surface shape: use negative distance on the interior */
 
 /* pd->falloff */
 #define PFIELD_FALL_SPHERE		0

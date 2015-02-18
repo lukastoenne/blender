@@ -831,6 +831,10 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 	}
 
 	copy_v3_v3(force, efd->vec_to_point);
+	if (pd->shape == PFIELD_SHAPE_SURFACE && (pd->flag & PFIELD_USE_SIGNED_DISTANCE)) {
+		if (dot_v3v3(efd->vec_to_point, efd->nor) < 0.0f)
+			mul_v3_fl(force, -1.0f);
+	}
 
 	switch (pd->forcefield) {
 		case PFIELD_WIND:
