@@ -111,6 +111,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 		float *vec;
 		MVert *x, *v;
 
+		DM_ensure_tessface(surmd->dm);
 		CDDM_apply_vert_coords(surmd->dm, vertexCos);
 		CDDM_calc_normals(surmd->dm);
 		
