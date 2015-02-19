@@ -7828,7 +7828,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	view3d_cached_text_draw_begin();
 	
 	/* draw motion paths (in view space) */
-	if (ob->mpath && (!render_override || show_motionpaths)) {
+	if (ob->mpath && show_motionpaths) {
 		ED_view3d_after_add(&v3d->afterdraw_nodepth, base, 0);
 	}
 
