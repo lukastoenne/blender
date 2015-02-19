@@ -97,6 +97,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_actuator_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
@@ -147,6 +148,7 @@
 #include "BKE_action.h"
 #include "BKE_blender.h"
 #include "BKE_bpath.h"
+#include "BKE_cache_library.h"
 #include "BKE_curve.h"
 #include "BKE_constraint.h"
 #include "BKE_global.h" // for G
@@ -3486,6 +3488,19 @@ static void write_linestyles(WriteData *wd, ListBase *idbase)
 	}
 }
 
+static void write_cachelibraries(WriteData *wd, ListBase *idbase)
+{
+	CacheLibrary *cachelib;
+
+	for (cachelib = idbase->first; cachelib; cachelib = cachelib->id.next) {
+		if (cachelib->id.us > 0 || wd->current) {
+			writestruct(wd, ID_CL, "CacheLibrary", 1, cachelib);
+			if (cachelib->id.properties)
+				IDP_WriteProperty(cachelib->id.properties, wd);
+		}
+	}
+}
+
 /* context is usually defined by WM, two cases where no WM is available:
  * - for forward compatibility, curscreen has to be saved
  * - for undofile, curscene needs to be saved */
@@ -3614,6 +3629,7 @@ static int write_file_handle(
 	write_scripts  (wd, &mainvar->script);
 	write_gpencils (wd, &mainvar->gpencil);
 	write_linestyles(wd, &mainvar->linestyle);
+	write_cachelibraries(wd, &mainvar->cache_library);
 	write_libraries(wd,  mainvar->next);
 
 	if (write_user_block) {

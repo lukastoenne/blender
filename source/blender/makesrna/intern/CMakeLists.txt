@@ -38,6 +38,7 @@ set(DEFSRC
 	rna_armature.c
 	rna_boid.c
 	rna_brush.c
+	rna_cache_library.c
 	rna_camera.c
 	rna_cloth.c
 	rna_color.c
