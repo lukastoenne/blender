@@ -1255,8 +1255,8 @@ elseif(WIN32)
 
 		find_package(png)
 		if(NOT PNG_FOUND)
-			set(PNG_PNG_INCLUDE_DIR ${LIBDIR}/png/include)
 			message(WARNING "Using HARDCODED libpng locations")
+			set(PNG_PNG_INCLUDE_DIR ${LIBDIR}/png/include)
 			set(PNG_LIBRARIES libpng)
 			set(PNG "${LIBDIR}/png")
 			set(PNG_INCLUDE_DIRS "${PNG}/include")
@@ -1343,19 +1343,19 @@ elseif(WIN32)
 			set(OPENEXR_VERSION "2.1")
 			find_package(OPENEXR REQUIRED)
 			if(NOT OPENEXR_FOUND)
-			message(WARNING "Using HARDCODED OpenEXR locations")
-			set(OPENEXR ${LIBDIR}/openexr)
-			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
-			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
-			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
-			set(OPENEXR_LIBRARIES
-				${OPENEXR_LIBPATH}/Iex-2_2.lib
-				${OPENEXR_LIBPATH}/Half.lib
-				${OPENEXR_LIBPATH}/IlmImf-2_2.lib
-				${OPENEXR_LIBPATH}/Imath-2_2.lib
-				${OPENEXR_LIBPATH}/IlmThread-2_2.lib
-			)
-			endif(NOT OPENEXR_FOUND)
+				message(WARNING "Using HARDCODED OpenEXR locations")
+				set(OPENEXR ${LIBDIR}/openexr)
+				set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
+				set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
+				set(OPENEXR_LIBPATH ${OPENEXR}/lib)
+				set(OPENEXR_LIBRARIES
+					${OPENEXR_LIBPATH}/Iex-2_2.lib
+					${OPENEXR_LIBPATH}/Half.lib
+					${OPENEXR_LIBPATH}/IlmImf-2_2.lib
+					${OPENEXR_LIBPATH}/Imath-2_2.lib
+					${OPENEXR_LIBPATH}/IlmThread-2_2.lib
+				)
+			endif()
 		endif()
 
 		if(WITH_IMAGE_TIFF)
@@ -1395,10 +1395,10 @@ elseif(WIN32)
 		if(WITH_BOOST)
 			if(WITH_CYCLES_OSL)
 				set(boost_extra_libs wave)
-			endif(WITH_CYCLES_OSL)
+			endif()
 			if(WITH_INTERNATIONAL)
 				list(APPEND boost_extra_libs locale)
-			endif(WITH_INTERNATIONAL)
+			endif()
 			set(Boost_USE_STATIC_RUNTIME ON) # prefix lib
 			set(Boost_USE_MULTITHREADED ON) # suffix -mt
 			set(Boost_USE_STATIC_LIBS ON) # suffix -s
@@ -1525,7 +1525,7 @@ elseif(WIN32)
 		if(WITH_MINGW64)
 			message(STATUS "Compiling for 64 bit with MinGW-w64.")
 			execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-			if (GCC_VERSION VERSION_GREATER 4.9 OR GCC_VERSION VERSION_EQUAL 4.9)
+			if(GCC_VERSION VERSION_GREATER 4.9 OR GCC_VERSION VERSION_EQUAL 4.9)
 				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64_gcc49)
 			else()
 				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
