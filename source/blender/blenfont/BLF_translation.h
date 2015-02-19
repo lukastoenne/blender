@@ -146,6 +146,7 @@ const char *BLF_translate_do_new_dataname(const char *msgctxt, const char *msgid
 #define BLF_I18NCONTEXT_ID_ACTION               "Action"
 #define BLF_I18NCONTEXT_ID_ARMATURE             "Armature"
 #define BLF_I18NCONTEXT_ID_BRUSH                "Brush"
+#define BLF_I18NCONTEXT_ID_CACHELIBRARY         "CacheLibrary"
 #define BLF_I18NCONTEXT_ID_CAMERA               "Camera"
 #define BLF_I18NCONTEXT_ID_CURVE                "Curve"
 #define BLF_I18NCONTEXT_ID_FREESTYLELINESTYLE   "FreestyleLineStyle"

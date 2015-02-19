@@ -213,5 +213,7 @@ EnumPropertyItem *RNA_movieclip_itemf(struct bContext *C, struct PointerRNA *ptr
 EnumPropertyItem *RNA_movieclip_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 EnumPropertyItem *RNA_mask_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 EnumPropertyItem *RNA_mask_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+EnumPropertyItem *RNA_cachelibrary_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+EnumPropertyItem *RNA_cachelibrary_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 
 #endif /* __RNA_ENUM_TYPES_H__ */

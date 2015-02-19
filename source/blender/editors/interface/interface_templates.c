@@ -354,6 +354,7 @@ static const char *template_id_browse_tip(StructRNA *type)
 			case ID_MSK: return N_("Browse Mask to be linked");
 			case ID_PAL: return N_("Browse Palette Data to be linked");
 			case ID_PC:  return N_("Browse Paint Curve Data to be linked");
+			case ID_CL:  return N_("Browse Cache Library Data to be linked");
 		}
 	}
 	return N_("Browse ID data to be linked");
@@ -394,6 +395,7 @@ static const char *template_id_context(StructRNA *type)
 			case ID_MSK: return BLF_I18NCONTEXT_ID_MASK;
 			case ID_PAL: return BLF_I18NCONTEXT_ID_PALETTE;
 			case ID_PC:  return BLF_I18NCONTEXT_ID_PAINTCURVE;
+			case ID_CL:  return BLF_I18NCONTEXT_ID_CACHELIBRARY;
 		}
 	}
 	return BLF_I18NCONTEXT_DEFAULT;

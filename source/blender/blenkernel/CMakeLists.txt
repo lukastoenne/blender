@@ -76,6 +76,7 @@ set(SRC
 	intern/brush.c
 	intern/bullet.c
 	intern/bvhutils.c
+	intern/cache_library.c
 	intern/camera.c
 	intern/cdderivedmesh.c
 	intern/cloth.c
@@ -195,6 +196,7 @@ set(SRC
 	BKE_brush.h
 	BKE_bullet.h
 	BKE_bvhutils.h
+	BKE_cache_library.h
 	BKE_camera.h
 	BKE_ccg.h
 	BKE_cdderivedmesh.h

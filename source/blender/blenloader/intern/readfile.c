@@ -58,6 +58,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_actuator_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_controller_types.h"
@@ -1969,11 +1970,25 @@ static void direct_link_paint_curve(FileData *fd, PaintCurve *pc)
 	pc->points = newdataadr(fd, pc->points);
 }
 
-
 static void direct_link_script(FileData *UNUSED(fd), Script *script)
 {
 	script->id.us = 1;
 	SCRIPT_SET_NULL(script);
+}
+
+
+/* ************ READ CacheLibrary *************** */
+
+static void lib_link_cache_library(FileData *UNUSED(fd), Main *main)
+{
+	CacheLibrary *cachelib;
+	for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		cachelib->id.us = 1;
+	}
+}
+
+static void direct_link_cache_library(FileData *UNUSED(fd), CacheLibrary *UNUSED(cachelib))
+{
 }
 
 
@@ -7450,6 +7465,7 @@ static const char *dataname(short id_code)
 		case ID_MC: return "Data from MC";
 		case ID_MSK: return "Data from MSK";
 		case ID_LS: return "Data from LS";
+		case ID_CL: return "Data from CL";
 	}
 	return "Data from Lib Block";
 	
@@ -7635,6 +7651,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 			break;
 		case ID_PC:
 			direct_link_paint_curve(fd, (PaintCurve *)id);
+			break;
+		case ID_CL:
+			direct_link_cache_library(fd, (CacheLibrary *)id);
 			break;
 	}
 	
@@ -7830,6 +7849,7 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_mask(fd, main);
 	lib_link_linestyle(fd, main);
 	lib_link_gpencil(fd, main);
+	lib_link_cache_library(fd, main);
 
 	lib_link_mesh(fd, main);		/* as last: tpage images with users at zero */
 	

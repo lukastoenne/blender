@@ -45,6 +45,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_gpencil_types.h"
@@ -79,6 +80,7 @@
 #include "BKE_armature.h"
 #include "BKE_bpath.h"
 #include "BKE_brush.h"
+#include "BKE_cache_library.h"
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -107,6 +109,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_packedFile.h"
+#include "BKE_pointcache.h"
 #include "BKE_speaker.h"
 #include "BKE_sound.h"
 #include "BKE_screen.h"
@@ -521,6 +524,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->palettes);
 		case ID_PC:
 			return &(mainlib->paintcurves);
+		case ID_CL:
+			return &(mainlib->cache_library);
 	}
 	return NULL;
 }
@@ -616,6 +621,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->linestyle); /* referenced by scenes */
 	lb[a++] = &(main->scene);
 	lb[a++] = &(main->library);
+	lb[a++] = &(main->cache_library);
 	lb[a++] = &(main->wm);
 	lb[a++] = &(main->mask);
 	
@@ -746,6 +752,9 @@ static ID *alloc_libblock_notest(short type)
 			break;
 		case ID_PC:
 			id = MEM_callocN(sizeof(PaintCurve), "Paint Curve");
+			break;
+		case ID_CL:
+			id = MEM_callocN(sizeof(CacheLibrary), "Cache Library");
 			break;
 	}
 	return id;
@@ -1028,6 +1037,9 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			break;
 		case ID_PC:
 			BKE_paint_curve_free((PaintCurve *)id);
+			break;
+		case ID_CL:
+			BKE_cache_library_free((CacheLibrary *)id);
 			break;
 	}
 
