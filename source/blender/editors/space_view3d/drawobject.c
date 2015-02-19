@@ -29,6 +29,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_constraint_types.h"  /* for drawing constraint */
@@ -8041,7 +8042,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				}
 				/* draw motion paths if forced */
 				if (show_motionpaths && !(dflag & DRAW_SCENESET)) {
-					ED_view3d_after_add(&v3d->afterdraw_nodepth, base, 0);
+					bArmature *arm = ob->data;
+					if (!arm->edbo)
+						ED_view3d_after_add(&v3d->afterdraw_nodepth, base, 0);
 				}
 				break;
 			default:
