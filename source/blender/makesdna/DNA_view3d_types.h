@@ -214,6 +214,9 @@ typedef struct View3D {
 	struct ListBase afterdraw_xray;
 	struct ListBase afterdraw_xraytransp;
 
+	/* draw after scene, does not need depth info, so different than xray */
+	struct ListBase afterdraw_nodepth;
+
 	/* drawflags, denoting state */
 	char zbuf, transp, xray;
 

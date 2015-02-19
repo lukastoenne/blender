@@ -6577,6 +6577,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				}
 				v3d->localvd = newdataadr(fd, v3d->localvd);
 				BLI_listbase_clear(&v3d->afterdraw_transp);
+				BLI_listbase_clear(&v3d->afterdraw_nodepth);
 				BLI_listbase_clear(&v3d->afterdraw_xray);
 				BLI_listbase_clear(&v3d->afterdraw_xraytransp);
 				v3d->properties_storage = NULL;

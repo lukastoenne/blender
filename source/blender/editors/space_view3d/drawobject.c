@@ -7828,16 +7828,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	
 	/* draw motion paths (in view space) */
 	if (ob->mpath && (!render_override || show_motionpaths)) {
-		bAnimVizSettings *avs = &ob->avs;
-		
-		/* setup drawing environment for paths */
-		draw_motion_paths_init(v3d, ar);
-		
-		/* draw motion path for object */
-		draw_motion_path_instance(scene, ob, NULL, avs, ob->mpath);
-		
-		/* cleanup after drawing */
-		draw_motion_paths_cleanup(v3d);
+		ED_view3d_after_add(&v3d->afterdraw_nodepth, base, 0);
 	}
 
 	/* which wire color */
@@ -8050,7 +8041,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				}
 				/* draw motion paths if forced */
 				if (show_motionpaths && !(dflag & DRAW_SCENESET)) {
-					draw_pose_paths(scene, v3d, ar, ob);
+					ED_view3d_after_add(&v3d->afterdraw_nodepth, base, 0);
 				}
 				break;
 			default:

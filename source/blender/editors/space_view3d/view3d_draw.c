@@ -2003,6 +2003,43 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, const
 	glDepthMask(GL_TRUE);
 }
 
+static void view3d_draw_nodepth(Scene *scene, ARegion *ar, View3D *v3d)
+{
+	View3DAfter *v3da, *next;
+
+	RegionView3D *rv3d = ar->regiondata;
+
+	glDepthMask(GL_FALSE);
+
+	/* setup drawing environment for paths */
+
+	for (v3da = v3d->afterdraw_nodepth.first; v3da; v3da = next) {
+		Object *ob = v3da->base->object;
+		next = v3da->next;
+
+		ED_view3d_init_mats_rv3d_gl(ob, rv3d);
+		view3d_cached_text_draw_begin();
+		if (ob->type == OB_MESH) {
+			bAnimVizSettings *avs = &ob->avs;
+			/* draw motion path for object */
+			draw_motion_paths_init(v3d, ar);
+			draw_motion_path_instance(scene, ob, NULL, avs, ob->mpath);
+			draw_motion_paths_cleanup(v3d);
+		}
+		else if (ob->type == OB_ARMATURE) {
+			draw_pose_paths(scene, v3d, ar, ob);
+		}
+		view3d_cached_text_draw_end(v3d, ar, 1, NULL);
+		ED_view3d_clear_mats_rv3d(rv3d);
+
+		BLI_remlink(&v3d->afterdraw_nodepth, v3da);
+		MEM_freeN(v3da);
+	}
+
+	/* cleanup after drawing */
+	glDepthMask(GL_TRUE);
+}
+
 /* *********************** */
 
 /*
@@ -2861,6 +2898,8 @@ static void view3d_draw_objects(
 
 	if (v3d->afterdraw_xray.first)       view3d_draw_xray(scene, ar, v3d, &xrayclear);
 	if (v3d->afterdraw_xraytransp.first) view3d_draw_xraytransp(scene, ar, v3d, xrayclear);
+
+	if (v3d->afterdraw_nodepth.first)    view3d_draw_nodepth(scene, ar, v3d);
 
 	if (fx && do_composite_xray) {
 		GPU_fx_compositor_XRay_resolve(fx);

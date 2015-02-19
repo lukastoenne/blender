@@ -2315,7 +2315,7 @@ void draw_pose_paths(Scene *scene, View3D *v3d, ARegion *ar, Object *ob)
 	
 	/* setup drawing environment for paths */
 	draw_motion_paths_init(v3d, ar);
-	
+
 	/* draw paths where they exist and they releated bone is visible */
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		if ((pchan->bone->layer & arm->layer) && (pchan->mpath))
