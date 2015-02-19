@@ -162,6 +162,7 @@ enum {
 bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
                    const short dt, const short dflag, const unsigned char ob_wire_col[4],
                    const bool is_outline);
+void draw_pose_paths(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, struct Object *ob);
 
 /* drawmesh.c */
 void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,

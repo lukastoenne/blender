@@ -2307,7 +2307,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 /* draw bone paths
  *	- in view space 
  */
-static void draw_pose_paths(Scene *scene, View3D *v3d, ARegion *ar, Object *ob)
+void draw_pose_paths(Scene *scene, View3D *v3d, ARegion *ar, Object *ob)
 {
 	bAnimVizSettings *avs = &ob->pose->avs;
 	bArmature *arm = ob->data;
@@ -2608,7 +2608,7 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE)
 		return true;
-	
+
 	if (dt > OB_WIRE && !ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
 		/* we use color for solid lighting */
 		const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -2660,7 +2660,6 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							if (ob == modifiers_isDeformedByArmature(OBACT))
 								arm->flag |= ARM_POSEMODE;
 						}
-						draw_pose_paths(scene, v3d, ar, ob);
 					}
 				}
 			}

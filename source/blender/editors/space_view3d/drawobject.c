@@ -7758,6 +7758,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	bool zbufoff = false, is_paint = false, empty_object = false;
 	const bool is_obact = (ob == OBACT);
 	const bool render_override = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
+	const bool show_motionpaths = (v3d->flag3 & V3D_SHOW_MOTIONPATHS) != 0;
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	const bool has_particles = (ob->particlesystem.first != NULL);
 	const bool is_wire_color = V3D_IS_WIRECOLOR_OBJECT(scene, v3d, ob);
@@ -7826,7 +7827,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	view3d_cached_text_draw_begin();
 	
 	/* draw motion paths (in view space) */
-	if (ob->mpath && !render_override) {
+	if (ob->mpath && (!render_override || show_motionpaths)) {
 		bAnimVizSettings *avs = &ob->avs;
 		
 		/* setup drawing environment for paths */
@@ -8046,6 +8047,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 						if (dt > OB_WIRE)
 							GPU_disable_material();
 					}
+				}
+				/* draw motion paths if forced */
+				if (show_motionpaths && !(dflag & DRAW_SCENESET)) {
+					draw_pose_paths(scene, v3d, ar, ob);
 				}
 				break;
 			default:
