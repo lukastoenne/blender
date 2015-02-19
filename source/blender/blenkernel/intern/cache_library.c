@@ -35,12 +35,9 @@
 #include "DNA_cache_library_types.h"
 
 #include "BKE_cache_library.h"
+#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-
-void BKE_cache_library_free(CacheLibrary *UNUSED(cache))
-{
-}
 
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
@@ -51,4 +48,22 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 	BLI_strncpy(cachelib->filepath, "//cache/", sizeof(cachelib->filepath));
 
 	return cachelib;
+}
+
+/* XXX keep synced with next function */
+CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
+{
+	CacheLibrary *cachelibn;
+	
+	cachelibn = BKE_libblock_copy(&cachelib->id);
+	
+	if (cachelib->id.lib) {
+		BKE_id_lib_local_paths(G.main, cachelib->id.lib, &cachelibn->id);
+	}
+	
+	return cachelibn;
+}
+
+void BKE_cache_library_free(CacheLibrary *UNUSED(cache))
+{
 }

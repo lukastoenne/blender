@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * of the License, or (at your option) any later version. 
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -12,31 +12,26 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software  Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2015 Blender Foundation.
  * All rights reserved.
  *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Lukas Toenne
+ * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BKE_CACHE_LIBRARY_H__
-#define __BKE_CACHE_LIBRARY_H__
-
-/** \file BKE_cache_library.h
- *  \ingroup bke
+/** \file blender/editors/io/io_cache_library.h
+ *  \ingroup editor/io
  */
 
-struct CacheLibrary;
-struct Main;
+#ifndef __IO_CACHE_LIBRARY_H__
+#define __IO_CACHE_LIBRARY_H__
 
-struct CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
-struct CacheLibrary *BKE_cache_library_copy(struct CacheLibrary *cachelib);
-void BKE_cache_library_free(struct CacheLibrary *cache);
+struct wmOperatorType;
+
+void CACHELIBRARY_OT_new(struct wmOperatorType *ot);
 
 #endif
