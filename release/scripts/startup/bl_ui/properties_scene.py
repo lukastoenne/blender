@@ -402,6 +402,20 @@ class SCENE_PT_simplify(SceneButtonsPanel, Panel):
         col.prop(rd, "simplify_ao_sss", text="AO and SSS")
 
 
+class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
+    bl_label = "Cache Manager"
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("cachelibrary.new")
+        for cachelib in context.blend_data.cache_libraries:
+            box = layout.box()
+            box.prop(cachelib, "filepath")
+            box.template_ID(cachelib, "group")
+
+
 class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
     _context_path = "scene"
