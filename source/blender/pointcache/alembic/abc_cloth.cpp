@@ -17,8 +17,8 @@
  */
 
 #include "alembic.h"
-
 #include "abc_cloth.h"
+#include "util_path.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -39,7 +39,7 @@ using namespace AbcGeom;
 
 AbcClothWriter::AbcClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd) :
     ClothWriter(scene, ob, clmd, &m_archive),
-    m_archive(scene, &ob->id, clmd->point_cache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
 	
@@ -130,7 +130,7 @@ void AbcClothWriter::write_sample()
 
 AbcClothReader::AbcClothReader(Scene *scene, Object *ob, ClothModifierData *clmd) :
     ClothReader(scene, ob, clmd, &m_archive),
-    m_archive(scene, &ob->id, clmd->point_cache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
 	

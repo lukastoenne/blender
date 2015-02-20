@@ -26,9 +26,8 @@ struct Library;
 
 namespace PTC {
 
-#if 0
-bool ptc_archive_path(CacheLibrary *cachelib, std::string &filepath, Library *lib);
-#endif
+bool ptc_archive_path_test(const std::string &path, const ID *id, Library *lib);
+std::string ptc_archive_path(const std::string &path, const ID *id, Library *lib);
 
 } /* namespace PTC */
 

@@ -21,13 +21,9 @@
 
 #include "abc_reader.h"
 
-#include "util_path.h"
 #include "util_error_handler.h"
 
 extern "C" {
-#include "BLI_fileops.h"
-
-#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 }
 
@@ -35,16 +31,13 @@ namespace PTC {
 
 using namespace Abc;
 
-AbcReaderArchive::AbcReaderArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler) :
+AbcReaderArchive::AbcReaderArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler) :
     FrameMapper(scene),
     m_error_handler(error_handler)
 {
-	std::string filename;
-	if (ptc_archive_path(cache->cachelib, filename, id->lib)) {
-		PTC_SAFE_CALL_BEGIN
-		archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-		PTC_SAFE_CALL_END_HANDLER(m_error_handler)
-	}
+	PTC_SAFE_CALL_BEGIN
+	archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 AbcReaderArchive::~AbcReaderArchive()

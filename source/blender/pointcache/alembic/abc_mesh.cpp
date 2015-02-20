@@ -17,8 +17,8 @@
  */
 
 #include "alembic.h"
-
 #include "abc_mesh.h"
+#include "util_path.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -46,7 +46,7 @@ using namespace AbcGeom;
 
 AbcPointCacheWriter::AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
     PointCacheWriter(scene, ob, pcmd, &m_archive),
-    m_archive(scene, &ob->id, pcmd->point_cache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	
@@ -297,7 +297,7 @@ void AbcPointCacheWriter::write_sample()
 
 AbcPointCacheReader::AbcPointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
     PointCacheReader(scene, ob, pcmd, &m_archive),
-    m_archive(scene, &ob->id, pcmd->point_cache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	

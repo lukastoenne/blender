@@ -17,8 +17,8 @@
  */
 
 #include "alembic.h"
-
 #include "abc_dynamicpaint.h"
+#include "util_path.h"
 
 extern "C" {
 #include "DNA_object_types.h"
@@ -34,7 +34,7 @@ using namespace AbcGeom;
 
 AbcDynamicPaintWriter::AbcDynamicPaintWriter(Scene *scene, Object *ob, DynamicPaintSurface *surface) :
     DynamicPaintWriter(scene, ob, surface, &m_archive),
-    m_archive(scene, &ob->id, surface->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
 	}
@@ -53,7 +53,7 @@ void AbcDynamicPaintWriter::write_sample()
 
 AbcDynamicPaintReader::AbcDynamicPaintReader(Scene *scene, Object *ob, DynamicPaintSurface *surface) :
     DynamicPaintReader(scene, ob, surface, &m_archive),
-    m_archive(scene, &ob->id, surface->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
 		IObject root = m_archive.archive.getTop();

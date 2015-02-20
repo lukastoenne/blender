@@ -17,8 +17,8 @@
  */
 
 #include "alembic.h"
-
 #include "abc_smoke.h"
+#include "util_path.h"
 
 extern "C" {
 #include "DNA_object_types.h"
@@ -34,7 +34,7 @@ using namespace AbcGeom;
 
 AbcSmokeWriter::AbcSmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
     SmokeWriter(scene, ob, domain, &m_archive),
-    m_archive(scene, &ob->id, domain->point_cache[0], m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
 //		OObject root = m_archive.archive.getTop();
@@ -55,7 +55,7 @@ void AbcSmokeWriter::write_sample()
 
 AbcSmokeReader::AbcSmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
     SmokeReader(scene, ob, domain, &m_archive),
-    m_archive(scene, &ob->id, domain->point_cache[0], m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
 		IObject root = m_archive.archive.getTop();

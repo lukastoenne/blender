@@ -35,7 +35,8 @@ extern "C" {
 
 namespace PTC {
 
-#if 0
+static std::string default_filename = std::string("blendcache");
+
 BLI_INLINE bool path_is_rel(const std::string &path)
 {
 	return BLI_path_is_rel(path.c_str());
@@ -67,35 +68,41 @@ BLI_INLINE std::string path_abs(const std::string &path, const std::string &base
 	return std::string(npath);
 }
 
-bool ptc_archive_path(CacheLibrary *cachelib, std::string &filepath, Library *lib)
+bool ptc_archive_path_test(const std::string &path, const ID *UNUSED(id), Library *lib)
 {
-	filepath = "";
-	
-	if (!cachelib)
-		return false;
-	
-	std::string abspath;
-	if (path_is_rel(cachelib->filepath)) {
-		if (G.relbase_valid || lib) {
-			std::string relbase = lib ? lib->filepath: G.main->name;
-			abspath = path_abs(cachelib->filepath, relbase);
-		}
-		else
+	if (path_is_rel(path)) {
+		if (!(G.relbase_valid || lib))
 			return false;
-	}
-	else {
-		abspath = cachelib->filepath;
-	}
-	
-	if (path_is_dirpath(abspath) || is_dir(abspath)) {
-		filepath = path_join_dirfile(abspath, cachelib->id.name+2);
-	}
-	else {
-		filepath = abspath;
 	}
 	
 	return true;
 }
-#endif
+
+std::string ptc_archive_path(const std::string &path, const ID *id, Library *lib)
+{
+	std::string result = "";
+	
+	std::string abspath;
+	if (path_is_rel(path)) {
+		if (G.relbase_valid || lib) {
+			std::string relbase = lib ? lib->filepath: G.main->name;
+			abspath = path_abs(path, relbase);
+		}
+		else
+			return "";
+	}
+	else {
+		abspath = path;
+	}
+	
+	if (path_is_dirpath(abspath) || is_dir(abspath)) {
+		result = path_join_dirfile(abspath, id ? id->name+2 : default_filename);
+	}
+	else {
+		result = abspath;
+	}
+	
+	return result;
+}
 
 } /* namespace PTC */

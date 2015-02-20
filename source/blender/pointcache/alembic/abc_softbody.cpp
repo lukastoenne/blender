@@ -17,8 +17,8 @@
  */
 
 #include "alembic.h"
-
 #include "abc_softbody.h"
+#include "util_path.h"
 
 extern "C" {
 #include "DNA_object_types.h"
@@ -34,7 +34,7 @@ using namespace AbcGeom;
 
 AbcSoftBodyWriter::AbcSoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbody) :
     SoftBodyWriter(scene, ob, softbody, &m_archive),
-    m_archive(scene, &ob->id, softbody->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
 //		OObject root = m_archive.archive.getTop();
@@ -55,7 +55,7 @@ void AbcSoftBodyWriter::write_sample()
 
 AbcSoftBodyReader::AbcSoftBodyReader(Scene *scene, Object *ob, SoftBody *softbody) :
     SoftBodyReader(scene, ob, softbody, &m_archive),
-    m_archive(scene, &ob->id, softbody->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
 		IObject root = m_archive.archive.getTop();

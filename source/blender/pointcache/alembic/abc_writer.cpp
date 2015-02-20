@@ -19,13 +19,13 @@
 #include <Alembic/AbcCoreHDF5/ReadWrite.h>
 
 #include "abc_writer.h"
-#include "util_path.h"
+
+#include "util_error_handler.h"
 
 extern "C" {
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 
-#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 }
 
@@ -41,24 +41,20 @@ static void ensure_directory(const char *filename)
 	BLI_dir_create_recursive(dir);
 }
 
-AbcWriterArchive::AbcWriterArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler) :
+AbcWriterArchive::AbcWriterArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler) :
     FrameMapper(scene),
     m_error_handler(error_handler)
 {
-	std::string filename;
-	if (ptc_archive_path(cache->cachelib, filename, id->lib)) {
-		ensure_directory(filename.c_str());
-		
-		PTC_SAFE_CALL_BEGIN
-		
-		archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-		
-		chrono_t cycle_time = seconds_per_frame();
-		chrono_t start_time = 0.0f;
-		m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
-		
-		PTC_SAFE_CALL_END_HANDLER(m_error_handler)
-	}
+	ensure_directory(filename.c_str());
+	
+	PTC_SAFE_CALL_BEGIN
+	archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	
+	chrono_t cycle_time = seconds_per_frame();
+	chrono_t start_time = 0.0f;
+	m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
+	
+	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 AbcWriterArchive::~AbcWriterArchive()
