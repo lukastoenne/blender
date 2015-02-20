@@ -20,6 +20,7 @@
 
 #include "abc_cloth.h"
 #include "abc_particles.h"
+#include "util_path.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -39,7 +40,7 @@ using namespace AbcGeom;
 
 AbcParticlesWriter::AbcParticlesWriter(Scene *scene, Object *ob, ParticleSystem *psys) :
     ParticlesWriter(scene, ob, psys, &m_archive),
-    m_archive(scene, &ob->id, psys->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
 		OObject root = m_archive.archive.getTop();
@@ -83,7 +84,7 @@ void AbcParticlesWriter::write_sample()
 
 AbcParticlesReader::AbcParticlesReader(Scene *scene, Object *ob, ParticleSystem *psys) :
     ParticlesReader(scene, ob, psys, &m_archive),
-    m_archive(scene, &ob->id, psys->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
 		IObject root = m_archive.archive.getTop();
@@ -346,7 +347,7 @@ AbcParticlePathsReader::AbcParticlePathsReader(Scene *scene, Object *ob, Particl
     m_pathcache(pathcache),
     m_totpath(totpath),
     m_suffix(suffix),
-    m_archive(scene, &ob->id, psys->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
 		IObject root = m_archive.archive.getTop();
@@ -490,6 +491,7 @@ AbcParticlesCombinedWriter::AbcParticlesCombinedWriter(Scene *scene, Object *ob,
 		archive = m_particles_writer->archive();
 	}
 	
+#if 0
 	if (psys->flag & PSYS_CACHE_PATHS) {
 		if (psys->pathcache) {
 			m_parent_paths_writer = new AbcParticlePathsWriter(scene, ob, psys, &psys->pathcache, &psys->totpart, "__parent_paths");
@@ -500,6 +502,7 @@ AbcParticlesCombinedWriter::AbcParticlesCombinedWriter(Scene *scene, Object *ob,
 			m_child_paths_writer->set_archive(archive);
 		}
 	}
+#endif
 }
 
 AbcParticlesCombinedWriter::~AbcParticlesCombinedWriter()

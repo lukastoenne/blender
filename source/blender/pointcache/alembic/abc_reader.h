@@ -31,8 +31,6 @@
 #include "util_error_handler.h"
 #include "util_types.h"
 
-struct ID;
-struct PointCache;
 struct Scene;
 
 namespace PTC {
@@ -41,7 +39,7 @@ using namespace Alembic;
 
 class AbcReaderArchive : public ReaderArchive, public FrameMapper {
 public:
-	AbcReaderArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler);
+	AbcReaderArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	virtual ~AbcReaderArchive();
 	
 	bool get_frame_range(int &start_frame, int &end_frame);

@@ -29,8 +29,6 @@
 
 #include "util_error_handler.h"
 
-struct ID;
-struct PointCache;
 struct Scene;
 
 namespace PTC {
@@ -39,7 +37,7 @@ using namespace Alembic;
 
 class AbcWriterArchive : public WriterArchive, public FrameMapper {
 public:
-	AbcWriterArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler);
+	AbcWriterArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	virtual ~AbcWriterArchive();
 	
 	uint32_t frame_sampling_index() const { return m_frame_sampling; }

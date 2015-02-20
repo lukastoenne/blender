@@ -17,8 +17,8 @@
  */
 
 #include "alembic.h"
-
 #include "abc_rigidbody.h"
+#include "util_path.h"
 
 extern "C" {
 #include "DNA_scene_types.h"
@@ -34,7 +34,7 @@ using namespace AbcGeom;
 
 AbcRigidBodyWriter::AbcRigidBodyWriter(Scene *scene, RigidBodyWorld *rbw) :
     RigidBodyWriter(scene, rbw, &m_archive),
-    m_archive(scene, &scene->id, rbw->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &scene->id, scene->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
 	}
@@ -53,7 +53,7 @@ void AbcRigidBodyWriter::write_sample()
 
 AbcRigidBodyReader::AbcRigidBodyReader(Scene *scene, RigidBodyWorld *rbw) :
     RigidBodyReader(scene, rbw, &m_archive),
-    m_archive(scene, &scene->id, rbw->pointcache, m_error_handler)
+    m_archive(scene, ptc_archive_path("//blendcache/", &scene->id, scene->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
 	}
