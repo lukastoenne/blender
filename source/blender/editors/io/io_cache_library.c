@@ -51,6 +51,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "io_cache_library.h"
+
 /********************** new cache library operator *********************/
 
 static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
