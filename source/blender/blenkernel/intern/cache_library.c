@@ -50,7 +50,6 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 	return cachelib;
 }
 
-/* XXX keep synced with next function */
 CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 {
 	CacheLibrary *cachelibn;
