@@ -65,6 +65,11 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "filepath");
 	RNA_def_property_ui_text(prop, "File Path", "Path to cache library storage");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "group", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Group", "Cached object group");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 }
 
 void RNA_def_cache_library(BlenderRNA *brna)

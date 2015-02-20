@@ -39,6 +39,7 @@ typedef struct CacheLibrary {
 	ID id;
 	
 	char filepath[1024]; /* 1024 = FILE_MAX */
+	struct Group *group;
 } CacheLibrary;
 
 #endif
