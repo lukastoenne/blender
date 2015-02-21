@@ -32,11 +32,28 @@
  *  \ingroup bke
  */
 
-struct CacheLibrary;
 struct Main;
+struct CacheLibrary;
+struct CacheItem;
+struct CacheItemPath;
 
 struct CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
 struct CacheLibrary *BKE_cache_library_copy(struct CacheLibrary *cachelib);
-void BKE_cache_library_free(struct CacheLibrary *cache);
+void BKE_cache_library_free(struct CacheLibrary *cachelib);
+
+bool BKE_cache_item_path_cmp(const struct CacheItemPath *a, const struct CacheItemPath *b);
+int BKE_cache_item_path_len(const struct CacheItemPath *path);
+bool BKE_cache_item_path_append(struct CacheItemPath *path, const char *name);
+void BKE_cache_item_path_replace(struct CacheItemPath *path, const char *name, int index);
+void BKE_cache_item_path_clear(struct CacheItemPath *path);
+void BKE_cache_item_path_truncate(struct CacheItemPath *path, int len);
+void BKE_cache_item_path_copy(struct CacheItemPath *dst, const struct CacheItemPath *src);
+
+typedef void (*CacheGroupWalkFunc)(void *userdata, struct CacheLibrary *cachelib, const struct CacheItemPath *path);
+void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata);
+
+struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
+struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
+bool BKE_cache_library_remove_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
 
 #endif
