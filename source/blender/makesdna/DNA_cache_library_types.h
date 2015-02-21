@@ -38,8 +38,17 @@
 
 #define MAX_CACHE_GROUP_LEVEL 8
 
+typedef enum eCacheItemType {
+	CACHE_TYPE_OBJECT               = 0,
+	CACHE_TYPE_DERIVED_MESH         = 1,
+	CACHE_TYPE_HAIR                 = 2,
+	CACHE_TYPE_HAIR_PATHS           = 3,
+} eCacheItemType;
+
 typedef struct CacheItemPath {
-	char value[8][64]; /* MAX_CACHE_GROUP_LEVEL, MAX_NAME */
+	ID *id;
+	int type;
+	int index;
 } CacheItemPath;
 
 typedef struct CacheItem {

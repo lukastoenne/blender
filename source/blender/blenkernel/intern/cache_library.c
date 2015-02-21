@@ -39,70 +39,12 @@
 #include "DNA_cache_library_types.h"
 #include "DNA_group_types.h"
 #include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 
 #include "BKE_cache_library.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-
-bool BKE_cache_item_path_cmp(const CacheItemPath *a, const CacheItemPath *b)
-{
-	int i, cmp;
-	for (i = 0; i < MAX_CACHE_GROUP_LEVEL; ++i) {
-		if (a->value[i][0] == '\0' && b->value[i][0] == '\0')
-			break;
-		cmp = strcmp(a->value[i], b->value[i]);
-		if (cmp != 0)
-			return cmp;
-	}
-	return 0;
-}
-
-int BKE_cache_item_path_len(const CacheItemPath *path)
-{
-	int i;
-	for (i = 0; i < MAX_CACHE_GROUP_LEVEL; ++i) {
-		if (path->value[i][0] == '\0')
-			break;
-	}
-	return i;
-}
-
-bool BKE_cache_item_path_append(CacheItemPath *path, const char *name)
-{
-	int i;
-	for (i = 0; i < MAX_CACHE_GROUP_LEVEL; ++i) {
-		if (path->value[i][0] == '\0') {
-			BLI_strncpy(path->value[i], name, sizeof(path->value[i]));
-			return true;
-		}
-	}
-	return false;
-}
-
-void BKE_cache_item_path_replace(CacheItemPath *path, const char *name, int index)
-{
-	BLI_assert(index < MAX_CACHE_GROUP_LEVEL);
-	BLI_strncpy(path->value[index], name, sizeof(path->value[index]));
-}
-
-void BKE_cache_item_path_clear(CacheItemPath *path)
-{
-	path->value[0][0] = '\0';
-}
-
-void BKE_cache_item_path_truncate(CacheItemPath *path, int len)
-{
-	BLI_assert(len < MAX_CACHE_GROUP_LEVEL);
-	path->value[len][0] = '\0';
-}
-
-void BKE_cache_item_path_copy(CacheItemPath *dst, const CacheItemPath *src)
-{
-	memcpy(dst->value, src->value, sizeof(CacheItemPath));
-}
-
-/* ========================================================================= */
 
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
@@ -137,34 +79,67 @@ void BKE_cache_library_free(CacheLibrary *cachelib)
 
 /* ========================================================================= */
 
-static void cache_library_walk_recursive(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata, const CacheItemPath *path, int level, Object *ob)
+static void cache_path_object(CacheItemPath *path, Object *ob)
 {
+	path->type = CACHE_TYPE_OBJECT;
+	path->id = &ob->id;
+	path->index = -1;
+}
+
+static void cache_path_derived_mesh(CacheItemPath *path, Object *ob)
+{
+	path->type = CACHE_TYPE_DERIVED_MESH;
+	path->id = &ob->id;
+	path->index = -1;
+}
+
+static void cache_path_hair(CacheItemPath *path, Object *ob, ParticleSystem *psys)
+{
+	path->type = CACHE_TYPE_HAIR;
+	path->id = &ob->id;
+	path->index = BLI_findindex(&ob->particlesystem, psys);
+}
+
+static void cache_path_hair_paths(CacheItemPath *path, Object *ob, ParticleSystem *psys)
+{
+	path->type = CACHE_TYPE_HAIR_PATHS;
+	path->id = &ob->id;
+	path->index = BLI_findindex(&ob->particlesystem, psys);
+}
+
+static void cache_path_copy(CacheItemPath *dst, const CacheItemPath *src)
+{
+	memcpy(dst, src, sizeof(CacheItemPath));
+}
+
+static void cache_library_walk_recursive(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata, int level, Object *ob)
+{
+	CacheItemPath path;
+	
+	if (level > MAX_CACHE_GROUP_LEVEL)
+		return;
+	
 	/* object dm */
-	walk(userdata, cachelib, path);
+	cache_path_object(&path, ob);
+	walk(userdata, cachelib, &path);
 	
 	/* dupli group recursion */
 	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
 		GroupObject *gob;
 		
 		for (gob = ob->dup_group->gobject.first; gob; gob = gob->next) {
-			CacheItemPath gpath;
-			BKE_cache_item_path_copy(&gpath, path);
-			BKE_cache_item_path_append(&gpath, ob->id.name+2);
-			cache_library_walk_recursive(cachelib, walk, userdata, &gpath, level + 1, gob->ob);
+			cache_library_walk_recursive(cachelib, walk, userdata, level + 1, gob->ob);
 		}
 	}
 }
 
 void BKE_cache_library_walk(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata)
 {
-	CacheItemPath path;
-	BKE_cache_item_path_clear(&path);
-	
 	if (cachelib && cachelib->group) {
 		GroupObject *gob;
 		
 		for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
-			cache_library_walk_recursive(cachelib, walk, userdata, &path, 0, gob->ob);
+			cache_library_walk_recursive(cachelib, walk, userdata, 0, gob->ob);
 		}
 	}
 }
@@ -197,18 +172,31 @@ BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
 static unsigned int cache_item_hash(const void *key)
 {
 	const CacheItemPath *path = key;
-	int i;
-	unsigned int hash = 0;
+	unsigned int hash;
 	
-	for (i = 0; i < MAX_CACHE_GROUP_LEVEL; ++i) {
-		hash = hash_int_2d(hash, BLI_ghashutil_strhash(path->value[i]));
-	}
+	hash = BLI_ghashutil_inthash(path->type);
+	
+	hash = hash_int_2d(hash, BLI_ghashutil_ptrhash(path->id));
+	if (path->index >= 0)
+		hash = hash_int_2d(hash, BLI_ghashutil_inthash(path->index));
+	
 	return hash;
 }
 
 static bool cache_item_cmp(const void *key_a, const void *key_b)
 {
-	return BKE_cache_item_path_cmp(key_a, key_b) != 0;
+	const CacheItemPath *path_a = key_a, *path_b = key_b;
+	
+	if (path_a->type != path_b->type)
+		return true;
+	if (path_a->id != path_b->id)
+		return true;
+	if (path_a->index >= 0 || path_b->index >= 0) {
+		if (path_a->index != path_b->index)
+			return true;
+	}
+	
+	return false;
 }
 
 static void cache_library_insert_item_hash(CacheLibrary *cachelib, CacheItem *item, bool replace)
@@ -251,7 +239,7 @@ CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, const CacheItemPat
 	
 	if (!item) {
 		item = MEM_callocN(sizeof(CacheItem), "cache library item");
-		BKE_cache_item_path_copy(&item->path, path);
+		cache_path_copy(&item->path, path);
 		
 		BLI_addtail(&cachelib->items, item);
 		cache_library_insert_item_hash(cachelib, item, false);
