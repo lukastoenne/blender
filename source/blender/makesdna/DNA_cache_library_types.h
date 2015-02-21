@@ -34,12 +34,28 @@
 
 #include "DNA_defs.h"
 #include "DNA_ID.h"
+#include "DNA_listBase.h"
+
+#define MAX_CACHE_GROUP_LEVEL 8
+
+typedef struct CacheItemPath {
+	char value[8][64]; /* MAX_CACHE_GROUP_LEVEL, MAX_NAME */
+} CacheItemPath;
+
+typedef struct CacheItem {
+	struct CacheItem *next, *prev;
+	
+	CacheItemPath path;
+} CacheItem;
 
 typedef struct CacheLibrary {
 	ID id;
 	
 	char filepath[1024]; /* 1024 = FILE_MAX */
 	struct Group *group;
+	
+	ListBase items;				/* cached items */
+	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */
 } CacheLibrary;
 
 #endif
