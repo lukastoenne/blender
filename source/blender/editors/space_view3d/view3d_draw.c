@@ -2017,6 +2017,7 @@ static void view3d_draw_nodepth(Scene *scene, ARegion *ar, View3D *v3d)
 		Object *ob = v3da->base->object;
 		next = v3da->next;
 
+		glPushMatrix();
 		ED_view3d_init_mats_rv3d_gl(ob, rv3d);
 		view3d_cached_text_draw_begin();
 		if (ob->type == OB_MESH) {
@@ -2031,6 +2032,8 @@ static void view3d_draw_nodepth(Scene *scene, ARegion *ar, View3D *v3d)
 		}
 		view3d_cached_text_draw_end(v3d, ar, 1, NULL);
 		ED_view3d_clear_mats_rv3d(rv3d);
+
+		glPopMatrix();
 
 		BLI_remlink(&v3d->afterdraw_nodepth, v3da);
 		MEM_freeN(v3da);
