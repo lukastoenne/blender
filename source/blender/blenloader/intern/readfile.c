@@ -1979,16 +1979,22 @@ static void direct_link_script(FileData *UNUSED(fd), Script *script)
 
 /* ************ READ CacheLibrary *************** */
 
-static void lib_link_cache_library(FileData *UNUSED(fd), Main *main)
+static void lib_link_cache_library(FileData *fd, Main *main)
 {
 	CacheLibrary *cachelib;
 	for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
-		cachelib->id.us = 1;
+		if (cachelib->id.flag & LIB_NEED_LINK) {
+			cachelib->id.flag -= LIB_NEED_LINK;
+			
+			cachelib->group = newlibadr_us(fd, cachelib->id.lib, cachelib->group);
+		}
 	}
 }
 
-static void direct_link_cache_library(FileData *UNUSED(fd), CacheLibrary *UNUSED(cachelib))
+static void direct_link_cache_library(FileData *fd, CacheLibrary *cachelib)
 {
+	link_list(fd, &cachelib->items);
+	cachelib->items_hash = NULL;
 }
 
 
