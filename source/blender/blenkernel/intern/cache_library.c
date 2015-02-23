@@ -33,6 +33,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -112,6 +113,80 @@ static void cache_path_copy(CacheItemPath *dst, const CacheItemPath *src)
 	memcpy(dst, src, sizeof(CacheItemPath));
 }
 
+/* ========================================================================= */
+
+static void cache_library_tag_recursive(CacheLibrary *cachelib, int level, Object *ob)
+{
+	if (level > MAX_CACHE_GROUP_LEVEL)
+		return;
+	
+	ob->id.flag |= LIB_DOIT;
+	
+	/* dupli group recursion */
+	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+		GroupObject *gob;
+		
+		for (gob = ob->dup_group->gobject.first; gob; gob = gob->next) {
+			cache_library_tag_recursive(cachelib, level + 1, gob->ob);
+		}
+	}
+}
+
+/* tag IDs contained in the cache library group */
+void BKE_cache_library_make_object_list(Main *main, CacheLibrary *cachelib, ListBase *lb)
+{
+	if (cachelib && cachelib->group) {
+		Object *ob;
+		LinkData *link;
+		GroupObject *gob;
+		
+		/* clear tags */
+		BKE_main_id_tag_idcode(main, ID_OB, false);
+		
+		for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
+			cache_library_tag_recursive(cachelib, 0, gob->ob);
+		}
+		
+		/* store object pointers in the list */
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			if (ob->id.flag & LIB_DOIT) {
+				link = MEM_callocN(sizeof(LinkData), "cache library ID link");
+				link->data = ob;
+				BLI_addtail(lb, link);
+			}
+		}
+	}
+}
+
+void BKE_object_cache_iter_init(CacheLibraryObjectsIterator *iter, CacheLibrary *cachelib)
+{
+	BLI_listbase_clear(&iter->objects);
+	BKE_cache_library_make_object_list(G.main, cachelib, &iter->objects);
+	
+	iter->cur = iter->objects.first;
+}
+
+bool BKE_object_cache_iter_valid(CacheLibraryObjectsIterator *iter)
+{
+	return iter->cur != NULL;
+}
+
+void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter)
+{
+	iter->cur = iter->cur->next;
+}
+
+Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter)
+{
+	return iter->cur->data;
+}
+
+void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter)
+{
+	BLI_freelistN(&iter->objects);
+}
+
+#if 0
 static void cache_library_walk_recursive(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata, int level, Object *ob)
 {
 	CacheItemPath path;
@@ -143,6 +218,7 @@ void BKE_cache_library_walk(CacheLibrary *cachelib, CacheGroupWalkFunc walk, voi
 		}
 	}
 }
+#endif
 
 /* ========================================================================= */
 
