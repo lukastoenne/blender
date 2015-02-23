@@ -45,16 +45,12 @@ typedef enum eCacheItemType {
 	CACHE_TYPE_HAIR_PATHS           = 3,
 } eCacheItemType;
 
-typedef struct CacheItemPath {
-	ID *id;
-	int type;
-	int index;
-} CacheItemPath;
-
 typedef struct CacheItem {
 	struct CacheItem *next, *prev;
 	
-	CacheItemPath path;
+	struct Object *ob;
+	int type;
+	int index;
 } CacheItem;
 
 typedef struct CacheLibrary {

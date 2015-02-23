@@ -36,6 +36,14 @@
 
 #include "WM_types.h"
 
+EnumPropertyItem cache_library_item_type_items[] = {
+    {CACHE_TYPE_OBJECT,         "OBJECT",			ICON_OBJECT_DATA,       "Object", "Object base properties"},
+    {CACHE_TYPE_DERIVED_MESH,   "DERIVED_MESH",     ICON_OUTLINER_OB_MESH,  "Derived Mesh", "Mesh result from modifiers"},
+    {CACHE_TYPE_HAIR,           "HAIR",             ICON_PARTICLE_POINT,    "Hair", "Hair parent strands"},
+    {CACHE_TYPE_HAIR_PATHS,     "HAIR_PATHS",       ICON_PARTICLE_PATH,     "Hair Paths", "Full hair paths"},
+    {0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"
@@ -106,34 +114,72 @@ PointerRNA rna_CacheLibrary_object_caches_get(CollectionPropertyIterator *iter)
 	return rptr;
 }
 
+static PointerRNA rna_CacheLibrary_cache_item_find(CacheLibrary *cachelib, Object *ob, int type, int index)
+{
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
+	PointerRNA rptr;
+	
+	RNA_pointer_create((ID *)cachelib, &RNA_CacheItem, item, &rptr);
+	return rptr;
+}
+
+/* ========================================================================= */
+
+static void rna_ObjectCache_caches_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
+	Object *ob = ptr->data;
+	
+	/* XXX this is not particularly elegant, but works:
+	 * abuse the internal union for storing our own iterator
+	 */
+	BLI_STATIC_ASSERT(sizeof(iter->internal) >= sizeof(CacheLibraryItemsIterator), "CollectionPropertyIterator internal not large enough");
+	
+	BKE_cache_item_iter_init(internal, ob);
+	iter->valid = BKE_cache_item_iter_valid(internal);
+}
+
+void rna_ObjectCache_caches_next(CollectionPropertyIterator *iter)
+{
+	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
+	
+	BKE_cache_item_iter_next(internal);
+	iter->valid = BKE_cache_item_iter_valid(internal);
+}
+
+void rna_ObjectCache_caches_end(CollectionPropertyIterator *iter)
+{
+	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
+	
+	BKE_cache_item_iter_end(internal);
+}
+
+PointerRNA rna_ObjectCache_caches_get(CollectionPropertyIterator *iter)
+{
+	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
+	PointerRNA rptr;
+	
+	/* XXX this returns a temporary pointer that becomes invalid after iteration, potentially dangerous! */
+	RNA_pointer_create((ID *)iter->parent.id.data, &RNA_CacheItem, internal->cur, &rptr);
+	
+	return rptr;
+}
+
 #else
 
-static void rna_def_cache_item_path(BlenderRNA *brna)
+static void rna_def_cache_item(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem cache_path_type_items[] = {
-	    {CACHE_TYPE_OBJECT,         "OBJECT",			ICON_OBJECT_DATA,       "Object", "Object base properties"},
-	    {CACHE_TYPE_DERIVED_MESH,   "DERIVED_MESH",     ICON_OUTLINER_OB_MESH,  "Derived Mesh", "Mesh result from modifiers"},
-	    {CACHE_TYPE_HAIR,           "HAIR",             ICON_PARTICLE_POINT,    "Hair", "Hair parent strands"},
-	    {CACHE_TYPE_HAIR_PATHS,     "HAIR_PATHS",       ICON_PARTICLE_PATH,     "Hair Paths", "Full hair paths"},
-	    {0, NULL, 0, NULL, NULL}
-	};
-	
-	srna = RNA_def_struct(brna, "CacheItemPath", NULL);
-	RNA_def_struct_ui_text(srna, "Cache Path", "Description of a cacheable item in an object group");
+	srna = RNA_def_struct(brna, "CacheItem", NULL);
+	RNA_def_struct_ui_text(srna, "Cache Item", "Description of a cacheable item in an object");
 	
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type");
-	RNA_def_property_enum_items(prop, cache_path_type_items);
+	RNA_def_property_enum_items(prop, cache_library_item_type_items);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Type", "Type of cached data");
-	
-	prop = RNA_def_property(srna, "cache_id_data", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "id");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "ID", "ID datablock");
 	
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "index");
@@ -154,21 +200,19 @@ static void rna_def_object_cache(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Object");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Object", "");
-}
-
-static void rna_def_cache_item(BlenderRNA *brna)
-{
-	StructRNA *srna;
-//	PropertyRNA *prop;
 	
-	srna = RNA_def_struct(brna, "CacheItem", NULL);
-	RNA_def_struct_ui_text(srna, "Cache Item", "Cached item included in a Cache Library");
+	prop = RNA_def_property(srna, "caches", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "CacheItem");
+	RNA_def_property_collection_funcs(prop, "rna_ObjectCache_caches_begin", "rna_ObjectCache_caches_next", "rna_ObjectCache_caches_end",
+	                                  "rna_ObjectCache_caches_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Caches", "Cacheable items for in an object cache");
 }
 
 static void rna_def_cache_library(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
+	FunctionRNA *func;
+	PropertyRNA *prop, *parm;
 	
 	srna = RNA_def_struct(brna, "CacheLibrary", "ID");
 	RNA_def_struct_ui_text(srna, "Cache Library", "Cache Library datablock for constructing an archive of caches");
@@ -189,13 +233,23 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_collection_funcs(prop, "rna_CacheLibrary_object_caches_begin", "rna_CacheLibrary_object_caches_next", "rna_CacheLibrary_object_caches_end",
 	                                  "rna_CacheLibrary_object_caches_get", NULL, NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Object Caches", "Cacheable objects inside the cache library group");
+	
+	func = RNA_def_function(srna, "cache_item_find", "rna_CacheLibrary_cache_item_find");
+	RNA_def_function_ui_description(func, "Find item for an object cache item");
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "type", cache_library_item_type_items, 0, "Type", "Type of cache item");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_int(func, "index", -1, 0, INT_MAX, "Index", "Index of the data in it's' collection", 0, INT_MAX);
+	parm = RNA_def_pointer(func, "item", "CacheItem", "Item", "Item in the cache");
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+	RNA_def_function_return(func, parm);
 }
 
 void RNA_def_cache_library(BlenderRNA *brna)
 {
-	rna_def_cache_item_path(brna);
-	rna_def_object_cache(brna);
 	rna_def_cache_item(brna);
+	rna_def_object_cache(brna);
 	rna_def_cache_library(brna);
 }
 

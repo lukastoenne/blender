@@ -80,41 +80,6 @@ void BKE_cache_library_free(CacheLibrary *cachelib)
 
 /* ========================================================================= */
 
-static void cache_path_object(CacheItemPath *path, Object *ob)
-{
-	path->type = CACHE_TYPE_OBJECT;
-	path->id = &ob->id;
-	path->index = -1;
-}
-
-static void cache_path_derived_mesh(CacheItemPath *path, Object *ob)
-{
-	path->type = CACHE_TYPE_DERIVED_MESH;
-	path->id = &ob->id;
-	path->index = -1;
-}
-
-static void cache_path_hair(CacheItemPath *path, Object *ob, ParticleSystem *psys)
-{
-	path->type = CACHE_TYPE_HAIR;
-	path->id = &ob->id;
-	path->index = BLI_findindex(&ob->particlesystem, psys);
-}
-
-static void cache_path_hair_paths(CacheItemPath *path, Object *ob, ParticleSystem *psys)
-{
-	path->type = CACHE_TYPE_HAIR_PATHS;
-	path->id = &ob->id;
-	path->index = BLI_findindex(&ob->particlesystem, psys);
-}
-
-static void cache_path_copy(CacheItemPath *dst, const CacheItemPath *src)
-{
-	memcpy(dst, src, sizeof(CacheItemPath));
-}
-
-/* ========================================================================= */
-
 static void cache_library_tag_recursive(CacheLibrary *cachelib, int level, Object *ob)
 {
 	if (level > MAX_CACHE_GROUP_LEVEL)
@@ -186,6 +151,85 @@ void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter)
 	BLI_freelistN(&iter->objects);
 }
 
+/* ========================================================================= */
+
+static int cache_count_items(Object *ob) {
+	ParticleSystem *psys;
+	int totitem = 1; /* base object */
+	
+	if (ob->type == OB_MESH)
+		totitem += 1; /* derived mesh */
+	
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+		if (psys->part->type == PART_HAIR) {
+			totitem += 2; /* hair and hair paths */
+		}
+	}
+	
+	return totitem;
+}
+
+static void cache_make_items(Object *ob, CacheItem *item) {
+	ParticleSystem *psys;
+	int i;
+	
+	/* base object */
+	item->ob = ob;
+	item->type = CACHE_TYPE_OBJECT;
+	item->index = -1;
+	++item;
+	
+	if (ob->type == OB_MESH) {
+		/* derived mesh */
+		item->ob = ob;
+		item->type = CACHE_TYPE_DERIVED_MESH;
+		item->index = -1;
+		++item;
+	}
+	
+	for (psys = ob->particlesystem.first, i = 0; psys; psys = psys->next, ++i) {
+		if (psys->part->type == PART_HAIR) {
+			/* hair */
+			item->ob = ob;
+			item->type = CACHE_TYPE_HAIR;
+			item->index = i;
+			++item;
+			
+			/* hair paths */
+			item->ob = ob;
+			item->type = CACHE_TYPE_HAIR_PATHS;
+			item->index = i;
+			++item;
+		}
+	}
+}
+
+void BKE_cache_item_iter_init(CacheLibraryItemsIterator *iter, Object *ob)
+{
+	iter->ob = ob;
+	iter->totitems = cache_count_items(ob);
+	iter->items = MEM_mallocN(sizeof(CacheItem) * iter->totitems, "object cache items");
+	cache_make_items(ob, iter->items);
+	
+	iter->cur = iter->items;
+}
+
+bool BKE_cache_item_iter_valid(CacheLibraryItemsIterator *iter)
+{
+	return (int)(iter->cur - iter->items) < iter->totitems;
+}
+
+void BKE_cache_item_iter_next(CacheLibraryItemsIterator *iter)
+{
+	++iter->cur;
+}
+
+void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter)
+{
+	if (iter->items)
+		MEM_freeN(iter->items);
+}
+
 #if 0
 static void cache_library_walk_recursive(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata, int level, Object *ob)
 {
@@ -247,28 +291,28 @@ BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
 
 static unsigned int cache_item_hash(const void *key)
 {
-	const CacheItemPath *path = key;
+	const CacheItem *item = key;
 	unsigned int hash;
 	
-	hash = BLI_ghashutil_inthash(path->type);
+	hash = BLI_ghashutil_inthash(item->type);
 	
-	hash = hash_int_2d(hash, BLI_ghashutil_ptrhash(path->id));
-	if (path->index >= 0)
-		hash = hash_int_2d(hash, BLI_ghashutil_inthash(path->index));
+	hash = hash_int_2d(hash, BLI_ghashutil_ptrhash(item->ob));
+	if (item->index >= 0)
+		hash = hash_int_2d(hash, BLI_ghashutil_inthash(item->index));
 	
 	return hash;
 }
 
 static bool cache_item_cmp(const void *key_a, const void *key_b)
 {
-	const CacheItemPath *path_a = key_a, *path_b = key_b;
+	const CacheItem *item_a = key_a, *item_b = key_b;
 	
-	if (path_a->type != path_b->type)
+	if (item_a->type != item_b->type)
 		return true;
-	if (path_a->id != path_b->id)
+	if (item_a->ob != item_b->ob)
 		return true;
-	if (path_a->index >= 0 || path_b->index >= 0) {
-		if (path_a->index != path_b->index)
+	if (item_a->index >= 0 || item_b->index >= 0) {
+		if (item_a->index != item_b->index)
 			return true;
 	}
 	
@@ -277,18 +321,17 @@ static bool cache_item_cmp(const void *key_a, const void *key_b)
 
 static void cache_library_insert_item_hash(CacheLibrary *cachelib, CacheItem *item, bool replace)
 {
-	CacheItemPath *path = &item->path;
-	CacheItem *exist = BLI_ghash_lookup(cachelib->items_hash, path);
+	CacheItem *exist = BLI_ghash_lookup(cachelib->items_hash, item);
 	if (exist && replace) {
 		BLI_remlink(&cachelib->items, exist);
-		BLI_ghash_remove(cachelib->items_hash, path, NULL, NULL);
+		BLI_ghash_remove(cachelib->items_hash, item, NULL, NULL);
 		MEM_freeN(exist);
 	}
 	if (!exist || replace)
-		BLI_ghash_insert(cachelib->items_hash, path, item);
+		BLI_ghash_insert(cachelib->items_hash, item, item);
 }
 
-static void cache_library_ensure_items_hash(CacheLibrary *cachelib)
+static void UNUSED_FUNCTION(cache_library_ensure_items_hash)(CacheLibrary *cachelib)
 {
 	CacheItem *item;
 	
@@ -304,11 +347,17 @@ static void cache_library_ensure_items_hash(CacheLibrary *cachelib)
 	}
 }
 
-CacheItem *BKE_cache_library_find_item(CacheLibrary *cachelib, const CacheItemPath *path)
+CacheItem *BKE_cache_library_find_item(CacheLibrary *cachelib, Object *ob, int type, int index)
 {
-	return BLI_ghash_lookup(cachelib->items_hash, path);
+	CacheItem item;
+	item.next = item.prev = NULL;
+	item.ob = ob;
+	item.type = type;
+	item.index = index;
+	return BLI_ghash_lookup(cachelib->items_hash, &item);
 }
 
+#if 0
 CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, const CacheItemPath *path)
 {
 	CacheItem *item = BLI_ghash_lookup(cachelib->items_hash, path);
@@ -336,6 +385,7 @@ bool BKE_cache_library_remove_item(CacheLibrary *cachelib, const CacheItemPath *
 	else
 		return false;
 }
+#endif
 
 /* ========================================================================= */
 

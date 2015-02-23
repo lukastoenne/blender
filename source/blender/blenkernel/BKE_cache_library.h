@@ -55,13 +55,28 @@ void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter);
 void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter);
 struct Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter);
 
+typedef struct CacheLibraryItemsIterator {
+	struct Object *ob;
+	struct CacheItem *items;
+	int totitems;
+	
+	struct CacheItem *cur;
+} CacheLibraryItemsIterator;
+
+void BKE_cache_item_iter_init(CacheLibraryItemsIterator *iter, struct Object *ob);
+bool BKE_cache_item_iter_valid(CacheLibraryItemsIterator *iter);
+void BKE_cache_item_iter_next(CacheLibraryItemsIterator *iter);
+void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter);
+
 #if 0
 typedef void (*CacheGroupWalkFunc)(void *userdata, struct CacheLibrary *cachelib, const struct CacheItemPath *path);
 void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata);
 #endif
 
-struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
-struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
-bool BKE_cache_library_remove_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
+struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
+#if 0
+struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, const struct CacheItem *path);
+bool BKE_cache_library_remove_item(struct CacheLibrary *cachelib, const struct CacheItem *path);
+#endif
 
 #endif
