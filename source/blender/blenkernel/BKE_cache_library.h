@@ -32,17 +32,33 @@
  *  \ingroup bke
  */
 
+#include "DNA_cache_library_types.h"
+
+struct ListBase;
 struct Main;
-struct CacheLibrary;
-struct CacheItem;
-struct CacheItemPath;
+struct Object;
 
 struct CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
 struct CacheLibrary *BKE_cache_library_copy(struct CacheLibrary *cachelib);
 void BKE_cache_library_free(struct CacheLibrary *cachelib);
 
+void BKE_cache_library_make_object_list(struct Main *main, struct CacheLibrary *cachelib, struct ListBase *lb);
+
+typedef struct CacheLibraryObjectsIterator {
+	ListBase objects;
+	LinkData *cur;
+} CacheLibraryObjectsIterator;
+
+void BKE_object_cache_iter_init(CacheLibraryObjectsIterator *iter, struct CacheLibrary *cachelib);
+bool BKE_object_cache_iter_valid(CacheLibraryObjectsIterator *iter);
+void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter);
+void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter);
+struct Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter);
+
+#if 0
 typedef void (*CacheGroupWalkFunc)(void *userdata, struct CacheLibrary *cachelib, const struct CacheItemPath *path);
 void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata);
+#endif
 
 struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
 struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, const struct CacheItemPath *path);
