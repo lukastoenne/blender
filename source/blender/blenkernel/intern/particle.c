@@ -361,7 +361,7 @@ int psys_uses_gravity(ParticleSimulationData *sim)
 	return sim->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY && sim->psys->part && sim->psys->part->effector_weights->global_gravity != 0.0f;
 }
 
-KeyBlock *BKE_psys_insert_shape_key(Scene *UNUSED(scene), Object *ob, ParticleSystem *psys, const char *name, const bool from_mix)
+KeyBlock *BKE_psys_insert_shape_key(Scene *scene, Object *ob, ParticleSystem *psys, const char *name, const bool from_mix)
 {
 	Key *key = psys->key;
 	KeyBlock *kb;
@@ -381,7 +381,7 @@ KeyBlock *BKE_psys_insert_shape_key(Scene *UNUSED(scene), Object *ob, ParticleSy
 	else {
 		/* copy from current values */
 		int totelem;
-		float *data = BKE_key_evaluate_particles(ob, psys, &totelem);
+		float *data = BKE_key_evaluate_particles(ob, psys, scene ? scene->r.cfra : 0.0f, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -3022,6 +3022,16 @@ static int get_particle_uv(DerivedMesh *dm, ParticleData *pa, int face_index, co
 		CLAMP(pvalue, -1.0f, 1.0f);                                           \
 	} (void)0
 
+/* actual usable texco mode for particles */
+BLI_INLINE int particle_texco(ParticleSettings *part, MTex *mtex)
+{
+	short texco = mtex->texco;
+	if (ELEM(texco, TEXCO_UV, TEXCO_ORCO) &&
+		(!ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME) || part->distr == PART_DISTR_GRID))
+		texco = TEXCO_GLOB;
+	return texco;
+}
+
 static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSettings *part, ParticleData *par, int child_index, int face_index, const float fw[4], float *orco, ParticleTexture *ptex, int event, float cfra)
 {
 	MTex *mtex, **mtexp = part->mtex;
@@ -3040,10 +3050,7 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 		if (mtex && mtex->tex && mtex->mapto) {
 			float def = mtex->def_var;
 			short blend = mtex->blendtype;
-			short texco = mtex->texco;
-
-			if (ELEM(texco, TEXCO_UV, TEXCO_ORCO) && (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME) == 0 || part->distr == PART_DISTR_GRID))
-				texco = TEXCO_GLOB;
+			short texco = particle_texco(part, mtex);
 
 			switch (texco) {
 				case TEXCO_GLOB:
@@ -3089,15 +3096,70 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_ROUGH, ptex->rough1);
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_DENS, ptex->exist);
 }
-void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTexture *ptex, int event, float cfra)
+
+bool particle_mtex_eval(ParticleSimulationData *sim, MTex *mtex, ParticleData *pa, float cfra, float *value, float rgba[4])
 {
 	Object *ob = sim->ob;
 	Mesh *me = (Mesh *)ob->data;
 	ParticleSettings *part = sim->psys->part;
+	short texco;
+	
+	float texvec[3];
+	
+	if (!(mtex->tex && mtex->mapto))
+		return false;
+	
+	texco = particle_texco(part, mtex);
+	switch (texco) {
+		case TEXCO_GLOB:
+			copy_v3_v3(texvec, pa->state.co);
+			break;
+		case TEXCO_OBJECT:
+			copy_v3_v3(texvec, pa->state.co);
+			if (mtex->object)
+				mul_m4_v3(mtex->object->imat, texvec);
+			break;
+		case TEXCO_UV:
+			if (get_particle_uv(sim->psmd->dm, pa, 0, pa->fuv, mtex->uvname, texvec))
+				break;
+			/* no break, failed to get uv's, so let's try orco's */
+		case TEXCO_ORCO: {
+			float co[3];
+			
+			psys_particle_on_emitter(sim->psmd, sim->psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, texvec, 0);
+			
+			if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
+				BKE_mesh_texspace_calc(me);
+			}
+			sub_v3_v3(texvec, me->loc);
+			if (me->size[0] != 0.0f) texvec[0] /= me->size[0];
+			if (me->size[1] != 0.0f) texvec[1] /= me->size[1];
+			if (me->size[2] != 0.0f) texvec[2] /= me->size[2];
+			break;
+		}
+		case TEXCO_PARTICLE:
+			/* texture coordinates in range [-1, 1] */
+			texvec[0] = 2.f * (cfra - pa->time) / (pa->dietime - pa->time) - 1.f;
+			if (sim->psys->totpart > 0)
+				texvec[1] = 2.f * (float)(pa - sim->psys->particles) / (float)sim->psys->totpart - 1.f;
+			else
+				texvec[1] = 0.0f;
+			texvec[2] = 0.f;
+			break;
+	}
+	
+	externtex(mtex, texvec, value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false);
+	
+	return true;
+}
+
+void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTexture *ptex, int event, float cfra)
+{
+	ParticleSettings *part = sim->psys->part;
 	MTex **mtexp = part->mtex;
 	MTex *mtex;
 	int m;
-	float value, rgba[4], co[3], texvec[3];
+	float value, rgba[4];
 	int setvars = 0;
 
 	/* initialize ptex */
@@ -3109,50 +3171,9 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 
 	for (m = 0; m < MAX_MTEX; m++, mtexp++) {
 		mtex = *mtexp;
-		if (mtex && mtex->tex && mtex->mapto) {
+		if (mtex && particle_mtex_eval(sim, mtex, pa, cfra, &value, rgba)) {
 			float def = mtex->def_var;
 			short blend = mtex->blendtype;
-			short texco = mtex->texco;
-
-			if (texco == TEXCO_UV && (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME) == 0 || part->distr == PART_DISTR_GRID))
-				texco = TEXCO_GLOB;
-
-			switch (texco) {
-				case TEXCO_GLOB:
-					copy_v3_v3(texvec, pa->state.co);
-					break;
-				case TEXCO_OBJECT:
-					copy_v3_v3(texvec, pa->state.co);
-					if (mtex->object)
-						mul_m4_v3(mtex->object->imat, texvec);
-					break;
-				case TEXCO_UV:
-					if (get_particle_uv(sim->psmd->dm, pa, 0, pa->fuv, mtex->uvname, texvec))
-						break;
-				/* no break, failed to get uv's, so let's try orco's */
-				case TEXCO_ORCO:
-					psys_particle_on_emitter(sim->psmd, sim->psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, 0, 0, 0, texvec, 0);
-					
-					if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
-						BKE_mesh_texspace_calc(me);
-					}
-					sub_v3_v3(texvec, me->loc);
-					if (me->size[0] != 0.0f) texvec[0] /= me->size[0];
-					if (me->size[1] != 0.0f) texvec[1] /= me->size[1];
-					if (me->size[2] != 0.0f) texvec[2] /= me->size[2];
-					break;
-				case TEXCO_PARTICLE:
-					/* texture coordinates in range [-1, 1] */
-					texvec[0] = 2.f * (cfra - pa->time) / (pa->dietime - pa->time) - 1.f;
-					if (sim->psys->totpart > 0)
-						texvec[1] = 2.f * (float)(pa - sim->psys->particles) / (float)sim->psys->totpart - 1.f;
-					else
-						texvec[1] = 0.0f;
-					texvec[2] = 0.f;
-					break;
-			}
-
-			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false);
 
 			if ((event & mtex->mapto) & PAMAP_TIME) {
 				/* the first time has to set the base value for time regardless of blend mode */
@@ -3187,6 +3208,35 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_DAMP, ptex->damp);
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_LENGTH, ptex->length);
 }
+
+/* specialized texture eval for shapekey influences */
+float psys_get_texture_shapefac(ParticleSimulationData *sim, ParticleData *pa, float cfra, const char *shapekey)
+{
+	ParticleSettings *part = sim->psys->part;
+	MTex **mtexp = part->mtex;
+	MTex *mtex;
+	int m;
+	float value, rgba[4];
+	
+	float result = 1.0f;
+	
+	for (m = 0; m < MAX_MTEX; m++, mtexp++) {
+		mtex = *mtexp;
+		if (mtex && (mtex->mapto & PAMAP_SHAPEKEY) && STREQ(mtex->shapekey, shapekey)) {
+			float def = mtex->def_var;
+			short blend = mtex->blendtype;
+			
+			if (particle_mtex_eval(sim, mtex, pa, cfra, &value, rgba)) {
+				result = texture_value_blend(def, result, value, mtex->shapefac, blend);
+			}
+		}
+	}
+	
+	CLAMP(result, 0.0f, 1.0f);
+	
+	return result;
+}
+
 /************************************************/
 /*			Particle State						*/
 /************************************************/

@@ -45,11 +45,14 @@
 #include "DNA_anim_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_curve.h"
@@ -59,11 +62,13 @@
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
+#include "BKE_particle.h"
 #include "BKE_editmesh.h"
 #include "BKE_scene.h"
 
-
 #include "RNA_access.h"
+
+#include "RE_render_ext.h"
 
 #define KEY_MODE_DUMMY      0 /* use where mode isn't checked for */
 #define KEY_MODE_BPOINT     1
@@ -1188,20 +1193,74 @@ float **BKE_keyblock_get_per_block_object_weights(Object *ob, Key *key, WeightsA
 	return per_keyblock_weights;
 }
 
-static float *get_particle_weights_array(ParticleSystem *UNUSED(psys), char *vgroup, WeightsArrayCache *UNUSED(cache))
+static int particle_count_keys(ParticleSystem *psys)
 {
-//	MDeformVert *dvert = NULL;
-//	int totvert = 0, defgrp_index = 0;
-	
-	/* no vgroup string set? */
-	if (vgroup[0] == 0) return NULL;
-	
-	// XXX TODO
-	
-	return NULL;
+	ParticleData *pa;
+	int p;
+	int totkey = 0;
+	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+		totkey += pa->totkey;
+	}
+	return totkey;
 }
 
-float **BKE_keyblock_get_per_block_particle_weights(ParticleSystem *psys, Key *key, WeightsArrayCache *cache)
+static float *get_particle_weights_array(Object *ob, ParticleSystem *psys, const char *name, float cfra)
+{
+	ParticleSettings *part = psys->part;
+	ParticleSimulationData sim;
+	MTex **mtexp;
+	int m, i, p, k;
+	int totvert = 0;
+	float *weights = NULL;
+	
+	sim.scene = NULL;
+	sim.ob = ob;
+	sim.psys = psys;
+	sim.psmd = psys_get_modifier(ob, psys);
+	
+	for (m = 0, mtexp = part->mtex; m < MAX_MTEX; ++m, ++mtexp) {
+		MTex *mtex = *mtexp;
+		if (mtex && (mtex->mapto & PAMAP_SHAPEKEY) && STREQ(mtex->shapekey, name)) {
+			const float def = mtex->def_var;
+			const short blend = mtex->blendtype;
+			
+			ParticleData *pa;
+			float value, rgba[4];
+			
+			/* lazy init */
+			if (!weights) {
+				totvert = particle_count_keys(psys);
+				weights = MEM_mallocN(totvert * sizeof(float), "weights");
+				for (i = 0; i < totvert; ++i)
+					weights[i] = 1.0f;
+			}
+			
+			i = 0;
+			for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+				if (particle_mtex_eval(&sim, mtex, pa, cfra, &value, rgba)) {
+					/* weight is the same for all hair keys, 
+					 * only need to evaluate the texture once!
+					 */
+					float result = texture_value_blend(def, weights[i], value, mtex->shapefac, blend);
+					for (k = 0; k < pa->totkey; ++k) {
+						weights[i + k] = result;
+					}
+				}
+				
+				i += pa->totkey;
+			}
+		}
+	}
+	
+	if (weights) {
+		for (i = 0; i < totvert; ++i)
+			CLAMP(weights[i], 0.0f, 1.0f);
+	}
+	
+	return weights;
+}
+
+float **BKE_keyblock_get_per_block_particle_weights(Object *ob, ParticleSystem *psys, float cfra, Key *key, WeightsArrayCache *UNUSED(cache))
 {
 	KeyBlock *keyblock;
 	float **per_keyblock_weights;
@@ -1215,7 +1274,7 @@ float **BKE_keyblock_get_per_block_particle_weights(ParticleSystem *psys, Key *k
 	     keyblock;
 	     keyblock = keyblock->next, keyblock_index++)
 	{
-		per_keyblock_weights[keyblock_index] = get_particle_weights_array(psys, keyblock->vgroup, cache);
+		per_keyblock_weights[keyblock_index] = get_particle_weights_array(ob, psys, keyblock->name, cfra);
 	}
 
 	return per_keyblock_weights;
@@ -1367,7 +1426,7 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
 	if (lt->flag & LT_OUTSIDE) outside_lattice(lt);
 }
 
-static void do_psys_key(ParticleSystem *psys, Key *key, char *out, const int tot)
+static void do_psys_key(Object *ob, ParticleSystem *psys, float cfra, Key *key, char *out, const int tot)
 {
 	KeyBlock *k[4], *actkb = BKE_keyblock_from_particles(psys);
 	float t[4];
@@ -1377,7 +1436,7 @@ static void do_psys_key(ParticleSystem *psys, Key *key, char *out, const int tot
 		WeightsArrayCache cache = {0, NULL};
 		float **per_keyblock_weights;
 		
-		per_keyblock_weights = BKE_keyblock_get_per_block_particle_weights(psys, key, &cache);
+		per_keyblock_weights = BKE_keyblock_get_per_block_particle_weights(ob, psys, cfra, key, &cache);
 		BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
 		BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
 	}
@@ -1496,7 +1555,7 @@ float *BKE_key_evaluate_object(Object *ob, int *r_totelem)
 }
 
 /* returns key coordinates when key applied, NULL otherwise */
-float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, int *r_totelem,
+float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, float cfra, int *r_totelem,
                                      float *arr, size_t arr_size)
 {
 	Key *key = psys->key;
@@ -1546,14 +1605,14 @@ float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, int *r_to
 			psys->shapenr = 1;
 		}
 		
-		weights = get_particle_weights_array(psys, kb->vgroup, NULL);
+		weights = get_particle_weights_array(ob, psys, kb->name, cfra);
 		
 		cp_key(0, tot, tot, out, key, actkb, kb, weights, 0);
 		
 		if (weights) MEM_freeN(weights);
 	}
 	else {
-		do_psys_key(psys, key, out, tot);
+		do_psys_key(ob, psys, cfra, key, out, tot);
 	}
 	
 	if (r_totelem) {
@@ -1562,9 +1621,9 @@ float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, int *r_to
 	return (float *)out;
 }
 
-float *BKE_key_evaluate_particles(Object *ob, ParticleSystem *psys, int *r_totelem)
+float *BKE_key_evaluate_particles(Object *ob, ParticleSystem *psys, float cfra, int *r_totelem)
 {
-	return BKE_key_evaluate_particles_ex(ob, psys, r_totelem, NULL, 0);
+	return BKE_key_evaluate_particles_ex(ob, psys, cfra, r_totelem, NULL, 0);
 }
 
 Key *BKE_key_from_object(Object *ob)

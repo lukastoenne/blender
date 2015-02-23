@@ -624,6 +624,7 @@ typedef enum eParticleTextureInfluence {
 	PAMAP_ROUGH		= (1<<9),
 	PAMAP_LENGTH	= (1<<4),
 	PAMAP_CHILD		= (PAMAP_CLUMP | PAMAP_KINK_FREQ | PAMAP_KINK_AMP | PAMAP_ROUGH | PAMAP_LENGTH),
+	PAMAP_SHAPEKEY	= (1<<13), /* shapekey blend multiplier */
 } eParticleTextureInfluence;
 
 #endif

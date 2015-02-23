@@ -3167,7 +3167,7 @@ static void hair_create_input_dm(ParticleSimulationData *sim, int totpoint, int 
 	/* XXX placeholder for more flexible future hair settings */
 	hair_radius = part->size;
 	
-	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, psys, &totshapekey);
+	shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, psys, sim->scene ? sim->scene->r.cfra : 0.0f, &totshapekey);
 	
 	/* make vgroup for pin roots etc.. */
 	hair_index = 1;
@@ -3456,7 +3456,7 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 	int totshapekey;
 
 	if (part->type == PART_HAIR) {
-		shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, &totshapekey);
+		shapekey = shapekey_data = BKE_key_evaluate_particles(sim->ob, sim->psys, sim->scene ? sim->scene->r.cfra : 0.0f, &totshapekey);
 	}
 
 	LOOP_PARTICLES {

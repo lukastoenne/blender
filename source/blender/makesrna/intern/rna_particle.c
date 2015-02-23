@@ -1904,6 +1904,11 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Length", "Affect the child hair length");
 	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
 
+	prop = RNA_def_property(srna, "use_map_shapekey", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", PAMAP_SHAPEKEY);
+	RNA_def_property_ui_text(prop, "Shape Key", "Affect the blend factor of a hair shape key");
+	RNA_def_property_update(prop, 0, "rna_Particle_reset");
+
 
 	/* influence factors */
 	prop = RNA_def_property(srna, "time_factor", PROP_FLOAT, PROP_NONE);
@@ -1985,6 +1990,17 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Rough Factor", "Amount texture affects child roughness");
 	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
+
+	prop = RNA_def_property(srna, "shapekey_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "shapefac");
+	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
+	RNA_def_property_ui_text(prop, "Shape Key Factor", "Amount texture affects shape key blend value");
+	RNA_def_property_update(prop, 0, "rna_Particle_reset");
+
+	prop = RNA_def_property(srna, "shapekey", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "shapekey");
+	RNA_def_property_ui_text(prop, "Shape Key", "Name of the shape key affected by the texture");
+	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 }
 
 static void rna_def_particle_settings(BlenderRNA *brna)

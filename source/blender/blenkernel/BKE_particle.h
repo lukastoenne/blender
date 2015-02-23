@@ -437,7 +437,9 @@ float psys_get_dietime_from_cache(struct PointCache *cache, int index);
 void psys_free_pdd(struct ParticleSystem *psys);
 
 float *psys_cache_vgroup(struct DerivedMesh *dm, struct ParticleSystem *psys, int vgroup);
+bool particle_mtex_eval(struct ParticleSimulationData *sim, MTex *mtex, ParticleData *pa, float cfra, float *value, float rgba[4]);
 void psys_get_texture(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ParticleTexture *ptex, int event, float cfra);
+float psys_get_texture_shapefac(struct ParticleSimulationData *sim, struct ParticleData *pa, float cfra, const char *shapekey);
 void psys_interpolate_face(struct MVert *mvert, struct MFace *mface, struct MTFace *tface,
                            float (*orcodata)[3], float w[4], float vec[3], float nor[3], float utan[3], float vtan[3],
                            float orco[3], float ornor[3]);

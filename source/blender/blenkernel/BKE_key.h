@@ -71,10 +71,10 @@ float *BKE_key_evaluate_object_ex(
 float *BKE_key_evaluate_object(
         struct Object *ob, int *r_totelem);
 float *BKE_key_evaluate_particles_ex(
-        struct Object *ob, struct ParticleSystem *psys, int *r_totelem,
+        struct Object *ob, struct ParticleSystem *psys, float cfra, int *r_totelem,
         float *arr, size_t arr_size);
 float *BKE_key_evaluate_particles(
-        struct Object *ob, struct ParticleSystem *psys, int *r_totelem);
+        struct Object *ob, struct ParticleSystem *psys, float cfra, int *r_totelem);
 
 struct Key      *BKE_key_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
@@ -96,7 +96,7 @@ typedef struct WeightsArrayCache {
 } WeightsArrayCache;
 
 float **BKE_keyblock_get_per_block_object_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
-float **BKE_keyblock_get_per_block_particle_weights(struct ParticleSystem *psys, struct Key *key, struct WeightsArrayCache *cache);
+float **BKE_keyblock_get_per_block_particle_weights(struct Object *ob, struct ParticleSystem *psys, float cfra, struct Key *key, struct WeightsArrayCache *cache);
 void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_weights, struct WeightsArrayCache *cache);
 void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode);
