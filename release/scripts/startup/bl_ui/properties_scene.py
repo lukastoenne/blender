@@ -406,6 +406,20 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
     bl_label = "Cache Manager"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
+    # returns True if the item exists and is enabled
+    def draw_cache_item_button(self, context, layout, cachelib, ob, type, index=-1):
+        item = cachelib.cache_item_find(ob, type, index)
+        if not item:
+            sub = layout.row()
+            sub.context_pointer_set("cachelib", cachelib)
+            sub.context_pointer_set("cache_object", ob)
+            props = sub.operator("cachelibrary.item_enable", text="", icon='ZOOMIN', emboss=True)
+            props.type = type
+            props.index = index
+        else:
+            layout.prop(item, "enabled", text="")
+        return bool(item and item.enabled)
+
     def draw_cachelib(self, context, layout, cachelib):
         first = True
         for obcache in cachelib.object_caches:
@@ -415,7 +429,12 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
                 layout.separator()
                 first = False
 
-            row.label(text=ob.name, icon_value=layout.icon(ob))
+            row = layout.row()
+            enabled = self.draw_cache_item_button(context, row, cachelib, ob, 'OBJECT')
+            
+            sub = row.row()
+            sub.enabled = enabled
+            sub.label(text=ob.name, icon_value=layout.icon(ob))
 
     def draw(self, context):
         layout = self.layout

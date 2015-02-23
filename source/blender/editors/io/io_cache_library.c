@@ -33,6 +33,7 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_cache_library_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_cache_library.h"
 #include "BKE_context.h"
@@ -44,6 +45,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -100,4 +102,53 @@ void CACHELIBRARY_OT_new(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/********************** enable cache item operator *********************/
+
+static int cache_item_enable_poll(bContext *C)
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cachelib", &RNA_CacheLibrary).data;
+	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
+	
+	if (!cachelib || !obcache)
+		return false;
+	
+	return true;
+}
+
+static int cache_item_enable_exec(bContext *C, wmOperator *op)
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cachelib", &RNA_CacheLibrary).data;
+	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
+	int type = RNA_enum_get(op->ptr, "type");
+	int index = RNA_int_get(op->ptr, "index");
+	
+	CacheItem *item = BKE_cache_library_add_item(cachelib, obcache, type, index);
+	item->flag |= CACHE_ITEM_ENABLED;
+	
+	WM_event_add_notifier(C, NC_OBJECT, cachelib);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_item_enable(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+	
+	/* identifiers */
+	ot->name = "Enable Cache Item";
+	ot->idname = "CACHELIBRARY_OT_item_enable";
+	ot->description = "Enable a cache item";
+	
+	/* api callbacks */
+	ot->poll = cache_item_enable_poll;
+	ot->exec = cache_item_enable_exec;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+	
+	prop = RNA_def_enum(ot->srna, "type", cache_library_item_type_items, CACHE_TYPE_OBJECT, "Type", "Type of cache item to add");
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+	RNA_def_int(ot->srna, "index", -1, -1, INT_MAX, "Index", "Index of data in the object", -1, INT_MAX);
 }

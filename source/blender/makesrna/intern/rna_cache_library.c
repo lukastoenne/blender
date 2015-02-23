@@ -175,6 +175,12 @@ static void rna_def_cache_item(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "CacheItem", NULL);
 	RNA_def_struct_ui_text(srna, "Cache Item", "Description of a cacheable item in an object");
 	
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "ob");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "");
+	
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type");
 	RNA_def_property_enum_items(prop, cache_library_item_type_items);
@@ -185,6 +191,10 @@ static void rna_def_cache_item(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "index");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Index", "Index of the cached data");
+	
+	prop = RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", CACHE_ITEM_ENABLED);
+	RNA_def_property_ui_text(prop, "Enabled", "Enable caching for this item");
 }
 
 static void rna_def_object_cache(BlenderRNA *brna)
@@ -238,9 +248,9 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "Find item for an object cache item");
 	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
-	parm = RNA_def_enum(func, "type", cache_library_item_type_items, 0, "Type", "Type of cache item");
+	parm = RNA_def_enum(func, "type", cache_library_item_type_items, CACHE_TYPE_OBJECT, "Type", "Type of cache item");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	RNA_def_int(func, "index", -1, 0, INT_MAX, "Index", "Index of the data in it's' collection", 0, INT_MAX);
+	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index of the data in it's' collection", -1, INT_MAX);
 	parm = RNA_def_pointer(func, "item", "CacheItem", "Item", "Item in the cache");
 	RNA_def_property_flag(parm, PROP_RNAPTR);
 	RNA_def_function_return(func, parm);

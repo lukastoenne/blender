@@ -74,9 +74,7 @@ void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc wa
 #endif
 
 struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
-#if 0
-struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, const struct CacheItem *path);
-bool BKE_cache_library_remove_item(struct CacheLibrary *cachelib, const struct CacheItem *path);
-#endif
+struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
+void BKE_cache_library_remove_item(struct CacheLibrary *cachelib, struct CacheItem *item);
 
 #endif
