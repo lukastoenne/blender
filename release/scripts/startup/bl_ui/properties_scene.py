@@ -406,6 +406,17 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
     bl_label = "Cache Manager"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
+    def draw_cachelib(self, context, layout, cachelib):
+        first = True
+        for obcache in cachelib.object_caches:
+            ob = obcache.object
+
+            if first:
+                layout.separator()
+                first = False
+
+            row.label(text=ob.name, icon_value=layout.icon(ob))
+
     def draw(self, context):
         layout = self.layout
 
@@ -414,6 +425,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
             box = layout.box()
             box.prop(cachelib, "filepath")
             box.template_ID(cachelib, "group")
+            self.draw_cachelib(context, box, cachelib)
 
 
 class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):
