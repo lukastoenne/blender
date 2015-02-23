@@ -76,6 +76,9 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 void BKE_cache_library_free(CacheLibrary *cachelib)
 {
 	BLI_freelistN(&cachelib->items);
+	
+	if (cachelib->items_hash)
+		BLI_ghash_free(cachelib->items_hash, NULL, NULL);
 }
 
 /* ========================================================================= */
@@ -331,19 +334,17 @@ static void cache_library_insert_item_hash(CacheLibrary *cachelib, CacheItem *it
 		BLI_ghash_insert(cachelib->items_hash, item, item);
 }
 
-static void UNUSED_FUNCTION(cache_library_ensure_items_hash)(CacheLibrary *cachelib)
+/* make sure the items hash exists (lazy init after loading files) */
+static void cache_library_ensure_items_hash(CacheLibrary *cachelib)
 {
 	CacheItem *item;
 	
-	if (cachelib->items_hash) {
-		BLI_ghash_clear(cachelib->items_hash, NULL, NULL);
-	}
-	else {
+	if (!cachelib->items_hash) {
 		cachelib->items_hash = BLI_ghash_new(cache_item_hash, cache_item_cmp, "cache item hash");
-	}
-	
-	for (item = cachelib->items.first; item; item = item->next) {
-		cache_library_insert_item_hash(cachelib, item, true);
+		
+		for (item = cachelib->items.first; item; item = item->next) {
+			cache_library_insert_item_hash(cachelib, item, true);
+		}
 	}
 }
 
@@ -354,17 +355,25 @@ CacheItem *BKE_cache_library_find_item(CacheLibrary *cachelib, Object *ob, int t
 	item.ob = ob;
 	item.type = type;
 	item.index = index;
+	
+	cache_library_ensure_items_hash(cachelib);
+	
 	return BLI_ghash_lookup(cachelib->items_hash, &item);
 }
 
-#if 0
-CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, const CacheItemPath *path)
+CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, struct Object *ob, int type, int index)
 {
-	CacheItem *item = BLI_ghash_lookup(cachelib->items_hash, path);
+	CacheItem *item;
+	
+	cache_library_ensure_items_hash(cachelib);
+	
+	item = BKE_cache_library_find_item(cachelib, ob, type, index);
 	
 	if (!item) {
 		item = MEM_callocN(sizeof(CacheItem), "cache library item");
-		cache_path_copy(&item->path, path);
+		item->ob = ob;
+		item->type = type;
+		item->index = index;
 		
 		BLI_addtail(&cachelib->items, item);
 		cache_library_insert_item_hash(cachelib, item, false);
@@ -373,19 +382,15 @@ CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, const CacheItemPat
 	return item;
 }
 
-bool BKE_cache_library_remove_item(CacheLibrary *cachelib, const CacheItemPath *path)
+void BKE_cache_library_remove_item(CacheLibrary *cachelib, CacheItem *item)
 {
-	CacheItem *item = BLI_ghash_lookup(cachelib->items_hash, path);
 	if (item) {
-		BLI_ghash_remove(cachelib->items_hash, (CacheItemPath *)path, NULL, NULL);
+		if (cachelib->items_hash)
+			BLI_ghash_remove(cachelib->items_hash, item, NULL, NULL);
 		BLI_remlink(&cachelib->items, item);
 		MEM_freeN(item);
-		return true;
 	}
-	else
-		return false;
 }
-#endif
 
 /* ========================================================================= */
 

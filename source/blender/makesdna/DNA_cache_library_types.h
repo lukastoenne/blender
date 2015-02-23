@@ -51,7 +51,14 @@ typedef struct CacheItem {
 	struct Object *ob;
 	int type;
 	int index;
+	
+	int flag;
+	int pad;
 } CacheItem;
+
+typedef enum eCacheItem_Flag {
+	CACHE_ITEM_ENABLED              = 1,
+} eCacheItem_Flag;
 
 typedef struct CacheLibrary {
 	ID id;
