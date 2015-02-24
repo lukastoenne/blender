@@ -437,7 +437,6 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
             row.label(text=name, icon=self.item_type_icon[type])
         elif type == 'DERIVED_MESH':
             row.label(text=name, icon=self.item_type_icon[type])
-            #sub.label(text="Mesh", icon_value=layout.enum_item_icon())
         elif type == 'HAIR':
             row.label(text=name, icon=self.item_type_icon[type])
         elif type == 'HAIR_PATHS':
