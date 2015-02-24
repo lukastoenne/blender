@@ -32,13 +32,13 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcSoftBodyWriter::AbcSoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbody) :
-    SoftBodyWriter(ob, softbody, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcSoftBodyWriter::AbcSoftBodyWriter(AbcWriterArchive *archive, Object *ob, SoftBody *softbody) :
+    SoftBodyWriter(ob, softbody, archive),
+    AbcWriter(archive)
 {
-	if (m_archive.archive) {
-//		OObject root = m_archive.archive.getTop();
-//		m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
+	if (archive->archive) {
+//		OObject root = archive->archive.getTop();
+//		m_points = OPoints(root, m_psys->name, archive->frame_sampling_index());
 	}
 }
 
@@ -48,17 +48,17 @@ AbcSoftBodyWriter::~AbcSoftBodyWriter()
 
 void AbcSoftBodyWriter::write_sample()
 {
-	if (!m_archive.archive)
+	if (!archive()->archive)
 		return;
 }
 
 
-AbcSoftBodyReader::AbcSoftBodyReader(Scene *scene, Object *ob, SoftBody *softbody) :
-    SoftBodyReader(ob, softbody, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcSoftBodyReader::AbcSoftBodyReader(AbcReaderArchive *archive, Object *ob, SoftBody *softbody) :
+    SoftBodyReader(ob, softbody, archive),
+    AbcReader(archive)
 {
-	if (m_archive.archive.valid()) {
-		IObject root = m_archive.archive.getTop();
+	if (archive->archive.valid()) {
+		IObject root = archive->archive.getTop();
 //		m_points = IPoints(root, m_psys->name);
 	}
 }
@@ -74,14 +74,16 @@ PTCReadSampleResult AbcSoftBodyReader::read_sample(float frame)
 
 /* ==== API ==== */
 
-Writer *abc_writer_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+Writer *abc_writer_softbody(WriterArchive *archive, Object *ob, SoftBody *softbody)
 {
-	return new AbcSoftBodyWriter(scene, ob, softbody);
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcSoftBodyWriter((AbcWriterArchive *)archive, ob, softbody);
 }
 
-Reader *abc_reader_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+Reader *abc_reader_softbody(ReaderArchive *archive, Object *ob, SoftBody *softbody)
 {
-	return new AbcSoftBodyReader(scene, ob, softbody);
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcSoftBodyReader((AbcReaderArchive *)archive, ob, softbody);
 }
 
 } /* namespace PTC */

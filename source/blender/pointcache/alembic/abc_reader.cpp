@@ -19,6 +19,7 @@
 #include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/Abc/ArchiveInfo.h>
 
+#include "alembic.h"
 #include "abc_reader.h"
 
 #include "util_error_handler.h"
@@ -87,6 +88,12 @@ PTCReadSampleResult AbcReaderArchive::test_sample(float frame)
 	else {
 		return PTC_READ_SAMPLE_INVALID;
 	}
+}
+
+
+ReaderArchive *abc_reader_archive(Scene *scene, const std::string &filename, ErrorHandler *error_handler)
+{
+	return new AbcReaderArchive(scene, filename, error_handler);
 }
 
 } /* namespace PTC */

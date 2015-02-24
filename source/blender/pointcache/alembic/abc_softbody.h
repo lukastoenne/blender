@@ -33,27 +33,25 @@ struct SoftBody;
 
 namespace PTC {
 
-class AbcSoftBodyWriter : public SoftBodyWriter {
+class AbcSoftBodyWriter : public SoftBodyWriter, public AbcWriter {
 public:
-	AbcSoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbody);
+	AbcSoftBodyWriter(AbcWriterArchive *archive, Object *ob, SoftBody *softbody);
 	~AbcSoftBodyWriter();
 	
 	void write_sample();
 	
 private:
-	AbcWriterArchive m_archive;
 //	AbcGeom::OPoints m_points;
 };
 
-class AbcSoftBodyReader : public SoftBodyReader {
+class AbcSoftBodyReader : public SoftBodyReader, public AbcReader {
 public:
-	AbcSoftBodyReader(Scene *scene, Object *ob, SoftBody *softbody);
+	AbcSoftBodyReader(AbcReaderArchive *archive, Object *ob, SoftBody *softbody);
 	~AbcSoftBodyReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcReaderArchive m_archive;
 //	AbcGeom::IPoints m_points;
 };
 

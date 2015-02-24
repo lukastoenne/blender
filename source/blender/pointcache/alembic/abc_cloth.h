@@ -33,33 +33,27 @@ struct ClothModifierData;
 
 namespace PTC {
 
-class AbcClothWriter : public ClothWriter {
+class AbcClothWriter : public ClothWriter, public AbcWriter {
 public:
-	AbcClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd);
+	AbcClothWriter(AbcWriterArchive *archive, Object *ob, ClothModifierData *clmd);
 	~AbcClothWriter();
 	
 	void write_sample();
 	
-	AbcWriterArchive *archive() { return &m_archive; }
-	
 private:
-	AbcWriterArchive m_archive;
-	
 	AbcGeom::OPoints m_points;
 	AbcGeom::OV3fGeomParam m_param_velocities;
 	AbcGeom::OP3fGeomParam m_param_goal_positions;
 };
 
-class AbcClothReader : public ClothReader {
+class AbcClothReader : public ClothReader, public AbcReader {
 public:
-	AbcClothReader(Scene *scene, Object *ob, ClothModifierData *clmd);
+	AbcClothReader(AbcReaderArchive *archive, Object *ob, ClothModifierData *clmd);
 	~AbcClothReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcReaderArchive m_archive;
-	
 	AbcGeom::IPoints m_points;
 	AbcGeom::IV3fGeomParam m_param_velocities;
 	AbcGeom::IP3fGeomParam m_param_goal_positions;

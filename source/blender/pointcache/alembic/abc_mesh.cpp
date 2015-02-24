@@ -44,15 +44,15 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcPointCacheWriter::AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
-    PointCacheWriter(ob, pcmd, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcPointCacheWriter::AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
+    PointCacheWriter(ob, pcmd, archive),
+    AbcWriter(archive)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	
-	if (m_archive.archive) {
-		OObject root = m_archive.archive.getTop();
-		m_mesh = OPolyMesh(root, m_pcmd->modifier.name, m_archive.frame_sampling_index());
+	if (archive->archive) {
+		OObject root = archive->archive.getTop();
+		m_mesh = OPolyMesh(root, m_pcmd->modifier.name, archive->frame_sampling_index());
 		
 		OPolyMeshSchema &schema = m_mesh.getSchema();
 		OCompoundProperty geom_props = schema.getArbGeomParams();
@@ -235,7 +235,7 @@ static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<
 
 void AbcPointCacheWriter::write_sample()
 {
-	if (!m_archive.archive)
+	if (!archive()->archive)
 		return;
 	
 	DerivedMesh *output_dm = m_pcmd->output_dm;
@@ -295,14 +295,14 @@ void AbcPointCacheWriter::write_sample()
 }
 
 
-AbcPointCacheReader::AbcPointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
-    PointCacheReader(ob, pcmd, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcPointCacheReader::AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
+    PointCacheReader(ob, pcmd, archive),
+    AbcReader(archive)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	
-	if (m_archive.archive.valid()) {
-		IObject root = m_archive.archive.getTop();
+	if (archive->archive.valid()) {
+		IObject root = archive->archive.getTop();
 		if (root.valid() && root.getChild(m_pcmd->modifier.name)) {
 			m_mesh = IPolyMesh(root, m_pcmd->modifier.name);
 			
@@ -486,7 +486,7 @@ PTCReadSampleResult AbcPointCacheReader::read_sample(float frame)
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	ISampleSelector ss = m_archive.get_frame_sample_selector(frame);
+	ISampleSelector ss = archive()->get_frame_sample_selector(frame);
 	
 	PROFILE_START;
 	IPolyMeshSchema::Sample sample;
@@ -584,14 +584,16 @@ PTCReadSampleResult AbcPointCacheReader::read_sample(float frame)
 
 /* ==== API ==== */
 
-Writer *abc_writer_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
+Writer *abc_writer_point_cache(WriterArchive *archive, Object *ob, PointCacheModifierData *pcmd)
 {
-	return new AbcPointCacheWriter(scene, ob, pcmd);
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcPointCacheWriter((AbcWriterArchive *)archive, ob, pcmd);
 }
 
-Reader *abc_reader_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
+Reader *abc_reader_point_cache(ReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd)
 {
-	return new AbcPointCacheReader(scene, ob, pcmd);
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcPointCacheReader((AbcReaderArchive *)archive, ob, pcmd);
 }
 
 } /* namespace PTC */

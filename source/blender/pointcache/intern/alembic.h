@@ -19,6 +19,8 @@
 #ifndef PTC_ALEMBIC_H
 #define PTC_ALEMBIC_H
 
+#include <string>
+
 #include "reader.h"
 #include "writer.h"
 
@@ -36,36 +38,38 @@ struct SoftBody;
 
 namespace PTC {
 
+WriterArchive *abc_writer_archive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
+ReaderArchive *abc_reader_archive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
+
 /* Particles */
-Writer *abc_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys);
-Reader *abc_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys);
-//Writer *abc_writer_particle_paths(Scene *scene, Object *ob, ParticleSystem *psys);
-Reader *abc_reader_particle_paths(Scene *scene, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
-Writer *abc_writer_particle_combined(Scene *scene, Object *ob, ParticleSystem *psys);
+Writer *abc_writer_particles(WriterArchive *archive, Object *ob, ParticleSystem *psys);
+Reader *abc_reader_particles(ReaderArchive *archive, Object *ob, ParticleSystem *psys);
+Writer *abc_writer_particle_paths(WriterArchive *archive, Object *ob, ParticleSystem *psys);
+Reader *abc_reader_particle_paths(ReaderArchive *archive, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
 
 /* Cloth */
-Writer *abc_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd);
-Reader *abc_reader_cloth(Scene *scene, Object *ob, ClothModifierData *clmd);
+Writer *abc_writer_cloth(WriterArchive *archive, Object *ob, ClothModifierData *clmd);
+Reader *abc_reader_cloth(ReaderArchive *archive, Object *ob, ClothModifierData *clmd);
 
 /* SoftBody */
-Writer *abc_writer_softbody(Scene *scene, Object *ob, SoftBody *softbody);
-Reader *abc_reader_softbody(Scene *scene, Object *ob, SoftBody *softbody);
+Writer *abc_writer_softbody(WriterArchive *archive, Object *ob, SoftBody *softbody);
+Reader *abc_reader_softbody(ReaderArchive *archive, Object *ob, SoftBody *softbody);
 
 /* Rigid Bodies */
-Writer *abc_writer_rigidbody(Scene *scene, RigidBodyWorld *rbw);
-Reader *abc_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw);
+Writer *abc_writer_rigidbody(WriterArchive *archive, Scene *scene, RigidBodyWorld *rbw);
+Reader *abc_reader_rigidbody(ReaderArchive *archive, Scene *scene, RigidBodyWorld *rbw);
 
 /* Smoke */
-Writer *abc_writer_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain);
-Reader *abc_reader_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain);
+Writer *abc_writer_smoke(WriterArchive *archive, Object *ob, SmokeDomainSettings *domain);
+Reader *abc_reader_smoke(ReaderArchive *archive, Object *ob, SmokeDomainSettings *domain);
 
 /* Dynamic Paint */
-Writer *abc_writer_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface);
-Reader *abc_reader_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface);
+Writer *abc_writer_dynamicpaint(WriterArchive *archive, Object *ob, DynamicPaintSurface *surface);
+Reader *abc_reader_dynamicpaint(ReaderArchive *archive, Object *ob, DynamicPaintSurface *surface);
 
 /* Modifier Stack */
-Writer *abc_writer_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
-Reader *abc_reader_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
+Writer *abc_writer_point_cache(WriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
+Reader *abc_reader_point_cache(ReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
 
 } /* namespace PTC */
 

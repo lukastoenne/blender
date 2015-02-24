@@ -33,27 +33,25 @@ struct DynamicPaintSurface;
 
 namespace PTC {
 
-class AbcDynamicPaintWriter : public DynamicPaintWriter {
+class AbcDynamicPaintWriter : public DynamicPaintWriter, public AbcWriter {
 public:
-	AbcDynamicPaintWriter(Scene *scene, Object *ob, DynamicPaintSurface *surface);
+	AbcDynamicPaintWriter(AbcWriterArchive *archive, Object *ob, DynamicPaintSurface *surface);
 	~AbcDynamicPaintWriter();
 	
 	void write_sample();
 	
 private:
-	AbcWriterArchive m_archive;
 //	AbcGeom::OPoints m_points;
 };
 
-class AbcDynamicPaintReader : public DynamicPaintReader {
+class AbcDynamicPaintReader : public DynamicPaintReader, public AbcReader {
 public:
-	AbcDynamicPaintReader(Scene *scene, Object *ob, DynamicPaintSurface *surface);
+	AbcDynamicPaintReader(AbcReaderArchive *archive, Object *ob, DynamicPaintSurface *surface);
 	~AbcDynamicPaintReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcReaderArchive m_archive;
 //	AbcGeom::IPoints m_points;
 };
 

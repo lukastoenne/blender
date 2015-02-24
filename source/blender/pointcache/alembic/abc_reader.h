@@ -53,6 +53,18 @@ protected:
 	ErrorHandler *m_error_handler;
 };
 
+class AbcReader {
+public:
+	AbcReader(AbcReaderArchive *archive) :
+	    m_archive(archive)
+	{}
+	
+	AbcReaderArchive *archive() const { return m_archive; }
+	
+private:
+	AbcReaderArchive *m_archive;
+};
+
 } /* namespace PTC */
 
 #endif  /* PTC_READER_H */
