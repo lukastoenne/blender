@@ -24,9 +24,8 @@ extern "C" {
 
 namespace PTC {
 
-Writer::Writer(Scene *scene, ID *id, WriterArchive *archive) :
+Writer::Writer(ID *id, WriterArchive *archive) :
     m_error_handler(0),
-    m_scene(scene),
     m_id(id),
     m_archive(archive)
 {

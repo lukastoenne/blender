@@ -33,7 +33,7 @@ using namespace Abc;
 using namespace AbcGeom;
 
 AbcSmokeWriter::AbcSmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
-    SmokeWriter(scene, ob, domain, &m_archive),
+    SmokeWriter(ob, domain, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
@@ -54,7 +54,7 @@ void AbcSmokeWriter::write_sample()
 
 
 AbcSmokeReader::AbcSmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
-    SmokeReader(scene, ob, domain, &m_archive),
+    SmokeReader(ob, domain, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {

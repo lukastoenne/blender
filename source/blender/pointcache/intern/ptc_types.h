@@ -36,8 +36,8 @@ namespace PTC {
 
 class ClothWriter : public Writer {
 public:
-	ClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd, WriterArchive *archive) :
-	    Writer(scene, (ID *)ob, archive),
+	ClothWriter(Object *ob, ClothModifierData *clmd, WriterArchive *archive) :
+	    Writer((ID *)ob, archive),
 	    m_ob(ob),
 	    m_clmd(clmd)
 	{}
@@ -52,8 +52,8 @@ protected:
 
 class ClothReader : public Reader {
 public:
-	ClothReader(Scene *scene, Object *ob, ClothModifierData *clmd, ReaderArchive *archive) :
-	    Reader(scene, (ID *)ob, archive),
+	ClothReader(Object *ob, ClothModifierData *clmd, ReaderArchive *archive) :
+	    Reader((ID *)ob, archive),
 	    m_ob(ob),
 	    m_clmd(clmd)
 	{}
@@ -69,8 +69,8 @@ protected:
 
 class DynamicPaintWriter : public Writer {
 public:
-	DynamicPaintWriter(Scene *scene, Object *ob, DynamicPaintSurface *surface, WriterArchive *archive) :
-	    Writer(scene, (ID *)ob, archive),
+	DynamicPaintWriter(Object *ob, DynamicPaintSurface *surface, WriterArchive *archive) :
+	    Writer((ID *)ob, archive),
 	    m_ob(ob),
 	    m_surface(surface)
 	{}
@@ -85,8 +85,8 @@ protected:
 
 class DynamicPaintReader : public Reader {
 public:
-	DynamicPaintReader(Scene *scene, Object *ob, DynamicPaintSurface *surface, ReaderArchive *archive) :
-	    Reader(scene, (ID *)ob, archive),
+	DynamicPaintReader(Object *ob, DynamicPaintSurface *surface, ReaderArchive *archive) :
+	    Reader((ID *)ob, archive),
 	    m_ob(ob),
 	    m_surface(surface)
 	{}
@@ -102,8 +102,8 @@ protected:
 
 class PointCacheWriter : public Writer {
 public:
-	PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd, WriterArchive *archive) :
-	    Writer(scene, (ID *)ob, archive),
+	PointCacheWriter(Object *ob, PointCacheModifierData *pcmd, WriterArchive *archive) :
+	    Writer((ID *)ob, archive),
 	    m_ob(ob),
 	    m_pcmd(pcmd)
 	{}
@@ -118,8 +118,8 @@ protected:
 
 class PointCacheReader : public Reader {
 public:
-	PointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd, ReaderArchive *archive) :
-	    Reader(scene, (ID *)ob, archive),
+	PointCacheReader(Object *ob, PointCacheModifierData *pcmd, ReaderArchive *archive) :
+	    Reader((ID *)ob, archive),
 	    m_ob(ob),
 	    m_pcmd(pcmd),
 	    m_result(0)
@@ -141,8 +141,8 @@ protected:
 
 class ParticlesWriter : public Writer {
 public:
-	ParticlesWriter(Scene *scene, Object *ob, ParticleSystem *psys, WriterArchive *archive) :
-	    Writer(scene, (ID *)ob, archive),
+	ParticlesWriter(Object *ob, ParticleSystem *psys, WriterArchive *archive) :
+	    Writer((ID *)ob, archive),
 	    m_ob(ob),
 	    m_psys(psys)
 	{}
@@ -157,8 +157,8 @@ protected:
 
 class ParticlesReader : public Reader {
 public:
-	ParticlesReader(Scene *scene, Object *ob, ParticleSystem *psys, ReaderArchive *archive) :
-	    Reader(scene, (ID *)ob, archive),
+	ParticlesReader(Object *ob, ParticleSystem *psys, ReaderArchive *archive) :
+	    Reader((ID *)ob, archive),
 	    m_ob(ob),
 	    m_psys(psys),
 	    m_totpoint(0)
@@ -180,7 +180,7 @@ protected:
 class RigidBodyWriter : public Writer {
 public:
 	RigidBodyWriter(Scene *scene, RigidBodyWorld *rbw, WriterArchive *archive) :
-	    Writer(scene, (ID *)scene, archive),
+	    Writer((ID *)scene, archive),
 	    m_rbw(rbw)
 	{}
 	
@@ -194,7 +194,7 @@ protected:
 class RigidBodyReader : public Reader {
 public:
 	RigidBodyReader(Scene *scene, RigidBodyWorld *rbw, ReaderArchive *archive) :
-	    Reader(scene, (ID *)scene, archive),
+	    Reader((ID *)scene, archive),
 	    m_rbw(rbw)
 	{}
 	
@@ -208,8 +208,8 @@ protected:
 
 class SmokeWriter : public Writer {
 public:
-	SmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain, WriterArchive *archive) :
-	    Writer(scene, (ID *)ob, archive),
+	SmokeWriter(Object *ob, SmokeDomainSettings *domain, WriterArchive *archive) :
+	    Writer((ID *)ob, archive),
 	    m_ob(ob),
 	    m_domain(domain)
 	{}
@@ -224,8 +224,8 @@ protected:
 
 class SmokeReader : public Reader {
 public:
-	SmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain, ReaderArchive *archive) :
-	    Reader(scene, (ID *)ob, archive),
+	SmokeReader(Object *ob, SmokeDomainSettings *domain, ReaderArchive *archive) :
+	    Reader((ID *)ob, archive),
 	    m_ob(ob),
 	    m_domain(domain)
 	{}
@@ -241,8 +241,8 @@ protected:
 
 class SoftBodyWriter : public Writer {
 public:
-	SoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbody, WriterArchive *archive) :
-	    Writer(scene, (ID *)ob, archive),
+	SoftBodyWriter(Object *ob, SoftBody *softbody, WriterArchive *archive) :
+	    Writer((ID *)ob, archive),
 	    m_ob(ob),
 	    m_softbody(softbody)
 	{}
@@ -257,8 +257,8 @@ protected:
 
 class SoftBodyReader : public Reader {
 public:
-	SoftBodyReader(Scene *scene, Object *ob, SoftBody *softbody, ReaderArchive *archive) :
-	    Reader(scene, (ID *)ob, archive),
+	SoftBodyReader(Object *ob, SoftBody *softbody, ReaderArchive *archive) :
+	    Reader((ID *)ob, archive),
 	    m_ob(ob),
 	    m_softbody(softbody)
 	{}

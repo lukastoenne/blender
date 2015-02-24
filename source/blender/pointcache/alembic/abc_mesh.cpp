@@ -45,7 +45,7 @@ using namespace Abc;
 using namespace AbcGeom;
 
 AbcPointCacheWriter::AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
-    PointCacheWriter(scene, ob, pcmd, &m_archive),
+    PointCacheWriter(ob, pcmd, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
@@ -296,7 +296,7 @@ void AbcPointCacheWriter::write_sample()
 
 
 AbcPointCacheReader::AbcPointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
-    PointCacheReader(scene, ob, pcmd, &m_archive),
+    PointCacheReader(ob, pcmd, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
