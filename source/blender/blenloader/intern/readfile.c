@@ -1983,11 +1983,17 @@ static void direct_link_script(FileData *UNUSED(fd), Script *script)
 static void lib_link_cache_library(FileData *fd, Main *main)
 {
 	CacheLibrary *cachelib;
+	CacheItem *item;
+	
 	for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
 		if (cachelib->id.flag & LIB_NEED_LINK) {
 			cachelib->id.flag -= LIB_NEED_LINK;
 			
 			cachelib->group = newlibadr_us(fd, cachelib->id.lib, cachelib->group);
+			
+			for (item = cachelib->items.first; item; item = item->next) {
+				item->ob = newlibadr(fd, cachelib->id.lib, item->ob);
+			}
 		}
 	}
 }
