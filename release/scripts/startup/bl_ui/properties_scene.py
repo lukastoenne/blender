@@ -420,25 +420,28 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
             props.index = index
         else:
             layout.prop(item, "enabled", text="")
-        return bool(item and item.enabled)
+        return item
 
     def draw_cache_item(self, context, layout, cachelib, ob, type, index=-1):
+        from bpy.types import CacheItem
+
         buttons = layout.row()
-        enabled = self.draw_cache_item_button(context, buttons, cachelib, ob, type, index)
+        item = self.draw_cache_item_button(context, buttons, cachelib, ob, type, index)
         
         sub = buttons.column()
-        sub.enabled = enabled
+        sub.enabled = bool(item and item.enabled)
+        name = item.name if item else CacheItem.get_name(ob, type, index)
 
         row = sub.row()
         if type == 'OBJECT':
-            row.label(text=ob.name, icon=self.item_type_icon[type])
+            row.label(text=name, icon=self.item_type_icon[type])
         elif type == 'DERIVED_MESH':
-            row.label(text="Mesh", icon=self.item_type_icon[type])
+            row.label(text=name, icon=self.item_type_icon[type])
             #sub.label(text="Mesh", icon_value=layout.enum_item_icon())
         elif type == 'HAIR':
-            row.label(text="Hair", icon=self.item_type_icon[type])
+            row.label(text=name, icon=self.item_type_icon[type])
         elif type == 'HAIR_PATHS':
-            row.label(text="Hair Paths", icon=self.item_type_icon[type])
+            row.label(text=name, icon=self.item_type_icon[type])
 
         return sub
 

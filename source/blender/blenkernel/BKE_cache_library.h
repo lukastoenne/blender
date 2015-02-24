@@ -73,6 +73,10 @@ typedef void (*CacheGroupWalkFunc)(void *userdata, struct CacheLibrary *cachelib
 void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata);
 #endif
 
+const char *BKE_cache_item_name_prefix(int type);
+void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
+int BKE_cache_item_name_length(struct Object *ob, int type, int index);
+
 struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
 struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
 void BKE_cache_library_remove_item(struct CacheLibrary *cachelib, struct CacheItem *item);
