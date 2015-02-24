@@ -32,11 +32,11 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcDynamicPaintWriter::AbcDynamicPaintWriter(Scene *scene, Object *ob, DynamicPaintSurface *surface) :
-    DynamicPaintWriter(ob, surface, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcDynamicPaintWriter::AbcDynamicPaintWriter(AbcWriterArchive *archive, Object *ob, DynamicPaintSurface *surface) :
+    DynamicPaintWriter(ob, surface, archive),
+    AbcWriter(archive)
 {
-	if (m_archive.archive) {
+	if (archive->archive) {
 	}
 }
 
@@ -46,17 +46,17 @@ AbcDynamicPaintWriter::~AbcDynamicPaintWriter()
 
 void AbcDynamicPaintWriter::write_sample()
 {
-	if (!m_archive.archive)
+	if (!archive()->archive)
 		return;
 }
 
 
-AbcDynamicPaintReader::AbcDynamicPaintReader(Scene *scene, Object *ob, DynamicPaintSurface *surface) :
-    DynamicPaintReader(ob, surface, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcDynamicPaintReader::AbcDynamicPaintReader(AbcReaderArchive *archive, Object *ob, DynamicPaintSurface *surface) :
+    DynamicPaintReader(ob, surface, archive),
+    AbcReader(archive)
 {
-	if (m_archive.archive.valid()) {
-		IObject root = m_archive.archive.getTop();
+	if (archive->archive.valid()) {
+		IObject root = archive->archive.getTop();
 //		m_points = IPoints(root, m_psys->name);
 	}
 }
@@ -72,14 +72,16 @@ PTCReadSampleResult AbcDynamicPaintReader::read_sample(float frame)
 
 /* ==== API ==== */
 
-Writer *abc_writer_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+Writer *abc_writer_dynamicpaint(WriterArchive *archive, Object *ob, DynamicPaintSurface *surface)
 {
-	return new AbcDynamicPaintWriter(scene, ob, surface);
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcDynamicPaintWriter((AbcWriterArchive *)archive, ob, surface);
 }
 
-Reader *abc_reader_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+Reader *abc_reader_dynamicpaint(ReaderArchive *archive, Object *ob, DynamicPaintSurface *surface)
 {
-	return new AbcDynamicPaintReader(scene, ob, surface);
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcDynamicPaintReader((AbcReaderArchive *)archive, ob, surface);
 }
 
 } /* namespace PTC */

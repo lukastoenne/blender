@@ -40,38 +40,32 @@ namespace PTC {
 
 class AbcClothWriter;
 
-class AbcParticlesWriter : public ParticlesWriter {
+class AbcParticlesWriter : public ParticlesWriter, public AbcWriter {
 public:
-	AbcParticlesWriter(Scene *scene, Object *ob, ParticleSystem *psys);
+	AbcParticlesWriter(AbcWriterArchive *archive, Object *ob, ParticleSystem *psys);
 	~AbcParticlesWriter();
 	
 	void write_sample();
 	
-	AbcWriterArchive *archive() { return &m_archive; }
-	
 private:
-	AbcWriterArchive m_archive;
 	AbcGeom::OPoints m_points;
 };
 
-class AbcParticlesReader : public ParticlesReader {
+class AbcParticlesReader : public ParticlesReader, public AbcReader {
 public:
-	AbcParticlesReader(Scene *scene, Object *ob, ParticleSystem *psys);
+	AbcParticlesReader(AbcReaderArchive *archive, Object *ob, ParticleSystem *psys);
 	~AbcParticlesReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcReaderArchive m_archive;
 	AbcGeom::IPoints m_points;
 };
 
-class AbcParticlePathsWriter : public ParticlesWriter {
+class AbcParticlePathsWriter : public ParticlesWriter, public AbcWriter {
 public:
-	AbcParticlePathsWriter(Scene *scene, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	AbcParticlePathsWriter(AbcWriterArchive *archive, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	~AbcParticlePathsWriter();
-	
-	void set_archive(AbcWriterArchive *archive);
 	
 	void write_sample();
 	
@@ -80,7 +74,6 @@ private:
 	int *m_totpath;
 	std::string m_suffix;
 	
-	AbcWriterArchive *m_archive;
 	AbcGeom::OCurves m_curves;
 	
 	AbcGeom::OV3fGeomParam m_param_velocities;
@@ -89,9 +82,9 @@ private:
 	AbcGeom::OFloatGeomParam m_param_times;
 };
 
-class AbcParticlePathsReader : public ParticlesReader {
+class AbcParticlePathsReader : public ParticlesReader, public AbcReader {
 public:
-	AbcParticlePathsReader(Scene *scene, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	AbcParticlePathsReader(AbcReaderArchive *archive, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	~AbcParticlePathsReader();
 	
 	PTCReadSampleResult read_sample(float frame);
@@ -101,26 +94,12 @@ private:
 	int *m_totpath;
 	std::string m_suffix;
 	
-	AbcReaderArchive m_archive;
 	AbcGeom::ICurves m_curves;
 	
 	AbcGeom::IV3fGeomParam m_param_velocities;
 	AbcGeom::IQuatfGeomParam m_param_rotations;
 	AbcGeom::IV3fGeomParam m_param_colors;
 	AbcGeom::IFloatGeomParam m_param_times;
-};
-
-class AbcParticlesCombinedWriter : public ParticlesWriter {
-public:
-	AbcParticlesCombinedWriter(Scene *scene, Object *ob, ParticleSystem *psys);
-	~AbcParticlesCombinedWriter();
-	
-	void write_sample();
-	
-private:
-	AbcParticlesWriter *m_particles_writer;
-	AbcClothWriter *m_cloth_writer;
-	AbcParticlePathsWriter *m_parent_paths_writer, *m_child_paths_writer;
 };
 
 } /* namespace PTC */

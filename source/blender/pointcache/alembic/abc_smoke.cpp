@@ -32,13 +32,13 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcSmokeWriter::AbcSmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
-    SmokeWriter(ob, domain, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcSmokeWriter::AbcSmokeWriter(AbcWriterArchive *archive, Object *ob, SmokeDomainSettings *domain) :
+    SmokeWriter(ob, domain, archive),
+    AbcWriter(archive)
 {
-	if (m_archive.archive) {
-//		OObject root = m_archive.archive.getTop();
-//		m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
+	if (archive->archive) {
+//		OObject root = archive->archive.getTop();
+//		m_points = OPoints(root, m_psys->name, archive->frame_sampling_index());
 	}
 }
 
@@ -48,17 +48,17 @@ AbcSmokeWriter::~AbcSmokeWriter()
 
 void AbcSmokeWriter::write_sample()
 {
-	if (!m_archive.archive)
+	if (!archive()->archive)
 		return;
 }
 
 
-AbcSmokeReader::AbcSmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
-    SmokeReader(ob, domain, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcSmokeReader::AbcSmokeReader(AbcReaderArchive *archive, Object *ob, SmokeDomainSettings *domain) :
+    SmokeReader(ob, domain, archive),
+    AbcReader(archive)
 {
-	if (m_archive.archive.valid()) {
-		IObject root = m_archive.archive.getTop();
+	if (archive->archive.valid()) {
+		IObject root = archive->archive.getTop();
 //		m_points = IPoints(root, m_psys->name);
 	}
 }
@@ -74,14 +74,16 @@ PTCReadSampleResult AbcSmokeReader::read_sample(float frame)
 
 /* ==== API ==== */
 
-Writer *abc_writer_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+Writer *abc_writer_smoke(WriterArchive *archive, Object *ob, SmokeDomainSettings *domain)
 {
-	return new AbcSmokeWriter(scene, ob, domain);
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcSmokeWriter((AbcWriterArchive *)archive, ob, domain);
 }
 
-Reader *abc_reader_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+Reader *abc_reader_smoke(ReaderArchive *archive, Object *ob, SmokeDomainSettings *domain)
 {
-	return new AbcSmokeReader(scene, ob, domain);
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcSmokeReader((AbcReaderArchive *)archive, ob, domain);
 }
 
 } /* namespace PTC */

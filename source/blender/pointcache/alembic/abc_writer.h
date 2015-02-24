@@ -50,6 +50,18 @@ protected:
 	uint32_t m_frame_sampling;
 };
 
+class AbcWriter {
+public:
+	AbcWriter(AbcWriterArchive *archive) :
+	    m_archive(archive)
+	{}
+	
+	AbcWriterArchive *archive() const { return m_archive; }
+	
+private:
+	AbcWriterArchive *m_archive;
+};
+
 } /* namespace PTC */
 
 #endif  /* PTC_WRITER_H */

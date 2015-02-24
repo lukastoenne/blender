@@ -32,11 +32,11 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcRigidBodyWriter::AbcRigidBodyWriter(Scene *scene, RigidBodyWorld *rbw) :
-    RigidBodyWriter(scene, rbw, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &scene->id, scene->id.lib), m_error_handler)
+AbcRigidBodyWriter::AbcRigidBodyWriter(AbcWriterArchive *archive, Scene *scene, RigidBodyWorld *rbw) :
+    RigidBodyWriter(scene, rbw, archive),
+    AbcWriter(archive)
 {
-	if (m_archive.archive) {
+	if (archive->archive) {
 	}
 }
 
@@ -46,16 +46,16 @@ AbcRigidBodyWriter::~AbcRigidBodyWriter()
 
 void AbcRigidBodyWriter::write_sample()
 {
-	if (!m_archive.archive)
+	if (!archive()->archive)
 		return;
 }
 
 
-AbcRigidBodyReader::AbcRigidBodyReader(Scene *scene, RigidBodyWorld *rbw) :
-    RigidBodyReader(scene, rbw, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &scene->id, scene->id.lib), m_error_handler)
+AbcRigidBodyReader::AbcRigidBodyReader(AbcReaderArchive *archive, Scene *scene, RigidBodyWorld *rbw) :
+    RigidBodyReader(scene, rbw, archive),
+    AbcReader(archive)
 {
-	if (m_archive.archive.valid()) {
+	if (archive->archive.valid()) {
 	}
 }
 
@@ -70,14 +70,16 @@ PTCReadSampleResult AbcRigidBodyReader::read_sample(float frame)
 
 /* ==== API ==== */
 
-Writer *abc_writer_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+Writer *abc_writer_rigidbody(WriterArchive *archive, Scene *scene, RigidBodyWorld *rbw)
 {
-	return new AbcRigidBodyWriter(scene, rbw);
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcRigidBodyWriter((AbcWriterArchive *)archive, scene, rbw);
 }
 
-Reader *abc_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+Reader *abc_reader_rigidbody(ReaderArchive *archive, Scene *scene, RigidBodyWorld *rbw)
 {
-	return new AbcRigidBodyReader(scene, rbw);
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcRigidBodyReader((AbcReaderArchive *)archive, scene, rbw);
 }
 
 } /* namespace PTC */

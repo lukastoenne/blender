@@ -33,27 +33,25 @@ struct SmokeDomainSettings;
 
 namespace PTC {
 
-class AbcSmokeWriter : public SmokeWriter {
+class AbcSmokeWriter : public SmokeWriter, public AbcWriter {
 public:
-	AbcSmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain);
+	AbcSmokeWriter(AbcWriterArchive *archive, Object *ob, SmokeDomainSettings *domain);
 	~AbcSmokeWriter();
 	
 	void write_sample();
 	
 private:
-	AbcWriterArchive m_archive;
 //	AbcGeom::OPoints m_points;
 };
 
-class AbcSmokeReader : public SmokeReader {
+class AbcSmokeReader : public SmokeReader, public AbcReader {
 public:
-	AbcSmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain);
+	AbcSmokeReader(AbcReaderArchive *archive, Object *ob, SmokeDomainSettings *domain);
 	~AbcSmokeReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcReaderArchive m_archive;
 //	AbcGeom::IPoints m_points;
 };
 

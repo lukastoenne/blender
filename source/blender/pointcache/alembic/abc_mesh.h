@@ -34,16 +34,14 @@ struct DerivedMesh;
 
 namespace PTC {
 
-class AbcPointCacheWriter : public PointCacheWriter {
+class AbcPointCacheWriter : public PointCacheWriter, public AbcWriter {
 public:
-	AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
+	AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
 	~AbcPointCacheWriter();
 	
 	void write_sample();
 	
 private:
-	AbcWriterArchive m_archive;
-	
 	AbcGeom::OPolyMesh m_mesh;
 	AbcGeom::OBoolGeomParam m_param_smooth;
 	AbcGeom::OInt32ArrayProperty m_prop_edges;
@@ -53,16 +51,14 @@ private:
 	/* note: loop normals are already defined as a parameter in the schema */
 };
 
-class AbcPointCacheReader : public PointCacheReader {
+class AbcPointCacheReader : public PointCacheReader, public AbcReader {
 public:
-	AbcPointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
+	AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
 	~AbcPointCacheReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcReaderArchive m_archive;
-	
 	AbcGeom::IPolyMesh m_mesh;
 	AbcGeom::IBoolGeomParam m_param_smooth;
 	AbcGeom::IInt32ArrayProperty m_prop_edges;

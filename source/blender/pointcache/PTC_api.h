@@ -42,6 +42,8 @@ struct RigidBodyWorld;
 struct SmokeDomainSettings;
 struct SoftBody;
 
+struct PTCWriterArchive;
+struct PTCReaderArchive;
 struct PTCWriter;
 struct PTCReader;
 
@@ -53,6 +55,14 @@ void PTC_error_handler_modifier(struct ModifierData *md);
 
 void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct PTCWriter *writer, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress);
+
+/*** Archive ***/
+
+struct PTCWriterArchive *PTC_open_writer_archive(Scene *scene, const char *path);
+void PTC_close_writer_archive(struct PTCWriterArchive *archive);
+
+struct PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path);
+void PTC_close_reader_archive(struct PTCReaderArchive *archive);
 
 /*** Reader/Writer Interface ***/
 
@@ -69,8 +79,8 @@ struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *pt
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 
 /* Particles */
-struct PTCWriter *PTC_writer_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles(struct PTCWriterArchive *archive, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles(struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
 int PTC_reader_particles_totpoint(struct PTCReader *reader);
 
 typedef enum eParticlePathsMode {
@@ -78,30 +88,28 @@ typedef enum eParticlePathsMode {
 	PTC_PARTICLE_PATHS_CHILDREN = 1,
 } eParticlePathsMode;
 
-//struct PTCWriter *PTC_writer_particle_paths(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particle_paths(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
-
-struct PTCWriter *PTC_writer_particles_combined(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particle_paths(struct PTCWriterArchive *archive, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particle_paths(struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
 
 /* Cloth */
-struct PTCWriter *PTC_writer_cloth(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd);
-struct PTCReader *PTC_reader_cloth(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCWriter *PTC_writer_cloth(struct PTCWriterArchive *archive, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCReader *PTC_reader_cloth(struct PTCReaderArchive *archive, struct Object *ob, struct ClothModifierData *clmd);
 
 /* SoftBody */
-struct PTCWriter *PTC_writer_softbody(struct Scene *scene, struct Object *ob, struct SoftBody *softbody);
-struct PTCReader *PTC_reader_softbody(struct Scene *scene, struct Object *ob, struct SoftBody *softbody);
+struct PTCWriter *PTC_writer_softbody(struct PTCWriterArchive *archive, struct Object *ob, struct SoftBody *softbody);
+struct PTCReader *PTC_reader_softbody(struct PTCReaderArchive *archive, struct Object *ob, struct SoftBody *softbody);
 
 /* Rigid Bodies */
-struct PTCWriter *PTC_writer_rigidbody(struct Scene *scene, struct RigidBodyWorld *rbw);
-struct PTCReader *PTC_reader_rigidbody(struct Scene *scene, struct RigidBodyWorld *rbw);
+struct PTCWriter *PTC_writer_rigidbody(struct PTCWriterArchive *archive, struct Scene *scene, struct RigidBodyWorld *rbw);
+struct PTCReader *PTC_reader_rigidbody(struct PTCReaderArchive *archive, struct Scene *scene, struct RigidBodyWorld *rbw);
 
 /* Smoke */
-struct PTCWriter *PTC_writer_smoke(struct Scene *scene, struct Object *ob, struct SmokeDomainSettings *domain);
-struct PTCReader *PTC_reader_smoke(struct Scene *scene, struct Object *ob, struct SmokeDomainSettings *domain);
+struct PTCWriter *PTC_writer_smoke(struct PTCWriterArchive *archive, struct Object *ob, struct SmokeDomainSettings *domain);
+struct PTCReader *PTC_reader_smoke(struct PTCReaderArchive *archive, struct Object *ob, struct SmokeDomainSettings *domain);
 
 /* Dynamic Paint */
-struct PTCWriter *PTC_writer_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
-struct PTCReader *PTC_reader_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
+struct PTCWriter *PTC_writer_dynamicpaint(struct PTCWriterArchive *archive, struct Object *ob, struct DynamicPaintSurface *surface);
+struct PTCReader *PTC_reader_dynamicpaint(struct PTCReaderArchive *archive, struct Object *ob, struct DynamicPaintSurface *surface);
 
 /* Modifier Stack */
 typedef enum ePointCacheModifierMode {
@@ -110,8 +118,8 @@ typedef enum ePointCacheModifierMode {
 	MOD_POINTCACHE_MODE_WRITE,
 } ePointCacheModifierMode;
 
-struct PTCWriter *PTC_writer_point_cache(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd);
-struct PTCReader *PTC_reader_point_cache(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd);
+struct PTCWriter *PTC_writer_point_cache(struct PTCWriterArchive *archive, struct Object *ob, struct PointCacheModifierData *pcmd);
+struct PTCReader *PTC_reader_point_cache(struct PTCReaderArchive *archive, struct Object *ob, struct PointCacheModifierData *pcmd);
 struct DerivedMesh *PTC_reader_point_cache_acquire_result(struct PTCReader *reader);
 void PTC_reader_point_cache_discard_result(struct PTCReader *reader);
 ePointCacheModifierMode PTC_mod_point_cache_get_mode(struct PointCacheModifierData *pcmd);

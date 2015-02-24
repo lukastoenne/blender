@@ -37,15 +37,15 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcClothWriter::AbcClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd) :
-    ClothWriter(ob, clmd, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcClothWriter::AbcClothWriter(AbcWriterArchive *archive, Object *ob, ClothModifierData *clmd) :
+    ClothWriter(ob, clmd, archive),
+    AbcWriter(archive)
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
 	
-	if (m_archive.archive) {
-		OObject root = m_archive.archive.getTop();
-		m_points = OPoints(root, m_clmd->modifier.name, m_archive.frame_sampling_index());
+	if (archive->archive) {
+		OObject root = archive->archive.getTop();
+		m_points = OPoints(root, m_clmd->modifier.name, archive->frame_sampling_index());
 		
 		OPointsSchema &schema = m_points.getSchema();
 		OCompoundProperty geom_params = schema.getArbGeomParams();
@@ -89,7 +89,7 @@ static P3fArraySample create_sample_goal_positions(Cloth *cloth, std::vector<V3f
 
 void AbcClothWriter::write_sample()
 {
-	if (!m_archive.archive)
+	if (!archive()->archive)
 		return;
 	
 	Cloth *cloth = m_clmd->clothObject;
@@ -128,14 +128,14 @@ void AbcClothWriter::write_sample()
 }
 
 
-AbcClothReader::AbcClothReader(Scene *scene, Object *ob, ClothModifierData *clmd) :
-    ClothReader(ob, clmd, &m_archive),
-    m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
+AbcClothReader::AbcClothReader(AbcReaderArchive *archive, Object *ob, ClothModifierData *clmd) :
+    ClothReader(ob, clmd, archive),
+    AbcReader(archive)
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
 	
-	if (m_archive.archive.valid()) {
-		IObject root = m_archive.archive.getTop();
+	if (archive->archive.valid()) {
+		IObject root = archive->archive.getTop();
 		if (root.valid() && root.getChild(m_clmd->modifier.name)) {
 			m_points = IPoints(root, m_clmd->modifier.name);
 			
@@ -204,12 +204,12 @@ PTCReadSampleResult AbcClothReader::read_sample(float frame)
 	IPointsSchema &schema = m_points.getSchema();
 	TimeSamplingPtr ts = schema.getTimeSampling();
 	
-	ISampleSelector ss = m_archive.get_frame_sample_selector(frame);
+	ISampleSelector ss = archive()->get_frame_sample_selector(frame);
 //	chrono_t time = ss.getRequestedTime();
 	
 //	std::pair<index_t, chrono_t> sres = ts->getFloorIndex(time, schema.getNumSamples());
 //	chrono_t stime = sres.second;
-//	float sframe = m_archive.time_to_frame(stime);
+//	float sframe = archive()->time_to_frame(stime);
 	
 	IPointsSchema::Sample sample;
 	schema.get(sample, ss);
@@ -241,14 +241,16 @@ PTCReadSampleResult AbcClothReader::read_sample(float frame)
 
 /* ==== API ==== */
 
-Writer *abc_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+Writer *abc_writer_cloth(WriterArchive *archive, Object *ob, ClothModifierData *clmd)
 {
-	return new AbcClothWriter(scene, ob, clmd);
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcClothWriter((AbcWriterArchive *)archive, ob, clmd);
 }
 
-Reader *abc_reader_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+Reader *abc_reader_cloth(ReaderArchive *archive, Object *ob, ClothModifierData *clmd)
 {
-	return new AbcClothReader(scene, ob, clmd);
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcClothReader((AbcReaderArchive *)archive, ob, clmd);
 }
 
 } /* namespace PTC */

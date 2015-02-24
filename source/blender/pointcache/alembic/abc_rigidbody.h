@@ -32,27 +32,25 @@ struct RigidBodyWorld;
 
 namespace PTC {
 
-class AbcRigidBodyWriter : public RigidBodyWriter {
+class AbcRigidBodyWriter : public RigidBodyWriter, public AbcWriter {
 public:
-	AbcRigidBodyWriter(Scene *scene, RigidBodyWorld *rbw);
+	AbcRigidBodyWriter(AbcWriterArchive *archive, Scene *scene, RigidBodyWorld *rbw);
 	~AbcRigidBodyWriter();
 	
 	void write_sample();
 	
 private:
-	AbcWriterArchive m_archive;
 //	AbcGeom::OPoints m_points;
 };
 
-class AbcRigidBodyReader : public RigidBodyReader {
+class AbcRigidBodyReader : public RigidBodyReader, public AbcReader {
 public:
-	AbcRigidBodyReader(Scene *scene, RigidBodyWorld *rbw);
+	AbcRigidBodyReader(AbcReaderArchive *archive, Scene *scene, RigidBodyWorld *rbw);
 	~AbcRigidBodyReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcReaderArchive m_archive;
 //	AbcGeom::IPoints m_points;
 };
 
