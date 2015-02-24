@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 #include "DNA_cache_library_types.h"
 
@@ -49,6 +50,7 @@ EnumPropertyItem cache_library_item_type_items[] = {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "DNA_object_types.h"
 
@@ -58,6 +60,25 @@ EnumPropertyItem cache_library_item_type_items[] = {
 #include "RNA_access.h"
 
 #include "WM_api.h"
+
+static void rna_CacheItem_name_get(PointerRNA *ptr, char *value)
+{
+	CacheItem *item = ptr->data;
+	BKE_cache_item_name(item->ob, item->type, item->index, value);
+}
+
+static int rna_CacheItem_name_length(PointerRNA *ptr)
+{
+	CacheItem *item = ptr->data;
+	return BKE_cache_item_name_length(item->ob, item->type, item->index);
+}
+
+static void rna_CacheItem_get_name(struct Object *ob, int type, int index, char *name)
+{
+	BKE_cache_item_name(ob, type, index, name);
+}
+
+/* ========================================================================= */
 
 static void rna_CacheLibrary_update(Main *UNUSED(main), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
@@ -170,7 +191,8 @@ PointerRNA rna_ObjectCache_caches_get(CollectionPropertyIterator *iter)
 static void rna_def_cache_item(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
+	FunctionRNA *func;
+	PropertyRNA *prop, *parm;
 	
 	srna = RNA_def_struct(brna, "CacheItem", NULL);
 	RNA_def_struct_ui_text(srna, "Cache Item", "Description of a cacheable item in an object");
@@ -195,6 +217,25 @@ static void rna_def_cache_item(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CACHE_ITEM_ENABLED);
 	RNA_def_property_ui_text(prop, "Enabled", "Enable caching for this item");
+	
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_maxlength(prop, 2*MAX_NAME);
+	RNA_def_property_string_funcs(prop, "rna_CacheItem_name_get", "rna_CacheItem_name_length", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Name", "");
+	RNA_def_struct_name_property(srna, prop);
+	
+	func = RNA_def_function(srna, "get_name", "rna_CacheItem_get_name");
+	RNA_def_function_flag(func, FUNC_NO_SELF);
+	RNA_def_function_ui_description(func, "Get name of items from properties without an instance");
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "type", cache_library_item_type_items, CACHE_TYPE_OBJECT, "Type", "Type of cache item");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index of the data in it's' collection", -1, INT_MAX);
+	parm = RNA_def_string(func, "name", NULL, 2*MAX_NAME, "Name", "");
+	RNA_def_property_flag(parm, PROP_THICK_WRAP);
+	RNA_def_function_output(func, parm);
 }
 
 static void rna_def_object_cache(BlenderRNA *brna)

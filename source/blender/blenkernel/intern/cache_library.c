@@ -322,6 +322,36 @@ static bool cache_item_cmp(const void *key_a, const void *key_b)
 	return false;
 }
 
+const char *BKE_cache_item_name_prefix(int type)
+{
+	/* note: avoid underscores and the like here,
+	 * the prefixes must be unique and safe when combined with arbitrary strings!
+	 */
+	switch (type) {
+		case CACHE_TYPE_OBJECT: return "OBJECT";
+		case CACHE_TYPE_DERIVED_MESH: return "MESH";
+		case CACHE_TYPE_HAIR: return "HAIR";
+		case CACHE_TYPE_HAIR_PATHS: return "HAIRPATHS";
+		default: BLI_assert(false); break;
+	}
+}
+
+void BKE_cache_item_name(Object *ob, int type, int index, char *name)
+{
+	if (index >= 0)
+		sprintf(name, "%s_%s_%d", BKE_cache_item_name_prefix(type), ob->id.name+2, index);
+	else
+		sprintf(name, "%s_%s", BKE_cache_item_name_prefix(type), ob->id.name+2);
+}
+
+int BKE_cache_item_name_length(Object *ob, int type, int index)
+{
+	if (index >= 0)
+		return snprintf(NULL, 0, "%s_%s_%d", BKE_cache_item_name_prefix(type), ob->id.name+2, index);
+	else
+		return snprintf(NULL, 0, "%s_%s", BKE_cache_item_name_prefix(type), ob->id.name+2);
+}
+
 static void cache_library_insert_item_hash(CacheLibrary *cachelib, CacheItem *item, bool replace)
 {
 	CacheItem *exist = BLI_ghash_lookup(cachelib->items_hash, item);
