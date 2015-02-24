@@ -28,6 +28,7 @@ set(INC
 	../../makesrna
 	../../windowmanager
 	../../collada
+	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
