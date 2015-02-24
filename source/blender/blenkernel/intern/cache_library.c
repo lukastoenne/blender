@@ -332,7 +332,7 @@ const char *BKE_cache_item_name_prefix(int type)
 		case CACHE_TYPE_DERIVED_MESH: return "MESH";
 		case CACHE_TYPE_HAIR: return "HAIR";
 		case CACHE_TYPE_HAIR_PATHS: return "HAIRPATHS";
-		default: BLI_assert(false); break;
+		default: BLI_assert(false); return NULL; break;
 	}
 }
 
