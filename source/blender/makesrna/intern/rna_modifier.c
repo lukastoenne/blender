@@ -257,6 +257,8 @@ EnumPropertyItem DT_layers_select_dst_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#include "BLI_listbase.h"
+
 #include "DNA_particle_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_smoke_types.h"
@@ -1032,6 +1034,43 @@ static EnumPropertyItem *rna_DataTransferModifier_mix_mode_itemf(bContext *C, Po
 	*r_free = true;
 
 	return item;
+}
+
+static int rna_ParticleInstanceModifier_particle_system_poll(PointerRNA *ptr, const PointerRNA value)
+{
+	ParticleInstanceModifierData *psmd = ptr->data;
+	ParticleSystem *psys = value.data;
+	
+	if (!psmd->ob)
+		return false;
+	
+	/* make sure psys is in the object */
+	return BLI_findindex(&psmd->ob->particlesystem, psys) >= 0;
+}
+
+static PointerRNA rna_ParticleInstanceModifier_particle_system_get(PointerRNA *ptr)
+{
+	ParticleInstanceModifierData *psmd = ptr->data;
+	ParticleSystem *psys;
+	PointerRNA rptr;
+	
+	if (!psmd->ob)
+		return PointerRNA_NULL;
+	
+	psys = BLI_findlink(&psmd->ob->particlesystem, psmd->psys - 1);
+	RNA_pointer_create((ID *)psmd->ob, &RNA_ParticleSystem, psys, &rptr);
+	return rptr;
+}
+
+static void rna_ParticleInstanceModifier_particle_system_set(PointerRNA *ptr, const PointerRNA value)
+{
+	ParticleInstanceModifierData *psmd = ptr->data;
+	
+	if (!psmd->ob)
+		return;
+	
+	psmd->psys = BLI_findindex(&psmd->ob->particlesystem, value.data) + 1;
+	CLAMP_MIN(psmd->psys, 1);
 }
 
 #else
@@ -2372,6 +2411,14 @@ static void rna_def_modifier_particleinstance(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "psys");
 	RNA_def_property_range(prop, 1, INT_MAX);
 	RNA_def_property_ui_text(prop, "Particle System Number", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "particle_system", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ParticleSystem");
+	RNA_def_property_pointer_funcs(prop, "rna_ParticleInstanceModifier_particle_system_get", "rna_ParticleInstanceModifier_particle_system_set",
+	                               NULL, "rna_ParticleInstanceModifier_particle_system_poll");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Particle System", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);

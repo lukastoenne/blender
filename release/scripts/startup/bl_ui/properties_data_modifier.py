@@ -648,7 +648,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def PARTICLE_INSTANCE(self, layout, ob, md):
         layout.prop(md, "object")
-        layout.prop(md, "particle_system_index", text="Particle System")
+        if md.object:
+            layout.prop_search(md, "particle_system", md.object, "particle_systems", text="Particle System")
+        else:
+            layout.prop(md, "particle_system_index", text="Particle System")
 
         split = layout.split()
         col = split.column()
