@@ -83,7 +83,7 @@ void AbcParticlesWriter::write_sample()
 
 
 AbcParticlesReader::AbcParticlesReader(Scene *scene, Object *ob, ParticleSystem *psys) :
-    ParticlesReader(scene, ob, psys, &m_archive),
+    ParticlesReader(ob, psys, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
@@ -125,9 +125,7 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 
 
 AbcParticlePathsWriter::AbcParticlePathsWriter(Scene *scene, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
-//    ParticlesWriter(scene, ob, psys, &m_archive),
-//    m_archive(scene, &ob->id, psys->pointcache, m_error_handler)
-    ParticlesWriter(scene, ob, psys, NULL),
+    ParticlesWriter(ob, psys, NULL),
     m_pathcache(pathcache),
     m_totpath(totpath),
     m_suffix(suffix),
@@ -343,7 +341,7 @@ void AbcParticlePathsWriter::write_sample()
 
 
 AbcParticlePathsReader::AbcParticlePathsReader(Scene *scene, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
-    ParticlesReader(scene, ob, psys, &m_archive),
+    ParticlesReader(ob, psys, &m_archive),
     m_pathcache(pathcache),
     m_totpath(totpath),
     m_suffix(suffix),
@@ -474,7 +472,7 @@ PTCReadSampleResult AbcParticlePathsReader::read_sample(float frame)
 
 
 AbcParticlesCombinedWriter::AbcParticlesCombinedWriter(Scene *scene, Object *ob, ParticleSystem *psys) :
-    ParticlesWriter(scene, ob, psys, NULL)
+    ParticlesWriter(ob, psys, NULL)
 {
 	m_particles_writer = NULL;
 	m_cloth_writer = NULL;

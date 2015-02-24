@@ -25,7 +25,6 @@
 #include "util_types.h"
 
 struct ID;
-struct Scene;
 
 namespace PTC {
 
@@ -40,7 +39,7 @@ public:
 
 class Reader {
 public:
-	Reader(Scene *scene, ID *id, ReaderArchive *archive);
+	Reader(ID *id, ReaderArchive *archive);
 	virtual ~Reader();
 	
 	void set_error_handler(ErrorHandler *handler);
@@ -59,14 +58,12 @@ public:
 	
 	virtual PTCReadSampleResult read_sample(float frame) = 0;
 	
-	Scene *scene() const { return m_scene; }
 	ID *id() const { return m_id; }
 	
 protected:
 	ErrorHandler *m_error_handler;
 	ReaderArchive *m_archive;
 	
-	Scene *m_scene;
 	ID *m_id;
 };
 

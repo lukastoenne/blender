@@ -33,7 +33,7 @@ using namespace Abc;
 using namespace AbcGeom;
 
 AbcDynamicPaintWriter::AbcDynamicPaintWriter(Scene *scene, Object *ob, DynamicPaintSurface *surface) :
-    DynamicPaintWriter(scene, ob, surface, &m_archive),
+    DynamicPaintWriter(ob, surface, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
@@ -52,7 +52,7 @@ void AbcDynamicPaintWriter::write_sample()
 
 
 AbcDynamicPaintReader::AbcDynamicPaintReader(Scene *scene, Object *ob, DynamicPaintSurface *surface) :
-    DynamicPaintReader(scene, ob, surface, &m_archive),
+    DynamicPaintReader(ob, surface, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {

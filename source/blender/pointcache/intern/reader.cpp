@@ -25,10 +25,9 @@ extern "C" {
 
 namespace PTC {
 
-Reader::Reader(Scene *scene, ID *id, ReaderArchive *archive) :
+Reader::Reader(ID *id, ReaderArchive *archive) :
     m_error_handler(0),
     m_archive(archive),
-    m_scene(scene),
     m_id(id)
 {
 }

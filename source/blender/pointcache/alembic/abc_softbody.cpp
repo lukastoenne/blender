@@ -33,7 +33,7 @@ using namespace Abc;
 using namespace AbcGeom;
 
 AbcSoftBodyWriter::AbcSoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbody) :
-    SoftBodyWriter(scene, ob, softbody, &m_archive),
+    SoftBodyWriter(ob, softbody, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive) {
@@ -54,7 +54,7 @@ void AbcSoftBodyWriter::write_sample()
 
 
 AbcSoftBodyReader::AbcSoftBodyReader(Scene *scene, Object *ob, SoftBody *softbody) :
-    SoftBodyReader(scene, ob, softbody, &m_archive),
+    SoftBodyReader(ob, softbody, &m_archive),
     m_archive(scene, ptc_archive_path("//blendcache/", &ob->id, ob->id.lib), m_error_handler)
 {
 	if (m_archive.archive.valid()) {
