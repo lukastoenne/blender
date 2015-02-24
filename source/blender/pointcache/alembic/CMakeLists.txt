@@ -50,18 +50,10 @@ set(SRC
 
 	abc_cloth.cpp
 	abc_cloth.h
-	abc_dynamicpaint.cpp
-	abc_dynamicpaint.h
 	abc_mesh.cpp
 	abc_mesh.h
 	abc_particles.cpp
 	abc_particles.h
-	abc_rigidbody.cpp
-	abc_rigidbody.h
-	abc_smoke.cpp
-	abc_smoke.h
-	abc_softbody.cpp
-	abc_softbody.h
 )
 
 add_definitions(-DWITH_ALEMBIC)

@@ -95,22 +95,6 @@ struct PTCReader *PTC_reader_particle_paths(struct PTCReaderArchive *archive, st
 struct PTCWriter *PTC_writer_cloth(struct PTCWriterArchive *archive, struct Object *ob, struct ClothModifierData *clmd);
 struct PTCReader *PTC_reader_cloth(struct PTCReaderArchive *archive, struct Object *ob, struct ClothModifierData *clmd);
 
-/* SoftBody */
-struct PTCWriter *PTC_writer_softbody(struct PTCWriterArchive *archive, struct Object *ob, struct SoftBody *softbody);
-struct PTCReader *PTC_reader_softbody(struct PTCReaderArchive *archive, struct Object *ob, struct SoftBody *softbody);
-
-/* Rigid Bodies */
-struct PTCWriter *PTC_writer_rigidbody(struct PTCWriterArchive *archive, struct Scene *scene, struct RigidBodyWorld *rbw);
-struct PTCReader *PTC_reader_rigidbody(struct PTCReaderArchive *archive, struct Scene *scene, struct RigidBodyWorld *rbw);
-
-/* Smoke */
-struct PTCWriter *PTC_writer_smoke(struct PTCWriterArchive *archive, struct Object *ob, struct SmokeDomainSettings *domain);
-struct PTCReader *PTC_reader_smoke(struct PTCReaderArchive *archive, struct Object *ob, struct SmokeDomainSettings *domain);
-
-/* Dynamic Paint */
-struct PTCWriter *PTC_writer_dynamicpaint(struct PTCWriterArchive *archive, struct Object *ob, struct DynamicPaintSurface *surface);
-struct PTCReader *PTC_reader_dynamicpaint(struct PTCReaderArchive *archive, struct Object *ob, struct DynamicPaintSurface *surface);
-
 /* Modifier Stack */
 typedef enum ePointCacheModifierMode {
 	MOD_POINTCACHE_MODE_NONE,

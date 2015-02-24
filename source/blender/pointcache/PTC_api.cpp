@@ -178,26 +178,6 @@ PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
 		return PTC_writer_cloth(scene, ob, clmd);
 	}
-	if (RNA_struct_is_a(ptr->type, &RNA_SoftBodySettings)) {
-		Object *ob = (Object *)ptr->id.data;
-		SoftBody *softbody = (SoftBody *)ptr->data;
-		return PTC_writer_softbody(scene, ob, softbody);
-	}
-	if (RNA_struct_is_a(ptr->type, &RNA_RigidBodyWorld)) {
-		BLI_assert((Scene *)ptr->id.data == scene);
-		RigidBodyWorld *rbw = (RigidBodyWorld *)ptr->data;
-		return PTC_writer_rigidbody(scene, rbw);
-	}
-	if (RNA_struct_is_a(ptr->type, &RNA_SmokeDomainSettings)) {
-		Object *ob = (Object *)ptr->id.data;
-		SmokeDomainSettings *domain = (SmokeDomainSettings *)ptr->data;
-		return PTC_writer_smoke(scene, ob, domain);
-	}
-	if (RNA_struct_is_a(ptr->type, &RNA_DynamicPaintSurface)) {
-		Object *ob = (Object *)ptr->id.data;
-		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
-		return PTC_writer_dynamicpaint(scene, ob, surface);
-	}
 #if 0 /* modifier uses internal writer during scene update */
 	if (RNA_struct_is_a(ptr->type, &RNA_PointCacheModifier)) {
 		Object *ob = (Object *)ptr->id.data;
@@ -230,26 +210,6 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
 		return PTC_reader_cloth(scene, ob, clmd);
 	}
-	if (RNA_struct_is_a(ptr->type, &RNA_SoftBodySettings)) {
-		Object *ob = (Object *)ptr->id.data;
-		SoftBody *softbody = (SoftBody *)ptr->data;
-		return PTC_reader_softbody(scene, ob, softbody);
-	}
-	if (RNA_struct_is_a(ptr->type, &RNA_RigidBodyWorld)) {
-		BLI_assert((Scene *)ptr->id.data == scene);
-		RigidBodyWorld *rbw = (RigidBodyWorld *)ptr->data;
-		return PTC_reader_rigidbody(scene, rbw);
-	}
-	if (RNA_struct_is_a(ptr->type, &RNA_SmokeDomainSettings)) {
-		Object *ob = (Object *)ptr->id.data;
-		SmokeDomainSettings *domain = (SmokeDomainSettings *)ptr->data;
-		return PTC_reader_smoke(scene, ob, domain);
-	}
-	if (RNA_struct_is_a(ptr->type, &RNA_DynamicPaintSurface)) {
-		Object *ob = (Object *)ptr->id.data;
-		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
-		return PTC_reader_dynamicpaint(scene, ob, surface);
-	}
 	if (RNA_struct_is_a(ptr->type, &RNA_PointCacheModifier)) {
 		Object *ob = (Object *)ptr->id.data;
 		PointCacheModifierData *pcmd = (PointCacheModifierData *)ptr->data;
@@ -272,21 +232,6 @@ PTCReader *PTC_reader_cloth(PTCReaderArchive *_archive, Object *ob, ClothModifie
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	return (PTCReader *)abc_reader_cloth(archive, ob, clmd);
-}
-
-
-/* ==== DYNAMIC PAINT ==== */
-
-PTCWriter *PTC_writer_dynamicpaint(PTCWriterArchive *_archive, Object *ob, DynamicPaintSurface *surface)
-{
-	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_dynamicpaint(archive, ob, surface);
-}
-
-PTCReader *PTC_reader_dynamicpaint(PTCReaderArchive *_archive, Object *ob, DynamicPaintSurface *surface)
-{
-	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_dynamicpaint(archive, ob, surface);
 }
 
 
@@ -397,49 +342,4 @@ PTCReader *PTC_reader_particle_paths(PTCReaderArchive *_archive, Object *ob, Par
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	return (PTCReader *)abc_reader_particle_paths(archive, ob, psys, mode);
-}
-
-
-/* ==== RIGID BODY ==== */
-
-PTCWriter *PTC_writer_rigidbody(PTCWriterArchive *_archive, Scene *scene, RigidBodyWorld *rbw)
-{
-	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_rigidbody(archive, scene, rbw);
-}
-
-PTCReader *PTC_reader_rigidbody(PTCReaderArchive *_archive, Scene *scene, RigidBodyWorld *rbw)
-{
-	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_rigidbody(archive, scene, rbw);
-}
-
-
-/* ==== SMOKE ==== */
-
-PTCWriter *PTC_writer_smoke(PTCWriterArchive *_archive, Object *ob, SmokeDomainSettings *domain)
-{
-	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_smoke(archive, ob, domain);
-}
-
-PTCReader *PTC_reader_smoke(PTCReaderArchive *_archive, Object *ob, SmokeDomainSettings *domain)
-{
-	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_smoke(archive, ob, domain);
-}
-
-
-/* ==== SOFT BODY ==== */
-
-PTCWriter *PTC_writer_softbody(PTCWriterArchive *_archive, Object *ob, SoftBody *softbody)
-{
-	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_softbody(archive, ob, softbody);
-}
-
-PTCReader *PTC_reader_softbody(PTCReaderArchive *_archive, Object *ob, SoftBody *softbody)
-{
-	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_softbody(archive, ob, softbody);
 }

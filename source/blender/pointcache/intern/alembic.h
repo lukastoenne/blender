@@ -51,22 +51,6 @@ Reader *abc_reader_particle_paths(ReaderArchive *archive, Object *ob, ParticleSy
 Writer *abc_writer_cloth(WriterArchive *archive, Object *ob, ClothModifierData *clmd);
 Reader *abc_reader_cloth(ReaderArchive *archive, Object *ob, ClothModifierData *clmd);
 
-/* SoftBody */
-Writer *abc_writer_softbody(WriterArchive *archive, Object *ob, SoftBody *softbody);
-Reader *abc_reader_softbody(ReaderArchive *archive, Object *ob, SoftBody *softbody);
-
-/* Rigid Bodies */
-Writer *abc_writer_rigidbody(WriterArchive *archive, Scene *scene, RigidBodyWorld *rbw);
-Reader *abc_reader_rigidbody(ReaderArchive *archive, Scene *scene, RigidBodyWorld *rbw);
-
-/* Smoke */
-Writer *abc_writer_smoke(WriterArchive *archive, Object *ob, SmokeDomainSettings *domain);
-Reader *abc_reader_smoke(ReaderArchive *archive, Object *ob, SmokeDomainSettings *domain);
-
-/* Dynamic Paint */
-Writer *abc_writer_dynamicpaint(WriterArchive *archive, Object *ob, DynamicPaintSurface *surface);
-Reader *abc_reader_dynamicpaint(ReaderArchive *archive, Object *ob, DynamicPaintSurface *surface);
-
 /* Modifier Stack */
 Writer *abc_writer_point_cache(WriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
 Reader *abc_reader_point_cache(ReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
