@@ -26,6 +26,7 @@ set(INC
 	../../bmesh
 	../../makesdna
 	../../makesrna
+	../../pointcache
 	../../windowmanager
 	../../collada
 	../../../../intern/guardedalloc

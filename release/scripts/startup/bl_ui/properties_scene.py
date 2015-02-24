@@ -413,7 +413,6 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         item = cachelib.cache_item_find(ob, type, index)
         if not item:
             sub = layout.row()
-            sub.context_pointer_set("cache_library", cachelib)
             sub.context_pointer_set("cache_object", ob)
             props = sub.operator("cachelibrary.item_enable", text="", icon='ZOOMIN', emboss=True)
             props.type = type
@@ -462,6 +461,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
                     self.draw_cache_item(context, sub, cachelib, ob, 'HAIR', index)
                     self.draw_cache_item(context, sub, cachelib, ob, 'HAIR_PATHS', index)
 
+            layout.operator("cachelibrary.bake")
 
 
     def draw(self, context):
@@ -470,6 +470,8 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         layout.operator("cachelibrary.new")
         for cachelib in context.blend_data.cache_libraries:
             box = layout.box()
+            box.context_pointer_set("cache_library", cachelib)
+            
             box.prop(cachelib, "filepath")
             box.template_ID(cachelib, "group")
             self.draw_cachelib(context, box, cachelib)

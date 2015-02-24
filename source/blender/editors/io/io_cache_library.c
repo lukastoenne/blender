@@ -34,9 +34,11 @@
 #include "BLF_translation.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_cache_library_types.h"
+#include "DNA_listBase.h"
 #include "DNA_object_types.h"
 
 #include "BKE_depsgraph.h"
@@ -61,6 +63,8 @@
 #include "WM_types.h"
 
 #include "io_cache_library.h"
+
+#include "PTC_api.h"
 
 /********************** new cache library operator *********************/
 
@@ -179,6 +183,10 @@ typedef struct CacheLibraryBakeJob {
 	struct Main *bmain;
 	struct Scene *scene;
 	EvaluationContext eval_ctx;
+	struct CacheLibrary *cachelib;
+	
+	struct PTCWriterArchive *archive;
+	ListBase writers;
 	
 	int origfra;                            /* original frame to reset scene after export */
 	float origframelen;                     /* original frame length to reset scene after export */
@@ -208,10 +216,12 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	
 	G.is_break = false;
 	
+	data->archive = PTC_cachlib_writers(scene, data->cachelib, &data->writers);
+	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
-//	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+	PTC_bake(data->bmain, scene, &data->eval_ctx, &data->writers, start_frame, end_frame, stop, do_update, progress);
 	
 	*do_update = true;
 	*stop = 0;
@@ -225,18 +235,7 @@ static void cache_library_bake_endjob(void *customdata)
 	G.is_rendering = false;
 	BKE_spacedata_draw_locks(false);
 	
-#if 0
-	/* free the cache writer (closes output file) */
-	if (RNA_struct_is_a(data->user_ptr.type, &RNA_PointCacheModifier)) {
-		Object *ob = (Object *)data->user_ptr.id.data;
-		PointCacheModifierData *pcmd = (PointCacheModifierData *)data->user_ptr.data;
-		
-		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_NONE);
-	}
-	else {
-		PTC_writer_free(data->writer);
-	}
-#endif
+	PTC_cachlib_writers_free(data->archive, &data->writers);
 	
 	/* reset scene frame */
 	scene->r.cfra = data->origfra;
@@ -244,32 +243,13 @@ static void cache_library_bake_endjob(void *customdata)
 	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 }
 
-static int cache_library_bake_exec(bContext *C, wmOperator *op)
+static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	CacheLibraryBakeJob *data;
 	wmJob *wm_job;
-	
-#if 0
-	/* special case: point cache modifier uses internal writer
-	 * and needs to be set up for baking.
-	 */
-	if (RNA_struct_is_a(user_ptr.type, &RNA_PointCacheModifier)) {
-		Object *ob = (Object *)user_ptr.id.data;
-		PointCacheModifierData *pcmd = (PointCacheModifierData *)user_ptr.data;
-		
-		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_WRITE);
-	}
-	else {
-		writer = PTC_writer_from_rna(scene, &user_ptr);
-		if (!writer) {
-			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "%s is not a valid point cache user type", RNA_struct_identifier(user_ptr.type));
-			return OPERATOR_CANCELLED;
-		}
-	}
-#endif
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
 	 * scene frame in separate threads
@@ -288,8 +268,7 @@ static int cache_library_bake_exec(bContext *C, wmOperator *op)
 	data = MEM_callocN(sizeof(CacheLibraryBakeJob), "Cache Library Bake Job");
 	data->bmain = bmain;
 	data->scene = scene;
-//	data->cache = cache;
-//	data->writer = writer;
+	data->cachelib = cachelib;
 	
 	WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
 	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);

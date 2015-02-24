@@ -16,6 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "PTC_api.h"
 
 #include "util/util_error_handler.h"
@@ -26,10 +28,14 @@
 
 #include "alembic.h"
 #include "ptc_types.h"
+#include "util_path.h"
 
 extern "C" {
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
+#include "DNA_cache_library_types.h"
+#include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
 
 #include "BKE_modifier.h"
@@ -121,12 +127,11 @@ void PTC_write_sample(struct PTCWriter *_writer)
 	writer->write_sample();
 }
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct PTCWriter *_writer, int start_frame, int end_frame,
+void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct ListBase *writers, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress)
 {
-	PTC::Writer *writer = (PTC::Writer *)_writer;
 	PTC::Exporter exporter(bmain, scene, evalctx, stop, do_update, progress);
-	exporter.bake(writer, start_frame, end_frame);
+	exporter.bake(writers, start_frame, end_frame);
 }
 
 
@@ -217,6 +222,96 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 	}
 #endif
 	return NULL;
+}
+
+
+PTCReaderArchive *PTC_cachlib_readers(Scene *scene, CacheLibrary *cachelib, ListBase *readers)
+{
+	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
+	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
+	
+	BLI_listbase_clear(readers);
+	
+	for (CacheItem *item = (CacheItem *)cachelib->items.first; item; item = item->next) {
+		if (!(item->flag & CACHE_ITEM_ENABLED))
+			continue;
+		
+		PTCReader *reader = NULL;
+		switch (item->type) {
+			case CACHE_TYPE_DERIVED_MESH:
+//				reader = PTC_reader_point_cache(archive, )
+				break;
+			default:
+				break;
+		}
+		
+		if (reader) {
+			LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "cachelib readers link");
+			link->data = reader;
+			BLI_addtail(readers, link);
+		}
+	}
+	
+	return archive;
+}
+
+void PTC_cachlib_readers_free(PTCReaderArchive *archive, ListBase *readers)
+{
+	for (LinkData *link = (LinkData *)readers->first; link; link = link->next) {
+		PTCReader *reader = (PTCReader *)link->data;
+		PTC_reader_free(reader);
+	}
+	BLI_freelistN(readers);
+	
+	PTC_close_reader_archive(archive);
+}
+
+PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
+{
+	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
+	PTCWriterArchive *archive = PTC_open_writer_archive(scene, filename.c_str());
+	
+	BLI_listbase_clear(writers);
+	
+	for (CacheItem *item = (CacheItem *)cachelib->items.first; item; item = item->next) {
+		if (!(item->flag & CACHE_ITEM_ENABLED))
+			continue;
+		
+		PTCWriter *writer = NULL;
+		switch (item->type) {
+			case CACHE_TYPE_DERIVED_MESH:
+//				writer = PTC_writer_point_cache(archive, )
+				break;
+			case CACHE_TYPE_HAIR: {
+				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
+				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
+					writer = PTC_writer_cloth(archive, item->ob, psys->clmd);
+				}
+				break;
+			};
+			default:
+				break;
+		}
+		
+		if (writer) {
+			LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "cachelib writers link");
+			link->data = writer;
+			BLI_addtail(writers, link);
+		}
+	}
+	
+	return archive;
+}
+
+void PTC_cachlib_writers_free(PTCWriterArchive *archive, ListBase *writers)
+{
+	for (LinkData *link = (LinkData *)writers->first; link; link = link->next) {
+		PTCWriter *writer = (PTCWriter *)link->data;
+		PTC_writer_free(writer);
+	}
+	BLI_freelistN(writers);
+	
+	PTC_close_writer_archive(archive);
 }
 
 
