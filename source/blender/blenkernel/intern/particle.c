@@ -1362,7 +1362,7 @@ void psys_particle_on_emitter(ParticleSystemModifierData *psmd, int from, int in
 
 extern void do_kink(ParticleKey *state, const float par_co[3], const float par_vel[3], const float par_rot[4], float time, float freq, float shape, float amplitude, float flat,
                     short type, short axis, float obmat[4][4], int smooth_start);
-extern float do_clump(ParticleKey *state, const float par_co[3], float time, const float orco_offset[3], float clumpfac, float clumppow, float pa_clump,
+extern float do_clump(ParticleKey *state, const float par_co[3], const float par_orco[3], float time, const float orco[3], float clumpfac, float clumppow, float pa_clump,
                       bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve, float clump_noise_random, float clump_noise_random_size, float mat[4][4]);
 
 void precalc_guides(ParticleSimulationData *sim, ListBase *effectors)
@@ -1487,11 +1487,12 @@ int do_guides(ParticleSettings *part, ListBase *effectors, ParticleKey *state, i
 			float par_co[3] = {0.0f, 0.0f, 0.0f};
 			float par_vel[3] = {0.0f, 0.0f, 0.0f};
 			float par_rot[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-			float orco_offset[3] = {0.0f, 0.0f, 0.0f};
+			float par_orco[3] = {0.0f, 0.0f, 0.0f};
+			float orco[3] = {0.0f, 0.0f, 0.0f};
 			
 			copy_v3_v3(key.co, vec_to_point);
 			do_kink(&key, par_co, par_vel, par_rot, guidetime, pd->kink_freq, pd->kink_shape, pd->kink_amp, 0.f, pd->kink, pd->kink_axis, 0, 0);
-			do_clump(&key, par_co, guidetime, orco_offset, pd->clump_fac, pd->clump_pow, 1.0f,
+			do_clump(&key, par_co, par_orco, guidetime, orco, pd->clump_fac, pd->clump_pow, 1.0f,
 			         part->child_flag & PART_CHILD_USE_CLUMP_NOISE, part->clump_noise_size, clumpcurve,
 			         part->clump_noise_random, part->clump_noise_random_size, NULL);
 			copy_v3_v3(vec_to_point, key.co);

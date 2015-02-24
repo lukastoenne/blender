@@ -41,7 +41,7 @@ struct Material;
 
 void do_kink(ParticleKey *state, const float par_co[3], const float par_vel[3], const float par_rot[4], float time, float freq, float shape, float amplitude, float flat,
              short type, short axis, float obmat[4][4], int smooth_start);
-float do_clump(ParticleKey *state, const float par_co[3], float time, const float orco_offset[3], float clumpfac, float clumppow, float pa_clump,
+float do_clump(ParticleKey *state, const float par_co[3], const float par_orco[3], float time, const float orco[3], float clumpfac, float clumppow, float pa_clump,
                bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve, float clump_noise_random, float clump_noise_random_size, float mat[4][4]);
 void do_child_modifiers(ParticleSimulationData *sim,
                         ParticleTexture *ptex, const float par_co[3], const float par_vel[3], const float par_rot[4], const float par_orco[3],
@@ -598,7 +598,7 @@ BLI_INLINE void simple_roughness(float mat[4][4], float size, float factor, cons
 	madd_v3_v3fl(result, mat[2], factor * rough[2]);
 }
 
-float do_clump(ParticleKey *state, const float par_co[3], float time, const float orco_offset[3], float clumpfac, float clumppow, float pa_clump,
+float do_clump(ParticleKey *state, const float par_co[3], const float par_orco[3], float time, const float orco[3], float clumpfac, float clumppow, float pa_clump,
                bool use_clump_noise, float clump_noise_size, CurveMapping *clumpcurve, float clump_noise_random, float clump_noise_random_size, float mat[4][4])
 {
 	float clump;
@@ -607,16 +607,17 @@ float do_clump(ParticleKey *state, const float par_co[3], float time, const floa
 	zero_v3(rough_offset);
 	
 	if (use_clump_noise && clump_noise_size != 0.0f) {
-		float center[3], noisevec[3];
+		float center[3], noisevec[3], orco_offset[3];
 		float da[4], pa[12];
 		
+		sub_v3_v3v3(orco_offset, orco, par_orco);
 		mul_v3_v3fl(noisevec, orco_offset, 1.0f / clump_noise_size);
 		voronoi(noisevec[0], noisevec[1], noisevec[2], da, pa, 1.0f, 0);
 		mul_v3_fl(&pa[0], clump_noise_size);
-		add_v3_v3v3(center, par_co, &pa[0]);
+		add_v3_v3v3(center, par_orco, &pa[0]);
 		
 		if (clump_noise_random != 0.0f && mat) {
-			simple_roughness(mat, clump_noise_random_size, clump_noise_random, center, 1.0f, rough_offset);
+			simple_roughness(mat, clump_noise_random_size, clump_noise_random, center, time, rough_offset);
 		}
 		
 		do_clump_level(state->co, state->co, center, time, clumpfac, clumppow, pa_clump, clumpcurve);
@@ -697,11 +698,9 @@ void do_child_modifiers(ParticleSimulationData *sim, ParticleTexture *ptex, cons
 		guided = do_guides(sim->psys->part, sim->psys->effectors, (ParticleKey *)state, cpa->parent, t);
 
 	if (guided == 0) {
-		float orco_offset[3];
 		float clump;
 		
-		sub_v3_v3v3(orco_offset, orco, par_orco);
-		clump = do_clump(state, par_co, t, orco_offset, part->clumpfac, part->clumppow, ptex ? ptex->clump : 1.f,
+		clump = do_clump(state, par_co, par_orco, t, orco, part->clumpfac, part->clumppow, ptex ? ptex->clump : 1.f,
 		                 part->child_flag & PART_CHILD_USE_CLUMP_NOISE, part->clump_noise_size, clumpcurve,
 		                 part->clump_noise_random, part->clump_noise_random_size, mat);
 
