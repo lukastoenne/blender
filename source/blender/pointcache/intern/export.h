@@ -24,6 +24,7 @@
 struct Main;
 struct Scene;
 struct EvaluationContext;
+struct ListBase;
 
 namespace PTC {
 
@@ -34,7 +35,7 @@ class Exporter
 public:
 	Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short *stop, short *do_update, float *progress);
 	
-	void bake(Writer *writer, int start_frame, int end_frame);
+	void bake(ListBase *writers, int start_frame, int end_frame);
 
 	bool stop() const;
 

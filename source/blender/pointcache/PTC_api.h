@@ -28,8 +28,10 @@ extern "C" {
 struct Main;
 struct Scene;
 struct EvaluationContext;
+struct ListBase;
 struct PointerRNA;
 struct ReportList;
+struct CacheLibrary;
 
 struct ClothModifierData;
 struct DerivedMesh;
@@ -53,7 +55,7 @@ void PTC_error_handler_callback(PTCErrorCallback cb, void *userdata);
 void PTC_error_handler_reports(struct ReportList *reports);
 void PTC_error_handler_modifier(struct ModifierData *md);
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct PTCWriter *writer, int start_frame, int end_frame,
+void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct ListBase *writers, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress);
 
 /*** Archive ***/
@@ -77,6 +79,11 @@ PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
+
+struct PTCReaderArchive *PTC_cachlib_readers(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *readers);
+void PTC_cachlib_readers_free(struct PTCReaderArchive *archive, struct ListBase *readers);
+struct PTCWriterArchive *PTC_cachlib_writers(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
+void PTC_cachlib_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
 /* Particles */
 struct PTCWriter *PTC_writer_particles(struct PTCWriterArchive *archive, struct Object *ob, struct ParticleSystem *psys);

@@ -20,6 +20,7 @@
 #include "writer.h"
 
 extern "C" {
+#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_global.h"
@@ -39,7 +40,7 @@ Exporter::Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short 
 {
 }
 
-void Exporter::bake(Writer *writer, int start_frame, int end_frame)
+void Exporter::bake(ListBase *writers, int start_frame, int end_frame)
 {
 //	thread_scoped_lock(m_mutex);
 
@@ -49,8 +50,11 @@ void Exporter::bake(Writer *writer, int start_frame, int end_frame)
 		m_scene->r.cfra = cfra;
 		BKE_scene_update_for_newframe(m_evalctx, m_bmain, m_scene, m_scene->lay);
 
-		if (writer)
-			writer->write_sample();
+		for (LinkData *link = (LinkData *)writers->first; link; link = link->next) {
+			Writer *writer = (Writer *)link->data;
+			if (writer)
+				writer->write_sample();
+		}
 
 		set_progress((float)(cfra - start_frame + 1) / (float)(end_frame - start_frame + 1));
 

@@ -54,10 +54,6 @@ typedef struct CacheItem {
 	
 	int flag;
 	int pad;
-	
-	/* runtime */
-	struct PTCReader *reader;
-	struct PTCWriter *writer;
 } CacheItem;
 
 typedef enum eCacheItem_Flag {
@@ -72,10 +68,6 @@ typedef struct CacheLibrary {
 	
 	ListBase items;				/* cached items */
 	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */
-	
-	/* runtime */
-	struct PTCReaderArchive *reader_archive;
-	struct PTCWriterArchive *writer_archive;
 } CacheLibrary;
 
 #endif
