@@ -36,6 +36,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_cache_library_types.h"
 #include "DNA_group_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
@@ -45,7 +46,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-
+#include "BKE_cache_library.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -78,6 +79,7 @@ void BKE_group_unlink(Group *group)
 	Scene *sce;
 	SceneRenderLayer *srl;
 	ParticleSystem *psys;
+	CacheLibrary *cachelib;
 	
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
 		if (ma->group == group)
@@ -125,6 +127,13 @@ void BKE_group_unlink(Group *group)
 			if (psys->part->eff_group == group)
 				psys->part->eff_group = NULL;
 #endif
+		}
+	}
+	
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		if (cachelib->group == group) {
+			cachelib->group = NULL;
+			BKE_cache_library_group_update(G.main, cachelib);
 		}
 	}
 	

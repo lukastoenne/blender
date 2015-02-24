@@ -42,7 +42,7 @@ struct CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name)
 struct CacheLibrary *BKE_cache_library_copy(struct CacheLibrary *cachelib);
 void BKE_cache_library_free(struct CacheLibrary *cachelib);
 
-void BKE_cache_library_make_object_list(struct Main *main, struct CacheLibrary *cachelib, struct ListBase *lb);
+void BKE_cache_library_make_object_list(struct Main *bmain, struct CacheLibrary *cachelib, struct ListBase *lb);
 
 typedef struct CacheLibraryObjectsIterator {
 	ListBase objects;
@@ -80,5 +80,8 @@ int BKE_cache_item_name_length(struct Object *ob, int type, int index);
 struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
 struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
 void BKE_cache_library_remove_item(struct CacheLibrary *cachelib, struct CacheItem *item);
+void BKE_cache_library_clear(struct CacheLibrary *cachelib);
+
+void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cachelib);
 
 #endif

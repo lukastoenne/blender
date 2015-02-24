@@ -38,6 +38,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_group_types.h"
@@ -76,6 +77,7 @@
 #include "BKE_armature.h"
 #include "BKE_action.h"
 #include "BKE_bullet.h"
+#include "BKE_cache_library.h"
 #include "BKE_deform.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
@@ -486,6 +488,7 @@ void BKE_object_unlink(Object *ob)
 	ARegion *ar;
 	RegionView3D *rv3d;
 	LodLevel *lod;
+	CacheLibrary *cachelib;
 	int a, found;
 	
 	unlink_controllers(&ob->controllers);
@@ -857,6 +860,17 @@ void BKE_object_unlink(Object *ob)
 			camera->dof_ob = NULL;
 		}
 		camera = camera->id.next;
+	}
+
+	/* cache libraries */
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		CacheItem *item, *item_next;
+		for (item = cachelib->items.first; item; item = item_next) {
+			item_next = item->next;
+			if (item->ob == ob) {
+				BKE_cache_library_remove_item(cachelib, item);
+			}
+		}
 	}
 }
 

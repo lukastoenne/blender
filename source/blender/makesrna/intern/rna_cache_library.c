@@ -84,6 +84,15 @@ static void rna_CacheLibrary_update(Main *UNUSED(main), Scene *UNUSED(scene), Po
 {
 }
 
+static void rna_CacheLibrary_group_update(Main *main, Scene *scene, PointerRNA *ptr)
+{
+	CacheLibrary *cachelib = ptr->data;
+	
+	BKE_cache_library_group_update(main, cachelib);
+	
+	rna_CacheLibrary_update(main, scene, ptr);
+}
+
 /* ========================================================================= */
 
 static PointerRNA rna_ObjectCache_object_get(PointerRNA *ptr)
@@ -277,7 +286,7 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Group", "Cached object group");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_group_update");
 	
 	prop = RNA_def_property(srna, "object_caches", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ObjectCache");
