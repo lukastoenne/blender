@@ -406,6 +406,8 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
     bl_label = "Cache Manager"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
+    item_type_icon = { e.identifier : e.icon for e in bpy.types.CacheItem.bl_rna.properties['type'].enum_items }
+
     # returns True if the item exists and is enabled
     def draw_cache_item_button(self, context, layout, cachelib, ob, type, index=-1):
         item = cachelib.cache_item_find(ob, type, index)
@@ -420,6 +422,26 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
             layout.prop(item, "enabled", text="")
         return bool(item and item.enabled)
 
+    def draw_cache_item(self, context, layout, cachelib, ob, type, index=-1):
+        buttons = layout.row()
+        enabled = self.draw_cache_item_button(context, buttons, cachelib, ob, type, index)
+        
+        sub = buttons.column()
+        sub.enabled = enabled
+
+        row = sub.row()
+        if type == 'OBJECT':
+            row.label(text=ob.name, icon=self.item_type_icon[type])
+        elif type == 'DERIVED_MESH':
+            row.label(text="Mesh", icon=self.item_type_icon[type])
+            #sub.label(text="Mesh", icon_value=layout.enum_item_icon())
+        elif type == 'HAIR':
+            row.label(text="Hair", icon=self.item_type_icon[type])
+        elif type == 'HAIR_PATHS':
+            row.label(text="Hair Paths", icon=self.item_type_icon[type])
+
+        return sub
+
     def draw_cachelib(self, context, layout, cachelib):
         first = True
         for obcache in cachelib.object_caches:
@@ -429,12 +451,16 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
                 layout.separator()
                 first = False
 
-            row = layout.row()
-            enabled = self.draw_cache_item_button(context, row, cachelib, ob, 'OBJECT')
+            sub = self.draw_cache_item(context, layout, cachelib, ob, 'OBJECT')
             
-            sub = row.row()
-            sub.enabled = enabled
-            sub.label(text=ob.name, icon_value=layout.icon(ob))
+            self.draw_cache_item(context, sub, cachelib, ob, 'DERIVED_MESH')
+
+            for index, psys in enumerate(ob.particle_systems):
+                if psys.settings.type == 'HAIR':
+                    self.draw_cache_item(context, sub, cachelib, ob, 'HAIR', index)
+                    self.draw_cache_item(context, sub, cachelib, ob, 'HAIR_PATHS', index)
+
+
 
     def draw(self, context):
         layout = self.layout
