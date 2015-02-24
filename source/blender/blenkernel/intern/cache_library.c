@@ -101,7 +101,7 @@ static void cache_library_tag_recursive(CacheLibrary *cachelib, int level, Objec
 }
 
 /* tag IDs contained in the cache library group */
-void BKE_cache_library_make_object_list(Main *main, CacheLibrary *cachelib, ListBase *lb)
+void BKE_cache_library_make_object_list(Main *bmain, CacheLibrary *cachelib, ListBase *lb)
 {
 	if (cachelib && cachelib->group) {
 		Object *ob;
@@ -109,14 +109,14 @@ void BKE_cache_library_make_object_list(Main *main, CacheLibrary *cachelib, List
 		GroupObject *gob;
 		
 		/* clear tags */
-		BKE_main_id_tag_idcode(main, ID_OB, false);
+		BKE_main_id_tag_idcode(bmain, ID_OB, false);
 		
 		for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
 			cache_library_tag_recursive(cachelib, 0, gob->ob);
 		}
 		
 		/* store object pointers in the list */
-		for (ob = main->object.first; ob; ob = ob->id.next) {
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
 			if (ob->id.flag & LIB_DOIT) {
 				link = MEM_callocN(sizeof(LinkData), "cache library ID link");
 				link->data = ob;
@@ -419,6 +419,48 @@ void BKE_cache_library_remove_item(CacheLibrary *cachelib, CacheItem *item)
 			BLI_ghash_remove(cachelib->items_hash, item, NULL, NULL);
 		BLI_remlink(&cachelib->items, item);
 		MEM_freeN(item);
+	}
+}
+
+void BKE_cache_library_clear(CacheLibrary *cachelib)
+{
+	CacheItem *item, *item_next;
+	
+	if (cachelib->items_hash)
+		BLI_ghash_clear(cachelib->items_hash, NULL, NULL);
+	
+	for (item = cachelib->items.first; item; item = item_next) {
+		item_next = item->next;
+		MEM_freeN(item);
+	}
+	BLI_listbase_clear(&cachelib->items);
+}
+
+void BKE_cache_library_group_update(Main *bmain, CacheLibrary *cachelib)
+{
+	if (cachelib) {
+		CacheItem *item, *item_next;
+		
+		/* clear tags */
+		BKE_main_id_tag_idcode(bmain, ID_OB, false);
+		
+		if (cachelib->group) {
+			GroupObject *gob;
+			for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
+				cache_library_tag_recursive(cachelib, 0, gob->ob);
+			}
+		}
+		
+		/* remove unused items */
+		for (item = cachelib->items.first; item; item = item_next) {
+			item_next = item->next;
+			
+			BLI_assert(item->ob != NULL);
+			
+			if (!(item->ob->id.flag & LIB_DOIT)) {
+				BKE_cache_library_remove_item(cachelib, item);
+			}
+		}
 	}
 }
 
