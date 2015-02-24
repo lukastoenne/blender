@@ -27,6 +27,10 @@
  *  \ingroup editor/io
  */
 
+#include <string.h>
+
+#include "MEM_guardedalloc.h"
+
 #include "BLF_translation.h"
 
 #include "BLI_blenlib.h"
@@ -35,11 +39,14 @@
 #include "DNA_cache_library_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_depsgraph.h"
 #include "BKE_cache_library.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
+#include "BKE_scene.h"
+#include "BKE_screen.h"
 
 #include "ED_screen.h"
 
@@ -59,7 +66,7 @@
 
 static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cachelib", &RNA_CacheLibrary).data;
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
 	Main *bmain = CTX_data_main(C);
 	PointerRNA ptr, idptr;
 	PropertyRNA *prop;
@@ -108,7 +115,7 @@ void CACHELIBRARY_OT_new(wmOperatorType *ot)
 
 static int cache_item_enable_poll(bContext *C)
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cachelib", &RNA_CacheLibrary).data;
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
 	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
 	
 	if (!cachelib || !obcache)
@@ -119,7 +126,7 @@ static int cache_item_enable_poll(bContext *C)
 
 static int cache_item_enable_exec(bContext *C, wmOperator *op)
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cachelib", &RNA_CacheLibrary).data;
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
 	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
 	int type = RNA_enum_get(op->ptr, "type");
 	int index = RNA_int_get(op->ptr, "index");
@@ -151,4 +158,160 @@ void CACHELIBRARY_OT_item_enable(wmOperatorType *ot)
 	prop = RNA_def_enum(ot->srna, "type", cache_library_item_type_items, CACHE_TYPE_OBJECT, "Type", "Type of cache item to add");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 	RNA_def_int(ot->srna, "index", -1, -1, INT_MAX, "Index", "Index of data in the object", -1, INT_MAX);
+}
+
+/********************** bake cache operator *********************/
+
+static int cache_library_bake_poll(bContext *C)
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	
+	if (!cachelib)
+		return false;
+	
+	return true;
+}
+
+typedef struct CacheLibraryBakeJob {
+	short *stop, *do_update;
+	float *progress;
+	
+	struct Main *bmain;
+	struct Scene *scene;
+	EvaluationContext eval_ctx;
+	
+	int origfra;                            /* original frame to reset scene after export */
+	float origframelen;                     /* original frame length to reset scene after export */
+} CacheLibraryBakeJob;
+
+static void cache_library_bake_freejob(void *customdata)
+{
+	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
+	MEM_freeN(data);
+}
+
+static void cache_library_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
+	Scene *scene = data->scene;
+	int start_frame, end_frame;
+	
+	data->stop = stop;
+	data->do_update = do_update;
+	data->progress = progress;
+	
+	data->origfra = scene->r.cfra;
+	data->origframelen = scene->r.framelen;
+	scene->r.framelen = 1.0f;
+	memset(&data->eval_ctx, 0, sizeof(EvaluationContext));
+	data->eval_ctx.mode = DAG_EVAL_RENDER;
+	
+	G.is_break = false;
+	
+	/* XXX where to get this from? */
+	start_frame = scene->r.sfra;
+	end_frame = scene->r.efra;
+//	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+	
+	*do_update = true;
+	*stop = 0;
+}
+
+static void cache_library_bake_endjob(void *customdata)
+{
+	CacheLibraryBakeJob *data = (CacheLibraryBakeJob *)customdata;
+	Scene *scene = data->scene;
+	
+	G.is_rendering = false;
+	BKE_spacedata_draw_locks(false);
+	
+#if 0
+	/* free the cache writer (closes output file) */
+	if (RNA_struct_is_a(data->user_ptr.type, &RNA_PointCacheModifier)) {
+		Object *ob = (Object *)data->user_ptr.id.data;
+		PointCacheModifierData *pcmd = (PointCacheModifierData *)data->user_ptr.data;
+		
+		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_NONE);
+	}
+	else {
+		PTC_writer_free(data->writer);
+	}
+#endif
+	
+	/* reset scene frame */
+	scene->r.cfra = data->origfra;
+	scene->r.framelen = data->origframelen;
+	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
+}
+
+static int cache_library_bake_exec(bContext *C, wmOperator *op)
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	CacheLibraryBakeJob *data;
+	wmJob *wm_job;
+	
+#if 0
+	/* special case: point cache modifier uses internal writer
+	 * and needs to be set up for baking.
+	 */
+	if (RNA_struct_is_a(user_ptr.type, &RNA_PointCacheModifier)) {
+		Object *ob = (Object *)user_ptr.id.data;
+		PointCacheModifierData *pcmd = (PointCacheModifierData *)user_ptr.data;
+		
+		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_WRITE);
+	}
+	else {
+		writer = PTC_writer_from_rna(scene, &user_ptr);
+		if (!writer) {
+			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "%s is not a valid point cache user type", RNA_struct_identifier(user_ptr.type));
+			return OPERATOR_CANCELLED;
+		}
+	}
+#endif
+	
+	/* XXX annoying hack: needed to prevent data corruption when changing
+	 * scene frame in separate threads
+	 */
+	G.is_rendering = true;
+	
+	BKE_spacedata_draw_locks(true);
+	
+	/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,
+	 * since we need to set G.is_rendering
+	 */
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Cache Library Bake",
+	                     WM_JOB_PROGRESS | WM_JOB_EXCL_RENDER, WM_JOB_TYPE_CACHELIBRARY_BAKE);
+	
+	/* setup job */
+	data = MEM_callocN(sizeof(CacheLibraryBakeJob), "Cache Library Bake Job");
+	data->bmain = bmain;
+	data->scene = scene;
+//	data->cache = cache;
+//	data->writer = writer;
+	
+	WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
+	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
+	WM_jobs_callbacks(wm_job, cache_library_bake_startjob, NULL, NULL, cache_library_bake_endjob);
+	
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_bake(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Bake";
+	ot->description = "Bake cache library";
+	ot->idname = "CACHELIBRARY_OT_bake";
+	
+	/* api callbacks */
+	ot->exec = cache_library_bake_exec;
+	ot->poll = cache_library_bake_poll;
+	
+	/* flags */
+	/* no undo for this operator, cannot restore old cache files anyway */
+	ot->flag = OPTYPE_REGISTER;
 }

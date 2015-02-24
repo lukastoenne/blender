@@ -41,6 +41,7 @@ void ED_operatortypes_io(void)
 {
 	WM_operatortype_append(CACHELIBRARY_OT_new);
 	WM_operatortype_append(CACHELIBRARY_OT_item_enable);
+	WM_operatortype_append(CACHELIBRARY_OT_bake);
 
 #ifdef WITH_COLLADA
 	/* Collada operators: */
