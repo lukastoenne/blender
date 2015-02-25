@@ -444,6 +444,14 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         return sub
 
     def draw_cachelib(self, context, layout, cachelib):
+        # imitate template_ID without an actual pointer property
+        row = layout.row(align=True)
+        row.alignment = 'EXPAND'
+        row.prop(cachelib, "name", text="")
+        sub = row.row(align=True)
+        sub.alignment = 'RIGHT'
+        sub.prop(cachelib, "use_fake_user", text="F", toggle=True)
+
         row = layout.row(align=True)
         row.alignment = 'LEFT'
         row.label("Group:")
