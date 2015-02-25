@@ -216,7 +216,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	
 	G.is_break = false;
 	
-	data->archive = PTC_cachlib_writers(scene, data->cachelib, &data->writers);
+	data->archive = PTC_cachelib_writers(scene, data->cachelib, &data->writers);
 	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
@@ -235,7 +235,7 @@ static void cache_library_bake_endjob(void *customdata)
 	G.is_rendering = false;
 	BKE_spacedata_draw_locks(false);
 	
-	PTC_cachlib_writers_free(data->archive, &data->writers);
+	PTC_cachelib_writers_free(data->archive, &data->writers);
 	
 	/* reset scene frame */
 	scene->r.cfra = data->origfra;

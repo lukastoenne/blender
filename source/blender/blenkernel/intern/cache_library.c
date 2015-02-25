@@ -41,11 +41,14 @@
 #include "DNA_group_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_cache_library.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+
+#include "PTC_api.h"
 
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
@@ -506,3 +509,20 @@ void BKE_cache_library_update_items(CacheLibrary *cachelib)
 	}
 }
 #endif
+
+/* ========================================================================= */
+
+/* XXX this needs work: the order of cachelibraries in bmain is arbitrary!
+ * If there are multiple cachelibs applying data, which should take preference?
+ */
+
+bool BKE_cache_read_derived_mesh(Main *bmain, Scene *scene, float frame, Object *ob, struct DerivedMesh **r_dm)
+{
+	CacheLibrary *cachelib;
+	
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		if (PTC_cachelib_read_sample_derived_mesh(scene, frame, cachelib, ob, r_dm) != PTC_READ_SAMPLE_INVALID)
+			return true;
+	}
+	return false;
+}

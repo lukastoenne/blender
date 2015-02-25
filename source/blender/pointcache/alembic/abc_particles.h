@@ -62,10 +62,10 @@ private:
 	AbcGeom::IPoints m_points;
 };
 
-class AbcParticlePathsWriter : public ParticlesWriter, public AbcWriter {
-public:
-	AbcParticlePathsWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
-	~AbcParticlePathsWriter();
+class AbcParticlePathcacheWriter : public ParticlesWriter, public AbcWriter {
+protected:
+	AbcParticlePathcacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	~AbcParticlePathcacheWriter();
 	
 	void write_sample();
 	
@@ -82,14 +82,13 @@ private:
 	AbcGeom::OFloatGeomParam m_param_times;
 };
 
-class AbcParticlePathsReader : public ParticlesReader, public AbcReader {
-public:
-	AbcParticlePathsReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
-	~AbcParticlePathsReader();
+class AbcParticlePathcacheReader : public ParticlesReader, public AbcReader {
+protected:
+	AbcParticlePathcacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
-private:
+protected:
 	ParticleCacheKey ***m_pathcache;
 	int *m_totpath;
 	std::string m_suffix;
@@ -100,6 +99,34 @@ private:
 	AbcGeom::IQuatfGeomParam m_param_rotations;
 	AbcGeom::IV3fGeomParam m_param_colors;
 	AbcGeom::IFloatGeomParam m_param_times;
+};
+
+class AbcParticlePathcacheParentsWriter : public AbcParticlePathcacheWriter {
+public:
+	AbcParticlePathcacheParentsWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheWriter(archive, name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
+	{}
+};
+
+class AbcParticlePathcacheParentsReader : public AbcParticlePathcacheReader {
+public:
+	AbcParticlePathcacheParentsReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheReader(archive, name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
+	{}
+};
+
+class AbcParticlePathcacheChildrenWriter : public AbcParticlePathcacheWriter {
+public:
+	AbcParticlePathcacheChildrenWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheWriter(archive, name, ob, psys, &psys->childcache, &psys->totchild, "__children")
+	{}
+};
+
+class AbcParticlePathcacheChildrenReader : public AbcParticlePathcacheReader {
+public:
+	AbcParticlePathcacheChildrenReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheReader(archive, name, ob, psys, &psys->childcache, &psys->totchild, "__children")
+	{}
 };
 
 } /* namespace PTC */

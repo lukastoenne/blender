@@ -49,6 +49,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 
+#include "BKE_cache_library.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
@@ -1503,8 +1504,8 @@ static ModifierData *mesh_find_start_modifier(Scene *scene, Object *ob, VirtualM
 	
 	ModifierData *md;
 	
-	for (md = ob->modifiers.last; md; md = md->prev) {
 #if 0
+	for (md = ob->modifiers.last; md; md = md->prev) {
 		if (md->type == eModifierType_PointCache) {
 			PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
 			struct PTCReader *reader;
@@ -1524,10 +1525,10 @@ static ModifierData *mesh_find_start_modifier(Scene *scene, Object *ob, VirtualM
 				break;
 			}
 		}
-#endif
 	}
 	if (md)
 		return md;
+#endif
 	
 	/* no valid cache modifier found,
 	 * take virtual modifiers at list start into account
@@ -1563,7 +1564,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	/* XXX Always copying POLYINDEX, else tessellated data are no more valid! */
 	CustomDataMask mask, nextmask, previewmask = 0, append_mask = CD_MASK_ORIGINDEX;
 	float (*deformedVerts)[3] = NULL;
-	DerivedMesh *dm = NULL, *orcodm, *clothorcodm, *finaldm;
+	DerivedMesh *dm = NULL, *cachedm = NULL, *orcodm, *clothorcodm, *finaldm;
 	int numVerts = me->totvert;
 	int required_mode;
 	bool isPrevDeform = false;
@@ -1601,7 +1602,12 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	
 	modifiers_clearErrors(ob);
 	
-	firstmd = mesh_find_start_modifier(scene, ob, &virtualModifierData, required_mode, useDeform);
+	if (BKE_cache_read_derived_mesh(G.main, scene, scene->r.cfra, ob, &cachedm)) {
+		firstmd = NULL;
+	}
+	else {
+		firstmd = mesh_find_start_modifier(scene, ob, &virtualModifierData, required_mode, useDeform);
+	}
 	md = firstmd;
 
 	if (do_mod_wmcol || do_mod_mcol) {
@@ -1929,11 +1935,17 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	for (md = firstmd; md; md = md->next)
 		modifier_freeTemporaryData(md);
 
-	/* Yay, we are done. If we have a DerivedMesh and deformed vertices
-	 * need to apply these back onto the DerivedMesh. If we have no
-	 * DerivedMesh then we need to build one.
+	/* Yay, we are done.
+	 * - If we have a cached DerivedMesh, use it
+	 * - If we have a DerivedMesh and deformed vertices
+	 *   need to apply these back onto the DerivedMesh.
+	 * - If we have no DerivedMesh then we need to build one.
 	 */
-	if (dm && deformedVerts) {
+	if (cachedm) {
+		finaldm = CDDM_copy(cachedm);
+		cachedm->release(cachedm);
+	}
+	else if (dm && deformedVerts) {
 		finaldm = CDDM_copy(dm);
 
 		dm->release(dm);

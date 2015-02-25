@@ -31,8 +31,6 @@ extern "C" {
 #include "BKE_particle.h"
 }
 
-#include "PTC_api.h"
-
 namespace PTC {
 
 using namespace Abc;
@@ -124,7 +122,7 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 }
 
 
-AbcParticlePathsWriter::AbcParticlePathsWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
+AbcParticlePathcacheWriter::AbcParticlePathcacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
     ParticlesWriter(ob, psys, NULL),
     AbcWriter(archive),
     m_pathcache(pathcache),
@@ -144,7 +142,7 @@ AbcParticlePathsWriter::AbcParticlePathsWriter(AbcWriterArchive *archive, const 
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 }
 
-AbcParticlePathsWriter::~AbcParticlePathsWriter()
+AbcParticlePathcacheWriter::~AbcParticlePathcacheWriter()
 {
 }
 
@@ -282,7 +280,7 @@ static OFloatGeomParam::Sample paths_create_sample_times(ParticleCacheKey **path
 	return sample;
 }
 
-void AbcParticlePathsWriter::write_sample()
+void AbcParticlePathcacheWriter::write_sample()
 {
 	if (!archive()->archive)
 		return;
@@ -327,7 +325,7 @@ void AbcParticlePathsWriter::write_sample()
 }
 
 
-AbcParticlePathsReader::AbcParticlePathsReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
+AbcParticlePathcacheReader::AbcParticlePathcacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
     ParticlesReader(ob, psys, archive),
     AbcReader(archive),
     m_pathcache(pathcache),
@@ -351,10 +349,6 @@ AbcParticlePathsReader::AbcParticlePathsReader(AbcReaderArchive *archive, const 
 			}
 		}
 	}
-}
-
-AbcParticlePathsReader::~AbcParticlePathsReader()
-{
 }
 
 static void paths_apply_sample_nvertices(ParticleCacheKey **pathcache, int totpart, Int32ArraySamplePtr sample)
@@ -421,7 +415,7 @@ static void paths_apply_sample_data(ParticleCacheKey **pathcache, int totpart,
 	}
 }
 
-PTCReadSampleResult AbcParticlePathsReader::read_sample(float frame)
+PTCReadSampleResult AbcParticlePathcacheReader::read_sample(float frame)
 {
 	if (!(*m_pathcache))
 		return PTC_READ_SAMPLE_INVALID;
@@ -471,28 +465,28 @@ Reader *abc_reader_particles(ReaderArchive *archive, const std::string &name, Ob
 	return new AbcParticlesReader((AbcReaderArchive *)archive, name, ob, psys);
 }
 
-Writer *abc_writer_particle_paths(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
+Writer *abc_writer_particle_pathcache_parents(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
 {
 	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	switch (mode) {
-		case PTC_PARTICLE_PATHS_PARENTS:
-			return new AbcParticlePathsWriter((AbcWriterArchive *)archive, name, ob, psys, &psys->pathcache, &psys->totpart, "__parent_paths");
-		case PTC_PARTICLE_PATHS_CHILDREN:
-			return new AbcParticlePathsWriter((AbcWriterArchive *)archive, name, ob, psys, &psys->childcache, &psys->totchild, "__child_paths");
-	}
-	return NULL;
+	return new AbcParticlePathcacheParentsWriter((AbcWriterArchive *)archive, name, ob, psys);
 }
 
-Reader *abc_reader_particle_paths(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
+Writer *abc_writer_particle_pathcache_children(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+{
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcParticlePathcacheChildrenWriter((AbcWriterArchive *)archive, name, ob, psys);
+}
+
+Reader *abc_reader_particle_pathcache_parents(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
 {
 	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	switch (mode) {
-		case PTC_PARTICLE_PATHS_PARENTS:
-			return new AbcParticlePathsReader((AbcReaderArchive *)archive, name, ob, psys, &psys->pathcache, &psys->totpart, "__parent_paths");
-		case PTC_PARTICLE_PATHS_CHILDREN:
-			return new AbcParticlePathsReader((AbcReaderArchive *)archive, name, ob, psys, &psys->childcache, &psys->totchild, "__child_paths");
-	}
-	return NULL;
+	return new AbcParticlePathcacheParentsReader((AbcReaderArchive *)archive, name, ob, psys);
+}
+
+Reader *abc_reader_particle_pathcache_children(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+{
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcParticlePathcacheChildrenReader((AbcReaderArchive *)archive, name, ob, psys);
 }
 
 } /* namespace PTC */

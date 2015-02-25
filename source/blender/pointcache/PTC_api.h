@@ -60,10 +60,10 @@ void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext 
 
 /*** Archive ***/
 
-struct PTCWriterArchive *PTC_open_writer_archive(Scene *scene, const char *path);
+struct PTCWriterArchive *PTC_open_writer_archive(struct Scene *scene, const char *path);
 void PTC_close_writer_archive(struct PTCWriterArchive *archive);
 
-struct PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path);
+struct PTCReaderArchive *PTC_open_reader_archive(struct Scene *scene, const char *path);
 void PTC_close_reader_archive(struct PTCReaderArchive *archive);
 
 /*** Reader/Writer Interface ***/
@@ -80,27 +80,34 @@ PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 
-struct PTCReaderArchive *PTC_cachlib_readers(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *readers);
-void PTC_cachlib_readers_free(struct PTCReaderArchive *archive, struct ListBase *readers);
-struct PTCWriterArchive *PTC_cachlib_writers(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
-void PTC_cachlib_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
+struct PTCReader *PTC_cachelib_reader_derived_mesh(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob);
+struct PTCReader *PTC_cachelib_reader_hair_dynamics(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_cachelib_reader_particle_pathcache_parents(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_cachelib_reader_particle_pathcache_children(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
+
+PTCReadSampleResult PTC_cachelib_read_sample_derived_mesh(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct DerivedMesh **r_dm);
+PTCReadSampleResult PTC_cachelib_read_sample_hair_dynamics(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
+PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_parents(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
+PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_children(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
+
+struct PTCWriterArchive *PTC_cachelib_writers(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
+void PTC_cachelib_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
 /* Particles */
 struct PTCWriter *PTC_writer_particles(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
 struct PTCReader *PTC_reader_particles(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
 int PTC_reader_particles_totpoint(struct PTCReader *reader);
 
-typedef enum eParticlePathsMode {
-	PTC_PARTICLE_PATHS_PARENTS = 0,
-	PTC_PARTICLE_PATHS_CHILDREN = 1,
-} eParticlePathsMode;
-
-struct PTCWriter *PTC_writer_particle_paths(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
-struct PTCReader *PTC_reader_particle_paths(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
+struct PTCWriter *PTC_writer_particle_pathcache_parents(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particle_pathcache_parents(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particle_pathcache_children(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particle_pathcache_children(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
 
 /* Cloth */
 struct PTCWriter *PTC_writer_cloth(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
 struct PTCReader *PTC_reader_cloth(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCWriter *PTC_writer_hair_dynamics(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCReader *PTC_reader_hair_dynamics(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
 
 /* Modifier Stack */
 typedef enum ePointCacheModifierMode {
