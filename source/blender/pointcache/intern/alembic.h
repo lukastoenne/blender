@@ -44,7 +44,7 @@ ReaderArchive *abc_reader_archive(Scene *scene, const std::string &name, ErrorHa
 /* Particles */
 Writer *abc_writer_particles(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
 Reader *abc_reader_particles(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
-Writer *abc_writer_particle_paths(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+Writer *abc_writer_particle_paths(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
 Reader *abc_reader_particle_paths(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
 
 /* Cloth */

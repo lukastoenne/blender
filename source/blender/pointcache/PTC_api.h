@@ -95,7 +95,7 @@ typedef enum eParticlePathsMode {
 	PTC_PARTICLE_PATHS_CHILDREN = 1,
 } eParticlePathsMode;
 
-struct PTCWriter *PTC_writer_particle_paths(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particle_paths(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
 struct PTCReader *PTC_reader_particle_paths(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
 
 /* Cloth */
