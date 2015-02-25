@@ -44,15 +44,13 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcPointCacheWriter::AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
-    PointCacheWriter(ob, pcmd, archive),
+AbcDerivedMeshWriter::AbcDerivedMeshWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
+    DerivedMeshWriter(ob, dm_ptr, archive),
     AbcWriter(archive)
 {
-	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
-	
 	if (archive->archive) {
 		OObject root = archive->archive.getTop();
-		m_mesh = OPolyMesh(root, m_pcmd->modifier.name, archive->frame_sampling_index());
+		m_mesh = OPolyMesh(root, name, archive->frame_sampling_index());
 		
 		OPolyMeshSchema &schema = m_mesh.getSchema();
 		OCompoundProperty geom_props = schema.getArbGeomParams();
@@ -66,7 +64,7 @@ AbcPointCacheWriter::AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, 
 	}
 }
 
-AbcPointCacheWriter::~AbcPointCacheWriter()
+AbcDerivedMeshWriter::~AbcDerivedMeshWriter()
 {
 }
 
@@ -233,12 +231,12 @@ static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<
 	return N3fArraySample(data);
 }
 
-void AbcPointCacheWriter::write_sample()
+void AbcDerivedMeshWriter::write_sample()
 {
 	if (!archive()->archive)
 		return;
 	
-	DerivedMesh *output_dm = m_pcmd->output_dm;
+	DerivedMesh *output_dm = *m_dm_ptr;
 	if (!output_dm)
 		return;
 	
@@ -294,17 +292,16 @@ void AbcPointCacheWriter::write_sample()
 	m_prop_edges_index.set(edges_index);
 }
 
+/* ========================================================================= */
 
-AbcPointCacheReader::AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
-    PointCacheReader(ob, pcmd, archive),
+AbcDerivedMeshReader::AbcDerivedMeshReader(AbcReaderArchive *archive, const std::string &name, Object *ob) :
+    DerivedMeshReader(ob, archive),
     AbcReader(archive)
 {
-	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
-	
 	if (archive->archive.valid()) {
 		IObject root = archive->archive.getTop();
-		if (root.valid() && root.getChild(m_pcmd->modifier.name)) {
-			m_mesh = IPolyMesh(root, m_pcmd->modifier.name);
+		if (root.valid() && root.getChild(name)) {
+			m_mesh = IPolyMesh(root, name);
 			
 			IPolyMeshSchema &schema = m_mesh.getSchema();
 			ICompoundProperty geom_props = schema.getArbGeomParams();
@@ -320,7 +317,7 @@ AbcPointCacheReader::AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, 
 	}
 }
 
-AbcPointCacheReader::~AbcPointCacheReader()
+AbcDerivedMeshReader::~AbcDerivedMeshReader()
 {
 }
 
@@ -461,7 +458,7 @@ static void apply_sample_edge_indices(DerivedMesh *dm, Int32ArraySamplePtr sampl
 	}
 }
 
-PTCReadSampleResult AbcPointCacheReader::read_sample(float frame)
+PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 {
 #ifdef USE_TIMING
 	double start_time;
@@ -582,7 +579,33 @@ PTCReadSampleResult AbcPointCacheReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
+/* ========================================================================= */
+
+AbcPointCacheWriter::AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
+    AbcDerivedMeshWriter(archive, pcmd->modifier.name, ob, &pcmd->output_dm)
+{
+	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
+}
+
+AbcPointCacheReader::AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
+    AbcDerivedMeshReader(archive, pcmd->modifier.name, ob)
+{
+	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
+}
+
 /* ==== API ==== */
+
+Writer *abc_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr)
+{
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcDerivedMeshWriter((AbcWriterArchive *)archive, name, ob, dm_ptr);
+}
+
+Reader *abc_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob)
+{
+	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
+	return new AbcDerivedMeshReader((AbcReaderArchive *)archive, name, ob);
+}
 
 Writer *abc_writer_point_cache(WriterArchive *archive, Object *ob, PointCacheModifierData *pcmd)
 {

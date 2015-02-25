@@ -24,14 +24,14 @@ extern "C" {
 
 namespace PTC {
 
-DerivedMesh *PointCacheReader::acquire_result()
+DerivedMesh *DerivedMeshReader::acquire_result()
 {
 	DerivedMesh *dm = m_result;
 	m_result = NULL;
 	return dm;
 }
 
-void PointCacheReader::discard_result()
+void DerivedMeshReader::discard_result()
 {
 	if (m_result) {
 		m_result->release(m_result);

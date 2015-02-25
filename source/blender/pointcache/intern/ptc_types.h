@@ -67,32 +67,32 @@ protected:
 };
 
 
-class PointCacheWriter : public Writer {
+class DerivedMeshWriter : public Writer {
 public:
-	PointCacheWriter(Object *ob, PointCacheModifierData *pcmd, WriterArchive *archive) :
+	/** \note Targeted DerivedMesh at \a dm_ptr must be available only on \fn write_sample calls */
+	DerivedMeshWriter(Object *ob, DerivedMesh **dm_ptr, WriterArchive *archive) :
 	    Writer((ID *)ob, archive),
 	    m_ob(ob),
-	    m_pcmd(pcmd)
+	    m_dm_ptr(dm_ptr)
 	{}
 	
-	~PointCacheWriter()
+	~DerivedMeshWriter()
 	{}
 	
 protected:
 	Object *m_ob;
-	PointCacheModifierData *m_pcmd;
+	DerivedMesh **m_dm_ptr;
 };
 
-class PointCacheReader : public Reader {
+class DerivedMeshReader : public Reader {
 public:
-	PointCacheReader(Object *ob, PointCacheModifierData *pcmd, ReaderArchive *archive) :
+	DerivedMeshReader(Object *ob, ReaderArchive *archive) :
 	    Reader((ID *)ob, archive),
 	    m_ob(ob),
-	    m_pcmd(pcmd),
 	    m_result(0)
 	{}
 	
-	~PointCacheReader()
+	~DerivedMeshReader()
 	{}
 	
 	virtual DerivedMesh *acquire_result();
@@ -100,11 +100,8 @@ public:
 	
 protected:
 	Object *m_ob;
-	PointCacheModifierData *m_pcmd;
-	
 	DerivedMesh *m_result;
 };
-
 
 class ParticlesWriter : public Writer {
 public:

@@ -52,6 +52,8 @@ Writer *abc_writer_cloth(WriterArchive *archive, Object *ob, ClothModifierData *
 Reader *abc_reader_cloth(ReaderArchive *archive, Object *ob, ClothModifierData *clmd);
 
 /* Modifier Stack */
+Writer *abc_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr);
+Reader *abc_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob);
 Writer *abc_writer_point_cache(WriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
 Reader *abc_reader_point_cache(ReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
 

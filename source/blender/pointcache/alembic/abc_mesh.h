@@ -34,10 +34,10 @@ struct DerivedMesh;
 
 namespace PTC {
 
-class AbcPointCacheWriter : public PointCacheWriter, public AbcWriter {
+class AbcDerivedMeshWriter : public DerivedMeshWriter, public AbcWriter {
 public:
-	AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
-	~AbcPointCacheWriter();
+	AbcDerivedMeshWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr);
+	~AbcDerivedMeshWriter();
 	
 	void write_sample();
 	
@@ -51,10 +51,10 @@ private:
 	/* note: loop normals are already defined as a parameter in the schema */
 };
 
-class AbcPointCacheReader : public PointCacheReader, public AbcReader {
+class AbcDerivedMeshReader : public DerivedMeshReader, public AbcReader {
 public:
-	AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
-	~AbcPointCacheReader();
+	AbcDerivedMeshReader(AbcReaderArchive *archive, const std::string &name, Object *ob);
+	~AbcDerivedMeshReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -66,6 +66,17 @@ private:
 	AbcGeom::IN3fGeomParam m_param_loop_normals;
 	AbcGeom::IN3fGeomParam m_param_vertex_normals;
 	AbcGeom::IN3fGeomParam m_param_poly_normals;
+};
+
+
+class AbcPointCacheWriter : public AbcDerivedMeshWriter {
+public:
+	AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
+};
+
+class AbcPointCacheReader : public AbcDerivedMeshReader {
+public:
+	AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
 };
 
 } /* namespace PTC */

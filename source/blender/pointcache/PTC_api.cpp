@@ -332,6 +332,31 @@ PTCReader *PTC_reader_cloth(PTCReaderArchive *_archive, Object *ob, ClothModifie
 
 /* ==== MESH ==== */
 
+PTCWriter *PTC_writer_derived_mesh(PTCWriterArchive *_archive, const char *name, Object *ob, DerivedMesh **dm_ptr)
+{
+	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
+	return (PTCWriter *)abc_writer_derived_mesh(archive, name, ob, dm_ptr);
+}
+
+PTCReader *PTC_reader_derived_mesh(PTCReaderArchive *_archive, const char *name, Object *ob)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	return (PTCReader *)abc_reader_derived_mesh(archive, name, ob);
+}
+
+struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(PTCReader *_reader)
+{
+	DerivedMeshReader *reader = (DerivedMeshReader *)_reader;
+	return reader->acquire_result();
+}
+
+void PTC_reader_derived_mesh_discard_result(PTCReader *_reader)
+{
+	DerivedMeshReader *reader = (DerivedMeshReader *)_reader;
+	reader->discard_result();
+}
+
+
 PTCWriter *PTC_writer_point_cache(PTCWriterArchive *_archive, Object *ob, PointCacheModifierData *pcmd)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
@@ -342,16 +367,6 @@ PTCReader *PTC_reader_point_cache(PTCReaderArchive *_archive, Object *ob, PointC
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	return (PTCReader *)abc_reader_point_cache(archive, ob, pcmd);
-}
-
-struct DerivedMesh *PTC_reader_point_cache_acquire_result(PTCReader *_reader)
-{
-	PointCacheReader *reader = (PointCacheReader *)_reader;
-	return reader->acquire_result();
-}
-
-void PTC_reader_point_cache_discard_result(PTCReader *_reader)
-{
 }
 
 ePointCacheModifierMode PTC_mod_point_cache_get_mode(PointCacheModifierData *pcmd)
