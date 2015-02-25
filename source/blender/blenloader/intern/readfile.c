@@ -9012,6 +9012,17 @@ static void expand_gpencil(FileData *fd, Main *mainvar, bGPdata *gpd)
 		expand_animdata(fd, mainvar, gpd->adt);
 }
 
+static void expand_cache_library(FileData *fd, Main *mainvar, CacheLibrary *cachelib)
+{
+	CacheItem *item;
+	
+	expand_doit(fd, mainvar, cachelib->group);
+	
+	for (item = cachelib->items.first; item; item = item->next) {
+		expand_doit(fd, mainvar, item->ob);
+	}
+}
+
 void BLO_main_expander(void (*expand_doit_func)(void *, Main *, void *))
 {
 	expand_doit = expand_doit_func;
@@ -9108,6 +9119,9 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 						break;
 					case ID_GD:
 						expand_gpencil(fd, mainvar, (bGPdata *)id);
+						break;
+					case ID_CL:
+						expand_cache_library(fd, mainvar, (CacheLibrary *)id);
 						break;
 					}
 					
