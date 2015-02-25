@@ -109,10 +109,13 @@ typedef enum ePointCacheModifierMode {
 	MOD_POINTCACHE_MODE_WRITE,
 } ePointCacheModifierMode;
 
+struct PTCWriter *PTC_writer_derived_mesh(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct DerivedMesh **dm_ptr);
+struct PTCReader *PTC_reader_derived_mesh(struct PTCReaderArchive *archive, const char *name, struct Object *ob);
+struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *reader);
+void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
+
 struct PTCWriter *PTC_writer_point_cache(struct PTCWriterArchive *archive, struct Object *ob, struct PointCacheModifierData *pcmd);
 struct PTCReader *PTC_reader_point_cache(struct PTCReaderArchive *archive, struct Object *ob, struct PointCacheModifierData *pcmd);
-struct DerivedMesh *PTC_reader_point_cache_acquire_result(struct PTCReader *reader);
-void PTC_reader_point_cache_discard_result(struct PTCReader *reader);
 ePointCacheModifierMode PTC_mod_point_cache_get_mode(struct PointCacheModifierData *pcmd);
 /* returns the actual new mode, in case a change didn't succeed */
 ePointCacheModifierMode PTC_mod_point_cache_set_mode(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd, ePointCacheModifierMode mode);
