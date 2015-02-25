@@ -444,6 +444,16 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         return sub
 
     def draw_cachelib(self, context, layout, cachelib):
+        row = layout.row(align=True)
+        row.alignment = 'LEFT'
+        row.label("Group:")
+        row.template_ID(cachelib, "group")
+
+        col = layout.column(align=True)
+        col.label("Archive:")
+        col.prop(cachelib, "filepath", text="")
+        col.operator("cachelibrary.bake")
+
         first = True
         for obcache in cachelib.object_caches:
             ob = obcache.object
@@ -461,8 +471,6 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
                     self.draw_cache_item(context, sub, cachelib, ob, 'HAIR', index)
                     self.draw_cache_item(context, sub, cachelib, ob, 'HAIR_PATHS', index)
 
-            layout.operator("cachelibrary.bake")
-
 
     def draw(self, context):
         layout = self.layout
@@ -472,8 +480,6 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
             box = layout.box()
             box.context_pointer_set("cache_library", cachelib)
             
-            box.prop(cachelib, "filepath")
-            box.template_ID(cachelib, "group")
             self.draw_cachelib(context, box, cachelib)
 
 
