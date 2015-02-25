@@ -302,7 +302,8 @@ static unsigned int cache_item_hash(const void *key)
 	
 	hash = BLI_ghashutil_inthash(item->type);
 	
-	hash = hash_int_2d(hash, BLI_ghashutil_ptrhash(item->ob));
+	if (item->ob)
+		hash = hash_int_2d(hash, BLI_ghashutil_ptrhash(item->ob));
 	if (item->index >= 0)
 		hash = hash_int_2d(hash, BLI_ghashutil_inthash(item->index));
 	
@@ -458,9 +459,7 @@ void BKE_cache_library_group_update(Main *bmain, CacheLibrary *cachelib)
 		for (item = cachelib->items.first; item; item = item_next) {
 			item_next = item->next;
 			
-			BLI_assert(item->ob != NULL);
-			
-			if (!(item->ob->id.flag & LIB_DOIT)) {
+			if (!item->ob || !(item->ob->id.flag & LIB_DOIT)) {
 				BKE_cache_library_remove_item(cachelib, item);
 			}
 		}

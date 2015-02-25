@@ -367,7 +367,7 @@ PTCWriterArchive *PTC_cachelib_writers(Scene *scene, CacheLibrary *cachelib, Lis
 	for (CacheItem *item = (CacheItem *)cachelib->items.first; item; item = item->next) {
 		char name[2*MAX_NAME];
 		
-		if (!(item->flag & CACHE_ITEM_ENABLED))
+		if (!item->ob || !(item->flag & CACHE_ITEM_ENABLED))
 			continue;
 		
 		BKE_cache_item_name(item->ob, item->type, item->index, name);
