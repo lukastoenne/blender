@@ -71,12 +71,12 @@ private:
 
 class AbcPointCacheWriter : public AbcDerivedMeshWriter {
 public:
-	AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
+	AbcPointCacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
 };
 
 class AbcPointCacheReader : public AbcDerivedMeshReader {
 public:
-	AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
+	AbcPointCacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
 };
 
 } /* namespace PTC */

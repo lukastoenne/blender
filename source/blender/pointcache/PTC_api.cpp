@@ -38,6 +38,7 @@ extern "C" {
 #include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
 
+#include "BKE_cache_library.h"
 #include "BKE_modifier.h"
 #include "BKE_report.h"
 
@@ -274,8 +275,12 @@ PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, List
 	BLI_listbase_clear(writers);
 	
 	for (CacheItem *item = (CacheItem *)cachelib->items.first; item; item = item->next) {
+		char name[2*MAX_NAME];
+		
 		if (!(item->flag & CACHE_ITEM_ENABLED))
 			continue;
+		
+		BKE_cache_item_name(item->ob, item->type, item->index, name);
 		
 		PTCWriter *writer = NULL;
 		switch (item->type) {
@@ -285,7 +290,7 @@ PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, List
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
-					writer = PTC_writer_cloth(archive, item->ob, psys->clmd);
+					writer = PTC_writer_cloth(archive, name, item->ob, psys->clmd);
 				}
 				break;
 			};
@@ -317,16 +322,16 @@ void PTC_cachlib_writers_free(PTCWriterArchive *archive, ListBase *writers)
 
 /* ==== CLOTH ==== */
 
-PTCWriter *PTC_writer_cloth(PTCWriterArchive *_archive, Object *ob, ClothModifierData *clmd)
+PTCWriter *PTC_writer_cloth(PTCWriterArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_cloth(archive, ob, clmd);
+	return (PTCWriter *)abc_writer_cloth(archive, name, ob, clmd);
 }
 
-PTCReader *PTC_reader_cloth(PTCReaderArchive *_archive, Object *ob, ClothModifierData *clmd)
+PTCReader *PTC_reader_cloth(PTCReaderArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_cloth(archive, ob, clmd);
+	return (PTCReader *)abc_reader_cloth(archive, name, ob, clmd);
 }
 
 
@@ -357,16 +362,16 @@ void PTC_reader_derived_mesh_discard_result(PTCReader *_reader)
 }
 
 
-PTCWriter *PTC_writer_point_cache(PTCWriterArchive *_archive, Object *ob, PointCacheModifierData *pcmd)
+PTCWriter *PTC_writer_point_cache(PTCWriterArchive *_archive, const char *name, Object *ob, PointCacheModifierData *pcmd)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_point_cache(archive, ob, pcmd);
+	return (PTCWriter *)abc_writer_point_cache(archive, name, ob, pcmd);
 }
 
-PTCReader *PTC_reader_point_cache(PTCReaderArchive *_archive, Object *ob, PointCacheModifierData *pcmd)
+PTCReader *PTC_reader_point_cache(PTCReaderArchive *_archive, const char *name, Object *ob, PointCacheModifierData *pcmd)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_point_cache(archive, ob, pcmd);
+	return (PTCReader *)abc_reader_point_cache(archive, name, ob, pcmd);
 }
 
 ePointCacheModifierMode PTC_mod_point_cache_get_mode(PointCacheModifierData *pcmd)
@@ -425,16 +430,16 @@ ePointCacheModifierMode PTC_mod_point_cache_set_mode(Scene *scene, Object *ob, P
 
 /* ==== PARTICLES ==== */
 
-PTCWriter *PTC_writer_particles(PTCWriterArchive *_archive, Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particles(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_particles(archive, ob, psys);
+	return (PTCWriter *)abc_writer_particles(archive, name, ob, psys);
 }
 
-PTCReader *PTC_reader_particles(PTCReaderArchive *_archive, Object *ob, ParticleSystem *psys)
+PTCReader *PTC_reader_particles(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_particles(archive, ob, psys);
+	return (PTCReader *)abc_reader_particles(archive, name, ob, psys);
 }
 
 int PTC_reader_particles_totpoint(PTCReader *_reader)
@@ -442,14 +447,14 @@ int PTC_reader_particles_totpoint(PTCReader *_reader)
 	return ((PTC::ParticlesReader *)_reader)->totpoint();
 }
 
-PTCWriter *PTC_writer_particle_paths(PTCWriterArchive *_archive, Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particle_paths(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_particle_paths(archive, ob, psys);
+	return (PTCWriter *)abc_writer_particle_paths(archive, name, ob, psys);
 }
 
-PTCReader *PTC_reader_particle_paths(PTCReaderArchive *_archive, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
+PTCReader *PTC_reader_particle_paths(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_particle_paths(archive, ob, psys, mode);
+	return (PTCReader *)abc_reader_particle_paths(archive, name, ob, psys, mode);
 }

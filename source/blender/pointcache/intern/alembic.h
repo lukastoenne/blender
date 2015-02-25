@@ -38,24 +38,24 @@ struct SoftBody;
 
 namespace PTC {
 
-WriterArchive *abc_writer_archive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
-ReaderArchive *abc_reader_archive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
+WriterArchive *abc_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler);
+ReaderArchive *abc_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler);
 
 /* Particles */
-Writer *abc_writer_particles(WriterArchive *archive, Object *ob, ParticleSystem *psys);
-Reader *abc_reader_particles(ReaderArchive *archive, Object *ob, ParticleSystem *psys);
-Writer *abc_writer_particle_paths(WriterArchive *archive, Object *ob, ParticleSystem *psys);
-Reader *abc_reader_particle_paths(ReaderArchive *archive, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
+Writer *abc_writer_particles(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+Reader *abc_reader_particles(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+Writer *abc_writer_particle_paths(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+Reader *abc_reader_particle_paths(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
 
 /* Cloth */
-Writer *abc_writer_cloth(WriterArchive *archive, Object *ob, ClothModifierData *clmd);
-Reader *abc_reader_cloth(ReaderArchive *archive, Object *ob, ClothModifierData *clmd);
+Writer *abc_writer_cloth(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
+Reader *abc_reader_cloth(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
 
 /* Modifier Stack */
 Writer *abc_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr);
 Reader *abc_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob);
-Writer *abc_writer_point_cache(WriterArchive *archive, Object *ob, PointCacheModifierData *pcmd);
-Reader *abc_reader_point_cache(ReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd);
+Writer *abc_writer_point_cache(WriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
+Reader *abc_reader_point_cache(ReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
 
 } /* namespace PTC */
 

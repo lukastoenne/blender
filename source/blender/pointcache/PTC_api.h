@@ -86,8 +86,8 @@ struct PTCWriterArchive *PTC_cachlib_writers(struct Scene *scene, struct CacheLi
 void PTC_cachlib_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
 /* Particles */
-struct PTCWriter *PTC_writer_particles(struct PTCWriterArchive *archive, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
 int PTC_reader_particles_totpoint(struct PTCReader *reader);
 
 typedef enum eParticlePathsMode {
@@ -95,12 +95,12 @@ typedef enum eParticlePathsMode {
 	PTC_PARTICLE_PATHS_CHILDREN = 1,
 } eParticlePathsMode;
 
-struct PTCWriter *PTC_writer_particle_paths(struct PTCWriterArchive *archive, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particle_paths(struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
+struct PTCWriter *PTC_writer_particle_paths(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particle_paths(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
 
 /* Cloth */
-struct PTCWriter *PTC_writer_cloth(struct PTCWriterArchive *archive, struct Object *ob, struct ClothModifierData *clmd);
-struct PTCReader *PTC_reader_cloth(struct PTCReaderArchive *archive, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCWriter *PTC_writer_cloth(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCReader *PTC_reader_cloth(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
 
 /* Modifier Stack */
 typedef enum ePointCacheModifierMode {
@@ -114,8 +114,8 @@ struct PTCReader *PTC_reader_derived_mesh(struct PTCReaderArchive *archive, cons
 struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *reader);
 void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
 
-struct PTCWriter *PTC_writer_point_cache(struct PTCWriterArchive *archive, struct Object *ob, struct PointCacheModifierData *pcmd);
-struct PTCReader *PTC_reader_point_cache(struct PTCReaderArchive *archive, struct Object *ob, struct PointCacheModifierData *pcmd);
+struct PTCWriter *PTC_writer_point_cache(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct PointCacheModifierData *pcmd);
+struct PTCReader *PTC_reader_point_cache(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct PointCacheModifierData *pcmd);
 ePointCacheModifierMode PTC_mod_point_cache_get_mode(struct PointCacheModifierData *pcmd);
 /* returns the actual new mode, in case a change didn't succeed */
 ePointCacheModifierMode PTC_mod_point_cache_set_mode(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd, ePointCacheModifierMode mode);

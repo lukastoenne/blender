@@ -581,14 +581,14 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 
 /* ========================================================================= */
 
-AbcPointCacheWriter::AbcPointCacheWriter(AbcWriterArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
-    AbcDerivedMeshWriter(archive, pcmd->modifier.name, ob, &pcmd->output_dm)
+AbcPointCacheWriter::AbcPointCacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd) :
+    AbcDerivedMeshWriter(archive, name, ob, &pcmd->output_dm)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 }
 
-AbcPointCacheReader::AbcPointCacheReader(AbcReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd) :
-    AbcDerivedMeshReader(archive, pcmd->modifier.name, ob)
+AbcPointCacheReader::AbcPointCacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd) :
+    AbcDerivedMeshReader(archive, name, ob)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 }
@@ -607,16 +607,16 @@ Reader *abc_reader_derived_mesh(ReaderArchive *archive, const std::string &name,
 	return new AbcDerivedMeshReader((AbcReaderArchive *)archive, name, ob);
 }
 
-Writer *abc_writer_point_cache(WriterArchive *archive, Object *ob, PointCacheModifierData *pcmd)
+Writer *abc_writer_point_cache(WriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd)
 {
 	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcPointCacheWriter((AbcWriterArchive *)archive, ob, pcmd);
+	return new AbcPointCacheWriter((AbcWriterArchive *)archive, name, ob, pcmd);
 }
 
-Reader *abc_reader_point_cache(ReaderArchive *archive, Object *ob, PointCacheModifierData *pcmd)
+Reader *abc_reader_point_cache(ReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd)
 {
 	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcPointCacheReader((AbcReaderArchive *)archive, ob, pcmd);
+	return new AbcPointCacheReader((AbcReaderArchive *)archive, name, ob, pcmd);
 }
 
 } /* namespace PTC */

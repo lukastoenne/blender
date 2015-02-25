@@ -42,7 +42,7 @@ class AbcClothWriter;
 
 class AbcParticlesWriter : public ParticlesWriter, public AbcWriter {
 public:
-	AbcParticlesWriter(AbcWriterArchive *archive, Object *ob, ParticleSystem *psys);
+	AbcParticlesWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcParticlesWriter();
 	
 	void write_sample();
@@ -53,7 +53,7 @@ private:
 
 class AbcParticlesReader : public ParticlesReader, public AbcReader {
 public:
-	AbcParticlesReader(AbcReaderArchive *archive, Object *ob, ParticleSystem *psys);
+	AbcParticlesReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcParticlesReader();
 	
 	PTCReadSampleResult read_sample(float frame);
@@ -64,7 +64,7 @@ private:
 
 class AbcParticlePathsWriter : public ParticlesWriter, public AbcWriter {
 public:
-	AbcParticlePathsWriter(AbcWriterArchive *archive, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	AbcParticlePathsWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	~AbcParticlePathsWriter();
 	
 	void write_sample();
@@ -84,7 +84,7 @@ private:
 
 class AbcParticlePathsReader : public ParticlesReader, public AbcReader {
 public:
-	AbcParticlePathsReader(AbcReaderArchive *archive, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	AbcParticlePathsReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	~AbcParticlePathsReader();
 	
 	PTCReadSampleResult read_sample(float frame);
