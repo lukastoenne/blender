@@ -83,6 +83,9 @@ static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
 		cachelib = BKE_cache_library_add(bmain, DATA_("CacheLibrary"));
 	}
 	
+	/* enable fake user by default */
+	cachelib->id.flag |= LIB_FAKEUSER;
+	
 	/* hook into UI */
 	UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
 	
