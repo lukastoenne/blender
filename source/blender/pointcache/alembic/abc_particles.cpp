@@ -471,11 +471,15 @@ Reader *abc_reader_particles(ReaderArchive *archive, const std::string &name, Ob
 	return new AbcParticlesReader((AbcReaderArchive *)archive, name, ob, psys);
 }
 
-Writer *abc_writer_particle_paths(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+Writer *abc_writer_particle_paths(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
 {
 	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-//	return new AbcParticlePathsWriter((AbcWriterArchive *)archive, name, ob, psys);
-	// XXX TODO
+	switch (mode) {
+		case PTC_PARTICLE_PATHS_PARENTS:
+			return new AbcParticlePathsWriter((AbcWriterArchive *)archive, name, ob, psys, &psys->pathcache, &psys->totpart, "__parent_paths");
+		case PTC_PARTICLE_PATHS_CHILDREN:
+			return new AbcParticlePathsWriter((AbcWriterArchive *)archive, name, ob, psys, &psys->childcache, &psys->totchild, "__child_paths");
+	}
 	return NULL;
 }
 

@@ -267,6 +267,15 @@ void PTC_cachlib_readers_free(PTCReaderArchive *archive, ListBase *readers)
 	PTC_close_reader_archive(archive);
 }
 
+static void cachelib_add_writer(ListBase *writers, PTCWriter *writer)
+{
+	if (writer) {
+		LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "cachelib writers link");
+		link->data = writer;
+		BLI_addtail(writers, link);
+	}
+}
+
 PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
 {
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
@@ -282,33 +291,27 @@ PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, List
 		
 		BKE_cache_item_name(item->ob, item->type, item->index, name);
 		
-		PTCWriter *writer = NULL;
 		switch (item->type) {
 			case CACHE_TYPE_DERIVED_MESH:
-				writer = PTC_writer_derived_mesh(archive, name, item->ob, &item->ob->derivedFinal);
+				cachelib_add_writer(writers, PTC_writer_derived_mesh(archive, name, item->ob, &item->ob->derivedFinal));
 				break;
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
-					writer = PTC_writer_cloth(archive, name, item->ob, psys->clmd);
+					cachelib_add_writer(writers, PTC_writer_cloth(archive, name, item->ob, psys->clmd));
 				}
 				break;
 			};
 			case CACHE_TYPE_HAIR_PATHS: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR) {
-					writer = PTC_writer_particle_paths(archive, name, item->ob, psys);
+					cachelib_add_writer(writers, PTC_writer_particle_paths(archive, name, item->ob, psys, PTC_PARTICLE_PATHS_PARENTS));
+					cachelib_add_writer(writers, PTC_writer_particle_paths(archive, name, item->ob, psys, PTC_PARTICLE_PATHS_CHILDREN));
 				}
 				break;
 			};
 			default:
 				break;
-		}
-		
-		if (writer) {
-			LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "cachelib writers link");
-			link->data = writer;
-			BLI_addtail(writers, link);
 		}
 	}
 	
@@ -454,10 +457,10 @@ int PTC_reader_particles_totpoint(PTCReader *_reader)
 	return ((PTC::ParticlesReader *)_reader)->totpoint();
 }
 
-PTCWriter *PTC_writer_particle_paths(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particle_paths(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_particle_paths(archive, name, ob, psys);
+	return (PTCWriter *)abc_writer_particle_paths(archive, name, ob, psys, mode);
 }
 
 PTCReader *PTC_reader_particle_paths(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
