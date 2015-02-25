@@ -285,12 +285,19 @@ PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, List
 		PTCWriter *writer = NULL;
 		switch (item->type) {
 			case CACHE_TYPE_DERIVED_MESH:
-//				writer = PTC_writer_point_cache(archive, )
+				writer = PTC_writer_derived_mesh(archive, name, item->ob, &item->ob->derivedFinal);
 				break;
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
 					writer = PTC_writer_cloth(archive, name, item->ob, psys->clmd);
+				}
+				break;
+			};
+			case CACHE_TYPE_HAIR_PATHS: {
+				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
+				if (psys && psys->part && psys->part->type == PART_HAIR) {
+					writer = PTC_writer_particle_paths(archive, name, item->ob, psys);
 				}
 				break;
 			};
