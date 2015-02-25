@@ -53,7 +53,7 @@ static IDType idtypes[] = {
 	{ ID_AC,     "Action",           "actions",         IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_AR,     "Armature",         "armatures",       IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_BR,     "Brush",            "brushes",         IDTYPE_FLAGS_ISLINKABLE },
-	{ ID_CL,     "CacheLibrary",     "cache_libraries", 0                       },
+	{ ID_CL,     "CacheLibrary",     "cache_libraries", IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_CA,     "Camera",           "cameras",         IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_CU,     "Curve",            "curves",          IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_GD,     "GPencil",          "grease_pencil",   IDTYPE_FLAGS_ISLINKABLE }, /* rename gpencil */
