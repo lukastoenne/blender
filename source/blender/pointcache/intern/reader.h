@@ -23,6 +23,7 @@
 
 #include "util_error_handler.h"
 #include "util_types.h"
+#include "PTC_api.h"
 
 struct ID;
 

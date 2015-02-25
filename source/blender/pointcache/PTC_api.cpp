@@ -226,46 +226,127 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 }
 
 
-PTCReaderArchive *PTC_cachlib_readers(Scene *scene, CacheLibrary *cachelib, ListBase *readers)
+PTCReader *PTC_cachelib_reader_derived_mesh(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob)
+{
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_DERIVED_MESH, -1);
+	if (item && (item->flag & CACHE_ITEM_ENABLED)) {
+		char name[2*MAX_NAME];
+		BKE_cache_item_name(ob, CACHE_TYPE_DERIVED_MESH, -1, name);
+		
+		return PTC_reader_derived_mesh(archive, name, ob);
+	}
+	
+	return NULL;
+}
+
+PTCReader *PTC_cachelib_reader_hair_dynamics(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+{
+	if (!(psys && psys->part && psys->part->type == PART_HAIR && psys->clmd))
+		return NULL;
+	
+	int index = BLI_findindex(&ob->particlesystem, psys);
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_HAIR, index);
+	if (item && (item->flag & CACHE_ITEM_ENABLED)) {
+		char name[2*MAX_NAME];
+		BKE_cache_item_name(ob, CACHE_TYPE_HAIR, index, name);
+		
+		return PTC_reader_hair_dynamics(archive, name, ob, psys->clmd);
+	}
+	
+	return NULL;
+}
+
+PTCReader *PTC_cachelib_reader_particle_pathcache_parents(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+{
+	if (!(psys && psys->part && psys->part->type == PART_HAIR))
+		return NULL;
+	
+	int index = BLI_findindex(&ob->particlesystem, psys);
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_HAIR_PATHS, index);
+	if (item && (item->flag & CACHE_ITEM_ENABLED)) {
+		char name[2*MAX_NAME];
+		BKE_cache_item_name(ob, CACHE_TYPE_HAIR_PATHS, index, name);
+		
+		return PTC_reader_particle_pathcache_parents(archive, name, ob, psys);
+	}
+	
+	return NULL;
+}
+
+PTCReader *PTC_cachelib_reader_particle_pathcache_children(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+{
+	if (!(psys && psys->part && psys->part->type == PART_HAIR))
+		return NULL;
+	
+	int index = BLI_findindex(&ob->particlesystem, psys);
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_HAIR_PATHS, index);
+	if (item && (item->flag & CACHE_ITEM_ENABLED)) {
+		char name[2*MAX_NAME];
+		BKE_cache_item_name(ob, CACHE_TYPE_HAIR_PATHS, index, name);
+		
+		return PTC_reader_particle_pathcache_children(archive, name, ob, psys);
+	}
+	
+	return NULL;
+}
+
+PTCReadSampleResult PTC_cachelib_read_sample_derived_mesh(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, DerivedMesh **r_dm)
 {
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	
-	BLI_listbase_clear(readers);
-	
-	for (CacheItem *item = (CacheItem *)cachelib->items.first; item; item = item->next) {
-		if (!(item->flag & CACHE_ITEM_ENABLED))
-			continue;
-		
-		PTCReader *reader = NULL;
-		switch (item->type) {
-			case CACHE_TYPE_DERIVED_MESH:
-//				reader = PTC_reader_point_cache(archive, )
-				break;
-			default:
-				break;
-		}
-		
-		if (reader) {
-			LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "cachelib readers link");
-			link->data = reader;
-			BLI_addtail(readers, link);
-		}
+	PTCReader *reader = PTC_cachelib_reader_derived_mesh(cachelib, archive, ob);
+	PTCReadSampleResult result = PTC_READ_SAMPLE_INVALID;
+	if (reader) {
+		result = PTC_read_sample(reader, frame);
+		if (result != PTC_READ_SAMPLE_INVALID)
+			*r_dm = PTC_reader_derived_mesh_acquire_result(reader);
 	}
-	
-	return archive;
-}
-
-void PTC_cachlib_readers_free(PTCReaderArchive *archive, ListBase *readers)
-{
-	for (LinkData *link = (LinkData *)readers->first; link; link = link->next) {
-		PTCReader *reader = (PTCReader *)link->data;
-		PTC_reader_free(reader);
-	}
-	BLI_freelistN(readers);
 	
 	PTC_close_reader_archive(archive);
+	
+	return result;
 }
+
+PTCReadSampleResult PTC_cachelib_read_sample_hair_dynamics(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
+{
+	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
+	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
+	
+	PTCReader *reader = PTC_cachelib_reader_hair_dynamics(cachelib, archive, ob, psys);
+	PTCReadSampleResult result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
+	
+	PTC_close_reader_archive(archive);
+	
+	return result;
+}
+
+PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_parents(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
+{
+	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
+	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
+	
+	PTCReader *reader = PTC_cachelib_reader_particle_pathcache_parents(cachelib, archive, ob, psys);
+	PTCReadSampleResult result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
+	
+	PTC_close_reader_archive(archive);
+	
+	return result;
+}
+
+PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_children(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
+{
+	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
+	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
+	
+	PTCReader *reader = PTC_cachelib_reader_particle_pathcache_children(cachelib, archive, ob, psys);
+	PTCReadSampleResult result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
+	
+	PTC_close_reader_archive(archive);
+	
+	return result;
+}
+
 
 static void cachelib_add_writer(ListBase *writers, PTCWriter *writer)
 {
@@ -276,7 +357,7 @@ static void cachelib_add_writer(ListBase *writers, PTCWriter *writer)
 	}
 }
 
-PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
+PTCWriterArchive *PTC_cachelib_writers(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
 {
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCWriterArchive *archive = PTC_open_writer_archive(scene, filename.c_str());
@@ -298,15 +379,15 @@ PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, List
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
-					cachelib_add_writer(writers, PTC_writer_cloth(archive, name, item->ob, psys->clmd));
+					cachelib_add_writer(writers, PTC_writer_hair_dynamics(archive, name, item->ob, psys->clmd));
 				}
 				break;
 			};
 			case CACHE_TYPE_HAIR_PATHS: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR) {
-					cachelib_add_writer(writers, PTC_writer_particle_paths(archive, name, item->ob, psys, PTC_PARTICLE_PATHS_PARENTS));
-					cachelib_add_writer(writers, PTC_writer_particle_paths(archive, name, item->ob, psys, PTC_PARTICLE_PATHS_CHILDREN));
+					cachelib_add_writer(writers, PTC_writer_particle_pathcache_parents(archive, name, item->ob, psys));
+					cachelib_add_writer(writers, PTC_writer_particle_pathcache_children(archive, name, item->ob, psys));
 				}
 				break;
 			};
@@ -318,7 +399,7 @@ PTCWriterArchive *PTC_cachlib_writers(Scene *scene, CacheLibrary *cachelib, List
 	return archive;
 }
 
-void PTC_cachlib_writers_free(PTCWriterArchive *archive, ListBase *writers)
+void PTC_cachelib_writers_free(PTCWriterArchive *archive, ListBase *writers)
 {
 	for (LinkData *link = (LinkData *)writers->first; link; link = link->next) {
 		PTCWriter *writer = (PTCWriter *)link->data;
@@ -342,6 +423,18 @@ PTCReader *PTC_reader_cloth(PTCReaderArchive *_archive, const char *name, Object
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	return (PTCReader *)abc_reader_cloth(archive, name, ob, clmd);
+}
+
+PTCWriter *PTC_writer_hair_dynamics(PTCWriterArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
+{
+	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
+	return (PTCWriter *)abc_writer_hair_dynamics(archive, name, ob, clmd);
+}
+
+PTCReader *PTC_reader_hair_dynamics(PTCReaderArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	return (PTCReader *)abc_reader_hair_dynamics(archive, name, ob, clmd);
 }
 
 
@@ -457,14 +550,26 @@ int PTC_reader_particles_totpoint(PTCReader *_reader)
 	return ((PTC::ParticlesReader *)_reader)->totpoint();
 }
 
-PTCWriter *PTC_writer_particle_paths(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
+PTCWriter *PTC_writer_particle_pathcache_parents(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_particle_paths(archive, name, ob, psys, mode);
+	return (PTCWriter *)abc_writer_particle_pathcache_parents(archive, name, ob, psys);
 }
 
-PTCReader *PTC_reader_particle_paths(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
+PTCReader *PTC_reader_particle_pathcache_parents(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_particle_paths(archive, name, ob, psys, mode);
+	return (PTCReader *)abc_reader_particle_pathcache_parents(archive, name, ob, psys);
+}
+
+PTCWriter *PTC_writer_particle_pathcache_children(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
+{
+	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
+	return (PTCWriter *)abc_writer_particle_pathcache_children(archive, name, ob, psys);
+}
+
+PTCReader *PTC_reader_particle_pathcache_children(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	return (PTCReader *)abc_reader_particle_pathcache_children(archive, name, ob, psys);
 }

@@ -24,8 +24,6 @@
 #include "reader.h"
 #include "writer.h"
 
-#include "PTC_api.h"
-
 struct Object;
 struct ClothModifierData;
 struct DynamicPaintSurface;
@@ -44,12 +42,16 @@ ReaderArchive *abc_reader_archive(Scene *scene, const std::string &name, ErrorHa
 /* Particles */
 Writer *abc_writer_particles(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
 Reader *abc_reader_particles(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
-Writer *abc_writer_particle_paths(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
-Reader *abc_reader_particle_paths(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
+Writer *abc_writer_particle_pathcache_parents(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+Reader *abc_reader_particle_pathcache_parents(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+Writer *abc_writer_particle_pathcache_children(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+Reader *abc_reader_particle_pathcache_children(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
 
 /* Cloth */
 Writer *abc_writer_cloth(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
 Reader *abc_reader_cloth(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
+Writer *abc_writer_hair_dynamics(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
+Reader *abc_reader_hair_dynamics(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
 
 /* Modifier Stack */
 Writer *abc_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr);
