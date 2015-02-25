@@ -37,7 +37,7 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcClothWriter::AbcClothWriter(AbcWriterArchive *archive, Object *ob, ClothModifierData *clmd) :
+AbcClothWriter::AbcClothWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) :
     ClothWriter(ob, clmd, archive),
     AbcWriter(archive)
 {
@@ -45,7 +45,7 @@ AbcClothWriter::AbcClothWriter(AbcWriterArchive *archive, Object *ob, ClothModif
 	
 	if (archive->archive) {
 		OObject root = archive->archive.getTop();
-		m_points = OPoints(root, m_clmd->modifier.name, archive->frame_sampling_index());
+		m_points = OPoints(root, name, archive->frame_sampling_index());
 		
 		OPointsSchema &schema = m_points.getSchema();
 		OCompoundProperty geom_params = schema.getArbGeomParams();
@@ -128,7 +128,7 @@ void AbcClothWriter::write_sample()
 }
 
 
-AbcClothReader::AbcClothReader(AbcReaderArchive *archive, Object *ob, ClothModifierData *clmd) :
+AbcClothReader::AbcClothReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) :
     ClothReader(ob, clmd, archive),
     AbcReader(archive)
 {
@@ -136,8 +136,8 @@ AbcClothReader::AbcClothReader(AbcReaderArchive *archive, Object *ob, ClothModif
 	
 	if (archive->archive.valid()) {
 		IObject root = archive->archive.getTop();
-		if (root.valid() && root.getChild(m_clmd->modifier.name)) {
-			m_points = IPoints(root, m_clmd->modifier.name);
+		if (root.valid() && root.getChild(name)) {
+			m_points = IPoints(root, name);
 			
 			IPointsSchema &schema = m_points.getSchema();
 			ICompoundProperty geom_params = schema.getArbGeomParams();
@@ -241,16 +241,16 @@ PTCReadSampleResult AbcClothReader::read_sample(float frame)
 
 /* ==== API ==== */
 
-Writer *abc_writer_cloth(WriterArchive *archive, Object *ob, ClothModifierData *clmd)
+Writer *abc_writer_cloth(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
 {
 	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcClothWriter((AbcWriterArchive *)archive, ob, clmd);
+	return new AbcClothWriter((AbcWriterArchive *)archive, name, ob, clmd);
 }
 
-Reader *abc_reader_cloth(ReaderArchive *archive, Object *ob, ClothModifierData *clmd)
+Reader *abc_reader_cloth(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
 {
 	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcClothReader((AbcReaderArchive *)archive, ob, clmd);
+	return new AbcClothReader((AbcReaderArchive *)archive, name, ob, clmd);
 }
 
 } /* namespace PTC */

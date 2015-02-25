@@ -35,7 +35,7 @@ namespace PTC {
 
 class AbcClothWriter : public ClothWriter, public AbcWriter {
 public:
-	AbcClothWriter(AbcWriterArchive *archive, Object *ob, ClothModifierData *clmd);
+	AbcClothWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
 	~AbcClothWriter();
 	
 	void write_sample();
@@ -48,7 +48,7 @@ private:
 
 class AbcClothReader : public ClothReader, public AbcReader {
 public:
-	AbcClothReader(AbcReaderArchive *archive, Object *ob, ClothModifierData *clmd);
+	AbcClothReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
 	~AbcClothReader();
 	
 	PTCReadSampleResult read_sample(float frame);
