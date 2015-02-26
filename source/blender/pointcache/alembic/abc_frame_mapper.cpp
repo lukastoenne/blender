@@ -47,12 +47,12 @@ FrameMapper::FrameMapper(Scene *scene)
 
 chrono_t FrameMapper::frame_to_time(float frame) const
 {
-	return (double)(frame - 1.0f) * m_sec_per_frame;
+	return (double)frame * m_sec_per_frame;
 }
 
 float FrameMapper::time_to_frame(chrono_t time) const
 {
-	return (float)(time * m_frames_per_sec) + 1.0f;
+	return (float)(time * m_frames_per_sec);
 }
 
 #endif /* WITH_ALEMBIC */
