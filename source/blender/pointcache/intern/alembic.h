@@ -27,7 +27,7 @@
 struct Object;
 struct ClothModifierData;
 struct DynamicPaintSurface;
-struct PointCacheModifierData;
+struct CacheModifierData;
 struct DerivedMesh;
 struct ParticleSystem;
 struct RigidBodyWorld;
@@ -56,8 +56,9 @@ Reader *abc_reader_hair_dynamics(ReaderArchive *archive, const std::string &name
 /* Modifier Stack */
 Writer *abc_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr);
 Reader *abc_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob);
-Writer *abc_writer_point_cache(WriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
-Reader *abc_reader_point_cache(ReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
+
+Writer *abc_writer_derived_final(WriterArchive *archive, const std::string &name, Object *ob);
+Writer *abc_writer_cache_modifier(WriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd);
 
 } /* namespace PTC */
 

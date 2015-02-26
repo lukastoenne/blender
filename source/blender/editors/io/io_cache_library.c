@@ -39,6 +39,7 @@
 
 #include "DNA_cache_library_types.h"
 #include "DNA_listBase.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_depsgraph.h"
@@ -206,6 +207,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
 	Scene *scene = data->scene;
 	int start_frame, end_frame;
+	int required_mode;
 	
 	data->stop = stop;
 	data->do_update = do_update;
@@ -219,7 +221,10 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	
 	G.is_break = false;
 	
-	data->archive = PTC_cachelib_writers(scene, data->cachelib, &data->writers);
+	/* XXX how can this be defined properly? */
+	required_mode = eModifierMode_Render;
+	
+	data->archive = PTC_cachelib_writers(scene, required_mode, data->cachelib, &data->writers);
 	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;

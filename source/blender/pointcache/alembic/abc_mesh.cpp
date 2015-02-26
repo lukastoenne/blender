@@ -579,20 +579,6 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-/* ========================================================================= */
-
-AbcPointCacheWriter::AbcPointCacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd) :
-    AbcDerivedMeshWriter(archive, name, ob, &pcmd->output_dm)
-{
-	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
-}
-
-AbcPointCacheReader::AbcPointCacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd) :
-    AbcDerivedMeshReader(archive, name, ob)
-{
-	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
-}
-
 /* ==== API ==== */
 
 Writer *abc_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr)
@@ -607,16 +593,16 @@ Reader *abc_reader_derived_mesh(ReaderArchive *archive, const std::string &name,
 	return new AbcDerivedMeshReader((AbcReaderArchive *)archive, name, ob);
 }
 
-Writer *abc_writer_point_cache(WriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd)
+Writer *abc_writer_derived_final(WriterArchive *archive, const std::string &name, Object *ob)
 {
 	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcPointCacheWriter((AbcWriterArchive *)archive, name, ob, pcmd);
+	return new AbcDerivedFinalWriter((AbcWriterArchive *)archive, name, ob);
 }
 
-Reader *abc_reader_point_cache(ReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd)
+Writer *abc_writer_cache_modifier(WriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd)
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcPointCacheReader((AbcReaderArchive *)archive, name, ob, pcmd);
+	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
+	return new AbcCacheModifierWriter((AbcWriterArchive *)archive, name, ob, cmd);
 }
 
 } /* namespace PTC */

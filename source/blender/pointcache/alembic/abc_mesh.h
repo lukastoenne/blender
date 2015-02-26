@@ -28,8 +28,14 @@
 #include "abc_schema.h"
 #include "abc_writer.h"
 
+extern "C" {
+#include "DNA_modifier_types.h"
+
+#include "BKE_DerivedMesh.h"
+}
+
 struct Object;
-struct PointCacheModifierData;
+struct CacheModifierData;
 struct DerivedMesh;
 
 namespace PTC {
@@ -69,15 +75,36 @@ private:
 };
 
 
-class AbcPointCacheWriter : public AbcDerivedMeshWriter {
+class AbcDerivedFinalWriter : public AbcDerivedMeshWriter {
 public:
-	AbcPointCacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
+	AbcDerivedFinalWriter(AbcWriterArchive *archive, const std::string &name, Object *ob) :
+	    AbcDerivedMeshWriter(archive, name, ob, &ob->derivedFinal)
+	{}
 };
 
-class AbcPointCacheReader : public AbcDerivedMeshReader {
+
+class AbcCacheModifierWriter : public AbcDerivedMeshWriter {
 public:
-	AbcPointCacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, PointCacheModifierData *pcmd);
+	AbcCacheModifierWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd) :
+	    AbcDerivedMeshWriter(archive, name, ob, &cmd->output_dm),
+	    m_cmd(cmd)
+	{
+		cmd->flag |= MOD_CACHE_USE_OUTPUT;
+	}
+	
+	~AbcCacheModifierWriter()
+	{
+		m_cmd->flag &= ~MOD_CACHE_USE_OUTPUT;
+		if (m_cmd->output_dm) {
+			m_cmd->output_dm->release(m_cmd->output_dm);
+			m_cmd->output_dm = NULL;
+		}
+	}
+	
+private:
+	CacheModifierData *m_cmd;
 };
+
 
 } /* namespace PTC */
 

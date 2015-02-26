@@ -39,6 +39,7 @@ extern "C" {
 #include "DNA_modifier_types.h"
 
 #include "BKE_cache_library.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_modifier.h"
 #include "BKE_report.h"
 
@@ -184,13 +185,6 @@ PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
 		return PTC_writer_cloth(scene, ob, clmd);
 	}
-#if 0 /* modifier uses internal writer during scene update */
-	if (RNA_struct_is_a(ptr->type, &RNA_PointCacheModifier)) {
-		Object *ob = (Object *)ptr->id.data;
-		PointCacheModifierData *pcmd = (PointCacheModifierData *)ptr->data;
-		return PTC_writer_point_cache(scene, ob, pcmd);
-	}
-#endif
 #endif
 	return NULL;
 }
@@ -215,11 +209,6 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 		Object *ob = (Object *)ptr->id.data;
 		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
 		return PTC_reader_cloth(scene, ob, clmd);
-	}
-	if (RNA_struct_is_a(ptr->type, &RNA_PointCacheModifier)) {
-		Object *ob = (Object *)ptr->id.data;
-		PointCacheModifierData *pcmd = (PointCacheModifierData *)ptr->data;
-		return PTC_reader_point_cache(scene, ob, pcmd);
 	}
 #endif
 	return NULL;
@@ -357,7 +346,7 @@ static void cachelib_add_writer(ListBase *writers, PTCWriter *writer)
 	}
 }
 
-PTCWriterArchive *PTC_cachelib_writers(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
+PTCWriterArchive *PTC_cachelib_writers(Scene *scene, int required_mode, CacheLibrary *cachelib, ListBase *writers)
 {
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCWriterArchive *archive = PTC_open_writer_archive(scene, filename.c_str());
@@ -373,9 +362,14 @@ PTCWriterArchive *PTC_cachelib_writers(Scene *scene, CacheLibrary *cachelib, Lis
 		BKE_cache_item_name(item->ob, item->type, item->index, name);
 		
 		switch (item->type) {
-			case CACHE_TYPE_DERIVED_MESH:
-				cachelib_add_writer(writers, PTC_writer_derived_mesh(archive, name, item->ob, &item->ob->derivedFinal));
+			case CACHE_TYPE_DERIVED_MESH: {
+				CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(scene, item->ob, required_mode);
+				if (cachemd)
+					cachelib_add_writer(writers, PTC_writer_cache_modifier(archive, name, item->ob, cachemd));
+				else
+					cachelib_add_writer(writers, PTC_writer_derived_final(archive, name, item->ob));
 				break;
+			}
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
@@ -465,70 +459,18 @@ void PTC_reader_derived_mesh_discard_result(PTCReader *_reader)
 }
 
 
-PTCWriter *PTC_writer_point_cache(PTCWriterArchive *_archive, const char *name, Object *ob, PointCacheModifierData *pcmd)
+PTCWriter *PTC_writer_derived_final(PTCWriterArchive *_archive, const char *name, Object *ob)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_point_cache(archive, name, ob, pcmd);
+	return (PTCWriter *)abc_writer_derived_final(archive, name, ob);
 }
 
-PTCReader *PTC_reader_point_cache(PTCReaderArchive *_archive, const char *name, Object *ob, PointCacheModifierData *pcmd)
-{
-	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_point_cache(archive, name, ob, pcmd);
-}
 
-ePointCacheModifierMode PTC_mod_point_cache_get_mode(PointCacheModifierData *pcmd)
+PTCWriter *PTC_writer_cache_modifier(PTCWriterArchive *_archive, const char *name, Object *ob, CacheModifierData *cmd)
 {
-	/* can't have simultaneous read and write */
-	if (pcmd->writer) {
-		BLI_assert(!pcmd->reader);
-		return MOD_POINTCACHE_MODE_WRITE;
-	}
-	else if (pcmd->reader) {
-		BLI_assert(!pcmd->writer);
-		return MOD_POINTCACHE_MODE_READ;
-	}
-	else
-		return MOD_POINTCACHE_MODE_NONE;
+	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
+	return (PTCWriter *)abc_writer_cache_modifier(archive, name, ob, cmd);
 }
-
-#if 0
-ePointCacheModifierMode PTC_mod_point_cache_set_mode(Scene *scene, Object *ob, PointCacheModifierData *pcmd, ePointCacheModifierMode mode)
-{
-	switch (mode) {
-		case MOD_POINTCACHE_MODE_READ:
-			if (pcmd->writer) {
-				PTC_writer_free(pcmd->writer);
-				pcmd->writer = NULL;
-			}
-			if (!pcmd->reader) {
-				pcmd->reader = PTC_reader_point_cache(scene, ob, pcmd);
-			}
-			return pcmd->reader ? MOD_POINTCACHE_MODE_READ : MOD_POINTCACHE_MODE_NONE;
-		
-		case MOD_POINTCACHE_MODE_WRITE:
-			if (pcmd->reader) {
-				PTC_reader_free(pcmd->reader);
-				pcmd->reader = NULL;
-			}
-			if (!pcmd->writer) {
-				pcmd->writer = PTC_writer_point_cache(scene, ob, pcmd);
-			}
-			return pcmd->writer ? MOD_POINTCACHE_MODE_WRITE : MOD_POINTCACHE_MODE_NONE;
-		
-		default:
-			if (pcmd->writer) {
-				PTC_writer_free(pcmd->writer);
-				pcmd->writer = NULL;
-			}
-			if (pcmd->reader) {
-				PTC_reader_free(pcmd->reader);
-				pcmd->reader = NULL;
-			}
-			return MOD_POINTCACHE_MODE_NONE;
-	}
-}
-#endif
 
 
 /* ==== PARTICLES ==== */

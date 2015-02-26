@@ -1494,45 +1494,30 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 	}
 }
 
-/* Look for last point cache modifier that provides a valid derived mesh.
- * This will then be used as the input for remaining modifiers, or as the
- * final result if no other modifiers follow.
+/* Look for last active cache modifier.
+ * This will then be used as the input for remaining modifiers,
+ * or as the final result if no other modifiers follow.
  */
-static ModifierData *mesh_find_start_modifier(Scene *scene, Object *ob, VirtualModifierData *virtual_modifiers, int required_mode, bool useDeform)
+ModifierData *mesh_find_cache_modifier(Scene *scene, Object *ob, int required_mode)
+{
+	ModifierData *md;
+	
+	for (md = ob->modifiers.last; md; md = md->prev) {
+		if (md->type == eModifierType_Cache) {
+			if (modifier_isEnabled(scene, md, required_mode))
+				break;
+		}
+	}
+	return md;
+}
+
+static ModifierData *mesh_find_start_modifier(Scene *UNUSED(scene), Object *ob, VirtualModifierData *virtual_modifiers, int UNUSED(required_mode), bool useDeform)
 {
 	const bool skipVirtualArmature = (useDeform < 0);
 	
-	ModifierData *md;
+	ModifierData *md = NULL;
 	
-#if 0
-	for (md = ob->modifiers.last; md; md = md->prev) {
-		if (md->type == eModifierType_PointCache) {
-			PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
-			struct PTCReader *reader;
-			PTCReadSampleResult result;
-			
-			if (!modifier_isEnabled(scene, md, required_mode))
-				continue;
-			
-			/* XXX needs a more lightweight reader stored inside the modifier,
-			 * which can be checked quickly for valid cache samples before reading.
-			 */
-			reader = PTC_reader_point_cache(scene, ob, pcmd);
-			result = PTC_test_sample(reader, scene->r.cfra);
-			PTC_reader_free(reader);
-			
-			if (ELEM(result, PTC_READ_SAMPLE_EXACT, PTC_READ_SAMPLE_INTERPOLATED)) {
-				break;
-			}
-		}
-	}
-	if (md)
-		return md;
-#endif
-	
-	/* no valid cache modifier found,
-	 * take virtual modifiers at list start into account
-	 */
+	/* take virtual modifiers at list start into account */
 	
 	if (!skipVirtualArmature) {
 		md = modifiers_getVirtualModifierList(ob, virtual_modifiers);
@@ -1603,7 +1588,14 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	modifiers_clearErrors(ob);
 	
 	if (BKE_cache_read_derived_mesh(G.main, scene, scene->r.cfra, ob, &cachedm)) {
-		firstmd = NULL;
+		CacheModifierData *cmd = (CacheModifierData *)mesh_find_cache_modifier(scene, ob, required_mode);
+		firstmd = &cmd->modifier;
+		
+		/* use the cache result as output of the modifier
+		 * rather than as the final dm
+		 */
+		cmd->output_dm = cachedm;
+		cachedm = NULL;
 	}
 	else {
 		firstmd = mesh_find_start_modifier(scene, ob, &virtualModifierData, required_mode, useDeform);

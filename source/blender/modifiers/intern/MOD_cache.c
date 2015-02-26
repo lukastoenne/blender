@@ -20,7 +20,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/modifiers/intern/MOD_pointcache.c
+/** \file blender/modifiers/intern/MOD_cache.c
  *  \ingroup modifiers
  */
 
@@ -41,9 +41,6 @@
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_main.h"
-#include "BKE_pointcache.h"
-
-#include "PTC_api.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -53,78 +50,56 @@
 
 struct BMEditMesh;
 
-static void initData(ModifierData *md)
+static void initData(ModifierData *UNUSED(md))
 {
-	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
-
-	pcmd->flag = 0;
+	/*CacheModifierData *pcmd = (CacheModifierData *)md;*/
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-	/*PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
-	PointCacheModifierData *tpcmd = (PointCacheModifierData *)target;*/
-
+	/*CacheModifierData *pcmd = (CacheModifierData *)md;*/
+	CacheModifierData *tpcmd = (CacheModifierData *)target;
+	
 	modifier_copyData_generic(md, target);
+	
+	tpcmd->output_dm = NULL;
+	tpcmd->flag &= ~MOD_CACHE_USE_OUTPUT;
 }
 
 static void freeData(ModifierData *md)
 {
-	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
+	CacheModifierData *pcmd = (CacheModifierData *)md;
 	
-	if (pcmd->reader)
-		PTC_reader_free(pcmd->reader);
-	if (pcmd->writer)
-		PTC_writer_free(pcmd->writer);
-}
-
-static bool dependsOnTime(ModifierData *md)
-{
-	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
-	
-	/* considered time-dependent when reading from cache file */
-	/* TODO check cache frame range here to optimize */
-	return PTC_mod_point_cache_get_mode(pcmd) == MOD_POINTCACHE_MODE_READ;
-}
-
-static DerivedMesh *pointcache_do(PointCacheModifierData *pcmd, Object *ob, DerivedMesh *dm)
-{
-	Scene *scene = pcmd->modifier.scene;
-	const float cfra = BKE_scene_frame_get(scene);
-	ePointCacheModifierMode mode = PTC_mod_point_cache_get_mode(pcmd);
-	
-	DerivedMesh *finaldm = dm;
-	
-#if 0
-	if (mode == MOD_POINTCACHE_MODE_NONE) {
-		mode = PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_READ);
-	}
-	
-	if (mode == MOD_POINTCACHE_MODE_WRITE) {
-		pcmd->output_dm = dm;
-		PTC_write_sample(pcmd->writer);
+	if (pcmd->output_dm) {
+		pcmd->output_dm->release(pcmd->output_dm);
 		pcmd->output_dm = NULL;
 	}
-	else if (mode == MOD_POINTCACHE_MODE_READ) {
-		if (PTC_read_sample(pcmd->reader, cfra) == PTC_READ_SAMPLE_INVALID) {
-			modifier_setError(&pcmd->modifier, "%s", "Cannot read cache file");
+}
+
+static DerivedMesh *pointcache_do(CacheModifierData *pcmd, Object *UNUSED(ob), DerivedMesh *dm)
+{
+	if (pcmd->flag & MOD_CACHE_USE_OUTPUT) {
+		if (pcmd->output_dm) {
+			pcmd->output_dm->release(pcmd->output_dm);
 		}
-		else {
-			DerivedMesh *result = PTC_reader_point_cache_acquire_result(pcmd->reader);
-			if (result)
-				finaldm = result;
+		
+		pcmd->output_dm = CDDM_copy(dm);
+	}
+	else {
+		if (pcmd->output_dm) {
+			dm = pcmd->output_dm;
+			pcmd->output_dm = NULL;
 		}
 	}
-#endif
 	
-	return finaldm;
+	return dm;
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {
-	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
+	CacheModifierData *pcmd = (CacheModifierData *)md;
 
 	return pointcache_do(pcmd, ob, dm);
 }
@@ -134,15 +109,15 @@ static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,
                                     DerivedMesh *dm,
                                     ModifierApplyFlag UNUSED(flag))
 {
-	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
+	CacheModifierData *pcmd = (CacheModifierData *)md;
 
 	return pointcache_do(pcmd, ob, dm);
 }
 
-ModifierTypeInfo modifierType_PointCache = {
-	/* name */              "Point Cache",
-	/* structName */        "PointCacheModifierData",
-	/* structSize */        sizeof(PointCacheModifierData),
+ModifierTypeInfo modifierType_Cache = {
+	/* name */              "Cache",
+	/* structName */        "CacheModifierData",
+	/* structSize */        sizeof(CacheModifierData),
 	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_AcceptsCVs |
@@ -160,7 +135,7 @@ ModifierTypeInfo modifierType_PointCache = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
-	/* dependsOnTime */     dependsOnTime,
+	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     NULL,
