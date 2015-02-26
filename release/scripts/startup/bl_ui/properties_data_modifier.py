@@ -169,6 +169,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         sub.active = md.use_random_order
         sub.prop(md, "seed")
 
+    def CACHE(self, layout, ob, md):
+        pass
+
     def MESH_CACHE(self, layout, ob, md):
         layout.prop(md, "cache_format")
         layout.prop(md, "filepath")
@@ -678,12 +681,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def PARTICLE_SYSTEM(self, layout, ob, md):
         layout.label(text="Settings can be found inside the Particle context")
-
-    def POINT_CACHE(self, layout, ob, md):
-        col = layout.column()
-        col.context_pointer_set("point_cache", md.point_cache)
-        col.context_pointer_set("point_cache_user", md)
-        col.operator("PTCACHE_OT_export")
 
     def SCREW(self, layout, ob, md):
         split = layout.split()

@@ -39,7 +39,7 @@ struct DynamicPaintSurface;
 struct ModifierData;
 struct Object;
 struct ParticleSystem;
-struct PointCacheModifierData;
+struct CacheModifierData;
 struct RigidBodyWorld;
 struct SmokeDomainSettings;
 struct SoftBody;
@@ -90,7 +90,7 @@ PTCReadSampleResult PTC_cachelib_read_sample_hair_dynamics(struct Scene *scene, 
 PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_parents(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
 PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_children(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
 
-struct PTCWriterArchive *PTC_cachelib_writers(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
+struct PTCWriterArchive *PTC_cachelib_writers(struct Scene *scene, int required_mode, struct CacheLibrary *cachelib, struct ListBase *writers);
 void PTC_cachelib_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
 /* Particles */
@@ -109,23 +109,12 @@ struct PTCReader *PTC_reader_cloth(struct PTCReaderArchive *archive, const char 
 struct PTCWriter *PTC_writer_hair_dynamics(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
 struct PTCReader *PTC_reader_hair_dynamics(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
 
-/* Modifier Stack */
-typedef enum ePointCacheModifierMode {
-	MOD_POINTCACHE_MODE_NONE,
-	MOD_POINTCACHE_MODE_READ,
-	MOD_POINTCACHE_MODE_WRITE,
-} ePointCacheModifierMode;
-
 struct PTCWriter *PTC_writer_derived_mesh(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct DerivedMesh **dm_ptr);
 struct PTCReader *PTC_reader_derived_mesh(struct PTCReaderArchive *archive, const char *name, struct Object *ob);
 struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *reader);
 void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
-
-struct PTCWriter *PTC_writer_point_cache(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct PointCacheModifierData *pcmd);
-struct PTCReader *PTC_reader_point_cache(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct PointCacheModifierData *pcmd);
-ePointCacheModifierMode PTC_mod_point_cache_get_mode(struct PointCacheModifierData *pcmd);
-/* returns the actual new mode, in case a change didn't succeed */
-ePointCacheModifierMode PTC_mod_point_cache_set_mode(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd, ePointCacheModifierMode mode);
+struct PTCWriter *PTC_writer_derived_final(struct PTCWriterArchive *_archive, const char *name, struct Object *ob);
+struct PTCWriter *PTC_writer_cache_modifier(struct PTCWriterArchive *_archive, const char *name, struct Object *ob, struct CacheModifierData *cmd);
 
 #ifdef __cplusplus
 } /* extern C */

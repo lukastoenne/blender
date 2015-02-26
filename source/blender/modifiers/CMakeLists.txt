@@ -78,7 +78,7 @@ set(SRC
 	intern/MOD_ocean.c
 	intern/MOD_particleinstance.c
 	intern/MOD_particlesystem.c
-	intern/MOD_pointcache.c
+	intern/MOD_cache.c
 	intern/MOD_remesh.c
 	intern/MOD_screw.c
 	intern/MOD_shapekey.c

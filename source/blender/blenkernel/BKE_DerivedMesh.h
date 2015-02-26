@@ -659,6 +659,8 @@ DMCoNo *mesh_get_mapped_verts_nors(struct Scene *scene, struct Object *ob);
 #endif
 void mesh_get_mapped_verts_coords(DerivedMesh *dm, float (*r_cos)[3], const int totcos);
 
+struct ModifierData *mesh_find_cache_modifier(struct Scene *scene, struct Object *ob, int required_mode);
+
 /* */
 DerivedMesh *mesh_get_derived_final(struct Scene *scene, struct Object *ob,
                                     CustomDataMask dataMask);

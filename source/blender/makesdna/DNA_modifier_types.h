@@ -84,7 +84,7 @@ typedef enum ModifierType {
 	eModifierType_Wireframe         = 48,
 	eModifierType_DataTransfer      = 49,
 	eModifierType_NormalEdit        = 50,
-	eModifierType_PointCache        = 51,
+	eModifierType_Cache             = 51,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1444,16 +1444,18 @@ enum {
 };
 
 /* point cache modifier */
-typedef struct PointCacheModifierData {
+typedef struct CacheModifierData {
 	ModifierData modifier;
 	
 	int flag;
 	int pad;
 	
-	struct PTCReader *reader;
-	struct PTCWriter *writer;
 	struct DerivedMesh *output_dm;
-} PointCacheModifierData;
+} CacheModifierData;
+
+typedef enum eCacheModifier_Flag {
+	MOD_CACHE_USE_OUTPUT              = 1,
+} eCacheModifier_Flag;
 
 /* Set Split Normals modifier */
 typedef struct NormalEditModifierData {
