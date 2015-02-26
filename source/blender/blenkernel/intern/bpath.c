@@ -482,10 +482,6 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 						BPATH_TRAVERSE_POINTCACHE(smd->domain->ptcaches[0]);
 					}
 				}
-				else if (md->type == eModifierType_Cloth) {
-					ClothModifierData *clmd = (ClothModifierData *) md;
-					BPATH_TRAVERSE_POINTCACHE(clmd->ptcaches);
-				}
 				else if (md->type == eModifierType_Ocean) {
 					OceanModifierData *omd = (OceanModifierData *) md;
 					rewrite_path_fixed(omd->cachepath, visit_cb, absbase, bpath_user_data);

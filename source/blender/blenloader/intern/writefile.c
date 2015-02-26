@@ -1522,7 +1522,6 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			writestruct(wd, DATA, "ClothSimSettings", 1, clmd->sim_parms);
 			writestruct(wd, DATA, "ClothCollSettings", 1, clmd->coll_parms);
 			writestruct(wd, DATA, "EffectorWeights", 1, clmd->sim_parms->effector_weights);
-			write_pointcaches(wd, &clmd->ptcaches);
 		}
 		else if (md->type==eModifierType_Smoke) {
 			SmokeModifierData *smd = (SmokeModifierData*) md;

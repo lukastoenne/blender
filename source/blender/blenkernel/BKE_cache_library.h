@@ -39,6 +39,8 @@ struct Main;
 struct Object;
 struct Scene;
 
+struct ClothModifierData;
+
 struct CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
 struct CacheLibrary *BKE_cache_library_copy(struct CacheLibrary *cachelib);
 void BKE_cache_library_free(struct CacheLibrary *cachelib);
@@ -86,5 +88,7 @@ void BKE_cache_library_clear(struct CacheLibrary *cachelib);
 void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cachelib);
 
 bool BKE_cache_read_derived_mesh(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct DerivedMesh **r_dm);
+bool BKE_cache_read_cloth(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ClothModifierData *clmd);
+bool BKE_cache_read_hair_dynamics(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
 
 #endif
