@@ -38,6 +38,7 @@ struct ListBase;
 struct Main;
 struct Object;
 struct Scene;
+struct ParticleSystem;
 
 struct ClothModifierData;
 
@@ -90,5 +91,7 @@ void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cac
 bool BKE_cache_read_derived_mesh(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct DerivedMesh **r_dm);
 bool BKE_cache_read_cloth(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ClothModifierData *clmd);
 bool BKE_cache_read_hair_dynamics(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
+bool BKE_cache_read_particle_pathcache_parents(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
+bool BKE_cache_read_particle_pathcache_children(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
 
 #endif
