@@ -2409,7 +2409,7 @@ static void rna_def_modifier_particleinstance(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "particle_system_index", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "psys");
-	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_range(prop, 1, SHRT_MAX);
 	RNA_def_property_ui_text(prop, "Particle System Number", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
