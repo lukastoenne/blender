@@ -547,3 +547,25 @@ bool BKE_cache_read_hair_dynamics(Main *bmain, Scene *scene, float frame, Object
 	}
 	return false;
 }
+
+bool BKE_cache_read_particle_pathcache_parents(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+{
+	CacheLibrary *cachelib;
+	
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		if (PTC_cachelib_read_sample_particle_pathcache_parents(scene, frame, cachelib, ob, psys) != PTC_READ_SAMPLE_INVALID)
+			return true;
+	}
+	return false;
+}
+
+bool BKE_cache_read_particle_pathcache_children(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+{
+	CacheLibrary *cachelib;
+	
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		if (PTC_cachelib_read_sample_particle_pathcache_children(scene, frame, cachelib, ob, psys) != PTC_READ_SAMPLE_INVALID)
+			return true;
+	}
+	return false;
+}
