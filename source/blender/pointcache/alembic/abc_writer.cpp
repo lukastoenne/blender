@@ -51,8 +51,8 @@ AbcWriterArchive::AbcWriterArchive(Scene *scene, const std::string &filename, Er
 	PTC_SAFE_CALL_BEGIN
 	archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
 	
-	chrono_t cycle_time = seconds_per_frame();
-	chrono_t start_time = 0.0f;
+	chrono_t cycle_time = this->seconds_per_frame();
+	chrono_t start_time = this->start_time();
 	m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
 	
 	PTC_SAFE_CALL_END_HANDLER(m_error_handler)

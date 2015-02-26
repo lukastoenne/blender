@@ -29,16 +29,20 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcCoreAbstract;
 
-FrameMapper::FrameMapper(double fps)
+FrameMapper::FrameMapper(double fps, double start_time)
 {
 	m_frames_per_sec = fps;
 	m_sec_per_frame = (fps == 0.0 ? 0.0 : 1.0/fps);
+	m_start_frame = start_time * fps;
+	m_start_time = start_time;
 }
 
 FrameMapper::FrameMapper(Scene *scene)
 {
 	m_frames_per_sec = (scene->r.frs_sec_base == 0.0f ? 0.0 : (double)scene->r.frs_sec / (double)scene->r.frs_sec_base);
 	m_sec_per_frame = (scene->r.frs_sec == 0.0f ? 0.0 : (double)scene->r.frs_sec_base / (double)scene->r.frs_sec);
+	m_start_frame = ((double)scene->r.sfra);
+	m_start_time = m_start_frame * m_sec_per_frame;
 }
 
 chrono_t FrameMapper::frame_to_time(float frame) const

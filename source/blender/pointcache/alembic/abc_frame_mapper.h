@@ -35,17 +35,20 @@ using Alembic::AbcCoreAbstract::chrono_t;
 
 class FrameMapper {
 public:
-	FrameMapper(double fps);
+	FrameMapper(double fps, double start_time);
 	FrameMapper(Scene *scene);
 	
 	double frames_per_second() const { return m_frames_per_sec; }
 	double seconds_per_frame() const { return m_sec_per_frame; }
+	double start_frame() const { return m_start_frame; }
+	double start_time() const { return m_start_time; }
 	
 	chrono_t frame_to_time(float frame) const;
 	float time_to_frame(chrono_t time) const;
 	
 private:
 	double m_frames_per_sec, m_sec_per_frame;
+	double m_start_frame, m_start_time;
 };
 
 #endif /* WITH_ALEMBIC */
