@@ -408,6 +408,10 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
 
     item_type_icon = { e.identifier : e.icon for e in bpy.types.CacheItem.bl_rna.properties['type'].enum_items }
 
+    @classmethod
+    def poll(cls, context):
+        return True
+
     # returns True if the item exists and is enabled
     def draw_cache_item_button(self, context, layout, cachelib, ob, type, index=-1):
         item = cachelib.cache_item_find(ob, type, index)
