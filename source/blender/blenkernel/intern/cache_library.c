@@ -326,6 +326,17 @@ static bool cache_item_cmp(const void *key_a, const void *key_b)
 	return false;
 }
 
+BLI_INLINE void print_cachelib_items(CacheLibrary *cachelib)
+{
+	CacheItem *item;
+	int i;
+	
+	printf("Cache Library %s:\n", cachelib->id.name+2);
+	for (item = cachelib->items.first, i = 0; item; item = item->next, ++i) {
+		printf("  Item %d: ob=%s, type=%d, index=%d, hash=%d\n", i, item->ob ? item->ob->id.name+2 : "!!!", item->type, item->index, cache_item_hash(item));
+	}
+}
+
 const char *BKE_cache_item_name_prefix(int type)
 {
 	/* note: avoid underscores and the like here,
@@ -411,6 +422,8 @@ CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, struct Object *ob,
 		
 		BLI_addtail(&cachelib->items, item);
 		cache_library_insert_item_hash(cachelib, item, false);
+		
+		id_lib_extern((ID *)item->ob);
 	}
 	
 	return item;

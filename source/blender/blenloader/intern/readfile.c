@@ -114,6 +114,7 @@
 
 #include "BKE_armature.h"
 #include "BKE_brush.h"
+#include "BKE_cache_library.h"
 #include "BKE_cloth.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
@@ -1983,7 +1984,7 @@ static void direct_link_script(FileData *UNUSED(fd), Script *script)
 static void lib_link_cache_library(FileData *fd, Main *main)
 {
 	CacheLibrary *cachelib;
-	CacheItem *item;
+	CacheItem *item, *item_next;
 	
 	for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
 		if (cachelib->id.flag & LIB_NEED_LINK) {
@@ -1991,8 +1992,13 @@ static void lib_link_cache_library(FileData *fd, Main *main)
 			
 			cachelib->group = newlibadr_us(fd, cachelib->id.lib, cachelib->group);
 			
-			for (item = cachelib->items.first; item; item = item->next) {
+			for (item = cachelib->items.first; item; item = item_next) {
+				item_next = item->next;
+				
 				item->ob = newlibadr(fd, cachelib->id.lib, item->ob);
+				
+				if (!item->ob)
+					BKE_cache_library_remove_item(cachelib, item);
 			}
 		}
 	}
