@@ -34,18 +34,19 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_particle_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_linklist.h"
 
+#include "BKE_cache_library.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_cloth.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_modifier.h"
-#include "BKE_pointcache.h"
 
 #include "BPH_mass_spring.h"
 
@@ -126,9 +127,6 @@ void cloth_init(ClothModifierData *clmd )
 
 	if (!clmd->sim_parms->effector_weights)
 		clmd->sim_parms->effector_weights = BKE_add_effector_weights(NULL);
-
-	if (clmd->point_cache)
-		clmd->point_cache->step = 1;
 }
 
 static BVHTree *bvhselftree_build_from_cloth (ClothModifierData *clmd, float epsilon)
@@ -304,35 +302,16 @@ void bvhselftree_update_from_cloth(ClothModifierData *clmd, int moving)
 	}
 }
 
-void cloth_clear_cache(Object *ob, ClothModifierData *clmd, float framenr)
-{
-	PTCacheID pid;
-	
-	BKE_ptcache_id_from_cloth(&pid, ob, clmd);
-
-	// don't do anything as long as we're in editmode!
-	if (pid.cache->edit && ob->mode & OB_MODE_PARTICLE_EDIT)
-		return;
-	
-	BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_AFTER, framenr);
-}
-
 static int do_init_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *result, int framenr)
 {
-	PointCache *cache;
-
-	cache= clmd->point_cache;
-
 	/* initialize simulation data if it didn't exist already */
 	if (clmd->clothObject == NULL) {
 		if (!cloth_from_object(ob, clmd, result, framenr, 1)) {
-			BKE_ptcache_invalidate(cache);
 			modifier_setError(&(clmd->modifier), "Can't initialize cloth");
 			return 0;
 		}
 	
 		if (clmd->clothObject == NULL) {
-			BKE_ptcache_invalidate(cache);
 			modifier_setError(&(clmd->modifier), "Null cloth object");
 			return 0;
 		}
@@ -448,99 +427,65 @@ static DerivedMesh *cloth_to_triangles(DerivedMesh *dm)
  ************************************************/
 void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*vertexCos)[3])
 {
-	PointCache *cache;
-	PTCacheID pid;
-	float timescale;
-	int framenr, startframe, endframe;
-	int cache_result;
+	const int startframe = scene->r.sfra;
+	int framenr;
+	bool cache_result;
 
 	clmd->scene= scene;	/* nice to pass on later :) */
 	framenr= (int)scene->r.cfra;
-	cache= clmd->point_cache;
 
-	BKE_ptcache_id_from_cloth(&pid, ob, clmd);
-	BKE_ptcache_id_time(&pid, scene, framenr, &startframe, &endframe, &timescale);
-	clmd->sim_parms->timescale= timescale;
+	clmd->sim_parms->timescale = 1.0f;
 
 	if (clmd->sim_parms->reset || (clmd->clothObject && dm->getNumVerts(dm) != clmd->clothObject->numverts)) {
 		clmd->sim_parms->reset = 0;
-		cache->flag |= PTCACHE_OUTDATED;
-		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		BKE_ptcache_validate(cache, 0);
-		cache->last_exact= 0;
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
 	}
 	
 	// unused in the moment, calculated separately in implicit.c
 	clmd->sim_parms->dt = clmd->sim_parms->timescale / clmd->sim_parms->stepsPerFrame;
-
-	/* simulation is only active during a specific period */
-	if (framenr < startframe) {
-		BKE_ptcache_invalidate(cache);
-		return;
-	}
-	else if (framenr > endframe) {
-		framenr= endframe;
-	}
 
 	/* initialize simulation data if it didn't exist already */
 	if (!do_init_cloth(ob, clmd, dm, framenr))
 		return;
 
 	if (framenr == startframe) {
-		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		do_init_cloth(ob, clmd, dm, framenr);
-		BKE_ptcache_validate(cache, framenr);
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
-		clmd->clothObject->last_frame= framenr;
+		cloth_from_object(ob, clmd, dm, framenr, true);
+		BKE_cloth_solver_set_positions(clmd);
+		clmd->clothObject->last_frame = framenr;
 		return;
 	}
 
 	/* try to read from cache */
-	cache_result = BKE_ptcache_read(&pid, (float)framenr+scene->r.subframe);
+	cache_result = false;
+	if (clmd->hairdata) {
+		ParticleSystem *psys;
+		/* horrible */
+		for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+			if (psys->clmd == clmd)
+				break;
+		}
+		
+		if (psys)
+			cache_result = BKE_cache_read_hair_dynamics(G.main, scene, scene->r.cfra, ob, psys);
+	}
+	else {
+		cache_result = BKE_cache_read_cloth(G.main, scene, scene->r.cfra, ob, clmd);
+	}
 
-	if (cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED) {
-		BPH_cloth_solver_set_positions(clmd);
+	if (cache_result) {
 		cloth_to_object (ob, clmd, vertexCos);
-
-		BKE_ptcache_validate(cache, framenr);
-
-		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
-			BKE_ptcache_write(&pid, framenr);
-
 		clmd->clothObject->last_frame= framenr;
-
 		return;
 	}
-	else if (cache_result==PTCACHE_READ_OLD) {
-		BPH_cloth_solver_set_positions(clmd);
+	else {
+		if (framenr == clmd->clothObject->last_frame + 1) {
+			if (do_step_cloth(ob, clmd, dm, framenr)) {
+				clmd->clothObject->last_frame= framenr;
+			}
+		}
+		
+		BKE_cloth_solver_set_positions(clmd);
+		cloth_to_object (ob, clmd, vertexCos);
 	}
-	else if ( /*ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
-		/* if baked and nothing in cache, do nothing */
-		BKE_ptcache_invalidate(cache);
-		return;
-	}
-
-	if (framenr!=clmd->clothObject->last_frame+1)
-		return;
-
-	/* if on second frame, write cache for first frame */
-	if (cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
-		BKE_ptcache_write(&pid, startframe);
-
-	clmd->sim_parms->timescale *= framenr - cache->simframe;
-
-	/* do simulation */
-	BKE_ptcache_validate(cache, framenr);
-
-	if (!do_step_cloth(ob, clmd, dm, framenr)) {
-		BKE_ptcache_invalidate(cache);
-	}
-	else
-		BKE_ptcache_write(&pid, framenr);
-
-	cloth_to_object (ob, clmd, vertexCos);
-	clmd->clothObject->last_frame= framenr;
 }
 
 /* frees all */
