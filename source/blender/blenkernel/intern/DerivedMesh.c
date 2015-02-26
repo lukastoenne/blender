@@ -1589,13 +1589,17 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	
 	if (BKE_cache_read_derived_mesh(G.main, scene, scene->r.cfra, ob, &cachedm)) {
 		CacheModifierData *cmd = (CacheModifierData *)mesh_find_cache_modifier(scene, ob, required_mode);
-		firstmd = &cmd->modifier;
-		
-		/* use the cache result as output of the modifier
-		 * rather than as the final dm
-		 */
-		cmd->output_dm = cachedm;
-		cachedm = NULL;
+		if (cmd) {
+			firstmd = &cmd->modifier;
+			
+			/* use the cache result as output of the modifier
+			 * rather than as the final dm
+			 */
+			cmd->output_dm = cachedm;
+			cachedm = NULL;
+		}
+		else
+			firstmd = NULL;
 	}
 	else {
 		firstmd = mesh_find_start_modifier(scene, ob, &virtualModifierData, required_mode, useDeform);

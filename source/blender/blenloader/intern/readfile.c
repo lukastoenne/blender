@@ -4975,6 +4975,12 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			}
 			lmd->cache_system = NULL;
 		}
+		else if (md->type == eModifierType_Cache) {
+			CacheModifierData *cmd = (CacheModifierData *)md;
+			
+			cmd->output_dm = NULL;
+			cmd->flag &= ~MOD_CACHE_USE_OUTPUT;
+		}
 	}
 }
 
