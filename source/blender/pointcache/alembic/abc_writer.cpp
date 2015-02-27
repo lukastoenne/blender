@@ -66,10 +66,4 @@ TimeSamplingPtr AbcWriterArchive::frame_sampling()
 	return archive.getTimeSampling(m_frame_sampling);
 }
 
-
-WriterArchive *abc_writer_archive(Scene *scene, const std::string &filename, ErrorHandler *error_handler)
-{
-	return new AbcWriterArchive(scene, filename, error_handler);
-}
-
 } /* namespace PTC */

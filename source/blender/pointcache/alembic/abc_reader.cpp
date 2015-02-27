@@ -89,10 +89,4 @@ PTCReadSampleResult AbcReaderArchive::test_sample(float frame)
 	}
 }
 
-
-ReaderArchive *abc_reader_archive(Scene *scene, const std::string &filename, ErrorHandler *error_handler)
-{
-	return new AbcReaderArchive(scene, filename, error_handler);
-}
-
 } /* namespace PTC */
