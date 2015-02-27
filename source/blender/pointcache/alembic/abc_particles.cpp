@@ -449,42 +449,4 @@ PTCReadSampleResult AbcParticlePathcacheReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-/* ==== API ==== */
-
-Writer *abc_writer_particles(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcParticlesWriter((AbcWriterArchive *)archive, name, ob, psys);
-}
-
-Reader *abc_reader_particles(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
-{
-	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcParticlesReader((AbcReaderArchive *)archive, name, ob, psys);
-}
-
-Writer *abc_writer_particle_pathcache_parents(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcParticlePathcacheParentsWriter((AbcWriterArchive *)archive, name, ob, psys);
-}
-
-Writer *abc_writer_particle_pathcache_children(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcParticlePathcacheChildrenWriter((AbcWriterArchive *)archive, name, ob, psys);
-}
-
-Reader *abc_reader_particle_pathcache_parents(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
-{
-	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcParticlePathcacheParentsReader((AbcReaderArchive *)archive, name, ob, psys);
-}
-
-Reader *abc_reader_particle_pathcache_children(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
-{
-	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcParticlePathcacheChildrenReader((AbcReaderArchive *)archive, name, ob, psys);
-}
-
 } /* namespace PTC */

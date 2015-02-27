@@ -578,30 +578,4 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-/* ==== API ==== */
-
-Writer *abc_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcDerivedMeshWriter((AbcWriterArchive *)archive, name, ob, dm_ptr);
-}
-
-Reader *abc_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob)
-{
-	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcDerivedMeshReader((AbcReaderArchive *)archive, name, ob);
-}
-
-Writer *abc_writer_derived_final(WriterArchive *archive, const std::string &name, Object *ob)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcDerivedFinalWriter((AbcWriterArchive *)archive, name, ob);
-}
-
-Writer *abc_writer_cache_modifier(WriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcCacheModifierWriter((AbcWriterArchive *)archive, name, ob, cmd);
-}
-
 } /* namespace PTC */

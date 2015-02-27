@@ -238,30 +238,4 @@ PTCReadSampleResult AbcClothReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-/* ==== API ==== */
-
-Writer *abc_writer_cloth(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcClothWriter((AbcWriterArchive *)archive, name, ob, clmd);
-}
-
-Reader *abc_reader_cloth(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
-{
-	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcClothReader((AbcReaderArchive *)archive, name, ob, clmd);
-}
-
-Writer *abc_writer_hair_dynamics(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
-{
-	BLI_assert(dynamic_cast<AbcWriterArchive *>(archive));
-	return new AbcHairDynamicsWriter((AbcWriterArchive *)archive, name, ob, clmd);
-}
-
-Reader *abc_reader_hair_dynamics(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
-{
-	BLI_assert(dynamic_cast<AbcReaderArchive *>(archive));
-	return new AbcHairDynamicsReader((AbcReaderArchive *)archive, name, ob, clmd);
-}
-
 } /* namespace PTC */
