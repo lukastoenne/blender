@@ -64,6 +64,9 @@ typedef enum eCacheItem_Flag {
 typedef struct CacheLibrary {
 	ID id;
 	
+	int flag;
+	int pad;
+	
 	char filepath[1024]; /* 1024 = FILE_MAX */
 	struct Group *group;
 	
@@ -71,5 +74,8 @@ typedef struct CacheLibrary {
 	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */
 } CacheLibrary;
 
-#endif
+typedef enum eCacheLibrary_Flag {
+	CACHE_LIBRARY_READ              = 1, /* read data from this cache library */
+} eCacheLibrary_Flag;
 
+#endif

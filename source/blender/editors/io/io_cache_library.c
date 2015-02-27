@@ -269,6 +269,9 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	/* XXX how can this be defined properly? */
 	required_mode = eModifierMode_Render;
 	
+	/* disable reading for the duration of the bake process */
+	data->cachelib->flag &= ~CACHE_LIBRARY_READ;
+	
 	data->archive = PTC_cachelib_writers(scene, required_mode, data->cachelib, &data->writers);
 	
 	/* XXX where to get this from? */
@@ -289,6 +292,9 @@ static void cache_library_bake_endjob(void *customdata)
 	BKE_spacedata_draw_locks(false);
 	
 	PTC_cachelib_writers_free(data->archive, &data->writers);
+	
+	/* enable reading */
+	data->cachelib->flag |= CACHE_LIBRARY_READ;
 	
 	/* reset scene frame */
 	scene->r.cfra = data->origfra;

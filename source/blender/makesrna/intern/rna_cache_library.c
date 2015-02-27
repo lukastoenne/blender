@@ -279,6 +279,11 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Cache Library", "Cache Library datablock for constructing an archive of caches");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
 	
+	prop = RNA_def_property(srna, "read", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", CACHE_LIBRARY_READ);
+	RNA_def_property_ui_text(prop, "Read", "Apply stored data from this cache library");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
 	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "filepath");
 	RNA_def_property_ui_text(prop, "File Path", "Path to cache library storage");
