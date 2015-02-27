@@ -45,6 +45,7 @@ struct ClothModifierData;
 struct CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
 struct CacheLibrary *BKE_cache_library_copy(struct CacheLibrary *cachelib);
 void BKE_cache_library_free(struct CacheLibrary *cachelib);
+void BKE_cache_library_unlink(struct CacheLibrary *cachelib);
 
 void BKE_cache_library_make_object_list(struct Main *bmain, struct CacheLibrary *cachelib, struct ListBase *lb);
 

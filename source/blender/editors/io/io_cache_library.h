@@ -33,6 +33,7 @@
 struct wmOperatorType;
 
 void CACHELIBRARY_OT_new(struct wmOperatorType *ot);
+void CACHELIBRARY_OT_delete(struct wmOperatorType *ot);
 
 void CACHELIBRARY_OT_item_enable(struct wmOperatorType *ot);
 

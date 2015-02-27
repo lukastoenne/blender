@@ -455,6 +455,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         sub = row.row(align=True)
         sub.alignment = 'RIGHT'
         sub.prop(cachelib, "use_fake_user", text="F", toggle=True)
+        sub.operator("cachelibrary.delete", text="", icon='X')
 
         row = layout.row(align=True)
         row.alignment = 'LEFT'

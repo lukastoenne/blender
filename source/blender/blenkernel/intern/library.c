@@ -412,6 +412,10 @@ bool id_unlink(ID *id, int test)
 			if (test) return true;
 			BKE_object_unlink((Object *)id);
 			break;
+		case ID_CL:
+			if (test) return true;
+			BKE_cache_library_unlink((CacheLibrary *)id);
+			break;
 	}
 
 	if (id->us == 0) {

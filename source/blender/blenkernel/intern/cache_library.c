@@ -84,6 +84,10 @@ void BKE_cache_library_free(CacheLibrary *cachelib)
 		BLI_ghash_free(cachelib->items_hash, NULL, NULL);
 }
 
+void BKE_cache_library_unlink(CacheLibrary *cachelib)
+{
+}
+
 /* ========================================================================= */
 
 static void cache_library_tag_recursive(CacheLibrary *cachelib, int level, Object *ob)
