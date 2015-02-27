@@ -46,6 +46,7 @@
 #include "BKE_cache_library.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -100,7 +101,7 @@ static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
 		RNA_property_update(C, &ptr, prop);
 	}
 	
-	WM_event_add_notifier(C, NC_OBJECT, cachelib);
+	WM_event_add_notifier(C, NC_SCENE, cachelib);
 	
 	return OPERATOR_FINISHED;
 }
@@ -117,6 +118,50 @@ void CACHELIBRARY_OT_new(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/********************** delete cache library operator *********************/
+
+static int cache_library_delete_poll(bContext *C)
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	
+	if (!cachelib)
+		return false;
+	
+	return true;
+}
+
+static int cache_library_delete_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Main *bmain = CTX_data_main(C);
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	
+	BKE_cache_library_unlink(cachelib);
+	BKE_libblock_free(bmain, cachelib);
+	
+	WM_event_add_notifier(C, NC_SCENE, cachelib);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_delete(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Delete Cache Library";
+	ot->idname = "CACHELIBRARY_OT_delete";
+	ot->description = "Delete a cache library data block";
+	
+	/* api callbacks */
+	ot->exec = cache_library_delete_exec;
+	/* XXX confirm popup would be nicer, but problem is the popup layout
+	 * does not inherit the cache_library context pointer, so poll fails ...
+	 */
+	/*ot->invoke = WM_operator_confirm;*/
+	ot->poll = cache_library_delete_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
 }
 
 /********************** enable cache item operator *********************/
