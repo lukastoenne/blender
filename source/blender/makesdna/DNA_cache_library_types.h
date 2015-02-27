@@ -43,6 +43,7 @@ typedef enum eCacheItemType {
 	CACHE_TYPE_DERIVED_MESH         = 1,
 	CACHE_TYPE_HAIR                 = 2,
 	CACHE_TYPE_HAIR_PATHS           = 3,
+	CACHE_TYPE_PARTICLES            = 4,
 } eCacheItemType;
 
 typedef struct CacheItem {

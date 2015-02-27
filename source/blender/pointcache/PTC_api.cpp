@@ -244,24 +244,24 @@ PTCReader *PTC_cachelib_reader_hair_dynamics(CacheLibrary *cachelib, PTCReaderAr
 	return NULL;
 }
 
-PTCReader *PTC_cachelib_reader_particle_pathcache_parents(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+PTCReader *PTC_cachelib_reader_particles(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
 {
-	if (!(psys && psys->part && psys->part->type == PART_HAIR))
+	if (!(psys && psys->part && psys->part->type != PART_HAIR))
 		return NULL;
 	
 	int index = BLI_findindex(&ob->particlesystem, psys);
-	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_HAIR_PATHS, index);
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_PARTICLES, index);
 	if (item && (item->flag & CACHE_ITEM_ENABLED)) {
 		char name[2*MAX_NAME];
-		BKE_cache_item_name(ob, CACHE_TYPE_HAIR_PATHS, index, name);
+		BKE_cache_item_name(ob, CACHE_TYPE_PARTICLES, index, name);
 		
-		return PTC_reader_particle_pathcache_parents(archive, name, ob, psys);
+		return PTC_reader_particles(archive, name, ob, psys);
 	}
 	
 	return NULL;
 }
 
-PTCReader *PTC_cachelib_reader_particle_pathcache_children(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+PTCReader *PTC_cachelib_reader_particles_pathcache_parents(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
 {
 	if (!(psys && psys->part && psys->part->type == PART_HAIR))
 		return NULL;
@@ -272,7 +272,24 @@ PTCReader *PTC_cachelib_reader_particle_pathcache_children(CacheLibrary *cacheli
 		char name[2*MAX_NAME];
 		BKE_cache_item_name(ob, CACHE_TYPE_HAIR_PATHS, index, name);
 		
-		return PTC_reader_particle_pathcache_children(archive, name, ob, psys);
+		return PTC_reader_particles_pathcache_parents(archive, name, ob, psys);
+	}
+	
+	return NULL;
+}
+
+PTCReader *PTC_cachelib_reader_particles_pathcache_children(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+{
+	if (!(psys && psys->part && psys->part->type == PART_HAIR))
+		return NULL;
+	
+	int index = BLI_findindex(&ob->particlesystem, psys);
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_HAIR_PATHS, index);
+	if (item && (item->flag & CACHE_ITEM_ENABLED)) {
+		char name[2*MAX_NAME];
+		BKE_cache_item_name(ob, CACHE_TYPE_HAIR_PATHS, index, name);
+		
+		return PTC_reader_particles_pathcache_children(archive, name, ob, psys);
 	}
 	
 	return NULL;
@@ -309,12 +326,12 @@ PTCReadSampleResult PTC_cachelib_read_sample_hair_dynamics(Scene *scene, float f
 	return result;
 }
 
-PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_parents(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
+PTCReadSampleResult PTC_cachelib_read_sample_particles(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	
-	PTCReader *reader = PTC_cachelib_reader_particle_pathcache_parents(cachelib, archive, ob, psys);
+	PTCReader *reader = PTC_cachelib_reader_particles(cachelib, archive, ob, psys);
 	PTCReadSampleResult result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
 	
 	PTC_close_reader_archive(archive);
@@ -322,12 +339,25 @@ PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_parents(Scene *s
 	return result;
 }
 
-PTCReadSampleResult PTC_cachelib_read_sample_particle_pathcache_children(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
+PTCReadSampleResult PTC_cachelib_read_sample_particles_pathcache_parents(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	
-	PTCReader *reader = PTC_cachelib_reader_particle_pathcache_children(cachelib, archive, ob, psys);
+	PTCReader *reader = PTC_cachelib_reader_particles_pathcache_parents(cachelib, archive, ob, psys);
+	PTCReadSampleResult result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
+	
+	PTC_close_reader_archive(archive);
+	
+	return result;
+}
+
+PTCReadSampleResult PTC_cachelib_read_sample_particles_pathcache_children(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
+{
+	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
+	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
+	
+	PTCReader *reader = PTC_cachelib_reader_particles_pathcache_children(cachelib, archive, ob, psys);
 	PTCReadSampleResult result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
 	
 	PTC_close_reader_archive(archive);
@@ -375,15 +405,22 @@ PTCWriterArchive *PTC_cachelib_writers(Scene *scene, int required_mode, CacheLib
 					cachelib_add_writer(writers, PTC_writer_hair_dynamics(archive, name, item->ob, psys->clmd));
 				}
 				break;
-			};
+			}
 			case CACHE_TYPE_HAIR_PATHS: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR) {
-					cachelib_add_writer(writers, PTC_writer_particle_pathcache_parents(archive, name, item->ob, psys));
-					cachelib_add_writer(writers, PTC_writer_particle_pathcache_children(archive, name, item->ob, psys));
+					cachelib_add_writer(writers, PTC_writer_particles_pathcache_parents(archive, name, item->ob, psys));
+					cachelib_add_writer(writers, PTC_writer_particles_pathcache_children(archive, name, item->ob, psys));
 				}
 				break;
-			};
+			}
+			case CACHE_TYPE_PARTICLES: {
+				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
+				if (psys && psys->part && psys->part->type != PART_HAIR) {
+					cachelib_add_writer(writers, PTC_writer_particles(archive, name, item->ob, psys));
+				}
+				break;
+			}
 			default:
 				break;
 		}
@@ -491,25 +528,25 @@ int PTC_reader_particles_totpoint(PTCReader *_reader)
 	return ((PTC::ParticlesReader *)_reader)->totpoint();
 }
 
-PTCWriter *PTC_writer_particle_pathcache_parents(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particles_pathcache_parents(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_particles_pathcache_parents(archive, name, ob, psys);
 }
 
-PTCReader *PTC_reader_particle_pathcache_parents(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
+PTCReader *PTC_reader_particles_pathcache_parents(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	return (PTCReader *)PTC::Factory::alembic->create_reader_particles_pathcache_parents(archive, name, ob, psys);
 }
 
-PTCWriter *PTC_writer_particle_pathcache_children(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particles_pathcache_children(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_particles_pathcache_children(archive, name, ob, psys);
 }
 
-PTCReader *PTC_reader_particle_pathcache_children(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
+PTCReader *PTC_reader_particles_pathcache_children(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	return (PTCReader *)PTC::Factory::alembic->create_reader_particles_pathcache_children(archive, name, ob, psys);

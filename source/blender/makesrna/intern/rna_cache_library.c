@@ -42,6 +42,7 @@ EnumPropertyItem cache_library_item_type_items[] = {
     {CACHE_TYPE_DERIVED_MESH,   "DERIVED_MESH",     ICON_OUTLINER_OB_MESH,  "Derived Mesh", "Mesh result from modifiers"},
     {CACHE_TYPE_HAIR,           "HAIR",             ICON_PARTICLE_POINT,    "Hair", "Hair parent strands"},
     {CACHE_TYPE_HAIR_PATHS,     "HAIR_PATHS",       ICON_PARTICLE_PATH,     "Hair Paths", "Full hair paths"},
+    {CACHE_TYPE_PARTICLES,      "PARTICLES",        ICON_PARTICLES,         "Particles", "Emitter particles"},
     {0, NULL, 0, NULL, NULL}
 };
 
