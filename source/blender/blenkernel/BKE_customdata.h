@@ -142,6 +142,9 @@ void CustomData_reset(struct CustomData *data);
  */
 void CustomData_free(struct CustomData *data, int totelem);
 
+/* same as above, but only frees layers which matches the given mask. */
+void CustomData_free_typemask(struct CustomData *data, int totelem, CustomDataMask mask);
+
 /* frees all layers with CD_FLAG_TEMPORARY */
 void CustomData_free_temporary(struct CustomData *data, int totelem);
 
