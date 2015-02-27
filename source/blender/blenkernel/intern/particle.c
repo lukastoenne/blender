@@ -2374,7 +2374,7 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 	}
 	
 	/* try reading from point cache */
-	cache_result = BKE_cache_read_particle_pathcache_parents(G.main, sim->scene, cfra, sim->ob, sim->psys);
+	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, sim->ob, sim->psys);
 	if (!cache_result) {
 		/* cache parent paths */
 		ctx.parent_pass = 1;
@@ -2390,7 +2390,7 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 		psys_tasks_free(tasks_parent, numtasks_parent);
 	}
 	
-	cache_result = BKE_cache_read_particle_pathcache_children(G.main, sim->scene, cfra, sim->ob, sim->psys);
+	cache_result = BKE_cache_read_particles_pathcache_children(G.main, sim->scene, cfra, sim->ob, sim->psys);
 	if (!cache_result) {
 		/* cache child paths */
 		ctx.parent_pass = 0;
@@ -2502,7 +2502,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	cache = psys->pathcache = psys_alloc_path_cache_buffers(&psys->pathcachebufs, totpart, segments + 1);
 
 	/* try reading from cache */
-	cache_result = BKE_cache_read_particle_pathcache_parents(G.main, sim->scene, cfra, sim->ob, sim->psys);
+	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, sim->ob, sim->psys);
 	if (cache_result)
 		return;
 

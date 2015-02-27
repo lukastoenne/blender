@@ -170,6 +170,9 @@ static int cache_count_items(Object *ob) {
 		if (psys->part->type == PART_HAIR) {
 			totitem += 2; /* hair and hair paths */
 		}
+		else {
+			totitem += 1; /* particles */
+		}
 	}
 	
 	return totitem;
@@ -204,6 +207,13 @@ static void cache_make_items(Object *ob, CacheItem *item) {
 			/* hair paths */
 			item->ob = ob;
 			item->type = CACHE_TYPE_HAIR_PATHS;
+			item->index = i;
+			++item;
+		}
+		else {
+			/* hair paths */
+			item->ob = ob;
+			item->type = CACHE_TYPE_PARTICLES;
 			item->index = i;
 			++item;
 		}
@@ -347,6 +357,7 @@ const char *BKE_cache_item_name_prefix(int type)
 		case CACHE_TYPE_DERIVED_MESH: return "MESH";
 		case CACHE_TYPE_HAIR: return "HAIR";
 		case CACHE_TYPE_HAIR_PATHS: return "HAIRPATHS";
+		case CACHE_TYPE_PARTICLES: return "PARTICLES";
 		default: BLI_assert(false); return NULL; break;
 	}
 }
@@ -561,23 +572,34 @@ bool BKE_cache_read_hair_dynamics(Main *bmain, Scene *scene, float frame, Object
 	return false;
 }
 
-bool BKE_cache_read_particle_pathcache_parents(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+bool BKE_cache_read_particles(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys)
 {
 	CacheLibrary *cachelib;
 	
 	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
-		if (PTC_cachelib_read_sample_particle_pathcache_parents(scene, frame, cachelib, ob, psys) != PTC_READ_SAMPLE_INVALID)
+		if (PTC_cachelib_read_sample_particles(scene, frame, cachelib, ob, psys) != PTC_READ_SAMPLE_INVALID)
 			return true;
 	}
 	return false;
 }
 
-bool BKE_cache_read_particle_pathcache_children(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+bool BKE_cache_read_particles_pathcache_parents(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
 {
 	CacheLibrary *cachelib;
 	
 	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
-		if (PTC_cachelib_read_sample_particle_pathcache_children(scene, frame, cachelib, ob, psys) != PTC_READ_SAMPLE_INVALID)
+		if (PTC_cachelib_read_sample_particles_pathcache_parents(scene, frame, cachelib, ob, psys) != PTC_READ_SAMPLE_INVALID)
+			return true;
+	}
+	return false;
+}
+
+bool BKE_cache_read_particles_pathcache_children(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+{
+	CacheLibrary *cachelib;
+	
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		if (PTC_cachelib_read_sample_particles_pathcache_children(scene, frame, cachelib, ob, psys) != PTC_READ_SAMPLE_INVALID)
 			return true;
 	}
 	return false;
