@@ -113,6 +113,7 @@ struct GPUFX {
 	bool restore_stencil;
 };
 
+#if 0
 /* concentric mapping, see "A Low Distortion Map Between Disk and Square" and
  * http://psgraphics.blogspot.nl/2011/01/improved-code-for-concentric-map.html */
 static GPUTexture * create_concentric_sample_texture(int side)
@@ -142,6 +143,28 @@ static GPUTexture * create_concentric_sample_texture(int side)
 	}
 
 	tex = GPU_texture_create_1D_procedural(side * side, texels, NULL);
+	MEM_freeN(texels);
+	return tex;
+}
+#endif
+
+static GPUTexture *create_spiral_sample_texture(int numsaples)
+{
+	GPUTexture *tex;
+	float (*texels)[2] = MEM_mallocN(sizeof(float[2]) * numsaples, "concentric_tex");
+	const float numsaples_inv = 1.0f / numsaples;
+	int i;
+	/* arbitrary number to ensure we don't get conciding samples every circle */
+	const float spirals = 7.357;
+
+	for (i = 0; i < numsaples; i++) {
+		float r = (i + 0.5f) * numsaples_inv;
+		float phi = r * spirals * (float)(2.0 * M_PI);
+		texels[i][0] = r * cosf(phi);
+		texels[i][1] = r * sinf(phi);
+	}
+
+	tex = GPU_texture_create_1D_procedural(numsaples, (float *)texels, NULL);
 	MEM_freeN(texels);
 	return tex;
 }
@@ -251,8 +274,8 @@ static GPUTexture * create_jitter_texture(void)
 	int i;
 
 	for (i = 0; i < 64 * 64; i++) {
-		jitter[i][0] = 2.0f * BLI_frand() - 1.0;
-		jitter[i][1] = 2.0f * BLI_frand() - 1.0;
+		jitter[i][0] = 2.0f * BLI_frand() - 1.0f;
+		jitter[i][1] = 2.0f * BLI_frand() - 1.0f;
 		normalize_v2(jitter[i]);
 	}
 
@@ -342,7 +365,7 @@ bool GPU_fx_compositor_initialize_passes(
 				GPU_texture_free(fx->ssao_concentric_samples_tex);
 			}
 
-			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(fx_settings->ssao->samples);
+			fx->ssao_concentric_samples_tex = create_spiral_sample_texture(fx_settings->ssao->samples);
 		}
 	}
 	else {
@@ -619,7 +642,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			float ssao_params[4] = {fx_ssao->distance_max, fx_ssao->factor, fx_ssao->attenuation, 0.0f};
 			float sample_params[4];
 
-			sample_params[0] = fx->ssao_sample_count * fx->ssao_sample_count;
+			sample_params[0] = fx->ssao_sample_count;
 			/* multiplier so we tile the random texture on screen */
 			sample_params[2] = fx->gbuffer_dim[0] / 64.0;
 			sample_params[3] = fx->gbuffer_dim[1] / 64.0;
@@ -691,7 +714,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		float scale_camera = 0.001f / scale;
 		float aperture = 2.0f * scale_camera * fx_dof->focal_length / fx_dof->fstop;
 
-		dof_params[0] = aperture * fabs(scale_camera * fx_dof->focal_length / (fx_dof->focus_distance - scale_camera * fx_dof->focal_length));
+		dof_params[0] = aperture * fabsf(scale_camera * fx_dof->focal_length / (fx_dof->focus_distance - scale_camera * fx_dof->focal_length));
 		dof_params[1] = fx_dof->focus_distance;
 		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * fx_dof->sensor);
 		dof_params[3] = 0.0f;
@@ -955,5 +978,5 @@ void GPU_fx_compositor_init_ssao_settings(GPUSSAOSettings *fx_ssao)
 	fx_ssao->factor = 1.0f;
 	fx_ssao->distance_max = 0.2f;
 	fx_ssao->attenuation = 1.0f;
-	fx_ssao->samples = 4;
+	fx_ssao->samples = 20;
 }
