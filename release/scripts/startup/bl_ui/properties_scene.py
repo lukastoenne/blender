@@ -402,6 +402,9 @@ class SCENE_PT_simplify(SceneButtonsPanel, Panel):
         col.prop(rd, "simplify_ao_sss", text="AO and SSS")
 
 
+# XXX temporary solution
+bpy.types.Scene.cache_library_filter = bpy.props.StringProperty(name="Cache Library Filter", description="Filter cache libraries")
+
 class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
     bl_label = "Cache Manager"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
@@ -469,8 +472,14 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         row.prop(cachelib, "read", text="Read", toggle=True)
         row.operator("cachelibrary.bake")
 
+        obfilter_string = context.scene.cache_library_filter.lower()
+        if obfilter_string:
+            obcaches = filter(lambda obcache: obfilter_string in obcache.object.name.lower(), cachelib.object_caches)
+        else:
+            obcaches = cachelib.object_caches
+
         first = True
-        for obcache in cachelib.object_caches:
+        for obcache in obcaches:
             ob = obcache.object
 
             if first:
@@ -489,6 +498,9 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+
+        row = layout.row(align=True)
+        row.prop(context.scene, "cache_library_filter", icon='VIEWZOOM')
 
         layout.operator("cachelibrary.new")
         for cachelib in context.blend_data.cache_libraries:
