@@ -566,7 +566,6 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		ge_videotex
 		bf_dna
 		bf_blenfont
-		bf_pointcache
 		bf_pointcache_alembic
 		bf_pointcache
 		bf_intern_audaspace

@@ -24,6 +24,8 @@ extern "C" {
 
 namespace PTC {
 
+Factory *Factory::alembic = NULL;
+
 DerivedMesh *DerivedMeshReader::acquire_result()
 {
 	DerivedMesh *dm = m_result;

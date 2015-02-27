@@ -36,6 +36,7 @@ blender_include_dirs(
 	../blender/imbuf
 	../blender/render/extern/include
 	../blender/makesdna
+	../blender/pointcache
 	../blender/gpu
 	../blender/windowmanager
 )

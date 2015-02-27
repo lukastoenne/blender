@@ -16,8 +16,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "alembic.h"
-
 #include "abc_cloth.h"
 #include "abc_particles.h"
 #include "util_path.h"

@@ -18,7 +18,6 @@
 
 #include <Alembic/AbcCoreHDF5/ReadWrite.h>
 
-#include "alembic.h"
 #include "abc_writer.h"
 
 #include "util_error_handler.h"

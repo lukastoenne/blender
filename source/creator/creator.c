@@ -95,6 +95,8 @@
 
 #include "IMB_imbuf.h"  /* for IMB_init */
 
+#include "PTC_api.h"
+
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
@@ -1733,6 +1735,7 @@ int main(
 	RE_engines_init();
 	init_nodesystem();
 	psys_init_rng();
+	PTC_alembic_init();
 	/* end second init */
 
 

@@ -26,7 +26,6 @@
 #include "writer.h"
 #include "export.h"
 
-#include "alembic.h"
 #include "ptc_types.h"
 #include "util_path.h"
 
@@ -96,7 +95,7 @@ void PTC_error_handler_modifier(struct ModifierData *md)
 
 PTCWriterArchive *PTC_open_writer_archive(Scene *scene, const char *path)
 {
-	return (PTCWriterArchive *)abc_writer_archive(scene, path, NULL);
+	return (PTCWriterArchive *)PTC::Factory::alembic->create_writer_archive(scene, path, NULL);
 }
 
 void PTC_close_writer_archive(PTCWriterArchive *_archive)
@@ -107,7 +106,7 @@ void PTC_close_writer_archive(PTCWriterArchive *_archive)
 
 PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path)
 {
-	return (PTCReaderArchive *)abc_reader_archive(scene, path, NULL);
+	return (PTCReaderArchive *)PTC::Factory::alembic->create_reader_archive(scene, path, NULL);
 }
 
 void PTC_close_reader_archive(PTCReaderArchive *_archive)
@@ -410,25 +409,25 @@ void PTC_cachelib_writers_free(PTCWriterArchive *archive, ListBase *writers)
 PTCWriter *PTC_writer_cloth(PTCWriterArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_cloth(archive, name, ob, clmd);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_cloth(archive, name, ob, clmd);
 }
 
 PTCReader *PTC_reader_cloth(PTCReaderArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_cloth(archive, name, ob, clmd);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_cloth(archive, name, ob, clmd);
 }
 
 PTCWriter *PTC_writer_hair_dynamics(PTCWriterArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_hair_dynamics(archive, name, ob, clmd);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_hair_dynamics(archive, name, ob, clmd);
 }
 
 PTCReader *PTC_reader_hair_dynamics(PTCReaderArchive *_archive, const char *name, Object *ob, ClothModifierData *clmd)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_hair_dynamics(archive, name, ob, clmd);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_hair_dynamics(archive, name, ob, clmd);
 }
 
 
@@ -437,13 +436,13 @@ PTCReader *PTC_reader_hair_dynamics(PTCReaderArchive *_archive, const char *name
 PTCWriter *PTC_writer_derived_mesh(PTCWriterArchive *_archive, const char *name, Object *ob, DerivedMesh **dm_ptr)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_derived_mesh(archive, name, ob, dm_ptr);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_mesh(archive, name, ob, dm_ptr);
 }
 
 PTCReader *PTC_reader_derived_mesh(PTCReaderArchive *_archive, const char *name, Object *ob)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_derived_mesh(archive, name, ob);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_derived_mesh(archive, name, ob);
 }
 
 struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(PTCReader *_reader)
@@ -462,14 +461,14 @@ void PTC_reader_derived_mesh_discard_result(PTCReader *_reader)
 PTCWriter *PTC_writer_derived_final(PTCWriterArchive *_archive, const char *name, Object *ob)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_derived_final(archive, name, ob);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final(archive, name, ob);
 }
 
 
 PTCWriter *PTC_writer_cache_modifier(PTCWriterArchive *_archive, const char *name, Object *ob, CacheModifierData *cmd)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_cache_modifier(archive, name, ob, cmd);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_cache_modifier(archive, name, ob, cmd);
 }
 
 
@@ -478,13 +477,13 @@ PTCWriter *PTC_writer_cache_modifier(PTCWriterArchive *_archive, const char *nam
 PTCWriter *PTC_writer_particles(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_particles(archive, name, ob, psys);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_particles(archive, name, ob, psys);
 }
 
 PTCReader *PTC_reader_particles(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_particles(archive, name, ob, psys);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_particles(archive, name, ob, psys);
 }
 
 int PTC_reader_particles_totpoint(PTCReader *_reader)
@@ -495,23 +494,23 @@ int PTC_reader_particles_totpoint(PTCReader *_reader)
 PTCWriter *PTC_writer_particle_pathcache_parents(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_particle_pathcache_parents(archive, name, ob, psys);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_particles_pathcache_parents(archive, name, ob, psys);
 }
 
 PTCReader *PTC_reader_particle_pathcache_parents(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_particle_pathcache_parents(archive, name, ob, psys);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_particles_pathcache_parents(archive, name, ob, psys);
 }
 
 PTCWriter *PTC_writer_particle_pathcache_children(PTCWriterArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	return (PTCWriter *)abc_writer_particle_pathcache_children(archive, name, ob, psys);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_particles_pathcache_children(archive, name, ob, psys);
 }
 
 PTCReader *PTC_reader_particle_pathcache_children(PTCReaderArchive *_archive, const char *name, Object *ob, ParticleSystem *psys)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	return (PTCReader *)abc_reader_particle_pathcache_children(archive, name, ob, psys);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_particles_pathcache_children(archive, name, ob, psys);
 }
