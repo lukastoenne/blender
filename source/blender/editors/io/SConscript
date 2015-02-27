@@ -36,10 +36,13 @@ incs = [
     '../../blenfont',
     '../../blenkernel',
     '../../blenlib',
+    '../../bmesh',
     '../../collada',
+    '../../makesdna',
     '../../makesrna',
+    '../../pointcache',
     '../../windowmanager',
-    '../../bmesh../../makesdna',
+    '../../../../intern/guardedalloc',
     ]
 
 if env['WITH_BF_COLLADA']:
