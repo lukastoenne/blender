@@ -216,6 +216,8 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 
 PTCReader *PTC_cachelib_reader_derived_mesh(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return NULL;
 	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_DERIVED_MESH, -1);
 	if (item && (item->flag & CACHE_ITEM_ENABLED)) {
 		char name[2*MAX_NAME];
@@ -229,6 +231,8 @@ PTCReader *PTC_cachelib_reader_derived_mesh(CacheLibrary *cachelib, PTCReaderArc
 
 PTCReader *PTC_cachelib_reader_hair_dynamics(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return NULL;
 	if (!(psys && psys->part && psys->part->type == PART_HAIR && psys->clmd))
 		return NULL;
 	
@@ -246,6 +250,8 @@ PTCReader *PTC_cachelib_reader_hair_dynamics(CacheLibrary *cachelib, PTCReaderAr
 
 PTCReader *PTC_cachelib_reader_particles(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return NULL;
 	if (!(psys && psys->part && psys->part->type != PART_HAIR))
 		return NULL;
 	
@@ -263,6 +269,8 @@ PTCReader *PTC_cachelib_reader_particles(CacheLibrary *cachelib, PTCReaderArchiv
 
 PTCReader *PTC_cachelib_reader_particles_pathcache_parents(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return NULL;
 	if (!(psys && psys->part && psys->part->type == PART_HAIR))
 		return NULL;
 	
@@ -280,6 +288,8 @@ PTCReader *PTC_cachelib_reader_particles_pathcache_parents(CacheLibrary *cacheli
 
 PTCReader *PTC_cachelib_reader_particles_pathcache_children(CacheLibrary *cachelib, PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return NULL;
 	if (!(psys && psys->part && psys->part->type == PART_HAIR))
 		return NULL;
 	
@@ -297,6 +307,9 @@ PTCReader *PTC_cachelib_reader_particles_pathcache_children(CacheLibrary *cachel
 
 PTCReadSampleResult PTC_cachelib_read_sample_derived_mesh(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, DerivedMesh **r_dm)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return PTC_READ_SAMPLE_INVALID;
+	
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	
@@ -315,6 +328,9 @@ PTCReadSampleResult PTC_cachelib_read_sample_derived_mesh(Scene *scene, float fr
 
 PTCReadSampleResult PTC_cachelib_read_sample_hair_dynamics(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return PTC_READ_SAMPLE_INVALID;
+	
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	
@@ -328,6 +344,9 @@ PTCReadSampleResult PTC_cachelib_read_sample_hair_dynamics(Scene *scene, float f
 
 PTCReadSampleResult PTC_cachelib_read_sample_particles(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return PTC_READ_SAMPLE_INVALID;
+	
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	
@@ -341,6 +360,9 @@ PTCReadSampleResult PTC_cachelib_read_sample_particles(Scene *scene, float frame
 
 PTCReadSampleResult PTC_cachelib_read_sample_particles_pathcache_parents(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return PTC_READ_SAMPLE_INVALID;
+	
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	
@@ -354,6 +376,9 @@ PTCReadSampleResult PTC_cachelib_read_sample_particles_pathcache_parents(Scene *
 
 PTCReadSampleResult PTC_cachelib_read_sample_particles_pathcache_children(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
+	if (!(cachelib->flag & CACHE_LIBRARY_READ))
+		return PTC_READ_SAMPLE_INVALID;
+	
 	std::string filename = ptc_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib);
 	PTCReaderArchive *archive = PTC_open_reader_archive(scene, filename.c_str());
 	

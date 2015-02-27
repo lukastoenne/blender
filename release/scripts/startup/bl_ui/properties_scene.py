@@ -465,7 +465,9 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         col = layout.column(align=True)
         col.label("Archive:")
         col.prop(cachelib, "filepath", text="")
-        col.operator("cachelibrary.bake")
+        row = col.row(align=True)
+        row.prop(cachelib, "read", text="Read", toggle=True)
+        row.operator("cachelibrary.bake")
 
         first = True
         for obcache in cachelib.object_caches:
