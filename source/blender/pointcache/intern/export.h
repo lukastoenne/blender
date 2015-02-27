@@ -19,8 +19,6 @@
 #ifndef PTC_EXPORT_H
 #define PTC_EXPORT_H
 
-#include "thread.h"
-
 struct Main;
 struct Scene;
 struct EvaluationContext;
@@ -42,8 +40,6 @@ public:
 	void set_progress(float progress);
 
 private:
-	thread_mutex m_mutex;
-	
 	Main *m_bmain;
 	Scene *m_scene;
 	EvaluationContext *m_evalctx;

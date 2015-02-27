@@ -43,7 +43,6 @@ set(SRC
 	intern/ptc_types.cpp
 	intern/reader.h
 	intern/reader.cpp
-	intern/thread.h
 	intern/writer.h
 	intern/writer.cpp
 
