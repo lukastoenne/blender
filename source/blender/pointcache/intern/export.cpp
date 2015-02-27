@@ -42,8 +42,6 @@ Exporter::Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short 
 
 void Exporter::bake(ListBase *writers, int start_frame, int end_frame)
 {
-//	thread_scoped_lock(m_mutex);
-
 	set_progress(0.0f);
 
 	for (int cfra = start_frame; cfra <= end_frame; ++cfra) {
