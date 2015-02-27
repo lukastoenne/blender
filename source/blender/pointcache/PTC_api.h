@@ -49,6 +49,8 @@ struct PTCReaderArchive;
 struct PTCWriter;
 struct PTCReader;
 
+void PTC_alembic_init(void);
+
 /*** Error Handling ***/
 void PTC_error_handler_std(void);
 void PTC_error_handler_callback(PTCErrorCallback cb, void *userdata);

@@ -140,6 +140,34 @@ protected:
 	int m_totpoint;
 };
 
+struct Factory {
+	virtual WriterArchive *create_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
+	virtual ReaderArchive *create_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
+	
+	/* Particles */
+	virtual Writer *create_writer_particles(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Reader *create_reader_particles(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Writer *create_writer_particles_pathcache_parents(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Reader *create_reader_particles_pathcache_parents(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Writer *create_writer_particles_pathcache_children(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Reader *create_reader_particles_pathcache_children(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	
+	/* Cloth */
+	virtual Writer *create_writer_cloth(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	virtual Reader *create_reader_cloth(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	virtual Writer *create_writer_hair_dynamics(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	virtual Reader *create_reader_hair_dynamics(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	
+	/* Modifier Stack */
+	virtual Writer *create_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr) = 0;
+	virtual Reader *create_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob) = 0;
+	
+	virtual Writer *create_writer_derived_final(WriterArchive *archive, const std::string &name, Object *ob) = 0;
+	virtual Writer *create_writer_cache_modifier(WriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd) = 0;
+	
+	static Factory *alembic;
+};
+
 } /* namespace PTC */
 
 #endif  /* PTC_EXPORT_H */

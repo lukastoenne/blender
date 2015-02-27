@@ -46,6 +46,7 @@ set(INC
 	../../../blender/imbuf
 	../../../blender/makesdna
 	../../../blender/makesrna
+	../../../blender/pointcache
 	../../../../intern/container
 	../../../../intern/ghost
 	../../../../intern/glew-mx

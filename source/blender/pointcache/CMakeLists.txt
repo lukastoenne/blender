@@ -36,7 +36,6 @@ set(INC_SYS
 )
 
 set(SRC
-	intern/alembic.h
 	intern/export.h
 	intern/export.cpp
 	intern/ptc_types.h

@@ -40,6 +40,8 @@ set(INC_SYS
 )
 
 set(SRC
+	alembic.cpp
+
 	abc_frame_mapper.cpp
 	abc_frame_mapper.h
 	abc_reader.cpp

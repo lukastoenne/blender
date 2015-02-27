@@ -79,6 +79,8 @@ extern "C"
 
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
+
+#include "PTC_api.h"
 	
 #ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
@@ -451,6 +453,7 @@ int main(int argc, char** argv)
 	RNA_init();
 
 	init_nodesystem();
+	PTC_alembic_init();
 	
 	initglobals();
 
