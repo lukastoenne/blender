@@ -16,7 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+//#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/AbcCoreHDF5/ReadWrite.h>
+#include <Alembic/AbcCoreOgawa/ReadWrite.h>
 
 #include "abc_writer.h"
 
@@ -48,7 +50,8 @@ AbcWriterArchive::AbcWriterArchive(Scene *scene, const std::string &filename, Er
 	ensure_directory(filename.c_str());
 	
 	PTC_SAFE_CALL_BEGIN
-	archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+//	archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	archive = OArchive(AbcCoreOgawa::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
 	
 	chrono_t cycle_time = this->seconds_per_frame();
 	chrono_t start_time = this->start_time();
