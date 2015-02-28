@@ -16,7 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <Alembic/AbcCoreHDF5/ReadWrite.h>
+//#include <Alembic/AbcCoreHDF5/ReadWrite.h>
+#include <Alembic/AbcCoreOgawa/ReadWrite.h>
 #include <Alembic/Abc/ArchiveInfo.h>
 
 #include "abc_reader.h"
@@ -36,7 +37,8 @@ AbcReaderArchive::AbcReaderArchive(Scene *scene, const std::string &filename, Er
     m_error_handler(error_handler)
 {
 	PTC_SAFE_CALL_BEGIN
-	archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+//	archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	archive = IArchive(AbcCoreOgawa::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
 	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 

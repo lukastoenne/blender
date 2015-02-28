@@ -37,6 +37,8 @@ SET(_alembic_FIND_COMPONENTS
   AlembicAbcCoreAbstract
   AlembicAbcGeom
   AlembicAbcCoreHDF5
+  AlembicAbcCoreOgawa
+  AlembicOgawa
   AlembicUtil
 )
 
