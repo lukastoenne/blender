@@ -220,7 +220,7 @@ void RB_body_set_linear_factor(rbRigidBody *object, float x, float y, float z);
 void RB_body_set_angular_factor(rbRigidBody *object, float x, float y, float z);
 
 /* Kinematic State */
-void RB_body_set_kinematic_state(rbRigidBody *body, int kinematic);
+void RB_body_set_kinematic_state(rbRigidBody *body, bool kinematic);
 
 /* RigidBody Interface - Rigid Body Activation States */
 int RB_body_get_activation_state(rbRigidBody *body);
