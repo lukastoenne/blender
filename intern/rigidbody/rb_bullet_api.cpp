@@ -766,7 +766,7 @@ void RB_body_set_angular_factor(rbRigidBody *object, float x, float y, float z)
 
 /* ............ */
 
-void RB_body_set_kinematic_state(rbRigidBody *object, int kinematic)
+void RB_body_set_kinematic_state(rbRigidBody *object, bool kinematic)
 {
 	btRigidBody *body = object->body;
 	if (kinematic)

@@ -1302,8 +1302,9 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
  * Updates and validates rigid body objects.
  *
  * \param rebuild Rebuild entire simulation
+ * \param all_kinematic If true all bodies will be kinematic and not collide or react
  */
-static int rigidbody_update_objects(Scene *scene, RigidBodyWorld *rbw, bool rebuild)
+static int rigidbody_update_objects(Scene *scene, RigidBodyWorld *rbw, bool rebuild, bool all_kinematic)
 {
 	int result = 0;
 	GroupObject *go;
@@ -1372,10 +1373,15 @@ static int rigidbody_update_objects(Scene *scene, RigidBodyWorld *rbw, bool rebu
 			/* update simulation object... */
 			rigidbody_update_sim_ob(scene, rbw, ob, rbo);
 
-			/* XXX could avoid some unnecessary updates with lower-level testing,
-			 * but this is safer for now.
-			 */
-			result |= RB_STEP_DYNAMICS;
+			if (all_kinematic) {
+				RB_body_set_kinematic_state(rbo->physics_object, true);
+			}
+			else {
+				/* XXX could avoid some unnecessary updates with lower-level testing,
+				 * but this is safer for now.
+				 */
+				result |= RB_STEP_DYNAMICS;
+			}
 		}
 	}
 	
@@ -1551,11 +1557,13 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 		
 		if (cache->flag & PTCACHE_OUTDATED) {
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-			rigidbody_update_objects(scene, rbw, true);
+			rigidbody_update_objects(scene, rbw, true, false);
 			BKE_ptcache_validate(cache, (int)ctime);
 			cache->last_exact = 0;
 			cache->flag &= ~PTCACHE_REDO_NEEDED;
 		}
+		else
+			rigidbody_update_objects(scene, rbw, true, true);
 		
 		rigidbody_update_ghosts(scene, rbw, true);
 	}
@@ -1568,7 +1576,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	PointCache *cache;
 	PTCacheID pid;
 	int startframe, endframe;
-	bool cache_baked, cache_valid;
+	bool has_cache;
 
 	BKE_ptcache_id_from_rigidbody(&pid, NULL, rbw);
 	BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, NULL);
@@ -1589,14 +1597,18 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	else if (rbw->objects == NULL)
 		rigidbody_update_ob_array(rbw);
 
-	cache_baked = (cache->flag & PTCACHE_BAKED);
-
-	/* try to read from cache */
-	// RB_TODO deal with interpolated, old and baked results
-	cache_valid = BKE_ptcache_read(&pid, ctime);
-	if (cache_valid) {
-		BKE_ptcache_validate(cache, (int)ctime);
-		rbw->ltime = ctime;
+	{
+		bool cache_baked = (cache->flag & PTCACHE_BAKED);
+		/* try to read from cache */
+		// RB_TODO deal with interpolated, old and baked results
+		bool cache_valid = BKE_ptcache_read(&pid, ctime);
+		
+		if (cache_valid) {
+			BKE_ptcache_validate(cache, (int)ctime);
+			rbw->ltime = ctime;
+		}
+		
+		has_cache = cache_valid || cache_baked;
 	}
 
 	/* advance simulation, we can only step one frame forward */
@@ -1606,15 +1618,15 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 		
 		stepmode |= rigidbody_update_scene(scene, rbw, false);
 		
-		if (!cache_baked && !cache_valid) {
+		if (!has_cache) {
 			/* write cache for first frame when on second frame */
 			if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
 				BKE_ptcache_write(&pid, startframe);
 			}
-			
-			/* update and validate simulation */
-			stepmode |= rigidbody_update_objects(scene, rbw, false);
 		}
+		
+		/* update and validate simulation, only do kinematics if cached */
+		stepmode |= rigidbody_update_objects(scene, rbw, false, has_cache);
 		
 		/* ghosts are not included in the rigidbody point cache */
 		stepmode |= rigidbody_update_ghosts(scene, rbw, false);
@@ -1626,7 +1638,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 			/* step simulation by the requested timestep, steps per second are adjusted to take time scale into account */
 			RB_dworld_step_simulation(rbw->physics_world, timestep, INT_MAX, timesubstep);
 			
-			if (!cache_baked && !cache_valid) {
+			if (!has_cache) {
 				rigidbody_update_objects_post_step(rbw);
 				
 				/* write cache for current frame */
