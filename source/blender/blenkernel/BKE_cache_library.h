@@ -87,6 +87,7 @@ struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, stru
 void BKE_cache_library_remove_item(struct CacheLibrary *cachelib, struct CacheItem *item);
 void BKE_cache_library_clear(struct CacheLibrary *cachelib);
 
+bool BKE_cache_library_validate_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
 void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cachelib);
 
 bool BKE_cache_read_derived_mesh(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct DerivedMesh **r_dm);

@@ -45,6 +45,7 @@
 
 #include "BKE_cache_library.h"
 #include "BKE_global.h"
+#include "BKE_group.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 
@@ -84,7 +85,7 @@ void BKE_cache_library_free(CacheLibrary *cachelib)
 		BLI_ghash_free(cachelib->items_hash, NULL, NULL);
 }
 
-void BKE_cache_library_unlink(CacheLibrary *cachelib)
+void BKE_cache_library_unlink(CacheLibrary *UNUSED(cachelib))
 {
 }
 
@@ -425,6 +426,9 @@ CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, struct Object *ob,
 {
 	CacheItem *item;
 	
+	/* assert validity */
+	BLI_assert(BKE_cache_library_validate_item(cachelib, ob, type, index));
+	
 	cache_library_ensure_items_hash(cachelib);
 	
 	item = BKE_cache_library_find_item(cachelib, ob, type, index);
@@ -466,6 +470,38 @@ void BKE_cache_library_clear(CacheLibrary *cachelib)
 		MEM_freeN(item);
 	}
 	BLI_listbase_clear(&cachelib->items);
+}
+
+bool BKE_cache_library_validate_item(CacheLibrary *cachelib, Object *ob, int type, int index)
+{
+	if (!cachelib || !cachelib->group)
+		return false;
+	
+	if (!BKE_group_object_exists(cachelib->group, ob))
+		return false;
+	
+	if (ELEM(type, CACHE_TYPE_DERIVED_MESH)) {
+		if (ob->type != OB_MESH)
+			return false;
+	}
+	else if (ELEM(type, CACHE_TYPE_PARTICLES, CACHE_TYPE_HAIR, CACHE_TYPE_HAIR_PATHS)) {
+		ParticleSystem *psys = BLI_findlink(&ob->particlesystem, index);
+		
+		if (!psys)
+			return false;
+		
+		if (ELEM(type, CACHE_TYPE_PARTICLES)) {
+			if (psys->part->type != PART_EMITTER)
+				return false;
+		}
+		
+		if (ELEM(type, CACHE_TYPE_HAIR, CACHE_TYPE_HAIR_PATHS)) {
+			if (psys->part->type != PART_HAIR)
+				return false;
+		}
+	}
+	
+	return true;
 }
 
 void BKE_cache_library_group_update(Main *bmain, CacheLibrary *cachelib)
