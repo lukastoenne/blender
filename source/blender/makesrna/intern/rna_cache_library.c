@@ -96,6 +96,7 @@ static void rna_CacheLibrary_group_update(Main *main, Scene *scene, PointerRNA *
 
 /* ========================================================================= */
 
+#if 0 /* UNUSED */
 static PointerRNA rna_ObjectCache_object_get(PointerRNA *ptr)
 {
 	Object *ob = ptr->data;
@@ -103,8 +104,6 @@ static PointerRNA rna_ObjectCache_object_get(PointerRNA *ptr)
 	RNA_id_pointer_create((ID *)ob, &rptr);
 	return rptr;
 }
-
-/* ========================================================================= */
 
 static void rna_CacheLibrary_object_caches_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
@@ -144,6 +143,7 @@ PointerRNA rna_CacheLibrary_object_caches_get(CollectionPropertyIterator *iter)
 	
 	return rptr;
 }
+#endif
 
 static PointerRNA rna_CacheLibrary_cache_item_find(CacheLibrary *cachelib, Object *ob, int type, int index)
 {
@@ -156,6 +156,7 @@ static PointerRNA rna_CacheLibrary_cache_item_find(CacheLibrary *cachelib, Objec
 
 /* ========================================================================= */
 
+#if 0 /* UNUSED */
 static void rna_ObjectCache_caches_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
@@ -195,6 +196,7 @@ PointerRNA rna_ObjectCache_caches_get(CollectionPropertyIterator *iter)
 	
 	return rptr;
 }
+#endif
 
 #else
 
@@ -248,6 +250,7 @@ static void rna_def_cache_item(BlenderRNA *brna)
 	RNA_def_function_output(func, parm);
 }
 
+#if 0 /* UNUSED */
 static void rna_def_object_cache(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -268,6 +271,7 @@ static void rna_def_object_cache(BlenderRNA *brna)
 	                                  "rna_ObjectCache_caches_get", NULL, NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Caches", "Cacheable items for in an object cache");
 }
+#endif
 
 static void rna_def_cache_library(BlenderRNA *brna)
 {
@@ -294,11 +298,13 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Group", "Cached object group");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_group_update");
 	
+#if 0 /* UNUSED */
 	prop = RNA_def_property(srna, "object_caches", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ObjectCache");
 	RNA_def_property_collection_funcs(prop, "rna_CacheLibrary_object_caches_begin", "rna_CacheLibrary_object_caches_next", "rna_CacheLibrary_object_caches_end",
 	                                  "rna_CacheLibrary_object_caches_get", NULL, NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Object Caches", "Cacheable objects inside the cache library group");
+#endif
 	
 	func = RNA_def_function(srna, "cache_item_find", "rna_CacheLibrary_cache_item_find");
 	RNA_def_function_ui_description(func, "Find item for an object cache item");
@@ -315,7 +321,9 @@ static void rna_def_cache_library(BlenderRNA *brna)
 void RNA_def_cache_library(BlenderRNA *brna)
 {
 	rna_def_cache_item(brna);
+#if 0 /* UNUSED */
 	rna_def_object_cache(brna);
+#endif
 	rna_def_cache_library(brna);
 }
 
