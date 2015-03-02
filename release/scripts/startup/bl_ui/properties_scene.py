@@ -473,15 +473,15 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         row.operator("cachelibrary.bake")
 
         obfilter_string = context.scene.cache_library_filter.lower()
-        if obfilter_string:
-            obcaches = filter(lambda obcache: obfilter_string in obcache.object.name.lower(), cachelib.object_caches)
+        if not cachelib.group:
+            objects = []
+        elif obfilter_string:
+            objects = filter(lambda ob: obfilter_string in ob.name.lower(), cachelib.group.objects)
         else:
-            obcaches = cachelib.object_caches
+            objects = cachelib.group.objects
 
         first = True
-        for obcache in obcaches:
-            ob = obcache.object
-
+        for ob in objects:
             if first:
                 layout.separator()
                 first = False
