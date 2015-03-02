@@ -403,34 +403,34 @@ class SCENE_PT_simplify(SceneButtonsPanel, Panel):
 
 
 # XXX temporary solution
-bpy.types.Scene.cache_library_filter = bpy.props.StringProperty(name="Cache Library Filter", description="Filter cache libraries")
+bpy.types.CacheLibrary.filter_string = \
+    bpy.props.StringProperty(
+        name="Filter Object Name",
+        description="Filter cache library objects by name",
+        )
+bpy.types.CacheLibrary.filter_types = \
+    bpy.props.EnumProperty(
+        name="Filter Item Type",
+        description="Filter cache library items by type",
+        options={'ENUM_FLAG'},
+        items=[ (e.identifier, e.name, e.description, e.icon, 2**i) for i, e in enumerate(bpy.types.CacheItem.bl_rna.properties['type'].enum_items) ],
+        default=set( e.identifier for e in bpy.types.CacheItem.bl_rna.properties['type'].enum_items ),
+        )
 
-class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
-    bl_label = "Cache Manager"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+def cachelib_objects(cachelib, filter_string = ""):
+    filter_string = filter_string.lower()
 
-    item_type_icon = { e.identifier : e.icon for e in bpy.types.CacheItem.bl_rna.properties['type'].enum_items }
+    if not cachelib.group:
+        return []
+    elif filter_string:
+        return filter(lambda ob: filter_string in ob.name.lower(), cachelib.group.objects)
+    else:
+        return cachelib.group.objects
 
-    @classmethod
-    def poll(cls, context):
-        return True
-
-
-    def cachelib_objects(self, cachelib, filter_string):
-        filter_string = filter_string.lower()
-
-        if not cachelib.group:
-            objects = []
-        elif filter_string:
-            objects = filter(lambda ob: filter_string in ob.name.lower(), cachelib.group.objects)
-        else:
-            objects = cachelib.group.objects
-
-        for ob in objects:
-            yield ob
-
-    # yields (type, index, indent)
-    def cachelib_object_items(self, cachelib, ob):
+# Yields (item, type, index, indent, enabled)
+# Note that item can be None when not included in the cache yet
+def cachelib_object_items(cachelib, ob, filter_types = []):
+    def items_desc():
         yield 'OBJECT', -1, 0
         
         if (ob.type == 'MESH'):
@@ -443,10 +443,39 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
                 yield 'HAIR', index, 1
                 yield 'HAIR_PATHS', index, 1
 
+    for item_type, item_index, indent in items_desc():
+        item = cachelib.cache_item_find(ob, item_type, item_index)
+        show = False
+        enable = False
 
-    # returns True if the item exists and is enabled
-    def draw_cache_item_button(self, context, layout, cachelib, ob, type, index=-1):
-        item = cachelib.cache_item_find(ob, type, index)
+        # always show existing items
+        if item:
+            show = True
+            enable = True
+
+        # always show selected types
+        if item_type in filter_types:
+            show = True
+            enable = True
+        # special case: OBJECT type used as top level, show but disable
+        elif item_type == 'OBJECT':
+            show = True
+            enable = False
+        
+        if show:
+            yield item, item_type, item_index, indent, enable
+
+class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
+    bl_label = "Cache Manager"
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    item_type_icon = { e.identifier : e.icon for e in bpy.types.CacheItem.bl_rna.properties['type'].enum_items }
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw_cache_item_button(self, context, layout, item, ob, type, index=-1):
         if not item:
             sub = layout.row()
             sub.context_pointer_set("cache_object", ob)
@@ -455,13 +484,14 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
             props.index = index
         else:
             layout.prop(item, "enabled", text="")
-        return item
 
-    def draw_cache_item(self, context, layout, cachelib, ob, type, index=-1):
+    def draw_cache_item(self, context, layout, cachelib, ob, item, type, index=-1, enabled=True):
         from bpy.types import CacheItem
 
         buttons = layout.row()
-        item = self.draw_cache_item_button(context, buttons, cachelib, ob, type, index)
+        buttons.enabled = enabled
+
+        self.draw_cache_item_button(context, buttons, item, ob, type, index)
         
         sub = buttons.column()
         sub.enabled = bool(item and item.enabled)
@@ -469,6 +499,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
 
         row = sub.row()
         row.label(text=name, icon=self.item_type_icon[type])
+
         return sub
 
     def draw_cachelib(self, context, layout, cachelib):
@@ -493,26 +524,32 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         row.prop(cachelib, "read", text="Read", toggle=True)
         row.operator("cachelibrary.bake")
 
-        objects = self.cachelib_objects(cachelib, context.scene.cache_library_filter)
+        row = layout.row(align=True)
+        row.label("Filter:")
+        row.prop(cachelib, "filter_types", icon_only=True, toggle=True)
+        row.prop(cachelib, "filter_string", icon='VIEWZOOM', text="")
+
+        objects = cachelib_objects(cachelib, cachelib.filter_string)
         first = True
         for ob in objects:
+            if not any(cachelib_object_items(cachelib, ob, cachelib.filter_types)):
+                continue
+
             if first:
                 layout.separator()
                 first = False
 
-            for item_type, item_index, indent in self.cachelib_object_items(cachelib, ob):
+            for item, item_type, item_index, indent, enable in cachelib_object_items(cachelib, ob, cachelib.filter_types):
                 row = layout.row(align=True)
                 row.alignment = 'LEFT'
                 if indent:
                     row.label("  " * indent)
-                sub = self.draw_cache_item(context, row, cachelib, ob, item_type, item_index)
+
+                sub = self.draw_cache_item(context, row, cachelib, ob, item, item_type, item_index, enable)
 
 
     def draw(self, context):
         layout = self.layout
-
-        row = layout.row(align=True)
-        row.prop(context.scene, "cache_library_filter", icon='VIEWZOOM')
 
         layout.operator("cachelibrary.new")
         for cachelib in context.blend_data.cache_libraries:
