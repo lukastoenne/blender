@@ -415,6 +415,35 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
     def poll(cls, context):
         return True
 
+
+    def cachelib_objects(self, cachelib, filter_string):
+        filter_string = filter_string.lower()
+
+        if not cachelib.group:
+            objects = []
+        elif filter_string:
+            objects = filter(lambda ob: filter_string in ob.name.lower(), cachelib.group.objects)
+        else:
+            objects = cachelib.group.objects
+
+        for ob in objects:
+            yield ob
+
+    # yields (type, index, indent)
+    def cachelib_object_items(self, cachelib, ob):
+        yield 'OBJECT', -1, 0
+        
+        if (ob.type == 'MESH'):
+            yield 'DERIVED_MESH', -1, 1
+
+        for index, psys in enumerate(ob.particle_systems):
+            if psys.settings.type == 'EMITTER':
+                yield 'PARTICLES', index, 1
+            if psys.settings.type == 'HAIR':
+                yield 'HAIR', index, 1
+                yield 'HAIR_PATHS', index, 1
+
+
     # returns True if the item exists and is enabled
     def draw_cache_item_button(self, context, layout, cachelib, ob, type, index=-1):
         item = cachelib.cache_item_find(ob, type, index)
@@ -439,15 +468,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         name = item.name if item else CacheItem.get_name(ob, type, index)
 
         row = sub.row()
-        if type == 'OBJECT':
-            row.label(text=name, icon=self.item_type_icon[type])
-        elif type == 'DERIVED_MESH':
-            row.label(text=name, icon=self.item_type_icon[type])
-        elif type == 'HAIR':
-            row.label(text=name, icon=self.item_type_icon[type])
-        elif type == 'HAIR_PATHS':
-            row.label(text=name, icon=self.item_type_icon[type])
-
+        row.label(text=name, icon=self.item_type_icon[type])
         return sub
 
     def draw_cachelib(self, context, layout, cachelib):
@@ -472,29 +493,19 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         row.prop(cachelib, "read", text="Read", toggle=True)
         row.operator("cachelibrary.bake")
 
-        obfilter_string = context.scene.cache_library_filter.lower()
-        if not cachelib.group:
-            objects = []
-        elif obfilter_string:
-            objects = filter(lambda ob: obfilter_string in ob.name.lower(), cachelib.group.objects)
-        else:
-            objects = cachelib.group.objects
-
+        objects = self.cachelib_objects(cachelib, context.scene.cache_library_filter)
         first = True
         for ob in objects:
             if first:
                 layout.separator()
                 first = False
 
-            sub = self.draw_cache_item(context, layout, cachelib, ob, 'OBJECT')
-            
-            if (ob.type == 'MESH'):
-                self.draw_cache_item(context, sub, cachelib, ob, 'DERIVED_MESH')
-
-            for index, psys in enumerate(ob.particle_systems):
-                if psys.settings.type == 'HAIR':
-                    self.draw_cache_item(context, sub, cachelib, ob, 'HAIR', index)
-                    self.draw_cache_item(context, sub, cachelib, ob, 'HAIR_PATHS', index)
+            for item_type, item_index, indent in self.cachelib_object_items(cachelib, ob):
+                row = layout.row(align=True)
+                row.alignment = 'LEFT'
+                if indent:
+                    row.label("  " * indent)
+                sub = self.draw_cache_item(context, row, cachelib, ob, item_type, item_index)
 
 
     def draw(self, context):
