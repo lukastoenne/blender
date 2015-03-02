@@ -93,6 +93,11 @@ void PTC_error_handler_modifier(struct ModifierData *md)
 }
 
 
+const char *PTC_get_default_archive_extension(void)
+{
+	return PTC::Factory::alembic->get_default_extension().c_str();
+}
+
 PTCWriterArchive *PTC_open_writer_archive(Scene *scene, const char *path)
 {
 	return (PTCWriterArchive *)PTC::Factory::alembic->create_writer_archive(scene, path, NULL);
