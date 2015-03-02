@@ -29,6 +29,12 @@
 namespace PTC {
 
 class AbcFactory : public Factory {
+	const std::string &get_default_extension()
+	{
+		static std::string ext = "abc";
+		return ext;
+	}
+	
 	WriterArchive *create_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
 	{
 		return new AbcWriterArchive(scene, name, error_handler);

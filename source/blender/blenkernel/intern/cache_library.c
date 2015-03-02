@@ -54,10 +54,13 @@
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
 	CacheLibrary *cachelib;
+	char basename[MAX_NAME];
 
 	cachelib = BKE_libblock_alloc(bmain, ID_CL, name);
 
-	BLI_strncpy(cachelib->filepath, "//cache/", sizeof(cachelib->filepath));
+	BLI_strncpy(basename, cachelib->id.name+2, sizeof(basename));
+	BLI_filename_make_safe(basename);
+	BLI_snprintf(cachelib->filepath, sizeof(cachelib->filepath), "//cache/%s.%s", basename, PTC_get_default_archive_extension());
 
 	return cachelib;
 }

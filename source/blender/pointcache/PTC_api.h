@@ -62,6 +62,8 @@ void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext 
 
 /*** Archive ***/
 
+const char *PTC_get_default_archive_extension(void);
+
 struct PTCWriterArchive *PTC_open_writer_archive(struct Scene *scene, const char *path);
 void PTC_close_writer_archive(struct PTCWriterArchive *archive);
 
