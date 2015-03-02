@@ -488,7 +488,8 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
 
             sub = self.draw_cache_item(context, layout, cachelib, ob, 'OBJECT')
             
-            self.draw_cache_item(context, sub, cachelib, ob, 'DERIVED_MESH')
+            if (ob.type == 'MESH'):
+                self.draw_cache_item(context, sub, cachelib, ob, 'DERIVED_MESH')
 
             for index, psys in enumerate(ob.particle_systems):
                 if psys.settings.type == 'HAIR':
