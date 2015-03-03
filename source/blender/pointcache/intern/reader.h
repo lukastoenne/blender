@@ -40,8 +40,10 @@ public:
 
 class Reader {
 public:
-	Reader(ID *id, ReaderArchive *archive);
+	Reader(ID *id, const std::string &name);
 	virtual ~Reader();
+	
+	void set_archive(ReaderArchive *archive);
 	
 	void set_error_handler(ErrorHandler *handler);
 	ErrorHandler *get_error_handler() const { return m_error_handler; }
@@ -60,11 +62,17 @@ public:
 	virtual PTCReadSampleResult read_sample(float frame) = 0;
 	
 	ID *id() const { return m_id; }
+	const std::string &name() const { return m_name; }
+	
+protected:
+	/* called after the archive is set */
+	virtual void open_archive(ReaderArchive *archive) = 0;
 	
 protected:
 	ErrorHandler *m_error_handler;
 	ReaderArchive *m_archive;
 	
+	std::string m_name;
 	ID *m_id;
 };
 

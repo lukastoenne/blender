@@ -52,14 +52,15 @@ protected:
 
 class AbcWriter {
 public:
-	AbcWriter(AbcWriterArchive *archive) :
-	    m_archive(archive)
+	AbcWriter() :
+	    m_abc_archive(0)
 	{}
 	
-	AbcWriterArchive *archive() const { return m_archive; }
+	void abc_archive(AbcWriterArchive *abc_archive) { m_abc_archive = abc_archive; }
+	AbcWriterArchive *abc_archive() const { return m_abc_archive; }
 	
 private:
-	AbcWriterArchive *m_archive;
+	AbcWriterArchive *m_abc_archive;
 };
 
 } /* namespace PTC */

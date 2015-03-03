@@ -36,15 +36,24 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcClothWriter::AbcClothWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) :
-    ClothWriter(ob, clmd, archive),
-    AbcWriter(archive)
+AbcClothWriter::AbcClothWriter(const std::string &name, Object *ob, ClothModifierData *clmd) :
+    ClothWriter(ob, clmd, name)
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
+}
+
+AbcClothWriter::~AbcClothWriter()
+{
+}
+
+void AbcClothWriter::open_archive(WriterArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
+	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
 	
-	if (archive->archive) {
-		OObject root = archive->archive.getTop();
-		m_points = OPoints(root, name, archive->frame_sampling_index());
+	if (abc_archive()->archive) {
+		OObject root = abc_archive()->archive.getTop();
+		m_points = OPoints(root, m_name, abc_archive()->frame_sampling_index());
 		
 		OPointsSchema &schema = m_points.getSchema();
 		OCompoundProperty geom_params = schema.getArbGeomParams();
@@ -52,10 +61,6 @@ AbcClothWriter::AbcClothWriter(AbcWriterArchive *archive, const std::string &nam
 		m_param_velocities = OV3fGeomParam(geom_params, "velocities", false, kVaryingScope, 1, 0);
 		m_param_goal_positions = OP3fGeomParam(geom_params, "goal_positions", false, kVaryingScope, 1, 0);
 	}
-}
-
-AbcClothWriter::~AbcClothWriter()
-{
 }
 
 static V3fArraySample create_sample_velocities(Cloth *cloth, std::vector<V3f> &data)
@@ -88,7 +93,7 @@ static P3fArraySample create_sample_goal_positions(Cloth *cloth, std::vector<V3f
 
 void AbcClothWriter::write_sample()
 {
-	if (!archive()->archive)
+	if (!abc_archive()->archive)
 		return;
 	
 	Cloth *cloth = m_clmd->clothObject;
@@ -127,16 +132,25 @@ void AbcClothWriter::write_sample()
 }
 
 
-AbcClothReader::AbcClothReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) :
-    ClothReader(ob, clmd, archive),
-    AbcReader(archive)
+AbcClothReader::AbcClothReader(const std::string &name, Object *ob, ClothModifierData *clmd) :
+    ClothReader(ob, clmd, name)
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
+}
+
+AbcClothReader::~AbcClothReader()
+{
+}
+
+void AbcClothReader::open_archive(ReaderArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
+	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
-	if (archive->archive.valid()) {
-		IObject root = archive->archive.getTop();
-		if (root.valid() && root.getChild(name)) {
-			m_points = IPoints(root, name);
+	if (abc_archive()->archive.valid()) {
+		IObject root = abc_archive()->archive.getTop();
+		if (root.valid() && root.getChild(m_name)) {
+			m_points = IPoints(root, m_name);
 			
 			IPointsSchema &schema = m_points.getSchema();
 			ICompoundProperty geom_params = schema.getArbGeomParams();
@@ -145,10 +159,6 @@ AbcClothReader::AbcClothReader(AbcReaderArchive *archive, const std::string &nam
 			m_param_goal_positions= IP3fGeomParam(geom_params, "goal_positions", 0);
 		}
 	}
-}
-
-AbcClothReader::~AbcClothReader()
-{
 }
 
 static void apply_sample_positions(Cloth *cloth, P3fArraySamplePtr sample)
@@ -203,7 +213,7 @@ PTCReadSampleResult AbcClothReader::read_sample(float frame)
 	IPointsSchema &schema = m_points.getSchema();
 	TimeSamplingPtr ts = schema.getTimeSampling();
 	
-	ISampleSelector ss = archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 //	chrono_t time = ss.getRequestedTime();
 	
 //	std::pair<index_t, chrono_t> sres = ts->getFloorIndex(time, schema.getNumSamples());

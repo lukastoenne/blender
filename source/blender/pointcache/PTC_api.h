@@ -69,6 +69,9 @@ void PTC_close_writer_archive(struct PTCWriterArchive *archive);
 struct PTCReaderArchive *PTC_open_reader_archive(struct Scene *scene, const char *path);
 void PTC_close_reader_archive(struct PTCReaderArchive *archive);
 
+void PTC_writer_set_archive(struct PTCWriter *writer, struct PTCWriterArchive *archive);
+void PTC_reader_set_archive(struct PTCReader *reader, struct PTCReaderArchive *archive);
+
 /*** Reader/Writer Interface ***/
 
 void PTC_writer_free(struct PTCWriter *writer);
@@ -84,27 +87,27 @@ struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *pt
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 
 /* Particles */
-struct PTCWriter *PTC_writer_particles(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles(const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles(const char *name, struct Object *ob, struct ParticleSystem *psys);
 int PTC_reader_particles_totpoint(struct PTCReader *reader);
 
-struct PTCWriter *PTC_writer_particles_pathcache_parents(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles_pathcache_parents(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCWriter *PTC_writer_particles_pathcache_children(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles_pathcache_children(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles_pathcache_parents(const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles_pathcache_parents(const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles_pathcache_children(const char *name, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles_pathcache_children(const char *name, struct Object *ob, struct ParticleSystem *psys);
 
 /* Cloth */
-struct PTCWriter *PTC_writer_cloth(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
-struct PTCReader *PTC_reader_cloth(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
-struct PTCWriter *PTC_writer_hair_dynamics(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
-struct PTCReader *PTC_reader_hair_dynamics(struct PTCReaderArchive *archive, const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCWriter *PTC_writer_cloth(const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCReader *PTC_reader_cloth(const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCWriter *PTC_writer_hair_dynamics(const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCReader *PTC_reader_hair_dynamics(const char *name, struct Object *ob, struct ClothModifierData *clmd);
 
-struct PTCWriter *PTC_writer_derived_mesh(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct DerivedMesh **dm_ptr);
-struct PTCReader *PTC_reader_derived_mesh(struct PTCReaderArchive *archive, const char *name, struct Object *ob);
+struct PTCWriter *PTC_writer_derived_mesh(const char *name, struct Object *ob, struct DerivedMesh **dm_ptr);
+struct PTCReader *PTC_reader_derived_mesh(const char *name, struct Object *ob);
 struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *reader);
 void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
-struct PTCWriter *PTC_writer_derived_final(struct PTCWriterArchive *_archive, const char *name, struct Object *ob);
-struct PTCWriter *PTC_writer_cache_modifier(struct PTCWriterArchive *_archive, const char *name, struct Object *ob, struct CacheModifierData *cmd);
+struct PTCWriter *PTC_writer_derived_final(const char *name, struct Object *ob);
+struct PTCWriter *PTC_writer_cache_modifier(const char *name, struct Object *ob, struct CacheModifierData *cmd);
 
 #ifdef __cplusplus
 } /* extern C */

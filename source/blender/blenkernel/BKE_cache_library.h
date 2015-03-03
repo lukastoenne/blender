@@ -96,7 +96,8 @@ void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cac
 bool BKE_cache_archive_path_test(const char *path, ID *id, Library *lib);
 void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result, int max);
 
-struct PTCWriterArchive *BKE_cache_library_writers(struct Scene *scene, int required_mode, struct CacheLibrary *cachelib, struct ListBase *writers);
+void BKE_cache_library_writers(struct Scene *scene, int required_mode, struct CacheLibrary *cachelib, struct ListBase *writers);
+struct PTCWriterArchive *BKE_cache_library_writers_open_archive(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
 void BKE_cache_library_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
 eCacheReadSampleResult BKE_cache_library_read_derived_mesh(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct DerivedMesh **r_dm);

@@ -36,8 +36,8 @@ namespace PTC {
 
 class ClothWriter : public Writer {
 public:
-	ClothWriter(Object *ob, ClothModifierData *clmd, WriterArchive *archive) :
-	    Writer((ID *)ob, archive),
+	ClothWriter(Object *ob, ClothModifierData *clmd, const std::string &name) :
+	    Writer((ID *)ob, name),
 	    m_ob(ob),
 	    m_clmd(clmd)
 	{}
@@ -52,8 +52,8 @@ protected:
 
 class ClothReader : public Reader {
 public:
-	ClothReader(Object *ob, ClothModifierData *clmd, ReaderArchive *archive) :
-	    Reader((ID *)ob, archive),
+	ClothReader(Object *ob, ClothModifierData *clmd, const std::string &name) :
+	    Reader((ID *)ob, name),
 	    m_ob(ob),
 	    m_clmd(clmd)
 	{}
@@ -70,8 +70,8 @@ protected:
 class DerivedMeshWriter : public Writer {
 public:
 	/** \note Targeted DerivedMesh at \a dm_ptr must be available only on \fn write_sample calls */
-	DerivedMeshWriter(Object *ob, DerivedMesh **dm_ptr, WriterArchive *archive) :
-	    Writer((ID *)ob, archive),
+	DerivedMeshWriter(Object *ob, DerivedMesh **dm_ptr, const std::string &name) :
+	    Writer((ID *)ob, name),
 	    m_ob(ob),
 	    m_dm_ptr(dm_ptr)
 	{}
@@ -86,8 +86,8 @@ protected:
 
 class DerivedMeshReader : public Reader {
 public:
-	DerivedMeshReader(Object *ob, ReaderArchive *archive) :
-	    Reader((ID *)ob, archive),
+	DerivedMeshReader(Object *ob, const std::string &name) :
+	    Reader((ID *)ob, name),
 	    m_ob(ob),
 	    m_result(0)
 	{}
@@ -105,8 +105,8 @@ protected:
 
 class ParticlesWriter : public Writer {
 public:
-	ParticlesWriter(Object *ob, ParticleSystem *psys, WriterArchive *archive) :
-	    Writer((ID *)ob, archive),
+	ParticlesWriter(Object *ob, ParticleSystem *psys, const std::string &name) :
+	    Writer((ID *)ob, name),
 	    m_ob(ob),
 	    m_psys(psys)
 	{}
@@ -121,8 +121,8 @@ protected:
 
 class ParticlesReader : public Reader {
 public:
-	ParticlesReader(Object *ob, ParticleSystem *psys, ReaderArchive *archive) :
-	    Reader((ID *)ob, archive),
+	ParticlesReader(Object *ob, ParticleSystem *psys, const std::string &name) :
+	    Reader((ID *)ob, name),
 	    m_ob(ob),
 	    m_psys(psys),
 	    m_totpoint(0)
@@ -146,25 +146,25 @@ struct Factory {
 	virtual ReaderArchive *create_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
 	
 	/* Particles */
-	virtual Writer *create_writer_particles(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
-	virtual Reader *create_reader_particles(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
-	virtual Writer *create_writer_particles_pathcache_parents(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
-	virtual Reader *create_reader_particles_pathcache_parents(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
-	virtual Writer *create_writer_particles_pathcache_children(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
-	virtual Reader *create_reader_particles_pathcache_children(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Writer *create_writer_particles(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Reader *create_reader_particles(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Writer *create_writer_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Reader *create_reader_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Writer *create_writer_particles_pathcache_children(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Reader *create_reader_particles_pathcache_children(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
 	
 	/* Cloth */
-	virtual Writer *create_writer_cloth(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
-	virtual Reader *create_reader_cloth(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
-	virtual Writer *create_writer_hair_dynamics(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
-	virtual Reader *create_reader_hair_dynamics(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	virtual Writer *create_writer_cloth(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	virtual Reader *create_reader_cloth(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	virtual Writer *create_writer_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
+	virtual Reader *create_reader_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
 	
 	/* Modifier Stack */
-	virtual Writer *create_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr) = 0;
-	virtual Reader *create_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob) = 0;
+	virtual Writer *create_writer_derived_mesh(const std::string &name, Object *ob, DerivedMesh **dm_ptr) = 0;
+	virtual Reader *create_reader_derived_mesh(const std::string &name, Object *ob) = 0;
 	
-	virtual Writer *create_writer_derived_final(WriterArchive *archive, const std::string &name, Object *ob) = 0;
-	virtual Writer *create_writer_cache_modifier(WriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd) = 0;
+	virtual Writer *create_writer_derived_final(const std::string &name, Object *ob) = 0;
+	virtual Writer *create_writer_cache_modifier(const std::string &name, Object *ob, CacheModifierData *cmd) = 0;
 	
 	static Factory *alembic;
 };

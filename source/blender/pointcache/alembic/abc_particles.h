@@ -42,8 +42,10 @@ class AbcClothWriter;
 
 class AbcParticlesWriter : public ParticlesWriter, public AbcWriter {
 public:
-	AbcParticlesWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+	AbcParticlesWriter(const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcParticlesWriter();
+	
+	void open_archive(WriterArchive *archive);
 	
 	void write_sample();
 	
@@ -53,8 +55,10 @@ private:
 
 class AbcParticlesReader : public ParticlesReader, public AbcReader {
 public:
-	AbcParticlesReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys);
+	AbcParticlesReader(const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcParticlesReader();
+	
+	void open_archive(ReaderArchive *archive);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -64,8 +68,10 @@ private:
 
 class AbcParticlePathcacheWriter : public ParticlesWriter, public AbcWriter {
 protected:
-	AbcParticlePathcacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	AbcParticlePathcacheWriter(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	~AbcParticlePathcacheWriter();
+	
+	void open_archive(WriterArchive *archive);
 	
 	void write_sample();
 	
@@ -84,7 +90,9 @@ private:
 
 class AbcParticlePathcacheReader : public ParticlesReader, public AbcReader {
 protected:
-	AbcParticlePathcacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	AbcParticlePathcacheReader(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
+	
+	void open_archive(ReaderArchive *archive);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -103,29 +111,29 @@ protected:
 
 class AbcParticlePathcacheParentsWriter : public AbcParticlePathcacheWriter {
 public:
-	AbcParticlePathcacheParentsWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheWriter(archive, name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
+	AbcParticlePathcacheParentsWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheWriter(name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
 	{}
 };
 
 class AbcParticlePathcacheParentsReader : public AbcParticlePathcacheReader {
 public:
-	AbcParticlePathcacheParentsReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheReader(archive, name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
+	AbcParticlePathcacheParentsReader(const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheReader(name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
 	{}
 };
 
 class AbcParticlePathcacheChildrenWriter : public AbcParticlePathcacheWriter {
 public:
-	AbcParticlePathcacheChildrenWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheWriter(archive, name, ob, psys, &psys->childcache, &psys->totchild, "__children")
+	AbcParticlePathcacheChildrenWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheWriter(name, ob, psys, &psys->childcache, &psys->totchild, "__children")
 	{}
 };
 
 class AbcParticlePathcacheChildrenReader : public AbcParticlePathcacheReader {
 public:
-	AbcParticlePathcacheChildrenReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheReader(archive, name, ob, psys, &psys->childcache, &psys->totchild, "__children")
+	AbcParticlePathcacheChildrenReader(const std::string &name, Object *ob, ParticleSystem *psys) :
+	    AbcParticlePathcacheReader(name, ob, psys, &psys->childcache, &psys->totchild, "__children")
 	{}
 };
 
