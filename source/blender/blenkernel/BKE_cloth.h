@@ -232,7 +232,7 @@ void cloth_free_contacts(ColliderContacts *collider_contacts, int totcolliders);
 void cloth_free_modifier_extern (struct ClothModifierData *clmd );
 void cloth_free_modifier (struct ClothModifierData *clmd );
 void cloth_init (struct ClothModifierData *clmd );
-void clothModifier_do (struct ClothModifierData *clmd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, float (*vertexCos)[3]);
+void clothModifier_do (struct ClothModifierData *clmd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, float (*vertexCos)[3], bool use_render);
 
 int cloth_uses_vgroup(struct ClothModifierData *clmd);
 

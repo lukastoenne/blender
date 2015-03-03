@@ -4985,7 +4985,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			CacheModifierData *cmd = (CacheModifierData *)md;
 			
 			cmd->output_dm = NULL;
-			cmd->flag &= ~MOD_CACHE_USE_OUTPUT;
+			cmd->flag &= ~(MOD_CACHE_USE_OUTPUT_REALTIME | MOD_CACHE_USE_OUTPUT_RENDER);
 		}
 	}
 }

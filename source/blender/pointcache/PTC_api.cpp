@@ -145,11 +145,12 @@ void PTC_write_sample(struct PTCWriter *_writer)
 	writer->write_sample();
 }
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct ListBase *writers, int start_frame, int end_frame,
+void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx,
+              struct ListBase *writers, DerivedMesh **render_dm_ptr, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress)
 {
 	PTC::Exporter exporter(bmain, scene, evalctx, stop, do_update, progress);
-	exporter.bake(writers, start_frame, end_frame);
+	exporter.bake(writers, render_dm_ptr, start_frame, end_frame);
 }
 
 
@@ -279,15 +280,24 @@ void PTC_reader_derived_mesh_discard_result(PTCReader *_reader)
 }
 
 
-PTCWriter *PTC_writer_derived_final(const char *name, Object *ob)
+PTCWriter *PTC_writer_derived_final_realtime(const char *name, Object *ob)
 {
-	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final(name, ob);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final_realtime(name, ob);
 }
 
-
-PTCWriter *PTC_writer_cache_modifier(const char *name, Object *ob, CacheModifierData *cmd)
+PTCWriter *PTC_writer_cache_modifier_realtime(const char *name, Object *ob, CacheModifierData *cmd)
 {
-	return (PTCWriter *)PTC::Factory::alembic->create_writer_cache_modifier(name, ob, cmd);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_cache_modifier_realtime(name, ob, cmd);
+}
+
+PTCWriter *PTC_writer_derived_final_render(const char *name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final_render(name, scene, ob, render_dm_ptr);
+}
+
+PTCWriter *PTC_writer_cache_modifier_render(const char *name, Scene *scene, Object *ob, CacheModifierData *cmd)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_cache_modifier_render(name, scene, ob, cmd);
 }
 
 

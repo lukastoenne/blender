@@ -236,6 +236,7 @@ typedef struct CacheLibraryBakeJob {
 	struct Scene *scene;
 	EvaluationContext eval_ctx;
 	struct CacheLibrary *cachelib;
+	struct DerivedMesh *render_dm; /* temporary render_dm pointer, not stored in Object */
 	
 	struct PTCWriterArchive *archive;
 	ListBase writers;
@@ -255,7 +256,6 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
 	Scene *scene = data->scene;
 	int start_frame, end_frame;
-	int required_mode;
 	
 	data->stop = stop;
 	data->do_update = do_update;
@@ -265,23 +265,25 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	data->origframelen = scene->r.framelen;
 	scene->r.framelen = 1.0f;
 	memset(&data->eval_ctx, 0, sizeof(EvaluationContext));
-	data->eval_ctx.mode = DAG_EVAL_RENDER;
-	
-	G.is_break = false;
-	
-	/* XXX how can this be defined properly? */
-	required_mode = eModifierMode_Render;
-	
+	/* use evaluation mode defined by the cachelib */
+	if (data->cachelib->eval_mode == CACHE_LIBRARY_EVAL_VIEWPORT) {
+		data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
+	}
+	else {
+		data->eval_ctx.mode = DAG_EVAL_RENDER;
+	}
 	/* disable reading for the duration of the bake process */
 	data->cachelib->flag &= ~CACHE_LIBRARY_READ;
 	
-	BKE_cache_library_writers(scene, required_mode, data->cachelib, &data->writers);
+	BKE_cache_library_writers(data->cachelib, scene, &data->render_dm, &data->writers);
 	data->archive = BKE_cache_library_writers_open_archive(scene, data->cachelib, &data->writers);
+	
+	G.is_break = false;
 	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
-	PTC_bake(data->bmain, scene, &data->eval_ctx, &data->writers, start_frame, end_frame, stop, do_update, progress);
+	PTC_bake(data->bmain, scene, &data->eval_ctx, &data->writers, &data->render_dm, start_frame, end_frame, stop, do_update, progress);
 	
 	*do_update = true;
 	*stop = 0;

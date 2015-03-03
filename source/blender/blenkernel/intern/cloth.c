@@ -425,8 +425,9 @@ static DerivedMesh *cloth_to_triangles(DerivedMesh *dm)
 /************************************************
  * clothModifier_do - main simulation function
  ************************************************/
-void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*vertexCos)[3])
+void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*vertexCos)[3], bool use_render)
 {
+	const eCacheLibrary_EvalMode cache_eval_mode = use_render ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	const int startframe = scene->r.sfra;
 	int framenr;
 	bool cache_result;
@@ -465,10 +466,10 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		}
 		
 		if (psys)
-			cache_result = BKE_cache_read_hair_dynamics(G.main, scene, scene->r.cfra, ob, psys);
+			cache_result = BKE_cache_read_hair_dynamics(G.main, scene, scene->r.cfra, cache_eval_mode, ob, psys);
 	}
 	else {
-		cache_result = BKE_cache_read_cloth(G.main, scene, scene->r.cfra, ob, clmd);
+		cache_result = BKE_cache_read_cloth(G.main, scene, scene->r.cfra, cache_eval_mode, ob, clmd);
 	}
 
 	if (cache_result) {

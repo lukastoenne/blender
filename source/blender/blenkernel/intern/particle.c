@@ -1990,6 +1990,7 @@ static void exec_child_path_cache(TaskPool *UNUSED(pool), void *taskdata, int UN
 
 void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupdate)
 {
+	const eCacheLibrary_EvalMode cache_eval_mode = (sim->psmd && (sim->psmd->modifier.mode & eModifierMode_Render)) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	TaskScheduler *task_scheduler;
 	TaskPool *task_pool;
 	ParticleThreadContext ctx;
@@ -2022,7 +2023,7 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 	}
 	
 	/* try reading from point cache */
-	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, sim->ob, sim->psys);
+	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, cache_eval_mode, sim->ob, sim->psys);
 	if (!cache_result) {
 		/* cache parent paths */
 		ctx.parent_pass = 1;
@@ -2038,7 +2039,7 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 		psys_tasks_free(tasks_parent, numtasks_parent);
 	}
 	
-	cache_result = BKE_cache_read_particles_pathcache_children(G.main, sim->scene, cfra, sim->ob, sim->psys);
+	cache_result = BKE_cache_read_particles_pathcache_children(G.main, sim->scene, cfra, cache_eval_mode, sim->ob, sim->psys);
 	if (!cache_result) {
 		/* cache child paths */
 		ctx.parent_pass = 0;
@@ -2104,6 +2105,7 @@ static void cache_key_incremental_rotation(ParticleCacheKey *key0, ParticleCache
  * - Cached path data is also used to determine cut position for the editmode tool. */
 void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 {
+	const eCacheLibrary_EvalMode cache_eval_mode = (sim->psmd && (sim->psmd->modifier.mode & eModifierMode_Render)) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	PARTICLE_PSMD;
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
 	ParticleSystem *psys = sim->psys;
@@ -2146,7 +2148,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	cache = psys->pathcache = psys_alloc_path_cache_buffers(&psys->pathcachebufs, totpart, segments + 1);
 
 	/* try reading from cache */
-	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, sim->ob, sim->psys);
+	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, cache_eval_mode, sim->ob, sim->psys);
 	if (cache_result)
 		return;
 
