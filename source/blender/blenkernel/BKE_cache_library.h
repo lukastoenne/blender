@@ -96,6 +96,15 @@ void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cac
 bool BKE_cache_archive_path_test(const char *path, ID *id, Library *lib);
 void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result, int max);
 
+struct PTCWriterArchive *BKE_cache_library_writers(struct Scene *scene, int required_mode, struct CacheLibrary *cachelib, struct ListBase *writers);
+void BKE_cache_library_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
+
+eCacheReadSampleResult BKE_cache_library_read_derived_mesh(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct DerivedMesh **r_dm);
+eCacheReadSampleResult BKE_cache_library_read_hair_dynamics(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
+eCacheReadSampleResult BKE_cache_library_read_particles(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
+eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_parents(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
+eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_children(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
+
 bool BKE_cache_read_derived_mesh(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct DerivedMesh **r_dm);
 bool BKE_cache_read_cloth(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ClothModifierData *clmd);
 bool BKE_cache_read_hair_dynamics(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
