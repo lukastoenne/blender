@@ -31,7 +31,6 @@ struct EvaluationContext;
 struct ListBase;
 struct PointerRNA;
 struct ReportList;
-struct CacheLibrary;
 
 struct ClothModifierData;
 struct DerivedMesh;
@@ -83,21 +82,6 @@ PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
-
-struct PTCReader *PTC_cachelib_reader_derived_mesh(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob);
-struct PTCReader *PTC_cachelib_reader_hair_dynamics(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_cachelib_reader_particles(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_cachelib_reader_particles_pathcache_parents(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_cachelib_reader_particles_pathcache_children(struct CacheLibrary *cachelib, struct PTCReaderArchive *archive, struct Object *ob, struct ParticleSystem *psys);
-
-PTCReadSampleResult PTC_cachelib_read_sample_derived_mesh(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct DerivedMesh **r_dm);
-PTCReadSampleResult PTC_cachelib_read_sample_hair_dynamics(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
-PTCReadSampleResult PTC_cachelib_read_sample_particles(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
-PTCReadSampleResult PTC_cachelib_read_sample_particles_pathcache_parents(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
-PTCReadSampleResult PTC_cachelib_read_sample_particles_pathcache_children(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
-
-struct PTCWriterArchive *PTC_cachelib_writers(struct Scene *scene, int required_mode, struct CacheLibrary *cachelib, struct ListBase *writers);
-void PTC_cachelib_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
 /* Particles */
 struct PTCWriter *PTC_writer_particles(struct PTCWriterArchive *archive, const char *name, struct Object *ob, struct ParticleSystem *psys);

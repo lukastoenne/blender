@@ -272,7 +272,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	/* disable reading for the duration of the bake process */
 	data->cachelib->flag &= ~CACHE_LIBRARY_READ;
 	
-	data->archive = PTC_cachelib_writers(scene, required_mode, data->cachelib, &data->writers);
+	data->archive = BKE_cache_library_writers(scene, required_mode, data->cachelib, &data->writers);
 	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
@@ -291,7 +291,7 @@ static void cache_library_bake_endjob(void *customdata)
 	G.is_rendering = false;
 	BKE_spacedata_draw_locks(false);
 	
-	PTC_cachelib_writers_free(data->archive, &data->writers);
+	BKE_cache_library_writers_free(data->archive, &data->writers);
 	
 	/* enable reading */
 	data->cachelib->flag |= CACHE_LIBRARY_READ;
