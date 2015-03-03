@@ -31,6 +31,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_cache_library_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
@@ -49,6 +50,7 @@
 #include "BLF_api.h"
 #include "BLF_translation.h"
 
+#include "BKE_cache_library.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -73,6 +75,7 @@
 #include "ED_util.h"
 
 #include "RNA_access.h"
+#include "RNA_enum_types.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -3694,4 +3697,57 @@ void uiTemplateNodeSocket(uiLayout *layout, bContext *UNUSED(C), float *color)
 	rgba_float_to_uchar(but->col, color);
 	
 	UI_block_align_end(block);
+}
+
+/************************* Cache Library Item **************************/
+
+static void cache_item_button(uiLayout *layout, bContext *UNUSED(C), CacheLibrary *cachelib, CacheItem *item, Object *ob, int type, int index)
+{
+	if (item) {
+		PointerRNA itemptr;
+		RNA_pointer_create((ID *)cachelib, &RNA_CacheItem, item, &itemptr);
+		
+		uiItemR(layout, &itemptr, "enabled", 0, "", ICON_NONE);
+	}
+	else {
+		uiLayout *row = uiLayoutRow(layout, false);
+		uiBlock *block = uiLayoutGetBlock(row);
+		uiBut *but;
+		PointerRNA obptr;
+		PointerRNA *opptr;
+		
+		RNA_id_pointer_create((ID *)ob, &obptr);
+		uiLayoutSetContextPointer(row, "cache_object", &obptr);
+		
+		but = uiDefButO(block, UI_BTYPE_CHECKBOX, "CACHELIBRARY_OT_item_enable", WM_OP_EXEC_DEFAULT, "",
+		                0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+		opptr = UI_but_operator_ptr_get(but);
+		RNA_enum_set(opptr, "type", type);
+		RNA_int_set(opptr, "index", index);
+	}
+}
+
+uiLayout *uiTemplateCacheLibraryItem(uiLayout *layout, bContext *C, CacheLibrary *cachelib,
+                                     Object *ob, int type, int index, int enabled)
+{
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
+	
+	uiLayout *row, *sub, *subrow;
+	char name[2*MAX_NAME];
+	int icon = ICON_NONE;
+	
+	row = uiLayoutRow(layout, false);
+	uiLayoutSetEnabled(row, enabled);
+	
+	cache_item_button(row, C, cachelib, item, ob, type, index);
+	
+	sub = uiLayoutColumn(row, false);
+	uiLayoutSetEnabled(sub, item && (item->flag & CACHE_ITEM_ENABLED));
+	BKE_cache_item_name(ob, type, index, name);
+	
+	subrow = uiLayoutRow(sub, false);
+	RNA_enum_icon_from_value(cache_library_item_type_items, type, &icon);
+	uiItemL(subrow, name, icon);
+	
+	return sub;
 }

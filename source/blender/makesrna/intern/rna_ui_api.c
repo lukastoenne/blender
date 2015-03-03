@@ -899,6 +899,19 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Node Socket Icon");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	RNA_def_float_array(func, "color", 4, node_socket_color_default, 0.0f, 1.0f, "Color", "", 0.0f, 1.0f);
+
+	/* cache library item */
+	func = RNA_def_function(srna, "template_cache_library_item", "uiTemplateCacheLibraryItem");
+	RNA_def_function_ui_description(func, "Cache Library Item");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+	RNA_def_pointer(func, "cachelib", "CacheLibrary", "Cache Library", "Cache library containing the item");
+	RNA_def_pointer(func, "object", "Object", "Object", "Object to cache");
+	parm = RNA_def_enum(func, "type", cache_library_item_type_items, 0, "Type", "Type of cached data");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index of cached data", -1, INT_MAX);
+	RNA_def_boolean(func, "enabled", true, "Enabled", "Enable the item");
+	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
+	RNA_def_function_return(func, parm);
 }
 
 #endif
