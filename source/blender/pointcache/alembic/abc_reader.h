@@ -55,14 +55,15 @@ protected:
 
 class AbcReader {
 public:
-	AbcReader(AbcReaderArchive *archive) :
-	    m_archive(archive)
+	AbcReader() :
+	    m_abc_archive(0)
 	{}
 	
-	AbcReaderArchive *archive() const { return m_archive; }
+	void abc_archive(AbcReaderArchive *abc_archive) { m_abc_archive = abc_archive; }
+	AbcReaderArchive *abc_archive() const { return m_abc_archive; }
 	
 private:
-	AbcReaderArchive *m_archive;
+	AbcReaderArchive *m_abc_archive;
 };
 
 } /* namespace PTC */

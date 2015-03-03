@@ -654,14 +654,9 @@ static void cachelib_add_writer(ListBase *writers, struct PTCWriter *writer)
 	}
 }
 
-struct PTCWriterArchive *BKE_cache_library_writers(Scene *scene, int required_mode, CacheLibrary *cachelib, ListBase *writers)
+void BKE_cache_library_writers(Scene *scene, int required_mode, CacheLibrary *cachelib, ListBase *writers)
 {
-	char filename[FILE_MAX];
-	struct PTCWriterArchive *archive;
 	CacheItem *item;
-	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
-	archive = PTC_open_writer_archive(scene, filename);
 	
 	BLI_listbase_clear(writers);
 	
@@ -677,36 +672,51 @@ struct PTCWriterArchive *BKE_cache_library_writers(Scene *scene, int required_mo
 			case CACHE_TYPE_DERIVED_MESH: {
 				CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(scene, item->ob, required_mode);
 				if (cachemd)
-					cachelib_add_writer(writers, PTC_writer_cache_modifier(archive, name, item->ob, cachemd));
+					cachelib_add_writer(writers, PTC_writer_cache_modifier(name, item->ob, cachemd));
 				else
-					cachelib_add_writer(writers, PTC_writer_derived_final(archive, name, item->ob));
+					cachelib_add_writer(writers, PTC_writer_derived_final(name, item->ob));
 				break;
 			}
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
-					cachelib_add_writer(writers, PTC_writer_hair_dynamics(archive, name, item->ob, psys->clmd));
+					cachelib_add_writer(writers, PTC_writer_hair_dynamics(name, item->ob, psys->clmd));
 				}
 				break;
 			}
 			case CACHE_TYPE_HAIR_PATHS: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR) {
-					cachelib_add_writer(writers, PTC_writer_particles_pathcache_parents(archive, name, item->ob, psys));
-					cachelib_add_writer(writers, PTC_writer_particles_pathcache_children(archive, name, item->ob, psys));
+					cachelib_add_writer(writers, PTC_writer_particles_pathcache_parents(name, item->ob, psys));
+					cachelib_add_writer(writers, PTC_writer_particles_pathcache_children(name, item->ob, psys));
 				}
 				break;
 			}
 			case CACHE_TYPE_PARTICLES: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type != PART_HAIR) {
-					cachelib_add_writer(writers, PTC_writer_particles(archive, name, item->ob, psys));
+					cachelib_add_writer(writers, PTC_writer_particles(name, item->ob, psys));
 				}
 				break;
 			}
 			default:
 				break;
 		}
+	}
+}
+
+struct PTCWriterArchive *BKE_cache_library_writers_open_archive(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
+{
+	char filename[FILE_MAX];
+	struct PTCWriterArchive *archive;
+	LinkData *link;
+	
+	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	archive = PTC_open_writer_archive(scene, filename);
+	
+	for (link = writers->first; link; link = link->next) {
+		struct PTCWriter *writer = link->data;
+		PTC_writer_set_archive(writer, archive);
 	}
 	
 	return archive;
@@ -726,7 +736,7 @@ void BKE_cache_library_writers_free(struct PTCWriterArchive *archive, ListBase *
 }
 
 
-static struct PTCReader *cache_library_reader_derived_mesh(CacheLibrary *cachelib, struct PTCReaderArchive *archive, Object *ob)
+static struct PTCReader *cache_library_reader_derived_mesh(CacheLibrary *cachelib, Object *ob)
 {
 	CacheItem *item;
 	
@@ -737,13 +747,13 @@ static struct PTCReader *cache_library_reader_derived_mesh(CacheLibrary *cacheli
 		char name[2*MAX_NAME];
 		BKE_cache_item_name(ob, CACHE_TYPE_DERIVED_MESH, -1, name);
 		
-		return PTC_reader_derived_mesh(archive, name, ob);
+		return PTC_reader_derived_mesh(name, ob);
 	}
 	
 	return NULL;
 }
 
-static struct PTCReader *cache_library_reader_hair_dynamics(CacheLibrary *cachelib, struct PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+static struct PTCReader *cache_library_reader_hair_dynamics(CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
 	CacheItem *item;
 	int index;
@@ -759,13 +769,13 @@ static struct PTCReader *cache_library_reader_hair_dynamics(CacheLibrary *cachel
 		char name[2*MAX_NAME];
 		BKE_cache_item_name(ob, CACHE_TYPE_HAIR, index, name);
 		
-		return PTC_reader_hair_dynamics(archive, name, ob, psys->clmd);
+		return PTC_reader_hair_dynamics(name, ob, psys->clmd);
 	}
 	
 	return NULL;
 }
 
-static struct PTCReader *cache_library_reader_particles(CacheLibrary *cachelib, struct PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+static struct PTCReader *cache_library_reader_particles(CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
 	CacheItem *item;
 	int index;
@@ -781,13 +791,13 @@ static struct PTCReader *cache_library_reader_particles(CacheLibrary *cachelib, 
 		char name[2*MAX_NAME];
 		BKE_cache_item_name(ob, CACHE_TYPE_PARTICLES, index, name);
 		
-		return PTC_reader_particles(archive, name, ob, psys);
+		return PTC_reader_particles(name, ob, psys);
 	}
 	
 	return NULL;
 }
 
-static struct PTCReader *cache_library_reader_particles_pathcache_parents(CacheLibrary *cachelib, struct PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+static struct PTCReader *cache_library_reader_particles_pathcache_parents(CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
 	CacheItem *item;
 	int index;
@@ -803,13 +813,13 @@ static struct PTCReader *cache_library_reader_particles_pathcache_parents(CacheL
 		char name[2*MAX_NAME];
 		BKE_cache_item_name(ob, CACHE_TYPE_HAIR_PATHS, index, name);
 		
-		return PTC_reader_particles_pathcache_parents(archive, name, ob, psys);
+		return PTC_reader_particles_pathcache_parents(name, ob, psys);
 	}
 	
 	return NULL;
 }
 
-static struct PTCReader *cache_library_reader_particles_pathcache_children(CacheLibrary *cachelib, struct PTCReaderArchive *archive, Object *ob, ParticleSystem *psys)
+static struct PTCReader *cache_library_reader_particles_pathcache_children(CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
 	CacheItem *item;
 	int index;
@@ -825,7 +835,7 @@ static struct PTCReader *cache_library_reader_particles_pathcache_children(Cache
 		char name[2*MAX_NAME];
 		BKE_cache_item_name(ob, CACHE_TYPE_HAIR_PATHS, index, name);
 		
-		return PTC_reader_particles_pathcache_children(archive, name, ob, psys);
+		return PTC_reader_particles_pathcache_children(name, ob, psys);
 	}
 	
 	return NULL;
@@ -834,110 +844,127 @@ static struct PTCReader *cache_library_reader_particles_pathcache_children(Cache
 
 eCacheReadSampleResult BKE_cache_library_read_derived_mesh(Scene *scene, float frame, CacheLibrary *cachelib, struct Object *ob, struct DerivedMesh **r_dm)
 {
-	char filename[FILE_MAX];
-	struct PTCReaderArchive *archive;
 	struct PTCReader *reader;
-	PTCReadSampleResult result;
+	eCacheReadSampleResult result = CACHE_READ_SAMPLE_INVALID;
 	
 	if (!(cachelib->flag & CACHE_LIBRARY_READ))
-		return PTC_READ_SAMPLE_INVALID;
+		return result;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
-	archive = PTC_open_reader_archive(scene, filename);
-	
-	reader = cache_library_reader_derived_mesh(cachelib, archive, ob);
-	result = PTC_READ_SAMPLE_INVALID;
+	reader = cache_library_reader_derived_mesh(cachelib, ob);
 	if (reader) {
-		result = PTC_read_sample(reader, frame);
-		if (result != PTC_READ_SAMPLE_INVALID)
+		char filename[FILE_MAX];
+		struct PTCReaderArchive *archive;
+		
+		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+		archive = PTC_open_reader_archive(scene, filename);
+		PTC_reader_set_archive(reader, archive);
+		
+		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+		if (result != CACHE_READ_SAMPLE_INVALID)
 			*r_dm = PTC_reader_derived_mesh_acquire_result(reader);
+		
+		PTC_close_reader_archive(archive);
 	}
 	
-	PTC_close_reader_archive(archive);
-	
-	return BKE_cache_read_result(result);
+	return result;
 }
 
 eCacheReadSampleResult BKE_cache_library_read_hair_dynamics(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
-	char filename[FILE_MAX];
-	struct PTCReaderArchive *archive;
 	struct PTCReader *reader;
-	PTCReadSampleResult result;
+	eCacheReadSampleResult result = CACHE_READ_SAMPLE_INVALID;
 	
 	if (!(cachelib->flag & CACHE_LIBRARY_READ))
-		return PTC_READ_SAMPLE_INVALID;
+		return result;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
-	archive = PTC_open_reader_archive(scene, filename);
-	
-	reader = cache_library_reader_hair_dynamics(cachelib, archive, ob, psys);
-	result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
-	
-	PTC_close_reader_archive(archive);
+	reader = cache_library_reader_hair_dynamics(cachelib, ob, psys);
+	if (reader) {
+		char filename[FILE_MAX];
+		struct PTCReaderArchive *archive;
+		
+		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+		archive = PTC_open_reader_archive(scene, filename);
+		PTC_reader_set_archive(reader, archive);
+		
+		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+		
+		PTC_close_reader_archive(archive);
+	}
 	
 	return result;
 }
 
 eCacheReadSampleResult BKE_cache_library_read_particles(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
-	char filename[FILE_MAX];
-	struct PTCReaderArchive *archive;
 	struct PTCReader *reader;
-	PTCReadSampleResult result;
+	eCacheReadSampleResult result = CACHE_READ_SAMPLE_INVALID;
 	
 	if (!(cachelib->flag & CACHE_LIBRARY_READ))
-		return PTC_READ_SAMPLE_INVALID;
+		return result;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
-	archive = PTC_open_reader_archive(scene, filename);
-	
-	reader = cache_library_reader_particles(cachelib, archive, ob, psys);
-	result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
-	
-	PTC_close_reader_archive(archive);
+	reader = cache_library_reader_particles(cachelib, ob, psys);
+	if (reader) {
+		char filename[FILE_MAX];
+		struct PTCReaderArchive *archive;
+		
+		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+		archive = PTC_open_reader_archive(scene, filename);
+		PTC_reader_set_archive(reader, archive);
+		
+		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+		
+		PTC_close_reader_archive(archive);
+	}
 	
 	return result;
 }
 
 eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_parents(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
-	char filename[FILE_MAX];
-	struct PTCReaderArchive *archive;
 	struct PTCReader *reader;
-	PTCReadSampleResult result;
+	eCacheReadSampleResult result = CACHE_READ_SAMPLE_INVALID;
 	
 	if (!(cachelib->flag & CACHE_LIBRARY_READ))
-		return PTC_READ_SAMPLE_INVALID;
+		return result;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
-	archive = PTC_open_reader_archive(scene, filename);
-	
-	reader = cache_library_reader_particles_pathcache_parents(cachelib, archive, ob, psys);
-	result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
-	
-	PTC_close_reader_archive(archive);
+	reader = cache_library_reader_particles_pathcache_parents(cachelib, ob, psys);
+	if (reader) {
+		char filename[FILE_MAX];
+		struct PTCReaderArchive *archive;
+		
+		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+		archive = PTC_open_reader_archive(scene, filename);
+		PTC_reader_set_archive(reader, archive);
+		
+		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+		
+		PTC_close_reader_archive(archive);
+	}
 	
 	return result;
 }
 
 eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_children(Scene *scene, float frame, CacheLibrary *cachelib, Object *ob, ParticleSystem *psys)
 {
-	char filename[FILE_MAX];
-	struct PTCReaderArchive *archive;
 	struct PTCReader *reader;
-	PTCReadSampleResult result;
+	eCacheReadSampleResult result = CACHE_READ_SAMPLE_INVALID;
 	
 	if (!(cachelib->flag & CACHE_LIBRARY_READ))
-		return PTC_READ_SAMPLE_INVALID;
+		return result;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
-	archive = PTC_open_reader_archive(scene, filename);
-	
-	reader = cache_library_reader_particles_pathcache_children(cachelib, archive, ob, psys);
-	result = reader ? PTC_read_sample(reader, frame) : PTC_READ_SAMPLE_INVALID;
-	
-	PTC_close_reader_archive(archive);
+	reader = cache_library_reader_particles_pathcache_children(cachelib, ob, psys);
+	if (reader) {
+		char filename[FILE_MAX];
+		struct PTCReaderArchive *archive;
+		
+		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+		archive = PTC_open_reader_archive(scene, filename);
+		PTC_reader_set_archive(reader, archive);
+		
+		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+		
+		PTC_close_reader_archive(archive);
+	}
 	
 	return result;
 }

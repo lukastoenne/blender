@@ -42,8 +42,10 @@ namespace PTC {
 
 class AbcDerivedMeshWriter : public DerivedMeshWriter, public AbcWriter {
 public:
-	AbcDerivedMeshWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr);
+	AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr);
 	~AbcDerivedMeshWriter();
+	
+	void open_archive(WriterArchive *archive);
 	
 	void write_sample();
 	
@@ -59,8 +61,10 @@ private:
 
 class AbcDerivedMeshReader : public DerivedMeshReader, public AbcReader {
 public:
-	AbcDerivedMeshReader(AbcReaderArchive *archive, const std::string &name, Object *ob);
+	AbcDerivedMeshReader(const std::string &name, Object *ob);
 	~AbcDerivedMeshReader();
+	
+	void open_archive(ReaderArchive *archive);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -77,16 +81,16 @@ private:
 
 class AbcDerivedFinalWriter : public AbcDerivedMeshWriter {
 public:
-	AbcDerivedFinalWriter(AbcWriterArchive *archive, const std::string &name, Object *ob) :
-	    AbcDerivedMeshWriter(archive, name, ob, &ob->derivedFinal)
+	AbcDerivedFinalWriter(const std::string &name, Object *ob) :
+	    AbcDerivedMeshWriter(name, ob, &ob->derivedFinal)
 	{}
 };
 
 
 class AbcCacheModifierWriter : public AbcDerivedMeshWriter {
 public:
-	AbcCacheModifierWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd) :
-	    AbcDerivedMeshWriter(archive, name, ob, &cmd->output_dm),
+	AbcCacheModifierWriter(const std::string &name, Object *ob, CacheModifierData *cmd) :
+	    AbcDerivedMeshWriter(name, ob, &cmd->output_dm),
 	    m_cmd(cmd)
 	{
 		cmd->flag |= MOD_CACHE_USE_OUTPUT;

@@ -34,23 +34,29 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcParticlesWriter::AbcParticlesWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
-    ParticlesWriter(ob, psys, archive),
-    AbcWriter(archive)
+AbcParticlesWriter::AbcParticlesWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
+    ParticlesWriter(ob, psys, name)
 {
-	if (archive->archive) {
-		OObject root = archive->archive.getTop();
-		m_points = OPoints(root, name, archive->frame_sampling_index());
-	}
 }
 
 AbcParticlesWriter::~AbcParticlesWriter()
 {
 }
 
+void AbcParticlesWriter::open_archive(WriterArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
+	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	
+	if (abc_archive()->archive) {
+		OObject root = abc_archive()->archive.getTop();
+		m_points = OPoints(root, m_name, abc_archive()->frame_sampling_index());
+	}
+}
+
 void AbcParticlesWriter::write_sample()
 {
-	if (!archive()->archive)
+	if (!abc_archive()->archive)
 		return;
 	
 	OPointsSchema &schema = m_points.getSchema();
@@ -78,26 +84,32 @@ void AbcParticlesWriter::write_sample()
 }
 
 
-AbcParticlesReader::AbcParticlesReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys) :
-    ParticlesReader(ob, psys, archive),
-    AbcReader(archive)
+AbcParticlesReader::AbcParticlesReader(const std::string &name, Object *ob, ParticleSystem *psys) :
+    ParticlesReader(ob, psys, name)
 {
-	if (archive->archive.valid()) {
-		IObject root = archive->archive.getTop();
-		m_points = IPoints(root, name);
-	}
-	
-	/* XXX TODO read first sample for info on particle count and times */
-	m_totpoint = 0;
 }
 
 AbcParticlesReader::~AbcParticlesReader()
 {
 }
 
+void AbcParticlesReader::open_archive(ReaderArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
+	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
+	
+	if (abc_archive()->archive.valid()) {
+		IObject root = abc_archive()->archive.getTop();
+		m_points = IPoints(root, m_name);
+	}
+	
+	/* XXX TODO read first sample for info on particle count and times */
+	m_totpoint = 0;
+}
+
 PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 {
-	ISampleSelector ss = archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
 	if (!m_points.valid())
 		return PTC_READ_SAMPLE_INVALID;
@@ -120,16 +132,26 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 }
 
 
-AbcParticlePathcacheWriter::AbcParticlePathcacheWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
-    ParticlesWriter(ob, psys, NULL),
-    AbcWriter(archive),
+AbcParticlePathcacheWriter::AbcParticlePathcacheWriter(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
+    ParticlesWriter(ob, psys, name),
     m_pathcache(pathcache),
     m_totpath(totpath),
     m_suffix(suffix)
 {
-	OObject root = archive->archive.getTop();
+}
+
+AbcParticlePathcacheWriter::~AbcParticlePathcacheWriter()
+{
+}
+
+void AbcParticlePathcacheWriter::open_archive(WriterArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
+	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+
+	OObject root = abc_archive()->archive.getTop();
 	/* XXX non-escaped string construction here ... */
-	m_curves = OCurves(root, name + m_suffix, archive->frame_sampling_index());
+	m_curves = OCurves(root, m_name + m_suffix, abc_archive()->frame_sampling_index());
 	
 	OCurvesSchema &schema = m_curves.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
@@ -138,10 +160,6 @@ AbcParticlePathcacheWriter::AbcParticlePathcacheWriter(AbcWriterArchive *archive
 	m_param_rotations = OQuatfGeomParam(geom_props, "rotations", false, kVertexScope, 1, 0);
 	m_param_colors = OV3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
-}
-
-AbcParticlePathcacheWriter::~AbcParticlePathcacheWriter()
-{
 }
 
 static int paths_count_totkeys(ParticleCacheKey **pathcache, int totpart)
@@ -280,7 +298,7 @@ static OFloatGeomParam::Sample paths_create_sample_times(ParticleCacheKey **path
 
 void AbcParticlePathcacheWriter::write_sample()
 {
-	if (!archive()->archive)
+	if (!abc_archive()->archive)
 		return;
 	if (!(*m_pathcache))
 		return;
@@ -323,18 +341,24 @@ void AbcParticlePathcacheWriter::write_sample()
 }
 
 
-AbcParticlePathcacheReader::AbcParticlePathcacheReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
-    ParticlesReader(ob, psys, archive),
-    AbcReader(archive),
+AbcParticlePathcacheReader::AbcParticlePathcacheReader(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
+    ParticlesReader(ob, psys, name),
     m_pathcache(pathcache),
     m_totpath(totpath),
     m_suffix(suffix)
 {
-	if (archive->archive.valid()) {
-		IObject root = archive->archive.getTop();
+}
+
+void AbcParticlePathcacheReader::open_archive(ReaderArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
+	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
+	
+	if (abc_archive()->archive.valid()) {
+		IObject root = abc_archive()->archive.getTop();
 		if (root.valid()) {
 			/* XXX non-escaped string construction here ... */
-			std::string curves_name = name + suffix;
+			std::string curves_name = m_name + m_suffix;
 			if (root.getChild(curves_name)) {
 				m_curves = ICurves(root, curves_name);
 				ICurvesSchema &schema = m_curves.getSchema();
@@ -421,7 +445,7 @@ PTCReadSampleResult AbcParticlePathcacheReader::read_sample(float frame)
 	if (!m_curves.valid())
 		return PTC_READ_SAMPLE_INVALID;
 	
-	ISampleSelector ss = archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
 	ICurvesSchema &schema = m_curves.getSchema();
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)

@@ -46,77 +46,77 @@ class AbcFactory : public Factory {
 	}
 	
 	/* Particles */
-	Writer *create_writer_particles(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+	Writer *create_writer_particles(const std::string &name, Object *ob, ParticleSystem *psys)
 	{
-		return new AbcParticlesWriter(static_cast<AbcWriterArchive*>(archive), name, ob, psys);
+		return new AbcParticlesWriter(name, ob, psys);
 	}
 	
-	Reader *create_reader_particles(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+	Reader *create_reader_particles(const std::string &name, Object *ob, ParticleSystem *psys)
 	{
-		return new AbcParticlesReader(static_cast<AbcReaderArchive*>(archive), name, ob, psys);
+		return new AbcParticlesReader(name, ob, psys);
 	}
 	
-	Writer *create_writer_particles_pathcache_parents(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+	Writer *create_writer_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys)
 	{
-		return new AbcParticlePathcacheParentsWriter(static_cast<AbcWriterArchive*>(archive), name, ob, psys);
+		return new AbcParticlePathcacheParentsWriter(name, ob, psys);
 	}
 	
-	Reader *create_reader_particles_pathcache_parents(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+	Reader *create_reader_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys)
 	{
-		return new AbcParticlePathcacheParentsReader(static_cast<AbcReaderArchive*>(archive), name, ob, psys);
+		return new AbcParticlePathcacheParentsReader(name, ob, psys);
 	}
 	
-	Writer *create_writer_particles_pathcache_children(WriterArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+	Writer *create_writer_particles_pathcache_children(const std::string &name, Object *ob, ParticleSystem *psys)
 	{
-		return new AbcParticlePathcacheChildrenWriter(static_cast<AbcWriterArchive*>(archive), name, ob, psys);
+		return new AbcParticlePathcacheChildrenWriter(name, ob, psys);
 	}
 	
-	Reader *create_reader_particles_pathcache_children(ReaderArchive *archive, const std::string &name, Object *ob, ParticleSystem *psys)
+	Reader *create_reader_particles_pathcache_children(const std::string &name, Object *ob, ParticleSystem *psys)
 	{
-		return new AbcParticlePathcacheChildrenReader(static_cast<AbcReaderArchive*>(archive), name, ob, psys);
+		return new AbcParticlePathcacheChildrenReader(name, ob, psys);
 	}
 	
 	
 	/* Cloth */
-	Writer *create_writer_cloth(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
+	Writer *create_writer_cloth(const std::string &name, Object *ob, ClothModifierData *clmd)
 	{
-		return new AbcClothWriter(static_cast<AbcWriterArchive*>(archive), name, ob, clmd);
+		return new AbcClothWriter(name, ob, clmd);
 	}
 	
-	Reader *create_reader_cloth(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
+	Reader *create_reader_cloth(const std::string &name, Object *ob, ClothModifierData *clmd)
 	{
-		return new AbcClothReader(static_cast<AbcReaderArchive*>(archive), name, ob, clmd);
+		return new AbcClothReader(name, ob, clmd);
 	}
 	
-	Writer *create_writer_hair_dynamics(WriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
+	Writer *create_writer_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd)
 	{
-		return new AbcHairDynamicsWriter(static_cast<AbcWriterArchive*>(archive), name, ob, clmd);
+		return new AbcHairDynamicsWriter(name, ob, clmd);
 	}
 	
-	Reader *create_reader_hair_dynamics(ReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd)
+	Reader *create_reader_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd)
 	{
-		return new AbcHairDynamicsReader(static_cast<AbcReaderArchive*>(archive), name, ob, clmd);
+		return new AbcHairDynamicsReader(name, ob, clmd);
 	}
 	
 	/* Modifier Stack */
-	Writer *create_writer_derived_mesh(WriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr)
+	Writer *create_writer_derived_mesh(const std::string &name, Object *ob, DerivedMesh **dm_ptr)
 	{
-		return new AbcDerivedMeshWriter(static_cast<AbcWriterArchive*>(archive), name, ob, dm_ptr);
+		return new AbcDerivedMeshWriter(name, ob, dm_ptr);
 	}
 	
-	Reader *create_reader_derived_mesh(ReaderArchive *archive, const std::string &name, Object *ob)
+	Reader *create_reader_derived_mesh(const std::string &name, Object *ob)
 	{
-		return new AbcDerivedMeshReader(static_cast<AbcReaderArchive*>(archive), name, ob);
+		return new AbcDerivedMeshReader(name, ob);
 	}
 	
-	Writer *create_writer_derived_final(WriterArchive *archive, const std::string &name, Object *ob)
+	Writer *create_writer_derived_final(const std::string &name, Object *ob)
 	{
-		return new AbcDerivedFinalWriter(static_cast<AbcWriterArchive*>(archive), name, ob);
+		return new AbcDerivedFinalWriter(name, ob);
 	}
 	
-	Writer *create_writer_cache_modifier(WriterArchive *archive, const std::string &name, Object *ob, CacheModifierData *cmd)
+	Writer *create_writer_cache_modifier(const std::string &name, Object *ob, CacheModifierData *cmd)
 	{
-		return new AbcCacheModifierWriter(static_cast<AbcWriterArchive*>(archive), name, ob, cmd);
+		return new AbcCacheModifierWriter(name, ob, cmd);
 	}
 };
 

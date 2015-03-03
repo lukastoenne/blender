@@ -24,10 +24,11 @@ extern "C" {
 
 namespace PTC {
 
-Writer::Writer(ID *id, WriterArchive *archive) :
+Writer::Writer(ID *id, const std::string &name) :
     m_error_handler(0),
+    m_name(name),
     m_id(id),
-    m_archive(archive)
+    m_archive(0)
 {
 }
 
@@ -48,6 +49,14 @@ void Writer::set_error_handler(ErrorHandler *handler)
 bool Writer::valid() const
 {
 	return m_error_handler ? m_error_handler->max_error_level() >= PTC_ERROR_CRITICAL : true;
+}
+
+void Writer::set_archive(WriterArchive *archive)
+{
+	m_archive = archive;
+	
+	if (m_archive)
+		open_archive(archive);
 }
 
 } /* namespace PTC */

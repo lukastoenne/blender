@@ -35,8 +35,10 @@ namespace PTC {
 
 class AbcClothWriter : public ClothWriter, public AbcWriter {
 public:
-	AbcClothWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
+	AbcClothWriter(const std::string &name, Object *ob, ClothModifierData *clmd);
 	~AbcClothWriter();
+	
+	void open_archive(WriterArchive *archive);
 	
 	void write_sample();
 	
@@ -48,8 +50,10 @@ private:
 
 class AbcClothReader : public ClothReader, public AbcReader {
 public:
-	AbcClothReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd);
+	AbcClothReader(const std::string &name, Object *ob, ClothModifierData *clmd);
 	~AbcClothReader();
+	
+	void open_archive(ReaderArchive *archive);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -64,15 +68,15 @@ private:
 
 class AbcHairDynamicsWriter : public AbcClothWriter {
 public:
-	AbcHairDynamicsWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) :
-	    AbcClothWriter(archive, name, ob, clmd)
+	AbcHairDynamicsWriter(const std::string &name, Object *ob, ClothModifierData *clmd) :
+	    AbcClothWriter(name, ob, clmd)
 	{}
 };
 
 class AbcHairDynamicsReader : public AbcClothReader {
 public:
-	AbcHairDynamicsReader(AbcReaderArchive *archive, const std::string &name, Object *ob, ClothModifierData *clmd) :
-	    AbcClothReader(archive, name, ob, clmd)
+	AbcHairDynamicsReader(const std::string &name, Object *ob, ClothModifierData *clmd) :
+	    AbcClothReader(name, ob, clmd)
 	{}
 	
 	PTCReadSampleResult read_sample(float frame) { return AbcClothReader::read_sample(frame); }

@@ -272,7 +272,8 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	/* disable reading for the duration of the bake process */
 	data->cachelib->flag &= ~CACHE_LIBRARY_READ;
 	
-	data->archive = BKE_cache_library_writers(scene, required_mode, data->cachelib, &data->writers);
+	BKE_cache_library_writers(scene, required_mode, data->cachelib, &data->writers);
+	data->archive = BKE_cache_library_writers_open_archive(scene, data->cachelib, &data->writers);
 	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;

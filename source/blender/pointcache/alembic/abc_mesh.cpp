@@ -43,13 +43,23 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcDerivedMeshWriter::AbcDerivedMeshWriter(AbcWriterArchive *archive, const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
-    DerivedMeshWriter(ob, dm_ptr, archive),
-    AbcWriter(archive)
+AbcDerivedMeshWriter::AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
+    DerivedMeshWriter(ob, dm_ptr, name)
 {
-	if (archive->archive) {
-		OObject root = archive->archive.getTop();
-		m_mesh = OPolyMesh(root, name, archive->frame_sampling_index());
+}
+
+AbcDerivedMeshWriter::~AbcDerivedMeshWriter()
+{
+}
+
+void AbcDerivedMeshWriter::open_archive(WriterArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
+	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	
+	if (abc_archive()->archive) {
+		OObject root = abc_archive()->archive.getTop();
+		m_mesh = OPolyMesh(root, m_name, abc_archive()->frame_sampling_index());
 		
 		OPolyMeshSchema &schema = m_mesh.getSchema();
 		OCompoundProperty geom_props = schema.getArbGeomParams();
@@ -61,10 +71,6 @@ AbcDerivedMeshWriter::AbcDerivedMeshWriter(AbcWriterArchive *archive, const std:
 		m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
 		m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
 	}
-}
-
-AbcDerivedMeshWriter::~AbcDerivedMeshWriter()
-{
 }
 
 /* XXX modifiers are not allowed to generate poly normals on their own!
@@ -232,7 +238,7 @@ static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<
 
 void AbcDerivedMeshWriter::write_sample()
 {
-	if (!archive()->archive)
+	if (!abc_archive()->archive)
 		return;
 	
 	DerivedMesh *output_dm = *m_dm_ptr;
@@ -293,14 +299,24 @@ void AbcDerivedMeshWriter::write_sample()
 
 /* ========================================================================= */
 
-AbcDerivedMeshReader::AbcDerivedMeshReader(AbcReaderArchive *archive, const std::string &name, Object *ob) :
-    DerivedMeshReader(ob, archive),
-    AbcReader(archive)
+AbcDerivedMeshReader::AbcDerivedMeshReader(const std::string &name, Object *ob) :
+    DerivedMeshReader(ob, name)
 {
-	if (archive->archive.valid()) {
-		IObject root = archive->archive.getTop();
-		if (root.valid() && root.getChild(name)) {
-			m_mesh = IPolyMesh(root, name);
+}
+
+AbcDerivedMeshReader::~AbcDerivedMeshReader()
+{
+}
+
+void AbcDerivedMeshReader::open_archive(ReaderArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
+	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
+	
+	if (abc_archive()->archive.valid()) {
+		IObject root = abc_archive()->archive.getTop();
+		if (root.valid() && root.getChild(m_name)) {
+			m_mesh = IPolyMesh(root, m_name);
 			
 			IPolyMeshSchema &schema = m_mesh.getSchema();
 			ICompoundProperty geom_props = schema.getArbGeomParams();
@@ -314,10 +330,6 @@ AbcDerivedMeshReader::AbcDerivedMeshReader(AbcReaderArchive *archive, const std:
 			m_prop_edges_index = IInt32ArrayProperty(user_props, "edges_index", 0);
 		}
 	}
-}
-
-AbcDerivedMeshReader::~AbcDerivedMeshReader()
-{
 }
 
 static void apply_sample_positions(DerivedMesh *dm, P3fArraySamplePtr sample)
@@ -482,7 +494,7 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	ISampleSelector ss = archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
 	PROFILE_START;
 	IPolyMeshSchema::Sample sample;
