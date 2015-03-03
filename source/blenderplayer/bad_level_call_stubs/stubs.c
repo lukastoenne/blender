@@ -584,6 +584,8 @@ void uiTemplateColormanagedViewSettings(struct uiLayout *layout, struct bContext
 void uiTemplateComponentMenu(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name) RET_NONE
 void uiTemplateNodeSocket(struct uiLayout *layout, struct bContext *C, float *color) RET_NONE
 void uiTemplatePalette(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int color) RET_NONE
+struct uiLayout *uiTemplateCacheLibraryItem(struct uiLayout *layout, struct bContext *C, struct CacheLibrary *cachelib,
+                                            struct Object *ob, int type, int index, int enabled) RET_NULL
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername) RET_NULL

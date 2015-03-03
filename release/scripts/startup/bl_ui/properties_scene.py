@@ -475,33 +475,6 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
     def poll(cls, context):
         return True
 
-    def draw_cache_item_button(self, context, layout, item, ob, type, index=-1):
-        if not item:
-            sub = layout.row()
-            sub.context_pointer_set("cache_object", ob)
-            props = sub.operator("cachelibrary.item_enable", text="", icon='ZOOMIN', emboss=True)
-            props.type = type
-            props.index = index
-        else:
-            layout.prop(item, "enabled", text="")
-
-    def draw_cache_item(self, context, layout, cachelib, ob, item, type, index=-1, enabled=True):
-        from bpy.types import CacheItem
-
-        buttons = layout.row()
-        buttons.enabled = enabled
-
-        self.draw_cache_item_button(context, buttons, item, ob, type, index)
-        
-        sub = buttons.column()
-        sub.enabled = bool(item and item.enabled)
-        name = item.name if item else CacheItem.get_name(ob, type, index)
-
-        row = sub.row()
-        row.label(text=name, icon=self.item_type_icon[type])
-
-        return sub
-
     def draw_cachelib(self, context, layout, cachelib):
         # imitate template_ID without an actual pointer property
         row = layout.row(align=True)
@@ -545,7 +518,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
                 if indent:
                     row.label("  " * indent)
 
-                sub = self.draw_cache_item(context, row, cachelib, ob, item, item_type, item_index, enable)
+                row.template_cache_library_item(cachelib, ob, item_type, item_index, enable)
 
 
     def draw(self, context):

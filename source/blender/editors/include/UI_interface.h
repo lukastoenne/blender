@@ -75,6 +75,7 @@ struct ImBuf;
 struct bNodeTree;
 struct bNode;
 struct bNodeSocket;
+struct CacheLibrary;
 struct wmDropBox;
 struct wmDrag;
 struct wmEvent;
@@ -907,6 +908,8 @@ void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C);
 void uiTemplateKeymapItemProperties(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplateComponentMenu(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name);
 void uiTemplateNodeSocket(uiLayout *layout, struct bContext *C, float *color);
+uiLayout *uiTemplateCacheLibraryItem(uiLayout *layout, struct bContext *C, struct CacheLibrary *cachelib,
+                                     struct Object *ob, int type, int index, int enabled);
 
 /* Default UIList class name, keep in sync with its declaration in bl_ui/__init__.py */
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"
