@@ -427,23 +427,23 @@ def cachelib_objects(cachelib, filter_string = ""):
     else:
         return cachelib.group.objects
 
-# Yields (item, type, index, indent, enabled)
+# Yields (item, type, index, enabled)
 # Note that item can be None when not included in the cache yet
 def cachelib_object_items(cachelib, ob, filter_types = []):
     def items_desc():
-        yield 'OBJECT', -1, 0
+        yield 'OBJECT', -1
         
         if (ob.type == 'MESH'):
-            yield 'DERIVED_MESH', -1, 1
+            yield 'DERIVED_MESH', -1
 
         for index, psys in enumerate(ob.particle_systems):
             if psys.settings.type == 'EMITTER':
-                yield 'PARTICLES', index, 1
+                yield 'PARTICLES', index
             if psys.settings.type == 'HAIR':
-                yield 'HAIR', index, 1
-                yield 'HAIR_PATHS', index, 1
+                yield 'HAIR', index
+                yield 'HAIR_PATHS', index
 
-    for item_type, item_index, indent in items_desc():
+    for item_type, item_index in items_desc():
         item = cachelib.cache_item_find(ob, item_type, item_index)
         show = False
         enable = False
@@ -463,7 +463,7 @@ def cachelib_object_items(cachelib, ob, filter_types = []):
             enable = False
         
         if show:
-            yield item, item_type, item_index, indent, enable
+            yield item, item_type, item_index, enable
 
 class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
     bl_label = "Cache Manager"
@@ -512,12 +512,9 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
                 layout.separator()
                 first = False
 
-            for item, item_type, item_index, indent, enable in cachelib_object_items(cachelib, ob, cachelib.filter_types):
+            for item, item_type, item_index, enable in cachelib_object_items(cachelib, ob, cachelib.filter_types):
                 row = layout.row(align=True)
                 row.alignment = 'LEFT'
-                if indent:
-                    row.label("  " * indent)
-
                 row.template_cache_library_item(cachelib, ob, item_type, item_index, enable)
 
 
