@@ -81,6 +81,7 @@ void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc wa
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);
+eCacheReadSampleResult BKE_cache_read_result(int ptc_result);
 
 struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
 struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);

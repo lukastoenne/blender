@@ -46,6 +46,14 @@ typedef enum eCacheItemType {
 	CACHE_TYPE_PARTICLES            = 4,
 } eCacheItemType;
 
+typedef enum eCacheReadSampleResult {
+	CACHE_READ_SAMPLE_INVALID         = 0,	/* no valid result can be retrieved */
+	CACHE_READ_SAMPLE_EARLY           = 1,	/* request time before first sample */
+	CACHE_READ_SAMPLE_LATE            = 2,	/* request time after last sample */
+	CACHE_READ_SAMPLE_EXACT           = 3,	/* found sample for requested frame */
+	CACHE_READ_SAMPLE_INTERPOLATED    = 4,	/* no exact sample, but found enclosing samples for interpolation */
+} eCacheReadSampleResult;
+
 typedef struct CacheItem {
 	struct CacheItem *next, *prev;
 	
@@ -54,7 +62,8 @@ typedef struct CacheItem {
 	int index;
 	
 	int flag;
-	int pad;
+	short read_result;
+	short pad;
 } CacheItem;
 
 typedef enum eCacheItem_Flag {
