@@ -32,8 +32,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -589,6 +591,56 @@ void BKE_cache_library_update_items(CacheLibrary *cachelib)
 #endif
 
 /* ========================================================================= */
+
+static const char *default_filename = "blendcache";
+
+BLI_INLINE bool path_is_dirpath(const char *path)
+{
+	/* last char is a slash? */
+	return *(BLI_last_slash(path) + 1) == '\0';
+}
+
+bool BKE_cache_archive_path_test(const char *path, ID *UNUSED(id), Library *lib)
+{
+	if (BLI_path_is_rel(path)) {
+		if (!(G.relbase_valid || lib))
+			return false;
+	}
+	
+	return true;
+	
+}
+
+void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result, int max)
+{
+	char abspath[FILE_MAX];
+	
+	result[0] = '\0';
+	
+	if (BLI_path_is_rel(path)) {
+		if (G.relbase_valid || lib) {
+			const char *relbase = lib ? lib->filepath : G.main->name;
+			
+			BLI_strncpy(abspath, path, sizeof(abspath));
+			BLI_path_abs(abspath, relbase);
+		}
+		else {
+			/* can't construct a valid path */
+			return;
+		}
+	}
+	else {
+		BLI_strncpy(abspath, path, sizeof(abspath));
+	}
+	
+	if (path_is_dirpath(abspath) || BLI_is_dir(abspath)) {
+		BLI_join_dirfile(result, max, abspath, id ? id->name+2 : default_filename);
+	}
+	else {
+		BLI_strncpy(result, abspath, max);
+	}
+}
+
 
 /* XXX this needs work: the order of cachelibraries in bmain is arbitrary!
  * If there are multiple cachelibs applying data, which should take preference?
