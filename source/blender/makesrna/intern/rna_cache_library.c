@@ -46,6 +46,15 @@ EnumPropertyItem cache_library_item_type_items[] = {
     {0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem cache_library_read_result_items[] = {
+    {CACHE_READ_SAMPLE_INVALID,         "INVALID",      ICON_ERROR,             "Invalid",      "No valid sample found"},
+    {CACHE_READ_SAMPLE_EXACT,           "EXACT",        ICON_SPACE3,            "Exact",        "Found sample for requested frame"},
+    {CACHE_READ_SAMPLE_INTERPOLATED,    "INTERPOLATED", ICON_TRIA_DOWN_BAR,     "Interpolated", "Enclosing samples found for interpolation"},
+    {CACHE_READ_SAMPLE_EARLY,           "EARLY",        ICON_TRIA_RIGHT_BAR,    "Early",        "Requested frame before the first sample"},
+    {CACHE_READ_SAMPLE_LATE,            "LATE",         ICON_TRIA_LEFT_BAR,     "Late",         "Requested frame after the last sample"},
+    {0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"
@@ -229,6 +238,12 @@ static void rna_def_cache_item(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CACHE_ITEM_ENABLED);
 	RNA_def_property_ui_text(prop, "Enabled", "Enable caching for this item");
+	
+	prop = RNA_def_property(srna, "read_result", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "read_result");
+	RNA_def_property_enum_items(prop, cache_library_read_result_items);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Read Result", "Result of cache read");
 	
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_maxlength(prop, 2*MAX_NAME);

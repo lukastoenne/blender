@@ -3727,27 +3727,54 @@ static void cache_item_button(uiLayout *layout, bContext *UNUSED(C), CacheLibrar
 	}
 }
 
+static int cache_item_indent(int type)
+{
+	switch (type) {
+		case CACHE_TYPE_OBJECT:
+			return 0;
+		
+		default:
+			return 1;
+	}
+}
+
 uiLayout *uiTemplateCacheLibraryItem(uiLayout *layout, bContext *C, CacheLibrary *cachelib,
                                      Object *ob, int type, int index, int enabled)
 {
 	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
 	
-	uiLayout *row, *sub, *subrow;
+	uiLayout *split, *row, *sub;
+	int i;
 	char name[2*MAX_NAME];
 	int icon = ICON_NONE;
 	
 	row = uiLayoutRow(layout, false);
 	uiLayoutSetEnabled(row, enabled);
+	uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
 	
-	cache_item_button(row, C, cachelib, item, ob, type, index);
+	split = uiLayoutSplit(row, 0.0f, false);
 	
-	sub = uiLayoutColumn(row, false);
-	uiLayoutSetEnabled(sub, item && (item->flag & CACHE_ITEM_ENABLED));
+	for (i = 0; i < cache_item_indent(type); ++i)
+		uiItemL(split, "", ICON_NONE);
+	cache_item_button(split, C, cachelib, item, ob, type, index);
+	
+	split = uiLayoutSplit(row, 0.1f, false);
+	uiLayoutSetEnabled(split, item && (item->flag & CACHE_ITEM_ENABLED));
+	sub = uiLayoutColumn(split, false);
+	
 	BKE_cache_item_name(ob, type, index, name);
-	
-	subrow = uiLayoutRow(sub, false);
 	RNA_enum_icon_from_value(cache_library_item_type_items, type, &icon);
-	uiItemL(subrow, name, icon);
+	uiItemL(split, name, icon);
+	
+	/* display read result */
+	if (cachelib->flag & CACHE_LIBRARY_READ) {
+		split = uiLayoutSplit(row, 0.9f, false);
+		if (item && (item->flag & CACHE_ITEM_ENABLED))
+			RNA_enum_icon_from_value(cache_library_read_result_items, item->read_result, &icon);
+		else
+			icon = ICON_NONE;
+		uiItemL(split, NULL, icon);
+	}
 	
 	return sub;
 }
