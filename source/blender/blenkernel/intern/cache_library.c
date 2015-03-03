@@ -386,6 +386,18 @@ int BKE_cache_item_name_length(Object *ob, int type, int index)
 		return snprintf(NULL, 0, "%s_%s", BKE_cache_item_name_prefix(type), ob->id.name+2);
 }
 
+eCacheReadSampleResult BKE_cache_read_result(int ptc_result)
+{
+	switch (ptc_result) {
+		case PTC_READ_SAMPLE_INVALID: return CACHE_READ_SAMPLE_INVALID;
+		case PTC_READ_SAMPLE_EARLY: return CACHE_READ_SAMPLE_EARLY;
+		case PTC_READ_SAMPLE_LATE: return CACHE_READ_SAMPLE_LATE;
+		case PTC_READ_SAMPLE_EXACT: return CACHE_READ_SAMPLE_EXACT;
+		case PTC_READ_SAMPLE_INTERPOLATED: return CACHE_READ_SAMPLE_INTERPOLATED;
+		default: BLI_assert(false); break; /* should never happen, enums out of sync? */
+	}
+}
+
 static void cache_library_insert_item_hash(CacheLibrary *cachelib, CacheItem *item, bool replace)
 {
 	CacheItem *exist = BLI_ghash_lookup(cachelib->items_hash, item);
