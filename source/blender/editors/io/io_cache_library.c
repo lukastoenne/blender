@@ -34,7 +34,9 @@
 #include "BLF_translation.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_path_util.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_cache_library_types.h"
@@ -46,6 +48,7 @@
 #include "BKE_cache_library.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_idprop.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
@@ -303,6 +306,60 @@ static void cache_library_bake_endjob(void *customdata)
 	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 }
 
+/* Modified version of WM_operator_confirm_message_ex
+ * to allow storing context pointers in the popup layout
+ */
+static int operator_confirm_message(bContext *C, wmOperator *op, const char *title,
+                                    const int icon, const char *message,
+                                    PointerRNA *cachelib_ptr)
+{
+	uiPopupMenu *pup;
+	uiLayout *layout;
+	IDProperty *properties = op->ptr->data;
+
+	if (properties && properties->len)
+		properties = IDP_CopyProperty(op->ptr->data);
+	else
+		properties = NULL;
+
+	pup = UI_popup_menu_begin(C, title, icon);
+	layout = UI_popup_menu_layout(pup);
+	
+	uiLayoutSetContextPointer(layout, "cache_library", cachelib_ptr);
+	uiItemFullO_ptr(layout, op->type, message, ICON_NONE, properties, WM_OP_EXEC_REGION_WIN, 0);
+	
+	UI_popup_menu_end(C, pup);
+	
+	return OPERATOR_INTERFACE;
+}
+
+/* Warning! Deletes existing files if possible, operator should show confirm dialog! */
+static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
+{
+	char filename[FILE_MAX];
+	
+	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	
+	if (BLI_exists(filename)) {
+		if (BLI_is_dir(filename)) {
+			return false;
+		}
+		else if (BLI_is_file(filename)) {
+			if (BLI_file_is_writable(filename)) {
+				/* returns 0 on success */
+				return (BLI_delete(filename, false, false) == 0);
+			}
+			else {
+				return false;
+			}
+		}
+		else {
+			return false;
+		}
+	}
+	return true;
+}
+
 static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
@@ -310,6 +367,9 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	Scene *scene = CTX_data_scene(C);
 	CacheLibraryBakeJob *data;
 	wmJob *wm_job;
+	
+	/* make sure we can write */
+	cache_library_bake_ensure_file_target(cachelib);
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
 	 * scene frame in separate threads
@@ -339,6 +399,46 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
+static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	PointerRNA cachelib_ptr = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary);
+	CacheLibrary *cachelib = cachelib_ptr.data;
+	
+	char filename[FILE_MAX];
+	
+	if (!cachelib)
+		return OPERATOR_CANCELLED;
+	if (!BKE_cache_archive_path_test(cachelib->filepath, (ID *)cachelib, cachelib->id.lib)) {
+		BKE_reportf(op->reports, RPT_ERROR, "Cannot create file path for cache library %200s", cachelib->id.name+2);
+		return OPERATOR_CANCELLED;
+	}
+	
+	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	
+	if (BLI_exists(filename)) {
+		if (BLI_is_dir(filename)) {
+			BKE_reportf(op->reports, RPT_ERROR, "Cache Library target is a directory: %200s", filename);
+			return OPERATOR_CANCELLED;
+		}
+		else if (BLI_is_file(filename)) {
+			if (BLI_file_is_writable(filename)) {
+				return operator_confirm_message(C, op, IFACE_("Overwrite?"), ICON_QUESTION, filename, &cachelib_ptr);
+			}
+			else {
+				BKE_reportf(op->reports, RPT_ERROR, "Cannot overwrite Cache Library target: %200s", filename);
+				return OPERATOR_CANCELLED;
+			}
+			
+		}
+		else {
+			BKE_reportf(op->reports, RPT_ERROR, "Invalid Cache Library target: %200s", filename);
+			return OPERATOR_CANCELLED;
+		}
+	}
+	else
+		return cache_library_bake_exec(C, op);
+}
+
 void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -347,6 +447,7 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 	ot->idname = "CACHELIBRARY_OT_bake";
 	
 	/* api callbacks */
+	ot->invoke = cache_library_bake_invoke;
 	ot->exec = cache_library_bake_exec;
 	ot->poll = cache_library_bake_poll;
 	
