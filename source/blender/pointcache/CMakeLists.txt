@@ -47,8 +47,6 @@ set(SRC
 
 	util/util_error_handler.h
 	util/util_error_handler.cpp
-	util/util_path.h
-	util/util_path.cpp
 	util/util_types.h
 
 	PTC_api.h
