@@ -18,7 +18,6 @@
 
 #include "abc_cloth.h"
 #include "abc_particles.h"
-#include "util_path.h"
 
 extern "C" {
 #include "BLI_math.h"

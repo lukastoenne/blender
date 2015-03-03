@@ -27,7 +27,6 @@
 #include "export.h"
 
 #include "ptc_types.h"
-#include "util_path.h"
 
 extern "C" {
 #include "BLI_listbase.h"
