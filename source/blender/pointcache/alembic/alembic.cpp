@@ -109,14 +109,24 @@ class AbcFactory : public Factory {
 		return new AbcDerivedMeshReader(name, ob);
 	}
 	
-	Writer *create_writer_derived_final(const std::string &name, Object *ob)
+	Writer *create_writer_derived_final_realtime(const std::string &name, Object *ob)
 	{
-		return new AbcDerivedFinalWriter(name, ob);
+		return new AbcDerivedFinalRealtimeWriter(name, ob);
 	}
 	
-	Writer *create_writer_cache_modifier(const std::string &name, Object *ob, CacheModifierData *cmd)
+	Writer *create_writer_derived_final_render(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr)
 	{
-		return new AbcCacheModifierWriter(name, ob, cmd);
+		return new AbcDerivedFinalRenderWriter(name, scene, ob, render_dm_ptr);
+	}
+	
+	Writer *create_writer_cache_modifier_realtime(const std::string &name, Object *ob, CacheModifierData *cmd)
+	{
+		return new AbcCacheModifierRealtimeWriter(name, ob, cmd);
+	}
+	
+	Writer *create_writer_cache_modifier_render(const std::string &name, Scene *scene, Object *ob, CacheModifierData *cmd)
+	{
+		return new AbcCacheModifierRenderWriter(name, scene, ob, cmd);
 	}
 };
 

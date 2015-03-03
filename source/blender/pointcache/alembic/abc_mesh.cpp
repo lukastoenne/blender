@@ -589,4 +589,52 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
+/* ========================================================================= */
+
+AbcDerivedFinalRealtimeWriter::AbcDerivedFinalRealtimeWriter(const std::string &name, Object *ob) :
+    AbcDerivedMeshWriter(name, ob, &ob->derivedFinal)
+{
+}
+
+
+AbcCacheModifierRealtimeWriter::AbcCacheModifierRealtimeWriter(const std::string &name, Object *ob, CacheModifierData *cmd) :
+    AbcDerivedMeshWriter(name, ob, &cmd->output_dm),
+    m_cmd(cmd)
+{
+	m_cmd->flag |= MOD_CACHE_USE_OUTPUT_REALTIME;
+}
+
+AbcCacheModifierRealtimeWriter::~AbcCacheModifierRealtimeWriter()
+{
+	m_cmd->flag &= ~MOD_CACHE_USE_OUTPUT_REALTIME;
+	if (m_cmd->output_dm) {
+		m_cmd->output_dm->release(m_cmd->output_dm);
+		m_cmd->output_dm = NULL;
+	}
+}
+
+
+AbcDerivedFinalRenderWriter::AbcDerivedFinalRenderWriter(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr) :
+    AbcDerivedMeshWriter(name, ob, render_dm_ptr),
+    m_scene(scene)
+{
+}
+
+
+AbcCacheModifierRenderWriter::AbcCacheModifierRenderWriter(const std::string &name, Scene *scene, Object *ob, CacheModifierData *cmd) :
+    AbcDerivedMeshWriter(name, ob, &cmd->output_dm),
+    m_scene(scene),
+    m_cmd(cmd)
+{
+}
+
+AbcCacheModifierRenderWriter::~AbcCacheModifierRenderWriter()
+{
+	m_cmd->flag &= ~MOD_CACHE_USE_OUTPUT_RENDER;
+	if (m_cmd->output_dm) {
+		m_cmd->output_dm->release(m_cmd->output_dm);
+		m_cmd->output_dm = NULL;
+	}
+}
+
 } /* namespace PTC */

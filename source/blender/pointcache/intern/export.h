@@ -22,6 +22,9 @@
 struct Main;
 struct Scene;
 struct EvaluationContext;
+struct Object;
+struct DerivedMesh;
+struct CacheModifierData;
 struct ListBase;
 
 namespace PTC {
@@ -33,11 +36,15 @@ class Exporter
 public:
 	Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short *stop, short *do_update, float *progress);
 	
-	void bake(ListBase *writers, int start_frame, int end_frame);
+	void bake(ListBase *writers, DerivedMesh **render_dm_ptr, int start_frame, int end_frame);
 
 	bool stop() const;
 
 	void set_progress(float progress);
+
+protected:
+	void set_bake_object(Object *ob, DerivedMesh **render_dm_ptr, CacheModifierData **cachemd_ptr);
+	void release_bake_object(DerivedMesh **render_dm_ptr, CacheModifierData *cachemd);
 
 private:
 	Main *m_bmain;

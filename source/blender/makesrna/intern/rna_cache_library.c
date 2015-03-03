@@ -294,6 +294,12 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	FunctionRNA *func;
 	PropertyRNA *prop, *parm;
 	
+	static EnumPropertyItem eval_mode_items[] = {
+	    {CACHE_LIBRARY_EVAL_VIEWPORT,   "VIEWPORT",     ICON_RESTRICT_VIEW_OFF,     "Viewport",     "Evaluate data with viewport settings"},
+	    {CACHE_LIBRARY_EVAL_RENDER,     "RENDER",       ICON_RESTRICT_RENDER_OFF,   "Render",       "Evaluate data with render settings"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
 	srna = RNA_def_struct(brna, "CacheLibrary", "ID");
 	RNA_def_struct_ui_text(srna, "Cache Library", "Cache Library datablock for constructing an archive of caches");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
@@ -312,6 +318,13 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Group", "Cached object group");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_group_update");
+	
+	prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "eval_mode");
+	RNA_def_property_enum_items(prop, eval_mode_items);
+	RNA_def_property_enum_default(prop, CACHE_LIBRARY_EVAL_VIEWPORT);
+	RNA_def_property_ui_text(prop, "Evaluation Mode", "Mode to use when evaluating data");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
 #if 0 /* UNUSED */
 	prop = RNA_def_property(srna, "object_caches", PROP_COLLECTION, PROP_NONE);

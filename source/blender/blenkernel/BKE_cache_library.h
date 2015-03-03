@@ -96,7 +96,15 @@ void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cac
 bool BKE_cache_archive_path_test(const char *path, ID *id, Library *lib);
 void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result, int max);
 
-void BKE_cache_library_writers(struct Scene *scene, int required_mode, struct CacheLibrary *cachelib, struct ListBase *writers);
+/* temporary list of writers for CacheLibrary */
+typedef struct CacheLibraryWriterLink {
+	struct CacheLibraryWriterLink *next, *prev;
+	
+	struct CacheItem *item;
+	struct PTCWriter *writer;
+} CacheLibraryWriterLink;
+
+void BKE_cache_library_writers(struct CacheLibrary *cachelib, struct Scene *scene, struct DerivedMesh **render_dm_ptr, struct ListBase *writers);
 struct PTCWriterArchive *BKE_cache_library_writers_open_archive(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
 void BKE_cache_library_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
@@ -106,11 +114,17 @@ eCacheReadSampleResult BKE_cache_library_read_particles(struct Scene *scene, flo
 eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_parents(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
 eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_children(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);
 
-bool BKE_cache_read_derived_mesh(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct DerivedMesh **r_dm);
-bool BKE_cache_read_cloth(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ClothModifierData *clmd);
-bool BKE_cache_read_hair_dynamics(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
-bool BKE_cache_read_particles(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
-bool BKE_cache_read_particles_pathcache_parents(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
-bool BKE_cache_read_particles_pathcache_children(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys);
+bool BKE_cache_read_derived_mesh(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                 struct Object *ob, struct DerivedMesh **r_dm);
+bool BKE_cache_read_cloth(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                          struct Object *ob, struct ClothModifierData *clmd);
+bool BKE_cache_read_hair_dynamics(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                  struct Object *ob, struct ParticleSystem *psys);
+bool BKE_cache_read_particles(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                              struct Object *ob, struct ParticleSystem *psys);
+bool BKE_cache_read_particles_pathcache_parents(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                                struct Object *ob, struct ParticleSystem *psys);
+bool BKE_cache_read_particles_pathcache_children(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                                 struct Object *ob, struct ParticleSystem *psys);
 
 #endif

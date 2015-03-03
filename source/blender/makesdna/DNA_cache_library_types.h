@@ -74,7 +74,8 @@ typedef struct CacheLibrary {
 	ID id;
 	
 	int flag;
-	int pad;
+	short eval_mode;
+	short pad;
 	
 	char filepath[1024]; /* 1024 = FILE_MAX */
 	struct Group *group;
@@ -86,5 +87,10 @@ typedef struct CacheLibrary {
 typedef enum eCacheLibrary_Flag {
 	CACHE_LIBRARY_READ              = 1, /* read data from this cache library */
 } eCacheLibrary_Flag;
+
+typedef enum eCacheLibrary_EvalMode {
+	CACHE_LIBRARY_EVAL_VIEWPORT     = 0, /* evaluate data with viewport settings */
+	CACHE_LIBRARY_EVAL_RENDER       = 1, /* evaluate data with render settings */
+} eCacheLibrary_EvalMode;
 
 #endif

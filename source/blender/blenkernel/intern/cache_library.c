@@ -645,17 +645,26 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 }
 
 
-static void cachelib_add_writer(ListBase *writers, struct PTCWriter *writer)
+static void cachelib_add_writer(ListBase *writers, struct CacheItem *item, struct PTCWriter *writer)
 {
 	if (writer) {
-		LinkData *link = (LinkData *)MEM_callocN(sizeof(LinkData), "cachelib writers link");
-		link->data = writer;
+		CacheLibraryWriterLink *link = MEM_callocN(sizeof(CacheLibraryWriterLink), "cachelib writers link");
+		
+		link->item = item;
+		link->writer = writer;
 		BLI_addtail(writers, link);
 	}
 }
 
-void BKE_cache_library_writers(Scene *scene, int required_mode, CacheLibrary *cachelib, ListBase *writers)
+static int cachelib_writers_cmp(const void *a, const void *b)
 {
+	const CacheLibraryWriterLink *la = a, *lb = b;
+	return la->item->ob > lb->item->ob;
+}
+
+void BKE_cache_library_writers(CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers)
+{
+	const eCacheLibrary_EvalMode eval_mode = cachelib->eval_mode;
 	CacheItem *item;
 	
 	BLI_listbase_clear(writers);
@@ -670,32 +679,50 @@ void BKE_cache_library_writers(Scene *scene, int required_mode, CacheLibrary *ca
 		
 		switch (item->type) {
 			case CACHE_TYPE_DERIVED_MESH: {
-				CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(scene, item->ob, required_mode);
-				if (cachemd)
-					cachelib_add_writer(writers, PTC_writer_cache_modifier(name, item->ob, cachemd));
-				else
-					cachelib_add_writer(writers, PTC_writer_derived_final(name, item->ob));
+				if (item->ob->type == OB_MESH) {
+					CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(scene, item->ob, CD_MASK_MESH);
+					if (cachemd) {
+						switch (eval_mode) {
+							case CACHE_LIBRARY_EVAL_VIEWPORT:
+								cachelib_add_writer(writers, item, PTC_writer_cache_modifier_realtime(name, item->ob, cachemd));
+								break;
+							case CACHE_LIBRARY_EVAL_RENDER:
+								cachelib_add_writer(writers, item, PTC_writer_cache_modifier_render(name, scene, item->ob, cachemd));
+								break;
+						}
+					}
+					else {
+						switch (eval_mode) {
+							case CACHE_LIBRARY_EVAL_VIEWPORT:
+								cachelib_add_writer(writers, item, PTC_writer_derived_final_realtime(name, item->ob));
+								break;
+							case CACHE_LIBRARY_EVAL_RENDER:
+								cachelib_add_writer(writers, item, PTC_writer_derived_final_render(name, scene, item->ob, render_dm_ptr));
+								break;
+						}
+					}
+				}
 				break;
 			}
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
-					cachelib_add_writer(writers, PTC_writer_hair_dynamics(name, item->ob, psys->clmd));
+					cachelib_add_writer(writers, item, PTC_writer_hair_dynamics(name, item->ob, psys->clmd));
 				}
 				break;
 			}
 			case CACHE_TYPE_HAIR_PATHS: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR) {
-					cachelib_add_writer(writers, PTC_writer_particles_pathcache_parents(name, item->ob, psys));
-					cachelib_add_writer(writers, PTC_writer_particles_pathcache_children(name, item->ob, psys));
+					cachelib_add_writer(writers, item, PTC_writer_particles_pathcache_parents(name, item->ob, psys));
+					cachelib_add_writer(writers, item, PTC_writer_particles_pathcache_children(name, item->ob, psys));
 				}
 				break;
 			}
 			case CACHE_TYPE_PARTICLES: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type != PART_HAIR) {
-					cachelib_add_writer(writers, PTC_writer_particles(name, item->ob, psys));
+					cachelib_add_writer(writers, item, PTC_writer_particles(name, item->ob, psys));
 				}
 				break;
 			}
@@ -703,20 +730,25 @@ void BKE_cache_library_writers(Scene *scene, int required_mode, CacheLibrary *ca
 				break;
 		}
 	}
+	
+	/* Sort writers by their object.
+	 * This is necessary so objects can be evaluated with render settings
+	 * and all cached items exported, without having to reevaluate the same object multiple times.
+	 */
+	BLI_listbase_sort(writers, cachelib_writers_cmp);
 }
 
 struct PTCWriterArchive *BKE_cache_library_writers_open_archive(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
 {
 	char filename[FILE_MAX];
 	struct PTCWriterArchive *archive;
-	LinkData *link;
+	CacheLibraryWriterLink *link;
 	
 	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 	archive = PTC_open_writer_archive(scene, filename);
 	
 	for (link = writers->first; link; link = link->next) {
-		struct PTCWriter *writer = link->data;
-		PTC_writer_set_archive(writer, archive);
+		PTC_writer_set_archive(link->writer, archive);
 	}
 	
 	return archive;
@@ -724,11 +756,10 @@ struct PTCWriterArchive *BKE_cache_library_writers_open_archive(Scene *scene, Ca
 
 void BKE_cache_library_writers_free(struct PTCWriterArchive *archive, ListBase *writers)
 {
-	LinkData *link;
+	CacheLibraryWriterLink *link;
 	
 	for (link = writers->first; link; link = link->next) {
-		struct PTCWriter *writer = link->data;
-		PTC_writer_free(writer);
+		PTC_writer_free(link->writer);
 	}
 	BLI_freelistN(writers);
 	
@@ -989,66 +1020,87 @@ eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_children(Scene
  * If there are multiple cachelibs applying data, which should take preference?
  */
 
-bool BKE_cache_read_derived_mesh(Main *bmain, Scene *scene, float frame, Object *ob, struct DerivedMesh **r_dm)
+static CacheLibrary *cachelib_skip_read(CacheLibrary *cachelib, eCacheLibrary_EvalMode eval_mode)
+{
+	for (; cachelib; cachelib = cachelib->id.next) {
+		if (!(cachelib->flag & CACHE_LIBRARY_READ))
+			continue;
+		if (cachelib->eval_mode != eval_mode)
+			continue;
+		break;
+	}
+	return cachelib;
+}
+
+#define FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) \
+	for (cachelib = cachelib_skip_read(bmain->cache_library.first, eval_mode); cachelib; cachelib = cachelib_skip_read(cachelib->id.next, eval_mode))
+
+bool BKE_cache_read_derived_mesh(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                 Object *ob, struct DerivedMesh **r_dm)
 {
 	CacheLibrary *cachelib;
 	
-	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (BKE_cache_library_read_derived_mesh(scene, frame, cachelib, ob, r_dm) != CACHE_READ_SAMPLE_INVALID)
 			return true;
 	}
 	return false;
 }
 
-bool BKE_cache_read_cloth(Main *bmain, Scene *scene, float frame, Object *ob, struct ClothModifierData *clmd)
+bool BKE_cache_read_cloth(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                          Object *ob, struct ClothModifierData *clmd)
 {
 //	CacheLibrary *cachelib;
 	
-//	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+//	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 //		if (BKE_cache_library_read_cloth(scene, frame, cachelib, ob, clmd) != CACHE_READ_SAMPLE_INVALID)
 //			return true;
 //	}
 	return false;
 }
 
-bool BKE_cache_read_hair_dynamics(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+bool BKE_cache_read_hair_dynamics(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                  Object *ob, struct ParticleSystem *psys)
 {
 	CacheLibrary *cachelib;
 	
-	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (BKE_cache_library_read_hair_dynamics(scene, frame, cachelib, ob, psys) != CACHE_READ_SAMPLE_INVALID)
 			return true;
 	}
 	return false;
 }
 
-bool BKE_cache_read_particles(struct Main *bmain, struct Scene *scene, float frame, struct Object *ob, struct ParticleSystem *psys)
+bool BKE_cache_read_particles(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                              struct Object *ob, struct ParticleSystem *psys)
 {
 	CacheLibrary *cachelib;
 	
-	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (BKE_cache_library_read_particles(scene, frame, cachelib, ob, psys) != CACHE_READ_SAMPLE_INVALID)
 			return true;
 	}
 	return false;
 }
 
-bool BKE_cache_read_particles_pathcache_parents(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+bool BKE_cache_read_particles_pathcache_parents(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                                Object *ob, struct ParticleSystem *psys)
 {
 	CacheLibrary *cachelib;
 	
-	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (BKE_cache_library_read_particles_pathcache_parents(scene, frame, cachelib, ob, psys) != CACHE_READ_SAMPLE_INVALID)
 			return true;
 	}
 	return false;
 }
 
-bool BKE_cache_read_particles_pathcache_children(Main *bmain, Scene *scene, float frame, Object *ob, struct ParticleSystem *psys)
+bool BKE_cache_read_particles_pathcache_children(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                                 Object *ob, struct ParticleSystem *psys)
 {
 	CacheLibrary *cachelib;
 	
-	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (BKE_cache_library_read_particles_pathcache_children(scene, frame, cachelib, ob, psys) != CACHE_READ_SAMPLE_INVALID)
 			return true;
 	}

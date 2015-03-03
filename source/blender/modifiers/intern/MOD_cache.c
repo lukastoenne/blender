@@ -63,7 +63,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	modifier_copyData_generic(md, target);
 	
 	tpcmd->output_dm = NULL;
-	tpcmd->flag &= ~MOD_CACHE_USE_OUTPUT;
+	tpcmd->flag &= ~(MOD_CACHE_USE_OUTPUT_REALTIME | MOD_CACHE_USE_OUTPUT_RENDER);
 }
 
 static void freeData(ModifierData *md)
@@ -76,9 +76,11 @@ static void freeData(ModifierData *md)
 	}
 }
 
-static DerivedMesh *pointcache_do(CacheModifierData *pcmd, Object *UNUSED(ob), DerivedMesh *dm)
+static DerivedMesh *pointcache_do(CacheModifierData *pcmd, Object *UNUSED(ob), DerivedMesh *dm, ModifierApplyFlag flag)
 {
-	if (pcmd->flag & MOD_CACHE_USE_OUTPUT) {
+	bool use_output_realtime = (flag & eModifierMode_Realtime) && (pcmd->flag & MOD_CACHE_USE_OUTPUT_REALTIME);
+	bool use_output_render = (flag & eModifierMode_Render) && (pcmd->flag & MOD_CACHE_USE_OUTPUT_RENDER);
+	if (use_output_realtime || use_output_render) {
 		if (pcmd->output_dm) {
 			pcmd->output_dm->release(pcmd->output_dm);
 		}
@@ -97,21 +99,21 @@ static DerivedMesh *pointcache_do(CacheModifierData *pcmd, Object *UNUSED(ob), D
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   DerivedMesh *dm,
-                                  ModifierApplyFlag UNUSED(flag))
+                                  ModifierApplyFlag flag)
 {
 	CacheModifierData *pcmd = (CacheModifierData *)md;
 
-	return pointcache_do(pcmd, ob, dm);
+	return pointcache_do(pcmd, ob, dm, flag);
 }
 
 static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,
                                     struct BMEditMesh *UNUSED(editData),
                                     DerivedMesh *dm,
-                                    ModifierApplyFlag UNUSED(flag))
+                                    ModifierApplyFlag flag)
 {
 	CacheModifierData *pcmd = (CacheModifierData *)md;
 
-	return pointcache_do(pcmd, ob, dm);
+	return pointcache_do(pcmd, ob, dm, flag);
 }
 
 ModifierTypeInfo modifierType_Cache = {

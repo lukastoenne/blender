@@ -1454,7 +1454,8 @@ typedef struct CacheModifierData {
 } CacheModifierData;
 
 typedef enum eCacheModifier_Flag {
-	MOD_CACHE_USE_OUTPUT              = 1,
+	MOD_CACHE_USE_OUTPUT_REALTIME     = 1,
+	MOD_CACHE_USE_OUTPUT_RENDER       = 2,
 } eCacheModifier_Flag;
 
 /* Set Split Normals modifier */

@@ -71,7 +71,7 @@ static void initData(ModifierData *md)
 }
 
 static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, float (*vertexCos)[3],
-                        int numVerts, ModifierApplyFlag UNUSED(flag))
+                        int numVerts, ModifierApplyFlag flag)
 {
 	DerivedMesh *dm;
 	ClothModifierData *clmd = (ClothModifierData *) md;
@@ -112,7 +112,7 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, 
 
 	DM_ensure_tessface(dm); /* BMESH - UNTIL MODIFIER IS UPDATED FOR MPoly */
 
-	clothModifier_do(clmd, md->scene, ob, dm, vertexCos);
+	clothModifier_do(clmd, md->scene, ob, dm, vertexCos, flag & MOD_APPLY_RENDER);
 
 	dm->release(dm);
 }

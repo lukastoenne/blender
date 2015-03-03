@@ -496,6 +496,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop(cachelib, "read", text="Read", toggle=True)
         row.operator("cachelibrary.bake")
+        col.prop(cachelib, "eval_mode", expand=False)
 
         row = layout.row(align=True)
         row.label("Filter:")

@@ -79,33 +79,54 @@ private:
 };
 
 
-class AbcDerivedFinalWriter : public AbcDerivedMeshWriter {
+/* -------------------------------------------------------------------------
+ * Writing derived mesh results requires different variants
+ * depending on viewport/render output and whether a cache modifier is used.
+ * 
+ * Render DMs are constructed on-the-fly for each sample write, since they
+ * are not constructed immediately during scene frame updates. The writer is
+ * expected to only be called once per frame and object.
+ * 
+ * If a cache modifier is used it must be have be activate at the time when
+ * the DM is built. For viewport output this means it should activate the
+ * modifier during it's whole lifetime, so that it caches meshes during the
+ * scene frame update. For render output the modifier should only be active
+ * during the render DM construction.
+ * ------------------------------------------------------------------------- */
+
+
+class AbcDerivedFinalRealtimeWriter : public AbcDerivedMeshWriter {
 public:
-	AbcDerivedFinalWriter(const std::string &name, Object *ob) :
-	    AbcDerivedMeshWriter(name, ob, &ob->derivedFinal)
-	{}
+	AbcDerivedFinalRealtimeWriter(const std::string &name, Object *ob);
 };
 
 
-class AbcCacheModifierWriter : public AbcDerivedMeshWriter {
+class AbcCacheModifierRealtimeWriter : public AbcDerivedMeshWriter {
 public:
-	AbcCacheModifierWriter(const std::string &name, Object *ob, CacheModifierData *cmd) :
-	    AbcDerivedMeshWriter(name, ob, &cmd->output_dm),
-	    m_cmd(cmd)
-	{
-		cmd->flag |= MOD_CACHE_USE_OUTPUT;
-	}
-	
-	~AbcCacheModifierWriter()
-	{
-		m_cmd->flag &= ~MOD_CACHE_USE_OUTPUT;
-		if (m_cmd->output_dm) {
-			m_cmd->output_dm->release(m_cmd->output_dm);
-			m_cmd->output_dm = NULL;
-		}
-	}
+	AbcCacheModifierRealtimeWriter(const std::string &name, Object *ob, CacheModifierData *cmd);
+	~AbcCacheModifierRealtimeWriter();
 	
 private:
+	CacheModifierData *m_cmd;
+};
+
+
+class AbcDerivedFinalRenderWriter : public AbcDerivedMeshWriter {
+public:
+	AbcDerivedFinalRenderWriter(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr);
+	
+private:
+	Scene *m_scene;
+};
+
+
+class AbcCacheModifierRenderWriter : public AbcDerivedMeshWriter {
+public:
+	AbcCacheModifierRenderWriter(const std::string &name, Scene *scene, Object *ob, CacheModifierData *cmd);
+	~AbcCacheModifierRenderWriter();
+	
+private:
+	Scene *m_scene;
 	CacheModifierData *m_cmd;
 };
 

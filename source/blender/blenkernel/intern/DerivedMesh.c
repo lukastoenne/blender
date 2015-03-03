@@ -1551,7 +1551,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	float (*deformedVerts)[3] = NULL;
 	DerivedMesh *dm = NULL, *cachedm = NULL, *orcodm, *clothorcodm, *finaldm;
 	int numVerts = me->totvert;
-	int required_mode;
+	int required_mode, cache_eval_mode;
 	bool isPrevDeform = false;
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
 	const bool has_multires = (mmd && mmd->sculptlvl != 0);
@@ -1582,12 +1582,18 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	if (useDeform)
 		deform_app_flags |= MOD_APPLY_USECACHE;
 	
-	if (useRenderParams) required_mode = eModifierMode_Render;
-	else required_mode = eModifierMode_Realtime;
+	if (useRenderParams) {
+		required_mode = eModifierMode_Render;
+		cache_eval_mode = CACHE_LIBRARY_EVAL_RENDER;
+	}
+	else {
+		required_mode = eModifierMode_Realtime;
+		cache_eval_mode = CACHE_LIBRARY_EVAL_VIEWPORT;
+	}
 	
 	modifiers_clearErrors(ob);
 	
-	if (BKE_cache_read_derived_mesh(G.main, scene, scene->r.cfra, ob, &cachedm)) {
+	if (BKE_cache_read_derived_mesh(G.main, scene, scene->r.cfra, cache_eval_mode, ob, &cachedm)) {
 		CacheModifierData *cmd = (CacheModifierData *)mesh_find_cache_modifier(scene, ob, required_mode);
 		if (cmd) {
 			firstmd = &cmd->modifier;

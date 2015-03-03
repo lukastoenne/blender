@@ -56,7 +56,8 @@ void PTC_error_handler_callback(PTCErrorCallback cb, void *userdata);
 void PTC_error_handler_reports(struct ReportList *reports);
 void PTC_error_handler_modifier(struct ModifierData *md);
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct ListBase *writers, int start_frame, int end_frame,
+void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx,
+              struct ListBase *writers, struct DerivedMesh **render_dm_ptr, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress);
 
 /*** Archive ***/
@@ -106,8 +107,11 @@ struct PTCWriter *PTC_writer_derived_mesh(const char *name, struct Object *ob, s
 struct PTCReader *PTC_reader_derived_mesh(const char *name, struct Object *ob);
 struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *reader);
 void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
-struct PTCWriter *PTC_writer_derived_final(const char *name, struct Object *ob);
-struct PTCWriter *PTC_writer_cache_modifier(const char *name, struct Object *ob, struct CacheModifierData *cmd);
+
+struct PTCWriter *PTC_writer_derived_final_realtime(const char *name, struct Object *ob);
+struct PTCWriter *PTC_writer_cache_modifier_realtime(const char *name, struct Object *ob, struct CacheModifierData *cmd);
+struct PTCWriter *PTC_writer_derived_final_render(const char *name, struct Scene *scene, struct Object *ob, struct DerivedMesh **render_dm_ptr);
+struct PTCWriter *PTC_writer_cache_modifier_render(const char *name, struct Scene *scene, struct Object *ob, struct CacheModifierData *cmd);
 
 #ifdef __cplusplus
 } /* extern C */
