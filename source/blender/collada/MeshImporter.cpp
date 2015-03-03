@@ -808,22 +808,6 @@ bool MeshImporter::is_flat_face(unsigned int *nind, COLLADAFW::MeshVertexData& n
 	return true;
 }
 
-
-void MeshImporter::bmeshConversion()
-{
-	for (std::map<COLLADAFW::UniqueId, Mesh *>::iterator m = uid_mesh_map.begin();
-	     m != uid_mesh_map.end(); ++m)
-	{
-		if ((*m).second) {
-			Mesh *me = (*m).second;
-			BKE_mesh_tessface_clear(me);
-			BKE_mesh_calc_normals(me);
-			/* BKE_mesh_validate(me, true, true); */
-		}
-	}
-}
-
-
 Object *MeshImporter::get_object_by_geom_uid(const COLLADAFW::UniqueId& geom_uid)
 {
 	if (uid_object_map.find(geom_uid) != uid_object_map.end())
@@ -1195,7 +1179,12 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
 	
 	read_vertices(mesh, me);
 	read_polys(mesh, me);
-	BKE_mesh_calc_edges(me, false, false);
+
+	// must validate before calculating edges
+	BKE_mesh_calc_normals(me);
+	BKE_mesh_validate(me, false, false);
+	// validation does this
+	// BKE_mesh_calc_edges(me, false, false);
 
 	// read_lines() must be called after the face edges have been generated.
 	// Oterwise the loose edges will be silently deleted again.

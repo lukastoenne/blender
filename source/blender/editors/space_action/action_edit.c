@@ -217,8 +217,8 @@ static int action_new_exec(bContext *C, wmOperator *UNUSED(op))
 			adt = actedit_animdata_from_context(C);
 		}
 		
-		/* Perform stashing operation */
-		if (adt) {
+		/* Perform stashing operation - But only if there is an action */
+		if (adt && oldact) {
 			/* stash the action */
 			if (BKE_nla_action_stash(adt)) {
 				/* The stash operation will remove the user already
@@ -314,7 +314,7 @@ static int action_pushdown_exec(bContext *C, wmOperator *op)
 		 */
 		if (action_has_motion(adt->action) == 0) {
 			/* action may not be suitable... */
-			BKE_report(op->reports, RPT_WARNING, "Action needs have at least a keyframe or some FModifiers");
+			BKE_report(op->reports, RPT_WARNING, "Action must have at least one keyframe or F-Modifier");
 			return OPERATOR_CANCELLED;
 		}
 		else {
@@ -360,7 +360,7 @@ static int action_stash_exec(bContext *C, wmOperator *op)
 		/* don't do anything if this action is empty... */
 		if (action_has_motion(adt->action) == 0) {
 			/* action may not be suitable... */
-			BKE_report(op->reports, RPT_WARNING, "Action needs have at least a keyframe or some FModifiers");
+			BKE_report(op->reports, RPT_WARNING, "Action must have at least one keyframe or F-Modifier");
 			return OPERATOR_CANCELLED;
 		}
 		else {
@@ -446,7 +446,7 @@ static int action_stash_create_exec(bContext *C, wmOperator *op)
 		/* Perform stashing operation */
 		if (action_has_motion(adt->action) == 0) {
 			/* don't do anything if this action is empty... */
-			BKE_report(op->reports, RPT_WARNING, "Action needs have at least a keyframe or some FModifiers");
+			BKE_report(op->reports, RPT_WARNING, "Action must have at least one keyframe or F-Modifier");
 			return OPERATOR_CANCELLED;
 		}
 		else {
