@@ -864,6 +864,7 @@ eCacheReadSampleResult BKE_cache_library_read_derived_mesh(Scene *scene, float f
 			*r_dm = PTC_reader_derived_mesh_acquire_result(reader);
 		
 		PTC_close_reader_archive(archive);
+		PTC_reader_free(reader);
 	}
 	
 	return result;
@@ -889,6 +890,7 @@ eCacheReadSampleResult BKE_cache_library_read_hair_dynamics(Scene *scene, float 
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		
 		PTC_close_reader_archive(archive);
+		PTC_reader_free(reader);
 	}
 	
 	return result;
@@ -914,6 +916,7 @@ eCacheReadSampleResult BKE_cache_library_read_particles(Scene *scene, float fram
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		
 		PTC_close_reader_archive(archive);
+		PTC_reader_free(reader);
 	}
 	
 	return result;
@@ -939,6 +942,7 @@ eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_parents(Scene 
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		
 		PTC_close_reader_archive(archive);
+		PTC_reader_free(reader);
 	}
 	
 	return result;
@@ -964,6 +968,7 @@ eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_children(Scene
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		
 		PTC_close_reader_archive(archive);
+		PTC_reader_free(reader);
 	}
 	
 	return result;
