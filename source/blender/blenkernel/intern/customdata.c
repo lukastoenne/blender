@@ -2901,6 +2901,17 @@ bool CustomData_has_interp(const struct CustomData *data)
 	return false;
 }
 
+bool CustomData_has_referenced(const struct CustomData *data)
+{
+	int i;
+	for (i = 0; i < data->totlayer; ++i) {
+		if (data->layers[i].flag & CD_FLAG_NOFREE) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /* copies the "value" (e.g. mloopuv uv or mloopcol colors) from one block to
  * another, while not overwriting anything else (e.g. flags)*/
 void CustomData_data_copy_value(int type, const void *source, void *dest)
