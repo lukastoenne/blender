@@ -1593,6 +1593,11 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	
 	modifiers_clearErrors(ob);
 	
+	/* XXX it would be nicer to treat caching as a virtual modifier (when no actual cache modifier is used).
+	 * However, the virtual modifiers work by setting their own 'next' pointers without touching actual
+	 * modifier DNA. This is possible only for prepending at the beginning, but not for appending
+	 * at the end of the modifier stack.
+	 */
 	if (BKE_cache_read_derived_mesh(G.main, scene, scene->r.cfra, cache_eval_mode, ob, &cachedm)) {
 		CacheModifierData *cmd = (CacheModifierData *)mesh_find_cache_modifier(scene, ob, required_mode);
 		if (cmd) {
