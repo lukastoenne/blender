@@ -63,6 +63,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	modifier_copyData_generic(md, target);
 	
 	tpcmd->output_dm = NULL;
+	tpcmd->input_dm = NULL;
 	tpcmd->flag &= ~(MOD_CACHE_USE_OUTPUT_REALTIME | MOD_CACHE_USE_OUTPUT_RENDER);
 }
 
@@ -73,6 +74,10 @@ static void freeData(ModifierData *md)
 	if (pcmd->output_dm) {
 		pcmd->output_dm->release(pcmd->output_dm);
 		pcmd->output_dm = NULL;
+	}
+	if (pcmd->input_dm) {
+		pcmd->input_dm->release(pcmd->input_dm);
+		pcmd->input_dm = NULL;
 	}
 }
 
@@ -87,10 +92,17 @@ static DerivedMesh *pointcache_do(CacheModifierData *pcmd, Object *UNUSED(ob), D
 		pcmd->output_dm = CDDM_copy(dm);
 	}
 	else {
+		/* unused cache output? clean up! */
 		if (pcmd->output_dm) {
-			dm = pcmd->output_dm;
+			pcmd->output_dm->release(pcmd->output_dm);
 			pcmd->output_dm = NULL;
 		}
+	}
+	
+	if (pcmd->input_dm) {
+		/* pass on the input DM from the cache */
+		dm = pcmd->input_dm;
+		pcmd->input_dm = NULL;
 	}
 	
 	return dm;

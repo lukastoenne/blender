@@ -1450,7 +1450,11 @@ typedef struct CacheModifierData {
 	int flag;
 	int pad;
 	
+	/* DM data for writing into the cache */
 	struct DerivedMesh *output_dm;
+	
+	/* DM data read from the cache for modifier input */
+	struct DerivedMesh *input_dm;
 } CacheModifierData;
 
 typedef enum eCacheModifier_Flag {
