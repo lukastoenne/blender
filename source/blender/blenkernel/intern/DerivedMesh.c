@@ -1601,7 +1601,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 			/* use the cache result as output of the modifier
 			 * rather than as the final dm
 			 */
-			cmd->output_dm = cachedm;
+			cmd->input_dm = cachedm;
 			cachedm = NULL;
 		}
 		else
@@ -1944,8 +1944,8 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	 * - If we have no DerivedMesh then we need to build one.
 	 */
 	if (cachedm) {
-		finaldm = CDDM_copy(cachedm);
-		cachedm->release(cachedm);
+		finaldm = cachedm;
+		cachedm = NULL;
 	}
 	else if (dm && deformedVerts) {
 		finaldm = CDDM_copy(dm);
