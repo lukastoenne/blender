@@ -445,16 +445,15 @@ def cachelib_object_items(cachelib, ob, filter_types = []):
 
     for item_type, item_index in items_desc():
         item = cachelib.cache_item_find(ob, item_type, item_index)
+        
         show = False
         enable = False
-
         # always show existing items
         if item:
             show = True
             enable = True
-
         # always show selected types
-        if item_type in filter_types:
+        elif item_type in filter_types:
             show = True
             enable = True
         # special case: OBJECT type used as top level, show but disable
