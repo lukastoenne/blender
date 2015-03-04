@@ -2007,6 +2007,9 @@ static void direct_link_cache_library(FileData *fd, CacheLibrary *cachelib)
 {
 	link_list(fd, &cachelib->items);
 	cachelib->items_hash = NULL;
+	
+	if (cachelib->id.flag & (LIB_EXTERN | LIB_INDIRECT))
+		cachelib->flag |= CACHE_LIBRARY_READ;
 }
 
 
