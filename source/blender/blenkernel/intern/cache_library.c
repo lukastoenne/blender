@@ -47,6 +47,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_cache_library.h"
+#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -1116,4 +1117,34 @@ bool BKE_cache_read_particles_pathcache_children(Main *bmain, Scene *scene, floa
 			return true;
 	}
 	return false;
+}
+
+
+void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
+{
+	eCacheLibrary_EvalMode eval_mode = (eval_ctx->mode == DAG_EVAL_RENDER) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
+	CacheLibrary *cachelib;
+	
+	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
+		if (cachelib->flag & CACHE_LIBRARY_READ) {
+			CacheItem *item;
+			
+			for (item = cachelib->items.first; item; item = item->next) {
+				if (item->ob && (item->flag & CACHE_ITEM_ENABLED)) {
+					
+					switch (item->type) {
+						case CACHE_TYPE_OBJECT:
+							DAG_id_tag_update(&item->ob->id, OB_RECALC_OB | OB_RECALC_TIME);
+							break;
+						case CACHE_TYPE_DERIVED_MESH:
+						case CACHE_TYPE_PARTICLES:
+						case CACHE_TYPE_HAIR:
+						case CACHE_TYPE_HAIR_PATHS:
+							DAG_id_tag_update(&item->ob->id, OB_RECALC_DATA | OB_RECALC_TIME);
+							break;
+					}
+				}
+			}
+		}
+	}
 }
