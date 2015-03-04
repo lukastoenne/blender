@@ -401,6 +401,7 @@ eCacheReadSampleResult BKE_cache_read_result(int ptc_result)
 		case PTC_READ_SAMPLE_INTERPOLATED: return CACHE_READ_SAMPLE_INTERPOLATED;
 		default: BLI_assert(false); break; /* should never happen, enums out of sync? */
 	}
+	return CACHE_READ_SAMPLE_INVALID;
 }
 
 static void cache_library_insert_item_hash(CacheLibrary *cachelib, CacheItem *item, bool replace)
