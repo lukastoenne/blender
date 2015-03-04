@@ -663,9 +663,19 @@ static int cachelib_writers_cmp(const void *a, const void *b)
 	return la->item->ob > lb->item->ob;
 }
 
+BLI_INLINE int cache_required_mode(CacheLibrary *cachelib)
+{
+	switch (cachelib->eval_mode) {
+		case CACHE_LIBRARY_EVAL_RENDER : return eModifierMode_Render;
+		case CACHE_LIBRARY_EVAL_VIEWPORT : return eModifierMode_Realtime;
+	}
+	return 0;
+}
+
 void BKE_cache_library_writers(CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers)
 {
 	const eCacheLibrary_EvalMode eval_mode = cachelib->eval_mode;
+	const int required_mode = cache_required_mode(cachelib);
 	CacheItem *item;
 	
 	BLI_listbase_clear(writers);
@@ -681,7 +691,7 @@ void BKE_cache_library_writers(CacheLibrary *cachelib, Scene *scene, DerivedMesh
 		switch (item->type) {
 			case CACHE_TYPE_DERIVED_MESH: {
 				if (item->ob->type == OB_MESH) {
-					CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(scene, item->ob, CD_MASK_MESH);
+					CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(scene, item->ob, required_mode);
 					if (cachemd) {
 						switch (eval_mode) {
 							case CACHE_LIBRARY_EVAL_VIEWPORT:

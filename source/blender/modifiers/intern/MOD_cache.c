@@ -78,9 +78,8 @@ static void freeData(ModifierData *md)
 
 static DerivedMesh *pointcache_do(CacheModifierData *pcmd, Object *UNUSED(ob), DerivedMesh *dm, ModifierApplyFlag flag)
 {
-	bool use_output_realtime = (flag & eModifierMode_Realtime) && (pcmd->flag & MOD_CACHE_USE_OUTPUT_REALTIME);
-	bool use_output_render = (flag & eModifierMode_Render) && (pcmd->flag & MOD_CACHE_USE_OUTPUT_RENDER);
-	if (use_output_realtime || use_output_render) {
+	bool use_output = (flag & MOD_APPLY_RENDER) ? (pcmd->flag & MOD_CACHE_USE_OUTPUT_RENDER) : (pcmd->flag & MOD_CACHE_USE_OUTPUT_REALTIME);
+	if (use_output) {
 		if (pcmd->output_dm) {
 			pcmd->output_dm->release(pcmd->output_dm);
 		}
