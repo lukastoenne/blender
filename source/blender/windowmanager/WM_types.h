@@ -672,7 +672,6 @@ typedef struct wmDropBox {
 typedef struct wmWidget wmWidget;
 typedef struct wmWidgetGroup wmWidgetGroup;
 typedef struct wmWidgetMapType wmWidgetMapType;
-typedef struct wmWidgetGroupType wmWidgetGroupType;
 
 /* factory class for a widgetgroup type, gets called every time a new area is spawned */
 typedef struct wmWidgetGroupType {
