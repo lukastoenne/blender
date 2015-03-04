@@ -38,6 +38,7 @@ struct ListBase;
 struct Main;
 struct Object;
 struct Scene;
+struct EvaluationContext;
 struct ParticleSystem;
 
 struct ClothModifierData;
@@ -107,6 +108,8 @@ typedef struct CacheLibraryWriterLink {
 void BKE_cache_library_writers(struct CacheLibrary *cachelib, struct Scene *scene, struct DerivedMesh **render_dm_ptr, struct ListBase *writers);
 struct PTCWriterArchive *BKE_cache_library_writers_open_archive(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
 void BKE_cache_library_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
+
+void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 
 eCacheReadSampleResult BKE_cache_library_read_derived_mesh(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct DerivedMesh **r_dm);
 eCacheReadSampleResult BKE_cache_library_read_hair_dynamics(struct Scene *scene, float frame, struct CacheLibrary *cachelib, struct Object *ob, struct ParticleSystem *psys);

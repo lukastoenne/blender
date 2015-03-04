@@ -64,6 +64,7 @@
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
+#include "BKE_cache_library.h"
 #include "BKE_colortools.h"
 #include "BKE_depsgraph.h"
 #include "BKE_editmesh.h"
@@ -1770,6 +1771,9 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	
 	/* clear animation overrides */
 	/* XXX TODO... */
+
+	/* tag cached objects */
+	BKE_cache_library_dag_recalc_tag(eval_ctx, bmain);
 
 	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
 		DAG_scene_relations_update(bmain, sce_iter);
