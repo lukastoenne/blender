@@ -39,4 +39,6 @@ void CACHELIBRARY_OT_item_enable(struct wmOperatorType *ot);
 
 void CACHELIBRARY_OT_bake(struct wmOperatorType *ot);
 
+void CACHELIBRARY_OT_archive_info(struct wmOperatorType *ot);
+
 #endif

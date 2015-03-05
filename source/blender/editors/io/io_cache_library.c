@@ -36,6 +36,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_path_util.h"
 #include "BLI_utildefines.h"
 
@@ -456,4 +457,119 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 	/* flags */
 	/* no undo for this operator, cannot restore old cache files anyway */
 	ot->flag = OPTYPE_REGISTER;
+}
+
+/* ========================================================================= */
+
+static int cache_library_archive_info_poll(bContext *C)
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	
+	if (!cachelib)
+		return false;
+	
+	return true;
+}
+
+static void ui_item_nlabel(uiLayout *layout, const char *s, size_t len)
+{
+	char buf[256];
+	
+	BLI_strncpy(buf, s, sizeof(buf)-1);
+	buf[min_ii(len, sizeof(buf)-1)] = '\0';
+	
+	uiItemL(layout, buf, ICON_NONE);
+}
+
+static void archive_info_labels(uiLayout *layout, const char *info)
+{
+	const char delim[] = {'\n', '\0'};
+	const char *cur = info;
+	size_t linelen;
+	char *sep, *suf;
+	
+	linelen = BLI_str_partition(cur, delim, &sep, &suf);
+	while (sep) {
+		ui_item_nlabel(layout, cur, linelen);
+		cur = suf;
+		
+		linelen = BLI_str_partition(cur, delim, &sep, &suf);
+	}
+	ui_item_nlabel(layout, cur, linelen);
+}
+
+static uiBlock *archive_info_popup_create(bContext *C, ARegion *ar, void *arg)
+{
+	const char *info = arg;
+	uiBlock *block;
+	uiLayout *layout;
+	
+	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
+	UI_block_flag_disable(block, UI_BLOCK_LOOP);
+	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+	
+	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, UI_UNIT_X * 20, UI_UNIT_Y, 0, UI_style_get());
+	
+	archive_info_labels(layout, info);
+	
+	UI_block_bounds_set_centered(block, 0);
+	UI_block_direction_set(block, UI_DIR_DOWN);
+	
+	return block;
+}
+
+static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Scene *scene = CTX_data_scene(C);
+	
+	const bool use_stdout = RNA_boolean_get(op->ptr, "use_stdout");
+	const bool use_popup = RNA_boolean_get(op->ptr, "use_popup");
+	const bool use_clipboard = RNA_boolean_get(op->ptr, "use_clipboard");
+	
+	char filename[FILE_MAX];
+	struct PTCReaderArchive *archive;
+	char *info;
+	
+	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	archive = PTC_open_reader_archive(scene, filename);
+	info = PTC_get_archive_info(archive);
+	PTC_close_reader_archive(archive);
+	
+	if (info) {
+		if (use_stdout) {
+			printf("%s", info);
+		}
+		
+		if (use_popup) {
+			UI_popup_block_invoke(C, archive_info_popup_create, info);
+		}
+		
+		if (use_clipboard) {
+			WM_clipboard_text_set(info, false);
+		}
+		
+		MEM_freeN(info);
+	}
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_archive_info(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Archive Info";
+	ot->description = "Get archive details from a cache library archive";
+	ot->idname = "CACHELIBRARY_OT_archive_info";
+	
+	/* api callbacks */
+	ot->exec = cache_library_archive_info_exec;
+	ot->poll = cache_library_archive_info_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_boolean(ot->srna, "use_stdout", false, "Use stdout", "Print info in standard output");
+	RNA_def_boolean(ot->srna, "use_popup", false, "Show Popup", "Display archive info in a popup");
+	RNA_def_boolean(ot->srna, "use_clipboard", false, "Copy to Clipboard", "Copy archive info to the clipboard");
 }

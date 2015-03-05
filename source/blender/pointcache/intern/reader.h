@@ -34,6 +34,7 @@ public:
 	virtual ~ReaderArchive() {}
 	
 	virtual bool get_frame_range(int &start_frame, int &end_frame) = 0;
+	virtual std::string get_info() = 0;
 	
 	virtual PTCReadSampleResult test_sample(float frame) = 0;
 };

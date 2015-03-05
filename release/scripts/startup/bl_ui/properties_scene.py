@@ -490,11 +490,17 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         row.template_ID(cachelib, "group")
 
         col = layout.column(align=True)
-        col.label("Archive:")
+        colrow = col.row(align=True)
+        colrow.label("Archive:")
+        props = colrow.operator("cachelibrary.archive_info", text="", icon='QUESTION')
+        props.use_stdout = True
+        props.use_popup = True
+        props.use_clipboard = True
         col.prop(cachelib, "filepath", text="")
-        row = col.row(align=True)
-        row.prop(cachelib, "read", text="Read", toggle=True)
-        row.operator("cachelibrary.bake")
+
+        colrow = col.row(align=True)
+        colrow.prop(cachelib, "read", text="Read", toggle=True)
+        colrow.operator("cachelibrary.bake")
         col.prop(cachelib, "eval_mode", expand=False)
 
         row = layout.row(align=True)

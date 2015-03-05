@@ -186,6 +186,15 @@ PTCReadSampleResult PTC_test_sample(PTCReader *_reader, float frame)
 	return reader->test_sample(frame);
 }
 
+char *PTC_get_archive_info(PTCReaderArchive *_archive)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	
+	std::string info = archive->get_info();
+	return BLI_sprintfN("%s", info.c_str());
+}
+
+
 /* get writer/reader from RNA type */
 PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 {
