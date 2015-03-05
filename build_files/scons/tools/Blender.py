@@ -210,6 +210,8 @@ def setup_staticlibs(lenv):
 
     if lenv['WITH_BF_ALEMBIC']:
         libincs += Split(lenv['BF_ALEMBIC_LIBPATH'])
+        if lenv['WITH_BF_STATICALEMBIC']:
+            statlibs += Split(lenv['BF_ALEMBIC_LIB_STATIC'])
 
     if lenv['WITH_BF_OPENEXR']:
         libincs += Split(lenv['BF_OPENEXR_LIBPATH'])
@@ -295,7 +297,8 @@ def setup_syslibs(lenv):
         syslibs += Split(lenv['BF_HDF5_LIB'])
 
     if lenv['WITH_BF_ALEMBIC']:
-        syslibs += Split(lenv['BF_ALEMBIC_LIB'])
+        if not lenv['WITH_BF_STATICALEMBIC']:
+            syslibs += Split(lenv['BF_ALEMBIC_LIB'])
 
     if lenv['WITH_BF_OPENEXR'] and not lenv['WITH_BF_STATICOPENEXR']:
         syslibs += Split(lenv['BF_OPENEXR_LIB'])
