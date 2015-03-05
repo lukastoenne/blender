@@ -20,6 +20,7 @@
 #include <Alembic/AbcCoreOgawa/ReadWrite.h>
 #include <Alembic/Abc/ArchiveInfo.h>
 
+#include "alembic.h"
 #include "abc_reader.h"
 
 #include "util_error_handler.h"
@@ -59,6 +60,11 @@ bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 		start_frame = end_frame = 1;
 		return false;
 	}
+}
+
+std::string AbcReaderArchive::get_info()
+{
+	return abc_archive_info(archive);
 }
 
 ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)

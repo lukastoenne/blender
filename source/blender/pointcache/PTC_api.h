@@ -83,6 +83,8 @@ bool PTC_reader_get_frame_range(struct PTCReader *reader, int *start_frame, int 
 PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
 PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
+char *PTC_get_archive_info(struct PTCReaderArchive *archive);
+
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);

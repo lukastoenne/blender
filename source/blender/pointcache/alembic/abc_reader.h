@@ -46,6 +46,7 @@ public:
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
 	PTCReadSampleResult test_sample(float frame);
+	std::string get_info();
 	
 	Abc::IArchive archive;
 	
