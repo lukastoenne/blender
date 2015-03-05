@@ -56,6 +56,16 @@ class AbcFactory : public Factory {
 		return new AbcParticlesReader(name, ob, psys);
 	}
 	
+	Writer *create_writer_hair_dynamics(const std::string &name, Object *ob, ParticleSystem *psys)
+	{
+		return new AbcHairDynamicsWriter(name, ob, psys);
+	}
+	
+	Reader *create_reader_hair_dynamics(const std::string &name, Object *ob, ParticleSystem *psys)
+	{
+		return new AbcHairDynamicsReader(name, ob, psys);
+	}
+	
 	Writer *create_writer_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys)
 	{
 		return new AbcParticlePathcacheParentsWriter(name, ob, psys);
@@ -86,16 +96,6 @@ class AbcFactory : public Factory {
 	Reader *create_reader_cloth(const std::string &name, Object *ob, ClothModifierData *clmd)
 	{
 		return new AbcClothReader(name, ob, clmd);
-	}
-	
-	Writer *create_writer_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd)
-	{
-		return new AbcHairDynamicsWriter(name, ob, clmd);
-	}
-	
-	Reader *create_reader_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd)
-	{
-		return new AbcHairDynamicsReader(name, ob, clmd);
 	}
 	
 	/* Modifier Stack */

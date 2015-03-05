@@ -39,6 +39,9 @@ struct ParticleCacheKey;
 namespace PTC {
 
 class AbcClothWriter;
+class AbcClothReader;
+class AbcDerivedMeshWriter;
+class AbcDerivedMeshReader;
 
 class AbcParticlesWriter : public ParticlesWriter, public AbcWriter {
 public:
@@ -65,6 +68,36 @@ public:
 private:
 	AbcGeom::IPoints m_points;
 };
+
+
+/* Hair is just a cloth sim in disguise ... */
+
+class AbcHairDynamicsWriter : public ParticlesWriter, public AbcWriter {
+public:
+	AbcHairDynamicsWriter(const std::string &name, Object *ob, ParticleSystem *psys);
+	
+	void open_archive(WriterArchive *archive);
+	
+	void write_sample();
+	
+private:
+	AbcDerivedMeshWriter m_dm_writer;
+	AbcClothWriter m_cloth_writer;
+};
+
+class AbcHairDynamicsReader : public ParticlesReader, public AbcReader {
+public:
+	AbcHairDynamicsReader(const std::string &name, Object *ob, ParticleSystem *psys);
+	
+	void open_archive(ReaderArchive *archive);
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+private:
+	AbcDerivedMeshReader m_dm_reader;
+	AbcClothReader m_cloth_reader;
+};
+
 
 class AbcParticlePathcacheWriter : public ParticlesWriter, public AbcWriter {
 protected:
