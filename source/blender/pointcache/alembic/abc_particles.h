@@ -81,7 +81,6 @@ public:
 	void write_sample();
 	
 private:
-	AbcDerivedMeshWriter m_dm_writer;
 	AbcClothWriter m_cloth_writer;
 };
 
@@ -94,7 +93,6 @@ public:
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	AbcDerivedMeshReader m_dm_reader;
 	AbcClothReader m_cloth_reader;
 };
 

@@ -135,50 +135,34 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 
 AbcHairDynamicsWriter::AbcHairDynamicsWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
     ParticlesWriter(ob, psys, name),
-    m_dm_writer(name+"__mesh", ob, &psys_get_modifier(ob, psys)->dm),
     m_cloth_writer(name+"__cloth", ob, psys->clmd)
 {
 }
 
 void AbcHairDynamicsWriter::open_archive(WriterArchive *archive)
 {
-	m_dm_writer.open_archive(archive);
 	m_cloth_writer.open_archive(archive);
 }
 
 void AbcHairDynamicsWriter::write_sample()
 {
-	m_dm_writer.write_sample();
 	m_cloth_writer.write_sample();
 }
 
 AbcHairDynamicsReader::AbcHairDynamicsReader(const std::string &name, Object *ob, ParticleSystem *psys) :
 	ParticlesReader(ob, psys, name),
-	m_dm_reader(name+"__mesh", ob),
 	m_cloth_reader(name+"__cloth", ob, psys->clmd)
 {
 }
 
 void AbcHairDynamicsReader::open_archive(ReaderArchive *archive)
 {
-	m_dm_reader.open_archive(archive);
 	m_cloth_reader.open_archive(archive);
 }
 
 PTCReadSampleResult AbcHairDynamicsReader::read_sample(float frame)
 {
-	if (m_dm_reader.read_sample(frame) == PTC_READ_SAMPLE_INVALID)
-		return PTC_READ_SAMPLE_INVALID;
-	
-	ParticleSystemModifierData *psmd = psys_get_modifier(m_ob, m_psys);
-	if (psmd->dm)
-		psmd->dm->release(psmd->dm);
-	psmd->dm = m_dm_reader.acquire_result();
-	
-	if (m_cloth_reader.read_sample(frame) == PTC_READ_SAMPLE_INVALID)
-		return PTC_READ_SAMPLE_INVALID;
-	
-	return PTC_READ_SAMPLE_EXACT;
+	return m_cloth_reader.read_sample(frame);
 }
 
 
