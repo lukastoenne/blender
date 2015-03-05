@@ -244,16 +244,6 @@ PTCReader *PTC_reader_cloth(const char *name, Object *ob, ClothModifierData *clm
 	return (PTCReader *)PTC::Factory::alembic->create_reader_cloth(name, ob, clmd);
 }
 
-PTCWriter *PTC_writer_hair_dynamics(const char *name, Object *ob, ClothModifierData *clmd)
-{
-	return (PTCWriter *)PTC::Factory::alembic->create_writer_hair_dynamics(name, ob, clmd);
-}
-
-PTCReader *PTC_reader_hair_dynamics(const char *name, Object *ob, ClothModifierData *clmd)
-{
-	return (PTCReader *)PTC::Factory::alembic->create_reader_hair_dynamics(name, ob, clmd);
-}
-
 
 /* ==== MESH ==== */
 
@@ -316,6 +306,16 @@ PTCReader *PTC_reader_particles(const char *name, Object *ob, ParticleSystem *ps
 int PTC_reader_particles_totpoint(PTCReader *_reader)
 {
 	return ((PTC::ParticlesReader *)_reader)->totpoint();
+}
+
+PTCWriter *PTC_writer_hair_dynamics(const char *name, Object *ob, ParticleSystem *psys)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_hair_dynamics(name, ob, psys);
+}
+
+PTCReader *PTC_reader_hair_dynamics(const char *name, Object *ob, ParticleSystem *psys)
+{
+	return (PTCReader *)PTC::Factory::alembic->create_reader_hair_dynamics(name, ob, psys);
 }
 
 PTCWriter *PTC_writer_particles_pathcache_parents(const char *name, Object *ob, ParticleSystem *psys)

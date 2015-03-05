@@ -719,7 +719,7 @@ void BKE_cache_library_writers(CacheLibrary *cachelib, Scene *scene, DerivedMesh
 			case CACHE_TYPE_HAIR: {
 				ParticleSystem *psys = (ParticleSystem *)BLI_findlink(&item->ob->particlesystem, item->index);
 				if (psys && psys->part && psys->part->type == PART_HAIR && psys->clmd) {
-					cachelib_add_writer(writers, item, PTC_writer_hair_dynamics(name, item->ob, psys->clmd));
+					cachelib_add_writer(writers, item, PTC_writer_hair_dynamics(name, item->ob, psys));
 				}
 				break;
 			}
@@ -812,7 +812,7 @@ static struct PTCReader *cache_library_reader_hair_dynamics(CacheLibrary *cachel
 		char name[2*MAX_NAME];
 		BKE_cache_item_name(ob, CACHE_TYPE_HAIR, index, name);
 		
-		return PTC_reader_hair_dynamics(name, ob, psys->clmd);
+		return PTC_reader_hair_dynamics(name, ob, psys);
 	}
 	
 	return NULL;

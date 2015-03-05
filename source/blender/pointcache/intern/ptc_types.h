@@ -148,6 +148,8 @@ struct Factory {
 	/* Particles */
 	virtual Writer *create_writer_particles(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
 	virtual Reader *create_reader_particles(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Writer *create_writer_hair_dynamics(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
+	virtual Reader *create_reader_hair_dynamics(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
 	virtual Writer *create_writer_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
 	virtual Reader *create_reader_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
 	virtual Writer *create_writer_particles_pathcache_children(const std::string &name, Object *ob, ParticleSystem *psys) = 0;
@@ -156,8 +158,6 @@ struct Factory {
 	/* Cloth */
 	virtual Writer *create_writer_cloth(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
 	virtual Reader *create_reader_cloth(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
-	virtual Writer *create_writer_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
-	virtual Reader *create_reader_hair_dynamics(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
 	
 	/* Modifier Stack */
 	virtual Writer *create_writer_derived_mesh(const std::string &name, Object *ob, DerivedMesh **dm_ptr) = 0;

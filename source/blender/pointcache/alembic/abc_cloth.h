@@ -63,25 +63,6 @@ private:
 	AbcGeom::IP3fGeomParam m_param_goal_positions;
 };
 
-
-/* Hair is just a cloth sim in disguise ... */
-
-class AbcHairDynamicsWriter : public AbcClothWriter {
-public:
-	AbcHairDynamicsWriter(const std::string &name, Object *ob, ClothModifierData *clmd) :
-	    AbcClothWriter(name, ob, clmd)
-	{}
-};
-
-class AbcHairDynamicsReader : public AbcClothReader {
-public:
-	AbcHairDynamicsReader(const std::string &name, Object *ob, ClothModifierData *clmd) :
-	    AbcClothReader(name, ob, clmd)
-	{}
-	
-	PTCReadSampleResult read_sample(float frame) { return AbcClothReader::read_sample(frame); }
-};
-
 } /* namespace PTC */
 
 #endif  /* PTC_CLOTH_H */
