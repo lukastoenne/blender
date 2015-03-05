@@ -182,7 +182,8 @@ def validate_arguments(args, bc):
             'WITH_BF_BOOST', 'WITH_BF_STATICBOOST', 'BF_BOOST', 'BF_BOOST_INC', 'BF_BOOST_LIB', 'BF_BOOST_LIB_INTERNATIONAL', 'BF_BOOST_LIB_STATIC', 'BF_BOOST_LIBPATH',
             'WITH_BF_LIBMV', 'WITH_BF_LIBMV_SCHUR_SPECIALIZATIONS',
             'WITH_BF_CYCLES_OSL', 'WITH_BF_STATICOSL', 'BF_OSL', 'BF_OSL_INC', 'BF_OSL_LIB', 'BF_OSL_LIBPATH', 'BF_OSL_LIB_STATIC', 'BF_OSL_COMPILER',
-            'WITH_BF_LLVM', 'WITH_BF_STATICLLVM', 'BF_LLVM', 'BF_LLVM_LIB', 'BF_LLVM_LIBPATH', 'BF_LLVM_LIB_STATIC', 'BF_PROGRAM_LINKFLAGS'
+            'WITH_BF_LLVM', 'WITH_BF_STATICLLVM', 'BF_LLVM', 'BF_LLVM_LIB', 'BF_LLVM_LIBPATH', 'BF_LLVM_LIB_STATIC', 'BF_PROGRAM_LINKFLAGS',
+            'WITH_BF_ALEMBIC', 'BF_ALEMBIC', 'BF_ALEMBIC_INC', 'BF_ALEMBIC_LIB', 'BF_ALEMBIC_LIBPATH',
             ]
 
     # Have options here that scons expects to be lists
@@ -588,9 +589,11 @@ def read_opts(env, cfg, args):
         ('BF_HDF5_LIBPATH', 'HDF5 library path', ''),
 
         (BoolVariable('WITH_BF_ALEMBIC', 'Use Alembic if true', False)),
+        (BoolVariable('WITH_BF_STATICALEMBIC', 'Staticly link to Alembic', False)),
         ('BF_ALEMBIC', 'Alembic base path', ''),
         ('BF_ALEMBIC_INC', 'Alembic include path', ''),
         ('BF_ALEMBIC_LIB', 'Alembic library', ''),
+        ('BF_ALEMBIC_LIB_STATIC', 'Alembic static libraries', ''),
         ('BF_ALEMBIC_LIBPATH', 'Alembic library path', ''),
     ) # end of opts.AddOptions()
 

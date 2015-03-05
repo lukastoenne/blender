@@ -17,7 +17,6 @@
  */
 
 //#include <Alembic/AbcCoreHDF5/ReadWrite.h>
-#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/AbcCoreOgawa/ReadWrite.h>
 
 #include "abc_writer.h"

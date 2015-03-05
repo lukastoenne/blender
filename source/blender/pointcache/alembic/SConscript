@@ -39,8 +39,9 @@ incs = [
     '../../makesdna',
     '../../makesrna',
     '../../../../intern/guardedalloc',
-    '/opt/lib/openexr/include/OpenEXR',
     ]
+
+incs += Split(env['BF_OPENEXR_INC'])
 
 defs = []
 

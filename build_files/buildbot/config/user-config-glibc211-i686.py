@@ -166,6 +166,19 @@ BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 # Ocean Simulation
 WITH_BF_OCEANSIM = True
 
+# Alembic
+WITH_BF_HDF5 = False
+WITH_BF_ALEMBIC = True
+WITH_BF_STATICALEMBIC = True
+BF_ALEMBIC = '/opt/lib/alembic'
+BF_ALEMBIC_INC = '${BF_ALEMBIC}/include'
+BF_ALEMBIC_LIBPATH = '${BF_ALEMBIC}/lib/static'
+BF_ALEMBIC_LIB_STATIC = '${BF_ALEMBIC_LIBPATH}/libAlembicAbcGeom.a ${BF_ALEMBIC_LIBPATH}/libAlembicAbc.a ' + \
+    '${BF_ALEMBIC_LIBPATH}/libAlembicAbcCollection.a ${BF_ALEMBIC_LIBPATH}/libAlembicAbcCoreFactory.a ' + \
+    '${BF_ALEMBIC_LIBPATH}/libAlembicAbcCoreOgawa.a ${BF_ALEMBIC_LIBPATH}/libAlembicAbcMaterial.a ' + \
+    '${BF_ALEMBIC_LIBPATH}/libAlembicOgawa.a ${BF_ALEMBIC_LIBPATH}/libAlembicAbcCoreAbstract.a ' + \
+    '${BF_ALEMBIC_LIBPATH}/libAlembicUtil.a'
+
 # Compilation and optimization
 BF_DEBUG = False
 REL_CCFLAGS = ['-DNDEBUG', '-O2', '-msse', '-msse2']  # C & C++
