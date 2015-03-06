@@ -464,6 +464,15 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_float(func, "percentage", 0.0f, 0.0f, 1.0f, "Percentage", "Percentage of width to split at", 0.0f, 1.0f);
 	RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
 
+	/* sub-block */
+	func = RNA_def_function(srna, "subblock_begin", "uiLayoutSubblockBegin");
+	parm = RNA_def_string(func, "identifier", NULL, MAX_NAME, "", "Name/ID of the sub-block");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_function_ui_description(func, "Set the beginning of a sub-block");
+
+	func = RNA_def_function(srna, "subblock_end", "uiLayoutSubblockEnd");
+	RNA_def_function_ui_description(func, "Set the end of a sub-block");
+
 	/* radial/pie layout */
 	func = RNA_def_function(srna, "menu_pie", "uiLayoutRadial");
 	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");

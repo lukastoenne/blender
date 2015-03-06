@@ -40,10 +40,12 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.operator_menu_enum("object.modifier_add", "type")
 
         for md in ob.modifiers:
+            layout.subblock_begin(md.name)
             box = layout.template_modifier(md)
             if box:
                 # match enum type to our functions, avoids a lookup table.
                 getattr(self, md.type)(box, ob, md)
+            layout.subblock_end()
 
     # the mt.type enum is (ab)used for a lookup on function names
     # ...to avoid lengthy if statements

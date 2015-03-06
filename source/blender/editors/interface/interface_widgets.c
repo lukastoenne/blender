@@ -830,6 +830,43 @@ static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), const rcti 
 	}
 }
 
+static void ui_draw_dragwidget(const rctf *rect)
+{
+	unsigned char col_back[3], col_high[3], col_dark[3];
+	const int col_tint = 84;
+
+	const int px = (int)U.pixelsize;
+	const int px_zoom = max_ii(iroundf(BLI_rctf_size_y(rect) / 22.0f), 1);
+
+	const int box_margin = max_ii(iroundf((float)(px_zoom * 2.0f)), px);
+	const int box_size = max_ii(iroundf((BLI_rctf_size_y(rect) / 8.0f) - px), px);
+
+	const int x_min = rect->xmin;
+	const int y_min = rect->ymin;
+	const int y_ofs = max_ii(iroundf(BLI_rctf_size_y(rect) / 3.0f), px);
+	const int x_ofs = y_ofs;
+	int i_x, i_y;
+
+
+	UI_GetThemeColor3ubv(UI_GetThemeValue(TH_PANEL_SHOW_HEADER) ? TH_PANEL_HEADER : TH_PANEL_BACK, col_back);
+	UI_GetColorPtrShade3ubv(col_back, col_high,  col_tint);
+	UI_GetColorPtrShade3ubv(col_back, col_dark, -col_tint);
+
+
+	/* draw multiple boxes */
+	for (i_x = 0; i_x < 4; i_x++) {
+		for (i_y = 0; i_y < 2; i_y++) {
+			const int x_co = (x_min + x_ofs) + (i_x * (box_size + box_margin));
+			const int y_co = (y_min + y_ofs) + (i_y * (box_size + box_margin));
+
+			glColor3ubv(col_dark);
+			glRectf(x_co - box_size, y_co - px_zoom, x_co, (y_co + box_size) - px_zoom);
+			glColor3ubv(col_high);
+			glRectf(x_co - box_size, y_co, x_co, y_co + box_size);
+		}
+	}
+}
+
 
 static int ui_but_draw_menu_icon(const uiBut *but)
 {
@@ -870,39 +907,49 @@ static void widget_draw_icon(const uiBut *but, BIFIconID icon, float alpha, cons
 	
 	glEnable(GL_BLEND);
 	
-	if (icon && icon != ICON_BLANK1) {
-		float ofs = 1.0f / aspect;
-		
-		if (but->drawflag & UI_BUT_ICON_LEFT) {
-			if (but->block->flag & UI_BLOCK_LOOP) {
-				if (ELEM(but->type, UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK))
-					xs = rect->xmin + 4.0f * ofs;
-				else
-					xs = rect->xmin + ofs;
-			}
-			else {
-				xs = rect->xmin + 4.0f * ofs;
-			}
-			ys = (rect->ymin + rect->ymax - height) / 2.0f;
+	if (icon) {
+		if (icon == ICON_BLANK1) {
+			/* skip */
+		}
+		else if (icon == ICON_GRIP && (but->block->flag & UI_BLOCK_DRAGGABLE)) {
+			rctf drag_rect;
+
+			BLI_rctf_rcti_copy(&drag_rect, rect);
+			ui_draw_dragwidget(&drag_rect);
 		}
 		else {
-			xs = (rect->xmin + rect->xmax - height) / 2.0f;
-			ys = (rect->ymin + rect->ymax - height) / 2.0f;
-		}
+			float ofs = 1.0f / aspect;
+			if (but->drawflag & UI_BUT_ICON_LEFT) {
+				if (but->block->flag & UI_BLOCK_LOOP) {
+					if (ELEM(but->type, UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK))
+						xs = rect->xmin + 4.0f * ofs;
+					else
+						xs = rect->xmin + ofs;
+				}
+				else {
+					xs = rect->xmin + 4.0f * ofs;
+				}
+				ys = (rect->ymin + rect->ymax - height) / 2.0f;
+			}
+			else {
+				xs = (rect->xmin + rect->xmax - height) / 2.0f;
+				ys = (rect->ymin + rect->ymax - height) / 2.0f;
+			}
 
-		/* force positions to integers, for zoom levels near 1. draws icons crisp. */
-		if (aspect > 0.95f && aspect < 1.05f) {
-			xs = (int)(xs + 0.1f);
-			ys = (int)(ys + 0.1f);
+			/* force positions to integers, for zoom levels near 1. draws icons crisp. */
+			if (aspect > 0.95f && aspect < 1.05f) {
+				xs = (int)(xs + 0.1f);
+				ys = (int)(ys + 0.1f);
+			}
+
+			/* to indicate draggable */
+			if (but->dragpoin && (but->flag & UI_ACTIVE)) {
+				float rgb[3] = {1.25f, 1.25f, 1.25f};
+				UI_icon_draw_aspect_color(xs, ys, icon, aspect, rgb);
+			}
+			else
+				UI_icon_draw_aspect(xs, ys, icon, aspect, alpha);
 		}
-		
-		/* to indicate draggable */
-		if (but->dragpoin && (but->flag & UI_ACTIVE)) {
-			float rgb[3] = {1.25f, 1.25f, 1.25f};
-			UI_icon_draw_aspect_color(xs, ys, icon, aspect, rgb);
-		}
-		else
-			UI_icon_draw_aspect(xs, ys, icon, aspect, alpha);
 	}
 
 	if (show_menu_icon) {

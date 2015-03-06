@@ -845,6 +845,9 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 		row = uiLayoutRow(box, false);
 		uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_EXPAND);
 		block = uiLayoutGetBlock(row);
+
+		UI_block_flag_enable(block, UI_BLOCK_DRAGGABLE);
+
 		/* VIRTUAL MODIFIER */
 		/* XXX this is not used now, since these cannot be accessed via RNA */
 		BLI_snprintf(str, sizeof(str), IFACE_("%s parent deform"), md->name);
@@ -858,7 +861,9 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 		/* REAL MODIFIER */
 		row = uiLayoutRow(box, false);
 		block = uiLayoutGetBlock(row);
-		
+
+		UI_block_flag_enable(block, UI_BLOCK_DRAGGABLE);
+
 		UI_block_emboss_set(block, UI_EMBOSS_NONE);
 		/* Open/Close .................................  */
 		uiItemR(row, &ptr, "show_expanded", 0, "", ICON_NONE);
@@ -920,12 +925,7 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 
 		UI_block_align_end(block);
 		
-		/* Up/Down + Delete ........................... */
-		UI_block_align_begin(block);
-		uiItemO(row, "", ICON_TRIA_UP, "OBJECT_OT_modifier_move_up");
-		uiItemO(row, "", ICON_TRIA_DOWN, "OBJECT_OT_modifier_move_down");
-		UI_block_align_end(block);
-		
+		/* Delete */
 		UI_block_emboss_set(block, UI_EMBOSS_NONE);
 		/* When Modifier is a simulation, show button to switch to context rather than the delete button. */
 		if (modifier_can_delete(md) &&
@@ -940,6 +940,11 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 		else if (modifier_is_simulation(md) == 2) {
 			uiItemStringO(row, "", ICON_BUTS, "WM_OT_properties_context_change", "context", "PARTICLES");
 		}
+
+		/* Drag Widget */
+		but = uiDefIconBut(block, UI_BTYPE_GRIP, 0, ICON_GRIP, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.8f, NULL,
+	                           0, 0, 0, 0, "");
+
 		UI_block_emboss_set(block, UI_EMBOSS);
 	}
 

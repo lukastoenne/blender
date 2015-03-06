@@ -294,6 +294,9 @@ struct uiBut {
 	void *dragpoin;
 	struct ImBuf *imb;
 	float imb_scale;
+
+	/* block drag and drop */
+	char subblock_id[64]; /* NAME_MAX */
 	
 	/* active button data */
 	struct uiHandleButtonData *active;
@@ -332,6 +335,27 @@ struct PieMenuData {
 	float alphafac;
 };
 
+/* SubBlockData->drag_state */
+enum {
+	UI_BLOCK_DRAGSTATE_NONE      = 0,
+	UI_BLOCK_DRAGSTATE_DRAGGING  = 1, /* block is being dragged */
+	UI_BLOCK_DRAGSTATE_ANIMATING = 2, /* key was released -> animation is running */
+};
+
+typedef struct SubBlockData {
+	char subblock_id[64][MAX_NAME];  /* buttons that have the same but->subblock_id build a sub-block */
+	int tot_subblocks;               /* total amount of built sub-blocks */
+	rctf rect;                       /* bounds of the sub-block */
+	bool is_subblock_building;       /* set while buttons are collected to build the sub-block */
+
+	/* sub-but drag data */
+	short drag_state;                /* current state for sub-block drag and drop */
+	char dragged_subblock[MAX_NAME]; /* name of the currently dragged sub-block */
+	int drag_xy_prev[2];             /* coordinates used to calc block position while dragging */
+	int click_xy[2];                 /* coordinates on mouse click relative to sub-block */
+	rctf rect_above, rect_below;     /* rectangles of the sub-blocks above and below the dragged one */
+} SubBlockData;
+
 struct uiBlock {
 	uiBlock *next, *prev;
 
@@ -343,6 +367,8 @@ struct uiBlock {
 
 	ListBase layouts;
 	struct uiLayout *curlayout;
+
+	SubBlockData subblock;
 
 	ListBase contexts;
 	

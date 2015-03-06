@@ -1307,8 +1307,16 @@ static bool mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 		select = true;
 	}
 	else if (toggle) {
-		select = false;
-		select_cycle = false;
+		int tot[2];
+		/* Shift-clicking to toggle selection and shift-clicking an already selected edge
+		 * loop to do boundary selection conflicts here (see T43871), so we only toggle/deselect
+		 * if the entire boundary is selected. This gives the following behaviour for shift
+		 * clicking an edge loop: select edge loop, select edge boundary, toggle edge loop */
+		walker_select_count(em, BMW_EDGEBOUNDARY, eed, select, false, &tot[0], &tot[1]);
+		if (tot[select] == 0) {
+			select = false;
+			select_cycle = false;
+		}
 	}
 
 	if (em->selectmode & SCE_SELECT_FACE) {

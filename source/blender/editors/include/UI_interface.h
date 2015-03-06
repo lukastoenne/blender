@@ -144,6 +144,7 @@ enum {
 
 #define UI_BLOCK_LIST_ITEM   (1 << 19)
 #define UI_BLOCK_RADIAL      (1 << 20)
+#define UI_BLOCK_DRAGGABLE   (1 << 21)
 
 /* uiPopupBlockHandle->menuretval */
 #define UI_RETURN_CANCEL     (1 << 0)   /* cancel all menus cascading */
@@ -823,6 +824,8 @@ enum {
 uiLayout *UI_block_layout(uiBlock *block, int dir, int type, int x, int y, int size, int em, int padding, struct uiStyle *style);
 void UI_block_layout_set_current(uiBlock *block, uiLayout *layout);
 void UI_block_layout_resolve(uiBlock *block, int *x, int *y);
+void uiLayoutSubblockBegin(uiLayout *layout, const char *identifier);
+void uiLayoutSubblockEnd(uiLayout *layout);
 
 uiBlock *uiLayoutGetBlock(uiLayout *layout);
 
@@ -1022,6 +1025,9 @@ bool UI_butstore_is_registered(uiBlock *block, uiBut *but);
 void UI_butstore_register(uiButStore *bs_handle, uiBut **but_p);
 bool UI_butstore_register_update(uiBlock *block, uiBut *but_dst, const uiBut *but_src);
 void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
+
+/* UI_subblock_ helplers */
+bool UI_subblock_is_dragging(uiBlock *block);
 
 
 /* Float precision helpers */
