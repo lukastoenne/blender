@@ -449,7 +449,7 @@ def cachelib_object_items(cachelib, ob, filter_types = []):
         show = False
         enable = False
         # always show existing items
-        if item:
+        if item and item.enabled:
             show = True
             enable = True
         # always show selected types
