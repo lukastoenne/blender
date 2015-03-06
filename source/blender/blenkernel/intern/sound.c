@@ -621,7 +621,7 @@ void sound_seek_scene(struct Main *bmain, struct Scene *scene)
 		}
 	}
 
-	if (scene->audio.flag & AUDIO_SCRUB && !animation_playing) {
+	if ((scene->audio.flag & AUDIO_SCRUB) && !animation_playing) {
 		if (scene->audio.flag & AUDIO_SYNC) {
 			AUD_seek(scene->sound_scene_handle, cur_time);
 			AUD_seekSequencer(scene->sound_scene_handle, cur_time);

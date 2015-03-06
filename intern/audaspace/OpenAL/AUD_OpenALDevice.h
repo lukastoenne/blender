@@ -75,6 +75,8 @@ private:
 		/// The first buffer to be read next.
 		int m_current;
 
+		/// Amount of buffers already passed to OpenAL for processing. Used for proper timing
+		unsigned int m_bytepos;
 		/// Whether the stream doesn't return any more data.
 		bool m_eos;
 

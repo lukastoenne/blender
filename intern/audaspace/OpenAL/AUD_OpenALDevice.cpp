@@ -97,7 +97,7 @@ bool AUD_OpenALDevice::AUD_OpenALHandle::pause(bool keep)
 	return false;}
 
 AUD_OpenALDevice::AUD_OpenALHandle::AUD_OpenALHandle(AUD_OpenALDevice* device, ALenum format, boost::shared_ptr<AUD_IReader> reader, bool keep) :
-	m_isBuffered(false), m_reader(reader), m_keep(keep), m_format(format), m_current(0),
+	m_isBuffered(false), m_reader(reader), m_keep(keep), m_format(format), m_current(0), m_bytepos(0),
 	m_eos(false), m_loopcount(0), m_stop(NULL), m_stop_data(NULL), m_status(AUD_STATUS_PLAYING),
 	m_device(device)
 {
@@ -208,6 +208,8 @@ bool AUD_OpenALDevice::AUD_OpenALHandle::stop()
 	if(!m_isBuffered)
 		alDeleteBuffers(CYCLE_BUFFERS, m_buffers);
 
+	m_bytepos = 0;
+
 	for(AUD_HandleIterator it = m_device->m_playingSounds.begin(); it != m_device->m_playingSounds.end(); it++)
 	{
 		if(it->get() == this)
@@ -269,7 +271,8 @@ bool AUD_OpenALDevice::AUD_OpenALHandle::seek(float position)
 		alSourcef(m_source, AL_SEC_OFFSET, position);
 	else
 	{
-		m_reader->seek((int)(position * m_reader->getSpecs().rate));
+		int offset = (int)(position * m_reader->getSpecs().rate);
+		m_reader->seek(offset);
 		m_eos = false;
 
 		ALint info;
@@ -315,9 +318,13 @@ bool AUD_OpenALDevice::AUD_OpenALHandle::seek(float position)
 					m_eos = false;
 
 				alSourceQueueBuffers(m_source, CYCLE_BUFFERS, m_buffers);
+				m_bytepos = offset;
 			}
 
 			alSourceRewind(m_source);
+		}
+		else {
+			m_bytepos = offset;
 		}
 	}
 
@@ -344,8 +351,7 @@ float AUD_OpenALDevice::AUD_OpenALHandle::getPosition()
 	if(!m_isBuffered)
 	{
 		AUD_Specs specs = m_reader->getSpecs();
-		position += (m_reader->getPosition() - m_device->m_buffersize *
-					 CYCLE_BUFFERS) / (float)specs.rate;
+		position += (m_bytepos) / specs.rate;
 	}
 
 	return position;
@@ -950,6 +956,7 @@ void AUD_OpenALDevice::updateStreams()
 
 								// unqueue buffer (warning: this might fail for slow early returning sources (none exist so far) if the buffer was not queued due to recent changes - has to be tested)
 								alSourceUnqueueBuffers(sound->m_source, 1, &sound->m_buffers[sound->m_current]);
+								sound->m_bytepos += length;
 								ALenum err;
 								if((err = alGetError()) != AL_NO_ERROR)
 								{
