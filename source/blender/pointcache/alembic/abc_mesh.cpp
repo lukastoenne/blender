@@ -44,7 +44,8 @@ using namespace AbcGeom;
 
 AbcDerivedMeshWriter::AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
     DerivedMeshWriter(ob, dm_ptr, name),
-    m_vertex_data_writer("vertex_data", ~CD_MASK_BAREMESH)
+    m_vertex_data_writer("vertex_data", ~CD_MASK_BAREMESH),
+    m_face_data_writer("face_data", ~CD_MASK_BAREMESH)
 {
 }
 
@@ -300,13 +301,19 @@ void AbcDerivedMeshWriter::write_sample()
 	CustomData *vdata = output_dm->getVertDataLayout(output_dm);
 	int num_vdata = output_dm->getNumVerts(output_dm);
 	m_vertex_data_writer.write_sample(vdata, num_vdata, user_props);
+	
+	DM_ensure_tessface(output_dm);
+	CustomData *fdata = output_dm->getTessFaceDataLayout(output_dm);
+	int num_fdata = output_dm->getNumTessFaces(output_dm);
+	m_face_data_writer.write_sample(fdata, num_fdata, user_props);
 }
 
 /* ========================================================================= */
 
 AbcDerivedMeshReader::AbcDerivedMeshReader(const std::string &name, Object *ob) :
     DerivedMeshReader(ob, name),
-    m_vertex_data_reader("vertex_data", ~CD_MASK_BAREMESH)
+    m_vertex_data_reader("vertex_data", ~CD_MASK_BAREMESH),
+    m_face_data_reader("face_data", ~CD_MASK_BAREMESH)
 {
 }
 
@@ -574,10 +581,6 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 		apply_sample_poly_smooth(m_result, smooth);
 	PROFILE_END(time_build_mesh);
 	
-	CustomData *vdata = m_result->getVertDataLayout(m_result);
-	int num_vdata = totverts;
-	m_vertex_data_reader.read_sample(ss, vdata, num_vdata, user_props);
-	
 	PROFILE_START;
 	if (!has_edges)
 		CDDM_calc_edges(m_result);
@@ -586,6 +589,15 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	PROFILE_START;
 	DM_ensure_normals(m_result); /* only recalculates normals if no valid samples were found (has_normals == false) */
 	PROFILE_END(time_calc_normals);
+	
+	CustomData *vdata = m_result->getVertDataLayout(m_result);
+	int num_vdata = totverts;
+	m_vertex_data_reader.read_sample(ss, vdata, num_vdata, user_props);
+	
+	DM_ensure_tessface(m_result);
+	CustomData *fdata = m_result->getVertDataLayout(m_result);
+	int num_fdata = m_result->getNumTessFaces(m_result);
+	m_face_data_reader.read_sample(ss, fdata, num_fdata, user_props);
 	
 //	BLI_assert(DM_is_valid(m_result));
 	

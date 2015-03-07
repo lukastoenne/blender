@@ -60,6 +60,7 @@ private:
 	/* note: loop normals are already defined as a parameter in the schema */
 	
 	CustomDataWriter m_vertex_data_writer;
+	CustomDataWriter m_face_data_writer;
 };
 
 class AbcDerivedMeshReader : public DerivedMeshReader, public AbcReader {
@@ -81,6 +82,7 @@ private:
 	AbcGeom::IN3fGeomParam m_param_poly_normals;
 	
 	CustomDataReader m_vertex_data_reader;
+	CustomDataReader m_face_data_reader;
 };
 
 
