@@ -54,6 +54,8 @@ set(SRC
 
 	abc_cloth.cpp
 	abc_cloth.h
+	abc_customdata.cpp
+	abc_customdata.h
 	abc_mesh.cpp
 	abc_mesh.h
 	abc_particles.cpp
