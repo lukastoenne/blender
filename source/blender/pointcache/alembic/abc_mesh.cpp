@@ -43,7 +43,8 @@ using namespace Abc;
 using namespace AbcGeom;
 
 AbcDerivedMeshWriter::AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
-    DerivedMeshWriter(ob, dm_ptr, name)
+    DerivedMeshWriter(ob, dm_ptr, name),
+    m_vertex_data_writer("vertex_data", ~CD_MASK_BAREMESH)
 {
 }
 
@@ -249,6 +250,7 @@ void AbcDerivedMeshWriter::write_sample()
 	/*ensure_normal_data(output_dm);*/
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
+	OCompoundProperty user_props = schema.getUserProperties();
 	
 	std::vector<V3f> positions_buffer;
 	std::vector<int> indices_buffer;
@@ -294,12 +296,17 @@ void AbcDerivedMeshWriter::write_sample()
 	
 	m_prop_edges.set(edges);
 	m_prop_edges_index.set(edges_index);
+	
+	CustomData *vdata = output_dm->getVertDataLayout(output_dm);
+	int num_vdata = output_dm->getNumVerts(output_dm);
+	m_vertex_data_writer.write_sample(vdata, num_vdata, user_props);
 }
 
 /* ========================================================================= */
 
 AbcDerivedMeshReader::AbcDerivedMeshReader(const std::string &name, Object *ob) :
-    DerivedMeshReader(ob, name)
+    DerivedMeshReader(ob, name),
+    m_vertex_data_reader("vertex_data", ~CD_MASK_BAREMESH)
 {
 }
 
@@ -492,6 +499,7 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	IPolyMeshSchema &schema = m_mesh.getSchema();
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
+	ICompoundProperty user_props = schema.getUserProperties();
 	
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
@@ -565,6 +573,10 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	if (smooth)
 		apply_sample_poly_smooth(m_result, smooth);
 	PROFILE_END(time_build_mesh);
+	
+	CustomData *vdata = m_result->getVertDataLayout(m_result);
+	int num_vdata = totverts;
+	m_vertex_data_reader.read_sample(ss, vdata, num_vdata, user_props);
 	
 	PROFILE_START;
 	if (!has_edges)

@@ -24,6 +24,7 @@
 
 #include "ptc_types.h"
 
+#include "abc_customdata.h"
 #include "abc_reader.h"
 #include "abc_schema.h"
 #include "abc_writer.h"
@@ -57,6 +58,8 @@ private:
 	AbcGeom::ON3fGeomParam m_param_vertex_normals;
 	AbcGeom::ON3fGeomParam m_param_poly_normals;
 	/* note: loop normals are already defined as a parameter in the schema */
+	
+	CustomDataWriter m_vertex_data_writer;
 };
 
 class AbcDerivedMeshReader : public DerivedMeshReader, public AbcReader {
@@ -76,6 +79,8 @@ private:
 	AbcGeom::IN3fGeomParam m_param_loop_normals;
 	AbcGeom::IN3fGeomParam m_param_vertex_normals;
 	AbcGeom::IN3fGeomParam m_param_poly_normals;
+	
+	CustomDataReader m_vertex_data_reader;
 };
 
 
