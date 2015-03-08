@@ -531,6 +531,8 @@ struct uiLayout *uiLayoutColumn(uiLayout *layout, int align) RET_NULL
 struct uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, int align) RET_NULL
 struct uiLayout *uiLayoutBox(struct uiLayout *layout) RET_NULL
 struct uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, int align) RET_NULL
+void uiLayoutSubblockBegin(uiLayout *layout, const char *identifier) RET_NONE
+void uiLayoutSubblockEnd(uiLayout *layout) RET_NONE
 bool uiLayoutGetRedAlert(struct uiLayout *layout) RET_ZERO
 void uiLayoutSetRedAlert(uiLayout *layout, bool redalert) RET_NONE
 void uiItemsEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname) RET_NONE
