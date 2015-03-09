@@ -30,6 +30,8 @@
 #include "abc_writer.h"
 
 extern "C" {
+#include "BKE_customdata.h"
+
 #include "DNA_customdata_types.h"
 }
 
@@ -43,7 +45,7 @@ struct CustomDataWriter {
 	typedef std::map<std::string, Abc::BasePropertyWriterPtr> LayerPropsMap;
 	typedef std::pair<std::string, Abc::BasePropertyWriterPtr> LayerPropsPair;
 	
-	CustomDataWriter(const std::string &name, int cdmask);
+	CustomDataWriter(const std::string &name, CustomDataMask cdmask);
 	~CustomDataWriter();
 	
 	void write_sample(CustomData *cdata, int num_data, Abc::OCompoundProperty &parent);
@@ -80,7 +82,7 @@ struct CustomDataWriter {
 	
 private:
 	std::string m_name;
-	int m_cdmask;
+	CustomDataMask m_cdmask;
 	
 	Abc::OCompoundProperty m_props;
 	LayerPropsMap m_layer_props;
@@ -90,7 +92,7 @@ struct CustomDataReader {
 	typedef std::map<std::string, Abc::BasePropertyReaderPtr> LayerPropsMap;
 	typedef std::pair<std::string, Abc::BasePropertyReaderPtr> LayerPropsPair;
 	
-	CustomDataReader(const std::string &name, int cdmask);
+	CustomDataReader(const std::string &name, CustomDataMask cdmask);
 	~CustomDataReader();
 	
 	PTCReadSampleResult read_sample(const Abc::ISampleSelector &ss, CustomData *cdata, int num_data, Abc::ICompoundProperty &parent);
@@ -128,7 +130,7 @@ struct CustomDataReader {
 	
 private:
 	std::string m_name;
-	int m_cdmask;
+	CustomDataMask m_cdmask;
 	
 	Abc::ICompoundProperty m_props;
 	LayerPropsMap m_layer_props;
