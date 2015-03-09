@@ -99,7 +99,7 @@ void AbcParticlesReader::open_archive(ReaderArchive *archive)
 	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
 	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
-	if (abc_archive()->archive.valid()) {
+	if (abc_archive()->archive) {
 		IObject root = abc_archive()->archive.getTop();
 		m_points = IPoints(root, m_name);
 	}
@@ -182,6 +182,9 @@ void AbcParticlePathcacheWriter::open_archive(WriterArchive *archive)
 {
 	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
 	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+
+	if (!abc_archive()->archive)
+		return;
 
 	OObject root = abc_archive()->archive.getTop();
 	/* XXX non-escaped string construction here ... */
@@ -388,7 +391,7 @@ void AbcParticlePathcacheReader::open_archive(ReaderArchive *archive)
 	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
 	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
-	if (abc_archive()->archive.valid()) {
+	if (abc_archive()->archive) {
 		IObject root = abc_archive()->archive.getTop();
 		if (root.valid()) {
 			/* XXX non-escaped string construction here ... */

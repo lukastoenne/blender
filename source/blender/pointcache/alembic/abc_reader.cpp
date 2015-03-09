@@ -49,7 +49,7 @@ AbcReaderArchive::~AbcReaderArchive()
 
 bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 {
-	if (archive.valid()) {
+	if (archive) {
 		double start_time, end_time;
 		GetArchiveStartAndEndTime(archive, start_time, end_time);
 		start_frame = (int)time_to_frame(start_time);
@@ -64,7 +64,10 @@ bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 
 std::string AbcReaderArchive::get_info()
 {
-	return abc_archive_info(archive);
+	if (archive)
+		return abc_archive_info(archive);
+	else
+		return "";
 }
 
 ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)
@@ -74,7 +77,7 @@ ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)
 
 PTCReadSampleResult AbcReaderArchive::test_sample(float frame)
 {
-	if (archive.valid()) {
+	if (archive) {
 		double start_time, end_time;
 		GetArchiveStartAndEndTime(archive, start_time, end_time);
 		float start_frame = time_to_frame(start_time);

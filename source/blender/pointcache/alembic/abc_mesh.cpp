@@ -326,7 +326,7 @@ void AbcDerivedMeshReader::open_archive(ReaderArchive *archive)
 	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
 	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
-	if (abc_archive()->archive.valid()) {
+	if (abc_archive()->archive) {
 		IObject root = abc_archive()->archive.getTop();
 		if (root.valid() && root.getChild(m_name)) {
 			m_mesh = IPolyMesh(root, m_name);
