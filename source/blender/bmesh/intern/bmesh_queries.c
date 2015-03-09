@@ -273,30 +273,31 @@ static float bm_face_calc_split_dot(BMLoop *l_a, BMLoop *l_b)
  * Check if a point is inside the corner defined by a loop
  * (within the 2 planes defined by the loops corner & face normal).
  *
- * \return less than 0.0 when inside.
+ * \return signed, squared distance to the loops planes, less than 0.0 when outside.
  */
 float BM_loop_point_side_of_loop_test(const BMLoop *l, const float co[3])
 {
 	const float *axis = l->f->no;
-	return (angle_signed_on_axis_v3v3v3_v3(l->prev->v->co, l->v->co, co,             axis) -
-	        angle_signed_on_axis_v3v3v3_v3(l->prev->v->co, l->v->co, l->next->v->co, axis));
+	return dist_signed_squared_to_corner_v3v3v3(co, l->prev->v->co, l->v->co, l->next->v->co, axis);
 }
 
 /**
  * Check if a point is inside the edge defined by a loop
  * (within the plane defined by the loops edge & face normal).
  *
- * \return less than 0.0 when inside.
+ * \return signed, squared distablce to the edge plane, less than 0.0 when outside.
  */
 float BM_loop_point_side_of_edge_test(const BMLoop *l, const float co[3])
 {
 	const float *axis = l->f->no;
 	float dir[3];
-	float plane[3];
-	sub_v3_v3v3(dir, l->v->co, l->next->v->co);
+	float plane[4];
+
+	sub_v3_v3v3(dir, l->next->v->co, l->v->co);
 	cross_v3_v3v3(plane, axis, dir);
-	return (dot_v3v3(plane, co) -
-	        dot_v3v3(plane, l->v->co));
+
+	plane[3] = -dot_v3v3(plane, l->v->co);
+	return dist_signed_squared_to_plane_v3(co, plane);
 }
 
 /**
@@ -1355,7 +1356,7 @@ void BM_edge_calc_face_tangent(const BMEdge *e, const BMLoop *e_loop, float r_ta
  *
  * \returns the angle in radians
  */
-float BM_vert_calc_edge_angle(BMVert *v)
+float BM_vert_calc_edge_angle_ex(BMVert *v, const float fallback)
 {
 	BMEdge *e1, *e2;
 
@@ -1373,8 +1374,13 @@ float BM_vert_calc_edge_angle(BMVert *v)
 		return (float)M_PI - angle_v3v3v3(v1->co, v->co, v2->co);
 	}
 	else {
-		return DEG2RADF(90.0f);
+		return fallback;
 	}
+}
+
+float BM_vert_calc_edge_angle(BMVert *v)
+{
+	return BM_vert_calc_edge_angle_ex(v, DEG2RADF(90.0f));
 }
 
 /**
@@ -2178,6 +2184,7 @@ int BM_mesh_calc_face_groups(BMesh *bm, int *r_groups_array, int (**r_group_inde
 		}
 
 		BLI_assert(ok == true);
+		UNUSED_VARS_NDEBUG(ok);
 
 		/* manage arrays */
 		if (group_index_len == group_curr) {
@@ -2332,6 +2339,7 @@ int BM_mesh_calc_edge_groups(BMesh *bm, int *r_groups_array, int (**r_group_inde
 		}
 
 		BLI_assert(ok == true);
+		UNUSED_VARS_NDEBUG(ok);
 
 		/* manage arrays */
 		if (group_index_len == group_curr) {

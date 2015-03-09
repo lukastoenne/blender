@@ -157,6 +157,12 @@ static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 	/* refresh system directory list */
 	fsmenu_refresh_system_category(ED_fsmenu_get());
 
+	/* Update bookmarks 'valid' state.
+	 * Done here, because it seems BLI_is_dir() can have huge impact on performances
+	 * in some cases, on win systems... See T43684.
+	 */
+	fsmenu_refresh_bookmarks_status(ED_fsmenu_get());
+
 	if (sfile->layout) sfile->layout->dirty = true;
 }
 
@@ -260,7 +266,8 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		sfile->layout->dirty = true;
 	}
 
-	if (BKE_area_find_region_type(sa, RGN_TYPE_TOOLS) == NULL) {
+	/* Might be called with NULL sa, see file_main_area_draw() below. */
+	if (sa && BKE_area_find_region_type(sa, RGN_TYPE_TOOLS) == NULL) {
 		/* Create TOOLS/TOOL_PROPS regions. */
 		file_tools_region(sa);
 
@@ -403,6 +410,7 @@ static void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_bookmark_toggle);
 	WM_operatortype_append(FILE_OT_bookmark_add);
 	WM_operatortype_append(FILE_OT_bookmark_delete);
+	WM_operatortype_append(FILE_OT_bookmark_cleanup);
 	WM_operatortype_append(FILE_OT_bookmark_move);
 	WM_operatortype_append(FILE_OT_reset_recent);
 	WM_operatortype_append(FILE_OT_hidedot);
@@ -651,7 +659,7 @@ void ED_spacetype_file(void)
 	art = MEM_callocN(sizeof(ARegionType), "spacetype file operator region");
 	art->regionid = RGN_TYPE_TOOL_PROPS;
 	art->prefsizex = 0;
-	art->prefsizey = 240;
+	art->prefsizey = 360;
 	art->keymapflag = ED_KEYMAP_UI;
 	art->listener = file_tools_area_listener;
 	art->init = file_tools_area_init;

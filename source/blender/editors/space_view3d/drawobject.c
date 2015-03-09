@@ -1952,8 +1952,8 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short s
 		}
 	}
 	
-	glPointSize(1.0);
 	bglEnd();
+	glPointSize(1.0);
 }
 
 static void drawlattice__point(Lattice *lt, DispList *dl, int u, int v, int w, int actdef_wcol)
@@ -3676,6 +3676,12 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 	}
 }
 
+static bool object_is_halo(Scene *scene, Object *ob)
+{
+	const Material *ma = give_current_material(ob, 1);
+	return (ma && (ma->material_type == MA_TYPE_HALO) && !BKE_scene_use_new_shading_nodes(scene));
+}
+
 static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                             const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
@@ -3685,8 +3691,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	Object *ob = base->object;
 #endif
 	Mesh *me = ob->data;
-	Material *ma = give_current_material(ob, 1);
-	const bool hasHaloMat = (ma && (ma->material_type == MA_TYPE_HALO) && !BKE_scene_use_new_shading_nodes(scene));
 	eWireDrawMode draw_wire = OBDRAW_WIRE_OFF;
 	int /* totvert,*/ totedge, totface;
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
@@ -3722,7 +3726,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		if (((v3d->flag2 & V3D_RENDER_OVERRIDE) && v3d->drawtype >= OB_WIRE) == 0)
 			draw_bounding_volume(ob, ob->boundtype);
 	}
-	else if (hasHaloMat || (totface == 0 && totedge == 0)) {
+	else if ((totface == 0 && totedge == 0) ||
+	         ((!is_obact || (ob->mode == OB_MODE_OBJECT)) && object_is_halo(scene, ob)))
+	{
 		glPointSize(1.5);
 		dm->drawVerts(dm);
 		glPointSize(1.0);
@@ -4335,17 +4341,6 @@ static bool drawDispList_nobackface(Scene *scene, View3D *v3d, RegionView3D *rv3
 	const bool render_only = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
 	const bool solid = (dt > OB_WIRE);
 
-	if (drawCurveDerivedMesh(scene, v3d, rv3d, base, dt) == false) {
-		return false;
-	}
-
-	if (ob->type == OB_MBALL) {
-		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
-	}
-	else {
-		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CCW : GL_CW);
-	}
-
 	switch (ob->type) {
 		case OB_FONT:
 		case OB_CURVE:
@@ -4473,7 +4468,28 @@ static bool drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *ba
 	ensure_curve_cache(scene, base->object);
 #endif
 
-	retval = drawDispList_nobackface(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
+	if (drawCurveDerivedMesh(scene, v3d, rv3d, base, dt) == false) {
+		retval = false;
+	}
+	else {
+		Object *ob = base->object;
+		GLenum mode;
+
+		if (ob->type == OB_MBALL) {
+			mode = (ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW;
+		}
+		else {
+			mode = (ob->transflag & OB_NEG_SCALE) ? GL_CCW : GL_CW;
+		}
+
+		glFrontFace(mode);
+
+		retval = drawDispList_nobackface(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
+
+		if (mode != GL_CCW) {
+			glFrontFace(GL_CCW);
+		}
+	}
 
 	if (v3d->flag2 & V3D_BACKFACE_CULLING) {
 		glDisable(GL_CULL_FACE);
@@ -7393,7 +7409,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) {
 			if (ob->type == OB_MESH) {
 				if (dt < OB_SOLID) {
-					zbufoff = 1;
+					zbufoff = true;
 					dt = OB_SOLID;
 				}
 
@@ -7815,10 +7831,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 	if ((dt <= OB_SOLID) && !render_override) {
 		if (((ob->gameflag & OB_DYNAMIC) &&
-		     !ELEM(ob->collision_boundtype, OB_BOUND_TRIANGLE_MESH, OB_BOUND_CONVEX_HULL)) ||
+		     ((ob->gameflag & OB_BOUNDS) == 0)) ||
 
 		    ((ob->gameflag & OB_BOUNDS) &&
-		     (ob->boundtype == OB_BOUND_SPHERE)))
+		     (ob->collision_boundtype == OB_BOUND_SPHERE)))
 		{
 			float imat[4][4], vec[3] = {0.0f, 0.0f, 0.0f};
 

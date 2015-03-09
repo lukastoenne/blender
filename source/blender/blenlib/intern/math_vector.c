@@ -252,6 +252,13 @@ void mid_v3_v3v3v3(float v[3], const float v1[3], const float v2[3], const float
 	v[2] = (v1[2] + v2[2] + v3[2]) / 3.0f;
 }
 
+void mid_v3_v3v3v3v3(float v[3], const float v1[3], const float v2[3], const float v3[3], const float v4[3])
+{
+	v[0] = (v1[0] + v2[0] + v3[0] + v4[0]) / 4.0f;
+	v[1] = (v1[1] + v2[1] + v3[1] + v4[1]) / 4.0f;
+	v[2] = (v1[2] + v2[2] + v3[2] + v4[2]) / 4.0f;
+}
+
 /**
  * Specialized function for calculating normals.
  * fastpath for:
@@ -1034,6 +1041,15 @@ void fill_vn_short(short *array_tar, const int size, const short val)
 void fill_vn_ushort(unsigned short *array_tar, const int size, const unsigned short val)
 {
 	unsigned short *tar = array_tar + (size - 1);
+	int i = size;
+	while (i--) {
+		*(tar--) = val;
+	}
+}
+
+void fill_vn_uchar(unsigned char *array_tar, const int size, const unsigned char val)
+{
+	unsigned char *tar = array_tar + (size - 1);
 	int i = size;
 	while (i--) {
 		*(tar--) = val;

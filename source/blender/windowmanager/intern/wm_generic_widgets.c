@@ -745,7 +745,7 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 		glScalef(cage->scale[0], cage->scale[0], 1.0);
 	else
 		glScalef(cage->scale[0], cage->scale[1], 1.0);
-	
+
 	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
 		glEnable(GL_BLEND);
 		glColor4f(1.0f, 1.0f, 1.0f, 0.2f);

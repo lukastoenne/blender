@@ -389,7 +389,7 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
 	
-	BKE_constraints_free(&ob->constraints);
+	BKE_constraints_free_ex(&ob->constraints, do_id_user);
 	
 	free_partdeflect(ob->pd);
 	BKE_rigidbody_free_object(ob);
@@ -3481,6 +3481,19 @@ KeyBlock *BKE_object_insert_shape_key(Object *ob, const char *name, const bool f
 			return NULL;
 	}
 
+}
+
+bool BKE_object_flag_test_recursive(const Object *ob, short flag)
+{
+	if (ob->flag & flag) {
+		return true;
+	}
+	else if (ob->parent) {
+		return BKE_object_flag_test_recursive(ob->parent, flag);
+	}
+	else {
+		return false;
+	}
 }
 
 bool BKE_object_is_child_recursive(Object *ob_parent, Object *ob_child)

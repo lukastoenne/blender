@@ -3949,9 +3949,6 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 				if (psys->clmd->sim_parms->presets > 10)
 					psys->clmd->sim_parms->presets = 0;
 			}
-			if (psys->clmd->coll_parms) {
-				psys->clmd->coll_parms->flags |= CLOTH_COLLSETTINGS_FLAG_POINTS;
-			}
 			
 			psys->hair_in_dm = psys->hair_out_dm = NULL;
 			psys->clmd->solver_result = NULL;
@@ -4514,11 +4511,11 @@ static void lib_link_object(FileData *fd, Main *main)
 				}
 				else if (act->type == ACT_ACTION) {
 					bActionActuator *aa = act->data;
-					aa->act= newlibadr(fd, ob->id.lib, aa->act);
+					aa->act= newlibadr_us(fd, ob->id.lib, aa->act);
 				}
 				else if (act->type == ACT_SHAPEACTION) {
 					bActionActuator *aa = act->data;
-					aa->act= newlibadr(fd, ob->id.lib, aa->act);
+					aa->act= newlibadr_us(fd, ob->id.lib, aa->act);
 				}
 				else if (act->type == ACT_PROPERTY) {
 					bPropertyActuator *pa = act->data;
@@ -5429,12 +5426,26 @@ static void link_recurs_seq(FileData *fd, ListBase *lb)
 	}
 }
 
-static void direct_link_paint(FileData *fd, Paint **paint)
+static void direct_link_paint(FileData *fd, Paint *p)
+{
+	if (p->num_input_samples < 1)
+		p->num_input_samples = 1;
+
+	p->cavity_curve = newdataadr(fd, p->cavity_curve);
+	if (p->cavity_curve)
+		direct_link_curvemapping(fd, p->cavity_curve);
+	else
+		BKE_paint_cavity_curve_preset(p, CURVE_PRESET_LINE);
+}
+
+static void direct_link_paint_helper(FileData *fd, Paint **paint)
 {
 	/* TODO. is this needed */
 	(*paint) = newdataadr(fd, (*paint));
-	if (*paint && (*paint)->num_input_samples < 1)
-		(*paint)->num_input_samples = 1;
+
+	if (*paint) {
+		direct_link_paint(fd, *paint);
+	}
 }
 
 static void direct_link_sequence_modifiers(FileData *fd, ListBase *lb)
@@ -5500,11 +5511,13 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	
 	sce->toolsettings= newdataadr(fd, sce->toolsettings);
 	if (sce->toolsettings) {
-		direct_link_paint(fd, (Paint**)&sce->toolsettings->sculpt);
-		direct_link_paint(fd, (Paint**)&sce->toolsettings->vpaint);
-		direct_link_paint(fd, (Paint**)&sce->toolsettings->wpaint);
-		direct_link_paint(fd, (Paint**)&sce->toolsettings->uvsculpt);
+		direct_link_paint_helper(fd, (Paint**)&sce->toolsettings->sculpt);
+		direct_link_paint_helper(fd, (Paint**)&sce->toolsettings->vpaint);
+		direct_link_paint_helper(fd, (Paint**)&sce->toolsettings->wpaint);
+		direct_link_paint_helper(fd, (Paint**)&sce->toolsettings->uvsculpt);
 		
+		direct_link_paint(fd, &sce->toolsettings->imapaint.paint);
+
 		sce->toolsettings->imapaint.paintcursor = NULL;
 		sce->toolsettings->particle.paintcursor = NULL;
 		sce->toolsettings->particle.scene = NULL;
@@ -5826,6 +5839,12 @@ static void lib_link_screen(FileData *fd, Main *main)
 		if (sc->id.flag & LIB_NEED_LINK) {
 			sc->id.us = 1;
 			sc->scene = newlibadr(fd, sc->id.lib, sc->scene);
+
+			/* this should not happen, but apparently it does somehow. Until we figure out the cause,
+			 * just assign first available scene */
+			if (!sc->scene)
+				sc->scene = main->scene.first;
+
 			sc->animtimer = NULL; /* saved in rare cases */
 			
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
@@ -6406,6 +6425,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
+				rv3d->compositor = NULL;
 			}
 		}
 	}
@@ -6514,7 +6534,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 		/* add local view3d too */
 		else if (sa->spacetype == SPACE_VIEW3D)
 			blo_do_versions_view3d_split_250(sa->spacedata.first, &sa->regionbase);
-		
+
 		/* incase we set above */
 		sa->butspacetype = sa->spacetype;
 
@@ -6561,6 +6581,11 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				/* render can be quite heavy, set to solid on load */
 				if (v3d->drawtype == OB_RENDER)
 					v3d->drawtype = OB_SOLID;
+
+				if (v3d->fx_settings.dof)
+					v3d->fx_settings.dof = newdataadr(fd, v3d->fx_settings.dof);
+				if (v3d->fx_settings.ssao)
+					v3d->fx_settings.ssao = newdataadr(fd, v3d->fx_settings.ssao);
 				
 				blo_do_versions_view3d_split_250(v3d, &sl->regionbase);
 			}
@@ -9022,7 +9047,7 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 					do_it = true;
 				}
 				else if (idcode==ID_GR) {
-					if (ob->id.us == 1 && is_link == false && ob->id.lib == lib) {
+					if ((is_link == false) && (ob->id.lib == lib)) {
 						if ((ob->flag & OB_FROMGROUP) && object_in_any_scene(mainvar, ob)==0) {
 							do_it = true;
 						}
@@ -9031,7 +9056,7 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 				else {
 					/* when appending, make sure any indirectly loaded objects
 					 * get a base else they cant be accessed at all [#27437] */
-					if (ob->id.us==1 && is_link == false && ob->id.lib == lib) {
+					if ((is_link == false) && (ob->id.lib == lib)) {
 						/* we may be appending from a scene where we already
 						 *  have a linked object which is not in any scene [#27616] */
 						if ((ob->id.flag & LIB_PRE_EXISTING)==0) {
@@ -9051,7 +9076,9 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 					base->lay = ob->lay;
 					base->object = ob;
 					base->flag = ob->flag;
-					ob->id.us = 1;
+
+					CLAMP_MIN(ob->id.us, 0);
+					ob->id.us += 1;
 					
 					ob->id.flag -= LIB_INDIRECT;
 					ob->id.flag |= LIB_EXTERN;

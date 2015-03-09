@@ -216,6 +216,32 @@ void ED_fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name)
 	}
 }
 
+void fsmenu_entry_refresh_valid(struct FSMenuEntry *fsentry)
+{
+	if (fsentry->path && fsentry->path[0]) {
+#ifdef WIN32
+		/* XXX Special case, always consider those as valid.
+		 *     Thanks to Windows, which can spend five seconds to perform a mere stat() call on those paths...
+		 *     See T43684.
+		 */
+		const char *exceptions[] = {"A:\\", "B:\\", NULL};
+		const size_t exceptions_len[] = {strlen(exceptions[0]), strlen(exceptions[1]), 0};
+		int i;
+
+		for (i = 0; exceptions[i]; i++) {
+			if (STRCASEEQLEN(fsentry->path, exceptions[i], exceptions_len[i])) {
+				fsentry->valid = true;
+				return;
+			}
+		}
+#endif
+		fsentry->valid = BLI_is_dir(fsentry->path);
+	}
+	else {
+		fsentry->valid = false;
+	}
+}
+
 short fsmenu_can_save(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
 {
 	FSMenuEntry *fsm_iter;
@@ -272,6 +298,7 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const c
 	else {
 		fsm_iter->name[0] = '\0';
 	}
+	fsmenu_entry_refresh_valid(fsm_iter);
 
 	if (fsm_prev) {
 		if (flag & FS_INSERT_FIRST) {
@@ -410,6 +437,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 #ifdef WIN32
 	/* Add the drive names to the listing */
 	{
+		wchar_t wline[FILE_MAXDIR];
 		__int64 tmp;
 		char tmps[4];
 		int i;
@@ -429,9 +457,11 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 		/* Adding Desktop and My Documents */
 		if (read_bookmarks) {
-			SHGetSpecialFolderPath(0, line, CSIDL_PERSONAL, 0);
+			SHGetSpecialFolderPathW(0, wline, CSIDL_PERSONAL, 0);
+			BLI_strncpy_wchar_as_utf8(line, wline, FILE_MAXDIR);
 			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
-			SHGetSpecialFolderPath(0, line, CSIDL_DESKTOPDIRECTORY, 0);
+			SHGetSpecialFolderPathW(0, wline, CSIDL_DESKTOPDIRECTORY, 0);
+			BLI_strncpy_wchar_as_utf8(line, wline, FILE_MAXDIR);
 			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 		}
 	}
@@ -638,6 +668,19 @@ void fsmenu_refresh_system_category(struct FSMenu *fsmenu)
 
 	/* Add all entries to system category */
 	fsmenu_read_system(fsmenu, true);
+}
+
+void fsmenu_refresh_bookmarks_status(struct FSMenu *fsmenu)
+{
+	int categories[] = {FS_CATEGORY_SYSTEM, FS_CATEGORY_SYSTEM_BOOKMARKS, FS_CATEGORY_BOOKMARKS, FS_CATEGORY_RECENT};
+	int i;
+
+	for (i = sizeof(categories) / sizeof(*categories); i--; ) {
+		FSMenuEntry *fsm_iter = ED_fsmenu_get_category(fsmenu, categories[i]);
+		for ( ; fsm_iter; fsm_iter = fsm_iter->next) {
+			fsmenu_entry_refresh_valid(fsm_iter);
+		}
+	}
 }
 
 void fsmenu_free(void)

@@ -106,7 +106,9 @@ static void mikk_get_texture_coordinate(const SMikkTSpaceContext *context, float
 		int vert_idx = userdata->mesh.tessfaces[face_num].vertices()[vert_num];
 		float3 orco =
 			get_float3(userdata->mesh.vertices[vert_idx].undeformed_co());
-		map_to_sphere(&uv[0], &uv[1], orco[0], orco[1], orco[2]);
+		float2 tmp = map_to_sphere(make_float3(orco[0], orco[1], orco[2]));
+		uv[0] = tmp.x;
+		uv[1] = tmp.y;
 	}
 }
 
@@ -375,9 +377,9 @@ static void attr_create_pointiness(Scene *scene,
 		int i = 0;
 		for(b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e, ++i) {
 			int v0 = b_mesh.edges[i].vertices()[0],
-				v1 = b_mesh.edges[i].vertices()[1];
+			    v1 = b_mesh.edges[i].vertices()[1];
 			float3 co0 = get_float3(b_mesh.vertices[v0].co()),
-				co1 = get_float3(b_mesh.vertices[v1].co());
+			       co1 = get_float3(b_mesh.vertices[v1].co());
 			float3 edge = normalize(co1 - co0);
 			edge_accum[v0] += edge;
 			edge_accum[v1] += -edge;
@@ -403,7 +405,7 @@ static void attr_create_pointiness(Scene *scene,
 		i = 0;
 		for(b_mesh.edges.begin(e); e != b_mesh.edges.end(); ++e, ++i) {
 			int v0 = b_mesh.edges[i].vertices()[0],
-				v1 = b_mesh.edges[i].vertices()[1];
+			    v1 = b_mesh.edges[i].vertices()[1];
 			data[v0] += raw_data[v1];
 			data[v1] += raw_data[v0];
 			++counter[v0];
@@ -466,6 +468,9 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 			generated[i++] = get_float3(v->undeformed_co())*size - loc;
 	}
 
+	/* Create needed vertex attributes. */
+	attr_create_pointiness(scene, mesh, b_mesh);
+
 	/* create faces */
 	vector<int> nverts(numfaces);
 	int fi = 0, ti = 0;
@@ -522,7 +527,6 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 	 */
 	attr_create_vertex_color(scene, mesh, b_mesh, nverts);
 	attr_create_uv_map(scene, mesh, b_mesh, nverts);
-	attr_create_pointiness(scene, mesh, b_mesh);
 
 	/* for volume objects, create a matrix to transform from object space to
 	 * mesh texture space. this does not work with deformations but that can
@@ -844,13 +848,13 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 		if(new_attribute) {
 			if(i != numverts || memcmp(mP, &mesh->verts[0], sizeof(float3)*numverts) == 0) {
 				/* no motion, remove attributes again */
-				VLOG(1) << "No actual motion for mesh " << b_mesh.name();
+				VLOG(1) << "No actual deformation motion for object " << b_ob.name();
 				mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
 				if(attr_mN)
 					mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_NORMAL);
 			}
 			else if(time_index > 0) {
-				VLOG(1) << "Filling motion for mesh " << b_mesh.name();
+				VLOG(1) << "Filling deformation motion for object " << b_ob.name();
 				/* motion, fill up previous steps that we might have skipped because
 				 * they had no motion, but we need them anyway now */
 				float3 *P = &mesh->verts[0];

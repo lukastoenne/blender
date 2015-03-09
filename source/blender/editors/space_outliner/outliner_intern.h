@@ -235,6 +235,8 @@ void OUTLINER_OT_keyingset_remove_selected(struct wmOperatorType *ot);
 void OUTLINER_OT_drivers_add_selected(struct wmOperatorType *ot);
 void OUTLINER_OT_drivers_delete_selected(struct wmOperatorType *ot);
 
+void OUTLINER_OT_orphans_purge(struct wmOperatorType *ot);
+
 void OUTLINER_OT_parent_drop(struct wmOperatorType *ot);
 void OUTLINER_OT_parent_clear(struct wmOperatorType *ot);
 void OUTLINER_OT_scene_drop(struct wmOperatorType *ot);
@@ -250,7 +252,8 @@ void OUTLINER_OT_id_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_data_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_animdata_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_action_set(struct wmOperatorType *ot);
-
+void OUTLINER_OT_constraint_operation(struct wmOperatorType *ot);
+void OUTLINER_OT_modifier_operation(struct wmOperatorType *ot);
 /* ---------------------------------------------------------------- */
 
 /* outliner_ops.c */

@@ -52,6 +52,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar);
 void file_calc_previews(const bContext *C, ARegion *ar);
 void file_draw_list(const bContext *C, ARegion *ar);
 
+void file_draw_check(bContext *C);
 void file_draw_check_cb(bContext *C, void *arg1, void *arg2);
 bool file_draw_check_exists(SpaceFile *sfile);
 
@@ -66,6 +67,7 @@ void FILE_OT_select_border(struct wmOperatorType *ot);
 void FILE_OT_select_bookmark(struct wmOperatorType *ot);
 void FILE_OT_bookmark_add(struct wmOperatorType *ot);
 void FILE_OT_bookmark_delete(struct wmOperatorType *ot);
+void FILE_OT_bookmark_cleanup(struct wmOperatorType *ot);
 void FILE_OT_bookmark_move(struct wmOperatorType *ot);
 void FILE_OT_reset_recent(wmOperatorType *ot);
 void FILE_OT_hidedot(struct wmOperatorType *ot);

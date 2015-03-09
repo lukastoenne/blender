@@ -1191,7 +1191,7 @@ void psys_get_pointcache_start_end(Scene *scene, ParticleSystem *psys, int *sfra
 	ParticleSettings *part = psys->part;
 
 	*sfra = MAX2(1, (int)part->sta);
-	*efra = MIN2((int)(part->end + part->lifetime + 1.0f), scene->r.efra);
+	*efra = MIN2((int)(part->end + part->lifetime + 1.0f), MAX2(scene->r.pefra, scene->r.efra));
 }
 
 /************************************************/
@@ -3128,7 +3128,6 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 		psys->clmd->sim_parms->vel_damping = 1.0f;
 		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL|CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
 		psys->clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
-		psys->clmd->coll_parms->flags |= CLOTH_COLLSETTINGS_FLAG_POINTS;
 	}
 	
 	/* count simulated points */

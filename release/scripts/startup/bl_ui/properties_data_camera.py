@@ -177,16 +177,19 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         layout = self.layout
 
         cam = context.camera
-
-        layout.label(text="Focus:")
+        dof_options = cam.gpu_dof
 
         split = layout.split()
-        split.prop(cam, "dof_object", text="")
 
         col = split.column()
+        col.label(text="Focus:")
+        col.prop(cam, "dof_object", text="")
 
-        col.active = cam.dof_object is None
-        col.prop(cam, "dof_distance", text="Distance")
+        col = split.column()
+        col.prop(dof_options, "fstop")
+        sub = col.column()
+        sub.active = cam.dof_object is None
+        sub.prop(cam, "dof_distance", text="Distance")
 
 
 class DATA_PT_camera_display(CameraButtonsPanel, Panel):

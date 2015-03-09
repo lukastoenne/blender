@@ -65,6 +65,10 @@ struct wmWindow;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetGroupType;
+struct GPUFX;
+struct GPUOffScreen;
+struct GPUFXSettings;
+enum eGPUFXFlags;
 
 /* for derivedmesh drawing callbacks, for view3d_select, .... */
 typedef struct ViewContext {
@@ -275,7 +279,8 @@ bool ED_view3d_autodist_depth(struct ARegion *ar, const int mval[2], int margin,
 bool ED_view3d_autodist_depth_seg(struct ARegion *ar, const int mval_sta[2], const int mval_end[2], int margin, float *depth);
 
 /* select */
-#define MAXPICKBUF      10000
+#define MAXPICKELEMS    2500
+#define MAXPICKBUF      (4 * MAXPICKELEMS)
 short view3d_opengl_select(struct ViewContext *vc, unsigned int *buffer, unsigned int bufsize, const struct rcti *input, bool do_nearest);
 
 /* view3d_select.c */
@@ -309,8 +314,11 @@ void ED_draw_object_facemap(struct Scene *scene, struct Object *ob, int facemap)
 
 bool ED_view3d_context_activate(struct bContext *C);
 void ED_view3d_draw_offscreen_init(struct Scene *scene, struct View3D *v3d);
-void ED_view3d_draw_offscreen(struct Scene *scene, struct View3D *v3d, struct ARegion *ar,
-                              int winx, int winy, float viewmat[4][4], float winmat[4][4], bool do_bgpic, bool do_sky);
+void ED_view3d_draw_offscreen(
+        struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int winx, int winy, float viewmat[4][4],
+        float winmat[4][4], bool do_bgpic, bool do_sky, bool is_persp,
+        struct GPUOffScreen *ofs,
+        struct GPUFX *fx, struct GPUFXSettings *fx_settings);
 
 struct ImBuf *ED_view3d_draw_offscreen_imbuf(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int sizex, int sizey, unsigned int flag,
                                              bool draw_background, int alpha_mode, char err_out[256]);

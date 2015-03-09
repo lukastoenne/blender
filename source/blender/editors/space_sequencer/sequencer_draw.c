@@ -952,6 +952,32 @@ static ImBuf *sequencer_make_scope(Scene *scene, ImBuf *ibuf, ImBuf *(*make_scop
 	return scope;
 }
 
+static void sequencer_display_size(Scene *scene, SpaceSeq *sseq, float r_viewrect[2])
+{
+	float render_size, proxy_size;
+
+	if (sseq->render_size == SEQ_PROXY_RENDER_SIZE_SCENE) {
+		render_size = (float)scene->r.size / 100.0f;
+		proxy_size = 1.0f;
+	}
+	else {
+		render_size = (float)sseq->render_size / 100.0f;
+		proxy_size = render_size;
+	}
+
+	r_viewrect[0] = (render_size * (float)scene->r.xsch);
+	r_viewrect[1] = (render_size * (float)scene->r.ysch);
+
+	/* rectx = viewrectx + 0.5f; */ /* UNUSED */
+	/* recty = viewrecty + 0.5f; */ /* UNUSED */
+
+	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+		r_viewrect[0] *= scene->r.xasp / scene->r.yasp;
+		r_viewrect[0] /= proxy_size;
+		r_viewrect[1] /= proxy_size;
+	}
+}
+
 void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_overdrop)
 {
 	struct Main *bmain = CTX_data_main(C);
@@ -959,9 +985,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	struct ImBuf *scope = NULL;
 	struct View2D *v2d = &ar->v2d;
 	/* int rectx, recty; */ /* UNUSED */
-	float viewrectx, viewrecty;
-	float render_size = 0.0;
-	float proxy_size = 100.0;
+	float viewrect[2];
 	float col[3];
 	GLuint texid;
 	GLuint last_texid;
@@ -985,29 +1009,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 	}
 
-	render_size = sseq->render_size;
-	if (render_size == 0) {
-		render_size = scene->r.size;
-	}
-	else {
-		proxy_size = render_size;
-	}
-	if (render_size < 0) {
-		return;
-	}
-
-	viewrectx = (render_size * (float)scene->r.xsch) / 100.0f;
-	viewrecty = (render_size * (float)scene->r.ysch) / 100.0f;
-
-	/* rectx = viewrectx + 0.5f; */ /* UNUSED */
-	/* recty = viewrecty + 0.5f; */ /* UNUSED */
-
-	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
-		viewrectx *= scene->r.xasp / scene->r.yasp;
-		viewrectx /= proxy_size / 100.0f;
-		viewrecty /= proxy_size / 100.0f;
-	}
-
 	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_overdrop) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
 		glClearColor(col[0], col[1], col[2], 0.0);
@@ -1018,6 +1019,10 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (G.is_rendering)
 		return;
 
+	if (sseq->render_size == SEQ_PROXY_RENDER_SIZE_NONE) {
+		return;
+	}
+
 	ibuf = sequencer_ibuf_get(bmain, scene, sseq, cfra, frame_ofs);
 	
 	if (ibuf == NULL)
@@ -1025,6 +1030,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	if (ibuf->rect == NULL && ibuf->rect_float == NULL)
 		return;
+
+	sequencer_display_size(scene, sseq, viewrect);
 
 	if (sseq->mainb != SEQ_DRAW_IMG_IMBUF || sseq->zebra != 0) {
 		SequencerScopes *scopes = &sseq->scopes;
@@ -1072,8 +1079,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		/* future files may have new scopes we don't catch above */
 		if (scope) {
 			scopes->reference_ibuf = ibuf;
-			viewrectx = scope->x;
-			viewrecty = scope->y;
+			viewrect[0] = scope->x;
+			viewrect[1] = scope->y;
 		}
 		else {
 			scopes->reference_ibuf = NULL;
@@ -1084,7 +1091,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glColor4ub(255, 255, 255, 255);
 
 	if (!draw_overdrop) {
-		UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
+		UI_view2d_totRect_set(v2d, viewrect[0] + 0.5f, viewrect[1] + 0.5f);
 		UI_view2d_curRect_validate(v2d);
 		
 		/* setting up the view - actual drawing starts here */

@@ -101,7 +101,7 @@ IMPORT_MIN_LEVEL = 0.0
 
 # Languages in /branches we do not want to import in /trunk currently...
 IMPORT_LANGUAGES_SKIP = {
-    'am_ET', 'bg_BG', 'fi_FI', 'el_GR', 'et_EE', 'ne_NP', 'pl_PL', 'ro_RO', 'uz_UZ', 'uz_UZ@cyrillic',
+    'am_ET', 'bg_BG', 'fi_FI', 'el_GR', 'et_EE', 'ne_NP', 'ro_RO', 'uz_UZ', 'uz_UZ@cyrillic',
 }
 
 # Languages that need RTL pre-processing.
@@ -290,7 +290,6 @@ WARN_MSGID_NOT_CAPITALIZED_ALLOWED = {
     "flac",
     "fps: %.2f",
     "fps: %i",
-    "fStop",
     "gimbal",
     "global",
     "iScale",

@@ -34,6 +34,7 @@
 #include "BKE_key.h"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
+#include "BKE_screen.h"
 
 #include "DNA_action_types.h"
 #include "DNA_key_types.h"
@@ -1126,7 +1127,7 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *UNUSED(bmain), Scene *s
 			/* fix id-count of action we're replacing */
 			id_us_min(&adt->action->id);
 			
-			/* show new id-count of action we're replacing */
+			/* assign new action, and adjust the usercounts accordingly */
 			adt->action = saction->action;
 			id_us_plus(&adt->action->id);
 			
@@ -1833,6 +1834,8 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 		{SO_LIBRARIES, "LIBRARIES", 0, "Blender File", "Display data of current file and linked libraries"},
 		{SO_DATABLOCKS, "DATABLOCKS", 0, "Datablocks", "Display all raw datablocks"},
 		{SO_USERDEF, "USER_PREFERENCES", 0, "User Preferences", "Display the user preference datablocks"},
+		{SO_ID_ORPHANS, "ORPHAN_DATA", 0, "Orphan Data",
+		                "Display datablocks which are unused and/or will be lost when the file is reloaded"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
@@ -2121,7 +2124,6 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 	
-
 	srna = RNA_def_struct(brna, "SpaceView3D", "Space");
 	RNA_def_struct_sdna(srna, "View3D");
 	RNA_def_struct_ui_text(srna, "3D View Space", "3D View space data");
@@ -2462,6 +2464,10 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, view3d_matcap_items);
 	RNA_def_property_ui_text(prop, "Matcap", "Image to use for Material Capture, active objects only");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_matcap_update");
+
+	prop = RNA_def_property(srna, "fx_settings", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "FX Options", "Options used for real time compositing");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	/* region */
 
@@ -3283,12 +3289,6 @@ static void rna_def_space_graph(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Has Ghost Curves", "Graph Editor instance has some ghost curves stored");
 
-	/* auto view */
-	prop = RNA_def_property(srna, "use_auto_view_selected", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SIPO_AUTO_VIEW_SELECTED);
-	RNA_def_property_ui_text(prop, "Auto View Selected", "Automatically adjust view based on selection");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
-
 	/* nromalize curves */
 	prop = RNA_def_property(srna, "use_normalization", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SIPO_NORMALIZE);
@@ -3640,6 +3640,11 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_save", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "save", 1);
 	RNA_def_property_ui_text(prop, "Save", "Whether this path is saved in bookmarks, or generated from OS");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "is_valid", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "valid", 1);
+	RNA_def_property_ui_text(prop, "Valid", "Whether this path is currently reachable");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 

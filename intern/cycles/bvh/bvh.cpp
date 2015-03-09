@@ -205,6 +205,9 @@ void BVH::build(Progress& progress)
 	pack.prim_type = prim_type;
 	pack.prim_index = prim_index;
 	pack.prim_object = prim_object;
+	prim_type.free_memory();
+	prim_index.free_memory();
+	prim_object.free_memory();
 
 	/* compute SAH */
 	if(!params.top_level)
@@ -226,9 +229,8 @@ void BVH::build(Progress& progress)
 
 	/* pack nodes */
 	progress.set_substatus("Packing BVH nodes");
-	array<int> tmp_prim_object = pack.prim_object;
-	pack_nodes(tmp_prim_object, root);
-	
+	pack_nodes(root);
+
 	/* free build nodes */
 	root->deleteSubtree();
 
@@ -266,9 +268,6 @@ void BVH::pack_triangle(int idx, float4 woop[3])
 	assert(tob >= 0 && tob < objects.size());
 	const Mesh *mesh = objects[tob]->mesh;
 
-	if(mesh->has_motion_blur())
-		return;
-
 	int tidx = pack.prim_index[idx];
 	const int *vidx = mesh->triangles[tidx].v;
 	const float3* vpos = &mesh->verts[0];
@@ -297,9 +296,14 @@ void BVH::pack_primitives()
 		if(pack.prim_index[i] != -1) {
 			float4 woop[3];
 
-			if(pack.prim_type[i] & PRIMITIVE_ALL_TRIANGLE)
+			if(pack.prim_type[i] & PRIMITIVE_TRIANGLE) {
 				pack_triangle(i, woop);
-			
+			}
+			else {
+				/* Avoid use of uninitialized memory. */
+				memset(&woop, 0, sizeof(woop));
+			}
+
 			memcpy(&pack.tri_woop[i * nsize], woop, sizeof(float4)*3);
 
 			int tob = pack.prim_object[i];
@@ -539,7 +543,7 @@ void RegularBVH::pack_node(int idx, const BoundBox& b0, const BoundBox& b1, int 
 	memcpy(&pack.nodes[idx * BVH_NODE_SIZE], data, sizeof(int4)*BVH_NODE_SIZE);
 }
 
-void RegularBVH::pack_nodes(const array<int>& prims, const BVHNode *root)
+void RegularBVH::pack_nodes(const BVHNode *root)
 {
 	size_t node_size = root->getSubtreeSize(BVH_STAT_NODE_COUNT);
 
@@ -755,7 +759,7 @@ void QBVH::pack_inner(const BVHStackEntry& e, const BVHStackEntry *en, int num)
 
 /* Quad SIMD Nodes */
 
-void QBVH::pack_nodes(const array<int>& prims, const BVHNode *root)
+void QBVH::pack_nodes(const BVHNode *root)
 {
 	size_t node_size = root->getSubtreeSize(BVH_STAT_QNODE_COUNT);
 

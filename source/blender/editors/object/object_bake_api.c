@@ -379,7 +379,10 @@ static bool bake_object_check(Object *ob, ReportList *reports)
 
 			if (node) {
 				if (BKE_node_is_connected_to_output(ntree, node)) {
-					BKE_reportf(reports, RPT_ERROR,
+					/* we don't return false since this may be a false positive
+					 * this can't be RPT_ERROR though, otherwise it prevents
+					 * multiple highpoly objects to be baked at once */
+					BKE_reportf(reports, RPT_INFO,
 					            "Circular dependency for image \"%s\" from object \"%s\"",
 					            image->id.name + 2, ob->id.name + 2);
 				}
@@ -1211,7 +1214,7 @@ static void bake_set_props(wmOperator *op, Scene *scene)
 
 	prop = RNA_struct_find_property(op->ptr, "use_selected_to_active");
 	if (!RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_TO_ACTIVE));
+		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_TO_ACTIVE) != 0);
 	}
 
 	prop = RNA_struct_find_property(op->ptr, "cage_extrusion");
@@ -1251,22 +1254,22 @@ static void bake_set_props(wmOperator *op, Scene *scene)
 
 	prop = RNA_struct_find_property(op->ptr, "use_clear");
 	if (!RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_CLEAR));
+		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_CLEAR) != 0);
 	}
 
 	prop = RNA_struct_find_property(op->ptr, "use_cage");
 	if (!RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_CAGE));
+		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_CAGE) != 0);
 	}
 
 	prop = RNA_struct_find_property(op->ptr, "use_split_materials");
 	if (!RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_SPLIT_MAT));
+		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_SPLIT_MAT) != 0);
 	}
 
 	prop = RNA_struct_find_property(op->ptr, "use_automatic_name");
 	if (!RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_AUTO_NAME));
+		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_AUTO_NAME) != 0);
 	}
 }
 

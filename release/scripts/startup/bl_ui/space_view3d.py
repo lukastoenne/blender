@@ -911,6 +911,41 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
 
         layout.operator("paint.vert_select_ungrouped", text="Ungrouped Verts")
 
+
+class VIEW3D_MT_angle_control(Menu):
+    bl_label = "Angle Control"
+
+    @classmethod
+    def poll(cls, context):
+        settings = UnifiedPaintPanel.paint_settings(context)
+        if not settings:
+            return False
+
+        brush = settings.brush
+        tex_slot = brush.texture_slot
+
+        return tex_slot.has_texture_angle and tex_slot.has_texture_angle_source
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = UnifiedPaintPanel.paint_settings(context)
+        brush = settings.brush
+
+        sculpt = (context.sculpt_object != None)
+
+        tex_slot = brush.texture_slot
+
+        layout.prop(tex_slot, "use_rake", text="Rake")
+
+        if brush.brush_capabilities.has_random_texture_angle and tex_slot.has_random_texture_angle:
+            if sculpt:
+                if brush.sculpt_capabilities.has_random_texture_angle:
+                    layout.prop(tex_slot, "use_random", text="Random")
+            else:
+                layout.prop(tex_slot, "use_random", text="Random")
+
+
 # ********** Add menu **********
 
 # XXX: INFO_MT_ names used to keep backwards compatibility (Addons etc that hook into the menu)
@@ -2218,7 +2253,8 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.rip_edge_move")
         layout.operator("mesh.split")
         layout.operator_menu_enum("mesh.separate", "type")
-        layout.operator("mesh.vert_connect", text="Connect")
+        layout.operator("mesh.vert_connect_path", text="Connect Vertex Path")
+        layout.operator("mesh.vert_connect", text="Connect Vertices")
         layout.operator("transform.vert_slide", text="Slide")
 
         layout.separator()
@@ -2929,8 +2965,26 @@ class VIEW3D_PT_view3d_shading(Panel):
                 col.prop(view, "show_textured_shadeless")
 
         col.prop(view, "show_backface_culling")
-        if obj and obj.mode == 'EDIT' and view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
-            col.prop(view, "show_occlude_wire")
+
+        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
+            if obj and obj.mode == 'EDIT':
+                col.prop(view, "show_occlude_wire")
+
+            fx_settings = view.fx_settings
+
+            sub = col.column()
+            sub.active = view.region_3d.view_perspective == 'CAMERA'
+            sub.prop(fx_settings, "use_dof")
+
+            col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
+            if fx_settings.use_ssao:
+                ssao_settings = fx_settings.ssao
+                subcol = col.column(align=True)
+                subcol.prop(ssao_settings, "factor")
+                subcol.prop(ssao_settings, "distance_max")
+                subcol.prop(ssao_settings, "attenuation")
+                subcol.prop(ssao_settings, "samples")
+                subcol.prop(ssao_settings, "color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):
@@ -3188,8 +3242,8 @@ class VIEW3D_PT_background_image(Panel):
 
                     row = box.row()
                     if bg.view_axis != 'CAMERA':
-                         row.prop(bg, "rotation")
-                         row.prop(bg, "size")
+                        row.prop(bg, "rotation")
+                        row.prop(bg, "size")
 
 
 class VIEW3D_PT_transform_orientations(Panel):

@@ -687,8 +687,7 @@ Image *BKE_image_load_exists_ex(const char *filepath, bool *r_exists)
 
 			if (BLI_path_cmp(strtest, str) == 0) {
 				if (ima->anim == NULL || ima->id.us == 0) {
-					BLI_strncpy(ima->name, filepath, sizeof(ima->name));    /* for stringcode */
-					ima->id.us++;                                       /* officially should not, it doesn't link here! */
+					ima->id.us++;  /* officially should not, it doesn't link here! */
 					if (ima->ok == 0)
 						ima->ok = IMA_OK;
 					if (r_exists)
@@ -2978,6 +2977,16 @@ static ImBuf *image_get_cached_ibuf(Image *ima, ImageUser *iuser, int *r_frame, 
 				ima->tpageflag |= IMA_TPAGE_REFRESH;
 			}
 			ima->lastframe = frame;
+
+			/* counter the fact that image is set as invalid when loading a frame
+			 * that is not in the cache (through image_acquire_ibuf for instance),
+			 * yet we have valid frames in the cache loaded */
+			if (ibuf) {
+				ima->ok = IMA_OK_LOADED;
+
+				if (iuser)
+					iuser->ok = ima->ok;
+			}
 		}
 		else if (ima->type == IMA_TYPE_MULTILAYER) {
 			frame = iuser ? iuser->framenr : ima->lastframe;

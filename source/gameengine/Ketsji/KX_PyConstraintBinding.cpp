@@ -495,11 +495,7 @@ static PyObject *gPyCreateConstraint(PyObject *self,
                                      PyObject *kwds)
 {
 	/* FIXME - physicsid is a long being cast to a pointer, should at least use PyCapsule */
-#if defined(_WIN64)
-	__int64 physicsid=0,physicsid2 = 0;
-#else
-	long physicsid=0,physicsid2 = 0;
-#endif
+	unsigned long long physicsid = 0, physicsid2 = 0;
 	int constrainttype=0, extrainfo=0;
 	int len = PyTuple_Size(args);
 	int success = 1;
@@ -508,51 +504,28 @@ static PyObject *gPyCreateConstraint(PyObject *self,
 	float pivotX=1,pivotY=1,pivotZ=1,axisX=0,axisY=0,axisZ=1;
 	if (len == 3)
 	{
-#if defined(_WIN64)
-		success = PyArg_ParseTuple(args,"LLi",&physicsid,&physicsid2,&constrainttype);
-#else
-		success = PyArg_ParseTuple(args,"lli",&physicsid,&physicsid2,&constrainttype);
-#endif
+		success = PyArg_ParseTuple(args, "KKi", &physicsid, &physicsid2, &constrainttype);
 	}
 	else if (len == 6)
 	{
-#if defined(_WIN64)
-		success = PyArg_ParseTuple(args,"LLifff",&physicsid,&physicsid2,&constrainttype,
-		                           &pivotX,&pivotY,&pivotZ);
-#else
-		success = PyArg_ParseTuple(args,"llifff",&physicsid,&physicsid2,&constrainttype,
-		                           &pivotX,&pivotY,&pivotZ);
-#endif
+		success = PyArg_ParseTuple(args, "KKifff", &physicsid, &physicsid2, &constrainttype,
+		                           &pivotX, &pivotY, &pivotZ);
 	}
 	else if (len == 9)
 	{
-#if defined(_WIN64)
-		success = PyArg_ParseTuple(args,"LLiffffff",&physicsid,&physicsid2,&constrainttype,
-		                           &pivotX,&pivotY,&pivotZ,&axisX,&axisY,&axisZ);
-#else
-		success = PyArg_ParseTuple(args,"lliffffff",&physicsid,&physicsid2,&constrainttype,
-		                           &pivotX,&pivotY,&pivotZ,&axisX,&axisY,&axisZ);
-#endif
+		success = PyArg_ParseTuple(args, "KKiffffff", &physicsid, &physicsid2, &constrainttype,
+		                           &pivotX, &pivotY, &pivotZ, &axisX, &axisY, &axisZ);
 	}
 	else if (len == 10)
 	{
-#if defined(_WIN64)
-		success = PyArg_ParseTuple(args,"LLiffffffi",&physicsid,&physicsid2,&constrainttype,
-		                           &pivotX,&pivotY,&pivotZ,&axisX,&axisY,&axisZ,&flag);
-#else
-		success = PyArg_ParseTuple(args,"lliffffffi",&physicsid,&physicsid2,&constrainttype,
-		                           &pivotX,&pivotY,&pivotZ,&axisX,&axisY,&axisZ,&flag);
-#endif
+		success = PyArg_ParseTuple(args, "KKiffffffi", &physicsid, &physicsid2, &constrainttype,
+		                           &pivotX, &pivotY, &pivotZ, &axisX, &axisY, &axisZ, &flag);
 	}
 
 	/* XXX extrainfo seems to be nothing implemented. right now it works as a pivot with [X,0,0] */
 	else if (len == 4)
 	{
-#if defined(_WIN64)
-		success = PyArg_ParseTuple(args,"LLii",&physicsid,&physicsid2,&constrainttype,&extrainfo);
-#else
-		success = PyArg_ParseTuple(args,"llii",&physicsid,&physicsid2,&constrainttype,&extrainfo);
-#endif
+		success = PyArg_ParseTuple(args,"KKii", &physicsid, &physicsid2, &constrainttype, &extrainfo);
 		pivotX=extrainfo;
 	}
 
@@ -565,31 +538,24 @@ static PyObject *gPyCreateConstraint(PyObject *self,
 			PHY_IPhysicsController* physctrl2 = (PHY_IPhysicsController*) physicsid2;
 			if (physctrl) //TODO:check for existence of this pointer!
 			{
-				PHY_ConstraintType ct = (PHY_ConstraintType) constrainttype;
 				int constraintid =0;
 
-				if (ct == PHY_GENERIC_6DOF_CONSTRAINT)
-				{
-					//convert from euler angle into axis
-					float radsPerDeg = 6.283185307179586232f / 360.f;
+				//convert from euler angle into axis
+				float radsPerDeg = 6.283185307179586232f / 360.f;
 
-					//we need to pass a full constraint frame, not just axis
-					//localConstraintFrameBasis
-					MT_Matrix3x3 localCFrame(MT_Vector3(radsPerDeg*axisX,radsPerDeg*axisY,radsPerDeg*axisZ));
-					MT_Vector3 axis0 = localCFrame.getColumn(0);
-					MT_Vector3 axis1 = localCFrame.getColumn(1);
-					MT_Vector3 axis2 = localCFrame.getColumn(2);
+				//we need to pass a full constraint frame, not just axis
+				//localConstraintFrameBasis
+				MT_Matrix3x3 localCFrame(MT_Vector3(radsPerDeg*axisX,radsPerDeg*axisY,radsPerDeg*axisZ));
+				MT_Vector3 axis0 = localCFrame.getColumn(0);
+				MT_Vector3 axis1 = localCFrame.getColumn(1);
+				MT_Vector3 axis2 = localCFrame.getColumn(2);
 
-					constraintid = PHY_GetActiveEnvironment()->CreateConstraint(physctrl,physctrl2,(enum PHY_ConstraintType)constrainttype,
-					                                                            pivotX,pivotY,pivotZ,
-					                                                            (float)axis0.x(),(float)axis0.y(),(float)axis0.z(),
-					                                                            (float)axis1.x(),(float)axis1.y(),(float)axis1.z(),
-					                                                            (float)axis2.x(),(float)axis2.y(),(float)axis2.z(),flag);
-				}
-				else {
-					constraintid = PHY_GetActiveEnvironment()->CreateConstraint(physctrl,physctrl2,(enum PHY_ConstraintType)constrainttype,pivotX,pivotY,pivotZ,axisX,axisY,axisZ,0);
-				}
-				
+				constraintid = PHY_GetActiveEnvironment()->CreateConstraint(physctrl,physctrl2,(enum PHY_ConstraintType)constrainttype,
+				                                                            pivotX,pivotY,pivotZ,
+				                                                            (float)axis0.x(),(float)axis0.y(),(float)axis0.z(),
+				                                                            (float)axis1.x(),(float)axis1.y(),(float)axis1.z(),
+				                                                            (float)axis2.x(),(float)axis2.y(),(float)axis2.z(),flag);
+
 				KX_ConstraintWrapper* wrap = new KX_ConstraintWrapper((enum PHY_ConstraintType)constrainttype,constraintid,PHY_GetActiveEnvironment());
 
 				return wrap->NewProxy(true);

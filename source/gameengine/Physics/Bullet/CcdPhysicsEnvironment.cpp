@@ -509,11 +509,13 @@ bool	CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController* ctr
 	btRigidBody* body = ctrl->GetRigidBody();
 	if (body)
 	{
-		for (int i = m_dynamicsWorld->getNumConstraints()-1;i>=0;i--)
+		for (int i = ctrl->getNumCcdConstraintRefs() - 1; i >= 0; i--)
 		{
-			btTypedConstraint *con = m_dynamicsWorld->getConstraint(i);
+			btTypedConstraint* con = ctrl->getCcdConstraintRef(i);
+			con->getRigidBodyA().activate();
+			con->getRigidBodyB().activate();
 			m_dynamicsWorld->removeConstraint(con);
-			body->removeConstraintRef(con);
+			ctrl->removeCcdConstraintRef(con);
 			//delete con; //might be kept by python KX_ConstraintWrapper
 		}
 		m_dynamicsWorld->removeRigidBody(ctrl->GetRigidBody());
@@ -2642,7 +2644,9 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 	if (!rb0)
 		return 0;
 
-	
+	// If either of the controllers is missing, we can't do anything.
+	if (!c0 || !c1) return 0;
+
 	btVector3 pivotInB = rb1 ? rb1->getCenterOfMassTransform().inverse()(rb0->getCenterOfMassTransform()(pivotInA)) : 
 		rb0->getCenterOfMassTransform() * pivotInA;
 	btVector3 axisInA(axisX,axisY,axisZ);
@@ -2667,6 +2671,8 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 					pivotInA);
 			}
 
+			c0->addCcdConstraintRef(p2p);
+			c1->addCcdConstraintRef(p2p);
 			m_dynamicsWorld->addConstraint(p2p,disableCollisionBetweenLinkedBodies);
 //			m_constraints.push_back(p2p);
 
@@ -2737,6 +2743,8 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 			if (genericConstraint)
 			{
 				//m_constraints.push_back(genericConstraint);
+				c0->addCcdConstraintRef(genericConstraint);
+				c1->addCcdConstraintRef(genericConstraint);
 				m_dynamicsWorld->addConstraint(genericConstraint,disableCollisionBetweenLinkedBodies);
 				genericConstraint->setUserConstraintId(gConstraintUid++);
 				genericConstraint->setUserConstraintType(type);
@@ -2803,6 +2811,8 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 			if (coneTwistContraint)
 			{
 				//m_constraints.push_back(genericConstraint);
+				c0->addCcdConstraintRef(coneTwistContraint);
+				c1->addCcdConstraintRef(coneTwistContraint);
 				m_dynamicsWorld->addConstraint(coneTwistContraint,disableCollisionBetweenLinkedBodies);
 				coneTwistContraint->setUserConstraintId(gConstraintUid++);
 				coneTwistContraint->setUserConstraintType(type);
@@ -2876,6 +2886,8 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 			hinge->setAngularOnly(angularOnly);
 
 			//m_constraints.push_back(hinge);
+			c0->addCcdConstraintRef(hinge);
+			c1->addCcdConstraintRef(hinge);
 			m_dynamicsWorld->addConstraint(hinge,disableCollisionBetweenLinkedBodies);
 			hinge->setUserConstraintId(gConstraintUid++);
 			hinge->setUserConstraintType(type);
@@ -3358,46 +3370,50 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 			//take relative transform into account!
 			CcdPhysicsController* parentCtrl = (CcdPhysicsController*)parent->GetPhysicsController();
 			assert(parentCtrl);
-			CcdShapeConstructionInfo* parentShapeInfo = parentCtrl->GetShapeInfo();
-			btRigidBody* rigidbody = parentCtrl->GetRigidBody();
-			btCollisionShape* colShape = rigidbody->getCollisionShape();
-			assert(colShape->isCompound());
-			btCompoundShape* compoundShape = (btCompoundShape*)colShape;
 
-			// compute the local transform from parent, this may include several node in the chain
-			SG_Node* gameNode = gameobj->GetSGNode();
-			SG_Node* parentNode = parent->GetSGNode();
-			// relative transform
-			MT_Vector3 parentScale = parentNode->GetWorldScaling();
-			parentScale[0] = MT_Scalar(1.0)/parentScale[0];
-			parentScale[1] = MT_Scalar(1.0)/parentScale[1];
-			parentScale[2] = MT_Scalar(1.0)/parentScale[2];
-			MT_Vector3 relativeScale = gameNode->GetWorldScaling() * parentScale;
-			MT_Matrix3x3 parentInvRot = parentNode->GetWorldOrientation().transposed();
-			MT_Vector3 relativePos = parentInvRot*((gameNode->GetWorldPosition()-parentNode->GetWorldPosition())*parentScale);
-			MT_Matrix3x3 relativeRot = parentInvRot*gameNode->GetWorldOrientation();
+			// only makes compound shape if parent has a physics controller (i.e not an empty, etc)
+			if (parentCtrl) {
+				CcdShapeConstructionInfo* parentShapeInfo = parentCtrl->GetShapeInfo();
+				btRigidBody* rigidbody = parentCtrl->GetRigidBody();
+				btCollisionShape* colShape = rigidbody->getCollisionShape();
+				assert(colShape->isCompound());
+				btCompoundShape* compoundShape = (btCompoundShape*)colShape;
 
-			shapeInfo->m_childScale.setValue(relativeScale[0],relativeScale[1],relativeScale[2]);
-			bm->setLocalScaling(shapeInfo->m_childScale);
-			shapeInfo->m_childTrans.getOrigin().setValue(relativePos[0],relativePos[1],relativePos[2]);
-			float rot[12];
-			relativeRot.getValue(rot);
-			shapeInfo->m_childTrans.getBasis().setFromOpenGLSubMatrix(rot);
+				// compute the local transform from parent, this may include several node in the chain
+				SG_Node* gameNode = gameobj->GetSGNode();
+				SG_Node* parentNode = parent->GetSGNode();
+				// relative transform
+				MT_Vector3 parentScale = parentNode->GetWorldScaling();
+				parentScale[0] = MT_Scalar(1.0)/parentScale[0];
+				parentScale[1] = MT_Scalar(1.0)/parentScale[1];
+				parentScale[2] = MT_Scalar(1.0)/parentScale[2];
+				MT_Vector3 relativeScale = gameNode->GetWorldScaling() * parentScale;
+				MT_Matrix3x3 parentInvRot = parentNode->GetWorldOrientation().transposed();
+				MT_Vector3 relativePos = parentInvRot*((gameNode->GetWorldPosition()-parentNode->GetWorldPosition())*parentScale);
+				MT_Matrix3x3 relativeRot = parentInvRot*gameNode->GetWorldOrientation();
 
-			parentShapeInfo->AddShape(shapeInfo);
-			compoundShape->addChildShape(shapeInfo->m_childTrans,bm);
-			//do some recalc?
-			//recalc inertia for rigidbody
-			if (!rigidbody->isStaticOrKinematicObject())
-			{
-				btVector3 localInertia;
-				float mass = 1.f/rigidbody->getInvMass();
-				compoundShape->calculateLocalInertia(mass,localInertia);
-				rigidbody->setMassProps(mass,localInertia);
+				shapeInfo->m_childScale.setValue(relativeScale[0],relativeScale[1],relativeScale[2]);
+				bm->setLocalScaling(shapeInfo->m_childScale);
+				shapeInfo->m_childTrans.getOrigin().setValue(relativePos[0],relativePos[1],relativePos[2]);
+				float rot[12];
+				relativeRot.getValue(rot);
+				shapeInfo->m_childTrans.getBasis().setFromOpenGLSubMatrix(rot);
+
+				parentShapeInfo->AddShape(shapeInfo);
+				compoundShape->addChildShape(shapeInfo->m_childTrans,bm);
+				//do some recalc?
+				//recalc inertia for rigidbody
+				if (!rigidbody->isStaticOrKinematicObject())
+				{
+					btVector3 localInertia;
+					float mass = 1.f/rigidbody->getInvMass();
+					compoundShape->calculateLocalInertia(mass,localInertia);
+					rigidbody->setMassProps(mass,localInertia);
+				}
+				shapeInfo->Release();
+				// delete motionstate as it's not used
+				delete motionstate;
 			}
-			shapeInfo->Release();
-			// delete motionstate as it's not used
-			delete motionstate;
 			return;
 		}
 

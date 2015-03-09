@@ -297,18 +297,19 @@ bool ED_object_add_generic_get_opts(bContext *C, wmOperator *op, const char view
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	unsigned int _layer;
+	PropertyRNA *prop;
 
-	/* Switch to Edit mode? */
-	if (RNA_struct_find_property(op->ptr, "enter_editmode")) { /* optional */
+	/* Switch to Edit mode? optional prop */
+	if ((prop = RNA_struct_find_property(op->ptr, "enter_editmode"))) {
 		bool _enter_editmode;
 		if (!enter_editmode)
 			enter_editmode = &_enter_editmode;
 
-		if (RNA_struct_property_is_set(op->ptr, "enter_editmode") && enter_editmode)
-			*enter_editmode = RNA_boolean_get(op->ptr, "enter_editmode");
+		if (RNA_property_is_set(op->ptr, prop) && enter_editmode)
+			*enter_editmode = RNA_property_boolean_get(op->ptr, prop);
 		else {
 			*enter_editmode = (U.flag & USER_ADD_EDITMODE) != 0;
-			RNA_boolean_set(op->ptr, "enter_editmode", *enter_editmode);
+			RNA_property_boolean_set(op->ptr, prop, *enter_editmode);
 		}
 	}
 
@@ -318,8 +319,9 @@ bool ED_object_add_generic_get_opts(bContext *C, wmOperator *op, const char view
 		if (!layer)
 			layer = &_layer;
 
-		if (RNA_struct_property_is_set(op->ptr, "layers")) {
-			RNA_boolean_get_array(op->ptr, "layers", layer_values);
+		prop = RNA_struct_find_property(op->ptr, "layers");
+		if (RNA_property_is_set(op->ptr, prop)) {
+			RNA_property_boolean_get_array(op->ptr, prop, layer_values);
 			*layer = 0;
 			for (a = 0; a < 20; a++) {
 				if (layer_values[a])
@@ -330,9 +332,9 @@ bool ED_object_add_generic_get_opts(bContext *C, wmOperator *op, const char view
 			Scene *scene = CTX_data_scene(C);
 			*layer = BKE_screen_view3d_layer_active_ex(v3d, scene, false);
 			for (a = 0; a < 20; a++) {
-				layer_values[a] = *layer & (1 << a);
+				layer_values[a] = (*layer & (1 << a)) != 0;
 			}
-			RNA_boolean_set_array(op->ptr, "layers", layer_values);
+			RNA_property_boolean_set_array(op->ptr, prop, layer_values);
 		}
 
 		/* in local view we additionally add local view layers,
@@ -1603,18 +1605,30 @@ static int convert_exec(bContext *C, wmOperator *op)
 
 	/* don't forget multiple users! */
 
-	/* reset flags */
-	CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 	{
-		ob = base->object;
-		ob->flag &= ~OB_DONE;
+		Base *base;
 
-		/* flag data thats not been edited (only needed for !keep_original) */
-		if (ob->data) {
-			((ID *)ob->data)->flag |= LIB_DOIT;
+		for (base = scene->base.first; base; base = base->next) {
+			ob = base->object;
+			ob->flag &= ~OB_DONE;
+
+			/* flag data thats not been edited (only needed for !keep_original) */
+			if (ob->data) {
+				((ID *)ob->data)->flag |= LIB_DOIT;
+			}
+
+			/* possible metaball basis is not in this scene */
+			if (ob->type == OB_MBALL && target == OB_MESH) {
+				if (BKE_mball_is_basis(ob) == false) {
+					Object *ob_basis;
+					ob_basis = BKE_mball_basis_find(scene, ob);
+					if (ob_basis) {
+						ob_basis->flag &= ~OB_DONE;
+					}
+				}
+			}
 		}
 	}
-	CTX_DATA_END;
 
 	CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
 	{
@@ -1854,14 +1868,21 @@ static int convert_exec(bContext *C, wmOperator *op)
 
 	if (!keep_original) {
 		if (mballConverted) {
-			Base *base = scene->base.first, *tmpbase;
-			while (base) {
-				ob = base->object;
-				tmpbase = base;
-				base = base->next;
+			Base *base, *base_next;
 
+			for (base = scene->base.first; base; base = base_next) {
+				base_next = base->next;
+
+				ob = base->object;
 				if (ob->type == OB_MBALL) {
-					ED_base_object_free_and_unlink(bmain, scene, tmpbase);
+					if (ob->flag & OB_DONE) {
+						Object *ob_basis = NULL;
+						if (BKE_mball_is_basis(ob) ||
+						    ((ob_basis = BKE_mball_basis_find(scene, ob)) && (ob_basis->flag & OB_DONE)))
+						{
+							ED_base_object_free_and_unlink(bmain, scene, base);
+						}
+					}
 				}
 			}
 		}

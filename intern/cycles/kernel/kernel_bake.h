@@ -16,6 +16,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+#undef USE_BAKE_JITTER
+
 ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, RNG rng,
                                    const bool is_combined, const bool is_ao, const bool is_sss, int sample)
 {
@@ -199,15 +201,22 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 
 	/* random number generator */
 	RNG rng = cmj_hash(offset + i, kernel_data.integrator.seed);
-	uint rng_state = cmj_hash(i, kernel_data.integrator.seed);
+
+#ifdef USE_BAKE_JITTER
 	float filter_x, filter_y;
-	path_rng_init(kg, &rng_state, sample, num_samples, &rng, 0, 0, &filter_x, &filter_y);
+	if(sample == 0) {
+		filter_x = filter_y = 0.5f;
+	}
+	else {
+		path_rng_2D(kg, &rng, sample, num_samples, PRNG_FILTER_U, &filter_x, &filter_x);
+	}
 
 	/* subpixel u/v offset */
 	if(sample > 0) {
 		u = bake_clamp_mirror_repeat(u + dudx*(filter_x - 0.5f) + dudy*(filter_y - 0.5f));
 		v = bake_clamp_mirror_repeat(v + dvdx*(filter_x - 0.5f) + dvdy*(filter_y - 0.5f));
 	}
+#endif
 
 	/* triangle */
 	int shader;

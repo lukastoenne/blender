@@ -148,9 +148,32 @@ CcdPhysicsController::CcdPhysicsController (const CcdConstructionInfo& ci)
 	m_savedCollisionFilterGroup = 0;
 	m_savedCollisionFilterMask = 0;
 	m_savedMass = 0.0;
+	m_savedDyna = false;
 	m_suspended = false;
 	
 	CreateRigidbody();
+}
+
+void CcdPhysicsController::addCcdConstraintRef(btTypedConstraint* c)
+{
+	int index = m_ccdConstraintRefs.findLinearSearch(c);
+	if (index == m_ccdConstraintRefs.size())
+		m_ccdConstraintRefs.push_back(c);
+}
+
+void CcdPhysicsController::removeCcdConstraintRef(btTypedConstraint* c)
+{
+	m_ccdConstraintRefs.remove(c);
+}
+
+btTypedConstraint* CcdPhysicsController::getCcdConstraintRef(int index)
+{
+	return m_ccdConstraintRefs[index];
+}
+
+int CcdPhysicsController::getNumCcdConstraintRefs() const
+{
+	return m_ccdConstraintRefs.size();
 }
 
 btTransform&	CcdPhysicsController::GetTransformFromMotionState(PHY_IMotionState* motionState)
@@ -1068,6 +1091,7 @@ void	CcdPhysicsController::SuspendDynamics(bool ghost)
 
 		m_savedCollisionFlags = body->getCollisionFlags();
 		m_savedMass = GetMass();
+		m_savedDyna = m_cci.m_bDyna;
 		m_savedCollisionFilterGroup = handle->m_collisionFilterGroup;
 		m_savedCollisionFilterMask = handle->m_collisionFilterMask;
 		m_suspended = true;
@@ -1076,6 +1100,7 @@ void	CcdPhysicsController::SuspendDynamics(bool ghost)
 			btCollisionObject::CF_STATIC_OBJECT|((ghost)?btCollisionObject::CF_NO_CONTACT_RESPONSE:(m_savedCollisionFlags&btCollisionObject::CF_NO_CONTACT_RESPONSE)),
 			btBroadphaseProxy::StaticFilter,
 			btBroadphaseProxy::AllFilter ^ btBroadphaseProxy::StaticFilter);
+		m_cci.m_bDyna = false;
 	}
 }
 
@@ -1092,6 +1117,7 @@ void	CcdPhysicsController::RestoreDynamics()
 			m_savedCollisionFilterGroup,
 			m_savedCollisionFilterMask);
 		body->activate();
+		m_cci.m_bDyna = m_savedDyna;
 		m_suspended = false;
 	}
 }
