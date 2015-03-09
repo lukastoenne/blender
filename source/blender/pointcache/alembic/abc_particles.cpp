@@ -358,16 +358,16 @@ void AbcParticlePathcacheWriter::write_sample()
 	OFloatGeomParam::Sample times = paths_create_sample_times(*m_pathcache, *m_totpath, totkeys, times_buffer);
 	
 	OCurvesSchema::Sample sample;
-//	if (schema.getNumSamples() == 0) {
+	if (schema.getNumSamples() == 0) {
 		/* write curve sizes only first time, assuming they are constant! */
 		std::vector<int32_t> nvertices_buffer;
 		Int32ArraySample nvertices = paths_create_sample_nvertices(*m_pathcache, *m_totpath, nvertices_buffer);
 		
 		sample = OCurvesSchema::Sample(positions, nvertices);
-//	}
-//	else {
-//		sample = OCurvesSchema::Sample(positions);
-//	}
+	}
+	else {
+		sample = OCurvesSchema::Sample(positions);
+	}
 	
 	schema.set(sample);
 	
