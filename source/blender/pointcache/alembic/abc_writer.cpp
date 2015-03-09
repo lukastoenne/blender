@@ -52,9 +52,11 @@ AbcWriterArchive::AbcWriterArchive(Scene *scene, const std::string &filename, Er
 //	archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
 	archive = OArchive(AbcCoreOgawa::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
 	
-	chrono_t cycle_time = this->seconds_per_frame();
-	chrono_t start_time = this->start_time();
-	m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
+	if (archive) {
+		chrono_t cycle_time = this->seconds_per_frame();
+		chrono_t start_time = this->start_time();
+		m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
+	}
 	
 	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
