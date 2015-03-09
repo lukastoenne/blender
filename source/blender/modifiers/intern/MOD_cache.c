@@ -27,15 +27,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 
+#include "DNA_customdata_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_customdata.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_scene.h"
 #include "BKE_global.h"
@@ -81,15 +84,87 @@ static void freeData(ModifierData *md)
 	}
 }
 
+static bool *store_nocopy_flags(CustomData *cdata)
+{
+	if (cdata) {
+		int totlayer = cdata->totlayer;
+		bool *nocopy = MEM_mallocN(sizeof(bool) * totlayer, "customdata nocopy flags");
+		CustomDataLayer *layer;
+		int i;
+		
+		for (i = 0, layer = cdata->layers; i < totlayer; ++i, ++layer) {
+			nocopy[i] = layer->flag & CD_FLAG_NOCOPY;
+			layer->flag &= ~CD_FLAG_NOCOPY;
+		}
+		
+		return nocopy;
+	}
+	else
+		return NULL;
+}
+
+static void restore_nocopy_flags(CustomData *cdata, bool *nocopy)
+{
+	if (cdata && nocopy) {
+		int totlayer = cdata->totlayer;
+		CustomDataLayer *layer;
+		int i;
+		
+		for (i = 0, layer = cdata->layers; i < totlayer; ++i, ++layer) {
+			if (nocopy[i])
+				layer->flag |= CD_FLAG_NOCOPY;
+			else
+				layer->flag &= ~CD_FLAG_NOCOPY;
+		}
+	}
+	
+	if (nocopy)
+		MEM_freeN(nocopy);
+}
+
 static DerivedMesh *pointcache_do(CacheModifierData *pcmd, Object *UNUSED(ob), DerivedMesh *dm, ModifierApplyFlag flag)
 {
-	bool use_output = (flag & MOD_APPLY_RENDER) ? (pcmd->flag & MOD_CACHE_USE_OUTPUT_RENDER) : (pcmd->flag & MOD_CACHE_USE_OUTPUT_REALTIME);
+	bool use_output;
+	
+	if (!(flag & MOD_APPLY_USECACHE))
+		return dm;
+	
+	use_output = (flag & MOD_APPLY_RENDER) ? (pcmd->flag & MOD_CACHE_USE_OUTPUT_RENDER) : (pcmd->flag & MOD_CACHE_USE_OUTPUT_REALTIME);
 	if (use_output) {
 		if (pcmd->output_dm) {
 			pcmd->output_dm->release(pcmd->output_dm);
 		}
 		
-		pcmd->output_dm = CDDM_copy(dm);
+		/* XXX HACK!
+		 * DM copy will ignore all layers with CD_FLAG_NOCOPY set.
+		 * This include layers that are needed by subsequent modifiers,
+		 * which works for the modifier stack eval because DMs are passed
+		 * down the chain directly. Making a copy for keeping the DM for the
+		 * writer will discard those layers, so we have to temporarily disable
+		 * the NOCOPY flags ...
+		 * 
+		 * Probably a better way of writing out temporary data could help
+		 */
+		{
+			CustomData *vdata = dm->getVertDataLayout(dm);
+			CustomData *edata = dm->getEdgeDataLayout(dm);
+			CustomData *fdata = dm->getTessFaceDataLayout(dm);
+			CustomData *pdata = dm->getPolyDataLayout(dm);
+			CustomData *ldata = dm->getLoopDataLayout(dm);
+			bool *vdata_nocopy = store_nocopy_flags(vdata);
+			bool *edata_nocopy = store_nocopy_flags(edata);
+			bool *fdata_nocopy = store_nocopy_flags(fdata);
+			bool *pdata_nocopy = store_nocopy_flags(pdata);
+			bool *ldata_nocopy = store_nocopy_flags(ldata);
+			
+			pcmd->output_dm = CDDM_copy(dm);
+			
+			restore_nocopy_flags(vdata, vdata_nocopy);
+			restore_nocopy_flags(edata, edata_nocopy);
+			restore_nocopy_flags(fdata, fdata_nocopy);
+			restore_nocopy_flags(pdata, pdata_nocopy);
+			restore_nocopy_flags(ldata, ldata_nocopy);
+		}
 	}
 	else {
 		/* unused cache output? clean up! */
