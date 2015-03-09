@@ -24,6 +24,8 @@
 #include "abc_customdata.h"
 
 extern "C" {
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -56,6 +58,53 @@ static void write_sample(CustomDataWriter *writer, OCompoundProperty &parent, co
 {
 	/* no implementation available, should not happen */
 	printf("ERROR: CustomData type %s has no write_sample implementation\n", CustomData_layertype_name((int)CDTYPE));
+}
+
+template <>
+void write_sample<CD_MDEFORMVERT>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
+	
+	OInt32ArrayProperty totweight_prop = writer->add_array_property<OInt32ArrayProperty>(name+":totweight", prop);
+	OInt32ArrayProperty flag_prop = writer->add_array_property<OInt32ArrayProperty>(name+":flag", prop);
+	OInt32ArrayProperty def_nr_prop = writer->add_array_property<OInt32ArrayProperty>(name+":def_nr", prop);
+	OFloatArrayProperty weight_prop = writer->add_array_property<OFloatArrayProperty>(name+":weight", prop);
+	
+	MDeformVert *mdef = (MDeformVert *)data;
+	
+	/* sum all totweight for the sample size */
+	int num_mdefweight = 0;
+	for (int i = 0; i < num_data; ++i)
+		num_mdefweight += mdef[i].totweight;
+	
+	std::vector<int32_t> totweight_data;
+	std::vector<int32_t> flag_data;
+	std::vector<int32_t> def_nr_data;
+	std::vector<float> weight_data;
+	totweight_data.reserve(num_data);
+	flag_data.reserve(num_data);
+	def_nr_data.reserve(num_mdefweight);
+	weight_data.reserve(num_mdefweight);
+	
+	for (int i = 0; i < num_data; ++i) {
+		totweight_data.push_back(mdef->totweight);
+		flag_data.push_back(mdef->flag);
+		
+		MDeformWeight *mw = mdef->dw;
+		for (int j = 0; j < mdef->totweight; ++j) {
+			def_nr_data.push_back(mw->def_nr);
+			weight_data.push_back(mw->weight);
+			
+			++mw;
+		}
+		
+		++mdef;
+	}
+	
+	totweight_prop.set(Int32ArraySample(totweight_data));
+	flag_prop.set(Int32ArraySample(flag_data));
+	def_nr_prop.set(Int32ArraySample(def_nr_data));
+	weight_prop.set(FloatArraySample(weight_data));
 }
 
 template <>
@@ -103,6 +152,54 @@ static PTCReadSampleResult read_sample(CustomDataReader *reader, ICompoundProper
 	/* no implementation available, should not happen */
 	printf("ERROR: CustomData type %s has no read_sample implementation\n", CustomData_layertype_name((int)CDTYPE));
 	return PTC_READ_SAMPLE_INVALID;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_MDEFORMVERT>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
+	
+	IInt32ArrayProperty totweight_prop = reader->add_array_property<IInt32ArrayProperty>(name+":totweight", prop);
+	IInt32ArrayProperty flag_prop = reader->add_array_property<IInt32ArrayProperty>(name+":flag", prop);
+	IInt32ArrayProperty def_nr_prop = reader->add_array_property<IInt32ArrayProperty>(name+":def_nr", prop);
+	IFloatArrayProperty weight_prop = reader->add_array_property<IFloatArrayProperty>(name+":weight", prop);
+	
+	Int32ArraySamplePtr sample_totweight = totweight_prop.getValue(ss);
+	Int32ArraySamplePtr sample_flag = flag_prop.getValue(ss);
+	Int32ArraySamplePtr sample_def_nr = def_nr_prop.getValue(ss);
+	FloatArraySamplePtr sample_weight = weight_prop.getValue(ss);
+	
+	if (sample_totweight->size() != num_data ||
+	    sample_flag->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	const int32_t *data_totweight = (const int32_t *)sample_totweight->getData();
+	const int32_t *data_flag = (const int32_t *)sample_flag->getData();
+	const int32_t *data_def_nr = (const int32_t *)sample_def_nr->getData();
+	const float *data_weight = (const float *)sample_weight->getData();
+	
+	MDeformVert *mdef = (MDeformVert *)data;
+	for (int i = 0; i < num_data; ++i) {
+		
+		mdef->totweight = *data_totweight;
+		mdef->flag = *data_flag;
+		
+		MDeformWeight *mw = mdef->dw = (MDeformWeight *)MEM_mallocN(sizeof(MDeformWeight) * mdef->totweight, "deformWeight");
+		for (int j = 0; j < mdef->totweight; ++j) {
+			mw->def_nr = *data_def_nr;
+			mw->weight = *data_weight;
+			
+			++data_def_nr;
+			++data_weight;
+			++mw;
+		}
+		
+		++data_totweight;
+		++data_flag;
+		++mdef;
+	}
+	
+	return PTC_READ_SAMPLE_EXACT;
 }
 
 template <>
