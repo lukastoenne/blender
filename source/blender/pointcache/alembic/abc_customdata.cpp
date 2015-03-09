@@ -201,7 +201,7 @@ PTCReadSampleResult read_sample_call<CD_NUMTYPES>(CustomDataReader *reader, ICom
 
 /* ========================================================================= */
 
-CustomDataWriter::CustomDataWriter(const std::string &name, int cdmask) :
+CustomDataWriter::CustomDataWriter(const std::string &name, CustomDataMask cdmask) :
     m_name(name),
     m_cdmask(cdmask)
 {
@@ -261,7 +261,7 @@ void CustomDataWriter::write_sample(CustomData *cdata, int num_data, OCompoundPr
 	m_props = add_compound_property<OCompoundProperty>(m_name, parent);
 	
 	for (int type = 0; type < CD_NUMTYPES; ++type) {
-		int mask = (1 << type);
+		CustomDataMask mask = (1 << type);
 		/* only use specified types */
 		if (!(mask & m_cdmask))
 			continue;
@@ -284,7 +284,7 @@ void CustomDataWriter::write_sample(CustomData *cdata, int num_data, OCompoundPr
 
 /* ------------------------------------------------------------------------- */
 
-CustomDataReader::CustomDataReader(const std::string &name, int cdmask) :
+CustomDataReader::CustomDataReader(const std::string &name, CustomDataMask cdmask) :
     m_name(name),
     m_cdmask(cdmask)
 {
@@ -304,7 +304,7 @@ PTCReadSampleResult CustomDataReader::read_sample(const ISampleSelector &ss, Cus
 	m_props = add_compound_property<ICompoundProperty>(m_name, parent);
 	
 	for (int type = 0; type < CD_NUMTYPES; ++type) {
-		int mask = (1 << type);
+		CustomDataMask mask = (1 << type);
 		/* only use specified types */
 		if (!(mask & m_cdmask))
 			continue;
