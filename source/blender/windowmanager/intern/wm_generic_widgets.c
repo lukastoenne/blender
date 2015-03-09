@@ -716,12 +716,6 @@ static void rect_transform_draw_interaction(int highlighted, float half_w, float
 	glLineWidth(1.0);
 	glColor3f(1.0, 1.0, 1.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
-	
-	glEnable(GL_BLEND);
-	glColor4f(1.0f, 1.0f, 1.0f, 0.2f);
-	glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, elems);
-	glDisable(GL_BLEND);
-	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 static void widget_rect_transform_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
@@ -745,14 +739,7 @@ static void widget_rect_transform_draw(struct wmWidget *widget, const struct bCo
 		glScalef(cage->scale[0], cage->scale[0], 1.0);
 	else
 		glScalef(cage->scale[0], cage->scale[1], 1.0);
-	
-	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
-		glEnable(GL_BLEND);
-		glColor4f(1.0f, 1.0f, 1.0f, 0.2f);
-		glRectf(r.xmin, r.ymin, r.xmax, r.ymax);
-		glDisable(GL_BLEND);
-	}
-	
+
 	if (w > h)
 		aspx = h / w;
 	else

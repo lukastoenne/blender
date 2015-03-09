@@ -62,13 +62,13 @@ struct rcti;
 struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
+struct wmWidget;
+struct wmWidgetGroup;
+struct wmWidgetGroupType;
 struct GPUFX;
 struct GPUOffScreen;
 struct GPUFXSettings;
 enum eGPUFXFlags;
-struct wmWidget;
-struct wmWidgetGroup;
-struct wmWidgetGroupType;
 
 /* for derivedmesh drawing callbacks, for view3d_select, .... */
 typedef struct ViewContext {

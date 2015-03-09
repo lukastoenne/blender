@@ -997,7 +997,7 @@ static void sequencer_display_size(Scene *scene, SpaceSeq *sseq, float r_viewrec
 	}
 }
 
-void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_backdrop)
+void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_overdrop)
 {
 	struct Main *bmain = CTX_data_main(C);
 	struct ImBuf *ibuf = NULL;
@@ -1028,7 +1028,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 	}
 
-	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_backdrop) {
+	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_overdrop) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
 		glClearColor(col[0], col[1], col[2], 0.0);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -1109,7 +1109,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	/* without this colors can flicker from previous opengl state */
 	glColor4ub(255, 255, 255, 255);
 
-	if (!draw_backdrop) {
+	if (!draw_overdrop) {
 		UI_view2d_totRect_set(v2d, viewrect[0] + 0.5f, viewrect[1] + 0.5f);
 		UI_view2d_curRect_validate(v2d);
 		
@@ -1242,7 +1242,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 		}
 	}
-	else if (draw_backdrop) {
+	else if (draw_overdrop) {
 		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->overdrop_zoom;
 		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->overdrop_zoom;
 		float xofs = BLI_rcti_size_x(&ar->winrct)/2.0f + sseq->overdrop_offset[0];
@@ -1608,7 +1608,8 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 	
 	/* finally draw any widgets here */
-	WM_widgets_draw(C, ar->widgetmaps.first);	
+	WM_widgets_update(C, ar->widgetmaps.first);
+	WM_widgets_draw(C, ar->widgetmaps.first, false);
 
 	/* scrollers */
 	unit = (sseq->flag & SEQ_DRAWFRAMES) ? V2D_UNIT_FRAMES : V2D_UNIT_SECONDS;

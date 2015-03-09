@@ -3670,6 +3670,8 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 	/* main drawing call */
 	view3d_draw_objects(C, scene, v3d, ar, grid_unit, true, false, do_compositing ? rv3d->compositor : NULL);
 
+	WM_widgets_draw(C, ar->widgetmaps.first, true);
+
 	/* post process */
 	if (do_compositing) {
 		GPU_fx_do_composite_pass(rv3d->compositor, rv3d->winmat, rv3d->is_persp, scene, NULL);
@@ -3818,6 +3820,8 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	render_border = ED_view3d_calc_render_border(scene, v3d, ar, &border_rect);
 	clip_border = (render_border && !BLI_rcti_compare(&ar->drawrct, &border_rect));
 
+	WM_widgets_update(C, ar->widgetmaps.first);
+
 	/* draw viewport using opengl */
 	if (v3d->drawtype != OB_RENDER || !view3d_main_area_do_render_draw(scene) || clip_border) {
 		view3d_main_area_draw_objects(C, scene, v3d, ar, &grid_unit);
@@ -3833,9 +3837,9 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	if (v3d->drawtype == OB_RENDER)
 		view3d_main_area_draw_engine(C, scene, ar, v3d, clip_border, &border_rect);
 	
-	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);	
+	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 	glClear(GL_DEPTH_BUFFER_BIT);
-	WM_widgets_draw(C, ar->widgetmaps.first);
+	WM_widgets_draw(C, ar->widgetmaps.first, false);
 	BIF_draw_manipulator(C);
 	ED_region_pixelspace(ar);
 	
