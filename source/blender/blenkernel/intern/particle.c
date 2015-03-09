@@ -1990,7 +1990,8 @@ static void exec_child_path_cache(TaskPool *UNUSED(pool), void *taskdata, int UN
 
 void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupdate)
 {
-	const eCacheLibrary_EvalMode cache_eval_mode = (sim->psmd && (sim->psmd->modifier.mode & eModifierMode_Render)) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
+	const bool use_render = (sim->psys->renderdata != NULL);
+	const eCacheLibrary_EvalMode cache_eval_mode = use_render ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	TaskScheduler *task_scheduler;
 	TaskPool *task_pool;
 	ParticleThreadContext ctx;
@@ -2105,7 +2106,8 @@ static void cache_key_incremental_rotation(ParticleCacheKey *key0, ParticleCache
  * - Cached path data is also used to determine cut position for the editmode tool. */
 void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 {
-	const eCacheLibrary_EvalMode cache_eval_mode = (sim->psmd && (sim->psmd->modifier.mode & eModifierMode_Render)) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
+	const bool use_render = (sim->psys->renderdata != NULL);
+	const eCacheLibrary_EvalMode cache_eval_mode = use_render ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	PARTICLE_PSMD;
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
 	ParticleSystem *psys = sim->psys;
