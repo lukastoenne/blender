@@ -24,9 +24,11 @@
 #include "abc_customdata.h"
 
 extern "C" {
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_customdata_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "BKE_customdata.h"
 }
@@ -64,6 +66,35 @@ void write_sample<CD_ORIGINDEX>(CustomDataWriter *writer, OCompoundProperty &par
 	prop.set(OInt32ArrayProperty::sample_type((int *)data, num_data));
 }
 
+template <>
+void write_sample<CD_ORIGSPACE>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
+	
+	OV2fArrayProperty uv_prop[4];
+	uv_prop[0] = writer->add_array_property<OV2fArrayProperty>("uv0", prop);
+	uv_prop[1] = writer->add_array_property<OV2fArrayProperty>("uv1", prop);
+	uv_prop[2] = writer->add_array_property<OV2fArrayProperty>("uv2", prop);
+	uv_prop[3] = writer->add_array_property<OV2fArrayProperty>("uv3", prop);
+	
+	OrigSpaceFace *ospace = (OrigSpaceFace *)data;
+	std::vector<V2f> uv_data[4];
+	uv_data[0].reserve(num_data);
+	uv_data[1].reserve(num_data);
+	uv_data[2].reserve(num_data);
+	uv_data[3].reserve(num_data);
+	for (int i = 0; i < num_data; ++i) {
+		uv_data[0].push_back(V2f(ospace[i].uv[0][0], ospace[i].uv[0][1]));
+		uv_data[1].push_back(V2f(ospace[i].uv[1][0], ospace[i].uv[1][1]));
+		uv_data[2].push_back(V2f(ospace[i].uv[2][0], ospace[i].uv[2][1]));
+		uv_data[3].push_back(V2f(ospace[i].uv[3][0], ospace[i].uv[3][1]));
+	}
+	uv_prop[0].set(V2fArraySample(uv_data[0]));
+	uv_prop[1].set(V2fArraySample(uv_data[1]));
+	uv_prop[2].set(V2fArraySample(uv_data[2]));
+	uv_prop[3].set(V2fArraySample(uv_data[3]));
+}
+
 /* ------------------------------------------------------------------------- */
 
 template <CustomDataType CDTYPE>
@@ -84,6 +115,49 @@ PTCReadSampleResult read_sample<CD_ORIGINDEX>(CustomDataReader *reader, ICompoun
 		return PTC_READ_SAMPLE_INVALID;
 	
 	memcpy(data, sample->getData(), num_data);
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_ORIGSPACE>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
+	
+	IV2fArrayProperty uv_prop[4];
+	uv_prop[0] = reader->add_array_property<IV2fArrayProperty>("uv0", prop);
+	uv_prop[1] = reader->add_array_property<IV2fArrayProperty>("uv1", prop);
+	uv_prop[2] = reader->add_array_property<IV2fArrayProperty>("uv2", prop);
+	uv_prop[3] = reader->add_array_property<IV2fArrayProperty>("uv3", prop);
+	
+	V2fArraySamplePtr sample0 = uv_prop[0].getValue(ss);
+	V2fArraySamplePtr sample1 = uv_prop[1].getValue(ss);
+	V2fArraySamplePtr sample2 = uv_prop[2].getValue(ss);
+	V2fArraySamplePtr sample3 = uv_prop[3].getValue(ss);
+	
+	if (sample0->size() != num_data ||
+	    sample1->size() != num_data ||
+	    sample2->size() != num_data ||
+	    sample3->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	OrigSpaceFace *ospace = (OrigSpaceFace *)data;
+	const V2f *data0 = (const V2f *)sample0->getData();
+	const V2f *data1 = (const V2f *)sample1->getData();
+	const V2f *data2 = (const V2f *)sample2->getData();
+	const V2f *data3 = (const V2f *)sample3->getData();
+	for (int i = 0; i < num_data; ++i) {
+		copy_v2_v2(ospace->uv[0], data0->getValue());
+		copy_v2_v2(ospace->uv[1], data1->getValue());
+		copy_v2_v2(ospace->uv[2], data2->getValue());
+		copy_v2_v2(ospace->uv[3], data3->getValue());
+		
+		++data0;
+		++data1;
+		++data2;
+		++data3;
+		++ospace;
+	}
+	
 	return PTC_READ_SAMPLE_EXACT;
 }
 
