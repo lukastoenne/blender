@@ -1217,7 +1217,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	else
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
-	if (draw_backdrop) {
+	if (draw_overdrop) {
 		UI_view2d_view_restore(C);
 	}
 	glBegin(GL_QUADS);
