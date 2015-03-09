@@ -72,10 +72,10 @@ void write_sample<CD_ORIGSPACE>(CustomDataWriter *writer, OCompoundProperty &par
 	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
 	
 	OV2fArrayProperty uv_prop[4];
-	uv_prop[0] = writer->add_array_property<OV2fArrayProperty>("uv0", prop);
-	uv_prop[1] = writer->add_array_property<OV2fArrayProperty>("uv1", prop);
-	uv_prop[2] = writer->add_array_property<OV2fArrayProperty>("uv2", prop);
-	uv_prop[3] = writer->add_array_property<OV2fArrayProperty>("uv3", prop);
+	uv_prop[0] = writer->add_array_property<OV2fArrayProperty>(name+":uv0", prop);
+	uv_prop[1] = writer->add_array_property<OV2fArrayProperty>(name+":uv1", prop);
+	uv_prop[2] = writer->add_array_property<OV2fArrayProperty>(name+":uv2", prop);
+	uv_prop[3] = writer->add_array_property<OV2fArrayProperty>(name+":uv3", prop);
 	
 	OrigSpaceFace *ospace = (OrigSpaceFace *)data;
 	std::vector<V2f> uv_data[4];
@@ -125,10 +125,10 @@ PTCReadSampleResult read_sample<CD_ORIGSPACE>(CustomDataReader *reader, ICompoun
 	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
 	
 	IV2fArrayProperty uv_prop[4];
-	uv_prop[0] = reader->add_array_property<IV2fArrayProperty>("uv0", prop);
-	uv_prop[1] = reader->add_array_property<IV2fArrayProperty>("uv1", prop);
-	uv_prop[2] = reader->add_array_property<IV2fArrayProperty>("uv2", prop);
-	uv_prop[3] = reader->add_array_property<IV2fArrayProperty>("uv3", prop);
+	uv_prop[0] = reader->add_array_property<IV2fArrayProperty>(name+":uv0", prop);
+	uv_prop[1] = reader->add_array_property<IV2fArrayProperty>(name+":uv1", prop);
+	uv_prop[2] = reader->add_array_property<IV2fArrayProperty>(name+":uv2", prop);
+	uv_prop[3] = reader->add_array_property<IV2fArrayProperty>(name+":uv3", prop);
 	
 	V2fArraySamplePtr sample0 = uv_prop[0].getValue(ss);
 	V2fArraySamplePtr sample1 = uv_prop[1].getValue(ss);
@@ -217,35 +217,44 @@ CustomDataWriter::~CustomDataWriter()
 }
 
 /* unique property name based on either layer name or index */
-static std::string cdtype_to_name(CustomData *cdata, CustomDataType type, int n)
+std::string CustomDataWriter::cdtype_to_name(CustomData *cdata, CustomDataType type, int n)
 {
+	const char *layertype_name = CustomData_layertype_name(type);
 	const char *layer_name = CustomData_get_layer_name(cdata, type, n);
 	std::string name;
 	if (layer_name && layer_name[0] != '\0') {
-		name = "S" + std::string(layer_name);
+		name = m_name + ":" + std::string(layertype_name) + ":S" + std::string(layer_name);
 	}
 	else {
 		std::stringstream ss; ss << n;
-		name = "N" + ss.str();
+		name = m_name + ":" + std::string(layertype_name) + ":N" + ss.str();
 	}
 	return name;
 }
 
 /* parse property name to CD layer name based on S or N prefix for named/unnamed layers */
-static void cdtype_from_name(CustomData *cdata, const std::string &name, int *n, char *layer_name, int max_layer_name)
+void CustomDataReader::cdtype_from_name(CustomData *cdata, const std::string &name, int type, int *n, char *layer_name, int max_layer_name)
 {
-	if (name.empty()) {
+	const char *layertype_name = CustomData_layertype_name(type);
+	/* We can safely assume all properties in the compound share the correct prefix
+	 * <m_name>:<layertype_name>:
+	 * The layertype_name is only prepended to avoid name collisions
+	 */
+	const size_t start = m_name.size() + 1 + strlen(layertype_name) + 1;
+	
+	if (name.size() <= start) {
+		printf("ERROR: invalid CustomData layer property name '%s'\n", name.c_str());
 		*n = -1;
 		layer_name[0] = '\0';
 	}
-	else if (name[0] == 'S') {
+	else if (name[start] == 'S') {
 		/* named layer */
 		*n = -1;
-		BLI_strncpy(layer_name, name.c_str() + 1, max_layer_name);
+		BLI_strncpy(layer_name, name.c_str() + start + 1, max_layer_name);
 	}
-	else if (name[0] == 'N') {
+	else if (name[start] == 'N') {
 		/* unnamed layer */
-		std::istringstream ss(name.c_str() + 1);
+		std::istringstream ss(name.c_str() + start + 1);
 		ss >> (*n);
 		layer_name[0] = '\0';
 	}
@@ -269,11 +278,14 @@ void CustomDataWriter::write_sample(CustomData *cdata, int num_data, OCompoundPr
 		const char *layertype_name = CustomData_layertype_name(type);
 		int num = CustomData_number_of_layers(cdata, type);
 		
+		bool has_props = false;
 		OCompoundProperty layertype_props;
 		for (int n = 0; n < num; ++n) {
 			/* compound for all CD layers of the same type */
-			if (!layertype_props)
-				layertype_props = add_compound_property<OCompoundProperty>(layertype_name, m_props);
+			if (!has_props) {
+				has_props = true;
+				layertype_props = add_compound_property<OCompoundProperty>(m_name+":"+layertype_name, m_props);
+			}
 			
 			std::string name = cdtype_to_name(cdata, (CustomDataType)type, n);
 			void *data = CustomData_get_layer_n(cdata, type, n);
@@ -311,7 +323,7 @@ PTCReadSampleResult CustomDataReader::read_sample(const ISampleSelector &ss, Cus
 		
 		const char *layertype_name = CustomData_layertype_name(type);
 		
-		BasePropertyReaderPtr ptr = m_props.getPtr()->asCompoundPtr()->getProperty(layertype_name);
+		BasePropertyReaderPtr ptr = m_props.getPtr()->asCompoundPtr()->getProperty(m_name+":"+layertype_name);
 		if (!ptr) {
 			/* no layer of this type stored */
 			continue;
@@ -324,7 +336,7 @@ PTCReadSampleResult CustomDataReader::read_sample(const ISampleSelector &ss, Cus
 			int n;
 			void *data;
 			
-			cdtype_from_name(cdata, name, &n, layer_name, sizeof(layer_name));
+			cdtype_from_name(cdata, name, type, &n, layer_name, sizeof(layer_name));
 			if (layer_name[0] == '\0')
 				data = CustomData_add_layer(cdata, type, CD_DEFAULT, NULL, num_data);
 			else

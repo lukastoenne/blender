@@ -80,6 +80,8 @@ struct CustomDataWriter {
 		}
 	}
 	
+	std::string cdtype_to_name(CustomData *cdata, CustomDataType type, int n);
+	
 private:
 	std::string m_name;
 	CustomDataMask m_cdmask;
@@ -127,6 +129,7 @@ struct CustomDataReader {
 		}
 	}
 	
+	void cdtype_from_name(CustomData *cdata, const std::string &name, int type, int *n, char *layer_name, int max_layer_name);
 	
 private:
 	std::string m_name;
