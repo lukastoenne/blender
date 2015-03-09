@@ -55,7 +55,7 @@ template <CustomDataType CDTYPE>
 static void write_sample(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
 {
 	/* no implementation available, should not happen */
-	BLI_assert(false);
+	printf("ERROR: CustomData type %s has no write_sample implementation\n", CustomData_layertype_name((int)CDTYPE));
 }
 
 template <>
@@ -101,7 +101,8 @@ template <CustomDataType CDTYPE>
 static PTCReadSampleResult read_sample(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
 {
 	/* no implementation available, should not happen */
-	BLI_assert(false);
+	printf("ERROR: CustomData type %s has no read_sample implementation\n", CustomData_layertype_name((int)CDTYPE));
+	return PTC_READ_SAMPLE_INVALID;
 }
 
 template <>
