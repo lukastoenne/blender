@@ -155,8 +155,8 @@ static void visitCompoundProperty(std::stringstream &ss, ICompoundProperty iProp
 	std::string interp = "schema=";
 	interp += iProp.getMetaData().get("schema");
 	
-	std::cout << ioIndent << "CompoundProperty " << "name=" << iProp.getName()
-	          << g_sep << interp << std::endl;
+	ss << ioIndent << "CompoundProperty " << "name=" << iProp.getName()
+	   << g_sep << interp << std::endl;
 	
 	visitProperties(ss, iProp, ioIndent);
 	
