@@ -50,10 +50,19 @@ public:
 	
 	void write_sample();
 	
+protected:
+	void write_sample_edges(DerivedMesh *dm);
+	
 private:
 	AbcGeom::OPolyMesh m_mesh;
 	AbcGeom::OBoolGeomParam m_param_smooth;
-	AbcGeom::OInt32ArrayProperty m_prop_edges;
+	
+	/* MEdge attributes */
+	AbcGeom::OUInt32ArrayProperty m_prop_edge_verts;
+	AbcGeom::OInt16ArrayProperty m_prop_edge_flag;
+	AbcGeom::OCharArrayProperty m_prop_edge_crease;
+	AbcGeom::OCharArrayProperty m_prop_edge_bweight;
+	
 	AbcGeom::OInt32ArrayProperty m_prop_edges_index;
 	AbcGeom::ON3fGeomParam m_param_vertex_normals;
 	AbcGeom::ON3fGeomParam m_param_poly_normals;
@@ -72,10 +81,19 @@ public:
 	
 	PTCReadSampleResult read_sample(float frame);
 	
+protected:
+	PTCReadSampleResult read_sample_edges(const Abc::ISampleSelector &ss, DerivedMesh *dm, Abc::UInt32ArraySamplePtr sample_edge_verts);
+	
 private:
 	AbcGeom::IPolyMesh m_mesh;
 	AbcGeom::IBoolGeomParam m_param_smooth;
-	AbcGeom::IInt32ArrayProperty m_prop_edges;
+	
+	/* MEdge attributes */
+	AbcGeom::IUInt32ArrayProperty m_prop_edge_verts;
+	AbcGeom::IInt16ArrayProperty m_prop_edge_flag;
+	AbcGeom::ICharArrayProperty m_prop_edge_crease;
+	AbcGeom::ICharArrayProperty m_prop_edge_bweight;
+	
 	AbcGeom::IInt32ArrayProperty m_prop_edges_index;
 	AbcGeom::IN3fGeomParam m_param_loop_normals;
 	AbcGeom::IN3fGeomParam m_param_vertex_normals;
