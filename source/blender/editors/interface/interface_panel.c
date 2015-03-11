@@ -624,7 +624,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		itemrect.ymin = headrect.ymin;
 		itemrect.ymax = headrect.ymax;
 
-		BLI_rctf_scale(&itemrect, 0.7f); /* XXX hardcoded size */
+		BLI_rctf_scale(&itemrect, 0.7f);
 		ui_draw_panel_dragwidget(&itemrect);
 	}
 

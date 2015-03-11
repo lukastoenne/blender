@@ -485,14 +485,4 @@ void UI_butstore_update(uiBlock *block)
 	}
 }
 
-
-/* -------------------------------------------------------------------- */
-/* Sub-Block API */
-
-bool UI_subblock_is_dragging(uiBlock *block)
-{
-	return ((block->flag & UI_BLOCK_DRAGGABLE) &&
-	        (block->subblock.drag_state == UI_BLOCK_DRAGSTATE_DRAGGING));
-}
-
 /** \} */
