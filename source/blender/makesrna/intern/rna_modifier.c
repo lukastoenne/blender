@@ -2502,6 +2502,10 @@ static void rna_def_modifier_cloth(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "solver_result");
 	RNA_def_property_ui_text(prop, "Solver Result", "");
 
+	prop = RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_ui_text(prop, "Point Cache", "");
+
 	prop = RNA_def_property(srna, "hair_grid_min", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "hair_grid_min");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

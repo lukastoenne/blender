@@ -49,7 +49,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 
-#include "BKE_cache_library.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
@@ -65,8 +64,6 @@
 #include "BKE_bvhutils.h"
 #include "BKE_deform.h"
 #include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */
-
-#include "PTC_api.h"
 
 #ifdef WITH_GAMEENGINE
 #include "BKE_navmesh_conversion.h"
@@ -1493,45 +1490,6 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 		CDDM_calc_normals_mapping_ex(dm, (dm->dirty & DM_DIRTY_NORMALS) ? false : true);
 	}
 }
-
-/* Look for last active cache modifier.
- * This will then be used as the input for remaining modifiers,
- * or as the final result if no other modifiers follow.
- */
-ModifierData *mesh_find_cache_modifier(Scene *scene, Object *ob, int required_mode)
-{
-	ModifierData *md;
-	
-	for (md = ob->modifiers.last; md; md = md->prev) {
-		if (md->type == eModifierType_Cache) {
-			if (modifier_isEnabled(scene, md, required_mode))
-				break;
-		}
-	}
-	return md;
-}
-
-static ModifierData *mesh_find_start_modifier(Scene *UNUSED(scene), Object *ob, VirtualModifierData *virtual_modifiers, int UNUSED(required_mode), bool useDeform)
-{
-	const bool skipVirtualArmature = (useDeform < 0);
-	
-	ModifierData *md = NULL;
-	
-	/* take virtual modifiers at list start into account */
-	
-	if (!skipVirtualArmature) {
-		md = modifiers_getVirtualModifierList(ob, virtual_modifiers);
-	}
-	else {
-		/* game engine exception */
-		md = ob->modifiers.first;
-		if (md && md->type == eModifierType_Armature)
-			md = md->next;
-	}
-	
-	return md;
-}
-
 /* new value for useDeform -1  (hack for the gameengine):
  * - apply only the modifier stack of the object, skipping the virtual modifiers,
  * - don't apply the key
@@ -1549,10 +1507,11 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	/* XXX Always copying POLYINDEX, else tessellated data are no more valid! */
 	CustomDataMask mask, nextmask, previewmask = 0, append_mask = CD_MASK_ORIGINDEX;
 	float (*deformedVerts)[3] = NULL;
-	DerivedMesh *dm = NULL, *cachedm = NULL, *orcodm, *clothorcodm, *finaldm;
+	DerivedMesh *dm = NULL, *orcodm, *clothorcodm, *finaldm;
 	int numVerts = me->totvert;
-	int required_mode, cache_eval_mode;
+	int required_mode;
 	bool isPrevDeform = false;
+	const bool skipVirtualArmature = (useDeform < 0);
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
 	const bool has_multires = (mmd && mmd->sculptlvl != 0);
 	bool multires_applied = false;
@@ -1581,41 +1540,23 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		app_flags |= MOD_APPLY_USECACHE;
 	if (useDeform)
 		deform_app_flags |= MOD_APPLY_USECACHE;
-	
-	if (useRenderParams) {
-		required_mode = eModifierMode_Render;
-		cache_eval_mode = CACHE_LIBRARY_EVAL_RENDER;
+
+	if (!skipVirtualArmature) {
+		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	}
 	else {
-		required_mode = eModifierMode_Realtime;
-		cache_eval_mode = CACHE_LIBRARY_EVAL_VIEWPORT;
+		/* game engine exception */
+		firstmd = ob->modifiers.first;
+		if (firstmd && firstmd->type == eModifierType_Armature)
+			firstmd = firstmd->next;
 	}
-	
-	modifiers_clearErrors(ob);
-	
-	/* XXX it would be nicer to treat caching as a virtual modifier (when no actual cache modifier is used).
-	 * However, the virtual modifiers work by setting their own 'next' pointers without touching actual
-	 * modifier DNA. This is possible only for prepending at the beginning, but not for appending
-	 * at the end of the modifier stack.
-	 */
-	if (BKE_cache_read_derived_mesh(G.main, scene, scene->r.cfra, cache_eval_mode, ob, &cachedm)) {
-		CacheModifierData *cmd = (CacheModifierData *)mesh_find_cache_modifier(scene, ob, required_mode);
-		if (cmd) {
-			firstmd = &cmd->modifier;
-			
-			/* use the cache result as output of the modifier
-			 * rather than as the final dm
-			 */
-			cmd->input_dm = cachedm;
-			cachedm = NULL;
-		}
-		else
-			firstmd = NULL;
-	}
-	else {
-		firstmd = mesh_find_start_modifier(scene, ob, &virtualModifierData, required_mode, useDeform);
-	}
+
 	md = firstmd;
+
+	modifiers_clearErrors(ob);
+
+	if (useRenderParams) required_mode = eModifierMode_Render;
+	else required_mode = eModifierMode_Realtime;
 
 	if (do_mod_wmcol || do_mod_mcol) {
 		/* Find the last active modifier generating a preview, or NULL if none. */
@@ -1942,17 +1883,11 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	for (md = firstmd; md; md = md->next)
 		modifier_freeTemporaryData(md);
 
-	/* Yay, we are done.
-	 * - If we have a cached DerivedMesh, use it
-	 * - If we have a DerivedMesh and deformed vertices
-	 *   need to apply these back onto the DerivedMesh.
-	 * - If we have no DerivedMesh then we need to build one.
+	/* Yay, we are done. If we have a DerivedMesh and deformed vertices
+	 * need to apply these back onto the DerivedMesh. If we have no
+	 * DerivedMesh then we need to build one.
 	 */
-	if (cachedm) {
-		finaldm = cachedm;
-		cachedm = NULL;
-	}
-	else if (dm && deformedVerts) {
+	if (dm && deformedVerts) {
 		finaldm = CDDM_copy(dm);
 
 		dm->release(dm);

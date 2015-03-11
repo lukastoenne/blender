@@ -3161,6 +3161,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	if (psys->hair_out_dm)
 		psys->hair_out_dm->release(psys->hair_out_dm);
 	
+	psys->clmd->point_cache = psys->pointcache;
 	/* for hair sim we replace the internal cloth effector weights temporarily
 	 * to use the particle settings
 	 */
@@ -3171,7 +3172,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	psys->hair_out_dm = CDDM_copy(psys->hair_in_dm);
 	psys->hair_out_dm->getVertCos(psys->hair_out_dm, deformedVerts);
 	
-	clothModifier_do(psys->clmd, sim->scene, sim->ob, psys->hair_in_dm, deformedVerts, psys->renderdata != NULL);
+	clothModifier_do(psys->clmd, sim->scene, sim->ob, psys->hair_in_dm, deformedVerts);
 	
 	CDDM_apply_vert_coords(psys->hair_out_dm, deformedVerts);
 	
