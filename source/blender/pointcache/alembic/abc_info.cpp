@@ -190,17 +190,30 @@ static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent
 	// and then it has a compound property full of properties.
 	std::string path = iObj.getFullName();
 	
-	if (path != "/") {
-		ss << "Object " << "name=" << path << std::endl;
+	if (iObj.isInstanceRoot()) {
+		if (path != "/") {
+			ss << "Object " << "name=" << path
+			   << " [Instance " << iObj.instanceSourcePath() << "]"
+			   << std::endl;
+		}
 	}
-	
-	// Get the properties.
-	ICompoundProperty props = iObj.getProperties();
-	visitProperties(ss, props, iIndent);
-	
-	// now the child objects
-	for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
-		visitObject(ss, IObject(iObj, iObj.getChildHeader(i).getName()), iIndent);
+	else if (iObj.isInstanceDescendant()) {
+		/* skip non-root instances to avoid repetition */
+		return;
+	}
+	else {
+		if (path != "/") {
+			ss << "Object " << "name=" << path << std::endl;
+		}
+		
+		// Get the properties.
+		ICompoundProperty props = iObj.getProperties();
+		visitProperties(ss, props, iIndent);
+		
+		// now the child objects
+		for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
+			visitObject(ss, IObject(iObj, iObj.getChildHeader(i).getName()), iIndent);
+		}
 	}
 }
 
