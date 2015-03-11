@@ -678,12 +678,15 @@ static void cachelib_add_writer(ListBase *writers, struct PTCWriter *writer, str
 	}
 }
 
+#if 0
 static int cachelib_writers_cmp(const void *a, const void *b)
 {
 	const CacheLibraryWriterLink *la = a, *lb = b;
 	return la->ob > lb->ob;
 }
+#endif
 
+#if 0
 BLI_INLINE int cache_required_mode(CacheLibrary *cachelib)
 {
 	switch (cachelib->eval_mode) {
@@ -692,13 +695,13 @@ BLI_INLINE int cache_required_mode(CacheLibrary *cachelib)
 	}
 	return 0;
 }
+#endif
 
 void BKE_cache_library_writers(Main *bmain, CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers)
 {
 	const eCacheLibrary_EvalMode eval_mode = cachelib->eval_mode;
 	const int required_mode = cache_required_mode(cachelib);
 	Group *cache_group = cachelib->group;
-//	CacheItem *item;
 	
 	BLI_listbase_clear(writers);
 	
