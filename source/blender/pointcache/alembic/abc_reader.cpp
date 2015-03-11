@@ -19,6 +19,7 @@
 //#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/AbcCoreOgawa/ReadWrite.h>
 #include <Alembic/Abc/ArchiveInfo.h>
+#include <Alembic/Abc/IObject.h>
 
 #include "alembic.h"
 #include "abc_reader.h"
@@ -45,6 +46,24 @@ AbcReaderArchive::AbcReaderArchive(Scene *scene, const std::string &filename, Er
 
 AbcReaderArchive::~AbcReaderArchive()
 {
+}
+
+IObject AbcReaderArchive::get_id_object(ID *id)
+{
+	if (!archive)
+		return IObject();
+	
+	IObject root = archive.getTop();
+	return root.getChild(id->name);
+}
+
+bool AbcReaderArchive::has_id_object(ID *id)
+{
+	if (!archive)
+		return false;
+	
+	IObject root = archive.getTop();
+	return root.getChild(id->name).valid();
 }
 
 bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)

@@ -23,13 +23,11 @@
 #include "writer.h"
 
 extern "C" {
-#include "DNA_dynamicpaint_types.h"
+#include "DNA_group_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_particle_types.h"
-#include "DNA_rigidbody_types.h"
-#include "DNA_smoke_types.h"
 }
 
 namespace PTC {
@@ -103,6 +101,50 @@ protected:
 	DerivedMesh *m_result;
 };
 
+class GroupWriter : public Writer {
+public:
+	GroupWriter(Group *group, const std::string &name) :
+	    Writer((ID *)group, name),
+	    m_group(group)
+	{}
+	
+protected:
+	Group *m_group;
+};
+
+class GroupReader : public Reader {
+public:
+	GroupReader(Group *group, const std::string &name) :
+	    Reader((ID *)group, name),
+	    m_group(group)
+	{}
+	
+protected:
+	Group *m_group;
+};
+
+class ObjectWriter : public Writer {
+public:
+	ObjectWriter(Object *ob, const std::string &name) :
+	    Writer((ID *)ob, name),
+	    m_ob(ob)
+	{}
+	
+protected:
+	Object *m_ob;
+};
+
+class ObjectReader : public Reader {
+public:
+	ObjectReader(Object *ob, const std::string &name) :
+	    Reader((ID *)ob, name),
+	    m_ob(ob)
+	{}
+	
+protected:
+	Object *m_ob;
+};
+
 class ParticlesWriter : public Writer {
 public:
 	ParticlesWriter(Object *ob, ParticleSystem *psys, const std::string &name) :
@@ -144,6 +186,12 @@ struct Factory {
 	virtual const std::string &get_default_extension() = 0;
 	virtual WriterArchive *create_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
 	virtual ReaderArchive *create_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
+	
+	virtual Writer *create_writer_object(const std::string &name, Object *ob) = 0;
+	virtual Reader *create_reader_object(const std::string &name, Object *ob) = 0;
+	
+	virtual Writer *create_writer_group(const std::string &name, Group *group) = 0;
+	virtual Reader *create_reader_group(const std::string &name, Group *group) = 0;
 	
 	/* Particles */
 	virtual Writer *create_writer_particles(const std::string &name, Object *ob, ParticleSystem *psys) = 0;

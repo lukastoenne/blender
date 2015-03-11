@@ -23,7 +23,9 @@
 #include "abc_reader.h"
 #include "abc_writer.h"
 #include "abc_cloth.h"
+#include "abc_group.h"
 #include "abc_mesh.h"
+#include "abc_object.h"
 #include "abc_particles.h"
 
 namespace PTC {
@@ -43,6 +45,26 @@ class AbcFactory : public Factory {
 	ReaderArchive *create_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
 	{
 		return new AbcReaderArchive(scene, name, error_handler);
+	}
+	
+	Writer *create_writer_object(const std::string &name, Object *ob)
+	{
+		return new AbcObjectWriter(name, ob);
+	}
+
+	Reader *create_reader_object(const std::string &name, Object *ob)
+	{
+		return new AbcObjectReader(name, ob);
+	}
+	
+	Writer *create_writer_group(const std::string &name, Group *group)
+	{
+		return new AbcGroupWriter(name, group);
+	}
+	
+	Reader *create_reader_group(const std::string &name, Group *group)
+	{
+		return new AbcGroupReader(name, group);
 	}
 	
 	/* Particles */

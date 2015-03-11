@@ -35,6 +35,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
 
@@ -48,6 +50,7 @@
 #include "DNA_vfont_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_cache_library.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
 #include "BKE_font.h"
@@ -1236,6 +1239,119 @@ int count_duplilist(Object *ob)
 	}
 	return 1;
 }
+
+/* ------------------------------------------------------------------------- */
+typedef struct DupliCache {
+#if 0
+	/* XXX ghash implementation later, for now listbase is easier */
+	struct GHash *ghash;
+#else
+	ListBase duplilist;
+#endif
+} DupliCache;
+
+static void dupli_object_free(DupliObject *dob)
+{
+	if (dob->cache_dm)
+		dob->cache_dm->release(dob->cache_dm);
+	
+	MEM_freeN(dob);
+}
+
+#if 0
+static void dupli_cache_clear(DupliCache *dupcache)
+{
+	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_free);
+}
+#else
+static void dupli_cache_clear(DupliCache *dupcache)
+{
+	DupliObject *dob, *dob_next;
+	for (dob = dupcache->duplilist.first; dob; dob = dob_next) {
+		dob_next = dob->next;
+		
+		dupli_object_free(dob);
+	}
+	BLI_listbase_clear(&dupcache->duplilist);
+}
+#endif
+
+static DupliObject *dupli_cache_push(DupliCache *dupcache)
+{
+	DupliObject *dob = MEM_callocN(sizeof(DupliObject), "dupli object");
+	
+	unit_m4(dob->mat);
+	
+	BLI_addtail(&dupcache->duplilist, dob);
+	return dob;
+}
+
+void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *eval_ctx)
+{
+	
+	/* cache is a group duplicator feature only */
+	if (ob->dup_group) {
+		
+		if (ob->dup_cache) {
+			dupli_cache_clear(ob->dup_cache);
+		}
+		else {
+			ob->dup_cache = MEM_callocN(sizeof(DupliCache), "dupli object cache");
+		}
+		
+#if 0
+		/* XXX object_duplilist_ex allocates a ListBase, no need to make it complicated though ... */
+		{
+			ListBase *lb = object_duplilist_ex(eval_ctx, scene, ob, true);
+			ob->dup_cache->duplilist = *lb;
+			MEM_freeN(lb);
+		}
+#endif
+		
+		{
+			const eCacheLibrary_EvalMode eval_mode = eval_ctx->mode == DAG_EVAL_RENDER ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
+			/* TODO at this point we could apply animation offset */
+			float frame = (float)scene->r.cfra;
+			
+			BKE_cache_read_dupligroup(G.main, scene, frame, eval_mode, ob->dup_group, ob->dup_cache);
+			
+#if 0
+			DupliObject *dob;
+			
+			for (dob = ob->dup_cache->duplilist.first; dob; dob = dob->next) {
+				BKE_cache_read_derived_mesh(G.main, scene, frame, eval_mode, dob->ob, &dob->cache_dm);
+			}
+#endif
+		}
+	
+	}
+	else {
+		if (ob->dup_cache) {
+			dupli_cache_clear(ob->dup_cache);
+			MEM_freeN(ob->dup_cache);
+			ob->dup_cache = NULL;
+		}
+	}
+}
+
+void BKE_object_dupli_cache_clear(Object *ob)
+{
+	if (ob->dup_cache) {
+		dupli_cache_clear(ob->dup_cache);
+	}
+}
+
+void BKE_dupli_cache_add_mesh(DupliCache *dupcache, float obmat[4][4], DerivedMesh *dm)
+{
+	DupliObject *dob = dupli_cache_push(dupcache);
+	
+	dob->ob = NULL;
+	copy_m4_m4(dob->mat, obmat);
+	
+	dob->cache_dm = dm;
+}
+
+/* ------------------------------------------------------------------------- */
 
 DupliApplyData *duplilist_apply(Object *ob, ListBase *duplilist)
 {

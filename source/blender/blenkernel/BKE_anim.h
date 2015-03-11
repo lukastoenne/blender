@@ -42,6 +42,8 @@ struct bAnimVizSettings;
 struct bMotionPath;
 struct bPoseChannel;
 struct ReportList;
+struct GHash;
+struct DupliCache;
 
 /* ---------------------------------------------------- */
 /* Animation Visualization */
@@ -70,6 +72,11 @@ struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct 
 struct ListBase *object_duplilist(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);
 void free_object_duplilist(struct ListBase *lb);
 int count_duplilist(struct Object *ob);
+
+void BKE_object_dupli_cache_update(struct Scene *scene, struct Object *ob, struct EvaluationContext *eval_ctx);
+void BKE_object_dupli_cache_clear(struct Object *ob);
+
+void BKE_dupli_cache_add_mesh(struct DupliCache *dupcache, float obmat[4][4], struct DerivedMesh *dm);
 
 typedef struct DupliExtraData {
 	float obmat[4][4];

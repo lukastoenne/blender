@@ -18,6 +18,7 @@
 
 //#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/AbcCoreOgawa/ReadWrite.h>
+#include <Alembic/Abc/OObject.h>
 
 #include "abc_writer.h"
 
@@ -63,6 +64,24 @@ AbcWriterArchive::AbcWriterArchive(Scene *scene, const std::string &filename, Er
 
 AbcWriterArchive::~AbcWriterArchive()
 {
+}
+
+OObject AbcWriterArchive::get_id_object(ID *id)
+{
+	if (!archive)
+		return OObject();
+	
+	OObject root = archive.getTop();
+	return root.getChild(id->name);
+}
+
+bool AbcWriterArchive::has_id_object(ID *id)
+{
+	if (!archive)
+		return false;
+	
+	OObject root = archive.getTop();
+	return root.getChild(id->name).valid();
 }
 
 TimeSamplingPtr AbcWriterArchive::frame_sampling()

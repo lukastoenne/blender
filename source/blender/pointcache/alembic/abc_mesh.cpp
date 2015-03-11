@@ -59,21 +59,23 @@ void AbcDerivedMeshWriter::open_archive(WriterArchive *archive)
 	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
 	
 	if (abc_archive()->archive) {
-		OObject root = abc_archive()->archive.getTop();
-		m_mesh = OPolyMesh(root, m_name, abc_archive()->frame_sampling_index());
-		
-		OPolyMeshSchema &schema = m_mesh.getSchema();
-		OCompoundProperty geom_props = schema.getArbGeomParams();
-		OCompoundProperty user_props = schema.getUserProperties();
-		
-		m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
-		m_prop_edge_verts = OUInt32ArrayProperty(user_props, "edge_verts", 0);
-		m_prop_edge_flag = OInt16ArrayProperty(user_props, "edge_flag", 0);
-		m_prop_edge_crease = OCharArrayProperty(user_props, "edge_crease", 0);
-		m_prop_edge_bweight = OCharArrayProperty(user_props, "edge_bweight", 0);
-		m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
-		m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
-		m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
+		OObject parent = abc_archive()->get_id_object((ID *)m_ob);
+		if (parent) {
+			m_mesh = OPolyMesh(parent, m_name, abc_archive()->frame_sampling_index());
+			
+			OPolyMeshSchema &schema = m_mesh.getSchema();
+			OCompoundProperty geom_props = schema.getArbGeomParams();
+			OCompoundProperty user_props = schema.getUserProperties();
+			
+			m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
+			m_prop_edge_verts = OUInt32ArrayProperty(user_props, "edge_verts", 0);
+			m_prop_edge_flag = OInt16ArrayProperty(user_props, "edge_flag", 0);
+			m_prop_edge_crease = OCharArrayProperty(user_props, "edge_crease", 0);
+			m_prop_edge_bweight = OCharArrayProperty(user_props, "edge_bweight", 0);
+			m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
+			m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
+			m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
+		}
 	}
 }
 
@@ -256,7 +258,7 @@ static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<
 
 void AbcDerivedMeshWriter::write_sample()
 {
-	if (!abc_archive()->archive)
+	if (!m_mesh)
 		return;
 	
 	DerivedMesh *output_dm = *m_dm_ptr;
@@ -343,9 +345,9 @@ void AbcDerivedMeshReader::open_archive(ReaderArchive *archive)
 	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
 	if (abc_archive()->archive) {
-		IObject root = abc_archive()->archive.getTop();
-		if (root.valid() && root.getChild(m_name)) {
-			m_mesh = IPolyMesh(root, m_name);
+		IObject parent = abc_archive()->get_id_object((ID *)m_ob);
+		if (parent && parent.getChild(m_name)) {
+			m_mesh = IPolyMesh(parent, m_name);
 			
 			IPolyMeshSchema &schema = m_mesh.getSchema();
 			ICompoundProperty geom_props = schema.getArbGeomParams();
@@ -542,7 +544,7 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	/* discard existing result data */
 	discard_result();
 	
-	if (!m_mesh.valid())
+	if (!m_mesh)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	IPolyMeshSchema &schema = m_mesh.getSchema();

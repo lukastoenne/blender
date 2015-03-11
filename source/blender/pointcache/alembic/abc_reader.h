@@ -42,6 +42,9 @@ public:
 	AbcReaderArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	virtual ~AbcReaderArchive();
 	
+	Abc::IObject get_id_object(ID *id);
+	bool has_id_object(ID *id);
+	
 	bool get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	

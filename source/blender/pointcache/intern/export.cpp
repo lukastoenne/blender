@@ -110,8 +110,8 @@ void Exporter::bake(ListBase *writers, DerivedMesh **render_dm_ptr, int start_fr
 		Object *curob = NULL;
 		CacheModifierData *cachemd = NULL;
 		for (CacheLibraryWriterLink *link = (CacheLibraryWriterLink *)writers->first; link; link = link->next) {
-			Object *ob = link->item->ob;
 			Writer *writer = (Writer *)link->writer;
+			Object *ob = link->ob;
 			
 			if (ob != curob) {
 				release_bake_object(render_dm_ptr, cachemd);
