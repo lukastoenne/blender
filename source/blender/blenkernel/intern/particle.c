@@ -63,7 +63,6 @@
 #include "BKE_animsys.h"
 
 #include "BKE_boids.h"
-#include "BKE_cache_library.h"
 #include "BKE_cloth.h"
 #include "BKE_colortools.h"
 #include "BKE_effect.h"
@@ -1990,15 +1989,12 @@ static void exec_child_path_cache(TaskPool *UNUSED(pool), void *taskdata, int UN
 
 void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupdate)
 {
-	const bool use_render = (sim->psys->renderdata != NULL);
-	const eCacheLibrary_EvalMode cache_eval_mode = use_render ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	TaskScheduler *task_scheduler;
 	TaskPool *task_pool;
 	ParticleThreadContext ctx;
 	ParticleTask *tasks_parent, *tasks_child;
 	int numtasks_parent, numtasks_child;
 	int i, totchild, totparent;
-	bool cache_result;
 	
 	if (sim->psys->flag & PSYS_GLOBAL_HAIR)
 		return;
@@ -2023,40 +2019,32 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 		sim->psys->totchildcache = totchild;
 	}
 	
-	/* try reading from point cache */
-	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, cache_eval_mode, sim->ob, sim->psys);
-	if (!cache_result) {
-		/* cache parent paths */
-		ctx.parent_pass = 1;
-		psys_tasks_create(&ctx, totparent, &tasks_parent, &numtasks_parent);
-		for (i = 0; i < numtasks_parent; ++i) {
-			ParticleTask *task = &tasks_parent[i];
-			
-			psys_task_init_path(task, sim);
-			BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
-		}
-		BLI_task_pool_work_and_wait(task_pool);
+	/* cache parent paths */
+	ctx.parent_pass = 1;
+	psys_tasks_create(&ctx, totparent, &tasks_parent, &numtasks_parent);
+	for (i = 0; i < numtasks_parent; ++i) {
+		ParticleTask *task = &tasks_parent[i];
 		
-		psys_tasks_free(tasks_parent, numtasks_parent);
+		psys_task_init_path(task, sim);
+		BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
 	}
+	BLI_task_pool_work_and_wait(task_pool);
 	
-	cache_result = BKE_cache_read_particles_pathcache_children(G.main, sim->scene, cfra, cache_eval_mode, sim->ob, sim->psys);
-	if (!cache_result) {
-		/* cache child paths */
-		ctx.parent_pass = 0;
-		psys_tasks_create(&ctx, totchild, &tasks_child, &numtasks_child);
-		for (i = 0; i < numtasks_child; ++i) {
-			ParticleTask *task = &tasks_child[i];
-			
-			psys_task_init_path(task, sim);
-			BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
-		}
-		BLI_task_pool_work_and_wait(task_pool);
+	/* cache child paths */
+	ctx.parent_pass = 0;
+	psys_tasks_create(&ctx, totchild, &tasks_child, &numtasks_child);
+	for (i = 0; i < numtasks_child; ++i) {
+		ParticleTask *task = &tasks_child[i];
 		
-		psys_tasks_free(tasks_child, numtasks_child);
+		psys_task_init_path(task, sim);
+		BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
 	}
-	
+	BLI_task_pool_work_and_wait(task_pool);
+
 	BLI_task_pool_free(task_pool);
+	
+	psys_tasks_free(tasks_parent, numtasks_parent);
+	psys_tasks_free(tasks_child, numtasks_child);
 	
 	psys_thread_context_free(&ctx);
 }
@@ -2106,8 +2094,6 @@ static void cache_key_incremental_rotation(ParticleCacheKey *key0, ParticleCache
  * - Cached path data is also used to determine cut position for the editmode tool. */
 void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 {
-	const bool use_render = (sim->psys->renderdata != NULL);
-	const eCacheLibrary_EvalMode cache_eval_mode = use_render ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	PARTICLE_PSMD;
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
 	ParticleSystem *psys = sim->psys;
@@ -2135,7 +2121,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	float length, vec[3];
 	float *vg_effector = NULL;
 	float *vg_length = NULL, pa_length = 1.0f;
-	bool cache_result;
 
 	/* we don't have anything valid to create paths from so let's quit here */
 	if ((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache) == 0)
@@ -2148,11 +2133,6 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);
 	cache = psys->pathcache = psys_alloc_path_cache_buffers(&psys->pathcachebufs, totpart, segments + 1);
-
-	/* try reading from cache */
-	cache_result = BKE_cache_read_particles_pathcache_parents(G.main, sim->scene, cfra, cache_eval_mode, sim->ob, sim->psys);
-	if (cache_result)
-		return;
 
 	psys->lattice_deform_data = psys_create_lattice_deform_data(sim);
 	ma = give_current_material(sim->ob, psys->part->omat);

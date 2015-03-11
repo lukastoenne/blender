@@ -55,7 +55,8 @@ void Exporter::set_bake_object(Object *ob, DerivedMesh **render_dm_ptr, CacheMod
 		return;
 	
 	/* cache modifier can be used to store an intermediate DM stage */
-	CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(m_scene, ob, required_mode);
+//	CacheModifierData *cachemd = (CacheModifierData *)mesh_find_cache_modifier(m_scene, ob, required_mode);
+	CacheModifierData *cachemd = NULL;
 	*cachemd_ptr = cachemd;
 	
 	/* construct the correct DM based on evaluation mode */

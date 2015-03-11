@@ -2804,6 +2804,16 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 				else
 					psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
 			}
+
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Cloth) {
+					ClothModifierData *clmd = (ClothModifierData*) md;
+					if (!clmd->point_cache) {
+						clmd->point_cache = BKE_ptcache_add(&clmd->ptcaches);
+						clmd->point_cache->step = 1;
+					}
+				}
+			}
 		}
 
 		/* Copy over old per-level multires vertex data

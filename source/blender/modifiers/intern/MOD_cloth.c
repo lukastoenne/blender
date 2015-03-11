@@ -62,16 +62,17 @@ static void initData(ModifierData *md)
 	
 	clmd->sim_parms = MEM_callocN(sizeof(ClothSimSettings), "cloth sim parms");
 	clmd->coll_parms = MEM_callocN(sizeof(ClothCollSettings), "cloth coll parms");
+	clmd->point_cache = BKE_ptcache_add(&clmd->ptcaches);
 	
 	/* check for alloc failing */
-	if (!clmd->sim_parms || !clmd->coll_parms)
+	if (!clmd->sim_parms || !clmd->coll_parms || !clmd->point_cache)
 		return;
 	
 	cloth_init(clmd);
 }
 
 static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, float (*vertexCos)[3],
-                        int numVerts, ModifierApplyFlag flag)
+                        int numVerts, ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm;
 	ClothModifierData *clmd = (ClothModifierData *) md;
@@ -112,7 +113,7 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, 
 
 	DM_ensure_tessface(dm); /* BMESH - UNTIL MODIFIER IS UPDATED FOR MPoly */
 
-	clothModifier_do(clmd, md->scene, ob, dm, vertexCos, flag & MOD_APPLY_RENDER);
+	clothModifier_do(clmd, md->scene, ob, dm, vertexCos);
 
 	dm->release(dm);
 }
@@ -166,11 +167,16 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 	if (tclmd->coll_parms)
 		MEM_freeN(tclmd->coll_parms);
+	
+	BKE_ptcache_free_list(&tclmd->ptcaches);
+	tclmd->point_cache = NULL;
 
 	tclmd->sim_parms = MEM_dupallocN(clmd->sim_parms);
 	if (clmd->sim_parms->effector_weights)
 		tclmd->sim_parms->effector_weights = MEM_dupallocN(clmd->sim_parms->effector_weights);
 	tclmd->coll_parms = MEM_dupallocN(clmd->coll_parms);
+	tclmd->point_cache = BKE_ptcache_add(&tclmd->ptcaches);
+	tclmd->point_cache->step = 1;
 	tclmd->clothObject = NULL;
 	tclmd->hairdata = NULL;
 	tclmd->solver_result = NULL;
@@ -198,6 +204,9 @@ static void freeData(ModifierData *md)
 		}
 		if (clmd->coll_parms)
 			MEM_freeN(clmd->coll_parms);
+		
+		BKE_ptcache_free_list(&clmd->ptcaches);
+		clmd->point_cache = NULL;
 		
 		if (clmd->hairdata)
 			MEM_freeN(clmd->hairdata);

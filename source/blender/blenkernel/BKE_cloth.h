@@ -232,13 +232,16 @@ void cloth_free_contacts(ColliderContacts *collider_contacts, int totcolliders);
 void cloth_free_modifier_extern (struct ClothModifierData *clmd );
 void cloth_free_modifier (struct ClothModifierData *clmd );
 void cloth_init (struct ClothModifierData *clmd );
-void clothModifier_do (struct ClothModifierData *clmd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, float (*vertexCos)[3], bool use_render);
+void clothModifier_do (struct ClothModifierData *clmd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, float (*vertexCos)[3]);
 
 int cloth_uses_vgroup(struct ClothModifierData *clmd);
 
 // needed for collision.c
 void bvhtree_update_from_cloth (struct ClothModifierData *clmd, int moving );
 void bvhselftree_update_from_cloth (struct ClothModifierData *clmd, int moving );
+
+// needed for button_object.c
+void cloth_clear_cache (struct Object *ob, struct ClothModifierData *clmd, float framenr );
 
 // needed for cloth.c
 int cloth_add_spring (struct ClothModifierData *clmd, unsigned int indexA, unsigned int indexB, float restlength, int spring_type);

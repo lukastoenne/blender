@@ -474,6 +474,84 @@ static void ptcache_particle_extra_read(void *psys_v, PTCacheMem *pm, float UNUS
 	}
 }
 
+/* Cloth functions */
+static int  ptcache_cloth_write(int index, void *cloth_v, void **data, int UNUSED(cfra))
+{
+	ClothModifierData *clmd= cloth_v;
+	Cloth *cloth= clmd->clothObject;
+	ClothVertex *vert = cloth->verts + index;
+
+	PTCACHE_DATA_FROM(data, BPHYS_DATA_LOCATION, vert->x);
+	PTCACHE_DATA_FROM(data, BPHYS_DATA_VELOCITY, vert->v);
+	PTCACHE_DATA_FROM(data, BPHYS_DATA_XCONST, vert->xconst);
+
+	return 1;
+}
+static void ptcache_cloth_read(int index, void *cloth_v, void **data, float UNUSED(cfra), float *old_data)
+{
+	ClothModifierData *clmd= cloth_v;
+	Cloth *cloth= clmd->clothObject;
+	ClothVertex *vert = cloth->verts + index;
+	
+	if (old_data) {
+		memcpy(vert->x, data, 3 * sizeof(float));
+		memcpy(vert->xconst, data + 3, 3 * sizeof(float));
+		memcpy(vert->v, data + 6, 3 * sizeof(float));
+	}
+	else {
+		PTCACHE_DATA_TO(data, BPHYS_DATA_LOCATION, 0, vert->x);
+		PTCACHE_DATA_TO(data, BPHYS_DATA_VELOCITY, 0, vert->v);
+		PTCACHE_DATA_TO(data, BPHYS_DATA_XCONST, 0, vert->xconst);
+	}
+}
+static void ptcache_cloth_interpolate(int index, void *cloth_v, void **data, float cfra, float cfra1, float cfra2, float *old_data)
+{
+	ClothModifierData *clmd= cloth_v;
+	Cloth *cloth= clmd->clothObject;
+	ClothVertex *vert = cloth->verts + index;
+	ParticleKey keys[4];
+	float dfra;
+
+	if (cfra1 == cfra2)
+		return;
+
+	copy_v3_v3(keys[1].co, vert->x);
+	copy_v3_v3(keys[1].vel, vert->v);
+
+	if (old_data) {
+		memcpy(keys[2].co, old_data, 3 * sizeof(float));
+		memcpy(keys[2].vel, old_data + 6, 3 * sizeof(float));
+	}
+	else
+		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2);
+
+	dfra = cfra2 - cfra1;
+
+	mul_v3_fl(keys[1].vel, dfra);
+	mul_v3_fl(keys[2].vel, dfra);
+
+	psys_interpolate_particle(-1, keys, (cfra - cfra1) / dfra, keys, 1);
+
+	mul_v3_fl(keys->vel, 1.0f / dfra);
+
+	copy_v3_v3(vert->x, keys->co);
+	copy_v3_v3(vert->v, keys->vel);
+
+	/* should vert->xconst be interpolated somehow too? - jahka */
+}
+
+static int  ptcache_cloth_totpoint(void *cloth_v, int UNUSED(cfra))
+{
+	ClothModifierData *clmd= cloth_v;
+	return clmd->clothObject ? clmd->clothObject->numverts : 0;
+}
+
+static void ptcache_cloth_error(void *cloth_v, const char *message)
+{
+	ClothModifierData *clmd= cloth_v;
+	modifier_setError(&clmd->modifier, "%s", message);
+}
+
 #ifdef WITH_SMOKE
 /* Smoke functions */
 static int  ptcache_smoke_totpoint(void *smoke_v, int UNUSED(cfra))
@@ -1111,6 +1189,40 @@ void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *p
 	pid->default_step = 10;
 	pid->max_step = 20;
 }
+void BKE_ptcache_id_from_cloth(PTCacheID *pid, Object *ob, ClothModifierData *clmd)
+{
+	memset(pid, 0, sizeof(PTCacheID));
+
+	pid->ob= ob;
+	pid->calldata= clmd;
+	pid->type= PTCACHE_TYPE_CLOTH;
+	pid->stack_index= clmd->point_cache->index;
+	pid->cache= clmd->point_cache;
+	pid->cache_ptr= &clmd->point_cache;
+	pid->ptcaches= &clmd->ptcaches;
+	pid->totpoint= pid->totwrite= ptcache_cloth_totpoint;
+	pid->error					= ptcache_cloth_error;
+
+	pid->write_point			= ptcache_cloth_write;
+	pid->read_point				= ptcache_cloth_read;
+	pid->interpolate_point		= ptcache_cloth_interpolate;
+
+	pid->write_stream			= NULL;
+	pid->read_stream			= NULL;
+
+	pid->write_extra_data		= NULL;
+	pid->read_extra_data		= NULL;
+	pid->interpolate_extra_data	= NULL;
+
+	pid->write_header			= ptcache_basic_header_write;
+	pid->read_header			= ptcache_basic_header_read;
+
+	pid->data_types= (1<<BPHYS_DATA_LOCATION) | (1<<BPHYS_DATA_VELOCITY) | (1<<BPHYS_DATA_XCONST);
+	pid->info_types= 0;
+
+	pid->default_step = 1;
+	pid->max_step = 1;
+}
 void BKE_ptcache_id_from_smoke(PTCacheID *pid, struct Object *ob, struct SmokeModifierData *smd)
 {
 	SmokeDomainSettings *sds = smd->domain;
@@ -1265,7 +1377,12 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 	}
 
 	for (md=ob->modifiers.first; md; md=md->next) {
-		if (md->type == eModifierType_Smoke) {
+		if (md->type == eModifierType_Cloth) {
+			pid= MEM_callocN(sizeof(PTCacheID), "PTCacheID");
+			BKE_ptcache_id_from_cloth(pid, ob, (ClothModifierData*)md);
+			BLI_addtail(lb, pid);
+		}
+		else if (md->type == eModifierType_Smoke) {
 			SmokeModifierData *smd = (SmokeModifierData *)md;
 			if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
 				pid= MEM_callocN(sizeof(PTCacheID), "PTCacheID");
@@ -2787,6 +2904,15 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 		/* children or just redo can be calculated without resetting anything */
 		if (psys->recalc & PSYS_RECALC_REDO || psys->recalc & PSYS_RECALC_CHILD)
 			skip = 1;
+		/* Baked cloth hair has to be checked too, because we don't want to reset */
+		/* particles or cloth in that case -jahka */
+		else if (psys->clmd) {
+			BKE_ptcache_id_from_cloth(&pid, ob, psys->clmd);
+			if (mode == PSYS_RESET_ALL || !(psys->part->type == PART_HAIR && (pid.cache->flag & PTCACHE_BAKED))) 
+				reset |= BKE_ptcache_id_reset(scene, &pid, mode);
+			else
+				skip = 1;
+		}
 
 		if (skip == 0 && psys->part) {
 			BKE_ptcache_id_from_particles(&pid, ob, psys);
@@ -2795,6 +2921,10 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 	}
 
 	for (md=ob->modifiers.first; md; md=md->next) {
+		if (md->type == eModifierType_Cloth) {
+			BKE_ptcache_id_from_cloth(&pid, ob, (ClothModifierData*)md);
+			reset |= BKE_ptcache_id_reset(scene, &pid, mode);
+		}
 		if (md->type == eModifierType_Smoke) {
 			SmokeModifierData *smd = (SmokeModifierData *)md;
 			if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
