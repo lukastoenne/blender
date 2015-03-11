@@ -59,7 +59,7 @@ void Exporter::set_bake_object(Object *ob, DerivedMesh **render_dm_ptr, CacheMod
 	*cachemd_ptr = cachemd;
 	
 	/* construct the correct DM based on evaluation mode */
-	if (use_render) {
+	if (use_render && ob->type == OB_MESH && ob->data) {
 		/* tell the modifier to store a copy of the DM for us */
 		if (cachemd)
 			cachemd->flag |= MOD_CACHE_USE_OUTPUT_RENDER;
