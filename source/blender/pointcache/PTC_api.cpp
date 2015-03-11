@@ -124,6 +124,12 @@ void PTC_writer_set_archive(PTCWriter *_writer, PTCWriterArchive *_archive)
 	writer->set_archive(archive);
 }
 
+void PTC_writer_create_refs(PTCWriter *_writer)
+{
+	PTC::Writer *writer = (PTC::Writer *)_writer;
+	writer->create_refs();
+}
+
 void PTC_reader_set_archive(PTCReader *_reader, PTCReaderArchive *_archive)
 {
 	PTC::Reader *reader = (PTC::Reader *)_reader;
@@ -297,6 +303,32 @@ PTCWriter *PTC_writer_derived_final_render(const char *name, Scene *scene, Objec
 PTCWriter *PTC_writer_cache_modifier_render(const char *name, Scene *scene, Object *ob, CacheModifierData *cmd)
 {
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_cache_modifier_render(name, scene, ob, cmd);
+}
+
+
+/* ==== OBJECT ==== */
+
+PTCWriter *PTC_writer_object(const char *name, Object *ob)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_object(name, ob);
+}
+
+PTCReader *PTC_reader_object(const char *name, Object *ob)
+{
+	return (PTCReader *)PTC::Factory::alembic->create_reader_object(name, ob);
+}
+
+
+/* ==== GROUP ==== */
+
+PTCWriter *PTC_writer_group(const char *name, Group *group)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_group(name, group);
+}
+
+PTCReader *PTC_reader_group(const char *name, Group *group)
+{
+	return (PTCReader *)PTC::Factory::alembic->create_writer_group(name, group);
 }
 
 

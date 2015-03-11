@@ -29,6 +29,10 @@
 
 #include "util_error_handler.h"
 
+extern "C" {
+#include "DNA_object_types.h"
+}
+
 struct Scene;
 
 namespace PTC {
@@ -39,6 +43,12 @@ class AbcWriterArchive : public WriterArchive, public FrameMapper {
 public:
 	AbcWriterArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	virtual ~AbcWriterArchive();
+	
+	Abc::OObject get_id_object(ID *id);
+	bool has_id_object(ID *id);
+	
+	template <class OObjectT>
+	OObjectT add_id_object(ID *id);
 	
 	uint32_t frame_sampling_index() const { return m_frame_sampling; }
 	Abc::TimeSamplingPtr frame_sampling();
@@ -62,6 +72,17 @@ public:
 private:
 	AbcWriterArchive *m_abc_archive;
 };
+
+/* ------------------------------------------------------------------------- */
+
+template <class OObjectT>
+OObjectT AbcWriterArchive::add_id_object(ID *id)
+{
+	if (!archive)
+		return OObjectT();
+	
+	return OObjectT(archive.getTop(), id->name, frame_sampling_index());
+}
 
 } /* namespace PTC */
 

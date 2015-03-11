@@ -51,14 +51,16 @@ void AbcClothWriter::open_archive(WriterArchive *archive)
 	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
 	
 	if (abc_archive()->archive) {
-		OObject root = abc_archive()->archive.getTop();
-		m_points = OPoints(root, m_name, abc_archive()->frame_sampling_index());
-		
-		OPointsSchema &schema = m_points.getSchema();
-		OCompoundProperty geom_params = schema.getArbGeomParams();
-		
-		m_param_velocities = OV3fGeomParam(geom_params, "velocities", false, kVaryingScope, 1, 0);
-		m_param_goal_positions = OP3fGeomParam(geom_params, "goal_positions", false, kVaryingScope, 1, 0);
+		OObject parent = abc_archive()->get_id_object((ID *)m_ob);
+		if (parent) {
+			m_points = OPoints(parent, m_name, abc_archive()->frame_sampling_index());
+			
+			OPointsSchema &schema = m_points.getSchema();
+			OCompoundProperty geom_params = schema.getArbGeomParams();
+			
+			m_param_velocities = OV3fGeomParam(geom_params, "velocities", false, kVaryingScope, 1, 0);
+			m_param_goal_positions = OP3fGeomParam(geom_params, "goal_positions", false, kVaryingScope, 1, 0);
+		}
 	}
 }
 
@@ -92,7 +94,7 @@ static P3fArraySample create_sample_goal_positions(Cloth *cloth, std::vector<V3f
 
 void AbcClothWriter::write_sample()
 {
-	if (!abc_archive()->archive)
+	if (!m_points)
 		return;
 	
 	Cloth *cloth = m_clmd->clothObject;
@@ -147,9 +149,9 @@ void AbcClothReader::open_archive(ReaderArchive *archive)
 	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
 	if (abc_archive()->archive) {
-		IObject root = abc_archive()->archive.getTop();
-		if (root.valid() && root.getChild(m_name)) {
-			m_points = IPoints(root, m_name);
+		IObject parent = abc_archive()->get_id_object((ID *)m_ob);
+		if (parent && parent.getChild(m_name)) {
+			m_points = IPoints(parent, m_name);
 			
 			IPointsSchema &schema = m_points.getSchema();
 			ICompoundProperty geom_params = schema.getArbGeomParams();
@@ -206,7 +208,7 @@ PTCReadSampleResult AbcClothReader::read_sample(float frame)
 {
 	Cloth *cloth = m_clmd->clothObject;
 	
-	if (!m_points.valid())
+	if (!m_points)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	IPointsSchema &schema = m_points.getSchema();

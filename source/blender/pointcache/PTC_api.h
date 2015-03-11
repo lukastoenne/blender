@@ -71,6 +71,7 @@ struct PTCReaderArchive *PTC_open_reader_archive(struct Scene *scene, const char
 void PTC_close_reader_archive(struct PTCReaderArchive *archive);
 
 void PTC_writer_set_archive(struct PTCWriter *writer, struct PTCWriterArchive *archive);
+void PTC_writer_create_refs(struct PTCWriter *writer);
 void PTC_reader_set_archive(struct PTCReader *reader, struct PTCReaderArchive *archive);
 
 /*** Reader/Writer Interface ***/
@@ -88,6 +89,14 @@ char *PTC_get_archive_info(struct PTCReaderArchive *archive);
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
+
+/* Object */
+struct PTCWriter *PTC_writer_object(const char *name, struct Object *ob);
+struct PTCReader *PTC_reader_object(const char *name, struct Object *ob);
+
+/* Group */
+struct PTCWriter *PTC_writer_group(const char *name, struct Group *group);
+struct PTCReader *PTC_reader_group(const char *name, struct Group *group);
 
 /* Particles */
 struct PTCWriter *PTC_writer_particles(const char *name, struct Object *ob, struct ParticleSystem *psys);

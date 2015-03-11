@@ -46,6 +46,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_cache_library.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
@@ -647,13 +648,32 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 }
 
 
-static void cachelib_add_writer(ListBase *writers, struct CacheItem *item, struct PTCWriter *writer)
+static void tag_dupligroup_recursive(Main *bmain, Group *group)
+{
+	GroupObject *gob;
+	
+	if (!(group->id.flag & LIB_DOIT)) {
+		group->id.flag |= LIB_DOIT;
+		
+		for (gob = group->gobject.first; gob; gob = gob->next) {
+			Object *ob = gob->ob;
+			if (!(ob->id.flag & LIB_DOIT)) {
+				ob->id.flag |= LIB_DOIT;
+				
+				if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group)
+					tag_dupligroup_recursive(bmain, ob->dup_group);
+			}
+		}
+	}
+}
+
+static void cachelib_add_writer(ListBase *writers, struct PTCWriter *writer, struct Object *ob)
 {
 	if (writer) {
 		CacheLibraryWriterLink *link = MEM_callocN(sizeof(CacheLibraryWriterLink), "cachelib writers link");
 		
-		link->item = item;
 		link->writer = writer;
+		link->ob = ob;
 		BLI_addtail(writers, link);
 	}
 }
@@ -661,7 +681,7 @@ static void cachelib_add_writer(ListBase *writers, struct CacheItem *item, struc
 static int cachelib_writers_cmp(const void *a, const void *b)
 {
 	const CacheLibraryWriterLink *la = a, *lb = b;
-	return la->item->ob > lb->item->ob;
+	return la->ob > lb->ob;
 }
 
 BLI_INLINE int cache_required_mode(CacheLibrary *cachelib)
@@ -673,14 +693,44 @@ BLI_INLINE int cache_required_mode(CacheLibrary *cachelib)
 	return 0;
 }
 
-void BKE_cache_library_writers(CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers)
+void BKE_cache_library_writers(Main *bmain, CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers)
 {
 	const eCacheLibrary_EvalMode eval_mode = cachelib->eval_mode;
 	const int required_mode = cache_required_mode(cachelib);
-	CacheItem *item;
+	Group *cache_group = cachelib->group;
+//	CacheItem *item;
 	
 	BLI_listbase_clear(writers);
 	
+	if (!cache_group)
+		return;
+	
+	/* clear tags */
+	BKE_main_id_tag_idcode(bmain, ID_OB, false);
+	BKE_main_id_tag_idcode(bmain, ID_GR, false);
+	
+	/* tag dupligroups recursively */
+	tag_dupligroup_recursive(bmain, cache_group);
+	
+	/* create object writers */
+	{
+		Object *ob;
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (ob->id.flag & LIB_DOIT)
+				cachelib_add_writer(writers, PTC_writer_object(ob->id.name, ob), ob);
+		}
+	}
+	
+	/* create group writers */
+	{
+		Group *group;
+		for (group = bmain->group.first; group; group = group->id.next) {
+			if (group->id.flag & LIB_DOIT)
+				cachelib_add_writer(writers, PTC_writer_group(group->id.name, group), NULL);
+		}
+	}
+	
+#if 0
 	for (item = cachelib->items.first; item; item = item->next) {
 		char name[2*MAX_NAME];
 		
@@ -748,6 +798,7 @@ void BKE_cache_library_writers(CacheLibrary *cachelib, Scene *scene, DerivedMesh
 	 * and all cached items exported, without having to reevaluate the same object multiple times.
 	 */
 	BLI_listbase_sort(writers, cachelib_writers_cmp);
+#endif
 }
 
 struct PTCWriterArchive *BKE_cache_library_writers_open_archive(Scene *scene, CacheLibrary *cachelib, ListBase *writers)
@@ -761,6 +812,10 @@ struct PTCWriterArchive *BKE_cache_library_writers_open_archive(Scene *scene, Ca
 	
 	for (link = writers->first; link; link = link->next) {
 		PTC_writer_set_archive(link->writer, archive);
+	}
+	
+	for (link = writers->first; link; link = link->next) {
+		PTC_writer_create_refs(link->writer);
 	}
 	
 	return archive;
@@ -1119,6 +1174,20 @@ bool BKE_cache_read_particles_pathcache_children(Main *bmain, Scene *scene, floa
 	return false;
 }
 
+bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode, struct Group *dupgroup, struct DupliCache *dupcache)
+{
+	CacheLibrary *cachelib;
+	
+	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
+		if (cachelib->group == dupgroup) {
+			// TODO
+			//	BKE_dupli_cache_add_mesh();
+			return true;
+		}
+	}
+	return false;
+}
+
 
 void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 {
@@ -1128,6 +1197,8 @@ void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (cachelib->flag & CACHE_LIBRARY_READ) {
 			CacheItem *item;
+			
+			// TODO tag group instance objects or so?
 			
 			for (item = cachelib->items.first; item; item = item->next) {
 				if (item->ob && (item->flag & CACHE_ITEM_ENABLED)) {

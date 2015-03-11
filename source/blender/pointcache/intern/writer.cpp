@@ -55,8 +55,9 @@ void Writer::set_archive(WriterArchive *archive)
 {
 	m_archive = archive;
 	
-	if (m_archive)
+	if (m_archive) {
 		open_archive(archive);
+	}
 }
 
 } /* namespace PTC */

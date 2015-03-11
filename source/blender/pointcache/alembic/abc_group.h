@@ -16,54 +16,47 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_WRITER_H
-#define PTC_WRITER_H
+#ifndef PTC_ABC_GROUP_H
+#define PTC_ABC_GROUP_H
 
-#include <string>
+#include <Alembic/AbcGeom/IXform.h>
+#include <Alembic/AbcGeom/OXform.h>
 
-#include "util_error_handler.h"
+#include "ptc_types.h"
 
-struct ID;
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
+
+struct Group;
 
 namespace PTC {
 
-class WriterArchive {
+class AbcGroupWriter : public GroupWriter, public AbcWriter {
 public:
-	virtual ~WriterArchive() {}
-};
-
-class Writer {
-public:
-	Writer(ID *id, const std::string &name);
-	virtual ~Writer();
+	AbcGroupWriter(const std::string &name, Group *group);
 	
-	void set_error_handler(ErrorHandler *handler);
-	bool valid() const;
+	void open_archive(WriterArchive *archive);
+	void create_refs();
 	
-	void set_archive(WriterArchive *archive);
-	
-	/* create references to other objects */
-	virtual void create_refs() {}
-	
-	virtual void write_sample() = 0;
-	
-	const std::string &name() const { return m_name; }
-	ID *id() const { return m_id; }
-	
-protected:
-	/* called after the archive is set */
-	virtual void open_archive(WriterArchive *archive) = 0;
-	
-protected:
-	ErrorHandler *m_error_handler;
-	
-	std::string m_name;
-	ID *m_id;
+	void write_sample();
 	
 private:
-	WriterArchive *m_archive;
+	Abc::OObject m_abc_object;
+};
+
+class AbcGroupReader : public GroupReader, public AbcReader {
+public:
+	AbcGroupReader(const std::string &name, Group *group);
+	
+	void open_archive(ReaderArchive *archive);
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+private:
+	Abc::IObject m_abc_object;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_WRITER_H */
+#endif  /* PTC_OBJECT_H */

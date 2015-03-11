@@ -276,7 +276,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	/* disable reading for the duration of the bake process */
 	data->cachelib->flag &= ~CACHE_LIBRARY_READ;
 	
-	BKE_cache_library_writers(data->cachelib, scene, &data->render_dm, &data->writers);
+	BKE_cache_library_writers(G.main, data->cachelib, scene, &data->render_dm, &data->writers);
 	data->archive = BKE_cache_library_writers_open_archive(scene, data->cachelib, &data->writers);
 	
 	G.is_break = false;

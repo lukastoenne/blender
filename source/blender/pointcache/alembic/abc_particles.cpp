@@ -50,8 +50,10 @@ void AbcParticlesWriter::open_archive(WriterArchive *archive)
 	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
 	
 	if (abc_archive()->archive) {
-		OObject root = abc_archive()->archive.getTop();
-		m_points = OPoints(root, m_name, abc_archive()->frame_sampling_index());
+		OObject parent = abc_archive()->get_id_object((ID *)m_ob);
+		if (parent) {
+			m_points = OPoints(parent, m_name, abc_archive()->frame_sampling_index());
+		}
 	}
 }
 
@@ -99,9 +101,9 @@ void AbcParticlesReader::open_archive(ReaderArchive *archive)
 	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
 	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
-	if (abc_archive()->archive) {
-		IObject root = abc_archive()->archive.getTop();
-		m_points = IPoints(root, m_name);
+	IObject parent = abc_archive()->get_id_object((ID *)m_ob);
+	if (parent && parent.getChild(m_name)) {
+		m_points = IPoints(parent, m_name);
 	}
 	
 	/* XXX TODO read first sample for info on particle count and times */
@@ -186,17 +188,19 @@ void AbcParticlePathcacheWriter::open_archive(WriterArchive *archive)
 	if (!abc_archive()->archive)
 		return;
 
-	OObject root = abc_archive()->archive.getTop();
-	/* XXX non-escaped string construction here ... */
-	m_curves = OCurves(root, m_name + m_suffix, abc_archive()->frame_sampling_index());
-	
-	OCurvesSchema &schema = m_curves.getSchema();
-	OCompoundProperty geom_props = schema.getArbGeomParams();
-	
-	m_param_velocities = OV3fGeomParam(geom_props, "velocities", false, kVertexScope, 1, 0);
-	m_param_rotations = OQuatfGeomParam(geom_props, "rotations", false, kVertexScope, 1, 0);
-	m_param_colors = OV3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
-	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
+	OObject parent = abc_archive()->get_id_object((ID *)m_ob);
+	if (parent) {
+		/* XXX non-escaped string construction here ... */
+		m_curves = OCurves(parent, m_name + m_suffix, abc_archive()->frame_sampling_index());
+		
+		OCurvesSchema &schema = m_curves.getSchema();
+		OCompoundProperty geom_props = schema.getArbGeomParams();
+		
+		m_param_velocities = OV3fGeomParam(geom_props, "velocities", false, kVertexScope, 1, 0);
+		m_param_rotations = OQuatfGeomParam(geom_props, "rotations", false, kVertexScope, 1, 0);
+		m_param_colors = OV3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
+		m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
+	}
 }
 
 static int paths_count_totkeys(ParticleCacheKey **pathcache, int totpart)
@@ -335,7 +339,7 @@ static OFloatGeomParam::Sample paths_create_sample_times(ParticleCacheKey **path
 
 void AbcParticlePathcacheWriter::write_sample()
 {
-	if (!abc_archive()->archive)
+	if (!m_curves)
 		return;
 	if (!(*m_pathcache))
 		return;
@@ -392,20 +396,18 @@ void AbcParticlePathcacheReader::open_archive(ReaderArchive *archive)
 	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 	
 	if (abc_archive()->archive) {
-		IObject root = abc_archive()->archive.getTop();
-		if (root.valid()) {
-			/* XXX non-escaped string construction here ... */
-			std::string curves_name = m_name + m_suffix;
-			if (root.getChild(curves_name)) {
-				m_curves = ICurves(root, curves_name);
-				ICurvesSchema &schema = m_curves.getSchema();
-				ICompoundProperty geom_props = schema.getArbGeomParams();
-				
-				m_param_velocities = IV3fGeomParam(geom_props, "velocities", 0);
-				m_param_rotations = IQuatfGeomParam(geom_props, "rotations", 0);
-				m_param_colors = IV3fGeomParam(geom_props, "colors", 0);
-				m_param_times = IFloatGeomParam(geom_props, "times", 0);
-			}
+		IObject parent = abc_archive()->get_id_object((ID *)m_ob);
+		/* XXX non-escaped string construction here ... */
+		std::string curves_name = m_name + m_suffix;
+		if (parent && parent.getChild(curves_name)) {
+			m_curves = ICurves(parent, curves_name);
+			ICurvesSchema &schema = m_curves.getSchema();
+			ICompoundProperty geom_props = schema.getArbGeomParams();
+			
+			m_param_velocities = IV3fGeomParam(geom_props, "velocities", 0);
+			m_param_rotations = IQuatfGeomParam(geom_props, "rotations", 0);
+			m_param_colors = IV3fGeomParam(geom_props, "colors", 0);
+			m_param_times = IFloatGeomParam(geom_props, "times", 0);
 		}
 	}
 }
@@ -479,7 +481,7 @@ PTCReadSampleResult AbcParticlePathcacheReader::read_sample(float frame)
 	if (!(*m_pathcache))
 		return PTC_READ_SAMPLE_INVALID;
 	
-	if (!m_curves.valid())
+	if (!m_curves)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);

@@ -40,6 +40,7 @@ struct Object;
 struct Scene;
 struct EvaluationContext;
 struct ParticleSystem;
+struct DupliCache;
 
 struct ClothModifierData;
 
@@ -101,11 +102,12 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 typedef struct CacheLibraryWriterLink {
 	struct CacheLibraryWriterLink *next, *prev;
 	
-	struct CacheItem *item;
 	struct PTCWriter *writer;
+	
+	struct Object *ob; /* optional: object to construct render DM */
 } CacheLibraryWriterLink;
 
-void BKE_cache_library_writers(struct CacheLibrary *cachelib, struct Scene *scene, struct DerivedMesh **render_dm_ptr, struct ListBase *writers);
+void BKE_cache_library_writers(struct Main *bmain, struct CacheLibrary *cachelib, struct Scene *scene, struct DerivedMesh **render_dm_ptr, struct ListBase *writers);
 struct PTCWriterArchive *BKE_cache_library_writers_open_archive(struct Scene *scene, struct CacheLibrary *cachelib, struct ListBase *writers);
 void BKE_cache_library_writers_free(struct PTCWriterArchive *archive, struct ListBase *writers);
 
@@ -129,5 +131,7 @@ bool BKE_cache_read_particles_pathcache_parents(struct Main *bmain, struct Scene
                                                 struct Object *ob, struct ParticleSystem *psys);
 bool BKE_cache_read_particles_pathcache_children(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
                                                  struct Object *ob, struct ParticleSystem *psys);
+
+bool BKE_cache_read_dupligroup(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode, struct Group *dupgroup, struct DupliCache *dupcache);
 
 #endif
