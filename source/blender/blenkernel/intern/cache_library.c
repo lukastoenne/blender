@@ -697,10 +697,34 @@ BLI_INLINE int cache_required_mode(CacheLibrary *cachelib)
 }
 #endif
 
-void BKE_cache_library_writers(Main *bmain, CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers)
+static void cache_library_object_writers(CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers, Object *ob)
 {
 	const eCacheLibrary_EvalMode eval_mode = cachelib->eval_mode;
-	const int required_mode = cache_required_mode(cachelib);
+	CacheItem *item;
+	char name[2*MAX_NAME];
+	
+	if ((item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_OBJECT, -1))) {
+		cachelib_add_writer(writers, PTC_writer_object(ob->id.name, ob), ob);
+	}
+	
+	if ((item = BKE_cache_library_find_item(cachelib, ob, CACHE_TYPE_DERIVED_MESH, -1))) {
+		BKE_cache_item_name(item->ob, item->type, item->index, name);
+		
+		if (ob->type == OB_MESH) {
+			switch (eval_mode) {
+				case CACHE_LIBRARY_EVAL_VIEWPORT:
+					cachelib_add_writer(writers, PTC_writer_derived_final_realtime(name, ob), ob);
+					break;
+				case CACHE_LIBRARY_EVAL_RENDER:
+					cachelib_add_writer(writers, PTC_writer_derived_final_render(name, scene, ob, render_dm_ptr), ob);
+					break;
+			}
+		}
+	}
+}
+
+void BKE_cache_library_writers(Main *bmain, CacheLibrary *cachelib, Scene *scene, DerivedMesh **render_dm_ptr, ListBase *writers)
+{
 	Group *cache_group = cachelib->group;
 	
 	BLI_listbase_clear(writers);
@@ -719,8 +743,10 @@ void BKE_cache_library_writers(Main *bmain, CacheLibrary *cachelib, Scene *scene
 	{
 		Object *ob;
 		for (ob = bmain->object.first; ob; ob = ob->id.next) {
-			if (ob->id.flag & LIB_DOIT)
-				cachelib_add_writer(writers, PTC_writer_object(ob->id.name, ob), ob);
+			if (!(ob->id.flag & LIB_DOIT))
+				continue;
+			
+			cache_library_object_writers(cachelib, scene, render_dm_ptr, writers, ob);
 		}
 	}
 	
@@ -728,8 +754,14 @@ void BKE_cache_library_writers(Main *bmain, CacheLibrary *cachelib, Scene *scene
 	{
 		Group *group;
 		for (group = bmain->group.first; group; group = group->id.next) {
-			if (group->id.flag & LIB_DOIT)
-				cachelib_add_writer(writers, PTC_writer_group(group->id.name, group), NULL);
+			if (!(group->id.flag & LIB_DOIT))
+				continue;
+			
+			/* Note: we don't explicitly enable groups as cache items.
+			 * They only store a list of object references which does not contain much data
+			 * and contains only objects that are themselves enabled.
+			 */
+			cachelib_add_writer(writers, PTC_writer_group(group->id.name, group), NULL);
 		}
 	}
 	
