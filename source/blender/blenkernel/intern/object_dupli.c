@@ -1362,10 +1362,11 @@ void BKE_object_dupli_cache_clear(Object *ob)
 	}
 }
 
-DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, DerivedMesh *dm)
+DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, Object *ob, DerivedMesh *dm)
 {
 	DupliObjectData *data = dupli_cache_add_object_data(dupcache);
 	
+	data->ob = ob;
 	data->cache_dm = dm;
 	
 	return data;
@@ -1378,7 +1379,7 @@ void BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], Dupli
 	/* data must have been created correctly */
 	BLI_assert(dupli_cache_contains_object_data(dupcache, data));
 	
-	dob->ob = NULL;
+	dob->ob = data->ob;
 	copy_m4_m4(dob->mat, obmat);
 	
 	dob->data = data;

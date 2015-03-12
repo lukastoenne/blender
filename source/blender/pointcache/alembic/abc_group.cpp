@@ -32,7 +32,9 @@ extern "C" {
 #include "DNA_object_types.h"
 
 #include "BKE_anim.h"
+#include "BKE_global.h"
 #include "BKE_group.h"
+#include "BKE_library.h"
 }
 
 namespace PTC {
@@ -120,8 +122,8 @@ struct DupliGroupContext {
 	};
 	typedef std::vector<Transform> TransformStack;
 	
-	DupliMap dupli_map;
-	DupliCache *dupli_cache;
+	typedef std::map<std::string, Object*> ObjectMap;
+	typedef std::pair<std::string, Object*> ObjectPair;
 	
 	/* constructor */
 	DupliGroupContext(DupliCache *dupli_cache) :
@@ -129,6 +131,7 @@ struct DupliGroupContext {
 	{
 		tfm_stack.push_back(Transform(I));
 	}
+	
 	
 	DupliObjectData *find_dupli_data(ObjectReaderPtr ptr) const
 	{
@@ -144,10 +147,55 @@ struct DupliGroupContext {
 		dupli_map.insert(DupliPair(ptr, data));
 	}
 	
-	TransformStack tfm_stack;
 	
 	MatrixPtr get_transform() { return tfm_stack.back().matrix; }
 //	void push_transform(float mat[4][4])
+	
+	
+	void build_object_map(Main *bmain, Group *group)
+	{
+		BKE_main_id_tag_idcode(bmain, ID_OB, false);
+		BKE_main_id_tag_idcode(bmain, ID_GR, false);
+		object_map.clear();
+		
+		build_object_map_add_group(group);
+	}
+	
+	Object *find_object(const std::string &name) const
+	{
+		ObjectMap::const_iterator it = object_map.find(name);
+		if (it == object_map.end())
+			return NULL;
+		else
+			return it->second;
+	}
+	
+	DupliMap dupli_map;
+	DupliCache *dupli_cache;
+	
+	TransformStack tfm_stack;
+	
+	ObjectMap object_map;
+	
+protected:
+	void build_object_map_add_group(Group *group)
+	{
+		if (group->id.flag & LIB_DOIT)
+			return;
+		group->id.flag |= LIB_DOIT;
+		
+		for (GroupObject *gob = (GroupObject *)group->gobject.first; gob; gob = gob->next) {
+			Object *ob = gob->ob;
+			if (ob->id.flag & LIB_DOIT)
+				continue;
+			ob->id.flag |= LIB_DOIT;
+			object_map.insert(ObjectPair(ob->id.name, ob));
+			
+			if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+				build_object_map_add_group(ob->dup_group);
+			}
+		}
+	}
 };
 
 static void read_dupligroup_object(DupliGroupContext &ctx, IObject object, float frame)
@@ -157,9 +205,13 @@ static void read_dupligroup_object(DupliGroupContext &ctx, IObject object, float
 		if (object.isInstanceDescendant())
 			return;
 		
+		Object *b_ob = ctx.find_object(object.getName());
+		if (!b_ob)
+			return;
+		
 		/* TODO load DM, from subobjects for IPolyMesh etc. */
 		DerivedMesh *dm = NULL;
-		DupliObjectData *data = BKE_dupli_cache_add_mesh(ctx.dupli_cache, dm);
+		DupliObjectData *data = BKE_dupli_cache_add_mesh(ctx.dupli_cache, b_ob, dm);
 		ctx.insert_dupli_data(object.getPtr(), data);
 	}
 }
@@ -198,6 +250,12 @@ PTCReadSampleResult abc_read_dupligroup(ReaderArchive *_archive, float frame, Gr
 {
 	AbcReaderArchive *archive = (AbcReaderArchive *)_archive;
 	DupliGroupContext ctx(dupcache);
+	
+	/* XXX this mapping allows fast lookup of existing objects in Blender data
+	 * to associate with duplis. Later i may be possible to create instances of
+	 * non-DNA data, but for the time being this is a requirement due to other code parts (drawing, rendering)
+	 */
+	ctx.build_object_map(G.main, dupgroup);
 	
 	IObject top = archive->archive.getTop();
 	size_t num_child = top.getNumChildren();

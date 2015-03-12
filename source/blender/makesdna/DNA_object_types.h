@@ -336,6 +336,11 @@ typedef struct DupliObject {
 
 /* data that can be shared by multiple DupliObject instances */
 typedef struct DupliObjectData {
+	/* XXX eventually it should be possible to construct dupli instances
+	 * entirely without Objects in the DNA, but current drawing code and
+	 * others make this too difficult
+	 */
+	struct Object *ob;
 	struct DerivedMesh *cache_dm;
 } DupliObjectData;
 
