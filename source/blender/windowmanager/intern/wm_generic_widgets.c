@@ -657,7 +657,9 @@ static void rect_transform_draw_corners(rctf *r, float offsetx, float offsety)
 static void rect_transform_draw_interaction(int highlighted, float half_w, float half_h, float w, float h)
 {
 	float verts[4][2];
+#if 0
 	unsigned short elems[4] = {0, 1, 3, 2};
+#endif
 	
 	switch (highlighted) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
