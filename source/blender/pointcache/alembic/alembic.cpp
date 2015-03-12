@@ -150,6 +150,11 @@ class AbcFactory : public Factory {
 	{
 		return new AbcCacheModifierRenderWriter(name, scene, ob, cmd);
 	}
+	
+	PTCReadSampleResult read_dupligroup(ReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache)
+	{
+		return abc_read_dupligroup(archive, frame, dupgroup, dupcache);
+	}
 };
 
 }

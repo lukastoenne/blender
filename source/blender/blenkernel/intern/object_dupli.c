@@ -1241,29 +1241,28 @@ int count_duplilist(Object *ob)
 }
 
 /* ------------------------------------------------------------------------- */
+
+
+
 typedef struct DupliCache {
-#if 0
-	/* XXX ghash implementation later, for now listbase is easier */
 	struct GHash *ghash;
-#else
+	
 	ListBase duplilist;
-#endif
 } DupliCache;
+
+static void dupli_object_data_free(DupliObjectData *data)
+{
+	if (data->cache_dm)
+		data->cache_dm->release(data->cache_dm);
+	
+	MEM_freeN(data);
+}
 
 static void dupli_object_free(DupliObject *dob)
 {
-	if (dob->cache_dm)
-		dob->cache_dm->release(dob->cache_dm);
-	
 	MEM_freeN(dob);
 }
 
-#if 0
-static void dupli_cache_clear(DupliCache *dupcache)
-{
-	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_free);
-}
-#else
 static void dupli_cache_clear(DupliCache *dupcache)
 {
 	DupliObject *dob, *dob_next;
@@ -1273,10 +1272,41 @@ static void dupli_cache_clear(DupliCache *dupcache)
 		dupli_object_free(dob);
 	}
 	BLI_listbase_clear(&dupcache->duplilist);
+	
+	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
 }
-#endif
 
-static DupliObject *dupli_cache_push(DupliCache *dupcache)
+static void dupli_cache_free(DupliCache *dupcache)
+{
+	dupli_cache_clear(dupcache);
+	
+	BLI_ghash_free(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
+	MEM_freeN(dupcache);
+}
+
+static DupliCache *dupli_cache_new(void)
+{
+	DupliCache *dupcache = MEM_callocN(sizeof(DupliCache), "dupli object cache");
+	
+	dupcache->ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "dupli object data hash");
+	
+	return dupcache;
+}
+
+static DupliObjectData *dupli_cache_add_object_data(DupliCache *dupcache)
+{
+	DupliObjectData *data = MEM_callocN(sizeof(DupliObjectData), "dupli object data");
+	
+	BLI_ghash_insert(dupcache->ghash, data, data);
+	return data;
+}
+
+static bool dupli_cache_contains_object_data(DupliCache *dupcache, DupliObjectData *data)
+{
+	return BLI_ghash_lookup(dupcache->ghash, data) != NULL;
+}
+
+static DupliObject *dupli_cache_add_object(DupliCache *dupcache)
 {
 	DupliObject *dob = MEM_callocN(sizeof(DupliObject), "dupli object");
 	
@@ -1296,7 +1326,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			dupli_cache_clear(ob->dup_cache);
 		}
 		else {
-			ob->dup_cache = MEM_callocN(sizeof(DupliCache), "dupli object cache");
+			ob->dup_cache = dupli_cache_new();
 		}
 		
 #if 0
@@ -1327,8 +1357,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 	}
 	else {
 		if (ob->dup_cache) {
-			dupli_cache_clear(ob->dup_cache);
-			MEM_freeN(ob->dup_cache);
+			dupli_cache_free(ob->dup_cache);
 			ob->dup_cache = NULL;
 		}
 	}
@@ -1341,14 +1370,26 @@ void BKE_object_dupli_cache_clear(Object *ob)
 	}
 }
 
-void BKE_dupli_cache_add_mesh(DupliCache *dupcache, float obmat[4][4], DerivedMesh *dm)
+DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, DerivedMesh *dm)
 {
-	DupliObject *dob = dupli_cache_push(dupcache);
+	DupliObjectData *data = dupli_cache_add_object_data(dupcache);
+	
+	data->cache_dm = dm;
+	
+	return data;
+}
+
+void BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], DupliObjectData *data)
+{
+	DupliObject *dob = dupli_cache_add_object(dupcache);
+	
+	/* data must have been created correctly */
+	BLI_assert(dupli_cache_contains_object_data(dupcache, data));
 	
 	dob->ob = NULL;
 	copy_m4_m4(dob->mat, obmat);
 	
-	dob->cache_dm = dm;
+	dob->data = data;
 }
 
 /* ------------------------------------------------------------------------- */

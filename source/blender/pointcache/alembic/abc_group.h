@@ -28,6 +28,7 @@
 #include "abc_schema.h"
 #include "abc_writer.h"
 
+struct DupliCache;
 struct Group;
 
 namespace PTC {
@@ -56,6 +57,8 @@ public:
 private:
 	Abc::IObject m_abc_object;
 };
+
+PTCReadSampleResult abc_read_dupligroup(ReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache);
 
 } /* namespace PTC */
 
