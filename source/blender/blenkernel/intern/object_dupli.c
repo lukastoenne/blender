@@ -1184,26 +1184,24 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 /* ---- ListBase dupli container implementation ---- */
 
 /* Returns a list of DupliObject */
-ListBase *object_duplilist_ex(EvaluationContext *UNUSED(eval_ctx), Scene *UNUSED(scene), Object *ob, bool UNUSED(update))
+ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
-#if 0
-	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
-	DupliContext ctx;
-	init_context(&ctx, eval_ctx, scene, ob, NULL, update);
-	if (ctx.gen) {
-		ctx.duplilist = duplilist;
-		ctx.gen->make_duplis(&ctx);
-	}
-	return duplilist;
-#else
 	if (ob->dup_cache) {
-		return &ob->dup_cache->duplilist;
+		/* XXX current use of duplilist expects a one-time list copy */
+		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		BLI_duplicatelist(duplilist, &ob->dup_cache->duplilist);
+		return duplilist;
 	}
 	else {
-		static ListBase list_null = {NULL, NULL};
-		return &list_null;
+		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		DupliContext ctx;
+		init_context(&ctx, eval_ctx, scene, ob, NULL, update);
+		if (ctx.gen) {
+			ctx.duplilist = duplilist;
+			ctx.gen->make_duplis(&ctx);
+		}
+		return duplilist;
 	}
-#endif
 }
 
 /* note: previously updating was always done, this is why it defaults to be on
@@ -1213,12 +1211,10 @@ ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 	return object_duplilist_ex(eval_ctx, sce, ob, true);
 }
 
-void free_object_duplilist(ListBase *UNUSED(lb))
+void free_object_duplilist(ListBase *lb)
 {
-#if 0
 	BLI_freelistN(lb);
 	MEM_freeN(lb);
-#endif
 }
 
 int count_duplilist(Object *ob)
@@ -1321,9 +1317,12 @@ static DupliObject *dupli_cache_add_object(DupliCache *dupcache)
 
 void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *eval_ctx)
 {
+	const eCacheLibrary_EvalMode eval_mode = eval_ctx->mode == DAG_EVAL_RENDER ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
+	Main *bmain = G.main;
 	
 	/* cache is a group duplicator feature only */
-	if (ob->dup_group) {
+	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group &&
+	    BKE_cache_test_dupligroup(bmain, eval_mode, ob->dup_group)) {
 		
 		if (ob->dup_cache) {
 			dupli_cache_clear(ob->dup_cache);
@@ -1332,29 +1331,11 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			ob->dup_cache = dupli_cache_new();
 		}
 		
-#if 0
-		/* XXX object_duplilist_ex allocates a ListBase, no need to make it complicated though ... */
 		{
-			ListBase *lb = object_duplilist_ex(eval_ctx, scene, ob, true);
-			ob->dup_cache->duplilist = *lb;
-			MEM_freeN(lb);
-		}
-#endif
-		
-		{
-			const eCacheLibrary_EvalMode eval_mode = eval_ctx->mode == DAG_EVAL_RENDER ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 			/* TODO at this point we could apply animation offset */
 			float frame = (float)scene->r.cfra;
 			
-			BKE_cache_read_dupligroup(G.main, scene, frame, eval_mode, ob->dup_group, ob->dup_cache);
-			
-#if 0
-			DupliObject *dob;
-			
-			for (dob = ob->dup_cache->duplilist.first; dob; dob = dob->next) {
-				BKE_cache_read_derived_mesh(G.main, scene, frame, eval_mode, dob->ob, &dob->cache_dm);
-			}
-#endif
+			BKE_cache_read_dupligroup(bmain, scene, frame, eval_mode, ob->dup_group, ob->dup_cache);
 		}
 	
 	}

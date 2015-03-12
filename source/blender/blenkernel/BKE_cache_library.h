@@ -132,6 +132,7 @@ bool BKE_cache_read_particles_pathcache_parents(struct Main *bmain, struct Scene
 bool BKE_cache_read_particles_pathcache_children(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
                                                  struct Object *ob, struct ParticleSystem *psys);
 
+bool BKE_cache_test_dupligroup(struct Main *bmain, eCacheLibrary_EvalMode eval_mode, struct Group *dupgroup);
 bool BKE_cache_read_dupligroup(struct Main *bmain, struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode, struct Group *dupgroup, struct DupliCache *dupcache);
 
 #endif
