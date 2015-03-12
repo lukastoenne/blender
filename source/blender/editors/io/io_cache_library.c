@@ -45,6 +45,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_depsgraph.h"
 #include "BKE_cache_library.h"
 #include "BKE_context.h"
@@ -572,4 +573,44 @@ void CACHELIBRARY_OT_archive_info(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_stdout", false, "Use stdout", "Print info in standard output");
 	RNA_def_boolean(ot->srna, "use_popup", false, "Show Popup", "Display archive info in a popup");
 	RNA_def_boolean(ot->srna, "use_clipboard", false, "Copy to Clipboard", "Copy archive info to the clipboard");
+}
+
+/* ========================================================================= */
+
+static int cache_library_rebuild_dupligroup_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	
+	if (!(ob && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group))
+		return false;
+	
+	return true;
+}
+
+static int cache_library_rebuild_dupligroup_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	EvaluationContext eval_ctx;
+	
+	eval_ctx.mode = DAG_EVAL_VIEWPORT;
+	
+	BKE_object_dupli_cache_update(scene, ob, &eval_ctx);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_rebuild_dupligroup(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Rebuild Dupligroup";
+	ot->description = "Explicitly rebuild dupligroup from cache";
+	ot->idname = "CACHELIBRARY_OT_rebuild_dupligroup";
+	
+	/* api callbacks */
+	ot->exec = cache_library_rebuild_dupligroup_exec;
+	ot->poll = cache_library_rebuild_dupligroup_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER;
 }
