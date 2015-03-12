@@ -32,15 +32,14 @@ struct ListBase;
 struct PointerRNA;
 struct ReportList;
 
+struct DupliCache;
 struct ClothModifierData;
 struct DerivedMesh;
-struct DynamicPaintSurface;
+struct Group;
 struct ModifierData;
 struct Object;
 struct ParticleSystem;
 struct CacheModifierData;
-struct RigidBodyWorld;
-struct SmokeDomainSettings;
 struct SoftBody;
 
 struct PTCWriterArchive;
@@ -85,6 +84,8 @@ PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
 PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
 char *PTC_get_archive_info(struct PTCReaderArchive *archive);
+
+PTCReadSampleResult PTC_read_dupligroup(struct PTCReaderArchive *archive, float frame, struct Group *dupgroup, struct DupliCache *dupcache);
 
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);

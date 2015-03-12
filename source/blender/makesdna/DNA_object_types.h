@@ -331,8 +331,13 @@ typedef struct DupliObject {
 	/* particle this dupli was generated from */
 	struct ParticleSystem *particle_system;
 	
-	struct DerivedMesh *cache_dm;
+	struct DupliObjectData *data;
 } DupliObject;
+
+/* data that can be shared by multiple DupliObject instances */
+typedef struct DupliObjectData {
+	struct DerivedMesh *cache_dm;
+} DupliObjectData;
 
 /* **************** OBJECT ********************* */
 

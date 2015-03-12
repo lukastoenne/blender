@@ -5047,6 +5047,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 	/* do it here, below old data gets converted */
 	direct_link_modifiers(fd, &ob->modifiers);
 	
+	ob->dup_cache = NULL;
+	
 	link_list(fd, &ob->effect);
 	paf= ob->effect.first;
 	while (paf) {

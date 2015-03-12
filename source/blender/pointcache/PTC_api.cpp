@@ -201,6 +201,12 @@ char *PTC_get_archive_info(PTCReaderArchive *_archive)
 }
 
 
+PTCReadSampleResult PTC_read_dupligroup(PTCReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache)
+{
+	return PTC::Factory::alembic->read_dupligroup((PTC::ReaderArchive *)archive, frame, dupgroup, dupcache);
+}
+
+
 /* get writer/reader from RNA type */
 PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 {
