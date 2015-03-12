@@ -43,6 +43,7 @@ void ED_operatortypes_io(void)
 	WM_operatortype_append(CACHELIBRARY_OT_delete);
 	WM_operatortype_append(CACHELIBRARY_OT_item_enable);
 	WM_operatortype_append(CACHELIBRARY_OT_bake);
+	WM_operatortype_append(CACHELIBRARY_OT_rebuild_dupligroup);
 	WM_operatortype_append(CACHELIBRARY_OT_archive_info);
 
 #ifdef WITH_COLLADA
