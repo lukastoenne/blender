@@ -1242,14 +1242,6 @@ int count_duplilist(Object *ob)
 
 /* ------------------------------------------------------------------------- */
 
-
-
-typedef struct DupliCache {
-	struct GHash *ghash;
-	
-	ListBase duplilist;
-} DupliCache;
-
 static void dupli_object_data_free(DupliObjectData *data)
 {
 	if (data->cache_dm)
