@@ -79,7 +79,7 @@ int count_duplilist(struct Object *ob);
 void BKE_object_dupli_cache_update(struct Scene *scene, struct Object *ob, struct EvaluationContext *eval_ctx);
 void BKE_object_dupli_cache_clear(struct Object *ob);
 
-struct DupliObjectData *BKE_dupli_cache_add_mesh(struct DupliCache *dupcache, struct DerivedMesh *dm);
+struct DupliObjectData *BKE_dupli_cache_add_mesh(struct DupliCache *dupcache, struct Object *ob, struct DerivedMesh *dm);
 void BKE_dupli_cache_add_instance(struct DupliCache *dupcache, float obmat[4][4], struct DupliObjectData *data);
 
 typedef struct DupliExtraData {
