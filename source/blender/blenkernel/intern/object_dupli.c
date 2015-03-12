@@ -1184,8 +1184,9 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 /* ---- ListBase dupli container implementation ---- */
 
 /* Returns a list of DupliObject */
-ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+ListBase *object_duplilist_ex(EvaluationContext *UNUSED(eval_ctx), Scene *UNUSED(scene), Object *ob, bool UNUSED(update))
 {
+#if 0
 	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
 	DupliContext ctx;
 	init_context(&ctx, eval_ctx, scene, ob, NULL, update);
@@ -1193,8 +1194,16 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 		ctx.duplilist = duplilist;
 		ctx.gen->make_duplis(&ctx);
 	}
-
 	return duplilist;
+#else
+	if (ob->dup_cache) {
+		return &ob->dup_cache->duplilist;
+	}
+	else {
+		static ListBase list_null = {NULL, NULL};
+		return &list_null;
+	}
+#endif
 }
 
 /* note: previously updating was always done, this is why it defaults to be on
@@ -1204,10 +1213,12 @@ ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 	return object_duplilist_ex(eval_ctx, sce, ob, true);
 }
 
-void free_object_duplilist(ListBase *lb)
+void free_object_duplilist(ListBase *UNUSED(lb))
 {
+#if 0
 	BLI_freelistN(lb);
 	MEM_freeN(lb);
+#endif
 }
 
 int count_duplilist(Object *ob)
