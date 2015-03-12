@@ -349,6 +349,12 @@ typedef struct DupliObjectData {
 	struct DerivedMesh *cache_dm;
 } DupliObjectData;
 
+typedef struct DupliCache {
+	struct GHash *ghash;
+	
+	ListBase duplilist;
+} DupliCache;
+
 /* **************** OBJECT ********************* */
 
 /* used many places... should be specialized  */
