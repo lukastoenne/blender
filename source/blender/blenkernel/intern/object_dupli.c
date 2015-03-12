@@ -1186,6 +1186,18 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 /* Returns a list of DupliObject */
 ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
+	/* XXX Warning: this could potentially lead to a lot of unnecessary cache reading!
+	 * In the future proper depsgraph integration of dupli cache updates would be desirable.
+	 */
+#if 0
+	if (update) {
+		if (G.debug & G_DEBUG)
+			printf("Update dupli cache for object '%s'\n", ob->id.name+2);
+		
+		BKE_object_dupli_cache_update(scene, ob, eval_ctx);
+	}
+#endif
+	
 	if (ob->dup_cache) {
 		/* XXX current use of duplilist expects a one-time list copy */
 		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
