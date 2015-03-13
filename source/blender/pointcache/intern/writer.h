@@ -60,7 +60,6 @@ protected:
 	std::string m_name;
 	ID *m_id;
 	
-private:
 	WriterArchive *m_archive;
 };
 

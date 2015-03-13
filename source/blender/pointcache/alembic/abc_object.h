@@ -39,7 +39,9 @@ public:
 	AbcObjectWriter(const std::string &name, Object *ob);
 	
 	void open_archive(WriterArchive *archive);
+#if 0
 	void create_refs();
+#endif
 	
 	void write_sample();
 	

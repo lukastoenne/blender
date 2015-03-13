@@ -46,6 +46,7 @@ void AbcObjectWriter::open_archive(WriterArchive *archive)
 	}
 }
 
+#if 0
 void AbcObjectWriter::create_refs()
 {
 	if ((m_ob->transflag & OB_DUPLIGROUP) && m_ob->dup_group) {
@@ -54,11 +55,14 @@ void AbcObjectWriter::create_refs()
 			m_abc_object.addChildInstance(abc_group, "dup_group");
 	}
 }
+#endif
 
 void AbcObjectWriter::write_sample()
 {
-	if (!abc_archive()->archive)
+	if (!m_abc_object)
 		return;
+	
+	// TODO mesh, modifiers, sims ...
 }
 
 
