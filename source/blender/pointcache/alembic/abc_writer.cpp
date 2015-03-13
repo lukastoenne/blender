@@ -71,8 +71,19 @@ OObject AbcWriterArchive::get_id_object(ID *id)
 	if (!archive)
 		return OObject();
 	
-	OObject root = archive.getTop();
-	return root.getChild(id->name);
+	ObjectWriterPtr root = archive.getTop().getPtr();
+	
+	ObjectWriterPtr child = root->getChild(id->name);
+	if (child)
+		return OObject(child, kWrapExisting);
+	else {
+		const ObjectHeader *child_header = root->getChildHeader(id->name);
+		if (child_header)
+			return OObject(root->createChild(*child_header), kWrapExisting);
+		else {
+			return OObject();
+		}
+	}
 }
 
 bool AbcWriterArchive::has_id_object(ID *id)
@@ -80,8 +91,9 @@ bool AbcWriterArchive::has_id_object(ID *id)
 	if (!archive)
 		return false;
 	
-	OObject root = archive.getTop();
-	return root.getChild(id->name).valid();
+	ObjectWriterPtr root = archive.getTop().getPtr();
+	
+	return root->getChildHeader(id->name) != NULL;
 }
 
 TimeSamplingPtr AbcWriterArchive::frame_sampling()

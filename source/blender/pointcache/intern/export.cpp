@@ -19,6 +19,8 @@
 #include "export.h"
 #include "writer.h"
 
+#include "PTC_api.h"
+
 extern "C" {
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
@@ -46,6 +48,24 @@ Exporter::Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short 
 {
 }
 
+#if 1
+void Exporter::bake(PTCWriter *writer, int start_frame, int end_frame)
+{
+	set_progress(0.0f);
+	
+	for (int cfra = start_frame; cfra <= end_frame; ++cfra) {
+		m_scene->r.cfra = cfra;
+		BKE_scene_update_for_newframe(m_evalctx, m_bmain, m_scene, m_scene->lay);
+		
+		PTC_write_sample(writer);
+		
+		set_progress((float)(cfra - start_frame + 1) / (float)(end_frame - start_frame + 1));
+		
+		if (stop())
+			break;
+	}
+}
+#else
 void Exporter::set_bake_object(Object *ob, DerivedMesh **render_dm_ptr, CacheModifierData **cachemd_ptr)
 {
 	const bool use_render = (m_evalctx->mode == DAG_EVAL_RENDER);
@@ -132,6 +152,7 @@ void Exporter::bake(ListBase *writers, DerivedMesh **render_dm_ptr, int start_fr
 			break;
 	}
 }
+#endif
 
 bool Exporter::stop() const
 {

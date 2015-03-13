@@ -22,6 +22,7 @@
 #include <string>
 
 #include <Alembic/Abc/OArchive.h>
+#include <Alembic/Abc/OObject.h>
 
 #include "writer.h"
 
@@ -78,10 +79,24 @@ private:
 template <class OObjectT>
 OObjectT AbcWriterArchive::add_id_object(ID *id)
 {
+	using namespace Abc;
+	
 	if (!archive)
 		return OObjectT();
 	
-	return OObjectT(archive.getTop(), id->name, frame_sampling_index());
+	ObjectWriterPtr root = archive.getTop().getPtr();
+	
+	ObjectWriterPtr child = root->getChild(id->name);
+	if (child)
+		return OObjectT(child, kWrapExisting);
+	else {
+		const ObjectHeader *child_header = root->getChildHeader(id->name);
+		if (child_header)
+			return OObjectT(root->createChild(*child_header), kWrapExisting);
+		else {
+			return OObjectT(root, id->name, frame_sampling_index());
+		}
+	}
 }
 
 } /* namespace PTC */

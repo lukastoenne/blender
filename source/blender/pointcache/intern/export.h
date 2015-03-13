@@ -22,26 +22,33 @@
 struct Main;
 struct Scene;
 struct EvaluationContext;
+struct Group;
 struct Object;
 struct DerivedMesh;
 struct CacheModifierData;
 struct ListBase;
+struct PTCWriter;
 
 namespace PTC {
 
 class Writer;
+class WriterArchive;
 
 class Exporter
 {
 public:
 	Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short *stop, short *do_update, float *progress);
 	
+#if 1
+	void bake(PTCWriter *writer, int start_frame, int end_frame);
+#else
 	void bake(ListBase *writers, DerivedMesh **render_dm_ptr, int start_frame, int end_frame);
-
+#endif
+	
 	bool stop() const;
-
+	
 	void set_progress(float progress);
-
+	
 protected:
 	void set_bake_object(Object *ob, DerivedMesh **render_dm_ptr, CacheModifierData **cachemd_ptr);
 	void release_bake_object(DerivedMesh **render_dm_ptr, CacheModifierData *cachemd);

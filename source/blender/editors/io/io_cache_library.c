@@ -41,6 +41,7 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_cache_library_types.h"
+#include "DNA_group_types.h"
 #include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -238,10 +239,9 @@ typedef struct CacheLibraryBakeJob {
 	struct Scene *scene;
 	EvaluationContext eval_ctx;
 	struct CacheLibrary *cachelib;
-	struct DerivedMesh *render_dm; /* temporary render_dm pointer, not stored in Object */
 	
 	struct PTCWriterArchive *archive;
-	ListBase writers;
+	struct PTCWriter *writer;
 	
 	int origfra;                            /* original frame to reset scene after export */
 	float origframelen;                     /* original frame length to reset scene after export */
@@ -258,6 +258,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
 	Scene *scene = data->scene;
 	int start_frame, end_frame;
+	char filename[FILE_MAX];
 	
 	data->stop = stop;
 	data->do_update = do_update;
@@ -277,15 +278,18 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	/* disable reading for the duration of the bake process */
 	data->cachelib->flag &= ~CACHE_LIBRARY_READ;
 	
-	BKE_cache_library_writers(G.main, data->cachelib, scene, &data->render_dm, &data->writers);
-	data->archive = BKE_cache_library_writers_open_archive(scene, data->cachelib, &data->writers);
+	BKE_cache_archive_path(data->cachelib->filepath, (ID *)data->cachelib, data->cachelib->id.lib, filename, sizeof(filename));
+	data->archive = PTC_open_writer_archive(scene, filename);
+	
+	data->writer = PTC_writer_dupligroup(data->cachelib->group->id.name, &data->eval_ctx, scene, data->cachelib->group);
+	PTC_writer_set_archive(data->writer, data->archive);
 	
 	G.is_break = false;
 	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
-	PTC_bake(data->bmain, scene, &data->eval_ctx, &data->writers, &data->render_dm, start_frame, end_frame, stop, do_update, progress);
+	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
 	
 	*do_update = true;
 	*stop = 0;
@@ -299,7 +303,10 @@ static void cache_library_bake_endjob(void *customdata)
 	G.is_rendering = false;
 	BKE_spacedata_draw_locks(false);
 	
-	BKE_cache_library_writers_free(data->archive, &data->writers);
+	if (data->writer)
+		PTC_writer_free(data->writer);
+	if (data->archive)
+		PTC_close_writer_archive(data->archive);
 	
 	/* enable reading */
 	data->cachelib->flag |= CACHE_LIBRARY_READ;
