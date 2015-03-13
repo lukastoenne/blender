@@ -66,7 +66,11 @@ class AbcDupligroupWriter : public GroupWriter, public AbcWriter {
 public:
 	typedef std::vector<Abc::ObjectWriterPtr> WriterList;
 	
+	typedef std::map<ID*, Writer*> IDWriterMap;
+	typedef std::pair<ID*, Writer*> IDWriterPair;
+	
 	AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group);
+	~AbcDupligroupWriter();
 	
 	void open_archive(WriterArchive *archive);
 	
@@ -74,12 +78,15 @@ public:
 	void write_sample_object(Object *ob);
 	void write_sample_dupli(DupliObject *dob, int index);
 	
+	Writer *find_id_writer(ID *id) const;
+	
 private:
 	EvaluationContext *m_eval_ctx;
 	Scene *m_scene;
 	
 	Abc::OObject m_abc_group;
 	WriterList m_writers;
+	IDWriterMap m_id_writers;
 };
 
 PTCReadSampleResult abc_read_dupligroup(ReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache);

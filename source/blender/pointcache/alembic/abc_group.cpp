@@ -24,6 +24,7 @@
 
 #include "abc_mesh.h"
 #include "abc_group.h"
+#include "abc_object.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -110,6 +111,14 @@ AbcDupligroupWriter::AbcDupligroupWriter(const std::string &name, EvaluationCont
 {
 }
 
+AbcDupligroupWriter::~AbcDupligroupWriter()
+{
+	for (IDWriterMap::iterator it = m_id_writers.begin(); it != m_id_writers.end(); ++it) {
+		if (it->second)
+			delete it->second;
+	}
+}
+
 void AbcDupligroupWriter::open_archive(WriterArchive *archive)
 {
 	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
@@ -122,10 +131,14 @@ void AbcDupligroupWriter::open_archive(WriterArchive *archive)
 
 void AbcDupligroupWriter::write_sample_object(Object *ob)
 {
-	OObject abc_object = abc_archive()->add_id_object<OObject>((ID *)ob);
-	m_writers.push_back(abc_object.getPtr());
+	Writer *ob_writer = find_id_writer((ID *)ob);
+	if (!ob_writer) {
+		ob_writer = new AbcObjectWriter(ob->id.name, ob);
+		ob_writer->set_archive(m_archive);
+		m_id_writers.insert(IDWriterPair((ID *)ob, ob_writer));
+	}
 	
-	// TODO mesh, modifiers, sims ...
+	ob_writer->write_sample();
 }
 
 void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
@@ -179,6 +192,15 @@ void AbcDupligroupWriter::write_sample()
 	}
 	
 	free_object_duplilist(duplilist);
+}
+
+Writer *AbcDupligroupWriter::find_id_writer(ID *id) const
+{
+	IDWriterMap::const_iterator it = m_id_writers.find(id);
+	if (it == m_id_writers.end())
+		return NULL;
+	else
+		return it->second;
 }
 
 /* ------------------------------------------------------------------------- */
