@@ -99,7 +99,7 @@ typedef struct DupliGenerator {
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
 
 /* create initial context for root object */
-static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene *scene, Object *ob, float space_mat[4][4], bool update)
+static void init_context_ex(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene *scene, Object *ob, float space_mat[4][4], const DupliGenerator *gen, bool update)
 {
 	r_ctx->eval_ctx = eval_ctx;
 	r_ctx->scene = scene;
@@ -113,12 +113,17 @@ static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene
 		copy_m4_m4(r_ctx->space_mat, space_mat);
 	else
 		unit_m4(r_ctx->space_mat);
-	r_ctx->lay = ob->lay;
+	r_ctx->lay = ob ? ob->lay : 0;
 	r_ctx->level = 0;
 
-	r_ctx->gen = get_dupli_generator(r_ctx);
+	r_ctx->gen = gen ? gen : get_dupli_generator(r_ctx);
 
 	r_ctx->duplilist = NULL;
+}
+
+static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+{
+	init_context_ex(r_ctx, eval_ctx, scene, ob, NULL, NULL, update);
 }
 
 /* create sub-context for recursive duplis */
@@ -129,7 +134,7 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 	r_ctx->animated |= animated; /* object animation makes all children animated */
 
 	/* XXX annoying, previously was done by passing an ID* argument, this at least is more explicit */
-	if (ctx->gen->type == OB_DUPLIGROUP)
+	if (ctx->gen->type == OB_DUPLIGROUP && ctx->object)
 		r_ctx->group = ctx->object->dup_group;
 
 	r_ctx->object = ob;
@@ -222,7 +227,10 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 {
 	Object *parent = ctx->object;
 	Object *obedit = ctx->scene->obedit;
-
+	
+	if (!parent)
+		return;
+	
 	if (ctx->group) {
 		unsigned int lay = ctx->group->layer;
 		GroupObject *go;
@@ -258,67 +266,82 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 
 /*---- Implementations ----*/
 
-/* OB_DUPLIGROUP */
-static void make_duplis_group(const DupliContext *ctx)
+/* Intern function for creating instances of group content
+ * with or without a parent (parent == NULL is allowed!)
+ * Note: some of the group animation update functions use the parent object,
+ * but this is old NLA code that is currently disabled and might be removed entirely.
+ */
+static void make_duplis_group_intern(const DupliContext *ctx, Group *group, Object *parent)
 {
-	bool for_render = (ctx->eval_ctx->mode == DAG_EVAL_RENDER);
-	Object *ob = ctx->object;
-	Group *group;
+	const bool for_render = (ctx->eval_ctx->mode == DAG_EVAL_RENDER);
+	
 	GroupObject *go;
 	float group_mat[4][4];
 	int id;
-	bool animated, hide;
-
-	if (ob->dup_group == NULL) return;
-	group = ob->dup_group;
-
-	/* combine group offset and obmat */
+	bool animated;
+	
 	unit_m4(group_mat);
 	sub_v3_v3(group_mat[3], group->dupli_ofs);
-	mul_m4_m4m4(group_mat, ob->obmat, group_mat);
-	/* don't access 'ob->obmat' from now on. */
-
+	
+	if (parent) {
+		/* combine group offset and obmat */
+		mul_m4_m4m4(group_mat, parent->obmat, group_mat);
+		/* don't access 'parent->obmat' from now on. */
+	}
+	
 	/* handles animated groups */
-
+	
 	/* we need to check update for objects that are not in scene... */
 	if (ctx->do_update) {
 		/* note: update is optional because we don't always need object
 		 * transformations to be correct. Also fixes bug [#29616]. */
-		BKE_group_handle_recalc_and_update(ctx->eval_ctx, ctx->scene, ob, group);
+		BKE_group_handle_recalc_and_update(ctx->eval_ctx, ctx->scene, parent, group);
 	}
-
-	animated = BKE_group_is_animated(group, ob);
-
+	
+	animated = BKE_group_is_animated(group, parent);
+	
 	for (go = group->gobject.first, id = 0; go; go = go->next, id++) {
+		float mat[4][4];
+		bool hide;
+		
 		/* note, if you check on layer here, render goes wrong... it still deforms verts and uses parent imat */
-		if (go->ob != ob) {
-			float mat[4][4];
-
-			/* Special case for instancing dupli-groups, see: T40051
-			 * this object may be instanced via dupli-verts/faces, in this case we don't want to render
-			 * (blender convention), but _do_ show in the viewport.
-			 *
-			 * Regular objects work fine but not if we're instancing dupli-groups,
-			 * because the rules for rendering aren't applied to objects they instance.
-			 * We could recursively pass down the 'hide' flag instead, but that seems unnecessary.
-			 */
-			if (for_render && go->ob->parent && go->ob->parent->transflag & (OB_DUPLIVERTS | OB_DUPLIFACES)) {
-				continue;
-			}
-
-			/* group dupli offset, should apply after everything else */
-			mul_m4_m4m4(mat, group_mat, go->ob->obmat);
-
-			/* check the group instance and object layers match, also that the object visible flags are ok. */
-			hide = (go->ob->lay & group->layer) == 0 ||
-			       (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
-
-			make_dupli(ctx, go->ob, mat, id, animated, hide);
-
-			/* recursion */
-			make_recursive_duplis(ctx, go->ob, group_mat, id, animated);
+		if (go->ob == parent)
+			continue;
+		
+		/* Special case for instancing dupli-groups, see: T40051
+		 * this object may be instanced via dupli-verts/faces, in this case we don't want to render
+		 * (blender convention), but _do_ show in the viewport.
+		 *
+		 * Regular objects work fine but not if we're instancing dupli-groups,
+		 * because the rules for rendering aren't applied to objects they instance.
+		 * We could recursively pass down the 'hide' flag instead, but that seems unnecessary.
+		 */
+		if (for_render && go->ob->parent && go->ob->parent->transflag & (OB_DUPLIVERTS | OB_DUPLIFACES)) {
+			continue;
 		}
+		
+		/* group dupli offset, should apply after everything else */
+		mul_m4_m4m4(mat, group_mat, go->ob->obmat);
+		
+		/* check the group instance and object layers match, also that the object visible flags are ok. */
+		hide = (go->ob->lay & group->layer) == 0 ||
+		        (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
+		
+		make_dupli(ctx, go->ob, mat, id, animated, hide);
+		
+		/* recursion */
+		make_recursive_duplis(ctx, go->ob, group_mat, id, animated);
 	}
+}
+
+/* OB_DUPLIGROUP */
+static void make_duplis_group(const DupliContext *ctx)
+{
+	Object *ob = ctx->object;
+	if (!ob || !ob->dup_group)
+		return;
+	
+	make_duplis_group_intern(ctx, ob->dup_group, ob);
 }
 
 const DupliGenerator gen_dupli_group = {
@@ -334,8 +357,9 @@ static void make_duplis_frames(const DupliContext *ctx)
 	extern int enable_cu_speed; /* object.c */
 	Object copyob;
 	int cfrao = scene->r.cfra;
-	int dupend = ob->dupend;
 
+	if (!ob)
+		return;
 	/* dupliframes not supported inside groups */
 	if (ctx->group)
 		return;
@@ -344,7 +368,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 	 */
 	if (ob->parent == NULL && BLI_listbase_is_empty(&ob->constraints) && ob->adt == NULL)
 		return;
-
+	
 	/* make a copy of the object's original data (before any dupli-data overwrites it)
 	 * as we'll need this to keep track of unkeyed data
 	 *	- this doesn't take into account other data that can be reached from the object,
@@ -359,7 +383,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 	 * updates, as this is not a permanent change to the object */
 	ob->id.flag |= LIB_ANIM_NO_RECALC;
 
-	for (scene->r.cfra = ob->dupsta; scene->r.cfra <= dupend; scene->r.cfra++) {
+	for (scene->r.cfra = ob->dupsta; scene->r.cfra <= ob->dupend; scene->r.cfra++) {
 		int ok = 1;
 
 		/* - dupoff = how often a frames within the range shouldn't be made into duplis
@@ -515,6 +539,9 @@ static void make_duplis_verts(const DupliContext *ctx)
 	Object *parent = ctx->object;
 	bool use_texcoords = ELEM(ctx->eval_ctx->mode, DAG_EVAL_RENDER, DAG_EVAL_PREVIEW);
 	VertexDupliData vdd;
+	
+	if (!parent)
+		return;
 
 	vdd.ctx = ctx;
 	vdd.use_rotation = parent->transflag & OB_DUPLIROT;
@@ -595,6 +622,8 @@ static void make_duplis_font(const DupliContext *ctx)
 	const wchar_t *text = NULL;
 	bool text_free = false;
 
+	if (!par)
+		return;
 	/* font dupliverts not supported inside groups */
 	if (ctx->group)
 		return;
@@ -782,6 +811,9 @@ static void make_duplis_faces(const DupliContext *ctx)
 	bool use_texcoords = ELEM(ctx->eval_ctx->mode, DAG_EVAL_RENDER, DAG_EVAL_PREVIEW);
 	FaceDupliData fdd;
 
+	if (!parent)
+		return;
+
 	fdd.use_scale = ((parent->transflag & OB_DUPLIFACES_SCALE) != 0);
 
 	/* gather mesh info */
@@ -845,7 +877,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 	int no_draw_flag = PARS_UNEXIST;
 
-	if (psys == NULL) return;
+	if (!psys)
+		return;
 
 	part = psys->part;
 
@@ -1126,6 +1159,9 @@ static void make_duplis_particles(const DupliContext *ctx)
 	ParticleSystem *psys;
 	int psysid;
 
+	if (!ctx->object)
+		return;
+
 	/* particle system take up one level in id, the particles another */
 	for (psys = ctx->object->particlesystem.first, psysid = 0; psys; psys = psys->next, psysid++) {
 		/* particles create one more level for persistent psys index */
@@ -1145,8 +1181,13 @@ const DupliGenerator gen_dupli_particles = {
 /* select dupli generator from given context */
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 {
-	int transflag = ctx->object->transflag;
-	int restrictflag = ctx->object->restrictflag;
+	int transflag, restrictflag;
+	
+	if (!ctx->object)
+		return NULL;
+	
+	transflag = ctx->object->transflag;
+	restrictflag = ctx->object->restrictflag;
 
 	if ((transflag & OB_DUPLI) == 0)
 		return NULL;
@@ -1207,7 +1248,7 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 	else {
 		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
 		DupliContext ctx;
-		init_context(&ctx, eval_ctx, scene, ob, NULL, update);
+		init_context(&ctx, eval_ctx, scene, ob, update);
 		if (ctx.gen) {
 			ctx.duplilist = duplilist;
 			ctx.gen->make_duplis(&ctx);
@@ -1221,6 +1262,24 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 {
 	return object_duplilist_ex(eval_ctx, sce, ob, true);
+}
+
+ListBase *group_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Group *group, bool update)
+{
+	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+	DupliContext ctx;
+	
+	init_context_ex(&ctx, eval_ctx, scene, NULL, NULL, &gen_dupli_group, update);
+	ctx.duplilist = duplilist;
+	
+	make_duplis_group_intern(&ctx, group, NULL);
+	
+	return duplilist;
+}
+
+ListBase *group_duplilist(EvaluationContext *eval_ctx, Scene *scene, Group *group)
+{
+	return group_duplilist_ex(eval_ctx, scene, group, true);
 }
 
 void free_object_duplilist(ListBase *lb)

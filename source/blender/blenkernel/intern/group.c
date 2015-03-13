@@ -327,7 +327,7 @@ bool BKE_group_is_animated(Group *group, Object *UNUSED(parent))
 	GroupObject *go;
 
 #if 0 /* XXX OLD ANIMSYS, NLASTRIPS ARE NO LONGER USED */
-	if (parent->nlastrips.first)
+	if (parent && parent->nlastrips.first)
 		return 1;
 #endif
 
@@ -394,7 +394,7 @@ void BKE_group_handle_recalc_and_update(EvaluationContext *eval_ctx, Scene *scen
 	   * but when its enabled at some point it will need to be changed so as not to update so much - campbell */
 
 	/* if animated group... */
-	if (parent->nlastrips.first) {
+	if (parent && parent->nlastrips.first) {
 		int cfrao;
 		
 		/* switch to local time */
