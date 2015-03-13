@@ -56,7 +56,7 @@ void PTC_error_handler_reports(struct ReportList *reports);
 void PTC_error_handler_modifier(struct ModifierData *md);
 
 void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx,
-              struct ListBase *writers, struct DerivedMesh **render_dm_ptr, int start_frame, int end_frame,
+              struct PTCWriter *writer, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress);
 
 /*** Archive ***/
@@ -85,6 +85,7 @@ PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
 char *PTC_get_archive_info(struct PTCReaderArchive *archive);
 
+struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group);
 PTCReadSampleResult PTC_read_dupligroup(struct PTCReaderArchive *archive, float frame, struct Group *dupgroup, struct DupliCache *dupcache);
 
 /* get writer/reader from RNA type */

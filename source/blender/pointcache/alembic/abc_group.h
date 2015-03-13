@@ -30,6 +30,8 @@
 
 struct DupliCache;
 struct Group;
+struct Object;
+struct Scene;
 
 namespace PTC {
 
@@ -56,6 +58,28 @@ public:
 	
 private:
 	Abc::IObject m_abc_object;
+};
+
+/* ========================================================================= */
+
+class AbcDupligroupWriter : public GroupWriter, public AbcWriter {
+public:
+	typedef std::vector<Abc::ObjectWriterPtr> WriterList;
+	
+	AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group);
+	
+	void open_archive(WriterArchive *archive);
+	
+	void write_sample();
+	void write_sample_object(Object *ob);
+	void write_sample_dupli(DupliObject *dob, int index);
+	
+private:
+	EvaluationContext *m_eval_ctx;
+	Scene *m_scene;
+	
+	Abc::OObject m_abc_group;
+	WriterList m_writers;
 };
 
 PTCReadSampleResult abc_read_dupligroup(ReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache);

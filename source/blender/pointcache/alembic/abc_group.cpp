@@ -103,6 +103,86 @@ PTCReadSampleResult AbcGroupReader::read_sample(float frame)
 
 /* ========================================================================= */
 
+AbcDupligroupWriter::AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group) :
+    GroupWriter(group, name),
+    m_eval_ctx(eval_ctx),
+    m_scene(scene)
+{
+}
+
+void AbcDupligroupWriter::open_archive(WriterArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
+	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	
+	if (abc_archive()->archive) {
+		m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
+	}
+}
+
+void AbcDupligroupWriter::write_sample_object(Object *ob)
+{
+	OObject abc_object = abc_archive()->add_id_object<OObject>((ID *)ob);
+	m_writers.push_back(abc_object.getPtr());
+	
+	// TODO mesh, modifiers, sims ...
+}
+
+void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
+{
+	OObject abc_object = abc_archive()->get_id_object((ID *)dob->ob);
+	if (!abc_object)
+		return;
+	
+	std::stringstream ss;
+	ss << "DupliObject" << index;
+	std::string name = ss.str();
+	
+	OObject abc_dupli = m_abc_group.getChild(name);
+	if (!abc_dupli) {
+		abc_dupli = OObject(m_abc_group, name, 0);
+		m_writers.push_back(abc_dupli.getPtr());
+		
+		abc_dupli.addChildInstance(abc_object, "object");
+		
+		// TODO dupli offset, layers, etc.
+	}
+}
+
+void AbcDupligroupWriter::write_sample()
+{
+	if (!m_abc_group)
+		return;
+	
+	ListBase *duplilist = group_duplilist_ex(m_eval_ctx, m_scene, m_group, true);
+	DupliObject *dob;
+	int i;
+	
+	/* LIB_DOIT is used to mark handled objects, clear first */
+	for (dob = (DupliObject *)duplilist->first; dob; dob = dob->next) {
+		if (dob->ob)
+			dob->ob->id.flag &= ~LIB_DOIT;
+	}
+	
+	/* write actual object data: duplicator itself + all instanced objects */
+	for (dob = (DupliObject *)duplilist->first; dob; dob = dob->next) {
+		if (dob->ob->id.flag & LIB_DOIT)
+			continue;
+		dob->ob->id.flag |= LIB_DOIT;
+		
+		write_sample_object(dob->ob);
+	}
+	
+	/* write dupli instances */
+	for (dob = (DupliObject *)duplilist->first, i = 0; dob; dob = dob->next, ++i) {
+		write_sample_dupli(dob, i);
+	}
+	
+	free_object_duplilist(duplilist);
+}
+
+/* ------------------------------------------------------------------------- */
+
 typedef float Matrix[4][4];
 
 typedef float (*MatrixPtr)[4];

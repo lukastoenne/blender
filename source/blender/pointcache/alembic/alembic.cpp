@@ -151,6 +151,12 @@ class AbcFactory : public Factory {
 		return new AbcCacheModifierRenderWriter(name, scene, ob, cmd);
 	}
 	
+	
+	Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group)
+	{
+		return new AbcDupligroupWriter(name, eval_ctx, scene, group);
+	}
+	
 	PTCReadSampleResult read_dupligroup(ReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache)
 	{
 		return abc_read_dupligroup(archive, frame, dupgroup, dupcache);
