@@ -1229,13 +1229,18 @@ bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLib
 		if (cachelib->group == dupgroup) {
 			char filename[FILE_MAX];
 			struct PTCReaderArchive *archive;
+			struct PTCReader *reader;
 			eCacheReadSampleResult result;
 			
 			BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 			archive = PTC_open_reader_archive(scene, filename);
 			
-			result = BKE_cache_read_result(PTC_read_dupligroup(archive, frame, dupgroup, dupcache));
+			reader = PTC_reader_dupligroup(dupgroup->id.name, dupgroup, dupcache);
+			PTC_reader_set_archive(reader, archive);
 			
+			result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+			
+			PTC_reader_free(reader);
 			PTC_close_reader_archive(archive);
 			
 			return true;

@@ -26,6 +26,8 @@
 #include "abc_writer.h"
 
 struct DupliCache;
+struct DupliObject;
+struct DupliObjectData;
 struct Group;
 struct Object;
 struct Scene;
@@ -88,7 +90,39 @@ private:
 	IDWriterMap m_id_writers;
 };
 
-PTCReadSampleResult abc_read_dupligroup(ReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache);
+class AbcDupligroupReader : public GroupReader, public AbcReader {
+public:
+	typedef std::map<Abc::ObjectReaderPtr, DupliObjectData*> DupliMap;
+	typedef std::pair<Abc::ObjectReaderPtr, DupliObjectData*> DupliPair;
+	
+	typedef std::map<std::string, Object*> ObjectMap;
+	typedef std::pair<std::string, Object*> ObjectPair;
+	
+public:
+	AbcDupligroupReader(const std::string &name, Group *group, DupliCache *dupcache);
+	~AbcDupligroupReader();
+	
+	void open_archive(ReaderArchive *archive);
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+protected:
+	void read_dupligroup_object(Abc::IObject object, const Abc::ISampleSelector &ss);
+	void read_dupligroup_group(Abc::IObject abc_group, const Abc::ISampleSelector &ss);
+	
+	DupliObjectData *find_dupli_data(Abc::ObjectReaderPtr ptr) const;
+	void insert_dupli_data(Abc::ObjectReaderPtr ptr, DupliObjectData *data);
+	
+	void build_object_map(Main *bmain, Group *group);
+	void build_object_map_add_group(Group *group);
+	Object *find_object(const std::string &name) const;
+	
+private:
+	DupliMap dupli_map;
+	DupliCache *dupli_cache;
+	
+	ObjectMap object_map;
+};
 
 } /* namespace PTC */
 

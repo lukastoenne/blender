@@ -86,7 +86,7 @@ PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 char *PTC_get_archive_info(struct PTCReaderArchive *archive);
 
 struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group);
-PTCReadSampleResult PTC_read_dupligroup(struct PTCReaderArchive *archive, float frame, struct Group *dupgroup, struct DupliCache *dupcache);
+struct PTCReader *PTC_reader_dupligroup(const char *name, struct Group *group, struct DupliCache *dupcache);
 
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
