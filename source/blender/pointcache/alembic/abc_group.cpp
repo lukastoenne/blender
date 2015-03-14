@@ -318,32 +318,23 @@ static void read_dupligroup_object(DupliGroupContext &ctx, IObject object, float
 	}
 }
 
-static void read_dupligroup_group(DupliGroupContext &ctx, IObject object, float frame);
-
-static void read_dupligroup_instance(DupliGroupContext &ctx, IObject instance, float frame)
+static void read_dupligroup_group(DupliGroupContext &ctx, IObject abc_group, float frame)
 {
-	if (instance.isInstanceRoot()) {
-		IObject object = IObject(instance.getPtr(), kWrapExisting);
-		if (object && GS(object.getName().c_str()) == ID_OB) {
-			DupliObjectData *data = ctx.find_dupli_data(object.getPtr());
-			if (data)
-				BKE_dupli_cache_add_instance(ctx.dupli_cache, ctx.get_transform(), data);
-			
-			IObject dup_group_object = object.getChild("dup_group");
-			if (dup_group_object)
-				read_dupligroup_group(ctx, dup_group_object, frame);
-		}
-	}
-}
-
-static void read_dupligroup_group(DupliGroupContext &ctx, IObject object, float frame)
-{
-	if (GS(object.getName().c_str()) == ID_GR) {
-		printf("reading group %s\n", object.getName().c_str());
-		size_t num_child = object.getNumChildren();
+	if (GS(abc_group.getName().c_str()) == ID_GR) {
+		size_t num_child = abc_group.getNumChildren();
 		
 		for (size_t i = 0; i < num_child; ++i) {
-			read_dupligroup_instance(ctx, object.getChild(i), frame);
+			IObject abc_dupli = abc_group.getChild(i);
+			
+			// TODO dupli offset, layers, etc.
+			
+			IObject abc_dupli_object = abc_dupli.getChild("object");
+			if (abc_dupli_object.isInstanceRoot()) {
+				DupliObjectData *dupli_data = ctx.find_dupli_data(abc_dupli_object.getPtr());
+				if (dupli_data) {
+					BKE_dupli_cache_add_instance(ctx.dupli_cache, ctx.get_transform(), dupli_data);
+				}
+			}
 		}
 	}
 }
@@ -359,18 +350,18 @@ PTCReadSampleResult abc_read_dupligroup(ReaderArchive *_archive, float frame, Gr
 	 */
 	ctx.build_object_map(G.main, dupgroup);
 	
-	IObject top = archive->archive.getTop();
-	size_t num_child = top.getNumChildren();
+	IObject abc_top = archive->archive.getTop();
+	IObject abc_group = archive->get_id_object((ID *)dupgroup);
+	if (!abc_group)
+		return PTC_READ_SAMPLE_INVALID;
 	
 	/* first create shared object data */
-	for (size_t i = 0; i < num_child; ++i) {
-		read_dupligroup_object(ctx, top.getChild(i), frame);
+	for (size_t i = 0; i < abc_top.getNumChildren(); ++i) {
+		read_dupligroup_object(ctx, abc_top.getChild(i), frame);
 	}
 	
 	/* now generate dupli instances for the dupgroup */
-	IObject dupgroup_object = top.getChild(dupgroup->id.name);
-	if (dupgroup_object)
-		read_dupligroup_group(ctx, dupgroup_object, frame);
+	read_dupligroup_group(ctx, abc_group, frame);
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
