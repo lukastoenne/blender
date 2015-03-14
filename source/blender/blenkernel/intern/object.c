@@ -449,6 +449,8 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 			free_path(ob->curve_cache->path);
 		MEM_freeN(ob->curve_cache);
 	}
+	
+	BKE_object_dupli_cache_free(ob);
 }
 
 void BKE_object_free(Object *ob)
@@ -675,6 +677,10 @@ void BKE_object_unlink(Object *ob)
 			if (lod->source == ob)
 				lod->source = NULL;
 		}
+
+		/* dupli cache is cleared entirely if the object in question is duplified to keep it simple */
+		if (BKE_object_dupli_cache_contains(obt, ob))
+			BKE_object_dupli_cache_clear(ob);
 
 		obt = obt->id.next;
 	}
@@ -1567,6 +1573,8 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 
 	/* Copy runtime surve data. */
 	obn->curve_cache = NULL;
+
+	obn->dup_cache = NULL;
 
 	if (ob->id.lib) {
 		BKE_id_lib_local_paths(bmain, ob->id.lib, &obn->id);
