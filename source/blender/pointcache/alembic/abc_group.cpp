@@ -217,120 +217,46 @@ Writer *AbcDupligroupWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
-typedef float Matrix[4][4];
+AbcDupligroupReader::AbcDupligroupReader(const std::string &name, Group *group, DupliCache *dupli_cache) :
+    GroupReader(group, name),
+    dupli_cache(dupli_cache)
+{
+	/* XXX this mapping allows fast lookup of existing objects in Blender data
+	 * to associate with duplis. Later i may be possible to create instances of
+	 * non-DNA data, but for the time being this is a requirement due to other code parts (drawing, rendering)
+	 */
+	build_object_map(G.main, group);
+}
 
-typedef float (*MatrixPtr)[4];
+AbcDupligroupReader::~AbcDupligroupReader()
+{
+}
 
-static Matrix I = {{1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}};
+void AbcDupligroupReader::open_archive(ReaderArchive *archive)
+{
+	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
+	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
+}
 
-struct DupliGroupContext {
-	typedef std::map<ObjectReaderPtr, DupliObjectData*> DupliMap;
-	typedef std::pair<ObjectReaderPtr, DupliObjectData*> DupliPair;
-	
-	struct Transform {
-		Transform() {}
-		Transform(float (*value)[4]) { copy_m4_m4(matrix, value); }
-		Transform(const Transform &tfm) { memcpy(matrix, tfm.matrix, sizeof(Matrix)); }
-		
-		Matrix matrix;
-	};
-	typedef std::vector<Transform> TransformStack;
-	
-	typedef std::map<std::string, Object*> ObjectMap;
-	typedef std::pair<std::string, Object*> ObjectPair;
-	
-	/* constructor */
-	DupliGroupContext(DupliCache *dupli_cache) :
-	    dupli_cache(dupli_cache)
-	{
-		tfm_stack.push_back(Transform(I));
-	}
-	
-	
-	DupliObjectData *find_dupli_data(ObjectReaderPtr ptr) const
-	{
-		DupliMap::const_iterator it = dupli_map.find(ptr);
-		if (it == dupli_map.end())
-			return NULL;
-		else
-			return it->second;
-	}
-	
-	void insert_dupli_data(ObjectReaderPtr ptr, DupliObjectData *data)
-	{
-		dupli_map.insert(DupliPair(ptr, data));
-	}
-	
-	
-	MatrixPtr get_transform() { return tfm_stack.back().matrix; }
-//	void push_transform(float mat[4][4])
-	
-	
-	void build_object_map(Main *bmain, Group *group)
-	{
-		BKE_main_id_tag_idcode(bmain, ID_OB, false);
-		BKE_main_id_tag_idcode(bmain, ID_GR, false);
-		object_map.clear();
-		
-		build_object_map_add_group(group);
-	}
-	
-	Object *find_object(const std::string &name) const
-	{
-		ObjectMap::const_iterator it = object_map.find(name);
-		if (it == object_map.end())
-			return NULL;
-		else
-			return it->second;
-	}
-	
-	DupliMap dupli_map;
-	DupliCache *dupli_cache;
-	
-	TransformStack tfm_stack;
-	
-	ObjectMap object_map;
-	
-protected:
-	void build_object_map_add_group(Group *group)
-	{
-		if (group->id.flag & LIB_DOIT)
-			return;
-		group->id.flag |= LIB_DOIT;
-		
-		for (GroupObject *gob = (GroupObject *)group->gobject.first; gob; gob = gob->next) {
-			Object *ob = gob->ob;
-			if (ob->id.flag & LIB_DOIT)
-				continue;
-			ob->id.flag |= LIB_DOIT;
-			object_map.insert(ObjectPair(ob->id.name, ob));
-			
-			if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
-				build_object_map_add_group(ob->dup_group);
-			}
-		}
-	}
-};
-
-static void read_dupligroup_object(DupliGroupContext &ctx, IObject object, const ISampleSelector &ss)
+void AbcDupligroupReader::read_dupligroup_object(IObject object, const ISampleSelector &ss)
 {
 	if (GS(object.getName().c_str()) == ID_OB) {
 		/* instances are handled later, we create true object data here */
 		if (object.isInstanceDescendant())
 			return;
 		
-		Object *b_ob = ctx.find_object(object.getName());
+		Object *b_ob = find_object(object.getName());
 		if (!b_ob)
 			return;
 		
 		/* TODO load DM, from subobjects for IPolyMesh etc. */
 		DerivedMesh *dm = NULL;
-		DupliObjectData *data = BKE_dupli_cache_add_mesh(ctx.dupli_cache, b_ob, dm);
-		ctx.insert_dupli_data(object.getPtr(), data);
+		DupliObjectData *data = BKE_dupli_cache_add_mesh(dupli_cache, b_ob, dm);
+		insert_dupli_data(object.getPtr(), data);
 	}
 }
 
-static void read_dupligroup_group(DupliGroupContext &ctx, IObject abc_group, const ISampleSelector &ss)
+void AbcDupligroupReader::read_dupligroup_group(IObject abc_group, const ISampleSelector &ss)
 {
 	if (GS(abc_group.getName().c_str()) == ID_GR) {
 		size_t num_child = abc_group.getNumChildren();
@@ -346,42 +272,84 @@ static void read_dupligroup_group(DupliGroupContext &ctx, IObject abc_group, con
 			
 			IObject abc_dupli_object = abc_dupli.getChild("object");
 			if (abc_dupli_object.isInstanceRoot()) {
-				DupliObjectData *dupli_data = ctx.find_dupli_data(abc_dupli_object.getPtr());
+				DupliObjectData *dupli_data = find_dupli_data(abc_dupli_object.getPtr());
 				if (dupli_data) {
-					BKE_dupli_cache_add_instance(ctx.dupli_cache, matrix, dupli_data);
+					BKE_dupli_cache_add_instance(dupli_cache, matrix, dupli_data);
 				}
 			}
 		}
 	}
 }
 
-PTCReadSampleResult abc_read_dupligroup(ReaderArchive *_archive, float frame, Group *dupgroup, DupliCache *dupcache)
+PTCReadSampleResult AbcDupligroupReader::read_sample(float frame)
 {
-	AbcReaderArchive *archive = (AbcReaderArchive *)_archive;
-	DupliGroupContext ctx(dupcache);
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
-	/* XXX this mapping allows fast lookup of existing objects in Blender data
-	 * to associate with duplis. Later i may be possible to create instances of
-	 * non-DNA data, but for the time being this is a requirement due to other code parts (drawing, rendering)
-	 */
-	ctx.build_object_map(G.main, dupgroup);
-	
-	ISampleSelector ss = archive->get_frame_sample_selector(frame);
-	
-	IObject abc_top = archive->archive.getTop();
-	IObject abc_group = archive->get_id_object((ID *)dupgroup);
+	IObject abc_top = abc_archive()->archive.getTop();
+	IObject abc_group = abc_archive()->get_id_object((ID *)m_group);
 	if (!abc_group)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	/* first create shared object data */
 	for (size_t i = 0; i < abc_top.getNumChildren(); ++i) {
-		read_dupligroup_object(ctx, abc_top.getChild(i), ss);
+		read_dupligroup_object(abc_top.getChild(i), ss);
 	}
 	
-	/* now generate dupli instances for the dupgroup */
-	read_dupligroup_group(ctx, abc_group, ss);
+	/* now generate dupli instances for the group */
+	read_dupligroup_group(abc_group, ss);
 	
 	return PTC_READ_SAMPLE_EXACT;
+}
+
+DupliObjectData *AbcDupligroupReader::find_dupli_data(ObjectReaderPtr ptr) const
+{
+	DupliMap::const_iterator it = dupli_map.find(ptr);
+	if (it == dupli_map.end())
+		return NULL;
+	else
+		return it->second;
+}
+
+void AbcDupligroupReader::insert_dupli_data(ObjectReaderPtr ptr, DupliObjectData *data)
+{
+	dupli_map.insert(DupliPair(ptr, data));
+}
+
+void AbcDupligroupReader::build_object_map(Main *bmain, Group *group)
+{
+	BKE_main_id_tag_idcode(bmain, ID_OB, false);
+	BKE_main_id_tag_idcode(bmain, ID_GR, false);
+	object_map.clear();
+	
+	build_object_map_add_group(group);
+}
+
+Object *AbcDupligroupReader::find_object(const std::string &name) const
+{
+	ObjectMap::const_iterator it = object_map.find(name);
+	if (it == object_map.end())
+		return NULL;
+	else
+		return it->second;
+}
+
+void AbcDupligroupReader::build_object_map_add_group(Group *group)
+{
+	if (group->id.flag & LIB_DOIT)
+		return;
+	group->id.flag |= LIB_DOIT;
+	
+	for (GroupObject *gob = (GroupObject *)group->gobject.first; gob; gob = gob->next) {
+		Object *ob = gob->ob;
+		if (ob->id.flag & LIB_DOIT)
+			continue;
+		ob->id.flag |= LIB_DOIT;
+		object_map.insert(ObjectPair(ob->id.name, ob));
+		
+		if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+			build_object_map_add_group(ob->dup_group);
+		}
+	}
 }
 
 } /* namespace PTC */

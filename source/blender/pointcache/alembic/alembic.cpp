@@ -157,9 +157,9 @@ class AbcFactory : public Factory {
 		return new AbcDupligroupWriter(name, eval_ctx, scene, group);
 	}
 	
-	PTCReadSampleResult read_dupligroup(ReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache)
+	Reader *create_reader_dupligroup(const std::string &name, Group *group, DupliCache *dupcache)
 	{
-		return abc_read_dupligroup(archive, frame, dupgroup, dupcache);
+		return new AbcDupligroupReader(name, group, dupcache);
 	}
 };
 

@@ -216,9 +216,9 @@ PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eva
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_dupligroup(name, eval_ctx, scene, group);
 }
 
-PTCReadSampleResult PTC_read_dupligroup(PTCReaderArchive *archive, float frame, Group *dupgroup, DupliCache *dupcache)
+PTCReader *PTC_reader_dupligroup(const char *name, struct Group *group, struct DupliCache *dupcache)
 {
-	return PTC::Factory::alembic->read_dupligroup((PTC::ReaderArchive *)archive, frame, dupgroup, dupcache);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_dupligroup(name, group, dupcache);
 }
 
 
