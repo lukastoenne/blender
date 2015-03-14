@@ -1240,9 +1240,19 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 #endif
 	
 	if (ob->dup_cache) {
-		/* XXX current use of duplilist expects a one-time list copy */
+		/* Note: duplis in the cache don't have the main duplicator obmat applied.
+		 * duplilist also should return a full copy of duplis, so we copy
+		 * the cached list and apply the obmat to each.
+		 */
 		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		DupliObject *dob;
+		
 		BLI_duplicatelist(duplilist, &ob->dup_cache->duplilist);
+		
+		for (dob = duplilist->first; dob; dob = dob->next) {
+			mul_m4_m4m4(dob->mat, ob->obmat, dob->mat);
+		}
+		
 		return duplilist;
 	}
 	else {
