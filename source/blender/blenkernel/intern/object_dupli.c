@@ -1425,6 +1425,26 @@ void BKE_object_dupli_cache_clear(Object *ob)
 	}
 }
 
+void BKE_object_dupli_cache_free(Object *ob)
+{
+	if (ob->dup_cache) {
+		dupli_cache_free(ob->dup_cache);
+		ob->dup_cache = NULL;
+	}
+}
+
+bool BKE_object_dupli_cache_contains(Object *ob, Object *other)
+{
+	if (ob->dup_cache) {
+		DupliObject *dob;
+		for (dob = ob->dup_cache->duplilist.first; dob; dob = dob->next) {
+			if (dob->ob == other)
+				return true;
+		}
+	}
+	return false;
+}
+
 DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, Object *ob, DerivedMesh *dm)
 {
 	DupliObjectData *data = dupli_cache_add_object_data(dupcache);
