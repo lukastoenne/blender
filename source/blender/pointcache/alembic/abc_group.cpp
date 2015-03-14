@@ -21,6 +21,7 @@
 #include <string>
 
 #include <Alembic/Abc/IObject.h>
+#include <Alembic/Abc/OObject.h>
 
 #include "abc_mesh.h"
 #include "abc_group.h"
@@ -152,14 +153,25 @@ void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
 	std::string name = ss.str();
 	
 	OObject abc_dupli = m_abc_group.getChild(name);
+	OCompoundProperty props;
+	OM44fProperty prop_matrix;
 	if (!abc_dupli) {
 		abc_dupli = OObject(m_abc_group, name, 0);
-		m_writers.push_back(abc_dupli.getPtr());
+		m_object_writers.push_back(abc_dupli.getPtr());
+		props = abc_dupli.getProperties();
 		
 		abc_dupli.addChildInstance(abc_object, "object");
 		
-		// TODO dupli offset, layers, etc.
+		prop_matrix = OM44fProperty(props, "matrix", 0);
+		m_property_writers.push_back(prop_matrix.getPtr());
 	}
+	else {
+		props = abc_dupli.getProperties();
+		
+		prop_matrix = OM44fProperty(props.getProperty("matrix").getPtr()->asScalarPtr(), kWrapExisting);
+	}
+	
+	prop_matrix.set(M44f(dob->mat));
 }
 
 void AbcDupligroupWriter::write_sample()
@@ -300,7 +312,7 @@ protected:
 	}
 };
 
-static void read_dupligroup_object(DupliGroupContext &ctx, IObject object, float frame)
+static void read_dupligroup_object(DupliGroupContext &ctx, IObject object, const ISampleSelector &ss)
 {
 	if (GS(object.getName().c_str()) == ID_OB) {
 		/* instances are handled later, we create true object data here */
@@ -318,21 +330,25 @@ static void read_dupligroup_object(DupliGroupContext &ctx, IObject object, float
 	}
 }
 
-static void read_dupligroup_group(DupliGroupContext &ctx, IObject abc_group, float frame)
+static void read_dupligroup_group(DupliGroupContext &ctx, IObject abc_group, const ISampleSelector &ss)
 {
 	if (GS(abc_group.getName().c_str()) == ID_GR) {
 		size_t num_child = abc_group.getNumChildren();
 		
 		for (size_t i = 0; i < num_child; ++i) {
 			IObject abc_dupli = abc_group.getChild(i);
+			ICompoundProperty props = abc_dupli.getProperties();
 			
-			// TODO dupli offset, layers, etc.
+			IM44fProperty prop_matrix(props, "matrix", 0);
+			M44f abc_matrix = prop_matrix.getValue(ss);
+			float matrix[4][4];
+			memcpy(matrix, abc_matrix.getValue(), sizeof(float)*4*4);
 			
 			IObject abc_dupli_object = abc_dupli.getChild("object");
 			if (abc_dupli_object.isInstanceRoot()) {
 				DupliObjectData *dupli_data = ctx.find_dupli_data(abc_dupli_object.getPtr());
 				if (dupli_data) {
-					BKE_dupli_cache_add_instance(ctx.dupli_cache, ctx.get_transform(), dupli_data);
+					BKE_dupli_cache_add_instance(ctx.dupli_cache, matrix, dupli_data);
 				}
 			}
 		}
@@ -350,6 +366,8 @@ PTCReadSampleResult abc_read_dupligroup(ReaderArchive *_archive, float frame, Gr
 	 */
 	ctx.build_object_map(G.main, dupgroup);
 	
+	ISampleSelector ss = archive->get_frame_sample_selector(frame);
+	
 	IObject abc_top = archive->archive.getTop();
 	IObject abc_group = archive->get_id_object((ID *)dupgroup);
 	if (!abc_group)
@@ -357,11 +375,11 @@ PTCReadSampleResult abc_read_dupligroup(ReaderArchive *_archive, float frame, Gr
 	
 	/* first create shared object data */
 	for (size_t i = 0; i < abc_top.getNumChildren(); ++i) {
-		read_dupligroup_object(ctx, abc_top.getChild(i), frame);
+		read_dupligroup_object(ctx, abc_top.getChild(i), ss);
 	}
 	
 	/* now generate dupli instances for the dupgroup */
-	read_dupligroup_group(ctx, abc_group, frame);
+	read_dupligroup_group(ctx, abc_group, ss);
 	
 	return PTC_READ_SAMPLE_EXACT;
 }

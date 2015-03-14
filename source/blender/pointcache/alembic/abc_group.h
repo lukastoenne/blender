@@ -19,9 +19,6 @@
 #ifndef PTC_ABC_GROUP_H
 #define PTC_ABC_GROUP_H
 
-#include <Alembic/AbcGeom/IXform.h>
-#include <Alembic/AbcGeom/OXform.h>
-
 #include "ptc_types.h"
 
 #include "abc_reader.h"
@@ -64,7 +61,8 @@ private:
 
 class AbcDupligroupWriter : public GroupWriter, public AbcWriter {
 public:
-	typedef std::vector<Abc::ObjectWriterPtr> WriterList;
+	typedef std::vector<Abc::ObjectWriterPtr> ObjectWriterList;
+	typedef std::vector<Abc::BasePropertyWriterPtr> PropertyWriterList;
 	
 	typedef std::map<ID*, Writer*> IDWriterMap;
 	typedef std::pair<ID*, Writer*> IDWriterPair;
@@ -85,7 +83,8 @@ private:
 	Scene *m_scene;
 	
 	Abc::OObject m_abc_group;
-	WriterList m_writers;
+	ObjectWriterList m_object_writers;
+	PropertyWriterList m_property_writers;
 	IDWriterMap m_id_writers;
 };
 
