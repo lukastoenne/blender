@@ -229,8 +229,10 @@ void AbcDupligroupReader::init_abc()
 {
 }
 
-void AbcDupligroupReader::read_dupligroup_object(IObject object, const ISampleSelector &ss)
+void AbcDupligroupReader::read_dupligroup_object(IObject object, float frame)
 {
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	
 	if (GS(object.getName().c_str()) == ID_OB) {
 		/* instances are handled later, we create true object data here */
 		if (object.isInstanceDescendant())
@@ -240,10 +242,16 @@ void AbcDupligroupReader::read_dupligroup_object(IObject object, const ISampleSe
 		if (!b_ob)
 			return;
 		
-		/* TODO load DM, from subobjects for IPolyMesh etc. */
-		DerivedMesh *dm = NULL;
-		DupliObjectData *data = BKE_dupli_cache_add_mesh(dupli_cache, b_ob, dm);
-		insert_dupli_data(object.getPtr(), data);
+		AbcDerivedMeshReader dm_reader("mesh", b_ob);
+		dm_reader.init(abc_archive());
+		dm_reader.init_abc(object);
+		if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+			DerivedMesh *dm = dm_reader.acquire_result();
+			DupliObjectData *data = BKE_dupli_cache_add_mesh(dupli_cache, b_ob, dm);
+			insert_dupli_data(object.getPtr(), data);
+		}
+		else
+			dm_reader.discard_result();
 	}
 }
 
@@ -283,7 +291,7 @@ PTCReadSampleResult AbcDupligroupReader::read_sample(float frame)
 	
 	/* first create shared object data */
 	for (size_t i = 0; i < abc_top.getNumChildren(); ++i) {
-		read_dupligroup_object(abc_top.getChild(i), ss);
+		read_dupligroup_object(abc_top.getChild(i), frame);
 	}
 	
 	/* now generate dupli instances for the group */

@@ -107,7 +107,7 @@ public:
 	PTCReadSampleResult read_sample(float frame);
 	
 protected:
-	void read_dupligroup_object(Abc::IObject object, const Abc::ISampleSelector &ss);
+	void read_dupligroup_object(Abc::IObject object, float frame);
 	void read_dupligroup_group(Abc::IObject abc_group, const Abc::ISampleSelector &ss);
 	
 	DupliObjectData *find_dupli_data(Abc::ObjectReaderPtr ptr) const;

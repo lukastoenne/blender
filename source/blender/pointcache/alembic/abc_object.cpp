@@ -32,7 +32,8 @@ using namespace Abc;
 using namespace AbcGeom;
 
 AbcObjectWriter::AbcObjectWriter(const std::string &name, Object *ob) :
-    ObjectWriter(ob, name)
+    ObjectWriter(ob, name),
+    m_dm_writer("mesh", ob, &ob->derivedFinal)
 {
 }
 
@@ -42,6 +43,10 @@ void AbcObjectWriter::init_abc()
 		return;
 	
 	m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_ob);
+	
+	/* XXX not nice */
+	m_dm_writer.init(abc_archive());
+	m_dm_writer.init_abc(m_abc_object);
 }
 
 #if 0
@@ -60,7 +65,7 @@ void AbcObjectWriter::write_sample()
 	if (!m_abc_object)
 		return;
 	
-	// TODO mesh, modifiers, sims ...
+	m_dm_writer.write_sample();
 }
 
 
