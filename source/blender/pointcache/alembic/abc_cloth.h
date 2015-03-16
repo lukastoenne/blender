@@ -38,7 +38,7 @@ public:
 	AbcClothWriter(const std::string &name, Object *ob, ClothModifierData *clmd);
 	~AbcClothWriter();
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc(Abc::OObject parent);
 	
 	void write_sample();
 	
@@ -53,7 +53,7 @@ public:
 	AbcClothReader(const std::string &name, Object *ob, ClothModifierData *clmd);
 	~AbcClothReader();
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc(Abc::IObject parent);
 	
 	PTCReadSampleResult read_sample(float frame);
 	

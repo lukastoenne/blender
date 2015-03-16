@@ -34,33 +34,22 @@ public:
 
 class Writer {
 public:
-	Writer(ID *id, const std::string &name);
+	Writer();
+	Writer(ErrorHandler *handler);
 	virtual ~Writer();
 	
 	void set_error_handler(ErrorHandler *handler);
 	bool valid() const;
 	
-	void set_archive(WriterArchive *archive);
+	virtual void init(WriterArchive *archive) = 0;
 	
 	/* create references to other objects */
 	virtual void create_refs() {}
 	
 	virtual void write_sample() = 0;
 	
-	const std::string &name() const { return m_name; }
-	ID *id() const { return m_id; }
-	
-protected:
-	/* called after the archive is set */
-	virtual void open_archive(WriterArchive *archive) = 0;
-	
 protected:
 	ErrorHandler *m_error_handler;
-	
-	std::string m_name;
-	ID *m_id;
-	
-	WriterArchive *m_archive;
 };
 
 } /* namespace PTC */

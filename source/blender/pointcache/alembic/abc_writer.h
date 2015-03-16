@@ -31,7 +31,9 @@
 #include "util_error_handler.h"
 
 extern "C" {
-#include "DNA_object_types.h"
+#include "BLI_utildefines.h"
+
+#include "DNA_ID.h"
 }
 
 struct Scene;
@@ -61,13 +63,21 @@ protected:
 	uint32_t m_frame_sampling;
 };
 
-class AbcWriter {
+class AbcWriter : public Writer {
 public:
-	AbcWriter() :
-	    m_abc_archive(0)
-	{}
 	
-	void abc_archive(AbcWriterArchive *abc_archive) { m_abc_archive = abc_archive; }
+	void init(WriterArchive *archive)
+	{
+		BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
+		m_abc_archive = static_cast<AbcWriterArchive*>(archive);
+		
+		init_abc();
+	}
+	
+	/* one of these should be implemented by subclasses */
+	virtual void init_abc() {}
+	virtual void init_abc(Abc::OObject parent) {}
+	
 	AbcWriterArchive *abc_archive() const { return m_abc_archive; }
 	
 private:

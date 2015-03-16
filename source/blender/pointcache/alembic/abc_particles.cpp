@@ -44,17 +44,11 @@ AbcParticlesWriter::~AbcParticlesWriter()
 {
 }
 
-void AbcParticlesWriter::open_archive(WriterArchive *archive)
+void AbcParticlesWriter::init_abc(OObject parent)
 {
-	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
-	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
-	
-	if (abc_archive()->archive) {
-		OObject parent = abc_archive()->get_id_object((ID *)m_ob);
-		if (parent) {
-			m_points = OPoints(parent, m_name, abc_archive()->frame_sampling_index());
-		}
-	}
+	if (m_points)
+		return;
+	m_points = OPoints(parent, m_name, abc_archive()->frame_sampling_index());
 }
 
 void AbcParticlesWriter::write_sample()
@@ -96,13 +90,12 @@ AbcParticlesReader::~AbcParticlesReader()
 {
 }
 
-void AbcParticlesReader::open_archive(ReaderArchive *archive)
+void AbcParticlesReader::init_abc(IObject parent)
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
-	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
+	if (m_points)
+		return;
 	
-	IObject parent = abc_archive()->get_id_object((ID *)m_ob);
-	if (parent && parent.getChild(m_name)) {
+	if (parent.getChild(m_name)) {
 		m_points = IPoints(parent, m_name);
 	}
 	
@@ -141,9 +134,9 @@ AbcHairDynamicsWriter::AbcHairDynamicsWriter(const std::string &name, Object *ob
 {
 }
 
-void AbcHairDynamicsWriter::open_archive(WriterArchive *archive)
+void AbcHairDynamicsWriter::init_abc(OObject parent)
 {
-	m_cloth_writer.open_archive(archive);
+	m_cloth_writer.init_abc(parent);
 }
 
 void AbcHairDynamicsWriter::write_sample()
@@ -157,9 +150,9 @@ AbcHairDynamicsReader::AbcHairDynamicsReader(const std::string &name, Object *ob
 {
 }
 
-void AbcHairDynamicsReader::open_archive(ReaderArchive *archive)
+void AbcHairDynamicsReader::init_abc(IObject parent)
 {
-	m_cloth_reader.open_archive(archive);
+	m_cloth_reader.init_abc(parent);
 }
 
 PTCReadSampleResult AbcHairDynamicsReader::read_sample(float frame)
@@ -180,27 +173,21 @@ AbcParticlePathcacheWriter::~AbcParticlePathcacheWriter()
 {
 }
 
-void AbcParticlePathcacheWriter::open_archive(WriterArchive *archive)
+void AbcParticlePathcacheWriter::init_abc(OObject parent)
 {
-	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
-	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
-
-	if (!abc_archive()->archive)
+	if (m_curves)
 		return;
-
-	OObject parent = abc_archive()->get_id_object((ID *)m_ob);
-	if (parent) {
-		/* XXX non-escaped string construction here ... */
-		m_curves = OCurves(parent, m_name + m_suffix, abc_archive()->frame_sampling_index());
-		
-		OCurvesSchema &schema = m_curves.getSchema();
-		OCompoundProperty geom_props = schema.getArbGeomParams();
-		
-		m_param_velocities = OV3fGeomParam(geom_props, "velocities", false, kVertexScope, 1, 0);
-		m_param_rotations = OQuatfGeomParam(geom_props, "rotations", false, kVertexScope, 1, 0);
-		m_param_colors = OV3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
-		m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
-	}
+	
+	/* XXX non-escaped string construction here ... */
+	m_curves = OCurves(parent, m_name + m_suffix, abc_archive()->frame_sampling_index());
+	
+	OCurvesSchema &schema = m_curves.getSchema();
+	OCompoundProperty geom_props = schema.getArbGeomParams();
+	
+	m_param_velocities = OV3fGeomParam(geom_props, "velocities", false, kVertexScope, 1, 0);
+	m_param_rotations = OQuatfGeomParam(geom_props, "rotations", false, kVertexScope, 1, 0);
+	m_param_colors = OV3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
+	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 }
 
 static int paths_count_totkeys(ParticleCacheKey **pathcache, int totpart)
@@ -390,25 +377,22 @@ AbcParticlePathcacheReader::AbcParticlePathcacheReader(const std::string &name, 
 {
 }
 
-void AbcParticlePathcacheReader::open_archive(ReaderArchive *archive)
+void AbcParticlePathcacheReader::init_abc(IObject parent)
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
-	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
+	if (m_curves)
+		return;
 	
-	if (abc_archive()->archive) {
-		IObject parent = abc_archive()->get_id_object((ID *)m_ob);
-		/* XXX non-escaped string construction here ... */
-		std::string curves_name = m_name + m_suffix;
-		if (parent && parent.getChild(curves_name)) {
-			m_curves = ICurves(parent, curves_name);
-			ICurvesSchema &schema = m_curves.getSchema();
-			ICompoundProperty geom_props = schema.getArbGeomParams();
-			
-			m_param_velocities = IV3fGeomParam(geom_props, "velocities", 0);
-			m_param_rotations = IQuatfGeomParam(geom_props, "rotations", 0);
-			m_param_colors = IV3fGeomParam(geom_props, "colors", 0);
-			m_param_times = IFloatGeomParam(geom_props, "times", 0);
-		}
+	/* XXX non-escaped string construction here ... */
+	std::string curves_name = m_name + m_suffix;
+	if (parent.getChild(curves_name)) {
+		m_curves = ICurves(parent, curves_name);
+		ICurvesSchema &schema = m_curves.getSchema();
+		ICompoundProperty geom_props = schema.getArbGeomParams();
+		
+		m_param_velocities = IV3fGeomParam(geom_props, "velocities", 0);
+		m_param_rotations = IQuatfGeomParam(geom_props, "rotations", 0);
+		m_param_colors = IV3fGeomParam(geom_props, "colors", 0);
+		m_param_times = IFloatGeomParam(geom_props, "times", 0);
 	}
 }
 

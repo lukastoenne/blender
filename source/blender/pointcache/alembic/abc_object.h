@@ -38,7 +38,7 @@ class AbcObjectWriter : public ObjectWriter, public AbcWriter {
 public:
 	AbcObjectWriter(const std::string &name, Object *ob);
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc();
 #if 0
 	void create_refs();
 #endif
@@ -53,7 +53,7 @@ class AbcObjectReader : public ObjectReader, public AbcReader {
 public:
 	AbcObjectReader(const std::string &name, Object *ob);
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc();
 	
 	PTCReadSampleResult read_sample(float frame);
 	

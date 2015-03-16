@@ -846,7 +846,7 @@ struct PTCWriterArchive *BKE_cache_library_writers_open_archive(Scene *scene, Ca
 	archive = PTC_open_writer_archive(scene, filename);
 	
 	for (link = writers->first; link; link = link->next) {
-		PTC_writer_set_archive(link->writer, archive);
+		PTC_writer_init(link->writer, archive);
 	}
 	
 	for (link = writers->first; link; link = link->next) {
@@ -991,7 +991,7 @@ eCacheReadSampleResult BKE_cache_library_read_derived_mesh(Scene *scene, float f
 		
 		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
-		PTC_reader_set_archive(reader, archive);
+		PTC_reader_init(reader, archive);
 		
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		item->read_result = result;
@@ -1021,7 +1021,7 @@ eCacheReadSampleResult BKE_cache_library_read_hair_dynamics(Scene *scene, float 
 		
 		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
-		PTC_reader_set_archive(reader, archive);
+		PTC_reader_init(reader, archive);
 		
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		item->read_result = result;
@@ -1049,7 +1049,7 @@ eCacheReadSampleResult BKE_cache_library_read_particles(Scene *scene, float fram
 		
 		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
-		PTC_reader_set_archive(reader, archive);
+		PTC_reader_init(reader, archive);
 		
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		item->read_result = result;
@@ -1077,7 +1077,7 @@ eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_parents(Scene 
 		
 		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
-		PTC_reader_set_archive(reader, archive);
+		PTC_reader_init(reader, archive);
 		
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		item->read_result = result;
@@ -1105,7 +1105,7 @@ eCacheReadSampleResult BKE_cache_library_read_particles_pathcache_children(Scene
 		
 		BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
-		PTC_reader_set_archive(reader, archive);
+		PTC_reader_init(reader, archive);
 		
 		result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 		item->read_result = result;
@@ -1236,7 +1236,7 @@ bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLib
 			archive = PTC_open_reader_archive(scene, filename);
 			
 			reader = PTC_reader_dupligroup(dupgroup->id.name, dupgroup, dupcache);
-			PTC_reader_set_archive(reader, archive);
+			PTC_reader_init(reader, archive);
 			
 			result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 			

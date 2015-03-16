@@ -117,11 +117,11 @@ void PTC_close_reader_archive(PTCReaderArchive *_archive)
 	delete archive;
 }
 
-void PTC_writer_set_archive(PTCWriter *_writer, PTCWriterArchive *_archive)
+void PTC_writer_init(PTCWriter *_writer, PTCWriterArchive *_archive)
 {
 	PTC::Writer *writer = (PTC::Writer *)_writer;
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	writer->set_archive(archive);
+	writer->init(archive);
 }
 
 void PTC_writer_create_refs(PTCWriter *_writer)
@@ -130,11 +130,11 @@ void PTC_writer_create_refs(PTCWriter *_writer)
 	writer->create_refs();
 }
 
-void PTC_reader_set_archive(PTCReader *_reader, PTCReaderArchive *_archive)
+void PTC_reader_init(PTCReader *_reader, PTCReaderArchive *_archive)
 {
 	PTC::Reader *reader = (PTC::Reader *)_reader;
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	reader->set_archive(archive);
+	reader->init(archive);
 }
 
 /* ========================================================================= */

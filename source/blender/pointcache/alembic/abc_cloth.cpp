@@ -45,23 +45,18 @@ AbcClothWriter::~AbcClothWriter()
 {
 }
 
-void AbcClothWriter::open_archive(WriterArchive *archive)
+void AbcClothWriter::init_abc(OObject parent)
 {
-	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
-	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	if (m_points)
+		return;
 	
-	if (abc_archive()->archive) {
-		OObject parent = abc_archive()->get_id_object((ID *)m_ob);
-		if (parent) {
-			m_points = OPoints(parent, m_name, abc_archive()->frame_sampling_index());
-			
-			OPointsSchema &schema = m_points.getSchema();
-			OCompoundProperty geom_params = schema.getArbGeomParams();
-			
-			m_param_velocities = OV3fGeomParam(geom_params, "velocities", false, kVaryingScope, 1, 0);
-			m_param_goal_positions = OP3fGeomParam(geom_params, "goal_positions", false, kVaryingScope, 1, 0);
-		}
-	}
+	m_points = OPoints(parent, m_name, abc_archive()->frame_sampling_index());
+	
+	OPointsSchema &schema = m_points.getSchema();
+	OCompoundProperty geom_params = schema.getArbGeomParams();
+	
+	m_param_velocities = OV3fGeomParam(geom_params, "velocities", false, kVaryingScope, 1, 0);
+	m_param_goal_positions = OP3fGeomParam(geom_params, "goal_positions", false, kVaryingScope, 1, 0);
 }
 
 static V3fArraySample create_sample_velocities(Cloth *cloth, std::vector<V3f> &data)
@@ -143,22 +138,19 @@ AbcClothReader::~AbcClothReader()
 {
 }
 
-void AbcClothReader::open_archive(ReaderArchive *archive)
+void AbcClothReader::init_abc(IObject parent)
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
-	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
+	if (m_points)
+		return;
 	
-	if (abc_archive()->archive) {
-		IObject parent = abc_archive()->get_id_object((ID *)m_ob);
-		if (parent && parent.getChild(m_name)) {
-			m_points = IPoints(parent, m_name);
-			
-			IPointsSchema &schema = m_points.getSchema();
-			ICompoundProperty geom_params = schema.getArbGeomParams();
-			
-			m_param_velocities = IV3fGeomParam(geom_params, "velocities", 0);
-			m_param_goal_positions= IP3fGeomParam(geom_params, "goal_positions", 0);
-		}
+	if (parent.getChild(m_name)) {
+		m_points = IPoints(parent, m_name);
+		
+		IPointsSchema &schema = m_points.getSchema();
+		ICompoundProperty geom_params = schema.getArbGeomParams();
+		
+		m_param_velocities = IV3fGeomParam(geom_params, "velocities", 0);
+		m_param_goal_positions= IP3fGeomParam(geom_params, "goal_positions", 0);
 	}
 }
 

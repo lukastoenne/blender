@@ -19,6 +19,7 @@
 //#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/AbcCoreOgawa/ReadWrite.h>
 #include <Alembic/Abc/ArchiveInfo.h>
+#include <Alembic/Abc/IArchive.h>
 #include <Alembic/Abc/IObject.h>
 
 #include "alembic.h"
@@ -94,13 +95,17 @@ ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)
 	return ISampleSelector(frame_to_time(frame), ISampleSelector::kFloorIndex);
 }
 
-PTCReadSampleResult AbcReaderArchive::test_sample(float frame)
+
+bool AbcReader::get_frame_range(int &start_frame, int &end_frame)
 {
-	if (archive) {
-		double start_time, end_time;
-		GetArchiveStartAndEndTime(archive, start_time, end_time);
-		float start_frame = time_to_frame(start_time);
-		float end_frame = time_to_frame(end_time);
+	return m_abc_archive->get_frame_range(start_frame, end_frame);
+}
+
+PTCReadSampleResult AbcReader::test_sample(float frame)
+{
+	if (m_abc_archive) {
+		int start_frame, end_frame;
+		m_abc_archive->get_frame_range(start_frame, end_frame);
 		
 		if (frame < start_frame)
 			return PTC_READ_SAMPLE_EARLY;
@@ -108,9 +113,9 @@ PTCReadSampleResult AbcReaderArchive::test_sample(float frame)
 			return PTC_READ_SAMPLE_LATE;
 		else {
 			/* TODO could also be EXACT, but INTERPOLATED is more general
-			 * do we need to support this?
-			 * checking individual time samplings is also possible, but more involved.
-			 */
+				 * do we need to support this?
+				 * checking individual time samplings is also possible, but more involved.
+				 */
 			return PTC_READ_SAMPLE_INTERPOLATED;
 		}
 	}

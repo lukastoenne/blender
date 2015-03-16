@@ -48,7 +48,7 @@ public:
 	AbcParticlesWriter(const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcParticlesWriter();
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc(Abc::OObject parent);
 	
 	void write_sample();
 	
@@ -61,7 +61,7 @@ public:
 	AbcParticlesReader(const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcParticlesReader();
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc(Abc::IObject parent);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -76,7 +76,7 @@ class AbcHairDynamicsWriter : public ParticlesWriter, public AbcWriter {
 public:
 	AbcHairDynamicsWriter(const std::string &name, Object *ob, ParticleSystem *psys);
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc(Abc::OObject parent);
 	
 	void write_sample();
 	
@@ -88,7 +88,7 @@ class AbcHairDynamicsReader : public ParticlesReader, public AbcReader {
 public:
 	AbcHairDynamicsReader(const std::string &name, Object *ob, ParticleSystem *psys);
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc(Abc::IObject parent);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -102,7 +102,7 @@ protected:
 	AbcParticlePathcacheWriter(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	~AbcParticlePathcacheWriter();
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc(Abc::OObject parent);
 	
 	void write_sample();
 	
@@ -123,7 +123,7 @@ class AbcParticlePathcacheReader : public ParticlesReader, public AbcReader {
 protected:
 	AbcParticlePathcacheReader(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc(Abc::IObject parent);
 	
 	PTCReadSampleResult read_sample(float frame);
 	

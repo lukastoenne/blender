@@ -49,14 +49,12 @@ AbcGroupWriter::AbcGroupWriter(const std::string &name, Group *group) :
 {
 }
 
-void AbcGroupWriter::open_archive(WriterArchive *archive)
+void AbcGroupWriter::init_abc()
 {
-	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
-	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	if (m_abc_object)
+		return;
 	
-	if (abc_archive()->archive) {
-		m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_group);
-	}
+	m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_group);
 }
 
 void AbcGroupWriter::create_refs()
@@ -85,14 +83,11 @@ AbcGroupReader::AbcGroupReader(const std::string &name, Group *group) :
 {
 }
 
-void AbcGroupReader::open_archive(ReaderArchive *archive)
+void AbcGroupReader::init_abc()
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
-	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
-	
-	if (abc_archive()->archive) {
-		m_abc_object = abc_archive()->get_id_object((ID *)m_group);
-	}
+	if (m_abc_object)
+		return;
+	m_abc_object = abc_archive()->get_id_object((ID *)m_group);
 }
 
 PTCReadSampleResult AbcGroupReader::read_sample(float frame)
@@ -120,22 +115,20 @@ AbcDupligroupWriter::~AbcDupligroupWriter()
 	}
 }
 
-void AbcDupligroupWriter::open_archive(WriterArchive *archive)
+void AbcDupligroupWriter::init_abc()
 {
-	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
-	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	if (m_abc_group)
+		return;
 	
-	if (abc_archive()->archive) {
-		m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
-	}
+	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
 }
 
 void AbcDupligroupWriter::write_sample_object(Object *ob)
 {
-	Writer *ob_writer = find_id_writer((ID *)ob);
+	AbcWriter *ob_writer = find_id_writer((ID *)ob);
 	if (!ob_writer) {
 		ob_writer = new AbcObjectWriter(ob->id.name, ob);
-		ob_writer->set_archive(m_archive);
+		ob_writer->init(abc_archive());
 		m_id_writers.insert(IDWriterPair((ID *)ob, ob_writer));
 	}
 	
@@ -206,7 +199,7 @@ void AbcDupligroupWriter::write_sample()
 	free_object_duplilist(duplilist);
 }
 
-Writer *AbcDupligroupWriter::find_id_writer(ID *id) const
+AbcWriter *AbcDupligroupWriter::find_id_writer(ID *id) const
 {
 	IDWriterMap::const_iterator it = m_id_writers.find(id);
 	if (it == m_id_writers.end())
@@ -232,10 +225,8 @@ AbcDupligroupReader::~AbcDupligroupReader()
 {
 }
 
-void AbcDupligroupReader::open_archive(ReaderArchive *archive)
+void AbcDupligroupReader::init_abc()
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
-	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
 }
 
 void AbcDupligroupReader::read_dupligroup_object(IObject object, const ISampleSelector &ss)

@@ -32,12 +32,12 @@ extern "C" {
 
 namespace PTC {
 
-class ClothWriter : public Writer {
+class ClothWriter {
 public:
 	ClothWriter(Object *ob, ClothModifierData *clmd, const std::string &name) :
-	    Writer((ID *)ob, name),
 	    m_ob(ob),
-	    m_clmd(clmd)
+	    m_clmd(clmd),
+	    m_name(name)
 	{}
 	
 	~ClothWriter()
@@ -46,14 +46,15 @@ public:
 protected:
 	Object *m_ob;
 	ClothModifierData *m_clmd;
+	std::string m_name;
 };
 
-class ClothReader : public Reader {
+class ClothReader {
 public:
 	ClothReader(Object *ob, ClothModifierData *clmd, const std::string &name) :
-	    Reader((ID *)ob, name),
 	    m_ob(ob),
-	    m_clmd(clmd)
+	    m_clmd(clmd),
+	    m_name(name)
 	{}
 	
 	~ClothReader()
@@ -62,16 +63,17 @@ public:
 protected:
 	Object *m_ob;
 	ClothModifierData *m_clmd;
+	std::string m_name;
 };
 
 
-class DerivedMeshWriter : public Writer {
+class DerivedMeshWriter {
 public:
 	/** \note Targeted DerivedMesh at \a dm_ptr must be available only on \fn write_sample calls */
 	DerivedMeshWriter(Object *ob, DerivedMesh **dm_ptr, const std::string &name) :
-	    Writer((ID *)ob, name),
 	    m_ob(ob),
-	    m_dm_ptr(dm_ptr)
+	    m_dm_ptr(dm_ptr),
+	    m_name(name)
 	{}
 	
 	~DerivedMeshWriter()
@@ -80,14 +82,15 @@ public:
 protected:
 	Object *m_ob;
 	DerivedMesh **m_dm_ptr;
+	std::string m_name;
 };
 
-class DerivedMeshReader : public Reader {
+class DerivedMeshReader {
 public:
 	DerivedMeshReader(Object *ob, const std::string &name) :
-	    Reader((ID *)ob, name),
 	    m_ob(ob),
-	    m_result(0)
+	    m_result(0),
+	    m_name(name)
 	{}
 	
 	~DerivedMeshReader()
@@ -99,58 +102,63 @@ public:
 protected:
 	Object *m_ob;
 	DerivedMesh *m_result;
+	std::string m_name;
 };
 
-class GroupWriter : public Writer {
+class GroupWriter {
 public:
 	GroupWriter(Group *group, const std::string &name) :
-	    Writer((ID *)group, name),
-	    m_group(group)
+	    m_group(group),
+	    m_name(name)
 	{}
 	
 protected:
 	Group *m_group;
+	std::string m_name;
 };
 
-class GroupReader : public Reader {
+class GroupReader {
 public:
 	GroupReader(Group *group, const std::string &name) :
-	    Reader((ID *)group, name),
-	    m_group(group)
+	    m_group(group),
+	    m_name(name)
 	{}
 	
 protected:
 	Group *m_group;
+	std::string m_name;
 };
 
-class ObjectWriter : public Writer {
+class ObjectWriter {
 public:
 	ObjectWriter(Object *ob, const std::string &name) :
-	    Writer((ID *)ob, name),
-	    m_ob(ob)
+	    m_ob(ob),
+	    m_name(name)
 	{}
 	
 protected:
 	Object *m_ob;
+	std::string m_name;
 };
 
-class ObjectReader : public Reader {
+class ObjectReader {
 public:
 	ObjectReader(Object *ob, const std::string &name) :
-	    Reader((ID *)ob, name),
-	    m_ob(ob)
+	    m_ob(ob),
+	    m_name(name)
 	{}
 	
 protected:
 	Object *m_ob;
+	std::string m_name;
 };
 
-class ParticlesWriter : public Writer {
+class ParticlesWriter {
 public:
 	ParticlesWriter(Object *ob, ParticleSystem *psys, const std::string &name) :
-	    Writer((ID *)ob, name),
 	    m_ob(ob),
-	    m_psys(psys)
+	    m_psys(psys),
+	    m_name(name)
 	{}
 	
 	~ParticlesWriter()
@@ -159,14 +167,15 @@ public:
 protected:
 	Object *m_ob;
 	ParticleSystem *m_psys;
+	std::string m_name;
 };
 
-class ParticlesReader : public Reader {
+class ParticlesReader {
 public:
 	ParticlesReader(Object *ob, ParticleSystem *psys, const std::string &name) :
-	    Reader((ID *)ob, name),
 	    m_ob(ob),
 	    m_psys(psys),
+	    m_name(name),
 	    m_totpoint(0)
 	{}
 	
@@ -178,6 +187,7 @@ public:
 protected:
 	Object *m_ob;
 	ParticleSystem *m_psys;
+	std::string m_name;
 	
 	int m_totpoint;
 };
