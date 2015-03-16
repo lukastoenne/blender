@@ -1332,8 +1332,14 @@ int count_duplilist(Object *ob)
 
 static void dupli_object_data_free(DupliObjectData *data)
 {
-	if (data->cache_dm)
+	if (data->cache_dm) {
+		/* we lock DMs in the cache to prevent freeing outside,
+		 * now allow releasing again
+		 */
+		data->cache_dm->needsFree = true;
+		
 		data->cache_dm->release(data->cache_dm);
+	}
 	
 	MEM_freeN(data);
 }
@@ -1373,17 +1379,13 @@ static DupliCache *dupli_cache_new(void)
 	return dupcache;
 }
 
-static DupliObjectData *dupli_cache_add_object_data(DupliCache *dupcache)
+static DupliObjectData *dupli_cache_add_object_data(DupliCache *dupcache, Object *ob)
 {
 	DupliObjectData *data = MEM_callocN(sizeof(DupliObjectData), "dupli object data");
 	
-	BLI_ghash_insert(dupcache->ghash, data, data);
+	data->ob = ob;
+	BLI_ghash_insert(dupcache->ghash, data->ob, data);
 	return data;
-}
-
-static bool dupli_cache_contains_object_data(DupliCache *dupcache, DupliObjectData *data)
-{
-	return BLI_ghash_lookup(dupcache->ghash, data) != NULL;
 }
 
 static DupliObject *dupli_cache_add_object(DupliCache *dupcache)
@@ -1395,6 +1397,8 @@ static DupliObject *dupli_cache_add_object(DupliCache *dupcache)
 	BLI_addtail(&dupcache->duplilist, dob);
 	return dob;
 }
+
+/* ------------------------------------------------------------------------- */
 
 void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *eval_ctx)
 {
@@ -1455,12 +1459,19 @@ bool BKE_object_dupli_cache_contains(Object *ob, Object *other)
 	return false;
 }
 
+DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
+{
+	DupliObjectData *data = BLI_ghash_lookup(dupcache->ghash, ob);
+	return data;
+}
+
 DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, Object *ob, DerivedMesh *dm)
 {
-	DupliObjectData *data = dupli_cache_add_object_data(dupcache);
-	
-	data->ob = ob;
+	DupliObjectData *data = dupli_cache_add_object_data(dupcache, ob);
 	data->cache_dm = dm;
+	
+	/* we own this dm now and need to protect it until we free it ourselves */
+	dm->needsFree = false;
 	
 	return data;
 }
@@ -1470,7 +1481,7 @@ void BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], Dupli
 	DupliObject *dob = dupli_cache_add_object(dupcache);
 	
 	/* data must have been created correctly */
-	BLI_assert(dupli_cache_contains_object_data(dupcache, data));
+	BLI_assert(BLI_ghash_lookup(dupcache->ghash, data->ob) != NULL);
 	
 	dob->ob = data->ob;
 	copy_m4_m4(dob->mat, obmat);
