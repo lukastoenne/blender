@@ -1252,6 +1252,7 @@ bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLib
 
 void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 {
+#if 0
 	eCacheLibrary_EvalMode eval_mode = (eval_ctx->mode == DAG_EVAL_RENDER) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	CacheLibrary *cachelib;
 	
@@ -1279,4 +1280,5 @@ void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 			}
 		}
 	}
+#endif
 }
