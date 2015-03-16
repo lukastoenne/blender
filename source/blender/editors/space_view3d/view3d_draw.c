@@ -55,6 +55,7 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_main.h"
@@ -2057,7 +2058,10 @@ static void draw_dupli_objects_color(
 	if (dob) dob_next = dupli_step(dob->next);
 
 	for (; dob; dob_prev = dob, dob = dob_next, dob_next = dob_next ? dupli_step(dob_next->next) : NULL) {
+		DerivedMesh *final_dm; /* for restoring after override */
+
 		tbase.object = dob->ob;
+		final_dm = dob->ob->derivedFinal;
 
 		/* Make sure lod is updated from dupli's position */
 
@@ -2092,6 +2096,13 @@ static void draw_dupli_objects_color(
 		/* should move outside the loop but possible color is set in draw_object still */
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
 			glColor3ubv(color_rgb);
+		}
+		
+		/* override final DM */
+		if (base->object->dup_cache) {
+			DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
+			if (dob_data->cache_dm)
+				tbase.object->derivedFinal = dob_data->cache_dm;
 		}
 		
 		/* generate displist, test for new object */
@@ -2163,6 +2174,7 @@ static void draw_dupli_objects_color(
 		tbase.object->dtx = dtx;
 		tbase.object->transflag = transflag;
 		tbase.object->currentlod = savedlod;
+		tbase.object->derivedFinal = final_dm;
 	}
 
 	if (apply_data) {
