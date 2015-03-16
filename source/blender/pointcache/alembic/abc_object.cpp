@@ -36,14 +36,12 @@ AbcObjectWriter::AbcObjectWriter(const std::string &name, Object *ob) :
 {
 }
 
-void AbcObjectWriter::open_archive(WriterArchive *archive)
+void AbcObjectWriter::init_abc()
 {
-	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
-	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	if (m_abc_object)
+		return;
 	
-	if (abc_archive()->archive) {
-		m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_ob);
-	}
+	m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_ob);
 }
 
 #if 0
@@ -71,14 +69,11 @@ AbcObjectReader::AbcObjectReader(const std::string &name, Object *ob) :
 {
 }
 
-void AbcObjectReader::open_archive(ReaderArchive *archive)
+void AbcObjectReader::init_abc()
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
-	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
-	
-	if (abc_archive()->archive) {
-		m_abc_object = abc_archive()->get_id_object((ID *)m_ob);
-	}
+	if (m_abc_object)
+		return;
+	m_abc_object = abc_archive()->get_id_object((ID *)m_ob);
 }
 
 PTCReadSampleResult AbcObjectReader::read_sample(float frame)

@@ -22,6 +22,7 @@
 #include <string>
 
 #include <Alembic/Abc/IArchive.h>
+#include <Alembic/Abc/IObject.h>
 #include <Alembic/Abc/ISampleSelector.h>
 
 #include "reader.h"
@@ -48,7 +49,6 @@ public:
 	bool get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
-	PTCReadSampleResult test_sample(float frame);
 	std::string get_info();
 	
 	Abc::IArchive archive;
@@ -57,14 +57,28 @@ protected:
 	ErrorHandler *m_error_handler;
 };
 
-class AbcReader {
+class AbcReader : public Reader {
 public:
 	AbcReader() :
 	    m_abc_archive(0)
 	{}
 	
-	void abc_archive(AbcReaderArchive *abc_archive) { m_abc_archive = abc_archive; }
+	void init(ReaderArchive *archive)
+	{
+		BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
+		m_abc_archive = static_cast<AbcReaderArchive*>(archive);
+		
+		init_abc();
+	}
+	
+	/* one of these should be implemented by subclasses */
+	virtual void init_abc() {}
+	virtual void init_abc(Abc::IObject parent) {}
+	
 	AbcReaderArchive *abc_archive() const { return m_abc_archive; }
+	
+	bool get_frame_range(int &start_frame, int &end_frame);
+	PTCReadSampleResult test_sample(float frame);
 	
 private:
 	AbcReaderArchive *m_abc_archive;

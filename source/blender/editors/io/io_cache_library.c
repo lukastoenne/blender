@@ -282,7 +282,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	data->archive = PTC_open_writer_archive(scene, filename);
 	
 	data->writer = PTC_writer_dupligroup(data->cachelib->group->id.name, &data->eval_ctx, scene, data->cachelib->group);
-	PTC_writer_set_archive(data->writer, data->archive);
+	PTC_writer_init(data->writer, data->archive);
 	
 	G.is_break = false;
 	

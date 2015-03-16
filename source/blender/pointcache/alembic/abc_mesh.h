@@ -46,7 +46,7 @@ public:
 	AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr);
 	~AbcDerivedMeshWriter();
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc(Abc::OObject parent);
 	
 	void write_sample();
 	
@@ -77,7 +77,7 @@ public:
 	AbcDerivedMeshReader(const std::string &name, Object *ob);
 	~AbcDerivedMeshReader();
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc(Abc::IObject parent);
 	
 	PTCReadSampleResult read_sample(float frame);
 	

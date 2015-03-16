@@ -25,11 +25,13 @@ extern "C" {
 
 namespace PTC {
 
-Reader::Reader(ID *id, const std::string &name) :
-    m_error_handler(0),
-    m_archive(0),
-    m_name(name),
-    m_id(id)
+Reader::Reader() :
+    m_error_handler(0)
+{
+}
+
+Reader::Reader(ErrorHandler *error_handler) :
+    m_error_handler(error_handler)
 {
 }
 
@@ -37,14 +39,6 @@ Reader::~Reader()
 {
 	if (m_error_handler)
 		delete m_error_handler;
-}
-
-void Reader::set_archive(ReaderArchive *archive)
-{
-	m_archive = archive;
-	
-	if (m_archive)
-		open_archive(archive);
 }
 
 void Reader::set_error_handler(ErrorHandler *handler)

@@ -53,30 +53,25 @@ AbcDerivedMeshWriter::~AbcDerivedMeshWriter()
 {
 }
 
-void AbcDerivedMeshWriter::open_archive(WriterArchive *archive)
+void AbcDerivedMeshWriter::init_abc(OObject parent)
 {
-	BLI_assert(dynamic_cast<AbcWriterArchive*>(archive));
-	AbcWriter::abc_archive(static_cast<AbcWriterArchive*>(archive));
+	if (m_mesh)
+		return;
 	
-	if (abc_archive()->archive) {
-		OObject parent = abc_archive()->get_id_object((ID *)m_ob);
-		if (parent) {
-			m_mesh = OPolyMesh(parent, m_name, abc_archive()->frame_sampling_index());
-			
-			OPolyMeshSchema &schema = m_mesh.getSchema();
-			OCompoundProperty geom_props = schema.getArbGeomParams();
-			OCompoundProperty user_props = schema.getUserProperties();
-			
-			m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
-			m_prop_edge_verts = OUInt32ArrayProperty(user_props, "edge_verts", 0);
-			m_prop_edge_flag = OInt16ArrayProperty(user_props, "edge_flag", 0);
-			m_prop_edge_crease = OCharArrayProperty(user_props, "edge_crease", 0);
-			m_prop_edge_bweight = OCharArrayProperty(user_props, "edge_bweight", 0);
-			m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
-			m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
-			m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
-		}
-	}
+	m_mesh = OPolyMesh(parent, m_name, abc_archive()->frame_sampling_index());
+	
+	OPolyMeshSchema &schema = m_mesh.getSchema();
+	OCompoundProperty geom_props = schema.getArbGeomParams();
+	OCompoundProperty user_props = schema.getUserProperties();
+	
+	m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
+	m_prop_edge_verts = OUInt32ArrayProperty(user_props, "edge_verts", 0);
+	m_prop_edge_flag = OInt16ArrayProperty(user_props, "edge_flag", 0);
+	m_prop_edge_crease = OCharArrayProperty(user_props, "edge_crease", 0);
+	m_prop_edge_bweight = OCharArrayProperty(user_props, "edge_bweight", 0);
+	m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
+	m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
+	m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
 }
 
 /* XXX modifiers are not allowed to generate poly normals on their own!
@@ -339,30 +334,26 @@ AbcDerivedMeshReader::~AbcDerivedMeshReader()
 {
 }
 
-void AbcDerivedMeshReader::open_archive(ReaderArchive *archive)
+void AbcDerivedMeshReader::init_abc(IObject parent)
 {
-	BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
-	AbcReader::abc_archive(static_cast<AbcReaderArchive*>(archive));
-	
-	if (abc_archive()->archive) {
-		IObject parent = abc_archive()->get_id_object((ID *)m_ob);
-		if (parent && parent.getChild(m_name)) {
-			m_mesh = IPolyMesh(parent, m_name);
-			
-			IPolyMeshSchema &schema = m_mesh.getSchema();
-			ICompoundProperty geom_props = schema.getArbGeomParams();
-			ICompoundProperty user_props = schema.getUserProperties();
-			
-			m_param_loop_normals = schema.getNormalsParam();
-			m_param_poly_normals = IN3fGeomParam(geom_props, "poly_normals", 0);
-			m_param_vertex_normals = IN3fGeomParam(geom_props, "vertex_normals", 0);
-			m_param_smooth = IBoolGeomParam(geom_props, "smooth", 0);
-			m_prop_edge_verts = IUInt32ArrayProperty(user_props, "edge_verts", 0);
-			m_prop_edge_flag = IInt16ArrayProperty(user_props, "edge_flag", 0);
-			m_prop_edge_crease = ICharArrayProperty(user_props, "edge_crease", 0);
-			m_prop_edge_bweight = ICharArrayProperty(user_props, "edge_bweight", 0);
-			m_prop_edges_index = IInt32ArrayProperty(user_props, "edges_index", 0);
-		}
+	if (m_mesh)
+		return;
+	if (parent.getChild(m_name)) {
+		m_mesh = IPolyMesh(parent, m_name);
+		
+		IPolyMeshSchema &schema = m_mesh.getSchema();
+		ICompoundProperty geom_props = schema.getArbGeomParams();
+		ICompoundProperty user_props = schema.getUserProperties();
+		
+		m_param_loop_normals = schema.getNormalsParam();
+		m_param_poly_normals = IN3fGeomParam(geom_props, "poly_normals", 0);
+		m_param_vertex_normals = IN3fGeomParam(geom_props, "vertex_normals", 0);
+		m_param_smooth = IBoolGeomParam(geom_props, "smooth", 0);
+		m_prop_edge_verts = IUInt32ArrayProperty(user_props, "edge_verts", 0);
+		m_prop_edge_flag = IInt16ArrayProperty(user_props, "edge_flag", 0);
+		m_prop_edge_crease = ICharArrayProperty(user_props, "edge_crease", 0);
+		m_prop_edge_bweight = ICharArrayProperty(user_props, "edge_bweight", 0);
+		m_prop_edges_index = IInt32ArrayProperty(user_props, "edges_index", 0);
 	}
 }
 

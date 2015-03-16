@@ -38,7 +38,7 @@ class AbcGroupWriter : public GroupWriter, public AbcWriter {
 public:
 	AbcGroupWriter(const std::string &name, Group *group);
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc();
 	void create_refs();
 	
 	void write_sample();
@@ -51,7 +51,7 @@ class AbcGroupReader : public GroupReader, public AbcReader {
 public:
 	AbcGroupReader(const std::string &name, Group *group);
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -66,19 +66,19 @@ public:
 	typedef std::vector<Abc::ObjectWriterPtr> ObjectWriterList;
 	typedef std::vector<Abc::BasePropertyWriterPtr> PropertyWriterList;
 	
-	typedef std::map<ID*, Writer*> IDWriterMap;
-	typedef std::pair<ID*, Writer*> IDWriterPair;
+	typedef std::map<ID*, AbcWriter*> IDWriterMap;
+	typedef std::pair<ID*, AbcWriter*> IDWriterPair;
 	
 	AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group);
 	~AbcDupligroupWriter();
 	
-	void open_archive(WriterArchive *archive);
+	void init_abc();
 	
 	void write_sample();
 	void write_sample_object(Object *ob);
 	void write_sample_dupli(DupliObject *dob, int index);
 	
-	Writer *find_id_writer(ID *id) const;
+	AbcWriter *find_id_writer(ID *id) const;
 	
 private:
 	EvaluationContext *m_eval_ctx;
@@ -102,7 +102,7 @@ public:
 	AbcDupligroupReader(const std::string &name, Group *group, DupliCache *dupcache);
 	~AbcDupligroupReader();
 	
-	void open_archive(ReaderArchive *archive);
+	void init_abc();
 	
 	PTCReadSampleResult read_sample(float frame);
 	

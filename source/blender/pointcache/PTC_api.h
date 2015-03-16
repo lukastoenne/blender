@@ -69,9 +69,9 @@ void PTC_close_writer_archive(struct PTCWriterArchive *archive);
 struct PTCReaderArchive *PTC_open_reader_archive(struct Scene *scene, const char *path);
 void PTC_close_reader_archive(struct PTCReaderArchive *archive);
 
-void PTC_writer_set_archive(struct PTCWriter *writer, struct PTCWriterArchive *archive);
+void PTC_writer_init(struct PTCWriter *writer, struct PTCWriterArchive *archive);
 void PTC_writer_create_refs(struct PTCWriter *writer);
-void PTC_reader_set_archive(struct PTCReader *reader, struct PTCReaderArchive *archive);
+void PTC_reader_init(struct PTCReader *reader, struct PTCReaderArchive *archive);
 
 /*** Reader/Writer Interface ***/
 
