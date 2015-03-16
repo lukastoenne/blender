@@ -29,6 +29,7 @@
 #include "abc_reader.h"
 #include "abc_schema.h"
 #include "abc_writer.h"
+#include "abc_mesh.h"
 
 struct Object;
 
@@ -47,6 +48,8 @@ public:
 	
 private:
 	Abc::OObject m_abc_object;
+	
+	AbcDerivedMeshWriter m_dm_writer;
 };
 
 class AbcObjectReader : public ObjectReader, public AbcReader {
