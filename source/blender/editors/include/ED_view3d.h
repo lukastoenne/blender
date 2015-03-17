@@ -62,6 +62,7 @@ struct rcti;
 struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
+struct wmWindowManager;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetGroupType;
@@ -386,6 +387,7 @@ int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *wg
 void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
 /* render */
+void ED_view3d_stop_render_preview(struct wmWindowManager *wm, struct ARegion *ar);
 void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View3D *v3d, struct ScrArea *sa);
 
 #endif /* __ED_VIEW3D_H__ */
