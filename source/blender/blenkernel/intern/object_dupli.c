@@ -1397,9 +1397,11 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 	const eCacheLibrary_EvalMode eval_mode = eval_ctx->mode == DAG_EVAL_RENDER ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	Main *bmain = G.main;
 	
+	bool is_dupligroup = (ob->transflag & OB_DUPLIGROUP) && ob->dup_group;
+	bool is_cached = (ob->transflag & OB_DUPLI_USE_CACHE) && BKE_cache_test_dupligroup(bmain, eval_mode, ob->dup_group);
+	
 	/* cache is a group duplicator feature only */
-	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group &&
-	    BKE_cache_test_dupligroup(bmain, eval_mode, ob->dup_group)) {
+	if (is_dupligroup && is_cached) {
 		
 		if (ob->dup_cache && !(ob->dup_cache->flag & DUPCACHE_FLAG_DIRTY)) {
 			/* skip if cache is valid */
