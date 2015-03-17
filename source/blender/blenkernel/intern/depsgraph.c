@@ -620,7 +620,12 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 		/* inverted relation, so addtoroot shouldn't be set to zero */
 	}
 	
-	if (ob->transflag & OB_DUPLI) {
+	/* XXX Fake dependency: duplicator object becomes a child of group objects.
+	 * This exploits the layer visibility mechanism, making the group objects update
+	 * when the duplicator is visible (even if group objects are not visible themselves).
+	 * It is not a true dependency, the duplicator does not in any way depend on group objects or data!
+	 */
+	if (ob->transflag & OB_DUPLI && !(ob->transflag & OB_DUPLI_USE_CACHE)) {
 		if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
 			GroupObject *go;
 			for (go = ob->dup_group->gobject.first; go; go = go->next) {
