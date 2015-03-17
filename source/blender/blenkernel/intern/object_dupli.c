@@ -1227,17 +1227,9 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 /* Returns a list of DupliObject */
 ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
-	/* XXX Warning: this could potentially lead to a lot of unnecessary cache reading!
-	 * In the future proper depsgraph integration of dupli cache updates would be desirable.
-	 */
-#if 0
 	if (update) {
-		if (G.debug & G_DEBUG)
-			printf("Update dupli cache for object '%s'\n", ob->id.name+2);
-		
-		BKE_object_dupli_cache_update(scene, ob, eval_ctx);
+		BKE_object_dupli_cache_update(scene, ob, eval_ctx, (float)scene->r.cfra);
 	}
-#endif
 	
 	if (ob->dup_cache) {
 		/* Note: duplis in the cache don't have the main duplicator obmat applied.
@@ -1400,7 +1392,7 @@ static DupliObject *dupli_cache_add_object(DupliCache *dupcache)
 
 /* ------------------------------------------------------------------------- */
 
-void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *eval_ctx)
+void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *eval_ctx, float frame)
 {
 	const eCacheLibrary_EvalMode eval_mode = eval_ctx->mode == DAG_EVAL_RENDER ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
 	Main *bmain = G.main;
@@ -1409,18 +1401,25 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group &&
 	    BKE_cache_test_dupligroup(bmain, eval_mode, ob->dup_group)) {
 		
-		if (ob->dup_cache) {
-			dupli_cache_clear(ob->dup_cache);
+		if (ob->dup_cache && !(ob->dup_cache->flag & DUPCACHE_FLAG_DIRTY)) {
+			/* skip if cache is valid */
 		}
 		else {
-			ob->dup_cache = dupli_cache_new();
-		}
-		
-		{
-			/* TODO at this point we could apply animation offset */
-			float frame = (float)scene->r.cfra;
+			if (G.debug & G_DEBUG)
+				printf("Update dupli cache for object '%s'\n", ob->id.name+2);
 			
+			if (ob->dup_cache) {
+				dupli_cache_clear(ob->dup_cache);
+			}
+			else {
+				ob->dup_cache = dupli_cache_new();
+			}
+			
+			/* TODO at this point we could apply animation offset */
 			BKE_cache_read_dupligroup(bmain, scene, frame, eval_mode, ob->dup_group, ob->dup_cache);
+			
+			ob->dup_cache->flag &= ~DUPCACHE_FLAG_DIRTY;
+			ob->dup_cache->cfra = frame;
 		}
 	
 	}

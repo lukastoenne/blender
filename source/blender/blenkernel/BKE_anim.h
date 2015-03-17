@@ -78,7 +78,7 @@ struct ListBase *group_duplilist(struct EvaluationContext *eval_ctx, struct Scen
 void free_object_duplilist(struct ListBase *lb);
 int count_duplilist(struct Object *ob);
 
-void BKE_object_dupli_cache_update(struct Scene *scene, struct Object *ob, struct EvaluationContext *eval_ctx);
+void BKE_object_dupli_cache_update(struct Scene *scene, struct Object *ob, struct EvaluationContext *eval_ctx, float frame);
 void BKE_object_dupli_cache_clear(struct Object *ob);
 void BKE_object_dupli_cache_free(struct Object *ob);
 bool BKE_object_dupli_cache_contains(struct Object *ob, struct Object *other);

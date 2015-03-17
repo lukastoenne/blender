@@ -355,10 +355,16 @@ typedef struct DupliObjectData {
 } DupliObjectData;
 
 typedef struct DupliCache {
-	struct GHash *ghash;
+	int flag;
+	float cfra; /* frame for which the cache was constructed */
 	
+	struct GHash *ghash;
 	ListBase duplilist;
 } DupliCache;
+
+typedef enum eDupliCache_Flag {
+	DUPCACHE_FLAG_DIRTY         = (1 << 0), /* cache requires update */
+} eDupliCache_Flag;
 
 /* **************** OBJECT ********************* */
 
