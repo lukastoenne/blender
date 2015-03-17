@@ -1213,6 +1213,9 @@ bool BKE_cache_test_dupligroup(Main *bmain, eCacheLibrary_EvalMode eval_mode, st
 {
 	CacheLibrary *cachelib;
 	
+	if (!dupgroup)
+		return false;
+	
 	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (cachelib->group == dupgroup) {
 			return true;
@@ -1224,6 +1227,9 @@ bool BKE_cache_test_dupligroup(Main *bmain, eCacheLibrary_EvalMode eval_mode, st
 bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode, struct Group *dupgroup, struct DupliCache *dupcache)
 {
 	CacheLibrary *cachelib;
+	
+	if (!dupgroup)
+		return false;
 	
 	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
 		if (cachelib->group == dupgroup) {
