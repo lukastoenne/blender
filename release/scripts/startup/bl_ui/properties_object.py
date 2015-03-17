@@ -295,7 +295,6 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         elif ob.dupli_type == 'GROUP':
             layout.prop(ob, "dupli_group", text="Group")
             layout.prop(ob, "use_dupli_cache")
-            layout.operator("cachelibrary.rebuild_dupligroup")
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
