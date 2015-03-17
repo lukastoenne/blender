@@ -3767,14 +3767,12 @@ uiLayout *uiTemplateCacheLibraryItem(uiLayout *layout, bContext *C, CacheLibrary
 	uiItemL(split, name, icon);
 	
 	/* display read result */
-	if (cachelib->flag & CACHE_LIBRARY_READ) {
-		split = uiLayoutSplit(row, 0.9f, false);
-		if (item && (item->flag & CACHE_ITEM_ENABLED))
-			RNA_enum_icon_from_value(cache_library_read_result_items, item->read_result, &icon);
-		else
-			icon = ICON_NONE;
-		uiItemL(split, NULL, icon);
-	}
+	split = uiLayoutSplit(row, 0.9f, false);
+	if (item && (item->flag & CACHE_ITEM_ENABLED))
+		RNA_enum_icon_from_value(cache_library_read_result_items, item->read_result, &icon);
+	else
+		icon = ICON_NONE;
+	uiItemL(split, NULL, icon);
 	
 	return sub;
 }

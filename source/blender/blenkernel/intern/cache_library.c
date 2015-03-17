@@ -655,8 +655,6 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 static CacheLibrary *cachelib_skip_read(CacheLibrary *cachelib, eCacheLibrary_EvalMode eval_mode)
 {
 	for (; cachelib; cachelib = cachelib->id.next) {
-		if (!(cachelib->flag & CACHE_LIBRARY_READ))
-			continue;
 		if (cachelib->eval_mode != eval_mode)
 			continue;
 		break;

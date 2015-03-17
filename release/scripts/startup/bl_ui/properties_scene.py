@@ -498,9 +498,7 @@ class SCENE_PT_cache_manager(SceneButtonsPanel, Panel):
         props.use_clipboard = True
         col.prop(cachelib, "filepath", text="")
 
-        colrow = col.row(align=True)
-        colrow.prop(cachelib, "read", text="Read", toggle=True)
-        colrow.operator("cachelibrary.bake")
+        col.operator("cachelibrary.bake")
         col.prop(cachelib, "eval_mode", expand=False)
 
         row = layout.row(align=True)
