@@ -275,8 +275,9 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	else {
 		data->eval_ctx.mode = DAG_EVAL_RENDER;
 	}
+	// TODO
 	/* disable reading for the duration of the bake process */
-	data->cachelib->flag &= ~CACHE_LIBRARY_READ;
+//	data->cachelib->flag |= CACHE_LIBRARY_BAKING;
 	
 	BKE_cache_archive_path(data->cachelib->filepath, (ID *)data->cachelib, data->cachelib->id.lib, filename, sizeof(filename));
 	data->archive = PTC_open_writer_archive(scene, filename);
@@ -308,8 +309,9 @@ static void cache_library_bake_endjob(void *customdata)
 	if (data->archive)
 		PTC_close_writer_archive(data->archive);
 	
+	// TODO
 	/* enable reading */
-	data->cachelib->flag |= CACHE_LIBRARY_READ;
+//	data->cachelib->flag &= ~CACHE_LIBRARY_BAKING;
 	
 	/* reset scene frame */
 	scene->r.cfra = data->origfra;

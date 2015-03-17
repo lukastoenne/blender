@@ -84,9 +84,8 @@ typedef struct CacheLibrary {
 	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */
 } CacheLibrary;
 
-typedef enum eCacheLibrary_Flag {
-	CACHE_LIBRARY_READ              = 1, /* read data from this cache library */
-} eCacheLibrary_Flag;
+//typedef enum eCacheLibrary_Flag {
+//} eCacheLibrary_Flag;
 
 typedef enum eCacheLibrary_EvalMode {
 	CACHE_LIBRARY_EVAL_VIEWPORT     = 0, /* evaluate data with viewport settings */
