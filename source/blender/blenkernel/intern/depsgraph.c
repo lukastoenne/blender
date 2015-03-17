@@ -2137,6 +2137,10 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 		}
 	}
 
+	/* invalidate dupli cache */
+	if (ob->dup_cache)
+		ob->dup_cache->flag |= DUPCACHE_FLAG_DIRTY;
+
 	if (ob->recalc & OB_RECALC_OB)
 		lib_id_recalc_tag(bmain, &ob->id);
 	if (ob->recalc & OB_RECALC_DATA)

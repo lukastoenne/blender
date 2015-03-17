@@ -3216,8 +3216,6 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 			}
 			
 			/* quick cache removed */
-			
-			BKE_object_dupli_cache_update(scene, ob, eval_ctx);
 		}
 
 		ob->recalc &= ~OB_RECALC_ALL;

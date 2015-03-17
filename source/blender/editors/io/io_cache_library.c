@@ -602,7 +602,7 @@ static int cache_library_rebuild_dupligroup_exec(bContext *C, wmOperator *UNUSED
 	
 	eval_ctx.mode = DAG_EVAL_VIEWPORT;
 	
-	BKE_object_dupli_cache_update(scene, ob, &eval_ctx);
+	BKE_object_dupli_cache_update(scene, ob, &eval_ctx, (float)scene->r.cfra);
 	
 	return OPERATOR_FINISHED;
 }
