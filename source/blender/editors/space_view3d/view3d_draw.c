@@ -2102,7 +2102,7 @@ static void draw_dupli_objects_color(
 		UI_GetThemeColorBlend3ubv(color, TH_BACK, 0.5f, color_rgb);
 	}
 
-	tbase.flag = OB_FROMDUPLI | base->flag;
+	tbase.flag |= OB_FROMDUPLI;
 	lb = object_duplilist(G.main->eval_ctx, scene, base->object);
 	// BLI_listbase_sort(lb, dupli_ob_sort); /* might be nice to have if we have a dupli list with mixed objects. */
 
@@ -2160,6 +2160,8 @@ static void draw_dupli_objects_color(
 		if (base->object->dup_cache) {
 			DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
 			if (dob_data->cache_dm) {
+				tbase.flag |= OB_FROMCACHE;
+				
 				tbase.object->derivedFinal = dob_data->cache_dm;
 				tbase.object->bb = bb_tmp = &dob_data->bb;
 			}
