@@ -284,15 +284,17 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	BKE_cache_archive_path(data->cachelib->filepath, (ID *)data->cachelib, data->cachelib->id.lib, filename, sizeof(filename));
 	data->archive = PTC_open_writer_archive(scene, filename);
 	
-	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group);
-	PTC_writer_init(data->writer, data->archive);
-	
-	G.is_break = false;
-	
-	/* XXX where to get this from? */
-	start_frame = scene->r.sfra;
-	end_frame = scene->r.efra;
-	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+	if (data->archive) {
+		data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group);
+		PTC_writer_init(data->writer, data->archive);
+		
+		G.is_break = false;
+		
+		/* XXX where to get this from? */
+		start_frame = scene->r.sfra;
+		end_frame = scene->r.efra;
+		PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+	}
 	
 	*do_update = true;
 	*stop = 0;
