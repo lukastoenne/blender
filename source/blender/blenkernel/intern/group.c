@@ -79,7 +79,6 @@ void BKE_group_unlink(Group *group)
 	Scene *sce;
 	SceneRenderLayer *srl;
 	ParticleSystem *psys;
-	CacheLibrary *cachelib;
 	
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
 		if (ma->group == group)
