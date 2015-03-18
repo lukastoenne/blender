@@ -648,7 +648,7 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 }
 
 
-bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+bool BKE_cache_read_dupligroup(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
                                struct Group *dupgroup, struct DupliCache *dupcache, CacheLibrary *cachelib)
 {
 	char filename[FILE_MAX];
