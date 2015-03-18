@@ -587,7 +587,7 @@ static void create_subd_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, PointerR
 
 /* Sync */
 
-Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris)
+Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris, BL::Object b_ob_parent)
 {
 	/* When viewport display is not needed during render we can force some
 	 * caches to be releases from blender side in order to reduce peak memory
@@ -599,7 +599,6 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 
 	/* test if we can instance or if the object is modified */
 	BL::ID b_ob_data = b_ob.data();
-	BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob_data;
 	BL::Material material_override = render_layer.material_override;
 
 	/* find shader indices */
@@ -624,7 +623,18 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	bool use_mesh_geometry = render_layer.use_surfaces || render_layer.use_hair;
 	Mesh *mesh;
 
-	if(!mesh_map.sync(&mesh, key)) {
+	BL::DupliObjectData b_dup_data = (b_ob_parent && b_ob_parent.use_dupli_cache())? b_ob_parent.find_dupli_cache(b_ob): BL::DupliObjectData(PointerRNA_NULL);
+	bool need_update;
+	if (b_dup_data) {
+		MeshKey key = MeshKey(b_ob_parent, b_ob);
+		need_update = mesh_map.sync(&mesh, b_ob_parent, PointerRNA_NULL, key);
+	}
+	else {
+		BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob_data;
+		need_update = mesh_map.sync(&mesh, key);
+	}
+
+	if(!need_update) {
 		/* if transform was applied to mesh, need full update */
 		if(object_updated && mesh->transform_applied);
 		/* test if shaders changed, these can be object level so mesh
@@ -675,7 +685,9 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 			b_ob.update_from_editmode();
 
 		bool need_undeformed = mesh->need_attribute(scene, ATTR_STD_GENERATED);
-		BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, need_undeformed);
+		BL::Mesh b_mesh = (b_dup_data)?
+		            dupli_cache_to_mesh(b_data, b_dup_data, need_undeformed):
+		            object_to_mesh(b_data, b_ob, b_scene, true, !preview, need_undeformed);
 
 		if(b_mesh) {
 			if(render_layer.use_surfaces && !hide_tris) {

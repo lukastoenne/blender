@@ -48,6 +48,7 @@
 #ifdef RNA_RUNTIME
 
 #include "BKE_main.h"
+#include "BKE_anim.h"
 #include "BKE_cache_library.h"
 #include "BKE_camera.h"
 #include "BKE_curve.h"
@@ -308,6 +309,15 @@ Mesh *rna_Main_meshes_new_from_object(
 	}
 
 	return BKE_mesh_new_from_object(bmain, sce, ob, apply_modifiers, settings, calc_tessface, calc_undeformed);
+}
+
+/* copied from Mesh_getFromObject and adapted to RNA interface */
+/* settings: 1 - preview, 2 - render */
+Mesh *rna_Main_meshes_new_from_dupli_cache(
+        Main *bmain, ReportList *UNUSED(reports), DupliObjectData *data,
+        int calc_tessface, int calc_undeformed)
+{
+	return BKE_mesh_new_from_dupli_cache(bmain, data, calc_tessface, calc_undeformed);
 }
 
 static void rna_Main_meshes_remove(Main *bmain, ReportList *reports, PointerRNA *mesh_ptr)
@@ -1051,6 +1061,17 @@ void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_enum(func, "settings", mesh_type_items, 0, "", "Modifier settings to apply");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_boolean(func, "calc_tessface", true, "Calculate Tessellation", "Calculate tessellation faces");
+	RNA_def_boolean(func, "calc_undeformed", false, "Calculate Undeformed", "Calculate undeformed vertex coordinates");
+	parm = RNA_def_pointer(func, "mesh", "Mesh", "",
+	                       "Mesh created from object, remove it if it is only used for export");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "new_from_dupli_cache", "rna_Main_meshes_new_from_dupli_cache");
+	RNA_def_function_ui_description(func, "Add a new mesh created from dupli cache data");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "data", "DupliObjectData", "", "Dupli Object Data");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	RNA_def_boolean(func, "calc_tessface", true, "Calculate Tessellation", "Calculate tessellation faces");
 	RNA_def_boolean(func, "calc_undeformed", false, "Calculate Undeformed", "Calculate undeformed vertex coordinates");
 	parm = RNA_def_pointer(func, "mesh", "Mesh", "",

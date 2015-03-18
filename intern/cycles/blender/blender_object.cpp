@@ -280,7 +280,10 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
 	
 	/* mesh sync */
-	object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
+	if (b_dupli_ob)
+		object->mesh = sync_mesh(b_ob, object_updated, hide_tris, b_parent);
+	else
+		object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
 
 	/* special case not tracked by object update flags */
 

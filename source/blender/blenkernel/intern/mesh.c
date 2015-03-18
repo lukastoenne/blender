@@ -2479,3 +2479,63 @@ Mesh *BKE_mesh_new_from_object(
 	return tmpmesh;
 }
 
+
+/* settings: 1 - preview, 2 - render */
+Mesh *BKE_mesh_new_from_dupli_cache(
+        Main *bmain, DupliObjectData *data,
+        bool calc_tessface, bool calc_undeformed)
+{
+	Object *ob = data->ob;
+	DerivedMesh *dm = data->cache_dm;
+	CustomDataMask mask;
+	
+	Mesh *tmpmesh;
+	
+	if (!ob || !dm)
+		return NULL;
+	
+	mask = CD_MASK_MESH; /* this seems more suitable, exporter,
+	                      * for example, needs CD_MASK_MDEFORMVERT */
+	if (calc_undeformed)
+		mask |= CD_MASK_ORCO;
+	
+	tmpmesh = BKE_mesh_add(bmain, "Mesh");
+	DM_to_mesh(dm, tmpmesh, ob, mask, true);
+	
+	/* BKE_mesh_add/copy gives us a user count we don't need */
+	tmpmesh->id.us--;
+
+	/* Copy materials to new mesh */
+	switch (ob->type) {
+		case OB_MESH: {
+			Mesh *origmesh = ob->data;
+			int i;
+			
+			tmpmesh->flag = origmesh->flag;
+			tmpmesh->mat = MEM_dupallocN(origmesh->mat);
+			tmpmesh->totcol = origmesh->totcol;
+			tmpmesh->smoothresh = origmesh->smoothresh;
+			if (origmesh->mat) {
+				for (i = origmesh->totcol; i-- > 0; ) {
+					/* are we an object material or data based? */
+					tmpmesh->mat[i] = ob->matbits[i] ? ob->mat[i] : origmesh->mat[i];
+					
+					if (tmpmesh->mat[i]) {
+						tmpmesh->mat[i]->id.us++;
+					}
+				}
+			}
+			break;
+		}
+	} /* end copy materials */
+	
+	if (calc_tessface) {
+		/* cycles and exporters rely on this still */
+		BKE_mesh_tessface_ensure(tmpmesh);
+	}
+	
+	/* make sure materials get updated in objects */
+	test_object_materials(bmain, &tmpmesh->id);
+	
+	return tmpmesh;
+}

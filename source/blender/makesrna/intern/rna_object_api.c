@@ -222,6 +222,18 @@ static void rna_Object_free_duplilist(Object *ob)
 	}
 }
 
+static PointerRNA rna_Object_find_dupli_cache(Object *ob, Object *dupob)
+{
+	DupliObjectData *data = NULL;
+	PointerRNA ptr;
+	
+	if (ob->dup_cache)
+		data = BKE_dupli_cache_find_data(ob->dup_cache, dupob);
+	
+	RNA_pointer_create((ID *)ob, &RNA_DupliObjectData, data, &ptr);
+	return ptr;
+}
+
 static PointerRNA rna_Object_shape_key_add(Object *ob, bContext *C, ReportList *reports,
                                            const char *name, int from_mix)
 {
@@ -546,6 +558,14 @@ void RNA_api_object(StructRNA *srna)
 
 	func = RNA_def_function(srna, "dupli_list_clear", "rna_Object_free_duplilist");
 	RNA_def_function_ui_description(func, "Free the list of dupli objects");
+
+	func = RNA_def_function(srna, "find_dupli_cache", "rna_Object_find_dupli_cache");
+	RNA_def_function_ui_description(func, "Find cached data for a dupli object");
+	parm = RNA_def_pointer(func, "object", "Object", "", "Object data to look up");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "data", "DupliObjectData", "", "Cached object data");
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+	RNA_def_function_return(func, parm);
 
 	/* Armature */
 	func = RNA_def_function(srna, "find_armature", "modifiers_isDeformedByArmature");
