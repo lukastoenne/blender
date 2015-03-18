@@ -342,6 +342,7 @@ typedef struct DupliObjectData {
 	 * others make this too difficult
 	 */
 	struct Object *ob;
+	struct BoundBox bb;
 	struct DerivedMesh *cache_dm;
 } DupliObjectData;
 
