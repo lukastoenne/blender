@@ -294,7 +294,11 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
         elif ob.dupli_type == 'GROUP':
             layout.prop(ob, "dupli_group", text="Group")
-            layout.prop(ob, "use_dupli_cache")
+            row = layout.row(align=True)
+            row.prop(ob, "cache_library")
+            sub = row.row(align=True)
+            sub.active = ob.cache_library is not None
+            sub.prop(ob, "use_dupli_cache", text="Read", toggle=True)
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

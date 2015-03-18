@@ -264,7 +264,8 @@ typedef struct Object {
 	struct PartDeflect *pd;		/* particle deflector/attractor/collision data */
 	struct SoftBody *soft;		/* if exists, saved in file */
 	struct Group *dup_group;	/* object duplicator for group */
-	struct DupliCache *dup_cache;	/* cached dupli overrides */
+	struct DupliCache *dup_cache;		/* cached dupli overrides */
+	struct CacheLibrary *cache_library;	/* cache library to use */
 
 	char  body_type;			/* for now used to temporarily holds the type of collision object */
 	char  shapeflag;			/* flag for pinning */

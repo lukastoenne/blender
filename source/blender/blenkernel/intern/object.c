@@ -1543,6 +1543,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	id_us_plus((ID *)obn->data);
 	id_us_plus((ID *)obn->gpd);
 	id_lib_extern((ID *)obn->dup_group);
+	id_lib_extern((ID *)obn->cache_library);
 
 	for (a = 0; a < obn->totcol; a++) id_us_plus((ID *)obn->mat[a]);
 	
@@ -1607,6 +1608,7 @@ static void extern_local_object(Object *ob)
 
 	id_lib_extern((ID *)ob->data);
 	id_lib_extern((ID *)ob->dup_group);
+	id_lib_extern((ID *)ob->cache_library);
 	id_lib_extern((ID *)ob->poselib);
 	id_lib_extern((ID *)ob->gpd);
 
