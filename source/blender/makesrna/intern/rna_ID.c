@@ -131,7 +131,7 @@ short RNA_type_to_ID_code(StructRNA *type)
 	if (RNA_struct_is_a(type, &RNA_Action)) return ID_AC;
 	if (RNA_struct_is_a(type, &RNA_Armature)) return ID_AR;
 	if (RNA_struct_is_a(type, &RNA_Brush)) return ID_BR;
-	if (RNA_struct_is_a(type, &RNA_CacheLibrary)) return ID_CU;
+	if (RNA_struct_is_a(type, &RNA_CacheLibrary)) return ID_CL;
 	if (RNA_struct_is_a(type, &RNA_Camera)) return ID_CA;
 	if (RNA_struct_is_a(type, &RNA_Curve)) return ID_CU;
 	if (RNA_struct_is_a(type, &RNA_GreasePencil)) return ID_GD;
