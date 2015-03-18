@@ -52,6 +52,18 @@ static inline BL::Mesh object_to_mesh(BL::BlendData data, BL::Object object, BL:
 	return me;
 }
 
+static inline BL::Mesh dupli_cache_to_mesh(BL::BlendData data, BL::DupliObjectData dupli_data, bool calc_undeformed)
+{
+	BL::Mesh me = data.meshes.new_from_dupli_cache(dupli_data, false, calc_undeformed);
+	if ((bool)me) {
+		if (me.use_auto_smooth()) {
+			me.calc_normals_split();
+		}
+		me.calc_tessface(true);
+	}
+	return me;
+}
+
 static inline void colorramp_to_array(BL::ColorRamp ramp, float4 *data, int size)
 {
 	for(int i = 0; i < size; i++) {
@@ -562,6 +574,36 @@ struct ObjectKey {
 				return true;
 			else if(parent == k.parent)
 				return memcmp(id, k.id, sizeof(id)) < 0;
+		}
+
+		return false;
+	}
+};
+
+/* Mesh Key */
+
+struct MeshKey {
+	void *parent;
+	void *mesh;
+
+	MeshKey(void *mesh_)
+	: parent(NULL), mesh(mesh_)
+	{
+	}
+	
+	MeshKey(void *parent_, void *mesh_)
+	: parent(parent_), mesh(mesh_)
+	{
+	}
+
+	bool operator<(const MeshKey& k) const
+	{
+		if(mesh < k.mesh) {
+			return true;
+		}
+		else if(mesh == k.mesh) {
+			return parent < k.parent;
+				return true;
 		}
 
 		return false;

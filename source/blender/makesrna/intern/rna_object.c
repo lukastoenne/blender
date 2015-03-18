@@ -3102,6 +3102,16 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Dupli Type", "Duplicator type that generated this dupli object");
 }
 
+static void rna_def_dupli_object_data(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "DupliObjectData", NULL);
+	RNA_def_struct_sdna(srna, "DupliObjectData");
+	RNA_def_struct_ui_text(srna, "Object Duplicate Data", "Override of object data for duplis");
+}
+
 static void rna_def_object_base(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3149,6 +3159,7 @@ void RNA_def_object(BlenderRNA *brna)
 	rna_def_face_map(brna);
 	rna_def_material_slot(brna);
 	rna_def_dupli_object(brna);
+	rna_def_dupli_object_data(brna);
 	RNA_define_animate_sdna(true);
 	rna_def_object_lodlevel(brna);
 }

@@ -83,7 +83,7 @@ private:
 	void sync_curve_settings();
 
 	void sync_nodes(Shader *shader, BL::ShaderNodeTree b_ntree);
-	Mesh *sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris);
+	Mesh *sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris, BL::Object b_ob_parent = PointerRNA_NULL);
 	void sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
 	Object *sync_object(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::DupliObject b_dupli_ob,
 	                                 Transform& tfm, uint layer_flag, float motion_time, bool hide_tris);
@@ -108,7 +108,7 @@ private:
 
 	id_map<void*, Shader> shader_map;
 	id_map<ObjectKey, Object> object_map;
-	id_map<void*, Mesh> mesh_map;
+	id_map<MeshKey, Mesh> mesh_map;
 	id_map<ObjectKey, Light> light_map;
 	id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
 	set<Mesh*> mesh_synced;
