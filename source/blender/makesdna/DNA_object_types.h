@@ -543,6 +543,7 @@ enum {
 #define OB_DONE             (1 << 10)  /* unknown state, clear before use */
 /* #define OB_RADIO            (1 << 11) */  /* deprecated */
 #define OB_FROMGROUP        (1 << 12)
+#define OB_FROMCACHE        (1 << 13)
 
 /* WARNING - when adding flags check on PSYS_RECALC */
 /* ob->recalc (flag bits!) */
