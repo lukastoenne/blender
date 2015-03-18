@@ -2112,10 +2112,13 @@ static void draw_dupli_objects_color(
 	if (dob) dob_next = dupli_step(dob->next);
 
 	for (; dob; dob_prev = dob, dob = dob_next, dob_next = dob_next ? dupli_step(dob_next->next) : NULL) {
-		DerivedMesh *final_dm; /* for restoring after override */
+		/* for restoring after override */
+		DerivedMesh *store_final_dm;
+		BoundBox *store_bb;
 
 		tbase.object = dob->ob;
-		final_dm = dob->ob->derivedFinal;
+		store_final_dm = dob->ob->derivedFinal;
+		store_bb = dob->ob->bb;
 
 		/* Make sure lod is updated from dupli's position */
 
@@ -2153,11 +2156,16 @@ static void draw_dupli_objects_color(
 		}
 		
 		/* override final DM */
+		bb_tmp = NULL;
 		if (base->object->dup_cache) {
 			DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
-			if (dob_data->cache_dm)
+			if (dob_data->cache_dm) {
 				tbase.object->derivedFinal = dob_data->cache_dm;
+				tbase.object->bb = bb_tmp = &dob_data->bb;
+			}
 		}
+		if (!bb_tmp)
+			bb_tmp = BKE_object_boundbox_get(dob->ob);
 		
 		/* generate displist, test for new object */
 		if (dob_prev && dob_prev->ob != dob->ob) {
@@ -2167,7 +2175,7 @@ static void draw_dupli_objects_color(
 			use_displist = false;
 		}
 		
-		if ((bb_tmp = BKE_object_boundbox_get(dob->ob))) {
+		if (bb_tmp) {
 			bb = *bb_tmp; /* must make a copy  */
 			testbb = true;
 		}
@@ -2229,7 +2237,10 @@ static void draw_dupli_objects_color(
 		tbase.object->dtx = dtx;
 		tbase.object->transflag = transflag;
 		tbase.object->currentlod = savedlod;
-		tbase.object->derivedFinal = final_dm;
+		
+		/* restore final DM */
+		tbase.object->derivedFinal = store_final_dm;
+		tbase.object->bb = store_bb;
 	}
 
 	if (apply_data) {

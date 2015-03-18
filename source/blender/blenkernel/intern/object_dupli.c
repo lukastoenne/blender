@@ -1466,10 +1466,27 @@ DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
 	return data;
 }
 
+static void dupli_cache_calc_boundbox(DupliObjectData *data)
+{
+	float min[3], max[3];
+	
+	if (data->cache_dm) {
+		INIT_MINMAX(min, max);
+		data->cache_dm->getMinMax(data->cache_dm, min, max);
+	}
+	else {
+		zero_v3(min);
+		zero_v3(max);
+	}
+	
+	BKE_boundbox_init_from_minmax(&data->bb, min, max);
+}
+
 DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, Object *ob, DerivedMesh *dm)
 {
 	DupliObjectData *data = dupli_cache_add_object_data(dupcache, ob);
 	data->cache_dm = dm;
+	dupli_cache_calc_boundbox(data);
 	
 	/* we own this dm now and need to protect it until we free it ourselves */
 	dm->needsFree = false;
