@@ -35,14 +35,25 @@ namespace PTC {
 
 using namespace Abc;
 
-AbcReaderArchive::AbcReaderArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler) :
+AbcReaderArchive *AbcReaderArchive::open(Scene *scene, const std::string &filename, ErrorHandler *error_handler)
+{
+	IArchive abc_archive;
+	PTC_SAFE_CALL_BEGIN
+//	abc_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	abc_archive = IArchive(AbcCoreOgawa::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	PTC_SAFE_CALL_END_HANDLER(error_handler)
+	
+	if (abc_archive)
+		return new AbcReaderArchive(scene, error_handler, abc_archive);
+	else
+		return NULL;
+}
+
+AbcReaderArchive::AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, IArchive abc_archive) :
     FrameMapper(scene),
+    archive(abc_archive),
     m_error_handler(error_handler)
 {
-	PTC_SAFE_CALL_BEGIN
-//	archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-	archive = IArchive(AbcCoreOgawa::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 AbcReaderArchive::~AbcReaderArchive()

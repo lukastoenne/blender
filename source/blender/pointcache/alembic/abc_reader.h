@@ -40,8 +40,9 @@ using namespace Alembic;
 
 class AbcReaderArchive : public ReaderArchive, public FrameMapper {
 public:
-	AbcReaderArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	virtual ~AbcReaderArchive();
+	
+	static AbcReaderArchive *open(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	
 	Abc::IObject get_id_object(ID *id);
 	bool has_id_object(ID *id);
@@ -52,6 +53,9 @@ public:
 	std::string get_info();
 	
 	Abc::IArchive archive;
+	
+protected:
+	AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, Abc::IArchive abc_archive);
 	
 protected:
 	ErrorHandler *m_error_handler;
