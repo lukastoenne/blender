@@ -4446,6 +4446,7 @@ static void lib_link_object(FileData *fd, Main *main)
 			ob->track = newlibadr(fd, ob->id.lib, ob->track);
 			ob->poselib = newlibadr_us(fd, ob->id.lib, ob->poselib);
 			ob->dup_group = newlibadr_us(fd, ob->id.lib, ob->dup_group);
+			ob->cache_library = newlibadr_us(fd, ob->id.lib, ob->cache_library);
 			
 			ob->proxy = newlibadr_us(fd, ob->id.lib, ob->proxy);
 			if (ob->proxy) {
@@ -8763,6 +8764,8 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	
 	if (ob->dup_group)
 		expand_doit(fd, mainvar, ob->dup_group);
+	if (ob->cache_library)
+		expand_doit(fd, mainvar, ob->cache_library);
 	
 	if (ob->proxy)
 		expand_doit(fd, mainvar, ob->proxy);
