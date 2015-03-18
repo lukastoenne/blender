@@ -97,7 +97,7 @@ const char *PTC_get_default_archive_extension(void)
 
 PTCWriterArchive *PTC_open_writer_archive(Scene *scene, const char *path)
 {
-	return (PTCWriterArchive *)PTC::Factory::alembic->create_writer_archive(scene, path, NULL);
+	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(scene, path, NULL);
 }
 
 void PTC_close_writer_archive(PTCWriterArchive *_archive)
@@ -108,7 +108,7 @@ void PTC_close_writer_archive(PTCWriterArchive *_archive)
 
 PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path)
 {
-	return (PTCReaderArchive *)PTC::Factory::alembic->create_reader_archive(scene, path, NULL);
+	return (PTCReaderArchive *)PTC::Factory::alembic->open_reader_archive(scene, path, NULL);
 }
 
 void PTC_close_reader_archive(PTCReaderArchive *_archive)

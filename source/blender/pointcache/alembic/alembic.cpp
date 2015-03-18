@@ -37,14 +37,14 @@ class AbcFactory : public Factory {
 		return ext;
 	}
 	
-	WriterArchive *create_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
+	WriterArchive *open_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
 	{
-		return new AbcWriterArchive(scene, name, error_handler);
+		return AbcWriterArchive::open(scene, name, error_handler);
 	}
 	
-	ReaderArchive *create_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
+	ReaderArchive *open_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
 	{
-		return new AbcReaderArchive(scene, name, error_handler);
+		return AbcReaderArchive::open(scene, name, error_handler);
 	}
 	
 	Writer *create_writer_object(const std::string &name, Object *ob)

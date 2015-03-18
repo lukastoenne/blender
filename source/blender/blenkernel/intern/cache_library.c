@@ -663,6 +663,8 @@ bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLib
 	
 	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 	archive = PTC_open_reader_archive(scene, filename);
+	if (!archive)
+		return false;
 	
 	reader = PTC_reader_dupligroup(dupgroup->id.name, dupgroup, dupcache);
 	PTC_reader_init(reader, archive);

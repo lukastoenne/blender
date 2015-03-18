@@ -43,23 +43,32 @@ static void ensure_directory(const char *filename)
 	BLI_dir_create_recursive(dir);
 }
 
-AbcWriterArchive::AbcWriterArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler) :
-    FrameMapper(scene),
-    m_error_handler(error_handler)
+AbcWriterArchive *AbcWriterArchive::open(Scene *scene, const std::string &filename, ErrorHandler *error_handler)
 {
 	ensure_directory(filename.c_str());
 	
+	OArchive abc_archive;
 	PTC_SAFE_CALL_BEGIN
-//	archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-	archive = OArchive(AbcCoreOgawa::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+//	abc_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	abc_archive = OArchive(AbcCoreOgawa::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	PTC_SAFE_CALL_END_HANDLER(error_handler)
 	
+	if (abc_archive)
+		return new AbcWriterArchive(scene, error_handler, abc_archive);
+	else
+		return NULL;
+}
+
+AbcWriterArchive::AbcWriterArchive(Scene *scene, ErrorHandler *error_handler, OArchive abc_archive) :
+    FrameMapper(scene),
+    archive(abc_archive),
+    m_error_handler(error_handler)
+{
 	if (archive) {
 		chrono_t cycle_time = this->seconds_per_frame();
 		chrono_t start_time = this->start_time();
 		m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
 	}
-	
-	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 AbcWriterArchive::~AbcWriterArchive()

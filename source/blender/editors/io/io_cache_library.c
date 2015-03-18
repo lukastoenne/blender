@@ -510,6 +510,11 @@ static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 	
 	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 	archive = PTC_open_reader_archive(scene, filename);
+	if (!archive) {
+		BKE_reportf(op->reports, RPT_ERROR, "Cannot open cache file at '%s'", cachelib->filepath);
+		return OPERATOR_CANCELLED;
+	}
+	
 	info = PTC_get_archive_info(archive);
 	PTC_close_reader_archive(archive);
 	

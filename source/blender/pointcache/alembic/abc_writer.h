@@ -44,8 +44,9 @@ using namespace Alembic;
 
 class AbcWriterArchive : public WriterArchive, public FrameMapper {
 public:
-	AbcWriterArchive(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	virtual ~AbcWriterArchive();
+	
+	static AbcWriterArchive *open(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	
 	Abc::OObject get_id_object(ID *id);
 	bool has_id_object(ID *id);
@@ -57,6 +58,9 @@ public:
 	Abc::TimeSamplingPtr frame_sampling();
 	
 	Abc::OArchive archive;
+	
+protected:
+	AbcWriterArchive(Scene *scene, ErrorHandler *error_handler, Abc::OArchive abc_archive);
 	
 protected:
 	ErrorHandler *m_error_handler;
