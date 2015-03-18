@@ -130,13 +130,6 @@ void BKE_group_unlink(Group *group)
 		}
 	}
 	
-	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
-		if (cachelib->group == group) {
-			cachelib->group = NULL;
-			BKE_cache_library_group_update(G.main, cachelib);
-		}
-	}
-	
 	/* group stays in library, but no members */
 	BKE_group_free(group);
 	group->id.us = 0;

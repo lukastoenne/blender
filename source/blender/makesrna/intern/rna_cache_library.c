@@ -94,15 +94,6 @@ static void rna_CacheLibrary_update(Main *UNUSED(main), Scene *UNUSED(scene), Po
 {
 }
 
-static void rna_CacheLibrary_group_update(Main *main, Scene *scene, PointerRNA *ptr)
-{
-	CacheLibrary *cachelib = ptr->data;
-	
-	BKE_cache_library_group_update(main, cachelib);
-	
-	rna_CacheLibrary_update(main, scene, ptr);
-}
-
 /* ========================================================================= */
 
 #if 0 /* UNUSED */
@@ -308,11 +299,6 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "filepath");
 	RNA_def_property_ui_text(prop, "File Path", "Path to cache library storage");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
-	
-	prop = RNA_def_property(srna, "group", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Group", "Cached object group");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_group_update");
 	
 	prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "eval_mode");

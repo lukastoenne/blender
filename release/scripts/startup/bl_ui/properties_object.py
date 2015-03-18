@@ -259,8 +259,104 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
             col.prop(obj, "color", text="")
 
 
+# XXX temporary solution
+bpy.types.CacheLibrary.filter_string = \
+    bpy.props.StringProperty(
+        name="Filter Object Name",
+        description="Filter cache library objects by name",
+        )
+bpy.types.CacheLibrary.filter_types = \
+    bpy.props.EnumProperty(
+        name="Filter Item Type",
+        description="Filter cache library items by type",
+        options={'ENUM_FLAG'},
+        items=[ (e.identifier, e.name, e.description, e.icon, 2**i) for i, e in enumerate(bpy.types.CacheItem.bl_rna.properties['type'].enum_items) ],
+        default=set( e.identifier for e in bpy.types.CacheItem.bl_rna.properties['type'].enum_items ),
+        )
+
+def cachelib_objects(cachelib, group):
+    if not cachelib or not group:
+        return []
+    
+    filter_string = cachelib.filter_string.lower()
+    if filter_string:
+        return filter(lambda ob: filter_string in ob.name.lower(), group.objects)
+    else:
+        return group.objects
+
+# Yields (item, type, index, enabled)
+# Note that item can be None when not included in the cache yet
+def cachelib_object_items(cachelib, ob):
+    filter_types = cachelib.filter_types
+
+    def items_desc():
+        yield 'OBJECT', -1
+        
+        if (ob.type == 'MESH'):
+            yield 'DERIVED_MESH', -1
+
+        for index, psys in enumerate(ob.particle_systems):
+            if psys.settings.type == 'EMITTER':
+                yield 'PARTICLES', index
+            if psys.settings.type == 'HAIR':
+                yield 'HAIR', index
+                yield 'HAIR_PATHS', index
+
+    for item_type, item_index in items_desc():
+        item = cachelib.cache_item_find(ob, item_type, item_index)
+        
+        show = False
+        enable = False
+        # always show existing items
+        if item and item.enabled:
+            show = True
+            enable = True
+        # always show selected types
+        elif item_type in filter_types:
+            show = True
+            enable = True
+        # special case: OBJECT type used as top level, show but disable
+        elif item_type == 'OBJECT':
+            show = True
+            enable = False
+        
+        if show:
+            yield item, item_type, item_index, enable
+
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
+
+    def draw_cachelib(self, context, layout, cachelib, objects):
+        col = layout.column(align=True)
+        colrow = col.row(align=True)
+        colrow.label("Archive:")
+        props = colrow.operator("cachelibrary.archive_info", text="", icon='QUESTION')
+        props.use_stdout = True
+        props.use_popup = True
+        props.use_clipboard = True
+        col.prop(cachelib, "filepath", text="")
+
+        col.operator("cachelibrary.bake")
+        col.prop(cachelib, "eval_mode", expand=False)
+
+        row = layout.row(align=True)
+        row.label("Filter:")
+        row.prop(cachelib, "filter_types", icon_only=True, toggle=True)
+        row.prop(cachelib, "filter_string", icon='VIEWZOOM', text="")
+
+        first = True
+        for ob in objects:
+            if not any(cachelib_object_items(cachelib, ob)):
+                continue
+
+            if first:
+                layout.separator()
+                first = False
+
+            for item, item_type, item_index, enable in cachelib_object_items(cachelib, ob):
+                row = layout.row(align=True)
+                row.alignment = 'LEFT'
+                row.template_cache_library_item(cachelib, ob, item_type, item_index, enable)
 
     def draw(self, context):
         layout = self.layout
@@ -295,10 +391,14 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         elif ob.dupli_type == 'GROUP':
             layout.prop(ob, "dupli_group", text="Group")
             row = layout.row(align=True)
-            row.prop(ob, "cache_library")
+            row.template_ID(ob, "cache_library", new="cachelibrary.new")
             sub = row.row(align=True)
             sub.active = ob.cache_library is not None
             sub.prop(ob, "use_dupli_cache", text="Read", toggle=True)
+
+            if ob.cache_library:
+                cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
+                self.draw_cachelib(context, layout, ob.cache_library, cache_objects)
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
