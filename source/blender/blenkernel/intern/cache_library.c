@@ -101,19 +101,21 @@ void BKE_cache_library_unlink(CacheLibrary *UNUSED(cachelib))
 
 /* ========================================================================= */
 
-static void cache_library_tag_recursive(CacheLibrary *cachelib, int level, Object *ob)
+static void cache_library_tag_recursive(int level, Object *ob)
 {
 	if (level > MAX_CACHE_GROUP_LEVEL)
 		return;
-	
-	ob->id.flag |= LIB_DOIT;
 	
 	/* dupli group recursion */
 	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
 		GroupObject *gob;
 		
 		for (gob = ob->dup_group->gobject.first; gob; gob = gob->next) {
-			cache_library_tag_recursive(cachelib, level + 1, gob->ob);
+			if (!(ob->id.flag & LIB_DOIT)) {
+				ob->id.flag |= LIB_DOIT;
+				
+				cache_library_tag_recursive(level + 1, gob->ob);
+			}
 		}
 	}
 }
@@ -121,16 +123,17 @@ static void cache_library_tag_recursive(CacheLibrary *cachelib, int level, Objec
 /* tag IDs contained in the cache library group */
 void BKE_cache_library_make_object_list(Main *bmain, CacheLibrary *cachelib, ListBase *lb)
 {
-	if (cachelib && cachelib->group) {
+	if (cachelib) {
 		Object *ob;
 		LinkData *link;
-		GroupObject *gob;
 		
 		/* clear tags */
 		BKE_main_id_tag_idcode(bmain, ID_OB, false);
 		
-		for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
-			cache_library_tag_recursive(cachelib, 0, gob->ob);
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (ob->cache_library == cachelib) {
+				cache_library_tag_recursive(0, ob);
+			}
 		}
 		
 		/* store object pointers in the list */
@@ -497,10 +500,7 @@ void BKE_cache_library_clear(CacheLibrary *cachelib)
 
 bool BKE_cache_library_validate_item(CacheLibrary *cachelib, Object *ob, int type, int index)
 {
-	if (!cachelib || !cachelib->group)
-		return false;
-	
-	if (!BKE_group_object_exists(cachelib->group, ob))
+	if (!cachelib)
 		return false;
 	
 	if (ELEM(type, CACHE_TYPE_DERIVED_MESH)) {
@@ -530,15 +530,15 @@ bool BKE_cache_library_validate_item(CacheLibrary *cachelib, Object *ob, int typ
 void BKE_cache_library_group_update(Main *bmain, CacheLibrary *cachelib)
 {
 	if (cachelib) {
+		Object *ob;
 		CacheItem *item, *item_next;
 		
 		/* clear tags */
 		BKE_main_id_tag_idcode(bmain, ID_OB, false);
 		
-		if (cachelib->group) {
-			GroupObject *gob;
-			for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
-				cache_library_tag_recursive(cachelib, 0, gob->ob);
+		for (ob = bmain->object.first; ob; ob = ob->id.next) {
+			if (ob->cache_library == cachelib) {
+				cache_library_tag_recursive(0, ob);
 			}
 		}
 		
@@ -648,67 +648,31 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 }
 
 
-/* XXX this needs work: the order of cachelibraries in bmain is arbitrary!
- * If there are multiple cachelibs applying data, which should take preference?
- */
-
-static CacheLibrary *cachelib_skip_read(CacheLibrary *cachelib, eCacheLibrary_EvalMode eval_mode)
+bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                               struct Group *dupgroup, struct DupliCache *dupcache, CacheLibrary *cachelib)
 {
-	for (; cachelib; cachelib = cachelib->id.next) {
-		if (cachelib->eval_mode != eval_mode)
-			continue;
-		break;
-	}
-	return cachelib;
-}
-
-#define FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) \
-	for (cachelib = cachelib_skip_read(bmain->cache_library.first, eval_mode); cachelib; cachelib = cachelib_skip_read(cachelib->id.next, eval_mode))
-
-bool BKE_cache_test_dupligroup(Main *bmain, eCacheLibrary_EvalMode eval_mode, struct Group *dupgroup)
-{
-	CacheLibrary *cachelib;
+	char filename[FILE_MAX];
+	struct PTCReaderArchive *archive;
+	struct PTCReader *reader;
+	eCacheReadSampleResult result;
 	
-	if (!dupgroup)
+	if (!dupcache || !dupgroup || !cachelib)
+		return false;
+	if (cachelib->eval_mode != eval_mode)
 		return false;
 	
-	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
-		if (cachelib->group == dupgroup) {
-			return true;
-		}
-	}
-	return false;
-}
-
-bool BKE_cache_read_dupligroup(Main *bmain, Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode, struct Group *dupgroup, struct DupliCache *dupcache)
-{
-	CacheLibrary *cachelib;
+	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	archive = PTC_open_reader_archive(scene, filename);
 	
-	if (!dupgroup)
-		return false;
+	reader = PTC_reader_dupligroup(dupgroup->id.name, dupgroup, dupcache);
+	PTC_reader_init(reader, archive);
 	
-	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
-		if (cachelib->group == dupgroup) {
-			char filename[FILE_MAX];
-			struct PTCReaderArchive *archive;
-			struct PTCReader *reader;
-			eCacheReadSampleResult result;
-			
-			BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
-			archive = PTC_open_reader_archive(scene, filename);
-			
-			reader = PTC_reader_dupligroup(dupgroup->id.name, dupgroup, dupcache);
-			PTC_reader_init(reader, archive);
-			
-			result = BKE_cache_read_result(PTC_read_sample(reader, frame));
-			
-			PTC_reader_free(reader);
-			PTC_close_reader_archive(archive);
-			
-			return true;
-		}
-	}
-	return false;
+	result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+	
+	PTC_reader_free(reader);
+	PTC_close_reader_archive(archive);
+	
+	return true;
 }
 
 

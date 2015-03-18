@@ -1990,8 +1990,6 @@ static void lib_link_cache_library(FileData *fd, Main *main)
 		if (cachelib->id.flag & LIB_NEED_LINK) {
 			cachelib->id.flag -= LIB_NEED_LINK;
 			
-			cachelib->group = newlibadr_us(fd, cachelib->id.lib, cachelib->group);
-			
 			for (item = cachelib->items.first; item; item = item_next) {
 				item_next = item->next;
 				
@@ -9043,8 +9041,6 @@ static void expand_gpencil(FileData *fd, Main *mainvar, bGPdata *gpd)
 static void expand_cache_library(FileData *fd, Main *mainvar, CacheLibrary *cachelib)
 {
 	CacheItem *item;
-	
-	expand_doit(fd, mainvar, cachelib->group);
 	
 	for (item = cachelib->items.first; item; item = item->next) {
 		expand_doit(fd, mainvar, item->ob);

@@ -74,11 +74,21 @@
 
 #include "PTC_api.h"
 
+static int ED_cache_library_active_object_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	if (!ob || !ob->cache_library)
+		return false;
+	
+	return true;
+}
+
 /********************** new cache library operator *********************/
 
 static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
 	Main *bmain = CTX_data_main(C);
 	PointerRNA ptr, idptr;
 	PropertyRNA *prop;
@@ -120,6 +130,7 @@ void CACHELIBRARY_OT_new(wmOperatorType *ot)
 	ot->description = "Add a new cache library";
 	
 	/* api callbacks */
+	ot->poll = ED_operator_object_active;
 	ot->exec = new_cachelib_exec;
 	
 	/* flags */
@@ -128,20 +139,11 @@ void CACHELIBRARY_OT_new(wmOperatorType *ot)
 
 /********************** delete cache library operator *********************/
 
-static int cache_library_delete_poll(bContext *C)
-{
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
-	
-	if (!cachelib)
-		return false;
-	
-	return true;
-}
-
 static int cache_library_delete_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
 	
 	BKE_cache_library_unlink(cachelib);
 	BKE_libblock_free(bmain, cachelib);
@@ -160,11 +162,8 @@ void CACHELIBRARY_OT_delete(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = cache_library_delete_exec;
-	/* XXX confirm popup would be nicer, but problem is the popup layout
-	 * does not inherit the cache_library context pointer, so poll fails ...
-	 */
-	/*ot->invoke = WM_operator_confirm;*/
-	ot->poll = cache_library_delete_poll;
+	ot->invoke = WM_operator_confirm;
+	ot->poll = ED_cache_library_active_object_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
@@ -174,7 +173,8 @@ void CACHELIBRARY_OT_delete(wmOperatorType *ot)
 
 static int cache_item_enable_poll(bContext *C)
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
 	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
 	
 	if (!cachelib || !obcache)
@@ -185,7 +185,8 @@ static int cache_item_enable_poll(bContext *C)
 
 static int cache_item_enable_exec(bContext *C, wmOperator *op)
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
 	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
 	int type = RNA_enum_get(op->ptr, "type");
 	int index = RNA_int_get(op->ptr, "index");
@@ -223,9 +224,9 @@ void CACHELIBRARY_OT_item_enable(wmOperatorType *ot)
 
 static int cache_library_bake_poll(bContext *C)
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Object *ob = CTX_data_active_object(C);
 	
-	if (!cachelib)
+	if (!ob || !(ob->transflag & OB_DUPLIGROUP) || !ob->dup_group || !ob->cache_library)
 		return false;
 	
 	return true;
@@ -239,6 +240,7 @@ typedef struct CacheLibraryBakeJob {
 	struct Scene *scene;
 	EvaluationContext eval_ctx;
 	struct CacheLibrary *cachelib;
+	struct Group *group;
 	
 	struct PTCWriterArchive *archive;
 	struct PTCWriter *writer;
@@ -282,7 +284,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	BKE_cache_archive_path(data->cachelib->filepath, (ID *)data->cachelib, data->cachelib->id.lib, filename, sizeof(filename));
 	data->archive = PTC_open_writer_archive(scene, filename);
 	
-	data->writer = PTC_writer_dupligroup(data->cachelib->group->id.name, &data->eval_ctx, scene, data->cachelib->group);
+	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group);
 	PTC_writer_init(data->writer, data->archive);
 	
 	G.is_break = false;
@@ -319,33 +321,6 @@ static void cache_library_bake_endjob(void *customdata)
 	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 }
 
-/* Modified version of WM_operator_confirm_message_ex
- * to allow storing context pointers in the popup layout
- */
-static int operator_confirm_message(bContext *C, wmOperator *op, const char *title,
-                                    const int icon, const char *message,
-                                    PointerRNA *cachelib_ptr)
-{
-	uiPopupMenu *pup;
-	uiLayout *layout;
-	IDProperty *properties = op->ptr->data;
-
-	if (properties && properties->len)
-		properties = IDP_CopyProperty(op->ptr->data);
-	else
-		properties = NULL;
-
-	pup = UI_popup_menu_begin(C, title, icon);
-	layout = UI_popup_menu_layout(pup);
-	
-	uiLayoutSetContextPointer(layout, "cache_library", cachelib_ptr);
-	uiItemFullO_ptr(layout, op->type, message, ICON_NONE, properties, WM_OP_EXEC_REGION_WIN, 0);
-	
-	UI_popup_menu_end(C, pup);
-	
-	return OPERATOR_INTERFACE;
-}
-
 /* Warning! Deletes existing files if possible, operator should show confirm dialog! */
 static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
 {
@@ -375,14 +350,14 @@ static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
 
 static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Object *ob = CTX_data_active_object(C);
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	CacheLibraryBakeJob *data;
 	wmJob *wm_job;
 	
 	/* make sure we can write */
-	cache_library_bake_ensure_file_target(cachelib);
+	cache_library_bake_ensure_file_target(ob->cache_library);
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
 	 * scene frame in separate threads
@@ -401,7 +376,8 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	data = MEM_callocN(sizeof(CacheLibraryBakeJob), "Cache Library Bake Job");
 	data->bmain = bmain;
 	data->scene = scene;
-	data->cachelib = cachelib;
+	data->cachelib = ob->cache_library;
+	data->group = ob->dup_group;
 	
 	WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
 	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
@@ -414,8 +390,8 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 
 static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	PointerRNA cachelib_ptr = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary);
-	CacheLibrary *cachelib = cachelib_ptr.data;
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
 	
 	char filename[FILE_MAX];
 	
@@ -435,7 +411,7 @@ static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 		}
 		else if (BLI_is_file(filename)) {
 			if (BLI_file_is_writable(filename)) {
-				return operator_confirm_message(C, op, IFACE_("Overwrite?"), ICON_QUESTION, filename, &cachelib_ptr);
+				return WM_operator_confirm_message(C, op, "Overwrite?");
 			}
 			else {
 				BKE_reportf(op->reports, RPT_ERROR, "Cannot overwrite Cache Library target: %200s", filename);
@@ -470,16 +446,6 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 }
 
 /* ========================================================================= */
-
-static int cache_library_archive_info_poll(bContext *C)
-{
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
-	
-	if (!cachelib)
-		return false;
-	
-	return true;
-}
 
 static void ui_item_nlabel(uiLayout *layout, const char *s, size_t len)
 {
@@ -530,7 +496,8 @@ static uiBlock *archive_info_popup_create(bContext *C, ARegion *ar, void *arg)
 
 static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 {
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cache_library", &RNA_CacheLibrary).data;
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
 	Scene *scene = CTX_data_scene(C);
 	
 	const bool use_stdout = RNA_boolean_get(op->ptr, "use_stdout");
@@ -574,7 +541,7 @@ void CACHELIBRARY_OT_archive_info(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = cache_library_archive_info_exec;
-	ot->poll = cache_library_archive_info_poll;
+	ot->poll = ED_cache_library_active_object_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

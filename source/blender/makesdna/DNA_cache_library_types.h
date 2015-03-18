@@ -78,7 +78,6 @@ typedef struct CacheLibrary {
 	short pad;
 	
 	char filepath[1024]; /* 1024 = FILE_MAX */
-	struct Group *group;
 	
 	ListBase items;				/* cached items */
 	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */

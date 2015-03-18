@@ -1398,7 +1398,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 	Main *bmain = G.main;
 	
 	bool is_dupligroup = (ob->transflag & OB_DUPLIGROUP) && ob->dup_group;
-	bool is_cached = (ob->transflag & OB_DUPLI_USE_CACHE) && BKE_cache_test_dupligroup(bmain, eval_mode, ob->dup_group);
+	bool is_cached = (ob->transflag & OB_DUPLI_USE_CACHE) && ob->cache_library;
 	
 	/* cache is a group duplicator feature only */
 	if (is_dupligroup && is_cached) {
@@ -1418,7 +1418,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			}
 			
 			/* TODO at this point we could apply animation offset */
-			BKE_cache_read_dupligroup(bmain, scene, frame, eval_mode, ob->dup_group, ob->dup_cache);
+			BKE_cache_read_dupligroup(bmain, scene, frame, eval_mode, ob->dup_group, ob->dup_cache, ob->cache_library);
 			
 			ob->dup_cache->flag &= ~DUPCACHE_FLAG_DIRTY;
 			ob->dup_cache->cfra = frame;
