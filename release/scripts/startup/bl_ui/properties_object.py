@@ -326,7 +326,7 @@ def cachelib_object_items(cachelib, ob):
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
 
-    def draw_cachelib(self, context, layout, cachelib, objects):
+    def draw_cachelib(self, context, layout, ob, cachelib, objects):
         col = layout.column(align=True)
         colrow = col.row(align=True)
         colrow.label("Archive:")
@@ -336,6 +336,9 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         props.use_clipboard = True
         col.prop(cachelib, "filepath", text="")
 
+        row = col.row(align=True)
+        row.prop(ob, "use_dupli_cache_read", text="Read", toggle=True)
+        row.prop(ob, "use_dupli_cache_write", text="Write", toggle=True)
         col.operator("cachelibrary.bake")
         col.prop(cachelib, "eval_mode", expand=False)
 
@@ -392,13 +395,10 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
             layout.prop(ob, "dupli_group", text="Group")
             row = layout.row(align=True)
             row.template_ID(ob, "cache_library", new="cachelibrary.new")
-            sub = row.row(align=True)
-            sub.active = ob.cache_library is not None
-            sub.prop(ob, "use_dupli_cache", text="Read", toggle=True)
 
             if ob.cache_library:
                 cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
-                self.draw_cachelib(context, layout, ob.cache_library, cache_objects)
+                self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

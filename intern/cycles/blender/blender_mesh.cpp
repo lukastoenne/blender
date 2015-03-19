@@ -623,7 +623,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	bool use_mesh_geometry = render_layer.use_surfaces || render_layer.use_hair;
 	Mesh *mesh;
 
-	BL::DupliObjectData b_dup_data = (b_ob_parent && b_ob_parent.use_dupli_cache())? b_ob_parent.find_dupli_cache(b_ob): BL::DupliObjectData(PointerRNA_NULL);
+	BL::DupliObjectData b_dup_data = (b_ob_parent && b_ob_parent.use_dupli_cache_read())? b_ob_parent.find_dupli_cache(b_ob): BL::DupliObjectData(PointerRNA_NULL);
 	bool need_update;
 	if (b_dup_data) {
 		MeshKey key = MeshKey(b_ob_parent, b_ob);
