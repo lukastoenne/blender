@@ -231,7 +231,7 @@ static int cache_library_bake_poll(bContext *C)
 	/* re-baking cached results doesn't make much sense,
 	 * clarify workflow by enabling either reading or writing, but not both
 	 */
-	if (ob->transflag & OB_DUPLI_USE_CACHE)
+	if (ob->transflag & OB_DUPLI_READ_CACHE)
 		return false;
 	
 	return true;
