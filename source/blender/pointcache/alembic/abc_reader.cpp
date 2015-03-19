@@ -51,38 +51,49 @@ AbcReaderArchive *AbcReaderArchive::open(Scene *scene, const std::string &filena
 
 AbcReaderArchive::AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, IArchive abc_archive) :
     FrameMapper(scene),
-    archive(abc_archive),
-    m_error_handler(error_handler)
+    m_error_handler(error_handler),
+    m_use_render(false),
+    m_abc_archive(abc_archive)
 {
+	m_abc_root = IObject(m_abc_archive.getTop(), "root");
+	m_abc_root_render = IObject(m_abc_archive.getTop(), "root_render");
 }
 
 AbcReaderArchive::~AbcReaderArchive()
 {
 }
 
+Abc::IObject AbcReaderArchive::root()
+{
+	if (m_use_render)
+		return m_abc_root_render;
+	else
+		return m_abc_root;
+}
+
 IObject AbcReaderArchive::get_id_object(ID *id)
 {
-	if (!archive)
+	if (!m_abc_archive)
 		return IObject();
 	
-	IObject root = archive.getTop();
+	IObject root = this->root();
 	return root.getChild(id->name);
 }
 
 bool AbcReaderArchive::has_id_object(ID *id)
 {
-	if (!archive)
+	if (!m_abc_archive)
 		return false;
 	
-	IObject root = archive.getTop();
+	IObject root = this->root();
 	return root.getChild(id->name).valid();
 }
 
 bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 {
-	if (archive) {
+	if (m_abc_archive) {
 		double start_time, end_time;
-		GetArchiveStartAndEndTime(archive, start_time, end_time);
+		GetArchiveStartAndEndTime(m_abc_archive, start_time, end_time);
 		start_frame = (int)time_to_frame(start_time);
 		end_frame = (int)time_to_frame(end_time);
 		return true;
@@ -95,8 +106,8 @@ bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 
 std::string AbcReaderArchive::get_info()
 {
-	if (archive)
-		return abc_archive_info(archive);
+	if (m_abc_archive)
+		return abc_archive_info(m_abc_archive);
 	else
 		return "";
 }

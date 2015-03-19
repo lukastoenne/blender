@@ -44,6 +44,10 @@ public:
 	
 	static AbcReaderArchive *open(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	
+	void use_render(bool enable) { m_use_render = enable; }
+	
+	Abc::IObject root();
+	
 	Abc::IObject get_id_object(ID *id);
 	bool has_id_object(ID *id);
 	
@@ -52,13 +56,16 @@ public:
 	
 	std::string get_info();
 	
-	Abc::IArchive archive;
-	
 protected:
 	AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, Abc::IArchive abc_archive);
 	
 protected:
 	ErrorHandler *m_error_handler;
+	bool m_use_render;
+	
+	Abc::IArchive m_abc_archive;
+	Abc::IObject m_abc_root;
+	Abc::IObject m_abc_root_render;
 };
 
 class AbcReader : public Reader {

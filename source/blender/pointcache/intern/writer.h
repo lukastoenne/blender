@@ -30,6 +30,8 @@ namespace PTC {
 class WriterArchive {
 public:
 	virtual ~WriterArchive() {}
+	
+	virtual void use_render(bool enable) = 0;
 };
 
 class Writer {

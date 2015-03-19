@@ -106,6 +106,12 @@ void PTC_close_writer_archive(PTCWriterArchive *_archive)
 	delete archive;
 }
 
+void PTC_writer_archive_use_render(PTCWriterArchive *_archive, bool enable)
+{
+	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
+	archive->use_render(enable);
+}
+
 PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path)
 {
 	return (PTCReaderArchive *)PTC::Factory::alembic->open_reader_archive(scene, path, NULL);
@@ -115,6 +121,12 @@ void PTC_close_reader_archive(PTCReaderArchive *_archive)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	delete archive;
+}
+
+void PTC_reader_archive_use_render(PTCReaderArchive *_archive, bool enable)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	archive->use_render(enable);
 }
 
 void PTC_writer_init(PTCWriter *_writer, PTCWriterArchive *_archive)
