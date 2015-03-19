@@ -69,6 +69,8 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 	BLI_filename_make_safe(basename);
 	BLI_snprintf(cachelib->filepath, sizeof(cachelib->filepath), "//cache/%s.%s", basename, PTC_get_default_archive_extension());
 
+	cachelib->eval_mode = CACHE_LIBRARY_EVAL_REALTIME | CACHE_LIBRARY_EVAL_RENDER;
+
 	return cachelib;
 }
 
@@ -658,7 +660,7 @@ bool BKE_cache_read_dupligroup(Scene *scene, float frame, eCacheLibrary_EvalMode
 	
 	if (!dupcache || !dupgroup || !cachelib)
 		return false;
-	if (cachelib->eval_mode != eval_mode)
+	if (!(cachelib->eval_mode & eval_mode))
 		return false;
 	
 	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
@@ -681,7 +683,7 @@ bool BKE_cache_read_dupligroup(Scene *scene, float frame, eCacheLibrary_EvalMode
 void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 {
 #if 0
-	eCacheLibrary_EvalMode eval_mode = (eval_ctx->mode == DAG_EVAL_RENDER) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_VIEWPORT;
+	eCacheLibrary_EvalMode eval_mode = (eval_ctx->mode == DAG_EVAL_RENDER) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_REALTIME;
 	CacheLibrary *cachelib;
 	
 	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {

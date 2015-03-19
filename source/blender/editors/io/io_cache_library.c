@@ -260,11 +260,29 @@ static void cache_library_bake_freejob(void *customdata)
 	MEM_freeN(data);
 }
 
-static void cache_library_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)
+static void cache_library_bake_do(CacheLibraryBakeJob *data, short *stop, short *do_update, float *progress)
 {
-	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
 	Scene *scene = data->scene;
 	int start_frame, end_frame;
+	
+	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group);
+	PTC_writer_init(data->writer, data->archive);
+	
+	/* XXX where to get this from? */
+	start_frame = scene->r.sfra;
+	end_frame = scene->r.efra;
+	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+	
+	if (data->writer) {
+		PTC_writer_free(data->writer);
+		data->writer = NULL;
+	}
+}
+
+static void cache_library_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+	CacheLibraryBakeJob *data = (CacheLibraryBakeJob *)customdata;
+	Scene *scene = data->scene;
 	char filename[FILE_MAX];
 	
 	data->stop = stop;
@@ -274,28 +292,24 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	data->origfra = scene->r.cfra;
 	data->origframelen = scene->r.framelen;
 	scene->r.framelen = 1.0f;
-	memset(&data->eval_ctx, 0, sizeof(EvaluationContext));
-	/* use evaluation mode defined by the cachelib */
-	if (data->cachelib->eval_mode == CACHE_LIBRARY_EVAL_VIEWPORT) {
-		data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
-	}
-	else {
-		data->eval_ctx.mode = DAG_EVAL_RENDER;
-	}
 	
 	BKE_cache_archive_path(data->cachelib->filepath, (ID *)data->cachelib, data->cachelib->id.lib, filename, sizeof(filename));
 	data->archive = PTC_open_writer_archive(scene, filename);
 	
 	if (data->archive) {
-		data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group);
-		PTC_writer_init(data->writer, data->archive);
 		
 		G.is_break = false;
 		
-		/* XXX where to get this from? */
-		start_frame = scene->r.sfra;
-		end_frame = scene->r.efra;
-		PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_REALTIME) {
+			data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
+			cache_library_bake_do(data, stop, do_update, progress);
+		}
+		
+		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_RENDER) {
+			data->eval_ctx.mode = DAG_EVAL_RENDER;
+			cache_library_bake_do(data, stop, do_update, progress);
+		}
+		
 	}
 	
 	*do_update = true;

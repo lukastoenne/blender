@@ -87,8 +87,8 @@ typedef struct CacheLibrary {
 //} eCacheLibrary_Flag;
 
 typedef enum eCacheLibrary_EvalMode {
-	CACHE_LIBRARY_EVAL_VIEWPORT     = 0, /* evaluate data with viewport settings */
-	CACHE_LIBRARY_EVAL_RENDER       = 1, /* evaluate data with render settings */
+	CACHE_LIBRARY_EVAL_REALTIME     = (1 << 0), /* evaluate data with realtime settings */
+	CACHE_LIBRARY_EVAL_RENDER       = (1 << 1), /* evaluate data with render settings */
 } eCacheLibrary_EvalMode;
 
 #endif

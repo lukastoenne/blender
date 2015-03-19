@@ -340,7 +340,8 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row.prop(ob, "use_dupli_cache_read", text="Read", toggle=True)
         row.prop(ob, "use_dupli_cache_write", text="Write", toggle=True)
         col.operator("cachelibrary.bake")
-        col.prop(cachelib, "eval_mode", expand=False)
+        row = col.row(align=True)
+        row.prop(cachelib, "eval_mode", toggle=True, expand=True)
 
         row = layout.row(align=True)
         row.label("Filter:")
