@@ -112,7 +112,16 @@ void write_sample<CD_MCOL>(CustomDataWriter *writer, OCompoundProperty &parent, 
 {
 	OC4fArrayProperty prop = writer->add_array_property<OC4fArrayProperty>(name, parent);
 	
-	prop.set(OC4fArrayProperty::sample_type((C4f *)data, num_data));
+	MCol *mcol = (MCol *)data;
+	
+	std::vector<C4f> mcol_data;
+	mcol_data.reserve(num_data);
+	for (int i = 0; i < num_data; ++i) {
+		mcol_data.push_back(C4f(mcol->r, mcol->g, mcol->b, mcol->a));
+		
+		++mcol;
+	}
+	prop.set(OC4fArrayProperty::sample_type(mcol_data));
 }
 
 template <>
@@ -220,7 +229,17 @@ PTCReadSampleResult read_sample<CD_MCOL>(CustomDataReader *reader, ICompoundProp
 	if (sample->size() != num_data)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	memcpy(data, sample->getData(), sizeof(C4f) * num_data);
+	MCol *mcol = (MCol *)data;
+	C4f *data_mcol = (C4f *)sample->getData();
+	for (int i = 0; i < num_data; ++i) {
+		mcol->r = data_mcol->r;
+		mcol->g = data_mcol->g;
+		mcol->b = data_mcol->b;
+		mcol->a = data_mcol->a;
+		
+		++data_mcol;
+		++mcol;
+	}
 	return PTC_READ_SAMPLE_EXACT;
 }
 
