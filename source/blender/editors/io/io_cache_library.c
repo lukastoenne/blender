@@ -228,6 +228,11 @@ static int cache_library_bake_poll(bContext *C)
 	
 	if (!ob || !(ob->transflag & OB_DUPLIGROUP) || !ob->dup_group || !ob->cache_library)
 		return false;
+	/* re-baking cached results doesn't make much sense,
+	 * clarify workflow by enabling either reading or writing, but not both
+	 */
+	if (ob->transflag & OB_DUPLI_USE_CACHE)
+		return false;
 	
 	return true;
 }
@@ -277,9 +282,6 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	else {
 		data->eval_ctx.mode = DAG_EVAL_RENDER;
 	}
-	// TODO
-	/* disable reading for the duration of the bake process */
-//	data->cachelib->flag |= CACHE_LIBRARY_BAKING;
 	
 	BKE_cache_archive_path(data->cachelib->filepath, (ID *)data->cachelib, data->cachelib->id.lib, filename, sizeof(filename));
 	data->archive = PTC_open_writer_archive(scene, filename);
@@ -312,10 +314,6 @@ static void cache_library_bake_endjob(void *customdata)
 		PTC_writer_free(data->writer);
 	if (data->archive)
 		PTC_close_writer_archive(data->archive);
-	
-	// TODO
-	/* enable reading */
-//	data->cachelib->flag &= ~CACHE_LIBRARY_BAKING;
 	
 	/* reset scene frame */
 	scene->r.cfra = data->origfra;
