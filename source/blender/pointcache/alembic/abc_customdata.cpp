@@ -108,6 +108,14 @@ void write_sample<CD_MDEFORMVERT>(CustomDataWriter *writer, OCompoundProperty &p
 }
 
 template <>
+void write_sample<CD_MCOL>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OC4fArrayProperty prop = writer->add_array_property<OC4fArrayProperty>(name, parent);
+	
+	prop.set(OC4fArrayProperty::sample_type((C4f *)data, num_data));
+}
+
+template <>
 void write_sample<CD_ORIGINDEX>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
 {
 	OInt32ArrayProperty prop = writer->add_array_property<OInt32ArrayProperty>(name, parent);
@@ -203,6 +211,20 @@ PTCReadSampleResult read_sample<CD_MDEFORMVERT>(CustomDataReader *reader, ICompo
 }
 
 template <>
+PTCReadSampleResult read_sample<CD_MCOL>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	IC4fArrayProperty prop = reader->add_array_property<IC4fArrayProperty>(name, parent);
+	
+	C4fArraySamplePtr sample = prop.getValue(ss);
+	
+	if (sample->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	memcpy(data, sample->getData(), sizeof(C4f) * num_data);
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
 PTCReadSampleResult read_sample<CD_ORIGINDEX>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
 {
 	IInt32ArrayProperty prop = reader->add_array_property<IInt32ArrayProperty>(name, parent);
@@ -212,7 +234,7 @@ PTCReadSampleResult read_sample<CD_ORIGINDEX>(CustomDataReader *reader, ICompoun
 	if (sample->size() != num_data)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	memcpy(data, sample->getData(), num_data);
+	memcpy(data, sample->getData(), sizeof(int32_t) * num_data);
 	return PTC_READ_SAMPLE_EXACT;
 }
 
