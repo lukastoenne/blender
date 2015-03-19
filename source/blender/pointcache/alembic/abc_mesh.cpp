@@ -654,7 +654,7 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	m_edge_data_reader.read_sample(ss, edata, num_edata, user_props);
 	
 	DM_ensure_tessface(m_result);
-	CustomData *fdata = m_result->getVertDataLayout(m_result);
+	CustomData *fdata = m_result->getTessFaceDataLayout(m_result);
 	int num_fdata = m_result->getNumTessFaces(m_result);
 	m_face_data_reader.read_sample(ss, fdata, num_fdata, user_props);
 	
