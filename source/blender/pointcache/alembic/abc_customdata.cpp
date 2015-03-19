@@ -133,6 +133,14 @@ void write_sample<CD_ORIGINDEX>(CustomDataWriter *writer, OCompoundProperty &par
 }
 
 template <>
+void write_sample<CD_NORMAL>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	ON3fArrayProperty prop = writer->add_array_property<ON3fArrayProperty>(name, parent);
+	
+	prop.set(ON3fArrayProperty::sample_type((N3f *)data, num_data));
+}
+
+template <>
 void write_sample<CD_ORIGSPACE>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
 {
 	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
@@ -254,6 +262,20 @@ PTCReadSampleResult read_sample<CD_ORIGINDEX>(CustomDataReader *reader, ICompoun
 		return PTC_READ_SAMPLE_INVALID;
 	
 	memcpy(data, sample->getData(), sizeof(int32_t) * num_data);
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_NORMAL>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	IN3fArrayProperty prop = reader->add_array_property<IN3fArrayProperty>(name, parent);
+	
+	N3fArraySamplePtr sample = prop.getValue(ss);
+	
+	if (sample->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	memcpy(data, sample->getData(), sizeof(N3f) * num_data);
 	return PTC_READ_SAMPLE_EXACT;
 }
 
