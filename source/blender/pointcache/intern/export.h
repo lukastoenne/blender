@@ -39,11 +39,7 @@ class Exporter
 public:
 	Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short *stop, short *do_update, float *progress);
 	
-#if 1
 	void bake(PTCWriter *writer, int start_frame, int end_frame);
-#else
-	void bake(ListBase *writers, DerivedMesh **render_dm_ptr, int start_frame, int end_frame);
-#endif
 	
 	bool stop() const;
 	
