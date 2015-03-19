@@ -45,6 +45,33 @@ using namespace AbcGeom;
 /* CD layers that are stored in generic customdata arrays created with CD_ALLOC */
 static CustomDataMask CD_MASK_CACHE = ~(CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MPOLY | CD_MASK_MLOOP | CD_MASK_BMESH | CD_MASK_MTFACE);
 
+struct MVertSample {
+	std::vector<V3f> co;
+	std::vector<N3f> no;
+	std::vector<int8_t> flag;
+	std::vector<int8_t> bweight;
+};
+
+struct MEdgeSample {
+	std::vector<uint32_t> verts;
+	std::vector<int16_t> flag;
+	std::vector<int8_t> crease;
+	std::vector<int8_t> bweight;
+};
+
+struct MPolySample {
+	/*std::vector<int32_t> loopstart;*/ /* loopstart is not stored explicitly */
+	std::vector<int32_t> totloop;
+	std::vector<int16_t> mat_nr;
+	std::vector<int8_t> flag;
+};
+
+struct MLoopSample {
+	/* XXX these are unsigned int in DNA, but Alembic expects signed int */
+	std::vector<int32_t> verts;
+	std::vector<int32_t> edges;
+};
+
 AbcDerivedMeshWriter::AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
     DerivedMeshWriter(ob, dm_ptr, name),
     m_vert_data_writer("vertex_data", CD_MASK_CACHE),
@@ -67,17 +94,23 @@ void AbcDerivedMeshWriter::init_abc(OObject parent)
 	m_mesh = OPolyMesh(parent, m_name, abc_archive()->frame_sampling_index());
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
-	OCompoundProperty geom_props = schema.getArbGeomParams();
+//	OCompoundProperty geom_props = schema.getArbGeomParams();
 	OCompoundProperty user_props = schema.getUserProperties();
 	
-	m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
+	m_prop_vert_normals = ON3fArrayProperty(user_props, "vertex_normals", 0);
+	m_prop_vert_flag = OCharArrayProperty(user_props, "vertex_flag", 0);
+	m_prop_vert_bweight = OCharArrayProperty(user_props, "vertex_bweight", 0);
+	
 	m_prop_edge_verts = OUInt32ArrayProperty(user_props, "edge_verts", 0);
 	m_prop_edge_flag = OInt16ArrayProperty(user_props, "edge_flag", 0);
 	m_prop_edge_crease = OCharArrayProperty(user_props, "edge_crease", 0);
 	m_prop_edge_bweight = OCharArrayProperty(user_props, "edge_bweight", 0);
-	m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
-	m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
-	m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
+	
+	m_prop_poly_mat_nr = OInt16ArrayProperty(user_props, "poly_mat_nr", 0);
+	m_prop_poly_flag = OCharArrayProperty(user_props, "poly_flag", 0);
+	
+	m_prop_loop_verts = OInt32ArrayProperty(user_props, "loop_verts", 0);
+	m_prop_loop_edges = OInt32ArrayProperty(user_props, "loop_edges", 0);
 }
 
 /* XXX modifiers are not allowed to generate poly normals on their own!
@@ -104,101 +137,75 @@ static void ensure_normal_data(DerivedMesh *dm)
 }
 #endif
 
-void AbcDerivedMeshWriter::write_sample_edges(DerivedMesh *dm)
-{
-	MEdge *me, *medges = dm->getEdgeArray(dm);
-	int i, totedge = dm->getNumEdges(dm);
-	
-	std::vector<uint32_t> data_edge_verts;
-	std::vector<int16_t> data_edge_flag;
-	std::vector<int8_t> data_edge_crease;
-	std::vector<int8_t> data_edge_bweight;
-	data_edge_verts.reserve(totedge * 2);
-	data_edge_flag.reserve(totedge);
-	data_edge_crease.reserve(totedge);
-	data_edge_bweight.reserve(totedge);
-	
-	for (i = 0, me = medges; i < totedge; ++i, ++me) {
-		data_edge_verts.push_back(me->v1);
-		data_edge_verts.push_back(me->v2);
-		data_edge_flag.push_back(me->flag);
-		data_edge_crease.push_back(me->crease);
-		data_edge_bweight.push_back(me->bweight);
-	}
-	
-	m_prop_edge_verts.set(UInt32ArraySample(data_edge_verts));
-	m_prop_edge_flag.set(Int16ArraySample(data_edge_flag));
-	m_prop_edge_crease.set(CharArraySample(data_edge_crease));
-	m_prop_edge_bweight.set(CharArraySample(data_edge_bweight));
-}
-
-static P3fArraySample create_sample_positions(DerivedMesh *dm, std::vector<V3f> &data)
+static void create_sample_verts(DerivedMesh *dm, MVertSample &sample)
 {
 	MVert *mv, *mverts = dm->getVertArray(dm);
 	int i, totvert = dm->getNumVerts(dm);
 	
-	data.reserve(totvert);
+	sample.co.reserve(totvert);
+	sample.no.reserve(totvert);
+	sample.flag.reserve(totvert);
+	sample.bweight.reserve(totvert);
 	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
-		float *co = mv->co;
-		data.push_back(V3f(co[0], co[1], co[2]));
+		float nor[3];
+		
+		sample.co.push_back(V3f(mv->co[0], mv->co[1], mv->co[2]));
+		
+		normal_short_to_float_v3(nor, mv->no);
+		sample.no.push_back(N3f(nor[0], nor[1], nor[2]));
+		
+		sample.flag.push_back(mv->flag);
+		sample.bweight.push_back(mv->bweight);
 	}
-	
-	return P3fArraySample(data);
 }
 
-static Int32ArraySample create_sample_vertex_indices(DerivedMesh *dm, std::vector<int> &data)
+static void create_sample_edges(DerivedMesh *dm, MEdgeSample &sample)
 {
-	MLoop *ml, *mloops = dm->getLoopArray(dm);
-	int i, totloop = dm->getNumLoops(dm);
+	MEdge *me, *medges = dm->getEdgeArray(dm);
+	int i, totedge = dm->getNumEdges(dm);
 	
-	data.reserve(totloop);
-	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
-		data.push_back(ml->v);
+	sample.verts.reserve(totedge * 2);
+	sample.flag.reserve(totedge);
+	sample.crease.reserve(totedge);
+	sample.bweight.reserve(totedge);
+	
+	for (i = 0, me = medges; i < totedge; ++i, ++me) {
+		sample.verts.push_back(me->v1);
+		sample.verts.push_back(me->v2);
+		sample.flag.push_back(me->flag);
+		sample.crease.push_back(me->crease);
+		sample.bweight.push_back(me->bweight);
 	}
-	
-	return Int32ArraySample(data);
 }
 
-static Int32ArraySample create_sample_loop_counts(DerivedMesh *dm, std::vector<int> &data)
-{
-	MPoly *mp, *mpolys = dm->getPolyArray(dm);
-	int i, totpoly = dm->getNumPolys(dm);
-	
-	data.reserve(totpoly);
-	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
-		data.push_back(mp->totloop);
-	}
-	
-	return Int32ArraySample(data);
-}
-
-static OBoolGeomParam::Sample create_sample_poly_smooth(DerivedMesh *dm, std::vector<bool_t> &data)
+static void create_sample_polys(DerivedMesh *dm, MPolySample &sample)
 {
 	MPoly *mp, *mpolys = dm->getPolyArray(dm);
 	int i, totpoly = dm->getNumPolys(dm);
 	
-	data.reserve(totpoly);
-	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
-		data.push_back((bool)(mp->flag & ME_SMOOTH));
-	}
+	sample.totloop.reserve(totpoly);
+	sample.mat_nr.reserve(totpoly);
+	sample.flag.reserve(totpoly);
 	
-	OBoolGeomParam::Sample sample;
-	sample.setVals(BoolArraySample(data));
-	sample.setScope(kUniformScope);
-	return sample;
+	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
+		sample.totloop.push_back(mp->totloop);
+		sample.mat_nr.push_back(mp->mat_nr);
+		sample.flag.push_back(mp->flag);
+	}
 }
 
-static OInt32ArrayProperty::sample_type create_sample_edge_indices(DerivedMesh *dm, std::vector<int> &data)
+static void create_sample_loops(DerivedMesh *dm, MLoopSample &sample)
 {
 	MLoop *ml, *mloops = dm->getLoopArray(dm);
 	int i, totloop = dm->getNumLoops(dm);
 	
-	data.reserve(totloop);
-	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
-		data.push_back(ml->e);
-	}
+	sample.verts.reserve(totloop);
+	sample.edges.reserve(totloop);
 	
-	return OInt32ArrayProperty::sample_type(data);
+	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
+		sample.verts.push_back(ml->v);
+		sample.edges.push_back(ml->e);
+	}
 }
 
 static N3fArraySample create_sample_loop_normals(DerivedMesh *dm, std::vector<N3f> &data)
@@ -221,42 +228,6 @@ static N3fArraySample create_sample_loop_normals(DerivedMesh *dm, std::vector<N3
 	return N3fArraySample(data);
 }
 
-static N3fArraySample create_sample_poly_normals(DerivedMesh *dm, std::vector<N3f> &data)
-{
-	CustomData *cdata = dm->getPolyDataLayout(dm);
-	float (*nor)[3], (*polynors)[3];
-	int i, totpoly = dm->getNumPolys(dm);
-	
-	if (!CustomData_has_layer(cdata, CD_NORMAL))
-		return N3fArraySample();
-	
-	polynors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
-	
-	data.reserve(totpoly);
-	for (i = 0, nor = polynors; i < totpoly; ++i, ++nor) {
-		float *vec = *nor;
-		data.push_back(N3f(vec[0], vec[1], vec[2]));
-	}
-	
-	return N3fArraySample(data);
-}
-
-static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<N3f> &data)
-{
-	MVert *mv, *mverts = dm->getVertArray(dm);
-	int i, totvert = dm->getNumVerts(dm);
-	
-	data.reserve(totvert);
-	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
-		float nor[3];
-		
-		normal_short_to_float_v3(nor, mv->no);
-		data.push_back(N3f(nor[0], nor[1], nor[2]));
-	}
-	
-	return N3fArraySample(data);
-}
-
 void AbcDerivedMeshWriter::write_sample()
 {
 	if (!m_mesh)
@@ -273,49 +244,45 @@ void AbcDerivedMeshWriter::write_sample()
 	OPolyMeshSchema &schema = m_mesh.getSchema();
 	OCompoundProperty user_props = schema.getUserProperties();
 	
-	std::vector<V3f> positions_buffer;
-	std::vector<int> indices_buffer;
-	std::vector<int> counts_buffer;
-	std::vector<bool_t> smooth_buffer;
-	std::vector<int> edges_index_buffer;
+	MVertSample vert_sample;
+	MEdgeSample edge_sample;
+	MPolySample poly_sample;
+	MLoopSample loop_sample;
+	
 	std::vector<N3f> loop_normals_buffer;
-	std::vector<N3f> poly_normals_buffer;
-	std::vector<N3f> vertex_normals_buffer;
-//	std::vector<V2f> uvs;
-//	V2fArraySample()
 	
 	// TODO decide how to handle vertex/face normals, in caching vs. export ...
-//	std::vector<V2f> uvs;
-//	OV2fGeomParam::Sample uvs(V2fArraySample(uvs), kFacevaryingScope );
 	
-	P3fArraySample positions = create_sample_positions(output_dm, positions_buffer);
-	Int32ArraySample indices = create_sample_vertex_indices(output_dm, indices_buffer);
-	Int32ArraySample counts = create_sample_loop_counts(output_dm, counts_buffer);
-	OBoolGeomParam::Sample smooth = create_sample_poly_smooth(output_dm, smooth_buffer);
-	OInt32ArrayProperty::sample_type edges_index = create_sample_edge_indices(output_dm, edges_index_buffer);
+	create_sample_verts(output_dm, vert_sample);
+	create_sample_edges(output_dm, edge_sample);
+	create_sample_polys(output_dm, poly_sample);
+	create_sample_loops(output_dm, loop_sample);
+	
 	N3fArraySample lnormals = create_sample_loop_normals(output_dm, loop_normals_buffer);
-	N3fArraySample pnormals = create_sample_poly_normals(output_dm, poly_normals_buffer);
-	N3fArraySample vnormals = create_sample_vertex_normals(output_dm, vertex_normals_buffer);
 	
 	OPolyMeshSchema::Sample sample = OPolyMeshSchema::Sample(
-	            positions,
-	            indices,
-	            counts,
+	            P3fArraySample(vert_sample.co),
+	            Int32ArraySample(loop_sample.verts),
+	            Int32ArraySample(poly_sample.totloop),
 	            OV2fGeomParam::Sample(), /* XXX define how/which UV map should be considered primary for the alembic schema */
 	            ON3fGeomParam::Sample(lnormals, kFacevaryingScope)
 	            );
 	schema.set(sample);
 	
-	write_sample_edges(output_dm);
+	m_prop_vert_normals.set(N3fArraySample(vert_sample.no));
+	m_prop_vert_flag.set(CharArraySample(vert_sample.flag));
+	m_prop_vert_bweight.set(CharArraySample(vert_sample.bweight));
 	
-	if (pnormals.valid())
-		m_param_poly_normals.set(ON3fGeomParam::Sample(pnormals, kUniformScope));
-	if (vnormals.valid())
-		m_param_vertex_normals.set(ON3fGeomParam::Sample(vnormals, kVertexScope));
+	m_prop_edge_verts.set(UInt32ArraySample(edge_sample.verts));
+	m_prop_edge_flag.set(Int16ArraySample(edge_sample.flag));
+	m_prop_edge_crease.set(CharArraySample(edge_sample.crease));
+	m_prop_edge_bweight.set(CharArraySample(edge_sample.bweight));
 	
-	m_param_smooth.set(smooth);
+	m_prop_poly_mat_nr.set(Int16ArraySample(poly_sample.mat_nr));
+	m_prop_poly_flag.set(CharArraySample(poly_sample.flag));
 	
-	m_prop_edges_index.set(edges_index);
+	m_prop_loop_verts.set(Int32ArraySample(loop_sample.verts));
+	m_prop_loop_edges.set(Int32ArraySample(loop_sample.edges));
 	
 	CustomData *vdata = output_dm->getVertDataLayout(output_dm);
 	int num_vdata = output_dm->getNumVerts(output_dm);
@@ -366,176 +333,147 @@ void AbcDerivedMeshReader::init_abc(IObject parent)
 		ICompoundProperty geom_props = schema.getArbGeomParams();
 		ICompoundProperty user_props = schema.getUserProperties();
 		
-		m_param_loop_normals = schema.getNormalsParam();
-		m_param_poly_normals = IN3fGeomParam(geom_props, "poly_normals", 0);
-		m_param_vertex_normals = IN3fGeomParam(geom_props, "vertex_normals", 0);
-		m_param_smooth = IBoolGeomParam(geom_props, "smooth", 0);
+		m_prop_vert_normals = IN3fArrayProperty(user_props, "vertex_normals", 0);
+		m_prop_vert_flag = ICharArrayProperty(user_props, "vertex_flag", 0);
+		m_prop_vert_bweight = ICharArrayProperty(user_props, "vertex_bweight", 0);
+		
 		m_prop_edge_verts = IUInt32ArrayProperty(user_props, "edge_verts", 0);
 		m_prop_edge_flag = IInt16ArrayProperty(user_props, "edge_flag", 0);
 		m_prop_edge_crease = ICharArrayProperty(user_props, "edge_crease", 0);
 		m_prop_edge_bweight = ICharArrayProperty(user_props, "edge_bweight", 0);
-		m_prop_edges_index = IInt32ArrayProperty(user_props, "edges_index", 0);
+		
+		m_prop_poly_mat_nr = IInt16ArrayProperty(user_props, "poly_mat_nr", 0);
+		m_prop_poly_flag = ICharArrayProperty(user_props, "poly_flag", 0);
+		
+		m_prop_loop_verts = IInt32ArrayProperty(user_props, "loop_verts", 0);
+		m_prop_loop_edges = IInt32ArrayProperty(user_props, "loop_edges", 0);
 	}
 }
 
-PTCReadSampleResult AbcDerivedMeshReader::read_sample_edges(const ISampleSelector &ss, DerivedMesh *dm, UInt32ArraySamplePtr sample_edge_verts)
+static PTCReadSampleResult apply_sample_verts(DerivedMesh *dm, P3fArraySamplePtr sample_co, N3fArraySamplePtr sample_no,
+                                              CharArraySamplePtr sample_flag, CharArraySamplePtr sample_bweight)
 {
-	Int16ArraySamplePtr sample_edge_flag = m_prop_edge_flag.getValue(ss);
-	CharArraySamplePtr sample_edge_crease = m_prop_edge_crease.getValue(ss);
-	CharArraySamplePtr sample_edge_bweight = m_prop_edge_bweight.getValue(ss);
+	int totvert = dm->getNumVerts(dm);
 	
-	int totedge = dm->getNumEdges(dm);
-	if (sample_edge_verts->size() != totedge * 2 ||
-	    sample_edge_flag->size() != totedge ||
-	    sample_edge_crease->size() != totedge ||
-	    sample_edge_bweight->size() != totedge)
+	if (sample_co->size() != totvert ||
+	    sample_no->size() != totvert ||
+	    sample_flag->size() != totvert ||
+	    sample_bweight->size() != totvert)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	const uint32_t *data_edge_verts = sample_edge_verts->get();
-	const int16_t *data_edge_flag = sample_edge_flag->get();
-	const int8_t *data_edge_crease = sample_edge_crease->get();
-	const int8_t *data_edge_bweight = sample_edge_bweight->get();
-	
-	MEdge *me = dm->getEdgeArray(dm);
-	for (int i = 0; i < totedge; ++i) {
-		me->v1 = data_edge_verts[0];
-		me->v2 = data_edge_verts[1];
-		me->flag = *data_edge_flag;
-		me->crease = *data_edge_crease;
-		me->bweight = *data_edge_bweight;
+	MVert *mv = dm->getVertArray(dm);
+	for (int i = 0; i < totvert; ++i) {
+		copy_v3_v3(mv->co, (*sample_co)[i].getValue());
+		normal_float_to_short_v3(mv->no, (*sample_no)[i].getValue());
+		mv->flag = (*sample_flag)[i];
+		mv->bweight = (*sample_bweight)[i];
 		
-		++me;
-		data_edge_verts += 2;
-		++data_edge_flag;
-		++data_edge_crease;
-		++data_edge_bweight;
+		++mv;
 	}
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-
-static void apply_sample_positions(DerivedMesh *dm, P3fArraySamplePtr sample)
+static PTCReadSampleResult apply_sample_edges(DerivedMesh *dm, UInt32ArraySamplePtr sample_verts, Int16ArraySamplePtr sample_flag,
+                                              CharArraySamplePtr sample_crease, CharArraySamplePtr sample_bweight, bool &has_edges)
 {
-	MVert *mv, *mverts = dm->getVertArray(dm);
-	int i, totvert = dm->getNumVerts(dm);
-	
-	BLI_assert(sample->size() == totvert);
-	
-	const V3f *data = sample->get();
-	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
-		const V3f &co = data[i];
-		copy_v3_v3(mv->co, co.getValue());
+	int totedge = dm->getNumEdges(dm);
+	if (sample_verts->size() != totedge * 2 ||
+	    sample_flag->size() != totedge ||
+	    sample_crease->size() != totedge ||
+	    sample_bweight->size() != totedge) 
+	{
+		has_edges = false;
+		return PTC_READ_SAMPLE_INVALID;
 	}
+	
+	const uint32_t *data_verts = sample_verts->get();
+	const int16_t *data_flag = sample_flag->get();
+	const int8_t *data_crease = sample_crease->get();
+	const int8_t *data_bweight = sample_bweight->get();
+	
+	MEdge *me = dm->getEdgeArray(dm);
+	for (int i = 0; i < totedge; ++i) {
+		me->v1 = data_verts[0];
+		me->v2 = data_verts[1];
+		me->flag = *data_flag;
+		me->crease = *data_crease;
+		me->bweight = *data_bweight;
+		
+		++me;
+		data_verts += 2;
+		++data_flag;
+		++data_crease;
+		++data_bweight;
+	}
+	
+	return PTC_READ_SAMPLE_EXACT;
 }
 
-static void apply_sample_vertex_indices(DerivedMesh *dm, Int32ArraySamplePtr sample)
+static PTCReadSampleResult apply_sample_polys(DerivedMesh *dm, Int32ArraySamplePtr sample_totloop, Int16ArraySamplePtr sample_mat_nr, CharArraySamplePtr sample_flag)
 {
-	MLoop *ml, *mloops = dm->getLoopArray(dm);
-	int i, totloop = dm->getNumLoops(dm);
+	int totpoly = dm->getNumPolys(dm);
+	if (sample_totloop->size() != totpoly ||
+	    sample_mat_nr->size() != totpoly ||
+	    sample_flag->size() != totpoly)
+		return PTC_READ_SAMPLE_INVALID;
 	
-	BLI_assert(sample->size() == totloop);
+	const int32_t *data_totloop = sample_totloop->get();
+	const int16_t *data_mat_nr = sample_mat_nr->get();
+	const int8_t *data_flag = sample_flag->get();
 	
-	const int32_t *data = sample->get();
-	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
-		ml->v = data[i];
-	}
-}
-
-static void apply_sample_loop_counts(DerivedMesh *dm, Int32ArraySamplePtr sample)
-{
-	MPoly *mp, *mpolys = dm->getPolyArray(dm);
-	int i, totpoly = dm->getNumPolys(dm);
-	
-	BLI_assert(sample->size() == totpoly);
-	
-	const int32_t *data = sample->get();
 	int loopstart = 0;
-	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
-		mp->totloop = data[i];
+	MPoly *mp = dm->getPolyArray(dm);
+	for (int i = 0; i < totpoly; ++i) {
+		mp->totloop = *data_totloop;
 		mp->loopstart = loopstart;
+		mp->mat_nr = *data_mat_nr;
+		mp->flag = *data_flag;
 		
 		loopstart += mp->totloop;
+		
+		++mp;
+		++data_totloop;
+		++data_mat_nr;
+		++data_flag;
 	}
+	
+	return PTC_READ_SAMPLE_EXACT;
 }
 
-static void apply_sample_loop_normals(DerivedMesh *dm, N3fArraySamplePtr sample)
+static PTCReadSampleResult apply_sample_loops(DerivedMesh *dm, Int32ArraySamplePtr sample_verts, Int32ArraySamplePtr sample_edges, bool &has_edges)
 {
-	CustomData *cdata = dm->getLoopDataLayout(dm);
-	float (*nor)[3], (*loopnors)[3];
-	int i, totloop = dm->getNumLoops(dm);
+	int totloop = dm->getNumLoops(dm);
+	if (sample_verts->size() != totloop)
+		return PTC_READ_SAMPLE_INVALID;
 	
-	BLI_assert(sample->size() == totloop);
+	const int32_t *data_verts = sample_verts->get();
 	
-	if (CustomData_has_layer(cdata, CD_NORMAL))
-		loopnors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
-	else
-		loopnors = (float (*)[3])CustomData_add_layer(cdata, CD_NORMAL, CD_CALLOC, NULL, totloop);
-	
-	const N3f *data = sample->get();
-	for (i = 0, nor = loopnors; i < totloop; ++i, ++nor) {
-		copy_v3_v3(*nor, data[i].getValue());
+	MLoop *ml = dm->getLoopArray(dm);
+	for (int i = 0; i < totloop; ++i) {
+		ml->v = *data_verts;
+		
+		++ml;
+		++data_verts;
 	}
-}
-
-static void apply_sample_poly_normals(DerivedMesh *dm, N3fArraySamplePtr sample)
-{
-	CustomData *cdata = dm->getPolyDataLayout(dm);
-	float (*nor)[3], (*polynors)[3];
-	int i, totpoly = dm->getNumPolys(dm);
 	
-	BLI_assert(sample->size() == totpoly);
-	
-	if (CustomData_has_layer(cdata, CD_NORMAL))
-		polynors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
-	else
-		polynors = (float (*)[3])CustomData_add_layer(cdata, CD_NORMAL, CD_CALLOC, NULL, totpoly);
-	
-	const N3f *data = sample->get();
-	for (i = 0, nor = polynors; i < totpoly; ++i, ++nor) {
-		copy_v3_v3(*nor, data[i].getValue());
-	}
-}
-
-static void apply_sample_vertex_normals(DerivedMesh *dm, N3fArraySamplePtr sample)
-{
-	MVert *mv, *mverts = dm->getVertArray(dm);
-	int i, totvert = dm->getNumVerts(dm);
-	
-	BLI_assert(sample->size() == totvert);
-	
-	const N3f *data = sample->get();
-	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
-		normal_float_to_short_v3(mv->no, data[i].getValue());
-	}
-}
-
-static void apply_sample_poly_smooth(DerivedMesh *dm, BoolArraySamplePtr sample)
-{
-	MPoly *mp, *mpolys = dm->getPolyArray(dm);
-	int i, totpoly = dm->getNumPolys(dm);
-	
-	BLI_assert(sample->size() == totpoly);
-	
-	const bool_t *data = sample->get();
-	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
-		if (data[i]) {
-			mp->flag |= ME_SMOOTH;
+	/* edge data is optional, if not available the edges must be recalculated */
+	if (sample_edges->size() == totloop) {
+		const int32_t *data_edges = sample_edges->get();
+		
+		MLoop *ml = dm->getLoopArray(dm);
+		for (int i = 0; i < totloop; ++i) {
+			ml->e = *data_edges;
+			
+			++ml;
+			++data_edges;
 		}
 	}
-}
-
-static void apply_sample_edge_indices(DerivedMesh *dm, Int32ArraySamplePtr sample)
-{
-	MLoop *ml, *mloops = dm->getLoopArray(dm);
-	int i, totloop = dm->getNumLoops(dm);
-	
-	BLI_assert(sample->size() == totloop);
-	
-	const int32_t *data = sample->get();
-	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
-		ml->e = data[i];
+	else {
+		has_edges = false;
 	}
+	
+	return PTC_READ_SAMPLE_EXACT;
 }
 
 PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
@@ -570,80 +508,34 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	IPolyMeshSchema::Sample sample;
 	schema.get(sample, ss);
 	
+	P3fArraySamplePtr vert_co = sample.getPositions();
+	Int32ArraySamplePtr loop_verts = sample.getFaceIndices();
+	Int32ArraySamplePtr poly_totloop = sample.getFaceCounts();
+	
+	N3fArraySamplePtr vnormals;
 	bool has_normals = false;
-	P3fArraySamplePtr positions = sample.getPositions();
-	Int32ArraySamplePtr indices = sample.getFaceIndices();
-	Int32ArraySamplePtr counts = sample.getFaceCounts();
-	N3fArraySamplePtr lnormals, pnormals, vnormals;
-	if (m_param_poly_normals && m_param_poly_normals.getNumSamples() > 0
-	    && m_param_vertex_normals && m_param_vertex_normals.getNumSamples() > 0) {
-		pnormals = m_param_poly_normals.getExpandedValue(ss).getVals();
-		vnormals = m_param_vertex_normals.getExpandedValue(ss).getVals();
-		
-		/* we need all normal properties defined, otherwise have to recalculate */
-		has_normals = pnormals->valid() && vnormals->valid();
-	}
-	if (has_normals) {
-		/* note: loop normals are not mandatory, but if poly/vertex normals don't exist they get recalculated anyway */
-		if (m_param_loop_normals && m_param_loop_normals.getNumSamples() > 0)
-			lnormals = m_param_loop_normals.getExpandedValue(ss).getVals();
+	if (m_prop_vert_normals && m_prop_vert_normals.getNumSamples() > 0) {
+		vnormals = m_prop_vert_normals.getValue(ss);
+		has_normals = vnormals->valid();
 	}
 	
-	BoolArraySamplePtr smooth;
-	if (m_param_smooth && m_param_smooth.getNumSamples() > 0) {
-		IBoolGeomParam::Sample sample_smooth;
-		m_param_smooth.getExpanded(sample_smooth, ss);
-		smooth = sample_smooth.getVals();
-	}
-	
-	bool has_edges = false;
 	UInt32ArraySamplePtr edge_verts = m_prop_edge_verts.getValue(ss);
-	Int32ArraySamplePtr edges_index;
-	if (m_prop_edges_index && m_prop_edges_index.getNumSamples() > 0) {
-		m_prop_edges_index.get(edges_index, ss);
-		
-		has_edges = edges_index->valid();
-	}
-	has_edges |= m_prop_edge_verts.getNumSamples() > 0;
+	Int32ArraySamplePtr loop_edges = m_prop_loop_edges.getValue(ss);
 	PROFILE_END(time_get_sample);
 	
 	PROFILE_START;
-	int totverts = positions->size();
-	int totloops = indices->size();
-	int totpolys = counts->size();
+	bool has_edges = true; // XXX do we have to check for existing sample in advance?
+	int totverts = vert_co->size();
+	int totloops = loop_verts->size();
+	int totpolys = poly_totloop->size();
 	int totedges = has_edges ? edge_verts->size() >> 1 : 0;
 	m_result = CDDM_new(totverts, totedges, 0, totloops, totpolys);
 	
-	apply_sample_positions(m_result, positions);
-	apply_sample_vertex_indices(m_result, indices);
-	apply_sample_loop_counts(m_result, counts);
-	if (has_normals) {
-		apply_sample_poly_normals(m_result, lnormals);
-		apply_sample_vertex_normals(m_result, vnormals);
-		
-		if (lnormals->valid())
-			apply_sample_loop_normals(m_result, pnormals);
-	}
-	else {
-		/* make sure normals are recalculated if there is no sample data */
-		m_result->dirty = (DMDirtyFlag)((int)m_result->dirty | DM_DIRTY_NORMALS);
-	}
-	if (has_edges) {
-		read_sample_edges(ss, m_result, edge_verts);
-		apply_sample_edge_indices(m_result, edges_index);
-	}
-	if (smooth)
-		apply_sample_poly_smooth(m_result, smooth);
+	apply_sample_verts(m_result, vert_co, vnormals, m_prop_vert_flag.getValue(ss), m_prop_vert_bweight.getValue(ss));
+	apply_sample_edges(m_result, edge_verts, m_prop_edge_flag.getValue(ss), m_prop_edge_crease.getValue(ss), m_prop_edge_bweight.getValue(ss), has_edges);
+	apply_sample_polys(m_result, poly_totloop, m_prop_poly_mat_nr.getValue(ss), m_prop_poly_flag.getValue(ss));
+	apply_sample_loops(m_result, loop_verts, loop_edges, has_edges);
 	PROFILE_END(time_build_mesh);
-	
-	PROFILE_START;
-	if (!has_edges)
-		CDDM_calc_edges(m_result);
-	PROFILE_END(time_calc_edges);
-	
-	PROFILE_START;
-	DM_ensure_normals(m_result); /* only recalculates normals if no valid samples were found (has_normals == false) */
-	PROFILE_END(time_calc_normals);
 	
 	CustomData *vdata = m_result->getVertDataLayout(m_result);
 	int num_vdata = totverts;
@@ -665,6 +557,21 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	CustomData *ldata = m_result->getLoopDataLayout(m_result);
 	int num_ldata = totloops;
 	m_loop_data_reader.read_sample(ss, ldata, num_ldata, user_props);
+	
+	PROFILE_START;
+	if (!has_edges)
+		CDDM_calc_edges(m_result);
+	PROFILE_END(time_calc_edges);
+	
+	PROFILE_START;
+	/* we need all normal properties defined, otherwise have to recalculate */
+	has_normals &= CustomData_has_layer(pdata, CD_NORMAL);
+	if (!has_normals) {
+		/* make sure normals are recalculated if there is no sample data */
+		m_result->dirty = (DMDirtyFlag)((int)m_result->dirty | DM_DIRTY_NORMALS);
+	}
+	DM_ensure_normals(m_result); /* only recalculates normals if no valid samples were found (has_normals == false) */
+	PROFILE_END(time_calc_normals);
 	
 //	BLI_assert(DM_is_valid(m_result));
 	
