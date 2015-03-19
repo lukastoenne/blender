@@ -42,10 +42,16 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
+/* CD layers that are stored in generic customdata arrays created with CD_ALLOC */
+static CustomDataMask CD_MASK_CACHE = ~( CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MPOLY | CD_MASK_MLOOP | CD_MASK_BMESH);
+
 AbcDerivedMeshWriter::AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
     DerivedMeshWriter(ob, dm_ptr, name),
-    m_vertex_data_writer("vertex_data", ~CD_MASK_BAREMESH),
-    m_face_data_writer("face_data", ~CD_MASK_BAREMESH)
+    m_vert_data_writer("vertex_data", CD_MASK_CACHE),
+    m_edge_data_writer("edge_data", CD_MASK_CACHE),
+    m_face_data_writer("face_data", CD_MASK_CACHE),
+    m_poly_data_writer("poly_data", CD_MASK_CACHE),
+    m_loop_data_writer("loop_data", CD_MASK_CACHE)
 {
 }
 
@@ -313,20 +319,35 @@ void AbcDerivedMeshWriter::write_sample()
 	
 	CustomData *vdata = output_dm->getVertDataLayout(output_dm);
 	int num_vdata = output_dm->getNumVerts(output_dm);
-	m_vertex_data_writer.write_sample(vdata, num_vdata, user_props);
+	m_vert_data_writer.write_sample(vdata, num_vdata, user_props);
+	
+	CustomData *edata = output_dm->getEdgeDataLayout(output_dm);
+	int num_edata = output_dm->getNumEdges(output_dm);
+	m_edge_data_writer.write_sample(edata, num_edata, user_props);
 	
 	DM_ensure_tessface(output_dm);
 	CustomData *fdata = output_dm->getTessFaceDataLayout(output_dm);
 	int num_fdata = output_dm->getNumTessFaces(output_dm);
 	m_face_data_writer.write_sample(fdata, num_fdata, user_props);
+	
+	CustomData *pdata = output_dm->getPolyDataLayout(output_dm);
+	int num_pdata = output_dm->getNumPolys(output_dm);
+	m_poly_data_writer.write_sample(pdata, num_pdata, user_props);
+	
+	CustomData *ldata = output_dm->getLoopDataLayout(output_dm);
+	int num_ldata = output_dm->getNumLoops(output_dm);
+	m_loop_data_writer.write_sample(ldata, num_ldata, user_props);
 }
 
 /* ========================================================================= */
 
 AbcDerivedMeshReader::AbcDerivedMeshReader(const std::string &name, Object *ob) :
     DerivedMeshReader(ob, name),
-    m_vertex_data_reader("vertex_data", ~CD_MASK_BAREMESH),
-    m_face_data_reader("face_data", ~CD_MASK_BAREMESH)
+    m_vert_data_reader("vertex_data", CD_MASK_CACHE),
+    m_edge_data_reader("edge_data", CD_MASK_CACHE),
+    m_face_data_reader("face_data", CD_MASK_CACHE),
+    m_poly_data_reader("poly_data", CD_MASK_CACHE),
+    m_loop_data_reader("loop_data", CD_MASK_CACHE)
 {
 }
 
@@ -626,12 +647,24 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	
 	CustomData *vdata = m_result->getVertDataLayout(m_result);
 	int num_vdata = totverts;
-	m_vertex_data_reader.read_sample(ss, vdata, num_vdata, user_props);
+	m_vert_data_reader.read_sample(ss, vdata, num_vdata, user_props);
+	
+	CustomData *edata = m_result->getEdgeDataLayout(m_result);
+	int num_edata = totedges;
+	m_edge_data_reader.read_sample(ss, edata, num_edata, user_props);
 	
 	DM_ensure_tessface(m_result);
 	CustomData *fdata = m_result->getVertDataLayout(m_result);
 	int num_fdata = m_result->getNumTessFaces(m_result);
 	m_face_data_reader.read_sample(ss, fdata, num_fdata, user_props);
+	
+	CustomData *pdata = m_result->getPolyDataLayout(m_result);
+	int num_pdata = totpolys;
+	m_poly_data_reader.read_sample(ss, pdata, num_pdata, user_props);
+	
+	CustomData *ldata = m_result->getLoopDataLayout(m_result);
+	int num_ldata = totloops;
+	m_loop_data_reader.read_sample(ss, ldata, num_ldata, user_props);
 	
 //	BLI_assert(DM_is_valid(m_result));
 	
