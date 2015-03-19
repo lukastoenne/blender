@@ -53,7 +53,7 @@ void AbcParticlesWriter::init_abc(OObject parent)
 
 void AbcParticlesWriter::write_sample()
 {
-	if (!abc_archive()->archive)
+	if (!m_points)
 		return;
 	
 	OPointsSchema &schema = m_points.getSchema();

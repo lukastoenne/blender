@@ -305,11 +305,13 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 		
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_REALTIME) {
 			data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
+			PTC_writer_archive_use_render(data->archive, false);
 			cache_library_bake_do(data, stop, do_update, progress);
 		}
 		
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_RENDER) {
 			data->eval_ctx.mode = DAG_EVAL_RENDER;
+			PTC_writer_archive_use_render(data->archive, true);
 			cache_library_bake_do(data, stop, do_update, progress);
 		}
 		

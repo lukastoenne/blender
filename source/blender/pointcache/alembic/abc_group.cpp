@@ -73,7 +73,7 @@ void AbcGroupWriter::create_refs()
 
 void AbcGroupWriter::write_sample()
 {
-	if (!abc_archive()->archive)
+	if (!m_abc_object)
 		return;
 }
 
@@ -284,7 +284,7 @@ PTCReadSampleResult AbcDupligroupReader::read_sample(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
-	IObject abc_top = abc_archive()->archive.getTop();
+	IObject abc_top = abc_archive()->root();
 	IObject abc_group = abc_archive()->get_id_object((ID *)m_group);
 	if (!abc_group)
 		return PTC_READ_SAMPLE_INVALID;

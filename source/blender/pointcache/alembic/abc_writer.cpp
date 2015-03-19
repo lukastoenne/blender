@@ -61,13 +61,17 @@ AbcWriterArchive *AbcWriterArchive::open(Scene *scene, const std::string &filena
 
 AbcWriterArchive::AbcWriterArchive(Scene *scene, ErrorHandler *error_handler, OArchive abc_archive) :
     FrameMapper(scene),
-    archive(abc_archive),
-    m_error_handler(error_handler)
+    m_error_handler(error_handler),
+    m_use_render(false),
+    m_abc_archive(abc_archive)
 {
-	if (archive) {
+	if (m_abc_archive) {
 		chrono_t cycle_time = this->seconds_per_frame();
 		chrono_t start_time = this->start_time();
-		m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
+		m_frame_sampling = m_abc_archive.addTimeSampling(TimeSampling(cycle_time, start_time));
+		
+		m_abc_root = OObject(m_abc_archive.getTop(), "root");
+		m_abc_root_render = OObject(m_abc_archive.getTop(), "root_render");
 	}
 }
 
@@ -77,37 +81,45 @@ AbcWriterArchive::~AbcWriterArchive()
 
 OObject AbcWriterArchive::get_id_object(ID *id)
 {
-	if (!archive)
+	if (!m_abc_archive)
 		return OObject();
 	
-	ObjectWriterPtr root = archive.getTop().getPtr();
+	ObjectWriterPtr root_ptr = root().getPtr();
 	
-	ObjectWriterPtr child = root->getChild(id->name);
+	ObjectWriterPtr child = root_ptr->getChild(id->name);
 	if (child)
 		return OObject(child, kWrapExisting);
 	else {
-		const ObjectHeader *child_header = root->getChildHeader(id->name);
+		const ObjectHeader *child_header = root_ptr->getChildHeader(id->name);
 		if (child_header)
-			return OObject(root->createChild(*child_header), kWrapExisting);
+			return OObject(root_ptr->createChild(*child_header), kWrapExisting);
 		else {
 			return OObject();
 		}
 	}
 }
 
+OObject AbcWriterArchive::root()
+{
+	if (m_use_render)
+		return m_abc_root_render;
+	else
+		return m_abc_root;
+}
+
 bool AbcWriterArchive::has_id_object(ID *id)
 {
-	if (!archive)
+	if (!m_abc_archive)
 		return false;
 	
-	ObjectWriterPtr root = archive.getTop().getPtr();
+	ObjectWriterPtr root_ptr = root().getPtr();
 	
-	return root->getChildHeader(id->name) != NULL;
+	return root_ptr->getChildHeader(id->name) != NULL;
 }
 
 TimeSamplingPtr AbcWriterArchive::frame_sampling()
 {
-	return archive.getTimeSampling(m_frame_sampling);
+	return m_abc_archive.getTimeSampling(m_frame_sampling);
 }
 
 } /* namespace PTC */
