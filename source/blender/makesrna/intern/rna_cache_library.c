@@ -286,7 +286,7 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	PropertyRNA *prop, *parm;
 	
 	static EnumPropertyItem eval_mode_items[] = {
-	    {CACHE_LIBRARY_EVAL_VIEWPORT,   "VIEWPORT",     ICON_RESTRICT_VIEW_OFF,     "Viewport",     "Evaluate data with viewport settings"},
+	    {CACHE_LIBRARY_EVAL_REALTIME,   "REALTIME",     ICON_RESTRICT_VIEW_OFF,     "Realtime",     "Evaluate data with realtime settings"},
 	    {CACHE_LIBRARY_EVAL_RENDER,     "RENDER",       ICON_RESTRICT_RENDER_OFF,   "Render",       "Evaluate data with render settings"},
 	    {0, NULL, 0, NULL, NULL}
 	};
@@ -303,7 +303,7 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "eval_mode");
 	RNA_def_property_enum_items(prop, eval_mode_items);
-	RNA_def_property_enum_default(prop, CACHE_LIBRARY_EVAL_VIEWPORT);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Evaluation Mode", "Mode to use when evaluating data");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
