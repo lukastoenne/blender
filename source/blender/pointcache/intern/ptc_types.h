@@ -197,7 +197,7 @@ struct Factory {
 	virtual WriterArchive *open_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
 	virtual ReaderArchive *open_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
 	
-	virtual Writer *create_writer_object(const std::string &name, Object *ob) = 0;
+	virtual Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob) = 0;
 	virtual Reader *create_reader_object(const std::string &name, Object *ob) = 0;
 	
 	virtual Writer *create_writer_group(const std::string &name, Group *group) = 0;

@@ -331,9 +331,9 @@ PTCWriter *PTC_writer_cache_modifier_render(const char *name, Scene *scene, Obje
 
 /* ==== OBJECT ==== */
 
-PTCWriter *PTC_writer_object(const char *name, Object *ob)
+PTCWriter *PTC_writer_object(const char *name, Scene *scene, Object *ob)
 {
-	return (PTCWriter *)PTC::Factory::alembic->create_writer_object(name, ob);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_object(name, scene, ob);
 }
 
 PTCReader *PTC_reader_object(const char *name, Object *ob)

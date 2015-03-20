@@ -95,7 +95,7 @@ struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *pt
 struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 
 /* Object */
-struct PTCWriter *PTC_writer_object(const char *name, struct Object *ob);
+struct PTCWriter *PTC_writer_object(const char *name, struct Scene *scene, struct Object *ob);
 struct PTCReader *PTC_reader_object(const char *name, struct Object *ob);
 
 /* Group */

@@ -31,13 +31,15 @@
 #include "abc_writer.h"
 #include "abc_mesh.h"
 
+struct DerivedMesh;
 struct Object;
+struct Scene;
 
 namespace PTC {
 
 class AbcObjectWriter : public ObjectWriter, public AbcWriter {
 public:
-	AbcObjectWriter(const std::string &name, Object *ob);
+	AbcObjectWriter(const std::string &name, Scene *scene, Object *ob);
 	
 	void init_abc();
 #if 0
@@ -47,8 +49,10 @@ public:
 	void write_sample();
 	
 private:
-	Abc::OObject m_abc_object;
+	Scene *m_scene;
+	DerivedMesh *m_final_dm;
 	
+	Abc::OObject m_abc_object;
 	AbcDerivedMeshWriter m_dm_writer;
 };
 
