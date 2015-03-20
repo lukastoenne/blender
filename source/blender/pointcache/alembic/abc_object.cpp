@@ -31,9 +31,11 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcObjectWriter::AbcObjectWriter(const std::string &name, Object *ob) :
+AbcObjectWriter::AbcObjectWriter(const std::string &name, Scene *scene, Object *ob) :
     ObjectWriter(ob, name),
-    m_dm_writer("mesh", ob, &ob->derivedFinal)
+    m_scene(scene),
+    m_final_dm(NULL),
+    m_dm_writer("mesh", ob, &m_final_dm)
 {
 }
 
@@ -65,7 +67,26 @@ void AbcObjectWriter::write_sample()
 	if (!m_abc_object)
 		return;
 	
-	m_dm_writer.write_sample();
+	if (m_ob->type == OB_MESH) {
+		if (abc_archive()->use_render()) {
+			m_final_dm = mesh_create_derived_render(m_scene, m_ob, CD_MASK_BAREMESH);
+			
+			if (m_final_dm) {
+				m_dm_writer.write_sample();
+				
+				m_final_dm->release(m_final_dm);
+			}
+		}
+		else {
+			m_final_dm = m_ob->derivedFinal;
+			if (!m_final_dm)
+				m_final_dm = mesh_get_derived_final(m_scene, m_ob, CD_MASK_BAREMESH);
+			
+			if (m_final_dm) {
+				m_dm_writer.write_sample();
+			}
+		}
+	}
 }
 
 

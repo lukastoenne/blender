@@ -127,7 +127,7 @@ void AbcDupligroupWriter::write_sample_object(Object *ob)
 {
 	AbcWriter *ob_writer = find_id_writer((ID *)ob);
 	if (!ob_writer) {
-		ob_writer = new AbcObjectWriter(ob->id.name, ob);
+		ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob);
 		ob_writer->init(abc_archive());
 		m_id_writers.insert(IDWriterPair((ID *)ob, ob_writer));
 	}

@@ -47,9 +47,9 @@ class AbcFactory : public Factory {
 		return AbcReaderArchive::open(scene, name, error_handler);
 	}
 	
-	Writer *create_writer_object(const std::string &name, Object *ob)
+	Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob)
 	{
-		return new AbcObjectWriter(name, ob);
+		return new AbcObjectWriter(name, scene, ob);
 	}
 
 	Reader *create_reader_object(const std::string &name, Object *ob)

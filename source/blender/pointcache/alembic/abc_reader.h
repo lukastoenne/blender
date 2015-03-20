@@ -44,6 +44,7 @@ public:
 	
 	static AbcReaderArchive *open(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	
+	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }
 	
 	Abc::IObject root();
