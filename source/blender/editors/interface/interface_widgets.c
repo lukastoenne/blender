@@ -27,7 +27,6 @@
  *  \ingroup edinterface
  */
 
-
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,7 +54,6 @@
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
-
 
 #include "interface_intern.h"
 
@@ -3027,7 +3025,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		float width = rect->xmax - rect->xmin;
 		float height = rect->ymax - rect->ymin;
 		/* find color luminance and change it slightly */
-		float bw = rgb_to_bw(col);
+		float bw = rgb_to_grayscale(col);
 
 		bw += (bw < 0.5f) ? 0.5f : -0.5f;
 		

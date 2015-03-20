@@ -129,8 +129,8 @@ static bool ED_object_shape_key_remove(Main *bmain, Object *ob)
 			}
 			else if (rkb->relative >= ob->shapenr) {
 				/* Fix positional shift of the keys when kb is deleted from the list */
-			    rkb->relative -= 1;
-		    }
+				rkb->relative -= 1;
+			}
 		}
 
 		BLI_remlink(&key->block, kb);
@@ -333,6 +333,8 @@ static int shape_key_add_exec(bContext *C, wmOperator *op)
 	const bool from_mix = RNA_boolean_get(op->ptr, "from_mix");
 
 	ED_object_shape_key_add(C, ob, from_mix);
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	return OPERATOR_FINISHED;
 }

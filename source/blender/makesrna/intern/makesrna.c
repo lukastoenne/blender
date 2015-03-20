@@ -936,7 +936,7 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 
 					if (dp->dnaarraylength == 1) {
 						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
-							fprintf(f, "		if (%svalues[i]) data->%s |= (%d<<i);\n",
+							fprintf(f, "		if (%svalues[i]) data->%s |= (%du << i);\n",
 							        (dp->booleannegative) ? "!" : "", dp->dnaname, dp->booleanbit);
 							fprintf(f, "		else data->%s &= ~(%du << i);\n", dp->dnaname, dp->booleanbit);
 						}
@@ -3309,6 +3309,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_object.c", "rna_object_api.c", RNA_def_object},
 	{"rna_object_force.c", NULL, RNA_def_object_force},
 	{"rna_packedfile.c", NULL, RNA_def_packedfile},
+	{"rna_palette.c", NULL, RNA_def_palette},
 	{"rna_particle.c", NULL, RNA_def_particle},
 	{"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
 	{"rna_property.c", NULL, RNA_def_gameproperty},

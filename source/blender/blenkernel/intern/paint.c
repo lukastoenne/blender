@@ -316,21 +316,24 @@ void BKE_paint_curve_set(Brush *br, PaintCurve *pc)
 /* remove colour from palette. Must be certain color is inside the palette! */
 void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 {
-	if (color) {
-		int numcolors = BLI_listbase_count(&palette->colors);
-		if ((numcolors == palette->active_color + 1) && (numcolors != 1))
-			palette->active_color--;
-		
-		BLI_remlink(&palette->colors, color);
-		BLI_addhead(&palette->deleted, color);
+	if (BLI_listbase_count_ex(&palette->colors, palette->active_color) == palette->active_color) {
+		palette->active_color--;
 	}
+
+	BLI_remlink(&palette->colors, color);
+
+	if (palette->active_color < 0 && !BLI_listbase_is_empty(&palette->colors)) {
+		palette->active_color = 0;
+	}
+
+	MEM_freeN(color);
 }
 
-void BKE_palette_cleanup(Palette *palette)
+void BKE_palette_clear(Palette *palette)
 {
-	BLI_freelistN(&palette->deleted);
+	BLI_freelistN(&palette->colors);
+	palette->active_color = 0;
 }
-
 
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
@@ -353,7 +356,6 @@ PaletteColor *BKE_palette_color_add(Palette *palette)
 {
 	PaletteColor *color = MEM_callocN(sizeof(*color), "Pallete Color");
 	BLI_addtail(&palette->colors, color);
-	palette->active_color = BLI_listbase_count(&palette->colors) - 1;
 	return color;
 }
 

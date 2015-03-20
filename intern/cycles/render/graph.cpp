@@ -727,10 +727,18 @@ void ShaderGraph::bump_from_displacement()
 	/* connect bump output to normal input nodes that aren't set yet. actually
 	 * this will only set the normal input to the geometry node that we created
 	 * and connected to all other normal inputs already. */
-	foreach(ShaderNode *node, nodes)
-		foreach(ShaderInput *input, node->inputs)
+	foreach(ShaderNode *node, nodes) {
+		/* Don't connect normal to the bump node we're coming from,
+		 * otherwise it'll be a cycle in graph.
+		 */
+		if(node == bump) {
+			continue;
+		}
+		foreach(ShaderInput *input, node->inputs) {
 			if(!input->link && input->default_value == ShaderInput::NORMAL)
 				connect(set_normal->output("Normal"), input);
+		}
+	}
 
 	/* for displacement bump, clear the normal input in case the above loop
 	 * connected the setnormal out to the bump normalin */
@@ -836,29 +844,59 @@ void ShaderGraph::dump_graph(const char *filename)
 
 	fprintf(fd, "digraph shader_graph {\n");
 	fprintf(fd, "ranksep=1.5\n");
+	fprintf(fd, "rankdir=LR\n");
 	fprintf(fd, "splines=false\n");
 
 	foreach(ShaderNode *node, nodes) {
 		fprintf(fd, "// NODE: %p\n", node);
-		fprintf(fd,
-		        "\"%p\" [shape=record,label=\"%s\"]\n",
-		        node,
-		        node->name.c_str());
+		fprintf(fd, "\"%p\" [shape=record,label=\"{", node);
+		if(node->inputs.size()) {
+			fprintf(fd, "{");
+			foreach(ShaderInput *socket, node->inputs) {
+				if(socket != node->inputs[0]) {
+					fprintf(fd, "|");
+				}
+				fprintf(fd, "<IN_%p>%s", socket, socket->name);
+			}
+			fprintf(fd, "}|");
+		}
+		fprintf(fd, "%s", node->name.c_str());
+		if(node->bump == SHADER_BUMP_CENTER) {
+			fprintf(fd, " (bump:center)");
+		}
+		else if(node->bump == SHADER_BUMP_DX) {
+			fprintf(fd, " (bump:dx)");
+		}
+		else if(node->bump == SHADER_BUMP_DY) {
+			fprintf(fd, " (bump:dy)");
+		}
+		if(node->outputs.size()) {
+			fprintf(fd, "|{");
+			foreach(ShaderOutput *socket, node->outputs) {
+				if(socket != node->outputs[0]) {
+					fprintf(fd, "|");
+				}
+				fprintf(fd, "<OUT_%p>%s", socket, socket->name);
+			}
+			fprintf(fd, "}");
+		}
+		fprintf(fd, "}\"]");
 	}
 
 	foreach(ShaderNode *node, nodes) {
 		foreach(ShaderOutput *output, node->outputs) {
 			foreach(ShaderInput *input, output->links) {
 				fprintf(fd,
-				        "// CONNECTION: %p->%p (%s:%s)\n",
+				        "// CONNECTION: OUT_%p->IN_%p (%s:%s)\n",
 				        output,
 				        input,
 				        output->name, input->name);
 				fprintf(fd,
-				        "\"%p\":s -> \"%p\":n [label=\"%s:%s\"]\n",
+				        "\"\%p\":\"OUT_%p\":e -> \"%p\":\"IN_%p\":w [label=\"\"]\n",
 				        output->parent,
+				        output,
 				        input->parent,
-				        output->name, input->name);
+				        input);
 			}
 		}
 	}

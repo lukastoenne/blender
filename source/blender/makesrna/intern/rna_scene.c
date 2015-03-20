@@ -1636,10 +1636,10 @@ static void rna_FreestyleLineSet_linestyle_set(PointerRNA *ptr, PointerRNA value
 	lineset->linestyle->id.us++;
 }
 
-static FreestyleLineSet *rna_FreestyleSettings_lineset_add(ID *id, FreestyleSettings *config, const char *name)
+static FreestyleLineSet *rna_FreestyleSettings_lineset_add(ID *id, FreestyleSettings *config, Main *bmain, const char *name)
 {
 	Scene *scene = (Scene *)id;
-	FreestyleLineSet *lineset = BKE_freestyle_lineset_add((FreestyleConfig *)config, name);
+	FreestyleLineSet *lineset = BKE_freestyle_lineset_add(bmain, (FreestyleConfig *)config, name);
 
 	DAG_id_tag_update(&scene->id, 0);
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_OPTIONS, NULL);
@@ -1744,6 +1744,19 @@ static void rna_GPUFXSettings_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene
 
 	BKE_screen_gpu_fx_validate(fx_settings);
 }
+
+static void rna_GPUDOFSettings_blades_set(PointerRNA *ptr, const int value)
+{
+	GPUDOFSettings *dofsettings = (GPUDOFSettings *)ptr->data;
+
+	if (value < 3 && dofsettings->num_blades > 2)
+		dofsettings->num_blades = 0;
+	else if (value > 0 && dofsettings->num_blades == 0)
+		dofsettings->num_blades = 3;
+	else
+		dofsettings->num_blades = value;
+}
+
 
 #else
 
@@ -2841,7 +2854,7 @@ static void rna_def_freestyle_linesets(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func = RNA_def_function(srna, "new", "rna_FreestyleSettings_lineset_add");
 	RNA_def_function_ui_description(func, "Add a line set to scene render layer Freestyle settings");
-	RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+	RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_SELF_ID);
 	parm = RNA_def_string(func, "name", "LineSet", 0, "", "New name for the line set (not unique)");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "lineset", "FreestyleLineSet", "", "Newly created line set");
@@ -3907,6 +3920,18 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Viewport F-stop", "F-stop for dof effect");
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.1f, 128.0f, 10, 1);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "blades", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "num_blades");
+	RNA_def_property_ui_text(prop, "Viewport Camera Blades", "Blades for dof effect");
+	RNA_def_property_range(prop, 0, 16);
+	RNA_def_property_int_funcs(prop, NULL, "rna_GPUDOFSettings_blades_set", NULL);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "use_high_quality", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "high_quality", 1);
+	RNA_def_property_ui_text(prop, "High Quality", "Use high quality depth of field");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
