@@ -2060,11 +2060,9 @@ static void draw_dupli_objects_color(
 	for (; dob; dob_prev = dob, dob = dob_next, dob_next = dob_next ? dupli_step(dob_next->next) : NULL) {
 		/* for restoring after override */
 		DerivedMesh *store_final_dm;
-		BoundBox *store_bb;
 
 		tbase.object = dob->ob;
 		store_final_dm = dob->ob->derivedFinal;
-		store_bb = dob->ob->bb;
 
 		/* Make sure lod is updated from dupli's position */
 
@@ -2110,7 +2108,7 @@ static void draw_dupli_objects_color(
 				tbase.flag |= OB_FROMCACHE;
 				
 				tbase.object->derivedFinal = dob_data->cache_dm;
-				tbase.object->bb = bb_tmp = &dob_data->bb;
+				bb_tmp = &dob_data->bb;
 			}
 		}
 		if (!bb_tmp)
@@ -2188,7 +2186,6 @@ static void draw_dupli_objects_color(
 		
 		/* restore final DM */
 		tbase.object->derivedFinal = store_final_dm;
-		tbase.object->bb = store_bb;
 	}
 
 	if (apply_data) {
