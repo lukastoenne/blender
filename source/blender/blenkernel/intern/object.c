@@ -318,9 +318,12 @@ void BKE_object_free_derived_caches(Object *ob)
 	}
 
 	if (ob->derivedFinal) {
-		ob->derivedFinal->needsFree = 1;
-		ob->derivedFinal->release(ob->derivedFinal);
-		ob->derivedFinal = NULL;
+		/* dupli cache owns the derivedFinal, is freed by duplicator object */
+		if (!(ob->transflag & OB_IS_DUPLI_CACHE)) {
+			ob->derivedFinal->needsFree = 1;
+			ob->derivedFinal->release(ob->derivedFinal);
+			ob->derivedFinal = NULL;
+		}
 	}
 	if (ob->derivedDeform) {
 		ob->derivedDeform->needsFree = 1;
@@ -329,6 +332,8 @@ void BKE_object_free_derived_caches(Object *ob)
 	}
 	
 	BKE_object_free_curve_cache(ob);
+	
+	BKE_object_dupli_cache_clear(ob);
 }
 
 void BKE_object_free_caches(Object *object)

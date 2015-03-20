@@ -7622,7 +7622,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	/* code for new particle system */
 	if ((ob->particlesystem.first) &&
 	    (ob != scene->obedit) &&
-	    !(base->flag & OB_FROMCACHE))
+	    !(ob->transflag & OB_IS_DUPLI_CACHE))
 	{
 		ParticleSystem *psys;
 
