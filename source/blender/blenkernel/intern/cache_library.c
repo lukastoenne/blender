@@ -81,6 +81,8 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 	cachelibn = BKE_libblock_copy(&cachelib->id);
 	
 	BLI_duplicatelist(&cachelibn->items, &cachelib->items);
+	/* hash table will be rebuilt when needed */
+	cachelibn->items_hash = NULL;
 	
 	if (cachelib->id.lib) {
 		BKE_id_lib_local_paths(G.main, cachelib->id.lib, &cachelibn->id);
@@ -92,7 +94,6 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 void BKE_cache_library_free(CacheLibrary *cachelib)
 {
 	BLI_freelistN(&cachelib->items);
-	
 	if (cachelib->items_hash)
 		BLI_ghash_free(cachelib->items_hash, NULL, NULL);
 }
