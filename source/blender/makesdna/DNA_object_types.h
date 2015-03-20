@@ -189,7 +189,8 @@ typedef struct Object {
 	short flag;			/* copy of Base */
 	short colbits DNA_DEPRECATED;		/* deprecated, use 'matbits' */
 	
-	short transflag, protectflag;	/* transformation settings and transform locks  */
+	int transflag;				/* transformation settings */
+	short protectflag, pad;		/* transform locks */
 	short trackflag, upflag;
 	short nlaflag;				/* used for DopeSheet filtering settings (expanded/collapsed) */
 	short ipoflag;				// xxx deprecated... old animation system
@@ -199,8 +200,6 @@ typedef struct Object {
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
-
-	int pad;
 
 	/* during realtime */
 
@@ -445,6 +444,8 @@ enum {
 	OB_NO_PSYS_UPDATE   = 1 << 14,  /* hack to work around particle issue */
 	OB_DUPLI_READ_CACHE = 1 << 15,  /* use cache instead of object data */
 
+	OB_IS_DUPLI_CACHE   = 1 << 31,  /* temporary flag: object data overridden from cache */
+
 	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS,
 };
 
@@ -553,7 +554,6 @@ enum {
 #define OB_DONE             (1 << 10)  /* unknown state, clear before use */
 /* #define OB_RADIO            (1 << 11) */  /* deprecated */
 #define OB_FROMGROUP        (1 << 12)
-#define OB_FROMCACHE        (1 << 13)
 
 /* WARNING - when adding flags check on PSYS_RECALC */
 /* ob->recalc (flag bits!) */
