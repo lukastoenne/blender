@@ -213,9 +213,9 @@ char *PTC_get_archive_info(PTCReaderArchive *_archive)
 }
 
 
-PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group)
+PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib)
 {
-	return (PTCWriter *)PTC::Factory::alembic->create_writer_dupligroup(name, eval_ctx, scene, group);
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_dupligroup(name, eval_ctx, scene, group, cachelib);
 }
 
 PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache)

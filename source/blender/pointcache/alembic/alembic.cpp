@@ -49,7 +49,7 @@ class AbcFactory : public Factory {
 	
 	Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob)
 	{
-		return new AbcObjectWriter(name, scene, ob);
+		return new AbcObjectWriter(name, scene, ob, true, true);
 	}
 
 	Reader *create_reader_object(const std::string &name, Object *ob)
@@ -152,9 +152,9 @@ class AbcFactory : public Factory {
 	}
 	
 	
-	Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group)
+	Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib)
 	{
-		return new AbcDupligroupWriter(name, eval_ctx, scene, group);
+		return new AbcDupligroupWriter(name, eval_ctx, scene, group, cachelib);
 	}
 	
 	Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache)

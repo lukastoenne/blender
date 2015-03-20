@@ -34,6 +34,7 @@ extern "C" {
 #include "DNA_object_types.h"
 
 #include "BKE_anim.h"
+#include "BKE_cache_library.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_library.h"
@@ -100,10 +101,11 @@ PTCReadSampleResult AbcGroupReader::read_sample(float frame)
 
 /* ========================================================================= */
 
-AbcDupligroupWriter::AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group) :
+AbcDupligroupWriter::AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib) :
     GroupWriter(group, name),
     m_eval_ctx(eval_ctx),
-    m_scene(scene)
+    m_scene(scene),
+    m_cachelib(cachelib)
 {
 }
 
@@ -123,11 +125,21 @@ void AbcDupligroupWriter::init_abc()
 	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
 }
 
+static bool do_cache_type(CacheLibrary *cachelib, Object *ob, int type, int index=-1)
+{
+	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
+	return item && (item->flag & CACHE_ITEM_ENABLED);
+}
+
 void AbcDupligroupWriter::write_sample_object(Object *ob)
 {
 	AbcWriter *ob_writer = find_id_writer((ID *)ob);
 	if (!ob_writer) {
-		ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob);
+		bool do_mesh = do_cache_type(m_cachelib, ob, CACHE_TYPE_DERIVED_MESH);
+//		bool do_hair = do_cache_type(m_cachelib, ob, CACHE_TYPE_HAIR, ); // TODO
+		bool do_hair = false;
+		
+		ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob, do_mesh, do_hair);
 		ob_writer->init(abc_archive());
 		m_id_writers.insert(IDWriterPair((ID *)ob, ob_writer));
 	}

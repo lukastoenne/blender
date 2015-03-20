@@ -87,7 +87,7 @@ PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
 char *PTC_get_archive_info(struct PTCReaderArchive *archive);
 
-struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group);
+struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib);
 struct PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache);
 struct PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, struct DupliObjectData *data);
 
