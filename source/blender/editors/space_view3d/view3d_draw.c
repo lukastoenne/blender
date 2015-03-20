@@ -2157,6 +2157,7 @@ static void draw_dupli_objects_color(
 		
 		/* override final DM */
 		bb_tmp = NULL;
+		tbase.flag &= ~OB_FROMCACHE;
 		if (base->object->dup_cache) {
 			DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
 			if (dob_data->cache_dm) {
