@@ -313,11 +313,58 @@ Mesh *rna_Main_meshes_new_from_object(
 
 /* copied from Mesh_getFromObject and adapted to RNA interface */
 /* settings: 1 - preview, 2 - render */
-Mesh *rna_Main_meshes_new_from_dupli_cache(
-        Main *bmain, ReportList *UNUSED(reports), DupliObjectData *data,
-        int calc_tessface, int calc_undeformed)
+Mesh *rna_Main_meshes_new_from_dupli(
+        Main *bmain, ReportList *reports, Scene *scene, Object *parent, DupliObject *dob,
+        int settings, int calc_tessface, int calc_undeformed)
 {
-	return BKE_mesh_new_from_dupli_cache(bmain, data, calc_tessface, calc_undeformed);
+	Mesh *mesh = NULL;
+	
+	switch (dob->ob->type) {
+		case OB_FONT:
+		case OB_CURVE:
+		case OB_SURF:
+		case OB_MBALL:
+		case OB_MESH:
+			break;
+		default:
+			BKE_report(reports, RPT_ERROR, "Object does not have geometry data");
+			return NULL;
+	}
+	
+	if ((parent->transflag & OB_DUPLI_READ_CACHE) && parent->cache_library) {
+		float frame = (float)scene->r.cfra;
+		eCacheLibrary_EvalMode eval_mode;
+		
+		if (settings == 1)
+			eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
+		else if (settings == 2)
+			eval_mode = CACHE_LIBRARY_EVAL_RENDER;
+		else
+			return NULL;
+		
+		if (settings == 1 && parent->dup_cache) {
+			DupliObjectData *data;
+			
+			/* use dupli cache for realtime dupli data if possible */
+			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
+			if (data)
+				mesh = BKE_mesh_new_from_dupli_data(bmain, data, calc_tessface, calc_undeformed);
+		}
+		else {
+			DupliObjectData data;
+			
+			memset(&data, 0, sizeof(data));
+			if (BKE_cache_read_dupli_object(scene, frame, eval_mode, dob->ob, &data, parent->cache_library))
+				mesh = BKE_mesh_new_from_dupli_data(bmain, &data, calc_tessface, calc_undeformed);
+			
+			BKE_dupli_object_data_clear(&data);
+		}
+	}
+	else {
+		mesh = BKE_mesh_new_from_object(bmain, scene, dob->ob, true, settings, calc_tessface, calc_undeformed);
+	}
+	
+	return mesh;
 }
 
 static void rna_Main_meshes_remove(Main *bmain, ReportList *reports, PointerRNA *mesh_ptr)
@@ -1067,11 +1114,17 @@ void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
 	                       "Mesh created from object, remove it if it is only used for export");
 	RNA_def_function_return(func, parm);
 
-	func = RNA_def_function(srna, "new_from_dupli_cache", "rna_Main_meshes_new_from_dupli_cache");
+	func = RNA_def_function(srna, "new_from_dupli", "rna_Main_meshes_new_from_dupli");
 	RNA_def_function_ui_description(func, "Add a new mesh created from dupli cache data");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_pointer(func, "data", "DupliObjectData", "", "Dupli Object Data");
+	parm = RNA_def_pointer(func, "scene", "Scene", "", "Scene within which to evaluate modifiers");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "parent", "Object", "", "Duplicator parent of the object");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "dupli_object", "DupliObject", "", "Dupli Object to create mesh from");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "settings", mesh_type_items, 0, "", "Modifier settings to apply");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_boolean(func, "calc_tessface", true, "Calculate Tessellation", "Calculate tessellation faces");
 	RNA_def_boolean(func, "calc_undeformed", false, "Calculate Undeformed", "Calculate undeformed vertex coordinates");
 	parm = RNA_def_pointer(func, "mesh", "Mesh", "",

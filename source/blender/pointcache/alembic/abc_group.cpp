@@ -210,7 +210,7 @@ AbcWriter *AbcDupligroupWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
-AbcDupligroupReader::AbcDupligroupReader(const std::string &name, Group *group, DupliCache *dupli_cache) :
+AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache) :
     GroupReader(group, name),
     dupli_cache(dupli_cache)
 {
@@ -221,18 +221,16 @@ AbcDupligroupReader::AbcDupligroupReader(const std::string &name, Group *group, 
 	build_object_map(G.main, group);
 }
 
-AbcDupligroupReader::~AbcDupligroupReader()
+AbcDupliCacheReader::~AbcDupliCacheReader()
 {
 }
 
-void AbcDupligroupReader::init_abc()
+void AbcDupliCacheReader::init_abc()
 {
 }
 
-void AbcDupligroupReader::read_dupligroup_object(IObject object, float frame)
+void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 {
-	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
-	
 	if (GS(object.getName().c_str()) == ID_OB) {
 		/* instances are handled later, we create true object data here */
 		if (object.isInstanceDescendant())
@@ -255,7 +253,7 @@ void AbcDupligroupReader::read_dupligroup_object(IObject object, float frame)
 	}
 }
 
-void AbcDupligroupReader::read_dupligroup_group(IObject abc_group, const ISampleSelector &ss)
+void AbcDupliCacheReader::read_dupligroup_group(IObject abc_group, const ISampleSelector &ss)
 {
 	if (GS(abc_group.getName().c_str()) == ID_GR) {
 		size_t num_child = abc_group.getNumChildren();
@@ -280,7 +278,7 @@ void AbcDupligroupReader::read_dupligroup_group(IObject abc_group, const ISample
 	}
 }
 
-PTCReadSampleResult AbcDupligroupReader::read_sample(float frame)
+PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
@@ -300,7 +298,7 @@ PTCReadSampleResult AbcDupligroupReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-DupliObjectData *AbcDupligroupReader::find_dupli_data(ObjectReaderPtr ptr) const
+DupliObjectData *AbcDupliCacheReader::find_dupli_data(ObjectReaderPtr ptr) const
 {
 	DupliMap::const_iterator it = dupli_map.find(ptr);
 	if (it == dupli_map.end())
@@ -309,12 +307,12 @@ DupliObjectData *AbcDupligroupReader::find_dupli_data(ObjectReaderPtr ptr) const
 		return it->second;
 }
 
-void AbcDupligroupReader::insert_dupli_data(ObjectReaderPtr ptr, DupliObjectData *data)
+void AbcDupliCacheReader::insert_dupli_data(ObjectReaderPtr ptr, DupliObjectData *data)
 {
 	dupli_map.insert(DupliPair(ptr, data));
 }
 
-void AbcDupligroupReader::build_object_map(Main *bmain, Group *group)
+void AbcDupliCacheReader::build_object_map(Main *bmain, Group *group)
 {
 	BKE_main_id_tag_idcode(bmain, ID_OB, false);
 	BKE_main_id_tag_idcode(bmain, ID_GR, false);
@@ -323,7 +321,7 @@ void AbcDupligroupReader::build_object_map(Main *bmain, Group *group)
 	build_object_map_add_group(group);
 }
 
-Object *AbcDupligroupReader::find_object(const std::string &name) const
+Object *AbcDupliCacheReader::find_object(const std::string &name) const
 {
 	ObjectMap::const_iterator it = object_map.find(name);
 	if (it == object_map.end())
@@ -332,7 +330,7 @@ Object *AbcDupligroupReader::find_object(const std::string &name) const
 		return it->second;
 }
 
-void AbcDupligroupReader::build_object_map_add_group(Group *group)
+void AbcDupliCacheReader::build_object_map_add_group(Group *group)
 {
 	if (group->id.flag & LIB_DOIT)
 		return;
@@ -349,6 +347,66 @@ void AbcDupligroupReader::build_object_map_add_group(Group *group)
 			build_object_map_add_group(ob->dup_group);
 		}
 	}
+}
+
+/* ------------------------------------------------------------------------- */
+
+AbcDupliObjectReader::AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data) :
+    ObjectReader(ob, name),
+    dupli_data(dupli_data)
+{
+}
+
+AbcDupliObjectReader::~AbcDupliObjectReader()
+{
+}
+
+void AbcDupliObjectReader::init_abc()
+{
+}
+
+void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
+{
+	if (GS(object.getName().c_str()) == ID_OB) {
+		/* instances are handled later, we create true object data here */
+		if (object.isInstanceDescendant())
+			return;
+		
+		AbcDerivedMeshReader dm_reader("mesh", m_ob);
+		dm_reader.init(abc_archive());
+		dm_reader.init_abc(object);
+		if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+			DerivedMesh *dm = dm_reader.acquire_result();
+			BKE_dupli_object_data_init(dupli_data, m_ob, dm);
+		}
+		else
+			dm_reader.discard_result();
+	}
+}
+
+PTCReadSampleResult AbcDupliObjectReader::read_sample(float frame)
+{
+	IObject abc_object = abc_archive()->get_id_object((ID *)m_ob);
+	if (!abc_object)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	read_dupligroup_object(abc_object, frame);
+	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+DupliObjectData *AbcDupliObjectReader::find_dupli_data(ObjectReaderPtr ptr) const
+{
+	DupliMap::const_iterator it = dupli_map.find(ptr);
+	if (it == dupli_map.end())
+		return NULL;
+	else
+		return it->second;
+}
+
+void AbcDupliObjectReader::insert_dupli_data(ObjectReaderPtr ptr, DupliObjectData *data)
+{
+	dupli_map.insert(DupliPair(ptr, data));
 }
 
 } /* namespace PTC */

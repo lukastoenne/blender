@@ -2481,7 +2481,7 @@ Mesh *BKE_mesh_new_from_object(
 
 
 /* settings: 1 - preview, 2 - render */
-Mesh *BKE_mesh_new_from_dupli_cache(
+Mesh *BKE_mesh_new_from_dupli_data(
         Main *bmain, DupliObjectData *data,
         bool calc_tessface, bool calc_undeformed)
 {

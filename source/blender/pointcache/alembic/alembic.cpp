@@ -157,9 +157,14 @@ class AbcFactory : public Factory {
 		return new AbcDupligroupWriter(name, eval_ctx, scene, group);
 	}
 	
-	Reader *create_reader_dupligroup(const std::string &name, Group *group, DupliCache *dupcache)
+	Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache)
 	{
-		return new AbcDupligroupReader(name, group, dupcache);
+		return new AbcDupliCacheReader(name, group, dupcache);
+	}
+	
+	Reader *create_reader_duplicache_object(const std::string &name, Object *ob, DupliObjectData *data)
+	{
+		return new AbcDupliObjectReader(name, ob, data);
 	}
 };
 

@@ -90,7 +90,7 @@ private:
 	IDWriterMap m_id_writers;
 };
 
-class AbcDupligroupReader : public GroupReader, public AbcReader {
+class AbcDupliCacheReader : public GroupReader, public AbcReader {
 public:
 	typedef std::map<Abc::ObjectReaderPtr, DupliObjectData*> DupliMap;
 	typedef std::pair<Abc::ObjectReaderPtr, DupliObjectData*> DupliPair;
@@ -99,8 +99,8 @@ public:
 	typedef std::pair<std::string, Object*> ObjectPair;
 	
 public:
-	AbcDupligroupReader(const std::string &name, Group *group, DupliCache *dupcache);
-	~AbcDupligroupReader();
+	AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupcache);
+	~AbcDupliCacheReader();
 	
 	void init_abc();
 	
@@ -122,6 +122,30 @@ private:
 	DupliCache *dupli_cache;
 	
 	ObjectMap object_map;
+};
+
+class AbcDupliObjectReader : public ObjectReader, public AbcReader {
+public:
+	typedef std::map<Abc::ObjectReaderPtr, DupliObjectData*> DupliMap;
+	typedef std::pair<Abc::ObjectReaderPtr, DupliObjectData*> DupliPair;
+	
+public:
+	AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data);
+	~AbcDupliObjectReader();
+	
+	void init_abc();
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+protected:
+	void read_dupligroup_object(Abc::IObject object, float frame);
+	
+	DupliObjectData *find_dupli_data(Abc::ObjectReaderPtr ptr) const;
+	void insert_dupli_data(Abc::ObjectReaderPtr ptr, DupliObjectData *data);
+	
+private:
+	DupliMap dupli_map;
+	DupliObjectData *dupli_data;
 };
 
 } /* namespace PTC */

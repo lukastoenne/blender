@@ -587,8 +587,10 @@ static void create_subd_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, PointerR
 
 /* Sync */
 
-Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris, BL::Object b_ob_parent)
+Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide_tris, BL::DupliObject b_dupli_ob)
 {
+	BL::Object b_ob = (b_dupli_ob ? b_dupli_ob.object() : b_parent);
+	
 	/* When viewport display is not needed during render we can force some
 	 * caches to be releases from blender side in order to reduce peak memory
 	 * footprint during synchronization process.
@@ -623,11 +625,14 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	bool use_mesh_geometry = render_layer.use_surfaces || render_layer.use_hair;
 	Mesh *mesh;
 
-	BL::DupliObjectData b_dup_data = (b_ob_parent && b_ob_parent.use_dupli_cache_read())? b_ob_parent.find_dupli_cache(b_ob): BL::DupliObjectData(PointerRNA_NULL);
 	bool need_update;
-	if (b_dup_data) {
-		MeshKey key = MeshKey(b_ob_parent, b_ob);
-		need_update = mesh_map.sync(&mesh, b_ob_parent, PointerRNA_NULL, key);
+	bool use_dupli_override = b_dupli_ob && b_parent.cache_library() && b_parent.use_dupli_cache_read();
+	if (use_dupli_override) {
+		/* if a dupli override (cached data) is used, identify the mesh by object and parent together,
+		 * so that individual per-dupli overrides are possible.
+		 */
+		MeshKey key = MeshKey(b_parent, b_ob);
+		need_update = mesh_map.sync(&mesh, b_parent, PointerRNA_NULL, key);
 	}
 	else {
 		BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob_data;
@@ -685,8 +690,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 			b_ob.update_from_editmode();
 
 		bool need_undeformed = mesh->need_attribute(scene, ATTR_STD_GENERATED);
-		BL::Mesh b_mesh = (b_dup_data)?
-		            dupli_cache_to_mesh(b_data, b_dup_data, need_undeformed):
+		BL::Mesh b_mesh = (b_dupli_ob && b_parent)?
+		            dupli_to_mesh(b_data, b_scene, b_parent, b_dupli_ob, !preview, need_undeformed):
 		            object_to_mesh(b_data, b_ob, b_scene, true, !preview, need_undeformed);
 
 		if(b_mesh) {

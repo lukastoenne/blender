@@ -1322,7 +1322,34 @@ int count_duplilist(Object *ob)
 
 /* ------------------------------------------------------------------------- */
 
-static void dupli_object_data_free(DupliObjectData *data)
+static void dupli_cache_calc_boundbox(DupliObjectData *data)
+{
+	float min[3], max[3];
+	
+	if (data->cache_dm) {
+		INIT_MINMAX(min, max);
+		data->cache_dm->getMinMax(data->cache_dm, min, max);
+	}
+	else {
+		zero_v3(min);
+		zero_v3(max);
+	}
+	
+	BKE_boundbox_init_from_minmax(&data->bb, min, max);
+}
+
+void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob, DerivedMesh *dm)
+{
+	data->ob = ob;
+	
+	data->cache_dm = dm;
+	dm->needsFree = false; /* take ownership */
+	
+	memset(&data->bb, 0, sizeof(data->bb));
+	dupli_cache_calc_boundbox(data);
+}
+
+void BKE_dupli_object_data_clear(DupliObjectData *data)
 {
 	if (data->cache_dm) {
 		/* we lock DMs in the cache to prevent freeing outside,
@@ -1332,7 +1359,11 @@ static void dupli_object_data_free(DupliObjectData *data)
 		
 		data->cache_dm->release(data->cache_dm);
 	}
-	
+}
+
+static void dupli_object_data_free(DupliObjectData *data)
+{
+	BKE_dupli_object_data_clear(data);
 	MEM_freeN(data);
 }
 
@@ -1417,7 +1448,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			}
 			
 			/* TODO at this point we could apply animation offset */
-			BKE_cache_read_dupligroup(scene, frame, eval_mode, ob->dup_group, ob->dup_cache, ob->cache_library);
+			BKE_cache_read_dupli_cache(scene, frame, eval_mode, ob->dup_group, ob->dup_cache, ob->cache_library);
 			
 			ob->dup_cache->flag &= ~DUPCACHE_FLAG_DIRTY;
 			ob->dup_cache->cfra = frame;
@@ -1463,22 +1494,6 @@ DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
 {
 	DupliObjectData *data = BLI_ghash_lookup(dupcache->ghash, ob);
 	return data;
-}
-
-static void dupli_cache_calc_boundbox(DupliObjectData *data)
-{
-	float min[3], max[3];
-	
-	if (data->cache_dm) {
-		INIT_MINMAX(min, max);
-		data->cache_dm->getMinMax(data->cache_dm, min, max);
-	}
-	else {
-		zero_v3(min);
-		zero_v3(max);
-	}
-	
-	BKE_boundbox_init_from_minmax(&data->bb, min, max);
 }
 
 DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, Object *ob, DerivedMesh *dm)
