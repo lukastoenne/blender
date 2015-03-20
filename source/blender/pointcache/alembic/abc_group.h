@@ -25,6 +25,7 @@
 #include "abc_schema.h"
 #include "abc_writer.h"
 
+struct CacheLibrary;
 struct DupliCache;
 struct DupliObject;
 struct DupliObjectData;
@@ -69,7 +70,7 @@ public:
 	typedef std::map<ID*, AbcWriter*> IDWriterMap;
 	typedef std::pair<ID*, AbcWriter*> IDWriterPair;
 	
-	AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group);
+	AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib);
 	~AbcDupligroupWriter();
 	
 	void init_abc();
@@ -83,6 +84,7 @@ public:
 private:
 	EvaluationContext *m_eval_ctx;
 	Scene *m_scene;
+	CacheLibrary *m_cachelib;
 	
 	Abc::OObject m_abc_group;
 	ObjectWriterList m_object_writers;

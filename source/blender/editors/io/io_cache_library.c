@@ -268,7 +268,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data, short *stop, short 
 	if ((*stop) || (G.is_break))
 		return;
 	
-	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group);
+	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
 	PTC_writer_init(data->writer, data->archive);
 	
 	/* XXX where to get this from? */

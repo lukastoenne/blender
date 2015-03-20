@@ -39,7 +39,7 @@ namespace PTC {
 
 class AbcObjectWriter : public ObjectWriter, public AbcWriter {
 public:
-	AbcObjectWriter(const std::string &name, Scene *scene, Object *ob);
+	AbcObjectWriter(const std::string &name, Scene *scene, Object *ob, bool do_mesh, bool do_hair);
 	
 	void init_abc();
 #if 0
@@ -54,6 +54,8 @@ private:
 	
 	Abc::OObject m_abc_object;
 	AbcDerivedMeshWriter m_dm_writer;
+	
+	bool m_do_mesh, m_do_hair;
 };
 
 class AbcObjectReader : public ObjectReader, public AbcReader {

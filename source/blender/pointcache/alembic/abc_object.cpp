@@ -31,12 +31,15 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-AbcObjectWriter::AbcObjectWriter(const std::string &name, Scene *scene, Object *ob) :
+AbcObjectWriter::AbcObjectWriter(const std::string &name, Scene *scene, Object *ob, bool do_mesh, bool do_hair) :
     ObjectWriter(ob, name),
     m_scene(scene),
     m_final_dm(NULL),
-    m_dm_writer("mesh", ob, &m_final_dm)
+    m_dm_writer("mesh", ob, &m_final_dm),
+    m_do_mesh(do_mesh),
+    m_do_hair(do_hair)
 {
+	m_do_mesh &= m_ob->type == OB_MESH;
 }
 
 void AbcObjectWriter::init_abc()
@@ -46,9 +49,15 @@ void AbcObjectWriter::init_abc()
 	
 	m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_ob);
 	
-	/* XXX not nice */
-	m_dm_writer.init(abc_archive());
-	m_dm_writer.init_abc(m_abc_object);
+	if (m_do_mesh) {
+		/* XXX not nice */
+		m_dm_writer.init(abc_archive());
+		m_dm_writer.init_abc(m_abc_object);
+	}
+	
+	if (m_do_hair) {
+		/* TODO */
+	}
 }
 
 #if 0
@@ -67,7 +76,7 @@ void AbcObjectWriter::write_sample()
 	if (!m_abc_object)
 		return;
 	
-	if (m_ob->type == OB_MESH) {
+	if (m_do_mesh) {
 		if (abc_archive()->use_render()) {
 			m_final_dm = mesh_create_derived_render(m_scene, m_ob, CD_MASK_BAREMESH);
 			
