@@ -41,6 +41,7 @@ struct Scene;
 struct EvaluationContext;
 struct ParticleSystem;
 struct DupliCache;
+struct DupliObjectData;
 
 struct ClothModifierData;
 
@@ -100,7 +101,9 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 
-bool BKE_cache_read_dupligroup(struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
-                               struct Group *dupgroup, struct DupliCache *dupcache, struct CacheLibrary *cachelib);
+bool BKE_cache_read_dupli_cache(struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                struct Group *dupgroup, struct DupliCache *dupcache, struct CacheLibrary *cachelib);
+bool BKE_cache_read_dupli_object(struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                 struct Object *ob, struct DupliObjectData *data, struct CacheLibrary *cachelib);
 
 #endif

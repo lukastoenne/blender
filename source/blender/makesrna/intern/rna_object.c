@@ -3111,7 +3111,7 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 static void rna_def_dupli_object_data(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
+	/*PropertyRNA *prop;*/
 
 	srna = RNA_def_struct(brna, "DupliObjectData", NULL);
 	RNA_def_struct_sdna(srna, "DupliObjectData");

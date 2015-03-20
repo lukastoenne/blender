@@ -84,6 +84,10 @@ void BKE_object_dupli_cache_free(struct Object *ob);
 bool BKE_object_dupli_cache_contains(struct Object *ob, struct Object *other);
 struct DupliObjectData *BKE_dupli_cache_find_data(struct DupliCache *dupcache, struct Object *ob);
 
+void BKE_dupli_object_data_init(struct DupliObjectData *data, struct Object *ob, struct DerivedMesh *dm);
+/* does not free data itself */
+void BKE_dupli_object_data_clear(struct DupliObjectData *data);
+
 struct DupliObjectData *BKE_dupli_cache_add_mesh(struct DupliCache *dupcache, struct Object *ob, struct DerivedMesh *dm);
 void BKE_dupli_cache_add_instance(struct DupliCache *dupcache, float obmat[4][4], struct DupliObjectData *data);
 

@@ -281,7 +281,7 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 	
 	/* mesh sync */
 	if (b_dupli_ob)
-		object->mesh = sync_mesh(b_ob, object_updated, hide_tris, b_parent);
+		object->mesh = sync_mesh(b_parent, object_updated, hide_tris, b_dupli_ob);
 	else
 		object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
 

@@ -650,7 +650,7 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 }
 
 
-bool BKE_cache_read_dupligroup(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+bool BKE_cache_read_dupli_cache(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
                                struct Group *dupgroup, struct DupliCache *dupcache, CacheLibrary *cachelib)
 {
 	char filename[FILE_MAX];
@@ -668,7 +668,38 @@ bool BKE_cache_read_dupligroup(Scene *scene, float frame, eCacheLibrary_EvalMode
 	if (!archive)
 		return false;
 	
-	reader = PTC_reader_dupligroup(dupgroup->id.name, dupgroup, dupcache);
+	reader = PTC_reader_duplicache(dupgroup->id.name, dupgroup, dupcache);
+	PTC_reader_init(reader, archive);
+	
+	result = BKE_cache_read_result(PTC_read_sample(reader, frame));
+	
+	PTC_reader_free(reader);
+	PTC_close_reader_archive(archive);
+	
+	return true;
+}
+
+bool BKE_cache_read_dupli_object(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
+                                 struct Object *ob, struct DupliObjectData *data, CacheLibrary *cachelib)
+{
+	char filename[FILE_MAX];
+	struct PTCReaderArchive *archive;
+	struct PTCReader *reader;
+	eCacheReadSampleResult result;
+	
+	if (!data || !ob || !cachelib)
+		return false;
+	if (!(cachelib->eval_mode & eval_mode))
+		return false;
+	
+	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	archive = PTC_open_reader_archive(scene, filename);
+	if (!archive)
+		return false;
+	
+	PTC_reader_archive_use_render(archive, eval_mode == CACHE_LIBRARY_EVAL_RENDER);
+	
+	reader = PTC_reader_duplicache_object(ob->id.name, ob, data);
 	PTC_reader_init(reader, archive);
 	
 	result = BKE_cache_read_result(PTC_read_sample(reader, frame));

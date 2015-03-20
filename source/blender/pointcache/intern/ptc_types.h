@@ -227,7 +227,8 @@ struct Factory {
 	virtual Writer *create_writer_cache_modifier_render(const std::string &name, Scene *scene, Object *ob, CacheModifierData *cmd) = 0;
 	
 	virtual Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group) = 0;
-	virtual Reader *create_reader_dupligroup(const std::string &name, Group *group, DupliCache *dupcache) = 0;
+	virtual Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache) = 0;
+	virtual Reader *create_reader_duplicache_object(const std::string &name, Object *ob, DupliObjectData *data) = 0;
 	
 	static Factory *alembic;
 };
