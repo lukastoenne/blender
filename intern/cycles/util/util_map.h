@@ -18,7 +18,7 @@
 #define __UTIL_MAP_H__
 
 #include <map>
-#include <boost/tr1/unordered_map.hpp>
+#include <tr1/unordered_map>
 
 CCL_NAMESPACE_BEGIN
 
