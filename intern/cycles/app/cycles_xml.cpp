@@ -42,6 +42,9 @@
 #include "util_xml.h"
 
 #include "cycles_xml.h"
+#ifdef WITH_ALEMBIC
+#include "cycles_alembic.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -1109,6 +1112,25 @@ static void xml_read_state(XMLReadState& state, pugi::xml_node node)
 		state.displacement_method = Mesh::DISPLACE_BOTH;
 }
 
+/* Alembic */
+static void xml_read_alembic(const XMLReadState& state, pugi::xml_node node)
+{
+#ifdef WITH_ALEMBIC
+	string filepath;
+	
+	if(xml_read_string(&filepath, node, "file")) {
+		filepath = path_join(state.base, filepath);
+		
+		if(xml_equal_string(node, "type", "hdf5"))
+			abc_read_hdf5_file(state.scene, filepath.c_str());
+		else if(xml_equal_string(node, "type", "ogawa"))
+			abc_read_ogawa_file(state.scene, filepath.c_str());
+		else
+			abc_read_ogawa_file(state.scene, filepath.c_str()); /* default */
+	}
+#endif
+}
+
 /* Scene */
 
 static void xml_read_include(const XMLReadState& state, const string& src);
@@ -1157,6 +1179,9 @@ static void xml_read_scene(const XMLReadState& state, pugi::xml_node scene_node)
 
 			if(xml_read_string(&src, node, "src"))
 				xml_read_include(state, src);
+		}
+		else if(string_iequals(node.name(), "alembic")) {
+			xml_read_alembic(state, node);
 		}
 		else
 			fprintf(stderr, "Unknown node \"%s\".\n", node.name());
