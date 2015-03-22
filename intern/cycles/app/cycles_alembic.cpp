@@ -31,6 +31,7 @@
 #include <Alembic/Abc/IScalarProperty.h>
 #include <Alembic/Abc/IArrayProperty.h>
 #include <Alembic/Abc/ArchiveInfo.h>
+#include <Alembic/AbcGeom/IPolyMesh.h>
 
 #include "camera.h"
 #include "film.h"
@@ -59,6 +60,7 @@ CCL_NAMESPACE_BEGIN
 
 using namespace Alembic;
 using namespace Abc;
+using namespace AbcGeom;
 
 #define ABC_SAFE_CALL_BEGIN \
 	try {
@@ -263,16 +265,143 @@ static std::string abc_archive_info(IArchive &archive, AbcArchiveInfoLevel info_
 
 /* ========================================================================= */
 
+struct AbcReadState {
+	Scene *scene;		/* scene pointer */
+	float time;
+	Transform tfm;		/* current transform state */
+	bool smooth;		/* smooth normal state */
+	int shader;			/* current shader */
+	string base;		/* base path to current file*/
+	float dicing_rate;	/* current dicing rate */
+	Mesh::DisplacementMethod displacement_method;
+};
+
+static ISampleSelector get_sample_selector(const AbcReadState &state)
+{
+	return ISampleSelector(state.time, ISampleSelector::kFloorIndex);
+}
+
+static Mesh *add_mesh(Scene *scene, const Transform& tfm)
+{
+	/* create mesh */
+	Mesh *mesh = new Mesh();
+	scene->meshes.push_back(mesh);
+
+	/* create object*/
+	Object *object = new Object();
+	object->mesh = mesh;
+	object->tfm = tfm;
+	scene->objects.push_back(object);
+
+	return mesh;
+}
+
+static void read_mesh(const AbcReadState &state, IPolyMesh object)
+{
+	/* add mesh */
+	Mesh *mesh = add_mesh(state.scene, state.tfm);
+	mesh->used_shaders.push_back(state.shader);
+
+	/* read state */
+	int shader = state.shader;
+	bool smooth = state.smooth;
+
+	mesh->displacement_method = state.displacement_method;
+
+	ISampleSelector ss = get_sample_selector(state);
+	IPolyMeshSchema schema = object.getSchema();
+
+	IPolyMeshSchema::Sample sample;
+	schema.get(sample, ss);
+
+	int totverts = sample.getPositions()->size();
+	int totfaces = sample.getFaceCounts()->size();
+	const V3f *P = sample.getPositions()->get();
+	const int32_t *verts = sample.getFaceIndices()->get();
+	const int32_t *nverts = sample.getFaceCounts()->get();
+
+	/* create vertices */
+	mesh->verts.reserve(totverts);
+	for(int i = 0; i < totverts; i++) {
+		mesh->verts.push_back(make_float3(P[i].x, P[i].y, P[i].z));
+	}
+	
+	/* create triangles */
+	int index_offset = 0;
+	
+	for(int i = 0; i < totfaces; i++) {
+		int n = nverts[i];
+		/* XXX TODO only supports tris and quads atm,
+			 * need a proper tessellation algorithm in cycles.
+			 */
+		if (n > 4) {
+			printf("%d-sided face found, only triangles and quads are supported currently", n);
+			n = 4;
+		}
+		
+		for(int j = 0; j < n-2; j++) {
+			int v0 = verts[index_offset];
+			int v1 = verts[index_offset + j + 1];
+			int v2 = verts[index_offset + j + 2];
+			
+			assert(v0 < (int)totverts);
+			assert(v1 < (int)totverts);
+			assert(v2 < (int)totverts);
+			
+			mesh->add_triangle(v0, v1, v2, shader, smooth);
+		}
+		
+		index_offset += n;
+	}
+
+	/* temporary for test compatibility */
+	mesh->attributes.remove(ATTR_STD_VERTEX_NORMAL);
+}
+
+static void read_object(const AbcReadState &state, IObject object)
+{
+	for (int i = 0; i < object.getNumChildren(); ++i) {
+		IObject child = object.getChild(i);
+		const MetaData &metadata = child.getMetaData();
+		
+		if (IPolyMeshSchema::matches(metadata)) {
+			read_mesh(state, IPolyMesh(child, kWrapExisting));
+		}
+		else {
+			read_object(state, child);
+		}
+	}
+}
+
+static void read_archive(Scene *scene, IArchive archive, const char *filepath)
+{
+	AbcReadState state;
+	
+	state.scene = scene;
+	state.time = 0.0f; // TODO
+	state.tfm = transform_identity();
+	state.shader = scene->default_surface;
+	state.smooth = false;
+	state.dicing_rate = 0.1f;
+	state.base = path_dirname(filepath);
+	
+	read_object(state, archive.getTop());
+	
+	scene->params.bvh_type = SceneParams::BVH_STATIC;
+}
+
 void abc_read_ogawa_file(Scene *scene, const char *filepath, AbcArchiveInfoLevel info_level)
 {
 	IArchive archive;
 	ABC_SAFE_CALL_BEGIN
-	archive = IArchive(AbcCoreOgawa::ReadArchive(), filepath, Abc::ErrorHandler::kThrowPolicy);
+	archive = IArchive(AbcCoreOgawa::ReadArchive(), filepath, ErrorHandler::kThrowPolicy);
 	ABC_SAFE_CALL_END
 	
 	if (archive) {
 		if (info_level >= ABC_INFO_BASIC)
 			printf("%s", abc_archive_info(archive, info_level).c_str());
+		
+		read_archive(scene, archive, filepath);
 	}
 }
 
@@ -281,12 +410,14 @@ void abc_read_hdf5_file(Scene *scene, const char *filepath, AbcArchiveInfoLevel 
 #ifdef WITH_HDF5
 	IArchive archive;
 	ABC_SAFE_CALL_BEGIN
-	archive = IArchive(AbcCoreHDF5::ReadArchive(), filepath, Abc::ErrorHandler::kThrowPolicy);
+	archive = IArchive(AbcCoreHDF5::ReadArchive(), filepath, ErrorHandler::kThrowPolicy);
 	ABC_SAFE_CALL_END
 	
 	if (archive) {
 		if (info_level >= ABC_INFO_BASIC)
 			printf("%s", abc_archive_info(archive, info_level).c_str());
+		
+		read_archive(scene, archive, filepath);
 	}
 #endif
 }
