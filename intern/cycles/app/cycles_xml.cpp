@@ -1122,11 +1122,11 @@ static void xml_read_alembic(const XMLReadState& state, pugi::xml_node node)
 		filepath = path_join(state.base, filepath);
 		
 		if(xml_equal_string(node, "type", "hdf5"))
-			abc_read_hdf5_file(state.scene, filepath.c_str());
+			abc_read_hdf5_file(state.scene, filepath.c_str(), ABC_INFO_BASIC);
 		else if(xml_equal_string(node, "type", "ogawa"))
-			abc_read_ogawa_file(state.scene, filepath.c_str());
+			abc_read_ogawa_file(state.scene, filepath.c_str(), ABC_INFO_BASIC);
 		else
-			abc_read_ogawa_file(state.scene, filepath.c_str()); /* default */
+			abc_read_ogawa_file(state.scene, filepath.c_str(), ABC_INFO_BASIC); /* default */
 	}
 #endif
 }

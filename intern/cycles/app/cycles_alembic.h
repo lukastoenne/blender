@@ -21,8 +21,15 @@ CCL_NAMESPACE_BEGIN
 
 class Scene;
 
-void abc_read_ogawa_file(Scene *scene, const char *filepath);
-void abc_read_hdf5_file(Scene *scene, const char *filepath);
+enum AbcArchiveInfoLevel {
+	ABC_INFO_NONE = 0,
+	ABC_INFO_BASIC,
+	ABC_INFO_OBJECTS,
+	ABC_INFO_PROPERTIES,
+};
+
+void abc_read_ogawa_file(Scene *scene, const char *filepath, AbcArchiveInfoLevel info_level = ABC_INFO_NONE);
+void abc_read_hdf5_file(Scene *scene, const char *filepath, AbcArchiveInfoLevel info_level = ABC_INFO_NONE);
 
 CCL_NAMESPACE_END
 
