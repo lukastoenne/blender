@@ -186,7 +186,7 @@ static void visitProperties(std::stringstream &ss, ICompoundProperty iParent, st
 	ioIndent = oldIndent;
 }
 
-static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent)
+static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent, AbcArchiveInfoLevel info_level)
 {
 	// Object has a name, a full name, some meta data,
 	// and then it has a compound property full of properties.
@@ -208,18 +208,20 @@ static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent
 			ss << "Object " << "name=" << path << std::endl;
 		}
 		
-		// Get the properties.
-		ICompoundProperty props = iObj.getProperties();
-		visitProperties(ss, props, iIndent);
+		if (info_level >= ABC_INFO_PROPERTIES) {
+			// Get the properties.
+			ICompoundProperty props = iObj.getProperties();
+			visitProperties(ss, props, iIndent);
+		}
 		
 		// now the child objects
 		for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
-			visitObject(ss, IObject(iObj, iObj.getChildHeader(i).getName()), iIndent);
+			visitObject(ss, IObject(iObj, iObj.getChildHeader(i).getName()), iIndent, info_level);
 		}
 	}
 }
 
-static std::string abc_archive_info(IArchive &archive)
+static std::string abc_archive_info(IArchive &archive, AbcArchiveInfoLevel info_level)
 {
 	std::stringstream ss;
 	
@@ -253,12 +255,15 @@ static std::string abc_archive_info(IArchive &archive)
 		ss << std::endl;
 	}
 	
-	visitObject(ss, archive.getTop(), "");
+	if (info_level >= ABC_INFO_OBJECTS)
+		visitObject(ss, archive.getTop(), "", info_level);
 	
 	return ss.str();
 }
 
-void abc_read_ogawa_file(Scene *scene, const char *filepath)
+/* ========================================================================= */
+
+void abc_read_ogawa_file(Scene *scene, const char *filepath, AbcArchiveInfoLevel info_level)
 {
 	IArchive archive;
 	ABC_SAFE_CALL_BEGIN
@@ -266,11 +271,12 @@ void abc_read_ogawa_file(Scene *scene, const char *filepath)
 	ABC_SAFE_CALL_END
 	
 	if (archive) {
-		printf("%s", abc_archive_info(archive).c_str());
+		if (info_level >= ABC_INFO_BASIC)
+			printf("%s", abc_archive_info(archive, info_level).c_str());
 	}
 }
 
-void abc_read_hdf5_file(Scene *scene, const char *filepath)
+void abc_read_hdf5_file(Scene *scene, const char *filepath, AbcArchiveInfoLevel info_level)
 {
 #ifdef WITH_HDF5
 	IArchive archive;
@@ -279,7 +285,8 @@ void abc_read_hdf5_file(Scene *scene, const char *filepath)
 	ABC_SAFE_CALL_END
 	
 	if (archive) {
-		printf(abc_archive_info(archive));
+		if (info_level >= ABC_INFO_BASIC)
+			printf("%s", abc_archive_info(archive, info_level).c_str());
 	}
 #endif
 }
