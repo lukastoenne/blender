@@ -2877,7 +2877,15 @@ bool BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_m
 				/* pass */
 			}
 			else {
-				BoundBox *bb = BKE_object_boundbox_get(dob->ob);
+				BoundBox *bb = NULL;
+				if (ob->dup_cache) {
+					DupliObjectData *dob_data = BKE_dupli_cache_find_data(ob->dup_cache, dob->ob);
+					if (dob_data->cache_dm) {
+						bb = &dob_data->bb;
+					}
+				}
+				if (!bb)
+					bb = BKE_object_boundbox_get(dob->ob);
 
 				if (bb) {
 					int i;
