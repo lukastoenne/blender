@@ -95,6 +95,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --with-opencollada
         Build and install the OpenCOLLADA libraries.
 
+    --with-alembic
+        Build and install the Alembic library.
+
     --ver-ocio=<ver>
         Force version of OCIO library.
 
@@ -144,6 +147,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --force-ffmpeg
         Force the rebuild of FFMpeg.
 
+    --force-alembic
+        Force the rebuild of Alembic.
+
     Note about the --force-foo options:
         * They obviously only have an effect if those libraries are built by this script
           (i.e. if there is no available and satisfactory package)!
@@ -179,6 +185,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
 
     --skip-ffmpeg
         Unconditionally skip FFMpeg installation/building.
+
+    --skip-alembic
+        Unconditionally skip Alembic installation/building.
 
     --required-numpy
         Use this in case your distro features a valid python package, but no matching Numpy one.
@@ -263,6 +272,11 @@ MP3LAME_USE=false
 MP3LAME_DEV=""
 OPENJPEG_USE=false
 OPENJPEG_DEV=""
+
+ALEMBIC_VERSION="1.5.5"
+ALEMBIC_VERSION_MIN="1.5.5"
+ALEMBIC_FORCE_REBUILD=false
+ALEMBIC_SKIP=false
 
 # Switch to english language, else some things (like check_package_DEB()) won't work!
 LANG_BACK=$LANG
@@ -423,6 +437,9 @@ while true; do
     --force-ffmpeg)
       FFMPEG_FORCE_REBUILD=true; shift; continue
     ;;
+    --force-alembic)
+      ALEMBIC_FORCE_REBUILD=true; shift; continue
+    ;;
     --skip-python)
       PYTHON_SKIP=true; shift; continue
     ;;
@@ -452,6 +469,9 @@ while true; do
     ;;
     --skip-ffmpeg)
       FFMPEG_SKIP=true; shift; continue
+    ;;
+    --skip-alembic)
+      ALEMBIC_SKIP=true; shift; continue
     ;;
     --required-numpy)
       NUMPY_REQUIRED=true; shift; continue
@@ -512,6 +532,9 @@ OSL_SOURCE_REPO_BRANCH="blender-fixes"
 OPENCOLLADA_SOURCE=( "https://github.com/KhronosGroup/OpenCOLLADA.git" )
 OPENCOLLADA_REPO_UID="18da7f4109a8eafaa290a33f5550501cc4c8bae8"
 FFMPEG_SOURCE=( "http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2" )
+
+ALEMBIC_SOURCE=( "https://code.google.com/p/alembic/" )
+ALEMBIC_REPO_UID=( "1_05_05" )
 
 
 ##### Generic Helpers #####
@@ -839,6 +862,7 @@ compile_Boost() {
     # Rebuild dependecies as well!
     OIIO_FORCE_REBUILD=true
     OSL_FORCE_REBUILD=true
+    ALEMBIC_FORCE_REBUILD=true
 
     prepare_opt
 
@@ -1706,6 +1730,165 @@ compile_FFmpeg() {
   fi
 }
 
+#### Build ALEMBIC ####
+_init_alembic() {
+  _src=$SRC/Alembic-$ALEMBIC_VERSION
+  _hg=false
+  _inst=$INST/alembic-$ALEMBIC_VERSION
+  _inst_shortcut=$INST/alembic
+}
+
+clean_alembic() {
+  _init_alembic
+  _clean
+}
+
+compile_alembic() {
+  # To be changed each time we make edits that would modify the compiled result!
+  alembic_magic=1
+  _init_alembic
+
+  # Clean install if needed!
+  magic_compile_check alembic-$ALEMBIC_VERSION $alembic_magic
+  if [ $? -eq 1 -o $ALEMBIC_FORCE_REBUILD == true ]; then
+    clean_alembic
+  fi
+
+  if [ ! -d $_inst ]; then
+    INFO "Building Alembic-$ALEMBIC_VERSION"
+
+    prepare_opt
+
+    if [ ! -d $_src ]; then
+      mkdir -p $SRC
+      hg clone -u $ALEMBIC_REPO_UID $ALEMBIC_SOURCE $_src
+    fi
+
+    cd $_src
+
+    # XXX Ugly patching hack!
+    # Alembice cmake files are erratic, to say the least
+    # have to manually disable a bunch of crap here
+    cat << EOF | patch -p1
+--- a/CMakeLists.txt	Mon Jul 28 10:09:21 2014 -0700
++++ b/CMakeLists.txt	Thu Oct 16 15:03:27 2014 +0200
+@@ -57,9 +57,9 @@
+      ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} )
+ SET( VERSION ${PROJECT_VERSION} )
+ 
+-SET( ALEMBIC_NO_TESTS FALSE )
+-SET( ALEMBIC_NO_BOOTSTRAP FALSE )
+-SET( ALEMBIC_NO_OPENGL FALSE )
++SET( ALEMBIC_NO_TESTS TRUE )
++SET( ALEMBIC_NO_BOOTSTRAP TRUE )
++SET( ALEMBIC_NO_OPENGL TRUE )
+ 
+ MESSAGE(STATUS "CMAKE SYSTEM NAME = ${CMAKE_SYSTEM_NAME}" )
+ 
+@@ -306,15 +306,15 @@
+ ENDIF()
+ 
+ # Include PyAlembic stuff
+-IF(DEFINED USE_PYALEMBIC AND NOT USE_PYALEMBIC)
+-    MESSAGE(STATUS "Skipping Alembic Python bindings")
+-ELSE()
+-    MESSAGE(STATUS "About to include Python cmake files")
+-    ADD_SUBDIRECTORY( python )
+-ENDIF()
++#IF(DEFINED USE_PYALEMBIC AND NOT USE_PYALEMBIC)
++#    MESSAGE(STATUS "Skipping Alembic Python bindings")
++#ELSE()
++#    MESSAGE(STATUS "About to include Python cmake files")
++#    ADD_SUBDIRECTORY( python )
++#ENDIF()
+ 
+ # Example code not supported
+-ADD_SUBDIRECTORY( examples )
++#ADD_SUBDIRECTORY( examples )
+ 
+ # Uncomment to build python docs Makefile (requires Sphinx)
+ # Run `make docs` from build root
+
+EOF
+
+    cat << EOF | patch -p1
+--- a/lib/Alembic/Util/CMakeLists.txt	Mon Jul 28 10:09:21 2014 -0700
++++ b/lib/Alembic/Util/CMakeLists.txt	Thu Oct 16 15:03:27 2014 +0200
+@@ -65,7 +65,7 @@
+          DESTINATION include/Alembic/Util
+          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
+ 
+-IF( NOT ALEMBIC_NO_TESTS )
+-	ADD_SUBDIRECTORY( Tests )
+-ENDIF()
++#IF( NOT ALEMBIC_NO_TESTS )
++#	ADD_SUBDIRECTORY( Tests )
++#ENDIF()
+
+EOF 
+
+    cat << EOF | patch -p1
+--- a/python/CMakeLists.txt	Mon Jul 28 10:09:21 2014 -0700
++++ b/python/CMakeLists.txt	Thu Oct 16 14:20:25 2014 +0200
+@@ -35,4 +35,4 @@
+ 
+ ADD_SUBDIRECTORY( PyAlembic )
+ ADD_SUBDIRECTORY( PyAbcOpenGL )
+-ADD_SUBDIRECTORY( examples )
++#ADD_SUBDIRECTORY( examples )
+
+EOF
+
+    # Always refresh the whole build!
+    # XXX 'build' directory is included in Alembic sources, don't touch that
+    if [ -d blender_build ]; then
+      rm -rf blender_build
+    fi
+    mkdir blender_build
+    cd blender_build
+
+    # XXX Alembic cmake doesn't take these as options
+    # XXX Alembic creates a subfolder itself ... rather than fix their
+    # stupid build files, just expect this here by using $INST as prefix
+    export ALEMBIC_INSTALL_PREFIX=$INST
+
+    cmake_d="-D CMAKE_BUILD_TYPE=Release"
+    cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$INST"
+    cmake_d="$cmake_d -D BUILD_SHARED_LIBS=ON"
+    cmake_d="$cmake_d -D BUILD_STATIC_LIBS=ON"
+    cmake_d="$cmake_d -D USE_PYTHON=OFF"
+    cmake_d="$cmake_d -D USE_PYALEMBIC=OFF"
+    cmake_d="$cmakd_d -D ALEMBIC_PYTHON_INCLUDE_DIR=/use/include/python2.7" # XXX BAD
+    cmake_d="$cmakd_d -D ALEMBIC_PYTHON_LIBRARY=/use/lib/python2.7" # XXX BAD
+    cmake_d="$cmake_d -D USE_PYILMBASE=OFF"
+    cmake_d="$cmake_d -D ILMBASE_ROOT=$INST/openexr"
+    cmake_d="$cmake_d -D ALEMBIC_ILMBASE_HALF_LIB=$INST/openexr/lib/libHalf.la"
+    cmake_d="$cmake_d -D ALEMBIC_ILMBASE_IEX_LIB=$INST/openexr/lib/libIex-2_1.la"
+    cmake_d="$cmake_d -D ALEMBIC_ILMBASE_ILMTHREAD_LIB=$INST/openexr/lib/libIlmThread-2_1.la"
+    cmake_d="$cmake_d -D ALEMBIC_ILMBASE_IMATH_LIB=$INST/openexr/lib/libImath-2_1.la"
+
+    cmake $cmake_d ../
+
+    make -j$THREADS && make install
+    make clean
+
+    if [ -d $_inst ]; then
+      _create_inst_shortcut
+    else
+      ERROR "Alembic-$ALEMBIC_VERSION failed to compile, exiting"
+      exit 1
+    fi
+
+    magic_compile_set alembic-$ALEMBIC_VERSION $alembic_magic
+
+    cd $CWD
+    INFO "Done compiling Alembic-$ALEMBIC_VERSION!"
+  else
+    INFO "Own Alembic-$ALEMBIC_VERSION is up to date, nothing to do!"
+    INFO "If you want to force rebuild of this lib, use the --force-alembic option."
+  fi
+}
+
 
 #### Install on DEB-like ####
 get_package_version_DEB() {
@@ -1992,7 +2175,8 @@ install_DEB() {
       if [ $? -eq 0 ]; then
         install_packages_DEB libboost-locale$boost_version-dev libboost-filesystem$boost_version-dev \
                              libboost-regex$boost_version-dev libboost-system$boost_version-dev \
-                             libboost-thread$boost_version-dev libboost-wave$boost_version-dev
+                             libboost-thread$boost_version-dev libboost-python$boost_version-dev \
+                             libboost-program-options$boost_version-dev libboost-wave$boost_version-dev
         clean_Boost
       else
         compile_Boost
@@ -2124,6 +2308,14 @@ install_DEB() {
 #      fi
 #    fi
     compile_FFmpeg
+  fi
+
+  if $ALEMBIC_SKIP; then
+    WARNING "Skipping Alembic installation, as requested..."
+  else
+    install_packages_DEB libhdf5-dev
+    install_packages_DEB libpython2.7-dev # XXX nasty hack, should be done better ...
+    compile_alembic
   fi
 }
 
@@ -3030,6 +3222,12 @@ print_info() {
     fi
   fi
 
+  if [ -d $INST/alembic ]; then
+    _1="-D ALEMBIC_ROOT_DIR=$INST/alembic"
+    PRINT "  $_1"
+    _buildargs="$_buildargs $_1"
+  fi
+
   PRINT ""
   PRINT "Or even simpler, just run (in your blender-source dir):"
   PRINT "  make -j$THREADS BUILD_CMAKE_ARGS=\"$_buildargs\""
@@ -3097,6 +3295,13 @@ print_info() {
       PRINT "BF_FFMPEG = '$INST/ffmpeg'"
     fi
     PRINT "BF_FFMPEG_LIB = 'avformat avcodec swscale avutil avdevice `print_info_ffmpeglink`'"
+  fi
+
+  if [ "$ALEMBIC_SKIP" = false ]; then
+    PRINT "WITH_BF_ALEMBIC = True"
+    if [ -d $INST/alembic ]; then
+      PRINT "BF_ALEMBIC = '$INST/alembic'"
+    fi
   fi
 
   if [ "$WITH_ALL" = false ]; then

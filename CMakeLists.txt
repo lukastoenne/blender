@@ -275,6 +275,10 @@ option(WITH_MOD_REMESH          "Enable Remesh Modifier" ON)
 # mark_as_advanced(WITH_MOD_CLOTH_ELTOPO)
 option(WITH_MOD_OCEANSIM        "Enable Ocean Modifier" OFF)
 
+# Alembic
+option(WITH_ALEMBIC             "Enable Alembic Support" OFF)
+option(WITH_HDF5                "Enable HDF5 Support for Alembic" OFF)
+
 # Image format support
 option(WITH_OPENIMAGEIO         "Enable OpenImageIO Support (http://www.openimageio.org)" ON)
 option(WITH_IMAGE_OPENEXR       "Enable OpenEXR Support (http://www.openexr.com)" ${_init_IMAGE_OPENEXR})
@@ -637,15 +641,21 @@ if(NOT WITH_BOOST)
 
 	set_and_warn(WITH_CYCLES         OFF)
 	set_and_warn(WITH_AUDASPACE      OFF)
+	set_and_warn(WITH_ALEMBIC        OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
 
 	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
 	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_ALEMBIC OR WITH_INTERNATIONAL)
 	# Keep enabled
 else()
 	# Enabled but we don't need it
 	set(WITH_BOOST OFF)
+endif()
+
+# disable hdf5 if Alembic is disabled
+if(NOT WITH_ALEMBIC)
+	set(WITH_HDF5 OFF)
 endif()
 
 # auto enable openimageio for cycles
@@ -1127,6 +1137,15 @@ if(UNIX AND NOT APPLE)
 	if(WITH_LLVM OR WITH_SDL_DYNLOAD)
 		# Fix for conflict with Mesa llvmpipe
 		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Wl,--version-script=${CMAKE_SOURCE_DIR}/source/creator/blender.map")
+	endif()
+
+	if(WITH_ALEMBIC)
+		find_package_wrapper(Alembic)
+		set(ALEMBIC_LIBRARIES ${ALEMBIC_LIBRARIES} ${BOOST_LIBRARIES})
+	endif()
+
+	if(WITH_HDF5)
+		find_package_wrapper(HDF5)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
@@ -2193,6 +2212,12 @@ if(WITH_CYCLES)
 		if(NOT WITH_LLVM)
 			message(FATAL_ERROR "Cycles OSL requires WITH_LLVM, the library may not have been found. Configure LLVM or disable WITH_CYCLES_OSL")
 		endif()
+	endif()
+endif()
+
+if(WITH_ALEMBIC)
+	if(NOT WITH_BOOST)
+		message(FATAL_ERROR "Alembic requires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_ALEMBIC")
 	endif()
 endif()
 
