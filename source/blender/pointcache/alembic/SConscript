@@ -57,4 +57,4 @@ if env['WITH_BF_ALEMBIC']:
 
     defs.append('WITH_ALEMBIC')
 
-env.BlenderLib('bf_pointcache_alembic', sources, incs, defines=defs, libtype=['core'], priority=[901])
+env.BlenderLib('bf_pointcache_alembic', sources, incs, defines=defs, libtype=['core','player'], priority=[901, 901])
