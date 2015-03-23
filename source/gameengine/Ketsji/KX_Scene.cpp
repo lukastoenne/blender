@@ -156,7 +156,8 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_networkDeviceInterface(ndi),
 	m_active_camera(NULL),
 	m_ueberExecutionPriority(0),
-	m_blenderScene(scene)
+	m_blenderScene(scene),
+	m_isActivedHysteresis(false)
 {
 	m_suspendedtime = 0.0;
 	m_suspendeddelta = 0.0;
@@ -848,6 +849,12 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 	// now look if object in the hierarchy have dupli group and recurse
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
+		/* Replicate all constraints. */
+		if ((*git)->GetPhysicsController()) {
+			(*git)->GetPhysicsController()->ReplicateConstraints((*git), m_logicHierarchicalGameObjects);
+			(*git)->ClearConstraints();
+		}
+
 		if ((*git) != groupobj && (*git)->IsDupliGroup())
 			// can't instantiate group immediately as it destroys m_logicHierarchicalGameObjects
 			duplilist.push_back((*git));
@@ -1755,6 +1762,16 @@ void KX_Scene::UpdateObjectLods(void)
 			gameobj->UpdateLod(cam_pos);
 		}
 	}
+}
+
+void KX_Scene::SetLodHysteresis(bool active)
+{
+	m_isActivedHysteresis = active;
+}
+
+bool KX_Scene::IsActivedLodHysteresis(void)
+{
+	return m_isActivedHysteresis;
 }
 
 void KX_Scene::UpdateObjectActivity(void) 

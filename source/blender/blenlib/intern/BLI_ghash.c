@@ -298,14 +298,14 @@ static void ghash_buckets_contract(
 
 #ifdef GHASH_USE_MODULO_BUCKETS
 	while ((nentries    < gh->limit_shrink) &&
-		   (gh->cursize > gh->size_min))
+	       (gh->cursize > gh->size_min))
 	{
 		new_nbuckets = hashsizes[--gh->cursize];
 		gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
 	}
 #else
 	while ((nentries       < gh->limit_shrink) &&
-		   (gh->bucket_bit > gh->bucket_bit_min))
+	       (gh->bucket_bit > gh->bucket_bit_min))
 	{
 		new_nbuckets = 1u << --gh->bucket_bit;
 		gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
@@ -525,7 +525,7 @@ static Entry *ghash_remove_ex(
 	Entry *e_prev;
 	Entry *e = ghash_lookup_entry_prev_ex(gh, key, &e_prev, bucket_index);
 
-	BLI_assert(!valfreefp|| !(gh->flag & GHASH_FLAG_IS_GSET));
+	BLI_assert(!valfreefp || !(gh->flag & GHASH_FLAG_IS_GSET));
 
 	if (e) {
 		if (keyfreefp) keyfreefp(e->key);
@@ -547,8 +547,8 @@ static void ghash_free_cb(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP va
 {
 	unsigned int i;
 
-	BLI_assert(keyfreefp || valfreefp);
-	BLI_assert(!valfreefp|| !(gh->flag & GHASH_FLAG_IS_GSET));
+	BLI_assert(keyfreefp  || valfreefp);
+	BLI_assert(!valfreefp || !(gh->flag & GHASH_FLAG_IS_GSET));
 
 	for (i = 0; i < gh->nbuckets; i++) {
 		Entry *e;
@@ -1004,7 +1004,7 @@ unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
 }
 unsigned int BLI_ghashutil_uinthash_v4_murmur(const unsigned int key[4])
 {
-	return BLI_hash_mm2((const unsigned char *)key, sizeof(key), 0);
+	return BLI_hash_mm2((const unsigned char *)key, sizeof(int) * 4  /* sizeof(key) */, 0);
 }
 
 bool BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
@@ -1370,37 +1370,37 @@ double BLI_ghash_calc_quality_ex(
 	}
 
 	{
-	   uint64_t sum = 0;
-	   uint64_t overloaded_buckets_threshold = (uint64_t)max_ii(GHASH_LIMIT_GROW(1), 1);
-	   uint64_t sum_overloaded = 0;
-	   uint64_t sum_empty = 0;
+		uint64_t sum = 0;
+		uint64_t overloaded_buckets_threshold = (uint64_t)max_ii(GHASH_LIMIT_GROW(1), 1);
+		uint64_t sum_overloaded = 0;
+		uint64_t sum_empty = 0;
 
-	   for (i = 0; i < gh->nbuckets; i++) {
-		   uint64_t count = 0;
-		   Entry *e;
-		   for (e = gh->buckets[i]; e; e = e->next) {
-			   count++;
-		   }
-		   if (r_biggest_bucket) {
-			   *r_biggest_bucket = max_ii(*r_biggest_bucket, (int)count);
-		   }
-		   if (r_prop_overloaded_buckets && (count > overloaded_buckets_threshold)) {
-			   sum_overloaded++;
-		   }
-		   if (r_prop_empty_buckets && !count) {
-			   sum_empty++;
-		   }
-		   sum += count * (count + 1);
-	   }
-	   if (r_prop_overloaded_buckets) {
-		   *r_prop_overloaded_buckets = (double)sum_overloaded / (double)gh->nbuckets;
-	   }
-	   if (r_prop_empty_buckets) {
-		   *r_prop_empty_buckets = (double)sum_empty / (double)gh->nbuckets;
-	   }
-	   return ((double)sum * (double)gh->nbuckets /
-			   ((double)gh->nentries * (gh->nentries + 2 * gh->nbuckets - 1)));
-   }
+		for (i = 0; i < gh->nbuckets; i++) {
+			uint64_t count = 0;
+			Entry *e;
+			for (e = gh->buckets[i]; e; e = e->next) {
+				count++;
+			}
+			if (r_biggest_bucket) {
+				*r_biggest_bucket = max_ii(*r_biggest_bucket, (int)count);
+			}
+			if (r_prop_overloaded_buckets && (count > overloaded_buckets_threshold)) {
+				sum_overloaded++;
+			}
+			if (r_prop_empty_buckets && !count) {
+				sum_empty++;
+			}
+			sum += count * (count + 1);
+		}
+		if (r_prop_overloaded_buckets) {
+			*r_prop_overloaded_buckets = (double)sum_overloaded / (double)gh->nbuckets;
+		}
+		if (r_prop_empty_buckets) {
+			*r_prop_empty_buckets = (double)sum_empty / (double)gh->nbuckets;
+		}
+		return ((double)sum * (double)gh->nbuckets /
+		        ((double)gh->nentries * (gh->nentries + 2 * gh->nbuckets - 1)));
+	}
 }
 double BLI_gset_calc_quality_ex(
         GSet *gs, double *r_load, double *r_variance,

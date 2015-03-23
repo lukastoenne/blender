@@ -3886,6 +3886,20 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	/* Nestled Data  */
 	rna_def_scene_game_recast_data(brna);
+
+	/* LoD */
+	prop = RNA_def_property(srna, "use_scene_hysteresis", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "lodflag", SCE_LOD_USE_HYST);
+	RNA_def_property_ui_text(prop, "Hysteresis", "Use LoD Hysteresis setting for the scene");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop = RNA_def_property(srna, "scene_hysteresis_percentage", PROP_INT, PROP_PERCENTAGE);
+	RNA_def_property_int_sdna(prop, NULL, "scehysteresis");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 100, 10, 1);
+	RNA_def_property_ui_text(prop, "Hysteresis %",
+	                         "Minimum distance change required to transition to the previous level of detail");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
 }
 
 static void rna_def_gpu_dof_fx(BlenderRNA *brna)
@@ -3917,14 +3931,14 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "fstop", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Viewport F-stop", "F-stop for dof effect");
+	RNA_def_property_ui_text(prop, "F-stop", "F-stop for dof effect");
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.1f, 128.0f, 10, 1);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "blades", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "num_blades");
-	RNA_def_property_ui_text(prop, "Viewport Camera Blades", "Blades for dof effect");
+	RNA_def_property_ui_text(prop, "Blades", "Blades for dof effect");
 	RNA_def_property_range(prop, 0, 16);
 	RNA_def_property_int_funcs(prop, NULL, "rna_GPUDOFSettings_blades_set", NULL);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);

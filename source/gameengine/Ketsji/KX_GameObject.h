@@ -49,6 +49,7 @@
 #include "CTR_HashedPtr.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
+#include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
 #include "SCA_LogicManager.h" /* for ConvertPythonToGameObject to search object names */
 
@@ -89,6 +90,8 @@ protected:
 	std::vector<RAS_MeshObject*>		m_meshes;
 	std::vector<RAS_MeshObject*>		m_lodmeshes;
 	int                                 m_currentLodLevel;
+	short								m_previousLodLevel;
+	int									m_lodHysteresis;
 	SG_QList							m_meshSlots;	// head of mesh slots of this 
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
@@ -117,6 +120,7 @@ protected:
 	SG_Node*							m_pSGNode;
 
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
+	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
 	KX_ObstacleSimulation*				m_pObstacleSimulation;
 
@@ -192,6 +196,14 @@ public:
 	 */
 		void
 	UpdateBlenderObjectMatrix(Object* blendobj=NULL);
+
+	/**
+	 * Used for constraint replication for group instances.
+	 * The list of constraints is filled during data conversion.
+	 */
+	void AddConstraint(bRigidBodyJointConstraint *cons);
+	std::vector<bRigidBodyJointConstraint*> GetConstraints();
+	void ClearConstraints();
 
 	/** 
 	 * Get a pointer to the game object that is the parent of 
@@ -792,6 +804,14 @@ public:
 		void
 	AddLodMesh(
 		RAS_MeshObject* mesh
+	);
+
+	/**
+	 * Set lod hysteresis value
+	 */
+		void
+	SetLodHysteresisValue(
+		int hysteresis
 	);
 
 	/**
