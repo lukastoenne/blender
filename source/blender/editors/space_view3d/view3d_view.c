@@ -1030,23 +1030,40 @@ static void view3d_select_loop(ViewContext *vc, Scene *scene, View3D *v3d, ARegi
 							lb = object_duplilist(G.main->eval_ctx, scene, base->object);
 
 							for (dob = lb->first; dob; dob = dob->next) {
-								float omat[4][4];
+								/* for restoring after override */
+								struct DerivedMesh *store_final_dm;
+								float store_obmat[4][4];
 
 								tbase.object = dob->ob;
-								copy_m4_m4(omat, dob->ob->obmat);
+								copy_m4_m4(store_obmat, dob->ob->obmat);
 								copy_m4_m4(dob->ob->obmat, dob->mat);
+								store_final_dm = dob->ob->derivedFinal;
 
 								/* extra service: draw the duplicator in drawtype of parent */
 								/* MIN2 for the drawtype to allow bounding box objects in groups for lods */
 								dt = tbase.object->dt;   tbase.object->dt = MIN2(tbase.object->dt, base->object->dt);
 								dtx = tbase.object->dtx; tbase.object->dtx = base->object->dtx;
 
+								/* override final DM */
+								tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
+								if (base->object->dup_cache) {
+									DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
+									if (dob_data->cache_dm) {
+										tbase.object->transflag |= OB_IS_DUPLI_CACHE;
+										
+										tbase.object->derivedFinal = dob_data->cache_dm;
+									}
+								}
+
 								draw_object(scene, ar, v3d, &tbase, DRAW_PICKING | DRAW_CONSTCOLOR);
 
 								tbase.object->dt = dt;
 								tbase.object->dtx = dtx;
 
-								copy_m4_m4(dob->ob->obmat, omat);
+								/* restore obmat and final DM */
+								tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
+								copy_m4_m4(dob->ob->obmat, store_obmat);
+								tbase.object->derivedFinal = store_final_dm;
 							}
 							free_object_duplilist(lb);
 						}
