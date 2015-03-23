@@ -48,9 +48,9 @@ if env['WITH_BF_INTERNATIONAL']:
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', 'win64-mingw'):
     incs.append(env['BF_PTHREADS_INC'])
 
+env.BlenderLib('bf_pointcache', sources, incs, defines=defs, libtype=['core','player'], priority=[900,900])
+
 if env['WITH_BF_ALEMBIC']:
     defs.append('WITH_PTC_ALEMBIC')
 
     SConscript(['alembic/SConscript'])
-
-env.BlenderLib('bf_pointcache', sources, incs, defines=defs, libtype=['core'], priority=[900])
