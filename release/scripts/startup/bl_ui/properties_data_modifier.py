@@ -692,6 +692,12 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
     def PARTICLE_SYSTEM(self, layout, ob, md):
         layout.label(text="Settings can be found inside the Particle context")
 
+    def POINT_CACHE(self, layout, ob, md):
+        col = layout.column()
+        col.context_pointer_set("point_cache", md.point_cache)
+        col.context_pointer_set("point_cache_user", md)
+        col.operator("PTCACHE_OT_export")
+
     def SCREW(self, layout, ob, md):
         split = layout.split()
 

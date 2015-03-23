@@ -65,6 +65,7 @@ EnumPropertyItem modifier_type_items[] = {
 	{0, "", 0, N_("Modify"), ""},
 	{eModifierType_DataTransfer, "DATA_TRANSFER", ICON_MOD_DATA_TRANSFER, "Data Transfer", ""},
 	{eModifierType_MeshCache, "MESH_CACHE", ICON_MOD_MESHDEFORM, "Mesh Cache", ""},
+	{eModifierType_PointCache, "POINT_CACHE", ICON_MOD_MESHDEFORM, "Point Cache", ""},
 	{eModifierType_NormalEdit, "NORMAL_EDIT", ICON_MOD_NORMALEDIT, "Normal Edit", ""},
 	{eModifierType_UVProject, "UV_PROJECT", ICON_MOD_UVPROJECT, "UV Project", ""},
 	{eModifierType_UVWarp, "UV_WARP", ICON_MOD_UVPROJECT, "UV Warp", ""},
@@ -379,6 +380,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_DataTransferModifier;
 		case eModifierType_NormalEdit:
 			return &RNA_NormalEditModifier;
+		case eModifierType_PointCache:
+			return &RNA_PointCacheModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -4524,6 +4527,17 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_pointcache(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	/*PropertyRNA *prop;*/
+
+	srna = RNA_def_struct(brna, "PointCacheModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Point Cache Modifier", "Write and Read mesh results to/from point cache");
+	RNA_def_struct_sdna(srna, "PointCacheModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_MESHDEFORM);  /* XXX, needs own icon */
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -4639,6 +4653,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_wireframe(brna);
 	rna_def_modifier_datatransfer(brna);
 	rna_def_modifier_normaledit(brna);
+	rna_def_modifier_pointcache(brna);
 }
 
 #endif
