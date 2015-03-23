@@ -66,6 +66,7 @@ incs = [
     '../modifiers',
     '../nodes',
     '../physics',
+    '../pointcache',
     '../render/extern/include',
     '../windowmanager',
     env['BF_ZLIB_INC'],

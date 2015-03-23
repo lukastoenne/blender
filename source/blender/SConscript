@@ -43,7 +43,8 @@ SConscript(['avi/SConscript',
             'ikplugin/SConscript',
             'physics/SConscript',
             'windowmanager/SConscript',
-            'blenfont/SConscript'])
+            'blenfont/SConscript',
+            'pointcache/SConscript'])
 
 makesrna = SConscript('makesrna/SConscript')
 

@@ -37,6 +37,7 @@ set(INC
 	../modifiers
 	../nodes
 	../physics
+	../pointcache
 	../render/extern/include
 	../../../intern/ghost
 	../../../intern/guardedalloc
