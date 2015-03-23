@@ -44,6 +44,12 @@ extern "C" {
 
 using namespace PTC;
 
+#ifndef WITH_PTC_ALEMBIC
+void PTC_alembic_init()
+{
+}
+#endif
+
 void PTC_error_handler_std(void)
 {
 	ErrorHandler::clear_default_handler();
