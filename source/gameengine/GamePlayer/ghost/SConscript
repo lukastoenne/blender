@@ -57,6 +57,7 @@ incs = [
     '#source/blender/include',
     '#source/blender/makesdna',
     '#source/blender/makesrna',
+    '#source/blender/pointcache',
     '#source/gameengine/Rasterizer',
     '#source/gameengine/GameLogic',
     '#source/gameengine/Expressions',
