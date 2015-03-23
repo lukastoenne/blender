@@ -204,10 +204,18 @@ def setup_staticlibs(lenv):
         libincs += Split(lenv['BF_OIIO_LIBPATH'])
         if lenv['WITH_BF_STATICOIIO']:
             statlibs += Split(lenv['BF_OIIO_LIB_STATIC'])
+
+    if lenv['WITH_BF_HDF5']:
+        libincs += Split(lenv['BF_HDF5_LIBPATH'])
+
+    if lenv['WITH_BF_ALEMBIC']:
+        libincs += Split(lenv['BF_ALEMBIC_LIBPATH'])
+
     if lenv['WITH_BF_OPENEXR']:
         libincs += Split(lenv['BF_OPENEXR_LIBPATH'])
         if lenv['WITH_BF_STATICOPENEXR']:
             statlibs += Split(lenv['BF_OPENEXR_LIB_STATIC'])
+
     if lenv['WITH_BF_ZLIB'] and lenv['WITH_BF_STATICZLIB']:
         statlibs += Split(lenv['BF_ZLIB_LIB_STATIC'])
 
@@ -283,8 +291,15 @@ def setup_syslibs(lenv):
         if not lenv['WITH_BF_STATICOCIO']:
             syslibs += Split(lenv['BF_OCIO_LIB'])
 
+    if lenv['WITH_BF_HDF5']:
+        syslibs += Split(lenv['BF_HDF5_LIB'])
+
+    if lenv['WITH_BF_ALEMBIC']:
+        syslibs += Split(lenv['BF_ALEMBIC_LIB'])
+
     if lenv['WITH_BF_OPENEXR'] and not lenv['WITH_BF_STATICOPENEXR']:
         syslibs += Split(lenv['BF_OPENEXR_LIB'])
+
     if lenv['WITH_BF_ZLIB'] and not lenv['WITH_BF_STATICZLIB']:
         syslibs += Split(lenv['BF_ZLIB_LIB'])
     if lenv['WITH_BF_TIFF'] and not lenv['WITH_BF_STATICTIFF']:

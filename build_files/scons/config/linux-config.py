@@ -52,9 +52,9 @@ BF_OPENEXR = '/usr'
 # BF_OPENEXR_INC = '${BF_OPENEXR}/include/OpenEXR ${BF_OPENEXR}/include'
 
 BF_OPENEXR_INC = '${BF_OPENEXR}/include/OpenEXR'
-BF_OPENEXR_LIB = 'Half IlmImf Iex Imath '
+BF_OPENEXR_LIB = 'Half IlmImf-2_1 Iex-2_1 Imath-2_1 '
 BF_OPENEXR_LIB_STATIC = '${BF_OPENEXR}/lib/libHalf.a ${BF_OPENEXR}/lib/libIlmImf.a ${BF_OPENEXR}/lib/libIex.a ${BF_OPENEXR}/lib/libImath.a ${BF_OPENEXR}/lib/libIlmThread.a'
-# BF_OPENEXR_LIBPATH = '${BF_OPENEXR}/lib'
+BF_OPENEXR_LIBPATH = '${BF_OPENEXR}/lib'
 
 
 WITH_BF_DDS = True
@@ -225,6 +225,19 @@ BF_3DMOUSE_LIB_STATIC = '${BF_3DMOUSE_LIBPATH}/libspnav.a'
 
 #Freestyle
 WITH_BF_FREESTYLE = True
+
+# HDF5
+WITH_BF_HDF5 = True
+BF_HDF5 = '/usr'
+BF_HDF5_LIB = 'hdf5 hdf5_hl'
+BF_HDF5_LIBPATH='${BF_HDF5}/lib'
+
+# Alembic
+WITH_BF_ALEMBIC = True
+BF_ALEMBIC = '/opt/lib/alembic'
+BF_ALEMBIC_LIB = 'AlembicAbcGeom AlembicAbc AlembicAbcCollection AlembicAbcCoreFactory AlembicAbcCoreHDF5 AlembicAbcCoreAbstract AlembicAbcCoreOgawa AlembicAbcMaterial AlembicOgawa AlembicUtil'
+BF_ALEMBIC_INC = '${BF_ALEMBIC}/include'
+BF_ALEMBIC_LIBPATH='${BF_ALEMBIC}/lib/static'
 
 ##
 CC = 'gcc'

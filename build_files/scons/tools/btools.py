@@ -581,6 +581,17 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_LIBMV_SCHUR_SPECIALIZATIONS', 'Enable fixed-size schur specializations', True)),
 
         (BoolVariable('WITH_BF_COMPOSITOR', 'Enable the tile based nodal compositor', True)),
+
+        (BoolVariable('WITH_BF_HDF5', 'Use HDF5 if true', False)),
+        ('BF_HDF5', 'HDF5 base path', ''),
+        ('BF_HDF5_LIB', 'HDF5 library', ''),
+        ('BF_HDF5_LIBPATH', 'HDF5 library path', ''),
+
+        (BoolVariable('WITH_BF_ALEMBIC', 'Use Alembic if true', False)),
+        ('BF_ALEMBIC', 'Alembic base path', ''),
+        ('BF_ALEMBIC_INC', 'Alembic include path', ''),
+        ('BF_ALEMBIC_LIB', 'Alembic library', ''),
+        ('BF_ALEMBIC_LIBPATH', 'Alembic library path', ''),
     ) # end of opts.AddOptions()
 
     localopts.AddVariables(
