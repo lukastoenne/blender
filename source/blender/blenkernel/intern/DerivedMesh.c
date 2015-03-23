@@ -65,6 +65,8 @@
 #include "BKE_deform.h"
 #include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */
 
+#include "PTC_api.h"
+
 #ifdef WITH_GAMEENGINE
 #include "BKE_navmesh_conversion.h"
 static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
@@ -1490,6 +1492,58 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 		CDDM_calc_normals_mapping_ex(dm, (dm->dirty & DM_DIRTY_NORMALS) ? false : true);
 	}
 }
+
+/* Look for last point cache modifier that provides a valid derived mesh.
+ * This will then be used as the input for remaining modifiers, or as the
+ * final result if no other modifiers follow.
+ */
+static ModifierData *mesh_find_start_modifier(Scene *scene, Object *ob, VirtualModifierData *virtual_modifiers, int required_mode, bool useDeform)
+{
+	const bool skipVirtualArmature = (useDeform < 0);
+	
+	ModifierData *md;
+	
+	for (md = ob->modifiers.last; md; md = md->prev) {
+		if (md->type == eModifierType_PointCache) {
+			PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
+			struct PTCReader *reader;
+			PTCReadSampleResult result;
+			
+			if (!modifier_isEnabled(scene, md, required_mode))
+				continue;
+			
+			/* XXX needs a more lightweight reader stored inside the modifier,
+			 * which can be checked quickly for valid cache samples before reading.
+			 */
+			reader = PTC_reader_point_cache(scene, ob, pcmd);
+			result = PTC_test_sample(reader, scene->r.cfra);
+			PTC_reader_free(reader);
+			
+			if (ELEM(result, PTC_READ_SAMPLE_EXACT, PTC_READ_SAMPLE_INTERPOLATED)) {
+				break;
+			}
+		}
+	}
+	if (md)
+		return md;
+	
+	/* no valid cache modifier found,
+	 * take virtual modifiers at list start into account
+	 */
+	
+	if (!skipVirtualArmature) {
+		md = modifiers_getVirtualModifierList(ob, virtual_modifiers);
+	}
+	else {
+		/* game engine exception */
+		md = ob->modifiers.first;
+		if (md && md->type == eModifierType_Armature)
+			md = md->next;
+	}
+	
+	return md;
+}
+
 /* new value for useDeform -1  (hack for the gameengine):
  * - apply only the modifier stack of the object, skipping the virtual modifiers,
  * - don't apply the key
@@ -1511,7 +1565,6 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	int numVerts = me->totvert;
 	int required_mode;
 	bool isPrevDeform = false;
-	const bool skipVirtualArmature = (useDeform < 0);
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
 	const bool has_multires = (mmd && mmd->sculptlvl != 0);
 	bool multires_applied = false;
@@ -1540,23 +1593,14 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		app_flags |= MOD_APPLY_USECACHE;
 	if (useDeform)
 		deform_app_flags |= MOD_APPLY_USECACHE;
-
-	if (!skipVirtualArmature) {
-		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
-	}
-	else {
-		/* game engine exception */
-		firstmd = ob->modifiers.first;
-		if (firstmd && firstmd->type == eModifierType_Armature)
-			firstmd = firstmd->next;
-	}
-
-	md = firstmd;
-
-	modifiers_clearErrors(ob);
-
+	
 	if (useRenderParams) required_mode = eModifierMode_Render;
 	else required_mode = eModifierMode_Realtime;
+	
+	modifiers_clearErrors(ob);
+	
+	firstmd = mesh_find_start_modifier(scene, ob, &virtualModifierData, required_mode, useDeform);
+	md = firstmd;
 
 	if (do_mod_wmcol || do_mod_mcol) {
 		/* Find the last active modifier generating a preview, or NULL if none. */
