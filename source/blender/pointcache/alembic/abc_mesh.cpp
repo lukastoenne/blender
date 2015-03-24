@@ -322,32 +322,30 @@ AbcDerivedMeshReader::~AbcDerivedMeshReader()
 {
 }
 
-void AbcDerivedMeshReader::init_abc(IObject parent)
+void AbcDerivedMeshReader::init_abc(IObject object)
 {
 	if (m_mesh)
 		return;
-	if (parent.getChild(m_name)) {
-		m_mesh = IPolyMesh(parent, m_name);
-		
-		IPolyMeshSchema &schema = m_mesh.getSchema();
-		ICompoundProperty geom_props = schema.getArbGeomParams();
-		ICompoundProperty user_props = schema.getUserProperties();
-		
-		m_prop_vert_normals = IN3fArrayProperty(user_props, "vertex_normals", 0);
-		m_prop_vert_flag = ICharArrayProperty(user_props, "vertex_flag", 0);
-		m_prop_vert_bweight = ICharArrayProperty(user_props, "vertex_bweight", 0);
-		
-		m_prop_edge_verts = IUInt32ArrayProperty(user_props, "edge_verts", 0);
-		m_prop_edge_flag = IInt16ArrayProperty(user_props, "edge_flag", 0);
-		m_prop_edge_crease = ICharArrayProperty(user_props, "edge_crease", 0);
-		m_prop_edge_bweight = ICharArrayProperty(user_props, "edge_bweight", 0);
-		
-		m_prop_poly_mat_nr = IInt16ArrayProperty(user_props, "poly_mat_nr", 0);
-		m_prop_poly_flag = ICharArrayProperty(user_props, "poly_flag", 0);
-		
-		m_prop_loop_verts = IInt32ArrayProperty(user_props, "loop_verts", 0);
-		m_prop_loop_edges = IInt32ArrayProperty(user_props, "loop_edges", 0);
-	}
+	m_mesh = IPolyMesh(object, kWrapExisting);
+	
+	IPolyMeshSchema &schema = m_mesh.getSchema();
+	ICompoundProperty geom_props = schema.getArbGeomParams();
+	ICompoundProperty user_props = schema.getUserProperties();
+	
+	m_prop_vert_normals = IN3fArrayProperty(user_props, "vertex_normals", 0);
+	m_prop_vert_flag = ICharArrayProperty(user_props, "vertex_flag", 0);
+	m_prop_vert_bweight = ICharArrayProperty(user_props, "vertex_bweight", 0);
+	
+	m_prop_edge_verts = IUInt32ArrayProperty(user_props, "edge_verts", 0);
+	m_prop_edge_flag = IInt16ArrayProperty(user_props, "edge_flag", 0);
+	m_prop_edge_crease = ICharArrayProperty(user_props, "edge_crease", 0);
+	m_prop_edge_bweight = ICharArrayProperty(user_props, "edge_bweight", 0);
+	
+	m_prop_poly_mat_nr = IInt16ArrayProperty(user_props, "poly_mat_nr", 0);
+	m_prop_poly_flag = ICharArrayProperty(user_props, "poly_flag", 0);
+	
+	m_prop_loop_verts = IInt32ArrayProperty(user_props, "loop_verts", 0);
+	m_prop_loop_edges = IInt32ArrayProperty(user_props, "loop_edges", 0);
 }
 
 static PTCReadSampleResult apply_sample_verts(DerivedMesh *dm, P3fArraySamplePtr sample_co, N3fArraySamplePtr sample_no,

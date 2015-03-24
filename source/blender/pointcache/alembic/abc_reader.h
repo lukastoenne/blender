@@ -79,13 +79,9 @@ public:
 	{
 		BLI_assert(dynamic_cast<AbcReaderArchive*>(archive));
 		m_abc_archive = static_cast<AbcReaderArchive*>(archive);
-		
-		init_abc();
 	}
 	
-	/* one of these should be implemented by subclasses */
-	virtual void init_abc() {}
-	virtual void init_abc(Abc::IObject parent) {}
+	virtual void init_abc(Abc::IObject object) {}
 	
 	AbcReaderArchive *abc_archive() const { return m_abc_archive; }
 	

@@ -68,7 +68,7 @@ class AbcObjectReader : public ObjectReader, public AbcReader {
 public:
 	AbcObjectReader(const std::string &name, Object *ob);
 	
-	void init_abc();
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	

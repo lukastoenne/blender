@@ -52,7 +52,7 @@ class AbcGroupReader : public GroupReader, public AbcReader {
 public:
 	AbcGroupReader(const std::string &name, Group *group);
 	
-	void init_abc();
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -104,7 +104,7 @@ public:
 	AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupcache);
 	~AbcDupliCacheReader();
 	
-	void init_abc();
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -135,7 +135,7 @@ public:
 	AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data);
 	~AbcDupliObjectReader();
 	
-	void init_abc();
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -148,6 +148,8 @@ protected:
 private:
 	DupliMap dupli_map;
 	DupliObjectData *dupli_data;
+	
+	Abc::IObject m_abc_object;
 };
 
 } /* namespace PTC */

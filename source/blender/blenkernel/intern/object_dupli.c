@@ -64,7 +64,7 @@
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
 #include "BKE_anim.h"
-
+#include "BKE_strands.h"
 
 #include "BLI_strict_flags.h"
 
@@ -1338,12 +1338,12 @@ static void dupli_cache_calc_boundbox(DupliObjectData *data)
 	BKE_boundbox_init_from_minmax(&data->bb, min, max);
 }
 
-void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob, DerivedMesh *dm)
+void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob)
 {
 	data->ob = ob;
 	
-	data->dm = dm;
-	dm->needsFree = false; /* take ownership */
+	data->dm = NULL;
+	BLI_listbase_clear(&data->strands);
 	
 	memset(&data->bb, 0, sizeof(data->bb));
 	dupli_cache_calc_boundbox(data);
@@ -1351,15 +1351,51 @@ void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob, DerivedMesh *
 
 void BKE_dupli_object_data_clear(DupliObjectData *data)
 {
+	LinkData *link;
+	
 	if (data->dm) {
 		/* we lock DMs in the cache to prevent freeing outside,
 		 * now allow releasing again
 		 */
 		data->dm->needsFree = true;
-		
-		data->cache_dm->release(data->cache_dm);
+		data->dm->release(data->dm);
 	}
+	
+	for (link = data->strands.first; link; link = link->next) {
+		if (link->data)
+			BKE_strands_free(link->data);
+	}
+	BLI_freelistN(&data->strands);
 }
+
+void BKE_dupli_object_data_set_mesh(DupliObjectData *data, DerivedMesh *dm)
+{
+	if (data->dm) {
+		/* we lock DMs in the cache to prevent freeing outside,
+		 * now allow releasing again
+		 */
+		data->dm->needsFree = true;
+		data->dm->release(data->dm);
+	}
+	
+	data->dm = dm;
+	/* we own this dm now and need to protect it until we free it ourselves */
+	dm->needsFree = false;
+	
+	dupli_cache_calc_boundbox(data);
+}
+
+void BKE_dupli_object_data_add_strands(DupliObjectData *data, Strands *strands)
+{
+	LinkData *link = MEM_callocN(sizeof(LinkData), "strands link");
+	link->data = strands;
+	
+	BLI_addtail(&data->strands, link);
+	
+	dupli_cache_calc_boundbox(data);
+}
+
+/* ------------------------------------------------------------------------- */
 
 static void dupli_object_data_free(DupliObjectData *data)
 {
@@ -1496,15 +1532,9 @@ DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
 	return data;
 }
 
-DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, Object *ob, DerivedMesh *dm)
+DupliObjectData *BKE_dupli_cache_add_object(DupliCache *dupcache, Object *ob)
 {
 	DupliObjectData *data = dupli_cache_add_object_data(dupcache, ob);
-	data->dm = dm;
-	dupli_cache_calc_boundbox(data);
-	
-	/* we own this dm now and need to protect it until we free it ourselves */
-	dm->needsFree = false;
-	
 	return data;
 }
 
