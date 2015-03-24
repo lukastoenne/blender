@@ -689,7 +689,7 @@ void BKE_object_unlink(Object *ob)
 
 		/* dupli cache is cleared entirely if the object in question is duplified to keep it simple */
 		if (BKE_object_dupli_cache_contains(obt, ob))
-			BKE_object_dupli_cache_clear(ob);
+			BKE_object_dupli_cache_clear(obt);
 
 		obt = obt->id.next;
 	}
