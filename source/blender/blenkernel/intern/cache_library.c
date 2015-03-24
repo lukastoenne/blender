@@ -307,7 +307,7 @@ BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
 {
 #define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
 
-	uint a, b, c;
+	unsigned int a, b, c;
 
 	a = b = c = 0xdeadbeef + (2 << 2) + 13;
 	a += kx;
