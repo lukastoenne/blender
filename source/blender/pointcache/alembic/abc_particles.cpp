@@ -128,6 +128,106 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 }
 
 
+struct ParticleHairSample {
+	std::vector<int32_t> numverts;
+	
+	std::vector<V3f> positions;
+	std::vector<float32_t> times;
+	std::vector<float32_t> weights;
+};
+
+AbcHairWriter::AbcHairWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
+    ParticlesWriter(ob, psys, name)
+{
+}
+
+AbcHairWriter::~AbcHairWriter()
+{
+}
+
+void AbcHairWriter::init_abc(OObject parent)
+{
+	if (m_curves)
+		return;
+	m_curves = OCurves(parent, m_name, abc_archive()->frame_sampling_index());
+	
+	OCurvesSchema &schema = m_curves.getSchema();
+	OCompoundProperty geom_props = schema.getArbGeomParams();
+	
+	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
+	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
+}
+
+static int hair_count_totverts(ParticleSystem *psys)
+{
+	int p;
+	int totverts = 0;
+	
+	for (p = 0; p < psys->totpart; ++p) {
+		ParticleData *pa = &psys->particles[p];
+		totverts += pa->totkey;
+	}
+	
+	return totverts;
+}
+
+static void hair_create_sample(ParticleSystem *psys, ParticleHairSample &sample, bool do_numverts)
+{
+	int totpart = psys->totpart;
+	int totverts = hair_count_totverts(psys);
+	int p, k;
+	
+	if (totverts == 0)
+		return;
+	
+	if (do_numverts)
+		sample.numverts.reserve(totpart);
+	sample.positions.reserve(totverts);
+	sample.times.reserve(totverts);
+	sample.weights.reserve(totverts);
+	
+	for (p = 0; p < totpart; ++p) {
+		ParticleData *pa = &psys->particles[p];
+		int numverts = pa->totkey;
+		
+		if (do_numverts)
+			sample.numverts.push_back(numverts);
+		
+		for (k = 0; k < numverts; ++k) {
+			HairKey *key = &pa->hair[k];
+			
+			sample.positions.push_back(V3f(key->co[0], key->co[1], key->co[2]));
+			sample.times.push_back(key->time);
+			sample.weights.push_back(key->weight);
+		}
+	}
+}
+
+void AbcHairWriter::write_sample()
+{
+	if (!m_curves)
+		return;
+	
+	OCurvesSchema &schema = m_curves.getSchema();
+	
+	ParticleHairSample hair_sample;
+	OCurvesSchema::Sample sample;
+	if (schema.getNumSamples() == 0) {
+		/* write curve sizes only first time, assuming they are constant! */
+		hair_create_sample(m_psys, hair_sample, true);
+		sample = OCurvesSchema::Sample(hair_sample.positions, hair_sample.numverts);
+	}
+	else {
+		hair_create_sample(m_psys, hair_sample, false);
+		sample = OCurvesSchema::Sample(hair_sample.positions);
+	}
+	schema.set(sample);
+	
+	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.times), kVertexScope));
+	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.weights), kVertexScope));
+}
+
+
 AbcHairDynamicsWriter::AbcHairDynamicsWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
     ParticlesWriter(ob, psys, name),
     m_cloth_writer(name+"__cloth", ob, psys->clmd)
@@ -265,6 +365,7 @@ void AbcParticlePathcacheWriter::write_sample()
 		sample = OCurvesSchema::Sample(path_sample.positions, path_sample.numkeys);
 	}
 	else {
+		paths_create_sample(*m_pathcache, *m_totpath, totkeys, path_sample, false);
 		sample = OCurvesSchema::Sample(path_sample.positions);
 	}
 	schema.set(sample);

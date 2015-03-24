@@ -31,6 +31,7 @@
 #include "abc_reader.h"
 #include "abc_schema.h"
 #include "abc_writer.h"
+#include "abc_cloth.h"
 
 struct Object;
 struct ParticleSystem;
@@ -38,8 +39,6 @@ struct ParticleCacheKey;
 
 namespace PTC {
 
-class AbcClothWriter;
-class AbcClothReader;
 class AbcDerivedMeshWriter;
 class AbcDerivedMeshReader;
 
@@ -67,6 +66,22 @@ public:
 	
 private:
 	AbcGeom::IPoints m_points;
+};
+
+class AbcHairWriter : public ParticlesWriter, public AbcWriter {
+public:
+	AbcHairWriter(const std::string &name, Object *ob, ParticleSystem *psys);
+	~AbcHairWriter();
+	
+	void init_abc(Abc::OObject parent);
+	
+	void write_sample();
+	
+private:
+	AbcGeom::OCurves m_curves;
+	
+	AbcGeom::OFloatGeomParam m_param_times;
+	AbcGeom::OFloatGeomParam m_param_weights;
 };
 
 
