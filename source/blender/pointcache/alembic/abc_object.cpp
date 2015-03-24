@@ -136,11 +136,11 @@ AbcObjectReader::AbcObjectReader(const std::string &name, Object *ob) :
 {
 }
 
-void AbcObjectReader::init_abc()
+void AbcObjectReader::init_abc(IObject object)
 {
 	if (m_abc_object)
 		return;
-	m_abc_object = abc_archive()->get_id_object((ID *)m_ob);
+	m_abc_object = object;
 }
 
 PTCReadSampleResult AbcObjectReader::read_sample(float frame)

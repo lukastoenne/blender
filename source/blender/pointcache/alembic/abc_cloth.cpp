@@ -138,20 +138,17 @@ AbcClothReader::~AbcClothReader()
 {
 }
 
-void AbcClothReader::init_abc(IObject parent)
+void AbcClothReader::init_abc(IObject object)
 {
 	if (m_points)
 		return;
+	m_points = IPoints(object, kWrapExisting);
 	
-	if (parent.getChild(m_name)) {
-		m_points = IPoints(parent, m_name);
-		
-		IPointsSchema &schema = m_points.getSchema();
-		ICompoundProperty geom_params = schema.getArbGeomParams();
-		
-		m_param_velocities = IV3fGeomParam(geom_params, "velocities", 0);
-		m_param_goal_positions= IP3fGeomParam(geom_params, "goal_positions", 0);
-	}
+	IPointsSchema &schema = m_points.getSchema();
+	ICompoundProperty geom_params = schema.getArbGeomParams();
+	
+	m_param_velocities = IV3fGeomParam(geom_params, "velocities", 0);
+	m_param_goal_positions= IP3fGeomParam(geom_params, "goal_positions", 0);
 }
 
 static void apply_sample_positions(Cloth *cloth, P3fArraySamplePtr sample)

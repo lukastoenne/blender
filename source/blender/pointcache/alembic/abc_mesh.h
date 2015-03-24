@@ -84,7 +84,7 @@ public:
 	AbcDerivedMeshReader(const std::string &name, Object *ob);
 	~AbcDerivedMeshReader();
 	
-	void init_abc(Abc::IObject parent);
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	

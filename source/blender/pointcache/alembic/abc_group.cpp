@@ -26,6 +26,7 @@
 #include "abc_mesh.h"
 #include "abc_group.h"
 #include "abc_object.h"
+#include "abc_particles.h"
 
 extern "C" {
 #include "BLI_listbase.h"
@@ -85,11 +86,11 @@ AbcGroupReader::AbcGroupReader(const std::string &name, Group *group) :
 {
 }
 
-void AbcGroupReader::init_abc()
+void AbcGroupReader::init_abc(IObject object)
 {
 	if (m_abc_object)
 		return;
-	m_abc_object = abc_archive()->get_id_object((ID *)m_group);
+	m_abc_object = object;
 }
 
 PTCReadSampleResult AbcGroupReader::read_sample(float frame)
@@ -243,7 +244,7 @@ AbcDupliCacheReader::~AbcDupliCacheReader()
 {
 }
 
-void AbcDupliCacheReader::init_abc()
+void AbcDupliCacheReader::init_abc(IObject object)
 {
 }
 
@@ -258,16 +259,45 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 		if (!b_ob)
 			return;
 		
-		AbcDerivedMeshReader dm_reader("mesh", b_ob);
-		dm_reader.init(abc_archive());
-		dm_reader.init_abc(object);
-		if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
-			DerivedMesh *dm = dm_reader.acquire_result();
-			DupliObjectData *data = BKE_dupli_cache_add_mesh(dupli_cache, b_ob, dm);
-			insert_dupli_data(object.getPtr(), data);
+		DupliObjectData *dupli_data = NULL;
+		
+		for (int i = 0; i < object.getNumChildren(); ++i) {
+			IObject child = object.getChild(i);
+			const MetaData &metadata = child.getMetaData();
+			
+			if (IPolyMeshSchema::matches(metadata)) {
+				AbcDerivedMeshReader dm_reader("mesh", b_ob);
+				dm_reader.init(abc_archive());
+				dm_reader.init_abc(child);
+				if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+					if (!dupli_data) {
+						dupli_data = BKE_dupli_cache_add_object(dupli_cache, b_ob);
+						insert_dupli_data(object.getPtr(), dupli_data);
+					}
+					
+					BKE_dupli_object_data_set_mesh(dupli_data, dm_reader.acquire_result());
+				}
+				else {
+					dm_reader.discard_result();
+				}
+			}
+			else if (ICurvesSchema::matches(metadata)) {
+				AbcStrandsReader strands_reader;
+				strands_reader.init(abc_archive());
+				strands_reader.init_abc(child);
+				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+					if (!dupli_data) {
+						dupli_data = BKE_dupli_cache_add_object(dupli_cache, b_ob);
+						insert_dupli_data(object.getPtr(), dupli_data);
+					}
+					
+					BKE_dupli_object_data_add_strands(dupli_data, strands_reader.acquire_result());
+				}
+				else {
+					strands_reader.discard_result();
+				}
+			}
 		}
-		else
-			dm_reader.discard_result();
 	}
 }
 
@@ -379,8 +409,9 @@ AbcDupliObjectReader::~AbcDupliObjectReader()
 {
 }
 
-void AbcDupliObjectReader::init_abc()
+void AbcDupliObjectReader::init_abc(IObject object)
 {
+	m_abc_object = object;
 }
 
 void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
@@ -390,25 +421,44 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 		if (object.isInstanceDescendant())
 			return;
 		
-		AbcDerivedMeshReader dm_reader("mesh", m_ob);
-		dm_reader.init(abc_archive());
-		dm_reader.init_abc(object);
-		if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
-			DerivedMesh *dm = dm_reader.acquire_result();
-			BKE_dupli_object_data_init(dupli_data, m_ob, dm);
+		BKE_dupli_object_data_init(dupli_data, m_ob);
+		
+		for (int i = 0; i < object.getNumChildren(); ++i) {
+			IObject child = object.getChild(i);
+			const MetaData &metadata = child.getMetaData();
+			
+			if (IPolyMeshSchema::matches(metadata)) {
+				AbcDerivedMeshReader dm_reader("mesh", m_ob);
+				dm_reader.init(abc_archive());
+				dm_reader.init_abc(child);
+				if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+					BKE_dupli_object_data_set_mesh(dupli_data, dm_reader.acquire_result());
+				}
+				else {
+					dm_reader.discard_result();
+				}
+			}
+			else if (ICurvesSchema::matches(metadata)) {
+				AbcStrandsReader strands_reader;
+				strands_reader.init(abc_archive());
+				strands_reader.init_abc(child);
+				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+					BKE_dupli_object_data_add_strands(dupli_data, strands_reader.acquire_result());
+				}
+				else {
+					strands_reader.discard_result();
+				}
+			}
 		}
-		else
-			dm_reader.discard_result();
 	}
 }
 
 PTCReadSampleResult AbcDupliObjectReader::read_sample(float frame)
 {
-	IObject abc_object = abc_archive()->get_id_object((ID *)m_ob);
-	if (!abc_object)
+	if (!m_abc_object)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	read_dupligroup_object(abc_object, frame);
+	read_dupligroup_object(m_abc_object, frame);
 	
 	return PTC_READ_SAMPLE_EXACT;
 }

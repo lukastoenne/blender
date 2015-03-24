@@ -47,6 +47,7 @@ struct DupliCache;
 struct DupliObject;
 struct DupliObjectData;
 struct DerivedMesh;
+struct Strands;
 
 /* ---------------------------------------------------- */
 /* Animation Visualization */
@@ -84,11 +85,14 @@ void BKE_object_dupli_cache_free(struct Object *ob);
 bool BKE_object_dupli_cache_contains(struct Object *ob, struct Object *other);
 struct DupliObjectData *BKE_dupli_cache_find_data(struct DupliCache *dupcache, struct Object *ob);
 
-void BKE_dupli_object_data_init(struct DupliObjectData *data, struct Object *ob, struct DerivedMesh *dm);
+void BKE_dupli_object_data_init(struct DupliObjectData *data, struct Object *ob);
 /* does not free data itself */
 void BKE_dupli_object_data_clear(struct DupliObjectData *data);
+void BKE_dupli_object_data_set_mesh(struct DupliObjectData *data, struct DerivedMesh *dm);
+void BKE_dupli_object_data_add_strands(struct DupliObjectData *data, struct Strands *strands);
 
-struct DupliObjectData *BKE_dupli_cache_add_mesh(struct DupliCache *dupcache, struct Object *ob, struct DerivedMesh *dm);
+struct DupliObjectData *BKE_dupli_cache_add_object(struct DupliCache *dupcache, struct Object *ob);
+
 void BKE_dupli_cache_add_instance(struct DupliCache *dupcache, float obmat[4][4], struct DupliObjectData *data);
 
 typedef struct DupliExtraData {

@@ -36,6 +36,7 @@
 struct Object;
 struct ParticleSystem;
 struct ParticleCacheKey;
+struct Strands;
 
 namespace PTC {
 
@@ -60,13 +61,14 @@ public:
 	AbcParticlesReader(const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcParticlesReader();
 	
-	void init_abc(Abc::IObject parent);
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
 	AbcGeom::IPoints m_points;
 };
+
 
 class AbcHairWriter : public ParticlesWriter, public AbcWriter {
 public:
@@ -82,6 +84,27 @@ private:
 	
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
+};
+
+
+class AbcStrandsReader : public AbcReader {
+public:
+	AbcStrandsReader();
+	~AbcStrandsReader();
+	
+	void init_abc(Abc::IObject object);
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+	Strands *acquire_result();
+	void discard_result();
+	
+private:
+	Strands *m_strands;
+	
+	AbcGeom::ICurves m_curves;
+	AbcGeom::IFloatGeomParam m_param_times;
+	AbcGeom::IFloatGeomParam m_param_weights;
 };
 
 
@@ -103,7 +126,7 @@ class AbcHairDynamicsReader : public ParticlesReader, public AbcReader {
 public:
 	AbcHairDynamicsReader(const std::string &name, Object *ob, ParticleSystem *psys);
 	
-	void init_abc(Abc::IObject parent);
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
@@ -138,7 +161,7 @@ class AbcParticlePathcacheReader : public ParticlesReader, public AbcReader {
 protected:
 	AbcParticlePathcacheReader(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
 	
-	void init_abc(Abc::IObject parent);
+	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	

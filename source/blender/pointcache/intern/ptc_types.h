@@ -96,10 +96,12 @@ public:
 	{}
 	
 	~DerivedMeshReader()
-	{}
+	{
+		discard_result();
+	}
 	
-	virtual DerivedMesh *acquire_result();
-	virtual void discard_result();
+	DerivedMesh *acquire_result();
+	void discard_result();
 	
 protected:
 	Object *m_ob;

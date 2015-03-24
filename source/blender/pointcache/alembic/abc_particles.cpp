@@ -28,6 +28,7 @@ extern "C" {
 #include "DNA_particle_types.h"
 
 #include "BKE_particle.h"
+#include "BKE_strands.h"
 }
 
 namespace PTC {
@@ -90,14 +91,11 @@ AbcParticlesReader::~AbcParticlesReader()
 {
 }
 
-void AbcParticlesReader::init_abc(IObject parent)
+void AbcParticlesReader::init_abc(IObject object)
 {
 	if (m_points)
 		return;
-	
-	if (parent.getChild(m_name)) {
-		m_points = IPoints(parent, m_name);
-	}
+	m_points = IPoints(object, kWrapExisting);
 	
 	/* XXX TODO read first sample for info on particle count and times */
 	m_totpoint = 0;
@@ -228,6 +226,70 @@ void AbcHairWriter::write_sample()
 }
 
 
+AbcStrandsReader::AbcStrandsReader() :
+    m_strands(NULL)
+{
+}
+
+AbcStrandsReader::~AbcStrandsReader()
+{
+	discard_result();
+}
+
+void AbcStrandsReader::init_abc(IObject object)
+{
+	if (m_curves)
+		return;
+	m_curves = ICurves(object, kWrapExisting);
+	
+	ICurvesSchema &schema = m_curves.getSchema();
+	ICompoundProperty geom_props = schema.getArbGeomParams();
+	
+	m_param_times = IFloatGeomParam(geom_props, "times", 0);
+	m_param_weights = IFloatGeomParam(geom_props, "weights", 0);
+}
+
+PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
+{
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	
+	if (!m_curves.valid())
+		return PTC_READ_SAMPLE_INVALID;
+	
+	ICurvesSchema &schema = m_curves.getSchema();
+	
+	ICurvesSchema::Sample sample;
+	schema.get(sample, ss);
+	
+	P3fArraySamplePtr positions = sample.getPositions();
+	Int32ArraySamplePtr nvertices = sample.getCurvesNumVertices();
+	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
+	IFloatGeomParam::Sample sample_weight = m_param_weights.getExpandedValue(ss);
+	
+	if (!positions || !nvertices)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	m_strands = BKE_strands_new(nvertices->size(), positions->size());
+//	paths_apply_sample_nvertices(*m_pathcache, *m_totpath, nvertices);
+//	paths_apply_sample_data(*m_pathcache, *m_totpath, positions, sample_vel.getVals(), sample_rot.getVals(), sample_col.getVals(), sample_time.getVals());
+	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+Strands *AbcStrandsReader::acquire_result()
+{
+	Strands *strands = m_strands;
+	m_strands = NULL;
+	return strands;
+}
+
+void AbcStrandsReader::discard_result()
+{
+	BKE_strands_free(m_strands);
+	m_strands = NULL;
+}
+
+
 AbcHairDynamicsWriter::AbcHairDynamicsWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
     ParticlesWriter(ob, psys, name),
     m_cloth_writer(name+"__cloth", ob, psys->clmd)
@@ -250,9 +312,9 @@ AbcHairDynamicsReader::AbcHairDynamicsReader(const std::string &name, Object *ob
 {
 }
 
-void AbcHairDynamicsReader::init_abc(IObject parent)
+void AbcHairDynamicsReader::init_abc(IObject object)
 {
-	m_cloth_reader.init_abc(parent);
+	m_cloth_reader.init_abc(object);
 }
 
 PTCReadSampleResult AbcHairDynamicsReader::read_sample(float frame)
@@ -385,23 +447,18 @@ AbcParticlePathcacheReader::AbcParticlePathcacheReader(const std::string &name, 
 {
 }
 
-void AbcParticlePathcacheReader::init_abc(IObject parent)
+void AbcParticlePathcacheReader::init_abc(IObject object)
 {
 	if (m_curves)
 		return;
+	m_curves = ICurves(object, kWrapExisting);
+	ICurvesSchema &schema = m_curves.getSchema();
+	ICompoundProperty geom_props = schema.getArbGeomParams();
 	
-	/* XXX non-escaped string construction here ... */
-	std::string curves_name = m_name + m_suffix;
-	if (parent.getChild(curves_name)) {
-		m_curves = ICurves(parent, curves_name);
-		ICurvesSchema &schema = m_curves.getSchema();
-		ICompoundProperty geom_props = schema.getArbGeomParams();
-		
-		m_param_velocities = IV3fGeomParam(geom_props, "velocities", 0);
-		m_param_rotations = IQuatfGeomParam(geom_props, "rotations", 0);
-		m_param_colors = IV3fGeomParam(geom_props, "colors", 0);
-		m_param_times = IFloatGeomParam(geom_props, "times", 0);
-	}
+	m_param_velocities = IV3fGeomParam(geom_props, "velocities", 0);
+	m_param_rotations = IQuatfGeomParam(geom_props, "rotations", 0);
+	m_param_colors = IV3fGeomParam(geom_props, "colors", 0);
+	m_param_times = IFloatGeomParam(geom_props, "times", 0);
 }
 
 static void paths_apply_sample_nvertices(ParticleCacheKey **pathcache, int totpart, Int32ArraySamplePtr sample)
