@@ -252,6 +252,7 @@ void AbcDerivedMeshWriter::write_sample()
 	std::vector<N3f> loop_normals_buffer;
 	
 	// TODO decide how to handle vertex/face normals, in caching vs. export ...
+	DM_ensure_normals(output_dm);
 	
 	create_sample_verts(output_dm, vert_sample);
 	create_sample_edges(output_dm, edge_sample);
