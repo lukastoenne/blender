@@ -1326,9 +1326,9 @@ static void dupli_cache_calc_boundbox(DupliObjectData *data)
 {
 	float min[3], max[3];
 	
-	if (data->cache_dm) {
+	if (data->dm) {
 		INIT_MINMAX(min, max);
-		data->cache_dm->getMinMax(data->cache_dm, min, max);
+		data->dm->getMinMax(data->dm, min, max);
 	}
 	else {
 		zero_v3(min);
@@ -1342,7 +1342,7 @@ void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob, DerivedMesh *
 {
 	data->ob = ob;
 	
-	data->cache_dm = dm;
+	data->dm = dm;
 	dm->needsFree = false; /* take ownership */
 	
 	memset(&data->bb, 0, sizeof(data->bb));
@@ -1351,11 +1351,11 @@ void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob, DerivedMesh *
 
 void BKE_dupli_object_data_clear(DupliObjectData *data)
 {
-	if (data->cache_dm) {
+	if (data->dm) {
 		/* we lock DMs in the cache to prevent freeing outside,
 		 * now allow releasing again
 		 */
-		data->cache_dm->needsFree = true;
+		data->dm->needsFree = true;
 		
 		data->cache_dm->release(data->cache_dm);
 	}
@@ -1499,7 +1499,7 @@ DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
 DupliObjectData *BKE_dupli_cache_add_mesh(DupliCache *dupcache, Object *ob, DerivedMesh *dm)
 {
 	DupliObjectData *data = dupli_cache_add_object_data(dupcache, ob);
-	data->cache_dm = dm;
+	data->dm = dm;
 	dupli_cache_calc_boundbox(data);
 	
 	/* we own this dm now and need to protect it until we free it ourselves */

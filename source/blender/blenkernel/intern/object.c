@@ -2874,7 +2874,7 @@ bool BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_m
 				BoundBox *bb = NULL;
 				if (ob->dup_cache) {
 					DupliObjectData *dob_data = BKE_dupli_cache_find_data(ob->dup_cache, dob->ob);
-					if (dob_data->cache_dm) {
+					if (dob_data->dm) {
 						bb = &dob_data->bb;
 					}
 				}
