@@ -115,7 +115,7 @@ private:
 	
 	AbcGeom::OV3fGeomParam m_param_velocities;
 	AbcGeom::OQuatfGeomParam m_param_rotations;
-	AbcGeom::OV3fGeomParam m_param_colors;
+	AbcGeom::OC3fGeomParam m_param_colors;
 	AbcGeom::OFloatGeomParam m_param_times;
 };
 
