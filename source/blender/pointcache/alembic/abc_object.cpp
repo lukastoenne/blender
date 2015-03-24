@@ -16,6 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "abc_mesh.h"
 #include "abc_object.h"
 
 extern "C" {
@@ -35,11 +36,19 @@ AbcObjectWriter::AbcObjectWriter(const std::string &name, Scene *scene, Object *
     ObjectWriter(ob, name),
     m_scene(scene),
     m_final_dm(NULL),
-    m_dm_writer("mesh", ob, &m_final_dm),
-    m_do_mesh(do_mesh),
-    m_do_hair(do_hair)
+    m_dm_writer(0)
 {
-	m_do_mesh &= m_ob->type == OB_MESH;
+	if (do_mesh) {
+		if (m_ob->type == OB_MESH) {
+			m_dm_writer = new AbcDerivedMeshWriter("mesh", ob, &m_final_dm);
+		}
+	}
+}
+
+AbcObjectWriter::~AbcObjectWriter()
+{
+	if (m_dm_writer)
+		delete m_dm_writer;
 }
 
 void AbcObjectWriter::init_abc()
@@ -49,14 +58,10 @@ void AbcObjectWriter::init_abc()
 	
 	m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_ob);
 	
-	if (m_do_mesh) {
+	if (m_dm_writer) {
 		/* XXX not nice */
-		m_dm_writer.init(abc_archive());
-		m_dm_writer.init_abc(m_abc_object);
-	}
-	
-	if (m_do_hair) {
-		/* TODO */
+		m_dm_writer->init(abc_archive());
+		m_dm_writer->init_abc(m_abc_object);
 	}
 }
 
@@ -76,12 +81,12 @@ void AbcObjectWriter::write_sample()
 	if (!m_abc_object)
 		return;
 	
-	if (m_do_mesh) {
+	if (m_dm_writer) {
 		if (abc_archive()->use_render()) {
 			m_final_dm = mesh_create_derived_render(m_scene, m_ob, CD_MASK_BAREMESH);
 			
 			if (m_final_dm) {
-				m_dm_writer.write_sample();
+				m_dm_writer->write_sample();
 				
 				m_final_dm->release(m_final_dm);
 			}
@@ -92,7 +97,7 @@ void AbcObjectWriter::write_sample()
 				m_final_dm = mesh_get_derived_final(m_scene, m_ob, CD_MASK_BAREMESH);
 			
 			if (m_final_dm) {
-				m_dm_writer.write_sample();
+				m_dm_writer->write_sample();
 			}
 		}
 	}
