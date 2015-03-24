@@ -161,6 +161,16 @@ PTCReadSampleResult AbcHairDynamicsReader::read_sample(float frame)
 }
 
 
+struct ParticlePathcacheSample {
+	std::vector<int32_t> numkeys;
+	
+	std::vector<V3f> positions;
+	std::vector<V3f> velocities;
+	std::vector<Quatf> rotations;
+	std::vector<C3f> colors;
+	std::vector<float32_t> times;
+};
+
 AbcParticlePathcacheWriter::AbcParticlePathcacheWriter(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix) :
     ParticlesWriter(ob, psys, name),
     m_pathcache(pathcache),
@@ -186,7 +196,7 @@ void AbcParticlePathcacheWriter::init_abc(OObject parent)
 	
 	m_param_velocities = OV3fGeomParam(geom_props, "velocities", false, kVertexScope, 1, 0);
 	m_param_rotations = OQuatfGeomParam(geom_props, "rotations", false, kVertexScope, 1, 0);
-	m_param_colors = OV3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
+	m_param_colors = OC3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 }
 
@@ -203,125 +213,35 @@ static int paths_count_totkeys(ParticleCacheKey **pathcache, int totpart)
 	return totkeys;
 }
 
-static Int32ArraySample paths_create_sample_nvertices(ParticleCacheKey **pathcache, int totpart, std::vector<int32_t> &data)
-{
-	int p;
-	
-	data.reserve(totpart);
-	
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		
-		data.push_back(keys->segments + 1);
-	}
-	
-	return Int32ArraySample(data);
-}
-
-static P3fArraySample paths_create_sample_positions(ParticleCacheKey **pathcache, int totpart, int totkeys, std::vector<V3f> &data)
+static void paths_create_sample(ParticleCacheKey **pathcache, int totpart, int totkeys, ParticlePathcacheSample &sample, bool do_numkeys)
 {
 	int p, k;
 	
-	data.reserve(totkeys);
+	if (do_numkeys)
+		sample.numkeys.reserve(totpart);
+	sample.positions.reserve(totkeys);
+	sample.velocities.reserve(totkeys);
+	sample.rotations.reserve(totkeys);
+	sample.colors.reserve(totkeys);
+	sample.times.reserve(totkeys);
 	
 	for (p = 0; p < totpart; ++p) {
 		ParticleCacheKey *keys = pathcache[p];
 		int numkeys = keys->segments + 1;
 		
-		for (k = 0; k < numkeys; ++k) {
-			float *co = keys[k].co;
-			data.push_back(V3f(co[0], co[1], co[2]));
-		}
-	}
-	
-	return P3fArraySample(data);
-}
-
-static OV3fGeomParam::Sample paths_create_sample_velocities(ParticleCacheKey **pathcache, int totpart, int totkeys, std::vector<V3f> &data)
-{
-	int p, k;
-	
-	data.reserve(totkeys);
-	
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int numkeys = keys->segments + 1;
+		if (do_numkeys)
+			sample.numkeys.push_back(numkeys);
 		
 		for (k = 0; k < numkeys; ++k) {
-			float *vel = keys[k].vel;
-			data.push_back(V3f(vel[0], vel[1], vel[2]));
+			ParticleCacheKey *key = &keys[k];
+			
+			sample.positions.push_back(V3f(key->co[0], key->co[1], key->co[2]));
+			sample.velocities.push_back(V3f(key->vel[0], key->vel[1], key->vel[2]));
+			sample.rotations.push_back(Quatf(key->rot[0], key->rot[1], key->rot[2], key->rot[3]));
+			sample.colors.push_back(C3f(key->col[0], key->col[1], key->col[2]));
+			sample.times.push_back(key->time);
 		}
 	}
-	
-	OV3fGeomParam::Sample sample;
-	sample.setVals(V3fArraySample(data));
-	sample.setScope(kVertexScope);
-	return sample;
-}
-
-static OQuatfGeomParam::Sample paths_create_sample_rotations(ParticleCacheKey **pathcache, int totpart, int totkeys, std::vector<Quatf> &data)
-{
-	int p, k;
-	
-	data.reserve(totkeys);
-	
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int numkeys = keys->segments + 1;
-		
-		for (k = 0; k < numkeys; ++k) {
-			float *rot = keys[k].rot;
-			data.push_back(Quatf(rot[0], rot[1], rot[2], rot[3]));
-		}
-	}
-	
-	OQuatfGeomParam::Sample sample;
-	sample.setVals(QuatfArraySample(data));
-	sample.setScope(kVertexScope);
-	return sample;
-}
-
-static OV3fGeomParam::Sample paths_create_sample_colors(ParticleCacheKey **pathcache, int totpart, int totkeys, std::vector<V3f> &data)
-{
-	int p, k;
-	
-	data.reserve(totkeys);
-	
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int numkeys = keys->segments + 1;
-		
-		for (k = 0; k < numkeys; ++k) {
-			float *col = keys[k].col;
-			data.push_back(V3f(col[0], col[1], col[2]));
-		}
-	}
-	
-	OV3fGeomParam::Sample sample;
-	sample.setVals(V3fArraySample(data));
-	sample.setScope(kVertexScope);
-	return sample;
-}
-
-static OFloatGeomParam::Sample paths_create_sample_times(ParticleCacheKey **pathcache, int totpart, int totkeys, std::vector<float32_t> &data)
-{
-	int p, k;
-	
-	data.reserve(totkeys);
-	
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int numkeys = keys->segments + 1;
-		
-		for (k = 0; k < numkeys; ++k) {
-			data.push_back(keys[k].time);
-		}
-	}
-	
-	OFloatGeomParam::Sample sample;
-	sample.setVals(FloatArraySample(data));
-	sample.setScope(kVertexScope);
-	return sample;
 }
 
 void AbcParticlePathcacheWriter::write_sample()
@@ -337,35 +257,22 @@ void AbcParticlePathcacheWriter::write_sample()
 	
 	OCurvesSchema &schema = m_curves.getSchema();
 	
-	std::vector<V3f> positions_buffer;
-	std::vector<V3f> velocities_buffer;
-	std::vector<Quatf> rotations_buffer;
-	std::vector<V3f> colors_buffer;
-	std::vector<float32_t> times_buffer;
-	V3fArraySample positions = paths_create_sample_positions(*m_pathcache, *m_totpath, totkeys, positions_buffer);
-	OV3fGeomParam::Sample velocities = paths_create_sample_velocities(*m_pathcache, *m_totpath, totkeys, velocities_buffer);
-	OQuatfGeomParam::Sample rotations = paths_create_sample_rotations(*m_pathcache, *m_totpath, totkeys, rotations_buffer);
-	OV3fGeomParam::Sample colors = paths_create_sample_colors(*m_pathcache, *m_totpath, totkeys, colors_buffer);
-	OFloatGeomParam::Sample times = paths_create_sample_times(*m_pathcache, *m_totpath, totkeys, times_buffer);
-	
+	ParticlePathcacheSample path_sample;
 	OCurvesSchema::Sample sample;
 	if (schema.getNumSamples() == 0) {
 		/* write curve sizes only first time, assuming they are constant! */
-		std::vector<int32_t> nvertices_buffer;
-		Int32ArraySample nvertices = paths_create_sample_nvertices(*m_pathcache, *m_totpath, nvertices_buffer);
-		
-		sample = OCurvesSchema::Sample(positions, nvertices);
+		paths_create_sample(*m_pathcache, *m_totpath, totkeys, path_sample, true);
+		sample = OCurvesSchema::Sample(path_sample.positions, path_sample.numkeys);
 	}
 	else {
-		sample = OCurvesSchema::Sample(positions);
+		sample = OCurvesSchema::Sample(path_sample.positions);
 	}
-	
 	schema.set(sample);
 	
-	m_param_velocities.set(velocities);
-	m_param_rotations.set(rotations);
-	m_param_colors.set(colors);
-	m_param_times.set(times);
+	m_param_velocities.set(OV3fGeomParam::Sample(V3fArraySample(path_sample.velocities), kVertexScope));
+	m_param_rotations.set(OQuatfGeomParam::Sample(QuatfArraySample(path_sample.rotations), kVertexScope));
+	m_param_colors.set(OC3fGeomParam::Sample(C3fArraySample(path_sample.colors), kVertexScope));
+	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(path_sample.times), kVertexScope));
 }
 
 
