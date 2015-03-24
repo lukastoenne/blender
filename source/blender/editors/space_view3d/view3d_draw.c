@@ -2162,10 +2162,10 @@ static void draw_dupli_objects_color(
 		tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
 		if (base->object->dup_cache) {
 			DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
-			if (dob_data->cache_dm) {
+			if (dob_data->dm) {
 				tbase.object->transflag |= OB_IS_DUPLI_CACHE;
 				
-				tbase.object->derivedFinal = dob_data->cache_dm;
+				tbase.object->derivedFinal = dob_data->dm;
 				bb_tmp = &dob_data->bb;
 			}
 		}

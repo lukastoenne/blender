@@ -2486,7 +2486,7 @@ Mesh *BKE_mesh_new_from_dupli_data(
         bool calc_tessface, bool calc_undeformed)
 {
 	Object *ob = data->ob;
-	DerivedMesh *dm = data->cache_dm;
+	DerivedMesh *dm = data->dm;
 	CustomDataMask mask;
 	
 	Mesh *tmpmesh;
