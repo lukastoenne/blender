@@ -28,6 +28,7 @@
 #include "abc_object.h"
 
 extern "C" {
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
 #include "DNA_group_types.h"
@@ -136,8 +137,13 @@ void AbcDupligroupWriter::write_sample_object(Object *ob)
 	AbcWriter *ob_writer = find_id_writer((ID *)ob);
 	if (!ob_writer) {
 		bool do_mesh = do_cache_type(m_cachelib, ob, CACHE_TYPE_DERIVED_MESH);
-//		bool do_hair = do_cache_type(m_cachelib, ob, CACHE_TYPE_HAIR, ); // TODO
+		/* XXX TODO currently we cache all hair if any of them is enabled,
+		 * need to decide if individual particle system caching is needed at all
+		 */
 		bool do_hair = false;
+		int totpsys = BLI_listbase_count(&ob->particlesystem);
+		for (int i = 0; i < totpsys; ++i)
+			do_hair |= do_cache_type(m_cachelib, ob, CACHE_TYPE_HAIR, i);
 		
 		ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob, do_mesh, do_hair);
 		ob_writer->init(abc_archive());

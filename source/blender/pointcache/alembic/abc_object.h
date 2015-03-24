@@ -19,6 +19,8 @@
 #ifndef PTC_ABC_OBJECT_H
 #define PTC_ABC_OBJECT_H
 
+#include <vector>
+
 #include <Alembic/Abc/IObject.h>
 #include <Alembic/Abc/OObject.h>
 #include <Alembic/AbcGeom/IXform.h>
@@ -37,9 +39,12 @@ struct Scene;
 namespace PTC {
 
 class AbcDerivedMeshWriter;
+class AbcHairWriter;
 
 class AbcObjectWriter : public ObjectWriter, public AbcWriter {
 public:
+	typedef std::vector<AbcHairWriter *> HairWriters;
+	
 	AbcObjectWriter(const std::string &name, Scene *scene, Object *ob, bool do_mesh, bool do_hair);
 	~AbcObjectWriter();
 	
@@ -56,6 +61,7 @@ private:
 	
 	Abc::OObject m_abc_object;
 	AbcDerivedMeshWriter *m_dm_writer;
+	HairWriters m_hair_writers;
 };
 
 class AbcObjectReader : public ObjectReader, public AbcReader {

@@ -18,6 +18,7 @@
 
 #include "abc_mesh.h"
 #include "abc_object.h"
+#include "abc_particles.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -43,12 +44,23 @@ AbcObjectWriter::AbcObjectWriter(const std::string &name, Scene *scene, Object *
 			m_dm_writer = new AbcDerivedMeshWriter("mesh", ob, &m_final_dm);
 		}
 	}
+	
+	if (do_hair) {
+		for (ParticleSystem *psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
+			if (psys->part && psys->part->type == PART_HAIR) {
+				m_hair_writers.push_back(new AbcHairWriter(psys->name, ob, psys));
+			}
+		}
+	}
 }
 
 AbcObjectWriter::~AbcObjectWriter()
 {
 	if (m_dm_writer)
 		delete m_dm_writer;
+	for (int i = 0; i < m_hair_writers.size(); ++i)
+		if (m_hair_writers[i])
+			delete m_hair_writers[i];
 }
 
 void AbcObjectWriter::init_abc()
@@ -62,6 +74,14 @@ void AbcObjectWriter::init_abc()
 		/* XXX not nice */
 		m_dm_writer->init(abc_archive());
 		m_dm_writer->init_abc(m_abc_object);
+	}
+	
+	for (int i = 0; i < m_hair_writers.size(); ++i) {
+		AbcHairWriter *hair_writer = m_hair_writers[i];
+		if (hair_writer) {
+			hair_writer->init(abc_archive());
+			hair_writer->init_abc(m_abc_object);
+		}
 	}
 }
 
@@ -99,6 +119,13 @@ void AbcObjectWriter::write_sample()
 			if (m_final_dm) {
 				m_dm_writer->write_sample();
 			}
+		}
+	}
+	
+	for (int i = 0; i < m_hair_writers.size(); ++i) {
+		AbcHairWriter *hair_writer = m_hair_writers[i];
+		if (hair_writer) {
+			hair_writer->write_sample();
 		}
 	}
 }
