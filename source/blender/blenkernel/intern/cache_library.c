@@ -394,9 +394,9 @@ void BKE_cache_item_name(Object *ob, int type, int index, char *name)
 int BKE_cache_item_name_length(Object *ob, int type, int index)
 {
 	if (index >= 0)
-		return snprintf(NULL, 0, "%s_%s_%d", BKE_cache_item_name_prefix(type), ob->id.name+2, index);
+		return BLI_snprintf(NULL, 0, "%s_%s_%d", BKE_cache_item_name_prefix(type), ob->id.name+2, index);
 	else
-		return snprintf(NULL, 0, "%s_%s", BKE_cache_item_name_prefix(type), ob->id.name+2);
+		return BLI_snprintf(NULL, 0, "%s_%s", BKE_cache_item_name_prefix(type), ob->id.name+2);
 }
 
 eCacheReadSampleResult BKE_cache_read_result(int ptc_result)
