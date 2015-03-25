@@ -102,20 +102,26 @@ void AbcDerivedMeshWriter::init_abc(OObject parent)
 //	OCompoundProperty geom_props = schema.getArbGeomParams();
 	OCompoundProperty user_props = schema.getUserProperties();
 	
-	m_prop_vert_normals = ON3fArrayProperty(user_props, "vertex_normals", 0);
-	m_prop_vert_flag = OCharArrayProperty(user_props, "vertex_flag", 0);
-	m_prop_vert_bweight = OCharArrayProperty(user_props, "vertex_bweight", 0);
+	m_prop_vert_normals = ON3fArrayProperty(user_props, "vertex_normals", frame_sampling());
+	m_prop_vert_flag = OCharArrayProperty(user_props, "vertex_flag", frame_sampling());
+	m_prop_vert_bweight = OCharArrayProperty(user_props, "vertex_bweight", frame_sampling());
 	
-	m_prop_edge_verts = OUInt32ArrayProperty(user_props, "edge_verts", 0);
-	m_prop_edge_flag = OInt16ArrayProperty(user_props, "edge_flag", 0);
-	m_prop_edge_crease = OCharArrayProperty(user_props, "edge_crease", 0);
-	m_prop_edge_bweight = OCharArrayProperty(user_props, "edge_bweight", 0);
+	m_prop_edge_verts = OUInt32ArrayProperty(user_props, "edge_verts", frame_sampling());
+	m_prop_edge_flag = OInt16ArrayProperty(user_props, "edge_flag", frame_sampling());
+	m_prop_edge_crease = OCharArrayProperty(user_props, "edge_crease", frame_sampling());
+	m_prop_edge_bweight = OCharArrayProperty(user_props, "edge_bweight", frame_sampling());
 	
-	m_prop_poly_mat_nr = OInt16ArrayProperty(user_props, "poly_mat_nr", 0);
-	m_prop_poly_flag = OCharArrayProperty(user_props, "poly_flag", 0);
+	m_prop_poly_mat_nr = OInt16ArrayProperty(user_props, "poly_mat_nr", frame_sampling());
+	m_prop_poly_flag = OCharArrayProperty(user_props, "poly_flag", frame_sampling());
 	
-	m_prop_loop_verts = OInt32ArrayProperty(user_props, "loop_verts", 0);
-	m_prop_loop_edges = OInt32ArrayProperty(user_props, "loop_edges", 0);
+	m_prop_loop_verts = OInt32ArrayProperty(user_props, "loop_verts", frame_sampling());
+	m_prop_loop_edges = OInt32ArrayProperty(user_props, "loop_edges", frame_sampling());
+	
+	m_vert_data_writer.init(frame_sampling());
+	m_edge_data_writer.init(frame_sampling());
+	m_face_data_writer.init(frame_sampling());
+	m_poly_data_writer.init(frame_sampling());
+	m_loop_data_writer.init(frame_sampling());
 }
 
 /* XXX modifiers are not allowed to generate poly normals on their own!

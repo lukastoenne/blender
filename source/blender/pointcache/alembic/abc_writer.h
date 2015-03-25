@@ -77,6 +77,7 @@ protected:
 
 class AbcWriter : public Writer {
 public:
+	Abc::TimeSamplingPtr frame_sampling() { return m_abc_archive->frame_sampling(); }
 	
 	void init(WriterArchive *archive)
 	{

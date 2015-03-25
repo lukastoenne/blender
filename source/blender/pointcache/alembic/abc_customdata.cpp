@@ -376,6 +376,11 @@ CustomDataWriter::~CustomDataWriter()
 	}
 }
 
+void CustomDataWriter::init(TimeSamplingPtr time_sampling)
+{
+	m_time_sampling = time_sampling;
+}
+
 /* unique property name based on either layer name or index */
 std::string CustomDataWriter::cdtype_to_name(CustomData *cdata, CustomDataType type, int n)
 {
