@@ -2671,7 +2671,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		int startframe, endframe, framenr;
 		float timescale;
 
-		framenr = scene->r.cfra;
+		framenr = scene->r.cfra - sds->point_cache_offset;
 
 		//printf("time: %d\n", scene->r.cfra);
 

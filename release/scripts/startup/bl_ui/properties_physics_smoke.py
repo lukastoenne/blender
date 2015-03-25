@@ -309,6 +309,7 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
 
         layout.label(text="Compression:")
         layout.prop(md, "point_cache_compress_type", expand=True)
+        layout.prop(md, "point_cache_offset", text="Start Frame")
 
         point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
 
