@@ -21,28 +21,20 @@
 
 #include "BLI_utildefines.h"
 
-#define STRANDS_BLOCK_SIZE                          (1 << 14) /* 16384 */
-#define STRANDS_INDEX_TO_BLOCK(i)                   ((i) >> 14)
-#define STRANDS_INDEX_TO_BLOCK_OFFSET(i)            ((i) - STRANDS_INDEX_TO_BLOCK((i)))
-#define STRANDS_BLOCK_TO_INDEX(block, offset)       ((block) * STRANDS_BLOCK_SIZE + (offset))
+typedef struct StrandsVertex {
+	float co[3];
+	float time;
+	float weight;
+} StrandsVertex;
 
-typedef struct StrandsVertexBlock {
-	float co[STRANDS_BLOCK_SIZE][3];
-	float vel[STRANDS_BLOCK_SIZE][3];
-	float rot[STRANDS_BLOCK_SIZE][4];
-	float col[STRANDS_BLOCK_SIZE][3];
-	float time[STRANDS_BLOCK_SIZE];
-} StrandsVertexBlock;
-
-typedef struct StrandsBlock {
-	int numverts[STRANDS_BLOCK_SIZE];
-	int parent[STRANDS_BLOCK_SIZE];
-} StrandsBlock;
+typedef struct StrandsCurve {
+	int numverts;
+} StrandsCurve;
 
 typedef struct Strands {
-	StrandsBlock *strands;
-	StrandsVertexBlock *verts;
-	int totstrands, totverts;
+	StrandsCurve *curves;
+	StrandsVertex *verts;
+	int totcurves, totverts;
 } Strands;
 
 struct Strands *BKE_strands_new(int strands, int verts);
@@ -50,83 +42,55 @@ void BKE_strands_free(struct Strands *strands);
 
 /* ------------------------------------------------------------------------- */
 
-#if 0
-typedef struct StrandsIterator {
-	int totstrands; /* total number of strands to loop over */
-	int strand_index, strand_block; /* index of current strand and index in the block */
-	int vertex_start, vertex_block_next;
+typedef struct StrandIterator {
+	int index, tot;
+	StrandsCurve *curve;
+	StrandsVertex *verts;
+} StrandIterator;
+
+BLI_INLINE void BKE_strand_iter_init(StrandIterator *iter, Strands *strands)
+{
+	iter->tot = strands->totcurves;
+	iter->index = 0;
+	iter->curve = strands->curves;
+}
+
+BLI_INLINE bool BKE_strand_iter_valid(StrandIterator *iter)
+{
+	return iter->index < iter->tot;
+}
+
+BLI_INLINE void BKE_strand_iter_next(StrandIterator *iter)
+{
+	const int numverts = iter->curve->numverts;
 	
-	int *numverts, *parent;
-} StrandsIterator;
-
-BLI_INLINE void BKE_strands_iter_init(StrandsIterator *iter, Strands *strands)
-{
-	iter->strand_index = 0;
-	iter->strand_block = 0;
-	iter->totstrands = strands->totstrands;
-	
-	iter->vertex_start = 0;
-	iter->vertex_block_next = 0;
-	
-	iter->numverts = strands->strands->numverts;
-	iter->parent = strands->strands->parent;
+	++iter->index;
+	++iter->curve;
+	iter->verts += numverts;
 }
 
-BLI_INLINE bool BKE_strands_iter_valid(StrandsIterator *iter)
+
+typedef struct StrandVertexIterator {
+	int index, tot;
+	StrandsVertex *vertex;
+} StrandVertexIterator;
+
+BLI_INLINE void BKE_strand_vertex_iter_init(StrandVertexIterator *iter, StrandIterator *strand_iter)
 {
-	return (iter->strand_index < iter->totstrands);
+	iter->tot = strand_iter->curve->numverts;
+	iter->index = 0;
+	iter->vertex = strand_iter->verts;
 }
 
-BLI_INLINE void BKE_strand_iter_next(StrandsIterator *iter)
+BLI_INLINE bool BKE_strand_vertex_iter_valid(StrandVertexIterator *iter)
 {
-	int numverts = *iter->numverts;
-	
-	++iter->strand_index;
-	++iter->strand_block;
-	if (iter->strand_block > STRANDS_BLOCK_SIZE)
-		iter->strand_block -= STRANDS_BLOCK_SIZE;
-	
-	iter->vertex_start += numverts;
-	iter->vertex_block_next += numverts;
-	if (iter->vertex_block_next > STRANDS_BLOCK_SIZE)
-		iter->vertex_block_next = 0;
-}
-#endif
-
-
-#if 0
-typedef struct StrandsIterator {
-	int strand_index, vertex_index;
-	int strand_block, vertex_block;
-	int totstrands, totverts;
-	float *co[3], *vel[3], *rot[4], *col[3], *time;
-} StrandsIterator;
-
-BLI_INLINE void BKE_strands_iter_init(StrandsIterator *iter, Strands *strands)
-{
-	iter->strand_index = 0;
-	iter->strand_block = 0;
-	iter->totstrands = strands->totstrands;
-	iter->totverts = strands->totverts;
-	iter->vertex_index = 0;
-	iter->vertex_block = 0;
-	iter->co = strands->verts->co;
-	iter->vel = strands->verts->vel;
-	iter->rot = strands->verts->rot;
-	iter->col = strands->verts->col;
-	iter->time = strands->verts->time;
+	return iter->index < iter->tot;
 }
 
-BLI_INLINE bool BKE_strands_iter_valid(StrandsIterator *iter)
+BLI_INLINE void BKE_strand_vertex_iter_next(StrandVertexIterator *iter)
 {
-	return (iter->strand_index < iter->totstrands) && (iter->vertex_index < iter->totverts);
+	++iter->vertex;
+	++iter->index;
 }
-
-BLI_INLINE void BKE_strand_iter_next(StrandsIterator *iter)
-{
-	++iter->vertex_index;
-	++iter->vertex_block;
-}
-#endif
 
 #endif  /* __BKE_STRANDS_H__ */

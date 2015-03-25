@@ -20,18 +20,15 @@
 
 #include "BKE_strands.h"
 
-Strands *BKE_strands_new(int strands, int verts)
+Strands *BKE_strands_new(int curves, int verts)
 {
-	int num_strand_blocks = STRANDS_INDEX_TO_BLOCK(strands);
-	int num_vertex_blocks = STRANDS_INDEX_TO_BLOCK(verts);
-	
 	Strands *s = MEM_mallocN(sizeof(Strands), "strands");
 	
-	s->totstrands = strands;
-	s->strands = MEM_mallocN(sizeof(StrandsBlock) * num_strand_blocks, "strand strands");
+	s->totcurves = curves;
+	s->curves = MEM_mallocN(sizeof(StrandsCurve) * curves, "strand curves");
 	
 	s->totverts = verts;
-	s->verts = MEM_mallocN(sizeof(StrandsVertexBlock) * num_vertex_blocks, "strand vertices");
+	s->verts = MEM_mallocN(sizeof(StrandsVertex) * verts, "strand vertices");
 	
 	return s;
 }
@@ -39,8 +36,8 @@ Strands *BKE_strands_new(int strands, int verts)
 void BKE_strands_free(Strands *strands)
 {
 	if (strands) {
-		if (strands->strands)
-			MEM_freeN(strands->strands);
+		if (strands->curves)
+			MEM_freeN(strands->curves);
 		if (strands->verts)
 			MEM_freeN(strands->verts);
 		MEM_freeN(strands);
