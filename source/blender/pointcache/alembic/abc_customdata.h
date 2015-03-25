@@ -48,6 +48,8 @@ struct CustomDataWriter {
 	CustomDataWriter(const std::string &name, CustomDataMask cdmask);
 	~CustomDataWriter();
 	
+	void init(Abc::TimeSamplingPtr time_sampling);
+	
 	void write_sample(CustomData *cdata, int num_data, Abc::OCompoundProperty &parent);
 	
 	Abc::OCompoundProperty &props() { return m_props; }
@@ -57,7 +59,7 @@ struct CustomDataWriter {
 	{
 		LayerPropsMap::iterator it = m_layer_props.find(name);
 		if (it == m_layer_props.end()) {
-			PropertyT prop = PropertyT(parent, name, 0);
+			PropertyT prop = PropertyT(parent, name, m_time_sampling);
 			m_layer_props.insert(LayerPropsPair(name, prop.getPtr()));
 			return prop;
 		}
@@ -71,7 +73,7 @@ struct CustomDataWriter {
 	{
 		LayerPropsMap::iterator it = m_layer_props.find(name);
 		if (it == m_layer_props.end()) {
-			PropertyT prop = PropertyT(parent, name, 0);
+			PropertyT prop = PropertyT(parent, name, m_time_sampling);
 			m_layer_props.insert(LayerPropsPair(name, prop.getPtr()));
 			return prop;
 		}
@@ -86,6 +88,7 @@ private:
 	std::string m_name;
 	CustomDataMask m_cdmask;
 	
+	Abc::TimeSamplingPtr m_time_sampling;
 	Abc::OCompoundProperty m_props;
 	LayerPropsMap m_layer_props;
 };
