@@ -137,6 +137,7 @@ struct ParticleHairSample {
 AbcHairWriter::AbcHairWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
     ParticlesWriter(ob, psys, name)
 {
+	m_psmd = psys_get_modifier(ob, psys);
 }
 
 AbcHairWriter::~AbcHairWriter()
@@ -169,7 +170,7 @@ static int hair_count_totverts(ParticleSystem *psys)
 	return totverts;
 }
 
-static void hair_create_sample(ParticleSystem *psys, ParticleHairSample &sample, bool do_numverts)
+static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys, ParticleHairSample &sample, bool do_numverts)
 {
 	int totpart = psys->totpart;
 	int totverts = hair_count_totverts(psys);
@@ -193,8 +194,17 @@ static void hair_create_sample(ParticleSystem *psys, ParticleHairSample &sample,
 		
 		for (k = 0; k < numverts; ++k) {
 			HairKey *key = &pa->hair[k];
+			float hairmat[4][4];
+			float co[3];
 			
-			sample.positions.push_back(V3f(key->co[0], key->co[1], key->co[2]));
+			/* hair keys are in "hair space" relative to the mesh,
+			 * store them in object space for compatibility and to avoid
+			 * complexities of how particles work.
+			 */
+			psys_mat_hair_to_object(ob, dm, psys->part->from, pa, hairmat);
+			mul_v3_m4v3(co, hairmat, key->co);
+			
+			sample.positions.push_back(V3f(co[0], co[1], co[2]));
 			sample.times.push_back(key->time);
 			sample.weights.push_back(key->weight);
 		}
@@ -205,6 +215,8 @@ void AbcHairWriter::write_sample()
 {
 	if (!m_curves)
 		return;
+	if (!m_psmd || !m_psmd->dm)
+		return;
 	
 	OCurvesSchema &schema = m_curves.getSchema();
 	
@@ -212,11 +224,11 @@ void AbcHairWriter::write_sample()
 	OCurvesSchema::Sample sample;
 	if (schema.getNumSamples() == 0) {
 		/* write curve sizes only first time, assuming they are constant! */
-		hair_create_sample(m_psys, hair_sample, true);
+		hair_create_sample(m_ob, m_psmd->dm, m_psys, hair_sample, true);
 		sample = OCurvesSchema::Sample(hair_sample.positions, hair_sample.numverts);
 	}
 	else {
-		hair_create_sample(m_psys, hair_sample, false);
+		hair_create_sample(m_ob, m_psmd->dm, m_psys, hair_sample, false);
 		sample = OCurvesSchema::Sample(hair_sample.positions);
 	}
 	schema.set(sample);

@@ -2071,6 +2071,20 @@ int dupli_ob_sort(void *arg1, void *arg2)
 }
 #endif
 
+static void draw_dupli_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, DupliObject *UNUSED(dob), DupliObjectData *dob_data, short dflag)
+{
+	draw_object(scene, ar, v3d, base, dflag);
+	
+	if (dob_data) {
+		LinkData *link;
+		
+		for (link = dob_data->strands.first; link; link = link->next) {
+			struct Strands *strands = link->data;
+			
+			draw_strands(scene, v3d, ar, base->object, strands, dflag);
+		}
+	}
+}
 
 static DupliObject *dupli_step(DupliObject *dob)
 {
@@ -2120,6 +2134,7 @@ static void draw_dupli_objects_color(
 
 	for (; dob; dob_prev = dob, dob = dob_next, dob_next = dob_next ? dupli_step(dob_next->next) : NULL) {
 		/* for restoring after override */
+		DupliObjectData *dob_data = NULL;
 		DerivedMesh *store_final_dm;
 
 		tbase.object = dob->ob;
@@ -2164,7 +2179,7 @@ static void draw_dupli_objects_color(
 		bb_tmp = NULL;
 		tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
 		if (base->object->dup_cache) {
-			DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
+			dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
 			if (dob_data->dm) {
 				tbase.object->transflag |= OB_IS_DUPLI_CACHE;
 				
@@ -2221,7 +2236,7 @@ static void draw_dupli_objects_color(
 					
 					displist = glGenLists(1);
 					glNewList(displist, GL_COMPILE);
-					draw_object(scene, ar, v3d, &tbase, dflag_dupli);
+					draw_dupli_object(scene, ar, v3d, &tbase, dob, dob_data, dflag_dupli);
 					glEndList();
 					
 					use_displist = true;
@@ -2237,7 +2252,7 @@ static void draw_dupli_objects_color(
 			}	
 			else {
 				copy_m4_m4(dob->ob->obmat, dob->mat);
-				draw_object(scene, ar, v3d, &tbase, dflag_dupli);
+				draw_dupli_object(scene, ar, v3d, &tbase, dob, dob_data, dflag_dupli);
 			}
 		}
 		

@@ -49,6 +49,7 @@ struct bPoseChannel;
 struct bScreen;
 struct Mesh;
 struct SimDebugData;
+struct Strands;
 struct wmNDOFMotionData;
 struct wmOperatorType;
 struct wmWindowManager;
@@ -183,6 +184,9 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 
 /* drawsimdebug.c */
 void draw_sim_debug_data(Scene *scene, View3D *v3d, ARegion *ar);
+
+/* drawstrands.c */
+void draw_strands(Scene *scene, View3D *v3d, ARegion *ar, struct Object *ob, struct Strands *strands, short dflag);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);
