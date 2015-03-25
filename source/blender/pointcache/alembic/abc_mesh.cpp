@@ -43,7 +43,12 @@ using namespace Abc;
 using namespace AbcGeom;
 
 /* CD layers that are stored in generic customdata arrays created with CD_ALLOC */
-static CustomDataMask CD_MASK_CACHE = ~(CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MPOLY | CD_MASK_MLOOP | CD_MASK_BMESH | CD_MASK_MTFACE);
+static CustomDataMask CD_MASK_CACHE_EXCLUDE = (CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MPOLY | CD_MASK_MLOOP | CD_MASK_BMESH | CD_MASK_MTFACE);
+static CustomDataMask CD_MASK_CACHE_VERT = ~(CD_MASK_CACHE_EXCLUDE | CD_MASK_NORMAL);
+static CustomDataMask CD_MASK_CACHE_EDGE = ~(CD_MASK_CACHE_EXCLUDE);
+static CustomDataMask CD_MASK_CACHE_FACE = ~(CD_MASK_CACHE_EXCLUDE);
+static CustomDataMask CD_MASK_CACHE_POLY = ~(CD_MASK_CACHE_EXCLUDE);
+static CustomDataMask CD_MASK_CACHE_LOOP = ~(CD_MASK_CACHE_EXCLUDE);
 
 struct MVertSample {
 	std::vector<V3f> co;
@@ -74,11 +79,11 @@ struct MLoopSample {
 
 AbcDerivedMeshWriter::AbcDerivedMeshWriter(const std::string &name, Object *ob, DerivedMesh **dm_ptr) :
     DerivedMeshWriter(ob, dm_ptr, name),
-    m_vert_data_writer("vertex_data", CD_MASK_CACHE),
-    m_edge_data_writer("edge_data", CD_MASK_CACHE),
-    m_face_data_writer("face_data", CD_MASK_CACHE),
-    m_poly_data_writer("poly_data", CD_MASK_CACHE),
-    m_loop_data_writer("loop_data", CD_MASK_CACHE)
+    m_vert_data_writer("vertex_data", CD_MASK_CACHE_VERT),
+    m_edge_data_writer("edge_data", CD_MASK_CACHE_EDGE),
+    m_face_data_writer("face_data", CD_MASK_CACHE_FACE),
+    m_poly_data_writer("poly_data", CD_MASK_CACHE_POLY),
+    m_loop_data_writer("loop_data", CD_MASK_CACHE_LOOP)
 {
 }
 
@@ -311,11 +316,11 @@ void AbcDerivedMeshWriter::write_sample()
 
 AbcDerivedMeshReader::AbcDerivedMeshReader(const std::string &name, Object *ob) :
     DerivedMeshReader(ob, name),
-    m_vert_data_reader("vertex_data", CD_MASK_CACHE),
-    m_edge_data_reader("edge_data", CD_MASK_CACHE),
-    m_face_data_reader("face_data", CD_MASK_CACHE),
-    m_poly_data_reader("poly_data", CD_MASK_CACHE),
-    m_loop_data_reader("loop_data", CD_MASK_CACHE)
+    m_vert_data_reader("vertex_data", CD_MASK_CACHE_VERT),
+    m_edge_data_reader("edge_data", CD_MASK_CACHE_EDGE),
+    m_face_data_reader("face_data", CD_MASK_CACHE_FACE),
+    m_poly_data_reader("poly_data", CD_MASK_CACHE_POLY),
+    m_loop_data_reader("loop_data", CD_MASK_CACHE_LOOP)
 {
 }
 
