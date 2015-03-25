@@ -131,7 +131,7 @@ void SEQUENCER_OT_copy(struct wmOperatorType *ot);
 void SEQUENCER_OT_paste(struct wmOperatorType *ot);
 
 void SEQUENCER_OT_rebuild_proxy(struct wmOperatorType *ot);
-void SEQUENCER_OT_enable_proxies(struct wmOperatorType *ot);
+void SEQUENCER_OT_copy_proxy_settings(struct wmOperatorType *ot);
 
 void SEQUENCER_OT_overdrop_transform(struct wmOperatorType *ot);
 

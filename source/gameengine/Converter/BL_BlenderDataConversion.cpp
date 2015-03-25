@@ -98,7 +98,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 
-#include "BlenderWorldInfo.h"
+#include "KX_WorldInfo.h"
 
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderSceneConverter.h"
@@ -1556,7 +1556,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 			}
 			if (blenderscene->gm.lodflag & SCE_LOD_USE_HYST) {
 				kxscene->SetLodHysteresis(true);
-				gameobj->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
+				kxscene->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
 			}
 		}
 	
@@ -1651,7 +1651,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 
 	case OB_FONT:
 	{
-		bool do_color_management = !(blenderscene->gm.flag & GAME_GLSL_NO_COLOR_MANAGEMENT);
+		bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		/* font objects have no bounding box */
 		gameobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, ob, do_color_management);
 
@@ -2342,7 +2342,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	sumolist->Release();
 
 	// convert world
-	KX_WorldInfo* worldinfo = new BlenderWorldInfo(blenderscene, blenderscene->world);
+	KX_WorldInfo* worldinfo = new KX_WorldInfo(blenderscene, blenderscene->world);
 	converter->RegisterWorldInfo(worldinfo);
 	kxscene->SetWorldInfo(worldinfo);
 

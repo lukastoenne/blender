@@ -296,9 +296,10 @@ protected:
 	KX_ObstacleSimulation* m_obstacleSimulation;
 
 	/**
-	 * Does this scene active the LoD Hysteresis?
+	 * LOD Hysteresis settings
 	 */
 	bool m_isActivedHysteresis;
+	int m_lodHysteresisValue;
 
 public:
 	KX_Scene(class SCA_IInputDevice* keyboarddevice,
@@ -552,9 +553,11 @@ public:
 	// Update the mesh for objects based on level of detail settings
 	void UpdateObjectLods(void);
 
-	// Enable/disable LoD Hysteresis
+	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);
 	bool IsActivedLodHysteresis();
+	void SetLodHysteresisValue(int hysteresisvalue);
+	int GetLodHysteresisValue();
 	
 	// Update the activity box settings for objects in this scene, if needed.
 	void UpdateObjectActivity(void);
@@ -621,6 +624,7 @@ public:
 	static PyObject*	pyattr_get_objects_inactive(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_lights(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_cameras(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_world(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_active_camera(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_drawing_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
