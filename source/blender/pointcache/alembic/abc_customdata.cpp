@@ -177,6 +177,22 @@ void write_sample<CD_ORCO>(CustomDataWriter *writer, OCompoundProperty &parent, 
 	prop.set(OV3fArrayProperty::sample_type((V3f *)data, num_data));
 }
 
+template <>
+void write_sample<CD_ORIGSPACE_MLOOP>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
+	
+	OV2fArrayProperty prop_uv = writer->add_array_property<OV2fArrayProperty>(name+":uv", prop);
+	
+	OrigSpaceLoop *ospaceloop = (OrigSpaceLoop *)data;
+	std::vector<V2f> uv_data;
+	uv_data.reserve(num_data);
+	for (int i = 0; i < num_data; ++i) {
+		uv_data.push_back(V2f(ospaceloop->uv[0], ospaceloop->uv[1]));
+	}
+	prop_uv.set(V2fArraySample(uv_data));
+}
+
 /* ------------------------------------------------------------------------- */
 
 template <CustomDataType CDTYPE>
@@ -341,6 +357,30 @@ PTCReadSampleResult read_sample<CD_ORCO>(CustomDataReader *reader, ICompoundProp
 		return PTC_READ_SAMPLE_INVALID;
 	
 	memcpy(data, sample->getData(), sizeof(V3f) * num_data);
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_ORIGSPACE_MLOOP>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
+	
+	IV2fArrayProperty uv_prop = reader->add_array_property<IV2fArrayProperty>(name+":uv", prop);
+	
+	V2fArraySamplePtr sample = uv_prop.getValue(ss);
+	
+	if (sample->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	OrigSpaceLoop *ospace = (OrigSpaceLoop *)data;
+	const V2f *sample_data = (const V2f *)sample->getData();
+	for (int i = 0; i < num_data; ++i) {
+		copy_v2_v2(ospace->uv, sample_data->getValue());
+		
+		++sample_data;
+		++ospace;
+	}
+	
 	return PTC_READ_SAMPLE_EXACT;
 }
 
