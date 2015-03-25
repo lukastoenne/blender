@@ -53,6 +53,7 @@ BLI_INLINE void BKE_strand_iter_init(StrandIterator *iter, Strands *strands)
 	iter->tot = strands->totcurves;
 	iter->index = 0;
 	iter->curve = strands->curves;
+	iter->verts = strands->verts;
 }
 
 BLI_INLINE bool BKE_strand_iter_valid(StrandIterator *iter)

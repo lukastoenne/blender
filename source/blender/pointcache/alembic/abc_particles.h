@@ -80,8 +80,9 @@ public:
 	void write_sample();
 	
 private:
-	AbcGeom::OCurves m_curves;
+	ParticleSystemModifierData *m_psmd;
 	
+	AbcGeom::OCurves m_curves;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
 };
