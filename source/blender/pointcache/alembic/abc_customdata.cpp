@@ -169,6 +169,14 @@ void write_sample<CD_ORIGSPACE>(CustomDataWriter *writer, OCompoundProperty &par
 	uv_prop[3].set(V2fArraySample(uv_data[3]));
 }
 
+template <>
+void write_sample<CD_ORCO>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OV3fArrayProperty prop = writer->add_array_property<OV3fArrayProperty>(name, parent);
+	
+	prop.set(OV3fArrayProperty::sample_type((V3f *)data, num_data));
+}
+
 /* ------------------------------------------------------------------------- */
 
 template <CustomDataType CDTYPE>
@@ -319,6 +327,20 @@ PTCReadSampleResult read_sample<CD_ORIGSPACE>(CustomDataReader *reader, ICompoun
 		++ospace;
 	}
 	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_ORCO>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	IV3fArrayProperty prop = reader->add_array_property<IV3fArrayProperty>(name, parent);
+	
+	V3fArraySamplePtr sample = prop.getValue(ss);
+	
+	if (sample->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	memcpy(data, sample->getData(), sizeof(V3f) * num_data);
 	return PTC_READ_SAMPLE_EXACT;
 }
 
