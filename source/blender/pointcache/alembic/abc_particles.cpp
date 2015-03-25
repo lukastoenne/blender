@@ -261,17 +261,37 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	ICurvesSchema::Sample sample;
 	schema.get(sample, ss);
 	
-	P3fArraySamplePtr positions = sample.getPositions();
-	Int32ArraySamplePtr nvertices = sample.getCurvesNumVertices();
+	P3fArraySamplePtr sample_co = sample.getPositions();
+	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_weight = m_param_weights.getExpandedValue(ss);
 	
-	if (!positions || !nvertices)
+	if (!sample_co || !sample_numvert)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	m_strands = BKE_strands_new(nvertices->size(), positions->size());
-//	paths_apply_sample_nvertices(*m_pathcache, *m_totpath, nvertices);
-//	paths_apply_sample_data(*m_pathcache, *m_totpath, positions, sample_vel.getVals(), sample_rot.getVals(), sample_col.getVals(), sample_time.getVals());
+	m_strands = BKE_strands_new(sample_numvert->size(), sample_co->size());
+	
+	const int32_t *numvert = sample_numvert->get();
+	for (int i = 0; i < sample_numvert->size(); ++i) {
+		StrandsCurve *scurve = &m_strands->curves[i];
+		scurve->numverts = *numvert;
+		
+		++numvert;
+	}
+	
+	const V3f *co = sample_co->get();
+	const float32_t *time = sample_time.getVals()->get();
+	const float32_t *weight = sample_weight.getVals()->get();
+	for (int i = 0; i < sample_co->size(); ++i) {
+		StrandsVertex *svert = &m_strands->verts[i];
+		copy_v3_v3(svert->co, co->getValue());
+		svert->time = *time;
+		svert->weight = *weight;
+		
+		++co;
+		++time;
+		++weight;
+	}
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
