@@ -393,10 +393,11 @@ void BKE_cache_item_name(Object *ob, int type, int index, char *name)
 
 int BKE_cache_item_name_length(Object *ob, int type, int index)
 {
+	char str_dummy[0] = "";
 	if (index >= 0)
-		return BLI_snprintf(NULL, 0, "%s_%s_%d", BKE_cache_item_name_prefix(type), ob->id.name+2, index);
+		return BLI_snprintf(str_dummy, 0, "%s_%s_%d", BKE_cache_item_name_prefix(type), ob->id.name + 2, index);
 	else
-		return BLI_snprintf(NULL, 0, "%s_%s", BKE_cache_item_name_prefix(type), ob->id.name+2);
+		return BLI_snprintf(str_dummy, 0, "%s_%s", BKE_cache_item_name_prefix(type), ob->id.name + 2);
 }
 
 eCacheReadSampleResult BKE_cache_read_result(int ptc_result)
@@ -714,6 +715,7 @@ bool BKE_cache_read_dupli_object(Scene *scene, float frame, eCacheLibrary_EvalMo
 
 void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 {
+	UNUSED_VARS(eval_ctx, bmain);
 #if 0
 	eCacheLibrary_EvalMode eval_mode = (eval_ctx->mode == DAG_EVAL_RENDER) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_REALTIME;
 	CacheLibrary *cachelib;
