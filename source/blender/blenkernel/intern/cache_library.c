@@ -393,7 +393,7 @@ void BKE_cache_item_name(Object *ob, int type, int index, char *name)
 
 int BKE_cache_item_name_length(Object *ob, int type, int index)
 {
-	char str_dummy[0] = "";
+	char *str_dummy = (char *)"";
 	if (index >= 0)
 		return BLI_snprintf(str_dummy, 0, "%s_%s_%d", BKE_cache_item_name_prefix(type), ob->id.name + 2, index);
 	else
