@@ -813,7 +813,7 @@ static int no_glsl(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(dat
 
 static int no_audio(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-	sound_force_device(0);
+	BKE_sound_force_device(0);
 	return 0;
 }
 
@@ -824,7 +824,7 @@ static int set_audio(int argc, const char **argv, void *UNUSED(data))
 		exit(1);
 	}
 
-	sound_force_device(sound_define_from_str(argv[1]));
+	BKE_sound_force_device(BKE_sound_define_from_str(argv[1]));
 	return 1;
 }
 
@@ -1758,7 +1758,7 @@ int main(
 
 	/* Initialize ffmpeg if built in, also needed for bg mode if videos are
 	 * rendered via ffmpeg */
-	sound_init_once();
+	BKE_sound_init_once();
 	
 	init_def_material();
 
