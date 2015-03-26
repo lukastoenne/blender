@@ -3370,6 +3370,11 @@ static int get_particle_uv(DerivedMesh *dm, ParticleData *pa, int face_index, co
 		pvalue = texture_value_blend(def, pvalue, value, texfac, blend);      \
 	} (void)0
 
+#define SET_PARTICLE_TEXTURE_RGB(type, prgb, texfac)                          \
+	if ((event & mtex->mapto) & type) {                                       \
+		texture_rgb_blend(prgb, rgba, prgb, value, texfac, blend);            \
+	} (void)0
+
 #define CLAMP_PARTICLE_TEXTURE_POS(type, pvalue)                              \
 	if (event & type) {                                                       \
 		if (pvalue < 0.0f)                                                    \
@@ -3382,6 +3387,11 @@ static int get_particle_uv(DerivedMesh *dm, ParticleData *pa, int face_index, co
 		CLAMP(pvalue, -1.0f, 1.0f);                                           \
 	} (void)0
 
+#define CLAMP_PARTICLE_TEXTURE_RGB(type, prgb)                                \
+	if (event & type) {                                                       \
+		CLAMP3(prgb, 0.0f, 1.0f);                                              \
+	} (void)0
+
 static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSettings *part, ParticleData *par, int child_index, int face_index, const float fw[4], float *orco, ParticleTexture *ptex, int event, float cfra)
 {
 	MTex *mtex, **mtexp = part->mtex;
@@ -3391,6 +3401,7 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 	ptex->ivel = ptex->life = ptex->exist = ptex->size = ptex->damp =
 	ptex->gravity = ptex->field = ptex->time = ptex->clump = ptex->kink_freq = ptex->kink_amp =
 	ptex->effector = ptex->rough1 = ptex->rough2 = ptex->roughe = 1.0f;
+	ptex->color[0] = ptex->color[1] = ptex->color[2] = 1.0f;
 
 	ptex->length = 1.0f - part->randlength * psys_frand(psys, child_index + 26);
 	ptex->length *= part->clength_thres < psys_frand(psys, child_index + 27) ? part->clength : 1.0f;
@@ -3439,6 +3450,7 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 			SET_PARTICLE_TEXTURE(PAMAP_KINK_AMP, ptex->kink_amp, mtex->kinkampfac);
 			SET_PARTICLE_TEXTURE(PAMAP_KINK_FREQ, ptex->kink_freq, mtex->kinkfac);
 			SET_PARTICLE_TEXTURE(PAMAP_DENS, ptex->exist, mtex->padensfac);
+			SET_PARTICLE_TEXTURE_RGB(PAMAP_COLOR, ptex->color, mtex->pacolfac);
 		}
 	}
 
@@ -3448,6 +3460,7 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_KINK_FREQ, ptex->kink_freq);
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_ROUGH, ptex->rough1);
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_DENS, ptex->exist);
+	CLAMP_PARTICLE_TEXTURE_RGB(PAMAP_COLOR, ptex->color);
 }
 void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTexture *ptex, int event, float cfra)
 {
@@ -3464,6 +3477,7 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 	ptex->ivel = ptex->life = ptex->exist = ptex->size = ptex->damp =
 	ptex->gravity = ptex->field = ptex->length = ptex->clump = ptex->kink_freq = ptex->kink_amp =
 	ptex->effector = ptex->rough1 = ptex->rough2 = ptex->roughe = 1.0f;
+	ptex->color[0] = ptex->color[1] = ptex->color[2] = 1.0f;
 
 	ptex->time = (float)(pa - sim->psys->particles) / (float)sim->psys->totpart;
 
@@ -3534,6 +3548,7 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 			SET_PARTICLE_TEXTURE(PAMAP_GRAVITY, ptex->gravity, mtex->gravityfac);
 			SET_PARTICLE_TEXTURE(PAMAP_DAMP, ptex->damp, mtex->dampfac);
 			SET_PARTICLE_TEXTURE(PAMAP_LENGTH, ptex->length, mtex->lengthfac);
+			SET_PARTICLE_TEXTURE_RGB(PAMAP_COLOR, ptex->color, mtex->pacolfac);
 		}
 	}
 
@@ -3546,6 +3561,7 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 	CLAMP_PARTICLE_TEXTURE_POSNEG(PAMAP_GRAVITY, ptex->gravity);
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_DAMP, ptex->damp);
 	CLAMP_PARTICLE_TEXTURE_POS(PAMAP_LENGTH, ptex->length);
+	CLAMP_PARTICLE_TEXTURE_RGB(PAMAP_COLOR, ptex->color);
 }
 /************************************************/
 /*			Particle State						*/

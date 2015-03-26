@@ -5004,6 +5004,12 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 							case PART_DRAW_COL_ACC:
 								intensity = len_v3v3(pa->state.vel, pa->prev_state.vel) / ((pa->state.time - pa->prev_state.time) * part->color_vec_max);
 								break;
+							case PART_DRAW_COL_TEX: {
+								ParticleTexture ptex;
+								psys_get_texture(&sim, pa, &ptex, PAMAP_COLOR, cfra);
+								copy_v3_v3(ma_col, ptex.color);
+								break;
+							}
 							default:
 								intensity = 1.0f; /* should never happen */
 								BLI_assert(0);

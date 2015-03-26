@@ -1148,6 +1148,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             factor_but(col, "use_map_life", "life_factor", "Lifetime")
             factor_but(col, "use_map_density", "density_factor", "Density")
             factor_but(col, "use_map_size", "size_factor", "Size")
+            factor_but(col, "use_map_particle_color", "particle_color_factor", "Color")
 
             col = split.column()
             col.label(text="Physics:")
@@ -1179,7 +1180,8 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
 
         layout.separator()
 
-        if not isinstance(idblock, ParticleSettings):
+        show_blend_settings = (not isinstance(idblock, ParticleSettings)) or tex.use_map_particle_color
+        if show_blend_settings:
             split = layout.split()
 
             col = split.column()

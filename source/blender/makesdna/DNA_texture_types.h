@@ -85,8 +85,7 @@ typedef struct MTex {
 	/* particles */
 	float timefac, lengthfac, clumpfac, dampfac;
 	float kinkfac, kinkampfac, roughfac, padensfac, gravityfac;
-	float lifefac, sizefac, ivelfac, fieldfac;
-	int pad2;
+	float lifefac, sizefac, ivelfac, fieldfac, pacolfac;
 
 	/* lamp */
 	float shadowfac;
