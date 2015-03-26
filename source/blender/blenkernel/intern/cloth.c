@@ -512,7 +512,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		return;
 	}
 	else if (cache_result==PTCACHE_READ_OLD) {
-		BPH_cloth_solver_set_positions(clmd);
+		BKE_cloth_solver_set_positions(clmd);
 	}
 	else if ( /*ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
 		/* if baked and nothing in cache, do nothing */
