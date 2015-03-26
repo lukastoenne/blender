@@ -276,46 +276,49 @@ bool AUD_OpenALDevice::AUD_OpenALHandle::seek(float position)
 
 		alGetSourcei(m_source, AL_SOURCE_STATE, &info);
 
-		if(info == AL_PAUSED || info == AL_PLAYING)
-			alSourceStop(m_source);
-
-		alSourcei(m_source, AL_BUFFER, 0);
-		m_current = 0;
-
-		ALenum err;
-		if((err = alGetError()) == AL_NO_ERROR)
+		if(info != AL_PLAYING)
 		{
-			int length;
-			AUD_DeviceSpecs specs = m_device->m_specs;
-			specs.specs = m_reader->getSpecs();
-			m_device->m_buffer.assureSize(m_device->m_buffersize * AUD_DEVICE_SAMPLE_SIZE(specs));
+			if(info == AL_PAUSED)
+				alSourceStop(m_source);
 
-			for(int i = 0; i < CYCLE_BUFFERS; i++)
+			alSourcei(m_source, AL_BUFFER, 0);
+			m_current = 0;
+
+			ALenum err;
+			if((err = alGetError()) == AL_NO_ERROR)
 			{
-				length = m_device->m_buffersize;
-				m_reader->read(length, m_eos, m_device->m_buffer.getBuffer());
+				int length;
+				AUD_DeviceSpecs specs = m_device->m_specs;
+				specs.specs = m_reader->getSpecs();
+				m_device->m_buffer.assureSize(m_device->m_buffersize * AUD_DEVICE_SAMPLE_SIZE(specs));
 
-				if(length == 0)
+				for(int i = 0; i < CYCLE_BUFFERS; i++)
 				{
-					// AUD_XXX: TODO: don't fill all buffers and enqueue them later
-					length = 1;
-					memset(m_device->m_buffer.getBuffer(), 0, length * AUD_DEVICE_SAMPLE_SIZE(specs));
+					length = m_device->m_buffersize;
+					m_reader->read(length, m_eos, m_device->m_buffer.getBuffer());
+
+					if(length == 0)
+					{
+						// AUD_XXX: TODO: don't fill all buffers and enqueue them later
+						length = 1;
+						memset(m_device->m_buffer.getBuffer(), 0, length * AUD_DEVICE_SAMPLE_SIZE(specs));
+					}
+
+					alBufferData(m_buffers[i], m_format, m_device->m_buffer.getBuffer(),
+								 length * AUD_DEVICE_SAMPLE_SIZE(specs), specs.rate);
+
+					if(alGetError() != AL_NO_ERROR)
+						break;
 				}
 
-				alBufferData(m_buffers[i], m_format, m_device->m_buffer.getBuffer(),
-				             length * AUD_DEVICE_SAMPLE_SIZE(specs), specs.rate);
+				if(m_loopcount != 0)
+					m_eos = false;
 
-				if(alGetError() != AL_NO_ERROR)
-					break;
+				alSourceQueueBuffers(m_source, CYCLE_BUFFERS, m_buffers);
 			}
 
-			if(m_loopcount != 0)
-				m_eos = false;
-
-			alSourceQueueBuffers(m_source, CYCLE_BUFFERS, m_buffers);
+			alSourceRewind(m_source);
 		}
-
-		alSourceRewind(m_source);
 	}
 
 	if(m_status == AUD_STATUS_STOPPED)
@@ -340,12 +343,9 @@ float AUD_OpenALDevice::AUD_OpenALHandle::getPosition()
 
 	if(!m_isBuffered)
 	{
-		int queued;
 		AUD_Specs specs = m_reader->getSpecs();
-
-		alGetSourcei(m_source, AL_BUFFERS_QUEUED, &queued);
 		position += (m_reader->getPosition() - m_device->m_buffersize *
-					 queued) / (float)specs.rate;
+					 CYCLE_BUFFERS) / (float)specs.rate;
 	}
 
 	return position;
