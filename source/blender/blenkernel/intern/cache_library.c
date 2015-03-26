@@ -56,6 +56,8 @@
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 
+#include "BLF_translation.h"
+
 #include "PTC_api.h"
 
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
@@ -84,6 +86,14 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 	/* hash table will be rebuilt when needed */
 	cachelibn->items_hash = NULL;
 	
+	{
+		CacheModifier *md;
+		BLI_listbase_clear(&cachelibn->modifiers);
+		for (md = cachelib->modifiers.first; md; md = md->next) {
+			BKE_cache_modifier_copy(cachelibn, md);
+		}
+	}
+	
 	if (cachelib->id.lib) {
 		BKE_id_lib_local_paths(G.main, cachelib->id.lib, &cachelibn->id);
 	}
@@ -96,6 +106,8 @@ void BKE_cache_library_free(CacheLibrary *cachelib)
 	BLI_freelistN(&cachelib->items);
 	if (cachelib->items_hash)
 		BLI_ghash_free(cachelib->items_hash, NULL, NULL);
+	
+	BKE_cache_modifier_clear(cachelib);
 }
 
 void BKE_cache_library_unlink(CacheLibrary *UNUSED(cachelib))
@@ -745,4 +757,157 @@ void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 		}
 	}
 #endif
+}
+
+/* ========================================================================= */
+
+CacheModifierTypeInfo cache_modifier_types[NUM_CACHE_MODIFIER_TYPES];
+
+static CacheModifierTypeInfo *cache_modifier_type_get(eCacheModifier_Type type)
+{
+	return &cache_modifier_types[type];
+}
+
+static void cache_modifier_type_set(eCacheModifier_Type type, CacheModifierTypeInfo *mti)
+{
+	memcpy(&cache_modifier_types[type], mti, sizeof(CacheModifierTypeInfo));
+}
+
+const char *BKE_cache_modifier_type_name(eCacheModifier_Type type)
+{
+	return cache_modifier_type_get(type)->name;
+}
+
+const char *BKE_cache_modifier_type_struct_name(eCacheModifier_Type type)
+{
+	return cache_modifier_type_get(type)->struct_name;
+}
+
+int BKE_cache_modifier_type_struct_size(eCacheModifier_Type type)
+{
+	return cache_modifier_type_get(type)->struct_size;
+}
+
+/* ------------------------------------------------------------------------- */
+
+bool BKE_cache_modifier_unique_name(ListBase *modifiers, CacheModifier *md)
+{
+	if (modifiers && md) {
+		CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+
+		return BLI_uniquename(modifiers, md, DATA_(mti->name), '.', offsetof(CacheModifier, name), sizeof(md->name));
+	}
+	return false;
+}
+
+CacheModifier *BKE_cache_modifier_add(CacheLibrary *cachelib, const char *name, eCacheModifier_Type type)
+{
+	CacheModifierTypeInfo *mti = cache_modifier_type_get(type);
+	
+	CacheModifier *md = MEM_callocN(mti->struct_size, "cache modifier");
+	
+	if (!name)
+		name = mti->name;
+	BLI_strncpy_utf8(md->name, name, sizeof(md->name));
+	/* make sure modifier has unique name */
+	BKE_cache_modifier_unique_name(&cachelib->modifiers, md);
+	
+	if (mti->init)
+		mti->init(md);
+	
+	BLI_addtail(&cachelib->modifiers, md);
+	
+	return md;
+}
+
+void BKE_cache_modifier_remove(CacheLibrary *cachelib, CacheModifier *md)
+{
+	CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+	
+	BLI_remlink(&cachelib->modifiers, md);
+	
+	if (mti->free)
+		mti->free(md);
+	
+	MEM_freeN(md);
+}
+
+void BKE_cache_modifier_clear(CacheLibrary *cachelib)
+{
+	CacheModifier *md, *md_next;
+	for (md = cachelib->modifiers.first; md; md = md_next) {
+		CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+		md_next = md->next;
+		
+		if (mti->free)
+			mti->free(md);
+		
+		MEM_freeN(md);
+	}
+	
+	BLI_listbase_clear(&cachelib->modifiers);
+}
+
+CacheModifier *BKE_cache_modifier_copy(CacheLibrary *cachelib, CacheModifier *md)
+{
+	CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+	
+	CacheModifier *tmd = MEM_dupallocN(md);
+	
+	if (mti->copy)
+		mti->copy(md, tmd);
+	
+	BLI_addtail(&cachelib->modifiers, md);
+	
+	return tmd;
+}
+
+void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+	
+	if (mti->foreachIDLink)
+		mti->foreachIDLink(md, cachelib, walk, userdata);
+	
+	
+}
+
+/* ------------------------------------------------------------------------- */
+
+#if 0
+void BKE_cache_modifier_type_init(CacheModifierTypeInfo *mti, const char *name, const char *struct_name, int struct_size,
+                                  CacheModifier_InitFunc init, CacheModifier_FreeFunc free, CacheModifier_CopyFunc copy)
+{
+	mti->name = name;
+	mti->struct_name = struct_name;
+	mti->struct_size = struct_size;
+	
+	mti->initData = init;
+	mti->freeData = free;
+	mti->copy_data = copy;
+}
+#endif
+
+static void hairsim_init(HairSimCacheModifier *UNUSED(md))
+{
+}
+
+static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier *UNUSED(tmd))
+{
+}
+
+CacheModifierTypeInfo cacheModifierType_HairSimulation = {
+    /* name */              "HairSimulation",
+    /* structName */        "HairSimCacheModifier",
+    /* structSize */        sizeof(HairSimCacheModifier),
+
+    /* copy */              (CacheModifier_CopyFunc)hairsim_copy,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)NULL,
+    /* init */              (CacheModifier_InitFunc)hairsim_init,
+    /* free */              (CacheModifier_FreeFunc)NULL,
+};
+
+void BKE_cache_modifier_init(void)
+{
+	cache_modifier_type_set(eCacheModifierType_HairSimulation, &cacheModifierType_HairSimulation);
 }

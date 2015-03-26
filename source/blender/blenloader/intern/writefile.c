@@ -3475,20 +3475,37 @@ static void write_linestyles(WriteData *wd, ListBase *idbase)
 	}
 }
 
+static void write_cache_modifiers(WriteData *wd, CacheLibrary *cachelib)
+{
+	CacheModifier *md;
+	for (md = cachelib->modifiers.first; md; md = md->next) {
+		writestruct(wd, DATA, "CacheModifier", 1, md);
+		
+		switch (md->type) {
+			// TODO add specifics here
+		}
+	}
+}
+
 static void write_cachelibraries(WriteData *wd, ListBase *idbase)
 {
 	CacheLibrary *cachelib;
-	CacheItem *item;
 
 	for (cachelib = idbase->first; cachelib; cachelib = cachelib->id.next) {
 		if (cachelib->id.us > 0 || wd->current) {
+			
 			writestruct(wd, ID_CL, "CacheLibrary", 1, cachelib);
 			if (cachelib->id.properties)
 				IDP_WriteProperty(cachelib->id.properties, wd);
 			
-			for (item = cachelib->items.first; item; item = item->next) {
-				writestruct(wd, DATA, "CacheItem", 1, item);
+			{
+				CacheItem *item;
+				for (item = cachelib->items.first; item; item = item->next) {
+					writestruct(wd, DATA, "CacheItem", 1, item);
+				}
 			}
+			
+			write_cache_modifiers(wd, cachelib);
 		}
 	}
 }

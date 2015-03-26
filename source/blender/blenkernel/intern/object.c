@@ -474,6 +474,15 @@ static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Objec
 	}
 }
 
+static void unlink_object__unlinkCacheModifierLinks(void *userData, CacheLibrary *UNUSED(cachelib), CacheModifier *UNUSED(md), ID **idpoin)
+{
+	Object *unlinkOb = userData;
+
+	if (*idpoin == (ID *)unlinkOb) {
+		*idpoin = NULL;
+	}
+}
+
 void BKE_object_unlink(Object *ob)
 {
 	Main *bmain = G.main;
@@ -876,11 +885,17 @@ void BKE_object_unlink(Object *ob)
 	/* cache libraries */
 	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
 		CacheItem *item, *item_next;
+		CacheModifier *md;
+		
 		for (item = cachelib->items.first; item; item = item_next) {
 			item_next = item->next;
 			if (item->ob == ob) {
 				BKE_cache_library_remove_item(cachelib, item);
 			}
+		}
+		
+		for (md = cachelib->modifiers.first; md; md = md->next) {
+			BKE_cache_modifier_foreachIDLink(cachelib, md, unlink_object__unlinkCacheModifierLinks, ob);
 		}
 	}
 }

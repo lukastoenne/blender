@@ -326,6 +326,15 @@ def cachelib_object_items(cachelib, ob):
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
 
+    def draw_cache_modifier(self, context, layout, cachelib, md):
+        row = layout.row(align=True)
+        row.context_pointer_set("cache_modifier", md)
+        row.prop(md, "name", text="")
+        row.operator("cachelibrary.remove_modifier", icon='X', text="", emboss=False)
+
+        # match enum type to our functions, avoids a lookup table.
+        getattr(self, md.type)(layout, cachelib, md)
+
     def draw_cachelib(self, context, layout, ob, cachelib, objects):
         col = layout.column(align=True)
         colrow = col.row(align=True)
@@ -361,6 +370,12 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
                 row = layout.row(align=True)
                 row.alignment = 'LEFT'
                 row.template_cache_library_item(cachelib, ob, item_type, item_index, enable)
+    
+        layout.operator_menu_enum("cachelibrary.add_modifier", "type")
+
+        for md in cachelib.modifiers:
+            box = layout.box()
+            self.draw_cache_modifier(context, box, cachelib, md)
 
     def draw(self, context):
         layout = self.layout
@@ -400,6 +415,9 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
             if ob.cache_library:
                 cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
                 self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
+
+    def HAIR_SIMULATION(self, layout, cachelib, md):
+        pass
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

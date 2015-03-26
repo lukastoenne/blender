@@ -574,3 +574,67 @@ void CACHELIBRARY_OT_archive_info(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_popup", false, "Show Popup", "Display archive info in a popup");
 	RNA_def_boolean(ot->srna, "use_clipboard", false, "Copy to Clipboard", "Copy archive info to the clipboard");
 }
+
+/* ------------------------------------------------------------------------- */
+/* Cache Modifiers */
+
+static int cache_library_add_modifier_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
+	
+	eCacheModifier_Type type = RNA_enum_get(op->ptr, "type");
+	if (type == eCacheModifierType_None) {
+		return OPERATOR_CANCELLED;
+	}
+	
+	BKE_cache_modifier_add(cachelib, NULL, type);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_add_modifier(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Cache Modifier";
+	ot->description = "Add a cache modifier";
+	ot->idname = "CACHELIBRARY_OT_add_modifier";
+	
+	/* api callbacks */
+	ot->exec = cache_library_add_modifier_exec;
+	ot->poll = ED_cache_library_active_object_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_enum(ot->srna, "type", cache_modifier_type_items, eCacheModifierType_None, "Type", "Type of modifier to add");
+}
+
+static int cache_library_remove_modifier_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
+	CacheModifier *md = CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier).data;
+	
+	if (!md)
+		return OPERATOR_CANCELLED;
+	
+	BKE_cache_modifier_remove(cachelib, md);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_remove_modifier(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Remove Cache Modifier";
+	ot->description = "Remove a cache modifier";
+	ot->idname = "CACHELIBRARY_OT_remove_modifier";
+	
+	/* api callbacks */
+	ot->exec = cache_library_remove_modifier_exec;
+	ot->poll = ED_cache_library_active_object_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

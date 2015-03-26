@@ -57,6 +57,7 @@
 #include "BLF_translation.h"
 
 #include "BKE_appdir.h"
+#include "BKE_cache_library.h"
 #include "BKE_key.h"
 #include "BKE_multires.h"
 #include "BKE_DerivedMesh.h"
@@ -68,7 +69,7 @@
 
 #include "MOD_modifiertypes.h"
 
-static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {NULL};
+static ModifierTypeInfo *cache_modifier_types[NUM_MODIFIER_TYPES] = {NULL};
 static VirtualModifierData virtualModifierCommonData;
 
 void BKE_modifier_init(void)
@@ -76,7 +77,7 @@ void BKE_modifier_init(void)
 	ModifierData *md;
 
 	/* Initialize modifier types */
-	modifier_type_init(modifier_types); /* MOD_utils.c */
+	modifier_type_init(cache_modifier_types); /* MOD_utils.c */
 
 	/* Initialize global cmmon storage used for virtual modifier list */
 	md = modifier_new(eModifierType_Armature);
@@ -99,13 +100,15 @@ void BKE_modifier_init(void)
 	virtualModifierCommonData.cmd.modifier.mode |= eModifierMode_Virtual;
 	virtualModifierCommonData.lmd.modifier.mode |= eModifierMode_Virtual;
 	virtualModifierCommonData.smd.modifier.mode |= eModifierMode_Virtual;
+	
+	BKE_cache_modifier_init();
 }
 
 ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 {
 	/* type unsigned, no need to check < 0 */
-	if (type < NUM_MODIFIER_TYPES && modifier_types[type]->name[0] != '\0') {
-		return modifier_types[type];
+	if (type < NUM_MODIFIER_TYPES && cache_modifier_types[type]->name[0] != '\0') {
+		return cache_modifier_types[type];
 	}
 	else {
 		return NULL;
