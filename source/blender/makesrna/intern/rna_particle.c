@@ -1908,6 +1908,11 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Shape Key", "Affect the blend factor of a hair shape key");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
+	prop = RNA_def_property(srna, "use_map_particle_color", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", PAMAP_COLOR);
+	RNA_def_property_ui_text(prop, "Color", "Affect the particle color");
+	RNA_def_property_update(prop, 0, "rna_Particle_reset");
+
 
 	/* influence factors */
 	prop = RNA_def_property(srna, "time_factor", PROP_FLOAT, PROP_NONE);
@@ -2000,6 +2005,12 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "shapekey");
 	RNA_def_property_ui_text(prop, "Shape Key", "Name of the shape key affected by the texture");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
+
+	prop = RNA_def_property(srna, "particle_color_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "pacolfac");
+	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
+	RNA_def_property_ui_text(prop, "Particle Color Factor", "Amount texture affects particle color");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
 }
 
 static void rna_def_particle_settings(BlenderRNA *brna)
@@ -2121,6 +2132,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 #ifdef USE_PARTICLE_HULL_DRAWING
 		{PART_DRAW_COL_PARENT, "PARENT", 0, "Parent", ""},
 #endif
+		{PART_DRAW_COL_TEX, "TEXTURE", 0, "Texture", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 

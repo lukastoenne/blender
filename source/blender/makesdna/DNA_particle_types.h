@@ -452,6 +452,7 @@ typedef enum eParticleDrawColorMode {
 	PART_DRAW_COL_VEL		= 2,
 	PART_DRAW_COL_ACC		= 3,
 	PART_DRAW_COL_PARENT	= 4,
+	PART_DRAW_COL_TEX		= 5,
 } eParticleDrawColorMode;
 
 
@@ -625,6 +626,8 @@ typedef enum eParticleTextureInfluence {
 	PAMAP_LENGTH	= (1<<4),
 	PAMAP_CHILD		= (PAMAP_CLUMP | PAMAP_KINK_FREQ | PAMAP_KINK_AMP | PAMAP_ROUGH | PAMAP_LENGTH),
 	PAMAP_SHAPEKEY	= (1<<13), /* shapekey blend multiplier */
+	/* color */
+	PAMAP_COLOR		= (1<<14),
 } eParticleTextureInfluence;
 
 #endif

@@ -85,7 +85,7 @@ typedef struct MTex {
 	/* particles */
 	float timefac, lengthfac, clumpfac, dampfac;
 	float kinkfac, kinkampfac, roughfac, padensfac, gravityfac;
-	float lifefac, sizefac, ivelfac, fieldfac;
+	float lifefac, sizefac, ivelfac, fieldfac, pacolfac, pad2;
 	float shapefac;
 	char shapekey[64]; /* MAX_NAME */
 

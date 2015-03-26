@@ -5404,6 +5404,12 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 							case PART_DRAW_COL_PARENT:
 								particle_path_color(a, ma_col);
 								break;
+							case PART_DRAW_COL_TEX: {
+								ParticleTexture ptex;
+								psys_get_texture(&sim, pa, &ptex, PAMAP_COLOR, cfra);
+								copy_v3_v3(ma_col, ptex.color);
+								break;
+							}
 							default:
 								weight_to_rgb(ma_col, 1.0f);
 								BLI_assert(0);
@@ -5726,6 +5732,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 								particle_path_color(cache[a]->hull_parent, col);
 								glColor3fv(col);
 							}
+							break;
+						case PART_DRAW_COL_TEX:
+							// TODO
 							break;
 						default:
 							break;

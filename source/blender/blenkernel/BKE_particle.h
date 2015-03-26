@@ -122,6 +122,7 @@ typedef struct ParticleTexture {
 	float damp, gravity, field;           /* used in physics */
 	float length, clump, kink_freq, kink_amp, effector;  /* used in path caching */
 	float rough1, rough2, roughe;         /* used in path caching */
+	float color[3];
 } ParticleTexture;
 
 typedef struct ParticleSeam {
