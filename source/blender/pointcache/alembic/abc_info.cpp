@@ -83,9 +83,9 @@ static void visitSimpleArrayProperty(std::stringstream &ss, PROP iProp, const st
 	AbcA::ArraySamplePtr samp;
 	index_t maxSamples = iProp.getNumSamples();
 	for (index_t i = 0 ; i < maxSamples; ++i) {
-		iProp.get(samp, ISampleSelector( i ));
+		iProp.get(samp, ISampleSelector(i));
 		asize = samp->size();
-	};
+	}
 	
 	std::string mdstring = "interpretation=";
 	mdstring += iProp.getMetaData().get("interpretation");
@@ -121,9 +121,9 @@ static void visitSimpleScalarProperty(std::stringstream &ss, PROP iProp, const s
 	AbcA::ArraySamplePtr samp = AbcA::AllocateArraySample( dt, dims );
 	index_t maxSamples = iProp.getNumSamples();
 	for (index_t i = 0 ; i < maxSamples; ++i) {
-		iProp.get(const_cast<void*>(samp->getData()), ISampleSelector( i ));
+		iProp.get(const_cast<void *>(samp->getData()), ISampleSelector(i));
 		asize = samp->size();
-	};
+	}
 	
 	std::string mdstring = "interpretation=";
 	mdstring += iProp.getMetaData().get("interpretation");

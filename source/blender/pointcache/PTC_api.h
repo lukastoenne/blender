@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_API_H
-#define PTC_API_H
+#ifndef __PTC_API_H__
+#define __PTC_API_H__
 
 #include "util/util_types.h"
 
@@ -134,4 +134,4 @@ struct PTCWriter *PTC_writer_cache_modifier_render(const char *name, struct Scen
 } /* extern C */
 #endif
 
-#endif  /* PTC_API_H */
+#endif  /* __PTC_API_H__ */

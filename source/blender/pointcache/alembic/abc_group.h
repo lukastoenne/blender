@@ -67,8 +67,8 @@ public:
 	typedef std::vector<Abc::ObjectWriterPtr> ObjectWriterList;
 	typedef std::vector<Abc::BasePropertyWriterPtr> PropertyWriterList;
 	
-	typedef std::map<ID*, AbcWriter*> IDWriterMap;
-	typedef std::pair<ID*, AbcWriter*> IDWriterPair;
+	typedef std::map<ID *, AbcWriter *> IDWriterMap;
+	typedef std::pair<ID *, AbcWriter *> IDWriterPair;
 	
 	AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib);
 	~AbcDupligroupWriter();

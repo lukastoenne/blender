@@ -65,10 +65,10 @@ void write_sample<CD_MDEFORMVERT>(CustomDataWriter *writer, OCompoundProperty &p
 {
 	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
 	
-	OInt32ArrayProperty totweight_prop = writer->add_array_property<OInt32ArrayProperty>(name+":totweight", prop);
-	OInt32ArrayProperty flag_prop = writer->add_array_property<OInt32ArrayProperty>(name+":flag", prop);
-	OInt32ArrayProperty def_nr_prop = writer->add_array_property<OInt32ArrayProperty>(name+":def_nr", prop);
-	OFloatArrayProperty weight_prop = writer->add_array_property<OFloatArrayProperty>(name+":weight", prop);
+	OInt32ArrayProperty totweight_prop = writer->add_array_property<OInt32ArrayProperty>(name + ":totweight", prop);
+	OInt32ArrayProperty flag_prop = writer->add_array_property<OInt32ArrayProperty>(name + ":flag", prop);
+	OInt32ArrayProperty def_nr_prop = writer->add_array_property<OInt32ArrayProperty>(name + ":def_nr", prop);
+	OFloatArrayProperty weight_prop = writer->add_array_property<OFloatArrayProperty>(name + ":weight", prop);
 	
 	MDeformVert *mdef = (MDeformVert *)data;
 	
@@ -146,10 +146,10 @@ void write_sample<CD_ORIGSPACE>(CustomDataWriter *writer, OCompoundProperty &par
 	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
 	
 	OV2fArrayProperty uv_prop[4];
-	uv_prop[0] = writer->add_array_property<OV2fArrayProperty>(name+":uv0", prop);
-	uv_prop[1] = writer->add_array_property<OV2fArrayProperty>(name+":uv1", prop);
-	uv_prop[2] = writer->add_array_property<OV2fArrayProperty>(name+":uv2", prop);
-	uv_prop[3] = writer->add_array_property<OV2fArrayProperty>(name+":uv3", prop);
+	uv_prop[0] = writer->add_array_property<OV2fArrayProperty>(name + ":uv0", prop);
+	uv_prop[1] = writer->add_array_property<OV2fArrayProperty>(name + ":uv1", prop);
+	uv_prop[2] = writer->add_array_property<OV2fArrayProperty>(name + ":uv2", prop);
+	uv_prop[3] = writer->add_array_property<OV2fArrayProperty>(name + ":uv3", prop);
 	
 	OrigSpaceFace *ospace = (OrigSpaceFace *)data;
 	std::vector<V2f> uv_data[4];
@@ -182,7 +182,7 @@ void write_sample<CD_ORIGSPACE_MLOOP>(CustomDataWriter *writer, OCompoundPropert
 {
 	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
 	
-	OV2fArrayProperty prop_uv = writer->add_array_property<OV2fArrayProperty>(name+":uv", prop);
+	OV2fArrayProperty prop_uv = writer->add_array_property<OV2fArrayProperty>(name + ":uv", prop);
 	
 	OrigSpaceLoop *ospaceloop = (OrigSpaceLoop *)data;
 	std::vector<V2f> uv_data;
@@ -208,10 +208,10 @@ PTCReadSampleResult read_sample<CD_MDEFORMVERT>(CustomDataReader *reader, ICompo
 {
 	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
 	
-	IInt32ArrayProperty totweight_prop = reader->add_array_property<IInt32ArrayProperty>(name+":totweight", prop);
-	IInt32ArrayProperty flag_prop = reader->add_array_property<IInt32ArrayProperty>(name+":flag", prop);
-	IInt32ArrayProperty def_nr_prop = reader->add_array_property<IInt32ArrayProperty>(name+":def_nr", prop);
-	IFloatArrayProperty weight_prop = reader->add_array_property<IFloatArrayProperty>(name+":weight", prop);
+	IInt32ArrayProperty totweight_prop = reader->add_array_property<IInt32ArrayProperty>(name + ":totweight", prop);
+	IInt32ArrayProperty flag_prop = reader->add_array_property<IInt32ArrayProperty>(name + ":flag", prop);
+	IInt32ArrayProperty def_nr_prop = reader->add_array_property<IInt32ArrayProperty>(name + ":def_nr", prop);
+	IFloatArrayProperty weight_prop = reader->add_array_property<IFloatArrayProperty>(name + ":weight", prop);
 	
 	Int32ArraySamplePtr sample_totweight = totweight_prop.getValue(ss);
 	Int32ArraySamplePtr sample_flag = flag_prop.getValue(ss);
@@ -220,7 +220,9 @@ PTCReadSampleResult read_sample<CD_MDEFORMVERT>(CustomDataReader *reader, ICompo
 	
 	if (sample_totweight->size() != num_data ||
 	    sample_flag->size() != num_data)
+	{
 		return PTC_READ_SAMPLE_INVALID;
+	}
 	
 	const int32_t *data_totweight = (const int32_t *)sample_totweight->getData();
 	const int32_t *data_flag = (const int32_t *)sample_flag->getData();
@@ -309,10 +311,10 @@ PTCReadSampleResult read_sample<CD_ORIGSPACE>(CustomDataReader *reader, ICompoun
 	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
 	
 	IV2fArrayProperty uv_prop[4];
-	uv_prop[0] = reader->add_array_property<IV2fArrayProperty>(name+":uv0", prop);
-	uv_prop[1] = reader->add_array_property<IV2fArrayProperty>(name+":uv1", prop);
-	uv_prop[2] = reader->add_array_property<IV2fArrayProperty>(name+":uv2", prop);
-	uv_prop[3] = reader->add_array_property<IV2fArrayProperty>(name+":uv3", prop);
+	uv_prop[0] = reader->add_array_property<IV2fArrayProperty>(name + ":uv0", prop);
+	uv_prop[1] = reader->add_array_property<IV2fArrayProperty>(name + ":uv1", prop);
+	uv_prop[2] = reader->add_array_property<IV2fArrayProperty>(name + ":uv2", prop);
+	uv_prop[3] = reader->add_array_property<IV2fArrayProperty>(name + ":uv3", prop);
 	
 	V2fArraySamplePtr sample0 = uv_prop[0].getValue(ss);
 	V2fArraySamplePtr sample1 = uv_prop[1].getValue(ss);
@@ -323,7 +325,9 @@ PTCReadSampleResult read_sample<CD_ORIGSPACE>(CustomDataReader *reader, ICompoun
 	    sample1->size() != num_data ||
 	    sample2->size() != num_data ||
 	    sample3->size() != num_data)
+	{
 		return PTC_READ_SAMPLE_INVALID;
+	}
 	
 	OrigSpaceFace *ospace = (OrigSpaceFace *)data;
 	const V2f *data0 = (const V2f *)sample0->getData();
@@ -365,7 +369,7 @@ PTCReadSampleResult read_sample<CD_ORIGSPACE_MLOOP>(CustomDataReader *reader, IC
 {
 	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
 	
-	IV2fArrayProperty uv_prop = reader->add_array_property<IV2fArrayProperty>(name+":uv", prop);
+	IV2fArrayProperty uv_prop = reader->add_array_property<IV2fArrayProperty>(name + ":uv", prop);
 	
 	V2fArraySamplePtr sample = uv_prop.getValue(ss);
 	
@@ -393,7 +397,7 @@ BLI_INLINE void write_sample_call(CustomDataWriter *writer, OCompoundProperty &p
 	if (type == CDTYPE)
 		write_sample<(CustomDataType)CDTYPE>(writer, parent, name, data, num_data);
 	else
-		write_sample_call<CDTYPE+1>(writer, parent, type, name, data, num_data);
+		write_sample_call<CDTYPE + 1>(writer, parent, type, name, data, num_data);
 }
 
 /* terminator specialization */
@@ -411,7 +415,7 @@ BLI_INLINE PTCReadSampleResult read_sample_call(CustomDataReader *reader, ICompo
 	if (type == CDTYPE)
 		return read_sample<(CustomDataType)CDTYPE>(reader, parent, ss, name, data, num_data);
 	else
-		return read_sample_call<CDTYPE+1>(reader, parent, ss, type, name, data, num_data);
+		return read_sample_call<CDTYPE + 1>(reader, parent, ss, type, name, data, num_data);
 }
 
 /* terminator specialization */
@@ -511,7 +515,7 @@ void CustomDataWriter::write_sample(CustomData *cdata, int num_data, OCompoundPr
 			/* compound for all CD layers of the same type */
 			if (!has_props) {
 				has_props = true;
-				layertype_props = add_compound_property<OCompoundProperty>(m_name+":"+layertype_name, m_props);
+				layertype_props = add_compound_property<OCompoundProperty>(m_name + ":" + layertype_name, m_props);
 			}
 			
 			std::string name = cdtype_to_name(cdata, (CustomDataType)type, n);
@@ -550,7 +554,7 @@ PTCReadSampleResult CustomDataReader::read_sample(const ISampleSelector &ss, Cus
 		
 		const char *layertype_name = CustomData_layertype_name(type);
 		
-		BasePropertyReaderPtr ptr = m_props.getPtr()->asCompoundPtr()->getProperty(m_name+":"+layertype_name);
+		BasePropertyReaderPtr ptr = m_props.getPtr()->asCompoundPtr()->getProperty(m_name + ":" + layertype_name);
 		if (!ptr) {
 			/* no layer of this type stored */
 			continue;
