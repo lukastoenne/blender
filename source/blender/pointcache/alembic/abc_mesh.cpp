@@ -369,7 +369,9 @@ static PTCReadSampleResult apply_sample_verts(DerivedMesh *dm, P3fArraySamplePtr
 	    sample_no->size() != totvert ||
 	    sample_flag->size() != totvert ||
 	    sample_bweight->size() != totvert)
+	{
 		return PTC_READ_SAMPLE_INVALID;
+	}
 	
 	MVert *mv = dm->getVertArray(dm);
 	for (int i = 0; i < totvert; ++i) {
@@ -426,7 +428,9 @@ static PTCReadSampleResult apply_sample_polys(DerivedMesh *dm, Int32ArraySampleP
 	if (sample_totloop->size() != totpoly ||
 	    sample_mat_nr->size() != totpoly ||
 	    sample_flag->size() != totpoly)
+	{
 		return PTC_READ_SAMPLE_INVALID;
+	}
 	
 	const int32_t *data_totloop = sample_totloop->get();
 	const int16_t *data_mat_nr = sample_mat_nr->get();

@@ -324,7 +324,7 @@ void AbcStrandsReader::discard_result()
 
 AbcHairDynamicsWriter::AbcHairDynamicsWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
     ParticlesWriter(ob, psys, name),
-    m_cloth_writer(name+"__cloth", ob, psys->clmd)
+    m_cloth_writer(name + "__cloth", ob, psys->clmd)
 {
 }
 
@@ -340,7 +340,7 @@ void AbcHairDynamicsWriter::write_sample()
 
 AbcHairDynamicsReader::AbcHairDynamicsReader(const std::string &name, Object *ob, ParticleSystem *psys) :
 	ParticlesReader(ob, psys, name),
-	m_cloth_reader(name+"__cloth", ob, psys->clmd)
+	m_cloth_reader(name + "__cloth", ob, psys->clmd)
 {
 }
 

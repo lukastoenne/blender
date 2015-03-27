@@ -32,7 +32,7 @@ using namespace AbcCoreAbstract;
 FrameMapper::FrameMapper(double fps, double start_time)
 {
 	m_frames_per_sec = fps;
-	m_sec_per_frame = (fps == 0.0 ? 0.0 : 1.0/fps);
+	m_sec_per_frame = (fps == 0.0 ? 0.0 : 1.0 / fps);
 	m_start_frame = start_time * fps;
 	m_start_time = start_time;
 }

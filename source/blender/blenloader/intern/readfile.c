@@ -1981,6 +1981,23 @@ static void direct_link_script(FileData *UNUSED(fd), Script *script)
 
 /* ************ READ CacheLibrary *************** */
 
+static void lib_link_cache_modifiers_cb(void *userData, CacheLibrary *cachelib, CacheModifier *UNUSED(md), ID **idpoin)
+{
+	FileData *fd = userData;
+
+	*idpoin = newlibadr(fd, cachelib->id.lib, *idpoin);
+	/* hardcoded bad exception; non-object modifier data gets user count (texture, displace) */
+	if (*idpoin && GS((*idpoin)->name)!=ID_OB)
+		(*idpoin)->us++;
+}
+static void lib_link_cache_modifiers(FileData *fd, CacheLibrary *cachelib)
+{
+	CacheModifier *md;
+	for (md = cachelib->modifiers.first; md; md = md->next) {
+		BKE_cache_modifier_foreachIDLink(cachelib, md, lib_link_cache_modifiers_cb, fd);
+	}
+}
+
 static void lib_link_cache_library(FileData *fd, Main *main)
 {
 	CacheLibrary *cachelib;
@@ -1998,6 +2015,26 @@ static void lib_link_cache_library(FileData *fd, Main *main)
 				if (!item->ob)
 					BKE_cache_library_remove_item(cachelib, item);
 			}
+			
+			lib_link_cache_modifiers(fd, cachelib);
+		}
+	}
+}
+
+static void direct_link_cache_modifiers(FileData *fd, ListBase *modifiers)
+{
+	CacheModifier *md;
+	
+	link_list(fd, modifiers);
+	
+	for (md = modifiers->first; md; md = md->next) {
+		/* if modifiers disappear, or for upward compatibility */
+		if (md->type >= NUM_CACHE_MODIFIER_TYPES)
+			md->type = eCacheModifierType_None;
+		
+		
+		switch (md->type) {
+			// TODO
 		}
 	}
 }
@@ -2006,6 +2043,8 @@ static void direct_link_cache_library(FileData *fd, CacheLibrary *cachelib)
 {
 	link_list(fd, &cachelib->items);
 	cachelib->items_hash = NULL;
+	
+	direct_link_cache_modifiers(fd, &cachelib->modifiers);
 }
 
 

@@ -69,7 +69,7 @@ void AbcGroupWriter::create_refs()
 		if (abc_object) {
 			std::stringstream ss;
 			ss << i;
-			m_abc_object.addChildInstance(abc_object, std::string("group_object")+ss.str());
+			m_abc_object.addChildInstance(abc_object, std::string("group_object") + ss.str());
 		}
 	}
 }
@@ -313,7 +313,7 @@ void AbcDupliCacheReader::read_dupligroup_group(IObject abc_group, const ISample
 			IM44fProperty prop_matrix(props, "matrix", 0);
 			M44f abc_matrix = prop_matrix.getValue(ss);
 			float matrix[4][4];
-			memcpy(matrix, abc_matrix.getValue(), sizeof(float)*4*4);
+			memcpy(matrix, abc_matrix.getValue(), sizeof(float[4][4]));
 			
 			IObject abc_dupli_object = abc_dupli.getChild("object");
 			if (abc_dupli_object.isInstanceRoot()) {

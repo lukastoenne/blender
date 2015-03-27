@@ -97,6 +97,7 @@ extern StructRNA RNA_BuildModifier;
 extern StructRNA RNA_MeshCacheModifier;
 extern StructRNA RNA_CacheItem;
 extern StructRNA RNA_CacheLibrary;
+extern StructRNA RNA_CacheLibraryModifier;
 extern StructRNA RNA_Camera;
 extern StructRNA RNA_CastModifier;
 extern StructRNA RNA_ChildOfConstraint;

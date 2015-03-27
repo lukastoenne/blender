@@ -42,6 +42,8 @@ struct EvaluationContext;
 struct ParticleSystem;
 struct DupliCache;
 struct DupliObjectData;
+struct CacheModifier;
+struct ID;
 
 struct ClothModifierData;
 
@@ -105,5 +107,74 @@ bool BKE_cache_read_dupli_cache(struct Scene *scene, float frame, eCacheLibrary_
                                 struct Group *dupgroup, struct DupliCache *dupcache, struct CacheLibrary *cachelib);
 bool BKE_cache_read_dupli_object(struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
                                  struct Object *ob, struct DupliObjectData *data, struct CacheLibrary *cachelib);
+
+/* ========================================================================= */
+
+typedef void (*CacheModifier_IDWalkFunc)(void *userdata, struct CacheLibrary *cachelib, struct CacheModifier *md, struct ID **id_ptr);
+
+typedef void (*CacheModifier_InitFunc)(struct CacheModifier *md);
+typedef void (*CacheModifier_FreeFunc)(struct CacheModifier *md);
+typedef void (*CacheModifier_CopyFunc)(struct CacheModifier *md, struct CacheModifier *target);
+typedef void (*CacheModifier_ForeachIDLinkFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib,
+                                                CacheModifier_IDWalkFunc walk, void *userData);
+
+typedef struct CacheModifierTypeInfo {
+	/* The user visible name for this modifier */
+	char name[32];
+
+	/* The DNA struct name for the modifier data type,
+	 * used to write the DNA data out.
+	 */
+	char struct_name[32];
+
+	/* The size of the modifier data type, used by allocation. */
+	int struct_size;
+
+	/********************* Non-optional functions *********************/
+
+	/* Copy instance data for this modifier type. Should copy all user
+	 * level settings to the target modifier.
+	 */
+	CacheModifier_CopyFunc copy;
+
+	/* Should call the given walk function with a pointer to each ID
+	 * pointer (i.e. each datablock pointer) that the modifier data
+	 * stores. This is used for linking on file load and for
+	 * unlinking datablocks or forwarding datablock references.
+	 *
+	 * This function is optional.
+	 */
+	CacheModifier_ForeachIDLinkFunc foreachIDLink;
+
+	/********************* Optional functions *********************/
+
+	/* Initialize new instance data for this modifier type, this function
+	 * should set modifier variables to their default values.
+	 * 
+	 * This function is optional.
+	 */
+	CacheModifier_InitFunc init;
+
+	/* Free internal modifier data variables, this function should
+	 * not free the md variable itself.
+	 *
+	 * This function is optional.
+	 */
+	CacheModifier_FreeFunc free;
+} CacheModifierTypeInfo;
+
+void BKE_cache_modifier_init(void);
+
+const char *BKE_cache_modifier_type_name(eCacheModifier_Type type);
+const char *BKE_cache_modifier_type_struct_name(eCacheModifier_Type type);
+int BKE_cache_modifier_type_struct_size(eCacheModifier_Type type);
+
+bool BKE_cache_modifier_unique_name(struct ListBase *modifiers, struct CacheModifier *md);
+struct CacheModifier *BKE_cache_modifier_add(struct CacheLibrary *cachelib, const char *name, eCacheModifier_Type type);
+void BKE_cache_modifier_remove(struct CacheLibrary *cachelib, struct CacheModifier *md);
+void BKE_cache_modifier_clear(struct CacheLibrary *cachelib);
+struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, struct CacheModifier *md);
+
+void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
 
 #endif

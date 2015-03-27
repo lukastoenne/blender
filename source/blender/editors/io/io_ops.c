@@ -45,6 +45,9 @@ void ED_operatortypes_io(void)
 	WM_operatortype_append(CACHELIBRARY_OT_bake);
 	WM_operatortype_append(CACHELIBRARY_OT_archive_info);
 
+	WM_operatortype_append(CACHELIBRARY_OT_add_modifier);
+	WM_operatortype_append(CACHELIBRARY_OT_remove_modifier);
+
 #ifdef WITH_COLLADA
 	/* Collada operators: */
 	WM_operatortype_append(WM_OT_collada_export);

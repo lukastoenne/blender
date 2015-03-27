@@ -41,4 +41,10 @@ void CACHELIBRARY_OT_bake(struct wmOperatorType *ot);
 
 void CACHELIBRARY_OT_archive_info(struct wmOperatorType *ot);
 
+/* ------------------------------------------------------------------------- */
+/* Cache Modifiers */
+
+void CACHELIBRARY_OT_add_modifier(struct wmOperatorType *ot);
+void CACHELIBRARY_OT_remove_modifier(struct wmOperatorType *ot);
+
 #endif

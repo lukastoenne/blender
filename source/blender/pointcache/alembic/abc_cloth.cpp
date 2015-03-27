@@ -148,7 +148,7 @@ void AbcClothReader::init_abc(IObject object)
 	ICompoundProperty geom_params = schema.getArbGeomParams();
 	
 	m_param_velocities = IV3fGeomParam(geom_params, "velocities", 0);
-	m_param_goal_positions= IP3fGeomParam(geom_params, "goal_positions", 0);
+	m_param_goal_positions = IP3fGeomParam(geom_params, "goal_positions", 0);
 }
 
 static void apply_sample_positions(Cloth *cloth, P3fArraySamplePtr sample)

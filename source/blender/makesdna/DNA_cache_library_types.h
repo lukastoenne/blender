@@ -81,14 +81,43 @@ typedef struct CacheLibrary {
 	
 	ListBase items;				/* cached items */
 	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */
+	
+	ListBase modifiers;
 } CacheLibrary;
-
-//typedef enum eCacheLibrary_Flag {
-//} eCacheLibrary_Flag;
 
 typedef enum eCacheLibrary_EvalMode {
 	CACHE_LIBRARY_EVAL_REALTIME     = (1 << 0), /* evaluate data with realtime settings */
 	CACHE_LIBRARY_EVAL_RENDER       = (1 << 1), /* evaluate data with render settings */
 } eCacheLibrary_EvalMode;
+
+/* ========================================================================= */
+
+/* XXX here be dragons ...
+ * stuff below is a production hack,
+ * should not be considered a permanent solution ...
+ */
+typedef struct CacheModifier {
+	struct CacheModifier *next, *prev;
+	
+	short type, pad;
+	int flag;
+	char name[64]; /* MAX_NAME */
+	
+	char filepath[1024];
+} CacheModifier;
+
+typedef enum eCacheModifier_Type {
+	eCacheModifierType_None                         = 0,
+	
+	eCacheModifierType_HairSimulation               = 1,
+	
+	NUM_CACHE_MODIFIER_TYPES
+} eCacheModifier_Type;
+
+typedef struct HairSimCacheModifier {
+	CacheModifier md;
+	
+	
+} HairSimCacheModifier;
 
 #endif
