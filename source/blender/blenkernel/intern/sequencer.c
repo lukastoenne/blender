@@ -1397,7 +1397,7 @@ static void seq_open_anim_file(Editing *ed, Sequence *seq, bool openfile)
 
 		if (ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE) {
 			if (ed->proxy_dir[0] == 0)
-				BLI_strncpy(dir, "//", sizeof(dir));
+				BLI_strncpy(dir, "//BL_proxy", sizeof(dir));
 			else
 				BLI_strncpy(dir, ed->proxy_dir, sizeof(dir));
 		}
@@ -1436,7 +1436,7 @@ static bool seq_proxy_get_fname(Editing *ed, Sequence *seq, int cfra, int render
 	if (seq->anim && ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE) {
 		char fname[FILE_MAXFILE];
 		if (ed->proxy_dir[0] == 0)
-			BLI_strncpy(dir, "//", sizeof(dir));
+			BLI_strncpy(dir, "//BL_proxy", sizeof(dir));
 		else
 			BLI_strncpy(dir, ed->proxy_dir, sizeof(dir));
 		IMB_anim_get_fname(seq->anim, fname, FILE_MAXFILE);
