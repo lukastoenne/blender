@@ -1027,6 +1027,7 @@ typedef struct EmissionMap {
 	float *velocity;
 	int min[3], max[3], res[3];
 	int hmin[3], hmax[3], hres[3];
+	float *color;
 	int total_cells, valid;
 } EmissionMap;
 
@@ -1071,7 +1072,7 @@ static void clampBoundsInDomain(SmokeDomainSettings *sds, int min[3], int max[3]
 	}
 }
 
-static void em_allocateData(EmissionMap *em, bool use_velocity, int hires_mul)
+static void em_allocateData(EmissionMap *em, bool use_velocity, bool use_color, int hires_mul)
 {
 	int i, res[3];
 
@@ -1087,6 +1088,8 @@ static void em_allocateData(EmissionMap *em, bool use_velocity, int hires_mul)
 	em->influence = MEM_callocN(sizeof(float) * em->total_cells, "smoke_flow_influence");
 	if (use_velocity)
 		em->velocity = MEM_callocN(sizeof(float) * em->total_cells * 3, "smoke_flow_velocity");
+	if (use_color)
+		em->color = MEM_callocN(sizeof(float) * em->total_cells * 3, "smoke_flow_color");
 
 	/* allocate high resolution map if required */
 	if (hires_mul > 1) {
@@ -1111,6 +1114,8 @@ static void em_freeData(EmissionMap *em)
 		MEM_freeN(em->influence_high);
 	if (em->velocity)
 		MEM_freeN(em->velocity);
+	if (em->color)
+		MEM_freeN(em->color);
 }
 
 static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_multiplier, int additive, float sample_size)
@@ -1133,7 +1138,7 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 		}
 	}
 	/* allocate output map */
-	em_allocateData(output, (em1.velocity || em2->velocity), hires_multiplier);
+	em_allocateData(output, (em1.velocity || em2->velocity), (em1.color || em2->color), hires_multiplier);
 
 	/* base resolution inputs */
 	for (x = output->min[0]; x < output->max[0]; x++)
@@ -1151,6 +1156,9 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 					output->influence[index_out] = em1.influence[index_in];
 					if (output->velocity && em1.velocity) {
 						copy_v3_v3(&output->velocity[index_out * 3], &em1.velocity[index_in * 3]);
+					}
+					if (output->color && em1.color) {
+						copy_v3_v3(&output->color[index_out * 3], &em1.color[index_in * 3]);
 					}
 				}
 
@@ -1172,6 +1180,13 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 						output->velocity[index_out * 3]		= ADD_IF_LOWER(output->velocity[index_out * 3], em2->velocity[index_in * 3]);
 						output->velocity[index_out * 3 + 1] = ADD_IF_LOWER(output->velocity[index_out * 3 + 1], em2->velocity[index_in * 3 + 1]);
 						output->velocity[index_out * 3 + 2] = ADD_IF_LOWER(output->velocity[index_out * 3 + 2], em2->velocity[index_in * 3 + 2]);
+					}
+					if (output->color && em2->color) {
+						/* mix by influence */
+						float f1 = output->influence[index_out];
+						float f2 = em2->influence[index_in];
+						float f = f1 + f2 > 0.0f ? f1 / (f1 + f2) : 0.5f;
+						interp_v3_v3v3(&output->color[index_out * 3], &output->color[index_out * 3], &em2->color[index_in * 3], f);
 					}
 				}
 	} // low res loop
@@ -1224,6 +1239,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 		ParticleSystem *psys = sfs->psys;
 		float *particle_pos;
 		float *particle_vel;
+		float *particle_texcol;
 		int totpart = psys->totpart, totchild;
 		int p = 0;
 		int valid_particles = 0;
@@ -1270,6 +1286,11 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 			bounds_margin = (int)ceil(solid + smooth);
 		}
 
+		if (sfs->flags & MOD_SMOKE_FLOW_USE_PART_TEXCOLOR)
+			particle_texcol = MEM_callocN(sizeof(float) * (totpart + totchild) * 3, "smoke_flow_particles");
+		else
+			particle_texcol = NULL;
+
 		/* calculate local position for each particle */
 		for (p = 0; p < totpart + totchild; p++)
 		{
@@ -1303,6 +1324,16 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 				BLI_kdtree_insert(tree, valid_particles, pos);
 			}
 
+			if (particle_texcol) {
+				if (p < totpart) {
+					ParticleTexture ptex;
+					psys_get_texture(&sim, &psys->particles[p], &ptex, PAMAP_COLOR, state.time);
+					copy_v3_v3(&particle_texcol[valid_particles * 3], ptex.color);
+				}
+				else
+					zero_v3(&particle_texcol[valid_particles * 3]);
+			}
+
 			/* calculate emission map bounds */
 			em_boundInsert(em, pos);
 			valid_particles++;
@@ -1310,7 +1341,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 
 		/* set emission map */
 		clampBoundsInDomain(sds, em->min, em->max, NULL, NULL, bounds_margin, dt);
-		em_allocateData(em, sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY, hires_multiplier);
+		em_allocateData(em, sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY, sfs->flags & MOD_SMOKE_FLOW_USE_PART_TEXCOLOR, hires_multiplier);
 
 		if (!(sfs->flags & MOD_SMOKE_FLOW_USE_PART_SIZE)) {
 			for (p = 0; p < valid_particles; p++)
@@ -1341,6 +1372,9 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 				if (sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY && (psys->part->phystype != PART_PHYS_NO))
 				{
 					VECADDFAC(&em->velocity[index * 3], &em->velocity[index * 3], &particle_vel[p * 3], sfs->vel_multi);
+				}
+				if (particle_texcol && em->color) {
+					copy_v3_v3(&em->color[index * 3], &particle_texcol[p * 3]);
 				}
 			}   // particles loop
 		}
@@ -1391,6 +1425,9 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 								{
 									VECADDFAC(&em->velocity[index * 3], &em->velocity[index * 3], &particle_vel[nearest.index * 3], sfs->vel_multi);
 								}
+								if (particle_texcol && em->color) {
+									copy_v3_v3(&em->color[index * 3], &particle_texcol[nearest.index * 3]);
+								}
 							}
 						}
 
@@ -1428,6 +1465,8 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 			MEM_freeN(particle_pos);
 		if (particle_vel)
 			MEM_freeN(particle_vel);
+		if (particle_texcol)
+			MEM_freeN(particle_texcol);
 	}
 }
 
@@ -1641,7 +1680,7 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 
 		/* set emission map */
 		clampBoundsInDomain(sds, em->min, em->max, NULL, NULL, (int)ceil(sfs->surface_distance), dt);
-		em_allocateData(em, sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY, hires_multiplier);
+		em_allocateData(em, sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY, false, hires_multiplier);
 
 		/* setup loop bounds */
 		for (i = 0; i < 3; i++) {
@@ -1983,7 +2022,7 @@ BLI_INLINE void apply_outflow_fields(int index, float *density, float *heat, flo
 	}
 }
 
-BLI_INLINE void apply_inflow_fields(SmokeFlowSettings *sfs, float emission_value, int index, float *density, float *heat, float *fuel, float *react, float *color_r, float *color_g, float *color_b)
+BLI_INLINE void apply_inflow_fields(SmokeFlowSettings *sfs, float emission_value, const float *color_value, int index, float *density, float *heat, float *fuel, float *react, float *color_r, float *color_g, float *color_b)
 {
 	int absolute_flow = (sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
 	float dens_old = density[index];
@@ -2020,9 +2059,10 @@ BLI_INLINE void apply_inflow_fields(SmokeFlowSettings *sfs, float emission_value
 	/* set color */
 	if (color_r && dens_flow) {
 		float total_dens = density[index] / (dens_old + dens_flow);
-		color_r[index] = (color_r[index] + sfs->color[0] * dens_flow) * total_dens;
-		color_g[index] = (color_g[index] + sfs->color[1] * dens_flow) * total_dens;
-		color_b[index] = (color_b[index] + sfs->color[2] * dens_flow) * total_dens;
+		const float *color = (color_value ? color_value : sfs->color);
+		color_r[index] = (color_r[index] + color[0] * dens_flow) * total_dens;
+		color_g[index] = (color_g[index] + color[1] * dens_flow) * total_dens;
+		color_b[index] = (color_b[index] + color[2] * dens_flow) * total_dens;
 	}
 
 	/* set fire reaction coordinate */
@@ -2169,7 +2209,10 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 				}
 				/* activate color field if flows add smoke with varying colors */
 				if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE && sfs->density) {
-					if (!(active_fields & SM_ACTIVE_COLOR_SET)) {
+					if (sfs->flags & MOD_SMOKE_FLOW_USE_PART_TEXCOLOR) {
+						active_fields |= SM_ACTIVE_COLORS;
+					}
+					else if (!(active_fields & SM_ACTIVE_COLOR_SET)) {
 						copy_v3_v3(sds->active_color, sfs->color);
 						active_fields |= SM_ACTIVE_COLOR_SET;
 					}
@@ -2250,6 +2293,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 				float *velocity_map = em->velocity;
 				float *emission_map = em->influence;
 				float *emission_map_high = em->influence_high;
+				float *color_map = em->color;
 
 				int ii, jj, kk, gx, gy, gz, ex, ey, ez, dx, dy, dz, block_size;
 				size_t e_index, d_index, index_big;
@@ -2277,7 +2321,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 								apply_outflow_fields(d_index, density, heat, fuel, react, color_r, color_g, color_b);
 							}
 							else { // inflow
-								apply_inflow_fields(sfs, emission_map[e_index], d_index, density, heat, fuel, react, color_r, color_g, color_b);
+								apply_inflow_fields(sfs, emission_map[e_index], color_map ? &color_map[e_index * 3] : NULL, d_index, density, heat, fuel, react, color_r, color_g, color_b);
 
 								/* initial velocity */
 								if (sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) {
@@ -2291,6 +2335,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 							if (bigdensity) {
 								// neighbor cell emission densities (for high resolution smoke smooth interpolation)
 								float c000, c001, c010, c011,  c100, c101, c110, c111;
+								float col000[3], col001[3], col010[3], col011[3],  col100[3], col101[3], col110[3], col111[3];
 
 								smoke_turbulence_get_res(sds->wt, bigres);
 								block_size = sds->amplify + 1;  // high res block size
@@ -2305,14 +2350,67 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 								c110 = (ez > 0) ? emission_map[smoke_get_index(ex, em->res[0], ey, em->res[1], ez - 1)] : 0;
 								c111 = emission_map[smoke_get_index(ex, em->res[0], ey, em->res[1], ez)]; // this cell
 
+								if (color_map) {
+									static const float Z[3] = {0.0f, 0.0f, 0.0f};
+									
+									copy_v3_v3(col000, (ex > 0 && ey > 0 && ez > 0) ? &color_map[smoke_get_index(ex - 1, em->res[0], ey - 1, em->res[1], ez - 1) * 3] : Z);
+									copy_v3_v3(col001, (ex > 0 && ey > 0) ? &color_map[smoke_get_index(ex - 1, em->res[0], ey - 1, em->res[1], ez) * 3] : Z);
+									copy_v3_v3(col010, (ex > 0 && ez > 0) ? &color_map[smoke_get_index(ex - 1, em->res[0], ey, em->res[1], ez - 1) * 3] : Z);
+									copy_v3_v3(col011, (ex > 0) ? &color_map[smoke_get_index(ex - 1, em->res[0], ey, em->res[1], ez) * 3] : Z);
+									
+									copy_v3_v3(col100, (ey > 0 && ez > 0) ? &color_map[smoke_get_index(ex, em->res[0], ey - 1, em->res[1], ez - 1) * 3] : Z);
+									copy_v3_v3(col101, (ey > 0) ? &color_map[smoke_get_index(ex, em->res[0], ey - 1, em->res[1], ez) * 3] : Z);
+									copy_v3_v3(col110, (ez > 0) ? &color_map[smoke_get_index(ex, em->res[0], ey, em->res[1], ez - 1) * 3] : Z);
+									copy_v3_v3(col111, &color_map[smoke_get_index(ex, em->res[0], ey, em->res[1], ez) * 3]); // this cell
+								}
+								else {
+									zero_v3(col000);
+									zero_v3(col001);
+									zero_v3(col010);
+									zero_v3(col011);
+									zero_v3(col100);
+									zero_v3(col101);
+									zero_v3(col110);
+									zero_v3(col111);
+								}
+
 								for (ii = 0; ii < block_size; ii++)
 									for (jj = 0; jj < block_size; jj++)
 										for (kk = 0; kk < block_size; kk++)
 										{
 
-											float fx, fy, fz, interpolated_value;
+											float col[3], interpolated_value, *interpolated_color;
 											int shift_x = 0, shift_y = 0, shift_z = 0;
+											float w[2][2][2];
 
+											bool do_interpolation = ((!((sds->highres_sampling == SM_HRES_FULLSAMPLE) && emission_map_high) &&
+											                          !(sds->highres_sampling == SM_HRES_NEAREST)) ||
+											                         color_map);
+
+											/* weights are used for both density and color,
+											 * so calculate them once in advance
+											 */
+											if (do_interpolation) {
+												/* get relative block position
+												 * for interpolation smoothing */
+												float fx = (float)ii / block_size + 0.5f / block_size;
+												float fy = (float)jj / block_size + 0.5f / block_size;
+												float fz = (float)kk / block_size + 0.5f / block_size;
+												float mx = 1.0f - fx;
+												float my = 1.0f - fy;
+												float mz = 1.0f - fz;
+												
+												w[0][0][0] = mx * my * mz;
+												w[1][0][0] = fx * my * mz;
+												w[0][1][0] = mx * fy * mz;
+												w[1][1][0] = fx * fy * mz;
+												w[0][0][1] = mx * my * fz;
+												w[1][0][1] = fx * my * fz;
+												w[0][1][1] = mx * fy * fz;
+												w[1][1][1] = fx * fy * fz;
+											}
+											else
+												memset(w, 0, sizeof(float) * 8);
 
 											/* Use full sample emission map if enabled and available */
 											if ((sds->highres_sampling == SM_HRES_FULLSAMPLE) && emission_map_high) {
@@ -2326,22 +2424,17 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 											/* Fall back to interpolated */
 											else
 											{
-												/* get relative block position
-												 * for interpolation smoothing */
-												fx = (float)ii / block_size + 0.5f / block_size;
-												fy = (float)jj / block_size + 0.5f / block_size;
-												fz = (float)kk / block_size + 0.5f / block_size;
 
 												/* calculate trilinear interpolation */
-												interpolated_value = c000 * (1 - fx) * (1 - fy) * (1 - fz) +
-												                     c100 * fx * (1 - fy) * (1 - fz) +
-												                     c010 * (1 - fx) * fy * (1 - fz) +
-												                     c001 * (1 - fx) * (1 - fy) * fz +
-												                     c101 * fx * (1 - fy) * fz +
-												                     c011 * (1 - fx) * fy * fz +
-												                     c110 * fx * fy * (1 - fz) +
-												                     c111 * fx * fy * fz;
-
+												interpolated_value = 0.0f;
+												interpolated_value += c000 * w[0][0][0];
+												interpolated_value += c100 * w[1][0][0];
+												interpolated_value += c010 * w[0][1][0];
+												interpolated_value += c110 * w[1][1][0];
+												interpolated_value += c001 * w[0][0][1];
+												interpolated_value += c101 * w[1][0][1];
+												interpolated_value += c011 * w[0][1][1];
+												interpolated_value += c111 * w[1][1][1];
 
 												/* add some contrast / sharpness
 												 * depending on hi-res block size */
@@ -2355,6 +2448,48 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 												shift_y = (dy < 1) ? 0 : block_size / 2;
 												shift_z = (dz < 1) ? 0 : block_size / 2;
 											}
+											
+											if (color_map) {
+												float wcol[2][2][2], totw, invtotw;
+												
+												/* colors are zero (black) in zero-emission cells,
+												 * so use weighted average based on density to avoid artifacts!
+												 */
+												wcol[0][0][0] = w[0][0][0] * c000;
+												wcol[1][0][0] = w[1][0][0] * c100;
+												wcol[0][1][0] = w[0][1][0] * c010;
+												wcol[1][1][0] = w[1][1][0] * c110;
+												wcol[0][0][1] = w[0][0][1] * c001;
+												wcol[1][0][1] = w[1][0][1] * c101;
+												wcol[0][1][1] = w[0][1][1] * c011;
+												wcol[1][1][1] = w[1][1][1] * c111;
+												
+												totw = wcol[0][0][0] + wcol[1][0][0] + wcol[0][1][0] + wcol[1][1][0] + 
+												       wcol[0][0][1] + wcol[1][0][1] + wcol[0][1][1] + wcol[1][1][1];
+												invtotw = totw > 0.0f ? 1.0f/totw : 0.0f;
+												wcol[0][0][0] *= invtotw;
+												wcol[1][0][0] *= invtotw;
+												wcol[0][1][0] *= invtotw;
+												wcol[1][1][0] *= invtotw;
+												wcol[0][0][1] *= invtotw;
+												wcol[1][0][1] *= invtotw;
+												wcol[0][1][1] *= invtotw;
+												wcol[1][1][1] *= invtotw;
+
+												zero_v3(col);
+												madd_v3_v3fl(col, col000, wcol[0][0][0]);
+												madd_v3_v3fl(col, col100, wcol[1][0][0]);
+												madd_v3_v3fl(col, col010, wcol[0][1][0]);
+												madd_v3_v3fl(col, col110, wcol[1][1][0]);
+												madd_v3_v3fl(col, col001, wcol[0][0][1]);
+												madd_v3_v3fl(col, col101, wcol[1][0][1]);
+												madd_v3_v3fl(col, col011, wcol[0][1][1]);
+												madd_v3_v3fl(col, col111, wcol[1][1][1]);
+												
+												interpolated_color = col;
+											}
+											else
+												interpolated_color = NULL;
 
 											/* get shifted index for current high resolution block */
 											index_big = smoke_get_index(block_size * dx + ii - shift_x, bigres[0], block_size * dy + jj - shift_y, bigres[1], block_size * dz + kk - shift_z);
@@ -2365,7 +2500,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 												}
 											}
 											else { // inflow
-												apply_inflow_fields(sfs, interpolated_value, index_big, bigdensity, NULL, bigfuel, bigreact, bigcolor_r, bigcolor_g, bigcolor_b);
+												apply_inflow_fields(sfs, interpolated_value, interpolated_color, index_big, bigdensity, NULL, bigfuel, bigreact, bigcolor_r, bigcolor_g, bigcolor_b);
 											}
 										} // hires loop
 							}  // bigdensity

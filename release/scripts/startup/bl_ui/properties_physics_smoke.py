@@ -82,6 +82,8 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
             layout.prop(flow, "smoke_flow_type", expand=False)
 
             if flow.smoke_flow_type != "OUTFLOW":
+                use_const_color = False
+
                 split = layout.split()
                 col = split.column()
                 col.label(text="Flow Source:")
@@ -90,6 +92,10 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
                     col.label(text="Particle System:")
                     col.prop_search(flow, "particle_system", ob, "particle_systems", text="")
                     col.prop(flow, "use_particle_size", text="Set Size")
+                    col.prop(flow, "use_particle_texture_color", text="Set Color")
+                    # disable const color button when using particle color
+                    use_const_color = not flow.use_particle_texture_color
+
                     sub = col.column()
                     sub.active = flow.use_particle_size
                     sub.prop(flow, "particle_size")
@@ -113,7 +119,9 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
                 if flow.smoke_flow_type in {'SMOKE', 'BOTH'}:
                     sub.prop(flow, "density")
                     sub.prop(flow, "temperature")
-                    sub.prop(flow, "smoke_color")
+                    subsub = sub.column()
+                    subsub.active = use_const_color
+                    subsub.prop(flow, "smoke_color")
                 if flow.smoke_flow_type in {'FIRE', 'BOTH'}:
                     sub.prop(flow, "fuel_amount")
                 sub.label(text="Sampling:")
