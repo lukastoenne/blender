@@ -3412,21 +3412,24 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	/* TODO: call redraw all windows somehow */
 }
 /* Helpers */
-void BKE_ptcache_disk_to_mem(PTCacheID *pid)
+void BKE_ptcache_disk_to_mem(PTCacheID *pid, bool clear)
 {
 	PointCache *cache = pid->cache;
 	PTCacheMem *pm = NULL;
-	int baked = cache->flag & PTCACHE_BAKED;
 	int cfra, sfra = cache->startframe, efra = cache->endframe;
 
-	/* Remove possible bake flag to allow clear */
-	cache->flag &= ~PTCACHE_BAKED;
-
-	/* PTCACHE_DISK_CACHE flag was cleared already */
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
-
-	/* restore possible bake flag */
-	cache->flag |= baked;
+	if (clear) {
+		int baked = cache->flag & PTCACHE_BAKED;
+		
+		/* Remove possible bake flag to allow clear */
+		cache->flag &= ~PTCACHE_BAKED;
+		
+		/* PTCACHE_DISK_CACHE flag was cleared already */
+		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+		
+		/* restore possible bake flag */
+		cache->flag |= baked;
+	}
 
 	for (cfra=sfra; cfra <= efra; cfra++) {
 		pm = ptcache_disk_frame_to_mem(pid, cfra);
@@ -3435,20 +3438,23 @@ void BKE_ptcache_disk_to_mem(PTCacheID *pid)
 			BLI_addtail(&pid->cache->mem_cache, pm);
 	}
 }
-void BKE_ptcache_mem_to_disk(PTCacheID *pid)
+void BKE_ptcache_mem_to_disk(PTCacheID *pid, bool clear)
 {
 	PointCache *cache = pid->cache;
 	PTCacheMem *pm = cache->mem_cache.first;
-	int baked = cache->flag & PTCACHE_BAKED;
 
-	/* Remove possible bake flag to allow clear */
-	cache->flag &= ~PTCACHE_BAKED;
-
-	/* PTCACHE_DISK_CACHE flag was set already */
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
-
-	/* restore possible bake flag */
-	cache->flag |= baked;
+	if (clear) {
+		int baked = cache->flag & PTCACHE_BAKED;
+		
+		/* Remove possible bake flag to allow clear */
+		cache->flag &= ~PTCACHE_BAKED;
+		
+		/* PTCACHE_DISK_CACHE flag was set already */
+		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+		
+		/* restore possible bake flag */
+		cache->flag |= baked;
+	}
 
 	for (; pm; pm=pm->next) {
 		if (ptcache_mem_frame_to_disk(pid, pm)==0) {
@@ -3479,9 +3485,9 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 	}
 
 	if (cache->flag & PTCACHE_DISK_CACHE)
-		BKE_ptcache_mem_to_disk(pid);
+		BKE_ptcache_mem_to_disk(pid, true);
 	else
-		BKE_ptcache_disk_to_mem(pid);
+		BKE_ptcache_disk_to_mem(pid, true);
 
 	cache->flag ^= PTCACHE_DISK_CACHE;
 	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);

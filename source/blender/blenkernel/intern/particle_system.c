@@ -1178,7 +1178,7 @@ void psys_make_temp_pointcache(Object *ob, ParticleSystem *psys)
 		PTCacheID pid;
 		BKE_ptcache_id_from_particles(&pid, ob, psys);
 		cache->flag &= ~PTCACHE_DISK_CACHE;
-		BKE_ptcache_disk_to_mem(&pid);
+		BKE_ptcache_disk_to_mem(&pid, false);
 		cache->flag |= PTCACHE_DISK_CACHE;
 	}
 }

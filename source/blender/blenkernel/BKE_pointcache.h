@@ -314,10 +314,10 @@ void BKE_ptcache_quick_cache_all(struct Main *bmain, struct Scene *scene);
 void BKE_ptcache_bake(struct PTCacheBaker *baker);
 
 /* Convert disk cache to memory cache. */
-void BKE_ptcache_disk_to_mem(struct PTCacheID *pid);
+void BKE_ptcache_disk_to_mem(struct PTCacheID *pid, bool clear);
 
 /* Convert memory cache to disk cache. */
-void BKE_ptcache_mem_to_disk(struct PTCacheID *pid);
+void BKE_ptcache_mem_to_disk(struct PTCacheID *pid, bool clear);
 
 /* Convert disk cache to memory cache and vice versa. Clears the cache that was converted. */
 void BKE_ptcache_toggle_disk_cache(struct PTCacheID *pid);
