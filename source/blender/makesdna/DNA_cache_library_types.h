@@ -103,7 +103,7 @@ typedef struct CacheModifier {
 	int flag;
 	char name[64]; /* MAX_NAME */
 	
-	char output_filepath[1024];
+	char filepath[1024];
 } CacheModifier;
 
 typedef enum eCacheModifier_Type {

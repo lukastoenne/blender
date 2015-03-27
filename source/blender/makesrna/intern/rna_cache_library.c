@@ -357,6 +357,11 @@ static void rna_def_cache_modifier(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Name", "Modifier name");
 	RNA_def_property_update(prop, NC_ID | NA_RENAME, NULL);
 	RNA_def_struct_name_property(srna, prop);
+	
+	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_string_sdna(prop, NULL, "filepath");
+	RNA_def_property_ui_text(prop, "File Path", "Path to cache modifier output storage");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 }
 
 static void rna_def_cache_library_modifiers(BlenderRNA *brna, PropertyRNA *cprop)

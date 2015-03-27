@@ -332,6 +332,9 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row.prop(md, "name", text="")
         row.operator("cachelibrary.remove_modifier", icon='X', text="", emboss=False)
 
+        row = layout.row()
+        row.prop(md, "filepath")
+
         # match enum type to our functions, avoids a lookup table.
         getattr(self, md.type)(layout, cachelib, md)
 
