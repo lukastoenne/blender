@@ -1297,6 +1297,108 @@ void BrickTextureNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_brick_texture");
 }
 
+/* Point Density Texture */
+
+static ShaderEnum point_density_space_init()
+{
+	ShaderEnum enm;
+
+	enm.insert("Object", NODE_TEX_VOXEL_SPACE_OBJECT);
+	enm.insert("World", NODE_TEX_VOXEL_SPACE_WORLD);
+
+	return enm;
+}
+
+ShaderEnum PointDensityTextureNode::space_enum = point_density_space_init();
+
+PointDensityTextureNode::PointDensityTextureNode()
+: ShaderNode("point_density")
+{
+	image_manager = NULL;
+	slot = -1;
+	filename = "";
+	space = ustring("Object");
+	builtin_data = NULL;
+	interpolation = INTERPOLATION_LINEAR;
+
+	tfm = transform_identity();
+
+	add_input("Vector", SHADER_SOCKET_POINT, ShaderInput::POSITION);
+	add_output("Density", SHADER_SOCKET_FLOAT);
+}
+
+PointDensityTextureNode::~PointDensityTextureNode()
+{
+	if(image_manager)
+		image_manager->remove_image(filename, builtin_data, interpolation);
+}
+
+ShaderNode *PointDensityTextureNode::clone() const
+{
+	PointDensityTextureNode *node = new PointDensityTextureNode(*this);
+	node->image_manager = NULL;
+	node->slot = -1;
+	return node;
+}
+
+void PointDensityTextureNode::attributes(Shader *shader,
+                                         AttributeRequestSet *attributes)
+{
+	if(shader->has_volume)
+		attributes->add(ATTR_STD_GENERATED_TRANSFORM);
+
+	ShaderNode::attributes(shader, attributes);
+}
+
+void PointDensityTextureNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *vector_in = input("Vector");
+	ShaderOutput *density_out = output("Density");
+
+	if(density_out->links.empty()) {
+		return;
+	}
+
+	image_manager = compiler.image_manager;
+
+	compiler.stack_assign(density_out);
+
+	if(slot == -1) {
+		bool is_float, is_linear;
+		slot = image_manager->add_image(filename, builtin_data,
+		                                false, 0,
+		                                is_float, is_linear,
+		                                interpolation,
+		                                false);
+	}
+
+	if(slot != -1) {
+		compiler.stack_assign(vector_in);
+		compiler.add_node(NODE_TEX_VOXEL,
+		                  slot,
+		                  compiler.encode_uchar4(vector_in->stack_offset,
+		                                         density_out->stack_offset,
+		                                         space_enum[space],
+		                                         0));
+		if(space == "World") {
+			compiler.add_node(tfm.x);
+			compiler.add_node(tfm.y);
+			compiler.add_node(tfm.z);
+			compiler.add_node(tfm.w);
+		}
+	}
+	else {
+		compiler.add_node(NODE_VALUE_F,
+		                  __float_as_int(0.0f),
+		                  density_out->stack_offset);
+	}
+}
+
+void PointDensityTextureNode::compile(OSLCompiler& /*compiler*/)
+{
+	/* TODO(sergey): To be supported. */
+}
+
 /* Normal */
 
 NormalNode::NormalNode()
