@@ -327,13 +327,16 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
 
     def draw_cache_modifier(self, context, layout, cachelib, md):
+        layout.context_pointer_set("cache_modifier", md)
+
         row = layout.row(align=True)
         row.context_pointer_set("cache_modifier", md)
         row.prop(md, "name", text="")
         row.operator("cachelibrary.remove_modifier", icon='X', text="", emboss=False)
 
-        row = layout.row()
-        row.prop(md, "filepath")
+        col = layout.column(align=True)
+        col.prop(md, "filepath")
+        col.operator("cachelibrary.modifier_bake", text="Bake")
 
         # match enum type to our functions, avoids a lookup table.
         getattr(self, md.type)(layout, cachelib, md)
