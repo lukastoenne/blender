@@ -27,6 +27,11 @@ typedef struct StrandsVertex {
 	float weight;
 } StrandsVertex;
 
+typedef struct StrandsMotionState {
+	float co[3];
+	float vel[3];
+} StrandsMotionState;
+
 typedef struct StrandsCurve {
 	int numverts;
 } StrandsCurve;
@@ -35,10 +40,15 @@ typedef struct Strands {
 	StrandsCurve *curves;
 	StrandsVertex *verts;
 	int totcurves, totverts;
+	
+	/* optional */
+	StrandsMotionState *state;
 } Strands;
 
 struct Strands *BKE_strands_new(int strands, int verts);
 void BKE_strands_free(struct Strands *strands);
+
+void BKE_strands_add_motion_state(struct Strands *strands);
 
 /* ------------------------------------------------------------------------- */
 
@@ -46,6 +56,7 @@ typedef struct StrandIterator {
 	int index, tot;
 	StrandsCurve *curve;
 	StrandsVertex *verts;
+	StrandsMotionState *state;
 } StrandIterator;
 
 BLI_INLINE void BKE_strand_iter_init(StrandIterator *iter, Strands *strands)
@@ -54,6 +65,7 @@ BLI_INLINE void BKE_strand_iter_init(StrandIterator *iter, Strands *strands)
 	iter->index = 0;
 	iter->curve = strands->curves;
 	iter->verts = strands->verts;
+	iter->state = strands->state;
 }
 
 BLI_INLINE bool BKE_strand_iter_valid(StrandIterator *iter)
@@ -68,12 +80,15 @@ BLI_INLINE void BKE_strand_iter_next(StrandIterator *iter)
 	++iter->index;
 	++iter->curve;
 	iter->verts += numverts;
+	if (iter->state)
+		iter->state += numverts;
 }
 
 
 typedef struct StrandVertexIterator {
 	int index, tot;
 	StrandsVertex *vertex;
+	StrandsMotionState *state;
 } StrandVertexIterator;
 
 BLI_INLINE void BKE_strand_vertex_iter_init(StrandVertexIterator *iter, StrandIterator *strand_iter)
@@ -81,6 +96,7 @@ BLI_INLINE void BKE_strand_vertex_iter_init(StrandVertexIterator *iter, StrandIt
 	iter->tot = strand_iter->curve->numverts;
 	iter->index = 0;
 	iter->vertex = strand_iter->verts;
+	iter->state = strand_iter->state;
 }
 
 BLI_INLINE bool BKE_strand_vertex_iter_valid(StrandVertexIterator *iter)
@@ -91,6 +107,8 @@ BLI_INLINE bool BKE_strand_vertex_iter_valid(StrandVertexIterator *iter)
 BLI_INLINE void BKE_strand_vertex_iter_next(StrandVertexIterator *iter)
 {
 	++iter->vertex;
+	if (iter->state)
+		++iter->state;
 	++iter->index;
 }
 

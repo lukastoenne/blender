@@ -43,3 +43,10 @@ void BKE_strands_free(Strands *strands)
 		MEM_freeN(strands);
 	}
 }
+
+void BKE_strands_add_motion_state(Strands *strands)
+{
+	if (!strands->state) {
+		strands->state = MEM_mallocN(sizeof(StrandsMotionState) * strands->totverts, "strand motion states");
+	}
+}
