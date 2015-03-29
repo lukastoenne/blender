@@ -238,6 +238,116 @@ void AbcHairWriter::write_sample()
 }
 
 
+struct StrandsSample {
+	std::vector<int32_t> numverts;
+	
+	std::vector<V3f> positions;
+	std::vector<float32_t> times;
+	std::vector<float32_t> weights;
+	
+	std::vector<V3f> motion_co;
+	std::vector<V3f> motion_vel;
+};
+
+AbcStrandsWriter::AbcStrandsWriter(const std::string &name, Strands *strands) :
+    m_name(name),
+    m_strands(strands)
+{
+}
+
+void AbcStrandsWriter::init_abc(OObject parent)
+{
+	if (m_curves)
+		return;
+	m_curves = OCurves(parent, m_name, abc_archive()->frame_sampling_index());
+	
+	OCurvesSchema &schema = m_curves.getSchema();
+	OCompoundProperty geom_props = schema.getArbGeomParams();
+	
+	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
+	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
+	
+	m_param_motion_state = OCompoundProperty(geom_props, "motion_state");
+	m_param_motion_co = OP3fGeomParam(m_param_motion_state, "position", false, kVertexScope, 1, 0);
+	m_param_motion_vel = OV3fGeomParam(m_param_motion_state, "velocity", false, kVertexScope, 1, 0);
+}
+
+static void strands_create_sample(Strands *strands, StrandsSample &sample, bool do_numverts)
+{
+	const bool do_state = strands->state;
+	
+	int totcurves = strands->totcurves;
+	int totverts = strands->totverts;
+	
+	if (totverts == 0)
+		return;
+	
+	if (do_numverts)
+		sample.numverts.reserve(totcurves);
+	sample.positions.reserve(totverts);
+	sample.times.reserve(totverts);
+	sample.weights.reserve(totverts);
+	if (do_state) {
+		sample.motion_co.reserve(totverts);
+		sample.motion_vel.reserve(totverts);
+	}
+	
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		int numverts = it_strand.curve->numverts;
+		
+		if (do_numverts)
+			sample.numverts.push_back(numverts);
+		
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			const float *co = it_vert.vertex->co;
+			sample.positions.push_back(V3f(co[0], co[1], co[2]));
+			sample.times.push_back(it_vert.vertex->time);
+			sample.weights.push_back(it_vert.vertex->weight);
+			
+			if (do_state) {
+				float *co = it_vert.state->co;
+				float *vel = it_vert.state->vel;
+				sample.motion_co.push_back(V3f(co[0], co[1], co[2]));
+				sample.motion_vel.push_back(V3f(vel[0], vel[1], vel[2]));
+			}
+		}
+	}
+}
+
+void AbcStrandsWriter::write_sample()
+{
+	if (!m_curves)
+		return;
+	if (!m_strands)
+		return;
+	
+	OCurvesSchema &schema = m_curves.getSchema();
+	
+	StrandsSample strands_sample;
+	OCurvesSchema::Sample sample;
+	if (schema.getNumSamples() == 0) {
+		/* write curve sizes only first time, assuming they are constant! */
+		strands_create_sample(m_strands, strands_sample, true);
+		sample = OCurvesSchema::Sample(strands_sample.positions, strands_sample.numverts);
+	}
+	else {
+		strands_create_sample(m_strands, strands_sample, false);
+		sample = OCurvesSchema::Sample(strands_sample.positions);
+	}
+	schema.set(sample);
+	
+	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
+	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.weights), kVertexScope));
+	
+	if (!m_strands->state) {
+		m_param_motion_co.set(OP3fGeomParam::Sample(P3fArraySample(strands_sample.motion_co), kVertexScope));
+		m_param_motion_vel.set(OV3fGeomParam::Sample(V3fArraySample(strands_sample.motion_vel), kVertexScope));
+	}
+}
+
+
 AbcStrandsReader::AbcStrandsReader() :
     m_strands(NULL)
 {
@@ -259,6 +369,10 @@ void AbcStrandsReader::init_abc(IObject object)
 	
 	m_param_times = IFloatGeomParam(geom_props, "times", 0);
 	m_param_weights = IFloatGeomParam(geom_props, "weights", 0);
+	
+	m_param_motion_state = ICompoundProperty(geom_props, "motion_state");
+	m_param_motion_co = IP3fGeomParam(m_param_motion_state, "position");
+	m_param_motion_vel = IV3fGeomParam(m_param_motion_state, "velocity");
 }
 
 PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
@@ -303,6 +417,24 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		++co;
 		++time;
 		++weight;
+	}
+	
+	IP3fGeomParam::Sample sample_motion_co = m_param_motion_co.getExpandedValue(ss);
+	IV3fGeomParam::Sample sample_motion_vel = m_param_motion_vel.getExpandedValue(ss);
+	if (sample_motion_co && sample_motion_vel) {
+		
+		BKE_strands_add_motion_state(m_strands);
+		
+		const V3f *co = sample_motion_co.getVals()->get();
+		const V3f *vel = sample_motion_vel.getVals()->get();
+		for (int i = 0; i < m_strands->totverts; ++i) {
+			StrandsMotionState *ms = &m_strands->state[i];
+			copy_v3_v3(ms->co, co->getValue());
+			copy_v3_v3(ms->vel, vel->getValue());
+			
+			++co;
+			++vel;
+		}
 	}
 	
 	return PTC_READ_SAMPLE_EXACT;
