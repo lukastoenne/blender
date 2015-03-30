@@ -63,9 +63,6 @@
 
 #include "PTC_api.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
-
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
 	CacheLibrary *cachelib;
@@ -549,10 +546,12 @@ BLI_INLINE bool path_is_dirpath(const char *path)
 	return *(BLI_last_slash(path) + 1) == '\0';
 }
 
-bool BKE_cache_archive_path_test(const char *path, Library *lib)
+bool BKE_cache_archive_path_test(CacheLibrary *cachelib, CacheModifier *cachemd)
 {
+	const char *path = cachemd ? cachemd->filepath : cachelib->filepath;
+	
 	if (BLI_path_is_rel(path)) {
-		if (!(G.relbase_valid || lib))
+		if (!(G.relbase_valid || cachelib->id.lib))
 			return false;
 	}
 	
@@ -560,7 +559,7 @@ bool BKE_cache_archive_path_test(const char *path, Library *lib)
 	
 }
 
-static void cache_archive_path(const char *path, Library *lib, char *result, int max, const char *default_filename)
+static void cache_archive_path_ex(const char *path, Library *lib, char *result, int max, const char *default_filename)
 {
 	char abspath[FILE_MAX];
 	
@@ -593,14 +592,12 @@ static void cache_archive_path(const char *path, Library *lib, char *result, int
 	}
 }
 
-void BKE_cache_library_archive_path(struct CacheLibrary *cachelib, char *result, int max)
+void BKE_cache_archive_path(CacheLibrary *cachelib, CacheModifier *cachemd, char *result, int max)
 {
-	cache_archive_path(cachelib->filepath, cachelib->id.lib, result, max, cachelib->id.name+2);
-}
-
-void BKE_cache_modifier_archive_path(struct CacheLibrary *cachelib, struct CacheModifier *md, char *result, int max)
-{
-	cache_archive_path(md->filepath, cachelib->id.lib, result, max, md->name);
+	if (cachemd)
+		cache_archive_path_ex(cachemd->filepath, cachelib->id.lib, result, max, cachemd->name);
+	else
+		cache_archive_path_ex(cachelib->filepath, cachelib->id.lib, result, max, cachelib->id.name+2);
 }
 
 
@@ -612,14 +609,14 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 	
 	/* look for last valid modifier output */
 	for (md = cachelib->modifiers.last; md; md = md->prev) {
-		BKE_cache_modifier_archive_path(cachelib, md, filename, sizeof(filename));
+		BKE_cache_archive_path(cachelib, md, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
 		if (archive)
 			return archive;
 	}
 	
 	/* if no modifier has a valid output, try the base cache */
-	BKE_cache_library_archive_path(cachelib, filename, sizeof(filename));
+	BKE_cache_archive_path(cachelib, NULL, filename, sizeof(filename));
 	archive = PTC_open_reader_archive(scene, filename);
 	if (archive)
 		return archive;
@@ -830,6 +827,7 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 		mti->foreachIDLink(md, cachelib, walk, userdata);
 }
 
+#if 0
 /* Warning! Deletes existing files if possible, operator should show confirm dialog! */
 static bool cache_modifier_bake_ensure_file_target(CacheLibrary *cachelib, CacheModifier *md)
 {
@@ -886,9 +884,11 @@ static void cache_modifier_bake_endjob(void *UNUSED(customdata))
 	G.is_rendering = false;
 	BKE_spacedata_draw_locks(false);
 }
+#endif
 
 void BKE_cache_modifier_bake(const bContext *C, Group *group, CacheLibrary *cachelib, CacheModifier *md, Scene *scene, int startframe, int endframe)
 {
+#if 0
 	CacheBakeContext *ctx;
 	wmJob *wm_job;
 	
@@ -923,6 +923,7 @@ void BKE_cache_modifier_bake(const bContext *C, Group *group, CacheLibrary *cach
 	WM_jobs_callbacks(wm_job, cache_modifier_bake_startjob, NULL, NULL, cache_modifier_bake_endjob);
 	
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
+#endif
 }
 
 /* ------------------------------------------------------------------------- */
@@ -967,7 +968,7 @@ static void hairsim_bake(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, Cac
 	
 	scene->r.framelen = 1.0f;
 	
-	BKE_cache_modifier_archive_path(cachelib, &hsmd->modifier, filename, sizeof(filename));
+	BKE_cache_archive_path(cachelib, &hsmd->modifier, filename, sizeof(filename));
 	archive = PTC_open_writer_archive(scene, filename);
 	
 	if (archive) {

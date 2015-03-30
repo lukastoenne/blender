@@ -95,9 +95,8 @@ void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cac
 
 /* ========================================================================= */
 
-bool BKE_cache_archive_path_test(const char *path, Library *lib);
-void BKE_cache_library_archive_path(struct CacheLibrary *cachelib, char *result, int max);
-void BKE_cache_modifier_archive_path(struct CacheLibrary *cachelib, struct CacheModifier *md, char *result, int max);
+bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, struct CacheModifier *md);
+void BKE_cache_archive_path(struct CacheLibrary *cachelib, struct CacheModifier *md, char *result, int max);
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 
