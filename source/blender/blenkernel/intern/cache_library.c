@@ -48,6 +48,7 @@
 
 #include "BKE_anim.h"
 #include "BKE_cache_library.h"
+#include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
@@ -55,10 +56,15 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
+#include "BKE_scene.h"
+#include "BKE_screen.h"
 
 #include "BLF_translation.h"
 
 #include "PTC_api.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
 
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
@@ -827,6 +833,7 @@ CacheModifier *BKE_cache_modifier_add(CacheLibrary *cachelib, const char *name, 
 	CacheModifierTypeInfo *mti = cache_modifier_type_get(type);
 	
 	CacheModifier *md = MEM_callocN(mti->struct_size, "cache modifier");
+	md->type = type;
 	
 	if (!name)
 		name = mti->name;
@@ -890,25 +897,103 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 	
 	if (mti->foreachIDLink)
 		mti->foreachIDLink(md, cachelib, walk, userdata);
+}
+
+/* Warning! Deletes existing files if possible, operator should show confirm dialog! */
+static bool cache_modifier_bake_ensure_file_target(const char *filepath, ID *id)
+{
+	char filename[FILE_MAX];
 	
+	BKE_cache_archive_path(filepath, id, id->lib, filename, sizeof(filename));
 	
+	if (BLI_exists(filename)) {
+		if (BLI_is_dir(filename)) {
+			return false;
+		}
+		else if (BLI_is_file(filename)) {
+			if (BLI_file_is_writable(filename)) {
+				/* returns 0 on success */
+				return (BLI_delete(filename, false, false) == 0);
+			}
+			else {
+				return false;
+			}
+		}
+		else {
+			return false;
+		}
+	}
+	return true;
+}
+
+static void cache_modifier_bake_freejob(void *customdata)
+{
+	CacheBakeContext *ctx = (CacheBakeContext *)customdata;
+	MEM_freeN(ctx);
+}
+
+static void cache_modifier_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+	CacheBakeContext *ctx = (CacheBakeContext *)customdata;
+	CacheModifierTypeInfo *mti = cache_modifier_type_get(ctx->md->type);
+	
+	ctx->stop = stop;
+	ctx->do_update = do_update;
+	ctx->progress = progress;
+	
+	if (mti->bake)
+		mti->bake(ctx->md, ctx->cachelib, ctx);
+	
+	*do_update = true;
+	*stop = 0;
+}
+
+static void cache_modifier_bake_endjob(void *UNUSED(customdata))
+{
+	/*CacheBakeContext *ctx = (CacheBakeContext *)customdata;*/
+	
+	G.is_rendering = false;
+	BKE_spacedata_draw_locks(false);
+}
+
+void BKE_cache_modifier_bake(const bContext *C, CacheLibrary *cachelib, CacheModifier *md, Scene *scene, int startframe, int endframe)
+{
+	CacheBakeContext *ctx;
+	wmJob *wm_job;
+	
+	/* make sure we can write */
+	cache_modifier_bake_ensure_file_target(md->filepath, &cachelib->id);
+	
+	/* XXX annoying hack: needed to prevent data corruption when changing
+		 * scene frame in separate threads
+		 */
+	G.is_rendering = true;
+	
+	BKE_spacedata_draw_locks(true);
+	
+	/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,
+		 * since we need to set G.is_rendering
+		 */
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Cache Modifier Bake",
+	                     WM_JOB_PROGRESS | WM_JOB_EXCL_RENDER, WM_JOB_TYPE_CACHELIBRARY_BAKE);
+	
+	/* setup job */
+	ctx = MEM_callocN(sizeof(CacheBakeContext), "Cache Bake Context");
+	ctx->cachelib = cachelib;
+	ctx->md = md;
+	ctx->bmain = CTX_data_main(C);
+	ctx->scene = scene;
+	ctx->startframe = startframe;
+	ctx->endframe = endframe;
+	
+	WM_jobs_customdata_set(wm_job, ctx, cache_modifier_bake_freejob);
+	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
+	WM_jobs_callbacks(wm_job, cache_modifier_bake_startjob, NULL, NULL, cache_modifier_bake_endjob);
+	
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
 /* ------------------------------------------------------------------------- */
-
-#if 0
-void BKE_cache_modifier_type_init(CacheModifierTypeInfo *mti, const char *name, const char *struct_name, int struct_size,
-                                  CacheModifier_InitFunc init, CacheModifier_FreeFunc free, CacheModifier_CopyFunc copy)
-{
-	mti->name = name;
-	mti->struct_name = struct_name;
-	mti->struct_size = struct_size;
-	
-	mti->initData = init;
-	mti->freeData = free;
-	mti->copy_data = copy;
-}
-#endif
 
 static void hairsim_init(HairSimCacheModifier *UNUSED(md))
 {
@@ -918,6 +1003,60 @@ static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier 
 {
 }
 
+static void hairsim_bake_do(CacheBakeContext *ctx, short *stop, short *do_update, float *progress,
+                            struct PTCWriterArchive *archive, EvaluationContext *eval_ctx)
+{
+	Scene *scene = ctx->scene;
+	struct PTCWriter *writer = NULL;
+	
+	if ((*stop) || (G.is_break))
+		return;
+	
+//	writer = PTC_writer_dupligroup(ctx->group->id.name, &ctx->eval_ctx, scene, ctx->group, ctx->cachelib);
+//	PTC_writer_init(ctx->writer, archive);
+	
+	PTC_bake(ctx->bmain, scene, eval_ctx, writer, ctx->startframe, ctx->endframe, stop, do_update, progress);
+	
+	if (writer) {
+		PTC_writer_free(writer);
+		writer = NULL;
+	}
+}
+
+static void hairsim_bake(HairSimCacheModifier *UNUSED(md), CacheLibrary *cachelib, CacheBakeContext *ctx)
+{
+	Scene *scene = ctx->scene;
+	const int origframe = scene->r.cfra;
+	const float origframelen = scene->r.framelen;
+	
+	struct PTCWriterArchive *archive;
+	char filename[FILE_MAX];
+	EvaluationContext eval_ctx;
+	
+	scene->r.framelen = 1.0f;
+	
+	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	archive = PTC_open_writer_archive(scene, filename);
+	
+	if (archive) {
+		
+		G.is_break = false;
+		
+		eval_ctx.mode = DAG_EVAL_VIEWPORT;
+		PTC_writer_archive_use_render(archive, false);
+		hairsim_bake_do(ctx, ctx->stop, ctx->do_update, ctx->progress, archive, &eval_ctx);
+		
+	}
+	
+	if (archive)
+		PTC_close_writer_archive(archive);
+	
+	/* reset scene frame */
+	scene->r.cfra = origframe;
+	scene->r.framelen = origframelen;
+	BKE_scene_update_for_newframe(&eval_ctx, ctx->bmain, scene, scene->lay);
+}
+
 CacheModifierTypeInfo cacheModifierType_HairSimulation = {
     /* name */              "HairSimulation",
     /* structName */        "HairSimCacheModifier",
@@ -925,6 +1064,7 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
 
     /* copy */              (CacheModifier_CopyFunc)hairsim_copy,
     /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)NULL,
+    /* bake */              (CacheModifier_BakeFunc)hairsim_bake,
     /* init */              (CacheModifier_InitFunc)hairsim_init,
     /* free */              (CacheModifier_FreeFunc)NULL,
 };

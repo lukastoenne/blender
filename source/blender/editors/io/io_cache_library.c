@@ -83,6 +83,14 @@ static int ED_cache_library_active_object_poll(bContext *C)
 	return true;
 }
 
+static int ED_cache_modifier_poll(bContext *C)
+{
+	if (!CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier).data)
+		return false;
+	
+	return true;
+}
+
 /********************** new cache library operator *********************/
 
 static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
@@ -612,9 +620,9 @@ void CACHELIBRARY_OT_add_modifier(struct wmOperatorType *ot)
 
 static int cache_library_remove_modifier_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *ob = CTX_data_active_object(C);
-	CacheLibrary *cachelib = ob->cache_library;
-	CacheModifier *md = CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier).data;
+	PointerRNA md_ptr = CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier);
+	CacheModifier *md = md_ptr.data;
+	CacheLibrary *cachelib = md_ptr.id.data;
 	
 	if (!md)
 		return OPERATOR_CANCELLED;
@@ -633,7 +641,41 @@ void CACHELIBRARY_OT_remove_modifier(struct wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = cache_library_remove_modifier_exec;
-	ot->poll = ED_cache_library_active_object_poll;
+	ot->poll = ED_cache_modifier_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int cache_library_modifier_bake_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	PointerRNA md_ptr = CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier);
+	CacheModifier *md = md_ptr.data;
+	CacheLibrary *cachelib = md_ptr.id.data;
+	int startframe, endframe;
+	
+	if (!md)
+		return OPERATOR_CANCELLED;
+	
+	startframe = scene->r.sfra;
+	endframe = scene->r.efra;
+	
+	BKE_cache_modifier_bake(C, cachelib, md, scene, startframe, endframe);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_modifier_bake(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Bake Cache Modifier";
+	ot->description = "Bake a cache modifier";
+	ot->idname = "CACHELIBRARY_OT_modifier_bake";
+	
+	/* api callbacks */
+	ot->exec = cache_library_modifier_bake_exec;
+	ot->poll = ED_cache_modifier_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

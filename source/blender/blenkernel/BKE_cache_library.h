@@ -36,6 +36,7 @@
 
 struct ListBase;
 struct Main;
+struct bContext;
 struct Object;
 struct Scene;
 struct EvaluationContext;
@@ -112,11 +113,25 @@ bool BKE_cache_read_dupli_object(struct Scene *scene, float frame, eCacheLibrary
 
 typedef void (*CacheModifier_IDWalkFunc)(void *userdata, struct CacheLibrary *cachelib, struct CacheModifier *md, struct ID **id_ptr);
 
+typedef struct CacheBakeContext {
+	struct CacheLibrary *cachelib;
+	struct CacheModifier *md;
+	
+	struct Main *bmain;
+	struct Scene *scene;
+	int startframe, endframe;
+	
+	short *stop;
+	short *do_update;
+	float *progress;
+} CacheBakeContext;
+
 typedef void (*CacheModifier_InitFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_FreeFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_CopyFunc)(struct CacheModifier *md, struct CacheModifier *target);
 typedef void (*CacheModifier_ForeachIDLinkFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib,
                                                 CacheModifier_IDWalkFunc walk, void *userData);
+typedef void (*CacheModifier_BakeFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib, CacheBakeContext *ctx);
 
 typedef struct CacheModifierTypeInfo {
 	/* The user visible name for this modifier */
@@ -145,6 +160,9 @@ typedef struct CacheModifierTypeInfo {
 	 * This function is optional.
 	 */
 	CacheModifier_ForeachIDLinkFunc foreachIDLink;
+
+	/* Process data and write results to the modifier's output archive */
+	CacheModifier_BakeFunc bake;
 
 	/********************* Optional functions *********************/
 
@@ -176,5 +194,7 @@ void BKE_cache_modifier_clear(struct CacheLibrary *cachelib);
 struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, struct CacheModifier *md);
 
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
+
+void BKE_cache_modifier_bake(const struct bContext *C, struct CacheLibrary *cachelib, struct CacheModifier *md, struct Scene *scene, int startframe, int endframe);
 
 #endif

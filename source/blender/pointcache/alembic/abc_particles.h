@@ -88,6 +88,26 @@ private:
 };
 
 
+class AbcStrandsWriter : public AbcWriter {
+public:
+	AbcStrandsWriter(const std::string &name, Strands *strands);
+	
+	void init_abc(Abc::OObject parent);
+	
+	void write_sample();
+	
+private:
+	std::string m_name;
+	Strands *m_strands;
+	
+	AbcGeom::OCurves m_curves;
+	AbcGeom::OFloatGeomParam m_param_times;
+	AbcGeom::OFloatGeomParam m_param_weights;
+	AbcGeom::OCompoundProperty m_param_motion_state;
+	AbcGeom::OP3fGeomParam m_param_motion_co;
+	AbcGeom::OV3fGeomParam m_param_motion_vel;
+};
+
 class AbcStrandsReader : public AbcReader {
 public:
 	AbcStrandsReader();
@@ -106,6 +126,9 @@ private:
 	AbcGeom::ICurves m_curves;
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IFloatGeomParam m_param_weights;
+	AbcGeom::ICompoundProperty m_param_motion_state;
+	AbcGeom::IP3fGeomParam m_param_motion_co;
+	AbcGeom::IV3fGeomParam m_param_motion_vel;
 };
 
 
