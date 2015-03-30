@@ -37,7 +37,7 @@
 
 #include "WM_types.h"
 
-EnumPropertyItem cache_library_item_type_items[] = {
+EnumPropertyItem cache_library_data_type_items[] = {
     {CACHE_TYPE_OBJECT,         "OBJECT",			ICON_OBJECT_DATA,       "Object", "Object base properties"},
     {CACHE_TYPE_DERIVED_MESH,   "DERIVED_MESH",     ICON_OUTLINER_OB_MESH,  "Derived Mesh", "Mesh result from modifiers"},
     {CACHE_TYPE_HAIR,           "HAIR",             ICON_PARTICLE_POINT,    "Hair", "Hair parent strands"},
@@ -77,36 +77,10 @@ EnumPropertyItem cache_modifier_type_items[] = {
 
 #include "WM_api.h"
 
-static void rna_CacheItem_name_get(PointerRNA *ptr, char *value)
-{
-	CacheItem *item = ptr->data;
-	BKE_cache_item_name(item->ob, item->type, item->index, value);
-}
-
-static int rna_CacheItem_name_length(PointerRNA *ptr)
-{
-	CacheItem *item = ptr->data;
-	return BKE_cache_item_name_length(item->ob, item->type, item->index);
-}
-
-static void rna_CacheItem_get_name(struct Object *ob, int type, int index, char *name)
-{
-	BKE_cache_item_name(ob, type, index, name);
-}
-
 /* ========================================================================= */
 
 static void rna_CacheLibrary_update(Main *UNUSED(main), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
-}
-
-static PointerRNA rna_CacheLibrary_cache_item_find(CacheLibrary *cachelib, Object *ob, int type, int index)
-{
-	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
-	PointerRNA rptr;
-	
-	RNA_pointer_create((ID *)cachelib, &RNA_CacheItem, item, &rptr);
-	return rptr;
 }
 
 /* ========================================================================= */
@@ -162,62 +136,6 @@ static void rna_CacheLibrary_modifier_clear(CacheLibrary *cachelib, bContext *UN
 }
 
 #else
-
-static void rna_def_cache_item(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	FunctionRNA *func;
-	PropertyRNA *prop, *parm;
-	
-	srna = RNA_def_struct(brna, "CacheItem", NULL);
-	RNA_def_struct_ui_text(srna, "Cache Item", "Description of a cacheable item in an object");
-	
-	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "ob");
-	RNA_def_property_struct_type(prop, "Object");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Object", "");
-	
-	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "type");
-	RNA_def_property_enum_items(prop, cache_library_item_type_items);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Type", "Type of cached data");
-	
-	prop = RNA_def_property(srna, "index", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "index");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Index", "Index of the cached data");
-	
-	prop = RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", CACHE_ITEM_ENABLED);
-	RNA_def_property_ui_text(prop, "Enabled", "Enable caching for this item");
-	
-	prop = RNA_def_property(srna, "read_result", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "read_result");
-	RNA_def_property_enum_items(prop, cache_library_read_result_items);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Read Result", "Result of cache read");
-	
-	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_maxlength(prop, 2*MAX_NAME);
-	RNA_def_property_string_funcs(prop, "rna_CacheItem_name_get", "rna_CacheItem_name_length", NULL);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Name", "");
-	RNA_def_struct_name_property(srna, prop);
-	
-	func = RNA_def_function(srna, "get_name", "rna_CacheItem_get_name");
-	RNA_def_function_flag(func, FUNC_NO_SELF);
-	RNA_def_function_ui_description(func, "Get name of items from properties without an instance");
-	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
-	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
-	parm = RNA_def_enum(func, "type", cache_library_item_type_items, CACHE_TYPE_OBJECT, "Type", "Type of cache item");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index of the data in it's' collection", -1, INT_MAX);
-	parm = RNA_def_string(func, "name", NULL, 2*MAX_NAME, "Name", "");
-	RNA_def_property_flag(parm, PROP_THICK_WRAP);
-	RNA_def_function_output(func, parm);
-}
 
 static void rna_def_cache_modifier(BlenderRNA *brna)
 {
@@ -290,8 +208,7 @@ static void rna_def_cache_library_modifiers(BlenderRNA *brna, PropertyRNA *cprop
 static void rna_def_cache_library(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	FunctionRNA *func;
-	PropertyRNA *prop, *parm;
+	PropertyRNA *prop;
 	
 	static EnumPropertyItem eval_mode_items[] = {
 	    {CACHE_LIBRARY_EVAL_REALTIME,   "REALTIME",     ICON_RESTRICT_VIEW_OFF,     "Realtime",     "Evaluate data with realtime settings"},
@@ -315,16 +232,12 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Evaluation Mode", "Mode to use when evaluating data");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
-	func = RNA_def_function(srna, "cache_item_find", "rna_CacheLibrary_cache_item_find");
-	RNA_def_function_ui_description(func, "Find item for an object cache item");
-	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
-	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
-	parm = RNA_def_enum(func, "type", cache_library_item_type_items, CACHE_TYPE_OBJECT, "Type", "Type of cache item");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index of the data in it's' collection", -1, INT_MAX);
-	parm = RNA_def_pointer(func, "item", "CacheItem", "Item", "Item in the cache");
-	RNA_def_property_flag(parm, PROP_RNAPTR);
-	RNA_def_function_return(func, parm);
+	prop = RNA_def_property(srna, "data_types", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "data_types");
+	RNA_def_property_enum_items(prop, cache_library_data_type_items);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Data Types", "Types of data to store in the cache");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
 	/* modifiers */
 	prop = RNA_def_property(srna, "modifiers", PROP_COLLECTION, PROP_NONE);
@@ -335,7 +248,6 @@ static void rna_def_cache_library(BlenderRNA *brna)
 
 void RNA_def_cache_library(BlenderRNA *brna)
 {
-	rna_def_cache_item(brna);
 	rna_def_cache_modifier(brna);
 	rna_def_cache_library(brna);
 }

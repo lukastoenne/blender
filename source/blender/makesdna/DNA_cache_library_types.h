@@ -38,13 +38,20 @@
 
 #define MAX_CACHE_GROUP_LEVEL 8
 
-typedef enum eCacheItemType {
-	CACHE_TYPE_OBJECT               = 0,
-	CACHE_TYPE_DERIVED_MESH         = 1,
-	CACHE_TYPE_HAIR                 = 2,
-	CACHE_TYPE_HAIR_PATHS           = 3,
-	CACHE_TYPE_PARTICLES            = 4,
-} eCacheItemType;
+typedef enum eCacheLibrary_EvalMode {
+	CACHE_LIBRARY_EVAL_REALTIME     = (1 << 0), /* evaluate data with realtime settings */
+	CACHE_LIBRARY_EVAL_RENDER       = (1 << 1), /* evaluate data with render settings */
+} eCacheLibrary_EvalMode;
+
+typedef enum eCacheDataType {
+	CACHE_TYPE_OBJECT               = (1 << 0),
+	CACHE_TYPE_DERIVED_MESH         = (1 << 1),
+	CACHE_TYPE_HAIR                 = (1 << 2),
+	CACHE_TYPE_HAIR_PATHS           = (1 << 3),
+	CACHE_TYPE_PARTICLES            = (1 << 4),
+	
+	CACHE_TYPE_ALL                  = CACHE_TYPE_OBJECT | CACHE_TYPE_DERIVED_MESH | CACHE_TYPE_HAIR | CACHE_TYPE_HAIR_PATHS | CACHE_TYPE_PARTICLES,
+} eCacheDataType;
 
 typedef enum eCacheReadSampleResult {
 	CACHE_READ_SAMPLE_INVALID         = 0,	/* no valid result can be retrieved */
@@ -54,41 +61,17 @@ typedef enum eCacheReadSampleResult {
 	CACHE_READ_SAMPLE_INTERPOLATED    = 4,	/* no exact sample, but found enclosing samples for interpolation */
 } eCacheReadSampleResult;
 
-typedef struct CacheItem {
-	struct CacheItem *next, *prev;
-	
-	struct Object *ob;
-	int type;
-	int index;
-	
-	int flag;
-	short read_result;
-	short pad;
-} CacheItem;
-
-typedef enum eCacheItem_Flag {
-	CACHE_ITEM_ENABLED              = 1,
-} eCacheItem_Flag;
-
 typedef struct CacheLibrary {
 	ID id;
 	
 	int flag;
 	short eval_mode;
-	short pad;
+	short data_types;
 	
 	char filepath[1024]; /* 1024 = FILE_MAX */
 	
-	ListBase items;				/* cached items */
-	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */
-	
 	ListBase modifiers;
 } CacheLibrary;
-
-typedef enum eCacheLibrary_EvalMode {
-	CACHE_LIBRARY_EVAL_REALTIME     = (1 << 0), /* evaluate data with realtime settings */
-	CACHE_LIBRARY_EVAL_RENDER       = (1 << 1), /* evaluate data with render settings */
-} eCacheLibrary_EvalMode;
 
 /* ========================================================================= */
 

@@ -76,6 +76,9 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 
 	cachelib->eval_mode = CACHE_LIBRARY_EVAL_REALTIME | CACHE_LIBRARY_EVAL_RENDER;
 
+	/* cache everything by default */
+	cachelib->data_types = CACHE_TYPE_ALL;
+
 	return cachelib;
 }
 
@@ -84,10 +87,6 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 	CacheLibrary *cachelibn;
 	
 	cachelibn = BKE_libblock_copy(&cachelib->id);
-	
-	BLI_duplicatelist(&cachelibn->items, &cachelib->items);
-	/* hash table will be rebuilt when needed */
-	cachelibn->items_hash = NULL;
 	
 	{
 		CacheModifier *md;
@@ -106,10 +105,6 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 
 void BKE_cache_library_free(CacheLibrary *cachelib)
 {
-	BLI_freelistN(&cachelib->items);
-	if (cachelib->items_hash)
-		BLI_ghash_free(cachelib->items_hash, NULL, NULL);
-	
 	BKE_cache_modifier_clear(cachelib);
 }
 
@@ -195,160 +190,6 @@ void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter)
 
 /* ========================================================================= */
 
-static int cache_count_items(Object *ob) {
-	ParticleSystem *psys;
-	int totitem = 1; /* base object */
-	
-	if (ob->type == OB_MESH)
-		totitem += 1; /* derived mesh */
-	
-	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		if (psys->part->type == PART_HAIR) {
-			totitem += 2; /* hair and hair paths */
-		}
-		else {
-			totitem += 1; /* particles */
-		}
-	}
-	
-	return totitem;
-}
-
-static void cache_make_items(Object *ob, CacheItem *item) {
-	ParticleSystem *psys;
-	int i;
-	
-	/* base object */
-	item->ob = ob;
-	item->type = CACHE_TYPE_OBJECT;
-	item->index = -1;
-	++item;
-	
-	if (ob->type == OB_MESH) {
-		/* derived mesh */
-		item->ob = ob;
-		item->type = CACHE_TYPE_DERIVED_MESH;
-		item->index = -1;
-		++item;
-	}
-	
-	for (psys = ob->particlesystem.first, i = 0; psys; psys = psys->next, ++i) {
-		if (psys->part->type == PART_HAIR) {
-			/* hair */
-			item->ob = ob;
-			item->type = CACHE_TYPE_HAIR;
-			item->index = i;
-			++item;
-			
-			/* hair paths */
-			item->ob = ob;
-			item->type = CACHE_TYPE_HAIR_PATHS;
-			item->index = i;
-			++item;
-		}
-		else {
-			/* hair paths */
-			item->ob = ob;
-			item->type = CACHE_TYPE_PARTICLES;
-			item->index = i;
-			++item;
-		}
-	}
-}
-
-void BKE_cache_item_iter_init(CacheLibraryItemsIterator *iter, Object *ob)
-{
-	iter->ob = ob;
-	iter->totitems = cache_count_items(ob);
-	iter->items = MEM_mallocN(sizeof(CacheItem) * iter->totitems, "object cache items");
-	cache_make_items(ob, iter->items);
-	
-	iter->cur = iter->items;
-}
-
-bool BKE_cache_item_iter_valid(CacheLibraryItemsIterator *iter)
-{
-	return (int)(iter->cur - iter->items) < iter->totitems;
-}
-
-void BKE_cache_item_iter_next(CacheLibraryItemsIterator *iter)
-{
-	++iter->cur;
-}
-
-void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter)
-{
-	if (iter->items)
-		MEM_freeN(iter->items);
-}
-
-/* ========================================================================= */
-
-BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
-{
-#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
-
-	unsigned int a, b, c;
-
-	a = b = c = 0xdeadbeef + (2 << 2) + 13;
-	a += kx;
-	b += ky;
-
-	c ^= b; c -= rot(b,14);
-	a ^= c; a -= rot(c,11);
-	b ^= a; b -= rot(a,25);
-	c ^= b; c -= rot(b,16);
-	a ^= c; a -= rot(c,4);
-	b ^= a; b -= rot(a,14);
-	c ^= b; c -= rot(b,24);
-
-	return c;
-
-#undef rot
-}
-
-static unsigned int cache_item_hash(const void *key)
-{
-	const CacheItem *item = key;
-	unsigned int hash;
-	
-	hash = BLI_ghashutil_inthash(item->type);
-	
-	if (item->ob)
-		hash = hash_int_2d(hash, BLI_ghashutil_ptrhash(item->ob));
-	if (item->index >= 0)
-		hash = hash_int_2d(hash, BLI_ghashutil_inthash(item->index));
-	
-	return hash;
-}
-
-static bool cache_item_cmp(const void *key_a, const void *key_b)
-{
-	const CacheItem *item_a = key_a, *item_b = key_b;
-	
-	if (item_a->type != item_b->type)
-		return true;
-	if (item_a->ob != item_b->ob)
-		return true;
-	if (item_a->index >= 0 || item_b->index >= 0) {
-		if (item_a->index != item_b->index)
-			return true;
-	}
-	
-	return false;
-}
-
-BLI_INLINE void print_cachelib_items(CacheLibrary *cachelib)
-{
-	CacheItem *item;
-	int i;
-	
-	printf("Cache Library %s:\n", cachelib->id.name+2);
-	for (item = cachelib->items.first, i = 0; item; item = item->next, ++i) {
-		printf("  Item %d: ob=%s, type=%d, index=%d, hash=%d\n", i, item->ob ? item->ob->id.name+2 : "!!!", item->type, item->index, cache_item_hash(item));
-	}
-}
-
 const char *BKE_cache_item_name_prefix(int type)
 {
 	/* note: avoid underscores and the like here,
@@ -394,95 +235,6 @@ eCacheReadSampleResult BKE_cache_read_result(int ptc_result)
 	return CACHE_READ_SAMPLE_INVALID;
 }
 
-static void cache_library_insert_item_hash(CacheLibrary *cachelib, CacheItem *item, bool replace)
-{
-	CacheItem *exist = BLI_ghash_lookup(cachelib->items_hash, item);
-	if (exist && replace) {
-		BLI_remlink(&cachelib->items, exist);
-		BLI_ghash_remove(cachelib->items_hash, item, NULL, NULL);
-		MEM_freeN(exist);
-	}
-	if (!exist || replace)
-		BLI_ghash_insert(cachelib->items_hash, item, item);
-}
-
-/* make sure the items hash exists (lazy init after loading files) */
-static void cache_library_ensure_items_hash(CacheLibrary *cachelib)
-{
-	CacheItem *item;
-	
-	if (!cachelib->items_hash) {
-		cachelib->items_hash = BLI_ghash_new(cache_item_hash, cache_item_cmp, "cache item hash");
-		
-		for (item = cachelib->items.first; item; item = item->next) {
-			cache_library_insert_item_hash(cachelib, item, true);
-		}
-	}
-}
-
-CacheItem *BKE_cache_library_find_item(CacheLibrary *cachelib, Object *ob, int type, int index)
-{
-	CacheItem item;
-	item.next = item.prev = NULL;
-	item.ob = ob;
-	item.type = type;
-	item.index = index;
-	
-	cache_library_ensure_items_hash(cachelib);
-	
-	return BLI_ghash_lookup(cachelib->items_hash, &item);
-}
-
-CacheItem *BKE_cache_library_add_item(CacheLibrary *cachelib, struct Object *ob, int type, int index)
-{
-	CacheItem *item;
-	
-	/* assert validity */
-	BLI_assert(BKE_cache_library_validate_item(cachelib, ob, type, index));
-	
-	cache_library_ensure_items_hash(cachelib);
-	
-	item = BKE_cache_library_find_item(cachelib, ob, type, index);
-	
-	if (!item) {
-		item = MEM_callocN(sizeof(CacheItem), "cache library item");
-		item->ob = ob;
-		item->type = type;
-		item->index = index;
-		
-		BLI_addtail(&cachelib->items, item);
-		cache_library_insert_item_hash(cachelib, item, false);
-		
-		id_lib_extern((ID *)item->ob);
-	}
-	
-	return item;
-}
-
-void BKE_cache_library_remove_item(CacheLibrary *cachelib, CacheItem *item)
-{
-	if (item) {
-		if (cachelib->items_hash)
-			BLI_ghash_remove(cachelib->items_hash, item, NULL, NULL);
-		BLI_remlink(&cachelib->items, item);
-		MEM_freeN(item);
-	}
-}
-
-void BKE_cache_library_clear(CacheLibrary *cachelib)
-{
-	CacheItem *item, *item_next;
-	
-	if (cachelib->items_hash)
-		BLI_ghash_clear(cachelib->items_hash, NULL, NULL);
-	
-	for (item = cachelib->items.first; item; item = item_next) {
-		item_next = item->next;
-		MEM_freeN(item);
-	}
-	BLI_listbase_clear(&cachelib->items);
-}
-
 bool BKE_cache_library_validate_item(CacheLibrary *cachelib, Object *ob, int type, int index)
 {
 	if (!cachelib)
@@ -510,32 +262,6 @@ bool BKE_cache_library_validate_item(CacheLibrary *cachelib, Object *ob, int typ
 	}
 	
 	return true;
-}
-
-void BKE_cache_library_group_update(Main *bmain, CacheLibrary *cachelib)
-{
-	if (cachelib) {
-		Object *ob;
-		CacheItem *item, *item_next;
-		
-		/* clear tags */
-		BKE_main_id_tag_idcode(bmain, ID_OB, false);
-		
-		for (ob = bmain->object.first; ob; ob = ob->id.next) {
-			if (ob->cache_library == cachelib) {
-				cache_library_tag_recursive(0, ob);
-			}
-		}
-		
-		/* remove unused items */
-		for (item = cachelib->items.first; item; item = item_next) {
-			item_next = item->next;
-			
-			if (!item->ob || !(item->ob->id.flag & LIB_DOIT)) {
-				BKE_cache_library_remove_item(cachelib, item);
-			}
-		}
-	}
 }
 
 /* ========================================================================= */

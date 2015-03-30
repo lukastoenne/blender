@@ -265,14 +265,6 @@ bpy.types.CacheLibrary.filter_string = \
         name="Filter Object Name",
         description="Filter cache library objects by name",
         )
-bpy.types.CacheLibrary.filter_types = \
-    bpy.props.EnumProperty(
-        name="Filter Item Type",
-        description="Filter cache library items by type",
-        options={'ENUM_FLAG'},
-        items=[ (e.identifier, e.name, e.description, e.icon, 2**i) for i, e in enumerate(bpy.types.CacheItem.bl_rna.properties['type'].enum_items) ],
-        default=set( e.identifier for e in bpy.types.CacheItem.bl_rna.properties['type'].enum_items ),
-        )
 
 def cachelib_objects(cachelib, group):
     if not cachelib or not group:
@@ -284,10 +276,9 @@ def cachelib_objects(cachelib, group):
     else:
         return group.objects
 
-# Yields (item, type, index, enabled)
-# Note that item can be None when not included in the cache yet
+# Yields (type, index, enabled)
 def cachelib_object_items(cachelib, ob):
-    filter_types = cachelib.filter_types
+    filter_types = cachelib.data_types
 
     def items_desc():
         yield 'OBJECT', -1
@@ -302,26 +293,20 @@ def cachelib_object_items(cachelib, ob):
                 yield 'HAIR', index
                 yield 'HAIR_PATHS', index
 
-    for item_type, item_index in items_desc():
-        item = cachelib.cache_item_find(ob, item_type, item_index)
-        
+    for datatype, index in items_desc():
         show = False
         enable = False
-        # always show existing items
-        if item and item.enabled:
-            show = True
-            enable = True
         # always show selected types
-        elif item_type in filter_types:
+        if datatype in filter_types:
             show = True
             enable = True
         # special case: OBJECT type used as top level, show but disable
-        elif item_type == 'OBJECT':
+        elif datatype == 'OBJECT':
             show = True
             enable = False
         
         if show:
-            yield item, item_type, item_index, enable
+            yield datatype, index, enable
 
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
@@ -355,12 +340,13 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row.prop(ob, "use_dupli_cache_read", text="Read", toggle=True)
         row.prop(ob, "use_dupli_cache_write", text="Write", toggle=True)
         col.operator("cachelibrary.bake")
-        row = col.row(align=True)
+        row = col.row()
         row.prop(cachelib, "eval_mode", toggle=True, expand=True)
+        row = col.row()
+        row.prop(cachelib, "data_types", icon_only=True, toggle=True)
 
         row = layout.row(align=True)
         row.label("Filter:")
-        row.prop(cachelib, "filter_types", icon_only=True, toggle=True)
         row.prop(cachelib, "filter_string", icon='VIEWZOOM', text="")
 
         first = True
@@ -372,10 +358,10 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
                 layout.separator()
                 first = False
 
-            for item, item_type, item_index, enable in cachelib_object_items(cachelib, ob):
+            for datatype, index, enable in cachelib_object_items(cachelib, ob):
                 row = layout.row(align=True)
                 row.alignment = 'LEFT'
-                row.template_cache_library_item(cachelib, ob, item_type, item_index, enable)
+                row.template_cache_library_item(cachelib, ob, datatype, index, enable)
     
         layout.operator_menu_enum("cachelibrary.add_modifier", "type")
 

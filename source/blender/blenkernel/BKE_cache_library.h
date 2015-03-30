@@ -67,31 +67,12 @@ void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter);
 void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter);
 struct Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter);
 
-typedef struct CacheLibraryItemsIterator {
-	struct Object *ob;
-	struct CacheItem *items;
-	int totitems;
-	
-	struct CacheItem *cur;
-} CacheLibraryItemsIterator;
-
-void BKE_cache_item_iter_init(CacheLibraryItemsIterator *iter, struct Object *ob);
-bool BKE_cache_item_iter_valid(CacheLibraryItemsIterator *iter);
-void BKE_cache_item_iter_next(CacheLibraryItemsIterator *iter);
-void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter);
-
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);
 eCacheReadSampleResult BKE_cache_read_result(int ptc_result);
 
-struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
-struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
-void BKE_cache_library_remove_item(struct CacheLibrary *cachelib, struct CacheItem *item);
-void BKE_cache_library_clear(struct CacheLibrary *cachelib);
-
 bool BKE_cache_library_validate_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
-void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cachelib);
 
 /* ========================================================================= */
 

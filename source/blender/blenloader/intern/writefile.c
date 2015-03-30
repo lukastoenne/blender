@@ -3498,13 +3498,6 @@ static void write_cachelibraries(WriteData *wd, ListBase *idbase)
 			if (cachelib->id.properties)
 				IDP_WriteProperty(cachelib->id.properties, wd);
 			
-			{
-				CacheItem *item;
-				for (item = cachelib->items.first; item; item = item->next) {
-					writestruct(wd, DATA, "CacheItem", 1, item);
-				}
-			}
-			
 			write_cache_modifiers(wd, cachelib);
 		}
 	}
