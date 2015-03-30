@@ -80,11 +80,6 @@ bool BKE_cache_item_iter_valid(CacheLibraryItemsIterator *iter);
 void BKE_cache_item_iter_next(CacheLibraryItemsIterator *iter);
 void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter);
 
-#if 0
-typedef void (*CacheGroupWalkFunc)(void *userdata, struct CacheLibrary *cachelib, const struct CacheItemPath *path);
-void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata);
-#endif
-
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);

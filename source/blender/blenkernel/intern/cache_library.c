@@ -285,40 +285,6 @@ void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter)
 		MEM_freeN(iter->items);
 }
 
-#if 0
-static void cache_library_walk_recursive(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata, int level, Object *ob)
-{
-	CacheItemPath path;
-	
-	if (level > MAX_CACHE_GROUP_LEVEL)
-		return;
-	
-	/* object dm */
-	cache_path_object(&path, ob);
-	walk(userdata, cachelib, &path);
-	
-	/* dupli group recursion */
-	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
-		GroupObject *gob;
-		
-		for (gob = ob->dup_group->gobject.first; gob; gob = gob->next) {
-			cache_library_walk_recursive(cachelib, walk, userdata, level + 1, gob->ob);
-		}
-	}
-}
-
-void BKE_cache_library_walk(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata)
-{
-	if (cachelib && cachelib->group) {
-		GroupObject *gob;
-		
-		for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
-			cache_library_walk_recursive(cachelib, walk, userdata, 0, gob->ob);
-		}
-	}
-}
-#endif
-
 /* ========================================================================= */
 
 BLI_INLINE unsigned int hash_int_2d(unsigned int kx, unsigned int ky)
@@ -574,49 +540,6 @@ void BKE_cache_library_group_update(Main *bmain, CacheLibrary *cachelib)
 		}
 	}
 }
-
-/* ========================================================================= */
-
-#if 0
-typedef struct UpdateItemsData {
-	CacheItem *cur;
-} UpdateItemsData;
-
-static void cache_library_update_items_walk(void *userdata, CacheLibrary *cachelib)
-{
-	UpdateItemsData *data = userdata;
-	CacheItem *item;
-	
-	if (data->cur) {
-		item = data->cur;
-		data->cur = data->cur->next;
-	}
-	else {
-		item = MEM_callocN(sizeof(CacheItem), "cache library item");
-		BLI_addtail(&cachelib->items, item);
-	}
-}
-
-void BKE_cache_library_update_items(CacheLibrary *cachelib)
-{
-	UpdateItemsData data;
-	
-	data.cur = cachelib->items.first;
-	BKE_cache_library_walk(cachelib, cache_library_update_items_walk, &data);
-	
-	/* truncate items list */
-	if (data.cur) {
-		cachelib->items.last = data.cur->prev;
-		while (data.cur) {
-			CacheItem *item = data.cur;
-			data.cur = data.cur->next;
-			
-			BLI_remlink(&cachelib->items, item);
-			MEM_freeN(item);
-		}
-	}
-}
-#endif
 
 /* ========================================================================= */
 
