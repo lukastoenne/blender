@@ -2262,8 +2262,20 @@ static void draw_dupli_objects_color(
 		tbase.object->currentlod = savedlod;
 		
 		/* restore final DM */
-		tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
-		tbase.object->derivedFinal = store_final_dm;
+		if (tbase.object->transflag & OB_IS_DUPLI_CACHE) {
+			DerivedMesh *cur = tbase.object->derivedFinal;
+			
+			/* in some cases drawing code can recreate the derivedFinal,
+			 * make sure we free those first before restoring
+			 */
+			if (cur && cur != dob_data->dm) {
+				cur->needsFree = 1;
+				cur->release(cur);
+			}
+			
+			tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
+			tbase.object->derivedFinal = store_final_dm;
+		}
 	}
 
 	if (apply_data) {
