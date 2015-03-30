@@ -2256,11 +2256,6 @@ static void draw_dupli_objects_color(
 			}
 		}
 		
-		tbase.object->dt = dt;
-		tbase.object->dtx = dtx;
-		tbase.object->transflag = transflag;
-		tbase.object->currentlod = savedlod;
-		
 		/* restore final DM */
 		if (tbase.object->transflag & OB_IS_DUPLI_CACHE) {
 			DerivedMesh *cur = tbase.object->derivedFinal;
@@ -2276,6 +2271,11 @@ static void draw_dupli_objects_color(
 			tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
 			tbase.object->derivedFinal = store_final_dm;
 		}
+		
+		tbase.object->dt = dt;
+		tbase.object->dtx = dtx;
+		tbase.object->transflag = transflag;
+		tbase.object->currentlod = savedlod;
 	}
 
 	if (apply_data) {
