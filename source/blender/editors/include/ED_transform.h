@@ -35,18 +35,15 @@
 /* ******************* Registration Function ********************** */
 
 struct ARegion;
-struct EnumPropertyItem;
 struct ListBase;
 struct Object;
 struct View3D;
 struct bContext;
-struct uiLayout;
 struct wmEvent;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
-struct wmWindowManager;
-struct PointerRNA;
+/*struct PointerRNA;*/  /* view3d manipulators */
 
 void transform_keymap_for_space(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap, int spaceid);
 void transform_operatortypes(void);
@@ -110,7 +107,6 @@ enum TfmMode {
 bool calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
 
 struct TransInfo;
-struct ScrArea;
 struct Base;
 struct Scene;
 struct Object;

@@ -93,11 +93,15 @@ static AnimData *actedit_animdata_from_context(bContext *C)
 	/* Get AnimData block to use */
 	if (saction->mode == SACTCONT_ACTION) {
 		/* Currently, "Action Editor" means object-level only... */
-		adt = ob->adt;
+		if (ob) {
+			adt = ob->adt;
+		}
 	}
 	else if (saction->mode == SACTCONT_SHAPEKEY) {
 		Key *key = BKE_key_from_object(ob);
-		adt = key->adt;
+		if (key) {
+			adt = key->adt;
+		}
 	}
 	
 	return adt;
@@ -180,9 +184,19 @@ static int action_new_poll(bContext *C)
 	if (!(scene->flag & SCE_NLA_EDIT_ON)) {
 		if (ED_operator_action_active(C)) {
 			SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
+			Object *ob = CTX_data_active_object(C);
 			
 			/* For now, actions are only for the active object, and on object and shapekey levels... */
-			return ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY);
+			if (saction->mode == SACTCONT_ACTION) {
+				/* XXX: This assumes that actions are assigned to the active object */
+				if (ob)
+					return true;
+			}
+			else if (saction->mode == SACTCONT_SHAPEKEY) {
+				Key *key = BKE_key_from_object(ob);
+				if (key)
+					return true;
+			}
 		}
 		else if (ED_operator_nla_active(C)) {
 			return true;
@@ -1068,8 +1082,13 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 		else 
 			cfra = (float)CFRA;
 			
-		/* if there's an id */
-		if (ale->id)
+		/* read value from property the F-Curve represents, or from the curve only?
+		 * - ale->id != NULL:    Typically, this means that we have enough info to try resolving the path
+		 * - ale->owner != NULL: If this is set, then the path may not be resolvable from the ID alone,
+		 *                       so it's easier for now to just read the F-Curve directly.
+		 *                       (TODO: add the full-blown PointerRNA relative parsing case here...)
+		 */
+		if (ale->id && !ale->owner)
 			insert_keyframe(reports, ale->id, NULL, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 		else
 			insert_vert_fcurve(fcu, cfra, fcu->curval, 0);
@@ -1142,7 +1161,7 @@ static void duplicate_action_keys(bAnimContext *ac)
 	
 	/* loop through filtered data and delete selected keys */
 	for (ale = anim_data.first; ale; ale = ale->next) {
-		if (ale->type == ANIMTYPE_FCURVE)
+		if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE))
 			duplicate_fcurve_keys((FCurve *)ale->key_data);
 		else if (ale->type == ANIMTYPE_GPLAYER)
 			ED_gplayer_frames_duplicate((bGPDlayer *)ale->data);

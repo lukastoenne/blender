@@ -1496,8 +1496,11 @@ static bool animsys_write_rna_setting(PointerRNA *ptr, char *path, int array_ind
 	
 	/* get property to write to */
 	if (RNA_path_resolve_property(ptr, path, &new_ptr, &prop)) {
-		/* set value - only for animatable numerical values */
-		if (RNA_property_animateable(&new_ptr, prop)) {
+		/* set value for animatable numerical values only
+		 * HACK: some local F-Curves (e.g. those on NLA Strips) are evaluated
+		 *       without an ID provided, which causes the animateable test to fail!
+		 */
+		if (RNA_property_animateable(&new_ptr, prop) || (ptr->id.data == NULL)) {
 			int array_len = RNA_property_array_length(&new_ptr, prop);
 			bool written = false;
 			
@@ -1797,12 +1800,6 @@ static float nlastrip_get_influence(NlaStrip *strip, float cframe)
 /* evaluate the evaluation time and influence for the strip, storing the results in the strip */
 static void nlastrip_evaluate_controls(NlaStrip *strip, float ctime)
 {
-	/* firstly, analytically generate values for influence and time (if applicable) */
-	if ((strip->flag & NLASTRIP_FLAG_USR_TIME) == 0)
-		strip->strip_time = nlastrip_get_frame(strip, ctime, NLATIME_CONVERT_EVAL);
-	if ((strip->flag & NLASTRIP_FLAG_USR_INFLUENCE) == 0)
-		strip->influence = nlastrip_get_influence(strip, ctime);
-	
 	/* now strip's evaluate F-Curves for these settings (if applicable) */
 	if (strip->fcurves.first) {
 		PointerRNA strip_ptr;
@@ -1813,6 +1810,15 @@ static void nlastrip_evaluate_controls(NlaStrip *strip, float ctime)
 		/* execute these settings as per normal */
 		animsys_evaluate_fcurves(&strip_ptr, &strip->fcurves, NULL, ctime);
 	}
+	
+	/* analytically generate values for influence and time (if applicable)
+	 *  - we do this after the F-Curves have been evaluated to override the effects of those
+	 *    in case the override has been turned off.
+	 */
+	if ((strip->flag & NLASTRIP_FLAG_USR_TIME) == 0)
+		strip->strip_time = nlastrip_get_frame(strip, ctime, NLATIME_CONVERT_EVAL);
+	if ((strip->flag & NLASTRIP_FLAG_USR_INFLUENCE) == 0)
+		strip->influence = nlastrip_get_influence(strip, ctime);
 
 	/* if user can control the evaluation time (using F-Curves), consider the option which allows this time to be clamped
 	 * to lie within extents of the action-clip, so that a steady changing rate of progress through several cycles of the clip

@@ -49,7 +49,6 @@ struct Object;
 struct bDopeSheet;
 
 struct bAction;
-struct bActionGroup;
 struct FCurve;
 struct FModifier;
 
@@ -116,12 +115,15 @@ typedef struct bAnimListElem {
 	int     index;          /* for un-named data, the index of the data in its collection */
 	
 	short   update;         /* (eAnim_Update_Flags)  tag the element for updating */
+	
 	short   datatype;       /* (eAnim_KeyType) type of motion data to expect */
 	void   *key_data;       /* motion data - mostly F-Curves, but can be other types too */
 	
 	
 	struct ID *id;          /* ID block that channel is attached to */
 	struct AnimData *adt;   /* source of the animation data attached to ID block (for convenience) */
+	
+	void   *owner;          /* for per-element F-Curves (e.g. NLA Control Curves), the element that this represents (e.g. NlaStrip) */
 } bAnimListElem;
 
 
@@ -140,6 +142,9 @@ typedef enum eAnim_ChannelType {
 	ANIMTYPE_OBJECT,
 	ANIMTYPE_GROUP,
 	ANIMTYPE_FCURVE,
+	
+	ANIMTYPE_NLACONTROLS,
+	ANIMTYPE_NLACURVE,
 	
 	ANIMTYPE_FILLACTD,
 	ANIMTYPE_FILLDRIVERS,
