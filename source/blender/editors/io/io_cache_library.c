@@ -77,7 +77,7 @@
 static int ED_cache_library_active_object_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
-	if (!ob || !ob->cache_library)
+	if (!(ob && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group && ob->cache_library))
 		return false;
 	
 	return true;
@@ -85,6 +85,8 @@ static int ED_cache_library_active_object_poll(bContext *C)
 
 static int ED_cache_modifier_poll(bContext *C)
 {
+	if (!ED_cache_library_active_object_poll(C))
+		return false;
 	if (!CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier).data)
 		return false;
 	
@@ -650,6 +652,7 @@ void CACHELIBRARY_OT_remove_modifier(struct wmOperatorType *ot)
 static int cache_library_modifier_bake_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
 	PointerRNA md_ptr = CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier);
 	CacheModifier *md = md_ptr.data;
 	CacheLibrary *cachelib = md_ptr.id.data;
@@ -661,7 +664,7 @@ static int cache_library_modifier_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	startframe = scene->r.sfra;
 	endframe = scene->r.efra;
 	
-	BKE_cache_modifier_bake(C, cachelib, md, scene, startframe, endframe);
+	BKE_cache_modifier_bake(C, ob->dup_group, cachelib, md, scene, startframe, endframe);
 	
 	return OPERATOR_FINISHED;
 }

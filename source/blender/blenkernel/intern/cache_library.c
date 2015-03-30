@@ -956,7 +956,7 @@ static void cache_modifier_bake_endjob(void *UNUSED(customdata))
 	BKE_spacedata_draw_locks(false);
 }
 
-void BKE_cache_modifier_bake(const bContext *C, CacheLibrary *cachelib, CacheModifier *md, Scene *scene, int startframe, int endframe)
+void BKE_cache_modifier_bake(const bContext *C, Group *group, CacheLibrary *cachelib, CacheModifier *md, Scene *scene, int startframe, int endframe)
 {
 	CacheBakeContext *ctx;
 	wmJob *wm_job;
@@ -985,6 +985,7 @@ void BKE_cache_modifier_bake(const bContext *C, CacheLibrary *cachelib, CacheMod
 	ctx->scene = scene;
 	ctx->startframe = startframe;
 	ctx->endframe = endframe;
+	ctx->group = group;
 	
 	WM_jobs_customdata_set(wm_job, ctx, cache_modifier_bake_freejob);
 	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
@@ -1007,23 +1008,23 @@ static void hairsim_bake_do(CacheBakeContext *ctx, short *stop, short *do_update
                             struct PTCWriterArchive *archive, EvaluationContext *eval_ctx)
 {
 	Scene *scene = ctx->scene;
-	struct PTCWriter *writer = NULL;
+	struct PTCWriter *writer;
 	
 	if ((*stop) || (G.is_break))
 		return;
 	
-//	writer = PTC_writer_dupligroup(ctx->group->id.name, &ctx->eval_ctx, scene, ctx->group, ctx->cachelib);
-//	PTC_writer_init(ctx->writer, archive);
-	
-	PTC_bake(ctx->bmain, scene, eval_ctx, writer, ctx->startframe, ctx->endframe, stop, do_update, progress);
-	
+	writer = PTC_writer_dupligroup(ctx->group->id.name, eval_ctx, scene, ctx->group, ctx->cachelib);
 	if (writer) {
+		PTC_writer_init(writer, archive);
+		
+		PTC_bake(ctx->bmain, scene, eval_ctx, writer, ctx->startframe, ctx->endframe, stop, do_update, progress);
+		
 		PTC_writer_free(writer);
 		writer = NULL;
 	}
 }
 
-static void hairsim_bake(HairSimCacheModifier *UNUSED(md), CacheLibrary *cachelib, CacheBakeContext *ctx)
+static void hairsim_bake(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, CacheBakeContext *ctx)
 {
 	Scene *scene = ctx->scene;
 	const int origframe = scene->r.cfra;
@@ -1035,7 +1036,7 @@ static void hairsim_bake(HairSimCacheModifier *UNUSED(md), CacheLibrary *cacheli
 	
 	scene->r.framelen = 1.0f;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_archive_path(hsmd->modifier.filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
 	archive = PTC_open_writer_archive(scene, filename);
 	
 	if (archive) {

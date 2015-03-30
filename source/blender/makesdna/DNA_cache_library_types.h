@@ -115,9 +115,7 @@ typedef enum eCacheModifier_Type {
 } eCacheModifier_Type;
 
 typedef struct HairSimCacheModifier {
-	CacheModifier md;
-	
-	
+	CacheModifier modifier;
 } HairSimCacheModifier;
 
 #endif
