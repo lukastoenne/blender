@@ -599,7 +599,7 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 	
 	/* Modifiers */
 	for (fcm= fmodifiers->first; fcm; fcm= fcm->next) {
-		FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
+		const FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
 		
 		/* Write the specific data */
 		if (fmi && fcm->data) {
@@ -1406,7 +1406,7 @@ static void write_constraints(WriteData *wd, ListBase *conlist)
 	bConstraint *con;
 
 	for (con=conlist->first; con; con=con->next) {
-		bConstraintTypeInfo *cti= BKE_constraint_typeinfo_get(con);
+		const bConstraintTypeInfo *cti= BKE_constraint_typeinfo_get(con);
 		
 		/* Write the specific data */
 		if (cti && con->data) {
@@ -1510,7 +1510,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 	if (modbase == NULL) return;
 	for (md=modbase->first; md; md= md->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 		if (mti == NULL) return;
 		
 		writestruct(wd, DATA, mti->structName, 1, md);
@@ -2302,7 +2302,7 @@ static void write_sequence_modifiers(WriteData *wd, ListBase *modbase)
 	SequenceModifierData *smd;
 
 	for (smd = modbase->first; smd; smd = smd->next) {
-		SequenceModifierTypeInfo *smti = BKE_sequence_modifier_type_info_get(smd->type);
+		const SequenceModifierTypeInfo *smti = BKE_sequence_modifier_type_info_get(smd->type);
 
 		if (smti) {
 			writestruct(wd, DATA, smti->struct_name, 1, smd);
