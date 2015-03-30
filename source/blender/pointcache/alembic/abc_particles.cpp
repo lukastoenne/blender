@@ -370,9 +370,11 @@ void AbcStrandsReader::init_abc(IObject object)
 	m_param_times = IFloatGeomParam(geom_props, "times", 0);
 	m_param_weights = IFloatGeomParam(geom_props, "weights", 0);
 	
-	m_param_motion_state = ICompoundProperty(geom_props, "motion_state");
-	m_param_motion_co = IP3fGeomParam(m_param_motion_state, "position");
-	m_param_motion_vel = IV3fGeomParam(m_param_motion_state, "velocity");
+	if (geom_props.getPropertyHeader("motion_state")) {
+		m_param_motion_state = ICompoundProperty(geom_props, "motion_state");
+		m_param_motion_co = IP3fGeomParam(m_param_motion_state, "position");
+		m_param_motion_vel = IV3fGeomParam(m_param_motion_state, "velocity");
+	}
 }
 
 PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
@@ -419,9 +421,9 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		++weight;
 	}
 	
-	IP3fGeomParam::Sample sample_motion_co = m_param_motion_co.getExpandedValue(ss);
-	IV3fGeomParam::Sample sample_motion_vel = m_param_motion_vel.getExpandedValue(ss);
-	if (sample_motion_co && sample_motion_vel) {
+	if (m_param_motion_co && m_param_motion_vel) {
+		IP3fGeomParam::Sample sample_motion_co = m_param_motion_co.getExpandedValue(ss);
+		IV3fGeomParam::Sample sample_motion_vel = m_param_motion_vel.getExpandedValue(ss);
 		
 		BKE_strands_add_motion_state(m_strands);
 		

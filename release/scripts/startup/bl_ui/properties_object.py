@@ -338,7 +338,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
         col = layout.column(align=True)
         col.prop(md, "filepath")
-        col.operator("cachelibrary.modifier_bake", text="Bake")
+        col.operator("cachelibrary.bake", text="Bake")
 
         # match enum type to our functions, avoids a lookup table.
         getattr(self, md.type)(layout, cachelib, md)

@@ -100,57 +100,6 @@ static void rna_CacheLibrary_update(Main *UNUSED(main), Scene *UNUSED(scene), Po
 {
 }
 
-/* ========================================================================= */
-
-#if 0 /* UNUSED */
-static PointerRNA rna_ObjectCache_object_get(PointerRNA *ptr)
-{
-	Object *ob = ptr->data;
-	PointerRNA rptr;
-	RNA_id_pointer_create((ID *)ob, &rptr);
-	return rptr;
-}
-
-static void rna_CacheLibrary_object_caches_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-	CacheLibraryObjectsIterator *internal = (CacheLibraryObjectsIterator *)(&iter->internal.listbase);
-	CacheLibrary *cachelib = ptr->data;
-	
-	/* XXX this is not particularly elegant, but works:
-	 * abuse the internal union for storing our own iterator
-	 */
-	BLI_STATIC_ASSERT(sizeof(iter->internal) >= sizeof(CacheLibraryObjectsIterator), "CollectionPropertyIterator internal not large enough");
-	
-	BKE_object_cache_iter_init(internal, cachelib);
-	iter->valid = BKE_object_cache_iter_valid(internal);
-}
-
-void rna_CacheLibrary_object_caches_next(CollectionPropertyIterator *iter)
-{
-	CacheLibraryObjectsIterator *internal = (CacheLibraryObjectsIterator *)(&iter->internal.listbase);
-	
-	BKE_object_cache_iter_next(internal);
-	iter->valid = BKE_object_cache_iter_valid(internal);
-}
-
-void rna_CacheLibrary_object_caches_end(CollectionPropertyIterator *iter)
-{
-	CacheLibraryObjectsIterator *internal = (CacheLibraryObjectsIterator *)(&iter->internal.listbase);
-	
-	BKE_object_cache_iter_end(internal);
-}
-
-PointerRNA rna_CacheLibrary_object_caches_get(CollectionPropertyIterator *iter)
-{
-	CacheLibraryObjectsIterator *internal = (CacheLibraryObjectsIterator *)(&iter->internal.listbase);
-	PointerRNA rptr;
-	
-	RNA_pointer_create((ID *)iter->parent.id.data, &RNA_ObjectCache, BKE_object_cache_iter_get(internal), &rptr);
-	
-	return rptr;
-}
-#endif
-
 static PointerRNA rna_CacheLibrary_cache_item_find(CacheLibrary *cachelib, Object *ob, int type, int index)
 {
 	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
@@ -161,48 +110,6 @@ static PointerRNA rna_CacheLibrary_cache_item_find(CacheLibrary *cachelib, Objec
 }
 
 /* ========================================================================= */
-
-#if 0 /* UNUSED */
-static void rna_ObjectCache_caches_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
-	Object *ob = ptr->data;
-	
-	/* XXX this is not particularly elegant, but works:
-	 * abuse the internal union for storing our own iterator
-	 */
-	BLI_STATIC_ASSERT(sizeof(iter->internal) >= sizeof(CacheLibraryItemsIterator), "CollectionPropertyIterator internal not large enough");
-	
-	BKE_cache_item_iter_init(internal, ob);
-	iter->valid = BKE_cache_item_iter_valid(internal);
-}
-
-void rna_ObjectCache_caches_next(CollectionPropertyIterator *iter)
-{
-	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
-	
-	BKE_cache_item_iter_next(internal);
-	iter->valid = BKE_cache_item_iter_valid(internal);
-}
-
-void rna_ObjectCache_caches_end(CollectionPropertyIterator *iter)
-{
-	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
-	
-	BKE_cache_item_iter_end(internal);
-}
-
-PointerRNA rna_ObjectCache_caches_get(CollectionPropertyIterator *iter)
-{
-	CacheLibraryItemsIterator *internal = (CacheLibraryItemsIterator *)(&iter->internal.listbase);
-	PointerRNA rptr;
-	
-	/* XXX this returns a temporary pointer that becomes invalid after iteration, potentially dangerous! */
-	RNA_pointer_create((ID *)iter->parent.id.data, &RNA_CacheItem, internal->cur, &rptr);
-	
-	return rptr;
-}
-#endif
 
 static void rna_CacheLibraryModifier_name_set(PointerRNA *ptr, const char *value)
 {
@@ -312,29 +219,6 @@ static void rna_def_cache_item(BlenderRNA *brna)
 	RNA_def_function_output(func, parm);
 }
 
-#if 0 /* UNUSED */
-static void rna_def_object_cache(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-	
-	srna = RNA_def_struct(brna, "ObjectCache", NULL);
-	RNA_def_struct_ui_text(srna, "Object Cache", "Cacheable data in an Object");
-	
-	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_funcs(prop, "rna_ObjectCache_object_get", NULL, NULL, NULL);
-	RNA_def_property_struct_type(prop, "Object");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Object", "");
-	
-	prop = RNA_def_property(srna, "caches", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_struct_type(prop, "CacheItem");
-	RNA_def_property_collection_funcs(prop, "rna_ObjectCache_caches_begin", "rna_ObjectCache_caches_next", "rna_ObjectCache_caches_end",
-	                                  "rna_ObjectCache_caches_get", NULL, NULL, NULL, NULL);
-	RNA_def_property_ui_text(prop, "Caches", "Cacheable items for in an object cache");
-}
-#endif
-
 static void rna_def_cache_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -431,14 +315,6 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Evaluation Mode", "Mode to use when evaluating data");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
-#if 0 /* UNUSED */
-	prop = RNA_def_property(srna, "object_caches", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_struct_type(prop, "ObjectCache");
-	RNA_def_property_collection_funcs(prop, "rna_CacheLibrary_object_caches_begin", "rna_CacheLibrary_object_caches_next", "rna_CacheLibrary_object_caches_end",
-	                                  "rna_CacheLibrary_object_caches_get", NULL, NULL, NULL, NULL);
-	RNA_def_property_ui_text(prop, "Object Caches", "Cacheable objects inside the cache library group");
-#endif
-	
 	func = RNA_def_function(srna, "cache_item_find", "rna_CacheLibrary_cache_item_find");
 	RNA_def_function_ui_description(func, "Find item for an object cache item");
 	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
@@ -460,9 +336,6 @@ static void rna_def_cache_library(BlenderRNA *brna)
 void RNA_def_cache_library(BlenderRNA *brna)
 {
 	rna_def_cache_item(brna);
-#if 0 /* UNUSED */
-	rna_def_object_cache(brna);
-#endif
 	rna_def_cache_modifier(brna);
 	rna_def_cache_library(brna);
 }

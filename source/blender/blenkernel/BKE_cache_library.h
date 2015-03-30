@@ -37,6 +37,7 @@
 struct ListBase;
 struct Main;
 struct bContext;
+struct Group;
 struct Object;
 struct Scene;
 struct EvaluationContext;
@@ -79,11 +80,6 @@ bool BKE_cache_item_iter_valid(CacheLibraryItemsIterator *iter);
 void BKE_cache_item_iter_next(CacheLibraryItemsIterator *iter);
 void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter);
 
-#if 0
-typedef void (*CacheGroupWalkFunc)(void *userdata, struct CacheLibrary *cachelib, const struct CacheItemPath *path);
-void BKE_cache_library_walk(struct CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata);
-#endif
-
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);
@@ -99,8 +95,8 @@ void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cac
 
 /* ========================================================================= */
 
-bool BKE_cache_archive_path_test(const char *path, ID *id, Library *lib);
-void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result, int max);
+bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, struct CacheModifier *md);
+void BKE_cache_archive_path(struct CacheLibrary *cachelib, struct CacheModifier *md, char *result, int max);
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 
@@ -120,6 +116,7 @@ typedef struct CacheBakeContext {
 	struct Main *bmain;
 	struct Scene *scene;
 	int startframe, endframe;
+	struct Group *group;
 	
 	short *stop;
 	short *do_update;
@@ -195,6 +192,6 @@ struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, str
 
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
 
-void BKE_cache_modifier_bake(const struct bContext *C, struct CacheLibrary *cachelib, struct CacheModifier *md, struct Scene *scene, int startframe, int endframe);
+void BKE_cache_modifier_bake(const struct bContext *C, struct Group *group, struct CacheLibrary *cachelib, struct CacheModifier *md, struct Scene *scene, int startframe, int endframe);
 
 #endif

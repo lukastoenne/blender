@@ -63,9 +63,6 @@
 
 #include "PTC_api.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
-
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
 	CacheLibrary *cachelib;
@@ -284,40 +281,6 @@ void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter)
 	if (iter->items)
 		MEM_freeN(iter->items);
 }
-
-#if 0
-static void cache_library_walk_recursive(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata, int level, Object *ob)
-{
-	CacheItemPath path;
-	
-	if (level > MAX_CACHE_GROUP_LEVEL)
-		return;
-	
-	/* object dm */
-	cache_path_object(&path, ob);
-	walk(userdata, cachelib, &path);
-	
-	/* dupli group recursion */
-	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
-		GroupObject *gob;
-		
-		for (gob = ob->dup_group->gobject.first; gob; gob = gob->next) {
-			cache_library_walk_recursive(cachelib, walk, userdata, level + 1, gob->ob);
-		}
-	}
-}
-
-void BKE_cache_library_walk(CacheLibrary *cachelib, CacheGroupWalkFunc walk, void *userdata)
-{
-	if (cachelib && cachelib->group) {
-		GroupObject *gob;
-		
-		for (gob = cachelib->group->gobject.first; gob; gob = gob->next) {
-			cache_library_walk_recursive(cachelib, walk, userdata, 0, gob->ob);
-		}
-	}
-}
-#endif
 
 /* ========================================================================= */
 
@@ -577,61 +540,18 @@ void BKE_cache_library_group_update(Main *bmain, CacheLibrary *cachelib)
 
 /* ========================================================================= */
 
-#if 0
-typedef struct UpdateItemsData {
-	CacheItem *cur;
-} UpdateItemsData;
-
-static void cache_library_update_items_walk(void *userdata, CacheLibrary *cachelib)
-{
-	UpdateItemsData *data = userdata;
-	CacheItem *item;
-	
-	if (data->cur) {
-		item = data->cur;
-		data->cur = data->cur->next;
-	}
-	else {
-		item = MEM_callocN(sizeof(CacheItem), "cache library item");
-		BLI_addtail(&cachelib->items, item);
-	}
-}
-
-void BKE_cache_library_update_items(CacheLibrary *cachelib)
-{
-	UpdateItemsData data;
-	
-	data.cur = cachelib->items.first;
-	BKE_cache_library_walk(cachelib, cache_library_update_items_walk, &data);
-	
-	/* truncate items list */
-	if (data.cur) {
-		cachelib->items.last = data.cur->prev;
-		while (data.cur) {
-			CacheItem *item = data.cur;
-			data.cur = data.cur->next;
-			
-			BLI_remlink(&cachelib->items, item);
-			MEM_freeN(item);
-		}
-	}
-}
-#endif
-
-/* ========================================================================= */
-
-static const char *default_filename = "blendcache";
-
 BLI_INLINE bool path_is_dirpath(const char *path)
 {
 	/* last char is a slash? */
 	return *(BLI_last_slash(path) + 1) == '\0';
 }
 
-bool BKE_cache_archive_path_test(const char *path, ID *UNUSED(id), Library *lib)
+bool BKE_cache_archive_path_test(CacheLibrary *cachelib, CacheModifier *cachemd)
 {
+	const char *path = cachemd ? cachemd->filepath : cachelib->filepath;
+	
 	if (BLI_path_is_rel(path)) {
-		if (!(G.relbase_valid || lib))
+		if (!(G.relbase_valid || cachelib->id.lib))
 			return false;
 	}
 	
@@ -639,7 +559,7 @@ bool BKE_cache_archive_path_test(const char *path, ID *UNUSED(id), Library *lib)
 	
 }
 
-void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result, int max)
+static void cache_archive_path_ex(const char *path, Library *lib, char *result, int max, const char *default_filename)
 {
 	char abspath[FILE_MAX];
 	
@@ -665,11 +585,19 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 		result[0] = '\0';
 	}
 	else if (path_is_dirpath(abspath) || BLI_is_dir(abspath)) {
-		BLI_join_dirfile(result, max, abspath, id ? id->name+2 : default_filename);
+		BLI_join_dirfile(result, max, abspath, default_filename);
 	}
 	else {
 		BLI_strncpy(result, abspath, max);
 	}
+}
+
+void BKE_cache_archive_path(CacheLibrary *cachelib, CacheModifier *cachemd, char *result, int max)
+{
+	if (cachemd)
+		cache_archive_path_ex(cachemd->filepath, cachelib->id.lib, result, max, cachemd->name);
+	else
+		cache_archive_path_ex(cachelib->filepath, cachelib->id.lib, result, max, cachelib->id.name+2);
 }
 
 
@@ -681,14 +609,14 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 	
 	/* look for last valid modifier output */
 	for (md = cachelib->modifiers.last; md; md = md->prev) {
-		BKE_cache_archive_path(md->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+		BKE_cache_archive_path(cachelib, md, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
 		if (archive)
 			return archive;
 	}
 	
 	/* if no modifier has a valid output, try the base cache */
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_archive_path(cachelib, NULL, filename, sizeof(filename));
 	archive = PTC_open_reader_archive(scene, filename);
 	if (archive)
 		return archive;
@@ -899,12 +827,13 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 		mti->foreachIDLink(md, cachelib, walk, userdata);
 }
 
+#if 0
 /* Warning! Deletes existing files if possible, operator should show confirm dialog! */
-static bool cache_modifier_bake_ensure_file_target(const char *filepath, ID *id)
+static bool cache_modifier_bake_ensure_file_target(CacheLibrary *cachelib, CacheModifier *md)
 {
 	char filename[FILE_MAX];
 	
-	BKE_cache_archive_path(filepath, id, id->lib, filename, sizeof(filename));
+	BKE_cache_modifier_archive_path(cachelib, md, filename, sizeof(filename));
 	
 	if (BLI_exists(filename)) {
 		if (BLI_is_dir(filename)) {
@@ -955,14 +884,16 @@ static void cache_modifier_bake_endjob(void *UNUSED(customdata))
 	G.is_rendering = false;
 	BKE_spacedata_draw_locks(false);
 }
+#endif
 
-void BKE_cache_modifier_bake(const bContext *C, CacheLibrary *cachelib, CacheModifier *md, Scene *scene, int startframe, int endframe)
+void BKE_cache_modifier_bake(const bContext *C, Group *group, CacheLibrary *cachelib, CacheModifier *md, Scene *scene, int startframe, int endframe)
 {
+#if 0
 	CacheBakeContext *ctx;
 	wmJob *wm_job;
 	
 	/* make sure we can write */
-	cache_modifier_bake_ensure_file_target(md->filepath, &cachelib->id);
+	cache_modifier_bake_ensure_file_target(cachelib, md);
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
 		 * scene frame in separate threads
@@ -985,12 +916,14 @@ void BKE_cache_modifier_bake(const bContext *C, CacheLibrary *cachelib, CacheMod
 	ctx->scene = scene;
 	ctx->startframe = startframe;
 	ctx->endframe = endframe;
+	ctx->group = group;
 	
 	WM_jobs_customdata_set(wm_job, ctx, cache_modifier_bake_freejob);
 	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
 	WM_jobs_callbacks(wm_job, cache_modifier_bake_startjob, NULL, NULL, cache_modifier_bake_endjob);
 	
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
+#endif
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1007,23 +940,23 @@ static void hairsim_bake_do(CacheBakeContext *ctx, short *stop, short *do_update
                             struct PTCWriterArchive *archive, EvaluationContext *eval_ctx)
 {
 	Scene *scene = ctx->scene;
-	struct PTCWriter *writer = NULL;
+	struct PTCWriter *writer;
 	
 	if ((*stop) || (G.is_break))
 		return;
 	
-//	writer = PTC_writer_dupligroup(ctx->group->id.name, &ctx->eval_ctx, scene, ctx->group, ctx->cachelib);
-//	PTC_writer_init(ctx->writer, archive);
-	
-	PTC_bake(ctx->bmain, scene, eval_ctx, writer, ctx->startframe, ctx->endframe, stop, do_update, progress);
-	
+	writer = PTC_writer_dupligroup(ctx->group->id.name, eval_ctx, scene, ctx->group, ctx->cachelib);
 	if (writer) {
+		PTC_writer_init(writer, archive);
+		
+		PTC_bake(ctx->bmain, scene, eval_ctx, writer, ctx->startframe, ctx->endframe, stop, do_update, progress);
+		
 		PTC_writer_free(writer);
 		writer = NULL;
 	}
 }
 
-static void hairsim_bake(HairSimCacheModifier *UNUSED(md), CacheLibrary *cachelib, CacheBakeContext *ctx)
+static void hairsim_bake(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, CacheBakeContext *ctx)
 {
 	Scene *scene = ctx->scene;
 	const int origframe = scene->r.cfra;
@@ -1035,7 +968,7 @@ static void hairsim_bake(HairSimCacheModifier *UNUSED(md), CacheLibrary *cacheli
 	
 	scene->r.framelen = 1.0f;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_archive_path(cachelib, &hsmd->modifier, filename, sizeof(filename));
 	archive = PTC_open_writer_archive(scene, filename);
 	
 	if (archive) {
