@@ -306,7 +306,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	data->origframelen = scene->r.framelen;
 	scene->r.framelen = 1.0f;
 	
-	BKE_cache_archive_path(data->cachelib->filepath, (ID *)data->cachelib, data->cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_library_archive_path(data->cachelib, filename, sizeof(filename));
 	data->archive = PTC_open_writer_archive(scene, filename);
 	
 	if (data->archive) {
@@ -355,7 +355,7 @@ static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
 {
 	char filename[FILE_MAX];
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_library_archive_path(cachelib, filename, sizeof(filename));
 	
 	if (BLI_exists(filename)) {
 		if (BLI_is_dir(filename)) {
@@ -426,12 +426,12 @@ static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 	
 	if (!cachelib)
 		return OPERATOR_CANCELLED;
-	if (!BKE_cache_archive_path_test(cachelib->filepath, (ID *)cachelib, cachelib->id.lib)) {
+	if (!BKE_cache_archive_path_test(cachelib->filepath, cachelib->id.lib)) {
 		BKE_reportf(op->reports, RPT_ERROR, "Cannot create file path for cache library %200s", cachelib->id.name+2);
 		return OPERATOR_CANCELLED;
 	}
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_library_archive_path(cachelib, filename, sizeof(filename));
 	
 	if (BLI_exists(filename)) {
 		if (BLI_is_dir(filename)) {
@@ -537,7 +537,7 @@ static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 	struct PTCReaderArchive *archive;
 	char *info;
 	
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_library_archive_path(cachelib, filename, sizeof(filename));
 	archive = PTC_open_reader_archive(scene, filename);
 	if (!archive) {
 		BKE_reportf(op->reports, RPT_ERROR, "Cannot open cache file at '%s'", cachelib->filepath);

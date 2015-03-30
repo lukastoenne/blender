@@ -620,15 +620,13 @@ void BKE_cache_library_update_items(CacheLibrary *cachelib)
 
 /* ========================================================================= */
 
-static const char *default_filename = "blendcache";
-
 BLI_INLINE bool path_is_dirpath(const char *path)
 {
 	/* last char is a slash? */
 	return *(BLI_last_slash(path) + 1) == '\0';
 }
 
-bool BKE_cache_archive_path_test(const char *path, ID *UNUSED(id), Library *lib)
+bool BKE_cache_archive_path_test(const char *path, Library *lib)
 {
 	if (BLI_path_is_rel(path)) {
 		if (!(G.relbase_valid || lib))
@@ -639,7 +637,7 @@ bool BKE_cache_archive_path_test(const char *path, ID *UNUSED(id), Library *lib)
 	
 }
 
-void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result, int max)
+static void cache_archive_path(const char *path, Library *lib, char *result, int max, const char *default_filename)
 {
 	char abspath[FILE_MAX];
 	
@@ -665,11 +663,21 @@ void BKE_cache_archive_path(const char *path, ID *id, Library *lib, char *result
 		result[0] = '\0';
 	}
 	else if (path_is_dirpath(abspath) || BLI_is_dir(abspath)) {
-		BLI_join_dirfile(result, max, abspath, id ? id->name+2 : default_filename);
+		BLI_join_dirfile(result, max, abspath, default_filename);
 	}
 	else {
 		BLI_strncpy(result, abspath, max);
 	}
+}
+
+void BKE_cache_library_archive_path(struct CacheLibrary *cachelib, char *result, int max)
+{
+	cache_archive_path(cachelib->filepath, cachelib->id.lib, result, max, cachelib->id.name+2);
+}
+
+void BKE_cache_modifier_archive_path(struct CacheLibrary *cachelib, struct CacheModifier *md, char *result, int max)
+{
+	cache_archive_path(md->filepath, cachelib->id.lib, result, max, md->name);
 }
 
 
@@ -681,14 +689,14 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 	
 	/* look for last valid modifier output */
 	for (md = cachelib->modifiers.last; md; md = md->prev) {
-		BKE_cache_archive_path(md->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+		BKE_cache_modifier_archive_path(cachelib, md, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
 		if (archive)
 			return archive;
 	}
 	
 	/* if no modifier has a valid output, try the base cache */
-	BKE_cache_archive_path(cachelib->filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_library_archive_path(cachelib, filename, sizeof(filename));
 	archive = PTC_open_reader_archive(scene, filename);
 	if (archive)
 		return archive;
@@ -900,11 +908,11 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 }
 
 /* Warning! Deletes existing files if possible, operator should show confirm dialog! */
-static bool cache_modifier_bake_ensure_file_target(const char *filepath, ID *id)
+static bool cache_modifier_bake_ensure_file_target(CacheLibrary *cachelib, CacheModifier *md)
 {
 	char filename[FILE_MAX];
 	
-	BKE_cache_archive_path(filepath, id, id->lib, filename, sizeof(filename));
+	BKE_cache_modifier_archive_path(cachelib, md, filename, sizeof(filename));
 	
 	if (BLI_exists(filename)) {
 		if (BLI_is_dir(filename)) {
@@ -962,7 +970,7 @@ void BKE_cache_modifier_bake(const bContext *C, Group *group, CacheLibrary *cach
 	wmJob *wm_job;
 	
 	/* make sure we can write */
-	cache_modifier_bake_ensure_file_target(md->filepath, &cachelib->id);
+	cache_modifier_bake_ensure_file_target(cachelib, md);
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
 		 * scene frame in separate threads
@@ -1036,7 +1044,7 @@ static void hairsim_bake(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, Cac
 	
 	scene->r.framelen = 1.0f;
 	
-	BKE_cache_archive_path(hsmd->modifier.filepath, (ID *)cachelib, cachelib->id.lib, filename, sizeof(filename));
+	BKE_cache_modifier_archive_path(cachelib, &hsmd->modifier, filename, sizeof(filename));
 	archive = PTC_open_writer_archive(scene, filename);
 	
 	if (archive) {
