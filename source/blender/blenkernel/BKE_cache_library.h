@@ -67,36 +67,19 @@ void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter);
 void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter);
 struct Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter);
 
-typedef struct CacheLibraryItemsIterator {
-	struct Object *ob;
-	struct CacheItem *items;
-	int totitems;
-	
-	struct CacheItem *cur;
-} CacheLibraryItemsIterator;
-
-void BKE_cache_item_iter_init(CacheLibraryItemsIterator *iter, struct Object *ob);
-bool BKE_cache_item_iter_valid(CacheLibraryItemsIterator *iter);
-void BKE_cache_item_iter_next(CacheLibraryItemsIterator *iter);
-void BKE_cache_item_iter_end(CacheLibraryItemsIterator *iter);
-
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);
 eCacheReadSampleResult BKE_cache_read_result(int ptc_result);
 
-struct CacheItem *BKE_cache_library_find_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
-struct CacheItem *BKE_cache_library_add_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
-void BKE_cache_library_remove_item(struct CacheLibrary *cachelib, struct CacheItem *item);
-void BKE_cache_library_clear(struct CacheLibrary *cachelib);
-
 bool BKE_cache_library_validate_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
-void BKE_cache_library_group_update(struct Main *bmain, struct CacheLibrary *cachelib);
 
 /* ========================================================================= */
 
-bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, struct CacheModifier *md);
-void BKE_cache_archive_path(struct CacheLibrary *cachelib, struct CacheModifier *md, char *result, int max);
+bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, const char *path);
+void BKE_cache_archive_path_ex(const char *path, struct Library *lib, const char *default_filename, char *result, int max);
+void BKE_cache_archive_input_path(struct CacheLibrary *cachelib, char *result, int max);
+void BKE_cache_archive_output_path(struct CacheLibrary *cachelib, char *result, int max);
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 
@@ -191,7 +174,5 @@ void BKE_cache_modifier_clear(struct CacheLibrary *cachelib);
 struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, struct CacheModifier *md);
 
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
-
-void BKE_cache_modifier_bake(const struct bContext *C, struct Group *group, struct CacheLibrary *cachelib, struct CacheModifier *md, struct Scene *scene, int startframe, int endframe);
 
 #endif

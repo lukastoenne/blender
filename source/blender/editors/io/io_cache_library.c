@@ -179,57 +179,6 @@ void CACHELIBRARY_OT_delete(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 }
 
-/********************** enable cache item operator *********************/
-
-static int cache_item_enable_poll(bContext *C)
-{
-	Object *ob = CTX_data_active_object(C);
-	CacheLibrary *cachelib = ob->cache_library;
-	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
-	
-	if (!cachelib || !obcache)
-		return false;
-	
-	return true;
-}
-
-static int cache_item_enable_exec(bContext *C, wmOperator *op)
-{
-	Object *ob = CTX_data_active_object(C);
-	CacheLibrary *cachelib = ob->cache_library;
-	Object *obcache = CTX_data_pointer_get_type(C, "cache_object", &RNA_Object).data;
-	int type = RNA_enum_get(op->ptr, "type");
-	int index = RNA_int_get(op->ptr, "index");
-	
-	CacheItem *item = BKE_cache_library_add_item(cachelib, obcache, type, index);
-	item->flag |= CACHE_ITEM_ENABLED;
-	
-	WM_event_add_notifier(C, NC_OBJECT, cachelib);
-	
-	return OPERATOR_FINISHED;
-}
-
-void CACHELIBRARY_OT_item_enable(wmOperatorType *ot)
-{
-	PropertyRNA *prop;
-	
-	/* identifiers */
-	ot->name = "Enable Cache Item";
-	ot->idname = "CACHELIBRARY_OT_item_enable";
-	ot->description = "Enable a cache item";
-	
-	/* api callbacks */
-	ot->poll = cache_item_enable_poll;
-	ot->exec = cache_item_enable_exec;
-	
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
-	
-	prop = RNA_def_enum(ot->srna, "type", cache_library_item_type_items, CACHE_TYPE_OBJECT, "Type", "Type of cache item to add");
-	RNA_def_property_flag(prop, PROP_REQUIRED);
-	RNA_def_int(ot->srna, "index", -1, -1, INT_MAX, "Index", "Index of data in the object", -1, INT_MAX);
-}
-
 /********************** bake cache operator *********************/
 
 static int cache_library_bake_poll(bContext *C)
@@ -238,10 +187,8 @@ static int cache_library_bake_poll(bContext *C)
 	
 	if (!ob || !(ob->transflag & OB_DUPLIGROUP) || !ob->dup_group || !ob->cache_library)
 		return false;
-	/* re-baking cached results doesn't make much sense,
-	 * clarify workflow by enabling either reading or writing, but not both
-	 */
-	if (ob->transflag & OB_DUPLI_READ_CACHE)
+	/* disable when the result is not displayed, just to avoid confusing situations */
+	if (ob->cache_library->display_mode != CACHE_LIBRARY_DISPLAY_RESULT)
 		return false;
 	
 	return true;
@@ -255,7 +202,6 @@ typedef struct CacheLibraryBakeJob {
 	struct Scene *scene;
 	EvaluationContext eval_ctx;
 	struct CacheLibrary *cachelib;
-	struct CacheModifier *cachemd; /* optional */
 	struct Group *group;
 	
 	struct PTCWriterArchive *archive;
@@ -271,12 +217,23 @@ static void cache_library_bake_freejob(void *customdata)
 	MEM_freeN(data);
 }
 
-static void cache_library_bake_do(CacheLibraryBakeJob *data, short *stop, short *do_update, float *progress)
+static bool cache_library_bake_stop(CacheLibraryBakeJob *data)
+{
+	return (*data->stop) || G.is_break;
+}
+
+static void cache_library_bake_set_progress(CacheLibraryBakeJob *data, float progress)
+{
+	*data->do_update = 1;
+	*data->progress = progress;
+}
+
+static void cache_library_bake_do(CacheLibraryBakeJob *data)
 {
 	Scene *scene = data->scene;
-	int start_frame, end_frame;
+	int cfra, start_frame, end_frame;
 	
-	if ((*stop) || (G.is_break))
+	if (cache_library_bake_stop(data))
 		return;
 	
 	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
@@ -285,7 +242,20 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data, short *stop, short 
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
-	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+	
+	cache_library_bake_set_progress(data, 0.0f);
+	
+	for (cfra = start_frame; cfra <= end_frame; ++cfra) {
+		scene->r.cfra = cfra;
+		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
+		
+		PTC_write_sample(data->writer);
+		
+		cache_library_bake_set_progress(data, (float)(cfra - start_frame + 1) / (float)(end_frame - start_frame + 1));
+		
+		if (cache_library_bake_stop(data))
+			break;
+	}
 	
 	if (data->writer) {
 		PTC_writer_free(data->writer);
@@ -307,7 +277,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	data->origframelen = scene->r.framelen;
 	scene->r.framelen = 1.0f;
 	
-	BKE_cache_archive_path(data->cachelib, data->cachemd, filename, sizeof(filename));
+	BKE_cache_archive_output_path(data->cachelib, filename, sizeof(filename));
 	data->archive = PTC_open_writer_archive(scene, filename);
 	
 	if (data->archive) {
@@ -317,13 +287,13 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_REALTIME) {
 			data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
 			PTC_writer_archive_use_render(data->archive, false);
-			cache_library_bake_do(data, stop, do_update, progress);
+			cache_library_bake_do(data);
 		}
 		
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_RENDER) {
 			data->eval_ctx.mode = DAG_EVAL_RENDER;
 			PTC_writer_archive_use_render(data->archive, true);
-			cache_library_bake_do(data, stop, do_update, progress);
+			cache_library_bake_do(data);
 		}
 		
 	}
@@ -352,11 +322,11 @@ static void cache_library_bake_endjob(void *customdata)
 }
 
 /* Warning! Deletes existing files if possible, operator should show confirm dialog! */
-static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib, CacheModifier *cachemd)
+static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
 {
 	char filename[FILE_MAX];
 	
-	BKE_cache_archive_path(cachelib, cachemd, filename, sizeof(filename));
+	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
 	
 	if (BLI_exists(filename)) {
 		if (BLI_is_dir(filename)) {
@@ -382,14 +352,13 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = CTX_data_active_object(C);
 	CacheLibrary *cachelib = ob->cache_library;
-	CacheModifier *cachemd = CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier).data;
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	CacheLibraryBakeJob *data;
 	wmJob *wm_job;
 	
 	/* make sure we can write */
-	cache_library_bake_ensure_file_target(cachelib, cachemd);
+	cache_library_bake_ensure_file_target(cachelib);
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
 	 * scene frame in separate threads
@@ -409,7 +378,6 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	data->bmain = bmain;
 	data->scene = scene;
 	data->cachelib = cachelib;
-	data->cachemd = cachemd;
 	data->group = ob->dup_group;
 	
 	WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
@@ -425,16 +393,15 @@ static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 {
 	Object *ob = CTX_data_active_object(C);
 	CacheLibrary *cachelib = ob->cache_library;
-	CacheModifier *cachemd = CTX_data_pointer_get_type(C, "cache_modifier", &RNA_CacheLibraryModifier).data;
 	
 	char filename[FILE_MAX];
 	
 	if (!cachelib)
 		return OPERATOR_CANCELLED;
 	
-	BKE_cache_archive_path(cachelib, cachemd, filename, sizeof(filename));
+	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
 	
-	if (!BKE_cache_archive_path_test(cachelib, cachemd)) {
+	if (!BKE_cache_archive_path_test(cachelib, cachelib->output_filepath)) {
 		BKE_reportf(op->reports, RPT_ERROR, "Cannot create file path for cache library %200s", cachelib->id.name+2);
 		return OPERATOR_CANCELLED;
 	}
@@ -539,14 +506,18 @@ static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 	const bool use_popup = RNA_boolean_get(op->ptr, "use_popup");
 	const bool use_clipboard = RNA_boolean_get(op->ptr, "use_clipboard");
 	
-	char filename[FILE_MAX];
+	char filepath[FILE_MAX], filename[FILE_MAX];
 	struct PTCReaderArchive *archive;
 	char *info;
 	
-	BKE_cache_archive_path(cachelib, NULL, filename, sizeof(filename));
+	RNA_string_get(op->ptr, "filepath", filepath);
+	if (filepath[0] == '\0')
+		return OPERATOR_CANCELLED;
+	
+	BKE_cache_archive_path_ex(filepath, cachelib->id.lib, NULL, filename, sizeof(filename));
 	archive = PTC_open_reader_archive(scene, filename);
 	if (!archive) {
-		BKE_reportf(op->reports, RPT_ERROR, "Cannot open cache file at '%s'", cachelib->filepath);
+		BKE_reportf(op->reports, RPT_ERROR, "Cannot open cache file at '%s'", filepath);
 		return OPERATOR_CANCELLED;
 	}
 	
@@ -586,6 +557,7 @@ void CACHELIBRARY_OT_archive_info(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
+	RNA_def_string(ot->srna, "filepath", NULL, FILE_MAX, "File Path", "Path to the cache archive");
 	RNA_def_boolean(ot->srna, "use_stdout", false, "Use stdout", "Print info in standard output");
 	RNA_def_boolean(ot->srna, "use_popup", false, "Show Popup", "Display archive info in a popup");
 	RNA_def_boolean(ot->srna, "use_clipboard", false, "Copy to Clipboard", "Copy archive info to the clipboard");

@@ -888,15 +888,7 @@ void BKE_object_unlink(Object *ob)
 
 	/* cache libraries */
 	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
-		CacheItem *item, *item_next;
 		CacheModifier *md;
-		
-		for (item = cachelib->items.first; item; item = item_next) {
-			item_next = item->next;
-			if (item->ob == ob) {
-				BKE_cache_library_remove_item(cachelib, item);
-			}
-		}
 		
 		for (md = cachelib->modifiers.first; md; md = md->next) {
 			BKE_cache_modifier_foreachIDLink(cachelib, md, unlink_object__unlinkCacheModifierLinks, ob);
@@ -2897,7 +2889,7 @@ bool BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_m
 				BoundBox *bb = NULL;
 				if (ob->dup_cache) {
 					DupliObjectData *dob_data = BKE_dupli_cache_find_data(ob->dup_cache, dob->ob);
-					if (dob_data->dm) {
+					if (dob_data && dob_data->dm) {
 						bb = &dob_data->bb;
 					}
 				}

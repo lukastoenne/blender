@@ -46,7 +46,6 @@ struct bContext;
 struct bMotionPath;
 struct bPoseChannel;
 struct Mesh;
-struct SimDebugData;
 struct Strands;
 struct wmNDOFMotionData;
 struct wmOperatorType;

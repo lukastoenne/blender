@@ -673,7 +673,10 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 	Mesh *mesh;
 
 	bool need_update;
-	bool use_dupli_override = b_dupli_ob && b_parent.cache_library() && b_parent.use_dupli_cache_read();
+	BL::CacheLibrary b_cachelib = b_parent.cache_library();
+	bool use_dupli_override = b_dupli_ob && b_cachelib &&
+	                          (b_cachelib.source_mode() == BL::CacheLibrary::source_mode_CACHE ||
+	                           b_cachelib.display_mode() == BL::CacheLibrary::display_mode_RESULT);
 	if (use_dupli_override) {
 		/* if a dupli override (cached data) is used, identify the mesh by object and parent together,
 		 * so that individual per-dupli overrides are possible.

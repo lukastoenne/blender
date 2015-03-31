@@ -59,7 +59,7 @@ static void draw_strand_lines(Strands *strands, short dflag)
 	glEnableClientState(GL_VERTEX_ARRAY);
 	
 	/* setup gl flags */
-//	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
 	
 	if ((dflag & DRAW_CONSTCOLOR) == 0) {
 //		if (part->draw_col == PART_DRAW_COL_MAT)
@@ -67,7 +67,7 @@ static void draw_strand_lines(Strands *strands, short dflag)
 	}
 	
 	glColor3f(1,1,1);
-//	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHTING);
 //	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 //	glEnable(GL_COLOR_MATERIAL);
 	
@@ -76,7 +76,7 @@ static void draw_strand_lines(Strands *strands, short dflag)
 			continue;
 		
 		glVertexPointer(3, GL_FLOAT, sizeof(StrandsVertex), it_strand.verts->co);
-//		glNormalPointer(GL_FLOAT, sizeof(StrandsVertex), it_strand.verts->nor);
+		glNormalPointer(GL_FLOAT, sizeof(StrandsVertex), it_strand.verts->nor);
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
 //			if (part->draw_col == PART_DRAW_COL_MAT) {
 //				glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
@@ -89,6 +89,7 @@ static void draw_strand_lines(Strands *strands, short dflag)
 	/* restore & clean up */
 //	if (part->draw_col == PART_DRAW_COL_MAT)
 //		glDisableClientState(GL_COLOR_ARRAY);
+	glDisable(GL_LIGHTING);
 	glDisable(GL_COLOR_MATERIAL);
 	
 	glLineWidth(1.0f);

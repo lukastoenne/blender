@@ -2001,20 +2001,10 @@ static void lib_link_cache_modifiers(FileData *fd, CacheLibrary *cachelib)
 static void lib_link_cache_library(FileData *fd, Main *main)
 {
 	CacheLibrary *cachelib;
-	CacheItem *item, *item_next;
 	
 	for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
 		if (cachelib->id.flag & LIB_NEED_LINK) {
 			cachelib->id.flag -= LIB_NEED_LINK;
-			
-			for (item = cachelib->items.first; item; item = item_next) {
-				item_next = item->next;
-				
-				item->ob = newlibadr(fd, cachelib->id.lib, item->ob);
-				
-				if (!item->ob)
-					BKE_cache_library_remove_item(cachelib, item);
-			}
 			
 			lib_link_cache_modifiers(fd, cachelib);
 		}
@@ -2041,9 +2031,6 @@ static void direct_link_cache_modifiers(FileData *fd, ListBase *modifiers)
 
 static void direct_link_cache_library(FileData *fd, CacheLibrary *cachelib)
 {
-	link_list(fd, &cachelib->items);
-	cachelib->items_hash = NULL;
-	
 	direct_link_cache_modifiers(fd, &cachelib->modifiers);
 }
 
@@ -5027,12 +5014,19 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			}
 			lmd->cache_system = NULL;
 		}
-		else if (md->type == eModifierType_Cache) {
-			CacheModifierData *cmd = (CacheModifierData *)md;
-			
-			cmd->output_dm = NULL;
-			cmd->input_dm = NULL;
-			cmd->flag &= ~(MOD_CACHE_USE_OUTPUT_REALTIME | MOD_CACHE_USE_OUTPUT_RENDER);
+		else if (md->type == eModifierType_CorrectiveSmooth) {
+			CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData*)md;
+
+			if (csmd->bind_coords) {
+				csmd->bind_coords = newdataadr(fd, csmd->bind_coords);
+				if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+					BLI_endian_switch_float_array((float *)csmd->bind_coords, csmd->bind_coords_num * 3);
+				}
+			}
+
+			/* runtime only */
+			csmd->delta_cache = NULL;
+			csmd->delta_cache_num = 0;
 		}
 	}
 }
@@ -9077,13 +9071,8 @@ static void expand_gpencil(FileData *fd, Main *mainvar, bGPdata *gpd)
 		expand_animdata(fd, mainvar, gpd->adt);
 }
 
-static void expand_cache_library(FileData *fd, Main *mainvar, CacheLibrary *cachelib)
+static void expand_cache_library(FileData *UNUSED(fd), Main *UNUSED(mainvar), CacheLibrary *UNUSED(cachelib))
 {
-	CacheItem *item;
-	
-	for (item = cachelib->items.first; item; item = item->next) {
-		expand_doit(fd, mainvar, item->ob);
-	}
 }
 
 void BLO_main_expander(void (*expand_doit_func)(void *, Main *, void *))

@@ -127,24 +127,12 @@ void AbcDupligroupWriter::init_abc()
 	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
 }
 
-static bool do_cache_type(CacheLibrary *cachelib, Object *ob, int type, int index=-1)
-{
-	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
-	return item && (item->flag & CACHE_ITEM_ENABLED);
-}
-
 void AbcDupligroupWriter::write_sample_object(Object *ob)
 {
 	AbcWriter *ob_writer = find_id_writer((ID *)ob);
 	if (!ob_writer) {
-		bool do_mesh = do_cache_type(m_cachelib, ob, CACHE_TYPE_DERIVED_MESH);
-		/* XXX TODO currently we cache all hair if any of them is enabled,
-		 * need to decide if individual particle system caching is needed at all
-		 */
-		bool do_hair = false;
-		int totpsys = BLI_listbase_count(&ob->particlesystem);
-		for (int i = 0; i < totpsys; ++i)
-			do_hair |= do_cache_type(m_cachelib, ob, CACHE_TYPE_HAIR, i);
+		bool do_mesh = (m_cachelib->data_types & CACHE_TYPE_DERIVED_MESH);
+		bool do_hair = (m_cachelib->data_types & CACHE_TYPE_HAIR);
 		
 		ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob, do_mesh, do_hair);
 		ob_writer->init(abc_archive());

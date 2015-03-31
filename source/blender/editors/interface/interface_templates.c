@@ -3701,32 +3701,6 @@ void uiTemplateNodeSocket(uiLayout *layout, bContext *UNUSED(C), float *color)
 
 /************************* Cache Library Item **************************/
 
-static void cache_item_button(uiLayout *layout, bContext *UNUSED(C), CacheLibrary *cachelib, CacheItem *item, Object *ob, int type, int index)
-{
-	if (item) {
-		PointerRNA itemptr;
-		RNA_pointer_create((ID *)cachelib, &RNA_CacheItem, item, &itemptr);
-		
-		uiItemR(layout, &itemptr, "enabled", 0, "", ICON_NONE);
-	}
-	else {
-		uiLayout *row = uiLayoutRow(layout, false);
-		uiBlock *block = uiLayoutGetBlock(row);
-		uiBut *but;
-		PointerRNA obptr;
-		PointerRNA *opptr;
-		
-		RNA_id_pointer_create((ID *)ob, &obptr);
-		uiLayoutSetContextPointer(row, "cache_object", &obptr);
-		
-		but = uiDefButO(block, UI_BTYPE_CHECKBOX, "CACHELIBRARY_OT_item_enable", WM_OP_EXEC_DEFAULT, "",
-		                0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
-		opptr = UI_but_operator_ptr_get(but);
-		RNA_enum_set(opptr, "type", type);
-		RNA_int_set(opptr, "index", index);
-	}
-}
-
 static int cache_item_indent(int type)
 {
 	switch (type) {
@@ -3738,12 +3712,10 @@ static int cache_item_indent(int type)
 	}
 }
 
-uiLayout *uiTemplateCacheLibraryItem(uiLayout *layout, bContext *C, CacheLibrary *cachelib,
-                                     Object *ob, int type, int index, int enabled)
+uiLayout *uiTemplateCacheLibraryItem(uiLayout *layout, bContext *UNUSED(C), CacheLibrary *UNUSED(cachelib),
+                                     Object *ob, int datatype, int index, int enabled)
 {
-	CacheItem *item = BKE_cache_library_find_item(cachelib, ob, type, index);
-	
-	uiLayout *split, *row, *sub;
+	uiLayout *split, *row, *col;
 	int i;
 	char name[2*MAX_NAME];
 	int icon = ICON_NONE;
@@ -3754,25 +3726,23 @@ uiLayout *uiTemplateCacheLibraryItem(uiLayout *layout, bContext *C, CacheLibrary
 	
 	split = uiLayoutSplit(row, 0.0f, false);
 	
-	for (i = 0; i < cache_item_indent(type); ++i)
+	for (i = 0; i < cache_item_indent(datatype); ++i)
 		uiItemL(split, "", ICON_NONE);
-	cache_item_button(split, C, cachelib, item, ob, type, index);
 	
-	split = uiLayoutSplit(row, 0.1f, false);
-	uiLayoutSetEnabled(split, item && (item->flag & CACHE_ITEM_ENABLED));
-	sub = uiLayoutColumn(split, false);
+	col = uiLayoutColumn(split, false);
 	
-	BKE_cache_item_name(ob, type, index, name);
-	RNA_enum_icon_from_value(cache_library_item_type_items, type, &icon);
+	BKE_cache_item_name(ob, datatype, index, name);
+	RNA_enum_icon_from_value(cache_library_data_type_items, datatype, &icon);
 	uiItemL(split, name, icon);
 	
 	/* display read result */
 	split = uiLayoutSplit(row, 0.9f, false);
-	if (item && (item->flag & CACHE_ITEM_ENABLED))
-		RNA_enum_icon_from_value(cache_library_read_result_items, item->read_result, &icon);
-	else
-		icon = ICON_NONE;
-	uiItemL(split, NULL, icon);
+	// XXX TODO store cache read results in a hash table and display them here
+//	if (item && (item->flag & CACHE_ITEM_ENABLED))
+//		RNA_enum_icon_from_value(cache_library_read_result_items, item->read_result, &icon);
+//	else
+//		icon = ICON_NONE;
+//	uiItemL(split, NULL, icon);
 	
-	return sub;
+	return col;
 }

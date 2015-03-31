@@ -52,6 +52,7 @@ set(SRC
 	intern/MOD_cast.c
 	intern/MOD_cloth.c
 	intern/MOD_collision.c
+	intern/MOD_correctivesmooth.c
 	intern/MOD_curve.c
 	intern/MOD_datatransfer.c
 	intern/MOD_decimate.c
@@ -78,7 +79,6 @@ set(SRC
 	intern/MOD_ocean.c
 	intern/MOD_particleinstance.c
 	intern/MOD_particlesystem.c
-	intern/MOD_cache.c
 	intern/MOD_remesh.c
 	intern/MOD_screw.c
 	intern/MOD_shapekey.c

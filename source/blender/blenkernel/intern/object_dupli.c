@@ -1231,7 +1231,7 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 		BKE_object_dupli_cache_update(scene, ob, eval_ctx, (float)scene->r.cfra);
 	}
 	
-	if (ob->dup_cache) {
+	if (ob->dup_cache && (ob->dup_cache->result != CACHE_READ_SAMPLE_INVALID)) {
 		/* Note: duplis in the cache don't have the main duplicator obmat applied.
 		 * duplilist also should return a full copy of duplis, so we copy
 		 * the cached list and apply the obmat to each.
@@ -1464,7 +1464,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 	const eCacheLibrary_EvalMode eval_mode = eval_ctx->mode == DAG_EVAL_RENDER ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_REALTIME;
 	
 	bool is_dupligroup = (ob->transflag & OB_DUPLIGROUP) && ob->dup_group;
-	bool is_cached = (ob->transflag & OB_DUPLI_READ_CACHE) && ob->cache_library;
+	bool is_cached = ob->cache_library && (ob->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || ob->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
 	
 	/* cache is a group duplicator feature only */
 	if (is_dupligroup && is_cached) {

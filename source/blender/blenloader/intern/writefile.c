@@ -1630,6 +1630,13 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			writedata(wd, DATA, sizeof(float)*lmd->total_verts * 3, lmd->vertexco);
 		}
+		else if (md->type == eModifierType_CorrectiveSmooth) {
+			CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)md;
+
+			if (csmd->bind_coords) {
+				writedata(wd, DATA, sizeof(float[3]) * csmd->bind_coords_num, csmd->bind_coords);
+			}
+		}
 	}
 }
 
@@ -3510,13 +3517,6 @@ static void write_cachelibraries(WriteData *wd, ListBase *idbase)
 			writestruct(wd, ID_CL, "CacheLibrary", 1, cachelib);
 			if (cachelib->id.properties)
 				IDP_WriteProperty(cachelib->id.properties, wd);
-			
-			{
-				CacheItem *item;
-				for (item = cachelib->items.first; item; item = item->next) {
-					writestruct(wd, DATA, "CacheItem", 1, item);
-				}
-			}
 			
 			write_cache_modifiers(wd, cachelib);
 		}

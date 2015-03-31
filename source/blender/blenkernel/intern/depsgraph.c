@@ -45,6 +45,7 @@
 #include "BLI_threads.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
@@ -625,8 +626,9 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 	 * when the duplicator is visible (even if group objects are not visible themselves).
 	 * It is not a true dependency, the duplicator does not in any way depend on group objects or data!
 	 */
-	if (ob->transflag & OB_DUPLI && !(ob->transflag & OB_DUPLI_READ_CACHE)) {
-		if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+	if (ob->transflag & OB_DUPLI) {
+		bool is_cached = ob->cache_library && ob->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE;
+		if (!is_cached && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
 			GroupObject *go;
 			for (go = ob->dup_group->gobject.first; go; go = go->next) {
 				if (go->ob) {

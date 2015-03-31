@@ -36,7 +36,6 @@ extern "C" {
 }
 
 struct Object;
-struct CacheModifierData;
 struct DerivedMesh;
 
 namespace PTC {
@@ -140,33 +139,12 @@ public:
 };
 
 
-class AbcCacheModifierRealtimeWriter : public AbcDerivedMeshWriter {
-public:
-	AbcCacheModifierRealtimeWriter(const std::string &name, Object *ob, CacheModifierData *cmd);
-	~AbcCacheModifierRealtimeWriter();
-	
-private:
-	CacheModifierData *m_cmd;
-};
-
-
 class AbcDerivedFinalRenderWriter : public AbcDerivedMeshWriter {
 public:
 	AbcDerivedFinalRenderWriter(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr);
 	
 private:
 	Scene *m_scene;
-};
-
-
-class AbcCacheModifierRenderWriter : public AbcDerivedMeshWriter {
-public:
-	AbcCacheModifierRenderWriter(const std::string &name, Scene *scene, Object *ob, CacheModifierData *cmd);
-	~AbcCacheModifierRenderWriter();
-	
-private:
-	Scene *m_scene;
-	CacheModifierData *m_cmd;
 };
 
 

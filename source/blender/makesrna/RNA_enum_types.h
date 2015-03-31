@@ -175,7 +175,7 @@ extern EnumPropertyItem prop_dynamicpaint_type_items[];
 
 extern EnumPropertyItem clip_editor_mode_items[];
 
-extern EnumPropertyItem cache_library_item_type_items[];
+extern EnumPropertyItem cache_library_data_type_items[];
 extern EnumPropertyItem cache_library_read_result_items[];
 
 extern EnumPropertyItem icon_items[];

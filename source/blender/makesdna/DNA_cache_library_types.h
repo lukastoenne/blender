@@ -38,13 +38,30 @@
 
 #define MAX_CACHE_GROUP_LEVEL 8
 
-typedef enum eCacheItemType {
-	CACHE_TYPE_OBJECT               = 0,
-	CACHE_TYPE_DERIVED_MESH         = 1,
-	CACHE_TYPE_HAIR                 = 2,
-	CACHE_TYPE_HAIR_PATHS           = 3,
-	CACHE_TYPE_PARTICLES            = 4,
-} eCacheItemType;
+typedef enum eCacheLibrary_SourceMode {
+	CACHE_LIBRARY_SOURCE_SCENE      = 0, /* use generated scene data as input */
+	CACHE_LIBRARY_SOURCE_CACHE      = 1, /* use cached data as input*/
+} eCacheLibrary_SourceMode;
+
+typedef enum eCacheLibrary_DisplayMode {
+	CACHE_LIBRARY_DISPLAY_SOURCE    = 0, /* display source data */
+	CACHE_LIBRARY_DISPLAY_RESULT    = 1, /* display result data */
+} eCacheLibrary_DisplayMode;
+
+typedef enum eCacheLibrary_EvalMode {
+	CACHE_LIBRARY_EVAL_REALTIME     = (1 << 0), /* evaluate data with realtime settings */
+	CACHE_LIBRARY_EVAL_RENDER       = (1 << 1), /* evaluate data with render settings */
+} eCacheLibrary_EvalMode;
+
+typedef enum eCacheDataType {
+	CACHE_TYPE_OBJECT               = (1 << 0),
+	CACHE_TYPE_DERIVED_MESH         = (1 << 1),
+	CACHE_TYPE_HAIR                 = (1 << 2),
+	CACHE_TYPE_HAIR_PATHS           = (1 << 3),
+	CACHE_TYPE_PARTICLES            = (1 << 4),
+	
+	CACHE_TYPE_ALL                  = CACHE_TYPE_OBJECT | CACHE_TYPE_DERIVED_MESH | CACHE_TYPE_HAIR | CACHE_TYPE_HAIR_PATHS | CACHE_TYPE_PARTICLES,
+} eCacheDataType;
 
 typedef enum eCacheReadSampleResult {
 	CACHE_READ_SAMPLE_INVALID         = 0,	/* no valid result can be retrieved */
@@ -54,41 +71,21 @@ typedef enum eCacheReadSampleResult {
 	CACHE_READ_SAMPLE_INTERPOLATED    = 4,	/* no exact sample, but found enclosing samples for interpolation */
 } eCacheReadSampleResult;
 
-typedef struct CacheItem {
-	struct CacheItem *next, *prev;
-	
-	struct Object *ob;
-	int type;
-	int index;
-	
-	int flag;
-	short read_result;
-	short pad;
-} CacheItem;
-
-typedef enum eCacheItem_Flag {
-	CACHE_ITEM_ENABLED              = 1,
-} eCacheItem_Flag;
-
 typedef struct CacheLibrary {
 	ID id;
 	
 	int flag;
 	short eval_mode;
+	short source_mode;
+	short display_mode;
 	short pad;
+	int data_types;
 	
-	char filepath[1024]; /* 1024 = FILE_MAX */
-	
-	ListBase items;				/* cached items */
-	struct GHash *items_hash;	/* runtime: cached items hash for fast lookup */
+	char input_filepath[1024]; /* 1024 = FILE_MAX */
+	char output_filepath[1024]; /* 1024 = FILE_MAX */
 	
 	ListBase modifiers;
 } CacheLibrary;
-
-typedef enum eCacheLibrary_EvalMode {
-	CACHE_LIBRARY_EVAL_REALTIME     = (1 << 0), /* evaluate data with realtime settings */
-	CACHE_LIBRARY_EVAL_RENDER       = (1 << 1), /* evaluate data with render settings */
-} eCacheLibrary_EvalMode;
 
 /* ========================================================================= */
 
@@ -102,8 +99,6 @@ typedef struct CacheModifier {
 	short type, pad;
 	int flag;
 	char name[64]; /* MAX_NAME */
-	
-	char filepath[1024];
 } CacheModifier;
 
 typedef enum eCacheModifier_Type {

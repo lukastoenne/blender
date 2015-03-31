@@ -39,7 +39,6 @@ struct Group;
 struct ModifierData;
 struct Object;
 struct ParticleSystem;
-struct CacheModifierData;
 struct SoftBody;
 
 struct PTCWriterArchive;
@@ -54,10 +53,6 @@ void PTC_error_handler_std(void);
 void PTC_error_handler_callback(PTCErrorCallback cb, void *userdata);
 void PTC_error_handler_reports(struct ReportList *reports);
 void PTC_error_handler_modifier(struct ModifierData *md);
-
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx,
-              struct PTCWriter *writer, int start_frame, int end_frame,
-              short *stop, short *do_update, float *progress);
 
 /*** Archive ***/
 
@@ -126,9 +121,7 @@ struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *rea
 void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
 
 struct PTCWriter *PTC_writer_derived_final_realtime(const char *name, struct Object *ob);
-struct PTCWriter *PTC_writer_cache_modifier_realtime(const char *name, struct Object *ob, struct CacheModifierData *cmd);
 struct PTCWriter *PTC_writer_derived_final_render(const char *name, struct Scene *scene, struct Object *ob, struct DerivedMesh **render_dm_ptr);
-struct PTCWriter *PTC_writer_cache_modifier_render(const char *name, struct Scene *scene, struct Object *ob, struct CacheModifierData *cmd);
 
 #ifdef __cplusplus
 } /* extern C */

@@ -906,7 +906,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	RNA_def_pointer(func, "cachelib", "CacheLibrary", "Cache Library", "Cache library containing the item");
 	RNA_def_pointer(func, "object", "Object", "Object", "Object to cache");
-	parm = RNA_def_enum(func, "type", cache_library_item_type_items, 0, "Type", "Type of cached data");
+	parm = RNA_def_enum(func, "datatype", cache_library_data_type_items, 0, "Data Type", "Type of cached data");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index of cached data", -1, INT_MAX);
 	RNA_def_boolean(func, "enabled", true, "Enabled", "Enable the item");
