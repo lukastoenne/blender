@@ -25,11 +25,17 @@ typedef struct StrandsVertex {
 	float co[3];
 	float time;
 	float weight;
+	
+	/* utility data */
+	float nor[3]; /* normals (edge directions) */
 } StrandsVertex;
 
 typedef struct StrandsMotionState {
 	float co[3];
 	float vel[3];
+	
+	/* utility data */
+	float nor[3]; /* normals (edge directions) */
 } StrandsMotionState;
 
 typedef struct StrandsCurve {
@@ -49,6 +55,8 @@ struct Strands *BKE_strands_new(int strands, int verts);
 void BKE_strands_free(struct Strands *strands);
 
 void BKE_strands_add_motion_state(struct Strands *strands);
+
+void BKE_strands_ensure_normals(struct Strands *strands);
 
 /* ------------------------------------------------------------------------- */
 

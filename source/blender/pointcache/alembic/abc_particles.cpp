@@ -439,6 +439,8 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		}
 	}
 	
+	BKE_strands_ensure_normals(m_strands);
+	
 	return PTC_READ_SAMPLE_EXACT;
 }
 
