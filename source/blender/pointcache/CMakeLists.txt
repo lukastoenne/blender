@@ -36,8 +36,6 @@ set(INC_SYS
 )
 
 set(SRC
-	intern/export.h
-	intern/export.cpp
 	intern/ptc_types.h
 	intern/ptc_types.cpp
 	intern/reader.h

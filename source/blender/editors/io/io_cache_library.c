@@ -217,12 +217,23 @@ static void cache_library_bake_freejob(void *customdata)
 	MEM_freeN(data);
 }
 
-static void cache_library_bake_do(CacheLibraryBakeJob *data, short *stop, short *do_update, float *progress)
+static bool cache_library_bake_stop(CacheLibraryBakeJob *data)
+{
+	return (*data->stop) || G.is_break;
+}
+
+static void cache_library_bake_set_progress(CacheLibraryBakeJob *data, float progress)
+{
+	*data->do_update = 1;
+	*data->progress = progress;
+}
+
+static void cache_library_bake_do(CacheLibraryBakeJob *data)
 {
 	Scene *scene = data->scene;
-	int start_frame, end_frame;
+	int cfra, start_frame, end_frame;
 	
-	if ((*stop) || (G.is_break))
+	if (cache_library_bake_stop(data))
 		return;
 	
 	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
@@ -231,7 +242,20 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data, short *stop, short 
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
-	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
+	
+	cache_library_bake_set_progress(data, 0.0f);
+	
+	for (cfra = start_frame; cfra <= end_frame; ++cfra) {
+		scene->r.cfra = cfra;
+		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
+		
+		PTC_write_sample(data->writer);
+		
+		cache_library_bake_set_progress(data, (float)(cfra - start_frame + 1) / (float)(end_frame - start_frame + 1));
+		
+		if (cache_library_bake_stop(data))
+			break;
+	}
 	
 	if (data->writer) {
 		PTC_writer_free(data->writer);
@@ -263,13 +287,13 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_REALTIME) {
 			data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
 			PTC_writer_archive_use_render(data->archive, false);
-			cache_library_bake_do(data, stop, do_update, progress);
+			cache_library_bake_do(data);
 		}
 		
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_RENDER) {
 			data->eval_ctx.mode = DAG_EVAL_RENDER;
 			PTC_writer_archive_use_render(data->archive, true);
-			cache_library_bake_do(data, stop, do_update, progress);
+			cache_library_bake_do(data);
 		}
 		
 	}

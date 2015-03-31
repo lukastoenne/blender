@@ -55,10 +55,6 @@ void PTC_error_handler_callback(PTCErrorCallback cb, void *userdata);
 void PTC_error_handler_reports(struct ReportList *reports);
 void PTC_error_handler_modifier(struct ModifierData *md);
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx,
-              struct PTCWriter *writer, int start_frame, int end_frame,
-              short *stop, short *do_update, float *progress);
-
 /*** Archive ***/
 
 const char *PTC_get_default_archive_extension(void);

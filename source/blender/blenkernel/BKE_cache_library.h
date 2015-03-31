@@ -175,6 +175,4 @@ struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, str
 
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
 
-void BKE_cache_modifier_bake(const struct bContext *C, struct Group *group, struct CacheLibrary *cachelib, struct CacheModifier *md, struct Scene *scene, int startframe, int endframe);
-
 #endif

@@ -555,105 +555,6 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 		mti->foreachIDLink(md, cachelib, walk, userdata);
 }
 
-#if 0
-/* Warning! Deletes existing files if possible, operator should show confirm dialog! */
-static bool cache_modifier_bake_ensure_file_target(CacheLibrary *cachelib, CacheModifier *md)
-{
-	char filename[FILE_MAX];
-	
-	BKE_cache_modifier_archive_path(cachelib, md, filename, sizeof(filename));
-	
-	if (BLI_exists(filename)) {
-		if (BLI_is_dir(filename)) {
-			return false;
-		}
-		else if (BLI_is_file(filename)) {
-			if (BLI_file_is_writable(filename)) {
-				/* returns 0 on success */
-				return (BLI_delete(filename, false, false) == 0);
-			}
-			else {
-				return false;
-			}
-		}
-		else {
-			return false;
-		}
-	}
-	return true;
-}
-
-static void cache_modifier_bake_freejob(void *customdata)
-{
-	CacheBakeContext *ctx = (CacheBakeContext *)customdata;
-	MEM_freeN(ctx);
-}
-
-static void cache_modifier_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)
-{
-	CacheBakeContext *ctx = (CacheBakeContext *)customdata;
-	CacheModifierTypeInfo *mti = cache_modifier_type_get(ctx->md->type);
-	
-	ctx->stop = stop;
-	ctx->do_update = do_update;
-	ctx->progress = progress;
-	
-	if (mti->bake)
-		mti->bake(ctx->md, ctx->cachelib, ctx);
-	
-	*do_update = true;
-	*stop = 0;
-}
-
-static void cache_modifier_bake_endjob(void *UNUSED(customdata))
-{
-	/*CacheBakeContext *ctx = (CacheBakeContext *)customdata;*/
-	
-	G.is_rendering = false;
-	BKE_spacedata_draw_locks(false);
-}
-#endif
-
-void BKE_cache_modifier_bake(const bContext *C, Group *group, CacheLibrary *cachelib, CacheModifier *md, Scene *scene, int startframe, int endframe)
-{
-#if 0
-	CacheBakeContext *ctx;
-	wmJob *wm_job;
-	
-	/* make sure we can write */
-	cache_modifier_bake_ensure_file_target(cachelib, md);
-	
-	/* XXX annoying hack: needed to prevent data corruption when changing
-		 * scene frame in separate threads
-		 */
-	G.is_rendering = true;
-	
-	BKE_spacedata_draw_locks(true);
-	
-	/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,
-		 * since we need to set G.is_rendering
-		 */
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Cache Modifier Bake",
-	                     WM_JOB_PROGRESS | WM_JOB_EXCL_RENDER, WM_JOB_TYPE_CACHELIBRARY_BAKE);
-	
-	/* setup job */
-	ctx = MEM_callocN(sizeof(CacheBakeContext), "Cache Bake Context");
-	ctx->cachelib = cachelib;
-	ctx->md = md;
-	ctx->bmain = CTX_data_main(C);
-	ctx->scene = scene;
-	ctx->startframe = startframe;
-	ctx->endframe = endframe;
-	ctx->group = group;
-	
-	WM_jobs_customdata_set(wm_job, ctx, cache_modifier_bake_freejob);
-	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
-	WM_jobs_callbacks(wm_job, cache_modifier_bake_startjob, NULL, NULL, cache_modifier_bake_endjob);
-	
-	WM_jobs_start(CTX_wm_manager(C), wm_job);
-#endif
-}
-
 /* ------------------------------------------------------------------------- */
 
 static void hairsim_init(HairSimCacheModifier *UNUSED(md))
@@ -667,55 +568,10 @@ static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier 
 static void hairsim_bake_do(CacheBakeContext *ctx, short *stop, short *do_update, float *progress,
                             struct PTCWriterArchive *archive, EvaluationContext *eval_ctx)
 {
-	Scene *scene = ctx->scene;
-	struct PTCWriter *writer;
-	
-	if ((*stop) || (G.is_break))
-		return;
-	
-	writer = PTC_writer_dupligroup(ctx->group->id.name, eval_ctx, scene, ctx->group, ctx->cachelib);
-	if (writer) {
-		PTC_writer_init(writer, archive);
-		
-		PTC_bake(ctx->bmain, scene, eval_ctx, writer, ctx->startframe, ctx->endframe, stop, do_update, progress);
-		
-		PTC_writer_free(writer);
-		writer = NULL;
-	}
 }
 
 static void hairsim_bake(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, CacheBakeContext *ctx)
 {
-	Scene *scene = ctx->scene;
-	const int origframe = scene->r.cfra;
-	const float origframelen = scene->r.framelen;
-	
-	struct PTCWriterArchive *archive;
-	char filename[FILE_MAX];
-	EvaluationContext eval_ctx;
-	
-	scene->r.framelen = 1.0f;
-	
-	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
-	archive = PTC_open_writer_archive(scene, filename);
-	
-	if (archive) {
-		
-		G.is_break = false;
-		
-		eval_ctx.mode = DAG_EVAL_VIEWPORT;
-		PTC_writer_archive_use_render(archive, false);
-		hairsim_bake_do(ctx, ctx->stop, ctx->do_update, ctx->progress, archive, &eval_ctx);
-		
-	}
-	
-	if (archive)
-		PTC_close_writer_archive(archive);
-	
-	/* reset scene frame */
-	scene->r.cfra = origframe;
-	scene->r.framelen = origframelen;
-	BKE_scene_update_for_newframe(&eval_ctx, ctx->bmain, scene, scene->lay);
 }
 
 CacheModifierTypeInfo cacheModifierType_HairSimulation = {

@@ -28,7 +28,6 @@
 
 #include "reader.h"
 #include "writer.h"
-#include "export.h"
 
 #include "ptc_types.h"
 
@@ -202,14 +201,6 @@ void PTC_write_sample(struct PTCWriter *_writer)
 {
 	PTC::Writer *writer = (PTC::Writer *)_writer;
 	writer->write_sample();
-}
-
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx,
-              PTCWriter *writer, int start_frame, int end_frame,
-              short *stop, short *do_update, float *progress)
-{
-	PTC::Exporter exporter(bmain, scene, evalctx, stop, do_update, progress);
-	exporter.bake(writer, start_frame, end_frame);
 }
 
 
