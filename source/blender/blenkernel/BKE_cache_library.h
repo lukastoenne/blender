@@ -56,17 +56,6 @@ void BKE_cache_library_unlink(struct CacheLibrary *cachelib);
 
 void BKE_cache_library_make_object_list(struct Main *bmain, struct CacheLibrary *cachelib, struct ListBase *lb);
 
-typedef struct CacheLibraryObjectsIterator {
-	ListBase objects;
-	LinkData *cur;
-} CacheLibraryObjectsIterator;
-
-void BKE_object_cache_iter_init(CacheLibraryObjectsIterator *iter, struct CacheLibrary *cachelib);
-bool BKE_object_cache_iter_valid(CacheLibraryObjectsIterator *iter);
-void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter);
-void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter);
-struct Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter);
-
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);

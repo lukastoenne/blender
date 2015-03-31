@@ -162,34 +162,6 @@ void BKE_cache_library_make_object_list(Main *bmain, CacheLibrary *cachelib, Lis
 	}
 }
 
-void BKE_object_cache_iter_init(CacheLibraryObjectsIterator *iter, CacheLibrary *cachelib)
-{
-	BLI_listbase_clear(&iter->objects);
-	BKE_cache_library_make_object_list(G.main, cachelib, &iter->objects);
-	
-	iter->cur = iter->objects.first;
-}
-
-bool BKE_object_cache_iter_valid(CacheLibraryObjectsIterator *iter)
-{
-	return iter->cur != NULL;
-}
-
-void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter)
-{
-	iter->cur = iter->cur->next;
-}
-
-Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter)
-{
-	return iter->cur->data;
-}
-
-void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter)
-{
-	BLI_freelistN(&iter->objects);
-}
-
 /* ========================================================================= */
 
 const char *BKE_cache_item_name_prefix(int type)
