@@ -332,9 +332,20 @@ void BKE_cache_archive_output_path(CacheLibrary *cachelib, char *result, int max
 static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *cachelib)
 {
 	char filename[FILE_MAX];
+	struct PTCReaderArchive *archive = NULL;
 	
-	BKE_cache_archive_input_path(cachelib, filename, sizeof(filename));
-	return PTC_open_reader_archive(scene, filename);
+	if (cachelib->display_mode == CACHE_LIBRARY_DISPLAY_RESULT) {
+		/* try using the output cache */
+		BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
+		archive = PTC_open_reader_archive(scene, filename);
+	}
+	
+	if (!archive && cachelib->source_mode == CACHE_LIBRARY_SOURCE_CACHE) {
+		BKE_cache_archive_input_path(cachelib, filename, sizeof(filename));
+		archive = PTC_open_reader_archive(scene, filename);
+	}
+	
+	return archive;
 }
 
 bool BKE_cache_read_dupli_cache(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
