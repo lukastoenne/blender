@@ -1538,7 +1538,10 @@ DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
 
 DupliObjectData *BKE_dupli_cache_add_object(DupliCache *dupcache, Object *ob)
 {
-	DupliObjectData *data = dupli_cache_add_object_data(dupcache, ob);
+	DupliObjectData *data = BKE_dupli_cache_find_data(dupcache, ob);
+	if (!data) {
+		data = dupli_cache_add_object_data(dupcache, ob);
+	}
 	return data;
 }
 
@@ -1553,6 +1556,37 @@ void BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], Dupli
 	copy_m4_m4(dob->mat, obmat);
 	
 	dob->data = data;
+}
+
+/* ------------------------------------------------------------------------- */
+
+typedef struct DupliCacheIterator {
+	int unused;
+} DupliCacheIterator;
+
+DupliCacheIterator *BKE_dupli_cache_iter_new(struct DupliCache *dupcache)
+{
+	return (DupliCacheIterator *)BLI_ghashIterator_new(dupcache->ghash);
+}
+
+void BKE_dupli_cache_iter_free(DupliCacheIterator *iter)
+{
+	BLI_ghashIterator_free((GHashIterator *)iter);
+}
+
+bool BKE_dupli_cache_iter_valid(DupliCacheIterator *iter)
+{
+	return !BLI_ghashIterator_done((GHashIterator *)iter);
+}
+
+void BKE_dupli_cache_iter_next(DupliCacheIterator *iter)
+{
+	BLI_ghashIterator_step((GHashIterator *)iter);
+}
+
+DupliObjectData *BKE_dupli_cache_iter_get(DupliCacheIterator *iter)
+{
+	return BLI_ghashIterator_getValue((GHashIterator *)iter);
 }
 
 /* ------------------------------------------------------------------------- */

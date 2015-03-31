@@ -58,6 +58,7 @@
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_strands.h"
 
 #include "BLF_translation.h"
 
@@ -564,6 +565,18 @@ static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier 
 
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, DupliCache *dupcache, int frame, int frame_prev)
 {
+	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(dupcache);
+	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
+		DupliObjectData *data = BKE_dupli_cache_iter_get(iter);
+		LinkData *link;
+		
+		for (link = data->strands.first; link; link = link->next) {
+			Strands *strands = link->data;
+			
+			BKE_strands_add_motion_state(strands);
+		}
+	}
+	BKE_dupli_cache_iter_free(iter);
 }
 
 CacheModifierTypeInfo cacheModifierType_HairSimulation = {

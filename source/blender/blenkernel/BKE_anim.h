@@ -47,6 +47,7 @@ struct DupliObject;
 struct DupliObjectData;
 struct DerivedMesh;
 struct Strands;
+struct DupliCacheIterator;
 
 /* ---------------------------------------------------- */
 /* Animation Visualization */
@@ -94,6 +95,12 @@ void BKE_dupli_cache_free(struct DupliCache *dupcache);
 struct DupliCache *BKE_dupli_cache_new(void);
 struct DupliObjectData *BKE_dupli_cache_add_object(struct DupliCache *dupcache, struct Object *ob);
 void BKE_dupli_cache_add_instance(struct DupliCache *dupcache, float obmat[4][4], struct DupliObjectData *data);
+
+struct DupliCacheIterator *BKE_dupli_cache_iter_new(struct DupliCache *dupcache);
+void BKE_dupli_cache_iter_free(struct DupliCacheIterator *iter);
+bool BKE_dupli_cache_iter_valid(struct DupliCacheIterator *iter);
+void BKE_dupli_cache_iter_next(struct DupliCacheIterator *iter);
+struct DupliObjectData *BKE_dupli_cache_iter_get(struct DupliCacheIterator *iter);
 
 typedef struct DupliExtraData {
 	float obmat[4][4];
