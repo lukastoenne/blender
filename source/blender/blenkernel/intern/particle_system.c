@@ -4491,4 +4491,3 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 	if (psys->renderdata==0)
 		invert_m4_m4(psys->imat, ob->obmat);
 }
-

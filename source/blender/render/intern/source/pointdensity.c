@@ -45,6 +45,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_lattice.h"
 #include "BKE_main.h"
+#include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
@@ -57,6 +58,8 @@
 #include "render_types.h"
 #include "texture.h"
 #include "pointdensity.h"
+
+#include "RE_render_ext.h"
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
@@ -456,14 +459,16 @@ static void init_pointdensityrangedata(PointDensity *pd, PointDensityRangeData *
 }
 
 
-int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
+static int pointdensity(PointDensity *pd,
+                        const float texvec[3],
+                        TexResult *texres,
+                        float *r_age,
+                        float r_vec[3])
 {
 	int retval = TEX_INT;
-	PointDensity *pd = tex->pd;
 	PointDensityRangeData pdr;
 	float density = 0.0f, age = 0.0f, time = 0.0f;
 	float vec[3] = {0.0f, 0.0f, 0.0f}, co[3];
-	float col[4];
 	float turb, noise_fac;
 	int num = 0;
 
@@ -476,6 +481,12 @@ int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
 	        (pd->flag & TEX_PD_FALLOFF_CURVE ? pd->falloff_curve : NULL),
 	        pd->falloff_speed_scale * 0.001f);
 	noise_fac = pd->noise_fac * 0.5f;	/* better default */
+	if (r_age != NULL) {
+		*r_age = age;
+	}
+	if (r_vec != NULL) {
+		copy_v3_v3(r_vec, vec);
+	}
 
 	copy_v3_v3(co, texvec);
 
@@ -525,6 +536,18 @@ int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
 	}
 
 	texres->tin = density;
+
+	return retval;
+}
+
+int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
+{
+	PointDensity *pd = tex->pd;
+	float age = 0.0f;
+	float vec[3] = {0.0f, 0.0f, 0.0f};
+	int retval = pointdensity(pd, texvec, texres, &age, vec);
+	float col[4];
+
 	BRICONT;
 
 	if (pd->color_source == TEX_PD_COLOR_CONSTANT)
@@ -577,4 +600,94 @@ int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
 		texres->nor[0] = texres->nor[1] = texres->nor[2] = 0.0f;
 	}
 #endif
+}
+
+static void sample_dummy_point_density(int resolution, float *density)
+{
+	memset(density, 0, sizeof(float) * resolution * resolution * resolution);
+}
+
+static void particle_system_minmax(ParticleSystem *psys, float radius,
+                                   float min[3], float max[3])
+{
+	ParticleSettings *part = psys->part;
+	float size[3] = {radius, radius, radius};
+	PARTICLE_P;
+	INIT_MINMAX(min, max);
+	if (part->type == PART_HAIR) {
+		/* TOOD(sergey): Not supported currently. */
+		return;
+	}
+	LOOP_PARTICLES {
+		float co_min[3], co_max[3];
+		sub_v3_v3v3(co_min, pa->state.co, size);
+		add_v3_v3v3(co_max, pa->state.co, size);
+		minmax_v3v3_v3(min, max, co_min);
+		minmax_v3v3_v3(min, max, co_max);
+	}
+}
+
+void RE_sample_point_density(Scene *scene, PointDensity *pd,
+                             int resolution, float *density)
+{
+	const size_t resolution2 = resolution * resolution;
+	Object *object = pd->object;
+	size_t x, y, z;
+	float min[3], max[3], dim[3], mat[4][4];
+
+	if (object == NULL) {
+		sample_dummy_point_density(resolution, density);
+		return;
+	}
+
+	if (pd->source == TEX_PD_PSYS) {
+		ParticleSystem *psys;
+		if (pd->psys == 0) {
+			sample_dummy_point_density(resolution, density);
+			return;
+		}
+		psys = BLI_findlink(&object->particlesystem, pd->psys - 1);
+		if (psys == NULL) {
+			sample_dummy_point_density(resolution, density);
+			return;
+		}
+		particle_system_minmax(psys, pd->radius, min, max);
+	}
+	else {
+		float radius[3] = {pd->radius, pd->radius, pd->radius};
+		float *loc, *size;
+		BKE_object_obdata_texspace_get(pd->object, NULL, &loc, &size, NULL);
+		sub_v3_v3v3(min, loc, size);
+		add_v3_v3v3(max, loc, size);
+		/* Adjust texture space to include density points on the boundaries. */
+		sub_v3_v3(min, radius);
+		add_v3_v3(max, radius);
+	}
+
+	sub_v3_v3v3(dim, max, min);
+	if (dim[0] <= 0.0f || dim[1] <= 0.0f || dim[2] <= 0.0f) {
+		sample_dummy_point_density(resolution, density);
+		return;
+	}
+
+	/* Same matricies/resolution as dupli_render_particle_set(). */
+	unit_m4(mat);
+	cache_pointdensity_ex(scene, pd, mat, mat, 1, 1);
+
+	for (z = 0; z < resolution; ++z) {
+		for (y = 0; y < resolution; ++y) {
+			for (x = 0; x < resolution; ++x) {
+				size_t index = z * resolution2 + y * resolution + x;
+				float texvec[3];
+				TexResult texres;
+				copy_v3_v3(texvec, min);
+				texvec[0] += dim[0] * (float)x / (float)resolution;
+				texvec[1] += dim[1] * (float)y / (float)resolution;
+				texvec[2] += dim[2] * (float)z / (float)resolution;
+				pointdensity(pd, texvec, &texres, NULL, NULL);
+				density[index] = texres.tin;
+			}
+		}
+	}
+	free_pointdensity(pd);
 }
