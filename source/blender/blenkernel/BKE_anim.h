@@ -90,8 +90,9 @@ void BKE_dupli_object_data_clear(struct DupliObjectData *data);
 void BKE_dupli_object_data_set_mesh(struct DupliObjectData *data, struct DerivedMesh *dm);
 void BKE_dupli_object_data_add_strands(struct DupliObjectData *data, struct Strands *strands);
 
+void BKE_dupli_cache_free(struct DupliCache *dupcache);
+struct DupliCache *BKE_dupli_cache_new(void);
 struct DupliObjectData *BKE_dupli_cache_add_object(struct DupliCache *dupcache, struct Object *ob);
-
 void BKE_dupli_cache_add_instance(struct DupliCache *dupcache, float obmat[4][4], struct DupliObjectData *data);
 
 typedef struct DupliExtraData {

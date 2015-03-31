@@ -1421,7 +1421,7 @@ static void dupli_cache_clear(DupliCache *dupcache)
 	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
 }
 
-static void dupli_cache_free(DupliCache *dupcache)
+void BKE_dupli_cache_free(DupliCache *dupcache)
 {
 	dupli_cache_clear(dupcache);
 	
@@ -1429,7 +1429,7 @@ static void dupli_cache_free(DupliCache *dupcache)
 	MEM_freeN(dupcache);
 }
 
-static DupliCache *dupli_cache_new(void)
+DupliCache *BKE_dupli_cache_new(void)
 {
 	DupliCache *dupcache = MEM_callocN(sizeof(DupliCache), "dupli object cache");
 	
@@ -1480,11 +1480,14 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 				dupli_cache_clear(ob->dup_cache);
 			}
 			else {
-				ob->dup_cache = dupli_cache_new();
+				ob->dup_cache = BKE_dupli_cache_new();
 			}
 			
-			/* TODO at this point we could apply animation offset */
-			BKE_cache_read_dupli_cache(scene, frame, eval_mode, ob->dup_group, ob->dup_cache, ob->cache_library);
+			/* skip reading when the cachelib is baking, avoids unnecessary memory allocation */
+			if (!(ob->cache_library->flag & CACHE_LIBRARY_BAKING)) {
+				/* TODO at this point we could apply animation offset */
+				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, eval_mode);
+			}
 			
 			ob->dup_cache->flag &= ~DUPCACHE_FLAG_DIRTY;
 			ob->dup_cache->cfra = frame;
@@ -1493,7 +1496,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 	}
 	else {
 		if (ob->dup_cache) {
-			dupli_cache_free(ob->dup_cache);
+			BKE_dupli_cache_free(ob->dup_cache);
 			ob->dup_cache = NULL;
 		}
 	}
@@ -1509,7 +1512,7 @@ void BKE_object_dupli_cache_clear(Object *ob)
 void BKE_object_dupli_cache_free(Object *ob)
 {
 	if (ob->dup_cache) {
-		dupli_cache_free(ob->dup_cache);
+		BKE_dupli_cache_free(ob->dup_cache);
 		ob->dup_cache = NULL;
 	}
 }
@@ -1525,6 +1528,7 @@ bool BKE_object_dupli_cache_contains(Object *ob, Object *other)
 	}
 	return false;
 }
+
 
 DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
 {
