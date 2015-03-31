@@ -2647,17 +2647,6 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Dupli Faces Scale", "Scale the DupliFace objects");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 
-	prop = RNA_def_property(srna, "use_dupli_cache_read", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "transflag", OB_DUPLI_READ_CACHE);
-	RNA_def_property_ui_text(prop, "Read Dupli Cache", "Use cached data instead of object data");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
-
-	/* note: inversion of use_dupli_cache_read, for enum-like mode switch */
-	prop = RNA_def_property(srna, "use_dupli_cache_write", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "transflag", OB_DUPLI_READ_CACHE);
-	RNA_def_property_ui_text(prop, "Write Dupli Cache", "Enabling writing of dupli cache data");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
-
 	prop = RNA_def_property(srna, "dupli_group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "dup_group");
 	RNA_def_property_flag(prop, PROP_EDITABLE);

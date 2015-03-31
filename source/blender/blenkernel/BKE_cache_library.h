@@ -76,8 +76,10 @@ bool BKE_cache_library_validate_item(struct CacheLibrary *cachelib, struct Objec
 
 /* ========================================================================= */
 
-bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, struct CacheModifier *md);
-void BKE_cache_archive_path(struct CacheLibrary *cachelib, struct CacheModifier *md, char *result, int max);
+bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, const char *path);
+void BKE_cache_archive_path_ex(const char *path, struct Library *lib, const char *default_filename, char *result, int max);
+void BKE_cache_archive_input_path(struct CacheLibrary *cachelib, char *result, int max);
+void BKE_cache_archive_output_path(struct CacheLibrary *cachelib, char *result, int max);
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 

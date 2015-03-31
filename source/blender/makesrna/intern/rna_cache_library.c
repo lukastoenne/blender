@@ -159,11 +159,6 @@ static void rna_def_cache_modifier(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Name", "Modifier name");
 	RNA_def_property_update(prop, NC_ID | NA_RENAME, NULL);
 	RNA_def_struct_name_property(srna, prop);
-	
-	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
-	RNA_def_property_string_sdna(prop, NULL, "filepath");
-	RNA_def_property_ui_text(prop, "File Path", "Path to cache modifier output storage");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 }
 
 static void rna_def_cache_library_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -210,6 +205,18 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
+	static EnumPropertyItem source_mode_items[] = {
+	    {CACHE_LIBRARY_SOURCE_SCENE,    "SCENE",        0,      "Scene",        "Use generated scene data as source"},
+	    {CACHE_LIBRARY_SOURCE_CACHE,    "CACHE",        0,      "Cache",        "Use cache data as source"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
+	static EnumPropertyItem display_mode_items[] = {
+	    {CACHE_LIBRARY_DISPLAY_SOURCE,  "SOURCE",       0,      "Source",       "Display source data unmodified"},
+	    {CACHE_LIBRARY_DISPLAY_RESULT,  "RESULT",       0,      "Result",       "Display resulting data"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
 	static EnumPropertyItem eval_mode_items[] = {
 	    {CACHE_LIBRARY_EVAL_REALTIME,   "REALTIME",     ICON_RESTRICT_VIEW_OFF,     "Realtime",     "Evaluate data with realtime settings"},
 	    {CACHE_LIBRARY_EVAL_RENDER,     "RENDER",       ICON_RESTRICT_RENDER_OFF,   "Render",       "Evaluate data with render settings"},
@@ -220,9 +227,26 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Cache Library", "Cache Library datablock for constructing an archive of caches");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
 	
-	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
-	RNA_def_property_string_sdna(prop, NULL, "filepath");
-	RNA_def_property_ui_text(prop, "File Path", "Path to cache library storage");
+	prop = RNA_def_property(srna, "input_filepath", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_string_sdna(prop, NULL, "input_filepath");
+	RNA_def_property_ui_text(prop, "Input File Path", "Path to a cache archive for reading input");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "output_filepath", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_string_sdna(prop, NULL, "output_filepath");
+	RNA_def_property_ui_text(prop, "Output File Path", "Path where cache output is written");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "source_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "source_mode");
+	RNA_def_property_enum_items(prop, source_mode_items);
+	RNA_def_property_ui_text(prop, "Source Mode", "Source of the cache library data");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "display_mode");
+	RNA_def_property_enum_items(prop, display_mode_items);
+	RNA_def_property_ui_text(prop, "Display Mode", "What data to display in the viewport");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
 	prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);

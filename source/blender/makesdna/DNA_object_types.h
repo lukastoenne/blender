@@ -433,7 +433,6 @@ enum {
 	OB_RENDER_DUPLI     = 1 << 12,
 	OB_NO_CONSTRAINTS   = 1 << 13,  /* runtime constraints disable */
 	OB_NO_PSYS_UPDATE   = 1 << 14,  /* hack to work around particle issue */
-	OB_DUPLI_READ_CACHE = 1 << 15,  /* use cache instead of object data */
 
 	OB_IS_DUPLI_CACHE   = 1 << 31,  /* temporary flag: object data overridden from cache */
 

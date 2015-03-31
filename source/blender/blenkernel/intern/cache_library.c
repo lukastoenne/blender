@@ -72,8 +72,10 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 
 	BLI_strncpy(basename, cachelib->id.name+2, sizeof(basename));
 	BLI_filename_make_safe(basename);
-	BLI_snprintf(cachelib->filepath, sizeof(cachelib->filepath), "//cache/%s.%s", basename, PTC_get_default_archive_extension());
+	BLI_snprintf(cachelib->output_filepath, sizeof(cachelib->output_filepath), "//cache/%s.%s", basename, PTC_get_default_archive_extension());
 
+	cachelib->source_mode = CACHE_LIBRARY_SOURCE_SCENE;
+	cachelib->display_mode = CACHE_LIBRARY_DISPLAY_RESULT;
 	cachelib->eval_mode = CACHE_LIBRARY_EVAL_REALTIME | CACHE_LIBRARY_EVAL_RENDER;
 
 	/* cache everything by default */
@@ -272,10 +274,8 @@ BLI_INLINE bool path_is_dirpath(const char *path)
 	return *(BLI_last_slash(path) + 1) == '\0';
 }
 
-bool BKE_cache_archive_path_test(CacheLibrary *cachelib, CacheModifier *cachemd)
+bool BKE_cache_archive_path_test(CacheLibrary *cachelib, const char *path)
 {
-	const char *path = cachemd ? cachemd->filepath : cachelib->filepath;
-	
 	if (BLI_path_is_rel(path)) {
 		if (!(G.relbase_valid || cachelib->id.lib))
 			return false;
@@ -285,7 +285,7 @@ bool BKE_cache_archive_path_test(CacheLibrary *cachelib, CacheModifier *cachemd)
 	
 }
 
-static void cache_archive_path_ex(const char *path, Library *lib, char *result, int max, const char *default_filename)
+void BKE_cache_archive_path_ex(const char *path, Library *lib, const char *default_filename, char *result, int max)
 {
 	char abspath[FILE_MAX];
 	
@@ -307,47 +307,34 @@ static void cache_archive_path_ex(const char *path, Library *lib, char *result, 
 		BLI_strncpy(abspath, path, sizeof(abspath));
 	}
 	
-	if (abspath[0] == '\0') {
-		result[0] = '\0';
-	}
-	else if (path_is_dirpath(abspath) || BLI_is_dir(abspath)) {
-		BLI_join_dirfile(result, max, abspath, default_filename);
-	}
-	else {
-		BLI_strncpy(result, abspath, max);
+	if (abspath[0] != '\0') {
+		if (path_is_dirpath(abspath) || BLI_is_dir(abspath)) {
+			if (default_filename && default_filename[0] != '\0')
+				BLI_join_dirfile(result, max, abspath, default_filename);
+		}
+		else {
+			BLI_strncpy(result, abspath, max);
+		}
 	}
 }
 
-void BKE_cache_archive_path(CacheLibrary *cachelib, CacheModifier *cachemd, char *result, int max)
+void BKE_cache_archive_input_path(CacheLibrary *cachelib, char *result, int max)
 {
-	if (cachemd)
-		cache_archive_path_ex(cachemd->filepath, cachelib->id.lib, result, max, cachemd->name);
-	else
-		cache_archive_path_ex(cachelib->filepath, cachelib->id.lib, result, max, cachelib->id.name+2);
+	BKE_cache_archive_path_ex(cachelib->input_filepath, cachelib->id.lib, NULL, result, max);
+}
+
+void BKE_cache_archive_output_path(CacheLibrary *cachelib, char *result, int max)
+{
+	BKE_cache_archive_path_ex(cachelib->output_filepath, cachelib->id.lib, cachelib->id.name+2, result, max);
 }
 
 
 static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *cachelib)
 {
-	struct PTCReaderArchive *archive = NULL;
 	char filename[FILE_MAX];
-	CacheModifier *md;
 	
-	/* look for last valid modifier output */
-	for (md = cachelib->modifiers.last; md; md = md->prev) {
-		BKE_cache_archive_path(cachelib, md, filename, sizeof(filename));
-		archive = PTC_open_reader_archive(scene, filename);
-		if (archive)
-			return archive;
-	}
-	
-	/* if no modifier has a valid output, try the base cache */
-	BKE_cache_archive_path(cachelib, NULL, filename, sizeof(filename));
-	archive = PTC_open_reader_archive(scene, filename);
-	if (archive)
-		return archive;
-	
-	return NULL;
+	BKE_cache_archive_input_path(cachelib, filename, sizeof(filename));
+	return PTC_open_reader_archive(scene, filename);
 }
 
 bool BKE_cache_read_dupli_cache(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
@@ -694,7 +681,7 @@ static void hairsim_bake(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, Cac
 	
 	scene->r.framelen = 1.0f;
 	
-	BKE_cache_archive_path(cachelib, &hsmd->modifier, filename, sizeof(filename));
+	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
 	archive = PTC_open_writer_archive(scene, filename);
 	
 	if (archive) {

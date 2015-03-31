@@ -319,31 +319,41 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row.prop(md, "name", text="")
         row.operator("cachelibrary.remove_modifier", icon='X', text="", emboss=False)
 
-        col = layout.column(align=True)
-        col.prop(md, "filepath")
-        col.operator("cachelibrary.bake", text="Bake")
-
         # match enum type to our functions, avoids a lookup table.
         getattr(self, md.type)(layout, cachelib, md)
 
     def draw_cachelib(self, context, layout, ob, cachelib, objects):
-        col = layout.column(align=True)
-        colrow = col.row(align=True)
-        colrow.label("Archive:")
-        props = colrow.operator("cachelibrary.archive_info", text="", icon='QUESTION')
+        col = layout.column()
+        row = col.row()
+        row.label("Source:")
+        row.prop(cachelib, "source_mode", text="Source", expand=True)
+        row = col.row(align=True)
+        row.enabled = (cachelib.source_mode == 'CACHE')
+        row.prop(cachelib, "input_filepath", text="")
+        props = row.operator("cachelibrary.archive_info", text="", icon='QUESTION')
+        props.filepath = cachelib.input_filepath
         props.use_stdout = True
         props.use_popup = True
         props.use_clipboard = True
-        col.prop(cachelib, "filepath", text="")
 
+        layout.separator()
+
+        col = layout.column()
+        row = col.row()
+        row.label("Display:")
+        row.prop(cachelib, "display_mode", expand=True)
         row = col.row(align=True)
-        row.prop(ob, "use_dupli_cache_read", text="Read", toggle=True)
-        row.prop(ob, "use_dupli_cache_write", text="Write", toggle=True)
+        row.enabled = (cachelib.display_mode == 'RESULT')
+        row.prop(cachelib, "output_filepath", text="")
+        props = row.operator("cachelibrary.archive_info", text="", icon='QUESTION')
+        props.filepath = cachelib.output_filepath
+        props.use_stdout = True
+        props.use_popup = True
+        props.use_clipboard = True
+
         col.operator("cachelibrary.bake")
-        row = col.row()
-        row.prop(cachelib, "eval_mode", toggle=True, expand=True)
-        row = col.row()
-        row.prop(cachelib, "data_types", icon_only=True, toggle=True)
+        col.row().prop(cachelib, "eval_mode", toggle=True, expand=True)
+        col.row().prop(cachelib, "data_types", icon_only=True, toggle=True)
 
         row = layout.row(align=True)
         row.label("Filter:")

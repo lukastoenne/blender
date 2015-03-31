@@ -318,6 +318,7 @@ Mesh *rna_Main_meshes_new_from_dupli(
         int settings, int calc_tessface, int calc_undeformed)
 {
 	Mesh *mesh = NULL;
+	bool is_cached = parent->cache_library && (parent->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || parent->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
 	
 	switch (dob->ob->type) {
 		case OB_FONT:
@@ -331,7 +332,7 @@ Mesh *rna_Main_meshes_new_from_dupli(
 			return NULL;
 	}
 	
-	if ((parent->transflag & OB_DUPLI_READ_CACHE) && parent->cache_library) {
+	if (is_cached) {
 		float frame = (float)scene->r.cfra;
 		eCacheLibrary_EvalMode eval_mode;
 		
