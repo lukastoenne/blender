@@ -252,6 +252,8 @@ ShaderManager *ShaderManager::create(Scene *scene, int shadingsystem)
 {
 	ShaderManager *manager;
 
+	(void)shadingsystem;  /* Ignored when built without OSL. */
+
 #ifdef WITH_OSL
 	if(shadingsystem == SHADINGSYSTEM_OSL)
 		manager = new OSLShaderManager();
@@ -321,7 +323,10 @@ void ShaderManager::device_update_shaders_used(Scene *scene)
 		scene->shaders[light->shader]->used = true;
 }
 
-void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
+void ShaderManager::device_update_common(Device *device,
+                                         DeviceScene *dscene,
+                                         Scene *scene,
+                                         Progress& /*progress*/)
 {
 	device->tex_free(dscene->shader_flag);
 	dscene->shader_flag.clear();
