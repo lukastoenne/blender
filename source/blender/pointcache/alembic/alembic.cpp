@@ -141,16 +141,6 @@ class AbcFactory : public Factory {
 		return new AbcDerivedFinalRenderWriter(name, scene, ob, render_dm_ptr);
 	}
 	
-	Writer *create_writer_cache_modifier_realtime(const std::string &name, Object *ob, CacheModifierData *cmd)
-	{
-		return new AbcCacheModifierRealtimeWriter(name, ob, cmd);
-	}
-	
-	Writer *create_writer_cache_modifier_render(const std::string &name, Scene *scene, Object *ob, CacheModifierData *cmd)
-	{
-		return new AbcCacheModifierRenderWriter(name, scene, ob, cmd);
-	}
-	
 	
 	Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib)
 	{

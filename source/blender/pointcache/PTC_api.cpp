@@ -69,8 +69,6 @@ class StubFactory : public Factory {
 	Reader *create_reader_derived_mesh(const std::string &name, Object *ob) { return NULL; }
 	Writer *create_writer_derived_final_realtime(const std::string &name, Object *ob) { return NULL; }
 	Writer *create_writer_derived_final_render(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr) { return NULL; }
-	Writer *create_writer_cache_modifier_realtime(const std::string &name, Object *ob, CacheModifierData *cmd) { return NULL; }
-	Writer *create_writer_cache_modifier_render(const std::string &name, Scene *scene, Object *ob, CacheModifierData *cmd) { return NULL; }
 	Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib) { return NULL; }
 	Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache) { return NULL; }
 	Reader *create_reader_duplicache_object(const std::string &name, Object *ob, DupliObjectData *data) { return NULL; }
@@ -350,19 +348,9 @@ PTCWriter *PTC_writer_derived_final_realtime(const char *name, Object *ob)
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final_realtime(name, ob);
 }
 
-PTCWriter *PTC_writer_cache_modifier_realtime(const char *name, Object *ob, CacheModifierData *cmd)
-{
-	return (PTCWriter *)PTC::Factory::alembic->create_writer_cache_modifier_realtime(name, ob, cmd);
-}
-
 PTCWriter *PTC_writer_derived_final_render(const char *name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr)
 {
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final_render(name, scene, ob, render_dm_ptr);
-}
-
-PTCWriter *PTC_writer_cache_modifier_render(const char *name, Scene *scene, Object *ob, CacheModifierData *cmd)
-{
-	return (PTCWriter *)PTC::Factory::alembic->create_writer_cache_modifier_render(name, scene, ob, cmd);
 }
 
 

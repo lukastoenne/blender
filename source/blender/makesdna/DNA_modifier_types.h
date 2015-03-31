@@ -85,7 +85,6 @@ typedef enum ModifierType {
 	eModifierType_DataTransfer      = 49,
 	eModifierType_NormalEdit        = 50,
 	eModifierType_CorrectiveSmooth  = 51,
-	eModifierType_Cache             = 52,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1487,25 +1486,6 @@ enum {
 	MOD_DATATRANSFER_USE_LOOP         = 1 << 30,
 	MOD_DATATRANSFER_USE_POLY         = 1 << 31,
 };
-
-/* point cache modifier */
-typedef struct CacheModifierData {
-	ModifierData modifier;
-	
-	int flag;
-	int pad;
-	
-	/* DM data for writing into the cache */
-	struct DerivedMesh *output_dm;
-	
-	/* DM data read from the cache for modifier input */
-	struct DerivedMesh *input_dm;
-} CacheModifierData;
-
-typedef enum eCacheModifier_Flag {
-	MOD_CACHE_USE_OUTPUT_REALTIME     = 1,
-	MOD_CACHE_USE_OUTPUT_RENDER       = 2,
-} eCacheModifier_Flag;
 
 /* Set Split Normals modifier */
 typedef struct NormalEditModifierData {

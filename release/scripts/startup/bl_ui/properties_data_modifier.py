@@ -169,9 +169,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         sub.active = md.use_random_order
         sub.prop(md, "seed")
 
-    def CACHE(self, layout, ob, md):
-        pass
-
     def MESH_CACHE(self, layout, ob, md):
         layout.prop(md, "cache_format")
         layout.prop(md, "filepath")

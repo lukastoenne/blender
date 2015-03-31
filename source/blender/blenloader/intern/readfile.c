@@ -5021,13 +5021,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			csmd->delta_cache = NULL;
 			csmd->delta_cache_num = 0;
 		}
-		else if (md->type == eModifierType_Cache) {
-			CacheModifierData *cmd = (CacheModifierData *)md;
-			
-			cmd->output_dm = NULL;
-			cmd->input_dm = NULL;
-			cmd->flag &= ~(MOD_CACHE_USE_OUTPUT_REALTIME | MOD_CACHE_USE_OUTPUT_RENDER);
-		}
 	}
 }
 

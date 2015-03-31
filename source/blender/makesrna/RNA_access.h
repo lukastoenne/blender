@@ -455,7 +455,6 @@ extern StructRNA RNA_ParticleSystemModifier;
 extern StructRNA RNA_ParticleTarget;
 extern StructRNA RNA_PivotConstraint;
 extern StructRNA RNA_PointCache;
-extern StructRNA RNA_PointCacheModifier;
 extern StructRNA RNA_PointDensity;
 extern StructRNA RNA_PointDensityTexture;
 extern StructRNA RNA_PointLamp;

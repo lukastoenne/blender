@@ -39,7 +39,6 @@ struct Group;
 struct ModifierData;
 struct Object;
 struct ParticleSystem;
-struct CacheModifierData;
 struct SoftBody;
 
 struct PTCWriterArchive;
@@ -122,9 +121,7 @@ struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *rea
 void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
 
 struct PTCWriter *PTC_writer_derived_final_realtime(const char *name, struct Object *ob);
-struct PTCWriter *PTC_writer_cache_modifier_realtime(const char *name, struct Object *ob, struct CacheModifierData *cmd);
 struct PTCWriter *PTC_writer_derived_final_render(const char *name, struct Scene *scene, struct Object *ob, struct DerivedMesh **render_dm_ptr);
-struct PTCWriter *PTC_writer_cache_modifier_render(const char *name, struct Scene *scene, struct Object *ob, struct CacheModifierData *cmd);
 
 #ifdef __cplusplus
 } /* extern C */
