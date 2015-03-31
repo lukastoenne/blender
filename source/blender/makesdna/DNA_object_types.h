@@ -347,7 +347,8 @@ typedef struct DupliObjectData {
 } DupliObjectData;
 
 typedef struct DupliCache {
-	int flag;
+	short flag;
+	short result;
 	float cfra; /* frame for which the cache was constructed */
 	
 	struct GHash *ghash;

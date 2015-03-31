@@ -1231,7 +1231,7 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 		BKE_object_dupli_cache_update(scene, ob, eval_ctx, (float)scene->r.cfra);
 	}
 	
-	if (ob->dup_cache) {
+	if (ob->dup_cache && (ob->dup_cache->result != CACHE_READ_SAMPLE_INVALID)) {
 		/* Note: duplis in the cache don't have the main duplicator obmat applied.
 		 * duplilist also should return a full copy of duplis, so we copy
 		 * the cached list and apply the obmat to each.

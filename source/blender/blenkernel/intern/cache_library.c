@@ -349,13 +349,17 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 }
 
 bool BKE_cache_read_dupli_cache(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
-                               struct Group *dupgroup, struct DupliCache *dupcache, CacheLibrary *cachelib)
+                                struct Group *dupgroup, struct DupliCache *dupcache, CacheLibrary *cachelib)
 {
 	struct PTCReaderArchive *archive;
 	struct PTCReader *reader;
-	/*eCacheReadSampleResult result;*/ /* unused */
 	
-	if (!dupcache || !dupgroup || !cachelib)
+	if (!dupcache)
+		return false;
+	
+	dupcache->result = CACHE_READ_SAMPLE_INVALID;
+	
+	if (!dupgroup || !cachelib)
 		return false;
 	if (!(cachelib->eval_mode & eval_mode))
 		return false;
@@ -367,12 +371,12 @@ bool BKE_cache_read_dupli_cache(Scene *scene, float frame, eCacheLibrary_EvalMod
 	reader = PTC_reader_duplicache(dupgroup->id.name, dupgroup, dupcache);
 	PTC_reader_init(reader, archive);
 	
-	/*result = */BKE_cache_read_result(PTC_read_sample(reader, frame));
+	dupcache->result = BKE_cache_read_result(PTC_read_sample(reader, frame));
 	
 	PTC_reader_free(reader);
 	PTC_close_reader_archive(archive);
 	
-	return true;
+	return (dupcache->result != CACHE_READ_SAMPLE_INVALID);
 }
 
 bool BKE_cache_read_dupli_object(Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
