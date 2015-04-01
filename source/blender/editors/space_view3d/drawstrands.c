@@ -94,6 +94,9 @@ static void draw_strand_lines(Strands *strands, short dflag)
 	
 	glLineWidth(1.0f);
 	
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	
 	glPolygonMode(GL_FRONT, polygonmode[0]);
 	glPolygonMode(GL_BACK, polygonmode[1]);
 }
