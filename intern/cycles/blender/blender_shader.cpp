@@ -740,12 +740,14 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		point_density->builtin_data = b_point_density_node.ptr.data;
 
 		/* Transformation form world space to texture space. */
-		float3 loc, size;
 		BL::Object b_ob(b_point_density_node.object());
-		point_density_texture_space(b_point_density_node, loc, size);
-		point_density->tfm =
-		        transform_translate(-loc) * transform_scale(size) *
-		        transform_inverse(get_transform(b_ob.matrix_world()));
+		if(b_ob) {
+			float3 loc, size;
+			point_density_texture_space(b_point_density_node, loc, size);
+			point_density->tfm =
+			        transform_translate(-loc) * transform_scale(size) *
+			        transform_inverse(get_transform(b_ob.matrix_world()));
+		}
 
 		/* TODO(sergey): Use more proper update flag. */
 		if(true) {
