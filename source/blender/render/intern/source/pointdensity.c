@@ -607,10 +607,13 @@ static void sample_dummy_point_density(int resolution, float *density)
 	memset(density, 0, sizeof(float) * resolution * resolution * resolution);
 }
 
-static void particle_system_minmax(ParticleSystem *psys, float radius,
+static void particle_system_minmax(Object *object,
+                                   ParticleSystem *psys,
+                                   float radius,
                                    float min[3], float max[3])
 {
 	ParticleSettings *part = psys->part;
+	float imat[4][4];
 	float size[3] = {radius, radius, radius};
 	PARTICLE_P;
 	INIT_MINMAX(min, max);
@@ -618,10 +621,12 @@ static void particle_system_minmax(ParticleSystem *psys, float radius,
 		/* TOOD(sergey): Not supported currently. */
 		return;
 	}
+	invert_m4_m4(imat, object->obmat);
 	LOOP_PARTICLES {
-		float co_min[3], co_max[3];
-		sub_v3_v3v3(co_min, pa->state.co, size);
-		add_v3_v3v3(co_max, pa->state.co, size);
+		float co_object[3], co_min[3], co_max[3];
+		mul_v3_m4v3(co_object, imat, pa->state.co);
+		sub_v3_v3v3(co_min, co_object, size);
+		add_v3_v3v3(co_max, co_object, size);
 		minmax_v3v3_v3(min, max, co_min);
 		minmax_v3v3_v3(min, max, co_max);
 	}
@@ -651,7 +656,7 @@ void RE_sample_point_density(Scene *scene, PointDensity *pd,
 			sample_dummy_point_density(resolution, density);
 			return;
 		}
-		particle_system_minmax(psys, pd->radius, min, max);
+		particle_system_minmax(object, psys, pd->radius, min, max);
 	}
 	else {
 		float radius[3] = {pd->radius, pd->radius, pd->radius};
