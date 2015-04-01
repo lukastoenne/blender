@@ -494,10 +494,35 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		data->format[data->totline].color_id = UI_TIP_LC_PYTHON;
 		data->totline++;
 
-		if (but->rnapoin.id.data && but->rnapoin.data && but->rnaprop) {
+		if (but->rnapoin.id.data) {
 			/* this could get its own 'BUT_GET_...' type */
-			BLI_strncpy(data->lines[data->totline], RNA_path_full_property_py(&but->rnapoin, but->rnaprop, -1),
-			            sizeof(data->lines[0]));
+			PointerRNA *ptr = &but->rnapoin;
+			PropertyRNA *prop = but->rnaprop;
+			ID *id = ptr->id.data;
+
+			char *id_path;
+			char *data_path = NULL;
+
+			/* never fails */
+			id_path = RNA_path_full_ID_py(id);
+
+			if (ptr->data && prop) {
+				data_path = RNA_path_from_ID_to_property(ptr, prop);
+			}
+
+			if (data_path) {
+				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]),
+				             "%s.%s",  /* no need to translate */
+				             id_path, data_path);
+				MEM_freeN(data_path);
+			}
+			else if (prop) {
+				/* can't find the path. be explicit in our ignorance "..." */
+				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]),
+				             "%s ... %s",  /* no need to translate */
+				             id_path, rna_prop.strinfo ? rna_prop.strinfo : RNA_property_identifier(prop));
+			}
+			MEM_freeN(id_path);
 
 			data->format[data->totline].style = UI_TIP_STYLE_MONO;
 			data->format[data->totline].color_id = UI_TIP_LC_PYTHON;
