@@ -242,9 +242,19 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	if (cache_library_bake_stop(data))
 		return;
 	
+	switch (data->cachelib->source_mode) {
+		case CACHE_LIBRARY_SOURCE_SCENE:
+			data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
+			break;
+		case CACHE_LIBRARY_SOURCE_CACHE:
+			data->writer = PTC_writer_duplicache(data->group->id.name, data->group, write_dupcache, data->cachelib->data_types);
+			break;
+	}
+	if (!data->writer)
+		return;
+	
 	data->cachelib->flag |= CACHE_LIBRARY_BAKING;
 	
-	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
 	PTC_writer_init(data->writer, data->archive);
 	
 	/* XXX where to get this from? */
