@@ -431,6 +431,8 @@ PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 		read_dupligroup_object(abc_top.getChild(i), frame);
 	}
 	
+	BKE_dupli_cache_clear_instances(dupli_cache);
+	
 	/* now generate dupli instances for the group */
 	read_dupligroup_group(abc_group, ss);
 	

@@ -1438,6 +1438,17 @@ void BKE_dupli_cache_clear(DupliCache *dupcache)
 	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
 }
 
+void BKE_dupli_cache_clear_instances(DupliCache *dupcache)
+{
+	DupliObject *dob, *dob_next;
+	for (dob = dupcache->duplilist.first; dob; dob = dob_next) {
+		dob_next = dob->next;
+		
+		dupli_object_free(dob);
+	}
+	BLI_listbase_clear(&dupcache->duplilist);
+}
+
 static DupliObjectData *dupli_cache_add_object_data(DupliCache *dupcache, Object *ob)
 {
 	DupliObjectData *data = MEM_callocN(sizeof(DupliObjectData), "dupli object data");
