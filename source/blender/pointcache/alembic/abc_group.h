@@ -187,6 +187,7 @@ public:
 	AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data);
 	~AbcDupliObjectReader();
 	
+	void init(ReaderArchive *archive);
 	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);

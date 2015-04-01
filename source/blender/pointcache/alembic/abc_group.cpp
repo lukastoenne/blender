@@ -576,6 +576,14 @@ AbcDupliObjectReader::~AbcDupliObjectReader()
 {
 }
 
+void AbcDupliObjectReader::init(ReaderArchive *archive)
+{
+	AbcReader::init(archive);
+	
+	if (abc_archive()->root().getChildHeader(m_name))
+		m_abc_object = abc_archive()->root().getChild(m_name);
+}
+
 void AbcDupliObjectReader::init_abc(IObject object)
 {
 	m_abc_object = object;
