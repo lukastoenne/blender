@@ -35,6 +35,9 @@ struct Scene;
 
 namespace PTC {
 
+class AbcDerivedMeshWriter;
+class AbcStrandsWriter;
+
 class AbcGroupWriter : public GroupWriter, public AbcWriter {
 public:
 	AbcGroupWriter(const std::string &name, Group *group);
@@ -92,6 +95,35 @@ private:
 	IDWriterMap m_id_writers;
 };
 
+class AbcDupliCacheWriter : public GroupWriter, public AbcWriter {
+public:
+	typedef std::vector<Abc::ObjectWriterPtr> ObjectWriterList;
+	typedef std::vector<Abc::BasePropertyWriterPtr> PropertyWriterList;
+	
+	typedef std::map<ID *, AbcWriter *> IDWriterMap;
+	typedef std::pair<ID *, AbcWriter *> IDWriterPair;
+	
+	AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types);
+	~AbcDupliCacheWriter();
+	
+	void init_abc();
+	
+	void write_sample();
+	void write_sample_object_data(DupliObjectData *data);
+	void write_sample_dupli(DupliObject *dob, int index);
+	
+	AbcWriter *find_id_writer(ID *id) const;
+	
+private:
+	DupliCache *m_dupcache;
+	int m_data_types;
+	
+	Abc::OObject m_abc_group;
+	ObjectWriterList m_object_writers;
+	PropertyWriterList m_property_writers;
+	IDWriterMap m_id_writers;
+};
+
 class AbcDupliCacheReader : public GroupReader, public AbcReader {
 public:
 	typedef std::map<Abc::ObjectReaderPtr, DupliObjectData*> DupliMap;
@@ -126,6 +158,26 @@ private:
 	ObjectMap object_map;
 };
 
+
+class AbcDupliObjectWriter : public ObjectWriter, public AbcWriter {
+public:
+	typedef std::vector<AbcStrandsWriter *> StrandsWriters;
+	
+	AbcDupliObjectWriter(const std::string &name, DupliObjectData *dupdata, bool do_mesh, bool do_strands);
+	~AbcDupliObjectWriter();
+	
+	void init_abc();
+	
+	void write_sample();
+	
+private:
+	DupliObjectData *m_dupdata;
+	
+	Abc::OObject m_abc_object;
+	AbcDerivedMeshWriter *m_dm_writer;
+	StrandsWriters m_strands_writers;
+};
+
 class AbcDupliObjectReader : public ObjectReader, public AbcReader {
 public:
 	typedef std::map<Abc::ObjectReaderPtr, DupliObjectData*> DupliMap;
@@ -135,6 +187,7 @@ public:
 	AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data);
 	~AbcDupliObjectReader();
 	
+	void init(ReaderArchive *archive);
 	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);

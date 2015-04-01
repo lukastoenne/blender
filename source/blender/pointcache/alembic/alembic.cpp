@@ -147,6 +147,11 @@ class AbcFactory : public Factory {
 		return new AbcDupligroupWriter(name, eval_ctx, scene, group, cachelib);
 	}
 	
+	Writer *create_writer_duplicache(const std::string &name, Group *group, DupliCache *dupcache, int datatypes)
+	{
+		return new AbcDupliCacheWriter(name, group, dupcache, datatypes);
+	}
+	
 	Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache)
 	{
 		return new AbcDupliCacheReader(name, group, dupcache);

@@ -421,7 +421,8 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		++weight;
 	}
 	
-	if (m_param_motion_co && m_param_motion_vel) {
+	if (m_param_motion_co && m_param_motion_co.getNumSamples() > 0 &&
+	    m_param_motion_vel && m_param_motion_vel.getNumSamples() > 0) {
 		IP3fGeomParam::Sample sample_motion_co = m_param_motion_co.getExpandedValue(ss);
 		IV3fGeomParam::Sample sample_motion_vel = m_param_motion_vel.getExpandedValue(ss);
 		

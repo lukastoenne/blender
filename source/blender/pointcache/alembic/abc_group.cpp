@@ -217,6 +217,109 @@ AbcWriter *AbcDupligroupWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
+AbcDupliCacheWriter::AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types) :
+    GroupWriter(group, name),
+    m_dupcache(dupcache),
+    m_data_types(data_types)
+{
+}
+
+AbcDupliCacheWriter::~AbcDupliCacheWriter()
+{
+	for (IDWriterMap::iterator it = m_id_writers.begin(); it != m_id_writers.end(); ++it) {
+		if (it->second)
+			delete it->second;
+	}
+}
+
+void AbcDupliCacheWriter::init_abc()
+{
+	if (m_abc_group)
+		return;
+	
+	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
+}
+
+void AbcDupliCacheWriter::write_sample_object_data(DupliObjectData *data)
+{
+	AbcWriter *ob_writer = find_id_writer((ID *)data->ob);
+	if (!ob_writer) {
+		bool do_mesh = (m_data_types & CACHE_TYPE_DERIVED_MESH);
+		bool do_hair = (m_data_types & CACHE_TYPE_HAIR);
+		
+		ob_writer = new AbcDupliObjectWriter(data->ob->id.name, data, do_mesh, do_hair);
+		ob_writer->init(abc_archive());
+		m_id_writers.insert(IDWriterPair((ID *)data->ob, ob_writer));
+	}
+	
+	ob_writer->write_sample();
+}
+
+void AbcDupliCacheWriter::write_sample_dupli(DupliObject *dob, int index)
+{
+	OObject abc_object = abc_archive()->get_id_object((ID *)dob->ob);
+	if (!abc_object)
+		return;
+	
+	std::stringstream ss;
+	ss << "DupliObject" << index;
+	std::string name = ss.str();
+	
+	OObject abc_dupli = m_abc_group.getChild(name);
+	OCompoundProperty props;
+	OM44fProperty prop_matrix;
+	if (!abc_dupli) {
+		abc_dupli = OObject(m_abc_group, name, 0);
+		m_object_writers.push_back(abc_dupli.getPtr());
+		props = abc_dupli.getProperties();
+		
+		abc_dupli.addChildInstance(abc_object, "object");
+		
+		prop_matrix = OM44fProperty(props, "matrix", 0);
+		m_property_writers.push_back(prop_matrix.getPtr());
+	}
+	else {
+		props = abc_dupli.getProperties();
+		
+		prop_matrix = OM44fProperty(props.getProperty("matrix").getPtr()->asScalarPtr(), kWrapExisting);
+	}
+	
+	prop_matrix.set(M44f(dob->mat));
+}
+
+void AbcDupliCacheWriter::write_sample()
+{
+	if (!m_abc_group)
+		return;
+	
+	DupliObject *dob;
+	int i;
+	
+	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(m_dupcache);
+	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
+		DupliObjectData *data = BKE_dupli_cache_iter_get(iter);
+		
+		write_sample_object_data(data);
+	}
+	BKE_dupli_cache_iter_free(iter);
+	
+	/* write dupli instances */
+	for (dob = (DupliObject *)m_dupcache->duplilist.first, i = 0; dob; dob = dob->next, ++i) {
+		write_sample_dupli(dob, i);
+	}
+}
+
+AbcWriter *AbcDupliCacheWriter::find_id_writer(ID *id) const
+{
+	IDWriterMap::const_iterator it = m_id_writers.find(id);
+	if (it == m_id_writers.end())
+		return NULL;
+	else
+		return it->second;
+}
+
+/* ------------------------------------------------------------------------- */
+
 AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache) :
     GroupReader(group, name),
     dupli_cache(dupli_cache)
@@ -387,6 +490,82 @@ void AbcDupliCacheReader::build_object_map_add_group(Group *group)
 
 /* ------------------------------------------------------------------------- */
 
+AbcDupliObjectWriter::AbcDupliObjectWriter(const std::string &name, DupliObjectData *dupdata, bool do_mesh, bool do_strands) :
+    ObjectWriter(dupdata->ob, name),
+    m_dupdata(dupdata),
+    m_dm_writer(0)
+{
+	if (do_mesh) {
+		if (m_ob && m_ob->type == OB_MESH) {
+			m_dm_writer = new AbcDerivedMeshWriter("mesh", dupdata->ob, &dupdata->dm);
+		}
+	}
+	
+	if (do_strands) {
+		int index = 0;
+		for (LinkData *link = (LinkData *)dupdata->strands.first; link; link = link->next) {
+			Strands *strands = (Strands *)link->data;
+			if (strands) {
+				std::stringstream ss;
+				ss << "strands" << index;
+				m_strands_writers.push_back(new AbcStrandsWriter(ss.str(), strands));
+				
+				++index;
+			}
+		}
+	}
+}
+
+AbcDupliObjectWriter::~AbcDupliObjectWriter()
+{
+	if (m_dm_writer)
+		delete m_dm_writer;
+	for (int i = 0; i < m_strands_writers.size(); ++i)
+		if (m_strands_writers[i])
+			delete m_strands_writers[i];
+}
+
+void AbcDupliObjectWriter::init_abc()
+{
+	if (m_abc_object)
+		return;
+	
+	m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_ob);
+	
+	if (m_dm_writer) {
+		/* XXX not nice */
+		m_dm_writer->init(abc_archive());
+		m_dm_writer->init_abc(m_abc_object);
+	}
+	
+	for (int i = 0; i < m_strands_writers.size(); ++i) {
+		AbcStrandsWriter *strands_writer = m_strands_writers[i];
+		if (strands_writer) {
+			strands_writer->init(abc_archive());
+			strands_writer->init_abc(m_abc_object);
+		}
+	}
+}
+
+void AbcDupliObjectWriter::write_sample()
+{
+	if (!m_abc_object)
+		return;
+	
+	if (m_dm_writer) {
+		m_dm_writer->write_sample();
+	}
+	
+	for (int i = 0; i < m_strands_writers.size(); ++i) {
+		AbcStrandsWriter *strands_writer = m_strands_writers[i];
+		if (strands_writer) {
+			strands_writer->write_sample();
+		}
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+
 AbcDupliObjectReader::AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data) :
     ObjectReader(ob, name),
     dupli_data(dupli_data)
@@ -395,6 +574,14 @@ AbcDupliObjectReader::AbcDupliObjectReader(const std::string &name, Object *ob, 
 
 AbcDupliObjectReader::~AbcDupliObjectReader()
 {
+}
+
+void AbcDupliObjectReader::init(ReaderArchive *archive)
+{
+	AbcReader::init(archive);
+	
+	if (abc_archive()->root().getChildHeader(m_name))
+		m_abc_object = abc_archive()->root().getChild(m_name);
 }
 
 void AbcDupliObjectReader::init_abc(IObject object)
