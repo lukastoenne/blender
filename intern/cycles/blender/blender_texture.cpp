@@ -51,6 +51,7 @@ static void density_object_texture_space(BL::Object b_ob,
 }
 
 static void density_particle_system_texture_space(
+        BL::Object b_ob,
         BL::ParticleSystem b_particle_system,
         float radius,
         float3& loc,
@@ -60,12 +61,15 @@ static void density_particle_system_texture_space(
 		/* TODO(sergey): Not supported currently. */
 		return;
 	}
+	Transform tfm = get_transform(b_ob.matrix_world());
+	Transform itfm = transform_inverse(tfm);
 	float3 min = make_float3(FLT_MAX, FLT_MAX, FLT_MAX),
 	       max = make_float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	float3 particle_size = make_float3(radius, radius, radius);
 	for(int i = 0; i < b_particle_system.particles.length(); ++i) {
 		BL::Particle particle = b_particle_system.particles[i];
 		float3 location = get_float3(particle.location());
+		location = transform_point(&itfm, location);
 		min = ccl::min(min, location - particle_size);
 		max = ccl::max(max, location + particle_size);
 	}
@@ -94,7 +98,8 @@ void point_density_texture_space(BL::ShaderNodeTexPointDensity b_point_density_n
 		BL::ParticleSystem b_particle_system(
 		        b_point_density_node.particle_system());
 		if(b_particle_system) {
-			density_particle_system_texture_space(b_particle_system,
+			density_particle_system_texture_space(b_ob,
+			                                      b_particle_system,
 			                                      b_point_density_node.radius(),
 			                                      loc,
 			                                      size);
