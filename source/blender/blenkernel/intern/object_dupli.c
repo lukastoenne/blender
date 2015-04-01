@@ -1408,19 +1408,6 @@ static void dupli_object_free(DupliObject *dob)
 	MEM_freeN(dob);
 }
 
-static void dupli_cache_clear(DupliCache *dupcache)
-{
-	DupliObject *dob, *dob_next;
-	for (dob = dupcache->duplilist.first; dob; dob = dob_next) {
-		dob_next = dob->next;
-		
-		dupli_object_free(dob);
-	}
-	BLI_listbase_clear(&dupcache->duplilist);
-	
-	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
-}
-
 DupliCache *BKE_dupli_cache_new(void)
 {
 	DupliCache *dupcache = MEM_callocN(sizeof(DupliCache), "dupli object cache");
@@ -1432,10 +1419,23 @@ DupliCache *BKE_dupli_cache_new(void)
 
 void BKE_dupli_cache_free(DupliCache *dupcache)
 {
-	dupli_cache_clear(dupcache);
+	BKE_dupli_cache_clear(dupcache);
 	
 	BLI_ghash_free(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
 	MEM_freeN(dupcache);
+}
+
+void BKE_dupli_cache_clear(DupliCache *dupcache)
+{
+	DupliObject *dob, *dob_next;
+	for (dob = dupcache->duplilist.first; dob; dob = dob_next) {
+		dob_next = dob->next;
+		
+		dupli_object_free(dob);
+	}
+	BLI_listbase_clear(&dupcache->duplilist);
+	
+	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
 }
 
 static DupliObjectData *dupli_cache_add_object_data(DupliCache *dupcache, Object *ob)
@@ -1471,7 +1471,7 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 {
 	DupliObject *dob;
 	
-	dupli_cache_clear(dupcache);
+	BKE_dupli_cache_clear(dupcache);
 	
 	if (!(group && cachelib))
 		return;
@@ -1561,7 +1561,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 				printf("Update dupli cache for object '%s'\n", ob->id.name+2);
 			
 			if (ob->dup_cache) {
-				dupli_cache_clear(ob->dup_cache);
+				BKE_dupli_cache_clear(ob->dup_cache);
 			}
 			else {
 				ob->dup_cache = BKE_dupli_cache_new();
@@ -1589,7 +1589,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 void BKE_object_dupli_cache_clear(Object *ob)
 {
 	if (ob->dup_cache) {
-		dupli_cache_clear(ob->dup_cache);
+		BKE_dupli_cache_clear(ob->dup_cache);
 	}
 }
 
