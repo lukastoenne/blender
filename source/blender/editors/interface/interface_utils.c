@@ -43,6 +43,7 @@
 
 #include "BLF_translation.h"
 
+#include "BKE_context.h"
 #include "BKE_report.h"
 
 #include "MEM_guardedalloc.h"
@@ -307,6 +308,25 @@ int UI_calc_float_precision(int prec, double value)
 	CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
 
 	return prec;
+}
+
+uiBut *ui_but_find_menu_root(struct bContext *C) {
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar;
+	uiBlock *block;
+	uiBut *but;
+
+	for (ar = sa->regionbase.first; ar; ar = ar->next) {
+		for (block = ar->uiblocks.first; block; block = block->next) {
+			for (but = block->buttons.first; but; but = but->next) {
+				if (but->flag & UI_BUT_MENU_ROOT) {
+					return but;
+				}
+			}
+		}
+	}
+
+	return NULL;
 }
 
 

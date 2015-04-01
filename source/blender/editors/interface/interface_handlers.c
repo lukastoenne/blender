@@ -3102,6 +3102,8 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
 			data->menu->popup = but->block->handle->popup;
 	}
 
+	but->flag |= UI_BUT_MENU_ROOT;
+
 	/* this makes adjacent blocks auto open from now on */
 	//if (but->block->auto_open == 0) but->block->auto_open = 1;
 }
@@ -5996,6 +5998,33 @@ void ui_panel_menu(bContext *C, ARegion *ar, Panel *pa)
 	UI_popup_menu_end(C, pup);
 }
 
+static void ui_menu_scripting(bContext *UNUSED(C), uiLayout *layout, void *arg)
+{
+	uiBut *but = arg;
+
+	if (!ui_block_is_menu(but->block)) {
+		uiItemFullO(layout, "UI_OT_editsource", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
+	}
+
+	uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Copy Data Path"),
+	               ICON_NONE, "UI_OT_copy_data_path_button", "full", 0);
+	uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Copy Full Data Path"),
+	               ICON_NONE, "UI_OT_copy_data_path_button", "full", 1);
+
+	if (but->rnapoin.data && but->rnaprop) {
+		PointerRNA ptr_props;
+		char buf[512];
+
+		BLI_snprintf(buf, sizeof(buf), "%s.%s",
+		             RNA_struct_identifier(but->rnapoin.type), RNA_property_identifier(but->rnaprop));
+
+		WM_operator_properties_create(&ptr_props, "WM_OT_doc_view");
+		RNA_string_set(&ptr_props, "doc_id", buf);
+		uiItemFullO(layout, "WM_OT_doc_view", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
+		            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
+	}
+}
+
 static bool ui_but_menu(bContext *C, uiBut *but)
 {
 	uiPopupMenu *pup;
@@ -6010,7 +6039,9 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	if (but->type == UI_BTYPE_IMAGE) {
 		return false;
 	}
-	
+
+	but->flag |= UI_BUT_MENU_ROOT;
+
 	button_timers_tooltip_remove(C, but);
 
 	/* highly unlikely getting the label ever fails */
@@ -6180,14 +6211,15 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Unset"),
 			        ICON_NONE, "UI_OT_unset_property_button");
 		}
-		
-		uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Copy Data Path"),
-		        ICON_NONE, "UI_OT_copy_data_path_button");
 		uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Copy To Selected"),
 		        ICON_NONE, "UI_OT_copy_to_selected_button");
 
 		uiItemS(layout);
 	}
+
+	/* Scripting submenu */
+	uiItemMenuF(layout, IFACE_("Scripting"), ICON_NONE, ui_menu_scripting, but);
+	uiItemS(layout);
 
 	/* Operator buttons */
 	if (but->optype) {
@@ -6246,11 +6278,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view_manual");
 			RNA_string_set(&ptr_props, "doc_id", buf);
 			uiItemFullO(layout, "WM_OT_doc_view_manual", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Manual"),
-			            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
-
-			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view");
-			RNA_string_set(&ptr_props, "doc_id", buf);
-			uiItemFullO(layout, "WM_OT_doc_view", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
 			            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
 
 			/* XXX inactive option, not for public! */

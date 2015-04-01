@@ -92,15 +92,15 @@ static void UI_OT_reset_default_theme(wmOperatorType *ot)
 
 static int copy_data_path_button_poll(bContext *C)
 {
-	PointerRNA ptr;
-	PropertyRNA *prop;
-	char *path;
-	int index;
+	uiBut *but = ui_but_find_menu_root(C);
 
-	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+	/* fallback to find but->active */
+	if (but == NULL) {
+		but = UI_context_active_but_get(C);
+	}
 
-	if (ptr.id.data && ptr.data && prop) {
-		path = RNA_path_from_ID_to_property(&ptr, prop);
+	if (but && but->rnapoin.data) {
+		char *path = RNA_path_from_ID_to_property(&but->rnapoin, but->rnaprop);
 		
 		if (path) {
 			MEM_freeN(path);
@@ -111,19 +111,20 @@ static int copy_data_path_button_poll(bContext *C)
 	return 0;
 }
 
-static int copy_data_path_button_exec(bContext *C, wmOperator *UNUSED(op))
+static int copy_data_path_button_exec(bContext *C, wmOperator *op)
 {
-	PointerRNA ptr;
-	PropertyRNA *prop;
-	char *path;
-	int index;
+	uiBut *but = ui_but_find_menu_root(C);
 
-	/* try to create driver using property retrieved from UI */
-	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+	/* fallback to find but->active */
+	if (but == NULL) {
+		but = UI_context_active_but_get(C);
+	}
 
-	if (ptr.id.data && ptr.data && prop) {
-		path = RNA_path_from_ID_to_property(&ptr, prop);
-		
+	if (but && but->rnapoin.data) {
+		const bool full = RNA_boolean_get(op->ptr, "full");
+		char *path = full ? RNA_path_full_property_py(&but->rnapoin, but->rnaprop, -1) :
+		                    RNA_path_from_ID_to_property(&but->rnapoin, but->rnaprop);
+
 		if (path) {
 			WM_clipboard_text_set(path, false);
 			MEM_freeN(path);
@@ -147,6 +148,9 @@ static void UI_OT_copy_data_path_button(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER;
+
+	/* properties */
+	RNA_def_boolean(ot->srna, "full", 0, "Full", "Copy the full RNA data path for this property to the clipboard");
 }
 
 /* Reset to Default Values Button Operator ------------------------ */
