@@ -430,13 +430,15 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		
 		const V3f *co = sample_motion_co.getVals()->get();
 		const V3f *vel = sample_motion_vel.getVals()->get();
-		for (int i = 0; i < m_strands->totverts; ++i) {
-			StrandsMotionState *ms = &m_strands->state[i];
-			copy_v3_v3(ms->co, co->getValue());
-			copy_v3_v3(ms->vel, vel->getValue());
-			
-			++co;
-			++vel;
+		if (co && vel) {
+			for (int i = 0; i < m_strands->totverts; ++i) {
+				StrandsMotionState *ms = &m_strands->state[i];
+				copy_v3_v3(ms->co, co->getValue());
+				copy_v3_v3(ms->vel, vel->getValue());
+				
+				++co;
+				++vel;
+			}
 		}
 	}
 	

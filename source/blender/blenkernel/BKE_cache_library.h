@@ -46,6 +46,7 @@ struct DupliCache;
 struct DupliObjectData;
 struct CacheModifier;
 struct ID;
+struct CacheProcessData;
 
 struct ClothModifierData;
 
@@ -77,7 +78,7 @@ bool BKE_cache_read_dupli_cache(struct CacheLibrary *cachelib, struct DupliCache
 bool BKE_cache_read_dupli_object(struct CacheLibrary *cachelib, struct DupliObjectData *data,
                                  struct Scene *scene, struct Object *ob, float frame, eCacheLibrary_EvalMode eval_mode);
 
-void BKE_cache_process_dupli_cache(struct CacheLibrary *cachelib, struct DupliCache *dupcache,
+void BKE_cache_process_dupli_cache(struct CacheLibrary *cachelib, struct CacheProcessData *data,
                                    struct Scene *scene, struct Group *dupgroup, float frame_prev, float frame, eCacheLibrary_EvalMode eval_mode);
 
 /* ========================================================================= */
@@ -91,12 +92,16 @@ typedef struct CacheProcessContext {
 	struct Group *group;
 } CacheProcessContext;
 
+typedef struct CacheProcessData {
+	struct DupliCache *dupcache;
+} CacheProcessData;
+
 typedef void (*CacheModifier_InitFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_FreeFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_CopyFunc)(struct CacheModifier *md, struct CacheModifier *target);
 typedef void (*CacheModifier_ForeachIDLinkFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib,
                                                 CacheModifier_IDWalkFunc walk, void *userData);
-typedef void (*CacheModifier_ProcessFunc)(struct CacheModifier *md, struct CacheProcessContext *ctx, struct DupliCache *dupcache, int frame, int frame_prev);
+typedef void (*CacheModifier_ProcessFunc)(struct CacheModifier *md, struct CacheProcessContext *ctx, struct CacheProcessData *data, int frame, int frame_prev);
 
 typedef struct CacheModifierTypeInfo {
 	/* The user visible name for this modifier */

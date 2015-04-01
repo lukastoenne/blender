@@ -36,6 +36,8 @@ struct Implicit_Data;
 struct Object;
 struct ClothModifierData;
 struct ListBase;
+struct Strands;
+struct StrandSimParams;
 struct VoxelData;
 
 typedef enum eMassSpringSolverStatus {
@@ -54,6 +56,8 @@ int BPH_cloth_solve(struct Object *ob, float frame, struct ClothModifierData *cl
 void BKE_cloth_solver_set_positions(struct ClothModifierData *clmd);
 
 bool BPH_cloth_solver_get_texture_data(struct Object *ob, struct ClothModifierData *clmd, struct VoxelData *vd);
+
+bool BPH_strands_solve(struct Strands *strands, struct Implicit_Data *id, struct StrandSimParams *params, float timestep, struct ListBase *effectors);
 
 #ifdef __cplusplus
 }

@@ -64,6 +64,8 @@
 
 #include "PTC_api.h"
 
+#include "BPH_mass_spring.h"
+
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
 	CacheLibrary *cachelib;
@@ -534,7 +536,7 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 		mti->foreachIDLink(md, cachelib, walk, userdata);
 }
 
-void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, DupliCache *dupcache,
+void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *data,
                                    Scene *scene, Group *dupgroup, float frame_prev, float frame, eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 	CacheProcessContext ctx;
@@ -549,23 +551,30 @@ void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, DupliCache *dupcache,
 		CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
 		
 		if (mti->process)
-			mti->process(md, &ctx, dupcache, frame, frame_prev);
+			mti->process(md, &ctx, data, frame, frame_prev);
 	}
 }
 
 /* ------------------------------------------------------------------------- */
 
-static void hairsim_init(HairSimCacheModifier *UNUSED(md))
+static void hairsim_params_init(StrandSimParams *params)
 {
+	params->timescale = 1.0f;
+	params->substeps = 5;
+}
+
+static void hairsim_init(HairSimCacheModifier *hsmd)
+{
+	hairsim_params_init(&hsmd->sim_params);
 }
 
 static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier *UNUSED(tmd))
 {
 }
 
-static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, DupliCache *dupcache, int frame, int frame_prev)
+static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev)
 {
-	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(dupcache);
+	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
 		DupliObjectData *data = BKE_dupli_cache_iter_get(iter);
 		LinkData *link;
@@ -573,7 +582,17 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 		for (link = data->strands.first; link; link = link->next) {
 			Strands *strands = link->data;
 			
+			struct Implicit_Data *solver_data;
+			int numsprings;
+			
 			BKE_strands_add_motion_state(strands);
+			
+			numsprings = strands->totverts - strands->totcurves;
+			solver_data = BPH_mass_spring_solver_create(strands->totverts, numsprings);
+			
+			BPH_strands_solve(strands, solver_data, &hsmd->sim_params, (float)frame, NULL);
+			
+			BPH_mass_spring_solver_free(solver_data);
 		}
 	}
 	BKE_dupli_cache_iter_free(iter);
