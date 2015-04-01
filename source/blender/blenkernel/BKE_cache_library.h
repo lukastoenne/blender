@@ -56,17 +56,6 @@ void BKE_cache_library_unlink(struct CacheLibrary *cachelib);
 
 void BKE_cache_library_make_object_list(struct Main *bmain, struct CacheLibrary *cachelib, struct ListBase *lb);
 
-typedef struct CacheLibraryObjectsIterator {
-	ListBase objects;
-	LinkData *cur;
-} CacheLibraryObjectsIterator;
-
-void BKE_object_cache_iter_init(CacheLibraryObjectsIterator *iter, struct CacheLibrary *cachelib);
-bool BKE_object_cache_iter_valid(CacheLibraryObjectsIterator *iter);
-void BKE_object_cache_iter_next(CacheLibraryObjectsIterator *iter);
-void BKE_object_cache_iter_end(CacheLibraryObjectsIterator *iter);
-struct Object *BKE_object_cache_iter_get(CacheLibraryObjectsIterator *iter);
-
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);
@@ -83,35 +72,31 @@ void BKE_cache_archive_output_path(struct CacheLibrary *cachelib, char *result, 
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 
-bool BKE_cache_read_dupli_cache(struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
-                                struct Group *dupgroup, struct DupliCache *dupcache, struct CacheLibrary *cachelib);
-bool BKE_cache_read_dupli_object(struct Scene *scene, float frame, eCacheLibrary_EvalMode eval_mode,
-                                 struct Object *ob, struct DupliObjectData *data, struct CacheLibrary *cachelib);
+bool BKE_cache_read_dupli_cache(struct CacheLibrary *cachelib, struct DupliCache *dupcache,
+                                struct Scene *scene, struct Group *dupgroup, float frame, eCacheLibrary_EvalMode eval_mode);
+bool BKE_cache_read_dupli_object(struct CacheLibrary *cachelib, struct DupliObjectData *data,
+                                 struct Scene *scene, struct Object *ob, float frame, eCacheLibrary_EvalMode eval_mode);
+
+void BKE_cache_process_dupli_cache(struct CacheLibrary *cachelib, struct DupliCache *dupcache,
+                                   struct Scene *scene, struct Group *dupgroup, float frame_prev, float frame, eCacheLibrary_EvalMode eval_mode);
 
 /* ========================================================================= */
 
 typedef void (*CacheModifier_IDWalkFunc)(void *userdata, struct CacheLibrary *cachelib, struct CacheModifier *md, struct ID **id_ptr);
 
-typedef struct CacheBakeContext {
-	struct CacheLibrary *cachelib;
-	struct CacheModifier *md;
-	
+typedef struct CacheProcessContext {
 	struct Main *bmain;
 	struct Scene *scene;
-	int startframe, endframe;
+	struct CacheLibrary *cachelib;
 	struct Group *group;
-	
-	short *stop;
-	short *do_update;
-	float *progress;
-} CacheBakeContext;
+} CacheProcessContext;
 
 typedef void (*CacheModifier_InitFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_FreeFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_CopyFunc)(struct CacheModifier *md, struct CacheModifier *target);
 typedef void (*CacheModifier_ForeachIDLinkFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib,
                                                 CacheModifier_IDWalkFunc walk, void *userData);
-typedef void (*CacheModifier_BakeFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib, CacheBakeContext *ctx);
+typedef void (*CacheModifier_ProcessFunc)(struct CacheModifier *md, struct CacheProcessContext *ctx, struct DupliCache *dupcache, int frame, int frame_prev);
 
 typedef struct CacheModifierTypeInfo {
 	/* The user visible name for this modifier */
@@ -142,7 +127,7 @@ typedef struct CacheModifierTypeInfo {
 	CacheModifier_ForeachIDLinkFunc foreachIDLink;
 
 	/* Process data and write results to the modifier's output archive */
-	CacheModifier_BakeFunc bake;
+	CacheModifier_ProcessFunc process;
 
 	/********************* Optional functions *********************/
 

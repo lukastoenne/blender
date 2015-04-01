@@ -200,9 +200,11 @@ typedef struct CacheLibraryBakeJob {
 	
 	struct Main *bmain;
 	struct Scene *scene;
-	EvaluationContext eval_ctx;
 	struct CacheLibrary *cachelib;
 	struct Group *group;
+	
+	eCacheLibrary_EvalMode cache_eval_mode;
+	EvaluationContext eval_ctx;
 	
 	struct PTCWriterArchive *archive;
 	struct PTCWriter *writer;
@@ -231,10 +233,16 @@ static void cache_library_bake_set_progress(CacheLibraryBakeJob *data, float pro
 static void cache_library_bake_do(CacheLibraryBakeJob *data)
 {
 	Scene *scene = data->scene;
-	int cfra, start_frame, end_frame;
+	int frame, frame_prev, start_frame, end_frame;
+	
+	/* === prepare === */
+	
+	DupliCache *write_dupcache = BKE_dupli_cache_new();
 	
 	if (cache_library_bake_stop(data))
 		return;
+	
+	data->cachelib->flag |= CACHE_LIBRARY_BAKING;
 	
 	data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
 	PTC_writer_init(data->writer, data->archive);
@@ -243,24 +251,33 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
 	
-	cache_library_bake_set_progress(data, 0.0f);
+	/* === frame loop === */
 	
-	for (cfra = start_frame; cfra <= end_frame; ++cfra) {
-		scene->r.cfra = cfra;
+	cache_library_bake_set_progress(data, 0.0f);
+	for (frame = start_frame; frame <= end_frame; frame_prev = frame++) {
+		scene->r.cfra = frame;
 		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
+		
+		BKE_cache_read_dupli_cache(data->cachelib, write_dupcache, scene, data->group, frame, data->cache_eval_mode);
+		BKE_cache_process_dupli_cache(data->cachelib, write_dupcache, scene, data->group, frame_prev, frame, data->cache_eval_mode);
 		
 		PTC_write_sample(data->writer);
 		
-		cache_library_bake_set_progress(data, (float)(cfra - start_frame + 1) / (float)(end_frame - start_frame + 1));
-		
+		cache_library_bake_set_progress(data, (float)(frame - start_frame + 1) / (float)(end_frame - start_frame + 1));
 		if (cache_library_bake_stop(data))
 			break;
 	}
+	
+	/* === cleanup === */
 	
 	if (data->writer) {
 		PTC_writer_free(data->writer);
 		data->writer = NULL;
 	}
+	
+	data->cachelib->flag &= ~CACHE_LIBRARY_BAKING;
+	
+	BKE_dupli_cache_free(write_dupcache);
 }
 
 static void cache_library_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)
@@ -285,12 +302,14 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 		G.is_break = false;
 		
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_REALTIME) {
+			data->cache_eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
 			data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
 			PTC_writer_archive_use_render(data->archive, false);
 			cache_library_bake_do(data);
 		}
 		
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_RENDER) {
+			data->cache_eval_mode = CACHE_LIBRARY_EVAL_RENDER;
 			data->eval_ctx.mode = DAG_EVAL_RENDER;
 			PTC_writer_archive_use_render(data->archive, true);
 			cache_library_bake_do(data);

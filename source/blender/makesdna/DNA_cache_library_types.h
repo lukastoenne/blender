@@ -71,6 +71,10 @@ typedef enum eCacheReadSampleResult {
 	CACHE_READ_SAMPLE_INTERPOLATED    = 4,	/* no exact sample, but found enclosing samples for interpolation */
 } eCacheReadSampleResult;
 
+typedef enum eCacheLibrary_Flag {
+	CACHE_LIBRARY_BAKING              = (1 << 0), /* perform modifier evaluation when evaluating */
+} eCacheLibrary_Flag;
+
 typedef struct CacheLibrary {
 	ID id;
 	
