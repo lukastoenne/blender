@@ -268,6 +268,7 @@ void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, struct Object *ob, struct Rig
 void BKE_ptcache_ids_from_object(struct ListBase *lb, struct Object *ob, struct Scene *scene, int duplis);
 
 /************ ID specific functions ************************/
+void    BKE_ptcache_id_clear_ex(PTCacheID *pid, int mode, unsigned int cfra, bool allow_file_delete);
 void    BKE_ptcache_id_clear(PTCacheID *id, int mode, unsigned int cfra);
 int     BKE_ptcache_id_exist(PTCacheID *id, int cfra);
 int     BKE_ptcache_id_reset(struct Scene *scene, PTCacheID *id, int mode);

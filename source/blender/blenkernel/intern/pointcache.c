@@ -2537,7 +2537,7 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
  */
 
 /* Clears & resets */
-void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
+void BKE_ptcache_id_clear_ex(PTCacheID *pid, int mode, unsigned int cfra, bool allow_file_delete)
 {
 	unsigned int len; /* store the length of the string */
 	unsigned int sta, end;
@@ -2595,8 +2595,10 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 					if (STREQLEN(filename, de->d_name, len)) { /* do we have the right prefix */
 						if (mode == PTCACHE_CLEAR_ALL) {
 							pid->cache->last_exact = MIN2(pid->cache->startframe, 0);
-							BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
-							BLI_delete(path_full, false, false);
+							if (allow_file_delete) {
+								BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
+								BLI_delete(path_full, false, false);
+							}
 						}
 						else {
 							/* read the number of the file */
@@ -2611,8 +2613,10 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 								    (mode == PTCACHE_CLEAR_AFTER && frame > cfra))
 								{
 									
-									BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
-									BLI_delete(path_full, false, false);
+									if (allow_file_delete) {
+										BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
+										BLI_delete(path_full, false, false);
+									}
 									if (pid->cache->cached_frames && frame >=sta && frame <= end)
 										pid->cache->cached_frames[frame-sta] = 0;
 								}
@@ -2665,8 +2669,10 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 	case PTCACHE_CLEAR_FRAME:
 		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
 			if (BKE_ptcache_id_exist(pid, cfra)) {
-				ptcache_filename(pid, filename, cfra, 1, 1); /* no path */
-				BLI_delete(filename, false, false);
+				if (allow_file_delete) {
+					ptcache_filename(pid, filename, cfra, 1, 1); /* no path */
+					BLI_delete(filename, false, false);
+				}
 			}
 		}
 		else {
@@ -2688,6 +2694,13 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 
 	BKE_ptcache_update_info(pid);
 }
+
+/* Clears & resets */
+void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
+{
+	BKE_ptcache_id_clear_ex(pid, mode, cfra, false);
+}
+
 int  BKE_ptcache_id_exist(PTCacheID *pid, int cfra)
 {
 	if (!pid->cache)
