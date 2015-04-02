@@ -1122,6 +1122,9 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 
 bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *params, float timestep, ListBase *effectors)
 {
+	if (params->timescale == 0.0f || params->substeps < 1)
+		return false;
+	
 	float tf = params->timescale * timestep;
 	float dt = tf / params->substeps;
 	int numverts = strands->totverts;
@@ -1149,7 +1152,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 	}
 #endif
 	
-	while (step < tf) {
+	for (step; step < tf; step += dt) {
 		ImplicitSolverResult result;
 		
 #if 0
