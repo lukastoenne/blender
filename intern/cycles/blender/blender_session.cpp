@@ -100,7 +100,8 @@ void BlenderSession::create_session()
 	start_resize_time = 0.0;
 
 	/* create scene */
-	scene = new Scene(scene_params, session_params.device);
+	bool free_data_after_update = background && !scene_params.persistent_data;
+	scene = new Scene(scene_params, session_params.device, free_data_after_update);
 
 	/* setup callbacks for builtin image support */
 	scene->image_manager->builtin_image_info_cb = function_bind(&BlenderSession::builtin_image_info, this, _1, _2, _3, _4, _5, _6, _7);

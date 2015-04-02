@@ -152,7 +152,10 @@ public:
 	bool need_update;
 	bool need_flags_update;
 
-	MeshManager();
+	/* Free memory used by BVH after device update. */
+	bool free_data_after_update;
+
+	MeshManager(const bool free_data_after_update);
 	~MeshManager();
 
 	bool displace(Device *device, DeviceScene *dscene, Scene *scene, Mesh *mesh, Progress& progress);

@@ -554,9 +554,10 @@ bool Mesh::has_motion_blur() const
 
 /* Mesh Manager */
 
-MeshManager::MeshManager()
+MeshManager::MeshManager(const bool free_data_after_update_)
 {
 	bvh = NULL;
+	free_data_after_update = free_data_after_update_;
 	need_update = true;
 	need_flags_update = true;
 }
@@ -1303,6 +1304,15 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	if(progress.get_cancel()) return;
 
 	device_update_bvh(device, dscene, scene, progress);
+
+	if(free_data_after_update) {
+		foreach(Object *object, scene->objects) {
+			if(object->mesh->bvh != NULL) {
+				delete object->mesh->bvh;
+				object->mesh->bvh = NULL;
+			}
+		}
+	}
 
 	need_update = false;
 }
