@@ -523,7 +523,7 @@ CacheModifier *BKE_cache_modifier_copy(CacheLibrary *cachelib, CacheModifier *md
 	if (mti->copy)
 		mti->copy(md, tmd);
 	
-	BLI_addtail(&cachelib->modifiers, md);
+	BLI_addtail(&cachelib->modifiers, tmd);
 	
 	return tmd;
 }
