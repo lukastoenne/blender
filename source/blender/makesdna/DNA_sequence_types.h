@@ -164,7 +164,7 @@ typedef struct Sequence {
 
 	/* pointers for effects: */
 	struct Sequence *seq1, *seq2, *seq3;
-	
+
 	ListBase seqbase;       /* list of strips for metastrips */
 
 	struct bSound *sound;   /* the linked "bSound" object */
@@ -188,7 +188,9 @@ typedef struct Sequence {
 
 	char alpha_mode;
 	char pad[3];
-	
+
+	struct IDProperty *prop;
+
 	/* modifiers */
 	ListBase modifiers;
 } Sequence;
