@@ -572,7 +572,7 @@ static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier 
 {
 }
 
-static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev)
+static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int UNUSED(frame_prev))
 {
 	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
