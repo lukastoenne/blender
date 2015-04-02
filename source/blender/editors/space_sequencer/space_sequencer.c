@@ -183,7 +183,7 @@ static SpaceLink *sequencer_new(const bContext *C)
 	ar->v2d.min[1] = 0.5f;
 	
 	ar->v2d.max[0] = MAXFRAMEF;
-	ar->v2d.max[1] = MAXSEQ;
+	ar->v2d.max[1] = MAXSEQ * 4;
 	
 	ar->v2d.minzoom = 0.01f;
 	ar->v2d.maxzoom = 100.0f;
