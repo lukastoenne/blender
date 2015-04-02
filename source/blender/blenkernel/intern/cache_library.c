@@ -577,10 +577,10 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *UNU
 	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
 		DupliObjectData *data = BKE_dupli_cache_iter_get(iter);
-		LinkData *link;
+		DupliObjectDataStrands *link;
 		
 		for (link = data->strands.first; link; link = link->next) {
-			Strands *strands = link->data;
+			Strands *strands = link->strands;
 			
 			struct Implicit_Data *solver_data;
 			int numsprings;

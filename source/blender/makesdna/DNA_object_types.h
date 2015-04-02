@@ -333,6 +333,13 @@ typedef struct DupliObject {
 	struct DupliObjectData *data;
 } DupliObject;
 
+typedef struct DupliObjectDataStrands {
+	struct DupliObjectDataStrands *next, *prev;
+	
+	char name[64]; /* MAX_NAME */
+	struct Strands *strands;
+} DupliObjectDataStrands;
+
 /* data that can be shared by multiple DupliObject instances */
 typedef struct DupliObjectData {
 	/* XXX eventually it should be possible to construct dupli instances

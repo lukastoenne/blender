@@ -161,7 +161,8 @@ private:
 
 class AbcDupliObjectWriter : public ObjectWriter, public AbcWriter {
 public:
-	typedef std::vector<AbcStrandsWriter *> StrandsWriters;
+	typedef std::map<std::string, AbcStrandsWriter *> StrandsWriters;
+	typedef std::pair<std::string, AbcStrandsWriter *> StrandsWritersPair;
 	
 	AbcDupliObjectWriter(const std::string &name, DupliObjectData *dupdata, bool do_mesh, bool do_strands);
 	~AbcDupliObjectWriter();
@@ -170,8 +171,12 @@ public:
 	
 	void write_sample();
 	
+	AbcStrandsWriter *find_strands_writer(const std::string &name) const;
+	AbcStrandsWriter *add_strands_writer(const std::string &name);
+	
 private:
 	DupliObjectData *m_dupdata;
+	bool m_do_strands;
 	
 	Abc::OObject m_abc_object;
 	AbcDerivedMeshWriter *m_dm_writer;

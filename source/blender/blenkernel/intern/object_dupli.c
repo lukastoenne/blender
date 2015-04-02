@@ -38,6 +38,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "BLI_math.h"
@@ -67,6 +69,8 @@
 #include "BKE_strands.h"
 
 #include "BLI_strict_flags.h"
+
+#include "BLF_translation.h"
 
 /* Dupli-Geometry */
 
@@ -1338,6 +1342,14 @@ static void dupli_cache_calc_boundbox(DupliObjectData *data)
 	BKE_boundbox_init_from_minmax(&data->bb, min, max);
 }
 
+static bool UNUSED_FUNCTION(dupli_object_data_strands_unique_name)(ListBase *lb, DupliObjectDataStrands *link)
+{
+	if (lb && link) {
+		return BLI_uniquename(lb, link, DATA_("Strands"), '.', offsetof(DupliObjectDataStrands, name), sizeof(link->name));
+	}
+	return false;
+}
+
 void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob)
 {
 	data->ob = ob;
@@ -1351,7 +1363,7 @@ void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob)
 
 void BKE_dupli_object_data_clear(DupliObjectData *data)
 {
-	LinkData *link;
+	DupliObjectDataStrands *link;
 	
 	if (data->dm) {
 		/* we lock DMs in the cache to prevent freeing outside,
@@ -1362,8 +1374,8 @@ void BKE_dupli_object_data_clear(DupliObjectData *data)
 	}
 	
 	for (link = data->strands.first; link; link = link->next) {
-		if (link->data)
-			BKE_strands_free(link->data);
+		if (link->strands)
+			BKE_strands_free(link->strands);
 	}
 	BLI_freelistN(&data->strands);
 }
@@ -1385,14 +1397,38 @@ void BKE_dupli_object_data_set_mesh(DupliObjectData *data, DerivedMesh *dm)
 	dupli_cache_calc_boundbox(data);
 }
 
-void BKE_dupli_object_data_add_strands(DupliObjectData *data, Strands *strands)
+void BKE_dupli_object_data_add_strands(DupliObjectData *data, const char *name, Strands *strands)
 {
-	LinkData *link = MEM_callocN(sizeof(LinkData), "strands link");
-	link->data = strands;
+	DupliObjectDataStrands *link = NULL;
+	for (link = data->strands.first; link; link = link->next) {
+		if (STREQ(link->name, name))
+			break;
+	}
 	
-	BLI_addtail(&data->strands, link);
+	if (!link) {
+		link = MEM_callocN(sizeof(DupliObjectDataStrands), "strands link");
+		BLI_strncpy(link->name, name, sizeof(link->name));
+		link->strands = strands;
+		
+		BLI_addtail(&data->strands, link);
+	}
+	else {
+		if (link->strands && link->strands != strands)
+			BKE_strands_free(link->strands);
+		link->strands = strands;
+	}
 	
 	dupli_cache_calc_boundbox(data);
+}
+
+Strands *BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name)
+{
+	DupliObjectDataStrands *link;
+	for (link = data->strands.first; link; link = link->next) {
+		if (STREQ(link->name, name))
+			return link->strands;
+	}
+	return NULL;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1544,7 +1580,7 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 							++scurve;
 						}
 						
-						BKE_dupli_object_data_add_strands(data, strands);
+						BKE_dupli_object_data_add_strands(data, psys->name, strands);
 					}
 				}
 			}

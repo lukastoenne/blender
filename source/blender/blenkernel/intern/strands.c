@@ -19,6 +19,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "BKE_strands.h"
 

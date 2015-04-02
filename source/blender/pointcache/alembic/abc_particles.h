@@ -33,6 +33,7 @@
 #include "abc_writer.h"
 #include "abc_cloth.h"
 
+struct ListBase;
 struct Object;
 struct ParticleSystem;
 struct ParticleCacheKey;
@@ -90,7 +91,9 @@ private:
 
 class AbcStrandsWriter : public AbcWriter {
 public:
-	AbcStrandsWriter(const std::string &name, Strands *strands);
+	AbcStrandsWriter(const std::string &name, DupliObjectData *dobdata);
+	
+	Strands *get_strands() const;
 	
 	void init_abc(Abc::OObject parent);
 	
@@ -98,7 +101,7 @@ public:
 	
 private:
 	std::string m_name;
-	Strands *m_strands;
+	DupliObjectData *m_dobdata;
 	
 	AbcGeom::OCurves m_curves;
 	AbcGeom::OFloatGeomParam m_param_times;
@@ -110,7 +113,7 @@ private:
 
 class AbcStrandsReader : public AbcReader {
 public:
-	AbcStrandsReader();
+	AbcStrandsReader(Strands *strands);
 	~AbcStrandsReader();
 	
 	void init_abc(Abc::IObject object);
