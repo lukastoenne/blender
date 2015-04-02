@@ -3490,7 +3490,11 @@ static void write_cache_modifiers(WriteData *wd, CacheLibrary *cachelib)
 {
 	CacheModifier *md;
 	for (md = cachelib->modifiers.first; md; md = md->next) {
-		writestruct(wd, DATA, "CacheModifier", 1, md);
+		const char *struct_name = BKE_cache_modifier_type_struct_name(md->type);
+		if (!struct_name || struct_name[0] == '\0')
+			continue;
+		
+		writestruct(wd, DATA, struct_name, 1, md);
 		
 		switch (md->type) {
 			// TODO add specifics here
