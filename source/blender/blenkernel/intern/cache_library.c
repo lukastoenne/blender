@@ -572,7 +572,7 @@ static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier 
 {
 }
 
-static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int UNUSED(frame_prev))
+static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
 {
 	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
@@ -590,7 +590,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *UNU
 			numsprings = strands->totverts - strands->totcurves;
 			solver_data = BPH_mass_spring_solver_create(strands->totverts, numsprings);
 			
-			BPH_strands_solve(strands, solver_data, &hsmd->sim_params, (float)frame, NULL);
+			BPH_strands_solve(strands, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
 			
 			BPH_mass_spring_solver_free(solver_data);
 		}

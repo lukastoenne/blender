@@ -1120,12 +1120,84 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 
 /* ========================================================================= */
 
-bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *params, float timestep, ListBase *effectors)
+/* Collect forces and derivatives:  F, dFdX, dFdV */
+static void strands_calc_force(Strands *strands, StrandSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors, float step)
+{
+	unsigned int numverts = strands->totverts;
+	
+	int i = 0;
+//	float drag = params->Cvi * 0.01f; /* viscosity of air scaled in percent */
+	float gravity[3] = {0.0f, 0.0f, 0.0f};
+	
+#if 1
+	/* global acceleration (gravitation) */
+	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+		/* scale gravity force */
+//		mul_v3_v3fl(gravity, scene->physics_settings.gravity, 0.001f * params->effector_weights->global_gravity);
+		copy_v3_v3(gravity, scene->physics_settings.gravity);
+	}
+	for (i = 0; i < numverts; i++) {
+		float mass = 1.0f; // TODO
+		BPH_mass_spring_force_gravity(data, i, mass, gravity);
+	}
+#endif
+
+#if 0
+	BPH_mass_spring_force_drag(data, drag);
+#endif
+	
+#if 0
+	/* handle external forces like wind */
+	if (effectors) {
+		/* cache per-vertex forces to avoid redundant calculation */
+		float (*winvec)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
+		for (i = 0; i < cloth->numverts; i++) {
+			float x[3], v[3];
+			EffectedPoint epoint;
+			
+			BPH_mass_spring_get_motion_state(data, i, x, v);
+			pd_point_from_loc(clmd->scene, x, v, i, &epoint);
+			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
+		}
+		
+		for (i = 0; i < cloth->numfaces; i++) {
+			MFace *mf = &mfaces[i];
+			BPH_mass_spring_force_face_wind(data, mf->v1, mf->v2, mf->v3, mf->v4, winvec);
+		}
+
+		ClothHairData *hairdata = clmd->hairdata;
+		
+		vert = cloth->verts;
+		for (i = 0; i < cloth->numverts; i++, vert++) {
+			if (hairdata) {
+				ClothHairData *hair = &hairdata[i];
+				BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
+			}
+			else
+				BPH_mass_spring_force_vertex_wind(data, i, 1.0f, winvec);
+		}
+
+		MEM_freeN(winvec);
+	}
+#endif
+	
+#if 0
+	// calculate spring forces
+	for (LinkNode *link = cloth->springs; link; link = link->next) {
+		ClothSpring *spring = (ClothSpring *)link->link;
+		// only handle active springs
+		if (!(spring->flags & CLOTH_SPRING_FLAG_DEACTIVATE))
+			cloth_calc_spring_force(clmd, spring, step);
+	}
+#endif
+}
+
+bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *params, float frame, float frame_prev, Scene *scene, ListBase *effectors)
 {
 	if (params->timescale == 0.0f || params->substeps < 1)
 		return false;
 	
-	float tf = params->timescale * timestep;
+	float tf = (frame - frame_prev) * params->timescale;
 	float dt = tf / params->substeps;
 	int numverts = strands->totverts;
 	
@@ -1137,6 +1209,11 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 //	if (!clmd->solver_result)
 //		clmd->solver_result = (ClothSolverResult *)MEM_callocN(sizeof(ClothSolverResult), "cloth solver result");
 //	cloth_clear_result(clmd);
+	
+	/* initialize solver data */
+	for (i = 0; i < numverts; i++) {
+		BPH_mass_spring_set_motion_state(id, i, strands->state[i].co, strands->state[i].vel);
+	}
 	
 #if 0
 	if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) { /* do goal stuff */
@@ -1152,7 +1229,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 	}
 #endif
 	
-	for (step; step < tf; step += dt) {
+	for (step = 0.0f; step < tf; step += dt) {
 		ImplicitSolverResult result;
 		
 #if 0
@@ -1171,7 +1248,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 		BPH_mass_spring_clear_forces(id);
 		
 		// calculate forces
-//		cloth_calc_force(clmd, frame, effectors, step);
+		strands_calc_force(strands, params, id, frame, scene, effectors, step);
 		
 		// calculate new velocity and position
 		BPH_mass_spring_solve_velocities(id, dt, &result);
@@ -1212,7 +1289,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 		step += dt;
 	}
 	
-	/* copy results back to cloth data */
+	/* copy results back to strand data */
 	for (i = 0; i < numverts; i++) {
 		BPH_mass_spring_get_motion_state(id, i, strands->state[i].co, strands->state[i].vel);
 	}

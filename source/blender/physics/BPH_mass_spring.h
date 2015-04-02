@@ -57,7 +57,7 @@ void BKE_cloth_solver_set_positions(struct ClothModifierData *clmd);
 
 bool BPH_cloth_solver_get_texture_data(struct Object *ob, struct ClothModifierData *clmd, struct VoxelData *vd);
 
-bool BPH_strands_solve(struct Strands *strands, struct Implicit_Data *id, struct StrandSimParams *params, float timestep, struct ListBase *effectors);
+bool BPH_strands_solve(struct Strands *strands, struct Implicit_Data *id, struct StrandSimParams *params, float frame, float frame_prev, struct Scene *scene, struct ListBase *effectors);
 
 #ifdef __cplusplus
 }
