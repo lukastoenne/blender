@@ -118,6 +118,12 @@ typedef struct HairSimParams {
 	int substeps;
 	
 	struct EffectorWeights *effector_weights;
+	
+	float mass;
+	float drag;
+	float goal_stiffness, goal_damping;
+	float stretch_stiffness, stretch_damping;
+	float bend_stiffness, bend_damping;
 } HairSimParams;
 
 typedef struct HairSimCacheModifier {

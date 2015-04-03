@@ -563,6 +563,16 @@ static void hairsim_params_init(HairSimParams *params)
 	params->timescale = 1.0f;
 	params->substeps = 5;
 	
+	params->mass = 0.3f;
+	params->drag = 0.1f;
+	
+	params->stretch_stiffness = 1000.0f;
+	params->stretch_damping = 1.0f;
+	params->bend_stiffness = 100.0f;
+	params->bend_damping = 1.0f;
+	params->goal_stiffness = 0.0f;
+	params->goal_damping = 1.0f;
+	
 	params->effector_weights = BKE_add_effector_weights(NULL);
 }
 

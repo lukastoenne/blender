@@ -321,7 +321,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row.operator("cachelibrary.remove_modifier", icon='X', text="", emboss=False)
 
         # match enum type to our functions, avoids a lookup table.
-        getattr(self, md.type)(layout, context, cachelib, md)
+        getattr(self, md.type)(context, layout, cachelib, md)
 
     def draw_cachelib(self, context, layout, ob, cachelib, objects):
         col = layout.column()
@@ -421,6 +421,27 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
     def HAIR_SIMULATION(self, context, layout, cachelib, md):
         params = md.parameters
+
+        col = layout.column()
+        col.prop(params, "substeps")
+        col.prop(params, "timescale")
+        col.prop(params, "mass")
+        col.prop(params, "drag")
+
+        row = col.row(align=True)
+        row.prop(params, "stretch_stiffness")
+        row.prop(params, "stretch_damping")
+
+        row = col.row(align=True)
+        row.prop(params, "bend_stiffness")
+        row.prop(params, "bend_damping")
+
+        row = col.row(align=True)
+        row.prop(params, "goal_stiffness")
+        row.prop(params, "goal_damping")
+
+        layout.separator()
+
         effector_weights_ui(self, context, params.effector_weights, 'HAIR')
 
 

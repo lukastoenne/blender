@@ -1211,8 +1211,7 @@ static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit
 	/* global acceleration (gravitation) */
 	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
 		/* scale gravity force */
-//		mul_v3_v3fl(gravity, scene->physics_settings.gravity, 0.001f * params->effector_weights->global_gravity);
-		copy_v3_v3(gravity, scene->physics_settings.gravity);
+		mul_v3_v3fl(gravity, scene->physics_settings.gravity, params->effector_weights->global_gravity);
 	}
 	for (i = 0; i < numverts; i++) {
 		float mass = 1.0f; // TODO
@@ -1272,7 +1271,9 @@ static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit
 				int vj = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert_prev);
 				float restlen = len_v3v3(it_vert.vertex->co, it_vert_prev.vertex->co);
 				
-				BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, 1000.0f, 1000.0f, true, 0.0f, NULL, NULL, NULL);
+				float stiffness = params->stretch_stiffness;
+				float damping = stiffness * params->stretch_damping;
+				BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, stiffness, damping, true, 0.0f, NULL, NULL, NULL);
 			}
 		}
 		
