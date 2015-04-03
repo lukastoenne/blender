@@ -36,6 +36,7 @@ static bNodeSocketTemplate sh_node_tex_pointdensity_in[] = {
 
 static bNodeSocketTemplate sh_node_tex_pointdensity_out[] = {
 	{SOCK_FLOAT, 0, N_("Density"), 0.0f, 0.0f, 0.0f, 0.0f, -10000.0f, 10000.0f},
+	{SOCK_RGBA, 0, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{-1, 0, ""}
 };
 

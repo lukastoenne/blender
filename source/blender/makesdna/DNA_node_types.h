@@ -795,6 +795,8 @@ typedef struct NodeShaderTexPointDensity {
 	int resolution;
 	short space;
 	short interpolation;
+	short color_source;
+	short pad2;
 } NodeShaderTexPointDensity;
 
 /* TEX_output */
@@ -1109,6 +1111,13 @@ enum {
 enum {
 	SHD_POINTDENSITY_SPACE_OBJECT = 0,
 	SHD_POINTDENSITY_SPACE_WORLD  = 1,
+};
+
+enum {
+	SHD_POINTDENSITY_COLOR_CONSTANT     = 0,
+	SHD_POINTDENSITY_COLOR_PARTAGE      = 1,
+	SHD_POINTDENSITY_COLOR_PARTSPEED    = 2,
+	SHD_POINTDENSITY_COLOR_PARTVEL      = 3,
 };
 
 #endif

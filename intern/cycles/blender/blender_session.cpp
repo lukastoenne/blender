@@ -988,7 +988,7 @@ void BlenderSession::builtin_image_info(const string &builtin_name, void *builti
 		BL::Node b_node(ptr);
 		if(b_node.is_a(&RNA_ShaderNodeTexPointDensity)) {
 			BL::ShaderNodeTexPointDensity b_point_density_node(b_node);
-			channels = 1;
+			channels = 4;
 			width = height = depth = b_point_density_node.resolution();
 			is_float = true;
 		}
