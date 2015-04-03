@@ -113,15 +113,15 @@ typedef enum eCacheModifier_Type {
 	NUM_CACHE_MODIFIER_TYPES
 } eCacheModifier_Type;
 
-typedef struct StrandSimParams {
+typedef struct HairSimParams {
 	float timescale;
 	int substeps;
-} StrandSimParams;
+} HairSimParams;
 
 typedef struct HairSimCacheModifier {
 	CacheModifier modifier;
 	
-	StrandSimParams sim_params;
+	HairSimParams sim_params;
 } HairSimCacheModifier;
 
 #endif

@@ -1120,7 +1120,7 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 
 /* ========================================================================= */
 
-struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct StrandSimParams *UNUSED(params))
+struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *UNUSED(params))
 {
 	static float I3[3][3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
 	
@@ -1200,7 +1200,7 @@ static void strands_setup_constraints(Strands *strands, Implicit_Data *data, Col
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */
-static void strands_calc_force(Strands *strands, StrandSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors, float step)
+static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors, float step)
 {
 	unsigned int numverts = strands->totverts;
 	
@@ -1280,7 +1280,7 @@ static void strands_calc_force(Strands *strands, StrandSimParams *params, Implic
 	}
 }
 
-bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *params, float frame, float frame_prev, Scene *scene, ListBase *effectors)
+bool BPH_strands_solve(Strands *strands, Implicit_Data *id, HairSimParams *params, float frame, float frame_prev, Scene *scene, ListBase *effectors)
 {
 	if (params->timescale == 0.0f || params->substeps < 1)
 		return false;

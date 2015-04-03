@@ -557,7 +557,7 @@ void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *dat
 
 /* ------------------------------------------------------------------------- */
 
-static void hairsim_params_init(StrandSimParams *params)
+static void hairsim_params_init(HairSimParams *params)
 {
 	params->timescale = 1.0f;
 	params->substeps = 5;
@@ -568,7 +568,7 @@ static void hairsim_init(HairSimCacheModifier *hsmd)
 	hairsim_params_init(&hsmd->sim_params);
 }
 
-static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier *UNUSED(tmd))
+static void hairsim_copy(HairSimCacheModifier *hsmd, HairSimCacheModifier *thsmd)
 {
 }
 

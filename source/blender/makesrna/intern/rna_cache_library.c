@@ -71,6 +71,7 @@ EnumPropertyItem cache_modifier_type_items[] = {
 
 #include "BKE_animsys.h"
 #include "BKE_cache_library.h"
+#include "BKE_depsgraph.h"
 #include "BKE_main.h"
 
 #include "RNA_access.h"
@@ -79,11 +80,39 @@ EnumPropertyItem cache_modifier_type_items[] = {
 
 /* ========================================================================= */
 
-static void rna_CacheLibrary_update(Main *UNUSED(main), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+static void rna_CacheLibrary_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 }
 
 /* ========================================================================= */
+
+static void rna_CacheModifier_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+}
+
+static void rna_CacheModifier_dependency_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	rna_CacheModifier_update(bmain, scene, ptr);
+	DAG_relations_tag_update(bmain);
+}
+
+
+static StructRNA *rna_CacheModifier_refine(struct PointerRNA *ptr)
+{
+	CacheModifier *md = (CacheModifier *)ptr->data;
+
+	switch ((eCacheModifier_Type)md->type) {
+		case eCacheModifierType_HairSimulation:
+			return &RNA_HairSimulationCacheModifier;
+			
+		/* Default */
+		case eCacheModifierType_None:
+		case NUM_CACHE_MODIFIER_TYPES:
+			return &RNA_CacheLibraryModifier;
+	}
+
+	return &RNA_CacheLibraryModifier;
+}
 
 static void rna_CacheLibraryModifier_name_set(PointerRNA *ptr, const char *value)
 {
@@ -137,6 +166,36 @@ static void rna_CacheLibrary_modifier_clear(CacheLibrary *cachelib, bContext *UN
 
 #else
 
+static void rna_def_hair_sim_params(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "HairSimulationParameters", NULL);
+	RNA_def_struct_sdna(srna, "HairSimParams");
+	RNA_def_struct_ui_text(srna, "Hair Simulation Parameters", "Simulation parameters for hair simulation");
+	RNA_def_struct_ui_icon(srna, ICON_HAIR);
+}
+
+static void rna_def_cache_modifier_hair_simulation(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	rna_def_hair_sim_params(brna);
+	
+	srna = RNA_def_struct(brna, "HairSimulationCacheModifier", "CacheLibraryModifier");
+	RNA_def_struct_sdna(srna, "HairSimCacheModifier");
+	RNA_def_struct_ui_text(srna, "Hair Simulation Cache Modifier", "Apply hair dynamics simulation to the cache");
+	RNA_def_struct_ui_icon(srna, ICON_HAIR);
+	
+	prop = RNA_def_property(srna, "parameters", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "sim_params");
+	RNA_def_property_struct_type(prop, "HairSimulationParameters");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Simulation Parameters", "Parameters of the simulation");
+}
+
 static void rna_def_cache_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -145,6 +204,7 @@ static void rna_def_cache_modifier(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "CacheLibraryModifier", NULL);
 	RNA_def_struct_sdna(srna, "CacheModifier");
 	RNA_def_struct_path_func(srna, "rna_CacheLibraryModifier_path");
+	RNA_def_struct_refine_func(srna, "rna_CacheModifier_refine");
 	RNA_def_struct_ui_text(srna, "Cache Modifier", "Cache Modifier");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
 	
@@ -159,6 +219,8 @@ static void rna_def_cache_modifier(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Name", "Modifier name");
 	RNA_def_property_update(prop, NC_ID | NA_RENAME, NULL);
 	RNA_def_struct_name_property(srna, prop);
+	
+	rna_def_cache_modifier_hair_simulation(brna);
 }
 
 static void rna_def_cache_library_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
