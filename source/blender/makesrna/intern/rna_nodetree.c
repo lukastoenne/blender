@@ -2933,23 +2933,34 @@ static void rna_ShaderNodePointDensity_psys_set(PointerRNA *ptr, PointerRNA valu
 	}
 }
 
+static int point_density_color_source_from_shader(NodeShaderTexPointDensity *shader_point_density)
+{
+	switch (shader_point_density->color_source) {
+		case SHD_POINTDENSITY_COLOR_CONSTANT: return TEX_PD_COLOR_CONSTANT;
+		case SHD_POINTDENSITY_COLOR_PARTAGE: return TEX_PD_COLOR_PARTAGE;
+		case SHD_POINTDENSITY_COLOR_PARTSPEED: return TEX_PD_COLOR_PARTSPEED;
+		case SHD_POINTDENSITY_COLOR_PARTVEL: return TEX_PD_COLOR_PARTVEL;
+		default: BLI_assert(false); return TEX_PD_COLOR_CONSTANT;
+	}
+}
+
 /* TODO(sergey): This functio nassumes allocated array was passed,
  * works fine with Cycles via C++ RNA, but fails with call from python.
  */
-void rna_ShaderNodePointDensity_density_calc(bNode *self, Scene *scene, int *length, float **density)
+void rna_ShaderNodePointDensity_density_calc(bNode *self, Scene *scene, int *length, float **values)
 {
 	NodeShaderTexPointDensity *shader_point_density = self->storage;
 	PointDensity pd;
 
-	*length = shader_point_density->resolution *
-	          shader_point_density->resolution *
-	          shader_point_density->resolution;
+	*length = 4 * shader_point_density->resolution *
+	              shader_point_density->resolution *
+	              shader_point_density->resolution;
 
-	if (*density == NULL) {
-		*density = MEM_mallocN(sizeof(float) * (*length), "density dynamic array");
+	if (*values == NULL) {
+		*values = MEM_mallocN(sizeof(float) * (*length), "point density dynamic array");
 	}
 
-	/* Cretae PointDensity structure from node for sampling. */
+	/* Create PointDensity structure from node for sampling. */
 	BKE_texture_pointdensity_init_data(&pd);
 	pd.object = (Object *)self->id;
 	pd.radius = shader_point_density->radius;
@@ -2963,11 +2974,12 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self, Scene *scene, int *len
 		pd.source = TEX_PD_OBJECT;
 		pd.ob_cache_space = TEX_PD_OBJECTSPACE;
 	}
+	pd.color_source = point_density_color_source_from_shader(shader_point_density);
 
 	/* Single-threaded sampling of the voxel domain. */
 	RE_sample_point_density(scene, &pd,
 	                        shader_point_density->resolution,
-	                        *density);
+	                        *values);
 
 	/* We're done, time to clean up. */
 	BKE_texture_pointdensity_free_data(&pd);
@@ -3817,6 +3829,17 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem color_source_items[] = {
+		{SHD_POINTDENSITY_COLOR_CONSTANT, "CONSTANT", 0, "Constant", ""},
+		{SHD_POINTDENSITY_COLOR_PARTAGE, "PARTICLE_AGE", 0, "Particle Age",
+		                                 "Lifetime mapped as 0.0 - 1.0 intensity"},
+		{SHD_POINTDENSITY_COLOR_PARTSPEED, "PARTICLE_SPEED", 0, "Particle Speed",
+		                                   "Particle speed (absolute magnitude of velocity) mapped as 0.0-1.0 intensity"},
+		{SHD_POINTDENSITY_COLOR_PARTVEL, "PARTICLE_VELOCITY", 0, "Particle Velocity",
+		                                 "XYZ velocity mapped to RGB colors"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "id");
 	RNA_def_property_struct_type(prop, "Object");
@@ -3860,11 +3883,17 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Interpolation", "Texture interpolation");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 
+	prop = RNA_def_property(srna, "color_source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "color_source");
+	RNA_def_property_enum_items(prop, color_source_items);
+	RNA_def_property_ui_text(prop, "Color Source", "Data to derive color results from");
+	RNA_def_property_update(prop, 0, "rna_Node_update");
+
 	func = RNA_def_function(srna, "calc_point_density", "rna_ShaderNodePointDensity_density_calc");
 	RNA_def_function_ui_description(func, "Calculate point density");
 	RNA_def_pointer(func, "scene", "Scene", "", "");
 	/* TODO, See how array size of 0 works, this shouldnt be used. */
-	prop = RNA_def_float_array(func, "density", 1, NULL, 0, 0, "", "Density", 0, 0);
+	prop = RNA_def_float_array(func, "rgba_values", 1, NULL, 0, 0, "", "RGBA Values", 0, 0);
 	RNA_def_property_flag(prop, PROP_DYNAMIC);
 	RNA_def_function_output(func, prop);
 }

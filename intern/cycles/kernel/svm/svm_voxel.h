@@ -23,8 +23,8 @@ ccl_device void svm_node_tex_voxel(KernelGlobals *kg,
                                    int *offset)
 {
 	int id = node.y;
-	uint co_offset, out_offset, space;
-	decode_node_uchar4(node.z, &co_offset, &out_offset, &space, NULL);
+	uint co_offset, density_out_offset, color_out_offset, space;
+	decode_node_uchar4(node.z, &co_offset, &density_out_offset, &color_out_offset, &space);
 	float3 co = stack_load_float3(stack, co_offset);
 	if(space == NODE_TEX_VOXEL_SPACE_OBJECT) {
 		co = volume_normalized_position(kg, sd, co);
@@ -41,7 +41,10 @@ ccl_device void svm_node_tex_voxel(KernelGlobals *kg,
 	if(co.x < 0.0f || co.y < 0.0f || co.z < 0.0f ||
 	   co.x > 1.0f || co.y > 1.0f || co.z > 1.0f)
 	{
-		stack_store_float(stack, out_offset, 0.0f);
+		if (stack_valid(density_out_offset))
+			stack_store_float(stack, density_out_offset, 0.0f);
+		if (stack_valid(color_out_offset))
+			stack_store_float3(stack, color_out_offset, make_float3(0.0f, 0.0f, 0.0f));
 		return;
 	}
 #ifdef __KERNEL_GPU__
@@ -49,8 +52,10 @@ ccl_device void svm_node_tex_voxel(KernelGlobals *kg,
 #else
 	float4 r = kernel_tex_image_interp_3d(id, co.x, co.y, co.z);
 #endif
-	float3 f = float4_to_float3(r);
-	stack_store_float(stack, out_offset, average(f));
+	if (stack_valid(density_out_offset))
+		stack_store_float(stack, density_out_offset, r.w);
+	if (stack_valid(color_out_offset))
+		stack_store_float3(stack, color_out_offset, make_float3(r.x, r.y, r.z));
 }
 
 CCL_NAMESPACE_END

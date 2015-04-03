@@ -481,12 +481,6 @@ static int pointdensity(PointDensity *pd,
 	        (pd->flag & TEX_PD_FALLOFF_CURVE ? pd->falloff_curve : NULL),
 	        pd->falloff_speed_scale * 0.001f);
 	noise_fac = pd->noise_fac * 0.5f;	/* better default */
-	if (r_age != NULL) {
-		*r_age = age;
-	}
-	if (r_vec != NULL) {
-		copy_v3_v3(r_vec, vec);
-	}
 
 	copy_v3_v3(co, texvec);
 
@@ -536,23 +530,21 @@ static int pointdensity(PointDensity *pd,
 	}
 
 	texres->tin = density;
+	if (r_age != NULL) {
+		*r_age = age;
+	}
+	if (r_vec != NULL) {
+		copy_v3_v3(r_vec, vec);
+	}
 
 	return retval;
 }
 
-int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
+static int pointdensity_color(PointDensity *pd, TexResult *texres, float age, const float vec[3])
 {
-	PointDensity *pd = tex->pd;
-	float age = 0.0f;
-	float vec[3] = {0.0f, 0.0f, 0.0f};
-	int retval = pointdensity(pd, texvec, texres, &age, vec);
+	int retval = 0;
 	float col[4];
-
-	BRICONT;
-
-	if (pd->color_source == TEX_PD_COLOR_CONSTANT)
-		return retval;
-
+	
 	retval |= TEX_RGB;
 
 	switch (pd->color_source) {
@@ -582,8 +574,7 @@ int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
 		}
 		case TEX_PD_COLOR_PARTVEL:
 			texres->talpha = true;
-			mul_v3_fl(vec, pd->speed_scale);
-			copy_v3_v3(&texres->tr, vec);
+			mul_v3_v3fl(&texres->tr, vec, pd->speed_scale);
 			texres->ta = texres->tin;
 			break;
 		case TEX_PD_COLOR_CONSTANT:
@@ -591,6 +582,20 @@ int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
 			texres->tr = texres->tg = texres->tb = texres->ta = 1.0f;
 			break;
 	}
+	
+	return retval;
+}
+
+int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
+{
+	PointDensity *pd = tex->pd;
+	float age = 0.0f;
+	float vec[3] = {0.0f, 0.0f, 0.0f};
+	int retval = pointdensity(pd, texvec, texres, &age, vec);
+
+	BRICONT;
+
+	retval |= pointdensity_color(pd, texres, age, vec);
 	BRICONTRGB;
 
 	return retval;
@@ -602,9 +607,9 @@ int pointdensitytex(Tex *tex, const float texvec[3], TexResult *texres)
 #endif
 }
 
-static void sample_dummy_point_density(int resolution, float *density)
+static void sample_dummy_point_density(int resolution, float *values)
 {
-	memset(density, 0, sizeof(float) * resolution * resolution * resolution);
+	memset(values, 0, sizeof(float) * 4 * resolution * resolution * resolution);
 }
 
 static void particle_system_minmax(Object *object,
@@ -633,7 +638,7 @@ static void particle_system_minmax(Object *object,
 }
 
 void RE_sample_point_density(Scene *scene, PointDensity *pd,
-                             int resolution, float *density)
+                             int resolution, float *values)
 {
 	const size_t resolution2 = resolution * resolution;
 	Object *object = pd->object;
@@ -641,19 +646,19 @@ void RE_sample_point_density(Scene *scene, PointDensity *pd,
 	float min[3], max[3], dim[3], mat[4][4];
 
 	if (object == NULL) {
-		sample_dummy_point_density(resolution, density);
+		sample_dummy_point_density(resolution, values);
 		return;
 	}
 
 	if (pd->source == TEX_PD_PSYS) {
 		ParticleSystem *psys;
 		if (pd->psys == 0) {
-			sample_dummy_point_density(resolution, density);
+			sample_dummy_point_density(resolution, values);
 			return;
 		}
 		psys = BLI_findlink(&object->particlesystem, pd->psys - 1);
 		if (psys == NULL) {
-			sample_dummy_point_density(resolution, density);
+			sample_dummy_point_density(resolution, values);
 			return;
 		}
 		particle_system_minmax(object, psys, pd->radius, min, max);
@@ -671,7 +676,7 @@ void RE_sample_point_density(Scene *scene, PointDensity *pd,
 
 	sub_v3_v3v3(dim, max, min);
 	if (dim[0] <= 0.0f || dim[1] <= 0.0f || dim[2] <= 0.0f) {
-		sample_dummy_point_density(resolution, density);
+		sample_dummy_point_density(resolution, values);
 		return;
 	}
 
@@ -684,13 +689,19 @@ void RE_sample_point_density(Scene *scene, PointDensity *pd,
 			for (x = 0; x < resolution; ++x) {
 				size_t index = z * resolution2 + y * resolution + x;
 				float texvec[3];
+				float age, vec[3];
 				TexResult texres;
+				
 				copy_v3_v3(texvec, min);
 				texvec[0] += dim[0] * (float)x / (float)resolution;
 				texvec[1] += dim[1] * (float)y / (float)resolution;
 				texvec[2] += dim[2] * (float)z / (float)resolution;
-				pointdensity(pd, texvec, &texres, NULL, NULL);
-				density[index] = texres.tin;
+				
+				pointdensity(pd, texvec, &texres, &age, vec);
+				pointdensity_color(pd, &texres, age, vec);
+				
+				copy_v3_v3(&values[index*4 + 0], &texres.tr);
+				values[index*4 + 3] = texres.tin;
 			}
 		}
 	}
