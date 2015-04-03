@@ -46,6 +46,8 @@ void BKE_strands_free(Strands *strands)
 			MEM_freeN(strands->curves);
 		if (strands->verts)
 			MEM_freeN(strands->verts);
+		if (strands->state)
+			MEM_freeN(strands->state);
 		MEM_freeN(strands);
 	}
 }
@@ -99,6 +101,16 @@ void BKE_strands_add_motion_state(Strands *strands)
 		/* initialize normals */
 		for (i = 0; i < strands->totverts; ++i) {
 			copy_v3_v3(strands->state[i].nor, strands->verts[i].nor);
+		}
+	}
+}
+
+void BKE_strands_remove_motion_state(Strands *strands)
+{
+	if (strands) {
+		if (strands->state) {
+			MEM_freeN(strands->state);
+			strands->state = NULL;
 		}
 	}
 }
