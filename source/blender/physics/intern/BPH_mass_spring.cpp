@@ -1258,15 +1258,26 @@ static void strands_calc_force(Strands *strands, StrandSimParams *params, Implic
 	}
 #endif
 	
-#if 0
-	// calculate spring forces
-	for (LinkNode *link = cloth->springs; link; link = link->next) {
-		ClothSpring *spring = (ClothSpring *)link->link;
-		// only handle active springs
-		if (!(spring->flags & CLOTH_SPRING_FLAG_DEACTIVATE))
-			cloth_calc_spring_force(clmd, spring, step);
+	/* spring forces */
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert, it_vert_prev;
+		BKE_strand_vertex_iter_init(&it_vert, &it_strand);
+		if (BKE_strand_vertex_iter_valid(&it_vert)) {
+			it_vert_prev = it_vert;
+			BKE_strand_vertex_iter_next(&it_vert);
+			for (; BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+				
+				int vi = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert);
+				int vj = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert_prev);
+				float restlen = len_v3v3(it_vert.vertex->co, it_vert_prev.vertex->co);
+				
+				BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, 1000.0f, 1000.0f, true, 0.0f, NULL, NULL, NULL);
+			}
+		}
+		
+		i += it_strand.curve->numverts;
 	}
-#endif
 }
 
 bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *params, float frame, float frame_prev, Scene *scene, ListBase *effectors)

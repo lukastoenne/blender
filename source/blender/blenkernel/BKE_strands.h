@@ -96,6 +96,16 @@ BLI_INLINE void BKE_strand_iter_next(StrandIterator *iter)
 		iter->state += numverts;
 }
 
+BLI_INLINE size_t BKE_strand_iter_curve_offset(Strands *strands, StrandIterator *iter)
+{
+	return iter->curve - strands->curves;
+}
+
+BLI_INLINE size_t BKE_strand_iter_vertex_offset(Strands *strands, StrandIterator *iter)
+{
+	return iter->verts - strands->verts;
+}
+
 
 typedef struct StrandVertexIterator {
 	int index, tot;
@@ -122,6 +132,11 @@ BLI_INLINE void BKE_strand_vertex_iter_next(StrandVertexIterator *iter)
 	if (iter->state)
 		++iter->state;
 	++iter->index;
+}
+
+BLI_INLINE size_t BKE_strand_vertex_iter_vertex_offset(Strands *strands, StrandVertexIterator *iter)
+{
+	return iter->vertex - strands->verts;
 }
 
 #endif  /* __BKE_STRANDS_H__ */
