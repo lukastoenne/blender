@@ -867,4 +867,27 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 #undef SEQ_USE_PROXY_CUSTOM_DIR
 #undef SEQ_USE_PROXY_CUSTOM_FILE
 	}
+
+	{
+		bScreen *scr;
+		ScrArea *sa;
+		SpaceLink *sl;
+		ARegion *ar;
+		/* Make sure sequencer preview area limits zoom */
+		for (scr = main->screen.first; scr; scr = scr->id.next) {
+			for (sa = scr->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_SEQ) {
+						ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+
+						for (ar = lb->first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_WINDOW) {
+								ar->v2d.max[1] = MAXSEQ * 4;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
