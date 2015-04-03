@@ -21,12 +21,15 @@
 #include "abc_particles.h"
 
 extern "C" {
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 
+#include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_particle.h"
 #include "BKE_strands.h"
 }
@@ -249,10 +252,15 @@ struct StrandsSample {
 	std::vector<V3f> motion_vel;
 };
 
-AbcStrandsWriter::AbcStrandsWriter(const std::string &name, Strands *strands) :
+AbcStrandsWriter::AbcStrandsWriter(const std::string &name, DupliObjectData *dobdata) :
     m_name(name),
-    m_strands(strands)
+    m_dobdata(dobdata)
 {
+}
+
+Strands *AbcStrandsWriter::get_strands() const
+{
+	return BKE_dupli_object_data_find_strands(m_dobdata, m_name.c_str());
 }
 
 void AbcStrandsWriter::init_abc(OObject parent)
@@ -264,12 +272,12 @@ void AbcStrandsWriter::init_abc(OObject parent)
 	OCurvesSchema &schema = m_curves.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
-	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
-	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
+	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
+	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	
-	m_param_motion_state = OCompoundProperty(geom_props, "motion_state");
-	m_param_motion_co = OP3fGeomParam(m_param_motion_state, "position", false, kVertexScope, 1, 0);
-	m_param_motion_vel = OV3fGeomParam(m_param_motion_state, "velocity", false, kVertexScope, 1, 0);
+	m_param_motion_state = OCompoundProperty(geom_props, "motion_state", abc_archive()->frame_sampling());
+	m_param_motion_co = OP3fGeomParam(m_param_motion_state, "position", false, kVertexScope, 1, abc_archive()->frame_sampling());
+	m_param_motion_vel = OV3fGeomParam(m_param_motion_state, "velocity", false, kVertexScope, 1, abc_archive()->frame_sampling());
 }
 
 static void strands_create_sample(Strands *strands, StrandsSample &sample, bool do_numverts)
@@ -320,7 +328,8 @@ void AbcStrandsWriter::write_sample()
 {
 	if (!m_curves)
 		return;
-	if (!m_strands)
+	Strands *strands = get_strands();
+	if (!strands)
 		return;
 	
 	OCurvesSchema &schema = m_curves.getSchema();
@@ -329,11 +338,11 @@ void AbcStrandsWriter::write_sample()
 	OCurvesSchema::Sample sample;
 	if (schema.getNumSamples() == 0) {
 		/* write curve sizes only first time, assuming they are constant! */
-		strands_create_sample(m_strands, strands_sample, true);
+		strands_create_sample(strands, strands_sample, true);
 		sample = OCurvesSchema::Sample(strands_sample.positions, strands_sample.numverts);
 	}
 	else {
-		strands_create_sample(m_strands, strands_sample, false);
+		strands_create_sample(strands, strands_sample, false);
 		sample = OCurvesSchema::Sample(strands_sample.positions);
 	}
 	schema.set(sample);
@@ -341,15 +350,15 @@ void AbcStrandsWriter::write_sample()
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.weights), kVertexScope));
 	
-	if (!m_strands->state) {
+	if (strands->state) {
 		m_param_motion_co.set(OP3fGeomParam::Sample(P3fArraySample(strands_sample.motion_co), kVertexScope));
 		m_param_motion_vel.set(OV3fGeomParam::Sample(V3fArraySample(strands_sample.motion_vel), kVertexScope));
 	}
 }
 
 
-AbcStrandsReader::AbcStrandsReader() :
-    m_strands(NULL)
+AbcStrandsReader::AbcStrandsReader(Strands *strands) :
+    m_strands(strands)
 {
 }
 
@@ -397,7 +406,10 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	if (!sample_co || !sample_numvert)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	m_strands = BKE_strands_new(sample_numvert->size(), sample_co->size());
+	if (m_strands && (m_strands->totcurves != sample_numvert->size() || m_strands->totverts != sample_co->size()))
+		m_strands = NULL;
+	if (!m_strands)
+		m_strands = BKE_strands_new(sample_numvert->size(), sample_co->size());
 	
 	const int32_t *numvert = sample_numvert->get();
 	for (int i = 0; i < sample_numvert->size(); ++i) {
@@ -426,17 +438,19 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		IP3fGeomParam::Sample sample_motion_co = m_param_motion_co.getExpandedValue(ss);
 		IV3fGeomParam::Sample sample_motion_vel = m_param_motion_vel.getExpandedValue(ss);
 		
-		BKE_strands_add_motion_state(m_strands);
-		
 		const V3f *co = sample_motion_co.getVals()->get();
 		const V3f *vel = sample_motion_vel.getVals()->get();
-		for (int i = 0; i < m_strands->totverts; ++i) {
-			StrandsMotionState *ms = &m_strands->state[i];
-			copy_v3_v3(ms->co, co->getValue());
-			copy_v3_v3(ms->vel, vel->getValue());
+		if (co && vel) {
+			BKE_strands_add_motion_state(m_strands);
 			
-			++co;
-			++vel;
+			for (int i = 0; i < m_strands->totverts; ++i) {
+				StrandsMotionState *ms = &m_strands->state[i];
+				copy_v3_v3(ms->co, co->getValue());
+				copy_v3_v3(ms->vel, vel->getValue());
+				
+				++co;
+				++vel;
+			}
 		}
 	}
 	

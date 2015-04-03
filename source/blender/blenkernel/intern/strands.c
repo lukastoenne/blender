@@ -19,6 +19,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "BKE_strands.h"
 
@@ -45,14 +46,72 @@ void BKE_strands_free(Strands *strands)
 			MEM_freeN(strands->curves);
 		if (strands->verts)
 			MEM_freeN(strands->verts);
+		if (strands->state)
+			MEM_freeN(strands->state);
 		MEM_freeN(strands);
+	}
+}
+
+/* copy the rest positions to initialize the motion state */
+void BKE_strands_state_copy_rest_positions(Strands *strands)
+{
+	if (strands->state) {
+		int i;
+		for (i = 0; i < strands->totverts; ++i) {
+			copy_v3_v3(strands->state[i].co, strands->verts[i].co);
+		}
+	}
+}
+
+/* copy the rest positions to initialize the motion state */
+void BKE_strands_state_copy_root_positions(Strands *strands)
+{
+	if (strands->state) {
+		StrandIterator it_strand;
+		int i = 0;
+		for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+			copy_v3_v3(strands->state[i].co, strands->verts[i].co);
+			i += it_strand.curve->numverts;
+		}
+	}
+}
+
+/* copy the rest positions to initialize the motion state */
+void BKE_strands_state_clear_velocities(Strands *strands)
+{
+	if (strands->state) {
+		int i;
+		
+		for (i = 0; i < strands->totverts; ++i) {
+			zero_v3(strands->state[i].vel);
+		}
 	}
 }
 
 void BKE_strands_add_motion_state(Strands *strands)
 {
 	if (!strands->state) {
+		int i;
+		
 		strands->state = MEM_mallocN(sizeof(StrandsMotionState) * strands->totverts, "strand motion states");
+		
+		BKE_strands_state_copy_rest_positions(strands);
+		BKE_strands_state_clear_velocities(strands);
+		
+		/* initialize normals */
+		for (i = 0; i < strands->totverts; ++i) {
+			copy_v3_v3(strands->state[i].nor, strands->verts[i].nor);
+		}
+	}
+}
+
+void BKE_strands_remove_motion_state(Strands *strands)
+{
+	if (strands) {
+		if (strands->state) {
+			MEM_freeN(strands->state);
+			strands->state = NULL;
+		}
 	}
 }
 

@@ -32,6 +32,7 @@
 extern "C" {
 #include "MEM_guardedalloc.h"
 
+#include "DNA_cache_library_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_force.h"
@@ -46,6 +47,7 @@ extern "C" {
 #include "BKE_cloth.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
+#include "BKE_strands.h"
 }
 
 #include "BPH_mass_spring.h"
@@ -1081,6 +1083,272 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 	BPH_hair_volume_get_texture_data(grid, vd);
 	
 	BPH_hair_volume_free_vertex_grid(grid);
+	
+	return true;
+}
+
+/* ========================================================================= */
+
+struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *UNUSED(params))
+{
+	static float I3[3][3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
+	
+	struct Implicit_Data *id;
+	int numverts = strands->totverts;
+	int numsprings = strands->totverts - strands->totcurves;
+	int i;
+	
+	id = BPH_mass_spring_solver_create(numverts, numsprings);
+	
+	for (i = 0; i < numverts; i++) {
+		// TODO define mass
+		float mass = 1.0f;
+		BPH_mass_spring_set_vertex_mass(id, i, mass);
+	}
+	
+	for (i = 0; i < numverts; i++) {
+		BPH_mass_spring_set_rest_transform(id, i, I3);
+		BPH_mass_spring_set_motion_state(id, i, strands->state[i].co, strands->state[i].vel);
+	}
+	
+	return id;
+}
+
+/* Init constraint matrix
+ * This is part of the modified CG method suggested by Baraff/Witkin in
+ * "Large Steps in Cloth Simulation" (Siggraph 1998)
+ */
+static void strands_setup_constraints(Strands *strands, Implicit_Data *data, ColliderContacts *UNUSED(contacts), int UNUSED(totcolliders), float UNUSED(dt))
+{
+	static const float ZERO[3] = { 0.0f, 0.0f, 0.0f };
+	
+	BPH_mass_spring_clear_constraints(data);
+	
+	StrandIterator it_strand;
+	int i = 0;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		/* pin strand roots */
+		BPH_mass_spring_add_constraint_ndof0(data, i, ZERO); /* velocity is defined externally */
+		
+//		StrandVertexIterator it_vert;
+//		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+//		}
+		
+		i += it_strand.curve->numverts;
+	}
+
+#if 0
+	for (i = 0; i < totcolliders; ++i) {
+		ColliderContacts *ct = &contacts[i];
+		for (j = 0; j < ct->totcollisions; ++j) {
+			CollPair *collpair = &ct->collisions[j];
+//			float restitution = (1.0f - clmd->coll_parms->damping) * (1.0f - ct->ob->pd->pdef_sbdamp);
+			float restitution = 0.0f;
+			int v = collpair->face1;
+			float impulse[3];
+			
+			/* pinned verts handled separately */
+			if (verts[v].flags & CLOTH_VERT_FLAG_PINNED)
+				continue;
+			
+			/* XXX cheap way of avoiding instability from multiple collisions in the same step
+			 * this should eventually be supported ...
+			 */
+			if (verts[v].impulse_count > 0)
+				continue;
+			
+			/* calculate collision response */
+			if (!collision_response(clmd, ct->collmd, collpair, dt, restitution, impulse))
+				continue;
+			
+			BPH_mass_spring_add_constraint_ndof2(data, v, collpair->normal, impulse);
+			++verts[v].impulse_count;
+		}
+	}
+#endif
+}
+
+/* Collect forces and derivatives:  F, dFdX, dFdV */
+static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors, float step)
+{
+	unsigned int numverts = strands->totverts;
+	
+	int i = 0;
+//	float drag = params->Cvi * 0.01f; /* viscosity of air scaled in percent */
+	float gravity[3] = {0.0f, 0.0f, 0.0f};
+	
+	/* global acceleration (gravitation) */
+	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+		/* scale gravity force */
+		mul_v3_v3fl(gravity, scene->physics_settings.gravity, params->effector_weights->global_gravity);
+	}
+	for (i = 0; i < numverts; i++) {
+		float mass = 1.0f; // TODO
+		BPH_mass_spring_force_gravity(data, i, mass, gravity);
+	}
+
+#if 0
+	BPH_mass_spring_force_drag(data, drag);
+#endif
+	
+#if 0
+	/* handle external forces like wind */
+	if (effectors) {
+		/* cache per-vertex forces to avoid redundant calculation */
+		float (*winvec)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
+		for (i = 0; i < cloth->numverts; i++) {
+			float x[3], v[3];
+			EffectedPoint epoint;
+			
+			BPH_mass_spring_get_motion_state(data, i, x, v);
+			pd_point_from_loc(clmd->scene, x, v, i, &epoint);
+			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
+		}
+		
+		for (i = 0; i < cloth->numfaces; i++) {
+			MFace *mf = &mfaces[i];
+			BPH_mass_spring_force_face_wind(data, mf->v1, mf->v2, mf->v3, mf->v4, winvec);
+		}
+
+		ClothHairData *hairdata = clmd->hairdata;
+		
+		vert = cloth->verts;
+		for (i = 0; i < cloth->numverts; i++, vert++) {
+			if (hairdata) {
+				ClothHairData *hair = &hairdata[i];
+				BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
+			}
+			else
+				BPH_mass_spring_force_vertex_wind(data, i, 1.0f, winvec);
+		}
+
+		MEM_freeN(winvec);
+	}
+#endif
+	
+	/* spring forces */
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert, it_vert_prev;
+		BKE_strand_vertex_iter_init(&it_vert, &it_strand);
+		if (BKE_strand_vertex_iter_valid(&it_vert)) {
+			it_vert_prev = it_vert;
+			BKE_strand_vertex_iter_next(&it_vert);
+			for (; BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+				
+				int vi = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert);
+				int vj = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert_prev);
+				float restlen = len_v3v3(it_vert.vertex->co, it_vert_prev.vertex->co);
+				
+				float stiffness = params->stretch_stiffness;
+				float damping = stiffness * params->stretch_damping;
+				BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, stiffness, damping, true, 0.0f, NULL, NULL, NULL);
+			}
+		}
+		
+		i += it_strand.curve->numverts;
+	}
+}
+
+bool BPH_strands_solve(Strands *strands, Implicit_Data *id, HairSimParams *params, float frame, float frame_prev, Scene *scene, ListBase *effectors)
+{
+	if (params->timescale == 0.0f || params->substeps < 1)
+		return false;
+	
+	float tf = (FRA2TIME(frame) - FRA2TIME(frame_prev)) * params->timescale;
+	float dt = tf / params->substeps;
+	int numverts = strands->totverts;
+	
+	int i;
+	float step;
+	ColliderContacts *contacts = NULL;
+	int totcolliders = 0;
+	
+//	if (!clmd->solver_result)
+//		clmd->solver_result = (ClothSolverResult *)MEM_callocN(sizeof(ClothSolverResult), "cloth solver result");
+//	cloth_clear_result(clmd);
+	
+	/* initialize solver data */
+	for (i = 0; i < numverts; i++) {
+		BPH_mass_spring_set_motion_state(id, i, strands->state[i].co, strands->state[i].vel);
+	}
+	
+#if 0
+	if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) { /* do goal stuff */
+		for (i = 0; i < numverts; i++) {
+			// update velocities with constrained velocities from pinned verts
+			if (verts [i].flags & CLOTH_VERT_FLAG_PINNED) {
+				float v[3];
+				sub_v3_v3v3(v, verts[i].xconst, verts[i].xold);
+				// mul_v3_fl(v, clmd->sim_parms->stepsPerFrame);
+				BPH_mass_spring_set_velocity(id, i, v);
+			}
+		}
+	}
+#endif
+	
+	for (step = 0.0f; step < tf; step += dt) {
+		ImplicitSolverResult result;
+		
+#if 0
+		/* determine contact points */
+		if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) {
+			cloth_find_point_contacts(ob, clmd, 0.0f, tf, &contacts, &totcolliders);
+		}
+#endif
+		
+		/* setup vertex constraints for pinned vertices and contacts */
+		strands_setup_constraints(strands, id, contacts, totcolliders, dt);
+		
+		/* initialize forces to zero */
+		BPH_mass_spring_clear_forces(id);
+		
+		// calculate forces
+		strands_calc_force(strands, params, id, frame, scene, effectors, step);
+		
+		// calculate new velocity and position
+		BPH_mass_spring_solve_velocities(id, dt, &result);
+//		cloth_record_result(clmd, &result, clmd->sim_parms->stepsPerFrame);
+		
+#if 0
+		if (is_hair) {
+			cloth_continuum_step(clmd, dt);
+		}
+#endif
+		
+		BPH_mass_spring_solve_positions(id, dt);
+		
+		BPH_mass_spring_apply_result(id);
+		
+#if 0
+		/* move pinned verts to correct position */
+		for (i = 0; i < numverts; i++) {
+			if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) {
+				if (verts[i].flags & CLOTH_VERT_FLAG_PINNED) {
+					float x[3];
+					interp_v3_v3v3(x, verts[i].xold, verts[i].xconst, step + dt);
+					BPH_mass_spring_set_position(id, i, x);
+				}
+			}
+			
+			BPH_mass_spring_get_motion_state(id, i, verts[i].txold, NULL);
+		}
+#endif
+		
+#if 0
+		/* free contact points */
+		if (contacts) {
+			cloth_free_contacts(contacts, totcolliders);
+		}
+#endif
+		
+		step += dt;
+	}
+	
+	/* copy results back to strand data */
+	for (i = 0; i < numverts; i++) {
+		BPH_mass_spring_get_motion_state(id, i, strands->state[i].co, strands->state[i].vel);
+	}
 	
 	return true;
 }

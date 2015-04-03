@@ -237,7 +237,9 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	
 	/* === prepare === */
 	
-	DupliCache *write_dupcache = BKE_dupli_cache_new();
+	CacheProcessData process_data;
+	
+	process_data.dupcache = BKE_dupli_cache_new();
 	
 	if (cache_library_bake_stop(data))
 		return;
@@ -247,7 +249,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 			data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
 			break;
 		case CACHE_LIBRARY_SOURCE_CACHE:
-			data->writer = PTC_writer_duplicache(data->group->id.name, data->group, write_dupcache, data->cachelib->data_types);
+			data->writer = PTC_writer_duplicache(data->group->id.name, data->group, process_data.dupcache, data->cachelib->data_types);
 			break;
 	}
 	if (!data->writer)
@@ -268,8 +270,16 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 		scene->r.cfra = frame;
 		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 		
-		BKE_cache_read_dupli_cache(data->cachelib, write_dupcache, scene, data->group, frame, data->cache_eval_mode);
-		BKE_cache_process_dupli_cache(data->cachelib, write_dupcache, scene, data->group, frame_prev, frame, data->cache_eval_mode);
+		switch (data->cachelib->source_mode) {
+			case CACHE_LIBRARY_SOURCE_SCENE:
+				BKE_dupli_cache_from_group(scene, data->group, data->cachelib, process_data.dupcache, &data->eval_ctx);
+				break;
+			case CACHE_LIBRARY_SOURCE_CACHE:
+				BKE_cache_read_dupli_cache(data->cachelib, process_data.dupcache, scene, data->group, frame, data->cache_eval_mode);
+				break;
+		}
+		
+		BKE_cache_process_dupli_cache(data->cachelib, &process_data, scene, data->group, frame_prev, frame, data->cache_eval_mode);
 		
 		PTC_write_sample(data->writer);
 		
@@ -287,7 +297,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	
 	data->cachelib->flag &= ~CACHE_LIBRARY_BAKING;
 	
-	BKE_dupli_cache_free(write_dupcache);
+	BKE_dupli_cache_free(process_data.dupcache);
 }
 
 static void cache_library_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)

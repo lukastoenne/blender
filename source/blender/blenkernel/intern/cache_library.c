@@ -51,6 +51,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_library.h"
@@ -63,6 +64,8 @@
 #include "BLF_translation.h"
 
 #include "PTC_api.h"
+
+#include "BPH_mass_spring.h"
 
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
@@ -521,7 +524,7 @@ CacheModifier *BKE_cache_modifier_copy(CacheLibrary *cachelib, CacheModifier *md
 	if (mti->copy)
 		mti->copy(md, tmd);
 	
-	BLI_addtail(&cachelib->modifiers, md);
+	BLI_addtail(&cachelib->modifiers, tmd);
 	
 	return tmd;
 }
@@ -534,7 +537,7 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 		mti->foreachIDLink(md, cachelib, walk, userdata);
 }
 
-void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, DupliCache *dupcache,
+void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *data,
                                    Scene *scene, Group *dupgroup, float frame_prev, float frame, eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 	CacheProcessContext ctx;
@@ -549,31 +552,69 @@ void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, DupliCache *dupcache,
 		CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
 		
 		if (mti->process)
-			mti->process(md, &ctx, dupcache, frame, frame_prev);
+			mti->process(md, &ctx, data, frame, frame_prev);
 	}
 }
 
 /* ------------------------------------------------------------------------- */
 
-static void hairsim_init(HairSimCacheModifier *UNUSED(md))
+static void hairsim_params_init(HairSimParams *params)
 {
+	params->timescale = 1.0f;
+	params->substeps = 5;
+	
+	params->mass = 0.3f;
+	params->drag = 0.1f;
+	
+	params->stretch_stiffness = 1000.0f;
+	params->stretch_damping = 1.0f;
+	params->bend_stiffness = 100.0f;
+	params->bend_damping = 1.0f;
+	params->goal_stiffness = 0.0f;
+	params->goal_damping = 1.0f;
+	
+	params->effector_weights = BKE_add_effector_weights(NULL);
 }
 
-static void hairsim_copy(HairSimCacheModifier *UNUSED(md), HairSimCacheModifier *UNUSED(tmd))
+static void hairsim_init(HairSimCacheModifier *hsmd)
 {
+	hairsim_params_init(&hsmd->sim_params);
 }
 
-static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, DupliCache *dupcache, int frame, int frame_prev)
+static void hairsim_copy(HairSimCacheModifier *hsmd, HairSimCacheModifier *thsmd)
 {
-	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(dupcache);
+	if (hsmd->sim_params.effector_weights)
+		thsmd->sim_params.effector_weights = MEM_dupallocN(hsmd->sim_params.effector_weights);
+}
+
+static void hairsim_free(HairSimCacheModifier *hsmd)
+{
+	if (hsmd->sim_params.effector_weights)
+		MEM_freeN(hsmd->sim_params.effector_weights);
+}
+
+static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
+{
+	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
 		DupliObjectData *data = BKE_dupli_cache_iter_get(iter);
-		LinkData *link;
+		DupliObjectDataStrands *link;
 		
 		for (link = data->strands.first; link; link = link->next) {
-			Strands *strands = link->data;
+			Strands *strands = link->strands;
+			
+			struct Implicit_Data *solver_data;
 			
 			BKE_strands_add_motion_state(strands);
+			
+			/* scalp animation: copy motion of the roots */
+			BKE_strands_state_copy_root_positions(strands);
+			
+			solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
+			
+			BPH_strands_solve(strands, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
+			
+			BPH_mass_spring_solver_free(solver_data);
 		}
 	}
 	BKE_dupli_cache_iter_free(iter);
@@ -588,7 +629,7 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
     /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)NULL,
     /* process */           (CacheModifier_ProcessFunc)hairsim_process,
     /* init */              (CacheModifier_InitFunc)hairsim_init,
-    /* free */              (CacheModifier_FreeFunc)NULL,
+    /* free */              (CacheModifier_FreeFunc)hairsim_free,
 };
 
 void BKE_cache_modifier_init(void)

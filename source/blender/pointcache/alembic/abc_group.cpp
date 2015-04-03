@@ -40,6 +40,7 @@ extern "C" {
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_library.h"
+#include "BKE_strands.h"
 }
 
 namespace PTC {
@@ -373,7 +374,9 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 				}
 			}
 			else if (ICurvesSchema::matches(metadata)) {
-				AbcStrandsReader strands_reader;
+				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
+				
+				AbcStrandsReader strands_reader(strands);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
 				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
@@ -382,7 +385,12 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 						insert_dupli_data(object.getPtr(), dupli_data);
 					}
 					
-					BKE_dupli_object_data_add_strands(dupli_data, strands_reader.acquire_result());
+					Strands *newstrands = strands_reader.acquire_result();
+					if (strands && strands != newstrands) {
+						/* reader can replace strands internally if topology does not match */
+						BKE_strands_free(strands);
+					}
+					BKE_dupli_object_data_add_strands(dupli_data, child.getName().c_str(), newstrands);
 				}
 				else {
 					strands_reader.discard_result();
@@ -430,6 +438,8 @@ PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 	for (size_t i = 0; i < abc_top.getNumChildren(); ++i) {
 		read_dupligroup_object(abc_top.getChild(i), frame);
 	}
+	
+	BKE_dupli_cache_clear_instances(dupli_cache);
 	
 	/* now generate dupli instances for the group */
 	read_dupligroup_group(abc_group, ss);
@@ -493,6 +503,7 @@ void AbcDupliCacheReader::build_object_map_add_group(Group *group)
 AbcDupliObjectWriter::AbcDupliObjectWriter(const std::string &name, DupliObjectData *dupdata, bool do_mesh, bool do_strands) :
     ObjectWriter(dupdata->ob, name),
     m_dupdata(dupdata),
+    m_do_strands(do_strands),
     m_dm_writer(0)
 {
 	if (do_mesh) {
@@ -500,19 +511,28 @@ AbcDupliObjectWriter::AbcDupliObjectWriter(const std::string &name, DupliObjectD
 			m_dm_writer = new AbcDerivedMeshWriter("mesh", dupdata->ob, &dupdata->dm);
 		}
 	}
-	
-	if (do_strands) {
-		int index = 0;
-		for (LinkData *link = (LinkData *)dupdata->strands.first; link; link = link->next) {
-			Strands *strands = (Strands *)link->data;
-			if (strands) {
-				std::stringstream ss;
-				ss << "strands" << index;
-				m_strands_writers.push_back(new AbcStrandsWriter(ss.str(), strands));
-				
-				++index;
-			}
-		}
+}
+
+AbcStrandsWriter *AbcDupliObjectWriter::find_strands_writer(const std::string &name) const
+{
+	StrandsWriters::const_iterator it = m_strands_writers.find(name);
+	return (it != m_strands_writers.end()) ? it->second : NULL;
+}
+
+AbcStrandsWriter *AbcDupliObjectWriter::add_strands_writer(const std::string &name)
+{
+	StrandsWriters::const_iterator it = m_strands_writers.find(name);
+	if (it != m_strands_writers.end()) {
+		return it->second;
+	}
+	else {
+		AbcStrandsWriter *writer = new AbcStrandsWriter(name, m_dupdata);
+		m_strands_writers.insert(StrandsWritersPair(name, writer));
+		
+		writer->init(abc_archive());
+		writer->init_abc(m_abc_object);
+		
+		return writer;
 	}
 }
 
@@ -520,9 +540,10 @@ AbcDupliObjectWriter::~AbcDupliObjectWriter()
 {
 	if (m_dm_writer)
 		delete m_dm_writer;
-	for (int i = 0; i < m_strands_writers.size(); ++i)
-		if (m_strands_writers[i])
-			delete m_strands_writers[i];
+	for (StrandsWriters::iterator it = m_strands_writers.begin(); it != m_strands_writers.end(); ++it) {
+		if (it->second)
+			delete it->second;
+	}
 }
 
 void AbcDupliObjectWriter::init_abc()
@@ -537,14 +558,6 @@ void AbcDupliObjectWriter::init_abc()
 		m_dm_writer->init(abc_archive());
 		m_dm_writer->init_abc(m_abc_object);
 	}
-	
-	for (int i = 0; i < m_strands_writers.size(); ++i) {
-		AbcStrandsWriter *strands_writer = m_strands_writers[i];
-		if (strands_writer) {
-			strands_writer->init(abc_archive());
-			strands_writer->init_abc(m_abc_object);
-		}
-	}
 }
 
 void AbcDupliObjectWriter::write_sample()
@@ -556,10 +569,13 @@ void AbcDupliObjectWriter::write_sample()
 		m_dm_writer->write_sample();
 	}
 	
-	for (int i = 0; i < m_strands_writers.size(); ++i) {
-		AbcStrandsWriter *strands_writer = m_strands_writers[i];
-		if (strands_writer) {
-			strands_writer->write_sample();
+	if (m_do_strands) {
+		int index = 0;
+		for (DupliObjectDataStrands *link = (DupliObjectDataStrands *)m_dupdata->strands.first;
+		     link;
+		     link = link->next, ++index) {
+			AbcStrandsWriter *writer = add_strands_writer(link->name);
+			writer->write_sample();
 		}
 	}
 }
@@ -614,11 +630,18 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 				}
 			}
 			else if (ICurvesSchema::matches(metadata)) {
-				AbcStrandsReader strands_reader;
+				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
+				
+				AbcStrandsReader strands_reader(strands);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
 				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
-					BKE_dupli_object_data_add_strands(dupli_data, strands_reader.acquire_result());
+					Strands *newstrands = strands_reader.acquire_result();
+					if (strands && strands != newstrands) {
+						/* reader can replace strands internally if topology does not match */
+						BKE_strands_free(strands);
+					}
+					BKE_dupli_object_data_add_strands(dupli_data, child.getName().c_str(), newstrands);
 				}
 				else {
 					strands_reader.discard_result();

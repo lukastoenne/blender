@@ -2076,10 +2076,10 @@ static void draw_dupli_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base
 	draw_object(scene, ar, v3d, base, dflag);
 	
 	if (dob_data) {
-		LinkData *link;
+		DupliObjectDataStrands *link;
 		
 		for (link = dob_data->strands.first; link; link = link->next) {
-			struct Strands *strands = link->data;
+			struct Strands *strands = link->strands;
 			
 			draw_strands(scene, v3d, ar, base->object, strands, dflag);
 		}
