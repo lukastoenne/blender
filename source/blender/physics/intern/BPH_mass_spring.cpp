@@ -1120,6 +1120,81 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 
 /* ========================================================================= */
 
+struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct StrandSimParams *UNUSED(params))
+{
+	static float I3[3][3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
+	
+	struct Implicit_Data *id;
+	int numverts = strands->totverts;
+	int numsprings = strands->totverts - strands->totcurves;
+	int i;
+	
+	id = BPH_mass_spring_solver_create(numverts, numsprings);
+	
+	for (i = 0; i < numverts; i++) {
+		// TODO define mass
+		float mass = 1.0f;
+		BPH_mass_spring_set_vertex_mass(id, i, mass);
+	}
+	
+	for (i = 0; i < numverts; i++) {
+		BPH_mass_spring_set_rest_transform(id, i, I3);
+		BPH_mass_spring_set_motion_state(id, i, strands->state[i].co, strands->state[i].vel);
+	}
+	
+	return id;
+}
+
+/* Init constraint matrix
+ * This is part of the modified CG method suggested by Baraff/Witkin in
+ * "Large Steps in Cloth Simulation" (Siggraph 1998)
+ */
+static void strands_setup_constraints(Strands *strands, Implicit_Data *data, ColliderContacts *contacts, int totcolliders, float dt)
+{
+	BPH_mass_spring_clear_constraints(data);
+	
+#if 0
+	for (v = 0; v < numverts; v++) {
+		if (verts[v].flags & CLOTH_VERT_FLAG_PINNED) {
+			/* pinned vertex constraints */
+			BPH_mass_spring_add_constraint_ndof0(data, v, ZERO); /* velocity is defined externally */
+		}
+		
+		verts[v].impulse_count = 0;
+	}
+#endif
+
+#if 0
+	for (i = 0; i < totcolliders; ++i) {
+		ColliderContacts *ct = &contacts[i];
+		for (j = 0; j < ct->totcollisions; ++j) {
+			CollPair *collpair = &ct->collisions[j];
+//			float restitution = (1.0f - clmd->coll_parms->damping) * (1.0f - ct->ob->pd->pdef_sbdamp);
+			float restitution = 0.0f;
+			int v = collpair->face1;
+			float impulse[3];
+			
+			/* pinned verts handled separately */
+			if (verts[v].flags & CLOTH_VERT_FLAG_PINNED)
+				continue;
+			
+			/* XXX cheap way of avoiding instability from multiple collisions in the same step
+			 * this should eventually be supported ...
+			 */
+			if (verts[v].impulse_count > 0)
+				continue;
+			
+			/* calculate collision response */
+			if (!collision_response(clmd, ct->collmd, collpair, dt, restitution, impulse))
+				continue;
+			
+			BPH_mass_spring_add_constraint_ndof2(data, v, collpair->normal, impulse);
+			++verts[v].impulse_count;
+		}
+	}
+#endif
+}
+
 /* Collect forces and derivatives:  F, dFdX, dFdV */
 static void strands_calc_force(Strands *strands, StrandSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors, float step)
 {
@@ -1203,8 +1278,8 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 	
 	int i;
 	float step;
-//	ColliderContacts *contacts = NULL;
-//	int totcolliders = 0;
+	ColliderContacts *contacts = NULL;
+	int totcolliders = 0;
 	
 //	if (!clmd->solver_result)
 //		clmd->solver_result = (ClothSolverResult *)MEM_callocN(sizeof(ClothSolverResult), "cloth solver result");
@@ -1233,16 +1308,14 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 		ImplicitSolverResult result;
 		
 #if 0
-		if (is_hair) {
-			/* determine contact points */
-			if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) {
-				cloth_find_point_contacts(ob, clmd, 0.0f, tf, &contacts, &totcolliders);
-			}
-			
-			/* setup vertex constraints for pinned vertices and contacts */
-			cloth_setup_constraints(clmd, contacts, totcolliders, dt);
+		/* determine contact points */
+		if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) {
+			cloth_find_point_contacts(ob, clmd, 0.0f, tf, &contacts, &totcolliders);
 		}
 #endif
+		
+		/* setup vertex constraints for pinned vertices and contacts */
+		strands_setup_constraints(strands, id, contacts, totcolliders, dt);
 		
 		/* initialize forces to zero */
 		BPH_mass_spring_clear_forces(id);

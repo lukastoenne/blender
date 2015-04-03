@@ -53,7 +53,18 @@ void BKE_strands_free(Strands *strands)
 void BKE_strands_add_motion_state(Strands *strands)
 {
 	if (!strands->state) {
+		int i;
+		
 		strands->state = MEM_mallocN(sizeof(StrandsMotionState) * strands->totverts, "strand motion states");
+		
+		/* XXX for now just copy from the goal state to initialize
+		 * this could be much more interesting
+		 */
+		for (i = 0; i < strands->totverts; ++i) {
+			copy_v3_v3(strands->state[i].co, strands->verts[i].co);
+			zero_v3(strands->state[i].vel);
+			copy_v3_v3(strands->state[i].nor, strands->verts[i].nor);
+		}
 	}
 }
 

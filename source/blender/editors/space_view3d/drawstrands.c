@@ -52,6 +52,8 @@
 
 static void draw_strand_lines(Strands *strands, short dflag)
 {
+	const bool has_motion_state = strands->state;
+	
 	GLint polygonmode[2];
 	StrandIterator it_strand;
 	
@@ -75,8 +77,14 @@ static void draw_strand_lines(Strands *strands, short dflag)
 		if (it_strand.tot <= 0)
 			continue;
 		
-		glVertexPointer(3, GL_FLOAT, sizeof(StrandsVertex), it_strand.verts->co);
-		glNormalPointer(GL_FLOAT, sizeof(StrandsVertex), it_strand.verts->nor);
+		if (has_motion_state) {
+			glVertexPointer(3, GL_FLOAT, sizeof(StrandsMotionState), it_strand.state->co);
+			glNormalPointer(GL_FLOAT, sizeof(StrandsMotionState), it_strand.state->nor);
+		}
+		else {
+			glVertexPointer(3, GL_FLOAT, sizeof(StrandsVertex), it_strand.verts->co);
+			glNormalPointer(GL_FLOAT, sizeof(StrandsVertex), it_strand.verts->nor);
+		}
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
 //			if (part->draw_col == PART_DRAW_COL_MAT) {
 //				glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);

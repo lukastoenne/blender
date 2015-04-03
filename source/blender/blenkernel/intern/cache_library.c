@@ -583,12 +583,10 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 			Strands *strands = link->strands;
 			
 			struct Implicit_Data *solver_data;
-			int numsprings;
 			
 			BKE_strands_add_motion_state(strands);
 			
-			numsprings = strands->totverts - strands->totcurves;
-			solver_data = BPH_mass_spring_solver_create(strands->totverts, numsprings);
+			solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
 			
 			BPH_strands_solve(strands, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
 			

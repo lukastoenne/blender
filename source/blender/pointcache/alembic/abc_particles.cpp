@@ -272,12 +272,12 @@ void AbcStrandsWriter::init_abc(OObject parent)
 	OCurvesSchema &schema = m_curves.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
-	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
-	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
+	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
+	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	
-	m_param_motion_state = OCompoundProperty(geom_props, "motion_state");
-	m_param_motion_co = OP3fGeomParam(m_param_motion_state, "position", false, kVertexScope, 1, 0);
-	m_param_motion_vel = OV3fGeomParam(m_param_motion_state, "velocity", false, kVertexScope, 1, 0);
+	m_param_motion_state = OCompoundProperty(geom_props, "motion_state", abc_archive()->frame_sampling());
+	m_param_motion_co = OP3fGeomParam(m_param_motion_state, "position", false, kVertexScope, 1, abc_archive()->frame_sampling());
+	m_param_motion_vel = OV3fGeomParam(m_param_motion_state, "velocity", false, kVertexScope, 1, abc_archive()->frame_sampling());
 }
 
 static void strands_create_sample(Strands *strands, StrandsSample &sample, bool do_numverts)
@@ -350,7 +350,7 @@ void AbcStrandsWriter::write_sample()
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.weights), kVertexScope));
 	
-	if (!strands->state) {
+	if (strands->state) {
 		m_param_motion_co.set(OP3fGeomParam::Sample(P3fArraySample(strands_sample.motion_co), kVertexScope));
 		m_param_motion_vel.set(OV3fGeomParam::Sample(V3fArraySample(strands_sample.motion_vel), kVertexScope));
 	}
@@ -438,11 +438,11 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		IP3fGeomParam::Sample sample_motion_co = m_param_motion_co.getExpandedValue(ss);
 		IV3fGeomParam::Sample sample_motion_vel = m_param_motion_vel.getExpandedValue(ss);
 		
-		BKE_strands_add_motion_state(m_strands);
-		
 		const V3f *co = sample_motion_co.getVals()->get();
 		const V3f *vel = sample_motion_vel.getVals()->get();
 		if (co && vel) {
+			BKE_strands_add_motion_state(m_strands);
+			
 			for (int i = 0; i < m_strands->totverts; ++i) {
 				StrandsMotionState *ms = &m_strands->state[i];
 				copy_v3_v3(ms->co, co->getValue());
