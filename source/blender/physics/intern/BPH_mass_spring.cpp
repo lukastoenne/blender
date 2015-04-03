@@ -1149,20 +1149,24 @@ struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct 
  * This is part of the modified CG method suggested by Baraff/Witkin in
  * "Large Steps in Cloth Simulation" (Siggraph 1998)
  */
-static void strands_setup_constraints(Strands *strands, Implicit_Data *data, ColliderContacts *contacts, int totcolliders, float dt)
+static void strands_setup_constraints(Strands *strands, Implicit_Data *data, ColliderContacts *UNUSED(contacts), int UNUSED(totcolliders), float UNUSED(dt))
 {
+	static const float ZERO[3] = { 0.0f, 0.0f, 0.0f };
+	
 	BPH_mass_spring_clear_constraints(data);
 	
-#if 0
-	for (v = 0; v < numverts; v++) {
-		if (verts[v].flags & CLOTH_VERT_FLAG_PINNED) {
-			/* pinned vertex constraints */
-			BPH_mass_spring_add_constraint_ndof0(data, v, ZERO); /* velocity is defined externally */
-		}
+	StrandIterator it_strand;
+	int i = 0;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		/* pin strand roots */
+		BPH_mass_spring_add_constraint_ndof0(data, i, ZERO); /* velocity is defined externally */
 		
-		verts[v].impulse_count = 0;
+//		StrandVertexIterator it_vert;
+//		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+//		}
+		
+		i += it_strand.curve->numverts;
 	}
-#endif
 
 #if 0
 	for (i = 0; i < totcolliders; ++i) {
@@ -1204,7 +1208,6 @@ static void strands_calc_force(Strands *strands, StrandSimParams *params, Implic
 //	float drag = params->Cvi * 0.01f; /* viscosity of air scaled in percent */
 	float gravity[3] = {0.0f, 0.0f, 0.0f};
 	
-#if 1
 	/* global acceleration (gravitation) */
 	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
 		/* scale gravity force */
@@ -1215,7 +1218,6 @@ static void strands_calc_force(Strands *strands, StrandSimParams *params, Implic
 		float mass = 1.0f; // TODO
 		BPH_mass_spring_force_gravity(data, i, mass, gravity);
 	}
-#endif
 
 #if 0
 	BPH_mass_spring_force_drag(data, drag);
