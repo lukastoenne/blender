@@ -2023,7 +2023,11 @@ static void direct_link_cache_modifiers(FileData *fd, ListBase *modifiers)
 		
 		
 		switch (md->type) {
-			// TODO
+			case eCacheModifierType_HairSimulation: {
+				HairSimCacheModifier *hsmd = (HairSimCacheModifier *)md;
+				hsmd->sim_params.effector_weights = newdataadr(fd, hsmd->sim_params.effector_weights);
+				break;
+			}
 		}
 	}
 }

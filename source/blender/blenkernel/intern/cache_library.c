@@ -51,6 +51,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_library.h"
@@ -561,6 +562,8 @@ static void hairsim_params_init(HairSimParams *params)
 {
 	params->timescale = 1.0f;
 	params->substeps = 5;
+	
+	params->effector_weights = BKE_add_effector_weights(NULL);
 }
 
 static void hairsim_init(HairSimCacheModifier *hsmd)
@@ -570,6 +573,14 @@ static void hairsim_init(HairSimCacheModifier *hsmd)
 
 static void hairsim_copy(HairSimCacheModifier *hsmd, HairSimCacheModifier *thsmd)
 {
+	if (hsmd->sim_params.effector_weights)
+		thsmd->sim_params.effector_weights = MEM_dupallocN(hsmd->sim_params.effector_weights);
+}
+
+static void hairsim_free(HairSimCacheModifier *hsmd)
+{
+	if (hsmd->sim_params.effector_weights)
+		MEM_freeN(hsmd->sim_params.effector_weights);
 }
 
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
@@ -608,7 +619,7 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
     /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)NULL,
     /* process */           (CacheModifier_ProcessFunc)hairsim_process,
     /* init */              (CacheModifier_InitFunc)hairsim_init,
-    /* free */              (CacheModifier_FreeFunc)NULL,
+    /* free */              (CacheModifier_FreeFunc)hairsim_free,
 };
 
 void BKE_cache_modifier_init(void)

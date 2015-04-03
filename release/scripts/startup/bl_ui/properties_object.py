@@ -20,6 +20,7 @@
 import bpy
 from bpy.types import Panel, Menu
 from rna_prop_ui import PropertyPanel
+from bl_ui.properties_physics_common import effector_weights_ui
 
 
 class ObjectButtonsPanel:
@@ -320,7 +321,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row.operator("cachelibrary.remove_modifier", icon='X', text="", emboss=False)
 
         # match enum type to our functions, avoids a lookup table.
-        getattr(self, md.type)(layout, cachelib, md)
+        getattr(self, md.type)(layout, context, cachelib, md)
 
     def draw_cachelib(self, context, layout, ob, cachelib, objects):
         col = layout.column()
@@ -418,8 +419,9 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
                 cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
                 self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
 
-    def HAIR_SIMULATION(self, layout, cachelib, md):
-        pass
+    def HAIR_SIMULATION(self, context, layout, cachelib, md):
+        params = md.parameters
+        effector_weights_ui(self, context, params.effector_weights, 'HAIR')
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

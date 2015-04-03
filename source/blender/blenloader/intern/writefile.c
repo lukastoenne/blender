@@ -3497,7 +3497,11 @@ static void write_cache_modifiers(WriteData *wd, CacheLibrary *cachelib)
 		writestruct(wd, DATA, struct_name, 1, md);
 		
 		switch (md->type) {
-			// TODO add specifics here
+			case eCacheModifierType_HairSimulation: {
+				HairSimCacheModifier *hsmd = (HairSimCacheModifier *)md;
+				writestruct(wd, DATA, "EffectorWeights", 1, hsmd->sim_params.effector_weights);
+				break;
+			}
 		}
 	}
 }

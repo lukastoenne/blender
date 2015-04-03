@@ -175,6 +175,11 @@ static void rna_def_hair_sim_params(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "HairSimParams");
 	RNA_def_struct_ui_text(srna, "Hair Simulation Parameters", "Simulation parameters for hair simulation");
 	RNA_def_struct_ui_icon(srna, ICON_HAIR);
+	
+	prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "EffectorWeights");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Effector Weights", "");
 }
 
 static void rna_def_cache_modifier_hair_simulation(BlenderRNA *brna)
