@@ -1272,7 +1272,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, StrandSimParams *par
 	if (params->timescale == 0.0f || params->substeps < 1)
 		return false;
 	
-	float tf = (frame - frame_prev) * params->timescale;
+	float tf = (FRA2TIME(frame) - FRA2TIME(frame_prev)) * params->timescale;
 	float dt = tf / params->substeps;
 	int numverts = strands->totverts;
 	
