@@ -586,6 +586,9 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 			
 			BKE_strands_add_motion_state(strands);
 			
+			/* scalp animation: copy motion of the roots */
+			BKE_strands_state_copy_root_positions(strands);
+			
 			solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
 			
 			BPH_strands_solve(strands, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);

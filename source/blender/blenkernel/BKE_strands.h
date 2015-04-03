@@ -55,6 +55,9 @@ struct Strands *BKE_strands_new(int strands, int verts);
 void BKE_strands_free(struct Strands *strands);
 
 void BKE_strands_add_motion_state(struct Strands *strands);
+void BKE_strands_state_copy_rest_positions(Strands *strands);
+void BKE_strands_state_copy_root_positions(Strands *strands);
+void BKE_strands_state_clear_velocities(Strands *strands);
 
 void BKE_strands_ensure_normals(struct Strands *strands);
 
