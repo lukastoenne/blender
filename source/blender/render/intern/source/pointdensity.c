@@ -86,6 +86,10 @@ static int point_data_used(PointDensity *pd)
 		{
 			pd_bitflag |= POINT_DATA_LIFE;
 		}
+		if ((pd->color_source == TEX_PD_COLOR_PARTTEX))
+		{
+			pd_bitflag |= POINT_DATA_COLOR;
+		}
 	}
 
 	return pd_bitflag;
@@ -107,10 +111,27 @@ static void alloc_point_data(PointDensity *pd, int total_particles, int point_da
 		/* store 1 channel of lifetime data */
 		data_size += 1;
 	}
+	if (point_data_used & POINT_DATA_COLOR) {
+		/* store 3 channels of color data */
+		data_size += 3;
+	}
 
 	if (data_size) {
 		pd->point_data = MEM_mallocN(sizeof(float) * data_size * total_particles,
 		                             "particle point data");
+	}
+}
+
+/* offset of age and color data in the common point data array */
+static void point_data_get_offset(int total_particles, int point_data_used, int *offset_life, int *offset_color)
+{
+	*offset_life = *offset_color = 0;
+	if (point_data_used & POINT_DATA_VEL) {
+		*offset_life += total_particles * 3;
+		*offset_color += total_particles * 3;
+	}
+	if (point_data_used & POINT_DATA_LIFE) {
+		*offset_color += total_particles;
 	}
 }
 
@@ -129,7 +150,7 @@ static void pointdensity_cache_psys(Scene *scene,
 	ParticleData *pa = NULL;
 	float cfra = BKE_scene_frame_get(scene);
 	int i /*, childexists*/ /* UNUSED */;
-	int total_particles, offset = 0;
+	int total_particles, offset_life = 0, offset_color = 0;
 	int data_used = point_data_used(pd);
 	float partco[3];
 
@@ -161,9 +182,7 @@ static void pointdensity_cache_psys(Scene *scene,
 	pd->point_tree = BLI_bvhtree_new(total_particles, 0.0, 4, 6);
 	alloc_point_data(pd, total_particles, data_used);
 	pd->totpoints = total_particles;
-	if (data_used & POINT_DATA_VEL) {
-		offset = pd->totpoints * 3;
-	}
+	point_data_get_offset(total_particles, data_used, &offset_life, &offset_color);
 
 #if 0 /* UNUSED */
 	if (psys->totchild > 0 && !(psys->part->draw & PART_DRAW_PARENT))
@@ -226,7 +245,12 @@ static void pointdensity_cache_psys(Scene *scene,
 			pd->point_data[i * 3 + 2] = state.vel[2];
 		}
 		if (data_used & POINT_DATA_LIFE) {
-			pd->point_data[offset + i] = state.time;
+			pd->point_data[offset_life + i] = state.time;
+		}
+		if (data_used & POINT_DATA_COLOR) {
+			ParticleTexture ptex;
+			psys_get_texture(&sim, pa, &ptex, PAMAP_COLOR, cfra);
+			copy_v3_v3(&pd->point_data[offset_color + i * 3], ptex.color);
 		}
 	}
 
@@ -388,8 +412,9 @@ typedef struct PointDensityRangeData {
 	short falloff_type;
 	short noise_influence;
 	float *age;
+	float *col;
 	int point_data_used;
-	int offset;
+	int offset_life, offset_color;
 	struct CurveMapping *density_curve;
 	float velscale;
 } PointDensityRangeData;
@@ -406,7 +431,10 @@ static void accum_density(void *userdata, int index, float squared_dist)
 		pdr->vec[2] += pdr->point_data[index * 3 + 2]; // * density;
 	}
 	if (pdr->point_data_used & POINT_DATA_LIFE) {
-		*pdr->age += pdr->point_data[pdr->offset + index]; // * density;
+		*pdr->age += pdr->point_data[pdr->offset_life + index]; // * density;
+	}
+	if (pdr->point_data_used & POINT_DATA_COLOR) {
+		add_v3_v3(pdr->col, &pdr->point_data[pdr->offset_color + index]); // * density;
 	}
 
 	if (pdr->falloff_type == TEX_PD_FALLOFF_STD)
@@ -421,7 +449,7 @@ static void accum_density(void *userdata, int index, float squared_dist)
 		density = sqrtf(dist);
 	else if (pdr->falloff_type == TEX_PD_FALLOFF_PARTICLE_AGE) {
 		if (pdr->point_data_used & POINT_DATA_LIFE)
-			density = dist * MIN2(pdr->point_data[pdr->offset + index], 1.0f);
+			density = dist * MIN2(pdr->point_data[pdr->offset_life + index], 1.0f);
 		else
 			density = dist;
 	}
@@ -442,7 +470,7 @@ static void accum_density(void *userdata, int index, float squared_dist)
 
 
 static void init_pointdensityrangedata(PointDensity *pd, PointDensityRangeData *pdr,
-	float *density, float *vec, float *age, struct CurveMapping *density_curve, float velscale)
+	float *density, float *vec, float *age, float *col, struct CurveMapping *density_curve, float velscale)
 {
 	pdr->squared_radius = pd->radius * pd->radius;
 	pdr->density = density;
@@ -450,10 +478,11 @@ static void init_pointdensityrangedata(PointDensity *pd, PointDensityRangeData *
 	pdr->falloff_type = pd->falloff_type;
 	pdr->vec = vec;
 	pdr->age = age;
+	pdr->col = col;
 	pdr->softness = pd->falloff_softness;
 	pdr->noise_influence = pd->noise_influence;
 	pdr->point_data_used = point_data_used(pd);
-	pdr->offset = (pdr->point_data_used & POINT_DATA_VEL) ? pd->totpoints * 3 : 0;
+	point_data_get_offset(pd->totpoints, pdr->point_data_used, &pdr->offset_life, &pdr->offset_color);
 	pdr->density_curve = density_curve;
 	pdr->velscale = velscale;
 }
@@ -468,7 +497,7 @@ static int pointdensity(PointDensity *pd,
 	int retval = TEX_INT;
 	PointDensityRangeData pdr;
 	float density = 0.0f, age = 0.0f, time = 0.0f;
-	float vec[3] = {0.0f, 0.0f, 0.0f}, co[3];
+	float vec[3] = {0.0f, 0.0f, 0.0f}, color[3] = {0.0f, 0.0f, 0.0f}, co[3];
 	float turb, noise_fac;
 	int num = 0;
 
@@ -477,7 +506,7 @@ static int pointdensity(PointDensity *pd,
 	if ((!pd) || (!pd->point_tree))
 		return 0;
 
-	init_pointdensityrangedata(pd, &pdr, &density, vec, &age,
+	init_pointdensityrangedata(pd, &pdr, &density, vec, &age, color,
 	        (pd->flag & TEX_PD_FALLOFF_CURVE ? pd->falloff_curve : NULL),
 	        pd->falloff_speed_scale * 0.001f);
 	noise_fac = pd->noise_fac * 0.5f;	/* better default */
@@ -530,6 +559,9 @@ static int pointdensity(PointDensity *pd,
 	}
 
 	texres->tin = density;
+	texres->tr = color[0];
+	texres->tg = color[1];
+	texres->tb = color[2];
 	if (r_age != NULL) {
 		*r_age = age;
 	}
@@ -575,6 +607,11 @@ static int pointdensity_color(PointDensity *pd, TexResult *texres, float age, co
 		case TEX_PD_COLOR_PARTVEL:
 			texres->talpha = true;
 			mul_v3_v3fl(&texres->tr, vec, pd->speed_scale);
+			texres->ta = texres->tin;
+			break;
+		case TEX_PD_COLOR_PARTTEX:
+			/* texres already has the particle color */
+			texres->talpha = true;
 			texres->ta = texres->tin;
 			break;
 		case TEX_PD_COLOR_CONSTANT:

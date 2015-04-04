@@ -1674,6 +1674,7 @@ static void rna_def_texture_pointdensity(BlenderRNA *brna)
 		{TEX_PD_COLOR_PARTSPEED, "PARTICLE_SPEED", 0, "Particle Speed",
 		                         "Particle speed (absolute magnitude of velocity) mapped as 0.0-1.0 intensity"},
 		{TEX_PD_COLOR_PARTVEL, "PARTICLE_VELOCITY", 0, "Particle Velocity", "XYZ velocity mapped to RGB colors"},
+		{TEX_PD_COLOR_PARTTEX, "PARTICLE_TEXTURE", 0, "Particle Texture", "Texture color of particles"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
