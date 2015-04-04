@@ -2940,6 +2940,7 @@ static int point_density_color_source_from_shader(NodeShaderTexPointDensity *sha
 		case SHD_POINTDENSITY_COLOR_PARTAGE: return TEX_PD_COLOR_PARTAGE;
 		case SHD_POINTDENSITY_COLOR_PARTSPEED: return TEX_PD_COLOR_PARTSPEED;
 		case SHD_POINTDENSITY_COLOR_PARTVEL: return TEX_PD_COLOR_PARTVEL;
+		case SHD_POINTDENSITY_COLOR_PARTTEX: return TEX_PD_COLOR_PARTTEX;
 		default: BLI_assert(false); return TEX_PD_COLOR_CONSTANT;
 	}
 }
@@ -3837,6 +3838,7 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 		                                   "Particle speed (absolute magnitude of velocity) mapped as 0.0-1.0 intensity"},
 		{SHD_POINTDENSITY_COLOR_PARTVEL, "PARTICLE_VELOCITY", 0, "Particle Velocity",
 		                                 "XYZ velocity mapped to RGB colors"},
+		{SHD_POINTDENSITY_COLOR_PARTTEX, "PARTICLE_TEXTURE", 0, "Particle Texture", "Texture color of particles"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

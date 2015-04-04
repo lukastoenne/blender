@@ -455,7 +455,6 @@ typedef enum eParticleDrawColorMode {
 	PART_DRAW_COL_TEX		= 5,
 } eParticleDrawColorMode;
 
-
 /* part->simplify_flag */
 #define PART_SIMPLIFY_ENABLE	1
 #define PART_SIMPLIFY_VIEWPORT	2

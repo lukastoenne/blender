@@ -597,9 +597,11 @@ enum {
 #define TEX_PD_COLOR_PARTAGE	1
 #define TEX_PD_COLOR_PARTSPEED	2
 #define TEX_PD_COLOR_PARTVEL	3
+#define TEX_PD_COLOR_PARTTEX	4
 
 #define POINT_DATA_VEL		1
 #define POINT_DATA_LIFE		2
+#define POINT_DATA_COLOR	3
 
 /******************** Voxel Data *****************************/
 /* flag */
