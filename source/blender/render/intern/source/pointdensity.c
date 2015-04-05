@@ -172,6 +172,7 @@ static void pointdensity_cache_psys(Scene *scene,
 	sim.scene = scene;
 	sim.ob = ob;
 	sim.psys = psys;
+	sim.psmd = psys_get_modifier(ob, psys);
 
 	/* in case ob->imat isn't up-to-date */
 	invert_m4_m4(ob->imat, ob->obmat);
