@@ -1121,10 +1121,10 @@ static void debug_data_insert(SimDebugData *debug_data, SimDebugElement *elem)
 		BLI_ghash_insert(debug_data->gh, elem, elem);
 }
 
-void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[3], float r, float g, float b, const char *category, unsigned int hash)
+void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[3],
+                                    float r, float g, float b, const char *category, unsigned int hash)
 {
 	unsigned int category_hash = BLI_ghashutil_strhash_p(category);
-	SimDebugElement *elem;
 	
 	if (!_sim_debug_data) {
 		if (G.debug & G_DEBUG_SIMDATA)
@@ -1132,6 +1132,16 @@ void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[
 		else
 			return;
 	}
+	
+	BKE_sim_debug_data_add_element_ex(_sim_debug_data, type, v1, v2, r, g, b, category_hash, hash);
+}
+
+void BKE_sim_debug_data_add_element_ex(SimDebugData *debug_data, int type, const float v1[3], const float v2[3],
+                                       float r, float g, float b, unsigned int category_hash, unsigned int hash)
+{
+	SimDebugElement *elem;
+	if (!debug_data)
+		return;
 	
 	elem = MEM_callocN(sizeof(SimDebugElement), "sim debug data element");
 	elem->type = type;
@@ -1143,17 +1153,22 @@ void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[
 	copy_v3_v3(elem->v1, v1);
 	copy_v3_v3(elem->v2, v2);
 	
-	debug_data_insert(_sim_debug_data, elem);
+	debug_data_insert(debug_data, elem);
 }
 
 void BKE_sim_debug_data_remove_element(unsigned int hash)
 {
+	BKE_sim_debug_data_remove_element_ex(_sim_debug_data, hash);
+}
+
+void BKE_sim_debug_data_remove_element_ex(SimDebugData *debug_data, unsigned int hash)
+{
 	SimDebugElement dummy;
-	if (!_sim_debug_data)
+	if (!debug_data)
 		return;
 	
 	dummy.hash = hash;
-	BLI_ghash_remove(_sim_debug_data->gh, &dummy, NULL, debug_element_free);
+	BLI_ghash_remove(debug_data->gh, &dummy, NULL, debug_element_free);
 }
 
 void BKE_sim_debug_data_clear(void)

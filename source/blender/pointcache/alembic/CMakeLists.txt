@@ -64,6 +64,8 @@ set(SRC
 	abc_object.h
 	abc_particles.cpp
 	abc_particles.h
+	abc_simdebug.cpp
+	abc_simdebug.h
 )
 
 add_definitions(-DWITH_ALEMBIC)

@@ -193,7 +193,10 @@ void BKE_sim_debug_data_free(void);
 
 void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[3],
                                     float r, float g, float b, const char *category, unsigned int hash);
+void BKE_sim_debug_data_add_element_ex(struct SimDebugData *debug_data, int type, const float v1[3], const float v2[3],
+                                       float r, float g, float b, unsigned int category_hash, unsigned int hash);
 void BKE_sim_debug_data_remove_element(unsigned int hash);
+void BKE_sim_debug_data_remove_element_ex(struct SimDebugData *debug_data, unsigned int hash);
 
 #define BKE_sim_debug_data_add_dot(p, r, g, b, category, ...) { \
 	const float v2[3] = { 0.0f, 0.0f, 0.0f }; \
