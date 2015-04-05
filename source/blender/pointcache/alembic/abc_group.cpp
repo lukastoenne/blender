@@ -27,6 +27,7 @@
 #include "abc_group.h"
 #include "abc_object.h"
 #include "abc_particles.h"
+#include "abc_simdebug.h"
 
 extern "C" {
 #include "BLI_listbase.h"
@@ -218,11 +219,17 @@ AbcWriter *AbcDupligroupWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
-AbcDupliCacheWriter::AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types) :
+AbcDupliCacheWriter::AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types, bool do_sim_debug) :
     GroupWriter(group, name),
     m_dupcache(dupcache),
-    m_data_types(data_types)
+    m_data_types(data_types),
+    m_simdebug_writer(NULL)
 {
+	if (do_sim_debug) {
+		BKE_sim_debug_data_set_enabled(true);
+		if (_sim_debug_data)
+			m_simdebug_writer = new AbcSimDebugWriter("sim_debug", _sim_debug_data);
+	}
 }
 
 AbcDupliCacheWriter::~AbcDupliCacheWriter()
@@ -231,6 +238,9 @@ AbcDupliCacheWriter::~AbcDupliCacheWriter()
 		if (it->second)
 			delete it->second;
 	}
+	
+	if (m_simdebug_writer)
+		delete m_simdebug_writer;
 }
 
 void AbcDupliCacheWriter::init_abc()
@@ -239,6 +249,11 @@ void AbcDupliCacheWriter::init_abc()
 		return;
 	
 	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
+	
+	if (m_simdebug_writer) {
+		m_simdebug_writer->init(abc_archive());
+		m_simdebug_writer->init_abc(abc_archive()->root());
+	}
 }
 
 void AbcDupliCacheWriter::write_sample_object_data(DupliObjectData *data)
@@ -307,6 +322,10 @@ void AbcDupliCacheWriter::write_sample()
 	/* write dupli instances */
 	for (dob = (DupliObject *)m_dupcache->duplilist.first, i = 0; dob; dob = dob->next, ++i) {
 		write_sample_dupli(dob, i);
+	}
+	
+	if (m_simdebug_writer) {
+		m_simdebug_writer->write_sample();
 	}
 }
 

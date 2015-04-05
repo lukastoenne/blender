@@ -249,7 +249,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 			data->writer = PTC_writer_dupligroup(data->group->id.name, &data->eval_ctx, scene, data->group, data->cachelib);
 			break;
 		case CACHE_LIBRARY_SOURCE_CACHE:
-			data->writer = PTC_writer_duplicache(data->group->id.name, data->group, process_data.dupcache, data->cachelib->data_types);
+			data->writer = PTC_writer_duplicache(data->group->id.name, data->group, process_data.dupcache, data->cachelib->data_types, G.debug & G_DEBUG_SIMDATA);
 			break;
 	}
 	if (!data->writer)
