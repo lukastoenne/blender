@@ -71,7 +71,7 @@ class StubFactory : public Factory {
 	Writer *create_writer_derived_final_render(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/, DerivedMesh **/*render_dm_ptr*/) { return NULL; }
 	Writer *create_writer_dupligroup(const std::string &/*name*/, EvaluationContext */*eval_ctx*/, Scene */*scene*/, Group */*group*/, CacheLibrary */*cachelib*/) { return NULL; }
 	Writer *create_writer_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/, int /*datatypes*/, bool /*do_sim_debug*/) { return NULL; }
-	Reader *create_reader_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/) { return NULL; }
+	Reader *create_reader_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/, bool /*do_sim_debug*/) { return NULL; }
 	Reader *create_reader_duplicache_object(const std::string &/*name*/, Object */*ob*/, DupliObjectData */*data*/) { return NULL; }
 };
 
@@ -254,9 +254,9 @@ PTCWriter *PTC_writer_duplicache(const char *name, struct Group *group, struct D
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_duplicache(name, group, dupcache, datatypes, do_sim_debug);
 }
 
-PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache)
+PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, bool do_sim_debug)
 {
-	return (PTCReader *)PTC::Factory::alembic->create_reader_duplicache(name, group, dupcache);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_duplicache(name, group, dupcache, do_sim_debug);
 }
 
 PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, struct DupliObjectData *data)

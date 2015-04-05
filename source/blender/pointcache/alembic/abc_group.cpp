@@ -340,19 +340,28 @@ AbcWriter *AbcDupliCacheWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
-AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache) :
+AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache, bool do_sim_debug) :
     GroupReader(group, name),
-    dupli_cache(dupli_cache)
+    dupli_cache(dupli_cache),
+    m_simdebug_reader(NULL)
 {
 	/* XXX this mapping allows fast lookup of existing objects in Blender data
 	 * to associate with duplis. Later i may be possible to create instances of
 	 * non-DNA data, but for the time being this is a requirement due to other code parts (drawing, rendering)
 	 */
 	build_object_map(G.main, group);
+	
+	if (do_sim_debug) {
+		BKE_sim_debug_data_set_enabled(true);
+		if (_sim_debug_data)
+			m_simdebug_reader = new AbcSimDebugReader(_sim_debug_data);
+	}
 }
 
 AbcDupliCacheReader::~AbcDupliCacheReader()
 {
+	if (m_simdebug_reader)
+		delete m_simdebug_reader;
 }
 
 void AbcDupliCacheReader::init_abc(IObject object)
@@ -462,6 +471,16 @@ PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 	
 	/* now generate dupli instances for the group */
 	read_dupligroup_group(abc_group, ss);
+	
+	// XXX reader init is a mess ...
+	if (m_simdebug_reader) {
+		if (abc_top.getChildHeader("sim_debug")) {
+			m_simdebug_reader->init(abc_archive());
+			m_simdebug_reader->init_abc(abc_top.getChild("sim_debug"));
+			
+			m_simdebug_reader->read_sample(frame);
+		}
+	}
 	
 	return PTC_READ_SAMPLE_EXACT;
 }

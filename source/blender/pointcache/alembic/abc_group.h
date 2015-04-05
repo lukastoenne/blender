@@ -38,6 +38,7 @@ namespace PTC {
 class AbcDerivedMeshWriter;
 class AbcStrandsWriter;
 class AbcSimDebugWriter;
+class AbcSimDebugReader;
 
 class AbcGroupWriter : public GroupWriter, public AbcWriter {
 public:
@@ -135,7 +136,7 @@ public:
 	typedef std::pair<std::string, Object*> ObjectPair;
 	
 public:
-	AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupcache);
+	AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupcache, bool do_sim_debug);
 	~AbcDupliCacheReader();
 	
 	void init_abc(Abc::IObject object);
@@ -158,6 +159,7 @@ private:
 	DupliCache *dupli_cache;
 	
 	ObjectMap object_map;
+	AbcSimDebugReader *m_simdebug_reader;
 };
 
 
