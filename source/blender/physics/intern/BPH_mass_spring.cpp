@@ -1276,8 +1276,6 @@ static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit
 				BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, stiffness, damping, true, 0.0f, NULL, NULL, NULL);
 			}
 		}
-		
-		i += it_strand.curve->numverts;
 	}
 }
 
