@@ -462,7 +462,7 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(bAnimListElem *ale);
 void ANIM_channel_debug_print_info(bAnimListElem *ale, short indent_level);
 
 /* Draw the given channel */
-void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float ymaxc);
+void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float ymaxc, size_t channel_index);
 /* Draw the widgets for the given channel */
 void ANIM_channel_draw_widgets(const struct bContext *C, bAnimContext *ac, bAnimListElem *ale, struct uiBlock *block, float yminc, float ymaxc, size_t channel_index);
 
@@ -674,6 +674,14 @@ void ED_keymap_anim(struct wmKeyConfig *keyconf);
 void ED_operatormacros_graph(void);
 /* space_action */
 void ED_operatormacros_action(void);
+
+/* ************************************************ */
+/* Animation Editor Exports */
+/* XXX: Should we be doing these here, or at all? */
+
+/* Action Editor - Action Management */
+struct AnimData *ED_actedit_animdata_from_context(struct bContext *C);
+void ED_animedit_unlink_action(struct bContext *C, struct ID *id, struct AnimData *adt, struct bAction *act, struct ReportList *reports);
 
 /* ************************************************ */
 

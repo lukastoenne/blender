@@ -286,7 +286,7 @@ bool psys_check_enabled(Object *ob, ParticleSystem *psys)
 		return 0;
 
 	psmd = psys_get_modifier(ob, psys);
-	if (psys->renderdata || G.is_rendering) {
+	if (psys->renderdata) {
 		if (!(psmd->modifier.mode & eModifierMode_Render))
 			return 0;
 	}
@@ -407,7 +407,7 @@ void BKE_particlesettings_free(ParticleSettings *part)
 {
 	MTex *mtex;
 	int a;
-	BKE_free_animdata(&part->id);
+	BKE_animdata_free(&part->id);
 	
 	if (part->clumpcurve)
 		curvemapping_free(part->clumpcurve);
@@ -1611,7 +1611,7 @@ void psys_find_parents(ParticleSimulationData *sim)
 	int from = PART_FROM_FACE;
 	totparent = (int)(totchild * part->parents * 0.3f);
 
-	if ((sim->psys->renderdata || G.is_rendering) && part->child_nbr && part->ren_child_nbr)
+	if (sim->psys->renderdata && part->child_nbr && part->ren_child_nbr)
 		totparent *= (float)part->child_nbr / (float)part->ren_child_nbr;
 
 	/* hard limit, workaround for it being ignored above */
@@ -1665,7 +1665,7 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 	if (totchild && part->childtype == PART_CHILD_FACES) {
 		totparent = (int)(totchild * part->parents * 0.3f);
 		
-		if ((psys->renderdata || G.is_rendering) && part->child_nbr && part->ren_child_nbr)
+		if (psys->renderdata && part->child_nbr && part->ren_child_nbr)
 			totparent *= (float)part->child_nbr / (float)part->ren_child_nbr;
 
 		/* part->parents could still be 0 so we can't test with totparent */
@@ -1956,6 +1956,7 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 			if (i >= ctx->totparent) {
 				pa = &psys->particles[cpa->parent];
 				/* this is now threadsafe, virtual parents are calculated before rest of children */
+				BLI_assert(cpa->parent < psys->totchildcache);
 				par = cache[cpa->parent];
 			}
 		}
@@ -2003,6 +2004,7 @@ static void exec_child_path_cache(TaskPool *UNUSED(pool), void *taskdata, int UN
 
 	cpa = psys->child + task->begin;
 	for (i = task->begin; i < task->end; ++i, ++cpa) {
+		BLI_assert(i < psys->totchildcache);
 		psys_thread_create_path(task, cpa, cache[i], i);
 	}
 }

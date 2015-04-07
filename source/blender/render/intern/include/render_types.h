@@ -122,8 +122,7 @@ enum {
 };
 
 /* controls state of render, everything that's read-only during render stage */
-struct Render
-{
+struct Render {
 	struct Render *next, *prev;
 	char name[RE_MAXNAME];
 	int slot;
@@ -275,6 +274,9 @@ struct Render
 
 	struct ImagePool *pool;
 	struct EvaluationContext *eval_ctx;
+
+	void **movie_ctx_arr;
+	char viewname[MAX_NAME];
 };
 
 /* ------------------------------------------------------------------------- */

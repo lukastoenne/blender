@@ -502,6 +502,9 @@ typedef struct SpaceSeq {
 	struct bGPdata *gpd;        /* grease-pencil data */
 
 	struct SequencerScopes scopes;  /* different scoped displayed in space */
+
+	char multiview_eye;				/* multiview current eye - for internal use */
+	char pad2[7];
 } SpaceSeq;
 
 
@@ -553,8 +556,7 @@ typedef enum eSpaceSeq_Proxy_RenderSize {
 	SEQ_PROXY_RENDER_SIZE_FULL      = 100
 } eSpaceSeq_Proxy_RenderSize;
 
-typedef struct MaskSpaceInfo
-{
+typedef struct MaskSpaceInfo {
 	/* **** mask editing **** */
 	struct Mask *mask;
 	/* draw options */

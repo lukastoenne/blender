@@ -866,10 +866,10 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 	keymap = WM_modalkeymap_add(keyconf, "Transform Modal Map", modal_items);
 	
 	/* items for modal map */
-	WM_modalkeymap_add_item(keymap, ESCKEY,    KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
-	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
-	WM_modalkeymap_add_item(keymap, RETKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
-	WM_modalkeymap_add_item(keymap, PADENTER, KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, ESCKEY,    KM_RELEASE, KM_ANY, 0, TFM_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, RETKEY,    KM_RELEASE, KM_ANY, 0, TFM_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, PADENTER,  KM_RELEASE, KM_ANY, 0, TFM_MODAL_CONFIRM);
 
 	WM_modalkeymap_add_item(keymap, GKEY, KM_PRESS, 0, 0, TFM_MODAL_TRANSLATE);
 	WM_modalkeymap_add_item(keymap, RKEY, KM_PRESS, 0, 0, TFM_MODAL_ROTATE);
@@ -5300,9 +5300,10 @@ static void slide_origdata_create_data_vert(
 	loop_weights = BLI_array_alloca(loop_weights, l_num);
 	for (j = 0; j < l_num; j++) {
 		BMLoop *l = BM_iter_step(&liter);
-		if (!BLI_ghash_haskey(sod->origfaces, l->f)) {
+		void **val_p;
+		if (!BLI_ghash_ensure_p(sod->origfaces, l->f, &val_p)) {
 			BMFace *f_copy = BM_face_copy(sod->bm_origfaces, bm, l->f, true, true);
-			BLI_ghash_insert(sod->origfaces, l->f, f_copy);
+			*val_p = f_copy;
 		}
 		loop_weights[j] = BM_loop_calc_face_angle(l);
 	}

@@ -33,6 +33,7 @@
 
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
+#include "DNA_userdef_types.h"
 
 #include "DNA_ID.h"
 
@@ -56,6 +57,7 @@ struct PointerRNA;
 struct ReportList;
 struct Report;
 struct uiLayout;
+struct Stereo3dFormat;
 
 #define OP_MAX_TYPENAME 64
 #define KMAP_MAX_NAME   64
@@ -207,7 +209,7 @@ typedef struct wmWindow {
 	struct wmIMEData *ime_data;
 
 	int drawmethod, drawfail;     /* internal for wm_draw.c only */
-	void *drawdata;               /* internal for wm_draw.c only */
+	ListBase drawdata;            /* internal for wm_draw.c only */
 
 	ListBase queue;               /* all events (ghost level events were handled) */
 	ListBase handlers;            /* window+screen handlers, handled last */
@@ -215,6 +217,8 @@ typedef struct wmWindow {
 
 	ListBase subwindows;          /* opengl stuff for sub windows, see notes in wm_subwindow.c */
 	ListBase gesture;             /* gesture stuff */
+
+	struct Stereo3dFormat *stereo3d_format; /* properties for stereoscopic displays */
 } wmWindow;
 
 #ifdef ime_data
@@ -250,7 +254,8 @@ typedef struct wmKeyMapItem {
 
 	/* event */
 	short type;                     /* event code itself */
-	short val;                      /* KM_ANY, KM_PRESS, KM_NOTHING etc */
+	short val;                      /* NOTE: other than event->val this can be the value itself
+	                                 * (KM_ANY, KM_PRESS, etc) AND the clicktype (KM_DBL_CLICK, KM_HOLD, etc) */
 	short shift, ctrl, alt, oskey;  /* oskey is apple or windowskey, value denotes order of pressed */
 	short keymodifier;              /* rawkey modifier */
 

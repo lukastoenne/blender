@@ -1722,7 +1722,7 @@ DupliObjectData *BKE_dupli_cache_iter_get(DupliCacheIterator *iter)
 
 /* ------------------------------------------------------------------------- */
 
-DupliApplyData *duplilist_apply(Object *ob, ListBase *duplilist)
+DupliApplyData *duplilist_apply(Object *ob, Scene *scene, ListBase *duplilist)
 {
 	DupliApplyData *apply_data = NULL;
 	int num_objects = BLI_listbase_count(duplilist);
@@ -1738,6 +1738,13 @@ DupliApplyData *duplilist_apply(Object *ob, ListBase *duplilist)
 		for (dob = duplilist->first, i = 0; dob; dob = dob->next, ++i) {
 			/* copy obmat from duplis */
 			copy_m4_m4(apply_data->extra[i].obmat, dob->ob->obmat);
+
+			/* make sure derivedmesh is calculated once, before drawing */
+			if (scene && !(dob->ob->transflag & OB_DUPLICALCDERIVED) && dob->ob->type == OB_MESH) {
+				mesh_get_derived_final(scene, dob->ob, scene->customdata_mask);
+				dob->ob->transflag |= OB_DUPLICALCDERIVED;
+			}
+
 			copy_m4_m4(dob->ob->obmat, dob->mat);
 			
 			/* copy layers from the main duplicator object */
@@ -1758,6 +1765,7 @@ void duplilist_restore(ListBase *duplilist, DupliApplyData *apply_data)
 	 */
 	for (dob = duplilist->last, i = apply_data->num_objects - 1; dob; dob = dob->prev, --i) {
 		copy_m4_m4(dob->ob->obmat, apply_data->extra[i].obmat);
+		dob->ob->transflag &= ~OB_DUPLICALCDERIVED;
 		
 		dob->ob->lay = apply_data->extra[i].lay;
 	}
