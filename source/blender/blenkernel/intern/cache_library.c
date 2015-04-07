@@ -35,6 +35,7 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -605,6 +606,12 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
 		DupliObjectData *dobdata = BKE_dupli_cache_iter_get(iter);
 		DupliObjectDataStrands *link;
+		float mat[4][4];
+		
+		if (dobdata->ob)
+			mul_m4_m4m4(mat, data->mat, dobdata->ob->obmat);
+		else
+			copy_m4_m4(mat, data->mat);
 		
 		for (link = dobdata->strands.first; link; link = link->next) {
 			Strands *strands = link->strands;
@@ -615,7 +622,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 			
 			solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
 			
-			BPH_strands_solve(strands, data->mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
+			BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
 			
 			BPH_mass_spring_solver_free(solver_data);
 		}
