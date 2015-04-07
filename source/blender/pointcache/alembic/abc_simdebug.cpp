@@ -157,6 +157,13 @@ static PTCReadSampleResult apply_sample(SimDebugData *data,
 	
 	for (int i = 0; i < numelem; ++i) {
 		BKE_sim_debug_data_add_element_ex(data, *data_type, data_v1->getValue(), data_v2->getValue(), data_color->x, data_color->y, data_color->z, *data_category_hash, *data_hash);
+		
+		++data_category_hash;
+		++data_hash;
+		++data_type;
+		++data_color;
+		++data_v1;
+		++data_v2;
 	}
 	
 	return PTC_READ_SAMPLE_EXACT;
