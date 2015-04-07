@@ -140,4 +140,47 @@ BLI_INLINE size_t BKE_strand_vertex_iter_vertex_offset(Strands *strands, StrandV
 	return iter->vertex - strands->verts;
 }
 
+
+typedef struct StrandEdgeIterator {
+	int index, tot;
+	StrandsVertex *vertex0, *vertex1;
+	StrandsMotionState *state0, *state1;
+} StrandEdgeIterator;
+
+BLI_INLINE void BKE_strand_edge_iter_init(StrandEdgeIterator *iter, StrandIterator *strand_iter)
+{
+	iter->tot = strand_iter->curve->numverts - 1;
+	iter->index = 0;
+	iter->vertex0 = strand_iter->verts;
+	iter->state0 = strand_iter->state;
+	iter->vertex1 = strand_iter->verts + 1;
+	iter->state1 = strand_iter->state + 1;
+}
+
+BLI_INLINE bool BKE_strand_edge_iter_valid(StrandEdgeIterator *iter)
+{
+	return iter->index < iter->tot;
+}
+
+BLI_INLINE void BKE_strand_edge_iter_next(StrandEdgeIterator *iter)
+{
+	++iter->vertex0;
+	++iter->vertex1;
+	if (iter->state0) {
+		++iter->state0;
+		++iter->state1;
+	}
+	++iter->index;
+}
+
+BLI_INLINE size_t BKE_strand_edge_iter_vertex0_offset(Strands *strands, StrandEdgeIterator *iter)
+{
+	return iter->vertex0 - strands->verts;
+}
+
+BLI_INLINE size_t BKE_strand_edge_iter_vertex1_offset(Strands *strands, StrandEdgeIterator *iter)
+{
+	return iter->vertex1 - strands->verts;
+}
+
 #endif  /* __BKE_STRANDS_H__ */
