@@ -62,6 +62,8 @@ void BKE_strands_state_clear_velocities(struct Strands *strands);
 
 void BKE_strands_ensure_normals(struct Strands *strands);
 
+void BKE_strands_get_minmax(struct Strands *strands, float min[3], float max[3], bool use_motion_state);
+
 /* ------------------------------------------------------------------------- */
 
 typedef struct StrandIterator {

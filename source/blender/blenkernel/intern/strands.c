@@ -147,3 +147,20 @@ void BKE_strands_ensure_normals(Strands *strands)
 	if (use_motion_state)
 		calc_normals(strands, true);
 }
+
+void BKE_strands_get_minmax(Strands *strands, float min[3], float max[3], bool use_motion_state)
+{
+	int numverts = strands->totverts;
+	int i;
+	
+	if (use_motion_state && strands->state) {
+		for (i = 0; i < numverts; ++i) {
+			minmax_v3v3_v3(min, max, strands->state[i].co);
+		}
+	}
+	else {
+		for (i = 0; i < numverts; ++i) {
+			minmax_v3v3_v3(min, max, strands->verts[i].co);
+		}
+	}
+}

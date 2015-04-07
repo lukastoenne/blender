@@ -1328,13 +1328,23 @@ int count_duplilist(Object *ob)
 
 static void dupli_cache_calc_boundbox(DupliObjectData *data)
 {
+	DupliObjectDataStrands *link;
 	float min[3], max[3];
+	bool has_data = false;
 	
+	INIT_MINMAX(min, max);
 	if (data->dm) {
-		INIT_MINMAX(min, max);
 		data->dm->getMinMax(data->dm, min, max);
+		has_data = true;
 	}
-	else {
+	for (link = data->strands.first; link; link = link->next) {
+		if (link->strands) {
+			BKE_strands_get_minmax(link->strands, min, max, true);
+			has_data = true;
+		}
+	}
+	
+	if (!has_data) {
 		zero_v3(min);
 		zero_v3(max);
 	}
