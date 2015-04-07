@@ -1200,7 +1200,7 @@ static void strands_setup_constraints(Strands *strands, Implicit_Data *data, Col
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */
-static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors, float step)
+static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors)
 {
 	unsigned int numverts = strands->totverts;
 	
@@ -1281,17 +1281,50 @@ static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit
 	}
 }
 
+/* calculates the velocity of strand roots using the new rest location (verts->co) and the current motion state */
+static void strands_calc_root_velocity(Strands *strands, Implicit_Data *data, float timestep)
+{
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		if (it_strand.curve->numverts > 0) {
+			int index = BKE_strand_iter_vertex_offset(strands, &it_strand);
+			
+			float vel[3];
+			sub_v3_v3v3(vel, it_strand.verts[0].co, it_strand.state[0].co);
+			mul_v3_fl(vel, 1.0f/timestep);
+			
+			BPH_mass_spring_set_velocity(data, index, vel);
+		}
+	}
+}
+
+/* calculates the location of strand roots using the new rest location (verts->co) and the current motion state */
+static void strands_calc_root_location(Strands *strands, Implicit_Data *data, float step)
+{
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		if (it_strand.curve->numverts > 0) {
+			int index = BKE_strand_iter_vertex_offset(strands, &it_strand);
+			
+			float co[3];
+			interp_v3_v3v3(co, it_strand.state[0].co, it_strand.verts[0].co, step);
+			
+			BPH_mass_spring_set_position(data, index, co);
+		}
+	}
+}
+
 bool BPH_strands_solve(Strands *strands, Implicit_Data *id, HairSimParams *params, float frame, float frame_prev, Scene *scene, ListBase *effectors)
 {
 	if (params->timescale == 0.0f || params->substeps < 1)
 		return false;
 	
-	float tf = (FRA2TIME(frame) - FRA2TIME(frame_prev)) * params->timescale;
-	float dt = tf / params->substeps;
+	float timestep = (FRA2TIME(frame) - FRA2TIME(frame_prev)) * params->timescale;
+	float dstep = 1.0f / params->substeps;
+	float dtime = timestep * dstep;
 	int numverts = strands->totverts;
 	
 	int i;
-	float step;
 	ColliderContacts *contacts = NULL;
 	int totcolliders = 0;
 	
@@ -1303,6 +1336,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, HairSimParams *param
 	for (i = 0; i < numverts; i++) {
 		BPH_mass_spring_set_motion_state(id, i, strands->state[i].co, strands->state[i].vel);
 	}
+	strands_calc_root_velocity(strands, id, timestep);
 	
 #if 0
 	if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) { /* do goal stuff */
@@ -1318,7 +1352,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, HairSimParams *param
 	}
 #endif
 	
-	for (step = 0.0f; step < tf; step += dt) {
+	for (float step = 0.0f; step < 1.0f; step += dstep) {
 		ImplicitSolverResult result;
 		
 #if 0
@@ -1329,42 +1363,30 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, HairSimParams *param
 #endif
 		
 		/* setup vertex constraints for pinned vertices and contacts */
-		strands_setup_constraints(strands, id, contacts, totcolliders, dt);
+		strands_setup_constraints(strands, id, contacts, totcolliders, dtime);
 		
 		/* initialize forces to zero */
 		BPH_mass_spring_clear_forces(id);
 		
 		// calculate forces
-		strands_calc_force(strands, params, id, frame, scene, effectors, step);
+		strands_calc_force(strands, params, id, frame, scene, effectors);
 		
 		// calculate new velocity and position
-		BPH_mass_spring_solve_velocities(id, dt, &result);
+		BPH_mass_spring_solve_velocities(id, dtime, &result);
 //		cloth_record_result(clmd, &result, clmd->sim_parms->stepsPerFrame);
 		
 #if 0
 		if (is_hair) {
-			cloth_continuum_step(clmd, dt);
+			cloth_continuum_step(clmd, dtime);
 		}
 #endif
 		
-		BPH_mass_spring_solve_positions(id, dt);
+		BPH_mass_spring_solve_positions(id, dtime);
 		
 		BPH_mass_spring_apply_result(id);
 		
-#if 0
 		/* move pinned verts to correct position */
-		for (i = 0; i < numverts; i++) {
-			if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) {
-				if (verts[i].flags & CLOTH_VERT_FLAG_PINNED) {
-					float x[3];
-					interp_v3_v3v3(x, verts[i].xold, verts[i].xconst, step + dt);
-					BPH_mass_spring_set_position(id, i, x);
-				}
-			}
-			
-			BPH_mass_spring_get_motion_state(id, i, verts[i].txold, NULL);
-		}
-#endif
+		strands_calc_root_location(strands, id, step + dstep);
 		
 #if 0
 		/* free contact points */
@@ -1373,7 +1395,7 @@ bool BPH_strands_solve(Strands *strands, Implicit_Data *id, HairSimParams *param
 		}
 #endif
 		
-		step += dt;
+		step += dstep;
 	}
 	
 	/* copy results back to strand data */

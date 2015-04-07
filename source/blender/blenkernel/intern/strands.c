@@ -64,19 +64,6 @@ void BKE_strands_state_copy_rest_positions(Strands *strands)
 }
 
 /* copy the rest positions to initialize the motion state */
-void BKE_strands_state_copy_root_positions(Strands *strands)
-{
-	if (strands->state) {
-		StrandIterator it_strand;
-		int i = 0;
-		for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
-			copy_v3_v3(strands->state[i].co, strands->verts[i].co);
-			i += it_strand.curve->numverts;
-		}
-	}
-}
-
-/* copy the rest positions to initialize the motion state */
 void BKE_strands_state_clear_velocities(Strands *strands)
 {
 	if (strands->state) {
