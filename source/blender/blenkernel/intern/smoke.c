@@ -564,6 +564,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			smd->domain->viewsettings = MOD_SMOKE_VIEW_SHOWBIG;
 			smd->domain->effector_weights = BKE_add_effector_weights(NULL);
+
+			smd->domain->display_thickness = 1.0f;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
