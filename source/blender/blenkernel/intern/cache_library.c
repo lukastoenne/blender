@@ -603,10 +603,10 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	
 	iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
-		DupliObjectData *data = BKE_dupli_cache_iter_get(iter);
+		DupliObjectData *dobdata = BKE_dupli_cache_iter_get(iter);
 		DupliObjectDataStrands *link;
 		
-		for (link = data->strands.first; link; link = link->next) {
+		for (link = dobdata->strands.first; link; link = link->next) {
 			Strands *strands = link->strands;
 			
 			struct Implicit_Data *solver_data;
@@ -615,7 +615,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 			
 			solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
 			
-			BPH_strands_solve(strands, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
+			BPH_strands_solve(strands, data->mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
 			
 			BPH_mass_spring_solver_free(solver_data);
 		}

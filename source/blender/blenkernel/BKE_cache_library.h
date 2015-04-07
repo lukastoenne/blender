@@ -93,6 +93,7 @@ typedef struct CacheProcessContext {
 } CacheProcessContext;
 
 typedef struct CacheProcessData {
+	float mat[4][4];
 	struct DupliCache *dupcache;
 } CacheProcessData;
 

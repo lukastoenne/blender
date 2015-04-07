@@ -201,6 +201,7 @@ typedef struct CacheLibraryBakeJob {
 	struct Main *bmain;
 	struct Scene *scene;
 	struct CacheLibrary *cachelib;
+	float mat[4][4];
 	struct Group *group;
 	
 	eCacheLibrary_EvalMode cache_eval_mode;
@@ -239,6 +240,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	
 	CacheProcessData process_data;
 	
+	copy_m4_m4(process_data.mat, data->mat);
 	process_data.dupcache = BKE_dupli_cache_new();
 	
 	if (cache_library_bake_stop(data))
@@ -417,6 +419,7 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	data->bmain = bmain;
 	data->scene = scene;
 	data->cachelib = cachelib;
+	copy_m4_m4(data->mat, ob->obmat);
 	data->group = ob->dup_group;
 	
 	WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
