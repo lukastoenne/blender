@@ -566,7 +566,7 @@ static void hairsim_params_init(HairSimParams *params)
 	params->mass = 0.3f;
 	params->drag = 0.1f;
 	
-	params->stretch_stiffness = 1000.0f;
+	params->stretch_stiffness = 10000.0f;
 	params->stretch_damping = 0.1f;
 	params->bend_stiffness = 100.0f;
 	params->bend_damping = 1.0f;
