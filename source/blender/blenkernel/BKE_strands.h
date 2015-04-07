@@ -183,4 +183,56 @@ BLI_INLINE size_t BKE_strand_edge_iter_vertex1_offset(Strands *strands, StrandEd
 	return iter->vertex1 - strands->verts;
 }
 
+
+typedef struct StrandBendIterator {
+	int index, tot;
+	StrandsVertex *vertex0, *vertex1, *vertex2;
+	StrandsMotionState *state0, *state1, *state2;
+} StrandBendIterator;
+
+BLI_INLINE void BKE_strand_bend_iter_init(StrandBendIterator *iter, StrandIterator *strand_iter)
+{
+	iter->tot = strand_iter->curve->numverts - 2;
+	iter->index = 0;
+	iter->vertex0 = strand_iter->verts;
+	iter->state0 = strand_iter->state;
+	iter->vertex1 = strand_iter->verts + 1;
+	iter->state1 = strand_iter->state + 1;
+	iter->vertex2 = strand_iter->verts + 2;
+	iter->state2 = strand_iter->state + 2;
+}
+
+BLI_INLINE bool BKE_strand_bend_iter_valid(StrandBendIterator *iter)
+{
+	return iter->index < iter->tot;
+}
+
+BLI_INLINE void BKE_strand_bend_iter_next(StrandBendIterator *iter)
+{
+	++iter->vertex0;
+	++iter->vertex1;
+	++iter->vertex2;
+	if (iter->state0) {
+		++iter->state0;
+		++iter->state1;
+		++iter->state2;
+	}
+	++iter->index;
+}
+
+BLI_INLINE size_t BKE_strand_bend_iter_vertex0_offset(Strands *strands, StrandBendIterator *iter)
+{
+	return iter->vertex0 - strands->verts;
+}
+
+BLI_INLINE size_t BKE_strand_bend_iter_vertex1_offset(Strands *strands, StrandBendIterator *iter)
+{
+	return iter->vertex1 - strands->verts;
+}
+
+BLI_INLINE size_t BKE_strand_bend_iter_vertex2_offset(Strands *strands, StrandBendIterator *iter)
+{
+	return iter->vertex2 - strands->verts;
+}
+
 #endif  /* __BKE_STRANDS_H__ */
