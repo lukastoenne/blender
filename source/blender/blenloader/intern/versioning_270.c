@@ -852,28 +852,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		} FOREACH_NODETREE_END
 	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "Sequence", "char", "storage")) {
-		Scene *scene;
-		Sequence *seq;
-
-#define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
-#define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
-
-		for (scene = main->scene.first; scene; scene = scene->id.next) {
-			SEQ_BEGIN (scene->ed, seq) {
-				if (seq->strip && seq->strip->proxy) {
-					if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)
-						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
-					if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE)
-						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
-				}
-			}
-			SEQ_END
-		}
-#undef SEQ_USE_PROXY_CUSTOM_DIR
-#undef SEQ_USE_PROXY_CUSTOM_FILE
-	}
-
 	{
 		bScreen *scr;
 		ScrArea *sa;
@@ -925,6 +903,18 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 					seq->flag |= SEQ_SCENE_STRIPS;
 					seq->flag &= ~SEQ_USE_VIEWS;
 				}
+
+#define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
+#define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
+				if (seq->strip && seq->strip->proxy && !seq->strip->proxy->storage) {
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
+				}
+#undef SEQ_USE_PROXY_CUSTOM_DIR
+#undef SEQ_USE_PROXY_CUSTOM_FILE
+
 			}
 			SEQ_END
 		}
