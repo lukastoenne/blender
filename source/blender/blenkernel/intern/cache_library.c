@@ -595,7 +595,13 @@ static void hairsim_free(HairSimCacheModifier *hsmd)
 
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
 {
-	struct DupliCacheIterator *iter = BKE_dupli_cache_iter_new(data->dupcache);
+	struct DupliCacheIterator *iter;
+	
+	/* skip first step and potential backward steps */
+	if (frame <= frame_prev)
+		return;
+	
+	iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
 		DupliObjectData *data = BKE_dupli_cache_iter_get(iter);
 		DupliObjectDataStrands *link;

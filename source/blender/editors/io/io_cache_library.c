@@ -266,7 +266,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	/* === frame loop === */
 	
 	cache_library_bake_set_progress(data, 0.0f);
-	for (frame = start_frame; frame <= end_frame; frame_prev = frame++) {
+	for (frame = frame_prev = start_frame; frame <= end_frame; frame_prev = frame++) {
 		scene->r.cfra = frame;
 		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 		
