@@ -106,6 +106,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	int gl_depth = 0, gl_blend = 0;
 
 	int use_fire = (sds->active_fields & SM_ACTIVE_FIRE);
+	const float thickness = sds->display_thickness;
 
 	/* draw slices of smoke is adapted from c++ code authored
 	 * by: Johannes Schmid and Ingemar Rask, 2006, johnny@grob.org */
@@ -364,9 +365,9 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 		glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 0, dx, dx, dx, 1.0);
 		/* custom parameter for smoke style (higher = thicker) */
 		if (sds->active_fields & SM_ACTIVE_COLORS)
-			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 1, 1.0, 1.0, 1.0, 10.0);
+			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 1, 1.0, 1.0, 1.0, 10.0 * thickness);
 		else
-			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 1, sds->active_color[0], sds->active_color[1], sds->active_color[2], 10.0);
+			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 1, sds->active_color[0], sds->active_color[1], sds->active_color[2], 10.0 * thickness);
 	}
 	else
 		printf("Your gfx card does not support 3D View smoke drawing.\n");

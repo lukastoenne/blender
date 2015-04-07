@@ -151,6 +151,10 @@ typedef struct SmokeDomainSettings {
 	float burning_rate, flame_smoke, flame_vorticity;
 	float flame_ignition, flame_max_temp;
 	float flame_smoke_color[3];
+
+	/* display */
+	float display_thickness;
+	int pad2;
 } SmokeDomainSettings;
 
 

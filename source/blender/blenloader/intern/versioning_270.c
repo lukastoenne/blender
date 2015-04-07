@@ -52,6 +52,7 @@
 #include "DNA_actuator_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_smoke_types.h"
 
 #include "DNA_genfile.h"
 
@@ -977,6 +978,21 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		for (wm = main->wm.first; wm; wm = wm->id.next) {
 			for (win = wm->windows.first; win; win = win->next) {
 				win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
+			}
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "SmokeDomainSettings", "float", "display_thickness")) {
+		Object *ob;
+		ModifierData *md;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Smoke) {
+					SmokeModifierData *smd = (SmokeModifierData *)md;
+					if (smd->domain) {
+						smd->domain->display_thickness = 1.0f;
+					}
+				}
 			}
 		}
 	}

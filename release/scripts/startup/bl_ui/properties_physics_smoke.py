@@ -136,6 +136,25 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
             col.prop(coll, "collision_type")
 
 
+class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Display"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        return md and (md.smoke_type == 'DOMAIN')
+
+    def draw(self, context):
+        layout = self.layout
+        domain = context.smoke.domain_settings
+
+        split = layout.split()
+
+        col = split.column(align=True)
+        col.prop(domain, "display_thickness")
+
+
 class PHYSICS_PT_smoke_flow_advanced(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Flow Advanced"
     bl_options = {'DEFAULT_CLOSED'}
