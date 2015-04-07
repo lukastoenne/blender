@@ -1265,7 +1265,7 @@ static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit
 		if (BKE_strand_vertex_iter_valid(&it_vert)) {
 			it_vert_prev = it_vert;
 			BKE_strand_vertex_iter_next(&it_vert);
-			for (; BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			for (; BKE_strand_vertex_iter_valid(&it_vert); it_vert_prev = it_vert, BKE_strand_vertex_iter_next(&it_vert)) {
 				
 				int vi = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert);
 				int vj = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert_prev);
