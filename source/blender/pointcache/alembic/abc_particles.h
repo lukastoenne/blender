@@ -84,6 +84,7 @@ private:
 	ParticleSystemModifierData *m_psmd;
 	
 	AbcGeom::OCurves m_curves;
+	AbcGeom::OM33fGeomParam m_param_root_matrix;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
 };
@@ -104,6 +105,7 @@ private:
 	DupliObjectData *m_dobdata;
 	
 	AbcGeom::OCurves m_curves;
+	AbcGeom::OM33fGeomParam m_param_root_matrix;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
 	AbcGeom::OCompoundProperty m_param_motion_state;
@@ -127,6 +129,7 @@ private:
 	Strands *m_strands;
 	
 	AbcGeom::ICurves m_curves;
+	AbcGeom::IM33fGeomParam m_param_root_matrix;
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IFloatGeomParam m_param_weights;
 	AbcGeom::ICompoundProperty m_param_motion_state;

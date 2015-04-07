@@ -1577,7 +1577,11 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 						StrandsVertex *svert = strands->verts;
 						
 						for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+							float hairmat[4][4];
+							psys_mat_hair_to_object(dob->ob, data->dm, psys->part->from, pa, hairmat);
+							
 							scurve->numverts = pa->totkey;
+							copy_m3_m4(scurve->root_matrix, hairmat);
 							
 							for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 								copy_v3_v3(svert->co, hkey->co);

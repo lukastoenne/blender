@@ -40,6 +40,7 @@ typedef struct StrandsMotionState {
 
 typedef struct StrandsCurve {
 	int numverts;
+	float root_matrix[3][3];
 } StrandsCurve;
 
 typedef struct Strands {
