@@ -64,7 +64,33 @@ void BKE_strands_ensure_normals(struct Strands *strands);
 
 void BKE_strands_get_minmax(struct Strands *strands, float min[3], float max[3], bool use_motion_state);
 
+typedef struct StrandsChildCurve {
+	int numverts;
+} StrandsChildCurve;
+
+typedef struct StrandsChildVertex {
+	float co[3];
+	float time;
+	
+	/* utility data */
+	float nor[3]; /* normals (edge directions) */
+} StrandsChildVertex;
+
+typedef struct StrandsChildren {
+	StrandsChildCurve *curves;
+	StrandsChildVertex *verts;
+	int totcurves, totverts;
+} StrandsChildren;
+
+struct StrandsChildren *BKE_strands_children_new(int strands, int verts);
+void BKE_strands_children_free(struct StrandsChildren *strands);
+
+void BKE_strands_children_ensure_normals(struct StrandsChildren *strands);
+
+void BKE_strands_children_get_minmax(struct StrandsChildren *strands, float min[3], float max[3]);
+
 /* ------------------------------------------------------------------------- */
+/* Strand Curves Iterator */
 
 typedef struct StrandIterator {
 	int index, tot;
@@ -108,6 +134,8 @@ BLI_INLINE size_t BKE_strand_iter_vertex_offset(Strands *strands, StrandIterator
 	return iter->verts - strands->verts;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Strand Vertices Iterator */
 
 typedef struct StrandVertexIterator {
 	int index, tot;
@@ -141,6 +169,8 @@ BLI_INLINE size_t BKE_strand_vertex_iter_vertex_offset(Strands *strands, StrandV
 	return iter->vertex - strands->verts;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Strand Edges Iterator */
 
 typedef struct StrandEdgeIterator {
 	int index, tot;
@@ -184,6 +214,8 @@ BLI_INLINE size_t BKE_strand_edge_iter_vertex1_offset(Strands *strands, StrandEd
 	return iter->vertex1 - strands->verts;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Strand Bends Iterator */
 
 typedef struct StrandBendIterator {
 	int index, tot;
@@ -238,5 +270,115 @@ BLI_INLINE size_t BKE_strand_bend_iter_vertex2_offset(Strands *strands, StrandBe
 
 void BKE_strand_bend_iter_transform_rest(StrandBendIterator *iter, float mat[3][3]);
 void BKE_strand_bend_iter_transform_state(StrandBendIterator *iter, float mat[3][3]);
+
+/* ------------------------------------------------------------------------- */
+/* Strand Child Curves Iterator */
+
+typedef struct StrandChildIterator {
+	int index, tot;
+	StrandsChildCurve *curve;
+	StrandsChildVertex *verts;
+} StrandChildIterator;
+
+BLI_INLINE void BKE_strand_child_iter_init(StrandChildIterator *iter, StrandsChildren *strands)
+{
+	iter->tot = strands->totcurves;
+	iter->index = 0;
+	iter->curve = strands->curves;
+	iter->verts = strands->verts;
+}
+
+BLI_INLINE bool BKE_strand_child_iter_valid(StrandChildIterator *iter)
+{
+	return iter->index < iter->tot;
+}
+
+BLI_INLINE void BKE_strand_child_iter_next(StrandChildIterator *iter)
+{
+	const int numverts = iter->curve->numverts;
+	
+	++iter->index;
+	++iter->curve;
+	iter->verts += numverts;
+}
+
+BLI_INLINE size_t BKE_strand_child_iter_curve_offset(StrandsChildren *strands, StrandChildIterator *iter)
+{
+	return iter->curve - strands->curves;
+}
+
+BLI_INLINE size_t BKE_strand_child_iter_vertex_offset(StrandsChildren *strands, StrandChildIterator *iter)
+{
+	return iter->verts - strands->verts;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Strand Child Vertices Iterator */
+
+typedef struct StrandChildVertexIterator {
+	int index, tot;
+	StrandsChildVertex *vertex;
+} StrandChildVertexIterator;
+
+BLI_INLINE void BKE_strand_child_vertex_iter_init(StrandChildVertexIterator *iter, StrandChildIterator *strand_iter)
+{
+	iter->tot = strand_iter->curve->numverts;
+	iter->index = 0;
+	iter->vertex = strand_iter->verts;
+}
+
+BLI_INLINE bool BKE_strand_child_vertex_iter_valid(StrandChildVertexIterator *iter)
+{
+	return iter->index < iter->tot;
+}
+
+BLI_INLINE void BKE_strand_child_vertex_iter_next(StrandChildVertexIterator *iter)
+{
+	++iter->vertex;
+	++iter->index;
+}
+
+BLI_INLINE size_t BKE_strand_child_vertex_iter_vertex_offset(StrandsChildren *strands, StrandChildVertexIterator *iter)
+{
+	return iter->vertex - strands->verts;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Strand Child Edges Iterator */
+
+typedef struct StrandChildEdgeIterator {
+	int index, tot;
+	StrandsChildVertex *vertex0, *vertex1;
+} StrandChildEdgeIterator;
+
+BLI_INLINE void BKE_strand_child_edge_iter_init(StrandChildEdgeIterator *iter, StrandChildIterator *strand_iter)
+{
+	iter->tot = strand_iter->curve->numverts - 1;
+	iter->index = 0;
+	iter->vertex0 = strand_iter->verts;
+	iter->vertex1 = strand_iter->verts + 1;
+}
+
+BLI_INLINE bool BKE_strand_child_edge_iter_valid(StrandChildEdgeIterator *iter)
+{
+	return iter->index < iter->tot;
+}
+
+BLI_INLINE void BKE_strand_child_edge_iter_next(StrandChildEdgeIterator *iter)
+{
+	++iter->vertex0;
+	++iter->vertex1;
+	++iter->index;
+}
+
+BLI_INLINE size_t BKE_strand_child_edge_iter_vertex0_offset(StrandsChildren *strands, StrandChildEdgeIterator *iter)
+{
+	return iter->vertex0 - strands->verts;
+}
+
+BLI_INLINE size_t BKE_strand_child_edge_iter_vertex1_offset(StrandsChildren *strands, StrandChildEdgeIterator *iter)
+{
+	return iter->vertex1 - strands->verts;
+}
 
 #endif  /* __BKE_STRANDS_H__ */
