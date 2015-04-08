@@ -21,36 +21,7 @@
 
 #include "BLI_utildefines.h"
 
-typedef struct StrandsVertex {
-	float co[3];
-	float time;
-	float weight;
-	
-	/* utility data */
-	float nor[3]; /* normals (edge directions) */
-} StrandsVertex;
-
-typedef struct StrandsMotionState {
-	float co[3];
-	float vel[3];
-	
-	/* utility data */
-	float nor[3]; /* normals (edge directions) */
-} StrandsMotionState;
-
-typedef struct StrandsCurve {
-	int numverts;
-	float root_matrix[3][3];
-} StrandsCurve;
-
-typedef struct Strands {
-	StrandsCurve *curves;
-	StrandsVertex *verts;
-	int totcurves, totverts;
-	
-	/* optional */
-	StrandsMotionState *state;
-} Strands;
+#include "DNA_strands_types.h"
 
 struct Strands *BKE_strands_new(int strands, int verts);
 void BKE_strands_free(struct Strands *strands);
@@ -64,23 +35,6 @@ void BKE_strands_ensure_normals(struct Strands *strands);
 
 void BKE_strands_get_minmax(struct Strands *strands, float min[3], float max[3], bool use_motion_state);
 
-typedef struct StrandsChildCurve {
-	int numverts;
-} StrandsChildCurve;
-
-typedef struct StrandsChildVertex {
-	float co[3];
-	float time;
-	
-	/* utility data */
-	float nor[3]; /* normals (edge directions) */
-} StrandsChildVertex;
-
-typedef struct StrandsChildren {
-	StrandsChildCurve *curves;
-	StrandsChildVertex *verts;
-	int totcurves, totverts;
-} StrandsChildren;
 
 struct StrandsChildren *BKE_strands_children_new(int strands, int verts);
 void BKE_strands_children_free(struct StrandsChildren *strands);
@@ -94,9 +48,9 @@ void BKE_strands_children_get_minmax(struct StrandsChildren *strands, float min[
 
 typedef struct StrandIterator {
 	int index, tot;
-	StrandsCurve *curve;
-	StrandsVertex *verts;
-	StrandsMotionState *state;
+	struct StrandsCurve *curve;
+	struct StrandsVertex *verts;
+	struct StrandsMotionState *state;
 } StrandIterator;
 
 BLI_INLINE void BKE_strand_iter_init(StrandIterator *iter, Strands *strands)
