@@ -60,7 +60,7 @@ ccl_device_inline
 ccl_device_noinline
 #endif
 void triangle_intersect_precalc(float3 dir,
-                                 IsectPrecalc *isect_precalc)
+                                IsectPrecalc *isect_precalc)
 {
 	/* Calculate dimension where the ray direction is maximal. */
 	int kz = util_max_axis(make_float3(fabsf(dir.x),
@@ -77,10 +77,10 @@ void triangle_intersect_precalc(float3 dir,
 	}
 
 	/* Calculate the shear constants. */
-	float inf_dir_z = 1.0f / IDX(dir, kz);
-	isect_precalc->Sx = IDX(dir, kx) * inf_dir_z;
-	isect_precalc->Sy = IDX(dir, ky) * inf_dir_z;
-	isect_precalc->Sz = inf_dir_z;
+	float inv_dir_z = 1.0f / IDX(dir, kz);
+	isect_precalc->Sx = IDX(dir, kx) * inv_dir_z;
+	isect_precalc->Sy = IDX(dir, ky) * inv_dir_z;
+	isect_precalc->Sz = inv_dir_z;
 
 	/* Store the dimensions. */
 	isect_precalc->kx = kx;
