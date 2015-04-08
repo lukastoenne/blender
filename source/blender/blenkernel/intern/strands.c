@@ -113,7 +113,7 @@ static void calc_normals(Strands *strands, bool use_motion_state)
 				normalize_v3(it_edge.state0->nor);
 			}
 			if (it_strand.tot > 0) {
-				copy_v3_v3(it_edge.state1->nor, it_edge.state0->nor);
+				copy_v3_v3(it_edge.state0->nor, (it_edge.state0-1)->nor);
 			}
 		}
 		else {
@@ -122,7 +122,7 @@ static void calc_normals(Strands *strands, bool use_motion_state)
 				normalize_v3(it_edge.vertex0->nor);
 			}
 			if (it_strand.tot > 0) {
-				copy_v3_v3(it_edge.vertex1->nor, it_edge.vertex0->nor);
+				copy_v3_v3(it_edge.vertex0->nor, (it_edge.vertex0-1)->nor);
 			}
 		}
 	}
@@ -191,7 +191,7 @@ static void calc_child_normals(StrandsChildren *strands)
 			normalize_v3(it_edge.vertex0->nor);
 		}
 		if (it_strand.tot > 0) {
-			copy_v3_v3(it_edge.vertex1->nor, it_edge.vertex0->nor);
+			copy_v3_v3(it_edge.vertex0->nor, (it_edge.vertex0-1)->nor);
 		}
 	}
 }

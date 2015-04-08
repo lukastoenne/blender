@@ -1441,6 +1441,25 @@ Strands *BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *n
 	return NULL;
 }
 
+bool BKE_dupli_object_data_acquire_strands(DupliObjectData *data, Strands *strands)
+{
+	DupliObjectDataStrands *link, *link_next;
+	bool found = false;
+	
+	if (!data || !strands)
+		return false;
+	
+	for (link = data->strands.first; link; link = link_next) {
+		link_next = link->next;
+		if (link->strands == strands) {
+			BLI_remlink(&data->strands, link);
+			MEM_freeN(link);
+			found = true;
+		}
+	}
+	return found;
+}
+
 /* ------------------------------------------------------------------------- */
 
 static void dupli_object_data_free(DupliObjectData *data)

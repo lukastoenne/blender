@@ -265,7 +265,7 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 
 			/* mesh deformation */
 			if(object->mesh)
-				sync_mesh_motion(b_ob, object, motion_time);
+				sync_mesh_motion(b_parent, object, motion_time, b_dupli_ob);
 		}
 
 		return object;
