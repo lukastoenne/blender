@@ -155,7 +155,8 @@ void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int ty
  * only RGBA
  * needs glaDefine2DArea to be set.
  */
-void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect);
+void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format,
+                       int type, int zoomfilter, float alpha, void *rect);
 
 
 void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY);
@@ -217,12 +218,12 @@ void bgl_get_mats(bglMats *mats);
 /* **** Color management helper functions for GLSL display/transform ***** */
 
 /* Draw imbuf on a screen, preferably using GLSL display transform */
-void glaDrawImBuf_glsl(struct ImBuf *ibuf, float x, float y, int zoomfilter,
+void glaDrawImBuf_glsl(struct ImBuf *ibuf, float x, float y, int zoomfilter, float alpha,
                        struct ColorManagedViewSettings *view_settings,
                        struct ColorManagedDisplaySettings *display_settings);
 
 /* Draw imbuf on a screen, preferably using GLSL display transform */
-void glaDrawImBuf_glsl_ctx(const struct bContext *C, struct ImBuf *ibuf, float x, float y, int zoomfilter);
+void glaDrawImBuf_glsl_ctx(const struct bContext *C, struct ImBuf *ibuf, float x, float y, int zoomfilter, float alpha);
 
 void glaDrawBorderCorners(const struct rcti *border, float zoomx, float zoomy);
 

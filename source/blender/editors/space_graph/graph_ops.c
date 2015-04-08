@@ -427,6 +427,8 @@ void graphedit_operatortypes(void)
 	WM_operatortype_append(GRAPH_OT_fmodifier_add);
 	WM_operatortype_append(GRAPH_OT_fmodifier_copy);
 	WM_operatortype_append(GRAPH_OT_fmodifier_paste);
+	
+	WM_operatortype_append(GRAPH_OT_widget_backdrop_transform);
 }
 
 void ED_operatormacros_graph(void)
@@ -665,5 +667,7 @@ void graphedit_keymap(wmKeyConfig *keyconf)
 	/* keyframes */
 	keymap = WM_keymap_find(keyconf, "Graph Editor", SPACE_IPO, 0);
 	graphedit_keymap_keyframes(keyconf, keymap);
+
+	WM_keymap_add_item(keymap, "GRAPH_OT_widget_backdrop_transform", WKEY, KM_PRESS, 0, 0);
 }
 

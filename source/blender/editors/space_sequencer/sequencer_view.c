@@ -49,6 +49,7 @@
 #include "ED_image.h"
 #include "ED_screen.h"
 #include "ED_space_api.h"
+#include "ED_sequencer.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -249,6 +250,8 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
 /******** Backdrop Transform *******/
 
 typedef struct OverDropTransformData {
+	ImBuf *ibuf; /* image to be transformed (preview image transformation widget) */
+	int init_size[2];
 	float init_zoom;
 	float init_offset[2];
 	int event_type;
@@ -395,6 +398,181 @@ void SEQUENCER_OT_overdrop_transform(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	RNA_def_float_array(ot->srna, "offset", 2, default_offset, FLT_MIN, FLT_MAX, "Offset", "Offset of the backdrop", FLT_MIN, FLT_MAX);
+	RNA_def_float(ot->srna, "scale", 1.0f, 0.0f, FLT_MAX, "Scale", "Scale of the backdrop", 0.0f, FLT_MAX);
+}
+
+/******** transform widget (preview area) *******/
+
+typedef struct ImageTransformData {
+	ImBuf *ibuf; /* image to be transformed (preview image transformation widget) */
+	int init_size[2];
+	int event_type;
+	wmWidgetGroupType *cagetype;
+} ImageTransformData;
+
+static int sequencer_image_transform_widget_poll(bContext *C)
+{
+	SpaceSeq *sseq = CTX_wm_space_seq(C);
+	ARegion *ar = CTX_wm_region(C);
+
+	return (sseq && ar && ar->type->regionid == RGN_TYPE_PREVIEW);
+}
+
+static void widgetgroup_image_transform_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	ARegion *ar = CTX_wm_region(C);
+	View2D *v2d = &ar->v2d;
+	wmOperator *op = wgroup->type->op;
+	wmWidget *cage;
+	float origin[3];
+	float viewrect[2];
+	float scale[2];
+
+	sequencer_display_size(CTX_data_scene(C), CTX_wm_space_seq(C), viewrect);
+	UI_view2d_scale_get(v2d, &scale[0], &scale[1]);
+
+	cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM |
+	                                 WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
+	                                 viewrect[0] * scale[0], viewrect[1] * scale[1]);
+	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+
+	origin[0] = -(v2d->cur.xmin * scale[0]);
+	origin[1] = -(v2d->cur.ymin * scale[1]);
+	WM_widget_set_origin(cage, origin);
+}
+
+static int sequencer_image_transform_widget_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	SpaceSeq *sseq = CTX_wm_space_seq(C);
+	Scene *scene = CTX_data_scene(C);
+	/* no poll, lives always for the duration of the operator */
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_image_transform_draw, CTX_data_main(C),
+	                                                     "Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false);
+	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
+	ImageTransformData *data = MEM_mallocN(sizeof(ImageTransformData), "overdrop transform data");
+	ImBuf *ibuf = sequencer_ibuf_get(CTX_data_main(C), scene, sseq, CFRA, 0, NULL);
+
+	if (!ibuf || !ED_space_sequencer_check_show_imbuf(sseq)) {
+		return OPERATOR_CANCELLED;
+	}
+
+	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
+
+	copy_v2_v2_int(data->init_size, &ibuf->x);
+	data->cagetype = cagetype;
+	data->event_type = event->type;
+	data->ibuf = ibuf;
+
+	op->customdata = data;
+
+	ED_area_headerprint(sa, "Drag to place, and scale, Space/Enter/Caller key to confirm, R to recenter, RClick/Esc to cancel");
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static void sequencer_image_transform_widget_finish(bContext *C, ImageTransformData *data)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ED_area_headerprint(sa, NULL);
+	WM_widgetgrouptype_unregister(C, CTX_data_main(C), data->cagetype);
+	MEM_freeN(data);
+}
+
+static void sequencer_image_transform_widget_cancel(struct bContext *C, struct wmOperator *op)
+{
+	ImageTransformData *data = op->customdata;
+	sequencer_image_transform_widget_finish(C, data);
+}
+
+static int sequencer_image_transform_widget_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ImageTransformData *data = op->customdata;
+
+	if (event->type == data->event_type && event->val == KM_PRESS) {
+		sequencer_image_transform_widget_finish(C, data);
+		return OPERATOR_FINISHED;
+	}
+
+	switch (event->type) {
+		case EVT_WIDGET_UPDATE:
+		{
+			ARegion *ar = CTX_wm_region(C);
+			Scene *scene = CTX_data_scene(C);
+			wmWidgetMap *wmap = ar->widgetmaps.first;
+			float scale_fac = RNA_float_get(op->ptr, "scale");
+			float new_size[2];
+			float offset[2];
+
+			new_size[0] = (float)data->init_size[0] * scale_fac;
+			new_size[1] = (float)data->init_size[1] * scale_fac;
+
+			/* sale image */
+			IMB_scalefastImBuf(data->ibuf, (unsigned int)new_size[0], (unsigned int)new_size[1]);
+
+			/* update view */
+			scene->r.xsch = (int)(new_size[0] / ((float)scene->r.size / 100));
+			scene->r.ysch = (int)(new_size[1] / ((float)scene->r.size / 100));
+
+			/* no offset needed in this case */
+			offset[0] = offset[1] = 0;
+			WIDGET_rect_transform_set_offset(wmap->active_widget, offset);
+			break;
+		}
+
+		case RKEY:
+		{
+//			SpaceSeq *sseq = CTX_wm_space_seq(C);
+			ARegion *ar = CTX_wm_region(C);
+//			float zero[2] = {0.0f};
+//			RNA_float_set_array(op->ptr, "offset", zero);
+//			RNA_float_set(op->ptr, "scale", 1.0f);
+//			copy_v2_v2(sseq->overdrop_offset, zero);
+//			sseq->overdrop_zoom = 1.0;
+			ED_region_tag_redraw(ar);
+			/* add a mousemove to refresh the widget */
+			WM_event_add_mousemove(C);
+			break;
+		}
+		case RETKEY:
+		case PADENTER:
+		case SPACEKEY:
+		{
+			sequencer_image_transform_widget_finish(C, data);
+			return OPERATOR_FINISHED;
+		}
+
+		case ESCKEY:
+		case RIGHTMOUSE:
+		{
+//			SpaceSeq *sseq = CTX_wm_space_seq(C);
+//			copy_v2_v2(sseq->overdrop_offset, data->init_offset);
+//			sseq->overdrop_zoom = data->init_zoom;
+
+			sequencer_image_transform_widget_finish(C, data);
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+void SEQUENCER_OT_image_transform_widget(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Image Transform";
+	ot->idname = "SEQUENCER_OT_image_transform_widget";
+	ot->description = "Transform the image using a widget";
+
+	/* api callbacks */
+	ot->invoke = sequencer_image_transform_widget_invoke;
+	ot->modal = sequencer_image_transform_widget_modal;
+	ot->poll = sequencer_image_transform_widget_poll;
+	ot->cancel = sequencer_image_transform_widget_cancel;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
 	RNA_def_float(ot->srna, "scale", 1.0f, 0.0f, FLT_MAX, "Scale", "Scale of the backdrop", 0.0f, FLT_MAX);
 }
 

@@ -116,6 +116,8 @@ void GRAPH_OT_frame_jump(struct wmOperatorType *ot);
 void GRAPH_OT_snap(struct wmOperatorType *ot);
 void GRAPH_OT_mirror(struct wmOperatorType *ot);
 
+void GRAPH_OT_widget_backdrop_transform(struct wmOperatorType *ot);
+
 /* defines for snap keyframes 
  * NOTE: keep in sync with eEditKeyframes_Snap (in ED_keyframes_edit.h)
  */

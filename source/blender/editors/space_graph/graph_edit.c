@@ -59,6 +59,7 @@
 #include "BKE_nla.h"
 #include "BKE_context.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 
 #include "UI_view2d.h"
 
@@ -2464,3 +2465,153 @@ void GRAPH_OT_fmodifier_paste(wmOperatorType *ot)
 }
 
 /* ************************************************************************** */
+
+typedef struct BackDropTransformData {
+	float init_offset[2];
+	float init_zoom;
+	short event_type;
+	wmWidgetGroupType *cagetype;
+} BackDropTransformData;
+
+static int graph_widget_backdrop_transform_poll(bContext *C)
+{
+	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	ARegion *ar = CTX_wm_region(C);
+
+	return ((ar->type->regionid == RGN_TYPE_WINDOW) &&
+	        (sipo->flag & SIPO_DRAW_BACKDROP) &&
+	        (sipo->backdrop_camera));
+}
+
+static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	ARegion *ar = CTX_wm_region(C);
+	wmOperator *op = wgroup->type->op;
+	Scene *scene = CTX_data_scene(C);
+	int width = (scene->r.size * scene->r.xsch) / 150.0f;
+	int height = (scene->r.size * scene->r.ysch) / 150.0f;
+	float origin[3];
+
+	wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM |
+	                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, width, height);
+	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+
+	origin[0] = BLI_rcti_size_x(&ar->winrct) / 2.0f;
+	origin[1] = BLI_rcti_size_y(&ar->winrct) / 2.0f;
+
+	WM_widget_set_origin(cage, origin);
+}
+
+static int graph_widget_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	/* no poll, lives always for the duration of the operator */
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Graph_Canvas", SPACE_IPO, RGN_TYPE_WINDOW, false);
+	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
+	BackDropTransformData *data = MEM_mallocN(sizeof(BackDropTransformData), "overdrop transform data");
+	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
+
+	RNA_float_set_array(op->ptr, "offset", sipo->backdrop_offset);
+	RNA_float_set(op->ptr, "scale", sipo->backdrop_zoom);
+
+	copy_v2_v2(data->init_offset, sipo->backdrop_offset);
+	data->init_zoom = sipo->backdrop_zoom;
+	data->cagetype = cagetype;
+	data->event_type = event->type;
+
+	op->customdata = data;
+
+	ED_area_headerprint(sa, "Drag to place, and scale, Space/Enter/Caller key to confirm, R to recenter, RClick/Esc to cancel");
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static void graph_widget_backdrop_transform_finish(bContext *C, BackDropTransformData *data)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ED_area_headerprint(sa, NULL);
+	WM_widgetgrouptype_unregister(C, CTX_data_main(C), data->cagetype);
+	MEM_freeN(data);
+}
+
+static void graph_widget_backdrop_transform_cancel(struct bContext *C, struct wmOperator *op)
+{
+	BackDropTransformData *data = op->customdata;
+	graph_widget_backdrop_transform_finish(C, data);
+}
+
+static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	BackDropTransformData *data = op->customdata;
+
+	if (event->type == data->event_type && event->val == KM_PRESS) {
+		graph_widget_backdrop_transform_finish(C, data);
+		return OPERATOR_FINISHED;
+	}
+
+	switch (event->type) {
+		case EVT_WIDGET_UPDATE: {
+			SpaceIpo *sipo = CTX_wm_space_graph(C);
+			RNA_float_get_array(op->ptr, "offset", sipo->backdrop_offset);
+			sipo->backdrop_zoom = RNA_float_get(op->ptr, "scale");
+			break;
+		}
+		case RKEY:
+		{
+			SpaceIpo *sipo = CTX_wm_space_graph(C);
+			ARegion *ar = CTX_wm_region(C);
+			float zero[2] = {0.0f};
+			RNA_float_set_array(op->ptr, "offset", zero);
+			RNA_float_set(op->ptr, "scale", 1.0f);
+			copy_v2_v2(sipo->backdrop_offset, zero);
+			sipo->backdrop_zoom = 1.0f;
+			ED_region_tag_redraw(ar);
+			/* add a mousemove to refresh the widget */
+			WM_event_add_mousemove(C);
+			break;
+		}
+		case RETKEY:
+		case PADENTER:
+		case SPACEKEY:
+		{
+			graph_widget_backdrop_transform_finish(C, data);
+			return OPERATOR_FINISHED;
+		}
+		case ESCKEY:
+		case RIGHTMOUSE:
+		{
+			SpaceIpo *sipo = CTX_wm_space_graph(C);
+			copy_v2_v2(sipo->backdrop_offset, data->init_offset);
+			sipo->backdrop_zoom = data->init_zoom;
+
+			graph_widget_backdrop_transform_finish(C, data);
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+void GRAPH_OT_widget_backdrop_transform(struct wmOperatorType *ot)
+{
+	float default_offset[2] = {0.0f, 0.0f};
+
+	/* identifiers */
+	ot->name = "Transform Backdrop";
+	ot->idname = "GRAPH_OT_widget_backdrop_transform";
+	ot->description = "";
+
+	/* api callbacks */
+	ot->invoke = graph_widget_backdrop_transform_invoke;
+	ot->modal = graph_widget_backdrop_transform_modal;
+	ot->poll = graph_widget_backdrop_transform_poll;
+	ot->cancel = graph_widget_backdrop_transform_cancel;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_float_array(ot->srna, "offset", 2, default_offset, FLT_MIN, FLT_MAX, "Offset", "Offset of the backdrop", FLT_MIN, FLT_MAX);
+	RNA_def_float(ot->srna, "scale", 1.0f, 0.0f, FLT_MAX, "Scale", "Scale of the backdrop", 0.0f, FLT_MAX);
+}

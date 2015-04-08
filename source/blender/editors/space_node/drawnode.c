@@ -3261,7 +3261,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 				glPixelZoom(snode->backdrop_zoom, snode->backdrop_zoom);
 				
-				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
+				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST, 1.0f);
 				
 				glPixelZoom(1.0f, 1.0f);
 				glDisable(GL_BLEND);
@@ -3269,7 +3269,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			else {
 				glPixelZoom(snode->backdrop_zoom, snode->backdrop_zoom);
 				
-				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
+				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST, 1.0f);
 				
 				glPixelZoom(1.0f, 1.0f);
 			}

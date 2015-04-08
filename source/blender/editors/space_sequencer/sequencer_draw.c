@@ -973,7 +973,7 @@ static ImBuf *sequencer_make_scope(Scene *scene, ImBuf *ibuf, ImBuf *(*make_scop
 	return scope;
 }
 
-static void sequencer_display_size(Scene *scene, SpaceSeq *sseq, float r_viewrect[2])
+void sequencer_display_size(Scene *scene, SpaceSeq *sseq, float r_viewrect[2])
 {
 	float render_size, proxy_size;
 

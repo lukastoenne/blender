@@ -550,6 +550,7 @@ void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
 struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, float width, float height);
+void WIDGET_rect_transform_set_offset(struct wmWidget *widget, float offset[2]);
 
 struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, struct Object *ob, int facemap);
 void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4]);

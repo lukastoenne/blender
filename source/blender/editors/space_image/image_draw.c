@@ -513,7 +513,7 @@ static void draw_image_buffer(const bContext *C, SpaceImage *sima, ARegion *ar, 
 			fdrawcheckerboard(x, y, x + ibuf->x * zoomx, y + ibuf->y * zoomy);
 		}
 
-		glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
+		glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST, 1.0f);
 
 		if (sima->flag & SI_USE_ALPHA)
 			glDisable(GL_BLEND);

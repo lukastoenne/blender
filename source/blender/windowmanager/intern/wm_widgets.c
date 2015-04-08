@@ -100,7 +100,7 @@ static ListBase widgetmaptypes = {NULL, NULL};
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *C, struct wmWidgetGroupType *),
         void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
-        struct Main *bmain, const char *mapidname, short spaceid, short regionid,bool is_3d
+        struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d
         )
 {
 	bScreen *sc;

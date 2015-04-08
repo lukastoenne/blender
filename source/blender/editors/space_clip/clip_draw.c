@@ -307,7 +307,7 @@ static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar,
 	/* set zoom */
 	glPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
 
-	glaDrawImBuf_glsl_ctx(C, ibuf, x, y, filter);
+	glaDrawImBuf_glsl_ctx(C, ibuf, x, y, filter, 1.0f);
 
 	/* reset zoom */
 	glPixelZoom(1.0f, 1.0f);

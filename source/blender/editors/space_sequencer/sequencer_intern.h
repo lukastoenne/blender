@@ -56,6 +56,7 @@ void draw_image_seq(const struct bContext *C, struct Scene *scene, struct  ARegi
 void color3ubv_from_seq(struct Scene *curscene, struct Sequence *seq, unsigned char col[3]);
 void draw_shadedstrip(struct Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2);
 void draw_sequence_extensions(struct Scene *scene, struct ARegion *ar, struct Sequence *seq);
+void sequencer_display_size(struct Scene *scene, struct SpaceSeq *sseq, float r_viewrect[2]);
 
 void sequencer_special_update_set(Sequence *seq);
 
@@ -133,6 +134,7 @@ void SEQUENCER_OT_rebuild_proxy(struct wmOperatorType *ot);
 void SEQUENCER_OT_enable_proxies(struct wmOperatorType *ot);
 
 void SEQUENCER_OT_overdrop_transform(struct wmOperatorType *ot);
+void SEQUENCER_OT_image_transform_widget(struct wmOperatorType *ot);
 
 /* preview specific operators */
 void SEQUENCER_OT_view_all_preview(struct wmOperatorType *ot);

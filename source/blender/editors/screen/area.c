@@ -34,6 +34,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_object_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
@@ -44,6 +45,8 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_scene.h"
 #include "BKE_screen.h"
 
 #include "RNA_access.h"
@@ -56,6 +59,7 @@
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 #include "ED_space_api.h"
+#include "ED_view3d.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -65,6 +69,9 @@
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
+
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #include "screen_intern.h"
 
@@ -2086,6 +2093,47 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 		fac += 4.0f * gridstep;
 	}
 	glEnd();
+}
+
+/* uses the viewplane from the given camera and draws it as a backdrop */
+void ED_region_draw_backdrop_view3d(const bContext *C, struct Object *camera, const float alpha,
+                                    const float width, const float height, const float x, const float y,
+                                    const float zoomx, const float zoomy, const bool draw_background)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	char err_out[256] = "unknown";
+	struct ImBuf *ibuf;
+
+	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
+	ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, camera, width, height, IB_rect,
+	                                             OB_SOLID, false, false, false,
+	                                             R_ADDSKY, NULL, err_out);
+
+	if (ibuf == NULL)
+		return;
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glPushMatrix();
+	glScalef(zoomx, zoomy, 0.0f);
+	glTranslatef(x, y, 0.0f);
+
+	/* draw background */
+	if (draw_background) {
+		char col[4];
+
+		UI_GetThemeColorType4ubv(TH_HIGH_GRAD, SPACE_VIEW3D, col);
+		glColor4ub(UNPACK3(col), alpha * 255);
+		glRectf(0, 0, width, height);
+	}
+	/* draw the imbuf itself */
+	glaDrawImBuf_glsl_ctx(C, ibuf, 0.0f, 0.0f, GL_NEAREST, alpha);
+
+	glPopMatrix();
+	glDisable(GL_BLEND);
+
+	IMB_freeImBuf(ibuf);
 }
 
 /* If the area has overlapping regions, it returns visible rect for Region *ar */

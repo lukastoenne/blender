@@ -713,10 +713,11 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 }
 
 /* uses either DrawPixelsSafe or DrawPixelsTex, based on user defined maximum */
-void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
+void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format,
+                       int type, int zoomfilter, float alpha, void *rect)
 {
 	if (U.image_draw_method != IMAGE_DRAW_METHOD_DRAWPIXELS) {
-		glColor4f(1.0, 1.0, 1.0, 1.0);
+		glColor4f(1.0, 1.0, 1.0, alpha);
 		glaDrawPixelsTex(x, y, img_w, img_h, format, type, zoomfilter, rect);
 	}
 	else {
@@ -1040,7 +1041,7 @@ void bglFlush(void)
 /* **** Color management helper functions for GLSL display/transform ***** */
 
 /* Draw given image buffer on a screen using GLSL for display transform */
-void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
+void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter, float alpha,
                        ColorManagedViewSettings *view_settings,
                        ColorManagedDisplaySettings *display_settings)
 {
@@ -1080,7 +1081,7 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 
 		if (ok) {
 			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			glColor4f(1.0, 1.0, 1.0, 1.0);
+			glColor4f(1.0, 1.0, 1.0, alpha);
 
 			if (ibuf->rect_float) {
 				int format = 0;
@@ -1118,20 +1119,20 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 
 		if (display_buffer)
 			glaDrawPixelsAuto(x, y, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE,
-			                  zoomfilter, display_buffer);
+			                  zoomfilter, alpha, display_buffer);
 
 		IMB_display_buffer_release(cache_handle);
 	}
 }
 
-void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int zoomfilter)
+void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int zoomfilter, float alpha)
 {
 	ColorManagedViewSettings *view_settings;
 	ColorManagedDisplaySettings *display_settings;
 
 	IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
-	glaDrawImBuf_glsl(ibuf, x, y, zoomfilter, view_settings, display_settings);
+	glaDrawImBuf_glsl(ibuf, x, y, zoomfilter, alpha, view_settings, display_settings);
 }
 
 void cpack(unsigned int x)

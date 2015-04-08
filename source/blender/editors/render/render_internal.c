@@ -1548,8 +1548,8 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 			glPixelZoom(scale_x, scale_y);
 			glaDrawPixelsAuto(xof, yof, rres.rectx, rres.recty,
-			                  GL_RGBA, GL_UNSIGNED_BYTE,
-			                  GL_NEAREST, display_buffer);
+			                  GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST,
+			                  1.0f, display_buffer);
 			glPixelZoom(1.0f, 1.0f);
 			glDisable(GL_BLEND);
 
