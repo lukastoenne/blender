@@ -1328,13 +1328,23 @@ int count_duplilist(Object *ob)
 
 static void dupli_cache_calc_boundbox(DupliObjectData *data)
 {
+	DupliObjectDataStrands *link;
 	float min[3], max[3];
+	bool has_data = false;
 	
+	INIT_MINMAX(min, max);
 	if (data->dm) {
-		INIT_MINMAX(min, max);
 		data->dm->getMinMax(data->dm, min, max);
+		has_data = true;
 	}
-	else {
+	for (link = data->strands.first; link; link = link->next) {
+		if (link->strands) {
+			BKE_strands_get_minmax(link->strands, min, max, true);
+			has_data = true;
+		}
+	}
+	
+	if (!has_data) {
 		zero_v3(min);
 		zero_v3(max);
 	}
@@ -1429,6 +1439,25 @@ Strands *BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *n
 			return link->strands;
 	}
 	return NULL;
+}
+
+bool BKE_dupli_object_data_acquire_strands(DupliObjectData *data, Strands *strands)
+{
+	DupliObjectDataStrands *link, *link_next;
+	bool found = false;
+	
+	if (!data || !strands)
+		return false;
+	
+	for (link = data->strands.first; link; link = link_next) {
+		link_next = link->next;
+		if (link->strands == strands) {
+			BLI_remlink(&data->strands, link);
+			MEM_freeN(link);
+			found = true;
+		}
+	}
+	return found;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1567,7 +1596,11 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 						StrandsVertex *svert = strands->verts;
 						
 						for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+							float hairmat[4][4];
+							psys_mat_hair_to_object(dob->ob, data->dm, psys->part->from, pa, hairmat);
+							
 							scurve->numverts = pa->totkey;
+							copy_m3_m4(scurve->root_matrix, hairmat);
 							
 							for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 								copy_v3_v3(svert->co, hkey->co);

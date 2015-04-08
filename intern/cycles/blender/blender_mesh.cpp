@@ -755,7 +755,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 			}
 
 			if(render_layer.use_hair)
-				sync_curves(mesh, b_mesh, b_ob, false);
+				sync_curves(mesh, b_mesh, b_parent, false, 0, b_dupli_ob);
 
 			if(can_free_caches) {
 				b_ob.cache_release();
@@ -801,8 +801,9 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 	return mesh;
 }
 
-void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion_time)
+void BlenderSync::sync_mesh_motion(BL::Object b_parent, Object *object, float motion_time, BL::DupliObject b_dupli_ob)
 {
+	BL::Object b_ob = (b_dupli_ob ? b_dupli_ob.object() : b_parent);
 	/* ensure we only sync instanced meshes once */
 	Mesh *mesh = object->mesh;
 
@@ -861,7 +862,9 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 
 	if(ccl::BKE_object_is_deform_modified(b_ob, b_scene, preview)) {
 		/* get derived mesh */
-		b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
+		b_mesh = (b_dupli_ob && b_parent)?
+		            dupli_to_mesh(b_data, b_scene, b_parent, b_dupli_ob, !preview, false):
+		            object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
 	}
 
 	if(!b_mesh) {
@@ -951,7 +954,7 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 
 	/* hair motion */
 	if(numkeys)
-		sync_curves(mesh, b_mesh, b_ob, true, time_index);
+		sync_curves(mesh, b_mesh, b_parent, true, time_index, b_dupli_ob);
 
 	/* free derived mesh */
 	b_data.meshes.remove(b_mesh);

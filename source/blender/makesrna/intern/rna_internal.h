@@ -176,6 +176,7 @@ void RNA_def_sequencer(struct BlenderRNA *brna);
 void RNA_def_smoke(struct BlenderRNA *brna);
 void RNA_def_space(struct BlenderRNA *brna);
 void RNA_def_speaker(struct BlenderRNA *brna);
+void RNA_def_strands(struct BlenderRNA *brna);
 void RNA_def_test(struct BlenderRNA *brna);
 void RNA_def_text(struct BlenderRNA *brna);
 void RNA_def_texture(struct BlenderRNA *brna);

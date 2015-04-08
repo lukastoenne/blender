@@ -59,7 +59,7 @@ void BPH_cloth_solver_set_positions(struct ClothModifierData *clmd);
 bool BPH_cloth_solver_get_texture_data(struct Object *ob, struct ClothModifierData *clmd, struct VoxelData *vd);
 
 struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *params);
-bool BPH_strands_solve(struct Strands *strands, struct Implicit_Data *id, struct HairSimParams *params, float frame, float frame_prev, struct Scene *scene, struct ListBase *effectors);
+bool BPH_strands_solve(struct Strands *strands, float mat[4][4], struct Implicit_Data *id, struct HairSimParams *params, float frame, float frame_prev, struct Scene *scene, struct ListBase *effectors);
 
 #ifdef __cplusplus
 }

@@ -129,8 +129,122 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 }
 
 
+struct HairChildrenSample {
+	std::vector<int32_t> numkeys;
+	
+	std::vector<V3f> positions;
+	std::vector<V3f> velocities;
+	std::vector<Quatf> rotations;
+	std::vector<C3f> colors;
+	std::vector<float32_t> times;
+};
+
+AbcHairChildrenWriter::AbcHairChildrenWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
+    ParticlesWriter(ob, psys, name)
+{
+}
+
+AbcHairChildrenWriter::~AbcHairChildrenWriter()
+{
+}
+
+void AbcHairChildrenWriter::init_abc(OObject parent)
+{
+	if (m_curves)
+		return;
+	
+	/* XXX non-escaped string construction here ... */
+	m_curves = OCurves(parent, m_name, abc_archive()->frame_sampling_index());
+	
+	OCurvesSchema &schema = m_curves.getSchema();
+	OCompoundProperty geom_props = schema.getArbGeomParams();
+	
+	m_param_velocities = OV3fGeomParam(geom_props, "velocities", false, kVertexScope, 1, 0);
+	m_param_rotations = OQuatfGeomParam(geom_props, "rotations", false, kVertexScope, 1, 0);
+	m_param_colors = OC3fGeomParam(geom_props, "colors", false, kVertexScope, 1, 0);
+	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
+}
+
+static int hair_children_count_totkeys(ParticleCacheKey **pathcache, int totpart)
+{
+	int p;
+	int totkeys = 0;
+	
+	for (p = 0; p < totpart; ++p) {
+		ParticleCacheKey *keys = pathcache[p];
+		totkeys += keys->segments + 1;
+	}
+	
+	return totkeys;
+}
+
+static void hair_children_create_sample(ParticleCacheKey **pathcache, int totpart, int totkeys, HairChildrenSample &sample, bool do_numkeys)
+{
+	int p, k;
+	
+	if (do_numkeys)
+		sample.numkeys.reserve(totpart);
+	sample.positions.reserve(totkeys);
+	sample.velocities.reserve(totkeys);
+	sample.rotations.reserve(totkeys);
+	sample.colors.reserve(totkeys);
+	sample.times.reserve(totkeys);
+	
+	for (p = 0; p < totpart; ++p) {
+		ParticleCacheKey *keys = pathcache[p];
+		int numkeys = keys->segments + 1;
+		
+		if (do_numkeys)
+			sample.numkeys.push_back(numkeys);
+		
+		for (k = 0; k < numkeys; ++k) {
+			ParticleCacheKey *key = &keys[k];
+			
+			sample.positions.push_back(V3f(key->co[0], key->co[1], key->co[2]));
+			sample.velocities.push_back(V3f(key->vel[0], key->vel[1], key->vel[2]));
+			sample.rotations.push_back(Quatf(key->rot[0], key->rot[1], key->rot[2], key->rot[3]));
+			sample.colors.push_back(C3f(key->col[0], key->col[1], key->col[2]));
+			sample.times.push_back(key->time);
+		}
+	}
+}
+
+void AbcHairChildrenWriter::write_sample()
+{
+	if (!m_curves)
+		return;
+	if (!m_psys->childcache)
+		return;
+	
+	int totkeys = hair_children_count_totkeys(m_psys->childcache, m_psys->totchild);
+	if (totkeys == 0)
+		return;
+	
+	OCurvesSchema &schema = m_curves.getSchema();
+	
+	HairChildrenSample child_sample;
+	OCurvesSchema::Sample sample;
+	if (schema.getNumSamples() == 0) {
+		/* write curve sizes only first time, assuming they are constant! */
+		hair_children_create_sample(m_psys->childcache, m_psys->totchild, totkeys, child_sample, true);
+		sample = OCurvesSchema::Sample(child_sample.positions, child_sample.numkeys);
+	}
+	else {
+		hair_children_create_sample(m_psys->childcache, m_psys->totchild, totkeys, child_sample, false);
+		sample = OCurvesSchema::Sample(child_sample.positions);
+	}
+	schema.set(sample);
+	
+	m_param_velocities.set(OV3fGeomParam::Sample(V3fArraySample(child_sample.velocities), kVertexScope));
+	m_param_rotations.set(OQuatfGeomParam::Sample(QuatfArraySample(child_sample.rotations), kVertexScope));
+	m_param_colors.set(OC3fGeomParam::Sample(C3fArraySample(child_sample.colors), kVertexScope));
+	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(child_sample.times), kVertexScope));
+}
+
+
 struct ParticleHairSample {
 	std::vector<int32_t> numverts;
+	std::vector<M33f> root_matrix;
 	
 	std::vector<V3f> positions;
 	std::vector<float32_t> times;
@@ -138,7 +252,8 @@ struct ParticleHairSample {
 };
 
 AbcHairWriter::AbcHairWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
-    ParticlesWriter(ob, psys, name)
+    ParticlesWriter(ob, psys, name),
+    m_child_writer("children", ob, psys)
 {
 	m_psmd = psys_get_modifier(ob, psys);
 }
@@ -156,8 +271,13 @@ void AbcHairWriter::init_abc(OObject parent)
 	OCurvesSchema &schema = m_curves.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
+	m_param_root_matrix = OM33fGeomParam(geom_props, "root_matrix", false, kUniformScope, 1, 0);
+	
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
+	
+	m_child_writer.init(abc_archive());
+	m_child_writer.init_abc(m_curves);
 }
 
 static int hair_count_totverts(ParticleSystem *psys)
@@ -184,6 +304,7 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 	
 	if (do_numverts)
 		sample.numverts.reserve(totpart);
+	sample.root_matrix.reserve(totpart);
 	sample.positions.reserve(totverts);
 	sample.times.reserve(totverts);
 	sample.weights.reserve(totverts);
@@ -191,9 +312,14 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 	for (p = 0; p < totpart; ++p) {
 		ParticleData *pa = &psys->particles[p];
 		int numverts = pa->totkey;
+		float hairmat[4][4], root_matrix[3][3];
 		
 		if (do_numverts)
 			sample.numverts.push_back(numverts);
+		
+		psys_mat_hair_to_object(ob, dm, psys->part->from, pa, hairmat);
+		copy_m3_m4(root_matrix, hairmat);
+		sample.root_matrix.push_back(M33f(root_matrix));
 		
 		for (k = 0; k < numverts; ++k) {
 			HairKey *key = &pa->hair[k];
@@ -236,13 +362,18 @@ void AbcHairWriter::write_sample()
 	}
 	schema.set(sample);
 	
+	m_param_root_matrix.set(OM33fGeomParam::Sample(M33fArraySample(hair_sample.root_matrix), kUniformScope));
+	
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.weights), kVertexScope));
+	
+	m_child_writer.write_sample();
 }
 
 
 struct StrandsSample {
 	std::vector<int32_t> numverts;
+	std::vector<M33f> root_matrix;
 	
 	std::vector<V3f> positions;
 	std::vector<float32_t> times;
@@ -272,6 +403,8 @@ void AbcStrandsWriter::init_abc(OObject parent)
 	OCurvesSchema &schema = m_curves.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
+	m_param_root_matrix = OM33fGeomParam(geom_props, "root_matrix", false, kUniformScope, 1, abc_archive()->frame_sampling());
+	
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	
@@ -292,6 +425,8 @@ static void strands_create_sample(Strands *strands, StrandsSample &sample, bool 
 	
 	if (do_numverts)
 		sample.numverts.reserve(totcurves);
+	sample.root_matrix.reserve(totcurves);
+	
 	sample.positions.reserve(totverts);
 	sample.times.reserve(totverts);
 	sample.weights.reserve(totverts);
@@ -306,6 +441,7 @@ static void strands_create_sample(Strands *strands, StrandsSample &sample, bool 
 		
 		if (do_numverts)
 			sample.numverts.push_back(numverts);
+		sample.root_matrix.push_back(M33f(it_strand.curve->root_matrix));
 		
 		StrandVertexIterator it_vert;
 		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
@@ -347,6 +483,8 @@ void AbcStrandsWriter::write_sample()
 	}
 	schema.set(sample);
 	
+	m_param_root_matrix.set(OM33fGeomParam::Sample(M33fArraySample(strands_sample.root_matrix), kUniformScope));
+	
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.weights), kVertexScope));
 	
@@ -376,8 +514,10 @@ void AbcStrandsReader::init_abc(IObject object)
 	ICurvesSchema &schema = m_curves.getSchema();
 	ICompoundProperty geom_props = schema.getArbGeomParams();
 	
-	m_param_times = IFloatGeomParam(geom_props, "times", 0);
-	m_param_weights = IFloatGeomParam(geom_props, "weights", 0);
+	m_param_root_matrix = IM33fGeomParam(geom_props, "root_matrix");
+	
+	m_param_times = IFloatGeomParam(geom_props, "times");
+	m_param_weights = IFloatGeomParam(geom_props, "weights");
 	
 	if (geom_props.getPropertyHeader("motion_state")) {
 		m_param_motion_state = ICompoundProperty(geom_props, "motion_state");
@@ -400,6 +540,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	
 	P3fArraySamplePtr sample_co = sample.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
+	IM33fGeomParam::Sample sample_root_matrix = m_param_root_matrix.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_weight = m_param_weights.getExpandedValue(ss);
 	
@@ -412,11 +553,14 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		m_strands = BKE_strands_new(sample_numvert->size(), sample_co->size());
 	
 	const int32_t *numvert = sample_numvert->get();
+	const M33f *root_matrix = sample_root_matrix.getVals()->get();
 	for (int i = 0; i < sample_numvert->size(); ++i) {
 		StrandsCurve *scurve = &m_strands->curves[i];
 		scurve->numverts = *numvert;
+		memcpy(scurve->root_matrix, root_matrix->getValue(), sizeof(scurve->root_matrix));
 		
 		++numvert;
+		++root_matrix;
 	}
 	
 	const V3f *co = sample_co->get();

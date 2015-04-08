@@ -25,18 +25,18 @@
 
 Strands *BKE_strands_new(int curves, int verts)
 {
-	Strands *s = MEM_mallocN(sizeof(Strands), "strands");
+	Strands *strands = MEM_mallocN(sizeof(Strands), "strands");
 	
-	s->totcurves = curves;
-	s->curves = MEM_mallocN(sizeof(StrandsCurve) * curves, "strand curves");
+	strands->totcurves = curves;
+	strands->curves = MEM_mallocN(sizeof(StrandsCurve) * curves, "strand curves");
 	
-	s->totverts = verts;
-	s->verts = MEM_mallocN(sizeof(StrandsVertex) * verts, "strand vertices");
+	strands->totverts = verts;
+	strands->verts = MEM_mallocN(sizeof(StrandsVertex) * verts, "strand vertices");
 	
 	/* must be added explicitly */
-	s->state = NULL;
+	strands->state = NULL;
 	
-	return s;
+	return strands;
 }
 
 void BKE_strands_free(Strands *strands)
@@ -59,19 +59,6 @@ void BKE_strands_state_copy_rest_positions(Strands *strands)
 		int i;
 		for (i = 0; i < strands->totverts; ++i) {
 			copy_v3_v3(strands->state[i].co, strands->verts[i].co);
-		}
-	}
-}
-
-/* copy the rest positions to initialize the motion state */
-void BKE_strands_state_copy_root_positions(Strands *strands)
-{
-	if (strands->state) {
-		StrandIterator it_strand;
-		int i = 0;
-		for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
-			copy_v3_v3(strands->state[i].co, strands->verts[i].co);
-			i += it_strand.curve->numverts;
 		}
 	}
 }
@@ -119,20 +106,23 @@ static void calc_normals(Strands *strands, bool use_motion_state)
 {
 	StrandIterator it_strand;
 	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
-		StrandVertexIterator it_vert;
-		BKE_strand_vertex_iter_init(&it_vert, &it_strand);
-		
-		if (BKE_strand_vertex_iter_valid(&it_vert)) {
-			const float *co_prev = use_motion_state ? it_vert.state->co : it_vert.vertex->co;
-			
-			BKE_strand_vertex_iter_next(&it_vert);
-			
-			for (; BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
-				const float *co = use_motion_state ? it_vert.state->co : it_vert.vertex->co;
-				float *nor = use_motion_state ? it_vert.state->nor : it_vert.vertex->nor;
-				
-				sub_v3_v3v3(nor, co, co_prev);
-				normalize_v3(nor);
+		StrandEdgeIterator it_edge;
+		if (use_motion_state) {
+			for (BKE_strand_edge_iter_init(&it_edge, &it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+				sub_v3_v3v3(it_edge.state0->nor, it_edge.state1->co, it_edge.state0->co);
+				normalize_v3(it_edge.state0->nor);
+			}
+			if (it_strand.tot > 0) {
+				copy_v3_v3(it_edge.state0->nor, (it_edge.state0-1)->nor);
+			}
+		}
+		else {
+			for (BKE_strand_edge_iter_init(&it_edge, &it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+				sub_v3_v3v3(it_edge.vertex0->nor, it_edge.vertex1->co, it_edge.vertex0->co);
+				normalize_v3(it_edge.vertex0->nor);
+			}
+			if (it_strand.tot > 0) {
+				copy_v3_v3(it_edge.vertex0->nor, (it_edge.vertex0-1)->nor);
 			}
 		}
 	}
@@ -146,4 +136,109 @@ void BKE_strands_ensure_normals(Strands *strands)
 	
 	if (use_motion_state)
 		calc_normals(strands, true);
+}
+
+void BKE_strands_get_minmax(Strands *strands, float min[3], float max[3], bool use_motion_state)
+{
+	int numverts = strands->totverts;
+	int i;
+	
+	if (use_motion_state && strands->state) {
+		for (i = 0; i < numverts; ++i) {
+			minmax_v3v3_v3(min, max, strands->state[i].co);
+		}
+	}
+	else {
+		for (i = 0; i < numverts; ++i) {
+			minmax_v3v3_v3(min, max, strands->verts[i].co);
+		}
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+
+StrandsChildren *BKE_strands_children_new(int curves, int verts)
+{
+	StrandsChildren *strands = MEM_mallocN(sizeof(StrandsChildren), "strands children");
+	
+	strands->totcurves = curves;
+	strands->curves = MEM_mallocN(sizeof(StrandsChildCurve) * curves, "strand children curves");
+	
+	strands->totverts = verts;
+	strands->verts = MEM_mallocN(sizeof(StrandsChildVertex) * verts, "strand children vertices");
+	
+	return strands;
+}
+
+void BKE_strands_children_free(StrandsChildren *strands)
+{
+	if (strands) {
+		if (strands->curves)
+			MEM_freeN(strands->curves);
+		if (strands->verts)
+			MEM_freeN(strands->verts);
+		MEM_freeN(strands);
+	}
+}
+
+static void calc_child_normals(StrandsChildren *strands)
+{
+	StrandChildIterator it_strand;
+	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
+		StrandChildEdgeIterator it_edge;
+		for (BKE_strand_child_edge_iter_init(&it_edge, &it_strand); BKE_strand_child_edge_iter_valid(&it_edge); BKE_strand_child_edge_iter_next(&it_edge)) {
+			sub_v3_v3v3(it_edge.vertex0->nor, it_edge.vertex1->co, it_edge.vertex0->co);
+			normalize_v3(it_edge.vertex0->nor);
+		}
+		if (it_strand.tot > 0) {
+			copy_v3_v3(it_edge.vertex0->nor, (it_edge.vertex0-1)->nor);
+		}
+	}
+}
+
+void BKE_strands_children_ensure_normals(StrandsChildren *strands)
+{
+	calc_child_normals(strands);
+}
+
+void BKE_strands_children_get_minmax(StrandsChildren *strands, float min[3], float max[3])
+{
+	int numverts = strands->totverts;
+	int i;
+	
+	for (i = 0; i < numverts; ++i) {
+		minmax_v3v3_v3(min, max, strands->verts[i].co);
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+
+void BKE_strand_bend_iter_transform_rest(StrandBendIterator *iter, float mat[3][3])
+{
+	float dir0[3], dir1[3];
+	
+	sub_v3_v3v3(dir0, iter->vertex1->co, iter->vertex0->co);
+	sub_v3_v3v3(dir1, iter->vertex2->co, iter->vertex1->co);
+	normalize_v3(dir0);
+	normalize_v3(dir1);
+	
+	/* rotation between segments */
+	rotation_between_vecs_to_mat3(mat, dir0, dir1);
+}
+
+void BKE_strand_bend_iter_transform_state(StrandBendIterator *iter, float mat[3][3])
+{
+	if (iter->state0) {
+		float dir0[3], dir1[3];
+		
+		sub_v3_v3v3(dir0, iter->state1->co, iter->state0->co);
+		sub_v3_v3v3(dir1, iter->state2->co, iter->state1->co);
+		normalize_v3(dir0);
+		normalize_v3(dir1);
+		
+		/* rotation between segments */
+		rotation_between_vecs_to_mat3(mat, dir0, dir1);
+	}
+	else
+		unit_m3(mat);
 }

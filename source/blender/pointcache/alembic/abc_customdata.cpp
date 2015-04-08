@@ -54,7 +54,7 @@ BLI_INLINE void print_writer_compound(OCompoundProperty &prop)
 /* ========================================================================= */
 
 template <CustomDataType CDTYPE>
-static void write_sample(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+static void write_sample(CustomDataWriter */*writer*/, OCompoundProperty &/*parent*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
 {
 	/* no implementation available, should not happen */
 	printf("ERROR: CustomData type %s has no write_sample implementation\n", CustomData_layertype_name((int)CDTYPE));
@@ -196,7 +196,7 @@ void write_sample<CD_ORIGSPACE_MLOOP>(CustomDataWriter *writer, OCompoundPropert
 /* ------------------------------------------------------------------------- */
 
 template <CustomDataType CDTYPE>
-static PTCReadSampleResult read_sample(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+static PTCReadSampleResult read_sample(CustomDataReader */*reader*/, ICompoundProperty &/*parent*/, const ISampleSelector &/*ss*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
 {
 	/* no implementation available, should not happen */
 	printf("ERROR: CustomData type %s has no read_sample implementation\n", CustomData_layertype_name((int)CDTYPE));
@@ -402,7 +402,7 @@ BLI_INLINE void write_sample_call(CustomDataWriter *writer, OCompoundProperty &p
 
 /* terminator specialization */
 template <>
-void write_sample_call<CD_NUMTYPES>(CustomDataWriter *writer, OCompoundProperty &parent, CustomDataType type, const std::string &name, void *data, int num_data)
+void write_sample_call<CD_NUMTYPES>(CustomDataWriter */*writer*/, OCompoundProperty &/*parent*/, CustomDataType /*type*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
 {
 }
 
@@ -420,7 +420,7 @@ BLI_INLINE PTCReadSampleResult read_sample_call(CustomDataReader *reader, ICompo
 
 /* terminator specialization */
 template <>
-PTCReadSampleResult read_sample_call<CD_NUMTYPES>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, CustomDataType type, const std::string &name, void *data, int num_data)
+PTCReadSampleResult read_sample_call<CD_NUMTYPES>(CustomDataReader */*reader*/, ICompoundProperty &/*parent*/, const ISampleSelector &/*ss*/, CustomDataType /*type*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
 {
 	return PTC_READ_SAMPLE_INVALID;
 }
@@ -464,7 +464,7 @@ std::string CustomDataWriter::cdtype_to_name(CustomData *cdata, CustomDataType t
 }
 
 /* parse property name to CD layer name based on S or N prefix for named/unnamed layers */
-void CustomDataReader::cdtype_from_name(CustomData *cdata, const std::string &name, int type, int *n, char *layer_name, int max_layer_name)
+void CustomDataReader::cdtype_from_name(CustomData */*cdata*/, const std::string &name, int type, int *n, char *layer_name, int max_layer_name)
 {
 	const char *layertype_name = CustomData_layertype_name(type);
 	/* We can safely assume all properties in the compound share the correct prefix

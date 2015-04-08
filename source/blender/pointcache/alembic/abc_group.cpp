@@ -27,6 +27,7 @@
 #include "abc_group.h"
 #include "abc_object.h"
 #include "abc_particles.h"
+#include "abc_simdebug.h"
 
 extern "C" {
 #include "BLI_listbase.h"
@@ -218,11 +219,17 @@ AbcWriter *AbcDupligroupWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
-AbcDupliCacheWriter::AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types) :
+AbcDupliCacheWriter::AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types, bool do_sim_debug) :
     GroupWriter(group, name),
     m_dupcache(dupcache),
-    m_data_types(data_types)
+    m_data_types(data_types),
+    m_simdebug_writer(NULL)
 {
+	if (do_sim_debug) {
+		BKE_sim_debug_data_set_enabled(true);
+		if (_sim_debug_data)
+			m_simdebug_writer = new AbcSimDebugWriter("sim_debug", _sim_debug_data);
+	}
 }
 
 AbcDupliCacheWriter::~AbcDupliCacheWriter()
@@ -231,6 +238,9 @@ AbcDupliCacheWriter::~AbcDupliCacheWriter()
 		if (it->second)
 			delete it->second;
 	}
+	
+	if (m_simdebug_writer)
+		delete m_simdebug_writer;
 }
 
 void AbcDupliCacheWriter::init_abc()
@@ -239,6 +249,11 @@ void AbcDupliCacheWriter::init_abc()
 		return;
 	
 	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
+	
+	if (m_simdebug_writer) {
+		m_simdebug_writer->init(abc_archive());
+		m_simdebug_writer->init_abc(abc_archive()->root());
+	}
 }
 
 void AbcDupliCacheWriter::write_sample_object_data(DupliObjectData *data)
@@ -308,6 +323,10 @@ void AbcDupliCacheWriter::write_sample()
 	for (dob = (DupliObject *)m_dupcache->duplilist.first, i = 0; dob; dob = dob->next, ++i) {
 		write_sample_dupli(dob, i);
 	}
+	
+	if (m_simdebug_writer) {
+		m_simdebug_writer->write_sample();
+	}
 }
 
 AbcWriter *AbcDupliCacheWriter::find_id_writer(ID *id) const
@@ -321,19 +340,28 @@ AbcWriter *AbcDupliCacheWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
-AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache) :
+AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache, bool do_sim_debug) :
     GroupReader(group, name),
-    dupli_cache(dupli_cache)
+    dupli_cache(dupli_cache),
+    m_simdebug_reader(NULL)
 {
 	/* XXX this mapping allows fast lookup of existing objects in Blender data
 	 * to associate with duplis. Later i may be possible to create instances of
 	 * non-DNA data, but for the time being this is a requirement due to other code parts (drawing, rendering)
 	 */
 	build_object_map(G.main, group);
+	
+	if (do_sim_debug) {
+		BKE_sim_debug_data_set_enabled(true);
+		if (_sim_debug_data)
+			m_simdebug_reader = new AbcSimDebugReader(_sim_debug_data);
+	}
 }
 
 AbcDupliCacheReader::~AbcDupliCacheReader()
 {
+	if (m_simdebug_reader)
+		delete m_simdebug_reader;
 }
 
 void AbcDupliCacheReader::init_abc(IObject object)
@@ -412,7 +440,7 @@ void AbcDupliCacheReader::read_dupligroup_group(IObject abc_group, const ISample
 			IM44fProperty prop_matrix(props, "matrix", 0);
 			M44f abc_matrix = prop_matrix.getValue(ss);
 			float matrix[4][4];
-			memcpy(matrix, abc_matrix.getValue(), sizeof(float[4][4]));
+			memcpy(matrix, abc_matrix.getValue(), sizeof(matrix));
 			
 			IObject abc_dupli_object = abc_dupli.getChild("object");
 			if (abc_dupli_object.isInstanceRoot()) {
@@ -443,6 +471,16 @@ PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 	
 	/* now generate dupli instances for the group */
 	read_dupligroup_group(abc_group, ss);
+	
+	// XXX reader init is a mess ...
+	if (m_simdebug_reader) {
+		if (abc_top.getChildHeader("sim_debug")) {
+			m_simdebug_reader->init(abc_archive());
+			m_simdebug_reader->init_abc(abc_top.getChild("sim_debug"));
+			
+			m_simdebug_reader->read_sample(frame);
+		}
+	}
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
