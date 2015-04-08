@@ -164,7 +164,7 @@ void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
 		
 		abc_dupli.addChildInstance(abc_object, "object");
 		
-		prop_matrix = OM44fProperty(props, "matrix", 0);
+		prop_matrix = OM44fProperty(props, "matrix", abc_archive()->frame_sampling());
 		m_property_writers.push_back(prop_matrix.getPtr());
 	}
 	else {
@@ -291,7 +291,7 @@ void AbcDupliCacheWriter::write_sample_dupli(DupliObject *dob, int index)
 		
 		abc_dupli.addChildInstance(abc_object, "object");
 		
-		prop_matrix = OM44fProperty(props, "matrix", 0);
+		prop_matrix = OM44fProperty(props, "matrix", abc_archive()->frame_sampling());
 		m_property_writers.push_back(prop_matrix.getPtr());
 	}
 	else {
