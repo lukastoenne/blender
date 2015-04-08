@@ -194,7 +194,7 @@ static void ObtainCacheParticleSystem(Mesh *mesh, BL::Object b_ob, BL::ParticleS
 	}
 }
 
-static void ObtainCacheStrands(Mesh *mesh, BL::Scene b_scene, BL::Object b_parent, BL::DupliObject b_dupli_ob, BL::ParticleSystem b_psys, const Transform &itfm,
+static void ObtainCacheStrands(Mesh *mesh, BL::Scene b_scene, BL::Object b_parent, BL::DupliObject b_dupli_ob, BL::ParticleSystem b_psys, const Transform &/*itfm*/,
                                ParticleCurveData *CData, bool preview, int &keyno, int &curvenum)
 {
 	BL::ParticleSettings b_part((const PointerRNA)b_psys.settings().ptr);
@@ -243,7 +243,6 @@ static void ObtainCacheStrands(Mesh *mesh, BL::Scene b_scene, BL::Object b_paren
 		for(int cvert = 0; cvert < numverts; ++cvert, ++ivert) {
 			float *co = (has_motion_state)? b_strands.motion_state[ivert].location() : b_strands.vertices[ivert].location();
 			float3 cKey = make_float3(co[0], co[1], co[2]);
-			cKey = transform_point(&itfm, cKey);
 			
 			if(cvert > 0) {
 				float step_length = len(cKey - pcKey);
