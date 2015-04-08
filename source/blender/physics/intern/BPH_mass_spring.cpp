@@ -1126,7 +1126,15 @@ struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct 
 	
 	struct Implicit_Data *id;
 	int numverts = strands->totverts;
-	int numsprings = strands->totverts - strands->totcurves;
+	int numcurves = strands->totcurves;
+	int numedges = max_ii(numverts - numcurves, 0);
+	int numbends = max_ii(numverts - 2*numcurves, 0);
+	
+	/* goal springs:    1 per vertex, except roots
+	 * stretch springs: 1 per edge
+	 * bending sprints: 3 per bend // XXX outdated, 1 is enough
+	 */
+	int numsprings = (numverts-numcurves) + numedges + 3*numbends;
 	int i;
 	
 	id = BPH_mass_spring_solver_create(numverts, numsprings);
@@ -1197,8 +1205,8 @@ static void strands_setup_constraints(Strands *strands, Implicit_Data *data, Col
 #endif
 }
 
-/* calculates internal forces for a single strand curve */
-static void strands_calc_curve_stretch_forces(Strands *strands, HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+/* stretch forces are created between 2 vertices of each segment */
+static void strands_calc_curve_stretch_forces(Strands *strands, float UNUSED(space[4][4]), HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
 {
 	StrandEdgeIterator it_edge;
 	
@@ -1213,14 +1221,145 @@ static void strands_calc_curve_stretch_forces(Strands *strands, HairSimParams *p
 	}
 }
 
-/* calculates internal forces for a single strand curve */
-static void strands_calc_curve_forces(Strands *strands, HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+/* bending forces aim to restore the rest shape of each strand locally */
+static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
 {
-	strands_calc_curve_stretch_forces(strands, params, data, it_strand);
+	StrandBendIterator it_bend;
+	
+	const float stiffness = params->bend_stiffness;
+	const float damping = stiffness * params->bend_damping;
+	
+	BKE_strand_bend_iter_init(&it_bend, it_strand);
+	if (!BKE_strand_bend_iter_valid(&it_bend))
+		return;
+	
+	/* The 'mat' matrix (here: A) contains the relative transform between the local rest and motion state coordinate systems.
+	 * In the beginning both systems are the root matrix R, so the relative transform is the unit matrix.
+	 * 
+	 * A = M_state * M_rest^T
+	 *   = R * R^T
+	 *   = I
+	 * 
+	 * With each bend the matrices are rotated along the curvature, described by matrix B^T. Since we are only
+	 * interested in the combined transform however, the resulting operation becomes
+	 * 
+	 * A' = M_state' * M_rest'
+	 *    = (B_state^T * M_state) * (B_rest^T * M_rest)^T
+	 *    = B_state^T * M_state * M_rest^T * B_rest
+	 *    = B_state^T * A * B_rest
+	 * 
+	 * The target vector is originally the direction of the first segment. For each bend, the target vector
+	 * is the _previous_ segment's direction, i.e. the target vector is rotated by B with a 1-step delay.
+	 * 
+	 * The target vector in the current motion state system for each segment could thus be calculated by multiplying
+	 * 
+	 * t_state = M * t_rest
+	 * 
+	 * but using the edge vector directly is more practical.
+	 * 
+	 */
+	float mat[3][3];
+//	float Mrest[3][3], Mstate[3][3];
+	
+	{ /* initialize using the first edge deviation from the rest direction */
+		float edge_rest[3], edge_state[3], rot[3][3];
+		sub_v3_v3v3(edge_rest, it_strand->verts[1].co, it_strand->verts[0].co);
+		sub_v3_v3v3(edge_state, it_strand->state[1].co, it_strand->state[0].co);
+		normalize_v3(edge_rest);
+		normalize_v3(edge_state);
+		rotation_between_vecs_to_mat3(rot, edge_rest, edge_state);
+		
+		copy_m3_m3(mat, rot);
+//		copy_m3_m3(Mrest, it_strand->curve->root_matrix);
+//		mul_m3_m3m3(Mstate, rot, Mrest);
+	}
+	
+	{ /* apply force */
+		/* Note: applying forces to the first segment is necessary to equalize forces on the root,
+		 * otherwise energy gets introduced at the root and can destabilize the simulation.
+		 */
+		float target[3];
+		sub_v3_v3v3(target, it_strand->verts[1].co, it_strand->verts[0].co);
+		mul_mat3_m4_v3(space, target); /* to solver space (world space) */
+		
+		float target_state[3];
+		mul_v3_m3v3(target_state, mat, target);
+		
+		int vroot = BKE_strand_bend_iter_vertex0_offset(strands, &it_bend); /* root velocity used as goal velocity */
+		int vj = BKE_strand_bend_iter_vertex1_offset(strands, &it_bend);
+		float goal[3], rootvel[3];
+		mul_v3_m4v3(goal, space, it_strand->verts[1].co);
+		BPH_mass_spring_get_velocity(data, vroot, rootvel);
+		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, NULL, NULL, NULL);
+	}
+	
+	do {
+		{ /* advance the coordinate frame */
+			float rotrest[3][3], rotrest_inv[3][3], rotstate[3][3], rotstate_inv[3][3];
+			BKE_strand_bend_iter_transform_rest(&it_bend, rotrest);
+			BKE_strand_bend_iter_transform_state(&it_bend, rotstate);
+			transpose_m3_m3(rotrest_inv, rotrest);
+			transpose_m3_m3(rotstate_inv, rotstate);
+			
+//			mul_m3_m3m3(Mrest, rotrest_inv, Mrest);
+//			mul_m3_m3m3(Mstate, rotstate_inv, Mstate);
+			
+			mul_m3_m3m3(mat, mat, rotrest);
+			mul_m3_m3m3(mat, rotstate_inv, mat);
+		}
+		
+		{ /* apply force */
+			float target[3];
+			sub_v3_v3v3(target, it_bend.vertex1->co, it_bend.vertex0->co);
+			mul_mat3_m4_v3(space, target); /* to solver space (world space) */
+			
+			float target_state[3];
+			mul_v3_m3v3(target_state, mat, target);
+			
+			int vi = BKE_strand_bend_iter_vertex0_offset(strands, &it_bend);
+			int vj = BKE_strand_bend_iter_vertex1_offset(strands, &it_bend);
+			int vk = BKE_strand_bend_iter_vertex2_offset(strands, &it_bend);
+			BPH_mass_spring_force_spring_bending_angular(data, vi, vj, vk, target_state, stiffness, damping);
+			
+#if 0 /* debug */
+			{
+				float mscale = 0.1f;
+				
+				float x[3];
+				BPH_mass_spring_get_position(data, vj, x);
+				BKE_sim_debug_data_add_vector(x, target, 0,0,1, "hairsim", 2598, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, target_state, 0.4,0.4,1, "hairsim", 2599, vi, vj, vk);
+				
+				float mr[3][3];
+				copy_m3_m3(mr, Mrest);
+				mul_m3_fl(mr, mscale);
+				BKE_sim_debug_data_add_vector(x, mr[0], 0.7,0.0,0.0, "hairsim", 1957, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, mr[1], 0.0,0.7,0.0, "hairsim", 1958, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, mr[2], 0.0,0.0,0.7, "hairsim", 1959, vi, vj, vk);
+				
+				float ms[3][3];
+				copy_m3_m3(ms, Mstate);
+				mul_m3_fl(ms, mscale);
+				BKE_sim_debug_data_add_vector(x, ms[0], 1.0,0.4,0.4, "hairsim", 1857, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, ms[1], 0.4,1.0,0.4, "hairsim", 1858, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, ms[2], 0.4,0.4,1.0, "hairsim", 1859, vi, vj, vk);
+			}
+#endif
+		}
+		
+		BKE_strand_bend_iter_next(&it_bend);
+	} while (BKE_strand_bend_iter_valid(&it_bend));
+}
+
+/* calculates internal forces for a single strand curve */
+static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+{
+	strands_calc_curve_stretch_forces(strands, space, params, data, it_strand);
+	strands_calc_curve_bending_forces(strands, space, params, data, it_strand);
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */
-static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors)
+static void strands_calc_force(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors)
 {
 	unsigned int numverts = strands->totverts;
 	
@@ -1280,7 +1419,7 @@ static void strands_calc_force(Strands *strands, HairSimParams *params, Implicit
 	/* spring forces */
 	StrandIterator it_strand;
 	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
-		strands_calc_curve_forces(strands, params, data, &it_strand);
+		strands_calc_curve_forces(strands, space, params, data, &it_strand);
 	}
 }
 
@@ -1371,7 +1510,7 @@ bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, Hai
 		BPH_mass_spring_clear_forces(id);
 		
 		// calculate forces
-		strands_calc_force(strands, params, id, frame, scene, effectors);
+		strands_calc_force(strands, mat, params, id, frame, scene, effectors);
 		
 		// calculate new velocity and position
 		BPH_mass_spring_solve_velocities(id, dtime, &result);

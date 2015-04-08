@@ -236,4 +236,7 @@ BLI_INLINE size_t BKE_strand_bend_iter_vertex2_offset(Strands *strands, StrandBe
 	return iter->vertex2 - strands->verts;
 }
 
+void BKE_strand_bend_iter_transform_rest(StrandBendIterator *iter, float mat[3][3]);
+void BKE_strand_bend_iter_transform_state(StrandBendIterator *iter, float mat[3][3]);
+
 #endif  /* __BKE_STRANDS_H__ */

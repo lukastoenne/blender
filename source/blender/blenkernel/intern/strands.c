@@ -151,3 +151,35 @@ void BKE_strands_get_minmax(Strands *strands, float min[3], float max[3], bool u
 		}
 	}
 }
+
+/* ------------------------------------------------------------------------- */
+
+void BKE_strand_bend_iter_transform_rest(StrandBendIterator *iter, float mat[3][3])
+{
+	float dir0[3], dir1[3];
+	
+	sub_v3_v3v3(dir0, iter->vertex1->co, iter->vertex0->co);
+	sub_v3_v3v3(dir1, iter->vertex2->co, iter->vertex1->co);
+	normalize_v3(dir0);
+	normalize_v3(dir1);
+	
+	/* rotation between segments */
+	rotation_between_vecs_to_mat3(mat, dir0, dir1);
+}
+
+void BKE_strand_bend_iter_transform_state(StrandBendIterator *iter, float mat[3][3])
+{
+	if (iter->state0) {
+		float dir0[3], dir1[3];
+		
+		sub_v3_v3v3(dir0, iter->state1->co, iter->state0->co);
+		sub_v3_v3v3(dir1, iter->state2->co, iter->state1->co);
+		normalize_v3(dir0);
+		normalize_v3(dir1);
+		
+		/* rotation between segments */
+		rotation_between_vecs_to_mat3(mat, dir0, dir1);
+	}
+	else
+		unit_m3(mat);
+}
