@@ -71,6 +71,25 @@ private:
 };
 
 
+class AbcHairChildrenWriter : public ParticlesWriter, public AbcWriter {
+public:
+	AbcHairChildrenWriter(const std::string &name, Object *ob, ParticleSystem *psys);
+	~AbcHairChildrenWriter();
+	
+	void init_abc(Abc::OObject parent);
+	
+	void write_sample();
+	
+private:
+	AbcGeom::OCurves m_curves;
+	
+	AbcGeom::OV3fGeomParam m_param_velocities;
+	AbcGeom::OQuatfGeomParam m_param_rotations;
+	AbcGeom::OC3fGeomParam m_param_colors;
+	AbcGeom::OFloatGeomParam m_param_times;
+};
+
+
 class AbcHairWriter : public ParticlesWriter, public AbcWriter {
 public:
 	AbcHairWriter(const std::string &name, Object *ob, ParticleSystem *psys);
@@ -87,6 +106,8 @@ private:
 	AbcGeom::OM33fGeomParam m_param_root_matrix;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
+	
+	AbcHairChildrenWriter m_child_writer;
 };
 
 
@@ -112,6 +133,7 @@ private:
 	AbcGeom::OP3fGeomParam m_param_motion_co;
 	AbcGeom::OV3fGeomParam m_param_motion_vel;
 };
+
 
 class AbcStrandsReader : public AbcReader {
 public:
