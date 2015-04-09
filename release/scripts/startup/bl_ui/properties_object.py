@@ -356,6 +356,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         col.row().prop(cachelib, "eval_mode", toggle=True, expand=True)
         col.row().prop(cachelib, "data_types", icon_only=True, toggle=True)
 
+        '''
         row = layout.row(align=True)
         row.label("Filter:")
         row.prop(cachelib, "filter_string", icon='VIEWZOOM', text="")
@@ -373,6 +374,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
                 row = layout.row(align=True)
                 row.alignment = 'LEFT'
                 row.template_cache_library_item(cachelib, ob, datatype, index, enable)
+        '''
     
         layout.operator_menu_enum("cachelibrary.add_modifier", "type")
 
