@@ -1571,6 +1571,56 @@ static void rna_DupliObject_strands_free(DupliObject *UNUSED(dob), ReportList *U
 		BKE_strands_free(strands);
 }
 
+/* settings: 1 - preview, 2 - render */
+StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportList *UNUSED(reports), Scene *scene, Object *parent, ParticleSystem *psys, int settings)
+{
+	StrandsChildren *strands = NULL;
+	bool is_cached = parent->cache_library && (parent->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || parent->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
+	
+	if (is_cached) {
+		float frame = (float)scene->r.cfra;
+		eCacheLibrary_EvalMode eval_mode;
+		
+		if (settings == 1)
+			eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
+		else if (settings == 2)
+			eval_mode = CACHE_LIBRARY_EVAL_RENDER;
+		else
+			return NULL;
+		
+		if (settings == 1 && parent->dup_cache) {
+			DupliObjectData *data;
+			
+			/* use dupli cache for realtime dupli data if possible */
+			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
+			if (data) {
+				strands = BKE_dupli_object_data_find_strands_children(data, psys->name);
+				BKE_dupli_object_data_acquire_strands_children(data, strands);
+			}
+		}
+		else {
+			DupliObjectData data;
+			
+			memset(&data, 0, sizeof(data));
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode)) {
+				strands = BKE_dupli_object_data_find_strands_children(&data, psys->name);
+				BKE_dupli_object_data_acquire_strands_children(&data, strands);
+			}
+			
+			BKE_dupli_object_data_clear(&data);
+		}
+	}
+	
+	return strands;
+}
+
+static void rna_DupliObject_strands_children_free(DupliObject *UNUSED(dob), ReportList *UNUSED(reports), PointerRNA *strands_ptr)
+{
+	StrandsChildren *strands = strands_ptr->data;
+	if (strands)
+		BKE_strands_children_free(strands);
+}
+
 #else
 
 static void rna_def_vertex_group(BlenderRNA *brna)
@@ -2947,6 +2997,28 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Free strands data");
 	parm = RNA_def_pointer(func, "strands", "Strands", "", "Strands to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+
+	func = RNA_def_function(srna, "strands_children_new", "rna_DupliObject_strands_children_new");
+	RNA_def_function_ui_description(func, "Add new strands created from dupli cache data");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "scene", "Scene", "", "Scene within which to evaluate modifiers");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "parent", "Object", "", "Duplicator parent of the object");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "particle_system", "ParticleSystem", "", "Particle System");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "settings", strand_settings_items, 0, "", "Modifier settings to apply");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_pointer(func, "strands", "StrandsChildren", "",
+	                       "Strands created from object, remove it if it is only used for export");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "strands_children_free", "rna_DupliObject_strands_children_free");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Free strands data");
+	parm = RNA_def_pointer(func, "strands", "StrandsChildren", "", "Strands to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
 	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 }
