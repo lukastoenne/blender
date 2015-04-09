@@ -868,9 +868,9 @@ void BKE_sequence_reload_new_file(Scene *scene, Sequence *seq, const bool lock_r
 						seq_multiview_name(scene, i, prefix, ext, str, FILE_MAX);
 						anim = openanim(str, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
 						                seq->streamindex, seq->strip->colorspace_settings.name);
-						seq_anim_add_suffix(scene, anim, i);
 
 						if (anim) {
+							seq_anim_add_suffix(scene, anim, i);
 							sanim = MEM_mallocN(sizeof(StripAnim), "Strip Anim");
 							BLI_addtail(&seq->anims, sanim);
 							sanim->anim = anim;
@@ -1532,9 +1532,15 @@ static void seq_open_anim_file(Scene *scene, Sequence *seq, bool openfile)
 					        seq->streamindex, seq->strip->colorspace_settings.name);
 				}
 
-				seq_anim_add_suffix(scene, sanim->anim, i);
-
-				if (sanim->anim == NULL) {
+				if (sanim->anim) {
+#if 0
+					seq_anim_add_suffix(scene, sanim->anim, i);
+#else
+					/* we already have the suffix */
+					IMB_suffix_anim(sanim->anim, suffix);
+#endif
+				}
+				else {
 					if (openfile) {
 						sanim->anim = openanim(
 						        name, IB_rect | ((seq->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
@@ -1802,6 +1808,9 @@ static bool seq_proxy_multiview_context_invalid(Sequence *seq, Scene *scene, con
 			                 seq->strip->stripdata->name);
 			BLI_path_abs(path, G.main->name);
 			BKE_scene_multiview_view_prefix_get(scene, path, prefix, &ext);
+		}
+		else {
+			prefix[0] = '\0';
 		}
 
 		if (prefix[0] == '\0')
@@ -2761,6 +2770,9 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context, Sequence *seq
 			if (prefix[0] == '\0') {
 				goto monoview_image;
 			}
+		}
+		else {
+			prefix[0] = '\0';
 		}
 
 		totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
@@ -5118,9 +5130,9 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 
 				seq_multiview_name(scene, i, prefix, ext, str, FILE_MAX);
 				anim_arr[j] = openanim(str, IB_rect, 0, colorspace);
-				seq_anim_add_suffix(scene, anim_arr[j], i);
 
 				if (anim_arr[j]) {
+					seq_anim_add_suffix(scene, anim_arr[j], i);
 					j++;
 				}
 			}
