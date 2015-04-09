@@ -178,8 +178,11 @@ static int hair_children_count_totkeys(ParticleCacheKey **pathcache, int totpart
 	return totkeys;
 }
 
-static void hair_children_create_sample(ParticleCacheKey **pathcache, int totpart, int totkeys, HairChildrenSample &sample, bool do_numkeys)
+static void hair_children_create_sample(ParticleCacheKey **pathcache, int totpart, int totkeys, float imat[4][4], HairChildrenSample &sample, bool do_numkeys)
 {
+	float iqt[4];
+	mat4_to_quat(iqt, imat);
+	
 	int p, k;
 	
 	if (do_numkeys)
@@ -199,10 +202,16 @@ static void hair_children_create_sample(ParticleCacheKey **pathcache, int totpar
 		
 		for (k = 0; k < numkeys; ++k) {
 			ParticleCacheKey *key = &keys[k];
+			float co[3], vel[3], rot[4];
+			/* pathcache keys are in world space, transform to object space */
+			mul_v3_m4v3(co, imat, key->co);
+			copy_v3_v3(vel, key->vel);
+			mul_mat3_m4_v3(imat, vel);
+			mul_qt_qtqt(rot, iqt, key->rot);
 			
-			sample.positions.push_back(V3f(key->co[0], key->co[1], key->co[2]));
-			sample.velocities.push_back(V3f(key->vel[0], key->vel[1], key->vel[2]));
-			sample.rotations.push_back(Quatf(key->rot[0], key->rot[1], key->rot[2], key->rot[3]));
+			sample.positions.push_back(V3f(co[0], co[1], co[2]));
+			sample.velocities.push_back(V3f(vel[0], vel[1], vel[2]));
+			sample.rotations.push_back(Quatf(rot[0], rot[1], rot[2], rot[3]));
 			sample.colors.push_back(C3f(key->col[0], key->col[1], key->col[2]));
 			sample.times.push_back(key->time);
 		}
@@ -220,17 +229,20 @@ void AbcHairChildrenWriter::write_sample()
 	if (totkeys == 0)
 		return;
 	
+	float imat[4][4];
+	invert_m4_m4(imat, m_ob->obmat);
+	
 	OCurvesSchema &schema = m_curves.getSchema();
 	
 	HairChildrenSample child_sample;
 	OCurvesSchema::Sample sample;
 	if (schema.getNumSamples() == 0) {
 		/* write curve sizes only first time, assuming they are constant! */
-		hair_children_create_sample(m_psys->childcache, m_psys->totchild, totkeys, child_sample, true);
+		hair_children_create_sample(m_psys->childcache, m_psys->totchild, totkeys, imat, child_sample, true);
 		sample = OCurvesSchema::Sample(child_sample.positions, child_sample.numkeys);
 	}
 	else {
-		hair_children_create_sample(m_psys->childcache, m_psys->totchild, totkeys, child_sample, false);
+		hair_children_create_sample(m_psys->childcache, m_psys->totchild, totkeys, imat, child_sample, false);
 		sample = OCurvesSchema::Sample(child_sample.positions);
 	}
 	schema.set(sample);
@@ -262,6 +274,12 @@ AbcHairWriter::~AbcHairWriter()
 {
 }
 
+void AbcHairWriter::init(WriterArchive *archive)
+{
+	AbcWriter::init(archive);
+	m_child_writer.init(archive);
+}
+
 void AbcHairWriter::init_abc(OObject parent)
 {
 	if (m_curves)
@@ -276,7 +294,6 @@ void AbcHairWriter::init_abc(OObject parent)
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
 	
-	m_child_writer.init(abc_archive());
 	m_child_writer.init_abc(m_curves);
 }
 
@@ -495,8 +512,93 @@ void AbcStrandsWriter::write_sample()
 }
 
 
-AbcStrandsReader::AbcStrandsReader(Strands *strands) :
+AbcStrandsChildrenReader::AbcStrandsChildrenReader(StrandsChildren *strands) :
     m_strands(strands)
+{
+}
+
+AbcStrandsChildrenReader::~AbcStrandsChildrenReader()
+{
+	discard_result();
+}
+
+void AbcStrandsChildrenReader::init_abc(IObject object)
+{
+	if (m_curves)
+		return;
+	m_curves = ICurves(object, kWrapExisting);
+	
+	ICurvesSchema &schema = m_curves.getSchema();
+	ICompoundProperty geom_props = schema.getArbGeomParams();
+	
+	m_param_times = IFloatGeomParam(geom_props, "times");
+}
+
+PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
+{
+	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	
+	if (!m_curves.valid())
+		return PTC_READ_SAMPLE_INVALID;
+	
+	ICurvesSchema &schema = m_curves.getSchema();
+	
+	ICurvesSchema::Sample sample;
+	schema.get(sample, ss);
+	
+	P3fArraySamplePtr sample_co = sample.getPositions();
+	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
+	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
+	
+	if (!sample_co || !sample_numvert)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	if (m_strands && (m_strands->totcurves != sample_numvert->size() || m_strands->totverts != sample_co->size()))
+		m_strands = NULL;
+	if (!m_strands)
+		m_strands = BKE_strands_children_new(sample_numvert->size(), sample_co->size());
+	
+	const int32_t *numvert = sample_numvert->get();
+	for (int i = 0; i < sample_numvert->size(); ++i) {
+		StrandsChildCurve *scurve = &m_strands->curves[i];
+		scurve->numverts = *numvert;
+		
+		++numvert;
+	}
+	
+	const V3f *co = sample_co->get();
+	const float32_t *time = sample_time.getVals()->get();
+	for (int i = 0; i < sample_co->size(); ++i) {
+		StrandsChildVertex *svert = &m_strands->verts[i];
+		copy_v3_v3(svert->co, co->getValue());
+		svert->time = *time;
+		
+		++co;
+		++time;
+	}
+	
+	BKE_strands_children_ensure_normals(m_strands);
+	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+StrandsChildren *AbcStrandsChildrenReader::acquire_result()
+{
+	StrandsChildren *strands = m_strands;
+	m_strands = NULL;
+	return strands;
+}
+
+void AbcStrandsChildrenReader::discard_result()
+{
+	BKE_strands_children_free(m_strands);
+	m_strands = NULL;
+}
+
+
+AbcStrandsReader::AbcStrandsReader(Strands *strands, StrandsChildren *children) :
+    m_strands(strands),
+    m_child_reader(children)
 {
 }
 
@@ -504,6 +606,13 @@ AbcStrandsReader::~AbcStrandsReader()
 {
 	discard_result();
 }
+
+void AbcStrandsReader::init(ReaderArchive *archive)
+{
+	AbcReader::init(archive);
+	m_child_reader.init(archive);
+}
+
 
 void AbcStrandsReader::init_abc(IObject object)
 {
@@ -523,6 +632,11 @@ void AbcStrandsReader::init_abc(IObject object)
 		m_param_motion_state = ICompoundProperty(geom_props, "motion_state");
 		m_param_motion_co = IP3fGeomParam(m_param_motion_state, "position");
 		m_param_motion_vel = IV3fGeomParam(m_param_motion_state, "velocity");
+	}
+	
+	if (m_curves.getChildHeader("children")) {
+		IObject child = m_curves.getChild("children");
+		m_child_reader.init_abc(child);
 	}
 }
 
@@ -599,6 +713,8 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	}
 	
 	BKE_strands_ensure_normals(m_strands);
+	
+	m_child_reader.read_sample(frame);
 	
 	return PTC_READ_SAMPLE_EXACT;
 }

@@ -403,8 +403,9 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 			}
 			else if (ICurvesSchema::matches(metadata)) {
 				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
+				StrandsChildren *children = BKE_dupli_object_data_find_strands_children(dupli_data, child.getName().c_str());
 				
-				AbcStrandsReader strands_reader(strands);
+				AbcStrandsReader strands_reader(strands, children);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
 				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
@@ -419,9 +420,17 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 						BKE_strands_free(strands);
 					}
 					BKE_dupli_object_data_add_strands(dupli_data, child.getName().c_str(), newstrands);
+					
+					StrandsChildren *newchildren = strands_reader.child_reader().acquire_result();
+					if (children && children != newchildren) {
+						/* reader can replace strands internally if topology does not match */
+						BKE_strands_children_free(children);
+					}
+					BKE_dupli_object_data_add_strands_children(dupli_data, child.getName().c_str(), newchildren);
 				}
 				else {
 					strands_reader.discard_result();
+					strands_reader.child_reader().discard_result();
 				}
 			}
 		}
@@ -669,8 +678,9 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 			}
 			else if (ICurvesSchema::matches(metadata)) {
 				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
+				StrandsChildren *children = BKE_dupli_object_data_find_strands_children(dupli_data, child.getName().c_str());
 				
-				AbcStrandsReader strands_reader(strands);
+				AbcStrandsReader strands_reader(strands, children);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
 				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
@@ -680,9 +690,17 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 						BKE_strands_free(strands);
 					}
 					BKE_dupli_object_data_add_strands(dupli_data, child.getName().c_str(), newstrands);
+					
+					StrandsChildren *newchildren = strands_reader.child_reader().acquire_result();
+					if (children && children != newchildren) {
+						/* reader can replace strands internally if topology does not match */
+						BKE_strands_children_free(children);
+					}
+					BKE_dupli_object_data_add_strands_children(dupli_data, child.getName().c_str(), newchildren);
 				}
 				else {
 					strands_reader.discard_result();
+					strands_reader.child_reader().discard_result();
 				}
 			}
 		}
