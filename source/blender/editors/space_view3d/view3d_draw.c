@@ -2019,8 +2019,9 @@ static void draw_dupli_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base
 		
 		for (link = dob_data->strands.first; link; link = link->next) {
 			struct Strands *strands = link->strands;
+			struct StrandsChildren *children = link->strands_children;
 			
-			draw_strands(scene, v3d, ar, base->object, strands, dflag);
+			draw_strands(scene, v3d, ar, base->object, strands, children, dflag);
 		}
 	}
 }

@@ -47,6 +47,7 @@ struct DupliObject;
 struct DupliObjectData;
 struct DerivedMesh;
 struct Strands;
+struct StrandsChildren;
 struct DupliCacheIterator;
 struct CacheLibrary;
 
@@ -91,8 +92,11 @@ void BKE_dupli_object_data_init(struct DupliObjectData *data, struct Object *ob)
 void BKE_dupli_object_data_clear(struct DupliObjectData *data);
 void BKE_dupli_object_data_set_mesh(struct DupliObjectData *data, struct DerivedMesh *dm);
 void BKE_dupli_object_data_add_strands(struct DupliObjectData *data, const char *name, struct Strands *strands);
+void BKE_dupli_object_data_add_strands_children(struct DupliObjectData *data, const char *name, struct StrandsChildren *children);
 struct Strands *BKE_dupli_object_data_find_strands(struct DupliObjectData *data, const char *name);
+struct StrandsChildren *BKE_dupli_object_data_find_strands_children(struct DupliObjectData *data, const char *name);
 bool BKE_dupli_object_data_acquire_strands(struct DupliObjectData *data, struct Strands *strands);
+bool BKE_dupli_object_data_acquire_strands_children(struct DupliObjectData *data, struct StrandsChildren *children);
 
 struct DupliCache *BKE_dupli_cache_new(void);
 void BKE_dupli_cache_free(struct DupliCache *dupcache);

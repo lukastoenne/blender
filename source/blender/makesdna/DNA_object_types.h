@@ -338,6 +338,7 @@ typedef struct DupliObjectDataStrands {
 	
 	char name[64]; /* MAX_NAME */
 	struct Strands *strands;
+	struct StrandsChildren *strands_children;
 } DupliObjectDataStrands;
 
 /* data that can be shared by multiple DupliObject instances */
