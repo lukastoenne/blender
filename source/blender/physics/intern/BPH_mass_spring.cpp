@@ -1328,7 +1328,7 @@ static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairS
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */
-static void strands_calc_force(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors)
+static void strands_calc_force(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase * /*effectors*/)
 {
 	unsigned int numverts = strands->totverts;
 	
