@@ -157,6 +157,7 @@ void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
 	OObject abc_dupli = m_abc_group.getChild(name);
 	OCompoundProperty props;
 	OM44fProperty prop_matrix;
+	OBoolProperty prop_visible;
 	if (!abc_dupli) {
 		abc_dupli = OObject(m_abc_group, name, 0);
 		m_object_writers.push_back(abc_dupli.getPtr());
@@ -166,14 +167,21 @@ void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
 		
 		prop_matrix = OM44fProperty(props, "matrix", abc_archive()->frame_sampling());
 		m_property_writers.push_back(prop_matrix.getPtr());
+		prop_visible = OBoolProperty(props, "visible", abc_archive()->frame_sampling());
+		m_property_writers.push_back(prop_visible.getPtr());
 	}
 	else {
 		props = abc_dupli.getProperties();
 		
 		prop_matrix = OM44fProperty(props.getProperty("matrix").getPtr()->asScalarPtr(), kWrapExisting);
+		prop_visible = OBoolProperty(props.getProperty("visible").getPtr()->asScalarPtr(), kWrapExisting);
 	}
 	
 	prop_matrix.set(M44f(dob->mat));
+	
+	bool show_object = (abc_archive()->use_render())? !(dob->ob->restrictflag & OB_RESTRICT_RENDER) : !(dob->ob->restrictflag & OB_RESTRICT_VIEW);
+	bool visible = show_object && (!dob->no_draw);
+	prop_visible.set(visible);
 }
 
 void AbcDupligroupWriter::write_sample()
@@ -283,6 +291,7 @@ void AbcDupliCacheWriter::write_sample_dupli(DupliObject *dob, int index)
 	
 	OObject abc_dupli = m_abc_group.getChild(name);
 	OCompoundProperty props;
+	OBoolProperty prop_visible;
 	OM44fProperty prop_matrix;
 	if (!abc_dupli) {
 		abc_dupli = OObject(m_abc_group, name, 0);
@@ -293,14 +302,21 @@ void AbcDupliCacheWriter::write_sample_dupli(DupliObject *dob, int index)
 		
 		prop_matrix = OM44fProperty(props, "matrix", abc_archive()->frame_sampling());
 		m_property_writers.push_back(prop_matrix.getPtr());
+		prop_visible = OBoolProperty(props, "visible", abc_archive()->frame_sampling());
+		m_property_writers.push_back(prop_visible.getPtr());
 	}
 	else {
 		props = abc_dupli.getProperties();
 		
 		prop_matrix = OM44fProperty(props.getProperty("matrix").getPtr()->asScalarPtr(), kWrapExisting);
+		prop_visible = OBoolProperty(props.getProperty("visible").getPtr()->asScalarPtr(), kWrapExisting);
 	}
 	
 	prop_matrix.set(M44f(dob->mat));
+	
+	bool show_object = (abc_archive()->use_render())? !(dob->ob->restrictflag & OB_RESTRICT_RENDER) : !(dob->ob->restrictflag & OB_RESTRICT_VIEW);
+	bool visible = show_object && (!dob->no_draw);
+	prop_visible.set(visible);
 }
 
 void AbcDupliCacheWriter::write_sample()
@@ -451,11 +467,15 @@ void AbcDupliCacheReader::read_dupligroup_group(IObject abc_group, const ISample
 			float matrix[4][4];
 			memcpy(matrix, abc_matrix.getValue(), sizeof(matrix));
 			
+			IBoolProperty prop_visible(props, "visible", 0);
+			bool visible = prop_visible.getValue(ss);
+			
 			IObject abc_dupli_object = abc_dupli.getChild("object");
 			if (abc_dupli_object.isInstanceRoot()) {
 				DupliObjectData *dupli_data = find_dupli_data(abc_dupli_object.getPtr());
 				if (dupli_data) {
-					BKE_dupli_cache_add_instance(dupli_cache, matrix, dupli_data);
+					DupliObject *dob = BKE_dupli_cache_add_instance(dupli_cache, matrix, dupli_data);
+					dob->no_draw = !visible;
 				}
 			}
 		}
