@@ -669,7 +669,13 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 	}
 	
 	/* test if we need to sync */
-	bool use_mesh_geometry = render_layer.use_surfaces || render_layer.use_hair;
+	int requested_geometry_flags = Mesh::GEOMETRY_NONE;
+	if(render_layer.use_surfaces) {
+		requested_geometry_flags |= Mesh::GEOMETRY_TRIANGLES;
+	}
+	if(render_layer.use_hair) {
+		requested_geometry_flags |= Mesh::GEOMETRY_CURVES;
+	}
 	Mesh *mesh;
 
 	bool need_update;
@@ -695,7 +701,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 		/* test if shaders changed, these can be object level so mesh
 		 * does not get tagged for recalc */
 		else if(mesh->used_shaders != used_shaders);
-		else if(use_mesh_geometry != mesh->geometry_synced);
+		else if(requested_geometry_flags != mesh->geometry_flags);
 		else {
 			/* even if not tagged for recalc, we may need to sync anyway
 			 * because the shader needs different mesh attributes */
@@ -729,7 +735,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 	mesh->used_shaders = used_shaders;
 	mesh->name = ustring(b_ob_data.name().c_str());
 
-	if(use_mesh_geometry) {
+	if(requested_geometry_flags != Mesh::GEOMETRY_NONE) {
 		/* mesh objects does have special handle in the dependency graph,
 		 * they're ensured to have properly updated.
 		 *
@@ -764,8 +770,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 			/* free derived mesh */
 			b_data.meshes.remove(b_mesh);
 		}
-		mesh->geometry_synced = true;
 	}
+	mesh->geometry_flags = requested_geometry_flags;
 
 	/* displacement method */
 	if(cmesh.data) {
