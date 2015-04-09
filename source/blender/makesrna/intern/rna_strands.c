@@ -123,12 +123,66 @@ static void rna_def_strands(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Strand Motion State", "");
 }
 
+static void rna_def_strands_child_curve(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "StrandsChildCurve", NULL);
+	RNA_def_struct_sdna(srna, "StrandsChildCurve");
+	RNA_def_struct_ui_text(srna, "Strand Child Curve", "Strand child curve");
+	
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "numverts");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Size", "Number of vertices of the curve");
+}
+
+static void rna_def_strands_child_vertex(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "StrandsChildVertex", NULL);
+	RNA_def_struct_sdna(srna, "StrandsChildVertex");
+	RNA_def_struct_ui_text(srna, "Strand Child Vertex", "Strand child vertex");
+	
+	prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_TRANSLATION);
+	RNA_def_property_float_sdna(prop, NULL, "co");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Location", "");
+}
+
+static void rna_def_strands_children(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "StrandsChildren", NULL);
+	RNA_def_struct_sdna(srna, "StrandsChildren");
+	RNA_def_struct_ui_text(srna, "Child Strands", "Strand geometry to represent hair and similar linear structures");
+	
+	prop = RNA_def_property(srna, "curves", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "curves", "totcurves");
+	RNA_def_property_struct_type(prop, "StrandsChildCurve");
+	RNA_def_property_ui_text(prop, "Strand Child Curves", "");
+	
+	prop = RNA_def_property(srna, "vertices", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "verts", "totverts");
+	RNA_def_property_struct_type(prop, "StrandsChildVertex");
+	RNA_def_property_ui_text(prop, "Strand Child Vertex", "");
+}
+
 void RNA_def_strands(BlenderRNA *brna)
 {
 	rna_def_strands_curve(brna);
 	rna_def_strands_vertex(brna);
 	rna_def_strands_motion_state(brna);
 	rna_def_strands(brna);
+	rna_def_strands_child_curve(brna);
+	rna_def_strands_child_vertex(brna);
+	rna_def_strands_children(brna);
 }
 
 #endif

@@ -38,6 +38,7 @@ struct Object;
 struct ParticleSystem;
 struct ParticleCacheKey;
 struct Strands;
+struct StrandsChildren;
 
 namespace PTC {
 
@@ -95,6 +96,7 @@ public:
 	AbcHairWriter(const std::string &name, Object *ob, ParticleSystem *psys);
 	~AbcHairWriter();
 	
+	void init(WriterArchive *archive);
 	void init_abc(Abc::OObject parent);
 	
 	void write_sample();
@@ -135,17 +137,40 @@ private:
 };
 
 
+class AbcStrandsChildrenReader : public AbcReader {
+public:
+	AbcStrandsChildrenReader(StrandsChildren *strands);
+	~AbcStrandsChildrenReader();
+	
+	void init_abc(Abc::IObject object);
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+	StrandsChildren *acquire_result();
+	void discard_result();
+	
+private:
+	StrandsChildren *m_strands;
+	
+	AbcGeom::ICurves m_curves;
+	AbcGeom::IFloatGeomParam m_param_times;
+};
+
+
 class AbcStrandsReader : public AbcReader {
 public:
-	AbcStrandsReader(Strands *strands);
+	AbcStrandsReader(Strands *strands, StrandsChildren *children);
 	~AbcStrandsReader();
 	
+	void init(ReaderArchive *archive);
 	void init_abc(Abc::IObject object);
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 	Strands *acquire_result();
 	void discard_result();
+	
+	AbcStrandsChildrenReader &child_reader() { return m_child_reader; }
 	
 private:
 	Strands *m_strands;
@@ -157,6 +182,8 @@ private:
 	AbcGeom::ICompoundProperty m_param_motion_state;
 	AbcGeom::IP3fGeomParam m_param_motion_co;
 	AbcGeom::IV3fGeomParam m_param_motion_vel;
+	
+	AbcStrandsChildrenReader m_child_reader;
 };
 
 

@@ -1342,6 +1342,10 @@ static void dupli_cache_calc_boundbox(DupliObjectData *data)
 			BKE_strands_get_minmax(link->strands, min, max, true);
 			has_data = true;
 		}
+		if (link->strands_children) {
+			BKE_strands_children_get_minmax(link->strands_children, min, max);
+			has_data = true;
+		}
 	}
 	
 	if (!has_data) {
@@ -1386,6 +1390,8 @@ void BKE_dupli_object_data_clear(DupliObjectData *data)
 	for (link = data->strands.first; link; link = link->next) {
 		if (link->strands)
 			BKE_strands_free(link->strands);
+		if (link->strands_children)
+			BKE_strands_children_free(link->strands_children);
 	}
 	BLI_freelistN(&data->strands);
 }
@@ -1431,12 +1437,46 @@ void BKE_dupli_object_data_add_strands(DupliObjectData *data, const char *name, 
 	dupli_cache_calc_boundbox(data);
 }
 
+void BKE_dupli_object_data_add_strands_children(DupliObjectData *data, const char *name, StrandsChildren *children)
+{
+	DupliObjectDataStrands *link = NULL;
+	for (link = data->strands.first; link; link = link->next) {
+		if (STREQ(link->name, name))
+			break;
+	}
+	
+	if (!link) {
+		link = MEM_callocN(sizeof(DupliObjectDataStrands), "strands link");
+		BLI_strncpy(link->name, name, sizeof(link->name));
+		link->strands_children = children;
+		
+		BLI_addtail(&data->strands, link);
+	}
+	else {
+		if (link->strands_children && link->strands_children != children)
+			BKE_strands_children_free(link->strands_children);
+		link->strands_children = children;
+	}
+	
+	dupli_cache_calc_boundbox(data);
+}
+
 Strands *BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name)
 {
 	DupliObjectDataStrands *link;
 	for (link = data->strands.first; link; link = link->next) {
 		if (STREQ(link->name, name))
 			return link->strands;
+	}
+	return NULL;
+}
+
+StrandsChildren *BKE_dupli_object_data_find_strands_children(DupliObjectData *data, const char *name)
+{
+	DupliObjectDataStrands *link;
+	for (link = data->strands.first; link; link = link->next) {
+		if (STREQ(link->name, name))
+			return link->strands_children;
 	}
 	return NULL;
 }
@@ -1452,8 +1492,25 @@ bool BKE_dupli_object_data_acquire_strands(DupliObjectData *data, Strands *stran
 	for (link = data->strands.first; link; link = link_next) {
 		link_next = link->next;
 		if (link->strands == strands) {
-			BLI_remlink(&data->strands, link);
-			MEM_freeN(link);
+			link->strands = NULL;
+			found = true;
+		}
+	}
+	return found;
+}
+
+bool BKE_dupli_object_data_acquire_strands_children(DupliObjectData *data, StrandsChildren *children)
+{
+	DupliObjectDataStrands *link, *link_next;
+	bool found = false;
+	
+	if (!data || !children)
+		return false;
+	
+	for (link = data->strands.first; link; link = link_next) {
+		link_next = link->next;
+		if (link->strands_children == children) {
+			link->strands_children = NULL;
 			found = true;
 		}
 	}

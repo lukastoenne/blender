@@ -50,14 +50,13 @@
 
 #include "UI_resources.h"
 
-static void draw_strand_lines(Strands *strands, short dflag)
-{
-	const bool has_motion_state = strands->state;
-	
+typedef struct StrandsDrawGLState {
 	GLint polygonmode[2];
-	StrandIterator it_strand;
-	
-	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
+} StrandsDrawGLState;
+
+static void draw_strands_begin(StrandsDrawGLState *state, short dflag)
+{
+	glGetIntegerv(GL_POLYGON_MODE, state->polygonmode);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	
 	/* setup gl flags */
@@ -72,6 +71,32 @@ static void draw_strand_lines(Strands *strands, short dflag)
 	glEnable(GL_LIGHTING);
 //	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 //	glEnable(GL_COLOR_MATERIAL);
+}
+
+static void draw_strands_end(StrandsDrawGLState *state)
+{
+	/* restore & clean up */
+//	if (part->draw_col == PART_DRAW_COL_MAT)
+//		glDisableClientState(GL_COLOR_ARRAY);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_COLOR_MATERIAL);
+	
+	glLineWidth(1.0f);
+	
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	
+	glPolygonMode(GL_FRONT, state->polygonmode[0]);
+	glPolygonMode(GL_BACK, state->polygonmode[1]);
+}
+
+static void draw_strand_lines(Strands *strands, short dflag)
+{
+	const bool has_motion_state = strands->state;
+	StrandsDrawGLState gl_state;
+	StrandIterator it_strand;
+	
+	draw_strands_begin(&gl_state, dflag);
 	
 	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
 		if (it_strand.tot <= 0)
@@ -94,22 +119,36 @@ static void draw_strand_lines(Strands *strands, short dflag)
 		glDrawArrays(GL_LINE_STRIP, 0, it_strand.curve->numverts);
 	}
 	
-	/* restore & clean up */
-//	if (part->draw_col == PART_DRAW_COL_MAT)
-//		glDisableClientState(GL_COLOR_ARRAY);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
-	
-	glLineWidth(1.0f);
-	
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
-	
-	glPolygonMode(GL_FRONT, polygonmode[0]);
-	glPolygonMode(GL_BACK, polygonmode[1]);
+	draw_strands_end(&gl_state);
 }
 
-void draw_strands(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Object *ob, Strands *strands, short dflag)
+static void draw_strand_child_lines(StrandsChildren *children, short dflag)
+{
+	StrandsDrawGLState gl_state;
+	StrandChildIterator it_strand;
+	
+	draw_strands_begin(&gl_state, dflag);
+	
+	for (BKE_strand_child_iter_init(&it_strand, children); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
+		if (it_strand.tot <= 0)
+			continue;
+		
+		glVertexPointer(3, GL_FLOAT, sizeof(StrandsChildVertex), it_strand.verts->co);
+		glNormalPointer(GL_FLOAT, sizeof(StrandsChildVertex), it_strand.verts->nor);
+		
+		if ((dflag & DRAW_CONSTCOLOR) == 0) {
+//			if (part->draw_col == PART_DRAW_COL_MAT) {
+//				glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
+//			}
+		}
+		
+		glDrawArrays(GL_LINE_STRIP, 0, it_strand.curve->numverts);
+	}
+	
+	draw_strands_end(&gl_state);
+}
+
+void draw_strands(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Object *ob, Strands *strands, StrandsChildren *children, short dflag)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	float imat[4][4];
@@ -124,7 +163,10 @@ void draw_strands(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar, Object
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
-	draw_strand_lines(strands, dflag);
+	if (children)
+		draw_strand_child_lines(children, dflag);
+	else
+		draw_strand_lines(strands, dflag);
 	
 	glPopMatrix();
 	
