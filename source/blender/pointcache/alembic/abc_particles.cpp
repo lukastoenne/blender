@@ -112,6 +112,8 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	IPointsSchema &schema = m_points.getSchema();
+	if (schema.getNumSamples() == 0)
+		return PTC_READ_SAMPLE_INVALID;
 	
 	IPointsSchema::Sample sample;
 	schema.get(sample, ss);
@@ -610,6 +612,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	ICurvesSchema &schema = m_curves.getSchema();
+	if (schema.getNumSamples() == 0)
+		return PTC_READ_SAMPLE_INVALID;
 	
 	ICurvesSchema::Sample sample;
 	schema.get(sample, ss);
@@ -716,6 +720,8 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	ICurvesSchema &schema = m_curves.getSchema();
+	if (schema.getNumSamples() == 0)
+		return PTC_READ_SAMPLE_INVALID;
 	
 	ICurvesSchema::Sample sample;
 	schema.get(sample, ss);
@@ -1047,7 +1053,7 @@ PTCReadSampleResult AbcParticlePathcacheReader::read_sample(float frame)
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
 	ICurvesSchema &schema = m_curves.getSchema();
-	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
+	if (schema.getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	ICurvesSchema::Sample sample;
