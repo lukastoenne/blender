@@ -927,7 +927,7 @@ static void graph_panel_modifiers(const bContext *C, Panel *pa)
 /* ******************* Others ************************ */
 
 /* Graph Editor Backdrop Settings */
-static void graph_panel_backdrop(const bContext *C, Panel *pa)
+static void graph_panel_backdrop(const bContext *C, Panel *UNUSED(pa))
 {
 	bScreen *sc = CTX_wm_screen(C);
 	SpaceIpo *sipo = CTX_wm_space_graph(C);
