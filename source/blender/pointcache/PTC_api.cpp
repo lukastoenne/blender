@@ -235,12 +235,10 @@ PTCReadSampleResult PTC_test_sample(PTCReader *_reader, float frame)
 	return reader->test_sample(frame);
 }
 
-char *PTC_get_archive_info(PTCReaderArchive *_archive)
+void PTC_get_archive_info(PTCReaderArchive *_archive, void (*stream)(void *, const char *), void *userdata)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	
-	std::string info = archive->get_info();
-	return BLI_sprintfN("%s", info.c_str());
+	archive->get_info(stream, userdata);
 }
 
 

@@ -70,12 +70,35 @@ using namespace ::Alembic::AbcGeom;
 
 namespace PTC {
 
-static const std::string g_sep(";");
+struct stringstream {
+	stringstream(void (*cb)(void *, const char *), void *userdata) :
+	    cb(cb)
+	{
+	}
+	
+	void (*cb)(void *, const char *);
+	void *userdata;
+	
+	template <typename T>
+	friend stringstream& operator << (stringstream &stream, T s);
+};
 
-static void visitProperties(std::stringstream &ss, ICompoundProperty, std::string &);
+template <typename T>
+stringstream& operator << (stringstream &stream, T s)
+{
+	std::stringstream ss;
+	ss << s;
+	stream.cb(stream.userdata, ss.str().c_str());
+	return stream;
+}
+
+static const std::string g_sep(";");
+static const std::string g_endl("\n");
+
+static void visitProperties(stringstream &ss, ICompoundProperty, std::string &);
 
 template <class PROP>
-static void visitSimpleArrayProperty(std::stringstream &ss, PROP iProp, const std::string &iIndent)
+static void visitSimpleArrayProperty(stringstream &ss, PROP iProp, const std::string &iIndent)
 {
 	std::string ptype = "ArrayProperty ";
 	size_t asize = 0;
@@ -106,11 +129,11 @@ static void visitSimpleArrayProperty(std::stringstream &ss, PROP iProp, const st
 	
 	ss << iIndent << "  " << ptype << "name=" << iProp.getName()
 	   << g_sep << mdstring << g_sep << "numsamps="
-	   << iProp.getNumSamples() << std::endl;
+	   << iProp.getNumSamples() << g_endl;
 }
 
 template <class PROP>
-static void visitSimpleScalarProperty(std::stringstream &ss, PROP iProp, const std::string &iIndent)
+static void visitSimpleScalarProperty(stringstream &ss, PROP iProp, const std::string &iIndent)
 {
 	std::string ptype = "ScalarProperty ";
 	size_t asize = 0;
@@ -144,10 +167,10 @@ static void visitSimpleScalarProperty(std::stringstream &ss, PROP iProp, const s
 	
 	ss << iIndent << "  " << ptype << "name=" << iProp.getName()
 	   << g_sep << mdstring << g_sep << "numsamps="
-	   << iProp.getNumSamples() << std::endl;
+	   << iProp.getNumSamples() << g_endl;
 }
 
-static void visitCompoundProperty(std::stringstream &ss, ICompoundProperty iProp, std::string &ioIndent)
+static void visitCompoundProperty(stringstream &ss, ICompoundProperty iProp, std::string &ioIndent)
 {
 	std::string oldIndent = ioIndent;
 	ioIndent += "  ";
@@ -156,14 +179,14 @@ static void visitCompoundProperty(std::stringstream &ss, ICompoundProperty iProp
 	interp += iProp.getMetaData().get("schema");
 	
 	ss << ioIndent << "CompoundProperty " << "name=" << iProp.getName()
-	   << g_sep << interp << std::endl;
+	   << g_sep << interp << g_endl;
 	
 	visitProperties(ss, iProp, ioIndent);
 	
 	ioIndent = oldIndent;
 }
 
-static void visitProperties(std::stringstream &ss, ICompoundProperty iParent, std::string &ioIndent )
+static void visitProperties(stringstream &ss, ICompoundProperty iParent, std::string &ioIndent )
 {
 	std::string oldIndent = ioIndent;
 	for (size_t i = 0 ; i < iParent.getNumProperties() ; i++) {
@@ -184,7 +207,7 @@ static void visitProperties(std::stringstream &ss, ICompoundProperty iParent, st
 	ioIndent = oldIndent;
 }
 
-static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent)
+static void visitObject(stringstream &ss, IObject iObj, std::string iIndent)
 {
 	// Object has a name, a full name, some meta data,
 	// and then it has a compound property full of properties.
@@ -194,7 +217,7 @@ static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent
 		if (path != "/") {
 			ss << "Object " << "name=" << path
 			   << " [Instance " << iObj.instanceSourcePath() << "]"
-			   << std::endl;
+			   << g_endl;
 		}
 	}
 	else if (iObj.isInstanceDescendant()) {
@@ -203,7 +226,7 @@ static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent
 	}
 	else {
 		if (path != "/") {
-			ss << "Object " << "name=" << path << std::endl;
+			ss << "Object " << "name=" << path << g_endl;
 		}
 		
 		// Get the properties.
@@ -217,13 +240,13 @@ static void visitObject(std::stringstream &ss, IObject iObj, std::string iIndent
 	}
 }
 
-std::string abc_archive_info(IArchive &archive)
+void abc_archive_info(IArchive &archive, void (*stream)(void *, const char *), void *userdata)
 {
-	std::stringstream ss;
+	stringstream ss(stream, userdata);
 	
 	ss << "Alembic Archive Info for "
 	   << Alembic::AbcCoreAbstract::GetLibraryVersion()
-	   << std::endl;;
+	   << g_endl;
 	
 	std::string appName;
 	std::string libraryVersionString;
@@ -238,22 +261,20 @@ std::string abc_archive_info(IArchive &archive)
 	               userDescription);
 	
 	if (appName != "") {
-		ss << "  file written by: " << appName << std::endl;
-		ss << "  using Alembic : " << libraryVersionString << std::endl;
-		ss << "  written on : " << whenWritten << std::endl;
-		ss << "  user description : " << userDescription << std::endl;
-		ss << std::endl;
+		ss << "  file written by: " << appName << g_endl;
+		ss << "  using Alembic : " << libraryVersionString << g_endl;
+		ss << "  written on : " << whenWritten << g_endl;
+		ss << "  user description : " << userDescription << g_endl;
+		ss << g_endl;
 	}
 	else {
-//		ss << argv[1] << std::endl;
+//		ss << argv[1] << g_endl;
 		ss << "  (file doesn't have any ArchiveInfo)"
-		   << std::endl;
-		ss << std::endl;
+		   << g_endl;
+		ss << g_endl;
 	}
 	
 	visitObject(ss, archive.getTop(), "");
-	
-	return ss.str();
 }
 
 } /* namespace PTC */

@@ -36,7 +36,7 @@ public:
 	virtual void use_render(bool enable) = 0;
 	
 	virtual bool get_frame_range(int &start_frame, int &end_frame) = 0;
-	virtual std::string get_info() = 0;
+	virtual void get_info(void (*stream)(void *, const char *), void *userdata) = 0;
 };
 
 class Reader {
