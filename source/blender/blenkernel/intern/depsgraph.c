@@ -2593,6 +2593,21 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 				}
 			}
 		}
+		
+		/* set flags based on CacheLibrary */
+		if (idtype == ID_CL) {
+			for (obt = bmain->object.first; obt; obt = obt->id.next) {
+				if (!(ob && obt == ob) && ((ID *)obt->cache_library == id)) {
+					obt->flag |= (OB_RECALC_OB | OB_RECALC_DATA);
+					lib_id_recalc_tag(bmain, &obt->id);
+					lib_id_recalc_data_tag(bmain, &obt->id);
+					
+					/* invalidate dupli cache */
+					if (obt->dup_cache)
+						obt->dup_cache->flag |= DUPCACHE_FLAG_DIRTY;
+				}
+			}
+		}
 
 		/* camera's matrix is used to orient reconstructed stuff,
 		 * so it should happen tracking-related constraints recalculation

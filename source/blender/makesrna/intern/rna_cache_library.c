@@ -80,8 +80,11 @@ EnumPropertyItem cache_modifier_type_items[] = {
 
 /* ========================================================================= */
 
-static void rna_CacheLibrary_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+static void rna_CacheLibrary_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
+	CacheLibrary *cachelib = ptr->data;
+	DAG_id_tag_update(&cachelib->id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
 /* ========================================================================= */

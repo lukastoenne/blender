@@ -308,6 +308,23 @@ void BKE_cache_archive_output_path(CacheLibrary *cachelib, char *result, int max
 	BKE_cache_archive_path_ex(cachelib->output_filepath, cachelib->id.lib, cachelib->id.name+2, result, max);
 }
 
+static bool has_active_cache(CacheLibrary *cachelib)
+{
+	const bool is_baking = cachelib->flag & CACHE_LIBRARY_BAKING;
+	
+	/* don't read results from output archive when baking */
+	if (!is_baking) {
+		if (cachelib->display_mode == CACHE_LIBRARY_DISPLAY_RESULT) {
+			return true;
+		}
+	}
+	
+	if (cachelib->source_mode == CACHE_LIBRARY_SOURCE_CACHE) {
+		return true;
+	}
+	
+	return false;
+}
 
 static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *cachelib)
 {
@@ -421,36 +438,15 @@ bool BKE_cache_read_dupli_object(CacheLibrary *cachelib, DupliObjectData *data,
 
 void BKE_cache_library_dag_recalc_tag(EvaluationContext *eval_ctx, Main *bmain)
 {
-	UNUSED_VARS(eval_ctx, bmain);
-#if 0
-	eCacheLibrary_EvalMode eval_mode = (eval_ctx->mode == DAG_EVAL_RENDER) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_REALTIME;
 	CacheLibrary *cachelib;
+	eCacheLibrary_EvalMode eval_mode = (eval_ctx->mode == DAG_EVAL_RENDER) ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_REALTIME;
 	
-	FOREACH_CACHELIB_READ(bmain, cachelib, eval_mode) {
-		if (cachelib->flag & CACHE_LIBRARY_READ) {
-			CacheItem *item;
-			
-			// TODO tag group instance objects or so?
-			
-			for (item = cachelib->items.first; item; item = item->next) {
-				if (item->ob && (item->flag & CACHE_ITEM_ENABLED)) {
-					
-					switch (item->type) {
-						case CACHE_TYPE_OBJECT:
-							DAG_id_tag_update(&item->ob->id, OB_RECALC_OB | OB_RECALC_TIME);
-							break;
-						case CACHE_TYPE_DERIVED_MESH:
-						case CACHE_TYPE_PARTICLES:
-						case CACHE_TYPE_HAIR:
-						case CACHE_TYPE_HAIR_PATHS:
-							DAG_id_tag_update(&item->ob->id, OB_RECALC_DATA | OB_RECALC_TIME);
-							break;
-					}
-				}
-			}
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		if (cachelib->eval_mode & eval_mode) {
+			if (has_active_cache(cachelib))
+				DAG_id_tag_update(&cachelib->id, OB_RECALC_DATA | OB_RECALC_TIME);
 		}
 	}
-#endif
 }
 
 /* ========================================================================= */
