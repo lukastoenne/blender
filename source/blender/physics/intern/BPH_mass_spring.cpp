@@ -508,6 +508,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 
 		/* Hair has only edges */
 		if (cloth->numfaces == 0) {
+			const float density = 0.01f; /* XXX arbitrary value, corresponds to effect of air density */
 #if 0
 			ClothHairData *hairdata = clmd->hairdata;
 			ClothHairData *hair_ij, *hair_kl;
@@ -531,10 +532,10 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 			for (i = 0; i < cloth->numverts; i++, vert++) {
 				if (hairdata) {
 					ClothHairData *hair = &hairdata[i];
-					BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
+					BPH_mass_spring_force_vertex_wind(data, i, hair->radius * density, winvec);
 				}
 				else
-					BPH_mass_spring_force_vertex_wind(data, i, 1.0f, winvec);
+					BPH_mass_spring_force_vertex_wind(data, i, density, winvec);
 			}
 		}
 #endif
@@ -1427,40 +1428,25 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 	BPH_mass_spring_force_drag(data, drag);
 #endif
 	
-#if 0
 	/* handle external forces like wind */
 	if (effectors) {
 		/* cache per-vertex forces to avoid redundant calculation */
-		float (*winvec)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
-		for (i = 0; i < cloth->numverts; i++) {
+		float (*ext_forces)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
+		for (i = 0; i < numverts; ++i) {
 			float x[3], v[3];
 			EffectedPoint epoint;
 			
 			BPH_mass_spring_get_motion_state(data, i, x, v);
-			pd_point_from_loc(clmd->scene, x, v, i, &epoint);
-			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
+			pd_point_from_loc(scene, x, v, i, &epoint);
+			pdDoEffectors(effectors, NULL, params->effector_weights, &epoint, ext_forces[i], NULL);
 		}
 		
-		for (i = 0; i < cloth->numfaces; i++) {
-			MFace *mf = &mfaces[i];
-			BPH_mass_spring_force_face_wind(data, mf->v1, mf->v2, mf->v3, mf->v4, winvec);
+		for (i = 0; i < numverts; ++i) {
+			BPH_mass_spring_force_vertex_wind(data, i, 1.0f, ext_forces);
 		}
 
-		ClothHairData *hairdata = clmd->hairdata;
-		
-		vert = cloth->verts;
-		for (i = 0; i < cloth->numverts; i++, vert++) {
-			if (hairdata) {
-				ClothHairData *hair = &hairdata[i];
-				BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
-			}
-			else
-				BPH_mass_spring_force_vertex_wind(data, i, 1.0f, winvec);
-		}
-
-		MEM_freeN(winvec);
+		MEM_freeN(ext_forces);
 	}
-#endif
 	
 	/* spring forces */
 	StrandIterator it_strand;

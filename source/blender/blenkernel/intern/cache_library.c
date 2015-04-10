@@ -631,6 +631,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 		
 		for (link = dobdata->strands.first; link; link = link->next) {
 			Strands *strands = link->strands;
+			ListBase *effectors;
 			
 			struct Implicit_Data *solver_data;
 			
@@ -638,7 +639,11 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 			
 			solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
 			
-			BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, NULL);
+			effectors = pdInitEffectors(ctx->scene, dobdata->ob, NULL, hsmd->sim_params.effector_weights, true);
+			
+			BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors);
+			
+			pdEndEffectors(&effectors);
 			
 			BPH_mass_spring_solver_free(solver_data);
 		}
