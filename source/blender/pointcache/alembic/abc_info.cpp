@@ -72,7 +72,8 @@ namespace PTC {
 
 struct stringstream {
 	stringstream(void (*cb)(void *, const char *), void *userdata) :
-	    cb(cb)
+	    cb(cb),
+	    userdata(userdata)
 	{
 	}
 	
