@@ -25,7 +25,7 @@
 
 namespace PTC {
 
-std::string abc_archive_info(Alembic::Abc::IArchive &archive);
+void abc_archive_info(Alembic::Abc::IArchive &archive, void (*stream)(void *, const char *), void *userdata);
 
 } /* namespace PTC */
 

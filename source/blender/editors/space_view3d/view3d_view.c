@@ -44,6 +44,7 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_object.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -1031,7 +1032,8 @@ static void view3d_select_loop(ViewContext *vc, Scene *scene, View3D *v3d, ARegi
 
 							for (dob = lb->first; dob; dob = dob->next) {
 								/* for restoring after override */
-								struct DerivedMesh *store_final_dm;
+								DupliObjectData *dob_data = NULL;
+								DerivedMesh *store_final_dm;
 								float store_obmat[4][4];
 
 								tbase.object = dob->ob;
@@ -1047,8 +1049,8 @@ static void view3d_select_loop(ViewContext *vc, Scene *scene, View3D *v3d, ARegi
 								/* override final DM */
 								tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
 								if (base->object->dup_cache) {
-									DupliObjectData *dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
-									if (dob_data->dm) {
+									dob_data = BKE_dupli_cache_find_data(base->object->dup_cache, tbase.object);
+									if (dob_data && dob_data->dm) {
 										tbase.object->transflag |= OB_IS_DUPLI_CACHE;
 										
 										tbase.object->derivedFinal = dob_data->dm;
@@ -1057,13 +1059,27 @@ static void view3d_select_loop(ViewContext *vc, Scene *scene, View3D *v3d, ARegi
 
 								draw_object(scene, ar, v3d, &tbase, DRAW_PICKING | DRAW_CONSTCOLOR);
 
+								/* restore final DM */
+								if (tbase.object->transflag & OB_IS_DUPLI_CACHE) {
+									DerivedMesh *cur = tbase.object->derivedFinal;
+									
+									/* in some cases drawing code can recreate the derivedFinal,
+									 * make sure we free those first before restoring
+									 */
+									if (cur && cur != dob_data->dm) {
+										cur->needsFree = 1;
+										cur->release(cur);
+									}
+									
+									tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
+									tbase.object->derivedFinal = store_final_dm;
+								}
+
 								tbase.object->dt = dt;
 								tbase.object->dtx = dtx;
 
 								/* restore obmat and final DM */
-								tbase.object->transflag &= ~OB_IS_DUPLI_CACHE;
 								copy_m4_m4(dob->ob->obmat, store_obmat);
-								tbase.object->derivedFinal = store_final_dm;
 							}
 							free_object_duplilist(lb);
 						}

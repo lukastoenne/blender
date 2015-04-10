@@ -201,6 +201,8 @@ PTCReadSampleResult AbcClothReader::read_sample(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	IPointsSchema &schema = m_points.getSchema();
+	if (schema.getNumSamples() == 0)
+		return PTC_READ_SAMPLE_INVALID;
 	TimeSamplingPtr ts = schema.getTimeSampling();
 	
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);

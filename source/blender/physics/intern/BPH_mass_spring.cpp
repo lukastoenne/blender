@@ -46,6 +46,7 @@ extern "C" {
 
 #include "BKE_cloth.h"
 #include "BKE_collision.h"
+#include "BKE_colortools.h"
 #include "BKE_effect.h"
 #include "BKE_strands.h"
 }
@@ -528,6 +529,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 
 		/* Hair has only edges */
 		if (cloth->numfaces == 0) {
+			const float density = 0.01f; /* XXX arbitrary value, corresponds to effect of air density */
 #if 0
 			ClothHairData *hairdata = clmd->hairdata;
 			ClothHairData *hair_ij, *hair_kl;
@@ -558,10 +560,10 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 			for (i = 0; i < cloth->numverts; i++, vert++) {
 				if (hairdata) {
 					ClothHairData *hair = &hairdata[i];
-					BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
+					BPH_mass_spring_force_vertex_wind(data, i, hair->radius * density, winvec);
 				}
 				else
-					BPH_mass_spring_force_vertex_wind(data, i, 1.0f, winvec);
+					BPH_mass_spring_force_vertex_wind(data, i, density, winvec);
 			}
 #endif
 		}
@@ -1320,11 +1322,56 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 	} while (BKE_strand_bend_iter_valid(&it_bend));
 }
 
+static float strands_goal_stiffness(Strands *UNUSED(strands), HairSimParams *params, StrandsVertex *vert, float t)
+{
+	/* XXX There is no possibility of tweaking them in linked data currently,
+	 * so the original workflow of painting weights in particle edit mode is virtually useless.
+	 */
+	float weight;
+	
+	if (params->flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
+		weight = curvemapping_evaluateF(params->goal_stiffness_mapping, 0, t);
+	else
+		weight = vert->weight;
+	CLAMP(weight, 0.0f, 1.0f);
+	
+	return params->goal_stiffness * weight;
+}
+
+/* goal forces pull vertices toward their rest position */
+static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+{
+	StrandEdgeIterator it_edge;
+	
+	float rootvel[3];
+	BPH_mass_spring_get_velocity(data, BKE_strand_iter_vertex_offset(strands, it_strand), rootvel);
+	
+	float length = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge))
+		length += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+	float length_inv = length > 0.0f ? 1.0f / length : 0.0f;
+	
+	float t = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+		int vj = BKE_strand_edge_iter_vertex1_offset(strands, &it_edge);
+		t += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+		
+		float stiffness = strands_goal_stiffness(strands, params, it_edge.vertex1, t * length_inv);
+		float damping = stiffness * params->goal_damping;
+		
+		float goal[3];
+		mul_v3_m4v3(goal, space, it_edge.vertex1->co);
+		
+		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, NULL, NULL, NULL);
+	}
+}
+
 /* calculates internal forces for a single strand curve */
 static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
 {
 	strands_calc_curve_stretch_forces(strands, space, params, data, it_strand);
 	strands_calc_curve_bending_forces(strands, space, params, data, it_strand);
+	strands_calc_vertex_goal_forces(strands, space, params, data, it_strand);
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */
@@ -1350,40 +1397,25 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 	BPH_mass_spring_force_drag(data, drag);
 #endif
 	
-#if 0
 	/* handle external forces like wind */
 	if (effectors) {
 		/* cache per-vertex forces to avoid redundant calculation */
-		float (*winvec)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
-		for (i = 0; i < cloth->numverts; i++) {
+		float (*ext_forces)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
+		for (i = 0; i < numverts; ++i) {
 			float x[3], v[3];
 			EffectedPoint epoint;
 			
 			BPH_mass_spring_get_motion_state(data, i, x, v);
-			pd_point_from_loc(clmd->scene, x, v, i, &epoint);
-			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
+			pd_point_from_loc(scene, x, v, i, &epoint);
+			pdDoEffectors(effectors, NULL, params->effector_weights, &epoint, ext_forces[i], NULL);
 		}
 		
-		for (i = 0; i < cloth->numfaces; i++) {
-			MFace *mf = &mfaces[i];
-			BPH_mass_spring_force_face_wind(data, mf->v1, mf->v2, mf->v3, mf->v4, winvec);
+		for (i = 0; i < numverts; ++i) {
+			BPH_mass_spring_force_vertex_wind(data, i, 1.0f, ext_forces);
 		}
 
-		ClothHairData *hairdata = clmd->hairdata;
-		
-		vert = cloth->verts;
-		for (i = 0; i < cloth->numverts; i++, vert++) {
-			if (hairdata) {
-				ClothHairData *hair = &hairdata[i];
-				BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
-			}
-			else
-				BPH_mass_spring_force_vertex_wind(data, i, 1.0f, winvec);
-		}
-
-		MEM_freeN(winvec);
+		MEM_freeN(ext_forces);
 	}
-#endif
 	
 	/* spring forces */
 	StrandIterator it_strand;

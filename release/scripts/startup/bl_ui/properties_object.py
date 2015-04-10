@@ -341,11 +341,22 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
         layout.separator()
 
-        col = layout.column()
-        row = col.row()
-        row.label("Display:")
-        row.prop(cachelib, "display_mode", expand=True)
-        row = col.row(align=True)
+        layout.prop(cachelib, "display_mode", expand=True)
+        row = layout.row()
+        split = row.split()
+        col = split.column()
+        col.label("Display:")
+        col.prop(cachelib, "display_motion", text="Motion")
+        col.prop(cachelib, "display_children", text="Children")
+        split = row.split()
+        col = split.column()
+        col.label("Render:")
+        col.prop(cachelib, "render_motion", text="Motion")
+        col.prop(cachelib, "render_children", text="Children")
+
+        layout.separator()
+
+        row = layout.row(align=True)
         row.enabled = (cachelib.display_mode == 'RESULT')
         row.prop(cachelib, "output_filepath", text="")
         props = row.operator("cachelibrary.archive_info", text="", icon='QUESTION')
@@ -354,10 +365,12 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         props.use_popup = True
         props.use_clipboard = True
 
+        col = layout.column()
         col.operator("cachelibrary.bake")
         col.row().prop(cachelib, "eval_mode", toggle=True, expand=True)
         col.row().prop(cachelib, "data_types", icon_only=True, toggle=True)
 
+        '''
         row = layout.row(align=True)
         row.label("Filter:")
         row.prop(cachelib, "filter_string", icon='VIEWZOOM', text="")
@@ -375,6 +388,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
                 row = layout.row(align=True)
                 row.alignment = 'LEFT'
                 row.template_cache_library_item(cachelib, ob, datatype, index, enable)
+        '''
     
         layout.operator_menu_enum("cachelibrary.add_modifier", "type")
 
@@ -441,6 +455,10 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop(params, "goal_stiffness")
         row.prop(params, "goal_damping")
+        row.prop(params, "use_goal_stiffness_curve")
+        if params.use_goal_stiffness_curve:
+            sub = col.column()
+            sub.template_curve_mapping(params, "goal_stiffness_curve")
 
         layout.separator()
 

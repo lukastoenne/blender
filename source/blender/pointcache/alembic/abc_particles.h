@@ -83,10 +83,6 @@ public:
 	
 private:
 	AbcGeom::OCurves m_curves;
-	
-	AbcGeom::OV3fGeomParam m_param_velocities;
-	AbcGeom::OQuatfGeomParam m_param_rotations;
-	AbcGeom::OC3fGeomParam m_param_colors;
 	AbcGeom::OFloatGeomParam m_param_times;
 };
 
@@ -113,12 +109,33 @@ private:
 };
 
 
+class AbcStrandsChildrenWriter : public AbcWriter {
+public:
+	AbcStrandsChildrenWriter(const std::string &name, const std::string &abc_name, DupliObjectData *dobdata);
+	
+	StrandsChildren *get_strands() const;
+	
+	void init_abc(Abc::OObject parent);
+	
+	void write_sample();
+	
+private:
+	std::string m_name;
+	std::string m_abc_name;
+	DupliObjectData *m_dobdata;
+	
+	AbcGeom::OCurves m_curves;
+	AbcGeom::OFloatGeomParam m_param_times;
+};
+
+
 class AbcStrandsWriter : public AbcWriter {
 public:
 	AbcStrandsWriter(const std::string &name, DupliObjectData *dobdata);
 	
 	Strands *get_strands() const;
 	
+	void init(WriterArchive *archive);
 	void init_abc(Abc::OObject parent);
 	
 	void write_sample();
@@ -134,6 +151,8 @@ private:
 	AbcGeom::OCompoundProperty m_param_motion_state;
 	AbcGeom::OP3fGeomParam m_param_motion_co;
 	AbcGeom::OV3fGeomParam m_param_motion_vel;
+	
+	AbcStrandsChildrenWriter m_child_writer;
 };
 
 
@@ -159,7 +178,7 @@ private:
 
 class AbcStrandsReader : public AbcReader {
 public:
-	AbcStrandsReader(Strands *strands, StrandsChildren *children);
+	AbcStrandsReader(Strands *strands, StrandsChildren *children, bool read_motion, bool read_children);
 	~AbcStrandsReader();
 	
 	void init(ReaderArchive *archive);
@@ -173,6 +192,7 @@ public:
 	AbcStrandsChildrenReader &child_reader() { return m_child_reader; }
 	
 private:
+	bool m_read_motion, m_read_children;
 	Strands *m_strands;
 	
 	AbcGeom::ICurves m_curves;

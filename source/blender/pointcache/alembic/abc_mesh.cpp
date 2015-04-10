@@ -512,7 +512,7 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	IPolyMeshSchema &schema = m_mesh.getSchema();
-	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
+	if (schema.getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	ICompoundProperty user_props = schema.getUserProperties();
 	

@@ -80,8 +80,11 @@ EnumPropertyItem cache_modifier_type_items[] = {
 
 /* ========================================================================= */
 
-static void rna_CacheLibrary_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+static void rna_CacheLibrary_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
+	CacheLibrary *cachelib = ptr->data;
+	DAG_id_tag_update(&cachelib->id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
 /* ========================================================================= */
@@ -215,6 +218,18 @@ static void rna_def_hair_sim_params(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1f, 3);
 	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Goal Damping", "Damping factor of goal springs");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "use_goal_stiffness_curve", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eHairSimParams_Flag_UseGoalStiffnessCurve);
+	RNA_def_property_ui_text(prop, "Use Goal Stiffness Curve", "Use a curve to define goal stiffness along the strand");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "goal_stiffness_curve", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "goal_stiffness_mapping");
+	RNA_def_property_struct_type(prop, "CurveMapping");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Goal Stiffness Curve", "Stiffness of goal springs along the strand curves");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 	
 	prop = RNA_def_property(srna, "stretch_stiffness", PROP_FLOAT, PROP_NONE);
@@ -378,6 +393,26 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "display_mode");
 	RNA_def_property_enum_items(prop, display_mode_items);
 	RNA_def_property_ui_text(prop, "Display Mode", "What data to display in the viewport");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "display_motion", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "display_flag", CACHE_LIBRARY_DISPLAY_MOTION);
+	RNA_def_property_ui_text(prop, "Display Motion", "Display motion state result from simulation, if available");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "display_children", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "display_flag", CACHE_LIBRARY_DISPLAY_CHILDREN);
+	RNA_def_property_ui_text(prop, "Display Children", "Display child strands, if available");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "render_motion", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "render_flag", CACHE_LIBRARY_RENDER_MOTION);
+	RNA_def_property_ui_text(prop, "Render Motion", "Render motion state result from simulation, if available");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "render_children", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "render_flag", CACHE_LIBRARY_RENDER_CHILDREN);
+	RNA_def_property_ui_text(prop, "Render Children", "Render child strands, if available");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
 	prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);

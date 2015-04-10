@@ -104,12 +104,10 @@ bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 	}
 }
 
-std::string AbcReaderArchive::get_info()
+void AbcReaderArchive::get_info(void (*stream)(void *, const char *), void *userdata)
 {
 	if (m_abc_archive)
-		return abc_archive_info(m_abc_archive);
-	else
-		return "";
+		abc_archive_info(m_abc_archive, stream, userdata);
 }
 
 ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)

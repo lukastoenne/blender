@@ -103,7 +103,7 @@ void BKE_dupli_cache_free(struct DupliCache *dupcache);
 void BKE_dupli_cache_clear(struct DupliCache *dupcache);
 void BKE_dupli_cache_clear_instances(struct DupliCache *dupcache);
 struct DupliObjectData *BKE_dupli_cache_add_object(struct DupliCache *dupcache, struct Object *ob);
-void BKE_dupli_cache_add_instance(struct DupliCache *dupcache, float obmat[4][4], struct DupliObjectData *data);
+struct DupliObject *BKE_dupli_cache_add_instance(struct DupliCache *dupcache, float obmat[4][4], struct DupliObjectData *data);
 void BKE_dupli_cache_from_group(struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib, struct DupliCache *dupcache, struct EvaluationContext *eval_ctx);
 
 struct DupliCacheIterator *BKE_dupli_cache_iter_new(struct DupliCache *dupcache);

@@ -1766,7 +1766,7 @@ DupliObjectData *BKE_dupli_cache_add_object(DupliCache *dupcache, Object *ob)
 	return data;
 }
 
-void BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], DupliObjectData *data)
+DupliObject *BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], DupliObjectData *data)
 {
 	DupliObject *dob = dupli_cache_add_object(dupcache);
 	
@@ -1777,6 +1777,8 @@ void BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], Dupli
 	copy_m4_m4(dob->mat, obmat);
 	
 	dob->data = data;
+	
+	return dob;
 }
 
 /* ------------------------------------------------------------------------- */

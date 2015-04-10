@@ -518,7 +518,7 @@ static void archive_info_labels(uiLayout *layout, const char *info)
 	ui_item_nlabel(layout, cur, linelen);
 }
 
-static uiBlock *archive_info_popup_create(bContext *C, ARegion *ar, void *arg)
+static uiBlock *UNUSED_FUNCTION(archive_info_popup_create)(bContext *C, ARegion *ar, void *arg)
 {
 	const char *info = arg;
 	uiBlock *block;
@@ -538,6 +538,11 @@ static uiBlock *archive_info_popup_create(bContext *C, ARegion *ar, void *arg)
 	return block;
 }
 
+static void print_stream(void *UNUSED(userdata), const char *s)
+{
+	printf("%s", s);
+}
+
 static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
@@ -550,7 +555,6 @@ static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 	
 	char filepath[FILE_MAX], filename[FILE_MAX];
 	struct PTCReaderArchive *archive;
-	char *info;
 	
 	RNA_string_get(op->ptr, "filepath", filepath);
 	if (filepath[0] == '\0')
@@ -563,24 +567,19 @@ static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	info = PTC_get_archive_info(archive);
-	PTC_close_reader_archive(archive);
-	
-	if (info) {
-		if (use_stdout) {
-			printf("%s", info);
-		}
-		
-		if (use_popup) {
-			UI_popup_block_invoke(C, archive_info_popup_create, info);
-		}
-		
-		if (use_clipboard) {
-			WM_clipboard_text_set(info, false);
-		}
-		
-		MEM_freeN(info);
+	if (use_stdout) {
+		PTC_get_archive_info(archive, print_stream, NULL);
 	}
+	
+	if (use_popup) {
+//		UI_popup_block_invoke(C, archive_info_popup_create, info);
+	}
+	
+	if (use_clipboard) {
+//		WM_clipboard_text_set(info, false);
+	}
+	
+	PTC_close_reader_archive(archive);
 	
 	return OPERATOR_FINISHED;
 }

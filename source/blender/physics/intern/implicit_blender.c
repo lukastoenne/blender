@@ -1512,15 +1512,13 @@ void BPH_mass_spring_force_edge_wind(Implicit_Data *data, int v1, int v2, float 
 	add_v3_v3(data->F[v2], f);
 }
 
-void BPH_mass_spring_force_vertex_wind(Implicit_Data *data, int v, float UNUSED(radius), const float (*winvec)[3])
+void BPH_mass_spring_force_vertex_wind(Implicit_Data *data, int v, float factor, const float (*winvec)[3])
 {
-	const float density = 0.01f; /* XXX arbitrary value, corresponds to effect of air density */
-	
 	float wind[3];
 	float f[3];
 	
 	world_to_root_v3(data, v, wind, winvec[v]);
-	mul_v3_v3fl(f, wind, density);
+	mul_v3_v3fl(f, wind, factor);
 	add_v3_v3(data->F[v], f);
 }
 

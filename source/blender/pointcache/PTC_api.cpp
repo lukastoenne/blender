@@ -235,12 +235,10 @@ PTCReadSampleResult PTC_test_sample(PTCReader *_reader, float frame)
 	return reader->test_sample(frame);
 }
 
-char *PTC_get_archive_info(PTCReaderArchive *_archive)
+void PTC_get_archive_info(PTCReaderArchive *_archive, void (*stream)(void *, const char *), void *userdata)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	
-	std::string info = archive->get_info();
-	return BLI_sprintfN("%s", info.c_str());
+	archive->get_info(stream, userdata);
 }
 
 
@@ -254,14 +252,17 @@ PTCWriter *PTC_writer_duplicache(const char *name, struct Group *group, struct D
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_duplicache(name, group, dupcache, datatypes, do_sim_debug);
 }
 
-PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, bool do_sim_debug)
+PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache,
+                                 bool read_strands_motion, bool read_strands_children, bool read_sim_debug)
 {
-	return (PTCReader *)PTC::Factory::alembic->create_reader_duplicache(name, group, dupcache, do_sim_debug);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_duplicache(name, group, dupcache,
+	                                                                    read_strands_motion, read_strands_children, read_sim_debug);
 }
 
-PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, struct DupliObjectData *data)
+PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, struct DupliObjectData *data,
+                                        bool read_strands_motion, bool read_strands_children)
 {
-	return (PTCReader *)PTC::Factory::alembic->create_reader_duplicache_object(name, ob, data);
+	return (PTCReader *)PTC::Factory::alembic->create_reader_duplicache_object(name, ob, data, read_strands_motion, read_strands_children);
 }
 
 

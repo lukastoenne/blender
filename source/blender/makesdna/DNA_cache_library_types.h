@@ -75,6 +75,16 @@ typedef enum eCacheLibrary_Flag {
 	CACHE_LIBRARY_BAKING              = (1 << 0), /* perform modifier evaluation when evaluating */
 } eCacheLibrary_Flag;
 
+typedef enum eCacheLibrary_DisplayFlag {
+	CACHE_LIBRARY_DISPLAY_MOTION      = (1 << 0), /* display motion state result from simulation, if available */
+	CACHE_LIBRARY_DISPLAY_CHILDREN    = (1 << 1), /* display child strands, if available */
+} eCacheLibrary_DisplayFlag;
+
+typedef enum eCacheLibrary_RenderFlag {
+	CACHE_LIBRARY_RENDER_MOTION      = (1 << 0), /* render motion state result from simulation, if available */
+	CACHE_LIBRARY_RENDER_CHILDREN    = (1 << 1), /* render child strands, if available */
+} eCacheLibrary_RenderFlag;
+
 typedef struct CacheLibrary {
 	ID id;
 	
@@ -83,6 +93,8 @@ typedef struct CacheLibrary {
 	short source_mode;
 	short display_mode;
 	short pad;
+	int display_flag;
+	int render_flag;
 	int data_types;
 	
 	char input_filepath[1024]; /* 1024 = FILE_MAX */
@@ -114,17 +126,24 @@ typedef enum eCacheModifier_Type {
 } eCacheModifier_Type;
 
 typedef struct HairSimParams {
+	int flag;
 	float timescale;
 	int substeps;
+	int pad;
 	
 	struct EffectorWeights *effector_weights;
 	
 	float mass;
 	float drag;
 	float goal_stiffness, goal_damping;
+	struct CurveMapping *goal_stiffness_mapping;
 	float stretch_stiffness, stretch_damping;
 	float bend_stiffness, bend_damping;
 } HairSimParams;
+
+typedef enum eHairSimParams_Flag {
+	eHairSimParams_Flag_UseGoalStiffnessCurve        = (1 << 0),
+} eHairSimParams_Flag;
 
 typedef struct HairSimCacheModifier {
 	CacheModifier modifier;
