@@ -46,6 +46,7 @@ extern "C" {
 
 #include "BKE_cloth.h"
 #include "BKE_collision.h"
+#include "BKE_colortools.h"
 #include "BKE_effect.h"
 #include "BKE_strands.h"
 }
@@ -1351,11 +1352,56 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 	} while (BKE_strand_bend_iter_valid(&it_bend));
 }
 
+static float strands_goal_stiffness(Strands *UNUSED(strands), HairSimParams *params, StrandsVertex *vert, float t)
+{
+	/* XXX There is no possibility of tweaking them in linked data currently,
+	 * so the original workflow of painting weights in particle edit mode is virtually useless.
+	 */
+	float weight;
+	
+	if (params->flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
+		weight = curvemapping_evaluateF(params->goal_stiffness_mapping, 0, t);
+	else
+		weight = vert->weight;
+	CLAMP(weight, 0.0f, 1.0f);
+	
+	return params->goal_stiffness * weight;
+}
+
+/* goal forces pull vertices toward their rest position */
+static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+{
+	StrandEdgeIterator it_edge;
+	
+	float rootvel[3];
+	BPH_mass_spring_get_velocity(data, BKE_strand_iter_vertex_offset(strands, it_strand), rootvel);
+	
+	float length = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge))
+		length += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+	float length_inv = length > 0.0f ? 1.0f / length : 0.0f;
+	
+	float t = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+		int vj = BKE_strand_edge_iter_vertex1_offset(strands, &it_edge);
+		t += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+		
+		float stiffness = strands_goal_stiffness(strands, params, it_edge.vertex1, t * length_inv);
+		float damping = stiffness * params->goal_damping;
+		
+		float goal[3];
+		mul_v3_m4v3(goal, space, it_edge.vertex1->co);
+		
+		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, NULL, NULL, NULL);
+	}
+}
+
 /* calculates internal forces for a single strand curve */
 static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
 {
 	strands_calc_curve_stretch_forces(strands, space, params, data, it_strand);
 	strands_calc_curve_bending_forces(strands, space, params, data, it_strand);
+	strands_calc_vertex_goal_forces(strands, space, params, data, it_strand);
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */

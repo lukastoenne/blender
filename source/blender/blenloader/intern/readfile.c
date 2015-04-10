@@ -2026,6 +2026,9 @@ static void direct_link_cache_modifiers(FileData *fd, ListBase *modifiers)
 			case eCacheModifierType_HairSimulation: {
 				HairSimCacheModifier *hsmd = (HairSimCacheModifier *)md;
 				hsmd->sim_params.effector_weights = newdataadr(fd, hsmd->sim_params.effector_weights);
+				hsmd->sim_params.goal_stiffness_mapping = newdataadr(fd, hsmd->sim_params.goal_stiffness_mapping);
+				if (hsmd->sim_params.goal_stiffness_mapping)
+					direct_link_curvemapping(fd, hsmd->sim_params.goal_stiffness_mapping);
 				break;
 			}
 		}

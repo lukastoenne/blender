@@ -49,6 +49,7 @@
 
 #include "BKE_anim.h"
 #include "BKE_cache_library.h"
+#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
@@ -573,6 +574,14 @@ static void hairsim_params_init(HairSimParams *params)
 	params->bend_damping = 1.0f;
 	params->goal_stiffness = 0.0f;
 	params->goal_damping = 1.0f;
+	{
+		CurveMapping *cm = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+		cm->cm[0].curve[0].x = 0.0f;
+		cm->cm[0].curve[0].y = 1.0f;
+		cm->cm[0].curve[1].x = 1.0f;
+		cm->cm[0].curve[1].y = 0.0f;
+		params->goal_stiffness_mapping = cm;
+	}
 	
 	params->effector_weights = BKE_add_effector_weights(NULL);
 }
@@ -586,12 +595,16 @@ static void hairsim_copy(HairSimCacheModifier *hsmd, HairSimCacheModifier *thsmd
 {
 	if (hsmd->sim_params.effector_weights)
 		thsmd->sim_params.effector_weights = MEM_dupallocN(hsmd->sim_params.effector_weights);
+	if (hsmd->sim_params.goal_stiffness_mapping)
+		thsmd->sim_params.goal_stiffness_mapping = curvemapping_copy(hsmd->sim_params.goal_stiffness_mapping);
 }
 
 static void hairsim_free(HairSimCacheModifier *hsmd)
 {
 	if (hsmd->sim_params.effector_weights)
 		MEM_freeN(hsmd->sim_params.effector_weights);
+	if (hsmd->sim_params.goal_stiffness_mapping)
+		curvemapping_free(hsmd->sim_params.goal_stiffness_mapping);
 }
 
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
@@ -601,6 +614,9 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	/* skip first step and potential backward steps */
 	if (frame <= frame_prev)
 		return;
+	
+	if (hsmd->sim_params.flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
+		curvemapping_changed_all(hsmd->sim_params.goal_stiffness_mapping);
 	
 	iter = BKE_dupli_cache_iter_new(data->dupcache);
 	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {

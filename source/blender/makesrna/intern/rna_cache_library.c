@@ -217,6 +217,18 @@ static void rna_def_hair_sim_params(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Goal Damping", "Damping factor of goal springs");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 	
+	prop = RNA_def_property(srna, "use_goal_stiffness_curve", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eHairSimParams_Flag_UseGoalStiffnessCurve);
+	RNA_def_property_ui_text(prop, "Use Goal Stiffness Curve", "Use a curve to define goal stiffness along the strand");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "goal_stiffness_curve", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "goal_stiffness_mapping");
+	RNA_def_property_struct_type(prop, "CurveMapping");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Goal Stiffness Curve", "Stiffness of goal springs along the strand curves");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
 	prop = RNA_def_property(srna, "stretch_stiffness", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.0f, 10000.0f, 0.1f, 3);

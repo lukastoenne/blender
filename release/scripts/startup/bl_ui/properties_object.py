@@ -441,6 +441,10 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop(params, "goal_stiffness")
         row.prop(params, "goal_damping")
+        row.prop(params, "use_goal_stiffness_curve")
+        if params.use_goal_stiffness_curve:
+            sub = col.column()
+            sub.template_curve_mapping(params, "goal_stiffness_curve")
 
         layout.separator()
 

@@ -114,17 +114,24 @@ typedef enum eCacheModifier_Type {
 } eCacheModifier_Type;
 
 typedef struct HairSimParams {
+	int flag;
 	float timescale;
 	int substeps;
+	int pad;
 	
 	struct EffectorWeights *effector_weights;
 	
 	float mass;
 	float drag;
 	float goal_stiffness, goal_damping;
+	struct CurveMapping *goal_stiffness_mapping;
 	float stretch_stiffness, stretch_damping;
 	float bend_stiffness, bend_damping;
 } HairSimParams;
+
+typedef enum eHairSimParams_Flag {
+	eHairSimParams_Flag_UseGoalStiffnessCurve        = (1 << 0),
+} eHairSimParams_Flag;
 
 typedef struct HairSimCacheModifier {
 	CacheModifier modifier;
