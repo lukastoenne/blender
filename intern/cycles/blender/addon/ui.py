@@ -303,6 +303,11 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         subsub.enabled = not rd.use_border
         subsub.prop(rd, "use_save_buffers")
 
+        sub.prop(cscene, "use_camera_cull")
+        subsub = col.column()
+        subsub.active = cscene.use_camera_cull
+        subsub.prop(cscene, "camera_cull_margin")
+
         col = split.column(align=True)
 
         col.label(text="Viewport:")
@@ -649,8 +654,8 @@ class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
         sub.prop(cob, "motion_steps", text="Steps")
 
 
-class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
-    bl_label = "Ray Visibility"
+class CyclesObject_PT_cycles_settings(CyclesButtonsPanel, Panel):
+    bl_label = "Cycles Settings"
     bl_context = "object"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -665,8 +670,10 @@ class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
         layout = self.layout
 
         ob = context.object
+        cob = ob.cycles
         visibility = ob.cycles_visibility
 
+        layout.label(text="Ray Visibility:")
         flow = layout.column_flow()
 
         flow.prop(visibility, "camera")
@@ -677,6 +684,9 @@ class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
 
         if ob.type != 'LAMP':
             flow.prop(visibility, "shadow")
+
+        layout.label(text="Performance:")
+        layout.prop(cob, "use_camera_cull")
 
 
 class CYCLES_OT_use_shading_nodes(Operator):
@@ -1393,7 +1403,8 @@ class CyclesScene_PT_simplify(CyclesButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render
+        scene = context.scene
+        rd = scene.render
 
         layout.active = rd.use_simplify
 
