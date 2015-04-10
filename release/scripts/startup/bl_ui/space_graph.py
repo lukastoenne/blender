@@ -49,9 +49,9 @@ class GRAPH_HT_header(Header):
 
         row = layout.row(align=True)
 
-        row.prop(toolsettings, "use_proportional_ipo",
+        row.prop(toolsettings, "use_proportional_fcurve",
                  text="", icon_only=True)
-        if toolsettings.use_proportional_ipo:
+        if toolsettings.use_proportional_fcurve:
             row.prop(toolsettings, "proportional_edit_falloff",
                      text="", icon_only=True)
 
@@ -279,6 +279,19 @@ class GRAPH_MT_key_transform(Menu):
         layout.operator("transform.transform", text="Extend").mode = 'TIME_EXTEND'
         layout.operator("transform.rotate", text="Rotate")
         layout.operator("transform.resize", text="Scale")
+
+class GRAPH_MT_delete(Menu):
+    bl_label = "Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("graph.delete")
+
+        layout.separator()
+
+        layout.operator("graph.clean")
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

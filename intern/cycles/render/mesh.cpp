@@ -1150,6 +1150,8 @@ void MeshManager::device_update_flags(Device * /*device*/,
 
 void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
 {
+	VLOG(1) << "Total " << scene->meshes.size() << " meshes.";
+
 	if(!need_update)
 		return;
 
@@ -1215,7 +1217,9 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 			                        &progress,
 			                        i,
 			                        num_bvh));
-			i++;
+			if(!mesh->transform_applied) {
+				i++;
+			}
 		}
 	}
 
