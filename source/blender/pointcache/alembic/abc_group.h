@@ -136,7 +136,8 @@ public:
 	typedef std::pair<std::string, Object*> ObjectPair;
 	
 public:
-	AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupcache, bool do_sim_debug);
+	AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupcache,
+	                    bool read_strands_motion, bool read_strands_children, bool read_sim_debug);
 	~AbcDupliCacheReader();
 	
 	void init_abc(Abc::IObject object);
@@ -159,6 +160,7 @@ private:
 	DupliCache *dupli_cache;
 	
 	ObjectMap object_map;
+	bool m_read_strands_motion, m_read_strands_children;
 	AbcSimDebugReader *m_simdebug_reader;
 };
 
@@ -193,7 +195,8 @@ public:
 	typedef std::pair<Abc::ObjectReaderPtr, DupliObjectData*> DupliPair;
 	
 public:
-	AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data);
+	AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data,
+	                     bool read_strands_motion, bool read_strands_children);
 	~AbcDupliObjectReader();
 	
 	void init(ReaderArchive *archive);
@@ -210,6 +213,7 @@ protected:
 private:
 	DupliMap dupli_map;
 	DupliObjectData *dupli_data;
+	bool m_read_strands_motion, m_read_strands_children;
 	
 	Abc::IObject m_abc_object;
 };

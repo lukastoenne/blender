@@ -356,9 +356,12 @@ AbcWriter *AbcDupliCacheWriter::find_id_writer(ID *id) const
 
 /* ------------------------------------------------------------------------- */
 
-AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache, bool do_sim_debug) :
+AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, DupliCache *dupli_cache,
+                                         bool read_strands_motion, bool read_strands_children, bool read_sim_debug) :
     GroupReader(group, name),
     dupli_cache(dupli_cache),
+    m_read_strands_motion(read_strands_motion),
+    m_read_strands_children(read_strands_children),
     m_simdebug_reader(NULL)
 {
 	/* XXX this mapping allows fast lookup of existing objects in Blender data
@@ -367,7 +370,7 @@ AbcDupliCacheReader::AbcDupliCacheReader(const std::string &name, Group *group, 
 	 */
 	build_object_map(G.main, group);
 	
-	if (do_sim_debug) {
+	if (read_sim_debug) {
 		BKE_sim_debug_data_set_enabled(true);
 		if (_sim_debug_data)
 			m_simdebug_reader = new AbcSimDebugReader(_sim_debug_data);
@@ -421,7 +424,7 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
 				StrandsChildren *children = BKE_dupli_object_data_find_strands_children(dupli_data, child.getName().c_str());
 				
-				AbcStrandsReader strands_reader(strands, children);
+				AbcStrandsReader strands_reader(strands, children, m_read_strands_motion, m_read_strands_children);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
 				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
@@ -649,9 +652,12 @@ void AbcDupliObjectWriter::write_sample()
 
 /* ------------------------------------------------------------------------- */
 
-AbcDupliObjectReader::AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data) :
+AbcDupliObjectReader::AbcDupliObjectReader(const std::string &name, Object *ob, DupliObjectData *dupli_data,
+                                           bool read_strands_motion, bool read_strands_children) :
     ObjectReader(ob, name),
-    dupli_data(dupli_data)
+    dupli_data(dupli_data),
+    m_read_strands_motion(read_strands_motion),
+    m_read_strands_children(read_strands_children)
 {
 }
 
@@ -700,7 +706,7 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
 				StrandsChildren *children = BKE_dupli_object_data_find_strands_children(dupli_data, child.getName().c_str());
 				
-				AbcStrandsReader strands_reader(strands, children);
+				AbcStrandsReader strands_reader(strands, children, m_read_strands_motion, m_read_strands_children);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
 				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {

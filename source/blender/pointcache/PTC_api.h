@@ -85,8 +85,10 @@ char *PTC_get_archive_info(struct PTCReaderArchive *archive);
 struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib);
 struct PTCWriter *PTC_writer_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, int datatypes, bool do_sim_debug);
 
-struct PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, bool do_sim_debug);
-struct PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, struct DupliObjectData *data);
+struct PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache,
+                                        bool read_strands_motion, bool read_strands_children, bool read_sim_debug);
+struct PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, struct DupliObjectData *data,
+                                               bool read_strands_motion, bool read_strands_children);
 
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);

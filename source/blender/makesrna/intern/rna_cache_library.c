@@ -392,6 +392,26 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Display Mode", "What data to display in the viewport");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
+	prop = RNA_def_property(srna, "display_motion", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "display_flag", CACHE_LIBRARY_DISPLAY_MOTION);
+	RNA_def_property_ui_text(prop, "Display Motion", "Display motion state result from simulation, if available");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "display_children", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "display_flag", CACHE_LIBRARY_DISPLAY_CHILDREN);
+	RNA_def_property_ui_text(prop, "Display Children", "Display child strands, if available");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "render_motion", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "render_flag", CACHE_LIBRARY_RENDER_MOTION);
+	RNA_def_property_ui_text(prop, "Render Motion", "Render motion state result from simulation, if available");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "render_children", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "render_flag", CACHE_LIBRARY_RENDER_CHILDREN);
+	RNA_def_property_ui_text(prop, "Render Children", "Render child strands, if available");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
 	prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "eval_mode");
 	RNA_def_property_enum_items(prop, eval_mode_items);

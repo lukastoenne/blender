@@ -152,14 +152,16 @@ class AbcFactory : public Factory {
 		return new AbcDupliCacheWriter(name, group, dupcache, datatypes, do_sim_debug);
 	}
 	
-	Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache, bool do_sim_debug)
+	Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache,
+	                                 bool read_strands_motion, bool read_strands_children, bool read_sim_debug)
 	{
-		return new AbcDupliCacheReader(name, group, dupcache, do_sim_debug);
+		return new AbcDupliCacheReader(name, group, dupcache, read_strands_motion, read_strands_children, read_sim_debug);
 	}
 	
-	Reader *create_reader_duplicache_object(const std::string &name, Object *ob, DupliObjectData *data)
+	Reader *create_reader_duplicache_object(const std::string &name, Object *ob, DupliObjectData *data,
+	                                        bool read_strands_motion, bool read_strands_children)
 	{
-		return new AbcDupliObjectReader(name, ob, data);
+		return new AbcDupliObjectReader(name, ob, data, read_strands_motion, read_strands_children);
 	}
 };
 

@@ -339,11 +339,22 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
         layout.separator()
 
-        col = layout.column()
-        row = col.row()
-        row.label("Display:")
-        row.prop(cachelib, "display_mode", expand=True)
-        row = col.row(align=True)
+        layout.prop(cachelib, "display_mode", expand=True)
+        row = layout.row()
+        split = row.split()
+        col = split.column()
+        col.label("Display:")
+        col.prop(cachelib, "display_motion", text="Motion")
+        col.prop(cachelib, "display_children", text="Children")
+        split = row.split()
+        col = split.column()
+        col.label("Render:")
+        col.prop(cachelib, "render_motion", text="Motion")
+        col.prop(cachelib, "render_children", text="Children")
+
+        layout.separator()
+
+        row = layout.row(align=True)
         row.enabled = (cachelib.display_mode == 'RESULT')
         row.prop(cachelib, "output_filepath", text="")
         props = row.operator("cachelibrary.archive_info", text="", icon='QUESTION')
@@ -352,6 +363,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         props.use_popup = True
         props.use_clipboard = True
 
+        col = layout.column()
         col.operator("cachelibrary.bake")
         col.row().prop(cachelib, "eval_mode", toggle=True, expand=True)
         col.row().prop(cachelib, "data_types", icon_only=True, toggle=True)

@@ -668,7 +668,9 @@ void AbcStrandsChildrenReader::discard_result()
 }
 
 
-AbcStrandsReader::AbcStrandsReader(Strands *strands, StrandsChildren *children) :
+AbcStrandsReader::AbcStrandsReader(Strands *strands, StrandsChildren *children, bool read_motion, bool read_children) :
+    m_read_motion(read_motion),
+    m_read_children(read_children),
     m_strands(strands),
     m_child_reader(children)
 {
@@ -685,7 +687,6 @@ void AbcStrandsReader::init(ReaderArchive *archive)
 	m_child_reader.init(archive);
 }
 
-
 void AbcStrandsReader::init_abc(IObject object)
 {
 	if (m_curves)
@@ -700,13 +701,13 @@ void AbcStrandsReader::init_abc(IObject object)
 	m_param_times = IFloatGeomParam(geom_props, "times");
 	m_param_weights = IFloatGeomParam(geom_props, "weights");
 	
-	if (geom_props.getPropertyHeader("motion_state")) {
+	if (m_read_motion && geom_props.getPropertyHeader("motion_state")) {
 		m_param_motion_state = ICompoundProperty(geom_props, "motion_state");
 		m_param_motion_co = IP3fGeomParam(m_param_motion_state, "position");
 		m_param_motion_vel = IV3fGeomParam(m_param_motion_state, "velocity");
 	}
 	
-	if (m_curves.getChildHeader("children")) {
+	if (m_read_children && m_curves.getChildHeader("children")) {
 		IObject child = m_curves.getChild("children");
 		m_child_reader.init_abc(child);
 	}
@@ -765,8 +766,10 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		++weight;
 	}
 	
-	if (m_param_motion_co && m_param_motion_co.getNumSamples() > 0 &&
-	    m_param_motion_vel && m_param_motion_vel.getNumSamples() > 0) {
+	if (m_read_motion &&
+	    m_param_motion_co && m_param_motion_co.getNumSamples() > 0 &&
+	    m_param_motion_vel && m_param_motion_vel.getNumSamples() > 0)
+	{
 		IP3fGeomParam::Sample sample_motion_co = m_param_motion_co.getExpandedValue(ss);
 		IV3fGeomParam::Sample sample_motion_vel = m_param_motion_vel.getExpandedValue(ss);
 		
@@ -788,7 +791,8 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	
 	BKE_strands_ensure_normals(m_strands);
 	
-	m_child_reader.read_sample(frame);
+	if (m_read_children)
+		m_child_reader.read_sample(frame);
 	
 	return PTC_READ_SAMPLE_EXACT;
 }

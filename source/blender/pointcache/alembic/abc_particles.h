@@ -178,7 +178,7 @@ private:
 
 class AbcStrandsReader : public AbcReader {
 public:
-	AbcStrandsReader(Strands *strands, StrandsChildren *children);
+	AbcStrandsReader(Strands *strands, StrandsChildren *children, bool read_motion, bool read_children);
 	~AbcStrandsReader();
 	
 	void init(ReaderArchive *archive);
@@ -192,6 +192,7 @@ public:
 	AbcStrandsChildrenReader &child_reader() { return m_child_reader; }
 	
 private:
+	bool m_read_motion, m_read_children;
 	Strands *m_strands;
 	
 	AbcGeom::ICurves m_curves;
