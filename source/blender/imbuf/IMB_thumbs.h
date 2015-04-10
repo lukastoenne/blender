@@ -81,9 +81,8 @@ ImBuf *IMB_thumb_load_blend(const char *path);
 void   IMB_thumb_overlay_blend(unsigned int *thumb, int width, int height, float aspect);
 
 /* special function for previewing fonts */
-ImBuf *IMB_thumb_load_font(
-        const char *filename,
-        unsigned int x, unsigned int y);
+ImBuf *IMB_thumb_load_font(const char *filename, unsigned int x, unsigned int y);
+const char *IMB_thumb_load_font_get_language(void);
 
 #ifdef __cplusplus
 }
