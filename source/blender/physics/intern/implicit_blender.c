@@ -1857,7 +1857,8 @@ BLI_INLINE void spring_angbend_estimate_dfdv(Implicit_Data *data, int i, int j, 
  * See "Artistic Simulation of Curly Hair" (Pixar technical memo #12-03a)
  */
 bool BPH_mass_spring_force_spring_bending_angular(Implicit_Data *data, int i, int j, int k,
-                                                  const float target[3], float stiffness, float damping)
+                                                  const float target[3], float stiffness, float damping,
+                                                  float r_f[3], float r_dfdx[3][3], float r_dfdv[3][3])
 {
 	float goal[3];
 	float fj[3], fk[3];
@@ -1993,6 +1994,13 @@ bool BPH_mass_spring_force_spring_bending_angular(Implicit_Data *data, int i, in
 	add_m3_m3m3(data->dFdX[block_jk].m, data->dFdX[block_jk].m, dfk_dxj);
 	add_m3_m3m3(data->dFdX[block_ik].m, data->dFdX[block_ik].m, dfk_dxi);
 #endif
+	
+	if (r_f)
+		copy_v3_v3(r_f, fj);
+	if (r_dfdx)
+		copy_m3_m3(r_dfdx, dfj_dxj);
+	if (r_dfdv)
+		copy_m3_m3(r_dfdx, dfj_dvj);
 	
 	return true;
 }
