@@ -341,7 +341,8 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 			mul_v3_m4v3(co, hairmat, key->co);
 			
 			sample.positions.push_back(V3f(co[0], co[1], co[2]));
-			sample.times.push_back(key->time);
+			/* XXX particle times are in 0..100, normalize to 0..1 range */
+			sample.times.push_back(key->time * 0.01f);
 			sample.weights.push_back(key->weight);
 		}
 	}
