@@ -181,6 +181,79 @@ void BKE_strands_children_free(StrandsChildren *strands)
 	}
 }
 
+static int *strands_calc_vertex_start(Strands *strands)
+{
+	int *vertstart = MEM_mallocN(sizeof(int) * strands->totcurves, "strand curves vertex start");
+	StrandIterator it_strand;
+	int start;
+	
+	start = 0;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		vertstart[it_strand.index] = start;
+		start += it_strand.curve->numverts;
+	}
+	
+	return vertstart;
+}
+
+void BKE_strands_children_deform_from_parents(StrandsChildren *strands, Strands *parents)
+{
+	int *vertstart;
+	StrandChildIterator it_strand;
+	
+	if (!parents || !parents->state)
+		return;
+	
+	vertstart = strands_calc_vertex_start(parents);
+	
+	if (!vertstart)
+		return;
+	
+	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
+		int i;
+		
+		for (i = 0; i < 4; ++i) {
+			int p = it_strand.curve->parents[i];
+			float w = it_strand.curve->parent_weights[i];
+			if (p >= 0 && w > 0.0f) {
+				StrandsCurve *parent = &parents->curves[p];
+				StrandsVertex *pverts;
+				StrandsMotionState *pstate;
+				int pv0, pv1;
+				StrandChildVertexIterator it_vert;
+				
+				if (parent->numverts <= 0)
+					continue;
+				
+				pverts = &parents->verts[vertstart[p]];
+				pstate = &parents->state[vertstart[p]];
+				pv0 = 0;
+				for (BKE_strand_child_vertex_iter_init(&it_vert, &it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
+					float time = it_vert.vertex->time;
+					float dt, x;
+					float poffset0[3], poffset1[3], offset[3];
+					
+					/* advance to the matching parent edge for interpolation */
+					while (pv0 < parent->numverts-1 && pverts[pv0+1].time < time)
+						++pv0;
+					pv1 = (pv0 < parent->numverts-1)? pv0+1 : pv0;
+					
+					sub_v3_v3v3(poffset0, pstate[pv0].co, pverts[pv0].co);
+					sub_v3_v3v3(poffset1, pstate[pv1].co, pverts[pv1].co);
+					
+					dt = pverts[pv1].time - pverts[pv0].time;
+					x = dt > 0.0f ? (time - pverts[pv0].time) / dt : 0.0f;
+					interp_v3_v3v3(offset, poffset0, poffset1, x);
+					
+					madd_v3_v3fl(it_vert.vertex->co, offset, w);
+				}
+			}
+		}
+	}
+	
+	MEM_freeN(vertstart);
+}
+
 static void calc_child_normals(StrandsChildren *strands)
 {
 	StrandChildIterator it_strand;
