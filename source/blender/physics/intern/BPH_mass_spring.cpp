@@ -1122,7 +1122,7 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 
 /* ========================================================================= */
 
-struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *UNUSED(params))
+struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *params)
 {
 	static float I3[3][3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
 	
@@ -1143,7 +1143,7 @@ struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct 
 	
 	for (i = 0; i < numverts; i++) {
 		// TODO define mass
-		float mass = 1.0f;
+		float mass = params->mass;
 		BPH_mass_spring_set_vertex_mass(id, i, mass);
 	}
 	
