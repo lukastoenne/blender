@@ -59,6 +59,8 @@ typedef struct Strands {
 
 typedef struct StrandsChildCurve {
 	int numverts;
+	int parents[4];
+	float parent_weights[4];
 } StrandsChildCurve;
 
 typedef struct StrandsChildVertex {

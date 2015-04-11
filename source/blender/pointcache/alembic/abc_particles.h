@@ -84,6 +84,8 @@ public:
 private:
 	AbcGeom::OCurves m_curves;
 	AbcGeom::OFloatGeomParam m_param_times;
+	AbcGeom::OInt32ArrayProperty m_prop_parents;
+	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
 };
 
 
@@ -126,6 +128,8 @@ private:
 	
 	AbcGeom::OCurves m_curves;
 	AbcGeom::OFloatGeomParam m_param_times;
+	AbcGeom::OInt32ArrayProperty m_prop_parents;
+	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
 };
 
 
@@ -165,6 +169,7 @@ public:
 	
 	PTCReadSampleResult read_sample(float frame);
 	
+	StrandsChildren *get_result() { return m_strands; }
 	StrandsChildren *acquire_result();
 	void discard_result();
 	
@@ -173,6 +178,8 @@ private:
 	
 	AbcGeom::ICurves m_curves;
 	AbcGeom::IFloatGeomParam m_param_times;
+	AbcGeom::IInt32ArrayProperty m_prop_parents;
+	AbcGeom::IFloatArrayProperty m_prop_parent_weights;
 };
 
 

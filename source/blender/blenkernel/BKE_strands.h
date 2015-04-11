@@ -39,6 +39,8 @@ void BKE_strands_get_minmax(struct Strands *strands, float min[3], float max[3],
 struct StrandsChildren *BKE_strands_children_new(int strands, int verts);
 void BKE_strands_children_free(struct StrandsChildren *strands);
 
+void BKE_strands_children_deform_from_parents(struct StrandsChildren *strands, struct Strands *parents);
+
 void BKE_strands_children_ensure_normals(struct StrandsChildren *strands);
 
 void BKE_strands_children_get_minmax(struct StrandsChildren *strands, float min[3], float max[3]);
