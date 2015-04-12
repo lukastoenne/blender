@@ -243,6 +243,7 @@ void BKE_strands_children_deform_from_parents(StrandsChildren *strands, Strands 
 					
 					dt = pverts[pv1].time - pverts[pv0].time;
 					x = dt > 0.0f ? (time - pverts[pv0].time) / dt : 0.0f;
+					CLAMP(x, 0.0f, 1.0f);
 					interp_v3_v3v3(offset, poffset0, poffset1, x);
 					
 					madd_v3_v3fl(it_vert.vertex->co, offset, w);

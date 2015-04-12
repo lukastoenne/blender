@@ -437,7 +437,7 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 		
 		/* XXX assuming same restlen for ij and jk segments here, this can be done correctly for hair later */
-		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->target, kb, cb);
+		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->target, kb, cb, NULL, NULL, NULL);
 		
 #if 0
 		{
@@ -1091,7 +1091,7 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 
 /* ========================================================================= */
 
-struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *UNUSED(params))
+struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *params)
 {
 	static float I3[3][3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
 	
@@ -1112,7 +1112,7 @@ struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct 
 	
 	for (i = 0; i < numverts; i++) {
 		// TODO define mass
-		float mass = 1.0f;
+		float mass = params->mass;
 		BPH_mass_spring_set_vertex_mass(id, i, mass);
 	}
 	
@@ -1188,7 +1188,8 @@ static void strands_calc_curve_stretch_forces(Strands *strands, float UNUSED(spa
 		
 		float stiffness = params->stretch_stiffness;
 		float damping = stiffness * params->stretch_damping;
-		BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, stiffness, damping, true, 0.0f, NULL, NULL, NULL);
+		float f[3];
+		BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, stiffness, damping, true, 0.0f, f, NULL, NULL);
 	}
 }
 
@@ -1290,7 +1291,8 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 			int vi = BKE_strand_bend_iter_vertex0_offset(strands, &it_bend);
 			int vj = BKE_strand_bend_iter_vertex1_offset(strands, &it_bend);
 			int vk = BKE_strand_bend_iter_vertex2_offset(strands, &it_bend);
-			BPH_mass_spring_force_spring_bending_angular(data, vi, vj, vk, target_state, stiffness, damping);
+			float f[3];
+			BPH_mass_spring_force_spring_bending_angular(data, vi, vj, vk, target_state, stiffness, damping, f, NULL, NULL);
 			
 #if 0 /* debug */
 			{
@@ -1362,7 +1364,8 @@ static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4],
 		float goal[3];
 		mul_v3_m4v3(goal, space, it_edge.vertex1->co);
 		
-		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, NULL, NULL, NULL);
+		float f[3];
+		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, f, NULL, NULL);
 	}
 }
 

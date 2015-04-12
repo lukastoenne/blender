@@ -191,7 +191,7 @@ static int hair_children_count_totkeys(ParticleCacheKey **pathcache, int totpart
 	return totkeys;
 }
 
-static void hair_children_create_sample(ParticleSystem *psys, ParticleCacheKey **pathcache, int totpart, int totkeys, float imat[4][4], StrandsChildrenSample &sample, bool do_numkeys)
+static void hair_children_create_sample(ParticleSystem *psys, ParticleCacheKey **pathcache, int totpart, int totkeys, int maxkeys, float imat[4][4], StrandsChildrenSample &sample, bool do_numkeys)
 {
 	const bool between = (psys->part->childtype == PART_CHILD_FACES);
 	float iqt[4];
@@ -246,7 +246,8 @@ static void hair_children_create_sample(ParticleSystem *psys, ParticleCacheKey *
 			mul_qt_qtqt(rot, iqt, key->rot);
 			
 			sample.positions.push_back(V3f(co[0], co[1], co[2]));
-			sample.times.push_back(key->time);
+			/* XXX particle time values are too messy and confusing, recalculate */
+			sample.times.push_back(maxkeys > 1 ? (float)k / (float)(maxkeys-1) : 0.0f);
 		}
 	}
 }
@@ -265,19 +266,24 @@ void AbcHairChildrenWriter::write_sample()
 	float imat[4][4];
 	invert_m4_m4(imat, m_ob->obmat);
 	
+	int keysteps = abc_archive()->use_render() ? m_psys->part->ren_step : m_psys->part->draw_step;
+	int maxkeys = (1 << keysteps) + 1 + (m_psys->part->kink);
+	if (ELEM(m_psys->part->kink, PART_KINK_SPIRAL))
+		maxkeys += m_psys->part->kink_extra_steps;
+	
 	OCurvesSchema &schema = m_curves.getSchema();
 	
 	StrandsChildrenSample child_sample;
 	OCurvesSchema::Sample sample;
 	if (schema.getNumSamples() == 0) {
 		/* write curve sizes only first time, assuming they are constant! */
-		hair_children_create_sample(m_psys, m_psys->childcache, m_psys->totchild, totkeys, imat, child_sample, true);
+		hair_children_create_sample(m_psys, m_psys->childcache, m_psys->totchild, totkeys, maxkeys, imat, child_sample, true);
 		sample = OCurvesSchema::Sample(child_sample.positions, child_sample.numverts);
 		m_prop_parents.set(Int32ArraySample(child_sample.parents));
 		m_prop_parent_weights.set(FloatArraySample(child_sample.parent_weights));
 	}
 	else {
-		hair_children_create_sample(m_psys, m_psys->childcache, m_psys->totchild, totkeys, imat, child_sample, false);
+		hair_children_create_sample(m_psys, m_psys->childcache, m_psys->totchild, totkeys, maxkeys, imat, child_sample, false);
 		sample = OCurvesSchema::Sample(child_sample.positions);
 	}
 	schema.set(sample);
@@ -374,8 +380,8 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 			mul_v3_m4v3(co, hairmat, key->co);
 			
 			sample.positions.push_back(V3f(co[0], co[1], co[2]));
-			/* XXX particle times are in 0..100, normalize to 0..1 range */
-			sample.times.push_back(key->time * 0.01f);
+			/* XXX particle time values are too messy and confusing, recalculate */
+			sample.times.push_back(numverts > 1 ? (float)k / (float)(numverts-1) : 0.0f);
 			sample.weights.push_back(key->weight);
 		}
 	}
