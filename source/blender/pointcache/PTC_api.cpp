@@ -71,8 +71,8 @@ class StubFactory : public Factory {
 	Writer *create_writer_derived_final_render(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/, DerivedMesh **/*render_dm_ptr*/) { return NULL; }
 	Writer *create_writer_dupligroup(const std::string &/*name*/, EvaluationContext */*eval_ctx*/, Scene */*scene*/, Group */*group*/, CacheLibrary */*cachelib*/) { return NULL; }
 	Writer *create_writer_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/, int /*datatypes*/, bool /*do_sim_debug*/) { return NULL; }
-	Reader *create_reader_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/, bool /*do_sim_debug*/) { return NULL; }
-	Reader *create_reader_duplicache_object(const std::string &/*name*/, Object */*ob*/, DupliObjectData */*data*/) { return NULL; }
+	Reader *create_reader_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/, bool /*read_strands_motion*/, bool /*read_strands_children*/, bool /*do_sim_debug*/) { return NULL; }
+	Reader *create_reader_duplicache_object(const std::string &/*name*/, Object */*ob*/, DupliObjectData */*data*/, bool /*read_strands_motion*/, bool /*read_strands_children*/) { return NULL; }
 };
 
 #ifndef WITH_PTC_ALEMBIC
