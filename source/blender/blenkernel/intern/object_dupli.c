@@ -1707,7 +1707,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			/* skip reading when the cachelib is baking, avoids unnecessary memory allocation */
 			if (!(ob->cache_library->flag & CACHE_LIBRARY_BAKING)) {
 				/* TODO at this point we could apply animation offset */
-				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, eval_mode);
+				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, eval_mode, false);
 			}
 			
 			ob->dup_cache->flag &= ~DUPCACHE_FLAG_DIRTY;
