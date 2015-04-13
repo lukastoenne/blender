@@ -277,7 +277,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 				BKE_dupli_cache_from_group(scene, data->group, data->cachelib, process_data.dupcache, &data->eval_ctx);
 				break;
 			case CACHE_LIBRARY_SOURCE_CACHE:
-				BKE_cache_read_dupli_cache(data->cachelib, process_data.dupcache, scene, data->group, frame, data->cache_eval_mode, true);
+				BKE_cache_read_dupli_cache(data->cachelib, process_data.dupcache, scene, data->group, frame, data->cache_eval_mode, false);
 				break;
 		}
 		

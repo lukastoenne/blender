@@ -730,6 +730,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 		++time;
 	}
 	
+	BKE_strands_children_ensure_normals(m_strands);
+	
 	return PTC_READ_SAMPLE_EXACT;
 }
 
@@ -872,20 +874,6 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	
 	if (m_read_children) {
 		m_child_reader.read_sample(frame);
-		
-		StrandsChildren *children = m_child_reader.get_result();
-		if (children) {
-			/* child deformation from parent motion */
-			/* XXX This is a quick solution, but needs better design:
-			 * For rendering it would be preferable to have the child deformation stored in caches directly.
-			 * While possible, this would make it difficult to disable the deformation on loading.
-			 */
-			if (m_read_motion && m_strands && m_strands->state) {
-				BKE_strands_children_deform_from_parents(children, m_strands);
-			}
-			
-			BKE_strands_children_ensure_normals(children);
-		}
 	}
 	
 	return PTC_READ_SAMPLE_EXACT;
