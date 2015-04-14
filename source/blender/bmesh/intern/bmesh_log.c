@@ -126,6 +126,10 @@ typedef struct {
 
 /************************* Get/set element IDs ************************/
 
+/* bypass actual hashing, the keys don't overlap */
+#define logkey_hash BLI_ghashutil_inthash_p_simple
+#define logkey_cmp BLI_ghashutil_intcmp
+
 /* Get the vertex's unique ID from the log */
 static unsigned int bm_log_vert_id_get(BMLog *log, BMVert *v)
 {
@@ -386,12 +390,12 @@ static BMLogEntry *bm_log_entry_create(void)
 {
 	BMLogEntry *entry = MEM_callocN(sizeof(BMLogEntry), __func__);
 
-	entry->deleted_verts = BLI_ghash_ptr_new(__func__);
-	entry->deleted_faces = BLI_ghash_ptr_new(__func__);
-	entry->added_verts = BLI_ghash_ptr_new(__func__);
-	entry->added_faces = BLI_ghash_ptr_new(__func__);
-	entry->modified_verts = BLI_ghash_ptr_new(__func__);
-	entry->modified_faces = BLI_ghash_ptr_new(__func__);
+	entry->deleted_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->deleted_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->added_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->added_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->modified_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->modified_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
 
 	entry->pool_verts = BLI_mempool_create(sizeof(BMLogVert), 0, 64, BLI_MEMPOOL_NOP);
 	entry->pool_faces = BLI_mempool_create(sizeof(BMLogFace), 0, 64, BLI_MEMPOOL_NOP);
@@ -476,10 +480,11 @@ static void bm_log_id_ghash_release(BMLog *log, GHash *id_ghash)
 BMLog *BM_log_create(BMesh *bm)
 {
 	BMLog *log = MEM_callocN(sizeof(*log), __func__);
+	const unsigned int reserve_num = (unsigned int)(bm->totvert + bm->totface);
 
 	log->unused_ids = range_tree_uint_alloc(0, (unsigned)-1);
-	log->id_to_elem = BLI_ghash_ptr_new_ex(__func__, (unsigned int)(bm->totvert + bm->totface));
-	log->elem_to_id = BLI_ghash_ptr_new_ex(__func__, (unsigned int)(bm->totvert + bm->totface));
+	log->id_to_elem = BLI_ghash_new_ex(logkey_hash, logkey_cmp, __func__, reserve_num);
+	log->elem_to_id = BLI_ghash_ptr_new_ex(__func__, reserve_num);
 
 	/* Assign IDs to all existing vertices and faces */
 	bm_log_assign_ids(bm, log);
@@ -987,6 +992,15 @@ void BM_log_all_added(BMesh *bm, BMLog *log)
 	BMIter bm_iter;
 	BMVert *v;
 	BMFace *f;
+
+	/* avoid unnecessary resizing on initialization */
+	if (BLI_ghash_size(log->current_entry->added_verts) == 0) {
+		BLI_ghash_reserve(log->current_entry->added_verts, (unsigned int)bm->totvert);
+	}
+
+	if (BLI_ghash_size(log->current_entry->added_faces) == 0) {
+		BLI_ghash_reserve(log->current_entry->added_faces, (unsigned int)bm->totface);
+	}
 
 	/* Log all vertices as newly created */
 	BM_ITER_MESH (v, &bm_iter, bm, BM_VERTS_OF_MESH) {

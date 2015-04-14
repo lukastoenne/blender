@@ -158,7 +158,7 @@ class VIEW3D_MT_editor_menus(Menu):
         if edit_object:
             layout.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
         elif obj:
-            if mode_string not in {'PAINT_TEXTURE'}:
+            if mode_string != 'PAINT_TEXTURE':
                 layout.menu("VIEW3D_MT_%s" % mode_string.lower())
             if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
                 layout.menu("VIEW3D_MT_brush")
@@ -1043,6 +1043,17 @@ class INFO_MT_armature_add(Menu):
         layout.operator("object.armature_add", text="Single Bone", icon='BONE_DATA')
 
 
+class INFO_MT_lamp_add(Menu):
+    bl_idname = "INFO_MT_lamp_add"
+    bl_label = "Lamp"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator_enum("object.lamp_add", "type")
+
+
 class INFO_MT_add(Menu):
     bl_label = "Add"
 
@@ -1075,7 +1086,7 @@ class INFO_MT_add(Menu):
         layout.separator()
 
         layout.operator("object.camera_add", text="Camera", icon='OUTLINER_OB_CAMERA')
-        layout.operator_menu_enum("object.lamp_add", "type", text="Lamp", icon='OUTLINER_OB_LAMP')
+        layout.menu("INFO_MT_lamp_add", icon='OUTLINER_OB_LAMP')
         layout.separator()
 
         layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_EMPTY')
