@@ -3009,6 +3009,25 @@ void psys_mat_hair_to_global(Object *ob, DerivedMesh *dm, short from, ParticleDa
 	mul_m4_m4m4(hairmat, ob->obmat, facemat);
 }
 
+void psys_child_mat_to_object(Object *ob, ParticleSystem *psys, ParticleSystemModifierData *psmd, ChildParticle *cpa, float hairmat[4][4])
+{
+	const bool between = (psys->part->childtype == PART_CHILD_FACES);
+	float co[3];
+	
+	if (between) {
+		ParticleData *pa = &psys->particles[cpa->pa[0]];
+		psys_particle_on_emitter(psmd, PART_FROM_FACE, cpa->num, DMCACHE_ISCHILD, cpa->fuv, cpa->foffset, co, NULL, NULL, NULL, NULL, NULL);
+		psys_mat_hair_to_object(ob, psmd->dm, psys->part->from, pa, hairmat);
+	}
+	else {
+		ParticleData *pa = &psys->particles[cpa->parent];
+		psys_particle_on_emitter(psmd, psys->part->from, pa->num, DMCACHE_ISCHILD, pa->fuv, pa->foffset, co, NULL, NULL, NULL, NULL, NULL);
+		psys_mat_hair_to_object(ob, psmd->dm, psys->part->from, pa, hairmat);
+	}
+	
+	copy_v3_v3(hairmat[3], co);
+}
+
 /************************************************/
 /*			ParticleSettings handling			*/
 /************************************************/

@@ -133,6 +133,8 @@ PTCReadSampleResult AbcParticlesReader::read_sample(float frame)
 
 struct StrandsChildrenSample {
 	std::vector<int32_t> numverts;
+	std::vector<M33f> root_matrix;
+	std::vector<V3f> root_positions;
 	
 	std::vector<V3f> positions;
 	std::vector<float32_t> times;
@@ -155,6 +157,7 @@ struct StrandsSample {
 AbcHairChildrenWriter::AbcHairChildrenWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
     ParticlesWriter(ob, psys, name)
 {
+	m_psmd = psys_get_modifier(ob, psys);
 }
 
 AbcHairChildrenWriter::~AbcHairChildrenWriter()
@@ -173,6 +176,8 @@ void AbcHairChildrenWriter::init_abc(OObject parent)
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	OCompoundProperty user_props = schema.getUserProperties();
 	
+	m_prop_root_matrix = OM33fArrayProperty(user_props, "root_matrix", abc_archive()->frame_sampling());
+	m_prop_root_positions = OV3fArrayProperty(user_props, "root_positions", abc_archive()->frame_sampling());
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
 	m_prop_parent_weights = OFloatArrayProperty(user_props, "parent_weights", abc_archive()->frame_sampling());
@@ -191,28 +196,114 @@ static int hair_children_count_totkeys(ParticleCacheKey **pathcache, int totpart
 	return totkeys;
 }
 
-static void hair_children_create_sample(ParticleSystem *psys, ParticleCacheKey **pathcache, int totpart, int totkeys, int maxkeys, float imat[4][4], StrandsChildrenSample &sample, bool do_numkeys)
+#if 0
+static int hair_children_parent_advance(HairKey *keys, int totkeys, float time, int k)
+{
+	for (; k + 1 < totkeys; ++k) {
+		if (keys[k+1].time > time)
+			break;
+	}
+	return k;
+}
+
+static void hair_children_calc_strand(Object *ob, ParticleSystem *psys, ParticleSystemModifierData *psmd, ChildParticle *cpa, ParticleCacheKey *keys, int maxkeys, StrandsChildrenSample &sample)
 {
 	const bool between = (psys->part->childtype == PART_CHILD_FACES);
-	float iqt[4];
-	mat4_to_quat(iqt, imat);
+	ParticleData *parent[4];
+	float weight[4];
+	float hairmat[4][4][4];
+	int parent_key[4] = {0,0,0,0};
+	
+	int i, k;
+	
+	if (between) {
+		for (i = 0; i < 4; ++i) {
+			parent[i] = &psys->particles[cpa->pa[i]];
+			weight[i] = cpa->w[i];
+			if (parent[i])
+				psys_mat_hair_to_global(ob, psmd->dm, psys->part->from, parent[i], hairmat[i]);
+		}
+	}
+	else {
+		parent[0] = &psys->particles[cpa->parent];
+		parent[1] = parent[2] = parent[3] = NULL;
+		weight[0] = 1.0f;
+		weight[1] = weight[2] = weight[3] = 0.0f;
+		if (parent[0])
+			psys_mat_hair_to_global(ob, psmd->dm, psys->part->from, parent[0], hairmat[0]);
+	}
+	
+	int numkeys = keys->segments + 1;
+	for (k = 0; k < numkeys; ++k) {
+		ParticleCacheKey *key = &keys[k];
+		/* XXX particle time values are too messy and confusing, recalculate */
+		float time = maxkeys > 1 ? (float)k / (float)(maxkeys-1) : 0.0f;
+		
+		float parent_co[3];
+		zero_v3(parent_co);
+		for (i = 0; i < 4; ++i) {
+			if (!parent[i] || weight[i] <= 0.0f)
+				continue;
+			parent_key[i] = hair_children_parent_advance(parent[i]->hair, parent[i]->totkey, time, parent_key[i]);
+			
+			float key_co[3];
+			if (parent_key[i] + 1 < parent[i]->totkey) {
+				HairKey *key0 = &parent[i]->hair[parent_key[i]];
+				HairKey *key1 = &parent[i]->hair[parent_key[i] + 1];
+				float x = (key1->time > key0->time) ? (time - key0->time) / (key1->time - key0->time) : 0.0f;
+				interp_v3_v3v3(key_co, key0->co, key1->co, x);
+			}
+			else {
+				HairKey *key0 = &parent[i]->hair[parent_key[i]];
+				copy_v3_v3(key_co, key0->co);
+			}
+			
+			madd_v3_v3fl(parent_co, key_co, weight[i]);
+			
+			/* Hair keys are in hair root space, pathcache keys are in world space,
+			 * transform both to world space to calculate the offset
+			 */
+			mul_m4_v3(hairmat[i], parent_co);
+		}
+		
+		/* child position is an offset from the parent */
+		float co[3];
+		sub_v3_v3v3(co, key->co, parent_co);
+		
+		sample.positions.push_back(V3f(parent_co[0], parent_co[1], parent_co[2]));
+		sample.times.push_back(time);
+	}
+}
+#endif
+
+static void hair_children_create_sample(Object *ob, ParticleSystem *psys, ParticleSystemModifierData *psmd, ParticleCacheKey **pathcache, int totpart, int totkeys, int maxkeys,
+                                        StrandsChildrenSample &sample, bool write_constants)
+{
+	const bool between = (psys->part->childtype == PART_CHILD_FACES);
 	
 	int p, k;
 	
-	if (do_numkeys) {
+	if (write_constants) {
 		sample.numverts.reserve(totpart);
 		sample.parents.reserve(4*totpart);
 		sample.parent_weights.reserve(4*totpart);
+		
+		sample.positions.reserve(totkeys);
+		sample.times.reserve(totkeys);
 	}
-	sample.positions.reserve(totkeys);
-	sample.times.reserve(totkeys);
+	
+	sample.root_matrix.reserve(totpart);
+	sample.root_positions.reserve(totpart);
 	
 	for (p = 0; p < totpart; ++p) {
 		ChildParticle *cpa = &psys->child[p];
 		ParticleCacheKey *keys = pathcache[p];
 		int numkeys = keys->segments + 1;
 		
-		if (do_numkeys) {
+		float hairmat[4][4];
+		psys_child_mat_to_object(ob, psys, psmd, cpa, hairmat);
+		
+		if (write_constants) {
 			sample.numverts.push_back(numkeys);
 			if (between) {
 				sample.parents.push_back(cpa->pa[0]);
@@ -234,21 +325,28 @@ static void hair_children_create_sample(ParticleSystem *psys, ParticleCacheKey *
 				sample.parent_weights.push_back(0.0f);
 				sample.parent_weights.push_back(0.0f);
 			}
+			
+			float imat[4][4];
+			mul_m4_m4m4(imat, ob->obmat, hairmat);
+			invert_m4(imat);
+			
+			for (k = 0; k < numkeys; ++k) {
+				ParticleCacheKey *key = &keys[k];
+				float co[3];
+				/* pathcache keys are in world space, transform to hair root space */
+				mul_v3_m4v3(co, imat, key->co);
+				
+				sample.positions.push_back(V3f(co[0], co[1], co[2]));
+				/* XXX particle time values are too messy and confusing, recalculate */
+				sample.times.push_back(maxkeys > 1 ? (float)k / (float)(maxkeys-1) : 0.0f);
+			}
 		}
 		
-		for (k = 0; k < numkeys; ++k) {
-			ParticleCacheKey *key = &keys[k];
-			float co[3], vel[3], rot[4];
-			/* pathcache keys are in world space, transform to object space */
-			mul_v3_m4v3(co, imat, key->co);
-			copy_v3_v3(vel, key->vel);
-			mul_mat3_m4_v3(imat, vel);
-			mul_qt_qtqt(rot, iqt, key->rot);
-			
-			sample.positions.push_back(V3f(co[0], co[1], co[2]));
-			/* XXX particle time values are too messy and confusing, recalculate */
-			sample.times.push_back(maxkeys > 1 ? (float)k / (float)(maxkeys-1) : 0.0f);
-		}
+		float mat3[3][3];
+		copy_m3_m4(mat3, hairmat);
+		sample.root_matrix.push_back(M33f(mat3));
+		float *co = hairmat[3];
+		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
 	}
 }
 
@@ -263,9 +361,6 @@ void AbcHairChildrenWriter::write_sample()
 	if (totkeys == 0)
 		return;
 	
-	float imat[4][4];
-	invert_m4_m4(imat, m_ob->obmat);
-	
 	int keysteps = abc_archive()->use_render() ? m_psys->part->ren_step : m_psys->part->draw_step;
 	int maxkeys = (1 << keysteps) + 1 + (m_psys->part->kink);
 	if (ELEM(m_psys->part->kink, PART_KINK_SPIRAL))
@@ -277,18 +372,22 @@ void AbcHairChildrenWriter::write_sample()
 	OCurvesSchema::Sample sample;
 	if (schema.getNumSamples() == 0) {
 		/* write curve sizes only first time, assuming they are constant! */
-		hair_children_create_sample(m_psys, m_psys->childcache, m_psys->totchild, totkeys, maxkeys, imat, child_sample, true);
+		hair_children_create_sample(m_ob, m_psys, m_psmd, m_psys->childcache, m_psys->totchild, totkeys, maxkeys, child_sample, true);
 		sample = OCurvesSchema::Sample(child_sample.positions, child_sample.numverts);
+		
 		m_prop_parents.set(Int32ArraySample(child_sample.parents));
 		m_prop_parent_weights.set(FloatArraySample(child_sample.parent_weights));
+		
+		m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(child_sample.times), kVertexScope));
+		
+		schema.set(sample);
 	}
 	else {
-		hair_children_create_sample(m_psys, m_psys->childcache, m_psys->totchild, totkeys, maxkeys, imat, child_sample, false);
-		sample = OCurvesSchema::Sample(child_sample.positions);
+		hair_children_create_sample(m_ob, m_psys, m_psmd, m_psys->childcache, m_psys->totchild, totkeys, maxkeys, child_sample, false);
 	}
-	schema.set(sample);
 	
-	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(child_sample.times), kVertexScope));
+	m_prop_root_matrix.set(M33fArraySample(child_sample.root_matrix));
+	m_prop_root_positions.set(V3fArraySample(child_sample.root_positions));
 }
 
 
@@ -440,12 +539,14 @@ void AbcStrandsChildrenWriter::init_abc(OObject parent)
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	OCompoundProperty user_props = schema.getUserProperties();
 	
+	m_prop_root_matrix = OM33fArrayProperty(user_props, "root_matrix", abc_archive()->frame_sampling());
+	m_prop_root_positions = OV3fArrayProperty(user_props, "root_positions", abc_archive()->frame_sampling());
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
 	m_prop_parent_weights = OFloatArrayProperty(user_props, "parent_weights", abc_archive()->frame_sampling());
 }
 
-static void strands_children_create_sample(StrandsChildren *strands, StrandsChildrenSample &sample, bool do_numverts)
+static void strands_children_create_sample(StrandsChildren *strands, StrandsChildrenSample &sample, bool write_constants)
 {
 	int totcurves = strands->totcurves;
 	int totverts = strands->totverts;
@@ -453,21 +554,25 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 	if (totverts == 0)
 		return;
 	
-	if (do_numverts) {
+	if (write_constants) {
 		sample.numverts.reserve(totcurves);
 		sample.parents.reserve(4*totcurves);
 		sample.parent_weights.reserve(4*totcurves);
+		
+		sample.positions.reserve(totverts);
+		sample.times.reserve(totverts);
 	}
 	
-	sample.positions.reserve(totverts);
-	sample.times.reserve(totverts);
+	sample.root_matrix.reserve(totcurves);
+	sample.root_positions.reserve(totcurves);
 	
 	StrandChildIterator it_strand;
 	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
 		int numverts = it_strand.curve->numverts;
 		
-		if (do_numverts) {
+		if (write_constants) {
 			sample.numverts.push_back(numverts);
+			
 			sample.parents.push_back(it_strand.curve->parents[0]);
 			sample.parents.push_back(it_strand.curve->parents[1]);
 			sample.parents.push_back(it_strand.curve->parents[2]);
@@ -476,14 +581,20 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 			sample.parent_weights.push_back(it_strand.curve->parent_weights[1]);
 			sample.parent_weights.push_back(it_strand.curve->parent_weights[2]);
 			sample.parent_weights.push_back(it_strand.curve->parent_weights[3]);
+			
+			StrandChildVertexIterator it_vert;
+			for (BKE_strand_child_vertex_iter_init(&it_vert, &it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
+				const float *co = it_vert.vertex->co;
+				sample.positions.push_back(V3f(co[0], co[1], co[2]));
+				sample.times.push_back(it_vert.vertex->time);
+			}
 		}
 		
-		StrandChildVertexIterator it_vert;
-		for (BKE_strand_child_vertex_iter_init(&it_vert, &it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
-			const float *co = it_vert.vertex->co;
-			sample.positions.push_back(V3f(co[0], co[1], co[2]));
-			sample.times.push_back(it_vert.vertex->time);
-		}
+		float mat3[3][3];
+		copy_m3_m4(mat3, it_strand.curve->root_matrix);
+		sample.root_matrix.push_back(M33f(mat3));
+		float *co = it_strand.curve->root_matrix[3];
+		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
 	}
 }
 
@@ -503,16 +614,20 @@ void AbcStrandsChildrenWriter::write_sample()
 		/* write curve sizes only first time, assuming they are constant! */
 		strands_children_create_sample(strands, strands_sample, true);
 		sample = OCurvesSchema::Sample(strands_sample.positions, strands_sample.numverts);
+		
 		m_prop_parents.set(Int32ArraySample(strands_sample.parents));
 		m_prop_parent_weights.set(FloatArraySample(strands_sample.parent_weights));
+		
+		m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
+		
+		schema.set(sample);
 	}
 	else {
 		strands_children_create_sample(strands, strands_sample, false);
-		sample = OCurvesSchema::Sample(strands_sample.positions);
 	}
-	schema.set(sample);
 	
-	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
+	m_prop_root_matrix.set(M33fArraySample(strands_sample.root_matrix));
+	m_prop_root_positions.set(V3fArraySample(strands_sample.root_positions));
 }
 
 
@@ -639,6 +754,12 @@ void AbcStrandsWriter::write_sample()
 }
 
 
+#define PRINT_M3_FORMAT "((%.3f, %.3f, %.3f), (%.3f, %.3f, %.3f), (%.3f, %.3f, %.3f))"
+#define PRINT_M3_ARGS(m) (double)m[0][0], (double)m[0][1], (double)m[0][2], (double)m[1][0], (double)m[1][1], (double)m[1][2], (double)m[2][0], (double)m[2][1], (double)m[2][2]
+#define PRINT_M4_FORMAT "((%.3f, %.3f, %.3f, %.3f), (%.3f, %.3f, %.3f, %.3f), (%.3f, %.3f, %.3f, %.3f), (%.3f, %.3f, %.3f, %.3f))"
+#define PRINT_M4_ARGS(m) (double)m[0][0], (double)m[0][1], (double)m[0][2], (double)m[0][3], (double)m[1][0], (double)m[1][1], (double)m[1][2], (double)m[1][3], \
+                         (double)m[2][0], (double)m[2][1], (double)m[2][2], (double)m[2][3], (double)m[3][0], (double)m[3][1], (double)m[3][2], (double)m[3][3]
+
 AbcStrandsChildrenReader::AbcStrandsChildrenReader(StrandsChildren *strands) :
     m_strands(strands)
 {
@@ -659,6 +780,8 @@ void AbcStrandsChildrenReader::init_abc(IObject object)
 	ICompoundProperty geom_props = schema.getArbGeomParams();
 	ICompoundProperty user_props = schema.getUserProperties();
 	
+	m_prop_root_matrix = IM33fArrayProperty(user_props, "root_matrix");
+	m_prop_root_positions = IV3fArrayProperty(user_props, "root_positions");
 	m_param_times = IFloatGeomParam(geom_props, "times");
 	m_prop_parents = IInt32ArrayProperty(user_props, "parents", 0);
 	m_prop_parent_weights = IFloatArrayProperty(user_props, "parent_weights", 0);
@@ -680,6 +803,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 	
 	P3fArraySamplePtr sample_co = sample.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
+	M33fArraySamplePtr sample_root_matrix = m_prop_root_matrix.getValue(ss);
+	V3fArraySamplePtr sample_root_positions = m_prop_root_positions.getValue(ss);
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	Int32ArraySamplePtr sample_parents = m_prop_parents.getValue(ss);
 	FloatArraySamplePtr sample_parent_weights = m_prop_parent_weights.getValue(ss);
@@ -690,7 +815,9 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 	int totcurves = sample_numvert->size();
 	int totverts = sample_co->size();
 	
-	if (sample_parents->size() != 4 * totcurves ||
+	if (sample_root_matrix->size() != totcurves ||
+	    sample_root_positions->size() != totcurves ||
+	    sample_parents->size() != 4 * totcurves ||
 	    sample_parent_weights->size() != 4 * totcurves)
 		return PTC_READ_SAMPLE_INVALID;
 	
@@ -700,11 +827,19 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 		m_strands = BKE_strands_children_new(totcurves, totverts);
 	
 	const int32_t *numvert = sample_numvert->get();
+	const M33f *root_matrix = sample_root_matrix->get();
+	const V3f *root_positions = sample_root_positions->get();
 	const int32_t *parents = sample_parents->get();
 	const float32_t *parent_weights = sample_parent_weights->get();
 	for (int i = 0; i < sample_numvert->size(); ++i) {
 		StrandsChildCurve *scurve = &m_strands->curves[i];
 		scurve->numverts = *numvert;
+		
+		float mat[3][3];
+		memcpy(mat, root_matrix->getValue(), sizeof(mat));
+		copy_m4_m3(scurve->root_matrix, mat);
+		copy_v3_v3(scurve->root_matrix[3], root_positions->getValue());
+		
 		scurve->parents[0] = parents[0];
 		scurve->parents[1] = parents[1];
 		scurve->parents[2] = parents[2];
@@ -715,6 +850,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 		scurve->parent_weights[3] = parent_weights[3];
 		
 		++numvert;
+		++root_matrix;
+		++root_positions;
 		parents += 4;
 		parent_weights += 4;
 	}
@@ -805,16 +942,18 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	if (schema.getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	ICurvesSchema::Sample sample;
+	ICurvesSchema::Sample sample, sample_base;
 	schema.get(sample, ss);
+	schema.get(sample_base, ISampleSelector((index_t)0));
 	
 	P3fArraySamplePtr sample_co = sample.getPositions();
+	P3fArraySamplePtr sample_co_base = sample_base.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
 	IM33fGeomParam::Sample sample_root_matrix = m_param_root_matrix.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_weight = m_param_weights.getExpandedValue(ss);
 	
-	if (!sample_co || !sample_numvert)
+	if (!sample_co || !sample_numvert || !sample_co_base || sample_co_base->size() != sample_co->size())
 		return PTC_READ_SAMPLE_INVALID;
 	
 	if (m_strands && (m_strands->totcurves != sample_numvert->size() || m_strands->totverts != sample_co->size()))
@@ -834,17 +973,37 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	}
 	
 	const V3f *co = sample_co->get();
+	const V3f *co_base = sample_co_base->get();
 	const float32_t *time = sample_time.getVals()->get();
 	const float32_t *weight = sample_weight.getVals()->get();
 	for (int i = 0; i < sample_co->size(); ++i) {
 		StrandsVertex *svert = &m_strands->verts[i];
 		copy_v3_v3(svert->co, co->getValue());
+		copy_v3_v3(svert->base, co_base->getValue());
 		svert->time = *time;
 		svert->weight = *weight;
 		
 		++co;
+		++co_base;
 		++time;
 		++weight;
+	}
+	
+	/* Correction for base coordinates: these are in object space of frame 1,
+	 * but we want the relative shape. Offset them to the current root location.
+	 */
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, m_strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		if (it_strand.curve->numverts <= 0)
+			continue;
+		
+		float offset[3];
+		sub_v3_v3v3(offset, it_strand.verts[0].co, it_strand.verts[0].base);
+		
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			add_v3_v3(it_vert.vertex->base, offset);
+		}
 	}
 	
 	if (m_read_motion &&

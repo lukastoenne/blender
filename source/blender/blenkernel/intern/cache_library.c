@@ -413,7 +413,7 @@ bool BKE_cache_read_dupli_cache(CacheLibrary *cachelib, DupliCache *dupcache,
 	 * Note that this is an optional feature for viewport/render display,
 	 * strand motion is not usually applied to children in caches.
 	 */
-	if (for_display && read_strands_motion && read_strands_children) {
+	if (for_display && read_strands_children) {
 		struct  DupliCacheIterator *it = BKE_dupli_cache_iter_new(dupcache);
 		for (; BKE_dupli_cache_iter_valid(it); BKE_dupli_cache_iter_next(it)) {
 			DupliObjectData *dobdata = BKE_dupli_cache_iter_get(it);
@@ -421,7 +421,7 @@ bool BKE_cache_read_dupli_cache(CacheLibrary *cachelib, DupliCache *dupcache,
 			
 			for (link = dobdata->strands.first; link; link = link->next) {
 				if (link->strands_children)
-					BKE_strands_children_deform_from_parents(link->strands_children, link->strands);
+					BKE_strands_children_deform(link->strands_children, link->strands, read_strands_motion);
 			}
 		}
 		BKE_dupli_cache_iter_free(it);
@@ -462,11 +462,11 @@ bool BKE_cache_read_dupli_object(CacheLibrary *cachelib, DupliObjectData *data,
 	 * Note that this is an optional feature for viewport/render display,
 	 * strand motion is not usually applied to children in caches.
 	 */
-	if (for_display && read_strands_motion && read_strands_children) {
+	if (for_display && read_strands_children) {
 		DupliObjectDataStrands *link;
 		for (link = data->strands.first; link; link = link->next) {
 			if (link->strands_children)
-				BKE_strands_children_deform_from_parents(link->strands_children, link->strands);
+				BKE_strands_children_deform(link->strands_children, link->strands, read_strands_motion);
 		}
 	}
 	

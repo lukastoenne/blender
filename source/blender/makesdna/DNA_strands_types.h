@@ -27,6 +27,7 @@
 
 typedef struct StrandsVertex {
 	float co[3];
+	float base[3]; /* base shape, defining deformation for children */
 	float time;
 	float weight;
 	
@@ -59,6 +60,7 @@ typedef struct Strands {
 
 typedef struct StrandsChildCurve {
 	int numverts;
+	float root_matrix[4][4];
 	int parents[4];
 	float parent_weights[4];
 } StrandsChildCurve;

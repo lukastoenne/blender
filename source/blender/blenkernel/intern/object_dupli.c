@@ -1661,6 +1661,7 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 							
 							for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 								copy_v3_v3(svert->co, hkey->co);
+								copy_v3_v3(svert->base, hkey->co); // XXX should be base for child deform, but not accessible here */
 								svert->time = hkey->time;
 								svert->weight = hkey->weight;
 								
