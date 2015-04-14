@@ -1697,7 +1697,7 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 			DupliObjectData data;
 			
 			memset(&data, 0, sizeof(data));
-			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode)) {
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
 				strands = BKE_dupli_object_data_find_strands(&data, psys->name);
 				BKE_dupli_object_data_acquire_strands(&data, strands);
 			}
@@ -1747,7 +1747,7 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 			DupliObjectData data;
 			
 			memset(&data, 0, sizeof(data));
-			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode)) {
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
 				strands = BKE_dupli_object_data_find_strands_children(&data, psys->name);
 				BKE_dupli_object_data_acquire_strands_children(&data, strands);
 			}

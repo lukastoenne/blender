@@ -82,7 +82,11 @@ public:
 	void write_sample();
 	
 private:
+	ParticleSystemModifierData *m_psmd;
+	
 	AbcGeom::OCurves m_curves;
+	AbcGeom::OM33fArrayProperty m_prop_root_matrix;
+	AbcGeom::OV3fArrayProperty m_prop_root_positions;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
 	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
@@ -127,6 +131,8 @@ private:
 	DupliObjectData *m_dobdata;
 	
 	AbcGeom::OCurves m_curves;
+	AbcGeom::OM33fArrayProperty m_prop_root_matrix;
+	AbcGeom::OV3fArrayProperty m_prop_root_positions;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
 	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
@@ -177,6 +183,8 @@ private:
 	StrandsChildren *m_strands;
 	
 	AbcGeom::ICurves m_curves;
+	AbcGeom::IM33fArrayProperty m_prop_root_matrix;
+	AbcGeom::IV3fArrayProperty m_prop_root_positions;
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IInt32ArrayProperty m_prop_parents;
 	AbcGeom::IFloatArrayProperty m_prop_parent_weights;

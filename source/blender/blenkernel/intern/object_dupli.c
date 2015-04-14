@@ -1661,6 +1661,7 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 							
 							for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 								copy_v3_v3(svert->co, hkey->co);
+								copy_v3_v3(svert->base, hkey->co); // XXX should be base for child deform, but not accessible here */
 								svert->time = hkey->time;
 								svert->weight = hkey->weight;
 								
@@ -1707,7 +1708,7 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			/* skip reading when the cachelib is baking, avoids unnecessary memory allocation */
 			if (!(ob->cache_library->flag & CACHE_LIBRARY_BAKING)) {
 				/* TODO at this point we could apply animation offset */
-				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, eval_mode);
+				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, eval_mode, true);
 			}
 			
 			ob->dup_cache->flag &= ~DUPCACHE_FLAG_DIRTY;

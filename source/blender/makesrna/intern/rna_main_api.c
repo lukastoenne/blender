@@ -355,7 +355,7 @@ Mesh *rna_Main_meshes_new_from_dupli(
 			DupliObjectData data;
 			
 			memset(&data, 0, sizeof(data));
-			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode))
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true))
 				mesh = BKE_mesh_new_from_dupli_data(bmain, &data, calc_tessface, calc_undeformed);
 			
 			BKE_dupli_object_data_clear(&data);
