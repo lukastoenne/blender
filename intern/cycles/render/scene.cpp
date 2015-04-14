@@ -43,7 +43,9 @@
 
 CCL_NAMESPACE_BEGIN
 
-Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
+Scene::Scene(const SceneParams& params_,
+             const DeviceInfo& device_info_,
+             const bool free_data_after_update)
 : params(params_)
 {
 	device = NULL;
@@ -54,7 +56,7 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	film = new Film();
 	background = new Background();
 	light_manager = new LightManager();
-	mesh_manager = new MeshManager();
+	mesh_manager = new MeshManager(free_data_after_update);
 	object_manager = new ObjectManager();
 	integrator = new Integrator();
 	image_manager = new ImageManager();
@@ -160,11 +162,6 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
-	progress.set_status("Updating Images");
-	image_manager->device_update(device, &dscene, progress);
-
-	if(progress.get_cancel() || device->have_error()) return;
-
 	progress.set_status("Updating Background");
 	background->device_update(device, &dscene, this);
 
@@ -192,6 +189,11 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	progress.set_status("Updating Meshes");
 	mesh_manager->device_update(device, &dscene, this, progress);
+
+	if(progress.get_cancel() || device->have_error()) return;
+
+	progress.set_status("Updating Images");
+	image_manager->device_update(device, &dscene, progress);
 
 	if(progress.get_cancel() || device->have_error()) return;
 

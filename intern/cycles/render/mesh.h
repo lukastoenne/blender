@@ -152,7 +152,10 @@ public:
 	bool need_update;
 	bool need_flags_update;
 
-	MeshManager();
+	/* Free memory used by BVH after device update. */
+	bool free_data_after_update;
+
+	MeshManager(const bool free_data_after_update);
 	~MeshManager();
 
 	bool displace(Device *device, DeviceScene *dscene, Scene *scene, Mesh *mesh, Progress& progress);
@@ -167,6 +170,7 @@ public:
 	void device_update_attributes(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_update_bvh(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_update_flags(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
+	void device_update_displacement_images(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_free(Device *device, DeviceScene *dscene);
 
 	void tag_update(Scene *scene);

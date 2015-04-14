@@ -62,6 +62,7 @@ class DeviceScene {
 public:
 	/* BVH */
 	device_vector<float4> bvh_nodes;
+	device_vector<float4> bvh_leaf_nodes;
 	device_vector<uint> object_node;
 	device_vector<float4> tri_woop;
 	device_vector<uint> prim_type;
@@ -193,7 +194,9 @@ public:
 	/* mutex must be locked manually by callers */
 	thread_mutex mutex;
 
-	Scene(const SceneParams& params, const DeviceInfo& device_info);
+	Scene(const SceneParams& params,
+	      const DeviceInfo& device_info,
+	      const bool free_data_after_update = false);
 	~Scene();
 
 	void device_update(Device *device, Progress& progress);
