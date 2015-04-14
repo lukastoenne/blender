@@ -290,17 +290,19 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	cache_library_bake_set_progress(data, 0.0f);
 	for (frame = frame_prev = start_frame; frame <= end_frame; frame_prev = frame++) {
 		
+		const bool init_strands = (frame == start_frame);
+		
 		/* XXX Ugly, but necessary to avoid particle caching of paths when not needed.
 		 * This takes a lot of time, but is only needed in the first frame.
 		 */
-		cache_library_bake_set_particle_baking(data->bmain, frame > start_frame);
+		cache_library_bake_set_particle_baking(data->bmain, !init_strands);
 		
 		scene->r.cfra = frame;
 		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 		
 		switch (data->cachelib->source_mode) {
 			case CACHE_LIBRARY_SOURCE_SCENE:
-				BKE_dupli_cache_from_group(scene, data->group, data->cachelib, process_data.dupcache, &data->eval_ctx);
+				BKE_dupli_cache_from_group(scene, data->group, data->cachelib, process_data.dupcache, &data->eval_ctx, init_strands);
 				break;
 			case CACHE_LIBRARY_SOURCE_CACHE:
 				BKE_cache_read_dupli_cache(data->cachelib, process_data.dupcache, scene, data->group, frame, data->cache_eval_mode, false);
