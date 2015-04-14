@@ -948,6 +948,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	P3fArraySamplePtr sample_co_base = sample_base.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
 	IM33fGeomParam::Sample sample_root_matrix = m_param_root_matrix.getExpandedValue(ss);
+	IM33fGeomParam::Sample sample_root_matrix_base = m_param_root_matrix.getExpandedValue(ISampleSelector((index_t)0));
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_weight = m_param_weights.getExpandedValue(ss);
 	
@@ -971,18 +972,15 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	}
 	
 	const V3f *co = sample_co->get();
-	const V3f *co_base = sample_co_base->get();
 	const float32_t *time = sample_time.getVals()->get();
 	const float32_t *weight = sample_weight.getVals()->get();
 	for (int i = 0; i < sample_co->size(); ++i) {
 		StrandsVertex *svert = &m_strands->verts[i];
 		copy_v3_v3(svert->co, co->getValue());
-		copy_v3_v3(svert->base, co_base->getValue());
 		svert->time = *time;
 		svert->weight = *weight;
 		
 		++co;
-		++co_base;
 		++time;
 		++weight;
 	}
@@ -990,18 +988,36 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	/* Correction for base coordinates: these are in object space of frame 1,
 	 * but we want the relative shape. Offset them to the current root location.
 	 */
+	const M33f *root_matrix_base = sample_root_matrix_base.getVals()->get();
+	const V3f *co_base = sample_co_base->get();
 	StrandIterator it_strand;
 	for (BKE_strand_iter_init(&it_strand, m_strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
 		if (it_strand.curve->numverts <= 0)
 			continue;
 		
-		float offset[3];
-		sub_v3_v3v3(offset, it_strand.verts[0].co, it_strand.verts[0].base);
+		float hairmat_base[4][4];
+		float tmpmat[3][3];
+		memcpy(tmpmat, root_matrix_base->getValue(), sizeof(tmpmat));
+		copy_m4_m3(hairmat_base, tmpmat);
+		copy_v3_v3(hairmat_base[3], co_base[0].getValue());
+		
+		float hairmat[4][4];
+		copy_m4_m3(hairmat, it_strand.curve->root_matrix);
+		copy_v3_v3(hairmat[3], it_strand.verts[0].co);
+		
+		float mat[4][4];
+		invert_m4_m4(mat, hairmat_base);
+		mul_m4_m4m4(mat, hairmat, mat);
 		
 		StrandVertexIterator it_vert;
 		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
-			add_v3_v3(it_vert.vertex->base, offset);
+//			mul_v3_m4v3(it_vert.vertex->base, mat, co_base->getValue());
+			copy_v3_v3(it_vert.vertex->base, it_vert.vertex->co);
+			
+			++co_base;
 		}
+		
+		++root_matrix_base;
 	}
 	
 	if (m_read_motion &&

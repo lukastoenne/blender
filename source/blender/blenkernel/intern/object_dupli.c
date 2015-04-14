@@ -1600,7 +1600,7 @@ static int count_hair_verts(ParticleSystem *psys)
 	return numverts;
 }
 
-void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachelib, DupliCache *dupcache, EvaluationContext *eval_ctx)
+void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachelib, DupliCache *dupcache, EvaluationContext *eval_ctx, bool calc_strands_base)
 {
 	DupliObject *dob;
 	
@@ -1661,7 +1661,8 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 							
 							for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 								copy_v3_v3(svert->co, hkey->co);
-								copy_v3_v3(svert->base, hkey->co); // XXX should be base for child deform, but not accessible here */
+								if (calc_strands_base)
+									copy_v3_v3(svert->base, hkey->co);
 								svert->time = hkey->time;
 								svert->weight = hkey->weight;
 								
