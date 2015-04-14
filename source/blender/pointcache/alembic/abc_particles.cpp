@@ -188,9 +188,11 @@ static int hair_children_count_totkeys(ParticleCacheKey **pathcache, int totpart
 	int p;
 	int totkeys = 0;
 	
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		totkeys += keys->segments + 1;
+	if (pathcache) {
+		for (p = 0; p < totpart; ++p) {
+			ParticleCacheKey *keys = pathcache[p];
+			totkeys += keys->segments + 1;
+		}
 	}
 	
 	return totkeys;
@@ -297,48 +299,51 @@ static void hair_children_create_sample(Object *ob, ParticleSystem *psys, Partic
 	
 	for (p = 0; p < totpart; ++p) {
 		ChildParticle *cpa = &psys->child[p];
-		ParticleCacheKey *keys = pathcache[p];
-		int numkeys = keys->segments + 1;
 		
 		float hairmat[4][4];
 		psys_child_mat_to_object(ob, psys, psmd, cpa, hairmat);
 		
-		if (write_constants) {
-			sample.numverts.push_back(numkeys);
-			if (between) {
-				sample.parents.push_back(cpa->pa[0]);
-				sample.parents.push_back(cpa->pa[1]);
-				sample.parents.push_back(cpa->pa[2]);
-				sample.parents.push_back(cpa->pa[3]);
-				sample.parent_weights.push_back(cpa->w[0]);
-				sample.parent_weights.push_back(cpa->w[1]);
-				sample.parent_weights.push_back(cpa->w[2]);
-				sample.parent_weights.push_back(cpa->w[3]);
-			}
-			else {
-				sample.parents.push_back(cpa->parent);
-				sample.parents.push_back(-1);
-				sample.parents.push_back(-1);
-				sample.parents.push_back(-1);
-				sample.parent_weights.push_back(1.0f);
-				sample.parent_weights.push_back(0.0f);
-				sample.parent_weights.push_back(0.0f);
-				sample.parent_weights.push_back(0.0f);
-			}
+		if (pathcache) {
+			ParticleCacheKey *keys = pathcache[p];
+			int numkeys = keys->segments + 1;
 			
-			float imat[4][4];
-			mul_m4_m4m4(imat, ob->obmat, hairmat);
-			invert_m4(imat);
-			
-			for (k = 0; k < numkeys; ++k) {
-				ParticleCacheKey *key = &keys[k];
-				float co[3];
-				/* pathcache keys are in world space, transform to hair root space */
-				mul_v3_m4v3(co, imat, key->co);
+			if (write_constants) {
+				sample.numverts.push_back(numkeys);
+				if (between) {
+					sample.parents.push_back(cpa->pa[0]);
+					sample.parents.push_back(cpa->pa[1]);
+					sample.parents.push_back(cpa->pa[2]);
+					sample.parents.push_back(cpa->pa[3]);
+					sample.parent_weights.push_back(cpa->w[0]);
+					sample.parent_weights.push_back(cpa->w[1]);
+					sample.parent_weights.push_back(cpa->w[2]);
+					sample.parent_weights.push_back(cpa->w[3]);
+				}
+				else {
+					sample.parents.push_back(cpa->parent);
+					sample.parents.push_back(-1);
+					sample.parents.push_back(-1);
+					sample.parents.push_back(-1);
+					sample.parent_weights.push_back(1.0f);
+					sample.parent_weights.push_back(0.0f);
+					sample.parent_weights.push_back(0.0f);
+					sample.parent_weights.push_back(0.0f);
+				}
 				
-				sample.positions.push_back(V3f(co[0], co[1], co[2]));
-				/* XXX particle time values are too messy and confusing, recalculate */
-				sample.times.push_back(maxkeys > 1 ? (float)k / (float)(maxkeys-1) : 0.0f);
+				float imat[4][4];
+				mul_m4_m4m4(imat, ob->obmat, hairmat);
+				invert_m4(imat);
+				
+				for (k = 0; k < numkeys; ++k) {
+					ParticleCacheKey *key = &keys[k];
+					float co[3];
+					/* pathcache keys are in world space, transform to hair root space */
+					mul_v3_m4v3(co, imat, key->co);
+					
+					sample.positions.push_back(V3f(co[0], co[1], co[2]));
+					/* XXX particle time values are too messy and confusing, recalculate */
+					sample.times.push_back(maxkeys > 1 ? (float)k / (float)(maxkeys-1) : 0.0f);
+				}
 			}
 		}
 		
@@ -354,12 +359,8 @@ void AbcHairChildrenWriter::write_sample()
 {
 	if (!m_curves)
 		return;
-	if (!m_psys->childcache)
-		return;
 	
 	int totkeys = hair_children_count_totkeys(m_psys->childcache, m_psys->totchild);
-	if (totkeys == 0)
-		return;
 	
 	int keysteps = abc_archive()->use_render() ? m_psys->part->ren_step : m_psys->part->draw_step;
 	int maxkeys = (1 << keysteps) + 1 + (m_psys->part->kink);
@@ -550,9 +551,6 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 {
 	int totcurves = strands->totcurves;
 	int totverts = strands->totverts;
-	
-	if (totverts == 0)
-		return;
 	
 	if (write_constants) {
 		sample.numverts.reserve(totcurves);
