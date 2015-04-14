@@ -44,7 +44,9 @@
 #include "DNA_group_types.h"
 #include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_force.h"
 #include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 
 #include "BKE_anim.h"
 #include "BKE_depsgraph.h"
@@ -231,6 +233,24 @@ static void cache_library_bake_set_progress(CacheLibraryBakeJob *data, float pro
 	*data->progress = progress;
 }
 
+static void cache_library_bake_set_particle_baking(Main *bmain, bool baking)
+{
+	/* XXX would be nicer to just loop over scene->base here,
+	 * but this does not catch all objects included in dupli groups ...
+	 */
+	Object *ob;
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
+		ParticleSystem *psys;
+		
+		for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+			if (baking)
+				psys->pointcache->flag |= PTCACHE_BAKING;
+			else
+				psys->pointcache->flag &= ~PTCACHE_BAKING;
+		}
+	}
+}
+
 static void cache_library_bake_do(CacheLibraryBakeJob *data)
 {
 	Scene *scene = data->scene;
@@ -269,6 +289,12 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	
 	cache_library_bake_set_progress(data, 0.0f);
 	for (frame = frame_prev = start_frame; frame <= end_frame; frame_prev = frame++) {
+		
+		/* XXX Ugly, but necessary to avoid particle caching of paths when not needed.
+		 * This takes a lot of time, but is only needed in the first frame.
+		 */
+		cache_library_bake_set_particle_baking(data->bmain, frame > start_frame);
+		
 		scene->r.cfra = frame;
 		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 		
@@ -298,6 +324,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	}
 	
 	data->cachelib->flag &= ~CACHE_LIBRARY_BAKING;
+	cache_library_bake_set_particle_baking(data->bmain, false);
 	
 	BKE_dupli_cache_free(process_data.dupcache);
 }
