@@ -1101,6 +1101,8 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	if(pack.nodes.size()) {
 		dscene->bvh_nodes.reference((float4*)&pack.nodes[0], pack.nodes.size());
 		device->tex_alloc("__bvh_nodes", dscene->bvh_nodes);
+	}
+	if(pack.leaf_nodes.size()) {
 		dscene->bvh_leaf_nodes.reference((float4*)&pack.leaf_nodes[0], pack.leaf_nodes.size());
 		device->tex_alloc("__bvh_leaf_nodes", dscene->bvh_leaf_nodes);
 	}

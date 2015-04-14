@@ -521,7 +521,7 @@ RegularBVH::RegularBVH(const BVHParams& params_, const vector<Object*>& objects_
 void RegularBVH::pack_leaf(const BVHStackEntry& e, const LeafNode *leaf)
 {
 	float4 data[BVH_NODE_LEAF_SIZE];
-
+	memset(data, 0, sizeof(data));
 	if(leaf->num_triangles() == 1 && pack.prim_index[leaf->m_lo] == -1) {
 		/* object */
 		data[0].x = __int_as_float(~(leaf->m_lo));
@@ -730,7 +730,7 @@ QBVH::QBVH(const BVHParams& params_, const vector<Object*>& objects_)
 void QBVH::pack_leaf(const BVHStackEntry& e, const LeafNode *leaf)
 {
 	float4 data[BVH_QNODE_LEAF_SIZE];
-
+	memset(data, 0, sizeof(data));
 	if(leaf->num_triangles() == 1 && pack.prim_index[leaf->m_lo] == -1) {
 		/* object */
 		data[0].x = __int_as_float(~(leaf->m_lo));
