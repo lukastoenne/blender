@@ -263,12 +263,12 @@ typedef struct bNode {
  */
 #define NODE_UPDATE			0xFFFF	/* generic update flag (includes all others) */
 #define NODE_UPDATE_ID		1		/* associated id data block has changed */
+#define NODE_UPDATE_OPERATOR		2		/* node update triggered from update operator */
 
 /* Unique hash key for identifying node instances
  * Defined as a struct because DNA does not support other typedefs.
  */
-typedef struct bNodeInstanceKey
-{
+typedef struct bNodeInstanceKey {
 	unsigned int value;
 } bNodeInstanceKey;
 

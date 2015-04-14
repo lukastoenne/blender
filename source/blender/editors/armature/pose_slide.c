@@ -201,6 +201,12 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, float *val)
 	/* next/end */
 	eVal = evaluate_fcurve(fcu, (float)pso->nextFrame);
 	
+	/* if both values are equal, don't do anything */
+	if (IS_EQF(sVal, eVal)) {
+		(*val) = sVal;
+		return;
+	}
+	
 	/* calculate the relative weights of the endpoints */
 	if (pso->mode == POSESLIDE_BREAKDOWN) {
 		/* get weights from the percentage control */
@@ -234,7 +240,7 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, float *val)
 			 *	- perform this weighting a number of times given by the percentage...
 			 */
 			int iters = (int)ceil(10.0f * pso->percentage); /* TODO: maybe a sensitivity ctrl on top of this is needed */
-
+			
 			while (iters-- > 0) {
 				(*val) = (-((sVal * w2) + (eVal * w1)) + ((*val) * 6.0f) ) / 5.0f;
 			}
@@ -247,7 +253,7 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, float *val)
 			 *	- perform this weighting a number of times given by the percentage...
 			 */
 			int iters = (int)ceil(10.0f * pso->percentage); /* TODO: maybe a sensitivity ctrl on top of this is needed */
-
+			
 			while (iters-- > 0) {
 				(*val) = ( ((sVal * w2) + (eVal * w1)) + ((*val) * 5.0f) ) / 6.0f;
 			}
@@ -320,6 +326,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 			
 			if (prop) {
 				switch (RNA_property_type(prop)) {
+					/* continuous values that can be smoothly interpolated... */
 					case PROP_FLOAT:
 					{
 						float tval = RNA_property_float_get(&ptr, prop);
@@ -327,8 +334,6 @@ static void pose_slide_apply_props(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 						RNA_property_float_set(&ptr, prop, tval);
 						break;
 					}
-					case PROP_BOOLEAN:
-					case PROP_ENUM:
 					case PROP_INT:
 					{
 						float tval = (float)RNA_property_int_get(&ptr, prop);
@@ -336,6 +341,23 @@ static void pose_slide_apply_props(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 						RNA_property_int_set(&ptr, prop, (int)tval);
 						break;
 					}
+					
+					/* values which can only take discrete values */
+					case PROP_BOOLEAN:
+					{
+						float tval = (float)RNA_property_boolean_get(&ptr, prop);
+						pose_slide_apply_val(pso, fcu, &tval);
+						RNA_property_boolean_set(&ptr, prop, (int)tval); // XXX: do we need threshold clamping here?
+						break;
+					}
+					case PROP_ENUM:
+					{
+						/* don't handle this case - these don't usually represent interchangeable
+						 * set of values which should be interpolated between
+						 */
+						break;
+					}
+					
 					default:
 						/* cannot handle */
 						//printf("Cannot Pose Slide non-numerical property\n");
@@ -404,11 +426,11 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 		}
 		else if (pso->mode == POSESLIDE_PUSH) {
 			float quat_diff[4], quat_orig[4];
-
+			
 			/* calculate the delta transform from the previous to the current */
 			/* TODO: investigate ways to favour one transform more? */
 			sub_qt_qtqt(quat_diff, pchan->quat, quat_prev);
-
+			
 			/* make a copy of the original rotation */
 			copy_qt_qt(quat_orig, pchan->quat);
 			
@@ -418,7 +440,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 		else {
 			float quat_interp[4], quat_orig[4];
 			int iters = (int)ceil(10.0f * pso->percentage); /* TODO: maybe a sensitivity ctrl on top of this is needed */
-
+			
 			/* perform this blending several times until a satisfactory result is reached */
 			while (iters-- > 0) {
 				/* calculate the interpolation between the endpoints */
@@ -898,6 +920,8 @@ typedef enum ePosePropagate_Termination {
 	/* stop when we run out of keyframes */
 	POSE_PROPAGATE_BEFORE_END,
 	
+	/* only do on keyframes that are selected */
+	POSE_PROPAGATE_SELECTED_KEYS,
 	/* only do on the frames where markers are selected */
 	POSE_PROPAGATE_SELECTED_MARKERS
 } ePosePropagate_Termination;
@@ -1137,6 +1161,11 @@ static void pose_propagate_fcurve(wmOperator *op, Object *ob, FCurve *fcu,
 			if (ce == NULL)
 				continue;
 		}
+		else if (mode == POSE_PROPAGATE_SELECTED_KEYS) {
+			/* only allow if this keyframe is already selected - skip otherwise */
+			if (BEZSELECTED(bezt) == 0)
+				continue;
+		}
 		
 		/* just flatten handles, since values will now be the same either side... */
 		/* TODO: perhaps a fade-out modulation of the value is required here (optional once again)? */
@@ -1219,12 +1248,20 @@ static int pose_propagate_exec(bContext *C, wmOperator *op)
 void POSE_OT_propagate(wmOperatorType *ot)
 {
 	static EnumPropertyItem terminate_items[] = {
-		{POSE_PROPAGATE_SMART_HOLDS, "WHILE_HELD", 0, "While Held", "Propagate pose to all keyframes after current frame that don't change (Default behavior)"},
-		{POSE_PROPAGATE_NEXT_KEY, "NEXT_KEY", 0, "To Next Keyframe", "Propagate pose to first keyframe following the current frame only"},
-		{POSE_PROPAGATE_LAST_KEY, "LAST_KEY", 0, "To Last Keyframe", "Propagate pose to the last keyframe only (i.e. making action cyclic)"},
-		{POSE_PROPAGATE_BEFORE_FRAME, "BEFORE_FRAME", 0, "Before Frame", "Propagate pose to all keyframes between current frame and 'Frame' property"},
-		{POSE_PROPAGATE_BEFORE_END, "BEFORE_END", 0, "Before Last Keyframe", "Propagate pose to all keyframes from current frame until no more are found"},
-		{POSE_PROPAGATE_SELECTED_MARKERS, "SELECTED_MARKERS", 0, "On Selected Markers", "Propagate pose to all keyframes occurring on frames with Scene Markers after the current frame"},
+		{POSE_PROPAGATE_SMART_HOLDS, "WHILE_HELD", 0, "While Held",
+	     "Propagate pose to all keyframes after current frame that don't change (Default behavior)"},
+		{POSE_PROPAGATE_NEXT_KEY, "NEXT_KEY", 0, "To Next Keyframe",
+	     "Propagate pose to first keyframe following the current frame only"},
+		{POSE_PROPAGATE_LAST_KEY, "LAST_KEY", 0, "To Last Keyframe",
+	     "Propagate pose to the last keyframe only (i.e. making action cyclic)"},
+		{POSE_PROPAGATE_BEFORE_FRAME, "BEFORE_FRAME", 0, "Before Frame",
+	     "Propagate pose to all keyframes between current frame and 'Frame' property"},
+		{POSE_PROPAGATE_BEFORE_END, "BEFORE_END", 0, "Before Last Keyframe",
+	     "Propagate pose to all keyframes from current frame until no more are found"},
+		{POSE_PROPAGATE_SELECTED_KEYS, "SELECTED_KEYS", 0, "On Selected Keyframes",
+	     "Propagate pose to all selected keyframes"},
+		{POSE_PROPAGATE_SELECTED_MARKERS, "SELECTED_MARKERS", 0, "On Selected Markers",
+	     "Propagate pose to all keyframes occurring on frames with Scene Markers after the current frame"},
 		{0, NULL, 0, NULL, NULL}};
 		
 	/* identifiers */

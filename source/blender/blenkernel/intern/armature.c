@@ -127,7 +127,7 @@ void BKE_armature_free(bArmature *arm)
 
 		/* free animation data */
 		if (arm->adt) {
-			BKE_free_animdata(&arm->id);
+			BKE_animdata_free(&arm->id);
 			arm->adt = NULL;
 		}
 	}
@@ -2238,7 +2238,7 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 					}
 					
 					/* compute scale factor for xz axes from this value */
-					final_scale = sqrt(bulge);
+					final_scale = sqrtf(bulge);
 				}
 				else {
 					/* no scaling, so scale factor is simple */

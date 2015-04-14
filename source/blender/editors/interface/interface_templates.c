@@ -276,8 +276,11 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 			RNA_property_pointer_set(&template->ptr, template->prop, idptr);
 			RNA_property_update(C, &template->ptr, template->prop);
 
-			if (id && CTX_wm_window(C)->eventstate->shift) /* useful hidden functionality, */
+			if (id && CTX_wm_window(C)->eventstate->shift) {
+				/* only way to force-remove data (on save) */
+				id->flag &= ~LIB_FAKEUSER;
 				id->us = 0;
+			}
 
 			break;
 		case UI_ID_FAKE_USER:
@@ -1563,6 +1566,7 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 			row = uiLayoutRow(split, false);
 			uiItemR(row, &ptr, "position", 0, IFACE_("Pos"), ICON_NONE);
 			bt = block->buttons.last;
+			bt->a1 = 1.0f; /* gives a bit more precision for modifying position */
 			UI_but_func_set(bt, colorband_update_cb, bt, coba);
 
 			row = uiLayoutRow(layout, false);
@@ -1580,6 +1584,7 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 			row = uiLayoutRow(subsplit, false);
 			uiItemR(row, &ptr, "position", UI_ITEM_R_SLIDER, IFACE_("Pos"), ICON_NONE);
 			bt = block->buttons.last;
+			bt->a1 = 1.0f; /* gives a bit more precision for modifying position */
 			UI_but_func_set(bt, colorband_update_cb, bt, coba);
 
 			row = uiLayoutRow(split, false);
@@ -3279,17 +3284,18 @@ static void operator_search_cb(const bContext *C, void *UNUSED(arg), const char 
 
 	for (WM_operatortype_iter(&iter); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
 		wmOperatorType *ot = BLI_ghashIterator_getValue(&iter);
+		const char *ot_ui_name = CTX_IFACE_(ot->translation_context, ot->name);
 
 		if ((ot->flag & OPTYPE_INTERNAL) && (G.debug & G_DEBUG_WM) == 0)
 			continue;
 
-		if (BLI_strcasestr(ot->name, str)) {
+		if (BLI_strcasestr(ot_ui_name, str)) {
 			if (WM_operator_poll((bContext *)C, ot)) {
 				char name[256];
-				int len = strlen(ot->name);
+				int len = strlen(ot_ui_name);
 				
 				/* display name for menu, can hold hotkey */
-				BLI_strncpy(name, ot->name, sizeof(name));
+				BLI_strncpy(name, ot_ui_name, sizeof(name));
 				
 				/* check for hotkey */
 				if (len < sizeof(name) - 6) {

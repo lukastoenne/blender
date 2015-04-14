@@ -400,24 +400,13 @@ BoundBox Camera::viewplane_bounds_get()
 		bounds.grow(transform_raster_to_world((float)width, (float)height));
 		bounds.grow(transform_raster_to_world((float)width, 0.0f));
 		if(type == CAMERA_PERSPECTIVE) {
-			/* Center point has the most distancei in local Z axis,
+			/* Center point has the most distance in local Z axis,
 			 * use it to construct bounding box/
 			 */
 			bounds.grow(transform_raster_to_world(0.5f*width, 0.5f*height));
 		}
 	}
 	return bounds;
-}
-
-Transform Camera::transform_from_viewplane(BoundBox2D &viewplane)
-{
-	return
-		transform_scale(1.0f / (viewplane.right - viewplane.left),
-		                1.0f / (viewplane.top - viewplane.bottom),
-		                1.0f) *
-		transform_translate(-viewplane.left,
-		                    -viewplane.bottom,
-		                    0.0f);
 }
 
 CCL_NAMESPACE_END

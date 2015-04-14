@@ -79,13 +79,14 @@ bool   BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfre
 void  *BLI_ghash_lookup(GHash *gh, const void *key) ATTR_WARN_UNUSED_RESULT;
 void  *BLI_ghash_lookup_default(GHash *gh, const void *key, void *val_default) ATTR_WARN_UNUSED_RESULT;
 void **BLI_ghash_lookup_p(GHash *gh, const void *key) ATTR_WARN_UNUSED_RESULT;
+bool   BLI_ghash_ensure_p(GHash *gh, void *key, void ***r_val) ATTR_WARN_UNUSED_RESULT;
 bool   BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 void   BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 void   BLI_ghash_clear_ex(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
                           const unsigned int nentries_reserve);
 void  *BLI_ghash_popkey(GHash *gh, void *key, GHashKeyFreeFP keyfreefp) ATTR_WARN_UNUSED_RESULT;
 bool   BLI_ghash_haskey(GHash *gh, const void *key) ATTR_WARN_UNUSED_RESULT;
-int    BLI_ghash_size(GHash *gh) ATTR_WARN_UNUSED_RESULT;
+unsigned int BLI_ghash_size(GHash *gh) ATTR_WARN_UNUSED_RESULT;
 void   BLI_ghash_flag_set(GHash *gh, unsigned int flag);
 void   BLI_ghash_flag_clear(GHash *gh, unsigned int flag);
 
@@ -147,6 +148,7 @@ bool            BLI_ghashutil_strcmp(const void *a, const void *b);
 unsigned int    BLI_ghashutil_uinthash(unsigned int key);
 unsigned int    BLI_ghashutil_inthash_p(const void *ptr);
 unsigned int    BLI_ghashutil_inthash_p_murmur(const void *ptr);
+unsigned int    BLI_ghashutil_inthash_p_simple(const void *ptr);
 bool            BLI_ghashutil_intcmp(const void *a, const void *b);
 
 
@@ -218,7 +220,7 @@ GSet  *BLI_gset_new_ex(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info,
                        const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GSet  *BLI_gset_new(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GSet  *BLI_gset_copy(GSet *gs, GSetKeyCopyFP keycopyfp) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
-int    BLI_gset_size(GSet *gs) ATTR_WARN_UNUSED_RESULT;
+unsigned int BLI_gset_size(GSet *gs) ATTR_WARN_UNUSED_RESULT;
 void   BLI_gset_flag_set(GSet *gs, unsigned int flag);
 void   BLI_gset_flag_clear(GSet *gs, unsigned int flag);
 void   BLI_gset_free(GSet *gs, GSetKeyFreeFP keyfreefp);

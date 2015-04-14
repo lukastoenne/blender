@@ -569,7 +569,9 @@ static void rna_def_ID(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "tag", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", LIB_DOIT);
 	RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
-	RNA_def_property_ui_text(prop, "Tag", "Tools can use this to tag data (initial state is undefined)");
+	RNA_def_property_ui_text(prop, "Tag",
+	                         "Tools can use this to tag data for their own purposes "
+	                         "(initial state is undefined)");
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", LIB_ID_RECALC);
@@ -601,17 +603,19 @@ static void rna_def_ID(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "Clear the user count of a datablock so its not saved, "
 	                                "on reload the data will be removed");
 
-	func = RNA_def_function(srna, "animation_data_create", "BKE_id_add_animdata");
+	func = RNA_def_function(srna, "animation_data_create", "BKE_animdata_add_id");
 	RNA_def_function_ui_description(func, "Create animation data to this ID, note that not all ID types support this");
 	parm = RNA_def_pointer(func, "anim_data", "AnimData", "", "New animation data or NULL");
 	RNA_def_function_return(func, parm);
 
-	func = RNA_def_function(srna, "animation_data_clear", "BKE_free_animdata");
+	func = RNA_def_function(srna, "animation_data_clear", "BKE_animdata_free");
 	RNA_def_function_ui_description(func, "Clear animation on this this ID");
 
 	func = RNA_def_function(srna, "update_tag", "rna_ID_update_tag");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	RNA_def_function_ui_description(func, "Tag the ID to update its display data");
+	RNA_def_function_ui_description(func,
+	                                "Tag the ID to update its display data, "
+	                                "e.g. when calling :class:`bpy.types.Scene.update`");
 	RNA_def_enum_flag(func, "refresh", update_flag_items, 0, "", "Type of updates to perform");
 }
 

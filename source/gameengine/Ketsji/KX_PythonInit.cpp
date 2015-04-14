@@ -51,6 +51,8 @@
 #  include <Python.h>
 
 extern "C" {
+	#  include "BLI_utildefines.h"
+	#  include "python_utildefines.h"
 	#  include "bpy_internal_import.h"  /* from the blender python api, but we want to import text too! */
 	#  include "py_capi_utils.h"
 	#  include "mathutils.h" // 'mathutils' module copied here so the blenderlayer can use.
@@ -1403,6 +1405,21 @@ static PyObject *gPyClearDebugList(PyObject *)
 	Py_RETURN_NONE;
 }
 
+static PyObject *gPyGetDisplayDimensions(PyObject *)
+{
+	PyObject *result;
+	int width, height;
+
+	gp_Canvas->GetDisplayDimensions(width, height);
+
+	result = PyTuple_New(2);
+	PyTuple_SET_ITEMS(result,
+	        PyLong_FromLong(width),
+	        PyLong_FromLong(height));
+
+	return result;
+}
+
 PyDoc_STRVAR(Rasterizer_module_documentation,
 "This is the Python API for the game engine of Rasterizer"
 );
@@ -1446,6 +1463,8 @@ static struct PyMethodDef rasterizer_methods[] = {
 	{"setWindowSize", (PyCFunction) gPySetWindowSize, METH_VARARGS, ""},
 	{"setFullScreen", (PyCFunction) gPySetFullScreen, METH_O, ""},
 	{"getFullScreen", (PyCFunction) gPyGetFullScreen, METH_NOARGS, ""},
+	{"getDisplayDimensions", (PyCFunction) gPyGetDisplayDimensions, METH_NOARGS,
+	 "Get the actual dimensions, in pixels, of the physical display (e.g., the monitor)."},
 	{"setMipmapping", (PyCFunction) gPySetMipmapping, METH_VARARGS, ""},
 	{"getMipmapping", (PyCFunction) gPyGetMipmapping, METH_NOARGS, ""},
 	{"setVsync", (PyCFunction) gPySetVsync, METH_VARARGS, ""},

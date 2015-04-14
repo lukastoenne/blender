@@ -3813,7 +3813,9 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 	}
 
 	/* set flag for spothalo en initvars */
-	if (la->type==LA_SPOT && (la->mode & LA_HALO) && (la->buftype != LA_SHADBUF_DEEP)) {
+	if ((la->type == LA_SPOT) && (la->mode & LA_HALO) &&
+	    (!(la->mode & LA_SHAD_BUF) || la->buftype != LA_SHADBUF_DEEP))
+	{
 		if (la->haint>0.0f) {
 			re->flag |= R_LAMPHALO;
 
@@ -3832,7 +3834,7 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 			lar->sh_invcampos[2]*= lar->sh_zfac;
 
 			/* halfway shadow buffer doesn't work for volumetric effects */
-			if (lar->buftype == LA_SHADBUF_HALFWAY)
+			if (ELEM(lar->buftype, LA_SHADBUF_HALFWAY, LA_SHADBUF_DEEP))
 				lar->buftype = LA_SHADBUF_REGULAR;
 
 		}
@@ -5002,7 +5004,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 				 * system need to have render settings set for dupli particles */
 				dupli_render_particle_set(re, ob, timeoffset, 0, 1);
 				duplilist = object_duplilist(re->eval_ctx, re->scene, ob);
-				duplilist_apply_data = duplilist_apply(ob, duplilist);
+				duplilist_apply_data = duplilist_apply(ob, NULL, duplilist);
 				dupli_render_particle_set(re, ob, timeoffset, 0, 0);
 
 				for (dob= duplilist->first, i = 0; dob; dob= dob->next, ++i) {
@@ -5169,8 +5171,7 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 		 * above call to BKE_scene_update_for_newframe, fixes bug. [#22702].
 		 * following calls don't depend on 'RE_SetCamera' */
 		RE_SetCamera(re, camera);
-
-		normalize_m4_m4(mat, camera->obmat);
+		RE_GetCameraModelMatrix(re, camera, mat);
 		invert_m4(mat);
 		RE_SetView(re, mat);
 
@@ -5340,7 +5341,8 @@ static void database_fromscene_vectors(Render *re, Scene *scene, unsigned int la
 	
 	/* if no camera, viewmat should have been set! */
 	if (camera) {
-		normalize_m4_m4(mat, camera->obmat);
+		RE_GetCameraModelMatrix(re, camera, mat);
+		normalize_m4(mat);
 		invert_m4(mat);
 		RE_SetView(re, mat);
 	}

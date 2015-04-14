@@ -804,7 +804,7 @@ bool BM_mesh_intersect(
 	s.edgetri_cache = BLI_ghash_new(BLI_ghashutil_inthash_v4_p, BLI_ghashutil_inthash_v4_cmp, __func__);
 
 	s.edge_verts = BLI_ghash_ptr_new(__func__);
-	s.face_edges = BLI_ghash_ptr_new(__func__);
+	s.face_edges = BLI_ghash_int_new(__func__);
 	s.wire_edges = BLI_gset_ptr_new(__func__);
 	s.vert_dissolve = NULL;
 
@@ -1040,8 +1040,8 @@ bool BM_mesh_intersect(
 			}
 		}
 
-		splice_ls = MEM_mallocN((unsigned int)BLI_gset_size(s.wire_edges) * sizeof(*splice_ls), __func__);
-		STACK_INIT(splice_ls, (unsigned int)BLI_gset_size(s.wire_edges));
+		splice_ls = MEM_mallocN(BLI_gset_size(s.wire_edges) * sizeof(*splice_ls), __func__);
+		STACK_INIT(splice_ls, BLI_gset_size(s.wire_edges));
 
 		for (node = s.vert_dissolve; node; node = node->next) {
 			BMEdge *e_pair[2];

@@ -790,6 +790,29 @@ static void rna_KeyMapItem_any_set(PointerRNA *ptr, int value)
 	}
 }
 
+static int rna_KeyMapItem_shift_get(PointerRNA *ptr)
+{
+	wmKeyMapItem *kmi = (wmKeyMapItem *)ptr->data;
+	return kmi->shift != 0;
+}
+
+static int rna_KeyMapItem_ctrl_get(PointerRNA *ptr)
+{
+	wmKeyMapItem *kmi = (wmKeyMapItem *)ptr->data;
+	return kmi->ctrl != 0;
+}
+
+static int rna_KeyMapItem_alt_get(PointerRNA *ptr)
+{
+	wmKeyMapItem *kmi = (wmKeyMapItem *)ptr->data;
+	return kmi->alt != 0;
+}
+
+static int rna_KeyMapItem_oskey_get(PointerRNA *ptr)
+{
+	wmKeyMapItem *kmi = (wmKeyMapItem *)ptr->data;
+	return kmi->oskey != 0;
+}
 
 static PointerRNA rna_WindowManager_active_keyconfig_get(PointerRNA *ptr)
 {
@@ -1748,6 +1771,37 @@ static void rna_def_piemenu(BlenderRNA *brna)
 	RNA_define_verify_sdna(1); /* not in sdna */
 }
 
+static void rna_def_window_stereo3d(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "Stereo3dDisplay", NULL);
+	RNA_def_struct_sdna(srna, "Stereo3dFormat");
+	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
+	RNA_def_struct_ui_text(srna, "Stereo 3D Display", "Settings for stereo 3D display");
+
+	prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, stereo3d_display_items);
+	RNA_def_property_ui_text(prop, "Display Mode", "");
+
+	prop = RNA_def_property(srna, "anaglyph_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, stereo3d_anaglyph_type_items);
+	RNA_def_property_ui_text(prop, "Anaglyph Type", "");
+
+	prop = RNA_def_property(srna, "interlace_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, stereo3d_interlace_type_items);
+	RNA_def_property_ui_text(prop, "Interlace Type", "");
+
+	prop = RNA_def_property(srna, "use_interlace_swap", PROP_BOOLEAN, PROP_BOOLEAN);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", S3D_INTERLACE_SWAP);
+	RNA_def_property_ui_text(prop, "Swap Left/Right", "Swap left and right stereo channels");
+
+	prop = RNA_def_property(srna, "use_sidebyside_crosseyed", PROP_BOOLEAN, PROP_BOOLEAN);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", S3D_SIDEBYSIDE_CROSSEYED);
+	RNA_def_property_ui_text(prop, "Cross-Eyed", "Right eye should see left image and vice-versa");
+}
+
 static void rna_def_window(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1756,6 +1810,8 @@ static void rna_def_window(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "Window", NULL);
 	RNA_def_struct_ui_text(srna, "Window", "Open window");
 	RNA_def_struct_sdna(srna, "wmWindow");
+
+	rna_def_window_stereo3d(brna);
 
 	prop = RNA_def_property(srna, "screen", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -1785,6 +1841,12 @@ static void rna_def_window(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "sizey");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Height", "Window height");
+
+	prop = RNA_def_property(srna, "stereo_3d_display", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "stereo3d_format");
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "Stereo3dDisplay");
+	RNA_def_property_ui_text(prop, "Stereo 3D Display", "Settings for stereo 3d display");
 
 	RNA_api_window(srna);
 }
@@ -2034,6 +2096,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "shift", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "shift", 0);
+	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_shift_get", NULL);
 /*	RNA_def_property_enum_sdna(prop, NULL, "shift"); */
 /*	RNA_def_property_enum_items(prop, keymap_modifiers_items); */
 	RNA_def_property_ui_text(prop, "Shift", "Shift key pressed");
@@ -2041,6 +2104,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "ctrl", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ctrl", 0);
+	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_ctrl_get", NULL);
 /*	RNA_def_property_enum_sdna(prop, NULL, "ctrl"); */
 /*	RNA_def_property_enum_items(prop, keymap_modifiers_items); */
 	RNA_def_property_ui_text(prop, "Ctrl", "Control key pressed");
@@ -2048,6 +2112,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "alt", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "alt", 0);
+	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_alt_get", NULL);
 /*	RNA_def_property_enum_sdna(prop, NULL, "alt"); */
 /*	RNA_def_property_enum_items(prop, keymap_modifiers_items); */
 	RNA_def_property_ui_text(prop, "Alt", "Alt key pressed");
@@ -2055,6 +2120,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "oskey", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "oskey", 0);
+	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_oskey_get", NULL);
 /*	RNA_def_property_enum_sdna(prop, NULL, "oskey"); */
 /*	RNA_def_property_enum_items(prop, keymap_modifiers_items); */
 	RNA_def_property_ui_text(prop, "OS Key", "Operating system key pressed");

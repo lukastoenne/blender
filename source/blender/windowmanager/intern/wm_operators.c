@@ -172,6 +172,7 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	ot->translation_context = BLF_I18NCONTEXT_OPERATOR_DEFAULT;
 	opfunc(ot);
 
 	if (ot->name == NULL) {
@@ -194,6 +195,7 @@ void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *
 	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	ot->translation_context = BLF_I18NCONTEXT_OPERATOR_DEFAULT;
 	opfunc(ot, userdata);
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
 	RNA_def_struct_identifier(ot->srna, ot->idname);
@@ -374,6 +376,7 @@ static void wm_macro_cancel(bContext *C, wmOperator *op)
 wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag)
 {
 	wmOperatorType *ot;
+	const char *i18n_context;
 	
 	if (WM_operatortype_find(idname, true)) {
 		printf("%s: macro error: operator %s exists\n", __func__, idname);
@@ -400,8 +403,9 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *nam
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 	/* Use i18n context from ext.srna if possible (py operators). */
-	RNA_def_struct_translation_context(ot->srna, ot->ext.srna ? RNA_struct_translation_context(ot->ext.srna) :
-	                                                            BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	i18n_context = ot->ext.srna ? RNA_struct_translation_context(ot->ext.srna) : BLF_I18NCONTEXT_OPERATOR_DEFAULT;
+	RNA_def_struct_translation_context(ot->srna, i18n_context);
+	ot->translation_context = i18n_context;
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 
@@ -427,6 +431,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), 
 
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	ot->translation_context = BLF_I18NCONTEXT_OPERATOR_DEFAULT;
 	opfunc(ot, userdata);
 
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
@@ -1263,6 +1268,13 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 	if (flag & WM_FILESEL_RELPATH)
 		RNA_def_boolean(ot->srna, "relative_path", true, "Relative Path", "Select the file relative to the blend file");
 
+	if ((filter & FILE_TYPE_IMAGE) || (filter & FILE_TYPE_MOVIE)) {
+		prop = RNA_def_boolean(ot->srna, "show_multiview", 0, "Enable Multi-View", "");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+		prop = RNA_def_boolean(ot->srna, "use_multiview", 0, "Use Multi-View", "");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	}
+
 	prop = RNA_def_enum(ot->srna, "display_type", file_display_items, display, "Display Type", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
@@ -1985,8 +1997,10 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	split = uiLayoutSplit(layout, 0.0f, false);
 	col = uiLayoutColumn(split, false);
 	uiItemL(col, IFACE_("Links"), ICON_NONE);
+#if 0
 	uiItemStringO(col, IFACE_("Support an Open Animation Movie"), ICON_URL, "WM_OT_url_open", "url",
 	              "https://cloud.blender.org/join");
+#endif
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://www.blender.org/foundation/donation-payment/");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
@@ -2865,30 +2879,45 @@ static void wm_filepath_default(char *filepath)
 
 static void save_set_compress(wmOperator *op)
 {
-	if (!RNA_struct_property_is_set(op->ptr, "compress")) {
-		if (G.save_over) /* keep flag for existing file */
-			RNA_boolean_set(op->ptr, "compress", (G.fileflags & G_FILE_COMPRESS) != 0);
-		else /* use userdef for new file */
-			RNA_boolean_set(op->ptr, "compress", (U.flag & USER_FILECOMPRESS) != 0);
+	PropertyRNA *prop;
+
+	prop = RNA_struct_find_property(op->ptr, "compress");
+	if (!RNA_property_is_set(op->ptr, prop)) {
+		if (G.save_over) {  /* keep flag for existing file */
+			RNA_property_boolean_set(op->ptr, prop, (G.fileflags & G_FILE_COMPRESS) != 0);
+		}
+		else {  /* use userdef for new file */
+			RNA_property_boolean_set(op->ptr, prop, (U.flag & USER_FILECOMPRESS) != 0);
+		}
+	}
+}
+
+static void save_set_filepath(wmOperator *op)
+{
+	PropertyRNA *prop;
+	char name[FILE_MAX];
+
+	prop = RNA_struct_find_property(op->ptr, "filepath");
+	if (!RNA_property_is_set(op->ptr, prop)) {
+		/* if not saved before, get the name of the most recently used .blend file */
+		if (G.main->name[0] == 0 && G.recent_files.first) {
+			struct RecentFile *recent = G.recent_files.first;
+			BLI_strncpy(name, recent->filepath, FILE_MAX);
+		}
+		else {
+			BLI_strncpy(name, G.main->name, FILE_MAX);
+		}
+
+		wm_filepath_default(name);
+		RNA_property_string_set(op->ptr, prop, name);
 	}
 }
 
 static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	char name[FILE_MAX];
 
 	save_set_compress(op);
-	
-	/* if not saved before, get the name of the most recently used .blend file */
-	if (G.main->name[0] == 0 && G.recent_files.first) {
-		struct RecentFile *recent = G.recent_files.first;
-		BLI_strncpy(name, recent->filepath, FILE_MAX);
-	}
-	else
-		BLI_strncpy(name, G.main->name, FILE_MAX);
-	
-	wm_filepath_default(name);
-	RNA_string_set(op->ptr, "filepath", name);
+	save_set_filepath(op);
 	
 	WM_event_add_fileselect(C, op);
 
@@ -2987,7 +3016,6 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 
 static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	char name[FILE_MAX];
 	int ret;
 	
 	/* cancel if no active window */
@@ -2995,18 +3023,7 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 		return OPERATOR_CANCELLED;
 
 	save_set_compress(op);
-
-	/* if not saved before, get the name of the most recently used .blend file */
-	if (G.main->name[0] == 0 && G.recent_files.first) {
-		struct RecentFile *recent = G.recent_files.first;
-		BLI_strncpy(name, recent->filepath, FILE_MAX);
-	}
-	else
-		BLI_strncpy(name, G.main->name, FILE_MAX);
-
-	wm_filepath_default(name);
-	
-	RNA_string_set(op->ptr, "filepath", name);
+	save_set_filepath(op);
 
 	/* if we're saving for the first time and prefer relative paths - any existing paths will be absolute,
 	 * enable the option to remap paths to avoid confusion [#37240] */
@@ -3018,8 +3035,11 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	}
 
 	if (G.save_over) {
-		if (BLI_exists(name)) {
-			ret = WM_operator_confirm_message_ex(C, op, IFACE_("Save Over?"), ICON_QUESTION, name);
+		char path[FILE_MAX];
+
+		RNA_string_get(op->ptr, "filepath", path);
+		if (BLI_exists(path)) {
+			ret = WM_operator_confirm_message_ex(C, op, IFACE_("Save Over?"), ICON_QUESTION, path);
 		}
 		else {
 			ret = wm_save_as_mainfile_exec(C, op);
@@ -4587,8 +4607,10 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 
 	for (a = 0; a < iter; a++) {
 		if (type == 0) {
-			if (ar)
+			if (ar) {
 				ED_region_do_draw(C, ar);
+				ar->do_draw = false;
+			}
 		}
 		else if (type == 1) {
 			wmWindow *win = CTX_wm_window(C);
@@ -4616,6 +4638,7 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 					if (ar_iter->swinid) {
 						CTX_wm_region_set(C, ar_iter);
 						ED_region_do_draw(C, ar_iter);
+						ar->do_draw = false;
 					}
 				}
 			}
@@ -4827,6 +4850,37 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 }
 
 /* ******************************************************* */
+/* toggle 3D for current window, turning it fullscreen if needed */
+static void WM_OT_stereo3d_set(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	ot->name = "Set Stereo 3D";
+	ot->idname = "WM_OT_set_stereo_3d";
+	ot->description = "Toggle 3D stereo support for current window (or change the display mode)";
+
+	ot->exec = wm_stereo3d_set_exec;
+	ot->invoke = wm_stereo3d_set_invoke;
+	ot->poll = WM_operator_winactive;
+	ot->ui = wm_stereo3d_set_draw;
+	ot->check = wm_stereo3d_set_check;
+	ot->cancel = wm_stereo3d_set_cancel;
+
+	prop = RNA_def_enum(ot->srna, "display_mode", stereo3d_display_items, S3D_DISPLAY_ANAGLYPH, "Display Mode", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_enum(ot->srna, "anaglyph_type", stereo3d_anaglyph_type_items, S3D_ANAGLYPH_REDCYAN, "Anaglyph Type", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_enum(ot->srna, "interlace_type", stereo3d_interlace_type_items, S3D_INTERLACE_ROW, "Interlace Type", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "use_interlace_swap", false, "Swap Left/Right",
+	                       "Swap left and right stereo channels");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "use_sidebyside_crosseyed", false, "Cross-Eyed",
+	                       "Right eye should see left image and vice-versa");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
+/* ******************************************************* */
 /* called on initialize WM_exit() */
 void wm_operatortype_free(void)
 {
@@ -4868,6 +4922,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_call_menu);
 	WM_operatortype_append(WM_OT_call_menu_pie);
 	WM_operatortype_append(WM_OT_radial_control);
+	WM_operatortype_append(WM_OT_stereo3d_set);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif

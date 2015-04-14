@@ -68,7 +68,7 @@
 #include <float.h>
 #include <math.h>
 
-// #define DEBUG_TIME
+#define DEBUG_TIME
 
 #ifdef DEBUG_TIME
 #  include "PIL_time_utildefines.h"
@@ -673,7 +673,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 
 	if (stroke->stroke_mode == BRUSH_STROKE_INVERT)
 	{
-		if (br->flag & (BRUSH_CURVE | BRUSH_LINE)) {
+		if (br->flag & (BRUSH_CURVE)) {
 			RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_NORMAL);
 		}
 	}
@@ -1022,7 +1022,7 @@ static void paint_stroke_line_constrain (PaintStroke *stroke, float mouse[2])
 		float angle, len, res;
 		
 		sub_v2_v2v2(line, mouse, stroke->last_mouse_position);
-		angle = atan2(line[1], line[0]);
+		angle = atan2f(line[1], line[0]);
 		len = len_v2(line);
 		
 		/* divide angle by PI/4 */
@@ -1129,7 +1129,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_FINISHED;
 	}
 	else if (br->flag & BRUSH_LINE) {
-		if (event->ctrl)
+		if (event->alt)
 			stroke->constrain_line = true;
 		else 
 			stroke->constrain_line = false;

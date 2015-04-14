@@ -1964,7 +1964,7 @@ static float angle_2d_clockwise(const float p1[2], const float p2[2], const floa
 	v1[0] = p1[0] - p2[0];    v1[1] = p1[1] - p2[1];
 	v2[0] = p3[0] - p2[0];    v2[1] = p3[1] - p2[1];
 
-	return -atan2(v1[0] * v2[1] - v1[1] * v2[0], v1[0] * v2[0] + v1[1] * v2[1]);
+	return -atan2f(v1[0] * v2[1] - v1[1] * v2[0], v1[0] * v2[0] + v1[1] * v2[1]);
 }
 #endif
 
@@ -5233,7 +5233,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 	if (w > maxsize) w = maxsize;
 	if (h > maxsize) h = maxsize;
 
-	ibuf = ED_view3d_draw_offscreen_imbuf(scene, CTX_wm_view3d(C), CTX_wm_region(C), w, h, IB_rect, false, R_ALPHAPREMUL, err_out);
+	ibuf = ED_view3d_draw_offscreen_imbuf(scene, CTX_wm_view3d(C), CTX_wm_region(C), w, h, IB_rect, false, R_ALPHAPREMUL, NULL, err_out);
 	if (!ibuf) {
 		/* Mostly happens when OpenGL offscreen buffer was failed to create, */
 		/* but could be other reasons. Should be handled in the future. nazgul */
@@ -5444,7 +5444,7 @@ static Image *proj_paint_image_create(wmOperator *op, Main *bmain)
 		RNA_string_get(op->ptr, "name", imagename);
 	}
 	ima = BKE_image_add_generated(bmain, width, height, imagename, alpha ? 32 : 24, use_float,
-	                              gen_type, color);
+	                              gen_type, color, false);
 	
 	return ima;
 }

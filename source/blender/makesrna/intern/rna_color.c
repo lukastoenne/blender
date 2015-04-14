@@ -620,10 +620,8 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain)
 			}
 
 			if (seq_found) {
-				if (seq->anim) {
-					IMB_free_anim(seq->anim);
-					seq->anim = NULL;
-				}
+				BKE_sequence_free_anim(seq);
+
 				if (seq->strip->proxy && seq->strip->proxy->anim) {
 					IMB_free_anim(seq->strip->proxy->anim);
 					seq->strip->proxy->anim = NULL;
@@ -635,10 +633,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain)
 			else {
 				SEQ_BEGIN(scene->ed, seq);
 				{
-					if (seq->anim) {
-						IMB_free_anim(seq->anim);
-						seq->anim = NULL;
-					}
+					BKE_sequence_free_anim(seq);
 				}
 				SEQ_END;
 
@@ -678,7 +673,7 @@ static void rna_ColorManagement_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 static float rna_CurveMap_evaluateF(struct CurveMap *cuma, ReportList *reports, float value)
 {
 	if (!cuma->table) {
-		BKE_reportf(reports, RPT_ERROR, "CurveMap table not initialized, call initialize() on CurveMapping owner of the CurveMap");
+		BKE_report(reports, RPT_ERROR, "CurveMap table not initialized, call initialize() on CurveMapping owner of the CurveMap");
 		return 0.0f;
 	}
 	return curvemap_evaluateF(cuma, value);
