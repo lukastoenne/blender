@@ -196,7 +196,8 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 {
 	int use_fire = (sds->active_fields & (SM_ACTIVE_HEAT | SM_ACTIVE_FIRE));
 	int use_colors = (sds->active_fields & SM_ACTIVE_COLORS);
-	int use_sim = !(sds->point_cache[0] && (sds->point_cache[0]->flag & (PTCACHE_BAKED|PTCACHE_DISK_CACHE)));
+	int use_sim = !((sds->point_cache[0] != NULL) &&
+	                (sds->point_cache[0]->flag & (PTCACHE_BAKED|PTCACHE_DISK_CACHE)) == (PTCACHE_BAKED|PTCACHE_DISK_CACHE));
 
 	if (free_old && sds->wt)
 		smoke_turbulence_free(sds->wt);
