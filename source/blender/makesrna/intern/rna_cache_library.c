@@ -68,6 +68,7 @@ EnumPropertyItem cache_modifier_type_items[] = {
 #include "BLI_string.h"
 
 #include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_cache_library.h"
@@ -165,6 +166,55 @@ static void rna_CacheLibrary_modifier_remove(CacheLibrary *cachelib, bContext *U
 static void rna_CacheLibrary_modifier_clear(CacheLibrary *cachelib, bContext *UNUSED(C))
 {
 	BKE_cache_modifier_clear(cachelib);
+}
+
+/* ------------------------------------------------------------------------- */
+
+static int rna_HairSimulationCacheModifier_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+{
+	/*HairSimCacheModifier *hsmd = ptr->data;*/
+	Object *ob = value.data;
+	ParticleSystem *psys;
+	bool has_hair_system = false;
+	
+	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+		if (psys->part && psys->part->type == PART_HAIR) {
+			has_hair_system = true;
+			break;
+		}
+	}
+	return has_hair_system;
+}
+
+static PointerRNA rna_HairSimulationCacheModifier_hair_system_get(PointerRNA *ptr)
+{
+	HairSimCacheModifier *hsmd = ptr->data;
+	ParticleSystem *psys = hsmd->object ? BLI_findlink(&hsmd->object->particlesystem, hsmd->hair_system) : NULL;
+	PointerRNA value;
+	
+	RNA_pointer_create(ptr->id.data, &RNA_ParticleSystem, psys, &value);
+	return value;
+}
+
+static void rna_HairSimulationCacheModifier_hair_system_set(PointerRNA *ptr, PointerRNA value)
+{
+	HairSimCacheModifier *hsmd = ptr->data;
+	ParticleSystem *psys = value.data;
+	hsmd->hair_system = hsmd->object ? BLI_findindex(&hsmd->object->particlesystem, psys) : -1;
+}
+
+static int rna_HairSimulationCacheModifier_hair_system_poll(PointerRNA *ptr, PointerRNA value)
+{
+	HairSimCacheModifier *hsmd = ptr->data;
+	ParticleSystem *psys = value.data;
+	
+	if (!hsmd->object)
+		return false;
+	if (BLI_findindex(&hsmd->object->particlesystem, psys) == -1)
+		return false;
+	if (!psys->part || psys->part->type != PART_HAIR)
+		return false;
+	return true;
 }
 
 #else
@@ -272,6 +322,26 @@ static void rna_def_cache_modifier_hair_simulation(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "HairSimCacheModifier");
 	RNA_def_struct_ui_text(srna, "Hair Simulation Cache Modifier", "Apply hair dynamics simulation to the cache");
 	RNA_def_struct_ui_icon(srna, ICON_HAIR);
+	
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "object");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_HairSimulationCacheModifier_object_poll");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "Object whose cache to simulate");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "hair_system_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "hair_system");
+	RNA_def_property_ui_text(prop, "Hair System Index", "Hair system cache to simulate");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "hair_system", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_funcs(prop, "rna_HairSimulationCacheModifier_hair_system_get", "rna_HairSimulationCacheModifier_hair_system_set", NULL, "rna_HairSimulationCacheModifier_hair_system_poll");
+	RNA_def_property_struct_type(prop, "ParticleSystem");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Hair System", "Hair system cache to simulate");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 	
 	prop = RNA_def_property(srna, "parameters", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "sim_params");
