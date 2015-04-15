@@ -53,6 +53,8 @@ static const float persistence = 0.56123f;
 //////////////////////////////////////////////////////////////////////
 WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, const char *noisefile_path, int init_fire, int init_colors, int init_sim)
 {
+	_need_sim_data = init_sim != 0;
+
 	// if noise magnitude is below this threshold, its contribution
 	// is negilgible, so stop evaluating new octaves
 	_cullingThreshold = 1e-3;
@@ -141,8 +143,6 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	// noise tiles
 	_noiseTile = new float[noiseTileSize * noiseTileSize * noiseTileSize];
 	setNoise(noisetype, noisefile_path);
-
-	_need_sim_data = init_sim != 0;
 }
 
 void WTURBULENCE::initFire()
