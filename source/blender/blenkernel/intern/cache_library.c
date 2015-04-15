@@ -648,6 +648,9 @@ static void hairsim_params_init(HairSimParams *params)
 
 static void hairsim_init(HairSimCacheModifier *hsmd)
 {
+	hsmd->object = NULL;
+	hsmd->hair_system = -1;
+	
 	hairsim_params_init(&hsmd->sim_params);
 }
 
@@ -667,48 +670,74 @@ static void hairsim_free(HairSimCacheModifier *hsmd)
 		curvemapping_free(hsmd->sim_params.goal_stiffness_mapping);
 }
 
+static void hairsim_foreach_id_link(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	walk(userdata, cachelib, &hsmd->modifier, (ID **)(&hsmd->object));
+}
+
+static bool hairsim_find_data(HairSimCacheModifier *hsmd, DupliCache *dupcache, Object **r_ob, Strands **r_strands)
+{
+	DupliObjectData *dobdata;
+	ParticleSystem *psys;
+	DupliObjectDataStrands *link;
+	Strands *strands;
+	
+	if (!hsmd->object)
+		return false;
+	dobdata = BKE_dupli_cache_find_data(dupcache, hsmd->object);
+	if (!dobdata)
+		return false;
+	
+	psys = BLI_findlink(&hsmd->object->particlesystem, hsmd->hair_system);
+	if (!psys || !psys->part->type == PART_HAIR)
+		return false;
+	
+	strands = NULL;
+	for (link = dobdata->strands.first; link; link = link->next) {
+		if (link->strands && STREQ(link->name, psys->name)) {
+			strands = link->strands;
+			break;
+		}
+	}
+	if (!strands)
+		return false;
+	
+	*r_ob = hsmd->object;
+	*r_strands = strands;
+	return true;
+}
+
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
 {
-	struct DupliCacheIterator *iter;
+	Object *ob;
+	Strands *strands;
+	float mat[4][4];
+	ListBase *effectors;
+	struct Implicit_Data *solver_data;
 	
 	/* skip first step and potential backward steps */
 	if (frame <= frame_prev)
 		return;
 	
+	if (!hairsim_find_data(hsmd, data->dupcache, &ob, &strands))
+		return;
+	
 	if (hsmd->sim_params.flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
 		curvemapping_changed_all(hsmd->sim_params.goal_stiffness_mapping);
 	
-	iter = BKE_dupli_cache_iter_new(data->dupcache);
-	for (; BKE_dupli_cache_iter_valid(iter); BKE_dupli_cache_iter_next(iter)) {
-		DupliObjectData *dobdata = BKE_dupli_cache_iter_get(iter);
-		DupliObjectDataStrands *link;
-		float mat[4][4];
+	if (ob)
+		mul_m4_m4m4(mat, data->mat, ob->obmat);
+	else
+		copy_m4_m4(mat, data->mat);
 		
-		if (dobdata->ob)
-			mul_m4_m4m4(mat, data->mat, dobdata->ob->obmat);
-		else
-			copy_m4_m4(mat, data->mat);
-		
-		for (link = dobdata->strands.first; link; link = link->next) {
-			Strands *strands = link->strands;
-			ListBase *effectors;
-			
-			struct Implicit_Data *solver_data;
-			
-			BKE_strands_add_motion_state(strands);
-			
-			solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
-			
-			effectors = pdInitEffectors(ctx->scene, dobdata->ob, NULL, hsmd->sim_params.effector_weights, true);
-			
-			BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors);
-			
-			pdEndEffectors(&effectors);
-			
-			BPH_mass_spring_solver_free(solver_data);
-		}
-	}
-	BKE_dupli_cache_iter_free(iter);
+	BKE_strands_add_motion_state(strands);
+	solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
+	effectors = pdInitEffectors(ctx->scene, ob, NULL, hsmd->sim_params.effector_weights, true);
+	
+	BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors);
+	
+	pdEndEffectors(&effectors);
+	BPH_mass_spring_solver_free(solver_data);
 }
 
 CacheModifierTypeInfo cacheModifierType_HairSimulation = {
@@ -717,7 +746,7 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
     /* structSize */        sizeof(HairSimCacheModifier),
 
     /* copy */              (CacheModifier_CopyFunc)hairsim_copy,
-    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)NULL,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)hairsim_foreach_id_link,
     /* process */           (CacheModifier_ProcessFunc)hairsim_process,
     /* init */              (CacheModifier_InitFunc)hairsim_init,
     /* free */              (CacheModifier_FreeFunc)hairsim_free,

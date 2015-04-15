@@ -148,6 +148,10 @@ typedef enum eHairSimParams_Flag {
 typedef struct HairSimCacheModifier {
 	CacheModifier modifier;
 	
+	struct Object *object;
+	int hair_system;
+	int pad;
+	
 	HairSimParams sim_params;
 } HairSimCacheModifier;
 
