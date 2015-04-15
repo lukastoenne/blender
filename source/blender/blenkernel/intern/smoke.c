@@ -196,6 +196,7 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 {
 	int use_fire = (sds->active_fields & (SM_ACTIVE_HEAT | SM_ACTIVE_FIRE));
 	int use_colors = (sds->active_fields & SM_ACTIVE_COLORS);
+	int use_sim = !(sds->point_cache[0] && (sds->point_cache[0]->flag & (PTCACHE_BAKED|PTCACHE_DISK_CACHE)));
 
 	if (free_old && sds->wt)
 		smoke_turbulence_free(sds->wt);
@@ -207,7 +208,7 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 	/* smoke_turbulence_init uses non-threadsafe functions from fftw3 lib (like fftw_plan & co). */
 	BLI_lock_thread(LOCK_FFTW);
 
-	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BKE_tempdir_session(), use_fire, use_colors);
+	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BKE_tempdir_session(), use_fire, use_colors, use_sim);
 
 	BLI_unlock_thread(LOCK_FFTW);
 

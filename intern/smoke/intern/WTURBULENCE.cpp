@@ -51,7 +51,7 @@ static const float persistence = 0.56123f;
 //////////////////////////////////////////////////////////////////////
 // constructor
 //////////////////////////////////////////////////////////////////////
-WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, const char *noisefile_path, int init_fire, int init_colors)
+WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, const char *noisefile_path, int init_fire, int init_colors, int init_sim)
 {
 	// if noise magnitude is below this threshold, its contribution
 	// is negilgible, so stop evaluating new octaves
@@ -87,11 +87,14 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	// allocate high resolution density field
 	_totalStepsBig = 0;
 	_densityBig = new float[_totalCellsBig];
-	_densityBigOld = new float[_totalCellsBig];
-	
-	for(int i = 0; i < _totalCellsBig; i++) {
-		_densityBig[i] = 
-		_densityBigOld[i] = 0.;
+	memset(_densityBig, 0, sizeof(*_densityBig) * _totalCellsBig);
+
+	if (init_sim) {
+		_densityBigOld = new float[_totalCellsBig];
+		memset(_densityBigOld, 0, sizeof(*_densityBigOld) * _totalCellsBig);
+	}
+	else {
+		_densityBigOld = NULL;
 	}
 
 	/* fire */
@@ -112,7 +115,6 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	_tcU = new float[_totalCellsSm];
 	_tcV = new float[_totalCellsSm];
 	_tcW = new float[_totalCellsSm];
-	_tcTemp = new float[_totalCellsSm];
 	
 	// map all 
 	const float dx = 1.0f/(float)(_resSm[0]);
@@ -126,12 +128,21 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 		_tcU[index] = x*dx;
 		_tcV[index] = y*dy;
 		_tcW[index] = z*dz;
-		_tcTemp[index] = 0.;
 		}
 	
+	if (init_sim) {
+		_tcTemp = new float[_totalCellsSm];
+		memset(_tcTemp, 0, sizeof(*_tcTemp) * _totalCellsSm);
+	}
+	else {
+		_tcTemp = NULL;
+	}
+
 	// noise tiles
 	_noiseTile = new float[noiseTileSize * noiseTileSize * noiseTileSize];
 	setNoise(noisetype, noisefile_path);
+
+	_need_sim_data = init_sim != 0;
 }
 
 void WTURBULENCE::initFire()
@@ -139,16 +150,15 @@ void WTURBULENCE::initFire()
 	if (!_fuelBig) {
 		_flameBig = new float[_totalCellsBig];
 		_fuelBig = new float[_totalCellsBig];
-		_fuelBigOld = new float[_totalCellsBig];
 		_reactBig = new float[_totalCellsBig];
-		_reactBigOld = new float[_totalCellsBig];
-
-		for(int i = 0; i < _totalCellsBig; i++) {
-			_flameBig[i] = 
-			_fuelBig[i] = 
-			_fuelBigOld[i] = 0.;
-			_reactBig[i] = 
-			_reactBigOld[i] = 0.;
+		memset(_flameBig, 0, sizeof(*_flameBig) * _totalCellsBig);
+		memset(_fuelBig, 0, sizeof(*_fuelBig) * _totalCellsBig);
+		memset(_reactBig, 0, sizeof(*_reactBig) * _totalCellsBig);
+		if (_need_sim_data) {
+			_fuelBigOld = new float[_totalCellsBig];
+			_reactBigOld = new float[_totalCellsBig];
+			memset(_fuelBigOld, 0, sizeof(*_fuelBigOld) * _totalCellsBig);
+			memset(_reactBigOld, 0, sizeof(*_reactBigOld) * _totalCellsBig);
 		}
 	}
 }
@@ -157,19 +167,20 @@ void WTURBULENCE::initColors(float init_r, float init_g, float init_b)
 {
 	if (!_color_rBig) {
 		_color_rBig = new float[_totalCellsBig];
-		_color_rBigOld = new float[_totalCellsBig];
 		_color_gBig = new float[_totalCellsBig];
-		_color_gBigOld = new float[_totalCellsBig];
 		_color_bBig = new float[_totalCellsBig];
-		_color_bBigOld = new float[_totalCellsBig];
-
 		for(int i = 0; i < _totalCellsBig; i++) {
 			_color_rBig[i] = _densityBig[i] * init_r;
-			_color_rBigOld[i] = 0.0f;
 			_color_gBig[i] = _densityBig[i] * init_g;
-			_color_gBigOld[i] = 0.0f;
 			_color_bBig[i] = _densityBig[i] * init_b;
-			_color_bBigOld[i] = 0.0f;
+		}
+		if (_need_sim_data) {
+			_color_rBigOld = new float[_totalCellsBig];
+			_color_gBigOld = new float[_totalCellsBig];
+			_color_bBigOld = new float[_totalCellsBig];
+			memset(_color_rBigOld, 0, sizeof(*_color_rBigOld) * _totalCellsBig);
+			memset(_color_gBigOld, 0, sizeof(*_color_gBigOld) * _totalCellsBig);
+			memset(_color_bBigOld, 0, sizeof(*_color_bBigOld) * _totalCellsBig);
 		}
 	}
 }
@@ -179,7 +190,7 @@ void WTURBULENCE::initColors(float init_r, float init_g, float init_b)
 //////////////////////////////////////////////////////////////////////
 WTURBULENCE::~WTURBULENCE() {
   delete[] _densityBig;
-  delete[] _densityBigOld;
+  if (_densityBigOld) delete[] _densityBigOld;
   if (_flameBig) delete[] _flameBig;
   if (_fuelBig) delete[] _fuelBig;
   if (_fuelBigOld) delete[] _fuelBigOld;
@@ -196,7 +207,7 @@ WTURBULENCE::~WTURBULENCE() {
   delete[] _tcU;
   delete[] _tcV;
   delete[] _tcW;
-  delete[] _tcTemp;
+  if (_tcTemp) delete[] _tcTemp;
 
   delete[] _noiseTile;
 }

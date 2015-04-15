@@ -44,10 +44,10 @@ extern "C" FLUID_3D *smoke_init(int *res, float dx, float dtdef, int use_heat, i
 	return fluid;
 }
 
-extern "C" WTURBULENCE *smoke_turbulence_init(int *res, int amplify, int noisetype, const char *noisefile_path, int use_fire, int use_colors)
+extern "C" WTURBULENCE *smoke_turbulence_init(int *res, int amplify, int noisetype, const char *noisefile_path, int use_fire, int use_colors, int use_sim)
 {
 	if (amplify)
-		return new WTURBULENCE(res[0],res[1],res[2], amplify, noisetype, noisefile_path, use_fire, use_colors);
+		return new WTURBULENCE(res[0],res[1],res[2], amplify, noisetype, noisefile_path, use_fire, use_colors, use_sim);
 	else 
 		return NULL;
 }
