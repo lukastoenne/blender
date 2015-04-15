@@ -867,6 +867,7 @@ static int acf_group_setting_flag(bAnimContext *ac, eAnimChannel_Settings settin
 			return AGRP_MUTED;
 
 		case ACHANNEL_SETTING_MOD_OFF: /* muted */
+			*neg = 1;
 			return AGRP_MODIFIERS_OFF;
 
 		case ACHANNEL_SETTING_PROTECT: /* protected */
@@ -987,6 +988,7 @@ static int acf_fcurve_setting_flag(bAnimContext *UNUSED(ac), eAnimChannel_Settin
 			return FCURVE_VISIBLE;
 			
 		case ACHANNEL_SETTING_MOD_OFF:
+			*neg = 1;
 			return FCURVE_MOD_OFF;
 
 		default: /* unsupported */
@@ -3983,6 +3985,7 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, const bAni
 {
 	short ptrsize, butType;
 	bool negflag;
+	bool usetoggle = true;
 	int flag, icon;
 	void *ptr;
 	const char *tooltip;
@@ -4007,7 +4010,7 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, const bAni
 
 		case ACHANNEL_SETTING_MOD_OFF:  /* modifiers disabled */
 			icon = ICON_MODIFIER;
-
+			usetoggle = false;
 			tooltip = TIP_("F-Curve modifiers are disabled");
 			break;
 
@@ -4071,11 +4074,18 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, const bAni
 	}
 	
 	/* type of button */
-	if (negflag)
-		butType = UI_BTYPE_ICON_TOGGLE_N;
-	else
-		butType = UI_BTYPE_ICON_TOGGLE;
-	
+	if (usetoggle) {
+		if (negflag)
+			butType = UI_BTYPE_ICON_TOGGLE_N;
+		else
+			butType = UI_BTYPE_ICON_TOGGLE;
+	}
+	else {
+		if (negflag)
+			butType = UI_BTYPE_TOGGLE_N;
+		else
+			butType = UI_BTYPE_TOGGLE;
+	}
 	/* draw button for setting */
 	if (ptr && flag) {
 		switch (ptrsize) {
