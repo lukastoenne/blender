@@ -74,7 +74,7 @@ size_t smoke_get_index2d(int x, int max_x, int y);
 void smoke_dissolve(struct FLUID_3D *fluid, int speed, int log);
 
 // wavelet turbulence functions
-struct WTURBULENCE *smoke_turbulence_init(int *res, int amplify, int noisetype, const char *noisefile_path, int use_fire, int use_colors);
+struct WTURBULENCE *smoke_turbulence_init(int *res, int amplify, int noisetype, const char *noisefile_path, int use_fire, int use_colors, int use_sim);
 void smoke_turbulence_free(struct WTURBULENCE *wt);
 void smoke_turbulence_step(struct WTURBULENCE *wt, struct FLUID_3D *fluid);
 
