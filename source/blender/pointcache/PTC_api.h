@@ -102,19 +102,6 @@ struct PTCReader *PTC_reader_object(const char *name, struct Object *ob);
 struct PTCWriter *PTC_writer_group(const char *name, struct Group *group);
 struct PTCReader *PTC_reader_group(const char *name, struct Group *group);
 
-/* Particles */
-struct PTCWriter *PTC_writer_particles(const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(const char *name, struct Object *ob, struct ParticleSystem *psys);
-int PTC_reader_particles_totpoint(struct PTCReader *reader);
-
-struct PTCWriter *PTC_writer_hair_dynamics(const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_hair_dynamics(const char *name, struct Object *ob, struct ParticleSystem *psys);
-
-struct PTCWriter *PTC_writer_particles_pathcache_parents(const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles_pathcache_parents(const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCWriter *PTC_writer_particles_pathcache_children(const char *name, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles_pathcache_children(const char *name, struct Object *ob, struct ParticleSystem *psys);
-
 /* Cloth */
 struct PTCWriter *PTC_writer_cloth(const char *name, struct Object *ob, struct ClothModifierData *clmd);
 struct PTCReader *PTC_reader_cloth(const char *name, struct Object *ob, struct ClothModifierData *clmd);
