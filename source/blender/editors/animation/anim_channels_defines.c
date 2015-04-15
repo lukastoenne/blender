@@ -865,7 +865,10 @@ static int acf_group_setting_flag(bAnimContext *ac, eAnimChannel_Settings settin
 			
 		case ACHANNEL_SETTING_MUTE: /* muted */
 			return AGRP_MUTED;
-			
+
+		case ACHANNEL_SETTING_MOD_OFF: /* muted */
+			return AGRP_MODIFIERS_OFF;
+
 		case ACHANNEL_SETTING_PROTECT: /* protected */
 			return AGRP_PROTECTED;
 			
@@ -983,6 +986,9 @@ static int acf_fcurve_setting_flag(bAnimContext *UNUSED(ac), eAnimChannel_Settin
 		case ACHANNEL_SETTING_VISIBLE: /* visibility - graph editor */
 			return FCURVE_VISIBLE;
 			
+		case ACHANNEL_SETTING_MOD_OFF:
+			return FCURVE_MOD_OFF;
+
 		default: /* unsupported */
 			return 0;
 	}
@@ -3998,7 +4004,13 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, const bAni
 			else
 				tooltip = TIP_("Channels are visible in Graph Editor for editing");
 			break;
-			
+
+		case ACHANNEL_SETTING_MOD_OFF:  /* modifiers disabled */
+			icon = ICON_MODIFIER;
+
+			tooltip = TIP_("F-Curve modifiers are disabled");
+			break;
+
 		case ACHANNEL_SETTING_EXPAND: /* expanded triangle */
 			//icon = ((enabled) ? ICON_TRIA_DOWN : ICON_TRIA_RIGHT);
 			icon = ICON_TRIA_RIGHT;
@@ -4091,6 +4103,7 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, const bAni
 				case ACHANNEL_SETTING_PROTECT: /* General - protection flags */
 				case ACHANNEL_SETTING_MUTE: /* General - muting flags */
 				case ACHANNEL_SETTING_PINNED: /* NLA Actions - 'map/nomap' */
+				case ACHANNEL_SETTING_MOD_OFF:
 					UI_but_funcN_set(but, achannel_setting_flush_widget_cb, MEM_dupallocN(ale), SET_INT_IN_POINTER(setting));
 					break;
 					
@@ -4258,7 +4271,13 @@ void ANIM_channel_draw_widgets(const bContext *C, bAnimContext *ac, bAnimListEle
 				offset += ICON_WIDTH;
 				draw_setting_widget(ac, ale, acf, block, (int)v2d->cur.xmax - offset, ymid, ACHANNEL_SETTING_MUTE);
 			}
-			
+
+			/* modifiers disable */
+			if (acf->has_setting(ac, ale, ACHANNEL_SETTING_MOD_OFF)) {
+				offset += ICON_WIDTH;
+				draw_setting_widget(ac, ale, acf, block, (int)v2d->cur.xmax - offset, ymid, ACHANNEL_SETTING_MOD_OFF);
+			}
+
 			/* ----------- */
 			
 			/* pinned... */
