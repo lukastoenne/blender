@@ -201,24 +201,6 @@ struct Factory {
 	virtual WriterArchive *open_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
 	virtual ReaderArchive *open_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
 	
-	virtual Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob) = 0;
-	virtual Reader *create_reader_object(const std::string &name, Object *ob) = 0;
-	
-	virtual Writer *create_writer_group(const std::string &name, Group *group) = 0;
-	virtual Reader *create_reader_group(const std::string &name, Group *group) = 0;
-	
-	/* Cloth */
-	virtual Writer *create_writer_cloth(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
-	virtual Reader *create_reader_cloth(const std::string &name, Object *ob, ClothModifierData *clmd) = 0;
-	
-	/* Modifier Stack */
-	virtual Writer *create_writer_derived_mesh(const std::string &name, Object *ob, DerivedMesh **dm_ptr) = 0;
-	virtual Reader *create_reader_derived_mesh(const std::string &name, Object *ob) = 0;
-	
-	virtual Writer *create_writer_derived_final_realtime(const std::string &name, Object *ob) = 0;
-	virtual Writer *create_writer_derived_final_render(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr) = 0;
-	
-	virtual Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib) = 0;
 	virtual Writer *create_writer_duplicache(const std::string &name, Group *group, DupliCache *dupcache, int datatypes, bool do_sim_debug) = 0;
 	virtual Reader *create_reader_duplicache(const std::string &name, Group *group, DupliCache *dupcache,
 	                                         bool read_strands_motion, bool read_strands_children, bool read_sim_debug) = 0;
