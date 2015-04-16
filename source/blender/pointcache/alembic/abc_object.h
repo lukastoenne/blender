@@ -38,43 +38,6 @@ struct Scene;
 
 namespace PTC {
 
-class AbcDerivedMeshWriter;
-class AbcHairWriter;
-
-class AbcObjectWriter : public ObjectWriter, public AbcWriter {
-public:
-	typedef std::vector<AbcHairWriter *> HairWriters;
-	
-	AbcObjectWriter(const std::string &name, Scene *scene, Object *ob, bool do_mesh, bool do_hair);
-	~AbcObjectWriter();
-	
-	void init_abc();
-#if 0
-	void create_refs();
-#endif
-	
-	void write_sample();
-	
-private:
-	Scene *m_scene;
-	DerivedMesh *m_final_dm;
-	
-	Abc::OObject m_abc_object;
-	AbcDerivedMeshWriter *m_dm_writer;
-	HairWriters m_hair_writers;
-};
-
-class AbcObjectReader : public ObjectReader, public AbcReader {
-public:
-	AbcObjectReader(const std::string &name, Object *ob);
-	
-	void init_abc(Abc::IObject object);
-	
-	PTCReadSampleResult read_sample(float frame);
-	
-private:
-	Abc::IObject m_abc_object;
-};
 
 } /* namespace PTC */
 

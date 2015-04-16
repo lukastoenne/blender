@@ -40,62 +40,7 @@ class AbcStrandsWriter;
 class AbcSimDebugWriter;
 class AbcSimDebugReader;
 
-class AbcGroupWriter : public GroupWriter, public AbcWriter {
-public:
-	AbcGroupWriter(const std::string &name, Group *group);
-	
-	void init_abc();
-	void create_refs();
-	
-	void write_sample();
-	
-private:
-	Abc::OObject m_abc_object;
-};
-
-class AbcGroupReader : public GroupReader, public AbcReader {
-public:
-	AbcGroupReader(const std::string &name, Group *group);
-	
-	void init_abc(Abc::IObject object);
-	
-	PTCReadSampleResult read_sample(float frame);
-	
-private:
-	Abc::IObject m_abc_object;
-};
-
 /* ========================================================================= */
-
-class AbcDupligroupWriter : public GroupWriter, public AbcWriter {
-public:
-	typedef std::vector<Abc::ObjectWriterPtr> ObjectWriterList;
-	typedef std::vector<Abc::BasePropertyWriterPtr> PropertyWriterList;
-	
-	typedef std::map<ID *, AbcWriter *> IDWriterMap;
-	typedef std::pair<ID *, AbcWriter *> IDWriterPair;
-	
-	AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib);
-	~AbcDupligroupWriter();
-	
-	void init_abc();
-	
-	void write_sample();
-	void write_sample_object(Object *ob);
-	void write_sample_dupli(DupliObject *dob, int index);
-	
-	AbcWriter *find_id_writer(ID *id) const;
-	
-private:
-	EvaluationContext *m_eval_ctx;
-	Scene *m_scene;
-	CacheLibrary *m_cachelib;
-	
-	Abc::OObject m_abc_group;
-	ObjectWriterList m_object_writers;
-	PropertyWriterList m_property_writers;
-	IDWriterMap m_id_writers;
-};
 
 class AbcDupliCacheWriter : public GroupWriter, public AbcWriter {
 public:
