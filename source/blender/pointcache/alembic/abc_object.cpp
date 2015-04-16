@@ -102,23 +102,26 @@ void AbcObjectWriter::write_sample()
 		return;
 	
 	if (m_dm_writer) {
-		if (abc_archive()->use_render()) {
-			m_final_dm = mesh_create_derived_render(m_scene, m_ob, CD_MASK_BAREMESH);
-			
-			if (m_final_dm) {
-				m_dm_writer->write_sample();
+		switch (abc_archive()->get_pass()) {
+			case PTC_PASS_FINAL:
+				m_final_dm = mesh_create_derived_render(m_scene, m_ob, CD_MASK_BAREMESH);
 				
-				m_final_dm->release(m_final_dm);
-			}
-		}
-		else {
-			m_final_dm = m_ob->derivedFinal;
-			if (!m_final_dm)
-				m_final_dm = mesh_get_derived_final(m_scene, m_ob, CD_MASK_BAREMESH);
+				if (m_final_dm) {
+					m_dm_writer->write_sample();
+					
+					m_final_dm->release(m_final_dm);
+				}
+				break;
 			
-			if (m_final_dm) {
-				m_dm_writer->write_sample();
-			}
+			case PTC_PASS_PREVIEW:
+				m_final_dm = m_ob->derivedFinal;
+				if (!m_final_dm)
+					m_final_dm = mesh_get_derived_final(m_scene, m_ob, CD_MASK_BAREMESH);
+				
+				if (m_final_dm) {
+					m_dm_writer->write_sample();
+				}
+				break;
 		}
 	}
 	

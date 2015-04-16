@@ -271,7 +271,11 @@ void AbcHairChildrenWriter::write_sample()
 	
 	int totkeys = hair_children_count_totkeys(m_psys->childcache, m_psys->totchild);
 	
-	int keysteps = abc_archive()->use_render() ? m_psys->part->ren_step : m_psys->part->draw_step;
+	int keysteps = 0;
+	switch (abc_archive()->get_pass()) {
+		case PTC_PASS_FINAL: keysteps = m_psys->part->ren_step; break;
+		case PTC_PASS_PREVIEW: keysteps = m_psys->part->draw_step; break;
+	}
 	int maxkeys = (1 << keysteps) + 1 + (m_psys->part->kink);
 	if (ELEM(m_psys->part->kink, PART_KINK_SPIRAL))
 		maxkeys += m_psys->part->kink_extra_steps;
@@ -904,6 +908,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		if (it_strand.curve->numverts <= 0)
 			continue;
 		
+#if 0
 		float hairmat_base[4][4];
 		float tmpmat[3][3];
 		memcpy(tmpmat, root_matrix_base->getValue(), sizeof(tmpmat));
@@ -917,6 +922,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 		float mat[4][4];
 		invert_m4_m4(mat, hairmat_base);
 		mul_m4_m4m4(mat, hairmat, mat);
+#endif
 		
 		StrandVertexIterator it_vert;
 		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {

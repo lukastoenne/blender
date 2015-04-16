@@ -48,10 +48,7 @@ public:
 	
 	static AbcWriterArchive *open(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
 	
-	bool use_render() const { return m_use_render; }
-	void use_render(bool enable) { m_use_render = enable; }
-	
-	Abc::OObject root();
+	Abc::OObject top();
 	
 	Abc::OObject get_id_object(ID *id);
 	bool has_id_object(ID *id);
@@ -68,11 +65,8 @@ protected:
 protected:
 	ErrorHandler *m_error_handler;
 	uint32_t m_frame_sampling;
-	bool m_use_render;
 	
 	Abc::OArchive m_abc_archive;
-	Abc::OObject m_abc_root;
-	Abc::OObject m_abc_root_render;
 };
 
 class AbcWriter : public Writer {
@@ -107,17 +101,17 @@ OObjectT AbcWriterArchive::add_id_object(ID *id)
 	if (!m_abc_archive)
 		return OObjectT();
 	
-	ObjectWriterPtr root_ptr = this->root().getPtr();
+	ObjectWriterPtr top_ptr = this->top().getPtr();
 	
-	ObjectWriterPtr child = root_ptr->getChild(id->name);
+	ObjectWriterPtr child = top_ptr->getChild(id->name);
 	if (child)
 		return OObjectT(child, kWrapExisting);
 	else {
-		const ObjectHeader *child_header = root_ptr->getChildHeader(id->name);
+		const ObjectHeader *child_header = top_ptr->getChildHeader(id->name);
 		if (child_header)
-			return OObjectT(root_ptr->createChild(*child_header), kWrapExisting);
+			return OObjectT(top_ptr->createChild(*child_header), kWrapExisting);
 		else {
-			return OObjectT(root_ptr, id->name, frame_sampling_index());
+			return OObjectT(top_ptr, id->name, frame_sampling_index());
 		}
 	}
 }

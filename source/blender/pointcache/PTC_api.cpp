@@ -145,10 +145,10 @@ void PTC_close_writer_archive(PTCWriterArchive *_archive)
 	delete archive;
 }
 
-void PTC_writer_archive_use_render(PTCWriterArchive *_archive, bool enable)
+void PTC_writer_archive_set_pass(PTCWriterArchive *_archive, PTCPass pass)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	archive->use_render(enable);
+	archive->set_pass(pass);
 }
 
 PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path)
@@ -162,10 +162,10 @@ void PTC_close_reader_archive(PTCReaderArchive *_archive)
 	delete archive;
 }
 
-void PTC_reader_archive_use_render(PTCReaderArchive *_archive, bool enable)
+void PTC_reader_archive_set_pass(PTCReaderArchive *_archive, PTCPass pass)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	archive->use_render(enable);
+	archive->set_pass(pass);
 }
 
 void PTC_writer_init(PTCWriter *_writer, PTCWriterArchive *_archive)

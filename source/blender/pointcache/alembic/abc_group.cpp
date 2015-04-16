@@ -144,6 +144,15 @@ void AbcDupligroupWriter::write_sample_object(Object *ob)
 	ob_writer->write_sample();
 }
 
+static bool object_visible(Object *ob, PTCPass pass)
+{
+	switch (pass) {
+		case PTC_PASS_FINAL: return !(ob->restrictflag & OB_RESTRICT_RENDER);
+		case PTC_PASS_PREVIEW: return !(ob->restrictflag & OB_RESTRICT_VIEW);
+	}
+	return true;
+}
+
 void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
 {
 	OObject abc_object = abc_archive()->get_id_object((ID *)dob->ob);
@@ -179,8 +188,7 @@ void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
 	
 	prop_matrix.set(M44f(dob->mat));
 	
-	bool show_object = (abc_archive()->use_render())? !(dob->ob->restrictflag & OB_RESTRICT_RENDER) : !(dob->ob->restrictflag & OB_RESTRICT_VIEW);
-	bool visible = show_object && (!dob->no_draw);
+	bool visible = object_visible(dob->ob, abc_archive()->get_pass()) && (!dob->no_draw);
 	prop_visible.set(visible);
 }
 
@@ -260,7 +268,7 @@ void AbcDupliCacheWriter::init_abc()
 	
 	if (m_simdebug_writer) {
 		m_simdebug_writer->init(abc_archive());
-		m_simdebug_writer->init_abc(abc_archive()->root());
+		m_simdebug_writer->init_abc(abc_archive()->top());
 	}
 }
 
@@ -314,8 +322,7 @@ void AbcDupliCacheWriter::write_sample_dupli(DupliObject *dob, int index)
 	
 	prop_matrix.set(M44f(dob->mat));
 	
-	bool show_object = (abc_archive()->use_render())? !(dob->ob->restrictflag & OB_RESTRICT_RENDER) : !(dob->ob->restrictflag & OB_RESTRICT_VIEW);
-	bool visible = show_object && (!dob->no_draw);
+	bool visible = object_visible(dob->ob, abc_archive()->get_pass()) && (!dob->no_draw);
 	prop_visible.set(visible);
 }
 
@@ -489,7 +496,7 @@ PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
-	IObject abc_top = abc_archive()->root();
+	IObject abc_top = abc_archive()->top();
 	IObject abc_group = abc_archive()->get_id_object((ID *)m_group);
 	if (!abc_group)
 		return PTC_READ_SAMPLE_INVALID;
@@ -669,8 +676,8 @@ void AbcDupliObjectReader::init(ReaderArchive *archive)
 {
 	AbcReader::init(archive);
 	
-	if (abc_archive()->root().getChildHeader(m_name))
-		m_abc_object = abc_archive()->root().getChild(m_name);
+	if (abc_archive()->top().getChildHeader(m_name))
+		m_abc_object = abc_archive()->top().getChild(m_name);
 }
 
 void AbcDupliObjectReader::init_abc(IObject object)
