@@ -102,7 +102,8 @@ typedef void (*CacheModifier_FreeFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_CopyFunc)(struct CacheModifier *md, struct CacheModifier *target);
 typedef void (*CacheModifier_ForeachIDLinkFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib,
                                                 CacheModifier_IDWalkFunc walk, void *userData);
-typedef void (*CacheModifier_ProcessFunc)(struct CacheModifier *md, struct CacheProcessContext *ctx, struct CacheProcessData *data, int frame, int frame_prev);
+typedef void (*CacheModifier_ProcessFunc)(struct CacheModifier *md, struct CacheProcessContext *ctx, struct CacheProcessData *data,
+                                          int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode);
 
 typedef struct CacheModifierTypeInfo {
 	/* The user visible name for this modifier */

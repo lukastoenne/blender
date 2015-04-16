@@ -67,47 +67,6 @@ class AbcFactory : public Factory {
 		return new AbcGroupReader(name, group);
 	}
 	
-	/* Particles */
-	Writer *create_writer_particles(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcParticlesWriter(name, ob, psys);
-	}
-	
-	Reader *create_reader_particles(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcParticlesReader(name, ob, psys);
-	}
-	
-	Writer *create_writer_hair_dynamics(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcHairDynamicsWriter(name, ob, psys);
-	}
-	
-	Reader *create_reader_hair_dynamics(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcHairDynamicsReader(name, ob, psys);
-	}
-	
-	Writer *create_writer_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcParticlePathcacheParentsWriter(name, ob, psys);
-	}
-	
-	Reader *create_reader_particles_pathcache_parents(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcParticlePathcacheParentsReader(name, ob, psys);
-	}
-	
-	Writer *create_writer_particles_pathcache_children(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcParticlePathcacheChildrenWriter(name, ob, psys);
-	}
-	
-	Reader *create_reader_particles_pathcache_children(const std::string &name, Object *ob, ParticleSystem *psys)
-	{
-		return new AbcParticlePathcacheChildrenReader(name, ob, psys);
-	}
-	
 	
 	/* Cloth */
 	Writer *create_writer_cloth(const std::string &name, Object *ob, ClothModifierData *clmd)

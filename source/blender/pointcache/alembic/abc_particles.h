@@ -45,32 +45,6 @@ namespace PTC {
 class AbcDerivedMeshWriter;
 class AbcDerivedMeshReader;
 
-class AbcParticlesWriter : public ParticlesWriter, public AbcWriter {
-public:
-	AbcParticlesWriter(const std::string &name, Object *ob, ParticleSystem *psys);
-	~AbcParticlesWriter();
-	
-	void init_abc(Abc::OObject parent);
-	
-	void write_sample();
-	
-private:
-	AbcGeom::OPoints m_points;
-};
-
-class AbcParticlesReader : public ParticlesReader, public AbcReader {
-public:
-	AbcParticlesReader(const std::string &name, Object *ob, ParticleSystem *psys);
-	~AbcParticlesReader();
-	
-	void init_abc(Abc::IObject object);
-	
-	PTCReadSampleResult read_sample(float frame);
-	
-private:
-	AbcGeom::IPoints m_points;
-};
-
 
 class AbcHairChildrenWriter : public ParticlesWriter, public AbcWriter {
 public:
@@ -221,104 +195,6 @@ private:
 	AbcStrandsChildrenReader m_child_reader;
 };
 
-
-/* Hair is just a cloth sim in disguise ... */
-
-class AbcHairDynamicsWriter : public ParticlesWriter, public AbcWriter {
-public:
-	AbcHairDynamicsWriter(const std::string &name, Object *ob, ParticleSystem *psys);
-	
-	void init_abc(Abc::OObject parent);
-	
-	void write_sample();
-	
-private:
-	AbcClothWriter m_cloth_writer;
-};
-
-class AbcHairDynamicsReader : public ParticlesReader, public AbcReader {
-public:
-	AbcHairDynamicsReader(const std::string &name, Object *ob, ParticleSystem *psys);
-	
-	void init_abc(Abc::IObject object);
-	
-	PTCReadSampleResult read_sample(float frame);
-	
-private:
-	AbcClothReader m_cloth_reader;
-};
-
-
-class AbcParticlePathcacheWriter : public ParticlesWriter, public AbcWriter {
-protected:
-	AbcParticlePathcacheWriter(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
-	~AbcParticlePathcacheWriter();
-	
-	void init_abc(Abc::OObject parent);
-	
-	void write_sample();
-	
-private:
-	ParticleCacheKey ***m_pathcache;
-	int *m_totpath;
-	std::string m_suffix;
-	
-	AbcGeom::OCurves m_curves;
-	
-	AbcGeom::OV3fGeomParam m_param_velocities;
-	AbcGeom::OQuatfGeomParam m_param_rotations;
-	AbcGeom::OC3fGeomParam m_param_colors;
-	AbcGeom::OFloatGeomParam m_param_times;
-};
-
-class AbcParticlePathcacheReader : public ParticlesReader, public AbcReader {
-protected:
-	AbcParticlePathcacheReader(const std::string &name, Object *ob, ParticleSystem *psys, ParticleCacheKey ***pathcache, int *totpath, const std::string &suffix);
-	
-	void init_abc(Abc::IObject object);
-	
-	PTCReadSampleResult read_sample(float frame);
-	
-protected:
-	ParticleCacheKey ***m_pathcache;
-	int *m_totpath;
-	std::string m_suffix;
-	
-	AbcGeom::ICurves m_curves;
-	
-	AbcGeom::IV3fGeomParam m_param_velocities;
-	AbcGeom::IQuatfGeomParam m_param_rotations;
-	AbcGeom::IV3fGeomParam m_param_colors;
-	AbcGeom::IFloatGeomParam m_param_times;
-};
-
-class AbcParticlePathcacheParentsWriter : public AbcParticlePathcacheWriter {
-public:
-	AbcParticlePathcacheParentsWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheWriter(name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
-	{}
-};
-
-class AbcParticlePathcacheParentsReader : public AbcParticlePathcacheReader {
-public:
-	AbcParticlePathcacheParentsReader(const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheReader(name, ob, psys, &psys->pathcache, &psys->totpart, "__parents")
-	{}
-};
-
-class AbcParticlePathcacheChildrenWriter : public AbcParticlePathcacheWriter {
-public:
-	AbcParticlePathcacheChildrenWriter(const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheWriter(name, ob, psys, &psys->childcache, &psys->totchild, "__children")
-	{}
-};
-
-class AbcParticlePathcacheChildrenReader : public AbcParticlePathcacheReader {
-public:
-	AbcParticlePathcacheChildrenReader(const std::string &name, Object *ob, ParticleSystem *psys) :
-	    AbcParticlePathcacheReader(name, ob, psys, &psys->childcache, &psys->totchild, "__children")
-	{}
-};
 
 } /* namespace PTC */
 

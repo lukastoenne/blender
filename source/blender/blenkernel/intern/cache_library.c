@@ -600,7 +600,7 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 }
 
 void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *data,
-                                   Scene *scene, Group *dupgroup, float frame_prev, float frame, eCacheLibrary_EvalMode UNUSED(eval_mode))
+                                   Scene *scene, Group *dupgroup, float frame_prev, float frame, eCacheLibrary_EvalMode eval_mode)
 {
 	CacheProcessContext ctx;
 	CacheModifier *md;
@@ -614,7 +614,7 @@ void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *dat
 		CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
 		
 		if (mti->process)
-			mti->process(md, &ctx, data, frame, frame_prev);
+			mti->process(md, &ctx, data, frame, frame_prev, eval_mode);
 	}
 }
 
@@ -707,13 +707,17 @@ static bool hairsim_find_data(HairSimCacheModifier *hsmd, DupliCache *dupcache, 
 	return true;
 }
 
-static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
+static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode)
 {
 	Object *ob;
 	Strands *strands;
 	float mat[4][4];
 	ListBase *effectors;
 	struct Implicit_Data *solver_data;
+	
+	/* only perform hair sim once */
+	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
+		return;
 	
 	/* skip first step and potential backward steps */
 	if (frame <= frame_prev)
