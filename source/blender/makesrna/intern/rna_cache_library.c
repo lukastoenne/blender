@@ -56,8 +56,9 @@ EnumPropertyItem cache_library_read_result_items[] = {
 };
 
 EnumPropertyItem cache_modifier_type_items[] = {
-	{eCacheModifierType_HairSimulation, "HAIR_SIMULATION", ICON_HAIR, "Hair Simulation", ""},
-	{0, NULL, 0, NULL, NULL}
+    {eCacheModifierType_HairSimulation, "HAIR_SIMULATION", ICON_HAIR, "Hair Simulation", ""},
+    {eCacheModifierType_ForceField, "FORCE_FIELD", ICON_FORCE_FORCE, "Force Field", ""},
+    {0, NULL, 0, NULL, NULL}
 };
 
 #ifdef RNA_RUNTIME
@@ -108,6 +109,8 @@ static StructRNA *rna_CacheModifier_refine(struct PointerRNA *ptr)
 	switch ((eCacheModifier_Type)md->type) {
 		case eCacheModifierType_HairSimulation:
 			return &RNA_HairSimulationCacheModifier;
+		case eCacheModifierType_ForceField:
+			return &RNA_ForceFieldCacheModifier;
 			
 		/* Default */
 		case eCacheModifierType_None:
@@ -170,7 +173,15 @@ static void rna_CacheLibrary_modifier_clear(CacheLibrary *cachelib, bContext *UN
 
 /* ------------------------------------------------------------------------- */
 
-static int rna_HairSimulationCacheModifier_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+static int rna_CacheLibraryModifier_mesh_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+{
+	/*HairSimCacheModifier *hsmd = ptr->data;*/
+	Object *ob = value.data;
+	
+	return ob->type == OB_MESH && ob->data != NULL;
+}
+
+static int rna_CacheLibraryModifier_hair_object_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	/*HairSimCacheModifier *hsmd = ptr->data;*/
 	Object *ob = value.data;
@@ -326,7 +337,7 @@ static void rna_def_cache_modifier_hair_simulation(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "object");
 	RNA_def_property_struct_type(prop, "Object");
-	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_HairSimulationCacheModifier_object_poll");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_CacheLibraryModifier_hair_object_poll");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Object", "Object whose cache to simulate");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
@@ -348,6 +359,25 @@ static void rna_def_cache_modifier_hair_simulation(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "HairSimulationParameters");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Simulation Parameters", "Parameters of the simulation");
+}
+
+static void rna_def_cache_modifier_force_field(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "ForceFieldCacheModifier", "CacheLibraryModifier");
+	RNA_def_struct_sdna(srna, "ForceFieldCacheModifier");
+	RNA_def_struct_ui_text(srna, "Force Field Cache Modifier", "Use an object as a force field");
+	RNA_def_struct_ui_icon(srna, ICON_FORCE_FORCE);
+	
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "object");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_CacheLibraryModifier_mesh_object_poll");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "Object whose cache to simulate");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 }
 
 static void rna_def_cache_modifier(BlenderRNA *brna)
@@ -375,6 +405,7 @@ static void rna_def_cache_modifier(BlenderRNA *brna)
 	RNA_def_struct_name_property(srna, prop);
 	
 	rna_def_cache_modifier_hair_simulation(brna);
+	rna_def_cache_modifier_force_field(brna);
 }
 
 static void rna_def_cache_library_modifiers(BlenderRNA *brna, PropertyRNA *cprop)

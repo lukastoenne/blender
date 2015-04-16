@@ -474,6 +474,10 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
         effector_weights_ui(self, context, params.effector_weights, 'HAIR')
 
+    def FORCE_FIELD(self, context, layout, cachelib, md):
+        col = layout.column()
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
     bl_label = "Relations Extras"

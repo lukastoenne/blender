@@ -44,6 +44,7 @@ extern "C" {
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_cache_library.h"
 #include "BKE_cloth.h"
 #include "BKE_collision.h"
 #include "BKE_colortools.h"
@@ -1409,7 +1410,8 @@ static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairS
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */
-static void strands_calc_force(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene, ListBase *effectors)
+static void strands_calc_force(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene,
+                               ListBase *effectors, CacheEffector *cache_effectors, int tot_cache_effectors)
 {
 	unsigned int numverts = strands->totverts;
 	
@@ -1432,16 +1434,31 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 #endif
 	
 	/* handle external forces like wind */
-	if (effectors) {
+	if (effectors || (cache_effectors && tot_cache_effectors > 0)) {
 		/* cache per-vertex forces to avoid redundant calculation */
 		float (*ext_forces)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
-		for (i = 0; i < numverts; ++i) {
-			float x[3], v[3];
-			EffectedPoint epoint;
-			
-			BPH_mass_spring_get_motion_state(data, i, x, v);
-			pd_point_from_loc(scene, x, v, i, &epoint);
-			pdDoEffectors(effectors, NULL, params->effector_weights, &epoint, ext_forces[i], NULL);
+		
+		if (effectors) {
+			for (i = 0; i < numverts; ++i) {
+				float x[3], v[3];
+				EffectedPoint epoint;
+				
+				BPH_mass_spring_get_motion_state(data, i, x, v);
+				pd_point_from_loc(scene, x, v, i, &epoint);
+				pdDoEffectors(effectors, NULL, params->effector_weights, &epoint, ext_forces[i], NULL);
+			}
+		}
+		
+		if (cache_effectors && tot_cache_effectors > 0) {
+			for (i = 0; i < numverts; ++i) {
+				CacheEffectorPoint point;
+				BPH_mass_spring_get_motion_state(data, i, point.x, point.v);
+				
+				CacheEffectorResult result;
+				if (BKE_cache_effectors_eval(cache_effectors, tot_cache_effectors, &point, &result) > 0) {
+					add_v3_v3(ext_forces[i], result.f);
+				}
+			}
 		}
 		
 		for (i = 0; i < numverts; ++i) {
@@ -1496,7 +1513,8 @@ static void strands_calc_root_location(Strands *strands, float mat[4][4], Implic
 /* XXX Do we need to take fictitious forces from the moving and/or accelerated frame of reference into account?
  * This would mean we pass not only the basic world transform mat, but also linear/angular velocity and acceleration.
  */
-bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, HairSimParams *params, float frame, float frame_prev, Scene *scene, ListBase *effectors)
+bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, HairSimParams *params, float frame, float frame_prev, Scene *scene,
+                       ListBase *effectors, CacheEffector *cache_effectors, int tot_cache_effectors)
 {
 	if (params->timescale == 0.0f || params->substeps < 1)
 		return false;
@@ -1545,7 +1563,7 @@ bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, Hai
 		BPH_mass_spring_clear_forces(id);
 		
 		// calculate forces
-		strands_calc_force(strands, mat, params, id, frame, scene, effectors);
+		strands_calc_force(strands, mat, params, id, frame, scene, effectors, cache_effectors, tot_cache_effectors);
 		
 		// calculate new velocity and position
 		BPH_mass_spring_solve_velocities(id, dtime, &result);
