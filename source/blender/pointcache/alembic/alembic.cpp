@@ -22,8 +22,11 @@
 
 #include "abc_reader.h"
 #include "abc_writer.h"
+#include "abc_cloth.h"
 #include "abc_group.h"
 #include "abc_mesh.h"
+#include "abc_object.h"
+#include "abc_particles.h"
 
 namespace PTC {
 
@@ -42,6 +45,65 @@ class AbcFactory : public Factory {
 	ReaderArchive *open_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
 	{
 		return AbcReaderArchive::open(scene, name, error_handler);
+	}
+	
+	Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob)
+	{
+		return new AbcObjectWriter(name, scene, ob, true, true);
+	}
+
+	Reader *create_reader_object(const std::string &name, Object *ob)
+	{
+		return new AbcObjectReader(name, ob);
+	}
+	
+	Writer *create_writer_group(const std::string &name, Group *group)
+	{
+		return new AbcGroupWriter(name, group);
+	}
+	
+	Reader *create_reader_group(const std::string &name, Group *group)
+	{
+		return new AbcGroupReader(name, group);
+	}
+	
+	
+	/* Cloth */
+	Writer *create_writer_cloth(const std::string &name, Object *ob, ClothModifierData *clmd)
+	{
+		return new AbcClothWriter(name, ob, clmd);
+	}
+	
+	Reader *create_reader_cloth(const std::string &name, Object *ob, ClothModifierData *clmd)
+	{
+		return new AbcClothReader(name, ob, clmd);
+	}
+	
+	/* Modifier Stack */
+	Writer *create_writer_derived_mesh(const std::string &name, Object *ob, DerivedMesh **dm_ptr)
+	{
+		return new AbcDerivedMeshWriter(name, ob, dm_ptr);
+	}
+	
+	Reader *create_reader_derived_mesh(const std::string &name, Object *ob)
+	{
+		return new AbcDerivedMeshReader(name, ob);
+	}
+	
+	Writer *create_writer_derived_final_realtime(const std::string &name, Object *ob)
+	{
+		return new AbcDerivedFinalRealtimeWriter(name, ob);
+	}
+	
+	Writer *create_writer_derived_final_render(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr)
+	{
+		return new AbcDerivedFinalRenderWriter(name, scene, ob, render_dm_ptr);
+	}
+	
+	
+	Writer *create_writer_dupligroup(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib)
+	{
+		return new AbcDupligroupWriter(name, eval_ctx, scene, group, cachelib);
 	}
 	
 	Writer *create_writer_duplicache(const std::string &name, Group *group, DupliCache *dupcache, int datatypes, bool do_sim_debug)

@@ -31,11 +31,7 @@ class WriterArchive {
 public:
 	virtual ~WriterArchive() {}
 	
-	void set_pass(PTCPass pass) { m_pass = pass; }
-	PTCPass pass() const { return m_pass; }
-	
-private:
-	PTCPass m_pass;
+	virtual void use_render(bool enable) = 0;
 };
 
 class Writer {

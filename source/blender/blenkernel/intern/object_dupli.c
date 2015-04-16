@@ -1385,7 +1385,6 @@ void BKE_dupli_object_data_clear(DupliObjectData *data)
 		 */
 		data->dm->needsFree = true;
 		data->dm->release(data->dm);
-		data->dm = NULL;
 	}
 	
 	for (link = data->strands.first; link; link = link->next) {
@@ -1408,10 +1407,8 @@ void BKE_dupli_object_data_set_mesh(DupliObjectData *data, DerivedMesh *dm)
 	}
 	
 	data->dm = dm;
-	if (dm) {
-		/* we own this dm now and need to protect it until we free it ourselves */
-		dm->needsFree = false;
-	}
+	/* we own this dm now and need to protect it until we free it ourselves */
+	dm->needsFree = false;
 	
 	dupli_cache_calc_boundbox(data);
 }
@@ -1552,7 +1549,13 @@ void BKE_dupli_cache_free(DupliCache *dupcache)
 
 void BKE_dupli_cache_clear(DupliCache *dupcache)
 {
-	BKE_dupli_cache_clear_instances(dupcache);
+	DupliObject *dob, *dob_next;
+	for (dob = dupcache->duplilist.first; dob; dob = dob_next) {
+		dob_next = dob->next;
+		
+		dupli_object_free(dob);
+	}
+	BLI_listbase_clear(&dupcache->duplilist);
 	
 	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
 }
@@ -1566,19 +1569,6 @@ void BKE_dupli_cache_clear_instances(DupliCache *dupcache)
 		dupli_object_free(dob);
 	}
 	BLI_listbase_clear(&dupcache->duplilist);
-}
-
-void BKE_dupli_cache_clear_data(DupliCache *dupcache)
-{
-	GHashIterator iter;
-	
-	BKE_dupli_cache_clear_instances(dupcache);
-	
-	BLI_ghashIterator_init(&iter, dupcache->ghash);
-	for (; !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
-		DupliObjectData *dobdata = BLI_ghashIterator_getValue(&iter);
-		BKE_dupli_object_data_clear(dobdata);
-	}
 }
 
 static DupliObjectData *dupli_cache_add_object_data(DupliCache *dupcache, Object *ob)
@@ -1614,6 +1604,8 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 {
 	DupliObject *dob;
 	
+	BKE_dupli_cache_clear(dupcache);
+	
 	if (!(group && cachelib))
 		return;
 	
@@ -1626,61 +1618,62 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 	
 	for (dob = dupcache->duplilist.first; dob; dob = dob->next) {
 		DupliObjectData *data = BKE_dupli_cache_find_data(dupcache, dob->ob);
-		ParticleSystem *psys;
-		
-		if (!data)
+		if (!data) {
+			ParticleSystem *psys;
+			
 			data = dupli_cache_add_object_data(dupcache, dob->ob);
-		
-		if (cachelib->data_types & CACHE_TYPE_DERIVED_MESH) {
-			if (dob->ob->type == OB_MESH) {
-				DerivedMesh *dm;
-				
-				if (eval_ctx->mode == DAG_EVAL_RENDER) {
-					dm = mesh_create_derived_render(scene, dob->ob, CD_MASK_BAREMESH);
-				}
-				else {
-					dm = mesh_create_derived_view(scene, dob->ob, CD_MASK_BAREMESH);
-				}
-				
-				if (dm)
-					BKE_dupli_object_data_set_mesh(data, dm);
-			}
-		}
-		
-		for (psys = dob->ob->particlesystem.first; psys; psys = psys->next) {
-			if (cachelib->data_types & CACHE_TYPE_HAIR) {
-				if (psys->part && psys->part->type == PART_HAIR) {
-					int numstrands = psys->totpart;
-					int numverts = count_hair_verts(psys);
-					ParticleData *pa;
-					HairKey *hkey;
-					int p, k;
+			
+			if (cachelib->data_types & CACHE_TYPE_DERIVED_MESH) {
+				if (dob->ob->type == OB_MESH) {
+					DerivedMesh *dm;
 					
-					Strands *strands = BKE_strands_new(numstrands, numverts);
-					StrandsCurve *scurve = strands->curves;
-					StrandsVertex *svert = strands->verts;
-					
-					for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
-						float hairmat[4][4];
-						psys_mat_hair_to_object(dob->ob, data->dm, psys->part->from, pa, hairmat);
-						
-						scurve->numverts = pa->totkey;
-						copy_m3_m4(scurve->root_matrix, hairmat);
-						
-						for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
-							mul_v3_m4v3(svert->co, hairmat, hkey->co);
-							if (calc_strands_base)
-								copy_v3_v3(svert->base, svert->co);
-							svert->time = hkey->time;
-							svert->weight = hkey->weight;
-							
-							++svert;
-						}
-						
-						++scurve;
+					if (eval_ctx->mode == DAG_EVAL_RENDER) {
+						dm = mesh_create_derived_render(scene, dob->ob, CD_MASK_BAREMESH);
+					}
+					else {
+						dm = mesh_create_derived_view(scene, dob->ob, CD_MASK_BAREMESH);
 					}
 					
-					BKE_dupli_object_data_add_strands(data, psys->name, strands);
+					if (dm)
+						BKE_dupli_object_data_set_mesh(data, dm);
+				}
+			}
+			
+			for (psys = dob->ob->particlesystem.first; psys; psys = psys->next) {
+				if (cachelib->data_types & CACHE_TYPE_HAIR) {
+					if (psys->part && psys->part->type == PART_HAIR) {
+						int numstrands = psys->totpart;
+						int numverts = count_hair_verts(psys);
+						ParticleData *pa;
+						HairKey *hkey;
+						int p, k;
+						
+						Strands *strands = BKE_strands_new(numstrands, numverts);
+						StrandsCurve *scurve = strands->curves;
+						StrandsVertex *svert = strands->verts;
+						
+						for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+							float hairmat[4][4];
+							psys_mat_hair_to_object(dob->ob, data->dm, psys->part->from, pa, hairmat);
+							
+							scurve->numverts = pa->totkey;
+							copy_m3_m4(scurve->root_matrix, hairmat);
+							
+							for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+								copy_v3_v3(svert->co, hkey->co);
+								if (calc_strands_base)
+									copy_v3_v3(svert->base, hkey->co);
+								svert->time = hkey->time;
+								svert->weight = hkey->weight;
+								
+								++svert;
+							}
+							
+							++scurve;
+						}
+						
+						BKE_dupli_object_data_add_strands(data, psys->name, strands);
+					}
 				}
 			}
 		}

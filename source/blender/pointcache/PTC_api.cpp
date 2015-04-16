@@ -51,6 +51,25 @@ class StubFactory : public Factory {
 	const std::string &get_default_extension() { static std::string ext = ""; return ext; }
 	WriterArchive *open_writer_archive(Scene */*scene*/, const std::string &/*name*/, ErrorHandler */*error_handler*/) { return NULL; }
 	ReaderArchive *open_reader_archive(Scene */*scene*/, const std::string &/*name*/, ErrorHandler */*error_handler*/) { return NULL; }
+	Writer *create_writer_object(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/) { return NULL; }
+	Reader *create_reader_object(const std::string &/*name*/, Object */*ob*/) { return NULL; }
+	Writer *create_writer_group(const std::string &/*name*/, Group */*group*/) { return NULL; }
+	Reader *create_reader_group(const std::string &/*name*/, Group */*group*/) { return NULL; }
+	Writer *create_writer_particles(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Reader *create_reader_particles(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Writer *create_writer_hair_dynamics(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Reader *create_reader_hair_dynamics(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Writer *create_writer_particles_pathcache_parents(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Reader *create_reader_particles_pathcache_parents(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Writer *create_writer_particles_pathcache_children(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Reader *create_reader_particles_pathcache_children(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
+	Writer *create_writer_cloth(const std::string &/*name*/, Object */*ob*/, ClothModifierData */*clmd*/) { return NULL; }
+	Reader *create_reader_cloth(const std::string &/*name*/, Object */*ob*/, ClothModifierData */*clmd*/) { return NULL; }
+	Writer *create_writer_derived_mesh(const std::string &/*name*/, Object */*ob*/, DerivedMesh **/*dm_ptr*/) { return NULL; }
+	Reader *create_reader_derived_mesh(const std::string &/*name*/, Object */*ob*/) { return NULL; }
+	Writer *create_writer_derived_final_realtime(const std::string &/*name*/, Object */*ob*/) { return NULL; }
+	Writer *create_writer_derived_final_render(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/, DerivedMesh **/*render_dm_ptr*/) { return NULL; }
+	Writer *create_writer_dupligroup(const std::string &/*name*/, EvaluationContext */*eval_ctx*/, Scene */*scene*/, Group */*group*/, CacheLibrary */*cachelib*/) { return NULL; }
 	Writer *create_writer_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/, int /*datatypes*/, bool /*do_sim_debug*/) { return NULL; }
 	Reader *create_reader_duplicache(const std::string &/*name*/, Group */*group*/, DupliCache */*dupcache*/, bool /*read_strands_motion*/, bool /*read_strands_children*/, bool /*do_sim_debug*/) { return NULL; }
 	Reader *create_reader_duplicache_object(const std::string &/*name*/, Object */*ob*/, DupliObjectData */*data*/, bool /*read_strands_motion*/, bool /*read_strands_children*/) { return NULL; }
@@ -126,10 +145,10 @@ void PTC_close_writer_archive(PTCWriterArchive *_archive)
 	delete archive;
 }
 
-void PTC_writer_archive_set_pass(PTCWriterArchive *_archive, PTCPass pass)
+void PTC_writer_archive_use_render(PTCWriterArchive *_archive, bool enable)
 {
 	PTC::WriterArchive *archive = (PTC::WriterArchive *)_archive;
-	archive->set_pass(pass);
+	archive->use_render(enable);
 }
 
 PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path)
@@ -143,10 +162,10 @@ void PTC_close_reader_archive(PTCReaderArchive *_archive)
 	delete archive;
 }
 
-void PTC_reader_archive_set_pass(PTCReaderArchive *_archive, PTCPass pass)
+void PTC_reader_archive_use_render(PTCReaderArchive *_archive, bool enable)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	archive->set_pass(pass);
+	archive->use_render(enable);
 }
 
 void PTC_writer_init(PTCWriter *_writer, PTCWriterArchive *_archive)
@@ -223,6 +242,11 @@ void PTC_get_archive_info(PTCReaderArchive *_archive, void (*stream)(void *, con
 }
 
 
+PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_dupligroup(name, eval_ctx, scene, group, cachelib);
+}
+
 PTCWriter *PTC_writer_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, int datatypes, bool do_sim_debug)
 {
 	return (PTCWriter *)PTC::Factory::alembic->create_writer_duplicache(name, group, dupcache, datatypes, do_sim_debug);
@@ -239,4 +263,125 @@ PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, str
                                         bool read_strands_motion, bool read_strands_children)
 {
 	return (PTCReader *)PTC::Factory::alembic->create_reader_duplicache_object(name, ob, data, read_strands_motion, read_strands_children);
+}
+
+
+/* get writer/reader from RNA type */
+PTCWriter *PTC_writer_from_rna(Scene */*scene*/, PointerRNA */*ptr*/)
+{
+#if 0
+#if 0
+	if (RNA_struct_is_a(ptr->type, &RNA_ParticleSystem)) {
+		Object *ob = (Object *)ptr->id.data;
+		ParticleSystem *psys = (ParticleSystem *)ptr->data;
+		return PTC_writer_particles_combined(scene, ob, psys);
+	}
+#endif
+	if (RNA_struct_is_a(ptr->type, &RNA_ClothModifier)) {
+		Object *ob = (Object *)ptr->id.data;
+		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+		return PTC_writer_cloth(scene, ob, clmd);
+	}
+#endif
+	return NULL;
+}
+
+PTCReader *PTC_reader_from_rna(Scene */*scene*/, PointerRNA */*ptr*/)
+{
+#if 0
+	if (RNA_struct_is_a(ptr->type, &RNA_ParticleSystem)) {
+		Object *ob = (Object *)ptr->id.data;
+		ParticleSystem *psys = (ParticleSystem *)ptr->data;
+		/* XXX particles are bad ...
+		 * this can be either the actual particle cache or the hair dynamics cache,
+		 * which is actually the cache of the internal cloth modifier
+		 */
+		bool use_cloth_cache = psys->part->type == PART_HAIR && (psys->flag & PSYS_HAIR_DYNAMICS);
+		if (use_cloth_cache && psys->clmd)
+			return PTC_reader_cloth(scene, ob, psys->clmd);
+		else
+			return PTC_reader_particles(scene, ob, psys);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_ClothModifier)) {
+		Object *ob = (Object *)ptr->id.data;
+		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+		return PTC_reader_cloth(scene, ob, clmd);
+	}
+#endif
+	return NULL;
+}
+
+
+/* ==== CLOTH ==== */
+
+PTCWriter *PTC_writer_cloth(const char *name, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_cloth(name, ob, clmd);
+}
+
+PTCReader *PTC_reader_cloth(const char *name, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCReader *)PTC::Factory::alembic->create_reader_cloth(name, ob, clmd);
+}
+
+
+/* ==== MESH ==== */
+
+PTCWriter *PTC_writer_derived_mesh(const char *name, Object *ob, DerivedMesh **dm_ptr)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_mesh(name, ob, dm_ptr);
+}
+
+PTCReader *PTC_reader_derived_mesh(const char *name, Object *ob)
+{
+	return (PTCReader *)PTC::Factory::alembic->create_reader_derived_mesh(name, ob);
+}
+
+struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(PTCReader *_reader)
+{
+	DerivedMeshReader *reader = (DerivedMeshReader *)_reader;
+	return reader->acquire_result();
+}
+
+void PTC_reader_derived_mesh_discard_result(PTCReader *_reader)
+{
+	DerivedMeshReader *reader = (DerivedMeshReader *)_reader;
+	reader->discard_result();
+}
+
+
+PTCWriter *PTC_writer_derived_final_realtime(const char *name, Object *ob)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final_realtime(name, ob);
+}
+
+PTCWriter *PTC_writer_derived_final_render(const char *name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_derived_final_render(name, scene, ob, render_dm_ptr);
+}
+
+
+/* ==== OBJECT ==== */
+
+PTCWriter *PTC_writer_object(const char *name, Scene *scene, Object *ob)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_object(name, scene, ob);
+}
+
+PTCReader *PTC_reader_object(const char *name, Object *ob)
+{
+	return (PTCReader *)PTC::Factory::alembic->create_reader_object(name, ob);
+}
+
+
+/* ==== GROUP ==== */
+
+PTCWriter *PTC_writer_group(const char *name, Group *group)
+{
+	return (PTCWriter *)PTC::Factory::alembic->create_writer_group(name, group);
+}
+
+PTCReader *PTC_reader_group(const char *name, Group *group)
+{
+	return (PTCReader *)PTC::Factory::alembic->create_writer_group(name, group);
 }

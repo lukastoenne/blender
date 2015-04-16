@@ -601,4 +601,19 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
+/* ========================================================================= */
+
+AbcDerivedFinalRealtimeWriter::AbcDerivedFinalRealtimeWriter(const std::string &name, Object *ob) :
+    AbcDerivedMeshWriter(name, ob, &ob->derivedFinal)
+{
+}
+
+
+AbcDerivedFinalRenderWriter::AbcDerivedFinalRenderWriter(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr) :
+    AbcDerivedMeshWriter(name, ob, render_dm_ptr),
+    m_scene(scene)
+{
+}
+
+
 } /* namespace PTC */

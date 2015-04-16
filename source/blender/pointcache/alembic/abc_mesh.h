@@ -116,6 +116,38 @@ private:
 	CustomDataReader m_loop_data_reader;
 };
 
+
+/* -------------------------------------------------------------------------
+ * Writing derived mesh results requires different variants
+ * depending on viewport/render output and whether a cache modifier is used.
+ * 
+ * Render DMs are constructed on-the-fly for each sample write, since they
+ * are not constructed immediately during scene frame updates. The writer is
+ * expected to only be called once per frame and object.
+ * 
+ * If a cache modifier is used it must be have be activate at the time when
+ * the DM is built. For viewport output this means it should activate the
+ * modifier during it's whole lifetime, so that it caches meshes during the
+ * scene frame update. For render output the modifier should only be active
+ * during the render DM construction.
+ * ------------------------------------------------------------------------- */
+
+
+class AbcDerivedFinalRealtimeWriter : public AbcDerivedMeshWriter {
+public:
+	AbcDerivedFinalRealtimeWriter(const std::string &name, Object *ob);
+};
+
+
+class AbcDerivedFinalRenderWriter : public AbcDerivedMeshWriter {
+public:
+	AbcDerivedFinalRenderWriter(const std::string &name, Scene *scene, Object *ob, DerivedMesh **render_dm_ptr);
+	
+private:
+	Scene *m_scene;
+};
+
+
 } /* namespace PTC */
 
 #endif  /* PTC_MESH_H */

@@ -60,11 +60,11 @@ const char *PTC_get_default_archive_extension(void);
 
 struct PTCWriterArchive *PTC_open_writer_archive(struct Scene *scene, const char *path);
 void PTC_close_writer_archive(struct PTCWriterArchive *archive);
-void PTC_writer_archive_set_pass(struct PTCWriterArchive *archive, PTCPass pass);
+void PTC_writer_archive_use_render(struct PTCWriterArchive *archive, bool enable);
 
 struct PTCReaderArchive *PTC_open_reader_archive(struct Scene *scene, const char *path);
 void PTC_close_reader_archive(struct PTCReaderArchive *archive);
-void PTC_reader_archive_set_pass(struct PTCReaderArchive *archive, PTCPass pass);
+void PTC_reader_archive_use_render(struct PTCReaderArchive *archive, bool enable);
 
 void PTC_writer_init(struct PTCWriter *writer, struct PTCWriterArchive *archive);
 void PTC_writer_create_refs(struct PTCWriter *writer);
@@ -82,12 +82,37 @@ PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
 void PTC_get_archive_info(struct PTCReaderArchive *archive, void (*stream)(void *, const char *), void *userdata);
 
+struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib);
 struct PTCWriter *PTC_writer_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, int datatypes, bool do_sim_debug);
 
 struct PTCReader *PTC_reader_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache,
                                         bool read_strands_motion, bool read_strands_children, bool read_sim_debug);
 struct PTCReader *PTC_reader_duplicache_object(const char *name, struct Object *ob, struct DupliObjectData *data,
                                                bool read_strands_motion, bool read_strands_children);
+
+/* get writer/reader from RNA type */
+struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
+struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
+
+/* Object */
+struct PTCWriter *PTC_writer_object(const char *name, struct Scene *scene, struct Object *ob);
+struct PTCReader *PTC_reader_object(const char *name, struct Object *ob);
+
+/* Group */
+struct PTCWriter *PTC_writer_group(const char *name, struct Group *group);
+struct PTCReader *PTC_reader_group(const char *name, struct Group *group);
+
+/* Cloth */
+struct PTCWriter *PTC_writer_cloth(const char *name, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCReader *PTC_reader_cloth(const char *name, struct Object *ob, struct ClothModifierData *clmd);
+
+struct PTCWriter *PTC_writer_derived_mesh(const char *name, struct Object *ob, struct DerivedMesh **dm_ptr);
+struct PTCReader *PTC_reader_derived_mesh(const char *name, struct Object *ob);
+struct DerivedMesh *PTC_reader_derived_mesh_acquire_result(struct PTCReader *reader);
+void PTC_reader_derived_mesh_discard_result(struct PTCReader *reader);
+
+struct PTCWriter *PTC_writer_derived_final_realtime(const char *name, struct Object *ob);
+struct PTCWriter *PTC_writer_derived_final_render(const char *name, struct Scene *scene, struct Object *ob, struct DerivedMesh **render_dm_ptr);
 
 #ifdef __cplusplus
 } /* extern C */

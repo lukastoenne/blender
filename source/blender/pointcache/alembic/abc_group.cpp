@@ -49,6 +49,184 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
+AbcGroupWriter::AbcGroupWriter(const std::string &name, Group *group) :
+    GroupWriter(group, name)
+{
+}
+
+void AbcGroupWriter::init_abc()
+{
+	if (m_abc_object)
+		return;
+	
+	m_abc_object = abc_archive()->add_id_object<OObject>((ID *)m_group);
+}
+
+void AbcGroupWriter::create_refs()
+{
+	GroupObject *gob = (GroupObject *)m_group->gobject.first;
+	int i = 0;
+	for (; gob; gob = gob->next, ++i) {
+		OObject abc_object = abc_archive()->get_id_object((ID *)gob->ob);
+		if (abc_object) {
+			std::stringstream ss;
+			ss << i;
+			m_abc_object.addChildInstance(abc_object, std::string("group_object") + ss.str());
+		}
+	}
+}
+
+void AbcGroupWriter::write_sample()
+{
+	if (!m_abc_object)
+		return;
+}
+
+
+AbcGroupReader::AbcGroupReader(const std::string &name, Group *group) :
+    GroupReader(group, name)
+{
+}
+
+void AbcGroupReader::init_abc(IObject object)
+{
+	if (m_abc_object)
+		return;
+	m_abc_object = object;
+}
+
+PTCReadSampleResult AbcGroupReader::read_sample(float frame)
+{
+	if (!m_abc_object)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+/* ========================================================================= */
+
+AbcDupligroupWriter::AbcDupligroupWriter(const std::string &name, EvaluationContext *eval_ctx, Scene *scene, Group *group, CacheLibrary *cachelib) :
+    GroupWriter(group, name),
+    m_eval_ctx(eval_ctx),
+    m_scene(scene),
+    m_cachelib(cachelib)
+{
+}
+
+AbcDupligroupWriter::~AbcDupligroupWriter()
+{
+	for (IDWriterMap::iterator it = m_id_writers.begin(); it != m_id_writers.end(); ++it) {
+		if (it->second)
+			delete it->second;
+	}
+}
+
+void AbcDupligroupWriter::init_abc()
+{
+	if (m_abc_group)
+		return;
+	
+	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
+}
+
+void AbcDupligroupWriter::write_sample_object(Object *ob)
+{
+	AbcWriter *ob_writer = find_id_writer((ID *)ob);
+	if (!ob_writer) {
+		bool do_mesh = (m_cachelib->data_types & CACHE_TYPE_DERIVED_MESH);
+		bool do_hair = (m_cachelib->data_types & CACHE_TYPE_HAIR);
+		
+		ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob, do_mesh, do_hair);
+		ob_writer->init(abc_archive());
+		m_id_writers.insert(IDWriterPair((ID *)ob, ob_writer));
+	}
+	
+	ob_writer->write_sample();
+}
+
+void AbcDupligroupWriter::write_sample_dupli(DupliObject *dob, int index)
+{
+	OObject abc_object = abc_archive()->get_id_object((ID *)dob->ob);
+	if (!abc_object)
+		return;
+	
+	std::stringstream ss;
+	ss << "DupliObject" << index;
+	std::string name = ss.str();
+	
+	OObject abc_dupli = m_abc_group.getChild(name);
+	OCompoundProperty props;
+	OM44fProperty prop_matrix;
+	OBoolProperty prop_visible;
+	if (!abc_dupli) {
+		abc_dupli = OObject(m_abc_group, name, 0);
+		m_object_writers.push_back(abc_dupli.getPtr());
+		props = abc_dupli.getProperties();
+		
+		abc_dupli.addChildInstance(abc_object, "object");
+		
+		prop_matrix = OM44fProperty(props, "matrix", abc_archive()->frame_sampling());
+		m_property_writers.push_back(prop_matrix.getPtr());
+		prop_visible = OBoolProperty(props, "visible", abc_archive()->frame_sampling());
+		m_property_writers.push_back(prop_visible.getPtr());
+	}
+	else {
+		props = abc_dupli.getProperties();
+		
+		prop_matrix = OM44fProperty(props.getProperty("matrix").getPtr()->asScalarPtr(), kWrapExisting);
+		prop_visible = OBoolProperty(props.getProperty("visible").getPtr()->asScalarPtr(), kWrapExisting);
+	}
+	
+	prop_matrix.set(M44f(dob->mat));
+	
+	bool show_object = (abc_archive()->use_render())? !(dob->ob->restrictflag & OB_RESTRICT_RENDER) : !(dob->ob->restrictflag & OB_RESTRICT_VIEW);
+	bool visible = show_object && (!dob->no_draw);
+	prop_visible.set(visible);
+}
+
+void AbcDupligroupWriter::write_sample()
+{
+	if (!m_abc_group)
+		return;
+	
+	ListBase *duplilist = group_duplilist_ex(m_eval_ctx, m_scene, m_group, true);
+	DupliObject *dob;
+	int i;
+	
+	/* LIB_DOIT is used to mark handled objects, clear first */
+	for (dob = (DupliObject *)duplilist->first; dob; dob = dob->next) {
+		if (dob->ob)
+			dob->ob->id.flag &= ~LIB_DOIT;
+	}
+	
+	/* write actual object data: duplicator itself + all instanced objects */
+	for (dob = (DupliObject *)duplilist->first; dob; dob = dob->next) {
+		if (dob->ob->id.flag & LIB_DOIT)
+			continue;
+		dob->ob->id.flag |= LIB_DOIT;
+		
+		write_sample_object(dob->ob);
+	}
+	
+	/* write dupli instances */
+	for (dob = (DupliObject *)duplilist->first, i = 0; dob; dob = dob->next, ++i) {
+		write_sample_dupli(dob, i);
+	}
+	
+	free_object_duplilist(duplilist);
+}
+
+AbcWriter *AbcDupligroupWriter::find_id_writer(ID *id) const
+{
+	IDWriterMap::const_iterator it = m_id_writers.find(id);
+	if (it == m_id_writers.end())
+		return NULL;
+	else
+		return it->second;
+}
+
+/* ------------------------------------------------------------------------- */
+
 AbcDupliCacheWriter::AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types, bool do_sim_debug) :
     GroupWriter(group, name),
     m_dupcache(dupcache),
@@ -82,7 +260,7 @@ void AbcDupliCacheWriter::init_abc()
 	
 	if (m_simdebug_writer) {
 		m_simdebug_writer->init(abc_archive());
-		m_simdebug_writer->init_abc(abc_archive()->top());
+		m_simdebug_writer->init_abc(abc_archive()->root());
 	}
 }
 
@@ -136,7 +314,9 @@ void AbcDupliCacheWriter::write_sample_dupli(DupliObject *dob, int index)
 	
 	prop_matrix.set(M44f(dob->mat));
 	
-	prop_visible.set(!dob->no_draw);
+	bool show_object = (abc_archive()->use_render())? !(dob->ob->restrictflag & OB_RESTRICT_RENDER) : !(dob->ob->restrictflag & OB_RESTRICT_VIEW);
+	bool visible = show_object && (!dob->no_draw);
+	prop_visible.set(visible);
 }
 
 void AbcDupliCacheWriter::write_sample()
@@ -155,15 +335,13 @@ void AbcDupliCacheWriter::write_sample()
 	}
 	BKE_dupli_cache_iter_free(iter);
 	
-	if (pass() == PTC_PASS_BASE) {
-		/* write dupli instances */
-		for (dob = (DupliObject *)m_dupcache->duplilist.first, i = 0; dob; dob = dob->next, ++i) {
-			write_sample_dupli(dob, i);
-		}
-		
-		if (m_simdebug_writer) {
-			m_simdebug_writer->write_sample();
-		}
+	/* write dupli instances */
+	for (dob = (DupliObject *)m_dupcache->duplilist.first, i = 0; dob; dob = dob->next, ++i) {
+		write_sample_dupli(dob, i);
+	}
+	
+	if (m_simdebug_writer) {
+		m_simdebug_writer->write_sample();
 	}
 }
 
@@ -311,7 +489,7 @@ PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
-	IObject abc_top = abc_archive()->top();
+	IObject abc_top = abc_archive()->root();
 	IObject abc_group = abc_archive()->get_id_object((ID *)m_group);
 	if (!abc_group)
 		return PTC_READ_SAMPLE_INVALID;
@@ -390,17 +568,7 @@ void AbcDupliCacheReader::build_object_map_add_group(Group *group)
 	}
 }
 
-
-/* ========================================================================= */
-
-static bool object_visible(Object *ob, PTCPass pass)
-{
-	switch (pass) {
-		case PTC_PASS_RENDER: return !(ob->restrictflag & OB_RESTRICT_RENDER);
-		case PTC_PASS_BASE: return !(ob->restrictflag & OB_RESTRICT_VIEW);
-	}
-	return true;
-}
+/* ------------------------------------------------------------------------- */
 
 AbcDupliObjectWriter::AbcDupliObjectWriter(const std::string &name, DupliObjectData *dupdata, bool do_mesh, bool do_strands) :
     ObjectWriter(dupdata->ob, name),
@@ -501,8 +669,8 @@ void AbcDupliObjectReader::init(ReaderArchive *archive)
 {
 	AbcReader::init(archive);
 	
-	if (abc_archive()->top().getChildHeader(m_name))
-		m_abc_object = abc_archive()->top().getChild(m_name);
+	if (abc_archive()->root().getChildHeader(m_name))
+		m_abc_object = abc_archive()->root().getChild(m_name);
 }
 
 void AbcDupliObjectReader::init_abc(IObject object)

@@ -33,14 +33,10 @@ class ReaderArchive {
 public:
 	virtual ~ReaderArchive() {}
 	
-	void set_pass(PTCPass pass) { m_pass = pass; }
-	PTCPass get_pass() const { return m_pass; }
+	virtual void use_render(bool enable) = 0;
 	
 	virtual bool get_frame_range(int &start_frame, int &end_frame) = 0;
 	virtual void get_info(void (*stream)(void *, const char *), void *userdata) = 0;
-	
-private:
-	PTCPass m_pass;
 };
 
 class Reader {

@@ -32,11 +32,6 @@ typedef enum PTCErrorLevel {
 
 typedef void (*PTCErrorCallback)(void *userdata, PTCErrorLevel level, const char *message);
 
-typedef enum PTCPass {
-	PTC_PASS_BASE = 0,
-	PTC_PASS_RENDER,
-} PTCPass;
-
 typedef enum PTCReadSampleResult {
 	PTC_READ_SAMPLE_INVALID = 0,	/* no valid result can be retrieved */
 	PTC_READ_SAMPLE_EARLY,			/* request time before first sample */

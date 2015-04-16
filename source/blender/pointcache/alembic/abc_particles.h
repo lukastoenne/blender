@@ -46,6 +46,49 @@ class AbcDerivedMeshWriter;
 class AbcDerivedMeshReader;
 
 
+class AbcHairChildrenWriter : public ParticlesWriter, public AbcWriter {
+public:
+	AbcHairChildrenWriter(const std::string &name, Object *ob, ParticleSystem *psys);
+	~AbcHairChildrenWriter();
+	
+	void init_abc(Abc::OObject parent);
+	
+	void write_sample();
+	
+private:
+	ParticleSystemModifierData *m_psmd;
+	
+	AbcGeom::OCurves m_curves;
+	AbcGeom::OM33fArrayProperty m_prop_root_matrix;
+	AbcGeom::OV3fArrayProperty m_prop_root_positions;
+	AbcGeom::OFloatGeomParam m_param_times;
+	AbcGeom::OInt32ArrayProperty m_prop_parents;
+	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
+};
+
+
+class AbcHairWriter : public ParticlesWriter, public AbcWriter {
+public:
+	AbcHairWriter(const std::string &name, Object *ob, ParticleSystem *psys);
+	~AbcHairWriter();
+	
+	void init(WriterArchive *archive);
+	void init_abc(Abc::OObject parent);
+	
+	void write_sample();
+	
+private:
+	ParticleSystemModifierData *m_psmd;
+	
+	AbcGeom::OCurves m_curves;
+	AbcGeom::OM33fGeomParam m_param_root_matrix;
+	AbcGeom::OFloatGeomParam m_param_times;
+	AbcGeom::OFloatGeomParam m_param_weights;
+	
+	AbcHairChildrenWriter m_child_writer;
+};
+
+
 class AbcStrandsChildrenWriter : public AbcWriter {
 public:
 	AbcStrandsChildrenWriter(const std::string &name, const std::string &abc_name, DupliObjectData *dobdata);
