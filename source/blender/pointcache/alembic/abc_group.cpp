@@ -147,8 +147,8 @@ void AbcDupligroupWriter::write_sample_object(Object *ob)
 static bool object_visible(Object *ob, PTCPass pass)
 {
 	switch (pass) {
-		case PTC_PASS_FINAL: return !(ob->restrictflag & OB_RESTRICT_RENDER);
-		case PTC_PASS_PREVIEW: return !(ob->restrictflag & OB_RESTRICT_VIEW);
+		case PTC_PASS_RENDER: return !(ob->restrictflag & OB_RESTRICT_RENDER);
+		case PTC_PASS_REALTIME: return !(ob->restrictflag & OB_RESTRICT_VIEW);
 	}
 	return true;
 }

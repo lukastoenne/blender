@@ -378,10 +378,10 @@ static void cache_get_read_flags(CacheLibrary *cachelib, eCacheLibrary_EvalMode 
 static PTCPass cache_pass_from_eval_mode(eCacheLibrary_EvalMode eval_mode)
 {
 	switch (eval_mode) {
-		case CACHE_LIBRARY_EVAL_RENDER: return PTC_PASS_FINAL;
-		case CACHE_LIBRARY_EVAL_REALTIME: return PTC_PASS_PREVIEW;
+		case CACHE_LIBRARY_EVAL_RENDER: return PTC_PASS_RENDER;
+		case CACHE_LIBRARY_EVAL_REALTIME: return PTC_PASS_REALTIME;
 	}
-	return PTC_PASS_FINAL;
+	return PTC_PASS_RENDER;
 }
 
 bool BKE_cache_read_dupli_cache(CacheLibrary *cachelib, DupliCache *dupcache,

@@ -103,7 +103,7 @@ void AbcObjectWriter::write_sample()
 	
 	if (m_dm_writer) {
 		switch (abc_archive()->get_pass()) {
-			case PTC_PASS_FINAL:
+			case PTC_PASS_RENDER:
 				m_final_dm = mesh_create_derived_render(m_scene, m_ob, CD_MASK_BAREMESH);
 				
 				if (m_final_dm) {
@@ -113,7 +113,7 @@ void AbcObjectWriter::write_sample()
 				}
 				break;
 			
-			case PTC_PASS_PREVIEW:
+			case PTC_PASS_REALTIME:
 				m_final_dm = m_ob->derivedFinal;
 				if (!m_final_dm)
 					m_final_dm = mesh_get_derived_final(m_scene, m_ob, CD_MASK_BAREMESH);

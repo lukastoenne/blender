@@ -273,8 +273,8 @@ void AbcHairChildrenWriter::write_sample()
 	
 	int keysteps = 0;
 	switch (abc_archive()->get_pass()) {
-		case PTC_PASS_FINAL: keysteps = m_psys->part->ren_step; break;
-		case PTC_PASS_PREVIEW: keysteps = m_psys->part->draw_step; break;
+		case PTC_PASS_RENDER: keysteps = m_psys->part->ren_step; break;
+		case PTC_PASS_REALTIME: keysteps = m_psys->part->draw_step; break;
 	}
 	int maxkeys = (1 << keysteps) + 1 + (m_psys->part->kink);
 	if (ELEM(m_psys->part->kink, PART_KINK_SPIRAL))

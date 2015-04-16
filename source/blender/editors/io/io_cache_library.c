@@ -332,7 +332,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_REALTIME) {
 			data->cache_eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
 			data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
-			PTC_writer_archive_set_pass(data->archive, PTC_PASS_PREVIEW);
+			PTC_writer_archive_set_pass(data->archive, PTC_PASS_REALTIME);
 			cache_library_bake_do(data, &process_data);
 		}
 		
@@ -341,7 +341,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_RENDER) {
 			data->cache_eval_mode = CACHE_LIBRARY_EVAL_RENDER;
 			data->eval_ctx.mode = DAG_EVAL_RENDER;
-			PTC_writer_archive_set_pass(data->archive, PTC_PASS_FINAL);
+			PTC_writer_archive_set_pass(data->archive, PTC_PASS_RENDER);
 			cache_library_bake_do(data, &process_data);
 		}
 		
