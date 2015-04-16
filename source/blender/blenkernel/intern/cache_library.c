@@ -379,7 +379,7 @@ static PTCPass cache_pass_from_eval_mode(eCacheLibrary_EvalMode eval_mode)
 {
 	switch (eval_mode) {
 		case CACHE_LIBRARY_EVAL_RENDER: return PTC_PASS_RENDER;
-		case CACHE_LIBRARY_EVAL_REALTIME: return PTC_PASS_REALTIME;
+		case CACHE_LIBRARY_EVAL_REALTIME: return PTC_PASS_BASE;
 	}
 	return PTC_PASS_RENDER;
 }

@@ -87,6 +87,8 @@ public:
 	
 	AbcWriterArchive *abc_archive() const { return m_abc_archive; }
 	
+	PTCPass pass() const { return m_abc_archive->pass(); }
+	
 private:
 	AbcWriterArchive *m_abc_archive;
 };

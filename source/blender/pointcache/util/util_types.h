@@ -33,8 +33,8 @@ typedef enum PTCErrorLevel {
 typedef void (*PTCErrorCallback)(void *userdata, PTCErrorLevel level, const char *message);
 
 typedef enum PTCPass {
-	PTC_PASS_RENDER = 0,
-	PTC_PASS_REALTIME,
+	PTC_PASS_BASE = 0,
+	PTC_PASS_RENDER,
 } PTCPass;
 
 typedef enum PTCReadSampleResult {

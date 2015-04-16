@@ -49,15 +49,6 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-static bool object_visible(Object *ob, PTCPass pass)
-{
-	switch (pass) {
-		case PTC_PASS_RENDER: return !(ob->restrictflag & OB_RESTRICT_RENDER);
-		case PTC_PASS_REALTIME: return !(ob->restrictflag & OB_RESTRICT_VIEW);
-	}
-	return true;
-}
-
 AbcDupliCacheWriter::AbcDupliCacheWriter(const std::string &name, Group *group, DupliCache *dupcache, int data_types, bool do_sim_debug) :
     GroupWriter(group, name),
     m_dupcache(dupcache),
@@ -145,8 +136,7 @@ void AbcDupliCacheWriter::write_sample_dupli(DupliObject *dob, int index)
 	
 	prop_matrix.set(M44f(dob->mat));
 	
-	bool visible = object_visible(dob->ob, abc_archive()->get_pass()) && (!dob->no_draw);
-	prop_visible.set(visible);
+	prop_visible.set(!dob->no_draw);
 }
 
 void AbcDupliCacheWriter::write_sample()
@@ -165,13 +155,15 @@ void AbcDupliCacheWriter::write_sample()
 	}
 	BKE_dupli_cache_iter_free(iter);
 	
-	/* write dupli instances */
-	for (dob = (DupliObject *)m_dupcache->duplilist.first, i = 0; dob; dob = dob->next, ++i) {
-		write_sample_dupli(dob, i);
-	}
-	
-	if (m_simdebug_writer) {
-		m_simdebug_writer->write_sample();
+	if (pass() == PTC_PASS_BASE) {
+		/* write dupli instances */
+		for (dob = (DupliObject *)m_dupcache->duplilist.first, i = 0; dob; dob = dob->next, ++i) {
+			write_sample_dupli(dob, i);
+		}
+		
+		if (m_simdebug_writer) {
+			m_simdebug_writer->write_sample();
+		}
 	}
 }
 
@@ -398,7 +390,17 @@ void AbcDupliCacheReader::build_object_map_add_group(Group *group)
 	}
 }
 
-/* ------------------------------------------------------------------------- */
+
+/* ========================================================================= */
+
+static bool object_visible(Object *ob, PTCPass pass)
+{
+	switch (pass) {
+		case PTC_PASS_RENDER: return !(ob->restrictflag & OB_RESTRICT_RENDER);
+		case PTC_PASS_BASE: return !(ob->restrictflag & OB_RESTRICT_VIEW);
+	}
+	return true;
+}
 
 AbcDupliObjectWriter::AbcDupliObjectWriter(const std::string &name, DupliObjectData *dupdata, bool do_mesh, bool do_strands) :
     ObjectWriter(dupdata->ob, name),

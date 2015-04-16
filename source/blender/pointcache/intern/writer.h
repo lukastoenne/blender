@@ -32,7 +32,7 @@ public:
 	virtual ~WriterArchive() {}
 	
 	void set_pass(PTCPass pass) { m_pass = pass; }
-	PTCPass get_pass() const { return m_pass; }
+	PTCPass pass() const { return m_pass; }
 	
 private:
 	PTCPass m_pass;
