@@ -254,8 +254,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	glGetBooleanv(GL_BLEND, (GLboolean *)&gl_blend);
 	glGetBooleanv(GL_DEPTH_TEST, (GLboolean *)&gl_depth);
 
-	glDepthMask(GL_FALSE);
-	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 
 	/* find cube vertex that is closest to the viewer */
@@ -438,8 +437,6 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	if (gl_depth) {
 		glEnable(GL_DEPTH_TEST);
 	}
-
-	glDepthMask(GL_TRUE);
 }
 
 #ifdef SMOKE_DEBUG_VELOCITY
