@@ -121,6 +121,7 @@ typedef enum eCacheModifier_Type {
 	eCacheModifierType_None                         = 0,
 	
 	eCacheModifierType_HairSimulation               = 1,
+	eCacheModifierType_ForceField                   = 2,
 	
 	NUM_CACHE_MODIFIER_TYPES
 } eCacheModifier_Type;
@@ -154,5 +155,21 @@ typedef struct HairSimCacheModifier {
 	
 	HairSimParams sim_params;
 } HairSimCacheModifier;
+
+typedef struct ForceFieldCacheModifier {
+	CacheModifier modifier;
+	
+	struct Object *object;
+	
+	int flag;
+	float strength;
+	float min_distance, max_distance;
+	float falloff;
+	int pad;
+} ForceFieldCacheModifier;
+
+typedef enum eForceFieldCacheModifier_Flag {
+	eForceFieldCacheModifier_Flag_DoubleSided           = (1 << 0),
+} eForceFieldCacheModifier_Flag;
 
 #endif

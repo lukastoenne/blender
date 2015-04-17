@@ -37,6 +37,7 @@
 struct ListBase;
 struct Main;
 struct bContext;
+struct DerivedMesh;
 struct Group;
 struct Object;
 struct Scene;
@@ -47,6 +48,7 @@ struct DupliObjectData;
 struct CacheModifier;
 struct ID;
 struct CacheProcessData;
+struct BVHTreeFromMesh;
 
 struct ClothModifierData;
 
@@ -166,5 +168,42 @@ void BKE_cache_modifier_clear(struct CacheLibrary *cachelib);
 struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, struct CacheModifier *md);
 
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
+
+typedef struct CacheEffectorInstance {
+	struct CacheEffectorInstance *next, *prev;
+	
+	float mat[4][4];
+	float imat[4][4];
+	// TODO add linear/angular velocity if necessary
+} CacheEffectorInstance;
+
+typedef struct CacheEffector {
+	int type;
+	
+	ListBase instances;
+	
+	struct DerivedMesh *dm;
+	struct BVHTreeFromMesh *treedata;
+	
+	float strength, falloff;
+	float mindist, maxdist;
+	bool double_sided;
+} CacheEffector;
+
+typedef enum eCacheEffector_Type {
+	eCacheEffector_Type_Deflect           = 0,
+} eCacheEffector_Type;
+
+typedef struct CacheEffectorPoint {
+	float x[3], v[3];
+} CacheEffectorPoint;
+
+typedef struct CacheEffectorResult {
+	float f[3];
+} CacheEffectorResult;
+
+int BKE_cache_effectors_get(struct CacheEffector *effectors, int max, struct CacheLibrary *cachelib, struct DupliCache *dupcache, float obmat[4][4]);
+void BKE_cache_effectors_free(struct CacheEffector *effectors, int tot);
+int BKE_cache_effectors_eval(struct CacheEffector *effectors, int tot, struct CacheEffectorPoint *point, struct CacheEffectorResult *result);
 
 #endif

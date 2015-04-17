@@ -43,12 +43,15 @@
 #include "DNA_cache_library_types.h"
 #include "DNA_group_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_anim.h"
+#include "BKE_bvhutils.h"
 #include "BKE_cache_library.h"
+#include "BKE_cdderivedmesh.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -620,6 +623,213 @@ void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *dat
 
 /* ------------------------------------------------------------------------- */
 
+static void effector_set_mesh(CacheEffector *eff, Object *ob, DerivedMesh *dm, bool create_dm, bool create_bvhtree, bool world_space)
+{
+	if (create_dm && dm) {
+		unsigned int numverts, i;
+		MVert *mvert, *mv;
+		
+		eff->dm = CDDM_copy(dm);
+		if (!eff->dm)
+			return;
+		
+		DM_ensure_tessface(eff->dm);
+		CDDM_calc_normals(eff->dm);
+		
+		numverts = eff->dm->getNumVerts(eff->dm);
+		mvert = eff->dm->getVertArray(eff->dm);
+		
+		if (world_space) {
+			/* convert to world coordinates */
+			for (i = 0, mv = mvert; i < numverts; ++i, ++mv) {
+				mul_m4_v3(ob->obmat, mv->co);
+			}
+		}
+		
+		if (create_bvhtree) {
+			if (eff->treedata)
+				free_bvhtree_from_mesh(eff->treedata);
+			else
+				eff->treedata = MEM_callocN(sizeof(BVHTreeFromMesh), "cache effector bvhtree data");
+			
+			bvhtree_from_mesh_faces(eff->treedata, eff->dm, 0.0, 2, 6);
+		}
+	}
+}
+
+static void effector_set_instances(CacheEffector *eff, Object *ob, float obmat[4][4], ListBase *duplilist)
+{
+	DupliObject *dob;
+	
+	for (dob = duplilist->first; dob; dob = dob->next) {
+		CacheEffectorInstance *inst;
+		
+		if (dob->ob != ob)
+			continue;
+		
+		inst = MEM_callocN(sizeof(CacheEffectorInstance), "cache effector instance");
+		mul_m4_m4m4(inst->mat, obmat, dob->mat);
+		invert_m4_m4(inst->imat, inst->mat);
+		
+		BLI_addtail(&eff->instances, inst);
+	}
+}
+
+static bool forcefield_get_effector(DupliCache *dupcache, float obmat[4][4], ForceFieldCacheModifier *ffmd, CacheEffector *eff)
+{
+	DupliObjectData *dobdata;
+	
+	if (!ffmd->object)
+		return false;
+	
+	dobdata = BKE_dupli_cache_find_data(dupcache, ffmd->object);
+	if (!dobdata)
+		return false;
+	
+	effector_set_mesh(eff, dobdata->ob, dobdata->dm, true, true, false);
+	effector_set_instances(eff, dobdata->ob, obmat, &dupcache->duplilist);
+	
+	eff->type = eCacheEffector_Type_Deflect;
+	eff->strength = ffmd->strength;
+	eff->falloff = ffmd->falloff;
+	eff->mindist = ffmd->min_distance;
+	eff->maxdist = ffmd->max_distance;
+	eff->double_sided = ffmd->flag & eForceFieldCacheModifier_Flag_DoubleSided;
+	
+	return true;
+}
+
+int BKE_cache_effectors_get(CacheEffector *effectors, int max, CacheLibrary *cachelib, DupliCache *dupcache, float obmat[4][4])
+{
+	CacheModifier *md;
+	int tot = 0;
+	
+	if (tot >= max)
+		return tot;
+	
+	memset(effectors, 0, sizeof(CacheEffector) * max);
+	
+	for (md = cachelib->modifiers.first; md; md = md->next) {
+		switch (md->type) {
+			case eCacheModifierType_ForceField:
+				if (forcefield_get_effector(dupcache, obmat, (ForceFieldCacheModifier *)md, &effectors[tot]))
+					tot++;
+				break;
+		}
+		
+		BLI_assert(tot <= max);
+		if (tot == max)
+			break;
+	}
+	
+	return tot;
+}
+
+void BKE_cache_effectors_free(CacheEffector *effectors, int tot)
+{
+	CacheEffector *eff;
+	int i;
+	
+	for (i = 0, eff = effectors; i < tot; ++i, ++eff) {
+		BLI_freelistN(&eff->instances);
+		
+		if (eff->treedata) {
+			free_bvhtree_from_mesh(eff->treedata);
+			MEM_freeN(eff->treedata);
+		}
+		
+		if (eff->dm) {
+			eff->dm->release(eff->dm);
+		}
+	}
+}
+
+static float cache_effector_falloff(const CacheEffector *eff, float distance)
+{
+	float mindist = eff->mindist;
+	float maxdist = eff->maxdist;
+	float falloff = eff->falloff;
+	float range = maxdist - mindist;
+	
+	if (range <= 0.0f)
+		return 0.0f;
+	
+	CLAMP_MIN(distance, eff->mindist);
+	CLAMP_MAX(distance, eff->maxdist);
+	CLAMP_MIN(falloff, 0.0f);
+	
+	return powf(1.0f - (distance - mindist) / range, falloff);
+}
+
+static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *inst, CacheEffectorPoint *point, CacheEffectorResult *result)
+{
+	BVHTreeNearest nearest = {0, };
+	float co[3];
+	
+	if (!eff->treedata)
+		return false;
+	
+	nearest.dist_sq = FLT_MAX;
+	
+	/* lookup in object space */
+	mul_v3_m4v3(co, inst->imat, point->x);
+	
+	BLI_bvhtree_find_nearest(eff->treedata->tree, co, &nearest, eff->treedata->nearest_callback, eff->treedata);
+	if (nearest.index < 0)
+		return false;
+	
+	/* convert back to world space */
+	mul_m4_v3(inst->mat, nearest.co);
+	
+	{
+		float vec[3], dist;
+		float factor;
+		
+		sub_v3_v3v3(vec, point->x, nearest.co);
+		
+		dist = normalize_v3(vec);
+		if (!eff->double_sided) {
+			/* dm normal also needed in world space */
+			mul_mat3_m4_v3(inst->mat, nearest.no);
+			
+			if (dot_v3v3(vec, nearest.no) < 0.0f)
+				dist = -dist;
+		}
+		
+		factor = cache_effector_falloff(eff, dist);
+		
+		mul_v3_v3fl(result->f, vec, eff->strength * factor);
+	}
+	
+	return true;
+}
+
+int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoint *point, CacheEffectorResult *result)
+{
+	CacheEffector *eff;
+	int i, applied = 0;
+	
+	zero_v3(result->f);
+	
+	for (i = 0, eff = effectors; i < tot; ++i, ++eff) {
+		const eCacheEffector_Type type = eff->type;
+		CacheEffectorInstance *inst;
+		
+		for (inst = eff->instances.first; inst; inst = inst->next) {
+			switch (type) {
+				case eCacheEffector_Type_Deflect:
+					if (cache_effector_deflect(eff, inst, point, result))
+						++applied;
+					break;
+			}
+		}
+	}
+	
+	return applied;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static void hairsim_params_init(HairSimParams *params)
 {
 	params->timescale = 1.0f;
@@ -709,10 +919,14 @@ static bool hairsim_find_data(HairSimCacheModifier *hsmd, DupliCache *dupcache, 
 
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode)
 {
+	static const int MAX_CACHE_EFFECTORS = 64;
+	
 	Object *ob;
 	Strands *strands;
 	float mat[4][4];
 	ListBase *effectors;
+	CacheEffector cache_effectors[MAX_CACHE_EFFECTORS];
+	int tot_cache_effectors;
 	struct Implicit_Data *solver_data;
 	
 	/* only perform hair sim once */
@@ -737,10 +951,12 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	BKE_strands_add_motion_state(strands);
 	solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
 	effectors = pdInitEffectors(ctx->scene, ob, NULL, hsmd->sim_params.effector_weights, true);
+	tot_cache_effectors = BKE_cache_effectors_get(cache_effectors, MAX_CACHE_EFFECTORS, ctx->cachelib, data->dupcache, data->mat);
 	
-	BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors);
+	BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors, cache_effectors, tot_cache_effectors);
 	
 	pdEndEffectors(&effectors);
+	BKE_cache_effectors_free(cache_effectors, tot_cache_effectors);
 	BPH_mass_spring_solver_free(solver_data);
 }
 
@@ -756,7 +972,43 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
     /* free */              (CacheModifier_FreeFunc)hairsim_free,
 };
 
+static void forcefield_init(ForceFieldCacheModifier *ffmd)
+{
+	ffmd->object = NULL;
+	
+	ffmd->strength = 0.0f;
+	ffmd->falloff = 1.0f;
+	ffmd->min_distance = 0.0f;
+	ffmd->max_distance = 1.0f;
+}
+
+static void forcefield_copy(ForceFieldCacheModifier *UNUSED(ffmd), ForceFieldCacheModifier *UNUSED(tffmd))
+{
+}
+
+static void forcefield_free(ForceFieldCacheModifier *UNUSED(ffmd))
+{
+}
+
+static void forcefield_foreach_id_link(ForceFieldCacheModifier *ffmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	walk(userdata, cachelib, &ffmd->modifier, (ID **)(&ffmd->object));
+}
+
+CacheModifierTypeInfo cacheModifierType_ForceField = {
+    /* name */              "ForceField",
+    /* structName */        "ForceFieldCacheModifier",
+    /* structSize */        sizeof(ForceFieldCacheModifier),
+
+    /* copy */              (CacheModifier_CopyFunc)forcefield_copy,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)forcefield_foreach_id_link,
+    /* process */           (CacheModifier_ProcessFunc)NULL,
+    /* init */              (CacheModifier_InitFunc)forcefield_init,
+    /* free */              (CacheModifier_FreeFunc)forcefield_free,
+};
+
 void BKE_cache_modifier_init(void)
 {
 	cache_modifier_type_set(eCacheModifierType_HairSimulation, &cacheModifierType_HairSimulation);
+	cache_modifier_type_set(eCacheModifierType_ForceField, &cacheModifierType_ForceField);
 }
