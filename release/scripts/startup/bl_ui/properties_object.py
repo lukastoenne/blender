@@ -475,8 +475,16 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         effector_weights_ui(self, context, params.effector_weights, 'HAIR')
 
     def FORCE_FIELD(self, context, layout, cachelib, md):
-        col = layout.column()
-        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        layout.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+
+        layout.prop(md, "strength")
+        layout.prop(md, "falloff")
+
+        row = layout.row()
+        row.prop(md, "min_distance")
+        row.prop(md, "max_distance")
+        
+        layout.prop(md, "use_double_sided")
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

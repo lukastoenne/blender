@@ -173,6 +173,7 @@ typedef struct CacheEffectorInstance {
 	struct CacheEffectorInstance *next, *prev;
 	
 	float mat[4][4];
+	float imat[4][4];
 	// TODO add linear/angular velocity if necessary
 } CacheEffectorInstance;
 
@@ -184,7 +185,9 @@ typedef struct CacheEffector {
 	struct DerivedMesh *dm;
 	struct BVHTreeFromMesh *treedata;
 	
-	float strength;
+	float strength, falloff;
+	float mindist, maxdist;
+	bool double_sided;
 } CacheEffector;
 
 typedef enum eCacheEffector_Type {

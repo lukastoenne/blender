@@ -669,6 +669,7 @@ static void effector_set_instances(CacheEffector *eff, Object *ob, float obmat[4
 		
 		inst = MEM_callocN(sizeof(CacheEffectorInstance), "cache effector instance");
 		mul_m4_m4m4(inst->mat, obmat, dob->mat);
+		invert_m4_m4(inst->imat, inst->mat);
 		
 		BLI_addtail(&eff->instances, inst);
 	}
@@ -685,11 +686,15 @@ static bool forcefield_get_effector(DupliCache *dupcache, float obmat[4][4], For
 	if (!dobdata)
 		return false;
 	
-	effector_set_mesh(eff, dobdata->ob, dobdata->dm, true, true, true);
+	effector_set_mesh(eff, dobdata->ob, dobdata->dm, true, true, false);
 	effector_set_instances(eff, dobdata->ob, obmat, &dupcache->duplilist);
 	
 	eff->type = eCacheEffector_Type_Deflect;
-	eff->strength = 1000.0f;
+	eff->strength = ffmd->strength;
+	eff->falloff = ffmd->falloff;
+	eff->mindist = ffmd->min_distance;
+	eff->maxdist = ffmd->max_distance;
+	eff->double_sided = ffmd->flag & eForceFieldCacheModifier_Flag_DoubleSided;
 	
 	return true;
 }
@@ -739,14 +744,62 @@ void BKE_cache_effectors_free(CacheEffector *effectors, int tot)
 	}
 }
 
+static float cache_effector_falloff(const CacheEffector *eff, float distance)
+{
+	float mindist = eff->mindist;
+	float maxdist = eff->maxdist;
+	float falloff = eff->falloff;
+	float range = maxdist - mindist;
+	
+	if (range <= 0.0f)
+		return 0.0f;
+	
+	CLAMP_MIN(distance, eff->mindist);
+	CLAMP_MAX(distance, eff->maxdist);
+	CLAMP_MIN(falloff, 0.0f);
+	
+	return powf(1.0f - (distance - mindist) / range, falloff);
+}
+
 static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *inst, CacheEffectorPoint *point, CacheEffectorResult *result)
 {
-	float vec[3], dist;
+	BVHTreeNearest nearest = {0, };
+	float co[3];
 	
-	sub_v3_v3v3(vec, point->x, inst->mat[3]);
-	dist = normalize_v3(vec);
+	if (!eff->treedata)
+		return false;
 	
-	mul_v3_v3fl(result->f, vec, eff->strength);
+	nearest.dist_sq = FLT_MAX;
+	
+	/* lookup in object space */
+	mul_v3_m4v3(co, inst->imat, point->x);
+	
+	BLI_bvhtree_find_nearest(eff->treedata->tree, co, &nearest, eff->treedata->nearest_callback, eff->treedata);
+	if (nearest.index < 0)
+		return false;
+	
+	/* convert back to world space */
+	mul_m4_v3(inst->mat, nearest.co);
+	
+	{
+		float vec[3], dist;
+		float factor;
+		
+		sub_v3_v3v3(vec, point->x, nearest.co);
+		
+		dist = normalize_v3(vec);
+		if (!eff->double_sided) {
+			/* dm normal also needed in world space */
+			mul_mat3_m4_v3(inst->mat, nearest.no);
+			
+			if (dot_v3v3(vec, nearest.no) < 0.0f)
+				dist = -dist;
+		}
+		
+		factor = cache_effector_falloff(eff, dist);
+		
+		mul_v3_v3fl(result->f, vec, eff->strength * factor);
+	}
 	
 	return true;
 }
@@ -922,6 +975,11 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
 static void forcefield_init(ForceFieldCacheModifier *ffmd)
 {
 	ffmd->object = NULL;
+	
+	ffmd->strength = 0.0f;
+	ffmd->falloff = 1.0f;
+	ffmd->min_distance = 0.0f;
+	ffmd->max_distance = 1.0f;
 }
 
 static void forcefield_copy(ForceFieldCacheModifier *UNUSED(ffmd), ForceFieldCacheModifier *UNUSED(tffmd))

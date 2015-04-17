@@ -378,6 +378,35 @@ static void rna_def_cache_modifier_force_field(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Object", "Object whose cache to simulate");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_ui_range(prop, -10000.0f, 10000.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Strength", "");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "falloff", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 10.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Falloff", "");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "min_distance", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_ui_range(prop, -100.0f, 100.0f, 0.1, 4);
+	RNA_def_property_ui_text(prop, "Minimum Distance", "");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "max_distance", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_ui_range(prop, -100.0f, 100.0f, 0.1, 4);
+	RNA_def_property_ui_text(prop, "Maximum Distance", "");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "use_double_sided", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eForceFieldCacheModifier_Flag_DoubleSided);
+	RNA_def_property_ui_text(prop, "Use Double Sided", "");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 }
 
 static void rna_def_cache_modifier(BlenderRNA *brna)

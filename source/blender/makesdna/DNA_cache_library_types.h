@@ -160,6 +160,16 @@ typedef struct ForceFieldCacheModifier {
 	CacheModifier modifier;
 	
 	struct Object *object;
+	
+	int flag;
+	float strength;
+	float min_distance, max_distance;
+	float falloff;
+	int pad;
 } ForceFieldCacheModifier;
+
+typedef enum eForceFieldCacheModifier_Flag {
+	eForceFieldCacheModifier_Flag_DoubleSided           = (1 << 0),
+} eForceFieldCacheModifier_Flag;
 
 #endif
