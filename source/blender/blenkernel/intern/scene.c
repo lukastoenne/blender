@@ -1480,6 +1480,7 @@ static void scene_update_object_add_task(void *node, void *user_data)
 static void print_threads_statistics(ThreadedObjectUpdateState *state)
 {
 	int i, tot_thread;
+	double finish_time;
 
 	if ((G.debug & G_DEBUG_DEPSGRAPH) == 0) {
 		return;
@@ -1505,6 +1506,7 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 		}
 	}
 #else
+	finish_time = PIL_check_seconds_timer();
 	tot_thread = BLI_system_thread_count();
 
 	for (i = 0; i < tot_thread; i++) {
@@ -1533,6 +1535,9 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 		}
 
 		BLI_freelistN(&state->statistics[i]);
+	}
+	if (state->has_updated_objects) {
+		printf("Scene update in %f sec\n", finish_time - state->base_time);
 	}
 #endif
 }

@@ -435,7 +435,7 @@ static void ui_imageuser_pass_menu(bContext *UNUSED(C), uiLayout *layout, void *
 		passflag |= rpass->passtype;
 
 final:
-		uiDefButS(block, UI_BTYPE_BUT_MENU, B_NOP, IFACE_(rpass->internal_name), 0, 0,
+		uiDefButI(block, UI_BTYPE_BUT_MENU, B_NOP, IFACE_(rpass->internal_name), 0, 0,
 		          UI_UNIT_X * 5, UI_UNIT_X, &iuser->passtype, (float) rpass->passtype, 0.0, 0, -1, "");
 	}
 
@@ -547,29 +547,62 @@ static void image_multi_incpass_cb(bContext *C, void *rr_v, void *iuser_v)
 {
 	RenderResult *rr = rr_v;
 	ImageUser *iuser = iuser_v;
-	RenderLayer *rl = BLI_findlink(&rr->layers, iuser->layer);
+	RenderLayer *rl;
+	RenderPass *rp;
+	RenderPass *next = NULL;
+	int layer = iuser->layer;
+
+	if (RE_HasFakeLayer(rr))
+		layer -= 1;
+
+	rl = BLI_findlink(&rr->layers, layer);
 
 	if (rl) {
-		int tot = BLI_listbase_count(&rl->passes);
+		for (rp = rl->passes.first; rp; rp = rp->next) {
+			if (rp->passtype == iuser->passtype) {
+				next = rp->next;
+				if (next != NULL && next->passtype == rp->passtype)
+					next = next->next;
+				break;
+			}
+		}
 
-		if (RE_HasFakeLayer(rr))
-			tot++;  /* fake compo/sequencer layer */
-
-		if (iuser->pass < tot - 1) {
-			iuser->pass++;
-			BKE_image_multilayer_index(rr, iuser); 
+		if (next != NULL && iuser->passtype != next->passtype) {
+			iuser->passtype = next->passtype;
+			BKE_image_multilayer_index(rr, iuser);
 			WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, NULL);
 		}
 	}
 }
 static void image_multi_decpass_cb(bContext *C, void *rr_v, void *iuser_v) 
 {
+	RenderResult *rr = rr_v;
 	ImageUser *iuser = iuser_v;
+	RenderLayer *rl;
+	RenderPass *rp;
+	RenderPass *prev= NULL;
+	int layer = iuser->layer;
 
-	if (iuser->pass > 0) {
-		iuser->pass--;
-		BKE_image_multilayer_index(rr_v, iuser); 
-		WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, NULL);
+	if (RE_HasFakeLayer(rr))
+		layer -= 1;
+
+	rl = BLI_findlink(&rr->layers, layer);
+
+	if (rl) {
+		for (rp = rl->passes.last; rp; rp = rp->prev) {
+			if (rp->passtype == iuser->passtype) {
+				prev = rp->prev;
+				if (prev != NULL && prev->passtype == rp->passtype)
+					prev = prev->prev;
+				break;
+			}
+		}
+
+		if (prev != NULL && iuser->passtype != prev->passtype) {
+			iuser->passtype = prev->passtype;
+			BKE_image_multilayer_index(rr, iuser);
+			WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, NULL);
+		}
 	}
 }
 
@@ -657,7 +690,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, Image *image, RenderRes
 
 		/* pass */
 		fake_name = ui_imageuser_pass_fake_name(rl);
-		rpass = (rl ? BLI_findlink(&rl->passes, iuser->pass  - (fake_name ? 1 : 0)) : NULL);
+		rpass = (rl ? RE_pass_find_by_type(rl, iuser->passtype, ((RenderView *)rr->views.first)->name) : NULL);
 
 		display_name = rpass ? rpass->internal_name : (fake_name ? fake_name : "");
 		but = uiDefMenuBut(block, ui_imageuser_pass_menu, rnd_pt, display_name, 0, 0, wmenu3, UI_UNIT_Y, TIP_("Select Pass"));
