@@ -431,6 +431,8 @@ SceneParams BlenderSync::get_scene_params(BL::Scene b_scene, bool background, bo
 		params.use_qbvh = false;
 	}
 
+	params.use_bvh_triangle_storage = RNA_boolean_get(&cscene, "debug_use_triangle_storage");
+
 	return params;
 }
 
