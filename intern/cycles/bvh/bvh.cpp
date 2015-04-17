@@ -282,27 +282,33 @@ void BVH::pack_triangle(int idx, float4 woop[3])
 
 void BVH::pack_primitives()
 {
-	int nsize = TRI_NODE_SIZE;
+	const int nsize = TRI_NODE_SIZE;
+	const bool use_triangle_storage = params.use_triangle_storage;
 	size_t tidx_size = pack.prim_index.size();
 
 	pack.tri_woop.clear();
-	pack.tri_woop.resize(tidx_size * nsize);
+	if (use_triangle_storage) {
+		pack.tri_woop.resize(tidx_size * nsize);
+	}
+	else {
+		pack.tri_woop.resize(0);
+	}
 	pack.prim_visibility.clear();
 	pack.prim_visibility.resize(tidx_size);
 
 	for(unsigned int i = 0; i < tidx_size; i++) {
 		if(pack.prim_index[i] != -1) {
-			float4 woop[3];
-
-			if(pack.prim_type[i] & PRIMITIVE_TRIANGLE) {
-				pack_triangle(i, woop);
+			if(use_triangle_storage) {
+				float4 woop[3];
+				if(pack.prim_type[i] & PRIMITIVE_TRIANGLE) {
+					pack_triangle(i, woop);
+				}
+				else {
+					/* Avoid use of uninitialized memory. */
+					memset(&woop, 0, sizeof(woop));
+				}
+				memcpy(&pack.tri_woop[i * nsize], woop, sizeof(float4)*3);
 			}
-			else {
-				/* Avoid use of uninitialized memory. */
-				memset(&woop, 0, sizeof(woop));
-			}
-
-			memcpy(&pack.tri_woop[i * nsize], woop, sizeof(float4)*3);
 
 			int tob = pack.prim_object[i];
 			Object *ob = objects[tob];
@@ -312,7 +318,9 @@ void BVH::pack_primitives()
 				pack.prim_visibility[i] |= PATH_RAY_CURVE;
 		}
 		else {
-			memset(&pack.tri_woop[i * nsize], 0, sizeof(float4)*3);
+			if(use_triangle_storage) {
+				memset(&pack.tri_woop[i * nsize], 0, sizeof(float4)*3);
+			}
 			pack.prim_visibility[i] = 0;
 		}
 	}

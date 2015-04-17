@@ -49,6 +49,9 @@ public:
 	/* QBVH */
 	bool use_qbvh;
 
+	/* Use pre-aligned tringle storage for faster lookup. */
+	bool use_triangle_storage;
+
 	/* fixed parameters */
 	enum {
 		MAX_DEPTH = 64,
@@ -73,6 +76,7 @@ public:
 		top_level = false;
 		use_cache = false;
 		use_qbvh = false;
+		use_triangle_storage = true;
 	}
 
 	/* SAH costs */

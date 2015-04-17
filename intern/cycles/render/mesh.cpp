@@ -515,6 +515,7 @@ void Mesh::compute_bvh(SceneParams *params, Progress *progress, int n, int total
 			BVHParams bparams;
 			bparams.use_cache = params->use_bvh_cache;
 			bparams.use_spatial_split = params->use_bvh_spatial_split;
+			bparams.use_triangle_storage = params->use_bvh_triangle_storage;
 			bparams.use_qbvh = params->use_qbvh;
 
 			delete bvh;
@@ -1086,6 +1087,7 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	bparams.use_qbvh = scene->params.use_qbvh;
 	bparams.use_spatial_split = scene->params.use_bvh_spatial_split;
 	bparams.use_cache = scene->params.use_bvh_cache;
+	bparams.use_triangle_storage = scene->params.use_bvh_triangle_storage;
 
 	delete bvh;
 	bvh = BVH::create(bparams, scene->objects);
@@ -1133,6 +1135,7 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 
 	dscene->data.bvh.root = pack.root_index;
 	dscene->data.bvh.use_qbvh = scene->params.use_qbvh;
+	dscene->data.bvh.use_tri_storage = scene->params.use_bvh_triangle_storage? 1: 0;
 }
 
 void MeshManager::device_update_flags(Device * /*device*/,

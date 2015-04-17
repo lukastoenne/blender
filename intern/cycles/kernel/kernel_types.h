@@ -957,7 +957,8 @@ typedef struct KernelBVH {
 	int have_curves;
 	int have_instancing;
 	int use_qbvh;
-	int pad1, pad2;
+	int use_tri_storage;
+	int pad1;
 } KernelBVH;
 
 typedef enum CurveFlag {
