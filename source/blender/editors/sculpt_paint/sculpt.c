@@ -2156,73 +2156,95 @@ static void calc_flatten_center(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		SculptUndoNode *unode;
-		float private_fc[3] = {0.0f, 0.0f, 0.0f};
-		float private_fc_flip[3] = {0.0f, 0.0f, 0.0f};
-		int private_count = 0;
-		int private_count_flip = 0;
+		/* 0=towards view, 1=flipped */
+		float private_co[2][3] = {{0.0f}};
+		int  private_count[2] = {0, 0};
+		bool use_original;
 
 		unode = sculpt_undo_push_node(ob, nodes[n], SCULPT_UNDO_COORDS);
 		sculpt_brush_test_init(ss, &test);
 
-		if (ss->cache->original && unode->co) {
-			BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE)
-			{
-				if (sculpt_brush_test_fast(&test, unode->co[vd.i])) {
-					float fno[3];
+		use_original = (ss->cache->original && (unode->co || unode->bm_entry));
 
-					normal_short_to_float_v3(fno, unode->no[vd.i]);
-					if (dot_v3v3(ss->cache->view_normal, fno) > 0) {
-						add_v3_v3(private_fc, unode->co[vd.i]);
-						private_count++;
-					}
-					else {
-						add_v3_v3(private_fc_flip, unode->co[vd.i]);
-						private_count_flip++;
-					}
+		/* when the mesh is edited we can't rely on original coords
+		 * (original mesh may not even have verts in brush radius) */
+		if (use_original && unode->bm_entry) {
+			float (*orco_coords)[3];
+			int   (*orco_tris)[3];
+			int     orco_tris_num;
+			int i;
+
+			BKE_pbvh_node_get_bm_orco_data(
+			        nodes[n],
+			        &orco_tris, &orco_tris_num, &orco_coords);
+
+			for (i = 0; i < orco_tris_num; i++) {
+				const float *co_tri[3] = {
+				    orco_coords[orco_tris[i][0]],
+				    orco_coords[orco_tris[i][1]],
+				    orco_coords[orco_tris[i][2]],
+				};
+				float co[3];
+
+				closest_on_tri_to_point_v3(co, test.location, UNPACK3(co_tri));
+
+				if (sculpt_brush_test_fast(&test, co)) {
+					float no[3];
+					int flip_index;
+
+					normal_tri_v3(no, UNPACK3(co_tri));
+
+					flip_index = (dot_v3v3(ss->cache->view_normal, no) <= 0.0f);
+					add_v3_v3(private_co[flip_index], co);
+					private_count[flip_index] += 1;
 				}
 			}
-			BKE_pbvh_vertex_iter_end;
 		}
 		else {
 			BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE)
 			{
-				if (sculpt_brush_test_fast(&test, vd.co)) {
-					/* for area normal */
-					if (vd.no) {
-						float fno[3];
+				const float *co;
 
-						normal_short_to_float_v3(fno, vd.no);
+				if (use_original) {
+					co = unode->co[vd.i];
+				}
+				else {
+					co = vd.co;
+				}
 
-						if (dot_v3v3(ss->cache->view_normal, fno) > 0) {
-							add_v3_v3(private_fc, vd.co);
-							private_count++;
-						}
-						else {
-							add_v3_v3(private_fc_flip, vd.co);
-							private_count_flip++;
-						}
+				if (sculpt_brush_test_fast(&test, co)) {
+					float no_buf[3];
+					const float *no;
+					int flip_index;
+
+					if (use_original) {
+						normal_short_to_float_v3(no_buf, unode->no[vd.i]);
+						no = no_buf;
 					}
 					else {
-						if (dot_v3v3(ss->cache->view_normal, vd.fno) > 0) {
-							add_v3_v3(private_fc, vd.co);
-							private_count++;
+						if (vd.no) {
+							normal_short_to_float_v3(no_buf, vd.no);
+							no = no_buf;
 						}
 						else {
-							add_v3_v3(private_fc_flip, vd.co);
-							private_count_flip++;
+							no = vd.fno;
 						}
 					}
+
+					flip_index = (dot_v3v3(ss->cache->view_normal, no) <= 0.0f);
+					add_v3_v3(private_co[flip_index], co);
+					private_count[flip_index] += 1;
 				}
+				BKE_pbvh_vertex_iter_end;
 			}
-			BKE_pbvh_vertex_iter_end;
 		}
 
 #pragma omp critical
 		{
-			add_v3_v3(fc, private_fc);
-			add_v3_v3(fc_flip, private_fc_flip);
-			count += private_count;
-			count_flip += private_count_flip;
+			add_v3_v3(fc,      private_co[0]);
+			add_v3_v3(fc_flip, private_co[1]);
+			count      += private_count[0];
+			count_flip += private_count[1];
 		}
 	}
 	if (count != 0)
@@ -2263,72 +2285,87 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob,
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		SculptUndoNode *unode;
-		float private_an[3] = {0.0f, 0.0f, 0.0f};
-		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
-		float private_fc[3] = {0.0f, 0.0f, 0.0f};
-		float private_fc_flip[3] = {0.0f, 0.0f, 0.0f};
-		int private_count = 0;
-		int private_count_flip = 0;
+		/* 0=towards view, 1=flipped */
+		float private_co[2][3] = {{0.0f}};
+		float private_no[2][3] = {{0.0f}};
+		int  private_count[2] = {0, 0};
+		bool use_original;
 
 		unode = sculpt_undo_push_node(ob, nodes[n], SCULPT_UNDO_COORDS);
 		sculpt_brush_test_init(ss, &test);
 
-		if (ss->cache->original && unode->co) {
-			BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE)
-			{
-				if (sculpt_brush_test_fast(&test, unode->co[vd.i])) {
-					/* for area normal */
-					float fno[3];
+		use_original = (ss->cache->original && (unode->co || unode->bm_entry));
 
-					normal_short_to_float_v3(fno, unode->no[vd.i]);
+		/* when the mesh is edited we can't rely on original coords
+		 * (original mesh may not even have verts in brush radius) */
+		if (use_original && unode->bm_entry) {
+			float (*orco_coords)[3];
+			int   (*orco_tris)[3];
+			int     orco_tris_num;
+			int i;
 
-					if (dot_v3v3(ss->cache->view_normal, fno) > 0) {
-						add_v3_v3(private_an, fno);
-						add_v3_v3(private_fc, unode->co[vd.i]);
-						private_count++;
-					}
-					else {
-						add_v3_v3(private_out_flip, fno);
-						add_v3_v3(private_fc_flip, unode->co[vd.i]);
-						private_count_flip++;
-					}
+			BKE_pbvh_node_get_bm_orco_data(
+			        nodes[n],
+			        &orco_tris, &orco_tris_num, &orco_coords);
+
+			for (i = 0; i < orco_tris_num; i++) {
+				const float *co_tri[3] = {
+				    orco_coords[orco_tris[i][0]],
+				    orco_coords[orco_tris[i][1]],
+				    orco_coords[orco_tris[i][2]],
+				};
+				float co[3];
+
+				closest_on_tri_to_point_v3(co, test.location, UNPACK3(co_tri));
+
+				if (sculpt_brush_test_fast(&test, co)) {
+					float no[3];
+					int flip_index;
+
+					normal_tri_v3(no, UNPACK3(co_tri));
+
+					flip_index = (dot_v3v3(ss->cache->view_normal, no) <= 0.0f);
+					add_v3_v3(private_co[flip_index], co);
+					add_v3_v3(private_no[flip_index], no);
+					private_count[flip_index] += 1;
 				}
 			}
-			BKE_pbvh_vertex_iter_end;
 		}
 		else {
 			BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE)
 			{
-				if (sculpt_brush_test_fast(&test, vd.co)) {
-					/* for area normal */
-					if (vd.no) {
-						float fno[3];
+				const float *co;
 
-						normal_short_to_float_v3(fno, vd.no);
+				if (use_original) {
+					co = unode->co[vd.i];
+				}
+				else {
+					co = vd.co;
+				}
 
-						if (dot_v3v3(ss->cache->view_normal, fno) > 0) {
-							add_v3_v3(private_an, fno);
-							add_v3_v3(private_fc, vd.co);
-							private_count++;
-						}
-						else {
-							add_v3_v3(private_out_flip, fno);
-							add_v3_v3(private_fc_flip, vd.co);
-							private_count_flip++;
-						}
+				if (sculpt_brush_test_fast(&test, co)) {
+					float no_buf[3];
+					const float *no;
+					int flip_index;
+
+					if (use_original) {
+						normal_short_to_float_v3(no_buf, unode->no[vd.i]);
+						no = no_buf;
 					}
 					else {
-						if (dot_v3v3(ss->cache->view_normal, vd.fno) > 0) {
-							add_v3_v3(private_an, vd.fno);
-							add_v3_v3(private_fc, vd.co);
-							private_count++;
+						if (vd.no) {
+							normal_short_to_float_v3(no_buf, vd.no);
+							no = no_buf;
 						}
 						else {
-							add_v3_v3(private_out_flip, vd.fno);
-							add_v3_v3(private_fc_flip, vd.co);
-							private_count_flip++;
+							no = vd.fno;
 						}
 					}
+
+					flip_index = (dot_v3v3(ss->cache->view_normal, no) <= 0.0f);
+					add_v3_v3(private_co[flip_index], co);
+					add_v3_v3(private_no[flip_index], no);
+					private_count[flip_index] += 1;
 				}
 			}
 			BKE_pbvh_vertex_iter_end;
@@ -2337,14 +2374,14 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob,
 #pragma omp critical
 		{
 			/* for area normal */
-			add_v3_v3(an, private_an);
-			add_v3_v3(out_flip, private_out_flip);
+			add_v3_v3(an,       private_no[0]);
+			add_v3_v3(out_flip, private_no[1]);
 
 			/* for flatten center */
-			add_v3_v3(fc, private_fc);
-			add_v3_v3(fc_flip, private_fc_flip);
-			count += private_count;
-			count_flipped += private_count_flip;
+			add_v3_v3(fc,      private_co[0]);
+			add_v3_v3(fc_flip, private_co[1]);
+			count         += private_count[0];
+			count_flipped += private_count[1];
 		}
 	}
 
@@ -2608,8 +2645,10 @@ static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 					sub_v3_v3v3(val, intr, vd.co);
 
 					if (plane_trim(ss->cache, brush, val)) {
+						/* note, the normal from the vertices is ignored,
+						 * causes glitch with planes, see: T44390 */
 						const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrtf(test.dist),
-						                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
+						                                            NULL, an, vd.mask ? *vd.mask : 0.0f);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -2709,9 +2748,11 @@ static void do_clay_strips_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int t
 					sub_v3_v3v3(val, intr, vd.co);
 
 					if (plane_trim(ss->cache, brush, val)) {
+						/* note, the normal from the vertices is ignored,
+						 * causes glitch with planes, see: T44390 */
 						const float fade = bstrength * tex_strength(ss, brush, vd.co,
 						                                            ss->cache->radius * test.dist,
-						                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
+						                                            NULL, an, vd.mask ? *vd.mask : 0.0f);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
 
