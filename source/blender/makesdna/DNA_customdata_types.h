@@ -124,6 +124,7 @@ typedef enum CustomDataType {
 	CD_MSURFACE_SAMPLE  = 42,
 
 	CD_NUMTYPES         = 43
+} CustomDataType;
 
 /* Bits for CustomDataMask */
 #define CD_MASK_MVERT		(1 << CD_MVERT)
