@@ -400,12 +400,12 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 	/* note, the object argument means the modelview matrix does not account for the objects matrix, use viewmat rather than (obmat * viewmat) */
 	view3d_get_transformation(data->vc.ar, data->vc.rv3d, NULL, &data->mats);
 
-	if ((data->vc.v3d->drawtype>OB_WIRE) && (data->vc.v3d->flag & V3D_ZBUF_SELECT)) {
+	if (V3D_IS_ZBUF(data->vc.v3d)) {
 		if (data->vc.v3d->flag & V3D_INVALID_BACKBUF) {
 			/* needed or else the draw matrix can be incorrect */
 			view3d_operator_needs_opengl(C);
 
-			view3d_validate_backbuf(&data->vc);
+			ED_view3d_backbuf_validate(&data->vc);
 			/* we may need to force an update here by setting the rv3d as dirty
 			 * for now it seems ok, but take care!:
 			 * rv3d->depths->dirty = 1; */
@@ -443,8 +443,8 @@ static bool key_test_depth(PEData *data, const float co[3], const int screen_co[
 	float depth;
 
 	/* nothing to do */
-	if ((v3d->drawtype<=OB_WIRE) || (v3d->flag & V3D_ZBUF_SELECT)==0)
-		return 1;
+	if (!V3D_IS_ZBUF(v3d))
+		return true;
 
 	/* used to calculate here but all callers have  the screen_co already, so pass as arg */
 #if 0
