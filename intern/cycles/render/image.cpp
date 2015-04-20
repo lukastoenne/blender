@@ -809,7 +809,7 @@ void ImageManager::device_update_slot(Device *device,
 	if(image->users == 0) {
 		device_free_image(device, dscene, slot);
 	}
-	else {
+	else if(image->need_load) {
 		if(!osl_texture_system || float_images[slot]->builtin_data)
 			device_load_image(device,
 			                  dscene,
