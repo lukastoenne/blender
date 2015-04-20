@@ -4843,3 +4843,89 @@ void PARTICLE_OT_edited_clear(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
+/************************ Propagate Shape Key *************************/
+
+static int PE_count_keys(PTCacheEdit *edit)
+{
+	int totkey = 0, p;
+	for (p = 0; p < edit->totpoint; ++p) {
+		totkey += edit->points[p].totkey;
+	}
+	return totkey;
+}
+
+static void shape_propagate(PTCacheEdit *edit, int totkey, KeyBlock *kb, wmOperator *UNUSED(op))
+{
+	PTCacheEditPoint *point;
+	float *fp;
+	int i, k;
+	
+	if (kb->totelem != totkey)
+		return;
+	
+	fp = kb->data;
+	point = edit->points;
+	for (i = 0; i < edit->totpoint; ++i, ++point) {
+		PTCacheEditKey *key = point->keys;
+		const bool use_point = !(point->flag & PEP_HIDE);
+		
+		for (k = 0; k < point->totkey; ++k, ++key) {
+			const bool use_key = (key->flag & PEK_SELECT) && !(key->flag & PEK_HIDE);
+			
+			if (use_point && use_key) {
+				copy_v3_v3(fp, key->co);
+				
+				point->flag |= PEP_EDIT_RECALC;
+			}
+			
+			fp += 3;
+		}
+	}
+}
+
+static int particle_shape_propagate_to_all_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	ParticleEditSettings *pset = PE_settings(scene);
+	Object *ob = ED_object_context(C);
+	ParticleSystem *psys = psys_get_current(ob);
+	PTCacheEdit *edit = psys->edit;
+	Key *key = psys->key;
+	KeyBlock *kb;
+	const int totkey = PE_count_keys(edit);
+
+	if (!key)
+		return OPERATOR_CANCELLED;
+
+	/* we might need world space coordinates, update to be sure */
+	update_world_cos(ob, edit);
+
+	for (kb = key->block.first; kb; kb = kb->next)
+		shape_propagate(edit, totkey, kb, op);
+	
+	update_world_cos(ob, edit);
+	PE_update_object(scene, ob, 1);
+	
+	if (!(pset->flag & PE_KEEP_LENGTHS))
+		recalc_lengths(edit);
+
+	WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_EDITED, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+
+void PARTICLE_OT_shape_propagate_to_all(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Shape Propagate";
+	ot->description = "Apply selected vertex locations to all other shape keys";
+	ot->idname = "PARTICLE_OT_shape_propagate_to_all";
+
+	/* api callbacks */
+	ot->exec = particle_shape_propagate_to_all_exec;
+	ot->poll = PE_hair_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

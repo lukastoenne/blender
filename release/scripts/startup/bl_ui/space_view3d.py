@@ -1802,6 +1802,9 @@ class VIEW3D_MT_particle_specials(Menu):
         layout.separator()
 
         layout.operator("particle.mirror")
+        layout.separator()
+        
+        layout.operator("particle.shape_propagate_to_all")
 
         if particle_edit.select_mode == 'POINT':
             layout.separator()
