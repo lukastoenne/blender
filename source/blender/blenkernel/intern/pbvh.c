@@ -943,6 +943,7 @@ static void pbvh_update_normals(PBVH *bvh, PBVHNode **nodes,
 	int n;
 
 	if (bvh->type == PBVH_BMESH) {
+		BLI_assert(face_nors == NULL);
 		pbvh_bmesh_normals_update(nodes, totnode);
 		return;
 	}
@@ -1280,6 +1281,16 @@ PBVHType BKE_pbvh_type(const PBVH *bvh)
 	return bvh->type;
 }
 
+bool BKE_pbvh_has_faces(const PBVH *bvh)
+{
+	if (bvh->type == PBVH_BMESH) {
+		return (bvh->bm->totface != 0);
+	}
+	else {
+		return (bvh->totprim != 0);
+	}
+}
+
 void BKE_pbvh_bounding_box(const PBVH *bvh, float min[3], float max[3])
 {
 	if (bvh->totnode) {
@@ -1417,6 +1428,15 @@ void BKE_pbvh_node_get_proxies(PBVHNode *node, PBVHProxyNode **proxies, int *pro
 		if (proxies) *proxies = NULL;
 		if (proxy_count) *proxy_count = 0;
 	}
+}
+
+void BKE_pbvh_node_get_bm_orco_data(
+        PBVHNode *node,
+        int (**r_orco_tris)[3], int *r_orco_tris_num, float (**r_orco_coords)[3])
+{
+	*r_orco_tris = node->bm_ortri;
+	*r_orco_tris_num = node->bm_tot_ortri;
+	*r_orco_coords = node->bm_orco;
 }
 
 /********************************* Raycast ***********************************/

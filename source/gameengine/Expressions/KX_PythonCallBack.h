@@ -15,43 +15,26 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2004 Blender Foundation.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Porteries Tristan.
  *
  * ***** END GPL LICENSE BLOCK *****
- * external writefile function prototypes
  */
 
-#ifndef __BLO_UNDOFILE_H__
-#define __BLO_UNDOFILE_H__
-
-/** \file BLO_undofile.h
- *  \ingroup blenloader
+/** \file KX_PythonCallBack.h
+ *  \ingroup expressions
  */
 
-typedef struct {
-	void *next, *prev;
-	
-	char *buf;
-	unsigned int ident, size;
-	
-} MemFileChunk;
+#ifndef __KX_PYTHON_CALLBACK_H__
+#define __KX_PYTHON_CALLBACK_H__
 
-typedef struct MemFile {
-	ListBase chunks;
-	unsigned int size;
-} MemFile;
+#include "KX_Python.h"
 
-/* actually only used writefile.c */
-extern void memfile_chunk_add(MemFile *compare, MemFile *current, const char *buf, unsigned int size);
+/** Execute each functions with at least one argument
+ * \param functionlist The python list which contains callbacks.
+ * \param arglist The first item in the tuple to execute callbacks (can be NULL for no arguments).
+ * \param minargcount The minimum of quantity of arguments possible.
+ * \param maxargcount The maximum of quantity of arguments possible.
+ */
+void RunPythonCallBackList(PyObject *functionlist, PyObject **arglist, unsigned int minargcount, unsigned int maxargcount);
 
-/* exports */
-extern void BLO_memfile_free(MemFile *memfile);
-extern void BLO_memfile_merge(MemFile *first, MemFile *second);
-
-#endif
-
+#endif // __KX_PYTHON_CALLBACK_H__

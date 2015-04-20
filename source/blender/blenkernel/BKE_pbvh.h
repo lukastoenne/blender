@@ -121,6 +121,7 @@ typedef enum {
 } PBVHType;
 
 PBVHType BKE_pbvh_type(const PBVH *bvh);
+bool     BKE_pbvh_has_faces(const PBVH *bvh);
 
 /* Get the PBVH root's bounding box */
 void BKE_pbvh_bounding_box(const PBVH *bvh, float min[3], float max[3]);
@@ -333,6 +334,9 @@ void BKE_pbvh_node_get_proxies(PBVHNode *node, PBVHProxyNode **proxies, int *pro
 void BKE_pbvh_node_free_proxies(PBVHNode *node);
 PBVHProxyNode *BKE_pbvh_node_add_proxy(PBVH *bvh, PBVHNode *node);
 void BKE_pbvh_gather_proxies(PBVH *pbvh, PBVHNode ***nodes,  int *totnode);
+void BKE_pbvh_node_get_bm_orco_data(
+        PBVHNode *node,
+        int (**r_orco_tris)[3], int *r_orco_tris_num, float (**r_orco_coords)[3]);
 
 //void BKE_pbvh_node_BB_reset(PBVHNode *node);
 //void BKE_pbvh_node_BB_expand(PBVHNode *node, float co[3]);

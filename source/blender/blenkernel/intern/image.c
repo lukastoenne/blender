@@ -960,8 +960,10 @@ void BKE_image_memorypack(Image *ima)
 {
 	ImBuf *ibuf;
 
-	if ((ima->flag & IMA_IS_MULTIVIEW))
-		return image_memorypack_multiview(ima);
+	if ((ima->flag & IMA_IS_MULTIVIEW)) {
+		image_memorypack_multiview(ima);
+		return;
+	}
 
 	ibuf = image_get_cached_ibuf_for_index_frame(ima, IMA_NO_INDEX, 0);
 
@@ -2475,7 +2477,7 @@ static void image_init_imageuser(Image *ima, ImageUser *iuser)
 	RenderResult *rr = ima->rr;
 
 	iuser->multi_index = 0;
-	iuser->layer = iuser->pass = iuser->view = 0;
+	iuser->layer = iuser->view = 0;
 	iuser->passtype = SCE_PASS_COMBINED;
 
 	if (rr) {
@@ -2494,7 +2496,7 @@ static void image_init_imageuser(Image *ima, ImageUser *iuser)
 
 void BKE_image_init_imageuser(Image *ima, ImageUser *iuser)
 {
-	return image_init_imageuser(ima, iuser);
+	image_init_imageuser(ima, iuser);
 }
 
 void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
@@ -2649,15 +2651,14 @@ RenderPass *BKE_image_multilayer_index(RenderResult *rr, ImageUser *iuser)
 		return NULL;
 
 	if (iuser) {
-		short index = 0, rv_index, rl_index = 0, rp_index;
+		short index = 0, rv_index, rl_index = 0;
 		bool is_stereo = (iuser->flag & IMA_SHOW_STEREO) && RE_RenderResult_is_stereo(rr);
 
 		rv_index = is_stereo ? iuser->multiview_eye : iuser->view;
+		if (RE_HasFakeLayer(rr)) rl_index += 1;
 
 		for (rl = rr->layers.first; rl; rl = rl->next, rl_index++) {
-			rp_index = 0;
-
-			for (rpass = rl->passes.first; rpass; rpass = rpass->next, index++, rp_index++) {
+			for (rpass = rl->passes.first; rpass; rpass = rpass->next, index++) {
 				if (iuser->layer == rl_index &&
 				    iuser->passtype == rpass->passtype &&
 				    rv_index == rpass->view_id)
@@ -2668,20 +2669,16 @@ RenderPass *BKE_image_multilayer_index(RenderResult *rr, ImageUser *iuser)
 			if (rpass)
 				break;
 		}
-
-		if (rpass) {
-			iuser->multi_index = index;
-			iuser->pass = rp_index;
-		}
-		else {
-			iuser->multi_index = 0;
-			iuser->pass = 0;
-		}
+		iuser->multi_index = (rpass ? index : 0);
 	}
+
 	if (rpass == NULL) {
 		rl = rr->layers.first;
 		if (rl)
 			rpass = rl->passes.first;
+
+		if (rpass && iuser)
+			iuser->passtype = rpass->passtype;
 	}
 
 	return rpass;
