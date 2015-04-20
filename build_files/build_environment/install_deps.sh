@@ -28,7 +28,7 @@ getopt \
 --long source:,install:,tmp:,info:,threads:,help,no-sudo,with-all,with-opencollada,\
 ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
 force-all,force-python,force-numpy,force-boost,force-ocio,force-oiio,force-llvm,force-osl,force-opencollada,\
-force-ffmpeg,\
+force-ffmpeg,force-alembic,\
 skip-python,skip-numpy,skip-boost,skip-ocio,skip-openexr,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,skip-opencollada,skip-alembic,\
 required-numpy: \
 -- "$@" \
@@ -1995,7 +1995,7 @@ install_DEB() {
   OGG_DEV="libogg-dev"
   THEORA_DEV="libtheora-dev"
 
-  _packages="gawk cmake cmake-curses-gui scons build-essential libjpeg-dev libpng-dev \
+  _packages="gawk cmake cmake-curses-gui scons mercurial build-essential libjpeg-dev libpng-dev \
              libfreetype6-dev libx11-dev libxi-dev wget libsqlite3-dev libbz2-dev \
              libncurses5-dev libssl-dev liblzma-dev libreadline-dev $OPENJPEG_DEV \
              libopenal-dev libglew-dev libglewmx-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \

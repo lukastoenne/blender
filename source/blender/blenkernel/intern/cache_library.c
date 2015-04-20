@@ -919,7 +919,7 @@ static bool hairsim_find_data(HairSimCacheModifier *hsmd, DupliCache *dupcache, 
 
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode)
 {
-	static const int MAX_CACHE_EFFECTORS = 64;
+#define MAX_CACHE_EFFECTORS 64
 	
 	Object *ob;
 	Strands *strands;
@@ -958,6 +958,8 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	pdEndEffectors(&effectors);
 	BKE_cache_effectors_free(cache_effectors, tot_cache_effectors);
 	BPH_mass_spring_solver_free(solver_data);
+	
+#undef MAX_CACHE_EFFECTORS
 }
 
 CacheModifierTypeInfo cacheModifierType_HairSimulation = {
