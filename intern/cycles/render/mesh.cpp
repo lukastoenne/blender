@@ -1170,31 +1170,30 @@ void MeshManager::device_update_displacement_images(Device *device,
 		if(mesh->need_update) {
 			foreach(uint shader_index, mesh->used_shaders) {
 				Shader *shader = scene->shaders[shader_index];
-				if(shader->graph_bump) {
-					foreach(ShaderNode* node, shader->graph_bump->nodes) {
-						int slot = -1;
-						if(node->name == "image_texture") {
-							slot = ((ImageTextureNode *)node)->slot;
-						}
-						if(slot != -1) {
-							if(device->info.pack_images) {
-								/* If device requires packed images we need to
-								 * update all images now, even if they're not
-								 * used for displacement.
-								 */
-								image_manager->device_update(device,
-								                             dscene,
-								                             progress);
-								return;
-							}
-							pool.push(function_bind(&ImageManager::device_update_slot,
-							                        image_manager,
-							                        device,
-							                        dscene,
-							                        slot,
-							                        &progress));
-						}
+				if(shader->graph_bump == NULL) {
+					continue;
+				}
+				foreach(ShaderNode* node, shader->graph_bump->nodes) {
+					if(node->special_type != SHADER_SPECIAL_TYPE_IMAGE_SLOT) {
+						continue;
 					}
+					if(device->info.pack_images) {
+						/* If device requires packed images we need to update all
+						 * images now, even if they're not used for displacement.
+						 */
+						image_manager->device_update(device,
+						                             dscene,
+						                             progress);
+						return;
+					}
+					ImageSlotNode *image_node = static_cast<ImageSlotNode*>(node);
+					assert(image_node->slot != -1);
+					pool.push(function_bind(&ImageManager::device_update_slot,
+					                        image_manager,
+					                        device,
+					                        dscene,
+					                        image_node->slot,
+					                        &progress));
 				}
 			}
 		}
