@@ -343,7 +343,6 @@ static void hair_edge_comb(HairToolData *data, void *userdata, BMVert *v1, BMVer
 	float effect;
 	
 	strokelen = normalize_v3_v3(strokedir, data->delta);
-	BKE_sim_debug_data_add_vector(data->edit->debug_data, v1->co, strokedir, 1,0,0, "comb", 12345, BM_elem_index_get(v1));
 	
 	sub_v3_v3v3(edge, v2->co, v1->co);
 	edgelen = normalize_v3_v3(edgedir, edge);
@@ -358,7 +357,6 @@ static void hair_edge_comb(HairToolData *data, void *userdata, BMVert *v1, BMVer
 	mul_v3_v3fl(edge_proj, strokedir, edgelen);
 	
 	interp_v3_v3v3(edge, edge, edge_proj, combfactor * effect);
-	BKE_sim_debug_data_add_vector(data->edit->debug_data, v1->co, edge, 1,1,0, "comb", 3, BM_elem_index_get(v1));
 	
 	add_v3_v3v3(v2->co, v1->co, edge);
 }

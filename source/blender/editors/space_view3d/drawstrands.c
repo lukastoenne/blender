@@ -376,10 +376,4 @@ void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *ar, BMEditStrand
 	unbind_gpu_buffers_dots();
 	
 	restore_opengl_state(&info);
-	
-	/* debugging */
-	if (edit->debug_data) {
-		Base *base = BASACT;
-		draw_sim_debug_data(scene, v3d, ar, base, edit->debug_data);
-	}
 }

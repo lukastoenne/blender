@@ -241,9 +241,9 @@ static void calc_jacobian_entry(Object *ob, BMEditStrands *edit, IKTarget *targe
 		mul_v3_m4v3(wco, obmat, point);
 		
 		mul_v3_m4v3(wdir, obmat, jac1);
-		BKE_sim_debug_data_add_vector(edit->debug_data, wco, wdir, 1,1,0, "strands", index_angle, 1);
+		BKE_sim_debug_data_add_vector(wco, wdir, 1,1,0, "strands", index_angle, 1);
 		mul_v3_m4v3(wdir, obmat, jac2);
-		BKE_sim_debug_data_add_vector(edit->debug_data, wco, wdir, 0,1,1, "strands", index_angle + 1, 2);
+		BKE_sim_debug_data_add_vector(wco, wdir, 0,1,1, "strands", index_angle + 1, 2);
 	}
 #endif
 }
@@ -402,7 +402,7 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
 			
 			BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
 				mul_v3_m4v3(wco, ob->obmat, &solution.coeff(3*k));
-				BKE_sim_debug_data_add_circle(edit->debug_data, wco, 0.05f, 1,0,1, "strands", k, BM_elem_index_get(root), 2344);
+				BKE_sim_debug_data_add_circle(wco, 0.05f, 1,0,1, "strands", k, BM_elem_index_get(root), 2344);
 			}
 		}
 #endif
