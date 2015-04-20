@@ -1166,6 +1166,7 @@ void MeshManager::device_update_displacement_images(Device *device,
 	progress.set_status("Updating Displacement Images");
 	TaskPool pool;
 	ImageManager *image_manager = scene->image_manager;
+	set<int> bump_images;
 	foreach(Mesh *mesh, scene->meshes) {
 		if(mesh->need_update) {
 			foreach(uint shader_index, mesh->used_shaders) {
@@ -1187,16 +1188,21 @@ void MeshManager::device_update_displacement_images(Device *device,
 						return;
 					}
 					ImageSlotNode *image_node = static_cast<ImageSlotNode*>(node);
-					assert(image_node->slot != -1);
-					pool.push(function_bind(&ImageManager::device_update_slot,
-					                        image_manager,
-					                        device,
-					                        dscene,
-					                        image_node->slot,
-					                        &progress));
+					int slot = image_node->slot;
+					if(slot != -1) {
+						bump_images.insert(slot);
+					}
 				}
 			}
 		}
+	}
+	foreach(int slot, bump_images) {
+		pool.push(function_bind(&ImageManager::device_update_slot,
+		                        image_manager,
+		                        device,
+		                        dscene,
+		                        slot,
+		                        &progress));
 	}
 	pool.wait_work();
 }
