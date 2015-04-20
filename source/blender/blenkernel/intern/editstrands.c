@@ -175,7 +175,7 @@ BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 	if (psmd && psmd->dm) {
 		DM_ensure_tessface(psmd->dm);
 		
-		BM_strands_bm_from_psys(bm, ob, psys, psmd->dm, true, psys->shapenr);
+		BM_strands_bm_from_psys(bm, ob, psys, psmd->dm, true, /*psys->shapenr*/ -1);
 		
 		editstrands_calc_segment_lengths(bm);
 	}

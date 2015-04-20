@@ -109,6 +109,7 @@ char BM_strands_cd_flag_from_bmesh(BMesh *UNUSED(bm))
 }
 
 
+#if 0
 static KeyBlock *bm_set_shapekey_from_psys(BMesh *bm, ParticleSystem *psys, int totvert, int act_key_nr)
 {
 	KeyBlock *actkey, *block;
@@ -154,11 +155,12 @@ static KeyBlock *bm_set_shapekey_from_psys(BMesh *bm, ParticleSystem *psys, int 
 	
 	return actkey;
 }
+#endif
 
 /* create vertex and edge data for BMesh based on particle hair keys */
 static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm, float (*keyco)[3], int cd_shape_keyindex_offset)
 {
-	KeyBlock *block;
+//	KeyBlock *block;
 	ParticleData *pa;
 	HairKey *hkey;
 	int p, k, j;
@@ -214,6 +216,7 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 				}
 			}
 			
+#if 0
 			/* set shapekey data */
 			if (psys->key) {
 				/* set shape key original index */
@@ -227,6 +230,7 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 					}
 				}
 			}
+#endif
 			
 			vindex += 1;
 			
@@ -291,16 +295,18 @@ void BM_strands_bm_from_psys(BMesh *bm, Object *ob, ParticleSystem *psys, struct
 		return; /* sanity check */
 	}
 
+#if 0
 	actkey = bm_set_shapekey_from_psys(bm, psys, totvert, act_key_nr);
 	if (actkey)
 		keyco = actkey->data;
+#endif
 
 	CustomData_bmesh_init_pool(&bm->vdata, totvert, BM_VERT);
 	CustomData_bmesh_init_pool(&bm->edata, totedge, BM_EDGE);
 
 	BM_strands_cd_flag_apply(bm, /*psys->cd_flag*/0);
 
-	cd_shape_keyindex_offset = psys->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
+	cd_shape_keyindex_offset = /*psys->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) :*/ -1;
 
 	bm_make_particles(bm, ob, psys, emitter_dm, set_key ? keyco : NULL, cd_shape_keyindex_offset);
 
