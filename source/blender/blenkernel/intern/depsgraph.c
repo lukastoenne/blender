@@ -627,8 +627,16 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 	 * It is not a true dependency, the duplicator does not in any way depend on group objects or data!
 	 */
 	if (ob->transflag & OB_DUPLI) {
+		/* XXX In theory it would be possible to disable the visibility dependency when dupli groups are cached,
+		 * since we use the results from the cache instead of the generated object data anyway.
+		 * However, the caching system depends a lot on DNA objects currently and behaves unpredictably without this ...
+		 */
+#if 0
 		bool is_cached = ob->cache_library && ob->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE;
 		if (!is_cached && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+#else
+		if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+#endif
 			GroupObject *go;
 			for (go = ob->dup_group->gobject.first; go; go = go->next) {
 				if (go->ob) {
