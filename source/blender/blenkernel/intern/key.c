@@ -58,6 +58,7 @@
 #include "BKE_curve.h"
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
+#include "BKE_pointcache.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
@@ -1558,6 +1559,7 @@ float *BKE_key_evaluate_object(Object *ob, int *r_totelem)
 float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, float cfra, int *r_totelem,
                                      float *arr, size_t arr_size)
 {
+	const bool use_editmode = (ob->mode & OB_MODE_PARTICLE_EDIT) && psys == psys_get_current(ob) && (psys->edit || psys->pointcache->edit) && !psys->renderdata;
 	Key *key = psys->key;
 	KeyBlock *actkb = BKE_keyblock_from_particles(psys);
 	char *out;
@@ -1592,7 +1594,21 @@ float *BKE_key_evaluate_particles_ex(Object *ob, ParticleSystem *psys, float cfr
 	/* prevent python from screwing this up? anyhoo, the from pointer could be dropped */
 	BKE_key_set_from_particles(key, ob, psys);
 	
-	if (ob->shapeflag & OB_SHAPE_LOCK) {
+	if (use_editmode) {
+		/* in edit mode, only evaluate the active shape */
+		KeyBlock *kb = BLI_findlink(&key->block, psys->shapenr - 1);
+		
+		if (kb && (kb->flag & KEYBLOCK_MUTE))
+			kb = key->refkey;
+		
+		if (kb == NULL) {
+			kb = key->block.first;
+			psys->shapenr = 1;
+		}
+		
+		cp_key(0, tot, tot, out, key, actkb, kb, NULL, 0);
+	}
+	else if (ob->shapeflag & OB_SHAPE_LOCK) {
 		/* shape locked, copy the locked shape instead of blending */
 		KeyBlock *kb = BLI_findlink(&key->block, psys->shapenr - 1);
 		float *weights;
