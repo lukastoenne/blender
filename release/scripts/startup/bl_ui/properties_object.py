@@ -312,6 +312,48 @@ def cachelib_object_items(cachelib, ob):
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
 
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+
+        layout.prop(ob, "dupli_type", expand=True)
+
+        if ob.dupli_type == 'FRAMES':
+            split = layout.split()
+
+            col = split.column(align=True)
+            col.prop(ob, "dupli_frames_start", text="Start")
+            col.prop(ob, "dupli_frames_end", text="End")
+
+            col = split.column(align=True)
+            col.prop(ob, "dupli_frames_on", text="On")
+            col.prop(ob, "dupli_frames_off", text="Off")
+
+            layout.prop(ob, "use_dupli_frames_speed", text="Speed")
+
+        elif ob.dupli_type == 'VERTS':
+            layout.prop(ob, "use_dupli_vertices_rotation", text="Rotation")
+
+        elif ob.dupli_type == 'FACES':
+            row = layout.row()
+            row.prop(ob, "use_dupli_faces_scale", text="Scale")
+            sub = row.row()
+            sub.active = ob.use_dupli_faces_scale
+            sub.prop(ob, "dupli_faces_scale", text="Inherit Scale")
+
+        elif ob.dupli_type == 'GROUP':
+            layout.prop(ob, "dupli_group", text="Group")
+
+
+class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
+    bl_label = "Cache"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group)
+
     def draw_cache_modifier(self, context, layout, cachelib, md):
         layout.context_pointer_set("cache_modifier", md)
 
@@ -395,43 +437,15 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
             self.draw_cache_modifier(context, box, cachelib, md)
 
     def draw(self, context):
-        layout = self.layout
-
         ob = context.object
 
-        layout.prop(ob, "dupli_type", expand=True)
+        layout = self.layout
+        row = layout.row(align=True)
+        row.template_ID(ob, "cache_library", new="cachelibrary.new")
 
-        if ob.dupli_type == 'FRAMES':
-            split = layout.split()
-
-            col = split.column(align=True)
-            col.prop(ob, "dupli_frames_start", text="Start")
-            col.prop(ob, "dupli_frames_end", text="End")
-
-            col = split.column(align=True)
-            col.prop(ob, "dupli_frames_on", text="On")
-            col.prop(ob, "dupli_frames_off", text="Off")
-
-            layout.prop(ob, "use_dupli_frames_speed", text="Speed")
-
-        elif ob.dupli_type == 'VERTS':
-            layout.prop(ob, "use_dupli_vertices_rotation", text="Rotation")
-
-        elif ob.dupli_type == 'FACES':
-            row = layout.row()
-            row.prop(ob, "use_dupli_faces_scale", text="Scale")
-            sub = row.row()
-            sub.active = ob.use_dupli_faces_scale
-            sub.prop(ob, "dupli_faces_scale", text="Inherit Scale")
-
-        elif ob.dupli_type == 'GROUP':
-            layout.prop(ob, "dupli_group", text="Group")
-            row = layout.row(align=True)
-            row.template_ID(ob, "cache_library", new="cachelibrary.new")
-
-            if ob.cache_library:
-                cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
-                self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
+        if ob.cache_library:
+            cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
+            self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
 
     def HAIR_SIMULATION(self, context, layout, cachelib, md):
         params = md.parameters
