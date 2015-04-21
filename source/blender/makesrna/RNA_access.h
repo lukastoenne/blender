@@ -95,6 +95,8 @@ extern StructRNA RNA_Brush;
 extern StructRNA RNA_BrushTextureSlot;
 extern StructRNA RNA_BuildModifier;
 extern StructRNA RNA_MeshCacheModifier;
+extern StructRNA RNA_CacheArchiveInfo;
+extern StructRNA RNA_CacheArchiveInfoNode;
 extern StructRNA RNA_CacheItem;
 extern StructRNA RNA_CacheLibrary;
 extern StructRNA RNA_CacheLibraryModifier;

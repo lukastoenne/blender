@@ -89,6 +89,12 @@ static void rna_CacheLibrary_update(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
+static void rna_CacheArchiveInfo_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+//	CacheLibrary *cachelib = ptr->id.data;
+//	WM_main_add_notifier(NC_OBJECT | ND_DRAW, NULL);
+}
+
 /* ========================================================================= */
 
 static void rna_CacheModifier_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
@@ -226,6 +232,20 @@ static int rna_HairSimulationCacheModifier_hair_system_poll(PointerRNA *ptr, Poi
 	if (!psys->part || psys->part->type != PART_HAIR)
 		return false;
 	return true;
+}
+
+static void rna_CacheArchiveInfoNode_bytes_size_get(PointerRNA *ptr, char *value)
+{
+	CacheArchiveInfoNode *node = ptr->data;
+	BLI_snprintf(value, MAX_NAME, "%lu", node->bytes_size);
+}
+
+static int rna_CacheArchiveInfoNode_bytes_size_length(PointerRNA *ptr)
+{
+	char buf[MAX_NAME];
+	/* theoretically could do a dummy BLI_snprintf here, but BLI does not allow NULL buffer ... */
+	CacheArchiveInfoNode *node = ptr->data;
+	return BLI_snprintf(buf, sizeof(buf), "%lu", node->bytes_size);
 }
 
 #else
@@ -564,12 +584,99 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "CacheLibraryModifier");
 	RNA_def_property_ui_text(prop, "Modifiers", "Modifiers applying to the cached data");
 	rna_def_cache_library_modifiers(brna, prop);
+	
+	prop = RNA_def_property(srna, "archive_info", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "CacheArchiveInfo");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Archive Info", "Information about structure and contents of the archive");
+}
+
+static void rna_def_cache_archive_info_node(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	static EnumPropertyItem type_items[] = {
+	    {eCacheArchiveInfoNode_Type_Object, "OBJECT", 0, "Object", "Structural object node forming the hierarchy"},
+	    {eCacheArchiveInfoNode_Type_ScalarProperty, "SCALAR_PROPERTY", 0, "Scalar Property", "Property with a single value per sample"},
+	    {eCacheArchiveInfoNode_Type_ArrayProperty, "ARRAY_PROPERTY", 0, "Array Property", "Array property with an arbitrary number of values per sample"},
+	    {eCacheArchiveInfoNode_Type_CompoundProperty, "COMPOUND_PROPERTY", 0, "Compound Property", "Compound property containing other properties"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
+	srna = RNA_def_struct(brna, "CacheArchiveInfoNode", NULL);
+	RNA_def_struct_ui_text(srna, "Cache Archive Info Node", "Node in the structure of a cache archive");
+	
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, type_items);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Type", "Type of archive node");
+	
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Name", "Name of the archive node");
+	RNA_def_struct_name_property(srna, prop);
+	
+	prop = RNA_def_property(srna, "child_nodes", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "CacheArchiveInfoNode");
+	RNA_def_property_ui_text(prop, "Child Nodes", "Nested archive nodes");
+	
+	prop = RNA_def_property(srna, "expand", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eCacheArchiveInfoNode_Flag_Expand);
+	RNA_def_property_ui_text(prop, "Expand", "Show contents of the node");
+	RNA_def_property_update(prop, 0, "rna_CacheArchiveInfo_update");
+	
+	/* XXX this is a 64bit integer, not supported nicely by RNA,
+	 * but string encoding is sufficient for feedback
+	 */
+	prop = RNA_def_property(srna, "bytes_size", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, "rna_CacheArchiveInfoNode_bytes_size_get", "rna_CacheArchiveInfoNode_bytes_size_length", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Bytes Size", "Overall size of the node data in bytes");
+	
+	prop = RNA_def_property(srna, "datatype", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "datatype_name");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Datatype", "Type of values stored in the property");
+	
+	prop = RNA_def_property(srna, "datatype_extent", PROP_INT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Datatype Extent", "Array extent of a single data element");
+	
+	prop = RNA_def_property(srna, "samples", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "num_samples");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Samples", "Number of samples stored for the property");
+	
+	prop = RNA_def_property(srna, "array_size", PROP_INT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Array Size", "Maximum array size for any sample of the property");
+}
+
+static void rna_def_cache_archive_info(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "CacheArchiveInfo", NULL);
+	RNA_def_struct_ui_text(srna, "Cache Archive Info", "Information about structure and contents of a cache file");
+	
+	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "File Path", "Path to the cache archive");
+	
+	prop = RNA_def_property(srna, "root_node", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "CacheArchiveInfoNode");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Root Node", "Root node of the archive");
 }
 
 void RNA_def_cache_library(BlenderRNA *brna)
 {
 	rna_def_cache_modifier(brna);
 	rna_def_cache_library(brna);
+	rna_def_cache_archive_info_node(brna);
+	rna_def_cache_archive_info(brna);
 }
 
 #endif

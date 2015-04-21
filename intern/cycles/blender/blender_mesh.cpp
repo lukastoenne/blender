@@ -688,7 +688,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 		 * so that individual per-dupli overrides are possible.
 		 */
 		MeshKey key = MeshKey(b_parent, b_ob);
-		need_update = mesh_map.sync(&mesh, b_parent, PointerRNA_NULL, key);
+		need_update = mesh_map.sync(&mesh, b_ob, b_parent, key);
 	}
 	else {
 		BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob_data;

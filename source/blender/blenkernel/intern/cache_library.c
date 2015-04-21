@@ -109,6 +109,8 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 		}
 	}
 	
+	cachelibn->archive_info = NULL;
+	
 	if (cachelib->id.lib) {
 		BKE_id_lib_local_paths(G.main, cachelib->id.lib, &cachelibn->id);
 	}
@@ -119,6 +121,9 @@ CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 void BKE_cache_library_free(CacheLibrary *cachelib)
 {
 	BKE_cache_modifier_clear(cachelib);
+	
+	if (cachelib->archive_info)
+		BKE_cache_archive_info_free(cachelib->archive_info);
 }
 
 void BKE_cache_library_unlink(CacheLibrary *UNUSED(cachelib))
@@ -1013,4 +1018,125 @@ void BKE_cache_modifier_init(void)
 {
 	cache_modifier_type_set(eCacheModifierType_HairSimulation, &cacheModifierType_HairSimulation);
 	cache_modifier_type_set(eCacheModifierType_ForceField, &cacheModifierType_ForceField);
+}
+
+/* ========================================================================= */
+
+#if 0
+static unsigned int hash_combine(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
+static unsigned int cache_archive_info_node_hash(const void *key)
+{
+	const CacheArchiveInfoNode *node = key;
+	
+	unsigned int hash = hash_combine(BLI_ghashutil_strhash(node->name), BLI_ghashutil_inthash(node->type));
+	if (node->parent_hash != 0)
+		hash = hash_combine(hash, node->parent_hash);
+	return hash;
+}
+
+static bool cache_archive_info_node_cmp(const CacheArchiveInfoNode *a, const CacheArchiveInfoNode *b)
+{
+	if (a->parent_hash != b->parent_hash)
+		return true;
+	else if (a->type != b->type)
+		return true;
+	else if (!STREQ(a->name, b->name))
+		return true;
+	else
+		return false;
+}
+#endif
+
+static void cache_archive_info_node_free(CacheArchiveInfoNode *node)
+{
+	CacheArchiveInfoNode *child, *child_next;
+	for (child = node->child_nodes.first; child; child = child_next) {
+		child_next = child->next;
+		cache_archive_info_node_free(child);
+	}
+	
+	MEM_freeN(node);
+}
+
+CacheArchiveInfo *BKE_cache_archive_info_new(void)
+{
+	CacheArchiveInfo *info = MEM_callocN(sizeof(CacheArchiveInfo), "cache archive info");
+	
+	return info;
+}
+
+void BKE_cache_archive_info_free(CacheArchiveInfo *info)
+{
+	if (info) {
+		if (info->root_node)
+			cache_archive_info_node_free(info->root_node);
+		
+		MEM_freeN(info);
+	}
+}
+
+void BKE_cache_archive_info_clear(CacheArchiveInfo *info)
+{
+	if (info->root_node) {
+		cache_archive_info_node_free(info->root_node);
+		info->root_node = NULL;
+	}
+}
+
+CacheArchiveInfoNode *BKE_cache_archive_info_find_node(CacheArchiveInfo *info, CacheArchiveInfoNode *parent,
+                                                       eCacheArchiveInfoNode_Type type, const char *name)
+{
+	if (parent) {
+		CacheArchiveInfoNode *child;
+		for (child = parent->child_nodes.first; child; child = child->next) {
+			if (STREQ(child->name, name) && child->type == type)
+				return child;
+		}
+	}
+	else if (info->root_node) {
+		if (STREQ(info->root_node->name, name) && info->root_node->type == type)
+			return info->root_node;
+	}
+	return NULL;
+}
+
+CacheArchiveInfoNode *BKE_cache_archive_info_add_node(CacheArchiveInfo *info, CacheArchiveInfoNode *parent,
+                                                      eCacheArchiveInfoNode_Type type, const char *name)
+{
+	CacheArchiveInfoNode *node;
+	
+	BLI_assert(parent || !info->root_node);
+	
+	node = MEM_callocN(sizeof(CacheArchiveInfoNode), "cache archive info node");
+	node->type = type;
+	BLI_strncpy(node->name, name, sizeof(node->name));
+	
+	if (parent)
+		BLI_addtail(&parent->child_nodes, node);
+	else
+		info->root_node = node;
+	
+	return node;
 }

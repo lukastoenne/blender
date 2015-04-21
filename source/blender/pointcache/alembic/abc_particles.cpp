@@ -698,12 +698,14 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
-	if (!m_curves.valid())
+	if (!m_curves.valid()) {
 		return PTC_READ_SAMPLE_INVALID;
+	}
 	
 	ICurvesSchema &schema = m_curves.getSchema();
-	if (schema.getNumSamples() == 0)
+	if (schema.getNumSamples() == 0) {
 		return PTC_READ_SAMPLE_INVALID;
+	}
 	
 	ICurvesSchema::Sample sample;
 	schema.get(sample, ss);
@@ -716,12 +718,17 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
 	Int32ArraySamplePtr sample_parents = m_prop_parents.getValue(ss);
 	FloatArraySamplePtr sample_parent_weights = m_prop_parent_weights.getValue(ss);
 	
-	if (!sample_co || !sample_numvert)
+	if (!sample_co || !sample_numvert) {
 		return PTC_READ_SAMPLE_INVALID;
+	}
 	
 	int totcurves = sample_numvert->size();
 	int totverts = sample_co->size();
-	
+
+	if (!totcurves) {
+		return PTC_READ_SAMPLE_INVALID;
+	}
+
 	if (sample_root_matrix->size() != totcurves ||
 	    sample_root_positions->size() != totcurves ||
 	    sample_parents->size() != 4 * totcurves ||

@@ -55,7 +55,8 @@ public:
 	bool get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
-	void get_info(void (*stream)(void *, const char *), void *userdata);
+	void get_info_stream(void (*stream)(void *, const char *), void *userdata);
+	void get_info_nodes(CacheArchiveInfo *info);
 	
 protected:
 	AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, Abc::IArchive abc_archive);

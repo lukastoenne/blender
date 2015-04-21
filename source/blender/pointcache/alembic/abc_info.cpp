@@ -63,7 +63,10 @@
 #include "alembic.h"
 
 extern "C" {
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
+
+#include "BKE_cache_library.h"
 }
 
 using namespace ::Alembic::AbcGeom;
@@ -96,10 +99,10 @@ stringstream& operator << (stringstream &stream, T s)
 static const std::string g_sep(";");
 static const std::string g_endl("\n");
 
-static void visitProperties(stringstream &ss, ICompoundProperty, std::string &);
+static void info_stream_properties(stringstream &ss, ICompoundProperty, std::string &);
 
 template <class PROP>
-static void visitSimpleArrayProperty(stringstream &ss, PROP iProp, const std::string &iIndent)
+static void info_stream_array_property(stringstream &ss, PROP iProp, const std::string &iIndent)
 {
 	std::string ptype = "ArrayProperty ";
 	size_t asize = 0;
@@ -134,7 +137,7 @@ static void visitSimpleArrayProperty(stringstream &ss, PROP iProp, const std::st
 }
 
 template <class PROP>
-static void visitSimpleScalarProperty(stringstream &ss, PROP iProp, const std::string &iIndent)
+static void info_stream_scalar_property(stringstream &ss, PROP iProp, const std::string &iIndent)
 {
 	std::string ptype = "ScalarProperty ";
 	size_t asize = 0;
@@ -171,7 +174,7 @@ static void visitSimpleScalarProperty(stringstream &ss, PROP iProp, const std::s
 	   << iProp.getNumSamples() << g_endl;
 }
 
-static void visitCompoundProperty(stringstream &ss, ICompoundProperty iProp, std::string &ioIndent)
+static void info_stream_compound_property(stringstream &ss, ICompoundProperty iProp, std::string &ioIndent)
 {
 	std::string oldIndent = ioIndent;
 	ioIndent += "  ";
@@ -182,33 +185,33 @@ static void visitCompoundProperty(stringstream &ss, ICompoundProperty iProp, std
 	ss << ioIndent << "CompoundProperty " << "name=" << iProp.getName()
 	   << g_sep << interp << g_endl;
 	
-	visitProperties(ss, iProp, ioIndent);
+	info_stream_properties(ss, iProp, ioIndent);
 	
 	ioIndent = oldIndent;
 }
 
-static void visitProperties(stringstream &ss, ICompoundProperty iParent, std::string &ioIndent )
+static void info_stream_properties(stringstream &ss, ICompoundProperty iParent, std::string &ioIndent )
 {
 	std::string oldIndent = ioIndent;
 	for (size_t i = 0 ; i < iParent.getNumProperties() ; i++) {
 		PropertyHeader header = iParent.getPropertyHeader(i);
 		
 		if (header.isCompound()) {
-			visitCompoundProperty(ss, ICompoundProperty(iParent, header.getName()), ioIndent);
+			info_stream_compound_property(ss, ICompoundProperty(iParent, header.getName()), ioIndent);
 		}
 		else if (header.isScalar()) {
-			visitSimpleScalarProperty(ss, IScalarProperty(iParent, header.getName()), ioIndent);
+			info_stream_scalar_property(ss, IScalarProperty(iParent, header.getName()), ioIndent);
 		}
 		else {
 			BLI_assert(header.isArray());
-			visitSimpleArrayProperty(ss, IArrayProperty(iParent, header.getName()), ioIndent);
+			info_stream_array_property(ss, IArrayProperty(iParent, header.getName()), ioIndent);
 		}
 	}
 	
 	ioIndent = oldIndent;
 }
 
-static void visitObject(stringstream &ss, IObject iObj, std::string iIndent)
+static void info_stream_object(stringstream &ss, IObject iObj, std::string iIndent)
 {
 	// Object has a name, a full name, some meta data,
 	// and then it has a compound property full of properties.
@@ -232,16 +235,16 @@ static void visitObject(stringstream &ss, IObject iObj, std::string iIndent)
 		
 		// Get the properties.
 		ICompoundProperty props = iObj.getProperties();
-		visitProperties(ss, props, iIndent);
+		info_stream_properties(ss, props, iIndent);
 		
 		// now the child objects
 		for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
-			visitObject(ss, IObject(iObj, iObj.getChildHeader(i).getName()), iIndent);
+			info_stream_object(ss, IObject(iObj, iObj.getChildHeader(i).getName()), iIndent);
 		}
 	}
 }
 
-void abc_archive_info(IArchive &archive, void (*stream)(void *, const char *), void *userdata)
+void abc_archive_info_stream(IArchive &archive, void (*stream)(void *, const char *), void *userdata)
 {
 	stringstream ss(stream, userdata);
 	
@@ -275,7 +278,147 @@ void abc_archive_info(IArchive &archive, void (*stream)(void *, const char *), v
 		ss << g_endl;
 	}
 	
-	visitObject(ss, archive.getTop(), "");
+	info_stream_object(ss, archive.getTop(), "");
+}
+
+/* ========================================================================= */
+
+static void info_nodes_properties(CacheArchiveInfo *info, ICompoundProperty, CacheArchiveInfoNode *parent);
+
+template <class PROP>
+static void info_nodes_array_property(CacheArchiveInfo *info, PROP iProp, CacheArchiveInfoNode *parent)
+{
+	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_ArrayProperty, iProp.getName().c_str());
+	
+	index_t num_samples = iProp.getNumSamples();
+	size_t max_array_size = 0;
+	size_t tot_array_size = 0;
+	for (index_t i = 0; i < num_samples; ++i) {
+		AbcA::ArraySamplePtr samp;
+		iProp.get(samp, ISampleSelector(i));
+		size_t array_size = samp->size();
+		max_array_size = std::max(max_array_size, array_size);
+		tot_array_size += array_size;
+	}
+	
+	const DataType &datatype = iProp.getDataType();
+	
+	node->num_samples = num_samples;
+	BLI_strncpy(node->datatype_name, PODName(datatype.getPod()), sizeof(node->datatype_name));
+	node->datatype_extent = (short)datatype.getExtent();
+	node->bytes_size = datatype.getNumBytes() * tot_array_size;
+	node->array_size = max_array_size;
+	
+	if (parent)
+		parent->bytes_size += node->bytes_size;
+}
+
+template <class PROP>
+static void info_nodes_scalar_property(CacheArchiveInfo *info, PROP iProp, CacheArchiveInfoNode *parent)
+{
+	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_ScalarProperty, iProp.getName().c_str());
+	
+	index_t num_samples = iProp.getNumSamples();
+	
+	const DataType &datatype = iProp.getDataType();
+	
+	node->num_samples = num_samples;
+	BLI_strncpy(node->datatype_name, PODName(datatype.getPod()), sizeof(node->datatype_name));
+	node->datatype_extent = (short)datatype.getExtent();
+	node->bytes_size = datatype.getNumBytes() * num_samples;
+	
+	if (parent)
+		parent->bytes_size += node->bytes_size;
+}
+
+static void info_nodes_compound_property(CacheArchiveInfo *info, ICompoundProperty iProp, CacheArchiveInfoNode *parent)
+{
+	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_CompoundProperty, iProp.getName().c_str());
+	
+	info_nodes_properties(info, iProp, node);
+	
+	if (parent)
+		parent->bytes_size += node->bytes_size;
+}
+
+static void info_nodes_properties(CacheArchiveInfo *info, ICompoundProperty iParent, CacheArchiveInfoNode *parent)
+{
+	for (size_t i = 0 ; i < iParent.getNumProperties() ; i++) {
+		PropertyHeader header = iParent.getPropertyHeader(i);
+		
+		if (header.isCompound()) {
+			info_nodes_compound_property(info, ICompoundProperty(iParent, header.getName()), parent);
+		}
+		else if (header.isScalar()) {
+			info_nodes_scalar_property(info, IScalarProperty(iParent, header.getName()), parent);
+		}
+		else {
+			BLI_assert(header.isArray());
+			info_nodes_array_property(info, IArrayProperty(iParent, header.getName()), parent);
+		}
+	}
+}
+
+static void info_nodes_object(CacheArchiveInfo *info, IObject iObj, CacheArchiveInfoNode *parent)
+{
+	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_Object, iObj.getName().c_str());
+	
+	if (iObj.isInstanceRoot()) {
+	}
+	else if (iObj.isInstanceDescendant()) {
+	}
+	else {
+		// Get the properties.
+		ICompoundProperty props = iObj.getProperties();
+		info_nodes_properties(info, props, node);
+		
+		// now the child objects
+		for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
+			info_nodes_object(info, IObject(iObj, iObj.getChildHeader(i).getName()), node);
+		}
+	}
+	
+	if (parent)
+		parent->bytes_size += node->bytes_size;
+}
+
+void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info)
+{
+#if 0
+	stringstream ss(stream, userdata);
+	
+	ss << "Alembic Archive Info for "
+	   << Alembic::AbcCoreAbstract::GetLibraryVersion()
+	   << g_endl;
+	
+	std::string appName;
+	std::string libraryVersionString;
+	Alembic::Util::uint32_t libraryVersion;
+	std::string whenWritten;
+	std::string userDescription;
+	GetArchiveInfo(archive,
+	               appName,
+	               libraryVersionString,
+	               libraryVersion,
+	               whenWritten,
+	               userDescription);
+	
+	if (appName != "") {
+		ss << "  file written by: " << appName << g_endl;
+		ss << "  using Alembic : " << libraryVersionString << g_endl;
+		ss << "  written on : " << whenWritten << g_endl;
+		ss << "  user description : " << userDescription << g_endl;
+		ss << g_endl;
+	}
+	else {
+//		ss << argv[1] << g_endl;
+		ss << "  (file doesn't have any ArchiveInfo)"
+		   << g_endl;
+		ss << g_endl;
+	}
+#endif
+	
+	info_nodes_object(info, archive.getTop(), NULL);
 }
 
 } /* namespace PTC */

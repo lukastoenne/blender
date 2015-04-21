@@ -235,10 +235,16 @@ PTCReadSampleResult PTC_test_sample(PTCReader *_reader, float frame)
 	return reader->test_sample(frame);
 }
 
-void PTC_get_archive_info(PTCReaderArchive *_archive, void (*stream)(void *, const char *), void *userdata)
+void PTC_get_archive_info_stream(PTCReaderArchive *_archive, void (*stream)(void *, const char *), void *userdata)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	archive->get_info(stream, userdata);
+	archive->get_info_stream(stream, userdata);
+}
+
+void PTC_get_archive_info_nodes(PTCReaderArchive *_archive, struct CacheArchiveInfo *info)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	archive->get_info_nodes(info);
 }
 
 

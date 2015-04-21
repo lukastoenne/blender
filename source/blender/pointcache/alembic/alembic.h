@@ -23,9 +23,12 @@
 
 #include <Alembic/Abc/IArchive.h>
 
+struct CacheArchiveInfo;
+
 namespace PTC {
 
-void abc_archive_info(Alembic::Abc::IArchive &archive, void (*stream)(void *, const char *), void *userdata);
+void abc_archive_info_stream(Alembic::Abc::IArchive &archive, void (*stream)(void *, const char *), void *userdata);
+void abc_archive_info_nodes(Alembic::Abc::IArchive &archive, CacheArchiveInfo *info);
 
 } /* namespace PTC */
 

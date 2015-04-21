@@ -399,6 +399,7 @@ option(WITH_BOOST					"Enable features depending on boost" ON)
 
 # Unit testsing
 option(WITH_GTESTS "Enable GTest unit testing" OFF)
+option(WITH_TESTS_PERFORMANCE "Enable performance tests" OFF)
 
 
 # Documentation
@@ -1142,6 +1143,10 @@ if(UNIX AND NOT APPLE)
 	if(WITH_ALEMBIC)
 		find_package_wrapper(Alembic)
 		set(ALEMBIC_LIBRARIES ${ALEMBIC_LIBRARIES} ${BOOST_LIBRARIES})
+		if(NOT ALEMBIC_HDF5_FOUND)
+			message(STATUS "Alembic is compiled without HDF5 support, disabling HDF5 options")
+			set(WITH_HDF5 OFF)
+		endif()
 	endif()
 
 	if(WITH_HDF5)

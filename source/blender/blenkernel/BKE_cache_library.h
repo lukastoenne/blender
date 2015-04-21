@@ -169,6 +169,8 @@ struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, str
 
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
 
+/* ========================================================================= */
+
 typedef struct CacheEffectorInstance {
 	struct CacheEffectorInstance *next, *prev;
 	
@@ -205,5 +207,16 @@ typedef struct CacheEffectorResult {
 int BKE_cache_effectors_get(struct CacheEffector *effectors, int max, struct CacheLibrary *cachelib, struct DupliCache *dupcache, float obmat[4][4]);
 void BKE_cache_effectors_free(struct CacheEffector *effectors, int tot);
 int BKE_cache_effectors_eval(struct CacheEffector *effectors, int tot, struct CacheEffectorPoint *point, struct CacheEffectorResult *result);
+
+/* ========================================================================= */
+
+struct CacheArchiveInfo *BKE_cache_archive_info_new(void);
+void BKE_cache_archive_info_free(struct CacheArchiveInfo *info);
+void BKE_cache_archive_info_clear(struct CacheArchiveInfo *info);
+
+struct CacheArchiveInfoNode *BKE_cache_archive_info_find_node(struct CacheArchiveInfo *info, struct CacheArchiveInfoNode *parent,
+                                                              eCacheArchiveInfoNode_Type type, const char *name);
+struct CacheArchiveInfoNode *BKE_cache_archive_info_add_node(struct CacheArchiveInfo *info, struct CacheArchiveInfoNode *parent,
+                                                             eCacheArchiveInfoNode_Type type, const char *name);
 
 #endif

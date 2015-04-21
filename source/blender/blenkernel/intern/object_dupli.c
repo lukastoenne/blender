@@ -1457,7 +1457,7 @@ void BKE_dupli_object_data_add_strands_children(DupliObjectData *data, const cha
 			BKE_strands_children_free(link->strands_children);
 		link->strands_children = children;
 	}
-	
+
 	dupli_cache_calc_boundbox(data);
 }
 

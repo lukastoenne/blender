@@ -314,6 +314,48 @@ def cachelib_object_items(cachelib, ob):
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
 
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+
+        layout.prop(ob, "dupli_type", expand=True)
+
+        if ob.dupli_type == 'FRAMES':
+            split = layout.split()
+
+            col = split.column(align=True)
+            col.prop(ob, "dupli_frames_start", text="Start")
+            col.prop(ob, "dupli_frames_end", text="End")
+
+            col = split.column(align=True)
+            col.prop(ob, "dupli_frames_on", text="On")
+            col.prop(ob, "dupli_frames_off", text="Off")
+
+            layout.prop(ob, "use_dupli_frames_speed", text="Speed")
+
+        elif ob.dupli_type == 'VERTS':
+            layout.prop(ob, "use_dupli_vertices_rotation", text="Rotation")
+
+        elif ob.dupli_type == 'FACES':
+            row = layout.row()
+            row.prop(ob, "use_dupli_faces_scale", text="Scale")
+            sub = row.row()
+            sub.active = ob.use_dupli_faces_scale
+            sub.prop(ob, "dupli_faces_scale", text="Inherit Scale")
+
+        elif ob.dupli_type == 'GROUP':
+            layout.prop(ob, "dupli_group", text="Group")
+
+
+class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
+    bl_label = "Cache"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group)
+
     def draw_cache_modifier(self, context, layout, cachelib, md):
         layout.context_pointer_set("cache_modifier", md)
 
@@ -397,43 +439,15 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
             self.draw_cache_modifier(context, box, cachelib, md)
 
     def draw(self, context):
-        layout = self.layout
-
         ob = context.object
 
-        layout.prop(ob, "dupli_type", expand=True)
+        layout = self.layout
+        row = layout.row(align=True)
+        row.template_ID(ob, "cache_library", new="cachelibrary.new")
 
-        if ob.dupli_type == 'FRAMES':
-            split = layout.split()
-
-            col = split.column(align=True)
-            col.prop(ob, "dupli_frames_start", text="Start")
-            col.prop(ob, "dupli_frames_end", text="End")
-
-            col = split.column(align=True)
-            col.prop(ob, "dupli_frames_on", text="On")
-            col.prop(ob, "dupli_frames_off", text="Off")
-
-            layout.prop(ob, "use_dupli_frames_speed", text="Speed")
-
-        elif ob.dupli_type == 'VERTS':
-            layout.prop(ob, "use_dupli_vertices_rotation", text="Rotation")
-
-        elif ob.dupli_type == 'FACES':
-            row = layout.row()
-            row.prop(ob, "use_dupli_faces_scale", text="Scale")
-            sub = row.row()
-            sub.active = ob.use_dupli_faces_scale
-            sub.prop(ob, "dupli_faces_scale", text="Inherit Scale")
-
-        elif ob.dupli_type == 'GROUP':
-            layout.prop(ob, "dupli_group", text="Group")
-            row = layout.row(align=True)
-            row.template_ID(ob, "cache_library", new="cachelibrary.new")
-
-            if ob.cache_library:
-                cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
-                self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
+        if ob.cache_library:
+            cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
+            self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
 
     def HAIR_SIMULATION(self, context, layout, cachelib, md):
         params = md.parameters
@@ -487,6 +501,109 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         row.prop(md, "max_distance")
         
         layout.prop(md, "use_double_sided")
+
+
+
+# Simple human-readable size (based on http://stackoverflow.com/a/1094933)
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','K','M','G','T','P','E','Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Y', suffix)
+
+class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
+    bl_label = "Cache Archive Info"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group and ob.cache_library)
+
+    def draw_node_structure(self, context, layout, node, indent):
+        row = layout.row()
+        for i in range(indent):
+            row.label(text="", icon='BLANK1')
+        
+        if not node.child_nodes:
+            row.label(text="", icon='DOT')
+        elif not node.expand:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_RIGHT', icon_only=True, emboss=False)
+        else:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_DOWN', icon_only=True, emboss=False)
+
+            for child in node.child_nodes:
+                self.draw_node_structure(context, layout, child, indent + 1)
+
+
+    info_columns = ['Name', 'Node', 'Samples', 'Size', 'Data', '', 'Array Size']
+
+    def draw_node_info(self, context, layout, node, column):
+        if column == 0:
+            layout.prop(node, "name", text="")
+        if column == 1:
+            layout.prop(node, "type", text="")
+        if column == 2:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "samples", text="")
+            else:
+                layout.label(" ")
+        if column == 3:
+            size = int(node.bytes_size)
+            layout.label(sizeof_fmt(size))
+        if column == 4:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype", text="")
+            else:
+                layout.label(" ")
+        if column == 5:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype_extent", text="")
+            else:
+                layout.label(" ")
+        if column == 6:
+            if node.type in {'ARRAY_PROPERTY'}:
+                layout.prop(node, "array_size", text="")
+            else:
+                layout.label(" ")
+
+        if node.expand:
+            for child in node.child_nodes:
+                self.draw_node_info(context, layout, child, column)
+
+    def draw(self, context):
+        ob = context.object
+        cachelib = ob.cache_library
+
+        layout = self.layout
+        row = layout.row()
+
+        props = row.operator("cachelibrary.archive_info", text="Input", icon='QUESTION')
+        props.filepath = cachelib.input_filepath
+        props.use_cache_info = True
+
+        props = row.operator("cachelibrary.archive_info", text="Output", icon='QUESTION')
+        props.filepath = cachelib.output_filepath
+        props.use_cache_info = True
+
+        layout.separator()
+
+        info = cachelib.archive_info
+        if info:
+            layout.prop(info, "filepath")
+
+            if info.root_node:
+                row = layout.row()
+
+                col = row.column()
+                col.label(" ")
+                self.draw_node_structure(context, col, info.root_node, 0)
+
+                for i, column in enumerate(self.info_columns):
+                    col = row.column()
+                    col.label(column)
+                    self.draw_node_info(context, col, info.root_node, i)
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
