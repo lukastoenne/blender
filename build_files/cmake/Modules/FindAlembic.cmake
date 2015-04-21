@@ -6,6 +6,7 @@
 #  ALEMBIC_ROOT_DIR, The base directory to search for Alembic.
 #                    This can also be an environment variable.
 #  ALEMBIC_FOUND, If false, do not try to use Alembic.
+#  ALEMBIC_HDF5_FOUND,  indicates whether Alembic supports HDF5
 
 #=============================================================================
 # Copyright 2013 Blender Foundation.
@@ -36,7 +37,6 @@ SET(_alembic_FIND_COMPONENTS
   AlembicAbc
   AlembicAbcCoreAbstract
   AlembicAbcGeom
-  AlembicAbcCoreHDF5
   AlembicAbcCoreOgawa
   AlembicOgawa
   AlembicUtil
@@ -61,11 +61,30 @@ FOREACH(COMPONENT ${_alembic_FIND_COMPONENTS})
     HINTS
       ${_alembic_SEARCH_DIRS}
     PATH_SUFFIXES
+      lib
       lib/static
     )
   MARK_AS_ADVANCED(ALEMBIC_${UPPERCOMPONENT}_LIBRARY)
   LIST(APPEND _alembic_LIBRARIES "${ALEMBIC_${UPPERCOMPONENT}_LIBRARY}")
 ENDFOREACH()
+
+# Sepcial handling of optional libraries
+FIND_LIBRARY(ALEMBIC_ALEMBICABCCOREHDF5_LIBRARY
+  NAMES
+    AlembicAbcCoreHDF5
+  HINTS
+    ${_alembic_SEARCH_DIRS}
+  PATH_SUFFIXES
+    lib
+    lib/static
+  )
+MARK_AS_ADVANCED(ALEMBIC_ALEMBICABCCOREHDF5_LIBRARY)
+IF(ALEMBIC_ALEMBICABCCOREHDF5_LIBRARY)
+  LIST(APPEND _alembic_LIBRARIES "${ALEMBIC_ALEMBICABCCOREHDF5_LIBRARY}")
+  SET(ALEMBIC_HDF5_FOUND TRUE)
+ELSE()
+  SET(ALEMBIC_HDF5_FOUND FALSE)
+ENDIF()
 
 # handle the QUIETLY and REQUIRED arguments and set ALEMBIC_FOUND to TRUE if 
 # all listed variables are TRUE
