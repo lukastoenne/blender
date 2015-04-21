@@ -578,6 +578,7 @@ static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 	CacheLibrary *cachelib = ob->cache_library;
 	Scene *scene = CTX_data_scene(C);
 	
+	const bool use_cache_info = RNA_boolean_get(op->ptr, "use_cache_info");
 	const bool use_stdout = RNA_boolean_get(op->ptr, "use_stdout");
 	const bool use_popup = RNA_boolean_get(op->ptr, "use_popup");
 	const bool use_clipboard = RNA_boolean_get(op->ptr, "use_clipboard");
@@ -596,8 +597,19 @@ static int cache_library_archive_info_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
+	if (use_cache_info) {
+		if (cachelib->archive_info)
+			BKE_cache_archive_info_clear(cachelib->archive_info);
+		else
+			cachelib->archive_info = BKE_cache_archive_info_new();
+		
+		BLI_strncpy(cachelib->archive_info->filepath, filename, sizeof(cachelib->archive_info->filepath));
+		
+		PTC_get_archive_info_nodes(archive, cachelib->archive_info);
+	}
+	
 	if (use_stdout) {
-		PTC_get_archive_info(archive, print_stream, NULL);
+		PTC_get_archive_info_stream(archive, print_stream, NULL);
 	}
 	
 	if (use_popup) {
@@ -628,6 +640,7 @@ void CACHELIBRARY_OT_archive_info(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	RNA_def_string(ot->srna, "filepath", NULL, FILE_MAX, "File Path", "Path to the cache archive");
+	RNA_def_boolean(ot->srna, "use_cache_info", false, "Use Cache Library Info", "Store info in the cache library");
 	RNA_def_boolean(ot->srna, "use_stdout", false, "Use stdout", "Print info in standard output");
 	RNA_def_boolean(ot->srna, "use_popup", false, "Show Popup", "Display archive info in a popup");
 	RNA_def_boolean(ot->srna, "use_clipboard", false, "Copy to Clipboard", "Copy archive info to the clipboard");

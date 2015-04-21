@@ -104,10 +104,16 @@ bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 	}
 }
 
-void AbcReaderArchive::get_info(void (*stream)(void *, const char *), void *userdata)
+void AbcReaderArchive::get_info_stream(void (*stream)(void *, const char *), void *userdata)
 {
 	if (m_abc_archive)
-		abc_archive_info(m_abc_archive, stream, userdata);
+		abc_archive_info_stream(m_abc_archive, stream, userdata);
+}
+
+void AbcReaderArchive::get_info_nodes(CacheArchiveInfo *info)
+{
+	if (m_abc_archive)
+		abc_archive_info_nodes(m_abc_archive, info);
 }
 
 ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)

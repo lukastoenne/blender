@@ -31,6 +31,7 @@ struct EvaluationContext;
 struct ListBase;
 struct PointerRNA;
 struct ReportList;
+struct CacheArchiveInfo;
 
 struct DupliCache;
 struct ClothModifierData;
@@ -80,7 +81,8 @@ bool PTC_reader_get_frame_range(struct PTCReader *reader, int *start_frame, int 
 PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
 PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
-void PTC_get_archive_info(struct PTCReaderArchive *archive, void (*stream)(void *, const char *), void *userdata);
+void PTC_get_archive_info_stream(struct PTCReaderArchive *archive, void (*stream)(void *, const char *), void *userdata);
+void PTC_get_archive_info_nodes(struct PTCReaderArchive *_archive, struct CacheArchiveInfo *info);
 
 struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib);
 struct PTCWriter *PTC_writer_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, int datatypes, bool do_sim_debug);

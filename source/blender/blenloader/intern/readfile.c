@@ -2049,6 +2049,8 @@ static void direct_link_cache_modifiers(FileData *fd, ListBase *modifiers)
 static void direct_link_cache_library(FileData *fd, CacheLibrary *cachelib)
 {
 	direct_link_cache_modifiers(fd, &cachelib->modifiers);
+	
+	cachelib->archive_info = NULL; /* runtime */
 }
 
 

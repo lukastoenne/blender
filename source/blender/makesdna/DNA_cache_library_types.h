@@ -101,7 +101,42 @@ typedef struct CacheLibrary {
 	char output_filepath[1024]; /* 1024 = FILE_MAX */
 	
 	ListBase modifiers;
+	
+	struct CacheArchiveInfo *archive_info;
 } CacheLibrary;
+
+/* ========================================================================= */
+
+/* These are runtime structs, included in DNA only for easier RNA parsing */
+
+typedef struct CacheArchiveInfoNode {
+	struct CacheArchiveInfoNode *next, *prev;
+	
+	short type;
+	short flag;
+	int pad;
+	char name[256];
+	
+	ListBase child_nodes;
+	
+	int64_t bytes_size;
+} CacheArchiveInfoNode;
+
+typedef enum eCacheArchiveInfoNode_Flag {
+	eCacheArchiveInfoNode_Flag_Expand,
+} eCacheArchiveInfoNode_Flag;
+
+typedef enum eCacheArchiveInfoNode_Type {
+	eCacheArchiveInfoNode_Type_Object,
+	eCacheArchiveInfoNode_Type_ScalarProperty,
+	eCacheArchiveInfoNode_Type_ArrayProperty,
+	eCacheArchiveInfoNode_Type_CompoundProperty,
+} eCacheArchiveInfoNode_Type;
+
+typedef struct CacheArchiveInfo {
+	char filepath[1024]; /* FILE_MAX */
+	struct CacheArchiveInfoNode *root_node;
+} CacheArchiveInfo;
 
 /* ========================================================================= */
 

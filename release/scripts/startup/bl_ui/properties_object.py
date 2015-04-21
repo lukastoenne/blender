@@ -501,6 +501,67 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         layout.prop(md, "use_double_sided")
 
 
+class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
+    bl_label = "Cache Archive Info"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group and ob.cache_library)
+
+    def draw_node_structure(self, context, layout, node, indent):
+        row = layout.row()
+        for i in range(indent):
+            row.label(text="", icon='BLANK1')
+        
+        if not node.child_nodes:
+            row.label(text="", icon='DOT')
+        elif not node.expand:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_RIGHT', icon_only=True, emboss=False)
+        else:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_DOWN', icon_only=True, emboss=False)
+
+            for child in node.child_nodes:
+                self.draw_node_structure(context, layout, child, indent + 1)
+
+
+    def draw_node_info(self, context, layout, node):
+        row = layout.row(align=True)
+        row.prop(node, "name", text="")
+        row.prop(node, "type", text="")
+
+        if node.expand:
+            for child in node.child_nodes:
+                self.draw_node_info(context, layout, child)
+
+    def draw(self, context):
+        ob = context.object
+        cachelib = ob.cache_library
+
+        layout = self.layout
+        row = layout.row()
+
+        props = row.operator("cachelibrary.archive_info", text="Input", icon='QUESTION')
+        props.filepath = cachelib.input_filepath
+        props.use_cache_info = True
+
+        props = row.operator("cachelibrary.archive_info", text="Output", icon='QUESTION')
+        props.filepath = cachelib.output_filepath
+        props.use_cache_info = True
+
+        layout.separator()
+
+        info = cachelib.archive_info
+        if info:
+            layout.prop(info, "filepath")
+
+            if info.root_node:
+                row = layout.row()
+                self.draw_node_structure(context, row.column(), info.root_node, 0)
+                self.draw_node_info(context, row.column(), info.root_node)
+
+
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
     bl_label = "Relations Extras"
     bl_options = {'DEFAULT_CLOSED'}
