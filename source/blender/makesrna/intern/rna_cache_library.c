@@ -234,6 +234,20 @@ static int rna_HairSimulationCacheModifier_hair_system_poll(PointerRNA *ptr, Poi
 	return true;
 }
 
+static void rna_CacheArchiveInfoNode_bytes_size_get(PointerRNA *ptr, char *value)
+{
+	CacheArchiveInfoNode *node = ptr->data;
+	BLI_snprintf(value, MAX_NAME, "%lu", node->bytes_size);
+}
+
+static int rna_CacheArchiveInfoNode_bytes_size_length(PointerRNA *ptr)
+{
+	char buf[MAX_NAME];
+	/* theoretically could do a dummy BLI_snprintf here, but BLI does not allow NULL buffer ... */
+	CacheArchiveInfoNode *node = ptr->data;
+	return BLI_snprintf(buf, sizeof(buf), "%lu", node->bytes_size);
+}
+
 #else
 
 static void rna_def_hair_sim_params(BlenderRNA *brna)
@@ -611,6 +625,32 @@ static void rna_def_cache_archive_info_node(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", eCacheArchiveInfoNode_Flag_Expand);
 	RNA_def_property_ui_text(prop, "Expand", "Show contents of the node");
 	RNA_def_property_update(prop, 0, "rna_CacheArchiveInfo_update");
+	
+	/* XXX this is a 64bit integer, not supported nicely by RNA,
+	 * but string encoding is sufficient for feedback
+	 */
+	prop = RNA_def_property(srna, "bytes_size", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, "rna_CacheArchiveInfoNode_bytes_size_get", "rna_CacheArchiveInfoNode_bytes_size_length", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Bytes Size", "Overall size of the node data in bytes");
+	
+	prop = RNA_def_property(srna, "datatype", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "datatype_name");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Datatype", "Type of values stored in the property");
+	
+	prop = RNA_def_property(srna, "datatype_extent", PROP_INT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Datatype Extent", "Array extent of a single data element");
+	
+	prop = RNA_def_property(srna, "samples", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "num_samples");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Samples", "Number of samples stored for the property");
+	
+	prop = RNA_def_property(srna, "array_size", PROP_INT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Array Size", "Maximum array size for any sample of the property");
 }
 
 static void rna_def_cache_archive_info(BlenderRNA *brna)

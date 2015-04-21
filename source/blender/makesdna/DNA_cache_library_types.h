@@ -119,7 +119,17 @@ typedef struct CacheArchiveInfoNode {
 	
 	ListBase child_nodes;
 	
-	int64_t bytes_size;
+	int64_t bytes_size; /* overall size of data stored in this node and children */
+	
+	char datatype_name[64];
+	short datatype_extent;
+	short pad2;
+	
+	int num_samples;
+	
+	/* array properties */
+	int array_size;
+	int pad3;
 } CacheArchiveInfoNode;
 
 typedef enum eCacheArchiveInfoNode_Flag {

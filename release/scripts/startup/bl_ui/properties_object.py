@@ -501,6 +501,15 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         layout.prop(md, "use_double_sided")
 
 
+
+# Simple human-readable size (based on http://stackoverflow.com/a/1094933)
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','K','M','G','T','P','E','Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Y', suffix)
+
 class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
     bl_label = "Cache Archive Info"
     bl_options = {'DEFAULT_CLOSED'}
@@ -526,14 +535,40 @@ class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
                 self.draw_node_structure(context, layout, child, indent + 1)
 
 
-    def draw_node_info(self, context, layout, node):
-        row = layout.row(align=True)
-        row.prop(node, "name", text="")
-        row.prop(node, "type", text="")
+    info_columns = ['Name', 'Node', 'Samples', 'Size', 'Data', '', 'Array Size']
+
+    def draw_node_info(self, context, layout, node, column):
+        if column == 0:
+            layout.prop(node, "name", text="")
+        if column == 1:
+            layout.prop(node, "type", text="")
+        if column == 2:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "samples", text="")
+            else:
+                layout.label(" ")
+        if column == 3:
+            size = int(node.bytes_size)
+            layout.label(sizeof_fmt(size))
+        if column == 4:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype", text="")
+            else:
+                layout.label(" ")
+        if column == 5:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype_extent", text="")
+            else:
+                layout.label(" ")
+        if column == 6:
+            if node.type in {'ARRAY_PROPERTY'}:
+                layout.prop(node, "array_size", text="")
+            else:
+                layout.label(" ")
 
         if node.expand:
             for child in node.child_nodes:
-                self.draw_node_info(context, layout, child)
+                self.draw_node_info(context, layout, child, column)
 
     def draw(self, context):
         ob = context.object
@@ -558,8 +593,15 @@ class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
 
             if info.root_node:
                 row = layout.row()
-                self.draw_node_structure(context, row.column(), info.root_node, 0)
-                self.draw_node_info(context, row.column(), info.root_node)
+
+                col = row.column()
+                col.label(" ")
+                self.draw_node_structure(context, col, info.root_node, 0)
+
+                for i, column in enumerate(self.info_columns):
+                    col = row.column()
+                    col.label(column)
+                    self.draw_node_info(context, col, info.root_node, i)
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

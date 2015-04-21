@@ -63,6 +63,7 @@
 #include "alembic.h"
 
 extern "C" {
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_cache_library.h"
@@ -289,38 +290,27 @@ static void info_nodes_array_property(CacheArchiveInfo *info, PROP iProp, CacheA
 {
 	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_ArrayProperty, iProp.getName().c_str());
 	
-#if 0
-	std::string ptype = "ArrayProperty ";
-	size_t asize = 0;
-	
-	AbcA::ArraySamplePtr samp;
-	index_t maxSamples = iProp.getNumSamples();
-	for (index_t i = 0 ; i < maxSamples; ++i) {
+	index_t num_samples = iProp.getNumSamples();
+	size_t max_array_size = 0;
+	size_t tot_array_size = 0;
+	for (index_t i = 0; i < num_samples; ++i) {
+		AbcA::ArraySamplePtr samp;
 		iProp.get(samp, ISampleSelector(i));
-		asize = samp->size();
+		size_t array_size = samp->size();
+		max_array_size = std::max(max_array_size, array_size);
+		tot_array_size += array_size;
 	}
 	
-	std::string mdstring = "interpretation=";
-	mdstring += iProp.getMetaData().get("interpretation");
+	const DataType &datatype = iProp.getDataType();
 	
-	std::stringstream dtype;
-	dtype << "datatype=";
-	dtype << iProp.getDataType();
+	node->num_samples = num_samples;
+	BLI_strncpy(node->datatype_name, PODName(datatype.getPod()), sizeof(node->datatype_name));
+	node->datatype_extent = (short)datatype.getExtent();
+	node->bytes_size = datatype.getNumBytes() * tot_array_size;
+	node->array_size = max_array_size;
 	
-	std::stringstream asizestr;
-	asizestr << ";arraysize=";
-	asizestr << asize;
-	
-	mdstring += g_sep;
-	
-	mdstring += dtype.str();
-	
-	mdstring += asizestr.str();
-	
-	ss << iIndent << "  " << ptype << "name=" << iProp.getName()
-	   << g_sep << mdstring << g_sep << "numsamps="
-	   << iProp.getNumSamples() << g_endl;
-#endif
+	if (parent)
+		parent->bytes_size += node->bytes_size;
 }
 
 template <class PROP>
@@ -328,41 +318,17 @@ static void info_nodes_scalar_property(CacheArchiveInfo *info, PROP iProp, Cache
 {
 	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_ScalarProperty, iProp.getName().c_str());
 	
-#if 0
-	std::string ptype = "ScalarProperty ";
-	size_t asize = 0;
+	index_t num_samples = iProp.getNumSamples();
 	
-	const AbcA::DataType &dt = iProp.getDataType();
-	const Alembic::Util ::uint8_t extent = dt.getExtent();
-	Alembic::Util::Dimensions dims(extent);
-	AbcA::ArraySamplePtr samp = AbcA::AllocateArraySample( dt, dims );
-	index_t maxSamples = iProp.getNumSamples();
-	for (index_t i = 0 ; i < maxSamples; ++i) {
-		iProp.get(const_cast<void *>(samp->getData()), ISampleSelector(i));
-		asize = samp->size();
-	}
+	const DataType &datatype = iProp.getDataType();
 	
-	std::string mdstring = "interpretation=";
-	mdstring += iProp.getMetaData().get("interpretation");
+	node->num_samples = num_samples;
+	BLI_strncpy(node->datatype_name, PODName(datatype.getPod()), sizeof(node->datatype_name));
+	node->datatype_extent = (short)datatype.getExtent();
+	node->bytes_size = datatype.getNumBytes() * num_samples;
 	
-	std::stringstream dtype;
-	dtype << "datatype=";
-	dtype << dt;
-	
-	std::stringstream asizestr;
-	asizestr << ";arraysize=";
-	asizestr << asize;
-	
-	mdstring += g_sep;
-	
-	mdstring += dtype.str();
-	
-	mdstring += asizestr.str();
-	
-	ss << iIndent << "  " << ptype << "name=" << iProp.getName()
-	   << g_sep << mdstring << g_sep << "numsamps="
-	   << iProp.getNumSamples() << g_endl;
-#endif
+	if (parent)
+		parent->bytes_size += node->bytes_size;
 }
 
 static void info_nodes_compound_property(CacheArchiveInfo *info, ICompoundProperty iProp, CacheArchiveInfoNode *parent)
@@ -370,6 +336,9 @@ static void info_nodes_compound_property(CacheArchiveInfo *info, ICompoundProper
 	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_CompoundProperty, iProp.getName().c_str());
 	
 	info_nodes_properties(info, iProp, node);
+	
+	if (parent)
+		parent->bytes_size += node->bytes_size;
 }
 
 static void info_nodes_properties(CacheArchiveInfo *info, ICompoundProperty iParent, CacheArchiveInfoNode *parent)
@@ -408,6 +377,9 @@ static void info_nodes_object(CacheArchiveInfo *info, IObject iObj, CacheArchive
 			info_nodes_object(info, IObject(iObj, iObj.getChildHeader(i).getName()), node);
 		}
 	}
+	
+	if (parent)
+		parent->bytes_size += node->bytes_size;
 }
 
 void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info)
