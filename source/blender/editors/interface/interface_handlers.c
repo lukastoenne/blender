@@ -6056,7 +6056,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 
 	but->flag |= UI_BUT_MENU_ROOT;
 
-	button_timers_tooltip_remove(C, but);
+	UI_but_tooltip_timer_remove(C, but);
 
 	/* highly unlikely getting the label ever fails */
 	UI_but_string_info_get(C, but, &label, NULL);
