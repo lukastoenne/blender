@@ -633,9 +633,13 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 
 	bool need_update;
 	BL::CacheLibrary b_cachelib = b_parent.cache_library();
+	const BL::CacheLibrary::eval_mode_enum dupli_eval_mode =
+	        preview ? BL::CacheLibrary::eval_mode_REALTIME
+	                : BL::CacheLibrary::eval_mode_RENDER;
 	bool use_dupli_override = b_dupli_ob && b_cachelib &&
-	                          (b_cachelib.source_mode() == BL::CacheLibrary::source_mode_CACHE ||
-	                           b_cachelib.display_mode() == BL::CacheLibrary::display_mode_RESULT);
+	       ((b_cachelib.eval_mode() & dupli_eval_mode) != 0) &&
+	        (b_cachelib.source_mode() == BL::CacheLibrary::source_mode_CACHE ||
+	         b_cachelib.display_mode() == BL::CacheLibrary::display_mode_RESULT);
 	if (use_dupli_override) {
 		/* if a dupli override (cached data) is used, identify the mesh by object and parent together,
 		 * so that individual per-dupli overrides are possible.
@@ -699,7 +703,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 			b_ob.update_from_editmode();
 
 		bool need_undeformed = mesh->need_attribute(scene, ATTR_STD_GENERATED);
-		BL::Mesh b_mesh = (b_dupli_ob && b_parent)?
+		BL::Mesh b_mesh = (use_dupli_override)?
 		            dupli_to_mesh(b_data, b_scene, b_parent, b_dupli_ob, !preview, need_undeformed):
 		            object_to_mesh(b_data, b_ob, b_scene, true, !preview, need_undeformed);
 
