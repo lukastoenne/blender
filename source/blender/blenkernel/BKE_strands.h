@@ -24,6 +24,7 @@
 #include "DNA_strands_types.h"
 
 struct Strands *BKE_strands_new(int strands, int verts);
+struct Strands *BKE_strands_copy(struct Strands *strands);
 void BKE_strands_free(struct Strands *strands);
 
 void BKE_strands_add_motion_state(struct Strands *strands);
@@ -37,6 +38,7 @@ void BKE_strands_get_minmax(struct Strands *strands, float min[3], float max[3],
 
 
 struct StrandsChildren *BKE_strands_children_new(int strands, int verts);
+struct StrandsChildren *BKE_strands_children_copy(struct StrandsChildren *strands);
 void BKE_strands_children_free(struct StrandsChildren *strands);
 
 void BKE_strands_children_deform(struct StrandsChildren *strands, struct Strands *parents, bool use_motion);

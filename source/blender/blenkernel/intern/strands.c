@@ -39,6 +39,18 @@ Strands *BKE_strands_new(int curves, int verts)
 	return strands;
 }
 
+Strands *BKE_strands_copy(Strands *strands)
+{
+	Strands *new_strands = MEM_dupallocN(strands);
+	if (new_strands->curves)
+		new_strands->curves = MEM_dupallocN(new_strands->curves);
+	if (new_strands->verts)
+		new_strands->verts = MEM_dupallocN(new_strands->verts);
+	if (new_strands->state)
+		new_strands->state = MEM_dupallocN(new_strands->state);
+	return new_strands;
+}
+
 void BKE_strands_free(Strands *strands)
 {
 	if (strands) {
@@ -168,6 +180,16 @@ StrandsChildren *BKE_strands_children_new(int curves, int verts)
 	strands->verts = MEM_mallocN(sizeof(StrandsChildVertex) * verts, "strand children vertices");
 	
 	return strands;
+}
+
+StrandsChildren *BKE_strands_children_copy(StrandsChildren *strands)
+{
+	StrandsChildren *new_strands = MEM_dupallocN(strands);
+	if (new_strands->curves)
+		new_strands->curves = MEM_dupallocN(new_strands->curves);
+	if (new_strands->verts)
+		new_strands->verts = MEM_dupallocN(new_strands->verts);
+	return new_strands;
 }
 
 void BKE_strands_children_free(StrandsChildren *strands)

@@ -1545,7 +1545,12 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
 			if (data) {
 				strands = BKE_dupli_object_data_find_strands(data, psys->name);
-				BKE_dupli_object_data_acquire_strands(data, strands);
+				/* TODO(sergey): Consider sharing the data between viewport and
+				 * render engine.
+				 */
+				if (strands != NULL) {
+					strands = BKE_strands_copy(strands);
+				}
 			}
 		}
 		else {
@@ -1595,7 +1600,12 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
 			if (data) {
 				strands = BKE_dupli_object_data_find_strands_children(data, psys->name);
-				BKE_dupli_object_data_acquire_strands_children(data, strands);
+				/* TODO(sergey): Consider sharing the data between viewport and
+				 * render engine.
+				 */
+				if (strands != NULL) {
+					strands = BKE_strands_children_copy(strands);
+				}
 			}
 		}
 		else {
