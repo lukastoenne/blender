@@ -1416,7 +1416,6 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 	unsigned int numverts = strands->totverts;
 	
 	int i = 0;
-//	float drag = params->Cvi * 0.01f; /* viscosity of air scaled in percent */
 	float gravity[3] = {0.0f, 0.0f, 0.0f};
 	
 	/* global acceleration (gravitation) */
@@ -1428,10 +1427,8 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 		float mass = params->mass;
 		BPH_mass_spring_force_gravity(data, i, mass, gravity);
 	}
-
-#if 0
-	BPH_mass_spring_force_drag(data, drag);
-#endif
+	
+	BPH_mass_spring_force_drag(data, params->drag);
 	
 	/* handle external forces like wind */
 	if (effectors || (cache_effectors && tot_cache_effectors > 0)) {
