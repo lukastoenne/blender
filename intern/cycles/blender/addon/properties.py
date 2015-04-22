@@ -459,7 +459,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         cls.debug_use_triangle_storage = BoolProperty(
                 name="Use Triangle Storage",
                 description="use special storage with aligned triangle coordinates for faster "
-                            "intesection check in expense of higher mmeory usage",
+                            "intesection check in expense of higher memory usage",
                 default=True,
                 )
         cls.use_cache = BoolProperty(
