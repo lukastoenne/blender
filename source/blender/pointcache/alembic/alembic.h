@@ -28,7 +28,7 @@ struct CacheArchiveInfo;
 namespace PTC {
 
 void abc_archive_info_stream(Alembic::Abc::IArchive &archive, void (*stream)(void *, const char *), void *userdata);
-void abc_archive_info_nodes(Alembic::Abc::IArchive &archive, CacheArchiveInfo *info);
+void abc_archive_info_nodes(Alembic::Abc::IArchive &archive, CacheArchiveInfo *info, bool calc_bytes_size);
 
 } /* namespace PTC */
 

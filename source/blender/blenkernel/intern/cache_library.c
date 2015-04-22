@@ -1133,6 +1133,10 @@ CacheArchiveInfoNode *BKE_cache_archive_info_add_node(CacheArchiveInfo *info, Ca
 	node->type = type;
 	BLI_strncpy(node->name, name, sizeof(node->name));
 	
+	/* these values are only optionally calculated, -1 indicates unknown */
+	node->bytes_size = -1;
+	node->array_size = -1;
+	
 	if (parent)
 		BLI_addtail(&parent->child_nodes, node);
 	else
