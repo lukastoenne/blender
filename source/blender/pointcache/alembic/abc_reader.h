@@ -82,7 +82,7 @@ public:
 		m_abc_archive = static_cast<AbcReaderArchive*>(archive);
 	}
 	
-	virtual void init_abc(Abc::IObject object) {}
+	virtual void init_abc(Abc::IObject /*object*/) {}
 	
 	AbcReaderArchive *abc_archive() const { return m_abc_archive; }
 	

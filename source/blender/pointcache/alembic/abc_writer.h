@@ -89,7 +89,7 @@ public:
 	
 	/* one of these should be implemented by subclasses */
 	virtual void init_abc() {}
-	virtual void init_abc(Abc::OObject parent) {}
+	virtual void init_abc(Abc::OObject /*parent*/) {}
 	
 	AbcWriterArchive *abc_archive() const { return m_abc_archive; }
 	
