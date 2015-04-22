@@ -95,7 +95,7 @@ void AbcGroupReader::init_abc(IObject object)
 	m_abc_object = object;
 }
 
-PTCReadSampleResult AbcGroupReader::read_sample(float frame)
+PTCReadSampleResult AbcGroupReader::read_sample(float /*frame*/)
 {
 	if (!m_abc_object)
 		return PTC_READ_SAMPLE_INVALID;
@@ -383,7 +383,7 @@ AbcDupliCacheReader::~AbcDupliCacheReader()
 		delete m_simdebug_reader;
 }
 
-void AbcDupliCacheReader::init_abc(IObject object)
+void AbcDupliCacheReader::init_abc(IObject /*object*/)
 {
 }
 
