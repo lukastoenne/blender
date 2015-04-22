@@ -549,7 +549,7 @@ class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
                 layout.label(" ")
         if column == 3:
             size = int(node.bytes_size)
-            layout.label(sizeof_fmt(size))
+            layout.label(sizeof_fmt(size) if size >= 0 else "-")
         if column == 4:
             if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
                 layout.prop(node, "datatype", text="")
@@ -562,7 +562,7 @@ class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
                 layout.label(" ")
         if column == 6:
             if node.type in {'ARRAY_PROPERTY'}:
-                layout.prop(node, "array_size", text="")
+                layout.label(node.array_size if node.array_size >= 0 else "-")
             else:
                 layout.label(" ")
 
@@ -573,22 +573,28 @@ class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
     def draw(self, context):
         ob = context.object
         cachelib = ob.cache_library
+        info = cachelib.archive_info
 
         layout = self.layout
+        
         row = layout.row()
-
         props = row.operator("cachelibrary.archive_info", text="Input", icon='QUESTION')
         props.filepath = cachelib.input_filepath
         props.use_cache_info = True
-
         props = row.operator("cachelibrary.archive_info", text="Output", icon='QUESTION')
         props.filepath = cachelib.output_filepath
         props.use_cache_info = True
 
-        layout.separator()
-
-        info = cachelib.archive_info
         if info:
+            row = layout.row()
+            row.enabled = bool(info.filepath)
+            props = layout.operator("cachelibrary.archive_info", text="Calculate Size", icon='FILE_REFRESH')
+            props.filepath = info.filepath
+            props.use_cache_info = True
+            props.calc_bytes_size = True
+
+            layout.separator()
+
             layout.prop(info, "filepath")
 
             if info.root_node:

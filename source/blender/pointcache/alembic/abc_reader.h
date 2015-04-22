@@ -56,7 +56,7 @@ public:
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
 	void get_info_stream(void (*stream)(void *, const char *), void *userdata);
-	void get_info_nodes(CacheArchiveInfo *info);
+	void get_info_nodes(CacheArchiveInfo *info, bool calc_bytes_size);
 	
 protected:
 	AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, Abc::IArchive abc_archive);

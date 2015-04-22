@@ -110,10 +110,10 @@ void AbcReaderArchive::get_info_stream(void (*stream)(void *, const char *), voi
 		abc_archive_info_stream(m_abc_archive, stream, userdata);
 }
 
-void AbcReaderArchive::get_info_nodes(CacheArchiveInfo *info)
+void AbcReaderArchive::get_info_nodes(CacheArchiveInfo *info, bool calc_bytes_size)
 {
 	if (m_abc_archive)
-		abc_archive_info_nodes(m_abc_archive, info);
+		abc_archive_info_nodes(m_abc_archive, info, calc_bytes_size);
 }
 
 ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)

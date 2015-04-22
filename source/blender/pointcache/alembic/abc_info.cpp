@@ -283,38 +283,41 @@ void abc_archive_info_stream(IArchive &archive, void (*stream)(void *, const cha
 
 /* ========================================================================= */
 
-static void info_nodes_properties(CacheArchiveInfo *info, ICompoundProperty, CacheArchiveInfoNode *parent);
+static void info_nodes_properties(CacheArchiveInfo *info, ICompoundProperty, CacheArchiveInfoNode *parent, bool calc_bytes_size);
 
 template <class PROP>
-static void info_nodes_array_property(CacheArchiveInfo *info, PROP iProp, CacheArchiveInfoNode *parent)
+static void info_nodes_array_property(CacheArchiveInfo *info, PROP iProp, CacheArchiveInfoNode *parent, bool calc_bytes_size)
 {
 	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_ArrayProperty, iProp.getName().c_str());
 	
 	index_t num_samples = iProp.getNumSamples();
-	size_t max_array_size = 0;
-	size_t tot_array_size = 0;
-	for (index_t i = 0; i < num_samples; ++i) {
-		AbcA::ArraySamplePtr samp;
-		iProp.get(samp, ISampleSelector(i));
-		size_t array_size = samp->size();
-		max_array_size = std::max(max_array_size, array_size);
-		tot_array_size += array_size;
-	}
 	
 	const DataType &datatype = iProp.getDataType();
 	
 	node->num_samples = num_samples;
 	BLI_strncpy(node->datatype_name, PODName(datatype.getPod()), sizeof(node->datatype_name));
 	node->datatype_extent = (short)datatype.getExtent();
-	node->bytes_size = datatype.getNumBytes() * tot_array_size;
-	node->array_size = max_array_size;
 	
-	if (parent)
-		parent->bytes_size += node->bytes_size;
+	if (calc_bytes_size) {
+		size_t max_array_size = 0;
+		size_t tot_array_size = 0;
+		for (index_t i = 0; i < num_samples; ++i) {
+			AbcA::ArraySamplePtr samp;
+			iProp.get(samp, ISampleSelector(i));
+			size_t array_size = samp->size();
+			max_array_size = std::max(max_array_size, array_size);
+			tot_array_size += array_size;
+		}
+		node->bytes_size = datatype.getNumBytes() * tot_array_size;
+		node->array_size = max_array_size;
+		
+		if (parent)
+			parent->bytes_size += node->bytes_size;
+	}
 }
 
 template <class PROP>
-static void info_nodes_scalar_property(CacheArchiveInfo *info, PROP iProp, CacheArchiveInfoNode *parent)
+static void info_nodes_scalar_property(CacheArchiveInfo *info, PROP iProp, CacheArchiveInfoNode *parent, bool calc_bytes_size)
 {
 	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_ScalarProperty, iProp.getName().c_str());
 	
@@ -325,41 +328,44 @@ static void info_nodes_scalar_property(CacheArchiveInfo *info, PROP iProp, Cache
 	node->num_samples = num_samples;
 	BLI_strncpy(node->datatype_name, PODName(datatype.getPod()), sizeof(node->datatype_name));
 	node->datatype_extent = (short)datatype.getExtent();
-	node->bytes_size = datatype.getNumBytes() * num_samples;
 	
-	if (parent)
-		parent->bytes_size += node->bytes_size;
+	if (calc_bytes_size) {
+		node->bytes_size = datatype.getNumBytes() * num_samples;
+		
+		if (parent)
+			parent->bytes_size += node->bytes_size;
+	}
 }
 
-static void info_nodes_compound_property(CacheArchiveInfo *info, ICompoundProperty iProp, CacheArchiveInfoNode *parent)
+static void info_nodes_compound_property(CacheArchiveInfo *info, ICompoundProperty iProp, CacheArchiveInfoNode *parent, bool calc_bytes_size)
 {
 	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_CompoundProperty, iProp.getName().c_str());
 	
-	info_nodes_properties(info, iProp, node);
+	info_nodes_properties(info, iProp, node, calc_bytes_size);
 	
-	if (parent)
+	if (calc_bytes_size && parent)
 		parent->bytes_size += node->bytes_size;
 }
 
-static void info_nodes_properties(CacheArchiveInfo *info, ICompoundProperty iParent, CacheArchiveInfoNode *parent)
+static void info_nodes_properties(CacheArchiveInfo *info, ICompoundProperty iParent, CacheArchiveInfoNode *parent, bool calc_bytes_size)
 {
 	for (size_t i = 0 ; i < iParent.getNumProperties() ; i++) {
 		PropertyHeader header = iParent.getPropertyHeader(i);
 		
 		if (header.isCompound()) {
-			info_nodes_compound_property(info, ICompoundProperty(iParent, header.getName()), parent);
+			info_nodes_compound_property(info, ICompoundProperty(iParent, header.getName()), parent, calc_bytes_size);
 		}
 		else if (header.isScalar()) {
-			info_nodes_scalar_property(info, IScalarProperty(iParent, header.getName()), parent);
+			info_nodes_scalar_property(info, IScalarProperty(iParent, header.getName()), parent, calc_bytes_size);
 		}
 		else {
 			BLI_assert(header.isArray());
-			info_nodes_array_property(info, IArrayProperty(iParent, header.getName()), parent);
+			info_nodes_array_property(info, IArrayProperty(iParent, header.getName()), parent, calc_bytes_size);
 		}
 	}
 }
 
-static void info_nodes_object(CacheArchiveInfo *info, IObject iObj, CacheArchiveInfoNode *parent)
+static void info_nodes_object(CacheArchiveInfo *info, IObject iObj, CacheArchiveInfoNode *parent, bool calc_bytes_size)
 {
 	CacheArchiveInfoNode *node = BKE_cache_archive_info_add_node(info, parent, eCacheArchiveInfoNode_Type_Object, iObj.getName().c_str());
 	
@@ -370,19 +376,19 @@ static void info_nodes_object(CacheArchiveInfo *info, IObject iObj, CacheArchive
 	else {
 		// Get the properties.
 		ICompoundProperty props = iObj.getProperties();
-		info_nodes_properties(info, props, node);
+		info_nodes_properties(info, props, node, calc_bytes_size);
 		
 		// now the child objects
 		for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
-			info_nodes_object(info, IObject(iObj, iObj.getChildHeader(i).getName()), node);
+			info_nodes_object(info, IObject(iObj, iObj.getChildHeader(i).getName()), node, calc_bytes_size);
 		}
 	}
 	
-	if (parent)
+	if (calc_bytes_size && parent)
 		parent->bytes_size += node->bytes_size;
 }
 
-void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info)
+void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info, bool calc_bytes_size)
 {
 #if 0
 	stringstream ss(stream, userdata);
@@ -418,7 +424,7 @@ void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info)
 	}
 #endif
 	
-	info_nodes_object(info, archive.getTop(), NULL);
+	info_nodes_object(info, archive.getTop(), NULL, calc_bytes_size);
 }
 
 } /* namespace PTC */

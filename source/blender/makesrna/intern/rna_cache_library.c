@@ -237,7 +237,7 @@ static int rna_HairSimulationCacheModifier_hair_system_poll(PointerRNA *ptr, Poi
 static void rna_CacheArchiveInfoNode_bytes_size_get(PointerRNA *ptr, char *value)
 {
 	CacheArchiveInfoNode *node = ptr->data;
-	BLI_snprintf(value, MAX_NAME, "%lu", node->bytes_size);
+	BLI_snprintf(value, MAX_NAME, "%lld", (long long int)node->bytes_size);
 }
 
 static int rna_CacheArchiveInfoNode_bytes_size_length(PointerRNA *ptr)
@@ -245,7 +245,7 @@ static int rna_CacheArchiveInfoNode_bytes_size_length(PointerRNA *ptr)
 	char buf[MAX_NAME];
 	/* theoretically could do a dummy BLI_snprintf here, but BLI does not allow NULL buffer ... */
 	CacheArchiveInfoNode *node = ptr->data;
-	return BLI_snprintf(buf, sizeof(buf), "%lu", node->bytes_size);
+	return BLI_snprintf(buf, sizeof(buf), "%lld", (long long int)node->bytes_size);
 }
 
 #else
