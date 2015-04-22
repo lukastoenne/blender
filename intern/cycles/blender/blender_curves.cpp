@@ -194,7 +194,7 @@ static void ObtainCacheParticleData(Mesh *mesh, BL::Object b_ob, BL::ParticleSys
 	}
 }
 
-static void ObtainCacheParticleUV(Mesh */*mesh*/, BL::Object /*b_ob*/, BL::Mesh b_mesh, BL::ParticleSystem b_psys, BL::ParticleSystemModifier b_psmd,
+static void ObtainCacheParticleUV(Mesh * /*mesh*/, BL::Object /*b_ob*/, BL::Mesh b_mesh, BL::ParticleSystem b_psys, BL::ParticleSystemModifier b_psmd,
                                   ParticleCurveData *CData, bool background, int uv_num)
 {
 	BL::ParticleSettings b_part((const PointerRNA)b_psys.settings().ptr);
@@ -232,7 +232,7 @@ static void ObtainCacheParticleUV(Mesh */*mesh*/, BL::Object /*b_ob*/, BL::Mesh 
 	}
 }
 
-static void ObtainCacheParticleVcol(Mesh */*mesh*/, BL::Object /*b_ob*/, BL::Mesh b_mesh, BL::ParticleSystem b_psys, BL::ParticleSystemModifier b_psmd,
+static void ObtainCacheParticleVcol(Mesh * /*mesh*/, BL::Object /*b_ob*/, BL::Mesh b_mesh, BL::ParticleSystem b_psys, BL::ParticleSystemModifier b_psmd,
                                     ParticleCurveData *CData, bool background, int vcol_num)
 {
 	BL::ParticleSettings b_part((const PointerRNA)b_psys.settings().ptr);
@@ -412,7 +412,7 @@ static bool ObtainCacheStrandsData(Mesh *mesh, BL::Scene b_scene, BL::Object b_p
 }
 
 template <typename StrandsT>
-static bool ObtainCacheStrandsUV(Mesh */*mesh*/, BL::Scene b_scene, BL::Object b_parent, BL::DupliObject b_dupli_ob, BL::ParticleSystem b_psys,
+static bool ObtainCacheStrandsUV(Mesh * /*mesh*/, BL::Scene b_scene, BL::Object b_parent, BL::DupliObject b_dupli_ob, BL::ParticleSystem b_psys,
                                  ParticleCurveData *CData, bool background, int uv_num)
 {
 	typedef StrandsTraits<StrandsT> traits;
@@ -437,7 +437,7 @@ static bool ObtainCacheStrandsUV(Mesh */*mesh*/, BL::Scene b_scene, BL::Object b
 }
 
 template <typename StrandsT>
-static bool ObtainCacheStrandsVcol(Mesh */*mesh*/, BL::Scene b_scene, BL::Object b_parent, BL::DupliObject b_dupli_ob, BL::ParticleSystem b_psys,
+static bool ObtainCacheStrandsVcol(Mesh * /*mesh*/, BL::Scene b_scene, BL::Object b_parent, BL::DupliObject b_dupli_ob, BL::ParticleSystem b_psys,
                                    ParticleCurveData *CData, bool background, int vcol_num)
 {
 	typedef StrandsTraits<StrandsT> traits;
