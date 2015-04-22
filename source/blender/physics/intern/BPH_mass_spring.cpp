@@ -1425,7 +1425,7 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 		mul_v3_v3fl(gravity, scene->physics_settings.gravity, params->effector_weights->global_gravity);
 	}
 	for (i = 0; i < numverts; i++) {
-		float mass = 1.0f; // TODO
+		float mass = params->mass;
 		BPH_mass_spring_force_gravity(data, i, mass, gravity);
 	}
 
