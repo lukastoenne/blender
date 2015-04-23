@@ -3445,13 +3445,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 		    (sad->flag & ANIMPLAY_FLAG_REVERSE) == false &&
 		    finite(time = BKE_sound_sync_scene(scene)))
 		{
-			double newfra = (double)time * FPS;
-
-			/* give some space here to avoid jumps */
-			if (newfra + 0.5 > scene->r.cfra && newfra - 0.5 < scene->r.cfra)
-				scene->r.cfra++;
-			else
-				scene->r.cfra = newfra + 0.5;
+			scene->r.cfra = (double)time * FPS;
 
 #ifdef PROFILE_AUDIO_SYNCH
 			newfra_int = scene->r.cfra;
