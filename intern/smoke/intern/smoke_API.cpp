@@ -480,6 +480,13 @@ extern "C" int smoke_turbulence_has_colors(WTURBULENCE *wt)
 }
 
 /* additional field initialization */
+extern "C" void smoke_ensure_simulation(FLUID_3D * /*fluid*/, WTURBULENCE *wt)
+{
+	if (wt) {
+		wt->initSimulation();
+	}
+}
+
 extern "C" void smoke_ensure_heat(FLUID_3D *fluid)
 {
 	if (fluid) {

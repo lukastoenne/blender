@@ -109,6 +109,7 @@ int smoke_has_colors(struct FLUID_3D *fluid);
 int smoke_turbulence_has_fuel(struct WTURBULENCE *wt);
 int smoke_turbulence_has_colors(struct WTURBULENCE *wt);
 
+void smoke_ensure_simulation(struct FLUID_3D *fluid, struct WTURBULENCE *wt);
 void smoke_ensure_heat(struct FLUID_3D *fluid);
 void smoke_ensure_fire(struct FLUID_3D *fluid, struct WTURBULENCE *wt);
 void smoke_ensure_colors(struct FLUID_3D *fluid, struct WTURBULENCE *wt, float init_r, float init_g, float init_b);

@@ -91,7 +91,7 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	_densityBig = new float[_totalCellsBig];
 	memset(_densityBig, 0, sizeof(*_densityBig) * _totalCellsBig);
 
-	if (init_sim) {
+	if (_need_sim_data) {
 		_densityBigOld = new float[_totalCellsBig];
 		memset(_densityBigOld, 0, sizeof(*_densityBigOld) * _totalCellsBig);
 	}
@@ -132,7 +132,7 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 		_tcW[index] = z*dz;
 		}
 	
-	if (init_sim) {
+	if (_need_sim_data) {
 		_tcTemp = new float[_totalCellsSm];
 		memset(_tcTemp, 0, sizeof(*_tcTemp) * _totalCellsSm);
 	}
@@ -143,6 +143,43 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	// noise tiles
 	_noiseTile = new float[noiseTileSize * noiseTileSize * noiseTileSize];
 	setNoise(noisetype, noisefile_path);
+}
+
+void WTURBULENCE::initSimulation()
+{
+	if (_need_sim_data) {
+		return;
+	}
+
+	if(_densityBigOld == NULL) {
+		_densityBigOld = new float[_totalCellsBig];
+		memset(_densityBigOld, 0, sizeof(*_densityBigOld) * _totalCellsBig);
+	}
+
+	if (_tcTemp == NULL) {
+		_tcTemp = new float[_totalCellsSm];
+		memset(_tcTemp, 0, sizeof(*_tcTemp) * _totalCellsSm);
+	}
+
+	if (_fuelBig != NULL) {
+		if (_fuelBigOld == NULL) {
+			_fuelBigOld = new float[_totalCellsBig];
+			_reactBigOld = new float[_totalCellsBig];
+			memset(_fuelBigOld, 0, sizeof(*_fuelBigOld) * _totalCellsBig);
+			memset(_reactBigOld, 0, sizeof(*_reactBigOld) * _totalCellsBig);
+		}
+	}
+
+	if (_color_rBig != NULL) {
+		if (_color_rBigOld == NULL) {
+			_color_rBigOld = new float[_totalCellsBig];
+			_color_gBigOld = new float[_totalCellsBig];
+			_color_bBigOld = new float[_totalCellsBig];
+			memset(_color_rBigOld, 0, sizeof(*_color_rBigOld) * _totalCellsBig);
+			memset(_color_gBigOld, 0, sizeof(*_color_gBigOld) * _totalCellsBig);
+			memset(_color_bBigOld, 0, sizeof(*_color_bBigOld) * _totalCellsBig);
+		}
+	}
 }
 
 void WTURBULENCE::initFire()
