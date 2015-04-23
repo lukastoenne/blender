@@ -2528,7 +2528,7 @@ static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 	ListBase *effectors;
 	/* make sure smoke flow influence is 0.0f */
 	sds->effector_weights->weight[PFIELD_SMOKEFLOW] = 0.0f;
-	effectors = pdInitEffectors(scene, ob, NULL, sds->effector_weights, true);
+	effectors = pdInitEffectors(scene, ob, NULL, sds->effector_weights);
 
 	if (effectors)
 	{

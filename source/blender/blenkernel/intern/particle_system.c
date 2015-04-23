@@ -1268,7 +1268,7 @@ static void psys_update_effectors(ParticleSimulationData *sim)
 {
 	pdEndEffectors(&sim->psys->effectors);
 	sim->psys->effectors = pdInitEffectors(sim->scene, sim->ob, sim->psys,
-	                                       sim->psys->part->effector_weights, true);
+	                                       sim->psys->part->effector_weights);
 	precalc_guides(sim, sim->psys->effectors);
 }
 

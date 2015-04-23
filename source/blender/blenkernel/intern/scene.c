@@ -1874,6 +1874,45 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 #endif
 }
 
+void BKE_scene_update_group_for_newframe(EvaluationContext *eval_ctx,
+                                         Main *bmain,
+                                         Scene *scene,
+                                         Group *group,
+                                         unsigned int lay)
+{
+	float ctime = BKE_scene_frame_get(scene);
+	Scene *sce_iter;
+
+	/* Step 1: Preparation, same as in regular frame update. */
+	BKE_image_update_frame(bmain, scene->r.cfra);
+	scene_rebuild_rbw_recursive(scene, ctime);
+	BKE_cache_library_dag_recalc_tag(eval_ctx, bmain);
+	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set) {
+		DAG_scene_relations_update(bmain, sce_iter);
+	}
+
+	/* Step 2: Tag objects which we need to update. */
+	DAG_ids_flush_tagged(bmain);
+	DAG_scene_update_group_flags(bmain, scene, group, lay, true, false);
+
+	/* Step 3: Update animation. */
+#ifdef POSE_ANIMATION_WORKAROUND
+	scene_armature_depsgraph_workaround(bmain);
+#endif
+	BKE_animsys_evaluate_all_animation(bmain, scene, ctime);
+
+	/* Step 4: Actual evaluation. */
+	BKE_main_id_tag_idcode(bmain, ID_MA, false);
+	BKE_main_id_tag_idcode(bmain, ID_LA, false);
+	scene_do_rb_simulation_recursive(scene, ctime);
+	scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
+	scene_depsgraph_hack(eval_ctx, scene, scene);
+
+	/* Step 5: Cleanup after evaluaiton. */
+	DAG_ids_check_recalc(bmain, scene, true);
+	DAG_ids_clear_recalc(bmain);
+}
+
 /* return default layer, also used to patch old files */
 SceneRenderLayer *BKE_scene_add_render_layer(Scene *sce, const char *name)
 {

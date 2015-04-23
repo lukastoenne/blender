@@ -203,6 +203,7 @@ typedef struct CacheLibraryBakeJob {
 	struct Main *bmain;
 	struct Scene *scene;
 	struct CacheLibrary *cachelib;
+	int lay;
 	float mat[4][4];
 	struct Group *group;
 	
@@ -260,6 +261,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	
 	CacheProcessData process_data;
 	
+	process_data.lay = data->lay;
 	copy_m4_m4(process_data.mat, data->mat);
 	process_data.dupcache = BKE_dupli_cache_new();
 	
@@ -298,7 +300,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 		cache_library_bake_set_particle_baking(data->bmain, !init_strands);
 		
 		scene->r.cfra = frame;
-		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
+		BKE_scene_update_group_for_newframe(&data->eval_ctx, data->bmain, scene, data->group, scene->lay);
 		
 		switch (data->cachelib->source_mode) {
 			case CACHE_LIBRARY_SOURCE_SCENE:
@@ -448,6 +450,7 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	data->bmain = bmain;
 	data->scene = scene;
 	data->cachelib = cachelib;
+	data->lay = ob->lay;
 	copy_m4_m4(data->mat, ob->obmat);
 	data->group = ob->dup_group;
 	

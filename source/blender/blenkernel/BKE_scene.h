@@ -40,6 +40,7 @@ extern "C" {
 struct AviCodecData;
 struct Base;
 struct EvaluationContext;
+struct Group;
 struct Main;
 struct Object;
 struct QuicktimeCodecData;
@@ -119,6 +120,11 @@ void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 void BKE_scene_update_tagged(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce);
 void BKE_scene_update_for_newframe(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce, unsigned int lay);
 void BKE_scene_update_for_newframe_ex(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce, unsigned int lay, bool do_invisible_flush);
+void BKE_scene_update_group_for_newframe(struct EvaluationContext *eval_ctx,
+                                         struct Main *bmain,
+                                         struct Scene *scene,
+                                         struct Group *group,
+                                         unsigned int lay);
 
 struct SceneRenderLayer *BKE_scene_add_render_layer(struct Scene *sce, const char *name);
 bool BKE_scene_remove_render_layer(struct Main *main, struct Scene *scene, struct SceneRenderLayer *srl);

@@ -955,7 +955,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 		
 	BKE_strands_add_motion_state(strands);
 	solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
-	effectors = pdInitEffectors(ctx->scene, ob, NULL, hsmd->sim_params.effector_weights, true);
+	effectors = pdInitEffectors_ex(ctx->scene, ob, NULL, data->lay, hsmd->sim_params.effector_weights, true);
 	tot_cache_effectors = BKE_cache_effectors_get(cache_effectors, MAX_CACHE_EFFECTORS, ctx->cachelib, data->dupcache, data->mat);
 	
 	BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors, cache_effectors, tot_cache_effectors);
