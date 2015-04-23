@@ -935,8 +935,8 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	struct Implicit_Data *solver_data;
 	
 	/* only perform hair sim once */
-	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
-		return;
+//	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
+//		return;
 	
 	/* skip first step and potential backward steps */
 	if (frame <= frame_prev)
