@@ -76,7 +76,7 @@
 
 #include "PTC_api.h"
 
-#static int ED_cache_library_active_object_poll(bContext *C)
+static int ED_cache_library_active_object_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	if (!(ob && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group && ob->cache_library))
