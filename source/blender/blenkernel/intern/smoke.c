@@ -2891,6 +2891,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 
 		if (sds->wt)
 		{
+			smoke_ensure_simulation(sds->fluid, sds->wt);
 			smoke_turbulence_step(sds->wt, sds->fluid);
 		}
 

@@ -41,6 +41,9 @@ struct WTURBULENCE
 		/// destructor
 		virtual ~WTURBULENCE();
 
+		// Ensure data needed for simulation is allocated
+		void initSimulation();
+
 		void initFire();
 		void initColors(float init_r, float init_g, float init_b);
 		
