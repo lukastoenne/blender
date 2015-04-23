@@ -275,7 +275,7 @@ static void strands_children_apply_parent_deform(StrandChildIterator *it_strand,
 
 void BKE_strands_children_deform(StrandsChildren *strands, Strands *parents, bool use_motion)
 {
-	int *vertstart;
+	int *vertstart = NULL;
 	StrandChildIterator it_strand;
 	
 	if (parents)
