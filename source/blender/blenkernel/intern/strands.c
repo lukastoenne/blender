@@ -119,23 +119,22 @@ static void calc_normals(Strands *strands, bool use_motion_state)
 	StrandIterator it_strand;
 	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
 		StrandEdgeIterator it_edge;
+		int numverts = it_strand.curve->numverts;
 		if (use_motion_state) {
 			for (BKE_strand_edge_iter_init(&it_edge, &it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
 				sub_v3_v3v3(it_edge.state0->nor, it_edge.state1->co, it_edge.state0->co);
 				normalize_v3(it_edge.state0->nor);
 			}
-			if (it_strand.tot > 0) {
-				copy_v3_v3(it_edge.state0->nor, (it_edge.state0-1)->nor);
-			}
+			if (numverts > 1)
+				copy_v3_v3(it_strand.state[numverts-1].nor, it_strand.state[numverts-2].nor);
 		}
 		else {
 			for (BKE_strand_edge_iter_init(&it_edge, &it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
 				sub_v3_v3v3(it_edge.vertex0->nor, it_edge.vertex1->co, it_edge.vertex0->co);
 				normalize_v3(it_edge.vertex0->nor);
 			}
-			if (it_strand.tot > 0) {
-				copy_v3_v3(it_edge.vertex0->nor, (it_edge.vertex0-1)->nor);
-			}
+			if (numverts > 1)
+				copy_v3_v3(it_strand.verts[numverts-1].nor, it_strand.verts[numverts-2].nor);
 		}
 	}
 }
@@ -301,13 +300,13 @@ static void calc_child_normals(StrandsChildren *strands)
 	StrandChildIterator it_strand;
 	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
 		StrandChildEdgeIterator it_edge;
+		int numverts = it_strand.curve->numverts;
 		for (BKE_strand_child_edge_iter_init(&it_edge, &it_strand); BKE_strand_child_edge_iter_valid(&it_edge); BKE_strand_child_edge_iter_next(&it_edge)) {
 			sub_v3_v3v3(it_edge.vertex0->nor, it_edge.vertex1->co, it_edge.vertex0->co);
 			normalize_v3(it_edge.vertex0->nor);
 		}
-		if (it_strand.tot > 0) {
-			copy_v3_v3(it_edge.vertex0->nor, (it_edge.vertex0-1)->nor);
-		}
+		if (numverts > 1)
+			copy_v3_v3(it_strand.verts[numverts-1].nor, it_strand.verts[numverts-2].nor);
 	}
 }
 
