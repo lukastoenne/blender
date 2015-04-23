@@ -203,18 +203,17 @@ static void add_particles_to_effectors(ListBase **effectors, Scene *scene, Effec
 }
 
 /* returns ListBase handle with objects taking part in the effecting */
-ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
-                          EffectorWeights *weights, bool precalc)
+ListBase *pdInitEffectors_ex(Scene *scene, Object *ob_src, ParticleSystem *psys_src, int layers,
+                             EffectorWeights *weights, bool precalc)
 {
 	Base *base;
-	unsigned int layer= ob_src->lay;
 	ListBase *effectors = NULL;
 	
 	if (weights->group) {
 		GroupObject *go;
 		
 		for (go= weights->group->gobject.first; go; go= go->next) {
-			if ( (go->ob->lay & layer) ) {
+			if ( (go->ob->lay & layers) ) {
 				if ( go->ob->pd && go->ob->pd->forcefield )
 					add_object_to_effectors(&effectors, scene, weights, go->ob, ob_src);
 
@@ -229,7 +228,7 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 	}
 	else {
 		for (base = scene->base.first; base; base= base->next) {
-			if ( (base->lay & layer) ) {
+			if ( (base->lay & layers) ) {
 				if ( base->object->pd && base->object->pd->forcefield )
 					add_object_to_effectors(&effectors, scene, weights, base->object, ob_src);
 
@@ -247,6 +246,12 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 		pdPrecalculateEffectors(effectors);
 	
 	return effectors;
+}
+
+ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
+                          EffectorWeights *weights)
+{
+	return pdInitEffectors_ex(scene, ob_src, psys_src, ob_src->lay, weights, true);
 }
 
 void pdEndEffectors(ListBase **effectors)

@@ -1236,7 +1236,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 		ListBase *effectors;
 
 		/* get effectors present in the group specified by effector_weights */
-		effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
+		effectors = pdInitEffectors(scene, ob, NULL, effector_weights);
 		if (effectors) {
 			float eff_force[3] = {0.0f, 0.0f, 0.0f};
 			float eff_loc[3], eff_vel[3];
