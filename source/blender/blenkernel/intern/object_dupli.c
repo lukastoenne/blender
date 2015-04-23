@@ -44,6 +44,7 @@
 
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_task.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
@@ -1600,10 +1601,41 @@ static int count_hair_verts(ParticleSystem *psys)
 	return numverts;
 }
 
+typedef struct DupliObjectDataFromGroupState {
+	EvaluationContext *eval_ctx;
+	Scene *scene;
+} DupliObjectDataFromGroupState;
+
+typedef struct DupliObjectDataFromGroupTask {
+	Object *object;
+	DupliObjectData *data;
+} DupliObjectDataFromGroupTask;
+
+static void dupli_object_data_from_group_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
+{
+	DupliObjectDataFromGroupState *state = (DupliObjectDataFromGroupState *)BLI_task_pool_userdata(pool);
+	DupliObjectDataFromGroupTask *task = (DupliObjectDataFromGroupTask *)taskdata;
+	DerivedMesh *dm;
+
+	if (state->eval_ctx->mode == DAG_EVAL_RENDER) {
+		dm = mesh_create_derived_render(state->scene, task->object, CD_MASK_BAREMESH);
+	}
+	else {
+		dm = mesh_create_derived_view(state->scene, task->object, CD_MASK_BAREMESH);
+	}
+
+	if (dm != NULL) {
+		BKE_dupli_object_data_set_mesh(task->data, dm);
+	}
+}
+
 void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachelib, DupliCache *dupcache, EvaluationContext *eval_ctx, bool calc_strands_base)
 {
 	DupliObject *dob;
-	
+	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
+	TaskPool *task_pool;
+	DupliObjectDataFromGroupState state;
+
 	BKE_dupli_cache_clear(dupcache);
 	
 	if (!(group && cachelib))
@@ -1615,7 +1647,11 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 		dupcache->duplilist = *duplilist;
 		MEM_freeN(duplilist);
 	}
-	
+
+	state.eval_ctx = eval_ctx;
+	state.scene = scene;
+	task_pool = BLI_task_pool_create(task_scheduler, &state);
+
 	for (dob = dupcache->duplilist.first; dob; dob = dob->next) {
 		DupliObjectData *data = BKE_dupli_cache_find_data(dupcache, dob->ob);
 		if (!data) {
@@ -1625,17 +1661,12 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 			
 			if (cachelib->data_types & CACHE_TYPE_DERIVED_MESH) {
 				if (dob->ob->type == OB_MESH) {
-					DerivedMesh *dm;
-					
-					if (eval_ctx->mode == DAG_EVAL_RENDER) {
-						dm = mesh_create_derived_render(scene, dob->ob, CD_MASK_BAREMESH);
-					}
-					else {
-						dm = mesh_create_derived_view(scene, dob->ob, CD_MASK_BAREMESH);
-					}
-					
-					if (dm)
-						BKE_dupli_object_data_set_mesh(data, dm);
+					/* TODO(sergey): Consider using memory pool instead. */
+					DupliObjectDataFromGroupTask *task = MEM_mallocN(sizeof(DupliObjectDataFromGroupTask),
+					                                            "dupcache task");
+					task->object = dob->ob;
+					task->data = data;
+					BLI_task_pool_push(task_pool, dupli_object_data_from_group_func, task, true, TASK_PRIORITY_LOW);
 				}
 			}
 			
@@ -1678,6 +1709,9 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 			}
 		}
 	}
+
+	BLI_task_pool_work_and_wait(task_pool);
+	BLI_task_pool_free(task_pool);
 }
 
 /* ------------------------------------------------------------------------- */
