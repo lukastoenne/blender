@@ -61,6 +61,9 @@
 #include "BIF_glutil.h"
 #include "BLF_api.h"
 
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
+
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
@@ -2025,6 +2028,200 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 
 	/* restore scissor as it was before */
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+}
+
+#define MAX_METADATA_STR    1024
+
+const char *meta_data_list[] =
+{
+	"File",
+	"Strip",
+	"Note",
+	"Date",
+	"RenderTime",
+	"Marker",
+	"Time",
+	"Frame",
+	"Camera",
+	"Scene"
+};
+
+BLI_INLINE bool metadata_is_valid(ImBuf *ibuf, char *r_str, short index, int offset)
+{
+	return (IMB_metadata_get_field(ibuf, meta_data_list[index], r_str + offset, MAX_METADATA_STR - offset) && r_str[0]);
+}
+
+static void metadata_draw_imbuf(ImBuf *ibuf, rcti rect, int fontid, const bool is_top, float factor)
+{
+	char temp_str[MAX_METADATA_STR];
+	int line_width;
+	int ofs_y = 0;
+	short i;
+	int len;
+	const float height = BLF_height_max(fontid);
+
+	if (is_top) {
+		for (i = 0; i < 4; i++) {
+			/* first line */
+			if (i == 0) {
+				bool do_newline = false;
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[0]);
+				if (metadata_is_valid(ibuf, temp_str, 0, len)) {
+					BLF_position(fontid, rect.xmin + (0.2f * U.widget_unit),
+					             rect.ymax - factor * (1.5f * U.widget_unit - UI_UNIT_Y), 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					do_newline = true;
+				}
+
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[1]);
+				if (metadata_is_valid(ibuf, temp_str, 1, len)) {
+					line_width = BLF_width(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					BLF_position(fontid, rect.xmax - line_width - (0.2f * U.widget_unit),
+					             rect.ymax - factor * (1.5f * U.widget_unit - UI_UNIT_Y), 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					do_newline = true;
+				}
+
+				if (do_newline)
+					ofs_y += (height + (0.2f * U.widget_unit));
+			}
+			else if (i == 1) {
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[i + 1]);
+				if (metadata_is_valid(ibuf, temp_str, i + 1, len)) {
+					BLF_position(fontid, rect.xmin + (0.2f * U.widget_unit),
+					             rect.ymax - factor * (1.5f * U.widget_unit - UI_UNIT_Y) - ofs_y, 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					ofs_y += (height + (0.2f * U.widget_unit));
+				}
+			}
+			else {
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[i + 1]);
+				if (metadata_is_valid(ibuf, temp_str, i + 1, len)) {
+					line_width = BLF_width(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					BLF_position(fontid, rect.xmax  - line_width -  (0.2f * U.widget_unit),
+					             rect.ymax - factor * (1.5f * U.widget_unit - UI_UNIT_Y) - ofs_y, 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					ofs_y += (height + (0.2f * U.widget_unit));
+				}
+			}
+		}
+	}
+	else {
+		int ofs_x = 0;
+		for (i = 5; i < 10; i++) {
+			len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[i]);
+			if (metadata_is_valid(ibuf, temp_str, i, len)) {
+				const int line_height = height;
+				BLF_position(fontid, rect.xmin + (0.2f * U.widget_unit) + ofs_x,
+				             rect.ymin - line_height + factor * (U.widget_unit), 0.0f);
+				BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+	
+				ofs_x += BLF_width(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX) + UI_UNIT_X;
+			}
+		}
+	}
+}
+
+static float metadata_box_height_get(ImBuf *ibuf, int fontid, const bool is_top)
+{
+	char str[MAX_METADATA_STR];
+	short i, count = 0;
+	const float height = BLF_height_max(fontid) + 0.2f * U.widget_unit;
+
+	if (is_top) {
+		if (metadata_is_valid(ibuf, str, 0, 0) || metadata_is_valid(ibuf, str, 1, 0)) {
+			count++;
+		}
+		for (i = 2; i < 5; i++) {
+			if (metadata_is_valid(ibuf, str, i, 0)) {
+				count++;
+			}
+		}
+	}
+	else {
+		for (i = 5; i < 10; i++) {
+			if (metadata_is_valid(ibuf, str, i, 0)) {
+				count = 1;
+			}
+		}
+	}
+
+	if (count) {
+		return (height * count + (0.2f * U.widget_unit));
+	}
+
+	return 0;
+}
+
+#undef MAX_METADATA_STR
+
+void ED_region_image_metadata_draw(ARegion *ar, ImBuf *ibuf, float zoomx, float zoomy)
+{
+	uiStyle *style = UI_style_get_dpi();
+	int fontid = style->widget.uifont_id;
+	float box_y;
+	rcti rect;
+	int x, y;
+
+	if (!ibuf->metadata)
+		return;
+
+	/* find window pixel coordinates of origin */
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
+
+	glPushMatrix();
+
+	/* offset and zoom using ogl */
+	glTranslatef(x, y, 0.0f);
+	glScalef(zoomx, zoomy, 1.0f);
+
+	BLF_size(fontid, style->widgetlabel.points, U.dpi * zoomy);
+
+	/* *** upper box*** */
+
+	/* get needed box height */
+	box_y = metadata_box_height_get(ibuf, fontid, true);
+
+	if (box_y) {
+		UI_ThemeColor(TH_METADATA_BG);
+
+		/* set up rect */
+		BLI_rcti_init(&rect, 0, ibuf->x, ibuf->y, ibuf->y + box_y);
+		/* draw top box */
+		glRecti(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+
+		BLF_clipping(fontid, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+		BLF_enable(fontid, BLF_CLIPPING);
+
+		UI_ThemeColor(TH_METADATA_TEXT);
+		metadata_draw_imbuf(ibuf, rect, fontid, true, zoomy);
+
+		BLF_disable(fontid, BLF_CLIPPING);
+	}
+
+
+	/* *** lower box*** */
+
+	box_y = metadata_box_height_get(ibuf, fontid, false);
+
+	if (box_y) {
+		UI_ThemeColor(TH_METADATA_BG);
+
+		/* set up box rect */
+		BLI_rcti_init(&rect, 0, ibuf->x, -box_y, 0);
+		/* draw top box */
+		glRecti(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+
+		BLF_clipping(fontid, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+		BLF_enable(fontid, BLF_CLIPPING);
+
+		UI_ThemeColor(TH_METADATA_TEXT);
+		metadata_draw_imbuf(ibuf, rect, fontid, false, zoomy);
+
+		BLF_disable(fontid, BLF_CLIPPING);
+	}
+
+	glPopMatrix();
 }
 
 void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)

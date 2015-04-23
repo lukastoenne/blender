@@ -136,6 +136,21 @@ struct MovieTrackingPlaneTrack *BKE_tracking_plane_track_get_active(struct Movie
 
 void BKE_tracking_plane_tracks_deselect_all(struct ListBase *plane_tracks_base);
 
+bool BKE_tracking_plane_track_has_point_track(struct MovieTrackingPlaneTrack *plane_track,
+                                              struct MovieTrackingTrack *track);
+bool BKE_tracking_plane_track_remove_point_track(struct MovieTrackingPlaneTrack *plane_track,
+                                                 struct MovieTrackingTrack *track);
+
+void BKE_tracking_plane_tracks_remove_point_track(struct MovieTracking *tracking,
+                                                  struct MovieTrackingTrack *track);
+
+void BKE_tracking_plane_track_replace_point_track(struct MovieTrackingPlaneTrack *plane_track,
+                                                  struct MovieTrackingTrack *old_track,
+                                                  struct MovieTrackingTrack *new_track);
+void BKE_tracking_plane_tracks_replace_point_track(struct MovieTracking *tracking,
+                                                   struct MovieTrackingTrack *old_track,
+                                                   struct MovieTrackingTrack *new_track);
+
 /* **** Plane Marker **** */
 struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_insert(struct MovieTrackingPlaneTrack *plane_track,
                                                                   struct MovieTrackingPlaneMarker *plane_marker);

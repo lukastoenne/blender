@@ -825,12 +825,8 @@ static void apply_mouse_slide(bContext *C, SlideMarkerData *data)
 		     plane_track = plane_track->next)
 		{
 			if ((plane_track->flag & PLANE_TRACK_AUTOKEY) == 0) {
-				int i;
-				for (i = 0; i < plane_track->point_tracksnr; i++) {
-					if (plane_track->point_tracks[i] == data->track) {
-						BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
-						break;
-					}
+				if (BKE_tracking_plane_track_has_point_track(plane_track, data->track)) {
+					BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
 				}
 			}
 		}
@@ -3116,6 +3112,12 @@ static int join_tracks_exec(bContext *C, wmOperator *op)
 
 			if (tracking->stabilization.rot_track == track)
 				tracking->stabilization.rot_track = act_track;
+
+			/* TODO(sergey): Re-evaluate planes with auto-key. */
+			BKE_tracking_plane_tracks_replace_point_track(tracking,
+			                                              track,
+			                                              act_track);
+
 
 			BKE_tracking_track_free(track);
 			BLI_freelinkN(tracksbase, track);
