@@ -76,7 +76,7 @@
 
 #include "PTC_api.h"
 
-static int ED_cache_library_active_object_poll(bContext *C)
+#static int ED_cache_library_active_object_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	if (!(ob && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group && ob->cache_library))
@@ -300,7 +300,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 		cache_library_bake_set_particle_baking(data->bmain, !init_strands);
 		
 		scene->r.cfra = frame;
-		BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
+		BKE_scene_update_group_for_newframe(&data->eval_ctx, data->bmain, scene, data->group, scene->lay);
 		
 		switch (data->cachelib->source_mode) {
 			case CACHE_LIBRARY_SOURCE_SCENE:

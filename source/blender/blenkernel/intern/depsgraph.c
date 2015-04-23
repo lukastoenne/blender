@@ -2248,6 +2248,90 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const b
 	}
 }
 
+void DAG_scene_update_group_flags(Main *bmain,
+                                  Scene *scene,
+                                  Group *group,
+                                  unsigned int lay,
+                                  const bool do_time,
+                                  const bool do_invisible_flush)
+{
+	DagNode *root_node = scene->theDag->DagNode.first, *node;
+	GroupObject *go;
+	DagNodeQueue *queue;
+
+	/* Tag all possible objects for update. */
+	DAG_scene_update_flags(bmain, scene, lay, do_time, do_invisible_flush);
+
+	/* Initialize colors of nodes. */
+	for (node = root_node; node != NULL; node = node->next) {
+		node->color = DAG_WHITE;
+		node->scheduled = false;
+	}
+
+	/* Tag nodes which corresponds to objects which are to be updated. */
+	for (go = group->gobject.first; go != NULL; go = go->next) {
+		if (go->ob != NULL) {
+			node = dag_find_node(scene->theDag, go->ob);
+			if (node != NULL) {
+				node->scheduled = true;
+			}
+		}
+	}
+
+	/* Flush schedule flags to parent. */
+	queue = queue_create(DAGQUEUEALLOC);
+	for (node = root_node; node != NULL; node = node->next) {
+		if (node->color == DAG_WHITE) {
+			push_stack(queue, node);
+			node->color = DAG_GRAY;
+			while (queue->count) {
+				DagNode *current_node = get_top_node_queue(queue);
+				DagAdjList *itA;
+				bool skip = false;
+				/* Check if all child nodes were scheduled. */
+				for (itA = current_node->child; itA; itA = itA->next) {
+					if (itA->node->color == DAG_WHITE) {
+						itA->node->color = DAG_GRAY;
+						push_stack(queue, itA->node);
+						skip = true;
+						break;
+					}
+				}
+				/* Check if there are scheduled children and if so schedule
+				 * current node as well since it's needed for chidlren.
+				 */
+				if (!skip) {
+					current_node = pop_queue(queue);
+					if (current_node->type == ID_OB) {
+						for (itA = current_node->child; itA; itA = itA->next) {
+							if (itA->node->scheduled) {
+								current_node->scheduled = true;
+								break;
+							}
+						}
+					}
+					node->color = DAG_BLACK;
+				}
+			}
+		}
+	}
+	queue_delete(queue);
+
+	/* Clear recalc flags from objects which corresponds to nodes which are
+	 * not needed for the interesting group update.
+	 */
+	for (node = root_node; node != NULL; node = node->next) {
+		if (node->type == ID_OB) {
+			Object *object = node->ob;
+			if (!node->scheduled) {
+				object->recalc &= ~OB_RECALC_ALL;
+			}
+		}
+		node->color = DAG_WHITE;
+		node->scheduled = false;
+	}
+}
+
 /* struct returned by DagSceneLayer */
 typedef struct DagSceneLayer {
 	struct DagSceneLayer *next, *prev;
