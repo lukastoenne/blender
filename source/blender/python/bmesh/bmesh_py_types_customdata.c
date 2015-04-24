@@ -989,6 +989,7 @@ PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
 		}
 		case CD_PAINT_MASK:
 		case CD_PROP_FLT:
+		case CD_PAINT_MASK:
 		{
 			ret = PyFloat_FromDouble(*(float *)value);
 			break;
@@ -1067,6 +1068,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
 		}
 		case CD_PAINT_MASK:
 		case CD_PROP_FLT:
+		case CD_PAINT_MASK:
 		{
 			float tmp_val = PyFloat_AsDouble(py_value);
 			if (UNLIKELY(tmp_val == -1 && PyErr_Occurred())) {
