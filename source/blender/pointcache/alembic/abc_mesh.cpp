@@ -43,9 +43,12 @@ using namespace Abc;
 using namespace AbcGeom;
 
 /* CD layers that are stored in generic customdata arrays created with CD_ALLOC */
+/* XXX CD_MASK_MTFACE is deprecated, but currently still needed as a dummy for syncing
+ * particle UV and MCol layers to the mesh shader attributes ...
+ */
 static CustomDataMask CD_MASK_CACHE_EXCLUDE =
         CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MPOLY | CD_MASK_MLOOP |
-        CD_MASK_MTFACE | CD_MASK_MTEXPOLY |
+        /*CD_MASK_MTFACE |*/ CD_MASK_MTEXPOLY |
         CD_MASK_PROP_STR |
         CD_MASK_SHAPEKEY | CD_MASK_SHAPE_KEYINDEX |
         CD_MASK_MDISPS | CD_MASK_CREASE | CD_MASK_BWEIGHT | CD_MASK_RECAST | CD_MASK_PAINT_MASK |

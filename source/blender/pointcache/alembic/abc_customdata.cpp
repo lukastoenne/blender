@@ -108,6 +108,12 @@ void write_sample<CD_MDEFORMVERT>(CustomDataWriter *writer, OCompoundProperty &p
 }
 
 template <>
+void write_sample<CD_MTFACE>(CustomDataWriter */*writer*/, OCompoundProperty &/*parent*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
+{
+	/* XXX this is a dummy layer, to have access to active render layers etc. */
+}
+
+template <>
 void write_sample<CD_MCOL>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
 {
 	OC4fArrayProperty prop = writer->add_array_property<OC4fArrayProperty>(name, parent);
@@ -295,6 +301,13 @@ PTCReadSampleResult read_sample<CD_MDEFORMVERT>(CustomDataReader *reader, ICompo
 		++mdef;
 	}
 	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_MTFACE>(CustomDataReader */*reader*/, ICompoundProperty &/*parent*/, const ISampleSelector &/*ss*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
+{
+	/* XXX this is a dummy layer, to have access to active render layers etc. */
 	return PTC_READ_SAMPLE_EXACT;
 }
 
