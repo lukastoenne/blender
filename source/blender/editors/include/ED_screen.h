@@ -74,6 +74,9 @@ void    ED_region_draw_backdrop_view3d(const struct bContext *C, struct Object *
 float	ED_region_blend_factor(struct ARegion *ar);
 void	ED_region_visible_rect(struct ARegion *ar, struct rcti *rect);
 
+int ED_match_area_with_refresh(int spacetype, int refresh);
+int ED_match_region_with_redraws(int spacetype, int regiontype, int redraws);
+
 
 /* spaces */
 void    ED_spacetypes_keymap(struct wmKeyConfig *keyconf);

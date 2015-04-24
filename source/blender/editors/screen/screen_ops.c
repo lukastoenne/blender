@@ -3319,101 +3319,6 @@ static void SCREEN_OT_header_toolbox(wmOperatorType *ot)
 
 /* ****************** anim player, with timer ***************** */
 
-static int match_area_with_refresh(int spacetype, int refresh)
-{
-	switch (spacetype) {
-		case SPACE_TIME:
-			if (refresh & SPACE_TIME)
-				return 1;
-			break;
-	}
-	
-	return 0;
-}
-
-static int match_region_with_redraws(int spacetype, int regiontype, int redraws)
-{
-	if (regiontype == RGN_TYPE_WINDOW) {
-		
-		switch (spacetype) {
-			case SPACE_VIEW3D:
-				if (redraws & TIME_ALL_3D_WIN)
-					return 1;
-				break;
-			case SPACE_IPO:
-			case SPACE_ACTION:
-			case SPACE_NLA:
-				if (redraws & TIME_ALL_ANIM_WIN)
-					return 1;
-				break;
-			case SPACE_TIME:
-				/* if only 1 window or 3d windows, we do timeline too */
-				if (redraws & (TIME_ALL_ANIM_WIN | TIME_REGION | TIME_ALL_3D_WIN))
-					return 1;
-				break;
-			case SPACE_BUTS:
-				if (redraws & TIME_ALL_BUTS_WIN)
-					return 1;
-				break;
-			case SPACE_SEQ:
-				if (redraws & (TIME_SEQ | TIME_ALL_ANIM_WIN))
-					return 1;
-				break;
-			case SPACE_NODE:
-				if (redraws & (TIME_NODES))
-					return 1;
-				break;
-			case SPACE_IMAGE:
-				if (redraws & TIME_ALL_IMAGE_WIN)
-					return 1;
-				break;
-			case SPACE_CLIP:
-				if (redraws & TIME_CLIPS)
-					return 1;
-				break;
-				
-		}
-	}
-	else if (regiontype == RGN_TYPE_CHANNELS) {
-		switch (spacetype) {
-			case SPACE_IPO:
-			case SPACE_ACTION:
-			case SPACE_NLA:
-				if (redraws & TIME_ALL_ANIM_WIN)
-					return 1;
-				break;
-		}
-	}
-	else if (regiontype == RGN_TYPE_UI) {
-		if (spacetype == SPACE_CLIP) {
-			/* Track Preview button is on Properties Editor in SpaceClip,
-			 * and it's very common case when users want it be refreshing
-			 * during playback, so asking people to enable special option
-			 * for this is a bit tricky, so add exception here for refreshing
-			 * Properties Editor for SpaceClip always */
-			return 1;
-		}
-
-		if (redraws & TIME_ALL_BUTS_WIN)
-			return 1;
-	}
-	else if (regiontype == RGN_TYPE_HEADER) {
-		if (spacetype == SPACE_TIME)
-			return 1;
-	}
-	else if (regiontype == RGN_TYPE_PREVIEW) {
-		switch (spacetype) {
-			case SPACE_SEQ:
-				if (redraws & (TIME_SEQ | TIME_ALL_ANIM_WIN))
-					return 1;
-				break;
-			case SPACE_CLIP:
-				return 1;
-		}
-	}
-	return 0;
-}
-
 //#define PROFILE_AUDIO_SYNCH
 
 static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
@@ -3542,7 +3447,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 					if (ar == sad->ar) {
 						redraw = true;
 					}
-					else if (match_region_with_redraws(sa->spacetype, ar->regiontype, sad->redraws)) {
+					else if (ED_match_region_with_redraws(sa->spacetype, ar->regiontype, sad->redraws)) {
 						redraw = true;
 					}
 
@@ -3568,7 +3473,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 					}
 				}
 				
-				if (match_area_with_refresh(sa->spacetype, sad->refresh))
+				if (ED_match_area_with_refresh(sa->spacetype, sad->refresh))
 					ED_area_tag_refresh(sa);
 			}
 		}
