@@ -180,6 +180,47 @@ void write_sample<CD_ORCO>(CustomDataWriter *writer, OCompoundProperty &parent, 
 }
 
 template <>
+void write_sample<CD_MLOOPUV>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
+	
+	OV2fArrayProperty prop_uv = writer->add_array_property<OV2fArrayProperty>(name + ":uv", prop);
+	OInt32ArrayProperty prop_flag = writer->add_array_property<OInt32ArrayProperty>(name + ":flag", prop);
+	
+	MLoopUV *loop_uv = (MLoopUV *)data;
+	std::vector<V2f> uv_data;
+	std::vector<int32_t> flag_data;
+	uv_data.reserve(num_data);
+	flag_data.reserve(num_data);
+	for (int i = 0; i < num_data; ++i) {
+		uv_data.push_back(V2f(loop_uv->uv[0], loop_uv->uv[1]));
+		flag_data.push_back(loop_uv->flag);
+		
+		++loop_uv;
+	}
+	prop_uv.set(V2fArraySample(uv_data));
+	prop_flag.set(Int32ArraySample(flag_data));
+}
+
+template <>
+void write_sample<CD_MLOOPCOL>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
+	
+	OC4fArrayProperty prop_col = writer->add_array_property<OC4fArrayProperty>(name + ":color", prop);
+	
+	MLoopCol *loop_col = (MLoopCol *)data;
+	std::vector<C4f> col_data;
+	col_data.reserve(num_data);
+	for (int i = 0; i < num_data; ++i) {
+		col_data.push_back(C4f(loop_col->r, loop_col->g, loop_col->b, loop_col->a));
+		
+		++loop_col;
+	}
+	prop_col.set(C4fArraySample(col_data));
+}
+
+template <>
 void write_sample<CD_ORIGSPACE_MLOOP>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
 {
 	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
@@ -365,6 +406,62 @@ PTCReadSampleResult read_sample<CD_ORCO>(CustomDataReader *reader, ICompoundProp
 		return PTC_READ_SAMPLE_INVALID;
 	
 	memcpy(data, sample->getData(), sizeof(V3f) * num_data);
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_MLOOPUV>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
+	
+	IV2fArrayProperty uv_prop = reader->add_array_property<IV2fArrayProperty>(name + ":uv", prop);
+	IInt32ArrayProperty flag_prop = reader->add_array_property<IInt32ArrayProperty>(name + ":flag", prop);
+	
+	V2fArraySamplePtr uv_sample = uv_prop.getValue(ss);
+	Int32ArraySamplePtr flag_sample = flag_prop.getValue(ss);
+	
+	if (uv_sample->size() != num_data || flag_sample->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	MLoopUV *loop_uv = (MLoopUV *)data;
+	const V2f *uv_data = (const V2f *)uv_sample->getData();
+	const int32_t *flag_data = (const int32_t *)flag_sample->getData();
+	for (int i = 0; i < num_data; ++i) {
+		copy_v2_v2(loop_uv->uv, uv_data->getValue());
+		loop_uv->flag = *flag_data;
+		
+		++uv_data;
+		++flag_data;
+		++loop_uv;
+	}
+	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_MLOOPCOL>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
+	
+	IC4fArrayProperty col_prop = reader->add_array_property<IC4fArrayProperty>(name + ":color", prop);
+	
+	C4fArraySamplePtr col_sample = col_prop.getValue(ss);
+	
+	if (col_sample->size() != num_data)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	MLoopCol *loop_col = (MLoopCol *)data;
+	const C4f *col_data = (const C4f *)col_sample->getData();
+	for (int i = 0; i < num_data; ++i) {
+		loop_col->r = col_data->r;
+		loop_col->g = col_data->g;
+		loop_col->b = col_data->b;
+		loop_col->a = col_data->a;
+		
+		++col_data;
+		++loop_col;
+	}
+	
 	return PTC_READ_SAMPLE_EXACT;
 }
 
