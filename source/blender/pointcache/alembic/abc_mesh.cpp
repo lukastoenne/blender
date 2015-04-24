@@ -500,7 +500,7 @@ static PTCReadSampleResult apply_sample_loops(DerivedMesh *dm, Int32ArraySampleP
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
+PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(float frame)
 {
 #ifdef USE_TIMING
 	double start_time;

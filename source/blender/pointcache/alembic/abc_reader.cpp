@@ -150,4 +150,17 @@ PTCReadSampleResult AbcReader::test_sample(float frame)
 	}
 }
 
+PTCReadSampleResult AbcReader::read_sample(float frame)
+{
+	
+	try {
+		return read_sample_abc(frame);
+	}
+	catch (Alembic::Util::Exception e) {
+		handle_alembic_exception(ErrorHandler::get_default_handler(), PTC_ERROR_CRITICAL, e);
+		return PTC_READ_SAMPLE_INVALID;
+	}
+	return PTC_READ_SAMPLE_INVALID;
+}
+
 } /* namespace PTC */

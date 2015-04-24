@@ -88,6 +88,8 @@ public:
 	
 	bool get_frame_range(int &start_frame, int &end_frame);
 	PTCReadSampleResult test_sample(float frame);
+	PTCReadSampleResult read_sample(float frame);
+	virtual PTCReadSampleResult read_sample_abc(float frame) = 0;
 	
 private:
 	AbcReaderArchive *m_abc_archive;

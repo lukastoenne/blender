@@ -169,7 +169,7 @@ static PTCReadSampleResult apply_sample(SimDebugData *data,
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-PTCReadSampleResult AbcSimDebugReader::read_sample(float frame)
+PTCReadSampleResult AbcSimDebugReader::read_sample_abc(float frame)
 {
 	if (!m_object)
 		return PTC_READ_SAMPLE_INVALID;

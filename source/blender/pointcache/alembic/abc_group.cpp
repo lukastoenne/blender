@@ -95,7 +95,7 @@ void AbcGroupReader::init_abc(IObject object)
 	m_abc_object = object;
 }
 
-PTCReadSampleResult AbcGroupReader::read_sample(float /*frame*/)
+PTCReadSampleResult AbcGroupReader::read_sample_abc(float /*frame*/)
 {
 	if (!m_abc_object)
 		return PTC_READ_SAMPLE_INVALID;
@@ -408,7 +408,7 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 				AbcDerivedMeshReader dm_reader("mesh", b_ob);
 				dm_reader.init(abc_archive());
 				dm_reader.init_abc(child);
-				if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+				if (dm_reader.read_sample_abc(frame) != PTC_READ_SAMPLE_INVALID) {
 					if (!dupli_data) {
 						dupli_data = BKE_dupli_cache_add_object(dupli_cache, b_ob);
 						insert_dupli_data(object.getPtr(), dupli_data);
@@ -427,7 +427,7 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 				AbcStrandsReader strands_reader(strands, children, m_read_strands_motion, m_read_strands_children);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
-				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+				if (strands_reader.read_sample_abc(frame) != PTC_READ_SAMPLE_INVALID) {
 					if (!dupli_data) {
 						dupli_data = BKE_dupli_cache_add_object(dupli_cache, b_ob);
 						insert_dupli_data(object.getPtr(), dupli_data);
@@ -485,7 +485,7 @@ void AbcDupliCacheReader::read_dupligroup_group(IObject abc_group, const ISample
 	}
 }
 
-PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
+PTCReadSampleResult AbcDupliCacheReader::read_sample_abc(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
@@ -510,7 +510,7 @@ PTCReadSampleResult AbcDupliCacheReader::read_sample(float frame)
 			m_simdebug_reader->init(abc_archive());
 			m_simdebug_reader->init_abc(abc_top.getChild("sim_debug"));
 			
-			m_simdebug_reader->read_sample(frame);
+			m_simdebug_reader->read_sample_abc(frame);
 		}
 	}
 	
@@ -695,7 +695,7 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 				AbcDerivedMeshReader dm_reader("mesh", m_ob);
 				dm_reader.init(abc_archive());
 				dm_reader.init_abc(child);
-				if (dm_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+				if (dm_reader.read_sample_abc(frame) != PTC_READ_SAMPLE_INVALID) {
 					BKE_dupli_object_data_set_mesh(dupli_data, dm_reader.acquire_result());
 				}
 				else {
@@ -709,7 +709,7 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 				AbcStrandsReader strands_reader(strands, children, m_read_strands_motion, m_read_strands_children);
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
-				if (strands_reader.read_sample(frame) != PTC_READ_SAMPLE_INVALID) {
+				if (strands_reader.read_sample_abc(frame) != PTC_READ_SAMPLE_INVALID) {
 					Strands *newstrands = strands_reader.acquire_result();
 					if (strands && strands != newstrands) {
 						/* reader can replace strands internally if topology does not match */
@@ -733,7 +733,7 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 	}
 }
 
-PTCReadSampleResult AbcDupliObjectReader::read_sample(float frame)
+PTCReadSampleResult AbcDupliObjectReader::read_sample_abc(float frame)
 {
 	if (!m_abc_object)
 		return PTC_READ_SAMPLE_INVALID;
