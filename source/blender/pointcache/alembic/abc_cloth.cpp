@@ -193,7 +193,7 @@ static void apply_sample_goal_positions(Cloth *cloth, P3fArraySamplePtr sample)
 	}
 }
 
-PTCReadSampleResult AbcClothReader::read_sample(float frame)
+PTCReadSampleResult AbcClothReader::read_sample_abc(float frame)
 {
 	Cloth *cloth = m_clmd->clothObject;
 	

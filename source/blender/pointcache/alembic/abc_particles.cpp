@@ -694,7 +694,7 @@ void AbcStrandsChildrenReader::init_abc(IObject object)
 	m_prop_parent_weights = IFloatArrayProperty(user_props, "parent_weights", 0);
 }
 
-PTCReadSampleResult AbcStrandsChildrenReader::read_sample(float frame)
+PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
@@ -845,7 +845,7 @@ void AbcStrandsReader::init_abc(IObject object)
 	}
 }
 
-PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
+PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 {
 	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
 	
@@ -962,7 +962,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample(float frame)
 	BKE_strands_ensure_normals(m_strands);
 	
 	if (m_read_children) {
-		m_child_reader.read_sample(frame);
+		m_child_reader.read_sample_abc(frame);
 	}
 	
 	return PTC_READ_SAMPLE_EXACT;

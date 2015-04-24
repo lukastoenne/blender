@@ -43,7 +43,17 @@ using namespace Abc;
 using namespace AbcGeom;
 
 /* CD layers that are stored in generic customdata arrays created with CD_ALLOC */
-static CustomDataMask CD_MASK_CACHE_EXCLUDE = (CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MPOLY | CD_MASK_MLOOP | CD_MASK_BMESH | CD_MASK_MTFACE);
+/* XXX CD_MASK_MTFACE is deprecated, but currently still needed as a dummy for syncing
+ * particle UV and MCol layers to the mesh shader attributes ...
+ */
+static CustomDataMask CD_MASK_CACHE_EXCLUDE =
+        CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MPOLY | CD_MASK_MLOOP |
+        /*CD_MASK_MTFACE |*/ CD_MASK_MTEXPOLY |
+        CD_MASK_PROP_STR |
+        CD_MASK_SHAPEKEY | CD_MASK_SHAPE_KEYINDEX |
+        CD_MASK_MDISPS | CD_MASK_CREASE | CD_MASK_BWEIGHT | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
+        CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
+
 static CustomDataMask CD_MASK_CACHE_VERT = ~(CD_MASK_CACHE_EXCLUDE | CD_MASK_NORMAL);
 static CustomDataMask CD_MASK_CACHE_EDGE = ~(CD_MASK_CACHE_EXCLUDE);
 static CustomDataMask CD_MASK_CACHE_FACE = ~(CD_MASK_CACHE_EXCLUDE);
@@ -304,11 +314,6 @@ void AbcDerivedMeshWriter::write_sample()
 	int num_edata = output_dm->getNumEdges(output_dm);
 	m_edge_data_writer.write_sample(edata, num_edata, user_props);
 	
-	DM_ensure_tessface(output_dm);
-	CustomData *fdata = output_dm->getTessFaceDataLayout(output_dm);
-	int num_fdata = output_dm->getNumTessFaces(output_dm);
-	m_face_data_writer.write_sample(fdata, num_fdata, user_props);
-	
 	CustomData *pdata = output_dm->getPolyDataLayout(output_dm);
 	int num_pdata = output_dm->getNumPolys(output_dm);
 	m_poly_data_writer.write_sample(pdata, num_pdata, user_props);
@@ -316,6 +321,11 @@ void AbcDerivedMeshWriter::write_sample()
 	CustomData *ldata = output_dm->getLoopDataLayout(output_dm);
 	int num_ldata = output_dm->getNumLoops(output_dm);
 	m_loop_data_writer.write_sample(ldata, num_ldata, user_props);
+	
+	DM_ensure_tessface(output_dm);
+	CustomData *fdata = output_dm->getTessFaceDataLayout(output_dm);
+	int num_fdata = output_dm->getNumTessFaces(output_dm);
+	m_face_data_writer.write_sample(fdata, num_fdata, user_props);
 }
 
 /* ========================================================================= */
@@ -490,7 +500,7 @@ static PTCReadSampleResult apply_sample_loops(DerivedMesh *dm, Int32ArraySampleP
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
+PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(float frame)
 {
 #ifdef USE_TIMING
 	double start_time;
@@ -559,11 +569,6 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	int num_edata = totedges;
 	m_edge_data_reader.read_sample(ss, edata, num_edata, user_props);
 	
-	DM_ensure_tessface(m_result);
-	CustomData *fdata = m_result->getTessFaceDataLayout(m_result);
-	int num_fdata = m_result->getNumTessFaces(m_result);
-	m_face_data_reader.read_sample(ss, fdata, num_fdata, user_props);
-	
 	CustomData *pdata = m_result->getPolyDataLayout(m_result);
 	int num_pdata = totpolys;
 	m_poly_data_reader.read_sample(ss, pdata, num_pdata, user_props);
@@ -571,6 +576,11 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample(float frame)
 	CustomData *ldata = m_result->getLoopDataLayout(m_result);
 	int num_ldata = totloops;
 	m_loop_data_reader.read_sample(ss, ldata, num_ldata, user_props);
+	
+	DM_ensure_tessface(m_result);
+	CustomData *fdata = m_result->getTessFaceDataLayout(m_result);
+	int num_fdata = m_result->getNumTessFaces(m_result);
+	m_face_data_reader.read_sample(ss, fdata, num_fdata, user_props);
 	
 	PROFILE_START;
 	if (!has_edges)

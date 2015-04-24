@@ -59,7 +59,7 @@ public:
 	
 	void init_abc(Abc::IObject object);
 	
-	PTCReadSampleResult read_sample(float frame);
+	PTCReadSampleResult read_sample_abc(float frame);
 	
 private:
 	Abc::IObject m_abc_object;
@@ -142,7 +142,7 @@ public:
 	
 	void init_abc(Abc::IObject object);
 	
-	PTCReadSampleResult read_sample(float frame);
+	PTCReadSampleResult read_sample_abc(float frame);
 	
 protected:
 	void read_dupligroup_object(Abc::IObject object, float frame);
@@ -202,7 +202,7 @@ public:
 	void init(ReaderArchive *archive);
 	void init_abc(Abc::IObject object);
 	
-	PTCReadSampleResult read_sample(float frame);
+	PTCReadSampleResult read_sample_abc(float frame);
 	
 protected:
 	void read_dupligroup_object(Abc::IObject object, float frame);
