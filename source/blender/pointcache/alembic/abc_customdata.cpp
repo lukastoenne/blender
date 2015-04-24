@@ -158,10 +158,12 @@ void write_sample<CD_ORIGSPACE>(CustomDataWriter *writer, OCompoundProperty &par
 	uv_data[2].reserve(num_data);
 	uv_data[3].reserve(num_data);
 	for (int i = 0; i < num_data; ++i) {
-		uv_data[0].push_back(V2f(ospace[i].uv[0][0], ospace[i].uv[0][1]));
-		uv_data[1].push_back(V2f(ospace[i].uv[1][0], ospace[i].uv[1][1]));
-		uv_data[2].push_back(V2f(ospace[i].uv[2][0], ospace[i].uv[2][1]));
-		uv_data[3].push_back(V2f(ospace[i].uv[3][0], ospace[i].uv[3][1]));
+		uv_data[0].push_back(V2f(ospace->uv[0][0], ospace->uv[0][1]));
+		uv_data[1].push_back(V2f(ospace->uv[1][0], ospace->uv[1][1]));
+		uv_data[2].push_back(V2f(ospace->uv[2][0], ospace->uv[2][1]));
+		uv_data[3].push_back(V2f(ospace->uv[3][0], ospace->uv[3][1]));
+		
+		++ospace;
 	}
 	uv_prop[0].set(V2fArraySample(uv_data[0]));
 	uv_prop[1].set(V2fArraySample(uv_data[1]));
@@ -189,6 +191,8 @@ void write_sample<CD_ORIGSPACE_MLOOP>(CustomDataWriter *writer, OCompoundPropert
 	uv_data.reserve(num_data);
 	for (int i = 0; i < num_data; ++i) {
 		uv_data.push_back(V2f(ospaceloop->uv[0], ospaceloop->uv[1]));
+		
+		++ospaceloop;
 	}
 	prop_uv.set(V2fArraySample(uv_data));
 }
