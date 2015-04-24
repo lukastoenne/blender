@@ -60,6 +60,8 @@
 
 #include "anim_intern.h"
 
+#include "MEM_guardedalloc.h"
+
 /* ********************** frame change operator ***************************/
 
 /* Check if the operator can be run from the current context */
@@ -192,13 +194,32 @@ static void change_frame_seq_preview_begin(bContext *C, const wmEvent *event)
 		}
 	}
 }
-static void change_frame_seq_preview_end(bContext *C)
+
+typedef struct ChangeFrameData {
+	wmTimer *timer;
+	double last_duration;
+	int frame;
+	int last_frame;
+} ChangeFrameData;
+
+static void change_frame_seq_preview_end(bContext *C, wmOperator *op)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+
 	if (ED_sequencer_special_preview_get() != NULL) {
 		Scene *scene = CTX_data_scene(C);
 		ED_sequencer_special_preview_clear();
 		WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 	}
+
+	if (op->customdata) {
+		ChangeFrameData *data = op->customdata;
+		WM_event_remove_timer(wm, win, op->customdata);
+		MEM_freeN(data);
+		op->customdata = NULL;
+	}
+
 }
 
 /* Modal Operator init */
@@ -208,8 +229,16 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	 * as user could click on a single frame (jump to frame) as well as
 	 * click-dragging over a range (modal scrubbing).
 	 */
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+	Scene *scene = CTX_data_scene(C);
+	ChangeFrameData *data = MEM_callocN(sizeof(ChangeFrameData), "changeframedata");
+
+	data->timer = WM_event_add_timer(wm, win, TIMER, (1.0 / FPS));
+
 	RNA_int_set(op->ptr, "frame", frame_from_event(C, event));
 
+	op->customdata = data;
 	change_frame_seq_preview_begin(C, event);
 
 	change_frame_apply(C, op, false);
@@ -220,9 +249,9 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static void change_frame_cancel(bContext *C, wmOperator *UNUSED(op))
+static void change_frame_cancel(bContext *C, wmOperator *op)
 {
-	change_frame_seq_preview_end(C);
+	change_frame_seq_preview_end(C, op);
 }
 
 /* Modal event handling of frame changing */
@@ -230,6 +259,8 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	ChangeFrameData *data = op->customdata;
+
 	int ret = OPERATOR_RUNNING_MODAL;
 	/* execute the events */
 	switch (event->type) {
@@ -240,8 +271,18 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			break;
 
 		case MOUSEMOVE:
-			RNA_int_set(op->ptr, "frame", frame_from_event(C, event));
-			change_frame_apply(C, op, false);
+			data->frame = frame_from_event(C, event);
+			break;
+
+		case TIMER:
+			if (data->timer->duration - data->last_duration > FRA2TIME(1)) {
+				if (data->frame != data->last_frame) {
+					RNA_int_set(op->ptr, "frame", data->frame);
+					change_frame_apply(C, op, false);
+					data->last_frame = data->frame;
+					data->last_duration = data->timer->duration;
+				}
+			}
 			break;
 		
 		case LEFTMOUSE: 
@@ -269,7 +310,7 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (ret != OPERATOR_RUNNING_MODAL) {
-		change_frame_seq_preview_end(C);
+		change_frame_seq_preview_end(C, op);
 	}
 
 	return ret;
