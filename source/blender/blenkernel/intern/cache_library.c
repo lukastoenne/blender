@@ -922,7 +922,7 @@ static bool hairsim_find_data(HairSimCacheModifier *hsmd, DupliCache *dupcache, 
 	return true;
 }
 
-static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode)
+static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 #define MAX_CACHE_EFFECTORS 64
 	
