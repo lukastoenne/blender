@@ -450,18 +450,35 @@ int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
 	const bool is_fullscreen = WM_window_is_fullscreen(win);
-	char display_mode = win->stereo3d_format->display_mode;
+	char prev_display_mode = win->stereo3d_format->display_mode;
+	Stereo3dData *s3dd;
 
 	if (G.background)
 		return OPERATOR_CANCELLED;
 
-	if (op->customdata) {
-		Stereo3dData *s3dd = op->customdata;
-		*win->stereo3d_format = s3dd->stereo3d_format;
+	if (op->customdata == NULL) {
+		/* no invoke means we need to set the operator properties here */
+		wm_stereo3d_set_init(C, op);
+		wm_stereo3d_set_properties(C, op);
 	}
 
-	/* pageflip requires a new window to be created with the proper OS flags */
-	if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP) {
+	s3dd = op->customdata;
+	*win->stereo3d_format = s3dd->stereo3d_format;
+
+	if (prev_display_mode == S3D_DISPLAY_PAGEFLIP &&
+	    prev_display_mode != win->stereo3d_format->display_mode)
+	{
+		/* in case the hardward supports pageflip but not the display */
+		if (wm_window_duplicate_exec(C, op) == OPERATOR_FINISHED) {
+			wm_window_close(C, wm, win);
+		}
+		else {
+			BKE_report(op->reports, RPT_ERROR,
+			           "Fail to create a window without quadbuffer support, you may experience flickering");
+		}
+	}
+	else if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP) {
+		/* pageflip requires a new window to be created with the proper OS flags */
 		if (wm_window_duplicate_exec(C, op) == OPERATOR_FINISHED) {
 			if (wm_stereo3d_quadbuffer_supported()) {
 				wm_window_close(C, wm, win);
@@ -470,25 +487,24 @@ int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
 			else {
 				wmWindow *win_new = wm->windows.last;
 				wm_window_close(C, wm, win_new);
-				win->stereo3d_format->display_mode = display_mode;
+				win->stereo3d_format->display_mode = prev_display_mode;
 				BKE_report(op->reports, RPT_ERROR, "Quad-buffer not supported by the system");
 			}
 		}
 		else {
 			BKE_report(op->reports, RPT_ERROR,
 			           "Fail to create a window compatible with the time sequential display method");
-			win->stereo3d_format->display_mode = display_mode;
+			win->stereo3d_format->display_mode = prev_display_mode;
 		}
 	}
-	else if (wm_stereo3d_is_fullscreen_required(win->stereo3d_format->display_mode)) {
+
+	if (wm_stereo3d_is_fullscreen_required(s3dd->stereo3d_format.display_mode)) {
 		if (!is_fullscreen) {
 			BKE_report(op->reports, RPT_INFO, "Stereo 3D Mode requires the window to be fullscreen");
 		}
 	}
 
-	if (op->customdata) {
-		MEM_freeN(op->customdata);
-	}
+	MEM_freeN(op->customdata);
 
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 	return OPERATOR_FINISHED;
