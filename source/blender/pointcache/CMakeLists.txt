@@ -45,6 +45,9 @@ set(SRC
 
 	util/util_error_handler.h
 	util/util_error_handler.cpp
+	util/util_task.cpp
+	util/util_task.h
+	util/util_thread.h
 	util/util_types.h
 
 	PTC_api.h
