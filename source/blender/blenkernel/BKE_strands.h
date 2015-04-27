@@ -41,6 +41,9 @@ struct StrandsChildren *BKE_strands_children_new(int strands, int verts);
 struct StrandsChildren *BKE_strands_children_copy(struct StrandsChildren *strands);
 void BKE_strands_children_free(struct StrandsChildren *strands);
 
+void BKE_strands_children_add_uvs(struct StrandsChildren *strands, int num_layers);
+void BKE_strands_children_add_vcols(struct StrandsChildren *strands, int num_layers);
+
 void BKE_strands_children_deform(struct StrandsChildren *strands, struct Strands *parents, bool use_motion);
 
 void BKE_strands_children_ensure_normals(struct StrandsChildren *strands);
@@ -233,16 +236,23 @@ void BKE_strand_bend_iter_transform_state(StrandBendIterator *iter, float mat[3]
 /* Strand Child Curves Iterator */
 
 typedef struct StrandChildIterator {
-	int index, tot;
+	int index, tot, numuv, numvcol;
 	StrandsChildCurve *curve;
+	StrandsChildCurveUV *curve_uv;
+	StrandsChildCurveVCol *curve_vcol;
 	StrandsChildVertex *verts;
 } StrandChildIterator;
 
 BLI_INLINE void BKE_strand_child_iter_init(StrandChildIterator *iter, StrandsChildren *strands)
 {
 	iter->tot = strands->totcurves;
+	iter->numuv = strands->numuv;
+	iter->numvcol = strands->numvcol;
 	iter->index = 0;
+	
 	iter->curve = strands->curves;
+	iter->curve_uv = strands->curve_uvs;
+	iter->curve_vcol = strands->curve_vcols;
 	iter->verts = strands->verts;
 }
 
@@ -257,6 +267,10 @@ BLI_INLINE void BKE_strand_child_iter_next(StrandChildIterator *iter)
 	
 	++iter->index;
 	++iter->curve;
+	if (iter->curve_uv)
+		iter->curve_uv += iter->numuv;
+	if (iter->curve_vcol)
+		iter->curve_vcol += iter->numvcol;
 	iter->verts += numverts;
 }
 

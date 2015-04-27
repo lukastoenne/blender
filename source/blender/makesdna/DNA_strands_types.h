@@ -65,6 +65,14 @@ typedef struct StrandsChildCurve {
 	float parent_weights[4];
 } StrandsChildCurve;
 
+typedef struct StrandsChildCurveUV {
+	float uv[2];
+} StrandsChildCurveUV;
+
+typedef struct StrandsChildCurveVCol {
+	float vcol[3];
+} StrandsChildCurveVCol;
+
 typedef struct StrandsChildVertex {
 	float co[3];
 	float time;
@@ -75,8 +83,11 @@ typedef struct StrandsChildVertex {
 
 typedef struct StrandsChildren {
 	StrandsChildCurve *curves;
+	StrandsChildCurveUV *curve_uvs;
+	StrandsChildCurveVCol *curve_vcols;
 	StrandsChildVertex *verts;
 	int totcurves, totverts;
+	int numuv, numvcol; /* number of uv/vcol per curve */
 } StrandsChildren;
 
 #endif  /* __DNA_STRANDS_TYPES_H__ */

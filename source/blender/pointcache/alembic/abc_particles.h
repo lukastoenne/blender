@@ -64,6 +64,8 @@ private:
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
 	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
+	AbcGeom::OV2fArrayProperty m_prop_curve_uvs;
+	AbcGeom::OC3fArrayProperty m_prop_curve_vcols;
 };
 
 
@@ -110,6 +112,8 @@ private:
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
 	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
+	AbcGeom::OV2fArrayProperty m_prop_curve_uvs;
+	AbcGeom::OC3fArrayProperty m_prop_curve_vcols;
 };
 
 
@@ -162,6 +166,8 @@ private:
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IInt32ArrayProperty m_prop_parents;
 	AbcGeom::IFloatArrayProperty m_prop_parent_weights;
+	AbcGeom::IV2fArrayProperty m_prop_curve_uvs;
+	AbcGeom::IC3fArrayProperty m_prop_curve_vcols;
 };
 
 

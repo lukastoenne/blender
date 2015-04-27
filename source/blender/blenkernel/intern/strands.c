@@ -178,6 +178,10 @@ StrandsChildren *BKE_strands_children_new(int curves, int verts)
 	strands->totverts = verts;
 	strands->verts = MEM_mallocN(sizeof(StrandsChildVertex) * verts, "strand children vertices");
 	
+	/* must be added explicitly */
+	strands->curve_uvs = NULL;
+	strands->curve_vcols = NULL;
+	
 	return strands;
 }
 
@@ -186,6 +190,10 @@ StrandsChildren *BKE_strands_children_copy(StrandsChildren *strands)
 	StrandsChildren *new_strands = MEM_dupallocN(strands);
 	if (new_strands->curves)
 		new_strands->curves = MEM_dupallocN(new_strands->curves);
+	if (new_strands->curve_uvs)
+		new_strands->curve_uvs = MEM_dupallocN(new_strands->curve_uvs);
+	if (new_strands->curve_vcols)
+		new_strands->curve_vcols = MEM_dupallocN(new_strands->curve_vcols);
 	if (new_strands->verts)
 		new_strands->verts = MEM_dupallocN(new_strands->verts);
 	return new_strands;
@@ -196,10 +204,26 @@ void BKE_strands_children_free(StrandsChildren *strands)
 	if (strands) {
 		if (strands->curves)
 			MEM_freeN(strands->curves);
+		if (strands->curve_uvs)
+			MEM_freeN(strands->curve_uvs);
+		if (strands->curve_vcols)
+			MEM_freeN(strands->curve_vcols);
 		if (strands->verts)
 			MEM_freeN(strands->verts);
 		MEM_freeN(strands);
 	}
+}
+
+void BKE_strands_children_add_uvs(StrandsChildren *strands, int num_layers)
+{
+	strands->curve_uvs = MEM_callocN(sizeof(StrandsChildCurveUV) * strands->totcurves * num_layers, "strands children uv layers");
+	strands->numuv = num_layers;
+}
+
+void BKE_strands_children_add_vcols(StrandsChildren *strands, int num_layers)
+{
+	strands->curve_vcols = MEM_callocN(sizeof(StrandsChildCurveVCol) * strands->totcurves * num_layers, "strands children vcol layers");
+	strands->numvcol = num_layers;
 }
 
 static int *strands_calc_vertex_start(Strands *strands)

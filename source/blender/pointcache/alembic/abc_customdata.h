@@ -55,6 +55,20 @@ struct CustomDataWriter {
 	Abc::OCompoundProperty &props() { return m_props; }
 	
 	template <typename PropertyT, typename ParentT>
+	PropertyT add_scalar_property(const std::string &name, ParentT &parent)
+	{
+		LayerPropsMap::iterator it = m_layer_props.find(name);
+		if (it == m_layer_props.end()) {
+			PropertyT prop = PropertyT(parent, name, m_time_sampling);
+			m_layer_props.insert(LayerPropsPair(name, prop.getPtr()));
+			return prop;
+		}
+		else {
+			return PropertyT(it->second->asScalarPtr(), Abc::kWrapExisting);
+		}
+	}
+	
+	template <typename PropertyT, typename ParentT>
 	PropertyT add_array_property(const std::string &name, ParentT &parent)
 	{
 		LayerPropsMap::iterator it = m_layer_props.find(name);
@@ -103,6 +117,20 @@ struct CustomDataReader {
 	PTCReadSampleResult read_sample(const Abc::ISampleSelector &ss, CustomData *cdata, int num_data, Abc::ICompoundProperty &parent);
 	
 	Abc::ICompoundProperty &props() { return m_props; }
+	
+	template <typename PropertyT, typename ParentT>
+	PropertyT add_scalar_property(const std::string &name, ParentT &parent)
+	{
+		LayerPropsMap::iterator it = m_layer_props.find(name);
+		if (it == m_layer_props.end()) {
+			PropertyT prop = PropertyT(parent, name, 0);
+			m_layer_props.insert(LayerPropsPair(name, prop.getPtr()));
+			return prop;
+		}
+		else {
+			return PropertyT(it->second->asScalarPtr(), Abc::kWrapExisting);
+		}
+	}
 	
 	template <typename PropertyT, typename ParentT>
 	PropertyT add_array_property(const std::string &name, ParentT &parent)
