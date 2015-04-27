@@ -44,6 +44,8 @@ extern "C" {
 #include "BKE_strands.h"
 }
 
+#include "util_task.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -131,16 +133,22 @@ void AbcDupligroupWriter::init_abc()
 
 void AbcDupligroupWriter::write_sample_object(Object *ob)
 {
-	AbcWriter *ob_writer = find_id_writer((ID *)ob);
-	if (!ob_writer) {
-		bool do_mesh = (m_cachelib->data_types & CACHE_TYPE_DERIVED_MESH);
-		bool do_hair = (m_cachelib->data_types & CACHE_TYPE_HAIR);
-		
-		ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob, do_mesh, do_hair);
-		ob_writer->init(abc_archive());
-		m_id_writers.insert(IDWriterPair((ID *)ob, ob_writer));
+	AbcWriter *ob_writer;
+
+	/* TODO(sergey): Optimize this out using RW mutex. */
+	{
+		thread_scoped_lock lock(m_init_mutex);
+		ob_writer = find_id_writer((ID *)ob);
+		if (!ob_writer) {
+			bool do_mesh = (m_cachelib->data_types & CACHE_TYPE_DERIVED_MESH);
+			bool do_hair = (m_cachelib->data_types & CACHE_TYPE_HAIR);
+
+			ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob, do_mesh, do_hair);
+			ob_writer->init(abc_archive());
+			m_id_writers.insert(IDWriterPair((ID *)ob, ob_writer));
+		}
 	}
-	
+
 	ob_writer->write_sample();
 }
 
@@ -198,16 +206,19 @@ void AbcDupligroupWriter::write_sample()
 		if (dob->ob)
 			dob->ob->id.flag &= ~LIB_DOIT;
 	}
-	
+
+	UtilTaskPool pool;
 	/* write actual object data: duplicator itself + all instanced objects */
 	for (dob = (DupliObject *)duplilist->first; dob; dob = dob->next) {
 		if (dob->ob->id.flag & LIB_DOIT)
 			continue;
 		dob->ob->id.flag |= LIB_DOIT;
-		
-		write_sample_object(dob->ob);
+		pool.push(function_bind(&AbcDupligroupWriter::write_sample_object,
+		                        this, dob->ob));
 	}
-	
+
+	pool.wait_work();
+
 	/* write dupli instances */
 	for (dob = (DupliObject *)duplilist->first, i = 0; dob; dob = dob->next, ++i) {
 		write_sample_dupli(dob, i);

@@ -25,6 +25,8 @@
 #include "abc_schema.h"
 #include "abc_writer.h"
 
+#include "util_thread.h"
+
 struct CacheLibrary;
 struct DupliCache;
 struct DupliObject;
@@ -95,6 +97,7 @@ private:
 	ObjectWriterList m_object_writers;
 	PropertyWriterList m_property_writers;
 	IDWriterMap m_id_writers;
+	thread_mutex m_init_mutex;
 };
 
 class AbcDupliCacheWriter : public GroupWriter, public AbcWriter {

@@ -33,6 +33,8 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
+thread_mutex AbcObjectWriter::m_sample_write_mutex;
+
 AbcObjectWriter::AbcObjectWriter(const std::string &name, Scene *scene, Object *ob, bool do_mesh, bool do_hair) :
     ObjectWriter(ob, name),
     m_scene(scene),
@@ -106,7 +108,10 @@ void AbcObjectWriter::write_sample()
 			m_final_dm = mesh_create_derived_render(m_scene, m_ob, CD_MASK_BAREMESH);
 			
 			if (m_final_dm) {
-				m_dm_writer->write_sample();
+				{
+					thread_scoped_lock lock(m_sample_write_mutex);
+					m_dm_writer->write_sample();
+				}
 				
 				m_final_dm->release(m_final_dm);
 			}
@@ -117,6 +122,7 @@ void AbcObjectWriter::write_sample()
 				m_final_dm = mesh_get_derived_final(m_scene, m_ob, CD_MASK_BAREMESH);
 			
 			if (m_final_dm) {
+				thread_scoped_lock lock(m_sample_write_mutex);
 				m_dm_writer->write_sample();
 			}
 		}
@@ -125,6 +131,7 @@ void AbcObjectWriter::write_sample()
 	for (int i = 0; i < m_hair_writers.size(); ++i) {
 		AbcHairWriter *hair_writer = m_hair_writers[i];
 		if (hair_writer) {
+			thread_scoped_lock lock(m_sample_write_mutex);
 			hair_writer->write_sample();
 		}
 	}

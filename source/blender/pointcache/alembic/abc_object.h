@@ -32,6 +32,8 @@
 #include "abc_schema.h"
 #include "abc_writer.h"
 
+#include "util_thread.h"
+
 struct DerivedMesh;
 struct Object;
 struct Scene;
@@ -62,6 +64,7 @@ private:
 	Abc::OObject m_abc_object;
 	AbcDerivedMeshWriter *m_dm_writer;
 	HairWriters m_hair_writers;
+	static thread_mutex m_sample_write_mutex;
 };
 
 class AbcObjectReader : public ObjectReader, public AbcReader {
