@@ -132,54 +132,6 @@ void BKE_cache_library_unlink(CacheLibrary *UNUSED(cachelib))
 
 /* ========================================================================= */
 
-static void cache_library_tag_recursive(int level, Object *ob)
-{
-	if (level > MAX_CACHE_GROUP_LEVEL)
-		return;
-	
-	/* dupli group recursion */
-	if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
-		GroupObject *gob;
-		
-		for (gob = ob->dup_group->gobject.first; gob; gob = gob->next) {
-			if (!(ob->id.flag & LIB_DOIT)) {
-				ob->id.flag |= LIB_DOIT;
-				
-				cache_library_tag_recursive(level + 1, gob->ob);
-			}
-		}
-	}
-}
-
-/* tag IDs contained in the cache library group */
-void BKE_cache_library_make_object_list(Main *bmain, CacheLibrary *cachelib, ListBase *lb)
-{
-	if (cachelib) {
-		Object *ob;
-		LinkData *link;
-		
-		/* clear tags */
-		BKE_main_id_tag_idcode(bmain, ID_OB, false);
-		
-		for (ob = bmain->object.first; ob; ob = ob->id.next) {
-			if (ob->cache_library == cachelib) {
-				cache_library_tag_recursive(0, ob);
-			}
-		}
-		
-		/* store object pointers in the list */
-		for (ob = bmain->object.first; ob; ob = ob->id.next) {
-			if (ob->id.flag & LIB_DOIT) {
-				link = MEM_callocN(sizeof(LinkData), "cache library ID link");
-				link->data = ob;
-				BLI_addtail(lb, link);
-			}
-		}
-	}
-}
-
-/* ========================================================================= */
-
 const char *BKE_cache_item_name_prefix(int type)
 {
 	/* note: avoid underscores and the like here,
