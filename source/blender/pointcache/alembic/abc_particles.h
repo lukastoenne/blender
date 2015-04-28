@@ -59,7 +59,7 @@ private:
 	ParticleSystemModifierData *m_psmd;
 	
 	AbcGeom::OCurves m_curves;
-	AbcGeom::OM33fArrayProperty m_prop_root_matrix;
+	AbcGeom::OQuatfArrayProperty m_prop_root_rot;
 	AbcGeom::OV3fArrayProperty m_prop_root_positions;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
@@ -83,7 +83,7 @@ private:
 	ParticleSystemModifierData *m_psmd;
 	
 	AbcGeom::OCurves m_curves;
-	AbcGeom::OM33fGeomParam m_param_root_matrix;
+	AbcGeom::OQuatfGeomParam m_param_root_rot;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
 	
@@ -107,7 +107,7 @@ private:
 	DupliObjectData *m_dobdata;
 	
 	AbcGeom::OCurves m_curves;
-	AbcGeom::OM33fArrayProperty m_prop_root_matrix;
+	AbcGeom::OQuatfArrayProperty m_prop_root_rot;
 	AbcGeom::OV3fArrayProperty m_prop_root_positions;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
@@ -133,7 +133,7 @@ private:
 	DupliObjectData *m_dobdata;
 	
 	AbcGeom::OCurves m_curves;
-	AbcGeom::OM33fGeomParam m_param_root_matrix;
+	AbcGeom::OQuatfGeomParam m_param_root_rot;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
 	AbcGeom::OCompoundProperty m_param_motion_state;
@@ -161,7 +161,7 @@ private:
 	StrandsChildren *m_strands;
 	
 	AbcGeom::ICurves m_curves;
-	AbcGeom::IM33fArrayProperty m_prop_root_matrix;
+	AbcGeom::IQuatfArrayProperty m_prop_root_rot;
 	AbcGeom::IV3fArrayProperty m_prop_root_positions;
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IInt32ArrayProperty m_prop_parents;
@@ -191,7 +191,7 @@ private:
 	Strands *m_strands;
 	
 	AbcGeom::ICurves m_curves;
-	AbcGeom::IM33fGeomParam m_param_root_matrix;
+	AbcGeom::IQuatfGeomParam m_param_root_rot;
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IFloatGeomParam m_param_weights;
 	AbcGeom::ICompoundProperty m_param_motion_state;
