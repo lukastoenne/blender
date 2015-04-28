@@ -198,6 +198,7 @@ void AbcDupligroupWriter::write_sample()
 		return;
 	
 	ListBase *duplilist = group_duplilist_ex(m_eval_ctx, m_scene, m_group, true);
+	BKE_cache_library_filter_duplilist(m_cachelib, duplilist);
 	DupliObject *dob;
 	int i;
 	

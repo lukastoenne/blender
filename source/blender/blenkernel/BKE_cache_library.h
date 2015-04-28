@@ -73,6 +73,8 @@ void BKE_cache_archive_output_path(struct CacheLibrary *cachelib, char *result, 
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
 
+void BKE_cache_library_filter_duplilist(struct CacheLibrary *cachelib, struct ListBase *duplilist);
+
 bool BKE_cache_read_dupli_cache(struct CacheLibrary *cachelib, struct DupliCache *dupcache,
                                 struct Scene *scene, struct Group *dupgroup, float frame, eCacheLibrary_EvalMode eval_mode, bool for_display);
 bool BKE_cache_read_dupli_object(struct CacheLibrary *cachelib, struct DupliObjectData *data,

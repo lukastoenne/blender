@@ -1644,6 +1644,7 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 	{
 		/* copy duplilist to the cache */
 		ListBase *duplilist = group_duplilist(eval_ctx, scene, group);
+		BKE_cache_library_filter_duplilist(cachelib, duplilist);
 		dupcache->duplilist = *duplilist;
 		MEM_freeN(duplilist);
 	}
