@@ -53,6 +53,9 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
+#include "WM_api.h"
+#include "WM_types.h"
+
 #include "interface_intern.h"
 
 
@@ -327,6 +330,34 @@ uiBut *ui_but_find_menu_root(struct bContext *C) {
 	}
 
 	return NULL;
+}
+
+bool UI_but_online_manual_id(const uiBut *but, char *r_str, size_t maxlength)
+{
+	if (but->rnapoin.id.data && but->rnapoin.data && but->rnaprop) {
+		BLI_snprintf(r_str, maxlength, "%s.%s", RNA_struct_identifier(but->rnapoin.type),
+		             RNA_property_identifier(but->rnaprop));
+		return true;
+	}
+	else if (but->optype) {
+		WM_operator_py_idname(r_str, but->optype->idname);
+		return true;
+	}
+
+	*r_str = '\0';
+	return false;
+}
+
+bool UI_but_online_manual_id_from_active(const struct bContext *C, char *r_str, size_t maxlength)
+{
+	uiBut *but = UI_context_active_but_get(C);
+
+	if (but) {
+		return UI_but_online_manual_id(but, r_str, maxlength);
+	}
+
+	*r_str = '\0';
+	return false;
 }
 
 

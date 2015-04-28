@@ -1026,6 +1026,7 @@ static int set_ge_parameters(int argc, const char **argv, void *data)
 			}
 			/* linearMipMap */
 			if (STREQ(argv[a], "linearmipmap")) {
+				GPU_set_mipmap(1);
 				GPU_set_linear_mipmap(1); //linearMipMap = 1;
 			}
 

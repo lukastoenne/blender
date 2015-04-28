@@ -90,14 +90,17 @@ static uint object_ray_visibility(BL::Object b_ob)
 
 /* Light */
 
-void BlenderSync::sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::Object b_ob, Transform& tfm)
+void BlenderSync::sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::Object b_ob, Transform& tfm, bool *use_portal)
 {
 	/* test if we need to sync */
 	Light *light;
 	ObjectKey key(b_parent, persistent_id, b_ob);
 
-	if(!light_map.sync(&light, b_ob, b_parent, key))
+	if(!light_map.sync(&light, b_ob, b_parent, key)) {
+		if(light->is_portal)
+			*use_portal = true;
 		return;
+	}
 	
 	BL::Lamp b_lamp(b_ob.data());
 
@@ -171,6 +174,14 @@ void BlenderSync::sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSI
 
 	light->max_bounces = get_int(clamp, "max_bounces");
 
+	if(light->type == LIGHT_AREA)
+		light->is_portal = get_boolean(clamp, "is_portal");
+	else
+		light->is_portal = false;
+
+	if(light->is_portal)
+		*use_portal = true;
+
 	/* visibility */
 	uint visibility = object_ray_visibility(b_ob);
 	light->use_diffuse = (visibility & PATH_RAY_DIFFUSE) != 0;
@@ -182,7 +193,7 @@ void BlenderSync::sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSI
 	light->tag_update(scene);
 }
 
-void BlenderSync::sync_background_light()
+void BlenderSync::sync_background_light(bool use_portal)
 {
 	BL::World b_world = b_scene.world();
 
@@ -191,19 +202,20 @@ void BlenderSync::sync_background_light()
 		PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
 		bool sample_as_light = get_boolean(cworld, "sample_as_light");
 
-		if(sample_as_light) {
+		if(sample_as_light || use_portal) {
 			/* test if we need to sync */
 			Light *light;
 			ObjectKey key(b_world, 0, b_world);
 
 			if(light_map.sync(&light, b_world, b_world, key) ||
-			   world_recalc ||
-			   b_world.ptr.data != world_map)
+				world_recalc ||
+				b_world.ptr.data != world_map)
 			{
 				light->type = LIGHT_BACKGROUND;
 				light->map_resolution  = get_int(cworld, "sample_map_resolution");
 				light->shader = scene->default_background;
-				
+				light->use_mis = sample_as_light;
+
 				int samples = get_int(cworld, "samples");
 				if(get_boolean(cscene, "use_square_samples"))
 					light->samples = samples * samples;
@@ -267,7 +279,8 @@ Object *BlenderSync::sync_object(BL::Object b_parent,
                                  float motion_time,
                                  bool hide_tris,
                                  bool use_camera_cull,
-                                 float camera_cull_margin)
+                                 float camera_cull_margin,
+                                 bool *use_portal)
 {
 	BL::Object b_ob = (b_dupli_ob ? b_dupli_ob.object() : b_parent);
 	bool motion = motion_time != 0.0f;
@@ -276,7 +289,7 @@ Object *BlenderSync::sync_object(BL::Object b_parent,
 	if(object_is_light(b_ob)) {
 		/* don't use lamps for excluded layers used as mask layer */
 		if(!motion && !((layer_flag & render_layer.holdout_layer) && (layer_flag & render_layer.exclude_layer)))
-			sync_light(b_parent, persistent_id, b_ob, tfm);
+			sync_light(b_parent, persistent_id, b_ob, tfm, use_portal);
 
 		return NULL;
 	}
@@ -537,6 +550,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 	int dupli_settings = preview ? 1 : 2;
 
 	bool cancel = false;
+	bool use_portal = false;
 
 	for(; b_sce && !cancel; b_sce = b_sce.background_set()) {
 		for(b_sce.object_bases.begin(b_base); b_base != b_sce.object_bases.end() && !cancel; ++b_base) {
@@ -581,7 +595,8 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 							                             motion_time,
 							                             hide_tris,
 							                             use_camera_cull,
-							                             camera_cull_margin);
+							                             camera_cull_margin,
+							                             &use_portal);
 
 							/* sync possible particle data, note particle_id
 							 * starts counting at 1, first is dummy particle */
@@ -601,6 +616,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 				if(!object_render_hide(b_ob, true, true, hide_tris)) {
 					/* object itself */
 					Transform tfm = get_transform(b_ob.matrix_world());
+
 					sync_object(b_ob,
 					            NULL,
 					            PointerRNA_NULL,
@@ -609,7 +625,8 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 					            motion_time,
 					            hide_tris,
 					            use_camera_cull,
-					            camera_cull_margin);
+					            camera_cull_margin,
+					            &use_portal);
 				}
 			}
 
@@ -620,7 +637,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 	progress.set_sync_status("");
 
 	if(!cancel && !motion) {
-		sync_background_light();
+		sync_background_light(use_portal);
 
 		/* handle removed data and modified pointers */
 		if(light_map.post_sync())

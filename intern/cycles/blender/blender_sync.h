@@ -93,10 +93,12 @@ private:
 	                    float motion_time,
 	                    bool hide_tris,
 	                    bool use_camera_cull,
-	                    float camera_cull_margin);
-	void sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::Object b_ob, Transform& tfm);
-	void sync_background_light();
+	                    float camera_cull_margin,
+	                    bool *use_portal);
+	void sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::Object b_ob, Transform& tfm, bool *use_portal);
+	void sync_background_light(bool use_portal);
 	void sync_mesh_motion(BL::Object b_parent, Object *object, float motion_time, BL::DupliObject b_dupli_ob = PointerRNA_NULL);
+
 	void sync_camera_motion(BL::Object b_ob, float motion_time);
 
 	/* particles */
