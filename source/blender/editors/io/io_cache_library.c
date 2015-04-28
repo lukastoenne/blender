@@ -256,17 +256,16 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 {
 	Scene *scene = data->scene;
 	int frame, frame_prev, start_frame, end_frame;
+	CacheProcessData process_data;
+	
+	if (cache_library_bake_stop(data))
+		return;
 	
 	/* === prepare === */
-	
-	CacheProcessData process_data;
 	
 	process_data.lay = data->lay;
 	copy_m4_m4(process_data.mat, data->mat);
 	process_data.dupcache = BKE_dupli_cache_new();
-	
-	if (cache_library_bake_stop(data))
-		return;
 	
 	switch (data->cachelib->source_mode) {
 		case CACHE_LIBRARY_SOURCE_SCENE:
@@ -276,8 +275,9 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 			data->writer = PTC_writer_duplicache(data->group->id.name, data->group, process_data.dupcache, data->cachelib->data_types, G.debug & G_DEBUG_SIMDATA);
 			break;
 	}
-	if (!data->writer)
-		return;
+	if (!data->writer) {
+		BKE_dupli_cache_free(process_data.dupcache);
+	}
 	
 	data->cachelib->flag |= CACHE_LIBRARY_BAKING;
 	
