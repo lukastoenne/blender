@@ -277,6 +277,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	}
 	if (!data->writer) {
 		BKE_dupli_cache_free(process_data.dupcache);
+		return;
 	}
 	
 	data->cachelib->flag |= CACHE_LIBRARY_BAKING;
