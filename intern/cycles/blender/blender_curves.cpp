@@ -1211,6 +1211,8 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_parent, 
 			if(!mesh->need_attribute(scene, ustring(l->name().c_str())))
 				continue;
 
+			CData.curve_vcol.clear();
+
 			for (int i = 0; i < b_psys_list.size(); ++i) {
 				CurvesPSysData &psys_data = b_psys_list[i];
 				if (psys_data.b_strands_children)
@@ -1244,6 +1246,8 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_parent, 
 			/* UV map */
 			if(!(mesh->need_attribute(scene, name) || (active_render && mesh->need_attribute(scene, ATTR_STD_UV))))
 				continue;
+			
+			CData.curve_uv.clear();
 			
 			for (int i = 0; i < b_psys_list.size(); ++i) {
 				CurvesPSysData &psys_data = b_psys_list[i];
