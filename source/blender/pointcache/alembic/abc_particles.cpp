@@ -43,7 +43,7 @@ using namespace AbcGeom;
 
 struct StrandsChildrenSample {
 	std::vector<int32_t> numverts;
-	std::vector<M33f> root_matrix;
+	std::vector<Quatf> root_rotations;
 	std::vector<V3f> root_positions;
 	
 	std::vector<V3f> positions;
@@ -56,7 +56,7 @@ struct StrandsChildrenSample {
 
 struct StrandsSample {
 	std::vector<int32_t> numverts;
-	std::vector<M33f> root_matrix;
+	std::vector<Quatf> root_rotations;
 	
 	std::vector<V3f> positions;
 	std::vector<float32_t> times;
@@ -88,7 +88,7 @@ void AbcHairChildrenWriter::init_abc(OObject parent)
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	OCompoundProperty user_props = schema.getUserProperties();
 	
-	m_prop_root_matrix = OM33fArrayProperty(user_props, "root_matrix", abc_archive()->frame_sampling());
+	m_prop_root_rot = OQuatfArrayProperty(user_props, "root_rotations", abc_archive()->frame_sampling());
 	m_prop_root_positions = OV3fArrayProperty(user_props, "root_positions", abc_archive()->frame_sampling());
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
@@ -317,7 +317,7 @@ static void hair_children_create_sample(Object *ob, ParticleSystem *psys, Partic
 		sample.times.reserve(totkeys);
 	}
 	
-	sample.root_matrix.reserve(totpart);
+	sample.root_rotations.reserve(totpart);
 	sample.root_positions.reserve(totpart);
 	
 	for (p = 0; p < totpart; ++p) {
@@ -370,9 +370,9 @@ static void hair_children_create_sample(Object *ob, ParticleSystem *psys, Partic
 			}
 		}
 		
-		float mat3[3][3];
-		copy_m3_m4(mat3, hairmat);
-		sample.root_matrix.push_back(M33f(mat3));
+		float qt[4];
+		mat4_to_quat(qt, hairmat);
+		sample.root_rotations.push_back(Quatf(qt[0], qt[1], qt[2], qt[3]));
 		float *co = hairmat[3];
 		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
 	}
@@ -418,7 +418,7 @@ void AbcHairChildrenWriter::write_sample()
 		hair_children_create_sample(m_ob, m_psys, m_psmd, m_psys->childcache, m_psys->totchild, totkeys, maxkeys, child_sample, false);
 	}
 	
-	m_prop_root_matrix.set(M33fArraySample(child_sample.root_matrix));
+	m_prop_root_rot.set(QuatfArraySample(child_sample.root_rotations));
 	m_prop_root_positions.set(V3fArraySample(child_sample.root_positions));
 }
 
@@ -449,7 +449,7 @@ void AbcHairWriter::init_abc(OObject parent)
 	OCurvesSchema &schema = m_curves.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
-	m_param_root_matrix = OM33fGeomParam(geom_props, "root_matrix", false, kUniformScope, 1, 0);
+	m_param_root_rot = OQuatfGeomParam(geom_props, "root_rotations", false, kUniformScope, 1, 0);
 	
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
@@ -481,7 +481,7 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 	
 	if (do_numverts)
 		sample.numverts.reserve(totpart);
-	sample.root_matrix.reserve(totpart);
+	sample.root_rotations.reserve(totpart);
 	sample.positions.reserve(totverts);
 	sample.times.reserve(totverts);
 	sample.weights.reserve(totverts);
@@ -489,14 +489,15 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 	for (p = 0; p < totpart; ++p) {
 		ParticleData *pa = &psys->particles[p];
 		int numverts = pa->totkey;
-		float hairmat[4][4], root_matrix[3][3];
+		float hairmat[4][4];
 		
 		if (do_numverts)
 			sample.numverts.push_back(numverts);
 		
 		psys_mat_hair_to_object(ob, dm, psys->part->from, pa, hairmat);
-		copy_m3_m4(root_matrix, hairmat);
-		sample.root_matrix.push_back(M33f(root_matrix));
+		float root_qt[4];
+		mat4_to_quat(root_qt, hairmat);
+		sample.root_rotations.push_back(Quatf(root_qt[0], root_qt[1], root_qt[2], root_qt[3]));
 		
 		for (k = 0; k < numverts; ++k) {
 			HairKey *key = &pa->hair[k];
@@ -540,7 +541,7 @@ void AbcHairWriter::write_sample()
 	}
 	schema.set(sample);
 	
-	m_param_root_matrix.set(OM33fGeomParam::Sample(M33fArraySample(hair_sample.root_matrix), kUniformScope));
+	m_param_root_rot.set(OQuatfGeomParam::Sample(QuatfArraySample(hair_sample.root_rotations), kUniformScope));
 	
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.weights), kVertexScope));
@@ -571,7 +572,7 @@ void AbcStrandsChildrenWriter::init_abc(OObject parent)
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	OCompoundProperty user_props = schema.getUserProperties();
 	
-	m_prop_root_matrix = OM33fArrayProperty(user_props, "root_matrix", abc_archive()->frame_sampling());
+	m_prop_root_rot = OQuatfArrayProperty(user_props, "root_rotations", abc_archive()->frame_sampling());
 	m_prop_root_positions = OV3fArrayProperty(user_props, "root_positions", abc_archive()->frame_sampling());
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
@@ -618,7 +619,7 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 		sample.times.reserve(totverts);
 	}
 	
-	sample.root_matrix.reserve(totcurves);
+	sample.root_rotations.reserve(totcurves);
 	sample.root_positions.reserve(totcurves);
 	
 	StrandChildIterator it_strand;
@@ -645,9 +646,9 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 			}
 		}
 		
-		float mat3[3][3];
-		copy_m3_m4(mat3, it_strand.curve->root_matrix);
-		sample.root_matrix.push_back(M33f(mat3));
+		float qt[4];
+		mat4_to_quat(qt, it_strand.curve->root_matrix);
+		sample.root_rotations.push_back(Quatf(qt[0], qt[1], qt[2], qt[3]));
 		float *co = it_strand.curve->root_matrix[3];
 		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
 	}
@@ -688,7 +689,7 @@ void AbcStrandsChildrenWriter::write_sample()
 		strands_children_create_sample(strands, strands_sample, false);
 	}
 	
-	m_prop_root_matrix.set(M33fArraySample(strands_sample.root_matrix));
+	m_prop_root_rot.set(QuatfArraySample(strands_sample.root_rotations));
 	m_prop_root_positions.set(V3fArraySample(strands_sample.root_positions));
 }
 
@@ -720,7 +721,7 @@ void AbcStrandsWriter::init_abc(OObject parent)
 	OCurvesSchema &schema = m_curves.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
-	m_param_root_matrix = OM33fGeomParam(geom_props, "root_matrix", false, kUniformScope, 1, abc_archive()->frame_sampling());
+	m_param_root_rot = OQuatfGeomParam(geom_props, "root_rotations", false, kUniformScope, 1, abc_archive()->frame_sampling());
 	
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, abc_archive()->frame_sampling());
@@ -744,7 +745,7 @@ static void strands_create_sample(Strands *strands, StrandsSample &sample, bool 
 	
 	if (do_numverts)
 		sample.numverts.reserve(totcurves);
-	sample.root_matrix.reserve(totcurves);
+	sample.root_rotations.reserve(totcurves);
 	
 	sample.positions.reserve(totverts);
 	sample.times.reserve(totverts);
@@ -760,7 +761,9 @@ static void strands_create_sample(Strands *strands, StrandsSample &sample, bool 
 		
 		if (do_numverts)
 			sample.numverts.push_back(numverts);
-		sample.root_matrix.push_back(M33f(it_strand.curve->root_matrix));
+		float qt[4];
+		mat3_to_quat(qt, it_strand.curve->root_matrix);
+		sample.root_rotations.push_back(Quatf(qt[0], qt[1], qt[2], qt[3]));
 		
 		StrandVertexIterator it_vert;
 		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
@@ -802,7 +805,7 @@ void AbcStrandsWriter::write_sample()
 	}
 	schema.set(sample);
 	
-	m_param_root_matrix.set(OM33fGeomParam::Sample(M33fArraySample(strands_sample.root_matrix), kUniformScope));
+	m_param_root_rot.set(OQuatfGeomParam::Sample(QuatfArraySample(strands_sample.root_rotations), kUniformScope));
 	
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.weights), kVertexScope));
@@ -842,7 +845,7 @@ void AbcStrandsChildrenReader::init_abc(IObject object)
 	ICompoundProperty geom_props = schema.getArbGeomParams();
 	ICompoundProperty user_props = schema.getUserProperties();
 	
-	m_prop_root_matrix = IM33fArrayProperty(user_props, "root_matrix");
+	m_prop_root_rot = IQuatfArrayProperty(user_props, "root_rotations");
 	m_prop_root_positions = IV3fArrayProperty(user_props, "root_positions");
 	m_param_times = IFloatGeomParam(geom_props, "times");
 	m_prop_parents = IInt32ArrayProperty(user_props, "parents", 0);
@@ -869,7 +872,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	
 	P3fArraySamplePtr sample_co = sample.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
-	M33fArraySamplePtr sample_root_matrix = m_prop_root_matrix.getValue(ss);
+	QuatfArraySamplePtr sample_root_rotations = m_prop_root_rot.getValue(ss);
 	V3fArraySamplePtr sample_root_positions = m_prop_root_positions.getValue(ss);
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	Int32ArraySamplePtr sample_parents = m_prop_parents.getValue(ss);
@@ -888,7 +891,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	}
 
-	if (sample_root_matrix->size() != totcurves ||
+	if (sample_root_rotations->size() != totcurves ||
 	    sample_root_positions->size() != totcurves ||
 	    sample_parents->size() != 4 * totcurves ||
 	    sample_parent_weights->size() != 4 * totcurves)
@@ -900,7 +903,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 		m_strands = BKE_strands_children_new(totcurves, totverts);
 	
 	const int32_t *numvert = sample_numvert->get();
-	const M33f *root_matrix = sample_root_matrix->get();
+	const Quatf *root_rot = sample_root_rotations->get();
 	const V3f *root_positions = sample_root_positions->get();
 	const int32_t *parents = sample_parents->get();
 	const float32_t *parent_weights = sample_parent_weights->get();
@@ -908,9 +911,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 		StrandsChildCurve *scurve = &m_strands->curves[i];
 		scurve->numverts = *numvert;
 		
-		float mat[3][3];
-		memcpy(mat, root_matrix->getValue(), sizeof(mat));
-		copy_m4_m3(scurve->root_matrix, mat);
+		float qt[4] = {root_rot->r, root_rot->v.x, root_rot->v.y, root_rot->v.z};
+		quat_to_mat4(scurve->root_matrix, qt);
 		copy_v3_v3(scurve->root_matrix[3], root_positions->getValue());
 		
 		scurve->parents[0] = parents[0];
@@ -923,7 +925,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 		scurve->parent_weights[3] = parent_weights[3];
 		
 		++numvert;
-		++root_matrix;
+		++root_rot;
 		++root_positions;
 		parents += 4;
 		parent_weights += 4;
@@ -1023,7 +1025,7 @@ void AbcStrandsReader::init_abc(IObject object)
 	ICurvesSchema &schema = m_curves.getSchema();
 	ICompoundProperty geom_props = schema.getArbGeomParams();
 	
-	m_param_root_matrix = IM33fGeomParam(geom_props, "root_matrix");
+	m_param_root_rot = IQuatfGeomParam(geom_props, "root_rotations");
 	
 	m_param_times = IFloatGeomParam(geom_props, "times");
 	m_param_weights = IFloatGeomParam(geom_props, "weights");
@@ -1058,8 +1060,8 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 	P3fArraySamplePtr sample_co = sample.getPositions();
 	P3fArraySamplePtr sample_co_base = sample_base.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
-	IM33fGeomParam::Sample sample_root_matrix = m_param_root_matrix.getExpandedValue(ss);
-	IM33fGeomParam::Sample sample_root_matrix_base = m_param_root_matrix.getExpandedValue(ISampleSelector((index_t)0));
+	IQuatfGeomParam::Sample sample_root_rotations = m_param_root_rot.getExpandedValue(ss);
+	IQuatfGeomParam::Sample sample_root_rotations_base = m_param_root_rot.getExpandedValue(ISampleSelector((index_t)0));
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_weight = m_param_weights.getExpandedValue(ss);
 	
@@ -1072,14 +1074,15 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 		m_strands = BKE_strands_new(sample_numvert->size(), sample_co->size());
 	
 	const int32_t *numvert = sample_numvert->get();
-	const M33f *root_matrix = sample_root_matrix.getVals()->get();
+	const Quatf *root_rot = sample_root_rotations.getVals()->get();
 	for (int i = 0; i < sample_numvert->size(); ++i) {
 		StrandsCurve *scurve = &m_strands->curves[i];
 		scurve->numverts = *numvert;
-		memcpy(scurve->root_matrix, root_matrix->getValue(), sizeof(scurve->root_matrix));
+		float qt[4] = {root_rot->r, root_rot->v.x, root_rot->v.y, root_rot->v.z};
+		quat_to_mat3(scurve->root_matrix, qt);
 		
 		++numvert;
-		++root_matrix;
+		++root_rot;
 	}
 	
 	const V3f *co = sample_co->get();
@@ -1099,7 +1102,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 	/* Correction for base coordinates: these are in object space of frame 1,
 	 * but we want the relative shape. Offset them to the current root location.
 	 */
-	const M33f *root_matrix_base = sample_root_matrix_base.getVals()->get();
+	const Quatf *root_rot_base = sample_root_rotations_base.getVals()->get();
 	const V3f *co_base = sample_co_base->get();
 	StrandIterator it_strand;
 	for (BKE_strand_iter_init(&it_strand, m_strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
@@ -1107,9 +1110,8 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 			continue;
 		
 		float hairmat_base[4][4];
-		float tmpmat[3][3];
-		memcpy(tmpmat, root_matrix_base->getValue(), sizeof(tmpmat));
-		copy_m4_m3(hairmat_base, tmpmat);
+		float qt[4] = {root_rot_base->r, root_rot_base->v.x, root_rot_base->v.y, root_rot_base->v.z};
+		quat_to_mat4(hairmat_base, qt);
 		copy_v3_v3(hairmat_base[3], co_base[0].getValue());
 		
 		float hairmat[4][4];
@@ -1128,7 +1130,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 			++co_base;
 		}
 		
-		++root_matrix_base;
+		++root_rot_base;
 	}
 	
 	if (m_read_motion &&
