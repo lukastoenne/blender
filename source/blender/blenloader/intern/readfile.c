@@ -2017,6 +2017,8 @@ static void lib_link_cache_library(FileData *fd, Main *main)
 		if (cachelib->id.flag & LIB_NEED_LINK) {
 			cachelib->id.flag -= LIB_NEED_LINK;
 			
+			cachelib->filter_group = newlibadr_us(fd, cachelib->id.lib, cachelib->filter_group);
+			
 			lib_link_cache_modifiers(fd, cachelib);
 		}
 	}
@@ -9115,8 +9117,10 @@ static void expand_gpencil(FileData *fd, Main *mainvar, bGPdata *gpd)
 		expand_animdata(fd, mainvar, gpd->adt);
 }
 
-static void expand_cache_library(FileData *UNUSED(fd), Main *UNUSED(mainvar), CacheLibrary *UNUSED(cachelib))
+static void expand_cache_library(FileData *fd, Main *mainvar, CacheLibrary *cachelib)
 {
+	if (cachelib->filter_group)
+		expand_doit(fd, mainvar, cachelib->filter_group);
 }
 
 void BLO_main_expander(void (*expand_doit_func)(void *, Main *, void *))

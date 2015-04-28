@@ -57,8 +57,6 @@ struct CacheLibrary *BKE_cache_library_copy(struct CacheLibrary *cachelib);
 void BKE_cache_library_free(struct CacheLibrary *cachelib);
 void BKE_cache_library_unlink(struct CacheLibrary *cachelib);
 
-void BKE_cache_library_make_object_list(struct Main *bmain, struct CacheLibrary *cachelib, struct ListBase *lb);
-
 const char *BKE_cache_item_name_prefix(int type);
 void BKE_cache_item_name(struct Object *ob, int type, int index, char *name);
 int BKE_cache_item_name_length(struct Object *ob, int type, int index);
@@ -74,6 +72,8 @@ void BKE_cache_archive_input_path(struct CacheLibrary *cachelib, char *result, i
 void BKE_cache_archive_output_path(struct CacheLibrary *cachelib, char *result, int max);
 
 void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct Main *bmain);
+
+void BKE_cache_library_filter_duplilist(struct CacheLibrary *cachelib, struct ListBase *duplilist);
 
 bool BKE_cache_read_dupli_cache(struct CacheLibrary *cachelib, struct DupliCache *dupcache,
                                 struct Scene *scene, struct Group *dupgroup, float frame, eCacheLibrary_EvalMode eval_mode, bool for_display);

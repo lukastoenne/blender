@@ -22,6 +22,7 @@
 
 extern "C" {
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math.h"
 
 #include "DNA_listBase.h"
@@ -49,6 +50,8 @@ struct StrandsChildrenSample {
 	std::vector<float32_t> times;
 	std::vector<int32_t> parents;
 	std::vector<float32_t> parent_weights;
+	std::vector<V2f> curve_uvs;
+	std::vector<C3f> curve_vcols;
 };
 
 struct StrandsSample {
@@ -90,6 +93,8 @@ void AbcHairChildrenWriter::init_abc(OObject parent)
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
 	m_prop_parent_weights = OFloatArrayProperty(user_props, "parent_weights", abc_archive()->frame_sampling());
+	m_prop_curve_uvs = AbcGeom::OV2fArrayProperty(user_props, "curve_uvs", abc_archive()->frame_sampling());
+	m_prop_curve_vcols = AbcGeom::OC3fArrayProperty(user_props, "curve_vcols", abc_archive()->frame_sampling());
 }
 
 static int hair_children_count_totkeys(ParticleCacheKey **pathcache, int totpart)
@@ -187,10 +192,119 @@ static void hair_children_calc_strand(Object *ob, ParticleSystem *psys, Particle
 }
 #endif
 
+BLI_INLINE bool particle_get_face(ParticleSystem *psys, int num_tessface, ChildParticle *cpa, int *r_num, float **r_fuv)
+{
+	ParticleSettings *part = psys->part;
+	const bool between = (part->childtype == PART_CHILD_FACES);
+	
+	int num = DMCACHE_NOTFOUND;
+	float *fuv;
+	if (between) {
+		num = cpa->num;
+		fuv = cpa->fuv;
+	}
+	else if (part->from == PART_FROM_FACE) {
+		ParticleData *pa = psys->particles + cpa->pa[0];
+		num = pa->num_dmcache;
+		if (num == DMCACHE_NOTFOUND)
+			num = pa->num;
+		if (num >= num_tessface) {
+			/* happens when simplify is enabled gives invalid coords but would crash otherwise */
+			num = DMCACHE_NOTFOUND;
+		}
+		fuv = pa->fuv;
+	}
+	
+	if (ELEM(num, DMCACHE_NOTFOUND, DMCACHE_ISCHILD)) {
+		return false;
+	}
+	else {
+		*r_num = num;
+		*r_fuv = fuv;
+		return true;
+	}
+}
+
+static void hair_children_get_uvs(ParticleSystem *psys, ParticleSystemModifierData *psmd, int totpart, StrandsChildrenSample &sample)
+{
+	const int num_tessface = psmd->dm->getNumTessFaces(psmd->dm);
+	
+	MFace *mface = (MFace *)psmd->dm->getTessFaceArray(psmd->dm);
+	const CustomData *facedata = psmd->dm->getTessFaceDataLayout(psmd->dm);
+	int tot_layers = CustomData_number_of_layers(facedata, CD_MTFACE);
+	
+	sample.curve_uvs.reserve(tot_layers * totpart);
+	
+	for (int num_uv = 0; num_uv < tot_layers; ++num_uv) {
+		MTFace *mtface = (MTFace *)CustomData_get_layer_n(facedata, CD_MTFACE, num_uv);
+		if (!mtface)
+			continue;
+		
+		for (int p = 0; p < totpart; ++p) {
+			ChildParticle *cpa = &psys->child[p];
+			
+			int num;
+			float *fuv;
+			if (particle_get_face(psys, num_tessface, cpa, &num, &fuv)) {
+				MFace *mf = mface + num;
+				MTFace *mtf = mtface + num;
+				
+				float uv[2];
+				psys_interpolate_uvs(mtf, mf->v4, fuv, uv);
+				sample.curve_uvs.push_back(V2f(uv[0], uv[1]));
+			}
+			else {
+				sample.curve_uvs.push_back(V2f(0.0f, 0.0f));
+			}
+		}
+	}
+}
+
+static void hair_children_get_vcols(ParticleSystem *psys, ParticleSystemModifierData *psmd, int totpart, StrandsChildrenSample &sample)
+{
+	const int num_tessface = psmd->dm->getNumTessFaces(psmd->dm);
+	
+	MFace *mface = (MFace *)psmd->dm->getTessFaceArray(psmd->dm);
+	const CustomData *facedata = psmd->dm->getTessFaceDataLayout(psmd->dm);
+	int tot_layers = CustomData_number_of_layers(facedata, CD_MCOL);
+	
+	sample.curve_vcols.reserve(tot_layers * totpart);
+	
+	for (int num_vcol = 0; num_vcol < tot_layers; ++num_vcol) {
+		MCol *mcol = (MCol *)CustomData_get_layer_n(facedata, CD_MCOL, num_vcol);
+		if (!mcol)
+			continue;
+		
+		for (int p = 0; p < totpart; ++p) {
+			ChildParticle *cpa = &psys->child[p];
+			
+			int num;
+			float *fuv;
+			if (particle_get_face(psys, num_tessface, cpa, &num, &fuv)) {
+				MFace *mf = mface + num;
+				/* XXX another legacy thing: MCol are tessface data, but 4 values per face ... */
+				MCol *mc = mcol + 4 * num;
+				
+				MCol col;
+				psys_interpolate_mcol(mc, mf->v4, fuv, &col);
+				/* XXX stupid legacy code: MCol stores values are BGR */
+				unsigned char icol[3] = {col.b, col.g, col.r};
+				C3f fcol;
+				rgb_uchar_to_float(fcol.getValue(), icol);
+				sample.curve_vcols.push_back(fcol);
+			}
+			else {
+				sample.curve_vcols.push_back(C3f(0.0f, 0.0f, 0.0f));
+			}
+		}
+	}
+}
+
 static void hair_children_create_sample(Object *ob, ParticleSystem *psys, ParticleSystemModifierData *psmd, ParticleCacheKey **pathcache, int totpart, int totkeys, int maxkeys,
                                         StrandsChildrenSample &sample, bool write_constants)
 {
-	const bool between = (psys->part->childtype == PART_CHILD_FACES);
+	ParticleSettings *part = psys->part;
+	const bool between = (part->childtype == PART_CHILD_FACES);
 	
 	int p, k;
 	
@@ -262,6 +376,12 @@ static void hair_children_create_sample(Object *ob, ParticleSystem *psys, Partic
 		float *co = hairmat[3];
 		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
 	}
+	
+	if (write_constants) {
+		DM_ensure_tessface(psmd->dm);
+		hair_children_get_uvs(psys, psmd, totpart, sample);
+		hair_children_get_vcols(psys, psmd, totpart, sample);
+	}
 }
 
 void AbcHairChildrenWriter::write_sample()
@@ -287,6 +407,8 @@ void AbcHairChildrenWriter::write_sample()
 		
 		m_prop_parents.set(Int32ArraySample(child_sample.parents));
 		m_prop_parent_weights.set(FloatArraySample(child_sample.parent_weights));
+		m_prop_curve_uvs.set(V2fArraySample(child_sample.curve_uvs));
+		m_prop_curve_vcols.set(C3fArraySample(child_sample.curve_vcols));
 		
 		m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(child_sample.times), kVertexScope));
 		
@@ -454,6 +576,32 @@ void AbcStrandsChildrenWriter::init_abc(OObject parent)
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
 	m_prop_parent_weights = OFloatArrayProperty(user_props, "parent_weights", abc_archive()->frame_sampling());
+	m_prop_curve_uvs = AbcGeom::OV2fArrayProperty(user_props, "curve_uvs", abc_archive()->frame_sampling());
+	m_prop_curve_vcols = AbcGeom::OC3fArrayProperty(user_props, "curve_vcols", abc_archive()->frame_sampling());
+}
+
+static void strands_children_get_uvs(StrandsChildren *strands, StrandsChildrenSample &sample)
+{
+	int totuv = strands->numuv * strands->totcurves;
+	
+	sample.curve_uvs.reserve(totuv);
+	
+	for (int i = 0; i < totuv; ++i) {
+		StrandsChildCurveUV *uv = &strands->curve_uvs[i];
+		sample.curve_uvs.push_back(V2f(uv->uv[0], uv->uv[1]));
+	}
+}
+
+static void strands_children_get_vcols(StrandsChildren *strands, StrandsChildrenSample &sample)
+{
+	int totvcol = strands->numvcol * strands->totcurves;
+	
+	sample.curve_vcols.reserve(totvcol);
+	
+	for (int i = 0; i < totvcol; ++i) {
+		StrandsChildCurveVCol *vcol = &strands->curve_vcols[i];
+		sample.curve_vcols.push_back(C3f(vcol->vcol[0], vcol->vcol[1], vcol->vcol[2]));
+	}
 }
 
 static void strands_children_create_sample(StrandsChildren *strands, StrandsChildrenSample &sample, bool write_constants)
@@ -503,6 +651,11 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 		float *co = it_strand.curve->root_matrix[3];
 		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
 	}
+	
+	if (write_constants) {
+		strands_children_get_uvs(strands, sample);
+		strands_children_get_vcols(strands, sample);
+	}
 }
 
 void AbcStrandsChildrenWriter::write_sample()
@@ -524,6 +677,8 @@ void AbcStrandsChildrenWriter::write_sample()
 		
 		m_prop_parents.set(Int32ArraySample(strands_sample.parents));
 		m_prop_parent_weights.set(FloatArraySample(strands_sample.parent_weights));
+		m_prop_curve_uvs.set(V2fArraySample(strands_sample.curve_uvs));
+		m_prop_curve_vcols.set(C3fArraySample(strands_sample.curve_vcols));
 		
 		m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
 		
@@ -692,6 +847,8 @@ void AbcStrandsChildrenReader::init_abc(IObject object)
 	m_param_times = IFloatGeomParam(geom_props, "times");
 	m_prop_parents = IInt32ArrayProperty(user_props, "parents", 0);
 	m_prop_parent_weights = IFloatArrayProperty(user_props, "parent_weights", 0);
+	m_prop_curve_uvs = IV2fArrayProperty(user_props, "curve_uvs", 0);
+	m_prop_curve_vcols = IC3fArrayProperty(user_props, "curve_vcols", 0);
 }
 
 PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
@@ -717,6 +874,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	Int32ArraySamplePtr sample_parents = m_prop_parents.getValue(ss);
 	FloatArraySamplePtr sample_parent_weights = m_prop_parent_weights.getValue(ss);
+	V2fArraySamplePtr sample_curve_uvs = m_prop_curve_uvs.getValue(ss);
+	C3fArraySamplePtr sample_curve_vcols = m_prop_curve_vcols.getValue(ss);
 	
 	if (!sample_co || !sample_numvert) {
 		return PTC_READ_SAMPLE_INVALID;
@@ -768,6 +927,42 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 		++root_positions;
 		parents += 4;
 		parent_weights += 4;
+	}
+	
+	if (sample_curve_uvs->size() > 0 && sample_curve_uvs->size() % totcurves == 0) {
+		int num_layers = sample_curve_uvs->size() / totcurves;
+		
+		const V2f *uvs = sample_curve_uvs->get();
+		
+		BKE_strands_children_add_uvs(m_strands, num_layers);
+		
+		StrandsChildCurveUV *scurve_uv = m_strands->curve_uvs;
+		for (int j = 0; j < num_layers; ++j) {
+			for (int i = 0; i < totcurves; ++i) {
+				copy_v2_v2(scurve_uv->uv, uvs->getValue());
+				
+				++uvs;
+				++scurve_uv;
+			}
+		}
+	}
+	
+	if (sample_curve_vcols->size() > 0 && sample_curve_vcols->size() % totcurves == 0) {
+		int num_layers = sample_curve_vcols->size() / totcurves;
+		
+		const C3f *vcols = sample_curve_vcols->get();
+		
+		BKE_strands_children_add_vcols(m_strands, num_layers);
+		
+		StrandsChildCurveVCol *scurve_vcol = m_strands->curve_vcols;
+		for (int j = 0; j < num_layers; ++j) {
+			for (int i = 0; i < totcurves; ++i) {
+				copy_v3_v3(scurve_vcol->vcol, vcols->getValue());
+				
+				++vcols;
+				++scurve_vcol;
+			}
+		}
 	}
 	
 	const V3f *co = sample_co->get();

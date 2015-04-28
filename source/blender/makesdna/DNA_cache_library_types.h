@@ -96,6 +96,7 @@ typedef struct CacheLibrary {
 	int display_flag;
 	int render_flag;
 	int data_types;
+	struct Group *filter_group;
 	
 	char input_filepath[1024]; /* 1024 = FILE_MAX */
 	char output_filepath[1024]; /* 1024 = FILE_MAX */

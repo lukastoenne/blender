@@ -108,9 +108,10 @@ void write_sample<CD_MDEFORMVERT>(CustomDataWriter *writer, OCompoundProperty &p
 }
 
 template <>
-void write_sample<CD_MTFACE>(CustomDataWriter */*writer*/, OCompoundProperty &/*parent*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
+void write_sample<CD_MTFACE>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void */*data*/, int /*num_data*/)
 {
 	/* XXX this is a dummy layer, to have access to active render layers etc. */
+	writer->add_compound_property<OCompoundProperty>(name, parent);
 }
 
 template <>
@@ -123,7 +124,10 @@ void write_sample<CD_MCOL>(CustomDataWriter *writer, OCompoundProperty &parent, 
 	std::vector<C4f> mcol_data;
 	mcol_data.reserve(num_data);
 	for (int i = 0; i < num_data; ++i) {
-		mcol_data.push_back(C4f(mcol->r, mcol->g, mcol->b, mcol->a));
+		unsigned char icol[4] = {mcol->r, mcol->g, mcol->b, mcol->a};
+		C4f fcol;
+		rgba_uchar_to_float(fcol.getValue(), icol);
+		mcol_data.push_back(fcol);
 		
 		++mcol;
 	}
@@ -183,6 +187,13 @@ void write_sample<CD_ORCO>(CustomDataWriter *writer, OCompoundProperty &parent, 
 	OV3fArrayProperty prop = writer->add_array_property<OV3fArrayProperty>(name, parent);
 	
 	prop.set(OV3fArrayProperty::sample_type((V3f *)data, num_data));
+}
+
+template <>
+void write_sample<CD_MTEXPOLY>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void */*data*/, int /*num_data*/)
+{
+	/* XXX this is a dummy layer, to have access to active render layers etc. */
+	writer->add_compound_property<OCompoundProperty>(name, parent);
 }
 
 template <>
@@ -324,10 +335,12 @@ PTCReadSampleResult read_sample<CD_MCOL>(CustomDataReader *reader, ICompoundProp
 	MCol *mcol = (MCol *)data;
 	C4f *data_mcol = (C4f *)sample->getData();
 	for (int i = 0; i < num_data; ++i) {
-		mcol->r = data_mcol->r;
-		mcol->g = data_mcol->g;
-		mcol->b = data_mcol->b;
-		mcol->a = data_mcol->a;
+		unsigned char icol[4];
+		rgba_float_to_uchar(icol, data_mcol->getValue());
+		mcol->r = icol[0];
+		mcol->g = icol[1];
+		mcol->b = icol[2];
+		mcol->a = icol[3];
 		
 		++data_mcol;
 		++mcol;
@@ -419,6 +432,13 @@ PTCReadSampleResult read_sample<CD_ORCO>(CustomDataReader *reader, ICompoundProp
 		return PTC_READ_SAMPLE_INVALID;
 	
 	memcpy(data, sample->getData(), sizeof(V3f) * num_data);
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_MTEXPOLY>(CustomDataReader */*reader*/, ICompoundProperty &/*parent*/, const ISampleSelector &/*ss*/, const std::string &/*name*/, void */*data*/, int /*num_data*/)
+{
+	/* XXX this is a dummy layer, to have access to active render layers etc. */
 	return PTC_READ_SAMPLE_EXACT;
 }
 

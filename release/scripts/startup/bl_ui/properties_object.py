@@ -407,10 +407,17 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         props.use_popup = True
         props.use_clipboard = True
 
-        col = layout.column()
-        col.operator("cachelibrary.bake")
-        col.row().prop(cachelib, "eval_mode", toggle=True, expand=True)
-        col.row().prop(cachelib, "data_types", icon_only=True, toggle=True)
+        box = layout.box()
+        row = box.row()
+        
+        col = row.column()
+        row2 = col.row()
+        row2.prop(cachelib, "eval_mode", toggle=True, expand=True)
+        row2 = col.row()
+        row2.alignment = 'LEFT'
+        row2.prop(cachelib, "data_types", icon_only=True, toggle=True)
+        row2.template_ID(cachelib, "filter_group")
+        row.operator("cachelibrary.bake")
 
         '''
         row = layout.row(align=True)
