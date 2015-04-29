@@ -1024,7 +1024,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 				/* for groups, pick the object based on settings */
 				if (part->draw & PART_DRAW_RAND_GR)
-					b = BLI_rand() % totgroup;
+					b = (int)(psys_frand(psys, (unsigned int)(a + 974)) * (float)totgroup) % totgroup;
 				else
 					b = a % totgroup;
 
