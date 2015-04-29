@@ -215,7 +215,7 @@ static void change_frame_seq_preview_end(bContext *C, wmOperator *op)
 
 	if (op->customdata) {
 		ChangeFrameData *data = op->customdata;
-		WM_event_remove_timer(wm, win, op->customdata);
+		WM_event_remove_timer(wm, win, data->timer);
 		MEM_freeN(data);
 		op->customdata = NULL;
 	}
@@ -234,7 +234,7 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	Scene *scene = CTX_data_scene(C);
 	ChangeFrameData *data = MEM_callocN(sizeof(ChangeFrameData), "changeframedata");
 
-	data->timer = WM_event_add_timer(wm, win, TIMER, (1.0 / FPS));
+	data->timer = WM_event_add_timer(wm, win, TIMER, FRA2TIME(1.0));
 
 	RNA_int_set(op->ptr, "frame", frame_from_event(C, event));
 
