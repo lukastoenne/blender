@@ -54,6 +54,10 @@ set(SRC
 	PTC_api.cpp
 )
 
+if(NOT WITH_CPP11)
+	list(APPEND INC_SYS ${BOOST_INCLUDE_DIR})
+endif()
+
 if(WITH_ALEMBIC)
 	add_definitions(-DWITH_PTC_ALEMBIC)
 	add_subdirectory(alembic)

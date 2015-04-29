@@ -42,6 +42,9 @@ incs = [
 
 defs = []
 
+if not env['WITH_BF_CPP11']:
+    incs.append(env['BF_BOOST_INC'])
+
 if env['WITH_BF_INTERNATIONAL']:
     defs.append('WITH_INTERNATIONAL')
 
