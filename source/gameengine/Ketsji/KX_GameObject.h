@@ -517,7 +517,14 @@ public:
 	 */
 	void ActivateGraphicController(bool recurse);
 
+	/** Set the object's collison group
+	 * \param filter The group bitfield
+	 */
 	void SetUserCollisionGroup(unsigned short filter);
+
+	/** Set the object's collison mask
+	 * \param filter The mask bitfield
+	 */
 	void SetUserCollisionMask(unsigned short mask);
 	unsigned short GetUserCollisionGroup();
 	unsigned short GetUserCollisionMask();
@@ -907,7 +914,7 @@ public:
 	 * Change the layer of the object (when it is added in another layer
 	 * than the original layer)
 	 */
-		void
+	virtual void
 	SetLayer(
 		int l
 	);

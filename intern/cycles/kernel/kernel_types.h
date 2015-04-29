@@ -426,6 +426,7 @@ enum CameraType {
 
 enum PanoramaType {
 	PANORAMA_EQUIRECTANGULAR,
+	PANORAMA_MIRRORBALL,
 	PANORAMA_FISHEYE_EQUIDISTANT,
 	PANORAMA_FISHEYE_EQUISOLID
 };
@@ -895,6 +896,11 @@ typedef struct KernelIntegrator {
 	float inv_pdf_lights;
 	int pdf_background_res;
 
+	/* light portals */
+	float portal_pdf;
+	int num_portals;
+	int portal_offset;
+
 	/* bounces */
 	int min_bounce;
 	int max_bounce;
@@ -947,6 +953,8 @@ typedef struct KernelIntegrator {
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
+
+	int pad;
 } KernelIntegrator;
 
 typedef struct KernelBVH {
