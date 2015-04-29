@@ -2500,7 +2500,8 @@ static int graph_widget_backdrop_transform_poll(bContext *C)
 	SpaceIpo *sipo = CTX_wm_space_graph(C);
 	ARegion *ar = CTX_wm_region(C);
 
-	return ((ar->type->regionid == RGN_TYPE_WINDOW) &&
+	return ((sipo != NULL) &&
+	        (ar->type->regionid == RGN_TYPE_WINDOW) &&
 	        (sipo->flag & SIPO_DRAW_BACKDROP) &&
 	        (sipo->backdrop_camera));
 }
