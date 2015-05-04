@@ -39,7 +39,6 @@
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
@@ -51,7 +50,6 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_editstrands.h"
 #include "BKE_paint.h"
-#include "BKE_particle.h"
 
 #include "bmesh.h"
 
@@ -62,62 +60,10 @@
 #include "WM_types.h"
 
 #include "ED_object.h"
-#include "ED_physics.h"
 #include "ED_view3d.h"
 
 #include "hair_intern.h"
 #include "paint_intern.h"
-
-static bool has_hair_data(Object *ob)
-{
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys && psys->part->type == PART_HAIR)
-		return true;
-	
-	return false;
-}
-
-static bool init_hair_edit(Scene *scene, Object *ob)
-{
-	ParticleSystem *psys = psys_get_current(ob);
-	BMesh *bm;
-	DerivedMesh *dm;
-	
-	if (psys && psys->part->type == PART_HAIR) {
-		if (!psys->hairedit) {
-			bm = BKE_particles_to_bmesh(ob, psys);
-			
-			if (ob->type == OB_MESH || ob->derivedFinal)
-				dm = ob->derivedFinal ? ob->derivedFinal : mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-			else
-				dm = NULL;
-			
-			psys->hairedit = BKE_editstrands_create(bm, dm);
-		}
-		return true;
-	}
-	
-	return false;
-}
-
-static bool apply_hair_edit(Object *ob)
-{
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys->part->type == PART_HAIR) {
-		if (psys->hairedit) {
-			BKE_particles_from_bmesh(ob, psys);
-			psys->flag |= PSYS_EDITED;
-			
-			BKE_editstrands_free(psys->hairedit);
-			MEM_freeN(psys->hairedit);
-			psys->hairedit = NULL;
-		}
-		
-		return true;
-	}
-	
-	return false;
-}
 
 int hair_edit_poll(bContext *C)
 {
@@ -182,7 +128,7 @@ int hair_edit_toggle_poll(bContext *C)
 	if (CTX_data_edit_object(C))
 		return false;
 
-	return has_hair_data(ob);
+	return ED_hair_object_has_hair_particle_data(ob);
 }
 
 static void toggle_hair_cursor(bContext *C, bool enable)
@@ -216,14 +162,14 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 	}
 
 	if (!is_mode_set) {
-		init_hair_edit(scene, ob);
+		ED_hair_object_init_particle_edit(scene, ob);
 		ob->mode |= mode_flag;
 		
 		toggle_hair_cursor(C, true);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
 	else {
-		apply_hair_edit(ob);
+		ED_hair_object_apply_particle_edit(ob);
 		ob->mode &= ~mode_flag;
 		
 		toggle_hair_cursor(C, false);

@@ -59,6 +59,11 @@ void HAIR_OT_select_linked(struct wmOperatorType *ot);
 /* hair_stroke.c */
 void HAIR_OT_stroke(struct wmOperatorType *ot);
 
+/* hair_object_particles.c */
+bool ED_hair_object_has_hair_particle_data(struct Object *ob);
+bool ED_hair_object_init_particle_edit(struct Scene *scene, struct Object *ob);
+bool ED_hair_object_apply_particle_edit(struct Object *ob);
+
 
 /* ==== Hair Brush ==== */
 
