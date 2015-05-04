@@ -332,7 +332,6 @@ static void button_activate_exit(bContext *C, uiBut *but, uiHandleButtonData *da
                                  const bool mousemove, const bool onfree);
 static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *userdata);
 static void ui_handle_button_activate(bContext *C, ARegion *ar, uiBut *but, uiButtonActivateType type);
-static void button_timers_tooltip_remove(bContext *C, uiBut *but);
 
 #ifdef USE_DRAG_MULTINUM
 static void ui_multibut_restore(uiHandleButtonData *data, uiBlock *block);
@@ -3301,9 +3300,11 @@ static int ui_do_but_TEX(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 
 static int ui_do_but_SEARCH_UNLINK(bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
+	uiButExtraIconType extra_icon_type;
+
 	/* unlink icon is on right */
-	if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) && event->val == KM_PRESS &&
-	    ui_but_is_search_unlink_visible(but))
+	if ((ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY)) &&
+	    ((extra_icon_type = ui_but_icon_extra_get(but)) != UI_BUT_ICONEXTRA_NONE))
 	{
 		ARegion *ar = data->region;
 		rcti rect;
@@ -3314,14 +3315,29 @@ static int ui_do_but_SEARCH_UNLINK(bContext *C, uiBlock *block, uiBut *but, uiHa
 		BLI_rcti_rctf_copy(&rect, &but->rect);
 		
 		rect.xmin = rect.xmax - (BLI_rcti_size_y(&rect));
+		/* handle click on unlink/eyedropper icon */
 		if (BLI_rcti_isect_pt(&rect, x, y)) {
-			/* most likely NULL, but let's check, and give it temp zero string */
-			if (data->str == NULL)
-				data->str = MEM_callocN(1, "temp str");
-			data->str[0] = 0;
+			/* doing this on KM_PRESS calls eyedropper after clicking unlink icon */
+			if (event->val == KM_RELEASE) {
+				/* unlink */
+				if (extra_icon_type == UI_BUT_ICONEXTRA_UNLINK) {
+					/* most likely NULL, but let's check, and give it temp zero string */
+					if (data->str == NULL) {
+						data->str = MEM_callocN(1, "temp str");
+					}
+					data->str[0] = 0;
 
-			ui_apply_but_TEX(C, but, data);
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+					ui_apply_but_TEX(C, but, data);
+					button_activate_state(C, but, BUTTON_STATE_EXIT);
+				}
+				/* eyedropper */
+				else if (extra_icon_type == UI_BUT_ICONEXTRA_EYEDROPPER) {
+					WM_operator_name_call(C, "UI_OT_eyedropper_id", WM_OP_INVOKE_DEFAULT, NULL);
+				}
+				else {
+					BLI_assert(0);
+				}
+			}
 
 			return WM_UI_HANDLER_BREAK;
 		}
@@ -5939,7 +5955,7 @@ static void menu_add_shortcut_cancel(struct bContext *C, void *arg1)
 static void popup_change_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 {
 	uiBut *but = (uiBut *)arg1;
-	button_timers_tooltip_remove(C, but);
+	UI_but_tooltip_timer_remove(C, but);
 	UI_popup_block_invoke(C, menu_change_shortcut, but);
 }
 
@@ -5960,7 +5976,7 @@ static void remove_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 static void popup_add_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 {
 	uiBut *but = (uiBut *)arg1;
-	button_timers_tooltip_remove(C, but);
+	UI_but_tooltip_timer_remove(C, but);
 	UI_popup_block_ex(C, menu_add_shortcut, NULL, menu_add_shortcut_cancel, but);
 }
 
@@ -6009,7 +6025,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		return false;
 	}
 	
-	button_timers_tooltip_remove(C, but);
+	UI_but_tooltip_timer_remove(C, but);
 
 	/* highly unlikely getting the label ever fails */
 	UI_but_string_info_get(C, but, &label, NULL);
@@ -6237,14 +6253,9 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		char buf[512];
 		PointerRNA ptr_props;
 
-		if (but->rnapoin.data && but->rnaprop) {
-			BLI_snprintf(buf, sizeof(buf), "%s.%s",
-			             RNA_struct_identifier(but->rnapoin.type), RNA_property_identifier(but->rnaprop));
-
-			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view_manual");
-			RNA_string_set(&ptr_props, "doc_id", buf);
-			uiItemFullO(layout, "WM_OT_doc_view_manual", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Manual"),
-			            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
+		if (UI_but_online_manual_id(but, buf, sizeof(buf))) {
+			uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Manual"),
+			        ICON_NONE, "WM_OT_doc_view_manual_ui_context");
 
 			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view");
 			RNA_string_set(&ptr_props, "doc_id", buf);
@@ -6258,30 +6269,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			RNA_string_set(&ptr_props, "doc_new", RNA_property_description(but->rnaprop));
 
 			uiItemFullO(layout, "WM_OT_doc_edit", "Submit Description", ICON_NONE, ptr_props.data, WM_OP_INVOKE_DEFAULT, 0);
-#endif
-		}
-		else if (but->optype) {
-			WM_operator_py_idname(buf, but->optype->idname);
-
-
-			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view_manual");
-			RNA_string_set(&ptr_props, "doc_id", buf);
-			uiItemFullO(layout, "WM_OT_doc_view_manual", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Manual"),
-			            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
-
-			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view");
-			RNA_string_set(&ptr_props, "doc_id", buf);
-			uiItemFullO(layout, "WM_OT_doc_view", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
-			            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
-
-			/* XXX inactive option, not for public! */
-#if 0
-			WM_operator_properties_create(&ptr_props, "WM_OT_doc_edit");
-			RNA_string_set(&ptr_props, "doc_id", buf);
-			RNA_string_set(&ptr_props, "doc_new", but->optype->description);
-
-			uiItemFullO(layout, "WM_OT_doc_edit", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Submit Description"),
-			            ICON_NONE, ptr_props.data, WM_OP_INVOKE_DEFAULT, 0);
 #endif
 		}
 	}
@@ -6861,14 +6848,6 @@ static bool ui_but_is_interactive(const uiBut *but, const bool labeledit)
 	return true;
 }
 
-bool ui_but_is_search_unlink_visible(const uiBut *but)
-{
-	BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
-	return ((but->editstr == NULL) &&
-	        (but->drawstr[0] != '\0') &&
-	        (but->flag & UI_BUT_SEARCH_UNLINK));
-}
-
 /* x and y are only used in case event is NULL... */
 static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, const bool labeledit)
 {
@@ -6956,7 +6935,8 @@ static bool button_modal_state(uiHandleButtonState state)
 	            BUTTON_STATE_MENU_OPEN);
 }
 
-static void button_timers_tooltip_remove(bContext *C, uiBut *but)
+/* removes tooltip timer from active but (meaning tooltip is disabled until it's reenabled again) */
+void UI_but_tooltip_timer_remove(bContext *C, uiBut *but)
 {
 	uiHandleButtonData *data;
 
@@ -7040,7 +7020,7 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 	}
 	else {
 		but->flag |= UI_SELECT;
-		button_timers_tooltip_remove(C, but);
+		UI_but_tooltip_timer_remove(C, but);
 	}
 	
 	/* text editing */
@@ -7669,7 +7649,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 			case WHEELDOWNMOUSE:
 			case MIDDLEMOUSE:
 			case MOUSEPAN:
-				button_timers_tooltip_remove(C, but);
+				UI_but_tooltip_timer_remove(C, but);
 				/* fall-through */
 			default:
 				/* handle button type specific events */
@@ -8644,7 +8624,7 @@ static int ui_handle_menu_event(
 			{
 				if (!but || !ui_but_contains_point_px(ar, but, event->x, event->y)) {
 					if (but) {
-						button_timers_tooltip_remove(C, but);
+						UI_but_tooltip_timer_remove(C, but);
 					}
 
 					menu->is_grab = true;

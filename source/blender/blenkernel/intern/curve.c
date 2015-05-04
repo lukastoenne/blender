@@ -4422,9 +4422,6 @@ void BKE_curve_material_index_remove(Curve *cu, int index)
 		for (nu = cu->nurb.first; nu; nu = nu->next) {
 			if (nu->mat_nr && nu->mat_nr >= index) {
 				nu->mat_nr--;
-				if (curvetype == OB_CURVE) {
-					nu->charidx--;
-				}
 			}
 		}
 	}
@@ -4446,9 +4443,6 @@ void BKE_curve_material_index_clear(Curve *cu)
 
 		for (nu = cu->nurb.first; nu; nu = nu->next) {
 			nu->mat_nr = 0;
-			if (curvetype == OB_CURVE) {
-				nu->charidx = 0;
-			}
 		}
 	}
 }
@@ -4475,9 +4469,6 @@ int BKE_curve_material_index_validate(Curve *cu)
 		for (nu = cu->nurb.first; nu; nu = nu->next) {
 			if (nu->mat_nr > max_idx) {
 				nu->mat_nr = 0;
-				if (curvetype == OB_CURVE) {
-					nu->charidx = 0;
-				}
 				is_valid = false;
 			}
 		}
@@ -4490,6 +4481,54 @@ int BKE_curve_material_index_validate(Curve *cu)
 	else {
 		return false;
 	}
+}
+
+void BKE_curve_material_remap(Curve *cu, const unsigned int *remap, unsigned int remap_len)
+{
+	const int curvetype = BKE_curve_type_get(cu);
+	const short remap_len_short = (short)remap_len;
+
+#define MAT_NR_REMAP(n) \
+	if (n < remap_len_short) { \
+		BLI_assert(n >= 0 && remap[n] < remap_len_short); \
+		n = remap[n]; \
+	} ((void)0)
+
+	if (curvetype == OB_FONT) {
+		struct CharInfo *strinfo;
+		int charinfo_len, i;
+
+		if (cu->editfont) {
+			EditFont *ef = cu->editfont;
+			strinfo = ef->textbufinfo;
+			charinfo_len = ef->len;
+		}
+		else {
+			strinfo = cu->strinfo;
+			charinfo_len = cu->len_wchar;
+		}
+
+		for (i = 0; i <= charinfo_len; i++) {
+			if (strinfo[i].mat_nr > 0) {
+				strinfo[i].mat_nr -= 1;
+				MAT_NR_REMAP(strinfo[i].mat_nr);
+				strinfo[i].mat_nr += 1;
+			}
+		}
+	}
+	else {
+		Nurb *nu;
+		ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+
+		if (nurbs) {
+			for (nu = nurbs->first; nu; nu = nu->next) {
+				MAT_NR_REMAP(nu->mat_nr);
+			}
+		}
+	}
+
+#undef MAT_NR_REMAP
+
 }
 
 void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *tb, struct rctf *r_rect)

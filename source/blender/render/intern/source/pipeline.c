@@ -363,6 +363,7 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
 			rr->layers = re->result->layers;
 			rr->xof = re->disprect.xmin;
 			rr->yof = re->disprect.ymin;
+			rr->stamp_data = re->result->stamp_data;
 		}
 	}
 }
@@ -379,6 +380,8 @@ void RE_ReleaseResultImageViews(Render *re, RenderResult *rr)
 }
 
 /* fill provided result struct with what's currently active or done */
+/* this RenderResult struct is the only exception to the rule of a RenderResult */
+/* always having at least one RenderView */
 void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 {
 	memset(rr, 0, sizeof(RenderResult));
@@ -394,18 +397,16 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 			rr->recty = re->result->recty;
 			
 			/* actview view */
-			rv = BLI_findlink(&re->result->views, view_id);
-			if (rv == NULL)
-				rv = (RenderView *)re->result->views.first;
+			rv = RE_RenderViewGetById(re->result, view_id);
 
-			rr->rectf =  rv ? rv->rectf  : NULL;
-			rr->rectz =  rv ? rv->rectz  : NULL;
-			rr->rect32 = rv ? rv->rect32 : NULL;
+			rr->rectf = rv->rectf;
+			rr->rectz = rv->rectz;
+			rr->rect32 = rv->rect32;
 
 			/* active layer */
 			rl = render_get_active_layer(re, re->result);
 
-			if (rl && rv) {
+			if (rl) {
 				if (rv->rectf == NULL)
 					rr->rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, rv->name);
 
@@ -413,7 +414,7 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 					rr->rectz = RE_RenderLayerGetPass(rl, SCE_PASS_Z, rv->name);
 			}
 
-			rr->have_combined = rv ? (rv->rectf != NULL) : false;
+			rr->have_combined = (rv->rectf != NULL);
 			rr->layers = re->result->layers;
 			rr->views = re->result->views;
 
@@ -435,9 +436,9 @@ void RE_ResultGet32(Render *re, unsigned int *rect)
 	RenderResult rres;
 	const size_t view_id = BKE_scene_multiview_view_id_get(&re->r, re->viewname);
 
-	RE_AcquireResultImage(re, &rres, view_id);
-	render_result_rect_get_pixels(&rres, rect, re->rectx, re->recty, &re->scene->view_settings, &re->scene->display_settings, 0);
-	RE_ReleaseResultImage(re);
+	RE_AcquireResultImageViews(re, &rres);
+	render_result_rect_get_pixels(&rres, rect, re->rectx, re->recty, &re->scene->view_settings, &re->scene->display_settings, view_id);
+	RE_ReleaseResultImageViews(re, &rres);
 }
 
 /* caller is responsible for allocating rect in correct size! */
@@ -746,6 +747,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd,
 		re->result = MEM_callocN(sizeof(RenderResult), "new render result");
 		re->result->rectx = re->rectx;
 		re->result->recty = re->recty;
+		render_result_view_new(re->result, "new temporary view");
 	}
 	
 	if (re->r.scemode & R_VIEWPORT_PREVIEW)
@@ -768,11 +770,14 @@ void RE_InitState(Render *re, Render *source, RenderData *rd,
 static void render_result_rescale(Render *re)
 {
 	RenderResult *result = re->result;
+	RenderView *rv;
 	int x, y;
 	float scale_x, scale_y;
 	float *src_rectf;
 
-	src_rectf = result->rectf;
+	rv = RE_RenderViewGetById(result, 0);
+	src_rectf = rv->rectf;
+
 	if (src_rectf == NULL) {
 		RenderLayer *rl = render_get_active_layer(re, re->result);
 		if (rl != NULL) {
@@ -790,7 +795,7 @@ static void render_result_rescale(Render *re)
 		                               "");
 
 		if (re->result != NULL) {
-			dst_rectf = re->result->rectf;
+			dst_rectf = RE_RenderViewGetById(re->result, 0)->rectf;
 			if (dst_rectf == NULL) {
 				RenderLayer *rl;
 				rl = render_get_active_layer(re, re->result);
@@ -2232,7 +2237,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 			}
 		}
 
-		for (nr = 0, rv = re->result->views.first; rv; rv = rv->next, nr++) {
+		for (nr = 0, rv = rectfs->first; rv; rv = rv->next, nr++) {
 			rectf = rv->rectf;
 
 			/* ensure we get either composited result or the active layer */
@@ -2285,7 +2290,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 
 		/* store the final result */
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-		rv = BLI_findlink(&re->result->views, nr);
+		rv = RE_RenderViewGetById(re->result, nr);
 		if (rv->rectf)
 			MEM_freeN(rv->rectf);
 		rv->rectf = rectf;
@@ -2483,7 +2488,7 @@ static void renderresult_stampinfo(Render *re)
 	for (rv = re->result->views.first;rv;rv = rv->next, nr++) {
 		RE_SetActiveRenderView(re, rv->name);
 		RE_AcquireResultImage(re, &rres, nr);
-		BKE_image_stamp_buf(re->scene, RE_GetCamera(re), (unsigned char *)rv->rect32, rv->rectf, rres.rectx, rres.recty, 4);
+		BKE_image_stamp_buf(re->scene, RE_GetCamera(re), (unsigned char *)rres.rect32, rres.rectf, rres.rectx, rres.recty, 4);
 		RE_ReleaseResultImage(re);
 	}
 }
@@ -2569,7 +2574,7 @@ static void do_render_seq(Render *re)
 	BLI_rw_mutex_unlock(&re->resultmutex);
 
 	for (view_id = 0; view_id < tot_views; view_id++) {
-		RenderView *rv = BLI_findlink(&rr->views, view_id);
+		RenderView *rv = RE_RenderViewGetById(rr, view_id);
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 
 		if (ibuf_arr[view_id]) {
@@ -2614,6 +2619,8 @@ static void do_render_seq(Render *re)
 /* main loop: doing sequence + fields + blur + 3d render + compositing */
 static void do_render_all_options(Render *re)
 {
+	Object *camera;
+
 	re->current_scene_update(re->suh, re->scene);
 
 	BKE_scene_camera_switch_update(re->scene);
@@ -2647,6 +2654,10 @@ static void do_render_all_options(Render *re)
 	
 	re->stats_draw(re->sdh, &re->i);
 	
+	/* save render result stamp if needed */
+	camera = RE_GetCamera(re);
+	BKE_render_result_stamp_info(re->scene, camera, re->result);
+
 	/* stamp image info here */
 	if ((re->r.stamp & R_STAMP_ALL) && (re->r.stamp & R_STAMP_DRAW)) {
 		renderresult_stampinfo(re);
@@ -3082,7 +3093,7 @@ void RE_RenderFreestyleExternal(Render *re)
 }
 #endif
 
-bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scene, struct Object *camera, const bool stamp, char *name)
+bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scene, const bool stamp, char *name)
 {
 	bool is_mono;
 	bool ok = true;
@@ -3125,8 +3136,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 
 				if (stamp) {
 					/* writes the name of the individual cameras */
-					Object *view_camera = BKE_camera_multiview_render(scene, camera, rv->name);
-					ok = BKE_imbuf_write_stamp(scene, view_camera, ibuf, name, &rd->im_format);
+					ok = BKE_imbuf_write_stamp(scene, rr, ibuf, name, &rd->im_format);
 				}
 				else {
 					ok = BKE_imbuf_write(ibuf, name, &rd->im_format);
@@ -3152,8 +3162,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 
 					if (stamp) {
 						/* writes the name of the individual cameras */
-						Object *view_camera = BKE_camera_multiview_render(scene, camera, rv->name);
-						ok = BKE_imbuf_write_stamp(scene, view_camera, ibuf, name, &rd->im_format);
+						ok = BKE_imbuf_write_stamp(scene, rr, ibuf, name, &rd->im_format);
 					}
 					else {
 						ok = BKE_imbuf_write(ibuf, name, &rd->im_format);
@@ -3188,7 +3197,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 			ibuf_arr[2] = IMB_stereo3d_ImBuf(&scene->r.im_format, ibuf_arr[0], ibuf_arr[1]);
 
 			if (stamp)
-				ok = BKE_imbuf_write_stamp(scene, camera, ibuf_arr[2], name, &rd->im_format);
+				ok = BKE_imbuf_write_stamp(scene, rr, ibuf_arr[2], name, &rd->im_format);
 			else
 				ok = BKE_imbuf_write(ibuf_arr[2], name, &rd->im_format);
 
@@ -3214,7 +3223,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 				                                    &scene->display_settings, &imf);
 
 				if (stamp)
-					ok = BKE_imbuf_write_stamp(scene, camera, ibuf_arr[2], name, &rd->im_format);
+					ok = BKE_imbuf_write_stamp(scene, rr, ibuf_arr[2], name, &rd->im_format);
 				else
 					ok = BKE_imbuf_write(ibuf_arr[2], name, &imf);
 
@@ -3324,7 +3333,6 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 	RenderResult rres;
 	double render_time;
 	bool ok = true;
-	Object *camera = RE_GetCamera(re);
 
 	RE_AcquireResultImageViews(re, &rres);
 
@@ -3341,7 +3349,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 			        &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, true, NULL);
 
 		/* write images as individual images or stereo */
-		ok = RE_WriteRenderViewsImage(re->reports, &rres, scene, camera, true, name);
+		ok = RE_WriteRenderViewsImage(re->reports, &rres, scene, true, name);
 	}
 	
 	RE_ReleaseResultImageViews(re, &rres);

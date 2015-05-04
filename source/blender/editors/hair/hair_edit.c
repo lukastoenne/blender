@@ -270,7 +270,7 @@ void hair_init_viewdata(bContext *C, HairViewData *viewdata)
 			/* needed or else the draw matrix can be incorrect */
 			view3d_operator_needs_opengl(C);
 			
-			view3d_validate_backbuf(&viewdata->vc);
+			ED_view3d_backbuf_validate(&viewdata->vc);
 			/* we may need to force an update here by setting the rv3d as dirty
 			 * for now it seems ok, but take care!:
 			 * rv3d->depths->dirty = 1; */

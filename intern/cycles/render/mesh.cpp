@@ -20,9 +20,11 @@
 #include "camera.h"
 #include "curves.h"
 #include "device.h"
+#include "graph.h"
 #include "shader.h"
 #include "light.h"
 #include "mesh.h"
+#include "nodes.h"
 #include "object.h"
 #include "scene.h"
 
@@ -1099,6 +1101,10 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 		dscene->bvh_nodes.reference((float4*)&pack.nodes[0], pack.nodes.size());
 		device->tex_alloc("__bvh_nodes", dscene->bvh_nodes);
 	}
+	if(pack.leaf_nodes.size()) {
+		dscene->bvh_leaf_nodes.reference((float4*)&pack.leaf_nodes[0], pack.leaf_nodes.size());
+		device->tex_alloc("__bvh_leaf_nodes", dscene->bvh_leaf_nodes);
+	}
 	if(pack.object_node.size()) {
 		dscene->object_node.reference((uint*)&pack.object_node[0], pack.object_node.size());
 		device->tex_alloc("__object_node", dscene->object_node);
@@ -1148,6 +1154,55 @@ void MeshManager::device_update_flags(Device * /*device*/,
 	need_flags_update = false;
 }
 
+void MeshManager::device_update_displacement_images(Device *device,
+                                                    DeviceScene *dscene,
+                                                    Scene *scene,
+                                                    Progress& progress)
+{
+	progress.set_status("Updating Displacement Images");
+	TaskPool pool;
+	ImageManager *image_manager = scene->image_manager;
+	set<int> bump_images;
+	foreach(Mesh *mesh, scene->meshes) {
+		if(mesh->need_update) {
+			foreach(uint shader_index, mesh->used_shaders) {
+				Shader *shader = scene->shaders[shader_index];
+				if(shader->graph_bump == NULL) {
+					continue;
+				}
+				foreach(ShaderNode* node, shader->graph_bump->nodes) {
+					if(node->special_type != SHADER_SPECIAL_TYPE_IMAGE_SLOT) {
+						continue;
+					}
+					if(device->info.pack_images) {
+						/* If device requires packed images we need to update all
+						 * images now, even if they're not used for displacement.
+						 */
+						image_manager->device_update(device,
+						                             dscene,
+						                             progress);
+						return;
+					}
+					ImageSlotNode *image_node = static_cast<ImageSlotNode*>(node);
+					int slot = image_node->slot;
+					if(slot != -1) {
+						bump_images.insert(slot);
+					}
+				}
+			}
+		}
+	}
+	foreach(int slot, bump_images) {
+		pool.push(function_bind(&ImageManager::device_update_slot,
+		                        image_manager,
+		                        device,
+		                        dscene,
+		                        slot,
+		                        &progress));
+	}
+	pool.wait_work();
+}
+
 void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
 {
 	VLOG(1) << "Total " << scene->meshes.size() << " meshes.";
@@ -1168,6 +1223,21 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 
 			if(progress.get_cancel()) return;
 		}
+	}
+
+	/* Update images needed for true displacement. */
+	bool need_displacement_images = false;
+	foreach(Mesh *mesh, scene->meshes) {
+		if(mesh->need_update &&
+		   mesh->displacement_method != Mesh::DISPLACE_BUMP)
+		{
+			need_displacement_images = true;
+			break;
+		}
+	}
+	if(need_displacement_images) {
+		VLOG(1) << "Updating images used for true displacement.";
+		device_update_displacement_images(device, dscene, scene, progress);
 	}
 
 	/* device update */
@@ -1249,6 +1319,7 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 void MeshManager::device_free(Device *device, DeviceScene *dscene)
 {
 	device->tex_free(dscene->bvh_nodes);
+	device->tex_free(dscene->bvh_leaf_nodes);
 	device->tex_free(dscene->object_node);
 	device->tex_free(dscene->tri_woop);
 	device->tex_free(dscene->prim_type);

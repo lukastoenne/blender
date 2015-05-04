@@ -96,7 +96,7 @@ static int edbm_subdivide_exec(bContext *C, wmOperator *op)
 	}
 	
 	BM_mesh_esubdivide(em->bm, BM_ELEM_SELECT,
-	                   smooth, SUBD_FALLOFF_ROOT, false,
+	                   smooth, SUBD_FALLOFF_INVSQUARE, false,
 	                   fractal, along_normal,
 	                   cuts,
 	                   SUBDIV_SELECT_ORIG, RNA_enum_get(op->ptr, "quadcorner"),
@@ -492,7 +492,7 @@ static int edbm_collapse_edge_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-	if (!EDBM_op_callf(em, op, "collapse edges=%he", BM_ELEM_SELECT))
+	if (!EDBM_op_callf(em, op, "collapse edges=%he uvs=%b", BM_ELEM_SELECT, true))
 		return OPERATOR_CANCELLED;
 
 	EDBM_update_generic(em, true, true);
@@ -2049,9 +2049,7 @@ static int edbm_merge_exec(bContext *C, wmOperator *op)
 			ok = merge_firstlast(em, true, uvs, op);
 			break;
 		case 5:
-			ok = true;
-			if (!EDBM_op_callf(em, op, "collapse edges=%he", BM_ELEM_SELECT))
-				ok = false;
+			ok = EDBM_op_callf(em, op, "collapse edges=%he uvs=%b", BM_ELEM_SELECT, uvs);
 			break;
 		default:
 			BLI_assert(0);

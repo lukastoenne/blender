@@ -569,6 +569,7 @@ void	CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController* ctr
 	// this function is used when the collisionning group of a controller is changed
 	// remove and add the collistioning object
 	btRigidBody* body = ctrl->GetRigidBody();
+	btSoftBody *softBody = ctrl->GetSoftBody();
 	btCollisionObject* obj = ctrl->GetCollisionObject();
 	if (obj)
 	{
@@ -581,6 +582,9 @@ void	CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController* ctr
 				body->getCollisionShape()->calculateLocalInertia(newMass, inertia);
 			body->setMassProps(newMass, inertia);
 			m_dynamicsWorld->addRigidBody(body, newCollisionGroup, newCollisionMask);
+		}
+		else if (softBody) {
+			m_dynamicsWorld->addSoftBody(softBody);
 		}
 		else {
 			m_dynamicsWorld->addCollisionObject(obj, newCollisionGroup, newCollisionMask);
@@ -641,6 +645,11 @@ void CcdPhysicsEnvironment::RefreshCcdPhysicsController(CcdPhysicsController* ct
 			m_dynamicsWorld->getPairCache()->cleanProxyFromPairs(proxy,m_dynamicsWorld->getDispatcher());
 		}
 	}
+}
+
+bool CcdPhysicsEnvironment::IsActiveCcdPhysicsController(CcdPhysicsController *ctrl)
+{
+	return (m_controllers.find(ctrl) != m_controllers.end());
 }
 
 void CcdPhysicsEnvironment::AddCcdGraphicController(CcdGraphicController* ctrl)
@@ -3672,7 +3681,7 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 			break;
 	}
 
-	for (dof; dof < dof_max; dof++) {
+	for (; dof < dof_max; dof++) {
 		if (dat->flag & dofbit) {
 			phys_env->SetConstraintParam(constraintId, dof, dat->minLimit[dof], dat->maxLimit[dof]);
 		}

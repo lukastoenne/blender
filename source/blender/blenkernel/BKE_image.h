@@ -46,6 +46,7 @@ struct ImageFormatData;
 struct ImagePool;
 struct Main;
 struct ReportList;
+struct RenderResult;
 
 #define IMA_MAX_SPACE       64
 
@@ -58,10 +59,11 @@ void    BKE_image_free_buffers(struct Image *image);
 /* call from library */
 void    BKE_image_free(struct Image *image);
 
-void    BKE_imbuf_stamp_info(struct Scene *scene, struct Object *camera, struct ImBuf *ibuf);
+void    BKE_render_result_stamp_info(struct Scene *scene, struct Object *camera, struct RenderResult *rr);
+void    BKE_imbuf_stamp_info(struct RenderResult *rr, struct ImBuf *ibuf);
 void    BKE_image_stamp_buf(struct Scene *scene, struct Object *camera, unsigned char *rect, float *rectf, int width, int height, int channels);
 bool    BKE_imbuf_alpha_test(struct ImBuf *ibuf);
-int     BKE_imbuf_write_stamp(struct Scene *scene, struct Object *camera, struct ImBuf *ibuf, const char *name, struct ImageFormatData *imf);
+int     BKE_imbuf_write_stamp(struct Scene *scene, struct RenderResult *rr, struct ImBuf *ibuf, const char *name, struct ImageFormatData *imf);
 void    BKE_imbuf_write_prepare(struct ImBuf *ibuf, struct ImageFormatData *imf);
 int     BKE_imbuf_write(struct ImBuf *ibuf, const char *name, struct ImageFormatData *imf);
 int     BKE_imbuf_write_as(struct ImBuf *ibuf, const char *name, struct ImageFormatData *imf, const bool is_copy);
@@ -175,7 +177,7 @@ struct Image *BKE_image_load_exists(const char *filepath);
 struct Image *BKE_image_add_generated(
         struct Main *bmain, unsigned int width, unsigned int height, const char *name, int depth, int floatbuf, short gen_type, const float color[4], const bool stereo3d);
 /* adds image from imbuf, owns imbuf */
-struct Image *BKE_image_add_from_imbuf(struct ImBuf *ibuf);
+struct Image *BKE_image_add_from_imbuf(struct ImBuf *ibuf, const char *name);
 
 /* for reload, refresh, pack */
 void BKE_image_init_imageuser(struct Image *ima, struct ImageUser *iuser);

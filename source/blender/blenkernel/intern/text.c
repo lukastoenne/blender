@@ -473,6 +473,7 @@ Text *BKE_text_copy(Main *bmain, Text *ta)
 	
 	BLI_listbase_clear(&tan->lines);
 	tan->curl = tan->sell = NULL;
+	tan->compiled = NULL;
 	
 	tan->nlines = ta->nlines;
 
@@ -651,7 +652,7 @@ void BKE_text_unlink(Main *bmain, Text *text)
 			}
 		}
 
-		/* Freestyle (while looping oer the scene) */
+		/* Freestyle (while looping over the scene) */
 		for (srl = sce->r.layers.first; srl; srl = srl->next) {
 			for (module = srl->freestyleConfig.modules.first; module; module = module->next) {
 				if (module->script == text)

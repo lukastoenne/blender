@@ -944,7 +944,7 @@ class VIEW3D_MT_angle_control(Menu):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        sculpt = (context.sculpt_object != None)
+        sculpt = (context.sculpt_object is not None)
 
         tex_slot = brush.texture_slot
 
@@ -3040,14 +3040,12 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
-
         fx_settings = view.fx_settings
 
-        sub = col.column()
-        sub.active = view.region_3d.view_perspective == 'CAMERA'
-        sub.prop(fx_settings, "use_dof")
-
         if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
+            sub = col.column()
+            sub.active = view.region_3d.view_perspective == 'CAMERA'
+            sub.prop(fx_settings, "use_dof")
             col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
             if fx_settings.use_ssao:
                 ssao_settings = fx_settings.ssao

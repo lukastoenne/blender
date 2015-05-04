@@ -49,6 +49,7 @@ struct Scene;
 struct SceneRenderLayer;
 struct EnvMap;
 struct RenderResult;
+struct StampData;
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is what is exposed of render to outside world */
@@ -137,6 +138,9 @@ typedef struct RenderResult {
 	int rectx, recty;
 	short crop, sample_nr;
 	
+	/* the following rect32, rectf and rectz buffers are for temporary storage only, for RenderResult structs
+	 * created in #RE_AcquireResultImage - which do not have RenderView */
+
 	/* optional, 32 bits version of picture, used for ogl render and image curves */
 	int *rect32;
 	/* if this exists, a copy of one of layers, or result of composited layers */
@@ -171,6 +175,8 @@ typedef struct RenderResult {
 	/* render info text */
 	char *text;
 	char *error;
+
+	struct StampData *stamp_data;
 } RenderResult;
 
 
@@ -261,7 +267,7 @@ void RE_init_threadcount(Render *re);
 /* the main processor, assumes all was set OK! */
 void RE_TileProcessor(struct Render *re);
 
-bool RE_WriteRenderViewsImage(struct ReportList *reports, struct RenderResult *rr, struct Scene *scene, struct Object *camera, const bool stamp, char *name);
+bool RE_WriteRenderViewsImage(struct ReportList *reports, struct RenderResult *rr, struct Scene *scene, const bool stamp, char *name);
 bool RE_WriteRenderViewsMovie(struct ReportList *reports, struct RenderResult *rr, struct Scene *scene, struct RenderData *rd,
                               struct bMovieHandle *mh, const size_t width, const size_t height, void **movie_ctx_arr,
                               const size_t totvideos, bool preview);
@@ -350,12 +356,8 @@ bool RE_allow_render_generic_object(struct Object *ob);
 
 bool RE_HasFakeLayer(RenderResult *res);
 bool RE_RenderResult_is_stereo(RenderResult *res);
-
-float *RE_RenderViewGetRectf(struct RenderResult *rr, const int view_id);
-float *RE_RenderViewGetRectz(struct RenderResult *rr, const int view_id);
-int   *RE_RenderViewGetRect32(struct RenderResult *rr, const int view_id);
-void   RE_RenderViewSetRectf(struct RenderResult *res, const int view_id, float *rect);
-void   RE_RenderViewSetRectz(struct RenderResult *res, const int view_id, float *rect);
+struct RenderView *RE_RenderViewGetById(struct RenderResult *res, const int view_id);
+struct RenderView *RE_RenderViewGetByName(struct RenderResult *res, const char *viewname);
 
 #endif /* __RE_PIPELINE_H__ */
 

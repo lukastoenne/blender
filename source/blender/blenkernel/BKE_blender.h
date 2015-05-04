@@ -42,7 +42,7 @@ extern "C" {
  * and keep comment above the defines.
  * Use STRINGIFY() rather than defining with quotes */
 #define BLENDER_VERSION         274
-#define BLENDER_SUBVERSION      4
+#define BLENDER_SUBVERSION      5
 /* Several breakages with 270, e.g. constraint deg vs rad */
 #define BLENDER_MINVERSION      270
 #define BLENDER_MINSUBVERSION   5
@@ -87,7 +87,7 @@ void BKE_userdef_free(void);
 void BKE_userdef_state(void);
 	
 /* set this callback when a UI is running */
-void set_blender_test_break_cb(void (*func)(void));
+void BKE_blender_callback_test_break_set(void (*func)(void));
 int blender_test_break(void);
 
 #define BKE_UNDO_STR_MAX 64

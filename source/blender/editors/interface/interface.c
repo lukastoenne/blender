@@ -37,6 +37,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
@@ -1951,6 +1952,56 @@ uiBut *ui_but_drag_multi_edit_get(uiBut *but)
 	return but_iter;
 }
 
+/** \name Check to show extra icons
+ *
+ * Extra icons are shown on the right hand side of buttons.
+ * \{ */
+
+static bool ui_but_icon_extra_is_visible_search_unlink(const uiBut *but)
+{
+	BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+	return ((but->editstr == NULL) &&
+	        (but->drawstr[0] != '\0') &&
+	        (but->flag & UI_BUT_SEARCH_UNLINK));
+}
+
+static bool ui_but_icon_extra_is_visible_eyedropper(uiBut *but)
+{
+	StructRNA *type;
+	short idcode;
+
+	BLI_assert(but->type == UI_BTYPE_SEARCH_MENU && (but->flag & UI_BUT_SEARCH_UNLINK));
+
+	if (but->rnaprop == NULL) {
+		return false;
+	}
+
+	type = RNA_property_pointer_type(&but->rnapoin, but->rnaprop);
+	idcode = RNA_type_to_ID_code(type);
+
+
+	return ((but->editstr == NULL) &&
+	        (idcode == ID_OB || OB_DATA_SUPPORT_ID(idcode)));
+}
+
+uiButExtraIconType ui_but_icon_extra_get(uiBut *but)
+{
+	if ((but->flag & UI_BUT_SEARCH_UNLINK) == 0) {
+		/* pass */
+	}
+	else if (ui_but_icon_extra_is_visible_search_unlink(but)) {
+		return UI_BUT_ICONEXTRA_UNLINK;
+	}
+	else if (ui_but_icon_extra_is_visible_eyedropper(but)) {
+		return UI_BUT_ICONEXTRA_EYEDROPPER;
+	}
+
+	return UI_BUT_ICONEXTRA_NONE;
+}
+
+/** \} */
+
+
 static double ui_get_but_scale_unit(uiBut *but, double value)
 {
 	UnitSettings *unit = but->block->unit;
@@ -2714,11 +2765,11 @@ void ui_but_update(uiBut *but)
 					}
 					else {
 						const int prec = ui_but_calc_float_precision(but, value);
-						slen += BLI_snprintf(but->drawstr + slen, sizeof(but->drawstr) - slen, "%.*f", prec, value);
+						slen += BLI_snprintf_rlen(but->drawstr + slen, sizeof(but->drawstr) - slen, "%.*f", prec, value);
 					}
 				}
 				else {
-					slen += BLI_snprintf(but->drawstr + slen, sizeof(but->drawstr) - slen, "%d", (int)value);
+					slen += BLI_snprintf_rlen(but->drawstr + slen, sizeof(but->drawstr) - slen, "%d", (int)value);
 				}
 
 				if (but->rnaprop) {

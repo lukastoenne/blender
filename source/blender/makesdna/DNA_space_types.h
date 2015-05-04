@@ -534,6 +534,7 @@ typedef enum eSpaceSeq_Flag {
 	SEQ_ALL_WAVEFORMS           = (1 << 7), /* draw all waveforms */
 	SEQ_NO_WAVEFORMS            = (1 << 8), /* draw no waveforms */
 	SEQ_SHOW_SAFE_CENTER        = (1 << 9),
+	SEQ_SHOW_METADATA           = (1 << 10),
 } eSpaceSeq_Flag;
 
 /* sseq->view */
@@ -590,6 +591,8 @@ typedef struct FileSelectParams {
 	int active_file;
 	int sel_first;
 	int sel_last;
+	unsigned short thumbnail_size;
+	short pad;
 
 	/* short */
 	short type; /* XXXXX for now store type here, should be moved to the operator */
@@ -834,6 +837,7 @@ typedef enum eSpaceImage_Flag {
 	SI_COLOR_CORRECTION   = (1 << 24),
 
 	SI_NO_DRAW_TEXPAINT   = (1 << 25),
+	SI_DRAW_METADATA      = (1 << 26)
 } eSpaceImage_Flag;
 
 /* Text Editor ============================================ */

@@ -559,9 +559,10 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 		}
 	}
 
-	/* this should be impossible, but sanity checks are a good thing */
-	if (!v)
+	/* (v == NULL) should be impossible */
+	if ((v == NULL) || (v->e == NULL)) {
 		return OPERATOR_CANCELLED;
+	}
 
 	is_wire = BM_vert_is_wire(v);
 
@@ -570,12 +571,11 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 	if (v->e) {
 		/* find closest edge to mouse cursor */
 		BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
-			const bool is_boundary = BM_edge_is_boundary(e);
 			/* consider wire as boundary for this purpose,
 			 * otherwise we can't a face away from a wire edge */
-			totboundary_edge += (is_boundary != 0 || BM_edge_is_wire(e));
+			totboundary_edge += (BM_edge_is_boundary(e) || BM_edge_is_wire(e));
 			if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
-				if (is_boundary == false && BM_edge_is_manifold(e)) {
+				if (BM_edge_is_manifold(e)) {
 					d = edbm_rip_edgedist_squared(ar, projectMat, e->v1->co, e->v2->co, fmval, INSET_DEFAULT);
 					if ((e2 == NULL) || (d < dist_sq)) {
 						dist_sq = d;
@@ -619,6 +619,32 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 					BLI_assert(e2 != NULL);
 				}
 			}
+		}
+	}
+
+	if (e2) {
+		/* Try to split off a non-manifold fan (when we have multiple disconnected fans) */
+
+		/* note: we're lazy here and first split then check there are any faces remaining,
+		 * this isn't good practice, however its less hassle then checking for multiple-disconnected regions */
+		BMLoop *l_sep = e2->l->v == v ? e2->l : e2->l->next;
+		BMVert *v_new;
+		BLI_assert(l_sep->v == v);
+		v_new = bmesh_urmv_loop_region(bm, l_sep);
+		if (BM_vert_find_first_loop(v)) {
+			BM_vert_select_set(bm, v, false);
+			BM_select_history_remove(bm, v);
+
+			BM_vert_select_set(bm, v_new, true);
+			if (ese.ele) {
+				BM_select_history_store(bm, v_new);
+			}
+
+			return OPERATOR_FINISHED;
+		}
+		else {
+			/* rewind */
+			BM_vert_splice(bm, v, v_new);
 		}
 	}
 
@@ -715,7 +741,7 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 				}
 
 				for (i = 2; i < vout_len; i++) {
-					BM_vert_splice(bm, vout[i], vout[1]);
+					BM_vert_splice(bm, vout[1], vout[i]);
 				}
 			}
 
@@ -734,20 +760,42 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 	/* unlike edge split, for single vertex split we only use the operator in one of the cases
 	 * but both allocate fill */
 
-	/* rip two adjacent edges */
-	if (BM_edge_is_boundary(e2) || BM_vert_face_count_is_equal(v, 2)) {
-		/* Don't run the edge split operator in this case */
+	{
 		BMVert *v_rip;
+		BMLoop *larr[2];
+		int larr_len = 0;
 
-		l = BM_edge_vert_share_loop(e2->l, v);
+		/* rip two adjacent edges */
+		if (BM_edge_is_boundary(e2) || BM_vert_face_count_is_equal(v, 2)) {
+			/* Don't run the edge split operator in this case */
 
-		/* only tag for face-fill (we don't call the operator) */
-		if (BM_edge_is_boundary(e2)) {
-			BM_elem_flag_enable(e2, BM_ELEM_TAG);
+			l = BM_edge_vert_share_loop(e2->l, v);
+			larr[larr_len] = l;
+			larr_len++;
+
+			/* only tag for face-fill (we don't call the operator) */
+			if (BM_edge_is_boundary(e2)) {
+				BM_elem_flag_enable(e2, BM_ELEM_TAG);
+			}
+			else {
+				BM_elem_flag_enable(l->e, BM_ELEM_TAG);
+				BM_elem_flag_enable(l->prev->e, BM_ELEM_TAG);
+			}
 		}
 		else {
-			BM_elem_flag_enable(l->e, BM_ELEM_TAG);
-			BM_elem_flag_enable(l->prev->e, BM_ELEM_TAG);
+			if (BM_edge_is_manifold(e2)) {
+				BMLoop *l_iter, *l_first;
+
+				l_iter = l_first = e2->l;
+				do {
+					larr[larr_len] = BM_edge_vert_share_loop(l_iter, v);
+					BM_elem_flag_enable(larr[larr_len]->e, BM_ELEM_TAG);
+					larr_len++;
+				} while ((l_iter = l_iter->radial_next) != l_first);
+			}
+			else {
+				/* looks like there are no split edges, we could just return/report-error? - Campbell */
+			}
 		}
 
 		/* keep directly before edgesplit */
@@ -755,13 +803,12 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 			fill_uloop_pairs = edbm_tagged_loop_pairs_to_fill(bm);
 		}
 
-#if 0
-		v_rip = BM_face_vert_separate(bm, l->f, v);
-#else
-		v_rip = BM_face_loop_separate(bm, l);
-#endif
-
-		BLI_assert(v_rip);
+		if (larr_len) {
+			v_rip = BM_face_loop_separate_multi(bm, larr, larr_len);
+		}
+		else {
+			v_rip = NULL;
+		}
 
 		if (v_rip) {
 			BM_vert_select_set(bm, v_rip, true);
@@ -770,27 +817,6 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 			if (fill_uloop_pairs) MEM_freeN(fill_uloop_pairs);
 			return OPERATOR_CANCELLED;
 		}
-	}
-	else {
-		if (BM_edge_is_manifold(e2)) {
-			l = e2->l;
-			e = BM_loop_other_edge_loop(l, v)->e;
-			BM_elem_flag_enable(e, BM_ELEM_TAG);
-
-			l = e2->l->radial_next;
-			e = BM_loop_other_edge_loop(l, v)->e;
-			BM_elem_flag_enable(e, BM_ELEM_TAG);
-		}
-		else {
-			/* looks like there are no split edges, we could just return/report-error? - Campbell */
-		}
-
-		/* keep directly before edgesplit */
-		if (do_fill) {
-			fill_uloop_pairs = edbm_tagged_loop_pairs_to_fill(bm);
-		}
-
-		BM_mesh_edgesplit(em->bm, true, true, true);
 	}
 
 	{

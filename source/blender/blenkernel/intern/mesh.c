@@ -1265,7 +1265,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 
 	dl = dispbase->first;
 	while (dl) {
-		int smooth = dl->rt & CU_SMOOTH ? 1 : 0;
+		const bool is_smooth = (dl->rt & CU_SMOOTH) != 0;
 
 		if (dl->type == DL_SEGM) {
 			startvert = vertcount;
@@ -1344,7 +1344,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 					}
 				}
 
-				if (smooth) mpoly->flag |= ME_SMOOTH;
+				if (is_smooth) mpoly->flag |= ME_SMOOTH;
 				mpoly++;
 				mloop += 3;
 				index += 3;
@@ -1423,7 +1423,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 						}
 					}
 
-					if (smooth) mpoly->flag |= ME_SMOOTH;
+					if (is_smooth) mpoly->flag |= ME_SMOOTH;
 					mpoly++;
 					mloop += 4;
 
@@ -1773,6 +1773,36 @@ void BKE_mesh_material_index_clear(Mesh *me)
 	}
 }
 
+void BKE_mesh_material_remap(Mesh *me, const unsigned int *remap, unsigned int remap_len)
+{
+	const short remap_len_short = (short)remap_len;
+
+#define MAT_NR_REMAP(n) \
+	if (n < remap_len_short) { \
+		BLI_assert(n >= 0 && remap[n] < remap_len_short); \
+		n = remap[n]; \
+	} ((void)0)
+
+	if (me->edit_btmesh) {
+		BMEditMesh *em = me->edit_btmesh;
+		BMIter iter;
+		BMFace *efa;
+
+		BM_ITER_MESH(efa, &iter, em->bm, BM_FACES_OF_MESH) {
+			MAT_NR_REMAP(efa->mat_nr);
+		}
+	}
+	else {
+		int i;
+		for (i = 0; i < me->totpoly; i++) {
+			MAT_NR_REMAP(me->mpoly[i].mat_nr);
+		}
+	}
+
+#undef MAT_NR_REMAP
+
+}
+
 void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth) 
 {
 	Mesh *me = meshOb->data;
@@ -1890,6 +1920,7 @@ void BKE_mesh_transform(Mesh *me, float mat[4][4], bool do_keys)
 {
 	int i;
 	MVert *mvert = me->mvert;
+	float (*lnors)[3] = CustomData_get_layer(&me->ldata, CD_NORMAL);
 
 	for (i = 0; i < me->totvert; i++, mvert++)
 		mul_m4_v3(mat, mvert->co);
@@ -1904,7 +1935,17 @@ void BKE_mesh_transform(Mesh *me, float mat[4][4], bool do_keys)
 		}
 	}
 
-	/* don't update normals, caller can do this explicitly */
+	/* don't update normals, caller can do this explicitly.
+	 * We do update loop normals though, those may not be auto-generated (see e.g. STL import script)! */
+	if (lnors) {
+		float m3[3][3];
+
+		copy_m3_m4(m3, mat);
+		normalize_m3(m3);
+		for (i = 0; i < me->totloop; i++, lnors++) {
+			mul_m3_v3(m3, *lnors);
+		}
+	}
 }
 
 void BKE_mesh_translate(Mesh *me, const float offset[3], const bool do_keys)

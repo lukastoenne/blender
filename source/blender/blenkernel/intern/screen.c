@@ -272,6 +272,19 @@ void BKE_spacedata_draw_locks(int set)
 	}
 }
 
+static void (*spacedata_id_unref_cb)(struct SpaceLink *sl, const struct ID *id) = NULL;
+
+void BKE_spacedata_callback_id_unref_set(void (*func)(struct SpaceLink *sl, const struct ID *))
+{
+	spacedata_id_unref_cb = func;
+}
+
+void BKE_spacedata_id_unref(struct SpaceLink *sl, const struct ID *id)
+{
+	if (spacedata_id_unref_cb) {
+		spacedata_id_unref_cb(sl, id);
+	}
+}
 
 /* not region itself */
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
@@ -403,6 +416,23 @@ ARegion *BKE_area_find_region_active_win(ScrArea *sa)
 		return BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 	}
 	return NULL;
+}
+
+ARegion *BKE_area_find_region_xy(ScrArea *sa, const int regiontype, int x, int y)
+{
+	ARegion *ar_found = NULL;
+	if (sa) {
+		ARegion *ar;
+		for (ar = sa->regionbase.first; ar; ar = ar->next) {
+			if ((regiontype == RGN_TYPE_ANY) || (ar->regiontype == regiontype)) {
+				if (BLI_rcti_isect_pt(&ar->winrct, x, y)) {
+					ar_found = ar;
+					break;
+				}
+			}
+		}
+	}
+	return ar_found;
 }
 
 /**
