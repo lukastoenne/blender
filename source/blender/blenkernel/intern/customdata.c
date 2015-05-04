@@ -1331,7 +1331,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 30-34 */ "CDSubSurfCrease", "CDOrigSpaceLoop", "CDPreviewLoopCol", "CDBMElemPyPtr", "CDPaintMask",
 	/* 35-36 */ "CDGridPaintMask", "CDMVertSkin",
 	/* 37-38 */ "CDFreestyleEdge", "CDFreestyleFace",
-	/* 39-41 */ "CDMLoopTangent", "CDTessLoopNormal", "CDCustomLoopNormal",
+	/* 39-42 */ "CDMLoopTangent", "CDTessLoopNormal", "CDCustomLoopNormal", "CDMSurfaceSample",
 };
 
 
