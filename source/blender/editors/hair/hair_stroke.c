@@ -264,6 +264,7 @@ static int hair_tool_apply_strand_edges(HairToolData *data, EdgeToolCb cb, void 
 	const float rad = BKE_brush_size_get(scene, brush);
 	const float radsq = rad*rad;
 	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
+	const bool use_mirror = hair_use_mirror_x(data->ob);
 	
 	BMVert *v, *vprev, *v_mirr, *vprev_mirr;
 	BMIter iter;
@@ -280,9 +281,11 @@ static int hair_tool_apply_strand_edges(HairToolData *data, EdgeToolCb cb, void 
 					cb(data, userdata, vprev, v, factor, lambda);
 					++tot;
 					
-					v_mirr = ED_strands_mirror_get(data->edit, v);
-					if (vprev_mirr && v_mirr)
-						cb(data, userdata, vprev_mirr, v_mirr, factor, lambda);
+					if (use_mirror) {
+						v_mirr = ED_strands_mirror_get(data->edit, v);
+						if (vprev_mirr && v_mirr)
+							cb(data, userdata, vprev_mirr, v_mirr, factor, lambda);
+					}
 				}
 			}
 		}

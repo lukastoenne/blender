@@ -1879,8 +1879,9 @@ class VIEW3D_PT_tools_hairmode(View3DPanel, Panel):
         settings = context.tool_settings.hair_edit
         ob = context.active_object
 
-        col = layout.column(align=True)
-        col.prop(ob.data, "use_mirror_x")
+        if ob.data:
+            col = layout.column(align=True)
+            col.prop(ob.data, "use_mirror_x")
 
 
 # Grease Pencil drawing tools
