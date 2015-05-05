@@ -150,7 +150,7 @@ BMVert *ED_strands_mirror_get(BMEditStrands *edit, BMVert *v)
 	if (mirr && *mirr >= 0 && *mirr < edit->bm->totvert) {
 		if (!edit->bm->vtable) {
 			printf("err: should only be called between "
-			       "ED_strands_mirror_cache_begin and ED_strands_mirror_cache_end");
+			       "ED_strands_mirror_cache_begin and ED_strands_mirror_cache_end\n");
 			return NULL;
 		}
 

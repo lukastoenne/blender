@@ -219,13 +219,14 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *use
 	const float rad = BKE_brush_size_get(scene, brush);
 	const float radsq = rad*rad;
 	const float threshold = 0.0f; /* XXX could be useful, is it needed? */
+	const bool use_mirror = hair_use_mirror_x(data->ob);
 	
 	BMVert *v, *v_mirr;
 	BMIter iter;
 	int tot = 0;
 	float dist, factor;
 	
-	if (hair_use_mirror_x(data->ob))
+	if (use_mirror)
 		ED_strands_mirror_cache_begin(data->edit, 0, false, false, hair_use_mirror_topology(data->ob));
 	
 	BM_ITER_MESH(v, &iter, data->edit->bm, BM_VERTS_OF_MESH) {
@@ -237,14 +238,16 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *use
 			cb(data, userdata, v, factor);
 			++tot;
 			
-			v_mirr = ED_strands_mirror_get(data->edit, v);
-			if (v_mirr)
-				cb(data, userdata, v_mirr, factor);
+			if (use_mirror) {
+				v_mirr = ED_strands_mirror_get(data->edit, v);
+				if (v_mirr)
+					cb(data, userdata, v_mirr, factor);
+			}
 		}
 	}
 	
 	/* apply mirror */
-	if (hair_use_mirror_x(data->ob))
+	if (use_mirror)
 		ED_strands_mirror_cache_end(data->edit);
 	
 	return tot;
