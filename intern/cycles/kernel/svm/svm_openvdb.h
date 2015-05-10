@@ -25,16 +25,18 @@ ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack
 #ifdef __KERNEL_GPU__
 	float3 out = make_float3(0.0f, 0.0f, 0.0f);
 #else
-	float3 out = make_float3(0.0f, 0.0f, 0.0f);
 	if(type == NODE_VDB_FLOAT) {
-		float r = 0.0f;
+		float out = 0.0f;
 		if(sampling == OPENVDB_SAMPLE_POINT) {
-			r = kg->vdb_float_samplers_p[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
+			out = kg->vdb_float_samplers_p[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
 		}
 		else {
-			r = kg->vdb_float_samplers_b[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
+			out = kg->vdb_float_samplers_b[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
 		}
-		out = make_float3(r, r, r);
+
+		if(stack_valid(out_offset)) {
+			stack_store_float(stack, out_offset, out);
+		}
 	}
 	else if(type == NODE_VDB_VEC3S) {
 		openvdb::Vec3s r = openvdb::Vec3s(0.0f);
@@ -44,13 +46,14 @@ ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack
 		else {
 			r = kg->vdb_vec3s_samplers_b[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
 		}
-		out = make_float3(r.x(), r.y(), r.z());
+
+		float3 out = make_float3(r.x(), r.y(), r.z());
+
+		if(stack_valid(out_offset)) {
+			stack_store_float3(stack, out_offset, out);
+		}
 	}
 #endif
-
-	if(stack_valid(out_offset)) {
-		stack_store_float3(stack, out_offset, out);
-	}
 }
 
 CCL_NAMESPACE_END
