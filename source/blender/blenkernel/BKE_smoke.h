@@ -48,4 +48,15 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 float smoke_get_velocity_at(struct Object *ob, float position[3], float velocity[3]);
 int smoke_get_data_flags(struct SmokeDomainSettings *sds);
 
+/* OpenVDB smoke export/import */
+
+struct FluidDomainDescr get_fluid_description(struct SmokeDomainSettings *sds, struct Object *ob);
+
+void smokeModifier_OpenVDB_export(struct SmokeModifierData *smd, struct Scene *scene,
+                                  struct Object *ob, struct DerivedMesh *dm,
+                                  void (*update_cb)(void *, float progress, int *cancel),
+                                  void *update_cb_data);
+
+void smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob);
+
 #endif /* __BKE_SMOKE_H__ */

@@ -712,6 +712,13 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			xml_read_enum(&vtransform->convert_to, VectorTransformNode::convert_space_enum, node, "convert_to");
 			snode = vtransform;
 		}
+		else if(string_iequals(node.name(), "openvdb")) {
+			OpenVDBNode *vdbnode = new OpenVDBNode();
+			xml_read_string(&vdbnode->filename, node, "src");
+			vdbnode->filename = path_join(state.base, vdbnode->filename);
+
+			snode = vdbnode;
+		}
 		else if(string_iequals(node.name(), "connect")) {
 			/* connect nodes */
 			vector<string> from_tokens, to_tokens;

@@ -961,6 +961,14 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
 	}
 }
 
+static void node_shader_buts_openvdb(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "filename", 0, NULL, 0);
+	uiItemR(layout, ptr, "sampling", 0, NULL, 0);
+
+	UNUSED_VARS(C);
+}
+
 static void node_shader_buts_uvalongstroke(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "use_tips", 0, NULL, 0);
@@ -1210,6 +1218,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break;
 		case SH_NODE_OUTPUT_LINESTYLE:
 			ntype->draw_buttons = node_buts_output_linestyle;
+			break;
+		case SH_NODE_OPENVDB:
+			ntype->draw_buttons = node_shader_buts_openvdb;
 			break;
 	}
 }

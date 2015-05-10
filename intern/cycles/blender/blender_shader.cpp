@@ -736,6 +736,13 @@ static ShaderNode *add_node(Scene *scene,
 		uvm->from_dupli = b_uvmap_node.from_dupli();
 		node = uvm;
 	}
+	else if(b_node.is_a(&RNA_ShaderNodeOpenVDB)) {
+		BL::ShaderNodeOpenVDB b_vdb_node(b_node);
+		OpenVDBNode *vdb_node = new OpenVDBNode();
+		vdb_node->filename = b_vdb_node.filename();
+		vdb_node->sampling = b_vdb_node.sampling();
+		node = vdb_node;
+	}
 
 	if(node)
 		graph->add(node);

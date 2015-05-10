@@ -3556,6 +3556,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_add_shader();
 	register_node_type_sh_uvmap();
 	register_node_type_sh_uvalongstroke();
+	register_node_type_sh_openvdb();
 
 	register_node_type_sh_output_lamp();
 	register_node_type_sh_output_material();

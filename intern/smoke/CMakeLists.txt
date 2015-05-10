@@ -31,6 +31,8 @@ set(INC
 set(INC_SYS
 	${BULLET_INCLUDE_DIRS}
 	${PNG_INCLUDE_DIRS}
+	${OPENEXR_INCLUDE_DIRS}
+	${OPENVDB_INCLUDE_DIRS}
 	${ZLIB_INCLUDE_DIRS}
 )
 
@@ -54,6 +56,7 @@ set(SRC
 	intern/LU_HELPER.h
 	intern/MERSENNETWISTER.h
 	intern/OBSTACLE.h
+	intern/openvdb_convert.cpp
 	intern/spectrum.h
 	intern/SPHERE.h
 	intern/VEC3.h

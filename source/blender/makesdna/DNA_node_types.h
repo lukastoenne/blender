@@ -855,6 +855,16 @@ typedef struct NodeShaderUVMap {
 	char uv_map[64];
 } NodeShaderUVMap;
 
+typedef struct NodeShaderOpenVDB {
+	char filename[1024];
+	int sampling;
+} NodeShaderOpenVDB;
+
+enum {
+	NODE_VDB_SAMPLE_POINT = 0,
+	NODE_VDB_SAMPLE_BOX   = 1,
+};
+
 typedef struct NodeSunBeams {
 	float source[2];
 

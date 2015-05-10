@@ -42,6 +42,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_force.h"
 #include "DNA_scene_types.h"
+#include "DNA_smoke_types.h"
 
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
@@ -72,6 +73,8 @@
 #include "BKE_ocean.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
+#include "BKE_pointcache.h"
+#include "BKE_smoke.h"
 #include "BKE_softbody.h"
 #include "BKE_editmesh.h"
 
@@ -2291,4 +2294,113 @@ void OBJECT_OT_laplaciandeform_bind(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 	edit_modifier_properties(ot);
+}
+
+/************************ OpenVDB smoke convertor operator *********************/
+
+typedef struct SmokeExportJob {
+	/* from wmJob */
+	void *owner;
+	short *stop, *do_update;
+	float *progress;
+	int current_frame;
+	struct SmokeModifierData *smd;
+	struct Scene *scene;
+	struct Object *ob;
+	struct DerivedMesh *dm;
+} SmokeExportJob;
+
+static void smoke_export_free(void *customdata)
+{
+	SmokeExportJob *sej = customdata;
+	MEM_freeN(sej);
+}
+
+/* called by smoke export, only to check job 'stop' value */
+static int smoke_export_breakjob(void *customdata)
+{
+	UNUSED_VARS(customdata);
+	return G.is_break;
+}
+
+/* called by smokeModifier_OpenVDB_export, wmJob sends notifier */
+static void smoke_export_update(void *customdata, float progress, int *cancel)
+{
+	SmokeExportJob *sej = customdata;
+
+	if (smoke_export_breakjob(sej)) {
+		*cancel = 1;
+	}
+
+	*(sej->do_update) = true;
+	*(sej->progress) = progress;
+}
+
+static void smoke_export_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+	SmokeExportJob *sej = customdata;
+
+	sej->stop = stop;
+	sej->do_update = do_update;
+	sej->progress = progress;
+
+	G.is_break = false;
+
+	smokeModifier_OpenVDB_export(sej->smd, sej->scene, sej->ob, sej->dm,
+	                             smoke_export_update, (void *)sej);
+
+	*do_update = true;
+	*stop = 0;
+}
+
+static void smoke_export_endjob(void *customdata)
+{
+	SmokeExportJob *sej = customdata;
+	WM_main_add_notifier(NC_OBJECT | ND_DRAW, sej->ob);
+}
+
+static int smoke_vdb_export_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_active_context(C);
+	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+	Scene *scene = CTX_data_scene(C);
+	wmJob *wm_job;
+	SmokeExportJob *sej;
+
+	if (!smd) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* setup job */
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "OpenVDB export",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_SMOKE_EXPORT);
+
+	sej = MEM_callocN(sizeof(SmokeExportJob), "smoke export job");
+	sej->smd = smd;
+	sej->scene = scene;
+	sej->ob = ob;
+	sej->dm = ob->derivedDeform;
+
+	WM_jobs_customdata_set(wm_job, sej, smoke_export_free);
+	WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
+	WM_jobs_callbacks(wm_job, smoke_export_startjob, NULL, NULL, smoke_export_endjob);
+
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
+
+	return OPERATOR_FINISHED;
+
+	UNUSED_VARS(op);
+}
+
+void OBJECT_OT_smoke_vdb_export(wmOperatorType *ot)
+{
+	ot->name = "Export to OpenVDB";
+	ot->description = "Export simulation to the OpenVDB representation";
+	ot->idname = "OBJECT_OT_smoke_vdb_export";
+
+	ot->poll = ED_operator_object_active_editable;
+	ot->exec = smoke_vdb_export_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }

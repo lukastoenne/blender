@@ -41,6 +41,7 @@ enum {
 	MOD_SMOKE_HIGH_SMOOTH = (1 << 5),  /* -- Deprecated -- */
 	MOD_SMOKE_FILE_LOAD = (1 << 6),  /* flag for file load */
 	MOD_SMOKE_ADAPTIVE_DOMAIN = (1 << 7),
+	MOD_SMOKE_OPENVDB_EXPORTED = (1 << 8),
 };
 
 #if (DNA_DEPRECATED_GCC_POISON == 1)
@@ -149,6 +150,11 @@ typedef struct SmokeDomainSettings {
 	float burning_rate, flame_smoke, flame_vorticity;
 	float flame_ignition, flame_max_temp;
 	float flame_smoke_color[3];
+
+	/* OpenVDB export - make it separate struct? */
+	int startframe, endframe;
+	short use_openvdb, pad[3];
+	char path[1024];
 } SmokeDomainSettings;
 
 

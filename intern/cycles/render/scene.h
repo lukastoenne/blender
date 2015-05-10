@@ -24,6 +24,7 @@
 
 #include "kernel_types.h"
 
+#include "util_openvdb.h"
 #include "util_param.h"
 #include "util_string.h"
 #include "util_system.h"
@@ -47,6 +48,7 @@ class Mesh;
 class MeshManager;
 class Object;
 class ObjectManager;
+class OpenVDBManager;
 class ParticleSystemManager;
 class ParticleSystem;
 class CurveSystemManager;
@@ -117,6 +119,8 @@ public:
 	device_vector<uchar4> tex_image_packed;
 	device_vector<uint4> tex_image_packed_info;
 
+//	device_vector<volumeSamplerF> vdb_float_samplers[128];
+
 	KernelData data;
 };
 
@@ -177,6 +181,7 @@ public:
 	ParticleSystemManager *particle_system_manager;
 	CurveSystemManager *curve_system_manager;
 	BakeManager *bake_manager;
+	OpenVDBManager *vdb_manager;
 
 	/* default shaders */
 	int default_surface;

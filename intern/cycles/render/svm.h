@@ -29,6 +29,7 @@ CCL_NAMESPACE_BEGIN
 class Device;
 class DeviceScene;
 class ImageManager;
+class OpenVDBManager;
 class Scene;
 class ShaderGraph;
 class ShaderInput;
@@ -52,7 +53,7 @@ public:
 
 class SVMCompiler {
 public:
-	SVMCompiler(ShaderManager *shader_manager, ImageManager *image_manager);
+	SVMCompiler(ShaderManager *shader_manager, ImageManager *image_manager, OpenVDBManager *vdb_manager);
 	void compile(Shader *shader, vector<int4>& svm_nodes, int index);
 
 	void stack_assign(ShaderOutput *output);
@@ -74,6 +75,7 @@ public:
 	ShaderType output_type() { return current_type; }
 
 	ImageManager *image_manager;
+	OpenVDBManager *vdb_manager;
 	ShaderManager *shader_manager;
 	bool background;
 

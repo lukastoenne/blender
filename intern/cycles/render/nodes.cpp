@@ -16,6 +16,7 @@
 
 #include "image.h"
 #include "nodes.h"
+#include "openvdb.h"
 #include "svm.h"
 #include "svm_math_util.h"
 #include "osl.h"
@@ -4361,6 +4362,76 @@ void TangentNode::compile(OSLCompiler& compiler)
 	compiler.parameter("direction_type", direction_type);
 	compiler.parameter("axis", axis);
 	compiler.add(this, "node_tangent"); 
+}
+
+OpenVDBNode::OpenVDBNode()
+: ShaderNode("openvdb")
+{
+	filename = "";
+	vdb_manager = NULL;
+	sampling = OPENVDB_SAMPLE_POINT;
+
+	add_output("density", SHADER_SOCKET_FLOAT);
+	add_output("heat", SHADER_SOCKET_FLOAT);
+	add_output("flame", SHADER_SOCKET_FLOAT);
+	add_output("fuel", SHADER_SOCKET_FLOAT);
+	add_output("velocity", SHADER_SOCKET_VECTOR);
+}
+
+void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+	ShaderNode::attributes(shader, attributes);
+}
+
+void OpenVDBNode::compile(SVMCompiler &compiler)
+{
+	ShaderOutput *dens_out = output("density");
+	ShaderOutput *heat_out = output("heat");
+	ShaderOutput *flame_out = output("flame");
+	ShaderOutput *temp_out = output("fuel");
+	ShaderOutput *vel_out = output("velocity");
+
+	vdb_manager = compiler.vdb_manager;
+
+	if(!dens_out->links.empty()) {
+		grid_slot = vdb_manager->add_volume(filename.string(), dens_out->name, sampling, NODE_VDB_FLOAT);
+		compiler.stack_assign(dens_out);
+		compiler.add_node(NODE_OPENVDB,
+		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, dens_out->stack_offset, sampling));
+	}
+
+	if(!heat_out->links.empty()) {
+		grid_slot = vdb_manager->add_volume(filename.string(), heat_out->name, sampling, NODE_VDB_FLOAT);
+		compiler.stack_assign(heat_out);
+		compiler.add_node(NODE_OPENVDB,
+		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, heat_out->stack_offset, sampling));
+	}
+
+	if(!flame_out->links.empty()) {
+		grid_slot = vdb_manager->add_volume(filename.string(), flame_out->name, sampling, NODE_VDB_FLOAT);
+		compiler.stack_assign(flame_out);
+		compiler.add_node(NODE_OPENVDB,
+		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, flame_out->stack_offset, sampling));
+	}
+
+	if(!temp_out->links.empty()) {
+		grid_slot = vdb_manager->add_volume(filename.string(), temp_out->name, sampling, NODE_VDB_FLOAT);
+		compiler.stack_assign(temp_out);
+		compiler.add_node(NODE_OPENVDB,
+		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, temp_out->stack_offset, sampling));
+	}
+
+	if(!vel_out->links.empty()) {
+		grid_slot = vdb_manager->add_volume(filename.string(), vel_out->name, sampling, NODE_VDB_VEC3S);
+		compiler.stack_assign(vel_out);
+		compiler.add_node(NODE_OPENVDB,
+		                  compiler.encode_uchar4(grid_slot, NODE_VDB_VEC3S, vel_out->stack_offset, sampling));
+	}
+}
+
+void OpenVDBNode::compile(OSLCompiler &compiler)
+{
+	(void)compiler;
 }
 
 CCL_NAMESPACE_END

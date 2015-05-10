@@ -245,6 +245,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_drop_named_material);
 	WM_operatortype_append(OBJECT_OT_unlink_data);
 	WM_operatortype_append(OBJECT_OT_laplaciandeform_bind);
+	WM_operatortype_append(OBJECT_OT_smoke_vdb_export);
 
 	WM_operatortype_append(OBJECT_OT_lod_add);
 	WM_operatortype_append(OBJECT_OT_lod_remove);

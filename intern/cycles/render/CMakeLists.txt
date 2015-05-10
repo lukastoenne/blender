@@ -12,6 +12,7 @@ set(INC
 
 set(INC_SYS
 	${GLEW_INCLUDE_DIR}
+	${OPENVDB_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -29,6 +30,7 @@ set(SRC
 	mesh_displace.cpp
 	nodes.cpp
 	object.cpp
+	openvdb.cpp
 	osl.cpp
 	particles.cpp
 	curves.cpp
@@ -56,6 +58,7 @@ set(SRC_HEADERS
 	mesh.h
 	nodes.h
 	object.h
+	openvdb.h
 	osl.h
 	particles.h
 	curves.h

@@ -6,6 +6,7 @@ set(INC
 
 set(INC_SYS
 	${GLEW_INCLUDE_DIR}
+	${OPENVDB_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -52,6 +53,7 @@ set(SRC_HEADERS
 	util_math_fast.h
 	util_md5.h
 	util_opengl.h
+	util_openvdb.h
 	util_optimization.h
 	util_param.h
 	util_path.h

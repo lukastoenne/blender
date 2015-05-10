@@ -313,6 +313,33 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
         point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
 
 
+class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
+    bl_label = "OpenVDB export"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
+
+    def draw_header(self, context):
+        layout = self.layout
+        domain = context.smoke.domain_settings
+        layout.prop(domain, "use_openvdb", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        domain = context.smoke.domain_settings
+
+        layout.active = domain.use_openvdb
+        layout.prop(domain, "filepath")
+        row = layout.row(align=True)
+        row.prop(domain, "frame_start")
+        row.prop(domain, "frame_end")
+        layout.operator("object.smoke_vdb_export")
+
+
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Field Weights"
     bl_options = {'DEFAULT_CLOSED'}

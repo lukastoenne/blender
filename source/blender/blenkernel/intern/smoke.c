@@ -564,6 +564,10 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			smd->domain->viewsettings = MOD_SMOKE_VIEW_SHOWBIG;
 			smd->domain->effector_weights = BKE_add_effector_weights(NULL);
+
+			smd->domain->use_openvdb = false;
+			smd->domain->startframe = 1;
+			smd->domain->endframe = 250;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -2703,10 +2707,18 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			return;
 		}
 
+		/* try to read from openvdb cache */
+//		if (sds->use_openvdb && (sds->flags & MOD_SMOKE_OPENVDB_EXPORTED) == 0) {
+//			smokeModifier_OpenVDB_import(smd, scene, ob);
+//			smd->time = framenr;
+//			return;
+//		}
+
 		/* try to read from cache */
 		if (BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
+
 			return;
 		}
 
@@ -3023,6 +3035,147 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 	if (smoke_has_colors(sds->fluid)) flags |= SM_ACTIVE_COLORS;
 
 	return flags;
+}
+
+struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *ob)
+{
+	FluidDomainDescr descr;
+	float dimension[3], voxel_size[3], voxel_size_high[3];
+
+	descr.active_fields = sds->active_fields;
+	descr.fluid_fields = smoke_get_data_flags(sds);
+	copy_v3_v3(descr.obj_shift_f, sds->obj_shift_f);
+	copy_v3_v3_int(descr.shift, sds->shift);
+	copy_v3_v3(descr.active_color, sds->active_color);
+
+	mul_m4_m4m4(descr.obmat, ob->obmat, ob->imat);
+
+	/* Construct a matrix that represents a voxel:
+	 * vs 0  0  0
+	 * 0  vs 0  0
+	 * 0  0  vs 0
+	 * px py pz 1
+	 * with vs = voxel size, and px, py, pz, the min position of the domain's
+	 * bounding box. We do not take adaptive domain into account here as it will
+	 * make the fluid appear to "drift".
+	 */
+
+	BKE_object_dimensions_get(ob, dimension);
+	mul_v3_v3v3(voxel_size, dimension, sds->cell_size);
+
+	/* only consider the max value as due to float precision issues coupled with
+	 * cuboid domain we might get slightly different xyz values... In short,
+	 * voxels should be cubes!
+	 */
+	copy_v3_fl(voxel_size, max_fff(voxel_size[0], voxel_size[1], voxel_size[2]));
+
+	size_to_mat4(descr.fluidmat, voxel_size);
+	copy_v3_v3(descr.fluidmat[3], sds->p0);
+
+	mul_v3_v3fl(voxel_size_high, voxel_size, 1.0f / (float)(sds->amplify + 1));
+	size_to_mat4(descr.fluidmathigh, voxel_size_high);
+	copy_v3_v3(descr.fluidmathigh[3], sds->p0);
+
+	return descr;
+}
+
+static void set_fluid_description(SmokeDomainSettings *sds, const FluidDomainDescr descr)
+{
+	sds->active_fields = descr.active_fields;
+	//descr.fluid_fields = smoke_get_data_flags(sds);
+	copy_v3_v3(sds->obj_shift_f, descr.obj_shift_f);
+	copy_v3_v3_int(sds->shift, descr.shift);
+	copy_v3_v3(sds->active_color, descr.active_color);
+}
+
+static void cache_filename(char *string, const char *path, const char *relbase, int frame)
+{
+	char cachepath[FILE_MAX];
+	const char *fname = "smoke_export_";
+
+	BLI_join_dirfile(cachepath, sizeof(cachepath), path, fname);
+
+	if (string == NULL) {
+		return;
+	}
+
+	BLI_strncpy(string, cachepath, FILE_MAX - 10);
+	BLI_path_abs(string, relbase);
+	BLI_path_frame(string, frame, 4);
+	BLI_ensure_extension(string, FILE_MAX, ".vdb");
+}
+
+void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm,
+                                  void (*update_cb)(void *, float progress, int *cancel),
+                                  void *update_cb_data)
+{
+	SmokeDomainSettings *sds = smd->domain;
+	FluidDomainDescr descr = get_fluid_description(sds, ob);
+	int orig_frame, fr, cancel = 0;
+	float progress;
+	const char *relbase = modifier_path_relbase(ob);
+	char filename[FILE_MAX];
+
+	orig_frame = scene->r.cfra;
+
+	for (fr = sds->startframe; fr <= sds->endframe; fr++) {
+		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
+		 * so we can't use it here... */
+		scene->r.cfra = fr;
+
+		cache_filename(filename, sds->path, relbase, fr);
+
+		smokeModifier_process(smd, scene, ob, dm, false);
+		smoke_vdb_export(sds->fluid, sds->wt, descr, filename, sds->shadow);
+
+		progress = (fr - sds->startframe) / (float)sds->endframe;
+
+		update_cb(update_cb_data, progress, &cancel);
+
+		if (cancel) {
+			scene->r.cfra = orig_frame;
+			return;
+		}
+	}
+
+	sds->flags |= MOD_SMOKE_OPENVDB_EXPORTED;
+
+	scene->r.cfra = orig_frame;
+}
+
+void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob)
+{
+	SmokeDomainSettings *sds = smd->domain;
+	FluidDomainDescr descr;
+	int startframe = sds->startframe, endframe = sds->endframe, curframe = scene->r.cfra;
+	char filename[FILE_MAX];
+	const char *relbase = modifier_path_relbase(ob);
+	int ret = OPENVDB_NO_ERROR;
+
+	if (curframe < startframe && curframe > endframe) {
+		return;
+	}
+
+	cache_filename(filename, sds->path, relbase, curframe);
+
+	ret = smoke_vdb_import(sds->fluid, sds->wt, &descr, filename, sds->shadow);
+
+	if (ret == OPENVDB_IO_ERROR) {
+		/* TODO(kevin): report error "OpenVDB import error, see console for details" */
+		return;
+	}
+
+	if (ret == OPENVDB_KEY_ERROR) {
+		/* It may happen that some grids are missing on the first frame if the
+		 * simulation hasn't started yet, so it's safe to ignore it. */
+		if (curframe > startframe) {
+			/* TODO(kevin): report error "OpenVDB import error, see console for details" */
+			return;
+		}
+	}
+
+	set_fluid_description(sds, descr);
+	printf("%s\n", __func__);
 }
 
 #endif /* WITH_SMOKE */

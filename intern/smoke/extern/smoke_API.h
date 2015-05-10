@@ -113,6 +113,40 @@ void smoke_ensure_heat(struct FLUID_3D *fluid);
 void smoke_ensure_fire(struct FLUID_3D *fluid, struct WTURBULENCE *wt);
 void smoke_ensure_colors(struct FLUID_3D *fluid, struct WTURBULENCE *wt, float init_r, float init_g, float init_b);
 
+/* This duplicates a few properties from SmokeDomainSettings,
+ * but it's more convenient/readable to pass a struct than having a huge set of
+ * parameters to a function
+ */
+typedef struct FluidDomainDescr {
+	float obmat[4][4];
+	float fluidmat[4][4];
+	float fluidmathigh[4][4];
+	int shift[3];
+	float obj_shift_f[3];
+	int fluid_fields;
+	float active_color[3];
+	int active_fields;
+} FluidDomainDescr;
+
+
+enum {
+	OPENVDB_NO_ERROR      = 0,
+	OPENVDB_ARITHM_ERROR  = 1,
+	OPENVDB_ILLEGAL_ERROR = 2,
+	OPENVDB_INDEX_ERROR   = 3,
+	OPENVDB_IO_ERROR      = 4,
+	OPENVDB_KEY_ERROR     = 5,
+	OPENVDB_LOOKUP_ERROR  = 6,
+	OPENVDB_IMPL_ERROR    = 7,
+	OPENVDB_REF_ERROR     = 8,
+	OPENVDB_TYPE_ERROR    = 9,
+	OPENVDB_VALUE_ERROR   = 10,
+	OPENVDB_UNKNOWN_ERROR = 11,
+};
+
+void smoke_vdb_export(struct FLUID_3D *fluid, struct WTURBULENCE *wt, FluidDomainDescr descr, const char *filename, float *shadow);
+int smoke_vdb_import(struct FLUID_3D *fluid, struct WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow);
+
 #ifdef __cplusplus
 }
 #endif
