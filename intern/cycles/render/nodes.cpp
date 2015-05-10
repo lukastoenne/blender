@@ -4370,12 +4370,6 @@ OpenVDBNode::OpenVDBNode()
 	filename = "";
 	vdb_manager = NULL;
 	sampling = OPENVDB_SAMPLE_POINT;
-
-	add_output("density", SHADER_SOCKET_FLOAT);
-	add_output("heat", SHADER_SOCKET_FLOAT);
-	add_output("flame", SHADER_SOCKET_FLOAT);
-	add_output("fuel", SHADER_SOCKET_FLOAT);
-	add_output("velocity", SHADER_SOCKET_VECTOR);
 }
 
 void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
@@ -4385,47 +4379,27 @@ void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 
 void OpenVDBNode::compile(SVMCompiler &compiler)
 {
-	ShaderOutput *dens_out = output("density");
-	ShaderOutput *heat_out = output("heat");
-	ShaderOutput *flame_out = output("flame");
-	ShaderOutput *temp_out = output("fuel");
-	ShaderOutput *vel_out = output("velocity");
-
 	vdb_manager = compiler.vdb_manager;
 
-	if(!dens_out->links.empty()) {
-		grid_slot = vdb_manager->add_volume(filename.string(), dens_out->name, sampling, NODE_VDB_FLOAT);
-		compiler.stack_assign(dens_out);
-		compiler.add_node(NODE_OPENVDB,
-		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, dens_out->stack_offset, sampling));
-	}
+	for(size_t i = 0; i < outputs.size(); ++i) {
+		ShaderOutput *out = outputs[i];
 
-	if(!heat_out->links.empty()) {
-		grid_slot = vdb_manager->add_volume(filename.string(), heat_out->name, sampling, NODE_VDB_FLOAT);
-		compiler.stack_assign(heat_out);
-		compiler.add_node(NODE_OPENVDB,
-		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, heat_out->stack_offset, sampling));
-	}
+		if(out->links.empty()) {
+			continue;
+		}
 
-	if(!flame_out->links.empty()) {
-		grid_slot = vdb_manager->add_volume(filename.string(), flame_out->name, sampling, NODE_VDB_FLOAT);
-		compiler.stack_assign(flame_out);
-		compiler.add_node(NODE_OPENVDB,
-		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, flame_out->stack_offset, sampling));
-	}
+		int type = NODE_VDB_FLOAT;
 
-	if(!temp_out->links.empty()) {
-		grid_slot = vdb_manager->add_volume(filename.string(), temp_out->name, sampling, NODE_VDB_FLOAT);
-		compiler.stack_assign(temp_out);
-		compiler.add_node(NODE_OPENVDB,
-		                  compiler.encode_uchar4(grid_slot, NODE_VDB_FLOAT, temp_out->stack_offset, sampling));
-	}
+		if(out->type == SHADER_SOCKET_VECTOR) {
+			type = NODE_VDB_VEC3S;
+		}
 
-	if(!vel_out->links.empty()) {
-		grid_slot = vdb_manager->add_volume(filename.string(), vel_out->name, sampling, NODE_VDB_VEC3S);
-		compiler.stack_assign(vel_out);
+		grid_slot = vdb_manager->add_volume(filename.string(), output_names[i].string(), sampling, type);
+
+		compiler.stack_assign(out);
+
 		compiler.add_node(NODE_OPENVDB,
-		                  compiler.encode_uchar4(grid_slot, NODE_VDB_VEC3S, vel_out->stack_offset, sampling));
+		                  compiler.encode_uchar4(grid_slot, type, out->stack_offset, sampling));
 	}
 }
 

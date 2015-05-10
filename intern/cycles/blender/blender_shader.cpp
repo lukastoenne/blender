@@ -741,6 +741,15 @@ static ShaderNode *add_node(Scene *scene,
 		OpenVDBNode *vdb_node = new OpenVDBNode();
 		vdb_node->filename = b_vdb_node.filename();
 		vdb_node->sampling = b_vdb_node.sampling();
+
+		BL::Node::outputs_iterator b_output;
+
+		for(b_vdb_node.outputs.begin(b_output); b_output != b_vdb_node.outputs.end(); ++b_output) {
+			vdb_node->output_names.push_back(ustring(b_output->name()));
+			vdb_node->add_output(vdb_node->output_names.back().c_str(),
+			                     convert_socket_type(*b_output));
+		}
+
 		node = vdb_node;
 	}
 

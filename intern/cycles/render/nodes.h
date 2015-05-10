@@ -676,6 +676,7 @@ public:
 
 	int grid_slot;
 	int sampling;
+	vector<ustring> output_names;
 };
 
 CCL_NAMESPACE_END
