@@ -29,11 +29,15 @@
 #include <openvdb/tools/Dense.h>
 #include <openvdb/tools/LevelSetUtil.h>
 
+#include "openvdb_capi.h"
+#include "openvdb_intern.h"
+
 #include "FLUID_3D.h"
 #include "WTURBULENCE.h"
-#include "../extern/smoke_API.h"
 
 using namespace openvdb;
+
+namespace internal {
 
 template <typename GridType, typename T>
 static void OpenVDB_export_grid(GridPtrVec &gridVec,
@@ -323,3 +327,5 @@ void OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *de
 
 	file.close();
 }
+
+} // namespace internal

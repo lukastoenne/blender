@@ -90,6 +90,7 @@
 /* #define USE_SMOKE_COLLISION_DM */
 
 #include "smoke_API.h"
+#include "openvdb_capi.h"
 
 #ifdef WITH_SMOKE
 
@@ -3126,7 +3127,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		cache_filename(filename, sds->path, relbase, fr);
 
 		smokeModifier_process(smd, scene, ob, dm, false);
-		smoke_vdb_export(sds->fluid, sds->wt, descr, filename, sds->shadow);
+		OpenVDB_export_fluid(sds->fluid, sds->wt, descr, filename, sds->shadow);
 
 		progress = (fr - sds->startframe) / (float)sds->endframe;
 
@@ -3158,7 +3159,7 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 	cache_filename(filename, sds->path, relbase, curframe);
 
-	ret = smoke_vdb_import(sds->fluid, sds->wt, &descr, filename, sds->shadow);
+	ret = OpenVDB_import_fluid(sds->fluid, sds->wt, &descr, filename, sds->shadow);
 
 	if (ret == OPENVDB_IO_ERROR) {
 		/* TODO(kevin): report error "OpenVDB import error, see console for details" */

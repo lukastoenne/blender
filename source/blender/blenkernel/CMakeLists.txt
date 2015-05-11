@@ -36,6 +36,7 @@ set(INC
 	../bmesh
 	../modifiers
 	../nodes
+	../openvdb
 	../physics
 	../render/extern/include
 	../../../intern/ghost

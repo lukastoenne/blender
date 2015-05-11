@@ -42,7 +42,6 @@
 using namespace std;
 using namespace BasicVector;
 struct WTURBULENCE;
-struct FluidDomainDescr;
 
 struct FLUID_3D  
 {
@@ -261,11 +260,5 @@ struct FLUID_3D
 		// static void writeImageSliceXZ(const float *field, Vec3Int res, int slice, string prefix, int picCnt, float scale=1.);
 		// static void writeProjectedIntern(const float *field, Vec3Int res, int dir1, int dir2, string prefix, int picCnt, float scale=1.); 
 };
-
-/**
- * the following functions are defined in openvdb_convert.cpp
- */
-void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr descr, const char *filename, float *shadow);
-void OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow);
 
 #endif

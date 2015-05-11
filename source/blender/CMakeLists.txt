@@ -151,3 +151,6 @@ if(WITH_FREESTYLE)
 	add_subdirectory(freestyle)
 endif()
 
+if(WITH_OPENVDB)
+	add_subdirectory(openvdb)
+endif()
