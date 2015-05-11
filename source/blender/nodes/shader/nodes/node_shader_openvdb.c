@@ -27,19 +27,22 @@
 
 #include "../node_shader_util.h"
 
-static bNodeSocketTemplate sh_node_openvdb_out[] = {
-	{ SOCK_FLOAT,  0, N_("density"),  0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f },
-	{ SOCK_FLOAT,  0, N_("heat"),     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f },
-	{ SOCK_FLOAT,  0, N_("flame"),    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f },
-	{ SOCK_FLOAT,  0, N_("fuel"),     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f },
-	{ SOCK_VECTOR, 0, N_("velocity"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f },
-	{ -1, 0, ""	}
-};
+#include "openvdb_capi.h"
 
 static void node_shader_init_openvdb(bNodeTree *UNUSED(ntree), bNode *node)
 {
 	NodeShaderOpenVDB *vdb = MEM_callocN(sizeof(NodeShaderOpenVDB), "NodeShaderOpenVDB");
 	node->storage = vdb;
+}
+
+void ntreeUpdateOpenVDBNode(bNodeTree *ntree, bNode *node)
+{
+	NodeShaderOpenVDB *vdb = node->storage;
+
+	if (vdb) {
+		BLI_listbase_clear(&node->outputs);
+		OpenVDB_getNodeSockets(vdb->filename, ntree, node);
+	}
 }
 
 void register_node_type_sh_openvdb(void)
@@ -48,7 +51,6 @@ void register_node_type_sh_openvdb(void)
 
 	sh_node_type_base(&ntype, SH_NODE_OPENVDB, "OpenVDB Volume", NODE_CLASS_INPUT, 0);
 	node_type_compatibility(&ntype, NODE_NEW_SHADING);
-	node_type_socket_templates(&ntype, NULL, sh_node_openvdb_out);
 	node_type_init(&ntype, node_shader_init_openvdb);
 	node_type_storage(&ntype, "NodeShaderOpenVDB", node_free_standard_storage, node_copy_standard_storage);
 

@@ -25,6 +25,16 @@
 
 #include <openvdb/openvdb.h>
 
+extern "C" {
+#include "DNA_node_types.h"
+
+#include "BKE_node.h"
+
+#include "BLI_listbase.h"
+}
+
+#include "MEM_guardedalloc.h"
+
 #include "openvdb_capi.h"
 #include "openvdb_intern.h"
 #include "openvdb_util.h"
@@ -36,19 +46,34 @@ int OpenVDB_getVersionHex()
     return OPENVDB_LIBRARY_VERSION;
 }
 
-void OpenVDB_getGridInfo(const char *filename)
+void OpenVDB_getNodeSockets(const char *filename, bNodeTree *ntree, bNode *node)
 {
 	int ret = OPENVDB_NO_ERROR;
+	initialize();
 
 	try {
 		io::File file(filename);
 		file.open();
 
-		for (io::File::NameIterator name_iter = file.beginName();
-		     name_iter != file.endName();
-		     ++name_iter)
-		{
-			std::cout << name_iter.gridName() << std::endl;
+		GridPtrVecPtr grids = file.getGrids();
+
+		for (size_t i = 0; i < grids->size(); ++i) {
+			GridBase::ConstPtr grid = (*grids)[i];
+			int type;
+
+			if (grid->valueType() == "float") {
+				type = SOCK_FLOAT;
+			}
+			else if (grid->valueType() == "vec3s") {
+				type = SOCK_VECTOR;
+			}
+			else {
+				continue;
+			}
+
+			const char *name = grid->getName().c_str();
+
+			nodeAddStaticSocket(ntree, node, SOCK_OUT, type, PROP_NONE, NULL, name);
 		}
 	}
 	catch (...) {

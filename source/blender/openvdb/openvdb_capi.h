@@ -30,12 +30,14 @@
 extern "C" {
 #endif
 
+struct bNode;
+struct bNodeTree;
 struct FLUID_3D;
 struct WTURBULENCE;
 
 int OpenVDB_getVersionHex(void);
 
-void OpenVDB_getGridInfo(const char *filename);
+void OpenVDB_getNodeSockets(const char *filename, struct bNodeTree *ntree, struct bNode *node);
 
 
 /* This duplicates a few properties from SmokeDomainSettings,

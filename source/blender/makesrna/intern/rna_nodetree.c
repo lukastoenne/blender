@@ -2969,6 +2969,15 @@ static void rna_CompositorNodeScale_update(Main *bmain, Scene *scene, PointerRNA
 	rna_Node_update(bmain, scene, ptr);
 }
 
+static void rna_ShaderNodeOpenVDB_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node = (bNode *)ptr->data;
+
+	ntreeUpdateOpenVDBNode(ntree, node);
+	rna_Node_update(bmain, scene, ptr);
+}
+
 #else
 
 static EnumPropertyItem prop_image_layer_items[] = {
@@ -3888,7 +3897,7 @@ static void def_sh_openvdb(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_ui_text(prop, "File Path", "Path to the file to use");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNodeOpenVDB_update");
 
 	prop = RNA_def_property(srna, "sampling", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_openvdb_sampling);

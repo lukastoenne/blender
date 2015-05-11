@@ -36,6 +36,7 @@ set(INC
 	../imbuf
 	../makesdna
 	../makesrna
+	../openvdb
 	../render/extern/include
 	../../../intern/guardedalloc
 	../../../intern/glew-mx

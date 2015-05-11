@@ -811,6 +811,8 @@ void            set_node_shader_lamp_loop(void (*lamp_loop_func)(struct ShadeInp
 
 void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat, short compatibility);
 
+void            ntreeUpdateOpenVDBNode(struct bNodeTree *ntree, struct bNode *node);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
