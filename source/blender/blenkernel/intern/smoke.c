@@ -3041,7 +3041,10 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *ob)
 {
 	FluidDomainDescr descr;
+	BoundBox *bbox;
 	float dimension[3], voxel_size[3], voxel_size_high[3];
+	float bbox_min[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
+	int i;
 
 	descr.active_fields = sds->active_fields;
 	descr.fluid_fields = smoke_get_data_flags(sds);
@@ -3062,7 +3065,20 @@ struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *
 	 */
 
 	BKE_object_dimensions_get(ob, dimension);
-	mul_v3_v3v3(voxel_size, dimension, sds->cell_size);
+//	mul_v3_v3v3(voxel_size, dimension, sds->cell_size);
+	copy_v3_v3(voxel_size, dimension);
+
+	voxel_size[0] /= (sds->base_res[0]);
+	voxel_size[1] /= (sds->base_res[1]);
+	voxel_size[2] /= (sds->base_res[2]);
+
+	bbox = BKE_object_boundbox_get(ob);
+
+	for (i = 0; i < 8; i++) {
+		bbox_min[0] = min_ff(bbox_min[0], bbox->vec[i][0]);
+		bbox_min[1] = min_ff(bbox_min[1], bbox->vec[i][1]);
+		bbox_min[2] = min_ff(bbox_min[2], bbox->vec[i][2]);
+	}
 
 	/* only consider the max value as due to float precision issues coupled with
 	 * cuboid domain we might get slightly different xyz values... In short,
@@ -3070,12 +3086,14 @@ struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *
 	 */
 	copy_v3_fl(voxel_size, max_fff(voxel_size[0], voxel_size[1], voxel_size[2]));
 
+	mul_v3_fl(bbox_min, 2.0f);
+
 	size_to_mat4(descr.fluidmat, voxel_size);
-	copy_v3_v3(descr.fluidmat[3], sds->p0);
+	copy_v3_v3(descr.fluidmat[3], bbox_min);
 
 	mul_v3_v3fl(voxel_size_high, voxel_size, 1.0f / (float)(sds->amplify + 1));
 	size_to_mat4(descr.fluidmathigh, voxel_size_high);
-	copy_v3_v3(descr.fluidmathigh[3], sds->p0);
+	copy_v3_v3(descr.fluidmathigh[3], bbox_min);
 
 	return descr;
 }
@@ -3111,7 +3129,6 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
                                   void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	FluidDomainDescr descr = get_fluid_description(sds, ob);
 	int orig_frame, fr, cancel = 0;
 	float progress;
 	const char *relbase = modifier_path_relbase(ob);
@@ -3120,6 +3137,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	orig_frame = scene->r.cfra;
 
 	for (fr = sds->startframe; fr <= sds->endframe; fr++) {
+		FluidDomainDescr descr = get_fluid_description(sds, ob);
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
