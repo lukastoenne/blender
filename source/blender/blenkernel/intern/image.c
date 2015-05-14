@@ -338,7 +338,7 @@ void BKE_image_free(Image *ima)
 
 	image_free_packedfiles(ima);
 
-	BKE_icon_delete(&ima->id);
+	BKE_icon_id_delete(&ima->id);
 	ima->id.icon_id = 0;
 
 	BKE_previewimg_free(&ima->preview);
@@ -2398,6 +2398,7 @@ static void image_viewer_create_views(const RenderData *rd, Image *ima)
 void BKE_image_verify_viewer_views(const RenderData *rd, Image *ima, ImageUser *iuser)
 {
 	bool do_reset;
+	const bool is_multiview = (rd->scemode & R_MULTIVIEW) != 0;
 
 	BLI_lock_thread(LOCK_DRAW_IMAGE);
 
@@ -2413,7 +2414,9 @@ void BKE_image_verify_viewer_views(const RenderData *rd, Image *ima, ImageUser *
 
 	/* see if all scene render views are in the image view list */
 	do_reset = (BKE_scene_multiview_num_views_get(rd) != BLI_listbase_count(&ima->views));
-	if (!do_reset) {
+
+	/* multiview also needs to be sure all the views are synced */
+	if (is_multiview && !do_reset) {
 		SceneRenderView *srv;
 		ImageView *iv;
 
@@ -3001,7 +3004,7 @@ static void image_initialize_after_load(Image *ima, ImBuf *ibuf)
 {
 	/* preview is NULL when it has never been used as an icon before */
 	if (G.background == 0 && ima->preview == NULL)
-		BKE_icon_changed(BKE_icon_getid(&ima->id));
+		BKE_icon_changed(BKE_icon_id_ensure(&ima->id));
 
 	/* fields */
 	if (ima->flag & IMA_FIELDS) {
@@ -3729,9 +3732,10 @@ static size_t image_get_multiview_index(Image *ima, ImageUser *iuser)
 {
 	const bool is_multilayer = BKE_image_is_multilayer(ima);
 	const bool is_backdrop = (ima->source == IMA_SRC_VIEWER) && (ima->type ==  IMA_TYPE_COMPOSITE) && (iuser == NULL);
+	int index = BKE_image_is_animated(ima) ? 0 : IMA_NO_INDEX;
 
 	if (is_multilayer) {
-		return iuser ? iuser->multi_index : IMA_NO_INDEX;
+		return iuser ? iuser->multi_index : index;
 	}
 	else if (is_backdrop) {
 		if ((ima->flag & IMA_IS_STEREO)) {
@@ -3740,16 +3744,15 @@ static size_t image_get_multiview_index(Image *ima, ImageUser *iuser)
 		}
 	}
 	else if ((ima->flag & IMA_IS_MULTIVIEW)) {
-		return iuser ? iuser->multi_index : 0;
+		return iuser ? iuser->multi_index : index;
 	}
 
-	return IMA_NO_INDEX;
+	return index;
 }
 
 static void image_get_frame_and_index(Image *ima, ImageUser *iuser, int *r_frame, int *r_index)
 {
-	int frame = 0, index = 0;
-	index = image_get_multiview_index(ima, iuser);
+	int frame = 0, index = image_get_multiview_index(ima, iuser);
 
 	/* see if we already have an appropriate ibuf, with image source and type */
 	if (ima->source == IMA_SRC_MOVIE) {
@@ -3777,9 +3780,7 @@ static void image_get_frame_and_index(Image *ima, ImageUser *iuser, int *r_frame
 static ImBuf *image_get_cached_ibuf(Image *ima, ImageUser *iuser, int *r_frame, int *r_index)
 {
 	ImBuf *ibuf = NULL;
-	int frame = 0, index = 0;
-
-	index = image_get_multiview_index(ima, iuser);
+	int frame = 0, index = image_get_multiview_index(ima, iuser);
 
 	/* see if we already have an appropriate ibuf, with image source and type */
 	if (ima->source == IMA_SRC_MOVIE) {

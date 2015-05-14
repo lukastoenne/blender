@@ -1394,7 +1394,7 @@ void BKE_curve_forward_diff_tangent_bezier(float q0, float q1, float q2, float q
 
 	rt0 = 3.0f * (q1 - q0);
 	rt1 = f * (3.0f * (q3 - q0) + 9.0f * (q1 - q2));
-	rt2 = 6.0f * (q0 + q2)- 12.0f * q1;
+	rt2 = 6.0f * (q0 + q2) - 12.0f * q1;
 
 	q0 = rt0;
 	q1 = f * (rt1 + rt2);
@@ -4562,4 +4562,28 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 
 	r_rect->xmax = r_rect->xmin + tb->w;
 	r_rect->ymin = r_rect->ymax - tb->h;
+}
+
+/* **** Depsgraph evaluation **** */
+
+void BKE_curve_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
+                             Curve *curve)
+{
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		printf("%s on %s\n", __func__, curve->id.name);
+	}
+	if (curve->bb == NULL || (curve->bb->flag & BOUNDBOX_DIRTY)) {
+		BKE_curve_texspace_calc(curve);
+	}
+}
+
+void BKE_curve_eval_path(EvaluationContext *UNUSED(eval_ctx),
+                         Curve *curve)
+{
+	/* TODO(sergey): This will probably need to be a part of
+	 * the modifier stack still.
+	 */
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		printf("%s on %s\n", __func__, curve->id.name);
+	}
 }

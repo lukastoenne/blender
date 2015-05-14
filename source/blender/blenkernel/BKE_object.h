@@ -47,6 +47,7 @@ struct MovieClip;
 struct Main;
 struct RigidBodyWorld;
 struct HookModifierData;
+struct ModifierData;
 
 void BKE_object_workob_clear(struct Object *workob);
 void BKE_object_workob_calc_parent(struct Scene *scene, struct Object *ob, struct Object *workob);
@@ -124,6 +125,7 @@ void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4]);
 bool BKE_object_pose_context_check(struct Object *ob);
 struct Object *BKE_object_pose_armature_get(struct Object *ob);
 
+void BKE_object_get_parent_matrix(struct Scene *scene, struct Object *ob, struct Object *par, float parentmat[4][4]);
 void BKE_object_where_is_calc(struct Scene *scene, struct Object *ob);
 void BKE_object_where_is_calc_ex(struct Scene *scene, struct RigidBodyWorld *rbw, struct Object *ob, float r_originmat[3][3]);
 void BKE_object_where_is_calc_time(struct Scene *scene, struct Object *ob, float ctime);
@@ -178,6 +180,32 @@ void BKE_object_tfm_protected_restore(struct Object *ob,
                                       const ObjectTfmProtectedChannels *obtfm,
                                       const short protectflag);
 
+/* Dependency graph evaluation callbacks. */
+void BKE_object_eval_local_transform(struct EvaluationContext *eval_ctx,
+                                     struct Scene *scene,
+                                     struct Object *ob);
+void BKE_object_eval_parent(struct EvaluationContext *eval_ctx,
+                            struct Scene *scene,
+                            struct Object *ob);
+void BKE_object_eval_constraints(struct EvaluationContext *eval_ctx,
+                                 struct Scene *scene,
+                                 struct Object *ob);
+void BKE_object_eval_done(struct EvaluationContext *eval_ctx, struct Object *ob);
+
+void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
+                              struct Scene *scene,
+                              struct Object *ob,
+                              struct ModifierData *md);
+void BKE_object_eval_uber_transform(struct EvaluationContext *eval_ctx,
+                                    struct Scene *scene,
+                                    struct Object *ob);
+void BKE_object_eval_uber_data(struct EvaluationContext *eval_ctx,
+                               struct Scene *scene,
+                               struct Object *ob);
+
+void BKE_object_handle_data_update(struct EvaluationContext *eval_ctx,
+                                   struct Scene *scene,
+                                   struct Object *ob);
 void BKE_object_handle_update(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void BKE_object_handle_update_ex(struct EvaluationContext *eval_ctx,
                                  struct Scene *scene, struct Object *ob,
@@ -227,6 +255,8 @@ struct LinkNode *BKE_object_groups(struct Object *ob);
 void             BKE_object_groups_clear(struct Scene *scene, struct Base *base, struct Object *object);
 
 struct KDTree *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
+
+bool BKE_object_modifier_use_time(struct Object *ob, struct ModifierData *md);
 
 #ifdef __cplusplus
 }

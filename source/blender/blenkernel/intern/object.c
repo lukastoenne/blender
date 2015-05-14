@@ -2052,14 +2052,12 @@ void BKE_object_to_mat4(Object *ob, float mat[4][4])
 	add_v3_v3v3(mat[3], ob->loc, ob->dloc);
 }
 
-static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
-
 void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4])
 {
 	if (ob->parent) {
 		float par_imat[4][4];
 
-		ob_get_parent_matrix(NULL, ob, ob->parent, par_imat);
+		BKE_object_get_parent_matrix(NULL, ob, ob->parent, par_imat);
 		invert_m4(par_imat);
 		mul_m4_m4m4(mat, par_imat, ob->obmat);
 	}
@@ -2351,7 +2349,8 @@ static void ob_parvert3(Object *ob, Object *par, float mat[4][4])
 	}
 }
 
-static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4])
+
+void BKE_object_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4])
 {
 	float tmat[4][4];
 	float vec[3];
@@ -2408,7 +2407,7 @@ static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4
 	
 	if (ob->partype & PARSLOW) copy_m4_m4(slowmat, obmat);
 
-	ob_get_parent_matrix(scene, ob, par, totmat);
+	BKE_object_get_parent_matrix(scene, ob, par, totmat);
 	
 	/* total */
 	mul_m4_m4m4(tmat, totmat, ob->parentinv);
@@ -2566,7 +2565,7 @@ void BKE_object_apply_mat4(Object *ob, float mat[4][4], const bool use_compat, c
 	if (use_parent && ob->parent) {
 		float rmat[4][4], diff_mat[4][4], imat[4][4], parent_mat[4][4];
 
-		ob_get_parent_matrix(NULL, ob, ob->parent, parent_mat);
+		BKE_object_get_parent_matrix(NULL, ob, ob->parent, parent_mat);
 
 		mul_m4_m4m4(diff_mat, parent_mat, ob->parentinv);
 		invert_m4_m4(imat, diff_mat);
@@ -3046,147 +3045,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 		}
 		
 		if (ob->recalc & OB_RECALC_DATA) {
-			ID *data_id = (ID *)ob->data;
-			AnimData *adt = BKE_animdata_from_id(data_id);
-			Key *key;
-			float ctime = BKE_scene_frame_get(scene);
-			
-			if (G.debug & G_DEBUG_DEPSGRAPH)
-				printf("recalcdata %s\n", ob->id.name + 2);
-
-			if (adt) {
-				/* evaluate drivers - datalevel */
-				/* XXX: for mesh types, should we push this to derivedmesh instead? */
-				BKE_animsys_evaluate_animdata(scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
-			}
-			
-			key = BKE_key_from_object(ob);
-			if (key && key->block.first) {
-				if (!(ob->shapeflag & OB_SHAPE_LOCK))
-					BKE_animsys_evaluate_animdata(scene, &key->id, key->adt, ctime, ADT_RECALC_DRIVERS);
-			}
-
-			/* includes all keys and modifiers */
-			switch (ob->type) {
-				case OB_MESH:
-				{
-					BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
-					uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
-#ifdef WITH_FREESTYLE
-					/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
-					if (eval_ctx->mode != DAG_EVAL_VIEWPORT) {
-						data_mask |= CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
-					}
-#endif
-					if (em) {
-						makeDerivedMesh(scene, ob, em,  data_mask, 0); /* was CD_MASK_BAREMESH */
-					}
-					else {
-						makeDerivedMesh(scene, ob, NULL, data_mask, 0);
-					}
-					break;
-				}
-				case OB_ARMATURE:
-					if (ob->id.lib && ob->proxy_from) {
-						if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
-							printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
-							       ob->id.name + 2, ob->proxy_from->id.name + 2);
-						}
-					}
-					else {
-						BKE_pose_where_is(scene, ob);
-					}
-					break;
-
-				case OB_MBALL:
-					BKE_displist_make_mball(eval_ctx, scene, ob);
-					break;
-
-				case OB_CURVE:
-				case OB_SURF:
-				case OB_FONT:
-					BKE_displist_make_curveTypes(scene, ob, 0);
-					break;
-				
-				case OB_LATTICE:
-					BKE_lattice_modifiers_calc(scene, ob);
-					break;
-
-				case OB_EMPTY:
-					if (ob->empty_drawtype == OB_EMPTY_IMAGE && ob->data)
-						if (BKE_image_is_animated(ob->data))
-							BKE_image_user_check_frame_calc(ob->iuser, (int)ctime, 0);
-					break;
-			}
-			
-			/* related materials */
-			/* XXX: without depsgraph tagging, this will always need to be run, which will be slow! 
-			 * However, not doing anything (or trying to hack around this lack) is not an option 
-			 * anymore, especially due to Cycles [#31834] 
-			 */
-			if (ob->totcol) {
-				int a;
-				
-				for (a = 1; a <= ob->totcol; a++) {
-					Material *ma = give_current_material(ob, a);
-					
-					if (ma) {
-						/* recursively update drivers for this material */
-						material_drivers_update(scene, ma, ctime);
-					}
-				}
-			}
-			else if (ob->type == OB_LAMP)
-				lamp_drivers_update(scene, ob->data, ctime);
-			
-			/* particles */
-			if (ob != scene->obedit && ob->particlesystem.first) {
-				ParticleSystem *tpsys, *psys;
-				DerivedMesh *dm;
-				ob->transflag &= ~OB_DUPLIPARTS;
-				
-				psys = ob->particlesystem.first;
-				while (psys) {
-					/* ensure this update always happens even if psys is disabled */
-					if (psys->recalc & PSYS_RECALC_TYPE) {
-						psys_changed_type(ob, psys);
-					}
-
-					if (psys_check_enabled(ob, psys)) {
-						/* check use of dupli objects here */
-						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->mode == DAG_EVAL_RENDER) &&
-						    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
-						     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
-						{
-							ob->transflag |= OB_DUPLIPARTS;
-						}
-
-						particle_system_update(scene, ob, psys);
-						psys = psys->next;
-					}
-					else if (psys->flag & PSYS_DELETE) {
-						tpsys = psys->next;
-						BLI_remlink(&ob->particlesystem, psys);
-						psys_free(ob, psys);
-						psys = tpsys;
-					}
-					else
-						psys = psys->next;
-				}
-
-				if (eval_ctx->mode == DAG_EVAL_RENDER && ob->transflag & OB_DUPLIPARTS) {
-					/* this is to make sure we get render level duplis in groups:
-					 * the derivedmesh must be created before init_render_mesh,
-					 * since object_duplilist does dupliparticles before that */
-					dm = mesh_create_derived_render(scene, ob, CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
-					dm->release(dm);
-
-					for (psys = ob->particlesystem.first; psys; psys = psys->next)
-						psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
-				}
-			}
-			
-			/* quick cache removed */
+			BKE_object_handle_data_update(eval_ctx, scene, ob);
 		}
 
 		ob->recalc &= ~OB_RECALC_ALL;
@@ -4030,4 +3889,52 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 
 	*r_tot = tot;
 	return tree;
+}
+
+bool BKE_object_modifier_use_time(Object *ob, ModifierData *md)
+{
+	if (modifier_dependsOnTime(md)) {
+		return true;
+	}
+
+	/* Check whether modifier is animated. */
+	/* TODO: this should be handled as part of build_animdata() -- Aligorith */
+	if (ob->adt) {
+		AnimData *adt = ob->adt;
+		FCurve *fcu;
+
+		char pattern[MAX_NAME + 10];
+		/* TODO(sergey): Escape modifier name. */
+		BLI_snprintf(pattern, sizeof(pattern), "modifiers[%s", md->name);
+
+		/* action - check for F-Curves with paths containing 'modifiers[' */
+		if (adt->action) {
+			for (fcu = (FCurve *)adt->action->curves.first;
+			     fcu != NULL;
+			     fcu = (FCurve *)fcu->next)
+			{
+				if (fcu->rna_path && strstr(fcu->rna_path, pattern))
+					return true;
+			}
+		}
+
+		/* This here allows modifier properties to get driven and still update properly
+		 *
+		 * Workaround to get [#26764] (e.g. subsurf levels not updating when animated/driven)
+		 * working, without the updating problems ([#28525] [#28690] [#28774] [#28777]) caused
+		 * by the RNA updates cache introduced in r.38649
+		 */
+		for (fcu = (FCurve *)adt->drivers.first;
+		     fcu != NULL;
+		     fcu = (FCurve *)fcu->next)
+		{
+			if (fcu->rna_path && strstr(fcu->rna_path, pattern))
+				return true;
+		}
+
+		/* XXX: also, should check NLA strips, though for now assume that nobody uses
+		 * that and we can omit that for performance reasons... */
+	}
+
+	return false;
 }
