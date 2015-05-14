@@ -2359,7 +2359,10 @@ static void smoke_export_startjob(void *customdata, short *stop, short *do_updat
 static void smoke_export_endjob(void *customdata)
 {
 	SmokeExportJob *sej = customdata;
-	WM_main_add_notifier(NC_OBJECT | ND_DRAW, sej->ob);
+	Object *ob = sej->ob;
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 }
 
 static int smoke_vdb_export_exec(bContext *C, wmOperator *op)
