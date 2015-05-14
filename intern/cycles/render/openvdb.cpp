@@ -16,6 +16,7 @@
 
 #include "openvdb.h"
 #include "scene.h"
+#include "util_logging.h"
 #include "util_progress.h"
 
 CCL_NAMESPACE_BEGIN
@@ -158,6 +159,11 @@ void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *s
 	if(progress.get_cancel()) {
 		return;
 	}
+
+	VLOG(1) << "VDB Samplers allocate: __vdb_float_samplers_p, " << float_samplers_p.size() * sizeof(vdb_fsampler_p) << " bytes";
+	VLOG(1) << "VDB Samplers allocate: __vdb_float_samplers_b, " << float_samplers_b.size() * sizeof(vdb_fsampler_b) << " bytes";
+	VLOG(1) << "VDB Samplers allocate: __vdb_vec3s_samplers_p, " << vec3s_samplers_p.size() * sizeof(vdb_vsampler_p) << " bytes";
+	VLOG(1) << "VDB Samplers allocate: __vdb_vec3s_samplers_b, " << vec3s_samplers_b.size() * sizeof(vdb_vsampler_b) << " bytes";
 
 	need_update = false;
 }
