@@ -3109,8 +3109,7 @@ static void cache_filename(char *string, const char *path, const char *relbase, 
 }
 
 void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm,
-                                  void (*update_cb)(void *, float progress, int *cancel),
-                                  void *update_cb_data)
+                                  update_cb update, void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
 	int orig_frame, fr, cancel = 0;
@@ -3133,7 +3132,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 
 		progress = (fr - sds->startframe) / (float)sds->endframe;
 
-		update_cb(update_cb_data, progress, &cancel);
+		update(update_cb_data, progress, &cancel);
 
 		if (cancel) {
 			scene->r.cfra = orig_frame;
@@ -3179,6 +3178,43 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 	set_fluid_description(sds, descr);
 	printf("%s\n", __func__);
+}
+
+void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
+                                            Scene *scene,
+                                            Object *ob,
+                                            update_cb update,
+                                            void *update_cb_data)
+{
+	SmokeDomainSettings *sds = smd->domain;
+	int orig_frame, fr, cancel = 0;
+	float progress;
+	const char *relbase = modifier_path_relbase(ob);
+	char filename[FILE_MAX];
+
+	orig_frame = scene->r.cfra;
+
+	for (fr = sds->startframe; fr <= sds->endframe; fr++) {
+		FluidDomainDescr descr = get_fluid_description(sds, ob);
+		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
+		 * so we can't use it here... */
+		scene->r.cfra = fr;
+
+		cache_filename(filename, sds->path, relbase, fr);
+
+		OpenVDB_update_fluid_transform(filename, descr);
+
+		progress = (fr - sds->startframe) / (float)sds->endframe;
+
+		update(update_cb_data, progress, &cancel);
+
+		if (cancel) {
+			scene->r.cfra = orig_frame;
+			return;
+		}
+	}
+
+	scene->r.cfra = orig_frame;
 }
 
 #endif /* WITH_SMOKE */

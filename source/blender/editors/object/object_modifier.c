@@ -2410,3 +2410,66 @@ void OBJECT_OT_smoke_vdb_export(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
+
+static void smoke_transform_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+	SmokeExportJob *sej = customdata;
+
+	sej->stop = stop;
+	sej->do_update = do_update;
+	sej->progress = progress;
+
+	G.is_break = false;
+
+	smokeModifier_OpenVDB_update_transform(sej->smd, sej->scene, sej->ob, sej->dm,
+	                                       smoke_export_update, (void *)sej);
+
+	*do_update = true;
+	*stop = 0;
+}
+
+static int smoke_transform_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_active_context(C);
+	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+	Scene *scene = CTX_data_scene(C);
+	wmJob *wm_job;
+	SmokeExportJob *sej;
+
+	if (!smd) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* setup job */
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "OpenVDB export",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_SMOKE_EXPORT);
+
+	sej = MEM_callocN(sizeof(SmokeExportJob), "smoke export job");
+	sej->smd = smd;
+	sej->scene = scene;
+	sej->ob = ob;
+	sej->dm = ob->derivedDeform;
+
+	WM_jobs_customdata_set(wm_job, sej, smoke_export_free);
+	WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
+	WM_jobs_callbacks(wm_job, smoke_transform_startjob, NULL, NULL, smoke_export_endjob);
+
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
+
+	return OPERATOR_FINISHED;
+
+	UNUSED_VARS(op);
+}
+
+void OBJECT_OT_smoke_vdb_transform_update(wmOperatorType *ot)
+{
+	ot->name = "Update transform matrix";
+	ot->description = "Update transformation matrices for all grids in the file";
+	ot->idname = "OBJECT_OT_smoke_vdb_transform_update";
+
+	ot->poll = ED_operator_object_active_editable;
+	ot->exec = smoke_transform_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}

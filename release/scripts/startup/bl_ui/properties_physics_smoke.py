@@ -338,6 +338,7 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
         row.prop(domain, "frame_start")
         row.prop(domain, "frame_end")
         layout.operator("object.smoke_vdb_export")
+        layout.operator("object.smoke_vdb_transform_update")
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):

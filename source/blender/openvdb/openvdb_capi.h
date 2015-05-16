@@ -72,6 +72,7 @@ enum {
 
 void OpenVDB_export_fluid(struct FLUID_3D *fluid, struct WTURBULENCE *wt, FluidDomainDescr descr, const char *filename, float *shadow);
 int OpenVDB_import_fluid(struct FLUID_3D *fluid, struct WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow);
+void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr);
 
 #ifdef __cplusplus
 }

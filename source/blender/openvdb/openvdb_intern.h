@@ -34,6 +34,7 @@ namespace internal {
 
 void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, struct FluidDomainDescr descr, const char *filename, float *shadow);
 void OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow);
+void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr);
 
 }
 

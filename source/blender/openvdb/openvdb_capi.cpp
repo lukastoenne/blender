@@ -106,3 +106,16 @@ int OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *des
 
 	return ret;
 }
+
+
+void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr)
+{
+	int ret = OPENVDB_NO_ERROR;
+
+	try {
+		internal::OpenVDB_update_fluid_transform(filename, descr);
+	}
+	catch (...) {
+		catch_exception(ret);
+	}
+}

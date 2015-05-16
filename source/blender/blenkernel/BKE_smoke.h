@@ -52,10 +52,18 @@ int smoke_get_data_flags(struct SmokeDomainSettings *sds);
 
 struct FluidDomainDescr get_fluid_description(struct SmokeDomainSettings *sds, struct Object *ob);
 
+typedef void (*update_cb)(void *, float progress, int *cancel);
+
 void smokeModifier_OpenVDB_export(struct SmokeModifierData *smd, struct Scene *scene,
                                   struct Object *ob, struct DerivedMesh *dm,
-                                  void (*update_cb)(void *, float progress, int *cancel),
+                                  update_cb update,
                                   void *update_cb_data);
+
+void smokeModifier_OpenVDB_update_transform(struct SmokeModifierData *smd,
+                                            struct Scene *scene,
+                                            struct Object *ob,
+                                            update_cb update,
+                                            void *update_cb_data);
 
 void smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob);
 

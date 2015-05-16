@@ -328,4 +328,52 @@ void OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *de
 	file.close();
 }
 
+void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr)
+{
+	/* TODO(kevin): deduplicate this call */
+	initialize();
+
+	Mat4R obj_mat = Mat4R(
+	        descr.obmat[0][0], descr.obmat[0][1], descr.obmat[0][2], descr.obmat[0][3],
+	        descr.obmat[1][0], descr.obmat[1][1], descr.obmat[1][2], descr.obmat[1][3],
+	        descr.obmat[2][0], descr.obmat[2][1], descr.obmat[2][2], descr.obmat[2][3],
+	        descr.obmat[3][0], descr.obmat[3][1], descr.obmat[3][2], descr.obmat[3][3]);
+
+	Mat4R fluid_mat = Mat4R(
+	        descr.fluidmat[0][0], descr.fluidmat[0][1], descr.fluidmat[0][2], descr.fluidmat[0][3],
+	        descr.fluidmat[1][0], descr.fluidmat[1][1], descr.fluidmat[1][2], descr.fluidmat[1][3],
+	        descr.fluidmat[2][0], descr.fluidmat[2][1], descr.fluidmat[2][2], descr.fluidmat[2][3],
+	        descr.fluidmat[3][0], descr.fluidmat[3][1], descr.fluidmat[3][2], descr.fluidmat[3][3]);
+
+	Mat4R fluid_matBig = Mat4R(
+	        descr.fluidmathigh[0][0], descr.fluidmathigh[0][1], descr.fluidmathigh[0][2], descr.fluidmathigh[0][3],
+	        descr.fluidmathigh[1][0], descr.fluidmathigh[1][1], descr.fluidmathigh[1][2], descr.fluidmathigh[1][3],
+	        descr.fluidmathigh[2][0], descr.fluidmathigh[2][1], descr.fluidmathigh[2][2], descr.fluidmathigh[2][3],
+	        descr.fluidmathigh[3][0], descr.fluidmathigh[3][1], descr.fluidmathigh[3][2], descr.fluidmathigh[3][3]);
+
+	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat * obj_mat);
+	math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig * obj_mat);
+
+	io::File file(filename);
+	file.open();
+	GridPtrVecPtr grids = file.getGrids();
+	GridBase::Ptr grid;
+
+	for (size_t i = 0; i < grids->size(); ++i) {
+		grid = (*grids)[i];
+
+		const std::string name = grid->getName();
+		size_t found = name.find("High");
+
+		if (found != std::string::npos) {
+			grid->setTransform(transformBig);
+		}
+		else {
+			grid->setTransform(transform);
+		}
+	}
+
+	file.close();
+}
+
 } // namespace internal
