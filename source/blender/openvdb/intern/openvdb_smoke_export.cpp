@@ -27,7 +27,6 @@
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
-#include <openvdb/tools/LevelSetUtil.h>
 
 #include "openvdb_capi.h"
 #include "openvdb_intern.h"
@@ -180,26 +179,26 @@ void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr des
 
 	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat * obj_mat);
 
-	OpenVDB_export_grid<FloatGrid>(gridVec, "shadow", shadow, 0.0f, bbox, transform);
-	OpenVDB_export_grid<FloatGrid>(gridVec, "density", fluid->_density, 0.0f, bbox, transform);
+	OpenVDB_export_grid<FloatGrid>(gridVec, "Shadow", shadow, 0.0f, bbox, transform);
+	OpenVDB_export_grid<FloatGrid>(gridVec, "Density", fluid->_density, 0.0f, bbox, transform);
 
 	if (fluid->_heat) {
-		OpenVDB_export_grid<FloatGrid>(gridVec, "heat", fluid->_heat, 0.0f, bbox, transform);
-		OpenVDB_export_grid<FloatGrid>(gridVec, "heat_old", fluid->_heatOld, 0.0f, bbox, transform);
+		OpenVDB_export_grid<FloatGrid>(gridVec, "Heat", fluid->_heat, 0.0f, bbox, transform);
+		OpenVDB_export_grid<FloatGrid>(gridVec, "Heat Old", fluid->_heatOld, 0.0f, bbox, transform);
 	}
 
 	if (fluid->_flame) {
-		OpenVDB_export_grid<FloatGrid>(gridVec, "flame", fluid->_flame, 0.0f, bbox, transform);
-		OpenVDB_export_grid<FloatGrid>(gridVec, "fuel", fluid->_fuel, 0.0f, bbox, transform);
-		OpenVDB_export_grid<FloatGrid>(gridVec, "react", fluid->_react, 0.0f, bbox, transform);
+		OpenVDB_export_grid<FloatGrid>(gridVec, "Flame", fluid->_flame, 0.0f, bbox, transform);
+		OpenVDB_export_grid<FloatGrid>(gridVec, "Fuel", fluid->_fuel, 0.0f, bbox, transform);
+		OpenVDB_export_grid<FloatGrid>(gridVec, "React", fluid->_react, 0.0f, bbox, transform);
 	}
 
 	if (fluid->_color_r) {
-		OpenVDB_export_vector_grid(gridVec, "color", fluid->_color_r, fluid->_color_g, fluid->_color_b, bbox, transform);
+		OpenVDB_export_vector_grid(gridVec, "Color", fluid->_color_r, fluid->_color_g, fluid->_color_b, bbox, transform);
 	}
 
-	OpenVDB_export_vector_grid(gridVec, "velocity", fluid->_xVelocity, fluid->_yVelocity, fluid->_zVelocity, bbox, transform);
-	OpenVDB_export_grid<Int32Grid>(gridVec, "obstacles", fluid->_obstacles, (unsigned char)0, bbox, transform);
+	OpenVDB_export_vector_grid(gridVec, "Velocity", fluid->_xVelocity, fluid->_yVelocity, fluid->_zVelocity, bbox, transform);
+	OpenVDB_export_grid<Int32Grid>(gridVec, "Obstacles", fluid->_obstacles, (unsigned char)0, bbox, transform);
 
 	if (wt) {
 		Mat4R fluid_matBig = Mat4R(
@@ -211,19 +210,19 @@ void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr des
 		math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig * obj_mat);
 		math::CoordBBox bboxBig(Coord(0), Coord(wt->_xResBig - 1, wt->_yResBig - 1, wt->_zResBig - 1));
 
-		OpenVDB_export_grid<FloatGrid>(gridVec, "density_high", wt->_densityBig, 0.0f, bboxBig, transformBig);
+		OpenVDB_export_grid<FloatGrid>(gridVec, "Density High", wt->_densityBig, 0.0f, bboxBig, transformBig);
 
 		if (wt->_flameBig) {
-			OpenVDB_export_grid<FloatGrid>(gridVec, "flame_high", wt->_flameBig, 0.0f, bboxBig, transformBig);
-			OpenVDB_export_grid<FloatGrid>(gridVec, "fuel_high", wt->_fuelBig, 0.0f, bboxBig, transformBig);
-			OpenVDB_export_grid<FloatGrid>(gridVec, "react_high", wt->_reactBig, 0.0f, bboxBig, transformBig);
+			OpenVDB_export_grid<FloatGrid>(gridVec, "Flame High", wt->_flameBig, 0.0f, bboxBig, transformBig);
+			OpenVDB_export_grid<FloatGrid>(gridVec, "Fuel High", wt->_fuelBig, 0.0f, bboxBig, transformBig);
+			OpenVDB_export_grid<FloatGrid>(gridVec, "React High", wt->_reactBig, 0.0f, bboxBig, transformBig);
 		}
 
 		if (wt->_color_rBig) {
-			OpenVDB_export_vector_grid(gridVec, "color_high", wt->_color_rBig, wt->_color_gBig, wt->_color_bBig, bboxBig, transformBig);
+			OpenVDB_export_vector_grid(gridVec, "Color High", wt->_color_rBig, wt->_color_gBig, wt->_color_bBig, bboxBig, transformBig);
 		}
 
-		OpenVDB_export_vector_grid(gridVec, "texco_high", wt->_tcU, wt->_tcV, wt->_tcW, bbox, transform);
+		OpenVDB_export_vector_grid(gridVec, "Texture Coordinates", wt->_tcU, wt->_tcV, wt->_tcW, bbox, transform);
 	}
 
 	MetaMap simData = getSimMetaMap(fluid, descr);
@@ -240,11 +239,11 @@ void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr des
 
 static void readSimMetaMap(MetaMap::Ptr sim_data, FLUID_3D *fluid, FluidDomainDescr *descr)
 {
-//	descr->fluid_fields = sim_data->metaValue<Int32>("fluid_fields");
-//	descr->active_fields = sim_data->metaValue<Int32>("active_fields");
+	descr->fluid_fields = sim_data->metaValue<Int32>("fluid_fields");
+	descr->active_fields = sim_data->metaValue<Int32>("active_fields");
 //	Vec3I res = sim_data->metaValue<Vec3I>("resolution");
 	//fluid->_res = Vec3Int(res[0], res[1], res[2]);
-//	fluid->_maxRes = sim_data->metaValue<Int32>("max_resolution");
+	fluid->_maxRes = sim_data->metaValue<Int32>("max_resolution");
 	fluid->_dx = sim_data->metaValue<float>("delta_x");
 	fluid->_dt = sim_data->metaValue<float>("delta_t");
 
@@ -257,6 +256,7 @@ static void readSimMetaMap(MetaMap::Ptr sim_data, FLUID_3D *fluid, FluidDomainDe
 
 void OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow)
 {
+	/* TODO(kevin): deduplicate this call */
 	initialize();
 	io::File file(filename);
 
@@ -267,61 +267,61 @@ void OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *de
 	math::CoordBBox bbox(Coord(0), Coord(fluid->_xRes - 1, fluid->_yRes - 1, fluid->_zRes - 1));
 	printf("Import resolution: %d, %d, %d\n", fluid->_xRes, fluid->_yRes, fluid->_zRes);
 
-	GridBase::Ptr grid = file.readGrid("shadow");
+	GridBase::Ptr grid = file.readGrid("Shadow");
 	OpenVDB_import_grid<FloatGrid>(grid, shadow, bbox);
 
-	grid = file.readGrid("density");
+	grid = file.readGrid("Density");
 	OpenVDB_import_grid<FloatGrid>(grid, fluid->_density, bbox);
 
 	if (fluid->_heat) {
-		grid = file.readGrid("heat");
+		grid = file.readGrid("Heat");
 		OpenVDB_import_grid<FloatGrid>(grid, fluid->_heat, bbox);
-		grid = file.readGrid("heat_old");
+		grid = file.readGrid("Heat Old");
 		OpenVDB_import_grid<FloatGrid>(grid, fluid->_heatOld, bbox);
 	}
 
 	if (fluid->_flame) {
-		grid = file.readGrid("flame");
+		grid = file.readGrid("Flame");
 		OpenVDB_import_grid<FloatGrid>(grid, fluid->_flame, bbox);
-		grid = file.readGrid("fuel");
+		grid = file.readGrid("Fuel");
 		OpenVDB_import_grid<FloatGrid>(grid, fluid->_fuel, bbox);
-		grid = file.readGrid("react");
+		grid = file.readGrid("React");
 		OpenVDB_import_grid<FloatGrid>(grid, fluid->_react, bbox);
 	}
 
 	if (fluid->_color_r) {
-		grid = file.readGrid("color");
+		grid = file.readGrid("Color");
 		OpenVDB_import_grid_vector(grid, fluid->_color_r, fluid->_color_g, fluid->_color_b, bbox);
 	}
 
-	grid = file.readGrid("velocity");
+	grid = file.readGrid("Velocity");
 	OpenVDB_import_grid_vector(grid, fluid->_xVelocity, fluid->_zVelocity, fluid->_zVelocity, bbox);
 
-	grid = file.readGrid("obstacles");
+	grid = file.readGrid("Obstacles");
 	OpenVDB_import_grid<Int32Grid>(grid, fluid->_obstacles, bbox);
 
 
 	if (wt) {
 		math::CoordBBox bboxBig(Coord(0), Coord(wt->_xResBig - 1, wt->_yResBig - 1, wt->_zResBig - 1));
 
-		grid = file.readGrid("density_high");
+		grid = file.readGrid("Density High");
 		OpenVDB_import_grid<FloatGrid>(grid, wt->_densityBig, bboxBig);
 
 		if (wt->_flameBig) {
-			grid = file.readGrid("flame_high");
+			grid = file.readGrid("Flame High");
 			OpenVDB_import_grid<FloatGrid>(grid, wt->_flameBig, bboxBig);
-			grid = file.readGrid("fuel_high");
+			grid = file.readGrid("Fuel High");
 			OpenVDB_import_grid<FloatGrid>(grid, wt->_fuelBig, bboxBig);
-			grid = file.readGrid("react_high");
+			grid = file.readGrid("React High");
 			OpenVDB_import_grid<FloatGrid>(grid, wt->_reactBig, bboxBig);
 		}
 
 		if (wt->_color_rBig) {
-			grid = file.readGrid("color_high");
+			grid = file.readGrid("Color High");
 			OpenVDB_import_grid_vector(grid, wt->_color_rBig, wt->_color_gBig, wt->_color_bBig, bboxBig);
 		}
 
-		grid = file.readGrid("texco_high");
+		grid = file.readGrid("Texture Coordinates");
 		OpenVDB_import_grid_vector(grid, wt->_tcU, wt->_tcV, wt->_tcW, bbox);
 	}
 

@@ -3150,16 +3150,16 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 {
 	SmokeDomainSettings *sds = smd->domain;
 	FluidDomainDescr descr;
-	int startframe = sds->startframe, endframe = sds->endframe, curframe = scene->r.cfra;
+	int startframe = sds->startframe, endframe = sds->endframe;
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
 	int ret = OPENVDB_NO_ERROR;
 
-	if (curframe < startframe && curframe > endframe) {
+	if (CFRA < startframe && CFRA > endframe) {
 		return;
 	}
 
-	cache_filename(filename, sds->path, relbase, curframe);
+	cache_filename(filename, sds->path, relbase, CFRA);
 
 	ret = OpenVDB_import_fluid(sds->fluid, sds->wt, &descr, filename, sds->shadow);
 
@@ -3171,7 +3171,7 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 	if (ret == OPENVDB_KEY_ERROR) {
 		/* It may happen that some grids are missing on the first frame if the
 		 * simulation hasn't started yet, so it's safe to ignore it. */
-		if (curframe > startframe) {
+		if (CFRA > startframe) {
 			/* TODO(kevin): report error "OpenVDB import error, see console for details" */
 			return;
 		}

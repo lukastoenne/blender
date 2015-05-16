@@ -45,6 +45,7 @@ set(SRC
 if(WITH_OPENVDB)
     add_definitions(
         -DWITH_OPENVDB
+		-DDDF_DEBUG=0
     )
 
     list(APPEND INC_SYS
