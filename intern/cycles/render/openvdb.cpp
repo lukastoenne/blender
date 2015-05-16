@@ -58,6 +58,44 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 	using namespace openvdb;
 	size_t slot = -1;
 
+	/* Find existing grid */
+	for(size_t i = 0; i < current_grids.size(); ++i) {
+		GridDescription grid = current_grids[i];
+
+		if(grid.filename == filename && grid.name == name) {
+			if(grid.sampling == sampling) {
+				return grid.slot;
+			}
+			/* sampling was changed, remove the sampler */
+			else {
+				if(grid_type == NODE_VDB_FLOAT) {
+					if(grid.sampling == OPENVDB_SAMPLE_POINT) {
+						delete float_samplers_p[grid.slot];
+						float_samplers_p[grid.slot] = NULL;
+					}
+					else {
+						delete float_samplers_b[grid.slot];
+						float_samplers_b[grid.slot] = NULL;
+					}
+				}
+				else {
+					if(grid.sampling == OPENVDB_SAMPLE_POINT) {
+						delete vec3s_samplers_p[grid.slot];
+						vec3s_samplers_p[grid.slot] = NULL;
+					}
+					else {
+						delete vec3s_samplers_b[grid.slot];
+						vec3s_samplers_b[grid.slot] = NULL;
+					}
+				}
+
+				/* remove grid description too */
+				std::swap(current_grids[i], current_grids.back());
+				current_grids.pop_back();
+			}
+		}
+	}
+
 	try {
 		io::File file(filename);
 		file.open();
@@ -125,6 +163,14 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 	catch (...) {
 		catch_exceptions();
 	}
+
+	GridDescription descr;
+	descr.filename = filename;
+	descr.name = name;
+	descr.sampling = sampling;
+	descr.slot = slot;
+
+	current_grids.push_back(descr);
 
 	return slot;
 }

@@ -28,7 +28,14 @@ class DeviceScene;
 class Progress;
 class Scene;
 
-class OpenVDBManager {
+class OpenVDBManager {	
+	struct GridDescription {
+		string filename;
+		string name;
+		int sampling;
+		int slot;
+	};
+
 public:
 	OpenVDBManager();
 	~OpenVDBManager();
@@ -40,6 +47,7 @@ public:
 
 	bool need_update;
 
+	vector<GridDescription> current_grids;
 	vector<openvdb::FloatGrid::Ptr> scalar_grids;
 	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
 
