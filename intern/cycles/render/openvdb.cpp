@@ -172,6 +172,8 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 
 	current_grids.push_back(descr);
 
+	need_update = true;
+
 	return slot;
 }
 
