@@ -2421,7 +2421,7 @@ static void smoke_transform_startjob(void *customdata, short *stop, short *do_up
 
 	G.is_break = false;
 
-	smokeModifier_OpenVDB_update_transform(sej->smd, sej->scene, sej->ob, sej->dm,
+	smokeModifier_OpenVDB_update_transform(sej->smd, sej->scene, sej->ob,
 	                                       smoke_export_update, (void *)sej);
 
 	*do_update = true;
