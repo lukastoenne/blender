@@ -3112,6 +3112,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
                                   update_cb update, void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
+	FluidDomainDescr descr;
 	int orig_frame, fr, cancel = 0;
 	float progress;
 	const char *relbase = modifier_path_relbase(ob);
@@ -3120,14 +3121,14 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	orig_frame = scene->r.cfra;
 
 	for (fr = sds->startframe; fr <= sds->endframe; fr++) {
-		FluidDomainDescr descr = get_fluid_description(sds, ob);
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
 
 		cache_filename(filename, sds->path, relbase, fr);
 
-		smokeModifier_process(smd, scene, ob, dm, false);		
+		smokeModifier_process(smd, scene, ob, dm, false);
+		descr = get_fluid_description(sds, ob);
 		OpenVDB_export_fluid(sds->fluid, sds->wt, descr, filename, sds->shadow);
 
 		progress = (fr - sds->startframe) / (float)sds->endframe;
