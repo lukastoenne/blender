@@ -100,13 +100,6 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 		io::File file(filename);
 		file.open();
 
-		for(io::File::NameIterator name_iter = file.beginName();
-		    name_iter != file.endName();
-		    ++name_iter)
-		{
-			std::cout << name_iter.gridName() << std::endl;
-		}
-
 		if(grid_type == NODE_VDB_FLOAT) {
 			FloatGrid::Ptr fgrid = gridPtrCast<FloatGrid>(file.readGrid(name));
 
