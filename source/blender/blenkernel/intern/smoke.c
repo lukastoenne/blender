@@ -3041,10 +3041,7 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *ob)
 {
 	FluidDomainDescr descr;
-	BoundBox *bbox;
-	float dimension[3], voxel_size[3], voxel_size_high[3];
-	float bbox_min[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
-	int i;
+	float voxel_size[3], voxel_size_high[3], bbox_min[3];
 
 	descr.active_fields = sds->active_fields;
 	descr.fluid_fields = smoke_get_data_flags(sds);
@@ -3052,7 +3049,7 @@ struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *
 	copy_v3_v3_int(descr.shift, sds->shift);
 	copy_v3_v3(descr.active_color, sds->active_color);
 
-	mul_m4_m4m4(descr.obmat, ob->obmat, ob->imat);
+	mul_m4_m4m4(descr.obmat, sds->obmat, sds->imat);
 
 	/* Construct a matrix that represents a voxel:
 	 * vs 0  0  0
@@ -3060,25 +3057,11 @@ struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *
 	 * 0  0  vs 0
 	 * px py pz 1
 	 * with vs = voxel size, and px, py, pz, the min position of the domain's
-	 * bounding box. We do not take adaptive domain into account here as it will
-	 * make the fluid appear to "drift".
+	 * bounding box.
 	 */
 
-	BKE_object_dimensions_get(ob, dimension);
-//	mul_v3_v3v3(voxel_size, dimension, sds->cell_size);
-	copy_v3_v3(voxel_size, dimension);
-
-	voxel_size[0] /= (sds->base_res[0]);
-	voxel_size[1] /= (sds->base_res[1]);
-	voxel_size[2] /= (sds->base_res[2]);
-
-	bbox = BKE_object_boundbox_get(ob);
-
-	for (i = 0; i < 8; i++) {
-		bbox_min[0] = min_ff(bbox_min[0], bbox->vec[i][0]);
-		bbox_min[1] = min_ff(bbox_min[1], bbox->vec[i][1]);
-		bbox_min[2] = min_ff(bbox_min[2], bbox->vec[i][2]);
-	}
+	copy_v3_v3(voxel_size, sds->cell_size);
+	mul_mat3_m4_v3(ob->obmat, voxel_size);
 
 	/* only consider the max value as due to float precision issues coupled with
 	 * cuboid domain we might get slightly different xyz values... In short,
@@ -3086,7 +3069,8 @@ struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *
 	 */
 	copy_v3_fl(voxel_size, max_fff(voxel_size[0], voxel_size[1], voxel_size[2]));
 
-	mul_v3_fl(bbox_min, 2.0f);
+	copy_v3_v3(bbox_min, sds->p0);
+	mul_mat3_m4_v3(ob->obmat, bbox_min);
 
 	size_to_mat4(descr.fluidmat, voxel_size);
 	copy_v3_v3(descr.fluidmat[3], bbox_min);
@@ -3144,7 +3128,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 
 		cache_filename(filename, sds->path, relbase, fr);
 
-		smokeModifier_process(smd, scene, ob, dm, false);
+		smokeModifier_process(smd, scene, ob, dm, false);		
 		OpenVDB_export_fluid(sds->fluid, sds->wt, descr, filename, sds->shadow);
 
 		progress = (fr - sds->startframe) / (float)sds->endframe;
