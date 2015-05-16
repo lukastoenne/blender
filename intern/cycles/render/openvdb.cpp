@@ -92,6 +92,7 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 				/* remove grid description too */
 				std::swap(current_grids[i], current_grids.back());
 				current_grids.pop_back();
+				break;
 			}
 		}
 	}
