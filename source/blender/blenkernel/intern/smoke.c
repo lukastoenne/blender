@@ -3038,7 +3038,7 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 	return flags;
 }
 
-struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *ob)
+static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 {
 	FluidDomainDescr descr;
 	float voxel_size[3], voxel_size_high[3], bbox_min[3];
@@ -3061,7 +3061,7 @@ struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *
 	 */
 
 	copy_v3_v3(voxel_size, sds->cell_size);
-	mul_mat3_m4_v3(ob->obmat, voxel_size);
+	mul_mat3_m4_v3(sds->obmat, voxel_size);
 
 	/* only consider the max value as due to float precision issues coupled with
 	 * cuboid domain we might get slightly different xyz values... In short,
@@ -3070,8 +3070,7 @@ struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds, Object *
 	copy_v3_fl(voxel_size, max_fff(voxel_size[0], voxel_size[1], voxel_size[2]));
 
 	copy_v3_v3(bbox_min, sds->p0);
-	mul_mat3_m4_v3(ob->obmat, bbox_min);
-
+	mul_mat3_m4_v3(sds->obmat, bbox_min);
 	size_to_mat4(descr.fluidmat, voxel_size);
 	copy_v3_v3(descr.fluidmat[3], bbox_min);
 
@@ -3128,7 +3127,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		cache_filename(filename, sds->path, relbase, fr);
 
 		smokeModifier_process(smd, scene, ob, dm, false);
-		descr = get_fluid_description(sds, ob);
+		descr = get_fluid_description(sds);
 		OpenVDB_export_fluid(sds->fluid, sds->wt, descr, filename, sds->shadow);
 
 		progress = (fr - sds->startframe) / (float)sds->endframe;

@@ -50,8 +50,6 @@ int smoke_get_data_flags(struct SmokeDomainSettings *sds);
 
 /* OpenVDB smoke export/import */
 
-struct FluidDomainDescr get_fluid_description(struct SmokeDomainSettings *sds, struct Object *ob);
-
 typedef void (*update_cb)(void *, float progress, int *cancel);
 
 void smokeModifier_OpenVDB_export(struct SmokeModifierData *smd, struct Scene *scene,
