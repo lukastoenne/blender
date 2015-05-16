@@ -2975,7 +2975,8 @@ static void rna_ShaderNodeOpenVDB_update(Main *bmain, Scene *scene, PointerRNA *
 	bNode *node = (bNode *)ptr->data;
 
 	ntreeUpdateOpenVDBNode(ntree, node);
-	rna_Node_update(bmain, scene, ptr);
+	ntreeUpdateTree(bmain, ntree);
+	WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
 #else
