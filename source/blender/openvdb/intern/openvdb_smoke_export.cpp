@@ -54,6 +54,7 @@ static void OpenVDB_export_grid(GridPtrVec &gridVec,
 	grid->setName(name);
 	grid->setGridClass(GRID_FOG_VOLUME);
 	grid->setTransform(transform->copy());
+	grid->setIsInWorldSpace(false);
 
 	gridVec.push_back(grid);
 }
@@ -82,6 +83,7 @@ static void OpenVDB_export_vector_grid(GridPtrVec &gridVec,
 	grid->setName(name);
 	grid->setGridClass(GRID_FOG_VOLUME);
 	grid->setTransform(transform->copy());
+	grid->setIsInWorldSpace(false);
 
 	gridVec.push_back(grid);
 }
@@ -145,9 +147,6 @@ static MetaMap getSimMetaMap(FLUID_3D *fluid, FluidDomainDescr descr)
 	sim_data.insertMeta("shift", Vec3IMetadata(Vec3I(descr.shift)));
 	sim_data.insertMeta("obj_shift_f", Vec3SMetadata(Vec3s(descr.obj_shift_f)));
 
-	/* TODO(kevin): Meta datas can't take double matrices, and transforms can't
-	 * take float matrices, so this is duplicated.
-	 */
 	Mat4s obj_mat = Mat4s(
 			descr.obmat[0][0], descr.obmat[0][1], descr.obmat[0][2], descr.obmat[0][3],
 	        descr.obmat[1][0], descr.obmat[1][1], descr.obmat[1][2], descr.obmat[1][3],
@@ -162,12 +161,6 @@ static MetaMap getSimMetaMap(FLUID_3D *fluid, FluidDomainDescr descr)
 
 void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr descr, const char *filename, float *shadow)
 {
-	Mat4R obj_mat = Mat4R(
-			descr.obmat[0][0], descr.obmat[0][1], descr.obmat[0][2], descr.obmat[0][3],
-	        descr.obmat[1][0], descr.obmat[1][1], descr.obmat[1][2], descr.obmat[1][3],
-	        descr.obmat[2][0], descr.obmat[2][1], descr.obmat[2][2], descr.obmat[2][3],
-	        descr.obmat[3][0], descr.obmat[3][1], descr.obmat[3][2], descr.obmat[3][3]);
-
 	Mat4R fluid_mat = Mat4R(
 		  descr.fluidmat[0][0], descr.fluidmat[0][1], descr.fluidmat[0][2], descr.fluidmat[0][3],
           descr.fluidmat[1][0], descr.fluidmat[1][1], descr.fluidmat[1][2], descr.fluidmat[1][3],
@@ -177,7 +170,7 @@ void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr des
 	GridPtrVec gridVec;
 	math::CoordBBox bbox(Coord(0), Coord(fluid->_xRes - 1, fluid->_yRes - 1, fluid->_zRes - 1));
 
-	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat * obj_mat);
+	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat);
 
 	OpenVDB_export_grid<FloatGrid>(gridVec, "Shadow", shadow, 0.0f, bbox, transform);
 	OpenVDB_export_grid<FloatGrid>(gridVec, "Density", fluid->_density, 0.0f, bbox, transform);
@@ -207,7 +200,7 @@ void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr des
 	          descr.fluidmathigh[2][0], descr.fluidmathigh[2][1], descr.fluidmathigh[2][2], descr.fluidmathigh[2][3],
 	          descr.fluidmathigh[3][0], descr.fluidmathigh[3][1], descr.fluidmathigh[3][2], descr.fluidmathigh[3][3]);
 
-		math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig * obj_mat);
+		math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig);
 		math::CoordBBox bboxBig(Coord(0), Coord(wt->_xResBig - 1, wt->_yResBig - 1, wt->_zResBig - 1));
 
 		OpenVDB_export_grid<FloatGrid>(gridVec, "Density High", wt->_densityBig, 0.0f, bboxBig, transformBig);
@@ -333,12 +326,6 @@ void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr
 	/* TODO(kevin): deduplicate this call */
 	initialize();
 
-	Mat4R obj_mat = Mat4R(
-	        descr.obmat[0][0], descr.obmat[0][1], descr.obmat[0][2], descr.obmat[0][3],
-	        descr.obmat[1][0], descr.obmat[1][1], descr.obmat[1][2], descr.obmat[1][3],
-	        descr.obmat[2][0], descr.obmat[2][1], descr.obmat[2][2], descr.obmat[2][3],
-	        descr.obmat[3][0], descr.obmat[3][1], descr.obmat[3][2], descr.obmat[3][3]);
-
 	Mat4R fluid_mat = Mat4R(
 	        descr.fluidmat[0][0], descr.fluidmat[0][1], descr.fluidmat[0][2], descr.fluidmat[0][3],
 	        descr.fluidmat[1][0], descr.fluidmat[1][1], descr.fluidmat[1][2], descr.fluidmat[1][3],
@@ -351,8 +338,8 @@ void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr
 	        descr.fluidmathigh[2][0], descr.fluidmathigh[2][1], descr.fluidmathigh[2][2], descr.fluidmathigh[2][3],
 	        descr.fluidmathigh[3][0], descr.fluidmathigh[3][1], descr.fluidmathigh[3][2], descr.fluidmathigh[3][3]);
 
-	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat * obj_mat);
-	math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig * obj_mat);
+	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat);
+	math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig);
 
 	io::File file(filename);
 	file.open();

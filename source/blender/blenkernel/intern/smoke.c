@@ -3045,7 +3045,7 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 {
 	FluidDomainDescr descr;
-	float voxel_size[3], voxel_size_high[3], bbox_min[3];
+	float voxel_size[3], voxel_size_high[3];
 
 	descr.active_fields = sds->active_fields;
 	descr.fluid_fields = smoke_get_data_flags(sds);
@@ -3053,9 +3053,9 @@ static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 	copy_v3_v3_int(descr.shift, sds->shift);
 	copy_v3_v3(descr.active_color, sds->active_color);
 
-	mul_m4_m4m4(descr.obmat, sds->obmat, sds->imat);
+	copy_m4_m4(descr.obmat, sds->obmat);
 
-	/* Construct a matrix that represents a voxel:
+	/* Construct a matrix which represents the fluid object:
 	 * vs 0  0  0
 	 * 0  vs 0  0
 	 * 0  0  vs 0
@@ -3064,23 +3064,42 @@ static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 	 * bounding box.
 	 */
 
+	/* construct low res matrix */
 	copy_v3_v3(voxel_size, sds->cell_size);
-	mul_mat3_m4_v3(sds->obmat, voxel_size);
+	size_to_mat4(descr.fluidmat, voxel_size);
+	copy_v3_v3(descr.fluidmat[3], sds->p0);
+	mul_m4_m4m4(descr.fluidmat, sds->obmat, descr.fluidmat);
 
-	/* only consider the max value as due to float precision issues coupled with
-	 * cuboid domain we might get slightly different xyz values... In short,
-	 * voxels should be cubes!
-	 */
+	/* make sure voxels have the same size on all axises */
+	voxel_size[0] = descr.fluidmat[0][0];
+	voxel_size[1] = descr.fluidmat[1][1];
+	voxel_size[2] = descr.fluidmat[2][2];
+
 	copy_v3_fl(voxel_size, max_fff(voxel_size[0], voxel_size[1], voxel_size[2]));
 
-	copy_v3_v3(bbox_min, sds->p0);
-	mul_mat3_m4_v3(sds->obmat, bbox_min);
-	size_to_mat4(descr.fluidmat, voxel_size);
-	copy_v3_v3(descr.fluidmat[3], bbox_min);
+	descr.fluidmat[0][0] = voxel_size[0];
+	descr.fluidmat[1][1] = voxel_size[1];
+	descr.fluidmat[2][2] = voxel_size[2];
 
-	mul_v3_v3fl(voxel_size_high, voxel_size, 1.0f / (float)(sds->amplify + 1));
-	size_to_mat4(descr.fluidmathigh, voxel_size_high);
-	copy_v3_v3(descr.fluidmathigh[3], bbox_min);
+	if (sds->wt) {
+		/* construct high res matrix */
+		mul_v3_v3fl(voxel_size_high, sds->cell_size, 1.0f / (float)(sds->amplify + 1));
+		size_to_mat4(descr.fluidmathigh, voxel_size_high);
+		copy_v3_v3(descr.fluidmathigh[3], sds->p0);
+		mul_m4_m4m4(descr.fluidmathigh, sds->obmat, descr.fluidmathigh);
+
+		/* make sure voxels have the same size on all axises */
+		voxel_size_high[0] = descr.fluidmathigh[0][0];
+		voxel_size_high[1] = descr.fluidmathigh[1][1];
+		voxel_size_high[2] = descr.fluidmathigh[2][2];
+
+		copy_v3_fl(voxel_size, max_fff(voxel_size_high[0], voxel_size_high[1], voxel_size_high[2]));
+
+		descr.fluidmathigh[0][0] = voxel_size_high[0];
+		descr.fluidmathigh[1][1] = voxel_size_high[1];
+		descr.fluidmathigh[2][2] = voxel_size_high[2];
+
+	}
 
 	return descr;
 }
