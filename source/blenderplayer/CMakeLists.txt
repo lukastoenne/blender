@@ -210,6 +210,10 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_locale)
 	endif()
 
+	if(WITH_OPENVDB)
+		list(APPEND BLENDER_SORTED_LIBS bf_openvdb)
+	endif()
+
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
 		set(REMLIB ${SORTLIB})
 		foreach(SEARCHLIB ${BLENDER_LINK_LIBS})

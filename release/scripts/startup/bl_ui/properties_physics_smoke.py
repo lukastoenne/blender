@@ -339,8 +339,12 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        domain = context.smoke.domain_settings
 
+        if not bpy.app.build_options.openvdb:
+            layout.label("Build without OpenVDB support.")
+            return
+
+        domain = context.smoke.domain_settings
         layout.active = domain.use_openvdb
 
         row = layout.row()

@@ -436,9 +436,11 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 			case NODE_NORMAL_MAP:
 				svm_node_normal_map(kg, sd, stack, node);
 				break;
+#ifdef __OPENVDB__
 			case NODE_OPENVDB:
 				svm_node_openvdb(kg, sd, stack, node);
 				break;
+#endif
 			case NODE_END:
 			default:
 				return;

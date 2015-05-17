@@ -3042,6 +3042,8 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 	return flags;
 }
 
+#ifdef WITH_OPENVDB
+
 static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 {
 	FluidDomainDescr descr;
@@ -3249,5 +3251,29 @@ void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
 
 	scene->r.cfra = orig_frame;
 }
+
+#else
+
+void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm,
+                                  update_cb update, void *update_cb_data)
+{
+	UNUSED_VARS(smd, scene, ob, dm, update, update_cb_data);
+}
+
+void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob)
+{
+	UNUSED_VARS(smd, scene, ob);
+}
+
+void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
+                                            Scene *scene,
+                                            Object *ob,
+                                            update_cb update,
+                                            void *update_cb_data)
+{
+	UNUSED_VARS(smd, scene, ob, update, update_cb_data);
+}
+
+#endif /* WITH_OPENVDB */
 
 #endif /* WITH_SMOKE */

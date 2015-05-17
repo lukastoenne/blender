@@ -146,6 +146,10 @@ if(WITH_CYCLES_OSL)
 	)
 endif()
 
+if(WITH_OPENVDB)
+	add_definitions(-DWITH_OPENVDB)
+endif()
+
 add_definitions(
 	-DWITH_OPENCL
 	-DWITH_CUDA

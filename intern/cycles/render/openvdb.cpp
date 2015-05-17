@@ -21,6 +21,26 @@
 
 CCL_NAMESPACE_BEGIN
 
+#ifdef WITH_OPENVDB
+
+OpenVDBManager::OpenVDBManager()
+{
+	openvdb::initialize();
+	float_samplers_p.reserve(64);
+	float_samplers_b.reserve(64);
+	vec3s_samplers_p.reserve(64);
+	vec3s_samplers_b.reserve(64);
+	need_update = true;
+}
+
+OpenVDBManager::~OpenVDBManager()
+{
+	float_samplers_p.clear();
+	float_samplers_b.clear();
+	vec3s_samplers_p.clear();
+	vec3s_samplers_b.clear();
+}
+
 static inline void catch_exceptions()
 {
 	try {
@@ -33,24 +53,6 @@ static inline void catch_exceptions()
 	catch (...) {
 		std::cerr << "Unknown error in OpenVDB library..." << std::endl;
 	}
-}
-
-OpenVDBManager::OpenVDBManager()
-{
-	openvdb::initialize();
-	need_update = true;
-	float_samplers_p.reserve(64);
-	float_samplers_b.reserve(64);
-	vec3s_samplers_p.reserve(64);
-	vec3s_samplers_b.reserve(64);
-}
-
-OpenVDBManager::~OpenVDBManager()
-{
-	float_samplers_p.clear();
-	float_samplers_b.clear();
-	vec3s_samplers_p.clear();
-	vec3s_samplers_b.clear();
 }
 
 int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
@@ -215,5 +217,42 @@ void OpenVDBManager::device_free(Device *device, DeviceScene *dscene)
 	(void)device;
 	(void)dscene;
 }
+
+#else
+
+OpenVDBManager::OpenVDBManager()
+{
+	need_update = false;
+}
+
+OpenVDBManager::~OpenVDBManager()
+{
+}
+
+int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
+{
+	(void)filename;
+	(void)name;
+	(void)sampling;
+	(void)grid_type;
+
+	return -1;
+}
+
+void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress)
+{
+	(void)device;
+	(void)dscene;
+	(void)scene;
+	(void)progress;
+}
+
+void OpenVDBManager::device_free(Device *device, DeviceScene *dscene)
+{
+	(void)device;
+	(void)dscene;
+}
+
+#endif
 
 CCL_NAMESPACE_END

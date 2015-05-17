@@ -67,6 +67,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef WITH_OSL
 #define __OSL__
 #endif
+#ifdef WITH_OPENVDB
+#define __OPENVDB__
+#endif
 #define __SUBSURFACE__
 #define __CMJ__
 #define __VOLUME__

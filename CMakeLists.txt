@@ -1764,6 +1764,14 @@ elseif(WIN32)
 			set(SDL_LIBPATH ${SDL}/lib)
 		endif()
 
+		if(WITH_OPENVDB)
+			set(OPENVDB ${LIBDIR}/openvdb)
+			set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
+			set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
+			set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
+			set(OPENVDB_DEFINITIONS)
+		endif()
+
 		set(PLATFORM_LINKFLAGS "-Xlinker --stack=2097152")
 
 		## DISABLE - causes linking errors 
@@ -2056,6 +2064,14 @@ elseif(APPLE)
 		set(OPENCOLORIO_INCLUDE_DIRS ${OPENCOLORIO}/include)
 		set(OPENCOLORIO_LIBRARIES OpenColorIO tinyxml yaml-cpp)
 		set(OPENCOLORIO_LIBPATH ${OPENCOLORIO}/lib)
+	endif()
+
+	if(WITH_OPENVDB)
+		set(OPENVDB ${LIBDIR}/openvdb)
+		set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
+		set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
+		set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
+		set(OPENVDB_DEFINITIONS)
 	endif()
 
 	if(WITH_LLVM)
@@ -2820,6 +2836,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_CYCLES)
 	info_cfg_option(WITH_FREESTYLE)
 	info_cfg_option(WITH_OPENCOLORIO)
+	info_cfg_option(WITH_OPENVDB)
 
 	info_cfg_text("Compiler Options:")
 	info_cfg_option(WITH_BUILDINFO)

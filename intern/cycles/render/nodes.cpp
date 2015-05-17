@@ -4371,7 +4371,11 @@ OpenVDBNode::OpenVDBNode()
 {
 	filename = "";
 	vdb_manager = NULL;
+#ifdef WITH_OPENVDB
 	sampling = OPENVDB_SAMPLE_POINT;
+#else
+	sampling = 0;
+#endif
 }
 
 void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)

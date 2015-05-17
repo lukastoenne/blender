@@ -1,6 +1,7 @@
 #ifndef __UTIL_OPENVDB_H__
 #define __UTIL_OPENVDB_H__
 
+#ifdef WITH_OPENVDB
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Interpolation.h>
 
@@ -29,6 +30,8 @@ typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid, openvdb::tools::PointSam
 typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid, openvdb::tools::BoxSampler> vdb_vsampler_b;
 
 CCL_NAMESPACE_END
+
+#endif /* WITH_OPENVDB */
 
 #endif /* __UTIL_OPENVDB_H__ */
 

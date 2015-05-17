@@ -35,6 +35,7 @@ static void node_shader_init_openvdb(bNodeTree *UNUSED(ntree), bNode *node)
 	node->storage = vdb;
 }
 
+#ifdef WITH_OPENVDB
 void ntreeUpdateOpenVDBNode(bNodeTree *ntree, bNode *node)
 {
 	NodeShaderOpenVDB *vdb = node->storage;
@@ -44,6 +45,12 @@ void ntreeUpdateOpenVDBNode(bNodeTree *ntree, bNode *node)
 		OpenVDB_getNodeSockets(vdb->filename, ntree, node);
 	}
 }
+#else
+void ntreeUpdateOpenVDBNode(bNodeTree *ntree, bNode *node)
+{
+	UNUSED_VARS(ntree, node);
+}
+#endif
 
 void register_node_type_sh_openvdb(void)
 {

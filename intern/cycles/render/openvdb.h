@@ -47,6 +47,7 @@ public:
 
 	bool need_update;
 
+#ifdef WITH_OPENVDB
 	vector<GridDescription> current_grids;
 	vector<openvdb::FloatGrid::Ptr> scalar_grids;
 	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
@@ -55,6 +56,7 @@ public:
 	vector<vdb_fsampler_b*> float_samplers_b;
 	vector<vdb_vsampler_p*> vec3s_samplers_p;
 	vector<vdb_vsampler_b*> vec3s_samplers_b;
+#endif
 };
 
 CCL_NAMESPACE_END

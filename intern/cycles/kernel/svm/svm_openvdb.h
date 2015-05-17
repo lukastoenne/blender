@@ -16,6 +16,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+#ifdef __OPENVDB__
+
 ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	float3 co = sd->P;
@@ -55,6 +57,8 @@ ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack
 	}
 #endif
 }
+
+#endif
 
 CCL_NAMESPACE_END
 

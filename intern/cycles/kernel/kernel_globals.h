@@ -38,11 +38,13 @@ typedef struct KernelGlobals {
 	texture_image_uchar4 texture_byte_images[MAX_BYTE_IMAGES];
 	texture_image_float4 texture_float_images[MAX_FLOAT_IMAGES];
 
+#ifdef __OPENVDB__
 	/* We can't use arrays here as grid samplers don't have a default constructor */
 	vector<vdb_fsampler_p*> vdb_float_samplers_p;
 	vector<vdb_fsampler_b*> vdb_float_samplers_b;
 	vector<vdb_vsampler_p*> vdb_vec3s_samplers_p;
 	vector<vdb_vsampler_b*> vdb_vec3s_samplers_b;
+#endif
 
 #define KERNEL_TEX(type, ttype, name) ttype name;
 #define KERNEL_IMAGE_TEX(type, ttype, name)

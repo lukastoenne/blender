@@ -85,6 +85,12 @@ if(WITH_CYCLES_DEBUG)
 	)
 endif()
 
+if(WITH_OPENVDB)
+    add_definitions(
+        -DWITH_OPENVDB
+    )
+endif()
+
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
 
