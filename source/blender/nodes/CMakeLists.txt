@@ -289,4 +289,8 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_OPENVDB)
+	add_definitions(-DWITH_OPENVDB)
+endif()
+
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")
