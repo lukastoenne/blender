@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel
+from bpy.types import Panel, UIList
 
 from bl_ui.properties_physics_common import (
         point_cache_ui,
@@ -313,6 +313,15 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
         point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
 
 
+class DATA_UL_openvdb_caches(UIList):
+    def draw_items(self, context, layout, item, icon, active_data, active_propname, index):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.prop(item, "name", text="", emboss=False, icon_value=icon)
+        elif self.layout_type in {'GRID'}:
+            layout.alignement = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
 class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
     bl_label = "OpenVDB export"
     bl_options = {'DEFAULT_CLOSED'}
@@ -333,10 +342,28 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
         domain = context.smoke.domain_settings
 
         layout.active = domain.use_openvdb
-        layout.prop(domain, "filepath")
-        row = layout.row(align=True)
-        row.prop(domain, "frame_start")
-        row.prop(domain, "frame_end")
+
+        row = layout.row()
+        row.template_list("DATA_UL_openvdb_caches", "", domain, "cache", domain, "active_openvdb_cache_index", rows=3)
+
+        col = row.column()
+        sub = col.row()
+        subsub = sub.column(align=True)
+        subsub.operator("object.openvdb_cache_add", icon='ZOOMIN', text="")
+        subsub.operator("object.openvdb_cache_remove", icon='ZOOMOUT', text="")
+        sub = col.row()
+        subsub = sub.column(align=True)
+        subsub.operator("object.openvdb_cache_move", icon='MOVE_UP_VEC', text="").direction = 'UP'
+        subsub.operator("object.openvdb_cache_move", icon='MOVE_DOWN_VEC', text="").direction = 'DOWN'
+
+        cache = domain.active_openvdb_cache
+
+        if cache:
+            layout.prop(cache, "filepath")
+            row = layout.row(align=True)
+            row.prop(cache, "frame_start")
+            row.prop(cache, "frame_end")
+
         layout.operator("object.smoke_vdb_export")
         layout.operator("object.smoke_vdb_transform_update")
 

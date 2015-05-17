@@ -1524,6 +1524,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 		}
 		else if (md->type==eModifierType_Smoke) {
 			SmokeModifierData *smd = (SmokeModifierData*) md;
+			OpenVDBCache *cache;
 			
 			if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
 				if (smd->domain) {
@@ -1546,6 +1547,12 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 					
 					writestruct(wd, DATA, "EffectorWeights", 1, smd->domain->effector_weights);
 				}
+
+				cache = smd->domain->vdb_caches.first;
+				for (; cache; cache = cache->next) {
+					writestruct(wd, DATA, "OpenVDBCache", 1, cache);
+				}
+
 			}
 			else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 				writestruct(wd, DATA, "SmokeFlowSettings", 1, smd->flow);

@@ -377,6 +377,8 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 {
 	if (smd->domain)
 	{
+		OpenVDBCache *cache = smd->domain->vdb_caches.first;
+
 		if (smd->domain->shadow)
 			MEM_freeN(smd->domain->shadow);
 		smd->domain->shadow = NULL;
@@ -399,6 +401,10 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 
 		MEM_freeN(smd->domain);
 		smd->domain = NULL;
+
+		for (; cache; cache = cache->next) {
+			MEM_freeN(cache);
+		}
 	}
 }
 
@@ -567,8 +573,6 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->effector_weights = BKE_add_effector_weights(NULL);
 
 			smd->domain->use_openvdb = false;
-			smd->domain->startframe = 1;
-			smd->domain->endframe = 250;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -3090,10 +3094,9 @@ static void set_fluid_description(SmokeDomainSettings *sds, const FluidDomainDes
 	copy_v3_v3(sds->active_color, descr.active_color);
 }
 
-static void cache_filename(char *string, const char *path, const char *relbase, int frame)
+static void cache_filename(char *string, const char *path, const char *fname, const char *relbase, int frame)
 {
 	char cachepath[FILE_MAX];
-	const char *fname = "smoke_export_";
 
 	BLI_join_dirfile(cachepath, sizeof(cachepath), path, fname);
 
@@ -3111,6 +3114,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
                                   update_cb update, void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache;
 	FluidDomainDescr descr;
 	int orig_frame, fr, cancel = 0;
 	float progress;
@@ -3119,18 +3123,20 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 
 	orig_frame = scene->r.cfra;
 
-	for (fr = sds->startframe; fr <= sds->endframe; fr++) {
+	cache = BKE_openvdb_get_current_cache(sds);
+
+	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
 
-		cache_filename(filename, sds->path, relbase, fr);
+		cache_filename(filename, cache->path, cache->name, relbase, fr);
 
 		smokeModifier_process(smd, scene, ob, dm, false);
 		descr = get_fluid_description(sds);
 		OpenVDB_export_fluid(sds->fluid, sds->wt, descr, filename, sds->shadow);
 
-		progress = (fr - sds->startframe) / (float)sds->endframe;
+		progress = (fr - cache->startframe) / (float)cache->endframe;
 
 		update(update_cb_data, progress, &cancel);
 
@@ -3148,17 +3154,22 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob)
 {
 	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache;
 	FluidDomainDescr descr;
-	int startframe = sds->startframe, endframe = sds->endframe;
+	int startframe, endframe;
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
 	int ret = OPENVDB_NO_ERROR;
+
+	cache = BKE_openvdb_get_current_cache(sds);
+	startframe = cache->startframe;
+	endframe = cache->endframe;
 
 	if (CFRA < startframe && CFRA > endframe) {
 		return;
 	}
 
-	cache_filename(filename, sds->path, relbase, CFRA);
+	cache_filename(filename, cache->path, cache->name, relbase, CFRA);
 
 	ret = OpenVDB_import_fluid(sds->fluid, sds->wt, &descr, filename, sds->shadow);
 
@@ -3187,6 +3198,7 @@ void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
                                             void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache;
 	int orig_frame, fr, cancel = 0;
 	float progress;
 	const char *relbase = modifier_path_relbase(ob);
@@ -3194,17 +3206,19 @@ void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
 
 	orig_frame = scene->r.cfra;
 
-	for (fr = sds->startframe; fr <= sds->endframe; fr++) {
-		FluidDomainDescr descr = get_fluid_description(sds, ob);
+	cache = BKE_openvdb_get_current_cache(sds);
+
+	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
+		FluidDomainDescr descr = get_fluid_description(sds);
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
 
-		cache_filename(filename, sds->path, relbase, fr);
+		cache_filename(filename, cache->path, cache->name, relbase, fr);
 
 		OpenVDB_update_fluid_transform(filename, descr);
 
-		progress = (fr - sds->startframe) / (float)sds->endframe;
+		progress = (fr - cache->startframe) / (float)cache->endframe;
 
 		update(update_cb_data, progress, &cancel);
 

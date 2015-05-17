@@ -53,6 +53,8 @@
 #include "BKE_depsgraph.h"
 #include "BKE_particle.h"
 
+#include "BLI_math.h"
+
 #include "smoke_API.h"
 
 
@@ -267,7 +269,82 @@ static void rna_SmokeFlow_uvlayer_set(PointerRNA *ptr, const char *value)
 	rna_object_uvlayer_name_set(ptr, value, flow->uvlayer_name, sizeof(flow->uvlayer_name));
 }
 
+static PointerRNA rna_SmokeModifier_active_openvdb_cache_get(PointerRNA *ptr)
+{
+    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
+    OpenVDBCache *cache = NULL;
+
+	cache = BKE_openvdb_get_current_cache(sds);
+    return rna_pointer_inherit_refine(ptr, &RNA_OpenVDBCache, cache);
+}
+
+static void rna_SmokeModifier_active_openvdb_cache_index_range(PointerRNA *ptr, int *min, int *max,
+                                                               int *UNUSED(softmin), int *UNUSED(softmax))
+{
+    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
+    *min = 0;
+    *max = max_ii(0, BLI_listbase_count(&sds->vdb_caches) - 1);
+}
+
+static int rna_SmokeModifier_active_openvdb_cache_index_get(PointerRNA *ptr)
+{
+    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
+    OpenVDBCache *cache = (OpenVDBCache *)sds->vdb_caches.first;
+    int i = 0;
+
+    for (; cache; cache = cache->next, i++) {
+        if (cache->flag & VDB_CACHE_CURRENT)
+            return i;
+    }
+    return 0;
+}
+
+static void rna_SmokeModifier_active_openvdb_cache_index_set(struct PointerRNA *ptr, int value)
+{
+    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
+    OpenVDBCache *cache = (OpenVDBCache *)sds->vdb_caches.first;
+    int i = 0;
+
+    for (; cache; cache = cache->next, i++) {
+        if (i == value)
+            cache->flag |= VDB_CACHE_CURRENT;
+        else
+            cache->flag &= ~VDB_CACHE_CURRENT;
+    }
+}
+
+
 #else
+
+static void rna_def_openvdb_cache(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "OpenVDBCache", NULL);
+	RNA_def_struct_ui_text(srna, "OpenVDB cache", "OpenVDB cache");
+
+	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
+	RNA_def_property_int_sdna(prop, NULL, "startframe");
+	RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
+	RNA_def_property_ui_range(prop, 1, MAXFRAME, 1, 1);
+	RNA_def_property_ui_text(prop, "Start", "Frame on which the simulation starts");
+
+	prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
+	RNA_def_property_int_sdna(prop, NULL, "endframe");
+	RNA_def_property_range(prop, 1, MAXFRAME);
+	RNA_def_property_ui_text(prop, "End", "Frame on which the simulation stops");
+
+	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
+	RNA_def_property_string_sdna(prop, NULL, "path");
+	RNA_def_property_ui_text(prop, "File Path", "Cache file path");
+//	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_ui_text(prop, "Name", "Level Set filter name");
+    RNA_def_struct_name_property(srna, prop);
+}
 
 static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 {
@@ -545,27 +622,28 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	                         "Maximum amount of fluid cell can contain before it is considered empty");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
 
-	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
-	RNA_def_property_int_sdna(prop, NULL, "startframe");
-	RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
-	RNA_def_property_ui_range(prop, 1, MAXFRAME, 1, 1);
-	RNA_def_property_ui_text(prop, "Start", "Frame on which the simulation starts");
-
-	prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
-	RNA_def_property_int_sdna(prop, NULL, "endframe");
-	RNA_def_property_range(prop, 1, MAXFRAME);
-	RNA_def_property_ui_text(prop, "End", "Frame on which the simulation stops");
-
-	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
-	RNA_def_property_string_sdna(prop, NULL, "path");
-	RNA_def_property_ui_text(prop, "File Path", "Cache file path");
-//	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
-
 	prop = RNA_def_property(srna, "use_openvdb", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "use_openvdb", 1);
 	RNA_def_property_ui_text(prop, "Use OpenVDB", "Use OpenVDB to cache the simulation");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
+
+	prop = RNA_def_property(srna, "cache", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "vdb_caches", NULL);
+	RNA_def_property_struct_type(prop, "OpenVDBCache");
+
+	prop = RNA_def_property(srna, "active_openvdb_cache", PROP_POINTER, PROP_NONE);
+    RNA_def_property_struct_type(prop, "OpenVDBCache");
+    RNA_def_property_pointer_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_get", NULL, NULL, NULL);
+    RNA_def_property_ui_text(prop, "Active OpenVDB cache", "");
+
+    prop = RNA_def_property(srna, "active_openvdb_cache_index", PROP_INT, PROP_UNSIGNED);
+    RNA_def_property_int_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_index_get",
+                               "rna_SmokeModifier_active_openvdb_cache_index_set",
+                               "rna_SmokeModifier_active_openvdb_cache_index_range");
+    RNA_def_property_ui_text(prop, "Active OpenVDB cache Index", "");
+
+    rna_def_openvdb_cache(brna);
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

@@ -4801,6 +4801,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					BLI_listbase_clear(&smd->domain->ptcaches[1]);
 					smd->domain->point_cache[1] = NULL;
 				}
+
+				link_list(fd, &smd->domain->vdb_caches);
 			}
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {
 				smd->domain = NULL;

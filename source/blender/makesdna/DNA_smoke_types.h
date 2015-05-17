@@ -151,12 +151,21 @@ typedef struct SmokeDomainSettings {
 	float flame_ignition, flame_max_temp;
 	float flame_smoke_color[3];
 
-	/* OpenVDB export - make it separate struct? */
-	int startframe, endframe;
+	struct ListBase vdb_caches;
 	short use_openvdb, pad[3];
-	char path[1024];
 } SmokeDomainSettings;
 
+typedef struct OpenVDBCache {
+	struct OpenVDBCache *next, *prev;
+	char path[1024];
+	char name[64];
+	int startframe, endframe;
+	short flag, pad[3];
+} OpenVDBCache;
+
+enum {
+	VDB_CACHE_CURRENT = 1,
+};
 
 /* inflow / outflow */
 
