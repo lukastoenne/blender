@@ -963,8 +963,15 @@ static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *pt
 
 static void node_shader_buts_openvdb(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-	uiItemR(layout, ptr, "filename", 0, NULL, 0);
-	uiItemR(layout, ptr, "sampling", 0, NULL, 0);
+	PointerRNA scene = CTX_data_pointer_get(C, "scene");
+	if (scene.data) {
+		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
+		if (cscene.data && RNA_enum_get(&cscene, "device") == 1)
+			uiItemL(layout, IFACE_("OpenVDB is not supported on GPU"), ICON_NONE);
+	}
+
+	uiItemR(layout, ptr, "filename", 0, "", 0);
+	uiItemR(layout, ptr, "sampling", 0, "", 0);
 
 	UNUSED_VARS(C);
 }
