@@ -1911,6 +1911,12 @@ static void ui_apply_but(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 		}
 
 #ifdef USE_ALLSELECT
+#  ifdef USE_DRAG_MULTINUM
+		if (but->flag & UI_BUT_DRAG_MULTI) {
+			/* pass */
+		}
+		else
+#  endif
 		if (data->select_others.elems_len == 0) {
 			wmWindow *win = CTX_wm_window(C);
 			/* may have been enabled before activating */
@@ -3470,8 +3476,8 @@ int ui_but_menu_direction(uiBut *but)
 }
 
 /**
- * Hack for uiList UI_BTYPE_LISTROW buttons to "give" events to overlaying UI_BTYPE_TEXT buttons
- * (cltr-clic rename feature & co).
+ * Hack for #uiList #UI_BTYPE_LISTROW buttons to "give" events to overlaying #UI_BTYPE_TEXT buttons
+ * (Ctrl-Click rename feature & co).
  */
 static uiBut *ui_but_list_row_text_activate(
         bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event,
@@ -9077,6 +9083,9 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 	block = ar->uiblocks.first;
 
 	but = ui_but_find_active_in_region(ar);
+
+	BLI_assert(but);
+
 	data = but->active;
 	submenu = data->menu;
 

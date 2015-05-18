@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_threads.h"
 
 #include "BKE_global.h"
 #include "BKE_armature.h"
@@ -64,6 +65,8 @@
 #else
 #  define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
 #endif
+
+static ThreadMutex material_lock = BLI_MUTEX_INITIALIZER;
 
 void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
                                      Scene *UNUSED(scene),
@@ -239,12 +242,16 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	 */
 	if (ob->totcol) {
 		int a;
-		for (a = 1; a <= ob->totcol; a++) {
-			Material *ma = give_current_material(ob, a);
-			if (ma) {
-				/* recursively update drivers for this material */
-				material_drivers_update(scene, ma, ctime);
+		if (ob->totcol != 0) {
+			BLI_mutex_lock(&material_lock);
+			for (a = 1; a <= ob->totcol; a++) {
+				Material *ma = give_current_material(ob, a);
+				if (ma) {
+					/* recursively update drivers for this material */
+					material_drivers_update(scene, ma, ctime);
+				}
 			}
+			BLI_mutex_unlock(&material_lock);
 		}
 	}
 	else if (ob->type == OB_LAMP)
@@ -311,8 +318,9 @@ void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
 		if (ob->proxy_from->proxy_group) {
 			/* Transform proxy into group space. */
 			Object *obg = ob->proxy_from->proxy_group;
-			invert_m4_m4(obg->imat, obg->obmat);
-			mul_m4_m4m4(ob->obmat, obg->imat, ob->proxy_from->obmat);
+			float imat[4][4];
+			invert_m4_m4(imat, obg->obmat);
+			mul_m4_m4m4(ob->obmat, imat, ob->proxy_from->obmat);
 			/* Should always be true. */
 			if (obg->dup_group) {
 				add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);

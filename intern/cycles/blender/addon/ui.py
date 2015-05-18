@@ -18,7 +18,11 @@
 
 import bpy
 
-from bpy.types import Panel, Menu, Operator, UIList
+from bpy.types import (
+        Panel,
+        Menu,
+        Operator,
+        )
 
 
 class CYCLES_MT_sampling_presets(Menu):
@@ -54,6 +58,7 @@ def use_cpu(context):
     device_type = context.user_preferences.system.compute_device_type
 
     return (device_type == 'NONE' or cscene.device == 'CPU')
+
 
 def use_branched_path(context):
     cscene = context.scene.cycles
@@ -135,7 +140,11 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         col = split.column()
         sub = col.column(align=True)
         sub.label("Settings:")
-        sub.prop(cscene, "seed")
+
+        seed_sub = sub.row(align=True)
+        seed_sub.prop(cscene, "seed")
+        seed_sub.prop(cscene, "use_animated_seed", text="", icon="TIME")
+
         sub.prop(cscene, "sample_clamp_direct")
         sub.prop(cscene, "sample_clamp_indirect")
 
@@ -438,7 +447,6 @@ class CyclesRender_PT_views(CyclesButtonsPanel, Panel):
         rd = scene.render
         rv = rd.views.active
 
-
         layout.active = rd.use_multiview
         basic_stereo = (rd.views_format == 'STEREO_3D')
 
@@ -514,12 +522,12 @@ class CyclesCamera_PT_dof(CyclesButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.label("Viewport:")
         subhq = sub.column()
-        subhq.active = hq_support;
+        subhq.active = hq_support
         subhq.prop(dof_options, "use_high_quality")
         sub.prop(dof_options, "fstop")
         if dof_options.use_high_quality and hq_support:
             sub.prop(dof_options, "blades")
- 
+
         col = split.column()
 
         col.label("Aperture:")
@@ -552,17 +560,28 @@ class Cycles_PT_context_material(CyclesButtonsPanel, Panel):
         ob = context.object
         slot = context.material_slot
         space = context.space_data
+        is_sortable = len(ob.material_slots) > 1
 
         if ob:
+            rows = 1
+            if (is_sortable):
+                rows = 4
+
             row = layout.row()
 
-            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=1)
+            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=rows)
 
             col = row.column(align=True)
             col.operator("object.material_slot_add", icon='ZOOMIN', text="")
             col.operator("object.material_slot_remove", icon='ZOOMOUT', text="")
 
             col.menu("MATERIAL_MT_specials", icon='DOWNARROW_HLT', text="")
+
+            if is_sortable:
+                col.separator()
+
+                col.operator("object.material_slot_move", icon='TRIA_UP', text="").direction = 'UP'
+                col.operator("object.material_slot_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
             if ob.mode == 'EDIT':
                 row = layout.row(align=True)

@@ -587,26 +587,35 @@ void WM_event_print(const wmEvent *event)
 
 #endif /* NDEBUG */
 
+/**
+ * Show the report in the info header.
+ */
+void WM_report_banner_show(const bContext *C)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	ReportList *wm_reports = CTX_wm_reports(C);
+	ReportTimerInfo *rti;
+
+	/* After adding reports to the global list, reset the report timer. */
+	WM_event_remove_timer(wm, NULL, wm_reports->reporttimer);
+
+	/* Records time since last report was added */
+	wm_reports->reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMERREPORT, 0.05);
+
+	rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
+	wm_reports->reporttimer->customdata = rti;
+}
+
 static void wm_add_reports(const bContext *C, ReportList *reports)
 {
 	/* if the caller owns them, handle this */
 	if (reports->list.first && (reports->flag & RPT_OP_HOLD) == 0) {
-
-		wmWindowManager *wm = CTX_wm_manager(C);
 		ReportList *wm_reports = CTX_wm_reports(C);
-		ReportTimerInfo *rti;
 
 		/* add reports to the global list, otherwise they are not seen */
 		BLI_movelisttolist(&wm_reports->list, &reports->list);
-		
-		/* After adding reports to the global list, reset the report timer. */
-		WM_event_remove_timer(wm, NULL, wm_reports->reporttimer);
-		
-		/* Records time since last report was added */
-		wm_reports->reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMERREPORT, 0.05);
-		
-		rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
-		wm_reports->reporttimer->customdata = rti;
+
+		WM_report_banner_show(C);
 	}
 }
 
@@ -1173,7 +1182,7 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA
 	CTX_wm_operator_poll_msg_set(C, NULL);
 
 	/* dummie test */
-	if (ot && C) {
+	if (ot) {
 		wmWindow *window = CTX_wm_window(C);
 
 		switch (context) {
@@ -2434,7 +2443,7 @@ void wm_event_do_handlers(bContext *C)
 
 				/* XXX hrmf, this gives reliable previous mouse coord for area change, feels bad? 
 				 * doing it on ghost queue gives errors when mousemoves go over area borders */
-				if (doit && win->screen && win->screen->subwinactive != win->screen->mainwin) {
+				if (doit && win->screen->subwinactive != win->screen->mainwin) {
 					win->eventstate->prevx = event->x;
 					win->eventstate->prevy = event->y;
 					//printf("win->eventstate->prev = %d %d\n", event->x, event->y);
@@ -2886,52 +2895,41 @@ static int convert_key(GHOST_TKey key)
 
 static void wm_eventemulation(wmEvent *event)
 {
-	/* Store last mmb event value to make emulation work when modifier keys are released first. */
-	static int mmb_emulated = 0; /* this should be in a data structure somwhere */
+	/* Store last mmb/rmb event value to make emulation work when modifier keys
+	 * are released first. This really should be in a data structure somwhere. */
+	static int emulating_event = EVENT_NONE;
 	
-	/* middlemouse emulation */
+	/* middlemouse and rightmouse emulation */
 	if (U.flag & USER_TWOBUTTONMOUSE) {
 		if (event->type == LEFTMOUSE) {
 			
 			if (event->val == KM_PRESS && event->alt) {
 				event->type = MIDDLEMOUSE;
 				event->alt = 0;
-				mmb_emulated = 1;
+				emulating_event = MIDDLEMOUSE;
 			}
+#ifdef __APPLE__
+			else if (event->val == KM_PRESS && event->oskey) {
+				event->type = RIGHTMOUSE;
+				event->oskey = 0;
+				emulating_event = RIGHTMOUSE;
+			}
+#endif
 			else if (event->val == KM_RELEASE) {
 				/* only send middle-mouse release if emulated */
-				if (mmb_emulated) {
+				if (emulating_event == MIDDLEMOUSE) {
 					event->type = MIDDLEMOUSE;
 					event->alt = 0;
 				}
-				mmb_emulated = 0;
-			}
-		}
-		
-	}
-	
-#ifdef __APPLE__
-	
-	/* rightmouse emulation */
-	if (U.flag & USER_TWOBUTTONMOUSE) {
-		if (event->type == LEFTMOUSE) {
-			
-			if (event->val == KM_PRESS && event->oskey) {
-				event->type = RIGHTMOUSE;
-				event->oskey = 0;
-				mmb_emulated = 1;
-			}
-			else if (event->val == KM_RELEASE) {
-				if (mmb_emulated) {
-					event->oskey = RIGHTMOUSE;
-					event->alt = 0;
+				else if (emulating_event == RIGHTMOUSE) {
+					event->type = RIGHTMOUSE;
+					event->oskey = 0;
 				}
-				mmb_emulated = 0;
+				emulating_event = EVENT_NONE;
 			}
 		}
 		
 	}
-#endif
 	
 	/* numpad emulation */
 	if (U.flag & USER_NONUMPAD) {
