@@ -20,7 +20,7 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
-	float3 co = sd->P;
+	float3 co = ccl_fetch(sd, P);
 	uint type, out_offset, sampling, slot;
 	decode_node_uchar4(node.y, &slot, &type, &out_offset, &sampling);
 
