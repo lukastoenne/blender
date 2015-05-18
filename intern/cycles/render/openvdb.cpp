@@ -55,6 +55,30 @@ static inline void catch_exceptions()
 	}
 }
 
+void OpenVDBManager::delete_sampler(int grid_type, int sampling, size_t slot)
+{
+	if(grid_type == NODE_VDB_FLOAT) {
+		if(sampling == OPENVDB_SAMPLE_POINT) {
+			delete float_samplers_p[slot];
+			float_samplers_p[slot] = NULL;
+		}
+		else {
+			delete float_samplers_b[slot];
+			float_samplers_b[slot] = NULL;
+		}
+	}
+	else {
+		if(sampling == OPENVDB_SAMPLE_POINT) {
+			delete vec3s_samplers_p[slot];
+			vec3s_samplers_p[slot] = NULL;
+		}
+		else {
+			delete vec3s_samplers_b[slot];
+			vec3s_samplers_b[slot] = NULL;
+		}
+	}
+}
+
 int OpenVDBManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
 {
 	for(size_t i = 0; i < current_grids.size(); ++i) {
@@ -64,30 +88,11 @@ int OpenVDBManager::find_existing_slot(const string &filename, const string &nam
 			if(grid.sampling == sampling) {
 				return grid.slot;
 			}
-			/* sampling was changed, remove the sampler */
 			else {
-				if(grid_type == NODE_VDB_FLOAT) {
-					if(grid.sampling == OPENVDB_SAMPLE_POINT) {
-						delete float_samplers_p[grid.slot];
-						float_samplers_p[grid.slot] = NULL;
-					}
-					else {
-						delete float_samplers_b[grid.slot];
-						float_samplers_b[grid.slot] = NULL;
-					}
-				}
-				else {
-					if(grid.sampling == OPENVDB_SAMPLE_POINT) {
-						delete vec3s_samplers_p[grid.slot];
-						vec3s_samplers_p[grid.slot] = NULL;
-					}
-					else {
-						delete vec3s_samplers_b[grid.slot];
-						vec3s_samplers_b[grid.slot] = NULL;
-					}
-				}
+				/* sampling was changed, remove the sampler */
+				delete_sampler(grid_type, grid.sampling, grid.slot);
 
-				/* remove grid description too */
+				/* remove the grid description too */
 				std::swap(current_grids[i], current_grids.back());
 				current_grids.pop_back();
 				break;
@@ -276,6 +281,13 @@ void OpenVDBManager::device_free(Device *device, DeviceScene *dscene)
 {
 	(void)device;
 	(void)dscene;
+}
+
+void OpenVDBManager::delete_sampler(int grid_type, int sampling, size_t slot)
+{
+	(void)grid_type;
+	(void)sampling;
+	(void)slot;
 }
 
 #endif
