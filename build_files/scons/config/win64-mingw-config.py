@@ -165,6 +165,12 @@ BF_BOOST_LIB = 'boost_date_time-mgw47-mt-s-1_49 boost_date_time-mgw47-mt-sd-1_49
 BF_BOOST_LIB_INTERNATIONAL = ' boost_locale-mgw47-mt-s-1_49 boost_locale-mgw47-mt-sd-1_49'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 
+WITH_BF_OPENVDB = True
+BF_OPENVDB = LIBDIR + '/openvdb'
+BF_OPENVDB_INC = '${BF_OPENVDB}/include'
+BF_OPENVDB_LIB = 'openvdb tbb'
+BF_OPENVDB_LIB_PATH = '${BF_OPENVDB}/lib'
+
 #Ray trace optimization
 WITH_BF_RAYOPTIMIZATION = True
 BF_RAYOPTIMIZATION_SSE_FLAGS = ['-mmmx', '-msse', '-msse2']

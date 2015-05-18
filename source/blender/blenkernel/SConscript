@@ -66,6 +66,7 @@ incs = [
     '../makesrna',
     '../modifiers',
     '../nodes',
+    '../openvdb',
     '../physics',
     '../render/extern/include',
     '../windowmanager',
@@ -167,6 +168,9 @@ if env['WITH_BF_INTERNATIONAL']:
 
 if env['WITH_BF_FREESTYLE']:
     defs.append('WITH_FREESTYLE')
+
+if env['WITH_BF_OPENVDB']:
+    defs.append('WITH_OPENVDB')
 
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', 'win64-mingw'):
     incs += ' ' + env['BF_PTHREADS_INC']

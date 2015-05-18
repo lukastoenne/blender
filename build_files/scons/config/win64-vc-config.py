@@ -199,6 +199,12 @@ BF_BOOST_LIB = 'libboost_date_time-vc120-mt-s-1_55 libboost_filesystem-vc120-mt-
 BF_BOOST_LIB_INTERNATIONAL = ' libboost_locale-vc120-mt-s-1_55'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 
+WITH_BF_OPENVDB = True
+BF_OPENVDB = '${LIBDIR}/openvdb'
+BF_OPENVDB_INC = '${BF_OPENVDB}/include'
+BF_OPENVDB_LIB = 'openvdb tbb'
+BF_OPENVDB_LIB_PATH = '${BF_OPENVDB}/lib'
+
 #CUDA
 WITH_BF_CYCLES_CUDA_BINARIES = False
 #BF_CYCLES_CUDA_NVCC = "" # Path to the nvidia compiler

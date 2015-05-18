@@ -71,6 +71,10 @@ if env['WITH_BF_CYCLES_OSL']:
     defs.append('OSL_STATIC_LIBRARY')
     incs.append(cycles['BF_OSL_INC'])
 
+if env['WITH_BF_OPENVDB']:
+    defs.append('WITH_OPENVDB')
+    incs.append(env['BF_OPENVDB_INC'])
+
 if env['WITH_BF_CYCLES_DEBUG']:
     defs.append('WITH_CYCLES_DEBUG')
 

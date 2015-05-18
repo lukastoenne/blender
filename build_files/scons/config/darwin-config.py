@@ -203,6 +203,12 @@ BF_BOOST_LIB = 'boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_syst
 BF_BOOST_LIB_INTERNATIONAL = 'boost_locale-mt'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 
+WITH_BF_OPENVDB = True
+BF_OPENVDB = '/openvdb'
+BF_OPENVDB_INC = '${BF_OPENVDB}/include'
+BF_OPENVDB_LIB = 'openvdb tbb'
+BF_OPENVDB_LIB_PATH = '${BF_OPENVDB}/lib'
+
 WITH_BF_CYCLES_CUDA_BINARIES = False
 BF_CYCLES_CUDA_NVCC = '/usr/local/cuda/bin/nvcc'
 BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35', 'sm_50', 'sm_52']
