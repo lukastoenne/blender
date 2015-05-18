@@ -271,44 +271,17 @@ OpenVDBManager::~OpenVDBManager()
 {
 }
 
-int OpenVDBManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
+int OpenVDBManager::add_volume(const string &/*filename*/, const string &/*name*/, int /*sampling*/, int /*grid_type*/)
 {
-	(void)filename;
-	(void)name;
-	(void)sampling;
-
 	return -1;
 }
 
-int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
+void OpenVDBManager::device_update(Device */*device*/, DeviceScene */*dscene*/, Scene */*scene*/, Progress &/*progress*/)
 {
-	(void)filename;
-	(void)name;
-	(void)sampling;
-	(void)grid_type;
-
-	return -1;
 }
 
-void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress)
+void OpenVDBManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
 {
-	(void)device;
-	(void)dscene;
-	(void)scene;
-	(void)progress;
-}
-
-void OpenVDBManager::device_free(Device *device, DeviceScene *dscene)
-{
-	(void)device;
-	(void)dscene;
-}
-
-void OpenVDBManager::delete_sampler(int grid_type, int sampling, size_t slot)
-{
-	(void)grid_type;
-	(void)sampling;
-	(void)slot;
 }
 
 #endif

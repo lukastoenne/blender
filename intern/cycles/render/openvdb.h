@@ -36,18 +36,24 @@ class OpenVDBManager {
 		int slot;
 	};
 
+#ifdef WITH_OPENVDB
+	vector<GridDescription> current_grids;
+	vector<openvdb::FloatGrid::Ptr> scalar_grids;
+	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
+
 	size_t add_scalar_grid(openvdb::FloatGrid::Ptr grid, int sampling);
 	size_t add_vector_grid(openvdb::Vec3SGrid::Ptr grid, int sampling);
+	void delete_sampler(int grid_type, int sampling, size_t slot);
 
 	void add_grid_description(const string &filename, const string &name, int sampling, int slot);
+	int find_existing_slot(const string &filename, const string &name, int sampling, int grid_type);
+#endif
 
 public:
 	OpenVDBManager();
 	~OpenVDBManager();
 
 	int add_volume(const string &filename, const string &name, int sampling, int grid_type);
-	int find_existing_slot(const string &filename, const string &name, int sampling, int grid_type);
-	void delete_sampler(int grid_type, int sampling, size_t slot);
 
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_free(Device *device, DeviceScene *dscene);
@@ -55,10 +61,6 @@ public:
 	bool need_update;
 
 #ifdef WITH_OPENVDB
-	vector<GridDescription> current_grids;
-	vector<openvdb::FloatGrid::Ptr> scalar_grids;
-	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
-
 	vector<vdb_fsampler_p*> float_samplers_p;
 	vector<vdb_fsampler_b*> float_samplers_b;
 	vector<vdb_vsampler_p*> vec3s_samplers_p;
