@@ -55,12 +55,8 @@ static inline void catch_exceptions()
 	}
 }
 
-int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
+int OpenVDBManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
 {
-	using namespace openvdb;
-	size_t slot = -1;
-
-	/* Find existing grid */
 	for(size_t i = 0; i < current_grids.size(); ++i) {
 		GridDescription grid = current_grids[i];
 
@@ -97,6 +93,18 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 				break;
 			}
 		}
+	}
+
+	return -1;
+}
+
+int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
+{
+	using namespace openvdb;
+	size_t slot = -1;
+
+	if((slot = find_existing_slot(filename, name, sampling, grid_type)) != -1) {
+		return slot;
 	}
 
 	try {
@@ -235,6 +243,15 @@ OpenVDBManager::OpenVDBManager()
 
 OpenVDBManager::~OpenVDBManager()
 {
+}
+
+int OpenVDBManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
+{
+	(void)filename;
+	(void)name;
+	(void)sampling;
+
+	return -1;
 }
 
 int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)

@@ -41,6 +41,7 @@ public:
 	~OpenVDBManager();
 
 	int add_volume(const string &filename, const string &name, int sampling, int grid_type);
+	int find_existing_slot(const string &filename, const string &name, int sampling, int grid_type);
 
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_free(Device *device, DeviceScene *dscene);
