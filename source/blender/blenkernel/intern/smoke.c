@@ -3047,7 +3047,7 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 {
 	FluidDomainDescr descr;
-	float voxel_size[3], voxel_size_high[3];
+	float voxel_size[3], voxel_size_high[3], bbox_min[3];
 
 	descr.active_fields = sds->active_fields;
 	descr.fluid_fields = smoke_get_data_flags(sds);
@@ -3066,41 +3066,26 @@ static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 	 * bounding box.
 	 */
 
+	copy_v3_v3(bbox_min, sds->p0);
+
+	if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+		bbox_min[0] = (sds->p0[0] + sds->cell_size[0] * sds->res_min[0] + sds->obj_shift_f[0]);
+		bbox_min[1] = (sds->p0[1] + sds->cell_size[1] * sds->res_min[1] + sds->obj_shift_f[1]);
+		bbox_min[2] = (sds->p0[2] + sds->cell_size[2] * sds->res_min[2] + sds->obj_shift_f[2]);
+	}
+
 	/* construct low res matrix */
 	copy_v3_v3(voxel_size, sds->cell_size);
 	size_to_mat4(descr.fluidmat, voxel_size);
-	copy_v3_v3(descr.fluidmat[3], sds->p0);
+	copy_v3_v3(descr.fluidmat[3], bbox_min);
 	mul_m4_m4m4(descr.fluidmat, sds->obmat, descr.fluidmat);
-
-	/* make sure voxels have the same size on all axises */
-	voxel_size[0] = descr.fluidmat[0][0];
-	voxel_size[1] = descr.fluidmat[1][1];
-	voxel_size[2] = descr.fluidmat[2][2];
-
-	copy_v3_fl(voxel_size, max_fff(voxel_size[0], voxel_size[1], voxel_size[2]));
-
-	descr.fluidmat[0][0] = voxel_size[0];
-	descr.fluidmat[1][1] = voxel_size[1];
-	descr.fluidmat[2][2] = voxel_size[2];
 
 	if (sds->wt) {
 		/* construct high res matrix */
 		mul_v3_v3fl(voxel_size_high, sds->cell_size, 1.0f / (float)(sds->amplify + 1));
 		size_to_mat4(descr.fluidmathigh, voxel_size_high);
-		copy_v3_v3(descr.fluidmathigh[3], sds->p0);
+		copy_v3_v3(descr.fluidmathigh[3], bbox_min);
 		mul_m4_m4m4(descr.fluidmathigh, sds->obmat, descr.fluidmathigh);
-
-		/* make sure voxels have the same size on all axises */
-		voxel_size_high[0] = descr.fluidmathigh[0][0];
-		voxel_size_high[1] = descr.fluidmathigh[1][1];
-		voxel_size_high[2] = descr.fluidmathigh[2][2];
-
-		copy_v3_fl(voxel_size, max_fff(voxel_size_high[0], voxel_size_high[1], voxel_size_high[2]));
-
-		descr.fluidmathigh[0][0] = voxel_size_high[0];
-		descr.fluidmathigh[1][1] = voxel_size_high[1];
-		descr.fluidmathigh[2][2] = voxel_size_high[2];
-
 	}
 
 	return descr;
