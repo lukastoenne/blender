@@ -55,28 +55,37 @@ static inline void catch_exceptions()
 	}
 }
 
-void OpenVDBManager::delete_sampler(int grid_type, int sampling, size_t slot)
+int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
 {
-	if(grid_type == NODE_VDB_FLOAT) {
-		if(sampling == OPENVDB_SAMPLE_POINT) {
-			delete float_samplers_p[slot];
-			float_samplers_p[slot] = NULL;
+	using namespace openvdb;
+	size_t slot = -1;
+
+	if((slot = find_existing_slot(filename, name, sampling, grid_type)) != -1) {
+		return slot;
+	}
+
+	try {
+		io::File file(filename);
+		file.open();
+
+		if(grid_type == NODE_VDB_FLOAT) {
+			FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(file.readGrid(name));
+			slot = add_scalar_grid(grid, sampling);
 		}
-		else {
-			delete float_samplers_b[slot];
-			float_samplers_b[slot] = NULL;
+		else if(grid_type == NODE_VDB_VEC3S) {
+			Vec3SGrid::Ptr grid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
+			slot = add_vector_grid(grid, sampling);
 		}
 	}
-	else {
-		if(sampling == OPENVDB_SAMPLE_POINT) {
-			delete vec3s_samplers_p[slot];
-			vec3s_samplers_p[slot] = NULL;
-		}
-		else {
-			delete vec3s_samplers_b[slot];
-			vec3s_samplers_b[slot] = NULL;
-		}
+	catch (...) {
+		catch_exceptions();
 	}
+
+	add_grid_description(filename, name, sampling, slot);
+
+	need_update = true;
+
+	return slot;
 }
 
 int OpenVDBManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
@@ -103,76 +112,92 @@ int OpenVDBManager::find_existing_slot(const string &filename, const string &nam
 	return -1;
 }
 
-int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
+void OpenVDBManager::delete_sampler(int grid_type, int sampling, size_t slot)
 {
-	using namespace openvdb;
-	size_t slot = -1;
-
-	if((slot = find_existing_slot(filename, name, sampling, grid_type)) != -1) {
-		return slot;
-	}
-
-	try {
-		io::File file(filename);
-		file.open();
-
-		if(grid_type == NODE_VDB_FLOAT) {
-			FloatGrid::Ptr fgrid = gridPtrCast<FloatGrid>(file.readGrid(name));
-
-			if(sampling == OPENVDB_SAMPLE_POINT) {
-				vdb_fsampler_p *sampler = new vdb_fsampler_p(fgrid->tree(), fgrid->transform());
-
-				for(slot = 0; slot < float_samplers_p.size(); slot++) {
-					if(!float_samplers_p[slot]) {
-						break;
-					}
-				}
-				float_samplers_p.insert(float_samplers_p.begin() + slot, sampler);
-			}
-			else {
-				vdb_fsampler_b *sampler = new vdb_fsampler_b(fgrid->tree(), fgrid->transform());
-
-				for(slot = 0; slot < float_samplers_b.size(); slot++) {
-					if(!float_samplers_b[slot]) {
-						break;
-					}
-				}
-				float_samplers_b.insert(float_samplers_b.begin() + slot, sampler);
-			}
-
-			scalar_grids.insert(scalar_grids.begin() + slot, fgrid);
+	if(grid_type == NODE_VDB_FLOAT) {
+		if(sampling == OPENVDB_SAMPLE_POINT) {
+			delete float_samplers_p[slot];
+			float_samplers_p[slot] = NULL;
 		}
-		else if(grid_type == NODE_VDB_VEC3S) {
-			Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
-
-			if(sampling == OPENVDB_SAMPLE_POINT) {
-				vdb_vsampler_p *sampler = new vdb_vsampler_p(vgrid->tree(), vgrid->transform());
-
-				for(slot = 0; slot < vec3s_samplers_p.size(); slot++) {
-					if(!vec3s_samplers_p[slot]) {
-						break;
-					}
-				}
-				vec3s_samplers_p.insert(vec3s_samplers_p.begin() + slot, sampler);
-			}
-			else {
-				vdb_vsampler_b *sampler = new vdb_vsampler_b(vgrid->tree(), vgrid->transform());
-
-				for(slot = 0; slot < vec3s_samplers_b.size(); slot++) {
-					if(!vec3s_samplers_b[slot]) {
-						break;
-					}
-				}
-				vec3s_samplers_b.insert(vec3s_samplers_b.begin() + slot, sampler);
-			}
-
-			vector_grids.insert(vector_grids.begin() + slot, vgrid);
+		else {
+			delete float_samplers_b[slot];
+			float_samplers_b[slot] = NULL;
 		}
 	}
-	catch (...) {
-		catch_exceptions();
+	else {
+		if(sampling == OPENVDB_SAMPLE_POINT) {
+			delete vec3s_samplers_p[slot];
+			vec3s_samplers_p[slot] = NULL;
+		}
+		else {
+			delete vec3s_samplers_b[slot];
+			vec3s_samplers_b[slot] = NULL;
+		}
+	}
+}
+
+size_t OpenVDBManager::add_scalar_grid(openvdb::FloatGrid::Ptr grid, int sampling)
+{
+	size_t slot = 0;
+
+	if(sampling == OPENVDB_SAMPLE_POINT) {
+		vdb_fsampler_p *sampler = new vdb_fsampler_p(grid->tree(), grid->transform());
+
+		for(; slot < float_samplers_p.size(); slot++) {
+			if(!float_samplers_p[slot]) {
+				break;
+			}
+		}
+		float_samplers_p.insert(float_samplers_p.begin() + slot, sampler);
+	}
+	else {
+		vdb_fsampler_b *sampler = new vdb_fsampler_b(grid->tree(), grid->transform());
+
+		for(; slot < float_samplers_b.size(); slot++) {
+			if(!float_samplers_b[slot]) {
+				break;
+			}
+		}
+		float_samplers_b.insert(float_samplers_b.begin() + slot, sampler);
 	}
 
+	scalar_grids.insert(scalar_grids.begin() + slot, grid);
+
+	return slot;
+}
+
+size_t OpenVDBManager::add_vector_grid(openvdb::Vec3SGrid::Ptr grid, int sampling)
+{
+	size_t slot = 0;
+
+	if(sampling == OPENVDB_SAMPLE_POINT) {
+		vdb_vsampler_p *sampler = new vdb_vsampler_p(grid->tree(), grid->transform());
+
+		for(; slot < vec3s_samplers_p.size(); slot++) {
+			if(!vec3s_samplers_p[slot]) {
+				break;
+			}
+		}
+		vec3s_samplers_p.insert(vec3s_samplers_p.begin() + slot, sampler);
+	}
+	else {
+		vdb_vsampler_b *sampler = new vdb_vsampler_b(grid->tree(), grid->transform());
+
+		for(; slot < vec3s_samplers_b.size(); slot++) {
+			if(!vec3s_samplers_b[slot]) {
+				break;
+			}
+		}
+		vec3s_samplers_b.insert(vec3s_samplers_b.begin() + slot, sampler);
+	}
+
+	vector_grids.insert(vector_grids.begin() + slot, grid);
+
+	return slot;
+}
+
+void OpenVDBManager::add_grid_description(const string &filename, const string &name, int sampling, int slot)
+{
 	GridDescription descr;
 	descr.filename = filename;
 	descr.name = name;
@@ -180,10 +205,6 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 	descr.slot = slot;
 
 	current_grids.push_back(descr);
-
-	need_update = true;
-
-	return slot;
 }
 
 void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress)

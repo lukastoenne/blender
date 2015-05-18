@@ -36,6 +36,11 @@ class OpenVDBManager {
 		int slot;
 	};
 
+	size_t add_scalar_grid(openvdb::FloatGrid::Ptr grid, int sampling);
+	size_t add_vector_grid(openvdb::Vec3SGrid::Ptr grid, int sampling);
+
+	void add_grid_description(const string &filename, const string &name, int sampling, int slot);
+
 public:
 	OpenVDBManager();
 	~OpenVDBManager();
