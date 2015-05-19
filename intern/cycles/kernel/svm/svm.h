@@ -438,7 +438,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				break;
 #ifdef __OPENVDB__
 			case NODE_OPENVDB:
-				svm_node_openvdb(kg, sd, stack, node);
+				svm_node_openvdb(kg, sd, stack, node, &offset);
 				break;
 #endif
 			case NODE_END:

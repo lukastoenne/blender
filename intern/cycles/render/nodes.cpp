@@ -4376,16 +4376,26 @@ OpenVDBNode::OpenVDBNode()
 #else
 	sampling = 0;
 #endif
+
+	tfm = transform_identity();
+
+	add_input("Vector", SHADER_SOCKET_POINT, ShaderInput::POSITION);
 }
 
 void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
+	if(shader->has_volume)
+		attributes->add(ATTR_STD_GENERATED_TRANSFORM);
+
 	ShaderNode::attributes(shader, attributes);
 }
 
 void OpenVDBNode::compile(SVMCompiler &compiler)
 {
+	ShaderInput *vector_in = input("Vector");
 	vdb_manager = compiler.vdb_manager;
+
+	compiler.stack_assign(vector_in);
 
 	for(size_t i = 0; i < outputs.size(); ++i) {
 		ShaderOutput *out = outputs[i];
@@ -4400,12 +4410,23 @@ void OpenVDBNode::compile(SVMCompiler &compiler)
 			type = NODE_VDB_VEC3S;
 		}
 
-		grid_slot = vdb_manager->add_volume(filename.string(), output_names[i].string(), sampling, type);
+		grid_slot = vdb_manager->add_volume(filename.string(),
+		                                    output_names[i].string(),
+		                                    sampling, type);
 
 		compiler.stack_assign(out);
 
 		compiler.add_node(NODE_OPENVDB,
-		                  compiler.encode_uchar4(grid_slot, type, out->stack_offset, sampling));
+		                  grid_slot,
+		                  compiler.encode_uchar4(type,
+		                                         vector_in->stack_offset,
+		                                         out->stack_offset,
+		                                         sampling));
+
+		compiler.add_node(tfm.x);
+		compiler.add_node(tfm.y);
+		compiler.add_node(tfm.z);
+		compiler.add_node(tfm.w);
 	}
 }
 

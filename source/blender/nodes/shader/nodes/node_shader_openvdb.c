@@ -29,6 +29,11 @@
 
 #include "openvdb_capi.h"
 
+static bNodeSocketTemplate sh_node_openvdb_in[] = {
+    {SOCK_VECTOR, 1, N_("Vector"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
+    {-1, 0, ""}
+};
+
 static void node_shader_init_openvdb(bNodeTree *UNUSED(ntree), bNode *node)
 {
 	NodeShaderOpenVDB *vdb = MEM_callocN(sizeof(NodeShaderOpenVDB), "NodeShaderOpenVDB");
@@ -59,6 +64,7 @@ void register_node_type_sh_openvdb(void)
 	sh_node_type_base(&ntype, SH_NODE_OPENVDB, "OpenVDB Volume", NODE_CLASS_INPUT, 0);
 	node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
+	node_type_socket_templates(&ntype, sh_node_openvdb_in, NULL);
 	node_type_init(&ntype, node_shader_init_openvdb);
 	node_type_storage(&ntype, "NodeShaderOpenVDB", node_free_standard_storage, node_copy_standard_storage);
 
