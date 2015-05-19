@@ -972,6 +972,7 @@ static void node_shader_buts_openvdb(uiLayout *layout, bContext *C, PointerRNA *
 
 	uiItemR(layout, ptr, "filename", 0, "", 0);
 	uiItemR(layout, ptr, "sampling", 0, "", 0);
+	uiItemR(layout, ptr, "source", 0, "", 0);
 
 	UNUSED_VARS(C);
 }

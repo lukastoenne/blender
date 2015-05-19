@@ -742,6 +742,18 @@ static ShaderNode *add_node(Scene *scene,
 		vdb_node->filename = b_vdb_node.filename();
 		vdb_node->sampling = b_vdb_node.sampling();
 
+		/* TODO(kevin) */
+		if(b_vdb_node.source() == 1) {
+			string filename = b_vdb_node.filename();
+			string basename = filename.substr(0, filename.size() - 8);
+			stringstream ss;
+			ss << b_scene.frame_current();
+			string frame = ss.str();
+			frame.insert(frame.begin(), 4 - frame.size(), '0');
+
+			vdb_node->filename = ustring::format("%s%s.vdb", basename, frame);
+		}
+
 		BL::Node::outputs_iterator b_output;
 
 		for(b_vdb_node.outputs.begin(b_output); b_output != b_vdb_node.outputs.end(); ++b_output) {

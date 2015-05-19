@@ -3902,6 +3902,12 @@ static void def_sh_openvdb(StructRNA *srna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static const EnumPropertyItem prop_openvdb_source[] = {
+		{NODE_VDB_SRC_FILE, "FILE", 0, "Single File", "Single vdb file"},
+		{NODE_VDB_SRC_SEQ, "SEQUENCE", 0, "File Sequence", "Multiple vdb files, as a sequence"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	RNA_def_struct_sdna_from(srna, "NodeShaderOpenVDB", "storage");
 
 	prop = RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
@@ -3911,6 +3917,11 @@ static void def_sh_openvdb(StructRNA *srna)
 	prop = RNA_def_property(srna, "sampling", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_openvdb_sampling);
 	RNA_def_property_ui_text(prop, "Sampling", "Grid interpolation");
+	RNA_def_property_update(prop, 0, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_openvdb_source);
+	RNA_def_property_ui_text(prop, "Source", "File Source");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 
 	RNA_def_struct_sdna_from(srna, "bNode", NULL);
