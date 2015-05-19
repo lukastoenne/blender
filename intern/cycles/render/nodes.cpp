@@ -4414,6 +4414,10 @@ void OpenVDBNode::compile(SVMCompiler &compiler)
 		                                    output_names[i].string(),
 		                                    sampling, type);
 
+		if(grid_slot == -1) {
+			continue;
+		}
+
 		compiler.stack_assign(out);
 
 		compiler.add_node(NODE_OPENVDB,

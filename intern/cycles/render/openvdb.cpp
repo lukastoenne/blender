@@ -26,15 +26,23 @@ CCL_NAMESPACE_BEGIN
 OpenVDBManager::OpenVDBManager()
 {
 	openvdb::initialize();
+
+	scalar_grids.reserve(64);
+	vector_grids.reserve(64);
+	current_grids.reserve(64);
 	float_samplers_p.reserve(64);
 	float_samplers_b.reserve(64);
 	vec3s_samplers_p.reserve(64);
 	vec3s_samplers_b.reserve(64);
+
 	need_update = true;
 }
 
 OpenVDBManager::~OpenVDBManager()
 {
+	scalar_grids.clear();
+	vector_grids.clear();
+	current_grids.clear();
 	float_samplers_p.clear();
 	float_samplers_b.clear();
 	vec3s_samplers_p.clear();
@@ -46,12 +54,14 @@ static inline void catch_exceptions()
 	try {
 		throw;
 	}
-	/* OpenVDB exceptions all derive from std::exception so it should be fine */
+	catch (const openvdb::Exception &e) {
+		std::cerr << e.what() << "\n";
+	}
 	catch (const std::exception &e) {
-		std::cerr << e.what() << std::endl;
+		std::cerr << e.what() << "\n";
 	}
 	catch (...) {
-		std::cerr << "Unknown error in OpenVDB library..." << std::endl;
+		std::cerr << "Unknown error in OpenVDB library...\n";
 	}
 }
 
@@ -76,14 +86,16 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 			Vec3SGrid::Ptr grid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
 			slot = add_vector_grid(grid, sampling);
 		}
+
+		add_grid_description(filename, name, sampling, slot);
+
+		need_update = true;
 	}
 	catch (...) {
 		catch_exceptions();
+		need_update = false;
+		slot = -1;
 	}
-
-	add_grid_description(filename, name, sampling, slot);
-
-	need_update = true;
 
 	return slot;
 }
@@ -136,28 +148,34 @@ void OpenVDBManager::delete_sampler(int grid_type, int sampling, size_t slot)
 	}
 }
 
+template <typename Container>
+size_t find_empty_slot(Container container)
+{
+	size_t slot = 0;
+
+	for(; slot < container.size(); ++slot) {
+		if(!container[slot]) {
+			break;
+		}
+	}
+
+	return slot;
+}
+
 size_t OpenVDBManager::add_scalar_grid(openvdb::FloatGrid::Ptr grid, int sampling)
 {
 	size_t slot = 0;
 
 	if(sampling == OPENVDB_SAMPLE_POINT) {
-		vdb_fsampler_p *sampler = new vdb_fsampler_p(grid->tree(), grid->transform());
+		slot = find_empty_slot(float_samplers_p);
 
-		for(; slot < float_samplers_p.size(); slot++) {
-			if(!float_samplers_p[slot]) {
-				break;
-			}
-		}
+		vdb_fsampler_p *sampler = new vdb_fsampler_p(grid->tree(), grid->transform());
 		float_samplers_p.insert(float_samplers_p.begin() + slot, sampler);
 	}
 	else {
-		vdb_fsampler_b *sampler = new vdb_fsampler_b(grid->tree(), grid->transform());
+		slot = find_empty_slot(float_samplers_b);
 
-		for(; slot < float_samplers_b.size(); slot++) {
-			if(!float_samplers_b[slot]) {
-				break;
-			}
-		}
+		vdb_fsampler_b *sampler = new vdb_fsampler_b(grid->tree(), grid->transform());
 		float_samplers_b.insert(float_samplers_b.begin() + slot, sampler);
 	}
 
@@ -171,23 +189,15 @@ size_t OpenVDBManager::add_vector_grid(openvdb::Vec3SGrid::Ptr grid, int samplin
 	size_t slot = 0;
 
 	if(sampling == OPENVDB_SAMPLE_POINT) {
-		vdb_vsampler_p *sampler = new vdb_vsampler_p(grid->tree(), grid->transform());
+		slot = find_empty_slot(vec3s_samplers_p);
 
-		for(; slot < vec3s_samplers_p.size(); slot++) {
-			if(!vec3s_samplers_p[slot]) {
-				break;
-			}
-		}
+		vdb_vsampler_p *sampler = new vdb_vsampler_p(grid->tree(), grid->transform());
 		vec3s_samplers_p.insert(vec3s_samplers_p.begin() + slot, sampler);
 	}
 	else {
-		vdb_vsampler_b *sampler = new vdb_vsampler_b(grid->tree(), grid->transform());
+		slot = find_empty_slot(vec3s_samplers_b);
 
-		for(; slot < vec3s_samplers_b.size(); slot++) {
-			if(!vec3s_samplers_b[slot]) {
-				break;
-			}
-		}
+		vdb_vsampler_b *sampler = new vdb_vsampler_b(grid->tree(), grid->transform());
 		vec3s_samplers_b.insert(vec3s_samplers_b.begin() + slot, sampler);
 	}
 
@@ -219,18 +229,30 @@ void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *s
 	progress.set_status("Updating OpenVDB volumes", "Sending samplers to device.");
 
 	for(size_t i = 0; i < float_samplers_p.size(); ++i) {
+		if(!float_samplers_p[i]) {
+			continue;
+		}
 		device->const_copy_to("__vdb_float_samplers_p", float_samplers_p[i], i);
 	}
 
 	for(size_t i = 0; i < float_samplers_b.size(); ++i) {
+		if(!float_samplers_b[i]) {
+			continue;
+		}
 		device->const_copy_to("__vdb_float_samplers_b", float_samplers_b[i], i);
 	}
 
 	for(size_t i = 0; i < vec3s_samplers_p.size(); ++i) {
+		if(!vec3s_samplers_p[i]) {
+			continue;
+		}
 		device->const_copy_to("__vdb_vec3s_samplers_p", vec3s_samplers_p[i], i);
 	}
 
 	for(size_t i = 0; i < vec3s_samplers_b.size(); ++i) {
+		if(!vec3s_samplers_b[i]) {
+			continue;
+		}
 		device->const_copy_to("__vdb_vec3s_samplers_b", vec3s_samplers_b[i], i);
 	}
 
