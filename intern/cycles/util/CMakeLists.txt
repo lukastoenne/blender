@@ -6,7 +6,6 @@ set(INC
 
 set(INC_SYS
 	${GLEW_INCLUDE_DIR}
-	${OPENVDB_INCLUDE_DIRS}
 )
 
 set(SRC

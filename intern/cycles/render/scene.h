@@ -119,8 +119,6 @@ public:
 	device_vector<uchar4> tex_image_packed;
 	device_vector<uint4> tex_image_packed_info;
 
-//	device_vector<volumeSamplerF> vdb_float_samplers[128];
-
 	KernelData data;
 };
 

@@ -377,7 +377,7 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 {
 	if (smd->domain)
 	{
-		OpenVDBCache *cache = smd->domain->vdb_caches.first;
+		OpenVDBCache *cache;
 
 		if (smd->domain->shadow)
 			MEM_freeN(smd->domain->shadow);
@@ -402,7 +402,7 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 		MEM_freeN(smd->domain);
 		smd->domain = NULL;
 
-		for (; cache; cache = cache->next) {
+		for (cache = smd->domain->vdb_caches.first; cache; cache = cache->next) {
 			MEM_freeN(cache);
 		}
 	}

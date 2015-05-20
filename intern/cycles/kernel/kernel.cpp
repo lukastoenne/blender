@@ -35,13 +35,13 @@ void kernel_const_copy(KernelGlobals *kg, const char *name, void *host, size_t s
 		memcpy(&kg->__data, host, size);
 #ifdef __OPENVDB__
 	else if(strcmp(name, "__vdb_float_samplers_p") == 0)
-		kg->vdb_float_samplers_p.insert(kg->vdb_float_samplers_p.begin() + size, (vdb_fsampler_p *)host);
+		kg->vdb_float_samplers_p[size] = (vdb_fsampler_p *)host;
 	else if(strcmp(name, "__vdb_float_samplers_b") == 0)
-		kg->vdb_float_samplers_b.insert(kg->vdb_float_samplers_b.begin() + size, (vdb_fsampler_b *)host);
-	else if(strcmp(name, "__vdb_vec3s_samplers_p") == 0)
-		kg->vdb_vec3s_samplers_p.insert(kg->vdb_vec3s_samplers_p.begin() + size, (vdb_vsampler_p *)host);
-	else if(strcmp(name, "__vdb_vec3s_samplers_b") == 0)
-		kg->vdb_vec3s_samplers_b.insert(kg->vdb_vec3s_samplers_b.begin() + size, (vdb_vsampler_b *)host);
+		kg->vdb_float_samplers_b[size] = (vdb_fsampler_b *)host;
+	else if(strcmp(name, "__vdb_float3_samplers_p") == 0)
+		kg->vdb_float3_samplers_p[size] = (vdb_vsampler_p *)host;
+	else if(strcmp(name, "__vdb_float3_samplers_b") == 0)
+		kg->vdb_float3_samplers_b[size] = (vdb_vsampler_b *)host;
 #endif
 	else
 		assert(0);

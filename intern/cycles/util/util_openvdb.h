@@ -19,11 +19,6 @@ using boost::math::isfinite;
 #  endif
 #endif
 
-enum {
-	OPENVDB_SAMPLE_POINT = 0,
-	OPENVDB_SAMPLE_BOX   = 1,
-};
-
 typedef openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::PointSampler> vdb_fsampler_p;
 typedef openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> vdb_fsampler_b;
 typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid, openvdb::tools::PointSampler> vdb_vsampler_p;
@@ -32,6 +27,15 @@ typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid, openvdb::tools::BoxSampl
 CCL_NAMESPACE_END
 
 #endif /* WITH_OPENVDB */
+
+CCL_NAMESPACE_BEGIN
+
+enum {
+	OPENVDB_SAMPLE_POINT = 0,
+	OPENVDB_SAMPLE_BOX   = 1,
+};
+
+CCL_NAMESPACE_END
 
 #endif /* __UTIL_OPENVDB_H__ */
 

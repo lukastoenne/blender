@@ -12,8 +12,13 @@ set(INC
 
 set(INC_SYS
 	${GLEW_INCLUDE_DIR}
-	${OPENVDB_INCLUDE_DIRS}
 )
+
+if(WITH_OPENVDB)
+	list(APPEND INC_SYS
+		${OPENVDB_INCLUDE_DIRS}
+	)
+endif()
 
 set(SRC
 	attribute.cpp

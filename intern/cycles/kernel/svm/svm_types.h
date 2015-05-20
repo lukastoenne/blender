@@ -120,7 +120,7 @@ typedef enum NodeType {
 	NODE_NORMAL_MAP,
 	NODE_HAIR_INFO,
 	NODE_UVMAP,
-	NODE_OPENVDB
+	NODE_OPENVDB,
 } NodeType;
 
 typedef enum NodeAttributeType {
@@ -366,8 +366,8 @@ typedef enum NodeBumpOffset {
 } NodeBumpOffset;
 
 typedef enum NodeOpenVDBType {
-	NODE_VDB_FLOAT = 0,
-	NODE_VDB_VEC3S = 1,
+	NODE_VDB_FLOAT  = 0,
+	NODE_VDB_FLOAT3 = 1,
 } NodeOpenVDBType;
 
 typedef enum ShaderType {

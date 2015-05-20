@@ -31,19 +31,19 @@ struct OSLThreadData;
 struct OSLShadingSystem;
 #endif
 
-#define MAX_BYTE_IMAGES   1024
-#define MAX_FLOAT_IMAGES  1024
+#define MAX_BYTE_IMAGES     1024
+#define MAX_FLOAT_IMAGES    1024
+#define MAX_VOLUME_SAMPLERS 1024
 
 typedef struct KernelGlobals {
 	texture_image_uchar4 texture_byte_images[MAX_BYTE_IMAGES];
 	texture_image_float4 texture_float_images[MAX_FLOAT_IMAGES];
 
 #ifdef __OPENVDB__
-	/* We can't use arrays here as grid samplers don't have a default constructor */
-	vector<vdb_fsampler_p*> vdb_float_samplers_p;
-	vector<vdb_fsampler_b*> vdb_float_samplers_b;
-	vector<vdb_vsampler_p*> vdb_vec3s_samplers_p;
-	vector<vdb_vsampler_b*> vdb_vec3s_samplers_b;
+	vdb_fsampler_p *vdb_float_samplers_p[MAX_VOLUME_SAMPLERS];
+	vdb_fsampler_b *vdb_float_samplers_b[MAX_VOLUME_SAMPLERS];
+	vdb_vsampler_p *vdb_float3_samplers_p[MAX_VOLUME_SAMPLERS];
+	vdb_vsampler_b *vdb_float3_samplers_b[MAX_VOLUME_SAMPLERS];
 #endif
 
 #define KERNEL_TEX(type, ttype, name) ttype name;

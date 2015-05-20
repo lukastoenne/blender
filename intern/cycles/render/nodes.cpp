@@ -4371,11 +4371,7 @@ OpenVDBNode::OpenVDBNode()
 {
 	filename = "";
 	vdb_manager = NULL;
-#ifdef WITH_OPENVDB
 	sampling = OPENVDB_SAMPLE_POINT;
-#else
-	sampling = 0;
-#endif
 
 	tfm = transform_identity();
 
@@ -4407,7 +4403,7 @@ void OpenVDBNode::compile(SVMCompiler &compiler)
 		int type = NODE_VDB_FLOAT;
 
 		if(out->type == SHADER_SOCKET_VECTOR) {
-			type = NODE_VDB_VEC3S;
+			type = NODE_VDB_FLOAT3;
 		}
 
 		grid_slot = vdb_manager->add_volume(filename.string(),

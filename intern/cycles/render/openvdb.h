@@ -63,8 +63,8 @@ public:
 #ifdef WITH_OPENVDB
 	vector<vdb_fsampler_p*> float_samplers_p;
 	vector<vdb_fsampler_b*> float_samplers_b;
-	vector<vdb_vsampler_p*> vec3s_samplers_p;
-	vector<vdb_vsampler_b*> vec3s_samplers_b;
+	vector<vdb_vsampler_p*> float3_samplers_p;
+	vector<vdb_vsampler_b*> float3_samplers_b;
 #endif
 };
 
