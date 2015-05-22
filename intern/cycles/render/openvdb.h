@@ -65,6 +65,8 @@ public:
 	vector<vdb_fsampler_b*> float_samplers_b;
 	vector<vdb_vsampler_p*> float3_samplers_p;
 	vector<vdb_vsampler_b*> float3_samplers_b;
+	vector<float_volume_sampler*> float_volume_samplers;
+	vector<float3_volume_sampler*> float3_volume_samplers;
 #endif
 };
 

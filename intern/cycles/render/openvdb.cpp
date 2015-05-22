@@ -32,10 +32,8 @@ OpenVDBManager::OpenVDBManager()
 	scalar_grids.reserve(64);
 	vector_grids.reserve(64);
 	current_grids.reserve(64);
-//	float_samplers_p.reserve(64);
-//	float_samplers_b.reserve(64);
-//	float3_samplers_p.reserve(64);
-//	float3_samplers_b.reserve(64);
+	float_volume_samplers.reserve(64);
+	float3_volume_samplers.reserve(64);
 
 	need_update = true;
 }
@@ -45,10 +43,8 @@ OpenVDBManager::~OpenVDBManager()
 	scalar_grids.clear();
 	vector_grids.clear();
 	current_grids.clear();
-	float_samplers_p.clear();
-	float_samplers_b.clear();
-	float3_samplers_p.clear();
-	float3_samplers_b.clear();
+	float_volume_samplers.clear();
+	float3_volume_samplers.clear();
 }
 
 static inline void catch_exceptions()
@@ -107,7 +103,14 @@ int OpenVDBManager::find_existing_slot(const string &filename, const string &nam
 			}
 			else {
 				/* sampling was changed, remove the sampler */
-				delete_sampler(grid_type, grid.sampling, grid.slot);
+				if(grid_type == NODE_VDB_FLOAT) {
+					delete float_volume_samplers[grid.slot];
+					float_volume_samplers[grid.slot] = NULL;
+				}
+				else {
+					delete float3_volume_samplers[grid.slot];
+					float3_volume_samplers[grid.slot] = NULL;
+				}
 
 				/* remove the grid description too */
 				std::swap(current_grids[i], current_grids.back());
@@ -120,37 +123,12 @@ int OpenVDBManager::find_existing_slot(const string &filename, const string &nam
 	return -1;
 }
 
-void OpenVDBManager::delete_sampler(int grid_type, int sampling, size_t slot)
-{
-	if(grid_type == NODE_VDB_FLOAT) {
-		if(sampling == OPENVDB_SAMPLE_POINT) {
-			delete float_samplers_p[slot];
-			float_samplers_p[slot] = NULL;
-		}
-		else {
-			delete float_samplers_b[slot];
-			float_samplers_b[slot] = NULL;
-		}
-	}
-	else {
-		if(sampling == OPENVDB_SAMPLE_POINT) {
-			delete float3_samplers_p[slot];
-			float3_samplers_p[slot] = NULL;
-		}
-		else {
-			delete float3_samplers_b[slot];
-			float3_samplers_b[slot] = NULL;
-		}
-	}
-}
-
 template <typename Container>
 size_t find_empty_slot(Container container)
 {
 	size_t slot = 0;
 
 	for(; slot < container.size(); ++slot) {
-		std::cout << "Slot: " << slot << "\n";
 		if(!container[slot]) {
 			break;
 		}
@@ -171,52 +149,28 @@ size_t find_empty_slot(Container container)
 
 size_t OpenVDBManager::add_scalar_grid(openvdb::FloatGrid::Ptr grid, int sampling)
 {
-	size_t slot = 0;
+	size_t slot = find_empty_slot(float_volume_samplers);
 
-	if(sampling == OPENVDB_SAMPLE_POINT) {
-		slot = find_empty_slot(float_samplers_p);
+	if(slot == -1) return -1;
 
-		if(slot == -1) return -1;
+	vdb_float_sampler *sampler = new vdb_float_sampler(grid);
 
-		vdb_fsampler_p *sampler = new vdb_fsampler_p(grid->tree(), grid->transform());
-		float_samplers_p.insert(float_samplers_p.begin() + slot, sampler);
-	}
-	else {
-		slot = find_empty_slot(float_samplers_b);
-
-		if(slot == -1) return -1;
-
-		vdb_fsampler_b *sampler = new vdb_fsampler_b(grid->tree(), grid->transform());
-		float_samplers_b.insert(float_samplers_b.begin() + slot, sampler);
-	}
-
-	scalar_grids.insert(scalar_grids.begin() + slot, grid);
+	float_volume_samplers.insert(float_volume_samplers.begin() + slot, sampler);
+	scalar_grids.push_back(grid);
 
 	return slot;
 }
 
 size_t OpenVDBManager::add_vector_grid(openvdb::Vec3SGrid::Ptr grid, int sampling)
 {
-	size_t slot = 0;
+	size_t slot = find_empty_slot(float3_volume_samplers);
 
-	if(sampling == OPENVDB_SAMPLE_POINT) {
-		slot = find_empty_slot(float3_samplers_p);
+	if(slot == -1) return -1;
 
-		if(slot == -1) return -1;
+	vdb_float3_sampler *sampler = new vdb_float3_sampler(grid);
 
-		vdb_vsampler_p *sampler = new vdb_vsampler_p(grid->tree(), grid->transform());
-		float3_samplers_p.insert(float3_samplers_p.begin() + slot, sampler);
-	}
-	else {
-		slot = find_empty_slot(float3_samplers_b);
-
-		if(slot == -1) return -1;
-
-		vdb_vsampler_b *sampler = new vdb_vsampler_b(grid->tree(), grid->transform());
-		float3_samplers_b.insert(float3_samplers_b.begin() + slot, sampler);
-	}
-
-	vector_grids.insert(vector_grids.begin() + slot, grid);
+	float3_volume_samplers.insert(float3_volume_samplers.begin() + slot, sampler);
+	vector_grids.push_back(grid);
 
 	return slot;
 }
@@ -243,42 +197,26 @@ void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *s
 	device_free(device, dscene);
 	progress.set_status("Updating OpenVDB volumes", "Sending samplers to device.");
 
-	for(size_t i = 0; i < float_samplers_p.size(); ++i) {
-		if(!float_samplers_p[i]) {
+	for(size_t i = 0; i < float_volume_samplers.size(); ++i) {
+		if(!float_volume_samplers[i]) {
 			continue;
 		}
-		device->const_copy_to("__vdb_float_samplers_p", float_samplers_p[i], i);
+		device->const_copy_to("__float_volume_sampler", float_volume_samplers[i], i);
 	}
 
-	for(size_t i = 0; i < float_samplers_b.size(); ++i) {
-		if(!float_samplers_b[i]) {
+	for(size_t i = 0; i < float3_volume_samplers.size(); ++i) {
+		if(!float3_volume_samplers[i]) {
 			continue;
 		}
-		device->const_copy_to("__vdb_float_samplers_b", float_samplers_b[i], i);
-	}
-
-	for(size_t i = 0; i < float3_samplers_p.size(); ++i) {
-		if(!float3_samplers_p[i]) {
-			continue;
-		}
-		device->const_copy_to("__vdb_float3_samplers_p", float3_samplers_p[i], i);
-	}
-
-	for(size_t i = 0; i < float3_samplers_b.size(); ++i) {
-		if(!float3_samplers_b[i]) {
-			continue;
-		}
-		device->const_copy_to("__vdb_float3_samplers_b", float3_samplers_b[i], i);
+		device->const_copy_to("__float3_volume_sampler", float3_volume_samplers[i], i);
 	}
 
 	if(progress.get_cancel()) {
 		return;
 	}
 
-	VLOG(1) << "VDB Samplers allocate: __vdb_float_samplers_p, " << float_samplers_p.size() * sizeof(vdb_fsampler_p) << " bytes";
-	VLOG(1) << "VDB Samplers allocate: __vdb_float_samplers_b, " << float_samplers_b.size() * sizeof(vdb_fsampler_b) << " bytes";
-	VLOG(1) << "VDB Samplers allocate: __vdb_float3_samplers_p, " << float3_samplers_p.size() * sizeof(vdb_vsampler_p) << " bytes";
-	VLOG(1) << "VDB Samplers allocate: __vdb_float3_samplers_b, " << float3_samplers_b.size() * sizeof(vdb_vsampler_b) << " bytes";
+	VLOG(1) << "Volume samplers allocate: __float_volume_sampler, " << float_volume_samplers.size() * sizeof(float_volume_sampler) << " bytes";
+	VLOG(1) << "Volume samplers allocate: __float3_volume_sampler, " << float3_volume_samplers.size() * sizeof(float3_volume_sampler) << " bytes";
 
 	for(size_t i = 0; i < scalar_grids.size(); ++i) {
 		VLOG(1) << scalar_grids[i]->getName() << " memory usage: " << scalar_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";

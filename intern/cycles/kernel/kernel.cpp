@@ -34,14 +34,10 @@ void kernel_const_copy(KernelGlobals *kg, const char *name, void *host, size_t s
 	if(strcmp(name, "__data") == 0)
 		memcpy(&kg->__data, host, size);
 #ifdef __OPENVDB__
-	else if(strcmp(name, "__vdb_float_samplers_p") == 0)
-		kg->vdb_float_samplers_p[size] = (vdb_fsampler_p *)host;
-	else if(strcmp(name, "__vdb_float_samplers_b") == 0)
-		kg->vdb_float_samplers_b[size] = (vdb_fsampler_b *)host;
-	else if(strcmp(name, "__vdb_float3_samplers_p") == 0)
-		kg->vdb_float3_samplers_p[size] = (vdb_vsampler_p *)host;
-	else if(strcmp(name, "__vdb_float3_samplers_b") == 0)
-		kg->vdb_float3_samplers_b[size] = (vdb_vsampler_b *)host;
+	else if(strcmp(name, "__float_volume_sampler") == 0)
+		kg->float_volume_samplers[size] = (float_volume_sampler *)host;
+	else if(strcmp(name, "__float3_volume_sampler") == 0)
+		kg->float3_volume_samplers[size] = (float3_volume_sampler *)host;
 #endif
 	else
 		assert(0);

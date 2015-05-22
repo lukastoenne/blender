@@ -44,6 +44,8 @@ typedef struct KernelGlobals {
 	vdb_fsampler_b *vdb_float_samplers_b[MAX_VOLUME_SAMPLERS];
 	vdb_vsampler_p *vdb_float3_samplers_p[MAX_VOLUME_SAMPLERS];
 	vdb_vsampler_b *vdb_float3_samplers_b[MAX_VOLUME_SAMPLERS];
+	float_volume_sampler *float_volume_samplers[MAX_VOLUME_SAMPLERS];
+	float3_volume_sampler *float3_volume_samplers[MAX_VOLUME_SAMPLERS];
 #endif
 
 #define KERNEL_TEX(type, ttype, name) ttype name;
