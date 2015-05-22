@@ -27,6 +27,7 @@
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
+#include <openvdb/tools/ValueTransformer.h>
 
 #include "openvdb_capi.h"
 #include "openvdb_intern.h"
@@ -39,56 +40,80 @@ using namespace openvdb;
 
 namespace internal {
 
-static void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
-                                       const std::string &name,
-                                       const float *data_x, const float *data_y, const float *data_z,
-                                       const math::CoordBBox &bbox,
-                                       const math::Transform::Ptr transform)
-{
-	math::Coord res = bbox.max();
-	Vec3SGrid::Ptr grid = Vec3SGrid::create(Vec3s(0.0f));
-	Vec3SGrid::Accessor acc = grid->getAccessor();
+class MergeScalarGrids {
+	tree::ValueAccessor<const FloatTree> m_acc_x, m_acc_y, m_acc_z;
 
-	int index = 0;
-	for (int z = 0; z <= res.z(); ++z) {
-		for (int y = 0; y <= res.y(); ++y) {
-			for (int x = 0; x <= res.x(); ++x, ++index) {
-				Coord xyz(x, y, z);
-				Vec3s value(data_x[index], data_y[index], data_z[index]);
-				acc.setValue(xyz, value);
-			}
-		}
+public:
+	MergeScalarGrids(const FloatTree *x_tree, const FloatTree *y_tree, const FloatTree *z_tree)
+	    : m_acc_x(*x_tree)
+	    , m_acc_y(*y_tree)
+	    , m_acc_z(*z_tree)
+	{}
+
+	MergeScalarGrids(const MergeScalarGrids &other)
+	    : m_acc_x(other.m_acc_x)
+	    , m_acc_y(other.m_acc_y)
+	    , m_acc_z(other.m_acc_z)
+	{}
+
+	void operator()(const Vec3STree::ValueOnIter &it) const
+	{
+		const math::Coord xyz = it.getCoord();
+		float x = m_acc_x.getValue(xyz);
+		float y = m_acc_y.getValue(xyz);
+		float z = m_acc_z.getValue(xyz);
+
+		it.setValue(Vec3s(x, y, z));
+	}
+};
+
+void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
+                                const std::string &name,
+                                const float *data_x, const float *data_y, const float *data_z,
+                                const int res[3],
+                                float fluid_mat[4][4])
+{
+
+	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
+
+	Mat4R mat = Mat4R(
+		  fluid_mat[0][0], fluid_mat[0][1], fluid_mat[0][2], fluid_mat[0][3],
+          fluid_mat[1][0], fluid_mat[1][1], fluid_mat[1][2], fluid_mat[1][3],
+          fluid_mat[2][0], fluid_mat[2][1], fluid_mat[2][2], fluid_mat[2][3],
+          fluid_mat[3][0], fluid_mat[3][1], fluid_mat[3][2], fluid_mat[3][3]);
+
+	math::Transform::Ptr transform = math::Transform::createLinearTransform(mat);
+
+	FloatGrid::Ptr grid[3];
+
+	grid[0] = FloatGrid::create(0.0f);
+	tools::Dense<const float, tools::LayoutXYZ> dense_grid_x(bbox, data_x);
+	tools::copyFromDense(dense_grid_x, grid[0]->tree(), 1e-3f, true);
+
+	grid[1] = FloatGrid::create(0.0f);
+	tools::Dense<const float, tools::LayoutXYZ> dense_grid_y(bbox, data_y);
+	tools::copyFromDense(dense_grid_y, grid[1]->tree(), 1e-3f, true);
+
+	grid[2] = FloatGrid::create(0.0f);
+	tools::Dense<const float, tools::LayoutXYZ> dense_grid_z(bbox, data_z);
+	tools::copyFromDense(dense_grid_z, grid[2]->tree(), 1e-3f, true);
+
+	Vec3SGrid::Ptr vecgrid = Vec3SGrid::create(Vec3s(0.0f));
+
+	/* Activate voxels in the vector grid based on the scalar grids to ensure
+	 * thread safety later on */
+	for (int i = 0; i < 3; ++i) {
+		vecgrid->tree().topologyUnion(grid[i]->tree());
 	}
 
-	grid->setName(name);
-	grid->setTransform(transform->copy());
-	grid->setIsInWorldSpace(false);
+	MergeScalarGrids op(&(grid[0]->tree()), &(grid[1]->tree()), &(grid[2]->tree()));
+	tools::foreach(vecgrid->beginValueOn(), op, true, false);
 
-	writer->insert(grid);
-}
+	vecgrid->setName(name);
+	vecgrid->setTransform(transform);
+	vecgrid->setIsInWorldSpace(false);
 
-template <typename GridType, typename T>
-static void OpenVDB_import_grid(GridBase::Ptr &grid,
-                                T *data,
-                                const math::CoordBBox &bbox)
-{
-	typename GridType::Ptr grid_tmp = gridPtrCast<GridType>(grid);
-	typename GridType::Accessor acc = grid_tmp->getAccessor();
-
-	/* TODO(kevin): figure out why it doesn't really work */
-	//tools::Dense<T, tools::LayoutXYZ> dense_grid(bbox);
-	//tools::copyToDense(*grid_tmp, dense_grid);
-
-	math::Coord res = bbox.max();
-	int index = 0;
-	for (int z = 0; z <= res.z(); ++z) {
-		for (int y = 0; y <= res.y(); ++y) {
-			for (int x = 0; x <= res.x(); ++x, ++index) {
-				math::Coord xyz(x, y, z);
-				data[index] = acc.getValue(xyz);
-			}
-		}
-	}
+	writer->insert(vecgrid);
 }
 
 static void OpenVDB_import_grid_vector(GridBase::Ptr &grid,

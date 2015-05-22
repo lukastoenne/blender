@@ -107,6 +107,14 @@ void OpenVDB_export_grid_ch(OpenVDBWriter *writer,
 	internal::OpenVDB_export_grid<Int32Grid>(writer, name, data, res, matrix);
 }
 
+void OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
+                             const char *name,
+                             const float *data_x, const float *data_y, const float *data_z,
+                             const int res[3], float matrix[4][4])
+{
+	internal::OpenVDB_export_vector_grid(writer, name, data_x, data_y, data_z, res, matrix);
+}
+
 void OpenVDB_import_grid_fl(OpenVDBReader *reader,
                             const char *name, float **data,
                             const int res[3])

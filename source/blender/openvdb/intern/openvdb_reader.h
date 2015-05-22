@@ -33,7 +33,6 @@ class OpenVDBFile {
 
 public:
 	OpenVDBFile(const std::string &name);
-
 	openvdb::MetaMap::Ptr metamap() const;
 };
 

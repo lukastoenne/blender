@@ -3143,7 +3143,7 @@ static void cache_filename(char *string, const char *path, const char *fname, co
 
 static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
 {
-	int fluid_fields;
+	int fluid_fields = smoke_get_data_flags(sds);
 
 	OpenVDBWriter_add_meta_int(writer, "fluid_fields", fluid_fields);
 
@@ -3172,14 +3172,16 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			OpenVDB_export_grid_fl(writer, "red", r, sds->res, sds->obmat);
-			OpenVDB_export_grid_fl(writer, "green", g, sds->res, sds->obmat);
-			OpenVDB_export_grid_fl(writer, "blue", b, sds->res, sds->obmat);
+//			OpenVDB_export_grid_fl(writer, "red", r, sds->res, sds->obmat);
+//			OpenVDB_export_grid_fl(writer, "green", g, sds->res, sds->obmat);
+//			OpenVDB_export_grid_fl(writer, "blue", b, sds->res, sds->obmat);
+			OpenVDB_export_grid_vec(writer, "color", r, g, b, sds->res, sds->obmat);
 		}
 
-		OpenVDB_export_grid_fl(writer, "vx", vx, sds->res, sds->obmat);
-		OpenVDB_export_grid_fl(writer, "vy", vy, sds->res, sds->obmat);
-		OpenVDB_export_grid_fl(writer, "vz", vz, sds->res, sds->obmat);
+//		OpenVDB_export_grid_fl(writer, "vx", vx, sds->res, sds->obmat);
+//		OpenVDB_export_grid_fl(writer, "vy", vy, sds->res, sds->obmat);
+//		OpenVDB_export_grid_fl(writer, "vz", vz, sds->res, sds->obmat);
+		OpenVDB_export_grid_vec(writer, "velocity", vx, vy, vz, sds->res, sds->obmat);
 
 		OpenVDB_export_grid_ch(writer, "obstacles", obstacles, sds->res, sds->obmat);
 	}
@@ -3189,7 +3191,7 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
-		OpenVDB_export_grid_fl(writer, "density", dens, sds->res, sds->obmat);
+		OpenVDB_export_grid_fl(writer, "density high", dens, sds->res_wt, sds->obmat);
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
 			OpenVDB_export_grid_fl(writer, "flame high", flame, sds->res_wt, sds->obmat);
@@ -3198,20 +3200,22 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			OpenVDB_export_grid_fl(writer, "red high", r, sds->res, sds->obmat);
-			OpenVDB_export_grid_fl(writer, "green high", g, sds->res, sds->obmat);
-			OpenVDB_export_grid_fl(writer, "blue high", b, sds->res, sds->obmat);
+//			OpenVDB_export_grid_fl(writer, "red high", r, sds->res, sds->obmat);
+//			OpenVDB_export_grid_fl(writer, "green high", g, sds->res, sds->obmat);
+//			OpenVDB_export_grid_fl(writer, "blue high", b, sds->res, sds->obmat);
+			OpenVDB_export_grid_vec(writer, "color high", r, g, b, sds->res_wt, sds->obmat);
 		}
 
-		OpenVDB_export_grid_fl(writer, "tcu", tcu, sds->res, sds->obmat);
-		OpenVDB_export_grid_fl(writer, "tcv", tcv, sds->res, sds->obmat);
-		OpenVDB_export_grid_fl(writer, "tcw", tcw, sds->res, sds->obmat);
+//		OpenVDB_export_grid_fl(writer, "tcu", tcu, sds->res, sds->obmat);
+//		OpenVDB_export_grid_fl(writer, "tcv", tcv, sds->res, sds->obmat);
+//		OpenVDB_export_grid_fl(writer, "tcw", tcw, sds->res, sds->obmat);
+		OpenVDB_export_grid_vec(writer, "tex_co", tcu, tcv, tcw, sds->res, sds->obmat);
 	}
 }
 
 static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader *reader)
 {
-	int fluid_fields = smoke_get_data_flags(sds);
+	int fluid_fields;
 
 	if (sds->fluid) {
 		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
