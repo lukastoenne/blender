@@ -106,6 +106,8 @@ typedef struct SmokeDomainSettings {
 	float obj_shift_f[3]; /* how much object has shifted since previous smoke frame (used to "lock" domain while drawing) */
 	float imat[4][4]; /* domain object imat */
 	float obmat[4][4]; /* domain obmat */
+	float fluidmat[4][4]; /* low res fluid matrix */
+	float fluidmat_wt[4][4]; /* high res fluid matrix */
 
 	int base_res[3]; /* initial "non-adapted" resolution */
 	int res_min[3]; /* cell min */
