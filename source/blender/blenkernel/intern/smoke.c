@@ -3091,13 +3091,38 @@ static struct FluidDomainDescr get_fluid_description(SmokeDomainSettings *sds)
 	return descr;
 }
 
-static void set_fluid_description(SmokeDomainSettings *sds, const FluidDomainDescr descr)
+static void OpenVDB_read_fluid_settings(SmokeDomainSettings *sds, struct OpenVDBReader *reader)
 {
-	sds->active_fields = descr.active_fields;
-	//descr.fluid_fields = smoke_get_data_flags(sds);
-	copy_v3_v3(sds->obj_shift_f, descr.obj_shift_f);
-	copy_v3_v3_int(sds->shift, descr.shift);
-	copy_v3_v3(sds->active_color, descr.active_color);
+	OpenVDBReader_get_meta_int(reader, "active_fields", &sds->active_fields);
+	OpenVDBReader_get_meta_v3_int(reader, "resolution", sds->res);
+	OpenVDBReader_get_meta_v3_int(reader, "min_resolution", sds->res_min);
+	OpenVDBReader_get_meta_v3_int(reader, "max_resolution", sds->res_max);
+	OpenVDBReader_get_meta_v3_int(reader, "base_resolution", sds->base_res);
+	OpenVDBReader_get_meta_fl(reader, "delta_x", &sds->dx);
+	OpenVDBReader_get_meta_v3(reader, "min_bbox", sds->p0);
+	OpenVDBReader_get_meta_v3(reader, "max_bbox", sds->p1);
+	OpenVDBReader_get_meta_v3(reader, "dp0", sds->dp0);
+	OpenVDBReader_get_meta_v3_int(reader, "shift", sds->shift);
+	OpenVDBReader_get_meta_v3(reader, "obj_shift_f", sds->obj_shift_f);
+	OpenVDBReader_get_meta_v3(reader, "active_color", sds->active_color);
+	OpenVDBReader_get_meta_mat4(reader, "obmat", sds->obmat);
+}
+
+static void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
+{
+	OpenVDBWriter_add_meta_int(writer, "active_fields", sds->active_fields);
+	OpenVDBWriter_add_meta_v3_int(writer, "resolution", sds->res);
+	OpenVDBWriter_add_meta_v3_int(writer, "min_resolution", sds->res_min);
+	OpenVDBWriter_add_meta_v3_int(writer, "max_resolution", sds->res_max);
+	OpenVDBWriter_add_meta_v3_int(writer, "base_resolution", sds->base_res);
+	OpenVDBWriter_add_meta_fl(writer, "delta_x", sds->dx);
+	OpenVDBWriter_add_meta_v3(writer, "min_bbox", sds->p0);
+	OpenVDBWriter_add_meta_v3(writer, "max_bbox", sds->p1);
+	OpenVDBWriter_add_meta_v3(writer, "dp0", sds->dp0);
+	OpenVDBWriter_add_meta_v3_int(writer, "shift", sds->shift);
+	OpenVDBWriter_add_meta_v3(writer, "obj_shift_f", sds->obj_shift_f);
+	OpenVDBWriter_add_meta_v3(writer, "active_color", sds->active_color);
+	OpenVDBWriter_add_meta_mat4(writer, "obmat", sds->obmat);
 }
 
 static void cache_filename(char *string, const char *path, const char *fname, const char *relbase, int frame)
@@ -3116,12 +3141,146 @@ static void cache_filename(char *string, const char *path, const char *fname, co
 	BLI_ensure_extension(string, FILE_MAX, ".vdb");
 }
 
+static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
+{
+	int fluid_fields;
+
+	OpenVDBWriter_add_meta_int(writer, "fluid_fields", fluid_fields);
+
+	if (sds->fluid) {
+		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
+		unsigned char *obstacles;
+
+		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat,
+		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
+
+		OpenVDBWriter_add_meta_int(writer, "dx", dx);
+		OpenVDBWriter_add_meta_int(writer, "dt", dx);
+
+		OpenVDB_export_grid_fl(writer, "shadow", sds->shadow, sds->res, sds->obmat);
+		OpenVDB_export_grid_fl(writer, "density", dens, sds->res, sds->obmat);
+
+		if (fluid_fields & SM_ACTIVE_HEAT) {
+			OpenVDB_export_grid_fl(writer, "heat", heat, sds->res, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "heatold", heatold, sds->res, sds->obmat);
+		}
+
+		if (fluid_fields & SM_ACTIVE_FIRE) {
+			OpenVDB_export_grid_fl(writer, "flame", flame, sds->res, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "fuel", fuel, sds->res, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "react", react, sds->res, sds->obmat);
+		}
+
+		if (fluid_fields & SM_ACTIVE_COLORS) {
+			OpenVDB_export_grid_fl(writer, "red", r, sds->res, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "green", g, sds->res, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "blue", b, sds->res, sds->obmat);
+		}
+
+		OpenVDB_export_grid_fl(writer, "vx", vx, sds->res, sds->obmat);
+		OpenVDB_export_grid_fl(writer, "vy", vy, sds->res, sds->obmat);
+		OpenVDB_export_grid_fl(writer, "vz", vz, sds->res, sds->obmat);
+
+		OpenVDB_export_grid_ch(writer, "obstacles", obstacles, sds->res, sds->obmat);
+	}
+
+	if (sds->wt) {
+		float *dens, *react, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
+
+		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
+
+		OpenVDB_export_grid_fl(writer, "density", dens, sds->res, sds->obmat);
+
+		if (fluid_fields & SM_ACTIVE_FIRE) {
+			OpenVDB_export_grid_fl(writer, "flame high", flame, sds->res_wt, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "fuel high", fuel, sds->res_wt, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "react high", react, sds->res_wt, sds->obmat);
+		}
+
+		if (fluid_fields & SM_ACTIVE_COLORS) {
+			OpenVDB_export_grid_fl(writer, "red high", r, sds->res, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "green high", g, sds->res, sds->obmat);
+			OpenVDB_export_grid_fl(writer, "blue high", b, sds->res, sds->obmat);
+		}
+
+		OpenVDB_export_grid_fl(writer, "tcu", tcu, sds->res, sds->obmat);
+		OpenVDB_export_grid_fl(writer, "tcv", tcv, sds->res, sds->obmat);
+		OpenVDB_export_grid_fl(writer, "tcw", tcw, sds->res, sds->obmat);
+	}
+}
+
+static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader *reader)
+{
+	int fluid_fields = smoke_get_data_flags(sds);
+
+	if (sds->fluid) {
+		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
+		unsigned char *obstacles;
+
+		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat,
+		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
+
+		OpenVDBReader_get_meta_int(reader, "fluid_fields", &fluid_fields);
+		OpenVDBReader_get_meta_fl(reader, "dx", &dx);
+		OpenVDBReader_get_meta_fl(reader, "dt", &dx);
+
+		OpenVDB_import_grid_fl(reader, "shadow", &sds->shadow, sds->res);
+		OpenVDB_import_grid_fl(reader, "density", &dens, sds->res);
+
+		if (fluid_fields & SM_ACTIVE_HEAT) {
+			OpenVDB_import_grid_fl(reader, "heat", &heat, sds->res);
+			OpenVDB_import_grid_fl(reader, "heatold", &heatold, sds->res);
+		}
+
+		if (fluid_fields & SM_ACTIVE_FIRE) {
+			OpenVDB_import_grid_fl(reader, "flame", &flame, sds->res);
+			OpenVDB_import_grid_fl(reader, "fuel", &fuel, sds->res);
+			OpenVDB_import_grid_fl(reader, "react", &react, sds->res);
+		}
+
+		if (fluid_fields & SM_ACTIVE_COLORS) {
+			OpenVDB_import_grid_fl(reader, "red", &r, sds->res);
+			OpenVDB_import_grid_fl(reader, "green", &g, sds->res);
+			OpenVDB_import_grid_fl(reader, "blue", &b, sds->res);
+		}
+
+		OpenVDB_import_grid_fl(reader, "vx", &vx, sds->res);
+		OpenVDB_import_grid_fl(reader, "vy", &vy, sds->res);
+		OpenVDB_import_grid_fl(reader, "vz", &vz, sds->res);
+
+		OpenVDB_import_grid_ch(reader, "obstacles", &obstacles, sds->res);
+	}
+
+	if (sds->wt) {
+		float *dens, *react, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
+
+		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
+
+		OpenVDB_import_grid_fl(reader, "density", &dens, sds->res);
+
+		if (fluid_fields & SM_ACTIVE_FIRE) {
+			OpenVDB_import_grid_fl(reader, "flame high", &flame, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "fuel high", &fuel, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "react high", &react, sds->res_wt);
+		}
+
+		if (fluid_fields & SM_ACTIVE_COLORS) {
+			OpenVDB_import_grid_fl(reader, "red high", &r, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "green high", &g, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "blue high", &b, sds->res_wt);
+		}
+
+		OpenVDB_import_grid_fl(reader, "tcu", &tcu, sds->res);
+		OpenVDB_import_grid_fl(reader, "tcv", &tcv, sds->res);
+		OpenVDB_import_grid_fl(reader, "tcw", &tcw, sds->res);
+	}
+}
+
 void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm,
                                   update_cb update, void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
 	OpenVDBCache *cache;
-	FluidDomainDescr descr;
 	int orig_frame, fr, cancel = 0;
 	float progress;
 	const char *relbase = modifier_path_relbase(ob);
@@ -3130,6 +3289,8 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	orig_frame = scene->r.cfra;
 
 	cache = BKE_openvdb_get_current_cache(sds);
+	cache->writer = OpenVDBWriter_create();
+	OpenVDBWriter_set_compression(cache->writer, 0);
 
 	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
@@ -3139,10 +3300,12 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		cache_filename(filename, cache->path, cache->name, relbase, fr);
 
 		smokeModifier_process(smd, scene, ob, dm, false);
-		descr = get_fluid_description(sds);
-		OpenVDB_export_fluid(sds->fluid, sds->wt, descr, filename, sds->shadow);
+		OpenVDB_write_fluid_settings(sds, cache->writer);
+		OpenVDB_export_smoke(sds, cache->writer);
 
 		progress = (fr - cache->startframe) / (float)cache->endframe;
+
+		OpenVDBWriter_write(cache->writer, filename);
 
 		update(update_cb_data, progress, &cancel);
 
@@ -3161,7 +3324,6 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 {
 	SmokeDomainSettings *sds = smd->domain;
 	OpenVDBCache *cache;
-	FluidDomainDescr descr;
 	int startframe, endframe;
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
@@ -3177,7 +3339,13 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 	cache_filename(filename, cache->path, cache->name, relbase, CFRA);
 
-	ret = OpenVDB_import_fluid(sds->fluid, sds->wt, &descr, filename, sds->shadow);
+	cache->reader = OpenVDBReader_create(filename);
+
+	OpenVDB_read_fluid_settings(sds, cache->reader);
+	OpenVDB_import_smoke(sds, cache->reader);
+
+	/* XXX */
+	OpenVDBReader_free(cache->reader);
 
 	if (ret == OPENVDB_IO_ERROR) {
 		/* TODO(kevin): report error "OpenVDB import error, see console for details" */
@@ -3192,9 +3360,6 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 			return;
 		}
 	}
-
-	set_fluid_description(sds, descr);
-	printf("%s\n", __func__);
 }
 
 void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,

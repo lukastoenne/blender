@@ -34,6 +34,8 @@ struct bNode;
 struct bNodeTree;
 struct FLUID_3D;
 struct WTURBULENCE;
+struct OpenVDBReader;
+struct OpenVDBWriter;
 
 int OpenVDB_getVersionHex(void);
 
@@ -70,9 +72,42 @@ enum {
 	OPENVDB_UNKNOWN_ERROR = 11,
 };
 
-void OpenVDB_export_fluid(struct FLUID_3D *fluid, struct WTURBULENCE *wt, FluidDomainDescr descr, const char *filename, float *shadow);
 int OpenVDB_import_fluid(struct FLUID_3D *fluid, struct WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow);
 void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr);
+
+void OpenVDB_export_grid_fl(struct OpenVDBWriter *writer,
+                            const char *name, float *data,
+                            const int res[3], float matrix[4][4]);
+
+void OpenVDB_export_grid_ch(struct OpenVDBWriter *writer,
+                            const char *name, unsigned char *data,
+                            const int res[3], float matrix[4][4]);
+
+void OpenVDB_import_grid_fl(struct OpenVDBReader *reader,
+                            const char *name, float **data,
+                            const int res[3]);
+
+void OpenVDB_import_grid_ch(struct OpenVDBReader *reader,
+                            const char *name, unsigned char **data,
+                            const int res[3]);
+
+struct OpenVDBWriter *OpenVDBWriter_create(void);
+void OpenVDBWriter_free(struct OpenVDBWriter *writer);
+void OpenVDBWriter_set_compression(struct OpenVDBWriter *writer, const int flags);
+void OpenVDBWriter_add_meta_fl(struct OpenVDBWriter *writer, const char *name, const float value);
+void OpenVDBWriter_add_meta_int(struct OpenVDBWriter *writer, const char *name, const int value);
+void OpenVDBWriter_add_meta_v3(struct OpenVDBWriter *writer, const char *name, const float value[3]);
+void OpenVDBWriter_add_meta_v3_int(struct OpenVDBWriter *writer, const char *name, const int value[3]);
+void OpenVDBWriter_add_meta_mat4(struct OpenVDBWriter *writer, const char *name, float value[4][4]);
+void OpenVDBWriter_write(struct OpenVDBWriter *writer, const char *filename);
+
+struct OpenVDBReader *OpenVDBReader_create(const char *filename);
+void OpenVDBReader_free(struct OpenVDBReader *reader);
+void OpenVDBReader_get_meta_fl(struct OpenVDBReader *reader, const char *name, float *value);
+void OpenVDBReader_get_meta_int(struct OpenVDBReader *reader, const char *name, int *value);
+void OpenVDBReader_get_meta_v3(struct OpenVDBReader *reader, const char *name, float value[3]);
+void OpenVDBReader_get_meta_v3_int(struct OpenVDBReader *reader, const char *name, int value[3]);
+void OpenVDBReader_get_meta_mat4(struct OpenVDBReader *reader, const char *name, float value[4][4]);
 
 #ifdef __cplusplus
 }

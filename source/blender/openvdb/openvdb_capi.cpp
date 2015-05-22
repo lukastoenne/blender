@@ -23,8 +23,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <openvdb/openvdb.h>
-
 extern "C" {
 #include "DNA_node_types.h"
 
@@ -37,6 +35,8 @@ extern "C" {
 
 #include "openvdb_capi.h"
 #include "openvdb_intern.h"
+#include "openvdb_reader.h"
+#include "openvdb_writer.h"
 #include "openvdb_util.h"
 
 using namespace openvdb;
@@ -81,33 +81,6 @@ void OpenVDB_getNodeSockets(const char *filename, bNodeTree *ntree, bNode *node)
 	}
 }
 
-void OpenVDB_export_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr descr, const char *filename, float *shadow)
-{
-	int ret = OPENVDB_NO_ERROR;
-
-	try {
-		internal::OpenVDB_export_fluid(fluid, wt, descr, filename, shadow);
-	}
-	catch (...) {
-		catch_exception(ret);
-	}
-}
-
-int OpenVDB_import_fluid(FLUID_3D *fluid, WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow)
-{
-	int ret = OPENVDB_NO_ERROR;
-
-	try {
-		internal::OpenVDB_import_fluid(fluid, wt, descr, filename, shadow);
-	}
-	catch (...) {
-		catch_exception(ret);
-	}
-
-	return ret;
-}
-
-
 void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr)
 {
 	int ret = OPENVDB_NO_ERROR;
@@ -118,4 +91,116 @@ void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr
 	catch (...) {
 		catch_exception(ret);
 	}
+}
+
+void OpenVDB_export_grid_fl(OpenVDBWriter *writer,
+                            const char *name, float *data,
+                            const int res[3], float matrix[4][4])
+{
+	internal::OpenVDB_export_grid<FloatGrid>(writer, name, data, res, matrix);
+}
+
+void OpenVDB_export_grid_ch(OpenVDBWriter *writer,
+                            const char *name, unsigned char *data,
+                            const int res[3], float matrix[4][4])
+{
+	internal::OpenVDB_export_grid<Int32Grid>(writer, name, data, res, matrix);
+}
+
+void OpenVDB_import_grid_fl(OpenVDBReader *reader,
+                            const char *name, float **data,
+                            const int res[3])
+{
+	internal::OpenVDB_import_grid<FloatGrid>(reader, name, data, res);
+}
+
+void OpenVDB_import_grid_ch(OpenVDBReader *reader,
+                            const char *name, unsigned char **data,
+                            const int res[3])
+{
+	internal::OpenVDB_import_grid<Int32Grid>(reader, name, data, res);
+}
+
+OpenVDBWriter *OpenVDBWriter_create()
+{
+	return new OpenVDBWriter();
+}
+
+void OpenVDBWriter_free(OpenVDBWriter *writer)
+{
+	delete writer;
+	writer = NULL;
+}
+
+void OpenVDBWriter_set_compression(OpenVDBWriter *writer, const int flags)
+{
+	// TODO(kevin)
+	(void)flags;
+	writer->setFileCompression(io::COMPRESS_ACTIVE_MASK | io::COMPRESS_ZIP);
+}
+
+void OpenVDBWriter_add_meta_fl(OpenVDBWriter *writer, const char *name, const float value)
+{
+	writer->insertFloatMeta(name, value);
+}
+
+void OpenVDBWriter_add_meta_int(OpenVDBWriter *writer, const char *name, const int value)
+{
+	writer->insertIntMeta(name, value);
+}
+
+void OpenVDBWriter_add_meta_v3(OpenVDBWriter *writer, const char *name, const float value[3])
+{
+	writer->insertVec3sMeta(name, value);
+}
+
+void OpenVDBWriter_add_meta_v3_int(OpenVDBWriter *writer, const char *name, const int value[3])
+{
+	writer->insertVec3IMeta(name, value);
+}
+
+void OpenVDBWriter_add_meta_mat4(OpenVDBWriter *writer, const char *name, float value[4][4])
+{
+	writer->insertMat4sMeta(name, value);
+}
+
+void OpenVDBWriter_write(OpenVDBWriter *writer, const char *filename)
+{
+	writer->write(filename);
+}
+
+OpenVDBReader *OpenVDBReader_create(const char *filename)
+{
+	return new OpenVDBReader(filename);
+}
+
+void OpenVDBReader_free(OpenVDBReader *reader)
+{
+	delete reader;
+	reader = NULL;
+}
+
+void OpenVDBReader_get_meta_fl(OpenVDBReader *reader, const char *name, float *value)
+{
+	reader->floatMeta(name, *value);
+}
+
+void OpenVDBReader_get_meta_int(OpenVDBReader *reader, const char *name, int *value)
+{
+	reader->intMeta(name, *value);
+}
+
+void OpenVDBReader_get_meta_v3(OpenVDBReader *reader, const char *name, float value[3])
+{
+	reader->vec3sMeta(name, value);
+}
+
+void OpenVDBReader_get_meta_v3_int(OpenVDBReader *reader, const char *name, int value[3])
+{
+	reader->vec3IMeta(name, value);
+}
+
+void OpenVDBReader_get_meta_mat4(OpenVDBReader *reader, const char *name, float value[4][4])
+{
+	reader->mat4sMeta(name, value);
 }

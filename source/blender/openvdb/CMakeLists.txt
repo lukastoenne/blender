@@ -54,7 +54,9 @@ if(WITH_OPENVDB)
     )
 
     list(APPEND SRC
+		intern/openvdb_reader.cpp
 		intern/openvdb_smoke_export.cpp
+		intern/openvdb_writer.cpp
         openvdb_capi.cpp
 		openvdb_util.cpp
 
