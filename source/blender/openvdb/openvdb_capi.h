@@ -96,6 +96,11 @@ void OpenVDB_import_grid_ch(struct OpenVDBReader *reader,
                             const char *name, unsigned char **data,
                             const int res[3]);
 
+void OpenVDB_import_grid_vec(struct OpenVDBReader *reader,
+                             const char *name,
+                             float **data_x, float **data_y, float **data_z,
+                             const int res[3]);
+
 struct OpenVDBWriter *OpenVDBWriter_create(void);
 void OpenVDBWriter_free(struct OpenVDBWriter *writer);
 void OpenVDBWriter_set_compression(struct OpenVDBWriter *writer, const int flags);

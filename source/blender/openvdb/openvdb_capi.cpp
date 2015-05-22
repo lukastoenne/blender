@@ -129,6 +129,14 @@ void OpenVDB_import_grid_ch(OpenVDBReader *reader,
 	internal::OpenVDB_import_grid<Int32Grid>(reader, name, data, res);
 }
 
+void OpenVDB_import_grid_vec(struct OpenVDBReader *reader,
+                             const char *name,
+                             float **data_x, float **data_y, float **data_z,
+                             const int res[3])
+{
+	internal::OpenVDB_import_grid_vector(reader, name, data_x, data_y, data_z, res);
+}
+
 OpenVDBWriter *OpenVDBWriter_create()
 {
 	return new OpenVDBWriter();

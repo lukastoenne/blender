@@ -3233,14 +3233,16 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			OpenVDB_import_grid_fl(reader, "red", &r, sds->res);
-			OpenVDB_import_grid_fl(reader, "green", &g, sds->res);
-			OpenVDB_import_grid_fl(reader, "blue", &b, sds->res);
+//			OpenVDB_import_grid_fl(reader, "red", &r, sds->res);
+//			OpenVDB_import_grid_fl(reader, "green", &g, sds->res);
+//			OpenVDB_import_grid_fl(reader, "blue", &b, sds->res);
+			OpenVDB_import_grid_vec(reader, "color", &r, &g, &b, sds->res);
 		}
 
-		OpenVDB_import_grid_fl(reader, "vx", &vx, sds->res);
-		OpenVDB_import_grid_fl(reader, "vy", &vy, sds->res);
-		OpenVDB_import_grid_fl(reader, "vz", &vz, sds->res);
+//		OpenVDB_import_grid_fl(reader, "vx", &vx, sds->res);
+//		OpenVDB_import_grid_fl(reader, "vy", &vy, sds->res);
+//		OpenVDB_import_grid_fl(reader, "vz", &vz, sds->res);
+		OpenVDB_import_grid_vec(reader, "velocity", &vx, &vy, &vz, sds->res);
 
 		OpenVDB_import_grid_ch(reader, "obstacles", &obstacles, sds->res);
 	}
@@ -3250,7 +3252,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
-		OpenVDB_import_grid_fl(reader, "density", &dens, sds->res);
+		OpenVDB_import_grid_fl(reader, "density high", &dens, sds->res_wt);
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
 			OpenVDB_import_grid_fl(reader, "flame high", &flame, sds->res_wt);
@@ -3259,14 +3261,16 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			OpenVDB_import_grid_fl(reader, "red high", &r, sds->res_wt);
-			OpenVDB_import_grid_fl(reader, "green high", &g, sds->res_wt);
-			OpenVDB_import_grid_fl(reader, "blue high", &b, sds->res_wt);
+//			OpenVDB_import_grid_fl(reader, "red high", &r, sds->res_wt);
+//			OpenVDB_import_grid_fl(reader, "green high", &g, sds->res_wt);
+//			OpenVDB_import_grid_fl(reader, "blue high", &b, sds->res_wt);
+			OpenVDB_import_grid_vec(reader, "color high", &r, &g, &b, sds->res_wt);
 		}
 
-		OpenVDB_import_grid_fl(reader, "tcu", &tcu, sds->res);
-		OpenVDB_import_grid_fl(reader, "tcv", &tcv, sds->res);
-		OpenVDB_import_grid_fl(reader, "tcw", &tcw, sds->res);
+//		OpenVDB_import_grid_fl(reader, "tcu", &tcu, sds->res);
+//		OpenVDB_import_grid_fl(reader, "tcv", &tcv, sds->res);
+//		OpenVDB_import_grid_fl(reader, "tcw", &tcw, sds->res);
+		OpenVDB_import_grid_vec(reader, "tex_co", &tcu, &tcv, &tcw, sds->res);
 	}
 }
 

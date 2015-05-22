@@ -116,28 +116,83 @@ void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	writer->insert(vecgrid);
 }
 
-static void OpenVDB_import_grid_vector(GridBase::Ptr &grid,
-                                       float *data_x, float *data_y, float *data_z,
-                                       const math::CoordBBox &bbox)
-{
-	math::Coord res = bbox.max();
-	Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(grid);
-	Vec3SGrid::Accessor acc = vgrid->getAccessor();
+class SplitVectorGrid {
+	FloatGrid::Ptr m_grid_x, m_grid_y, m_grid_z;
 
-	int index = 0;
-	for (int z = 0; z <= res.z(); ++z) {
-		for (int y = 0; y <= res.y(); ++y) {
-			for (int x = 0; x <= res.x(); ++x, ++index) {
-				math::Coord xyz(x, y, z);
-				Vec3s val = acc.getValue(xyz);
-				data_x[index] = val.x();
-				data_y[index] = val.y();
-				data_z[index] = val.z();
-			}
-		}
+public:
+	SplitVectorGrid()
+	{}
+
+	void operator()(const Vec3SGrid::Ptr &vecgrid)
+	{
+		Vec3s bg = vecgrid->background();
+		m_grid_x = FloatGrid::create(bg.x());
+		m_grid_y = FloatGrid::create(bg.y());
+		m_grid_z = FloatGrid::create(bg.z());
+
+		if (math::Transform::Ptr xform = vecgrid->transform().copy()) {
+            m_grid_x->setTransform(xform);
+            m_grid_y->setTransform(xform);
+            m_grid_z->setTransform(xform);
+        }
+
+		FloatGrid::Accessor acc_x = m_grid_x->getAccessor(),
+		                    acc_y = m_grid_y->getAccessor(),
+		                    acc_z = m_grid_z->getAccessor();
+
+		CoordBBox bbox;
+		for (Vec3SGrid::ValueOnCIter it = vecgrid->cbeginValueOn(); it; ++it) {
+            if (!it.getBoundingBox(bbox)) continue;
+
+            const Vec3s &val = it.getValue();
+
+            if (it.isTileValue()) {
+                m_grid_x->fill(bbox, val.x());
+                m_grid_y->fill(bbox, val.y());
+                m_grid_z->fill(bbox, val.z());
+            }
+			else {
+                acc_x.setValueOn(bbox.min(), val.x());
+                acc_y.setValueOn(bbox.min(), val.y());
+                acc_z.setValueOn(bbox.min(), val.z());
+            }
+        }
 	}
-}
 
+	const FloatGrid::Ptr &grid_x() { return m_grid_x; }
+    const FloatGrid::Ptr &grid_y() { return m_grid_y; }
+    const FloatGrid::Ptr &grid_z() { return m_grid_z; }
+};
+
+void OpenVDB_import_grid_vector(OpenVDBReader *reader,
+                                const std::string &name,
+                                float **data_x, float **data_y, float **data_z,
+                                const int res[3])
+{
+	Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(reader->getGrid(name));
+
+	SplitVectorGrid vector_split;
+	vector_split(vgrid);
+
+	FloatGrid::Ptr grid[3];
+
+	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
+
+	grid[0] = vector_split.grid_x();
+	tools::Dense<float, tools::LayoutXYZ> dense_grid_x(bbox);
+	tools::copyToDense(*grid[0], dense_grid_x);
+	*data_x = dense_grid_x.data();
+
+	grid[1] = vector_split.grid_y();
+	tools::Dense<float, tools::LayoutXYZ> dense_grid_y(bbox);
+	tools::copyToDense(*grid[1], dense_grid_y);
+	*data_y = dense_grid_y.data();
+
+	grid[2] = vector_split.grid_z();
+	tools::Dense<float, tools::LayoutXYZ> dense_grid_z(bbox);
+	tools::copyToDense(*grid[2], dense_grid_z);
+	*data_z = dense_grid_z.data();
+}
 
 void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr)
 {
