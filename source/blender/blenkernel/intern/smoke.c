@@ -3145,35 +3145,35 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
 
 		OpenVDBWriter_add_meta_int(writer, "dx", dx);
-		OpenVDBWriter_add_meta_int(writer, "dt", dx);
+		OpenVDBWriter_add_meta_int(writer, "dt", dt);
 
-		OpenVDB_export_grid_fl(writer, "shadow", sds->shadow, sds->res, sds->fluidmat);
-		OpenVDB_export_grid_fl(writer, "density", dens, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_fl(writer, "Shadow", sds->shadow, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_fl(writer, "Density", dens, sds->res, sds->fluidmat);
 
 		if (fluid_fields & SM_ACTIVE_HEAT) {
-			OpenVDB_export_grid_fl(writer, "heat", heat, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_fl(writer, "heatold", heatold, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_fl(writer, "Heat", heat, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_fl(writer, "Heat Old", heatold, sds->res, sds->fluidmat);
 		}
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			OpenVDB_export_grid_fl(writer, "flame", flame, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_fl(writer, "fuel", fuel, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_fl(writer, "react", react, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_fl(writer, "Flame", flame, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_fl(writer, "Fuel", fuel, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_fl(writer, "React", react, sds->res, sds->fluidmat);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_export_grid_fl(writer, "red", r, sds->res, sds->fluidmat);
-//			OpenVDB_export_grid_fl(writer, "green", g, sds->res, sds->fluidmat);
-//			OpenVDB_export_grid_fl(writer, "blue", b, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_vec(writer, "color", r, g, b, sds->res, sds->fluidmat);
+//			OpenVDB_export_grid_fl(writer, "Red", r, sds->res, sds->fluidmat);
+//			OpenVDB_export_grid_fl(writer, "Green", g, sds->res, sds->fluidmat);
+//			OpenVDB_export_grid_fl(writer, "Blue", b, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_vec(writer, "Color", r, g, b, sds->res, sds->fluidmat);
 		}
 
-//		OpenVDB_export_grid_fl(writer, "vx", vx, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "vy", vy, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "vz", vz, sds->res, sds->fluidmat);
-		OpenVDB_export_grid_vec(writer, "velocity", vx, vy, vz, sds->res, sds->fluidmat);
+//		OpenVDB_export_grid_fl(writer, "Velocity X", vx, sds->res, sds->fluidmat);
+//		OpenVDB_export_grid_fl(writer, "Velocity Y", vy, sds->res, sds->fluidmat);
+//		OpenVDB_export_grid_fl(writer, "Velocity Z", vz, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_vec(writer, "Velocity", vx, vy, vz, sds->res, sds->fluidmat);
 
-		OpenVDB_export_grid_ch(writer, "obstacles", obstacles, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_ch(writer, "Obstacles", obstacles, sds->res, sds->fluidmat);
 	}
 
 	if (sds->wt) {
@@ -3181,25 +3181,25 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
-		OpenVDB_export_grid_fl(writer, "density high", dens, sds->res_wt, sds->fluidmat_wt);
+		OpenVDB_export_grid_fl(writer, "Density High", dens, sds->res_wt, sds->fluidmat_wt);
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			OpenVDB_export_grid_fl(writer, "flame high", flame, sds->res_wt, sds->fluidmat_wt);
-			OpenVDB_export_grid_fl(writer, "fuel high", fuel, sds->res_wt, sds->fluidmat_wt);
-			OpenVDB_export_grid_fl(writer, "react high", react, sds->res_wt, sds->fluidmat_wt);
+			OpenVDB_export_grid_fl(writer, "Flame High", flame, sds->res_wt, sds->fluidmat_wt);
+			OpenVDB_export_grid_fl(writer, "Fuel High", fuel, sds->res_wt, sds->fluidmat_wt);
+			OpenVDB_export_grid_fl(writer, "React High", react, sds->res_wt, sds->fluidmat_wt);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_export_grid_fl(writer, "red high", r, sds->res, sds->fluidmat_wt);
-//			OpenVDB_export_grid_fl(writer, "green high", g, sds->res, sds->fluidmat_wt);
-//			OpenVDB_export_grid_fl(writer, "blue high", b, sds->res, sds->fluidmat_wt);
-			OpenVDB_export_grid_vec(writer, "color high", r, g, b, sds->res_wt, sds->fluidmat_wt);
+//			OpenVDB_export_grid_fl(writer, "Red High", r, sds->res, sds->fluidmat_wt);
+//			OpenVDB_export_grid_fl(writer, "Green High", g, sds->res, sds->fluidmat_wt);
+//			OpenVDB_export_grid_fl(writer, "Blue High", b, sds->res, sds->fluidmat_wt);
+			OpenVDB_export_grid_vec(writer, "Color High", r, g, b, sds->res_wt, sds->fluidmat_wt);
 		}
 
-//		OpenVDB_export_grid_fl(writer, "tcu", tcu, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "tcv", tcv, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "tcw", tcw, sds->res, sds->fluidmat);
-		OpenVDB_export_grid_vec(writer, "tex_co", tcu, tcv, tcw, sds->res, sds->fluidmat);
+//		OpenVDB_export_grid_fl(writer, "Texture Coordinates U", tcu, sds->res, sds->fluidmat);
+//		OpenVDB_export_grid_fl(writer, "Texture Coordinates V", tcv, sds->res, sds->fluidmat);
+//		OpenVDB_export_grid_fl(writer, "Texture Coordinates W", tcw, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_vec(writer, "Texture Coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat);
 	}
 }
 
