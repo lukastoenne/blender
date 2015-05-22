@@ -29,6 +29,7 @@ set(INC
 	../../imbuf
 	../../makesdna
 	../../makesrna
+	../../openvdb
 	../../python
 	../../render/extern/include
 	../../windowmanager

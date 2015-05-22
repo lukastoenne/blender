@@ -91,6 +91,7 @@
 #include "WM_types.h"
 
 #include "object_intern.h"
+#include "openvdb_capi.h"
 
 static void modifier_skin_customdata_delete(struct Object *ob);
 
@@ -2495,7 +2496,7 @@ static OpenVDBCache *openvdb_cache_new(void)
 
     cache = MEM_callocN(sizeof(OpenVDBCache), "OpenVDBCache");
 	cache->reader = NULL;
-	cache->writer = NULL;
+	cache->writer = OpenVDBWriter_create();
     cache->startframe = 1;
     cache->endframe = 250;
 

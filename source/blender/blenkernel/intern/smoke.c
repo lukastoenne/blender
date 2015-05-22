@@ -3287,7 +3287,6 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	orig_frame = scene->r.cfra;
 
 	cache = BKE_openvdb_get_current_cache(sds);
-	cache->writer = OpenVDBWriter_create();
 	OpenVDBWriter_set_compression(cache->writer, 0);
 
 	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
