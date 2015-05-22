@@ -164,11 +164,17 @@ typedef struct OpenVDBCache {
 	char path[1024];
 	char name[64];
 	int startframe, endframe;
-	short flag, pad[3];
+	short flag, compression, pad[2];
 } OpenVDBCache;
 
 enum {
 	VDB_CACHE_CURRENT = 1,
+};
+
+enum {
+	VDB_COMPRESSION_ZIP   = 0,
+	VDB_COMPRESSION_BLOSC = 1,
+	VDB_COMPRESSION_NONE  = 2,
 };
 
 /* inflow / outflow */

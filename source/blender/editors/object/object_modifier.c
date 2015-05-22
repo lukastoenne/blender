@@ -2499,6 +2499,7 @@ static OpenVDBCache *openvdb_cache_new(void)
 	cache->writer = OpenVDBWriter_create();
     cache->startframe = 1;
     cache->endframe = 250;
+	cache->compression = VDB_COMPRESSION_ZIP;
 
 	BLI_strncpy(cache->name, "openvdb_smoke_export_", sizeof(cache->name));
 

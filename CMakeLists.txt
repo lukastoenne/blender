@@ -223,6 +223,7 @@ option(WITH_PLAYER        "Build Player" OFF)
 option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLORIO})
 option(WITH_COMPOSITOR    "Enable the tile based nodal compositor" ON)
 option(WITH_OPENVDB       "Enable features relying on OpenVDB" ON)
+option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enble if OpenVDB was built with blosc support" OFF)
 
 # GHOST Windowing Library Options
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
@@ -1076,6 +1077,7 @@ if(UNIX AND NOT APPLE)
 
 		if(NOT OPENVDB_FOUND)
 			set(WITH_OPENVDB OFF)
+			set(WITH_OPENVDB_BLOSC OFF)
 			message(STATUS "OpenVDB not found")
 		endif()
 	endif()

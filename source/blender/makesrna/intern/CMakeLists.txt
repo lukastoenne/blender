@@ -300,6 +300,10 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_OPENVDB_BLOSC)
+	add_definitions(-DWITH_OPENVDB_BLOSC)
+endif()
+
 # Build makesrna executable
 blender_include_dirs(
 	.

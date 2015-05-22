@@ -148,11 +148,21 @@ void OpenVDBWriter_free(OpenVDBWriter *writer)
 	writer = NULL;
 }
 
-void OpenVDBWriter_set_compression(OpenVDBWriter *writer, const int flags)
+void OpenVDBWriter_set_compression(OpenVDBWriter *writer, const int flag)
 {
-	// TODO(kevin)
-	(void)flags;
-	writer->setFileCompression(io::COMPRESS_ACTIVE_MASK | io::COMPRESS_ZIP);
+	int compression_flags = io::COMPRESS_ACTIVE_MASK;
+
+	if (flag == 0) {
+		compression_flags |= io::COMPRESS_ZIP;
+	}
+	else if (flag == 1) {
+		compression_flags |= io::COMPRESS_BLOSC;
+	}
+	else {
+		compression_flags = io::COMPRESS_NONE;
+	}
+
+	writer->setFileCompression(compression_flags);
 }
 
 void OpenVDBWriter_add_meta_fl(OpenVDBWriter *writer, const char *name, const float value)

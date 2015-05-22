@@ -364,6 +364,7 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
 
         if cache:
             layout.prop(cache, "filepath")
+            layout.prop(cache, "compression")
             row = layout.row(align=True)
             row.prop(cache, "frame_start")
             row.prop(cache, "frame_end")

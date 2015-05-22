@@ -321,6 +321,15 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem prop_compression_items[] = {
+		{ VDB_COMPRESSION_ZIP, "ZIP", 0, "Zip", "Slow and effective compression" },
+#if WITH_OPENVDB_BLOSC
+		{ VDB_COMPRESSION_BLOSC, "BLOSC", 0, "Blosc", "Multithreaded compression, almost similar in size and quality as 'Zip'" },
+#endif
+	    { VDB_COMPRESSION_NONE, "NONE", 0, "None", "Do not use any compression" },
+		{ 0, NULL, 0, NULL, NULL }
+	};
+
 	srna = RNA_def_struct(brna, "OpenVDBCache", NULL);
 	RNA_def_struct_ui_text(srna, "OpenVDB cache", "OpenVDB cache");
 
@@ -342,8 +351,15 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
-	RNA_def_property_ui_text(prop, "Name", "Level Set filter name");
+	RNA_def_property_ui_text(prop, "Name", "Cache name");
     RNA_def_struct_name_property(srna, prop);
+
+	prop = RNA_def_property(srna, "compression", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "compression");
+	RNA_def_property_enum_items(prop, prop_compression_items);
+	RNA_def_property_ui_text(prop, "File Compression",
+	                         "Select what type of compression to use when writing the files");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 }
 
 static void rna_def_smoke_domain_settings(BlenderRNA *brna)
