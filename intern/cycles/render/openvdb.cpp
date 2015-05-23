@@ -21,8 +21,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-#ifdef WITH_OPENVDB
-
 #define MAX_VOLUME 1024
 
 VolumeManager::VolumeManager()
@@ -52,14 +50,15 @@ static inline void catch_exceptions()
 	try {
 		throw;
 	}
+#ifdef WITH_OPENVDB
 	catch (const openvdb::IoError& e) {
 		std::cerr << e.what() << "\n";
 	}
+#endif
 }
 
 int VolumeManager::add_volume(const string& filename, const string& name, int sampling, int grid_type)
 {
-	using namespace openvdb;
 	size_t slot = -1;
 
 	if((slot = find_existing_slot(filename, name, sampling, grid_type)) != -1) {
@@ -67,16 +66,8 @@ int VolumeManager::add_volume(const string& filename, const string& name, int sa
 	}
 
 	try {
-		io::File file(filename);
-		file.open();
-
-		if(grid_type == NODE_VDB_FLOAT) {
-			FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(file.readGrid(name));
-			slot = add_scalar_grid(grid);
-		}
-		else if(grid_type == NODE_VDB_FLOAT3) {
-			Vec3SGrid::Ptr grid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
-			slot = add_vector_grid(grid);
+		if(is_openvdb_file(filename)) {
+			slot = add_openvdb_volume(filename, name, sampling, grid_type);
 		}
 
 		add_grid_description(filename, name, sampling, slot);
@@ -123,6 +114,11 @@ int VolumeManager::find_existing_slot(const string& filename, const string& name
 	return -1;
 }
 
+bool VolumeManager::is_openvdb_file(const string& filename) const
+{
+	return string_endswith(filename, ".vdb");
+}
+
 template <typename Container>
 size_t find_empty_slot(Container container)
 {
@@ -147,30 +143,42 @@ size_t find_empty_slot(Container container)
 	return slot;
 }
 
-size_t VolumeManager::add_scalar_grid(openvdb::FloatGrid::Ptr grid)
+size_t VolumeManager::add_openvdb_volume(const std::string &filename, const std::string &name, int /*sampling*/, int grid_type)
 {
-	size_t slot = find_empty_slot(float_volumes);
+	using namespace openvdb;
+	size_t slot = -1;
 
-	if(slot == -1) return -1;
+#ifdef WITH_OPENVDB
+	openvdb::io::File file(filename);
+	file.open();
 
-	vdb_float_volume *sampler = new vdb_float_volume(grid);
+	if(grid_type == NODE_VDB_FLOAT) {
+		slot = find_empty_slot(float_volumes);
 
-	float_volumes.insert(float_volumes.begin() + slot, sampler);
-	scalar_grids.push_back(grid);
+		if(slot == -1) return -1;
 
-	return slot;
-}
+		FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(file.readGrid(name));
+		vdb_float_volume *sampler = new vdb_float_volume(grid);
 
-size_t VolumeManager::add_vector_grid(openvdb::Vec3SGrid::Ptr grid)
-{
-	size_t slot = find_empty_slot(float3_volumes);
+		float_volumes.insert(float_volumes.begin() + slot, sampler);
+		scalar_grids.push_back(grid);
+	}
+	else if(grid_type == NODE_VDB_FLOAT3) {
+		size_t slot = find_empty_slot(float3_volumes);
 
-	if(slot == -1) return -1;
+		if(slot == -1) return -1;
 
-	vdb_float3_volume *sampler = new vdb_float3_volume(grid);
+		Vec3SGrid::Ptr grid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
+		vdb_float3_volume *sampler = new vdb_float3_volume(grid);
 
-	float3_volumes.insert(float3_volumes.begin() + slot, sampler);
-	vector_grids.push_back(grid);
+		float3_volumes.insert(float3_volumes.begin() + slot, sampler);
+		vector_grids.push_back(grid);
+	}
+#else
+	(void)filename;
+	(void)name;
+	(void)grid_type;
+#endif
 
 	return slot;
 }
@@ -232,31 +240,5 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 void VolumeManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
 {
 }
-
-#else
-
-VolumeManager::VolumeManager()
-{
-	need_update = false;
-}
-
-VolumeManager::~VolumeManager()
-{
-}
-
-int VolumeManager::add_volume(const string& /*filename*/, const string& /*name*/, int /*sampling*/, int /*grid_type*/)
-{
-	return -1;
-}
-
-void VolumeManager::device_update(Device */*device*/, DeviceScene */*dscene*/, Scene */*scene*/, Progress& /*progress*/)
-{
-}
-
-void VolumeManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
-{
-}
-
-#endif
 
 CCL_NAMESPACE_END

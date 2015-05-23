@@ -41,15 +41,15 @@ class VolumeManager {
 #ifdef WITH_OPENVDB
 	vector<openvdb::FloatGrid::Ptr> scalar_grids;
 	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
-
-	size_t add_scalar_grid(openvdb::FloatGrid::Ptr grid);
-	size_t add_vector_grid(openvdb::Vec3SGrid::Ptr grid);
 #endif
 
 	void delete_volume(int grid_type, int sampling, size_t slot);
 
 	void add_grid_description(const string& filename, const string& name, int sampling, int slot);
 	int find_existing_slot(const string& filename, const string& name, int sampling, int grid_type);
+
+	bool is_openvdb_file(const string& filename) const;
+	size_t add_openvdb_volume(const string& filename, const string& name, int sampling, int grid_type);
 
 public:
 	VolumeManager();
