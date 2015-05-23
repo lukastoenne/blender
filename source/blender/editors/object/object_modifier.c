@@ -2528,8 +2528,7 @@ static int openvdb_cache_add_exec(bContext *C, wmOperator *op)
 
 	BLI_addtail(&sds->vdb_caches, cache_new);
 
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 
@@ -2578,7 +2577,7 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 		cache_prev->flag |= VDB_CACHE_CURRENT;
 	}
 
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 
@@ -2632,7 +2631,7 @@ static int openvdb_cache_move_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 }
