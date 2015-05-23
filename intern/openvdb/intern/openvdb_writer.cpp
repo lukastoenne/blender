@@ -27,8 +27,9 @@
 
 OpenVDBWriter::OpenVDBWriter()
     : m_grids(new openvdb::GridPtrVec())
+    , m_meta_map(new openvdb::MetaMap())
 {
-	m_meta_map.insertMeta("creator", openvdb::StringMetadata("Blender/OpenVDBWriter"));
+	m_meta_map->insertMeta("creator", openvdb::StringMetadata("Blender/OpenVDBWriter"));
 }
 
 OpenVDBWriter::~OpenVDBWriter()
@@ -46,22 +47,22 @@ void OpenVDBWriter::insert(const openvdb::GridBase &grid)
 
 void OpenVDBWriter::insertFloatMeta(const std::string &name, const float value)
 {
-	m_meta_map.insertMeta(name, openvdb::FloatMetadata(value));
+	m_meta_map->insertMeta(name, openvdb::FloatMetadata(value));
 }
 
 void OpenVDBWriter::insertIntMeta(const std::string &name, const int value)
 {
-	m_meta_map.insertMeta(name, openvdb::Int32Metadata(value));
+	m_meta_map->insertMeta(name, openvdb::Int32Metadata(value));
 }
 
 void OpenVDBWriter::insertVec3sMeta(const std::string &name, const openvdb::Vec3s value)
 {
-	m_meta_map.insertMeta(name, openvdb::Vec3SMetadata(value));
+	m_meta_map->insertMeta(name, openvdb::Vec3SMetadata(value));
 }
 
 void OpenVDBWriter::insertVec3IMeta(const std::string &name, const openvdb::Vec3I value)
 {
-	m_meta_map.insertMeta(name, openvdb::Vec3IMetadata(value));
+	m_meta_map->insertMeta(name, openvdb::Vec3IMetadata(value));
 }
 
 void OpenVDBWriter::insertMat4sMeta(const std::string &name, const float value[4][4])
@@ -72,7 +73,7 @@ void OpenVDBWriter::insertMat4sMeta(const std::string &name, const float value[4
 	    value[2][0], value[2][1], value[2][2], value[2][3],
 	    value[3][0], value[3][1], value[3][2], value[3][3]);
 
-	m_meta_map.insertMeta(name, openvdb::Mat4SMetadata(mat));
+	m_meta_map->insertMeta(name, openvdb::Mat4SMetadata(mat));
 }
 
 void OpenVDBWriter::setFileCompression(const int flags)
@@ -84,7 +85,7 @@ void OpenVDBWriter::write(const std::string &filename) const
 {
 	openvdb::io::File file(filename);
 	file.setCompression(m_flags);
-	file.write(*m_grids, m_meta_map);
+	file.write(*m_grids, *m_meta_map);
 	file.close();
 
 	/* Should perhaps be an option at some point */

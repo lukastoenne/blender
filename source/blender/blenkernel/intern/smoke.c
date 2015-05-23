@@ -399,12 +399,13 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 		BKE_ptcache_free_list(&(smd->domain->ptcaches[0]));
 		smd->domain->point_cache[0] = NULL;
 
-		MEM_freeN(smd->domain);
-		smd->domain = NULL;
-
-		for (cache = smd->domain->vdb_caches.first; cache; cache = cache->next) {
+		while ((cache = BLI_pophead(&(smd->domain->vdb_caches)))) {
+			OpenVDBWriter_free(cache->writer);
 			MEM_freeN(cache);
 		}
+
+		MEM_freeN(smd->domain);
+		smd->domain = NULL;
 	}
 }
 

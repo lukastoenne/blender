@@ -30,7 +30,7 @@
 
 class OpenVDBWriter {
 	openvdb::GridPtrVecPtr m_grids;
-	openvdb::MetaMap m_meta_map;
+	openvdb::MetaMap::Ptr m_meta_map;
 
 	int m_flags;
 
