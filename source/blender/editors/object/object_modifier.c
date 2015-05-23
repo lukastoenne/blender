@@ -2556,7 +2556,7 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 	Object *ob = ED_object_active_context(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache, *cache_prev = NULL;
+	OpenVDBCache *cache, *cache_prev = NULL, *cache_next = NULL;
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
@@ -2566,11 +2566,15 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 
 	if (cache) {
 		cache_prev = cache->prev;
+		cache_next = cache->next;
 		BLI_remlink(&sds->vdb_caches, cache);
 		MEM_freeN(cache);
 	}
 
-	if (cache_prev) {
+	if (cache_next) {
+		cache_next->flag |= VDB_CACHE_CURRENT;
+	}
+	else if (cache_prev) {
 		cache_prev->flag |= VDB_CACHE_CURRENT;
 	}
 
