@@ -23,28 +23,28 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef WITH_OPENVDB
 
-#define MAX_VOLUME_SAMPLERS 1024
+#define MAX_VOLUME 1024
 
-OpenVDBManager::OpenVDBManager()
+VolumeManager::VolumeManager()
 {
 	openvdb::initialize();
 
 	scalar_grids.reserve(64);
 	vector_grids.reserve(64);
 	current_grids.reserve(64);
-	float_volume_samplers.reserve(64);
-	float3_volume_samplers.reserve(64);
+	float_volumes.reserve(64);
+	float3_volumes.reserve(64);
 
 	need_update = true;
 }
 
-OpenVDBManager::~OpenVDBManager()
+VolumeManager::~VolumeManager()
 {
 	scalar_grids.clear();
 	vector_grids.clear();
 	current_grids.clear();
-	float_volume_samplers.clear();
-	float3_volume_samplers.clear();
+	float_volumes.clear();
+	float3_volumes.clear();
 }
 
 static inline void catch_exceptions()
@@ -57,7 +57,7 @@ static inline void catch_exceptions()
 	}
 }
 
-int OpenVDBManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
+int VolumeManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
 {
 	using namespace openvdb;
 	size_t slot = -1;
@@ -72,11 +72,11 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 
 		if(grid_type == NODE_VDB_FLOAT) {
 			FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(file.readGrid(name));
-			slot = add_scalar_grid(grid, sampling);
+			slot = add_scalar_grid(grid);
 		}
 		else if(grid_type == NODE_VDB_FLOAT3) {
 			Vec3SGrid::Ptr grid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
-			slot = add_vector_grid(grid, sampling);
+			slot = add_vector_grid(grid);
 		}
 
 		add_grid_description(filename, name, sampling, slot);
@@ -92,7 +92,7 @@ int OpenVDBManager::add_volume(const string &filename, const string &name, int s
 	return slot;
 }
 
-int OpenVDBManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
+int VolumeManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
 {
 	for(size_t i = 0; i < current_grids.size(); ++i) {
 		GridDescription grid = current_grids[i];
@@ -104,12 +104,12 @@ int OpenVDBManager::find_existing_slot(const string &filename, const string &nam
 			else {
 				/* sampling was changed, remove the sampler */
 				if(grid_type == NODE_VDB_FLOAT) {
-					delete float_volume_samplers[grid.slot];
-					float_volume_samplers[grid.slot] = NULL;
+					delete float_volumes[grid.slot];
+					float_volumes[grid.slot] = NULL;
 				}
 				else {
-					delete float3_volume_samplers[grid.slot];
-					float3_volume_samplers[grid.slot] = NULL;
+					delete float3_volumes[grid.slot];
+					float3_volumes[grid.slot] = NULL;
 				}
 
 				/* remove the grid description too */
@@ -135,9 +135,9 @@ size_t find_empty_slot(Container container)
 	}
 
 	if(slot == container.size()) {
-		if(slot == MAX_VOLUME_SAMPLERS) {
-			printf("OpenVDBManager::add_volume: volume sampler limit reached %d!\n",
-			       MAX_VOLUME_SAMPLERS);
+		if(slot == MAX_VOLUME) {
+			printf("VolumeManager::add_volume: volume sampler limit reached %d!\n",
+			       MAX_VOLUME);
 			return -1;
 		}
 
@@ -147,35 +147,35 @@ size_t find_empty_slot(Container container)
 	return slot;
 }
 
-size_t OpenVDBManager::add_scalar_grid(openvdb::FloatGrid::Ptr grid, int sampling)
+size_t VolumeManager::add_scalar_grid(openvdb::FloatGrid::Ptr grid)
 {
-	size_t slot = find_empty_slot(float_volume_samplers);
+	size_t slot = find_empty_slot(float_volumes);
 
 	if(slot == -1) return -1;
 
-	vdb_float_sampler *sampler = new vdb_float_sampler(grid);
+	vdb_float_volume *sampler = new vdb_float_volume(grid);
 
-	float_volume_samplers.insert(float_volume_samplers.begin() + slot, sampler);
+	float_volumes.insert(float_volumes.begin() + slot, sampler);
 	scalar_grids.push_back(grid);
 
 	return slot;
 }
 
-size_t OpenVDBManager::add_vector_grid(openvdb::Vec3SGrid::Ptr grid, int sampling)
+size_t VolumeManager::add_vector_grid(openvdb::Vec3SGrid::Ptr grid)
 {
-	size_t slot = find_empty_slot(float3_volume_samplers);
+	size_t slot = find_empty_slot(float3_volumes);
 
 	if(slot == -1) return -1;
 
-	vdb_float3_sampler *sampler = new vdb_float3_sampler(grid);
+	vdb_float3_volume *sampler = new vdb_float3_volume(grid);
 
-	float3_volume_samplers.insert(float3_volume_samplers.begin() + slot, sampler);
+	float3_volumes.insert(float3_volumes.begin() + slot, sampler);
 	vector_grids.push_back(grid);
 
 	return slot;
 }
 
-void OpenVDBManager::add_grid_description(const string &filename, const string &name, int sampling, int slot)
+void VolumeManager::add_grid_description(const string &filename, const string &name, int sampling, int slot)
 {
 	GridDescription descr;
 	descr.filename = filename;
@@ -186,7 +186,7 @@ void OpenVDBManager::add_grid_description(const string &filename, const string &
 	current_grids.push_back(descr);
 }
 
-void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress)
+void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress)
 {
 	(void)scene;
 
@@ -197,26 +197,26 @@ void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *s
 	device_free(device, dscene);
 	progress.set_status("Updating OpenVDB volumes", "Sending samplers to device.");
 
-	for(size_t i = 0; i < float_volume_samplers.size(); ++i) {
-		if(!float_volume_samplers[i]) {
+	for(size_t i = 0; i < float_volumes.size(); ++i) {
+		if(!float_volumes[i]) {
 			continue;
 		}
-		device->const_copy_to("__float_volume_sampler", float_volume_samplers[i], i);
+		device->const_copy_to("__float_volume", float_volumes[i], i);
 	}
 
-	for(size_t i = 0; i < float3_volume_samplers.size(); ++i) {
-		if(!float3_volume_samplers[i]) {
+	for(size_t i = 0; i < float3_volumes.size(); ++i) {
+		if(!float3_volumes[i]) {
 			continue;
 		}
-		device->const_copy_to("__float3_volume_sampler", float3_volume_samplers[i], i);
+		device->const_copy_to("__float3_volume", float3_volumes[i], i);
 	}
 
 	if(progress.get_cancel()) {
 		return;
 	}
 
-	VLOG(1) << "Volume samplers allocate: __float_volume_sampler, " << float_volume_samplers.size() * sizeof(float_volume_sampler) << " bytes";
-	VLOG(1) << "Volume samplers allocate: __float3_volume_sampler, " << float3_volume_samplers.size() * sizeof(float3_volume_sampler) << " bytes";
+	VLOG(1) << "Volume samplers allocate: __float_volume, " << float_volumes.size() * sizeof(float_volume) << " bytes";
+	VLOG(1) << "Volume samplers allocate: __float3_volume, " << float3_volumes.size() * sizeof(float3_volume) << " bytes";
 
 	for(size_t i = 0; i < scalar_grids.size(); ++i) {
 		VLOG(1) << scalar_grids[i]->getName() << " memory usage: " << scalar_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
@@ -229,7 +229,7 @@ void OpenVDBManager::device_update(Device *device, DeviceScene *dscene, Scene *s
 	need_update = false;
 }
 
-void OpenVDBManager::device_free(Device *device, DeviceScene *dscene)
+void VolumeManager::device_free(Device *device, DeviceScene *dscene)
 {
 	(void)device;
 	(void)dscene;
@@ -237,25 +237,25 @@ void OpenVDBManager::device_free(Device *device, DeviceScene *dscene)
 
 #else
 
-OpenVDBManager::OpenVDBManager()
+VolumeManager::VolumeManager()
 {
 	need_update = false;
 }
 
-OpenVDBManager::~OpenVDBManager()
+VolumeManager::~VolumeManager()
 {
 }
 
-int OpenVDBManager::add_volume(const string &/*filename*/, const string &/*name*/, int /*sampling*/, int /*grid_type*/)
+int VolumeManager::add_volume(const string &/*filename*/, const string &/*name*/, int /*sampling*/, int /*grid_type*/)
 {
 	return -1;
 }
 
-void OpenVDBManager::device_update(Device */*device*/, DeviceScene */*dscene*/, Scene */*scene*/, Progress &/*progress*/)
+void VolumeManager::device_update(Device */*device*/, DeviceScene */*dscene*/, Scene */*scene*/, Progress &/*progress*/)
 {
 }
 
-void OpenVDBManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
+void VolumeManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
 {
 }
 

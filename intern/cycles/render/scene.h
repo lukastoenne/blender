@@ -48,7 +48,6 @@ class Mesh;
 class MeshManager;
 class Object;
 class ObjectManager;
-class OpenVDBManager;
 class ParticleSystemManager;
 class ParticleSystem;
 class CurveSystemManager;
@@ -57,6 +56,7 @@ class ShaderManager;
 class Progress;
 class BakeManager;
 class BakeData;
+class VolumeManager;
 
 /* Scene Device Data */
 
@@ -179,7 +179,7 @@ public:
 	ParticleSystemManager *particle_system_manager;
 	CurveSystemManager *curve_system_manager;
 	BakeManager *bake_manager;
-	OpenVDBManager *vdb_manager;
+	VolumeManager *volume_manager;
 
 	/* default shaders */
 	int default_surface;

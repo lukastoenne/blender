@@ -34,29 +34,14 @@ ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack
 	co = transform_point(&tfm, co);
 
 	if(type == NODE_VDB_FLOAT) {
-		float out = kg->float_volume_samplers[slot]->sample(sampling, co);
-//		if(sampling == OPENVDB_SAMPLE_POINT) {
-//			out = kg->vdb_float_samplers_p[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
-//		}
-//		else {
-//			out = kg->vdb_float_samplers_b[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
-//		}
+		float out = kg->float_volumes[slot]->sample(sampling, co);
 
 		if(stack_valid(out_offset)) {
 			stack_store_float(stack, out_offset, out);
 		}
 	}
 	else if(type == NODE_VDB_FLOAT3) {
-//		openvdb::Vec3s r;
-//		if(sampling == OPENVDB_SAMPLE_POINT) {
-//			r = kg->vdb_float3_samplers_p[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
-//		}
-//		else {
-//			r = kg->vdb_float3_samplers_b[slot]->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
-//		}
-
-//		float3 out = make_float3(r.x(), r.y(), r.z());
-		float3 out = kg->float3_volume_samplers[slot]->sample(sampling, co);
+		float3 out = kg->float3_volumes[slot]->sample(sampling, co);
 
 		if(stack_valid(out_offset)) {
 			stack_store_float3(stack, out_offset, out);

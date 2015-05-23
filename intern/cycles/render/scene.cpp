@@ -62,7 +62,7 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	particle_system_manager = new ParticleSystemManager();
 	curve_system_manager = new CurveSystemManager();
 	bake_manager = new BakeManager();
-	vdb_manager = new OpenVDBManager();
+	volume_manager = new VolumeManager();
 
 	/* OSL only works on the CPU */
 	if(device_info_.type == DEVICE_CPU)
@@ -120,7 +120,7 @@ void Scene::free_memory(bool final)
 			image_manager->device_free_builtin(device, &dscene);
 
 		lookup_tables->device_free(device, &dscene);
-		vdb_manager->device_free(device, &dscene);
+		volume_manager->device_free(device, &dscene);
 	}
 
 	if(final) {
@@ -137,7 +137,7 @@ void Scene::free_memory(bool final)
 		delete curve_system_manager;
 		delete image_manager;
 		delete bake_manager;
-		delete vdb_manager;
+		delete volume_manager;
 	}
 }
 
@@ -245,7 +245,7 @@ void Scene::device_update(Device *device_, Progress& progress)
 	if(progress.get_cancel() || device->have_error()) return;
 
 	progress.set_status("Updating OpenVDB Volumes");
-	vdb_manager->device_update(device, &dscene, this, progress);
+	volume_manager->device_update(device, &dscene, this, progress);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
@@ -309,7 +309,7 @@ bool Scene::need_reset()
 		|| particle_system_manager->need_update
 		|| curve_system_manager->need_update
 		|| bake_manager->need_update
-		|| vdb_manager->need_update
+		|| volume_manager->need_update
 		|| film->need_update);
 }
 

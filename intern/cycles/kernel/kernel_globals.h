@@ -31,22 +31,16 @@ struct OSLThreadData;
 struct OSLShadingSystem;
 #endif
 
-#define MAX_BYTE_IMAGES     1024
-#define MAX_FLOAT_IMAGES    1024
-#define MAX_VOLUME_SAMPLERS 1024
+#define MAX_BYTE_IMAGES  1024
+#define MAX_FLOAT_IMAGES 1024
+#define MAX_VOLUME       1024
 
 typedef struct KernelGlobals {
 	texture_image_uchar4 texture_byte_images[MAX_BYTE_IMAGES];
 	texture_image_float4 texture_float_images[MAX_FLOAT_IMAGES];
 
-#ifdef __OPENVDB__
-	vdb_fsampler_p *vdb_float_samplers_p[MAX_VOLUME_SAMPLERS];
-	vdb_fsampler_b *vdb_float_samplers_b[MAX_VOLUME_SAMPLERS];
-	vdb_vsampler_p *vdb_float3_samplers_p[MAX_VOLUME_SAMPLERS];
-	vdb_vsampler_b *vdb_float3_samplers_b[MAX_VOLUME_SAMPLERS];
-	float_volume_sampler *float_volume_samplers[MAX_VOLUME_SAMPLERS];
-	float3_volume_sampler *float3_volume_samplers[MAX_VOLUME_SAMPLERS];
-#endif
+	float_volume *float_volumes[MAX_VOLUME];
+	float3_volume *float3_volumes[MAX_VOLUME];
 
 #define KERNEL_TEX(type, ttype, name) ttype name;
 #define KERNEL_IMAGE_TEX(type, ttype, name)

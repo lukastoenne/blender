@@ -4370,7 +4370,7 @@ OpenVDBNode::OpenVDBNode()
 : ShaderNode("openvdb")
 {
 	filename = "";
-	vdb_manager = NULL;
+	volume_manager = NULL;
 	sampling = OPENVDB_SAMPLE_POINT;
 
 	tfm = transform_identity();
@@ -4389,7 +4389,7 @@ void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 void OpenVDBNode::compile(SVMCompiler &compiler)
 {
 	ShaderInput *vector_in = input("Vector");
-	vdb_manager = compiler.vdb_manager;
+	volume_manager = compiler.volume_manager;
 
 	compiler.stack_assign(vector_in);
 
@@ -4406,7 +4406,7 @@ void OpenVDBNode::compile(SVMCompiler &compiler)
 			type = NODE_VDB_FLOAT3;
 		}
 
-		grid_slot = vdb_manager->add_volume(filename.string(),
+		grid_slot = volume_manager->add_volume(filename.string(),
 		                                    output_names[i].string(),
 		                                    sampling, type);
 

@@ -24,8 +24,8 @@
 CCL_NAMESPACE_BEGIN
 
 class ImageManager;
-class OpenVDBManager;
 class Shader;
+class VolumeManager;
 
 /* Texture Mapping */
 
@@ -672,7 +672,7 @@ public:
 	bool has_spatial_varying() { return true; }
 
 	ustring filename;
-	OpenVDBManager *vdb_manager;
+	VolumeManager *volume_manager;
 
 	int grid_slot;
 	int sampling;

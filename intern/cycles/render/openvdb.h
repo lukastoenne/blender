@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef __OPENVDBMANAGER_H__
-#define __OPENVDBMANAGER_H__
+#ifndef __VOLUMEMANAGER_H__
+#define __VOLUMEMANAGER_H__
 
 #include "util_openvdb.h"
 #include "util_string.h"
@@ -28,7 +28,7 @@ class DeviceScene;
 class Progress;
 class Scene;
 
-class OpenVDBManager {	
+class VolumeManager {
 	struct GridDescription {
 		string filename;
 		string name;
@@ -36,22 +36,24 @@ class OpenVDBManager {
 		int slot;
 	};
 
-#ifdef WITH_OPENVDB
 	vector<GridDescription> current_grids;
+
+#ifdef WITH_OPENVDB
 	vector<openvdb::FloatGrid::Ptr> scalar_grids;
 	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
 
-	size_t add_scalar_grid(openvdb::FloatGrid::Ptr grid, int sampling);
-	size_t add_vector_grid(openvdb::Vec3SGrid::Ptr grid, int sampling);
-	void delete_sampler(int grid_type, int sampling, size_t slot);
+	size_t add_scalar_grid(openvdb::FloatGrid::Ptr grid);
+	size_t add_vector_grid(openvdb::Vec3SGrid::Ptr grid);
+#endif
+
+	void delete_volume(int grid_type, int sampling, size_t slot);
 
 	void add_grid_description(const string &filename, const string &name, int sampling, int slot);
 	int find_existing_slot(const string &filename, const string &name, int sampling, int grid_type);
-#endif
 
 public:
-	OpenVDBManager();
-	~OpenVDBManager();
+	VolumeManager();
+	~VolumeManager();
 
 	int add_volume(const string &filename, const string &name, int sampling, int grid_type);
 
@@ -60,16 +62,10 @@ public:
 
 	bool need_update;
 
-#ifdef WITH_OPENVDB
-	vector<vdb_fsampler_p*> float_samplers_p;
-	vector<vdb_fsampler_b*> float_samplers_b;
-	vector<vdb_vsampler_p*> float3_samplers_p;
-	vector<vdb_vsampler_b*> float3_samplers_b;
-	vector<float_volume_sampler*> float_volume_samplers;
-	vector<float3_volume_sampler*> float3_volume_samplers;
-#endif
+	vector<float_volume*> float_volumes;
+	vector<float3_volume*> float3_volumes;
 };
 
 CCL_NAMESPACE_END
 
-#endif /* __OPENVDBMANAGER_H__ */
+#endif /* __VOLUMEMANAGER_H__ */
