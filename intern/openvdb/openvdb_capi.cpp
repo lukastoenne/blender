@@ -34,9 +34,7 @@ extern "C" {
 #include "MEM_guardedalloc.h"
 
 #include "openvdb_capi.h"
-#include "openvdb_intern.h"
-#include "openvdb_reader.h"
-#include "openvdb_writer.h"
+#include "openvdb_dense_convert.h"
 #include "openvdb_util.h"
 
 using namespace openvdb;

@@ -32,8 +32,6 @@ extern "C" {
 
 struct bNode;
 struct bNodeTree;
-struct FLUID_3D;
-struct WTURBULENCE;
 struct OpenVDBReader;
 struct OpenVDBWriter;
 
@@ -72,7 +70,6 @@ enum {
 	OPENVDB_UNKNOWN_ERROR = 11,
 };
 
-int OpenVDB_import_fluid(struct FLUID_3D *fluid, struct WTURBULENCE *wt, FluidDomainDescr *descr, const char *filename, float *shadow);
 void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr);
 
 void OpenVDB_export_grid_fl(struct OpenVDBWriter *writer,

@@ -25,12 +25,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <openvdb/openvdb.h>
-#include <openvdb/tools/Dense.h>
 #include <openvdb/tools/ValueTransformer.h>
 
 #include "openvdb_capi.h"
-#include "openvdb_intern.h"
+#include "openvdb_dense_convert.h"
 #include "openvdb_writer.h"
 
 using namespace openvdb;

@@ -18,13 +18,15 @@
  * The Original Code is Copyright (C) 2015 Blender Foundation.
  * All rights reserved.
  *
+ * The Original Code is: all of this file.
+ *
  * Contributor(s): Kevin Dietrich
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef  __OPENVDB_INTERN_H__
-#define  __OPENVDB_INTERN_H__
+#ifndef __OPENVDB_DENSE_CONVERT_H__
+#define __OPENVDB_DENSE_CONVERT_H__
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
@@ -32,10 +34,7 @@
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
 
-struct FLUID_3D;
 struct FluidDomainDescr;
-struct WTURBULENCE;
-struct OpenVDBWriter;
 
 namespace internal {
 
@@ -115,5 +114,5 @@ void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr
 
 }
 
-#endif /* __OPENVDB_INTERN_H__ */
+#endif /* __OPENVDB_DENSE_CONVERT_H__ */
 
