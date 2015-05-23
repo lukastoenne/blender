@@ -48,14 +48,14 @@ class VolumeManager {
 
 	void delete_volume(int grid_type, int sampling, size_t slot);
 
-	void add_grid_description(const string &filename, const string &name, int sampling, int slot);
-	int find_existing_slot(const string &filename, const string &name, int sampling, int grid_type);
+	void add_grid_description(const string& filename, const string& name, int sampling, int slot);
+	int find_existing_slot(const string& filename, const string& name, int sampling, int grid_type);
 
 public:
 	VolumeManager();
 	~VolumeManager();
 
-	int add_volume(const string &filename, const string &name, int sampling, int grid_type);
+	int add_volume(const string& filename, const string& name, int sampling, int grid_type);
 
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_free(Device *device, DeviceScene *dscene);

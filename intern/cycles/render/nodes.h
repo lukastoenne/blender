@@ -679,7 +679,6 @@ public:
 	vector<ustring> output_names;
 
 	Transform tfm;
-	TextureMapping tex_mapping;
 };
 
 CCL_NAMESPACE_END

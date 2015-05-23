@@ -52,12 +52,12 @@ static inline void catch_exceptions()
 	try {
 		throw;
 	}
-	catch (const openvdb::IoError &e) {
+	catch (const openvdb::IoError& e) {
 		std::cerr << e.what() << "\n";
 	}
 }
 
-int VolumeManager::add_volume(const string &filename, const string &name, int sampling, int grid_type)
+int VolumeManager::add_volume(const string& filename, const string& name, int sampling, int grid_type)
 {
 	using namespace openvdb;
 	size_t slot = -1;
@@ -92,7 +92,7 @@ int VolumeManager::add_volume(const string &filename, const string &name, int sa
 	return slot;
 }
 
-int VolumeManager::find_existing_slot(const string &filename, const string &name, int sampling, int grid_type)
+int VolumeManager::find_existing_slot(const string& filename, const string& name, int sampling, int grid_type)
 {
 	for(size_t i = 0; i < current_grids.size(); ++i) {
 		GridDescription grid = current_grids[i];
@@ -175,7 +175,7 @@ size_t VolumeManager::add_vector_grid(openvdb::Vec3SGrid::Ptr grid)
 	return slot;
 }
 
-void VolumeManager::add_grid_description(const string &filename, const string &name, int sampling, int slot)
+void VolumeManager::add_grid_description(const string& filename, const string& name, int sampling, int slot)
 {
 	GridDescription descr;
 	descr.filename = filename;
@@ -186,7 +186,7 @@ void VolumeManager::add_grid_description(const string &filename, const string &n
 	current_grids.push_back(descr);
 }
 
-void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress)
+void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
 {
 	(void)scene;
 
@@ -229,10 +229,8 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	need_update = false;
 }
 
-void VolumeManager::device_free(Device *device, DeviceScene *dscene)
+void VolumeManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
 {
-	(void)device;
-	(void)dscene;
 }
 
 #else
@@ -246,12 +244,12 @@ VolumeManager::~VolumeManager()
 {
 }
 
-int VolumeManager::add_volume(const string &/*filename*/, const string &/*name*/, int /*sampling*/, int /*grid_type*/)
+int VolumeManager::add_volume(const string& /*filename*/, const string& /*name*/, int /*sampling*/, int /*grid_type*/)
 {
 	return -1;
 }
 
-void VolumeManager::device_update(Device */*device*/, DeviceScene */*dscene*/, Scene */*scene*/, Progress &/*progress*/)
+void VolumeManager::device_update(Device */*device*/, DeviceScene */*dscene*/, Scene */*scene*/, Progress& /*progress*/)
 {
 }
 

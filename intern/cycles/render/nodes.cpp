@@ -4372,7 +4372,6 @@ OpenVDBNode::OpenVDBNode()
 	filename = "";
 	volume_manager = NULL;
 	sampling = OPENVDB_SAMPLE_POINT;
-
 	tfm = transform_identity();
 
 	add_input("Vector", SHADER_SOCKET_POINT, ShaderInput::POSITION);
@@ -4386,7 +4385,7 @@ void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 	ShaderNode::attributes(shader, attributes);
 }
 
-void OpenVDBNode::compile(SVMCompiler &compiler)
+void OpenVDBNode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *vector_in = input("Vector");
 	volume_manager = compiler.volume_manager;
@@ -4430,9 +4429,8 @@ void OpenVDBNode::compile(SVMCompiler &compiler)
 	}
 }
 
-void OpenVDBNode::compile(OSLCompiler &compiler)
+void OpenVDBNode::compile(OSLCompiler& /*compiler*/)
 {
-	(void)compiler;
 }
 
 CCL_NAMESPACE_END
