@@ -409,6 +409,11 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		if(tile_buffers.size() == 0)
 			tile_buffers.resize(tile_manager.state.num_tiles, NULL);
 
+		/* In certain circumstances number of tiles in the tile manager could
+		 * be changed. This is not supported by the progressive refine feature.
+		 */
+		assert(tile_buffers.size() == tile_manager.state.num_tiles);
+
 		tilebuffers = tile_buffers[tile.index];
 		if(tilebuffers == NULL) {
 			tilebuffers = new RenderBuffers(tile_device);
@@ -928,10 +933,14 @@ bool Session::update_progressive_refine(bool cancel)
 			rtile.buffers = buffers;
 			rtile.sample = sample;
 
-			if(write)
-				write_render_tile_cb(rtile);
-			else
-				update_render_tile_cb(rtile);
+			if(write) {
+				if(write_render_tile_cb)
+					write_render_tile_cb(rtile);
+			}
+			else {
+				if(update_render_tile_cb)
+					update_render_tile_cb(rtile);
+			}
 		}
 	}
 
