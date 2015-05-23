@@ -2479,176 +2479,176 @@ void OBJECT_OT_smoke_vdb_transform_update(wmOperatorType *ot)
 
 OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
 {
-    OpenVDBCache *cache = sds->vdb_caches.first;
+	OpenVDBCache *cache = sds->vdb_caches.first;
 
-    for (; cache; cache = cache->next) {
-        if (cache->flag & VDB_CACHE_CURRENT) {
-            break;
-        }
-    }
+	for (; cache; cache = cache->next) {
+		if (cache->flag & VDB_CACHE_CURRENT) {
+			break;
+		}
+	}
 
-    return cache;
+	return cache;
 }
 
 static OpenVDBCache *openvdb_cache_new(void)
 {
-    OpenVDBCache *cache = NULL;
+	OpenVDBCache *cache = NULL;
 
-    cache = MEM_callocN(sizeof(OpenVDBCache), "OpenVDBCache");
+	cache = MEM_callocN(sizeof(OpenVDBCache), "OpenVDBCache");
 	cache->reader = NULL;
 	cache->writer = OpenVDBWriter_create();
-    cache->startframe = 1;
-    cache->endframe = 250;
+	cache->startframe = 1;
+	cache->endframe = 250;
 	cache->compression = VDB_COMPRESSION_ZIP;
 
 	BLI_strncpy(cache->name, "openvdb_smoke_export_", sizeof(cache->name));
 
-    return cache;
+	return cache;
 }
 
 static int openvdb_cache_add_exec(bContext *C, wmOperator *op)
 {
-    Object *ob = ED_object_active_context(C);
-    SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+	Object *ob = ED_object_active_context(C);
+	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	SmokeDomainSettings *sds = smd->domain;
-    OpenVDBCache *cache, *cache_new;
+	OpenVDBCache *cache, *cache_new;
 
-    if (!smd) {
-        return OPERATOR_CANCELLED;
-    }
+	if (!smd) {
+		return OPERATOR_CANCELLED;
+	}
 
-    cache = BKE_openvdb_get_current_cache(sds);
+	cache = BKE_openvdb_get_current_cache(sds);
 
-    if (cache) {
-        cache->flag &= ~VDB_CACHE_CURRENT;
-    }
+	if (cache) {
+		cache->flag &= ~VDB_CACHE_CURRENT;
+	}
 
-    cache_new = openvdb_cache_new();
-    cache_new->flag |= VDB_CACHE_CURRENT;
+	cache_new = openvdb_cache_new();
+	cache_new->flag |= VDB_CACHE_CURRENT;
 
-    BLI_addtail(&sds->vdb_caches, cache_new);
+	BLI_addtail(&sds->vdb_caches, cache_new);
 
-    DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
-    return OPERATOR_FINISHED;
+	return OPERATOR_FINISHED;
 
 	UNUSED_VARS(op);
 }
 
 void OBJECT_OT_openvdb_cache_add(wmOperatorType *ot)
 {
-    /* identifiers */
-    ot->name = "Add an OpenVDB cache";
-    ot->description = "Add an OpenVDB cache";
-    ot->idname = "OBJECT_OT_openvdb_cache_add";
+	/* identifiers */
+	ot->name = "Add an OpenVDB cache";
+	ot->description = "Add an OpenVDB cache";
+	ot->idname = "OBJECT_OT_openvdb_cache_add";
 
-    /* api callbacks */
-    ot->poll = ED_operator_object_active_editable;
-    ot->exec = openvdb_cache_add_exec;
+	/* api callbacks */
+	ot->poll = ED_operator_object_active_editable;
+	ot->exec = openvdb_cache_add_exec;
 
-    /* flags */
-    ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 {
-    Object *ob = ED_object_active_context(C);
+	Object *ob = ED_object_active_context(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	SmokeDomainSettings *sds = smd->domain;
-    OpenVDBCache *cache, *cache_prev = NULL;
+	OpenVDBCache *cache, *cache_prev = NULL;
 
-    if (!smd) {
-        return OPERATOR_CANCELLED;
-    }
+	if (!smd) {
+		return OPERATOR_CANCELLED;
+	}
 
-    cache = BKE_openvdb_get_current_cache(sds);
+	cache = BKE_openvdb_get_current_cache(sds);
 
-    if (cache) {
-        cache_prev = cache->prev;
-        BLI_remlink(&sds->vdb_caches, cache);
-        MEM_freeN(cache);
-    }
+	if (cache) {
+		cache_prev = cache->prev;
+		BLI_remlink(&sds->vdb_caches, cache);
+		MEM_freeN(cache);
+	}
 
-    if (cache_prev) {
-        cache_prev->flag |= VDB_CACHE_CURRENT;
-    }
+	if (cache_prev) {
+		cache_prev->flag |= VDB_CACHE_CURRENT;
+	}
 
-    DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
-    return OPERATOR_FINISHED;
+	return OPERATOR_FINISHED;
 
 	UNUSED_VARS(op);
 }
 
 void OBJECT_OT_openvdb_cache_remove(wmOperatorType *ot)
 {
-    /* identifiers */
-    ot->name = "Remove OpenVDB cache";
-    ot->description = "Remove the currently selected OpenVDB cache";
-    ot->idname = "OBJECT_OT_openvdb_cache_remove";
+	/* identifiers */
+	ot->name = "Remove OpenVDB cache";
+	ot->description = "Remove the currently selected OpenVDB cache";
+	ot->idname = "OBJECT_OT_openvdb_cache_remove";
 
-    /* api callbacks */
-    ot->poll = ED_operator_object_active_editable;
-    ot->exec = openvdb_cache_remove_exec;
+	/* api callbacks */
+	ot->poll = ED_operator_object_active_editable;
+	ot->exec = openvdb_cache_remove_exec;
 
-    /* flags */
-    ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 enum {
-    VDB_CACHE_MOVE_UP = 0,
-    VDB_CACHE_MOVE_DOWN,
+	VDB_CACHE_MOVE_UP = 0,
+	VDB_CACHE_MOVE_DOWN,
 };
 
 static int openvdb_cache_move_exec(bContext *C, wmOperator *op)
 {
-    Object *ob = ED_object_active_context(C);
+	Object *ob = ED_object_active_context(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	SmokeDomainSettings *sds = smd->domain;
-    OpenVDBCache *cache;
-    int direction = RNA_enum_get(op->ptr, "direction");
+	OpenVDBCache *cache;
+	int direction = RNA_enum_get(op->ptr, "direction");
 
-    if (!smd) {
-        return OPERATOR_CANCELLED;
-    }
+	if (!smd) {
+		return OPERATOR_CANCELLED;
+	}
 
-    cache = BKE_openvdb_get_current_cache(sds);
+	cache = BKE_openvdb_get_current_cache(sds);
 
-    if (direction == VDB_CACHE_MOVE_UP) {
-        if (cache->prev) {
-            BLI_remlink(&sds->vdb_caches, cache);
-            BLI_insertlinkbefore(&sds->vdb_caches, cache->prev, cache);
-        }
-    }
-    else if (direction == VDB_CACHE_MOVE_DOWN) {
-        if (cache->next) {
-            BLI_remlink(&sds->vdb_caches, cache);
-            BLI_insertlinkafter(&sds->vdb_caches, cache->next, cache);
-        }
-    }
+	if (direction == VDB_CACHE_MOVE_UP) {
+		if (cache->prev) {
+			BLI_remlink(&sds->vdb_caches, cache);
+			BLI_insertlinkbefore(&sds->vdb_caches, cache->prev, cache);
+		}
+	}
+	else if (direction == VDB_CACHE_MOVE_DOWN) {
+		if (cache->next) {
+			BLI_remlink(&sds->vdb_caches, cache);
+			BLI_insertlinkafter(&sds->vdb_caches, cache->next, cache);
+		}
+	}
 
-    DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
-    return OPERATOR_FINISHED;
+	return OPERATOR_FINISHED;
 }
 
 void OBJECT_OT_openvdb_cache_move(wmOperatorType *ot)
 {
-    static EnumPropertyItem cache_move[] = {
-        {VDB_CACHE_MOVE_UP, "UP", 0, "Up", ""},
-        {VDB_CACHE_MOVE_DOWN, "DOWN", 0, "Down", ""},
-        { 0, NULL, 0, NULL, NULL }
-    };
+	static EnumPropertyItem cache_move[] = {
+	    {VDB_CACHE_MOVE_UP, "UP", 0, "Up", ""},
+	    {VDB_CACHE_MOVE_DOWN, "DOWN", 0, "Down", ""},
+	    { 0, NULL, 0, NULL, NULL }
+	};
 
-    ot->name = "Move OpenVDB cache";
-    ot->description = "Move levelset filter up or down the list";
-    ot->idname = "OBJECT_OT_openvdb_cache_move";
+	ot->name = "Move OpenVDB cache";
+	ot->description = "Move levelset filter up or down the list";
+	ot->idname = "OBJECT_OT_openvdb_cache_move";
 
-    ot->poll = ED_operator_object_active_editable;
-    ot->exec = openvdb_cache_move_exec;
+	ot->poll = ED_operator_object_active_editable;
+	ot->exec = openvdb_cache_move_exec;
 
-    /* flags */
-    ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-    ot->prop = RNA_def_enum(ot->srna, "direction", cache_move, VDB_CACHE_MOVE_UP, "Direction", "");
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->prop = RNA_def_enum(ot->srna, "direction", cache_move, VDB_CACHE_MOVE_UP, "Direction", "");
 }

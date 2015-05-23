@@ -38,8 +38,8 @@ public:
 	OpenVDBWriter();
 	~OpenVDBWriter();
 
-    void insert(const openvdb::GridBase::Ptr &grid);
-    void insert(const openvdb::GridBase &grid);
+	void insert(const openvdb::GridBase::Ptr &grid);
+	void insert(const openvdb::GridBase &grid);
 
 	void insertFloatMeta(const std::string &name, const float value);
 	void insertIntMeta(const std::string &name, const int value);

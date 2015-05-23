@@ -69,7 +69,7 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
 	{(char *)"opencolorio", NULL},
 	{(char *)"player", NULL},
 	{(char *)"openmp", NULL},
-    {(char *)"openvdb", NULL},
+	{(char *)"openvdb", NULL},
 	{NULL}
 };
 
@@ -305,9 +305,9 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_OPENVDB
-    SetObjIncref(Py_True);
+	SetObjIncref(Py_True);
 #else
-    SetObjIncref(Py_False);
+	SetObjIncref(Py_False);
 #endif
 
 #undef SetObjIncref

@@ -67,10 +67,10 @@ void OpenVDBWriter::insertVec3IMeta(const std::string &name, const openvdb::Vec3
 void OpenVDBWriter::insertMat4sMeta(const std::string &name, const float value[4][4])
 {
 	openvdb::Mat4s mat = openvdb::Mat4s(
-			value[0][0], value[0][1], value[0][2], value[0][3],
-	        value[1][0], value[1][1], value[1][2], value[1][3],
-	        value[2][0], value[2][1], value[2][2], value[2][3],
-	        value[3][0], value[3][1], value[3][2], value[3][3]);
+	    value[0][0], value[0][1], value[0][2], value[0][3],
+	    value[1][0], value[1][1], value[1][2], value[1][3],
+	    value[2][0], value[2][1], value[2][2], value[2][3],
+	    value[3][0], value[3][1], value[3][2], value[3][3]);
 
 	m_meta_map.insertMeta(name, openvdb::Mat4SMetadata(mat));
 }

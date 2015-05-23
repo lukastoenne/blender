@@ -24,13 +24,13 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-    .
-    intern
-    ../guardedalloc
-    ../../source/blender/blenkernel
-    ../../source/blender/blenlib
-    ../../source/blender/makesdna
-    ../../source/blender/makesrna
+	.
+	intern
+	../guardedalloc
+	../../source/blender/blenkernel
+	../../source/blender/blenlib
+	../../source/blender/makesdna
+	../../source/blender/makesrna
 )
 
 set(INC_SYS
@@ -38,29 +38,28 @@ set(INC_SYS
 )
 
 set(SRC
-    openvdb_capi.h
+	openvdb_capi.h
 )
 
 if(WITH_OPENVDB)
-    add_definitions(
-        -DWITH_OPENVDB
-		-DDDF_DEBUG=0
-    )
+	add_definitions(
+		-DWITH_OPENVDB
+	)
 
-    list(APPEND INC_SYS
-        ${OPENEXR_INCLUDE_DIRS}
-        ${OPENVDB_INCLUDE_DIRS}
-    )
+	list(APPEND INC_SYS
+		${OPENEXR_INCLUDE_DIRS}
+		${OPENVDB_INCLUDE_DIRS}
+	)
 
-    list(APPEND SRC
+	list(APPEND SRC
 		intern/openvdb_reader.cpp
 		intern/openvdb_smoke_export.cpp
 		intern/openvdb_writer.cpp
-        openvdb_capi.cpp
+		openvdb_capi.cpp
 		openvdb_util.cpp
 
-        openvdb_intern.h
-    )
+		openvdb_intern.h
+	)
 endif()
 
 blender_add_lib(bf_intern_openvdb "${SRC}" "${INC}" "${INC_SYS}")

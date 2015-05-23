@@ -99,7 +99,7 @@ static PyStructSequence_Field app_info_fields[] = {
 	{(char *)"ffmpeg", (char *)"FFmpeg library information backend"},
 	{(char *)"ocio", (char *)"OpenColorIO library information backend"},
 	{(char *)"oiio", (char *)"OpenImageIO library information backend"},
-    {(char *)"openvdb", (char *)"OpenVDB library information backend"},
+	{(char *)"openvdb", (char *)"OpenVDB library information backend"},
 	{(char *)"sdl", (char *)"SDL library information backend"},
 	{(char *)"build_options", (char *)"A set containing most important enabled optional build features"},
 	{(char *)"handlers", (char *)"Application handler callbacks"},

@@ -326,7 +326,7 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 #if WITH_OPENVDB_BLOSC
 		{ VDB_COMPRESSION_BLOSC, "BLOSC", 0, "Blosc", "Multithreaded compression, almost similar in size and quality as 'Zip'" },
 #endif
-	    { VDB_COMPRESSION_NONE, "NONE", 0, "None", "Do not use any compression" },
+		{ VDB_COMPRESSION_NONE, "NONE", 0, "None", "Do not use any compression" },
 		{ 0, NULL, 0, NULL, NULL }
 	};
 
@@ -352,7 +352,7 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_ui_text(prop, "Name", "Cache name");
-    RNA_def_struct_name_property(srna, prop);
+	RNA_def_struct_name_property(srna, prop);
 
 	prop = RNA_def_property(srna, "compression", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "compression");
@@ -649,17 +649,17 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "OpenVDBCache");
 
 	prop = RNA_def_property(srna, "active_openvdb_cache", PROP_POINTER, PROP_NONE);
-    RNA_def_property_struct_type(prop, "OpenVDBCache");
-    RNA_def_property_pointer_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_get", NULL, NULL, NULL);
-    RNA_def_property_ui_text(prop, "Active OpenVDB cache", "");
+	RNA_def_property_struct_type(prop, "OpenVDBCache");
+	RNA_def_property_pointer_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Active OpenVDB cache", "");
 
-    prop = RNA_def_property(srna, "active_openvdb_cache_index", PROP_INT, PROP_UNSIGNED);
-    RNA_def_property_int_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_index_get",
-                               "rna_SmokeModifier_active_openvdb_cache_index_set",
-                               "rna_SmokeModifier_active_openvdb_cache_index_range");
-    RNA_def_property_ui_text(prop, "Active OpenVDB cache Index", "");
+	prop = RNA_def_property(srna, "active_openvdb_cache_index", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_index_get",
+	                           "rna_SmokeModifier_active_openvdb_cache_index_set",
+	                           "rna_SmokeModifier_active_openvdb_cache_index_range");
+	RNA_def_property_ui_text(prop, "Active OpenVDB cache Index", "");
 
-    rna_def_openvdb_cache(brna);
+	rna_def_openvdb_cache(brna);
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

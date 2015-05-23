@@ -74,10 +74,10 @@ void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
 
 	Mat4R mat = Mat4R(
-		  fluid_mat[0][0], fluid_mat[0][1], fluid_mat[0][2], fluid_mat[0][3],
-          fluid_mat[1][0], fluid_mat[1][1], fluid_mat[1][2], fluid_mat[1][3],
-          fluid_mat[2][0], fluid_mat[2][1], fluid_mat[2][2], fluid_mat[2][3],
-          fluid_mat[3][0], fluid_mat[3][1], fluid_mat[3][2], fluid_mat[3][3]);
+	    fluid_mat[0][0], fluid_mat[0][1], fluid_mat[0][2], fluid_mat[0][3],
+	    fluid_mat[1][0], fluid_mat[1][1], fluid_mat[1][2], fluid_mat[1][3],
+	    fluid_mat[2][0], fluid_mat[2][1], fluid_mat[2][2], fluid_mat[2][3],
+	    fluid_mat[3][0], fluid_mat[3][1], fluid_mat[3][2], fluid_mat[3][3]);
 
 	math::Transform::Ptr transform = math::Transform::createLinearTransform(mat);
 
@@ -128,10 +128,10 @@ public:
 		m_grid_z = FloatGrid::create(bg.z());
 
 		if (math::Transform::Ptr xform = vecgrid->transform().copy()) {
-            m_grid_x->setTransform(xform);
-            m_grid_y->setTransform(xform);
-            m_grid_z->setTransform(xform);
-        }
+			m_grid_x->setTransform(xform);
+			m_grid_y->setTransform(xform);
+			m_grid_z->setTransform(xform);
+		}
 
 		FloatGrid::Accessor acc_x = m_grid_x->getAccessor(),
 		                    acc_y = m_grid_y->getAccessor(),
@@ -139,21 +139,21 @@ public:
 
 		CoordBBox bbox;
 		for (Vec3SGrid::ValueOnCIter it = vecgrid->cbeginValueOn(); it; ++it) {
-            if (!it.getBoundingBox(bbox)) continue;
+			if (!it.getBoundingBox(bbox)) continue;
 
-            const Vec3s &val = it.getValue();
+			const Vec3s &val = it.getValue();
 
-            if (it.isTileValue()) {
-                m_grid_x->fill(bbox, val.x());
-                m_grid_y->fill(bbox, val.y());
-                m_grid_z->fill(bbox, val.z());
-            }
+			if (it.isTileValue()) {
+				m_grid_x->fill(bbox, val.x());
+				m_grid_y->fill(bbox, val.y());
+				m_grid_z->fill(bbox, val.z());
+			}
 			else {
-                acc_x.setValueOn(bbox.min(), val.x());
-                acc_y.setValueOn(bbox.min(), val.y());
-                acc_z.setValueOn(bbox.min(), val.z());
-            }
-        }
+				acc_x.setValueOn(bbox.min(), val.x());
+				acc_y.setValueOn(bbox.min(), val.y());
+				acc_z.setValueOn(bbox.min(), val.z());
+			}
+		}
 	}
 
 	const FloatGrid::Ptr &grid_x() { return m_grid_x; }
