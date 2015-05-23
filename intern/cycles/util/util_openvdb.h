@@ -51,9 +51,6 @@ using boost::math::isfinite;
 class vdb_float_volume : public float_volume {
 	typedef openvdb::tools::GridSampler<openvdb::FloatGrid::ConstAccessor, openvdb::tools::PointSampler> point_sampler_t;
 	typedef openvdb::tools::GridSampler<openvdb::FloatGrid::ConstAccessor, openvdb::tools::BoxSampler> box_sampler_t;
-	point_sampler_t *point_sampler;
-	box_sampler_t *box_sampler;
-
 	typedef openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> isector_t;
 	typedef isector_t::RayType vdb_ray_t;
 
@@ -66,6 +63,7 @@ class vdb_float_volume : public float_volume {
 	box_map box_samplers;
 
 	openvdb::FloatGrid::ConstAccessor *accessor;
+	openvdb::math::Transform *transfrom;
 
 	/* Main intersector, its purpose is to initialize the voxels' bounding box
 	 * so the ones for the various threads do not do this, rather they are
@@ -76,10 +74,9 @@ class vdb_float_volume : public float_volume {
 
 public:
 	vdb_float_volume(openvdb::FloatGrid::Ptr grid)
+	    : transfrom(&grid->transform())
 	{
 		accessor = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
-		point_sampler = new point_sampler_t(*accessor, grid->transform());
-		box_sampler = new box_sampler_t(*accessor, grid->transform());
 
 		/* only grids with uniform voxels can be used with VolumeRayIntersector */
 		if(grid->hasUniformVoxels()) {
@@ -88,13 +85,36 @@ public:
 		}
 		else {
 			uniform_voxels = false;
+			main_isector = NULL;
 		}
 	}
 
 	~vdb_float_volume()
 	{
-		delete point_sampler;
-		delete box_sampler;
+		for(point_map::iterator iter = point_samplers.begin();
+		    iter != point_samplers.end();
+		    ++iter)
+		{
+			delete iter->second;
+		}
+
+		for(box_map::iterator iter = box_samplers.begin();
+		    iter != box_samplers.end();
+		    ++iter)
+		{
+			delete iter->second;
+		}
+
+		if(uniform_voxels) {
+			delete main_isector;
+
+			for(isect_map::iterator iter = isectors.begin();
+			    iter != isectors.end();
+			    ++iter)
+			{
+				delete iter->second;
+			}
+		}
 	}
 
 	ccl_always_inline float sample(int sampling, float3 co)
@@ -107,7 +127,7 @@ public:
 
 			if(iter == point_samplers.end()) {
 				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
-				sampler = new point_sampler_t(*acc, point_sampler->transform());
+				sampler = new point_sampler_t(*acc, *transfrom);
 				pair<pthread_t, point_sampler_t *> sampl(thread, sampler);
 				point_samplers.insert(sampl);
 			}
@@ -123,7 +143,7 @@ public:
 
 			if(iter == box_samplers.end()) {
 				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
-				sampler = new box_sampler_t(*acc, box_sampler->transform());
+				sampler = new box_sampler_t(*acc, *transfrom);
 				pair<pthread_t, box_sampler_t *> sampl(thread, sampler);
 				box_samplers.insert(sampl);
 			}
@@ -228,6 +248,7 @@ class vdb_float3_volume : public float3_volume {
 	box_map box_samplers;
 
 	openvdb::Vec3SGrid::ConstAccessor *accessor;
+	openvdb::math::Transform *transfrom;
 
 	/* Main intersector, its purpose is to initialize the voxels' bounding box
 	 * so the ones for the various threads do not do this, rather they are
@@ -238,10 +259,9 @@ class vdb_float3_volume : public float3_volume {
 
 public:
 	vdb_float3_volume(openvdb::Vec3SGrid::Ptr grid)
+	    : transfrom(&grid->transform())
 	{
 		accessor = new openvdb::Vec3SGrid::ConstAccessor(grid->getConstAccessor());
-		point_sampler = new point_sampler_t(grid->tree(), grid->transform());
-		box_sampler = new box_sampler_t(grid->tree(), grid->transform());
 
 		/* only grids with uniform voxels can be used with VolumeRayIntersector */
 		if(grid->hasUniformVoxels()) {
@@ -250,13 +270,36 @@ public:
 		}
 		else {
 			uniform_voxels = false;
+			main_isector = NULL;
 		}
 	}
 
 	~vdb_float3_volume()
 	{
-		delete point_sampler;
-		delete box_sampler;
+		for(point_map::iterator iter = point_samplers.begin();
+		    iter != point_samplers.end();
+		    ++iter)
+		{
+			delete iter->second;
+		}
+
+		for(box_map::iterator iter = box_samplers.begin();
+		    iter != box_samplers.end();
+		    ++iter)
+		{
+			delete iter->second;
+		}
+
+		if(uniform_voxels) {
+			delete main_isector;
+
+			for(isect_map::iterator iter = isectors.begin();
+			    iter != isectors.end();
+			    ++iter)
+			{
+				delete iter->second;
+			}
+		}
 	}
 
 	ccl_always_inline float3 sample(int sampling, float3 co)
