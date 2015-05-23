@@ -37,7 +37,6 @@ set(INC
 	../bmesh
 	../modifiers
 	../nodes
-	../openvdb
 	../physics
 	../render/extern/include
 	../../../intern/ghost
@@ -46,6 +45,7 @@ set(INC
 	../../../intern/iksolver/extern
 	../../../intern/memutil
 	../../../intern/mikktspace
+	../../../intern/openvdb
 	../../../intern/raskter
 	../../../intern/smoke/extern
 	../../../intern/atomic

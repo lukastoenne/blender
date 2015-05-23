@@ -269,7 +269,7 @@ endif()
 if(WITH_OPENVDB)
     add_definitions(-DWITH_OPENVDB)
     list(APPEND INC
-        ../../openvdb
+        ../../../../intern/openvdb
     )
 endif()
 

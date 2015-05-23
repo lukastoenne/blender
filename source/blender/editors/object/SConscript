@@ -63,4 +63,8 @@ if env['WITH_BF_GAMEENGINE']:
 if env['WITH_BF_INTERNATIONAL']:
     defs.append('WITH_INTERNATIONAL')
 
+if env['WITH_BF_OPENVDB']:
+    defs.append('WITH_OPENVDB')
+    incs += ' #/intern/openvdb'
+
 env.BlenderLib ( 'bf_editors_object', sources, Split(incs), defs, libtype=['core'], priority=[35] )

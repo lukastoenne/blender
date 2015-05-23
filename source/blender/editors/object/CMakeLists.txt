@@ -29,13 +29,13 @@ set(INC
 	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../openvdb
 	../../python
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
 	../../../../intern/smoke/extern
+	../../../../intern/openvdb
 )
 
 set(INC_SYS

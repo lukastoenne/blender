@@ -211,7 +211,7 @@ endif()
 	endif()
 
 	if(WITH_OPENVDB)
-		list(APPEND BLENDER_SORTED_LIBS bf_openvdb)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_openvdb)
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})

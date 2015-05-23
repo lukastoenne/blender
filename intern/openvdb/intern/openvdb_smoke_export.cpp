@@ -33,9 +33,6 @@
 #include "openvdb_intern.h"
 #include "openvdb_writer.h"
 
-#include "FLUID_3D.h"
-#include "WTURBULENCE.h"
-
 using namespace openvdb;
 
 namespace internal {

@@ -36,10 +36,10 @@ set(INC
 	../imbuf
 	../makesdna
 	../makesrna
-	../openvdb
 	../render/extern/include
 	../../../intern/guardedalloc
 	../../../intern/glew-mx
+	../../../intern/openvdb
 )
 
 set(INC_SYS

@@ -33,12 +33,11 @@ defs = []
 incs = [
     '.',
     'intern',
-    '#/intern/guardedalloc',
-    '#/intern/smoke/intern',
-    '../blenkernel',
-    '../blenlib',
-    '../makesdna',
-    '../makesrna',
+    '../guardedalloc',
+    '../../source/blender/blenkernel',
+    '../../source/blender/blenlib',
+    '../../source/blender/makesdna',
+    '../../source/blender/makesrna',
     env['BF_OPENVDB_INC']
 ]
 
@@ -49,4 +48,4 @@ if env['WITH_BF_OPENVDB']:
     defs.append('DDF_DEBUG=0')
     sources = env.Glob('*.cpp') + env.Glob('intern/*.cpp')
 
-env.BlenderLib ( libname = 'bf_openvdb', sources = sources, includes = Split(incs), defines = defs, libtype=['core'], priority = [364] )
+env.BlenderLib ( libname = 'bf_intern_openvdb', sources = sources, includes = Split(incs), defines = defs, libtype=['core'], priority = [364] )

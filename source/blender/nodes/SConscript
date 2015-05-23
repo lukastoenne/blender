@@ -78,6 +78,7 @@ if env['WITH_BF_FREESTYLE']:
 
 if env['WITH_BF_OPENVDB']:
     defs.append('WITH_OPENVDB')
+    incs += ' #/intern/openvdb'
 
 env.BlenderLib ( libname = 'bf_nodes', sources = sources, includes = Split(incs), defines = defs, libtype=['core','player'], priority = [190,105] )
 env.BlenderLib ( libname = 'bf_cmpnodes', sources = cmpsources, includes = Split(incs), defines = defs, libtype=['core','player'], priority = [175,101] )

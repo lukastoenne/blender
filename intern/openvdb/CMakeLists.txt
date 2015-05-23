@@ -26,12 +26,11 @@
 set(INC
     .
     intern
-    ../blenkernel
-    ../blenlib
-    ../makesdna
-    ../makesrna
-    ../../../intern/guardedalloc
-    ../../../intern/smoke/intern
+    ../guardedalloc
+    ../../source/blender/blenkernel
+    ../../source/blender/blenlib
+    ../../source/blender/makesdna
+    ../../source/blender/makesrna
 )
 
 set(INC_SYS
@@ -64,4 +63,4 @@ if(WITH_OPENVDB)
     )
 endif()
 
-blender_add_lib(bf_openvdb "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_openvdb "${SRC}" "${INC}" "${INC_SYS}")
