@@ -79,12 +79,14 @@ void OpenVDB_getNodeSockets(const char *filename, bNodeTree *ntree, bNode *node)
 	}
 }
 
-void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr)
+void OpenVDB_update_fluid_transform(const char *filename,
+                                    float matrix[4][4],
+                                    float matrix_high[4][4])
 {
 	int ret = OPENVDB_NO_ERROR;
 
 	try {
-		internal::OpenVDB_update_fluid_transform(filename, descr);
+		internal::OpenVDB_update_fluid_transform(filename, matrix, matrix_high);
 	}
 	catch (...) {
 		catch_exception(ret);

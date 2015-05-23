@@ -2724,7 +2724,6 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		if (BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
-
 			return;
 		}
 
@@ -3383,8 +3382,8 @@ void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
 		scene->r.cfra = fr;
 
 		cache_filename(filename, cache->path, cache->name, relbase, fr);
-
-//		OpenVDB_update_fluid_transform(filename, descr);
+		compute_fluid_matrices(sds);
+		OpenVDB_update_fluid_transform(filename, sds->fluidmat, sds->fluidmat_wt);
 
 		progress = (fr - cache->startframe) / (float)cache->endframe;
 

@@ -39,22 +39,6 @@ int OpenVDB_getVersionHex(void);
 
 void OpenVDB_getNodeSockets(const char *filename, struct bNodeTree *ntree, struct bNode *node);
 
-
-/* This duplicates a few properties from SmokeDomainSettings,
- * but it's more convenient/readable to pass a struct than having a huge set of
- * parameters to a function
- */
-typedef struct FluidDomainDescr {
-	float obmat[4][4];
-	float fluidmat[4][4];
-	float fluidmathigh[4][4];
-	int shift[3];
-	float obj_shift_f[3];
-	int fluid_fields;
-	float active_color[3];
-	int active_fields;
-} FluidDomainDescr;
-
 enum {
 	OPENVDB_NO_ERROR      = 0,
 	OPENVDB_ARITHM_ERROR  = 1,
@@ -70,7 +54,9 @@ enum {
 	OPENVDB_UNKNOWN_ERROR = 11,
 };
 
-void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr);
+void OpenVDB_update_fluid_transform(const char *filename,
+                                    float matrix[4][4],
+                                    float matrix_high[4][4]);
 
 void OpenVDB_export_grid_fl(struct OpenVDBWriter *writer,
                             const char *name, float *data,

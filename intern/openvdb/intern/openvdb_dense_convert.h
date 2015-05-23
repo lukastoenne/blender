@@ -110,7 +110,9 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
                                 float **data_x, float **data_y, float **data_z,
                                 const int res[3]);
 
-void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr);
+void OpenVDB_update_fluid_transform(const char *filename,
+                                    float matrix[4][4],
+                                    float matrix_high[4][4]);
 
 }
 

@@ -189,22 +189,22 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
 	*data_z = dense_grid_z.data();
 }
 
-void OpenVDB_update_fluid_transform(const char *filename, FluidDomainDescr descr)
+void OpenVDB_update_fluid_transform(const char *filename, float matrix[4][4], float matrix_high[4][4])
 {
 	/* TODO(kevin): deduplicate this call */
 	initialize();
 
 	Mat4R fluid_mat = Mat4R(
-	        descr.fluidmat[0][0], descr.fluidmat[0][1], descr.fluidmat[0][2], descr.fluidmat[0][3],
-	        descr.fluidmat[1][0], descr.fluidmat[1][1], descr.fluidmat[1][2], descr.fluidmat[1][3],
-	        descr.fluidmat[2][0], descr.fluidmat[2][1], descr.fluidmat[2][2], descr.fluidmat[2][3],
-	        descr.fluidmat[3][0], descr.fluidmat[3][1], descr.fluidmat[3][2], descr.fluidmat[3][3]);
+	        matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
+	        matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
+	        matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3],
+	        matrix[3][0], matrix[3][1], matrix[3][2], matrix[3][3]);
 
 	Mat4R fluid_matBig = Mat4R(
-	        descr.fluidmathigh[0][0], descr.fluidmathigh[0][1], descr.fluidmathigh[0][2], descr.fluidmathigh[0][3],
-	        descr.fluidmathigh[1][0], descr.fluidmathigh[1][1], descr.fluidmathigh[1][2], descr.fluidmathigh[1][3],
-	        descr.fluidmathigh[2][0], descr.fluidmathigh[2][1], descr.fluidmathigh[2][2], descr.fluidmathigh[2][3],
-	        descr.fluidmathigh[3][0], descr.fluidmathigh[3][1], descr.fluidmathigh[3][2], descr.fluidmathigh[3][3]);
+	        matrix_high[0][0], matrix_high[0][1], matrix_high[0][2], matrix_high[0][3],
+	        matrix_high[1][0], matrix_high[1][1], matrix_high[1][2], matrix_high[1][3],
+	        matrix_high[2][0], matrix_high[2][1], matrix_high[2][2], matrix_high[2][3],
+	        matrix_high[3][0], matrix_high[3][1], matrix_high[3][2], matrix_high[3][3]);
 
 	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat);
 	math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig);
