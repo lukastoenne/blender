@@ -104,6 +104,8 @@ static void drawVertSlide(TransInfo *t);
 static void len_v3_ensure(float v[3], const float length);
 static void postInputRotation(TransInfo *t, float values[3]);
 
+static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short around);
+
 
 /* Transform Callbacks */
 static void initBend(TransInfo *t);
@@ -2827,7 +2829,7 @@ static void initBend(TransInfo *t)
 	t->num.unit_type[0] = B_UNIT_ROTATION;
 	t->num.unit_type[1] = B_UNIT_LENGTH;
 
-	t->flag |= T_NO_CONSTRAINT;
+	t->flag |= T_NO_CONSTRAINT | T_FREE_CUSTOMDATA;
 
 	//copy_v3_v3(t->center, ED_view3d_cursor3d_get(t->scene, t->view));
 	calculateCenterCursor(t, t->center);
@@ -2978,6 +2980,13 @@ static void Bend(TransInfo *t, const int UNUSED(mval[2]))
 		add_v3_v3(vec, pivot);
 
 		mul_m3_v3(td->smtx, vec);
+
+		/* rotation */
+		if ((t->flag & T_POINTS) == 0) {
+			ElementRotation(t, td, mat, V3D_LOCAL);
+		}
+
+		/* location */
 		copy_v3_v3(td->loc, vec);
 	}
 	
