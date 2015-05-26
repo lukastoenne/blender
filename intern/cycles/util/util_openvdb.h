@@ -19,7 +19,7 @@ enum {
 class float_volume {
 public:
 	virtual ~float_volume() {}
-	virtual float sample(int sampling, float3 co) = 0;
+	virtual float sample(float x, float y, float z, int sampling) = 0;
 	virtual bool intersect(const Ray *ray, Intersection *isect) = 0;
 	virtual bool march(float *t0, float *t1) = 0;
 };
@@ -27,7 +27,7 @@ public:
 class float3_volume {
 public:
 	virtual ~float3_volume() {}
-	virtual float3 sample(int sampling, float3 co) = 0;
+	virtual float3 sample(float x, float y, float z, int sampling) = 0;
 	virtual bool intersect(const Ray *ray, Intersection *isect) = 0;
 	virtual bool march(float *t0, float *t1) = 0;
 };
@@ -67,7 +67,7 @@ class vdb_float_volume : public float_volume {
 
 	/* Main intersector, its purpose is to initialize the voxels' bounding box
 	 * so the ones for the various threads do not do this, rather they are
-	 * generated from of copy of it */
+	 * generated from a copy of it */
 	isector_t *main_isector;
 
 	bool uniform_voxels;
@@ -117,7 +117,7 @@ public:
 		}
 	}
 
-	ccl_always_inline float sample(int sampling, float3 co)
+	ccl_always_inline float sample(float x, float y, float z, int sampling)
 	{
 		pthread_t thread = pthread_self();
 
@@ -135,7 +135,7 @@ public:
 				sampler = iter->second;
 			}
 
-			return sampler->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
+			return sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 		else {
 			box_map::iterator iter = box_samplers.find(thread);
@@ -151,7 +151,7 @@ public:
 				sampler = iter->second;
 			}
 
-			return sampler->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
+			return sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 	}
 
@@ -182,7 +182,7 @@ public:
 
 		if(vdb_isect->setWorldRay(vdb_ray)) {
 			// TODO
-//			isect->t = t;
+//			isect->t = vdb_ray.t1(); // (kevin) is this correct?
 //			isect->u = isect->v = 1.0f;
 //			isect->type = ;
 //			isect->shad = shader;
@@ -252,7 +252,7 @@ class vdb_float3_volume : public float3_volume {
 
 	/* Main intersector, its purpose is to initialize the voxels' bounding box
 	 * so the ones for the various threads do not do this, rather they are
-	 * generated from of copy of it. */
+	 * generated from a copy of it. */
 	isector_t *main_isector;
 
 	bool uniform_voxels;
@@ -302,7 +302,7 @@ public:
 		}
 	}
 
-	ccl_always_inline float3 sample(int sampling, float3 co)
+	ccl_always_inline float3 sample(float x, float y, float z, int sampling)
 	{
 		openvdb::Vec3s r;
 		pthread_t thread = pthread_self();
@@ -321,7 +321,7 @@ public:
 				sampler = iter->second;
 			}
 
-			r = sampler->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
+			r = sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 		else {
 			box_map::iterator iter = box_samplers.find(thread);
@@ -337,7 +337,7 @@ public:
 				sampler = iter->second;
 			}
 
-			r = sampler->wsSample(openvdb::Vec3d(co.x, co.y, co.z));
+			r = sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 
 		return make_float3(r.x(), r.y(), r.z());
@@ -370,7 +370,7 @@ public:
 
 		if(vdb_isect->setWorldRay(vdb_ray)) {
 			// TODO
-//			isect->t = t;
+//			isect->t = vdb_ray.t1(); // (kevin) is this correct?
 //			isect->u = isect->v = 1.0f;
 //			isect->type = ;
 //			isect->shad = shader;

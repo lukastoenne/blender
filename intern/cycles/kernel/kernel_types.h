@@ -977,7 +977,8 @@ typedef struct KernelCurves {
 
 typedef struct KernelTables {
 	int beckmann_offset;
-	int pad1, pad2, pad3;
+	int num_volumes;
+	int pad1, pad2;
 } KernelTables;
 
 typedef struct KernelData {

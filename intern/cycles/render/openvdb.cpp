@@ -223,6 +223,8 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 		return;
 	}
 
+	dscene->data.tables.num_volumes = float_volumes.size() + float3_volumes.size();
+
 	VLOG(1) << "Volume samplers allocate: __float_volume, " << float_volumes.size() * sizeof(float_volume) << " bytes";
 	VLOG(1) << "Volume samplers allocate: __float3_volume, " << float3_volumes.size() * sizeof(float3_volume) << " bytes";
 

@@ -417,6 +417,8 @@ typedef texture_image<uchar4> texture_image_uchar4;
 #define kernel_tex_image_interp(tex, x, y) ((tex < MAX_FLOAT_IMAGES) ? kg->texture_float_images[tex].interp(x, y) : kg->texture_byte_images[tex - MAX_FLOAT_IMAGES].interp(x, y))
 #define kernel_tex_image_interp_3d(tex, x, y, z) ((tex < MAX_FLOAT_IMAGES) ? kg->texture_float_images[tex].interp_3d(x, y, z) : kg->texture_byte_images[tex - MAX_FLOAT_IMAGES].interp_3d(x, y, z))
 #define kernel_tex_image_interp_3d_ex(tex, x, y, z, interpolation) ((tex < MAX_FLOAT_IMAGES) ? kg->texture_float_images[tex].interp_3d_ex(x, y, z, interpolation) : kg->texture_byte_images[tex - MAX_FLOAT_IMAGES].interp_3d_ex(x, y, z, interpolation))
+#define kernel_tex_voxel_float(tex, x, y, z, sampling) (kg->float_volumes[tex]->sample(x, y, z, sampling))
+#define kernel_tex_voxel_float3(tex, x, y, z, sampling) (kg->float3_volumes[tex]->sample(x, y, z, sampling))
 
 #define kernel_data (kg->__data)
 

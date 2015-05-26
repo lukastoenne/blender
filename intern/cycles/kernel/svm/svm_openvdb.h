@@ -34,14 +34,14 @@ ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack
 	co = transform_point(&tfm, co);
 
 	if(type == NODE_VDB_FLOAT) {
-		float out = kg->float_volumes[slot]->sample(sampling, co);
+		float out = kernel_tex_voxel_float(slot, co.x, co.y, co.z, sampling);
 
 		if(stack_valid(out_offset)) {
 			stack_store_float(stack, out_offset, out);
 		}
 	}
 	else if(type == NODE_VDB_FLOAT3) {
-		float3 out = kg->float3_volumes[slot]->sample(sampling, co);
+		float3 out = kernel_tex_voxel_float3(slot, co.x, co.y, co.z, sampling);
 
 		if(stack_valid(out_offset)) {
 			stack_store_float3(stack, out_offset, out);
