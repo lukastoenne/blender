@@ -143,13 +143,14 @@ size_t find_empty_slot(Container container)
 	return slot;
 }
 
-size_t VolumeManager::add_openvdb_volume(const std::string &filename, const std::string &name, int /*sampling*/, int grid_type)
+size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std::string& name, int /*sampling*/, int grid_type)
 {
-	using namespace openvdb;
 	size_t slot = -1;
 
 #ifdef WITH_OPENVDB
-	openvdb::io::File file(filename);
+	using namespace openvdb;
+
+	io::File file(filename);
 	file.open();
 
 	if(grid_type == NODE_VDB_FLOAT) {
