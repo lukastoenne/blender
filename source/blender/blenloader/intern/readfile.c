@@ -4767,6 +4767,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			SmokeModifierData *smd = (SmokeModifierData *)md;
 			
 			if (smd->type == MOD_SMOKE_TYPE_DOMAIN) {
+				OpenVDBCache *cache;
 				smd->flow = NULL;
 				smd->coll = NULL;
 				smd->domain = newdataadr(fd, smd->domain);
@@ -4803,6 +4804,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				}
 
 				link_list(fd, &smd->domain->vdb_caches);
+				for (cache = smd->domain->vdb_caches.first; cache; cache = cache->next) {
+					cache->reader = NULL;
+					cache->writer = NULL;
+				}
 			}
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {
 				smd->domain = NULL;
