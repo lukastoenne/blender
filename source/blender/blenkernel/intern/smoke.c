@@ -3216,35 +3216,35 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 
 		OpenVDBReader_get_meta_int(reader, "fluid_fields", &fluid_fields);
 		OpenVDBReader_get_meta_fl(reader, "dx", &dx);
-		OpenVDBReader_get_meta_fl(reader, "dt", &dx);
+		OpenVDBReader_get_meta_fl(reader, "dt", &dt);
 
-		OpenVDB_import_grid_fl(reader, "shadow", &sds->shadow, sds->res);
-		OpenVDB_import_grid_fl(reader, "density", &dens, sds->res);
+		OpenVDB_import_grid_fl(reader, "Shadow", &sds->shadow, sds->res);
+		OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
 
 		if (fluid_fields & SM_ACTIVE_HEAT) {
-			OpenVDB_import_grid_fl(reader, "heat", &heat, sds->res);
-			OpenVDB_import_grid_fl(reader, "heatold", &heatold, sds->res);
+			OpenVDB_import_grid_fl(reader, "Heat", &heat, sds->res);
+			OpenVDB_import_grid_fl(reader, "Heat Old", &heatold, sds->res);
 		}
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			OpenVDB_import_grid_fl(reader, "flame", &flame, sds->res);
-			OpenVDB_import_grid_fl(reader, "fuel", &fuel, sds->res);
-			OpenVDB_import_grid_fl(reader, "react", &react, sds->res);
+			OpenVDB_import_grid_fl(reader, "Flame", &flame, sds->res);
+			OpenVDB_import_grid_fl(reader, "Fuel", &fuel, sds->res);
+			OpenVDB_import_grid_fl(reader, "React", &react, sds->res);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_import_grid_fl(reader, "red", &r, sds->res);
-//			OpenVDB_import_grid_fl(reader, "green", &g, sds->res);
-//			OpenVDB_import_grid_fl(reader, "blue", &b, sds->res);
-			OpenVDB_import_grid_vec(reader, "color", &r, &g, &b, sds->res);
+//			OpenVDB_import_grid_fl(reader, "Red", &r, sds->res);
+//			OpenVDB_import_grid_fl(reader, "Green", &g, sds->res);
+//			OpenVDB_import_grid_fl(reader, "Blue", &b, sds->res);
+			OpenVDB_import_grid_vec(reader, "Color", &r, &g, &b, sds->res);
 		}
 
-//		OpenVDB_import_grid_fl(reader, "vx", &vx, sds->res);
-//		OpenVDB_import_grid_fl(reader, "vy", &vy, sds->res);
-//		OpenVDB_import_grid_fl(reader, "vz", &vz, sds->res);
-		OpenVDB_import_grid_vec(reader, "velocity", &vx, &vy, &vz, sds->res);
+//		OpenVDB_import_grid_fl(reader, "Velocity X", &vx, sds->res);
+//		OpenVDB_import_grid_fl(reader, "Velocity Y", &vy, sds->res);
+//		OpenVDB_import_grid_fl(reader, "Velocity Z", &vz, sds->res);
+		OpenVDB_import_grid_vec(reader, "Velocity", &vx, &vy, &vz, sds->res);
 
-		OpenVDB_import_grid_ch(reader, "obstacles", &obstacles, sds->res);
+		OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
 	}
 
 	if (sds->wt) {
@@ -3252,25 +3252,25 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
-		OpenVDB_import_grid_fl(reader, "density high", &dens, sds->res_wt);
+		OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			OpenVDB_import_grid_fl(reader, "flame high", &flame, sds->res_wt);
-			OpenVDB_import_grid_fl(reader, "fuel high", &fuel, sds->res_wt);
-			OpenVDB_import_grid_fl(reader, "react high", &react, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "Flame High", &flame, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "Fuel High", &fuel, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "React High", &react, sds->res_wt);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_import_grid_fl(reader, "red high", &r, sds->res_wt);
-//			OpenVDB_import_grid_fl(reader, "green high", &g, sds->res_wt);
-//			OpenVDB_import_grid_fl(reader, "blue high", &b, sds->res_wt);
-			OpenVDB_import_grid_vec(reader, "color high", &r, &g, &b, sds->res_wt);
+//			OpenVDB_import_grid_fl(reader, "Red High", &r, sds->res_wt);
+//			OpenVDB_import_grid_fl(reader, "Green High", &g, sds->res_wt);
+//			OpenVDB_import_grid_fl(reader, "Blue High", &b, sds->res_wt);
+			OpenVDB_import_grid_vec(reader, "Color High", &r, &g, &b, sds->res_wt);
 		}
 
-//		OpenVDB_import_grid_fl(reader, "tcu", &tcu, sds->res);
-//		OpenVDB_import_grid_fl(reader, "tcv", &tcv, sds->res);
-//		OpenVDB_import_grid_fl(reader, "tcw", &tcw, sds->res);
-		OpenVDB_import_grid_vec(reader, "tex_co", &tcu, &tcv, &tcw, sds->res);
+//		OpenVDB_import_grid_fl(reader, "Texture Coordinates U", &tcu, sds->res);
+//		OpenVDB_import_grid_fl(reader, "Texture Coordinates V", &tcv, sds->res);
+//		OpenVDB_import_grid_fl(reader, "Texture Coordinates W", &tcw, sds->res);
+		OpenVDB_import_grid_vec(reader, "Texture Coordinates", &tcu, &tcv, &tcw, sds->res);
 	}
 }
 
