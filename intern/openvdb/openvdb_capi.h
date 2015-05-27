@@ -54,6 +54,14 @@ enum {
 	OPENVDB_UNKNOWN_ERROR = 11,
 };
 
+enum {
+	VEC_INVARIANT = 0,
+	VEC_COVARIANT = 1,
+	VEC_COVARIANT_NORMALIZE = 2,
+	VEC_CONTRAVARIANT_RELATIVE = 3,
+	VEC_CONTRAVARIANT_ABSOLUTE = 4,
+};
+
 void OpenVDB_update_fluid_transform(const char *filename,
                                     float matrix[4][4],
                                     float matrix_high[4][4]);
@@ -69,7 +77,7 @@ void OpenVDB_export_grid_ch(struct OpenVDBWriter *writer,
 void OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
                              const char *name,
                              const float *data_x, const float *data_y, const float *data_z,
-                             const int res[3], float matrix[4][4]);
+                             const int res[3], float matrix[4][4], short vec_type);
 
 void OpenVDB_import_grid_fl(struct OpenVDBReader *reader,
                             const char *name, float **data,

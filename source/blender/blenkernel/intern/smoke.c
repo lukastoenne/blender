@@ -3165,13 +3165,13 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 //			OpenVDB_export_grid_fl(writer, "Red", r, sds->res, sds->fluidmat);
 //			OpenVDB_export_grid_fl(writer, "Green", g, sds->res, sds->fluidmat);
 //			OpenVDB_export_grid_fl(writer, "Blue", b, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_vec(writer, "Color", r, g, b, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_vec(writer, "Color", r, g, b, sds->res, sds->fluidmat, VEC_INVARIANT);
 		}
 
 //		OpenVDB_export_grid_fl(writer, "Velocity X", vx, sds->res, sds->fluidmat);
 //		OpenVDB_export_grid_fl(writer, "Velocity Y", vy, sds->res, sds->fluidmat);
 //		OpenVDB_export_grid_fl(writer, "Velocity Z", vz, sds->res, sds->fluidmat);
-		OpenVDB_export_grid_vec(writer, "Velocity", vx, vy, vz, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_vec(writer, "Velocity", vx, vy, vz, sds->res, sds->fluidmat, VEC_CONTRAVARIANT_RELATIVE);
 
 		OpenVDB_export_grid_ch(writer, "Obstacles", obstacles, sds->res, sds->fluidmat);
 	}
@@ -3193,13 +3193,13 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 //			OpenVDB_export_grid_fl(writer, "Red High", r, sds->res, sds->fluidmat_wt);
 //			OpenVDB_export_grid_fl(writer, "Green High", g, sds->res, sds->fluidmat_wt);
 //			OpenVDB_export_grid_fl(writer, "Blue High", b, sds->res, sds->fluidmat_wt);
-			OpenVDB_export_grid_vec(writer, "Color High", r, g, b, sds->res_wt, sds->fluidmat_wt);
+			OpenVDB_export_grid_vec(writer, "Color High", r, g, b, sds->res_wt, sds->fluidmat_wt, VEC_INVARIANT);
 		}
 
 //		OpenVDB_export_grid_fl(writer, "Texture Coordinates U", tcu, sds->res, sds->fluidmat);
 //		OpenVDB_export_grid_fl(writer, "Texture Coordinates V", tcv, sds->res, sds->fluidmat);
 //		OpenVDB_export_grid_fl(writer, "Texture Coordinates W", tcw, sds->res, sds->fluidmat);
-		OpenVDB_export_grid_vec(writer, "Texture Coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_vec(writer, "Texture Coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat, VEC_INVARIANT);
 	}
 }
 
@@ -3287,6 +3287,11 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	orig_frame = scene->r.cfra;
 
 	cache = BKE_openvdb_get_current_cache(sds);
+
+	if (cache->writer == NULL) {
+		cache->writer = OpenVDBWriter_create();
+	}
+
 	OpenVDBWriter_set_compression(cache->writer, cache->compression);
 
 	for (fr = cache->startframe; fr <= cache->endframe; fr++) {

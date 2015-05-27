@@ -66,7 +66,8 @@ void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
                                 const std::string &name,
                                 const float *data_x, const float *data_y, const float *data_z,
                                 const int res[3],
-                                float fluid_mat[4][4])
+                                float fluid_mat[4][4],
+                                VecType vec_type)
 {
 
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
@@ -107,6 +108,7 @@ void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	vecgrid->setName(name);
 	vecgrid->setTransform(transform);
 	vecgrid->setIsInWorldSpace(false);
+	vecgrid->setVectorType(vec_type);
 
 	writer->insert(vecgrid);
 }
