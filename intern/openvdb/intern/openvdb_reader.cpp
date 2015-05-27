@@ -59,7 +59,7 @@ void OpenVDBReader::vec3sMeta(const std::string &name, float value[3])
 
 void OpenVDBReader::vec3IMeta(const std::string &name, int value[3])
 {
-	openvdb::Vec3I meta_val = m_meta_map->metaValue<openvdb::Vec3I>(name);
+	openvdb::Vec3i meta_val = m_meta_map->metaValue<openvdb::Vec3i>(name);
 
 	value[0] = meta_val.x();
 	value[1] = meta_val.y();

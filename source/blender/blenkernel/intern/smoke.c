@@ -3144,8 +3144,8 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat,
 		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
 
-		OpenVDBWriter_add_meta_int(writer, "dx", dx);
-		OpenVDBWriter_add_meta_int(writer, "dt", dt);
+		OpenVDBWriter_add_meta_fl(writer, "dx", dx);
+		OpenVDBWriter_add_meta_fl(writer, "dt", dt);
 
 		OpenVDB_export_grid_fl(writer, "Shadow", sds->shadow, sds->res, sds->fluidmat);
 		OpenVDB_export_grid_fl(writer, "Density", dens, sds->res, sds->fluidmat);
