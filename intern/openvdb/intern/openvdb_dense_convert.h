@@ -28,13 +28,10 @@
 #ifndef __OPENVDB_DENSE_CONVERT_H__
 #define __OPENVDB_DENSE_CONVERT_H__
 
-#include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
 
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
-
-struct FluidDomainDescr;
 
 namespace internal {
 

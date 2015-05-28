@@ -31,8 +31,6 @@ extern "C" {
 #include "BLI_listbase.h"
 }
 
-#include "MEM_guardedalloc.h"
-
 #include "openvdb_capi.h"
 #include "openvdb_dense_convert.h"
 #include "openvdb_util.h"
