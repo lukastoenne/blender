@@ -3345,7 +3345,7 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 	startframe = cache->startframe;
 	endframe = cache->endframe;
 
-	if (CFRA < startframe && CFRA > endframe) {
+	if (CFRA < startframe || CFRA > endframe) {
 		return;
 	}
 
