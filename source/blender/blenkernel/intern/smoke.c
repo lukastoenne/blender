@@ -3044,34 +3044,34 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 
 #ifdef WITH_OPENVDB
 
+/* Construct matrices which represent the fluid object, for low and high res:
+ * vs 0  0  0
+ * 0  vs 0  0
+ * 0  0  vs 0
+ * px py pz 1
+ * with vs = voxel size, and px, py, pz, the min position of the domain's
+ * bounding box.
+ */
 static void compute_fluid_matrices(SmokeDomainSettings *sds)
 {
-	float voxel_size[3], voxel_size_high[3], bbox_min[3];
-
-	/* Construct a matrix which represents the fluid object:
-	 * vs 0  0  0
-	 * 0  vs 0  0
-	 * 0  0  vs 0
-	 * px py pz 1
-	 * with vs = voxel size, and px, py, pz, the min position of the domain's
-	 * bounding box.
-	 */
+	float bbox_min[3];
 
 	copy_v3_v3(bbox_min, sds->p0);
 
 	if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
-		bbox_min[0] = (sds->p0[0] + sds->cell_size[0] * sds->res_min[0] + sds->obj_shift_f[0]);
-		bbox_min[1] = (sds->p0[1] + sds->cell_size[1] * sds->res_min[1] + sds->obj_shift_f[1]);
-		bbox_min[2] = (sds->p0[2] + sds->cell_size[2] * sds->res_min[2] + sds->obj_shift_f[2]);
+		bbox_min[0] += (sds->cell_size[0] * (float)sds->res_min[0]);
+		bbox_min[1] += (sds->cell_size[1] * (float)sds->res_min[1]);
+		bbox_min[2] += (sds->cell_size[2] * (float)sds->res_min[2]);
+		add_v3_v3(bbox_min, sds->obj_shift_f);
 	}
 
 	/* construct low res matrix */
-	copy_v3_v3(voxel_size, sds->cell_size);
-	size_to_mat4(sds->fluidmat, voxel_size);
+	size_to_mat4(sds->fluidmat, sds->cell_size);
 	copy_v3_v3(sds->fluidmat[3], bbox_min);
 	mul_m4_m4m4(sds->fluidmat, sds->obmat, sds->fluidmat);
 
 	if (sds->wt) {
+		float voxel_size_high[3];
 		/* construct high res matrix */
 		mul_v3_v3fl(voxel_size_high, sds->cell_size, 1.0f / (float)(sds->amplify + 1));
 		size_to_mat4(sds->fluidmat_wt, voxel_size_high);
