@@ -291,6 +291,7 @@ endif()
 
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
+	add_definitions(-DOPENVDB_USE_BLOSC)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

@@ -481,6 +481,7 @@ endif()
 
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
+	add_definitions(-DOPENVDB_USE_BLOSC)
 endif()
 
 ## Warnings as errors, this is too strict!

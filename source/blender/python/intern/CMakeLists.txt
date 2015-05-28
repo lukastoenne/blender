@@ -268,6 +268,7 @@ endif()
 
 if(WITH_OPENVDB)
     add_definitions(-DWITH_OPENVDB)
+	add_definitions(-DOPENVDB_USE_BLOSC)
     list(APPEND INC
         ../../../../intern/openvdb
     )

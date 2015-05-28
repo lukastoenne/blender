@@ -148,6 +148,7 @@ endif()
 
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
+	add_definitions(-DOPENVDB_USE_BLOSC)
 	include_directories(
 		${OPENVDB_INCLUDE_DIRS}
 	)
