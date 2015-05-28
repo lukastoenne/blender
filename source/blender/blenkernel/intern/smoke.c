@@ -3055,6 +3055,7 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 static void compute_fluid_matrices(SmokeDomainSettings *sds)
 {
 	float bbox_min[3];
+	float adjust[3];
 
 	copy_v3_v3(bbox_min, sds->p0);
 
@@ -3068,6 +3069,12 @@ static void compute_fluid_matrices(SmokeDomainSettings *sds)
 	/* construct low res matrix */
 	size_to_mat4(sds->fluidmat, sds->cell_size);
 	copy_v3_v3(sds->fluidmat[3], bbox_min);
+
+	/* The smoke simulator stores voxels cell-centered, whilst VDB is node
+	 * centered, so we offset the matrix by half a voxel to compensate. */
+	mul_v3_v3fl(adjust, sds->cell_size, 0.5f);
+	add_v3_v3(sds->fluidmat[3], adjust);
+
 	mul_m4_m4m4(sds->fluidmat, sds->obmat, sds->fluidmat);
 
 	if (sds->wt) {
@@ -3076,6 +3083,11 @@ static void compute_fluid_matrices(SmokeDomainSettings *sds)
 		mul_v3_v3fl(voxel_size_high, sds->cell_size, 1.0f / (float)(sds->amplify + 1));
 		size_to_mat4(sds->fluidmat_wt, voxel_size_high);
 		copy_v3_v3(sds->fluidmat_wt[3], bbox_min);
+
+		/* Same here, add half a voxel to adjust the position of the fluid. */
+		mul_v3_v3fl(adjust, voxel_size_high, 0.5f);
+		add_v3_v3(sds->fluidmat_wt[3], adjust);
+
 		mul_m4_m4m4(sds->fluidmat_wt, sds->obmat, sds->fluidmat_wt);
 	}
 }
