@@ -2714,7 +2714,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		}
 
 		/* try to read from openvdb cache */
-//		if (sds->use_openvdb && (sds->flags & MOD_SMOKE_OPENVDB_EXPORTED) == 0) {
+//		if (sds->use_openvdb && (sds->flags & MOD_SMOKE_OPENVDB_EXPORTED)) {
 //			smokeModifier_OpenVDB_import(smd, scene, ob);
 //			smd->time = framenr;
 //			return;
@@ -3082,8 +3082,6 @@ static void compute_fluid_matrices(SmokeDomainSettings *sds)
 
 static void OpenVDB_read_fluid_settings(SmokeDomainSettings *sds, struct OpenVDBReader *reader)
 {
-	OpenVDBReader_get_meta_int(reader, "active_fields", &sds->active_fields);
-	OpenVDBReader_get_meta_v3_int(reader, "resolution", sds->res);
 	OpenVDBReader_get_meta_v3_int(reader, "min_resolution", sds->res_min);
 	OpenVDBReader_get_meta_v3_int(reader, "max_resolution", sds->res_max);
 	OpenVDBReader_get_meta_v3_int(reader, "base_resolution", sds->base_res);
@@ -3205,7 +3203,47 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 
 static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader *reader)
 {
-	int fluid_fields;
+	int fluid_fields = smoke_get_data_flags(sds);
+	int active_fields, cache_fields = 0;
+	int cache_res[3];
+	float cache_dx;
+	bool reallocate = false;
+
+	OpenVDBReader_get_meta_int(reader, "fluid_fields", &cache_fields);
+	OpenVDBReader_get_meta_int(reader, "active_fields", &active_fields);
+	OpenVDBReader_get_meta_fl(reader, "dx", &cache_dx);
+	OpenVDBReader_get_meta_v3_int(reader, "resolution", cache_res);
+
+	/* check if resolution has changed */
+	if (sds->res[0] != cache_res[0] ||
+		sds->res[1] != cache_res[1] ||
+		sds->res[2] != cache_res[2])
+	{
+		if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+			reallocate = true;
+		}
+		else {
+			return;
+		}
+	}
+
+	/* reallocate fluid if needed*/
+	if (reallocate) {
+		sds->active_fields = active_fields | cache_fields;
+		smoke_reallocate_fluid(sds, cache_dx, cache_res, 1);
+		sds->dx = cache_dx;
+		copy_v3_v3_int(sds->res, cache_res);
+		sds->total_cells = cache_res[0] * cache_res[1] * cache_res[2];
+
+		if (sds->flags & MOD_SMOKE_HIGHRES) {
+			smoke_reallocate_highres_fluid(sds, cache_dx, cache_res, 1);
+		}
+	}
+
+	/* check if active fields have changed */
+	if ((fluid_fields != cache_fields) || (active_fields != sds->active_fields)) {
+		reallocate = true;
+	}
 
 	if (sds->fluid) {
 		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
@@ -3214,8 +3252,6 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat,
 		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
 
-		OpenVDBReader_get_meta_int(reader, "fluid_fields", &fluid_fields);
-		OpenVDBReader_get_meta_fl(reader, "dx", &dx);
 		OpenVDBReader_get_meta_fl(reader, "dt", &dt);
 
 		OpenVDB_import_grid_fl(reader, "Shadow", &sds->shadow, sds->res);

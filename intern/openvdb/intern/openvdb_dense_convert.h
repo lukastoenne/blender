@@ -78,24 +78,26 @@ void OpenVDB_import_grid(OpenVDBReader *reader,
 	using namespace openvdb;
 
 	typename GridType::Ptr grid_tmp = gridPtrCast<GridType>(reader->getGrid(name));
-//	typename GridType::Accessor acc = grid_tmp->getAccessor();
-
+#if 0
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
 
 	tools::Dense<T, tools::LayoutXYZ> dense_grid(bbox);
 	tools::copyToDense(*grid_tmp, dense_grid);
+	memcpy(*data, dense_grid.data(), sizeof(T) * res[0] * res[1] * res[2]);
+#else
+	typename GridType::Accessor acc = grid_tmp->getAccessor();
+	math::Coord xyz;
+	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
 
-	*data = dense_grid.data();
-
-//	int index = 0;
-//	for (int z = 0; z <= res.z(); ++z) {
-//		for (int y = 0; y <= res.y(); ++y) {
-//			for (int x = 0; x <= res.x(); ++x, ++index) {
-//				math::Coord xyz(x, y, z);
-//				data[index] = acc.getValue(xyz);
-//			}
-//		}
-//	}
+	int index = 0;
+	for (z = 0; z < res[2]; ++z) {
+		for (y = 0; y < res[1]; ++y) {
+			for (x = 0; x < res[0]; ++x, ++index) {
+				(*data)[index] = acc.getValue(xyz);
+			}
+		}
+	}
+#endif
 }
 
 void OpenVDB_export_vector_grid(OpenVDBWriter *writer,

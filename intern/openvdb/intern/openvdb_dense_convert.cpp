@@ -168,11 +168,11 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
 {
 	Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(reader->getGrid(name));
 
+#if 0
 	SplitVectorGrid vector_split;
 	vector_split(vgrid);
 
 	FloatGrid::Ptr grid[3];
-
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
 
 	grid[0] = vector_split.grid_x();
@@ -189,6 +189,23 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
 	tools::Dense<float, tools::LayoutXYZ> dense_grid_z(bbox);
 	tools::copyToDense(*grid[2], dense_grid_z);
 	*data_z = dense_grid_z.data();
+#else
+	Vec3SGrid::Accessor acc = vgrid->getAccessor();
+	math::Coord xyz;
+	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
+
+	int index = 0;
+	for (z = 0; z < res[2]; ++z) {
+		for (y = 0; y < res[1]; ++y) {
+			for (x = 0; x < res[0]; ++x, ++index) {
+				math::Vec3s value = acc.getValue(xyz);
+				(*data_x)[index] = value.x();
+				(*data_y)[index] = value.y();
+				(*data_z)[index] = value.z();
+			}
+		}
+	}
+#endif
 }
 
 void OpenVDB_update_fluid_transform(const char *filename, float matrix[4][4], float matrix_high[4][4])
