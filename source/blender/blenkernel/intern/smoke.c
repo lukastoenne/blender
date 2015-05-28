@@ -3160,17 +3160,10 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_export_grid_fl(writer, "Red", r, sds->res, sds->fluidmat);
-//			OpenVDB_export_grid_fl(writer, "Green", g, sds->res, sds->fluidmat);
-//			OpenVDB_export_grid_fl(writer, "Blue", b, sds->res, sds->fluidmat);
 			OpenVDB_export_grid_vec(writer, "Color", r, g, b, sds->res, sds->fluidmat, VEC_INVARIANT);
 		}
 
-//		OpenVDB_export_grid_fl(writer, "Velocity X", vx, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "Velocity Y", vy, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "Velocity Z", vz, sds->res, sds->fluidmat);
 		OpenVDB_export_grid_vec(writer, "Velocity", vx, vy, vz, sds->res, sds->fluidmat, VEC_CONTRAVARIANT_RELATIVE);
-
 		OpenVDB_export_grid_ch(writer, "Obstacles", obstacles, sds->res, sds->fluidmat);
 	}
 
@@ -3188,15 +3181,9 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_export_grid_fl(writer, "Red High", r, sds->res, sds->fluidmat_wt);
-//			OpenVDB_export_grid_fl(writer, "Green High", g, sds->res, sds->fluidmat_wt);
-//			OpenVDB_export_grid_fl(writer, "Blue High", b, sds->res, sds->fluidmat_wt);
 			OpenVDB_export_grid_vec(writer, "Color High", r, g, b, sds->res_wt, sds->fluidmat_wt, VEC_INVARIANT);
 		}
 
-//		OpenVDB_export_grid_fl(writer, "Texture Coordinates U", tcu, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "Texture Coordinates V", tcv, sds->res, sds->fluidmat);
-//		OpenVDB_export_grid_fl(writer, "Texture Coordinates W", tcw, sds->res, sds->fluidmat);
 		OpenVDB_export_grid_vec(writer, "Texture Coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat, VEC_INVARIANT);
 	}
 }
@@ -3227,6 +3214,11 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		}
 	}
 
+	/* check if active fields have changed */
+	if ((fluid_fields != cache_fields) || (active_fields != sds->active_fields)) {
+		reallocate = true;
+	}
+
 	/* reallocate fluid if needed*/
 	if (reallocate) {
 		sds->active_fields = active_fields | cache_fields;
@@ -3238,11 +3230,6 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		if (sds->flags & MOD_SMOKE_HIGHRES) {
 			smoke_reallocate_highres_fluid(sds, cache_dx, cache_res, 1);
 		}
-	}
-
-	/* check if active fields have changed */
-	if ((fluid_fields != cache_fields) || (active_fields != sds->active_fields)) {
-		reallocate = true;
 	}
 
 	if (sds->fluid) {
@@ -3269,17 +3256,10 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_import_grid_fl(reader, "Red", &r, sds->res);
-//			OpenVDB_import_grid_fl(reader, "Green", &g, sds->res);
-//			OpenVDB_import_grid_fl(reader, "Blue", &b, sds->res);
 			OpenVDB_import_grid_vec(reader, "Color", &r, &g, &b, sds->res);
 		}
 
-//		OpenVDB_import_grid_fl(reader, "Velocity X", &vx, sds->res);
-//		OpenVDB_import_grid_fl(reader, "Velocity Y", &vy, sds->res);
-//		OpenVDB_import_grid_fl(reader, "Velocity Z", &vz, sds->res);
 		OpenVDB_import_grid_vec(reader, "Velocity", &vx, &vy, &vz, sds->res);
-
 		OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
 	}
 
@@ -3297,15 +3277,9 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-//			OpenVDB_import_grid_fl(reader, "Red High", &r, sds->res_wt);
-//			OpenVDB_import_grid_fl(reader, "Green High", &g, sds->res_wt);
-//			OpenVDB_import_grid_fl(reader, "Blue High", &b, sds->res_wt);
 			OpenVDB_import_grid_vec(reader, "Color High", &r, &g, &b, sds->res_wt);
 		}
 
-//		OpenVDB_import_grid_fl(reader, "Texture Coordinates U", &tcu, sds->res);
-//		OpenVDB_import_grid_fl(reader, "Texture Coordinates V", &tcv, sds->res);
-//		OpenVDB_import_grid_fl(reader, "Texture Coordinates W", &tcw, sds->res);
 		OpenVDB_import_grid_vec(reader, "Texture Coordinates", &tcu, &tcv, &tcw, sds->res);
 	}
 }
