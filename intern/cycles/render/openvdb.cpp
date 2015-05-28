@@ -165,7 +165,7 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 		scalar_grids.push_back(grid);
 	}
 	else if(grid_type == NODE_VDB_FLOAT3) {
-		size_t slot = find_empty_slot(float3_volumes);
+		slot = find_empty_slot(float3_volumes);
 
 		if(slot == -1) return -1;
 

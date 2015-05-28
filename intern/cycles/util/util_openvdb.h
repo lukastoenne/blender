@@ -233,8 +233,6 @@ public:
 class vdb_float3_volume : public float3_volume {
 	typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid::ConstAccessor, openvdb::tools::PointSampler> point_sampler_t;
 	typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid::ConstAccessor, openvdb::tools::BoxSampler> box_sampler_t;
-	point_sampler_t *point_sampler;
-	box_sampler_t *box_sampler;
 
 	typedef openvdb::tools::VolumeRayIntersector<openvdb::Vec3SGrid> isector_t;
 	typedef isector_t::RayType vdb_ray_t;
@@ -313,7 +311,7 @@ public:
 
 			if(iter == point_samplers.end()) {
 				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
-				sampler = new point_sampler_t(*acc, point_sampler->transform());
+				sampler = new point_sampler_t(*acc, *transfrom);
 				pair<pthread_t, point_sampler_t *> sampl(thread, sampler);
 				point_samplers.insert(sampl);
 			}
@@ -329,7 +327,7 @@ public:
 
 			if(iter == box_samplers.end()) {
 				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
-				sampler = new box_sampler_t(*acc, box_sampler->transform());
+				sampler = new box_sampler_t(*acc, *transfrom);
 				pair<pthread_t, box_sampler_t *> sampl(thread, sampler);
 				box_samplers.insert(sampl);
 			}
