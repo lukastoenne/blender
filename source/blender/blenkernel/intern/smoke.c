@@ -400,7 +400,9 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 		smd->domain->point_cache[0] = NULL;
 
 		while ((cache = BLI_pophead(&(smd->domain->vdb_caches)))) {
+#ifdef WITH_OPENVDB
 			OpenVDBWriter_free(cache->writer);
+#endif
 			MEM_freeN(cache);
 		}
 
@@ -3422,10 +3424,14 @@ void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
 	scene->r.cfra = orig_frame;
 }
 
-#else
+#endif /* WITH_OPENVDB */
 
-void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm,
-                                  update_cb update, void *update_cb_data)
+#endif /* WITH_SMOKE */
+
+#if !defined(WITH_SMOKE) || !defined(WITH_OPENVDB)
+
+void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob,
+                                  DerivedMesh *dm, update_cb update, void *update_cb_data)
 {
 	UNUSED_VARS(smd, scene, ob, dm, update, update_cb_data);
 }
@@ -3435,15 +3441,10 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 	UNUSED_VARS(smd, scene, ob);
 }
 
-void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
-                                            Scene *scene,
-                                            Object *ob,
-                                            update_cb update,
-                                            void *update_cb_data)
+void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd, Scene *scene,
+                                            Object *ob, update_cb update, void *update_cb_data)
 {
 	UNUSED_VARS(smd, scene, ob, update, update_cb_data);
 }
 
-#endif /* WITH_OPENVDB */
-
-#endif /* WITH_SMOKE */
+#endif

@@ -2496,7 +2496,7 @@ static OpenVDBCache *openvdb_cache_new(void)
 
 	cache = MEM_callocN(sizeof(OpenVDBCache), "OpenVDBCache");
 	cache->reader = NULL;
-	cache->writer = OpenVDBWriter_create();
+	cache->writer = NULL;
 	cache->startframe = 1;
 	cache->endframe = 250;
 	cache->compression = VDB_COMPRESSION_ZIP;
