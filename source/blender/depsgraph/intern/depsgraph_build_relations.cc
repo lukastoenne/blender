@@ -108,14 +108,15 @@ extern "C" {
 
 /* **** General purpose functions ****  */
 
-RNAPathKey::RNAPathKey(ID *id, const string &path) :
+RNAPathKey::RNAPathKey(ID *id, const char *path) :
     id(id)
 {
 	/* create ID pointer for root of path lookup */
 	PointerRNA id_ptr;
 	RNA_id_pointer_create(id, &id_ptr);
 	/* try to resolve path... */
-	if (!RNA_path_resolve(&id_ptr, path.c_str(), &this->ptr, &this->prop)) {
+	int index;
+	if (!RNA_path_resolve_full(&id_ptr, path, &this->ptr, &this->prop, &index)) {
 		this->ptr = PointerRNA_NULL;
 		this->prop = NULL;
 	}
@@ -997,6 +998,11 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 
 void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 {
+	TimeSourceKey time_src_key;
+	OperationKey obdata_ubereval_key(&ob->id,
+	                                 DEPSNODE_TYPE_GEOMETRY,
+	                                 DEG_OPCODE_GEOMETRY_UBEREVAL);
+
 	/* particle systems */
 	for (ParticleSystem *psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
 		ParticleSettings *part = psys->part;
@@ -1010,6 +1016,22 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 		/* XXX: if particle system is later re-enabled, we must do full rebuild? */
 		if (!psys_check_enabled(ob, psys))
 			continue;
+
+		/* TODO(sergey): Are all particle systems depends on time?
+		 * Hair without dynamics i.e.
+		 */
+		add_relation(time_src_key, psys_key,
+		             DEPSREL_TYPE_TIME,
+		             "TimeSrc -> PSys");
+
+		/* TODO(sergey): Currently particle update is just a placeholder,
+		 * hook it to the ubereval node so particle system is getting updated
+		 * on playback.
+		 */
+		add_relation(psys_key,
+		             obdata_ubereval_key,
+		             DEPSREL_TYPE_OPERATION,
+		             "PSys -> UberEval");
 
 #if 0
 		if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {

@@ -2168,6 +2168,13 @@ static void write_images(WriteData *wd, ListBase *idbase)
 	ima= idbase->first;
 	while (ima) {
 		if (ima->id.us>0 || wd->current) {
+			/* Some trickery to keep forward compatibility of packed images. */
+			BLI_assert(ima->packedfile == NULL);
+			if (ima->packedfiles.first != NULL) {
+				imapf = ima->packedfiles.first;
+				ima->packedfile = imapf->packedfile;
+			}
+
 			/* write LibData */
 			writestruct(wd, ID_IM, "Image", 1, ima);
 			if (ima->id.properties) IDP_WriteProperty(ima->id.properties, wd);
@@ -2186,6 +2193,8 @@ static void write_images(WriteData *wd, ListBase *idbase)
 			for (iv = ima->views.first; iv; iv = iv->next)
 				writestruct(wd, DATA, "ImageView", 1, iv);
 			writestruct(wd, DATA, "Stereo3dFormat", 1, ima->stereo3d_format);
+
+			ima->packedfile = NULL;
 		}
 		ima= ima->id.next;
 	}

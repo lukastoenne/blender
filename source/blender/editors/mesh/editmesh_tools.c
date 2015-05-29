@@ -3759,32 +3759,45 @@ static int edbm_tris_convert_to_quads_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	int dosharp, douvs, dovcols, domaterials;
-	float limit;
+	bool do_seam, do_sharp, do_uvs, do_vcols, do_materials;
+	float angle_face_threshold, angle_shape_threshold;
 	PropertyRNA *prop;
 
 	/* When joining exactly 2 faces, no limit.
 	 * this is useful for one off joins while editing. */
-	prop = RNA_struct_find_property(op->ptr, "limit");
+	prop = RNA_struct_find_property(op->ptr, "face_threshold");
 	if ((em->bm->totfacesel == 2) &&
 	    (RNA_property_is_set(op->ptr, prop) == false))
 	{
-		limit = DEG2RADF(180.0f);
+		angle_face_threshold = DEG2RADF(180.0f);
 	}
 	else {
-		limit = RNA_property_float_get(op->ptr, prop);
+		angle_face_threshold = RNA_property_float_get(op->ptr, prop);
 	}
 
-	dosharp = RNA_boolean_get(op->ptr, "sharp");
-	douvs = RNA_boolean_get(op->ptr, "uvs");
-	dovcols = RNA_boolean_get(op->ptr, "vcols");
-	domaterials = RNA_boolean_get(op->ptr, "materials");
+	prop = RNA_struct_find_property(op->ptr, "shape_threshold");
+	if ((em->bm->totfacesel == 2) &&
+	    (RNA_property_is_set(op->ptr, prop) == false))
+	{
+		angle_shape_threshold = DEG2RADF(180.0f);
+	}
+	else {
+		angle_shape_threshold = RNA_property_float_get(op->ptr, prop);
+	}
+
+	do_seam = RNA_boolean_get(op->ptr, "seam");
+	do_sharp = RNA_boolean_get(op->ptr, "sharp");
+	do_uvs = RNA_boolean_get(op->ptr, "uvs");
+	do_vcols = RNA_boolean_get(op->ptr, "vcols");
+	do_materials = RNA_boolean_get(op->ptr, "materials");
 
 	if (!EDBM_op_call_and_selectf(
 	        em, op,
 	        "faces.out", true,
-	        "join_triangles faces=%hf limit=%f cmp_sharp=%b cmp_uvs=%b cmp_vcols=%b cmp_materials=%b",
-	        BM_ELEM_SELECT, limit, dosharp, douvs, dovcols, domaterials))
+	        "join_triangles faces=%hf angle_face_threshold=%f angle_shape_threshold=%f "
+	        "cmp_seam=%b cmp_sharp=%b cmp_uvs=%b cmp_vcols=%b cmp_materials=%b",
+	        BM_ELEM_SELECT, angle_face_threshold, angle_shape_threshold,
+	        do_seam, do_sharp, do_uvs, do_vcols, do_materials))
 	{
 		return OPERATOR_CANCELLED;
 	}
@@ -3798,12 +3811,19 @@ static void join_triangle_props(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 
-	prop = RNA_def_float_rotation(ot->srna, "limit", 0, NULL, 0.0f, DEG2RADF(180.0f),
-	                              "Max Angle", "Angle Limit", 0.0f, DEG2RADF(180.0f));
+	prop = RNA_def_float_rotation(
+	        ot->srna, "face_threshold", 0, NULL, 0.0f, DEG2RADF(180.0f),
+	        "Max Face Angle", "Face angle limit", 0.0f, DEG2RADF(180.0f));
+	RNA_def_property_float_default(prop, DEG2RADF(40.0f));
+
+	prop = RNA_def_float_rotation(
+	        ot->srna, "shape_threshold", 0, NULL, 0.0f, DEG2RADF(180.0f),
+	        "Max Shape Angle", "Shape angle limit", 0.0f, DEG2RADF(180.0f));
 	RNA_def_property_float_default(prop, DEG2RADF(40.0f));
 
 	RNA_def_boolean(ot->srna, "uvs", 0, "Compare UVs", "");
 	RNA_def_boolean(ot->srna, "vcols", 0, "Compare VCols", "");
+	RNA_def_boolean(ot->srna, "seam", 0, "Compare Seam", "");
 	RNA_def_boolean(ot->srna, "sharp", 0, "Compare Sharp", "");
 	RNA_def_boolean(ot->srna, "materials", 0, "Compare Materials", "");
 }
@@ -5166,11 +5186,16 @@ static int edbm_convex_hull_exec(bContext *C, wmOperator *op)
 
 	/* Merge adjacent triangles */
 	if (RNA_boolean_get(op->ptr, "join_triangles")) {
-		if (!EDBM_op_call_and_selectf(em, op,
-		                              "faces.out", true,
-		                              "join_triangles faces=%S limit=%f",
-		                              &bmop, "geom.out",
-		                              RNA_float_get(op->ptr, "limit")))
+		float angle_face_threshold = RNA_float_get(op->ptr, "face_threshold");
+		float angle_shape_threshold = RNA_float_get(op->ptr, "shape_threshold");
+
+		if (!EDBM_op_call_and_selectf(
+		        em, op,
+		        "faces.out", true,
+		        "join_triangles faces=%S "
+		        "angle_face_threshold=%f angle_shape_threshold=%f",
+		        &bmop, "geom.out",
+		        angle_face_threshold, angle_shape_threshold))
 		{
 			EDBM_op_finish(em, &bmop, op, true);
 			return OPERATOR_CANCELLED;

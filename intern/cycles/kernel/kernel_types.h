@@ -100,21 +100,7 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __KERNEL_OPENCL_NVIDIA__
 #  define __KERNEL_SHADING__
-/* TODO(sergey): Advanced shading code still requires work
- * for split kernel.
- */
-#  ifndef __SPLIT_KERNEL__
-#    define __KERNEL_ADV_SHADING__
-#  else
-#    define __MULTI_CLOSURE__
-#    define __TRANSPARENT_SHADOWS__
-#    define __PASSES__
-#    define __BACKGROUND_MIS__
-#    define __LAMP_MIS__
-#    define __AO__
-#    define __HAIR__
-#    define __CAMERA_MOTION__
-#  endif
+#  define __KERNEL_ADV_SHADING__
 #  ifdef __KERNEL_EXPERIMENTAL__
 #    define __CMJ__
 #  endif
@@ -135,9 +121,9 @@ CCL_NAMESPACE_BEGIN
 #  define __AO__
 #  ifdef __KERNEL_EXPERIMENTAL__
 #    define __CAMERA_MOTION__
+#    define __OBJECT_MOTION__
 #    define __HAIR__
 #  endif
-//#define __OBJECT_MOTION__
 //#define __TRANSPARENT_SHADOWS__
 #endif
 
