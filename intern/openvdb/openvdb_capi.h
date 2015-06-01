@@ -37,7 +37,7 @@ struct OpenVDBWriter;
 
 int OpenVDB_getVersionHex(void);
 
-void OpenVDB_getNodeSockets(const char *filename, struct bNodeTree *ntree, struct bNode *node);
+void OpenVDB_get_grid_names_and_types(const char *filename, char **grid_names, char **grid_types, int *num_grids);
 
 enum {
 	OPENVDB_NO_ERROR      = 0,

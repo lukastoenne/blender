@@ -29,6 +29,8 @@
 
 #include "openvdb_capi.h"
 
+#define MAX_GRIDS 32
+
 static bNodeSocketTemplate sh_node_openvdb_in[] = {
     {SOCK_VECTOR, 1, N_("Vector"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
     {-1, 0, ""}
@@ -54,14 +56,12 @@ static bNodeSocket *node_output_relink(bNode *node, bNodeSocket *oldsock, int ol
 }
 
 #ifdef WITH_OPENVDB
-void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
+static void node_openvdb_get_sockets(Main *bmain, bNodeTree *ntree, bNode *node)
 {
 	NodeShaderOpenVDB *vdb = node->storage;
-	bNodeSocket *newsock, *oldsock;
-	ListBase oldsocklist;
-	bNodeLink *link;
-	int oldindex;
+	char *grid_names[MAX_GRIDS], *grid_types[MAX_GRIDS];
 	char *filename;
+	int i, num_grids;
 
 	if (!vdb) {
 		return;
@@ -73,10 +73,36 @@ void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 		BLI_path_abs(filename, bmain->name);
 	}
 
+	OpenVDB_get_grid_names_and_types(filename, grid_names, grid_types, &num_grids);
+
+	for (i = 0; i < num_grids; i++) {
+		int type;
+
+		if (STREQ(grid_types[i], "float")) {
+			type = SOCK_FLOAT;
+		}
+		else if (STREQ(grid_types[i], "vec3s")) {
+			type = SOCK_VECTOR;
+		}
+		else {
+			continue;
+		}
+
+		nodeAddStaticSocket(ntree, node, SOCK_OUT, type, PROP_NONE, NULL, grid_names[i]);
+	}
+}
+
+void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
+{
+	bNodeSocket *newsock, *oldsock;
+	ListBase oldsocklist;
+	bNodeLink *link;
+	int oldindex;
+
 	oldsocklist = node->outputs;
 	BLI_listbase_clear(&node->outputs);
 
-	OpenVDB_getNodeSockets(filename, ntree, node);
+	node_openvdb_get_sockets(bmain, ntree, node);
 
 	/* move links to new socket */
 	for (oldsock = oldsocklist.first, oldindex = 0; oldsock; oldsock = oldsock->next, ++oldindex) {

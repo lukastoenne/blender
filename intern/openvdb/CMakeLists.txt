@@ -26,11 +26,6 @@
 set(INC
 	.
 	intern
-	../guardedalloc
-	../../source/blender/blenkernel
-	../../source/blender/blenlib
-	../../source/blender/makesdna
-	../../source/blender/makesrna
 )
 
 set(INC_SYS
