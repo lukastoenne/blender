@@ -3246,7 +3246,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 	if (sds->fluid) {
 		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
 		unsigned char *obstacles;
-		bool for_low_display = for_display && !(sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG);
+		bool for_low_display = for_display && (!sds->wt || !(sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG));
 
 		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat,
 		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
