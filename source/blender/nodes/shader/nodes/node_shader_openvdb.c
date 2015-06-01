@@ -41,19 +41,28 @@ static void node_shader_init_openvdb(bNodeTree *UNUSED(ntree), bNode *node)
 }
 
 #ifdef WITH_OPENVDB
-void ntreeUpdateOpenVDBNode(bNodeTree *ntree, bNode *node)
+void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 {
 	NodeShaderOpenVDB *vdb = node->storage;
+	char *filename;
 
-	if (vdb) {
-		BLI_listbase_clear(&node->outputs);
-		OpenVDB_getNodeSockets(vdb->filename, ntree, node);
+	if (!vdb) {
+		return;
 	}
+
+	filename = &vdb->filename[0];
+
+	if (BLI_path_is_rel(filename)) {
+		BLI_path_abs(filename, bmain->name);
+	}
+
+	BLI_listbase_clear(&node->outputs);
+	OpenVDB_getNodeSockets(filename, ntree, node);
 }
 #else
-void ntreeUpdateOpenVDBNode(bNodeTree *ntree, bNode *node)
+void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 {
-	UNUSED_VARS(ntree, node);
+	UNUSED_VARS(bmain, ntree, node);
 }
 #endif
 
