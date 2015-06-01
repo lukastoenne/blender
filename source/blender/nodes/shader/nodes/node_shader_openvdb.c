@@ -40,10 +40,27 @@ static void node_shader_init_openvdb(bNodeTree *UNUSED(ntree), bNode *node)
 	node->storage = vdb;
 }
 
+static bNodeSocket *node_output_relink(bNode *node, bNodeSocket *oldsock, int oldindex)
+{
+	bNodeSocket *sock;
+
+	/* first try to find matching socket name */
+	for (sock = node->outputs.first; sock; sock = sock->next)
+		if (STREQ(sock->name, oldsock->name))
+			return sock;
+
+	/* no matching name, simply link to same index */
+	return BLI_findlink(&node->outputs, oldindex);
+}
+
 #ifdef WITH_OPENVDB
 void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 {
 	NodeShaderOpenVDB *vdb = node->storage;
+	bNodeSocket *newsock, *oldsock;
+	ListBase oldsocklist;
+	bNodeLink *link;
+	int oldindex;
 	char *filename;
 
 	if (!vdb) {
@@ -56,8 +73,22 @@ void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 		BLI_path_abs(filename, bmain->name);
 	}
 
+	oldsocklist = node->outputs;
 	BLI_listbase_clear(&node->outputs);
+
 	OpenVDB_getNodeSockets(filename, ntree, node);
+
+	/* move links to new socket */
+	for (oldsock = oldsocklist.first, oldindex = 0; oldsock; oldsock = oldsock->next, ++oldindex) {
+		newsock = node_output_relink(node, oldsock, oldindex);
+
+		if (newsock) {
+			for (link = ntree->links.first; link; link = link->next) {
+				if (link->fromsock == oldsock)
+					link->fromsock = newsock;
+			}
+		}
+	}
 }
 #else
 void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
