@@ -94,7 +94,7 @@ static void node_openvdb_get_sockets(Main *bmain, bNodeTree *ntree, bNode *node)
 
 void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 {
-	bNodeSocket *newsock, *oldsock;
+	bNodeSocket *newsock, *oldsock, *oldsock_next;
 	ListBase oldsocklist;
 	bNodeLink *link;
 	int oldindex;
@@ -114,6 +114,11 @@ void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 					link->fromsock = newsock;
 			}
 		}
+	}
+
+	for (oldsock = oldsocklist.first; oldsock; oldsock = oldsock_next) {
+		oldsock_next = oldsock->next;
+		nodeRemoveSocket(ntree, node, oldsock);
 	}
 }
 #else
