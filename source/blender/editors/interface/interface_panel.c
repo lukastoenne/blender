@@ -210,8 +210,9 @@ static void ui_panel_copy_offset(Panel *pa, Panel *papar)
 }
 
 
-/* XXX Disabled paneltab handling for now. Old 2.4x feature, *DO NOT* confuse it with new tool tabs in 2.70. ;)
- *     See also T41704.
+/**
+ * XXX Disabled paneltab handling for now. Old 2.4x feature, *DO NOT* confuse it with new tool tabs in 2.70. ;)
+ * See also T41704.
  */
 /* #define UI_USE_PANELTAB */
 
@@ -568,6 +569,8 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	rcti headrect;
 	rctf itemrect;
 	int ofsx;
+	const bool is_closed_x = (panel->flag & PNL_CLOSEDX) ? true : false;
+	const bool is_closed_y = (panel->flag & PNL_CLOSEDY) ? true : false;
 
 	if (panel->paneltab) return;
 	if (panel->type && (panel->type->flag & PNL_NO_HEADER)) return;
@@ -580,7 +583,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 
 	{
 		float minx = rect->xmin;
-		float maxx = rect->xmax;
+		float maxx = is_closed_x ? (minx + PNL_HEADER / block->aspect) : rect->xmax;
 		float y = headrect.ymax;
 
 		glEnable(GL_BLEND);
@@ -595,8 +598,11 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		}
 		else if (!(panel->runtime_flag & PNL_FIRST)) {
 			/* draw embossed separator */
-			minx += 5.0f / block->aspect;
-			maxx -= 5.0f / block->aspect;
+
+			if (is_closed_x == false) {
+				minx += 5.0f / block->aspect;
+				maxx -= 5.0f / block->aspect;
+			}
 
 			glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
 			fdrawline(minx, y, maxx, y);
@@ -623,7 +629,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	}
 
 	/* horizontal title */
-	if (!(panel->flag & PNL_CLOSEDX)) {
+	if (is_closed_x == false) {
 		ui_draw_aligned_panel_header(style, block, &headrect, 'h');
 
 		/* itemrect smaller */
@@ -639,9 +645,10 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	/* if the panel is minimized vertically:
 	 * (------)
 	 */
-	if (panel->flag & PNL_CLOSEDY) {
+	if (is_closed_y) {
+		/* skip */
 	}
-	else if (panel->flag & PNL_CLOSEDX) {
+	else if (is_closed_x) {
 		/* draw vertical title */
 		ui_draw_aligned_panel_header(style, block, &headrect, 'v');
 	}
@@ -688,9 +695,9 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 
 	BLI_rctf_scale(&itemrect, 0.35f);
 
-	if (panel->flag & PNL_CLOSEDY)
+	if (is_closed_y)
 		ui_draw_tria_rect(&itemrect, 'h');
-	else if (panel->flag & PNL_CLOSEDX)
+	else if (is_closed_x)
 		ui_draw_tria_rect(&itemrect, 'h');
 	else
 		ui_draw_tria_rect(&itemrect, 'v');
@@ -737,11 +744,13 @@ typedef struct PanelSort {
 	Panel *pa, *orig;
 } PanelSort;
 
-/* note about sorting;
+/**
+ * \note about sorting;
  * the sortorder has a lower value for new panels being added.
  * however, that only works to insert a single panel, when more new panels get
  * added the coordinates of existing panels and the previously stored to-be-inserted
- * panels do not match for sorting */
+ * panels do not match for sorting
+ */
 
 static int find_leftmost_panel(const void *a1, const void *a2)
 {
