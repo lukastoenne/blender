@@ -74,6 +74,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
+#include "BKE_screen.h"
 #include "BKE_smoke.h"
 #include "BKE_softbody.h"
 #include "BKE_editmesh.h"
@@ -2350,6 +2351,12 @@ static void smoke_export_startjob(void *customdata, short *stop, short *do_updat
 
 	G.is_break = false;
 
+	/* XXX annoying hack: needed to prevent data corruption when changing
+	 * scene frame in separate threads
+	 */
+	G.is_rendering = true;
+	BKE_spacedata_draw_locks(true);
+
 	smokeModifier_OpenVDB_export(sej->smd, sej->scene, sej->ob, sej->dm,
 	                             smoke_export_update, (void *)sej);
 
@@ -2361,6 +2368,9 @@ static void smoke_export_endjob(void *customdata)
 {
 	SmokeExportJob *sej = customdata;
 	Object *ob = sej->ob;
+
+	G.is_rendering = false;
+	BKE_spacedata_draw_locks(false);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
