@@ -3340,6 +3340,20 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		cache_filename(filename, cache->path, cache->name, relbase, fr);
 
 		smokeModifier_process(smd, scene, ob, dm, false);
+
+		/* XXX hack: for some reason the smoke sim stores zero matrix for frame 1 */
+		{
+			PTCacheID pid;
+			int ptcache_start, ptcache_end;
+			float ptcache_timescale;
+			BKE_ptcache_id_from_smoke(&pid, ob, smd);
+			BKE_ptcache_id_time(&pid, scene, fr, &ptcache_start, &ptcache_end, &ptcache_timescale);
+
+			if (fr == ptcache_start) {
+				unit_m4(sds->obmat);
+			}
+		}
+
 		OpenVDB_write_fluid_settings(sds, cache->writer);
 		OpenVDB_export_smoke(sds, cache->writer);
 
