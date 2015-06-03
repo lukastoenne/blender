@@ -34,7 +34,6 @@ set(INC
 	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
-	../../../../intern/smoke/extern
 	../../../../intern/openvdb
 )
 

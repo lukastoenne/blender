@@ -31,9 +31,9 @@ struct OSLThreadData;
 struct OSLShadingSystem;
 #endif
 
-#define MAX_BYTE_IMAGES  1024
-#define MAX_FLOAT_IMAGES 1024
-#define MAX_VOLUME       1024
+#define MAX_BYTE_IMAGES   1024
+#define MAX_FLOAT_IMAGES  1024
+#define MAX_VOLUME        1024
 
 typedef struct KernelGlobals {
 	texture_image_uchar4 texture_byte_images[MAX_BYTE_IMAGES];
