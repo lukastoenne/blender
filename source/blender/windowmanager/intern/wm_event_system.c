@@ -566,10 +566,9 @@ void WM_event_print(const wmEvent *event)
 		RNA_enum_identifier(event_type_items, event->type, &type_id);
 		RNA_enum_identifier(event_value_items, event->val, &val_id);
 
-		printf("wmEvent  type:%d / %s, val:%d / %s, \n"
-		       "         shift:%d, ctrl:%d, alt:%d, oskey:%d, keymodifier:%d, \n"
-		       "         mouse:(%d,%d), ascii:'%c', utf8:'%.*s', "
-		       "         keymap_idname:%s, pointer:%p\n",
+		printf("wmEvent  type:%d / %s, val:%d / %s,\n"
+		       "         shift:%d, ctrl:%d, alt:%d, oskey:%d, keymodifier:%d,\n"
+		       "         mouse:(%d,%d), ascii:'%c', utf8:'%.*s', keymap_idname:%s, pointer:%p\n",
 		       event->type, type_id, event->val, val_id,
 		       event->shift, event->ctrl, event->alt, event->oskey, event->keymodifier,
 		       event->x, event->y, event->ascii,
@@ -579,16 +578,18 @@ void WM_event_print(const wmEvent *event)
 		if (ISNDOF(event->type)) {
 			const wmNDOFMotionData *ndof = event->customdata;
 			if (event->type == NDOF_MOTION) {
-				printf("   ndof: rot: (%.4f %.4f %.4f),\n"
-				       "          tx: (%.4f %.4f %.4f),\n"
-				       "          dt: %.4f, progress: %d\n",
-				       UNPACK3(ndof->rvec),
-				       UNPACK3(ndof->tvec),
-				       ndof->dt, ndof->progress);
+				printf("   ndof: rot: (%.4f %.4f %.4f), tx: (%.4f %.4f %.4f), dt: %.4f, progress: %d\n",
+				       UNPACK3(ndof->rvec), UNPACK3(ndof->tvec), ndof->dt, ndof->progress);
 			}
 			else {
 				/* ndof buttons printed already */
 			}
+		}
+
+		if (event->tablet_data) {
+			const wmTabletData *wmtab = event->tablet_data;
+			printf(" tablet: active: %d, pressure %.4f, tilt: (%.4f %.4f)\n",
+			       wmtab->Active, wmtab->Pressure, wmtab->Xtilt, wmtab->Ytilt);
 		}
 	}
 	else {
@@ -615,6 +616,11 @@ void WM_report_banner_show(const bContext *C)
 
 	rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
 	wm_reports->reporttimer->customdata = rti;
+}
+
+bool WM_event_is_absolute(const wmEvent *event)
+{
+	return (event->tablet_data != NULL);
 }
 
 static void wm_add_reports(const bContext *C, ReportList *reports)
@@ -2677,7 +2683,7 @@ void WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap)
 wmEventHandler *WM_event_add_ui_handler(
         const bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
-        void *userdata, const bool accept_dbl_click)
+        void *userdata, const char flag)
 {
 	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event ui handler");
 	handler->ui_handle = ui_handle;
@@ -2694,9 +2700,8 @@ wmEventHandler *WM_event_add_ui_handler(
 		handler->ui_menu    = NULL;
 	}
 
-	if (accept_dbl_click) {
-		handler->flag |= WM_HANDLER_ACCEPT_DBL_CLICK;
-	}
+	BLI_assert((flag & WM_HANDLER_DO_FREE) == 0);
+	handler->flag = flag;
 	
 	BLI_addhead(handlers, handler);
 	
