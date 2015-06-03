@@ -42,6 +42,7 @@ static void node_shader_init_openvdb(bNodeTree *UNUSED(ntree), bNode *node)
 	node->storage = vdb;
 }
 
+#ifdef WITH_OPENVDB
 static bNodeSocket *node_output_relink(bNode *node, bNodeSocket *oldsock, int oldindex)
 {
 	bNodeSocket *sock;
@@ -55,7 +56,6 @@ static bNodeSocket *node_output_relink(bNode *node, bNodeSocket *oldsock, int ol
 	return BLI_findlink(&node->outputs, oldindex);
 }
 
-#ifdef WITH_OPENVDB
 static void node_openvdb_get_sockets(Main *bmain, bNodeTree *ntree, bNode *node)
 {
 	NodeShaderOpenVDB *vdb = node->storage;
