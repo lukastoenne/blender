@@ -53,7 +53,17 @@ void OpenVDB_get_grid_names_and_types(const char *filename,
 		for (size_t i = 0; i < *num_grids; ++i) {
 			GridBase::ConstPtr grid = (*grids)[i];
 			grid_names[i] = strdup(grid->getName().c_str());
-			grid_types[i] = strdup(grid->valueType().c_str());
+
+			/* XXX - this is blender specific, for external files it might crash if
+			 * it doens't find a "is_color" metaValue, cases where it doens't crash
+			 * are when the vector grids are at the end of the grid vector.
+			 */
+			if (grid->valueType() == "vec3s" && grid->metaValue<bool>("is_color")) {
+				grid_types[i] = strdup("color");
+			}
+			else {
+				grid_types[i] = strdup(grid->valueType().c_str());
+			}
 		}
 	}
 	catch (...) {
@@ -92,11 +102,12 @@ void OpenVDB_export_grid_ch(OpenVDBWriter *writer,
 void OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
                              const char *name,
                              const float *data_x, const float *data_y, const float *data_z,
-                             const int res[3], float matrix[4][4], short vec_type)
+                             const int res[3], float matrix[4][4], short vec_type, const bool is_color)
 {
 	internal::OpenVDB_export_vector_grid(writer, name,
 	                                     data_x, data_y, data_z, res, matrix,
-	                                     static_cast<openvdb::VecType>(vec_type));
+	                                     static_cast<openvdb::VecType>(vec_type),
+	                                     is_color);
 }
 
 void OpenVDB_import_grid_fl(OpenVDBReader *reader,

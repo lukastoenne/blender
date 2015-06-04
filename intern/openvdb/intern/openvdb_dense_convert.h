@@ -102,7 +102,7 @@ void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
                                 const float *data_x, const float *data_y, const float *data_z,
                                 const int res[3],
                                 float fluid_mat[4][4],
-                                openvdb::VecType vec_type);
+                                openvdb::VecType vec_type, const bool is_color);
 
 
 void OpenVDB_import_grid_vector(OpenVDBReader *reader,

@@ -77,7 +77,7 @@ void OpenVDB_export_grid_ch(struct OpenVDBWriter *writer,
 void OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
                              const char *name,
                              const float *data_x, const float *data_y, const float *data_z,
-                             const int res[3], float matrix[4][4], short vec_type);
+                             const int res[3], float matrix[4][4], short vec_type, const bool is_color);
 
 void OpenVDB_import_grid_fl(struct OpenVDBReader *reader,
                             const char *name, float **data,

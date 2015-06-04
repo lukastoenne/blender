@@ -84,6 +84,9 @@ static void node_openvdb_get_sockets(Main *bmain, bNodeTree *ntree, bNode *node)
 		else if (STREQ(grid_types[i], "vec3s")) {
 			type = SOCK_VECTOR;
 		}
+		else if (STREQ(grid_types[i], "color")) {
+			type = SOCK_RGBA;
+		}
 		else {
 			continue;
 		}

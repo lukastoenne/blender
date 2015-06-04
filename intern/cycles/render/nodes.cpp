@@ -4401,7 +4401,7 @@ void OpenVDBNode::compile(SVMCompiler& compiler)
 
 		int type = NODE_VDB_FLOAT;
 
-		if(out->type == SHADER_SOCKET_VECTOR) {
+		if(out->type == SHADER_SOCKET_VECTOR || out->type == SHADER_SOCKET_COLOR) {
 			type = NODE_VDB_FLOAT3;
 		}
 
