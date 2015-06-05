@@ -86,15 +86,15 @@ GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 
 	grid[0] = FloatGrid::create(0.0f);
 	tools::Dense<const float, tools::LayoutXYZ> dense_grid_x(bbox, data_x);
-	tools::copyFromDense(dense_grid_x, grid[0]->tree(), 1e-3f, true);
+	tools::copyFromDense(dense_grid_x, grid[0]->tree(), 1e-3f);
 
 	grid[1] = FloatGrid::create(0.0f);
 	tools::Dense<const float, tools::LayoutXYZ> dense_grid_y(bbox, data_y);
-	tools::copyFromDense(dense_grid_y, grid[1]->tree(), 1e-3f, true);
+	tools::copyFromDense(dense_grid_y, grid[1]->tree(), 1e-3f);
 
 	grid[2] = FloatGrid::create(0.0f);
 	tools::Dense<const float, tools::LayoutXYZ> dense_grid_z(bbox, data_z);
-	tools::copyFromDense(dense_grid_z, grid[2]->tree(), 1e-3f, true);
+	tools::copyFromDense(dense_grid_z, grid[2]->tree(), 1e-3f);
 
 	Vec3SGrid::Ptr vecgrid = Vec3SGrid::create(Vec3s(0.0f));
 

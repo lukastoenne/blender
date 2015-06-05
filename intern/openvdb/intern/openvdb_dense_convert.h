@@ -60,7 +60,7 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 	typename GridType::Ptr grid = GridType::create(T(0));
 
 	tools::Dense<const T, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
-	tools::copyFromDense(dense_grid, grid->tree(), 1e-3f, true);
+	tools::copyFromDense(dense_grid, grid->tree(), 1e-3f);
 
 	if (mask) {
 		grid = tools::clip(*grid, *mask);
