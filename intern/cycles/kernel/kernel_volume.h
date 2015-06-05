@@ -436,7 +436,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	float random_jitter_offset = lcg_step_float(&state->rng_congruential) * step_size;
 
 	/* compute coefficients at the start */
-	float t = 0.0f;
+	float t = 0.0f, t1 = 0.0f;
 	float3 accum_transmittance = make_float3(1.0f, 1.0f, 1.0f);
 
 	/* pick random color channel, we use the Veach one-sample
@@ -446,113 +446,234 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	int channel = (int)(rphase*3.0f);
 	sd->randb_closure = rphase*3.0f - channel;
 	bool has_scatter = false;
+	int vdb_index = kernel_data.tables.density_index;
+	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
+	bool path_missed = true;
 
-	for(int i = 0; i < max_steps; i++) {
-		/* advance to new position */
-		float new_t = min(ray->t, (i+1) * step_size);
-		float dt = new_t - t;
-
-		/* use random position inside this segment to sample shader */
-		if(new_t == ray->t)
-			random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
-
-		float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
-		VolumeShaderCoefficients coeff;
-
-		/* compute segment */
-		if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
-			int closure_flag = sd->flag;
-			float3 new_tp;
-			float3 transmittance;
-			bool scatter = false;
-
-			/* distance sampling */
-#ifdef __VOLUME_SCATTER__
-			if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
-				has_scatter = true;
-
-				float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
-				float3 sigma_s = coeff.sigma_s;
-
-				/* compute transmittance over full step */
-				transmittance = volume_color_transmittance(sigma_t, dt);
-
-				/* decide if we will scatter or continue */
-				float sample_transmittance = kernel_volume_channel_get(transmittance, channel);
-
-				if(1.0f - xi >= sample_transmittance) {
-					/* compute sampling distance */
-					float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
-					float new_dt = -logf(1.0f - xi)/sample_sigma_t;
-					new_t = t + new_dt;
-
-					/* transmittance and pdf */
-					float3 new_transmittance = volume_color_transmittance(sigma_t, new_dt);
-					float3 pdf = sigma_t * new_transmittance;
-
-					/* throughput */
-					new_tp = tp * sigma_s * new_transmittance / average(pdf);
-					scatter = true;
-				}
-				else {
-					/* throughput */
-					float pdf = average(transmittance);
-					new_tp = tp * transmittance / pdf;
-
-					/* remap xi so we can reuse it and keep thing stratified */
-					xi = 1.0f - (1.0f - xi)/sample_transmittance;
-				}
-			}
-			else 
-#endif
-			if(closure_flag & SD_ABSORPTION) {
-				/* absorption only, no sampling needed */
-				float3 sigma_a = coeff.sigma_a;
-
-				transmittance = volume_color_transmittance(sigma_a, dt);
-				new_tp = tp * transmittance;
-			}
-
-			/* integrate emission attenuated by absorption */
-			if(L && (closure_flag & SD_EMISSION)) {
-				float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
-				path_radiance_accum_emission(L, tp, emission, state->bounce);
-			}
-
-			/* modify throughput */
-			if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
-				tp = new_tp;
-
-				/* stop if nearly all light blocked */
-				if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
-					tp = make_float3(0.0f, 0.0f, 0.0f);
-					break;
-				}
-			}
-
-			/* prepare to scatter to new direction */
-			if(scatter) {
-				/* adjust throughput and move to new location */
-				sd->P = ray->P + new_t*ray->D;
-				*throughput = tp;
-
-				return VOLUME_PATH_SCATTERED;
-			}
-			else {
-				/* accumulate transmittance */
-				accum_transmittance *= transmittance;
-			}
+	if(has_vdb_volume && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
+		/* TODO(kevin): this call should be moved out of here, all it does is
+		 * checking if we have an intersection with the boundbox of the volumue
+		 * which in most cases corresponds to the boundbox of the object that has
+		 * this volume. Also it initializes the rays for the ray marching. */
+		if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
+			return VOLUME_PATH_MISSED;
 		}
 
-		/* stop if at the end of the volume */
-		t = new_t;
-		if(t == ray->t)
-			break;
+		/* t and t1 represent the entry and exit points for each leaf node or tile
+		 * containing active voxels. If we don't have any active node in the current
+		 * ray path (i.e. empty space) the ray march loop is not executed,
+		 * otherwise we loop through all leaves until the end of the volume. */
+		while(kg->float_volumes[vdb_index]->march(&t, &t1)) {
+			path_missed = false;
+
+			/* Perform small steps through the current leaf or tile. */
+			for(float new_t = step_size * ceilf(t / step_size); new_t <= t1; new_t += step_size) {
+				float dt = new_t - t;
+
+				/* use random position inside this segment to sample shader */
+				if(new_t == ray->t)
+					random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+
+				float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
+				VolumeShaderCoefficients coeff;
+
+				/* compute segment */
+				if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
+					int closure_flag = sd->flag;
+					float3 new_tp;
+					float3 transmittance;
+					bool scatter = false;
+
+					/* distance sampling */
+#ifdef __VOLUME_SCATTER__
+					if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
+						has_scatter = true;
+
+						float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+						float3 sigma_s = coeff.sigma_s;
+
+						/* compute transmittance over full step */
+						transmittance = volume_color_transmittance(sigma_t, dt);
+
+						/* decide if we will scatter or continue */
+						float sample_transmittance = kernel_volume_channel_get(transmittance, channel);
+
+						if(1.0f - xi >= sample_transmittance) {
+							/* compute sampling distance */
+							float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
+							float new_dt = -logf(1.0f - xi)/sample_sigma_t;
+							new_t = t + new_dt;
+
+							/* transmittance and pdf */
+							float3 new_transmittance = volume_color_transmittance(sigma_t, new_dt);
+							float3 pdf = sigma_t * new_transmittance;
+
+							/* throughput */
+							new_tp = tp * sigma_s * new_transmittance / average(pdf);
+							scatter = true;
+						}
+						else {
+							/* throughput */
+							float pdf = average(transmittance);
+							new_tp = tp * transmittance / pdf;
+
+							/* remap xi so we can reuse it and keep thing stratified */
+							xi = 1.0f - (1.0f - xi)/sample_transmittance;
+						}
+					}
+					else
+#endif
+						if(closure_flag & SD_ABSORPTION) {
+							/* absorption only, no sampling needed */
+							float3 sigma_a = coeff.sigma_a;
+
+							transmittance = volume_color_transmittance(sigma_a, dt);
+							new_tp = tp * transmittance;
+						}
+
+					/* integrate emission attenuated by absorption */
+					if(L && (closure_flag & SD_EMISSION)) {
+						float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
+						path_radiance_accum_emission(L, tp, emission, state->bounce);
+					}
+
+					/* modify throughput */
+					if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
+						tp = new_tp;
+
+						/* stop if nearly all light blocked */
+						if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
+							tp = make_float3(0.0f, 0.0f, 0.0f);
+							break;
+						}
+					}
+
+					/* prepare to scatter to new direction */
+					if(scatter) {
+						/* adjust throughput and move to new location */
+						sd->P = ray->P + new_t*ray->D;
+						*throughput = tp;
+
+						return VOLUME_PATH_SCATTERED;
+					}
+					else {
+						/* accumulate transmittance */
+						accum_transmittance *= transmittance;
+					}
+				}
+
+				t = new_t;
+			}
+		}
+	}
+	else {
+		for (int i = 0; i < max_steps; i++) {
+			/* advance to new position */
+			float new_t = min(ray->t, (i+1) * step_size);
+			float dt = new_t - t;
+
+			/* use random position inside this segment to sample shader */
+			if(new_t == ray->t)
+				random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+
+			float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
+			VolumeShaderCoefficients coeff;
+
+			/* compute segment */
+			if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
+				int closure_flag = sd->flag;
+				float3 new_tp;
+				float3 transmittance;
+				bool scatter = false;
+
+				/* distance sampling */
+		#ifdef __VOLUME_SCATTER__
+				if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
+					has_scatter = true;
+
+					float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+					float3 sigma_s = coeff.sigma_s;
+
+					/* compute transmittance over full step */
+					transmittance = volume_color_transmittance(sigma_t, dt);
+
+					/* decide if we will scatter or continue */
+					float sample_transmittance = kernel_volume_channel_get(transmittance, channel);
+
+					if(1.0f - xi >= sample_transmittance) {
+						/* compute sampling distance */
+						float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
+						float new_dt = -logf(1.0f - xi)/sample_sigma_t;
+						new_t = t + new_dt;
+
+						/* transmittance and pdf */
+						float3 new_transmittance = volume_color_transmittance(sigma_t, new_dt);
+						float3 pdf = sigma_t * new_transmittance;
+
+						/* throughput */
+						new_tp = tp * sigma_s * new_transmittance / average(pdf);
+						scatter = true;
+					}
+					else {
+						/* throughput */
+						float pdf = average(transmittance);
+						new_tp = tp * transmittance / pdf;
+
+						/* remap xi so we can reuse it and keep thing stratified */
+						xi = 1.0f - (1.0f - xi)/sample_transmittance;
+					}
+				}
+				else
+		#endif
+					if(closure_flag & SD_ABSORPTION) {
+						/* absorption only, no sampling needed */
+						float3 sigma_a = coeff.sigma_a;
+
+						transmittance = volume_color_transmittance(sigma_a, dt);
+						new_tp = tp * transmittance;
+					}
+
+				/* integrate emission attenuated by absorption */
+				if(L && (closure_flag & SD_EMISSION)) {
+					float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
+					path_radiance_accum_emission(L, tp, emission, state->bounce);
+				}
+
+				/* modify throughput */
+				if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
+					tp = new_tp;
+
+					/* stop if nearly all light blocked */
+					if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
+						tp = make_float3(0.0f, 0.0f, 0.0f);
+						break;
+					}
+				}
+
+				/* prepare to scatter to new direction */
+				if(scatter) {
+					/* adjust throughput and move to new location */
+					sd->P = ray->P + new_t*ray->D;
+					*throughput = tp;
+
+					return VOLUME_PATH_SCATTERED;
+				}
+				else {
+					/* accumulate transmittance */
+					accum_transmittance *= transmittance;
+				}
+			}
+
+			/* stop if at the end of the volume */
+			t = new_t;
+			if(t == ray->t)
+				break;
+		}
 	}
 
 	*throughput = tp;
 
-	return VOLUME_PATH_ATTENUATED;
+	return (path_missed) ? VOLUME_PATH_MISSED : VOLUME_PATH_ATTENUATED;
 }
 
 /* get the volume attenuation and emission over line segment defined by

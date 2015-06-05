@@ -61,6 +61,8 @@ public:
 	void device_free(Device *device, DeviceScene *dscene);
 
 	bool need_update;
+	/* index for the density field, the one that will be used for ray intersection */
+	int density_index;
 
 	vector<float_volume*> float_volumes;
 	vector<float3_volume*> float3_volumes;

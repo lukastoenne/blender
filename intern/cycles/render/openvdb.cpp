@@ -70,6 +70,10 @@ int VolumeManager::add_volume(const string& filename, const string& name, int sa
 			slot = add_openvdb_volume(filename, name, sampling, grid_type);
 		}
 
+		if(string_iequals(name, "density")) {
+			density_index = slot;
+		}
+
 		add_grid_description(filename, name, sampling, slot);
 
 		need_update = true;
@@ -225,6 +229,7 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	}
 
 	dscene->data.tables.num_volumes = float_volumes.size() + float3_volumes.size();
+	dscene->data.tables.density_index = density_index;
 
 	VLOG(1) << "Volume samplers allocate: __float_volume, " << float_volumes.size() * sizeof(float_volume) << " bytes";
 	VLOG(1) << "Volume samplers allocate: __float3_volume, " << float3_volumes.size() * sizeof(float3_volume) << " bytes";

@@ -22,6 +22,7 @@ public:
 	virtual float sample(float x, float y, float z, int sampling) = 0;
 	virtual bool intersect(const Ray *ray, Intersection *isect) = 0;
 	virtual bool march(float *t0, float *t1) = 0;
+	virtual bool has_uniform_voxels() = 0;
 };
 
 class float3_volume {
@@ -30,6 +31,7 @@ public:
 	virtual float3 sample(float x, float y, float z, int sampling) = 0;
 	virtual bool intersect(const Ray *ray, Intersection *isect) = 0;
 	virtual bool march(float *t0, float *t1) = 0;
+	virtual bool has_uniform_voxels() = 0;
 };
 
 CCL_NAMESPACE_END
@@ -157,10 +159,6 @@ public:
 
 	ccl_always_inline bool intersect(const Ray *ray, Intersection */*isect*/)
 	{
-		if(!uniform_voxels) {
-			return false;
-		}
-
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
 		isector_t *vdb_isect;
@@ -198,33 +196,25 @@ public:
 
 	ccl_always_inline bool march(float *t0, float *t1)
 	{
-		if(!uniform_voxels) {
-			return false;
-		}
-
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
-		isector_t *vdb_isect;
-
-		if(iter == isectors.end()) {
-			vdb_isect = new isector_t(*main_isector);
-			pair<pthread_t, isector_t *> inter(thread, vdb_isect);
-			isectors.insert(inter);
-		}
-		else {
-			vdb_isect = iter->second;
-		}
+		isector_t *vdb_isect = iter->second;
 
 		openvdb::Real vdb_t0(*t0), vdb_t1(*t1);
 
 		if(vdb_isect->march(vdb_t0, vdb_t1)) {
-			*t0 = (float)vdb_t0;
-			*t1 = (float)vdb_t1;
+			*t0 = (float)vdb_isect->getWorldTime(vdb_t0);
+			*t1 = (float)vdb_isect->getWorldTime(vdb_t1);
 
 			return true;
 		}
 
 		return false;
+	}
+
+	ccl_always_inline bool has_uniform_voxels()
+	{
+		return uniform_voxels;
 	}
 };
 
@@ -343,10 +333,6 @@ public:
 
 	ccl_always_inline bool intersect(const Ray *ray, Intersection */*isect*/)
 	{
-		if(!uniform_voxels) {
-			return false;
-		}
-
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
 		isector_t *vdb_isect;
@@ -384,33 +370,25 @@ public:
 
 	ccl_always_inline bool march(float *t0, float *t1)
 	{
-		if(!uniform_voxels) {
-			return false;
-		}
-
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
-		isector_t *vdb_isect;
-
-		if(iter == isectors.end()) {
-			vdb_isect = new isector_t(*main_isector);
-			pair<pthread_t, isector_t *> inter(thread, vdb_isect);
-			isectors.insert(inter);
-		}
-		else {
-			vdb_isect = iter->second;
-		}
+		isector_t *vdb_isect = iter->second;
 
 		openvdb::Real vdb_t0(*t0), vdb_t1(*t1);
 
 		if(vdb_isect->march(vdb_t0, vdb_t1)) {
-			*t0 = (float)vdb_t0;
-			*t1 = (float)vdb_t1;
+			*t0 = (float)vdb_isect->getWorldTime(vdb_t0);
+			*t1 = (float)vdb_isect->getWorldTime(vdb_t1);
 
 			return true;
 		}
 
 		return false;
+	}
+
+	ccl_always_inline bool has_uniform_voxels()
+	{
+		return uniform_voxels;
 	}
 };
 
