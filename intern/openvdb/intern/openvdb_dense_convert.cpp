@@ -107,12 +107,13 @@ GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	MergeScalarGrids op(&(grid[0]->tree()), &(grid[1]->tree()), &(grid[2]->tree()));
 	tools::foreach(vecgrid->beginValueOn(), op, true, false);
 
+	vecgrid->setTransform(transform);
+
 	if (mask) {
 		vecgrid = tools::clip(*vecgrid, *mask);
 	}
 
 	vecgrid->setName(name);
-	vecgrid->setTransform(transform);
 	vecgrid->setIsInWorldSpace(false);
 	vecgrid->setVectorType(vec_type);
 	vecgrid->insertMeta("is_color", BoolMetadata(is_color));

@@ -62,12 +62,13 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 	tools::Dense<const T, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
 	tools::copyFromDense(dense_grid, grid->tree(), 1e-3f);
 
+	grid->setTransform(transform);
+
 	if (mask) {
 		grid = tools::clip(*grid, *mask);
 	}
 
 	grid->setName(name);
-	grid->setTransform(transform);
 	grid->setIsInWorldSpace(false);
 
 	writer->insert(grid);
