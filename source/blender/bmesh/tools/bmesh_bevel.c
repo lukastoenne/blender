@@ -782,11 +782,14 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, bool e
 	}
 }
 
+/* chosen so that 1/sin(BEVEL_GOOD_ANGLE) is about 4, giving that expansion factor to bevel width */
+#define BEVEL_GOOD_ANGLE 0.25f
+
 /* Calculate the meeting point between e1 and e2 (one of which should have zero offsets),
  * where e1 precedes e2 in CCW order around their common vertex v (viewed from normal side).
  * If r_angle is provided, return the angle between e and emeet in *r_angle.
  * If the angle is 0, or it is 180 degrees or larger, there will be no meeting point;
- * return false in that case, else true */
+ * return false in that case, else true. */
 static bool offset_meet_edge(EdgeHalf *e1, EdgeHalf *e2, BMVert *v,  float meetco[3], float *r_angle)
 {
 	float dir1[3], dir2[3], fno[3], ang, sinang;
@@ -798,7 +801,7 @@ static bool offset_meet_edge(EdgeHalf *e1, EdgeHalf *e2, BMVert *v,  float meetc
 
 	/* find angle from dir1 to dir2 as viewed from vertex normal side */
 	ang = angle_normalized_v3v3(dir1, dir2);
-	if (ang < BEVEL_EPSILON) {
+	if (fabs(ang) < BEVEL_GOOD_ANGLE) {
 		if (r_angle)
 			*r_angle = 0.0f;
 		return false;
@@ -809,16 +812,28 @@ static bool offset_meet_edge(EdgeHalf *e1, EdgeHalf *e2, BMVert *v,  float meetc
 	if (r_angle)
 		*r_angle = ang;
 
-	if (ang - (float)M_PI > BEVEL_EPSILON)
+	if (fabs(ang - (float)M_PI) < BEVEL_GOOD_ANGLE)
 		return false;
 
 	sinang = sinf(ang);
+
 	copy_v3_v3(meetco, v->co);
 	if (e1->offset_r == 0.0f)
 		madd_v3_v3fl(meetco, dir1, e2->offset_l / sinang);
 	else
 		madd_v3_v3fl(meetco, dir2, e1->offset_r / sinang);
 	return true;
+}
+
+/* Return true if it will look good to put the meeting point where offset_on_edge_between
+ * would put it. This means that neither side sees a reflex angle */
+static bool good_offset_on_edge_between(EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *emid, BMVert *v)
+{
+	float ang;
+	float meet[3];
+
+	return offset_meet_edge(e1, emid, v, meet, &ang) &&
+	       offset_meet_edge(emid, e2, v, meet, &ang);
 }
 
 /* Calculate the best place for a meeting point for the offsets from edges e1 and e2
@@ -1770,7 +1785,7 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 			offset_meet(e, e2, bv->v, e->fnext, false, co);
 		}
 		else if (nnip > 0) {
-			if (nnip == 1) {
+			if (nnip == 1 && good_offset_on_edge_between(e, e2, enip, bv->v)) {
 				offset_on_edge_between(bp, e, e2, enip, bv->v, co);
 			}
 			else {
@@ -1779,7 +1794,7 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 		}
 		else {
 			/* nip > 0 and nnip == 0 */
-			if (nip == 1) {
+			if (nip == 1 && good_offset_on_edge_between(e, e2, eip, bv->v)) {
 				offset_on_edge_between(bp, e, e2, eip, bv->v, co);
 			}
 			else {
