@@ -2503,7 +2503,7 @@ static OpenVDBCache *openvdb_cache_new(void)
 {
 	OpenVDBCache *cache = NULL;
 
-	cache = MEM_mallocN(sizeof(OpenVDBCache), "OpenVDBCache");
+	cache = MEM_callocN(sizeof(OpenVDBCache), "OpenVDBCache");
 	cache->reader = NULL;
 	cache->writer = NULL;
 	cache->startframe = 1;

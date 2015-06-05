@@ -30,8 +30,6 @@
 extern "C" {
 #endif
 
-struct bNode;
-struct bNodeTree;
 struct OpenVDBReader;
 struct OpenVDBWriter;
 struct OpenVDBFloatGrid;
