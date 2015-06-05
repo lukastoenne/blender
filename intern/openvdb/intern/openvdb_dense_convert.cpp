@@ -62,12 +62,14 @@ public:
 	}
 };
 
-void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
-                                const std::string &name,
-                                const float *data_x, const float *data_y, const float *data_z,
-                                const int res[3],
-                                float fluid_mat[4][4],
-                                VecType vec_type, const bool is_color)
+GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
+                                     const std::string &name,
+                                     const float *data_x, const float *data_y, const float *data_z,
+                                     const int res[3],
+                                     float fluid_mat[4][4],
+                                     VecType vec_type,
+                                     const bool is_color,
+                                     const FloatGrid *mask)
 {
 
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
@@ -105,6 +107,10 @@ void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	MergeScalarGrids op(&(grid[0]->tree()), &(grid[1]->tree()), &(grid[2]->tree()));
 	tools::foreach(vecgrid->beginValueOn(), op, true, false);
 
+	if (mask) {
+		vecgrid = tools::clip(*vecgrid, *mask);
+	}
+
 	vecgrid->setName(name);
 	vecgrid->setTransform(transform);
 	vecgrid->setIsInWorldSpace(false);
@@ -112,6 +118,8 @@ void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	vecgrid->insertMeta("is_color", BoolMetadata(is_color));
 
 	writer->insert(vecgrid);
+
+	return vecgrid.get();
 }
 
 class SplitVectorGrid {

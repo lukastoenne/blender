@@ -34,6 +34,9 @@ struct bNode;
 struct bNodeTree;
 struct OpenVDBReader;
 struct OpenVDBWriter;
+struct OpenVDBFloatGrid;
+struct OpenVDBIntGrid;
+struct OpenVDBVectorGrid;
 
 int OpenVDB_getVersionHex(void);
 
@@ -66,18 +69,22 @@ void OpenVDB_update_fluid_transform(const char *filename,
                                     float matrix[4][4],
                                     float matrix_high[4][4]);
 
-void OpenVDB_export_grid_fl(struct OpenVDBWriter *writer,
-                            const char *name, float *data,
-                            const int res[3], float matrix[4][4]);
+struct OpenVDBFloatGrid *OpenVDB_export_grid_fl(struct OpenVDBWriter *writer,
+                                                const char *name, float *data,
+                                                const int res[3], float matrix[4][4],
+                                                struct OpenVDBFloatGrid *mask);
 
-void OpenVDB_export_grid_ch(struct OpenVDBWriter *writer,
-                            const char *name, unsigned char *data,
-                            const int res[3], float matrix[4][4]);
+struct OpenVDBIntGrid *OpenVDB_export_grid_ch(struct OpenVDBWriter *writer,
+                                              const char *name, unsigned char *data,
+                                              const int res[3], float matrix[4][4],
+                                              struct OpenVDBFloatGrid *mask);
 
-void OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
-                             const char *name,
-                             const float *data_x, const float *data_y, const float *data_z,
-                             const int res[3], float matrix[4][4], short vec_type, const bool is_color);
+struct OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
+                                                  const char *name,
+                                                  const float *data_x, const float *data_y, const float *data_z,
+                                                  const int res[3], float matrix[4][4], short vec_type,
+                                                  const bool is_color,
+                                                  struct OpenVDBFloatGrid *mask);
 
 void OpenVDB_import_grid_fl(struct OpenVDBReader *reader,
                             const char *name, float **data,

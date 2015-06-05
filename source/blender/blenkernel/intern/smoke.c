@@ -3142,6 +3142,7 @@ static void cache_filename(char *string, const char *path, const char *fname, co
 static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
 {
 	int fluid_fields = smoke_get_data_flags(sds);
+	struct OpenVDBFloatGrid *density_grid = NULL;
 
 	OpenVDBWriter_add_meta_int(writer, "fluid_fields", fluid_fields);
 
@@ -3156,46 +3157,47 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		OpenVDBWriter_add_meta_fl(writer, "dx", dx);
 		OpenVDBWriter_add_meta_fl(writer, "dt", dt);
 
-		OpenVDB_export_grid_fl(writer, "Shadow", sds->shadow, sds->res, sds->fluidmat);
-		OpenVDB_export_grid_fl(writer, "Density", dens, sds->res, sds->fluidmat);
+		density_grid = OpenVDB_export_grid_fl(writer, "Density", dens, sds->res, sds->fluidmat, NULL);
+		OpenVDB_export_grid_fl(writer, "Shadow", sds->shadow, sds->res, sds->fluidmat, density_grid);
 
 		if (fluid_fields & SM_ACTIVE_HEAT) {
-			OpenVDB_export_grid_fl(writer, "Heat", heat, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_fl(writer, "Heat Old", heatold, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_fl(writer, "Heat", heat, sds->res, sds->fluidmat, density_grid);
+			OpenVDB_export_grid_fl(writer, "Heat Old", heatold, sds->res, sds->fluidmat, density_grid);
 		}
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			OpenVDB_export_grid_fl(writer, "Flame", flame, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_fl(writer, "Fuel", fuel, sds->res, sds->fluidmat);
-			OpenVDB_export_grid_fl(writer, "React", react, sds->res, sds->fluidmat);
+			OpenVDB_export_grid_fl(writer, "Flame", flame, sds->res, sds->fluidmat, density_grid);
+			OpenVDB_export_grid_fl(writer, "Fuel", fuel, sds->res, sds->fluidmat, density_grid);
+			OpenVDB_export_grid_fl(writer, "React", react, sds->res, sds->fluidmat, density_grid);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			OpenVDB_export_grid_vec(writer, "Color", r, g, b, sds->res, sds->fluidmat, VEC_INVARIANT, true);
+			OpenVDB_export_grid_vec(writer, "Color", r, g, b, sds->res, sds->fluidmat, VEC_INVARIANT, true, density_grid);
 		}
 
-		OpenVDB_export_grid_vec(writer, "Velocity", vx, vy, vz, sds->res, sds->fluidmat, VEC_CONTRAVARIANT_RELATIVE, false);
-		OpenVDB_export_grid_ch(writer, "Obstacles", obstacles, sds->res, sds->fluidmat);
+		OpenVDB_export_grid_vec(writer, "Velocity", vx, vy, vz, sds->res, sds->fluidmat, VEC_CONTRAVARIANT_RELATIVE, false, density_grid);
+		OpenVDB_export_grid_ch(writer, "Obstacles", obstacles, sds->res, sds->fluidmat, density_grid);
 	}
 
 	if (sds->wt) {
 		float *dens, *react, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
+		struct OpenVDBFloatGrid *wt_density_grid;
 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
-		OpenVDB_export_grid_fl(writer, "Density High", dens, sds->res_wt, sds->fluidmat_wt);
+		wt_density_grid = OpenVDB_export_grid_fl(writer, "Density High", dens, sds->res_wt, sds->fluidmat_wt, NULL);
 
 		if (fluid_fields & SM_ACTIVE_FIRE) {
-			OpenVDB_export_grid_fl(writer, "Flame High", flame, sds->res_wt, sds->fluidmat_wt);
-			OpenVDB_export_grid_fl(writer, "Fuel High", fuel, sds->res_wt, sds->fluidmat_wt);
-			OpenVDB_export_grid_fl(writer, "React High", react, sds->res_wt, sds->fluidmat_wt);
+			OpenVDB_export_grid_fl(writer, "Flame High", flame, sds->res_wt, sds->fluidmat_wt, wt_density_grid);
+			OpenVDB_export_grid_fl(writer, "Fuel High", fuel, sds->res_wt, sds->fluidmat_wt, wt_density_grid);
+			OpenVDB_export_grid_fl(writer, "React High", react, sds->res_wt, sds->fluidmat_wt, wt_density_grid);
 		}
 
 		if (fluid_fields & SM_ACTIVE_COLORS) {
-			OpenVDB_export_grid_vec(writer, "Color High", r, g, b, sds->res_wt, sds->fluidmat_wt, VEC_INVARIANT, true);
+			OpenVDB_export_grid_vec(writer, "Color High", r, g, b, sds->res_wt, sds->fluidmat_wt, VEC_INVARIANT, true, wt_density_grid);
 		}
 
-		OpenVDB_export_grid_vec(writer, "Texture Coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat, VEC_INVARIANT, false);
+		OpenVDB_export_grid_vec(writer, "Texture Coordinates", tcu, tcv, tcw, sds->res, sds->fluidmat, VEC_INVARIANT, false, density_grid);
 	}
 }
 

@@ -28,7 +28,9 @@
 #ifndef __OPENVDB_DENSE_CONVERT_H__
 #define __OPENVDB_DENSE_CONVERT_H__
 
+#include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
+#include <openvdb/tools/Clip.h>
 
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
@@ -36,11 +38,12 @@
 namespace internal {
 
 template <typename GridType, typename T>
-void OpenVDB_export_grid(OpenVDBWriter *writer,
-                         const std::string &name,
-                         const T *data,
-                         const int res[3],
-                         float fluid_mat[4][4])
+GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
+                              const std::string &name,
+                              const T *data,
+                              const int res[3],
+                              float fluid_mat[4][4],
+                              const openvdb::FloatGrid *mask)
 {
 	using namespace openvdb;
 
@@ -59,11 +62,17 @@ void OpenVDB_export_grid(OpenVDBWriter *writer,
 	tools::Dense<const T, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
 	tools::copyFromDense(dense_grid, grid->tree(), 1e-3f, true);
 
+	if (mask) {
+		grid = tools::clip(*grid, *mask);
+	}
+
 	grid->setName(name);
 	grid->setTransform(transform);
 	grid->setIsInWorldSpace(false);
 
 	writer->insert(grid);
+
+	return grid.get();
 }
 
 template <typename GridType, typename T>
@@ -97,12 +106,14 @@ void OpenVDB_import_grid(OpenVDBReader *reader,
 #endif
 }
 
-void OpenVDB_export_vector_grid(OpenVDBWriter *writer,
-                                const std::string &name,
-                                const float *data_x, const float *data_y, const float *data_z,
-                                const int res[3],
-                                float fluid_mat[4][4],
-                                openvdb::VecType vec_type, const bool is_color);
+openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
+                                              const std::string &name,
+                                              const float *data_x, const float *data_y, const float *data_z,
+                                              const int res[3],
+                                              float fluid_mat[4][4],
+                                              openvdb::VecType vec_type,
+                                              const bool is_color,
+                                              const openvdb::FloatGrid *mask);
 
 
 void OpenVDB_import_grid_vector(OpenVDBReader *reader,
