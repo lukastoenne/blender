@@ -323,7 +323,7 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 
 	static EnumPropertyItem prop_compression_items[] = {
 		{ VDB_COMPRESSION_ZIP, "ZIP", 0, "Zip", "Slow and effective compression" },
-#if WITH_OPENVDB_BLOSC
+#ifdef WITH_OPENVDB_BLOSC
 		{ VDB_COMPRESSION_BLOSC, "BLOSC", 0, "Blosc", "Multithreaded compression, almost similar in size and quality as 'Zip'" },
 #endif
 		{ VDB_COMPRESSION_NONE, "NONE", 0, "None", "Do not use any compression" },
