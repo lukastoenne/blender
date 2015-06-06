@@ -3127,14 +3127,18 @@ static void cache_filename(char *string, const char *path, const char *fname, co
 {
 	char cachepath[FILE_MAX];
 
-	BLI_join_dirfile(cachepath, sizeof(cachepath), path, fname);
-
 	if (string == NULL) {
 		return;
 	}
 
-	BLI_strncpy(string, cachepath, FILE_MAX - 10);
-	BLI_path_abs(string, relbase);
+	BLI_strncpy(cachepath, path, FILE_MAX - 10);
+	BLI_path_abs(cachepath, relbase);
+
+	if (!BLI_exists(cachepath)) {
+		BLI_dir_create_recursive(cachepath);
+	}
+
+	BLI_join_dirfile(string, sizeof(cachepath), cachepath, fname);
 	BLI_path_frame(string, frame, 4);
 	BLI_ensure_extension(string, FILE_MAX, ".vdb");
 }
