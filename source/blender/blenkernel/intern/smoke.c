@@ -3148,6 +3148,8 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 	int fluid_fields = smoke_get_data_flags(sds);
 	struct OpenVDBFloatGrid *clip_grid = NULL;
 
+	compute_fluid_matrices(sds);
+
 	OpenVDBWriter_add_meta_int(writer, "fluid_fields", fluid_fields);
 
 	if (sds->wt) {
@@ -3177,7 +3179,6 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
 		unsigned char *obstacles;
 
-		compute_fluid_matrices(sds);
 		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat,
 		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
 
