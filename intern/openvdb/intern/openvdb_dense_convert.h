@@ -35,6 +35,8 @@
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
 
+#define TOLERANCE 1e-1f
+
 namespace internal {
 
 template <typename GridType, typename T>
@@ -60,7 +62,7 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 	typename GridType::Ptr grid = GridType::create(T(0));
 
 	tools::Dense<const T, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
-	tools::copyFromDense(dense_grid, grid->tree(), 1e-3f);
+	tools::copyFromDense(dense_grid, grid->tree(), TOLERANCE);
 
 	grid->setTransform(transform);
 
