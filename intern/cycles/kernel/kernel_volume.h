@@ -21,7 +21,8 @@ CCL_NAMESPACE_BEGIN
 typedef enum VolumeIntegrateResult {
 	VOLUME_PATH_SCATTERED = 0,
 	VOLUME_PATH_ATTENUATED = 1,
-	VOLUME_PATH_MISSED = 2
+	VOLUME_PATH_MISSED = 2,
+	VOLUME_PATH_CONTINUE = 3,
 } VolumeIntegrateResult;
 
 /* Volume shader properties
@@ -420,6 +421,112 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGloba
 	return VOLUME_PATH_ATTENUATED;
 }
 
+ccl_device_inline VolumeIntegrateResult kernel_volume_integrate_ray(
+        KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd,
+        PathRadiance *L, float3 *throughput, float t, float new_t,
+        float random_jitter_offset, bool has_scatter, float3 *accum_transmittance,
+        int channel, const float tp_eps, float *xi)
+{
+	float dt = new_t - t;
+	float3 tp = *throughput;
+
+	/* use random position inside this segment to sample shader */
+	if(new_t == ray->t)
+		random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+
+	float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
+	VolumeShaderCoefficients coeff;
+
+	/* compute segment */
+	if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
+		int closure_flag = sd->flag;
+		float3 new_tp;
+		float3 transmittance;
+		bool scatter = false;
+
+		/* distance sampling */
+#ifdef __VOLUME_SCATTER__
+		if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
+			has_scatter = true;
+
+			float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+			float3 sigma_s = coeff.sigma_s;
+
+			/* compute transmittance over full step */
+			transmittance = volume_color_transmittance(sigma_t, dt);
+
+			/* decide if we will scatter or continue */
+			float sample_transmittance = kernel_volume_channel_get(transmittance, channel);
+
+			if(1.0f - *xi >= sample_transmittance) {
+				/* compute sampling distance */
+				float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
+				float new_dt = -logf(1.0f - *xi)/sample_sigma_t;
+				new_t = t + new_dt;
+
+				/* transmittance and pdf */
+				float3 new_transmittance = volume_color_transmittance(sigma_t, new_dt);
+				float3 pdf = sigma_t * new_transmittance;
+
+				/* throughput */
+				new_tp = tp * sigma_s * new_transmittance / average(pdf);
+				scatter = true;
+			}
+			else {
+				/* throughput */
+				float pdf = average(transmittance);
+				new_tp = tp * transmittance / pdf;
+
+				/* remap xi so we can reuse it and keep thing stratified */
+				*xi = 1.0f - (1.0f - *xi)/sample_transmittance;
+			}
+		}
+		else
+#endif
+			if(closure_flag & SD_ABSORPTION) {
+				/* absorption only, no sampling needed */
+				float3 sigma_a = coeff.sigma_a;
+
+				transmittance = volume_color_transmittance(sigma_a, dt);
+				new_tp = tp * transmittance;
+			}
+
+		/* integrate emission attenuated by absorption */
+		if(L && (closure_flag & SD_EMISSION)) {
+			float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
+			path_radiance_accum_emission(L, tp, emission, state->bounce);
+		}
+
+		/* modify throughput */
+		if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
+			tp = new_tp;
+
+			/* stop if nearly all light blocked */
+			if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
+				tp = make_float3(0.0f, 0.0f, 0.0f);
+				*throughput = tp;
+				return VOLUME_PATH_ATTENUATED;
+			}
+		}
+
+		/* prepare to scatter to new direction */
+		if(scatter) {
+			/* adjust throughput and move to new location */
+			sd->P = ray->P + new_t*ray->D;
+			*throughput = tp;
+
+			return VOLUME_PATH_SCATTERED;
+		}
+		else {
+			/* accumulate transmittance */
+			*accum_transmittance *= transmittance;
+		}
+	}
+
+	*throughput = tp;
+	return VOLUME_PATH_CONTINUE;
+}
+
 /* heterogeneous volume distance sampling: integrate stepping through the
  * volume until we reach the end, get absorbed entirely, or run out of
  * iterations. this does probalistically scatter or get transmitted through
@@ -427,7 +534,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGloba
 ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
 	PathState *state, Ray *ray, ShaderData *sd, PathRadiance *L, float3 *throughput, RNG *rng)
 {
-	float3 tp = *throughput;
+	VolumeIntegrateResult result = VOLUME_PATH_MISSED;
 	const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
 
 	/* prepare for stepping */
@@ -446,9 +553,11 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	int channel = (int)(rphase*3.0f);
 	sd->randb_closure = rphase*3.0f - channel;
 	bool has_scatter = false;
+	bool path_missed = true;
+
+#ifdef __OPENVDB__
 	int vdb_index = kernel_data.tables.density_index;
 	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
-	bool path_missed = true;
 
 	if(has_vdb_volume && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
 		/* TODO(kevin): this call should be moved out of here, all it does is
@@ -468,201 +577,32 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 
 			/* Perform small steps through the current leaf or tile. */
 			for(float new_t = step_size * ceilf(t / step_size); new_t <= t1; new_t += step_size) {
-				float dt = new_t - t;
+				result = kernel_volume_integrate_ray(kg, state, ray, sd, L, throughput, t, new_t,
+				                                     random_jitter_offset, has_scatter,
+				                                     &accum_transmittance, channel, tp_eps, &xi);
 
-				/* use random position inside this segment to sample shader */
-				if(new_t == ray->t)
-					random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
-
-				float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
-				VolumeShaderCoefficients coeff;
-
-				/* compute segment */
-				if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
-					int closure_flag = sd->flag;
-					float3 new_tp;
-					float3 transmittance;
-					bool scatter = false;
-
-					/* distance sampling */
-#ifdef __VOLUME_SCATTER__
-					if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
-						has_scatter = true;
-
-						float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
-						float3 sigma_s = coeff.sigma_s;
-
-						/* compute transmittance over full step */
-						transmittance = volume_color_transmittance(sigma_t, dt);
-
-						/* decide if we will scatter or continue */
-						float sample_transmittance = kernel_volume_channel_get(transmittance, channel);
-
-						if(1.0f - xi >= sample_transmittance) {
-							/* compute sampling distance */
-							float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
-							float new_dt = -logf(1.0f - xi)/sample_sigma_t;
-							new_t = t + new_dt;
-
-							/* transmittance and pdf */
-							float3 new_transmittance = volume_color_transmittance(sigma_t, new_dt);
-							float3 pdf = sigma_t * new_transmittance;
-
-							/* throughput */
-							new_tp = tp * sigma_s * new_transmittance / average(pdf);
-							scatter = true;
-						}
-						else {
-							/* throughput */
-							float pdf = average(transmittance);
-							new_tp = tp * transmittance / pdf;
-
-							/* remap xi so we can reuse it and keep thing stratified */
-							xi = 1.0f - (1.0f - xi)/sample_transmittance;
-						}
-					}
-					else
-#endif
-						if(closure_flag & SD_ABSORPTION) {
-							/* absorption only, no sampling needed */
-							float3 sigma_a = coeff.sigma_a;
-
-							transmittance = volume_color_transmittance(sigma_a, dt);
-							new_tp = tp * transmittance;
-						}
-
-					/* integrate emission attenuated by absorption */
-					if(L && (closure_flag & SD_EMISSION)) {
-						float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
-						path_radiance_accum_emission(L, tp, emission, state->bounce);
-					}
-
-					/* modify throughput */
-					if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
-						tp = new_tp;
-
-						/* stop if nearly all light blocked */
-						if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
-							tp = make_float3(0.0f, 0.0f, 0.0f);
-							break;
-						}
-					}
-
-					/* prepare to scatter to new direction */
-					if(scatter) {
-						/* adjust throughput and move to new location */
-						sd->P = ray->P + new_t*ray->D;
-						*throughput = tp;
-
-						return VOLUME_PATH_SCATTERED;
-					}
-					else {
-						/* accumulate transmittance */
-						accum_transmittance *= transmittance;
-					}
-				}
+				if(result != VOLUME_PATH_CONTINUE)
+					return result;
 
 				t = new_t;
 			}
 		}
 	}
-	else {
-		for (int i = 0; i < max_steps; i++) {
+	else
+#endif
+	{
+		path_missed = false;
+
+		for(int i = 0; i < max_steps; i++) {
 			/* advance to new position */
 			float new_t = min(ray->t, (i+1) * step_size);
-			float dt = new_t - t;
 
-			/* use random position inside this segment to sample shader */
-			if(new_t == ray->t)
-				random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+			result = kernel_volume_integrate_ray(kg, state, ray, sd, L, throughput, t, new_t,
+			                                     random_jitter_offset, has_scatter,
+			                                     &accum_transmittance, channel, tp_eps, &xi);
 
-			float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
-			VolumeShaderCoefficients coeff;
-
-			/* compute segment */
-			if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
-				int closure_flag = sd->flag;
-				float3 new_tp;
-				float3 transmittance;
-				bool scatter = false;
-
-				/* distance sampling */
-		#ifdef __VOLUME_SCATTER__
-				if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
-					has_scatter = true;
-
-					float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
-					float3 sigma_s = coeff.sigma_s;
-
-					/* compute transmittance over full step */
-					transmittance = volume_color_transmittance(sigma_t, dt);
-
-					/* decide if we will scatter or continue */
-					float sample_transmittance = kernel_volume_channel_get(transmittance, channel);
-
-					if(1.0f - xi >= sample_transmittance) {
-						/* compute sampling distance */
-						float sample_sigma_t = kernel_volume_channel_get(sigma_t, channel);
-						float new_dt = -logf(1.0f - xi)/sample_sigma_t;
-						new_t = t + new_dt;
-
-						/* transmittance and pdf */
-						float3 new_transmittance = volume_color_transmittance(sigma_t, new_dt);
-						float3 pdf = sigma_t * new_transmittance;
-
-						/* throughput */
-						new_tp = tp * sigma_s * new_transmittance / average(pdf);
-						scatter = true;
-					}
-					else {
-						/* throughput */
-						float pdf = average(transmittance);
-						new_tp = tp * transmittance / pdf;
-
-						/* remap xi so we can reuse it and keep thing stratified */
-						xi = 1.0f - (1.0f - xi)/sample_transmittance;
-					}
-				}
-				else
-		#endif
-					if(closure_flag & SD_ABSORPTION) {
-						/* absorption only, no sampling needed */
-						float3 sigma_a = coeff.sigma_a;
-
-						transmittance = volume_color_transmittance(sigma_a, dt);
-						new_tp = tp * transmittance;
-					}
-
-				/* integrate emission attenuated by absorption */
-				if(L && (closure_flag & SD_EMISSION)) {
-					float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
-					path_radiance_accum_emission(L, tp, emission, state->bounce);
-				}
-
-				/* modify throughput */
-				if(closure_flag & (SD_ABSORPTION|SD_SCATTER)) {
-					tp = new_tp;
-
-					/* stop if nearly all light blocked */
-					if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps) {
-						tp = make_float3(0.0f, 0.0f, 0.0f);
-						break;
-					}
-				}
-
-				/* prepare to scatter to new direction */
-				if(scatter) {
-					/* adjust throughput and move to new location */
-					sd->P = ray->P + new_t*ray->D;
-					*throughput = tp;
-
-					return VOLUME_PATH_SCATTERED;
-				}
-				else {
-					/* accumulate transmittance */
-					accum_transmittance *= transmittance;
-				}
-			}
+			if(result != VOLUME_PATH_CONTINUE)
+				return result;
 
 			/* stop if at the end of the volume */
 			t = new_t;
@@ -670,8 +610,6 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 				break;
 		}
 	}
-
-	*throughput = tp;
 
 	return (path_missed) ? VOLUME_PATH_MISSED : VOLUME_PATH_ATTENUATED;
 }
