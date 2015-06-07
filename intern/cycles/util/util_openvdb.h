@@ -38,9 +38,21 @@ CCL_NAMESPACE_END
 
 #ifdef WITH_OPENVDB
 
+/* They are too many implicit float conversions happening in OpenVDB, disabling
+ * errors for now (kevin) */
+#ifdef __GNUC__
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wfloat-conversion"
+#	pragma GCC diagnostic ignored "-Wdouble-promotion"
+#endif
+
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Interpolation.h>
 #include <openvdb/tools/RayIntersector.h>
+
+#ifdef __GNUC__
+#	pragma GCC diagnostic pop
+#endif
 
 CCL_NAMESPACE_BEGIN
 

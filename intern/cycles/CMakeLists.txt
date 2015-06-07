@@ -149,6 +149,7 @@ endif()
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
 	add_definitions(-DOPENVDB_USE_BLOSC)
+	add_definitions(-DDWREAL_IS_DOUBLE=0)
 	include_directories(
 		${OPENVDB_INCLUDE_DIRS}
 	)
@@ -205,8 +206,6 @@ include_directories(
 	${OPENIMAGEIO_INCLUDE_DIRS}/OpenImageIO
 	${OPENEXR_INCLUDE_DIR}
 	${OPENEXR_INCLUDE_DIRS}
-	# TODO(kevin)
-	${OPENVDB_INCLUDE_DIRS}
 	${PUGIXML_INCLUDE_DIR}
 )
 
