@@ -3123,7 +3123,7 @@ static void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVD
 	OpenVDBWriter_add_meta_mat4(writer, "obmat", sds->obmat);
 }
 
-static void cache_filename(char *string, const char *path, const char *fname, const char *relbase, int frame)
+void BKE_openvdb_cache_filename(char *string, const char *path, const char *fname, const char *relbase, int frame)
 {
 	char cachepath[FILE_MAX];
 
@@ -3348,7 +3348,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
 
-		cache_filename(filename, cache->path, cache->name, relbase, fr);
+		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
 
 		smokeModifier_process(smd, scene, ob, dm, false);
 
@@ -3405,7 +3405,7 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 	for_display = true;
 
-	cache_filename(filename, cache->path, cache->name, relbase, CFRA);
+	BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, CFRA);
 	cache->reader = OpenVDBReader_create(filename);
 
 	OpenVDB_read_fluid_settings(sds, cache->reader);
@@ -3451,7 +3451,7 @@ void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
 
-		cache_filename(filename, cache->path, cache->name, relbase, fr);
+		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
 		compute_fluid_matrices(sds);
 		OpenVDB_update_fluid_transform(filename, sds->fluidmat, sds->fluidmat_wt);
 

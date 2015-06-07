@@ -45,6 +45,7 @@
 #include "DNA_smoke_types.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_fileops.h"
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -2408,12 +2409,49 @@ static int smoke_vdb_export_exec(bContext *C, wmOperator *op)
 	UNUSED_VARS(op);
 }
 
+static int smoke_vdb_export_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Object *ob = CTX_data_active_object(C);
+	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	const char *relbase = modifier_path_relbase(ob);
+	char filename[FILE_MAX];
+
+	if (!cache)
+		return OPERATOR_CANCELLED;
+
+	BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, cache->startframe);
+
+	if (BLI_exists(filename)) {
+		if (BLI_is_file(filename)) {
+			if (BLI_file_is_writable(filename)) {
+				return WM_operator_confirm_message(C, op, "Cache target already exists! Overwrite?");
+			}
+			else {
+				BKE_reportf(op->reports, RPT_ERROR, "Cannot overwrite cache target: %200s", filename);
+				return OPERATOR_CANCELLED;
+			}
+		}
+		else {
+			BKE_reportf(op->reports, RPT_ERROR, "Invalid cache target: %200s", filename);
+			return OPERATOR_CANCELLED;
+		}
+	}
+	else {
+		return smoke_vdb_export_exec(C, op);
+	}
+
+	UNUSED_VARS(event);
+}
+
 void OBJECT_OT_smoke_vdb_export(wmOperatorType *ot)
 {
 	ot->name = "Export to OpenVDB";
 	ot->description = "Export simulation to the OpenVDB representation";
 	ot->idname = "OBJECT_OT_smoke_vdb_export";
 
+	ot->invoke = smoke_vdb_export_invoke;
 	ot->poll = ED_operator_object_active_editable;
 	ot->exec = smoke_vdb_export_exec;
 
