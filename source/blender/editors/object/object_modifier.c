@@ -2304,6 +2304,24 @@ void OBJECT_OT_laplaciandeform_bind(wmOperatorType *ot)
 
 /************************ OpenVDB smoke convertor operator *********************/
 
+static int openvdb_cache_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	SmokeModifierData *smd = NULL;
+
+	if (!ob) {
+		return false;
+	}
+
+	smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+
+	if (!smd) {
+		return false;
+	}
+
+	return true;
+}
+
 typedef struct SmokeExportJob {
 	/* from wmJob */
 	void *owner;
@@ -2378,7 +2396,7 @@ static void smoke_export_endjob(void *customdata)
 
 static int smoke_vdb_export_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = ED_object_active_context(C);
+	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	Scene *scene = CTX_data_scene(C);
 	wmJob *wm_job;
@@ -2452,7 +2470,7 @@ void OBJECT_OT_smoke_vdb_export(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_smoke_vdb_export";
 
 	ot->invoke = smoke_vdb_export_invoke;
-	ot->poll = ED_operator_object_active_editable;
+	ot->poll = openvdb_cache_poll;
 	ot->exec = smoke_vdb_export_exec;
 
 	/* flags */
@@ -2478,7 +2496,7 @@ static void smoke_transform_startjob(void *customdata, short *stop, short *do_up
 
 static int smoke_transform_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = ED_object_active_context(C);
+	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	Scene *scene = CTX_data_scene(C);
 	wmJob *wm_job;
@@ -2515,7 +2533,7 @@ void OBJECT_OT_smoke_vdb_transform_update(wmOperatorType *ot)
 	ot->description = "Update transformation matrices for all grids in the file";
 	ot->idname = "OBJECT_OT_smoke_vdb_transform_update";
 
-	ot->poll = ED_operator_object_active_editable;
+	ot->poll = openvdb_cache_poll;
 	ot->exec = smoke_transform_exec;
 
 	/* flags */
@@ -2555,7 +2573,7 @@ static OpenVDBCache *openvdb_cache_new(void)
 
 static int openvdb_cache_add_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = ED_object_active_context(C);
+	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	SmokeDomainSettings *sds = smd->domain;
 	OpenVDBCache *cache, *cache_new;
@@ -2590,7 +2608,7 @@ void OBJECT_OT_openvdb_cache_add(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_openvdb_cache_add";
 
 	/* api callbacks */
-	ot->poll = ED_operator_object_active_editable;
+	ot->poll = openvdb_cache_poll;
 	ot->exec = openvdb_cache_add_exec;
 
 	/* flags */
@@ -2599,7 +2617,7 @@ void OBJECT_OT_openvdb_cache_add(wmOperatorType *ot)
 
 static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = ED_object_active_context(C);
+	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	SmokeDomainSettings *sds = smd->domain;
 	OpenVDBCache *cache, *cache_prev = NULL, *cache_next = NULL;
@@ -2639,7 +2657,7 @@ void OBJECT_OT_openvdb_cache_remove(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_openvdb_cache_remove";
 
 	/* api callbacks */
-	ot->poll = ED_operator_object_active_editable;
+	ot->poll = openvdb_cache_poll;
 	ot->exec = openvdb_cache_remove_exec;
 
 	/* flags */
@@ -2653,7 +2671,7 @@ enum {
 
 static int openvdb_cache_move_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = ED_object_active_context(C);
+	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 	SmokeDomainSettings *sds = smd->domain;
 	OpenVDBCache *cache;
@@ -2695,7 +2713,7 @@ void OBJECT_OT_openvdb_cache_move(wmOperatorType *ot)
 	ot->description = "Move levelset filter up or down the list";
 	ot->idname = "OBJECT_OT_openvdb_cache_move";
 
-	ot->poll = ED_operator_object_active_editable;
+	ot->poll = openvdb_cache_poll;
 	ot->exec = openvdb_cache_move_exec;
 
 	/* flags */
