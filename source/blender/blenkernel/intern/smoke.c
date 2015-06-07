@@ -3123,13 +3123,9 @@ static void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVD
 	OpenVDBWriter_add_meta_mat4(writer, "obmat", sds->obmat);
 }
 
-void BKE_openvdb_cache_filename(char *string, const char *path, const char *fname, const char *relbase, int frame)
+void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame)
 {
 	char cachepath[FILE_MAX];
-
-	if (string == NULL) {
-		return;
-	}
 
 	BLI_strncpy(cachepath, path, FILE_MAX - 10);
 	BLI_path_abs(cachepath, relbase);
@@ -3138,9 +3134,10 @@ void BKE_openvdb_cache_filename(char *string, const char *path, const char *fnam
 		BLI_dir_create_recursive(cachepath);
 	}
 
-	BLI_join_dirfile(string, sizeof(cachepath), cachepath, fname);
-	BLI_path_frame(string, frame, 4);
-	BLI_ensure_extension(string, FILE_MAX, ".vdb");
+	BLI_join_dirfile(r_filename, sizeof(cachepath), cachepath, fname);
+	BLI_path_suffix(r_filename, FILE_MAX, "", "_");
+	BLI_path_frame(r_filename, frame, 4);
+	BLI_ensure_extension(r_filename, FILE_MAX, ".vdb");
 }
 
 static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
