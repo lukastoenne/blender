@@ -28,23 +28,15 @@
 
 #include <openvdb/openvdb.h>
 
-class OpenVDBFile {
-	openvdb::io::File m_file;
-
-public:
-	OpenVDBFile(const std::string &name);
-	openvdb::MetaMap::Ptr metamap() const;
-};
-
 class OpenVDBReader {
 	openvdb::MetaMap::Ptr m_meta_map;
-	openvdb::io::File m_file;
+	openvdb::io::File *m_file;
 
 public:
-	OpenVDBReader(const std::string &filename);
+	OpenVDBReader();
 	~OpenVDBReader();
 
-	void read(const std::string &filename);
+	void open(const std::string &filename);
 
 	void floatMeta(const std::string &name, float &value);
 	void intMeta(const std::string &name, int &value);

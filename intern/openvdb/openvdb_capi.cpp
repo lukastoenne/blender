@@ -203,15 +203,20 @@ void OpenVDBWriter_write(OpenVDBWriter *writer, const char *filename)
 	writer->write(filename);
 }
 
-OpenVDBReader *OpenVDBReader_create(const char *filename)
+OpenVDBReader *OpenVDBReader_create()
 {
-	return new OpenVDBReader(filename);
+	return new OpenVDBReader();
 }
 
 void OpenVDBReader_free(OpenVDBReader *reader)
 {
 	delete reader;
 	reader = NULL;
+}
+
+void OpenVDBReader_open(OpenVDBReader *reader, const char *filename)
+{
+	reader->open(filename);
 }
 
 void OpenVDBReader_get_meta_fl(OpenVDBReader *reader, const char *name, float *value)

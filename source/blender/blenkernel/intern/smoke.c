@@ -402,6 +402,7 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 		while ((cache = BLI_pophead(&(smd->domain->vdb_caches)))) {
 #ifdef WITH_OPENVDB
 			OpenVDBWriter_free(cache->writer);
+			OpenVDBReader_free(cache->reader);
 #endif
 			MEM_freeN(cache);
 		}
@@ -3400,16 +3401,16 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 		return;
 	}
 
+	if (cache->reader == NULL) {
+		cache->reader = OpenVDBReader_create();
+	}
+
 	for_display = true;
 
 	BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, CFRA);
-	cache->reader = OpenVDBReader_create(filename);
-
+	OpenVDBReader_open(cache->reader, filename);
 	OpenVDB_read_fluid_settings(sds, cache->reader);
 	OpenVDB_import_smoke(sds, cache->reader, for_display);
-
-	/* XXX */
-	OpenVDBReader_free(cache->reader);
 
 	if (ret == OPENVDB_IO_ERROR) {
 		/* TODO(kevin): report error "OpenVDB import error, see console for details" */

@@ -25,18 +25,37 @@
 
 #include "openvdb_reader.h"
 
-OpenVDBReader::OpenVDBReader(const std::string &filename)
-    : m_file(filename)
+#define COPY_MAX_BYTES 10485760 /* 10 Mb */
+
+OpenVDBReader::OpenVDBReader()
+    : m_meta_map(new openvdb::MetaMap)
 {
 	/* Although it is safe, it may not be good to have this here... */
 	openvdb::initialize();
-
-	m_file.open();
-	m_meta_map = m_file.getMetadata();
+	m_file = NULL;
 }
 
 OpenVDBReader::~OpenVDBReader()
-{}
+{
+	if (m_file) {
+		m_file->close();
+		delete m_file;
+	}
+}
+
+void OpenVDBReader::open(const std::string &filename)
+{
+	if (m_file) {
+		m_file->close();
+		delete m_file;
+	}
+
+	m_file = new openvdb::io::File(filename);
+	m_file->setCopyMaxBytes(COPY_MAX_BYTES);
+	m_file->open();
+
+	m_meta_map = m_file->getMetadata();
+}
 
 void OpenVDBReader::floatMeta(const std::string &name, float &value)
 {
@@ -79,10 +98,10 @@ void OpenVDBReader::mat4sMeta(const std::string &name, float value[4][4])
 
 openvdb::GridBase::Ptr OpenVDBReader::getGrid(const std::string &name)
 {
-	return m_file.readGrid(name);
+	return m_file->readGrid(name);
 }
 
 size_t OpenVDBReader::numGrids() const
 {
-	return m_file.getGrids()->size();
+	return m_file->getGrids()->size();
 }
