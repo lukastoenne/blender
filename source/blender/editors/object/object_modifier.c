@@ -2407,7 +2407,7 @@ static int smoke_vdb_export_exec(bContext *C, wmOperator *op)
 	}
 
 	/* setup job */
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "OpenVDB export",
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "OpenVDB Export",
 	                     WM_JOB_PROGRESS, WM_JOB_TYPE_SMOKE_EXPORT);
 
 	sej = MEM_callocN(sizeof(SmokeExportJob), "smoke export job");
@@ -2507,7 +2507,7 @@ static int smoke_transform_exec(bContext *C, wmOperator *op)
 	}
 
 	/* setup job */
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "OpenVDB export",
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "OpenVDB Export",
 	                     WM_JOB_PROGRESS, WM_JOB_TYPE_SMOKE_EXPORT);
 
 	sej = MEM_callocN(sizeof(SmokeExportJob), "smoke export job");
@@ -2529,8 +2529,8 @@ static int smoke_transform_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_smoke_vdb_transform_update(wmOperatorType *ot)
 {
-	ot->name = "Update transform matrix";
-	ot->description = "Update transformation matrices for all grids in the file";
+	ot->name = "Update Transformation";
+	ot->description = "Update transformation matrices for all grids in every file for this cache";
 	ot->idname = "OBJECT_OT_smoke_vdb_transform_update";
 
 	ot->poll = openvdb_cache_poll;
@@ -2652,8 +2652,8 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 void OBJECT_OT_openvdb_cache_remove(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Remove OpenVDB cache";
-	ot->description = "Remove the currently selected OpenVDB cache";
+	ot->name = "Remove Cache";
+	ot->description = "Remove the currently selected cache";
 	ot->idname = "OBJECT_OT_openvdb_cache_remove";
 
 	/* api callbacks */
@@ -2709,8 +2709,8 @@ void OBJECT_OT_openvdb_cache_move(wmOperatorType *ot)
 	    { 0, NULL, 0, NULL, NULL }
 	};
 
-	ot->name = "Move OpenVDB cache";
-	ot->description = "Move levelset filter up or down the list";
+	ot->name = "Move Cache";
+	ot->description = "Move cache up or down the list";
 	ot->idname = "OBJECT_OT_openvdb_cache_move";
 
 	ot->poll = openvdb_cache_poll;
