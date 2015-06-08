@@ -162,6 +162,38 @@ ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg, PathState *s
 		*throughput *= volume_color_transmittance(sigma_t, ray->t);
 }
 
+ccl_device_inline bool kernel_volume_integrate_shadow_ray(
+        KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd,
+        float3 *tp, float t, float new_t, float random_jitter_offset,
+        float3 *sum, float tp_eps, int i)
+{
+	float dt = new_t - t;
+
+	/* use random position inside this segment to sample shader */
+	if(new_t == ray->t)
+		random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+
+	float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
+	float3 sigma_t;
+
+	/* compute attenuation over segment */
+	if(volume_shader_extinction_sample(kg, sd, state, new_P, &sigma_t)) {
+		/* Compute expf() only for every Nth step, to save some calculations
+		 * because exp(a)*exp(b) = exp(a+b), also do a quick tp_eps check then. */
+
+		*sum += (-sigma_t * (new_t - t));
+		if((i & 0x07) == 0) { /* ToDo: Other interval? */
+			*tp = *tp * make_float3(expf(sum->x), expf(sum->y), expf(sum->z));
+
+			/* stop if nearly all light is blocked */
+			if(tp->x < tp_eps && tp->y < tp_eps && tp->z < tp_eps)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 /* heterogeneous volume: integrate stepping through the volume until we
  * reach the end, get absorbed entirely, or run out of iterations */
 ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd, float3 *throughput)
@@ -179,41 +211,65 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 
 	float3 sum = make_float3(0.0f, 0.0f, 0.0f);
 
-	for(int i = 0; i < max_steps; i++) {
-		/* advance to new position */
-		float new_t = min(ray->t, (i+1) * step);
-		float dt = new_t - t;
+#ifdef __OPENVDB__
+	int vdb_index = kernel_data.tables.density_index;
+	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
+	float t1 = 0.0f;
 
-		/* use random position inside this segment to sample shader */
-		if(new_t == ray->t)
-			random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+	if(has_vdb_volume && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
+		/* TODO(kevin): this call should be moved out of here, all it does is
+		 * checking if we have an intersection with the boundbox of the volumue
+		 * which in most cases corresponds to the boundbox of the object that has
+		 * this volume. Also it initializes the rays for the ray marching. */
+		if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
+			return;
+		}
 
-		float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
-		float3 sigma_t;
+		/* t and t1 represent the entry and exit points for each leaf node or tile
+		 * containing active voxels. If we don't have any active node in the current
+		 * ray path (i.e. empty space) the ray march loop is not executed,
+		 * otherwise we loop through all leaves until the end of the volume. */
+		while(kg->float_volumes[vdb_index]->march(&t, &t1)) {
+			int i = 0;
 
-		/* compute attenuation over segment */
-		if(volume_shader_extinction_sample(kg, sd, state, new_P, &sigma_t)) {
-			/* Compute expf() only for every Nth step, to save some calculations
-			 * because exp(a)*exp(b) = exp(a+b), also do a quick tp_eps check then. */
+			/* Perform small steps through the current leaf or tile. */
+			for(float new_t = step * ceilf(t / step); new_t <= t1; new_t += step) {
+				bool ok = kernel_volume_integrate_shadow_ray(
+				              kg, state, ray, sd, &tp, t, new_t, random_jitter_offset,
+				              &sum, tp_eps, i);
 
-			sum += (-sigma_t * (new_t - t));
-			if((i & 0x07) == 0) { /* ToDo: Other interval? */
-				tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
+				if (ok) {
+					*throughput = tp;
+					return;
+				}
 
-				/* stop if nearly all light is blocked */
-				if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps)
-					break;
+				/* stop if at the end of the volume */
+				t = new_t;
+				i++;
 			}
 		}
+	}
+	else
+#endif
+	{
+		for(int i = 0; i < max_steps; i++) {
+			/* advance to new position */
+			float new_t = min(ray->t, (i+1) * step);
 
-		/* stop if at the end of the volume */
-		t = new_t;
-		if(t == ray->t) {
-			/* Update throughput in case we haven't done it above */
-			tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
-			break;
+			bool ok = kernel_volume_integrate_shadow_ray(
+			              kg, state, ray, sd, &tp, t, new_t, random_jitter_offset,
+			              &sum, tp_eps, i);
+
+			/* stop if at the end of the volume */
+			t = new_t;
+			if(ok || t == ray->t) {
+				break;
+			}
 		}
 	}
+
+	/* Update throughput in case we haven't done it above */
+	tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
 
 	*throughput = tp;
 }
