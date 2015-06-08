@@ -857,7 +857,7 @@ typedef struct NodeShaderUVMap {
 
 typedef struct OpenVDBGridInfo {
 	struct OpenVDBGridInfo *next, *prev;
-
+	
 	char name[64]; /* MAX_NAME */
 	short flag;
 	short type;
@@ -865,21 +865,21 @@ typedef struct OpenVDBGridInfo {
 } OpenVDBGridInfo;
 
 typedef enum eOpenVDBGridInfo_Flag {
-	OPENVDB_FLAG_UNIFORM_VOXELS  = (1 << 0),
+	OPENVDB_FLAG_UNIFORM_VOXELS         = (1 << 0),
 } eOpenVDBGridInfo_Flag;
 
 typedef enum eOpenVDBGridInfo_Type {
-	OPENVDB_TYPE_UNKNOWN = 0,
-	OPENVDB_TYPE_FLOAT   = 1,
-	OPENVDB_TYPE_VEC3    = 2,
-	OPENVDB_TYPE_COLOR   = 3,
+	OPENVDB_TYPE_UNKNOWN                = 0,
+	OPENVDB_TYPE_FLOAT                  = 1,
+	OPENVDB_TYPE_VEC3                   = 2,
+	OPENVDB_TYPE_COLOR                  = 3,
 } eOpenVDBGridInfo_Type;
 
 typedef struct NodeShaderOpenVDB {
 	char filename[1024];
 	short sampling, source;
 	int pad;
-
+	
 	ListBase grid_info;
 } NodeShaderOpenVDB;
 

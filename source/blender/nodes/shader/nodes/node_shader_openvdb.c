@@ -55,7 +55,7 @@ static void node_shader_copy_openvdb(bNodeTree *UNUSED(dest_ntree), bNode *dst_n
 	if (dst_node->storage) {
 		NodeShaderOpenVDB *src_vdb = src_node->storage;
 		NodeShaderOpenVDB *dst_vdb = dst_node->storage;
-
+		
 		BLI_duplicatelist(&dst_vdb->grid_info, &src_vdb->grid_info);
 	}
 }
@@ -78,7 +78,7 @@ static void node_openvdb_get_info(void *userdata, const char *name, const char *
 {
 	NodeShaderOpenVDB *vdb = userdata;
 	OpenVDBGridInfo *info = MEM_callocN(sizeof(OpenVDBGridInfo), "openvdb grid info");
-
+	
 	BLI_strncpy(info->name, name, sizeof(info->name));
 	if (STREQ(value_type, "float"))
 		info->type = OPENVDB_TYPE_FLOAT;
@@ -90,9 +90,9 @@ static void node_openvdb_get_info(void *userdata, const char *name, const char *
 	}
 	else
 		info->type = OPENVDB_TYPE_UNKNOWN;
-
+	
 	info->flag = 0;
-
+	
 	BLI_addtail(&vdb->grid_info, info);
 }
 
@@ -114,7 +114,7 @@ static void node_openvdb_get_sockets(Main *bmain, bNodeTree *ntree, bNode *node)
 
 	BLI_freelistN(&vdb->grid_info);
 	OpenVDB_get_grid_info(filename, node_openvdb_get_info, vdb);
-
+	
 	for (info = vdb->grid_info.first; info; info = info->next) {
 		switch (info->type) {
 			case OPENVDB_TYPE_FLOAT:
