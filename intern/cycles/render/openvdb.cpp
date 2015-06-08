@@ -70,7 +70,7 @@ int VolumeManager::add_volume(const string& filename, const string& name, int sa
 			slot = add_openvdb_volume(filename, name, sampling, grid_type);
 		}
 
-		if(string_iequals(name, "density")) {
+		if(string_iequals(name, "density") || string_iequals(name, "density high")) {
 			density_index = slot;
 		}
 
