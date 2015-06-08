@@ -35,7 +35,7 @@
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
 
-#define TOLERANCE 1e-1f
+#define TOLERANCE 1e-3f
 
 namespace internal {
 
