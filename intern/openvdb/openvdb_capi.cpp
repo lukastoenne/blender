@@ -38,10 +38,7 @@ int OpenVDB_getVersionHex()
     return OPENVDB_LIBRARY_VERSION;
 }
 
-void OpenVDB_get_grid_names_and_types(const char *filename,
-                                      char **grid_names,
-                                      char **grid_types,
-                                      int *num_grids)
+void OpenVDB_get_grid_info(const char *filename, OpenVDBGridInfoCallback cb, void *userdata)
 {
 	int ret = OPENVDB_NO_ERROR;
 	initialize();
@@ -51,23 +48,20 @@ void OpenVDB_get_grid_names_and_types(const char *filename,
 		file.open();
 
 		GridPtrVecPtr grids = file.getGrids();
+		int grid_num = grids->size();
 
-		*num_grids = grids->size();
-
-		for (size_t i = 0; i < *num_grids; ++i) {
+		for (size_t i = 0; i < grid_num; ++i) {
 			GridBase::ConstPtr grid = (*grids)[i];
-			grid_names[i] = strdup(grid->getName().c_str());
 
-			/* XXX - this is blender specific, for external files it might crash if
-			 * it doens't find a "is_color" metaValue, cases where it doens't crash
-			 * are when the vector grids are at the end of the grid vector.
-			 */
-			if (grid->valueType() == "vec3s" && grid->metaValue<bool>("is_color")) {
-				grid_types[i] = strdup("color");
+			const char *name = strdup(grid->getName().c_str());
+			const char *value_type = strdup(grid->valueType().c_str());
+			bool is_color = false;
+
+			if (grid->getMetadata< TypedMetadata<bool> >("is_color")) {
+				is_color = grid->metaValue<bool>("is_color");
 			}
-			else {
-				grid_types[i] = strdup(grid->valueType().c_str());
-			}
+
+			cb(userdata, name, value_type, is_color);
 		}
 	}
 	catch (...) {
