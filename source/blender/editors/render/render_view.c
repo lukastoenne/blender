@@ -197,7 +197,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my)
 
 				/* we already had a fullscreen here -> mark new space as a stacked fullscreen */
 				if (sa->full) {
-					sa->flag |= AREA_FLAG_STACKED_FULLSCREEN;
+					sa->flag |= (AREA_FLAG_STACKED_FULLSCREEN | AREA_FLAG_TEMP_TYPE);
 				}
 			}
 			else {
@@ -261,7 +261,7 @@ static int render_view_cancel_exec(bContext *C, wmOperator *UNUSED(op))
 
 		if (sima->flag & SI_FULLWINDOW) {
 			sima->flag &= ~SI_FULLWINDOW;
-			ED_screen_full_prevspace(C, sa);
+			ED_screen_full_prevspace(C, sa, false);
 		}
 		else {
 			ED_area_prevspace(C, sa);
@@ -326,7 +326,7 @@ static int render_view_show_invoke(bContext *C, wmOperator *UNUSED(op), const wm
 
 					if (sima->flag & SI_FULLWINDOW) {
 						sima->flag &= ~SI_FULLWINDOW;
-						ED_screen_full_prevspace(C, sa);
+						ED_screen_full_prevspace(C, sa, false);
 					}
 					else if (sima->next) {
 						/* workaround for case of double prevspace, render window
