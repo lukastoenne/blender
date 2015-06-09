@@ -883,6 +883,8 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 					writelist(wd, DATA, "OpenVDBGridInfo", &vdb->grid_info);
 					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 				}
+				else
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 			}
 			else if (ntree->type==NTREE_COMPOSIT) {
 				if (ELEM(node->type, CMP_NODE_TIME, CMP_NODE_CURVE_VEC, CMP_NODE_CURVE_RGB, CMP_NODE_HUECORRECT))
@@ -890,13 +892,15 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 				else if (node->type==CMP_NODE_MOVIEDISTORTION) {
 					/* pass */
 				}
+				else
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 			}
 			else if (ntree->type==NTREE_TEXTURE) {
 				if (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME)
 					write_curvemapping(wd, node->storage);
+				else
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 			}
-			else
-				writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 		}
 		
 		if (node->type==CMP_NODE_OUTPUT_FILE) {
