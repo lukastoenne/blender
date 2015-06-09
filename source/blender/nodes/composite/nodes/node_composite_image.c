@@ -200,7 +200,7 @@ static void cmp_node_image_add_multilayer_outputs(bNodeTree *ntree, bNode *node,
 	}
 }
 
-static void cmp_node_image_create_outputs(bNodeTree *ntree, bNode *node)
+static void cmp_node_image_create_outputs(void *UNUSED(userdata), bNodeTree *ntree, bNode *node)
 {
 	Image *ima = (Image *)node->id;
 	if (ima) {
@@ -244,80 +244,9 @@ static void cmp_node_image_create_outputs(bNodeTree *ntree, bNode *node)
 		cmp_node_image_add_render_pass_outputs(ntree, node, RRES_OUT_IMAGE | RRES_OUT_ALPHA);
 }
 
-static bNodeSocket *cmp_node_image_output_find_match(bNode *UNUSED(node), bNodeSocket *newsock, ListBase *oldsocklist)
-{
-	bNodeSocket *sock;
-	
-	for (sock = oldsocklist->first; sock; sock = sock->next)
-		if (STREQ(sock->name, newsock->name))
-			return sock;
-	return NULL;
-}
-
-static bNodeSocket *cmp_node_image_output_relink(bNode *node, bNodeSocket *oldsock, int oldindex)
-{
-	bNodeSocket *sock;
-	
-	/* first try to find matching socket name */
-	for (sock = node->outputs.first; sock; sock = sock->next)
-		if (STREQ(sock->name, oldsock->name))
-			return sock;
-	
-	/* no matching name, simply link to same index */
-	return BLI_findlink(&node->outputs, oldindex);
-}
-
-static void cmp_node_image_sync_output(bNode *UNUSED(node), bNodeSocket *UNUSED(newsock), bNodeSocket *UNUSED(oldsock))
-{
-	/* pass */
-}
-
-/* XXX make this into a generic socket verification function for dynamic socket replacement (multilayer, groups, static templates) */
 static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node)
 {
-	bNodeSocket *newsock, *oldsock, *oldsock_next;
-	ListBase oldsocklist;
-	int oldindex;
-	bNodeLink *link;
-	
-	/* store current nodes in oldsocklist, then clear socket list */
-	oldsocklist = node->outputs;
-	BLI_listbase_clear(&node->outputs);
-	
-	/* XXX make callback */
-	cmp_node_image_create_outputs(ntree, node);
-	
-	for (newsock = node->outputs.first; newsock; newsock = newsock->next) {
-		/* XXX make callback */
-		oldsock = cmp_node_image_output_find_match(node, newsock, &oldsocklist);
-		if (oldsock) {
-			/* XXX make callback */
-			cmp_node_image_sync_output(node, newsock, oldsock);
-		}
-	}
-	
-	/* move links to new socket */
-	for (oldsock = oldsocklist.first, oldindex = 0; oldsock; oldsock = oldsock->next, ++oldindex) {
-		newsock = cmp_node_image_output_relink(node, oldsock, oldindex);
-		
-		if (newsock) {
-			for (link = ntree->links.first; link; link = link->next) {
-				if (link->fromsock == oldsock)
-					link->fromsock = newsock;
-			}
-		}
-	}
-	
-	/* delete old sockets
-	 * XXX oldsock is not actually in the node->outputs list any more,
-	 * but the nodeRemoveSocket function works anyway. In future this
-	 * should become part of the core code, so can take care of this behavior.
-	 */
-	for (oldsock = oldsocklist.first; oldsock; oldsock = oldsock_next) {
-		oldsock_next = oldsock->next;
-		MEM_freeN(oldsock->storage);
-		nodeRemoveSocket(ntree, node, oldsock);
-	}
+	nodeSyncOutputs(ntree, node, cmp_node_image_create_outputs, NULL, NULL);
 }
 
 static void cmp_node_image_update(bNodeTree *ntree, bNode *node)

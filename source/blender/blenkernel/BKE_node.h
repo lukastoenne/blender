@@ -453,6 +453,14 @@ struct bNodeSocket *nodeInsertStaticSocket(struct bNodeTree *ntree, struct bNode
 void nodeRemoveSocket(struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *sock);
 void nodeRemoveAllSockets(struct bNodeTree *ntree, struct bNode *node);
 
+typedef void (*CreateSocketsCB)(void *userdata, struct bNodeTree *ntree, struct bNode *node);
+typedef void (*SyncSocketCB)(void *userdata, struct bNode *node, struct bNodeSocket *newsock, struct bNodeSocket *oldsock);
+/* create_outputs_cb must create new sockets using nodeAddSocket/nodeAddStaticSocket
+ * sync_output_cb is optional, for copying settings from old to new socket if needed
+ */
+void nodeSyncInputs(struct bNodeTree *ntree, struct bNode *node, CreateSocketsCB create_inputs_cb, SyncSocketCB sync_input_cb, void *userdata);
+void nodeSyncOutputs(struct bNodeTree *ntree, struct bNode *node, CreateSocketsCB create_outputs_cb, SyncSocketCB sync_output_cb, void *userdata);
+
 struct bNode	*nodeAddNode(const struct bContext *C, struct bNodeTree *ntree, const char *idname);
 struct bNode	*nodeAddStaticNode(const struct bContext *C, struct bNodeTree *ntree, int type);
 void            nodeUnlinkNode(struct bNodeTree *ntree, struct bNode *node);

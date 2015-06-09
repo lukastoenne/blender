@@ -61,19 +61,6 @@ static void node_shader_copy_openvdb(bNodeTree *UNUSED(dest_ntree), bNode *dst_n
 }
 
 #ifdef WITH_OPENVDB
-static bNodeSocket *node_output_relink(bNode *node, bNodeSocket *oldsock, int oldindex)
-{
-	bNodeSocket *sock;
-
-	/* first try to find matching socket name */
-	for (sock = node->outputs.first; sock; sock = sock->next)
-		if (STREQ(sock->name, oldsock->name))
-			return sock;
-
-	/* no matching name, simply link to same index */
-	return BLI_findlink(&node->outputs, oldindex);
-}
-
 static void node_openvdb_get_info(void *userdata, const char *name, const char *value_type, bool is_color)
 {
 	NodeShaderOpenVDB *vdb = userdata;
@@ -96,8 +83,9 @@ static void node_openvdb_get_info(void *userdata, const char *name, const char *
 	BLI_addtail(&vdb->grid_info, info);
 }
 
-static void node_openvdb_get_sockets(Main *bmain, bNodeTree *ntree, bNode *node)
+static void node_openvdb_create_sockets(void *userdata, bNodeTree *ntree, bNode *node)
 {
+	Main *bmain = userdata;
 	NodeShaderOpenVDB *vdb = node->storage;
 	OpenVDBGridInfo *info;
 	char *filename;
@@ -132,32 +120,7 @@ static void node_openvdb_get_sockets(Main *bmain, bNodeTree *ntree, bNode *node)
 
 void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)
 {
-	bNodeSocket *newsock, *oldsock, *oldsock_next;
-	ListBase oldsocklist;
-	bNodeLink *link;
-	int oldindex;
-
-	oldsocklist = node->outputs;
-	BLI_listbase_clear(&node->outputs);
-
-	node_openvdb_get_sockets(bmain, ntree, node);
-
-	/* move links to new socket */
-	for (oldsock = oldsocklist.first, oldindex = 0; oldsock; oldsock = oldsock->next, ++oldindex) {
-		newsock = node_output_relink(node, oldsock, oldindex);
-
-		if (newsock) {
-			for (link = ntree->links.first; link; link = link->next) {
-				if (link->fromsock == oldsock)
-					link->fromsock = newsock;
-			}
-		}
-	}
-
-	for (oldsock = oldsocklist.first; oldsock; oldsock = oldsock_next) {
-		oldsock_next = oldsock->next;
-		nodeRemoveSocket(ntree, node, oldsock);
-	}
+	nodeSyncOutputs(ntree, node, node_openvdb_create_sockets, NULL, bmain);
 }
 #else
 void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)

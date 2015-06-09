@@ -739,6 +739,92 @@ void nodeRemoveAllSockets(bNodeTree *ntree, bNode *node)
 	node->update |= NODE_UPDATE;
 }
 
+static bNodeSocket *node_socket_find_match(bNodeSocket *newsock, ListBase *oldsocklist)
+{
+	bNodeSocket *sock;
+	
+	for (sock = oldsocklist->first; sock; sock = sock->next)
+		if (STREQ(sock->name, newsock->name))
+			return sock;
+	return NULL;
+}
+
+static bNodeSocket *node_socket_relink(ListBase *newsocklist, bNodeSocket *oldsock, int oldindex, bool use_index_fallback)
+{
+	bNodeSocket *sock;
+	
+	/* first try to find matching socket name */
+	for (sock = newsocklist->first; sock; sock = sock->next)
+		if (STREQ(sock->name, oldsock->name))
+			return sock;
+	
+	if (use_index_fallback)
+		/* no matching name, simply link to same index */
+		return BLI_findlink(newsocklist, oldindex);
+	else
+		return NULL;
+}
+
+static void node_sync_sockets(bNodeTree *ntree, bNode *node, ListBase *socklist, CreateSocketsCB create_sockets_cb, SyncSocketCB sync_socket_cb, void *userdata)
+{
+	bNodeSocket *newsock, *oldsock, *oldsock_next;
+	ListBase oldsocklist;
+	int oldindex;
+	bNodeLink *link;
+	
+	/* store current nodes in oldsocklist, then clear socket list */
+	oldsocklist = *socklist;
+	BLI_listbase_clear(socklist);
+	
+	/* create new sockets for the node */
+	create_sockets_cb(userdata, ntree, node);
+	
+	/* copy settings from the old to the new socket, if necessary */
+	if (sync_socket_cb) {
+		for (newsock = socklist->first; newsock; newsock = newsock->next) {
+			oldsock = node_socket_find_match(newsock, &oldsocklist);
+			if (oldsock)
+				sync_socket_cb(userdata, node, newsock, oldsock);
+		}
+	}
+	
+	/* move links to new socket */
+	for (oldsock = oldsocklist.first, oldindex = 0; oldsock; oldsock = oldsock->next, ++oldindex) {
+		/* XXX falling back on index mapping does not appear to be very useful
+		 * for dynamically changing sockets, so it's disabled for now
+		 */
+		newsock = node_socket_relink(socklist, oldsock, oldindex, false);
+		if (newsock) {
+			for (link = ntree->links.first; link; link = link->next) {
+				if (link->fromsock == oldsock)
+					link->fromsock = newsock;
+			}
+		}
+	}
+	
+	/* delete old sockets
+	 * XXX oldsock is not actually in the socklist any more,
+	 * but the nodeRemoveSocket function works anyway. In future this
+	 * should become part of the core code, so can take care of this behavior.
+	 */
+	for (oldsock = oldsocklist.first; oldsock; oldsock = oldsock_next) {
+		oldsock_next = oldsock->next;
+		if (oldsock->storage)
+			MEM_freeN(oldsock->storage);
+		nodeRemoveSocket(ntree, node, oldsock);
+	}
+}
+
+void nodeSyncInputs(bNodeTree *ntree, bNode *node, CreateSocketsCB create_inputs_cb, SyncSocketCB sync_input_cb, void *userdata)
+{
+	node_sync_sockets(ntree, node, &node->inputs, create_inputs_cb, sync_input_cb, userdata);
+}
+
+void nodeSyncOutputs(bNodeTree *ntree, bNode *node, CreateSocketsCB create_outputs_cb, SyncSocketCB sync_output_cb, void *userdata)
+{
+	node_sync_sockets(ntree, node, &node->outputs, create_outputs_cb, sync_output_cb, userdata);
+}
+
 /* finds a node based on its name */
 bNode *nodeFindNodebyName(bNodeTree *ntree, const char *name)
 {
