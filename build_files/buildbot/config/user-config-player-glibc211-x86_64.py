@@ -120,6 +120,9 @@ WITH_BF_FFTW3 = True
 WITH_BF_STATICFFTW3 = True
 WITH_BF_OCEANSIM = True
 
+# OpenVDB
+WITH_BF_OPENVDB = False
+
 # Compilation and optimization
 BF_DEBUG = False
 REL_CCFLAGS = ['-DNDEBUG', '-O2', '-msse', '-msse2']  # C & C++
