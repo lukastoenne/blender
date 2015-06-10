@@ -34,6 +34,7 @@ struct OpenVDBReader;
 struct OpenVDBWriter;
 struct OpenVDBFloatGrid;
 struct OpenVDBIntGrid;
+struct OpenVDBPrimitive;
 struct OpenVDBVectorGrid;
 
 int OpenVDB_getVersionHex(void);
@@ -85,7 +86,7 @@ struct OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
                                                   const bool is_color,
                                                   struct OpenVDBFloatGrid *mask);
 
-void OpenVDB_import_grid_fl(struct OpenVDBReader *reader,
+struct OpenVDBPrimitive *OpenVDB_import_grid_fl(struct OpenVDBReader *reader,
                             const char *name, float **data,
                             const int res[3]);
 
@@ -116,6 +117,12 @@ void OpenVDBReader_get_meta_int(struct OpenVDBReader *reader, const char *name, 
 void OpenVDBReader_get_meta_v3(struct OpenVDBReader *reader, const char *name, float value[3]);
 void OpenVDBReader_get_meta_v3_int(struct OpenVDBReader *reader, const char *name, int value[3]);
 void OpenVDBReader_get_meta_mat4(struct OpenVDBReader *reader, const char *name, float value[4][4]);
+
+void OpenVDB_draw_primitive(struct OpenVDBPrimitive *vdb_prim,
+                            const bool draw_root,
+                            const bool draw_level_1,
+                            const bool draw_level_2,
+                            const bool draw_leaves);
 
 #ifdef __cplusplus
 }

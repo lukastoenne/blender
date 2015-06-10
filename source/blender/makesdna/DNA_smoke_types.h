@@ -154,6 +154,7 @@ typedef struct SmokeDomainSettings {
 
 	struct ListBase vdb_caches;
 	short use_openvdb, pad[3];
+	struct OpenVDBPrimitive *density, *density_high;
 } SmokeDomainSettings;
 
 typedef struct OpenVDBCache {

@@ -25,6 +25,8 @@
 
 #include "openvdb_capi.h"
 #include "openvdb_dense_convert.h"
+#include "openvdb_primitive.h"
+#include "openvdb_render.h"
 #include "openvdb_util.h"
 
 using namespace openvdb;
@@ -115,11 +117,11 @@ OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
 	return grid;
 }
 
-void OpenVDB_import_grid_fl(OpenVDBReader *reader,
+OpenVDBPrimitive *OpenVDB_import_grid_fl(OpenVDBReader *reader,
                             const char *name, float **data,
                             const int res[3])
 {
-	internal::OpenVDB_import_grid<FloatGrid>(reader, name, data, res);
+	return internal::OpenVDB_import_grid<FloatGrid>(reader, name, data, res);
 }
 
 void OpenVDB_import_grid_ch(OpenVDBReader *reader,
@@ -234,4 +236,13 @@ void OpenVDBReader_get_meta_v3_int(OpenVDBReader *reader, const char *name, int 
 void OpenVDBReader_get_meta_mat4(OpenVDBReader *reader, const char *name, float value[4][4])
 {
 	reader->mat4sMeta(name, value);
+}
+
+void OpenVDB_draw_primitive(OpenVDBPrimitive *vdb_prim,
+                            const bool draw_root,
+                            const bool draw_level_1,
+                            const bool draw_level_2,
+                            const bool draw_leaves)
+{
+    internal::OpenVDBPrimitive_draw_tree(vdb_prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
 }

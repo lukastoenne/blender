@@ -348,6 +348,9 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 		if (!sds->shadow)
 			sds->shadow = MEM_callocN(sizeof(float) * sds->res[0] * sds->res[1] * sds->res[2], "SmokeDomainShadow");
 
+		sds->density = NULL;
+		sds->density_high = NULL;
+
 		return 1;
 	}
 	else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow)
@@ -2728,7 +2731,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 //		}
 
 		/* try to read from cache */
-		if (!sds->use_openvdb && (BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
+		if (/*!sds->use_openvdb && */(BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
 			return;
@@ -3269,7 +3272,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		OpenVDB_import_grid_fl(reader, "Shadow", &sds->shadow, sds->res);
 
 		if (for_low_display) {
-			OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
+			sds->density = OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
 		}
 
 		if (fluid_fields & SM_ACTIVE_HEAT && !for_low_display) {
@@ -3292,7 +3295,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 
 		if (!for_low_display) {
 			OpenVDB_import_grid_vec(reader, "Velocity", &vx, &vy, &vz, sds->res);
-			OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
+			//OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
 		}
 	}
 
@@ -3303,7 +3306,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
 		if (for_wt_display) {
-			OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
+			sds->density_high = OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
 		}
 
 		if (fluid_fields & SM_ACTIVE_FIRE && for_wt_display) {

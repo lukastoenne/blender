@@ -101,6 +101,8 @@
 #include "WM_api.h"
 #include "BLF_api.h"
 
+#include "openvdb_capi.h"
+
 #include "view3d_intern.h"  /* bad level include */
 
 /* Workaround for sequencer scene render mode.
@@ -8033,11 +8035,21 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				BKE_boundbox_init_from_minmax(&bb, p0, p1);
 				draw_box(bb.vec, false);
+
+				glLoadMatrixf(rv3d->viewmat);
+				if (sds->density)
+					OpenVDB_draw_primitive(sds->density, true, true, true, true);
+				if (sds->density_high)
+					OpenVDB_draw_primitive(sds->density_high, true, true, true, true);
+				glMultMatrixf(sds->fluidmat);
 			}
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
 			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
 				float p0[3], p1[3];
+
+				glLoadMatrixf(rv3d->viewmat);
+				glMultMatrixf(ob->obmat);
 
 				/* get view vector */
 				invert_m4_m4(ob->imat, ob->obmat);

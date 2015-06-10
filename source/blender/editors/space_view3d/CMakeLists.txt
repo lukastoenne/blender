@@ -33,6 +33,7 @@ set(INC
 	../../depsgraph
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
+	../../../../intern/openvdb
 	../../../../intern/smoke/extern
 )
 
