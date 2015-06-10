@@ -157,11 +157,19 @@ WITH_BF_STATICBOOST = True
 BF_BOOST = '/opt/lib/boost'
 BF_BOOST_INC = '${BF_BOOST}/include'
 BF_BOOST_LIB_STATIC = '${BF_BOOST_LIBPATH}/libboost_filesystem.a ${BF_BOOST_LIBPATH}/libboost_date_time.a ' + \
-    '${BF_BOOST_LIBPATH}/libboost_regex.a ${BF_BOOST_LIBPATH}/libboost_locale.a ${BF_BOOST_LIBPATH}/libboost_system.a \
-    ${BF_BOOST_LIBPATH}/libboost_thread.a'
+    '${BF_BOOST_LIBPATH}/libboost_regex.a ${BF_BOOST_LIBPATH}/libboost_locale.a ${BF_BOOST_LIBPATH}/libboost_system.a ' + \
+    '${BF_BOOST_LIBPATH}/libboost_thread.a'
 if BF_IS_NEW_OSL:
     BF_BOOST_LIB_STATIC += ' ${BF_BOOST_LIBPATH}/libboost_wave.a'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
+
+# OpenVDB
+WITH_BF_OPENVDB = True
+WITH_BF_STATICOPENVDB = True
+BF_OPENVDB = '/opt/lib/openvdb'
+BF_OPENVDB_INC = '${BF_OPENVDB}/include'
+BF_OPENVDB_LIB_PATH = '${BF_OPENVDB}/lib'
+BF_OPENVDB_LIB_STATIC = '${BF_OPENVDB}/lib/libopenvdb.a ${BF_BOOST_LIBPATH}/libboost_iostreams.a /opt/lib/tbb/lib/libtbb.a'
 
 # Ocean Simulation
 WITH_BF_OCEANSIM = True

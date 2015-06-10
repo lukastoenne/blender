@@ -38,7 +38,8 @@ incs = [
     '../../source/blender/blenlib',
     '../../source/blender/makesdna',
     '../../source/blender/makesrna',
-    env['BF_OPENVDB_INC']
+    env['BF_OPENVDB_INC'],
+    env['BF_BOOST_INC']
 ]
 
 incs.append(env['BF_OPENEXR_INC'].split())
