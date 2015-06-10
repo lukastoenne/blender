@@ -2680,6 +2680,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 	{
 		SmokeDomainSettings *sds = smd->domain;
 		PointCache *cache = NULL;
+		OpenVDBCache *vdb_cache = NULL;
 		PTCacheID pid;
 		int startframe, endframe, framenr;
 		float timescale;
@@ -2717,14 +2718,17 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		}
 
 		/* try to read from openvdb cache */
-//		if (sds->use_openvdb && (sds->flags & MOD_SMOKE_OPENVDB_EXPORTED)) {
-//			smokeModifier_OpenVDB_import(smd, scene, ob);
-//			smd->time = framenr;
-//			return;
+//		vdb_cache = BKE_openvdb_get_current_cache(sds);
+//		if (sds->use_openvdb && vdb_cache) {
+//			if (vdb_cache->flags & VDB_CACHE_SMOKE_EXPORTED) {
+//				smokeModifier_OpenVDB_import(smd, scene, ob, vdb_cache);
+//				smd->time = framenr;
+//				return;
+//			}
 //		}
 
 		/* try to read from cache */
-		if (BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT) {
+		if (!sds->use_openvdb && (BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
 			return;
@@ -3378,15 +3382,14 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		}
 	}
 
-	sds->flags |= MOD_SMOKE_OPENVDB_EXPORTED;
+	cache->flags |= VDB_CACHE_SMOKE_EXPORTED;
 
 	scene->r.cfra = orig_frame;
 }
 
-void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob)
+void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
 	int startframe, endframe;
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
@@ -3478,7 +3481,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	UNUSED_VARS(smd, scene, ob, dm, update, update_cb_data);
 }
 
-void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob)
+void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	UNUSED_VARS(smd, scene, ob);
 }

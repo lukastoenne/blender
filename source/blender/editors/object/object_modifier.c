@@ -2547,7 +2547,7 @@ OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
 	OpenVDBCache *cache = sds->vdb_caches.first;
 
 	for (; cache; cache = cache->next) {
-		if (cache->flag & VDB_CACHE_CURRENT) {
+		if (cache->flags & VDB_CACHE_CURRENT) {
 			break;
 		}
 	}
@@ -2585,11 +2585,11 @@ static int openvdb_cache_add_exec(bContext *C, wmOperator *op)
 	cache = BKE_openvdb_get_current_cache(sds);
 
 	if (cache) {
-		cache->flag &= ~VDB_CACHE_CURRENT;
+		cache->flags &= ~VDB_CACHE_CURRENT;
 	}
 
 	cache_new = openvdb_cache_new();
-	cache_new->flag |= VDB_CACHE_CURRENT;
+	cache_new->flags |= VDB_CACHE_CURRENT;
 
 	BLI_addtail(&sds->vdb_caches, cache_new);
 
@@ -2636,10 +2636,10 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 	}
 
 	if (cache_next) {
-		cache_next->flag |= VDB_CACHE_CURRENT;
+		cache_next->flags |= VDB_CACHE_CURRENT;
 	}
 	else if (cache_prev) {
-		cache_prev->flag |= VDB_CACHE_CURRENT;
+		cache_prev->flags |= VDB_CACHE_CURRENT;
 	}
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);

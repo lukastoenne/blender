@@ -41,7 +41,6 @@ enum {
 	MOD_SMOKE_HIGH_SMOOTH = (1 << 5),  /* -- Deprecated -- */
 	MOD_SMOKE_FILE_LOAD = (1 << 6),  /* flag for file load */
 	MOD_SMOKE_ADAPTIVE_DOMAIN = (1 << 7),
-	MOD_SMOKE_OPENVDB_EXPORTED = (1 << 8),
 };
 
 #if (DNA_DEPRECATED_GCC_POISON == 1)
@@ -164,11 +163,12 @@ typedef struct OpenVDBCache {
 	char path[1024];
 	char name[64];
 	int startframe, endframe;
-	short flag, compression, pad[2];
+	short flags, compression, pad[2];
 } OpenVDBCache;
 
 enum {
-	VDB_CACHE_CURRENT = 1,
+	VDB_CACHE_CURRENT        = (1 << 0),
+	VDB_CACHE_SMOKE_EXPORTED = (1 << 1),
 };
 
 enum {

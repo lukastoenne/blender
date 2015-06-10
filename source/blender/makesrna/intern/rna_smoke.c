@@ -293,7 +293,7 @@ static int rna_SmokeModifier_active_openvdb_cache_index_get(PointerRNA *ptr)
     int i = 0;
 
     for (; cache; cache = cache->next, i++) {
-        if (cache->flag & VDB_CACHE_CURRENT)
+        if (cache->flags & VDB_CACHE_CURRENT)
             return i;
     }
     return 0;
@@ -307,9 +307,9 @@ static void rna_SmokeModifier_active_openvdb_cache_index_set(struct PointerRNA *
 
     for (; cache; cache = cache->next, i++) {
         if (i == value)
-            cache->flag |= VDB_CACHE_CURRENT;
+            cache->flags |= VDB_CACHE_CURRENT;
         else
-            cache->flag &= ~VDB_CACHE_CURRENT;
+            cache->flags &= ~VDB_CACHE_CURRENT;
     }
 }
 

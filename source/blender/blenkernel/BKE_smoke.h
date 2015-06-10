@@ -33,6 +33,8 @@
  *  \author Daniel Genrich
  */
 
+struct OpenVDBCache;
+
 typedef float (*bresenham_callback)(float *result, float *input, int res[3], int *pixel, float *tRay, float correct);
 
 struct DerivedMesh *smokeModifier_do(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, bool for_render);
@@ -63,7 +65,7 @@ void smokeModifier_OpenVDB_update_transform(struct SmokeModifierData *smd,
                                             update_cb update,
                                             void *update_cb_data);
 
-void smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob);
+void smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob, struct OpenVDBCache *cache);
 
 struct OpenVDBCache *BKE_openvdb_get_current_cache(struct SmokeDomainSettings *sds);
 void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame);
