@@ -219,6 +219,7 @@ int ED_space_clip_get_clip_frame_number(SpaceClip *sc)
 {
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 
+	/* Caller must ensure space does have a valid clip, otherwise it will crash, see T45017. */
 	return BKE_movieclip_remap_scene_to_clip_frame(clip, sc->user.framenr);
 }
 
