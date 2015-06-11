@@ -8036,12 +8036,14 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				BKE_boundbox_init_from_minmax(&bb, p0, p1);
 				draw_box(bb.vec, false);
 
+#ifdef WITH_OPENVDB
 				glLoadMatrixf(rv3d->viewmat);
 				if (sds->density)
 					OpenVDB_draw_primitive(sds->density, true, true, true, true);
 				if (sds->density_high)
 					OpenVDB_draw_primitive(sds->density_high, true, true, true, true);
 				glMultMatrixf(sds->fluidmat);
+#endif
 			}
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */

@@ -3486,7 +3486,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 
 void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
-	UNUSED_VARS(smd, scene, ob);
+	UNUSED_VARS(smd, scene, ob, cache);
 }
 
 void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd, Scene *scene,
