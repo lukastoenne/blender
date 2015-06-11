@@ -599,7 +599,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	float random_jitter_offset = lcg_step_float(&state->rng_congruential) * step_size;
 
 	/* compute coefficients at the start */
-	float t = 0.0f, t1 = 0.0f;
+	float t = 0.0f;
 	float3 accum_transmittance = make_float3(1.0f, 1.0f, 1.0f);
 
 	/* pick random color channel, we use the Veach one-sample
@@ -612,6 +612,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	bool path_missed = true;
 
 #ifdef __OPENVDB__
+	float t1 = 0.0f;
 	int vdb_index = kernel_data.tables.density_index;
 	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
 
