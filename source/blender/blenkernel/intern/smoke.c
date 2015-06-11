@@ -3495,4 +3495,10 @@ void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd, Scene *scene
 	UNUSED_VARS(smd, scene, ob, update, update_cb_data);
 }
 
+void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame)
+{
+	r_filename[0] = '\0';
+	UNUSED_VARS(path, fname, relbase, frame);
+}
+
 #endif

@@ -25,6 +25,7 @@ CCL_NAMESPACE_BEGIN
 
 VolumeManager::VolumeManager()
 {
+#ifdef WITH_OPENVDB
 	openvdb::initialize();
 
 	scalar_grids.reserve(64);
@@ -32,25 +33,28 @@ VolumeManager::VolumeManager()
 	current_grids.reserve(64);
 	float_volumes.reserve(64);
 	float3_volumes.reserve(64);
+#endif
 
 	need_update = true;
 }
 
 VolumeManager::~VolumeManager()
 {
+#ifdef WITH_OPENVDB
 	scalar_grids.clear();
 	vector_grids.clear();
 	current_grids.clear();
 	float_volumes.clear();
 	float3_volumes.clear();
+#endif
 }
 
 static inline void catch_exceptions()
 {
+#ifdef WITH_OPENVDB
 	try {
 		throw;
 	}
-#ifdef WITH_OPENVDB
 	catch (const openvdb::IoError& e) {
 		std::cerr << e.what() << "\n";
 	}
@@ -238,6 +242,7 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	VLOG(1) << "Volume samplers allocate: __float_volume, " << float_volumes.size() * sizeof(float_volume) << " bytes";
 	VLOG(1) << "Volume samplers allocate: __float3_volume, " << float3_volumes.size() * sizeof(float3_volume) << " bytes";
 
+#ifdef WITH_OPENVDB
 	for(size_t i = 0; i < scalar_grids.size(); ++i) {
 		VLOG(1) << scalar_grids[i]->getName() << " memory usage: " << scalar_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
 	}
@@ -245,6 +250,7 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	for(size_t i = 0; i < vector_grids.size(); ++i) {
 		VLOG(1) << vector_grids[i]->getName() << " memory usage: " << vector_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
 	}
+#endif
 
 	need_update = false;
 }
