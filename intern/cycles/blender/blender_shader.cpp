@@ -743,7 +743,7 @@ static ShaderNode *add_node(Scene *scene,
 		vdb_node->sampling = b_vdb_node.sampling();
 
 		/* TODO(kevin) */
-		if(b_vdb_node.source() == 1) {
+		if(b_vdb_node.source() == BL::ShaderNodeOpenVDB::source_SEQUENCE) {
 			string filename = b_vdb_node.filename();
 			string basename = filename.substr(0, filename.size() - 8);
 			stringstream ss;
