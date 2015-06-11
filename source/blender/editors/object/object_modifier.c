@@ -2542,19 +2542,6 @@ void OBJECT_OT_smoke_vdb_transform_update(wmOperatorType *ot)
 
 /* ************************* OpenVDB cache operators ************************* */
 
-OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
-{
-	OpenVDBCache *cache = sds->vdb_caches.first;
-
-	for (; cache; cache = cache->next) {
-		if (cache->flags & VDB_CACHE_CURRENT) {
-			break;
-		}
-	}
-
-	return cache;
-}
-
 static OpenVDBCache *openvdb_cache_new(void)
 {
 	OpenVDBCache *cache = NULL;

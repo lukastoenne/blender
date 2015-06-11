@@ -3502,3 +3502,16 @@ void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *
 }
 
 #endif
+
+OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
+{
+	OpenVDBCache *cache = sds->vdb_caches.first;
+
+	for (; cache; cache = cache->next) {
+		if (cache->flags & VDB_CACHE_CURRENT) {
+			break;
+		}
+	}
+
+	return cache;
+}
