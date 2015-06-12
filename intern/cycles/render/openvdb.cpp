@@ -175,14 +175,13 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 	io::File file(filename);
 	file.open();
 
-	if (!file.hasGrid(name)) return -1;
+	if(!file.hasGrid(name)) return -1;
 
 	if(grid_type == NODE_VDB_FLOAT) {
 		slot = find_empty_slot(float_volumes);
 
 		if(slot == -1) return -1;
 
-		if (!file.hasGrid(name)) return -1;
 		FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(file.readGrid(name));
 		vdb_float_volume *sampler = new vdb_float_volume(grid);
 
@@ -194,7 +193,6 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 
 		if(slot == -1) return -1;
 
-		if (!file.hasGrid(name)) return -1;
 		Vec3SGrid::Ptr grid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
 		vdb_float3_volume *sampler = new vdb_float3_volume(grid);
 
