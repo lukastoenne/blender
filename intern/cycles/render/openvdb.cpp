@@ -177,27 +177,30 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 
 	if(!file.hasGrid(name)) return -1;
 
+	GridBase::Ptr grid = file.readGrid(name);
+	if(grid->getGridClass() == GRID_LEVEL_SET) return -1;
+
 	if(grid_type == NODE_VDB_FLOAT) {
 		slot = find_empty_slot(float_volumes);
 
 		if(slot == -1) return -1;
 
-		FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(file.readGrid(name));
-		vdb_float_volume *sampler = new vdb_float_volume(grid);
+		FloatGrid::Ptr fgrid = gridPtrCast<FloatGrid>(grid);
 
+		vdb_float_volume *sampler = new vdb_float_volume(fgrid);
 		float_volumes.insert(float_volumes.begin() + slot, sampler);
-		scalar_grids.push_back(grid);
+		scalar_grids.push_back(fgrid);
 	}
 	else if(grid_type == NODE_VDB_FLOAT3) {
 		slot = find_empty_slot(float3_volumes);
 
 		if(slot == -1) return -1;
 
-		Vec3SGrid::Ptr grid = gridPtrCast<Vec3SGrid>(file.readGrid(name));
-		vdb_float3_volume *sampler = new vdb_float3_volume(grid);
+		Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(grid);
 
+		vdb_float3_volume *sampler = new vdb_float3_volume(vgrid);
 		float3_volumes.insert(float3_volumes.begin() + slot, sampler);
-		vector_grids.push_back(grid);
+		vector_grids.push_back(vgrid);
 	}
 #else
 	(void)filename;
