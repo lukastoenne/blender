@@ -125,7 +125,7 @@ int VolumeManager::find_density_slot()
 		GridDescription grid = current_grids[i];
 		
 		if (string_iequals(grid.name, "density") || string_iequals(grid.name, "density high"))
-			return (int)i;
+			return grid.slot;
 	}
 	
 	/* try using the first scalar float grid instead */
