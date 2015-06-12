@@ -364,6 +364,13 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
     def FLUID_SIMULATION(self, layout, ob, md):
         layout.label(text="Settings are inside the Physics tab")
 
+    def FORCEVIZ(self, layout, ob, md):
+        row = layout.row()
+        row.prop(md, "use_image_vec", text="Vector Image")
+        sub = row.row()
+        sub.enabled = md.use_image_vec
+        sub.template_ID(md, "image_vec", new="image.new")
+
     def HOOK(self, layout, ob, md):
         use_falloff = (md.falloff_type != 'NONE')
         split = layout.split()

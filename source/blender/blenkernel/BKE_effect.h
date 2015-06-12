@@ -44,6 +44,8 @@ struct Group;
 struct ParticleSimulationData;
 struct ParticleData;
 struct ParticleKey;
+struct DerivedMesh;
+struct ForceVizModifierData;
 
 struct EffectorWeights *BKE_add_effector_weights(struct Group *group);
 struct PartDeflect *object_add_collision_fields(int type);
@@ -135,6 +137,10 @@ int get_effector_data(struct EffectorCache *eff, struct EffectorData *efd, struc
 
 /* EffectorData->flag */
 #define PE_VELOCITY_TO_IMPULSE  1
+
+/* ======== Force Field Visualization ======== */
+
+struct DerivedMesh *BKE_forceviz_do(struct ForceVizModifierData *fmd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm);
 
 /* ======== Simulation Debugging ======== */
 

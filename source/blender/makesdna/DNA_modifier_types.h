@@ -27,6 +27,7 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_texture_types.h"
 
 /* WARNING ALERT! TYPEDEF VALUES ARE WRITTEN IN FILES! SO DO NOT CHANGE!
  * (ONLY ADD NEW ITEMS AT THE END)
@@ -85,6 +86,7 @@ typedef enum ModifierType {
 	eModifierType_DataTransfer      = 49,
 	eModifierType_NormalEdit        = 50,
 	eModifierType_CorrectiveSmooth  = 51,
+	eModifierType_ForceViz          = 52,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1519,6 +1521,31 @@ enum {
 	MOD_NORMALEDIT_MIX_ADD  = 1,
 	MOD_NORMALEDIT_MIX_SUB  = 2,
 	MOD_NORMALEDIT_MIX_MUL  = 3,
+};
+
+
+typedef struct ForceVizModifierData {
+	ModifierData modifier;
+	
+	int flag, pad;
+	
+	TexMapping tex_mapping;
+	ImageUser iuser;
+	float color_scale;
+	int pad2;
+	
+	struct Image *image_vec;
+	struct Image *image_div;
+	struct Image *image_curl;
+} ForceVizModifierData;
+
+/* ForceViz modifier flags */
+enum {
+	MOD_FORCEVIZ_USE_COLOR_CENTER      = (1 << 0),
+	
+	MOD_FORCEVIZ_USE_IMG_VEC           = (1 << 8),
+	MOD_FORCEVIZ_USE_IMG_DIV           = (1 << 9),
+	MOD_FORCEVIZ_USE_IMG_CURL          = (1 << 10),
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */
