@@ -124,6 +124,8 @@ void OpenVDB_draw_primitive(struct OpenVDBPrimitive *vdb_prim,
                             const bool draw_level_2,
                             const bool draw_leaves);
 
+void OpenVDB_draw_primitive_values(struct OpenVDBPrimitive *vdb_prim);
+
 #ifdef __cplusplus
 }
 #endif

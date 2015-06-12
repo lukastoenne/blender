@@ -8038,10 +8038,14 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 #ifdef WITH_OPENVDB
 				glLoadMatrixf(rv3d->viewmat);
-				if (sds->density)
+				if (sds->density) {
 					OpenVDB_draw_primitive(sds->density, true, true, true, true);
-				if (sds->density_high)
+					OpenVDB_draw_primitive_values(sds->density);
+				}
+				if (sds->density_high) {
 					OpenVDB_draw_primitive(sds->density_high, true, true, true, true);
+					OpenVDB_draw_primitive_values(sds->density_high);
+				}
 				glMultMatrixf(sds->fluidmat);
 #endif
 			}

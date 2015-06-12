@@ -133,4 +133,30 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 	glEnd();
 }
 
+void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim)
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+
+	FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
+	//	size_t num_points = grid->activeVoxelCount();
+
+	glPointSize(1.0f);
+	glBegin(GL_POINTS);
+
+	for (FloatGrid::ValueOnCIter iter = grid->cbeginValueOn(); iter; ++iter) {
+		float color = iter.getValue();
+
+		if (color < 0.1f) {
+			continue;
+		}
+
+		Vec3d point = grid->indexToWorld(iter.getCoord());
+		glColor3f(color, color, color);
+		glVertex3f(point.x(), point.y(), point.z());
+	}
+
+	glEnd();
+}
+
 }
