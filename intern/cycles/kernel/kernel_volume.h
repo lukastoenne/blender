@@ -216,7 +216,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
 	float t1 = 0.0f;
 
-	if(has_vdb_volume && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
+	if(has_vdb_volume && vdb_index >= 0 && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
 		/* TODO(kevin): this call should be moved out of here, all it does is
 		 * checking if we have an intersection with the boundbox of the volumue
 		 * which in most cases corresponds to the boundbox of the object that has
@@ -615,7 +615,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	int vdb_index = kernel_data.tables.density_index;
 	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
 
-	if(has_vdb_volume && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
+	if(has_vdb_volume && vdb_index >= 0 && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
 		/* TODO(kevin): this call should be moved out of here, all it does is
 		 * checking if we have an intersection with the boundbox of the volumue
 		 * which in most cases corresponds to the boundbox of the object that has

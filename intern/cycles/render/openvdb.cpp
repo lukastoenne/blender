@@ -74,10 +74,6 @@ int VolumeManager::add_volume(const string& filename, const string& name, int sa
 			slot = add_openvdb_volume(filename, name, sampling, grid_type);
 		}
 
-		if(string_iequals(name, "density") || string_iequals(name, "density high")) {
-			density_index = slot;
-		}
-
 		add_grid_description(filename, name, sampling, slot);
 
 		need_update = true;
@@ -119,6 +115,24 @@ int VolumeManager::find_existing_slot(const string& filename, const string& name
 		}
 	}
 
+	return -1;
+}
+
+int VolumeManager::find_density_slot()
+{
+	/* first try finding a matching grid name */
+	for (size_t i = 0; i < current_grids.size(); ++i) {
+		GridDescription grid = current_grids[i];
+		
+		if (string_iequals(grid.name, "density") || string_iequals(grid.name, "density high"))
+			return (int)i;
+	}
+	
+	/* try using the first scalar float grid instead */
+	if (!float_volumes.empty()) {
+		return 0;
+	}
+	
 	return -1;
 }
 
@@ -237,7 +251,7 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	}
 
 	dscene->data.tables.num_volumes = float_volumes.size() + float3_volumes.size();
-	dscene->data.tables.density_index = density_index;
+	dscene->data.tables.density_index = find_density_slot();
 
 	VLOG(1) << "Volume samplers allocate: __float_volume, " << float_volumes.size() * sizeof(float_volume) << " bytes";
 	VLOG(1) << "Volume samplers allocate: __float3_volume, " << float3_volumes.size() * sizeof(float3_volume) << " bytes";
