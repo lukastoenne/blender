@@ -55,7 +55,7 @@ static inline void catch_exceptions()
 	try {
 		throw;
 	}
-	catch (const openvdb::IoError& e) {
+	catch(const openvdb::IoError& e) {
 		std::cerr << e.what() << "\n";
 	}
 #endif
@@ -78,7 +78,7 @@ int VolumeManager::add_volume(const string& filename, const string& name, int sa
 
 		need_update = true;
 	}
-	catch (...) {
+	catch(...) {
 		catch_exceptions();
 		need_update = false;
 		slot = -1;
@@ -121,15 +121,15 @@ int VolumeManager::find_existing_slot(const string& filename, const string& name
 int VolumeManager::find_density_slot()
 {
 	/* first try finding a matching grid name */
-	for (size_t i = 0; i < current_grids.size(); ++i) {
+	for(size_t i = 0; i < current_grids.size(); ++i) {
 		GridDescription grid = current_grids[i];
 		
-		if (string_iequals(grid.name, "density") || string_iequals(grid.name, "density high"))
+		if(string_iequals(grid.name, "density") || string_iequals(grid.name, "density high"))
 			return grid.slot;
 	}
 	
 	/* try using the first scalar float grid instead */
-	if (!float_volumes.empty()) {
+	if(!float_volumes.empty()) {
 		return 0;
 	}
 	
