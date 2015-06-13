@@ -24,7 +24,7 @@
 
 #include "kernel_types.h"
 
-#include "util_openvdb.h"
+#include "util_volume.h"
 #include "util_param.h"
 #include "util_string.h"
 #include "util_system.h"

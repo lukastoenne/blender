@@ -52,7 +52,6 @@ set(SRC_HEADERS
 	util_math_fast.h
 	util_md5.h
 	util_opengl.h
-	util_openvdb.h
 	util_optimization.h
 	util_param.h
 	util_path.h
@@ -72,6 +71,7 @@ set(SRC_HEADERS
 	util_types.h
 	util_vector.h
 	util_view.h
+	util_volume.h
 	util_xml.h
 )
 

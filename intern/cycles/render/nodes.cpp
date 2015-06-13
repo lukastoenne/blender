@@ -16,11 +16,11 @@
 
 #include "image.h"
 #include "nodes.h"
-#include "openvdb.h"
 #include "svm.h"
 #include "svm_math_util.h"
 #include "osl.h"
 #include "sky_model.h"
+#include "volume.h"
 
 #include "util_foreach.h"
 #include "util_transform.h"

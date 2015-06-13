@@ -1,5 +1,5 @@
-#ifndef __UTIL_OPENVDB_H__
-#define __UTIL_OPENVDB_H__
+#ifndef __UTIL_VOLUME_H__
+#define __UTIL_VOLUME_H__
 
 #include "util_map.h"
 #include "util_types.h"
@@ -408,5 +408,5 @@ CCL_NAMESPACE_END
 
 #endif /* WITH_OPENVDB */
 
-#endif /* __UTIL_OPENVDB_H__ */
+#endif /* __UTIL_VOLUME_H__ */
 

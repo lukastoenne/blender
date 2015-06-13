@@ -35,7 +35,6 @@ set(SRC
 	mesh_displace.cpp
 	nodes.cpp
 	object.cpp
-	openvdb.cpp
 	osl.cpp
 	particles.cpp
 	curves.cpp
@@ -47,6 +46,7 @@ set(SRC
 	svm.cpp
 	tables.cpp
 	tile.cpp
+	volume.cpp
 )
 
 set(SRC_HEADERS
@@ -63,7 +63,6 @@ set(SRC_HEADERS
 	mesh.h
 	nodes.h
 	object.h
-	openvdb.h
 	osl.h
 	particles.h
 	curves.h
@@ -76,6 +75,7 @@ set(SRC_HEADERS
 	svm.h
 	tables.h
 	tile.h
+	volume.h
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")

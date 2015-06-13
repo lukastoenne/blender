@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "openvdb.h"
+#include "volume.h"
 #include "scene.h"
 #include "util_logging.h"
 #include "util_progress.h"
