@@ -117,6 +117,7 @@ GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	vecgrid->setIsInWorldSpace(false);
 	vecgrid->setVectorType(vec_type);
 	vecgrid->insertMeta("is_color", BoolMetadata(is_color));
+	vecgrid->setGridClass(GRID_STAGGERED);
 
 	writer->insert(vecgrid);
 

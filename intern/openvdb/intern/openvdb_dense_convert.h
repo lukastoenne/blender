@@ -73,6 +73,7 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 
 	grid->setName(name);
 	grid->setIsInWorldSpace(false);
+	grid->setVectorType(openvdb::VEC_INVARIANT);
 
 	writer->insert(grid);
 
