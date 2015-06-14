@@ -2720,15 +2720,17 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			return;
 		}
 
+#if 0
 		/* try to read from openvdb cache */
-//		vdb_cache = BKE_openvdb_get_current_cache(sds);
-//		if (sds->use_openvdb && vdb_cache) {
-//			if (vdb_cache->flags & VDB_CACHE_SMOKE_EXPORTED) {
-//				smokeModifier_OpenVDB_import(smd, scene, ob, vdb_cache);
-//				smd->time = framenr;
-//				return;
-//			}
-//		}
+		vdb_cache = BKE_openvdb_get_current_cache(sds);
+		if (sds->use_openvdb && vdb_cache) {
+			//if (vdb_cache->flags & VDB_CACHE_SMOKE_EXPORTED) {
+				smokeModifier_OpenVDB_import(smd, scene, ob, vdb_cache);
+				smd->time = framenr;
+				return;
+			//}
+		}
+#endif
 
 		/* try to read from cache */
 		if (/*!sds->use_openvdb && */(BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {

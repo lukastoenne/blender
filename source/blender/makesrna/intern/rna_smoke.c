@@ -659,6 +659,26 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	                           "rna_SmokeModifier_active_openvdb_cache_index_range");
 	RNA_def_property_ui_text(prop, "Active OpenVDB cache Index", "");
 
+	prop = RNA_def_property(srna, "draw_root_node", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_ROOT);
+	RNA_def_property_ui_text(prop, "Root", "Draw root node");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "draw_level_1_node", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_LEVEL_1);
+	RNA_def_property_ui_text(prop, "Level 1", "Draw level 1 node");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "draw_level_2_node", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_LEVEL_2);
+	RNA_def_property_ui_text(prop, "Level 2", "Draw level 2 node");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "draw_leaf_node", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_LEAVES);
+	RNA_def_property_ui_text(prop, "Leaves", "Draw leaf nodes");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
 	rna_def_openvdb_cache(brna);
 }
 

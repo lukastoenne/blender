@@ -153,7 +153,7 @@ typedef struct SmokeDomainSettings {
 	float flame_smoke_color[3];
 
 	struct ListBase vdb_caches;
-	short use_openvdb, pad[3];
+	short use_openvdb, draw_flags, pad[2];
 	struct OpenVDBPrimitive *density, *density_high;
 } SmokeDomainSettings;
 
@@ -176,6 +176,13 @@ enum {
 	VDB_COMPRESSION_ZIP   = 0,
 	VDB_COMPRESSION_BLOSC = 1,
 	VDB_COMPRESSION_NONE  = 2,
+};
+
+enum {
+    VDB_DRAW_ROOT    = (1 << 0),
+    VDB_DRAW_LEVEL_1 = (1 << 1),
+    VDB_DRAW_LEVEL_2 = (1 << 2),
+    VDB_DRAW_LEAVES  = (1 << 3),
 };
 
 /* inflow / outflow */

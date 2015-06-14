@@ -8052,21 +8052,28 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				draw_box(bb.vec, false);
 
 #ifdef WITH_OPENVDB
-				glLoadMatrixf(rv3d->viewmat);
-				if (sds->density) {
-					OpenVDB_draw_primitive(sds->density, true, true, true, true);
-					OpenVDB_draw_primitive_values(sds->density);
+				{
+					const bool draw_root    = (sds->draw_flags & VDB_DRAW_ROOT);
+					const bool draw_level_1 = (sds->draw_flags & VDB_DRAW_LEVEL_1);
+					const bool draw_level_2 = (sds->draw_flags & VDB_DRAW_LEVEL_2);
+					const bool draw_leaves  = (sds->draw_flags & VDB_DRAW_LEAVES);
+
+					glLoadMatrixf(rv3d->viewmat);
+					if (sds->density) {
+						OpenVDB_draw_primitive(sds->density, draw_root, draw_level_1, draw_level_2, draw_leaves);
+						OpenVDB_draw_primitive_values(sds->density);
+					}
+					if (sds->density_high) {
+						OpenVDB_draw_primitive(sds->density_high, draw_root, draw_level_1, draw_level_2, draw_leaves);
+						OpenVDB_draw_primitive_values(sds->density_high);
+					}
+					glMultMatrixf(sds->fluidmat);
 				}
-				if (sds->density_high) {
-					OpenVDB_draw_primitive(sds->density_high, true, true, true, true);
-					OpenVDB_draw_primitive_values(sds->density_high);
-				}
-				glMultMatrixf(sds->fluidmat);
 #endif
 			}
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
-			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
+			if (!smd->domain->use_openvdb && smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
 				float p0[3], p1[3];
 
 				glLoadMatrixf(rv3d->viewmat);

@@ -372,6 +372,12 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
         layout.operator("object.smoke_vdb_export")
         layout.operator("object.smoke_vdb_transform_update")
 
+        layout.label(text="Draw OpenVDB Tree")
+        layout.prop(domain, "draw_root_node")
+        layout.prop(domain, "draw_level_1_node")
+        layout.prop(domain, "draw_level_2_node")
+        layout.prop(domain, "draw_leaf_node")
+
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Field Weights"
