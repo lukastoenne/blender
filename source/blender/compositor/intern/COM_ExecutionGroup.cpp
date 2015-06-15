@@ -25,6 +25,8 @@
 #include <sstream>
 #include <stdlib.h>
 
+#include "atomic_ops.h"
+
 #include "COM_ExecutionGroup.h"
 #include "COM_defines.h"
 #include "COM_ExecutionSystem.h"
@@ -382,7 +384,7 @@ void ExecutionGroup::finalizeChunkExecution(int chunkNumber, MemoryBuffer **memo
 	if (this->m_chunkExecutionStates[chunkNumber] == COM_ES_SCHEDULED)
 		this->m_chunkExecutionStates[chunkNumber] = COM_ES_EXECUTED;
 	
-	this->m_chunksFinished++;
+	atomic_add_u(&this->m_chunksFinished, 0);
 	if (memoryBuffers) {
 		for (unsigned int index = 0; index < this->m_cachedMaxReadBufferOffset; index++) {
 			MemoryBuffer *buffer = memoryBuffers[index];

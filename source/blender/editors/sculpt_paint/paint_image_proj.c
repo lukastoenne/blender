@@ -3768,7 +3768,7 @@ static void project_paint_prepare_all_faces(
         const bool is_multi_view)
 {
 	/* Image Vars - keep track of images we have used */
-	LinkNode *image_LinkList = NULL;
+	LinkNodePair image_LinkList = {NULL, NULL};
 
 	Image *tpage_last = NULL, *tpage;
 	TexPaintSlot *slot_last = NULL;
@@ -3843,7 +3843,7 @@ static void project_paint_prepare_all_faces(
 
 			if (tpage_last != tpage) {
 
-				image_index = BLI_linklist_index(image_LinkList, tpage);
+				image_index = BLI_linklist_index(image_LinkList.list, tpage);
 
 				if (image_index == -1 && BKE_image_has_ibuf(tpage, NULL)) { /* MemArena dosnt have an append func */
 					BLI_linklist_append(&image_LinkList, tpage);
@@ -3864,11 +3864,11 @@ static void project_paint_prepare_all_faces(
 
 	/* build an array of images we use*/
 	if (ps->is_shared_user == false) {
-		project_paint_build_proj_ima(ps, arena, image_LinkList);
+		project_paint_build_proj_ima(ps, arena, image_LinkList.list);
 	}
 
 	/* we have built the array, discard the linked list */
-	BLI_linklist_free(image_LinkList, NULL);
+	BLI_linklist_free(image_LinkList.list, NULL);
 }
 
 /* run once per stroke before projection painting */
@@ -4722,7 +4722,7 @@ static void *do_projectpaint_thread(void *ph_v)
 				if (dist_sq <= brush_radius_sq) {
 					dist = sqrtf(dist_sq);
 
-					falloff = BKE_brush_curve_strength(ps->brush, dist, brush_radius);
+					falloff = BKE_brush_curve_strength_clamped(ps->brush, dist, brush_radius);
 
 					if (falloff > 0.0f) {
 						float texrgb[3];

@@ -476,7 +476,9 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 #ifdef __KERNEL_DEBUG__
 		if(state.flag & PATH_RAY_CAMERA) {
 			debug_data.num_bvh_traversal_steps += isect.num_traversal_steps;
+			debug_data.num_bvh_traversed_instances += isect.num_traversed_instances;
 		}
+		debug_data.num_ray_bounces++;
 #endif
 
 #ifdef __LAMP_MIS__
@@ -877,7 +879,9 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 #ifdef __KERNEL_DEBUG__
 		if(state.flag & PATH_RAY_CAMERA) {
 			debug_data.num_bvh_traversal_steps += isect.num_traversal_steps;
+			debug_data.num_bvh_traversed_instances += isect.num_traversed_instances;
 		}
+		debug_data.num_ray_bounces++;
 #endif
 
 #ifdef __VOLUME__
