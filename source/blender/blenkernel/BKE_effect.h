@@ -140,7 +140,7 @@ int get_effector_data(struct EffectorCache *eff, struct EffectorData *efd, struc
 
 /* ======== Force Field Visualization ======== */
 
-struct DerivedMesh *BKE_forceviz_do(struct ForceVizModifierData *fmd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm);
+struct DerivedMesh *BKE_forceviz_do(struct ForceVizModifierData *fmd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, float (*tex_co)[3]);
 
 /* ======== Simulation Debugging ======== */
 

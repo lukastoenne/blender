@@ -1526,6 +1526,13 @@ enum {
 
 typedef struct ForceVizModifierData {
 	ModifierData modifier;
+	/* keep in sync with MappingInfoModifierData */
+	struct Tex *texture;
+	struct Object *map_object;
+	char uvlayer_name[64];  /* MAX_CUSTOMDATA_LAYER_NAME */
+	int uvlayer_tmp;
+	int texmapping;
+	/* end MappingInfoModifierData */
 	
 	int flag, pad;
 	

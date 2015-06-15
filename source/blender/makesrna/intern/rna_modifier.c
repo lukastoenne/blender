@@ -4582,6 +4582,8 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vector Image", "Force vectors encoded as colors");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	rna_def_modifier_generic_map_info(srna);
 }
 
 void RNA_def_modifier(BlenderRNA *brna)
