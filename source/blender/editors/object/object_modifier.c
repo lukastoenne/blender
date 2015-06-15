@@ -93,7 +93,10 @@
 #include "WM_types.h"
 
 #include "object_intern.h"
-#include "openvdb_capi.h"
+
+#ifdef WITH_OPENVDB
+#  include "openvdb_capi.h"
+#endif
 
 static void modifier_skin_customdata_delete(struct Object *ob);
 

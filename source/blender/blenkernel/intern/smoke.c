@@ -90,7 +90,10 @@
 /* #define USE_SMOKE_COLLISION_DM */
 
 #include "smoke_API.h"
-#include "openvdb_capi.h"
+
+#ifdef WITH_OPENVDB
+#  include "openvdb_capi.h"
+#endif
 
 #ifdef WITH_SMOKE
 

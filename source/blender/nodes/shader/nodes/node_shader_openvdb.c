@@ -27,7 +27,9 @@
 
 #include "../node_shader_util.h"
 
-#include "openvdb_capi.h"
+#ifdef WITH_OPENVDB
+#  include "openvdb_capi.h"
+#endif
 
 static bNodeSocketTemplate sh_node_openvdb_in[] = {
     {SOCK_VECTOR, 1, N_("Vector"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},

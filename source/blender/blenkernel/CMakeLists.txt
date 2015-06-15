@@ -45,7 +45,6 @@ set(INC
 	../../../intern/iksolver/extern
 	../../../intern/memutil
 	../../../intern/mikktspace
-	../../../intern/openvdb
 	../../../intern/raskter
 	../../../intern/smoke/extern
 	../../../intern/atomic
@@ -482,6 +481,9 @@ endif()
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
 	add_definitions(-DOPENVDB_USE_BLOSC)
+	list(APPEND INC
+		 ../../../intern/openvdb
+	)
 endif()
 
 ## Warnings as errors, this is too strict!

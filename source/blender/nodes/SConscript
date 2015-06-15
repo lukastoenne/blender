@@ -48,7 +48,6 @@ incs = [
     '../imbuf',
     '../makesdna',
     '../makesrna',
-    '../openvdb',
     '../render/extern/include',
     env['BF_ZLIB_INC'],
     ]

@@ -29,7 +29,7 @@ set(INC
 )
 
 set(INC_SYS
-
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -43,6 +43,7 @@ if(WITH_OPENVDB)
 	)
 
 	list(APPEND INC_SYS
+		${BOOST_INCLUDE_DIR}
 		${OPENEXR_INCLUDE_DIRS}
 		${OPENVDB_INCLUDE_DIRS}
 	)

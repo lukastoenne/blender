@@ -39,7 +39,6 @@ set(INC
 	../render/extern/include
 	../../../intern/guardedalloc
 	../../../intern/glew-mx
-	../../../intern/openvdb
 )
 
 set(INC_SYS
@@ -292,6 +291,9 @@ endif()
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
 	add_definitions(-DOPENVDB_USE_BLOSC)
+	list(APPEND INC
+	     ../../../intern/openvdb
+	)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

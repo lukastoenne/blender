@@ -150,6 +150,7 @@ if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
 	add_definitions(-DOPENVDB_USE_BLOSC)
 	add_definitions(-DDWREAL_IS_DOUBLE=0)
+	add_definitions(-DTBB_USE_EXCEPTIONS=0)
 	include_directories(
 		${OPENVDB_INCLUDE_DIRS}
 	)

@@ -1,7 +1,6 @@
 #ifndef __UTIL_VOLUME_H__
 #define __UTIL_VOLUME_H__
 
-#include "util_map.h"
 #include "util_types.h"
 
 #include "kernel_types.h"
@@ -53,6 +52,8 @@ CCL_NAMESPACE_END
 #ifdef __GNUC__
 #	pragma GCC diagnostic pop
 #endif
+
+#include "util_map.h"
 
 CCL_NAMESPACE_BEGIN
 

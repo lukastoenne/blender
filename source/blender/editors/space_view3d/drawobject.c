@@ -101,7 +101,9 @@
 #include "WM_api.h"
 #include "BLF_api.h"
 
-#include "openvdb_capi.h"
+#ifdef WITH_OPENVDB
+#  include "openvdb_capi.h"
+#endif
 
 #include "view3d_intern.h"  /* bad level include */
 

@@ -259,11 +259,11 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 
 #ifdef WITH_OPENVDB
 	for(size_t i = 0; i < scalar_grids.size(); ++i) {
-		VLOG(1) << scalar_grids[i]->getName() << " memory usage: " << scalar_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
+		VLOG(1) << scalar_grids[i]->getName().c_str() << " memory usage: " << scalar_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
 	}
 
 	for(size_t i = 0; i < vector_grids.size(); ++i) {
-		VLOG(1) << vector_grids[i]->getName() << " memory usage: " << vector_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
+		VLOG(1) << vector_grids[i]->getName().c_str() << " memory usage: " << vector_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
 	}
 #endif
 
