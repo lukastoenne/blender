@@ -1048,6 +1048,136 @@ typedef struct ForceVizInput {
 
 typedef void (*ForceVizImageGenerator)(float col[4], ForceVizModifierData *fmd, const ForceVizInput *input);
 
+#if 0
+/* rasterize triangle with uv2[1] == uv3[1] and uv1[1] != uv2[1] */
+static void forceviz_rasterize_halftri(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
+                                       const float co1[3], const float co2[3], const float co3[3],
+                                       const float uv1[2], const float uv2[2], const float uv3[2])
+{
+	const bool is_upper = uv1[1] > uv2[1];
+	
+	const bool use_float_buffer = (ibuf->rect_float != NULL);
+	const int channels = ibuf->channels;
+	const int xstride = channels, ystride = channels * ibuf->x;
+	float *buf_float;
+	unsigned char *buf_char;
+	
+	float vmin, vmax;
+	float umin, umax;
+	float H, Hinv;
+	int y0, y1;
+	float u0, du0, u1, du1;
+	int i, j;
+	
+	if (is_upper) {
+		vmin = uv2[1];
+		vmax = uv1[1];
+	}
+	else {
+		vmin = uv1[1];
+		vmax = uv2[1];
+	}
+	y0 = max_ii((int)vmin, rect->ymin);
+	y1 = min_ii((int)vmax, rect->ymax-1);
+	H = vmax - vmin;
+	Hinv = H != 0.0f ? 1.0f/H : 0.0f;
+	
+	if (uv2[0] < uv3[0]) {
+		umin = uv2[0];
+		umax = uv3[0];
+	}
+	else {
+		umin = uv3[0];
+		umax = uv2[0];
+	}
+	
+	if (H != 0.0f) {
+		du0 = (umin - uv1[0]) * Hinv;
+		du1 = (umax - uv1[0]) * Hinv;
+	}
+	else {
+		du0 = 0.0f;
+		du1 = 0.0f;
+	}
+	
+	{
+		float v0 = roundf(vmax);
+		u0 = umin + (v0 - vmin) * du0;
+		u1 = uv1[0] + (v0 - vmin) * du1;
+	}
+	
+	if (use_float_buffer)
+		buf_float = ibuf->rect_float + ystride * y0;
+	else
+		buf_char = (unsigned char *)ibuf->rect + ystride * y0;
+	
+	for (j = y0; j <= y1; ++j) {
+		float v = (float)j + 0.5f;
+		int x0 = max_ii((int)u0, rect->xmin);
+		int x1 = min_ii((int)u1, rect->xmax-1);
+		float L = u1 - u0;
+		float Linv = L != 0.0f ? 1.0f/L : 0.0f;
+		
+		float *row_float = NULL;
+		unsigned char *row_char = NULL;
+		if (use_float_buffer)
+			row_float = buf_float + xstride * x0;
+		else
+			row_char = buf_char + xstride * x0;
+		
+		for (i = x0; i <= x1; ++i) {
+			float u = (float)i + 0.5f;
+			float facx = u * Linv;
+			float facy = v * Hinv;
+			float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+			
+			{
+				EffectedPoint point;
+				ForceVizInput input;
+				float co23[3];
+				
+				interp_v3_v3v3(co23, co2, co3, facx);
+				interp_v3_v3v3(input.co, co1, co23, facy);
+				zero_v3(input.vel);
+				
+				pd_point_from_loc(fmd->modifier.scene, input.co, input.vel, 0, &point);
+				zero_v3(input.force);
+				zero_v3(input.impulse);
+				zero_m3(input.dforce); // TODO
+				pdDoEffectors(effectors, NULL, fmd->effector_weights, &point, input.force, input.impulse);
+				
+				cb(col, fmd, &input);
+			}
+			
+			if (use_float_buffer) {
+				if (channels == 3)
+					copy_v3_v3(row_float, col);
+				else
+					copy_v4_v4(row_float, col);
+			}
+			else {
+				if (channels == 3)
+					rgb_float_to_uchar(row_char, col);
+				else
+					rgba_float_to_uchar(row_char, col);
+			}
+			
+			if (use_float_buffer)
+				row_float += xstride;
+			else
+				row_char += xstride;
+		}
+		
+		if (use_float_buffer)
+			buf_float += ystride;
+		else
+			buf_char += ystride;
+		u0 += du0;
+		u1 += du1;
+	}
+}
+#endif
+
 /* rasterize triangle with uv2[1] == uv3[1] and uv1[1] >= uv2[1] */
 static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
                                              const float co1[3], const float co2[3], const float co3[3],
@@ -1166,74 +1296,93 @@ static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ListBase
 	}
 }
 
-/* rasterize triangle with uv2[1] == uv3[1] and uv1[1] <= uv2[1] */
-static void forceviz_rasterize_halftri_upper(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
-                                             const float co1[3], const float co2[3], const float co3[3],
-                                             const float uv1[2], const float uv2[2], const float uv3[2])
+BLI_INLINE void forceviz_reorder_tri(const float *uv[3], const float *co[3], int i1, int i2, int i3)
 {
-//	int y0 = uv2[1];
-//	int y1 = ceilf(uv3[1]);
+	const float *nuv[3];
+	const float *nco[3];
+	
+	nuv[0] = uv[i1]; nuv[1] = uv[i2]; nuv[2] = uv[i3];
+	uv[0] = nuv[0]; uv[1] = nuv[1]; uv[2] = nuv[2];
+	
+	nco[0] = co[i1]; nco[1] = co[i2]; nco[2] = co[i3];
+	co[0] = nco[0]; co[1] = nco[1]; co[2] = nco[2];
+}
+
+static void forceviz_sort_tri(const float *uv[3], const float *co[3])
+{
+	float v1 = uv[0][1], v2 = uv[1][1], v3 = uv[2][1];
+	
+	if (v1 < v2) {
+		// ABC, CAB, ACB
+		if (v1 < v3) {
+			// ABC, ACB
+			if (v2 < v3) {
+				// ABC
+				forceviz_reorder_tri(uv, co, 0, 1, 2);
+			}
+			else {
+				// ACB
+				forceviz_reorder_tri(uv, co, 0, 2, 1);
+			}
+		}
+		else {
+			// CAB
+			forceviz_reorder_tri(uv, co, 2, 0, 1);
+		}
+	}
+	else if (v1 > v2) {
+		// BCA, CBA, BAC
+		if (v1 > v3) {
+			// BCA, CBA
+			if (v2 > v3) {
+				// CBA
+				forceviz_reorder_tri(uv, co, 2, 1, 0);
+			}
+			else {
+				// BCA
+				forceviz_reorder_tri(uv, co, 1, 2, 0);
+			}
+		}
+		else {
+			// BAC
+			forceviz_reorder_tri(uv, co, 1, 0, 2);
+		}
+	}
+	else {
+		// v1 == v2
+		if (v1 < v3) {
+			// ABC, BAC (equivalent)
+			forceviz_reorder_tri(uv, co, 0, 1, 2);
+		}
+		else if (v1 > v3) {
+			// CAB, CBA (equivalent)
+			forceviz_reorder_tri(uv, co, 2, 0, 1);
+		}
+		else {
+			// trivial case, v1==v2==v3
+			//forceviz_reorder_tri(uv, co, 0, 1, 2);
+		}
+	}
 }
 
 static void forceviz_rasterize_tri(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
                                    const float co1[3], const float co2[3], const float co3[3],
                                    const float uv1[2], const float uv2[2], const float uv3[2])
 {
-	const float *co1s, *co2s, *co3s;
-	const float *uv1s, *uv2s, *uv3s;
-	
-	if (uv1[1] < uv2[1]) {
-		/* (1 2 3) (1 3 2) (3 1 2) */
-		if (uv1[1] < uv3[1]) {
-			/* (1 2 3) (1 3 2) */
-			if (uv2[1] < uv3[1]) {
-				/* (1 2 3) */
-				uv1s = uv1; uv2s = uv2; uv3s = uv3;
-				co1s = co1; co2s = co2; co3s = co3;
-			}
-			else {
-				/* (1 3 2) */
-				uv1s = uv1; uv2s = uv3; uv3s = uv2;
-				co1s = co1; co2s = co3; co3s = co2;
-			}
-		}
-		else {
-			/* (3 1 2) */
-			uv1s = uv3; uv2s = uv1; uv3s = uv2;
-			co1s = co3; co2s = co1; co3s = co2;
-		}
-	}
-	else {
-		/* (2 1 3) (2 3 1) (3 2 1) */
-		if (uv1[1] < uv3[1]) {
-			/* (2 1 3) */
-			uv1s = uv2; uv2s = uv1; uv3s = uv3;
-			co1s = co2; co2s = co1; co3s = co3;
-		}
-		else {
-			/* (2 3 1) (3 2 1) */
-			if (uv2[1] < uv3[1]) {
-				/* (2 3 1) */
-				uv1s = uv2; uv2s = uv3; uv3s = uv1;
-				co1s = co2; co2s = co3; co3s = co1;
-			}
-			else {
-				/* (3 2 1) */
-				uv1s = uv3; uv2s = uv2; uv3s = uv1;
-				co1s = co3; co2s = co2; co3s = co1;
-			}
-		}
-	}
+	const float *uv_sort[3] = {uv1, uv2, uv3};
+	const float *co_sort[3] = {co1, co2, co3};
+	forceviz_sort_tri(uv_sort, co_sort);
 	
 	{
-		float t = (uv3s[1] > uv1s[1])? (uv2s[1] - uv1s[1]) / (uv3s[1] - uv1s[1]): 0.0f;
+		float t = (uv_sort[2][1] > uv_sort[0][1])? (uv_sort[1][1] - uv_sort[0][1]) / (uv_sort[2][1] - uv_sort[0][1]): 0.0f;
 		float co_mid[3];
 		float uv_mid[2];
-		interp_v3_v3v3(co_mid, co1s, co3s, t);
-		uv_mid[0] = interpf(uv3s[1], uv1s[1], t);
+		interp_v3_v3v3(co_mid, co_sort[0], co_sort[2], t);
+		uv_mid[0] = interpf(uv_sort[2][1], uv_sort[0][1], t);
 		uv_mid[1] = uv2[1];
-		forceviz_rasterize_halftri_lower(fmd, effectors, ibuf, cb, rect, co1s, co2s, co_mid, uv1s, uv2s, uv_mid);
-		forceviz_rasterize_halftri_upper(fmd, effectors, ibuf, cb, rect, co3s, co_mid, co2s, uv3s, uv_mid, uv2s);
+//		forceviz_rasterize_halftri(fmd, effectors, ibuf, cb, rect, co_sort[0], co_sort[1], co_mid, uv_sort[0], uv_sort[1], uv_mid);
+//		forceviz_rasterize_halftri(fmd, effectors, ibuf, cb, rect, co_sort[2], co_mid, co_sort[1], uv_sort[2], uv_mid, uv_sort[1]);
+		forceviz_rasterize_halftri_lower(fmd, effectors, ibuf, cb, rect, co_sort[0], co_sort[1], co_mid, uv_sort[0], uv_sort[1], uv_mid);
 	}
 }
 
