@@ -1049,7 +1049,7 @@ typedef struct ForceVizInput {
 typedef void (*ForceVizImageGenerator)(float col[4], ForceVizModifierData *fmd, const ForceVizInput *input);
 
 /* rasterize triangle with uv2[1] == uv3[1] and uv1[1] >= uv2[1] */
-static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
+static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
                                              const float co1[3], const float co2[3], const float co3[3],
                                              const float uv1[2], const float uv2[2], const float uv3[2])
 {
@@ -1065,7 +1065,7 @@ static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ImBuf *i
 	int i, j;
 	
 	y0 = max_ii((int)uv1[1], rect->ymin);
-	y1 = min_ii((int)uv2[1], rect->ymax);
+	y1 = min_ii((int)uv2[1], rect->ymax-1);
 	
 	if (use_float_buffer)
 		buf_float = ibuf->rect_float + ystride * y0;
@@ -1103,7 +1103,7 @@ static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ImBuf *i
 	for (j = y0; j <= y1; ++j) {
 		float v = (float)j + 0.5f;
 		int x0 = max_ii((int)u0, rect->xmin);
-		int x1 = min_ii((int)u1, rect->xmax);
+		int x1 = min_ii((int)u1, rect->xmax-1);
 		float L = u1 - u0;
 		float Linv = L > 0.0f ? 1.0f/L : 0.0f;
 		
@@ -1121,12 +1121,20 @@ static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ImBuf *i
 			float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 			
 			{
+				EffectedPoint point;
 				ForceVizInput input;
 				float co23[3];
 				
 				interp_v3_v3v3(co23, co2, co3, facx);
 				interp_v3_v3v3(input.co, co1, co23, facy);
 				zero_v3(input.vel);
+				
+				pd_point_from_loc(fmd->modifier.scene, input.co, input.vel, 0, &point);
+				zero_v3(input.force);
+				zero_v3(input.impulse);
+				zero_m3(input.dforce); // TODO
+				pdDoEffectors(effectors, NULL, fmd->effector_weights, &point, input.force, input.impulse);
+				
 				cb(col, fmd, &input);
 			}
 			
@@ -1159,7 +1167,7 @@ static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ImBuf *i
 }
 
 /* rasterize triangle with uv2[1] == uv3[1] and uv1[1] <= uv2[1] */
-static void forceviz_rasterize_halftri_upper(ForceVizModifierData *fmd, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
+static void forceviz_rasterize_halftri_upper(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
                                              const float co1[3], const float co2[3], const float co3[3],
                                              const float uv1[2], const float uv2[2], const float uv3[2])
 {
@@ -1167,7 +1175,7 @@ static void forceviz_rasterize_halftri_upper(ForceVizModifierData *fmd, ImBuf *i
 //	int y1 = ceilf(uv3[1]);
 }
 
-static void forceviz_rasterize_tri(ForceVizModifierData *fmd, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
+static void forceviz_rasterize_tri(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
                                    const float co1[3], const float co2[3], const float co3[3],
                                    const float uv1[2], const float uv2[2], const float uv3[2])
 {
@@ -1224,12 +1232,12 @@ static void forceviz_rasterize_tri(ForceVizModifierData *fmd, ImBuf *ibuf, Force
 		interp_v3_v3v3(co_mid, co1s, co3s, t);
 		uv_mid[0] = interpf(uv3s[1], uv1s[1], t);
 		uv_mid[1] = uv2[1];
-		forceviz_rasterize_halftri_lower(fmd, ibuf, cb, rect, co1s, co2s, co_mid, uv1s, uv2s, uv_mid);
-		forceviz_rasterize_halftri_upper(fmd, ibuf, cb, rect, co3s, co_mid, co2s, uv3s, uv_mid, uv2s);
+		forceviz_rasterize_halftri_lower(fmd, effectors, ibuf, cb, rect, co1s, co2s, co_mid, uv1s, uv2s, uv_mid);
+		forceviz_rasterize_halftri_upper(fmd, effectors, ibuf, cb, rect, co3s, co_mid, co2s, uv3s, uv_mid, uv2s);
 	}
 }
 
-static void forceviz_rasterize_face(ForceVizModifierData *fmd, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
+static void forceviz_rasterize_face(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
                                     MVert *verts, MFace *mf, float (*tex_co)[3], float obmat[4][4])
 {
 	float co1[3], co2[3], co3[3];
@@ -1248,7 +1256,7 @@ static void forceviz_rasterize_face(ForceVizModifierData *fmd, ImBuf *ibuf, Forc
 	uv3[0] = (uv3[0] + 1.0f) * 0.5f * ibuf->x;
 	uv3[1] = (uv3[1] + 1.0f) * 0.5f * ibuf->y;
 	
-	forceviz_rasterize_tri(fmd, ibuf, cb, rect, co1, co2, co3, uv1, uv2, uv3);
+	forceviz_rasterize_tri(fmd, effectors, ibuf, cb, rect, co1, co2, co3, uv1, uv2, uv3);
 	
 	if (mf->v4) {
 		float co4[3];
@@ -1258,11 +1266,11 @@ static void forceviz_rasterize_face(ForceVizModifierData *fmd, ImBuf *ibuf, Forc
 		uv4[0] = (uv4[0] + 1.0f) * 0.5f * ibuf->x;
 		uv4[1] = (uv4[1] + 1.0f) * 0.5f * ibuf->y;
 		
-		forceviz_rasterize_tri(fmd, ibuf, cb, rect, co1, co3, co4, uv1, uv3, uv4);
+		forceviz_rasterize_tri(fmd, effectors, ibuf, cb, rect, co1, co3, co4, uv1, uv3, uv4);
 	}
 }
 
-static void forceviz_rasterize_mesh(ForceVizModifierData *fmd, ImBuf *ibuf, ForceVizImageGenerator cb,
+static void forceviz_rasterize_mesh(ForceVizModifierData *fmd, ListBase *effectors, ImBuf *ibuf, ForceVizImageGenerator cb,
                                     DerivedMesh *dm, float (*tex_co)[3], float obmat[4][4])
 {
 	int numfaces = dm->getNumTessFaces(dm);
@@ -1280,13 +1288,13 @@ static void forceviz_rasterize_mesh(ForceVizModifierData *fmd, ImBuf *ibuf, Forc
 	rect.ymax = ibuf->y;
 	
 	for (i = 0; i < numfaces; ++i) {
-		forceviz_rasterize_face(fmd, ibuf, cb, &rect, verts, &faces[i], tex_co, obmat);
+		forceviz_rasterize_face(fmd, effectors, ibuf, cb, &rect, verts, &faces[i], tex_co, obmat);
 	}
 	
 	ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID | IB_BITMAPDIRTY;
 }
 
-static void forceviz_generate_image(ForceVizModifierData *fmd, Image *image, ForceVizImageGenerator cb, Object *ob, DerivedMesh *dm, float (*tex_co)[3])
+static void forceviz_generate_image(ForceVizModifierData *fmd, ListBase *effectors, Image *image, ForceVizImageGenerator cb, Object *ob, DerivedMesh *dm, float (*tex_co)[3])
 {
 	void *lock;
 	ImBuf *ibuf;
@@ -1300,7 +1308,7 @@ static void forceviz_generate_image(ForceVizModifierData *fmd, Image *image, For
 		return;
 	}
 	
-	forceviz_rasterize_mesh(fmd, ibuf, cb, dm, tex_co, ob->obmat);
+	forceviz_rasterize_mesh(fmd, effectors, ibuf, cb, dm, tex_co, ob->obmat);
 	
 	/* force OpenGL reload and mipmap recalc */
 	/* some of the images could have been changed during bake,
@@ -1333,16 +1341,24 @@ static void forceviz_image_test(float col[4], ForceVizModifierData *UNUSED(fmd),
 static void forceviz_image_vectors(float col[4], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
 {
 	copy_v3_v3(col, input->force);
+	mul_v3_fl(col, 0.5f * 0.01f); // TODO add custom scaling factor or max force
+	add_v3_fl(col, 0.5f);
+	CLAMP3(col, 0.0f, 1.0f);
 }
 
 /* Modifier call. Processes dynamic paint modifier step. */
-DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *UNUSED(scene), Object *ob, DerivedMesh *dm, float (*tex_co)[3])
+DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*tex_co)[3])
 {
+	ListBase *effectors;
+	
 	DM_ensure_tessface(dm);
 	
+	effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
+	
 	if (fmd->flag & MOD_FORCEVIZ_USE_IMG_VEC)
-//		forceviz_generate_image(fmd, fmd->image_vec, forceviz_image_vectors);
-		forceviz_generate_image(fmd, fmd->image_vec, forceviz_image_test, ob, dm, tex_co);
+		forceviz_generate_image(fmd, effectors, fmd->image_vec, forceviz_image_vectors, ob, dm, tex_co);
+	
+	pdEndEffectors(&effectors);
 	
 	/* Return output mesh */
 	return dm;

@@ -40,6 +40,8 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_object_force.h"
+
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
 #include "BKE_image.h"
@@ -55,13 +57,16 @@ static void initData(ModifierData *md)
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
 	
-	BKE_texture_mapping_default(&fmd->tex_mapping, TEXMAP_TYPE_POINT);
+	fmd->texmapping = MOD_DISP_MAP_UV;
+	
 	fmd->iuser.frames = 1;
 	fmd->iuser.sfra = 1;
 	fmd->iuser.fie_ima = 2;
 	fmd->iuser.ok = 1;
 	
 	fmd->flag = MOD_FORCEVIZ_USE_IMG_VEC;
+	
+	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -69,13 +74,18 @@ static void copyData(ModifierData *md, ModifierData *target)
 	ForceVizModifierData *fmd  = (ForceVizModifierData *)md;
 	ForceVizModifierData *tfmd = (ForceVizModifierData *)target;
 	
-	memcpy(&tfmd->tex_mapping, &fmd->tex_mapping, sizeof(tfmd->tex_mapping));
 	memcpy(&tfmd->iuser, &fmd->iuser, sizeof(tfmd->iuser));
+	
+	if (fmd->effector_weights)
+		tfmd->effector_weights = MEM_dupallocN(fmd->effector_weights);
 }
 
-static void freeData(ModifierData *UNUSED(md))
+static void freeData(ModifierData *md)
 {
-//	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
+	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
+	
+	if (fmd->effector_weights)
+		MEM_freeN(fmd->effector_weights);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -104,9 +114,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		copy_v3_v3(vert_co[i], mverts[i].co);
 	tex_co = MEM_mallocN(sizeof(*tex_co) * numverts, "forceviz modifier tex_co");
 	get_texture_coords((MappingInfoModifierData *)fmd, ob, dm, vert_co, tex_co, numverts);
-
+	
 	BKE_forceviz_do(fmd, md->scene, ob, dm, tex_co);
-
+	
+	MEM_freeN(vert_co);
+	MEM_freeN(tex_co);
+	
 	return dm;
 }
 
@@ -151,9 +164,12 @@ static void foreachIDLink(ModifierData *md, Object *ob,
                           IDWalkFunc walk, void *userData)
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
-
+	
 	walk(userData, ob, (ID **)&fmd->texture);
 	walk(userData, ob, (ID **)&fmd->map_object);
+	
+	if (fmd->effector_weights)
+		walk(userData, ob, (ID **)&fmd->effector_weights->group);
 	
 	walk(userData, ob, (ID **)&fmd->image_vec);
 	walk(userData, ob, (ID **)&fmd->image_div);

@@ -1536,10 +1536,11 @@ typedef struct ForceVizModifierData {
 	
 	int flag, pad;
 	
-	TexMapping tex_mapping;
 	ImageUser iuser;
 	float color_scale;
 	int pad2;
+	
+	struct EffectorWeights *effector_weights;
 	
 	struct Image *image_vec;
 	struct Image *image_div;

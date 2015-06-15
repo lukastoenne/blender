@@ -20,6 +20,7 @@
 import bpy
 from bpy.types import Panel
 from bpy.app.translations import pgettext_iface as iface_
+from bl_ui.properties_physics_common import effector_weights_ui
 
 
 class ModifierButtonsPanel:
@@ -379,6 +380,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             layout.prop(md, "texture_coords_object", text="Object")
         elif md.texture_coords == 'UV' and ob.type == 'MESH':
             layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
+
+        effector_weights_ui(self, bpy.context, md.effector_weights, 'FORCEVIZ')
 
     def HOOK(self, layout, ob, md):
         use_falloff = (md.falloff_type != 'NONE')

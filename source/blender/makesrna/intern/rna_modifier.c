@@ -4573,6 +4573,11 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "ForceVizModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_FORCE_FORCE);
 
+	prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "EffectorWeights");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Effector Weights", "");
+
 	prop = RNA_def_property(srna, "use_image_vec", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_FORCEVIZ_USE_IMG_VEC);
 	RNA_def_property_ui_text(prop, "Use Vector Image", "");
