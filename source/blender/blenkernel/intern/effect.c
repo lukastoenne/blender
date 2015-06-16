@@ -1457,6 +1457,9 @@ static void forceviz_generate_image(ForceVizModifierData *fmd, ListBase *effecto
 		return;
 	}
 	
+	if (ibuf->rect_float)
+		memset(ibuf->rect_float, 0, sizeof(float) * ibuf->channels * ibuf->x * ibuf->y);
+	
 	forceviz_rasterize_mesh(fmd, effectors, ibuf, cb, dm, tex_co, ob->obmat);
 	
 	/* force OpenGL reload and mipmap recalc */
