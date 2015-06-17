@@ -247,7 +247,7 @@ void OpenVDB_draw_primitive(OpenVDBPrimitive *vdb_prim,
     internal::OpenVDBPrimitive_draw_tree(vdb_prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
 }
 
-void OpenVDB_draw_primitive_values(struct OpenVDBPrimitive *vdb_prim, float tolerance, float point_size)
+void OpenVDB_draw_primitive_values(struct OpenVDBPrimitive *vdb_prim, float tolerance, float point_size, const bool draw_box)
 {
-	internal::OpenVDBPrimitive_draw_values(vdb_prim, tolerance, point_size);
+	internal::OpenVDBPrimitive_draw_values(vdb_prim, tolerance, point_size, draw_box);
 }

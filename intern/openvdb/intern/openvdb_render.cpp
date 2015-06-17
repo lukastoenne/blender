@@ -171,7 +171,7 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, float point_size)
+void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, float point_size, const bool draw_box)
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
@@ -179,29 +179,69 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, f
 	FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
 	std::vector<vertex> vertices, colors;
 
-	for (FloatGrid::ValueOnCIter iter = grid->cbeginValueOn(); iter; ++iter) {
-		float value = iter.getValue();
+	if (draw_box) {
+		CoordBBox bbox;
+		Vec3f wmin, wmax;
 
-		if (value < tolerance) {
-			continue;
+		/* The following colors are meant to be the same as in the example images of
+		 * "VDB: High-Resolution Sparse Volumes With Dynamic Topology",
+		 * K. Museth, 2013 */
+		Vec3f voxel_color[2] = {
+		    Vec3f(0.523f, 0.0325175f, 0.0325175f), // positive values
+		    Vec3f(0.92f, 0.92f, 0.92f), // negative values
+		};
+
+		Vec3f color;
+
+		for (FloatGrid::ValueOnCIter iter = grid->cbeginValueOn(); iter; ++iter) {
+			float value = iter.getValue();
+
+			if (value < tolerance) {
+				continue;
+			}
+
+			iter.getBoundingBox(bbox);
+
+			const Vec3f min(bbox.min().x() - 0.5f, bbox.min().y() - 0.5f, bbox.min().z() - 0.5f);
+			const Vec3f max(bbox.max().x() + 0.5f, bbox.max().y() + 0.5f, bbox.max().z() + 0.5f);
+
+			wmin = grid->indexToWorld(min);
+			wmax = grid->indexToWorld(max);
+
+			color = isNegative(value) ? voxel_color[1] : voxel_color[0];
+			add_box(&vertices, &colors, wmin, wmax, color);
 		}
+	}
+	else {
+		for (FloatGrid::ValueOnCIter iter = grid->cbeginValueOn(); iter; ++iter) {
+			float value = iter.getValue();
 
-		Vec3f point = grid->indexToWorld(iter.getCoord());
-		Vec3f color(value);
-		add_point(&vertices, &colors, point, color);
+			if (value < tolerance) {
+				continue;
+			}
+
+			Vec3f point = grid->indexToWorld(iter.getCoord());
+			Vec3f color(value);
+			add_point(&vertices, &colors, point, color);
+		}
 	}
 
 	glPointSize(point_size);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
-	glEnable(GL_BLEND);
+	glEnable(GL_LIGHTING);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	glEnable(GL_COLOR_MATERIAL);
+	glShadeModel(GL_SMOOTH);
 
 	glVertexPointer(3, GL_FLOAT, 0, &vertices[0]);
 	glColorPointer(3, GL_FLOAT, 0, &colors[0]);
-	glDrawArrays(GL_POINTS, 0, vertices.size());
+	glDrawArrays(draw_box ? GL_QUADS : GL_POINTS, 0, vertices.size());
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
+	glDisable(GL_COLOR_MATERIAL);
+	glDisable(GL_LIGHTING);
 }
 
 }

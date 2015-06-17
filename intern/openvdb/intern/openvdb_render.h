@@ -9,7 +9,7 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
                                 const bool draw_level_1, const bool draw_level_2,
                                 const bool draw_leaves);
 
-void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, float point_size);
+void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, float point_size, const bool draw_box);
 
 }
 
