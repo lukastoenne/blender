@@ -31,32 +31,97 @@
 
 namespace internal {
 
-void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root, const bool draw_level_1, const bool draw_level_2, const bool draw_leaves)
+struct vertex {
+	float x, y, z;
+};
+
+static void add_point(std::vector<vertex> *vertices, std::vector<vertex> *colors,
+                      openvdb::Vec3f point, openvdb::Vec3f color)
+{
+	vertex vert;
+	vert.x = point.x();
+	vert.y = point.y();
+	vert.z = point.z();
+	vertices->push_back(vert);
+
+	vertex col;
+	col.x = color.x();
+	col.y = color.y();
+	col.z = color.z();
+	colors->push_back(col);
+}
+
+static void add_box(std::vector<vertex> *vertices, std::vector<vertex> *colors,
+                    openvdb::Vec3f min, openvdb::Vec3f max, openvdb::Vec3f color)
+{
+	using namespace openvdb;
+	Vec3f point;
+
+	point = Vec3f(min.x(), min.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(max.x(), min.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(max.x(), min.y(), max.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(min.x(), min.y(), max.z());
+	add_point(vertices, colors, point, color);
+
+	point = Vec3f(min.x(), min.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(min.x(), max.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(min.x(), max.y(), max.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(min.x(), min.y(), max.z());
+	add_point(vertices, colors, point, color);
+
+	point = Vec3f(max.x(), max.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(max.x(), min.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(max.x(), min.y(), max.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(max.x(), max.y(), max.z());
+	add_point(vertices, colors, point, color);
+
+	point = Vec3f(max.x(), max.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(min.x(), max.y(), min.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(min.x(), max.y(), max.z());
+	add_point(vertices, colors, point, color);
+	point = Vec3f(max.x(), max.y(), max.z());
+	add_point(vertices, colors, point, color);
+}
+
+void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root,
+                                const bool draw_level_1, const bool draw_level_2,
+                                const bool draw_leaves)
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
 
 	FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
 
-	math::Vec3d wmin, wmax;
-	math::Vec3s color(0.0f);
-
-	math::Vec3s node_color[4] = {
-	    math::Vec3s(0.0060f, 0.2790f, 0.6250f), // leaf nodes
-	    math::Vec3s(0.8710f, 0.3940f, 0.0191f), // intermediate internal node levels
-	    math::Vec3s(0.0432f, 0.3300f, 0.0411f), // first internal node level
-	    math::Vec3s(0.0450f, 0.0450f, 0.0450f)  // root
+	/* The following colors are meant to be the same as in the example images of
+	 * "VDB: High-Resolution Sparse Volumes With Dynamic Topology",
+	 * K. Museth, 2013 */
+	Vec3f node_color[4] = {
+	    Vec3f(0.0060f, 0.2790f, 0.6250f), // leaf nodes
+	    Vec3f(0.8710f, 0.3940f, 0.0191f), // intermediate internal node levels
+	    Vec3f(0.0432f, 0.3300f, 0.0411f), // first internal node level
+	    Vec3f(0.0450f, 0.0450f, 0.0450f)  // root node
 	};
 
-	math::CoordBBox bbox;
-
-	glBegin(GL_LINES);
+	CoordBBox bbox;
+	std::vector<vertex> vertices, colors;
+	Vec3f wmin, wmax, color;
 
 	for (FloatTree::NodeCIter node_iter = grid->tree().cbeginNode(); node_iter; ++node_iter) {
 		node_iter.getBoundingBox(bbox);
 
-		const Vec3d min(bbox.min().x() - 0.5, bbox.min().y() - 0.5, bbox.min().z() - 0.5);
-		const Vec3d max(bbox.max().x() + 0.5, bbox.max().y() + 0.5, bbox.max().z() + 0.5);
+		const Vec3f min(bbox.min().x() - 0.5f, bbox.min().y() - 0.5f, bbox.min().z() - 0.5f);
+		const Vec3f max(bbox.max().x() + 0.5f, bbox.max().y() + 0.5f, bbox.max().z() + 0.5f);
 
 		wmin = grid->indexToWorld(min);
 		wmax = grid->indexToWorld(max);
@@ -69,68 +134,41 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 			}
 			color = node_color[0];
 		}
-
-		if (level == 1) {
+		else if (level == 1) {
 			if (!draw_level_2) {
 				continue;
 			}
 			color = node_color[1];
 		}
-
-		if (level == 2) {
+		else if (level == 2) {
 			if (!draw_level_1) {
 				continue;
 			}
 			color = node_color[2];
 		}
-
-		if (level == 3) {
+		else {
 			if (!draw_root) {
 				continue;
 			}
 			color = node_color[3];
 		}
 
-		glColor3f(color[0], color[1], color[2]);
-
-		glVertex3f(wmin.x(), wmax.y(), wmax.z());
-		glVertex3f(wmax.x(), wmax.y(), wmax.z());
-
-		glVertex3f(wmin.x(), wmax.y(), wmin.z());
-		glVertex3f(wmax.x(), wmax.y(), wmin.z());
-
-		glVertex3f(wmin.x(), wmin.y(), wmax.z());
-		glVertex3f(wmax.x(), wmin.y(), wmax.z());
-
-		glVertex3f(wmin.x(), wmin.y(), wmin.z());
-		glVertex3f(wmax.x(), wmin.y(), wmin.z());
-
-		glVertex3f(wmin.x(), wmin.y(), wmin.z());
-		glVertex3f(wmin.x(), wmin.y(), wmax.z());
-
-		glVertex3f(wmin.x(), wmax.y(), wmin.z());
-		glVertex3f(wmin.x(), wmax.y(), wmax.z());
-
-		glVertex3f(wmax.x(), wmin.y(), wmin.z());
-		glVertex3f(wmax.x(), wmin.y(), wmax.z());
-
-		glVertex3f(wmax.x(), wmax.y(), wmin.z());
-		glVertex3f(wmax.x(), wmax.y(), wmax.z());
-
-		glVertex3f(wmin.x(), wmin.y(), wmin.z());
-		glVertex3f(wmin.x(), wmax.y(), wmin.z());
-
-		glVertex3f(wmax.x(), wmin.y(), wmin.z());
-		glVertex3f(wmax.x(), wmax.y(), wmin.z());
-
-		glVertex3f(wmax.x(), wmin.y(), wmax.z());
-		glVertex3f(wmax.x(), wmax.y(), wmax.z());
-
-		glVertex3f(wmin.x(), wmin.y(), wmax.z());
-		glVertex3f(wmin.x(), wmax.y(), wmax.z());
+		add_box(&vertices, &colors, wmin, wmax, color);
 	}
 
-	glEnd();
+	glDisable(GL_CULL_FACE);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glEnable(GL_BLEND);
+
+	glVertexPointer(3, GL_FLOAT, 0, &vertices[0]);
+	glColorPointer(3, GL_FLOAT, 0, &colors[0]);
+	glDrawArrays(GL_QUADS, 0, vertices.size());
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim)
@@ -139,24 +177,31 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim)
 	using namespace openvdb::math;
 
 	FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
-	//	size_t num_points = grid->activeVoxelCount();
-
-	glPointSize(1.0f);
-	glBegin(GL_POINTS);
+	std::vector<vertex> vertices, colors;
 
 	for (FloatGrid::ValueOnCIter iter = grid->cbeginValueOn(); iter; ++iter) {
-		float color = iter.getValue();
+		float value = iter.getValue();
 
-		if (color < 0.1f) {
+		if (value < 0.1f) {
 			continue;
 		}
 
-		Vec3d point = grid->indexToWorld(iter.getCoord());
-		glColor3f(color, color, color);
-		glVertex3f(point.x(), point.y(), point.z());
+		Vec3f point = grid->indexToWorld(iter.getCoord());
+		Vec3f color(value);
+		add_point(&vertices, &colors, point, color);
 	}
 
-	glEnd();
+	glPointSize(2.0f);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glEnable(GL_BLEND);
+
+	glVertexPointer(3, GL_FLOAT, 0, &vertices[0]);
+	glColorPointer(3, GL_FLOAT, 0, &colors[0]);
+	glDrawArrays(GL_POINTS, 0, vertices.size());
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
 }
 
 }
