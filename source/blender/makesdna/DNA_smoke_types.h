@@ -153,8 +153,9 @@ typedef struct SmokeDomainSettings {
 	float flame_smoke_color[3];
 
 	struct ListBase vdb_caches;
-	short use_openvdb, draw_flags, pad[2];
+	short use_openvdb, pad[3];
 	struct OpenVDBPrimitive *density, *density_high;
+	struct OpenVDBDrawData *vdb_draw_data;
 } SmokeDomainSettings;
 
 typedef struct OpenVDBCache {
@@ -167,6 +168,13 @@ typedef struct OpenVDBCache {
 	short flags, compression, pad[2];
 } OpenVDBCache;
 
+typedef struct OpenVDBDrawData {
+	float tolerance;      /* minimun value a voxel should have to be drawn */
+	float point_size;     /* size of the voxels */
+	short flags;          /* which level of the tree to draw */
+	short voxel_drawing;  /* how to draw the voxels */
+} OpenVDBDrawData;
+
 enum {
 	VDB_CACHE_CURRENT        = (1 << 0),
 	VDB_CACHE_SMOKE_EXPORTED = (1 << 1),
@@ -178,11 +186,23 @@ enum {
 	VDB_COMPRESSION_NONE  = 2,
 };
 
+/* OpenVDBDrawData.flags */
 enum {
-    VDB_DRAW_ROOT    = (1 << 0),
-    VDB_DRAW_LEVEL_1 = (1 << 1),
-    VDB_DRAW_LEVEL_2 = (1 << 2),
-    VDB_DRAW_LEAVES  = (1 << 3),
+	/* Draw the various levels of the VDB tree */
+    DRAW_ROOT    = (1 << 0),
+    DRAW_LEVEL_1 = (1 << 1),
+    DRAW_LEVEL_2 = (1 << 2),
+    DRAW_LEAVES  = (1 << 3),
+	/* Draw the voxels */
+	DRAW_VOXELS  = (1 << 4),
+};
+
+/* OpenVDBDrawData.voxel_drawing */
+enum {
+	DRAW_VOXELS_POINT  = 0,
+	DRAW_VOXELS_BOX    = 1,
+	/* unsupported at the moment, is using dense arrays */
+	DRAW_VOXELS_VOLUME = 2,
 };
 
 /* inflow / outflow */

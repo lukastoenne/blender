@@ -362,6 +362,58 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 }
 
+static void rna_def_openvdb_draw_data(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem vdb_draw_tree_items[] = {
+		{DRAW_ROOT,    "ROOT",    0, "Root",    "Draw root node"},
+	    {DRAW_LEVEL_1, "LEVEL_1", 0, "Level 1", "Draw level 1 node"},
+	    {DRAW_LEVEL_2, "LEVEL_2", 0, "Level 2", "Draw level 2 node"},
+	    {DRAW_LEAVES,  "LEAVES",  0, "Leaves",  "Draw leaf nodes"},
+	    {DRAW_VOXELS,  "VOXELS",  0, "Voxels",  "Draw voxels"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem vdb_draw_voxels_items[] = {
+		{DRAW_VOXELS_POINT,  "POINT",  0, "Point",  "Draw voxels as points"},
+	    {DRAW_VOXELS_BOX,    "BOX",    0, "Box",    "Draw voxels as boxes"},
+	    {DRAW_VOXELS_VOLUME, "VOLUME", 0, "Volume", "Draw voxels as volume"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	srna = RNA_def_struct(brna, "OpenVDBDrawData", NULL);
+	RNA_def_struct_ui_text(srna, "Draw Data", "OpenVDB Draw Data");
+
+	prop = RNA_def_property(srna, "show_tree", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "flags");
+	RNA_def_property_enum_items(prop, vdb_draw_tree_items);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Tree", "Draw the OpenVDB tree");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "voxel_drawing", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, vdb_draw_voxels_items);
+	RNA_def_property_ui_text(prop, "Voxel Drawing", "Method for drawing the voxels");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "tolerance", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "tolerance");
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 3);
+	RNA_def_property_ui_text(prop, "Minimum Value",
+	                         "Minimun value a voxel should have to be drawn");
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
+
+	prop = RNA_def_property(srna, "point_size", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "point_size");
+	RNA_def_property_range(prop, 0.0, 10.0);
+	RNA_def_property_ui_range(prop, 0.0, 10.0, 50, 1);
+	RNA_def_property_ui_text(prop, "Size", "Diameter of the voxels (drawing only)");
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
+}
+
 static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -659,27 +711,12 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	                           "rna_SmokeModifier_active_openvdb_cache_index_range");
 	RNA_def_property_ui_text(prop, "Active OpenVDB cache Index", "");
 
-	prop = RNA_def_property(srna, "draw_root_node", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_ROOT);
-	RNA_def_property_ui_text(prop, "Root", "Draw root node");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
-	prop = RNA_def_property(srna, "draw_level_1_node", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_LEVEL_1);
-	RNA_def_property_ui_text(prop, "Level 1", "Draw level 1 node");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
-	prop = RNA_def_property(srna, "draw_level_2_node", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_LEVEL_2);
-	RNA_def_property_ui_text(prop, "Level 2", "Draw level 2 node");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
-	prop = RNA_def_property(srna, "draw_leaf_node", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "draw_flags", VDB_DRAW_LEAVES);
-	RNA_def_property_ui_text(prop, "Leaves", "Draw leaf nodes");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
 	rna_def_openvdb_cache(brna);
+
+	prop = RNA_def_property(srna, "vdb_draw_data", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "OpenVDBDrawData");
+
+	rna_def_openvdb_draw_data(brna);
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

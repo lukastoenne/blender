@@ -413,6 +413,8 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 			MEM_freeN(cache);
 		}
 
+		MEM_freeN(smd->domain->vdb_draw_data);
+
 		MEM_freeN(smd->domain);
 		smd->domain = NULL;
 	}
@@ -583,6 +585,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->effector_weights = BKE_add_effector_weights(NULL);
 
 			smd->domain->use_openvdb = false;
+			smd->domain->vdb_draw_data = MEM_callocN(sizeof(OpenVDBDrawData), "OpenVDBDrawData");
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -2723,7 +2726,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			return;
 		}
 
-#if 0
+#if 1
 		/* try to read from openvdb cache */
 		vdb_cache = BKE_openvdb_get_current_cache(sds);
 		if (sds->use_openvdb && vdb_cache) {

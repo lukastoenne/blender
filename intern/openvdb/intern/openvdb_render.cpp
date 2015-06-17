@@ -171,7 +171,7 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim)
+void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, float point_size)
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
@@ -182,7 +182,7 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim)
 	for (FloatGrid::ValueOnCIter iter = grid->cbeginValueOn(); iter; ++iter) {
 		float value = iter.getValue();
 
-		if (value < 0.1f) {
+		if (value < tolerance) {
 			continue;
 		}
 
@@ -191,7 +191,7 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim)
 		add_point(&vertices, &colors, point, color);
 	}
 
-	glPointSize(2.0f);
+	glPointSize(point_size);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glEnable(GL_BLEND);

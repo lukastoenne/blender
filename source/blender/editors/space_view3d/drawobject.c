@@ -8020,6 +8020,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (smd->domain) {
 			SmokeDomainSettings *sds = smd->domain;
 			float viewnormal[3];
+			bool render_volume = !sds->use_openvdb;
 
 			glLoadMatrixf(rv3d->viewmat);
 			glMultMatrixf(ob->obmat);
@@ -8055,19 +8056,34 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 #ifdef WITH_OPENVDB
 				{
-					const bool draw_root    = (sds->draw_flags & VDB_DRAW_ROOT);
-					const bool draw_level_1 = (sds->draw_flags & VDB_DRAW_LEVEL_1);
-					const bool draw_level_2 = (sds->draw_flags & VDB_DRAW_LEVEL_2);
-					const bool draw_leaves  = (sds->draw_flags & VDB_DRAW_LEAVES);
+					OpenVDBDrawData *draw_data = sds->vdb_draw_data;
+					bool draw_root, draw_level_1, draw_level_2;
+					bool draw_leaves, draw_voxels;
+
+					if (!draw_data) {
+						draw_data = sds->vdb_draw_data = MEM_callocN(sizeof(OpenVDBDrawData), "OpenVDBDrawData");
+					}
+
+					draw_root    = (draw_data->flags & DRAW_ROOT);
+					draw_level_1 = (draw_data->flags & DRAW_LEVEL_1);
+					draw_level_2 = (draw_data->flags & DRAW_LEVEL_2);
+					draw_leaves  = (draw_data->flags & DRAW_LEAVES);
+					draw_voxels  = (draw_data->flags & DRAW_VOXELS);
 
 					glLoadMatrixf(rv3d->viewmat);
 					if (sds->density) {
 						OpenVDB_draw_primitive(sds->density, draw_root, draw_level_1, draw_level_2, draw_leaves);
-						OpenVDB_draw_primitive_values(sds->density);
+						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_POINT)
+							OpenVDB_draw_primitive_values(sds->density, draw_data->tolerance, draw_data->point_size);
+						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
+							render_volume = true;
 					}
 					if (sds->density_high) {
 						OpenVDB_draw_primitive(sds->density_high, draw_root, draw_level_1, draw_level_2, draw_leaves);
-						OpenVDB_draw_primitive_values(sds->density_high);
+						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_POINT)
+							OpenVDB_draw_primitive_values(sds->density_high, draw_data->tolerance, draw_data->point_size);
+						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
+							render_volume = true;
 					}
 					glMultMatrixf(sds->fluidmat);
 				}
@@ -8075,7 +8091,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			}
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
-			if (!smd->domain->use_openvdb && smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
+			if (render_volume && smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
 				float p0[3], p1[3];
 
 				glLoadMatrixf(rv3d->viewmat);

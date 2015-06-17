@@ -4821,6 +4821,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 						cache->reader = NULL;
 						cache->writer = NULL;
 					}
+
+					smd->domain->vdb_draw_data = newdataadr(fd, smd->domain->vdb_draw_data);
 				}
 			}
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {
