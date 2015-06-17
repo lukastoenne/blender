@@ -372,17 +372,18 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
         layout.operator("object.smoke_vdb_export")
         layout.operator("object.smoke_vdb_transform_update")
 
-        draw_data = domain.vdb_draw_data
         layout.label(text="Draw OpenVDB Data:")
+        draw_data = domain.vdb_draw_data
         layout.prop_menu_enum(draw_data, "show_tree")
         layout.prop(draw_data, "voxel_drawing")
 
-        if draw_data.voxel_drawing in { 'POINT' }:
-            row = layout.row()
-            row.prop(draw_data, "tolerance")
-            row.prop(draw_data, "point_size")
-            row = layout.row()
-            row.prop(draw_data, "lod")
+        row = layout.row()
+        row.active = draw_data.voxel_drawing in { 'POINT', 'BOX' }
+        row.prop(draw_data, "tolerance")
+        row.prop(draw_data, "lod")
+        row = layout.row()
+        row.active = draw_data.voxel_drawing in { 'POINT' }
+        row.prop(draw_data, "point_size")
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):
