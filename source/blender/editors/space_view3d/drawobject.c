@@ -8057,6 +8057,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 #ifdef WITH_OPENVDB
 				{
 					OpenVDBDrawData *draw_data = sds->vdb_draw_data;
+					struct OpenVDBPrimitive *prim = NULL;
 					bool draw_root, draw_level_1, draw_level_2;
 					bool draw_leaves, draw_voxels;
 
@@ -8070,22 +8071,21 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					draw_leaves  = (draw_data->flags & DRAW_LEAVES);
 					draw_voxels  = (draw_data->flags & DRAW_VOXELS);
 
+					if (sds->density)
+						prim = sds->density;
+					else if (sds->density_high)
+						prim = sds->density_high;
+
 					glLoadMatrixf(rv3d->viewmat);
-					if (sds->density) {
-						OpenVDB_draw_primitive(sds->density, draw_root, draw_level_1, draw_level_2, draw_leaves);
+					if (prim) {
+						OpenVDB_draw_primitive(prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
+
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_POINT)
-							OpenVDB_draw_primitive_values(sds->density, draw_data->tolerance, draw_data->point_size, false, draw_data->lod);
+							OpenVDB_draw_primitive_values(prim, draw_data->tolerance, draw_data->point_size, false, draw_data->lod);
+
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_BOX)
-							OpenVDB_draw_primitive_values(sds->density, draw_data->tolerance, draw_data->point_size, true, draw_data->lod);
-						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
-							render_volume = true;
-					}
-					if (sds->density_high) {
-						OpenVDB_draw_primitive(sds->density_high, draw_root, draw_level_1, draw_level_2, draw_leaves);
-						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_POINT)
-							OpenVDB_draw_primitive_values(sds->density_high, draw_data->tolerance, draw_data->point_size, false, draw_data->lod);
-						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_BOX)
-							OpenVDB_draw_primitive_values(sds->density_high, draw_data->tolerance, draw_data->point_size, true, draw_data->lod);
+							OpenVDB_draw_primitive_values(prim, draw_data->tolerance, draw_data->point_size, true, draw_data->lod);
+
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
 							render_volume = true;
 					}
