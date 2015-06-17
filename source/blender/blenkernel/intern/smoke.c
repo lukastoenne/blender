@@ -585,7 +585,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->effector_weights = BKE_add_effector_weights(NULL);
 
 			smd->domain->use_openvdb = false;
-			smd->domain->vdb_draw_data = MEM_callocN(sizeof(OpenVDBDrawData), "OpenVDBDrawData");
+			smd->domain->vdb_draw_data = BKE_openvdb_draw_data_create();
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -3522,4 +3522,19 @@ OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
 	}
 
 	return cache;
+}
+
+OpenVDBDrawData *BKE_openvdb_draw_data_create(void)
+{
+	OpenVDBDrawData *data;
+
+	data = MEM_callocN(sizeof(OpenVDBDrawData), "OpenVDBDrawData");
+
+	data->lod = 50;
+	data->point_size = 1.0f;
+	data->tolerance = 0.001f;
+	data->voxel_drawing = DRAW_VOXELS_POINT;
+	data->flags |= DRAW_VOXELS;
+
+	return data;
 }

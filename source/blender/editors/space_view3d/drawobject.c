@@ -74,6 +74,7 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
+#include "BKE_smoke.h"
 #include "BKE_unit.h"
 #include "BKE_tracking.h"
 
@@ -8061,8 +8062,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					bool draw_root, draw_level_1, draw_level_2;
 					bool draw_leaves, draw_voxels;
 
+					/* some sort of versioning for development */
 					if (!draw_data) {
-						draw_data = sds->vdb_draw_data = MEM_callocN(sizeof(OpenVDBDrawData), "OpenVDBDrawData");
+						draw_data = sds->vdb_draw_data = BKE_openvdb_draw_data_create();
 					}
 
 					draw_root    = (draw_data->flags & DRAW_ROOT);
