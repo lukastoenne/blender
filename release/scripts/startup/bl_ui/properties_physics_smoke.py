@@ -376,11 +376,13 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
         layout.label(text="Draw OpenVDB Data:")
         layout.prop_menu_enum(draw_data, "show_tree")
         layout.prop(draw_data, "voxel_drawing")
-        
+
         if draw_data.voxel_drawing in { 'POINT' }:
             row = layout.row()
             row.prop(draw_data, "tolerance")
             row.prop(draw_data, "point_size")
+            row = layout.row()
+            row.prop(draw_data, "lod")
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):

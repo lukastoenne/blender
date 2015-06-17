@@ -173,6 +173,7 @@ typedef struct OpenVDBDrawData {
 	float point_size;     /* size of the voxels */
 	short flags;          /* which level of the tree to draw */
 	short voxel_drawing;  /* how to draw the voxels */
+	int lod;              /* level of detail */
 } OpenVDBDrawData;
 
 enum {

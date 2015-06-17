@@ -406,6 +406,14 @@ static void rna_def_openvdb_draw_data(BlenderRNA *brna)
 	                         "Minimun value a voxel should have to be drawn");
 	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
 
+	prop = RNA_def_property(srna, "lod", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "lod");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 100, 1, -1);
+	RNA_def_property_ui_text(prop, "Level of Detail",
+	                         "Percentage of the number of voxels to draw");
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
+
 	prop = RNA_def_property(srna, "point_size", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "point_size");
 	RNA_def_property_range(prop, 0.0, 10.0);

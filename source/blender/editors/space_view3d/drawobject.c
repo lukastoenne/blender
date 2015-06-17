@@ -8074,18 +8074,18 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					if (sds->density) {
 						OpenVDB_draw_primitive(sds->density, draw_root, draw_level_1, draw_level_2, draw_leaves);
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_POINT)
-							OpenVDB_draw_primitive_values(sds->density, draw_data->tolerance, draw_data->point_size, false);
+							OpenVDB_draw_primitive_values(sds->density, draw_data->tolerance, draw_data->point_size, false, draw_data->lod);
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_BOX)
-							OpenVDB_draw_primitive_values(sds->density, draw_data->tolerance, draw_data->point_size, true);
+							OpenVDB_draw_primitive_values(sds->density, draw_data->tolerance, draw_data->point_size, true, draw_data->lod);
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
 							render_volume = true;
 					}
 					if (sds->density_high) {
 						OpenVDB_draw_primitive(sds->density_high, draw_root, draw_level_1, draw_level_2, draw_leaves);
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_POINT)
-							OpenVDB_draw_primitive_values(sds->density_high, draw_data->tolerance, draw_data->point_size, false);
+							OpenVDB_draw_primitive_values(sds->density_high, draw_data->tolerance, draw_data->point_size, false, draw_data->lod);
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_BOX)
-							OpenVDB_draw_primitive_values(sds->density_high, draw_data->tolerance, draw_data->point_size, true);
+							OpenVDB_draw_primitive_values(sds->density_high, draw_data->tolerance, draw_data->point_size, true, draw_data->lod);
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
 							render_volume = true;
 					}

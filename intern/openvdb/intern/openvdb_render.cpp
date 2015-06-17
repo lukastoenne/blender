@@ -171,13 +171,19 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, float point_size, const bool draw_box)
+void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, float point_size, const bool draw_box, const int lod)
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
 
 	FloatGrid::Ptr grid = gridPtrCast<FloatGrid>(vdb_prim->getGridPtr());
 	std::vector<vertex> vertices, colors;
+
+	size_t i = 0;
+	float fac = static_cast<float>(lod) * 0.01f;
+	size_t num_voxels = grid->activeVoxelCount();
+	float num_points = std::max(1.0f, floorf(num_voxels * fac));
+	float lod_fl = floorf(num_voxels / num_points);
 
 	if (draw_box) {
 		CoordBBox bbox;
@@ -200,16 +206,20 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, f
 				continue;
 			}
 
-			iter.getBoundingBox(bbox);
+			if (fmod((float)i, lod_fl) == 0.0f) {
+				iter.getBoundingBox(bbox);
 
-			const Vec3f min(bbox.min().x() - 0.5f, bbox.min().y() - 0.5f, bbox.min().z() - 0.5f);
-			const Vec3f max(bbox.max().x() + 0.5f, bbox.max().y() + 0.5f, bbox.max().z() + 0.5f);
+				const Vec3f min(bbox.min().x() - 0.5f, bbox.min().y() - 0.5f, bbox.min().z() - 0.5f);
+				const Vec3f max(bbox.max().x() + 0.5f, bbox.max().y() + 0.5f, bbox.max().z() + 0.5f);
 
-			wmin = grid->indexToWorld(min);
-			wmax = grid->indexToWorld(max);
+				wmin = grid->indexToWorld(min);
+				wmax = grid->indexToWorld(max);
 
-			color = isNegative(value) ? voxel_color[1] : voxel_color[0];
-			add_box(&vertices, &colors, wmin, wmax, color);
+				color = isNegative(value) ? voxel_color[1] : voxel_color[0];
+				add_box(&vertices, &colors, wmin, wmax, color);
+			}
+
+			i++;
 		}
 	}
 	else {
@@ -220,9 +230,13 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, f
 				continue;
 			}
 
-			Vec3f point = grid->indexToWorld(iter.getCoord());
-			Vec3f color(value);
-			add_point(&vertices, &colors, point, color);
+			if (fmod((float)i, lod_fl) == 0.0f) {
+				Vec3f point = grid->indexToWorld(iter.getCoord());
+				Vec3f color(value);
+				add_point(&vertices, &colors, point, color);
+			}
+
+			i++;
 		}
 	}
 
