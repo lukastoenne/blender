@@ -8080,11 +8080,13 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					if (prim) {
 						OpenVDB_draw_primitive(prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
 
-						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_POINT)
-							OpenVDB_draw_primitive_values(prim, draw_data->tolerance, draw_data->point_size, false, draw_data->lod);
+						if (draw_voxels && ELEM(draw_data->voxel_drawing, DRAW_VOXELS_POINT, DRAW_VOXELS_BOX)) {
+							const bool draw_as_box = (draw_data->voxel_drawing == DRAW_VOXELS_BOX);
 
-						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_BOX)
-							OpenVDB_draw_primitive_values(prim, draw_data->tolerance, draw_data->point_size, true, draw_data->lod);
+							OpenVDB_draw_primitive_values(prim, draw_data->tolerance,
+							                              draw_data->point_size,
+							                              draw_as_box, draw_data->lod);
+						}
 
 						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
 							render_volume = true;
