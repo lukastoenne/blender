@@ -771,7 +771,9 @@ int isect_seg_seg_v2_point(const float v1[2], const float v2[2], const float v3[
 
 bool isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2])
 {
-#define CCW(A, B, C) ((C[1] - A[1]) * (B[0] - A[0]) > (B[1]-A[1]) * (C[0]-A[0]))
+#define CCW(A, B, C) \
+	((C[1] - A[1]) * (B[0] - A[0]) > \
+	 (B[1] - A[1]) * (C[0] - A[0]))
 
 	return CCW(v1, v3, v4) != CCW(v2, v3, v4) && CCW(v1, v2, v3) != CCW(v1, v2, v4);
 
@@ -2337,7 +2339,7 @@ void axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3])
 	transpose_m3(r_mat);
 
 	BLI_assert(!is_negative_m3(r_mat));
-	BLI_assert(fabsf(dot_m3_v3_row_z(r_mat, normal) - 1.0f) < BLI_ASSERT_UNIT_EPSILON);
+	BLI_assert((fabsf(dot_m3_v3_row_z(r_mat, normal) - 1.0f) < BLI_ASSERT_UNIT_EPSILON) || is_zero_v3(normal));
 }
 
 /****************************** Interpolation ********************************/
