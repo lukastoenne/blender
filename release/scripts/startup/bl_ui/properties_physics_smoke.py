@@ -75,6 +75,11 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
             sub.prop(domain, "dissolve_speed", text="Time")
             sub.prop(domain, "use_dissolve_smoke_log", text="Slow")
 
+        elif md.smoke_type == 'DOMAIN_VDB':
+            domain = md.domain_vdb_settings
+
+            split = layout.split()
+
         elif md.smoke_type == 'FLOW':
 
             flow = md.flow_settings
@@ -399,6 +404,22 @@ class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):
     def draw(self, context):
         domain = context.smoke.domain_settings
         effector_weights_ui(self, context, domain.effector_weights, 'SMOKE')
+
+
+class PHYSICS_PT_smoke_vdb_field_weights(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Field Weights"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN_VDB') and (not rd.use_game_engine)
+
+    def draw(self, context):
+        domain = context.smoke.domain_vdb_settings
+        effector_weights_ui(self, context, domain.effector_weights, 'SMOKE')
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

@@ -60,6 +60,7 @@ static void initData(ModifierData *md)
 	SmokeModifierData *smd = (SmokeModifierData *) md;
 	
 	smd->domain = NULL;
+	smd->domain_vdb = NULL;
 	smd->flow = NULL;
 	smd->coll = NULL;
 	smd->type = 0;
@@ -182,7 +183,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	SmokeModifierData *smd = (SmokeModifierData *) md;
 	Base *base;
 
-	if (smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
+	if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
 		if (smd->domain->fluid_group || smd->domain->coll_group) {
 			GroupObject *go = NULL;
 			
@@ -225,6 +226,9 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 		for (; base; base = base->next) {
 			update_depsgraph_field_source_object(forest, obNode, ob, base->object);
 		}
+	}
+	else if ((smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB) && smd->domain_vdb) {
+		
 	}
 }
 
@@ -291,7 +295,7 @@ static void updateDepsgraph(ModifierData *md,
 {
 	SmokeModifierData *smd = (SmokeModifierData *)md;
 	Base *base;
-	if (smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
+	if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
 		if (smd->domain->fluid_group || smd->domain->coll_group) {
 			GroupObject *go = NULL;
 			if (smd->domain->fluid_group != NULL) {
@@ -331,6 +335,9 @@ static void updateDepsgraph(ModifierData *md,
 			update_depsgraph_field_source_object_new(node, ob, base->object);
 		}
 	}
+	else if ((smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB) && smd->domain_vdb) {
+		
+	}
 }
 
 static void foreachIDLink(ModifierData *md, Object *ob,
@@ -345,6 +352,14 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 
 		if (smd->domain->effector_weights) {
 			walk(userData, ob, (ID **)&smd->domain->effector_weights->group);
+		}
+	}
+
+	if (smd->type == MOD_SMOKE_TYPE_DOMAIN_VDB && smd->domain_vdb) {
+		SmokeDomainVDBSettings *domain = smd->domain_vdb;
+		
+		if (domain->effector_weights) {
+			walk(userData, ob, (ID **)&domain->effector_weights->group);
 		}
 	}
 

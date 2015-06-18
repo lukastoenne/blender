@@ -109,6 +109,16 @@ static char *rna_SmokeDomainSettings_path(PointerRNA *ptr)
 	return BLI_sprintfN("modifiers[\"%s\"].domain_settings", name_esc);
 }
 
+static char *rna_SmokeDomainVDBSettings_path(PointerRNA *ptr)
+{
+	SmokeDomainVDBSettings *settings = (SmokeDomainVDBSettings *)ptr->data;
+	ModifierData *md = (ModifierData *)settings->smd;
+	char name_esc[sizeof(md->name) * 2];
+
+	BLI_strescape(name_esc, md->name, sizeof(name_esc));
+	return BLI_sprintfN("modifiers[\"%s\"].domain_vdb_settings", name_esc);
+}
+
 static char *rna_SmokeFlowSettings_path(PointerRNA *ptr)
 {
 	SmokeFlowSettings *settings = (SmokeFlowSettings *)ptr->data;
@@ -727,6 +737,22 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	rna_def_openvdb_draw_data(brna);
 }
 
+static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "SmokeDomainVDBSettings", NULL);
+	RNA_def_struct_ui_text(srna, "Domain VDB Settings", "Smoke VDB domain settings");
+	RNA_def_struct_sdna(srna, "SmokeDomainVDBSettings");
+	RNA_def_struct_path_func(srna, "rna_SmokeDomainVDBSettings_path");
+
+	prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "EffectorWeights");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Effector Weights", "");
+}
+
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -932,6 +958,7 @@ static void rna_def_smoke_coll_settings(BlenderRNA *brna)
 void RNA_def_smoke(BlenderRNA *brna)
 {
 	rna_def_smoke_domain_settings(brna);
+	rna_def_smoke_domain_vdb_settings(brna);
 	rna_def_smoke_flow_settings(brna);
 	rna_def_smoke_coll_settings(brna);
 }

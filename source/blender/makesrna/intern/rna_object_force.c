@@ -665,10 +665,15 @@ static char *rna_EffectorWeight_path(PointerRNA *ptr)
 		md = (ModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
 		if (md) {
 			SmokeModifierData *smd = (SmokeModifierData *)md;
-			if (smd->domain->effector_weights == ew) {
+			if (smd->domain && smd->domain->effector_weights == ew) {
 				char name_esc[sizeof(md->name) * 2];
 				BLI_strescape(name_esc, md->name, sizeof(name_esc));
-				return BLI_sprintfN("modifiers[\"%s\"].settings.effector_weights", name_esc);
+				return BLI_sprintfN("modifiers[\"%s\"].domain_settings.effector_weights", name_esc);
+			}
+			else if (smd->domain_vdb && smd->domain_vdb->effector_weights == ew) {
+				char name_esc[sizeof(md->name) * 2];
+				BLI_strescape(name_esc, md->name, sizeof(name_esc));
+				return BLI_sprintfN("modifiers[\"%s\"].domain_vdb_settings.effector_weights", name_esc);
 			}
 		}
 

@@ -4778,6 +4778,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			SmokeModifierData *smd = (SmokeModifierData *)md;
 			
 			if (smd->type == MOD_SMOKE_TYPE_DOMAIN) {
+				smd->domain_vdb = NULL;
 				smd->flow = NULL;
 				smd->coll = NULL;
 				smd->domain = newdataadr(fd, smd->domain);
@@ -4825,8 +4826,22 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					smd->domain->vdb_draw_data = newdataadr(fd, smd->domain->vdb_draw_data);
 				}
 			}
+
+			else if (smd->type == MOD_SMOKE_TYPE_DOMAIN_VDB) {
+				SmokeDomainVDBSettings *domain = smd->domain_vdb = newdataadr(fd, smd->domain_vdb);
+				domain->smd = smd;
+				smd->domain = NULL;
+				smd->flow = NULL;
+				smd->coll = NULL;
+				
+				domain->effector_weights = newdataadr(fd, domain->effector_weights);
+				if (!domain->effector_weights)
+					domain->effector_weights = BKE_add_effector_weights(NULL);
+			}
+
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {
 				smd->domain = NULL;
+				smd->domain_vdb = NULL;
 				smd->coll = NULL;
 				smd->flow = newdataadr(fd, smd->flow);
 				smd->flow->smd = smd;
@@ -4838,6 +4853,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			else if (smd->type == MOD_SMOKE_TYPE_COLL) {
 				smd->flow = NULL;
 				smd->domain = NULL;
+				smd->domain_vdb = NULL;
 				smd->coll = newdataadr(fd, smd->coll);
 				if (smd->coll) {
 					smd->coll->smd = smd;

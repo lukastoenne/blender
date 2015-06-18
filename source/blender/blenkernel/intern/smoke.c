@@ -420,6 +420,20 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 	}
 }
 
+static void smokeModifier_freeDomainVDB(SmokeModifierData *smd)
+{
+	SmokeDomainVDBSettings *domain = smd->domain_vdb;
+	
+	if (domain) {
+		if (domain->effector_weights)
+			MEM_freeN(domain->effector_weights);
+		domain->effector_weights = NULL;
+
+		MEM_freeN(domain);
+		smd->domain_vdb = NULL;
+	}
+}
+
 static void smokeModifier_freeFlow(SmokeModifierData *smd)
 {
 	if (smd->flow)
@@ -492,6 +506,10 @@ static void smokeModifier_reset_ex(struct SmokeModifierData *smd, bool need_lock
 			smd->domain->total_cells = 0;
 			smd->domain->active_fields = 0;
 		}
+		else if (smd->domain_vdb)
+		{
+			printf("TODO: smokeModifier_reset_ex for VDB domain\n");
+		}
 		else if (smd->flow)
 		{
 			if (smd->flow->verts_old) MEM_freeN(smd->flow->verts_old);
@@ -521,6 +539,7 @@ void smokeModifier_free(SmokeModifierData *smd)
 	if (smd)
 	{
 		smokeModifier_freeDomain(smd);
+		smokeModifier_freeDomainVDB(smd);
 		smokeModifier_freeFlow(smd);
 		smokeModifier_freeCollision(smd);
 	}
@@ -586,6 +605,18 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			smd->domain->use_openvdb = false;
 			smd->domain->vdb_draw_data = BKE_openvdb_draw_data_create();
+		}
+		else if (smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB)
+		{
+			SmokeDomainVDBSettings *domain;
+			
+			if (smd->domain_vdb)
+				smokeModifier_freeDomainVDB(smd);
+
+			domain = smd->domain_vdb = MEM_callocN(sizeof(SmokeDomainSettings), "SmokeDomain");
+			domain->smd = smd;
+
+			domain->effector_weights = BKE_add_effector_weights(NULL);
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -676,6 +707,12 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 
 		MEM_freeN(tsmd->domain->effector_weights);
 		tsmd->domain->effector_weights = MEM_dupallocN(smd->domain->effector_weights);
+	}
+	else if (tsmd->domain_vdb) {
+		SmokeDomainVDBSettings *domain = smd->domain_vdb;
+		SmokeDomainVDBSettings *tdomain = tsmd->domain_vdb;
+		
+		tdomain->effector_weights = MEM_dupallocN(domain->effector_weights);
 	}
 	else if (tsmd->flow) {
 		tsmd->flow->psys = smd->flow->psys;

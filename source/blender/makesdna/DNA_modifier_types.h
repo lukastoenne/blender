@@ -352,6 +352,7 @@ typedef struct SmokeModifierData {
 	ModifierData modifier;
 
 	struct SmokeDomainSettings *domain;
+	struct SmokeDomainVDBSettings *domain_vdb;
 	struct SmokeFlowSettings *flow; /* inflow, outflow, smoke objects */
 	struct SmokeCollSettings *coll; /* collision objects */
 	float time;
@@ -360,9 +361,10 @@ typedef struct SmokeModifierData {
 
 /* Smoke modifier flags */
 enum {
-	MOD_SMOKE_TYPE_DOMAIN = (1 << 0),
-	MOD_SMOKE_TYPE_FLOW   = (1 << 1),
-	MOD_SMOKE_TYPE_COLL   = (1 << 2),
+	MOD_SMOKE_TYPE_DOMAIN       = (1 << 0),
+	MOD_SMOKE_TYPE_FLOW         = (1 << 1),
+	MOD_SMOKE_TYPE_COLL         = (1 << 2),
+	MOD_SMOKE_TYPE_DOMAIN_VDB   = (1 << 3),
 };
 
 typedef struct DisplaceModifierData {

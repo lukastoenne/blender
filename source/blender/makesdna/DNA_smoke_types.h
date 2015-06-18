@@ -81,12 +81,16 @@ enum {
 
 typedef struct SmokeDomainSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
+
+	// FLUID_3D solver data
 	struct FLUID_3D *fluid;
 	void *fluid_mutex;
+	struct WTURBULENCE *wt; // WTURBULENCE object, if active
+
 	struct Group *fluid_group;
 	struct Group *eff_group; // UNUSED
 	struct Group *coll_group; // collision objects group
-	struct WTURBULENCE *wt; // WTURBULENCE object, if active
+
 	struct GPUTexture *tex;
 	struct GPUTexture *tex_wt;
 	struct GPUTexture *tex_shadow;
@@ -157,6 +161,14 @@ typedef struct SmokeDomainSettings {
 	struct OpenVDBPrimitive *density, *density_high;
 	struct OpenVDBDrawData *vdb_draw_data;
 } SmokeDomainSettings;
+
+typedef struct SmokeDomainVDBSettings {
+	struct SmokeModifierData *smd; /* for fast RNA access */
+
+	// OpenVDB solver data
+
+	struct EffectorWeights *effector_weights;
+} SmokeDomainVDBSettings;
 
 typedef struct OpenVDBCache {
 	struct OpenVDBCache *next, *prev;

@@ -1571,6 +1571,14 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 				writestruct(wd, DATA, "OpenVDBDrawData", 1, smd->domain->vdb_draw_data);
 
 			}
+			else if (smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB) {
+				if (smd->domain_vdb) {
+					SmokeDomainVDBSettings *domain = smd->domain_vdb;
+					
+					writestruct(wd, DATA, "EffectorWeights", 1, domain->effector_weights);
+				}
+				writestruct(wd, DATA, "SmokeDomainVDBSettings", 1, smd->domain_vdb);
+			}
 			else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 				writestruct(wd, DATA, "SmokeFlowSettings", 1, smd->flow);
 			else if (smd->type & MOD_SMOKE_TYPE_COLL)
