@@ -1576,6 +1576,10 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 					SmokeDomainVDBSettings *domain = smd->domain_vdb;
 					
 					writestruct(wd, DATA, "EffectorWeights", 1, domain->effector_weights);
+					
+					if (domain->cache) {
+						writestruct(wd, DATA, "OpenVDBCache", 1, domain->cache);
+					}
 				}
 				writestruct(wd, DATA, "SmokeDomainVDBSettings", 1, smd->domain_vdb);
 			}

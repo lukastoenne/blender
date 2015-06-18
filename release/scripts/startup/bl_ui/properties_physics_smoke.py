@@ -420,6 +420,33 @@ class PHYSICS_PT_smoke_vdb_field_weights(PhysicButtonsPanel, Panel):
         domain = context.smoke.domain_vdb_settings
         effector_weights_ui(self, context, domain.effector_weights, 'SMOKE')
 
+class PHYSICS_PT_smoke_vdb_cache(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Cache"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN_VDB') and (not rd.use_game_engine)
+
+    def draw(self, context):
+        layout = self.layout
+
+        if not bpy.app.build_options.openvdb:
+            layout.label("Build without OpenVDB support.")
+            return
+
+        domain = context.smoke.domain_vdb_settings
+        cache = domain.cache
+
+        if cache:
+            layout.prop(cache, "filepath")
+            layout.prop(cache, "compression")
+            row = layout.row(align=True)
+            row.prop(cache, "frame_start")
+            row.prop(cache, "frame_end")
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

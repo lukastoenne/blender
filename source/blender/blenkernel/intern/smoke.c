@@ -429,6 +429,14 @@ static void smokeModifier_freeDomainVDB(SmokeModifierData *smd)
 			MEM_freeN(domain->effector_weights);
 		domain->effector_weights = NULL;
 
+		if (domain->cache) {
+#ifdef WITH_OPENVDB
+			OpenVDBWriter_free(domain->cache->writer);
+			OpenVDBReader_free(domain->cache->reader);
+#endif
+			MEM_freeN(domain->cache);
+		}
+
 		MEM_freeN(domain);
 		smd->domain_vdb = NULL;
 	}
@@ -545,6 +553,24 @@ void smokeModifier_free(SmokeModifierData *smd)
 	}
 }
 
+static OpenVDBCache *openvdb_cache_new(const char *name)
+{
+	OpenVDBCache *cache = NULL;
+
+	cache = MEM_callocN(sizeof(OpenVDBCache), "OpenVDBCache");
+	cache->reader = NULL;
+	cache->writer = NULL;
+	cache->startframe = 1;
+	cache->endframe = 250;
+	cache->compression = VDB_COMPRESSION_ZIP;
+
+	if (!name || name[0] == '\0')
+		name = "openvdb_smoke_export";
+	BLI_strncpy(cache->name, name, sizeof(cache->name));
+
+	return cache;
+}
+
 void smokeModifier_createType(struct SmokeModifierData *smd)
 {
 	if (smd)
@@ -612,11 +638,13 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			
 			if (smd->domain_vdb)
 				smokeModifier_freeDomainVDB(smd);
-
+			
 			domain = smd->domain_vdb = MEM_callocN(sizeof(SmokeDomainSettings), "SmokeDomain");
 			domain->smd = smd;
-
+			
 			domain->effector_weights = BKE_add_effector_weights(NULL);
+			
+			domain->cache = openvdb_cache_new(NULL);
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{

@@ -4837,6 +4837,12 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				domain->effector_weights = newdataadr(fd, domain->effector_weights);
 				if (!domain->effector_weights)
 					domain->effector_weights = BKE_add_effector_weights(NULL);
+				
+				domain->cache = newdataadr(fd, domain->cache);
+				if (domain->cache) {
+					domain->cache->reader = NULL;
+					domain->cache->writer = NULL;
+				}
 			}
 
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {

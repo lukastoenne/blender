@@ -168,6 +168,8 @@ typedef struct SmokeDomainVDBSettings {
 	// OpenVDB solver data
 
 	struct EffectorWeights *effector_weights;
+	
+	struct OpenVDBCache *cache;
 } SmokeDomainVDBSettings;
 
 typedef struct OpenVDBCache {
