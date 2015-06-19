@@ -227,6 +227,8 @@ void fill_poly_v2i_n(
 /* tri or quad, d can be NULL */
 void interp_weights_face_v3(float w[4],
                             const float a[3], const float b[3], const float c[3], const float d[3], const float p[3]);
+/* also returns three indices of the triangle actually used */
+void interp_weights_face_v3_index(int tri[3], float w[4], const float v1[3], const float v2[3], const float v3[3], const float v4[3], const float co[3]);
 void interp_weights_poly_v3(float w[], float v[][3], const int n, const float co[3]);
 void interp_weights_poly_v2(float w[], float v[][2], const int n, const float co[2]);
 
