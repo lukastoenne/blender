@@ -164,9 +164,10 @@ typedef struct SmokeDomainSettings {
 
 typedef struct SmokeDomainVDBSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
-
-	// OpenVDB solver data
-
+	
+	struct OpenVDBPrimitive *density;
+	struct OpenVDBDrawData *draw_data;
+	
 	struct EffectorWeights *effector_weights;
 	
 	struct OpenVDBCache *cache;

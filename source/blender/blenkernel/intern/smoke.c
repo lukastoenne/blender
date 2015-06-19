@@ -425,10 +425,13 @@ static void smokeModifier_freeDomainVDB(SmokeModifierData *smd)
 	SmokeDomainVDBSettings *domain = smd->domain_vdb;
 	
 	if (domain) {
+		if (domain->draw_data)
+			MEM_freeN(domain->draw_data);
+		
 		if (domain->effector_weights)
 			MEM_freeN(domain->effector_weights);
 		domain->effector_weights = NULL;
-
+		
 		if (domain->cache) {
 #ifdef WITH_OPENVDB
 			OpenVDBWriter_free(domain->cache->writer);
@@ -436,7 +439,7 @@ static void smokeModifier_freeDomainVDB(SmokeModifierData *smd)
 #endif
 			MEM_freeN(domain->cache);
 		}
-
+		
 		MEM_freeN(domain);
 		smd->domain_vdb = NULL;
 	}
@@ -641,6 +644,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			
 			domain = smd->domain_vdb = MEM_callocN(sizeof(SmokeDomainSettings), "SmokeDomain");
 			domain->smd = smd;
+			
+			domain->draw_data = BKE_openvdb_draw_data_create();
 			
 			domain->effector_weights = BKE_add_effector_weights(NULL);
 			

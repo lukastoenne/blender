@@ -540,3 +540,46 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 			}
 }
 #endif
+
+
+void draw_openvdb_data(OpenVDBDrawData *draw_data)
+{
+#ifdef WITH_OPENVDB
+	struct OpenVDBPrimitive *prim = NULL;
+	bool draw_root, draw_level_1, draw_level_2;
+	bool draw_leaves, draw_voxels;
+	
+	if (!draw_data)
+		return;
+	
+	draw_root    = (draw_data->flags & DRAW_ROOT);
+	draw_level_1 = (draw_data->flags & DRAW_LEVEL_1);
+	draw_level_2 = (draw_data->flags & DRAW_LEVEL_2);
+	draw_leaves  = (draw_data->flags & DRAW_LEAVES);
+	draw_voxels  = (draw_data->flags & DRAW_VOXELS);
+	
+	if (sds->density)
+		prim = sds->density;
+	else if (sds->density_high)
+		prim = sds->density_high;
+	
+	glLoadMatrixf(rv3d->viewmat);
+	if (prim) {
+		OpenVDB_draw_primitive(prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
+		
+		if (draw_voxels && ELEM(draw_data->voxel_drawing, DRAW_VOXELS_POINT, DRAW_VOXELS_BOX)) {
+			const bool draw_as_box = (draw_data->voxel_drawing == DRAW_VOXELS_BOX);
+			
+			OpenVDB_draw_primitive_values(prim, draw_data->tolerance,
+			                              draw_data->point_size,
+			                              draw_as_box, draw_data->lod);
+		}
+		
+		if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
+			render_volume = true;
+	}
+	glMultMatrixf(sds->fluidmat);
+#else
+	(void)draw_data;
+#endif
+}

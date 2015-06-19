@@ -4834,6 +4834,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->flow = NULL;
 				smd->coll = NULL;
 				
+				domain->draw_data = newdataadr(fd, domain->draw_data);
+				
 				domain->effector_weights = newdataadr(fd, domain->effector_weights);
 				if (!domain->effector_weights)
 					domain->effector_weights = BKE_add_effector_weights(NULL);
