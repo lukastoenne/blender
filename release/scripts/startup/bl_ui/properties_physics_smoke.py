@@ -80,6 +80,19 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
 
             split = layout.split()
 
+            layout.label(text="Draw OpenVDB Data:")
+            draw_data = domain.draw_data
+            layout.prop_menu_enum(draw_data, "show_tree")
+            layout.prop(draw_data, "voxel_drawing")
+
+            row = layout.row()
+            row.active = draw_data.voxel_drawing in { 'POINT', 'BOX' }
+            row.prop(draw_data, "tolerance")
+            row.prop(draw_data, "lod")
+            row = layout.row()
+            row.active = draw_data.voxel_drawing in { 'POINT' }
+            row.prop(draw_data, "point_size")
+
         elif md.smoke_type == 'FLOW':
 
             flow = md.flow_settings
@@ -441,6 +454,7 @@ class PHYSICS_PT_smoke_vdb_cache(PhysicButtonsPanel, Panel):
         cache = domain.cache
 
         if cache:
+            layout.prop(cache, "name")
             layout.prop(cache, "filepath")
             layout.prop(cache, "compression")
             row = layout.row(align=True)

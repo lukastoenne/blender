@@ -755,6 +755,9 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "cache", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "OpenVDBCache");
 	RNA_def_property_ui_text(prop, "OpenVDB cache", "");
+
+	prop = RNA_def_property(srna, "draw_data", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "OpenVDBDrawData");
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

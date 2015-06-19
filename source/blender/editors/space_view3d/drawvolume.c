@@ -50,6 +50,10 @@
 
 #include "view3d_intern.h"  // own include
 
+#ifdef WITH_OPENVDB
+#  include "openvdb_capi.h"
+#endif
+
 struct GPUTexture;
 
 // #define DEBUG_DRAW_TIME
@@ -541,16 +545,14 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 }
 #endif
 
-
-void draw_openvdb_data(OpenVDBDrawData *draw_data)
+bool draw_openvdb_data(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), RegionView3D *rv3d, OpenVDBDrawData *draw_data, struct OpenVDBPrimitive *prim)
 {
 #ifdef WITH_OPENVDB
-	struct OpenVDBPrimitive *prim = NULL;
-	bool draw_root, draw_level_1, draw_level_2;
-	bool draw_leaves, draw_voxels;
+	bool render_volume = false;
+	bool draw_root, draw_level_1, draw_level_2, draw_leaves, draw_voxels;
 	
 	if (!draw_data)
-		return;
+		return render_volume;
 	
 	draw_root    = (draw_data->flags & DRAW_ROOT);
 	draw_level_1 = (draw_data->flags & DRAW_LEVEL_1);
@@ -558,12 +560,8 @@ void draw_openvdb_data(OpenVDBDrawData *draw_data)
 	draw_leaves  = (draw_data->flags & DRAW_LEAVES);
 	draw_voxels  = (draw_data->flags & DRAW_VOXELS);
 	
-	if (sds->density)
-		prim = sds->density;
-	else if (sds->density_high)
-		prim = sds->density_high;
-	
 	glLoadMatrixf(rv3d->viewmat);
+//	glMultMatrixf(sds->fluidmat); // XXX
 	if (prim) {
 		OpenVDB_draw_primitive(prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
 		
@@ -578,8 +576,10 @@ void draw_openvdb_data(OpenVDBDrawData *draw_data)
 		if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
 			render_volume = true;
 	}
-	glMultMatrixf(sds->fluidmat);
+	
+	return render_volume;
 #else
-	(void)draw_data;
+	UNUSED_VARS(draw_data, rv3d, prim);
+	return false;
 #endif
 }

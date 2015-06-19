@@ -8021,7 +8021,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (smd->domain) {
 			SmokeDomainSettings *sds = smd->domain;
 			float viewnormal[3];
-			bool render_volume = !sds->use_openvdb;
+			bool render_volume = true;
 
 			glLoadMatrixf(rv3d->viewmat);
 			glMultMatrixf(ob->obmat);
@@ -8055,11 +8055,14 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				BKE_boundbox_init_from_minmax(&bb, p0, p1);
 				draw_box(bb.vec, false);
 
-				/* some sort of versioning for development */
-				if (!sds->vdb_draw_data)
-					sds->vdb_draw_data = BKE_openvdb_draw_data_create();
-				
-				draw_openvdb_data(sds->vdb_draw_data);
+				if (sds->use_openvdb) {
+					/* some sort of versioning for development */
+					if (!sds->vdb_draw_data)
+						sds->vdb_draw_data = BKE_openvdb_draw_data_create();
+					
+					if (sds->density)
+						render_volume &= draw_openvdb_data(scene, ob, rv3d, sds->vdb_draw_data, sds->density);
+				}
 			}
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
