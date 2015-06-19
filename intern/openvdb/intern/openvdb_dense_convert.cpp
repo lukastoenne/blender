@@ -172,51 +172,58 @@ public:
     const FloatGrid::Ptr &grid_z() { return m_grid_z; }
 };
 
-void OpenVDB_import_grid_vector(OpenVDBReader *reader,
-                                const std::string &name,
-                                float **data_x, float **data_y, float **data_z,
-                                const int res[3])
+OpenVDBPrimitive *OpenVDB_import_grid_vector(OpenVDBReader *reader,
+                                             const std::string &name,
+                                             float **data_x, float **data_y, float **data_z,
+                                             const int res[3])
 {
 	Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(reader->getGrid(name));
 
+	if (data_x && data_y && data_z) {
 #if 0
-	SplitVectorGrid vector_split;
-	vector_split(vgrid);
+		SplitVectorGrid vector_split;
+		vector_split(vgrid);
 
-	FloatGrid::Ptr grid[3];
-	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
+		FloatGrid::Ptr grid[3];
+		math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
 
-	grid[0] = vector_split.grid_x();
-	tools::Dense<float, tools::LayoutXYZ> dense_grid_x(bbox);
-	tools::copyToDense(*grid[0], dense_grid_x);
-	*data_x = dense_grid_x.data();
+		grid[0] = vector_split.grid_x();
+		tools::Dense<float, tools::LayoutXYZ> dense_grid_x(bbox);
+		tools::copyToDense(*grid[0], dense_grid_x);
+		*data_x = dense_grid_x.data();
 
-	grid[1] = vector_split.grid_y();
-	tools::Dense<float, tools::LayoutXYZ> dense_grid_y(bbox);
-	tools::copyToDense(*grid[1], dense_grid_y);
-	*data_y = dense_grid_y.data();
+		grid[1] = vector_split.grid_y();
+		tools::Dense<float, tools::LayoutXYZ> dense_grid_y(bbox);
+		tools::copyToDense(*grid[1], dense_grid_y);
+		*data_y = dense_grid_y.data();
 
-	grid[2] = vector_split.grid_z();
-	tools::Dense<float, tools::LayoutXYZ> dense_grid_z(bbox);
-	tools::copyToDense(*grid[2], dense_grid_z);
-	*data_z = dense_grid_z.data();
+		grid[2] = vector_split.grid_z();
+		tools::Dense<float, tools::LayoutXYZ> dense_grid_z(bbox);
+		tools::copyToDense(*grid[2], dense_grid_z);
+		*data_z = dense_grid_z.data();
 #else
-	Vec3SGrid::Accessor acc = vgrid->getAccessor();
-	math::Coord xyz;
-	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
+		Vec3SGrid::Accessor acc = vgrid->getAccessor();
+		math::Coord xyz;
+		int &x = xyz[0], &y = xyz[1], &z = xyz[2];
 
-	int index = 0;
-	for (z = 0; z < res[2]; ++z) {
-		for (y = 0; y < res[1]; ++y) {
-			for (x = 0; x < res[0]; ++x, ++index) {
-				math::Vec3s value = acc.getValue(xyz);
-				(*data_x)[index] = value.x();
-				(*data_y)[index] = value.y();
-				(*data_z)[index] = value.z();
+		int index = 0;
+		for (z = 0; z < res[2]; ++z) {
+			for (y = 0; y < res[1]; ++y) {
+				for (x = 0; x < res[0]; ++x, ++index) {
+					math::Vec3s value = acc.getValue(xyz);
+					(*data_x)[index] = value.x();
+					(*data_y)[index] = value.y();
+					(*data_z)[index] = value.z();
+				}
 			}
 		}
-	}
 #endif
+	}
+
+	OpenVDBPrimitive *vdb_prim = new OpenVDBPrimitive();
+	vdb_prim->setGrid(vgrid);
+
+	return vdb_prim;
 }
 
 void OpenVDB_update_fluid_transform(const char *filename, float matrix[4][4], float matrix_high[4][4])

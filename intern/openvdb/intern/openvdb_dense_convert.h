@@ -89,26 +89,29 @@ OpenVDBPrimitive *OpenVDB_import_grid(OpenVDBReader *reader,
 	using namespace openvdb;
 
 	typename GridType::Ptr grid_tmp = gridPtrCast<GridType>(reader->getGrid(name));
+	
+	if (data) {
 #if 0
-	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
+		math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
 
-	tools::Dense<T, tools::LayoutXYZ> dense_grid(bbox);
-	tools::copyToDense(*grid_tmp, dense_grid);
-	memcpy(*data, dense_grid.data(), sizeof(T) * res[0] * res[1] * res[2]);
+		tools::Dense<T, tools::LayoutXYZ> dense_grid(bbox);
+		tools::copyToDense(*grid_tmp, dense_grid);
+		memcpy(*data, dense_grid.data(), sizeof(T) * res[0] * res[1] * res[2]);
 #else
-	typename GridType::Accessor acc = grid_tmp->getAccessor();
-	math::Coord xyz;
-	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
+		typename GridType::Accessor acc = grid_tmp->getAccessor();
+		math::Coord xyz;
+		int &x = xyz[0], &y = xyz[1], &z = xyz[2];
 
-	int index = 0;
-	for (z = 0; z < res[2]; ++z) {
-		for (y = 0; y < res[1]; ++y) {
-			for (x = 0; x < res[0]; ++x, ++index) {
-				(*data)[index] = acc.getValue(xyz);
+		int index = 0;
+		for (z = 0; z < res[2]; ++z) {
+			for (y = 0; y < res[1]; ++y) {
+				for (x = 0; x < res[0]; ++x, ++index) {
+					(*data)[index] = acc.getValue(xyz);
+				}
 			}
 		}
-	}
 #endif
+	}
 
 	OpenVDBPrimitive *vdb_prim = new OpenVDBPrimitive();
 	vdb_prim->setGrid(grid_tmp);
@@ -126,10 +129,10 @@ openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
                                               const openvdb::FloatGrid *mask);
 
 
-void OpenVDB_import_grid_vector(OpenVDBReader *reader,
-                                const std::string &name,
-                                float **data_x, float **data_y, float **data_z,
-                                const int res[3]);
+OpenVDBPrimitive *OpenVDB_import_grid_vector(OpenVDBReader *reader,
+                                             const std::string &name,
+                                             float **data_x, float **data_y, float **data_z,
+                                             const int res[3]);
 
 void OpenVDB_update_fluid_transform(const char *filename,
                                     float matrix[4][4],
