@@ -3667,6 +3667,13 @@ static void smoke_domain_vdb_write_metadata(SmokeDomainVDBSettings *domain, stru
 
 static void smoke_domain_vdb_read_grids(SmokeDomainVDBSettings *sds, struct OpenVDBReader *reader, bool for_display)
 {
+	bool for_low_display = for_display && true;
+	bool for_wt_display = for_display && false;
+
+	if (for_low_display) {
+		sds->density = OpenVDB_import_grid_fl(reader, "Density", NULL, NULL);
+	}
+
 #if 0
 	int fluid_fields = smoke_get_data_flags(sds);
 	int active_fields, cache_fields = 0;
