@@ -173,13 +173,44 @@ typedef struct MSurfaceSampleGenerator_Random {
 	
 	DerivedMesh *dm;
 	RNG *rng;
+	float *face_weights;
+	float *vertex_weights;
 } MSurfaceSampleGenerator_Random;
 
 static void generator_random_free(MSurfaceSampleGenerator_Random *gen)
 {
+	if (gen->face_weights)
+		MEM_freeN(gen->face_weights);
+	if (gen->vertex_weights)
+		MEM_freeN(gen->vertex_weights);
 	if (gen->rng)
 		BLI_rng_free(gen->rng);
 	MEM_freeN(gen);
+}
+
+/* Find the index in "sum" array before "value" is crossed. */
+BLI_INLINE int weight_array_binary_search(float *sum, int size, float value)
+{
+	int mid, low = 0, high = size;
+	
+	if (value == 0.0f)
+		return 0;
+	
+	while (low <= high) {
+		mid = (low + high) >> 1;
+		
+		if (sum[mid] < value && value <= sum[mid+1])
+			return mid;
+		
+		if (sum[mid] >= value)
+			high = mid - 1;
+		else if (sum[mid] < value)
+			low = mid + 1;
+		else
+			return mid;
+	}
+	
+	return low;
 }
 
 static bool generator_random_make_sample(MSurfaceSampleGenerator_Random *gen, MSurfaceSample *sample)
@@ -189,12 +220,22 @@ static bool generator_random_make_sample(MSurfaceSampleGenerator_Random *gen, MS
 	MFace *mfaces = dm->getTessFaceArray(dm);
 	int totfaces = dm->getNumTessFaces(dm);
 	
-	int faceindex = BLI_rng_get_int(rng);
-	int tri = BLI_rng_get_int(rng) % 2;
-	float a = BLI_rng_get_float(rng);
-	float b = BLI_rng_get_float(rng);
+	int faceindex, tri;
+	float a, b;
+	MFace *mface;
 	
-	MFace *mface = &mfaces[faceindex % totfaces];
+	if (gen->face_weights) {
+		int numfaces = gen->dm->getNumTessFaces(gen->dm);
+		faceindex = weight_array_binary_search(gen->face_weights, numfaces, BLI_rng_get_float(gen->rng));
+	}
+	else {
+		faceindex = BLI_rng_get_int(rng) % totfaces;
+	}
+	tri = BLI_rng_get_int(rng) % 2;
+	a = BLI_rng_get_float(rng);
+	b = BLI_rng_get_float(rng);
+	
+	mface = &mfaces[faceindex];
 	
 	if (mface->v4 && tri == 0) {
 		sample->orig_verts[0] = mface->v3;
@@ -218,7 +259,8 @@ static bool generator_random_make_sample(MSurfaceSampleGenerator_Random *gen, MS
 	return true;
 }
 
-MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random(DerivedMesh *dm, unsigned int seed)
+MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random_ex(DerivedMesh *dm, unsigned int seed,
+                                                                    MeshSampleVertexWeightFp vertex_weight_cb, MeshSampleFaceWeightFp face_weight_cb)
 {
 	MSurfaceSampleGenerator_Random *gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_Random), "MSurfaceSampleGenerator_Random");
 	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_random_free, (GeneratorMakeSampleFp)generator_random_make_sample);
@@ -228,7 +270,47 @@ MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random(DerivedMesh *dm
 	gen->dm = dm;
 	gen->rng = BLI_rng_new(seed);
 	
+	if (face_weight_cb) {
+		int num = dm->getNumTessFaces(dm);
+		MFace *mfaces = dm->getTessFaceArray(dm);
+		MFace *mf;
+		int i;
+		float totweight;
+		
+		gen->face_weights = MEM_mallocN(sizeof(float) * (size_t)num, "mesh sample face weights");
+		
+		/* accumulate weights */
+		totweight = 0.0f;
+		for (i = 0, mf = mfaces; i < num; ++i, ++mf) {
+			totweight += face_weight_cb(dm, mf);
+			gen->face_weights[i] = totweight;
+		}
+		
+		/* normalize */
+		if (totweight > 0.0f) {
+			float norm = 1.0f / totweight;
+			for (i = 0, mf = mfaces; i < num; ++i, ++mf)
+				gen->face_weights[i] *= norm;
+		}
+	}
+	
 	return &gen->base;
+}
+
+float BKE_mesh_sample_face_weight_area(DerivedMesh *dm, MFace *face)
+{
+	MVert *mverts = dm->getVertArray(dm);
+	if (face->v4) {
+		return area_quad_v3(mverts[face->v1].co, mverts[face->v2].co, mverts[face->v3].co, mverts[face->v4].co);
+	}
+	else {
+		return area_tri_v3(mverts[face->v1].co, mverts[face->v2].co, mverts[face->v3].co);
+	}
+}
+
+MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random(DerivedMesh *dm, unsigned int seed)
+{
+	return BKE_mesh_sample_create_generator_random_ex(dm, seed, NULL, BKE_mesh_sample_face_weight_area);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -239,7 +321,7 @@ typedef struct MSurfaceSampleGenerator_RayCast {
 	DerivedMesh *dm;
 	BVHTreeFromMesh bvhdata;
 	
-	MeshSampleRayCallback ray_cb;
+	MeshSampleRayFp ray_cb;
 	void *userdata;
 } MSurfaceSampleGenerator_RayCast;
 
@@ -277,7 +359,7 @@ static bool generator_raycast_make_sample(MSurfaceSampleGenerator_RayCast *gen, 
 		return false;
 }
 
-MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata)
+MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(DerivedMesh *dm, MeshSampleRayFp ray_cb, void *userdata)
 {
 	MSurfaceSampleGenerator_RayCast *gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_RayCast), "MSurfaceSampleGenerator_RayCast");
 	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_raycast_free, (GeneratorMakeSampleFp)generator_raycast_make_sample);

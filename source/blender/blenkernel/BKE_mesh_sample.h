@@ -28,8 +28,16 @@
 struct DerivedMesh;
 struct Key;
 struct KeyBlock;
+struct MFace;
+struct MVertex;
 
 struct MSurfaceSample;
+struct MSurfaceSampleGenerator;
+
+typedef struct MSurfaceSampleGenerator MSurfaceSampleGenerator;
+typedef float (*MeshSampleVertexWeightFp)(struct DerivedMesh *dm, struct MVertex *vert);
+typedef float (*MeshSampleFaceWeightFp)(struct DerivedMesh *dm, struct MFace *face);
+typedef bool (*MeshSampleRayFp)(void *userdata, float ray_start[3], float ray_end[3]);
 
 /* ==== Evaluate ==== */
 
@@ -39,17 +47,16 @@ bool BKE_mesh_sample_shapekey(struct Key *key, struct KeyBlock *kb, const struct
 
 /* ==== Sampling ==== */
 
-struct MSurfaceSampleGenerator;
-typedef struct MSurfaceSampleGenerator MSurfaceSampleGenerator;
-
+/* face_weights is optional */
+float BKE_mesh_sample_face_weight_area(struct DerivedMesh *dm, struct MFace *face);
 struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random(struct DerivedMesh *dm, unsigned int seed);
+struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random_ex(struct DerivedMesh *dm, unsigned int seed,
+                                                                           MeshSampleVertexWeightFp vertex_weight_cb, MeshSampleFaceWeightFp face_weight_cb);
 
-typedef bool (*MeshSampleRayCallback)(void *userdata, float ray_start[3], float ray_end[3]);
-struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(struct DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata);
-
+struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(struct DerivedMesh *dm, MeshSampleRayFp ray_cb, void *userdata);
 void BKE_mesh_sample_free_generator(struct MSurfaceSampleGenerator *gen);
-
 bool BKE_mesh_sample_generate(struct MSurfaceSampleGenerator *gen, struct MSurfaceSample *sample);
+
 
 /* ==== Utilities ==== */
 
