@@ -4616,10 +4616,11 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Field Lines Length", "Distance to move along field lines");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop = RNA_def_property(srna, "fieldlines_stepsize", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_float_default(prop, 0.01f);
-	RNA_def_property_ui_text(prop, "Field Lines Step Size", "Step size for integrating field strength");
+	prop = RNA_def_property(srna, "fieldlines_substeps", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_int_default(prop, 16);
+	RNA_def_property_ui_range(prop, 4, 256, 1, 3);
+	RNA_def_property_ui_text(prop, "Field Lines Substeps", "Number of substeps per field line segment");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	rna_def_modifier_generic_map_info(srna);
