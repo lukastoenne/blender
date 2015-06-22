@@ -36,7 +36,7 @@ struct vertex {
 };
 
 static void add_point(std::vector<vertex> *vertices, std::vector<vertex> *colors,
-                      openvdb::Vec3f point, openvdb::Vec3f color)
+                      const openvdb::Vec3f &point, const openvdb::Vec3f &color)
 {
 	vertex vert;
 	vert.x = point.x();
@@ -51,47 +51,83 @@ static void add_point(std::vector<vertex> *vertices, std::vector<vertex> *colors
 	colors->push_back(col);
 }
 
-static void add_box(std::vector<vertex> *vertices, std::vector<vertex> *colors,
-                    openvdb::Vec3f min, openvdb::Vec3f max, openvdb::Vec3f color)
+static void add_box(std::vector<vertex> *vertices,
+                    std::vector<vertex> *colors,
+                    const openvdb::Vec3f &min,
+                    const openvdb::Vec3f &max,
+                    const openvdb::Vec3f &color,
+                    const bool shaded)
 {
 	using namespace openvdb;
-	Vec3f point;
+	std::vector<Vec3f> points;
 
-	point = Vec3f(min.x(), min.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(max.x(), min.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(max.x(), min.y(), max.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(min.x(), min.y(), max.z());
-	add_point(vertices, colors, point, color);
+	const Vec3f corners[8] = {
+	    min,
+	    Vec3f(min.x(), min.y(), max.z()),
+	    Vec3f(max.x(), min.y(), max.z()),
+	    Vec3f(max.x(), min.y(), min.z()),
+	    Vec3f(min.x(), max.y(), min.z()),
+	    Vec3f(min.x(), max.y(), max.z()),
+	    max,
+	    Vec3f(max.x(), max.y(), min.z())
+	};
 
-	point = Vec3f(min.x(), min.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(min.x(), max.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(min.x(), max.y(), max.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(min.x(), min.y(), max.z());
-	add_point(vertices, colors, point, color);
+	if (shaded) {
+		points.push_back(corners[0]);
+		points.push_back(corners[1]);
+		points.push_back(corners[2]);
+		points.push_back(corners[3]);
 
-	point = Vec3f(max.x(), max.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(max.x(), min.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(max.x(), min.y(), max.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(max.x(), max.y(), max.z());
-	add_point(vertices, colors, point, color);
+		points.push_back(corners[7]);
+		points.push_back(corners[6]);
+		points.push_back(corners[5]);
+		points.push_back(corners[4]);
 
-	point = Vec3f(max.x(), max.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(min.x(), max.y(), min.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(min.x(), max.y(), max.z());
-	add_point(vertices, colors, point, color);
-	point = Vec3f(max.x(), max.y(), max.z());
-	add_point(vertices, colors, point, color);
+		points.push_back(corners[4]);
+		points.push_back(corners[5]);
+		points.push_back(corners[1]);
+		points.push_back(corners[0]);
+
+		points.push_back(corners[3]);
+		points.push_back(corners[2]);
+		points.push_back(corners[6]);
+		points.push_back(corners[7]);
+
+		points.push_back(corners[3]);
+		points.push_back(corners[7]);
+		points.push_back(corners[4]);
+		points.push_back(corners[0]);
+
+		points.push_back(corners[1]);
+		points.push_back(corners[5]);
+		points.push_back(corners[6]);
+		points.push_back(corners[2]);
+	}
+	else {
+		points.push_back(corners[0]);
+		points.push_back(corners[3]);
+		points.push_back(corners[2]);
+		points.push_back(corners[1]);
+
+		points.push_back(corners[0]);
+		points.push_back(corners[4]);
+		points.push_back(corners[5]);
+		points.push_back(corners[1]);
+
+		points.push_back(corners[7]);
+		points.push_back(corners[3]);
+		points.push_back(corners[2]);
+		points.push_back(corners[6]);
+
+		points.push_back(corners[7]);
+		points.push_back(corners[4]);
+		points.push_back(corners[5]);
+		points.push_back(corners[6]);
+	}
+
+	for (size_t i = 0; i < points.size(); ++i) {
+		add_point(vertices, colors, points[i], color);
+	}
 }
 
 void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root,
@@ -153,7 +189,7 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 			color = node_color[3];
 		}
 
-		add_box(&vertices, &colors, wmin, wmax, color);
+		add_box(&vertices, &colors, wmin, wmax, color, false);
 	}
 
 	glDisable(GL_CULL_FACE);
@@ -184,6 +220,9 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, f
 	size_t num_voxels = grid->activeVoxelCount();
 	float num_points = std::max(1.0f, floorf(num_voxels * fac));
 	float lod_fl = floorf(num_voxels / num_points);
+
+	vertices.reserve(num_points);
+	colors.reserve(num_points);
 
 	if (draw_box) {
 		CoordBBox bbox;
@@ -216,7 +255,7 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, f
 				wmax = grid->indexToWorld(max);
 
 				color = isNegative(value) ? voxel_color[1] : voxel_color[0];
-				add_box(&vertices, &colors, wmin, wmax, color);
+				add_box(&vertices, &colors, wmin, wmax, color, true);
 			}
 
 			i++;
@@ -258,4 +297,4 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, f
 	glDisable(GL_LIGHTING);
 }
 
-}
+} // namespace internal
