@@ -200,10 +200,10 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 	 * "VDB: High-Resolution Sparse Volumes With Dynamic Topology",
 	 * K. Museth, 2013 */
 	Vec3f node_color[4] = {
-	    Vec3f(0.0060f, 0.2790f, 0.6250f), // leaf nodes
-	    Vec3f(0.8710f, 0.3940f, 0.0191f), // intermediate internal node levels
+	    Vec3f(0.0450f, 0.0450f, 0.0450f), // root node
 	    Vec3f(0.0432f, 0.3300f, 0.0411f), // first internal node level
-	    Vec3f(0.0450f, 0.0450f, 0.0450f)  // root node
+	    Vec3f(0.8710f, 0.3940f, 0.0191f), // intermediate internal node levels
+	    Vec3f(0.0060f, 0.2790f, 0.6250f)  // leaf nodes
 	};
 
 	CoordBBox bbox;
@@ -211,42 +211,33 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 	Vec3f wmin, wmax, color;
 
 	for (FloatTree::NodeCIter node_iter = grid->tree().cbeginNode(); node_iter; ++node_iter) {
-		node_iter.getBoundingBox(bbox);
-
-		const Vec3f min(bbox.min().x() - 0.5f, bbox.min().y() - 0.5f, bbox.min().z() - 0.5f);
-		const Vec3f max(bbox.max().x() + 0.5f, bbox.max().y() + 0.5f, bbox.max().z() + 0.5f);
-
-		wmin = grid->indexToWorld(min);
-		wmax = grid->indexToWorld(max);
-
 		const int level = node_iter.getLevel();
 
-		if (level == 0) {
-			if (!draw_leaves) {
-				continue;
-			}
-			color = node_color[0];
+		if (level == 0 && !draw_leaves) {
+			continue;
 		}
-		else if (level == 1) {
-			if (!draw_level_2) {
-				continue;
-			}
-			color = node_color[1];
+		else if (level == 1 && !draw_level_2) {
+			continue;
 		}
-		else if (level == 2) {
-			if (!draw_level_1) {
-				continue;
-			}
-			color = node_color[2];
+		else if (level == 2 && !draw_level_1) {
+			continue;
+		}
+		else if (level == 3 && !draw_root) {
+			continue;
 		}
 		else {
-			if (!draw_root) {
-				continue;
-			}
-			color = node_color[3];
-		}
+			node_iter.getBoundingBox(bbox);
 
-		add_box(&vertices, &colors, NULL, wmin, wmax, color, false);
+			const Vec3f min(bbox.min().x() - 0.5f, bbox.min().y() - 0.5f, bbox.min().z() - 0.5f);
+			const Vec3f max(bbox.max().x() + 0.5f, bbox.max().y() + 0.5f, bbox.max().z() + 0.5f);
+
+			wmin = grid->indexToWorld(min);
+			wmax = grid->indexToWorld(max);
+
+			color = node_color[std::max(3 - level, 0)];
+
+			add_box(&vertices, &colors, NULL, wmin, wmax, color, false);
+		}
 	}
 
 	glDisable(GL_CULL_FACE);
