@@ -366,6 +366,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.label(text="Settings are inside the Physics tab")
 
     def FORCEVIZ(self, layout, ob, md):
+        layout.prop(md, "seed")
+
         row = layout.row()
         row.prop(md, "use_fieldlines", text="Field Lines")
         col = layout.column(align=True)

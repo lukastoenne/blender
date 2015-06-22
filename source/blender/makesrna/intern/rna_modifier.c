@@ -4603,6 +4603,11 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Field Lines Resolution", "Number of points per field line");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "seed", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_ui_text(prop, "Seed", "Random number generator seed");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "fieldlines_step", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_text(prop, "Field Lines Step", "Distance to move along field lines per step");

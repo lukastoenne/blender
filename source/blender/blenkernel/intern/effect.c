@@ -66,6 +66,7 @@
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -1487,27 +1488,106 @@ static void forceviz_generate_image(ForceVizModifierData *fmd, ListBase *effecto
 
 /* ------------------------------------------------------------------------- */
 
-static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *effectors, BMesh *bm)
+typedef void (*ForceVizVectorFp)(float R[3], float t, const float co[3], void *calldata);
+
+static void forceviz_integrate_rk4(float res[3], const float co1[3], float t1, float h, ForceVizVectorFp func, void *calldata)
 {
+	float k1[3], k2[3], k3[3], k4[3];
+	float t2, t3, t4;
+	float co2[3], co3[3], co4[3];
+	float delta[3];
+	
+	func(k1, t1, co1, calldata);
+	
+	t2 = t1 + 0.5f*h;
+	madd_v3_v3v3fl(co2, co1, k1, 0.5f*h);
+	func(k2, t2, co2, calldata);
+	
+	t3 = t1 + 0.5f*h;
+	madd_v3_v3v3fl(co3, co1, k2, 0.5f*h);
+	func(k3, t3, co3, calldata);
+	
+	t4 = t1 + h;
+	madd_v3_v3v3fl(co4, co1, k3, h);
+	func(k4, t4, co4, calldata);
+	
+	zero_v3(delta);
+	add_v3_v3(delta, k1);
+	madd_v3_v3fl(delta, k2, 2.0f);
+	madd_v3_v3fl(delta, k3, 2.0f);
+	add_v3_v3(delta, k4);
+	
+	madd_v3_v3v3fl(res, co1, delta, h/6.0f);
+}
+
+typedef struct ForceVizEffectorData {
+	Scene *scene;
+	float mat[4][4];
+	float imat[4][4];
+	ListBase *effectors;
+	EffectorWeights *weights;
+} ForceVizEffectorData;
+
+static void forceviz_get_field(float R[3], float UNUSED(t), const float co[3], ForceVizEffectorData *data)
+{
+	EffectedPoint point;
+	float loc[3], vel[3];
+	float force[3], impulse[3];
+	
+	/* transform to world space for effectors */
+	mul_v3_m4v3(loc, data->mat, co);
+	zero_v3(vel);
+	pd_point_from_loc(data->scene, loc, vel, 0, &point);
+	
+	zero_v3(force);
+	zero_v3(impulse);
+	pdDoEffectors(data->effectors, NULL, data->weights, &point, force, impulse);
+	
+	/* transform back to object space */
+	mul_v3_m4v3(R, data->imat, force);
+}
+
+static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *effectors, Object *ob, DerivedMesh *dm, BMesh *bm)
+{
+	const int totlines = fmd->fieldlines_num;
+	const int res = fmd->fieldlines_res;
+	const float step = fmd->fieldlines_step;
 	BMVert *vert, *vert_prev = NULL;
 	BMEdge *edge;
+	MSurfaceSampleGenerator *gen;
+	ForceVizEffectorData funcdata;
 	int ivert = bm->totvert, iedge = bm->totedge;
 	int i, k;
 	
 	if (fmd->fieldlines_num <= 0 || fmd->fieldlines_res < 2)
 		return;
 	
-	for (i = 0; i < fmd->fieldlines_num; ++i) {
-		for (k = 0; k < fmd->fieldlines_res; ++k) {
-			float co[3];
-//			co[0] = (float)i * 0.33333f;
-//			co[1] = (float)k * 0.33333f;
-//			co[2] = (float)k * 0.33333f;
-			const float a[3] = {0.64, 0.3652, 0.155};
-			mul_v3_v3fl(co, a, k);
+	funcdata.scene = fmd->modifier.scene;
+	funcdata.weights = fmd->effector_weights;
+	funcdata.effectors = effectors;
+	copy_m4_m4(funcdata.mat, ob->obmat);
+	invert_m4_m4(funcdata.imat, funcdata.mat);
+	
+	gen = BKE_mesh_sample_create_generator_random(dm, fmd->seed);
+	
+	for (i = 0; i < totlines; ++i) {
+		MSurfaceSample sample;
+		float loc[3], nor[3], tang[3];
+		float t = 0.0f;
+		
+		BKE_mesh_sample_generate(gen, &sample);
+		BKE_mesh_sample_eval(dm, &sample, loc, nor, tang);
+		
+		for (k = 0; k < res; ++k) {
+			if (k > 0) {
+				float nloc[3];
+				forceviz_integrate_rk4(nloc, loc, t, step, (ForceVizVectorFp)forceviz_get_field, &funcdata);
+				/* and back to object space */
+				copy_v3_v3(loc, nloc);
+			}
 			
 			vert_prev = vert;
-			vert = BM_vert_create(bm, co, NULL, BM_CREATE_NOP);
+			vert = BM_vert_create(bm, loc, NULL, BM_CREATE_NOP);
 			BM_elem_index_set(vert, ivert++); /* set_inline */
 			
 			if (k > 0) {
@@ -1522,6 +1602,8 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 		}
 	}
 	bm->elem_index_dirty &= ~(BM_VERT | BM_EDGE);
+	
+	BKE_mesh_sample_free_generator(gen);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1557,7 +1639,7 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 		forceviz_generate_image(fmd, effectors, fmd->image_vec, forceviz_image_vectors, ob, dm, tex_co);
 	
 	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES) {
-		forceviz_generate_field_lines(fmd, effectors, bm);
+		forceviz_generate_field_lines(fmd, effectors, ob, dm, bm);
 	}
 	
 	pdEndEffectors(&effectors);
@@ -1569,7 +1651,7 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 		/* we actually calculate normals ourselves */
 //		result->dirty |= DM_DIRTY_NORMALS;
 		
-		DM_is_valid(result);
+//		DM_is_valid(result);
 		
 		return result;
 	}

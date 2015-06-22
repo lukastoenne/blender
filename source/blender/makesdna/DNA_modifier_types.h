@@ -1549,7 +1549,8 @@ typedef struct ForceVizModifierData {
 	int fieldlines_num;
 	int fieldlines_res;
 	float fieldlines_step;
-	int pad3;
+	
+	unsigned int seed;
 } ForceVizModifierData;
 
 /* ForceViz modifier flags */
