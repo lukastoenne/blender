@@ -367,6 +367,14 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def FORCEVIZ(self, layout, ob, md):
         row = layout.row()
+        row.prop(md, "use_fieldlines", text="Field Lines")
+        col = layout.column(align=True)
+        col.enabled = md.use_fieldlines
+        col.prop(md, "fieldlines_num", "Amount")
+        col.prop(md, "fieldlines_res", "Resolution")
+        col.prop(md, "fieldlines_step", "Step Size")
+
+        row = layout.row()
         row.prop(md, "use_image_vec", text="Vector Image")
         sub = row.row()
         sub.enabled = md.use_image_vec

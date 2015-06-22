@@ -4588,6 +4588,26 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "use_fieldlines", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_FORCEVIZ_USE_FIELD_LINES);
+	RNA_def_property_ui_text(prop, "Field Lines", "Generate field lines to indicate direction and strength of the field");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "fieldlines_num", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_ui_text(prop, "Field Lines Amount", "Number of field lines to generate");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "fieldlines_res", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 2, INT_MAX);
+	RNA_def_property_ui_text(prop, "Field Lines Resolution", "Number of points per field line");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "fieldlines_step", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Field Lines Step", "Distance to move along field lines per step");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	rna_def_modifier_generic_map_info(srna);
 }
 

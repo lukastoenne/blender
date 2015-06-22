@@ -66,6 +66,10 @@ static void initData(ModifierData *md)
 	
 	fmd->flag = MOD_FORCEVIZ_USE_IMG_VEC;
 	
+	fmd->fieldlines_num = 1;
+	fmd->fieldlines_res = 10;
+	fmd->fieldlines_step = 0.1f;
+	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }
 
@@ -104,6 +108,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
+	
+	DerivedMesh *result = NULL;
 	int numverts = dm->getNumVerts(dm);
 	MVert *mverts = dm->getVertArray(dm);
 	float (*vert_co)[3], (*tex_co)[3];
@@ -115,12 +121,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	tex_co = MEM_mallocN(sizeof(*tex_co) * numverts, "forceviz modifier tex_co");
 	get_texture_coords((MappingInfoModifierData *)fmd, ob, dm, vert_co, tex_co, numverts);
 	
-	BKE_forceviz_do(fmd, md->scene, ob, dm, tex_co);
+	result = BKE_forceviz_do(fmd, md->scene, ob, dm, tex_co);
 	
 	MEM_freeN(vert_co);
 	MEM_freeN(tex_co);
 	
-	return dm;
+	if (result)
+		return result;
+	else
+		return dm;
 }
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,

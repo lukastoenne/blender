@@ -1545,6 +1545,11 @@ typedef struct ForceVizModifierData {
 	struct Image *image_vec;
 	struct Image *image_div;
 	struct Image *image_curl;
+	
+	int fieldlines_num;
+	int fieldlines_res;
+	float fieldlines_step;
+	int pad3;
 } ForceVizModifierData;
 
 /* ForceViz modifier flags */
@@ -1554,6 +1559,8 @@ enum {
 	MOD_FORCEVIZ_USE_IMG_VEC           = (1 << 8),
 	MOD_FORCEVIZ_USE_IMG_DIV           = (1 << 9),
 	MOD_FORCEVIZ_USE_IMG_CURL          = (1 << 10),
+	
+	MOD_FORCEVIZ_USE_FIELD_LINES       = (1 << 11),
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

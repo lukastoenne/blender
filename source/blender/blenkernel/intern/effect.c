@@ -72,6 +72,8 @@
 #include "BKE_scene.h"
 #include "BKE_smoke.h"
 
+#include "bmesh.h"
+
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -1485,6 +1487,45 @@ static void forceviz_generate_image(ForceVizModifierData *fmd, ListBase *effecto
 
 /* ------------------------------------------------------------------------- */
 
+static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *effectors, BMesh *bm)
+{
+	BMVert *vert, *vert_prev = NULL;
+	BMEdge *edge;
+	int ivert = bm->totvert, iedge = bm->totedge;
+	int i, k;
+	
+	if (fmd->fieldlines_num <= 0 || fmd->fieldlines_res < 2)
+		return;
+	
+	for (i = 0; i < fmd->fieldlines_num; ++i) {
+		for (k = 0; k < fmd->fieldlines_res; ++k) {
+			float co[3];
+//			co[0] = (float)i * 0.33333f;
+//			co[1] = (float)k * 0.33333f;
+//			co[2] = (float)k * 0.33333f;
+			const float a[3] = {0.64, 0.3652, 0.155};
+			mul_v3_v3fl(co, a, k);
+			
+			vert_prev = vert;
+			vert = BM_vert_create(bm, co, NULL, BM_CREATE_NOP);
+			BM_elem_index_set(vert, ivert++); /* set_inline */
+			
+			if (k > 0) {
+				edge = BM_edge_create(bm, vert_prev, vert, NULL, BM_CREATE_NOP);
+				BM_elem_index_set(edge, iedge++); /* set_inline */
+				
+				sub_v3_v3v3(vert->no, vert->co, vert_prev->co);
+				normalize_v3(vert->no);
+				if (k == 1)
+					copy_v3_v3(vert_prev->no, vert->no);
+			}
+		}
+	}
+	bm->elem_index_dirty &= ~(BM_VERT | BM_EDGE);
+}
+
+/* ------------------------------------------------------------------------- */
+
 static void forceviz_image_test(float col[4], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
 {
 	copy_v3_v3(col, input->co);
@@ -1501,19 +1542,39 @@ static void forceviz_image_vectors(float col[4], ForceVizModifierData *UNUSED(fm
 /* Modifier call. Processes dynamic paint modifier step. */
 DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*tex_co)[3])
 {
+	BMesh *bm = NULL;
 	ListBase *effectors;
 	
-	DM_ensure_tessface(dm);
+	/* allocate output dm */
+	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES) {
+		bm = DM_to_bmesh(dm, true);
+//		bm = BM_mesh_create(&bm_mesh_allocsize_default);
+	}
 	
 	effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 	
 	if (fmd->flag & MOD_FORCEVIZ_USE_IMG_VEC)
 		forceviz_generate_image(fmd, effectors, fmd->image_vec, forceviz_image_vectors, ob, dm, tex_co);
 	
+	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES) {
+		forceviz_generate_field_lines(fmd, effectors, bm);
+	}
+	
 	pdEndEffectors(&effectors);
 	
-	/* Return output mesh */
-	return dm;
+	if (bm) {
+		DerivedMesh *result = CDDM_from_bmesh(bm, true);
+		BM_mesh_free(bm);
+		
+		/* we actually calculate normals ourselves */
+//		result->dirty |= DM_DIRTY_NORMALS;
+		
+		DM_is_valid(result);
+		
+		return result;
+	}
+	else
+		return dm;
 }
 
 
