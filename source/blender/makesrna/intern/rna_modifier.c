@@ -4578,6 +4578,11 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Effector Weights", "");
 
+	prop = RNA_def_property(srna, "seed", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_ui_text(prop, "Seed", "Random number generator seed");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "use_image_vec", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_FORCEVIZ_USE_IMG_VEC);
 	RNA_def_property_ui_text(prop, "Use Vector Image", "");
@@ -4595,22 +4600,26 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "fieldlines_num", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_int_default(prop, 8);
 	RNA_def_property_ui_text(prop, "Field Lines Amount", "Number of field lines to generate");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "fieldlines_res", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 2, INT_MAX);
+	RNA_def_property_int_default(prop, 16);
 	RNA_def_property_ui_text(prop, "Field Lines Resolution", "Number of points per field line");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop = RNA_def_property(srna, "seed", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_range(prop, 1, INT_MAX);
-	RNA_def_property_ui_text(prop, "Seed", "Random number generator seed");
+	prop = RNA_def_property(srna, "fieldlines_length", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Field Lines Length", "Distance to move along field lines");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop = RNA_def_property(srna, "fieldlines_step", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "fieldlines_stepsize", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_ui_text(prop, "Field Lines Step", "Distance to move along field lines per step");
+	RNA_def_property_float_default(prop, 0.01f);
+	RNA_def_property_ui_text(prop, "Field Lines Step Size", "Step size for integrating field strength");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	rna_def_modifier_generic_map_info(srna);

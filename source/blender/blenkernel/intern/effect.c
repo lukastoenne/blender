@@ -1544,16 +1544,19 @@ static void forceviz_get_field(float R[3], float UNUSED(t), const float co[3], F
 	pdDoEffectors(data->effectors, NULL, data->weights, &point, force, impulse);
 	
 	/* transform back to object space */
-	mul_v3_m4v3(R, data->imat, force);
+	mul_mat3_m4_v3(data->imat, force);
+	copy_v3_v3(R, force);
 }
 
 static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *effectors, Object *ob, DerivedMesh *dm, BMesh *bm)
 {
 	const int totlines = fmd->fieldlines_num;
 	const int res = fmd->fieldlines_res;
-	const float step = fmd->fieldlines_step;
-	BMVert *vert, *vert_prev = NULL;
-	BMEdge *edge;
+	const float length = fmd->fieldlines_length;
+	const float stepsize = fmd->fieldlines_stepsize;
+	const float inv_stepsize = 1.0f / stepsize;
+	float segment, inv_segment;
+	
 	MSurfaceSampleGenerator *gen;
 	ForceVizEffectorData funcdata;
 	int ivert = bm->totvert, iedge = bm->totedge;
@@ -1561,6 +1564,9 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	
 	if (fmd->fieldlines_num <= 0 || fmd->fieldlines_res < 2)
 		return;
+	
+	segment = length / (float)(res - 1);
+	inv_segment = 1.0f / segment;
 	
 	funcdata.scene = fmd->modifier.scene;
 	funcdata.weights = fmd->effector_weights;
@@ -1571,24 +1577,87 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	gen = BKE_mesh_sample_create_generator_random(dm, fmd->seed);
 	
 	for (i = 0; i < totlines; ++i) {
+		BMVert *vert_prev = NULL;
+		
 		MSurfaceSample sample;
 		float loc[3], nor[3], tang[3];
-		float t = 0.0f;
+		float t;
+		int step, numsteps;
 		
 		BKE_mesh_sample_generate(gen, &sample);
 		BKE_mesh_sample_eval(dm, &sample, loc, nor, tang);
 		
+		// TODO safety limit for steps, make this more transparent
+		numsteps = min_ii( (int)(ceilf(length / stepsize)), 10000 );
+		
+		t = 0.0f;
+		k = 0;
+		for (step = 0; step < numsteps; ++step) {
+			float nloc[3];
+			int seg0 = (int)(t * inv_segment);
+			int seg1 = (int)((t + stepsize) * inv_segment);
+			
+			forceviz_integrate_rk4(nloc, loc, t, stepsize, (ForceVizVectorFp)forceviz_get_field, &funcdata);
+			
+			/* add vertex when going to next segment */
+			if (seg0 < seg1) {
+				BMVert *vert;
+				BMEdge *edge;
+				
+				/* interpolate position */
+				float co[3];
+				float tseg = (float)(k + 1) * segment;
+				interp_v3_v3v3(co, loc, nloc, (t + stepsize - tseg) * inv_stepsize);
+				
+				{
+					vert = BM_vert_create(bm, co, NULL, BM_CREATE_NOP);
+					BM_elem_index_set(vert, ivert++); /* set_inline */
+				}
+//				{ // DEBUG
+//					float F[3], wloc[3];
+//					mul_v3_m4v3(wloc, funcdata.mat, loc);
+//					forceviz_get_field(F, 0.0f, wloc, &funcdata);
+	//				mul_mat3_m4_v3(funcdata.imat, F);
+//					BKE_sim_debug_data_add_vector(wloc, F, 1,0,0, "forceviz", i, k, 3462);
+//				}
+				
+				if (vert_prev) {
+					edge = BM_edge_create(bm, vert_prev, vert, NULL, BM_CREATE_NOP);
+					BM_elem_index_set(edge, iedge++); /* set_inline */
+					
+					sub_v3_v3v3(vert->no, vert->co, vert_prev->co);
+					normalize_v3(vert->no);
+					if (k == 1)
+						copy_v3_v3(vert_prev->no, vert->no);
+				}
+				
+				k++;
+				vert_prev = vert;
+			}
+			
+			t += stepsize;
+		}
+		
+#if 0
 		for (k = 0; k < res; ++k) {
-			if (k > 0) {
-				float nloc[3];
-				forceviz_integrate_rk4(nloc, loc, t, step, (ForceVizVectorFp)forceviz_get_field, &funcdata);
-				/* and back to object space */
-				copy_v3_v3(loc, nloc);
+			float nloc[3];
+			float tstop = ceilf(k * segment);
+			int step, numsteps = (int)(tstop * inv_stepsize) - (int)(t * inv_stepsize);
+			float nt;
+			for (step = 0, nt = t, copy_v3_v3(nloc, loc); step < numsteps; ++step, nt += stepsize)
+				forceviz_integrate_rk4(nloc, nloc, nt, step, (ForceVizVectorFp)forceviz_get_field, &funcdata);
 			}
 			
 			vert_prev = vert;
 			vert = BM_vert_create(bm, loc, NULL, BM_CREATE_NOP);
 			BM_elem_index_set(vert, ivert++); /* set_inline */
+			{ // DEBUG
+				float F[3], wloc[3];
+				mul_v3_m4v3(wloc, funcdata.mat, loc);
+				forceviz_get_field(F, 0.0f, wloc, &funcdata);
+//				mul_mat3_m4_v3(funcdata.imat, F);
+				BKE_sim_debug_data_add_vector(wloc, F, 1,0,0, "forceviz", i, k, 3462);
+			}
 			
 			if (k > 0) {
 				edge = BM_edge_create(bm, vert_prev, vert, NULL, BM_CREATE_NOP);
@@ -1599,7 +1668,10 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 				if (k == 1)
 					copy_v3_v3(vert_prev->no, vert->no);
 			}
+			
+			copy_v3_v3(loc, nloc);
 		}
+#endif
 	}
 	bm->elem_index_dirty &= ~(BM_VERT | BM_EDGE);
 	

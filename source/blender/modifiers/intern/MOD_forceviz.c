@@ -66,9 +66,9 @@ static void initData(ModifierData *md)
 	
 	fmd->flag = MOD_FORCEVIZ_USE_IMG_VEC;
 	
-	fmd->fieldlines_num = 1;
-	fmd->fieldlines_res = 10;
-	fmd->fieldlines_step = 0.1f;
+	fmd->fieldlines_num = 8;
+	fmd->fieldlines_res = 16;
+	fmd->fieldlines_length = 1.0f;
 	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }
