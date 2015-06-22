@@ -151,108 +151,125 @@ BLI_INLINE void mesh_sample_weights_from_loc(MSurfaceSample *sample, DerivedMesh
 
 /* ==== Sampling ==== */
 
-static bool mesh_sample_store_array_sample(void *vdata, int capacity, int index, const MSurfaceSample *sample)
+typedef void (*GeneratorFreeFp)(struct MSurfaceSampleGenerator *gen);
+typedef bool (*GeneratorMakeSampleFp)(struct MSurfaceSampleGenerator *gen, struct MSurfaceSample *sample);
+
+typedef struct MSurfaceSampleGenerator
 {
-	MSurfaceSample *data = vdata;
-	if (index >= capacity)
-		return false;
+	GeneratorFreeFp free;
+	GeneratorMakeSampleFp make_sample;
+} MSurfaceSampleGenerator;
+
+static void sample_generator_init(MSurfaceSampleGenerator *gen, GeneratorFreeFp free, GeneratorMakeSampleFp make_sample)
+{
+	gen->free = free;
+	gen->make_sample = make_sample;
+}
+
+/* ------------------------------------------------------------------------- */
+
+typedef struct MSurfaceSampleGenerator_Random {
+	MSurfaceSampleGenerator base;
 	
-	data[index] = *sample;
+	DerivedMesh *dm;
+	RNG *rng;
+} MSurfaceSampleGenerator_Random;
+
+static void generator_random_free(MSurfaceSampleGenerator_Random *gen)
+{
+	if (gen->rng)
+		BLI_rng_free(gen->rng);
+	MEM_freeN(gen);
+}
+
+static bool generator_random_make_sample(MSurfaceSampleGenerator_Random *gen, MSurfaceSample *sample)
+{
+	DerivedMesh *dm = gen->dm;
+	RNG *rng = gen->rng;
+	MFace *mfaces = dm->getTessFaceArray(dm);
+	int totfaces = dm->getNumTessFaces(dm);
+	
+	int faceindex = BLI_rng_get_int(rng);
+	int tri = BLI_rng_get_int(rng) % 2;
+	float a = BLI_rng_get_float(rng);
+	float b = BLI_rng_get_float(rng);
+	
+	MFace *mface = &mfaces[faceindex % totfaces];
+	
+	if (mface->v4 && tri == 0) {
+		sample->orig_verts[0] = mface->v3;
+		sample->orig_verts[1] = mface->v4;
+		sample->orig_verts[2] = mface->v1;
+	}
+	else {
+		sample->orig_verts[0] = mface->v1;
+		sample->orig_verts[1] = mface->v2;
+		sample->orig_verts[2] = mface->v3;
+	}
+	
+	if (a + b > 1.0f) {
+		a = 1.0f - a;
+		b = 1.0f - b;
+	}
+	sample->orig_weights[0] = 1.0f - (a + b);
+	sample->orig_weights[1] = a;
+	sample->orig_weights[2] = b;
+	
 	return true;
 }
 
-void BKE_mesh_sample_storage_single(MSurfaceSampleStorage *storage, MSurfaceSample *sample)
+MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random(DerivedMesh *dm, unsigned int seed)
 {
-	/* handled as just a special array case with capacity = 1 */
-	storage->store_sample = mesh_sample_store_array_sample;
-	storage->capacity = 1;
-	storage->data = sample;
-	storage->free_data = false;
-}
-
-void BKE_mesh_sample_storage_array(MSurfaceSampleStorage *storage, MSurfaceSample *samples, int capacity)
-{
-	storage->store_sample = mesh_sample_store_array_sample;
-	storage->capacity = capacity;
-	storage->data = samples;
-	storage->free_data = false;
-}
-
-void BKE_mesh_sample_storage_release(MSurfaceSampleStorage *storage)
-{
-	if (storage->free_data)
-		MEM_freeN(storage->data);
-}
-
-
-int BKE_mesh_sample_generate_random(MSurfaceSampleStorage *dst, DerivedMesh *dm, unsigned int seed, int totsample)
-{
-	MFace *mfaces;
-	int totfaces;
-	RNG *rng;
-	MFace *mface;
-	float a, b;
-	int i, stored = 0;
-	
-	rng = BLI_rng_new(seed);
+	MSurfaceSampleGenerator_Random *gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_Random), "MSurfaceSampleGenerator_Random");
+	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_random_free, (GeneratorMakeSampleFp)generator_random_make_sample);
 	
 	DM_ensure_tessface(dm);
-	mfaces = dm->getTessFaceArray(dm);
-	totfaces = dm->getNumTessFaces(dm);
 	
-	for (i = 0; i < totsample; ++i) {
-		MSurfaceSample sample = {{0}};
-		
-		mface = &mfaces[BLI_rng_get_int(rng) % totfaces];
-		
-		if (mface->v4 && BLI_rng_get_int(rng) % 2 == 0) {
-			sample.orig_verts[0] = mface->v3;
-			sample.orig_verts[1] = mface->v4;
-			sample.orig_verts[2] = mface->v1;
-		}
-		else {
-			sample.orig_verts[0] = mface->v1;
-			sample.orig_verts[1] = mface->v2;
-			sample.orig_verts[2] = mface->v3;
-		}
-		
-		a = BLI_rng_get_float(rng);
-		b = BLI_rng_get_float(rng);
-		if (a + b > 1.0f) {
-			a = 1.0f - a;
-			b = 1.0f - b;
-		}
-		sample.orig_weights[0] = 1.0f - (a + b);
-		sample.orig_weights[1] = a;
-		sample.orig_weights[2] = b;
-		
-		if (dst->store_sample(dst->data, dst->capacity, i, &sample))
-			++stored;
-		else
-			break;
-	}
+	gen->dm = dm;
+	gen->rng = BLI_rng_new(seed);
 	
-	BLI_rng_free(rng);
-	
-	return stored;
+	return &gen->base;
 }
 
+/* ------------------------------------------------------------------------- */
 
-static bool sample_bvh_raycast(MSurfaceSample *sample, DerivedMesh *dm, BVHTreeFromMesh *bvhdata, const float ray_start[3], const float ray_end[3])
+typedef struct MSurfaceSampleGenerator_RayCast {
+	MSurfaceSampleGenerator base;
+	
+	DerivedMesh *dm;
+	BVHTreeFromMesh bvhdata;
+	
+	MeshSampleRayCallback ray_cb;
+	void *userdata;
+} MSurfaceSampleGenerator_RayCast;
+
+static void generator_raycast_free(MSurfaceSampleGenerator_RayCast *gen)
 {
-	BVHTreeRayHit hit;
-	float ray_normal[3], dist;
+	free_bvhtree_from_mesh(&gen->bvhdata);
+	MEM_freeN(gen);
+}
 
-	sub_v3_v3v3(ray_normal, ray_end, ray_start);
-	dist = normalize_v3(ray_normal);
+static bool generator_raycast_make_sample(MSurfaceSampleGenerator_RayCast *gen, MSurfaceSample *sample)
+{
+	float ray_start[3], ray_end[3], ray_dir[3], dist;
+	BVHTreeRayHit hit;
+	
+	if (!gen->bvhdata.tree)
+		return false;
+	
+	if (!gen->ray_cb(gen->userdata, ray_start, ray_end))
+		return false;
+	
+	sub_v3_v3v3(ray_dir, ray_end, ray_start);
+	dist = normalize_v3(ray_dir);
 	
 	hit.index = -1;
 	hit.dist = dist;
 
-	if (BLI_bvhtree_ray_cast(bvhdata->tree, ray_start, ray_normal, 0.0f,
-	                         &hit, bvhdata->raycast_callback, bvhdata) >= 0) {
+	if (BLI_bvhtree_ray_cast(gen->bvhdata.tree, ray_start, ray_dir, 0.0f,
+	                         &hit, gen->bvhdata.raycast_callback, &gen->bvhdata) >= 0) {
 		
-		mesh_sample_weights_from_loc(sample, dm, hit.index, hit.co);
+		mesh_sample_weights_from_loc(sample, gen->dm, hit.index, hit.co);
 		
 		return true;
 	}
@@ -260,34 +277,32 @@ static bool sample_bvh_raycast(MSurfaceSample *sample, DerivedMesh *dm, BVHTreeF
 		return false;
 }
 
-int BKE_mesh_sample_generate_raycast(MSurfaceSampleStorage *dst, DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata, int totsample)
+MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata)
 {
-	BVHTreeFromMesh bvhdata;
-	float ray_start[3], ray_end[3];
-	int i, stored = 0;
+	MSurfaceSampleGenerator_RayCast *gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_RayCast), "MSurfaceSampleGenerator_RayCast");
+	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_raycast_free, (GeneratorMakeSampleFp)generator_raycast_make_sample);
 	
 	DM_ensure_tessface(dm);
 	
-	memset(&bvhdata, 0, sizeof(BVHTreeFromMesh));
-	bvhtree_from_mesh_faces(&bvhdata, dm, 0.0f, 4, 6);
+	gen->dm = dm;
+	memset(&gen->bvhdata, 0, sizeof(BVHTreeFromMesh));
+	bvhtree_from_mesh_faces(&gen->bvhdata, dm, 0.0f, 4, 6);
+	gen->ray_cb = ray_cb;
+	gen->userdata = userdata;
 	
-	if (bvhdata.tree) {
-		for (i = 0; i < totsample; ++i) {
-			if (ray_cb(userdata, ray_start, ray_end)) {
-				MSurfaceSample sample;
-				if (sample_bvh_raycast(&sample, dm, &bvhdata, ray_start, ray_end)) {
-					if (dst->store_sample(dst->data, dst->capacity, i, &sample))
-						++stored;
-					else
-						break;
-				}
-			}
-		}
-	}
-	
-	free_bvhtree_from_mesh(&bvhdata);
-	
-	return stored;
+	return &gen->base;
+}
+
+/* ------------------------------------------------------------------------- */
+
+void BKE_mesh_sample_free_generator(MSurfaceSampleGenerator *gen)
+{
+	gen->free(gen);
+}
+
+bool BKE_mesh_sample_generate(struct MSurfaceSampleGenerator *gen, struct MSurfaceSample *sample)
+{
+	return gen->make_sample(gen, sample);
 }
 
 /* ==== Utilities ==== */

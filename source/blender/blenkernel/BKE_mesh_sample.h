@@ -39,22 +39,17 @@ bool BKE_mesh_sample_shapekey(struct Key *key, struct KeyBlock *kb, const struct
 
 /* ==== Sampling ==== */
 
-/* Storage descriptor to allow generic data storage by arbitrary algorithms */
-typedef struct MSurfaceSampleStorage {
-	bool (*store_sample)(void *data, int capacity, int index, const struct MSurfaceSample *sample);
-	void *data;
-	int capacity;
-	int free_data;
-} MSurfaceSampleStorage;
+struct MSurfaceSampleGenerator;
+typedef struct MSurfaceSampleGenerator MSurfaceSampleGenerator;
 
-void BKE_mesh_sample_storage_single(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *sample);
-void BKE_mesh_sample_storage_array(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *samples, int capacity);
-void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
-
-int BKE_mesh_sample_generate_random(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
+struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random(struct DerivedMesh *dm, unsigned int seed);
 
 typedef bool (*MeshSampleRayCallback)(void *userdata, float ray_start[3], float ray_end[3]);
-int BKE_mesh_sample_generate_raycast(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata, int totsample);
+struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(struct DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata);
+
+void BKE_mesh_sample_free_generator(struct MSurfaceSampleGenerator *gen);
+
+bool BKE_mesh_sample_generate(struct MSurfaceSampleGenerator *gen, struct MSurfaceSample *sample);
 
 /* ==== Utilities ==== */
 
