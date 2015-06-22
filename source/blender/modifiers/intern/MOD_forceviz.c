@@ -134,8 +134,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,
                            struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
+                           struct Scene *scene,
+                           Object *ob,
                            DagNode *obNode)
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
@@ -147,11 +147,29 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	
 	dag_add_relation(forest, obNode, obNode,
 	                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "ForceViz modifier");
+	
+	/* add dependencies to effectors */
+	{
+		ListBase *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
+		EffectorCache *eff;
+		
+		if (effectors) {
+			for (eff = effectors->first; eff; eff = eff->next) {
+				if (eff->ob) {
+					DagNode *eff_node = dag_get_node(forest, eff->ob);
+					dag_add_relation(forest, eff_node, obNode,
+									 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "ForceViz modifier");
+				}
+			}
+			
+			pdEndEffectors(&effectors);
+		}
+	}
 }
 
 static void updateDepsgraph(ModifierData *md,
                             struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
+                            struct Scene *scene,
                             Object *ob,
                             struct DepsNodeHandle *node)
 {
@@ -160,8 +178,24 @@ static void updateDepsgraph(ModifierData *md,
 	if ((fmd->texmapping == MOD_DISP_MAP_OBJECT) && fmd->map_object != NULL) {
 		DEG_add_object_relation(node, fmd->map_object, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
 	}
-
+	
 	DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
+	
+	/* add dependencies to effectors */
+	{
+		ListBase *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
+		EffectorCache *eff;
+		
+		if (effectors) {
+			for (eff = effectors->first; eff; eff = eff->next) {
+				if (eff->ob) {
+					DEG_add_object_relation(node, eff->ob, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
+				}
+			}
+			
+			pdEndEffectors(&effectors);
+		}
+	}
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
