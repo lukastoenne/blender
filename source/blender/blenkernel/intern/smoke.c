@@ -3345,6 +3345,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	float progress;
 	const char *relbase = modifier_path_relbase(ob);
 	char filename[FILE_MAX];
+	bool save_as_half;
 
 	orig_frame = scene->r.cfra;
 
@@ -3354,7 +3355,9 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		cache->writer = OpenVDBWriter_create();
 	}
 
-	OpenVDBWriter_set_compression(cache->writer, cache->compression);
+	save_as_half = ((cache->flags & VDB_CACHE_SAVE_AS_HALF) != 0);
+
+	OpenVDBWriter_set_flags(cache->writer, cache->compression, save_as_half);
 
 	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,

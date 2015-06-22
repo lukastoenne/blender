@@ -30,6 +30,7 @@ OpenVDBWriter::OpenVDBWriter()
     , m_meta_map(new openvdb::MetaMap())
 {
 	m_meta_map->insertMeta("creator", openvdb::StringMetadata("Blender/OpenVDBWriter"));
+	m_save_as_half = false;
 }
 
 OpenVDBWriter::~OpenVDBWriter()
@@ -37,6 +38,7 @@ OpenVDBWriter::~OpenVDBWriter()
 
 void OpenVDBWriter::insert(const openvdb::GridBase::Ptr &grid)
 {
+	grid->setSaveFloatAsHalf(m_save_as_half);
 	m_grids->push_back(grid);
 }
 
@@ -76,15 +78,16 @@ void OpenVDBWriter::insertMat4sMeta(const std::string &name, const float value[4
 	m_meta_map->insertMeta(name, openvdb::Mat4SMetadata(mat));
 }
 
-void OpenVDBWriter::setFileCompression(const int flags)
+void OpenVDBWriter::setFlags(const int compression, const bool save_as_half)
 {
-	m_flags = flags;
+	m_compression_flags = compression;
+	m_save_as_half = save_as_half;
 }
 
 void OpenVDBWriter::write(const std::string &filename) const
 {
 	openvdb::io::File file(filename);
-	file.setCompression(m_flags);
+	file.setCompression(m_compression_flags);
 	file.write(*m_grids, *m_meta_map);
 	file.close();
 

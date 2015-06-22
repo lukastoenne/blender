@@ -359,7 +359,14 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_compression_items);
 	RNA_def_property_ui_text(prop, "File Compression",
 	                         "Select what type of compression to use when writing the files");
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
+
+	prop = RNA_def_property(srna, "save_as_half", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", VDB_CACHE_SAVE_AS_HALF);
+	RNA_def_property_ui_text(prop, "Save as Half",
+	                         "Write all scalar (including vector) grids to the file as 16-bit half floats to reduce file size");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
 }
 
 static void rna_def_openvdb_draw_data(BlenderRNA *brna)

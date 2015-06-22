@@ -368,6 +368,8 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
             row = layout.row(align=True)
             row.prop(cache, "frame_start")
             row.prop(cache, "frame_end")
+            row = layout.row()
+            row.prop(cache, "save_as_half")
 
         layout.operator("object.smoke_vdb_export")
         layout.operator("object.smoke_vdb_transform_update")

@@ -101,7 +101,7 @@ void OpenVDB_import_grid_vec(struct OpenVDBReader *reader,
 
 struct OpenVDBWriter *OpenVDBWriter_create(void);
 void OpenVDBWriter_free(struct OpenVDBWriter *writer);
-void OpenVDBWriter_set_compression(struct OpenVDBWriter *writer, const int flag);
+void OpenVDBWriter_set_flags(struct OpenVDBWriter *writer, const int flag, const bool half);
 void OpenVDBWriter_add_meta_fl(struct OpenVDBWriter *writer, const char *name, const float value);
 void OpenVDBWriter_add_meta_int(struct OpenVDBWriter *writer, const char *name, const int value);
 void OpenVDBWriter_add_meta_v3(struct OpenVDBWriter *writer, const char *name, const float value[3]);
