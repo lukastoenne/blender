@@ -1528,7 +1528,7 @@ typedef struct ForceVizEffectorData {
 	EffectorWeights *weights;
 } ForceVizEffectorData;
 
-static void forceviz_get_field_direction(float R[3], float UNUSED(t), const float co[3], ForceVizEffectorData *data)
+static void forceviz_get_field_vector(float R[3], float UNUSED(t), const float co[3], ForceVizEffectorData *data)
 {
 	Scene *scene = data->scene;
 	PhysicsSettings *phys = &scene->physics_settings;
@@ -1552,7 +1552,13 @@ static void forceviz_get_field_direction(float R[3], float UNUSED(t), const floa
 	/* transform back to object space */
 	mul_mat3_m4_v3(data->imat, force);
 	
-	normalize_v3_v3(R, force);
+	copy_v3_v3(R, force);
+}
+
+static void forceviz_get_field_direction(float R[3], float t, const float co[3], ForceVizEffectorData *data)
+{
+	forceviz_get_field_vector(R, t, co, data);
+	normalize_v3(R);
 }
 
 static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, ForceVizEffectorData *funcdata, const float start[3])
@@ -1605,6 +1611,19 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 	}
 }
 
+static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *mvert, unsigned int UNUSED(index), void *userdata)
+{
+	ForceVizEffectorData *data = userdata;
+	float R[3], nor[3];
+	float weight;
+	
+	forceviz_get_field_vector(R, 0.0f, mvert->co, data);
+	
+	normal_short_to_float_v3(nor, mvert->no);
+	weight = max_ff(dot_v3v3(R, nor), 0.0f);
+	return weight;
+}
+
 static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *effectors, Object *ob, DerivedMesh *dm, BMesh *bm)
 {
 	const int totlines = fmd->fieldlines_num;
@@ -1624,7 +1643,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	copy_m4_m4(funcdata.mat, ob->obmat);
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	
-	gen = BKE_mesh_sample_create_generator_random(dm, fmd->seed);
+	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
 	
 	for (i = 0; i < totlines; ++i) {
 		MSurfaceSample sample;
