@@ -200,10 +200,10 @@ void OpenVDBPrimitive_draw_tree(OpenVDBPrimitive *vdb_prim, const bool draw_root
 	 * "VDB: High-Resolution Sparse Volumes With Dynamic Topology",
 	 * K. Museth, 2013 */
 	Vec3f node_color[4] = {
-	    Vec3f(0.0450f, 0.0450f, 0.0450f), // root node
-	    Vec3f(0.0432f, 0.3300f, 0.0411f), // first internal node level
-	    Vec3f(0.8710f, 0.3940f, 0.0191f), // intermediate internal node levels
-	    Vec3f(0.0060f, 0.2790f, 0.6250f)  // leaf nodes
+	    Vec3f(0.0450f, 0.0450f, 0.0450f),      // root node
+	    Vec3f(0.0432f, 0.33f, 0.0411023f),     // first internal node level
+	    Vec3f(0.871f, 0.394f, 0.01916f),       // intermediate internal node levels
+	    Vec3f(0.00608299f, 0.279541f, 0.625f)  // leaf nodes
 	};
 
 	CoordBBox bbox;
@@ -332,13 +332,13 @@ void OpenVDBPrimitive_draw_values(OpenVDBPrimitive *vdb_prim, float tolerance, f
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 
-	if (draw_box)
+	if (draw_box) {
 		glEnableClientState(GL_NORMAL_ARRAY);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	}
 
-	glEnable(GL_LIGHTING);
-	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
-	glShadeModel(GL_SMOOTH);
+	glEnable(GL_LIGHTING);
 
 	glVertexPointer(3, GL_FLOAT, 0, &vertices[0]);
 	glColorPointer(3, GL_FLOAT, 0, &colors[0]);
