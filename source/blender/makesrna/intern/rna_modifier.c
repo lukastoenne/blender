@@ -4568,6 +4568,13 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem fieldlines_drawtype_items[] = {
+		{MOD_FORCEVIZ_FIELDLINE_LINE, "LINE", 0, "Line", "Simple line of edges"},
+		{MOD_FORCEVIZ_FIELDLINE_RIBBON, "RIBBON", 0, "Ribbon", "2D surface"},
+		{MOD_FORCEVIZ_FIELDLINE_TUBE, "TUBE", 0, "Tube", "3D surface"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ForceVizModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Force Visualization Modifier", "Modifier visualizing force fields in different ways");
 	RNA_def_struct_sdna(srna, "ForceVizModifierData");
@@ -4621,6 +4628,18 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_int_default(prop, 16);
 	RNA_def_property_ui_range(prop, 4, 256, 1, 3);
 	RNA_def_property_ui_text(prop, "Field Lines Substeps", "Number of substeps per field line segment");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "fieldlines_drawtype", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, fieldlines_drawtype_items);
+	RNA_def_property_ui_text(prop, "Field Lines Draw Type", "Draw type for field lines geometry");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "fieldlines_drawsize", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
+	RNA_def_property_float_default(prop, 0.1f);
+	RNA_def_property_ui_text(prop, "Field Lines Draw Size", "Size of geometric field lines");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	rna_def_modifier_generic_map_info(srna);

@@ -1550,9 +1550,11 @@ typedef struct ForceVizModifierData {
 	int fieldlines_res;
 	float fieldlines_length;
 	int fieldlines_substeps;
+	int fieldlines_drawtype;
+	float fieldlines_drawsize;
+	int pad3;
 	
 	unsigned int seed;
-	int pad3;
 } ForceVizModifierData;
 
 /* ForceViz modifier flags */
@@ -1564,6 +1566,13 @@ enum {
 	MOD_FORCEVIZ_USE_IMG_CURL          = (1 << 10),
 	
 	MOD_FORCEVIZ_USE_FIELD_LINES       = (1 << 11),
+};
+
+/* ForceViz modifier fieldline draw types */
+enum {
+	MOD_FORCEVIZ_FIELDLINE_LINE        = 0,
+	MOD_FORCEVIZ_FIELDLINE_RIBBON      = 1,
+	MOD_FORCEVIZ_FIELDLINE_TUBE        = 2,
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

@@ -140,15 +140,17 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
 	
+	/* add own transform */
+	dag_add_relation(forest, obNode, obNode,
+	                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "ForceViz modifier");
+	
+	/* add mapping objects */
 	if ((fmd->texmapping == MOD_DISP_MAP_OBJECT) && fmd->map_object) {
 		DagNode *curNode = dag_get_node(forest, fmd->map_object);
 		dag_add_relation(forest, curNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "ForceViz modifier");
 	}
 	
-	dag_add_relation(forest, obNode, obNode,
-	                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "ForceViz modifier");
-	
-	/* add dependencies to effectors */
+	/* add effectors */
 	{
 		ListBase *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 		EffectorCache *eff;
@@ -165,6 +167,13 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 			pdEndEffectors(&effectors);
 		}
 	}
+	
+	/* add camera */
+	if (BKE_forceviz_needs_camera(fmd) && scene->camera) {
+		DagNode *cam_node = dag_get_node(forest, scene->camera);
+		dag_add_relation(forest, cam_node, obNode,
+						 DAG_RL_OB_DATA, "ForceViz modifier");
+	}
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -175,13 +184,15 @@ static void updateDepsgraph(ModifierData *md,
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
 	
+	/* add own transform */
+	DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
+	
+	/* add mapping objects */
 	if ((fmd->texmapping == MOD_DISP_MAP_OBJECT) && fmd->map_object != NULL) {
 		DEG_add_object_relation(node, fmd->map_object, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
 	}
 	
-	DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
-	
-	/* add dependencies to effectors */
+	/* add effectors */
 	{
 		ListBase *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 		EffectorCache *eff;
@@ -195,6 +206,13 @@ static void updateDepsgraph(ModifierData *md,
 			
 			pdEndEffectors(&effectors);
 		}
+	}
+	
+	/* add camera */
+	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES
+	    && ELEM(fmd->fieldlines_drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON)
+	    && scene->camera) {
+		DEG_add_object_relation(node, scene->camera, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
 	}
 }
 

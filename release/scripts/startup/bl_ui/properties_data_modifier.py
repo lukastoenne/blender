@@ -376,6 +376,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "fieldlines_res", "Resolution")
         col.prop(md, "fieldlines_length", "Length")
         col.prop(md, "fieldlines_substeps", "Substeps")
+        col = layout.column(align=True)
+        col.prop(md, "fieldlines_drawtype", "")
+        if md.fieldlines_drawtype in {'RIBBON', 'TUBE'}:
+            col.prop(md, "fieldlines_drawsize", "Size")
 
         row = layout.row()
         row.prop(md, "use_image_vec", text="Vector Image")
