@@ -392,7 +392,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
-	
+	GPUDrawObject *gdo;
 	if (cddm->pbvh && cddm->pbvh_draw &&
 	    BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH)
 	{
@@ -402,24 +402,32 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 	}
 	
 	GPU_edge_setup(dm);
-	if (drawAllEdges && drawLooseEdges) {
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, 0, dm->drawObject->totedge * 2);
-	}
-	else if (drawAllEdges) {
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, 0, dm->drawObject->loose_edge_offset * 2);
-	}
-	else {
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, 0, dm->drawObject->tot_edge_drawn * 2);
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, dm->drawObject->loose_edge_offset * 2, dm->drawObject->tot_loose_edge_drawn * 2);
+	gdo = dm->drawObject;
+	if (gdo->edges && gdo->points) {
+		if (drawAllEdges && drawLooseEdges) {
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->totedge * 2);
+		}
+		else if (drawAllEdges) {
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->loose_edge_offset * 2);
+		}
+		else {
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->tot_edge_drawn * 2);
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, gdo->loose_edge_offset * 2, dm->drawObject->tot_loose_edge_drawn * 2);
+		}
 	}
 	GPU_buffer_unbind();
 }
 
 static void cdDM_drawLooseEdges(DerivedMesh *dm)
 {
-	GPU_edge_setup(dm);
-	GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, dm->drawObject->loose_edge_offset * 2, (dm->drawObject->totedge - dm->drawObject->loose_edge_offset) * 2);
-	GPU_buffer_unbind();
+	const int start = (dm->drawObject->loose_edge_offset * 2);
+	const int count = (dm->drawObject->totedge - dm->drawObject->loose_edge_offset) * 2;
+
+	if (count) {
+		GPU_edge_setup(dm);
+		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, start, count);
+		GPU_buffer_unbind();
+	}
 }
 
 static void cdDM_drawFacesSolid(DerivedMesh *dm,

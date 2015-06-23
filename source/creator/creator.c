@@ -41,7 +41,7 @@
 #endif
 
 #ifdef WIN32
-#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+#  if defined(_MSC_VER) && defined(_M_X64)
 #    include <math.h> /* needed for _set_FMA3_enable */
 #  endif
 #  include <windows.h>
@@ -1405,6 +1405,14 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 		}
 		else {
 			/* failed to load file, stop processing arguments */
+			if (G.background) {
+				/* Set is_break if running in the background mode so
+				 * blender will return non-zero exit code which then
+				 * could be used in automated script to control how
+				 * good or bad things are.
+				 */
+				G.is_break = true;
+			}
 			return -1;
 		}
 
@@ -1637,7 +1645,7 @@ int main(
 
 #ifdef WIN32
 	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
-#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+#  if defined(_MSC_VER) && defined(_M_X64)
 	_set_FMA3_enable(0);
 #  endif
 
