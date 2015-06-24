@@ -261,11 +261,13 @@ EnumPropertyItem DT_layers_select_dst_items[] = {
 
 #include "DNA_particle_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_material_types.h"
 #include "DNA_smoke_types.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_library.h"
+#include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -1066,6 +1068,49 @@ static int rna_CorrectiveSmoothModifier_is_bind_get(PointerRNA *ptr)
 {
 	CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)ptr->data;
 	return (csmd->bind_coords != NULL);
+}
+
+static PointerRNA rna_ForceVizModifier_fieldlines_material_get(PointerRNA *ptr)
+{
+	ForceVizModifierData *fmd = ptr->data;
+	Object *ob = ptr->id.data;
+	Material ***mats = give_matarar(ob);
+	const int mat = CLAMPIS(fmd->fieldlines_material, 0, ob->totcol - 1);
+	PointerRNA result;
+	RNA_pointer_create((ID*)ob, &RNA_Material, (*mats)[mat], &result);
+	return result;
+}
+
+static void rna_ForceVizModifier_fieldlines_material_set(PointerRNA *ptr, const PointerRNA value)
+{
+	ForceVizModifierData *fmd = ptr->data;
+	Object *ob = ptr->id.data;
+	Material ***mats = give_matarar(ob);
+	Material *mat = value.data;
+	int i;
+	
+	fmd->fieldlines_material = -1;
+	for (i = 0; i < ob->totcol; ++i) {
+		if ((*mats)[i] == mat) {
+			fmd->fieldlines_material = i;
+			break;
+		}
+	}
+}
+
+static int rna_ForceVizModifier_fieldlines_material_poll(PointerRNA *ptr, const PointerRNA value)
+{
+	Object *ob = ptr->id.data;
+	Material ***mats = give_matarar(ob);
+	Material *mat = value.data;
+	int i;
+	
+	for (i = 0; i < ob->totcol; ++i) {
+		if ((*mats)[i] == mat) {
+			return true;
+		}
+	}
+	return false;
 }
 
 #else
@@ -4640,6 +4685,22 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
 	RNA_def_property_float_default(prop, 0.1f);
 	RNA_def_property_ui_text(prop, "Field Lines Draw Size", "Size of geometric field lines");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "fieldlines_material_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "fieldlines_material");
+	RNA_def_property_range(prop, -1, SHRT_MAX);
+	RNA_def_property_ui_text(prop, "Field Lines Material Index", "Material index of generated faces, -1 for automatic");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "fieldlines_material", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_funcs(prop, "rna_ForceVizModifier_fieldlines_material_get",
+	                               "rna_ForceVizModifier_fieldlines_material_set",
+	                               NULL,
+	                               "rna_ForceVizModifier_fieldlines_material_poll");
+	RNA_def_property_struct_type(prop, "Material");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Field Lines Material", "Material of generated faces, automatic if not set");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	rna_def_modifier_generic_map_info(srna);

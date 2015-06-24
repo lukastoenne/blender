@@ -72,6 +72,7 @@ static void initData(ModifierData *md)
 	fmd->fieldlines_length = 1.0f;
 	fmd->fieldlines_drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
 	fmd->fieldlines_drawsize = 0.1f;
+	fmd->fieldlines_material = -1;
 	BLI_strncpy(fmd->fieldlines_strength_layer, "ff_strength", sizeof(fmd->fieldlines_strength_layer));
 	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
@@ -81,6 +82,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 {
 	ForceVizModifierData *fmd  = (ForceVizModifierData *)md;
 	ForceVizModifierData *tfmd = (ForceVizModifierData *)target;
+	
+	modifier_copyData_generic(md, target);
 	
 	memcpy(&tfmd->iuser, &fmd->iuser, sizeof(tfmd->iuser));
 	

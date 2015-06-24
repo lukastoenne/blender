@@ -379,7 +379,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(md, "fieldlines_drawtype", "")
         if md.fieldlines_drawtype in {'RIBBON', 'TUBE'}:
+            col.template_ID(md, "fieldlines_material")
             col.prop(md, "fieldlines_drawsize", "Size")
+        elif md.fieldlines_drawtype in {'LINE'}:
+            pass
 
         row = layout.row()
         row.prop(md, "use_image_vec", text="Vector Image")
