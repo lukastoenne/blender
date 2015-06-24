@@ -1492,14 +1492,14 @@ static BMVert *forceviz_create_vertex(BMesh *bm, int cd_strength_layer, const fl
 {
 	BMVert *vert;
 	float co[3];
-	float (*f)[3];
+	MFloat3Property *s;
 	
 	add_v3_v3v3(co, loc, offset);
 	vert = BM_vert_create(bm, co, NULL, BM_CREATE_NOP);
 	
-	f = CustomData_bmesh_get_layer_n(&bm->vdata, vert->head.data, cd_strength_layer);
-	if (f)
-		copy_v3_v3(*f, strength);
+	s = CustomData_bmesh_get_layer_n(&bm->vdata, vert->head.data, cd_strength_layer);
+	if (s)
+		copy_v3_v3(s->f, strength);
 	
 	return vert;
 }
@@ -1553,7 +1553,7 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 								float size, const float view_target[3],
 								const float loc[3], const float strength[3])
 {
-	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_SHAPEKEY, fmd->fieldlines_strength_layer);
+	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
 	BMVert **verts_prev = ribbon->verts_prev;
 	const float *loc_prev = ribbon->loc_prev;
 	BMVert *verts[2];
@@ -1774,7 +1774,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	copy_m4_m4(funcdata.mat, ob->obmat);
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	
-	BM_data_layer_add_named(bm, &bm->vdata, CD_SHAPEKEY, fmd->fieldlines_strength_layer);
+	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
 	
 	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
 	
