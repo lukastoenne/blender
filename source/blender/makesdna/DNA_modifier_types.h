@@ -1553,6 +1553,7 @@ typedef struct ForceVizModifierData {
 	int fieldlines_drawtype;
 	float fieldlines_drawsize;
 	int pad3;
+	char fieldlines_strength_layer[64];
 	
 	unsigned int seed;
 } ForceVizModifierData;

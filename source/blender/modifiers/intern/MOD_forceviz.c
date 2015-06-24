@@ -38,6 +38,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_math.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_force.h"
@@ -69,6 +70,7 @@ static void initData(ModifierData *md)
 	fmd->fieldlines_num = 8;
 	fmd->fieldlines_res = 16;
 	fmd->fieldlines_length = 1.0f;
+	BLI_strncpy(fmd->fieldlines_strength_layer, "strength", sizeof(fmd->fieldlines_strength_layer));
 	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }
