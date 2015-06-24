@@ -1504,12 +1504,38 @@ static BMVert *forceviz_create_vertex(BMesh *bm, int cd_strength_layer, const fl
 	return vert;
 }
 
-static BMFace *forceviz_create_face(BMesh *bm, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4)
+static BMFace *forceviz_create_face(BMesh *bm, int cd_loopuv_layer, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4, float u0, float u1)
 {
 	BMFace *face;
 	
 	face = BM_face_create_quad_tri(bm, v1, v2, v3, v4, NULL, BM_CREATE_NOP);
 	BM_elem_flag_set(face, BM_ELEM_SMOOTH, true);
+	
+	if (cd_loopuv_layer >= 0) {
+		BMLoop *loop;
+		BMIter iter;
+		BM_ITER_ELEM(loop, &iter, face, BM_LOOPS_OF_FACE) {
+			MLoopUV *uv = CustomData_bmesh_get_layer_n(&bm->ldata, loop->head.data, cd_loopuv_layer);
+			if (loop->v == v1) {
+				uv->uv[0] = u0;
+				uv->uv[1] = 0.0f;
+			}
+			else if (loop->v == v2) {
+				uv->uv[0] = u0;
+				uv->uv[1] = 1.0f;
+			}
+			else if (loop->v == v3) {
+				uv->uv[0] = u1;
+				uv->uv[1] = 1.0f;
+			}
+			else if (loop->v == v4) {
+				uv->uv[0] = u1;
+				uv->uv[1] = 0.0f;
+			}
+			else
+				BLI_assert(false);
+		}
+	}
 	
 	return face;
 }
@@ -1546,13 +1572,15 @@ typedef struct ForceVizRibbon {
 	float loc_prev[3];
 	BMVert *verts_prev[2];
 	float strength_prev[3];
+	float length_prev;
 	int index;
 } ForceVizRibbon;
 
 static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRibbon *ribbon,
 								float size, const float view_target[3],
-								const float loc[3], const float strength[3])
+								const float loc[3], float length, const float strength[3])
 {
+	const int cd_loopuv_layer = CustomData_get_active_layer_index(&bm->ldata, CD_MLOOPUV);
 	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
 	BMVert **verts_prev = ribbon->verts_prev;
 	const float *loc_prev = ribbon->loc_prev;
@@ -1595,13 +1623,14 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 		verts[1] = forceviz_create_vertex(bm, cd_strength_layer, loc, offset[1], strength);
 		
 		/* create a quad */
-		forceviz_create_face(bm, verts_prev[1], verts_prev[0], verts[0], verts[1]);
+		forceviz_create_face(bm, cd_loopuv_layer, verts_prev[1], verts_prev[0], verts[0], verts[1], ribbon->length_prev, length);
 	}
 	
 	ribbon->index += 1;
 	ribbon->verts_prev[0] = verts[0];
 	ribbon->verts_prev[1] = verts[1];
 	copy_v3_v3(ribbon->loc_prev, loc);
+	ribbon->length_prev = length;
 	copy_v3_v3(ribbon->strength_prev, strength);
 }
 
@@ -1693,6 +1722,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 	const int res = fmd->fieldlines_res;
 	const int substeps = fmd->fieldlines_substeps;
 	const float length = fmd->fieldlines_length;
+	const float inv_length = length != 0.0f ? 1.0f / length : 0.0f;
 	const float segment = length / (float)(res - 1);
 	const float stepsize = segment / (float)substeps;
 	
@@ -1724,7 +1754,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 				forceviz_line_add(bm, &line, loc);
 				break;
 			case MOD_FORCEVIZ_FIELDLINE_RIBBON:
-				forceviz_ribbon_add(fmd, bm, &ribbon, fmd->fieldlines_drawsize, target, loc, strength);
+				forceviz_ribbon_add(fmd, bm, &ribbon, fmd->fieldlines_drawsize, target, loc, t * inv_length, strength);
 				break;
 			case MOD_FORCEVIZ_FIELDLINE_TUBE:
 				forceviz_tube_add(bm, &tube, loc);

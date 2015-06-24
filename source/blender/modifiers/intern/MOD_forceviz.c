@@ -70,7 +70,9 @@ static void initData(ModifierData *md)
 	fmd->fieldlines_num = 8;
 	fmd->fieldlines_res = 16;
 	fmd->fieldlines_length = 1.0f;
-	BLI_strncpy(fmd->fieldlines_strength_layer, "strength", sizeof(fmd->fieldlines_strength_layer));
+	fmd->fieldlines_drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
+	fmd->fieldlines_drawsize = 0.1f;
+	BLI_strncpy(fmd->fieldlines_strength_layer, "ff_strength", sizeof(fmd->fieldlines_strength_layer));
 	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }
