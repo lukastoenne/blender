@@ -1488,33 +1488,28 @@ static void forceviz_generate_image(ForceVizModifierData *fmd, ListBase *effecto
 
 /* ------------------------------------------------------------------------- */
 
-static BMVert *forceviz_create_vertex(BMesh *bm, const float loc[3], const float offset[3])
+static BMVert *forceviz_create_vertex(BMesh *bm, int cd_strength_layer, const float loc[3], const float offset[3], const float strength[3])
 {
 	BMVert *vert;
 	float co[3];
+	float (*f)[3];
 	
 	add_v3_v3v3(co, loc, offset);
 	vert = BM_vert_create(bm, co, NULL, BM_CREATE_NOP);
 	
+	f = CustomData_bmesh_get_layer_n(&bm->vdata, vert->head.data, cd_strength_layer);
+	if (f)
+		copy_v3_v3(*f, strength);
+	
 	return vert;
 }
 
-static BMFace *forceviz_create_face(BMesh *bm, int cd_strength_layer,
-									BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4,
-									const float strength12[3], const float strength34[3])
+static BMFace *forceviz_create_face(BMesh *bm, BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4)
 {
 	BMFace *face;
-	MLoopCol (*s)[4];
 	
 	face = BM_face_create_quad_tri(bm, v1, v2, v3, v4, NULL, BM_CREATE_NOP);
 	BM_elem_flag_set(face, BM_ELEM_SMOOTH, true);
-	
-	s = CustomData_bmesh_get_layer_n(&bm->ldata, face->head.data, cd_strength_layer);
-	if (s) {
-		(*s)[0].r = (*s)[1].r = strength12[0];
-		(*s)[0].g = (*s)[1].g = strength12[1];
-		(*s)[0].b = (*s)[1].b = strength12[1];
-	}
 	
 	return face;
 }
@@ -1550,6 +1545,7 @@ static void forceviz_line_add(BMesh *bm, ForceVizLine *line, const float loc[3])
 typedef struct ForceVizRibbon {
 	float loc_prev[3];
 	BMVert *verts_prev[2];
+	float strength_prev[3];
 	int index;
 } ForceVizRibbon;
 
@@ -1557,16 +1553,15 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 								float size, const float view_target[3],
 								const float loc[3], const float strength[3])
 {
-	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_MLOOPCOL, fmd->fieldlines_strength_layer);
+	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_SHAPEKEY, fmd->fieldlines_strength_layer);
 	BMVert **verts_prev = ribbon->verts_prev;
 	const float *loc_prev = ribbon->loc_prev;
 	BMVert *verts[2];
 	int index = ribbon->index;
 	
-	if (verts_prev[0]) {
+	if (index > 0) {
 		float edge[3], dir[3], view[3], offset[2][3];
 		float co[3];
-		BMFace *face;
 		
 		sub_v3_v3v3(edge, loc, loc_prev);
 		normalize_v3_v3(dir, edge);
@@ -1581,8 +1576,8 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 		
 		if (index == 1) {
 			/* create first vertex pair */
-			verts_prev[0] = forceviz_create_vertex(bm, loc_prev, offset[0]);
-			verts_prev[1] = forceviz_create_vertex(bm, loc_prev, offset[1]);
+			verts_prev[0] = forceviz_create_vertex(bm, cd_strength_layer, loc_prev, offset[0], ribbon->strength_prev);
+			verts_prev[1] = forceviz_create_vertex(bm, cd_strength_layer, loc_prev, offset[1], ribbon->strength_prev);
 		}
 		else {
 			/* average orientation of previous segment */
@@ -1596,18 +1591,18 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 		}
 		
 		/* create new vertex pair */
-		verts[0] = forceviz_create_vertex(bm, loc, offset[0]);
-		verts[1] = forceviz_create_vertex(bm, loc, offset[1]);
+		verts[0] = forceviz_create_vertex(bm, cd_strength_layer, loc, offset[0], strength);
+		verts[1] = forceviz_create_vertex(bm, cd_strength_layer, loc, offset[1], strength);
 		
 		/* create a quad */
-		face = BM_face_create_quad_tri(bm, verts_prev[1], verts_prev[0], verts[0], verts[1], NULL, BM_CREATE_NOP);
-		BM_elem_flag_set(face, BM_ELEM_SMOOTH, true);
+		forceviz_create_face(bm, verts_prev[1], verts_prev[0], verts[0], verts[1]);
 	}
 	
 	ribbon->index += 1;
 	ribbon->verts_prev[0] = verts[0];
 	ribbon->verts_prev[1] = verts[1];
 	copy_v3_v3(ribbon->loc_prev, loc);
+	copy_v3_v3(ribbon->strength_prev, strength);
 }
 
 typedef struct ForceVizTube {
@@ -1768,7 +1763,6 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	
 	MSurfaceSampleGenerator *gen;
 	ForceVizEffectorData funcdata;
-	MLoopCol *mloopcols;
 	int i;
 	
 	if (totlines <= 0 || res < 2 || substeps < 1)
@@ -1780,7 +1774,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	copy_m4_m4(funcdata.mat, ob->obmat);
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	
-	BM_data_layer_add_named(bm, &bm->ldata, CD_MLOOPCOL, fmd->fieldlines_strength_layer);
+	BM_data_layer_add_named(bm, &bm->vdata, CD_SHAPEKEY, fmd->fieldlines_strength_layer);
 	
 	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
 	
