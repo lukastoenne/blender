@@ -167,6 +167,12 @@ typedef struct MTFace {
 typedef struct MFloatProperty {
 	float f;
 } MFloatProperty;
+typedef struct MFloat3Property {
+	float f[3];
+} MFloat3Property;
+typedef struct MFloat4Property {
+	float f[4];
+} MFloat4Property;
 typedef struct MIntProperty {
 	int i;
 } MIntProperty;

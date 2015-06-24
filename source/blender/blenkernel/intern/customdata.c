@@ -441,6 +441,18 @@ static void layerCopy_propFloat(const void *source, void *dest,
 	memcpy(dest, source, sizeof(MFloatProperty) * count);
 }
 
+static void layerCopy_propFloat3(const void *source, void *dest,
+                                 int count)
+{
+	memcpy(dest, source, sizeof(MFloat3Property) * count);
+}
+
+static void layerCopy_propFloat4(const void *source, void *dest,
+                                 int count)
+{
+	memcpy(dest, source, sizeof(MFloat4Property) * count);
+}
+
 static void layerCopy_propInt(const void *source, void *dest,
                               int count)
 {
@@ -1312,6 +1324,10 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
 	/* 41: CD_CUSTOMLOOPNORMAL */
 	{sizeof(short[2]), "vec2s", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 42: CD_PROP_FLT3 */
+	{sizeof(MFloat3Property), "MFloat3Property", 1, N_("Float3"), layerCopy_propFloat3, NULL, NULL, NULL},
+	/* 43: CD_PROP_FLT4 */
+	{sizeof(MFloat4Property), "MFloat4Property", 1, N_("Float4"), layerCopy_propFloat4, NULL, NULL, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */

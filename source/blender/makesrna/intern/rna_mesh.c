@@ -1033,6 +1033,16 @@ static int rna_float_layer_check(CollectionPropertyIterator *UNUSED(iter), void 
 	CustomDataLayer *layer = (CustomDataLayer *)data;
 	return (layer->type != CD_PROP_FLT);
 }
+static int rna_float3_layer_check(CollectionPropertyIterator *UNUSED(iter), void *data)
+{
+	CustomDataLayer *layer = (CustomDataLayer *)data;
+	return (layer->type != CD_PROP_FLT3);
+}
+static int rna_float4_layer_check(CollectionPropertyIterator *UNUSED(iter), void *data)
+{
+	CustomDataLayer *layer = (CustomDataLayer *)data;
+	return (layer->type != CD_PROP_FLT4);
+}
 
 static void rna_Mesh_vertex_float_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
@@ -1040,20 +1050,62 @@ static void rna_Mesh_vertex_float_layers_begin(CollectionPropertyIterator *iter,
 	rna_iterator_array_begin(iter, (void *)vdata->layers, sizeof(CustomDataLayer), vdata->totlayer, 0,
 	                         rna_float_layer_check);
 }
+static void rna_Mesh_vertex_float3_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	CustomData *vdata = rna_mesh_vdata(ptr);
+	rna_iterator_array_begin(iter, (void *)vdata->layers, sizeof(CustomDataLayer), vdata->totlayer, 0,
+	                         rna_float3_layer_check);
+}
+static void rna_Mesh_vertex_float4_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	CustomData *vdata = rna_mesh_vdata(ptr);
+	rna_iterator_array_begin(iter, (void *)vdata->layers, sizeof(CustomDataLayer), vdata->totlayer, 0,
+	                         rna_float4_layer_check);
+}
+
 static void rna_Mesh_polygon_float_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	CustomData *pdata = rna_mesh_pdata(ptr);
 	rna_iterator_array_begin(iter, (void *)pdata->layers, sizeof(CustomDataLayer), pdata->totlayer, 0,
 	                         rna_float_layer_check);
 }
+static void rna_Mesh_polygon_float3_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	CustomData *pdata = rna_mesh_pdata(ptr);
+	rna_iterator_array_begin(iter, (void *)pdata->layers, sizeof(CustomDataLayer), pdata->totlayer, 0,
+	                         rna_float3_layer_check);
+}
+static void rna_Mesh_polygon_float4_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	CustomData *pdata = rna_mesh_pdata(ptr);
+	rna_iterator_array_begin(iter, (void *)pdata->layers, sizeof(CustomDataLayer), pdata->totlayer, 0,
+	                         rna_float4_layer_check);
+}
 
 static int rna_Mesh_vertex_float_layers_length(PointerRNA *ptr)
 {
 	return CustomData_number_of_layers(rna_mesh_vdata(ptr), CD_PROP_FLT);
 }
+static int rna_Mesh_vertex_float3_layers_length(PointerRNA *ptr)
+{
+	return CustomData_number_of_layers(rna_mesh_vdata(ptr), CD_PROP_FLT3);
+}
+static int rna_Mesh_vertex_float4_layers_length(PointerRNA *ptr)
+{
+	return CustomData_number_of_layers(rna_mesh_vdata(ptr), CD_PROP_FLT4);
+}
+
 static int rna_Mesh_polygon_float_layers_length(PointerRNA *ptr)
 {
 	return CustomData_number_of_layers(rna_mesh_pdata(ptr), CD_PROP_FLT);
+}
+static int rna_Mesh_polygon_float3_layers_length(PointerRNA *ptr)
+{
+	return CustomData_number_of_layers(rna_mesh_pdata(ptr), CD_PROP_FLT3);
+}
+static int rna_Mesh_polygon_float4_layers_length(PointerRNA *ptr)
+{
+	return CustomData_number_of_layers(rna_mesh_pdata(ptr), CD_PROP_FLT4);
 }
 
 static int rna_int_layer_check(CollectionPropertyIterator *UNUSED(iter), void *data)
@@ -1498,6 +1550,21 @@ static char *rna_MeshVertexFloatPropertyLayer_path(PointerRNA *ptr)
 	BLI_strescape(name_esc, cdl->name, sizeof(name_esc));
 	return BLI_sprintfN("vertex_float_layers[\"%s\"]", name_esc);
 }
+static char *rna_MeshVertexFloat3PropertyLayer_path(PointerRNA *ptr)
+{
+	CustomDataLayer *cdl = ptr->data;
+	char name_esc[sizeof(cdl->name) * 2];
+	BLI_strescape(name_esc, cdl->name, sizeof(name_esc));
+	return BLI_sprintfN("vertex_float3_layers[\"%s\"]", name_esc);
+}
+static char *rna_MeshVertexFloat4PropertyLayer_path(PointerRNA *ptr)
+{
+	CustomDataLayer *cdl = ptr->data;
+	char name_esc[sizeof(cdl->name) * 2];
+	BLI_strescape(name_esc, cdl->name, sizeof(name_esc));
+	return BLI_sprintfN("vertex_float4_layers[\"%s\"]", name_esc);
+}
+
 static char *rna_MeshPolygonFloatPropertyLayer_path(PointerRNA *ptr)
 {
 	CustomDataLayer *cdl = ptr->data;
@@ -1505,14 +1572,45 @@ static char *rna_MeshPolygonFloatPropertyLayer_path(PointerRNA *ptr)
 	BLI_strescape(name_esc, cdl->name, sizeof(name_esc));
 	return BLI_sprintfN("polygon_float_layers[\"%s\"]", name_esc);
 }
+static char *rna_MeshPolygonFloat3PropertyLayer_path(PointerRNA *ptr)
+{
+	CustomDataLayer *cdl = ptr->data;
+	char name_esc[sizeof(cdl->name) * 2];
+	BLI_strescape(name_esc, cdl->name, sizeof(name_esc));
+	return BLI_sprintfN("polygon_float3_layers[\"%s\"]", name_esc);
+}
+static char *rna_MeshPolygonFloat4PropertyLayer_path(PointerRNA *ptr)
+{
+	CustomDataLayer *cdl = ptr->data;
+	char name_esc[sizeof(cdl->name) * 2];
+	BLI_strescape(name_esc, cdl->name, sizeof(name_esc));
+	return BLI_sprintfN("polygon_float4_layers[\"%s\"]", name_esc);
+}
 
 static char *rna_MeshVertexFloatProperty_path(PointerRNA *ptr)
 {
 	return rna_VertCustomData_data_path(ptr, "vertex_layers_float", CD_PROP_FLT);
 }
+static char *rna_MeshVertexFloat3Property_path(PointerRNA *ptr)
+{
+	return rna_VertCustomData_data_path(ptr, "vertex_layers_float3", CD_PROP_FLT3);
+}
+static char *rna_MeshVertexFloat4Property_path(PointerRNA *ptr)
+{
+	return rna_VertCustomData_data_path(ptr, "vertex_layers_float4", CD_PROP_FLT4);
+}
+
 static char *rna_MeshPolygonFloatProperty_path(PointerRNA *ptr)
 {
 	return rna_PolyCustomData_data_path(ptr, "polygon_layers_float", CD_PROP_FLT);
+}
+static char *rna_MeshPolygonFloat3Property_path(PointerRNA *ptr)
+{
+	return rna_PolyCustomData_data_path(ptr, "polygon_layers_float3", CD_PROP_FLT3);
+}
+static char *rna_MeshPolygonFloat4Property_path(PointerRNA *ptr)
+{
+	return rna_PolyCustomData_data_path(ptr, "polygon_layers_float4", CD_PROP_FLT4);
 }
 
 static void rna_MeshVertexFloatPropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -1521,11 +1619,36 @@ static void rna_MeshVertexFloatPropertyLayer_data_begin(CollectionPropertyIterat
 	CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
 	rna_iterator_array_begin(iter, layer->data, sizeof(MFloatProperty), me->totvert, 0, NULL);
 }
+static void rna_MeshVertexFloat3PropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+	rna_iterator_array_begin(iter, layer->data, sizeof(MFloat3Property), me->totvert, 0, NULL);
+}
+static void rna_MeshVertexFloat4PropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+	rna_iterator_array_begin(iter, layer->data, sizeof(MFloat4Property), me->totvert, 0, NULL);
+}
+
 static void rna_MeshPolygonFloatPropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	Mesh *me = rna_mesh(ptr);
 	CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
 	rna_iterator_array_begin(iter, layer->data, sizeof(MFloatProperty), me->totpoly, 0, NULL);
+}
+static void rna_MeshPolygonFloat3PropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+	rna_iterator_array_begin(iter, layer->data, sizeof(MFloat3Property), me->totpoly, 0, NULL);
+}
+static void rna_MeshPolygonFloat4PropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+	rna_iterator_array_begin(iter, layer->data, sizeof(MFloat4Property), me->totpoly, 0, NULL);
 }
 
 static int rna_MeshVertexFloatPropertyLayer_data_length(PointerRNA *ptr)
@@ -1533,7 +1656,28 @@ static int rna_MeshVertexFloatPropertyLayer_data_length(PointerRNA *ptr)
 	Mesh *me = rna_mesh(ptr);
 	return me->totvert;
 }
+static int rna_MeshVertexFloat3PropertyLayer_data_length(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	return me->totvert;
+}
+static int rna_MeshVertexFloat4PropertyLayer_data_length(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	return me->totvert;
+}
+
 static int rna_MeshPolygonFloatPropertyLayer_data_length(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	return me->totpoly;
+}
+static int rna_MeshPolygonFloat3PropertyLayer_data_length(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	return me->totpoly;
+}
+static int rna_MeshPolygonFloat4PropertyLayer_data_length(PointerRNA *ptr)
 {
 	Mesh *me = rna_mesh(ptr);
 	return me->totpoly;
@@ -1742,9 +1886,13 @@ static PointerRNA rna_Mesh_##elemname##_##datatype##_property_new(struct Mesh *m
 }
 
 DEFINE_CUSTOMDATA_PROPERTY_API(vertex, float, CD_PROP_FLT, vdata, totvert, MeshVertexFloatPropertyLayer)
+DEFINE_CUSTOMDATA_PROPERTY_API(vertex, float3, CD_PROP_FLT3, vdata, totvert, MeshVertexFloat3PropertyLayer)
+DEFINE_CUSTOMDATA_PROPERTY_API(vertex, float4, CD_PROP_FLT4, vdata, totvert, MeshVertexFloat4PropertyLayer)
 DEFINE_CUSTOMDATA_PROPERTY_API(vertex, int, CD_PROP_INT, vdata, totvert, MeshVertexIntPropertyLayer)
 DEFINE_CUSTOMDATA_PROPERTY_API(vertex, string, CD_PROP_STR, vdata, totvert, MeshVertexStringPropertyLayer)
 DEFINE_CUSTOMDATA_PROPERTY_API(polygon, float, CD_PROP_FLT, pdata, totpoly, MeshPolygonFloatPropertyLayer)
+DEFINE_CUSTOMDATA_PROPERTY_API(polygon, float3, CD_PROP_FLT3, pdata, totpoly, MeshPolygonFloat3PropertyLayer)
+DEFINE_CUSTOMDATA_PROPERTY_API(polygon, float4, CD_PROP_FLT4, pdata, totpoly, MeshPolygonFloat4PropertyLayer)
 DEFINE_CUSTOMDATA_PROPERTY_API(polygon, int, CD_PROP_INT, pdata, totpoly, MeshPolygonIntPropertyLayer)
 DEFINE_CUSTOMDATA_PROPERTY_API(polygon, string, CD_PROP_STR, pdata, totpoly, MeshPolygonStringPropertyLayer)
 #undef DEFINE_CUSTOMDATA_PROPERTY_API
@@ -2573,12 +2721,14 @@ static void rna_def_mproperties(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	/* Float */
-#define MESH_FLOAT_PROPERTY_LAYER(elemname) \
-	srna = RNA_def_struct(brna, "Mesh" elemname "FloatPropertyLayer", NULL); \
+/* Defines a layer type as well as a property type to describe elements in the layer.
+ * Actual values should be defined for the resulting srna property type in each case.
+ */
+#define MESH_PROPERTY_LAYER(srna, elemname, type, desc, dna) \
+	srna = RNA_def_struct(brna, "Mesh" elemname type "PropertyLayer", NULL); \
 	RNA_def_struct_sdna(srna, "CustomDataLayer"); \
-	RNA_def_struct_ui_text(srna, "Mesh " elemname " Float Property Layer", "User defined layer of floating point number values"); \
-	RNA_def_struct_path_func(srna, "rna_Mesh" elemname "FloatPropertyLayer_path"); \
+	RNA_def_struct_ui_text(srna, "Mesh " elemname " " type " Property Layer", "User defined layer of " desc " values"); \
+	RNA_def_struct_path_func(srna, "rna_Mesh" elemname type "PropertyLayer_path"); \
  \
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE); \
 	RNA_def_struct_name_property(srna, prop); \
@@ -2587,95 +2737,77 @@ static void rna_def_mproperties(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data"); \
  \
 	prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE); \
-	RNA_def_property_struct_type(prop, "Mesh" elemname "FloatProperty"); \
+	RNA_def_property_struct_type(prop, "Mesh" elemname type "Property"); \
 	RNA_def_property_ui_text(prop, "Data", ""); \
-	RNA_def_property_collection_funcs(prop, "rna_Mesh" elemname "FloatPropertyLayer_data_begin", "rna_iterator_array_next", \
+	RNA_def_property_collection_funcs(prop, "rna_Mesh" elemname type "PropertyLayer_data_begin", "rna_iterator_array_next", \
 	                                  "rna_iterator_array_end", "rna_iterator_array_get", \
-	                                  "rna_Mesh" elemname "FloatPropertyLayer_data_length", NULL, NULL, NULL); \
+	                                  "rna_Mesh" elemname type "PropertyLayer_data_length", NULL, NULL, NULL); \
  \
-	srna = RNA_def_struct(brna, "Mesh" elemname "FloatProperty", NULL); \
-	RNA_def_struct_sdna(srna, "MFloatProperty"); \
-	RNA_def_struct_ui_text(srna, "Mesh " elemname " Float Property", \
-	                       "User defined floating point number value in a float properties layer"); \
-	RNA_def_struct_path_func(srna, "rna_Mesh" elemname "FloatProperty_path"); \
- \
+	srna = RNA_def_struct(brna, "Mesh" elemname type "Property", NULL); \
+	RNA_def_struct_sdna(srna, dna); \
+	RNA_def_struct_ui_text(srna, "Mesh " elemname " " type " Property", \
+	                       "User defined " desc " value in a properties layer"); \
+	RNA_def_struct_path_func(srna, "rna_Mesh" elemname type "Property_path");
+
+	/* Float */
+#define MESH_FLOAT_PROPERTY_LAYER(elemname) \
+	MESH_PROPERTY_LAYER(srna, elemname, "Float", "floating point number", "MFloatProperty") \
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE); \
+	RNA_def_property_float_sdna(prop, NULL, "f"); \
+	RNA_def_property_ui_text(prop, "Value", ""); \
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+	/* Float3 */
+#define MESH_FLOAT3_PROPERTY_LAYER(elemname) \
+	MESH_PROPERTY_LAYER(srna, elemname, "Float3", "3d vector", "MFloat3Property") \
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE); \
+	RNA_def_property_array(prop, 3); \
+	RNA_def_property_float_sdna(prop, NULL, "f"); \
+	RNA_def_property_ui_text(prop, "Value", ""); \
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+	/* Float4 */
+#define MESH_FLOAT4_PROPERTY_LAYER(elemname) \
+	MESH_PROPERTY_LAYER(srna, elemname, "Float4", "4d vector", "MFloat4Property") \
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE); \
+	RNA_def_property_array(prop, 4); \
 	RNA_def_property_float_sdna(prop, NULL, "f"); \
 	RNA_def_property_ui_text(prop, "Value", ""); \
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	/* Int */
 #define MESH_INT_PROPERTY_LAYER(elemname) \
-	srna = RNA_def_struct(brna, "Mesh" elemname "IntPropertyLayer", NULL); \
-	RNA_def_struct_sdna(srna, "CustomDataLayer"); \
-	RNA_def_struct_ui_text(srna, "Mesh " elemname " Int Property Layer", "User defined layer of integer number values"); \
-	RNA_def_struct_path_func(srna, "rna_Mesh" elemname "IntPropertyLayer_path"); \
- \
-	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE); \
-	RNA_def_struct_name_property(srna, prop); \
-	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_MeshAnyLayer_name_set"); \
-	RNA_def_property_ui_text(prop, "Name", ""); \
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_data"); \
- \
-	prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE); \
-	RNA_def_property_struct_type(prop, "Mesh" elemname "IntProperty"); \
-	RNA_def_property_ui_text(prop, "Data", ""); \
-	RNA_def_property_collection_funcs(prop, "rna_Mesh" elemname "IntPropertyLayer_data_begin", "rna_iterator_array_next", \
-	                                  "rna_iterator_array_end", "rna_iterator_array_get", \
-	                                  "rna_Mesh" elemname "IntPropertyLayer_data_length", NULL, NULL, NULL); \
- \
-	srna = RNA_def_struct(brna, "Mesh" elemname "IntProperty", NULL); \
-	RNA_def_struct_sdna(srna, "MIntProperty"); \
-	RNA_def_struct_ui_text(srna, "Mesh " elemname " Int Property", \
-	                       "User defined integer number value in an integer properties layer"); \
-	RNA_def_struct_path_func(srna, "rna_Mesh" elemname "IntProperty_path"); \
- \
+	MESH_PROPERTY_LAYER(srna, elemname, "Int", "integer number", "MIntProperty") \
 	prop = RNA_def_property(srna, "value", PROP_INT, PROP_NONE); \
 	RNA_def_property_int_sdna(prop, NULL, "i"); \
 	RNA_def_property_ui_text(prop, "Value", ""); \
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_data"); \
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	/* String */
 #define MESH_STRING_PROPERTY_LAYER(elemname) \
-	srna = RNA_def_struct(brna, "Mesh" elemname "StringPropertyLayer", NULL); \
-	RNA_def_struct_sdna(srna, "CustomDataLayer"); \
-	RNA_def_struct_ui_text(srna, "Mesh " elemname " String Property Layer", "User defined layer of string text values"); \
-	RNA_def_struct_path_func(srna, "rna_Mesh" elemname "StringPropertyLayer_path"); \
- \
-	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE); \
-	RNA_def_struct_name_property(srna, prop); \
-	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_MeshAnyLayer_name_set"); \
-	RNA_def_property_ui_text(prop, "Name", ""); \
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_data"); \
- \
-	prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE); \
-	RNA_def_property_struct_type(prop, "Mesh" elemname "StringProperty"); \
-	RNA_def_property_ui_text(prop, "Data", ""); \
-	RNA_def_property_collection_funcs(prop, "rna_Mesh" elemname "StringPropertyLayer_data_begin", "rna_iterator_array_next", \
-	                                  "rna_iterator_array_end", "rna_iterator_array_get", \
-	                                  "rna_Mesh" elemname "StringPropertyLayer_data_length", NULL, NULL, NULL); \
- \
-	srna = RNA_def_struct(brna, "Mesh" elemname "StringProperty", NULL); \
-	RNA_def_struct_sdna(srna, "MStringProperty"); \
-	RNA_def_struct_ui_text(srna, "Mesh " elemname " String Property", \
-	                       "User defined string text value in a string properties layer"); \
-	RNA_def_struct_path_func(srna, "rna_Mesh" elemname "StringProperty_path"); \
- \
+	MESH_PROPERTY_LAYER(srna, elemname, "String", "string text", "MStringProperty") \
 	/* low level mesh data access, treat as bytes */ \
 	prop = RNA_def_property(srna, "value", PROP_STRING, PROP_BYTESTRING); \
 	RNA_def_property_string_sdna(prop, NULL, "s"); \
 	RNA_def_property_string_funcs(prop, "rna_MeshStringProperty_s_get", "rna_MeshStringProperty_s_length", "rna_MeshStringProperty_s_set"); \
 	RNA_def_property_ui_text(prop, "Value", ""); \
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_data"); \
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	MESH_FLOAT_PROPERTY_LAYER("Vertex")
+	MESH_FLOAT3_PROPERTY_LAYER("Vertex")
+	MESH_FLOAT4_PROPERTY_LAYER("Vertex")
 	MESH_FLOAT_PROPERTY_LAYER("Polygon")
+	MESH_FLOAT3_PROPERTY_LAYER("Polygon")
+	MESH_FLOAT4_PROPERTY_LAYER("Polygon")
 	MESH_INT_PROPERTY_LAYER("Vertex")
 	MESH_INT_PROPERTY_LAYER("Polygon")
 	MESH_STRING_PROPERTY_LAYER("Vertex")
 	MESH_STRING_PROPERTY_LAYER("Polygon")
-#undef MESH_PROPERTY_LAYER
 
+#undef MESH_PROPERTY_LAYER
+#undef MESH_FLOAT_PROPERTY_LAYER
+#undef MESH_INT_PROPERTY_LAYER
+#undef MESH_STRING_PROPERTY_LAYER
 }
 
 void rna_def_texmat_common(StructRNA *srna, const char *texspace_editable)
@@ -2972,6 +3104,48 @@ static void rna_def_vertex_float_layers(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_return(func, parm);
 }
 
+/* mesh float3 layers */
+static void rna_def_vertex_float3_layers(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "VertexFloat3Properties");
+	srna = RNA_def_struct(brna, "VertexFloat3Properties", NULL);
+	RNA_def_struct_sdna(srna, "Mesh");
+	RNA_def_struct_ui_text(srna, "Vertex Float3 Properties", "Collection of float3 properties");
+
+	func = RNA_def_function(srna, "new", "rna_Mesh_vertex_float3_property_new");
+	RNA_def_function_ui_description(func, "Add a float3 property layer to Mesh");
+	RNA_def_string(func, "name", "Float3 Prop", 0, "", "Float3 property name");
+	parm = RNA_def_pointer(func, "layer", "MeshVertexFloat3PropertyLayer", "", "The newly created layer");
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+	RNA_def_function_return(func, parm);
+}
+
+/* mesh float4 layers */
+static void rna_def_vertex_float4_layers(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "VertexFloat4Properties");
+	srna = RNA_def_struct(brna, "VertexFloat4Properties", NULL);
+	RNA_def_struct_sdna(srna, "Mesh");
+	RNA_def_struct_ui_text(srna, "Vertex Float4 Properties", "Collection of float4 properties");
+
+	func = RNA_def_function(srna, "new", "rna_Mesh_vertex_float4_property_new");
+	RNA_def_function_ui_description(func, "Add a float4 property layer to Mesh");
+	RNA_def_string(func, "name", "Float4 Prop", 0, "", "Float4 property name");
+	parm = RNA_def_pointer(func, "layer", "MeshVertexFloat4PropertyLayer", "", "The newly created layer");
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+	RNA_def_function_return(func, parm);
+}
+
 /* mesh int layers */
 static void rna_def_vertex_int_layers(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -3031,6 +3205,48 @@ static void rna_def_polygon_float_layers(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_ui_description(func, "Add a float property layer to Mesh");
 	RNA_def_string(func, "name", "Float Prop", 0, "", "Float property name");
 	parm = RNA_def_pointer(func, "layer", "MeshPolygonFloatPropertyLayer", "", "The newly created layer");
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+	RNA_def_function_return(func, parm);
+}
+
+/* mesh float3 layers */
+static void rna_def_polygon_float3_layers(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "PolygonFloat3Properties");
+	srna = RNA_def_struct(brna, "PolygonFloat3Properties", NULL);
+	RNA_def_struct_sdna(srna, "Mesh");
+	RNA_def_struct_ui_text(srna, "Polygon Float3 Properties", "Collection of float3 properties");
+
+	func = RNA_def_function(srna, "new", "rna_Mesh_polygon_float3_property_new");
+	RNA_def_function_ui_description(func, "Add a float3 property layer to Mesh");
+	RNA_def_string(func, "name", "Float3 Prop", 0, "", "Float3 property name");
+	parm = RNA_def_pointer(func, "layer", "MeshPolygonFloat3PropertyLayer", "", "The newly created layer");
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+	RNA_def_function_return(func, parm);
+}
+
+/* mesh float layers */
+static void rna_def_polygon_float4_layers(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "PolygonFloat4Properties");
+	srna = RNA_def_struct(brna, "PolygonFloat4Properties", NULL);
+	RNA_def_struct_sdna(srna, "Mesh");
+	RNA_def_struct_ui_text(srna, "Polygon Float4 Properties", "Collection of float4 properties");
+
+	func = RNA_def_function(srna, "new", "rna_Mesh_polygon_float4_property_new");
+	RNA_def_function_ui_description(func, "Add a float4 property layer to Mesh");
+	RNA_def_string(func, "name", "Float4 Prop", 0, "", "Float4 property name");
+	parm = RNA_def_pointer(func, "layer", "MeshPolygonFloat4PropertyLayer", "", "The newly created layer");
 	RNA_def_property_flag(parm, PROP_RNAPTR);
 	RNA_def_function_return(func, parm);
 }
@@ -3389,6 +3605,22 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Float Property Layers", "");
 	rna_def_vertex_float_layers(brna, prop);
 
+	prop = RNA_def_property(srna, "vertex_layers_float3", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "vdata.layers", "vdata.totlayer");
+	RNA_def_property_collection_funcs(prop, "rna_Mesh_vertex_float3_layers_begin", NULL, NULL, NULL,
+	                                  "rna_Mesh_vertex_float3_layers_length", NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "MeshVertexFloat3PropertyLayer");
+	RNA_def_property_ui_text(prop, "Float3 Property Layers", "");
+	rna_def_vertex_float3_layers(brna, prop);
+
+	prop = RNA_def_property(srna, "vertex_layers_float4", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "vdata.layers", "vdata.totlayer");
+	RNA_def_property_collection_funcs(prop, "rna_Mesh_vertex_float4_layers_begin", NULL, NULL, NULL,
+	                                  "rna_Mesh_vertex_float4_layers_length", NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "MeshVertexFloat4PropertyLayer");
+	RNA_def_property_ui_text(prop, "Float4 Property Layers", "");
+	rna_def_vertex_float4_layers(brna, prop);
+
 	prop = RNA_def_property(srna, "vertex_layers_int", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "vdata.layers", "vdata.totlayer");
 	RNA_def_property_collection_funcs(prop, "rna_Mesh_vertex_int_layers_begin", NULL, NULL, NULL,
@@ -3412,6 +3644,22 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "MeshPolygonFloatPropertyLayer");
 	RNA_def_property_ui_text(prop, "Float Property Layers", "");
 	rna_def_polygon_float_layers(brna, prop);
+
+	prop = RNA_def_property(srna, "polygon_layers_float3", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "pdata.layers", "pdata.totlayer");
+	RNA_def_property_collection_funcs(prop, "rna_Mesh_polygon_float3_layers_begin", NULL, NULL, NULL,
+	                                  "rna_Mesh_polygon_float3_layers_length", NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "MeshPolygonFloat3PropertyLayer");
+	RNA_def_property_ui_text(prop, "Float3 Property Layers", "");
+	rna_def_polygon_float3_layers(brna, prop);
+
+	prop = RNA_def_property(srna, "polygon_layers_float4", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "pdata.layers", "pdata.totlayer");
+	RNA_def_property_collection_funcs(prop, "rna_Mesh_polygon_float4_layers_begin", NULL, NULL, NULL,
+	                                  "rna_Mesh_polygon_float4_layers_length", NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "MeshPolygonFloat4PropertyLayer");
+	RNA_def_property_ui_text(prop, "Float4 Property Layers", "");
+	rna_def_polygon_float4_layers(brna, prop);
 
 	prop = RNA_def_property(srna, "polygon_layers_int", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "pdata.layers", "pdata.totlayer");

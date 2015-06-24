@@ -63,7 +63,7 @@ typedef struct CustomDataExternal {
  * layers, each with a data type (e.g. MTFace, MDeformVert, etc.). */
 typedef struct CustomData {
 	CustomDataLayer *layers;      /* CustomDataLayers, ordered by type */
-	int typemap[42];              /* runtime only! - maps types to indices of first layer of that type,
+	int typemap[44];              /* runtime only! - maps types to indices of first layer of that type,
 	                               * MUST be >= CD_NUMTYPES, but we cant use a define here.
 	                               * Correct size is ensured in CustomData_update_typemap assert() */
 	int pad_i1;
@@ -121,8 +121,10 @@ typedef enum CustomDataType {
 	CD_MLOOPTANGENT     = 39,
 	CD_TESSLOOPNORMAL   = 40,
 	CD_CUSTOMLOOPNORMAL = 41,
+	CD_PROP_FLT3        = 42,
+	CD_PROP_FLT4        = 43,
 
-	CD_NUMTYPES         = 42
+	CD_NUMTYPES         = 44
 } CustomDataType;
 
 /* Bits for CustomDataMask */
