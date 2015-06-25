@@ -44,6 +44,7 @@ struct Group;
 struct ParticleSimulationData;
 struct ParticleData;
 struct ParticleKey;
+struct EffectorFunction;
 
 struct EffectorWeights *BKE_add_effector_weights(struct Group *group);
 struct PartDeflect *object_add_collision_fields(int type);
@@ -111,6 +112,8 @@ typedef struct EffectorCache {
 
 typedef struct EffectorContext {
 	ListBase effectors;
+	
+	struct EffectorFunction *func;
 } EffectorContext;
 
 void            free_partdeflect(struct PartDeflect *pd);
@@ -222,6 +225,11 @@ void BKE_sim_debug_data_remove_element(unsigned int hash);
 
 void BKE_sim_debug_data_clear(void);
 void BKE_sim_debug_data_clear_category(const char *category);
+
+/* ========================================================================= */
+/* Effector JIT compiler */
+
+void BKE_effect_build_function(struct EffectorContext *effctx);
 
 #endif
 
