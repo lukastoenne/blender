@@ -109,11 +109,15 @@ typedef struct EffectorCache {
 	int flag;
 } EffectorCache;
 
+typedef struct EffectorContext {
+	ListBase effectors;
+} EffectorContext;
+
 void            free_partdeflect(struct PartDeflect *pd);
-struct ListBase *pdInitEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights, bool precalc);
-void            pdEndEffectors(struct ListBase **effectors);
-void            pdPrecalculateEffectors(struct ListBase *effectors);
-void            pdDoEffectors(struct ListBase *effectors, struct ListBase *colliders, struct EffectorWeights *weights, struct EffectedPoint *point, float *force, float *impulse);
+struct EffectorContext *pdInitEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights, bool precalc);
+void            pdEndEffectors(struct EffectorContext *effctx);
+void            pdPrecalculateEffectors(struct EffectorContext *effctx);
+void            pdDoEffectors(struct EffectorContext *effctx, struct ListBase *colliders, struct EffectorWeights *weights, struct EffectedPoint *point, float *force, float *impulse);
 
 void pd_point_from_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ParticleKey *state, struct EffectedPoint *point);
 void pd_point_from_loc(struct Scene *scene, float *loc, float *vel, int index, struct EffectedPoint *point);

@@ -4178,7 +4178,9 @@ static int dynamicPaint_prepareEffectStep(DynamicPaintSurface *surface, Scene *s
 	/* Init force data if required */
 	if (surface->effect & MOD_DPAINT_EFFECT_DO_DRIP) {
 		float vel[3] = {0};
-		ListBase *effectors = pdInitEffectors(scene, ob, NULL, surface->effector_weights, true);
+		EffectorContext *effectors;
+
+		effectors = pdInitEffectors(scene, ob, NULL, surface->effector_weights, true);
 
 		/* allocate memory for force data (dir vector + strength) */
 		*force = MEM_mallocN(sData->total_points * 4 * sizeof(float), "PaintEffectForces");
@@ -4230,7 +4232,7 @@ static int dynamicPaint_prepareEffectStep(DynamicPaintSurface *surface, Scene *s
 			}
 			average_force /= sData->total_points;
 		}
-		pdEndEffectors(&effectors);
+		pdEndEffectors(effectors);
 	}
 
 	/* Get number of required steps using average point distance

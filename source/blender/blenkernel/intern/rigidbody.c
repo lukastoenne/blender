@@ -1237,7 +1237,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 	else if (rbo->type == RBO_TYPE_ACTIVE && ((ob->pd == NULL) || (ob->pd->forcefield == PFIELD_NULL))) {
 		EffectorWeights *effector_weights = rbw->effector_weights;
 		EffectedPoint epoint;
-		ListBase *effectors;
+		EffectorContext *effectors;
 
 		/* get effectors present in the group specified by effector_weights */
 		effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
@@ -1267,7 +1267,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 			printf("\tno forces to apply to '%s'\n", ob->id.name + 2);
 
 		/* cleanup */
-		pdEndEffectors(&effectors);
+		pdEndEffectors(effectors);
 	}
 	/* NOTE: passive objects don't need to be updated since they don't move */
 

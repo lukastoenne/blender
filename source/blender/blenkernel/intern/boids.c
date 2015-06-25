@@ -72,7 +72,7 @@ static int rule_goal_avoid(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, 
 	BoidSettings *boids = bbd->part->boids;
 	BoidParticle *bpa = pa->boid;
 	EffectedPoint epoint;
-	ListBase *effectors = bbd->sim->psys->effectors;
+	EffectorContext *effectors = bbd->sim->psys->effectors;
 	EffectorCache *cur, *eff = NULL;
 	EffectorCache temp_eff;
 	EffectorData efd, cur_efd;
@@ -83,7 +83,7 @@ static int rule_goal_avoid(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, 
 	pd_point_from_particle(bbd->sim, pa, &pa->state, &epoint);
 
 	/* first find out goal/predator with highest priority */
-	if (effectors) for (cur = effectors->first; cur; cur=cur->next) {
+	if (effectors) for (cur = effectors->effectors.first; cur; cur=cur->next) {
 		Object *eob = cur->ob;
 		PartDeflect *pd = cur->pd;
 
