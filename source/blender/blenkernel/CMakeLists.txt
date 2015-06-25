@@ -531,6 +531,9 @@ if(WITH_LLVM)
 	list(APPEND SRC
 		intern/effect_llvm.cpp
 	)
+	list(APPEND INC_SYS
+		${LLVM_INCLUDE_DIRS}
+	)
 	add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
 endif()
 
