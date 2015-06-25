@@ -2042,3 +2042,16 @@ void BKE_sim_debug_data_clear_category(const char *category)
 		}
 	}
 }
+
+
+/* ========================================================================= */
+/* LLVM function stubs */
+
+#ifndef WITH_LLVM
+
+void BKE_effect_build_function(EffectorContext *effctx)
+{
+	UNUSED_VARS(effctx);
+}
+
+#endif
