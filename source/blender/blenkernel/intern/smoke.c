@@ -2386,7 +2386,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 
 static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds, float UNUSED(dt))
 {
-	ListBase *effectors;
+	EffectorContext *effectors;
 	/* make sure smoke flow influence is 0.0f */
 	sds->effector_weights->weight[PFIELD_SMOKEFLOW] = 0.0f;
 	effectors = pdInitEffectors(scene, ob, NULL, sds->effector_weights, true);
@@ -2452,7 +2452,7 @@ static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 		}
 	}
 
-	pdEndEffectors(&effectors);
+	pdEndEffectors(effectors);
 }
 
 static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float fps, bool for_render)

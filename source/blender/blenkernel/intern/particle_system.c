@@ -1273,9 +1273,9 @@ void psys_update_particle_tree(ParticleSystem *psys, float cfra)
 
 static void psys_update_effectors(ParticleSimulationData *sim)
 {
-	pdEndEffectors(&sim->psys->effectors);
+	pdEndEffectors(sim->psys->effectors);
 	sim->psys->effectors = pdInitEffectors(sim->scene, sim->ob, sim->psys,
-	                                       sim->psys->part->effector_weights, true);
+	                sim->psys->part->effector_weights, true);
 	precalc_guides(sim, sim->psys->effectors);
 }
 

@@ -349,7 +349,7 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 {
 	ClothVertex *verts = NULL;
 	Cloth *cloth;
-	ListBase *effectors = NULL;
+	EffectorContext *effectors;
 	MVert *mvert;
 	unsigned int i = 0;
 	int ret = 0;
@@ -383,7 +383,7 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 
 	// TIMEIT_END(cloth_step)
 
-	pdEndEffectors(&effectors);
+	pdEndEffectors(effectors);
 
 	// printf ( "%f\n", ( float ) tval() );
 	

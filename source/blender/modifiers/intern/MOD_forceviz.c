@@ -159,11 +159,11 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	
 	/* add effectors */
 	{
-		ListBase *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
+		EffectorContext *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 		EffectorCache *eff;
 		
 		if (effectors) {
-			for (eff = effectors->first; eff; eff = eff->next) {
+			for (eff = effectors->effectors.first; eff; eff = eff->next) {
 				if (eff->ob) {
 					DagNode *eff_node = dag_get_node(forest, eff->ob);
 					dag_add_relation(forest, eff_node, obNode,
@@ -171,7 +171,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 				}
 			}
 			
-			pdEndEffectors(&effectors);
+			pdEndEffectors(effectors);
 		}
 	}
 	
@@ -201,17 +201,17 @@ static void updateDepsgraph(ModifierData *md,
 	
 	/* add effectors */
 	{
-		ListBase *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
+		EffectorContext *effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 		EffectorCache *eff;
 		
 		if (effectors) {
-			for (eff = effectors->first; eff; eff = eff->next) {
+			for (eff = effectors->effectors.first; eff; eff = eff->next) {
 				if (eff->ob) {
 					DEG_add_object_relation(node, eff->ob, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
 				}
 			}
 			
-			pdEndEffectors(&effectors);
+			pdEndEffectors(effectors);
 		}
 	}
 	

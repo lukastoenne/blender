@@ -41,6 +41,7 @@ struct Object;
 struct ClothModifierData;
 struct ListBase;
 struct VoxelData;
+struct EffectorContext;
 
 typedef enum eMassSpringSolverStatus {
 	BPH_SOLVER_SUCCESS              = (1 << 0),
@@ -54,7 +55,7 @@ void BPH_mass_spring_solver_free(struct Implicit_Data *id);
 
 int BPH_cloth_solver_init(struct Object *ob, struct ClothModifierData *clmd);
 void BPH_cloth_solver_free(struct ClothModifierData *clmd);
-int BPH_cloth_solve(struct Object *ob, float frame, struct ClothModifierData *clmd, struct ListBase *effectors);
+int BPH_cloth_solve(struct Object *ob, float frame, struct ClothModifierData *clmd, struct EffectorContext *effectors);
 void BKE_cloth_solver_set_positions(struct ClothModifierData *clmd);
 
 bool BPH_cloth_solver_get_texture_data(struct Object *ob, struct ClothModifierData *clmd, struct VoxelData *vd);

@@ -62,6 +62,7 @@ struct RNG;
 struct BVHTreeRay;
 struct BVHTreeRayHit; 
 struct EdgeHash;
+struct EffectorContext;
 
 #define PARTICLE_P              ParticleData * pa; int p
 #define LOOP_PARTICLES  for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++)
@@ -329,8 +330,8 @@ void psys_find_parents(struct ParticleSimulationData *sim);
 void psys_cache_paths(struct ParticleSimulationData *sim, float cfra);
 void psys_cache_edit_paths(struct Scene *scene, struct Object *ob, struct PTCacheEdit *edit, float cfra);
 void psys_cache_child_paths(struct ParticleSimulationData *sim, float cfra, int editupdate);
-int do_guides(struct ParticleSettings *part, struct ListBase *effectors, ParticleKey *state, int pa_num, float time);
-void precalc_guides(struct ParticleSimulationData *sim, struct ListBase *effectors);
+int do_guides(struct ParticleSettings *part, struct EffectorContext *effectors, ParticleKey *state, int pa_num, float time);
+void precalc_guides(struct ParticleSimulationData *sim, struct EffectorContext *effectors);
 float psys_get_timestep(struct ParticleSimulationData *sim);
 float psys_get_child_time(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *birthtime, float *dietime);
 float psys_get_child_size(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *pa_time);
