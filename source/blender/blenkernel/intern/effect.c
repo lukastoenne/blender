@@ -1731,7 +1731,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 	const float inv_length = length != 0.0f ? 1.0f / length : 0.0f;
 	const float segment = length / (float)(res - 1);
 	const float stepsize = segment / (float)substeps;
-	const int mat = CLAMPIS(fmd->fieldlines_material, -1, funcdata->object->totcol - 1);
+	const int mat = CLAMPIS(fmd->fieldlines_material, 0, funcdata->object->totcol - 1);
 	
 	ForceVizLine line = {0};
 	ForceVizRibbon ribbon = {{0}};
