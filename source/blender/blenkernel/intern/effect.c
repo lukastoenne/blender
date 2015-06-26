@@ -1504,6 +1504,16 @@ static BMVert *forceviz_create_vertex(BMesh *bm, int cd_strength_layer, const fl
 	return vert;
 }
 
+static BMEdge *forceviz_create_edge(BMesh *bm, BMVert *v1, BMVert *v2)
+{
+	BMEdge *edge = BM_edge_create(bm, v1, v2, NULL, BM_CREATE_NOP);
+	
+	sub_v3_v3v3(v2->no, v2->co, v1->co);
+	normalize_v3(v2->no);
+	
+	return edge;
+}
+
 static BMFace *forceviz_create_face(BMesh *bm, int cd_loopuv_layer, int mat,
                                     BMVert *v1, BMVert *v2, BMVert *v3, BMVert *v4,
                                     float u0, float u1)
@@ -1544,31 +1554,36 @@ static BMFace *forceviz_create_face(BMesh *bm, int cd_loopuv_layer, int mat,
 }
 
 typedef struct ForceVizLine {
+	float loc_prev[3];
 	BMVert *vert_prev;
+	float strength_prev[3];
 	int index;
 } ForceVizLine;
 
-static void forceviz_line_add(BMesh *bm, ForceVizLine *line, const float loc[3])
+static void forceviz_line_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizLine *line,
+                              const float loc[3])
 {
 	/* create vertex */
+	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
 	BMVert *vert_prev = line->vert_prev;
-	BMVert *vert = BM_vert_create(bm, loc, NULL, BM_CREATE_NOP);
-	int index = line->index;
-//	BM_elem_index_set(vert, ivert++); /* set_inline */
+	const float *loc_prev = line->loc_prev;
+	static const float offset[3] = {0.0f, 0.0f, 0.0f};
+	const int index = line->index;
+	BMVert *vert;
+	
+	vert = forceviz_create_vertex(bm, cd_strength_layer, loc_prev, offset, line->strength_prev);
 	
 	/* create edge */
 	if (index > 0) {
-		/*BMEdge *edge =*/ BM_edge_create(bm, vert_prev, vert, NULL, BM_CREATE_NOP);
-//		BM_elem_index_set(edge, iedge++); /* set_inline */
+		forceviz_create_edge(bm, vert_prev, vert);
 		
-		sub_v3_v3v3(vert->no, vert->co, vert_prev->co);
-		normalize_v3(vert->no);
 		if (index == 1)
 			copy_v3_v3(vert_prev->no, vert->no);
 	}
 	
 	line->index += 1;
 	line->vert_prev = vert;
+	copy_v3_v3(line->loc_prev, loc);
 }
 
 typedef struct ForceVizRibbon {
@@ -1733,7 +1748,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 	const float stepsize = segment / (float)substeps;
 	const int mat = CLAMPIS(fmd->fieldlines_material, 0, funcdata->object->totcol - 1);
 	
-	ForceVizLine line = {0};
+	ForceVizLine line = {{0}};
 	ForceVizRibbon ribbon = {{0}};
 	ForceVizTube tube = {0};
 	float target[3] = {0.0f, 0.0f, 0.0f};
@@ -1758,7 +1773,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 		
 		switch (fmd->fieldlines_drawtype) {
 			case MOD_FORCEVIZ_FIELDLINE_LINE:
-				forceviz_line_add(bm, &line, loc);
+				forceviz_line_add(fmd, bm, &line, loc);
 				break;
 			case MOD_FORCEVIZ_FIELDLINE_RIBBON:
 				forceviz_ribbon_add(fmd, bm, &ribbon, fmd->fieldlines_drawsize, target, mat,
