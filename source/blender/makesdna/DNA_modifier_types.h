@@ -1548,14 +1548,17 @@ typedef struct ForceVizModifierData {
 	
 	int fieldlines_num;
 	int fieldlines_res;
+	int fieldlines_radial_res;
 	float fieldlines_length;
 	int fieldlines_substeps;
 	int fieldlines_drawtype;
 	float fieldlines_drawsize;
 	int fieldlines_material; /* material index if >= 0, else material inherited from surrounding faces */
+	
 	char fieldlines_strength_layer[64];
 	
 	unsigned int seed;
+	int pad3;
 } ForceVizModifierData;
 
 /* ForceViz modifier flags */
