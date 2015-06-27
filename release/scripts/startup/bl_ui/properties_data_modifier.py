@@ -366,7 +366,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.label(text="Settings are inside the Physics tab")
 
     def FORCEVIZ(self, layout, ob, md):
-        fieldlines = md.fieldlines
         mode = md.mode
 
         layout.prop(md, "mode")
@@ -375,6 +374,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         ### Field Lines ###
         if mode == 'FIELDLINES':
+            fieldlines = md.fieldlines
+
             layout.prop(md, "seed")
             col = layout.column(align=True)
             col.prop(fieldlines, "num")
@@ -407,6 +408,13 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
                 layout.prop(md, "texture_coords_object", text="Object")
             elif md.texture_coords == 'UV' and ob.type == 'MESH':
                 layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
+
+        ### Image ###
+        if mode == 'VERTEX_ATTRIBUTE':
+            vattr = md.vertex_attribute
+            col = layout.column()
+            col.prop(vattr, "attribute_name")
+            col.prop(vattr, "type")
 
         layout.separator()
 

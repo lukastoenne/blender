@@ -57,6 +57,8 @@
 static void initData(ModifierData *md) 
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
+	ForceVizFieldLineSettings *fls = &fmd->fieldlines;
+	ForceVizVertexAttributeSettings *attr = &fmd->vertex_attribute;
 	
 	fmd->texmapping = MOD_DISP_MAP_UV;
 	
@@ -68,13 +70,16 @@ static void initData(ModifierData *md)
 	fmd->flag = 0;
 	fmd->mode = MOD_FORCEVIZ_MODE_FIELDLINES;
 	
-	fmd->fieldlines.num = 8;
-	fmd->fieldlines.res = 16;
-	fmd->fieldlines.length = 1.0f;
-	fmd->fieldlines.drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
-	fmd->fieldlines.drawsize = 0.1f;
-	fmd->fieldlines.material = -1;
-	BLI_strncpy(fmd->fieldlines.strength_layer, "ff_strength", sizeof(fmd->fieldlines.strength_layer));
+	fls->num = 8;
+	fls->res = 16;
+	fls->length = 1.0f;
+	fls->drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
+	fls->drawsize = 0.1f;
+	fls->material = -1;
+	BLI_strncpy(fls->strength_layer, "ff_strength", sizeof(fls->strength_layer));
+	
+	BLI_strncpy(attr->attribute_name, "forcefield", sizeof(attr->attribute_name));
+	attr->type = MOD_FORCEVIZ_ATTR_FLUX;
 	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }

@@ -4684,6 +4684,32 @@ static void rna_def_modifier_forceviz_fieldlines(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_forceviz_vertex_attribute(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem type_items[] = {
+		{MOD_FORCEVIZ_ATTR_FORCE, "FORCE", 0, "Force", "3D force vectors"},
+	    {MOD_FORCEVIZ_ATTR_FLUX, "FLUX", 0, "Flux", "Flux density on the surface"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	srna = RNA_def_struct(brna, "ForceVizVertexAttributeSettings", NULL);
+	RNA_def_struct_ui_text(srna, "Force Visualization Vertex Attribute Settings", "");
+	RNA_def_struct_sdna(srna, "ForceVizVertexAttributeSettings");
+
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, type_items);
+	RNA_def_property_ui_text(prop, "Type", "Type of data to store in the vertex attribute");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "attribute_name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "attribute_name");
+	RNA_def_property_ui_text(prop, "Attribute Name", "Name of the vertex attribute to create");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+}
+
 static void rna_def_modifier_forceviz(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -4727,9 +4753,13 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "fieldlines", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Field Lines", "Field lines visualization settings");
 
+	prop = RNA_def_property(srna, "vertex_attribute", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Vertex Attribute", "Vertex attribute visualization settings");
+
 	rna_def_modifier_generic_map_info(srna);
 	
 	rna_def_modifier_forceviz_fieldlines(brna);
+	rna_def_modifier_forceviz_vertex_attribute(brna);
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

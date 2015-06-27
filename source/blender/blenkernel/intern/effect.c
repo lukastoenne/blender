@@ -1042,6 +1042,7 @@ void pdDoEffectors(ListBase *effectors, ListBase *colliders, EffectorWeights *we
 
 typedef struct ForceVizInput {
 	float co[3];
+	float nor[3];
 	float vel[3];
 	
 	float force[3];
@@ -1050,6 +1051,44 @@ typedef struct ForceVizInput {
 } ForceVizInput;
 
 typedef void (*ForceVizImageGenerator)(float col[4], ForceVizModifierData *fmd, const ForceVizInput *input);
+
+typedef float (*ForceVizScalarFunc)(ForceVizModifierData *fmd, const ForceVizInput *input);
+typedef void (*ForceVizVectorFunc)(float res[3], ForceVizModifierData *fmd, const ForceVizInput *input);
+typedef void (*ForceVizColorFunc)(float res[4], ForceVizModifierData *fmd, const ForceVizInput *input);
+
+static void forceviz_eval_field(ForceVizModifierData *fmd, ListBase *effectors,
+                                const float loc[3], const float nor[3], const float vel[3],
+                                ForceVizInput *result)
+{
+	EffectedPoint point;
+	
+	copy_v3_v3(result->co, loc);
+	copy_v3_v3(result->nor, nor);
+	copy_v3_v3(result->vel, vel);
+	pd_point_from_loc(fmd->modifier.scene, (float *)loc, (float *)vel, 0, &point);
+	
+	zero_v3(result->force);
+	zero_v3(result->impulse);
+	zero_m3(result->dforce); // TODO
+	pdDoEffectors(effectors, NULL, fmd->effector_weights, &point, result->force, result->impulse);
+}
+
+BLI_INLINE void forceviz_eval_field_loc(ForceVizModifierData *fmd, ListBase *effectors,
+                                    const float loc[3],
+	                                ForceVizInput *result)
+{
+	static const float vel[3] = {0.0f, 0.0f, 0.0f};
+	static const float nor[3] = {0.0f, 0.0f, 1.0f};
+	forceviz_eval_field(fmd, effectors, loc, nor, vel, result);
+}
+
+BLI_INLINE void forceviz_eval_field_loc_nor(ForceVizModifierData *fmd, ListBase *effectors,
+                                    const float loc[3], const float nor[3],
+	                                ForceVizInput *result)
+{
+	static const float vel[3] = {0.0f, 0.0f, 0.0f};
+	forceviz_eval_field(fmd, effectors, loc, nor, vel, result);
+}
 
 #if 0
 /* rasterize triangle with uv2[1] == uv3[1] and uv1[1] != uv2[1] */
@@ -1254,20 +1293,13 @@ static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, ListBase
 			float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 			
 			{
-				EffectedPoint point;
 				ForceVizInput input;
-				float co23[3];
+				float co23[3], co[3];
 				
 				interp_v3_v3v3(co23, co2, co3, facx);
-				interp_v3_v3v3(input.co, co1, co23, facy);
-				zero_v3(input.vel);
+				interp_v3_v3v3(co, co1, co23, facy);
 				
-				pd_point_from_loc(fmd->modifier.scene, input.co, input.vel, 0, &point);
-				zero_v3(input.force);
-				zero_v3(input.impulse);
-				zero_m3(input.dforce); // TODO
-				pdDoEffectors(effectors, NULL, fmd->effector_weights, &point, input.force, input.impulse);
-				
+				forceviz_eval_field_loc(fmd, effectors, co, &input);
 				cb(col, fmd, &input);
 			}
 			
@@ -1965,6 +1997,66 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 
 /* ------------------------------------------------------------------------- */
 
+static void forceviz_set_vertex_attribute_float(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, ListBase *effectors,
+                                                const char *name, ForceVizScalarFunc fn)
+{
+	const int numverts = dm->getNumVerts(dm);
+	MVert *mverts = dm->getVertArray(dm);
+	CustomData *vdata = dm->getVertDataLayout(dm);
+	float *data = CustomData_get_layer_named(vdata, CD_PROP_FLT, name);
+	int i;
+	
+	if (!data) {
+		/* create new layer */
+		data = CustomData_add_layer_named(vdata, CD_PROP_FLT, CD_CALLOC, NULL, numverts, name);
+	}
+	
+	for (i = 0; i < numverts; ++i) {
+		ForceVizInput input;
+		float wco[3], wnor[3];
+		float value = 0.0f;
+		
+		mul_v3_m4v3(wco, ob->obmat, mverts[i].co);
+		normal_short_to_float_v3(wnor, mverts[i].no);
+		mul_mat3_m4_v3(ob->obmat, wnor);
+		
+		forceviz_eval_field_loc_nor(fmd, effectors, wco, wnor, &input);
+		value = fn(fmd, &input);
+		
+		data[i] = value;
+	}
+}
+
+static void forceviz_vertex_attribute_force(float res[3], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
+{
+	copy_v3_v3(res, input->force);
+}
+
+static float forceviz_vertex_attribute_flux(ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
+{
+	return dot_v3v3(input->force, input->nor);
+}
+
+static void forceviz_set_vertex_attribute(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, ListBase *effectors)
+{
+	ForceVizVertexAttributeSettings *vattr = &fmd->vertex_attribute;
+	const char *name = vattr->attribute_name;
+	
+	if (name == NULL || name[0] == '\0')
+		return;
+	
+	switch (vattr->type) {
+		case MOD_FORCEVIZ_ATTR_FORCE:
+			// TODO
+			break;
+		case MOD_FORCEVIZ_ATTR_FLUX:
+			forceviz_set_vertex_attribute_float(fmd, ob, dm, effectors, name, forceviz_vertex_attribute_flux);
+			break;
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+
 static void forceviz_image_test(float col[4], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
 {
 	copy_v3_v3(col, input->co);
@@ -1984,19 +2076,24 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 	BMesh *bm = NULL;
 	ListBase *effectors;
 	
-	/* allocate output dm */
-	if (fmd->mode == MOD_FORCEVIZ_MODE_FIELDLINES) {
-		bm = DM_to_bmesh(dm, true);
-//		bm = BM_mesh_create(&bm_mesh_allocsize_default);
-	}
-	
 	effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 	
-	if (fmd->mode == MOD_FORCEVIZ_MODE_IMAGE)
-		forceviz_generate_image(fmd, effectors, fmd->image_vec, forceviz_image_vectors, ob, dm, tex_co);
-	
-	if (fmd->mode == MOD_FORCEVIZ_MODE_FIELDLINES) {
-		forceviz_generate_field_lines(fmd, effectors, ob, dm, bm);
+	switch (fmd->mode) {
+		case MOD_FORCEVIZ_MODE_FIELDLINES: {
+			/* allocate output dm */
+			bm = DM_to_bmesh(dm, true);
+//			bm = BM_mesh_create(&bm_mesh_allocsize_default);
+			forceviz_generate_field_lines(fmd, effectors, ob, dm, bm);
+			break;
+		}
+		case MOD_FORCEVIZ_MODE_IMAGE: {
+			forceviz_generate_image(fmd, effectors, fmd->image_vec, forceviz_image_vectors, ob, dm, tex_co);
+			break;
+		}
+		case MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE: {
+			forceviz_set_vertex_attribute(fmd, ob, dm, effectors);
+			break;
+		}
 	}
 	
 	pdEndEffectors(&effectors);

@@ -1535,6 +1535,12 @@ typedef struct ForceVizFieldLineSettings {
 	char strength_layer[64];
 } ForceVizFieldLineSettings;
 
+typedef struct ForceVizVertexAttributeSettings {
+	int type;
+	int pad;
+	char attribute_name[64];
+} ForceVizVertexAttributeSettings;
+
 typedef struct ForceVizModifierData {
 	ModifierData modifier;
 	/* keep in sync with MappingInfoModifierData */
@@ -1558,6 +1564,7 @@ typedef struct ForceVizModifierData {
 	struct Image *image_curl;
 	
 	ForceVizFieldLineSettings fieldlines;
+	ForceVizVertexAttributeSettings vertex_attribute;
 	
 	unsigned int seed;
 	int pad3;
@@ -1573,6 +1580,12 @@ enum {
 	MOD_FORCEVIZ_MODE_FIELDLINES          = 0,
 	MOD_FORCEVIZ_MODE_IMAGE                = 1,
 	MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE     = 2,
+};
+
+/* ForceViz attribute type */
+enum {
+	MOD_FORCEVIZ_ATTR_FORCE                = 0,
+	MOD_FORCEVIZ_ATTR_FLUX                 = 1,
 };
 
 /* ForceViz modifier fieldline draw types */
