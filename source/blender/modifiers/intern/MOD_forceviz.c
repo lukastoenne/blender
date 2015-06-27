@@ -67,13 +67,13 @@ static void initData(ModifierData *md)
 	
 	fmd->flag = MOD_FORCEVIZ_USE_IMG_VEC;
 	
-	fmd->fieldlines_num = 8;
-	fmd->fieldlines_res = 16;
-	fmd->fieldlines_length = 1.0f;
-	fmd->fieldlines_drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
-	fmd->fieldlines_drawsize = 0.1f;
-	fmd->fieldlines_material = -1;
-	BLI_strncpy(fmd->fieldlines_strength_layer, "ff_strength", sizeof(fmd->fieldlines_strength_layer));
+	fmd->fieldlines.num = 8;
+	fmd->fieldlines.res = 16;
+	fmd->fieldlines.length = 1.0f;
+	fmd->fieldlines.drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
+	fmd->fieldlines.drawsize = 0.1f;
+	fmd->fieldlines.material = -1;
+	BLI_strncpy(fmd->fieldlines.strength_layer, "ff_strength", sizeof(fmd->fieldlines.strength_layer));
 	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }
@@ -217,7 +217,7 @@ static void updateDepsgraph(ModifierData *md,
 	
 	/* add camera */
 	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES
-	    && ELEM(fmd->fieldlines_drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON)
+	    && ELEM(fmd->fieldlines.drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON)
 	    && scene->camera) {
 		DEG_add_object_relation(node, scene->camera, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
 	}

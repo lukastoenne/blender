@@ -366,27 +366,31 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.label(text="Settings are inside the Physics tab")
 
     def FORCEVIZ(self, layout, ob, md):
+        fieldlines = md.fieldlines
+
         layout.prop(md, "seed")
 
+        ### Field Lines ###
         row = layout.row()
         row.prop(md, "use_fieldlines", text="Field Lines")
         col = layout.column(align=True)
         col.enabled = md.use_fieldlines
-        col.prop(md, "fieldlines_num", "Amount")
-        col.prop(md, "fieldlines_res", "Resolution")
-        col.prop(md, "fieldlines_length", "Length")
-        col.prop(md, "fieldlines_substeps", "Substeps")
+        col.prop(fieldlines, "num")
+        col.prop(fieldlines, "res")
+        col.prop(fieldlines, "length")
+        col.prop(fieldlines, "substeps")
         col = layout.column(align=True)
-        col.prop(md, "fieldlines_drawtype", "")
-        if md.fieldlines_drawtype == 'LINE':
+        col.prop(fieldlines, "drawtype", "")
+        if fieldlines.drawtype == 'LINE':
             pass
-        elif md.fieldlines_drawtype == 'RIBBON':
-            col.template_ID(md, "fieldlines_material")
-            col.prop(md, "fieldlines_drawsize", "Size")
-        elif md.fieldlines_drawtype == 'TUBE':
-            col.template_ID(md, "fieldlines_material")
-            col.prop(md, "fieldlines_drawsize", "Size")
-            col.prop(md, "fieldlines_radial_res", "Radial")
+        elif fieldlines.drawtype == 'RIBBON':
+            col.template_ID(fieldlines, "material")
+            col.prop(fieldlines, "drawsize")
+        elif fieldlines.drawtype == 'TUBE':
+            col.template_ID(md, "material")
+            col.prop(fieldlines, "drawsize")
+            col.prop(fieldlines, "radial_res")
+        ####################
 
         row = layout.row()
         row.prop(md, "use_image_vec", text="Vector Image")

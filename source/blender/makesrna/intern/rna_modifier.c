@@ -1070,35 +1070,35 @@ static int rna_CorrectiveSmoothModifier_is_bind_get(PointerRNA *ptr)
 	return (csmd->bind_coords != NULL);
 }
 
-static PointerRNA rna_ForceVizModifier_fieldlines_material_get(PointerRNA *ptr)
+static PointerRNA rna_ForceVizFieldLineSettings_material_get(PointerRNA *ptr)
 {
-	ForceVizModifierData *fmd = ptr->data;
+	ForceVizFieldLineSettings *fls = ptr->data;
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
-	const int mat = CLAMPIS(fmd->fieldlines_material, 0, ob->totcol - 1);
+	const int mat = CLAMPIS(fls->material, 0, ob->totcol - 1);
 	PointerRNA result;
 	RNA_pointer_create((ID*)ob, &RNA_Material, (*mats)[mat], &result);
 	return result;
 }
 
-static void rna_ForceVizModifier_fieldlines_material_set(PointerRNA *ptr, const PointerRNA value)
+static void rna_ForceVizFieldLineSettings_material_set(PointerRNA *ptr, const PointerRNA value)
 {
-	ForceVizModifierData *fmd = ptr->data;
+	ForceVizFieldLineSettings *fls = ptr->data;
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
 	Material *mat = value.data;
 	int i;
 	
-	fmd->fieldlines_material = -1;
+	fls->material = -1;
 	for (i = 0; i < ob->totcol; ++i) {
 		if ((*mats)[i] == mat) {
-			fmd->fieldlines_material = i;
+			fls->material = i;
 			break;
 		}
 	}
 }
 
-static int rna_ForceVizModifier_fieldlines_material_poll(PointerRNA *ptr, const PointerRNA value)
+static int rna_ForceVizFieldLineSettings_material_poll(PointerRNA *ptr, const PointerRNA value)
 {
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
@@ -4608,17 +4608,86 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
-static void rna_def_modifier_forceviz(BlenderRNA *brna)
+static void rna_def_modifier_forceviz_fieldlines(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem fieldlines_drawtype_items[] = {
+	static EnumPropertyItem drawtype_items[] = {
 		{MOD_FORCEVIZ_FIELDLINE_LINE, "LINE", 0, "Line", "Simple line of edges"},
 		{MOD_FORCEVIZ_FIELDLINE_RIBBON, "RIBBON", 0, "Ribbon", "2D surface"},
 		{MOD_FORCEVIZ_FIELDLINE_TUBE, "TUBE", 0, "Tube", "3D surface"},
 		{0, NULL, 0, NULL, NULL}
 	};
+
+	srna = RNA_def_struct(brna, "ForceVizFieldLineSettings", NULL);
+	RNA_def_struct_ui_text(srna, "Force Visualization Field Line Settings", "");
+	RNA_def_struct_sdna(srna, "ForceVizFieldLineSettings");
+
+	prop = RNA_def_property(srna, "num", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_int_default(prop, 8);
+	RNA_def_property_ui_text(prop, "Amount", "Number of field lines to generate");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "res", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 2, INT_MAX);
+	RNA_def_property_int_default(prop, 16);
+	RNA_def_property_ui_text(prop, "Resolution", "Number of points per field line");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "radial_res", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 3, INT_MAX);
+	RNA_def_property_int_default(prop, 8);
+	RNA_def_property_ui_text(prop, "Radial Resolution", "Number of field line radial vertices");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "length", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Length", "Distance to move along field lines");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "substeps", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_int_default(prop, 16);
+	RNA_def_property_ui_range(prop, 4, 256, 1, 3);
+	RNA_def_property_ui_text(prop, "Substeps", "Number of substeps per field line segment");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "drawtype", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, drawtype_items);
+	RNA_def_property_ui_text(prop, "Draw Type", "Draw type for field lines geometry");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "drawsize", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
+	RNA_def_property_float_default(prop, 0.1f);
+	RNA_def_property_ui_text(prop, "Draw Size", "Size of geometric field lines");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "material_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "material");
+	RNA_def_property_range(prop, -1, SHRT_MAX);
+	RNA_def_property_ui_text(prop, "Material Index", "Material index of generated faces, -1 for automatic");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "material", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_funcs(prop, "rna_ForceVizFieldLineSettings_material_get",
+	                               "rna_ForceVizFieldLineSettings_material_set",
+	                               NULL,
+	                               "rna_ForceVizFieldLineSettings_material_poll");
+	RNA_def_property_struct_type(prop, "Material");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Material", "Material of generated faces, automatic if not set");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+}
+
+static void rna_def_modifier_forceviz(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "ForceVizModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Force Visualization Modifier", "Modifier visualizing force fields in different ways");
@@ -4650,66 +4719,12 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Field Lines", "Generate field lines to indicate direction and strength of the field");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop = RNA_def_property(srna, "fieldlines_num", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, INT_MAX);
-	RNA_def_property_int_default(prop, 8);
-	RNA_def_property_ui_text(prop, "Field Lines Amount", "Number of field lines to generate");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_res", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 2, INT_MAX);
-	RNA_def_property_int_default(prop, 16);
-	RNA_def_property_ui_text(prop, "Field Lines Resolution", "Number of points per field line");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_radial_res", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 3, INT_MAX);
-	RNA_def_property_int_default(prop, 8);
-	RNA_def_property_ui_text(prop, "Field Lines Radial Resolution", "Number of field line radial vertices");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_length", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_text(prop, "Field Lines Length", "Distance to move along field lines");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_substeps", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, INT_MAX);
-	RNA_def_property_int_default(prop, 16);
-	RNA_def_property_ui_range(prop, 4, 256, 1, 3);
-	RNA_def_property_ui_text(prop, "Field Lines Substeps", "Number of substeps per field line segment");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_drawtype", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, fieldlines_drawtype_items);
-	RNA_def_property_ui_text(prop, "Field Lines Draw Type", "Draw type for field lines geometry");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_drawsize", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
-	RNA_def_property_float_default(prop, 0.1f);
-	RNA_def_property_ui_text(prop, "Field Lines Draw Size", "Size of geometric field lines");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_material_index", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "fieldlines_material");
-	RNA_def_property_range(prop, -1, SHRT_MAX);
-	RNA_def_property_ui_text(prop, "Field Lines Material Index", "Material index of generated faces, -1 for automatic");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "fieldlines_material", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_funcs(prop, "rna_ForceVizModifier_fieldlines_material_get",
-	                               "rna_ForceVizModifier_fieldlines_material_set",
-	                               NULL,
-	                               "rna_ForceVizModifier_fieldlines_material_poll");
-	RNA_def_property_struct_type(prop, "Material");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Field Lines Material", "Material of generated faces, automatic if not set");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	prop = RNA_def_property(srna, "fieldlines", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Field Lines", "Field lines visualization settings");
 
 	rna_def_modifier_generic_map_info(srna);
+	
+	rna_def_modifier_forceviz_fieldlines(brna);
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

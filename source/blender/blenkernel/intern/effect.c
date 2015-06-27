@@ -1564,7 +1564,7 @@ static void forceviz_line_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizLine
                               const float loc[3])
 {
 	/* create vertex */
-	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
+	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	BMVert *vert_prev = line->vert_prev;
 	const float *loc_prev = line->loc_prev;
 	static const float offset[3] = {0.0f, 0.0f, 0.0f};
@@ -1599,7 +1599,7 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 								const float loc[3], float length, const float strength[3])
 {
 	const int cd_loopuv_layer = CustomData_get_active_layer_index(&bm->ldata, CD_MLOOPUV);
-	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
+	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	BMVert **verts_prev = ribbon->verts_prev;
 	const float *loc_prev = ribbon->loc_prev;
 	BMVert *verts[2];
@@ -1702,7 +1702,7 @@ static void forceviz_tube_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizTube
                               const float loc[3], float length, const float strength[3])
 {
 	const int cd_loopuv_layer = CustomData_get_active_layer_index(&bm->ldata, CD_MLOOPUV);
-	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
+	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	
 	BMVert **verts_prev = tube->verts_prev;
 	const float *loc_prev = tube->loc_prev;
@@ -1846,13 +1846,13 @@ static void forceviz_get_field_direction(float R[3], float t, const float co[3],
 static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, ForceVizEffectorData *funcdata, const float start[3])
 {
 	Scene *scene = fmd->modifier.scene;
-	const int res = fmd->fieldlines_res;
-	const int substeps = fmd->fieldlines_substeps;
-	const float length = fmd->fieldlines_length;
+	const int res = fmd->fieldlines.res;
+	const int substeps = fmd->fieldlines.substeps;
+	const float length = fmd->fieldlines.length;
 	const float inv_length = length != 0.0f ? 1.0f / length : 0.0f;
 	const float segment = length / (float)(res - 1);
 	const float stepsize = segment / (float)substeps;
-	const int mat = CLAMPIS(fmd->fieldlines_material, 0, funcdata->object->totcol - 1);
+	const int mat = CLAMPIS(fmd->fieldlines.material, 0, funcdata->object->totcol - 1);
 	
 	ForceVizLine line = {{0}};
 	ForceVizRibbon ribbon = {{0}};
@@ -1863,8 +1863,8 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 	float loc[3];
 	int k;
 	
-	if (fmd->fieldlines_drawtype == MOD_FORCEVIZ_FIELDLINE_TUBE) {
-		forceviz_tube_init(&tube, fmd->fieldlines_radial_res);
+	if (fmd->fieldlines.drawtype == MOD_FORCEVIZ_FIELDLINE_TUBE) {
+		forceviz_tube_init(&tube, fmd->fieldlines.radial_res);
 	}
 	
 	if (BKE_forceviz_needs_camera(fmd) && scene->camera) {
@@ -1881,17 +1881,17 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 		
 		forceviz_get_field_vector(strength, t, loc, funcdata);
 		
-		switch (fmd->fieldlines_drawtype) {
+		switch (fmd->fieldlines.drawtype) {
 			case MOD_FORCEVIZ_FIELDLINE_LINE:
 				forceviz_line_add(fmd, bm, &line, loc);
 				break;
 			case MOD_FORCEVIZ_FIELDLINE_RIBBON:
-				forceviz_ribbon_add(fmd, bm, &ribbon, fmd->fieldlines_drawsize, target, mat,
+				forceviz_ribbon_add(fmd, bm, &ribbon, fmd->fieldlines.drawsize, target, mat,
 				                    loc, t * inv_length, strength);
 				break;
 			case MOD_FORCEVIZ_FIELDLINE_TUBE:
 				forceviz_tube_add(fmd, bm, &tube,
-				                  fmd->fieldlines_radial_res, fmd->fieldlines_drawsize, mat,
+				                  fmd->fieldlines.radial_res, fmd->fieldlines.drawsize, mat,
 				                  loc, t * inv_length, strength);
 				break;
 		}
@@ -1924,9 +1924,9 @@ static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *mvert,
 
 static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *effectors, Object *ob, DerivedMesh *dm, BMesh *bm)
 {
-	const int totlines = fmd->fieldlines_num;
-	const int res = fmd->fieldlines_res;
-	const int substeps = fmd->fieldlines_substeps;
+	const int totlines = fmd->fieldlines.num;
+	const int res = fmd->fieldlines.res;
+	const int substeps = fmd->fieldlines.substeps;
 	
 	MSurfaceSampleGenerator *gen;
 	ForceVizEffectorData funcdata;
@@ -1942,7 +1942,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	copy_m4_m4(funcdata.mat, ob->obmat);
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	
-	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines_strength_layer);
+	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	
 	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
 	
@@ -2019,7 +2019,7 @@ bool BKE_forceviz_needs_camera(ForceVizModifierData *fmd)
 	bool needs_camera = false;
 	
 	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES) {
-		if (ELEM(fmd->fieldlines_drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON))
+		if (ELEM(fmd->fieldlines.drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON))
 			needs_camera = true;
 	}
 	
