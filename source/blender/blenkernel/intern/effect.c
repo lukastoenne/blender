@@ -1626,11 +1626,11 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 		}
 		else {
 			/* average orientation of previous segment */
-			add_v3_v3v3(co, loc_prev, offset[0]);
+			madd_v3_v3v3fl(co, loc_prev, offset[0], size * 0.5f);
 			add_v3_v3(verts_prev[0]->co, co);
 			mul_v3_fl(verts_prev[0]->co, 0.5f);
 			
-			add_v3_v3v3(co, loc_prev, offset[1]);
+			madd_v3_v3v3fl(co, loc_prev, offset[1], size * 0.5f);
 			add_v3_v3(verts_prev[1]->co, co);
 			mul_v3_fl(verts_prev[1]->co, 0.5f);
 		}
