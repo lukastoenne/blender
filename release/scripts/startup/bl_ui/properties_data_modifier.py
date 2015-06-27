@@ -367,45 +367,46 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def FORCEVIZ(self, layout, ob, md):
         fieldlines = md.fieldlines
+        mode = md.mode
 
-        layout.prop(md, "seed")
+        layout.prop(md, "mode")
+
+        layout.separator()
 
         ### Field Lines ###
-        row = layout.row()
-        row.prop(md, "use_fieldlines", text="Field Lines")
-        col = layout.column(align=True)
-        col.enabled = md.use_fieldlines
-        col.prop(fieldlines, "num")
-        col.prop(fieldlines, "res")
-        col.prop(fieldlines, "length")
-        col.prop(fieldlines, "substeps")
-        col = layout.column(align=True)
-        col.prop(fieldlines, "drawtype", "")
-        if fieldlines.drawtype == 'LINE':
-            pass
-        elif fieldlines.drawtype == 'RIBBON':
-            col.template_ID(fieldlines, "material")
-            col.prop(fieldlines, "drawsize")
-        elif fieldlines.drawtype == 'TUBE':
-            col.template_ID(md, "material")
-            col.prop(fieldlines, "drawsize")
-            col.prop(fieldlines, "radial_res")
-        ####################
+        if mode == 'FIELDLINES':
+            layout.prop(md, "seed")
+            col = layout.column(align=True)
+            col.prop(fieldlines, "num")
+            col.prop(fieldlines, "res")
+            col.prop(fieldlines, "length")
+            col.prop(fieldlines, "substeps")
+            col = layout.column(align=True)
+            col.prop(fieldlines, "drawtype", "")
+            if fieldlines.drawtype == 'LINE':
+                pass
+            elif fieldlines.drawtype == 'RIBBON':
+                col.template_ID(fieldlines, "material")
+                col.prop(fieldlines, "drawsize")
+            elif fieldlines.drawtype == 'TUBE':
+                col.template_ID(md, "material")
+                col.prop(fieldlines, "drawsize")
+                col.prop(fieldlines, "radial_res")
 
-        row = layout.row()
-        row.prop(md, "use_image_vec", text="Vector Image")
-        sub = row.row()
-        sub.enabled = md.use_image_vec
-        sub.template_ID(md, "image_vec", new="image.new")
+        ### Image ###
+        if mode == 'IMAGE':
+            sub = row.row()
+            sub.enabled = md.use_image_vec
+            sub.template_ID(md, "image_vec", new="image.new")
 
-        col = layout.column()
-        col.label(text="Texture Coordinates:")
-        col.prop(md, "texture_coords", text="")
+            col = layout.column()
+            col.label(text="Texture Coordinates:")
+            col.prop(md, "texture_coords", text="")
 
-        if md.texture_coords == 'OBJECT':
-            layout.prop(md, "texture_coords_object", text="Object")
-        elif md.texture_coords == 'UV' and ob.type == 'MESH':
-            layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
+            if md.texture_coords == 'OBJECT':
+                layout.prop(md, "texture_coords_object", text="Object")
+            elif md.texture_coords == 'UV' and ob.type == 'MESH':
+                layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
 
         effector_weights_ui(self, bpy.context, md.effector_weights, 'FORCEVIZ')
 

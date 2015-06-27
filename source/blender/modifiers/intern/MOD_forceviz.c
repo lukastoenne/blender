@@ -65,7 +65,8 @@ static void initData(ModifierData *md)
 	fmd->iuser.fie_ima = 2;
 	fmd->iuser.ok = 1;
 	
-	fmd->flag = MOD_FORCEVIZ_USE_IMG_VEC;
+	fmd->flag = 0;
+	fmd->mode = MOD_FORCEVIZ_MODE_FIELDLINES;
 	
 	fmd->fieldlines.num = 8;
 	fmd->fieldlines.res = 16;
@@ -216,9 +217,7 @@ static void updateDepsgraph(ModifierData *md,
 	}
 	
 	/* add camera */
-	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES
-	    && ELEM(fmd->fieldlines.drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON)
-	    && scene->camera) {
+	if (BKE_forceviz_needs_camera(fmd) && scene->camera) {
 		DEG_add_object_relation(node, scene->camera, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
 	}
 }

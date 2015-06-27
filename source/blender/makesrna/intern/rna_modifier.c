@@ -4689,6 +4689,16 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem mode_items[] = {
+		{MOD_FORCEVIZ_MODE_FIELDLINES, "FIELDLINES", 0, "Field Lines",
+	     "Generate field lines to indicate direction and strength of the field"},
+	    {MOD_FORCEVIZ_MODE_IMAGE, "IMAGE", 0, "Image",
+	     ""},
+	    {MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE, "VERTEX_ATTRIBUTE", 0, "Vertex Attribute",
+	     ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ForceVizModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Force Visualization Modifier", "Modifier visualizing force fields in different ways");
 	RNA_def_struct_sdna(srna, "ForceVizModifierData");
@@ -4704,19 +4714,14 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Seed", "Random number generator seed");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop = RNA_def_property(srna, "use_image_vec", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_FORCEVIZ_USE_IMG_VEC);
-	RNA_def_property_ui_text(prop, "Use Vector Image", "");
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "Mode of generating force field information");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "image_vec", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Vector Image", "Force vectors encoded as colors");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "use_fieldlines", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_FORCEVIZ_USE_FIELD_LINES);
-	RNA_def_property_ui_text(prop, "Field Lines", "Generate field lines to indicate direction and strength of the field");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "fieldlines", PROP_POINTER, PROP_NONE);

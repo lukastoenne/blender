@@ -1985,17 +1985,17 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 	ListBase *effectors;
 	
 	/* allocate output dm */
-	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES) {
+	if (fmd->mode == MOD_FORCEVIZ_MODE_FIELDLINES) {
 		bm = DM_to_bmesh(dm, true);
 //		bm = BM_mesh_create(&bm_mesh_allocsize_default);
 	}
 	
 	effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 	
-	if (fmd->flag & MOD_FORCEVIZ_USE_IMG_VEC)
+	if (fmd->mode == MOD_FORCEVIZ_MODE_IMAGE)
 		forceviz_generate_image(fmd, effectors, fmd->image_vec, forceviz_image_vectors, ob, dm, tex_co);
 	
-	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES) {
+	if (fmd->mode == MOD_FORCEVIZ_MODE_FIELDLINES) {
 		forceviz_generate_field_lines(fmd, effectors, ob, dm, bm);
 	}
 	
@@ -2019,7 +2019,7 @@ bool BKE_forceviz_needs_camera(ForceVizModifierData *fmd)
 {
 	bool needs_camera = false;
 	
-	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES) {
+	if (fmd->mode == MOD_FORCEVIZ_MODE_FIELDLINES) {
 		if (ELEM(fmd->fieldlines.drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON))
 			needs_camera = true;
 	}

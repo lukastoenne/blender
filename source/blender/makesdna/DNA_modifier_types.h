@@ -1545,7 +1545,7 @@ typedef struct ForceVizModifierData {
 	int texmapping;
 	/* end MappingInfoModifierData */
 	
-	int flag, pad;
+	int flag, mode;
 	
 	ImageUser iuser;
 	float color_scale;
@@ -1565,13 +1565,14 @@ typedef struct ForceVizModifierData {
 
 /* ForceViz modifier flags */
 enum {
-	MOD_FORCEVIZ_USE_COLOR_CENTER      = (1 << 0),
-	
-	MOD_FORCEVIZ_USE_IMG_VEC           = (1 << 8),
-	MOD_FORCEVIZ_USE_IMG_DIV           = (1 << 9),
-	MOD_FORCEVIZ_USE_IMG_CURL          = (1 << 10),
-	
-	MOD_FORCEVIZ_USE_FIELD_LINES       = (1 << 11),
+	DUMMY = 0,
+};
+
+/* ForceViz modifier mode */
+enum {
+	MOD_FORCEVIZ_MODE_FIELDLINES          = 0,
+	MOD_FORCEVIZ_MODE_IMAGE                = 1,
+	MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE     = 2,
 };
 
 /* ForceViz modifier fieldline draw types */
