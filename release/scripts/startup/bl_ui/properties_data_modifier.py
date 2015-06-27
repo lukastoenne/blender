@@ -408,7 +408,15 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             elif md.texture_coords == 'UV' and ob.type == 'MESH':
                 layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
 
-        effector_weights_ui(self, bpy.context, md.effector_weights, 'FORCEVIZ')
+        layout.separator()
+
+        # XXX little trick: the effector weights function expects
+        # a 'self' argument with a 'layout' property, but we want
+        # to draw into the modifier box layout
+        class Dummy():
+            def __init__(self, layout):
+                self.layout = layout
+        effector_weights_ui(Dummy(layout), bpy.context, md.effector_weights, 'FORCEVIZ')
 
     def HOOK(self, layout, ob, md):
         use_falloff = (md.falloff_type != 'NONE')
