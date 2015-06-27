@@ -212,6 +212,13 @@ static void operatortypes_dynamicpaint(void)
 //	WM_keymap_add_item(keymap, "PHYSICS_OT_free_particle_system", LKEY, KM_PRESS, 0, 0);
 //}
 
+/****************************** effector ************************************/
+
+static void operatortypes_effector(void)
+{
+	WM_operatortype_append(EFFECTOR_OT_llvm_test);
+}
+
 /****************************** general ************************************/
 
 void ED_operatortypes_physics(void)
@@ -221,6 +228,7 @@ void ED_operatortypes_physics(void)
 	operatortypes_fluid();
 	operatortypes_pointcache();
 	operatortypes_dynamicpaint();
+	operatortypes_effector();
 }
 
 void ED_keymap_physics(wmKeyConfig *keyconf)
