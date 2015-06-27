@@ -35,6 +35,8 @@
 
 struct wmOperatorType;
 
+void EFFECTOR_OT_llvm_test(struct wmOperatorType *ot);
+
 /* particle_edit.c */
 void PARTICLE_OT_select_all(struct wmOperatorType *ot);
 void PARTICLE_OT_select_roots(struct wmOperatorType *ot);

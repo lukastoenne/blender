@@ -297,6 +297,8 @@ class SCENE_PT_physics(SceneButtonsPanel, Panel):
 
         layout.prop(scene, "gravity", text="")
 
+        layout.operator("EFFECTOR_OT_llvm_test")
+
 
 class SCENE_PT_rigid_body_world(SceneButtonsPanel, Panel):
     bl_label = "Rigid Body World"
