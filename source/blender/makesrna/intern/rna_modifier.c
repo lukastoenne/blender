@@ -4662,6 +4662,12 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Field Lines Resolution", "Number of points per field line");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "fieldlines_radial_res", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 3, INT_MAX);
+	RNA_def_property_int_default(prop, 8);
+	RNA_def_property_ui_text(prop, "Field Lines Radial Resolution", "Number of field line radial vertices");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "fieldlines_length", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_float_default(prop, 1.0f);

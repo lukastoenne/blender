@@ -378,11 +378,15 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "fieldlines_substeps", "Substeps")
         col = layout.column(align=True)
         col.prop(md, "fieldlines_drawtype", "")
-        if md.fieldlines_drawtype in {'RIBBON', 'TUBE'}:
+        if md.fieldlines_drawtype == 'LINE':
+            pass
+        elif md.fieldlines_drawtype == 'RIBBON':
             col.template_ID(md, "fieldlines_material")
             col.prop(md, "fieldlines_drawsize", "Size")
-        elif md.fieldlines_drawtype in {'LINE'}:
-            pass
+        elif md.fieldlines_drawtype == 'TUBE':
+            col.template_ID(md, "fieldlines_material")
+            col.prop(md, "fieldlines_drawsize", "Size")
+            col.prop(md, "fieldlines_radial_res", "Radial")
 
         row = layout.row()
         row.prop(md, "use_image_vec", text="Vector Image")
