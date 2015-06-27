@@ -1561,29 +1561,30 @@ typedef struct ForceVizLine {
 } ForceVizLine;
 
 static void forceviz_line_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizLine *line,
-                              const float loc[3])
+                              const float loc[3], const float strength[3])
 {
 	/* create vertex */
 	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	BMVert *vert_prev = line->vert_prev;
-	const float *loc_prev = line->loc_prev;
 	static const float offset[3] = {0.0f, 0.0f, 0.0f};
 	const int index = line->index;
 	BMVert *vert;
 	
-	vert = forceviz_create_vertex(bm, cd_strength_layer, loc_prev, offset, 0.0f, line->strength_prev);
+	vert = forceviz_create_vertex(bm, cd_strength_layer, loc, offset, 0.0f, strength);
 	
 	/* create edge */
 	if (index > 0) {
 		forceviz_create_edge(bm, vert_prev, vert);
 		
-		if (index == 1)
+		if (index == 1) {
 			copy_v3_v3(vert_prev->no, vert->no);
+		}
 	}
 	
 	line->index += 1;
 	line->vert_prev = vert;
 	copy_v3_v3(line->loc_prev, loc);
+	copy_v3_v3(line->strength_prev, strength);
 }
 
 typedef struct ForceVizRibbon {
@@ -1883,7 +1884,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 		
 		switch (fmd->fieldlines.drawtype) {
 			case MOD_FORCEVIZ_FIELDLINE_LINE:
-				forceviz_line_add(fmd, bm, &line, loc);
+				forceviz_line_add(fmd, bm, &line, loc, strength);
 				break;
 			case MOD_FORCEVIZ_FIELDLINE_RIBBON:
 				forceviz_ribbon_add(fmd, bm, &ribbon, fmd->fieldlines.drawsize, target, mat,
