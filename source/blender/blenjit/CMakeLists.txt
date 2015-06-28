@@ -50,6 +50,14 @@ set(SRC
 	BJIT_forcefield.h
 )
 
+set(LLVM_SRC
+	modules/mod_forcefield.cpp
+)
+
+set(LLVM_HEADERS
+	modules/mod_forcefield.h
+)
+
 if(WITH_LLVM)
 	list(APPEND SRC
 #		intern/effect_llvm.cpp
@@ -60,4 +68,42 @@ if(WITH_LLVM)
 	add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
 endif()
 
+# modules
+if(WITH_LLVM)
+	# XXX TODO
+	set(LLVM_IR_COMPILER "clang")
+	set(LLVM_IR_INSTALL_PATH "llvm")
+
+	macro(BLENJIT_MODULE_ADD src)
+		get_filename_component(llvm_name ${src} NAME_WE)
+		set(llvm_ir "${llvm_name}.ll")
+
+		add_custom_command(
+			OUTPUT ${llvm_ir}
+			COMMAND ${LLVM_IR_COMPILER}
+					-emit-llvm
+					-S ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+					-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
+#					-I${CMAKE_CURRENT_SOURCE_DIR}/../util
+#					-I${CMAKE_CURRENT_SOURCE_DIR}/svm
+			DEPENDS ${LLVM_SRC})
+
+		delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)
+		list(APPEND llvm_irs ${llvm_ir})
+	endmacro()
+
+	foreach(src ${LLVM_SRC})
+		# Compile LLVM IR code
+		BLENJIT_MODULE_ADD(${src})
+	endforeach()
+
+	add_custom_target(bf_blenjit_llvm_ir ALL DEPENDS ${llvm_irs})
+
+	delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${LLVM_HEADERS}" ${LLVM_IR_INSTALL_PATH})
+endif()
+
 blender_add_lib(bf_blenjit "${SRC}" "${INC}" "${INC_SYS}")
+
+if(WITH_LLVM)
+	add_dependencies(bf_blenjit bf_blenjit_llvm_ir)
+endif()
