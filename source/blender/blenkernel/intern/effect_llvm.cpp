@@ -120,47 +120,6 @@ static Function *codegen(EffectorContext *effctx, Module *mod)
 	return func;
 }
 
-#if 0
-static const char *ir_test_function =
-"	.file	\"hello_world.c\"\n"
-"	\n"
-"	.ident	\"GCC: (Ubuntu 4.8.4-1ubuntu15) 4.8.4 LLVM: 3.4.2\"\n"
-"	\n"
-"	\n"
-"		.text\n"
-"		.align	16, 0x90\n"
-"		.type	test,@function\n"
-"test:\n"
-"	.cfi_startproc\n"
-"		pushq	%rbp\n"
-"	.Ltmp2:\n"
-"		.cfi_def_cfa_offset 16\n"
-"	.Ltmp3:\n"
-"		.cfi_offset %rbp, -16\n"
-"		movq	%rsp, %rbp\n"
-"	.Ltmp4:\n"
-"		.cfi_def_cfa_register %rbp\n"
-"		subq	$16, %rsp\n"
-"		leaq	.cst, %rdi\n"
-"		callq	puts\n"
-"		movl	%eax, -4(%rbp)\n"
-"		addq	$16, %rsp\n"
-"		popq	%rbp\n"
-"		ret\n"
-"	.Ltmp5:\n"
-"		.size	test, .Ltmp5-test\n"
-"		.cfi_endproc\n"
-"	\n"
-"		.type	.cst,@object\n"
-"		.section	.rodata,\"a\",@progbits\n"
-"		.align	8\n"
-"	.cst:\n"
-"		.asciz	\"Hello World!\"\n"
-"		.size	.cst, 13\n"
-"	\n"
-"	\n"
-"		.section	\".note.GNU-stack\",\"\",@progbits\n";
-#endif
 static const char *ir_test_function =
 "@.str = private constant [13 x i8] c\"Hello World!\\00\", align 1 ;\n"
 "\n"
