@@ -75,6 +75,8 @@
 
 #include "bmesh.h"
 
+#include "BJIT_forcefield.h"
+
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -1025,6 +1027,40 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 	}
 }
 
+/* ======== JIT-compiled Effectors ======== */
+
+EffectorContext *pdInitJITEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
+                                    EffectorWeights *weights, bool precalc)
+{
+	EffectorContext *effctx = pdInitEffectors(scene, ob_src, psys_src, weights, precalc);
+	
+	BJIT_build_effector_function(effctx);
+	
+	return effctx;
+}
+
+void pdEndJITEffectors(EffectorContext *effctx)
+{
+	BJIT_free_effector_function(effctx);
+	
+	pdEndEffectors(effctx);
+}
+
+void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders), EffectorWeights *weights,
+                      EffectedPoint *point, float *force, float *impulse)
+{
+	zero_v3(force);
+	zero_v3(impulse);
+	
+	if (effctx->eval) {
+		// XXX will be used as function args
+		(void)point;
+		(void)weights;
+		
+		effctx->eval();
+	}
+}
+
 
 /* ======== Force Field Visualization ======== */
 
@@ -1846,7 +1882,7 @@ static void forceviz_get_field_vector(float R[3], float UNUSED(t), const float c
 	
 	zero_v3(force);
 	zero_v3(impulse);
-	pdDoEffectors(data->effectors, NULL, data->weights, &point, force, impulse);
+	pdDoJITEffectors(data->effectors, NULL, data->weights, &point, force, impulse);
 	
 	/* add gravity */
 	if (phys->flag & PHYS_GLOBAL_GRAVITY)
@@ -2064,7 +2100,7 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 	BMesh *bm = NULL;
 	EffectorContext *effectors;
 	
-	effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
+	effectors = pdInitJITEffectors(scene, ob, NULL, fmd->effector_weights, false);
 	
 	switch (fmd->mode) {
 		case MOD_FORCEVIZ_MODE_FIELDLINES: {
@@ -2084,7 +2120,7 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 		}
 	}
 	
-	pdEndEffectors(effectors);
+	pdEndJITEffectors(effectors);
 	
 	if (bm) {
 		DerivedMesh *result = CDDM_from_bmesh(bm, true);

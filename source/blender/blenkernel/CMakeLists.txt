@@ -28,6 +28,7 @@ set(INC
 	../blenfont
 	../blenlib
 	../blenloader
+	../blenjit
 	../depsgraph
 	../gpu
 	../ikplugin
