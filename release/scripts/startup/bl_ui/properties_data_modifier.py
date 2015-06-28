@@ -366,44 +366,65 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.label(text="Settings are inside the Physics tab")
 
     def FORCEVIZ(self, layout, ob, md):
-        layout.prop(md, "seed")
+        mode = md.mode
 
-        row = layout.row()
-        row.prop(md, "use_fieldlines", text="Field Lines")
-        col = layout.column(align=True)
-        col.enabled = md.use_fieldlines
-        col.prop(md, "fieldlines_num", "Amount")
-        col.prop(md, "fieldlines_res", "Resolution")
-        col.prop(md, "fieldlines_length", "Length")
-        col.prop(md, "fieldlines_substeps", "Substeps")
-        col = layout.column(align=True)
-        col.prop(md, "fieldlines_drawtype", "")
-        if md.fieldlines_drawtype == 'LINE':
-            pass
-        elif md.fieldlines_drawtype == 'RIBBON':
-            col.template_ID(md, "fieldlines_material")
-            col.prop(md, "fieldlines_drawsize", "Size")
-        elif md.fieldlines_drawtype == 'TUBE':
-            col.template_ID(md, "fieldlines_material")
-            col.prop(md, "fieldlines_drawsize", "Size")
-            col.prop(md, "fieldlines_radial_res", "Radial")
+        layout.prop(md, "mode")
 
-        row = layout.row()
-        row.prop(md, "use_image_vec", text="Vector Image")
-        sub = row.row()
-        sub.enabled = md.use_image_vec
-        sub.template_ID(md, "image_vec", new="image.new")
+        layout.separator()
 
-        col = layout.column()
-        col.label(text="Texture Coordinates:")
-        col.prop(md, "texture_coords", text="")
+        ### Field Lines ###
+        if mode == 'FIELDLINES':
+            fieldlines = md.fieldlines
 
-        if md.texture_coords == 'OBJECT':
-            layout.prop(md, "texture_coords_object", text="Object")
-        elif md.texture_coords == 'UV' and ob.type == 'MESH':
-            layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
+            layout.prop(md, "seed")
+            col = layout.column(align=True)
+            col.prop(fieldlines, "num")
+            col.prop(fieldlines, "res")
+            col.prop(fieldlines, "length")
+            col.prop(fieldlines, "substeps")
+            col = layout.column(align=True)
+            col.prop(fieldlines, "drawtype", "")
+            if fieldlines.drawtype == 'LINE':
+                pass
+            elif fieldlines.drawtype == 'RIBBON':
+                col.template_ID(fieldlines, "material")
+                col.prop(fieldlines, "drawsize")
+            elif fieldlines.drawtype == 'TUBE':
+                col.template_ID(md, "material")
+                col.prop(fieldlines, "drawsize")
+                col.prop(fieldlines, "radial_res")
 
-        effector_weights_ui(self, bpy.context, md.effector_weights, 'FORCEVIZ')
+        ### Image ###
+        if mode == 'IMAGE':
+            sub = row.row()
+            sub.enabled = md.use_image_vec
+            sub.template_ID(md, "image_vec", new="image.new")
+
+            col = layout.column()
+            col.label(text="Texture Coordinates:")
+            col.prop(md, "texture_coords", text="")
+
+            if md.texture_coords == 'OBJECT':
+                layout.prop(md, "texture_coords_object", text="Object")
+            elif md.texture_coords == 'UV' and ob.type == 'MESH':
+                layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
+
+        ### Image ###
+        if mode == 'VERTEX_ATTRIBUTE':
+            vattr = md.vertex_attribute
+            col = layout.column()
+            col.prop(vattr, "attribute_name")
+            col.prop(vattr, "type")
+
+        layout.separator()
+
+        # XXX little trick: the effector weights function expects
+        # a 'self' argument with a 'layout' property, but we want
+        # to draw into the modifier box layout
+        class Dummy():
+            def __init__(self, layout):
+                self.layout = layout
+        effector_weights_ui(Dummy(layout), bpy.context, md.effector_weights, 'FORCEVIZ')
 
     def HOOK(self, layout, ob, md):
         use_falloff = (md.falloff_type != 'NONE')

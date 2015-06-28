@@ -57,6 +57,8 @@
 static void initData(ModifierData *md) 
 {
 	ForceVizModifierData *fmd = (ForceVizModifierData *)md;
+	ForceVizFieldLineSettings *fls = &fmd->fieldlines;
+	ForceVizVertexAttributeSettings *attr = &fmd->vertex_attribute;
 	
 	fmd->texmapping = MOD_DISP_MAP_UV;
 	
@@ -65,15 +67,19 @@ static void initData(ModifierData *md)
 	fmd->iuser.fie_ima = 2;
 	fmd->iuser.ok = 1;
 	
-	fmd->flag = MOD_FORCEVIZ_USE_IMG_VEC;
+	fmd->flag = 0;
+	fmd->mode = MOD_FORCEVIZ_MODE_FIELDLINES;
 	
-	fmd->fieldlines_num = 8;
-	fmd->fieldlines_res = 16;
-	fmd->fieldlines_length = 1.0f;
-	fmd->fieldlines_drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
-	fmd->fieldlines_drawsize = 0.1f;
-	fmd->fieldlines_material = -1;
-	BLI_strncpy(fmd->fieldlines_strength_layer, "ff_strength", sizeof(fmd->fieldlines_strength_layer));
+	fls->num = 8;
+	fls->res = 16;
+	fls->length = 1.0f;
+	fls->drawtype = MOD_FORCEVIZ_FIELDLINE_LINE;
+	fls->drawsize = 0.1f;
+	fls->material = -1;
+	BLI_strncpy(fls->strength_layer, "ff_strength", sizeof(fls->strength_layer));
+	
+	BLI_strncpy(attr->attribute_name, "forcefield", sizeof(attr->attribute_name));
+	attr->type = MOD_FORCEVIZ_ATTR_FLUX;
 	
 	fmd->effector_weights = BKE_add_effector_weights(NULL);
 }
@@ -216,9 +222,7 @@ static void updateDepsgraph(ModifierData *md,
 	}
 	
 	/* add camera */
-	if (fmd->flag & MOD_FORCEVIZ_USE_FIELD_LINES
-	    && ELEM(fmd->fieldlines_drawtype, MOD_FORCEVIZ_FIELDLINE_RIBBON)
-	    && scene->camera) {
+	if (BKE_forceviz_needs_camera(fmd) && scene->camera) {
 		DEG_add_object_relation(node, scene->camera, DEG_OB_COMP_TRANSFORM, "ForceViz modifier");
 	}
 }
