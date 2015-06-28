@@ -93,6 +93,8 @@
 #include "BKE_image.h"
 #include "BKE_particle.h"
 
+#include "BJIT_modules.h"
+
 #include "DEG_depsgraph.h"
 
 #include "IMB_imbuf.h"  /* for IMB_init */
@@ -1804,6 +1806,7 @@ int main(
 	RNA_init();
 
 	RE_engines_init();
+	BJIT_init();
 	init_nodesystem();
 	psys_init_rng();
 	/* end second init */

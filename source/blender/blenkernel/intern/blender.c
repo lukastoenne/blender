@@ -80,6 +80,8 @@
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
 
+#include "BJIT_modules.h"
+
 #include "RE_pipeline.h"
 #include "RE_render_ext.h"
 
@@ -129,6 +131,7 @@ void free_blender(void)
 	IMB_moviecache_destruct();
 	
 	free_nodesystem();
+	BJIT_free();
 }
 
 void initglobals(void)

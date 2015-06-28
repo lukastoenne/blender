@@ -46,8 +46,10 @@ set(INC_SYS
 
 set(SRC
 	intern/forcefield.cpp
+	intern/modules.cpp
 
 	BJIT_forcefield.h
+	BJIT_modules.h
 )
 
 set(LLVM_SRC
