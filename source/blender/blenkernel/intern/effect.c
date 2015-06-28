@@ -1044,7 +1044,7 @@ typedef float (*ForceVizScalarFunc)(ForceVizModifierData *fmd, const ForceVizInp
 typedef void (*ForceVizVectorFunc)(float res[3], ForceVizModifierData *fmd, const ForceVizInput *input);
 typedef void (*ForceVizColorFunc)(float res[4], ForceVizModifierData *fmd, const ForceVizInput *input);
 
-static void forceviz_eval_field(ForceVizModifierData *fmd, ListBase *effectors,
+static void forceviz_eval_field(ForceVizModifierData *fmd, EffectorContext *effectors,
                                 const float loc[3], const float nor[3], const float vel[3],
                                 ForceVizInput *result)
 {
@@ -1061,7 +1061,7 @@ static void forceviz_eval_field(ForceVizModifierData *fmd, ListBase *effectors,
 	pdDoEffectors(effectors, NULL, fmd->effector_weights, &point, result->force, result->impulse);
 }
 
-BLI_INLINE void forceviz_eval_field_loc(ForceVizModifierData *fmd, ListBase *effectors,
+BLI_INLINE void forceviz_eval_field_loc(ForceVizModifierData *fmd, EffectorContext *effectors,
                                     const float loc[3],
 	                                ForceVizInput *result)
 {
@@ -1070,7 +1070,7 @@ BLI_INLINE void forceviz_eval_field_loc(ForceVizModifierData *fmd, ListBase *eff
 	forceviz_eval_field(fmd, effectors, loc, nor, vel, result);
 }
 
-BLI_INLINE void forceviz_eval_field_loc_nor(ForceVizModifierData *fmd, ListBase *effectors,
+BLI_INLINE void forceviz_eval_field_loc_nor(ForceVizModifierData *fmd, EffectorContext *effectors,
                                     const float loc[3], const float nor[3],
 	                                ForceVizInput *result)
 {
@@ -1985,7 +1985,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, EffectorCon
 
 /* ------------------------------------------------------------------------- */
 
-static void forceviz_set_vertex_attribute_float(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, ListBase *effectors,
+static void forceviz_set_vertex_attribute_float(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, EffectorContext *effectors,
                                                 const char *name, ForceVizScalarFunc fn)
 {
 	const int numverts = dm->getNumVerts(dm);
@@ -2025,7 +2025,7 @@ static float forceviz_vertex_attribute_flux(ForceVizModifierData *UNUSED(fmd), c
 	return dot_v3v3(input->force, input->nor);
 }
 
-static void forceviz_set_vertex_attribute(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, ListBase *effectors)
+static void forceviz_set_vertex_attribute(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, EffectorContext *effectors)
 {
 	ForceVizVertexAttributeSettings *vattr = &fmd->vertex_attribute;
 	const char *name = vattr->attribute_name;
