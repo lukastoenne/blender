@@ -489,14 +489,4 @@ if(WITH_LEGACY_DEPSGRAPH)
 	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
 endif()
 
-if(WITH_LLVM)
-	list(APPEND SRC
-		intern/effect_llvm.cpp
-	)
-	list(APPEND INC_SYS
-		${LLVM_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
-endif()
-
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}")

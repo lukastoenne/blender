@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/source/blenkernel/intern/effect_llvm.cpp
- *  \ingroup bke
+/** \file blender/blenjit/intern/forcefield.cpp
+ *  \ingroup bjit
  */
 
 #include "llvm/Analysis/Passes.h"
@@ -60,6 +60,8 @@ extern "C" {
 
 #include "BKE_effect.h"
 }
+
+#include "BJIT_forcefield.h"
 
 using namespace llvm;
 using legacy::FunctionPassManager;
@@ -140,7 +142,8 @@ static const char *ir_test_function =
 "\n"
 "declare i32 @puts(i8*)\n";
 
-void BKE_effect_build_function(EffectorContext *effctx)
+
+void BJIT_build_effector_function(EffectorContext *effctx)
 {
 	InitializeNativeTarget();
 	InitializeNativeTargetAsmPrinter();
