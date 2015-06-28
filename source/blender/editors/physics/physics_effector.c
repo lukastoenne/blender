@@ -55,6 +55,8 @@
 #include "BKE_object.h"
 #include "BKE_report.h"
 
+#include "BJIT_forcefield.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 
@@ -79,7 +81,7 @@ static int effector_llvm_test_exec(bContext *C, wmOperator *op)
 {
 	EffectorContext effctx;
 	
-	BKE_effect_build_function(&effctx);
+	BJIT_build_effector_function(&effctx);
 	
 	if (effctx.eval)
 		effctx.eval();

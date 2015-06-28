@@ -14,60 +14,50 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# Contributor(s): Jacques Beaurain.
+# The Original Code is Copyright (C) 2015, Blender Foundation
+# All rights reserved.
+#
+# The Original Code is: all of this file.
+#
+# Contributor(s): Lukas Toenne.
 #
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	../include
-	../../blenkernel
-	../../blenlib
-	../../blentranslation
-	../../blenjit
-	../../gpu
-	../../makesdna
-	../../makesrna
-	../../windowmanager
-	../../../../intern/elbeem/extern
-	../../../../intern/guardedalloc
-	../../../../intern/glew-mx
+	.
+	../blenfont
+	../blenlib
+	../blenkernel
+	../depsgraph
+	../gpu
+	../ikplugin
+	../imbuf
+	../makesdna
+	../makesrna
+	../bmesh
+	../physics
+	../../../intern/guardedalloc
 )
 
 set(INC_SYS
 	${GLEW_INCLUDE_PATH}
+	${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC
-	dynamicpaint_ops.c
-	particle_boids.c
-	particle_edit.c
-	particle_object.c
-	physics_effector.c
-	physics_fluid.c
-	physics_ops.c
-	physics_pointcache.c
-	rigidbody_constraint.c
-	rigidbody_object.c
-	rigidbody_world.c
+	intern/forcefield.cpp
 
-	physics_intern.h
+	BJIT_forcefield.h
 )
 
-if(WITH_MOD_FLUID)
-	add_definitions(-DWITH_MOD_FLUID)
-endif()
-
-if(WITH_INTERNATIONAL)
-	add_definitions(-DWITH_INTERNATIONAL)
-endif()
-
-if(WITH_BULLET)
-	list(APPEND INC
-		../../../../intern/rigidbody
+if(WITH_LLVM)
+	list(APPEND SRC
+#		intern/effect_llvm.cpp
 	)
-	add_definitions(-DWITH_BULLET)
+	list(APPEND INC_SYS
+		${LLVM_INCLUDE_DIRS}
+	)
+	add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
 endif()
 
-add_definitions(${GL_DEFINITIONS})
-
-blender_add_lib(bf_editor_physics "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_blenjit "${SRC}" "${INC}" "${INC_SYS}")

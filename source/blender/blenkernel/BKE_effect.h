@@ -229,10 +229,5 @@ void BKE_sim_debug_data_remove_element(unsigned int hash);
 void BKE_sim_debug_data_clear(void);
 void BKE_sim_debug_data_clear_category(const char *category);
 
-/* ========================================================================= */
-/* Effector JIT compiler */
-
-void BKE_effect_build_function(struct EffectorContext *effctx);
-
 #endif
 
