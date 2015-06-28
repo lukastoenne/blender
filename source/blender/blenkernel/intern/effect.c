@@ -70,6 +70,8 @@
 #include "BKE_scene.h"
 #include "BKE_smoke.h"
 
+#include "BJIT_forcefield.h"
+
 
 #include "RE_render_ext.h"
 #include "RE_shader_ext.h"
@@ -1012,6 +1014,40 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 				add_v3_v3v3(impulse, impulse, efd.vel);
 			}
 		}
+	}
+}
+
+/* ======== JIT-compiled Effectors ======== */
+
+EffectorContext *pdInitJITEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
+                                    EffectorWeights *weights, bool precalc)
+{
+	EffectorContext *effctx = pdInitEffectors(scene, ob_src, psys_src, weights, precalc);
+	
+	BJIT_build_effector_function(effctx);
+	
+	return effctx;
+}
+
+void pdEndJITEffectors(EffectorContext *effctx)
+{
+	BJIT_free_effector_function(effctx);
+	
+	pdEndEffectors(effctx);
+}
+
+void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders), EffectorWeights *weights,
+                      EffectedPoint *point, float *force, float *impulse)
+{
+	zero_v3(force);
+	zero_v3(impulse);
+	
+	if (effctx->eval) {
+		// XXX will be used as function args
+		(void)point;
+		(void)weights;
+		
+		effctx->eval();
 	}
 }
 

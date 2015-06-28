@@ -44,7 +44,6 @@ struct Group;
 struct ParticleSimulationData;
 struct ParticleData;
 struct ParticleKey;
-struct EffectorFunction;
 
 struct EffectorWeights *BKE_add_effector_weights(struct Group *group);
 struct PartDeflect *object_add_collision_fields(int type);
@@ -115,7 +114,7 @@ typedef int (*EffectorEvalFp)(void);
 typedef struct EffectorContext {
 	ListBase effectors;
 	
-	struct EffectorFunction *function;
+	struct BJITExecutionEngine *engine;
 	EffectorEvalFp eval;
 } EffectorContext;
 
@@ -123,7 +122,13 @@ void            free_partdeflect(struct PartDeflect *pd);
 struct EffectorContext *pdInitEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights, bool precalc);
 void            pdEndEffectors(struct EffectorContext *effctx);
 void            pdPrecalculateEffectors(struct EffectorContext *effctx);
-void            pdDoEffectors(struct EffectorContext *effctx, struct ListBase *colliders, struct EffectorWeights *weights, struct EffectedPoint *point, float *force, float *impulse);
+void            pdDoEffectors(struct EffectorContext *effctx, struct ListBase *colliders, struct EffectorWeights *weights,
+                              struct EffectedPoint *point, float *force, float *impulse);
+
+struct EffectorContext *pdInitJITEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights, bool precalc);
+void            pdEndJITEffectors(struct EffectorContext *effctx);
+void            pdDoJITEffectors(struct EffectorContext *effctx, struct ListBase *colliders, struct EffectorWeights *weights,
+                                 struct EffectedPoint *point, float *force, float *impulse);
 
 void pd_point_from_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ParticleKey *state, struct EffectedPoint *point);
 void pd_point_from_loc(struct Scene *scene, float *loc, float *vel, int index, struct EffectedPoint *point);

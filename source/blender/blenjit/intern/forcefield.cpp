@@ -47,6 +47,8 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
 
+#include "llvm-c/ExecutionEngine.h"
+
 extern "C" {
 #include "MEM_guardedalloc.h"
 
@@ -67,7 +69,7 @@ using namespace llvm;
 using legacy::FunctionPassManager;
 using legacy::PassManager;
 
-typedef struct EffectorFunction EffectorFunction;
+typedef struct BJITExecutionEngine BJITExecutionEngine;
 
 static Module *build_effector_module(EffectorCache *eff)
 {
@@ -189,11 +191,29 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	
 	verifyModule(*mod);
 	
-	ExecutionEngine *engine = create_execution_engine(mod);
+	ExecutionEngine *engine;
+	if (effctx->engine) {
+		engine = (ExecutionEngine *)effctx->engine;
+	}
+	else {
+		engine = create_execution_engine(mod);
+		effctx->engine = (BJITExecutionEngine *)engine;
+	}
 	
 	PassManager *pm = create_pass_manager(engine);
 	pm->run(*mod);
 	delete pm;
 	
+	engine->finalizeObject();
 	effctx->eval = (EffectorEvalFp)engine->getPointerToFunction(func);
+}
+
+void BJIT_free_effector_function(EffectorContext *effctx)
+{
+	effctx->eval = NULL;
+	if (effctx->engine) {
+		ExecutionEngine *engine = (ExecutionEngine *)effctx->engine;
+		delete engine;
+		effctx->engine = NULL;
+	}
 }

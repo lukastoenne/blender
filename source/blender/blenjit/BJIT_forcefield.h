@@ -39,6 +39,7 @@ extern "C" {
 struct EffectorContext;
 
 void BJIT_build_effector_function(struct EffectorContext *effctx);
+void BJIT_free_effector_function(struct EffectorContext *effctx);
 
 #ifdef __cplusplus
 }
