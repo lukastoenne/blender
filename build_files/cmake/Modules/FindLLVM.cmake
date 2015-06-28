@@ -85,6 +85,9 @@ if(LLVM_LIBRARY AND LLVM_ROOT_DIR AND LLVM_LIBPATH)
 		                OUTPUT_VARIABLE LLVM_LIBRARY
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		string(REPLACE " " ";" LLVM_LIBRARY "${LLVM_LIBRARY}")
+
+		# libterminfo is missing in llvm-config --libfiles
+		set(LLVM_LIBRARY ${LLVM_LIBRARY} tinfo)
 	endif()
 endif()
 
