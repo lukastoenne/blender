@@ -110,7 +110,7 @@ typedef struct EffectorCache {
 	int flag;
 } EffectorCache;
 
-typedef char (*EffectorEvalFp)(void);
+typedef int (*EffectorEvalFp)(void);
 
 typedef struct EffectorContext {
 	ListBase effectors;
