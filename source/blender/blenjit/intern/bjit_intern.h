@@ -25,32 +25,24 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenjit/BJIT_modules.h
+/** \file blender/blenjit/intern/bjit_intern.h
  *  \ingroup bjit
  */
 
-#ifndef __BJIT_MODULES_H__
-#define __BJIT_MODULES_H__
+#ifndef __BJIT_INTERN_H__
+#define __BJIT_INTERN_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void BJIT_init(void);
-void BJIT_free(void);
-
-/* Load precompiled BJIT modules.
- * modpath: path to a folder containing modules files (optional, default scripts path is used if NULL)
- * reload: unload all loaded modules first, otherwise existing modules are skipped
- */
-void BJIT_load_all_modules(const char *modpath, bool reload);
-void BJIT_unload_all_modules(void);
-
-/* load a single module from a file */
-void BJIT_load_module(const char *modfile, const char *modname);
-
-#ifdef __cplusplus
+namespace llvm {
+class Function;
+class Module;
 }
-#endif
+
+/* modules.cpp */
+//void *bjit_compile_module(llvm::Module *mod, const char *funcname);
+void bjit_add_module(llvm::Module *mod);
+void bjit_remove_module(llvm::Module *mod);
+
+void *bjit_compile_function(llvm::Function *func);
+void bjit_free_function(llvm::Function *func);
 
 #endif

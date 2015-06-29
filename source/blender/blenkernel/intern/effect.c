@@ -1043,11 +1043,14 @@ void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders
 	zero_v3(impulse);
 	
 	if (effctx->eval) {
+		int res;
+		
 		// XXX will be used as function args
 		(void)point;
 		(void)weights;
 		
-		effctx->eval();
+		res = effctx->eval();
+		printf("EVAL: %d\n", res);
 	}
 }
 
