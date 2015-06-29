@@ -77,14 +77,14 @@ static int effector_llvm_test_poll(bContext *UNUSED(C))
 	return true;
 }
 
-static int effector_llvm_test_exec(bContext *C, wmOperator *op)
+static int effector_llvm_test_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
-	EffectorContext effctx;
+//	EffectorContext effctx;
 	
-	BJIT_build_effector_function(&effctx);
+//	BJIT_build_effector_function(&effctx);
 	
-	if (effctx.eval)
-		effctx.eval();
+//	if (effctx.eval)
+//		effctx.eval();
 	
 	return OPERATOR_FINISHED;
 }
