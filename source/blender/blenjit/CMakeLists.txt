@@ -77,6 +77,7 @@ if(WITH_LLVM)
 	# XXX TODO
 	set(LLVM_IR_COMPILER "clang-3.5")
 	set(LLVM_IR_INSTALL_PATH "scripts/llvm")
+	set(llvm_irs)
 
 	macro(BLENJIT_MODULE_ADD src)
 		get_filename_component(llvm_name ${src} NAME_WE)
