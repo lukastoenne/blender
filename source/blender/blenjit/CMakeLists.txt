@@ -74,7 +74,7 @@ endif()
 if(WITH_LLVM)
 	# XXX TODO
 	set(LLVM_IR_COMPILER "clang")
-	set(LLVM_IR_INSTALL_PATH "llvm")
+	set(LLVM_IR_INSTALL_PATH "scripts/llvm")
 
 	macro(BLENJIT_MODULE_ADD src)
 		get_filename_component(llvm_name ${src} NAME_WE)
