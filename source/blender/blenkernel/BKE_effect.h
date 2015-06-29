@@ -111,7 +111,12 @@ typedef struct EffectorCache {
 	int flag;
 } EffectorCache;
 
-typedef int (*EffectorEvalFp)(void);
+typedef struct EffectorEvalInput {
+	float loc[3];
+	float vel[3];
+} EffectorEvalInput;
+
+typedef int (*EffectorEvalFp)(EffectorEvalInput *input);
 
 typedef struct EffectorContext {
 	ListBase effectors;

@@ -38,6 +38,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
@@ -68,6 +69,42 @@ extern "C" {
 
 using namespace llvm;
 
+
+/* ------------------------------------------------------------------------- */
+/* specialization of TypeBuilder for external struct types */
+
+typedef types::ieee_float vec2_t[2];
+typedef types::ieee_float vec3_t[3];
+typedef types::ieee_float vec4_t[4];
+typedef types::ieee_float mat3_t[3][3];
+typedef types::ieee_float mat4_t[4][4];
+
+namespace llvm {
+template<bool cross>
+class TypeBuilder<EffectorEvalInput, cross> {
+public:
+	static StructType *get(LLVMContext &context) {
+		// If you cache this result, be sure to cache it separately
+		// for each LLVMContext.
+		return StructType::get(
+		            TypeBuilder<vec3_t, cross>::get(context),
+		            TypeBuilder<vec3_t, cross>::get(context),
+		            NULL);
+	}
+	
+	// You may find this a convenient place to put some constants
+	// to help with getelementptr.  They don't have any effect on
+	// the operation of TypeBuilder.
+	enum Fields {
+		FIELD_LOC,
+		FIELD_VEL,
+	};
+};
+
+} /* namespace llvm */
+
+/* ------------------------------------------------------------------------- */
+
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
 	LLVMContext &context = getGlobalContext();
@@ -75,10 +112,7 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	
 	Module *mod = new Module("effectors", context);
 	
-//	std::vector<Type*> args(2, Type::getFloatTy(getGlobalContext()));
-//	FunctionType *functype = FunctionType::get(Type::getInt8Ty(getGlobalContext()), args, false);
-	std::vector<Type*> args;
-	FunctionType *functype = FunctionType::get(Type::getInt32Ty(context), args, false);
+	FunctionType *functype = TypeBuilder<types::i<32>(EffectorEvalInput*), true>::get(context);
 	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", mod);
 	
 	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
