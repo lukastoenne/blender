@@ -116,7 +116,6 @@ typedef int (*EffectorEvalFp)(void);
 typedef struct EffectorContext {
 	ListBase effectors;
 	
-	struct BJITExecutionEngine *engine;
 	EffectorEvalFp eval;
 } EffectorContext;
 

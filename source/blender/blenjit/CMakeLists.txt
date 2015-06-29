@@ -48,12 +48,14 @@ set(SRC
 	intern/forcefield.cpp
 	intern/modules.cpp
 
+	intern/bjit_intern.h
+
 	BJIT_forcefield.h
 	BJIT_modules.h
 )
 
 set(LLVM_SRC
-	modules/mod_forcefield.cpp
+	modules/mod_forcefield.c
 )
 
 set(LLVM_HEADERS

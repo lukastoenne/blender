@@ -64,156 +64,37 @@ extern "C" {
 }
 
 #include "BJIT_forcefield.h"
+#include "bjit_intern.h"
 
 using namespace llvm;
-using legacy::FunctionPassManager;
-using legacy::PassManager;
-
-typedef struct BJITExecutionEngine BJITExecutionEngine;
-
-static Module *build_effector_module(EffectorCache *eff)
-{
-	return NULL;
-}
-
-static ExecutionEngine *create_execution_engine(Module *mod)
-{
-	std::string error;
-	
-	ExecutionEngine *engine = EngineBuilder(mod)
-	                          .setErrorStr(&error)
-//	                          .setMCJITMemoryManager(std::unique_ptr<HelpingMemoryManager>(
-//	                                                     new HelpingMemoryManager(this)))
-	                          .create();
-	if (!engine) {
-		fprintf(stderr, "Could not create ExecutionEngine: %s\n", error.c_str());
-	}
-	return engine;
-}
-
-static PassManager *create_pass_manager(ExecutionEngine *UNUSED(engine))
-{
-	PassManager *pm = new PassManager();
-	
-	// Set up the optimizer pipeline.  Start with registering info about how the
-	// target lays out data structures.
-//	pm->add(new DataLayout(*engine->getDataLayout()));
-	// Provide basic AliasAnalysis support for GVN.
-//	pm->add(createBasicAliasAnalysisPass());
-	// Do simple "peephole" optimizations and bit-twiddling optzns.
-//	pm->add(createInstructionCombiningPass());
-	// Reassociate expressions.
-//	pm->add(createReassociatePass());
-	// Eliminate Common SubExpressions.
-//	pm->add(createGVNPass());
-	// Simplify the control flow graph (deleting unreachable blocks, etc).
-//	pm->add(createCFGSimplificationPass());
-	
-//	pm->doInitialization();
-	
-	return pm;
-}
-
-static Function *codegen(EffectorContext *effctx, Module *mod)
-{
-//	std::vector<Type*> args(2, Type::getFloatTy(getGlobalContext()));
-//	FunctionType *functype = FunctionType::get(Type::getInt8Ty(getGlobalContext()), args, false);
-	std::vector<Type*> args;
-	FunctionType *functype = FunctionType::get(Type::getInt8Ty(getGlobalContext()), args, false);
-	Function *func = Function::Create(functype, Function::ExternalLinkage, "MyFunction", mod);
-	return func;
-}
-
-static const char *ir_test_function =
-"@.str = private constant [13 x i8] c\"Hello World!\\00\", align 1 ;\n"
-"\n"
-"define i32 @test() ssp {\n"
-"entry:\n"
-"  %retval = alloca i32\n"
-"  %0 = alloca i32\n"
-"  %\"alloca point\" = bitcast i32 0 to i32\n"
-"  %1 = call i32 @puts(i8* getelementptr inbounds ([13 x i8]* @.str, i64 0, i64 0))\n"
-"  store i32 0, i32* %0, align 4\n"
-"  %2 = load i32* %0, align 4\n"
-"  store i32 %2, i32* %retval, align 4\n"
-"  br label %return\n"
-"return:\n"
-"  %retval1 = load i32* %retval\n"
-"  ret i32 %retval1\n"
-"}\n"
-"\n"
-"declare i32 @puts(i8*)\n";
-
 
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
-	InitializeNativeTarget();
-	InitializeNativeTargetAsmPrinter();
-	InitializeNativeTargetAsmParser();
-	LLVMContext &llvmctx = getGlobalContext();
-	raw_ostream &errstream = errs();
-	const char *entryname = "test";
+	LLVMContext &context = getGlobalContext();
+	IRBuilder<> builder(getGlobalContext());
 	
-	effctx->eval = NULL;
+	Module *mod = new Module("effectors", context);
 	
-//	for (EffectorCache *eff = (EffectorCache *)effctx->effectors.first; eff; eff = eff->next) {
-//		Module *effmod = build_effector_module();
-//	}
+//	std::vector<Type*> args(2, Type::getFloatTy(getGlobalContext()));
+//	FunctionType *functype = FunctionType::get(Type::getInt8Ty(getGlobalContext()), args, false);
+	std::vector<Type*> args;
+	FunctionType *functype = FunctionType::get(Type::getInt32Ty(context), args, false);
+	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", mod);
 	
-#if 0
-	Module* mod = new Module(entryname, llvmctx);
-	Function *func = codegen(effctx, mod);
-#else
-	MemoryBuffer *buffer = MemoryBuffer::getMemBuffer(ir_test_function);
-	SMDiagnostic err;
+	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
+	builder.SetInsertPoint(entry);
 	
-	printf("--- parsing ---\n");
-	printf("%s", ir_test_function);
-	printf("---------------\n");
+	Value *retval = ConstantInt::get(context, APInt(32, 6));
+	builder.CreateRet(retval);
 	
-	Module *mod = ParseIR(buffer, err, llvmctx);
-	if (!mod) {
-		err.print(entryname, errstream);
-		return;
-	}
+	verifyFunction(*func, &outs());
 	
-	Function *func = mod->getFunction(entryname);
-	if (!func) {
-		printf("Could not find function %s\n", entryname);
-//		mod->print(errstream, AssemblyAnnotationWriter);
-		Module::FunctionListType::const_iterator it;
-		for (it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
-			printf("  %s\n", it->getName().str().c_str());
-		}
-		return;
-	}
-#endif
+	bjit_add_module(mod);
 	
-	verifyModule(*mod);
-	
-	ExecutionEngine *engine;
-	if (effctx->engine) {
-		engine = (ExecutionEngine *)effctx->engine;
-	}
-	else {
-		engine = create_execution_engine(mod);
-		effctx->engine = (BJITExecutionEngine *)engine;
-	}
-	
-	PassManager *pm = create_pass_manager(engine);
-	pm->run(*mod);
-	delete pm;
-	
-	engine->finalizeObject();
-	effctx->eval = (EffectorEvalFp)engine->getPointerToFunction(func);
+	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
 }
 
 void BJIT_free_effector_function(EffectorContext *effctx)
 {
 	effctx->eval = NULL;
-	if (effctx->engine) {
-		ExecutionEngine *engine = (ExecutionEngine *)effctx->engine;
-		delete engine;
-		effctx->engine = NULL;
-	}
 }
