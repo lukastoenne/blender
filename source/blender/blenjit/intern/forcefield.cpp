@@ -81,6 +81,7 @@ typedef types::ieee_float mat3_t[3][3];
 typedef types::ieee_float mat4_t[4][4];
 
 namespace llvm {
+
 template<bool cross>
 class TypeBuilder<EffectorEvalInput, cross> {
 public:
@@ -99,6 +100,22 @@ public:
 	enum Fields {
 		FIELD_LOC,
 		FIELD_VEL,
+	};
+};
+
+template<bool cross>
+class TypeBuilder<EffectorEvalResult, cross> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            TypeBuilder<vec3_t, cross>::get(context),
+		            TypeBuilder<vec3_t, cross>::get(context),
+		            NULL);
+	}
+	
+	enum Fields {
+		FIELD_FORCE,
+		FIELD_IMPULSE,
 	};
 };
 
@@ -158,18 +175,21 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	LLVMContext &context = getGlobalContext();
 	IRBuilder<> builder(getGlobalContext());
 	
-	FunctionType *functype = TypeBuilder<types::i<32>(EffectorEvalInput*), true>::get(context);
+	FunctionType *functype = TypeBuilder<void(EffectorEvalInput* const, EffectorEvalResult*), true>::get(context);
 	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", theModule);
-	Value *arg_input = func->arg_begin();
+	Function::ArgumentListType::iterator it = func->arg_begin();
+	Value *arg_input = it++;
+	Value *arg_result = it++;
 	
 	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
 	builder.SetInsertPoint(entry);
 	
-#if 0
-	Function *effector_force = Function::Create(functype, Function::ExternalLinkage, "effector_force", theModule);
-	Value *args[] = { arg_input };
-	CallInst::Create(effector_force, ArrayRef<Value*>(args, 1), "effector_force", entry);
-#endif
+	/* initialize result */
+	Value *res_force = builder.CreateStructGEP(arg_result, 0);
+	Value *res_impulse = builder.CreateStructGEP(arg_result, 1);
+	Value *vec3_zero = ConstantDataArray::get(context, std::vector<float>({0.0f, 0.0f, 0.0f}));
+	builder.CreateStore(vec3_zero, res_force);
+	builder.CreateStore(vec3_zero, res_impulse);
 	
 	for (EffectorCache *eff = (EffectorCache *)effctx->effectors.first; eff; eff = eff->next) {
 		if (!eff->ob || !eff->pd)
@@ -184,16 +204,23 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		std::string funcname = prefix + "_eval";
 		
 		Function *evalfunc = theModule->getFunction(funcname);
+		printf("function %s has %d arguments\n", funcname.c_str(), (int)evalfunc->arg_size());
 //		Function *evalfunc = Function::Create(functype, Function::ExternalLinkage, funcname, theModule);
 		
-		Value *args[] = { arg_input };
-		CallInst::Create(evalfunc, ArrayRef<Value*>(args, 1), funcname, entry);
+		std::vector<Value *> args;
+		args.push_back(arg_input);
+		args.push_back(arg_result);
+//		CallInst::Create(evalfunc, ArrayRef<Value*>(args, 2), "", entry);
+		builder.CreateCall(evalfunc, args);
+		builder.CreateP
 	}
 	
-	Value *retval = ConstantInt::get(context, APInt(32, 6));
-	builder.CreateRet(retval);
+	builder.CreateRetVoid();
 	
 	verifyFunction(*func, &outs());
+	printf("************************************\n");
+	func->dump();
+	printf("************************************\n");
 	
 	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
 	effctx->eval_data = func;

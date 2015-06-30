@@ -1039,12 +1039,9 @@ void pdEndJITEffectors(EffectorContext *effctx)
 void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders), EffectorWeights *weights,
                       EffectedPoint *point, float *force, float *impulse)
 {
-	zero_v3(force);
-	zero_v3(impulse);
-	
 	if (effctx->eval) {
 		EffectorEvalInput input;
-		int res;
+		EffectorEvalResult result;
 		
 		// XXX will be used as function args
 		(void)point;
@@ -1052,8 +1049,13 @@ void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders
 		
 		copy_v3_v3(input.loc, point->loc);
 		copy_v3_v3(input.vel, point->vel);
+		printf("IN: (%.3f, %.3f, %.3f)\n", point->loc[0], point->loc[1], point->loc[2]);
 		
-		res = effctx->eval(&input);
+		effctx->eval(&input, &result);
+		printf("OUT: (%.3f, %.3f, %.3f)\n", force[0], force[1], force[2]);
+		
+		copy_v3_v3(force, result.force);
+		copy_v3_v3(impulse, result.impulse);
 	}
 }
 
