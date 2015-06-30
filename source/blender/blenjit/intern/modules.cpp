@@ -204,6 +204,11 @@ void bjit_link_module(Module *mod)
 		Linker::LinkModules(mod, lmod, Linker::LinkerMode::PreserveSource, &error);
 	}
 	
+//	printf("Linked Module Functions for '%s'\n", mod->getModuleIdentifier().c_str());
+//	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
+//		printf("    %s\n", it->getName().str().c_str());
+//	}
+	
 	verifyModule(*mod, &outs());
 	
 	PassManager *pm = create_pass_manager();

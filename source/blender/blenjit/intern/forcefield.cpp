@@ -183,7 +183,9 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		
 		std::string funcname = prefix + "_eval";
 		
-		Function *evalfunc = Function::Create(functype, Function::ExternalLinkage, funcname, theModule);
+		Function *evalfunc = theModule->getFunction(funcname);
+//		Function *evalfunc = Function::Create(functype, Function::ExternalLinkage, funcname, theModule);
+		
 		Value *args[] = { arg_input };
 		CallInst::Create(evalfunc, ArrayRef<Value*>(args, 1), funcname, entry);
 	}
