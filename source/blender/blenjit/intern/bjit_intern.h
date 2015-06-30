@@ -43,7 +43,7 @@ typedef std::map<std::string, llvm::Module*> ModuleMap;
 
 /* modules.cpp */
 //void *bjit_compile_module(llvm::Module *mod, const char *funcname);
-void bjit_add_module(llvm::Module *mod);
+void bjit_link_module(llvm::Module *mod);
 void bjit_remove_module(llvm::Module *mod);
 
 void *bjit_compile_function(llvm::Function *func);
