@@ -38,6 +38,9 @@ extern "C" {
 
 struct EffectorContext;
 
+void BJIT_build_effector_module(void);
+void BJIT_free_effector_module(void);
+
 void BJIT_build_effector_function(struct EffectorContext *effctx);
 void BJIT_free_effector_function(struct EffectorContext *effctx);
 

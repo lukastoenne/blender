@@ -62,6 +62,7 @@ extern "C" {
 #include "BKE_appdir.h"
 }
 
+#include "BJIT_forcefield.h"
 #include "BJIT_modules.h"
 #include "bjit_intern.h"
 
@@ -99,10 +100,12 @@ void BJIT_init(void)
 	
 	/* load modules */
 	BJIT_load_all_modules(NULL, false);
+	BJIT_build_effector_module();
 }
 
 void BJIT_free(void)
 {
+	BJIT_free_effector_module();
 	BJIT_unload_all_modules();
 	
 	if (theEngine) {
@@ -193,7 +196,7 @@ void BJIT_unload_all_modules()
 	theModules.clear();
 }
 
-void bjit_add_module(Module *mod)
+void bjit_link_module(Module *mod)
 {
 	for (ModuleMap::const_iterator it = theModules.begin(); it != theModules.end(); ++it) {
 		Module *lmod = it->second;
@@ -238,6 +241,7 @@ void *bjit_compile_function(Function *func)
 void bjit_free_function(Function *func)
 {
 	theEngine->freeMachineCodeForFunction(func);
+	func->eraseFromParent();
 }
 
 ModuleMap &bjit_get_modules()

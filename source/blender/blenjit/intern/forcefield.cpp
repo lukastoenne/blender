@@ -69,6 +69,7 @@ extern "C" {
 
 using namespace llvm;
 
+static Module *theModule = NULL;
 
 /* ------------------------------------------------------------------------- */
 /* specialization of TypeBuilder for external struct types */
@@ -105,35 +106,103 @@ public:
 
 /* ------------------------------------------------------------------------- */
 
+void BJIT_build_effector_module(void)
+{
+	LLVMContext &context = getGlobalContext();
+	
+	theModule = new Module("effectors", context);
+	
+	bjit_link_module(theModule);
+}
+
+void BJIT_free_effector_module(void)
+{
+	bjit_remove_module(theModule);
+	
+	delete theModule;
+	theModule = NULL;
+}
+
+static std::string get_effector_prefix(short forcefield)
+{
+	switch (forcefield) {
+		case PFIELD_FORCE:
+			return "effector_force";
+			
+		case PFIELD_NULL:
+		case PFIELD_VORTEX:
+		case PFIELD_MAGNET:
+		case PFIELD_WIND:
+		case PFIELD_GUIDE:
+		case PFIELD_TEXTURE:
+		case PFIELD_HARMONIC:
+		case PFIELD_CHARGE:
+		case PFIELD_LENNARDJ:
+		case PFIELD_BOID:
+		case PFIELD_TURBULENCE:
+		case PFIELD_DRAG:
+		case PFIELD_SMOKEFLOW:
+			return "";
+		
+		default: {
+			/* unknown type, should not happen */
+			BLI_assert(false);
+			return "";
+		}
+	}
+	return "";
+}
+
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
 	LLVMContext &context = getGlobalContext();
 	IRBuilder<> builder(getGlobalContext());
 	
-	Module *mod = new Module("effectors", context);
-	
 	FunctionType *functype = TypeBuilder<types::i<32>(EffectorEvalInput*), true>::get(context);
-	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", mod);
+	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", theModule);
+	Value *arg_input = func->arg_begin();
 	
 	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
 	builder.SetInsertPoint(entry);
 	
-	Function *effector_force = Function::Create(functype, Function::ExternalLinkage, "effector_force", mod);
-	Value *par_input = func->arg_begin();
-	Value *args[] = { par_input };
+#if 0
+	Function *effector_force = Function::Create(functype, Function::ExternalLinkage, "effector_force", theModule);
+	Value *args[] = { arg_input };
 	CallInst::Create(effector_force, ArrayRef<Value*>(args, 1), "effector_force", entry);
+#endif
+	
+	for (EffectorCache *eff = (EffectorCache *)effctx->effectors.first; eff; eff = eff->next) {
+		if (!eff->ob || !eff->pd)
+			continue;
+		
+		std::string prefix = get_effector_prefix(eff->pd->forcefield);
+		if (prefix.empty()) {
+			/* undefined force type */
+			continue;
+		}
+		
+		std::string funcname = prefix + "_eval";
+		
+		Function *evalfunc = Function::Create(functype, Function::ExternalLinkage, funcname, theModule);
+		Value *args[] = { arg_input };
+		CallInst::Create(evalfunc, ArrayRef<Value*>(args, 1), funcname, entry);
+	}
 	
 	Value *retval = ConstantInt::get(context, APInt(32, 6));
 	builder.CreateRet(retval);
 	
 	verifyFunction(*func, &outs());
 	
-	bjit_add_module(mod);
-	
 	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
+	effctx->eval_data = func;
 }
 
 void BJIT_free_effector_function(EffectorContext *effctx)
 {
+	Function *func = (Function *)effctx->eval_data;
+	
+	bjit_free_function(func);
+	
 	effctx->eval = NULL;
+	effctx->eval_data = NULL;
 }

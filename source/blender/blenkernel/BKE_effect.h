@@ -122,6 +122,7 @@ typedef struct EffectorContext {
 	ListBase effectors;
 	
 	EffectorEvalFp eval;
+	void *eval_data;
 } EffectorContext;
 
 void            free_partdeflect(struct PartDeflect *pd);
